@@ -1,0 +1,29 @@
+{
+	"name": "metaworx/file_checksum_search",
+	"description": "File Checksum Index & Search — indexes file checksums for fast reverse hash lookups",
+	"type": "nextcloud-app",
+	"license": "AGPL-3.0-or-later",
+	"require": {
+		"php": ">=8.2"
+	},
+	"autoload": {
+		"psr-4": {
+			"OCA\\FileChecksumSearch\\": "lib/",
+			"OCA\\FileChecksumSearch\\Tests\\": "tests/"
+		}
+	},
+	"config": {
+		"platform": {
+			"php": "8.2"
+		},
+		"sort-packages": true
+	},
+	"scripts": {
+		"lint": "find . -name \\*.php -not -path './vendor/*' -exec php -l {} \\; | grep -v 'No syntax errors'",
+		"cs:check": "php-cs-fixer fix --dry-run --diff",
+		"cs:fix": "php-cs-fixer fix",
+		"test": "phpunit -c tests/phpunit.xml",
+		"test:unit": "phpunit -c tests/phpunit.xml --testsuite unit",
+		"test:integration": "phpunit -c tests/phpunit.xml --testsuite integration"
+	}
+}
