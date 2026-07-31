@@ -1,0 +1,50 @@
+/* FCIAS Sidebar Tab Styles */
+
+.fcias-algo-badge {
+	display: inline-block;
+	padding: 2px 6px;
+	border-radius: 4px;
+	background-color: var(--color-primary-element-light);
+	color: var(--color-primary-element-text);
+	font-size: 0.85em;
+	font-weight: 600;
+	font-family: var(--font-face-monospace);
+}
+
+.fcias-hash-value {
+	font-family: var(--font-face-monospace);
+	font-size: 0.85em;
+	word-break: break-all;
+}
+
+.fcias-selectable-hash {
+	user-select: all;
+	cursor: pointer;
+}
+
+.fcias-hash-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.fcias-hash-table td {
+	padding: 4px 6px;
+	vertical-align: top;
+}
+
+.fcias-hash-table td:first-child {
+	width: 1%;
+	white-space: nowrap;
+}
+
+.fcias-empty,
+.fcias-loading,
+.fcias-error {
+	color: var(--color-text-maxcontrast);
+	font-style: italic;
+	padding: 12px;
+}
+
+.fcias-error {
+	color: var(--color-error);
+}
