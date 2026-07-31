@@ -1,0 +1,57 @@
+/* FCIAS Admin Settings Styles */
+
+.fcias-section {
+	margin-bottom: 24px;
+}
+
+.fcias-section h4 {
+	margin-bottom: 8px;
+	border-bottom: 1px solid var(--color-border);
+	padding-bottom: 4px;
+}
+
+.fcias-section-muted {
+	opacity: 0.5;
+}
+
+.fcias-btn {
+	margin-right: 8px;
+}
+
+.fcias-btn-danger {
+	background-color: var(--color-error);
+	color: var(--color-primary-text);
+	border-color: var(--color-error);
+}
+
+.fcias-btn-danger:hover {
+	background-color: var(--color-error-hover, #cc0000);
+}
+
+.fcias-hint {
+	color: var(--color-text-maxcontrast);
+	font-size: 0.9em;
+}
+
+.fcias-compat-pass {
+	color: var(--color-success);
+	font-weight: 600;
+}
+
+.fcias-compat-fail {
+	color: var(--color-error);
+	font-weight: 600;
+}
+
+.fcias-muted {
+	color: var(--color-text-maxcontrast);
+	font-style: italic;
+}
+
+.fcias-error {
+	color: var(--color-error);
+}
+
+#fcias-msg {
+	margin-top: 12px;
+}

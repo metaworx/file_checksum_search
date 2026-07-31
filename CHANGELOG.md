@@ -19,3 +19,4 @@ the first stable release.
 - Add a Unified Search provider that matches raw hex hashes or algo:hash queries against indexed files the user has access to.
 - Add the core CLI commands for rebuilding the hash index, searching by hash, generating checksums, and benchmarking indexed lookup performance.
 - Add administrative CLI commands for reporting index status, purging, tearing down triggers, and removing the shadow table.
+- Add an admin settings page with a compatibility test and maintenance actions for purging, rebuilding, tearing down, and removing the index.
