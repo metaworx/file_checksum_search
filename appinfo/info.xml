@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+	<id>file_checksum_search</id>
+	<name>File Checksum Index &amp; Search</name>
+	<summary>Index file checksums for fast reverse hash lookups</summary>
+	<description>
+		Deploys a MariaDB shadow table with automatic trigger-based synchronization
+		from oc_filecache, enabling O(1) reverse hash lookups. Provides a REST API,
+		Unified Search provider, CLI commands, and an admin settings page for
+		maintenance operations.
+	</description>
+	<version>1.0.0</version>
+	<licence>agpl</licence>
+	<author>metaworx</author>
+	<namespace>FileChecksumSearch</namespace>
+	<category>tools</category>
+	<website>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search</website>
+	<bugs>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/work_items</bugs>
+	<repository type="git">git@gitlab.com:metaworx/open-source/nextcloud/file_checksum_search.git</repository>
+	<dependencies>
+		<nextcloud min-version="33"
+		           max-version="34"/>
+	</dependencies>
+	<settings>
+		<admin>OCA\FileChecksumSearch\Settings\Admin</admin>
+	</settings>
+	<search>
+		<provider>OCA\FileChecksumSearch\Search\HashSearchProvider</provider>
+	</search>
+	<commands>
+		<command>OCA\FileChecksumSearch\Command\RebuildIndex</command>
+		<command>OCA\FileChecksumSearch\Command\SearchHash</command>
+		<command>OCA\FileChecksumSearch\Command\GenerateHashes</command>
+		<command>OCA\FileChecksumSearch\Command\TestPerformance</command>
+		<command>OCA\FileChecksumSearch\Command\ShowStatus</command>
+		<command>OCA\FileChecksumSearch\Command\PurgeIndex</command>
+		<command>OCA\FileChecksumSearch\Command\Teardown</command>
+		<command>OCA\FileChecksumSearch\Command\RemoveTable</command>
+	</commands>
+</info>
