@@ -18,3 +18,4 @@ the first stable release.
 - Add a REST API controller for looking up files by hash and retrieving all hashes for a given file ID.
 - Add a Unified Search provider that matches raw hex hashes or algo:hash queries against indexed files the user has access to.
 - Add the core CLI commands for rebuilding the hash index, searching by hash, generating checksums, and benchmarking indexed lookup performance.
+- Add administrative CLI commands for reporting index status, purging, tearing down triggers, and removing the shadow table.
