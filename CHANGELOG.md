@@ -10,3 +10,7 @@ any addition or change (including breaking changes) increments the minor digit, 
 the first stable release.
 
 ## [Unreleased]
+
+### Added
+
+- Add the MariaDB migration deploying the shadow table, stored procedure, and insert/update/delete triggers that keep file checksum data in sync with the filecache.
