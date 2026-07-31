@@ -1,0 +1,266 @@
+{
+    "providerProfiles": {
+        "currentApiConfigName": "default",
+        "apiConfigs": {
+            "default": {
+                "apiModelId": "deepseek-v4-pro",
+                "deepSeekApiKey": "sk-**********",
+                "apiProvider": "deepseek",
+                "id": "mdz88x4z50b"
+            }
+        },
+        "modeApiConfigs": {
+            "architect": "mdz88x4z50b",
+            "code": "mdz88x4z50b",
+            "ask": "mdz88x4z50b",
+            "debug": "mdz88x4z50b",
+            "orchestrator": "mdz88x4z50b"
+        },
+        "migrations": {
+            "rateLimitSecondsMigrated": true,
+            "openAiHeadersMigrated": true,
+            "consecutiveMistakeLimitMigrated": true,
+            "todoListEnabledMigrated": true,
+            "claudeCodeLegacySettingsMigrated": true
+        }
+    },
+    "globalSettings": {
+        "lastShownAnnouncementId": "may-2026-community-fork-release",
+        "openRouterImageApiKey": "",
+        "openRouterImageGenerationSelectedModel": "",
+        "autoApprovalEnabled": true,
+        "alwaysAllowReadOnly": true,
+        "alwaysAllowReadOnlyOutsideWorkspace": false,
+        "alwaysAllowWrite": true,
+        "alwaysAllowWriteOutsideWorkspace": false,
+        "alwaysAllowWriteProtected": false,
+        "writeDelayMs": 1000,
+        "alwaysAllowMcp": true,
+        "alwaysAllowModeSwitch": false,
+        "alwaysAllowSubtasks": false,
+        "alwaysAllowExecute": true,
+        "alwaysAllowFollowupQuestions": false,
+        "followupAutoApproveTimeoutMs": 60000,
+        "allowedCommands": [
+            "cd C:Usersmdrprojectswsl_debug_shell",
+            "git ",
+            ".\\.venv\\Scripts\\python.exe -m unittest ",
+            "findstr ",
+            ".venvScriptspytest.exe",
+            ".venvScriptspython.exe -m pytest ",
+            ".\\.aiassistant\\tools\\phpunit ",
+            ".aiassistanttoolsphpunit",
+            "dir",
+            "composer",
+            "..aiassistanttoolsphpunit.bat",
+            "..aiassistanttoolsphpunit",
+            "mkdir",
+            "powershell -File .aiassistant/tools/do-commit.ps1"
+        ],
+        "deniedCommands": [],
+        "allowedMaxRequests": null,
+        "allowedMaxCost": null,
+        "autoCondenseContext": true,
+        "autoCondenseContextPercent": 100,
+        "includeCurrentTime": true,
+        "includeCurrentCost": true,
+        "maxGitStatusFiles": 0,
+        "includeDiagnosticMessages": true,
+        "maxDiagnosticMessages": 50,
+        "enableCheckpoints": false,
+        "checkpointTimeout": 15,
+        "ttsEnabled": false,
+        "ttsSpeed": 1,
+        "soundEnabled": false,
+        "soundVolume": 0.5,
+        "maxOpenTabsContext": 20,
+        "maxWorkspaceFiles": 200,
+        "showRooIgnoredFiles": false,
+        "enableSubfolderRules": false,
+        "maxImageFileSize": 5,
+        "maxTotalImageSize": 20,
+        "terminalOutputPreviewSize": "medium",
+        "terminalShellIntegrationTimeout": 5000,
+        "terminalShellIntegrationDisabled": true,
+        "terminalCommandDelay": 0,
+        "terminalPowershellCounter": false,
+        "terminalZshClearEolMark": true,
+        "terminalZshOhMy": false,
+        "terminalZshP10k": false,
+        "terminalZdotdir": false,
+        "experiments": {
+            "preventFocusDisruption": true,
+            "imageGeneration": false,
+            "runSlashCommand": false,
+            "customTools": false
+        },
+        "codebaseIndexModels": {
+            "openai": {
+                "text-embedding-3-small": {
+                    "dimension": 1536
+                },
+                "text-embedding-3-large": {
+                    "dimension": 3072
+                },
+                "text-embedding-ada-002": {
+                    "dimension": 1536
+                }
+            },
+            "ollama": {
+                "nomic-embed-text": {
+                    "dimension": 768
+                },
+                "nomic-embed-code": {
+                    "dimension": 3584
+                },
+                "mxbai-embed-large": {
+                    "dimension": 1024
+                },
+                "all-minilm": {
+                    "dimension": 384
+                }
+            },
+            "openai-compatible": {
+                "text-embedding-3-small": {
+                    "dimension": 1536
+                },
+                "text-embedding-3-large": {
+                    "dimension": 3072
+                },
+                "text-embedding-ada-002": {
+                    "dimension": 1536
+                },
+                "nomic-embed-code": {
+                    "dimension": 3584
+                }
+            },
+            "gemini": {
+                "gemini-embedding-001": {
+                    "dimension": 3072
+                },
+                "text-embedding-004": {
+                    "dimension": 3072
+                }
+            },
+            "mistral": {
+                "codestral-embed-2505": {
+                    "dimension": 1536
+                }
+            },
+            "vercel-ai-gateway": {
+                "openai/text-embedding-3-small": {
+                    "dimension": 1536
+                },
+                "openai/text-embedding-3-large": {
+                    "dimension": 3072
+                },
+                "openai/text-embedding-ada-002": {
+                    "dimension": 1536
+                },
+                "cohere/embed-v4.0": {
+                    "dimension": 1024
+                },
+                "google/gemini-embedding-001": {
+                    "dimension": 3072
+                },
+                "google/text-embedding-005": {
+                    "dimension": 768
+                },
+                "google/text-multilingual-embedding-002": {
+                    "dimension": 768
+                },
+                "amazon/titan-embed-text-v2": {
+                    "dimension": 1024
+                },
+                "mistral/codestral-embed": {
+                    "dimension": 1536
+                },
+                "mistral/mistral-embed": {
+                    "dimension": 1024
+                }
+            },
+            "openrouter": {
+                "openai/text-embedding-3-small": {
+                    "dimension": 1536
+                },
+                "openai/text-embedding-3-large": {
+                    "dimension": 3072
+                },
+                "openai/text-embedding-ada-002": {
+                    "dimension": 1536
+                },
+                "google/gemini-embedding-001": {
+                    "dimension": 3072
+                },
+                "mistralai/mistral-embed-2312": {
+                    "dimension": 1024
+                },
+                "mistralai/codestral-embed-2505": {
+                    "dimension": 1536
+                },
+                "qwen/qwen3-embedding-0.6b": {
+                    "dimension": 1024
+                },
+                "qwen/qwen3-embedding-4b": {
+                    "dimension": 2560
+                },
+                "qwen/qwen3-embedding-8b": {
+                    "dimension": 4096
+                }
+            },
+            "bedrock": {
+                "amazon.titan-embed-text-v1": {
+                    "dimension": 1536
+                },
+                "amazon.titan-embed-text-v2:0": {
+                    "dimension": 1024
+                },
+                "amazon.titan-embed-image-v1": {
+                    "dimension": 1024
+                },
+                "amazon.nova-2-multimodal-embeddings-v1:0": {
+                    "dimension": 1024
+                },
+                "cohere.embed-v4:0": {
+                    "dimension": 1536
+                },
+                "cohere.embed-english-v3": {
+                    "dimension": 1024
+                },
+                "cohere.embed-multilingual-v3": {
+                    "dimension": 1024
+                }
+            }
+        },
+        "codebaseIndexConfig": {
+            "codebaseIndexEnabled": false,
+            "codebaseIndexQdrantUrl": "http://localhost:6333",
+            "codebaseIndexEmbedderProvider": "openai-compatible",
+            "codebaseIndexEmbedderBaseUrl": "",
+            "codebaseIndexEmbedderModelId": "deepseek-v4-flash",
+            "codebaseIndexEmbedderModelDimension": 1536,
+            "codebaseIndexSearchMinScore": 0.4,
+            "codebaseIndexSearchMaxResults": 50,
+            "codebaseIndexOpenAiCompatibleBaseUrl": "https://api.deepseek.com/v1",
+            "codebaseIndexBedrockRegion": "",
+            "codebaseIndexBedrockProfile": "",
+            "codebaseIndexOpenRouterSpecificProvider": ""
+        },
+        "language": "en",
+        "mcpEnabled": true,
+        "mode": "code",
+        "customModes": [],
+        "customModePrompts": {
+            "architect": {
+                "customInstructions": "1. Do some information gathering (using provided tools) to get more context about the task.\n\n2. You should also ask the user clarifying questions to get a better understanding of the task.\n\n3. Once you've gained more context about the user's request, break down the task into clear, actionable steps and create a todo list using the `update_todo_list` tool. Each todo item should be:\n   - Specific and actionable\n   - Listed in logical execution order\n   - Focused on a single, well-defined outcome\n   - Clear enough that another mode could execute it independently\n\n   **Note:** If the `update_todo_list` tool is not available, write the plan to a markdown file (e.g., `plan.md` or `todo.md`) instead.\n\n4. As you gather more information or discover new requirements, update the todo list to reflect the current understanding of what needs to be accomplished.\n\n5. Ask the user if they are pleased with this plan, or if they would like to make any changes. Think of this as a brainstorming session where you can discuss the task and refine the todo list.\n\n6. Include Mermaid diagrams if they help clarify complex workflows or system architecture. Please avoid using double quotes (\"\") and parentheses () inside square brackets ([]) in Mermaid diagrams, as this can cause parsing errors.\n\n7. Use the switch_mode tool to request that the user switch to another mode to implement the solution.\n\n**IMPORTANT: Focus on creating clear, actionable todo lists rather than lengthy markdown documents. Use the todo list as your primary planning tool to track and organize the work that needs to be done.**\n\n**CRITICAL: Never provide level of effort time estimates (e.g., hours, days, weeks) for tasks. Focus solely on breaking down the work into clear, actionable steps without estimating how long they will take.**\n\nUnless told otherwise, if you want to save a plan file, put it in the /.aiassistant/plans directory"
+            }
+        },
+        "customSupportPrompts": {},
+        "includeTaskHistoryInEnhance": true,
+        "reasoningBlockCollapsed": true,
+        "enterBehavior": "send",
+        "profileThresholds": {},
+        "hasOpenedModeSelector": true,
+        "lastSettingsExportPath": "C:\\Users\\mdr\\.roo\\roo-code-settings.json"
+    }
+}

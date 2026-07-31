@@ -1,0 +1,15 @@
+#!/usr/bin/env php
+<?php
+/**
+ * Wrapper script for PHPUnit that adds custom CLI flags:
+ *   --use-stats          : sets environment variable PHPUNIT_USE_STATS=1
+ *   --env KEY=VALUE      : sets environment variable KEY to VALUE
+ *
+ * All other arguments are passed through to PHPUnit unchanged.
+ */
+
+use mwx\Tests\ConditionalDiffFilter;
+
+require_once __DIR__ . '/../../vendor/autoload.php';
+
+ConditionalDiffFilter::execPhpUnit();
