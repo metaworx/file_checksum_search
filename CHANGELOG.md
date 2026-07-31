@@ -17,3 +17,4 @@ the first stable release.
 - Add the Application bootstrap that registers the Unified Search provider and the sidebar frontend scripts at runtime.
 - Add a REST API controller for looking up files by hash and retrieving all hashes for a given file ID.
 - Add a Unified Search provider that matches raw hex hashes or algo:hash queries against indexed files the user has access to.
+- Add the core CLI commands for rebuilding the hash index, searching by hash, generating checksums, and benchmarking indexed lookup performance.
