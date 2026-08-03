@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.1.0] — 2026-08-03
+
 ### Added
 
 - Add the MariaDB migration deploying the shadow table, stored procedure, and insert/update/delete triggers that keep file checksum data in sync with the filecache.
