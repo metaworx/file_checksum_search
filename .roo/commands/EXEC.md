@@ -15,7 +15,7 @@ Activates code-mode execution of the gated Action Plan. Provides a pre-flight ch
 | Follow the Implementation Plan blocks in order | The AP UAMF |
 | Each block completes with its Verification checkpoint before the next begins | This command |
 | UAMF files are NEVER overwritten — each AP revision creates a new file | [`AGENTS.md`](AGENTS.md) §4 |
-| Test runner is `.aiassistant\\tools\\phpunit`, never `vendor\\bin\\phpunit` | [`.aiassistant/TESTING.md`](.aiassistant/TESTING.md) §1 |
+| Test runner is `wsl --cd ~/projects/nc_file_checksum_search vendor/bin/phpunit` or JetBrains MCP | [`.aiassistant/TESTING.md`](.aiassistant/TESTING.md) §1 |
 | Commit workflow follows [`.aiassistant/COMMIT.md`](.aiassistant/COMMIT.md) | This command |
 
 ## 2. Pre-Flight Checklist
@@ -32,33 +32,36 @@ Before writing a single line of code, verify:
 
 ### 3.1 Test Runner
 
-Always use the project wrapper, never raw PHPUnit:
+Always prefix with `wsl --cd ~/projects/nc_file_checksum_search`:
 
 ```
-.\\.aiassistant\\tools\\phpunit tests\\Path\\To\\Test.php
+wsl --cd ~/projects/nc_file_checksum_search vendor/bin/phpunit tests/Path/To/Test.php
 ```
-
-The wrapper is documented at [`.aiassistant/TESTING.md`](.aiassistant/TESTING.md) §1. Raw `vendor\\bin\\phpunit` works but lacks pre-authorization and wrapper options (`--use-diff-stats`, `--env`).
 
 Scoped runs:
 
 ```
-.\\.aiassistant\\tools\\phpunit tests\\Integration\\Database\\Functions\\FilePathFunctionsTest.php
-.\\.aiassistant\\tools\\phpunit tests\\Unit\\augias\\
+wsl --cd ~/projects/nc_file_checksum_search vendor/bin/phpunit tests/Unit/Controller/LookupControllerTest.php
+wsl --cd ~/projects/nc_file_checksum_search vendor/bin/phpunit tests/Unit/
 ```
+
+Integration tests (as Nextcloud web server user):
+
+```
+wsl --cd ~/projects/nc_file_checksum_search sudo --user www-data vendor/bin/phpunit tests/Integration/
+```
+
+Fallback: JetBrains MCP `execute_run_configuration` with `filePath` + `line`.
+
+> **Important:** When using the native agent `execute_command` tool, always pass `cwd: "C:\\"` — the default workspace path `\\wsl.localhost\...` is a UNC path unsupported by CMD.EXE.
+
+> Note: The `.aiassistant/tools/phpunit` wrapper is Kunstarchiv-specific and does NOT work in FCIAS.
 
 ### 3.2 Database Commands
 
-The project CLI is `bin\\augias` (or `bin\\augias.bat`). Common operations:
+FCIAS has no project-specific CLI. Database operations are via Nextcloud migrations (`occ migrations:execute`) or raw SQL through `IDBConnection`.
 
-```
-bin\\augias db:execute     # Run sql files or snippets
-bin\\augias db:upgrade     # Run pending migrations
-bin\\augias db:snapshot    # Generate DDL snapshot
-bin\\augias help           # Full command list
-```
-
-**Before running `db:upgrade`:** verify whether database objects are truly missing or whether the guard logic (e.g., `verifyFunctionsExist()`) has a bug. A "skipped" test with "not deployed" doesn't always mean objects are absent — the OBJECT_ID type parameter may be wrong (e.g., inline TVFs use `'IF'`, not `'TF'`).
+For MariaDB trigger/stored procedure management, use the admin settings page or CLI commands (`file-checksum-search:status`, `file-checksum-search:teardown`).
 
 ### 3.3 File Editing
 
@@ -71,9 +74,14 @@ Use Git to move files where possible.
 
 ### 3.4 Git
 
-Use the commit scripts at `.aiassistant/tools/`:
+Commit workflow — always prefix with `wsl --cd ~/projects/nc_file_checksum_search`:
+
 1. Write the commit message to `.aiassistant/tools/commit-msg.txt`
-2. Run `powershell -File .aiassistant/tools/do-commit.ps1`
+2. Stage: `wsl --cd ~/projects/nc_file_checksum_search /home/mdr/bin/git add <files>`
+3. Commit: `wsl --cd ~/projects/nc_file_checksum_search /home/mdr/bin/git commit -F .aiassistant/tools/commit-msg.txt --trailer "Co-authored-by: Agent <agent@example.com>"`
+4. Amend: `wsl --cd ~/projects/nc_file_checksum_search /home/mdr/bin/git commit --amend -F .aiassistant/tools/commit-msg.txt --trailer "Co-authored-by: Agent <agent@example.com>"`
+
+> **Important:** When using the native agent `execute_command` tool, always pass `cwd: "C:\\"` to avoid CMD.EXE UNC path errors.
 
 - Never commit without a gate message and EXEC confirmation per [`AGENTS.md`](AGENTS.md) §1.3.
 - Never revert or checkout without a gate message and EXEC confirmation.
@@ -82,14 +90,13 @@ Use the commit scripts at `.aiassistant/tools/`:
 
 | Pitfall | Prevention |
 |---|---|
-| Using `.\\vendor\\bin\\phpunit` instead of wrapper | §3.1 — always use the wrapper |
-| Modifying UAMF in-place (overwriting same file for v1.0→v1.1) | Each revision gets a new timestamp; never overwrite |
-| `apply_diff` fails with "Missing value for required parameter 'path'" | Always include `path` and `diff` parameters |
-| DataProvider associative arrays unpacked as named parameters in PHPUnit 11 | Wrap each dataset row in an extra indexed array: `[ ['key' => val] ]` instead of `['key' => val]` |
-| SQL Server inline TVFs use `OBJECT_ID(name, 'IF')` not `'TF'` | `'TF'` = multi-statement TVF; `'IF'` = inline TVF (`RETURNS TABLE AS RETURN SELECT`) |
-| Functions with DEFAULT parameters still need explicit binding via PDO | Pass `null` explicitly: `SELECT FN_FileBasename(?, ?)` with `[$path, null]` |
-| `FN_Dirname` strips trailing backslash from drive roots | `D:\file.txt` → dirname is `D:`, not `D:\` |
-| Skipped test with "not deployed" may be a guard-logic bug, not missing objects | Check the `verifyFunctionsExist()` logic before running `db:upgrade` |
+| Modifying UAMF in-place (overwriting same file for v1.0→v1.1) | Each revision gets a new timestamp; never overwrite (AGENTS.md §4) |
+| `apply_diff` fails with "Missing value for required parameter 'path'" | Always include both `path` and `diff` parameters |
+| Hardcoded `oc_` table prefix in SQL | Always use `$db->getPrefix()` |
+| TRIGGER privilege missing on MariaDB user | Run compatibility test first (`file-checksum-search:status`) |
+| NC API version mismatch in production | Check `info.xml` `<dependencies>` min/max version before using NC APIs |
+| `generate` command uses wrong default algo | Default is `sha1` (NC default), not `sha256` |
+| `--path` option rejects valid patterns | Supports `**` glob syntax via Symfony Finder, not regex |
 
 ## 5. Workflow
 

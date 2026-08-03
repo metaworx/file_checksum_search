@@ -14,10 +14,21 @@ This document provides concise entry points to canonical tool workflows used by 
 Canonical commit policy, commit-gate behavior, commit message format, and commit toolchain
 workflow are defined in `/.aiassistant/COMMIT.md`, including Section `6` (`Commit Tools`).
 
+For FCIAS, the WSL-native commit workflow is:
+
+```
+wsl --cd ~/projects/nc_file_checksum_search /home/mdr/bin/git commit -F .aiassistant/tools/commit-msg.txt --trailer "Co-authored-by: Agent <agent@example.com>"
+```
+
+> **Important:** When using the native agent `execute_command` tool, always pass `cwd: "C:\\"` to avoid CMD.EXE UNC path errors.
+
 ## 2. PHPUnit Wrapper Docs
 
 Wrapper usage and supported wrapper-specific options (`--use-diff-stats`, `--env`, `--no-trace`)
 are documented in `/.aiassistant/tools/phpunit.md`.
+
+> **FCIAS note:** The phpunit wrapper depends on Kunstarchiv-specific classes (`mwx\Tests\ConditionalDiffFilter`)
+> and does NOT work in FCIAS. FCIAS uses `vendor/bin/phpunit` directly. See `.aiassistant/TESTING.md`.
 
 ## 3. Document Governance
 

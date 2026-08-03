@@ -11,7 +11,7 @@ This file is the project-specific entry point for agent-facing guidance in this 
 
 - `AGENTS.md` - runtime behavior contract, gating flow, and action-plan workflow.
 - `/.aiassistant/COMMIT.md` - canonical commit workflow, commit gating, `EXEC+` variants, and commit message policy.
-- `CONTRIBUTING.md` - Kunstarchiv project conventions, including implementation patterns and code style/documentation
+- `CONTRIBUTING.md` - FCIAS Nextcloud app conventions, including implementation patterns and code style/documentation
   expectations.
 - `/.aiassistant/tools/README.md` - helper scripts and usage notes for runtime helper utilities.
 - `/.aiassistant/tools/RUNTIME_TOOLS.md` - runtime tool catalog with properties and examples.
@@ -21,5 +21,5 @@ This file is the project-specific entry point for agent-facing guidance in this 
 ## Scope Guidance
 
 - Keep generic/mode/runtime behavior in `AGENTS.md`.
-- Keep Kunstarchiv-specific coding and implementation conventions in `CONTRIBUTING.md`.
+- Keep FCIAS-specific coding and implementation conventions in `CONTRIBUTING.md`.
 - Keep tool-specific operational documentation in `/.aiassistant/tools/`.
