@@ -120,12 +120,22 @@ If signal is ambiguous, send a clarification gate and stop.
 Reusable PowerShell scripts simplify creating compliant commits.
 
 ### 6.1 Workflow
-1. Write the complete commit message to `/.aiassistant/tools/commit-msg.txt` (do not delete; it's `.gitignore'd`).
-2. Run the appropriate script:
-    - **New commit**: `powershell -File .aiassistant/tools/do-commit.ps1`
-    - **Amend last commit**: `powershell -File .aiassistant/tools/do-amend.ps1`
 
-The scripts automatically append the `Co-authored-by` trailer if missing.
+1. Write the complete commit message to `.aiassistant/tools/commit-msg.txt` (do not delete; it's `.gitignore'd`).
+2. Run the appropriate command from WSL:
+
+    - **New commit**:
+      ```
+      wsl --cd ~/projects/nc_file_checksum_search /home/mdr/bin/git commit -F .aiassistant/tools/commit-msg.txt --trailer "Co-authored-by: Agent <agent@example.com>"
+      ```
+    - **Amend last commit**:
+      ```
+      wsl --cd ~/projects/nc_file_checksum_search /home/mdr/bin/git commit --amend -F .aiassistant/tools/commit-msg.txt --trailer "Co-authored-by: Agent <agent@example.com>"
+      ```
+
+> **Important:** When using the native agent `execute_command` tool, always pass `cwd: "C:\\"` to avoid CMD.EXE UNC path errors with `\\wsl.localhost\...` paths.
+
+The `--trailer` flag appends the `Co-authored-by` trailer automatically.
 
 ---
 
