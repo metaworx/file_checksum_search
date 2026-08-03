@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Command;
 
+use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\IDBConnection;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -21,12 +22,15 @@ class RebuildIndex
 
 	private IDBConnection $db;
 
+	private TableNameService $tables;
 
-	public function __construct( IDBConnection $db )
+
+	public function __construct( IDBConnection $db, TableNameService $tables )
 	{
 
 		parent::__construct();
-		$this->db = $db;
+		$this->db     = $db;
+		$this->tables = $tables;
 	}
 
 
@@ -44,9 +48,7 @@ class RebuildIndex
 		OutputInterface $output,
 	): int {
 
-		$prefix  = $this->db->getPrefix();
-		$fcTable = $prefix . 'filecache';
-		$spName  = $prefix . 'fcias_parse_file_hashes';
+		$spName = $this->tables->getSpName();
 
 		$countQb = $this->db->getQueryBuilder();
 		$countQb->select(

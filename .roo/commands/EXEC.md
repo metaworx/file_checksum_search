@@ -92,7 +92,7 @@ Commit workflow — always prefix with `wsl --cd ~/projects/nc_file_checksum_sea
 |---|---|
 | Modifying UAMF in-place (overwriting same file for v1.0→v1.1) | Each revision gets a new timestamp; never overwrite (AGENTS.md §4) |
 | `apply_diff` fails with "Missing value for required parameter 'path'" | Always include both `path` and `diff` parameters |
-| Hardcoded `oc_` table prefix in SQL | Always use `$db->getPrefix()` |
+| Hardcoded `oc_` table prefix in SQL | Always use `TableNameService` (injects `IConfig`, reads `dbtableprefix`) |
 | TRIGGER privilege missing on MariaDB user | Run compatibility test first (`file-checksum-search:status`) |
 | NC API version mismatch in production | Check `info.xml` `<dependencies>` min/max version before using NC APIs |
 | `generate` command uses wrong default algo | Default is `sha1` (NC default), not `sha256` |

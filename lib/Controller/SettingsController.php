@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Controller;
 
 use OCA\FileChecksumSearch\Migration\LifecycleHandler;
+use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
@@ -27,15 +28,19 @@ class SettingsController
 
 	private IDBConnection $db;
 
+	private TableNameService $tables;
+
 
 	public function __construct(
-		string        $appName,
-		IRequest      $request,
-		IDBConnection $db,
+		string           $appName,
+		IRequest         $request,
+		IDBConnection    $db,
+		TableNameService $tables,
 	) {
 
 		parent::__construct( $appName, $request );
-		$this->db = $db;
+		$this->db     = $db;
+		$this->tables = $tables;
 	}
 
 
@@ -43,8 +48,8 @@ class SettingsController
 	public function getStatus(): DataResponse
 	{
 
-		$prefix    = $this->db->getPrefix();
-		$hashTable = $prefix . 'file_checksum_search_hashes';
+		$prefix    = $this->tables->getPrefix();
+		$hashTable = $this->tables->getHashTableName();
 
 		$version   = Server::get( IAppManager::class )
 		                   ->getAppVersion( 'file_checksum_search' )
@@ -107,7 +112,7 @@ class SettingsController
 	public function runCompatibilityTest(): DataResponse
 	{
 
-		$prefix = $this->db->getPrefix();
+		$prefix = $this->tables->getPrefix();
 		$issues = [];
 		$checks = [];
 
@@ -180,8 +185,8 @@ class SettingsController
 	public function purgeIndex(): DataResponse
 	{
 
-		$prefix    = $this->db->getPrefix();
-		$hashTable = $prefix . 'file_checksum_search_hashes';
+		$prefix    = $this->tables->getPrefix();
+		$hashTable = $this->tables->getHashTableName();
 
 		try
 		{
@@ -213,8 +218,7 @@ class SettingsController
 	public function rebuildIndex(): DataResponse
 	{
 
-		$prefix = $this->db->getPrefix();
-		$spName = $prefix . 'fcias_parse_file_hashes';
+		$spName = $this->tables->getSpName();
 
 		try
 		{

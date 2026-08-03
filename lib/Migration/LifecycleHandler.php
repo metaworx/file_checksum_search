@@ -10,7 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Migration;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
-use OCP\IConfig;
+use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\IDBConnection;
 use Psr\Log\LoggerInterface;
 
@@ -34,15 +34,15 @@ class LifecycleHandler
 
 
 	public function __construct(
-		private IDBConnection   $db,
-		private IConfig         $config,
-		private LoggerInterface $logger,
+		private IDBConnection    $db,
+		private TableNameService $tables,
+		private LoggerInterface  $logger,
 	) {
 
-		$this->prefix    = $this->config->getSystemValue( 'dbprefix', 'oc_' );
-		$this->fcTable   = $this->prefix . 'filecache';
-		$this->hashTable = $this->prefix . 'file_checksum_search_hashes';
-		$this->spName    = $this->prefix . 'fcias_parse_file_hashes';
+		$this->prefix    = $this->tables->getPrefix();
+		$this->fcTable   = $this->tables->getFilecacheTableName();
+		$this->hashTable = $this->tables->getHashTableName();
+		$this->spName    = $this->tables->getSpName();
 	}
 
 

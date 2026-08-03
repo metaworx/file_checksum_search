@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Command;
 
+use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\IDBConnection;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -21,12 +22,15 @@ class ShowStatus
 
 	private IDBConnection $db;
 
+	private TableNameService $tables;
 
-	public function __construct( IDBConnection $db )
+
+	public function __construct( IDBConnection $db, TableNameService $tables )
 	{
 
 		parent::__construct();
-		$this->db = $db;
+		$this->db     = $db;
+		$this->tables = $tables;
 	}
 
 
@@ -44,8 +48,8 @@ class ShowStatus
 		OutputInterface $output,
 	): int {
 
-		$prefix    = $this->db->getPrefix();
-		$hashTable = $prefix . 'file_checksum_search_hashes';
+		$prefix    = $this->tables->getPrefix();
+		$hashTable = $this->tables->getHashTableName();
 
 		$output->writeln( '=== FCIAS Status ===' );
 		$output->writeln( '' );

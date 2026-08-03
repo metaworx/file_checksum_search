@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Command;
 
 use OCA\FileChecksumSearch\Migration\LifecycleHandler;
+use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\IDBConnection;
 use OCP\Server;
 use Symfony\Component\Console\Command\Command;
@@ -21,6 +22,16 @@ class RemoveTable
 	extends
 	Command
 {
+
+	private TableNameService $tables;
+
+
+	public function __construct( TableNameService $tables )
+	{
+
+		parent::__construct();
+		$this->tables = $tables;
+	}
 
 	protected function configure(): void
 	{
@@ -45,7 +56,7 @@ class RemoveTable
 		}
 
 		$db     = Server::get( IDBConnection::class );
-		$prefix = $db->getPrefix();
+		$prefix = $this->tables->getPrefix();
 
 		// Warn if triggers or SP still exist
 		$trigCount = (int) $db->executeQuery(
