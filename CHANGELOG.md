@@ -21,3 +21,7 @@ the first stable release.
 - Add administrative CLI commands for reporting index status, purging, tearing down triggers, and removing the shadow table.
 - Add an admin settings page with a compatibility test and maintenance actions for purging, rebuilding, tearing down, and removing the index.
 - Add a Files app sidebar tab that displays a file's checksums as algorithm badges with hash values.
+
+### Changed
+
+- Rework app lifecycle handling, dependency injection, the API, and assets to address findings from the initial code audit.

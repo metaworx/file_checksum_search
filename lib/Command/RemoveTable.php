@@ -79,7 +79,10 @@ class RemoveTable
 			);
 		}
 
-		LifecycleHandler::purgeShadowTable();
+		Server::get( LifecycleHandler::class )
+		      ->purgeShadowTable()
+		;
+
 		$output->writeln( 'Hash table dropped.' );
 
 		return Command::SUCCESS;

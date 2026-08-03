@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Command;
 
 use OCA\FileChecksumSearch\Migration\LifecycleHandler;
+use OCP\Server;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -44,7 +45,9 @@ class Teardown
 			return Command::FAILURE;
 		}
 
-		LifecycleHandler::stripTriggers();
+		Server::get( LifecycleHandler::class )
+		      ->stripTriggers()
+		;
 
 		$output->writeln( 'Triggers dropped:  t_fcias_after_insert, t_fcias_after_update, t_fcias_after_delete' );
 		$output->writeln( 'SP dropped:        fcias_parse_file_hashes' );

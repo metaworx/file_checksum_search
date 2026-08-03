@@ -287,7 +287,9 @@ class SettingsController
 
 		try
 		{
-			LifecycleHandler::stripTriggers();
+			Server::get( LifecycleHandler::class )
+			      ->stripTriggers()
+			;
 
 			return new DataResponse( [ 'success' => true ] );
 		}
@@ -308,7 +310,9 @@ class SettingsController
 
 		try
 		{
-			LifecycleHandler::purgeShadowTable();
+			Server::get( LifecycleHandler::class )
+			      ->purgeShadowTable()
+			;
 
 			return new DataResponse( [ 'success' => true ] );
 		}
