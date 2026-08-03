@@ -9,9 +9,14 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Migration;
 
+use Closure;
+use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\DB\ISchemaWrapper;
 use OCP\Migration\IOutput;
 use OCP\Migration\SimpleMigrationStep;
+use OCP\Server;
+use Psr\Log\LoggerInterface;
+use Throwable;
 
 /**
  * Creates the shadow table file_checksum_search_hashes.
@@ -27,9 +32,9 @@ class Version010000Date20260731000000
 {
 
 	public function changeSchema(
-		IOutput  $output,
-		\Closure $schemaClosure,
-		array    $options,
+		IOutput $output,
+		Closure $schemaClosure,
+		array   $options,
 	): ?ISchemaWrapper {
 
 		/** @var ISchemaWrapper $schema */
@@ -79,17 +84,48 @@ class Version010000Date20260731000000
 
 
 	public function postSchemaChange(
-		IOutput  $output,
-		\Closure $schemaClosure,
-		array    $options,
+		IOutput $output,
+		Closure $schemaClosure,
+		array   $options,
 	): void {
 
 		// Deploy SP + triggers immediately after table creation.
 		// This is idempotent and ensures the index is live without
 		// waiting for the AppEnableEvent to fire.
-		LifecycleHandler::deployTriggers();
+		$output->debug( 'FCIAS migration: deploying triggers via LifecycleHandler…' );
+		$logger = Server::get( LoggerInterface::class );
+		$logger->debug(
+			'FCIAS migration postSchemaChange: calling deployTriggers()',
+			[
+				'app'    => Application::APP_ID,
+			],
+		);
 
-		$output->info( 'FCIAS: shadow table created, SP and triggers deployed.' );
+		try
+		{
+			Server::get( LifecycleHandler::class )
+			      ->deployTriggers()
+			;
+
+			$output->info( 'FCIAS: shadow table created, SP and triggers deployed.' );
+			$logger->debug(
+				'FCIAS migration postSchemaChange: deployTriggers() succeeded',
+				[
+					'app'    => Application::APP_ID,
+				],
+			);
+		}
+		catch ( Throwable $e )
+		{
+			$output->warning( 'FCIAS: deployTriggers() failed: ' . $e->getMessage() );
+			$logger->error(
+				'FCIAS migration postSchemaChange ERROR: ' . $e->getMessage(),
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+		}
 	}
 
 }
