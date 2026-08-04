@@ -9,8 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Command;
 
-use OCA\FileChecksumSearch\Migration\LifecycleHandler;
-use OCP\Server;
+use OCA\FileChecksumSearch\Service\HashIndexService;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -20,6 +19,14 @@ class Teardown
 	extends
 	Command
 {
+
+	public function __construct(
+		private readonly HashIndexService $hashIndexService,
+	) {
+
+		parent::__construct();
+	}
+
 
 	protected function configure(): void
 	{
@@ -45,9 +52,7 @@ class Teardown
 			return Command::FAILURE;
 		}
 
-		Server::get( LifecycleHandler::class )
-		      ->stripTriggers()
-		;
+		$this->hashIndexService->teardownTriggers();
 
 		$output->writeln( 'Triggers dropped:  t_fcias_after_insert, t_fcias_after_update, t_fcias_after_delete' );
 		$output->writeln( 'SP dropped:        fcias_parse_file_hashes' );

@@ -5,6 +5,8 @@
       <sourceFolder url="file://$MODULE_DIR$/lib" isTestSource="false" packagePrefix="OCA\FileChecksumSearch\" />
       <sourceFolder url="file://$MODULE_DIR$/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/.aiassistant/messages" />
+      <excludeFolder url="file://$MODULE_DIR$/§Server/vendor-bin/psalm" />
+      <excludeFolder url="file://$MODULE_DIR$/§Server/vendor-bin/rector" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

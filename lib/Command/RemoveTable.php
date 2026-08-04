@@ -9,10 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Command;
 
-use OCA\FileChecksumSearch\Migration\LifecycleHandler;
-use OCA\FileChecksumSearch\Service\TableNameService;
-use OCP\IDBConnection;
-use OCP\Server;
+use OCA\FileChecksumSearch\Service\HashIndexService;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -23,15 +20,13 @@ class RemoveTable
 	Command
 {
 
-	private TableNameService $tables;
-
-
-	public function __construct( TableNameService $tables )
-	{
+	public function __construct(
+		private readonly HashIndexService $hashIndexService,
+	) {
 
 		parent::__construct();
-		$this->tables = $tables;
 	}
+
 
 	protected function configure(): void
 	{
@@ -55,44 +50,7 @@ class RemoveTable
 			return Command::FAILURE;
 		}
 
-		$db     = Server::get( IDBConnection::class );
-		$prefix = $this->tables->getPrefix();
-
-		// Warn if triggers or SP still exist
-		$trigCount = (int) $db->executeQuery(
-			"SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() AND TRIGGER_NAME LIKE ?",
-			[ $prefix . 't_fcias_after_%' ],
-		)
-		                      ->fetchOne()
-		;
-
-		$spCount = (int) $db->executeQuery(
-			"SELECT COUNT(*) FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_NAME = ?",
-			[ $prefix . 'fcias_parse_file_hashes' ],
-		)
-		                    ->fetchOne()
-		;
-
-		if ( $trigCount > 0 )
-		{
-			$output->writeln(
-				sprintf(
-					'<comment>Warning: %d FCIAS trigger(s) still exist. Run teardown first.</comment>',
-					$trigCount,
-				),
-			);
-		}
-
-		if ( $spCount > 0 )
-		{
-			$output->writeln(
-				'<comment>Warning: fcias_parse_file_hashes SP still exists. Run teardown first.</comment>',
-			);
-		}
-
-		Server::get( LifecycleHandler::class )
-		      ->purgeShadowTable()
-		;
+		$this->hashIndexService->removeTable();
 
 		$output->writeln( 'Hash table dropped.' );
 

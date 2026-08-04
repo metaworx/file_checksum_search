@@ -9,8 +9,8 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Command;
 
-use OCA\FileChecksumSearch\Service\TableNameService;
-use OCP\IDBConnection;
+use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\StatusService;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -21,17 +21,12 @@ class PurgeIndex
 	Command
 {
 
-	private IDBConnection $db;
-
-	private TableNameService $tables;
-
-
-	public function __construct( IDBConnection $db, TableNameService $tables )
-	{
+	public function __construct(
+		private readonly HashIndexService $hashIndexService,
+		private readonly StatusService    $statusService,
+	) {
 
 		parent::__construct();
-		$this->db     = $db;
-		$this->tables = $tables;
 	}
 
 
@@ -52,24 +47,22 @@ class PurgeIndex
 
 		if ( ! $input->getOption( 'force' ) )
 		{
-			$output->writeln( '<error>This will delete ALL checksum index data. Use --force to confirm.</error>' );
+			$count = $this->statusService->getHashRowCount();
+			$output->writeln(
+				sprintf(
+					'<error>This will delete %d checksum index record(s). Use --force to confirm.</error>',
+					$count,
+				),
+			);
 
 			return Command::FAILURE;
 		}
 
-		$hashTable = $this->tables->getHashTableName();
+		$result = $this->hashIndexService->purgeIndex();
 
-		$before = (int) $this->db->executeQuery( "SELECT COUNT(*) FROM `{$hashTable}`" )
-		                         ->fetchOne()
-		;
-		$this->db->executeStatement( "TRUNCATE TABLE `{$hashTable}`" );
-		$after = (int) $this->db->executeQuery( "SELECT COUNT(*) FROM `{$hashTable}`" )
-		                        ->fetchOne()
-		;
-
-		$output->writeln( sprintf( 'Rows before purge: %d', $before ) );
-		$output->writeln( sprintf( 'Rows after purge:  %d', $after ) );
-		$output->writeln( sprintf( 'Purged:            %d rows', $before - $after ) );
+		$output->writeln( sprintf( 'Rows before purge: %d', $result['before'] ) );
+		$output->writeln( sprintf( 'Rows after purge:  %d', $result['after'] ) );
+		$output->writeln( sprintf( 'Purged:            %d rows', $result['before'] - $result['after'] ) );
 
 		return Command::SUCCESS;
 	}

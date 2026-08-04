@@ -9,8 +9,12 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Service;
 
+use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Migration\LifecycleHandler;
 use OCP\IAppConfig;
+use OCP\IDBConnection;
+use Psr\Log\LoggerInterface;
+use Throwable;
 
 readonly class TriggerInitializationService
 {
@@ -18,6 +22,9 @@ readonly class TriggerInitializationService
 	public function __construct(
 		private IAppConfig       $appConfig,
 		private LifecycleHandler $lifecycleHandler,
+		private IDBConnection    $db,
+		private TableNameService $tables,
+		private LoggerInterface  $logger,
 	) {
 	}
 
@@ -42,6 +49,45 @@ readonly class TriggerInitializationService
 	{
 
 		$this->appConfig->setValueBool( $appId, 'triggers_deployed', false );
+	}
+
+
+	/**
+	 * Test whether the database user has the TRIGGER privilege
+	 * by creating a real table, a trigger on it, then cleaning up.
+	 */
+	public function checkTriggerPrivilege(): bool
+	{
+
+		$prefix    = $this->tables->getPrefix();
+		$tempTable = $prefix . 'fcias_priv_check';
+
+		try
+		{
+			$this->db->executeStatement( "CREATE TABLE IF NOT EXISTS `{$tempTable}` (x INT)" );
+			$this->db->executeStatement(
+				"CREATE TRIGGER `{$tempTable}_t` BEFORE INSERT ON `{$tempTable}` FOR EACH ROW BEGIN END",
+			);
+			$this->db->executeStatement( "DROP TRIGGER `{$tempTable}_t`" );
+
+			return true;
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->warning(
+				'FCIAS: trigger privilege check failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
+			return false;
+		}
+		finally
+		{
+			$this->db->executeStatement( "DROP TABLE IF EXISTS `{$tempTable}`" );
+		}
 	}
 
 }

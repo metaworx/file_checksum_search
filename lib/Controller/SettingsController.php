@@ -9,16 +9,16 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Controller;
 
-use OCA\FileChecksumSearch\Migration\LifecycleHandler;
-use OCA\FileChecksumSearch\Service\TableNameService;
-use OCP\App\IAppManager;
+use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\StatusService;
+use OCA\FileChecksumSearch\Service\TriggerInitializationService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
-use OCP\IDBConnection;
 use OCP\IRequest;
-use OCP\Server;
+use Psr\Log\LoggerInterface;
 use Throwable;
 
 class SettingsController
@@ -26,21 +26,16 @@ class SettingsController
 	Controller
 {
 
-	private IDBConnection $db;
-
-	private TableNameService $tables;
-
-
 	public function __construct(
-		string           $appName,
-		IRequest         $request,
-		IDBConnection    $db,
-		TableNameService $tables,
+		string                                        $appName,
+		IRequest                                      $request,
+		private readonly LoggerInterface              $logger,
+		private readonly HashIndexService             $hashIndexService,
+		private readonly TriggerInitializationService $triggerInitService,
+		private readonly StatusService                $statusService,
 	) {
 
 		parent::__construct( $appName, $request );
-		$this->db     = $db;
-		$this->tables = $tables;
 	}
 
 
@@ -48,62 +43,12 @@ class SettingsController
 	public function getStatus(): DataResponse
 	{
 
-		$prefix    = $this->tables->getPrefix();
-		$hashTable = $this->tables->getHashTableName();
-
-		$version   = Server::get( IAppManager::class )
-		                   ->getAppVersion( 'file_checksum_search' )
-		;
-		$dbVersion = $this->db->executeQuery( 'SELECT VERSION() AS version' )
-		                      ->fetch()['version'] ?? 'unknown';
-
-		$rowCount = 0;
-		try
-		{
-			$rowCount = (int) $this->db->executeQuery( "SELECT COUNT(*) FROM `{$hashTable}`" )
-			                           ->fetchOne()
-			;
-		}
-		catch ( Throwable )
-		{
-		}
-
-		$triggersOk = false;
-		try
-		{
-			$cnt        = (int) $this->db->executeQuery(
-				"SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() AND TRIGGER_NAME LIKE ?",
-				[ $prefix . 't_fcias_after_%' ],
-			)
-			                             ->fetchOne()
-			;
-			$triggersOk = $cnt >= 3;
-		}
-		catch ( Throwable )
-		{
-		}
-
-		$spOk = false;
-		try
-		{
-			$cnt  = (int) $this->db->executeQuery(
-				"SELECT COUNT(*) FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_NAME = ?",
-				[ $prefix . 'fcias_parse_file_hashes' ],
-			)
-			                       ->fetchOne()
-			;
-			$spOk = $cnt > 0;
-		}
-		catch ( Throwable )
-		{
-		}
-
 		return new DataResponse( [
-			'version'    => $version,
-			'dbVersion'  => $dbVersion,
-			'rowCount'   => $rowCount,
-			'triggersOk' => $triggersOk,
-			'spOk'       => $spOk,
+			'version'    => $this->statusService->getAppVersion(),
+			'dbVersion'  => $this->statusService->getDbVersion(),
+			'rowCount'   => $this->statusService->getHashRowCount(),
+			'triggersOk' => $this->statusService->getTriggerCount() >= 3,
+			'spOk'       => $this->statusService->isSpInstalled(),
 		] );
 	}
 
@@ -112,35 +57,17 @@ class SettingsController
 	public function runCompatibilityTest(): DataResponse
 	{
 
-		$prefix = $this->tables->getPrefix();
 		$issues = [];
 		$checks = [];
 
-		// MariaDB >= 10.2
-		$dbVersion                = $this->db->executeQuery( 'SELECT VERSION() AS version' )
-		                                     ->fetch()['version'] ?? '0';
+		$dbVersion                = $this->statusService->getDbVersion();
 		$checks['mariadbVersion'] = [
 			'label' => 'MariaDB >= 10.2',
 			'value' => $dbVersion,
 			'pass'  => version_compare( $dbVersion, '10.2', '>=' ),
 		];
 
-		// TRIGGER privilege
-		$hasTrigger = false;
-		try
-		{
-			$tempTable = $prefix . 'fcias_comp_check';
-			$this->db->executeStatement( "CREATE TEMPORARY TABLE IF NOT EXISTS `{$tempTable}` (x INT)" );
-			$this->db->executeStatement(
-				"CREATE TRIGGER `{$tempTable}_t` BEFORE INSERT ON `{$tempTable}` FOR EACH ROW BEGIN END",
-			);
-			$this->db->executeStatement( "DROP TRIGGER `{$tempTable}_t`" );
-			$this->db->executeStatement( "DROP TEMPORARY TABLE `{$tempTable}`" );
-			$hasTrigger = true;
-		}
-		catch ( Throwable )
-		{
-		}
+		$hasTrigger            = $this->triggerInitService->checkTriggerPrivilege();
 		$checks['triggerPriv'] = [
 			'label' => 'TRIGGER privilege',
 			'value' => $hasTrigger
@@ -149,21 +76,7 @@ class SettingsController
 			'pass'  => $hasTrigger,
 		];
 
-		// filecache.checksum column
-		$hasChecksum = false;
-		try
-		{
-			$colCount    = $this->db->executeQuery(
-				"SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'checksum'",
-				[ $prefix . 'filecache' ],
-			)
-			                        ->fetchOne()
-			;
-			$hasChecksum = $colCount > 0;
-		}
-		catch ( Throwable )
-		{
-		}
+		$hasChecksum              = $this->statusService->hasChecksumColumn();
 		$checks['checksumColumn'] = [
 			'label' => 'filecache.checksum column',
 			'value' => $hasChecksum
@@ -185,26 +98,28 @@ class SettingsController
 	public function purgeIndex(): DataResponse
 	{
 
-		$prefix    = $this->tables->getPrefix();
-		$hashTable = $this->tables->getHashTableName();
-
 		try
 		{
-			$before = (int) $this->db->executeQuery( "SELECT COUNT(*) FROM `{$hashTable}`" )
-			                         ->fetchOne()
-			;
-			$this->db->executeStatement( "TRUNCATE TABLE `{$hashTable}`" );
+			$result = $this->hashIndexService->purgeIndex();
 
 			return new DataResponse(
 				[
 					'success' => true,
-					'before'  => $before,
-					'after'   => 0,
+					'before'  => $result['before'],
+					'after'   => $result['after'],
 				],
 			);
 		}
 		catch ( Throwable $e )
 		{
+			$this->logger->warning(
+				'FCIAS SettingsController: purgeIndex failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
 			return new DataResponse(
 				[
 					'success' => false,
@@ -218,59 +133,15 @@ class SettingsController
 	public function rebuildIndex(): DataResponse
 	{
 
-		$spName = $this->tables->getSpName();
-
 		try
 		{
-			$countQb = $this->db->getQueryBuilder();
-			$countQb->select(
-				$countQb->func()
-				        ->count( '*', 'total' ),
-			)
-			        ->from( 'filecache' )
-			        ->where(
-				        $countQb->expr()
-				                ->isNotNull( 'checksum' ),
-				        $countQb->expr()
-				                ->neq( 'checksum', $countQb->createNamedParameter( '' ) ),
-			        )
-			;
-			$total = (int) $countQb->executeQuery()
-			                       ->fetchOne()
-			;
-
-			$selectQb = $this->db->getQueryBuilder();
-			$selectQb->select( 'fileid', 'checksum' )
-			         ->from( 'filecache' )
-			         ->where(
-				         $selectQb->expr()
-				                  ->isNotNull( 'checksum' ),
-				         $selectQb->expr()
-				                  ->neq( 'checksum', $selectQb->createNamedParameter( '' ) ),
-			         )
-			;
-
-			$rows      = $selectQb->executeQuery();
-			$processed = 0;
-			$statement = $this->db->prepare( "CALL `{$spName}`(?, ?)" );
-
-			while ( ( $row = $rows->fetch() ) !== false )
-			{
-				$statement->execute(
-					[
-						(int) $row['fileid'],
-						$row['checksum'],
-					],
-				);
-				$processed ++;
-			}
-			$rows->closeCursor();
+			$result = $this->hashIndexService->rebuildIndex();
 
 			return new DataResponse(
 				[
 					'success'   => true,
-					'total'     => $total,
-					'processed' => $processed,
+					'total'     => $result['total'],
+					'processed' => $result['processed'],
 				],
 			);
 		}
@@ -291,9 +162,7 @@ class SettingsController
 
 		try
 		{
-			Server::get( LifecycleHandler::class )
-			      ->stripTriggers()
-			;
+			$this->hashIndexService->teardownTriggers();
 
 			return new DataResponse( [ 'success' => true ] );
 		}
@@ -314,9 +183,7 @@ class SettingsController
 
 		try
 		{
-			Server::get( LifecycleHandler::class )
-			      ->purgeShadowTable()
-			;
+			$this->hashIndexService->removeTable();
 
 			return new DataResponse( [ 'success' => true ] );
 		}
