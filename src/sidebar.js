@@ -173,7 +173,7 @@ getSidebar().registerTab({
     order: 55,
     tagName: TAG,
     enabled({ node }) {
-        return node?.type === 'file' || !!node?.fileid
+        return node?.type === 'file'
     },
 })
 
