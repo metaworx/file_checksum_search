@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-08-04
+
 ### Added
 
 - Add scheduled hash generation via NC background jobs with full admin CRUD management and via a generated system crontab snippet, centralizing algorithm support and job management in new CronJobService and SUPPORTED_ALGOS constants.
