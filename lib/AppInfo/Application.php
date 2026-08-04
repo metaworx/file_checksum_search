@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\AppInfo;
 
+use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Migration\LifecycleHandler;
 use OCA\FileChecksumSearch\Service\TriggerInitializationService;
 use OCP\App\Events\AppDisableEvent;
@@ -40,6 +41,8 @@ class Application
 
 	public function register( IRegistrationContext $context ): void
 	{
+
+		$context->registerConfigLexicon( ConfigLexicon::class );
 	}
 
 
