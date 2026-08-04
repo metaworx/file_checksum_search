@@ -67,5 +67,32 @@ return [
 			'url'  => '/settings/create-table',
 			'verb' => 'POST',
 		],
+
+		// Cron job management
+		[
+			'name' => 'settings#listJobDefinitions',
+			'url'  => '/settings/cron/definitions',
+			'verb' => 'GET',
+		],
+		[
+			'name' => 'settings#saveJobDefinition',
+			'url'  => '/settings/cron/save',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'settings#deleteJobDefinition',
+			'url'  => '/settings/cron/delete',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'settings#toggleJobDefinition',
+			'url'  => '/settings/cron/toggle',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'settings#getCrontabSnippet',
+			'url'  => '/settings/cron/snippet',
+			'verb' => 'GET',
+		],
 	],
 ];
