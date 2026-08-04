@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Changed
+
+- Extract duplicated status and index-maintenance logic from the CLI commands and settings controller into shared StatusService and HashIndexService classes.
+
 ## [0.1.1] — 2026-08-04
 
 ### Fixed

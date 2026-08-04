@@ -9,8 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Command;
 
-use OCA\FileChecksumSearch\Service\TableNameService;
-use OCP\IDBConnection;
+use OCA\FileChecksumSearch\Service\HashIndexService;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -20,17 +19,11 @@ class RebuildIndex
 	Command
 {
 
-	private IDBConnection $db;
-
-	private TableNameService $tables;
-
-
-	public function __construct( IDBConnection $db, TableNameService $tables )
-	{
+	public function __construct(
+		private readonly HashIndexService $hashIndexService,
+	) {
 
 		parent::__construct();
-		$this->db     = $db;
-		$this->tables = $tables;
 	}
 
 
@@ -48,60 +41,9 @@ class RebuildIndex
 		OutputInterface $output,
 	): int {
 
-		$spName = $this->tables->getSpName();
+		$result = $this->hashIndexService->rebuildIndex( $output );
 
-		$countQb = $this->db->getQueryBuilder();
-		$countQb->select(
-			$countQb->func()
-			        ->count( '*', 'total' ),
-		)
-		        ->from( 'filecache' )
-		        ->where(
-			        $countQb->expr()
-			                ->isNotNull( 'checksum' ),
-			        $countQb->expr()
-			                ->neq( 'checksum', $countQb->createNamedParameter( '' ) ),
-		        )
-		;
-		$total = (int) $countQb->executeQuery()
-		                       ->fetchOne()
-		;
-
-		$output->writeln( sprintf( 'Rebuilding checksum index for %d files…', $total ) );
-
-		$selectQb = $this->db->getQueryBuilder();
-		$selectQb->select( 'fileid', 'checksum' )
-		         ->from( 'filecache' )
-		         ->where(
-			         $selectQb->expr()
-			                  ->isNotNull( 'checksum' ),
-			         $selectQb->expr()
-			                  ->neq( 'checksum', $selectQb->createNamedParameter( '' ) ),
-		         )
-		;
-
-		$rows      = $selectQb->executeQuery();
-		$processed = 0;
-		$statement = $this->db->prepare( "CALL `{$spName}`(?, ?)" );
-
-		while ( ( $row = $rows->fetch() ) !== false )
-		{
-			$statement->execute(
-				[
-					(int) $row['fileid'],
-					$row['checksum'],
-				],
-			);
-			$processed ++;
-
-			if ( $processed % 1000 === 0 )
-			{
-				$output->writeln( sprintf( '  %d / %d files processed…', $processed, $total ) );
-			}
-		}
-		$rows->closeCursor();
-
-		$output->writeln( sprintf( 'Done. %d files indexed.', $processed ) );
+		$output->writeln( sprintf( 'Done. %d files indexed.', $result['processed'] ) );
 
 		return Command::SUCCESS;
 	}
