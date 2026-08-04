@@ -11,6 +11,8 @@ namespace OCA\FileChecksumSearch\Service;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Migration\LifecycleHandler;
+use OCP\Files\File;
+use OCP\Files\IRootFolder;
 use OCP\IDBConnection;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -206,8 +208,121 @@ readonly class HashIndexService
 
 
 	/**
-	 * Full cleanup: strip triggers + drop shadow table.
+	 * Compute a hash for a File node and write it to the filecache.
+	 *
+	 * @return array{success: bool, algo: string, hash: string, existed: bool}
 	 */
+	public function recalcFileHash(
+		File   $file,
+		string $algo,
+	): array {
+
+		$algo = strtolower( $algo );
+
+		if ( ! in_array(
+			$algo,
+			[
+				'sha1',
+				'md5',
+			],
+			true,
+		) )
+		{
+			return [
+				'success' => false,
+				'algo'    => $algo,
+				'hash'    => '',
+				'existed' => false,
+				'error'   => 'Unsupported algorithm: ' . $algo,
+			];
+		}
+
+		$existingChecksum = $file->getChecksum();
+		$prefix           = $algo . ':';
+
+		foreach ( explode( ' ', $existingChecksum ) as $pair )
+		{
+			if ( str_starts_with( $pair, $prefix ) )
+			{
+				return [
+					'success' => true,
+					'algo'    => $algo,
+					'hash'    => substr( $pair, strlen( $prefix ) ),
+					'existed' => true,
+				];
+			}
+		}
+
+		$storage = $file->getStorage();
+
+		if ( $storage->isLocal() )
+		{
+			$absolutePath = $storage->getLocalFile( $file->getInternalPath() );
+			$hash         = hash_file( $algo, $absolutePath );
+		}
+		else
+		{
+			$handle = $file->fopen( 'rb' );
+			$ctx    = hash_init( $algo );
+			hash_update_stream( $ctx, $handle );
+			fclose( $handle );
+			$hash = hash_final( $ctx );
+		}
+
+		$formattedChecksum = strtoupper( $algo ) . ':' . $hash;
+		$newChecksum       = $existingChecksum === ''
+			? $formattedChecksum
+			: $existingChecksum . ' ' . $formattedChecksum;
+
+		$cache = $storage->getCache();
+		$cache->update( $file->getId(), [ 'checksum' => $newChecksum ] );
+
+		return [
+			'success' => true,
+			'algo'    => $algo,
+			'hash'    => $hash,
+			'existed' => false,
+		];
+	}
+
+
+	public function recalcHash(
+		int    $fileId,
+		string $algo,
+	): array {
+
+		$algo = strtolower( $algo );
+
+		$nodes = $this->rootFolder->getById( $fileId );
+
+		if ( empty( $nodes ) )
+		{
+			return [
+				'success' => false,
+				'algo'    => $algo,
+				'hash'    => '',
+				'existed' => false,
+				'error'   => 'File not found.',
+			];
+		}
+
+		$node = $nodes[0];
+
+		if ( ! $node instanceof File )
+		{
+			return [
+				'success' => false,
+				'algo'    => $algo,
+				'hash'    => '',
+				'existed' => false,
+				'error'   => 'Node is not a file.',
+			];
+		}
+
+		return $this->recalcFileHash( $node, $algo );
+	}
+
+
 	public function removeTable(): void
 	{
 

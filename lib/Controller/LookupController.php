@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Controller;
 
+use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCP\AppFramework\ApiController;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -23,17 +24,21 @@ class LookupController
 	ApiController
 {
 
-	private IDBConnection $db;
+	private IDBConnection    $db;
+
+	private HashIndexService $hashIndexService;
 
 
 	public function __construct(
-		string        $appName,
-		IRequest      $request,
-		IDBConnection $db,
+		string           $appName,
+		IRequest         $request,
+		IDBConnection    $db,
+		HashIndexService $hashIndexService,
 	) {
 
 		parent::__construct( $appName, $request );
-		$this->db = $db;
+		$this->db               = $db;
+		$this->hashIndexService = $hashIndexService;
 	}
 
 
@@ -140,6 +145,23 @@ class LookupController
 				'fileid' => $fileId,
 			],
 		);
+	}
+
+
+	#[NoAdminRequired]
+	public function recalcHash(
+		int    $fileId,
+		string $algo = 'sha1',
+	): DataResponse {
+
+		$result = $this->hashIndexService->recalcHash( $fileId, $algo );
+
+		if ( $result['success'] )
+		{
+			return new DataResponse( $result );
+		}
+
+		return new DataResponse( $result, Http::STATUS_BAD_REQUEST );
 	}
 
 }

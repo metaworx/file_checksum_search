@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Command;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
@@ -26,8 +27,9 @@ class GenerateHashes
 {
 
 	public function __construct(
-		private readonly IRootFolder     $rootFolder,
-		private readonly LoggerInterface $logger,
+		private readonly IRootFolder      $rootFolder,
+		private readonly HashIndexService $hashIndexService,
+		private readonly LoggerInterface  $logger,
 	) {
 
 		parent::__construct();
@@ -220,33 +222,39 @@ class GenerateHashes
 				continue;
 			}
 
-			// Skip files that already have this algo
-			$existingChecksum = $child->getChecksum();
-			if ( $existingChecksum !== '' && $this->hasAlgo( $existingChecksum, $algo ) )
-			{
-				$skipped ++;
-
-				continue;
-			}
-
 			try
 			{
-				// Compute hash
-				$hash = $this->hashFile( $child, $algo );
+				$result = $this->hashIndexService->recalcFileHash( $child, $algo );
 
-				// Format checksum as NC standard uppercase algo:hash
-				$formattedChecksum = strtoupper( $algo ) . ':' . $hash;
+				if ( $result['existed'] )
+				{
+					$skipped ++;
 
-				// Append to existing checksums
-				$newChecksum = $existingChecksum === ''
-					? $formattedChecksum
-					: $existingChecksum . ' ' . $formattedChecksum;
+					continue;
+				}
 
-				$storage = $child->getStorage();
-				$cache   = $storage->getCache();
-
-				$cache->update( $child->getId(), [ 'checksum' => $newChecksum ] );
 				$processed ++;
+				$hash = $result['hash'];
+
+				$this->logger->debug(
+					'FCIAS: file hashed',
+					[
+						'app'          => Application::APP_ID,
+						'userId'       => $userId,
+						'relativePath' => $relativePath,
+						'algo'         => $algo,
+						'hash'         => $hash,
+					],
+				);
+
+				if ( $output->isDebug() )
+				{
+					$output->writeln( sprintf( '    Hashed: %s (%s)', $relativePath, $hash ) );
+				}
+				elseif ( $processed % 10 == 0 )
+				{
+					$output->writeln( sprintf( '    %d files processed …', $processed ) );
+				}
 			}
 			catch ( \Throwable $e )
 			{
@@ -260,26 +268,6 @@ class GenerateHashes
 				);
 				continue;
 			}
-
-			$this->logger->debug(
-				'FCIAS: file hashed',
-				[
-					'app'          => Application::APP_ID,
-					'userId'       => $userId,
-					'relativePath' => $relativePath,
-					'algo'         => $algo,
-					'hash'         => $hash,
-				],
-			);
-
-			if ( $output->isDebug() )
-			{
-				$output->writeln( sprintf( '    Hashed: %s (%s)', $relativePath, $hash ) );
-			}
-			elseif ( $processed % 10 == 0 )
-			{
-				$output->writeln( sprintf( '    %d files processed …', $processed ) );
-			}
 		}
 
 		$this->logger->debug(
@@ -291,51 +279,6 @@ class GenerateHashes
 				'childFileCount' => $childCount,
 			],
 		);
-	}
-
-
-	private function hashFile(
-		File   $file,
-		string $algo,
-	): string {
-
-		$storage = $file->getStorage();
-
-		if ( $storage->isLocal() )
-		{
-			$absolutePath = $storage->getLocalFile( $file->getInternalPath() );
-
-			return hash_file( $algo, $absolutePath );
-		}
-
-		// Fallback for external/encrypted storage: stream-based hashing
-		$handle = $file->fopen( 'rb' );
-		$ctx    = hash_init( $algo );
-
-		hash_update_stream( $ctx, $handle );
-
-		fclose( $handle );
-
-		return hash_final( $ctx );
-	}
-
-
-	private function hasAlgo(
-		string $checksum,
-		string $algo,
-	): bool {
-
-		$prefix = $algo . ':';
-
-		foreach ( explode( ' ', $checksum ) as $pair )
-		{
-			if ( str_starts_with( $pair, $prefix ) )
-			{
-				return true;
-			}
-		}
-
-		return false;
 	}
 
 

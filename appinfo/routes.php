@@ -20,6 +20,11 @@ return [
 			'url'  => '/api/1.0/file/{fileId}/hashes',
 			'verb' => 'GET',
 		],
+		[
+			'name' => 'lookup#recalcHash',
+			'url'  => '/api/1.0/file/{fileId}/recalc',
+			'verb' => 'POST',
+		],
 
 		// Admin settings AJAX
 		[
