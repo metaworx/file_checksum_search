@@ -22,6 +22,10 @@ Activates code-mode execution of the gated Action Plan. Provides a pre-flight ch
 
 Before writing a single line of code, verify:
 
+- [ ] CRITICAL CHECK (MUST pass before ANY file write): \
+  Is the target file in .aiassistant/messages/ ?
+  - → If YES: STOP. Create a NEW file with fresh timestamp + incremented version.
+  - → NEVER use apply_diff on UAMF files.
 - [ ] The AP UAMF file exists in `.aiassistant/messages/` and is approved
 - [ ] Read [`.aiassistant/TESTING.md`](.aiassistant/TESTING.md) §1 for the correct test runner invocation
 - [ ] Read [`.aiassistant/COMMIT.md`](.aiassistant/COMMIT.md) for commit workflow if the task will result in a commit
@@ -64,6 +68,11 @@ FCIAS has no project-specific CLI. Database operations are via Nextcloud migrati
 For MariaDB trigger/stored procedure management, use the admin settings page or CLI commands (`file-checksum-search:status`, `file-checksum-search:teardown`).
 
 ### 3.3 File Editing
+
+CRITICAL CHECK (MUST pass before ANY file write): \
+Is the target file in .aiassistant/messages/ ?
+  - → If YES: STOP. Create a NEW file with fresh timestamp + incremented version.
+  - → NEVER use apply_diff on UAMF files.
 
 Prefer `apply_diff` for targeted changes. Remember: `apply_diff` requires BOTH `path` and `diff` parameters. Omitting `path` is a common error — the tool will reject the call.
 
