@@ -57,7 +57,7 @@ class Application
 			function ()
 			{
 
-				Util::addScript( self::APP_ID, 'sidebar' );
+				Util::addInitScript( self::APP_ID, 'sidebar' );
 				Util::addStyle( self::APP_ID, 'style' );
 			},
 		);
