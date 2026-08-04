@@ -61,6 +61,17 @@ class ChecksumsSidebarTab extends HTMLElement {
                     font-size: 12px; cursor: pointer;
                 }
                 .fcias-recalc-btn:disabled { opacity: 0.5; cursor: default; }
+                .fcias-dup-section { margin-top: 12px; }
+                .fcias-dup-btn { padding: 4px 12px; font-size: 12px; cursor: pointer; }
+                .fcias-dup-btn:disabled { opacity: 0.5; cursor: default; }
+                .fcias-dup-results { margin-top: 8px; }
+                .fcias-dup-group { margin-bottom: 10px; }
+                .fcias-dup-group-header { margin-bottom: 4px; }
+                .fcias-dup-hash-label { font-family: var(--font-face-monospace); font-size: 11px; word-break: break-all; color: var(--color-text-maxcontrast); }
+                .fcias-dup-list { margin: 4px 0 0 0; padding: 0; list-style: none; font-size: 12px; }
+                .fcias-dup-item { padding: 3px 0 3px 8px; border-left: 2px solid var(--color-border); margin-bottom: 2px; }
+                .fcias-dup-item-link { font-weight: 500; word-break: break-all; color: var(--color-main-text); }
+                .fcias-dup-item-link:hover { color: var(--color-primary-element); }
             </style>
             <div class="fcias-container">
                 <p class="fcias-loading">${ escapeHtml( t( 'file_checksum_search', 'Loading checksums …' ) ) }</p>
@@ -148,9 +159,79 @@ class ChecksumsSidebarTab extends HTMLElement {
                     }
                 })
             })
+
+            // Find duplicates button + results container
+            const dupSection = document.createElement('div')
+            dupSection.className = 'fcias-dup-section'
+            dupSection.innerHTML = `
+                <button class="fcias-dup-btn">${escapeHtml(t('file_checksum_search', 'Find duplicates'))}</button>
+                <div class="fcias-dup-results" style="display:none"></div>
+            `
+            container.appendChild(dupSection)
+
+            dupSection.querySelector('.fcias-dup-btn').addEventListener('click', () => {
+                this.toggleDuplicates()
+            })
         } catch (err) {
             if (err.name === 'AbortError') return
             container.innerHTML = `<p class="fcias-error">${escapeHtml(t('file_checksum_search', 'Failed to load checksums.'))}</p>`
+        }
+    }
+
+    async toggleDuplicates() {
+        const container = this.querySelector('.fcias-container')
+        if (!container) return
+
+        const results = container.querySelector('.fcias-dup-results')
+        const btn = container.querySelector('.fcias-dup-btn')
+        if (!results || !btn) return
+
+        // If already loaded, just toggle visibility
+        if (results.hasAttribute('data-loaded')) {
+            results.style.display = results.style.display === 'none' ? '' : 'none'
+            return
+        }
+
+        btn.disabled = true
+        btn.textContent = '…'
+        results.style.display = ''
+        results.innerHTML = `<span class="fcias-loading">${escapeHtml(t('file_checksum_search', 'Searching …'))}</span>`
+        results.setAttribute('data-loaded', 'true')
+
+        try {
+            const fileId = this.node?.fileid ?? this.node?.attributes?.fileid
+            const url = OC.generateUrl('/apps/file_checksum_search/api/1.0/file/{fileId}/same-hash', { fileId })
+            const response = await fetch(url)
+            if (!response.ok) throw new Error('HTTP ' + response.status)
+            const data = await response.json()
+
+            const duplicates = data.duplicates || []
+
+            if (duplicates.length === 0) {
+                results.innerHTML = `<span class="fcias-empty">${escapeHtml(t('file_checksum_search', 'No other files share checksums with this file.'))}</span>`
+                return
+            }
+
+            let html = ''
+            for (const group of duplicates) {
+                html += '<div class="fcias-dup-group">'
+                html += `<div class="fcias-dup-group-header"><span class="fcias-algo-badge">${escapeHtml(group.algo)}</span> <span class="fcias-dup-hash-label">${escapeHtml(group.hash_value)}</span></div>`
+                html += '<ul class="fcias-dup-list">'
+                for (const f of group.files) {
+                    const dirPath = f.path ? f.path.substring(0, f.path.lastIndexOf('/')) || '/' : '/'
+                    const fileUrl = OC.generateUrl('/apps/files/files/{fileid}', { fileid: f.fileid })
+                        + '?dir=' + encodeURIComponent(dirPath)
+                        + '&opendetails=true'
+                    html += `<li class="fcias-dup-item"><a class="fcias-dup-item-link" href="${escapeHtml(fileUrl)}" target="_blank" rel="noreferrer noopener">${escapeHtml(f.path)}</a></li>`
+                }
+                html += '</ul></div>'
+            }
+            results.innerHTML = html
+        } catch {
+            results.innerHTML = `<span class="fcias-error">${escapeHtml(t('file_checksum_search', 'Failed to load duplicates.'))}</span>`
+        } finally {
+            btn.disabled = false
+            btn.textContent = t('file_checksum_search', 'Find duplicates')
         }
     }
 
