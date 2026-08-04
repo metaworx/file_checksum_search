@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-08-04
+
 ### Added
 
 - Add click-to-copy hash values, server-side SHA-1/MD5 recalculation buttons, and a "Checksums" file menu entry to the sidebar tab, backed by a new centralized recalcFileHash endpoint.
