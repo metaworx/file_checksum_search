@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-08-04
+
 ### Fixed
 
 - Migrate the sidebar tab registration to the @nextcloud/files v4 getSidebar().registerTab() API and add a webpack build step, since NC v33 removed OCA.Files.Sidebar.registerTab().
