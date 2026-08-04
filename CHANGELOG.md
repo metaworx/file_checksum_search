@@ -14,6 +14,7 @@ the first stable release.
 ### Fixed
 
 - Fix unreadable compatibility-test status indicators on dark themes by switching from colored text to background-color badges.
+- Fix admin settings maintenance actions showing dialogs with no OK button by switching to OC.dialogs.message() and including record counts in the result message.
 
 ## [0.2.0] — 2026-08-04
 
