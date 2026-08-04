@@ -84,7 +84,7 @@ class TestPerformance
 				$qb->func()
 				   ->count( '*', 'cnt' ),
 			)
-			   ->from( 'file_checksum_search_hashes' )
+			   ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES )
 			   ->where(
 				   $qb->expr()
 				      ->eq( 'fileid', $qb->createNamedParameter( $testFileId, \PDO::PARAM_INT ) ),
@@ -105,7 +105,7 @@ class TestPerformance
 			{
 				$qb = $this->db->getQueryBuilder();
 				$qb->select( 'fileid' )
-				   ->from( 'file_checksum_search_hashes' )
+				   ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES )
 				   ->where(
 					   $qb->expr()
 					      ->eq( 'hash_value', $qb->createNamedParameter( $testHash ) ),

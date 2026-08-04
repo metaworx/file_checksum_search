@@ -10,13 +10,16 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Controller;
 
 use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\AppFramework\ApiController;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\Files\IRootFolder;
 use OCP\IDBConnection;
 use OCP\IRequest;
+use OCP\IUserSession;
 use PDO;
 
 class LookupController
@@ -24,21 +27,16 @@ class LookupController
 	ApiController
 {
 
-	private IDBConnection    $db;
-
-	private HashIndexService $hashIndexService;
-
-
 	public function __construct(
-		string           $appName,
-		IRequest         $request,
-		IDBConnection    $db,
-		HashIndexService $hashIndexService,
+		string                            $appName,
+		IRequest                          $request,
+		private readonly IDBConnection    $db,
+		private readonly HashIndexService $hashIndexService,
+		private readonly IRootFolder      $rootFolder,
+		private readonly IUserSession     $userSession,
 	) {
 
 		parent::__construct( $appName, $request );
-		$this->db               = $db;
-		$this->hashIndexService = $hashIndexService;
 	}
 
 
@@ -65,7 +63,7 @@ class LookupController
 		$qb = $this->db->getQueryBuilder();
 
 		$qb->select( 'h.fileid', 'h.algo', 'h.hash_value', 'fc.path', 'fc.name' )
-		   ->from( 'file_checksum_search_hashes', 'h' )
+		   ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES, 'h' )
 		   ->innerJoin( 'h', 'filecache', 'fc', 'h.fileid = fc.fileid' )
 		   ->where(
 			   $qb->expr()
@@ -117,7 +115,7 @@ class LookupController
 		$qb = $this->db->getQueryBuilder();
 
 		$qb->select( 'fileid', 'algo', 'hash_value' )
-		   ->from( 'file_checksum_search_hashes' )
+		   ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES )
 		   ->where(
 			   $qb->expr()
 			      ->eq( 'fileid', $qb->createNamedParameter( $fileId, PDO::PARAM_INT ) ),
@@ -145,6 +143,98 @@ class LookupController
 				'fileid' => $fileId,
 			],
 		);
+	}
+
+
+	/**
+	 * Find other files sharing the same hash values as a given file.
+	 *
+	 * @param  int  $fileId  The filecache fileid
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	public function sameHash( int $fileId ): DataResponse
+	{
+
+		$table = TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES;
+		$qb    = $this->db->getQueryBuilder();
+
+		$rows = $qb->select( 'h2.algo', 'h2.hash_value', 'h2.fileid' )
+		           ->from( $table, 'h1' )
+		           ->innerJoin(
+			           'h1',
+			           $table,
+			           'h2',
+			           'h1.hash_value = h2.hash_value AND h1.algo = h2.algo AND h1.fileid <> h2.fileid',
+		           )
+		           ->where(
+			           $qb->expr()
+			              ->eq( 'h1.fileid', $qb->createNamedParameter( $fileId, PDO::PARAM_INT ) ),
+		           )
+		           ->orderBy( 'h2.algo' )
+		           ->addOrderBy( 'h2.hash_value' )
+		           ->setMaxResults( 100 )
+		           ->executeQuery()
+		           ->fetchAll()
+		;
+
+		if ( empty( $rows ) )
+		{
+			return new DataResponse( [ 'duplicates' => [] ] );
+		}
+
+		$user       = $this->userSession->getUser();
+		$userFolder = $user !== null
+			? $this->rootFolder->getUserFolder( $user->getUID() )
+			: null;
+
+		$grouped = [];
+
+		foreach ( $rows as $row )
+		{
+			$dupFileId = (int) $row['fileid'];
+
+			// Resolve via filesystem: path + access check
+			$resolvedPath = '';
+			$resolvedName = '';
+
+			if ( $userFolder !== null )
+			{
+				$nodes = $userFolder->getById( $dupFileId );
+
+				if ( empty( $nodes ) )
+				{
+					continue;
+				}
+
+				$node     = $nodes[0];
+				$relative = $userFolder->getRelativePath( $node->getPath() );
+
+				if ( $relative === null )
+				{
+					continue;
+				}
+
+				$resolvedPath = $relative;
+				$resolvedName = $node->getName();
+			}
+
+			$key = $row['algo'] . "\0" . $row['hash_value'];
+
+			$grouped[ $key ] ??= [
+				'algo'       => $row['algo'],
+				'hash_value' => $row['hash_value'],
+				'files'      => [],
+			];
+
+			$grouped[ $key ]['files'][] = [
+				'fileid' => $dupFileId,
+				'path'   => $resolvedPath,
+				'name'   => $resolvedName,
+			];
+		}
+
+		return new DataResponse( [ 'duplicates' => array_values( $grouped ) ] );
 	}
 
 

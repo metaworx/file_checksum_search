@@ -25,6 +25,11 @@ return [
 			'url'  => '/api/1.0/file/{fileId}/recalc',
 			'verb' => 'POST',
 		],
+		[
+			'name' => 'lookup#sameHash',
+			'url'  => '/api/1.0/file/{fileId}/same-hash',
+			'verb' => 'GET',
+		],
 
 		// Admin settings AJAX
 		[

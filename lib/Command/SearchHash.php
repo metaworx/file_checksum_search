@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Command;
 
+use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\IDBConnection;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -63,7 +64,7 @@ class SearchHash
 
 		$qb = $this->db->getQueryBuilder();
 		$qb->select( 'h.fileid', 'h.algo', 'h.hash_value', 'fc.path', 'fc.name' )
-		   ->from( 'file_checksum_search_hashes', 'h' )
+		   ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES, 'h' )
 		   ->innerJoin( 'h', 'filecache', 'fc', 'h.fileid = fc.fileid' )
 		   ->where(
 			   $qb->expr()

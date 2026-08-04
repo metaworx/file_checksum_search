@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Search;
 
+use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\Files\IRootFolder;
 use OCP\IDBConnection;
 use OCP\IURLGenerator;
@@ -98,7 +99,7 @@ class HashSearchProvider
 		$qb = $this->db->getQueryBuilder();
 
 		$qb->select( 'h.fileid', 'h.algo', 'h.hash_value', 'fc.path', 'fc.name' )
-		   ->from( 'file_checksum_search_hashes', 'h' )
+		   ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES, 'h' )
 		   ->innerJoin( 'h', 'filecache', 'fc', 'h.fileid = fc.fileid' )
 		   ->where(
 			   $qb->expr()

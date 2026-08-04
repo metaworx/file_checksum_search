@@ -20,6 +20,9 @@ use OCP\IConfig;
 class TableNameService
 {
 
+	public const SP_FCIAS_PARSE_FILE_HASHES        = 'fcias_parse_file_hashes';
+	public const TABLE_FILE_CHECKSUM_SEARCH_HASHES = 'file_checksum_search_hashes';
+
 	private string $prefix;
 
 	private string $filecacheTable;
@@ -32,10 +35,10 @@ class TableNameService
 	public function __construct( IConfig $config )
 	{
 
-		$this->prefix          = $config->getSystemValueString( 'dbtableprefix', 'oc_' );
-		$this->filecacheTable  = $this->prefix . 'filecache';
-		$this->hashTable       = $this->prefix . 'file_checksum_search_hashes';
-		$this->spName          = $this->prefix . 'fcias_parse_file_hashes';
+		$this->prefix         = $config->getSystemValueString( 'dbtableprefix', 'oc_' );
+		$this->filecacheTable = $this->prefix . 'filecache';
+		$this->hashTable      = $this->prefix . self::TABLE_FILE_CHECKSUM_SEARCH_HASHES;
+		$this->spName         = $this->prefix . self::SP_FCIAS_PARSE_FILE_HASHES;
 	}
 
 
@@ -51,12 +54,14 @@ class TableNameService
 		return $this->prefix;
 	}
 
+
 	/** Fully-qualified `*PREFIX*filecache` table name. */
 	public function getFilecacheTableName(): string
 	{
 
 		return $this->filecacheTable;
 	}
+
 
 	/** Fully-qualified `*PREFIX*file_checksum_search_hashes` table name. */
 	public function getHashTableName(): string
@@ -65,12 +70,14 @@ class TableNameService
 		return $this->hashTable;
 	}
 
+
 	/** Fully-qualified stored‑procedure name. */
 	public function getSpName(): string
 	{
 
 		return $this->spName;
 	}
+
 
 	/** Trigger name for a given suffix (e.g. "insert" → `*PREFIX*t_fcias_after_insert`). */
 	public function getTriggerName( string $suffix ): string
@@ -79,10 +86,12 @@ class TableNameService
 		return $this->prefix . 't_fcias_after_' . $suffix;
 	}
 
+
 	/** LIKE pattern matching all three FCIAS triggers. */
 	public function getTriggerLikePattern(): string
 	{
 
 		return $this->prefix . 't_fcias_after_%';
 	}
+
 }
