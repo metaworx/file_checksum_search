@@ -57,7 +57,18 @@
             });
     }
 
+    function buildResultMessage(data) {
+        if (data.total !== undefined) {
+            return data.processed + ' of ' + data.total + ' records processed.';
+        }
+        if (data.before !== undefined) {
+            return 'Row count: ' + data.before + ' → ' + data.after + '.';
+        }
+        return 'Action completed successfully.';
+    }
+
     function postAction(url, callback) {
+        setHtml('fcias-msg', '');
         fetch(url, {
             method: 'POST',
             headers: {
@@ -68,18 +79,42 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (data.success) {
-                    OC.Notification.showTemporary('Action completed successfully.');
+                    OC.dialogs.message(
+                        buildResultMessage(data),
+                        'Success',
+                        'notice',
+                        OC.dialogs.OK_BUTTONS,
+                        function () {
+                            if (callback) { callback(); }
+                        }
+                    );
                 } else {
-                    OC.Notification.showTemporary(data.error || 'Action failed.', { type: 'error' });
+                    OC.dialogs.message(
+                        data.error || 'Action failed.',
+                        'Error',
+                        'warning',
+                        OC.dialogs.OK_BUTTONS,
+                        function () {
+                            if (callback) { callback(); }
+                        }
+                    );
                 }
-                if (callback) { callback(); }
             })
             .catch(function () {
-                OC.Notification.showTemporary('Request failed.', { type: 'error' });
+                OC.dialogs.message(
+                    'Request failed.',
+                    'Error',
+                    'warning',
+                    OC.dialogs.OK_BUTTONS,
+                    function () {
+                        if (callback) { callback(); }
+                    }
+                );
             });
     }
 
     function confirmAndPost(url, message, callback) {
+        setHtml('fcias-msg', '');
         OC.dialogs.confirm(
             message,
             'Confirm',
