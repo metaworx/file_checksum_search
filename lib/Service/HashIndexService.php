@@ -21,14 +21,15 @@ use Symfony\Component\Console\Output\OutputInterface;
  * Used by both CLI commands and the SettingsController HTTP API
  * to eliminate duplication of rebuild/purge/teardown/remove logic.
  */
-class HashIndexService
+readonly class HashIndexService
 {
 
 	public function __construct(
-		private readonly IDBConnection    $db,
-		private readonly TableNameService $tables,
-		private readonly LifecycleHandler $lifecycleHandler,
-		private readonly LoggerInterface  $logger,
+		private IDBConnection    $db,
+		private TableNameService $tables,
+		private LifecycleHandler $lifecycleHandler,
+		private IRootFolder      $rootFolder,
+		private LoggerInterface  $logger,
 	) {
 	}
 

@@ -19,14 +19,14 @@ use Throwable;
  * Centralized status/health-check queries used by both the CLI status
  * command and the admin settings HTTP API.
  */
-class StatusService
+readonly class StatusService
 {
 
 	public function __construct(
-		private readonly IDBConnection    $db,
-		private readonly TableNameService $tables,
-		private readonly IAppManager      $appManager,
-		private readonly LoggerInterface  $logger,
+		private IDBConnection    $db,
+		private TableNameService $tables,
+		private IAppManager      $appManager,
+		private LoggerInterface  $logger,
 	) {
 	}
 
