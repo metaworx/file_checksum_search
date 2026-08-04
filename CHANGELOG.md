@@ -14,6 +14,7 @@ the first stable release.
 ### Fixed
 
 - Fix the sidebar tab showing stale content when switching files by reloading hashes on node property changes instead of relying only on the one-time connectedCallback.
+- Fix duplicate hash entries on recalc by matching the algorithm prefix case-insensitively, since stored checksums use uppercase algorithm names.
 
 ## [0.4.0] — 2026-08-04
 
