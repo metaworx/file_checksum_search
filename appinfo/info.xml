@@ -25,9 +25,6 @@
 	<settings>
 		<admin>OCA\FileChecksumSearch\Settings\Admin</admin>
 	</settings>
-	<search>
-		<provider>OCA\FileChecksumSearch\Search\HashSearchProvider</provider>
-	</search>
 	<commands>
 		<command>OCA\FileChecksumSearch\Command\RebuildIndex</command>
 		<command>OCA\FileChecksumSearch\Command\SearchHash</command>

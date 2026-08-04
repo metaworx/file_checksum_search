@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\AppInfo;
 
 use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Migration\LifecycleHandler;
+use OCA\FileChecksumSearch\Search\HashSearchProvider;
 use OCA\FileChecksumSearch\Service\CronJobService;
 use OCA\FileChecksumSearch\Service\TriggerInitializationService;
 use OCP\App\Events\AppDisableEvent;
@@ -44,6 +45,7 @@ class Application
 	{
 
 		$context->registerConfigLexicon( ConfigLexicon::class );
+		$context->registerSearchProvider( HashSearchProvider::class );
 	}
 
 
