@@ -66,6 +66,9 @@ Util::addStyle( 'file_checksum_search', 'settings-admin' );
 		<h4><?php
 			p( $l->t( 'Maintenance' ) ); ?></h4>
 
+		<h5><?php
+			p( $l->t( 'Index Data' ) ); ?></h5>
+
 		<p>
 			<button class="fcias-btn fcias-btn-danger" id="fcias-btn-purge">
 				<?php
@@ -84,6 +87,9 @@ Util::addStyle( 'file_checksum_search', 'settings-admin' );
 				p( $l->t( 'Repopulates the hash table from existing filecache checksums.' ) ); ?></span>
 		</p>
 
+		<h5><?php
+			p( $l->t( 'Triggers & SP' ) ); ?></h5>
+
 		<p>
 			<button class="fcias-btn fcias-btn-danger" id="fcias-btn-teardown">
 				<?php
@@ -94,6 +100,18 @@ Util::addStyle( 'file_checksum_search', 'settings-admin' );
 		</p>
 
 		<p>
+			<button class="fcias-btn" id="fcias-btn-deploy">
+				<?php
+				p( $l->t( 'Deploy Triggers & SP' ) ); ?>
+			</button>
+			<span class="fcias-hint"><?php
+				p( $l->t( 'Creates triggers and stored procedure if they are missing.' ) ); ?></span>
+		</p>
+
+		<h5><?php
+			p( $l->t( 'Hash Table' ) ); ?></h5>
+
+		<p>
 			<button class="fcias-btn fcias-btn-danger" id="fcias-btn-removetable">
 				<?php
 				p( $l->t( 'Remove Hash Table' ) ); ?>
@@ -101,6 +119,17 @@ Util::addStyle( 'file_checksum_search', 'settings-admin' );
 			<span class="fcias-hint"><?php
 				p( $l->t( 'Drops the hash table entirely. Run teardown first.' ) ); ?></span>
 		</p>
+
+		<p>
+			<button class="fcias-btn" id="fcias-btn-createtable">
+				<?php
+				p( $l->t( 'Create Hash Table' ) ); ?>
+			</button>
+			<span class="fcias-hint"><?php
+				p( $l->t( 'Creates the hash table if it does not exist.' ) ); ?></span>
+		</p>
+
+		<div id="fcias-msg"></div>
 	</div>
 
 	<div class="fcias-section fcias-section-muted">
