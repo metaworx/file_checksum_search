@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Added
+
+- Add click-to-copy hash values, server-side SHA-1/MD5 recalculation buttons, and a "Checksums" file menu entry to the sidebar tab, backed by a new centralized recalcFileHash endpoint.
+
 ### Changed
 
 - Extract duplicated CLI/controller logic into HashIndexService and TriggerInitializationService to eliminate roughly 130 lines of duplication.
