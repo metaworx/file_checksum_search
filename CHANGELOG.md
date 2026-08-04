@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix the sidebar tab showing stale content when switching files by reloading hashes on node property changes instead of relying only on the one-time connectedCallback.
+
 ## [0.4.0] — 2026-08-04
 
 ### Added
