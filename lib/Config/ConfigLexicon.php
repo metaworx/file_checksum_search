@@ -48,6 +48,14 @@ class ConfigLexicon
 				lazy: false,
 				flags: IAppConfig::FLAG_INTERNAL,
 			),
+			new Entry(
+				key: 'cron_job_definitions',
+				type: ValueType::STRING,
+				defaultRaw: '[]',
+				definition: 'JSON array of cron job definitions for scheduled hash generation.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
 		];
 	}
 

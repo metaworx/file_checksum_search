@@ -12,25 +12,49 @@ namespace OCA\FileChecksumSearch\Service;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Migration\LifecycleHandler;
 use OCP\Files\File;
+use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
+use OCP\Files\NotFoundException;
 use OCP\IDBConnection;
+use OCP\IUserManager;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Throwable;
 
 /**
  * Shared business logic for hash index operations.
  *
- * Used by both CLI commands and the SettingsController HTTP API
- * to eliminate duplication of rebuild/purge/teardown/remove logic.
+ * Used by CLI commands, SettingsController, CronGenerateHashes,
+ * and other service classes.
  */
 readonly class HashIndexService
 {
+
+	public const SUPPORTED_ALGOS
+		= [
+			'sha1',
+			'md5',
+			'sha256',
+			'sha512',
+			'sha3-256',
+			'sha3-512',
+			'crc32',
+		];
+
+
+	public static function getDefaultAlgo(): string
+	{
+
+		return self::SUPPORTED_ALGOS[0];
+	}
+
 
 	public function __construct(
 		private IDBConnection    $db,
 		private TableNameService $tables,
 		private LifecycleHandler $lifecycleHandler,
 		private IRootFolder      $rootFolder,
+		private IUserManager     $userManager,
 		private LoggerInterface  $logger,
 	) {
 	}
@@ -48,15 +72,10 @@ readonly class HashIndexService
 		$hashTable = $this->tables->getHashTableName();
 		$fcTable   = $this->tables->getFilecacheTableName();
 
-		// Clean up orphaned entries: files whose checksum was cleared
-		// but still have stale rows in the hash table
-
 		$output?->writeln( '  Deleting orphaned index entries …' );
 		$this->logger->debug(
 			'FCIAS: rebuildIndex deleting orphaned index entries.',
-			[
-				'app' => Application::APP_ID,
-			],
+			[ 'app' => Application::APP_ID ],
 		);
 
 		$deleted = $this->db->executeStatement(
@@ -219,14 +238,7 @@ readonly class HashIndexService
 
 		$algo = strtolower( $algo );
 
-		if ( ! in_array(
-			$algo,
-			[
-				'sha1',
-				'md5',
-			],
-			true,
-		) )
+		if ( ! in_array( $algo, self::SUPPORTED_ALGOS, true ) )
 		{
 			return [
 				'success' => false,
@@ -378,6 +390,277 @@ SQL,
 			'FCIAS: createTable completed',
 			[ 'app' => Application::APP_ID ],
 		);
+	}
+
+
+	/**
+	 * @return string[]
+	 */
+	public function resolveUsers( string $userScope ): array
+	{
+
+		if ( $userScope === 'all' )
+		{
+			$allUsers = [];
+
+			$this->userManager->callForAllUsers(
+				function (
+					$user,
+				) use
+				(
+					&
+					$allUsers,
+				): void
+				{
+
+					$allUsers[] = $user->getUID();
+				},
+			);
+
+			return $allUsers;
+		}
+
+		$user = $this->userManager->get( $userScope );
+
+		if ( $user === null )
+		{
+			$this->logger->warning(
+				'FCIAS: resolveUsers — user not found.',
+				[
+					'app'       => Application::APP_ID,
+					'userScope' => $userScope,
+				],
+			);
+
+			return [];
+		}
+
+		return [ $user->getUID() ];
+	}
+
+
+	/**
+	 * Two-phase hash generation: collect files needing hashes,
+	 * then process them. Avoids interleaving reads and writes
+	 * to oc_filecache (dirty reads in NC v33 debug mode).
+	 *
+	 * @return array{processed: int, skipped: int}
+	 */
+	public function generateMissingHashes(
+		string           $userId,
+		string           $algo,
+		?string          $pathPattern = null,
+		int              $batchSize = 100,
+		?OutputInterface $output = null,
+	): array {
+
+		$userFolder     = $this->rootFolder->getUserFolder( $userId );
+		$userFolderPath = $userFolder->getPath();
+
+		// Phase 1: collect
+		$files = [];
+		$this->collectFilesForUser(
+			$userFolderPath,
+			$userId,
+			$algo,
+			$pathPattern,
+			$userFolderPath,
+			$files,
+			$batchSize,
+		);
+
+		$collected = count( $files );
+
+		if ( $collected > 0 )
+		{
+			$this->logger->debug(
+				'FCIAS: generateMissingHashes collected {count} files.',
+				[
+					'app'    => Application::APP_ID,
+					'userId' => $userId,
+					'algo'   => $algo,
+					'count'  => $collected,
+				],
+			);
+
+			$output?->writeln(
+				sprintf(
+					'  Collected %d files without %s checksums.',
+					$collected,
+					$algo,
+				),
+			);
+		}
+
+		// Phase 2: process
+		$processed = 0;
+		$skipped   = 0;
+
+		foreach ( $files as $file )
+		{
+			try
+			{
+				$result = $this->recalcFileHash( $file, $algo );
+
+				if ( $result['existed'] )
+				{
+					$skipped ++;
+				}
+				else
+				{
+					$processed ++;
+
+					if ( $processed % 10 == 0 && $output !== null )
+					{
+						$output->writeln(
+							sprintf( '    %d files processed …', $processed ),
+						);
+					}
+				}
+			}
+			catch ( Throwable $e )
+			{
+				$this->logger->error(
+					'FCIAS: recalcFileHash failed in generateMissingHashes',
+					[
+						'app'       => Application::APP_ID,
+						'fileId'    => $file->getId(),
+						'algo'      => $algo,
+						'exception' => $e,
+					],
+				);
+
+				$output?->warning(
+					sprintf(
+						'  WARNING: recalcFileHash failed for fileId %d: %s',
+						$file->getId(),
+						$e->getMessage(),
+					),
+				);
+
+				continue;
+			}
+		}
+
+		return [
+			'processed' => $processed,
+			'skipped'   => $skipped,
+		];
+	}
+
+
+	private function collectFilesForUser(
+		string  $folderPath,
+		string  $userId,
+		string  $algo,
+		?string $pathPattern,
+		string  $userFolderPath,
+		array   &$collected,
+		int     $batchSize,
+	): void {
+
+		if ( count( $collected ) >= $batchSize )
+		{
+			return;
+		}
+
+		$userFolder = $this->rootFolder->getUserFolder( $userId );
+		$relPath    = $this->relativeHashPath( $folderPath, $userFolderPath );
+
+		try
+		{
+			$node = $userFolder->get( $relPath );
+		}
+		catch ( NotFoundException )
+		{
+			return;
+		}
+
+		if ( ! $node instanceof Folder )
+		{
+			return;
+		}
+
+		$prefix = strtoupper( $algo ) . ':';
+
+		foreach ( $node->getDirectoryListing() as $child )
+		{
+			if ( count( $collected ) >= $batchSize )
+			{
+				return;
+			}
+
+			if ( $child instanceof Folder )
+			{
+				$this->collectFilesForUser(
+					$child->getPath(),
+					$userId,
+					$algo,
+					$pathPattern,
+					$userFolderPath,
+					$collected,
+					$batchSize,
+				);
+
+				continue;
+			}
+
+			if ( ! ( $child instanceof File ) )
+			{
+				continue;
+			}
+
+			$relativePath = $this->relativeHashPath(
+				$child->getPath(),
+				$userFolderPath,
+			);
+
+			if ( $pathPattern !== null && ! fnmatch( $pathPattern, $relativePath ) )
+			{
+				continue;
+			}
+
+			$existingChecksum = $child->getChecksum() ?? '';
+			$alreadyHas       = false;
+
+			foreach ( explode( ' ', $existingChecksum ) as $pair )
+			{
+				if ( str_starts_with( $pair, $prefix ) )
+				{
+					$alreadyHas = true;
+
+					break;
+				}
+			}
+
+			if ( ! $alreadyHas )
+			{
+				$collected[] = $child;
+			}
+		}
+	}
+
+
+	private function relativeHashPath(
+		string $path,
+		string $basePath,
+	): string {
+
+		$basePath = rtrim( $basePath, '/' );
+
+		if ( $path === $basePath )
+		{
+			return '';
+		}
+
+		$basePath .= '/';
+
+		if ( str_starts_with( $path, $basePath ) )
+		{
+			return substr( $path, strlen( $basePath ) );
+		}
+
+		return ltrim( $path, '/' );
 	}
 
 }

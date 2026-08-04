@@ -150,9 +150,11 @@ class LookupController
 
 	#[NoAdminRequired]
 	public function recalcHash(
-		int    $fileId,
-		string $algo = 'sha1',
+		int     $fileId,
+		?string $algo = null,
 	): DataResponse {
+
+		$algo ??= HashIndexService::getDefaultAlgo();
 
 		$result = $this->hashIndexService->recalcHash( $fileId, $algo );
 

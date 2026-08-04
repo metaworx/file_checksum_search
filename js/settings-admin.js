@@ -9,6 +9,15 @@
 	const removeTableUrl = OC.generateUrl( '/apps/file_checksum_search/settings/remove-table' );
 	const deployTriggersUrl = OC.generateUrl( '/apps/file_checksum_search/settings/deploy-triggers' );
 	const createTableUrl = OC.generateUrl( '/apps/file_checksum_search/settings/create-table' );
+	const cronDefinitionsUrl = OC.generateUrl( '/apps/file_checksum_search/settings/cron/definitions' );
+	const cronSaveUrl = OC.generateUrl( '/apps/file_checksum_search/settings/cron/save' );
+	const cronDeleteUrl = OC.generateUrl( '/apps/file_checksum_search/settings/cron/delete' );
+	const cronToggleUrl = OC.generateUrl( '/apps/file_checksum_search/settings/cron/toggle' );
+	const cronSnippetUrl = OC.generateUrl( '/apps/file_checksum_search/settings/cron/snippet' );
+
+	let editingDefinitionId = null;
+	let supportedAlgos = [];
+	let availableUsers = [];
 
 	function setText( id, text ) {
 		const el = document.getElementById( id );
@@ -145,6 +154,271 @@
 		);
 	}
 
+	function populateDropdowns() {
+		const algoSelects = document.querySelectorAll( '#fcias-cron-algo, #fcias-snippet-algo' );
+		algoSelects.forEach( function ( sel ) {
+			sel.innerHTML = '';
+			supportedAlgos.forEach( function ( algo ) {
+				const opt = document.createElement( 'option' );
+				opt.value = algo;
+				opt.textContent = algo;
+				sel.appendChild( opt );
+			} );
+		} );
+
+		const userSelects = document.querySelectorAll( '#fcias-cron-userscope, #fcias-snippet-userscope' );
+		userSelects.forEach( function ( sel ) {
+			const currentValue = sel.value;
+			sel.innerHTML = '<option value="all">All Users</option>';
+			availableUsers.forEach( function ( uid ) {
+				const opt = document.createElement( 'option' );
+				opt.value = uid;
+				opt.textContent = uid;
+				sel.appendChild( opt );
+			} );
+			sel.value = currentValue;
+		} );
+	}
+
+	function loadDefinitions() {
+		fetch( cronDefinitionsUrl )
+			.then( function ( r ) {
+				return r.json();
+			} )
+			.then( function ( data ) {
+				supportedAlgos = data.supportedAlgos || [];
+				availableUsers = data.users || [];
+				populateDropdowns();
+				const definitions = data.definitions || [];
+				renderDefinitionList( definitions );
+			} )
+			.catch( function () {
+				setHtml( 'fcias-cron-msg', '<p class="fcias-error">Failed to load definitions.</p>' );
+			} );
+	}
+
+	function renderDefinitionList( definitions ) {
+		const container = document.getElementById( 'fcias-cron-list' );
+		if ( !container ) {
+			return;
+		}
+		if ( definitions.length === 0 ) {
+			container.innerHTML = '<p>No definitions yet.</p>';
+			return;
+		}
+		let html = '<table class="grid fcias-cron-table"><thead><tr>' +
+			'<th>User</th><th>Path</th><th>Algo</th><th>Interval</th><th>Batch</th><th>Last Run</th><th>Duration</th><th>Status</th><th></th>' +
+			'</tr></thead><tbody>';
+		definitions.forEach( function ( def ) {
+			const intervalLabel = getIntervalLabel( def.interval || 900 );
+			const statusClass = def.enabled ? 'fcias-compat-pass' : 'fcias-compat-fail';
+			const statusText = def.enabled ? 'Enabled' : 'Disabled';
+			const lastRunText = formatTimestamp( def.lastRun );
+			const durationText = formatDuration( def.execDuration );
+			html += '<tr data-id="' + escapeHtml( def.id ) + '">' +
+				'<td>' + escapeHtml( def.userScope || 'all' ) + '</td>' +
+				'<td>' + escapeHtml( def.path || '/' ) + '</td>' +
+				'<td>' + escapeHtml( def.algo || 'sha1' ) + '</td>' +
+				'<td>' + escapeHtml( intervalLabel ) + '</td>' +
+				'<td>' + ( def.batchSize || 100 ) + '</td>' +
+				'<td>' + escapeHtml( lastRunText ) + '</td>' +
+				'<td>' + escapeHtml( durationText ) + '</td>' +
+				'<td><span class="' + statusClass + '">' + statusText + '</span></td>' +
+				'<td class="fcias-cron-actions">' +
+				'<button class="fcias-btn fcias-btn-edit" data-action="edit">Edit</button> ' +
+				'<button class="fcias-btn fcias-btn-toggle" data-action="toggle">' + ( def.enabled ? 'Disable' : 'Enable' ) + '</button> ' +
+				'<button class="fcias-btn fcias-btn-danger fcias-btn-delete" data-action="delete">Delete</button>' +
+				'</td>' +
+				'</tr>';
+		} );
+		html += '</tbody></table>';
+		container.innerHTML = html;
+	}
+
+	function formatTimestamp( ts ) {
+		if ( !ts || ts === 0 ) {
+			return '—';
+		}
+		const d = new Date( ts * 1000 );
+		return d.toLocaleString();
+	}
+
+	function formatDuration( seconds ) {
+		if ( !seconds || seconds === 0 ) {
+			return '—';
+		}
+		if ( seconds < 60 ) {
+			return seconds + 's';
+		}
+		if ( seconds < 3600 ) {
+			return ( seconds / 60 ).toFixed( 1 ) + 'm';
+		}
+		return ( seconds / 3600 ).toFixed( 1 ) + 'h';
+	}
+
+	function getIntervalLabel( seconds ) {
+		switch ( seconds ) {
+			case 300:
+				return '5 minutes';
+			case 900:
+				return '15 minutes';
+			case 1800:
+				return '30 minutes';
+			case 3600:
+				return '60 minutes';
+			default:
+				return seconds + 's';
+		}
+	}
+
+	function showDefinitionForm( def ) {
+		editingDefinitionId = def ? def.id : null;
+		document.getElementById( 'fcias-cron-userscope' ).value = def ? ( def.userScope || 'all' ) : 'all';
+		document.getElementById( 'fcias-cron-path' ).value = def ? ( def.path || '/' ) : '/';
+		document.getElementById( 'fcias-cron-algo' ).value = def ? ( def.algo || 'sha1' ) : 'sha1';
+		document.getElementById( 'fcias-cron-batchsize' ).value = def ? ( def.batchSize || 100 ) : 100;
+		document.getElementById( 'fcias-cron-interval' ).value = def ? ( def.interval || 900 ) : 900;
+		document.getElementById( 'fcias-cron-form' ).style.display = 'block';
+	}
+
+	function hideDefinitionForm() {
+		editingDefinitionId = null;
+		document.getElementById( 'fcias-cron-form' ).style.display = 'none';
+	}
+
+	function saveDefinition() {
+		const def = {
+			id: editingDefinitionId || undefined,
+			enabled: true,
+			userScope: document.getElementById( 'fcias-cron-userscope' ).value,
+			path: document.getElementById( 'fcias-cron-path' ).value,
+			algo: document.getElementById( 'fcias-cron-algo' ).value,
+			batchSize: parseInt( document.getElementById( 'fcias-cron-batchsize' ).value, 10 ) || 100,
+			interval: parseInt( document.getElementById( 'fcias-cron-interval' ).value, 10 ) || 900,
+		};
+		fetch( cronSaveUrl, {
+			method: 'POST',
+			headers: {
+				'requesttoken': OC.requestToken,
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify( def ),
+		} )
+			.then( function ( r ) {
+				return r.json();
+			} )
+			.then( function ( data ) {
+				if ( data.success ) {
+					hideDefinitionForm();
+					loadDefinitions();
+					OC.Notification.showTemporary( 'Definition saved.' );
+				} else {
+					setHtml( 'fcias-cron-msg', '<p class="fcias-error">' + escapeHtml( data.error || 'Save failed.' ) + '</p>' );
+				}
+			} )
+			.catch( function () {
+				setHtml( 'fcias-cron-msg', '<p class="fcias-error">Request failed.</p>' );
+			} );
+	}
+
+	function deleteDefinition( id ) {
+		OC.dialogs.confirm(
+			'Delete this definition? The job will be removed from the NC job list.',
+			'Confirm Delete',
+			function ( confirmed ) {
+				if ( !confirmed ) {
+					return;
+				}
+				fetch( cronDeleteUrl, {
+					method: 'POST',
+					headers: {
+						'requesttoken': OC.requestToken,
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify( { id: id } ),
+				} )
+					.then( function ( r ) {
+						return r.json();
+					} )
+					.then( function ( data ) {
+						if ( data.success ) {
+							loadDefinitions();
+							OC.Notification.showTemporary( 'Definition deleted.' );
+						} else {
+							setHtml( 'fcias-cron-msg', '<p class="fcias-error">' + escapeHtml( data.error || 'Delete failed.' ) + '</p>' );
+						}
+					} )
+					.catch( function () {
+						setHtml( 'fcias-cron-msg', '<p class="fcias-error">Request failed.</p>' );
+					} );
+			},
+			true
+		);
+	}
+
+	function toggleDefinition( id, enabled ) {
+		fetch( cronToggleUrl, {
+			method: 'POST',
+			headers: {
+				'requesttoken': OC.requestToken,
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify( { id: id, enabled: enabled } ),
+		} )
+			.then( function ( r ) {
+				return r.json();
+			} )
+			.then( function ( data ) {
+				if ( data.success ) {
+					loadDefinitions();
+					OC.Notification.showTemporary( enabled ? 'Job enabled.' : 'Job disabled.' );
+				} else {
+					setHtml( 'fcias-cron-msg', '<p class="fcias-error">' + escapeHtml( data.error || 'Toggle failed.' ) + '</p>' );
+				}
+			} )
+			.catch( function () {
+				setHtml( 'fcias-cron-msg', '<p class="fcias-error">Request failed.</p>' );
+			} );
+	}
+
+	function generateSnippet() {
+		const form = document.getElementById( 'fcias-snippet-form' );
+		if ( form && form.style.display === 'none' ) {
+			form.style.display = 'block';
+			return;
+		}
+		const params = new URLSearchParams( {
+			userScope: document.getElementById( 'fcias-snippet-userscope' ).value,
+			path: document.getElementById( 'fcias-snippet-path' ).value,
+			algo: document.getElementById( 'fcias-snippet-algo' ).value,
+			batchSize: document.getElementById( 'fcias-snippet-batchsize' ).value,
+			interval: document.getElementById( 'fcias-snippet-interval' ).value,
+		} );
+		fetch( cronSnippetUrl + '?' + params.toString() )
+			.then( function ( r ) {
+				return r.json();
+			} )
+			.then( function ( data ) {
+				document.getElementById( 'fcias-cron-snippet' ).textContent = data.snippet || '';
+				document.getElementById( 'fcias-cron-snippet-container' ).style.display = 'block';
+			} )
+			.catch( function () {
+				setHtml( 'fcias-cron-msg', '<p class="fcias-error">Failed to generate snippet.</p>' );
+			} );
+	}
+
+	function copySnippet() {
+		const pre = document.getElementById( 'fcias-cron-snippet' );
+		const text = pre ? pre.textContent : '';
+		if ( text ) {
+			navigator.clipboard.writeText( text ).then( function () {
+				OC.Notification.showTemporary( 'Copied to clipboard.' );
+			} ).catch( function () {
+				OC.Notification.showTemporary( 'Copy failed. Please copy manually.' );
+			} );
+		}
+	}
+
 	function escapeHtml( str ) {
 		const div = document.createElement( 'div' );
 		div.appendChild( document.createTextNode( str ) );
@@ -199,6 +473,95 @@
 			btnCreateTable.addEventListener( 'click', function () {
 				confirmAndPost( createTableUrl, 'This will create the hash table if it does not exist. Continue?', loadStatus );
 			} );
+		}
+
+		// Cron: load definitions
+		loadDefinitions();
+
+		// Cron: Add Definition button
+		const btnAddDef = document.getElementById( 'fcias-btn-add-definition' );
+		if ( btnAddDef ) {
+			btnAddDef.addEventListener( 'click', function () {
+				showDefinitionForm( null );
+			} );
+		}
+
+		const btnRefresh = document.getElementById( 'fcias-btn-refresh-definitions' );
+		if ( btnRefresh ) {
+			btnRefresh.addEventListener( 'click', loadDefinitions );
+		}
+
+		// Cron: Save button
+		const btnSaveDef = document.getElementById( 'fcias-btn-save-definition' );
+		if ( btnSaveDef ) {
+			btnSaveDef.addEventListener( 'click', saveDefinition );
+		}
+
+		// Cron: Cancel button
+		const btnCancelDef = document.getElementById( 'fcias-btn-cancel-definition' );
+		if ( btnCancelDef ) {
+			btnCancelDef.addEventListener( 'click', hideDefinitionForm );
+		}
+
+		// Cron: Definition list actions (delegated)
+		const cronList = document.getElementById( 'fcias-cron-list' );
+		if ( cronList ) {
+			cronList.addEventListener( 'click', function ( event ) {
+				const btn = event.target.closest( 'button' );
+				if ( !btn ) {
+					return;
+				}
+				const action = btn.getAttribute( 'data-action' );
+				const row = btn.closest( 'tr' );
+				const id = row ? row.getAttribute( 'data-id' ) : null;
+				if ( !id ) {
+					return;
+				}
+				if ( action === 'edit' ) {
+					// Find definition data from the row
+					const def = {
+						id: id,
+						userScope: row.cells[ 0 ].textContent,
+						path: row.cells[ 1 ].textContent,
+						algo: row.cells[ 2 ].textContent,
+						batchSize: parseInt( row.cells[ 4 ].textContent, 10 ) || 100,
+						interval: getIntervalSeconds( row.cells[ 3 ].textContent ),
+					};
+					showDefinitionForm( def );
+				} else if ( action === 'toggle' ) {
+					const isEnabled = row.querySelector( '.fcias-compat-pass' ) !== null;
+					toggleDefinition( id, !isEnabled );
+				} else if ( action === 'delete' ) {
+					deleteDefinition( id );
+				}
+			} );
+		}
+
+		// Cron: Generate Snippet button
+		const btnGenSnippet = document.getElementById( 'fcias-btn-generate-snippet' );
+		if ( btnGenSnippet ) {
+			btnGenSnippet.addEventListener( 'click', generateSnippet );
+		}
+
+		// Cron: Copy Snippet button
+		const btnCopySnippet = document.getElementById( 'fcias-btn-copy-snippet' );
+		if ( btnCopySnippet ) {
+			btnCopySnippet.addEventListener( 'click', copySnippet );
+		}
+
+		function getIntervalSeconds( label ) {
+			switch ( label ) {
+				case '5 minutes':
+					return 300;
+				case '15 minutes':
+					return 900;
+				case '30 minutes':
+					return 1800;
+				case '60 minutes':
+					return 3600;
+				default:
+					return 900;
+			}
 		}
 	} );
 } )();

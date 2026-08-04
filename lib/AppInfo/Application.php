@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\AppInfo;
 
 use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Migration\LifecycleHandler;
+use OCA\FileChecksumSearch\Service\CronJobService;
 use OCA\FileChecksumSearch\Service\TriggerInitializationService;
 use OCP\App\Events\AppDisableEvent;
 use OCP\AppFramework\App;
@@ -62,28 +63,39 @@ class Application
 			},
 		);
 
-		// Lifecycle: strip SP + triggers on disable, reset deploy flag
+		// Lifecycle: strip SP + triggers, reset deploy flag,
+		// backup cron job definitions before NC drops them
 		$dispatcher->addListener(
 			AppDisableEvent::class,
 			function (
 				AppDisableEvent $event,
 			) {
 
-				if ( $event->getAppId() === self::APP_ID )
+				if ( $event->getAppId() !== self::APP_ID )
 				{
-					Server::get( LifecycleHandler::class )
-					      ->stripTriggers()
-					;
-					Server::get( TriggerInitializationService::class )
-					      ->markUndeployed( self::APP_ID )
-					;
+					return;
 				}
+
+				Server::get( LifecycleHandler::class )
+				      ->stripTriggers()
+				;
+				Server::get( TriggerInitializationService::class )
+				      ->markUndeployed( self::APP_ID )
+				;
+				Server::get( CronJobService::class )
+				      ->backup()
+				;
 			},
 		);
 
 		// Deploy triggers on first boot after enable
 		Server::get( TriggerInitializationService::class )
 		      ->deployIfNeeded( self::APP_ID )
+		;
+
+		// Re-register cron job definitions from backup
+		Server::get( CronJobService::class )
+		      ->restore()
 		;
 	}
 

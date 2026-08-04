@@ -35,7 +35,7 @@
 
 .fcias-compat-pass {
 	background-color: var(--color-success);
-	color: #fff;
+	color: #ffffff;
 	font-weight: 600;
 	padding: 1px 6px;
 	border-radius: var(--border-radius, 3px);
@@ -43,7 +43,7 @@
 
 .fcias-compat-fail {
 	background-color: var(--color-error);
-	color: #fff;
+	color: #ffffff;
 	font-weight: 600;
 	padding: 1px 6px;
 	border-radius: var(--border-radius, 3px);
@@ -60,4 +60,91 @@
 
 #fcias-msg {
 	margin-top: 12px;
+}
+
+.fcias-cron-table {
+	width: 100%;
+	margin-bottom: 16px;
+}
+
+.fcias-cron-table th,
+.fcias-cron-table td {
+	padding: 6px 8px;
+	vertical-align: middle;
+}
+
+.fcias-cron-actions {
+	white-space: nowrap;
+}
+
+.fcias-cron-form {
+	margin: 12px 0;
+	border: 1px solid var(--color-border);
+	padding: 12px;
+	border-radius: var(--border-radius, 3px);
+	background-color: var(--color-background-dark, #f5f5f5);
+}
+
+.fcias-cron-form-row {
+	display: flex;
+	align-items: center;
+	margin-bottom: 8px;
+	gap: 8px;
+}
+
+.fcias-cron-form-row label {
+	min-width: 120px;
+	font-weight: 600;
+}
+
+.fcias-cron-form-row input[type="text"],
+.fcias-cron-form-row input[type="number"],
+.fcias-cron-form-row select {
+	flex: 1;
+	max-width: 300px;
+}
+
+.fcias-cron-form-actions {
+	margin-top: 12px;
+	display: flex;
+	gap: 8px;
+}
+
+#fcias-cron-snippet-container {
+	margin-top: 12px;
+}
+
+#fcias-cron-snippet {
+	background-color: var(--color-background-dark, #f0f0f0);
+	padding: 12px;
+	border-radius: var(--border-radius, 3px);
+	font-family: monospace;
+	font-size: 0.9em;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+
+#fcias-cron-msg {
+	margin-top: 8px;
+}
+
+.fcias-btn-edit {
+	background-color: var(--color-primary);
+	color: var(--color-primary-text);
+}
+
+.fcias-btn-toggle {
+	background-color: var(--color-warning, #f0ad4e);
+	color: var(--color-primary-text);
+}
+
+.fcias-btn-delete {
+	background-color: var(--color-error);
+	color: var(--color-primary-text);
+}
+
+.fcias-section h5 {
+	margin-top: 16px;
+	margin-bottom: 4px;
 }
