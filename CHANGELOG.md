@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-08-05
+
 ### Fixed
 
 - Fix Unified Search never returning results by programmatically registering HashSearchProvider via IRegistrationContext, since NC v33 no longer processes the info.xml <search> block, and add a fingerprint app icon.
