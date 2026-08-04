@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-08-04
+
 ### Fixed
 
 - Fix every CLI command and admin API endpoint crashing with an unhandled error by replacing the non-existent IDBConnection::getPrefix() with a centralized TableNameService, also correcting the wrong dbtableprefix config key that had been silently ignored.
