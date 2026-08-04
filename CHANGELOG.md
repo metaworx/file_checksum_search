@@ -14,6 +14,7 @@ the first stable release.
 ### Fixed
 
 - Fix Unified Search never returning results by programmatically registering HashSearchProvider via IRegistrationContext, since NC v33 no longer processes the info.xml <search> block, and add a fingerprint app icon.
+- Use img/app.svg as the single source of truth for the app icon across the sidebar and admin settings instead of duplicating inline SVG markup.
 
 ## [0.5.0] — 2026-08-04
 
