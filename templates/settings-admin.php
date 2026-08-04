@@ -16,8 +16,10 @@ Util::addStyle( 'file_checksum_search', 'settings-admin' );
 ?>
 
 <div id="fcias-admin-settings">
-	<h3><?php
-		p( $l->t( 'File Checksum Index & Search' ) ); ?></h3>
+	<h3>
+		<?php echo str_replace('fill="#fff"', 'fill="currentColor"', file_get_contents(__DIR__ . '/../img/app.svg')); ?>
+		<?php p( $l->t( 'File Checksum Index & Search' ) ); ?>
+	</h3>
 
 	<div class="fcias-section">
 		<h4><?php

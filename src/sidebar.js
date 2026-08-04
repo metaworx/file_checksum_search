@@ -1,6 +1,8 @@
 import { getSidebar, registerFileAction } from '@nextcloud/files'
 import { t } from '@nextcloud/l10n'
+import appIconSvg from '../img/app.svg'
 
+const APP_ICON = appIconSvg.replace('fill="#fff"', 'fill="currentColor"')
 const TAG = 'file_checksum_search-files-sidebar-tab'
 
 function escapeHtml(str) {
@@ -61,7 +63,7 @@ class ChecksumsSidebarTab extends HTMLElement {
                 .fcias-recalc-btn:disabled { opacity: 0.5; cursor: default; }
             </style>
             <div class="fcias-container">
-                <p class="fcias-loading">${escapeHtml(t('file_checksum_search', 'Loading checksums…'))}</p>
+                <p class="fcias-loading">${ escapeHtml( t( 'file_checksum_search', 'Loading checksums …' ) ) }</p>
             </div>
         `
     }
@@ -79,7 +81,7 @@ class ChecksumsSidebarTab extends HTMLElement {
         this.#abortController?.abort()
         this.#abortController = new AbortController()
 
-        container.innerHTML = `<p class="fcias-loading">${escapeHtml(t('file_checksum_search', 'Loading checksums…'))}</p>`
+        container.innerHTML = `<p class="fcias-loading">${escapeHtml(t('file_checksum_search', 'Loading checksums …'))}</p>`
 
         try {
             const url = OC.generateUrl('/apps/file_checksum_search/api/1.0/file/{fileId}/hashes', {
@@ -169,7 +171,7 @@ if (!customElements.get(TAG)) {
 getSidebar().registerTab({
     id: 'file_checksum_search-checksums',
     displayName: t('file_checksum_search', 'Checksums'),
-    iconSvgInline: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1Z" /></svg>',
+    iconSvgInline: APP_ICON,
     order: 55,
     tagName: TAG,
     enabled({ node }) {
@@ -178,7 +180,7 @@ getSidebar().registerTab({
 })
 
 // File menu action: opens sidebar directly to Checksums tab
-const checksumIcon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1Z" /></svg>'
+const checksumIcon = APP_ICON
 const checksumName = t('file_checksum_search', 'Checksums')
 
 registerFileAction({
