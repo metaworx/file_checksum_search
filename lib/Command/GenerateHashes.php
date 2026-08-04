@@ -9,29 +9,28 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Command;
 
+use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\Files\NotFoundException;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Finder\Finder;
 
 class GenerateHashes
 	extends
 	Command
 {
 
-	private IRootFolder $rootFolder;
-
-
-	public function __construct( IRootFolder $rootFolder )
-	{
+	public function __construct(
+		private readonly IRootFolder     $rootFolder,
+		private readonly LoggerInterface $logger,
+	) {
 
 		parent::__construct();
-		$this->rootFolder = $rootFolder;
 	}
 
 
@@ -70,7 +69,18 @@ class GenerateHashes
 		}
 
 		$userFolder = $this->rootFolder->getUserFolder( $userId );
-		$output->writeln( sprintf( 'Generating %s hashes for user "%s"…', $algo, $userId ) );
+		$output->writeln( sprintf( 'Generating %s hashes for user "%s" …', $algo, $userId ) );
+
+		$this->logger->debug(
+			'FCIAS: generate command starting',
+			[
+				'app'            => Application::APP_ID,
+				'userId'         => $userId,
+				'algo'           => $algo,
+				'pathPattern'    => $pathPattern,
+				'userFolderPath' => $userFolder->getPath(),
+			],
+		);
 
 		$processed = 0;
 		$skipped   = 0;
@@ -104,22 +114,67 @@ class GenerateHashes
 	): void {
 
 		$userFolder = $this->rootFolder->getUserFolder( $userId );
+		$relPath    = $this->relativePath( $folderPath, $userFolderPath );
+
+		$this->logger->debug(
+			'FCIAS: traverseFolder entry',
+			[
+				'app'            => Application::APP_ID,
+				'userId'         => $userId,
+				'folderPath'     => $folderPath,
+				'userFolderPath' => $userFolderPath,
+				'relativePath'   => $relPath,
+			],
+		);
 
 		try
 		{
-			$node = $userFolder->get( $this->relativePath( $folderPath, $userFolderPath ) );
+			$node = $userFolder->get( $relPath );
 		}
-		catch ( NotFoundException )
+		catch ( NotFoundException $e )
 		{
+			$this->logger->debug(
+				'FCIAS: traverseFolder — node not found, returning',
+				[
+					'app'          => Application::APP_ID,
+					'userId'       => $userId,
+					'relativePath' => $relPath,
+					'error'        => $e->getMessage(),
+				],
+			);
+
 			return;
 		}
 
 		if ( ! $node instanceof Folder )
 		{
+			$this->logger->debug(
+				'FCIAS: traverseFolder — node is not a Folder',
+				[
+					'app'          => Application::APP_ID,
+					'userId'       => $userId,
+					'relativePath' => $relPath,
+					'nodeType'     => get_debug_type( $node ),
+				],
+			);
+
 			return;
 		}
 
+		if ( $output->isVeryVerbose() )
+		{
+			$output->writeln(
+				sprintf(
+					'  Entering folder: %s',
+					$relPath === ''
+						? '/'
+						: $relPath,
+				),
+			);
+		}
+
 		$directoryIterator = $node->getDirectoryListing();
+		$childCount        = 0;
 
 		foreach ( $directoryIterator as $child )
 		{
@@ -144,8 +199,20 @@ class GenerateHashes
 
 			if ( ! ( $child instanceof File ) )
 			{
+				$this->logger->debug(
+					'FCIAS: traverseFolder — child is not a File, skipping',
+					[
+						'app'       => Application::APP_ID,
+						'userId'    => $userId,
+						'childPath' => $childPath,
+						'nodeType'  => get_debug_type( $child ),
+					],
+				);
+
 				continue;
 			}
+
+			$childCount ++;
 
 			// Apply path glob filter
 			if ( $pathPattern !== null && ! fnmatch( $pathPattern, $relativePath ) )
@@ -162,22 +229,68 @@ class GenerateHashes
 				continue;
 			}
 
-			// Compute hash in 8KB chunks
-			$hash = $this->hashFile( $child, $algo );
-
-			// Append to existing checksums
-			$newChecksum = $existingChecksum === ''
-				? sprintf( '%s:%s', $algo, $hash )
-				: $existingChecksum . ' ' . sprintf( '%s:%s', $algo, $hash );
-
-			$child->setChecksum( $newChecksum );
-			$processed ++;
-
-			if ( $processed % 100 === 0 )
+			try
 			{
-				$output->writeln( sprintf( '  %d files processed…', $processed ) );
+				// Compute hash
+				$hash = $this->hashFile( $child, $algo );
+
+				// Format checksum as NC standard uppercase algo:hash
+				$formattedChecksum = strtoupper( $algo ) . ':' . $hash;
+
+				// Append to existing checksums
+				$newChecksum = $existingChecksum === ''
+					? $formattedChecksum
+					: $existingChecksum . ' ' . $formattedChecksum;
+
+				$storage = $child->getStorage();
+				$cache   = $storage->getCache();
+
+				$cache->update( $child->getId(), [ 'checksum' => $newChecksum ] );
+				$processed ++;
+			}
+			catch ( \Throwable $e )
+			{
+				$output->warning( 'FCIAS: setChecksum() failed: ' . $e->getMessage() );
+				$this->logger->error(
+					'FCIAS GenerateHashes ERROR: ' . $e->getMessage(),
+					[
+						'app'       => Application::APP_ID,
+						'exception' => $e,
+					],
+				);
+				continue;
+			}
+
+			$this->logger->debug(
+				'FCIAS: file hashed',
+				[
+					'app'          => Application::APP_ID,
+					'userId'       => $userId,
+					'relativePath' => $relativePath,
+					'algo'         => $algo,
+					'hash'         => $hash,
+				],
+			);
+
+			if ( $output->isDebug() )
+			{
+				$output->writeln( sprintf( '    Hashed: %s (%s)', $relativePath, $hash ) );
+			}
+			elseif ( $processed % 10 == 0 )
+			{
+				$output->writeln( sprintf( '    %d files processed …', $processed ) );
 			}
 		}
+
+		$this->logger->debug(
+			'FCIAS: traverseFolder complete',
+			[
+				'app'            => Application::APP_ID,
+				'userId'         => $userId,
+				'folderPath'     => $folderPath,
+				'childFileCount' => $childCount,
+			],
+		);
 	}
 
 
@@ -186,14 +299,20 @@ class GenerateHashes
 		string $algo,
 	): string {
 
+		$storage = $file->getStorage();
+
+		if ( $storage->isLocal() )
+		{
+			$absolutePath = $storage->getLocalFile( $file->getInternalPath() );
+
+			return hash_file( $algo, $absolutePath );
+		}
+
+		// Fallback for external/encrypted storage: stream-based hashing
 		$handle = $file->fopen( 'rb' );
 		$ctx    = hash_init( $algo );
 
-		while ( ! feof( $handle ) )
-		{
-			$chunk = fread( $handle, 8192 );
-			hash_update( $ctx, $chunk );
-		}
+		hash_update_stream( $ctx, $handle );
 
 		fclose( $handle );
 
@@ -225,7 +344,14 @@ class GenerateHashes
 		string $basePath,
 	): string {
 
-		$basePath = rtrim( $basePath, '/' ) . '/';
+		$basePath = rtrim( $basePath, '/' );
+
+		if ( $path === $basePath )
+		{
+			return '';
+		}
+
+		$basePath .= '/';
 
 		if ( str_starts_with( $path, $basePath ) )
 		{

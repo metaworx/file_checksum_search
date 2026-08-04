@@ -15,6 +15,7 @@ the first stable release.
 
 - Fix every CLI command and admin API endpoint crashing with an unhandled error by replacing the non-existent IDBConnection::getPrefix() with a centralized TableNameService, also correcting the wrong dbtableprefix config key that had been silently ignored.
 - Register a config lexicon for the triggers_deployed app config key to stop Nextcloud from logging an info message on every boot request.
+- Fix GenerateHashes failing to process the root folder and crashing on the non-existent File::setChecksum(), and add debug logging plus verbosity-based progress output.
 
 ## [0.1.0] — 2026-08-03
 
