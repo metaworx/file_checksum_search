@@ -22,6 +22,7 @@ FCIAS deploys a **MariaDB Trigger + Shadow Table** architecture that normalizes 
 | Nextcloud | v33 |
 | PHP | 8.2 |
 | Database | MariaDB ≥ 10.2 with TRIGGER privilege |
+| Node.js | ≥ 18 (build only, not needed at runtime) |
 
 > **Note:** This app requires MariaDB. It does not support SQLite or PostgreSQL.
 
@@ -31,6 +32,11 @@ FCIAS deploys a **MariaDB Trigger + Shadow Table** architecture that normalizes 
 # Clone into your Nextcloud apps directory
 cd /var/www/nextcloud/apps
 git clone https://github.com/metaworx/file_checksum_search.git
+
+# Install JS dependencies and build frontend assets
+cd file_checksum_search
+npm install
+npm run build
 
 # Enable the app
 cd /var/www/nextcloud
