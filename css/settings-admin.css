@@ -34,13 +34,19 @@
 }
 
 .fcias-compat-pass {
-	color: var(--color-success);
+	background-color: var(--color-success);
+	color: #fff;
 	font-weight: 600;
+	padding: 1px 6px;
+	border-radius: var(--border-radius, 3px);
 }
 
 .fcias-compat-fail {
-	color: var(--color-error);
+	background-color: var(--color-error);
+	color: #fff;
 	font-weight: 600;
+	padding: 1px 6px;
+	border-radius: var(--border-radius, 3px);
 }
 
 .fcias-muted {
