@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Changed
+
+- Reformat whitespace in the admin settings JavaScript for consistency.
+
 ## [0.2.1] — 2026-08-04
 
 ### Fixed
