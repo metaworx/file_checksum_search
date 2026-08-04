@@ -218,4 +218,50 @@ class HashIndexService
 		);
 	}
 
+
+	/**
+	 * Deploy SP + 3 triggers. Idempotent — uses DROP IF EXISTS
+	 * before CREATE, so it is safe to call even when triggers
+	 * already exist.
+	 */
+	public function deployTriggers(): void
+	{
+
+		$this->lifecycleHandler->deployTriggers();
+
+		$this->logger->debug(
+			'FCIAS: deployTriggers completed',
+			[ 'app' => Application::APP_ID ],
+		);
+	}
+
+
+	/**
+	 * Create the hash table if it does not exist.
+	 *
+	 * Mirrors the schema from Version010000Date20260731000000.
+	 */
+	public function createTable(): void
+	{
+
+		$hashTable = $this->tables->getHashTableName();
+
+		$this->db->executeStatement(
+			<<<SQL
+CREATE TABLE IF NOT EXISTS `{$hashTable}` (
+	   `fileid`     BIGINT UNSIGNED NOT NULL,
+	   `algo`       VARCHAR(10) NOT NULL,
+	   `hash_value` VARCHAR(64) NOT NULL,
+	   PRIMARY KEY (`fileid`, `algo`),
+	   INDEX `idx_fcias_hash_lookup` (`hash_value`, `algo`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+SQL,
+		);
+
+		$this->logger->debug(
+			'FCIAS: createTable completed',
+			[ 'app' => Application::APP_ID ],
+		);
+	}
+
 }

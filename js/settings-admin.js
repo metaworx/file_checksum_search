@@ -7,6 +7,8 @@
 	const rebuildUrl = OC.generateUrl( '/apps/file_checksum_search/settings/rebuild' );
 	const teardownUrl = OC.generateUrl( '/apps/file_checksum_search/settings/teardown' );
 	const removeTableUrl = OC.generateUrl( '/apps/file_checksum_search/settings/remove-table' );
+	const deployTriggersUrl = OC.generateUrl( '/apps/file_checksum_search/settings/deploy-triggers' );
+	const createTableUrl = OC.generateUrl( '/apps/file_checksum_search/settings/create-table' );
 
 	function setText( id, text ) {
 		const el = document.getElementById( id );
@@ -182,6 +184,20 @@
 		if ( btnRemoveTable ) {
 			btnRemoveTable.addEventListener( 'click', function () {
 				confirmAndPost( removeTableUrl, 'This will permanently delete the hash table. Run teardown first. Continue?', loadStatus );
+			} );
+		}
+
+		const btnDeploy = document.getElementById( 'fcias-btn-deploy' );
+		if ( btnDeploy ) {
+			btnDeploy.addEventListener( 'click', function () {
+				confirmAndPost( deployTriggersUrl, 'This will create triggers and stored procedure if they are missing. Continue?', loadStatus );
+			} );
+		}
+
+		const btnCreateTable = document.getElementById( 'fcias-btn-createtable' );
+		if ( btnCreateTable ) {
+			btnCreateTable.addEventListener( 'click', function () {
+				confirmAndPost( createTableUrl, 'This will create the hash table if it does not exist. Continue?', loadStatus );
 			} );
 		}
 	} );

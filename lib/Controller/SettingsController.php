@@ -198,4 +198,46 @@ class SettingsController
 		}
 	}
 
+
+	public function deployTriggers(): DataResponse
+	{
+
+		try
+		{
+			$this->hashIndexService->deployTriggers();
+
+			return new DataResponse( [ 'success' => true ] );
+		}
+		catch ( Throwable $e )
+		{
+			return new DataResponse(
+				[
+					'success' => false,
+					'error'   => $e->getMessage(),
+				], Http::STATUS_INTERNAL_SERVER_ERROR,
+			);
+		}
+	}
+
+
+	public function createTable(): DataResponse
+	{
+
+		try
+		{
+			$this->hashIndexService->createTable();
+
+			return new DataResponse( [ 'success' => true ] );
+		}
+		catch ( Throwable $e )
+		{
+			return new DataResponse(
+				[
+					'success' => false,
+					'error'   => $e->getMessage(),
+				], Http::STATUS_INTERNAL_SERVER_ERROR,
+			);
+		}
+	}
+
 }

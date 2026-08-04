@@ -52,5 +52,15 @@ return [
 			'url'  => '/settings/remove-table',
 			'verb' => 'POST',
 		],
+		[
+			'name' => 'settings#deployTriggers',
+			'url'  => '/settings/deploy-triggers',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'settings#createTable',
+			'url'  => '/settings/create-table',
+			'verb' => 'POST',
+		],
 	],
 ];

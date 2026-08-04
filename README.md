@@ -57,7 +57,9 @@ The app will automatically deploy its database objects (shadow table, stored pro
 | `file-checksum-search:status` | Display app version, DB version, index status, and compatibility |
 | `file-checksum-search:purge --force` | Truncate the hash index table |
 | `file-checksum-search:teardown --force` | Drop triggers and stored procedure (preserves hash table) |
+| `file-checksum-search:deploy-triggers --force` | Create triggers and stored procedure (idempotent) |
 | `file-checksum-search:remove-table --force` | Drop the hash table entirely (run teardown first) |
+| `file-checksum-search:create-table --force` | Create the hash table if it does not exist (idempotent) |
 
 ### Examples
 
@@ -140,7 +142,7 @@ Navigate to **Administration settings → Additional settings → File Checksum 
 The settings page provides:
 - **Status overview**: App version, DB version, indexed hash count, trigger/SP state
 - **Compatibility test**: Verifies MariaDB ≥ 10.2, TRIGGER privilege, checksum column
-- **Maintenance actions**: Purge index, rebuild index, remove triggers & SP, remove hash table
+- **Maintenance actions**: Purge index, rebuild index, deploy triggers & SP, remove triggers & SP, create hash table, remove hash table
 
 ## Troubleshooting
 
