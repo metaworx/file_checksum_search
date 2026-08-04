@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-08-04
+
 ### Fixed
 
 - Fix unreadable compatibility-test status indicators on dark themes by switching from colored text to background-color badges.
