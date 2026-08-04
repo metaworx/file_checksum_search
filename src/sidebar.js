@@ -11,14 +11,24 @@ function escapeHtml(str) {
 
 class ChecksumsSidebarTab extends HTMLElement {
 
-    node = null
+    #node = null
     folder = null
     view = null
     active = false
     #abortController = null
+    #rendered = false
+
+    get node() { return this.#node }
+    set node(val) {
+        this.#node = val
+        if (this.#rendered && val) {
+            this.loadHashes()
+        }
+    }
 
     connectedCallback() {
         this.render()
+        this.#rendered = true
         this.loadHashes()
     }
 
