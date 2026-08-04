@@ -237,7 +237,7 @@ readonly class HashIndexService
 			];
 		}
 
-		$existingChecksum = $file->getChecksum();
+		$existingChecksum = $file->getChecksum() ?? '';
 		$prefix           = strtoupper( $algo ) . ':';
 
 		foreach ( explode( ' ', $existingChecksum ) as $pair )
