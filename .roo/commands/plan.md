@@ -73,6 +73,9 @@ Example: `.aiassistant/messages/2026-06-15_12-10_AP_Registry_v1.0_bild_static_re
 - Identify potential side effects or cross-cutting concerns
 
 ### 3.4 Step 4: Present preliminary findings
+- MANDATORY: The message body MUST contain the full analysis (scope, files, alternatives, risks).
+  The question parameter is ONLY "Any feedback before writing full AP?"
+  Do NOT write the analysis in thinking and summarize in body. INVERT THIS.
 - Follow §3.6.1 on how to use the `ask_followup_question` tool
 - Use the `ask_followup_question` tool to present a *brief* analysis in a gate message
 - Use the message body to present the analysis
@@ -81,6 +84,10 @@ Example: `.aiassistant/messages/2026-06-15_12-10_AP_Registry_v1.0_bild_static_re
 
 ### 3.5 Step 5: Write the AP UAMF
 
+- CRITICAL CHECK (MUST pass before ANY file write): \
+Is the target file in .aiassistant/messages/ ?
+  - → If YES: STOP. Create a NEW file with fresh timestamp + incremented version.
+  - → NEVER use apply_diff on UAMF files.
 - Write the AP file to `.aiassistant/messages/` with proper timestamp and filename
 - Include ALL required sections (§2.2)
 - Propose a commit message following [`AGENTS.md`](AGENTS.md) §6
