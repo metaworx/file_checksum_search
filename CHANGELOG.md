@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-08-04
+
 ### Added
 
 - Add idempotent restore commands (CLI and admin UI buttons) to recreate the hash table and triggers/stored procedures after they were torn down, so users no longer have to disable/re-enable the app or re-run migrations.
