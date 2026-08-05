@@ -1,0 +1,488 @@
+openapi: "3.0.3"
+info:
+  title: FCIAS Public API
+  description: |
+    Public REST API for the File Checksum Index & Search (FCIAS) Nextcloud app.
+    
+    Provides hash lookup, duplicate detection, hash recalculation, and status endpoints.
+    All endpoints require authentication via NC session cookie, HTTP Basic Auth, or Bearer token.
+    
+    See [docs/api-v1.md](docs/api-v1.md) for the PHP API and full documentation.
+  version: "1.0.0"
+  contact:
+    name: metaworx
+    url: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search
+
+servers:
+  - url: https://nc.example.com/apps/file_checksum_search
+    description: Typical Nextcloud instance (replace hostname)
+
+security:
+  - basicAuth: []
+  - bearerAuth: []
+  - cookieAuth: []
+
+paths:
+  /api/v1/lookup:
+    get:
+      tags: [Lookup]
+      summary: Search files by hash value
+      description: Find all files whose checksum matches the given hash. Optionally filter by algorithm.
+      operationId: findByHash
+      parameters:
+        - name: hash
+          in: query
+          required: true
+          description: Hex-encoded hash value (32, 40, 64, or 128 characters depending on algorithm)
+          schema:
+            type: string
+            minLength: 8
+            example: "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+        - name: algo
+          in: query
+          required: false
+          description: Algorithm filter
+          schema:
+            type: string
+            enum: [sha1, md5, sha256, sha512, sha3-256, sha3-512, crc32]
+            example: sha1
+        - name: limit
+          in: query
+          required: false
+          description: Maximum results (1–500, default 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HashLookupResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/v1/file/{fileId}/hashes:
+    get:
+      tags: [Lookup]
+      summary: Get all checksums for a file
+      description: Retrieve all computed checksums for a file by its filecache ID.
+      operationId: getHashesByFileId
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          description: The filecache file ID
+          schema:
+            type: integer
+            example: 12345
+      responses:
+        "200":
+          description: File hashes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileHashesResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/v1/file/{fileId}/duplicates:
+    get:
+      tags: [Lookup]
+      summary: Find files sharing hash values with a given file
+      description: For each algorithm for which the given file has a checksum, find other files with the same hash value.
+      operationId: findSameHash
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          description: The filecache file ID of the reference file
+          schema:
+            type: integer
+            example: 12345
+      responses:
+        "200":
+          description: Same-hash file groups
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SameHashResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/v1/file/{fileId}/recalc:
+    post:
+      tags: [Lookup]
+      summary: Recalculate hash for a file
+      description: Trigger checksum recalculation for a file. Reads the file content and recomputes the hash.
+      operationId: recalcHash
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          description: The filecache file ID
+          schema:
+            type: integer
+            example: 12345
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                algo:
+                  type: string
+                  enum: [sha1, md5, sha256, sha512, sha3-256, sha3-512, crc32]
+                  default: sha1
+                  description: Hash algorithm (default sha1)
+                  example: sha256
+      responses:
+        "200":
+          description: Recalculation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecalcResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/v1/duplicates:
+    get:
+      tags: [Duplicates]
+      summary: Find all duplicate hash groups
+      description: Find groups of files that share the same hash value. Supports filtering by algorithm, pagination, and minimum group size.
+      operationId: findDuplicates
+      parameters:
+        - name: algo
+          in: query
+          required: false
+          description: Algorithm filter
+          schema:
+            type: string
+            enum: [sha1, md5, sha256, sha512, sha3-256, sha3-512, crc32]
+            example: sha1
+        - name: min_count
+          in: query
+          required: false
+          description: Minimum files per duplicate group (default 2)
+          schema:
+            type: integer
+            minimum: 2
+            default: 2
+        - name: limit
+          in: query
+          required: false
+          description: Maximum groups to return (1–500, default 50)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          description: Pagination offset (default 0)
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Duplicate groups
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DuplicatesResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/v1/status:
+    get:
+      tags: [Maintenance]
+      summary: App and database status
+      description: Read-only health snapshot — app version, database version, indexed row count, and pending update count.
+      operationId: getStatus
+      responses:
+        "200":
+          description: Status information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: Nextcloud app password as password, username as username
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Nextcloud app password or OAuth token
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: nc_session_id
+      description: Nextcloud session cookie (for browser-based access)
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: "Hash parameter is required."
+
+    RateLimitError:
+      type: object
+      required: [error, retry_after]
+      properties:
+        error:
+          type: string
+          example: "Too many requests"
+        retry_after:
+          type: integer
+          description: Seconds until the rate limit resets
+          example: 30
+
+    HashLookupResponse:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/HashLookupResult"
+
+    HashLookupResult:
+      type: object
+      required: [fileid, algo, hash, path, name]
+      properties:
+        fileid:
+          type: integer
+          example: 12345
+        algo:
+          type: string
+          example: sha1
+        hash:
+          type: string
+          example: "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+        path:
+          type: string
+          example: "Documents"
+        name:
+          type: string
+          example: "report.pdf"
+
+    FileHashesResponse:
+      type: object
+      required: [fileid, hashes]
+      properties:
+        fileid:
+          type: integer
+          example: 12345
+        hashes:
+          type: array
+          items:
+            $ref: "#/components/schemas/HashEntry"
+
+    HashEntry:
+      type: object
+      required: [algo, hash]
+      properties:
+        algo:
+          type: string
+          example: sha1
+        hash:
+          type: string
+          example: "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+
+    SameHashResponse:
+      type: object
+      required: [duplicates]
+      properties:
+        duplicates:
+          type: array
+          items:
+            $ref: "#/components/schemas/DuplicateGroup"
+
+    DuplicatesResponse:
+      type: object
+      required: [duplicates, total_groups, pagination]
+      properties:
+        duplicates:
+          type: array
+          items:
+            $ref: "#/components/schemas/DuplicateGroup"
+        total_groups:
+          type: integer
+          example: 1
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    DuplicateGroup:
+      type: object
+      required: [algo, hash_value, file_count, files]
+      properties:
+        algo:
+          type: string
+          example: sha1
+        hash_value:
+          type: string
+          example: "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+        file_count:
+          type: integer
+          example: 3
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/DuplicateFile"
+
+    DuplicateFile:
+      type: object
+      required: [fileid, path, name]
+      properties:
+        fileid:
+          type: integer
+          example: 100
+        path:
+          type: string
+          example: "Documents"
+        name:
+          type: string
+          example: "a.pdf"
+
+    Pagination:
+      type: object
+      required: [offset, limit]
+      properties:
+        offset:
+          type: integer
+          example: 0
+        limit:
+          type: integer
+          example: 50
+
+    RecalcResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          example: true
+        algo:
+          type: string
+          example: sha256
+        hash:
+          type: string
+          example: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        fileid:
+          type: integer
+          example: 12345
+
+    StatusResponse:
+      type: object
+      required: [version, dbVersion, rowCount, pendingRows]
+      properties:
+        version:
+          type: string
+          description: App version
+          example: "1.0.0"
+        dbVersion:
+          type: string
+          description: Database version string
+          example: "10.11.6-MariaDB"
+        rowCount:
+          type: integer
+          description: Number of indexed hash rows
+          example: 15423
+        pendingRows:
+          type: integer
+          description: Number of pending hash updates
+          example: 5
+
+  responses:
+    BadRequest:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "Hash parameter is required."
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "File not found."
+
+    RateLimited:
+      description: Too many requests
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until rate limit resets
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/RateLimitError"
+          example:
+            error: "Too many requests"
+            retry_after: 30
+
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "Internal server error."
+
+tags:
+  - name: Lookup
+    description: Hash lookup and file-level operations
+  - name: Duplicates
+    description: Global duplicate detection
+  - name: Maintenance
+    description: Read-only health and status

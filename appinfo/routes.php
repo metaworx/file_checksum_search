@@ -9,7 +9,39 @@ declare( strict_types=1 );
 
 return [
 	'routes' => [
-		// REST API
+		// Public API v1
+		[
+			'name' => 'public_api#lookup',
+			'url'  => '/api/v1/lookup',
+			'verb' => 'GET',
+		],
+		[
+			'name' => 'public_api#getHashes',
+			'url'  => '/api/v1/file/{fileId}/hashes',
+			'verb' => 'GET',
+		],
+		[
+			'name' => 'public_api#findDuplicates',
+			'url'  => '/api/v1/file/{fileId}/duplicates',
+			'verb' => 'GET',
+		],
+		[
+			'name' => 'public_api#recalcHash',
+			'url'  => '/api/v1/file/{fileId}/recalc',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'public_api#findAllDuplicates',
+			'url'  => '/api/v1/duplicates',
+			'verb' => 'GET',
+		],
+		[
+			'name' => 'public_api#getStatus',
+			'url'  => '/api/v1/status',
+			'verb' => 'GET',
+		],
+
+		// Legacy REST API (frozen — use /api/v1/ for new integrations)
 		[
 			'name' => 'lookup#byHash',
 			'url'  => '/api/1.0/lookup',

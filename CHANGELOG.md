@@ -28,6 +28,7 @@ the first stable release.
 - Split the large HashIndexService into focused service classes for hash calculation, pending queue, duplicates, and file operations, keeping HashIndexService as a backward-compatible facade.
 - Move the shared escapeHtml helper into a common JS utility module to remove duplicated implementations in the sidebar and duplicates scripts.
 - Extract shared safeIntQuery/safeExistsQuery helpers in StatusService to eliminate repeated try/catch/log patterns across its status checks.
+- Design a stable public API (ChecksumApi class and /api/v1 HTTP endpoints) covering versioning, authentication, rate limiting, and backward compatibility, while keeping legacy /api/1.0 routes.
 
 ## [0.5.1] — 2026-08-05
 
