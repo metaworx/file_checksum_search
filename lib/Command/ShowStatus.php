@@ -61,22 +61,47 @@ class ShowStatus
 		);
 
 		$output->writeln( sprintf( 'Hash rows:       %d', $this->statusService->getHashRowCount() ) );
+		$output->writeln( sprintf( 'Pending rows:    %d', $this->statusService->getPendingRowCount() ) );
 
+		$output->writeln( '' );
+		$output->writeln( 'Tables:' );
+
+		foreach ( $this->statusService->getTableStatus() as $table )
+		{
+			$output->writeln(
+				sprintf(
+					'  %-45s %s',
+					$table['name'],
+					$table['ok'] ? 'OK' : 'MISSING',
+				),
+			);
+		}
+
+		$output->writeln( '' );
+		$output->writeln( 'Stored Procedure:' );
+
+		$sp = $this->statusService->getProcedureStatus();
 		$output->writeln(
 			sprintf(
-				'SP installed:    %s',
-				$this->statusService->isSpInstalled()
-					? 'YES'
-					: 'NO',
+				'  %-45s %s',
+				$sp['name'],
+				$sp['ok'] ? 'OK' : 'MISSING',
 			),
 		);
 
-		$output->writeln(
-			sprintf(
-				'Triggers:        %d/3 installed',
-				$this->statusService->getTriggerCount(),
-			),
-		);
+		$output->writeln( '' );
+		$output->writeln( 'Triggers:' );
+
+		foreach ( $this->statusService->getTriggerStatus() as $trigger )
+		{
+			$output->writeln(
+				sprintf(
+					'  %-45s %s',
+					$trigger['name'],
+					$trigger['ok'] ? 'OK' : 'MISSING',
+				),
+			);
+		}
 
 		return Command::SUCCESS;
 	}

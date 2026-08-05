@@ -194,7 +194,7 @@ SQL,
 
 
 	/**
-	 * Full cleanup: strip triggers + drop shadow table.
+	 * Full cleanup: strip triggers + drop both shadow tables.
 	 *
 	 * Called by: RemoveTable CLI command, admin settings remove-table button.
 	 */
@@ -203,11 +203,64 @@ SQL,
 
 		$this->stripTriggers();
 
-		$this->logger->warning( "FCIAS: dropping table $this->hashTable", [
-			'app' => Application::APP_ID,
-		] );
+		$pendingTable = $this->tables->getPendingTableName();
+
+		$this->logger->warning(
+			'FCIAS: dropping tables',
+			[
+				'app'          => Application::APP_ID,
+				'hashTable'    => $this->hashTable,
+				'pendingTable' => $pendingTable,
+			],
+		);
 
 		$this->db->executeStatement( "DROP TABLE IF EXISTS `{$this->hashTable}`" );
+		$this->db->executeStatement( "DROP TABLE IF EXISTS `{$pendingTable}`" );
+	}
+
+
+	/**
+	 * Create both shadow tables if they do not exist.
+	 *
+	 * Mirrors the schema from migrations.
+	 */
+	public function createTables(): void
+	{
+
+		$pendingTable = $this->tables->getPendingTableName();
+
+		$this->db->executeStatement(
+			<<<SQL
+CREATE TABLE IF NOT EXISTS `{$this->hashTable}` (
+	   `fileid`     BIGINT UNSIGNED NOT NULL,
+	   `algo`       VARCHAR(10) NOT NULL,
+	   `hash_value` VARCHAR(64) NOT NULL,
+	   PRIMARY KEY (`fileid`, `algo`),
+	   INDEX `idx_fcias_hash_lookup` (`hash_value`, `algo`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+SQL,
+		);
+
+		$this->db->executeStatement(
+			<<<SQL
+CREATE TABLE IF NOT EXISTS `{$pendingTable}` (
+	   `fileid`     BIGINT UNSIGNED NOT NULL,
+	   `job_id`     BIGINT UNSIGNED DEFAULT NULL,
+	   `created_at` INT UNSIGNED NOT NULL,
+	   `event_type` VARCHAR(10) NOT NULL,
+	   PRIMARY KEY (`fileid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+SQL,
+		);
+
+		$this->logger->debug(
+			'FCIAS: createTables completed',
+			[
+				'app'          => Application::APP_ID,
+				'hashTable'    => $this->hashTable,
+				'pendingTable' => $pendingTable,
+			],
+		);
 	}
 
 }

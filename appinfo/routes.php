@@ -99,5 +99,17 @@ return [
 			'url'  => '/settings/cron/snippet',
 			'verb' => 'GET',
 		],
+
+		// Rehash behavior settings
+		[
+			'name' => 'settings#getRehashBehavior',
+			'url'  => '/settings/rehash-behavior',
+			'verb' => 'GET',
+		],
+		[
+			'name' => 'settings#saveRehashBehavior',
+			'url'  => '/settings/rehash-behavior',
+			'verb' => 'POST',
+		],
 	],
 ];

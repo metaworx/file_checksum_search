@@ -14,6 +14,7 @@ the first stable release.
 ### Added
 
 - Add a "Files with same hash" feature that finds duplicate files via a self-join on the hash table and lets users browse matches with a new "Find duplicates" sidebar button.
+- Add event-driven hash index maintenance for file write, create, delete, and copy operations, backed by a new pending-update queue table, a draining background job, and per-event-type admin configuration.
 
 ## [0.5.1] — 2026-08-05
 
