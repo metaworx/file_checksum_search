@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-08-05
+
 ### Added
 
 - Add a "Files with same hash" feature that finds duplicate files via a self-join on the hash table and lets users browse matches with a new "Find duplicates" sidebar button.
