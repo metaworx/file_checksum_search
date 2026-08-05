@@ -4,8 +4,9 @@ jobs:
   phpunit:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        nextcloud-version: [ '33', '34' ]
+        nextcloud-version: [ 'stable33', 'stable34' ]
         php-version: [ '8.2', '8.3', '8.4' ]
     name: NC ${{ matrix.nextcloud-version }} / PHP ${{ matrix.php-version }}
     steps:
@@ -13,19 +14,52 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Nextcloud environment
-        uses: nextcloud-releases/github-actions/setup-nextcloud@v1
+        uses: nextcloud/setup-server-action@v0.5.0
         with:
           nextcloud-version: ${{ matrix.nextcloud-version }}
           php-version: ${{ matrix.php-version }}
+          install: false
 
-      - name: Copy app into place
+      - name: Inject app into workspace structure
         run: |
           mkdir -p apps/file_checksum_search
-          cp -r ./* apps/file_checksum_search/
+          rsync -a --exclude='apps' ./ apps/file_checksum_search/
 
       - name: Install Composer dependencies
-        run: composer install --no-interaction --working-dir=apps/file_checksum_search
+        run: composer install --no-interaction --no-scripts --working-dir=apps/file_checksum_search
 
       - name: Run PHPUnit tests
         run: |
           ./vendor/bin/phpunit -c apps/file_checksum_search/tests/phpunit.xml
+
+  integration-chrome:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        nextcloud-version: [ 'stable33', 'stable34' ]
+    name: Cypress E2E / NC ${{ matrix.nextcloud-version }}
+    steps:
+      - name: Checkout app code
+        uses: actions/checkout@v4
+
+      - name: Set up Nextcloud Server Instance
+        uses: nextcloud/setup-server-action@v0.5.0
+        with:
+          nextcloud-version: ${{ matrix.nextcloud-version }}
+          install: true
+
+      - name: Inject app into integration instance
+        run: |
+          mkdir -p apps/file_checksum_search
+          rsync -a --exclude='apps' ./ apps/file_checksum_search/
+          php occ app:enable file_checksum_search
+
+      - name: Install Frontend Node Dependencies
+        run: npm ci
+
+      - name: Run Integration Tests (Headless Chrome)
+        uses: cypress-io/github-action@v6
+        with:
+          browser: chrome
+          spec: tests/e2e/**/*.cy.js
