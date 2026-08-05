@@ -13,6 +13,7 @@ use OCA\FileChecksumSearch\Service\StatusService;
 use OCA\FileChecksumSearch\Service\TriggerInitializationService;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class ShowStatus
@@ -34,6 +35,13 @@ class ShowStatus
 
 		$this->setName( 'file-checksum-search:status' )
 		     ->setDescription( 'Display FCIAS app status and compatibility information' )
+		     ->addOption(
+			     'output',
+			     'o',
+			     InputOption::VALUE_REQUIRED,
+			     'Output format: plain, json, json_pretty (default: plain)',
+			     'plain',
+		     )
 		;
 	}
 
@@ -42,6 +50,31 @@ class ShowStatus
 		InputInterface  $input,
 		OutputInterface $output,
 	): int {
+
+		$outFmt = $input->getOption( 'output' );
+
+		if ( $outFmt === 'json' || $outFmt === 'json_pretty' )
+		{
+			$output->writeln(
+				json_encode(
+					[
+						'app_version'       => $this->statusService->getAppVersion(),
+						'db_version'        => $this->statusService->getDbVersion(),
+						'trigger_privilege' => $this->triggerInitService->checkTriggerPrivilege(),
+						'hash_rows'         => $this->statusService->getHashRowCount(),
+						'pending_rows'      => $this->statusService->getPendingRowCount(),
+						'tables'            => $this->statusService->getTableStatus(),
+						'stored_procedure'  => $this->statusService->getProcedureStatus(),
+						'triggers'          => $this->statusService->getTriggerStatus(),
+					],
+					$outFmt === 'json_pretty'
+						? JSON_PRETTY_PRINT
+						: 0,
+				),
+			);
+
+			return Command::SUCCESS;
+		}
 
 		$output->writeln( '=== FCIAS Status ===' );
 		$output->writeln( '' );
@@ -72,7 +105,9 @@ class ShowStatus
 				sprintf(
 					'  %-45s %s',
 					$table['name'],
-					$table['ok'] ? 'OK' : 'MISSING',
+					$table['ok']
+						? 'OK'
+						: 'MISSING',
 				),
 			);
 		}
@@ -85,7 +120,9 @@ class ShowStatus
 			sprintf(
 				'  %-45s %s',
 				$sp['name'],
-				$sp['ok'] ? 'OK' : 'MISSING',
+				$sp['ok']
+					? 'OK'
+					: 'MISSING',
 			),
 		);
 
@@ -98,7 +135,9 @@ class ShowStatus
 				sprintf(
 					'  %-45s %s',
 					$trigger['name'],
-					$trigger['ok'] ? 'OK' : 'MISSING',
+					$trigger['ok']
+						? 'OK'
+						: 'MISSING',
 				),
 			);
 		}
