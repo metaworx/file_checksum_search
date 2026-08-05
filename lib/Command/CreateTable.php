@@ -17,6 +17,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @noinspection PhpUnused
+ */
 class CreateTable
 	extends
 	Command
@@ -31,6 +34,11 @@ class CreateTable
 	}
 
 
+	/**
+	 * Configure the create-table command.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	protected function configure(): void
 	{
 
@@ -41,6 +49,11 @@ class CreateTable
 	}
 
 
+	/**
+	 * Execute the create-table command.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,

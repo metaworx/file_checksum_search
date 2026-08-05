@@ -17,6 +17,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @noinspection PhpUnused
+ */
 class GenerateHashes
 	extends
 	Command
@@ -31,6 +34,11 @@ class GenerateHashes
 	}
 
 
+	/**
+	 * Configure the generate command.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	protected function configure(): void
 	{
 
@@ -50,18 +58,29 @@ class GenerateHashes
 			     'Glob pattern for file paths (e.g. **/*.pdf)',
 			     null,
 		     )
-		     ->addOption( 'algo', null, InputOption::VALUE_OPTIONAL, 'Hash algorithm', HashIndexService::getDefaultAlgo() )
+		     ->addOption(
+			     'algo',
+			     null,
+			     InputOption::VALUE_OPTIONAL,
+			     'Hash algorithm',
+			     HashIndexService::getDefaultAlgo(),
+		     )
 		     ->addOption( 'batch-size', null, InputOption::VALUE_OPTIONAL, 'Maximum files to process per run' )
 		;
 	}
 
 
+	/**
+	 * Execute the generate command.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
 	): int {
 
-		$userScope  = $input->getOption( 'user' );
+		$userScope   = $input->getOption( 'user' );
 		$pathPattern = $input->getOption( 'path' );
 		$algo        = $input->getOption( 'algo' );
 		$batchSize   = $input->getOption( 'batch-size' );

@@ -46,6 +46,11 @@ class SettingsController
 	}
 
 
+	/**
+	 * Display app status including version, row counts, and infrastructure state.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	#[NoCSRFRequired]
 	public function getStatus(): DataResponse
 	{
@@ -62,6 +67,11 @@ class SettingsController
 	}
 
 
+	/**
+	 * Run MariaDB version, TRIGGER privilege, and checksum column checks.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	#[NoCSRFRequired]
 	public function runCompatibilityTest(): DataResponse
 	{
@@ -104,6 +114,11 @@ class SettingsController
 	}
 
 
+	/**
+	 * Truncate the hash index table. Destructive — requires confirmation.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	public function purgeIndex(): DataResponse
 	{
 
@@ -139,6 +154,11 @@ class SettingsController
 	}
 
 
+	/**
+	 * Repopulate the hash table from existing filecache checksums.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	public function rebuildIndex(): DataResponse
 	{
 
@@ -174,6 +194,11 @@ class SettingsController
 	}
 
 
+	/**
+	 * Drop FCIAS triggers and stored procedure, preserving the hash table.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	public function teardownTriggers(): DataResponse
 	{
 
@@ -203,6 +228,11 @@ class SettingsController
 	}
 
 
+	/**
+	 * Drop the FCIAS hash table entirely. Requires teardown first.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	public function removeTable(): DataResponse
 	{
 
@@ -232,6 +262,11 @@ class SettingsController
 	}
 
 
+	/**
+	 * Create FCIAS triggers and stored procedure. Idempotent.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	public function deployTriggers(): DataResponse
 	{
 
@@ -261,6 +296,11 @@ class SettingsController
 	}
 
 
+	/**
+	 * Create the FCIAS hash table if it does not exist.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	public function createTable(): DataResponse
 	{
 
@@ -290,6 +330,11 @@ class SettingsController
 	}
 
 
+	/**
+	 * List cron job definitions, supported algorithms, and available users.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	#[NoCSRFRequired]
 	public function listJobDefinitions(): DataResponse
 	{
@@ -317,6 +362,11 @@ class SettingsController
 	}
 
 
+	/**
+	 * Create or update a cron job definition.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	public function saveJobDefinition(): DataResponse
 	{
 
@@ -414,6 +464,11 @@ class SettingsController
 	}
 
 
+	/**
+	 * Delete a cron job definition by ID.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	public function deleteJobDefinition(): DataResponse
 	{
 
@@ -458,6 +513,11 @@ class SettingsController
 	}
 
 
+	/**
+	 * Enable or disable a cron job definition.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	public function toggleJobDefinition(): DataResponse
 	{
 
@@ -504,6 +564,11 @@ class SettingsController
 	}
 
 
+	/**
+	 * Generate a crontab entry snippet for CLI-based hash generation.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	#[NoCSRFRequired]
 	public function getCrontabSnippet(): DataResponse
 	{
@@ -567,6 +632,11 @@ class SettingsController
 	}
 
 
+	/**
+	 * Read current rehash behavior settings (write/create/delete).
+	 *
+	 * @noinspection PhpUnused
+	 */
 	#[NoCSRFRequired]
 	public function getRehashBehavior(): DataResponse
 	{
@@ -591,6 +661,11 @@ class SettingsController
 	}
 
 
+	/**
+	 * Save rehash behavior settings for write, create, and delete events.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	public function saveRehashBehavior(): DataResponse
 	{
 

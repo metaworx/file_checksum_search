@@ -17,6 +17,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @noinspection PhpUnused
+ */
 class Teardown
 	extends
 	Command
@@ -31,6 +34,11 @@ class Teardown
 	}
 
 
+	/**
+	 * Configure the teardown command.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	protected function configure(): void
 	{
 
@@ -41,6 +49,11 @@ class Teardown
 	}
 
 
+	/**
+	 * Execute the teardown command.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,

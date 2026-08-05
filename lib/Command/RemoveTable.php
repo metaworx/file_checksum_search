@@ -17,6 +17,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @noinspection PhpUnused
+ */
 class RemoveTable
 	extends
 	Command
@@ -31,6 +34,11 @@ class RemoveTable
 	}
 
 
+	/**
+	 * Configure the remove-table command.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	protected function configure(): void
 	{
 
@@ -41,6 +49,11 @@ class RemoveTable
 	}
 
 
+	/**
+	 * Execute the remove-table command.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,

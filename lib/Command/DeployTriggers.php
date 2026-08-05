@@ -17,6 +17,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @noinspection PhpUnused
+ */
 class DeployTriggers
 	extends
 	Command
@@ -31,6 +34,11 @@ class DeployTriggers
 	}
 
 
+	/**
+	 * Configure the deploy-triggers command.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	protected function configure(): void
 	{
 
@@ -41,6 +49,11 @@ class DeployTriggers
 	}
 
 
+	/**
+	 * Execute the deploy-triggers command.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,

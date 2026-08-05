@@ -17,6 +17,9 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @noinspection PhpUnused
+ */
 class SearchHash
 	extends
 	Command
@@ -31,6 +34,11 @@ class SearchHash
 	}
 
 
+	/**
+	 * Configure the search command.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	protected function configure(): void
 	{
 
@@ -41,6 +49,11 @@ class SearchHash
 	}
 
 
+	/**
+	 * Execute the search command.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,

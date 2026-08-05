@@ -17,6 +17,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @noinspection PhpUnused
+ */
 class ShowConfig
 	extends
 	Command
@@ -31,6 +34,11 @@ class ShowConfig
 	}
 
 
+	/**
+	 * Configure the show-config command.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	protected function configure(): void
 	{
 
@@ -47,6 +55,11 @@ class ShowConfig
 	}
 
 
+	/**
+	 * Execute the show-config command.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
