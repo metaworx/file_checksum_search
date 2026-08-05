@@ -16,8 +16,160 @@
     </phpcs_settings>
   </component>
   <component name="PhpIncludePathManager">
+    <exclude_path>
+      <path value="$PROJECT_DIR$/§Server/vendor-bin" />
+    </exclude_path>
     <include_path>
-      <path value="$PROJECT_DIR$/../nextcloud-server" />
+      <path value="$PROJECT_DIR$/§Server" />
+      <path value="$PROJECT_DIR$/§Server/apps/theming/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/provisioning_api/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/sharing/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/cs-fixer/vendor/kubawerlos/php-cs-fixer-custom-fixers" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/cs-fixer/vendor/nextcloud/coding-standard" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/cs-fixer/vendor/php-cs-fixer/shim" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/cs-fixer/vendor/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/sharebymail/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/staabm/side-effects-detector" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/nikic/php-parser" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/phar-io/version" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/myclabs/deep-copy" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/phpunit/php-code-coverage" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/phar-io/manifest" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/phpunit/php-text-template" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/phpunit/php-timer" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/phpunit/php-file-iterator" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/phpunit/phpunit" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/theseer/tokenizer" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/phpunit/php-invoker" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/sebastian/lines-of-code" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/sebastian/cli-parser" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/sebastian/diff" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/sebastian/version" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/sebastian/code-unit-reverse-lookup" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/sebastian/recursion-context" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/sebastian/type" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/sebastian/exporter" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/sebastian/code-unit" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/sebastian/comparator" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/composer" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/sebastian/object-enumerator" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/sebastian/complexity" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/sebastian/environment" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/sebastian/object-reflector" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/sebastian/global-state" />
+      <path value="$PROJECT_DIR$/§Server/apps/dav/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/webhook_listeners/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/profile/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/user_ldap/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/files_trashbin/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/files_versions/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/lookup_server_connector/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/user_status/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/systemtags/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/encryption/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/updatenotification/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/dashboard/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/contactsinteraction/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/files/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/federatedfilesharing/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/weather_status/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/oauth2/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/settings/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/files_external/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/sebastian/cli-parser" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/sebastian/object-enumerator" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/sebastian/environment" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/sebastian/diff" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/sebastian/code-unit-reverse-lookup" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/composer" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/psr/log" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/psr/event-dispatcher" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/psr/container" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/behat/behat" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/behat/gherkin" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/staabm/side-effects-detector" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/nikic/php-parser" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/phar-io/version" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/myclabs/deep-copy" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/phpunit/php-invoker" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/phar-io/manifest" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/phpunit/php-code-coverage" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/phpunit/phpunit" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/phpunit/php-timer" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/phpunit/php-text-template" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/symfony/service-contracts" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/phpunit/php-file-iterator" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/symfony/event-dispatcher-contracts" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/symfony/yaml" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/symfony/translation-contracts" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/symfony/string" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/symfony/translation" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/symfony/polyfill-mbstring" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/symfony/deprecation-contracts" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/symfony/polyfill-intl-grapheme" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/symfony/filesystem" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/symfony/event-dispatcher" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/symfony/polyfill-intl-normalizer" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/symfony/config" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/symfony/console" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/symfony/var-exporter" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/symfony/polyfill-ctype" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/symfony/dependency-injection" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/theseer/tokenizer" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/sebastian/code-unit" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/sebastian/global-state" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/sebastian/object-reflector" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/sebastian/exporter" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/sebastian/version" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/sebastian/comparator" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/sebastian/recursion-context" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/sebastian/type" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/sebastian/lines-of-code" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/sebastian/complexity" />
+      <path value="$PROJECT_DIR$/§Server/apps/files_reminders/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/files_sharing/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/lib/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/lib/composer/bamarni/composer-bin-plugin" />
+      <path value="$PROJECT_DIR$/§Server/apps/comments/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/federation/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/twofactor_backupcodes/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/testing/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/admin_audit/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/openapi-extractor/vendor/composer" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/openapi-extractor/vendor/nikic/php-parser" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/openapi-extractor/vendor/nextcloud/openapi-extractor" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/openapi-extractor/vendor/adhocore/cli" />
+      <path value="$PROJECT_DIR$/§Server/vendor-bin/openapi-extractor/vendor/phpstan/phpdoc-parser" />
+      <path value="$PROJECT_DIR$/§Server/apps/workflowengine/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/appstore/composer/composer" />
+      <path value="$PROJECT_DIR$/§Server/apps/cloud_federation_api/composer/composer" />
+      <path value="$PROJECT_DIR$/vendor/composer" />
+      <path value="$PROJECT_DIR$/vendor/nikic/php-parser" />
+      <path value="$PROJECT_DIR$/vendor/myclabs/deep-copy" />
+      <path value="$PROJECT_DIR$/vendor/sebastian/code-unit" />
+      <path value="$PROJECT_DIR$/vendor/phar-io/manifest" />
+      <path value="$PROJECT_DIR$/vendor/phar-io/version" />
+      <path value="$PROJECT_DIR$/vendor/sebastian/code-unit-reverse-lookup" />
+      <path value="$PROJECT_DIR$/vendor/sebastian/global-state" />
+      <path value="$PROJECT_DIR$/vendor/sebastian/recursion-context" />
+      <path value="$PROJECT_DIR$/vendor/sebastian/diff" />
+      <path value="$PROJECT_DIR$/vendor/sebastian/lines-of-code" />
+      <path value="$PROJECT_DIR$/vendor/sebastian/complexity" />
+      <path value="$PROJECT_DIR$/vendor/sebastian/environment" />
+      <path value="$PROJECT_DIR$/vendor/sebastian/cli-parser" />
+      <path value="$PROJECT_DIR$/vendor/sebastian/comparator" />
+      <path value="$PROJECT_DIR$/vendor/sebastian/object-reflector" />
+      <path value="$PROJECT_DIR$/vendor/sebastian/version" />
+      <path value="$PROJECT_DIR$/vendor/sebastian/type" />
+      <path value="$PROJECT_DIR$/vendor/theseer/tokenizer" />
+      <path value="$PROJECT_DIR$/vendor/phpunit/php-invoker" />
+      <path value="$PROJECT_DIR$/vendor/sebastian/exporter" />
+      <path value="$PROJECT_DIR$/vendor/sebastian/object-enumerator" />
+      <path value="$PROJECT_DIR$/vendor/phpunit/php-file-iterator" />
+      <path value="$PROJECT_DIR$/vendor/phpunit/php-text-template" />
+      <path value="$PROJECT_DIR$/vendor/phpunit/php-timer" />
+      <path value="$PROJECT_DIR$/vendor/phpunit/phpunit" />
+      <path value="$PROJECT_DIR$/vendor/phpunit/php-code-coverage" />
     </include_path>
   </component>
   <component name="PhpStan">
@@ -27,6 +179,13 @@
   </component>
   <component name="PhpStanOptionsConfiguration">
     <option name="transferred" value="true" />
+  </component>
+  <component name="PhpUnit">
+    <phpunit_settings>
+      <PhpUnitSettings custom_loader_path="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/autoload.php" />
+      <PhpUnitSettings custom_loader_path="$PROJECT_DIR$/§Server/vendor-bin/behat/vendor/autoload.php" />
+      <PhpUnitSettings configuration_file_path="$PROJECT_DIR$/tests/phpunit.xml" custom_loader_path="$PROJECT_DIR$/vendor/autoload.php" use_configuration_file="true" />
+    </phpunit_settings>
   </component>
   <component name="Psalm">
     <Psalm_settings>
