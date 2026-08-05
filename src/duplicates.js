@@ -5,13 +5,9 @@
  * Global duplicate file browser — standalone page.
  */
 
-const TAG = 'fcias-duplicate-browser'
+import { escapeHtml } from './utils.js'
 
-function escapeHtml( str ) {
-	const div = document.createElement( 'div' )
-	div.appendChild( document.createTextNode( String( str ?? '' ) ) )
-	return div.innerHTML
-}
+const TAG = 'fcias-duplicate-browser'
 
 class DuplicateBrowser extends HTMLElement {
 

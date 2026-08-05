@@ -26,6 +26,7 @@ the first stable release.
 - Consolidate duplicated hash lookup and path resolution queries into new HashIndexService methods, removing direct database dependencies from several classes.
 - Expand the README to document all CLI commands and features, and add descriptive docblocks to controller and command classes.
 - Split the large HashIndexService into focused service classes for hash calculation, pending queue, duplicates, and file operations, keeping HashIndexService as a backward-compatible facade.
+- Move the shared escapeHtml helper into a common JS utility module to remove duplicated implementations in the sidebar and duplicates scripts.
 
 ## [0.5.1] — 2026-08-05
 
