@@ -1,0 +1,31 @@
+name: Nextcloud App Testing Matrix
+on: [ push, pull_request ]
+jobs:
+  phpunit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        nextcloud-version: [ '33', '34' ]
+        php-version: [ '8.2', '8.3', '8.4' ]
+    name: NC ${{ matrix.nextcloud-version }} / PHP ${{ matrix.php-version }}
+    steps:
+      - name: Checkout app code
+        uses: actions/checkout@v4
+
+      - name: Set up Nextcloud environment
+        uses: nextcloud-releases/github-actions/setup-nextcloud@v1
+        with:
+          nextcloud-version: ${{ matrix.nextcloud-version }}
+          php-version: ${{ matrix.php-version }}
+
+      - name: Copy app into place
+        run: |
+          mkdir -p apps/file_checksum_search
+          cp -r ./* apps/file_checksum_search/
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --working-dir=apps/file_checksum_search
+
+      - name: Run PHPUnit tests
+        run: |
+          ./vendor/bin/phpunit -c apps/file_checksum_search/tests/phpunit.xml
