@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.6.1] — 2026-08-05
+
 ### Fixed
 
 - Fix DatabaseService writing query errors to stdout, which could corrupt JSON output of the status command, by sending them to stderr instead.
