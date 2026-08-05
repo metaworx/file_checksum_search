@@ -20,17 +20,18 @@ jobs:
           php-version: ${{ matrix.php-version }}
           install: false
 
-      - name: Inject app into workspace structure
+      - name: Inject app into Nextcloud
         run: |
-          mkdir -p apps/file_checksum_search
-          rsync -a --exclude='apps' ./ apps/file_checksum_search/
+          mkdir -p nextcloud/apps/file_checksum_search
+          rsync -a --exclude='.git' --exclude='nextcloud' ./ nextcloud/apps/file_checksum_search/
 
       - name: Install Composer dependencies
-        run: composer install --no-interaction --no-scripts --working-dir=apps/file_checksum_search
+        run: composer install --no-interaction --no-scripts
+        working-directory: nextcloud/apps/file_checksum_search
 
       - name: Run PHPUnit tests
-        run: |
-          ./vendor/bin/phpunit -c apps/file_checksum_search/tests/phpunit.xml
+        run: ./vendor/bin/phpunit -c tests/phpunit.xml
+        working-directory: nextcloud/apps/file_checksum_search
 
   integration-chrome:
     runs-on: ubuntu-latest
@@ -48,12 +49,16 @@ jobs:
         with:
           nextcloud-version: ${{ matrix.nextcloud-version }}
           install: true
+          node-version: false
 
       - name: Inject app into integration instance
         run: |
-          mkdir -p apps/file_checksum_search
-          rsync -a --exclude='apps' ./ apps/file_checksum_search/
-          php occ app:enable file_checksum_search
+          mkdir -p nextcloud/apps/file_checksum_search
+          rsync -a --exclude='.git' --exclude='nextcloud' ./ nextcloud/apps/file_checksum_search/
+
+      - name: Enable the app
+        run: php occ app:enable file_checksum_search
+        working-directory: nextcloud
 
       - name: Install Frontend Node Dependencies
         run: npm ci
