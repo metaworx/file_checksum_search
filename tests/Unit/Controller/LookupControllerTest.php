@@ -10,13 +10,16 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
 use OCA\FileChecksumSearch\Controller\LookupController;
+use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\DB\IResult;
-use OCP\DB\QueryBuilder\ExpressionBuilder;
+use OCP\DB\QueryBuilder\IExpressionBuilder;
 use OCP\DB\QueryBuilder\IQueryBuilder;
+use OCP\Files\IRootFolder;
 use OCP\IDBConnection;
 use OCP\IRequest;
+use OCP\IUserSession;
 use PDO;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -26,11 +29,17 @@ class LookupControllerTest
 	TestCase
 {
 
-	private MockObject|IDBConnection $db;
+	private MockObject|IDBConnection    $db;
 
-	private MockObject|IRequest      $request;
+	private MockObject|IRequest         $request;
 
-	private LookupController         $controller;
+	private MockObject|HashIndexService $hashIndexService;
+
+	private MockObject|IRootFolder      $rootFolder;
+
+	private MockObject|IUserSession     $userSession;
+
+	private LookupController            $controller;
 
 
 	protected function setUp(): void
@@ -38,9 +47,19 @@ class LookupControllerTest
 
 		parent::setUp();
 
-		$this->db         = $this->createMock( IDBConnection::class );
-		$this->request    = $this->createMock( IRequest::class );
-		$this->controller = new LookupController( 'file_checksum_search', $this->request, $this->db );
+		$this->db               = $this->createMock( IDBConnection::class );
+		$this->request          = $this->createMock( IRequest::class );
+		$this->hashIndexService = $this->createMock( HashIndexService::class );
+		$this->rootFolder       = $this->createMock( IRootFolder::class );
+		$this->userSession      = $this->createMock( IUserSession::class );
+		$this->controller       = new LookupController(
+			'file_checksum_search',
+			$this->request,
+			$this->db,
+			$this->hashIndexService,
+			$this->rootFolder,
+			$this->userSession,
+		);
 	}
 
 
@@ -114,9 +133,14 @@ class LookupControllerTest
 		$qb->method( 'executeQuery' )
 		   ->willReturn( $resultMock )
 		;
+		$expr = $this->createMock( IExpressionBuilder::class );
+		$expr->method( 'eq' )
+		     ->willReturn( 'hash_value = :hash' )
+		;
+
 		$qb->expects( $this->once() )
 		   ->method( 'expr' )
-		   ->willReturn( new ExpressionBuilder( $qb ) )
+		   ->willReturn( $expr )
 		;
 
 		$this->db->expects( $this->once() )
@@ -192,8 +216,13 @@ class LookupControllerTest
 		   ] )
 		;
 
+		$expr = $this->createMock( IExpressionBuilder::class );
+		$expr->method( 'eq' )
+		     ->willReturn( 'hash_value = :hash' )
+		;
+
 		$qb->method( 'expr' )
-		   ->willReturn( new ExpressionBuilder( $qb ) )
+		   ->willReturn( $expr )
 		;
 
 		$this->db->method( 'getQueryBuilder' )
@@ -246,8 +275,13 @@ class LookupControllerTest
 		$qb->method( 'executeQuery' )
 		   ->willReturn( $resultMock )
 		;
+		$expr = $this->createMock( IExpressionBuilder::class );
+		$expr->method( 'eq' )
+		     ->willReturn( 'fileid = :fileid' )
+		;
+
 		$qb->method( 'expr' )
-		   ->willReturn( new ExpressionBuilder( $qb ) )
+		   ->willReturn( $expr )
 		;
 
 		$this->db->method( 'getQueryBuilder' )
@@ -295,8 +329,13 @@ class LookupControllerTest
 		$qb->method( 'executeQuery' )
 		   ->willReturn( $resultMock )
 		;
+		$expr = $this->createMock( IExpressionBuilder::class );
+		$expr->method( 'eq' )
+		     ->willReturn( 'fileid = :fileid' )
+		;
+
 		$qb->method( 'expr' )
-		   ->willReturn( new ExpressionBuilder( $qb ) )
+		   ->willReturn( $expr )
 		;
 
 		$this->db->method( 'getQueryBuilder' )
