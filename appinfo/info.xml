@@ -25,6 +25,13 @@
 	<settings>
 		<admin>OCA\FileChecksumSearch\Settings\Admin</admin>
 	</settings>
+	<navigations>
+		<navigation>
+			<name>Duplicates</name>
+			<route>file_checksum_search.duplicates.index</route>
+			<order>5</order>
+		</navigation>
+	</navigations>
 	<commands>
 		<command>OCA\FileChecksumSearch\Command\RebuildIndex</command>
 		<command>OCA\FileChecksumSearch\Command\SearchHash</command>
@@ -34,5 +41,6 @@
 		<command>OCA\FileChecksumSearch\Command\PurgeIndex</command>
 		<command>OCA\FileChecksumSearch\Command\Teardown</command>
 		<command>OCA\FileChecksumSearch\Command\RemoveTable</command>
+		<command>OCA\FileChecksumSearch\Command\FindDuplicates</command>
 	</commands>
 </info>

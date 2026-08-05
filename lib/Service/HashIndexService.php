@@ -234,13 +234,19 @@ class HashIndexService
 
 
 	/**
-	 * Compute a hash for a File node and write it to the filecache.
+	 * Compute a hash for a File node if it does not already exist
+	 * in the filecache, then write it back.
+	 *
+	 * If the checksum already exists for this algo, it is returned
+	 * without recomputation.  For forced recalculation, use
+	 * {@see forceRecalcFileHash()}.
 	 *
 	 * @return array{success: bool, algo: string, hash: string, existed: bool}
 	 */
 	public function recalcFileHash(
 		File   $file,
 		string $algo,
+		bool   $skipExisting = true,
 	): array {
 
 		$algo = strtolower( $algo );
@@ -259,16 +265,19 @@ class HashIndexService
 		$existingChecksum = $file->getChecksum() ?? '';
 		$prefix           = strtoupper( $algo ) . ':';
 
-		foreach ( explode( ' ', $existingChecksum ) as $pair )
+		if ( $skipExisting )
 		{
-			if ( str_starts_with( $pair, $prefix ) )
+			foreach ( explode( ' ', $existingChecksum ) as $pair )
 			{
-				return [
-					'success' => true,
-					'algo'    => $algo,
-					'hash'    => substr( $pair, strlen( $prefix ) ),
-					'existed' => true,
-				];
+				if ( str_starts_with( $pair, $prefix ) )
+				{
+					return [
+						'success' => true,
+						'algo'    => $algo,
+						'hash'    => substr( $pair, strlen( $prefix ) ),
+						'existed' => true,
+					];
+				}
 			}
 		}
 
@@ -328,6 +337,7 @@ class HashIndexService
 	public function recalcHash(
 		int    $fileId,
 		string $algo,
+		bool   $skipExisting = true,
 	): array {
 
 		$algo = strtolower( $algo );
@@ -358,7 +368,7 @@ class HashIndexService
 			];
 		}
 
-		return $this->recalcFileHash( $node, $algo );
+		return $this->recalcFileHash( $node, $algo, $skipExisting );
 	}
 
 
@@ -944,6 +954,85 @@ class HashIndexService
 
 			return 0;
 		}
+	}
+
+
+	/**
+	 * Find all duplicate hash groups across the entire system.
+	 *
+	 * Groups files by (algo, hash_value) where more than one file shares
+	 * the same hash.  Returns raw fileid lists — path resolution and
+	 * access filtering are the caller's responsibility.
+	 *
+	 * @param  string|null  $algo      Optional algorithm filter
+	 * @param  int          $minCount  Minimum files per group (default 2)
+	 * @param  int          $limit     Max groups to return
+	 * @param  int          $offset    Pagination offset
+	 *
+	 * @return array{algo: string, hash_value: string, file_count: int, fileids: int[]}[]
+	 */
+	public function findAllDuplicates(
+		?string $algo = null,
+		int     $minCount = 2,
+		int     $limit = 50,
+		int     $offset = 0,
+	): array {
+
+		$qb = $this->db->getQueryBuilder();
+
+		$qb->select( 'algo', 'hash_value' )
+		   ->selectAlias(
+			   $qb->func()
+			      ->count( 'fileid' ),
+			   'cnt',
+		   )
+		   ->selectAlias(
+			   $qb->func()
+			      ->groupConcat( 'fileid' ),
+			   'fileids',
+		   )
+		   ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES, 'h' )
+		   ->groupBy( 'algo' )
+		   ->addGroupBy( 'hash_value' )
+		;
+
+		if ( $algo !== null && $algo !== '' )
+		{
+			$qb->andWhere(
+				$qb->expr()
+				   ->eq( 'algo', $qb->createNamedParameter( $algo ) ),
+			);
+		}
+
+		$qb->having(
+			$qb->expr()
+			   ->gte( 'cnt', $qb->createNamedParameter( $minCount, IQueryBuilder::PARAM_INT ) ),
+		)
+		   ->orderBy( 'cnt', 'DESC' )
+		   ->setMaxResults( $limit )
+		   ->setFirstResult( $offset )
+		;
+
+		$result = $qb->executeQuery();
+		$rows   = $result->fetchAll();
+		$result->closeCursor();
+
+		return array_map( function (
+			array $row,
+		): array {
+
+			$fileidStr = (string) $row['fileids'];
+			$fileids   = $fileidStr !== ''
+				? array_map( 'intval', explode( ',', $fileidStr ) )
+				: [];
+
+			return [
+				'algo'       => $row['algo'],
+				'hash_value' => $row['hash_value'],
+				'file_count' => (int) $row['cnt'],
+				'fileids'    => $fileids,
+			];
+		}, $rows );
 	}
 
 

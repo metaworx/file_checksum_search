@@ -12,10 +12,12 @@ namespace OCA\FileChecksumSearch\AppInfo;
 use OCA\FileChecksumSearch\BackgroundJob\DrainPendingUpdates;
 use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Listener\FileListener;
+use OCA\FileChecksumSearch\Listener\LoadDuplicatesScriptListener;
 use OCA\FileChecksumSearch\Migration\LifecycleHandler;
 use OCA\FileChecksumSearch\Search\HashSearchProvider;
 use OCA\FileChecksumSearch\Service\CronJobService;
 use OCA\FileChecksumSearch\Service\TriggerInitializationService;
+use OCA\Files\Event\LoadAdditionalScriptsEvent;
 use OCP\App\Events\AppDisableEvent;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
@@ -53,6 +55,11 @@ class Application
 
 		$context->registerConfigLexicon( ConfigLexicon::class );
 		$context->registerSearchProvider( HashSearchProvider::class );
+
+		$context->registerEventListener(
+			LoadAdditionalScriptsEvent::class,
+			LoadDuplicatesScriptListener::class,
+		);
 
 		$context->registerEventListener(
 			NodeCopiedEvent::class,
