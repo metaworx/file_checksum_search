@@ -63,7 +63,6 @@ class DuplicatesControllerTest
 			'file_checksum_search',
 			$request,
 			$this->hashIndexService,
-			$this->db,
 			$this->userSession,
 			$this->groupManager,
 			$this->userManager,
@@ -121,61 +120,22 @@ class DuplicatesControllerTest
 		                       ] )
 		;
 
-		// Mock QueryBuilder for batch lookup
-		$qb     = $this->createMock( IQueryBuilder::class );
-		$expr   = $this->createMock( IExpressionBuilder::class );
-		$result = $this->createMock( IResult::class );
-
-		$this->db->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
-		;
-
-		$qb->method( 'expr' )
-		   ->willReturn( $expr )
-		;
-		$qb->method( 'select' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'from' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'innerJoin' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'where' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'andWhere' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'executeQuery' )
-		   ->willReturn( $result )
-		;
-
-		$expr->method( 'eq' )
-		     ->willReturn( '1=1' )
-		;
-		$expr->method( 'in' )
-		     ->willReturn( '1=1' )
-		;
-		$qb->method( 'createNamedParameter' )
-		   ->willReturn( 'x' )
-		;
-
-		$result->method( 'fetch' )
-		       ->willReturnOnConsecutiveCalls(
-			       [
-				       'fileid' => 42,
-				       'path'   => 'files/photo.jpg',
-				       'name'   => 'photo.jpg',
-			       ],
-			       [
-				       'fileid' => 108,
-				       'path'   => 'files/backup/photo.jpg',
-				       'name'   => 'photo.jpg',
-			       ],
-			       false,
-		       )
+		// Mock batchLookupFilecachePaths on HashIndexService
+		$this->hashIndexService->method( 'batchLookupFilecachePaths' )
+		                       ->willReturn( [
+			                       42  => [
+				                       'path'       => 'files/photo.jpg',
+				                       'name'       => 'photo.jpg',
+				                       'storage_id' => 'home::bob',
+				                       'user'       => 'bob',
+			                       ],
+			                       108 => [
+				                       'path'       => 'files/backup/photo.jpg',
+				                       'name'       => 'photo.jpg',
+				                       'storage_id' => 'home::bob',
+				                       'user'       => 'bob',
+			                       ],
+		                       ] )
 		;
 
 		$response = $this->controller->findAll();
@@ -199,11 +159,13 @@ class DuplicatesControllerTest
 
 		$this->hashIndexService->expects( $this->once() )
 		                       ->method( 'findAllDuplicates' )
-		                       ->with( 'sha1', 2, 50, 0 )
+		                       ->with( 'sha1', 2, 10000, 0 )
 		                       ->willReturn( [] )
 		;
 
-		$this->controller->findAll( algo: 'sha1' );
+		$response = $this->controller->findAll( algo: 'sha1' );
+
+		$this->assertInstanceOf( DataResponse::class, $response );
 	}
 
 

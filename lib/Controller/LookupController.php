@@ -71,30 +71,7 @@ class LookupController
 			return new DataResponse( [ 'error' => 'Hash parameter is required.' ], Http::STATUS_BAD_REQUEST );
 		}
 
-		$qb = $this->db->getQueryBuilder();
-
-		$qb->select( 'h.fileid', 'h.algo', 'h.hash_value', 'fc.path', 'fc.name' )
-		   ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES, 'h' )
-		   ->innerJoin( 'h', 'filecache', 'fc', 'h.fileid = fc.fileid' )
-		   ->where(
-			   $qb->expr()
-			      ->eq( 'h.hash_value', $qb->createNamedParameter( $hash ) ),
-		   )
-		;
-
-		if ( $algo !== null && $algo !== '' )
-		{
-			$qb->andWhere(
-				$qb->expr()
-				   ->eq( 'h.algo', $qb->createNamedParameter( $algo ) ),
-			);
-		}
-
-		$qb->setMaxResults( 100 );
-
-		$result = $qb->executeQuery();
-		$rows   = $result->fetchAll();
-		$result->closeCursor();
+		$rows = $this->hashIndexService->findByHash( $hash, $algo, 100 );
 
 		$results = array_map( function (
 			array $row,

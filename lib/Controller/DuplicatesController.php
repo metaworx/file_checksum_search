@@ -17,8 +17,6 @@ use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\TemplateResponse;
-use OCP\DB\QueryBuilder\IQueryBuilder;
-use OCP\IDBConnection;
 use OCP\IGroupManager;
 use OCP\IRequest;
 use OCP\IUserManager;
@@ -34,7 +32,6 @@ class DuplicatesController
 		string                            $appName,
 		IRequest                          $request,
 		private readonly HashIndexService $hashIndexService,
-		private readonly IDBConnection    $db,
 		private readonly IUserSession     $userSession,
 		private readonly IGroupManager    $groupManager,
 		private readonly IUserManager     $userManager,
@@ -145,7 +142,7 @@ class DuplicatesController
 		}
 
 		// Batch-lookup filecache paths filtered by user
-		$fcPaths = $this->batchLookupFilecachePaths( $allFileIds, $uid );
+		$fcPaths = $this->hashIndexService->batchLookupFilecachePaths( $allFileIds, $uid );
 
 		$result = [];
 
@@ -208,63 +205,6 @@ class DuplicatesController
 			[],
 			TemplateResponse::RENDER_AS_USER,
 		);
-	}
-
-
-	/**
-	 * @param  int[]  $fileIds
-	 *
-	 * @return array<int, array{path: string, name: string}>
-	 */
-	private function batchLookupFilecachePaths(
-		array  $fileIds,
-		string $uid,
-	): array {
-
-		if ( empty( $fileIds ) )
-		{
-			return [];
-		}
-
-		$qb = $this->db->getQueryBuilder();
-
-		$qb->select( 'fc.fileid', 'fc.path', 'fc.name' )
-		   ->from( 'filecache', 'fc' )
-		   ->innerJoin(
-			   'fc',
-			   'storages',
-			   's',
-			   'fc.storage = s.numeric_id',
-		   )
-		   ->where(
-			   $qb->expr()
-			      ->eq(
-				      's.id',
-				      $qb->createNamedParameter( 'home::' . $uid ),
-			      ),
-		   )
-		   ->andWhere(
-			   $qb->expr()
-			      ->in(
-				      'fc.fileid',
-				      $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
-			      ),
-		   )
-		;
-
-		$result = $qb->executeQuery();
-		$paths  = [];
-
-		while ( ( $row = $result->fetch() ) !== false )
-		{
-			$paths[ (int) $row['fileid'] ] = [
-				'path' => (string) $row['path'],
-				'name' => (string) $row['name'],
-			];
-		}
-		$result->closeCursor();
-
-		return $paths;
 	}
 
 }

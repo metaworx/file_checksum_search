@@ -20,7 +20,6 @@ use OCP\Files\IRootFolder;
 use OCP\IDBConnection;
 use OCP\IRequest;
 use OCP\IUserSession;
-use PDO;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -104,53 +103,10 @@ class LookupControllerTest
 			],
 		];
 
-		$resultMock = $this->createMock( IResult::class );
-		$resultMock->expects( $this->once() )
-		           ->method( 'fetchAll' )
-		           ->willReturn( $rows )
-		;
-		$resultMock->expects( $this->once() )
-		           ->method( 'closeCursor' )
-		;
-
-		$qb = $this->createMock( IQueryBuilder::class );
-		$qb->method( 'select' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'from' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'innerJoin' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'where' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'andWhere' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'setMaxResults' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'createNamedParameter' )
-		   ->willReturn( $hash )
-		;
-		$qb->method( 'executeQuery' )
-		   ->willReturn( $resultMock )
-		;
-		$expr = $this->createMock( IExpressionBuilder::class );
-		$expr->method( 'eq' )
-		     ->willReturn( 'hash_value = :hash' )
-		;
-
-		$qb->expects( $this->once() )
-		   ->method( 'expr' )
-		   ->willReturn( $expr )
-		;
-
-		$this->db->expects( $this->once() )
-		         ->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'findByHash' )
+		                       ->with( $hash, null, 100 )
+		                       ->willReturn( $rows )
 		;
 
 		$response = $this->controller->byHash( $hash );
@@ -172,66 +128,10 @@ class LookupControllerTest
 		$hash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 		$algo = 'sha256';
 
-		$resultMock = $this->createMock( IResult::class );
-		$resultMock->method( 'fetchAll' )
-		           ->willReturn( [] )
-		;
-		$resultMock->method( 'closeCursor' );
-
-		$qb = $this->createMock( IQueryBuilder::class );
-		$qb->method( 'select' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'from' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'innerJoin' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'where' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'setMaxResults' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'executeQuery' )
-		   ->willReturn( $resultMock )
-		;
-
-		// Verify andWhere is called for algo
-		$qb->expects( $this->once() )
-		   ->method( 'andWhere' )
-		   ->willReturnSelf()
-		;
-
-		$qb->method( 'createNamedParameter' )
-		   ->willReturnMap( [
-			   [
-				   $hash,
-				   PDO::PARAM_STR,
-				   null,
-				   $hash,
-			   ],
-			   [
-				   $algo,
-				   PDO::PARAM_STR,
-				   null,
-				   $algo,
-			   ],
-		   ] )
-		;
-
-		$expr = $this->createMock( IExpressionBuilder::class );
-		$expr->method( 'eq' )
-		     ->willReturn( 'hash_value = :hash' )
-		;
-
-		$qb->method( 'expr' )
-		   ->willReturn( $expr )
-		;
-
-		$this->db->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'findByHash' )
+		                       ->with( $hash, $algo, 100 )
+		                       ->willReturn( [] )
 		;
 
 		$response = $this->controller->byHash( $hash, $algo );
