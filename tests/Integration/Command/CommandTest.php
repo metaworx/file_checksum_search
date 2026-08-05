@@ -9,11 +9,17 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Integration\Command;
 
+use OCA\FileChecksumSearch\Command\CreateTable;
+use OCA\FileChecksumSearch\Command\DeployTriggers;
 use OCA\FileChecksumSearch\Command\FindDuplicates;
 use OCA\FileChecksumSearch\Command\GenerateHashes;
 use OCA\FileChecksumSearch\Command\PurgeIndex;
+use OCA\FileChecksumSearch\Command\RebuildIndex;
+use OCA\FileChecksumSearch\Command\RemoveTable;
 use OCA\FileChecksumSearch\Command\SearchHash;
+use OCA\FileChecksumSearch\Command\ShowConfig;
 use OCA\FileChecksumSearch\Command\ShowStatus;
+use OCA\FileChecksumSearch\Command\TestPerformance;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
 use OCP\Server;
@@ -172,6 +178,190 @@ class CommandTest
 		] );
 
 		$this->assertSame( Command::FAILURE, $exitCode );
+	}
+
+
+	// ─── CreateTable ─────────────────────────────────────────────────
+
+	public function testCreateTableRequiresForceFlag(): void
+	{
+
+		$hashIndexService = $this->createMock( HashIndexService::class );
+		$hashIndexService->expects( $this->never() )
+		                 ->method( 'createTable' )
+		;
+
+		$command = new CreateTable( $hashIndexService, $this->logger );
+		$tester  = new CommandTester( $command );
+
+		$exitCode = $tester->execute( [] );
+
+		$this->assertSame( Command::FAILURE, $exitCode );
+		$this->assertStringContainsString( 'Use --force to confirm', $tester->getDisplay() );
+	}
+
+
+	public function testCreateTableWithForceSucceeds(): void
+	{
+
+		$hashIndexService = $this->createMock( HashIndexService::class );
+		$hashIndexService->expects( $this->once() )
+		                 ->method( 'createTable' )
+		;
+
+		$command = new CreateTable( $hashIndexService, $this->logger );
+		$tester  = new CommandTester( $command );
+
+		$exitCode = $tester->execute( [ '--force' => true ] );
+
+		$this->assertSame( Command::SUCCESS, $exitCode );
+		$this->assertStringContainsString( 'Hash table created', $tester->getDisplay() );
+	}
+
+
+	// ─── DeployTriggers ──────────────────────────────────────────────
+
+	public function testDeployTriggersRequiresForceFlag(): void
+	{
+
+		$hashIndexService = $this->createMock( HashIndexService::class );
+		$hashIndexService->expects( $this->never() )
+		                 ->method( 'deployTriggers' )
+		;
+
+		$command = new DeployTriggers( $hashIndexService, $this->logger );
+		$tester  = new CommandTester( $command );
+
+		$exitCode = $tester->execute( [] );
+
+		$this->assertSame( Command::FAILURE, $exitCode );
+		$this->assertStringContainsString( 'Use --force to confirm', $tester->getDisplay() );
+	}
+
+
+	public function testDeployTriggersWithForceSucceeds(): void
+	{
+
+		$hashIndexService = $this->createMock( HashIndexService::class );
+		$hashIndexService->expects( $this->once() )
+		                 ->method( 'deployTriggers' )
+		;
+
+		$command = new DeployTriggers( $hashIndexService, $this->logger );
+		$tester  = new CommandTester( $command );
+
+		$exitCode = $tester->execute( [ '--force' => true ] );
+
+		$this->assertSame( Command::SUCCESS, $exitCode );
+		$this->assertStringContainsString( 'Triggers created', $tester->getDisplay() );
+	}
+
+
+	// ─── RebuildIndex ────────────────────────────────────────────────
+
+	public function testRebuildIndexRunsAndReturnsSuccess(): void
+	{
+
+		$hashIndexService = $this->createMock( HashIndexService::class );
+		$hashIndexService->expects( $this->once() )
+		                 ->method( 'rebuildIndex' )
+		                 ->willReturn( [ 'processed' => 0 ] )
+		;
+
+		$command = new RebuildIndex( $hashIndexService, $this->logger );
+		$tester  = new CommandTester( $command );
+
+		$exitCode = $tester->execute( [] );
+
+		$this->assertSame( Command::SUCCESS, $exitCode );
+		$this->assertStringContainsString( 'Done.', $tester->getDisplay() );
+	}
+
+
+	// ─── RemoveTable ─────────────────────────────────────────────────
+
+	public function testRemoveTableRequiresForceFlag(): void
+	{
+
+		$hashIndexService = $this->createMock( HashIndexService::class );
+		$hashIndexService->expects( $this->never() )
+		                 ->method( 'removeTable' )
+		;
+
+		$command = new RemoveTable( $hashIndexService, $this->logger );
+		$tester  = new CommandTester( $command );
+
+		$exitCode = $tester->execute( [] );
+
+		$this->assertSame( Command::FAILURE, $exitCode );
+		$this->assertStringContainsString( 'Use --force to confirm', $tester->getDisplay() );
+	}
+
+
+	public function testRemoveTableWithForceSucceeds(): void
+	{
+
+		$hashIndexService = $this->createMock( HashIndexService::class );
+		$hashIndexService->expects( $this->once() )
+		                 ->method( 'removeTable' )
+		;
+
+		$command = new RemoveTable( $hashIndexService, $this->logger );
+		$tester  = new CommandTester( $command );
+
+		$exitCode = $tester->execute( [ '--force' => true ] );
+
+		$this->assertSame( Command::SUCCESS, $exitCode );
+		$this->assertStringContainsString( 'Hash table dropped', $tester->getDisplay() );
+	}
+
+
+	// ─── ShowConfig ──────────────────────────────────────────────────
+
+	public function testShowConfigJsonOutputIsValid(): void
+	{
+
+		$command = Server::get( ShowConfig::class );
+		$tester  = new CommandTester( $command );
+
+		$exitCode = $tester->execute( [ '--output' => 'json' ] );
+
+		$this->assertSame( Command::SUCCESS, $exitCode );
+
+		$data = json_decode( $tester->getDisplay(), true );
+		$this->assertIsArray( $data, 'JSON output should be valid.' );
+	}
+
+
+	public function testShowConfigPlainOutput(): void
+	{
+
+		$command = Server::get( ShowConfig::class );
+		$tester  = new CommandTester( $command );
+
+		$exitCode = $tester->execute( [] );
+
+		$this->assertSame( Command::SUCCESS, $exitCode );
+
+		$display = $tester->getDisplay();
+		// Plain output may be empty if no config values are set;
+		// verify the command completes without error.
+		$this->assertNotNull( $display );
+	}
+
+
+	// ─── TestPerformance ─────────────────────────────────────────────
+
+	public function testTestPerformanceRunsWithoutError(): void
+	{
+
+		$command = Server::get( TestPerformance::class );
+		$tester  = new CommandTester( $command );
+
+		$exitCode = $tester->execute( [] );
+
+		$this->assertSame( Command::SUCCESS, $exitCode );
+		$this->assertStringContainsString( 'FCIAS Performance Benchmark', $tester->getDisplay() );
 	}
 
 }
