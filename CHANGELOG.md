@@ -14,6 +14,7 @@ the first stable release.
 ### Fixed
 
 - Fix DatabaseService writing query errors to stdout, which could corrupt JSON output of the status command, by sending them to stderr instead.
+- Guard against an undefined array key warning by adding a null-coalesce for the "locked" key in FileListener.
 
 ## [0.6.0] — 2026-08-05
 

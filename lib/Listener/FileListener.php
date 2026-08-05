@@ -132,7 +132,7 @@ class FileListener
 		case 'force':
 			$result = $this->hashIndexService->recalcAllExistingAlgos( $fileId );
 
-			if ( $result['locked'] )
+			if ( $result['locked'] ?? false )
 			{
 				$this->hashIndexService->deleteHashes( $fileId );
 				$this->hashIndexService->addPending( $fileId, HashIndexService::EVENT_TYPE_WRITE );
