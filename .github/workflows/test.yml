@@ -18,7 +18,7 @@ jobs:
         with:
           nextcloud-version: ${{ matrix.nextcloud-version }}
           php-version: ${{ matrix.php-version }}
-          install: false
+          install: true
 
       - name: Inject app into Nextcloud
         run: |
@@ -49,7 +49,7 @@ jobs:
         with:
           nextcloud-version: ${{ matrix.nextcloud-version }}
           install: true
-          node-version: false
+          node-version: '24'
 
       - name: Inject app into integration instance
         run: |
@@ -63,8 +63,20 @@ jobs:
       - name: Install Frontend Node Dependencies
         run: npm ci
 
+      - name: Start Nextcloud
+        run: |
+          php -S 0.0.0.0:8081 -t . &
+        working-directory: nextcloud
+        env:
+          PHP_CLI_SERVER_WORKERS: 3
+
       - name: Run Integration Tests (Headless Chrome)
         uses: cypress-io/github-action@v6
         with:
           browser: chrome
           spec: tests/e2e/**/*.cy.js
+          install: false
+          wait-on: 'http://localhost:8081/index.php'
+          wait-on-timeout: 120
+        env:
+          CYPRESS_baseUrl: http://localhost:8081/index.php
