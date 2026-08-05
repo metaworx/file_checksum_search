@@ -93,7 +93,7 @@ class ChecksumsSidebarTab extends HTMLElement {
 		container.innerHTML = `<p class="fcias-loading">${ escapeHtml( t( 'file_checksum_search', 'Loading checksums …' ) ) }</p>`
 
 		try {
-			const url = OC.generateUrl( '/apps/file_checksum_search/api/1.0/file/{fileId}/hashes', {
+			const url = OC.generateUrl( '/apps/file_checksum_search/api/v1/file/{fileId}/hashes', {
 				fileId,
 			} )
 			const response = await fetch( url, { signal: this.#abortController.signal } )
@@ -106,10 +106,17 @@ class ChecksumsSidebarTab extends HTMLElement {
 			} else {
 				let html = '<table class="fcias-hash-table"><tbody>'
 				for ( const entry of hashes ) {
+					const titleAttr = entry.updated_at
+						? ` title="Last computed: ${entry.updated_at}"`
+						: ''
 					html += '<tr>'
 					html += `<td><span class="fcias-algo-badge">${ escapeHtml( entry.algo ) }</span></td>`
-					html += `<td class="fcias-hash-value"><span class="fcias-selectable-hash" data-hash="${ escapeHtml( entry.hash ) }">${ escapeHtml( entry.hash ) }</span></td>`
+					html += `<td class="fcias-hash-value"><span class="fcias-selectable-hash" data-hash="${ escapeHtml( entry.hash ) }"${titleAttr}>${ escapeHtml( entry.hash ) }</span></td>`
 					html += '</tr>'
+				}
+				// Debug: log first entry to verify updated_at
+				if (hashes.length > 0) {
+					console.log('FCIAS sidebar: first hash entry', JSON.stringify(hashes[0]))
 				}
 				html += '</tbody></table>'
 				container.innerHTML = html
@@ -139,7 +146,7 @@ class ChecksumsSidebarTab extends HTMLElement {
 					btn.disabled = true
 					btn.textContent = '…'
 					try {
-						const recalcUrl = OC.generateUrl( '/apps/file_checksum_search/api/1.0/file/{fileId}/recalc', { fileId } )
+						const recalcUrl = OC.generateUrl( '/apps/file_checksum_search/api/v1/file/{fileId}/recalc', { fileId } )
 						const res = await fetch( recalcUrl + '?algo=' + algo, {
 							method: 'POST',
 							headers: { 'requesttoken': OC.requestToken },
@@ -198,7 +205,7 @@ class ChecksumsSidebarTab extends HTMLElement {
 
 		try {
 			const fileId = this.node?.fileid ?? this.node?.attributes?.fileid
-			const url = OC.generateUrl( '/apps/file_checksum_search/api/1.0/file/{fileId}/same-hash', { fileId } )
+			const url = OC.generateUrl( '/apps/file_checksum_search/api/v1/file/{fileId}/duplicates', { fileId } )
 			const response = await fetch( url )
 			if ( !response.ok ) throw new Error( 'HTTP ' + response.status )
 			const data = await response.json()

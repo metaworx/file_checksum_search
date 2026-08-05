@@ -14,3 +14,10 @@
 /*! @license DOMPurify 3.4.13 | (c) Cure53 and other contributors | Released under the Apache license 2.0 and Mozilla Public License 2.0 | github.com/cure53/DOMPurify/blob/3.4.13/LICENSE */
 
 /*! http://mths.be/fromcodepoint v0.1.0 by @mathias */
+
+/**
+ * @copyright Copyright (c) 2026 metaworx
+ * @license   AGPL-3.0-or-later
+ *
+ * Shared utility functions for FCIAS frontend components.
+ */

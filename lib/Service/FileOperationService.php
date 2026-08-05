@@ -40,7 +40,7 @@ class FileOperationService
 		$hashTable = $this->tables->getHashTableName();
 
 		$this->db->executeStatement(
-			"INSERT IGNORE INTO `$hashTable` (`fileid`, `algo`, `hash_value`) SELECT ?, `algo`, `hash_value` FROM `$hashTable` WHERE `fileid` = ?",
+			"INSERT IGNORE INTO `$hashTable` (`fileid`, `algo`, `hash_value`, `updated_at`) SELECT ?, `algo`, `hash_value`, NOW() FROM `$hashTable` WHERE `fileid` = ?",
 			[
 				$targetFileId,
 				$sourceFileId,

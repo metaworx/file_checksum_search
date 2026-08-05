@@ -17,6 +17,7 @@ use OCP\Files\NotFoundException;
 use OCP\IDBConnection;
 use OCP\Lock\ILockingProvider;
 use OCP\Lock\LockedException;
+use PDO;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Throwable;
@@ -36,6 +37,8 @@ class HashCalculationService
 	public function __construct(
 		private readonly IRootFolder      $rootFolder,
 		private readonly ILockingProvider $lockingProvider,
+		private readonly IDBConnection    $db,
+		private readonly TableNameService $tables,
 		private readonly LoggerInterface  $logger,
 	) {
 	}
@@ -79,12 +82,17 @@ class HashCalculationService
 			{
 				if ( str_starts_with( $pair, $prefix ) )
 				{
-					return [
-						'success' => true,
-						'algo'    => $algo,
-						'hash'    => substr( $pair, strlen( $prefix ) ),
-						'existed' => true,
-					];
+					if ( $this->isHashUpToDate( $file->getId(), $algo, $file->getMTime() ) )
+					{
+						return [
+							'success' => true,
+							'algo'    => $algo,
+							'hash'    => substr( $pair, strlen( $prefix ) ),
+							'existed' => true,
+						];
+					}
+
+					break;
 				}
 			}
 		}
@@ -202,7 +210,7 @@ class HashCalculationService
 		   ->from( $tables->getHashTableName() )
 		   ->where(
 			   $qb->expr()
-			      ->eq( 'fileid', $qb->createNamedParameter( $fileId, \PDO::PARAM_INT ) ),
+			      ->eq( 'fileid', $qb->createNamedParameter( $fileId, PDO::PARAM_INT ) ),
 		   )
 		;
 
@@ -472,6 +480,47 @@ class HashCalculationService
 		}
 
 		return ltrim( $path, '/' );
+	}
+
+
+	/**
+	 * Check whether the hash table row for (fileid, algo) has an
+	 * updated_at timestamp that is equal to or newer than the file's
+	 * mtime, meaning the hash is still fresh.
+	 *
+	 * Returns false if no row exists, updated_at is NULL, or the
+	 * timestamp is older than mtime.
+	 */
+	private function isHashUpToDate(
+		int    $fileId,
+		string $algo,
+		int    $mtime,
+	): bool {
+
+		$qb = $this->db->getQueryBuilder();
+
+		$qb->select( 'updated_at' )
+		   ->from( $this->tables->getHashTableName() )
+		   ->where(
+			   $qb->expr()
+			      ->eq( 'fileid', $qb->createNamedParameter( $fileId, PDO::PARAM_INT ) ),
+			   $qb->expr()
+			      ->eq( 'algo', $qb->createNamedParameter( $algo ) ),
+		   )
+		;
+
+		$updatedAt = $qb->executeQuery()
+		                ->fetchOne()
+		;
+
+		if ( $updatedAt === false || $updatedAt === null )
+		{
+			return false;
+		}
+
+		$updatedAtTs = strtotime( (string) $updatedAt );
+
+		return $updatedAtTs !== false && $updatedAtTs >= $mtime;
 	}
 
 

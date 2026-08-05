@@ -102,9 +102,9 @@ BEGIN
             IF v_colon > 0 THEN
                 SET v_algo = SUBSTRING(v_pair, 1, v_colon - 1);
                 SET v_hash = SUBSTRING(v_pair, v_colon + 1);
-                INSERT INTO `{$this->hashTable}` (`fileid`, `algo`, `hash_value`)
-                VALUES (p_fileid, v_algo, v_hash)
-                ON DUPLICATE KEY UPDATE `hash_value` = VALUES(`hash_value`);
+                INSERT INTO `{$this->hashTable}` (`fileid`, `algo`, `hash_value`, `updated_at`)
+                VALUES (p_fileid, v_algo, v_hash, NOW())
+                ON DUPLICATE KEY UPDATE `hash_value` = VALUES(`hash_value`), `updated_at` = NOW();
             END IF;
 
             IF v_pos = 0 THEN
@@ -235,6 +235,7 @@ CREATE TABLE IF NOT EXISTS `{$this->hashTable}` (
 	   `fileid`     BIGINT UNSIGNED NOT NULL,
 	   `algo`       VARCHAR(10) NOT NULL,
 	   `hash_value` VARCHAR(64) NOT NULL,
+	   `updated_at` DATETIME DEFAULT NULL,
 	   PRIMARY KEY (`fileid`, `algo`),
 	   INDEX `idx_fcias_hash_lookup` (`hash_value`, `algo`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
