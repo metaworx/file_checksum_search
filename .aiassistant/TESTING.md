@@ -1,4 +1,4 @@
-# Testing Conventions (v2.0.0)
+# Testing Conventions (v2.1.0)
 
 Project-specific testing conventions for FCIAS (File Checksum Index & Search Nextcloud app).
 Generic agent flow-control rules are in `AGENTS.md`; contributor context is in `CONTRIBUTING.md`.
@@ -32,6 +32,16 @@ Scoped run (single file or directory):
 wsl --cd ~/projects/nc_file_checksum_search vendor/bin/phpunit tests/Unit/Controller/LookupControllerTest.php
 wsl --cd ~/projects/nc_file_checksum_search vendor/bin/phpunit tests/Unit/
 ```
+
+### 1.1 DDEV Test Runner
+
+When running tests against the ddev Nextcloud instance (OCP classes, real database), use:
+
+```bash
+wsl --cd ~/projects/helioscloud bash -c "ddev exec php /var/www/html/custom_apps/file_checksum_search/vendor/bin/phpunit -c /var/www/html/custom_apps/file_checksum_search/tests/phpunit.xml /var/www/html/custom_apps/file_checksum_search/tests/Unit/Path/To/Test.php"
+```
+
+The `tests/bootstrap.php` loads NC autoloader from `/var/www/html/3rdparty/autoload.php` and `/var/www/html/lib/base.php` for OCP class availability inside ddev.
 
 > **Important:** When using the native agent `execute_command` tool, always pass `cwd: "C:\\"` to avoid CMD.EXE UNC path errors with `\\wsl.localhost\...` paths.
 
@@ -74,6 +84,16 @@ Fallback: JetBrains MCP `execute_run_configuration` with `filePath` + `line` on 
 - For Nextcloud service dependencies (`IRootFolder`, `IRequest`, `IManager`), inject via constructor and mock in tests.
 - For CLI commands extending `Symfony\Component\Console\Command\Command`, test via `CommandTester`.
 - Avoid tight coupling to `\OC::$server` in testable code; use constructor injection.
+- **Readonly class mocking**: PHPUnit 10.5 cannot mock classes declared `readonly`. Use property-level `readonly` on constructor parameters instead of class-level `readonly`. For interfaces (e.g., `IAppConfig`), `createMock()` works normally.
+
+### 6.1 Readonly Class Mockability
+
+PHPUnit 10.5 relies on class inheritance to generate test doubles. PHP `readonly` classes cannot be extended by non-readonly classes, so PHPUnit cannot mock them. Workarounds (in order of preference):
+
+1. **Extract interface** — Create an interface, type-hint it, mock the interface (best long-term)
+2. **Anonymous fakes** — Use `new class extends Foo { ... }` (good for DTOs/simple services)
+3. **Property-level readonly** — Remove class `readonly`, mark individual constructor properties as `readonly` (pragmatic, preserves immutability)
+4. **Runtime bypass** — Use `dg/bypass-finals` or Mockery for third-party classes you can't modify
 
 ## 7. Diagnosis Strategy
 
@@ -137,6 +157,7 @@ $request = $this->createMock(\OCP\IRequest::class);
 
 | Version | Date       | Changed sections                              | Change type | Agent impact                                                      |
 |---------|------------|-----------------------------------------------|-------------|-------------------------------------------------------------------|
+| v2.1.0  | 2026-08-05 | 1.1, 6.1, 12                                  | minor       | Added DDEV test runner commands. Added readonly class mockability guidance (§6.1). |
 | v2.0.0  | 2026-08-03 | All sections                                  | major       | Project switch: Kunstarchiv → FCIAS. Primary runner: `vendor/bin/phpunit`. Removed CS fixer infrastructure (§8-14 of v1.x). Added NC integration tests, mocking patterns, DB isolation. |
 | v1.5.0  | 2026-04-23 | Title, 1, 13, 16                              | minor       | Makes `.aiassistant\tools\phpunit` the preferred agent test entrypoint (Kunstarchiv). |
 | v1.4.0  | 2026-04-22 | Title, 7, 8, 16                               | minor       | Documents wrapper `--use-diff-stats` and `--env` (Kunstarchiv). |

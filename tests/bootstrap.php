@@ -12,9 +12,24 @@ if ( ! defined( 'PHPUNIT_RUN' ) )
 	define( 'PHPUNIT_RUN', 1 );
 }
 
-// Load Nextcloud test bootstrap if available
-$ncBootstrap = __DIR__ . '/../../../tests/bootstrap.php';
-if ( file_exists( $ncBootstrap ) )
+// Load Nextcloud autoloader (OCP classes)
+$ncVendorAutoload = __DIR__ . '/../../../3rdparty/autoload.php';
+if ( ! file_exists( $ncVendorAutoload ) )
 {
-	require_once $ncBootstrap;
+	$ncVendorAutoload = '/var/www/html/3rdparty/autoload.php';
+}
+if ( file_exists( $ncVendorAutoload ) )
+{
+	require_once $ncVendorAutoload;
+}
+
+// Load NC lib base (OCP interfaces and classes)
+$ncLibBase = __DIR__ . '/../../../lib/base.php';
+if ( ! file_exists( $ncLibBase ) )
+{
+	$ncLibBase = '/var/www/html/lib/base.php';
+}
+if ( file_exists( $ncLibBase ) )
+{
+	require_once $ncLibBase;
 }

@@ -19,6 +19,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IAppConfig;
 use OCP\IRequest;
 use OCP\IUserManager;
 use Psr\Log\LoggerInterface;
@@ -38,6 +39,7 @@ class SettingsController
 		private readonly StatusService                $statusService,
 		private readonly CronJobService               $cronJobService,
 		private readonly IUserManager                 $userManager,
+		private readonly IAppConfig                   $appConfig,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -49,11 +51,13 @@ class SettingsController
 	{
 
 		return new DataResponse( [
-			'version'    => $this->statusService->getAppVersion(),
-			'dbVersion'  => $this->statusService->getDbVersion(),
-			'rowCount'   => $this->statusService->getHashRowCount(),
-			'triggersOk' => $this->statusService->getTriggerCount() >= 3,
-			'spOk'       => $this->statusService->isSpInstalled(),
+			'version'     => $this->statusService->getAppVersion(),
+			'dbVersion'   => $this->statusService->getDbVersion(),
+			'rowCount'    => $this->statusService->getHashRowCount(),
+			'pendingRows' => $this->statusService->getPendingRowCount(),
+			'tables'      => $this->statusService->getTableStatus(),
+			'sp'          => $this->statusService->getProcedureStatus(),
+			'triggers'    => $this->statusService->getTriggerStatus(),
 		] );
 	}
 
@@ -520,6 +524,131 @@ class SettingsController
 		}
 
 		return sprintf( '*/%d * * * *', max( 1, $minutes ) );
+	}
+
+
+	#[NoCSRFRequired]
+	public function getRehashBehavior(): DataResponse
+	{
+
+		return new DataResponse( [
+			'write'  => $this->appConfig->getValueString(
+				Application::APP_ID,
+				'update_hash_on_file_write',
+				'lazy',
+			),
+			'create' => $this->appConfig->getValueString(
+				Application::APP_ID,
+				'update_hash_on_file_create',
+				'off',
+			),
+			'delete' => $this->appConfig->getValueString(
+				Application::APP_ID,
+				'update_hash_on_file_delete',
+				'off',
+			),
+		] );
+	}
+
+
+	public function saveRehashBehavior(): DataResponse
+	{
+
+		$body = json_decode( file_get_contents( 'php://input' ), true );
+
+		if ( ! is_array( $body ) )
+		{
+			return new DataResponse(
+				[
+					'success' => false,
+					'error'   => 'Invalid request body.',
+				],
+				Http::STATUS_BAD_REQUEST,
+			);
+		}
+
+		$allowedWrite  = [
+			'off',
+			'force',
+			'lazy',
+			'auto',
+		];
+		$allowedCreate = [
+			'off',
+			'lazy',
+			'force',
+		];
+		$allowedDelete = [
+			'off',
+			'on',
+		];
+
+		$write  = $body['write'] ?? null;
+		$create = $body['create'] ?? null;
+		$delete = $body['delete'] ?? null;
+
+		$errors = [];
+
+		if ( $write !== null )
+		{
+			if ( in_array( $write, $allowedWrite, true ) )
+			{
+				$this->appConfig->setValueString(
+					Application::APP_ID,
+					'update_hash_on_file_write',
+					$write,
+				);
+			}
+			else
+			{
+				$errors[] = 'Invalid value for write: ' . $write;
+			}
+		}
+
+		if ( $create !== null )
+		{
+			if ( in_array( $create, $allowedCreate, true ) )
+			{
+				$this->appConfig->setValueString(
+					Application::APP_ID,
+					'update_hash_on_file_create',
+					$create,
+				);
+			}
+			else
+			{
+				$errors[] = 'Invalid value for create: ' . $create;
+			}
+		}
+
+		if ( $delete !== null )
+		{
+			if ( in_array( $delete, $allowedDelete, true ) )
+			{
+				$this->appConfig->setValueString(
+					Application::APP_ID,
+					'update_hash_on_file_delete',
+					$delete,
+				);
+			}
+			else
+			{
+				$errors[] = 'Invalid value for delete: ' . $delete;
+			}
+		}
+
+		if ( ! empty( $errors ) )
+		{
+			return new DataResponse(
+				[
+					'success' => false,
+					'error'   => implode( '; ', $errors ),
+				],
+				Http::STATUS_BAD_REQUEST,
+			);
+		}
+
+		return new DataResponse( [ 'success' => true ] );
 	}
 
 }

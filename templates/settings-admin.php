@@ -43,13 +43,23 @@ Util::addStyle( 'file_checksum_search', 'settings-admin' );
 			</tr>
 			<tr>
 				<td><?php
-					p( $l->t( 'Triggers' ) ); ?></td>
-				<td id="fcias-status-triggers">—</td>
+					p( $l->t( 'Pending Updates' ) ); ?></td>
+				<td id="fcias-status-pending">—</td>
+			</tr>
+			<tr>
+				<td><?php
+					p( $l->t( 'Tables' ) ); ?></td>
+				<td id="fcias-status-tables">—</td>
 			</tr>
 			<tr>
 				<td><?php
 					p( $l->t( 'Stored Procedure' ) ); ?></td>
 				<td id="fcias-status-sp">—</td>
+			</tr>
+			<tr>
+				<td><?php
+					p( $l->t( 'Triggers' ) ); ?></td>
+				<td id="fcias-status-triggers">—</td>
 			</tr>
 			</tbody>
 		</table>
@@ -57,7 +67,57 @@ Util::addStyle( 'file_checksum_search', 'settings-admin' );
 
 	<div class="fcias-section">
 		<h4><?php
-			p( $l->t( 'Scheduled Hashing' ) ); ?></h4>
+			p( $l->t( 'File Update Handling' ) ); ?></h4>
+
+		<h5><?php
+			p( $l->t( 'Re-hash on File Change' ) ); ?></h5>
+		<p class="fcias-hint"><?php
+			p(
+				$l->t(
+					'Configure how the hash index reacts when files are written, created, or deleted.',
+				),
+			); ?></p>
+
+		<div class="fcias-cron-form-row">
+			<label for="fcias-rehash-write"><?php
+				p( $l->t( 'On File Write' ) ); ?></label>
+			<select id="fcias-rehash-write">
+				<option value="lazy"><?php
+					p( $l->t( 'Lazy (delete hash, recalc later)' ) ); ?></option>
+				<option value="force"><?php
+					p( $l->t( 'Force (recalc immediately)' ) ); ?></option>
+				<option value="auto"><?php
+					p( $l->t( 'Auto (recalc only if hash exists)' ) ); ?></option>
+				<option value="off"><?php
+					p( $l->t( 'Off' ) ); ?></option>
+			</select>
+		</div>
+		<div class="fcias-cron-form-row">
+			<label for="fcias-rehash-create"><?php
+				p( $l->t( 'On File Create' ) ); ?></label>
+			<select id="fcias-rehash-create">
+				<option value="off"><?php
+					p( $l->t( 'Off' ) ); ?></option>
+				<option value="lazy"><?php
+					p( $l->t( 'Lazy (recalc later)' ) ); ?></option>
+				<option value="force"><?php
+					p( $l->t( 'Force (recalc immediately)' ) ); ?></option>
+			</select>
+		</div>
+		<div class="fcias-cron-form-row">
+			<label for="fcias-rehash-delete"><?php
+				p( $l->t( 'On File Delete' ) ); ?></label>
+			<select id="fcias-rehash-delete">
+				<option value="off"><?php
+					p( $l->t( 'Off' ) ); ?></option>
+				<option value="on"><?php
+					p( $l->t( 'On (remove hash rows)' ) ); ?></option>
+			</select>
+		</div>
+
+		<button class="fcias-btn" id="fcias-btn-save-rehash"><?php
+			p( $l->t( 'Save' ) ); ?></button>
+		<div id="fcias-rehash-msg"></div>
 
 		<h5><?php
 			p( $l->t( 'NC Background Job Definitions' ) ); ?></h5>

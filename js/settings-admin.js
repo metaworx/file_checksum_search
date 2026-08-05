@@ -14,6 +14,7 @@
 	const cronDeleteUrl = OC.generateUrl( '/apps/file_checksum_search/settings/cron/delete' );
 	const cronToggleUrl = OC.generateUrl( '/apps/file_checksum_search/settings/cron/toggle' );
 	const cronSnippetUrl = OC.generateUrl( '/apps/file_checksum_search/settings/cron/snippet' );
+	const rehashBehaviorUrl = OC.generateUrl( '/apps/file_checksum_search/settings/rehash-behavior' );
 
 	let editingDefinitionId = null;
 	let supportedAlgos = [];
@@ -42,12 +43,34 @@
 				setText( 'fcias-status-version', data.version || '—' );
 				setText( 'fcias-status-dbversion', data.dbVersion || '—' );
 				setText( 'fcias-status-rowcount', String( data.rowCount || 0 ) );
-				setHtml( 'fcias-status-triggers', data.triggersOk
-					? '<span class="fcias-compat-pass">OK</span>'
-					: '<span class="fcias-compat-fail">MISSING</span>' );
-				setHtml( 'fcias-status-sp', data.spOk
-					? '<span class="fcias-compat-pass">OK</span>'
-					: '<span class="fcias-compat-fail">MISSING</span>' );
+				setText( 'fcias-status-pending', String( data.pendingRows || 0 ) );
+var tablesHtml = '';
+var tables = data.tables || [];
+for ( var i = 0; i < tables.length; i++ ) {
+	tablesHtml += '<span class="' + ( tables[ i ].ok ? 'fcias-compat-pass' : 'fcias-compat-fail' ) + '">' +
+		escapeHtml( tables[ i ].name ) + ': ' + ( tables[ i ].ok ? 'OK' : 'MISSING' ) + '</span>';
+	if ( i < tables.length - 1 ) {
+		tablesHtml += '<br>';
+	}
+}
+setHtml( 'fcias-status-tables', tablesHtml || '—' );
+
+var sp = data.sp || {};
+setHtml( 'fcias-status-sp',
+	'<span class="' + ( sp.ok ? 'fcias-compat-pass' : 'fcias-compat-fail' ) + '">' +
+	escapeHtml( sp.name || '—' ) + ': ' + ( sp.ok ? 'OK' : 'MISSING' ) +
+	'</span>' );
+
+var triggersHtml = '';
+var triggers = data.triggers || [];
+for ( var j = 0; j < triggers.length; j++ ) {
+	triggersHtml += '<span class="' + ( triggers[ j ].ok ? 'fcias-compat-pass' : 'fcias-compat-fail' ) + '">' +
+		escapeHtml( triggers[ j ].name ) + ': ' + ( triggers[ j ].ok ? 'OK' : 'MISSING' ) + '</span>';
+	if ( j < triggers.length - 1 ) {
+		triggersHtml += '<br>';
+	}
+}
+setHtml( 'fcias-status-triggers', triggersHtml || '—' );
 			} )
 			.catch( function () {
 				setHtml( 'fcias-msg', '<p class="fcias-error">Failed to load status.</p>' );
@@ -562,6 +585,78 @@
 				default:
 					return 900;
 			}
+		}
+
+		function loadRehashBehavior() {
+			fetch( rehashBehaviorUrl )
+				.then( function ( r ) {
+					return r.json();
+				} )
+				.then( function ( data ) {
+					var writeSel = document.getElementById( 'fcias-rehash-write' );
+					var createSel = document.getElementById( 'fcias-rehash-create' );
+					var deleteSel = document.getElementById( 'fcias-rehash-delete' );
+					if ( writeSel ) {
+						writeSel.value = data.write || 'auto';
+					}
+					if ( createSel ) {
+						createSel.value = data.create || 'off';
+					}
+					if ( deleteSel ) {
+						deleteSel.value = data.delete || 'off';
+					}
+				} )
+				.catch( function () {
+					setHtml( 'fcias-rehash-msg', '<p class="fcias-error">Failed to load rehash behavior settings.</p>' );
+				} );
+		}
+
+		function saveRehashBehavior() {
+			var writeVal = document.getElementById( 'fcias-rehash-write' )
+				? document.getElementById( 'fcias-rehash-write' ).value
+				: 'lazy';
+			var createVal = document.getElementById( 'fcias-rehash-create' )
+				? document.getElementById( 'fcias-rehash-create' ).value
+				: 'off';
+			var deleteVal = document.getElementById( 'fcias-rehash-delete' )
+				? document.getElementById( 'fcias-rehash-delete' ).value
+				: 'off';
+
+			setHtml( 'fcias-rehash-msg', '' );
+
+			fetch( rehashBehaviorUrl, {
+				method: 'POST',
+				headers: {
+					'requesttoken': OC.requestToken,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify( {
+					write: writeVal,
+					create: createVal,
+					delete: deleteVal,
+				} ),
+			} )
+				.then( function ( r ) {
+					return r.json();
+				} )
+				.then( function ( data ) {
+					if ( data.success ) {
+						OC.Notification.showTemporary( 'Rehash behavior settings saved.' );
+					} else {
+						setHtml( 'fcias-rehash-msg', '<p class="fcias-error">' + escapeHtml( data.error || 'Save failed.' ) + '</p>' );
+					}
+				} )
+				.catch( function () {
+					setHtml( 'fcias-rehash-msg', '<p class="fcias-error">Request failed.</p>' );
+				} );
+		}
+
+		// Rehash behavior: load and save
+		loadRehashBehavior();
+
+		var btnSaveRehash = document.getElementById( 'fcias-btn-save-rehash' );
+		if ( btnSaveRehash ) {
+			btnSaveRehash.addEventListener( 'click', saveRehashBehavior );
 		}
 	} );
 } )();

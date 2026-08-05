@@ -20,14 +20,17 @@ use OCP\IConfig;
 class TableNameService
 {
 
-	public const SP_FCIAS_PARSE_FILE_HASHES        = 'fcias_parse_file_hashes';
-	public const TABLE_FILE_CHECKSUM_SEARCH_HASHES = 'file_checksum_search_hashes';
+	public const SP_FCIAS_PARSE_FILE_HASHES         = 'fcias_parse_file_hashes';
+	public const TABLE_FILE_CHECKSUM_SEARCH_HASHES  = 'file_checksum_search_hashes';
+	public const TABLE_FILE_CHECKSUM_SEARCH_PENDING = 'file_checksum_search_pending';
 
 	private string $prefix;
 
 	private string $filecacheTable;
 
 	private string $hashTable;
+
+	private string $pendingTable;
 
 	private string $spName;
 
@@ -38,6 +41,7 @@ class TableNameService
 		$this->prefix         = $config->getSystemValueString( 'dbtableprefix', 'oc_' );
 		$this->filecacheTable = $this->prefix . 'filecache';
 		$this->hashTable      = $this->prefix . self::TABLE_FILE_CHECKSUM_SEARCH_HASHES;
+		$this->pendingTable   = $this->prefix . self::TABLE_FILE_CHECKSUM_SEARCH_PENDING;
 		$this->spName         = $this->prefix . self::SP_FCIAS_PARSE_FILE_HASHES;
 	}
 
@@ -68,6 +72,14 @@ class TableNameService
 	{
 
 		return $this->hashTable;
+	}
+
+
+	/** Fully-qualified `*PREFIX*file_checksum_search_pending` table name. */
+	public function getPendingTableName(): string
+	{
+
+		return $this->pendingTable;
 	}
 
 

@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Service;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Migration\LifecycleHandler;
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
@@ -27,7 +28,7 @@ use Throwable;
  * Used by CLI commands, SettingsController, CronGenerateHashes,
  * and other service classes.
  */
-readonly class HashIndexService
+class HashIndexService
 {
 
 	public const SUPPORTED_ALGOS
@@ -40,6 +41,9 @@ readonly class HashIndexService
 			'sha3-512',
 			'crc32',
 		];
+
+	public const EVENT_TYPE_WRITE  = 'write';
+	public const EVENT_TYPE_CREATE = 'create';
 
 
 	public static function getDefaultAlgo(): string
@@ -365,26 +369,14 @@ readonly class HashIndexService
 
 
 	/**
-	 * Create the hash table if it does not exist.
+	 * Create both shadow tables if they do not exist.
 	 *
-	 * Mirrors the schema from Version010000Date20260731000000.
+	 * Delegates to LifecycleHandler for SQL.
 	 */
 	public function createTable(): void
 	{
 
-		$hashTable = $this->tables->getHashTableName();
-
-		$this->db->executeStatement(
-			<<<SQL
-CREATE TABLE IF NOT EXISTS `{$hashTable}` (
-	   `fileid`     BIGINT UNSIGNED NOT NULL,
-	   `algo`       VARCHAR(10) NOT NULL,
-	   `hash_value` VARCHAR(64) NOT NULL,
-	   PRIMARY KEY (`fileid`, `algo`),
-	   INDEX `idx_fcias_hash_lookup` (`hash_value`, `algo`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
-SQL,
-		);
+		$this->lifecycleHandler->createTables();
 
 		$this->logger->debug(
 			'FCIAS: createTable completed',
@@ -661,6 +653,261 @@ SQL,
 		}
 
 		return ltrim( $path, '/' );
+	}
+
+
+	/**
+	 * Queue a file for deferred hash recalculation.
+	 *
+	 * INSERT IGNORE ensures duplicate events for the same fileid
+	 * within the drain interval are silently dropped (debounce).
+	 */
+	public function addPending(
+		int    $fileId,
+		string $eventType,
+	): void {
+
+		$pendingTable = $this->tables->getPendingTableName();
+
+		$this->db->executeStatement(
+			"INSERT IGNORE INTO `{$pendingTable}` (`fileid`, `created_at`, `event_type`) VALUES (?, UNIX_TIMESTAMP(), ?)",
+			[
+				$fileId,
+				$eventType,
+			],
+		);
+	}
+
+
+	/**
+	 * Process pending hash updates from the queue table.
+	 *
+	 * For each pending row, recalculates the default algo hash.
+	 * Processed rows are deleted from the queue.
+	 *
+	 * @return array{processed: int, deleted: int}
+	 */
+	public function drainPending( int $limit = 50 ): array
+	{
+
+		$defaultAlgo = self::getDefaultAlgo();
+
+		$selectQb = $this->db->getQueryBuilder();
+		$selectQb->select( 'fileid', 'event_type' )
+		         ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_PENDING )
+		         ->orderBy( 'created_at', 'ASC' )
+		         ->setMaxResults( $limit )
+		;
+
+		$rows      = $selectQb->executeQuery();
+		$processed = 0;
+		$ids       = [];
+
+		while ( ( $row = $rows->fetch() ) !== false )
+		{
+			$fileId = (int) $row['fileid'];
+			$ids[]  = $fileId;
+
+			try
+			{
+				$this->recalcHash( $fileId, $defaultAlgo );
+
+				$processed ++;
+			}
+			catch ( Throwable $e )
+			{
+				$this->logger->warning(
+					'FCIAS: drainPending recalcHash failed for fileid {fileId}',
+					[
+						'app'       => Application::APP_ID,
+						'fileId'    => $fileId,
+						'exception' => $e,
+					],
+				);
+			}
+		}
+		$rows->closeCursor();
+
+		$deleted = 0;
+
+		if ( ! empty( $ids ) )
+		{
+			$deleteQb = $this->db->getQueryBuilder();
+			$deleteQb->delete( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_PENDING )
+			         ->where(
+				         $deleteQb->expr()
+				                  ->in(
+					                  'fileid',
+					                  $deleteQb->createNamedParameter( $ids, IQueryBuilder::PARAM_INT_ARRAY ),
+				                  ),
+			         )
+			;
+			$deleted = $deleteQb->executeStatement();
+		}
+
+		return [
+			'processed' => $processed,
+			'deleted'   => $deleted,
+		];
+	}
+
+
+	/**
+	 * Copy all hash rows from a source file to a target file.
+	 *
+	 * Used by NodeCopiedEvent — identical content, identical hashes.
+	 */
+	public function copyHashes(
+		int $sourceFileId,
+		int $targetFileId,
+	): void {
+
+		$hashTable = $this->tables->getHashTableName();
+
+		$this->db->executeStatement(
+			"INSERT IGNORE INTO `{$hashTable}` (`fileid`, `algo`, `hash_value`) SELECT ?, `algo`, `hash_value` FROM `{$hashTable}` WHERE `fileid` = ?",
+			[
+				$targetFileId,
+				$sourceFileId,
+			],
+		);
+	}
+
+
+	/**
+	 * Delete all hash rows for a given fileid.
+	 *
+	 * @return int Number of deleted rows
+	 */
+	public function deleteHashes( int $fileId ): int
+	{
+
+		$hashTable = $this->tables->getHashTableName();
+
+		return $this->db->executeStatement(
+			"DELETE FROM `{$hashTable}` WHERE `fileid` = ?",
+			[ $fileId ],
+		);
+	}
+
+
+	/**
+	 * Count hash rows for a given fileid.
+	 */
+	public function countHashes( int $fileId ): int
+	{
+
+		$hashTable = $this->tables->getHashTableName();
+
+		return (int) $this->db->executeQuery(
+			"SELECT COUNT(*) FROM `{$hashTable}` WHERE `fileid` = ?",
+			[ $fileId ],
+		)
+		                      ->fetchOne()
+		;
+	}
+
+
+	/**
+	 * Recalculate all currently-indexed algos for a file.
+	 *
+	 * If no prior hash rows exist, falls back to the default algo.
+	 *
+	 * @return array{processed: int, algos: string[]}
+	 */
+	public function recalcAllExistingAlgos( int $fileId ): array
+	{
+
+		$hashTable = $this->tables->getHashTableName();
+
+		$rows = $this->db->executeQuery(
+			"SELECT DISTINCT `algo` FROM `{$hashTable}` WHERE `fileid` = ?",
+			[ $fileId ],
+		);
+
+		$algos = [];
+
+		while ( ( $row = $rows->fetch() ) !== false )
+		{
+			$algos[] = $row['algo'];
+		}
+		$rows->closeCursor();
+
+		if ( empty( $algos ) )
+		{
+			$algos = [ self::getDefaultAlgo() ];
+		}
+
+		$processed = 0;
+
+		foreach ( $algos as $algo )
+		{
+			$result = $this->recalcHash( $fileId, $algo );
+
+			if ( $result['success'] )
+			{
+				$processed ++;
+			}
+		}
+
+		return [
+			'processed' => $processed,
+			'algos'     => $algos,
+		];
+	}
+
+
+	/**
+	 * Copy the filecache checksum from source to target file.
+	 *
+	 * Used by NodeCopiedEvent. Updating the target's checksum triggers
+	 * the AFTER UPDATE trigger on oc_filecache, which in turn calls the
+	 * fcias_parse_file_hashes SP to populate the hash table.
+	 */
+	public function copyFilecacheChecksum(
+		File $source,
+		File $target,
+	): void {
+
+		$checksum = $source->getChecksum();
+
+		if ( $checksum === null || $checksum === '' )
+		{
+			return;
+		}
+
+		$targetStorage = $target->getStorage();
+		$targetCache   = $targetStorage->getCache();
+		$targetCache->update( $target->getId(), [ 'checksum' => $checksum ] );
+	}
+
+
+	/**
+	 * Count pending rows in the queue table.
+	 */
+	public function getPendingRowCount(): int
+	{
+
+		$pendingTable = $this->tables->getPendingTableName();
+
+		try
+		{
+			return (int) $this->db->executeQuery( "SELECT COUNT(*) FROM `{$pendingTable}`" )
+			                      ->fetchOne()
+			;
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->warning(
+				'FCIAS: pending row count query failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
+			return 0;
+		}
 	}
 
 }

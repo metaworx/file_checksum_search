@@ -56,6 +56,27 @@ class ConfigLexicon
 				lazy: false,
 				flags: IAppConfig::FLAG_INTERNAL,
 			),
+			new Entry(
+				key: 'update_hash_on_file_write',
+				type: ValueType::STRING,
+				defaultRaw: 'auto',
+				definition: 'Behavior when a file is written: off, force, lazy, auto.',
+				lazy: false,
+			),
+			new Entry(
+				key: 'update_hash_on_file_create',
+				type: ValueType::STRING,
+				defaultRaw: 'off',
+				definition: 'Behavior when a file is created: off, lazy, force.',
+				lazy: false,
+			),
+			new Entry(
+				key: 'update_hash_on_file_delete',
+				type: ValueType::STRING,
+				defaultRaw: 'off',
+				definition: 'Behavior when a file is deleted: off, on.',
+				lazy: false,
+			),
 		];
 	}
 

@@ -165,4 +165,180 @@ readonly class StatusService
 		}
 	}
 
+
+	public function getPendingRowCount(): int
+	{
+
+		$pendingTable = $this->tables->getPendingTableName();
+
+		try
+		{
+			return (int) $this->db->executeQuery( "SELECT COUNT(*) FROM `{$pendingTable}`" )
+			                      ->fetchOne()
+			;
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->warning(
+				'FCIAS: pending row count query failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
+			return 0;
+		}
+	}
+
+
+	/**
+	 * @return array<array{name: string, ok: bool}>
+	 */
+	public function getTableStatus(): array
+	{
+
+		return [
+			[
+				'name' => $this->tables->getHashTableName(),
+				'ok'   => $this->hasHashTable(),
+			],
+			[
+				'name' => $this->tables->getPendingTableName(),
+				'ok'   => $this->hasPendingTable(),
+			],
+		];
+	}
+
+
+	/**
+	 * @return array{name: string, ok: bool}
+	 */
+	public function getProcedureStatus(): array
+	{
+
+		return [
+			'name' => $this->tables->getSpName(),
+			'ok'   => $this->isSpInstalled(),
+		];
+	}
+
+
+	/**
+	 * @return array<array{name: string, ok: bool}>
+	 */
+	public function getTriggerStatus(): array
+	{
+
+		$results = [];
+
+		foreach (
+			[
+				$this->tables->getTriggerName( 'insert' ),
+				$this->tables->getTriggerName( 'update' ),
+				$this->tables->getTriggerName( 'delete' ),
+			] as $triggerName
+		)
+		{
+			$results[] = [
+				'name' => $triggerName,
+				'ok'   => $this->hasTrigger( $triggerName ),
+			];
+		}
+
+		return $results;
+	}
+
+
+	public function hasTrigger( string $triggerName ): bool
+	{
+
+		try
+		{
+			$count = (int) $this->db->executeQuery(
+				"SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() AND TRIGGER_NAME = ?",
+				[ $triggerName ],
+			)
+			                        ->fetchOne()
+			;
+
+			return $count > 0;
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->warning(
+				'FCIAS: trigger existence check failed',
+				[
+					'app'         => Application::APP_ID,
+					'triggerName' => $triggerName,
+					'exception'   => $e,
+				],
+			);
+
+			return false;
+		}
+	}
+
+
+	public function hasHashTable(): bool
+	{
+
+		$hashTable = $this->tables->getHashTableName();
+
+		try
+		{
+			$count = (int) $this->db->executeQuery(
+				"SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
+				[ $hashTable ],
+			)
+			                        ->fetchOne()
+			;
+
+			return $count > 0;
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->warning(
+				'FCIAS: hash table existence check failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
+			return false;
+		}
+	}
+
+
+	public function hasPendingTable(): bool
+	{
+
+		$pendingTable = $this->tables->getPendingTableName();
+
+		try
+		{
+			$count = (int) $this->db->executeQuery(
+				"SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
+				[ $pendingTable ],
+			)
+			                        ->fetchOne()
+			;
+
+			return $count > 0;
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->warning(
+				'FCIAS: pending table existence check failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
+			return false;
+		}
+	}
+
 }
