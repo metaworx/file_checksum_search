@@ -10,8 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Command;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
-use OCA\FileChecksumSearch\Service\TableNameService;
-use OCP\IDBConnection;
+use OCA\FileChecksumSearch\Service\HashIndexService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -24,8 +23,8 @@ class SearchHash
 {
 
 	public function __construct(
-		private readonly IDBConnection   $db,
-		private readonly LoggerInterface $logger,
+		private readonly HashIndexService $hashIndexService,
+		private readonly LoggerInterface  $logger,
 	) {
 
 		parent::__construct();
@@ -66,27 +65,7 @@ class SearchHash
 			$hash = strtolower( $term );
 		}
 
-		$qb = $this->db->getQueryBuilder();
-		$qb->select( 'h.fileid', 'h.algo', 'h.hash_value', 'fc.path', 'fc.name' )
-		   ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES, 'h' )
-		   ->innerJoin( 'h', 'filecache', 'fc', 'h.fileid = fc.fileid' )
-		   ->where(
-			   $qb->expr()
-			      ->eq( 'h.hash_value', $qb->createNamedParameter( $hash ) ),
-		   )
-		;
-
-		if ( $algo !== null )
-		{
-			$qb->andWhere(
-				$qb->expr()
-				   ->eq( 'h.algo', $qb->createNamedParameter( $algo ) ),
-			);
-		}
-
-		$result = $qb->executeQuery();
-		$rows   = $result->fetchAll();
-		$result->closeCursor();
+		$rows = $this->hashIndexService->findByHash( $hash, $algo );
 
 		if ( empty( $rows ) )
 		{

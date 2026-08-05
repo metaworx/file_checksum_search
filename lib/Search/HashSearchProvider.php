@@ -10,9 +10,8 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Search;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
-use OCA\FileChecksumSearch\Service\TableNameService;
+use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCP\Files\IRootFolder;
-use OCP\IDBConnection;
 use OCP\IURLGenerator;
 use OCP\IUser;
 use OCP\Search\IProvider;
@@ -30,10 +29,10 @@ class HashSearchProvider
 {
 
 	public function __construct(
-		private readonly IDBConnection   $db,
-		private readonly IRootFolder     $rootFolder,
-		private readonly IURLGenerator   $urlGenerator,
-		private readonly LoggerInterface $logger,
+		private readonly HashIndexService $hashIndexService,
+		private readonly IRootFolder      $rootFolder,
+		private readonly IURLGenerator    $urlGenerator,
+		private readonly LoggerInterface  $logger,
 	) {
 
 	}
@@ -100,30 +99,7 @@ class HashSearchProvider
 			$hash = strtolower( $term );
 		}
 
-		$qb = $this->db->getQueryBuilder();
-
-		$qb->select( 'h.fileid', 'h.algo', 'h.hash_value', 'fc.path', 'fc.name' )
-		   ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES, 'h' )
-		   ->innerJoin( 'h', 'filecache', 'fc', 'h.fileid = fc.fileid' )
-		   ->where(
-			   $qb->expr()
-			      ->eq( 'h.hash_value', $qb->createNamedParameter( $hash ) ),
-		   )
-		;
-
-		if ( $algo !== null )
-		{
-			$qb->andWhere(
-				$qb->expr()
-				   ->eq( 'h.algo', $qb->createNamedParameter( $algo ) ),
-			);
-		}
-
-		$qb->setMaxResults( $query->getLimit() );
-
-		$result = $qb->executeQuery();
-		$rows   = $result->fetchAll();
-		$result->closeCursor();
+		$rows = $this->hashIndexService->findByHash( $hash, $algo, $query->getLimit() );
 
 		$userFolder = $this->rootFolder->getUserFolder( $user->getUID() );
 		$entries    = [];

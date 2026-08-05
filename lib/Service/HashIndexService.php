@@ -1036,6 +1036,145 @@ class HashIndexService
 	}
 
 
+	/**
+	 * Batch-lookup filecache paths for a list of file IDs.
+	 *
+	 * Joins storages to resolve the storage ID for each file.
+	 * When $userName is provided, only files from that user's home
+	 * storage are returned (matched via storages.id = 'home::{uid}').
+	 *
+	 * @param  int[]        $fileIds
+	 * @param  string|null  $userName
+	 *
+	 * @return array<int, array{path: string, name: string, storage_id: string, user: string}>
+	 */
+	public function batchLookupFilecachePaths(
+		array   $fileIds,
+		?string $userName = null,
+	): array {
+
+		if ( empty( $fileIds ) )
+		{
+			return [];
+		}
+
+		$qb = $this->db->getQueryBuilder();
+
+		$qb->select( 'fc.fileid', 'fc.path', 'fc.name', 's.id' )
+		   ->from( 'filecache', 'fc' )
+		   ->innerJoin(
+			   'fc',
+			   'storages',
+			   's',
+			   'fc.storage = s.numeric_id',
+		   )
+		;
+
+		if ( $userName !== null )
+		{
+			$qb->where(
+				$qb->expr()
+				   ->eq(
+					   's.id',
+					   $qb->createNamedParameter( 'home::' . $userName ),
+				   ),
+			)
+			   ->andWhere(
+				   $qb->expr()
+				      ->in(
+					      'fc.fileid',
+					      $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
+				      ),
+			   )
+			;
+		}
+		else
+		{
+			$qb->where(
+				$qb->expr()
+				   ->in(
+					   'fc.fileid',
+					   $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
+				   ),
+			);
+		}
+
+		$result = $qb->executeQuery();
+		$paths  = [];
+
+		while ( ( $row = $result->fetch() ) !== false )
+		{
+			$sid  = (string) $row['id'];
+			$user = '';
+
+			if ( str_starts_with( $sid, 'home::' ) )
+			{
+				$user = substr( $sid, 6 );
+			}
+			elseif ( str_starts_with( $sid, 'local::' ) )
+			{
+				$user = basename( $sid );
+			}
+			else
+			{
+				$user = $sid;
+			}
+
+			$paths[ (int) $row['fileid'] ] = [
+				'path'       => (string) $row['path'],
+				'name'       => (string) $row['name'],
+				'storage_id' => $sid,
+				'user'       => $user,
+			];
+		}
+		$result->closeCursor();
+
+		return $paths;
+	}
+
+
+	/**
+	 * Find hash rows matching a given hash value, with optional algo filter.
+	 *
+	 * Returns rows from file_checksum_search_hashes joined with filecache.
+	 *
+	 * @return array<int, array{fileid: int, algo: string, hash_value: string, path: string, name: string}>
+	 */
+	public function findByHash(
+		string  $hash,
+		?string $algo = null,
+		int     $limit = 100,
+	): array {
+
+		$qb = $this->db->getQueryBuilder();
+
+		$qb->select( 'h.fileid', 'h.algo', 'h.hash_value', 'fc.path', 'fc.name' )
+		   ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES, 'h' )
+		   ->innerJoin( 'h', 'filecache', 'fc', 'h.fileid = fc.fileid' )
+		   ->where(
+			   $qb->expr()
+			      ->eq( 'h.hash_value', $qb->createNamedParameter( $hash ) ),
+		   )
+		;
+
+		if ( $algo !== null && $algo !== '' )
+		{
+			$qb->andWhere(
+				$qb->expr()
+				   ->eq( 'h.algo', $qb->createNamedParameter( $algo ) ),
+			);
+		}
+
+		$qb->setMaxResults( $limit );
+
+		$result = $qb->executeQuery();
+		$rows   = $result->fetchAll();
+		$result->closeCursor();
+
+		return $rows;
+	}
+
+
 	private function acquireLock( int $fileId ): bool
 	{
 

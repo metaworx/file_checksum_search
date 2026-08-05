@@ -11,8 +11,6 @@ namespace OCA\FileChecksumSearch\Command;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\HashIndexService;
-use OCP\DB\QueryBuilder\IQueryBuilder;
-use OCP\IDBConnection;
 use OCP\IUserManager;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -27,7 +25,6 @@ class FindDuplicates
 
 	public function __construct(
 		private readonly HashIndexService $hashIndexService,
-		private readonly IDBConnection    $db,
 		private readonly IUserManager     $userManager,
 		private readonly LoggerInterface  $logger,
 	) {
@@ -188,7 +185,7 @@ class FindDuplicates
 		}
 
 		// Batch-lookup filecache paths, optionally filtered by user
-		$fcPaths = $this->batchLookupFilecachePaths( $allFileIds, $userName );
+		$fcPaths = $this->hashIndexService->batchLookupFilecachePaths( $allFileIds, $userName );
 
 		// Build resolved groups with paths
 		$resolved = [];
@@ -402,103 +399,6 @@ class FindDuplicates
 
 			$output->writeln( '' );
 		}
-	}
-
-
-	/**
-	 * Batch-lookup filecache paths for a list of file IDs.
-	 *
-	 * Always joins storages to resolve the storage ID for each file.
-	 * When $userName is provided, only files from that user's home
-	 * storage are returned (matched via storages.id = 'home::{uid}').
-	 *
-	 * @param  int[]        $fileIds
-	 * @param  string|null  $userName
-	 *
-	 * @return array<int, array{path: string, name: string, storage_id: string}>
-	 */
-	private function batchLookupFilecachePaths(
-		array   $fileIds,
-		?string $userName = null,
-	): array {
-
-		if ( empty( $fileIds ) )
-		{
-			return [];
-		}
-
-		$qb = $this->db->getQueryBuilder();
-
-		$qb->select( 'fc.fileid', 'fc.path', 'fc.name', 's.id' )
-		   ->from( 'filecache', 'fc' )
-		   ->innerJoin(
-			   'fc',
-			   'storages',
-			   's',
-			   'fc.storage = s.numeric_id',
-		   )
-		;
-
-		if ( $userName !== null )
-		{
-			$qb->where(
-				$qb->expr()
-				   ->eq(
-					   's.id',
-					   $qb->createNamedParameter( 'home::' . $userName ),
-				   ),
-			)
-			   ->andWhere(
-				   $qb->expr()
-				      ->in(
-					      'fc.fileid',
-					      $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
-				      ),
-			   )
-			;
-		}
-		else
-		{
-			$qb->where(
-				$qb->expr()
-				   ->in(
-					   'fc.fileid',
-					   $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
-				   ),
-			);
-		}
-
-		$result = $qb->executeQuery();
-		$paths  = [];
-
-		while ( ( $row = $result->fetch() ) !== false )
-		{
-			$sid  = (string) $row['id'];
-			$user = '';
-
-			if ( str_starts_with( $sid, 'home::' ) )
-			{
-				$user = substr( $sid, 6 );
-			}
-			elseif ( str_starts_with( $sid, 'local::' ) )
-			{
-				$user = basename( $sid );
-			}
-			else
-			{
-				$user = $sid;
-			}
-
-			$paths[ (int) $row['fileid'] ] = [
-				'path'       => (string) $row['path'],
-				'name'       => (string) $row['name'],
-				'storage_id' => $sid,
-				'user'       => $user,
-			];
-		}
-		$result->closeCursor();
-
-		return $paths;
 	}
 
 }
