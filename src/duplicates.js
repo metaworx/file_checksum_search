@@ -219,7 +219,7 @@ class DuplicateBrowser extends HTMLElement {
 				params.set( 'algo', this.#state.algo )
 			}
 
-			const url = OC.generateUrl( '/apps/file_checksum_search/api/1.0/duplicates' ) + '?' + params.toString()
+			const url = OC.generateUrl( '/apps/file_checksum_search/api/v1/duplicates' ) + '?' + params.toString()
 			const response = await fetch( url )
 			if ( !response.ok ) throw new Error( 'HTTP ' + response.status )
 			const data = await response.json()
@@ -332,7 +332,7 @@ class DuplicateBrowser extends HTMLElement {
 
 			for ( const file of group.files ) {
 				try {
-					const url = OC.generateUrl( '/apps/file_checksum_search/api/1.0/file/{fileId}/recalc', {
+					const url = OC.generateUrl( '/apps/file_checksum_search/api/v1/file/{fileId}/recalc', {
 						fileId: file.fileid,
 					} ) + '?algo=' + group.algo
 					const res = await fetch( url, {

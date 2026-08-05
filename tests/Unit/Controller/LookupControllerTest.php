@@ -10,38 +10,28 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
 use OCA\FileChecksumSearch\Controller\LookupController;
-use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Public\ChecksumApi;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
-use OCP\DB\IResult;
-use OCP\DB\QueryBuilder\IExpressionBuilder;
-use OCP\DB\QueryBuilder\IQueryBuilder;
-use OCP\Files\IRootFolder;
-use OCP\IDBConnection;
 use OCP\IRequest;
-use OCP\IUserSession;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
+/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 class LookupControllerTest
 	extends
 	TestCase
 {
 
-	private MockObject|IDBConnection    $db;
+// private properties
+	private MockObject|ChecksumApi     $api;
 
-	private MockObject|IRequest         $request;
+	private MockObject|IRequest        $request;
 
-	private MockObject|HashIndexService $hashIndexService;
+	private MockObject|LoggerInterface $logger;
 
-	private MockObject|IRootFolder      $rootFolder;
-
-	private MockObject|IUserSession     $userSession;
-
-	private MockObject|LoggerInterface  $logger;
-
-	private LookupController            $controller;
+	private LookupController           $controller;
 
 
 	protected function setUp(): void
@@ -49,67 +39,56 @@ class LookupControllerTest
 
 		parent::setUp();
 
-		$this->db               = $this->createMock( IDBConnection::class );
-		$this->request          = $this->createMock( IRequest::class );
-		$this->hashIndexService = $this->createMock( HashIndexService::class );
-		$this->rootFolder       = $this->createMock( IRootFolder::class );
-		$this->userSession      = $this->createMock( IUserSession::class );
-		$this->logger           = $this->createMock( LoggerInterface::class );
-		$this->controller       = new LookupController(
+		$this->api        = $this->createMock( ChecksumApi::class );
+		$this->request    = $this->createMock( IRequest::class );
+		$this->logger     = $this->createMock( LoggerInterface::class );
+		$this->controller = new LookupController(
 			'file_checksum_search',
 			$this->request,
-			$this->db,
-			$this->hashIndexService,
-			$this->rootFolder,
-			$this->userSession,
+			$this->api,
 			$this->logger,
 		);
 	}
 
 
-	public function testByHashWithEmptyHashReturnsBadRequest(): void
+	// ─── byHash ──────────────────────────────────────────────────────
+
+	public function testByHashWithEmptyHashDelegatesToApi(): void
 	{
+
+		$this->api->expects( $this->once() )
+		          ->method( 'findByHash' )
+		          ->with( '', null, 100 )
+		          ->willReturn( [ 'results' => [] ] )
+		;
 
 		$response = $this->controller->byHash( '' );
 
 		$this->assertInstanceOf( DataResponse::class, $response );
-		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
-
-		$data = $response->getData();
-		$this->assertArrayHasKey( 'error', $data );
-	}
-
-
-	public function testByHashWithWhitespaceHashReturnsBadRequest(): void
-	{
-
-		$response = $this->controller->byHash( '   ' );
-
-		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
+		$this->assertArrayHasKey( 'results', $response->getData() );
 	}
 
 
 	public function testByHashWithValidHashReturnsResults(): void
 	{
 
-		$hash = 'da39a3ee5e6b4b0d3255bfef95601890afd80709';
-		$rows = [
-			[
-				'fileid'     => '42',
-				'algo'       => 'sha1',
-				'hash_value' => $hash,
-				'path'       => 'Documents',
-				'name'       => 'report.pdf',
-			],
-		];
-
-		$this->hashIndexService->expects( $this->once() )
-		                       ->method( 'findByHash' )
-		                       ->with( $hash, null, 100 )
-		                       ->willReturn( $rows )
+		$this->api->expects( $this->once() )
+		          ->method( 'findByHash' )
+		          ->with( 'da39a3ee5e6b4b0d3255bfef95601890afd80709', null, 100 )
+		          ->willReturn( [
+			          'results' => [
+				          [
+					          'fileid' => 42,
+					          'algo'   => 'sha1',
+					          'hash'   => 'da39a3ee5e6b4b0d3255bfef95601890afd80709',
+					          'path'   => 'Documents',
+					          'name'   => 'report.pdf',
+				          ],
+			          ],
+		          ] )
 		;
 
-		$response = $this->controller->byHash( $hash );
+		$response = $this->controller->byHash( 'da39a3ee5e6b4b0d3255bfef95601890afd80709' );
 
 		$this->assertInstanceOf( DataResponse::class, $response );
 		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
@@ -118,82 +97,64 @@ class LookupControllerTest
 		$this->assertArrayHasKey( 'results', $data );
 		$this->assertCount( 1, $data['results'] );
 		$this->assertSame( 42, $data['results'][0]['fileid'] );
-		$this->assertSame( 'sha1', $data['results'][0]['algo'] );
 	}
 
 
-	public function testByHashWithAlgoAddsWhereClause(): void
+	public function testByHashWithAlgoPassesFilter(): void
 	{
 
-		$hash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
-		$algo = 'sha256';
-
-		$this->hashIndexService->expects( $this->once() )
-		                       ->method( 'findByHash' )
-		                       ->with( $hash, $algo, 100 )
-		                       ->willReturn( [] )
+		$this->api->expects( $this->once() )
+		          ->method( 'findByHash' )
+		          ->with( 'abc123', 'sha256', 100 )
+		          ->willReturn( [ 'results' => [] ] )
 		;
 
-		$response = $this->controller->byHash( $hash, $algo );
+		$response = $this->controller->byHash( 'abc123', 'sha256' );
 
 		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
 	}
 
 
+	public function testByHashReturnsServerErrorOnException(): void
+	{
+
+		$this->api->expects( $this->once() )
+		          ->method( 'findByHash' )
+		          ->willThrowException( new \RuntimeException( 'DB error' ) )
+		;
+
+		$response = $this->controller->byHash( 'abc123' );
+
+		$this->assertSame( Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus() );
+	}
+
+
+	// ─── getHashesByFileId ───────────────────────────────────────────
+
 	public function testGetHashesByFileIdReturnsHashArray(): void
 	{
 
-		$fileId = 42;
-		$rows   = [
-			[
-				'algo'       => 'sha1',
-				'hash_value' => 'abc123',
-			],
-			[
-				'algo'       => 'sha256',
-				'hash_value' => 'def456',
-			],
-		];
-
-		$resultMock = $this->createMock( IResult::class );
-		$resultMock->method( 'fetchAll' )
-		           ->willReturn( $rows )
-		;
-		$resultMock->method( 'closeCursor' );
-
-		$qb = $this->createMock( IQueryBuilder::class );
-		$qb->method( 'select' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'from' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'where' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'orderBy' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'createNamedParameter' )
-		   ->willReturn( $fileId )
-		;
-		$qb->method( 'executeQuery' )
-		   ->willReturn( $resultMock )
-		;
-		$expr = $this->createMock( IExpressionBuilder::class );
-		$expr->method( 'eq' )
-		     ->willReturn( 'fileid = :fileid' )
+		$this->api->expects( $this->once() )
+		          ->method( 'getHashesByFileId' )
+		          ->with( 42 )
+		          ->willReturn( [
+			          'hashes' => [
+				          [
+					          'algo'       => 'sha1',
+					          'hash'       => 'abc123',
+					          'updated_at' => '2026-08-05 12:00:00',
+				          ],
+				          [
+					          'algo'       => 'sha256',
+					          'hash'       => 'def456',
+					          'updated_at' => '2026-08-05 12:00:00',
+				          ],
+			          ],
+			          'fileid' => 42,
+		          ] )
 		;
 
-		$qb->method( 'expr' )
-		   ->willReturn( $expr )
-		;
-
-		$this->db->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
-		;
-
-		$response = $this->controller->getHashesByFileId( $fileId );
+		$response = $this->controller->getHashesByFileId( 42 );
 
 		$this->assertInstanceOf( DataResponse::class, $response );
 		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
@@ -209,48 +170,89 @@ class LookupControllerTest
 	public function testGetHashesByFileIdReturnsEmptyForUnknownFile(): void
 	{
 
-		$resultMock = $this->createMock( IResult::class );
-		$resultMock->method( 'fetchAll' )
-		           ->willReturn( [] )
-		;
-		$resultMock->method( 'closeCursor' );
-
-		$qb = $this->createMock( IQueryBuilder::class );
-		$qb->method( 'select' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'from' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'where' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'orderBy' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'createNamedParameter' )
-		   ->willReturn( 99999 )
-		;
-		$qb->method( 'executeQuery' )
-		   ->willReturn( $resultMock )
-		;
-		$expr = $this->createMock( IExpressionBuilder::class );
-		$expr->method( 'eq' )
-		     ->willReturn( 'fileid = :fileid' )
-		;
-
-		$qb->method( 'expr' )
-		   ->willReturn( $expr )
-		;
-
-		$this->db->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
+		$this->api->expects( $this->once() )
+		          ->method( 'getHashesByFileId' )
+		          ->with( 99999 )
+		          ->willReturn( [
+			          'hashes' => [],
+			          'fileid' => 99999,
+		          ] )
 		;
 
 		$response = $this->controller->getHashesByFileId( 99999 );
 
 		$data = $response->getData();
 		$this->assertEmpty( $data['hashes'] );
+	}
+
+
+	public function testGetHashesByFileIdReturnsServerErrorOnException(): void
+	{
+
+		$this->api->expects( $this->once() )
+		          ->method( 'getHashesByFileId' )
+		          ->willThrowException( new \RuntimeException( 'DB error' ) )
+		;
+
+		$response = $this->controller->getHashesByFileId( 42 );
+
+		$this->assertSame( Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus() );
+	}
+
+
+	// ─── recalcHash ──────────────────────────────────────────────────
+
+	public function testRecalcHashDelegatesToApi(): void
+	{
+
+		$this->api->expects( $this->once() )
+		          ->method( 'recalcHash' )
+		          ->with( 42, 'sha1' )
+		          ->willReturn( [
+			          'success' => true,
+			          'algo'    => 'sha1',
+			          'hash'    => 'abc',
+			          'fileid'  => 42,
+		          ] )
+		;
+
+		$response = $this->controller->recalcHash( 42, 'sha1' );
+
+		$this->assertInstanceOf( DataResponse::class, $response );
+		$data = $response->getData();
+		$this->assertTrue( $data['success'] );
+	}
+
+
+	public function testRecalcHashReturnsBadRequestOnFailure(): void
+	{
+
+		$this->api->expects( $this->once() )
+		          ->method( 'recalcHash' )
+		          ->with( 99999, 'sha1' )
+		          ->willReturn( [
+			          'success' => false,
+			          'error'   => 'File not found.',
+		          ] )
+		;
+
+		$response = $this->controller->recalcHash( 99999, 'sha1' );
+
+		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
+	}
+
+
+	public function testRecalcHashReturnsServerErrorOnException(): void
+	{
+
+		$this->api->expects( $this->once() )
+		          ->method( 'recalcHash' )
+		          ->willThrowException( new \RuntimeException( 'IO error' ) )
+		;
+
+		$response = $this->controller->recalcHash( 42 );
+
+		$this->assertSame( Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus() );
 	}
 
 }

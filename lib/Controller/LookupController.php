@@ -9,34 +9,38 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Controller;
 
+use InvalidArgumentException;
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Public\ChecksumApi;
 use OCA\FileChecksumSearch\Service\HashIndexService;
-use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\AppFramework\ApiController;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
-use OCP\Files\IRootFolder;
-use OCP\IDBConnection;
 use OCP\IRequest;
-use OCP\IUserSession;
-use PDO;
 use Psr\Log\LoggerInterface;
+use Throwable;
 
+/**
+ * Legacy REST API controller (deprecated).
+ *
+ * All methods now delegate to ChecksumApi — the single source of truth.
+ * Routes are kept for backward compatibility with external consumers
+ * that may still call /api/1.0/ endpoints.
+ *
+ * New integrations should use the v1 /api/v1/ routes via PublicApiController.
+ */
 class LookupController
 	extends
 	ApiController
 {
 
 	public function __construct(
-		string                            $appName,
-		IRequest                          $request,
-		private readonly IDBConnection    $db,
-		private readonly HashIndexService $hashIndexService,
-		private readonly IRootFolder      $rootFolder,
-		private readonly IUserSession     $userSession,
-		private readonly LoggerInterface  $logger,
+		string                           $appName,
+		IRequest                         $request,
+		private readonly ChecksumApi     $api,
+		private readonly LoggerInterface $logger,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -58,8 +62,6 @@ class LookupController
 		?string $algo = null,
 	): DataResponse {
 
-		$hash = trim( $hash );
-
 		$this->logger->debug(
 			'FCIAS LookupController: byHash called',
 			[
@@ -68,27 +70,31 @@ class LookupController
 			],
 		);
 
-		if ( $hash === '' )
+		try
 		{
-			return new DataResponse( [ 'error' => 'Hash parameter is required.' ], Http::STATUS_BAD_REQUEST );
+			$result = $this->api->findByHash( $hash, $algo );
+
+			return new DataResponse( $result );
 		}
+		catch ( InvalidArgumentException $e )
+		{
+			return new DataResponse( [ 'error' => $e->getMessage() ], Http::STATUS_BAD_REQUEST );
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->error(
+				'FCIAS LookupController: byHash failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
 
-		$rows = $this->hashIndexService->findByHash( $hash, $algo, 100 );
-
-		$results = array_map( function (
-			array $row,
-		): array {
-
-			return [
-				'fileid' => (int) $row['fileid'],
-				'algo'   => $row['algo'],
-				'hash'   => $row['hash_value'],
-				'path'   => $row['path'],
-				'name'   => $row['name'],
-			];
-		}, $rows );
-
-		return new DataResponse( [ 'results' => $results ] );
+			return new DataResponse(
+				[ 'error' => 'Internal server error.' ],
+				Http::STATUS_INTERNAL_SERVER_ERROR,
+			);
+		}
 	}
 
 
@@ -112,38 +118,28 @@ class LookupController
 			],
 		);
 
-		$qb = $this->db->getQueryBuilder();
+		try
+		{
+			$result = $this->api->getHashesByFileId( $fileId );
 
-		$qb->select( 'fileid', 'algo', 'hash_value', 'updated_at' )
-		   ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES )
-		   ->where(
-			   $qb->expr()
-			      ->eq( 'fileid', $qb->createNamedParameter( $fileId, PDO::PARAM_INT ) ),
-		   )
-		   ->orderBy( 'algo' )
-		;
+			return new DataResponse( $result );
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->error(
+				'FCIAS LookupController: getHashesByFileId failed',
+				[
+					'app'       => Application::APP_ID,
+					'fileId'    => $fileId,
+					'exception' => $e,
+				],
+			);
 
-		$result = $qb->executeQuery();
-		$rows   = $result->fetchAll();
-		$result->closeCursor();
-
-		$hashes = array_map( function (
-			array $row,
-		): array {
-
-			return [
-				'algo'       => $row['algo'],
-				'hash'       => $row['hash_value'],
-				'updated_at' => $row['updated_at'] ?? null,
-			];
-		}, $rows );
-
-		return new DataResponse(
-			[
-				'hashes' => $hashes,
-				'fileid' => $fileId,
-			],
-		);
+			return new DataResponse(
+				[ 'error' => 'Internal server error.' ],
+				Http::STATUS_INTERNAL_SERVER_ERROR,
+			);
+		}
 	}
 
 
@@ -151,11 +147,11 @@ class LookupController
 	 * Find other files sharing the same hash values as a given file.
 	 *
 	 * @param  int  $fileId  The filecache fileid
+	 *
+	 * @noinspection PhpUnused
 	 */
-	/** Find other files sharing the same hash values as the given file. */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	/** @noinspection PhpUnused */
 	public function sameHash( int $fileId ): DataResponse
 	{
 
@@ -167,91 +163,37 @@ class LookupController
 			],
 		);
 
-		$table = TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES;
-		$qb    = $this->db->getQueryBuilder();
-
-		$rows = $qb->select( 'h2.algo', 'h2.hash_value', 'h2.fileid' )
-		           ->from( $table, 'h1' )
-		           ->innerJoin(
-			           'h1',
-			           $table,
-			           'h2',
-			           'h1.hash_value = h2.hash_value AND h1.algo = h2.algo AND h1.fileid <> h2.fileid',
-		           )
-		           ->where(
-			           $qb->expr()
-			              ->eq( 'h1.fileid', $qb->createNamedParameter( $fileId, PDO::PARAM_INT ) ),
-		           )
-		           ->orderBy( 'h2.algo' )
-		           ->addOrderBy( 'h2.hash_value' )
-		           ->setMaxResults( 100 )
-		           ->executeQuery()
-		           ->fetchAll()
-		;
-
-		if ( empty( $rows ) )
+		try
 		{
-			return new DataResponse( [ 'duplicates' => [] ] );
+			$result = $this->api->findSameHash( $fileId );
+
+			return new DataResponse( $result );
 		}
-
-		$user       = $this->userSession->getUser();
-		$userFolder = $user !== null
-			? $this->rootFolder->getUserFolder( $user->getUID() )
-			: null;
-
-		$grouped = [];
-
-		foreach ( $rows as $row )
+		catch ( Throwable $e )
 		{
-			$dupFileId = (int) $row['fileid'];
+			$this->logger->error(
+				'FCIAS LookupController: sameHash failed',
+				[
+					'app'       => Application::APP_ID,
+					'fileId'    => $fileId,
+					'exception' => $e,
+				],
+			);
 
-			// Resolve via filesystem: path + access check
-			$resolvedPath = '';
-			$resolvedName = '';
-
-			if ( $userFolder !== null )
-			{
-				$nodes = $userFolder->getById( $dupFileId );
-
-				if ( empty( $nodes ) )
-				{
-					continue;
-				}
-
-				$node     = $nodes[0];
-				$relative = $userFolder->getRelativePath( $node->getPath() );
-
-				if ( $relative === null )
-				{
-					continue;
-				}
-
-				$resolvedPath = $relative;
-				$resolvedName = $node->getName();
-			}
-
-			$key = $row['algo'] . "\0" . $row['hash_value'];
-
-			$grouped[ $key ] ??= [
-				'algo'       => $row['algo'],
-				'hash_value' => $row['hash_value'],
-				'files'      => [],
-			];
-
-			$grouped[ $key ]['files'][] = [
-				'fileid' => $dupFileId,
-				'path'   => $resolvedPath,
-				'name'   => $resolvedName,
-			];
+			return new DataResponse(
+				[ 'error' => 'Internal server error.' ],
+				Http::STATUS_INTERNAL_SERVER_ERROR,
+			);
 		}
-
-		return new DataResponse( [ 'duplicates' => array_values( $grouped ) ] );
 	}
 
 
-	/** Recalculate a hash for a given file ID and algorithm. */
+	/**
+	 * Recalculate a hash for a given file ID and algorithm.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	#[NoAdminRequired]
-	/** @noinspection PhpUnused */
 	public function recalcHash(
 		int     $fileId,
 		?string $algo = null,
@@ -268,14 +210,36 @@ class LookupController
 			],
 		);
 
-		$result = $this->hashIndexService->recalcHash( $fileId, $algo );
-
-		if ( $result['success'] )
+		try
 		{
-			return new DataResponse( $result );
-		}
+			$result = $this->api->recalcHash( $fileId, $algo );
 
-		return new DataResponse( $result, Http::STATUS_BAD_REQUEST );
+			if ( $result['success'] )
+			{
+				return new DataResponse( $result );
+			}
+
+			return new DataResponse( $result, Http::STATUS_BAD_REQUEST );
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->error(
+				'FCIAS LookupController: recalcHash failed',
+				[
+					'app'       => Application::APP_ID,
+					'fileId'    => $fileId,
+					'exception' => $e,
+				],
+			);
+
+			return new DataResponse(
+				[
+					'success' => false,
+					'error'   => 'Internal server error.',
+				],
+				Http::STATUS_INTERNAL_SERVER_ERROR,
+			);
+		}
 	}
 
 }
