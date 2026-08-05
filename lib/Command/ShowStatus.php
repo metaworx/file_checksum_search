@@ -80,13 +80,13 @@ class ShowStatus
 				json_encode(
 					[
 						'app_version'       => $this->statusService->getAppVersion(),
-						'db_version'        => $this->statusService->getDbVersion(),
+						'db_version'        => $this->statusService->getDbVersion( $output ),
 						'trigger_privilege' => $this->triggerInitService->checkTriggerPrivilege(),
-						'hash_rows'         => $this->statusService->getHashRowCount(),
-						'pending_rows'      => $this->statusService->getPendingRowCount(),
-						'tables'            => $this->statusService->getTableStatus(),
-						'stored_procedure'  => $this->statusService->getProcedureStatus(),
-						'triggers'          => $this->statusService->getTriggerStatus(),
+						'hash_rows'         => $this->statusService->getHashRowCount( $output ),
+						'pending_rows'      => $this->statusService->getPendingRowCount( $output ),
+						'tables'            => $this->statusService->getTableStatus( $output ),
+						'stored_procedure'  => $this->statusService->getProcedureStatus( $output ),
+						'triggers'          => $this->statusService->getTriggerStatus( $output ),
 					],
 					$outFmt === 'json_pretty'
 						? JSON_PRETTY_PRINT
@@ -102,7 +102,7 @@ class ShowStatus
 
 		$output->writeln( sprintf( 'App version:     %s', $this->statusService->getAppVersion() ) );
 
-		$output->writeln( sprintf( 'MariaDB version: %s', $this->statusService->getDbVersion() ) );
+		$output->writeln( sprintf( 'MariaDB version: %s', $this->statusService->getDbVersion( $output ) ) );
 
 		$hasTrigger = $this->triggerInitService->checkTriggerPrivilege();
 		$output->writeln(
@@ -114,13 +114,13 @@ class ShowStatus
 			),
 		);
 
-		$output->writeln( sprintf( 'Hash rows:       %d', $this->statusService->getHashRowCount() ) );
-		$output->writeln( sprintf( 'Pending rows:    %d', $this->statusService->getPendingRowCount() ) );
+		$output->writeln( sprintf( 'Hash rows:       %d', $this->statusService->getHashRowCount( $output ) ) );
+		$output->writeln( sprintf( 'Pending rows:    %d', $this->statusService->getPendingRowCount( $output ) ) );
 
 		$output->writeln( '' );
 		$output->writeln( 'Tables:' );
 
-		foreach ( $this->statusService->getTableStatus() as $table )
+		foreach ( $this->statusService->getTableStatus( $output ) as $table )
 		{
 			$output->writeln(
 				sprintf(
@@ -136,7 +136,7 @@ class ShowStatus
 		$output->writeln( '' );
 		$output->writeln( 'Stored Procedure:' );
 
-		$sp = $this->statusService->getProcedureStatus();
+		$sp = $this->statusService->getProcedureStatus( $output );
 		$output->writeln(
 			sprintf(
 				'  %-45s %s',
@@ -150,7 +150,7 @@ class ShowStatus
 		$output->writeln( '' );
 		$output->writeln( 'Triggers:' );
 
-		foreach ( $this->statusService->getTriggerStatus() as $trigger )
+		foreach ( $this->statusService->getTriggerStatus( $output ) as $trigger )
 		{
 			$output->writeln(
 				sprintf(
