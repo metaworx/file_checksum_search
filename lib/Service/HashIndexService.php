@@ -11,24 +11,24 @@ namespace OCA\FileChecksumSearch\Service;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Migration\LifecycleHandler;
-use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Files\File;
-use OCP\Files\Folder;
-use OCP\Files\IRootFolder;
-use OCP\Files\NotFoundException;
 use OCP\IDBConnection;
 use OCP\IUserManager;
-use OCP\Lock\ILockingProvider;
-use OCP\Lock\LockedException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Throwable;
 
 /**
- * Shared business logic for hash index operations.
+ * Facade for hash index operations.
  *
- * Used by CLI commands, SettingsController, CronGenerateHashes,
- * and other service classes.
+ * Delegates to focused service classes:
+ * - HashCalculationService (hash computation, recalculation)
+ * - PendingQueueService (deferred update queue)
+ * - DuplicateService (duplicate detection, hash lookup, path resolution)
+ * - FileOperationService (hash row CRUD, filecache checksum copy)
+ *
+ * Directly handles: index lifecycle (rebuild/purge/teardown/deploy/create/remove),
+ * user resolution, pending drain orchestration.
  */
 class HashIndexService
 {
@@ -56,15 +56,20 @@ class HashIndexService
 
 
 	public function __construct(
-		private IDBConnection    $db,
-		private TableNameService $tables,
-		private LifecycleHandler $lifecycleHandler,
-		private IRootFolder      $rootFolder,
-		private IUserManager     $userManager,
-		private ILockingProvider $lockingProvider,
-		private LoggerInterface  $logger,
+		private IDBConnection          $db,
+		private TableNameService       $tables,
+		private LifecycleHandler       $lifecycleHandler,
+		private HashCalculationService $hashCalc,
+		private PendingQueueService    $pendingQueue,
+		private DuplicateService       $duplicates,
+		private FileOperationService   $fileOps,
+		private IUserManager           $userManager,
+		private LoggerInterface        $logger,
 	) {
 	}
+
+
+	// ─── Index Lifecycle ───────────────────────────────────────────────
 
 
 	/**
@@ -233,145 +238,6 @@ class HashIndexService
 	}
 
 
-	/**
-	 * Compute a hash for a File node if it does not already exist
-	 * in the filecache, then write it back.
-	 *
-	 * If the checksum already exists for this algo, it is returned
-	 * without recomputation.  For forced recalculation, use
-	 * {@see forceRecalcFileHash()}.
-	 *
-	 * @return array{success: bool, algo: string, hash: string, existed: bool}
-	 */
-	public function recalcFileHash(
-		File   $file,
-		string $algo,
-		bool   $skipExisting = true,
-	): array {
-
-		$algo = strtolower( $algo );
-
-		if ( ! in_array( $algo, self::SUPPORTED_ALGOS, true ) )
-		{
-			return [
-				'success' => false,
-				'algo'    => $algo,
-				'hash'    => '',
-				'existed' => false,
-				'error'   => 'Unsupported algorithm: ' . $algo,
-			];
-		}
-
-		$existingChecksum = $file->getChecksum() ?? '';
-		$prefix           = strtoupper( $algo ) . ':';
-
-		if ( $skipExisting )
-		{
-			foreach ( explode( ' ', $existingChecksum ) as $pair )
-			{
-				if ( str_starts_with( $pair, $prefix ) )
-				{
-					return [
-						'success' => true,
-						'algo'    => $algo,
-						'hash'    => substr( $pair, strlen( $prefix ) ),
-						'existed' => true,
-					];
-				}
-			}
-		}
-
-		$fileId = $file->getId();
-
-		if ( ! $this->acquireLock( $fileId ) )
-		{
-			return [
-				'success' => false,
-				'algo'    => $algo,
-				'hash'    => '',
-				'existed' => false,
-				'locked'  => true,
-			];
-		}
-
-		try
-		{
-			$storage = $file->getStorage();
-
-			if ( $storage->isLocal() )
-			{
-				$absolutePath = $storage->getLocalFile( $file->getInternalPath() );
-				$hash         = hash_file( $algo, $absolutePath );
-			}
-			else
-			{
-				$handle = $file->fopen( 'rb' );
-				$ctx    = hash_init( $algo );
-				hash_update_stream( $ctx, $handle );
-				fclose( $handle );
-				$hash = hash_final( $ctx );
-			}
-
-			$formattedChecksum = strtoupper( $algo ) . ':' . $hash;
-			$newChecksum       = $existingChecksum === ''
-				? $formattedChecksum
-				: $existingChecksum . ' ' . $formattedChecksum;
-
-			$cache = $storage->getCache();
-			$cache->update( $fileId, [ 'checksum' => $newChecksum ] );
-
-			return [
-				'success' => true,
-				'algo'    => $algo,
-				'hash'    => $hash,
-				'existed' => false,
-			];
-		}
-		finally
-		{
-			$this->releaseLock( $fileId );
-		}
-	}
-
-
-	public function recalcHash(
-		int    $fileId,
-		string $algo,
-		bool   $skipExisting = true,
-	): array {
-
-		$algo = strtolower( $algo );
-
-		$nodes = $this->rootFolder->getById( $fileId );
-
-		if ( empty( $nodes ) )
-		{
-			return [
-				'success' => false,
-				'algo'    => $algo,
-				'hash'    => '',
-				'existed' => false,
-				'error'   => 'File not found.',
-			];
-		}
-
-		$node = $nodes[0];
-
-		if ( ! $node instanceof File )
-		{
-			return [
-				'success' => false,
-				'algo'    => $algo,
-				'hash'    => '',
-				'existed' => false,
-				'error'   => 'Node is not a file.',
-			];
-		}
-
-		return $this->recalcFileHash( $node, $algo, $skipExisting );
-	}
-
-
 	public function removeTable(): void
 	{
 
@@ -403,8 +269,6 @@ class HashIndexService
 
 	/**
 	 * Create both shadow tables if they do not exist.
-	 *
-	 * Delegates to LifecycleHandler for SQL.
 	 */
 	public function createTable(): void
 	{
@@ -416,6 +280,9 @@ class HashIndexService
 			[ 'app' => Application::APP_ID ],
 		);
 	}
+
+
+	// ─── User Resolution ───────────────────────────────────────────────
 
 
 	/**
@@ -464,13 +331,36 @@ class HashIndexService
 	}
 
 
-	/**
-	 * Two-phase hash generation: collect files needing hashes,
-	 * then process them. Avoids interleaving reads and writes
-	 * to oc_filecache (dirty reads in NC v33 debug mode).
-	 *
-	 * @return array{processed: int, skipped: int}
-	 */
+	// ─── Delegated: Hash Calculation ───────────────────────────────────
+
+
+	public function recalcFileHash(
+		File   $file,
+		string $algo,
+		bool   $skipExisting = true,
+	): array {
+
+		return $this->hashCalc->recalcFileHash( $file, $algo, $skipExisting );
+	}
+
+
+	public function recalcHash(
+		int    $fileId,
+		string $algo,
+		bool   $skipExisting = true,
+	): array {
+
+		return $this->hashCalc->recalcHash( $fileId, $algo, $skipExisting );
+	}
+
+
+	public function recalcAllExistingAlgos( int $fileId ): array
+	{
+
+		return $this->hashCalc->recalcAllExistingAlgos( $fileId, $this->tables, $this->db );
+	}
+
+
 	public function generateMissingHashes(
 		string           $userId,
 		string           $algo,
@@ -479,248 +369,26 @@ class HashIndexService
 		?OutputInterface $output = null,
 	): array {
 
-		$userFolder     = $this->rootFolder->getUserFolder( $userId );
-		$userFolderPath = $userFolder->getPath();
-
-		// Phase 1: collect
-		$files = [];
-		$this->collectFilesForUser(
-			$userFolderPath,
-			$userId,
-			$algo,
-			$pathPattern,
-			$userFolderPath,
-			$files,
-			$batchSize,
-		);
-
-		$collected = count( $files );
-
-		if ( $collected > 0 )
-		{
-			$this->logger->debug(
-				'FCIAS: generateMissingHashes collected {count} files.',
-				[
-					'app'    => Application::APP_ID,
-					'userId' => $userId,
-					'algo'   => $algo,
-					'count'  => $collected,
-				],
-			);
-
-			$output?->writeln(
-				sprintf(
-					'  Collected %d files without %s checksums.',
-					$collected,
-					$algo,
-				),
-			);
-		}
-
-		// Phase 2: process
-		$processed = 0;
-		$skipped   = 0;
-
-		foreach ( $files as $file )
-		{
-			try
-			{
-				$result = $this->recalcFileHash( $file, $algo );
-
-				if ( $result['locked'] ?? false )
-				{
-					$skipped ++;
-				}
-				elseif ( $result['existed'] )
-				{
-					$skipped ++;
-				}
-				else
-				{
-					$processed ++;
-
-					if ( $processed % 10 == 0 && $output !== null )
-					{
-						$output->writeln(
-							sprintf( '    %d files processed …', $processed ),
-						);
-					}
-				}
-			}
-			catch ( Throwable $e )
-			{
-				$this->logger->error(
-					'FCIAS: recalcFileHash failed in generateMissingHashes',
-					[
-						'app'       => Application::APP_ID,
-						'fileId'    => $file->getId(),
-						'algo'      => $algo,
-						'exception' => $e,
-					],
-				);
-
-				$output?->warning(
-					sprintf(
-						'  WARNING: recalcFileHash failed for fileId %d: %s',
-						$file->getId(),
-						$e->getMessage(),
-					),
-				);
-
-				continue;
-			}
-		}
-
-		return [
-			'processed' => $processed,
-			'skipped'   => $skipped,
-		];
+		return $this->hashCalc->generateMissingHashes( $userId, $algo, $this->rootFolder ?? throw new \RuntimeException( 'rootFolder not available' ), $pathPattern, $batchSize, $output );
 	}
 
 
-	private function collectFilesForUser(
-		string  $folderPath,
-		string  $userId,
-		string  $algo,
-		?string $pathPattern,
-		string  $userFolderPath,
-		array   &$collected,
-		int     $batchSize,
-	): void {
-
-		if ( count( $collected ) >= $batchSize )
-		{
-			return;
-		}
-
-		$userFolder = $this->rootFolder->getUserFolder( $userId );
-		$relPath    = $this->relativeHashPath( $folderPath, $userFolderPath );
-
-		try
-		{
-			$node = $userFolder->get( $relPath );
-		}
-		catch ( NotFoundException )
-		{
-			return;
-		}
-
-		if ( ! $node instanceof Folder )
-		{
-			return;
-		}
-
-		$prefix = strtoupper( $algo ) . ':';
-
-		foreach ( $node->getDirectoryListing() as $child )
-		{
-			if ( count( $collected ) >= $batchSize )
-			{
-				return;
-			}
-
-			if ( $child instanceof Folder )
-			{
-				$this->collectFilesForUser(
-					$child->getPath(),
-					$userId,
-					$algo,
-					$pathPattern,
-					$userFolderPath,
-					$collected,
-					$batchSize,
-				);
-
-				continue;
-			}
-
-			if ( ! ( $child instanceof File ) )
-			{
-				continue;
-			}
-
-			$relativePath = $this->relativeHashPath(
-				$child->getPath(),
-				$userFolderPath,
-			);
-
-			if ( $pathPattern !== null && ! fnmatch( $pathPattern, $relativePath ) )
-			{
-				continue;
-			}
-
-			$existingChecksum = $child->getChecksum() ?? '';
-			$alreadyHas       = false;
-
-			foreach ( explode( ' ', $existingChecksum ) as $pair )
-			{
-				if ( str_starts_with( $pair, $prefix ) )
-				{
-					$alreadyHas = true;
-
-					break;
-				}
-			}
-
-			if ( ! $alreadyHas )
-			{
-				$collected[] = $child;
-			}
-		}
-	}
+	// ─── Delegated: Pending Queue ──────────────────────────────────────
 
 
-	private function relativeHashPath(
-		string $path,
-		string $basePath,
-	): string {
-
-		$basePath = rtrim( $basePath, '/' );
-
-		if ( $path === $basePath )
-		{
-			return '';
-		}
-
-		$basePath .= '/';
-
-		if ( str_starts_with( $path, $basePath ) )
-		{
-			return substr( $path, strlen( $basePath ) );
-		}
-
-		return ltrim( $path, '/' );
-	}
-
-
-	/**
-	 * Queue a file for deferred hash recalculation.
-	 *
-	 * INSERT IGNORE ensures duplicate events for the same fileid
-	 * within the drain interval are silently dropped (debounce).
-	 */
 	public function addPending(
 		int    $fileId,
 		string $eventType,
 	): void {
 
-		$pendingTable = $this->tables->getPendingTableName();
-
-		$this->db->executeStatement(
-			"INSERT IGNORE INTO `{$pendingTable}` (`fileid`, `created_at`, `event_type`) VALUES (?, UNIX_TIMESTAMP(), ?)",
-			[
-				$fileId,
-				$eventType,
-			],
-		);
+		$this->pendingQueue->addPending( $fileId, $eventType );
 	}
 
 
 	/**
 	 * Process pending hash updates from the queue table.
 	 *
-	 * For each pending row, recalculates the default algo hash.
-	 * Processed rows are deleted from the queue.
+	 * Fetches pending rows, recalculates hashes, deletes successes.
 	 *
 	 * @return array{processed: int, deleted: int}
 	 */
@@ -728,21 +396,14 @@ class HashIndexService
 	{
 
 		$defaultAlgo = self::getDefaultAlgo();
+		$pendingRows = $this->pendingQueue->fetchPending( $limit );
 
-		$selectQb = $this->db->getQueryBuilder();
-		$selectQb->select( 'fileid', 'event_type' )
-		         ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_PENDING )
-		         ->orderBy( 'created_at', 'ASC' )
-		         ->setMaxResults( $limit )
-		;
-
-		$rows       = $selectQb->executeQuery();
 		$processed  = 0;
 		$successIds = [];
 
-		while ( ( $row = $rows->fetch() ) !== false )
+		foreach ( $pendingRows as $row )
 		{
-			$fileId = (int) $row['fileid'];
+			$fileId = $row['fileid'];
 
 			try
 			{
@@ -766,24 +427,8 @@ class HashIndexService
 				);
 			}
 		}
-		$rows->closeCursor();
 
-		$deleted = 0;
-
-		if ( ! empty( $successIds ) )
-		{
-			$deleteQb = $this->db->getQueryBuilder();
-			$deleteQb->delete( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_PENDING )
-			         ->where(
-				         $deleteQb->expr()
-				                  ->in(
-					                  'fileid',
-					                  $deleteQb->createNamedParameter( $successIds, IQueryBuilder::PARAM_INT_ARRAY ),
-				                  ),
-			         )
-			;
-			$deleted = $deleteQb->executeStatement();
-		}
+		$deleted = $this->pendingQueue->deletePending( $successIds );
 
 		return [
 			'processed' => $processed,
@@ -792,183 +437,17 @@ class HashIndexService
 	}
 
 
-	/**
-	 * Copy all hash rows from a source file to a target file.
-	 *
-	 * Used by NodeCopiedEvent — identical content, identical hashes.
-	 */
-	public function copyHashes(
-		int $sourceFileId,
-		int $targetFileId,
-	): void {
-
-		$hashTable = $this->tables->getHashTableName();
-
-		$this->db->executeStatement(
-			"INSERT IGNORE INTO `{$hashTable}` (`fileid`, `algo`, `hash_value`) SELECT ?, `algo`, `hash_value` FROM `{$hashTable}` WHERE `fileid` = ?",
-			[
-				$targetFileId,
-				$sourceFileId,
-			],
-		);
-	}
-
-
-	/**
-	 * Delete all hash rows for a given fileid.
-	 *
-	 * @return int Number of deleted rows
-	 */
-	public function deleteHashes( int $fileId ): int
-	{
-
-		$hashTable = $this->tables->getHashTableName();
-
-		return $this->db->executeStatement(
-			"DELETE FROM `{$hashTable}` WHERE `fileid` = ?",
-			[ $fileId ],
-		);
-	}
-
-
-	/**
-	 * Count hash rows for a given fileid.
-	 */
-	public function countHashes( int $fileId ): int
-	{
-
-		$hashTable = $this->tables->getHashTableName();
-
-		return (int) $this->db->executeQuery(
-			"SELECT COUNT(*) FROM `{$hashTable}` WHERE `fileid` = ?",
-			[ $fileId ],
-		)
-		                      ->fetchOne()
-		;
-	}
-
-
-	/**
-	 * Recalculate all currently-indexed algos for a file.
-	 *
-	 * If no prior hash rows exist, falls back to the default algo.
-	 *
-	 * @return array{processed: int, algos: string[]}
-	 */
-	public function recalcAllExistingAlgos( int $fileId ): array
-	{
-
-		$hashTable = $this->tables->getHashTableName();
-
-		$rows = $this->db->executeQuery(
-			"SELECT DISTINCT `algo` FROM `{$hashTable}` WHERE `fileid` = ?",
-			[ $fileId ],
-		);
-
-		$algos = [];
-
-		while ( ( $row = $rows->fetch() ) !== false )
-		{
-			$algos[] = $row['algo'];
-		}
-		$rows->closeCursor();
-
-		if ( empty( $algos ) )
-		{
-			$algos = [ self::getDefaultAlgo() ];
-		}
-
-		$processed = 0;
-		$locked    = false;
-
-		foreach ( $algos as $algo )
-		{
-			$result = $this->recalcHash( $fileId, $algo );
-
-			if ( $result['success'] )
-			{
-				$processed ++;
-			}
-			elseif ( $result['locked'] ?? false )
-			{
-				$locked = true;
-			}
-		}
-
-		return [
-			'processed' => $processed,
-			'algos'     => $algos,
-			'locked'    => $locked,
-		];
-	}
-
-
-	/**
-	 * Copy the filecache checksum from source to target file.
-	 *
-	 * Used by NodeCopiedEvent. Updating the target's checksum triggers
-	 * the AFTER UPDATE trigger on oc_filecache, which in turn calls the
-	 * fcias_parse_file_hashes SP to populate the hash table.
-	 */
-	public function copyFilecacheChecksum(
-		File $source,
-		File $target,
-	): void {
-
-		$checksum = $source->getChecksum();
-
-		if ( $checksum === null || $checksum === '' )
-		{
-			return;
-		}
-
-		$targetStorage = $target->getStorage();
-		$targetCache   = $targetStorage->getCache();
-		$targetCache->update( $target->getId(), [ 'checksum' => $checksum ] );
-	}
-
-
-	/**
-	 * Count pending rows in the queue table.
-	 */
 	public function getPendingRowCount(): int
 	{
 
-		$pendingTable = $this->tables->getPendingTableName();
-
-		try
-		{
-			return (int) $this->db->executeQuery( "SELECT COUNT(*) FROM `{$pendingTable}`" )
-			                      ->fetchOne()
-			;
-		}
-		catch ( Throwable $e )
-		{
-			$this->logger->warning(
-				'FCIAS: pending row count query failed',
-				[
-					'app'       => Application::APP_ID,
-					'exception' => $e,
-				],
-			);
-
-			return 0;
-		}
+		return $this->pendingQueue->getPendingRowCount();
 	}
 
 
+	// ─── Delegated: Duplicates & Lookups ───────────────────────────────
+
+
 	/**
-	 * Find all duplicate hash groups across the entire system.
-	 *
-	 * Groups files by (algo, hash_value) where more than one file shares
-	 * the same hash.  Returns raw fileid lists — path resolution and
-	 * access filtering are the caller's responsibility.
-	 *
-	 * @param  string|null  $algo      Optional algorithm filter
-	 * @param  int          $minCount  Minimum files per group (default 2)
-	 * @param  int          $limit     Max groups to return
-	 * @param  int          $offset    Pagination offset
-	 *
 	 * @return array{algo: string, hash_value: string, file_count: int, fileids: int[]}[]
 	 */
 	public function findAllDuplicates(
@@ -978,73 +457,12 @@ class HashIndexService
 		int     $offset = 0,
 	): array {
 
-		$qb = $this->db->getQueryBuilder();
-
-		$qb->select( 'algo', 'hash_value' )
-		   ->selectAlias(
-			   $qb->func()
-			      ->count( 'fileid' ),
-			   'cnt',
-		   )
-		   ->selectAlias(
-			   $qb->func()
-			      ->groupConcat( 'fileid' ),
-			   'fileids',
-		   )
-		   ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES, 'h' )
-		   ->groupBy( 'algo' )
-		   ->addGroupBy( 'hash_value' )
-		;
-
-		if ( $algo !== null && $algo !== '' )
-		{
-			$qb->andWhere(
-				$qb->expr()
-				   ->eq( 'algo', $qb->createNamedParameter( $algo ) ),
-			);
-		}
-
-		$qb->having(
-			$qb->expr()
-			   ->gte( 'cnt', $qb->createNamedParameter( $minCount, IQueryBuilder::PARAM_INT ) ),
-		)
-		   ->orderBy( 'cnt', 'DESC' )
-		   ->setMaxResults( $limit )
-		   ->setFirstResult( $offset )
-		;
-
-		$result = $qb->executeQuery();
-		$rows   = $result->fetchAll();
-		$result->closeCursor();
-
-		return array_map( function (
-			array $row,
-		): array {
-
-			$fileidStr = (string) $row['fileids'];
-			$fileids   = $fileidStr !== ''
-				? array_map( 'intval', explode( ',', $fileidStr ) )
-				: [];
-
-			return [
-				'algo'       => $row['algo'],
-				'hash_value' => $row['hash_value'],
-				'file_count' => (int) $row['cnt'],
-				'fileids'    => $fileids,
-			];
-		}, $rows );
+		return $this->duplicates->findAllDuplicates( $algo, $minCount, $limit, $offset );
 	}
 
 
 	/**
-	 * Batch-lookup filecache paths for a list of file IDs.
-	 *
-	 * Joins storages to resolve the storage ID for each file.
-	 * When $userName is provided, only files from that user's home
-	 * storage are returned (matched via storages.id = 'home::{uid}').
-	 *
 	 * @param  int[]        $fileIds
-	 * @param  string|null  $userName
 	 *
 	 * @return array<int, array{path: string, name: string, storage_id: string, user: string}>
 	 */
@@ -1053,91 +471,11 @@ class HashIndexService
 		?string $userName = null,
 	): array {
 
-		if ( empty( $fileIds ) )
-		{
-			return [];
-		}
-
-		$qb = $this->db->getQueryBuilder();
-
-		$qb->select( 'fc.fileid', 'fc.path', 'fc.name', 's.id' )
-		   ->from( 'filecache', 'fc' )
-		   ->innerJoin(
-			   'fc',
-			   'storages',
-			   's',
-			   'fc.storage = s.numeric_id',
-		   )
-		;
-
-		if ( $userName !== null )
-		{
-			$qb->where(
-				$qb->expr()
-				   ->eq(
-					   's.id',
-					   $qb->createNamedParameter( 'home::' . $userName ),
-				   ),
-			)
-			   ->andWhere(
-				   $qb->expr()
-				      ->in(
-					      'fc.fileid',
-					      $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
-				      ),
-			   )
-			;
-		}
-		else
-		{
-			$qb->where(
-				$qb->expr()
-				   ->in(
-					   'fc.fileid',
-					   $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
-				   ),
-			);
-		}
-
-		$result = $qb->executeQuery();
-		$paths  = [];
-
-		while ( ( $row = $result->fetch() ) !== false )
-		{
-			$sid  = (string) $row['id'];
-			$user = '';
-
-			if ( str_starts_with( $sid, 'home::' ) )
-			{
-				$user = substr( $sid, 6 );
-			}
-			elseif ( str_starts_with( $sid, 'local::' ) )
-			{
-				$user = basename( $sid );
-			}
-			else
-			{
-				$user = $sid;
-			}
-
-			$paths[ (int) $row['fileid'] ] = [
-				'path'       => (string) $row['path'],
-				'name'       => (string) $row['name'],
-				'storage_id' => $sid,
-				'user'       => $user,
-			];
-		}
-		$result->closeCursor();
-
-		return $paths;
+		return $this->duplicates->batchLookupFilecachePaths( $fileIds, $userName );
 	}
 
 
 	/**
-	 * Find hash rows matching a given hash value, with optional algo filter.
-	 *
-	 * Returns rows from file_checksum_search_hashes joined with filecache.
-	 *
 	 * @return array<int, array{fileid: int, algo: string, hash_value: string, path: string, name: string}>
 	 */
 	public function findByHash(
@@ -1146,61 +484,42 @@ class HashIndexService
 		int     $limit = 100,
 	): array {
 
-		$qb = $this->db->getQueryBuilder();
-
-		$qb->select( 'h.fileid', 'h.algo', 'h.hash_value', 'fc.path', 'fc.name' )
-		   ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES, 'h' )
-		   ->innerJoin( 'h', 'filecache', 'fc', 'h.fileid = fc.fileid' )
-		   ->where(
-			   $qb->expr()
-			      ->eq( 'h.hash_value', $qb->createNamedParameter( $hash ) ),
-		   )
-		;
-
-		if ( $algo !== null && $algo !== '' )
-		{
-			$qb->andWhere(
-				$qb->expr()
-				   ->eq( 'h.algo', $qb->createNamedParameter( $algo ) ),
-			);
-		}
-
-		$qb->setMaxResults( $limit );
-
-		$result = $qb->executeQuery();
-		$rows   = $result->fetchAll();
-		$result->closeCursor();
-
-		return $rows;
+		return $this->duplicates->findByHash( $hash, $algo, $limit );
 	}
 
 
-	private function acquireLock( int $fileId ): bool
-	{
+	// ─── Delegated: File Operations ────────────────────────────────────
 
-		try
-		{
-			$this->lockingProvider->acquireLock(
-				'files/' . $fileId,
-				ILockingProvider::LOCK_EXCLUSIVE,
-			);
 
-			return true;
-		}
-		catch ( LockedException )
-		{
-			return false;
-		}
+	public function copyHashes(
+		int $sourceFileId,
+		int $targetFileId,
+	): void {
+
+		$this->fileOps->copyHashes( $sourceFileId, $targetFileId );
 	}
 
 
-	private function releaseLock( int $fileId ): void
+	public function deleteHashes( int $fileId ): int
 	{
 
-		$this->lockingProvider->releaseLock(
-			'files/' . $fileId,
-			ILockingProvider::LOCK_EXCLUSIVE,
-		);
+		return $this->fileOps->deleteHashes( $fileId );
+	}
+
+
+	public function countHashes( int $fileId ): int
+	{
+
+		return $this->fileOps->countHashes( $fileId );
+	}
+
+
+	public function copyFilecacheChecksum(
+		File $source,
+		File $target,
+	): void {
+
+		$this->fileOps->copyFilecacheChecksum( $source, $target );
 	}
 
 }

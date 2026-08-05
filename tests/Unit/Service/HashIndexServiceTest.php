@@ -1,7 +1,4 @@
 <?php
-/**
- * @noinspection PhpPrivateFieldCanBeLocalVariableInspection
- */
 
 declare( strict_types=1 );
 
@@ -13,16 +10,16 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use OCA\FileChecksumSearch\Migration\LifecycleHandler;
+use OCA\FileChecksumSearch\Service\DuplicateService;
+use OCA\FileChecksumSearch\Service\FileOperationService;
+use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\PendingQueueService;
 use OCA\FileChecksumSearch\Service\TableNameService;
-use OCP\DB\IResult;
-use OCP\DB\QueryBuilder\IExpressionBuilder;
-use OCP\DB\QueryBuilder\IQueryBuilder;
+use OCP\Files\File;
 use OCP\Files\Folder;
-use OCP\Files\IRootFolder;
 use OCP\IDBConnection;
 use OCP\IUserManager;
-use OCP\Lock\ILockingProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -32,21 +29,25 @@ class HashIndexServiceTest
 	TestCase
 {
 
-	private MockObject|IDBConnection    $db;
+	private MockObject|IDBConnection          $db;
 
-	private MockObject|TableNameService $tables;
+	private MockObject|TableNameService       $tables;
 
-	private MockObject|LifecycleHandler $lifecycleHandler;
+	private MockObject|LifecycleHandler       $lifecycleHandler;
 
-	private MockObject|IRootFolder      $rootFolder;
+	private MockObject|HashCalculationService $hashCalc;
 
-	private MockObject|IUserManager     $userManager;
+	private MockObject|PendingQueueService    $pendingQueue;
 
-	private MockObject|ILockingProvider $lockingProvider;
+	private MockObject|DuplicateService       $duplicates;
 
-	private MockObject|LoggerInterface  $logger;
+	private MockObject|FileOperationService   $fileOps;
 
-	private HashIndexService            $service;
+	private MockObject|IUserManager           $userManager;
+
+	private MockObject|LoggerInterface        $logger;
+
+	private HashIndexService                  $service;
 
 
 	protected function setUp(): void
@@ -57,9 +58,11 @@ class HashIndexServiceTest
 		$this->db               = $this->createMock( IDBConnection::class );
 		$this->tables           = $this->createMock( TableNameService::class );
 		$this->lifecycleHandler = $this->createMock( LifecycleHandler::class );
-		$this->rootFolder       = $this->createMock( IRootFolder::class );
+		$this->hashCalc         = $this->createMock( HashCalculationService::class );
+		$this->pendingQueue     = $this->createMock( PendingQueueService::class );
+		$this->duplicates       = $this->createMock( DuplicateService::class );
+		$this->fileOps          = $this->createMock( FileOperationService::class );
 		$this->userManager      = $this->createMock( IUserManager::class );
-		$this->lockingProvider  = $this->createMock( ILockingProvider::class );
 		$this->logger           = $this->createMock( LoggerInterface::class );
 
 		$this->tables->method( 'getHashTableName' )
@@ -68,23 +71,16 @@ class HashIndexServiceTest
 		$this->tables->method( 'getPendingTableName' )
 		             ->willReturn( 'oc_file_checksum_search_pending' )
 		;
-		$this->tables->method( 'getSpName' )
-		             ->willReturn( 'oc_fcias_parse_file_hashes' )
-		;
-		$this->tables->method( 'getFilecacheTableName' )
-		             ->willReturn( 'oc_filecache' )
-		;
-		$this->tables->method( 'getPrefix' )
-		             ->willReturn( 'oc_' )
-		;
 
 		$this->service = new HashIndexService(
 			$this->db,
 			$this->tables,
 			$this->lifecycleHandler,
-			$this->rootFolder,
+			$this->hashCalc,
+			$this->pendingQueue,
+			$this->duplicates,
+			$this->fileOps,
 			$this->userManager,
-			$this->lockingProvider,
 			$this->logger,
 		);
 	}
@@ -107,442 +103,204 @@ class HashIndexServiceTest
 	}
 
 
-	public function testRecalcHashAlgoIsLowercased(): void
+	public function testRecalcHashDelegatesToHashCalc(): void
 	{
 
-		// recalcHash lowercases algo before delegating to recalcFileHash.
-		// The algo validation happens in recalcFileHash, not recalcHash.
-		// We test that an unsupported algo reaches the rootFolder lookup
-		// (meaning it passed through recalcHash without early error).
-		$this->rootFolder->method( 'getById' )
-		                 ->with( 42 )
-		                 ->willReturn( [] )
-		;
+		$expected = [
+			'success' => false,
+			'algo'    => 'sha1',
+			'hash'    => '',
+			'existed' => false,
+			'error'   => 'File not found.',
+		];
 
-		$result = $this->service->recalcHash( 42, 'UNKNOWN_ALGO' );
-
-		$this->assertFalse( $result['success'] );
-	}
-
-
-	public function testRecalcHashFileNotFoundReturnsError(): void
-	{
-
-		$this->rootFolder->method( 'getById' )
-		                 ->with( 99999 )
-		                 ->willReturn( [] )
-		;
-
-		$result = $this->service->recalcHash( 99999, 'sha1' );
-
-		$this->assertFalse( $result['success'] );
-		$this->assertSame( 'File not found.', $result['error'] ?? '' );
-	}
-
-
-	public function testRecalcHashNonFileNodeReturnsError(): void
-	{
-
-		$folder = $this->createMock( Folder::class );
-
-		$this->rootFolder->method( 'getById' )
-		                 ->with( 42 )
-		                 ->willReturn( [ $folder ] )
+		$this->hashCalc->expects( $this->once() )
+		               ->method( 'recalcHash' )
+		               ->with( 42, 'sha1', true )
+		               ->willReturn( $expected )
 		;
 
 		$result = $this->service->recalcHash( 42, 'sha1' );
 
-		$this->assertFalse( $result['success'] );
-		$this->assertSame( 'Node is not a file.', $result['error'] ?? '' );
+		$this->assertSame( $expected, $result );
 	}
 
 
-	public function testFindByHashReturnsRows(): void
+	public function testFindByHashDelegatesToDuplicates(): void
 	{
 
-		$hash = 'da39a3ee5e6b4b0d3255bfef95601890afd80709';
 		$rows = [
 			[
 				'fileid'     => '42',
 				'algo'       => 'sha1',
-				'hash_value' => $hash,
-				'path'       => 'Documents',
-				'name'       => 'report.pdf',
+				'hash_value' => 'abc',
+				'path'       => 'Docs',
+				'name'       => 'f.pdf',
 			],
 		];
 
-		$resultMock = $this->createMock( IResult::class );
-		$resultMock->method( 'fetchAll' )
-		           ->willReturn( $rows )
-		;
-		$resultMock->method( 'closeCursor' );
-
-		$qb   = $this->createMock( IQueryBuilder::class );
-		$expr = $this->createMock( IExpressionBuilder::class );
-
-		$this->db->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
+		$this->duplicates->expects( $this->once() )
+		                 ->method( 'findByHash' )
+		                 ->with( 'abc', null, 100 )
+		                 ->willReturn( $rows )
 		;
 
-		$qb->method( 'expr' )
-		   ->willReturn( $expr )
-		;
-		$qb->method( 'select' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'from' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'innerJoin' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'where' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'setMaxResults' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'executeQuery' )
-		   ->willReturn( $resultMock )
-		;
-		$qb->method( 'createNamedParameter' )
-		   ->willReturnCallback(
-			   static fn(
-				   mixed $value,
-			   ): string => (string) $value,
-		   )
-		;
-
-		$expr->method( 'eq' )
-		     ->willReturn( '1=1' )
-		;
-
-		$result = $this->service->findByHash( $hash );
+		$result = $this->service->findByHash( 'abc' );
 
 		$this->assertCount( 1, $result );
 		$this->assertSame( '42', $result[0]['fileid'] );
-		$this->assertSame( 'sha1', $result[0]['algo'] );
 	}
 
 
-	public function testFindByHashWithAlgoFilter(): void
+	public function testFindByHashWithAlgoPassesFilter(): void
 	{
 
-		$hash = 'abc123';
-		$algo = 'md5';
-
-		$resultMock = $this->createMock( IResult::class );
-		$resultMock->method( 'fetchAll' )
-		           ->willReturn( [] )
-		;
-		$resultMock->method( 'closeCursor' );
-
-		$qb   = $this->createMock( IQueryBuilder::class );
-		$expr = $this->createMock( IExpressionBuilder::class );
-
-		$this->db->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
+		$this->duplicates->expects( $this->once() )
+		                 ->method( 'findByHash' )
+		                 ->with( 'abc', 'md5', 100 )
+		                 ->willReturn( [] )
 		;
 
-		$qb->method( 'expr' )
-		   ->willReturn( $expr )
-		;
-		$qb->method( 'select' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'from' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'innerJoin' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'where' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'setMaxResults' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'executeQuery' )
-		   ->willReturn( $resultMock )
-		;
-		$qb->method( 'createNamedParameter' )
-		   ->willReturnCallback(
-			   static fn(
-				   mixed $value,
-			   ): string => (string) $value,
-		   )
-		;
-
-		// andWhere should be called when algo is provided
-		$qb->expects( $this->once() )
-		   ->method( 'andWhere' )
-		   ->willReturn( $qb )
-		;
-
-		$expr->method( 'eq' )
-		     ->willReturn( '1=1' )
-		;
-
-		$result = $this->service->findByHash( $hash, $algo );
+		$result = $this->service->findByHash( 'abc', 'md5' );
 
 		$this->assertEmpty( $result );
 	}
 
 
-	public function testBatchLookupFilecachePathsReturnsMappedPaths(): void
+	public function testBatchLookupFilecachePathsDelegates(): void
 	{
 
-		$fileIds = [
-			42,
-			108,
-		];
-		$rows    = [
-			[
-				'fileid' => 42,
-				'path'   => 'files/photo.jpg',
-				'name'   => 'photo.jpg',
-				'id'     => 'home::bob',
-			],
-			[
-				'fileid' => 108,
-				'path'   => 'files/backup/photo.jpg',
-				'name'   => 'photo.jpg',
-				'id'     => 'home::bob',
+		$expected = [
+			42 => [
+				'path'       => 'files/photo.jpg',
+				'name'       => 'photo.jpg',
+				'storage_id' => 'home::bob',
+				'user'       => 'bob',
 			],
 		];
 
-		$resultMock = $this->createMock( IResult::class );
-		$resultMock->method( 'fetch' )
-		           ->willReturnOnConsecutiveCalls( $rows[0], $rows[1], false )
-		;
-		$resultMock->method( 'closeCursor' );
-
-		$qb   = $this->createMock( IQueryBuilder::class );
-		$expr = $this->createMock( IExpressionBuilder::class );
-
-		$this->db->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
+		$this->duplicates->expects( $this->once() )
+		                 ->method( 'batchLookupFilecachePaths' )
+		                 ->with( [ 42 ], 'bob' )
+		                 ->willReturn( $expected )
 		;
 
-		$qb->method( 'expr' )
-		   ->willReturn( $expr )
-		;
-		$qb->method( 'select' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'from' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'innerJoin' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'where' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'executeQuery' )
-		   ->willReturn( $resultMock )
-		;
-		$qb->method( 'createNamedParameter' )
-		   ->willReturnCallback(
-			   static fn(
-				   mixed $value,
-			   ): string => is_array( $value )
-				   ? implode( ',', $value )
-				   : (string) $value,
-		   )
-		;
-
-		$expr->method( 'in' )
-		     ->willReturn( '1=1' )
-		;
-
-		$result = $this->service->batchLookupFilecachePaths( $fileIds );
-
-		$this->assertCount( 2, $result );
-		$this->assertSame( 'files/photo.jpg', $result[42]['path'] );
-		$this->assertSame( 'bob', $result[42]['user'] );
-		$this->assertSame( 'files/backup/photo.jpg', $result[108]['path'] );
-	}
-
-
-	public function testBatchLookupFilecachePathsWithEmptyArrayReturnsEmpty(): void
-	{
-
-		$result = $this->service->batchLookupFilecachePaths( [] );
-
-		$this->assertEmpty( $result );
-	}
-
-
-	public function testDrainPendingReturnsProcessedCount(): void
-	{
-
-		$selectResultMock = $this->createMock( IResult::class );
-		$selectResultMock->method( 'fetch' )
-		                 ->willReturnOnConsecutiveCalls( false )
-		;
-		$selectResultMock->method( 'closeCursor' );
-
-		$qb   = $this->createMock( IQueryBuilder::class );
-		$expr = $this->createMock( IExpressionBuilder::class );
-
-		$this->db->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
-		;
-
-		$qb->method( 'expr' )
-		   ->willReturn( $expr )
-		;
-		$qb->method( 'select' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'from' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'orderBy' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'setMaxResults' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'executeQuery' )
-		   ->willReturn( $selectResultMock )
-		;
-
-		$result = $this->service->drainPending( 10 );
-
-		$this->assertSame( 0, $result['processed'] );
-		$this->assertSame( 0, $result['deleted'] );
-	}
-
-
-	public function testFindAllDuplicatesReturnsGroups(): void
-	{
-
-		$rows = [
-			[
-				'algo'       => 'sha1',
-				'hash_value' => 'abc123',
-				'cnt'        => '3',
-				'fileids'    => '42,108,256',
-			],
-		];
-
-		$resultMock = $this->createMock( IResult::class );
-		$resultMock->method( 'fetchAll' )
-		           ->willReturn( $rows )
-		;
-		$resultMock->method( 'closeCursor' );
-
-		$qb   = $this->createMock( IQueryBuilder::class );
-		$func = $this->createMock( \OCP\DB\QueryBuilder\IFunctionBuilder::class );
-		$expr = $this->createMock( IExpressionBuilder::class );
-
-		$this->db->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
-		;
-
-		$qb->method( 'expr' )
-		   ->willReturn( $expr )
-		;
-		$qb->method( 'func' )
-		   ->willReturn( $func )
-		;
-
-		$func->method( 'count' )
-		     ->willReturn( $this->createMock( \OCP\DB\QueryBuilder\IQueryFunction::class ) )
-		;
-		$func->method( 'groupConcat' )
-		     ->willReturn( $this->createMock( \OCP\DB\QueryBuilder\IQueryFunction::class ) )
-		;
-		$qb->method( 'select' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'selectAlias' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'from' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'groupBy' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'addGroupBy' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'having' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'orderBy' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'setMaxResults' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'setFirstResult' )
-		   ->willReturn( $qb )
-		;
-		$qb->method( 'executeQuery' )
-		   ->willReturn( $resultMock )
-		;
-		$qb->method( 'createNamedParameter' )
-		   ->willReturnCallback(
-			   static fn(
-				   mixed $value,
-			   ): string => (string) $value,
-		   )
-		;
-
-		$expr->method( 'gte' )
-		     ->willReturn( 'cnt >= 2' )
-		;
-
-		$result = $this->service->findAllDuplicates();
+		$result = $this->service->batchLookupFilecachePaths( [ 42 ], 'bob' );
 
 		$this->assertCount( 1, $result );
-		$this->assertSame( 'sha1', $result[0]['algo'] );
-		$this->assertSame( 3, $result[0]['file_count'] );
-		$this->assertCount( 3, $result[0]['fileids'] );
 	}
 
 
-	public function testDeleteHashesExecutesStatement(): void
+	public function testDrainPendingOrchestratesQueueAndRecalc(): void
 	{
 
-		$this->db->expects( $this->once() )
-		         ->method( 'executeStatement' )
-		         ->with(
-			         $this->stringContains( 'DELETE FROM' ),
-			         $this->callback(
-				         static fn(
-					         array $params,
-				         ): bool => $params[0] === 42,
-			         ),
-		         )
-		         ->willReturn( 1 )
+		$pendingRows = [
+			[ 'fileid' => 42, 'event_type' => 'write' ],
+			[ 'fileid' => 108, 'event_type' => 'create' ],
+		];
+
+		$this->pendingQueue->expects( $this->once() )
+		                   ->method( 'fetchPending' )
+		                   ->with( 50 )
+		                   ->willReturn( $pendingRows )
+		;
+
+		$this->hashCalc->expects( $this->exactly( 2 ) )
+		               ->method( 'recalcHash' )
+		               ->willReturn( [ 'success' => true ] )
+		;
+
+		$this->pendingQueue->expects( $this->once() )
+		                   ->method( 'deletePending' )
+		                   ->with( [ 42, 108 ] )
+		                   ->willReturn( 2 )
+		;
+
+		$result = $this->service->drainPending( 50 );
+
+		$this->assertSame( 2, $result['processed'] );
+		$this->assertSame( 2, $result['deleted'] );
+	}
+
+
+	public function testFindAllDuplicatesDelegates(): void
+	{
+
+		$groups = [
+			[
+				'algo'       => 'sha1',
+				'hash_value' => 'abc',
+				'file_count' => 2,
+				'fileids'    => [ 42, 108 ],
+			],
+		];
+
+		$this->duplicates->expects( $this->once() )
+		                 ->method( 'findAllDuplicates' )
+		                 ->with( 'sha1', 2, 50, 0 )
+		                 ->willReturn( $groups )
+		;
+
+		$result = $this->service->findAllDuplicates( 'sha1' );
+
+		$this->assertCount( 1, $result );
+	}
+
+
+	public function testDeleteHashesDelegatesToFileOps(): void
+	{
+
+		$this->fileOps->expects( $this->once() )
+		              ->method( 'deleteHashes' )
+		              ->with( 42 )
+		              ->willReturn( 3 )
 		;
 
 		$result = $this->service->deleteHashes( 42 );
 
-		$this->assertSame( 1, $result );
+		$this->assertSame( 3, $result );
 	}
 
 
-	public function testCountHashesReturnsCount(): void
+	public function testCountHashesDelegatesToFileOps(): void
 	{
 
-		$resultMock = $this->createMock( IResult::class );
-		$resultMock->method( 'fetchOne' )
-		           ->willReturn( '5' )
-		;
-
-		$this->db->method( 'executeQuery' )
-		         ->willReturn( $resultMock )
+		$this->fileOps->expects( $this->once() )
+		              ->method( 'countHashes' )
+		              ->with( 42 )
+		              ->willReturn( 5 )
 		;
 
 		$result = $this->service->countHashes( 42 );
 
 		$this->assertSame( 5, $result );
+	}
+
+
+	public function testAddPendingDelegatesToPendingQueue(): void
+	{
+
+		$this->pendingQueue->expects( $this->once() )
+		                   ->method( 'addPending' )
+		                   ->with( 42, HashIndexService::EVENT_TYPE_WRITE )
+		;
+
+		$this->service->addPending( 42, HashIndexService::EVENT_TYPE_WRITE );
+	}
+
+
+	public function testCopyFilecacheChecksumDelegatesToFileOps(): void
+	{
+
+		$source = $this->createMock( File::class );
+		$target = $this->createMock( File::class );
+
+		$this->fileOps->expects( $this->once() )
+		              ->method( 'copyFilecacheChecksum' )
+		              ->with( $source, $target )
+		;
+
+		$this->service->copyFilecacheChecksum( $source, $target );
 	}
 
 }
