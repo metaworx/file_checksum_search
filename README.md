@@ -138,74 +138,77 @@ Via **Admin settings → File Checksum Index & Search → NC Background Job Defi
 
 A crontab snippet generator is also available for users who prefer system-level cron.
 
-## REST API
+## Public API (v1)
 
-### Lookup by Hash
+FCIAS provides a stable, versioned public API with three consumer surfaces: **HTTP REST**, **PHP DI**, and **PHP Bootstrap**.
 
+Full documentation: [`docs/api-v1.md`](docs/api-v1.md) | OpenAPI spec: [`docs/api-v1-openapi.yaml`](docs/api-v1-openapi.yaml)
+
+### HTTP REST API
+
+All endpoints under `/apps/file_checksum_search/api/v1/`. Authentication via NC session cookie, HTTP Basic Auth, or Bearer token.
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/lookup?hash=<hex>&algo=<algo>` | GET | Search files by hash value |
+| `/api/v1/file/{fileId}/hashes` | GET | Get all checksums for a file |
+| `/api/v1/file/{fileId}/duplicates` | GET | Find files sharing hash values |
+| `/api/v1/file/{fileId}/recalc` | POST | Recalculate hash |
+| `/api/v1/duplicates?algo=<algo>&min_count=<n>` | GET | Global duplicate groups |
+| `/api/v1/status` | GET | Read-only health/status |
+
+Quick example:
+
+```bash
+curl -u alice:app-password \
+  "https://nc.example.com/apps/file_checksum_search/api/v1/lookup?hash=da39a3ee5e6b4b0d3255bfef95601890afd80709&algo=sha1"
 ```
-GET /apps/file_checksum_search/api/1.0/lookup?hash=<hex>&algo=<algo>
-```
 
-**Parameters:**
-- `hash` (required): Hex-encoded hash value (32, 40, or 64 characters)
-- `algo` (optional): Filter by algorithm (e.g. `sha1`, `sha256`)
+### PHP API
 
-**Response (200):**
-```json
-{
-  "results": [
-    {
-      "fileid": 12345,
-      "algo": "sha1",
-      "hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
-      "path": "Documents",
-      "name": "report.pdf"
+The [`ChecksumApi`](lib/Public/ChecksumApi.php) class is the single public contract, usable via dependency injection or external bootstrap:
+
+```php
+// Within a Nextcloud app (DI)
+use OCA\FileChecksumSearch\Public\ChecksumApi;
+
+class MyService {
+    public function __construct(private ChecksumApi $api) {}
+    public function search(string $hash): array {
+        return $this->api->findByHash($hash);
     }
-  ]
 }
 ```
 
-**Response (400):**
-```json
-{
-  "error": "Hash parameter is required."
-}
+```php
+// External PHP app (bootstrap)
+require_once '/var/www/nextcloud/lib/base.php';
+$api = \OC::$server->get(\OCA\FileChecksumSearch\Public\ChecksumApi::class);
+
+// Search by hash
+$result = $api->findByHash('da39a3ee5e6b4b0d3255bfef95601890afd80709');
+
+// Get hashes by path (relative to user root)
+$hashes = $api->getHashesByPath('Documents/report.pdf', 'alice');
+
+// Get hashes from a File object
+$file = \OC::$server->getRootFolder()->getUserFolder('alice')->get('Documents/report.pdf');
+$hashes = $api->getHashesByFile($file);
 ```
 
-### Get Hashes by File ID
+Full PHP method reference in [`docs/api-v1.md`](docs/api-v1.md#php-api).
 
-```
-GET /apps/file_checksum_search/api/1.0/file/{fileId}/hashes
-```
+### Legacy `/api/1.0/` Endpoints
 
-**Response (200):**
-```json
-{
-  "fileid": 12345,
-  "hashes": [
-    { "algo": "sha1", "hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709" },
-    { "algo": "sha256", "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" }
-  ]
-}
-```
+The original `/api/1.0/` routes are retained for backward compatibility but are **frozen** — no new features. Migrate to `/api/v1/` for new integrations.
 
-### Recalculate Hash for File
-
-```
-POST /apps/file_checksum_search/api/1.0/file/{fileId}/recalc?algo=<algo>
-```
-
-### Find Same-Hash Files
-
-```
-GET /apps/file_checksum_search/api/1.0/file/{fileId}/same-hash
-```
-
-### Find All Duplicates
-
-```
-GET /apps/file_checksum_search/api/1.0/duplicates?algo=<algo>&minCount=<n>&limit=<n>&offset=<n>&user=<user>
-```
+| Endpoint | v1 Equivalent |
+|----------|--------------|
+| `GET /api/1.0/lookup` | `GET /api/v1/lookup` |
+| `GET /api/1.0/file/{id}/hashes` | `GET /api/v1/file/{id}/hashes` |
+| `GET /api/1.0/file/{id}/same-hash` | `GET /api/v1/file/{id}/duplicates` |
+| `POST /api/1.0/file/{id}/recalc` | `POST /api/v1/file/{id}/recalc` |
+| `GET /api/1.0/duplicates` | `GET /api/v1/duplicates` |
 
 ## Admin Settings
 
