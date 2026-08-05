@@ -47,6 +47,10 @@ jobs:
         run: composer install --no-interaction --no-scripts
         working-directory: nextcloud/apps/file_checksum_search
 
+      - name: Enable the app
+        run: php occ app:enable file_checksum_search
+        working-directory: nextcloud
+
       - name: Run PHPUnit tests
         run: ./vendor/bin/phpunit -c tests/phpunit.xml
         working-directory: nextcloud/apps/file_checksum_search
