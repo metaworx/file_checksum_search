@@ -41,34 +41,7 @@ return [
 			'verb' => 'GET',
 		],
 
-		// Legacy REST API (frozen — use /api/v1/ for new integrations)
-		[
-			'name' => 'lookup#byHash',
-			'url'  => '/api/1.0/lookup',
-			'verb' => 'GET',
-		],
-		[
-			'name' => 'lookup#getHashesByFileId',
-			'url'  => '/api/1.0/file/{fileId}/hashes',
-			'verb' => 'GET',
-		],
-		[
-			'name' => 'lookup#recalcHash',
-			'url'  => '/api/1.0/file/{fileId}/recalc',
-			'verb' => 'POST',
-		],
-		[
-			'name' => 'lookup#sameHash',
-			'url'  => '/api/1.0/file/{fileId}/same-hash',
-			'verb' => 'GET',
-		],
-
 		// Global duplicate browser
-		[
-			'name' => 'duplicates#findAll',
-			'url'  => '/api/1.0/duplicates',
-			'verb' => 'GET',
-		],
 		[
 			'name' => 'duplicates#index',
 			'url'  => '/duplicates',
