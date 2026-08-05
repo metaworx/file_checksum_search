@@ -52,7 +52,7 @@ jobs:
         working-directory: nextcloud
 
       - name: Run PHPUnit tests
-        run: ./vendor/bin/phpunit -c tests/phpunit.xml
+        run: ./vendor/bin/phpunit -c tests/phpunit.xml --display-warnings
         working-directory: nextcloud/apps/file_checksum_search
 
   integration-chrome:
