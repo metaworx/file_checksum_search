@@ -51,7 +51,7 @@ class FileListener
 				$event instanceof NodeWrittenEvent => $this->onWrite( $event ),
 				$event instanceof NodeCreatedEvent => $this->onCreate( $event ),
 				$event instanceof NodeDeletedEvent => $this->onDelete( $event ),
-				default                            => null,
+				default => null,
 			};
 		}
 		catch ( Throwable $e )
@@ -113,12 +113,27 @@ class FileListener
 
 		switch ( $behavior )
 		{
-			case 'off':
-				break;
+		case 'off':
+			break;
 
-			case 'force':
-				$this->hashIndexService->recalcAllExistingAlgos( $fileId );
+		case 'force':
+			$result = $this->hashIndexService->recalcAllExistingAlgos( $fileId );
 
+			if ( $result['locked'] )
+			{
+				$this->hashIndexService->deleteHashes( $fileId );
+				$this->hashIndexService->addPending( $fileId, HashIndexService::EVENT_TYPE_WRITE );
+
+				$this->logger->debug(
+					'FCIAS FileListener: file locked, queued for delayed retry on write',
+					[
+						'app'    => Application::APP_ID,
+						'fileId' => $fileId,
+					],
+				);
+			}
+			else
+			{
 				$this->logger->debug(
 					'FCIAS FileListener: force-recalculated hashes on write',
 					[
@@ -126,38 +141,39 @@ class FileListener
 						'fileId' => $fileId,
 					],
 				);
+			}
 
-				break;
+			break;
 
-			case 'lazy':
-				$this->hashIndexService->deleteHashes( $fileId );
-				$this->hashIndexService->addPending( $fileId, HashIndexService::EVENT_TYPE_WRITE );
+		case 'lazy':
+			$this->hashIndexService->deleteHashes( $fileId );
+			$this->hashIndexService->addPending( $fileId, HashIndexService::EVENT_TYPE_WRITE );
+
+			$this->logger->debug(
+				'FCIAS FileListener: lazy-deleted hashes + queued on write',
+				[
+					'app'    => Application::APP_ID,
+					'fileId' => $fileId,
+				],
+			);
+
+			break;
+
+		case 'auto':
+			if ( $this->hashIndexService->countHashes( $fileId ) > 0 )
+			{
+				$this->hashIndexService->recalcAllExistingAlgos( $fileId );
 
 				$this->logger->debug(
-					'FCIAS FileListener: lazy-deleted hashes + queued on write',
+					'FCIAS FileListener: auto-recalculated hashes on write',
 					[
 						'app'    => Application::APP_ID,
 						'fileId' => $fileId,
 					],
 				);
+			}
 
-				break;
-
-			case 'auto':
-				if ( $this->hashIndexService->countHashes( $fileId ) > 0 )
-				{
-					$this->hashIndexService->recalcAllExistingAlgos( $fileId );
-
-					$this->logger->debug(
-						'FCIAS FileListener: auto-recalculated hashes on write',
-						[
-							'app'    => Application::APP_ID,
-							'fileId' => $fileId,
-						],
-					);
-				}
-
-				break;
+			break;
 		}
 	}
 
@@ -182,15 +198,29 @@ class FileListener
 
 		switch ( $behavior )
 		{
-			case 'off':
-				break;
+		case 'off':
+			break;
 
-			case 'force':
-				$this->hashIndexService->recalcFileHash(
-					$node,
-					HashIndexService::getDefaultAlgo(),
+		case 'force':
+			$result = $this->hashIndexService->recalcFileHash(
+				$node,
+				HashIndexService::getDefaultAlgo(),
+			);
+
+			if ( $result['locked'] ?? false )
+			{
+				$this->hashIndexService->addPending( $fileId, HashIndexService::EVENT_TYPE_CREATE );
+
+				$this->logger->debug(
+					'FCIAS FileListener: file locked, queued for delayed retry on create',
+					[
+						'app'    => Application::APP_ID,
+						'fileId' => $fileId,
+					],
 				);
-
+			}
+			else
+			{
 				$this->logger->debug(
 					'FCIAS FileListener: force-hashed default algo on create',
 					[
@@ -198,21 +228,22 @@ class FileListener
 						'fileId' => $fileId,
 					],
 				);
+			}
 
-				break;
+			break;
 
-			case 'lazy':
-				$this->hashIndexService->addPending( $fileId, HashIndexService::EVENT_TYPE_CREATE );
+		case 'lazy':
+			$this->hashIndexService->addPending( $fileId, HashIndexService::EVENT_TYPE_CREATE );
 
-				$this->logger->debug(
-					'FCIAS FileListener: queued on create',
-					[
-						'app'    => Application::APP_ID,
-						'fileId' => $fileId,
-					],
-				);
+			$this->logger->debug(
+				'FCIAS FileListener: queued on create',
+				[
+					'app'    => Application::APP_ID,
+					'fileId' => $fileId,
+				],
+			);
 
-				break;
+			break;
 		}
 	}
 
