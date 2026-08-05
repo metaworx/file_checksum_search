@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Listener;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\EventDispatcher\Event;
 use OCP\EventDispatcher\IEventListener;
 use OCP\Files\Events\Node\NodeCopiedEvent;
@@ -26,6 +27,8 @@ use Throwable;
  * Reacts to Nextcloud filesystem events to maintain the checksum hash index.
  *
  * Registered via IRegistrationContext::registerEventListener() in Application::register().
+ *
+ * @noinspection PhpClassCanBeReadonlyInspection
  */
 class FileListener
 	implements
@@ -37,6 +40,16 @@ class FileListener
 		private readonly IAppConfig       $appConfig,
 		private readonly LoggerInterface  $logger,
 	) {
+	}
+
+
+	public static function register( IRegistrationContext $context ): void
+	{
+
+		$context->registerEventListener( NodeCopiedEvent::class, self::class );
+		$context->registerEventListener( NodeWrittenEvent::class, self::class );
+		$context->registerEventListener( NodeCreatedEvent::class, self::class );
+		$context->registerEventListener( NodeDeletedEvent::class, self::class );
 	}
 
 

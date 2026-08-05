@@ -19,6 +19,10 @@ the first stable release.
 - Add a global duplicate file locator that finds all groups of files sharing identical hashes across the system, with a REST API, CLI command, standalone UI, and access-controlled, paginated results.
 - Add a show-config CLI command to display app configuration and extend the status command with a machine-readable --output=json option.
 
+### Changed
+
+- Refactor closure-based event listeners into dedicated listener classes that self-register, simplifying Application boot and registration.
+
 ## [0.5.1] — 2026-08-05
 
 ### Fixed
