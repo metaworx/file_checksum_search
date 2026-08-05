@@ -9,6 +9,23 @@ jobs:
         nextcloud-version: [ 'stable33', 'stable34' ]
         php-version: [ '8.2', '8.3', '8.4' ]
     name: NC ${{ matrix.nextcloud-version }} / PHP ${{ matrix.php-version }}
+
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: nextcloud
+          MYSQL_USER: nextcloud
+          MYSQL_PASSWORD: nextcloud
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     steps:
       - name: Checkout app code
         uses: actions/checkout@v4
@@ -19,6 +36,7 @@ jobs:
           nextcloud-version: ${{ matrix.nextcloud-version }}
           php-version: ${{ matrix.php-version }}
           install: true
+          database: mysql
 
       - name: Inject app into Nextcloud
         run: |
@@ -40,6 +58,23 @@ jobs:
       matrix:
         nextcloud-version: [ 'stable33', 'stable34' ]
     name: Cypress E2E / NC ${{ matrix.nextcloud-version }}
+
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: nextcloud
+          MYSQL_USER: nextcloud
+          MYSQL_PASSWORD: nextcloud
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     steps:
       - name: Checkout app code
         uses: actions/checkout@v4
@@ -50,6 +85,7 @@ jobs:
           nextcloud-version: ${{ matrix.nextcloud-version }}
           install: true
           node-version: '24'
+          database: mysql
 
       - name: Inject app into integration instance
         run: |
@@ -79,4 +115,4 @@ jobs:
           wait-on: 'http://localhost:8081/index.php'
           wait-on-timeout: 120
         env:
-          CYPRESS_baseUrl: http://localhost:8081/index.php
+          CYPRESS_baseUrl: http://localhost:8081
