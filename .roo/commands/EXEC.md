@@ -59,7 +59,7 @@ Fallback: JetBrains MCP `execute_run_configuration` with `filePath` + `line`.
 
 > **Important:** When using the native agent `execute_command` tool, always pass `cwd: "C:\\"` — the default workspace path `\\wsl.localhost\...` is a UNC path unsupported by CMD.EXE.
 
-> Note: The `.aiassistant/tools/phpunit` wrapper is Kunstarchiv-specific and does NOT work in FCIAS.
+> Use `.aiassistant/tools/phpunit` for all test runs — it auto-detects ddev vs direct execution and handles path translation.
 
 ### 3.2 Database Commands
 
