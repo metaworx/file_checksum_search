@@ -1,4 +1,4 @@
-# Testing Conventions (v2.1.0)
+# Testing Conventions (v2.2.0)
 
 Project-specific testing conventions for FCIAS (File Checksum Index & Search Nextcloud app).
 Generic agent flow-control rules are in `AGENTS.md`; contributor context is in `CONTRIBUTING.md`.
@@ -13,29 +13,43 @@ Generic agent flow-control rules are in `AGENTS.md`; contributor context is in `
 6. Testability Patterns
 7. Diagnosis Strategy
 8. Nextcloud Integration Tests
-9. Mocking Nextcloud Services
-10. Database Test Isolation
-11. Document Governance
-12. Version History
+9. Cypress E2E Testing
+10. Mocking Nextcloud Services
+11. Database Test Isolation
+12. Document Governance
+13. Version History
 
 ## 1. Gate Command
 
 The primary test runner is Composer-installed PHPUnit. Always prefix WSL commands with `wsl --cd ~/projects/nc_file_checksum_search`:
 
 ```bash
-wsl --cd ~/projects/nc_file_checksum_search vendor/bin/phpunit
+wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit
 ```
 
 Scoped run (single file or directory):
 
 ```bash
-wsl --cd ~/projects/nc_file_checksum_search vendor/bin/phpunit tests/Unit/Controller/LookupControllerTest.php
-wsl --cd ~/projects/nc_file_checksum_search vendor/bin/phpunit tests/Unit/
+wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/Unit/Controller/LookupControllerTest.php
+wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/Unit/
 ```
 
-### 1.1 DDEV Test Runner
+### 1.1 Test Runner Wrapper
 
-When running tests against the ddev Nextcloud instance (OCP classes, real database), use:
+The preferred way to run tests is through `.aiassistant/tools/phpunit`:
+
+```bash
+./.aiassistant/tools/phpunit tests/Unit/
+./.aiassistant/tools/phpunit tests/Integration/ --filter Migration
+```
+
+The wrapper auto-detects whether ddev is available:
+- **With ddev**: executes `ddev exec php` inside the helioscloud container with FCIAS mount paths
+- **Without ddev**: falls back to direct `vendor/bin/phpunit`
+
+Relative path arguments (`tests/`, `vendor/`) are automatically prefixed with the container mount path when running inside ddev.
+
+For manual ddev execution:
 
 ```bash
 wsl --cd ~/projects/helioscloud bash -c "ddev exec php /var/www/html/custom_apps/file_checksum_search/vendor/bin/phpunit -c /var/www/html/custom_apps/file_checksum_search/tests/phpunit.xml /var/www/html/custom_apps/file_checksum_search/tests/Unit/Path/To/Test.php"
@@ -46,9 +60,6 @@ The `tests/bootstrap.php` loads NC autoloader from `/var/www/html/3rdparty/autol
 > **Important:** When using the native agent `execute_command` tool, always pass `cwd: "C:\\"` to avoid CMD.EXE UNC path errors with `\\wsl.localhost\...` paths.
 
 Fallback: JetBrains MCP `execute_run_configuration` with `filePath` + `line` on individual test methods.
-
-> **Note:** The `.aiassistant/tools/phpunit` wrapper depends on Kunstarchiv-specific classes
-> (`mwx\Tests\ConditionalDiffFilter`) and does NOT work in FCIAS. Use `vendor/bin/phpunit` directly.
 
 ## 2. Expectations
 
@@ -153,10 +164,27 @@ $request = $this->createMock(\OCP\IRequest::class);
 - This document follows the shared governance rules in `.aiassistant/CHANGELOG.md`.
 - Update the title version on each change and append a new row in `Version History`.
 
-## 12. Version History
+## 9. Cypress E2E Testing
+
+Cypress is available via the `ddev/ddev-cypress` add-on (already installed in the helioscloud ddev project).
+
+```bash
+ddev cypress-run --browser chrome
+```
+
+Configuration is in `cypress.config.js` at the project root. E2E tests live in `tests/e2e/`.
+
+Credentials are passed via environment variables to avoid hardcoding:
+
+```bash
+ddev cypress-run --browser chrome --env NC_ADMIN_USER="Admin",NC_ADMIN_PASSWORD="..."
+```
+
+## 13. Version History
 
 | Version | Date       | Changed sections                              | Change type | Agent impact                                                      |
 |---------|------------|-----------------------------------------------|-------------|-------------------------------------------------------------------|
+| v2.2.0  | 2026-08-05 | 1.1, 8–13                                     | minor       | Documented phpunit wrapper; added Cypress E2E section; fixed ddev path notes. |
 | v2.1.0  | 2026-08-05 | 1.1, 6.1, 12                                  | minor       | Added DDEV test runner commands. Added readonly class mockability guidance (§6.1). |
 | v2.0.0  | 2026-08-03 | All sections                                  | major       | Project switch: Kunstarchiv → FCIAS. Primary runner: `vendor/bin/phpunit`. Removed CS fixer infrastructure (§8-14 of v1.x). Added NC integration tests, mocking patterns, DB isolation. |
 | v1.5.0  | 2026-04-23 | Title, 1, 13, 16                              | minor       | Makes `.aiassistant\tools\phpunit` the preferred agent test entrypoint (Kunstarchiv). |
