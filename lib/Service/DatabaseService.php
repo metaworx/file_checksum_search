@@ -216,7 +216,9 @@ class DatabaseService
 		}
 		catch ( Throwable $e )
 		{
-			$output?->writeln( sprintf( '<error>%s</error>', $e->getMessage() ) );
+			$output?->getErrorOutput()
+			       ->writeln( sprintf( '<error>%s</error>', $e->getMessage() ) )
+			;
 
 			$this->logger->warning(
 				'FCIAS: database query failed',
