@@ -18,6 +18,8 @@ use OCP\Files\IRootFolder;
 use OCP\Files\NotFoundException;
 use OCP\IDBConnection;
 use OCP\IUserManager;
+use OCP\Lock\ILockingProvider;
+use OCP\Lock\LockedException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Throwable;
@@ -59,6 +61,7 @@ class HashIndexService
 		private LifecycleHandler $lifecycleHandler,
 		private IRootFolder      $rootFolder,
 		private IUserManager     $userManager,
+		private ILockingProvider $lockingProvider,
 		private LoggerInterface  $logger,
 	) {
 	}
@@ -269,36 +272,56 @@ class HashIndexService
 			}
 		}
 
-		$storage = $file->getStorage();
+		$fileId = $file->getId();
 
-		if ( $storage->isLocal() )
+		if ( ! $this->acquireLock( $fileId ) )
 		{
-			$absolutePath = $storage->getLocalFile( $file->getInternalPath() );
-			$hash         = hash_file( $algo, $absolutePath );
-		}
-		else
-		{
-			$handle = $file->fopen( 'rb' );
-			$ctx    = hash_init( $algo );
-			hash_update_stream( $ctx, $handle );
-			fclose( $handle );
-			$hash = hash_final( $ctx );
+			return [
+				'success' => false,
+				'algo'    => $algo,
+				'hash'    => '',
+				'existed' => false,
+				'locked'  => true,
+			];
 		}
 
-		$formattedChecksum = strtoupper( $algo ) . ':' . $hash;
-		$newChecksum       = $existingChecksum === ''
-			? $formattedChecksum
-			: $existingChecksum . ' ' . $formattedChecksum;
+		try
+		{
+			$storage = $file->getStorage();
 
-		$cache = $storage->getCache();
-		$cache->update( $file->getId(), [ 'checksum' => $newChecksum ] );
+			if ( $storage->isLocal() )
+			{
+				$absolutePath = $storage->getLocalFile( $file->getInternalPath() );
+				$hash         = hash_file( $algo, $absolutePath );
+			}
+			else
+			{
+				$handle = $file->fopen( 'rb' );
+				$ctx    = hash_init( $algo );
+				hash_update_stream( $ctx, $handle );
+				fclose( $handle );
+				$hash = hash_final( $ctx );
+			}
 
-		return [
-			'success' => true,
-			'algo'    => $algo,
-			'hash'    => $hash,
-			'existed' => false,
-		];
+			$formattedChecksum = strtoupper( $algo ) . ':' . $hash;
+			$newChecksum       = $existingChecksum === ''
+				? $formattedChecksum
+				: $existingChecksum . ' ' . $formattedChecksum;
+
+			$cache = $storage->getCache();
+			$cache->update( $fileId, [ 'checksum' => $newChecksum ] );
+
+			return [
+				'success' => true,
+				'algo'    => $algo,
+				'hash'    => $hash,
+				'existed' => false,
+			];
+		}
+		finally
+		{
+			$this->releaseLock( $fileId );
+		}
 	}
 
 
@@ -494,7 +517,11 @@ class HashIndexService
 			{
 				$result = $this->recalcFileHash( $file, $algo );
 
-				if ( $result['existed'] )
+				if ( $result['locked'] ?? false )
+				{
+					$skipped ++;
+				}
+				elseif ( $result['existed'] )
 				{
 					$skipped ++;
 				}
@@ -699,20 +726,23 @@ class HashIndexService
 		         ->setMaxResults( $limit )
 		;
 
-		$rows      = $selectQb->executeQuery();
-		$processed = 0;
-		$ids       = [];
+		$rows       = $selectQb->executeQuery();
+		$processed  = 0;
+		$successIds = [];
 
 		while ( ( $row = $rows->fetch() ) !== false )
 		{
 			$fileId = (int) $row['fileid'];
-			$ids[]  = $fileId;
 
 			try
 			{
-				$this->recalcHash( $fileId, $defaultAlgo );
+				$result = $this->recalcHash( $fileId, $defaultAlgo );
 
-				$processed ++;
+				if ( $result['success'] )
+				{
+					$processed ++;
+					$successIds[] = $fileId;
+				}
 			}
 			catch ( Throwable $e )
 			{
@@ -730,7 +760,7 @@ class HashIndexService
 
 		$deleted = 0;
 
-		if ( ! empty( $ids ) )
+		if ( ! empty( $successIds ) )
 		{
 			$deleteQb = $this->db->getQueryBuilder();
 			$deleteQb->delete( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_PENDING )
@@ -738,7 +768,7 @@ class HashIndexService
 				         $deleteQb->expr()
 				                  ->in(
 					                  'fileid',
-					                  $deleteQb->createNamedParameter( $ids, IQueryBuilder::PARAM_INT_ARRAY ),
+					                  $deleteQb->createNamedParameter( $successIds, IQueryBuilder::PARAM_INT_ARRAY ),
 				                  ),
 			         )
 			;
@@ -839,6 +869,7 @@ class HashIndexService
 		}
 
 		$processed = 0;
+		$locked    = false;
 
 		foreach ( $algos as $algo )
 		{
@@ -848,11 +879,16 @@ class HashIndexService
 			{
 				$processed ++;
 			}
+			elseif ( $result['locked'] ?? false )
+			{
+				$locked = true;
+			}
 		}
 
 		return [
 			'processed' => $processed,
 			'algos'     => $algos,
+			'locked'    => $locked,
 		];
 	}
 
@@ -908,6 +944,35 @@ class HashIndexService
 
 			return 0;
 		}
+	}
+
+
+	private function acquireLock( int $fileId ): bool
+	{
+
+		try
+		{
+			$this->lockingProvider->acquireLock(
+				'files/' . $fileId,
+				ILockingProvider::LOCK_EXCLUSIVE,
+			);
+
+			return true;
+		}
+		catch ( LockedException )
+		{
+			return false;
+		}
+	}
+
+
+	private function releaseLock( int $fileId ): void
+	{
+
+		$this->lockingProvider->releaseLock(
+			'files/' . $fileId,
+			ILockingProvider::LOCK_EXCLUSIVE,
+		);
 	}
 
 }
