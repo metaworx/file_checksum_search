@@ -9,217 +9,64 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Service;
 
-use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\App\IAppManager;
-use OCP\IDBConnection;
-use Psr\Log\LoggerInterface;
-use Throwable;
+use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Centralized status/health-check queries used by both the CLI status
  * command and the admin settings HTTP API.
+ *
+ * All DB access is delegated to DatabaseService.
  */
 readonly class StatusService
 {
 
 	public function __construct(
-		private IDBConnection    $db,
+		private DatabaseService  $databaseService,
 		private TableNameService $tables,
 		private IAppManager      $appManager,
-		private LoggerInterface  $logger,
 	) {
 	}
 
 
+	/** @noinspection PhpUnused */
 	public function getAppVersion(): string
 	{
 
-		return $this->appManager->getAppVersion( Application::APP_ID );
+		return $this->appManager->getAppVersion( 'file_checksum_search' );
 	}
 
 
-	public function getDbVersion(): string
+	public function getDbVersion( ?OutputInterface $output = null ): string
 	{
 
-		$row = $this->db->executeQuery( 'SELECT VERSION() AS version' )
-		                ->fetch()
-		;
-
-		return $row['version'] ?? 'unknown';
+		return $this->databaseService->getDatabaseVersion( $output );
 	}
 
 
-	public function getHashRowCount(): int
+	public function getHashRowCount( ?OutputInterface $output = null ): int
 	{
 
-		$hashTable = $this->tables->getHashTableName();
-
-		try
-		{
-			return (int) $this->db->executeQuery( "SELECT COUNT(*) FROM `{$hashTable}`" )
-			                      ->fetchOne()
-			;
-		}
-		catch ( Throwable $e )
-		{
-			$this->logger->warning(
-				'FCIAS: hash row count query failed',
-				[
-					'app'       => Application::APP_ID,
-					'exception' => $e,
-				],
-			);
-
-			return 0;
-		}
+		return $this->databaseService->countRows( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES, $output );
 	}
 
 
-	public function getTriggerCount(): int
+	public function getPendingRowCount( ?OutputInterface $output = null ): int
 	{
 
-		$prefix = $this->tables->getPrefix();
-
-		try
-		{
-			return (int) $this->db->executeQuery(
-				"SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() AND TRIGGER_NAME LIKE ?",
-				[ $prefix . 't_fcias_after_%' ],
-			)
-			                      ->fetchOne()
-			;
-		}
-		catch ( Throwable $e )
-		{
-			$this->logger->warning(
-				'FCIAS: trigger count query failed',
-				[
-					'app'       => Application::APP_ID,
-					'exception' => $e,
-				],
-			);
-
-			return 0;
-		}
-	}
-
-
-	public function isSpInstalled(): bool
-	{
-
-		$prefix = $this->tables->getPrefix();
-
-		try
-		{
-			$count = (int) $this->db->executeQuery(
-				"SELECT COUNT(*) FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_NAME = ?",
-				[ $prefix . 'fcias_parse_file_hashes' ],
-			)
-			                        ->fetchOne()
-			;
-
-			return $count > 0;
-		}
-		catch ( Throwable $e )
-		{
-			$this->logger->warning(
-				'FCIAS: SP check query failed',
-				[
-					'app'       => Application::APP_ID,
-					'exception' => $e,
-				],
-			);
-
-			return false;
-		}
-	}
-
-
-	public function hasChecksumColumn(): bool
-	{
-
-		$prefix = $this->tables->getPrefix();
-
-		try
-		{
-			$count = (int) $this->db->executeQuery(
-				"SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'checksum'",
-				[ $prefix . 'filecache' ],
-			)
-			                        ->fetchOne()
-			;
-
-			return $count > 0;
-		}
-		catch ( Throwable $e )
-		{
-			$this->logger->warning(
-				'FCIAS: checksum column check failed',
-				[
-					'app'       => Application::APP_ID,
-					'exception' => $e,
-				],
-			);
-
-			return false;
-		}
-	}
-
-
-	public function getPendingRowCount(): int
-	{
-
-		$pendingTable = $this->tables->getPendingTableName();
-
-		try
-		{
-			return (int) $this->db->executeQuery( "SELECT COUNT(*) FROM `{$pendingTable}`" )
-			                      ->fetchOne()
-			;
-		}
-		catch ( Throwable $e )
-		{
-			$this->logger->warning(
-				'FCIAS: pending row count query failed',
-				[
-					'app'       => Application::APP_ID,
-					'exception' => $e,
-				],
-			);
-
-			return 0;
-		}
-	}
-
-
-	/**
-	 * @return array<array{name: string, ok: bool}>
-	 */
-	public function getTableStatus(): array
-	{
-
-		return [
-			[
-				'name' => $this->tables->getHashTableName(),
-				'ok'   => $this->hasHashTable(),
-			],
-			[
-				'name' => $this->tables->getPendingTableName(),
-				'ok'   => $this->hasPendingTable(),
-			],
-		];
+		return $this->databaseService->countRows( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_PENDING, $output );
 	}
 
 
 	/**
 	 * @return array{name: string, ok: bool}
 	 */
-	public function getProcedureStatus(): array
+	public function getProcedureStatus( ?OutputInterface $output = null ): array
 	{
 
 		return [
 			'name' => $this->tables->getSpName(),
-			'ok'   => $this->isSpInstalled(),
+			'ok'   => $this->databaseService->storedProcedureExists( $this->tables->getSpName(), $output ),
 		];
 	}
 
@@ -227,7 +74,26 @@ readonly class StatusService
 	/**
 	 * @return array<array{name: string, ok: bool}>
 	 */
-	public function getTriggerStatus(): array
+	public function getTableStatus( ?OutputInterface $output = null ): array
+	{
+
+		return [
+			[
+				'name' => $this->tables->getHashTableName(),
+				'ok'   => $this->hasHashTable( $output ),
+			],
+			[
+				'name' => $this->tables->getPendingTableName(),
+				'ok'   => $this->hasPendingTable( $output ),
+			],
+		];
+	}
+
+
+	/**
+	 * @return array<array{name: string, ok: bool}>
+	 */
+	public function getTriggerStatus( ?OutputInterface $output = null ): array
 	{
 
 		$results = [];
@@ -242,7 +108,7 @@ readonly class StatusService
 		{
 			$results[] = [
 				'name' => $triggerName,
-				'ok'   => $this->hasTrigger( $triggerName ),
+				'ok'   => $this->databaseService->triggerExists( $triggerName, $output ),
 			];
 		}
 
@@ -250,95 +116,24 @@ readonly class StatusService
 	}
 
 
-	public function hasTrigger( string $triggerName ): bool
+	public function hasChecksumColumn( ?OutputInterface $output = null ): bool
 	{
 
-		try
-		{
-			$count = (int) $this->db->executeQuery(
-				"SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() AND TRIGGER_NAME = ?",
-				[ $triggerName ],
-			)
-			                        ->fetchOne()
-			;
-
-			return $count > 0;
-		}
-		catch ( Throwable $e )
-		{
-			$this->logger->warning(
-				'FCIAS: trigger existence check failed',
-				[
-					'app'         => Application::APP_ID,
-					'triggerName' => $triggerName,
-					'exception'   => $e,
-				],
-			);
-
-			return false;
-		}
+		return $this->databaseService->columnExists( $this->tables->getFilecacheTableName(), 'checksum', $output );
 	}
 
 
-	public function hasHashTable(): bool
+	public function hasHashTable( ?OutputInterface $output = null ): bool
 	{
 
-		$hashTable = $this->tables->getHashTableName();
-
-		try
-		{
-			$count = (int) $this->db->executeQuery(
-				"SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
-				[ $hashTable ],
-			)
-			                        ->fetchOne()
-			;
-
-			return $count > 0;
-		}
-		catch ( Throwable $e )
-		{
-			$this->logger->warning(
-				'FCIAS: hash table existence check failed',
-				[
-					'app'       => Application::APP_ID,
-					'exception' => $e,
-				],
-			);
-
-			return false;
-		}
+		return $this->databaseService->tableExist( $this->tables->getHashTableName(), $output );
 	}
 
 
-	public function hasPendingTable(): bool
+	public function hasPendingTable( ?OutputInterface $output = null ): bool
 	{
 
-		$pendingTable = $this->tables->getPendingTableName();
-
-		try
-		{
-			$count = (int) $this->db->executeQuery(
-				"SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
-				[ $pendingTable ],
-			)
-			                        ->fetchOne()
-			;
-
-			return $count > 0;
-		}
-		catch ( Throwable $e )
-		{
-			$this->logger->warning(
-				'FCIAS: pending table existence check failed',
-				[
-					'app'       => Application::APP_ID,
-					'exception' => $e,
-				],
-			);
-
-			return false;
-		}
+		return $this->databaseService->tableExist( $this->tables->getPendingTableName(), $output );
 	}
 
 }

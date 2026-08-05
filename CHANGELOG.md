@@ -27,6 +27,7 @@ the first stable release.
 - Expand the README to document all CLI commands and features, and add descriptive docblocks to controller and command classes.
 - Split the large HashIndexService into focused service classes for hash calculation, pending queue, duplicates, and file operations, keeping HashIndexService as a backward-compatible facade.
 - Move the shared escapeHtml helper into a common JS utility module to remove duplicated implementations in the sidebar and duplicates scripts.
+- Extract shared safeIntQuery/safeExistsQuery helpers in StatusService to eliminate repeated try/catch/log patterns across its status checks.
 
 ## [0.5.1] — 2026-08-05
 
