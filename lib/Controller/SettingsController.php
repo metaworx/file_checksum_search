@@ -156,6 +156,14 @@ class SettingsController
 		}
 		catch ( Throwable $e )
 		{
+			$this->logger->error(
+				'FCIAS SettingsController: rebuildIndex failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
 			return new DataResponse(
 				[
 					'success' => false,
@@ -177,6 +185,14 @@ class SettingsController
 		}
 		catch ( Throwable $e )
 		{
+			$this->logger->error(
+				'FCIAS SettingsController: teardownTriggers failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
 			return new DataResponse(
 				[
 					'success' => false,
@@ -198,6 +214,14 @@ class SettingsController
 		}
 		catch ( Throwable $e )
 		{
+			$this->logger->error(
+				'FCIAS SettingsController: removeTable failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
 			return new DataResponse(
 				[
 					'success' => false,
@@ -219,6 +243,14 @@ class SettingsController
 		}
 		catch ( Throwable $e )
 		{
+			$this->logger->error(
+				'FCIAS SettingsController: deployTriggers failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
 			return new DataResponse(
 				[
 					'success' => false,
@@ -240,6 +272,14 @@ class SettingsController
 		}
 		catch ( Throwable $e )
 		{
+			$this->logger->error(
+				'FCIAS SettingsController: createTable failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
 			return new DataResponse(
 				[
 					'success' => false,

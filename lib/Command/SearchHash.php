@@ -9,8 +9,10 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Command;
 
+use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\IDBConnection;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -21,14 +23,12 @@ class SearchHash
 	Command
 {
 
-	private IDBConnection $db;
-
-
-	public function __construct( IDBConnection $db )
-	{
+	public function __construct(
+		private readonly IDBConnection   $db,
+		private readonly LoggerInterface $logger,
+	) {
 
 		parent::__construct();
-		$this->db = $db;
 	}
 
 
@@ -49,8 +49,12 @@ class SearchHash
 
 		$term = trim( $input->getArgument( 'query' ) );
 
+		$this->logger->info(
+			'FCIAS SearchHash command: invoked',
+			[ 'app' => Application::APP_ID ],
+		);
+
 		$algo = null;
-		$hash = $term;
 
 		if ( preg_match( '/^([a-z0-9]+):([a-f0-9]{32,64})$/i', $term, $matches ) )
 		{

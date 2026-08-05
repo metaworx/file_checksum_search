@@ -9,7 +9,9 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Command;
 
+use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\HashIndexService;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -21,6 +23,7 @@ class RebuildIndex
 
 	public function __construct(
 		private readonly HashIndexService $hashIndexService,
+		private readonly LoggerInterface  $logger,
 	) {
 
 		parent::__construct();
@@ -40,6 +43,11 @@ class RebuildIndex
 		InputInterface  $input,
 		OutputInterface $output,
 	): int {
+
+		$this->logger->info(
+			'FCIAS RebuildIndex command: invoked',
+			[ 'app' => Application::APP_ID ],
+		);
 
 		$result = $this->hashIndexService->rebuildIndex( $output );
 

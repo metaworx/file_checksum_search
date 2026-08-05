@@ -10,9 +10,12 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Migration;
 
 use Closure;
+use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\DB\ISchemaWrapper;
 use OCP\Migration\IOutput;
 use OCP\Migration\SimpleMigrationStep;
+use OCP\Server;
+use Psr\Log\LoggerInterface;
 
 /**
  * Creates the pending hash update queue table.
@@ -32,6 +35,13 @@ class Version010000Date20260805000000
 		Closure $schemaClosure,
 		array   $options,
 	): ?ISchemaWrapper {
+
+		$logger = Server::get( LoggerInterface::class );
+
+		$logger->info(
+			'FCIAS Version010000Date20260805000000 migration: changeSchema running',
+			[ 'app' => Application::APP_ID ],
+		);
 
 		/** @var ISchemaWrapper $schema */
 		$schema = $schemaClosure();

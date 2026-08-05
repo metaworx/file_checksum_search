@@ -23,6 +23,7 @@ use OCP\IUserSession;
 use PDO;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class LookupControllerTest
 	extends
@@ -39,6 +40,8 @@ class LookupControllerTest
 
 	private MockObject|IUserSession     $userSession;
 
+	private MockObject|LoggerInterface  $logger;
+
 	private LookupController            $controller;
 
 
@@ -52,6 +55,7 @@ class LookupControllerTest
 		$this->hashIndexService = $this->createMock( HashIndexService::class );
 		$this->rootFolder       = $this->createMock( IRootFolder::class );
 		$this->userSession      = $this->createMock( IUserSession::class );
+		$this->logger           = $this->createMock( LoggerInterface::class );
 		$this->controller       = new LookupController(
 			'file_checksum_search',
 			$this->request,
@@ -59,6 +63,7 @@ class LookupControllerTest
 			$this->hashIndexService,
 			$this->rootFolder,
 			$this->userSession,
+			$this->logger,
 		);
 	}
 
