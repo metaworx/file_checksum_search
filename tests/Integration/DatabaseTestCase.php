@@ -11,9 +11,11 @@ namespace OCA\FileChecksumSearch\Tests\Integration;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\AbstractSchemaManager;
+use OCP\IConfig;
 use OCP\IDBConnection;
 use OCP\Server;
 use PHPUnit\Framework\TestCase;
+use Throwable;
 
 /**
  * Base class for FCIAS integration tests that need a real database.
@@ -34,7 +36,7 @@ abstract class DatabaseTestCase
 
 	protected IDBConnection $db;
 
-	private bool $inTransaction = false;
+	private bool            $inTransaction = false;
 
 	/** Cache for dbtableprefix (lazy-loaded). */
 	private ?string $tablePrefix = null;
@@ -77,7 +79,7 @@ abstract class DatabaseTestCase
 			{
 				$this->db->rollBack();
 			}
-			catch ( \Throwable )
+			catch ( Throwable )
 			{
 				// Connection may already be closed — ignore
 			}
@@ -115,7 +117,7 @@ abstract class DatabaseTestCase
 		if ( $this->tablePrefix === null )
 		{
 			/** @var \OCP\IConfig $config */
-			$config            = Server::get( \OCP\IConfig::class );
+			$config            = Server::get( IConfig::class );
 			$this->tablePrefix = $config->getSystemValueString( 'dbtableprefix', 'oc_' );
 		}
 
@@ -166,7 +168,7 @@ abstract class DatabaseTestCase
 		$this->assertTrue(
 			$this->getSchemaManager()
 			     ->tablesExist( [ $tableName ] ),
-			"Table '{$tableName}' should exist.",
+			"Table '$tableName' should exist.",
 		);
 	}
 
@@ -177,7 +179,7 @@ abstract class DatabaseTestCase
 		$this->assertFalse(
 			$this->getSchemaManager()
 			     ->tablesExist( [ $tableName ] ),
-			"Table '{$tableName}' should NOT exist.",
+			"Table '$tableName' should NOT exist.",
 		);
 	}
 
@@ -191,14 +193,16 @@ abstract class DatabaseTestCase
 		                ->listTableColumns( $tableName )
 		;
 		$names   = array_map(
-			static fn( $col ) => $col->getName(),
+			static fn(
+				$col,
+			) => $col->getName(),
 			$columns,
 		);
 
 		$this->assertContains(
 			$columnName,
 			$names,
-			"Column '{$columnName}' should exist in table '{$tableName}'.",
+			"Column '$columnName' should exist in table '$tableName'.",
 		);
 	}
 
@@ -212,14 +216,16 @@ abstract class DatabaseTestCase
 		                ->listTableColumns( $tableName )
 		;
 		$names   = array_map(
-			static fn( $col ) => $col->getName(),
+			static fn(
+				$col,
+			) => $col->getName(),
 			$columns,
 		);
 
 		$this->assertNotContains(
 			$columnName,
 			$names,
-			"Column '{$columnName}' should NOT exist in table '{$tableName}'.",
+			"Column '$columnName' should NOT exist in table '$tableName'.",
 		);
 	}
 
@@ -247,7 +253,10 @@ abstract class DatabaseTestCase
 
 		$qb = $this->db->getQueryBuilder();
 
-		$qb->select( $qb->func()->count( '*', 'cnt' ) )
+		$qb->select(
+			$qb->func()
+			   ->count( '*', 'cnt' ),
+		)
 		   ->from( $tableName )
 		;
 
