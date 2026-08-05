@@ -17,6 +17,7 @@ the first stable release.
 - Add event-driven hash index maintenance for file write, create, delete, and copy operations, backed by a new pending-update queue table, a draining background job, and per-event-type admin configuration.
 - Add ILockingProvider-based file locking to hash operations so concurrent cron, CLI, and event-listener processes can no longer hash the same file simultaneously, retrying locked files via the pending queue instead of dropping them.
 - Add a global duplicate file locator that finds all groups of files sharing identical hashes across the system, with a REST API, CLI command, standalone UI, and access-controlled, paginated results.
+- Add a show-config CLI command to display app configuration and extend the status command with a machine-readable --output=json option.
 
 ## [0.5.1] — 2026-08-05
 
