@@ -1,4 +1,4 @@
-# AI Agent Commit Guidelines (v1.1.0)
+# AI Agent Commit Guidelines (v1.2.0)
 
 This document defines the complete commit workflow, message format, and execution signals for AI agents. Follow these rules precisely when preparing and executing commits.
 
@@ -137,6 +137,10 @@ Reusable PowerShell scripts simplify creating compliant commits.
 
 The `--trailer` flag appends the `Co-authored-by` trailer automatically.
 
+> **Warning:** The `--trailer` flag appends to any existing `Co-authored-by` in the message file. Use exactly one method — either in-file OR via `--trailer`, never both. Duplicate trailers produce duplicate `Co-authored-by` lines in the commit.
+
+> **Identity rule:** If the agent does not know the correct `Co-authored-by` identity string for the current project, it MUST ask the user before committing. Use the `ask_followup_question` tool: *"Which Co-authored-by trailer should I use for this project?"* Typical values: `Agent <roo-code@deepseek.com>`, `Agent <junie@jetbrains.com>`.
+
 ---
 
 ## 7. Example Commit Message
@@ -170,5 +174,6 @@ Co-authored-by: Agent <agent@example.com>
 
 | Version | Date       | Changes                                                                 | Agent Impact                                                              |
 |---------|------------|-------------------------------------------------------------------------|---------------------------------------------------------------------------|
+| v1.2.0  | 2026-08-05 | Added trailer mutual-exclusion warning and ask-user-first identity rule in §6.1.              | Prevents duplicate Co-authored-by trailers; ensures correct identity string.  |
 | v1.1.0  | 2026-04-22 | Added `EXEC` signal mini-matrix with quick examples for faster commit confirmation.   | Improves commit signal clarity in user-agent interaction.                     |
 | v1.0.0  | 2026-04-22 | Initial consolidated version from `AGENTS.md` v2.0.4 and `GUIDELINES.md`              | Use this document as the authoritative commit reference; gate signals clarified. |

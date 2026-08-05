@@ -1,4 +1,4 @@
-# Testing Conventions (v2.2.0)
+# Testing Conventions (v2.3.0)
 
 Project-specific testing conventions for FCIAS (File Checksum Index & Search Nextcloud app).
 Generic agent flow-control rules are in `AGENTS.md`; contributor context is in `CONTRIBUTING.md`.
@@ -58,6 +58,8 @@ wsl --cd ~/projects/helioscloud bash -c "ddev exec php /var/www/html/custom_apps
 The `tests/bootstrap.php` loads NC autoloader from `/var/www/html/3rdparty/autoload.php` and `/var/www/html/lib/base.php` for OCP class availability inside ddev.
 
 > **Important:** When using the native agent `execute_command` tool, always pass `cwd: "C:\\"` to avoid CMD.EXE UNC path errors with `\\wsl.localhost\...` paths.
+
+> **CI display‑warnings:** When `failOnWarning="true"` is set in `tests/phpunit.xml`, always include `--display-warnings` in the CI PHPUnit command (e.g. `./vendor/bin/phpunit -c tests/phpunit.xml --display-warnings`). Without this flag, warnings are invisible in CI logs but still cause exit code 1.
 
 Fallback: JetBrains MCP `execute_run_configuration` with `filePath` + `line` on individual test methods.
 
@@ -120,7 +122,7 @@ Nextcloud integration tests (e.g., trigger cascade tests) must run as the NC web
 inside WSL:
 
 ```bash
-wsl --cd ~/projects/nc_file_checksum_search sudo --user www-data vendor/bin/phpunit tests/Integration/
+wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/Integration/
 ```
 
 Prerequisites:
@@ -184,6 +186,7 @@ ddev cypress-run --browser chrome --env NC_ADMIN_USER="Admin",NC_ADMIN_PASSWORD=
 
 | Version | Date       | Changed sections                              | Change type | Agent impact                                                      |
 |---------|------------|-----------------------------------------------|-------------|-------------------------------------------------------------------|
+| v2.3.0  | 2026-08-05 | 1                                              | minor       | Added --display-warnings note for CI PHPUnit with failOnWarning="true".       |
 | v2.2.0  | 2026-08-05 | 1.1, 8–13                                     | minor       | Documented phpunit wrapper; added Cypress E2E section; fixed ddev path notes. |
 | v2.1.0  | 2026-08-05 | 1.1, 6.1, 12                                  | minor       | Added DDEV test runner commands. Added readonly class mockability guidance (§6.1). |
 | v2.0.0  | 2026-08-03 | All sections                                  | major       | Project switch: Kunstarchiv → FCIAS. Primary runner: `vendor/bin/phpunit`. Removed CS fixer infrastructure (§8-14 of v1.x). Added NC integration tests, mocking patterns, DB isolation. |

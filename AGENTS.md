@@ -1,4 +1,4 @@
-# AI Agent Guidelines (v2.3.0)
+# AI Agent Guidelines (v2.4.0)
 
 Core behavioral rules for AI agents working on this codebase.  
 All agents MUST comply.
@@ -150,6 +150,7 @@ Latest `<issue_update>` overrides earlier `<issue_description>`.
 - `.aiassistant/GUIDELINES.md` – entry point for project rules.
 - `.aiassistant/tools/README.md` – helper scripts and tooling.
 - `.aiassistant/tools/RUNTIME_TOOLS.md` – runtime tool capabilities and adaptation rules.
+- `.aiassistant/CI.md` – CI conventions and setup‑server‑action behavior, if used.
 
 ## 8. Document Governance
 
@@ -160,6 +161,6 @@ Latest `<issue_update>` overrides earlier `<issue_description>`.
 
 ### 8.1 Current version
 
-| Version | Date       | Changed Sections | Change Type | Agent Impact                                                                    |
-|---------|------------|------------------|-------------|---------------------------------------------------------------------------------|
-| v2.3.0  | 2026-06-15 | 5.1              | minor       | Clarify AP title `{topic}` is a subject descriptor, not a workflow signal (§3). |
+| Version | Date       | Changed Sections | Change Type | Agent Impact                                    |
+|---------|------------|------------------|-------------|-------------------------------------------------|
+| v2.4.0  | 2026-08-05 | 7                | minor       | Added CI.md reference to Additional References. |

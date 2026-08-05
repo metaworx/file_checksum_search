@@ -1,4 +1,4 @@
-# AI Agent Guidelines History (v1.2.0)
+# AI Agent Guidelines History (v1.3.0)
 
 ## Contents
 
@@ -71,6 +71,7 @@ Example:
 
 | Version | Date       | Changed sections             | Change type | Agent impact                                                                                                                                                              |
 |---------|------------|------------------------------|-------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| v2.4.0  | 2026-08-05 | 7                            | minor       | Added CI.md reference to Additional References.                                 |
 | v2.3.0  | 2026-06-15 | 5.1                          | minor       | Clarify AP title `{topic}` is a subject descriptor, not a workflow signal (§3).                                                                                           |
 | v2.2.0  | 2026-06-10 | 2                            | minor       | Explicitly allow creation of UAMF in PLANNING-ONLY mode                                                                                                                   |
 | v2.1.0  | 2026-04-22 | 2, 3, 8, Rule Map            | minor       | Added compact routing map, canonical rule-owner mapping, and first-response contract while keeping the document concise.                                                  |
@@ -91,6 +92,7 @@ Example:
 
 | Version | Date       | Changed sections            | Change type | Agent impact                                                                                       |
 |---------|------------|-----------------------------|-------------|----------------------------------------------------------------------------------------------------|
+| v1.3.0  | 2026-08-05 | 2.1                          | minor       | Added AGENTS.md v2.4.0 history entry.                                                              |
 | v1.2.0  | 2026-04-22 | 1, 1.3, 1.4, 3              | minor       | Adds governance rules for `Contents` structure and section-numbering expectations across docs.     |
 | v1.1.0  | 2026-04-22 | Title, Contents, 1, 2, 3, 4 | minor       | Adds title-based versioning, plain ToC, explicit canonical-governance statement, and self-history. |
 | v1.0.0  | 2026-04-22 | Initial document            | minor       | Baseline governance and AGENTS history retention policy.                                           |
