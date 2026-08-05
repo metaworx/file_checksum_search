@@ -24,6 +24,7 @@ the first stable release.
 
 - Refactor closure-based event listeners into dedicated listener classes that self-register, simplifying Application boot and registration.
 - Consolidate duplicated hash lookup and path resolution queries into new HashIndexService methods, removing direct database dependencies from several classes.
+- Expand the README to document all CLI commands and features, and add descriptive docblocks to controller and command classes.
 
 ## [0.5.1] — 2026-08-05
 

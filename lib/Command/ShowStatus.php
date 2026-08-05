@@ -18,6 +18,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @noinspection PhpUnused
+ */
 class ShowStatus
 	extends
 	Command
@@ -33,6 +36,11 @@ class ShowStatus
 	}
 
 
+	/**
+	 * Configure the status command.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	protected function configure(): void
 	{
 
@@ -49,6 +57,11 @@ class ShowStatus
 	}
 
 
+	/**
+	 * Execute the status command.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,

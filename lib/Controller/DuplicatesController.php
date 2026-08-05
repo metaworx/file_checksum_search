@@ -45,6 +45,8 @@ class DuplicatesController
 	/**
 	 * Find all duplicate hash groups for the current user (or a
 	 * specified user if the requester is an admin).
+	 *
+	 * @noinspection PhpUnused
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
@@ -194,6 +196,11 @@ class DuplicatesController
 	}
 
 
+	/**
+	 * Render the global duplicate browser page.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
 	public function index(): TemplateResponse

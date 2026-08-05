@@ -18,6 +18,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @noinspection PhpUnused
+ */
 class FindDuplicates
 	extends
 	Command
@@ -33,6 +36,11 @@ class FindDuplicates
 	}
 
 
+	/**
+	 * Configure the find-duplicates command.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	protected function configure(): void
 	{
 
@@ -87,6 +95,11 @@ class FindDuplicates
 	}
 
 
+	/**
+	 * Execute the find-duplicates command.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,

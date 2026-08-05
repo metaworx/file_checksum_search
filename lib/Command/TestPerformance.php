@@ -11,29 +11,33 @@ namespace OCA\FileChecksumSearch\Command;
 
 use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\IDBConnection;
+use PDO;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * @noinspection PhpUnused
+ */
 class TestPerformance
 	extends
 	Command
 {
 
-	private IDBConnection $db;
-
-	private TableNameService $tables;
-
-
-	public function __construct( IDBConnection $db, TableNameService $tables )
-	{
+	public function __construct(
+		private readonly IDBConnection    $db,
+		private readonly TableNameService $tables,
+	) {
 
 		parent::__construct();
-		$this->db     = $db;
-		$this->tables = $tables;
 	}
 
 
+	/**
+	 * Configure the test-perf command.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	protected function configure(): void
 	{
 
@@ -43,6 +47,11 @@ class TestPerformance
 	}
 
 
+	/**
+	 * Execute the test-perf command.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
@@ -87,7 +96,7 @@ class TestPerformance
 			   ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES )
 			   ->where(
 				   $qb->expr()
-				      ->eq( 'fileid', $qb->createNamedParameter( $testFileId, \PDO::PARAM_INT ) ),
+				      ->eq( 'fileid', $qb->createNamedParameter( $testFileId, PDO::PARAM_INT ) ),
 			   )
 			;
 			$shadowCount = (int) $qb->executeQuery()

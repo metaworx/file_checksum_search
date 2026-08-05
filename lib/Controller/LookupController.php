@@ -44,10 +44,12 @@ class LookupController
 
 
 	/**
-	 * Look up files by hash value.
+	 * Look up files by hash value, with optional algorithm filter.
 	 *
 	 * @param  string       $hash  The hash value (hex string, 32/40/64 chars)
 	 * @param  string|null  $algo  Optional algorithm filter (e.g. 'sha1', 'sha256')
+	 *
+	 * @noinspection PhpUnused
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
@@ -91,9 +93,11 @@ class LookupController
 
 
 	/**
-	 * Get all checksums for a given file ID.
+	 * Get all checksums for a given filecache file ID.
 	 *
 	 * @param  int  $fileId  The filecache fileid
+	 *
+	 * @noinspection PhpUnused
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
@@ -147,8 +151,10 @@ class LookupController
 	 *
 	 * @param  int  $fileId  The filecache fileid
 	 */
+	/** Find other files sharing the same hash values as the given file. */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	/** @noinspection PhpUnused */
 	public function sameHash( int $fileId ): DataResponse
 	{
 
@@ -242,7 +248,9 @@ class LookupController
 	}
 
 
+	/** Recalculate a hash for a given file ID and algorithm. */
 	#[NoAdminRequired]
+	/** @noinspection PhpUnused */
 	public function recalcHash(
 		int     $fileId,
 		?string $algo = null,
