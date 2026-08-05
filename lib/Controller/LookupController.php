@@ -114,7 +114,7 @@ class LookupController
 
 		$qb = $this->db->getQueryBuilder();
 
-		$qb->select( 'fileid', 'algo', 'hash_value' )
+		$qb->select( 'fileid', 'algo', 'hash_value', 'updated_at' )
 		   ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES )
 		   ->where(
 			   $qb->expr()
@@ -132,8 +132,9 @@ class LookupController
 		): array {
 
 			return [
-				'algo' => $row['algo'],
-				'hash' => $row['hash_value'],
+				'algo'       => $row['algo'],
+				'hash'       => $row['hash_value'],
+				'updated_at' => $row['updated_at'] ?? null,
 			];
 		}, $rows );
 

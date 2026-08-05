@@ -87,6 +87,7 @@ class ShowStatus
 						'tables'            => $this->statusService->getTableStatus( $output ),
 						'stored_procedure'  => $this->statusService->getProcedureStatus( $output ),
 						'triggers'          => $this->statusService->getTriggerStatus( $output ),
+						'migrations'        => $this->statusService->getMigrationStatus( $output ),
 					],
 					$outFmt === 'json_pretty'
 						? JSON_PRETTY_PRINT
@@ -157,6 +158,22 @@ class ShowStatus
 					'  %-45s %s',
 					$trigger['name'],
 					$trigger['ok']
+						? 'OK'
+						: 'MISSING',
+				),
+			);
+		}
+
+		$output->writeln( '' );
+		$output->writeln( 'Migrations:' );
+
+		foreach ( $this->statusService->getMigrationStatus( $output ) as $migration )
+		{
+			$output->writeln(
+				sprintf(
+					'  %-45s %s',
+					$migration['name'],
+					$migration['ok']
 						? 'OK'
 						: 'MISSING',
 				),

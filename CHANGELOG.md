@@ -19,6 +19,7 @@ the first stable release.
 - Add a global duplicate file locator that finds all groups of files sharing identical hashes across the system, with a REST API, CLI command, standalone UI, and access-controlled, paginated results.
 - Add a show-config CLI command to display app configuration and extend the status command with a machine-readable --output=json option.
 - Add logging to previously silent controllers, commands, listeners, and migrations, and log errors before returning error responses in SettingsController.
+- Add an updated_at column to the hash table so hash recalculation can be skipped when the value is already current, and surface it in the status command and sidebar tooltip.
 
 ### Changed
 

@@ -124,6 +124,35 @@ class DatabaseService
 	}
 
 
+	/**
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function safeArray(
+		callable         $fn,
+		?OutputInterface $output,
+	): array {
+
+		try
+		{
+			return $fn();
+		}
+		catch ( Throwable $e )
+		{
+			$output?->writeln( sprintf( '<error>%s</error>', $e->getMessage() ) );
+
+			$this->logger->warning(
+				'FCIAS: database query failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
+			return [];
+		}
+	}
+
+
 	private function safeBool(
 		callable         $fn,
 		?OutputInterface $output,
@@ -232,6 +261,48 @@ class DatabaseService
 
 				return (int) $qb->executeQuery()
 				                ->fetchOne() > 0;
+			},
+			$output,
+		);
+	}
+
+
+	/**
+	 * @return string[] Installed migration version strings
+	 */
+	public function getInstalledMigrations(
+		string           $appId,
+		?OutputInterface $output = null,
+	): array {
+
+		return $this->safeArray(
+			function () use
+			(
+				$appId,
+			): array
+			{
+
+				$qb = $this->db->getQueryBuilder();
+
+				$qb->select( 'version' )
+				   ->from( 'migrations' )
+				   ->where(
+					   $qb->expr()
+					      ->eq( 'app', $qb->createNamedParameter( $appId ) ),
+				   )
+				   ->orderBy( 'version' )
+				;
+
+				$rows = $qb->executeQuery()
+				           ->fetchAll()
+				;
+
+				return array_map(
+					fn(
+						array $row,
+					): string => $row['version'],
+					$rows,
+				);
 			},
 			$output,
 		);
