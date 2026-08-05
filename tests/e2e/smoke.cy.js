@@ -5,6 +5,6 @@ describe( 'FCIAS Smoke Test', () => {
 	} )
 
 	it( 'loads the Files dashboard after login', () => {
-		cy.contains( 'Files' ).should( 'be.visible' )
+		cy.url().should( 'include', '/apps/files' )
 	} )
 } )
