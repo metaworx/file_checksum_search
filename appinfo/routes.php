@@ -31,6 +31,18 @@ return [
 			'verb' => 'GET',
 		],
 
+		// Global duplicate browser
+		[
+			'name' => 'duplicates#findAll',
+			'url'  => '/api/1.0/duplicates',
+			'verb' => 'GET',
+		],
+		[
+			'name' => 'duplicates#index',
+			'url'  => '/duplicates',
+			'verb' => 'GET',
+		],
+
 		// Admin settings AJAX
 		[
 			'name' => 'settings#getStatus',

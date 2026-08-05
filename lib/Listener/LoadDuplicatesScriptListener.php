@@ -1,0 +1,48 @@
+<?php
+
+declare( strict_types=1 );
+
+/**
+ * @copyright Copyright (c) 2026 metaworx
+ * @license   AGPL-3.0-or-later
+ */
+
+namespace OCA\FileChecksumSearch\Listener;
+
+use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\Files\Event\LoadAdditionalScriptsEvent;
+use OCP\App\IAppManager;
+use OCP\EventDispatcher\Event;
+use OCP\EventDispatcher\IEventListener;
+use OCP\Util;
+
+/** @template-implements IEventListener<LoadAdditionalScriptsEvent> */
+class LoadDuplicatesScriptListener
+	implements
+	IEventListener
+{
+
+	public function __construct(
+		private IAppManager $appManager,
+	) {
+	}
+
+
+	#[\Override]
+	public function handle( Event $event ): void
+	{
+
+		if ( ! $event instanceof LoadAdditionalScriptsEvent )
+		{
+			return;
+		}
+
+		if ( ! $this->appManager->isEnabledForUser( Application::APP_ID ) )
+		{
+			return;
+		}
+
+		Util::addInitScript( Application::APP_ID, 'duplicates' );
+	}
+
+}

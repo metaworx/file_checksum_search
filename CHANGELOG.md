@@ -16,6 +16,7 @@ the first stable release.
 - Add a "Files with same hash" feature that finds duplicate files via a self-join on the hash table and lets users browse matches with a new "Find duplicates" sidebar button.
 - Add event-driven hash index maintenance for file write, create, delete, and copy operations, backed by a new pending-update queue table, a draining background job, and per-event-type admin configuration.
 - Add ILockingProvider-based file locking to hash operations so concurrent cron, CLI, and event-listener processes can no longer hash the same file simultaneously, retrying locked files via the pending queue instead of dropping them.
+- Add a global duplicate file locator that finds all groups of files sharing identical hashes across the system, with a REST API, CLI command, standalone UI, and access-controlled, paginated results.
 
 ## [0.5.1] — 2026-08-05
 

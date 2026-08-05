@@ -1,0 +1,6 @@
+/**
+ * @copyright Copyright (c) 2026 metaworx
+ * @license   AGPL-3.0-or-later
+ *
+ * Global duplicate file browser — standalone page.
+ */
