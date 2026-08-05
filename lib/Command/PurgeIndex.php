@@ -9,8 +9,10 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Command;
 
+use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\StatusService;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -24,6 +26,7 @@ class PurgeIndex
 	public function __construct(
 		private readonly HashIndexService $hashIndexService,
 		private readonly StatusService    $statusService,
+		private readonly LoggerInterface  $logger,
 	) {
 
 		parent::__construct();
@@ -44,6 +47,11 @@ class PurgeIndex
 		InputInterface  $input,
 		OutputInterface $output,
 	): int {
+
+		$this->logger->info(
+			'FCIAS PurgeIndex command: invoked',
+			[ 'app' => Application::APP_ID ],
+		);
 
 		if ( ! $input->getOption( 'force' ) )
 		{

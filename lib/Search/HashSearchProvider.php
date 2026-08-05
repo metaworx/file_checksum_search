@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Search;
 
+use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\Files\IRootFolder;
 use OCP\IDBConnection;
@@ -18,28 +19,23 @@ use OCP\Search\IProvider;
 use OCP\Search\ISearchQuery;
 use OCP\Search\SearchResult;
 use OCP\Search\SearchResultEntry;
+use Psr\Log\LoggerInterface;
 
+/**
+ * @noinspection PhpClassCanBeReadonlyInspection
+ */
 class HashSearchProvider
 	implements
 	IProvider
 {
 
-	private IDBConnection $db;
-
-	private IRootFolder   $rootFolder;
-
-	private IURLGenerator $urlGenerator;
-
-
 	public function __construct(
-		IDBConnection $db,
-		IRootFolder   $rootFolder,
-		IURLGenerator $urlGenerator,
+		private readonly IDBConnection   $db,
+		private readonly IRootFolder     $rootFolder,
+		private readonly IURLGenerator   $urlGenerator,
+		private readonly LoggerInterface $logger,
 	) {
 
-		$this->db           = $db;
-		$this->rootFolder   = $rootFolder;
-		$this->urlGenerator = $urlGenerator;
 	}
 
 
@@ -72,6 +68,14 @@ class HashSearchProvider
 	): SearchResult {
 
 		$term = trim( $query->getTerm() );
+
+		$this->logger->debug(
+			'FCIAS HashSearchProvider: search called',
+			[
+				'app'  => Application::APP_ID,
+				'user' => $user->getUID(),
+			],
+		);
 
 		if ( $term === '' )
 		{

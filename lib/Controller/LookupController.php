@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Controller;
 
+use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\AppFramework\ApiController;
@@ -21,6 +22,7 @@ use OCP\IDBConnection;
 use OCP\IRequest;
 use OCP\IUserSession;
 use PDO;
+use Psr\Log\LoggerInterface;
 
 class LookupController
 	extends
@@ -34,6 +36,7 @@ class LookupController
 		private readonly HashIndexService $hashIndexService,
 		private readonly IRootFolder      $rootFolder,
 		private readonly IUserSession     $userSession,
+		private readonly LoggerInterface  $logger,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -54,6 +57,14 @@ class LookupController
 	): DataResponse {
 
 		$hash = trim( $hash );
+
+		$this->logger->debug(
+			'FCIAS LookupController: byHash called',
+			[
+				'app'  => Application::APP_ID,
+				'algo' => $algo,
+			],
+		);
 
 		if ( $hash === '' )
 		{
@@ -112,6 +123,14 @@ class LookupController
 	public function getHashesByFileId( int $fileId ): DataResponse
 	{
 
+		$this->logger->debug(
+			'FCIAS LookupController: getHashesByFileId called',
+			[
+				'app'    => Application::APP_ID,
+				'fileId' => $fileId,
+			],
+		);
+
 		$qb = $this->db->getQueryBuilder();
 
 		$qb->select( 'fileid', 'algo', 'hash_value' )
@@ -155,6 +174,14 @@ class LookupController
 	#[NoCSRFRequired]
 	public function sameHash( int $fileId ): DataResponse
 	{
+
+		$this->logger->debug(
+			'FCIAS LookupController: sameHash called',
+			[
+				'app'    => Application::APP_ID,
+				'fileId' => $fileId,
+			],
+		);
 
 		$table = TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES;
 		$qb    = $this->db->getQueryBuilder();
@@ -245,6 +272,15 @@ class LookupController
 	): DataResponse {
 
 		$algo ??= HashIndexService::getDefaultAlgo();
+
+		$this->logger->debug(
+			'FCIAS LookupController: recalcHash called',
+			[
+				'app'    => Application::APP_ID,
+				'fileId' => $fileId,
+				'algo'   => $algo,
+			],
+		);
 
 		$result = $this->hashIndexService->recalcHash( $fileId, $algo );
 

@@ -24,6 +24,7 @@ use OCP\IUserManager;
 use OCP\IUserSession;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class DuplicatesControllerTest
 	extends
@@ -40,6 +41,8 @@ class DuplicatesControllerTest
 
 	private MockObject|IUserManager     $userManager;
 
+	private MockObject|LoggerInterface  $logger;
+
 	private DuplicatesController        $controller;
 
 
@@ -54,6 +57,7 @@ class DuplicatesControllerTest
 		$this->groupManager     = $this->createMock( IGroupManager::class );
 		$this->userManager      = $this->createMock( IUserManager::class );
 		$request                = $this->createMock( IRequest::class );
+		$this->logger           = $this->createMock( LoggerInterface::class );
 
 		$this->controller = new DuplicatesController(
 			'file_checksum_search',
@@ -63,6 +67,7 @@ class DuplicatesControllerTest
 			$this->userSession,
 			$this->groupManager,
 			$this->userManager,
+			$this->logger,
 		);
 	}
 

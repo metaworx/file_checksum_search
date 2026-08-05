@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Controller;
 
+use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCP\AppFramework\ApiController;
 use OCP\AppFramework\Http;
@@ -22,6 +23,7 @@ use OCP\IGroupManager;
 use OCP\IRequest;
 use OCP\IUserManager;
 use OCP\IUserSession;
+use Psr\Log\LoggerInterface;
 
 class DuplicatesController
 	extends
@@ -36,6 +38,7 @@ class DuplicatesController
 		private readonly IUserSession     $userSession,
 		private readonly IGroupManager    $groupManager,
 		private readonly IUserManager     $userManager,
+		private readonly LoggerInterface  $logger,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -55,6 +58,17 @@ class DuplicatesController
 		int     $offset = 0,
 		?string $user = null,
 	): DataResponse {
+
+		$this->logger->debug(
+			'FCIAS DuplicatesController: findAll called',
+			[
+				'app'      => Application::APP_ID,
+				'algo'     => $algo,
+				'minCount' => $minCount,
+				'limit'    => $limit,
+				'offset'   => $offset,
+			],
+		);
 
 		$limit = max( 1, min( $limit, 500 ) );
 
@@ -108,12 +122,13 @@ class DuplicatesController
 		if ( empty( $groups ) )
 		{
 			return new DataResponse(
-				[ 'duplicates'   => [],
-				  'total_groups' => 0,
-				  'pagination'   => [
-					  'offset' => $offset,
-					  'limit'  => $limit,
-				  ],
+				[
+					'duplicates'   => [],
+					'total_groups' => 0,
+					'pagination'   => [
+						'offset' => $offset,
+						'limit'  => $limit,
+					],
 				],
 			);
 		}

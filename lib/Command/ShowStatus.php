@@ -9,8 +9,10 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Command;
 
+use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\StatusService;
 use OCA\FileChecksumSearch\Service\TriggerInitializationService;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -24,6 +26,7 @@ class ShowStatus
 	public function __construct(
 		private readonly StatusService                $statusService,
 		private readonly TriggerInitializationService $triggerInitService,
+		private readonly LoggerInterface              $logger,
 	) {
 
 		parent::__construct();
@@ -52,6 +55,11 @@ class ShowStatus
 	): int {
 
 		$outFmt = $input->getOption( 'output' );
+
+		$this->logger->info(
+			'FCIAS ShowStatus command: invoked',
+			[ 'app' => Application::APP_ID ],
+		);
 
 		if ( $outFmt === 'json' || $outFmt === 'json_pretty' )
 		{

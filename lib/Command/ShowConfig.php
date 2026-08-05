@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Command;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\IAppConfig;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -22,7 +23,8 @@ class ShowConfig
 {
 
 	public function __construct(
-		private readonly IAppConfig $appConfig,
+		private readonly IAppConfig      $appConfig,
+		private readonly LoggerInterface $logger,
 	) {
 
 		parent::__construct();
@@ -51,6 +53,11 @@ class ShowConfig
 	): int {
 
 		$outFmt = $input->getOption( 'output' );
+
+		$this->logger->info(
+			'FCIAS ShowConfig command: invoked',
+			[ 'app' => Application::APP_ID ],
+		);
 		$values = $this->appConfig->getAllValues( Application::APP_ID );
 
 		if ( $outFmt === 'json' || $outFmt === 'json_pretty' )

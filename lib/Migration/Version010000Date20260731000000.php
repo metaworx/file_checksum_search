@@ -94,10 +94,18 @@ class Version010000Date20260731000000
 		// waiting for the AppEnableEvent to fire.
 		$output->debug( 'FCIAS migration: deploying triggers via LifecycleHandler…' );
 		$logger = Server::get( LoggerInterface::class );
+
+		$logger->info(
+			'FCIAS Version010000Date20260731000000 migration: postSchemaChange running',
+			[
+				'app' => Application::APP_ID,
+			],
+		);
+
 		$logger->debug(
 			'FCIAS migration postSchemaChange: calling deployTriggers()',
 			[
-				'app'    => Application::APP_ID,
+				'app' => Application::APP_ID,
 			],
 		);
 
@@ -111,7 +119,7 @@ class Version010000Date20260731000000
 			$logger->debug(
 				'FCIAS migration postSchemaChange: deployTriggers() succeeded',
 				[
-					'app'    => Application::APP_ID,
+					'app' => Application::APP_ID,
 				],
 			);
 		}

@@ -9,10 +9,12 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Command;
 
+use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 use OCP\IUserManager;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -27,6 +29,7 @@ class FindDuplicates
 		private readonly HashIndexService $hashIndexService,
 		private readonly IDBConnection    $db,
 		private readonly IUserManager     $userManager,
+		private readonly LoggerInterface  $logger,
 	) {
 
 		parent::__construct();
@@ -92,7 +95,17 @@ class FindDuplicates
 		OutputInterface $output,
 	): int {
 
-		$algo     = $input->getOption( 'algo' );
+		$algo = $input->getOption( 'algo' );
+
+		$this->logger->info(
+			'FCIAS FindDuplicates command: invoked',
+			[
+				'app'      => Application::APP_ID,
+				'algo'     => $algo,
+				'minCount' => $input->getOption( 'min-count' ),
+				'limit'    => $input->getOption( 'limit' ),
+			],
+		);
 		$userName = $input->getOption( 'user' );
 		$minCount = (int) $input->getOption( 'min-count' );
 		$outFmt   = $input->getOption( 'output' );

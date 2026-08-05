@@ -17,6 +17,7 @@ use OCP\App\Events\AppDisableEvent;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\EventDispatcher\Event;
 use OCP\EventDispatcher\IEventListener;
+use Psr\Log\LoggerInterface;
 
 /**
  * @template-implements IEventListener<AppDisableEvent>
@@ -31,6 +32,7 @@ class AppDisableListener
 		private readonly LifecycleHandler             $lifecycleHandler,
 		private readonly TriggerInitializationService $triggerInitService,
 		private readonly CronJobService               $cronJobService,
+		private readonly LoggerInterface              $logger,
 	) {
 	}
 
@@ -55,6 +57,11 @@ class AppDisableListener
 		{
 			return;
 		}
+
+		$this->logger->info(
+			'FCIAS AppDisableListener: app disabling, cleaning up triggers and backing up cron jobs.',
+			[ 'app' => Application::APP_ID ],
+		);
 
 		$this->lifecycleHandler->stripTriggers();
 		$this->triggerInitService->markUndeployed( Application::APP_ID );
