@@ -10,7 +10,6 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Service;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
-use OCA\FileChecksumSearch\Migration\LifecycleHandler;
 use OCP\Files\File;
 use OCP\IDBConnection;
 use OCP\IUserManager;
@@ -25,10 +24,10 @@ use Throwable;
  * - HashCalculationService (hash computation, recalculation)
  * - PendingQueueService (deferred update queue)
  * - DuplicateService (duplicate detection, hash lookup, path resolution)
- * - FileOperationService (hash row CRUD, filecache checksum copy)
+ * - MetadataService (metadata queries and index management)
+ * - FilecacheService (filecache operations)
  *
- * Directly handles: index lifecycle (rebuild/purge/teardown/deploy/create/remove),
- * user resolution, pending drain orchestration.
+ * Directly handles: user resolution, pending drain orchestration.
  */
 class HashIndexService
 {
@@ -57,9 +56,6 @@ class HashIndexService
 
 
 	public function __construct(
-		private readonly IDBConnection          $db,
-		private readonly TableNameService       $tables,
-		private readonly LifecycleHandler       $lifecycleHandler,
 		private readonly HashCalculationService $hashCalc,
 		private readonly PendingQueueService    $pendingQueue,
 		private readonly DuplicateService       $duplicates,
@@ -68,216 +64,6 @@ class HashIndexService
 		private readonly IUserManager           $userManager,
 		private readonly LoggerInterface        $logger,
 	) {
-	}
-
-
-	/**
-	 * Rebuild the checksum hash index from filecache checksums.
-	 *
-	 * @return array{total: int, processed: int}
-	 */
-	public function rebuildIndex( ?OutputInterface $output = null ): array
-	{
-
-		$spName    = $this->tables->getSpName();
-		$hashTable = $this->tables->getHashTableName();
-		$fcTable   = $this->tables->getFilecacheTableName();
-
-		$output?->writeln( '  Deleting orphaned index entries …' );
-		$this->logger->debug(
-			'FCIAS: rebuildIndex deleting orphaned index entries.',
-			[ 'app' => Application::APP_ID ],
-		);
-
-		$deleted = $this->db->executeStatement(
-			"DELETE FROM `{$hashTable}` WHERE `fileid` NOT IN (SELECT `fileid` FROM `{$fcTable}` WHERE `checksum` IS NOT NULL AND `checksum` != '')",
-		);
-
-		if ( $deleted > 0 )
-		{
-			$output?->writeln( sprintf( '  Deleted %d orphaned index entries.', $deleted ) );
-			$this->logger->debug(
-				'FCIAS: rebuildIndex cleaned up orphaned entries',
-				[
-					'app'     => Application::APP_ID,
-					'deleted' => $deleted,
-				],
-			);
-		}
-
-		$countQb = $this->db->getQueryBuilder();
-		$countQb->select(
-			$countQb->func()
-			        ->count( '*', 'total' ),
-		)
-		        ->from( 'filecache' )
-		        ->where(
-			        $countQb->expr()
-			                ->isNotNull( 'checksum' ),
-			        $countQb->expr()
-			                ->neq( 'checksum', $countQb->createNamedParameter( '' ) ),
-		        )
-		;
-		$total = (int) $countQb->executeQuery()
-		                       ->fetchOne()
-		;
-
-		$selectQb = $this->db->getQueryBuilder();
-		$selectQb->select( 'fileid', 'checksum' )
-		         ->from( 'filecache' )
-		         ->where(
-			         $selectQb->expr()
-			                  ->isNotNull( 'checksum' ),
-			         $selectQb->expr()
-			                  ->neq( 'checksum', $selectQb->createNamedParameter( '' ) ),
-		         )
-		;
-
-		$rows      = $selectQb->executeQuery();
-		$processed = 0;
-		$statement = $this->db->prepare( "CALL `{$spName}`(?, ?)" );
-
-		$output?->writeln( sprintf( '  Processing %d files …', $total ) );
-		$this->logger->debug(
-			'FCIAS: rebuildIndex processing filecache entries.',
-			[
-				'app'   => Application::APP_ID,
-				'total' => $total,
-			],
-		);
-
-		while ( ( $row = $rows->fetch() ) !== false )
-		{
-			$statement->execute(
-				[
-					(int) $row['fileid'],
-					$row['checksum'],
-				],
-			);
-			$processed ++;
-
-			if ( $processed % 1000 === 0 )
-			{
-				$output?->writeln( sprintf( '  %d / %d files processed …', $processed, $total ) );
-
-				$this->logger->debug(
-					'FCIAS: rebuildIndex processing filecache entries.',
-					[
-						'app'       => Application::APP_ID,
-						'total'     => $total,
-						'processed' => $processed,
-					],
-				);
-			}
-		}
-		$rows->closeCursor();
-
-		$this->logger->debug(
-			'FCIAS: rebuildIndex completed',
-			[
-				'app'       => Application::APP_ID,
-				'total'     => $total,
-				'processed' => $processed,
-			],
-		);
-
-		return [
-			'total'     => $total,
-			'processed' => $processed,
-		];
-	}
-
-
-	/**
-	 * Truncate the checksum hash index table.
-	 *
-	 * @return array{before: int, after: int}
-	 */
-	public function purgeIndex(): array
-	{
-
-		$hashTable = $this->tables->getHashTableName();
-
-		$before = (int) $this->db->executeQuery( "SELECT COUNT(*) FROM `{$hashTable}`" )
-		                         ->fetchOne()
-		;
-		$this->db->executeStatement( "TRUNCATE TABLE `{$hashTable}`" );
-		$after = (int) $this->db->executeQuery( "SELECT COUNT(*) FROM `{$hashTable}`" )
-		                        ->fetchOne()
-		;
-
-		$this->logger->debug(
-			'FCIAS: purgeIndex completed',
-			[
-				'app'    => Application::APP_ID,
-				'before' => $before,
-				'after'  => $after,
-			],
-		);
-
-		return [
-			'before' => $before,
-			'after'  => $after,
-		];
-	}
-
-
-	/**
-	 * Remove SP + triggers, preserve shadow table and data.
-	 */
-	public function teardownTriggers(): void
-	{
-
-		$this->lifecycleHandler->stripTriggers();
-
-		$this->logger->debug(
-			'FCIAS: teardownTriggers completed',
-			[ 'app' => Application::APP_ID ],
-		);
-	}
-
-
-	public function removeTable(): void
-	{
-
-		$this->lifecycleHandler->purgeShadowTable();
-
-		$this->logger->debug(
-			'FCIAS: removeTable completed',
-			[ 'app' => Application::APP_ID ],
-		);
-	}
-
-
-	/**
-	 * Deploy SP + 3 triggers. Idempotent — uses DROP IF EXISTS
-	 * before CREATE, so it is safe to call even when triggers
-	 * already exist.
-	 */
-	public function deployTriggers(): void
-	{
-
-		$this->lifecycleHandler->deployTriggers();
-
-		$this->logger->debug(
-			'FCIAS: deployTriggers completed',
-			[ 'app' => Application::APP_ID ],
-		);
-	}
-
-
-	/**
-	 * Create both shadow tables if they do not exist.
-	 */
-	public function createTable(): void
-	{
-
-		$this->lifecycleHandler->createTables();
-
-		$this->logger->debug(
-			'FCIAS: createTable completed',
-			[ 'app' => Application::APP_ID ],
-		);
 	}
 
 

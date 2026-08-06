@@ -41,8 +41,8 @@ class LifecycleHandler
 
 		$this->prefix    = $this->tables->getPrefix();
 		$this->fcTable   = $this->tables->getFilecacheTableName();
-		$this->hashTable = $this->tables->getHashTableName();
-		$this->spName    = $this->tables->getSpName();
+		$this->hashTable = $this->prefix . 'file_checksum_search_hashes';
+		$this->spName    = $this->prefix . 'fcias_parse_file_hashes';
 	}
 
 
@@ -203,7 +203,7 @@ SQL,
 
 		$this->stripTriggers();
 
-		$pendingTable = $this->tables->getPendingTableName();
+		$pendingTable = $this->prefix . 'file_checksum_search_pending';
 
 		$this->logger->warning(
 			'FCIAS: dropping tables',
@@ -227,7 +227,7 @@ SQL,
 	public function createTables(): void
 	{
 
-		$pendingTable = $this->tables->getPendingTableName();
+		$pendingTable = $this->prefix . 'file_checksum_search_pending';
 
 		$this->db->executeStatement(
 			<<<SQL

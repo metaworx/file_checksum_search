@@ -514,8 +514,8 @@ class MetadataService
 			   'file_ids',
 		   )
 		   ->selectAlias(
-			   $qb->createFunction( 'ANY_VALUE(m.' . self::FIELD_JSON . ')' ),
-			   self::FIELD_JSON_ALIAS,
+		    $qb->createFunction( 'MAX(m.' . self::FIELD_JSON . ')' ),
+		    self::FIELD_JSON_ALIAS,
 		   )
 		   ->from( self::TABLE_FILES_METADATA_INDEX, 'i' )
 		   ->innerJoin(

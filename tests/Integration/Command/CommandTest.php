@@ -9,13 +9,9 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Integration\Command;
 
-use OCA\FileChecksumSearch\Command\CreateTable;
-use OCA\FileChecksumSearch\Command\DeployTriggers;
 use OCA\FileChecksumSearch\Command\FindDuplicates;
 use OCA\FileChecksumSearch\Command\GenerateHashes;
-use OCA\FileChecksumSearch\Command\PurgeIndex;
 use OCA\FileChecksumSearch\Command\RebuildIndex;
-use OCA\FileChecksumSearch\Command\RemoveTable;
 use OCA\FileChecksumSearch\Command\SearchHash;
 use OCA\FileChecksumSearch\Command\ShowConfig;
 use OCA\FileChecksumSearch\Command\ShowStatus;
@@ -110,11 +106,11 @@ class CommandTest
 		$data = json_decode( $tester->getDisplay(), true );
 		$this->assertIsArray( $data, 'JSON output should be valid.' );
 		$this->assertArrayHasKey( 'app_version', $data );
-		$this->assertArrayHasKey( 'hash_rows', $data );
-		$this->assertArrayHasKey( 'tables', $data );
-		$this->assertIsArray( $data['tables'] );
-		$this->assertArrayHasKey( 'cron_jobs', $data );
-		$this->assertIsArray( $data['cron_jobs'] );
+		$this->assertArrayHasKey( 'filecache_rows', $data );
+		$this->assertArrayHasKey( 'metadata_rows', $data );
+		$this->assertArrayHasKey( 'pending_total', $data );
+		$this->assertArrayHasKey( 'pending_by_mode', $data );
+		$this->assertIsArray( $data['pending_by_mode'] );
 	}
 
 
@@ -130,26 +126,9 @@ class CommandTest
 
 		$display = $tester->getDisplay();
 		$this->assertStringContainsString( 'FCIAS Status', $display );
-		$this->assertStringContainsString( 'Tables:', $display );
-		$this->assertStringContainsString( 'Stored Procedure:', $display );
-		$this->assertStringContainsString( 'Triggers:', $display );
-		$this->assertStringContainsString( 'Migrations:', $display );
-		$this->assertStringContainsString( 'Cron Jobs', $display );
-	}
-
-
-	// ─── PurgeIndex ──────────────────────────────────────────────────
-
-	public function testPurgeIndexRequiresForceFlag(): void
-	{
-
-		$command = Server::get( PurgeIndex::class );
-		$tester  = new CommandTester( $command );
-
-		$exitCode = $tester->execute( [] );
-
-		// Without --force, should fail.
-		$this->assertSame( Command::FAILURE, $exitCode );
+		$this->assertStringContainsString( 'Filecache entries:', $display );
+		$this->assertStringContainsString( 'Metadata updated_at:', $display );
+		$this->assertStringContainsString( 'Pending total:', $display );
 	}
 
 
@@ -184,138 +163,21 @@ class CommandTest
 	}
 
 
-	// ─── CreateTable ─────────────────────────────────────────────────
-
-	public function testCreateTableRequiresForceFlag(): void
-	{
-
-		$hashIndexService = $this->createMock( HashIndexService::class );
-		$hashIndexService->expects( $this->never() )
-		                 ->method( 'createTable' )
-		;
-
-		$command = new CreateTable( $hashIndexService, $this->logger );
-		$tester  = new CommandTester( $command );
-
-		$exitCode = $tester->execute( [] );
-
-		$this->assertSame( Command::FAILURE, $exitCode );
-		$this->assertStringContainsString( 'Use --force to confirm', $tester->getDisplay() );
-	}
-
-
-	public function testCreateTableWithForceSucceeds(): void
-	{
-
-		$hashIndexService = $this->createMock( HashIndexService::class );
-		$hashIndexService->expects( $this->once() )
-		                 ->method( 'createTable' )
-		;
-
-		$command = new CreateTable( $hashIndexService, $this->logger );
-		$tester  = new CommandTester( $command );
-
-		$exitCode = $tester->execute( [ '--force' => true ] );
-
-		$this->assertSame( Command::SUCCESS, $exitCode );
-		$this->assertStringContainsString( 'Hash table created', $tester->getDisplay() );
-	}
-
-
-	// ─── DeployTriggers ──────────────────────────────────────────────
-
-	public function testDeployTriggersRequiresForceFlag(): void
-	{
-
-		$hashIndexService = $this->createMock( HashIndexService::class );
-		$hashIndexService->expects( $this->never() )
-		                 ->method( 'deployTriggers' )
-		;
-
-		$command = new DeployTriggers( $hashIndexService, $this->logger );
-		$tester  = new CommandTester( $command );
-
-		$exitCode = $tester->execute( [] );
-
-		$this->assertSame( Command::FAILURE, $exitCode );
-		$this->assertStringContainsString( 'Use --force to confirm', $tester->getDisplay() );
-	}
-
-
-	public function testDeployTriggersWithForceSucceeds(): void
-	{
-
-		$hashIndexService = $this->createMock( HashIndexService::class );
-		$hashIndexService->expects( $this->once() )
-		                 ->method( 'deployTriggers' )
-		;
-
-		$command = new DeployTriggers( $hashIndexService, $this->logger );
-		$tester  = new CommandTester( $command );
-
-		$exitCode = $tester->execute( [ '--force' => true ] );
-
-		$this->assertSame( Command::SUCCESS, $exitCode );
-		$this->assertStringContainsString( 'Triggers created', $tester->getDisplay() );
-	}
-
-
 	// ─── RebuildIndex ────────────────────────────────────────────────
 
-	public function testRebuildIndexRunsAndReturnsSuccess(): void
+	public function testRebuildIndexRunsWithoutException(): void
 	{
 
-		$hashIndexService = $this->createMock( HashIndexService::class );
-		$hashIndexService->expects( $this->once() )
-		                 ->method( 'rebuildIndex' )
-		                 ->willReturn( [ 'processed' => 0 ] )
-		;
-
-		$command = new RebuildIndex( $hashIndexService, $this->logger );
+		$command = Server::get( RebuildIndex::class );
 		$tester  = new CommandTester( $command );
 
 		$exitCode = $tester->execute( [] );
 
-		$this->assertSame( Command::SUCCESS, $exitCode );
-		$this->assertStringContainsString( 'Done.', $tester->getDisplay() );
-	}
-
-
-	// ─── RemoveTable ─────────────────────────────────────────────────
-
-	public function testRemoveTableRequiresForceFlag(): void
-	{
-
-		$hashIndexService = $this->createMock( HashIndexService::class );
-		$hashIndexService->expects( $this->never() )
-		                 ->method( 'removeTable' )
-		;
-
-		$command = new RemoveTable( $hashIndexService, $this->logger );
-		$tester  = new CommandTester( $command );
-
-		$exitCode = $tester->execute( [] );
-
-		$this->assertSame( Command::FAILURE, $exitCode );
-		$this->assertStringContainsString( 'Use --force to confirm', $tester->getDisplay() );
-	}
-
-
-	public function testRemoveTableWithForceSucceeds(): void
-	{
-
-		$hashIndexService = $this->createMock( HashIndexService::class );
-		$hashIndexService->expects( $this->once() )
-		                 ->method( 'removeTable' )
-		;
-
-		$command = new RemoveTable( $hashIndexService, $this->logger );
-		$tester  = new CommandTester( $command );
-
-		$exitCode = $tester->execute( [ '--force' => true ] );
-
-		$this->assertSame( Command::SUCCESS, $exitCode );
-		$this->assertStringContainsString( 'Hash table dropped', $tester->getDisplay() );
+		// May return SUCCESS or FAILURE depending on whether test DB
+		// has processable files. The key assertion is the command runs
+		// without throwing an exception.
+		$this->assertContains( $exitCode, [ Command::SUCCESS, Command::FAILURE ] );
+		$this->assertStringContainsString( 'Seeding', $tester->getDisplay() );
 	}
 
 

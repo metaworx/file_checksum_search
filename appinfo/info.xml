@@ -39,9 +39,6 @@
 		<command>OCA\FileChecksumSearch\Command\TestPerformance</command>
 		<command>OCA\FileChecksumSearch\Command\ShowStatus</command>
 		<command>OCA\FileChecksumSearch\Command\ShowConfig</command>
-		<command>OCA\FileChecksumSearch\Command\PurgeIndex</command>
-		<command>OCA\FileChecksumSearch\Command\Teardown</command>
-		<command>OCA\FileChecksumSearch\Command\RemoveTable</command>
 		<command>OCA\FileChecksumSearch\Command\FindDuplicates</command>
 	</commands>
 </info>

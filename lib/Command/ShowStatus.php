@@ -10,9 +10,9 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Command;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
-use OCA\FileChecksumSearch\Service\CronJobService;
-use OCA\FileChecksumSearch\Service\StatusService;
-use OCA\FileChecksumSearch\Service\TriggerInitializationService;
+use OCA\FileChecksumSearch\Service\MetadataService;
+use OCP\IAppConfig;
+use OCP\IDBConnection;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -28,15 +28,14 @@ class ShowStatus
 {
 
 	public function __construct(
-		private readonly StatusService                $statusService,
-		private readonly TriggerInitializationService $triggerInitService,
-		private readonly CronJobService               $cronJobService,
-		private readonly LoggerInterface              $logger,
+		private readonly IDBConnection    $db,
+		private readonly MetadataService  $metadataService,
+		private readonly IAppConfig       $appConfig,
+		private readonly LoggerInterface  $logger,
 	) {
 
 		parent::__construct();
 	}
-
 
 	/**
 	 * Configure the status command.
@@ -47,7 +46,7 @@ class ShowStatus
 	{
 
 		$this->setName( 'file-checksum-search:status' )
-		     ->setDescription( 'Display FCIAS app status and compatibility information' )
+		     ->setDescription( 'Display FCIAS app status and metadata index statistics' )
 		     ->addOption(
 			     'output',
 			     'o',
@@ -57,7 +56,6 @@ class ShowStatus
 		     )
 		;
 	}
-
 
 	/**
 	 * Execute the status command.
@@ -76,21 +74,22 @@ class ShowStatus
 			[ 'app' => Application::APP_ID ],
 		);
 
+		$appVersion     = $this->getAppVersion();
+		$filecacheCount = $this->getFilecacheCount();
+		$metadataCount  = $this->getMetadataCount();
+		$pendingStats   = $this->metadataService->getPendingStats();
+		$totalPending   = array_sum( $pendingStats );
+
 		if ( $outFmt === 'json' || $outFmt === 'json_pretty' )
 		{
 			$output->writeln(
 				json_encode(
 					[
-						'app_version'       => $this->statusService->getAppVersion(),
-						'db_version'        => $this->statusService->getDbVersion( $output ),
-						'trigger_privilege' => $this->triggerInitService->checkTriggerPrivilege(),
-						'hash_rows'         => $this->statusService->getHashRowCount( $output ),
-						'pending_rows'      => $this->statusService->getPendingRowCount( $output ),
-						'tables'            => $this->statusService->getTableStatus( $output ),
-						'stored_procedure'  => $this->statusService->getProcedureStatus( $output ),
-						'triggers'          => $this->statusService->getTriggerStatus( $output ),
-						'migrations'        => $this->statusService->getMigrationStatus( $output ),
-						'cron_jobs'         => $this->cronJobService->listDefinitions(),
+						'app_version'      => $appVersion,
+						'filecache_rows'   => $filecacheCount,
+						'metadata_rows'    => $metadataCount,
+						'pending_total'    => $totalPending,
+						'pending_by_mode'  => $pendingStats,
 					],
 					$outFmt === 'json_pretty'
 						? JSON_PRETTY_PRINT
@@ -104,127 +103,74 @@ class ShowStatus
 		$output->writeln( '=== FCIAS Status ===' );
 		$output->writeln( '' );
 
-		$output->writeln( sprintf( 'App version:     %s', $this->statusService->getAppVersion() ) );
+		$output->writeln( sprintf( 'App version:            %s', $appVersion ) );
+		$output->writeln( sprintf( 'Filecache entries:      %d', $filecacheCount ) );
+		$output->writeln( sprintf( 'Metadata updated_at:    %d', $metadataCount ) );
+		$output->writeln( sprintf( 'Pending total:          %d', $totalPending ) );
 
-		$output->writeln( sprintf( 'MariaDB version: %s', $this->statusService->getDbVersion( $output ) ) );
-
-		$hasTrigger = $this->triggerInitService->checkTriggerPrivilege();
-		$output->writeln(
-			sprintf(
-				'TRIGGER priv:    %s',
-				$hasTrigger
-					? 'OK'
-					: 'MISSING',
-			),
-		);
-
-		$output->writeln( sprintf( 'Hash rows:       %d', $this->statusService->getHashRowCount( $output ) ) );
-		$output->writeln( sprintf( 'Pending rows:    %d', $this->statusService->getPendingRowCount( $output ) ) );
-
-		$output->writeln( '' );
-		$output->writeln( 'Tables:' );
-
-		foreach ( $this->statusService->getTableStatus( $output ) as $table )
+		if ( ! empty( $pendingStats ) )
 		{
-			$output->writeln(
-				sprintf(
-					'  %-45s %s',
-					$table['name'],
-					$table['ok']
-						? 'OK'
-						: 'MISSING',
-				),
-			);
-		}
+			$output->writeln( '' );
+			$output->writeln( 'Pending by mode:' );
 
-		$output->writeln( '' );
-		$output->writeln( 'Stored Procedure:' );
-
-		$sp = $this->statusService->getProcedureStatus( $output );
-		$output->writeln(
-			sprintf(
-				'  %-45s %s',
-				$sp['name'],
-				$sp['ok']
-					? 'OK'
-					: 'MISSING',
-			),
-		);
-
-		$output->writeln( '' );
-		$output->writeln( 'Triggers:' );
-
-		foreach ( $this->statusService->getTriggerStatus( $output ) as $trigger )
-		{
-			$output->writeln(
-				sprintf(
-					'  %-45s %s',
-					$trigger['name'],
-					$trigger['ok']
-						? 'OK'
-						: 'MISSING',
-				),
-			);
-		}
-
-		$output->writeln( '' );
-		$output->writeln( 'Migrations:' );
-
-		foreach ( $this->statusService->getMigrationStatus( $output ) as $migration )
-		{
-			$output->writeln(
-				sprintf(
-					'  %-45s %s',
-					$migration['name'],
-					$migration['ok']
-						? 'OK'
-						: 'MISSING',
-				),
-			);
-		}
-
-		$cronJobs = $this->cronJobService->listDefinitions();
-
-		$output->writeln( '' );
-		$output->writeln(
-			sprintf(
-				'Cron Jobs (%d CronGenerateHashes definition%s):',
-				count( $cronJobs ),
-				count( $cronJobs ) === 1
-					? ''
-					: 's',
-			),
-		);
-
-		if ( empty( $cronJobs ) )
-		{
-			$output->writeln( '  (none)' );
-		}
-		else
-		{
-			foreach ( $cronJobs as $job )
+			foreach ( $pendingStats as $mode => $count )
 			{
-				$enabled = ! empty( $job['enabled'] );
 				$output->writeln(
-					sprintf(
-						'  %-45s %s (path=%s)',
-						sprintf(
-							'#%s %s/%s/%ds',
-							$job['id'] ?? '?',
-							$job['userScope'] ?? '?',
-							$job['algo'] ?? '?',
-							(int) ( $job['interval'] ?? 0 ),
-						),
-						$enabled
-							? 'enabled'
-							: 'disabled',
-						$job['path'] ?? '?',
-					),
+					sprintf( '  %-25s %d', $mode, $count ),
 				);
 			}
 		}
 
 		return Command::SUCCESS;
+	}
+
+	private function getAppVersion(): string
+	{
+
+		return $this->appConfig->getValueString(
+			Application::APP_ID,
+			'installed_version',
+			'unknown',
+		);
+	}
+
+	private function getFilecacheCount(): int
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select(
+			$qb->func()
+			   ->count( '*', 'cnt' ),
+		)
+		   ->from( 'filecache' )
+		;
+
+		return (int) $qb->executeQuery()
+		                ->fetchOne()
+		;
+	}
+
+	private function getMetadataCount(): int
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select(
+			$qb->func()
+			   ->count( '*', 'cnt' ),
+		)
+		   ->from( MetadataService::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq(
+				      MetadataService::FIELD_META_KEY,
+				      $qb->createNamedParameter( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ),
+			      ),
+		   )
+		;
+
+		return (int) $qb->executeQuery()
+		                ->fetchOne()
+		;
 	}
 
 }
