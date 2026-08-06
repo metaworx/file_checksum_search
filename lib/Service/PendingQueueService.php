@@ -49,7 +49,7 @@ class PendingQueueService
 
 		$qb = $this->db->getQueryBuilder();
 
-		$qb->insert( $this->tables->getPendingTableName() )
+		$qb->insert( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_PENDING )
 		   ->values( [
 			   'fileid'     => $qb->createNamedParameter( $fileId, PDO::PARAM_INT ),
 			   'created_at' => $qb->createNamedParameter( time(), PDO::PARAM_INT ),
@@ -140,7 +140,7 @@ class PendingQueueService
 				$qb->func()
 				   ->count( '*', 'cnt' ),
 			)
-			   ->from( $this->tables->getPendingTableName() )
+			   ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_PENDING )
 			;
 
 			return (int) $qb->executeQuery()

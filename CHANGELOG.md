@@ -14,6 +14,7 @@ the first stable release.
 ### Added
 
 - Add cron job definitions to the file-checksum-search:status output in both plain-text and JSON formats.
+- Add integration tests covering the full pending-queue drain pipeline and fix a double-prefix bug in PendingQueueService that produced an invalid table name (oc_oc_file_checksum_search_pending).
 
 ## [0.6.1] — 2026-08-05
 
