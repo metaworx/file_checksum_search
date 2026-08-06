@@ -25,7 +25,8 @@ use Psr\Log\LoggerInterface;
 use Throwable;
 
 /**
- * Reacts to Nextcloud filesystem events to maintain the checksum hash index.
+ * Reacts to Nextcloud filesystem events by marking files as pending
+ * for deferred hash processing by ProcessPendingUpdates.
  *
  * Registered via IRegistrationContext::registerEventListener() in Application::register().
  *
@@ -98,7 +99,7 @@ class FileListener
 		$this->metadataService->markPending( $target->getId(), 'pending:lazy' );
 
 		$this->logger->debug(
-			'FCIAS FileListener: copied hashes for copied file',
+			'FCIAS FileListener: copied checksum and marked pending for copied file',
 			[
 				'app'      => Application::APP_ID,
 				'sourceId' => $source->getId(),
@@ -132,40 +133,25 @@ class FileListener
 			break;
 
 		case 'force':
-			$result = $this->hashIndexService->recalcAllExistingAlgos( $fileId );
+			$this->metadataService->clearMetadata( $fileId );
+			$this->metadataService->markPending( $fileId, 'pending:force' );
 
-			if ( $result['locked'] ?? false )
-			{
-				$this->hashIndexService->deleteHashes( $fileId );
-				$this->metadataService->markPending( $fileId, 'pending:lazy' );
-
-				$this->logger->debug(
-					'FCIAS FileListener: file locked, queued for delayed retry on write',
-					[
-						'app'    => Application::APP_ID,
-						'fileId' => $fileId,
-					],
-				);
-			}
-			else
-			{
-				$this->logger->debug(
-					'FCIAS FileListener: force-recalculated hashes on write',
-					[
-						'app'    => Application::APP_ID,
-						'fileId' => $fileId,
-					],
-				);
-			}
+			$this->logger->debug(
+				'FCIAS FileListener: force-cleared + queued on write',
+				[
+					'app'    => Application::APP_ID,
+					'fileId' => $fileId,
+				],
+			);
 
 			break;
 
 		case 'lazy':
-			$this->hashIndexService->deleteHashes( $fileId );
+			$this->metadataService->clearMetadata( $fileId );
 			$this->metadataService->markPending( $fileId, 'pending:lazy' );
 
 			$this->logger->debug(
-				'FCIAS FileListener: lazy-deleted hashes + queued on write',
+				'FCIAS FileListener: lazy-cleared + queued on write',
 				[
 					'app'    => Application::APP_ID,
 					'fileId' => $fileId,
@@ -175,12 +161,12 @@ class FileListener
 			break;
 
 		case 'auto':
-			if ( $this->hashIndexService->countHashes( $fileId ) > 0 )
+			if ( $this->metadataService->countByFileId( $fileId ) > 0 )
 			{
-				$this->hashIndexService->recalcAllExistingAlgos( $fileId );
+				$this->metadataService->markPending( $fileId, 'pending:auto' );
 
 				$this->logger->debug(
-					'FCIAS FileListener: auto-recalculated hashes on write',
+					'FCIAS FileListener: auto-queued on write',
 					[
 						'app'    => Application::APP_ID,
 						'fileId' => $fileId,
@@ -217,33 +203,16 @@ class FileListener
 			break;
 
 		case 'force':
-			$result = $this->hashIndexService->recalcFileHash(
-				$node,
-				HashIndexService::getDefaultAlgo(),
+			$this->metadataService->clearMetadata( $fileId );
+			$this->metadataService->markPending( $fileId, 'pending:force' );
+
+			$this->logger->debug(
+				'FCIAS FileListener: force-cleared + queued on create',
+				[
+					'app'    => Application::APP_ID,
+					'fileId' => $fileId,
+				],
 			);
-
-			if ( $result['locked'] ?? false )
-			{
-				$this->metadataService->markPending( $fileId, 'pending:lazy' );
-
-				$this->logger->debug(
-					'FCIAS FileListener: file locked, queued for delayed retry on create',
-					[
-						'app'    => Application::APP_ID,
-						'fileId' => $fileId,
-					],
-				);
-			}
-			else
-			{
-				$this->logger->debug(
-					'FCIAS FileListener: force-hashed default algo on create',
-					[
-						'app'    => Application::APP_ID,
-						'fileId' => $fileId,
-					],
-				);
-			}
 
 			break;
 
@@ -283,10 +252,10 @@ class FileListener
 		{
 			$fileId = $node->getId();
 
-			$this->hashIndexService->deleteHashes( $fileId );
+			$this->metadataService->clearMetadata( $fileId );
 
 			$this->logger->debug(
-				'FCIAS FileListener: deleted hashes on file delete',
+				'FCIAS FileListener: cleared metadata on file delete',
 				[
 					'app'    => Application::APP_ID,
 					'fileId' => $fileId,

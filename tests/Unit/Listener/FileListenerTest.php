@@ -11,7 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Listener;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Listener\FileListener;
-use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCP\Files\Events\Node\NodeCopiedEvent;
 use OCP\Files\Events\Node\NodeCreatedEvent;
@@ -28,7 +28,7 @@ class FileListenerTest
 	TestCase
 {
 
-	private MockObject|HashIndexService $hashIndexService;
+	private MockObject|FilecacheService $filecacheService;
 
 	private MockObject|MetadataService  $metadataService;
 
@@ -44,13 +44,13 @@ class FileListenerTest
 
 		parent::setUp();
 
-		$this->hashIndexService = $this->createMock( HashIndexService::class );
+		$this->filecacheService = $this->createMock( FilecacheService::class );
 		$this->metadataService  = $this->createMock( MetadataService::class );
 		$this->appConfig        = $this->createMock( IAppConfig::class );
 		$this->logger           = $this->createMock( LoggerInterface::class );
 
 		$this->listener = new FileListener(
-			$this->hashIndexService,
+			$this->filecacheService,
 			$this->metadataService,
 			$this->appConfig,
 			$this->logger,
@@ -58,7 +58,7 @@ class FileListenerTest
 	}
 
 
-	public function testOnCopyCopiesHashesAndChecksum(): void
+	public function testOnCopyCopiesChecksumAndMarksPending(): void
 	{
 
 		$source = $this->createMock( File::class );
@@ -73,9 +73,14 @@ class FileListenerTest
 
 		$event = new NodeCopiedEvent( $source, $target );
 
-		$this->hashIndexService->expects( $this->once() )
+		$this->filecacheService->expects( $this->once() )
 		                       ->method( 'copyFilecacheChecksum' )
 		                       ->with( $source, $target )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 2, 'pending:lazy' )
 		;
 
 		$this->listener->handle( $event );
@@ -90,15 +95,19 @@ class FileListenerTest
 
 		$event = new NodeCopiedEvent( $source, $target );
 
-		$this->hashIndexService->expects( $this->never() )
+		$this->filecacheService->expects( $this->never() )
 		                       ->method( 'copyFilecacheChecksum' )
+		;
+
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'markPending' )
 		;
 
 		$this->listener->handle( $event );
 	}
 
 
-	public function testOnWriteForceRecalcsAllAlgos(): void
+	public function testOnWriteForceClearsAndMarksPending(): void
 	{
 
 		$file = $this->createMock( File::class );
@@ -113,16 +122,21 @@ class FileListenerTest
 		                ->willReturn( 'force' )
 		;
 
-		$this->hashIndexService->expects( $this->once() )
-		                       ->method( 'recalcAllExistingAlgos' )
-		                       ->with( 42 )
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'clearMetadata' )
+		                      ->with( 42 )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 42, 'pending:force' )
 		;
 
 		$this->listener->handle( $event );
 	}
 
 
-	public function testOnWriteLazyDeletesAndQueues(): void
+	public function testOnWriteLazyClearsAndMarksPending(): void
 	{
 
 		$file = $this->createMock( File::class );
@@ -138,6 +152,11 @@ class FileListenerTest
 		;
 
 		$this->metadataService->expects( $this->once() )
+		                      ->method( 'clearMetadata' )
+		                      ->with( 42 )
+		;
+
+		$this->metadataService->expects( $this->once() )
 		                      ->method( 'markPending' )
 		                      ->with( 42, 'pending:lazy' )
 		;
@@ -146,7 +165,7 @@ class FileListenerTest
 	}
 
 
-	public function testOnWriteAutoRecalcsIfHashExists(): void
+	public function testOnWriteAutoMarksPendingIfHashExists(): void
 	{
 
 		$file = $this->createMock( File::class );
@@ -161,14 +180,14 @@ class FileListenerTest
 		                ->willReturn( 'auto' )
 		;
 
-		$this->hashIndexService->method( 'countHashes' )
-		                       ->with( 42 )
-		                       ->willReturn( 3 )
+		$this->metadataService->method( 'countByFileId' )
+		                      ->with( 42 )
+		                      ->willReturn( 3 )
 		;
 
-		$this->hashIndexService->expects( $this->once() )
-		                       ->method( 'recalcAllExistingAlgos' )
-		                       ->with( 42 )
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 42, 'pending:auto' )
 		;
 
 		$this->listener->handle( $event );
@@ -190,13 +209,13 @@ class FileListenerTest
 		                ->willReturn( 'auto' )
 		;
 
-		$this->hashIndexService->method( 'countHashes' )
-		                       ->with( 42 )
-		                       ->willReturn( 0 )
+		$this->metadataService->method( 'countByFileId' )
+		                      ->with( 42 )
+		                      ->willReturn( 0 )
 		;
 
-		$this->hashIndexService->expects( $this->never() )
-		                       ->method( 'recalcAllExistingAlgos' )
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'markPending' )
 		;
 
 		$this->listener->handle( $event );
@@ -218,15 +237,19 @@ class FileListenerTest
 		                ->willReturn( 'off' )
 		;
 
-		$this->hashIndexService->expects( $this->never() )
-		                       ->method( 'recalcAllExistingAlgos' )
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'clearMetadata' )
+		;
+
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'markPending' )
 		;
 
 		$this->listener->handle( $event );
 	}
 
 
-	public function testOnCreateForceRecalcsDefaultAlgo(): void
+	public function testOnCreateForceClearsAndMarksPending(): void
 	{
 
 		$file = $this->createMock( File::class );
@@ -241,16 +264,21 @@ class FileListenerTest
 		                ->willReturn( 'force' )
 		;
 
-		$this->hashIndexService->expects( $this->once() )
-		                       ->method( 'recalcFileHash' )
-		                       ->with( $file, HashIndexService::getDefaultAlgo() )
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'clearMetadata' )
+		                      ->with( 42 )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 42, 'pending:force' )
 		;
 
 		$this->listener->handle( $event );
 	}
 
 
-	public function testOnCreateLazyQueues(): void
+	public function testOnCreateLazyMarksPending(): void
 	{
 
 		$file = $this->createMock( File::class );
@@ -289,8 +317,8 @@ class FileListenerTest
 		                ->willReturn( 'off' )
 		;
 
-		$this->hashIndexService->expects( $this->never() )
-		                       ->method( 'recalcFileHash' )
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'clearMetadata' )
 		;
 		$this->metadataService->expects( $this->never() )
 		                      ->method( 'markPending' )
@@ -300,7 +328,7 @@ class FileListenerTest
 	}
 
 
-	public function testOnDeleteOnRemovesHashes(): void
+	public function testOnDeleteOnClearsMetadata(): void
 	{
 
 		$file = $this->createMock( File::class );
@@ -315,9 +343,9 @@ class FileListenerTest
 		                ->willReturn( 'on' )
 		;
 
-		$this->hashIndexService->expects( $this->once() )
-		                       ->method( 'deleteHashes' )
-		                       ->with( 42 )
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'clearMetadata' )
+		                      ->with( 42 )
 		;
 
 		$this->listener->handle( $event );
@@ -337,6 +365,10 @@ class FileListenerTest
 		$this->appConfig->method( 'getValueString' )
 		                ->with( Application::APP_ID, 'update_hash_on_file_delete', 'off' )
 		                ->willReturn( 'off' )
+		;
+
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'clearMetadata' )
 		;
 
 		$this->listener->handle( $event );
@@ -361,13 +393,14 @@ class FileListenerTest
 		                ->willReturn( 'auto' )
 		;
 
-		$this->hashIndexService->method( 'countHashes' )
-		                       ->with( 42 )
-		                       ->willReturn( 1 )
+		$this->metadataService->method( 'countByFileId' )
+		                      ->with( 42 )
+		                      ->willReturn( 1 )
 		;
 
-		$this->hashIndexService->expects( $this->once() )
-		                       ->method( 'recalcAllExistingAlgos' )
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 42, 'pending:auto' )
 		;
 
 		$this->listener->handle( $event );

@@ -22,6 +22,7 @@ the first stable release.
 ### Changed
 
 - Introduce MetadataService and a fresh migration to integrate with Nextcloud's oc_files_metadata table, dropping all previous migrations since the app had never been deployed.
+- Refactor FileListener to only clear metadata and mark files pending instead of computing hashes directly, deferring actual hash computation to the ProcessPendingUpdates job.
 
 ## [0.6.1] — 2026-08-05
 
