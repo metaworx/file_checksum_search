@@ -54,43 +54,8 @@ return [
 			'url'  => '/settings/status',
 			'verb' => 'GET',
 		],
-		[
-			'name' => 'settings#runCompatibilityTest',
-			'url'  => '/settings/compatibility',
-			'verb' => 'GET',
-		],
-		[
-			'name' => 'settings#purgeIndex',
-			'url'  => '/settings/purge',
-			'verb' => 'POST',
-		],
-		[
-			'name' => 'settings#rebuildIndex',
-			'url'  => '/settings/rebuild',
-			'verb' => 'POST',
-		],
-		[
-			'name' => 'settings#teardownTriggers',
-			'url'  => '/settings/teardown',
-			'verb' => 'POST',
-		],
-		[
-			'name' => 'settings#removeTable',
-			'url'  => '/settings/remove-table',
-			'verb' => 'POST',
-		],
-		[
-			'name' => 'settings#deployTriggers',
-			'url'  => '/settings/deploy-triggers',
-			'verb' => 'POST',
-		],
-		[
-			'name' => 'settings#createTable',
-			'url'  => '/settings/create-table',
-			'verb' => 'POST',
-		],
 
-		// Cron job management
+		// Rule management
 		[
 			'name' => 'settings#listJobDefinitions',
 			'url'  => '/settings/cron/definitions',
@@ -115,18 +80,6 @@ return [
 			'name' => 'settings#getCrontabSnippet',
 			'url'  => '/settings/cron/snippet',
 			'verb' => 'GET',
-		],
-
-		// Rehash behavior settings
-		[
-			'name' => 'settings#getRehashBehavior',
-			'url'  => '/settings/rehash-behavior',
-			'verb' => 'GET',
-		],
-		[
-			'name' => 'settings#saveRehashBehavior',
-			'url'  => '/settings/rehash-behavior',
-			'verb' => 'POST',
 		],
 	],
 ];

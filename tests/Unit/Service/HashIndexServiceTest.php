@@ -9,15 +9,11 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
-use OCA\FileChecksumSearch\Migration\LifecycleHandler;
 use OCA\FileChecksumSearch\Service\DuplicateService;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
-use OCA\FileChecksumSearch\Service\PendingQueueService;
-use OCA\FileChecksumSearch\Service\TableNameService;
-use OCP\IDBConnection;
 use OCP\IUserManager;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -28,15 +24,7 @@ class HashIndexServiceTest
 	TestCase
 {
 
-	private MockObject|IDBConnection          $db;
-
-	private MockObject|TableNameService       $tables;
-
-	private MockObject|LifecycleHandler       $lifecycleHandler;
-
 	private MockObject|HashCalculationService $hashCalc;
-
-	private MockObject|PendingQueueService    $pendingQueue;
 
 	private MockObject|DuplicateService       $duplicates;
 
@@ -56,11 +44,7 @@ class HashIndexServiceTest
 
 		parent::setUp();
 
-		$this->db               = $this->createMock( IDBConnection::class );
-		$this->tables           = $this->createMock( TableNameService::class );
-		$this->lifecycleHandler = $this->createMock( LifecycleHandler::class );
 		$this->hashCalc         = $this->createMock( HashCalculationService::class );
-		$this->pendingQueue     = $this->createMock( PendingQueueService::class );
 		$this->duplicates       = $this->createMock( DuplicateService::class );
 		$this->metadataService  = $this->createMock( MetadataService::class );
 		$this->filecacheService = $this->createMock( FilecacheService::class );
@@ -68,11 +52,7 @@ class HashIndexServiceTest
 		$this->logger           = $this->createMock( LoggerInterface::class );
 
 		$this->service = new HashIndexService(
-			$this->db,
-			$this->tables,
-			$this->lifecycleHandler,
 			$this->hashCalc,
-			$this->pendingQueue,
 			$this->duplicates,
 			$this->metadataService,
 			$this->filecacheService,
@@ -195,16 +175,17 @@ class HashIndexServiceTest
 	}
 
 
-	public function testAddPendingDelegatesToPendingQueue(): void
+	public function testDeleteHashesClearsMetadata(): void
 	{
 
-		$this->pendingQueue->expects( $this->once() )
-		                   ->method( 'addPending' )
-		                   ->with( 42, HashIndexService::EVENT_TYPE_WRITE )
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'clearMetadata' )
+		                      ->with( 42 )
 		;
 
-		$this->service->addPending( 42, HashIndexService::EVENT_TYPE_WRITE );
-	}
+		$result = $this->service->deleteHashes( 42 );
 
+		$this->assertSame( 1, $result );
+	}
 
 }

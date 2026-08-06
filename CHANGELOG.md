@@ -25,6 +25,7 @@ the first stable release.
 - Refactor FileListener to only clear metadata and mark files pending instead of computing hashes directly, deferring actual hash computation to the ProcessPendingUpdates job.
 - Rewrite search and duplicate detection to query oc_files_metadata directly, reading hash values from the JSON column to avoid truncation for longer hash algorithms.
 - Overhaul CLI commands for the metadata-based architecture, adding deferred processing and metadata-aware status/rebuild/benchmark commands while removing obsolete table- and trigger-management commands.
+- Replace the cron/trigger-based configuration with a rule-based system (RuleService) and matching admin UI, removing six now-obsolete classes tied to the old trigger/stored-procedure and queue infrastructure.
 
 ## [0.6.1] — 2026-08-05
 

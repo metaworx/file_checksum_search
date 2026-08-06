@@ -10,16 +10,14 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Controller;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
-use OCA\FileChecksumSearch\BackgroundJob\CronGenerateHashes;
-use OCA\FileChecksumSearch\Service\CronJobService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\StatusService;
-use OCA\FileChecksumSearch\Service\TriggerInitializationService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
-use OCP\IAppConfig;
 use OCP\IRequest;
 use OCP\IUserManager;
 use Psr\Log\LoggerInterface;
@@ -31,15 +29,13 @@ class SettingsController
 {
 
 	public function __construct(
-		string                                        $appName,
-		IRequest                                      $request,
-		private readonly LoggerInterface              $logger,
-		private readonly HashIndexService             $hashIndexService,
-		private readonly TriggerInitializationService $triggerInitService,
-		private readonly StatusService                $statusService,
-		private readonly CronJobService               $cronJobService,
-		private readonly IUserManager                 $userManager,
-		private readonly IAppConfig                   $appConfig,
+		string                                 $appName,
+		IRequest                               $request,
+		private readonly LoggerInterface       $logger,
+		private readonly StatusService         $statusService,
+		private readonly IUserManager          $userManager,
+		private readonly RuleService           $ruleService,
+		private readonly MetadataService       $metadataService,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -47,7 +43,7 @@ class SettingsController
 
 
 	/**
-	 * Display app status including version, row counts, and infrastructure state.
+	 * Display app status including version, row counts, and pending stats by mode.
 	 *
 	 * @noinspection PhpUnused
 	 */
@@ -56,282 +52,16 @@ class SettingsController
 	{
 
 		return new DataResponse( [
-			'version'     => $this->statusService->getAppVersion(),
-			'dbVersion'   => $this->statusService->getDbVersion(),
-			'rowCount'    => $this->statusService->getHashRowCount(),
-			'pendingRows' => $this->statusService->getPendingRowCount(),
-			'tables'      => $this->statusService->getTableStatus(),
-			'sp'          => $this->statusService->getProcedureStatus(),
-			'triggers'    => $this->statusService->getTriggerStatus(),
+			'version'      => $this->statusService->getAppVersion(),
+			'dbVersion'    => $this->statusService->getDbVersion(),
+			'rowCount'     => $this->statusService->getHashRowCount(),
+			'pendingStats' => $this->metadataService->getPendingStats(),
 		] );
 	}
 
 
 	/**
-	 * Run MariaDB version, TRIGGER privilege, and checksum column checks.
-	 *
-	 * @noinspection PhpUnused
-	 */
-	#[NoCSRFRequired]
-	public function runCompatibilityTest(): DataResponse
-	{
-
-		$issues = [];
-		$checks = [];
-
-		$dbVersion                = $this->statusService->getDbVersion();
-		$checks['mariadbVersion'] = [
-			'label' => 'MariaDB >= 10.2',
-			'value' => $dbVersion,
-			'pass'  => version_compare( $dbVersion, '10.2', '>=' ),
-		];
-
-		$hasTrigger            = $this->triggerInitService->checkTriggerPrivilege();
-		$checks['triggerPriv'] = [
-			'label' => 'TRIGGER privilege',
-			'value' => $hasTrigger
-				? 'Granted'
-				: 'Missing',
-			'pass'  => $hasTrigger,
-		];
-
-		$hasChecksum              = $this->statusService->hasChecksumColumn();
-		$checks['checksumColumn'] = [
-			'label' => 'filecache.checksum column',
-			'value' => $hasChecksum
-				? 'Exists'
-				: 'Missing',
-			'pass'  => $hasChecksum,
-		];
-
-		$allPass = ! in_array( false, array_column( $checks, 'pass' ), true );
-
-		return new DataResponse( [
-			'allPass' => $allPass,
-			'checks'  => $checks,
-			'issues'  => $issues,
-		] );
-	}
-
-
-	/**
-	 * Truncate the hash index table. Destructive — requires confirmation.
-	 *
-	 * @noinspection PhpUnused
-	 */
-	public function purgeIndex(): DataResponse
-	{
-
-		try
-		{
-			$result = $this->hashIndexService->purgeIndex();
-
-			return new DataResponse(
-				[
-					'success' => true,
-					'before'  => $result['before'],
-					'after'   => $result['after'],
-				],
-			);
-		}
-		catch ( Throwable $e )
-		{
-			$this->logger->warning(
-				'FCIAS SettingsController: purgeIndex failed',
-				[
-					'app'       => Application::APP_ID,
-					'exception' => $e,
-				],
-			);
-
-			return new DataResponse(
-				[
-					'success' => false,
-					'error'   => $e->getMessage(),
-				], Http::STATUS_INTERNAL_SERVER_ERROR,
-			);
-		}
-	}
-
-
-	/**
-	 * Repopulate the hash table from existing filecache checksums.
-	 *
-	 * @noinspection PhpUnused
-	 */
-	public function rebuildIndex(): DataResponse
-	{
-
-		try
-		{
-			$result = $this->hashIndexService->rebuildIndex();
-
-			return new DataResponse(
-				[
-					'success'   => true,
-					'total'     => $result['total'],
-					'processed' => $result['processed'],
-				],
-			);
-		}
-		catch ( Throwable $e )
-		{
-			$this->logger->error(
-				'FCIAS SettingsController: rebuildIndex failed',
-				[
-					'app'       => Application::APP_ID,
-					'exception' => $e,
-				],
-			);
-
-			return new DataResponse(
-				[
-					'success' => false,
-					'error'   => $e->getMessage(),
-				], Http::STATUS_INTERNAL_SERVER_ERROR,
-			);
-		}
-	}
-
-
-	/**
-	 * Drop FCIAS triggers and stored procedure, preserving the hash table.
-	 *
-	 * @noinspection PhpUnused
-	 */
-	public function teardownTriggers(): DataResponse
-	{
-
-		try
-		{
-			$this->hashIndexService->teardownTriggers();
-
-			return new DataResponse( [ 'success' => true ] );
-		}
-		catch ( Throwable $e )
-		{
-			$this->logger->error(
-				'FCIAS SettingsController: teardownTriggers failed',
-				[
-					'app'       => Application::APP_ID,
-					'exception' => $e,
-				],
-			);
-
-			return new DataResponse(
-				[
-					'success' => false,
-					'error'   => $e->getMessage(),
-				], Http::STATUS_INTERNAL_SERVER_ERROR,
-			);
-		}
-	}
-
-
-	/**
-	 * Drop the FCIAS hash table entirely. Requires teardown first.
-	 *
-	 * @noinspection PhpUnused
-	 */
-	public function removeTable(): DataResponse
-	{
-
-		try
-		{
-			$this->hashIndexService->removeTable();
-
-			return new DataResponse( [ 'success' => true ] );
-		}
-		catch ( Throwable $e )
-		{
-			$this->logger->error(
-				'FCIAS SettingsController: removeTable failed',
-				[
-					'app'       => Application::APP_ID,
-					'exception' => $e,
-				],
-			);
-
-			return new DataResponse(
-				[
-					'success' => false,
-					'error'   => $e->getMessage(),
-				], Http::STATUS_INTERNAL_SERVER_ERROR,
-			);
-		}
-	}
-
-
-	/**
-	 * Create FCIAS triggers and stored procedure. Idempotent.
-	 *
-	 * @noinspection PhpUnused
-	 */
-	public function deployTriggers(): DataResponse
-	{
-
-		try
-		{
-			$this->hashIndexService->deployTriggers();
-
-			return new DataResponse( [ 'success' => true ] );
-		}
-		catch ( Throwable $e )
-		{
-			$this->logger->error(
-				'FCIAS SettingsController: deployTriggers failed',
-				[
-					'app'       => Application::APP_ID,
-					'exception' => $e,
-				],
-			);
-
-			return new DataResponse(
-				[
-					'success' => false,
-					'error'   => $e->getMessage(),
-				], Http::STATUS_INTERNAL_SERVER_ERROR,
-			);
-		}
-	}
-
-
-	/**
-	 * Create the FCIAS hash table if it does not exist.
-	 *
-	 * @noinspection PhpUnused
-	 */
-	public function createTable(): DataResponse
-	{
-
-		try
-		{
-			$this->hashIndexService->createTable();
-
-			return new DataResponse( [ 'success' => true ] );
-		}
-		catch ( Throwable $e )
-		{
-			$this->logger->error(
-				'FCIAS SettingsController: createTable failed',
-				[
-					'app'       => Application::APP_ID,
-					'exception' => $e,
-				],
-			);
-
-			return new DataResponse(
-				[
-					'success' => false,
-					'error'   => $e->getMessage(),
-				], Http::STATUS_INTERNAL_SERVER_ERROR,
-			);
-		}
-	}
-
-
-	/**
-	 * List cron job definitions, supported algorithms, and available users.
+	 * List rule definitions, supported algorithms, and available users.
 	 *
 	 * @noinspection PhpUnused
 	 */
@@ -355,7 +85,7 @@ class SettingsController
 		);
 
 		return new DataResponse( [
-			'definitions'    => $this->cronJobService->listDefinitions(),
+			'definitions'    => $this->ruleService->loadRules(),
 			'supportedAlgos' => HashIndexService::SUPPORTED_ALGOS,
 			'users'          => $users,
 		] );
@@ -363,7 +93,7 @@ class SettingsController
 
 
 	/**
-	 * Create or update a cron job definition.
+	 * Create or update a rule definition.
 	 *
 	 * @noinspection PhpUnused
 	 */
@@ -383,47 +113,35 @@ class SettingsController
 			);
 		}
 
-		$algo = $body['algo'] ?? HashIndexService::getDefaultAlgo();
+		$algos = $body['algos'] ?? [ HashIndexService::getDefaultAlgo() ];
 
-		if ( ! in_array( $algo, HashIndexService::SUPPORTED_ALGOS, true ) )
+		if ( ! is_array( $algos ) )
+		{
+			$algos = [ $algos ];
+		}
+
+		$algos = array_values( array_filter(
+			$algos,
+			static fn( $a ): bool => is_string( $a ) && in_array( $a, HashIndexService::SUPPORTED_ALGOS, true ),
+		) );
+
+		if ( empty( $algos ) )
 		{
 			return new DataResponse(
 				[
 					'success' => false,
-					'error'   => 'Unsupported algorithm: ' . $algo,
+					'error'   => 'At least one supported algorithm is required.',
 				],
 				Http::STATUS_BAD_REQUEST,
 			);
 		}
 
-		$allowedIntervals = [
-			300,
-			900,
-			1800,
-			3600,
-		];
-		$interval         = (int) ( $body['interval'] ?? 900 );
-
-		if ( ! in_array( $interval, $allowedIntervals, true ) )
-		{
-			$interval = 900;
-		}
-
-		$batchSize = (int) ( $body['batchSize'] ?? 100 );
-
-		if ( $batchSize < 1 )
-		{
-			$batchSize = 100;
-		}
-
 		$definition = [
-			'_v'        => CronGenerateHashes::ARG_VERSION,
 			'enabled'   => (bool) ( $body['enabled'] ?? true ),
-			'userScope' => $body['userScope'] ?? 'all',
+			'mode'      => $body['mode'] ?? 'auto',
+			'algos'     => $algos,
 			'path'      => $body['path'] ?? '/',
-			'algo'      => $algo,
-			'batchSize' => $batchSize,
-			'interval'  => $interval,
+			'userScope' => $body['userScope'] ?? 'all',
 		];
 
 		$existingId = $body['id'] ?? null;
@@ -432,11 +150,11 @@ class SettingsController
 		{
 			if ( $existingId !== null && $existingId !== '' )
 			{
-				$this->cronJobService->updateDefinition( $existingId, $definition );
+				$this->ruleService->ruleUpdate( $existingId, $definition );
 			}
 			else
 			{
-				$this->cronJobService->saveDefinition( $definition );
+				$this->ruleService->ruleAdd( $definition );
 			}
 
 			return new DataResponse( [
@@ -465,7 +183,7 @@ class SettingsController
 
 
 	/**
-	 * Delete a cron job definition by ID.
+	 * Delete a rule definition by ID.
 	 *
 	 * @noinspection PhpUnused
 	 */
@@ -488,7 +206,7 @@ class SettingsController
 
 		try
 		{
-			$this->cronJobService->deleteDefinition( $id );
+			$this->ruleService->ruleDelete( $id );
 
 			return new DataResponse( [ 'success' => true ] );
 		}
@@ -514,7 +232,7 @@ class SettingsController
 
 
 	/**
-	 * Enable or disable a cron job definition.
+	 * Enable or disable a rule definition.
 	 *
 	 * @noinspection PhpUnused
 	 */
@@ -538,7 +256,7 @@ class SettingsController
 
 		try
 		{
-			$this->cronJobService->toggleDefinition( $id, $enabled );
+			$this->ruleService->ruleToggle( $id, $enabled );
 
 			return new DataResponse( [ 'success' => true ] );
 		}
@@ -628,142 +346,7 @@ class SettingsController
 			return sprintf( '0 */%d * * *', $hours );
 		}
 
-		return sprintf( '*/%d * * * *', max( 1, $minutes ) );
-	}
-
-
-	/**
-	 * Read current rehash behavior settings (write/create/delete).
-	 *
-	 * @noinspection PhpUnused
-	 */
-	#[NoCSRFRequired]
-	public function getRehashBehavior(): DataResponse
-	{
-
-		return new DataResponse( [
-			'write'  => $this->appConfig->getValueString(
-				Application::APP_ID,
-				'update_hash_on_file_write',
-				'lazy',
-			),
-			'create' => $this->appConfig->getValueString(
-				Application::APP_ID,
-				'update_hash_on_file_create',
-				'off',
-			),
-			'delete' => $this->appConfig->getValueString(
-				Application::APP_ID,
-				'update_hash_on_file_delete',
-				'off',
-			),
-		] );
-	}
-
-
-	/**
-	 * Save rehash behavior settings for write, create, and delete events.
-	 *
-	 * @noinspection PhpUnused
-	 */
-	public function saveRehashBehavior(): DataResponse
-	{
-
-		$body = json_decode( file_get_contents( 'php://input' ), true );
-
-		if ( ! is_array( $body ) )
-		{
-			return new DataResponse(
-				[
-					'success' => false,
-					'error'   => 'Invalid request body.',
-				],
-				Http::STATUS_BAD_REQUEST,
-			);
-		}
-
-		$allowedWrite  = [
-			'off',
-			'force',
-			'lazy',
-			'auto',
-		];
-		$allowedCreate = [
-			'off',
-			'lazy',
-			'force',
-		];
-		$allowedDelete = [
-			'off',
-			'on',
-		];
-
-		$write  = $body['write'] ?? null;
-		$create = $body['create'] ?? null;
-		$delete = $body['delete'] ?? null;
-
-		$errors = [];
-
-		if ( $write !== null )
-		{
-			if ( in_array( $write, $allowedWrite, true ) )
-			{
-				$this->appConfig->setValueString(
-					Application::APP_ID,
-					'update_hash_on_file_write',
-					$write,
-				);
-			}
-			else
-			{
-				$errors[] = 'Invalid value for write: ' . $write;
-			}
-		}
-
-		if ( $create !== null )
-		{
-			if ( in_array( $create, $allowedCreate, true ) )
-			{
-				$this->appConfig->setValueString(
-					Application::APP_ID,
-					'update_hash_on_file_create',
-					$create,
-				);
-			}
-			else
-			{
-				$errors[] = 'Invalid value for create: ' . $create;
-			}
-		}
-
-		if ( $delete !== null )
-		{
-			if ( in_array( $delete, $allowedDelete, true ) )
-			{
-				$this->appConfig->setValueString(
-					Application::APP_ID,
-					'update_hash_on_file_delete',
-					$delete,
-				);
-			}
-			else
-			{
-				$errors[] = 'Invalid value for delete: ' . $delete;
-			}
-		}
-
-		if ( ! empty( $errors ) )
-		{
-			return new DataResponse(
-				[
-					'success' => false,
-					'error'   => implode( '; ', $errors ),
-				],
-				Http::STATUS_BAD_REQUEST,
-			);
-		}
-
-		return new DataResponse( [ 'success' => true ] );
+		return sprintf( '*/%d * * *', max( 1, $minutes ) );
 	}
 
 }

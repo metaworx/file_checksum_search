@@ -10,10 +10,11 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\BackgroundJob;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\BackgroundJob\ProcessPendingUpdates;
 use OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob;
-use OCA\FileChecksumSearch\Service\CronJobService;
-use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\AppFramework\Utility\ITimeFactory;
+use OCP\BackgroundJob\IJobList;
 use OCP\IAppConfig;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -28,11 +29,11 @@ class RuleProcessingJobTest
 
 	private MockObject|ITimeFactory    $time;
 
-	private MockObject|CronJobService  $cronJobService;
-
-	private MockObject|MetadataService $metadataService;
+	private MockObject|RuleService     $ruleService;
 
 	private MockObject|IAppConfig      $appConfig;
+
+	private MockObject|IJobList        $jobList;
 
 	private MockObject|LoggerInterface $logger;
 
@@ -44,11 +45,11 @@ class RuleProcessingJobTest
 
 		parent::setUp();
 
-		$this->time            = $this->createMock( ITimeFactory::class );
-		$this->cronJobService  = $this->createMock( CronJobService::class );
-		$this->metadataService = $this->createMock( MetadataService::class );
-		$this->appConfig       = $this->createMock( IAppConfig::class );
-		$this->logger          = $this->createMock( LoggerInterface::class );
+		$this->time        = $this->createMock( ITimeFactory::class );
+		$this->ruleService = $this->createMock( RuleService::class );
+		$this->appConfig   = $this->createMock( IAppConfig::class );
+		$this->jobList     = $this->createMock( IJobList::class );
+		$this->logger      = $this->createMock( LoggerInterface::class );
 
 		$this->appConfig->method( 'getValueInt' )
 		                ->with( Application::APP_ID, 'rule_processing_interval', 300 )
@@ -57,9 +58,9 @@ class RuleProcessingJobTest
 
 		$this->job = new RuleProcessingJob(
 			$this->time,
-			$this->cronJobService,
-			$this->metadataService,
+			$this->ruleService,
 			$this->appConfig,
+			$this->jobList,
 			$this->logger,
 		);
 	}
@@ -75,9 +76,9 @@ class RuleProcessingJobTest
 
 		$job = new RuleProcessingJob(
 			$this->time,
-			$this->cronJobService,
-			$this->metadataService,
+			$this->ruleService,
 			$this->appConfig,
+			$this->jobList,
 			$this->logger,
 		);
 
@@ -85,20 +86,20 @@ class RuleProcessingJobTest
 	}
 
 
-	public function testRunWithNoDefinitionsLogsAndReturns(): void
+	public function testRunDelegatesToRuleService(): void
 	{
 
-		$this->cronJobService->expects( $this->once() )
-		                     ->method( 'listDefinitions' )
-		                     ->willReturn( [] )
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'evaluateRules' )
+		                  ->willReturn( [
+			                  'marked'  => 0,
+			                  'matched' => 0,
+		                  ] )
 		;
 
-		$this->metadataService->expects( $this->never() )
-		                      ->method( 'seedIndex' )
-		;
-
-		$this->logger->expects( $this->atLeastOnce() )
-		             ->method( 'info' )
+		// No marks → no dispatch
+		$this->jobList->expects( $this->never() )
+		              ->method( 'add' )
 		;
 
 		$reflection = new ReflectionMethod( RuleProcessingJob::class, 'run' );
@@ -106,28 +107,20 @@ class RuleProcessingJobTest
 	}
 
 
-	public function testRunWithEnabledDefinitionsCallsSeedIndex(): void
+	public function testRunDispatchesWhenMarked(): void
 	{
 
-		$definitions = [
-			[
-				'enabled'   => true,
-				'userScope' => 'admin',
-				'algo'      => 'sha256',
-				'path'      => '',
-				'batchSize' => 50,
-				'interval'  => 3600,
-			],
-		];
-
-		$this->cronJobService->expects( $this->once() )
-		                     ->method( 'listDefinitions' )
-		                     ->willReturn( $definitions )
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'evaluateRules' )
+		                  ->willReturn( [
+			                  'marked'  => 5,
+			                  'matched' => 10,
+		                  ] )
 		;
 
-		$this->metadataService->expects( $this->once() )
-		                      ->method( 'seedIndex' )
-		                      ->willReturn( 5 )
+		$this->jobList->expects( $this->once() )
+		              ->method( 'add' )
+		              ->with( ProcessPendingUpdates::class )
 		;
 
 		$reflection = new ReflectionMethod( RuleProcessingJob::class, 'run' );
@@ -135,37 +128,12 @@ class RuleProcessingJobTest
 	}
 
 
-	public function testRunSkipsDisabledDefinitions(): void
+	public function testRunCatchesThrowableAndLogsError(): void
 	{
 
-		$definitions = [
-			[
-				'enabled'   => false,
-				'userScope' => 'admin',
-				'algo'      => 'sha256',
-			],
-		];
-
-		$this->cronJobService->expects( $this->once() )
-		                     ->method( 'listDefinitions' )
-		                     ->willReturn( $definitions )
-		;
-
-		$this->metadataService->expects( $this->never() )
-		                      ->method( 'seedIndex' )
-		;
-
-		$reflection = new ReflectionMethod( RuleProcessingJob::class, 'run' );
-		$reflection->invoke( $this->job, null );
-	}
-
-
-	public function testRunCatchesThrowable(): void
-	{
-
-		$this->cronJobService->expects( $this->once() )
-		                     ->method( 'listDefinitions' )
-		                     ->willThrowException( new RuntimeException( 'DB down' ) )
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'evaluateRules' )
+		                  ->willThrowException( new RuntimeException( 'DB down' ) )
 		;
 
 		$this->logger->expects( $this->once() )
@@ -173,8 +141,6 @@ class RuleProcessingJobTest
 		;
 
 		$reflection = new ReflectionMethod( RuleProcessingJob::class, 'run' );
-
-		// Should not throw — exception is caught and logged.
 		$reflection->invoke( $this->job, null );
 
 		$this->assertTrue( true );

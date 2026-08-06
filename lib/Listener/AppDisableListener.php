@@ -10,9 +10,6 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Listener;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
-use OCA\FileChecksumSearch\Migration\LifecycleHandler;
-use OCA\FileChecksumSearch\Service\CronJobService;
-use OCA\FileChecksumSearch\Service\TriggerInitializationService;
 use OCP\App\Events\AppDisableEvent;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\EventDispatcher\Event;
@@ -20,6 +17,8 @@ use OCP\EventDispatcher\IEventListener;
 use Psr\Log\LoggerInterface;
 
 /**
+ * Handles app-disable lifecycle: logs the event.
+ *
  * @template-implements IEventListener<AppDisableEvent>
  * @noinspection PhpClassCanBeReadonlyInspection
  */
@@ -29,10 +28,7 @@ class AppDisableListener
 {
 
 	public function __construct(
-		private readonly LifecycleHandler             $lifecycleHandler,
-		private readonly TriggerInitializationService $triggerInitService,
-		private readonly CronJobService               $cronJobService,
-		private readonly LoggerInterface              $logger,
+		private readonly LoggerInterface $logger,
 	) {
 	}
 
@@ -59,13 +55,9 @@ class AppDisableListener
 		}
 
 		$this->logger->info(
-			'FCIAS AppDisableListener: app disabling, cleaning up triggers and backing up cron jobs.',
+			'FCIAS AppDisableListener: app disabling.',
 			[ 'app' => Application::APP_ID ],
 		);
-
-		$this->lifecycleHandler->stripTriggers();
-		$this->triggerInitService->markUndeployed( Application::APP_ID );
-		$this->cronJobService->backup();
 	}
 
 }

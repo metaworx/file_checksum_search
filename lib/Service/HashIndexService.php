@@ -11,23 +11,20 @@ namespace OCA\FileChecksumSearch\Service;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\Files\File;
-use OCP\IDBConnection;
 use OCP\IUserManager;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Throwable;
 
 /**
  * Facade for hash index operations.
  *
  * Delegates to focused service classes:
  * - HashCalculationService (hash computation, recalculation)
- * - PendingQueueService (deferred update queue)
  * - DuplicateService (duplicate detection, hash lookup, path resolution)
  * - MetadataService (metadata queries and index management)
  * - FilecacheService (filecache operations)
  *
- * Directly handles: user resolution, pending drain orchestration.
+ * Directly handles: user resolution.
  */
 class HashIndexService
 {
@@ -57,7 +54,6 @@ class HashIndexService
 
 	public function __construct(
 		private readonly HashCalculationService $hashCalc,
-		private readonly PendingQueueService    $pendingQueue,
 		private readonly DuplicateService       $duplicates,
 		private readonly MetadataService        $metadataService,
 		private readonly FilecacheService       $filecacheService,
@@ -159,74 +155,6 @@ class HashIndexService
 	}
 
 
-	public function addPending(
-		int    $fileId,
-		string $eventType,
-	): void {
-
-		$this->pendingQueue->addPending( $fileId, $eventType );
-	}
-
-
-	/**
-	 * Process pending hash updates from the queue table.
-	 *
-	 * Fetches pending rows, recalculates hashes, deletes successes.
-	 *
-	 * @return array{processed: int, deleted: int}
-	 */
-	public function drainPending( int $limit = 50 ): array
-	{
-
-		$defaultAlgo = self::getDefaultAlgo();
-		$pendingRows = $this->pendingQueue->fetchPending( $limit );
-
-		$processed  = 0;
-		$successIds = [];
-
-		foreach ( $pendingRows as $row )
-		{
-			$fileId = $row['fileid'];
-
-			try
-			{
-				$result = $this->recalcHash( $fileId, $defaultAlgo );
-
-				if ( $result['success'] )
-				{
-					$processed ++;
-					$successIds[] = $fileId;
-				}
-			}
-			catch ( Throwable $e )
-			{
-				$this->logger->warning(
-					'FCIAS: drainPending recalcHash failed for fileid {fileId}',
-					[
-						'app'       => Application::APP_ID,
-						'fileId'    => $fileId,
-						'exception' => $e,
-					],
-				);
-			}
-		}
-
-		$deleted = $this->pendingQueue->deletePending( $successIds );
-
-		return [
-			'processed' => $processed,
-			'deleted'   => $deleted,
-		];
-	}
-
-
-	public function getPendingRowCount(): int
-	{
-
-		return $this->pendingQueue->getPendingRowCount();
-	}
-
-
 	/**
 	 * @return array{algo: string, hash_value: string, file_count: int, fileids: int[]}[]
 	 */
@@ -279,10 +207,10 @@ class HashIndexService
 
 
 	/**
-	 * Invalidate hashes for a file by marking it as pending:lazy.
+	 * Invalidate hashes for a file by clearing its metadata.
 	 *
 	 * The ProcessPendingUpdates job will recalculate hashes later.
-	 * This replaces the old custom-table DELETE with a metadata mark.
+	 * This replaces the old custom-table DELETE with a metadata clear.
 	 */
 	public function deleteHashes( int $fileId ): int
 	{

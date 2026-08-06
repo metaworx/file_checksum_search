@@ -148,3 +148,25 @@
 	margin-top: 16px;
 	margin-bottom: 4px;
 }
+
+.fcias-checkbox-group {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 12px;
+}
+
+.fcias-checkbox-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	cursor: pointer;
+	font-weight: normal;
+}
+
+.fcias-global-rule-form {
+	background: var(--color-background-dark);
+	border: 1px solid var(--color-border);
+	border-radius: 4px;
+	padding: 12px;
+	margin-bottom: 16px;
+}

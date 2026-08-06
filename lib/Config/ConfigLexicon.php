@@ -19,7 +19,6 @@ use OCP\IAppConfig;
  * Config lexicon for file_checksum_search app config keys.
  *
  * Registered via IRegistrationContext::registerConfigLexicon() in Application::register().
- * Eliminates "not defined in the config lexicon" info log entries from NC core.
  */
 class ConfigLexicon
 	implements
@@ -41,41 +40,20 @@ class ConfigLexicon
 
 		return [
 			new Entry(
-				key: 'triggers_deployed',
-				type: ValueType::BOOL,
-				defaultRaw: false,
-				definition: 'Tracks whether DB triggers/SP have been deployed for file checksum indexing.',
-				lazy: false,
-				flags: IAppConfig::FLAG_INTERNAL,
-			),
-			new Entry(
-				key: 'cron_job_definitions',
+				key: 'rule_definitions',
 				type: ValueType::STRING,
 				defaultRaw: '[]',
-				definition: 'JSON array of cron job definitions for scheduled hash generation.',
+				definition: 'JSON array of rule definitions for hash generation.',
 				lazy: false,
 				flags: IAppConfig::FLAG_INTERNAL,
 			),
 			new Entry(
-				key: 'update_hash_on_file_write',
-				type: ValueType::STRING,
-				defaultRaw: 'auto',
-				definition: 'Behavior when a file is written: off, force, lazy, auto.',
+				key: 'rule_processing_interval',
+				type: ValueType::INT,
+				defaultRaw: 300,
+				definition: 'Interval in seconds for RuleProcessingJob.',
 				lazy: false,
-			),
-			new Entry(
-				key: 'update_hash_on_file_create',
-				type: ValueType::STRING,
-				defaultRaw: 'off',
-				definition: 'Behavior when a file is created: off, lazy, force.',
-				lazy: false,
-			),
-			new Entry(
-				key: 'update_hash_on_file_delete',
-				type: ValueType::STRING,
-				defaultRaw: 'off',
-				definition: 'Behavior when a file is deleted: off, on.',
-				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
 			),
 		];
 	}

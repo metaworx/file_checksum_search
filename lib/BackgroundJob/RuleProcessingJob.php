@@ -11,10 +11,9 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\BackgroundJob;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
-use OCA\FileChecksumSearch\Service\CronJobService;
-use OCA\FileChecksumSearch\Service\HashIndexService;
-use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\AppFramework\Utility\ITimeFactory;
+use OCP\BackgroundJob\IJobList;
 use OCP\BackgroundJob\TimedJob;
 use OCP\IAppConfig;
 use Psr\Log\LoggerInterface;
@@ -22,7 +21,9 @@ use Throwable;
 
 /**
  * Evaluates configured hash-generation rules and marks matching files
- * as pending:{mode} via MetadataService for deferred processing.
+ * as pending:{mode} for deferred processing.
+ *
+ * Thin orchestrator — all rule evaluation logic lives in RuleService.
  *
  * Registered in Application::boot() via IJobList.
  */
@@ -32,10 +33,10 @@ class RuleProcessingJob
 {
 
 	public function __construct(
-		ITimeFactory                     $time,
-		private readonly CronJobService  $cronJobService,
-		private readonly MetadataService $metadataService,
-		private readonly IAppConfig      $appConfig,
+		ITimeFactory                $time,
+		private readonly RuleService    $ruleService,
+		private readonly IAppConfig     $appConfig,
+		private readonly IJobList       $jobList,
 		private readonly LoggerInterface $logger,
 	) {
 
@@ -73,46 +74,12 @@ class RuleProcessingJob
 
 		try
 		{
-			$definitions = $this->cronJobService->listDefinitions();
-			$marked      = 0;
+			$result = $this->ruleService->evaluateRules();
 
-			foreach ( $definitions as $def )
+			if ( $result['marked'] > 0 )
 			{
-				if ( empty( $def['enabled'] ) )
-				{
-					continue;
-				}
-
-				$algo = $def['algo'] ?? HashIndexService::getDefaultAlgo();
-				$mode = 'pending:auto';
-
-				// Mark files in scope via seedIndex to ensure metadata entries exist
-				// for all files, then ProcessPendingUpdates will compute the hashes.
-				$inserted = $this->metadataService->seedIndex();
-
-				$this->logger->debug(
-					'FCIAS RuleProcessingJob: rule processed',
-					[
-						'app'       => Application::APP_ID,
-						'userScope' => $def['userScope'] ?? 'all',
-						'algo'      => $algo,
-						'path'      => $def['path'] ?? '',
-						'mode'      => $mode,
-						'inserted'  => $inserted,
-					],
-				);
-
-				$marked += $inserted;
+				$this->jobList->add( ProcessPendingUpdates::class );
 			}
-
-			$this->logger->info(
-				'FCIAS RuleProcessingJob: evaluation complete',
-				[
-					'app'    => Application::APP_ID,
-					'rules'  => count( $definitions ),
-					'marked' => $marked,
-				],
-			);
 		}
 		catch ( Throwable $e )
 		{

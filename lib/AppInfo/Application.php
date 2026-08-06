@@ -9,7 +9,6 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\AppInfo;
 
-use OCA\FileChecksumSearch\BackgroundJob\DrainPendingUpdates;
 use OCA\FileChecksumSearch\BackgroundJob\ProcessPendingUpdates;
 use OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob;
 use OCA\FileChecksumSearch\BackgroundJob\SeedPendingUpdates;
@@ -20,8 +19,7 @@ use OCA\FileChecksumSearch\Listener\FileListener;
 use OCA\FileChecksumSearch\Listener\LoadDuplicatesScriptListener;
 use OCA\FileChecksumSearch\Listener\MetadataListener;
 use OCA\FileChecksumSearch\Search\HashSearchProvider;
-use OCA\FileChecksumSearch\Service\CronJobService;
-use OCA\FileChecksumSearch\Service\TriggerInitializationService;
+use OCA\FileChecksumSearch\Service\MetadataService;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
@@ -63,22 +61,14 @@ class Application
 	public function boot( IBootContext $context ): void
 	{
 
-		// Deploy triggers on first boot after enable
-		Server::get( TriggerInitializationService::class )
-		      ->deployIfNeeded( self::APP_ID )
-		;
-
-		// Re-register cron job definitions from backup
-		Server::get( CronJobService::class )
-		      ->restore()
+		// Register metadata keys with oc_files_metadata
+		Server::get( MetadataService::class )
+		      ->register()
 		;
 
 		$jobList = Server::get( IJobList::class );
 
-		// Register the pending hash update drain job (legacy)
-		$jobList->add( DrainPendingUpdates::class );
-
-		// Register the new metadata-backed job pipeline
+		// Register the metadata-backed job pipeline
 		$jobList->add( RuleProcessingJob::class );
 		$jobList->add( ProcessPendingUpdates::class );
 		$jobList->add( SeedPendingUpdates::class );

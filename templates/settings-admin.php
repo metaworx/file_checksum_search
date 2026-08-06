@@ -17,8 +17,10 @@ Util::addStyle( 'file_checksum_search', 'settings-admin' );
 
 <div id="fcias-admin-settings">
 	<h3>
-		<?php echo str_replace('fill="#fff"', 'fill="currentColor"', file_get_contents(__DIR__ . '/../img/app.svg')); ?>
-		<?php p( $l->t( 'File Checksum Index & Search' ) ); ?>
+		<?php
+		echo str_replace( 'fill="#fff"', 'fill="currentColor"', file_get_contents( __DIR__ . '/../img/app.svg' ) ); ?>
+		<?php
+		p( $l->t( 'File Checksum Index & Search' ) ); ?>
 	</h3>
 
 	<div class="fcias-section">
@@ -46,98 +48,43 @@ Util::addStyle( 'file_checksum_search', 'settings-admin' );
 					p( $l->t( 'Pending Updates' ) ); ?></td>
 				<td id="fcias-status-pending">—</td>
 			</tr>
-			<tr>
-				<td><?php
-					p( $l->t( 'Tables' ) ); ?></td>
-				<td id="fcias-status-tables">—</td>
-			</tr>
-			<tr>
-				<td><?php
-					p( $l->t( 'Stored Procedure' ) ); ?></td>
-				<td id="fcias-status-sp">—</td>
-			</tr>
-			<tr>
-				<td><?php
-					p( $l->t( 'Triggers' ) ); ?></td>
-				<td id="fcias-status-triggers">—</td>
-			</tr>
 			</tbody>
 		</table>
 	</div>
 
 	<div class="fcias-section">
 		<h4><?php
-			p( $l->t( 'File Update Handling' ) ); ?></h4>
+			p( $l->t( 'Rule Definitions' ) ); ?></h4>
 
-		<h5><?php
-			p( $l->t( 'Re-hash on File Change' ) ); ?></h5>
 		<p class="fcias-hint"><?php
 			p(
 				$l->t(
-					'Configure how the hash index reacts when files are written, created, or deleted.',
+					'The global default for real-time file events.',
 				),
 			); ?></p>
 
-		<div class="fcias-cron-form-row">
-			<label for="fcias-rehash-write"><?php
-				p( $l->t( 'On File Write' ) ); ?></label>
-			<select id="fcias-rehash-write">
-				<option value="lazy"><?php
-					p( $l->t( 'Lazy (delete hash, recalc later)' ) ); ?></option>
-				<option value="force"><?php
-					p( $l->t( 'Force (recalc immediately)' ) ); ?></option>
-				<option value="auto"><?php
-					p( $l->t( 'Auto (recalc only if hash exists)' ) ); ?></option>
-				<option value="off"><?php
-					p( $l->t( 'Off' ) ); ?></option>
-			</select>
-		</div>
-		<div class="fcias-cron-form-row">
-			<label for="fcias-rehash-create"><?php
-				p( $l->t( 'On File Create' ) ); ?></label>
-			<select id="fcias-rehash-create">
-				<option value="off"><?php
-					p( $l->t( 'Off' ) ); ?></option>
-				<option value="lazy"><?php
-					p( $l->t( 'Lazy (recalc later)' ) ); ?></option>
-				<option value="force"><?php
-					p( $l->t( 'Force (recalc immediately)' ) ); ?></option>
-			</select>
-		</div>
-		<div class="fcias-cron-form-row">
-			<label for="fcias-rehash-delete"><?php
-				p( $l->t( 'On File Delete' ) ); ?></label>
-			<select id="fcias-rehash-delete">
-				<option value="off"><?php
-					p( $l->t( 'Off' ) ); ?></option>
-				<option value="on"><?php
-					p( $l->t( 'On (remove hash rows)' ) ); ?></option>
-			</select>
-		</div>
+		<!-- Global rule (always visible) -->
+		<div id="fcias-global-rule"></div>
 
-		<button class="fcias-btn" id="fcias-btn-save-rehash"><?php
-			p( $l->t( 'Save' ) ); ?></button>
-		<div id="fcias-rehash-msg"></div>
-
+		<!-- Additional rules -->
 		<h5><?php
-			p( $l->t( 'NC Background Job Definitions' ) ); ?></h5>
+			p( $l->t( 'Additional Rules' ) ); ?></h5>
 		<p class="fcias-hint"><?php
 			p(
 				$l->t(
-					'Define one or more background jobs that automatically generate checksums for files that don\'t have one yet. Each definition runs independently with its own scope and schedule.',
+					'Rules are processed in order — each file is handled by the first matching rule.',
 				),
 			); ?></p>
 
 		<div id="fcias-cron-list">
 			<p><?php
-				p( $l->t( 'No definitions yet.' ) ); ?></p>
+				p( $l->t( 'No additional rules.' ) ); ?></p>
 		</div>
 
 		<button class="fcias-btn" id="fcias-btn-add-definition"><?php
-			p( $l->t( 'Add Definition' ) ); ?></button>
-		<button class="fcias-btn" id="fcias-btn-refresh-definitions"><?php
-			p( $l->t( 'Refresh' ) ); ?></button>
+			p( $l->t( 'Add Rule' ) ); ?></button>
 
+		<!-- Add/Edit rule form (hidden by default) -->
 		<div id="fcias-cron-form" style="display:none;">
 			<div class="fcias-cron-form">
 				<div class="fcias-cron-form-row">
@@ -150,31 +97,26 @@ Util::addStyle( 'file_checksum_search', 'settings-admin' );
 				</div>
 				<div class="fcias-cron-form-row">
 					<label for="fcias-cron-path"><?php
-						p( $l->t( 'Path' ) ); ?></label>
+						p( $l->t( 'Path (glob)' ) ); ?></label>
 					<input type="text" id="fcias-cron-path" value="/" placeholder="/"/>
 				</div>
 				<div class="fcias-cron-form-row">
-					<label for="fcias-cron-algo"><?php
-						p( $l->t( 'Algorithm' ) ); ?></label>
-					<select id="fcias-cron-algo"></select>
+					<label><?php
+						p( $l->t( 'Algorithms' ) ); ?></label>
+					<div id="fcias-cron-algos" class="fcias-checkbox-group"></div>
 				</div>
 				<div class="fcias-cron-form-row">
-					<label for="fcias-cron-batchsize"><?php
-						p( $l->t( 'Batch Size' ) ); ?></label>
-					<input type="number" id="fcias-cron-batchsize" value="100" min="1" max="10000"/>
-				</div>
-				<div class="fcias-cron-form-row">
-					<label for="fcias-cron-interval"><?php
-						p( $l->t( 'Interval' ) ); ?></label>
-					<select id="fcias-cron-interval">
-						<option value="300"><?php
-							p( $l->t( '5 minutes' ) ); ?></option>
-						<option value="900" selected><?php
-							p( $l->t( '15 minutes' ) ); ?></option>
-						<option value="1800"><?php
-							p( $l->t( '30 minutes' ) ); ?></option>
-						<option value="3600"><?php
-							p( $l->t( '60 minutes' ) ); ?></option>
+					<label for="fcias-cron-mode"><?php
+						p( $l->t( 'Mode' ) ); ?></label>
+					<select id="fcias-cron-mode">
+						<option value="auto"><?php
+							p( $l->t( 'Auto (recalc existing only if stale)' ) ); ?></option>
+						<option value="missing"><?php
+							p( $l->t( 'Missing (recalc existing + missing)' ) ); ?></option>
+						<option value="force"><?php
+							p( $l->t( 'Force (delete all, recalc all)' ) ); ?></option>
+						<option value="lazy"><?php
+							p( $l->t( 'Lazy (delete hashes, recalc later)' ) ); ?></option>
 					</select>
 				</div>
 				<div class="fcias-cron-form-actions">
@@ -186,144 +128,7 @@ Util::addStyle( 'file_checksum_search', 'settings-admin' );
 			</div>
 		</div>
 
-		<h5><?php
-			p( $l->t( 'System Crontab Snippet' ) ); ?></h5>
-		<p class="fcias-hint"><?php
-			p(
-				$l->t(
-					'Generate a crontab entry that you can copy into your system crontab to run hash generation via the CLI.',
-				),
-			); ?></p>
-
-		<div class="fcias-cron-form" id="fcias-snippet-form" style="display:none;">
-			<div class="fcias-cron-form-row">
-				<label for="fcias-snippet-userscope"><?php
-					p( $l->t( 'User Scope' ) ); ?></label>
-				<select id="fcias-snippet-userscope">
-					<option value="all"><?php
-						p( $l->t( 'All Users' ) ); ?></option>
-				</select>
-			</div>
-			<div class="fcias-cron-form-row">
-				<label for="fcias-snippet-path"><?php
-					p( $l->t( 'Path' ) ); ?></label>
-				<input type="text" id="fcias-snippet-path" value="/" placeholder="/"/>
-			</div>
-			<div class="fcias-cron-form-row">
-				<label for="fcias-snippet-algo"><?php
-					p( $l->t( 'Algorithm' ) ); ?></label>
-				<select id="fcias-snippet-algo"></select>
-			</div>
-			<div class="fcias-cron-form-row">
-				<label for="fcias-snippet-batchsize"><?php
-					p( $l->t( 'Batch Size' ) ); ?></label>
-				<input type="number" id="fcias-snippet-batchsize" value="100" min="1" max="10000"/>
-			</div>
-			<div class="fcias-cron-form-row">
-				<label for="fcias-snippet-interval"><?php
-					p( $l->t( 'Interval' ) ); ?></label>
-				<select id="fcias-snippet-interval">
-					<option value="300"><?php
-						p( $l->t( '5 minutes' ) ); ?></option>
-					<option value="900" selected><?php
-						p( $l->t( '15 minutes' ) ); ?></option>
-					<option value="1800"><?php
-						p( $l->t( '30 minutes' ) ); ?></option>
-					<option value="3600"><?php
-						p( $l->t( '60 minutes' ) ); ?></option>
-				</select>
-			</div>
-		</div>
-
-		<button class="fcias-btn" id="fcias-btn-generate-snippet"><?php
-			p( $l->t( 'Generate Snippet' ) ); ?></button>
-
-		<div id="fcias-cron-snippet-container" style="display:none;">
-			<pre id="fcias-cron-snippet"></pre>
-			<button class="fcias-btn" id="fcias-btn-copy-snippet"><?php
-				p( $l->t( 'Copy to Clipboard' ) ); ?></button>
-		</div>
-
 		<div id="fcias-cron-msg"></div>
-	</div>
-
-	<div class="fcias-section">
-		<h4><?php
-			p( $l->t( 'Compatibility' ) ); ?></h4>
-		<div id="fcias-compat-results">
-			<button class="fcias-btn" id="fcias-btn-compat"><?php
-				p( $l->t( 'Run Compatibility Test' ) ); ?></button>
-		</div>
-	</div>
-
-	<div class="fcias-section">
-		<h4><?php
-			p( $l->t( 'Maintenance' ) ); ?></h4>
-
-		<h5><?php
-			p( $l->t( 'Index Data' ) ); ?></h5>
-
-		<p>
-			<button class="fcias-btn fcias-btn-danger" id="fcias-btn-purge">
-				<?php
-				p( $l->t( 'Purge Index' ) ); ?>
-			</button>
-			<span class="fcias-hint"><?php
-				p( $l->t( 'Truncates the hash table. All index data will be lost.' ) ); ?></span>
-		</p>
-
-		<p>
-			<button class="fcias-btn" id="fcias-btn-rebuild">
-				<?php
-				p( $l->t( 'Rebuild Index' ) ); ?>
-			</button>
-			<span class="fcias-hint"><?php
-				p( $l->t( 'Repopulates the hash table from existing filecache checksums.' ) ); ?></span>
-		</p>
-
-		<h5><?php
-			p( $l->t( 'Triggers & SP' ) ); ?></h5>
-
-		<p>
-			<button class="fcias-btn fcias-btn-danger" id="fcias-btn-teardown">
-				<?php
-				p( $l->t( 'Remove Triggers & SP' ) ); ?>
-			</button>
-			<span class="fcias-hint"><?php
-				p( $l->t( 'Drops triggers and stored procedure. Hash table is preserved.' ) ); ?></span>
-		</p>
-
-		<p>
-			<button class="fcias-btn" id="fcias-btn-deploy">
-				<?php
-				p( $l->t( 'Deploy Triggers & SP' ) ); ?>
-			</button>
-			<span class="fcias-hint"><?php
-				p( $l->t( 'Creates triggers and stored procedure if they are missing.' ) ); ?></span>
-		</p>
-
-		<h5><?php
-			p( $l->t( 'Hash Table' ) ); ?></h5>
-
-		<p>
-			<button class="fcias-btn fcias-btn-danger" id="fcias-btn-removetable">
-				<?php
-				p( $l->t( 'Remove Hash Table' ) ); ?>
-			</button>
-			<span class="fcias-hint"><?php
-				p( $l->t( 'Drops the hash table entirely. Run teardown first.' ) ); ?></span>
-		</p>
-
-		<p>
-			<button class="fcias-btn" id="fcias-btn-createtable">
-				<?php
-				p( $l->t( 'Create Hash Table' ) ); ?>
-			</button>
-			<span class="fcias-hint"><?php
-				p( $l->t( 'Creates the hash table if it does not exist.' ) ); ?></span>
-		</p>
-
-		<div id="fcias-msg"></div>
 	</div>
 
 </div>
