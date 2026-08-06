@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Removed
+
+- Remove all remaining references to the dropped hash/pending tables and trigger/stored-procedure infrastructure, routing ChecksumApi and StatusService through MetadataService instead.
+
 ## [0.7.1] — 2026-08-07
 
 ### Fixed

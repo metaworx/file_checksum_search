@@ -13,20 +13,16 @@ use InvalidArgumentException;
 use OCA\FileChecksumSearch\Public\ChecksumApi;
 use OCA\FileChecksumSearch\Service\DatabaseService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\StatusService;
 use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\App\IAppManager;
-use OCP\DB\IResult;
-use OCP\DB\QueryBuilder\IExpressionBuilder;
-use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\Files\NotFoundException;
-use OCP\IDBConnection;
 use OCP\IUser;
 use OCP\IUserSession;
-use PDO;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -36,9 +32,9 @@ class ChecksumApiTest
 {
 
 // private properties
-	private MockObject|IDBConnection    $db;
-
 	private MockObject|HashIndexService $hashIndexService;
+
+	private MockObject|MetadataService  $metadataService;
 
 	private StatusService               $statusService;
 
@@ -54,8 +50,8 @@ class ChecksumApiTest
 
 		parent::setUp();
 
-		$this->db               = $this->createMock( IDBConnection::class );
 		$this->hashIndexService = $this->createMock( HashIndexService::class );
+		$this->metadataService  = $this->createMock( MetadataService::class );
 
 		// StatusService is readonly — cannot be mocked by PHPUnit 10.5.
 		// Construct a real instance with mocked collaborators.
@@ -63,14 +59,15 @@ class ChecksumApiTest
 			$this->createMock( DatabaseService::class ),
 			$this->createMock( TableNameService::class ),
 			$this->createMock( IAppManager::class ),
+			$this->createMock( MetadataService::class ),
 		);
 
 		$this->rootFolder  = $this->createMock( IRootFolder::class );
 		$this->userSession = $this->createMock( IUserSession::class );
 
 		$this->api = new ChecksumApi(
-			$this->db,
 			$this->hashIndexService,
+			$this->metadataService,
 			$this->statusService,
 			$this->rootFolder,
 			$this->userSession,
@@ -162,7 +159,7 @@ class ChecksumApiTest
 	}
 
 
-	// ─── getHashesByFileId ──────────────────────────────────────────
+	// ─── findDuplicates ─────────────────────────────────────────────
 
 	public function testFindDuplicatesClampsLimit(): void
 	{
@@ -184,7 +181,7 @@ class ChecksumApiTest
 		                       ->willReturn( [] )
 		;
 
-		$result = $this->api->findDuplicates( null, 2, 999, 0 );
+		$result = $this->api->findDuplicates( null, 2, 999 );
 
 		$this->assertSame( 500, $result['pagination']['limit'] );
 	}
@@ -213,8 +210,6 @@ class ChecksumApiTest
 	}
 
 
-	// ─── getHashesByFile ────────────────────────────────────────────
-
 	public function testFindDuplicatesReturnsEmptyWhenNoUser(): void
 	{
 
@@ -228,8 +223,6 @@ class ChecksumApiTest
 		$this->assertSame( 0, $result['total_groups'] );
 	}
 
-
-	// ─── getHashesByPath ────────────────────────────────────────────
 
 	public function testFindDuplicatesReturnsGroupedResults(): void
 	{
@@ -291,55 +284,219 @@ class ChecksumApiTest
 	}
 
 
+	// ─── getHashesByFile ────────────────────────────────────────────
+
+	public function testGetHashesByFileDelegatesToMetadataService(): void
+	{
+
+		$file = $this->createMock( File::class );
+		$file->expects( $this->once() )
+		     ->method( 'getId' )
+		     ->willReturn( 42 )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'getHashes' )
+		                      ->with( 42 )
+		                      ->willReturn( [ 'sha1' => 'abc' ] )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'getUpdatedAt' )
+		                      ->with( 42 )
+		                      ->willReturn( null )
+		;
+
+		$data = $this->api->getHashesByFile( $file );
+
+		$this->assertSame( 42, $data['fileid'] );
+		$this->assertCount( 1, $data['hashes'] );
+	}
+
+
+	// ─── getHashesByFileId ──────────────────────────────────────────
+
+	public function testGetHashesByFileIdReturnsEmptyForUnknownFile(): void
+	{
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'getHashes' )
+		                      ->with( 99999 )
+		                      ->willReturn( [] )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'getUpdatedAt' )
+		                      ->with( 99999 )
+		                      ->willReturn( null )
+		;
+
+		$data = $this->api->getHashesByFileId( 99999 );
+
+		$this->assertSame( 99999, $data['fileid'] );
+		$this->assertEmpty( $data['hashes'] );
+	}
+
+
+	public function testGetHashesByFileIdReturnsHashes(): void
+	{
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'getHashes' )
+		                      ->with( 42 )
+		                      ->willReturn( [
+			                      'sha1'   => 'abc',
+			                      'sha256' => 'def',
+		                      ] )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'getUpdatedAt' )
+		                      ->with( 42 )
+		                      ->willReturn( 1234567890 )
+		;
+
+		$data = $this->api->getHashesByFileId( 42 );
+
+		$this->assertSame( 42, $data['fileid'] );
+		$this->assertCount( 2, $data['hashes'] );
+		$this->assertSame( 'sha1', $data['hashes'][0]['algo'] );
+		$this->assertSame( 'abc', $data['hashes'][0]['hash'] );
+		$this->assertNotNull( $data['hashes'][0]['updated_at'] );
+	}
+
+
+	// ─── getHashesByPath ────────────────────────────────────────────
+
+	public function testGetHashesByPathThrowsOnNonFile(): void
+	{
+
+		$folder = $this->createMock( Folder::class );
+
+		$this->rootFolder->method( 'get' )
+		                 ->willReturn( $folder )
+		;
+
+		$this->expectException( NotFoundException::class );
+		$this->expectExceptionMessage( 'Path does not resolve to a file' );
+
+		$this->api->getHashesByPath( '/some/folder' );
+	}
+
+
+	public function testGetHashesByPathWithUserResolvesRelativePath(): void
+	{
+
+		$file       = $this->createMock( File::class );
+		$userFolder = $this->createMock( Folder::class );
+
+		$this->rootFolder->expects( $this->once() )
+		                 ->method( 'getUserFolder' )
+		                 ->with( 'alice' )
+		                 ->willReturn( $userFolder )
+		;
+
+		$userFolder->expects( $this->once() )
+		           ->method( 'get' )
+		           ->with( 'Documents/report.pdf' )
+		           ->willReturn( $file )
+		;
+
+		$file->expects( $this->once() )
+		     ->method( 'getId' )
+		     ->willReturn( 42 )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'getHashes' )
+		                      ->with( 42 )
+		                      ->willReturn( [] )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'getUpdatedAt' )
+		                      ->with( 42 )
+		                      ->willReturn( null )
+		;
+
+		$data = $this->api->getHashesByPath( 'Documents/report.pdf', 'alice' );
+
+		$this->assertSame( 42, $data['fileid'] );
+		$this->assertSame( 'Documents/report.pdf', $data['path'] );
+	}
+
+
+	public function testGetHashesByPathWithoutUserResolvesAbsolutePath(): void
+	{
+
+		$file = $this->createMock( File::class );
+
+		$this->rootFolder->expects( $this->once() )
+		                 ->method( 'get' )
+		                 ->with( '/alice/files/Docs/x.pdf' )
+		                 ->willReturn( $file )
+		;
+
+		$file->method( 'getId' )
+		     ->willReturn( 42 )
+		;
+		$file->method( 'getPath' )
+		     ->willReturn( '/alice/files/Docs/x.pdf' )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'getHashes' )
+		                      ->with( 42 )
+		                      ->willReturn( [] )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'getUpdatedAt' )
+		                      ->with( 42 )
+		                      ->willReturn( null )
+		;
+
+		$data = $this->api->getHashesByPath( '/alice/files/Docs/x.pdf' );
+
+		$this->assertSame( 42, $data['fileid'] );
+		$this->assertSame( '/alice/files/Docs/x.pdf', $data['path'] );
+	}
+
+
+	// ─── findSameHash ───────────────────────────────────────────────
+
+	public function testFindSameHashReturnsEmptyWhenNoHashes(): void
+	{
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'getHashes' )
+		                      ->with( 42 )
+		                      ->willReturn( [] )
+		;
+
+		$data = $this->api->findSameHash( 42 );
+
+		$this->assertEmpty( $data['duplicates'] );
+	}
+
+
 	public function testFindSameHashReturnsEmptyWhenNoDuplicates(): void
 	{
 
-		$qb     = $this->createMock( IQueryBuilder::class );
-		$expr   = $this->createMock( IExpressionBuilder::class );
-		$result = $this->createMock( IResult::class );
-
-		$this->db->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'getHashes' )
+		                      ->with( 42 )
+		                      ->willReturn( [ 'sha1' => 'abc' ] )
 		;
 
-		// Chain all builder methods to return self
-		$qb->method( 'select' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'from' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'innerJoin' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'where' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'orderBy' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'addOrderBy' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'setMaxResults' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'expr' )
-		   ->willReturn( $expr )
-		;
-		$qb->method( 'createNamedParameter' )
-		   ->willReturn( ':param' )
-		;
-		$expr->method( 'eq' )
-		     ->willReturn( 'h1.fileid = :param' )
-		;
-		$qb->method( 'executeQuery' )
-		   ->willReturn( $result )
-		;
-		$result->method( 'fetchAll' )
-		       ->willReturn( [] )
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'queryByHash' )
+		                      ->with( 'abc', 'sha1', 100 )
+		                      ->willReturn( [
+			                      [
+				                      MetadataService::FIELD_FILE_ID    => 42,
+				                      MetadataService::FIELD_META_KEY   => 'file-checksum-sha1',
+				                      MetadataService::FIELD_JSON_ALIAS => '{}',
+			                      ],
+		                      ] )
 		;
 
+		// Only the reference file itself was found (filtered out), so empty result
 		$data = $this->api->findSameHash( 42 );
 
 		$this->assertEmpty( $data['duplicates'] );
@@ -352,9 +509,6 @@ class ChecksumApiTest
 		$user       = $this->createMock( IUser::class );
 		$userFolder = $this->createMock( Folder::class );
 		$dupNode    = $this->createMock( File::class );
-		$qb         = $this->createMock( IQueryBuilder::class );
-		$expr       = $this->createMock( IExpressionBuilder::class );
-		$result     = $this->createMock( IResult::class );
 
 		$this->userSession->method( 'getUser' )
 		                  ->willReturn( $user )
@@ -384,50 +538,27 @@ class ChecksumApiTest
 		           ->willReturn( 'Backup/photo.jpg' )
 		;
 
-		$this->db->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'getHashes' )
+		                      ->with( 42 )
+		                      ->willReturn( [ 'sha1' => 'abc' ] )
 		;
-		$qb->method( 'select' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'from' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'innerJoin' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'where' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'orderBy' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'addOrderBy' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'setMaxResults' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'expr' )
-		   ->willReturn( $expr )
-		;
-		$qb->method( 'createNamedParameter' )
-		   ->willReturn( ':param' )
-		;
-		$expr->method( 'eq' )
-		     ->willReturn( 'h1.fileid = :param' )
-		;
-		$qb->method( 'executeQuery' )
-		   ->willReturn( $result )
-		;
-		$result->method( 'fetchAll' )
-		       ->willReturn( [
-			       [
-				       'algo'       => 'sha1',
-				       'hash_value' => 'abc',
-				       'fileid'     => '108',
-			       ],
-		       ] )
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'queryByHash' )
+		                      ->with( 'abc', 'sha1', 100 )
+		                      ->willReturn( [
+			                      [
+				                      MetadataService::FIELD_FILE_ID    => 42,
+				                      MetadataService::FIELD_META_KEY   => 'file-checksum-sha1',
+				                      MetadataService::FIELD_JSON_ALIAS => '{}',
+			                      ],
+			                      [
+				                      MetadataService::FIELD_FILE_ID    => 108,
+				                      MetadataService::FIELD_META_KEY   => 'file-checksum-sha1',
+				                      MetadataService::FIELD_JSON_ALIAS => '{}',
+			                      ],
+		                      ] )
 		;
 
 		$data = $this->api->findSameHash( 42 );
@@ -441,331 +572,7 @@ class ChecksumApiTest
 	}
 
 
-	// ─── findSameHash ───────────────────────────────────────────────
-
-	public function testGetHashesByFileDelegatesToGetHashesByFileId(): void
-	{
-
-		$file = $this->createMock( File::class );
-		$file->expects( $this->once() )
-		     ->method( 'getId' )
-		     ->willReturn( 42 )
-		;
-
-		$qb     = $this->createMock( IQueryBuilder::class );
-		$expr   = $this->createMock( IExpressionBuilder::class );
-		$result = $this->createMock( IResult::class );
-
-		$this->db->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
-		;
-		$qb->method( 'select' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'from' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'where' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'orderBy' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'expr' )
-		   ->willReturn( $expr )
-		;
-		$qb->method( 'createNamedParameter' )
-		   ->willReturn( ':param' )
-		;
-		$expr->method( 'eq' )
-		     ->willReturn( 'fileid = :param' )
-		;
-		$qb->method( 'executeQuery' )
-		   ->willReturn( $result )
-		;
-		$result->method( 'fetchAll' )
-		       ->willReturn( [
-			       [
-				       'algo'       => 'sha1',
-				       'hash_value' => 'abc',
-			       ],
-		       ] )
-		;
-		$result->method( 'closeCursor' );
-
-		$data = $this->api->getHashesByFile( $file );
-
-		$this->assertSame( 42, $data['fileid'] );
-		$this->assertCount( 1, $data['hashes'] );
-	}
-
-
-	public function testGetHashesByFileIdReturnsEmptyForUnknownFile(): void
-	{
-
-		$qb     = $this->createMock( IQueryBuilder::class );
-		$expr   = $this->createMock( IExpressionBuilder::class );
-		$result = $this->createMock( IResult::class );
-
-		$this->db->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
-		;
-		$qb->method( 'select' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'from' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'where' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'orderBy' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'expr' )
-		   ->willReturn( $expr )
-		;
-		$qb->method( 'createNamedParameter' )
-		   ->willReturn( ':param' )
-		;
-		$expr->method( 'eq' )
-		     ->willReturn( 'fileid = :param' )
-		;
-		$qb->method( 'executeQuery' )
-		   ->willReturn( $result )
-		;
-		$result->method( 'fetchAll' )
-		       ->willReturn( [] )
-		;
-		$result->method( 'closeCursor' );
-
-		$data = $this->api->getHashesByFileId( 99999 );
-
-		$this->assertSame( 99999, $data['fileid'] );
-		$this->assertEmpty( $data['hashes'] );
-	}
-
-
-	// ─── findDuplicates ─────────────────────────────────────────────
-
-	public function testGetHashesByFileIdReturnsHashes(): void
-	{
-
-		$qb          = $this->createMock( IQueryBuilder::class );
-		$exprBuilder = $this->createMock( IExpressionBuilder::class );
-		$result      = $this->createMock( IResult::class );
-
-		$this->db->expects( $this->once() )
-		         ->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
-		;
-
-		$qb->expects( $this->once() )
-		   ->method( 'select' )
-		   ->with( 'fileid', 'algo', 'hash_value' )
-		   ->willReturnSelf()
-		;
-		$qb->expects( $this->once() )
-		   ->method( 'from' )
-		   ->with( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES )
-		   ->willReturnSelf()
-		;
-		$qb->expects( $this->once() )
-		   ->method( 'where' )
-		   ->willReturnSelf()
-		;
-		$qb->expects( $this->once() )
-		   ->method( 'orderBy' )
-		   ->with( 'algo' )
-		   ->willReturnSelf()
-		;
-		$qb->expects( $this->once() )
-		   ->method( 'expr' )
-		   ->willReturn( $exprBuilder )
-		;
-		$qb->expects( $this->once() )
-		   ->method( 'createNamedParameter' )
-		   ->with( 42, PDO::PARAM_INT )
-		   ->willReturn( ':param' )
-		;
-		$exprBuilder->expects( $this->once() )
-		            ->method( 'eq' )
-		            ->with( 'fileid', ':param' )
-		            ->willReturn( 'fileid = :param' )
-		;
-		$qb->expects( $this->once() )
-		   ->method( 'executeQuery' )
-		   ->willReturn( $result )
-		;
-
-		$result->expects( $this->once() )
-		       ->method( 'fetchAll' )
-		       ->willReturn( [
-			       [
-				       'algo'       => 'sha1',
-				       'hash_value' => 'abc',
-			       ],
-			       [
-				       'algo'       => 'sha256',
-				       'hash_value' => 'def',
-			       ],
-		       ] )
-		;
-		$result->expects( $this->once() )
-		       ->method( 'closeCursor' )
-		;
-
-		$data = $this->api->getHashesByFileId( 42 );
-
-		$this->assertSame( 42, $data['fileid'] );
-		$this->assertCount( 2, $data['hashes'] );
-		$this->assertSame( 'sha1', $data['hashes'][0]['algo'] );
-		$this->assertSame( 'abc', $data['hashes'][0]['hash'] );
-	}
-
-
-	public function testGetHashesByPathThrowsOnNonFile(): void
-	{
-
-		$folder = $this->createMock( Folder::class );
-
-		$this->rootFolder->method( 'get' )
-		                 ->willReturn( $folder )
-		;
-
-		$this->expectException( NotFoundException::class );
-		$this->expectExceptionMessage( 'Path does not resolve to a file' );
-
-		$this->api->getHashesByPath( '/some/folder' );
-	}
-
-
-	public function testGetHashesByPathWithUserResolvesRelativePath(): void
-	{
-
-		$file       = $this->createMock( File::class );
-		$userFolder = $this->createMock( Folder::class );
-		$qb         = $this->createMock( IQueryBuilder::class );
-		$expr       = $this->createMock( IExpressionBuilder::class );
-		$result     = $this->createMock( IResult::class );
-
-		$this->rootFolder->expects( $this->once() )
-		                 ->method( 'getUserFolder' )
-		                 ->with( 'alice' )
-		                 ->willReturn( $userFolder )
-		;
-
-		$userFolder->expects( $this->once() )
-		           ->method( 'get' )
-		           ->with( 'Documents/report.pdf' )
-		           ->willReturn( $file )
-		;
-
-		$file->expects( $this->once() )
-		     ->method( 'getId' )
-		     ->willReturn( 42 )
-		;
-
-		$this->db->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
-		;
-		$qb->method( 'select' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'from' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'where' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'orderBy' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'expr' )
-		   ->willReturn( $expr )
-		;
-		$qb->method( 'createNamedParameter' )
-		   ->willReturn( ':param' )
-		;
-		$expr->method( 'eq' )
-		     ->willReturn( 'fileid = :param' )
-		;
-		$qb->method( 'executeQuery' )
-		   ->willReturn( $result )
-		;
-		$result->method( 'fetchAll' )
-		       ->willReturn( [] )
-		;
-		$result->method( 'closeCursor' );
-
-		$data = $this->api->getHashesByPath( 'Documents/report.pdf', 'alice' );
-
-		$this->assertSame( 42, $data['fileid'] );
-		$this->assertSame( 'Documents/report.pdf', $data['path'] );
-	}
-
-
-	public function testGetHashesByPathWithoutUserResolvesAbsolutePath(): void
-	{
-
-		$file   = $this->createMock( File::class );
-		$qb     = $this->createMock( IQueryBuilder::class );
-		$expr   = $this->createMock( IExpressionBuilder::class );
-		$result = $this->createMock( IResult::class );
-
-		$this->rootFolder->expects( $this->once() )
-		                 ->method( 'get' )
-		                 ->with( '/alice/files/Docs/x.pdf' )
-		                 ->willReturn( $file )
-		;
-
-		$file->method( 'getId' )
-		     ->willReturn( 42 )
-		;
-		$file->method( 'getPath' )
-		     ->willReturn( '/alice/files/Docs/x.pdf' )
-		;
-
-		$this->db->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
-		;
-		$qb->method( 'select' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'from' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'where' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'orderBy' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'expr' )
-		   ->willReturn( $expr )
-		;
-		$qb->method( 'createNamedParameter' )
-		   ->willReturn( ':param' )
-		;
-		$expr->method( 'eq' )
-		     ->willReturn( 'fileid = :param' )
-		;
-		$qb->method( 'executeQuery' )
-		   ->willReturn( $result )
-		;
-		$result->method( 'fetchAll' )
-		       ->willReturn( [] )
-		;
-		$result->method( 'closeCursor' );
-
-		$data = $this->api->getHashesByPath( '/alice/files/Docs/x.pdf' );
-
-		$this->assertSame( 42, $data['fileid'] );
-		$this->assertSame( '/alice/files/Docs/x.pdf', $data['path'] );
-	}
-
-
-	// ─── recalcHash ─────────────────────────────────────────────────
+	// ─── getStatus ──────────────────────────────────────────────────
 
 	public function testGetStatusReturnsExpectedShape(): void
 	{
@@ -783,6 +590,8 @@ class ChecksumApiTest
 		$this->assertIsInt( $status['pendingRows'] );
 	}
 
+
+	// ─── recalcHash ─────────────────────────────────────────────────
 
 	public function testRecalcHashDelegatesToHashIndexService(): void
 	{
@@ -823,8 +632,6 @@ class ChecksumApiTest
 		$this->assertFalse( $result['success'] );
 	}
 
-
-	// ─── getStatus ──────────────────────────────────────────────────
 
 	public function testRecalcHashUsesDefaultAlgoWhenNull(): void
 	{

@@ -20,9 +20,6 @@ use OCP\IConfig;
 class TableNameService
 {
 
-	public const TABLE_FILE_CHECKSUM_SEARCH_HASHES  = 'file_checksum_search_hashes';
-	public const TABLE_FILE_CHECKSUM_SEARCH_PENDING = 'file_checksum_search_pending';
-
 	private string $prefix;
 
 	private string $filecacheTable;

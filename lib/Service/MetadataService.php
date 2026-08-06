@@ -570,7 +570,7 @@ class MetadataService
 
 			// Read the authoritative hash from oc_files_metadata.json,
 			// not from the index (which may truncate long hashes like SHA-512).
-			$metaValueJson = (string) ( $row[self::FIELD_JSON_ALIAS] ?? '' );
+			$metaValueJson = (string) ( $row[ self::FIELD_JSON_ALIAS ] ?? '' );
 			$metaValue     = $metaValueJson !== ''
 				? json_decode( $metaValueJson, true )
 				: [];
@@ -631,6 +631,40 @@ class MetadataService
 		$this->metadataManager->saveMetadata( $metadata );
 
 		$this->filecacheService->setHashes( $file ?? $metadata->getFileId(), $this->getHashes( $metadata ) );
+	}
+
+
+	/**
+	 * Count all hash metadata index entries (file-checksum-* keys excluding updated_at).
+	 *
+	 * @return int
+	 */
+	public function countHashEntries(): int
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select(
+			$qb->func()
+			   ->count( '*', 'cnt' ),
+		)
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->like(
+				      self::FIELD_META_KEY,
+				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ),
+			      ),
+			   $qb->expr()
+			      ->neq(
+				      self::FIELD_META_KEY,
+				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+			      ),
+		   )
+		;
+
+		return (int) $this->executeQuery( $qb )
+		                  ->fetchOne()
+		;
 	}
 
 

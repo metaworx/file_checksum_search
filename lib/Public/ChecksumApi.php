@@ -10,14 +10,12 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Public;
 
 use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\StatusService;
-use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\Files\File;
 use OCP\Files\IRootFolder;
 use OCP\Files\NotFoundException;
-use OCP\IDBConnection;
 use OCP\IUserSession;
-use PDO;
 
 /**
  * Stable public API for checksum operations.
@@ -36,8 +34,8 @@ class ChecksumApi
 {
 
 	public function __construct(
-		private readonly IDBConnection    $db,
 		private readonly HashIndexService $hashIndexService,
+		private readonly MetadataService  $metadataService,
 		private readonly StatusService    $statusService,
 		private readonly IRootFolder      $rootFolder,
 		private readonly IUserSession     $userSession,
@@ -71,34 +69,24 @@ class ChecksumApi
 	public function getHashesByFileId( int $fileId ): array
 	{
 
-		$qb = $this->db->getQueryBuilder();
+		$hashes    = $this->metadataService->getHashes( $fileId );
+		$updatedAt = $this->metadataService->getUpdatedAt( $fileId );
 
-		$qb->select( 'fileid', 'algo', 'hash_value', 'updated_at' )
-		   ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES )
-		   ->where(
-			   $qb->expr()
-			      ->eq( 'fileid', $qb->createNamedParameter( $fileId, PDO::PARAM_INT ) ),
-		   )
-		   ->orderBy( 'algo' )
-		;
+		$result = [];
 
-		$result = $qb->executeQuery();
-		$rows   = $result->fetchAll();
-		$result->closeCursor();
-
-		$hashes = array_map( function (
-			array $row,
-		): array {
-
-			return [
-				'algo'       => $row['algo'],
-				'hash'       => $row['hash_value'],
-				'updated_at' => $row['updated_at'] ?? null,
+		foreach ( $hashes as $algo => $hash )
+		{
+			$result[] = [
+				'algo'       => $algo,
+				'hash'       => $hash,
+				'updated_at' => $updatedAt !== null
+					? date( 'c', $updatedAt )
+					: null,
 			];
-		}, $rows );
+		}
 
 		return [
-			'hashes' => $hashes,
+			'hashes' => $result,
 			'fileid' => $fileId,
 		];
 	}
@@ -326,29 +314,9 @@ class ChecksumApi
 	public function findSameHash( int $fileId ): array
 	{
 
-		$table = TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES;
-		$qb    = $this->db->getQueryBuilder();
+		$hashes = $this->metadataService->getHashes( $fileId );
 
-		$rows = $qb->select( 'h2.algo', 'h2.hash_value', 'h2.fileid' )
-		           ->from( $table, 'h1' )
-		           ->innerJoin(
-			           'h1',
-			           $table,
-			           'h2',
-			           'h1.hash_value = h2.hash_value AND h1.algo = h2.algo AND h1.fileid <> h2.fileid',
-		           )
-		           ->where(
-			           $qb->expr()
-			              ->eq( 'h1.fileid', $qb->createNamedParameter( $fileId, PDO::PARAM_INT ) ),
-		           )
-		           ->orderBy( 'h2.algo' )
-		           ->addOrderBy( 'h2.hash_value' )
-		           ->setMaxResults( 100 )
-		           ->executeQuery()
-		           ->fetchAll()
-		;
-
-		if ( empty( $rows ) )
+		if ( empty( $hashes ) )
 		{
 			return [ 'duplicates' => [] ];
 		}
@@ -360,47 +328,57 @@ class ChecksumApi
 
 		$grouped = [];
 
-		foreach ( $rows as $row )
+		foreach ( $hashes as $algo => $hashValue )
 		{
-			$dupFileId = (int) $row['fileid'];
+			$rows = $this->metadataService->queryByHash( $hashValue, $algo );
 
-			$resolvedPath = '';
-			$resolvedName = '';
-
-			if ( $userFolder !== null )
+			foreach ( $rows as $row )
 			{
-				$nodes = $userFolder->getById( $dupFileId );
+				$dupFileId = (int) $row[ MetadataService::FIELD_FILE_ID ];
 
-				if ( empty( $nodes ) )
+				if ( $dupFileId === $fileId )
 				{
 					continue;
 				}
 
-				$node     = $nodes[0];
-				$relative = $userFolder->getRelativePath( $node->getPath() );
+				$resolvedPath = '';
+				$resolvedName = '';
 
-				if ( $relative === null )
+				if ( $userFolder !== null )
 				{
-					continue;
+					$nodes = $userFolder->getById( $dupFileId );
+
+					if ( empty( $nodes ) )
+					{
+						continue;
+					}
+
+					$node     = $nodes[0];
+					$relative = $userFolder->getRelativePath( $node->getPath() );
+
+					if ( $relative === null )
+					{
+						continue;
+					}
+
+					$resolvedPath = $relative;
+					$resolvedName = $node->getName();
 				}
 
-				$resolvedPath = $relative;
-				$resolvedName = $node->getName();
+				$key = $algo . "\0" . $hashValue;
+
+				$grouped[ $key ] ??= [
+					'algo'       => $algo,
+					'hash_value' => $hashValue,
+					'files'      => [],
+				];
+
+				$grouped[ $key ]['files'][] = [
+					'fileid' => $dupFileId,
+					'path'   => $resolvedPath,
+					'name'   => $resolvedName,
+				];
 			}
-
-			$key = $row['algo'] . "\0" . $row['hash_value'];
-
-			$grouped[ $key ] ??= [
-				'algo'       => $row['algo'],
-				'hash_value' => $row['hash_value'],
-				'files'      => [],
-			];
-
-			$grouped[ $key ]['files'][] = [
-				'fileid' => $dupFileId,
-				'path'   => $resolvedPath,
-				'name'   => $resolvedName,
-			];
 		}
 
 		return [ 'duplicates' => array_values( $grouped ) ];

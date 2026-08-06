@@ -25,6 +25,7 @@ readonly class StatusService
 		private DatabaseService  $databaseService,
 		private TableNameService $tables,
 		private IAppManager      $appManager,
+		private MetadataService  $metadataService,
 	) {
 	}
 
@@ -44,75 +45,17 @@ readonly class StatusService
 	}
 
 
-	public function getHashRowCount( ?OutputInterface $output = null ): int
+	public function getHashRowCount(): int
 	{
 
-		return $this->databaseService->countRows( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES, $output );
+		return $this->metadataService->countHashEntries();
 	}
 
 
-	public function getPendingRowCount( ?OutputInterface $output = null ): int
+	public function getPendingRowCount(): int
 	{
 
-		return $this->databaseService->countRows( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_PENDING, $output );
-	}
-
-
-	/**
-	 * @return array{name: string, ok: bool}
-	 */
-	public function getProcedureStatus( ?OutputInterface $output = null ): array
-	{
-
-		return [
-			'name' => $this->tables->getSpName(),
-			'ok'   => $this->databaseService->storedProcedureExists( $this->tables->getSpName(), $output ),
-		];
-	}
-
-
-	/**
-	 * @return array<array{name: string, ok: bool}>
-	 */
-	public function getTableStatus( ?OutputInterface $output = null ): array
-	{
-
-		return [
-			[
-				'name' => $this->tables->getHashTableName(),
-				'ok'   => $this->hasHashTable( $output ),
-			],
-			[
-				'name' => $this->tables->getPendingTableName(),
-				'ok'   => $this->hasPendingTable( $output ),
-			],
-		];
-	}
-
-
-	/**
-	 * @return array<array{name: string, ok: bool}>
-	 */
-	public function getTriggerStatus( ?OutputInterface $output = null ): array
-	{
-
-		$results = [];
-
-		foreach (
-			[
-				$this->tables->getTriggerName( 'insert' ),
-				$this->tables->getTriggerName( 'update' ),
-				$this->tables->getTriggerName( 'delete' ),
-			] as $triggerName
-		)
-		{
-			$results[] = [
-				'name' => $triggerName,
-				'ok'   => $this->databaseService->triggerExists( $triggerName, $output ),
-			];
-		}
-
-		return $results;
+		return array_sum( $this->metadataService->getPendingStats() );
 	}
 
 
@@ -140,8 +83,8 @@ readonly class StatusService
 		foreach ( $sourceFiles as $filePath )
 		{
 			// Source files are Version010000Date..., DB stores 010000Date...
-			$className  = basename( $filePath, '.php' );
-			$dbVersion  = str_replace( 'Version', '', $className );
+			$className = basename( $filePath, '.php' );
+			$dbVersion = str_replace( 'Version', '', $className );
 			$results[] = [
 				'name' => $className,
 				'ok'   => in_array( $dbVersion, $installed, true ),
@@ -156,20 +99,6 @@ readonly class StatusService
 	{
 
 		return $this->databaseService->columnExists( $this->tables->getFilecacheTableName(), 'checksum', $output );
-	}
-
-
-	public function hasHashTable( ?OutputInterface $output = null ): bool
-	{
-
-		return $this->databaseService->tableExist( $this->tables->getHashTableName(), $output );
-	}
-
-
-	public function hasPendingTable( ?OutputInterface $output = null ): bool
-	{
-
-		return $this->databaseService->tableExist( $this->tables->getPendingTableName(), $output );
 	}
 
 }

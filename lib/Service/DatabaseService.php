@@ -233,42 +233,6 @@ class DatabaseService
 	}
 
 
-	public function storedProcedureExists(
-		string           $spName,
-		?OutputInterface $output = null,
-	): bool {
-
-		return $this->safeBool(
-			function () use
-			(
-				$spName,
-			): bool
-			{
-
-				$qb = $this->db->getQueryBuilder();
-				$qb->automaticTablePrefix( false );
-
-				$qb->select(
-					$qb->func()
-					   ->count( '*', 'cnt' ),
-				)
-				   ->from( 'INFORMATION_SCHEMA.ROUTINES' )
-				   ->where(
-					   $qb->expr()
-					      ->eq( 'ROUTINE_NAME', $qb->createNamedParameter( $spName ) ),
-					   $qb->expr()
-					      ->eq( 'ROUTINE_TYPE', $qb->createNamedParameter( 'PROCEDURE' ) ),
-				   )
-				;
-
-				return (int) $qb->executeQuery()
-				                ->fetchOne() > 0;
-			},
-			$output,
-		);
-	}
-
-
 	/**
 	 * @return string[] Installed migration version strings
 	 */
@@ -319,40 +283,6 @@ class DatabaseService
 		return $this->safeBool(
 			fn() => $this->getSchemaManager()
 			             ->tablesExist( [ $tableName ] ),
-			$output,
-		);
-	}
-
-
-	public function triggerExists(
-		string           $triggerName,
-		?OutputInterface $output = null,
-	): bool {
-
-		return $this->safeBool(
-			function () use
-			(
-				$triggerName,
-			): bool
-			{
-
-				$qb = $this->db->getQueryBuilder();
-				$qb->automaticTablePrefix( false );
-
-				$qb->select(
-					$qb->func()
-					   ->count( '*', 'cnt' ),
-				)
-				   ->from( 'INFORMATION_SCHEMA.TRIGGERS' )
-				   ->where(
-					   $qb->expr()
-					      ->eq( 'TRIGGER_NAME', $qb->createNamedParameter( $triggerName ) ),
-				   )
-				;
-
-				return (int) $qb->executeQuery()
-				                ->fetchOne() > 0;
-			},
 			$output,
 		);
 	}
