@@ -85,12 +85,16 @@ class Version010000Date20260806100000
 		array   $options,
 	): void {
 
+		$output->info(
+			sprintf( 'FCIAS: seeding %s index entries ...', MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ),
+		);
+
 		$inserted = Server::get( MetadataService::class )
 		                  ->seedIndex()
 		;
 
 		$output->info(
-			sprintf( 'FCIAS: seeded %d file-checksum-updated_at index entries.', $inserted  ),
+			sprintf( 'FCIAS: seeded %d %s index entries.', $inserted, MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ),
 		);
 	}
 

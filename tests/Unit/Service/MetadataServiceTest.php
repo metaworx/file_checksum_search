@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
+use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCP\DB\IResult;
@@ -35,20 +36,19 @@ class MetadataServiceTest
 
 	private IDBConnection&MockObject         $db;
 
-	private IFilesMetadataManager&MockObject $metadataManager;
+	private IFilesMetadataManager&MockObject  $metadataManager;
 
-	private LoggerInterface&MockObject       $logger;
+	private FilecacheService&MockObject       $filecacheService;
 
-	private MetadataService                  $service;
+	private LoggerInterface&MockObject        $logger;
 
-	/** @var IQueryBuilder&MockObject */
-	private IQueryBuilder $queryBuilder;
+	private MetadataService                   $service;
 
-	/** @var IExpressionBuilder&MockObject */
-	private IExpressionBuilder $expr;
+	private IQueryBuilder&MockObject          $queryBuilder;
 
-	/** @var IFunctionBuilder&MockObject */
-	private IFunctionBuilder $func;
+	private IExpressionBuilder&MockObject     $expr;
+
+	private IFunctionBuilder&MockObject       $func;
 
 
 	protected function setUp(): void
@@ -56,12 +56,13 @@ class MetadataServiceTest
 
 		parent::setUp();
 
-		$this->db              = $this->createMock( IDBConnection::class );
-		$this->metadataManager = $this->createMock( IFilesMetadataManager::class );
-		$this->logger          = $this->createMock( LoggerInterface::class );
-		$this->queryBuilder    = $this->createMock( IQueryBuilder::class );
-		$this->expr            = $this->createMock( IExpressionBuilder::class );
-		$this->func            = $this->createMock( IFunctionBuilder::class );
+		$this->db               = $this->createMock( IDBConnection::class );
+		$this->metadataManager  = $this->createMock( IFilesMetadataManager::class );
+		$this->filecacheService = $this->createMock( FilecacheService::class );
+		$this->logger           = $this->createMock( LoggerInterface::class );
+		$this->queryBuilder     = $this->createMock( IQueryBuilder::class );
+		$this->expr             = $this->createMock( IExpressionBuilder::class );
+		$this->func             = $this->createMock( IFunctionBuilder::class );
 
 		$this->db->method( 'getQueryBuilder' )
 		         ->willReturn( $this->queryBuilder )
@@ -77,10 +78,7 @@ class MetadataServiceTest
 
 		$this->queryBuilder->method( 'createNamedParameter' )
 		                   ->willReturnCallback(
-			                   fn(
-				                   $value,
-				                   $type = null,
-			                   ) => $value,
+			                   fn ( $value, $type = null ) => $value,
 		                   )
 		;
 
@@ -99,6 +97,7 @@ class MetadataServiceTest
 		$this->service = new MetadataService(
 			$this->db,
 			$this->metadataManager,
+			$this->filecacheService,
 			$this->logger,
 		);
 	}
@@ -134,8 +133,7 @@ class MetadataServiceTest
 			                      (
 				                      &
 				                      $registeredKeys,
-			                      ): void
-			                      {
+			                      ): void {
 
 				                      $registeredKeys[] = $key;
 			                      },
@@ -144,7 +142,7 @@ class MetadataServiceTest
 
 		$this->service->register();
 
-		$this->assertContains( 'file-checksum-updated_at', $registeredKeys );
+		$this->assertContains( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $registeredKeys );
 	}
 
 
@@ -161,8 +159,7 @@ class MetadataServiceTest
 			                      (
 				                      &
 				                      $registeredKeys,
-			                      ): void
-			                      {
+			                      ): void {
 
 				                      $registeredKeys[] = $key;
 			                      },
@@ -176,7 +173,7 @@ class MetadataServiceTest
 			$this->assertContains(
 				'file-checksum-' . $algo,
 				$registeredKeys,
-				"Expected key 'file-checksum-$algo' to be registered.",
+				"Expected key 'file-checksum-{$algo}' to be registered.",
 			);
 		}
 	}
@@ -427,6 +424,161 @@ class MetadataServiceTest
 		$inserted = $this->service->seedIndex();
 
 		$this->assertSame( 0, $inserted );
+	}
+
+
+	public function testSeedIndexSqlContainsExpectedTables(): void
+	{
+
+		$capturedSql = null;
+
+		$this->db->expects( $this->once() )
+		         ->method( 'executeStatement' )
+		         ->willReturnCallback(
+			         function (
+				         string $sql,
+			         ) use
+			         (
+				         &
+				         $capturedSql,
+			         ): int {
+
+				         $capturedSql = $sql;
+
+				         return 0;
+			         },
+		         )
+		;
+
+		$this->service->seedIndex();
+
+		$this->assertNotNull( $capturedSql, 'SQL should have been captured.' );
+		$this->assertStringContainsString( 'files_metadata_index', $capturedSql );
+		$this->assertStringContainsString( 'filecache', $capturedSql );
+		$this->assertStringContainsString( 'file-checksum-updated_at', $capturedSql );
+		$this->assertStringContainsString( 'pending:new', $capturedSql );
+		$this->assertStringContainsString( 'INSERT INTO', $capturedSql );
+		$this->assertStringContainsString( 'NOT IN', $capturedSql );
+	}
+
+
+	public function testMarkPendingSqlContainsExpectedClauses(): void
+	{
+
+		$capturedParams = [];
+
+		$this->queryBuilder->expects( $this->once() )
+		                   ->method( 'update' )
+		                   ->with( 'files_metadata_index' )
+		                   ->willReturnSelf()
+		;
+
+		$this->queryBuilder->expects( $this->once() )
+		                   ->method( 'set' )
+		                   ->with( 'meta_value_string', 'pending:auto' )
+		                   ->willReturnSelf()
+		;
+
+		$this->queryBuilder->expects( $this->once() )
+		                   ->method( 'where' )
+		                   ->willReturnSelf()
+		;
+
+		$this->queryBuilder->expects( $this->once() )
+		                   ->method( 'executeStatement' )
+		                   ->willReturn( 1 )
+		;
+
+		$this->expr->expects( $this->exactly( 2 ) )
+		           ->method( 'eq' )
+		           ->willReturnCallback(
+			           function (
+				           string $column,
+				           $value,
+			           ) use
+			           (
+				           &
+				           $capturedParams,
+			           ): string {
+
+				           $capturedParams[ $column ] = $value;
+
+				           return '1=1';
+			           },
+		           )
+		;
+
+		$this->service->markPending( 42, 'pending:auto' );
+
+		$this->assertArrayHasKey( 'file_id', $capturedParams );
+		$this->assertSame( 42, $capturedParams['file_id'] );
+		$this->assertArrayHasKey( 'meta_key', $capturedParams );
+		$this->assertSame( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $capturedParams['meta_key'] );
+	}
+
+
+	public function testFetchPendingBatchQueriesCorrectKey(): void
+	{
+
+		$capturedKey   = null;
+		$capturedLike  = null;
+
+		$this->expr->expects( $this->once() )
+		           ->method( 'eq' )
+		           ->willReturn( '1=1' )
+		;
+
+		$this->expr->expects( $this->once() )
+		           ->method( 'like' )
+		           ->willReturnCallback(
+			           function (
+				           string $column,
+				           string $value,
+			           ) use
+			           (
+				           &
+				           $capturedLike,
+			           ): string {
+
+				           $capturedLike = $value;
+
+				           return '1=1';
+			           },
+		           )
+		;
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetch' )
+		       ->willReturn( false )
+		;
+
+		$this->queryBuilder->method( 'select' )
+		                   ->willReturnSelf()
+		;
+
+		$this->queryBuilder->method( 'from' )
+		                   ->willReturnSelf()
+		;
+
+		$this->queryBuilder->method( 'where' )
+		                   ->willReturnSelf()
+		;
+
+		$this->queryBuilder->method( 'orderBy' )
+		                   ->willReturnSelf()
+		;
+
+		$this->queryBuilder->method( 'setMaxResults' )
+		                   ->willReturnSelf()
+		;
+
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$this->service->fetchPendingBatch( 25 );
+
+		$this->assertSame( 'pending:%', $capturedLike );
 	}
 
 }

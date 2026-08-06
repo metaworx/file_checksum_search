@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Listener;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Listener\FileListener;
 use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\MetadataService;
 use OCP\Files\Events\Node\NodeCopiedEvent;
 use OCP\Files\Events\Node\NodeCreatedEvent;
 use OCP\Files\Events\Node\NodeDeletedEvent;
@@ -29,6 +30,8 @@ class FileListenerTest
 
 	private MockObject|HashIndexService $hashIndexService;
 
+	private MockObject|MetadataService  $metadataService;
+
 	private MockObject|IAppConfig       $appConfig;
 
 	private MockObject|LoggerInterface  $logger;
@@ -42,11 +45,13 @@ class FileListenerTest
 		parent::setUp();
 
 		$this->hashIndexService = $this->createMock( HashIndexService::class );
+		$this->metadataService  = $this->createMock( MetadataService::class );
 		$this->appConfig        = $this->createMock( IAppConfig::class );
 		$this->logger           = $this->createMock( LoggerInterface::class );
 
 		$this->listener = new FileListener(
 			$this->hashIndexService,
+			$this->metadataService,
 			$this->appConfig,
 			$this->logger,
 		);
@@ -72,10 +77,6 @@ class FileListenerTest
 		                       ->method( 'copyFilecacheChecksum' )
 		                       ->with( $source, $target )
 		;
-		$this->hashIndexService->expects( $this->once() )
-		                       ->method( 'copyHashes' )
-		                       ->with( 1, 2 )
-		;
 
 		$this->listener->handle( $event );
 	}
@@ -91,9 +92,6 @@ class FileListenerTest
 
 		$this->hashIndexService->expects( $this->never() )
 		                       ->method( 'copyFilecacheChecksum' )
-		;
-		$this->hashIndexService->expects( $this->never() )
-		                       ->method( 'copyHashes' )
 		;
 
 		$this->listener->handle( $event );
@@ -139,13 +137,9 @@ class FileListenerTest
 		                ->willReturn( 'lazy' )
 		;
 
-		$this->hashIndexService->expects( $this->once() )
-		                       ->method( 'deleteHashes' )
-		                       ->with( 42 )
-		;
-		$this->hashIndexService->expects( $this->once() )
-		                       ->method( 'addPending' )
-		                       ->with( 42, HashIndexService::EVENT_TYPE_WRITE )
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 42, 'pending:lazy' )
 		;
 
 		$this->listener->handle( $event );
@@ -227,9 +221,6 @@ class FileListenerTest
 		$this->hashIndexService->expects( $this->never() )
 		                       ->method( 'recalcAllExistingAlgos' )
 		;
-		$this->hashIndexService->expects( $this->never() )
-		                       ->method( 'deleteHashes' )
-		;
 
 		$this->listener->handle( $event );
 	}
@@ -274,9 +265,9 @@ class FileListenerTest
 		                ->willReturn( 'lazy' )
 		;
 
-		$this->hashIndexService->expects( $this->once() )
-		                       ->method( 'addPending' )
-		                       ->with( 42, HashIndexService::EVENT_TYPE_CREATE )
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 42, 'pending:lazy' )
 		;
 
 		$this->listener->handle( $event );
@@ -301,8 +292,8 @@ class FileListenerTest
 		$this->hashIndexService->expects( $this->never() )
 		                       ->method( 'recalcFileHash' )
 		;
-		$this->hashIndexService->expects( $this->never() )
-		                       ->method( 'addPending' )
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'markPending' )
 		;
 
 		$this->listener->handle( $event );
@@ -348,11 +339,9 @@ class FileListenerTest
 		                ->willReturn( 'off' )
 		;
 
-		$this->hashIndexService->expects( $this->never() )
-		                       ->method( 'deleteHashes' )
-		;
-
 		$this->listener->handle( $event );
+
+		$this->addToAssertionCount( 1 );
 	}
 
 

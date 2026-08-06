@@ -1,0 +1,219 @@
+<?php
+
+namespace OCA\FileChecksumSearch\Service;
+
+use OCP\Files\File;
+use OCP\Files\Folder;
+use OCP\Files\IRootFolder;
+use OCP\Files\Node;
+use OCP\Files\NotFoundException;
+
+/** @noinspection PhpClassCanBeReadonlyInspection */
+class FilecacheService
+{
+
+	public function __construct(
+		private readonly IRootFolder $rootFolder,
+	) {
+	}
+
+
+	/**
+	 * @param  int|\OCP\Files\File  $file
+	 *
+	 * @return File
+	 * @noinspection PhpDocMissingThrowsInspection
+	 * @throws \OCP\Files\NotFoundException
+	 */
+	public function getFile( int|File $file ): File
+	{
+
+		/** @noinspection PhpUnhandledExceptionInspection */
+		if ( $file instanceof File )
+		{
+			return $file;
+		}
+
+		$node = $this->rootFolder->getFirstNodeById( $file );
+
+		if ( $node instanceof File )
+		{
+			return $node;
+		}
+
+		throw  new NotFoundException( "Invalid Filecache ID: $file" );
+	}
+
+
+	public function getHashes(
+		int|File $file,
+		?array   $hashFilter = null,
+	): array {
+
+		$file             = $this->getFile( $file );
+		$existingChecksum = $file->getChecksum() ?? '';
+		$hashes           = [];
+		$count            = $hashFilter === null
+			? 0
+			: count( $hashFilter );
+
+		foreach ( explode( ' ', $existingChecksum ) as $pair )
+		{
+			if ( $pair === '' )
+			{
+				continue;
+			}
+
+			[
+				$algoUpper,
+				$hash,
+			]
+				= explode( ':', $pair );
+
+			$algo = strtolower( $algoUpper );
+
+			if ( $hashFilter === null || in_array( $algo, $hashFilter ) )
+			{
+				$hashes[ $algo ] = $hash;
+			}
+
+			if ( count( $hashes ) === $count )
+			{
+				break;
+			}
+		}
+
+		return $hashes;
+	}
+
+
+	public function getNodeById( int $fileId ): Node
+	{
+
+		$nodes = $this->rootFolder->getById( $fileId );
+
+		if ( empty( $nodes ) )
+		{
+			throw new NotFoundException( "Invalid file ID: $fileId" );
+		}
+
+		return $nodes[0];
+
+	}
+
+
+	/**
+	 * @param  string  $userId
+	 *
+	 * @return \OCP\Files\Folder
+	 * @throws \OCP\Files\NotPermittedException
+	 * @throws \OCP\User\Exceptions\UserNotFoundException
+	 */
+	public function getUserFolder( string $userId ): Folder
+	{
+
+		return $this->rootFolder->getUserFolder( $userId );
+	}
+
+
+	/**
+	 * @param  string  $userId
+	 *
+	 * @return \OCP\Files\Folder
+	 * @throws \OCP\Files\NotPermittedException
+	 * @throws \OCP\User\Exceptions\UserNotFoundException
+	 */
+	public function getUserFolderPath( string $userId ): string
+	{
+
+		$userFolder = $this->getUserFolder( $userId );
+
+		return $userFolder->getPath();
+	}
+
+
+	public function setHashes(
+		int|File $file,
+		?array   $hashes = null,
+		bool     $keepAdditional = false,
+	): void {
+
+		$file = $this->getFile( $file );
+
+		$existingHashes = $keepAdditional
+			? $this->getHashes( $file )
+			: [];
+
+		$newHashes = [];
+		$hashes    ??= [];
+
+		foreach ( $hashes as $algo => $hash )
+		{
+			$algoUpper   = strtoupper( $algo );
+			$newHashes[] = "$algoUpper:$hash";
+			if ( $keepAdditional )
+			{
+				unset( $existingHashes[ $algo ] );
+			}
+		}
+
+		if ( $keepAdditional )
+		{
+			foreach ( $existingHashes as $algo => $hash )
+			{
+				$algoUpper   = strtoupper( $algo );
+				$newHashes[] = "$algoUpper:$hash";
+			}
+		}
+
+		$file->getStorage()
+		     ->getCache()
+		     ->update( $file->getId(), [ 'checksum' => implode( ' ', $newHashes ) ] )
+		;
+	}
+
+
+	/**
+	 * Copy the filecache checksum from source to target file.
+	 *
+	 * Used by NodeCopiedEvent to preserve NC's native checksum
+	 * on copied files.
+	 */
+	public function copyFilecacheChecksum(
+		File $source,
+		File $target,
+	): void {
+
+		/** @noinspection PhpUnhandledExceptionInspection */
+		$checksum = $source->getChecksum();
+
+		if ( $checksum === null || $checksum === '' )
+		{
+			return;
+		}
+
+		/** @noinspection PhpUnhandledExceptionInspection */
+		$targetStorage = $target->getStorage();
+		$targetCache   = $targetStorage->getCache();
+
+		/** @noinspection PhpUnhandledExceptionInspection */
+		$targetCache->update( $target->getId(), [ 'checksum' => $checksum ] );
+	}
+
+
+	/**
+	 * @param  int|\OCP\Files\File  $file
+	 *
+	 * @return int
+	 * @noinspection PhpDocMissingThrowsInspection
+	 */
+	public static function getFileId( int|File $file ): int
+	{
+
+		/** @noinspection PhpUnhandledExceptionInspection */
+		return $file instanceof File
+			? $file->getId()
+			: $file;
+	}
+
+}

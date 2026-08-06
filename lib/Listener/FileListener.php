@@ -10,7 +10,8 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Listener;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
-use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\FilecacheService;
+use OCA\FileChecksumSearch\Service\MetadataService;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\EventDispatcher\Event;
 use OCP\EventDispatcher\IEventListener;
@@ -36,7 +37,8 @@ class FileListener
 {
 
 	public function __construct(
-		private readonly HashIndexService $hashIndexService,
+		private readonly FilecacheService $filecacheService,
+		private readonly MetadataService  $metadataService,
 		private readonly IAppConfig       $appConfig,
 		private readonly LoggerInterface  $logger,
 	) {
@@ -92,8 +94,8 @@ class FileListener
 			return;
 		}
 
-		$this->hashIndexService->copyFilecacheChecksum( $source, $target );
-		$this->hashIndexService->copyHashes( $source->getId(), $target->getId() );
+		$this->filecacheService->copyFilecacheChecksum( $source, $target );
+		$this->metadataService->markPending( $target->getId(), 'pending:lazy' );
 
 		$this->logger->debug(
 			'FCIAS FileListener: copied hashes for copied file',
@@ -135,7 +137,7 @@ class FileListener
 			if ( $result['locked'] ?? false )
 			{
 				$this->hashIndexService->deleteHashes( $fileId );
-				$this->hashIndexService->addPending( $fileId, HashIndexService::EVENT_TYPE_WRITE );
+				$this->metadataService->markPending( $fileId, 'pending:lazy' );
 
 				$this->logger->debug(
 					'FCIAS FileListener: file locked, queued for delayed retry on write',
@@ -160,7 +162,7 @@ class FileListener
 
 		case 'lazy':
 			$this->hashIndexService->deleteHashes( $fileId );
-			$this->hashIndexService->addPending( $fileId, HashIndexService::EVENT_TYPE_WRITE );
+			$this->metadataService->markPending( $fileId, 'pending:lazy' );
 
 			$this->logger->debug(
 				'FCIAS FileListener: lazy-deleted hashes + queued on write',
@@ -222,7 +224,7 @@ class FileListener
 
 			if ( $result['locked'] ?? false )
 			{
-				$this->hashIndexService->addPending( $fileId, HashIndexService::EVENT_TYPE_CREATE );
+				$this->metadataService->markPending( $fileId, 'pending:lazy' );
 
 				$this->logger->debug(
 					'FCIAS FileListener: file locked, queued for delayed retry on create',
@@ -246,7 +248,7 @@ class FileListener
 			break;
 
 		case 'lazy':
-			$this->hashIndexService->addPending( $fileId, HashIndexService::EVENT_TYPE_CREATE );
+			$this->metadataService->markPending( $fileId, 'pending:lazy' );
 
 			$this->logger->debug(
 				'FCIAS FileListener: queued on create',

@@ -10,8 +10,13 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Service;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCP\DB\IResult;
 use OCP\DB\QueryBuilder\IQueryBuilder;
+use OCP\Files\File;
+use OCP\FilesMetadata\Exceptions\FilesMetadataNotFoundException;
+use OCP\FilesMetadata\Exceptions\FilesMetadataTypeException;
 use OCP\FilesMetadata\IFilesMetadataManager;
+use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\FilesMetadata\Model\IMetadataValueWrapper;
 use OCP\IDBConnection;
 use Psr\Log\LoggerInterface;
@@ -28,49 +33,305 @@ use Psr\Log\LoggerInterface;
  * - Staleness checks (getUpdatedAt)
  * - Seeding (INSERT...SELECT for unprocessed files)
  * - Pending stats (for :status command)
- *
- * @noinspection PhpClassCanBeReadonlyInspection
  */
 class MetadataService
 {
 
+// constants
+	public const FIELD_FILE_ID                = 'file_id';
+	public const FIELD_META_KEY               = 'meta_key';
+	public const FIELD_META_VALUE_INT         = 'meta_value_int';
+	public const FIELD_META_VALUE_STRING      = 'meta_value_string';
+	public const KEY_FILE_CHECKSUM_LIKE       = self::KEY_FILE_CHECKSUM_PREFIX . '%';
+	public const KEY_FILE_CHECKSUM_PREFIX     = 'file-checksum-';
+	public const KEY_FILE_CHECKSUM_UPDATED_AT = 'file-checksum-updated_at';
+	public const PENDING_LIKE                 = self::PENDING_PREFIX . '%';
+	public const PENDING_PREFIX               = 'pending:';
+	public const TABLE_FILES_METADATA_INDEX   = 'files_metadata_index';
+
+
 	public function __construct(
 		private readonly IDBConnection         $db,
 		private readonly IFilesMetadataManager $metadataManager,
+		private readonly FilecacheService      $filecacheService,
 		private readonly LoggerInterface       $logger,
 	) {
 	}
 
 
-	/**
-	 * Register all metadata keys on app boot.
-	 *
-	 * Idempotent — safe to call on every boot.
-	 */
-	public function register(): void
+	public function &getHashes( int|File|IFilesMetadata $fileOrMetadata ): array
 	{
+
+		if ( ! $fileOrMetadata instanceof IFilesMetadata )
+		{
+			$fileOrMetadata = $this->getMetadata( $fileOrMetadata );
+		}
+
+		$hashes = [];
 
 		foreach ( HashIndexService::SUPPORTED_ALGOS as $algo )
 		{
-			$this->metadataManager->initMetadata(
-				'file-checksum-' . $algo,
-				IMetadataValueWrapper::TYPE_STRING,
-				true,
-				IMetadataValueWrapper::EDIT_FORBIDDEN,
-			);
+			$key = self::getHashKey( $algo );
+			try
+			{
+				$hashes[ $algo ] = $fileOrMetadata->getString( $key );
+			}
+			catch ( FilesMetadataNotFoundException|FilesMetadataTypeException )
+			{
+			}
 		}
 
-		$this->metadataManager->initMetadata(
-			'file-checksum-updated_at',
-			IMetadataValueWrapper::TYPE_INT,
-			true,
-			IMetadataValueWrapper::EDIT_FORBIDDEN,
-		);
+		return $hashes;
+	}
 
-		$this->logger->debug(
-			'FCIAS MetadataService: registered metadata keys',
-			[ 'app' => Application::APP_ID ],
-		);
+
+	/**
+	 * Get metadata for a file. Creates empty metadata if it does not exist.
+	 */
+	public function getMetadata( int|File $file ): IFilesMetadata
+	{
+
+		/** @noinspection PhpUnhandledExceptionInspection */
+		return $this->metadataManager->getMetadata( FilecacheService::getFileId( $file ), true );
+	}
+
+
+	/**
+	 * Get pending statistics grouped by meta_value_string.
+	 *
+	 * @return array<string, int>
+	 */
+	public function getPendingStats(): array
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( self::FIELD_META_VALUE_STRING )
+		   ->selectAlias(
+			   $qb->func()
+			      ->count( self::FIELD_FILE_ID ),
+			   'cnt',
+		   )
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			   $qb->expr()
+			      ->like(
+				      self::FIELD_META_VALUE_STRING,
+				      $qb->createNamedParameter( self::PENDING_LIKE ),
+			      ),
+		   )
+		   ->groupBy( self::FIELD_META_VALUE_STRING )
+		;
+
+		$result = $this->executeQuery( $qb );
+		$stats  = [];
+
+		while ( ( $row = $result->fetch() ) !== false )
+		{
+			$stats[ (string) $row[ self::FIELD_META_VALUE_STRING ] ] = (int) $row['cnt'];
+		}
+		$result->closeCursor();
+
+		return $stats;
+	}
+
+
+	/**
+	 * Get the updated_at timestamp for a file from the metadata index.
+	 *
+	 * @return int|null Unix timestamp or null if not set
+	 */
+	public function getUpdatedAt( int|File|IFilesMetadata $fileOrMetadata ): ?int
+	{
+
+		if ( $fileOrMetadata instanceof IFilesMetadata )
+		{
+			try
+			{
+				return $fileOrMetadata->getInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT );
+			}
+			catch ( FilesMetadataNotFoundException|FilesMetadataTypeException )
+			{
+			}
+
+			$fileOrMetadata = $fileOrMetadata->getFileId();
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( self::FIELD_META_VALUE_INT )
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq(
+				      self::FIELD_FILE_ID,
+				      $qb->createNamedParameter(
+					      FilecacheService::getFileId( $fileOrMetadata ),
+					      IQueryBuilder::PARAM_INT,
+				      ),
+			      ),
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+		   )
+		;
+
+		$result = $this->executeQuery( $qb )
+		               ->fetchOne()
+		;
+
+		return $result !== false && $result !== null
+			? (int) $result
+			: null;
+	}
+
+
+	public function clearMetadata(
+		int|File|IFilesMetadata $fileOrMetadata,
+		bool                    $save = true,
+	): void {
+
+		if ( $fileOrMetadata instanceof IFilesMetadata )
+		{
+			$metadata = $fileOrMetadata;
+		}
+		else
+		{
+			$metadata = $this->getMetadata( $fileOrMetadata );
+			$save     = true;
+		}
+
+		$metadata->removeStartsWith( self::KEY_FILE_CHECKSUM_PREFIX );
+		$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, 0 );
+
+		if ( $save )
+		{
+			$this->metadataManager->saveMetadata( $metadata );
+		}
+	}
+
+
+	/**
+	 * Count metadata index entries for a given file_id.
+	 */
+	public function countByFileId( int $fileId ): int
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select(
+			$qb->func()
+			   ->count( '*', 'cnt' ),
+		)
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->like(
+				      self::FIELD_META_KEY,
+				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ),
+			      ),
+			   $qb->expr()
+			      ->neq(
+				      self::FIELD_META_KEY,
+				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+			      ),
+		   )
+		;
+
+		return (int) $this->executeQuery( $qb )
+		                  ->fetchOne()
+		;
+	}
+
+
+	/**
+	 * Ensure a metadata reference is set for a file. If $metadata is null,
+	 * loads or creates it. Returns true if newly created (caller must save).
+	 *
+	 * @param  int|File             $file
+	 * @param  IFilesMetadata|null  $metadata  Reference that will be set
+	 *
+	 * @return bool True if metadata was newly created and caller is responsible for saving
+	 */
+	public function ensureMetadata(
+		int|File        $file,
+		?IFilesMetadata &$metadata,
+	): bool {
+
+		if ( $metadata !== null )
+		{
+			return false;
+		}
+
+		$metadata = $this->getMetadata( $file );
+
+		return true;
+	}
+
+
+	/**
+	 * @param  \OCP\DB\QueryBuilder\IQueryBuilder  $qb
+	 *
+	 * @return \OCP\DB\IResult
+	 * @throws \OCP\DB\Exception
+	 */
+	private function executeQuery( IQueryBuilder $qb ): IResult
+	{
+
+		return $qb->executeQuery();
+	}
+
+
+	/**
+	 * @param  \OCP\DB\QueryBuilder\IQueryBuilder  $qb
+	 *
+	 * @return int
+	 * @throws \OCP\DB\Exception
+	 */
+	private function executeStatement( IQueryBuilder $qb ): int
+	{
+
+		return $qb->executeStatement();
+	}
+
+
+	/**
+	 * Fetch a batch of pending rows ordered by file_id.
+	 *
+	 * @return array<int, array{file_id: int, meta_value_string: string}>
+	 */
+	public function fetchPendingBatch( int $limit = 50 ): array
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( self::FIELD_FILE_ID, self::FIELD_META_VALUE_STRING )
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			   $qb->expr()
+			      ->like(
+				      self::FIELD_META_VALUE_STRING,
+				      $qb->createNamedParameter( self::PENDING_LIKE ),
+			      ),
+		   )
+		   ->orderBy( self::FIELD_FILE_ID, 'ASC' )
+		   ->setMaxResults( $limit )
+		;
+
+		$result = $this->executeQuery( $qb );
+		$rows   = [];
+
+		while ( ( $row = $result->fetch() ) !== false )
+		{
+			$rows[] = [
+				self::FIELD_FILE_ID           => (int) $row[ self::FIELD_FILE_ID ],
+				self::FIELD_META_VALUE_STRING => (string) $row[ self::FIELD_META_VALUE_STRING ],
+			];
+		}
+		$result->closeCursor();
+
+		return $rows;
 	}
 
 
@@ -86,17 +347,17 @@ class MetadataService
 	): void {
 
 		$qb = $this->db->getQueryBuilder();
-		$qb->update( 'files_metadata_index' )
-		   ->set( 'meta_value_string', $qb->createNamedParameter( $mode ) )
+		$qb->update( self::TABLE_FILES_METADATA_INDEX )
+		   ->set( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( $mode ) )
 		   ->where(
 			   $qb->expr()
-			      ->eq( 'file_id', $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
 			   $qb->expr()
-			      ->eq( 'meta_key', $qb->createNamedParameter( 'file-checksum-updated_at' ) ),
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
 		   )
 		;
 
-		$updated = $qb->executeStatement();
+		$updated = $this->executeStatement( $qb );
 
 		$this->logger->debug(
 			'FCIAS MetadataService: markPending',
@@ -107,87 +368,6 @@ class MetadataService
 				'updated' => $updated,
 			],
 		);
-	}
-
-
-	/**
-	 * Fetch a batch of pending rows ordered by file_id.
-	 *
-	 * @return array<int, array{file_id: int, meta_value_string: string}>
-	 */
-	public function fetchPendingBatch( int $limit = 50 ): array
-	{
-
-		$qb = $this->db->getQueryBuilder();
-		$qb->select( 'file_id', 'meta_value_string' )
-		   ->from( 'files_metadata_index' )
-		   ->where(
-			   $qb->expr()
-			      ->eq( 'meta_key', $qb->createNamedParameter( 'file-checksum-updated_at' ) ),
-			   $qb->expr()
-			      ->like(
-				      'meta_value_string',
-				      $qb->createNamedParameter( 'pending:%' ),
-			      ),
-		   )
-		   ->orderBy( 'file_id', 'ASC' )
-		   ->setMaxResults( $limit )
-		;
-
-		$result = $qb->executeQuery();
-		$rows   = [];
-
-		while ( ( $row = $result->fetch() ) !== false )
-		{
-			$rows[] = [
-				'file_id'           => (int) $row['file_id'],
-				'meta_value_string' => (string) $row['meta_value_string'],
-			];
-		}
-		$result->closeCursor();
-
-		return $rows;
-	}
-
-
-	/**
-	 * Get pending statistics grouped by meta_value_string.
-	 *
-	 * @return array<string, int>
-	 */
-	public function getPendingStats(): array
-	{
-
-		$qb = $this->db->getQueryBuilder();
-		$qb->select( 'meta_value_string' )
-		   ->selectAlias(
-			   $qb->func()
-			      ->count( 'file_id' ),
-			   'cnt',
-		   )
-		   ->from( 'files_metadata_index' )
-		   ->where(
-			   $qb->expr()
-			      ->eq( 'meta_key', $qb->createNamedParameter( 'file-checksum-updated_at' ) ),
-			   $qb->expr()
-			      ->like(
-				      'meta_value_string',
-				      $qb->createNamedParameter( 'pending:%' ),
-			      ),
-		   )
-		   ->groupBy( 'meta_value_string' )
-		;
-
-		$result = $qb->executeQuery();
-		$stats  = [];
-
-		while ( ( $row = $result->fetch() ) !== false )
-		{
-			$stats[ (string) $row['meta_value_string'] ] = (int) $row['cnt'];
-		}
-		$result->closeCursor();
-
-		return $stats;
 	}
 
 
@@ -205,11 +385,11 @@ class MetadataService
 	): array {
 
 		$qb = $this->db->getQueryBuilder();
-		$qb->select( 'file_id' )
-		   ->from( 'files_metadata_index' )
+		$qb->select( self::FIELD_FILE_ID )
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
 		   ->where(
 			   $qb->expr()
-			      ->eq( 'meta_value_string', $qb->createNamedParameter( $hash ) ),
+			      ->eq( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( $hash ) ),
 		   )
 		   ->setMaxResults( $limit )
 		;
@@ -218,7 +398,7 @@ class MetadataService
 		{
 			$qb->andWhere(
 				$qb->expr()
-				   ->eq( 'meta_key', $qb->createNamedParameter( 'file-checksum-' . $algo ) ),
+				   ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_PREFIX . $algo ) ),
 			);
 		}
 		else
@@ -226,13 +406,13 @@ class MetadataService
 			$qb->andWhere(
 				$qb->expr()
 				   ->like(
-					   'meta_key',
-					   $qb->createNamedParameter( 'file-checksum-%' ),
+					   self::FIELD_META_KEY,
+					   $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ),
 				   ),
 			);
 		}
 
-		$result = $qb->executeQuery();
+		$result = $this->executeQuery( $qb );
 		$rows   = $result->fetchAll();
 		$result->closeCursor();
 
@@ -257,40 +437,43 @@ class MetadataService
 
 		$qb = $this->db->getQueryBuilder();
 
-		$qb->select( 'i.meta_key', 'i.meta_value_string' )
+		$qb->select( 'i.' . self::FIELD_META_KEY, 'i.' . self::FIELD_META_VALUE_STRING )
 		   ->selectAlias(
 			   $qb->func()
-			      ->count( 'i.file_id' ),
+			      ->count( 'i.' . self::FIELD_FILE_ID ),
 			   'cnt',
 		   )
 		   ->selectAlias(
 			   $qb->func()
-			      ->groupConcat( 'i.file_id' ),
+			      ->groupConcat( 'i.' . self::FIELD_FILE_ID ),
 			   'file_ids',
 		   )
-		   ->from( 'files_metadata_index', 'i' )
+		   ->from( self::TABLE_FILES_METADATA_INDEX, 'i' )
 		   ->innerJoin(
 			   'i',
 			   'files_metadata',
 			   'm',
-			   'i.file_id = m.file_id',
+			   'i.' . self::FIELD_FILE_ID . ' = m.' . self::FIELD_FILE_ID,
 		   )
 		   ->where(
 			   $qb->expr()
 			      ->like(
-				      'i.meta_key',
-				      $qb->createNamedParameter( 'file-checksum-%' ),
+				      'i.' . self::FIELD_META_KEY,
+				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ),
 			      ),
 		   )
-		   ->groupBy( 'i.meta_value_string' )
-		   ->addGroupBy( 'i.meta_key' )
+		   ->groupBy( 'i.' . self::FIELD_META_VALUE_STRING )
+		   ->addGroupBy( 'i.' . self::FIELD_META_KEY )
 		;
 
 		if ( $algo !== null && $algo !== '' )
 		{
 			$qb->andWhere(
 				$qb->expr()
-				   ->eq( 'i.meta_key', $qb->createNamedParameter( 'file-checksum-' . $algo ) ),
+				   ->eq(
+					   'i.' . self::FIELD_META_KEY,
+					   $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_PREFIX . $algo ),
+				   ),
 			);
 		}
 
@@ -303,7 +486,7 @@ class MetadataService
 		   ->setFirstResult( $offset )
 		;
 
-		$result = $qb->executeQuery();
+		$result = $this->executeQuery( $qb );
 		$rows   = $result->fetchAll();
 		$result->closeCursor();
 
@@ -317,70 +500,60 @@ class MetadataService
 				: [];
 
 			return [
-				'meta_key'          => $row['meta_key'],
-				'meta_value_string' => $row['meta_value_string'],
-				'file_count'        => (int) $row['cnt'],
-				'file_ids'          => $fileIds,
+				self::FIELD_META_KEY          => $row[ self::FIELD_META_KEY ],
+				self::FIELD_META_VALUE_STRING => $row[ self::FIELD_META_VALUE_STRING ],
+				'file_count'                  => (int) $row['cnt'],
+				'file_ids'                    => $fileIds,
 			];
 		}, $rows );
 	}
 
 
 	/**
-	 * Count metadata index entries for a given file_id.
+	 * Register all metadata keys on app boot.
+	 *
+	 * Idempotent — safe to call on every boot.
 	 */
-	public function countByFileId( int $fileId ): int
+	public function register(): void
 	{
 
-		$qb = $this->db->getQueryBuilder();
-		$qb->select(
-			$qb->func()
-			   ->count( '*', 'cnt' ),
-		)
-		   ->from( 'files_metadata_index' )
-		   ->where(
-			   $qb->expr()
-			      ->eq( 'file_id', $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
-			   $qb->expr()
-			      ->like(
-				      'meta_key',
-				      $qb->createNamedParameter( 'file-checksum-%' ),
-			      ),
-		   )
-		;
+		foreach ( HashIndexService::SUPPORTED_ALGOS as $algo )
+		{
+			$this->metadataManager->initMetadata(
+				self::KEY_FILE_CHECKSUM_PREFIX . $algo,
+				IMetadataValueWrapper::TYPE_STRING,
+				true,
+				IMetadataValueWrapper::EDIT_FORBIDDEN,
+			);
+		}
 
-		return (int) $qb->executeQuery()
-		                ->fetchOne()
-		;
+		$this->metadataManager->initMetadata(
+			self::KEY_FILE_CHECKSUM_UPDATED_AT,
+			IMetadataValueWrapper::TYPE_INT,
+			true,
+			IMetadataValueWrapper::EDIT_FORBIDDEN,
+		);
+
+		$this->logger->debug(
+			'FCIAS MetadataService: registered metadata keys',
+			[ 'app' => Application::APP_ID ],
+		);
 	}
 
 
 	/**
-	 * Get the updated_at timestamp for a file from the metadata index.
+	 * Save metadata via IFilesMetadataManager.
 	 *
-	 * @return int|null Unix timestamp or null if not set
+	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
 	 */
-	public function getUpdatedAt( int $fileId ): ?int
-	{
+	public function saveMetadata(
+		IFilesMetadata $metadata,
+		int|File|null  $file = null,
+	): void {
 
-		$qb = $this->db->getQueryBuilder();
-		$qb->select( 'meta_value_int' )
-		   ->from( 'files_metadata_index' )
-		   ->where(
-			   $qb->expr()
-			      ->eq( 'file_id', $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
-			   $qb->expr()
-			      ->eq( 'meta_key', $qb->createNamedParameter( 'file-checksum-updated_at' ) ),
-		   )
-		;
+		$this->metadataManager->saveMetadata( $metadata );
 
-		$result = $qb->executeQuery()
-		             ->fetchOne()
-		;
-
-		return $result !== false && $result !== null
-			? (int) $result
-			: null;
+		$this->filecacheService->setHashes( $file ?? $metadata->getFileId(), $this->getHashes( $metadata ) );
 	}
 
 
@@ -395,7 +568,7 @@ class MetadataService
 		try
 		{
 			$inserted = $this->db->executeStatement(
-				<<<SQL
+				<<<"SQL"
 INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`)
 SELECT `fc`.`fileid`, 'file-checksum-updated_at', 'pending:new', 0
 FROM `*PREFIX*filecache` `fc`
@@ -428,6 +601,18 @@ SQL,
 
 			return 0;
 		}
+	}
+
+
+	/**
+	 * @param  string  $algo
+	 *
+	 * @return string
+	 */
+	public static function getHashKey( string $algo ): string
+	{
+
+		return self::KEY_FILE_CHECKSUM_PREFIX . strtolower( $algo );
 	}
 
 }

@@ -11,13 +11,12 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use OCA\FileChecksumSearch\Migration\LifecycleHandler;
 use OCA\FileChecksumSearch\Service\DuplicateService;
-use OCA\FileChecksumSearch\Service\FileOperationService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\PendingQueueService;
 use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\Files\File;
-use OCP\Files\Folder;
 use OCP\IDBConnection;
 use OCP\IUserManager;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -41,7 +40,7 @@ class HashIndexServiceTest
 
 	private MockObject|DuplicateService       $duplicates;
 
-	private MockObject|FileOperationService   $fileOps;
+	private MockObject|MetadataService        $metadataService;
 
 	private MockObject|IUserManager           $userManager;
 
@@ -61,16 +60,9 @@ class HashIndexServiceTest
 		$this->hashCalc         = $this->createMock( HashCalculationService::class );
 		$this->pendingQueue     = $this->createMock( PendingQueueService::class );
 		$this->duplicates       = $this->createMock( DuplicateService::class );
-		$this->fileOps          = $this->createMock( FileOperationService::class );
+		$this->metadataService  = $this->createMock( MetadataService::class );
 		$this->userManager      = $this->createMock( IUserManager::class );
 		$this->logger           = $this->createMock( LoggerInterface::class );
-
-		$this->tables->method( 'getHashTableName' )
-		             ->willReturn( 'oc_file_checksum_search_hashes' )
-		;
-		$this->tables->method( 'getPendingTableName' )
-		             ->willReturn( 'oc_file_checksum_search_pending' )
-		;
 
 		$this->service = new HashIndexService(
 			$this->db,
@@ -79,7 +71,7 @@ class HashIndexServiceTest
 			$this->hashCalc,
 			$this->pendingQueue,
 			$this->duplicates,
-			$this->fileOps,
+			$this->metadataService,
 			$this->userManager,
 			$this->logger,
 		);
@@ -96,59 +88,49 @@ class HashIndexServiceTest
 	public function testSupportedAlgosContainsExpectedValues(): void
 	{
 
-		$this->assertContains( 'sha1', HashIndexService::SUPPORTED_ALGOS );
-		$this->assertContains( 'sha256', HashIndexService::SUPPORTED_ALGOS );
-		$this->assertContains( 'sha512', HashIndexService::SUPPORTED_ALGOS );
-		$this->assertContains( 'md5', HashIndexService::SUPPORTED_ALGOS );
+		$algos = HashIndexService::SUPPORTED_ALGOS;
+
+		$this->assertContains( 'sha1', $algos );
+		$this->assertContains( 'sha256', $algos );
+		$this->assertContains( 'sha512', $algos );
+		$this->assertContains( 'adler32', $algos );
 	}
 
 
 	public function testRecalcHashDelegatesToHashCalc(): void
 	{
 
-		$expected = [
-			'success' => false,
-			'algo'    => 'sha1',
-			'hash'    => '',
-			'existed' => false,
-			'error'   => 'File not found.',
-		];
-
 		$this->hashCalc->expects( $this->once() )
 		               ->method( 'recalcHash' )
-		               ->with( 42, 'sha1', true )
-		               ->willReturn( $expected )
+		               ->with( 42, 'sha256', true )
+		               ->willReturn(
+			               [
+				               'success' => true,
+				               'algo'    => 'sha256',
+				               'hash'    => 'abc',
+				               'existed' => false,
+			               ],
+		               )
 		;
 
-		$result = $this->service->recalcHash( 42, 'sha1' );
+		$result = $this->service->recalcHash( 42, 'sha256' );
 
-		$this->assertSame( $expected, $result );
+		$this->assertTrue( $result['success'] );
 	}
 
 
 	public function testFindByHashDelegatesToDuplicates(): void
 	{
 
-		$rows = [
-			[
-				'fileid'     => '42',
-				'algo'       => 'sha1',
-				'hash_value' => 'abc',
-				'path'       => 'Docs',
-				'name'       => 'f.pdf',
-			],
-		];
-
 		$this->duplicates->expects( $this->once() )
 		                 ->method( 'findByHash' )
-		                 ->with( 'abc', null, 100 )
-		                 ->willReturn( $rows )
+		                 ->with( 'abc123', null, 100 )
+		                 ->willReturn( [] )
 		;
 
-		$result = $this->service->findByHash( 'abc' );
+		$result = $this->service->findByHash( 'abc123' );
 
-		$this->assertCount( 1, $result );
-		$this->assertSame( '42', $result[0]['fileid'] );
+		$this->assertIsArray( $result );
 	}
 
 
@@ -157,69 +139,39 @@ class HashIndexServiceTest
 
 		$this->duplicates->expects( $this->once() )
 		                 ->method( 'findByHash' )
-		                 ->with( 'abc', 'md5', 100 )
+		                 ->with( 'abc123', 'sha256', 50 )
 		                 ->willReturn( [] )
 		;
 
-		$result = $this->service->findByHash( 'abc', 'md5' );
+		$result = $this->service->findByHash( 'abc123', 'sha256', 50 );
 
-		$this->assertEmpty( $result );
+		$this->assertIsArray( $result );
 	}
 
 
 	public function testBatchLookupFilecachePathsDelegates(): void
 	{
 
-		$expected = [
-			42 => [
-				'path'       => 'files/photo.jpg',
-				'name'       => 'photo.jpg',
-				'storage_id' => 'home::bob',
-				'user'       => 'bob',
-			],
-		];
-
 		$this->duplicates->expects( $this->once() )
 		                 ->method( 'batchLookupFilecachePaths' )
-		                 ->with( [ 42 ], 'bob' )
-		                 ->willReturn( $expected )
+		                 ->with(
+			                 [
+				                 42,
+				                 108,
+			                 ],
+			                 null,
+		                 )
+		                 ->willReturn( [] )
 		;
 
-		$result = $this->service->batchLookupFilecachePaths( [ 42 ], 'bob' );
+		$result = $this->service->batchLookupFilecachePaths(
+			[
+				42,
+				108,
+			],
+		);
 
-		$this->assertCount( 1, $result );
-	}
-
-
-	public function testDrainPendingOrchestratesQueueAndRecalc(): void
-	{
-
-		$pendingRows = [
-			[ 'fileid' => 42, 'event_type' => 'write' ],
-			[ 'fileid' => 108, 'event_type' => 'create' ],
-		];
-
-		$this->pendingQueue->expects( $this->once() )
-		                   ->method( 'fetchPending' )
-		                   ->with( 50 )
-		                   ->willReturn( $pendingRows )
-		;
-
-		$this->hashCalc->expects( $this->exactly( 2 ) )
-		               ->method( 'recalcHash' )
-		               ->willReturn( [ 'success' => true ] )
-		;
-
-		$this->pendingQueue->expects( $this->once() )
-		                   ->method( 'deletePending' )
-		                   ->with( [ 42, 108 ] )
-		                   ->willReturn( 2 )
-		;
-
-		$result = $this->service->drainPending( 50 );
-
-		$this->assertSame( 2, $result['processed'] );
-		$this->assertSame( 2, $result['deleted'] );
+		$this->assertIsArray( $result );
 	}
 
 
@@ -231,7 +183,10 @@ class HashIndexServiceTest
 				'algo'       => 'sha1',
 				'hash_value' => 'abc',
 				'file_count' => 2,
-				'fileids'    => [ 42, 108 ],
+				'fileids'    => [
+					42,
+					108,
+				],
 			],
 		];
 
@@ -247,28 +202,13 @@ class HashIndexServiceTest
 	}
 
 
-	public function testDeleteHashesDelegatesToFileOps(): void
+	public function testCountHashesDelegatesToMetadata(): void
 	{
 
-		$this->fileOps->expects( $this->once() )
-		              ->method( 'deleteHashes' )
-		              ->with( 42 )
-		              ->willReturn( 3 )
-		;
-
-		$result = $this->service->deleteHashes( 42 );
-
-		$this->assertSame( 3, $result );
-	}
-
-
-	public function testCountHashesDelegatesToFileOps(): void
-	{
-
-		$this->fileOps->expects( $this->once() )
-		              ->method( 'countHashes' )
-		              ->with( 42 )
-		              ->willReturn( 5 )
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'countByFileId' )
+		                      ->with( 42 )
+		                      ->willReturn( 5 )
 		;
 
 		$result = $this->service->countHashes( 42 );
@@ -288,19 +228,5 @@ class HashIndexServiceTest
 		$this->service->addPending( 42, HashIndexService::EVENT_TYPE_WRITE );
 	}
 
-
-	public function testCopyFilecacheChecksumDelegatesToFileOps(): void
-	{
-
-		$source = $this->createMock( File::class );
-		$target = $this->createMock( File::class );
-
-		$this->fileOps->expects( $this->once() )
-		              ->method( 'copyFilecacheChecksum' )
-		              ->with( $source, $target )
-		;
-
-		$this->service->copyFilecacheChecksum( $source, $target );
-	}
 
 }

@@ -42,6 +42,7 @@ class HashIndexService
 			'sha3-256',
 			'sha3-512',
 			'crc32',
+			'adler32',
 		];
 
 	public const EVENT_TYPE_WRITE  = 'write';
@@ -56,20 +57,17 @@ class HashIndexService
 
 
 	public function __construct(
-		private IDBConnection          $db,
-		private TableNameService       $tables,
-		private LifecycleHandler       $lifecycleHandler,
-		private HashCalculationService $hashCalc,
-		private PendingQueueService    $pendingQueue,
-		private DuplicateService       $duplicates,
-		private FileOperationService   $fileOps,
-		private IUserManager           $userManager,
-		private LoggerInterface        $logger,
+		private readonly IDBConnection          $db,
+		private readonly TableNameService       $tables,
+		private readonly LifecycleHandler       $lifecycleHandler,
+		private readonly HashCalculationService $hashCalc,
+		private readonly PendingQueueService    $pendingQueue,
+		private readonly DuplicateService       $duplicates,
+		private readonly MetadataService        $metadataService,
+		private readonly IUserManager           $userManager,
+		private readonly LoggerInterface        $logger,
 	) {
 	}
-
-
-	// ─── Index Lifecycle ───────────────────────────────────────────────
 
 
 	/**
@@ -282,9 +280,6 @@ class HashIndexService
 	}
 
 
-	// ─── User Resolution ───────────────────────────────────────────────
-
-
 	/**
 	 * @return string[]
 	 */
@@ -331,9 +326,6 @@ class HashIndexService
 	}
 
 
-	// ─── Delegated: Hash Calculation ───────────────────────────────────
-
-
 	public function recalcFileHash(
 		File   $file,
 		string $algo,
@@ -357,7 +349,7 @@ class HashIndexService
 	public function recalcAllExistingAlgos( int $fileId ): array
 	{
 
-		return $this->hashCalc->recalcAllExistingAlgos( $fileId, $this->tables, $this->db );
+		return $this->hashCalc->recalcAllExistingAlgos( $fileId );
 	}
 
 
@@ -369,11 +361,15 @@ class HashIndexService
 		?OutputInterface $output = null,
 	): array {
 
-		return $this->hashCalc->generateMissingHashes( $userId, $algo, $this->rootFolder ?? throw new \RuntimeException( 'rootFolder not available' ), $pathPattern, $batchSize, $output );
+		return $this->hashCalc->generateMissingHashes(
+			$userId,
+			$algo,
+			$this->rootFolder ?? throw new \RuntimeException( 'rootFolder not available' ),
+			$pathPattern,
+			$batchSize,
+			$output,
+		);
 	}
-
-
-	// ─── Delegated: Pending Queue ──────────────────────────────────────
 
 
 	public function addPending(
@@ -444,9 +440,6 @@ class HashIndexService
 	}
 
 
-	// ─── Delegated: Duplicates & Lookups ───────────────────────────────
-
-
 	/**
 	 * @return array{algo: string, hash_value: string, file_count: int, fileids: int[]}[]
 	 */
@@ -462,7 +455,7 @@ class HashIndexService
 
 
 	/**
-	 * @param  int[]        $fileIds
+	 * @param  int[]  $fileIds
 	 *
 	 * @return array<int, array{path: string, name: string, storage_id: string, user: string}>
 	 */
@@ -488,38 +481,28 @@ class HashIndexService
 	}
 
 
-	// ─── Delegated: File Operations ────────────────────────────────────
-
-
-	public function copyHashes(
-		int $sourceFileId,
-		int $targetFileId,
-	): void {
-
-		$this->fileOps->copyHashes( $sourceFileId, $targetFileId );
-	}
-
-
-	public function deleteHashes( int $fileId ): int
-	{
-
-		return $this->fileOps->deleteHashes( $fileId );
-	}
-
-
+	/**
+	 * Count metadata index entries for a given file_id.
+	 */
 	public function countHashes( int $fileId ): int
 	{
 
-		return $this->fileOps->countHashes( $fileId );
+		return $this->metadataService->countByFileId( $fileId );
 	}
 
 
-	public function copyFilecacheChecksum(
-		File $source,
-		File $target,
-	): void {
+	/**
+	 * Invalidate hashes for a file by marking it as pending:lazy.
+	 *
+	 * The ProcessPendingUpdates job will recalculate hashes later.
+	 * This replaces the old custom-table DELETE with a metadata mark.
+	 */
+	public function deleteHashes( int $fileId ): int
+	{
 
-		$this->fileOps->copyFilecacheChecksum( $source, $target );
+		$this->metadataService->clearMetadata( $fileId );
+
+		return 1;
 	}
 
 }

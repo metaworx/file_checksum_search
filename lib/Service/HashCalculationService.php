@@ -12,12 +12,10 @@ namespace OCA\FileChecksumSearch\Service;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\Files\File;
 use OCP\Files\Folder;
-use OCP\Files\IRootFolder;
 use OCP\Files\NotFoundException;
-use OCP\IDBConnection;
+use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\Lock\ILockingProvider;
 use OCP\Lock\LockedException;
-use PDO;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Throwable;
@@ -35,223 +33,141 @@ class HashCalculationService
 {
 
 	public function __construct(
-		private readonly IRootFolder      $rootFolder,
+		private readonly FilecacheService $filecacheService,
 		private readonly ILockingProvider $lockingProvider,
-		private readonly IDBConnection    $db,
-		private readonly TableNameService $tables,
+		private readonly MetadataService  $metadataService,
 		private readonly LoggerInterface  $logger,
 	) {
 	}
 
 
 	/**
-	 * Compute a hash for a File node if it does not already exist
-	 * in the filecache, then write it back.
+	 * Check whether the hash table row for (fileid, algo) has an
+	 * updated_at timestamp that is equal to or newer than the file's
+	 * mtime, meaning the hash is still fresh.
 	 *
-	 * If the checksum already exists for this algo, it is returned
-	 * without recomputation.  For forced recalculation, use
-	 * {@see recalcFileHash()} with skipExisting = false.
-	 *
-	 * @return array{success: bool, algo: string, hash: string, existed: bool}
+	 * Returns false if no row exists, updated_at is NULL, or the
+	 * timestamp is older than mtime.
 	 */
-	public function recalcFileHash(
-		File   $file,
-		string $algo,
-		bool   $skipExisting = true,
-	): array {
+	private function isHashUpToDate(
+		int|File|IFilesMetadata $fileOrMetadata,
+		int                     $mtime,
+	): bool {
 
-		$algo = strtolower( $algo );
+		$updatedAt = $this->metadataService->getUpdatedAt( $fileOrMetadata );
 
-		if ( ! in_array( $algo, HashIndexService::SUPPORTED_ALGOS, true ) )
+		return $updatedAt !== null && $updatedAt >= $mtime;
+	}
+
+
+	private function acquireLock( int $fileId ): bool
+	{
+
+		try
 		{
-			return [
-				'success' => false,
-				'algo'    => $algo,
-				'hash'    => '',
-				'existed' => false,
-				'error'   => 'Unsupported algorithm: ' . $algo,
-			];
+			$this->lockingProvider->acquireLock(
+				'files/' . $fileId,
+				ILockingProvider::LOCK_EXCLUSIVE,
+			);
+
+			return true;
+		}
+		catch ( LockedException )
+		{
+			return false;
+		}
+	}
+
+
+	private function collectFilesForUser(
+		string  $folderPath,
+		string  $userId,
+		string  $algo,
+		?string $pathPattern,
+		string  $userFolderPath,
+		array   &$collected,
+		int     $batchSize,
+	): void {
+
+		if ( count( $collected ) >= $batchSize )
+		{
+			return;
 		}
 
-		$existingChecksum = $file->getChecksum() ?? '';
-		$prefix           = strtoupper( $algo ) . ':';
+		$userFolder = $this->filecacheService->getUserFolder( $userId );
+		$relPath    = $this->relativeHashPath( $folderPath, $userFolderPath );
 
-		if ( $skipExisting )
+		try
 		{
+			$node = $userFolder->get( $relPath );
+		}
+		catch ( NotFoundException )
+		{
+			return;
+		}
+
+		if ( ! $node instanceof Folder )
+		{
+			return;
+		}
+
+		$prefix = strtoupper( $algo ) . ':';
+
+		foreach ( $node->getDirectoryListing() as $child )
+		{
+			if ( count( $collected ) >= $batchSize )
+			{
+				return;
+			}
+
+			if ( $child instanceof Folder )
+			{
+				$this->collectFilesForUser(
+					$child->getPath(),
+					$userId,
+					$algo,
+					$pathPattern,
+					$userFolderPath,
+					$collected,
+					$batchSize,
+				);
+
+				continue;
+			}
+
+			if ( ! ( $child instanceof File ) )
+			{
+				continue;
+			}
+
+			$relativePath = $this->relativeHashPath(
+				$child->getPath(),
+				$userFolderPath,
+			);
+
+			if ( $pathPattern !== null && ! fnmatch( $pathPattern, $relativePath ) )
+			{
+				continue;
+			}
+
+			$existingChecksum = $child->getChecksum() ?? '';
+			$alreadyHas       = false;
+
 			foreach ( explode( ' ', $existingChecksum ) as $pair )
 			{
 				if ( str_starts_with( $pair, $prefix ) )
 				{
-					if ( $this->isHashUpToDate( $file->getId(), $algo, $file->getMTime() ) )
-					{
-						return [
-							'success' => true,
-							'algo'    => $algo,
-							'hash'    => substr( $pair, strlen( $prefix ) ),
-							'existed' => true,
-						];
-					}
+					$alreadyHas = true;
 
 					break;
 				}
 			}
-		}
 
-		$fileId = $file->getId();
-
-		if ( ! $this->acquireLock( $fileId ) )
-		{
-			return [
-				'success' => false,
-				'algo'    => $algo,
-				'hash'    => '',
-				'existed' => false,
-				'locked'  => true,
-			];
-		}
-
-		try
-		{
-			$storage = $file->getStorage();
-
-			if ( $storage->isLocal() )
+			if ( ! $alreadyHas )
 			{
-				$absolutePath = $storage->getLocalFile( $file->getInternalPath() );
-				$hash         = hash_file( $algo, $absolutePath );
-			}
-			else
-			{
-				$handle = $file->fopen( 'rb' );
-				$ctx    = hash_init( $algo );
-				hash_update_stream( $ctx, $handle );
-				fclose( $handle );
-				$hash = hash_final( $ctx );
-			}
-
-			$formattedChecksum = strtoupper( $algo ) . ':' . $hash;
-			$newChecksum       = $existingChecksum === ''
-				? $formattedChecksum
-				: $existingChecksum . ' ' . $formattedChecksum;
-
-			$cache = $storage->getCache();
-			$cache->update( $fileId, [ 'checksum' => $newChecksum ] );
-
-			return [
-				'success' => true,
-				'algo'    => $algo,
-				'hash'    => $hash,
-				'existed' => false,
-			];
-		}
-		finally
-		{
-			$this->releaseLock( $fileId );
-		}
-	}
-
-
-	/**
-	 * Recalculate hash for a file by fileId, resolving through rootFolder.
-	 */
-	public function recalcHash(
-		int    $fileId,
-		string $algo,
-		bool   $skipExisting = true,
-	): array {
-
-		$algo = strtolower( $algo );
-
-		$nodes = $this->rootFolder->getById( $fileId );
-
-		if ( empty( $nodes ) )
-		{
-			return [
-				'success' => false,
-				'algo'    => $algo,
-				'hash'    => '',
-				'existed' => false,
-				'error'   => 'File not found.',
-			];
-		}
-
-		$node = $nodes[0];
-
-		if ( ! $node instanceof File )
-		{
-			return [
-				'success' => false,
-				'algo'    => $algo,
-				'hash'    => '',
-				'existed' => false,
-				'error'   => 'Node is not a file.',
-			];
-		}
-
-		return $this->recalcFileHash( $node, $algo, $skipExisting );
-	}
-
-
-	/**
-	 * Recalculate all currently-indexed algos for a file.
-	 *
-	 * If no prior hash rows exist, falls back to the default algo.
-	 *
-	 * @return array{processed: int, algos: string[], locked: bool}
-	 */
-	public function recalcAllExistingAlgos(
-		int              $fileId,
-		TableNameService $tables,
-		IDBConnection    $db,
-	): array {
-
-		$qb = $db->getQueryBuilder();
-		$qb->automaticTablePrefix( false );
-
-		$qb->selectDistinct( 'algo' )
-		   ->from( $tables->getHashTableName() )
-		   ->where(
-			   $qb->expr()
-			      ->eq( 'fileid', $qb->createNamedParameter( $fileId, PDO::PARAM_INT ) ),
-		   )
-		;
-
-		$rows = $qb->executeQuery();
-
-		$algos = [];
-
-		while ( ( $row = $rows->fetch() ) !== false )
-		{
-			$algos[] = $row['algo'];
-		}
-		$rows->closeCursor();
-
-		if ( empty( $algos ) )
-		{
-			$algos = [ HashIndexService::getDefaultAlgo() ];
-		}
-
-		$processed = 0;
-		$locked    = false;
-
-		foreach ( $algos as $algo )
-		{
-			$result = $this->recalcHash( $fileId, $algo );
-
-			if ( $result['success'] )
-			{
-				$processed ++;
-			}
-			elseif ( $result['locked'] ?? false )
-			{
-				$locked = true;
+				$collected[] = $child;
 			}
 		}
-
-		return [
-			'processed' => $processed,
-			'algos'     => $algos,
-			'locked'    => $locked,
-		];
 	}
 
 
@@ -270,8 +186,7 @@ class HashCalculationService
 		?OutputInterface $output = null,
 	): array {
 
-		$userFolder     = $this->rootFolder->getUserFolder( $userId );
-		$userFolderPath = $userFolder->getPath();
+		$userFolderPath = $this->filecacheService->getUserFolderPath( $userId );
 
 		// Phase 1: collect
 		$files = [];
@@ -369,95 +284,289 @@ class HashCalculationService
 	}
 
 
-	private function collectFilesForUser(
-		string  $folderPath,
-		string  $userId,
-		string  $algo,
-		?string $pathPattern,
-		string  $userFolderPath,
-		array   &$collected,
-		int     $batchSize,
+	/**
+	 * Centralized processing logic for a single file.
+	 *
+	 * ALWAYS removes all existing algo keys first (rules may have changed).
+	 * Then computes required algos based on mode.
+	 *
+	 * @param  string[]  $algos  Algos to process (from rule or caller)
+	 *
+	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataNotFoundException
+	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
+	 */
+	public function processFile(
+		int    $fileId,
+		string $mode,
+		array  $algos,
 	): void {
 
-		if ( count( $collected ) >= $batchSize )
+		$metadata = $this->metadataService->getMetadata( $fileId );
+
+		switch ( $mode )
 		{
-			return;
+		case 'lazy':
+			$this->metadataService->clearMetadata( $metadata, false );
+			break;
+
+			/** @noinspection PhpMissingBreakStatementInspection */
+		case 'force':
+			$this->metadataService->clearMetadata( $metadata, false );
+
+		case 'auto':
+		case 'missing':
+			foreach ( $algos as $algo )
+			{
+				$result = $this->recalcHash( $fileId, $algo, true, $metadata );
+
+				if ( ! $result['success'] )
+				{
+					$this->logger->warning(
+						'FCIAS: processFile recalcHash failed for algo {algo}',
+						[
+							'app'    => Application::APP_ID,
+							'fileId' => $fileId,
+							'algo'   => $algo,
+							'error'  => $result['error'] ?? 'unknown',
+						],
+					);
+
+					$this->metadataService->markPending( $fileId, 'pending:' . $mode );
+
+					return;
+				}
+
+				$metadata->setString(
+					'file-checksum-' . $algo,
+					$result['hash'],
+					true,
+				);
+			}
+			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, time() );
+
+			break;
 		}
 
-		$userFolder = $this->rootFolder->getUserFolder( $userId );
-		$relPath    = $this->relativeHashPath( $folderPath, $userFolderPath );
+		$this->metadataService->saveMetadata( $metadata );
+
+		$this->logger->debug(
+			'FCIAS HashCalculationService: processFile completed',
+			[
+				'app'    => Application::APP_ID,
+				'fileId' => $fileId,
+				'mode'   => $mode,
+				'algos'  => $algos,
+			],
+		);
+	}
+
+
+	/**
+	 * Recalculate all currently-indexed algos for a file.
+	 *
+	 * If no prior hash rows exist, falls back to the default algo.
+	 *
+	 * @return array{processed: int, algos: string[], locked: bool}
+	 */
+	public function recalcAllExistingAlgos( int|File $file ): array
+	{
+
+		$file = $this->filecacheService->getFile($file);
+
+		// Check if any hash keys exist for this file in metadata
+		$count = $this->metadataService->countByFileId( $file->getId() );
+
+		if ( $count === 0 )
+		{
+			$algos = [ HashIndexService::getDefaultAlgo() ];
+		}
+		else
+		{
+			$algos = HashIndexService::SUPPORTED_ALGOS;
+		}
+
+		$processed = 0;
+		$locked    = false;
+		$metadata  = $this->metadataService->getMetadata( $file );
+
+		foreach ( $algos as $algo )
+		{
+			$result = $this->recalcHash( $file, $algo, metadata: $metadata );
+
+			if ( $result['success'] )
+			{
+				$processed ++;
+			}
+			elseif ( $result['locked'] ?? false )
+			{
+				$locked = true;
+			}
+		}
+
+		$this->metadataService->saveMetadata( $metadata );
+
+		return [
+			'processed' => $processed,
+			'algos'     => $algos,
+			'locked'    => $locked,
+		];
+	}
+
+
+	/**
+	 * Compute a hash for a File node if it does not already exist
+	 * in the filecache, then write it back.
+	 *
+	 * If the checksum already exists for this algo, it is returned
+	 * without recomputation.  For forced recalculation, use
+	 * {@see recalcFileHash()} with skipExisting = false.
+	 *
+	 * @return array{success: bool, algo: string, hash: string, existed: bool}
+	 */
+	public function recalcFileHash(
+		File            $file,
+		string          $algo,
+		bool            $skipExisting = true,
+		?IFilesMetadata $metadata = null,
+	): array {
+
+		$algo = strtolower( $algo );
+
+		if ( ! in_array( $algo, HashIndexService::SUPPORTED_ALGOS, true ) )
+		{
+			return [
+				'success' => false,
+				'algo'    => $algo,
+				'hash'    => '',
+				'existed' => false,
+				'error'   => 'Unsupported algorithm: ' . $algo,
+			];
+		}
+
+		$fileId    = $file->getId();
+		$needsSave = $this->metadataService->ensureMetadata( $fileId, $metadata );
+		$hashes    = $this->filecacheService->getHashes( $file );
+
+		// Sync: copy hash from filecache.checksum → metadata
+		foreach ( $hashes as $prefix => $hexHash )
+		{
+			$metaKey = MetadataService::getHashKey( $prefix );
+			if ( ! $metadata->hasKey( $metaKey ) )
+			{
+				$metadata->setString( $metaKey, $hexHash, true );
+			}
+		}
+
+		// Sync: copy hash from metadata → filecache.checksum happens on metadata save
+		$metaKey = MetadataService::getHashKey( $algo );
+
+		// Check metadata for existing hash (checksum field limited to 256 chars)
+		if ( $skipExisting && $metadata->hasKey( $metaKey ) )
+		{
+			if ( $this->isHashUpToDate( $metadata, $file->getMTime() ) )
+			{
+				return [
+					'success' => true,
+					'algo'    => $algo,
+					'hash'    => $metadata->getString( $metaKey ),
+					'existed' => true,
+				];
+			}
+		}
+
+		if ( ! $this->acquireLock( $fileId ) )
+		{
+			return [
+				'success' => false,
+				'algo'    => $algo,
+				'hash'    => '',
+				'existed' => false,
+				'locked'  => true,
+			];
+		}
 
 		try
 		{
-			$node = $userFolder->get( $relPath );
+			$storage = $file->getStorage();
+			$metadata->unset( $metaKey );
+
+			if ( $storage->isLocal() )
+			{
+				$absolutePath = $storage->getLocalFile( $file->getInternalPath() );
+				$hash         = hash_file( $algo, $absolutePath );
+			}
+			else
+			{
+				$handle = $file->fopen( 'rb' );
+				$ctx    = hash_init( $algo );
+				hash_update_stream( $ctx, $handle );
+				fclose( $handle );
+				$hash = hash_final( $ctx );
+			}
+
+			$metadata->setString( $metaKey, $hash, true );
+
+			return [
+				'success' => true,
+				'algo'    => $algo,
+				'hash'    => $hash,
+				'existed' => false,
+			];
 		}
-		catch ( NotFoundException )
+		finally
 		{
-			return;
-		}
+			$this->releaseLock( $fileId );
 
-		if ( ! $node instanceof Folder )
+			if ( $needsSave )
+			{
+				$this->metadataService->saveMetadata( $metadata );
+			}
+		}
+	}
+
+
+	/**
+	 * Recalculate hash for a file by fileId, resolving through rootFolder.
+	 */
+	public function recalcHash(
+		int|File        $file,
+		string          $algo,
+		bool            $skipExisting = true,
+		?IFilesMetadata $metadata = null,
+	): array {
+
+		$algo = strtolower( $algo );
+
+		if ( ! $file instanceof File )
 		{
-			return;
-		}
-
-		$prefix = strtoupper( $algo ) . ':';
-
-		foreach ( $node->getDirectoryListing() as $child )
-		{
-			if ( count( $collected ) >= $batchSize )
+			try
 			{
-				return;
+				$file = $this->filecacheService->getNodeById( $file );
+			}
+			catch ( NotFoundException )
+			{
+				return [
+					'success' => false,
+					'algo'    => $algo,
+					'hash'    => '',
+					'existed' => false,
+					'error'   => 'File not found.',
+				];
 			}
 
-			if ( $child instanceof Folder )
+			if ( ! $file instanceof File )
 			{
-				$this->collectFilesForUser(
-					$child->getPath(),
-					$userId,
-					$algo,
-					$pathPattern,
-					$userFolderPath,
-					$collected,
-					$batchSize,
-				);
-
-				continue;
-			}
-
-			if ( ! ( $child instanceof File ) )
-			{
-				continue;
-			}
-
-			$relativePath = $this->relativeHashPath(
-				$child->getPath(),
-				$userFolderPath,
-			);
-
-			if ( $pathPattern !== null && ! fnmatch( $pathPattern, $relativePath ) )
-			{
-				continue;
-			}
-
-			$existingChecksum = $child->getChecksum() ?? '';
-			$alreadyHas       = false;
-
-			foreach ( explode( ' ', $existingChecksum ) as $pair )
-			{
-				if ( str_starts_with( $pair, $prefix ) )
-				{
-					$alreadyHas = true;
-
-					break;
-				}
-			}
-
-			if ( ! $alreadyHas )
-			{
-				$collected[] = $child;
+				return [
+					'success' => false,
+					'algo'    => $algo,
+					'hash'    => '',
+					'existed' => false,
+					'error'   => 'Node is not a file.',
+				];
 			}
 		}
+
+		return $this->recalcFileHash( $file, $algo, $skipExisting, $metadata );
 	}
 
 
@@ -481,67 +590,6 @@ class HashCalculationService
 		}
 
 		return ltrim( $path, '/' );
-	}
-
-
-	/**
-	 * Check whether the hash table row for (fileid, algo) has an
-	 * updated_at timestamp that is equal to or newer than the file's
-	 * mtime, meaning the hash is still fresh.
-	 *
-	 * Returns false if no row exists, updated_at is NULL, or the
-	 * timestamp is older than mtime.
-	 */
-	private function isHashUpToDate(
-		int    $fileId,
-		string $algo,
-		int    $mtime,
-	): bool {
-
-		$qb = $this->db->getQueryBuilder();
-		$qb->automaticTablePrefix( false );
-
-		$qb->select( 'updated_at' )
-		   ->from( $this->tables->getHashTableName() )
-		   ->where(
-			   $qb->expr()
-			      ->eq( 'fileid', $qb->createNamedParameter( $fileId, PDO::PARAM_INT ) ),
-			   $qb->expr()
-			      ->eq( 'algo', $qb->createNamedParameter( $algo ) ),
-		   )
-		;
-
-		$updatedAt = $qb->executeQuery()
-		                ->fetchOne()
-		;
-
-		if ( $updatedAt === false || $updatedAt === null )
-		{
-			return false;
-		}
-
-		$updatedAtTs = strtotime( (string) $updatedAt );
-
-		return $updatedAtTs !== false && $updatedAtTs >= $mtime;
-	}
-
-
-	private function acquireLock( int $fileId ): bool
-	{
-
-		try
-		{
-			$this->lockingProvider->acquireLock(
-				'files/' . $fileId,
-				ILockingProvider::LOCK_EXCLUSIVE,
-			);
-
-			return true;
-		}
-		catch ( LockedException )
-		{
-			return false;
-		}
 	}
 
 
