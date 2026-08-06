@@ -10,7 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Search;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
-use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\MetadataService;
 use OCP\Files\IRootFolder;
 use OCP\IURLGenerator;
 use OCP\IUser;
@@ -29,10 +29,10 @@ class HashSearchProvider
 {
 
 	public function __construct(
-		private readonly HashIndexService $hashIndexService,
-		private readonly IRootFolder      $rootFolder,
-		private readonly IURLGenerator    $urlGenerator,
-		private readonly LoggerInterface  $logger,
+		private readonly MetadataService $metadataService,
+		private readonly IRootFolder     $rootFolder,
+		private readonly IURLGenerator   $urlGenerator,
+		private readonly LoggerInterface $logger,
 	) {
 
 	}
@@ -99,14 +99,14 @@ class HashSearchProvider
 			$hash = strtolower( $term );
 		}
 
-		$rows = $this->hashIndexService->findByHash( $hash, $algo, $query->getLimit() );
+		$rows = $this->metadataService->queryByHash( $hash, $algo, $query->getLimit() );
 
 		$userFolder = $this->rootFolder->getUserFolder( $user->getUID() );
 		$entries    = [];
 
 		foreach ( $rows as $row )
 		{
-			$fileId = (int) $row['fileid'];
+			$fileId = (int) $row[ MetadataService::FIELD_FILE_ID ];
 			$nodes  = $userFolder->getById( $fileId );
 
 			if ( empty( $nodes ) )
@@ -122,13 +122,16 @@ class HashSearchProvider
 				continue;
 			}
 
+			// Read authoritative hash from oc_files_metadata.json
+			$extracted = $this->metadataService->extractAlgorithm( $fileId, $row );
+
 			$entries[] = new SearchResultEntry(
 				thumbnailUrl: '',
-				title: $row['name'],
-				subline: sprintf( '%s: %s — %s', $row['algo'], $row['hash_value'], $fullPath ),
+				title: $node->getName(),
+				subline: sprintf( '%s: %s — %s', $extracted['hash'] ?? $hash, $extracted['algo'], $fullPath ),
 				resourceUrl: $this->urlGenerator->linkToRoute( 'files.view.index', [
 					'dir'      => dirname( $fullPath ),
-					'scrollto' => $row['name'],
+					'scrollto' => $node->getName(),
 				] ),
 				icon: 'icon-file',
 			);

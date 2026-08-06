@@ -64,6 +64,7 @@ class HashIndexService
 		private readonly PendingQueueService    $pendingQueue,
 		private readonly DuplicateService       $duplicates,
 		private readonly MetadataService        $metadataService,
+		private readonly FilecacheService       $filecacheService,
 		private readonly IUserManager           $userManager,
 		private readonly LoggerInterface        $logger,
 	) {
@@ -464,7 +465,7 @@ class HashIndexService
 		?string $userName = null,
 	): array {
 
-		return $this->duplicates->batchLookupFilecachePaths( $fileIds, $userName );
+		return $this->filecacheService->batchLookupFilecachePaths( $fileIds, $userName );
 	}
 
 

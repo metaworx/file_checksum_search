@@ -9,11 +9,11 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Service;
 
-use OCP\DB\QueryBuilder\IQueryBuilder;
-use OCP\IDBConnection;
-
 /**
  * Duplicate detection and hash lookup queries.
+ *
+ * Delegates search to MetadataService against oc_files_metadata_index.
+ * Path resolution via FilecacheService.
  *
  * @noinspection PhpClassCanBeReadonlyInspection
  */
@@ -21,7 +21,8 @@ class DuplicateService
 {
 
 	public function __construct(
-		private readonly IDBConnection $db,
+		private readonly MetadataService  $metadataService,
+		private readonly FilecacheService $filecacheService,
 	) {
 	}
 
@@ -29,9 +30,8 @@ class DuplicateService
 	/**
 	 * Find all duplicate hash groups across the entire system.
 	 *
-	 * Groups files by (algo, hash_value) where more than one file shares
-	 * the same hash.  Returns raw fileid lists — path resolution and
-	 * access filtering are the caller's responsibility.
+	 * Groups files by (meta_key, meta_value_string) where more than one
+	 * file shares the same hash. Delegates to MetadataService::queryDuplicates().
 	 *
 	 * @param  string|null  $algo      Optional algorithm filter
 	 * @param  int          $minCount  Minimum files per group (default 2)
@@ -47,161 +47,33 @@ class DuplicateService
 		int     $offset = 0,
 	): array {
 
-		$qb = $this->db->getQueryBuilder();
-
-		$qb->select( 'algo', 'hash_value' )
-		   ->selectAlias(
-			   $qb->func()
-			      ->count( 'fileid' ),
-			   'cnt',
-		   )
-		   ->selectAlias(
-			   $qb->func()
-			      ->groupConcat( 'fileid' ),
-			   'fileids',
-		   )
-		   ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES, 'h' )
-		   ->groupBy( 'algo' )
-		   ->addGroupBy( 'hash_value' )
-		;
-
-		if ( $algo !== null && $algo !== '' )
-		{
-			$qb->andWhere(
-				$qb->expr()
-				   ->eq( 'algo', $qb->createNamedParameter( $algo ) ),
-			);
-		}
-
-		$qb->having(
-			$qb->expr()
-			   ->gte( 'cnt', $qb->createNamedParameter( $minCount, IQueryBuilder::PARAM_INT ) ),
-		)
-		   ->orderBy( 'cnt', 'DESC' )
-		   ->setMaxResults( $limit )
-		   ->setFirstResult( $offset )
-		;
-
-		$result = $qb->executeQuery();
-		$rows   = $result->fetchAll();
-		$result->closeCursor();
+		$rows = $this->metadataService->queryDuplicates( $algo, $minCount, $limit, $offset );
 
 		return array_map( function (
 			array $row,
 		): array {
 
-			$fileidStr = (string) $row['fileids'];
-			$fileids   = $fileidStr !== ''
-				? array_map( 'intval', explode( ',', $fileidStr ) )
-				: [];
+			$algo = str_replace(
+				MetadataService::KEY_FILE_CHECKSUM_PREFIX,
+				'',
+				$row[ MetadataService::FIELD_META_KEY ],
+			);
 
 			return [
-				'algo'       => $row['algo'],
-				'hash_value' => $row['hash_value'],
-				'file_count' => (int) $row['cnt'],
-				'fileids'    => $fileids,
+				'algo'       => $algo,
+				'hash_value' => $row[ MetadataService::FIELD_META_VALUE_STRING ],
+				'file_count' => (int) $row['file_count'],
+				'fileids'    => $row['file_ids'],
 			];
 		}, $rows );
 	}
 
 
 	/**
-	 * Batch-lookup filecache paths for a list of file IDs.
-	 *
-	 * Joins storages to resolve the storage ID for each file.
-	 * When $userName is provided, only files from that user's home
-	 * storage are returned (matched via storages.id = 'home::{uid}').
-	 *
-	 * @param  int[]        $fileIds
-	 * @param  string|null  $userName
-	 *
-	 * @return array<int, array{path: string, name: string, storage_id: string, user: string}>
-	 */
-	public function batchLookupFilecachePaths(
-		array   $fileIds,
-		?string $userName = null,
-	): array {
-
-		if ( empty( $fileIds ) )
-		{
-			return [];
-		}
-
-		$qb = $this->db->getQueryBuilder();
-
-		$qb->select( 'fc.fileid', 'fc.path', 'fc.name', 's.id' )
-		   ->from( 'filecache', 'fc' )
-		   ->innerJoin(
-			   'fc',
-			   'storages',
-			   's',
-			   'fc.storage = s.numeric_id',
-		   )
-		;
-
-		if ( $userName !== null )
-		{
-			$qb->where(
-				$qb->expr()
-				   ->eq(
-					   's.id',
-					   $qb->createNamedParameter( 'home::' . $userName ),
-				   ),
-			)
-			   ->andWhere(
-				   $qb->expr()
-				      ->in(
-					      'fc.fileid',
-					      $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
-				      ),
-			   )
-			;
-		}
-		else
-		{
-			$qb->where(
-				$qb->expr()
-				   ->in(
-					   'fc.fileid',
-					   $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
-				   ),
-			);
-		}
-
-		$result = $qb->executeQuery();
-		$paths  = [];
-
-		while ( ( $row = $result->fetch() ) !== false )
-		{
-			$sid  = (string) $row['id'];
-			$user = $sid;
-
-			if ( str_starts_with( $sid, 'home::' ) )
-			{
-				$user = substr( $sid, 6 );
-			}
-			elseif ( str_starts_with( $sid, 'local::' ) )
-			{
-				$user = basename( $sid );
-			}
-
-			$paths[ (int) $row['fileid'] ] = [
-				'path'       => (string) $row['path'],
-				'name'       => (string) $row['name'],
-				'storage_id' => $sid,
-				'user'       => $user,
-			];
-		}
-		$result->closeCursor();
-
-		return $paths;
-	}
-
-
-	/**
 	 * Find hash rows matching a given hash value, with optional algo filter.
 	 *
-	 * Returns rows from file_checksum_search_hashes joined with filecache.
+	 * Delegates to MetadataService::queryByHash() for the search, then
+	 * batch-looks up filecache paths for each matched file_id.
 	 *
 	 * @return array<int, array{fileid: int, algo: string, hash_value: string, path: string, name: string}>
 	 */
@@ -211,32 +83,46 @@ class DuplicateService
 		int     $limit = 100,
 	): array {
 
-		$qb = $this->db->getQueryBuilder();
+		$rows = $this->metadataService->queryByHash( $hash, $algo, $limit );
 
-		$qb->select( 'h.fileid', 'h.algo', 'h.hash_value', 'fc.path', 'fc.name' )
-		   ->from( TableNameService::TABLE_FILE_CHECKSUM_SEARCH_HASHES, 'h' )
-		   ->innerJoin( 'h', 'filecache', 'fc', 'h.fileid = fc.fileid' )
-		   ->where(
-			   $qb->expr()
-			      ->eq( 'h.hash_value', $qb->createNamedParameter( $hash ) ),
-		   )
-		;
-
-		if ( $algo !== null && $algo !== '' )
+		if ( empty( $rows ) )
 		{
-			$qb->andWhere(
-				$qb->expr()
-				   ->eq( 'h.algo', $qb->createNamedParameter( $algo ) ),
-			);
+			return [];
 		}
 
-		$qb->setMaxResults( $limit );
+		$fileIds = array_map( function (
+			array $row,
+		): int {
 
-		$result = $qb->executeQuery();
-		$rows   = $result->fetchAll();
-		$result->closeCursor();
+			return (int) $row[ MetadataService::FIELD_FILE_ID ];
+		}, $rows );
 
-		return $rows;
+		$fcPaths = $this->filecacheService->batchLookupFilecachePaths( $fileIds );
+
+		$results = [];
+
+		foreach ( $rows as $row )
+		{
+			$fileId = (int) $row[ MetadataService::FIELD_FILE_ID ];
+
+			if ( ! isset( $fcPaths[ $fileId ] ) )
+			{
+				continue;
+			}
+
+			// Read authoritative hash from oc_files_metadata.json
+			$extracted = $this->metadataService->extractAlgorithm( $fileId, $row );
+
+			$results[] = [
+				'fileid'     => $fileId,
+				'algo'       => $extracted['algo'],
+				'hash_value' => $extracted['hash'] ?? $hash,
+				'path'       => $fcPaths[ $fileId ]['path'],
+				'name'       => $fcPaths[ $fileId ]['name'],
+			];
+		}
+
+		return $results;
 	}
 
 }

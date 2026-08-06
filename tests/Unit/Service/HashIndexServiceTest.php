@@ -11,12 +11,12 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use OCA\FileChecksumSearch\Migration\LifecycleHandler;
 use OCA\FileChecksumSearch\Service\DuplicateService;
+use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\PendingQueueService;
 use OCA\FileChecksumSearch\Service\TableNameService;
-use OCP\Files\File;
 use OCP\IDBConnection;
 use OCP\IUserManager;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -42,6 +42,8 @@ class HashIndexServiceTest
 
 	private MockObject|MetadataService        $metadataService;
 
+	private MockObject|FilecacheService       $filecacheService;
+
 	private MockObject|IUserManager           $userManager;
 
 	private MockObject|LoggerInterface        $logger;
@@ -61,6 +63,7 @@ class HashIndexServiceTest
 		$this->pendingQueue     = $this->createMock( PendingQueueService::class );
 		$this->duplicates       = $this->createMock( DuplicateService::class );
 		$this->metadataService  = $this->createMock( MetadataService::class );
+		$this->filecacheService = $this->createMock( FilecacheService::class );
 		$this->userManager      = $this->createMock( IUserManager::class );
 		$this->logger           = $this->createMock( LoggerInterface::class );
 
@@ -72,6 +75,7 @@ class HashIndexServiceTest
 			$this->pendingQueue,
 			$this->duplicates,
 			$this->metadataService,
+			$this->filecacheService,
 			$this->userManager,
 			$this->logger,
 		);
@@ -144,32 +148,6 @@ class HashIndexServiceTest
 		;
 
 		$result = $this->service->findByHash( 'abc123', 'sha256', 50 );
-
-		$this->assertIsArray( $result );
-	}
-
-
-	public function testBatchLookupFilecachePathsDelegates(): void
-	{
-
-		$this->duplicates->expects( $this->once() )
-		                 ->method( 'batchLookupFilecachePaths' )
-		                 ->with(
-			                 [
-				                 42,
-				                 108,
-			                 ],
-			                 null,
-		                 )
-		                 ->willReturn( [] )
-		;
-
-		$result = $this->service->batchLookupFilecachePaths(
-			[
-				42,
-				108,
-			],
-		);
 
 		$this->assertIsArray( $result );
 	}

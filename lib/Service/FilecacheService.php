@@ -2,18 +2,21 @@
 
 namespace OCA\FileChecksumSearch\Service;
 
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\Files\Node;
 use OCP\Files\NotFoundException;
+use OCP\IDBConnection;
 
 /** @noinspection PhpClassCanBeReadonlyInspection */
 class FilecacheService
 {
 
 	public function __construct(
-		private readonly IRootFolder $rootFolder,
+		private readonly IRootFolder  $rootFolder,
+		private readonly IDBConnection $db,
 	) {
 	}
 
@@ -214,6 +217,99 @@ class FilecacheService
 		return $file instanceof File
 			? $file->getId()
 			: $file;
+	}
+
+
+	/**
+	 * Batch-lookup filecache paths for a list of file IDs.
+	 *
+	 * Joins storages to resolve the storage ID for each file.
+	 * When $userName is provided, only files from that user's home
+	 * storage are returned (matched via storages.id = 'home::{uid}').
+	 *
+	 * @param  int[]        $fileIds
+	 * @param  string|null  $userName
+	 *
+	 * @return array<int, array{path: string, name: string, storage_id: string, user: string}>
+	 */
+	public function batchLookupFilecachePaths(
+		array   $fileIds,
+		?string $userName = null,
+	): array {
+
+		if ( empty( $fileIds ) )
+		{
+			return [];
+		}
+
+		$qb = $this->db->getQueryBuilder();
+
+		$qb->select( 'fc.fileid', 'fc.path', 'fc.name', 's.id' )
+		   ->from( 'filecache', 'fc' )
+		   ->innerJoin(
+			   'fc',
+			   'storages',
+			   's',
+			   'fc.storage = s.numeric_id',
+		   )
+		;
+
+		if ( $userName !== null )
+		{
+			$qb->where(
+				$qb->expr()
+				   ->eq(
+					   's.id',
+					   $qb->createNamedParameter( 'home::' . $userName ),
+				   ),
+			)
+			   ->andWhere(
+				   $qb->expr()
+				      ->in(
+					      'fc.fileid',
+					      $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
+				      ),
+			   )
+			;
+		}
+		else
+		{
+			$qb->where(
+				$qb->expr()
+				   ->in(
+					   'fc.fileid',
+					   $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
+				   ),
+			);
+		}
+
+		$result = $qb->executeQuery();
+		$paths  = [];
+
+		while ( ( $row = $result->fetch() ) !== false )
+		{
+			$sid  = (string) $row['id'];
+			$user = $sid;
+
+			if ( str_starts_with( $sid, 'home::' ) )
+			{
+				$user = substr( $sid, 6 );
+			}
+			elseif ( str_starts_with( $sid, 'local::' ) )
+			{
+				$user = basename( $sid );
+			}
+
+			$paths[ (int) $row['fileid'] ] = [
+				'path'       => (string) $row['path'],
+				'name'       => (string) $row['name'],
+				'storage_id' => $sid,
+				'user'       => $user,
+			];
+		}
+		$result->closeCursor();
+
+		return $paths;
 	}
 
 }

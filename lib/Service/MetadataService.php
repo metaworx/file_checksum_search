@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Service;
 
+use OC\FilesMetadata\Model\FilesMetadata;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\DB\IResult;
 use OCP\DB\QueryBuilder\IQueryBuilder;
@@ -20,6 +21,7 @@ use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\FilesMetadata\Model\IMetadataValueWrapper;
 use OCP\IDBConnection;
 use Psr\Log\LoggerInterface;
+use Throwable;
 
 /**
  * Central service for all oc_files_metadata + oc_files_metadata_index operations.
@@ -39,6 +41,8 @@ class MetadataService
 
 // constants
 	public const FIELD_FILE_ID                = 'file_id';
+	public const FIELD_JSON                   = 'json';
+	public const FIELD_JSON_ALIAS             = 'meta_json';
 	public const FIELD_META_KEY               = 'meta_key';
 	public const FIELD_META_VALUE_INT         = 'meta_value_int';
 	public const FIELD_META_VALUE_STRING      = 'meta_value_string';
@@ -47,6 +51,7 @@ class MetadataService
 	public const KEY_FILE_CHECKSUM_UPDATED_AT = 'file-checksum-updated_at';
 	public const PENDING_LIKE                 = self::PENDING_PREFIX . '%';
 	public const PENDING_PREFIX               = 'pending:';
+	public const TABLE_FILES_METADATA         = 'files_metadata';
 	public const TABLE_FILES_METADATA_INDEX   = 'files_metadata_index';
 
 
@@ -88,8 +93,30 @@ class MetadataService
 	/**
 	 * Get metadata for a file. Creates empty metadata if it does not exist.
 	 */
-	public function getMetadata( int|File $file ): IFilesMetadata
-	{
+	public function getMetadata(
+		int|File          $file,
+		string|array|null $rawMetadata = null,
+	): IFilesMetadata {
+
+		if ( $rawMetadata !== null )
+		{
+			if ( is_array( $rawMetadata ) && array_key_exists( MetadataService::FIELD_JSON_ALIAS, $rawMetadata ) )
+			{
+				$rawMetadata = (string) ( $rawMetadata[ MetadataService::FIELD_JSON_ALIAS ] );
+			}
+
+			if ( ! is_array( $rawMetadata ) )
+			{
+				$rawMetadata = $rawMetadata !== ''
+					? json_decode( $rawMetadata, true )
+					: [];
+			}
+
+			$metadata = new FilesMetadata( FilecacheService::getFileId( $file ) );
+			$metadata->import( $rawMetadata );
+
+			return $metadata;
+		}
 
 		/** @noinspection PhpUnhandledExceptionInspection */
 		return $this->metadataManager->getMetadata( FilecacheService::getFileId( $file ), true );
@@ -295,6 +322,34 @@ class MetadataService
 	}
 
 
+	public function extractAlgorithm(
+		int   $fileId,
+		array $row,
+	): array {
+
+		// Read authoritative hash from oc_files_metadata.json
+		$metadata = $this->getMetadata( $fileId, $row );
+		$metaKey  = $row[ MetadataService::FIELD_META_KEY ];
+
+		try
+		{
+			$authoritativeHash = $metadata->getString( $metaKey );
+		}
+		catch ( FilesMetadataNotFoundException|FilesMetadataTypeException $e )
+		{
+			$authoritativeHash = null;
+		}
+
+		// Determine algo from input or from meta_key
+		$resultAlgo = $algo ?? MetadataService::getAlgorithmenFromKey( $metaKey );
+
+		return [
+			'algo' => $resultAlgo,
+			'hash' => $authoritativeHash,
+		];
+	}
+
+
 	/**
 	 * Fetch a batch of pending rows ordered by file_id.
 	 *
@@ -385,11 +440,18 @@ class MetadataService
 	): array {
 
 		$qb = $this->db->getQueryBuilder();
-		$qb->select( self::FIELD_FILE_ID )
-		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		$qb->select( 'i.' . self::FIELD_FILE_ID, 'i.' . self::FIELD_META_KEY )
+		   ->selectAlias( 'm.' . self::FIELD_JSON, self::FIELD_JSON_ALIAS )
+		   ->from( self::TABLE_FILES_METADATA_INDEX, 'i' )
+		   ->innerJoin(
+			   'i',
+			   self::TABLE_FILES_METADATA,
+			   'm',
+			   'i.' . self::FIELD_FILE_ID . ' = m.' . self::FIELD_FILE_ID,
+		   )
 		   ->where(
 			   $qb->expr()
-			      ->eq( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( $hash ) ),
+			      ->eq( 'i.' . self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( $hash ) ),
 		   )
 		   ->setMaxResults( $limit )
 		;
@@ -398,7 +460,10 @@ class MetadataService
 		{
 			$qb->andWhere(
 				$qb->expr()
-				   ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_PREFIX . $algo ) ),
+				   ->eq(
+					   'i.' . self::FIELD_META_KEY,
+					   $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_PREFIX . $algo ),
+				   ),
 			);
 		}
 		else
@@ -406,7 +471,7 @@ class MetadataService
 			$qb->andWhere(
 				$qb->expr()
 				   ->like(
-					   self::FIELD_META_KEY,
+					   'i.' . self::FIELD_META_KEY,
 					   $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ),
 				   ),
 			);
@@ -437,7 +502,7 @@ class MetadataService
 
 		$qb = $this->db->getQueryBuilder();
 
-		$qb->select( 'i.' . self::FIELD_META_KEY, 'i.' . self::FIELD_META_VALUE_STRING )
+		$qb->select( 'i.' . self::FIELD_META_KEY )
 		   ->selectAlias(
 			   $qb->func()
 			      ->count( 'i.' . self::FIELD_FILE_ID ),
@@ -448,10 +513,14 @@ class MetadataService
 			      ->groupConcat( 'i.' . self::FIELD_FILE_ID ),
 			   'file_ids',
 		   )
+		   ->selectAlias(
+			   $qb->createFunction( 'ANY_VALUE(m.' . self::FIELD_JSON . ')' ),
+			   self::FIELD_JSON_ALIAS,
+		   )
 		   ->from( self::TABLE_FILES_METADATA_INDEX, 'i' )
 		   ->innerJoin(
 			   'i',
-			   'files_metadata',
+			   self::TABLE_FILES_METADATA,
 			   'm',
 			   'i.' . self::FIELD_FILE_ID . ' = m.' . self::FIELD_FILE_ID,
 		   )
@@ -499,9 +568,17 @@ class MetadataService
 				? array_map( 'intval', explode( ',', $fileIdStr ) )
 				: [];
 
+			// Read the authoritative hash from oc_files_metadata.json,
+			// not from the index (which may truncate long hashes like SHA-512).
+			$metaValueJson = (string) ( $row['meta_value'] ?? '' );
+			$metaValue     = $metaValueJson !== ''
+				? json_decode( $metaValueJson, true )
+				: [];
+			$hashValue     = (string) ( $metaValue[ $row[ self::FIELD_META_KEY ] ] ?? '' );
+
 			return [
 				self::FIELD_META_KEY          => $row[ self::FIELD_META_KEY ],
-				self::FIELD_META_VALUE_STRING => $row[ self::FIELD_META_VALUE_STRING ],
+				self::FIELD_META_VALUE_STRING => $hashValue,
 				'file_count'                  => (int) $row['cnt'],
 				'file_ids'                    => $fileIds,
 			];
@@ -589,7 +666,7 @@ SQL,
 
 			return $inserted;
 		}
-		catch ( \Throwable $e )
+		catch ( Throwable $e )
 		{
 			$this->logger->error(
 				'FCIAS MetadataService: seedIndex failed',
@@ -601,6 +678,18 @@ SQL,
 
 			return 0;
 		}
+	}
+
+
+	/**
+	 * @param  mixed  $metaKey
+	 *
+	 * @return mixed|string|string[]
+	 */
+	public static function getAlgorithmenFromKey( mixed $metaKey ): mixed
+	{
+
+		return str_replace( MetadataService::KEY_FILE_CHECKSUM_PREFIX, '', $metaKey );
 	}
 
 

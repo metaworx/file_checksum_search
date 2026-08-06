@@ -10,13 +10,17 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use OCA\FileChecksumSearch\Service\FilecacheService;
+use OCP\DB\IResult;
+use OCP\DB\QueryBuilder\IExpressionBuilder;
+use OCP\DB\QueryBuilder\IQueryBuilder;
+use OCP\Files\Cache\ICache;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\Files\Node;
 use OCP\Files\NotFoundException;
 use OCP\Files\Storage\IStorage;
-use OCP\Files\Cache\ICache;
+use OCP\IDBConnection;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -25,9 +29,11 @@ class FilecacheServiceTest
 	TestCase
 {
 
-	private IRootFolder&MockObject  $rootFolder;
+	private IRootFolder&MockObject   $rootFolder;
 
-	private FilecacheService        $service;
+	private IDBConnection&MockObject $db;
+
+	private FilecacheService         $service;
 
 
 	protected function setUp(): void
@@ -36,7 +42,8 @@ class FilecacheServiceTest
 		parent::setUp();
 
 		$this->rootFolder = $this->createMock( IRootFolder::class );
-		$this->service    = new FilecacheService( $this->rootFolder );
+		$this->db         = $this->createMock( IDBConnection::class );
+		$this->service    = new FilecacheService( $this->rootFolder, $this->db );
 	}
 
 
@@ -54,8 +61,8 @@ class FilecacheServiceTest
 	public function testGetFileResolvesById(): void
 	{
 
-		$file     = $this->createMock( File::class );
-		$fileId   = 42;
+		$file   = $this->createMock( File::class );
+		$fileId = 42;
 
 		$this->rootFolder->expects( $this->once() )
 		                 ->method( 'getFirstNodeById' )
@@ -107,7 +114,7 @@ class FilecacheServiceTest
 	public function testGetHashesParsesChecksumField(): void
 	{
 
-		$file     = $this->createMock( File::class );
+		$file = $this->createMock( File::class );
 		$file->method( 'getChecksum' )
 		     ->willReturn( 'SHA1:abc123 MD5:def456' )
 		;
@@ -132,7 +139,13 @@ class FilecacheServiceTest
 		     ->willReturn( 'SHA1:abc123 MD5:def456 SHA256:ghi789' )
 		;
 
-		$hashes = $this->service->getHashes( $file, [ 'sha1', 'sha256' ] );
+		$hashes = $this->service->getHashes(
+			$file,
+			[
+				'sha1',
+				'sha256',
+			],
+		);
 
 		$this->assertSame(
 			[
@@ -226,15 +239,20 @@ class FilecacheServiceTest
 
 		$cache->expects( $this->once() )
 		      ->method( 'update' )
-		      ->with( 42, $this->callback( function ( $data ) {
+		      ->with(
+			      42,
+			      $this->callback( function (
+				      $data,
+			      ) {
 
-			      $parts = explode( ' ', $data['checksum'] );
+				      $parts = explode( ' ', $data['checksum'] );
 
-			      return count( $parts ) === 3
-			             && in_array( 'SHA1:new456', $parts )
-			             && in_array( 'SHA256:keep456', $parts )
-			             && in_array( 'MD5:added789', $parts );
-		      } ) )
+				      return count( $parts ) === 3
+					      && in_array( 'SHA1:new456', $parts )
+					      && in_array( 'SHA256:keep456', $parts )
+					      && in_array( 'MD5:added789', $parts );
+			      } ),
+		      )
 		;
 
 		$this->service->setHashes(
@@ -385,6 +403,275 @@ class FilecacheServiceTest
 		;
 
 		$this->service->copyFilecacheChecksum( $source, $target );
+	}
+
+
+	public function testBatchLookupFilecachePathsReturnsEmptyForEmptyInput(): void
+	{
+
+		$result = $this->service->batchLookupFilecachePaths( [] );
+
+		$this->assertSame( [], $result );
+	}
+
+
+	public function testBatchLookupFilecachePath(): void
+	{
+
+		$fileIds  = [ 42 ];
+		$mockRows = [
+			[
+				'fileid' => 42,
+				'path'   => 'files/Documents',
+				'name'   => 'report.pdf',
+				'id'     => 'home::admin',
+			],
+		];
+
+		$exprBuilder = $this->createMock( IExpressionBuilder::class );
+		$exprBuilder->method( 'in' )
+		            ->willReturn( 'fc.fileid IN (:dcValue1)' )
+		;
+
+		$qb = $this->createMock( IQueryBuilder::class );
+		$qb->method( 'expr' )
+		   ->willReturn( $exprBuilder )
+		;
+		$qb->method( 'select' )
+		   ->willReturnSelf()
+		;
+		$qb->method( 'from' )
+		   ->willReturnSelf()
+		;
+		$qb->method( 'innerJoin' )
+		   ->willReturnSelf()
+		;
+		$qb->method( 'where' )
+		   ->willReturnSelf()
+		;
+		$qb->method( 'createNamedParameter' )
+		   ->willReturnArgument( 0 )
+		;
+
+		$resultStmt = $this->createMock( IResult::class );
+		$resultStmt->method( 'fetch' )
+		           ->willReturnOnConsecutiveCalls( $mockRows[0], false )
+		;
+
+		$qb->method( 'executeQuery' )
+		   ->willReturn( $resultStmt )
+		;
+
+		$this->db->expects( $this->once() )
+		         ->method( 'getQueryBuilder' )
+		         ->willReturn( $qb )
+		;
+
+		$result = $this->service->batchLookupFilecachePaths( $fileIds );
+
+		$this->assertCount( 1, $result );
+		$this->assertArrayHasKey( 42, $result );
+	}
+
+
+	public function testBatchLookupFilecachePathsBuildsQueryAndReturnsRows(): void
+	{
+
+		$fileIds  = [
+			42,
+			108,
+		];
+		$mockRows = [
+			[
+				'fileid' => 42,
+				'path'   => 'files/Documents',
+				'name'   => 'report.pdf',
+				'id'     => 'home::admin',
+			],
+			[
+				'fileid' => 108,
+				'path'   => 'files/Photos',
+				'name'   => 'vacation.jpg',
+				'id'     => 'home::admin',
+			],
+		];
+
+		// Mock the query builder chain
+		$exprBuilder = $this->createMock( IExpressionBuilder::class );
+		$exprBuilder->method( 'in' )
+		            ->willReturn( 'fc.fileid IN (:dcValue1, :dcValue2)' )
+		;
+
+		$qb = $this->createMock( IQueryBuilder::class );
+		$qb->method( 'expr' )
+		   ->willReturn( $exprBuilder )
+		;
+		$qb->method( 'select' )
+		   ->willReturnSelf()
+		;
+		$qb->method( 'from' )
+		   ->willReturnSelf()
+		;
+		$qb->method( 'innerJoin' )
+		   ->willReturnSelf()
+		;
+		$qb->method( 'where' )
+		   ->willReturnSelf()
+		;
+		$qb->method( 'andWhere' )
+		   ->willReturnSelf()
+		;
+		$qb->method( 'createNamedParameter' )
+		   ->willReturnArgument( 0 )
+		;
+
+		$resultStmt = $this->createMock( IResult::class );
+		$resultStmt->method( 'fetch' )
+		           ->willReturnOnConsecutiveCalls( $mockRows[0], $mockRows[1], false )
+		;
+
+		$qb->method( 'executeQuery' )
+		   ->willReturn( $resultStmt )
+		;
+
+		$this->db->method( 'getQueryBuilder' )
+		         ->willReturn( $qb )
+		;
+
+		$result = $this->service->batchLookupFilecachePaths( $fileIds );
+
+		$this->assertCount( 2, $result );
+		$this->assertArrayHasKey( 42, $result );
+		$this->assertArrayHasKey( 108, $result );
+		$this->assertSame( 'files/Documents', $result[42]['path'] );
+		$this->assertSame( 'report.pdf', $result[42]['name'] );
+		$this->assertSame( 'home::admin', $result[42]['storage_id'] );
+		$this->assertSame( 'admin', $result[42]['user'] );
+		$this->assertSame( 'files/Photos', $result[108]['path'] );
+		$this->assertSame( 'vacation.jpg', $result[108]['name'] );
+	}
+
+
+	public function testBatchLookupFilecachePathsFiltersByUserName(): void
+	{
+
+		$fileIds  = [ 42 ];
+		$mockRows = [
+			[
+				'fileid' => 42,
+				'path'   => 'files/Documents',
+				'name'   => 'report.pdf',
+				'id'     => 'home::admin',
+			],
+		];
+
+		$exprBuilder = $this->createMock( IExpressionBuilder::class );
+		$exprBuilder->method( 'eq' )
+		            ->willReturn( 's.id = :dcValue1' )
+		;
+		$exprBuilder->method( 'in' )
+		            ->willReturn( 'fc.fileid IN (:dcValue2)' )
+		;
+
+		$qb = $this->createMock( IQueryBuilder::class );
+		$qb->method( 'expr' )
+		   ->willReturn( $exprBuilder )
+		;
+		$qb->method( 'select' )
+		   ->willReturnSelf()
+		;
+		$qb->method( 'from' )
+		   ->willReturnSelf()
+		;
+		$qb->method( 'innerJoin' )
+		   ->willReturnSelf()
+		;
+		$qb->method( 'where' )
+		   ->willReturnSelf()
+		;
+		$qb->method( 'andWhere' )
+		   ->willReturnSelf()
+		;
+		$qb->method( 'createNamedParameter' )
+		   ->willReturnArgument( 0 )
+		;
+
+		$resultStmt = $this->createMock( IResult::class );
+		$resultStmt->method( 'fetch' )
+		           ->willReturnOnConsecutiveCalls( $mockRows[0], false )
+		;
+
+		$qb->method( 'executeQuery' )
+		   ->willReturn( $resultStmt )
+		;
+
+		$this->db->method( 'getQueryBuilder' )
+		         ->willReturn( $qb )
+		;
+
+		$result = $this->service->batchLookupFilecachePaths( $fileIds, 'admin' );
+
+		$this->assertCount( 1, $result );
+		$this->assertArrayHasKey( 42, $result );
+		$this->assertSame( 'admin', $result[42]['user'] );
+	}
+
+
+	public function testBatchLookupFilecachePathsExtractsUserFromLocalStorage(): void
+	{
+
+		$fileIds  = [ 42 ];
+		$mockRows = [
+			[
+				'fileid' => 42,
+				'path'   => 'files/Documents',
+				'name'   => 'report.pdf',
+				'id'     => 'local::/mnt/data/user1',
+			],
+		];
+
+		$exprBuilder = $this->createMock( IExpressionBuilder::class );
+		$exprBuilder->method( 'in' )
+		            ->willReturn( 'fc.fileid IN (:dcValue1)' )
+		;
+
+		$qb = $this->createMock( IQueryBuilder::class );
+		$qb->method( 'expr' )
+		   ->willReturn( $exprBuilder )
+		;
+		$qb->method( 'select' )
+		   ->willReturnSelf()
+		;
+		$qb->method( 'from' )
+		   ->willReturnSelf()
+		;
+		$qb->method( 'innerJoin' )
+		   ->willReturnSelf()
+		;
+		$qb->method( 'where' )
+		   ->willReturnSelf()
+		;
+		$qb->method( 'createNamedParameter' )
+		   ->willReturnArgument( 0 )
+		;
+
+		$resultStmt = $this->createMock( IResult::class );
+		$resultStmt->method( 'fetch' )
+		           ->willReturnOnConsecutiveCalls( $mockRows[0], false )
+		;
+
+		$qb->method( 'executeQuery' )
+		   ->willReturn( $resultStmt )
+		;
+
+		$this->db->method( 'getQueryBuilder' )
+		         ->willReturn( $qb )
+		;
+
+		$result = $this->service->batchLookupFilecachePaths( $fileIds );
+
+		$this->assertCount( 1, $result );
+		$this->assertSame( 'user1', $result[42]['user'] );
 	}
 
 }
