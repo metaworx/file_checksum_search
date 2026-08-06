@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Command;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Service\CronJobService;
 use OCA\FileChecksumSearch\Service\StatusService;
 use OCA\FileChecksumSearch\Service\TriggerInitializationService;
 use Psr\Log\LoggerInterface;
@@ -29,6 +30,7 @@ class ShowStatus
 	public function __construct(
 		private readonly StatusService                $statusService,
 		private readonly TriggerInitializationService $triggerInitService,
+		private readonly CronJobService               $cronJobService,
 		private readonly LoggerInterface              $logger,
 	) {
 
@@ -88,6 +90,7 @@ class ShowStatus
 						'stored_procedure'  => $this->statusService->getProcedureStatus( $output ),
 						'triggers'          => $this->statusService->getTriggerStatus( $output ),
 						'migrations'        => $this->statusService->getMigrationStatus( $output ),
+						'cron_jobs'         => $this->cronJobService->listDefinitions(),
 					],
 					$outFmt === 'json_pretty'
 						? JSON_PRETTY_PRINT
@@ -178,6 +181,47 @@ class ShowStatus
 						: 'MISSING',
 				),
 			);
+		}
+
+		$cronJobs = $this->cronJobService->listDefinitions();
+
+		$output->writeln( '' );
+		$output->writeln(
+			sprintf(
+				'Cron Jobs (%d CronGenerateHashes definition%s):',
+				count( $cronJobs ),
+				count( $cronJobs ) === 1
+					? ''
+					: 's',
+			),
+		);
+
+		if ( empty( $cronJobs ) )
+		{
+			$output->writeln( '  (none)' );
+		}
+		else
+		{
+			foreach ( $cronJobs as $job )
+			{
+				$enabled = ! empty( $job['enabled'] );
+				$output->writeln(
+					sprintf(
+						'  %-45s %s (path=%s)',
+						sprintf(
+							'#%s %s/%s/%ds',
+							$job['id'] ?? '?',
+							$job['userScope'] ?? '?',
+							$job['algo'] ?? '?',
+							(int) ( $job['interval'] ?? 0 ),
+						),
+						$enabled
+							? 'enabled'
+							: 'disabled',
+						$job['path'] ?? '?',
+					),
+				);
+			}
 		}
 
 		return Command::SUCCESS;

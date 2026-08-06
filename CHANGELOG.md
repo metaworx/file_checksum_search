@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Added
+
+- Add cron job definitions to the file-checksum-search:status output in both plain-text and JSON formats.
+
 ## [0.6.1] — 2026-08-05
 
 ### Fixed

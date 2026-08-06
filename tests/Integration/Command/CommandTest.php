@@ -113,6 +113,8 @@ class CommandTest
 		$this->assertArrayHasKey( 'hash_rows', $data );
 		$this->assertArrayHasKey( 'tables', $data );
 		$this->assertIsArray( $data['tables'] );
+		$this->assertArrayHasKey( 'cron_jobs', $data );
+		$this->assertIsArray( $data['cron_jobs'] );
 	}
 
 
@@ -132,6 +134,7 @@ class CommandTest
 		$this->assertStringContainsString( 'Stored Procedure:', $display );
 		$this->assertStringContainsString( 'Triggers:', $display );
 		$this->assertStringContainsString( 'Migrations:', $display );
+		$this->assertStringContainsString( 'Cron Jobs', $display );
 	}
 
 
