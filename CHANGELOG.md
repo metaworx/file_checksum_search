@@ -17,6 +17,10 @@ the first stable release.
 - Add integration tests covering the full pending-queue drain pipeline and fix a double-prefix bug in PendingQueueService that produced an invalid table name (oc_oc_file_checksum_search_pending).
 - Add FileListener integration tests covering all update-hash-on-write/create/delete modes and fix a double-prefix bug in HashCalculationService that caused queries against a doubled table name.
 
+### Changed
+
+- Introduce MetadataService and a fresh migration to integrate with Nextcloud's oc_files_metadata table, dropping all previous migrations since the app had never been deployed.
+
 ## [0.6.1] — 2026-08-05
 
 ### Fixed
