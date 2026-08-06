@@ -147,7 +147,6 @@ class HashIndexService
 		return $this->hashCalc->generateMissingHashes(
 			$userId,
 			$algo,
-			$this->rootFolder ?? throw new \RuntimeException( 'rootFolder not available' ),
 			$pathPattern,
 			$batchSize,
 			$output,

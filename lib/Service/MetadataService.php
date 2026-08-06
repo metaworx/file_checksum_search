@@ -341,7 +341,7 @@ class MetadataService
 		}
 
 		// Determine algo from input or from meta_key
-		$resultAlgo = $algo ?? MetadataService::getAlgorithmenFromKey( $metaKey );
+		$resultAlgo = MetadataService::getAlgorithmenFromKey( $metaKey );
 
 		return [
 			'algo' => $resultAlgo,
@@ -514,8 +514,8 @@ class MetadataService
 			   'file_ids',
 		   )
 		   ->selectAlias(
-		    $qb->createFunction( 'MAX(m.' . self::FIELD_JSON . ')' ),
-		    self::FIELD_JSON_ALIAS,
+			   $qb->createFunction( 'MAX(m.' . self::FIELD_JSON . ')' ),
+			   self::FIELD_JSON_ALIAS,
 		   )
 		   ->from( self::TABLE_FILES_METADATA_INDEX, 'i' )
 		   ->innerJoin(
@@ -570,7 +570,7 @@ class MetadataService
 
 			// Read the authoritative hash from oc_files_metadata.json,
 			// not from the index (which may truncate long hashes like SHA-512).
-			$metaValueJson = (string) ( $row['meta_value'] ?? '' );
+			$metaValueJson = (string) ( $row[self::FIELD_JSON_ALIAS] ?? '' );
 			$metaValue     = $metaValueJson !== ''
 				? json_decode( $metaValueJson, true )
 				: [];

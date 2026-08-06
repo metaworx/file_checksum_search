@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix two critical post-migration bugs: an undefined argument that always threw an exception in HashIndexService::generateMissingHashes(), and a wrong column alias in MetadataService::queryDuplicates() that caused duplicate detection to return empty hash values.
+
 ## [0.7.0] — 2026-08-07
 
 ### Added
