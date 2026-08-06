@@ -205,6 +205,7 @@ class HashCalculationService
 	): array {
 
 		$qb = $db->getQueryBuilder();
+		$qb->automaticTablePrefix( false );
 
 		$qb->selectDistinct( 'algo' )
 		   ->from( $tables->getHashTableName() )
@@ -498,6 +499,7 @@ class HashCalculationService
 	): bool {
 
 		$qb = $this->db->getQueryBuilder();
+		$qb->automaticTablePrefix( false );
 
 		$qb->select( 'updated_at' )
 		   ->from( $this->tables->getHashTableName() )
