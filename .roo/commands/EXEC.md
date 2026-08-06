@@ -95,6 +95,10 @@ Commit workflow — always prefix with `wsl --cd ~/projects/nc_file_checksum_sea
 - Never commit without a gate message and EXEC confirmation per [`AGENTS.md`](AGENTS.md) §1.3.
 - Never revert or checkout without a gate message and EXEC confirmation.
 
+### 3.5 Code Quality
+
+After editing PHP files, follow the JetBrains MCP Quality Workflow documented in [`.aiassistant/TESTING.md`](.aiassistant/TESTING.md).
+
 ## 4. Common Pitfalls
 
 | Pitfall | Prevention |

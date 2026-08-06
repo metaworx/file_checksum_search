@@ -1,4 +1,4 @@
-# Testing Conventions (v2.3.0)
+# Testing Conventions (v2.4.0)
 
 Project-specific testing conventions for FCIAS (File Checksum Index & Search Nextcloud app).
 Generic agent flow-control rules are in `AGENTS.md`; contributor context is in `CONTRIBUTING.md`.
@@ -18,6 +18,7 @@ Generic agent flow-control rules are in `AGENTS.md`; contributor context is in `
 11. Database Test Isolation
 12. Document Governance
 13. Version History
+14. JetBrains MCP Quality Workflow
 
 ## 1. Gate Command
 
@@ -103,7 +104,7 @@ Fallback: JetBrains MCP `execute_run_configuration` with `filePath` + `line` on 
 
 PHPUnit 10.5 relies on class inheritance to generate test doubles. PHP `readonly` classes cannot be extended by non-readonly classes, so PHPUnit cannot mock them. Workarounds (in order of preference):
 
-1. **Extract interface** — Create an interface, type-hint it, mock the interface (best long-term)
+1. **Extract interface** — Create an interface, type-hint it, mock the interface ( the best long-term)
 2. **Anonymous fakes** — Use `new class extends Foo { ... }` (good for DTOs/simple services)
 3. **Property-level readonly** — Remove class `readonly`, mark individual constructor properties as `readonly` (pragmatic, preserves immutability)
 4. **Runtime bypass** — Use `dg/bypass-finals` or Mockery for third-party classes you can't modify
@@ -182,17 +183,33 @@ Credentials are passed via environment variables to avoid hardcoding:
 ddev cypress-run --browser chrome --env NC_ADMIN_USER="Admin",NC_ADMIN_PASSWORD="..."
 ```
 
+## 14. JetBrains MCP Quality Workflow
+
+After editing PHP files, run through this quality pipeline using JetBrains MCP tools:
+
+1. **Reformat**: `mcp--jetbrains--reformat_file` with `files: ["path/relative/to/project"]`
+2. **Inspect**: `mcp--jetbrains--get_inspections` with `filePath: "path/relative/to/project"` — shows errors, warnings, weak warnings including "Unnecessary curly braces"
+3. **Quick-fix**: `mcp--jetbrains--apply_quick_fix` with `filePath`, `line`, `column`, `quickFixName` from the inspection result
+4. Repeat steps 1-3 until no additional changes needed
+5. **Lint**: `mcp--jetbrains--lint_files` with `files: ["path1", "path2"]` for batch validation
+
+Common inspections to watch for:
+- "Unnecessary curly braces" (`{$this->prop}` → `$this->prop` in double-quoted strings)
+- "Unhandled exceptions" — evaluate and either add `@throws` tag to the docblock, or suppress with `/** @noinspection PhpUnhandledExceptionInspection */` just before the statement (merge with existing comment if present), or place in the method's docblock as deemed appropriate
+- "No data sources configured" (harmless IDE config issue, can be ignored)
+
 ## 13. Version History
 
-| Version | Date       | Changed sections                              | Change type | Agent impact                                                      |
-|---------|------------|-----------------------------------------------|-------------|-------------------------------------------------------------------|
-| v2.3.0  | 2026-08-05 | 1                                              | minor       | Added --display-warnings note for CI PHPUnit with failOnWarning="true".       |
-| v2.2.0  | 2026-08-05 | 1.1, 8–13                                     | minor       | Documented phpunit wrapper; added Cypress E2E section; fixed ddev path notes. |
-| v2.1.0  | 2026-08-05 | 1.1, 6.1, 12                                  | minor       | Added DDEV test runner commands. Added readonly class mockability guidance (§6.1). |
+| Version | Date       | Changed sections                              | Change type | Agent impact                                                                                                                                                                            |
+|---------|------------|-----------------------------------------------|-------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| v2.4.0  | 2026-08-06 | 14                                            | minor       | Added JetBrains MCP Quality Workflow (§14). Author: metaworx.                                                                                                                           |
+| v2.3.0  | 2026-08-05 | 1                                             | minor       | Added --display-warnings note for CI PHPUnit with failOnWarning="true".                                                                                                                 |
+| v2.2.0  | 2026-08-05 | 1.1, 8–13                                     | minor       | Documented phpunit wrapper; added Cypress E2E section; fixed ddev path notes.                                                                                                           |
+| v2.1.0  | 2026-08-05 | 1.1, 6.1, 12                                  | minor       | Added DDEV test runner commands. Added readonly class mockability guidance (§6.1).                                                                                                      |
 | v2.0.0  | 2026-08-03 | All sections                                  | major       | Project switch: Kunstarchiv → FCIAS. Primary runner: `vendor/bin/phpunit`. Removed CS fixer infrastructure (§8-14 of v1.x). Added NC integration tests, mocking patterns, DB isolation. |
-| v1.5.0  | 2026-04-23 | Title, 1, 13, 16                              | minor       | Makes `.aiassistant\tools\phpunit` the preferred agent test entrypoint (Kunstarchiv). |
-| v1.4.0  | 2026-04-22 | Title, 7, 8, 16                               | minor       | Documents wrapper `--use-diff-stats` and `--env` (Kunstarchiv). |
-| v1.3.0  | 2026-04-22 | Title, 7, 16                                  | minor       | Restores explicit escalation guidance (Kunstarchiv). |
-| v1.2.0  | 2026-04-22 | Contents, 1-16                                | minor       | Adds section numbering (Kunstarchiv). |
-| v1.1.0  | 2026-04-22 | Title, Contents, Document Governance, History | minor       | Adds explicit versioning (Kunstarchiv). |
-| v1.0.0  | 2026-04-22 | Initial document                              | minor       | Baseline testing guidance for Kunstarchiv. |
+| v1.5.0  | 2026-04-23 | Title, 1, 13, 16                              | minor       | Makes `.aiassistant\tools\phpunit` the preferred agent test entrypoint (Kunstarchiv).                                                                                                   |
+| v1.4.0  | 2026-04-22 | Title, 7, 8, 16                               | minor       | Documents wrapper `--use-diff-stats` and `--env` (Kunstarchiv).                                                                                                                         |
+| v1.3.0  | 2026-04-22 | Title, 7, 16                                  | minor       | Restores explicit escalation guidance (Kunstarchiv).                                                                                                                                    |
+| v1.2.0  | 2026-04-22 | Contents, 1-16                                | minor       | Adds section numbering (Kunstarchiv).                                                                                                                                                   |
+| v1.1.0  | 2026-04-22 | Title, Contents, Document Governance, History | minor       | Adds explicit versioning (Kunstarchiv).                                                                                                                                                 |
+| v1.0.0  | 2026-04-22 | Initial document                              | minor       | Baseline testing guidance for Kunstarchiv.                                                                                                                                              |
