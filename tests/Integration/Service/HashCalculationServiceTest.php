@@ -9,7 +9,6 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Integration\Service;
 
-use OCA\FileChecksumSearch\Migration\LifecycleHandler;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
@@ -38,11 +37,6 @@ class HashCalculationServiceTest
 		parent::setUp();
 
 		$this->service = Server::get( HashCalculationService::class );
-
-		// Ensure the hashes table exists (recalcFileHash queries it).
-		Server::get( LifecycleHandler::class )
-		      ->createTables()
-		;
 
 		// Create a temp file with known content.
 		$this->tempFile = tempnam( sys_get_temp_dir(), 'fcias_test_' );

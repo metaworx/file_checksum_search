@@ -125,42 +125,12 @@ abstract class DatabaseTestCase
 	}
 
 
-	protected function getHashTableName(): string
-	{
-
-		return $this->getTablePrefix() . 'file_checksum_search_hashes';
-	}
-
-
-	protected function getPendingTableName(): string
-	{
-
-		return $this->getTablePrefix() . 'file_checksum_search_pending';
-	}
-
-
 	protected function getFilecacheTableName(): string
 	{
 
 		return $this->getTablePrefix() . 'filecache';
 	}
 
-
-	protected function getSpName(): string
-	{
-
-		return $this->getTablePrefix() . 'fcias_parse_file_hashes';
-	}
-
-
-	protected function getTriggerName( string $suffix ): string
-	{
-
-		return $this->getTablePrefix() . 't_fcias_after_' . $suffix;
-	}
-
-
-	// ─── assertions ──────────────────────────────────────────────────
 
 	protected function assertTableExists( string $tableName ): void
 	{

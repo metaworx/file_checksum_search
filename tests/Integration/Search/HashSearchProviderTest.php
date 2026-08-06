@@ -10,7 +10,6 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Integration\Search;
 
-use OCA\FileChecksumSearch\Migration\LifecycleHandler;
 use OCA\FileChecksumSearch\Search\HashSearchProvider;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
 use OCP\Files\File;
@@ -24,8 +23,9 @@ use Throwable;
 /**
  * Integration tests for HashSearchProvider against a real database.
  *
- * Verifies that search returns results for known hashes, returns empty
- * for unknown hashes, and respects user access boundaries.
+ * Verifies that search returns results for known hashes stored in
+ * oc_files_metadata / oc_files_metadata_index, returns empty for
+ * unknown hashes, and respects user access boundaries.
  */
 class HashSearchProviderTest
 	extends
@@ -35,8 +35,6 @@ class HashSearchProviderTest
 	private HashSearchProvider $provider;
 
 	private IUser              $adminUser;
-
-	private string             $hashTable;
 
 	private string             $fcTable;
 
@@ -59,15 +57,10 @@ class HashSearchProviderTest
 		$this->adminUser = Server::get( IUserManager::class )
 		                         ->get( 'admin' )
 		;
-		$this->hashTable = $this->getHashTableName();
 		$this->fcTable   = $this->getFilecacheTableName();
 
 		// Use a high ID with time‑based suffix to avoid collisions.
 		$this->inaccessibleFileId = 99999000 + ( time() % 1000 );
-
-		Server::get( LifecycleHandler::class )
-		      ->createTables()
-		;
 
 		// Clean any leftovers from a previous aborted run.
 		$this->cleanupLeftovers();
@@ -108,16 +101,7 @@ class HashSearchProviderTest
 
 		$testHash = 'abc123def456abc123def456abc123def4567890';
 
-		$this->getRawConnection()
-		     ->executeStatement(
-			     "INSERT INTO `$this->hashTable` (`fileid`, `algo`, `hash_value`, `updated_at`) VALUES (?, ?, ?, NOW())",
-			     [
-				     $fileId,
-				     'sha1',
-				     $testHash,
-			     ],
-		     )
-		;
+		$this->insertHashMetadata( $fileId, [ 'sha1' => $testHash ] );
 
 		$query = $this->createSearchQuery( $testHash );
 
@@ -153,16 +137,7 @@ class HashSearchProviderTest
 
 		$testHash = 'def789abc012def789abc012def789abc012def789a';
 
-		$this->getRawConnection()
-		     ->executeStatement(
-			     "INSERT INTO `$this->hashTable` (`fileid`, `algo`, `hash_value`, `updated_at`) VALUES (?, ?, ?, NOW())",
-			     [
-				     $fileId,
-				     'sha256',
-				     $testHash,
-			     ],
-		     )
-		;
+		$this->insertHashMetadata( $fileId, [ 'sha256' => $testHash ] );
 
 		// Search using "sha256:hash" format
 		$query = $this->createSearchQuery( 'sha256:' . $testHash );
@@ -253,16 +228,7 @@ SQL,
 
 		$testHash = 'cafebabecafebabecafebabecafebabecafebabe';
 
-		$this->getRawConnection()
-		     ->executeStatement(
-			     "INSERT INTO `$this->hashTable` (`fileid`, `algo`, `hash_value`, `updated_at`) VALUES (?, ?, ?, NOW())",
-			     [
-				     $fileId,
-				     'sha256',
-				     $testHash,
-			     ],
-		     )
-		;
+		$this->insertHashMetadata( $fileId, [ 'sha256' => $testHash ] );
 
 		$query = $this->createSearchQuery( $testHash );
 
@@ -290,22 +256,13 @@ SQL,
 		$this->cleanupFileIds[] = $fileId;
 
 		$sha1Hash   = '1111111111111111111111111111111111111111';
-		$sha256Hash = '2222222222222222222222222222222222222222222222222222222222222222';
+		$sha256Hash = '2222222222222222222222222222222222222222';
 
-		// Insert two rows for the same file — different algos
-		$this->getRawConnection()
-		     ->executeStatement(
-			     "INSERT INTO `$this->hashTable` (`fileid`, `algo`, `hash_value`, `updated_at`) VALUES (?, ?, ?, NOW()), (?, ?, ?, NOW())",
-			     [
-				     $fileId,
-				     'sha1',
-				     $sha1Hash,
-				     $fileId,
-				     'sha256',
-				     $sha256Hash,
-			     ],
-		     )
-		;
+		// Insert two index rows for the same file — different algos
+		$this->insertHashMetadata( $fileId, [
+			'sha1'   => $sha1Hash,
+			'sha256' => $sha256Hash,
+		] );
 
 		// Search with sha256: prefix — only the sha256 row should match
 		$query = $this->createSearchQuery( 'sha256:' . $sha256Hash );
@@ -344,6 +301,62 @@ SQL,
 	}
 
 
+	/**
+	 * Insert hash metadata into oc_files_metadata (JSON) and
+	 * oc_files_metadata_index (index row) for use by queryByHash().
+	 *
+	 * JSON format matches NC MetadataValueWrapper serialization:
+	 * {"key": {"value": ..., "type": "string", "etag": "", "indexed": true, "editPermission": 0}}
+	 *
+	 * Index hashes are truncated to 63 chars (VARCHAR limit).
+	 * Full hash is preserved in JSON.
+	 *
+	 * @param array<string, string> $hashes  algo => hex-hash pairs
+	 */
+	private function insertHashMetadata(
+		int   $fileId,
+		array $hashes,
+	): void {
+
+		$json = [];
+
+		foreach ( $hashes as $algo => $hash )
+		{
+			$json[ 'file-checksum-' . $algo ] = [
+				'value'          => $hash,
+				'type'           => 'string',
+				'etag'           => '',
+				'indexed'        => true,
+				'editPermission' => 0,
+			];
+		}
+
+		$jsonPayload = json_encode( $json );
+
+		// Insert/replace metadata JSON row.
+		// oc_files_metadata requires sync_token and last_update (NOT NULL, no defaults).
+		$this->getRawConnection()
+		     ->executeStatement(
+			     'INSERT INTO `*PREFIX*files_metadata` (`file_id`, `json`, `sync_token`, `last_update`) '
+			     . 'VALUES (?, ?, ?, NOW()) '
+			     . 'ON DUPLICATE KEY UPDATE `json` = VALUES(`json`), `last_update` = NOW()',
+			     [ $fileId, $jsonPayload, '' ],
+		     )
+		;
+
+		// Insert index rows (one per algo), truncating hash to 63 chars
+		foreach ( $hashes as $algo => $hash )
+		{
+			$this->getRawConnection()
+			     ->executeStatement(
+				     'INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`) VALUES (?, ?, ?, ?)',
+				     [ $fileId, 'file-checksum-' . $algo, substr( $hash, 0, 63 ), 0 ],
+			     )
+			;
+		}
+	}
+
+
 	private function cleanupLeftovers(): void
 	{
 
@@ -360,7 +373,20 @@ SQL,
 		{
 			$this->getRawConnection()
 			     ->executeStatement(
-				     "DELETE FROM `$this->hashTable` WHERE `fileid` IN ($inPlaceholders)",
+				     "DELETE FROM `*PREFIX*files_metadata_index` WHERE `file_id` IN ($inPlaceholders)",
+				     $ids,
+			     )
+			;
+		}
+		catch ( Throwable )
+		{
+		}
+
+		try
+		{
+			$this->getRawConnection()
+			     ->executeStatement(
+				     "DELETE FROM `*PREFIX*files_metadata` WHERE `file_id` IN ($inPlaceholders)",
 				     $ids,
 			     )
 			;
