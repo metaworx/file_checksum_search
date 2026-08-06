@@ -2,10 +2,12 @@
   <dictionary name="project">
     <words>
       <w>agpl</w>
+      <w>ddev</w>
       <w>fcias</w>
       <w>filecache</w>
       <w>fileid</w>
       <w>fileids</w>
+      <w>helioscloud</w>
       <w>intval</w>
       <w>nextcloud</w>
     </words>
