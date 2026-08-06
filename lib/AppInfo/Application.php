@@ -10,11 +10,15 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\AppInfo;
 
 use OCA\FileChecksumSearch\BackgroundJob\DrainPendingUpdates;
+use OCA\FileChecksumSearch\BackgroundJob\ProcessPendingUpdates;
+use OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob;
+use OCA\FileChecksumSearch\BackgroundJob\SeedPendingUpdates;
 use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Listener\AppDisableListener;
 use OCA\FileChecksumSearch\Listener\BeforeTemplateRenderedListener;
 use OCA\FileChecksumSearch\Listener\FileListener;
 use OCA\FileChecksumSearch\Listener\LoadDuplicatesScriptListener;
+use OCA\FileChecksumSearch\Listener\MetadataListener;
 use OCA\FileChecksumSearch\Search\HashSearchProvider;
 use OCA\FileChecksumSearch\Service\CronJobService;
 use OCA\FileChecksumSearch\Service\TriggerInitializationService;
@@ -50,6 +54,7 @@ class Application
 
 		LoadDuplicatesScriptListener::register( $context );
 		FileListener::register( $context );
+		MetadataListener::register( $context );
 		BeforeTemplateRenderedListener::register( $context );
 		AppDisableListener::register( $context );
 	}
@@ -68,10 +73,15 @@ class Application
 		      ->restore()
 		;
 
-		// Register the pending hash update drain job
-		Server::get( IJobList::class )
-		      ->add( DrainPendingUpdates::class )
-		;
+		$jobList = Server::get( IJobList::class );
+
+		// Register the pending hash update drain job (legacy)
+		$jobList->add( DrainPendingUpdates::class );
+
+		// Register the new metadata-backed job pipeline
+		$jobList->add( RuleProcessingJob::class );
+		$jobList->add( ProcessPendingUpdates::class );
+		$jobList->add( SeedPendingUpdates::class );
 	}
 
 }
