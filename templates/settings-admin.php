@@ -12,7 +12,7 @@ use OCP\Util;
 Util::addScript( 'file_checksum_search', 'settings-admin' );
 Util::addStyle( 'file_checksum_search', 'settings-admin' );
 
-/** @var IL10N $l is auto-injected by NC's TemplateResponse renderer via \OCP\Util::getL10N('file_checksum_search'). */
+/** @var \OCP\IL10N $l is auto-injected by NC's TemplateResponse renderer via \OCP\Util::getL10N('file_checksum_search'). */
 ?>
 
 <div id="fcias-admin-settings">

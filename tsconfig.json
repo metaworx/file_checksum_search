@@ -1,9 +1,16 @@
 {
-	"extends": "@vue/tsconfig",
-	"include": ["./src/**/*.ts", "./src/**/*.vue"],
+	"include": ["./src/**/*.ts"],
 	"compilerOptions": {
-		"erasableSyntaxOnly": true,
+		"target": "ES2022",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"strict": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
 		"outDir": "js",
-		"rootDir": "src"
-	},
+		"rootDir": "src",
+		"declaration": false,
+		"sourceMap": false,
+		"erasableSyntaxOnly": true
+	}
 }

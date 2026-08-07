@@ -14,11 +14,9 @@ use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCP\AppFramework\ApiController;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\ApiRoute;
-use OCP\AppFramework\Http\Attribute\FrontpageRoute;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
-use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IGroupManager;
 use OCP\IRequest;
 use OCP\IUserManager;
@@ -198,24 +196,5 @@ class DuplicatesController
 		);
 	}
 
-
-	/**
-	 * Render the global duplicate browser page.
-	 *
-	 * @noinspection PhpUnused
-	 */
-	#[NoAdminRequired]
-	#[NoCSRFRequired]
-	#[FrontpageRoute(verb: 'GET', url: '/duplicates')]
-	public function index(): TemplateResponse
-	{
-
-		return new TemplateResponse(
-			'file_checksum_search',
-			'duplicates',
-			[],
-			TemplateResponse::RENDER_AS_USER,
-		);
-	}
 
 }

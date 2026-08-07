@@ -30,8 +30,9 @@
 	</settings>
 	<navigations>
 		<navigation>
+			<id>file_checksum_search</id>
 			<name>Duplicates</name>
-			<route>file_checksum_search.duplicates.index</route>
+			<route>file_checksum_search.page.index</route>
 			<order>5</order>
 		</navigation>
 	</navigations>
