@@ -15,6 +15,7 @@ use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCP\AppFramework\Utility\ITimeFactory;
+use OCP\BackgroundJob\IJobList;
 use OCP\BackgroundJob\TimedJob;
 use OCP\IAppConfig;
 use Psr\Log\LoggerInterface;
@@ -36,6 +37,7 @@ class ProcessPendingUpdates
 		private readonly HashCalculationService $hashCalc,
 		private readonly MetadataService        $metadataService,
 		private readonly IAppConfig             $appConfig,
+		private readonly IJobList               $jobList,
 		private readonly LoggerInterface        $logger,
 	) {
 
@@ -128,6 +130,12 @@ class ProcessPendingUpdates
 						],
 					);
 				}
+			}
+
+			// Re-dispatch when batch was full to process remaining pending rows
+			if ( count( $pendingRows ) >= $batchLimit )
+			{
+				$this->jobList->add( self::class );
 			}
 
 			$this->logger->info(

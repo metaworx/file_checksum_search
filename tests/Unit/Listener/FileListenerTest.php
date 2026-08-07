@@ -13,12 +13,12 @@ use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Listener\FileListener;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\Files\Events\Node\NodeCopiedEvent;
 use OCP\Files\Events\Node\NodeCreatedEvent;
 use OCP\Files\Events\Node\NodeDeletedEvent;
 use OCP\Files\Events\Node\NodeWrittenEvent;
 use OCP\Files\File;
-use OCP\IAppConfig;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -32,7 +32,7 @@ class FileListenerTest
 
 	private MockObject|MetadataService  $metadataService;
 
-	private MockObject|IAppConfig       $appConfig;
+	private MockObject|RuleService      $ruleService;
 
 	private MockObject|LoggerInterface  $logger;
 
@@ -46,13 +46,13 @@ class FileListenerTest
 
 		$this->filecacheService = $this->createMock( FilecacheService::class );
 		$this->metadataService  = $this->createMock( MetadataService::class );
-		$this->appConfig        = $this->createMock( IAppConfig::class );
+		$this->ruleService      = $this->createMock( RuleService::class );
 		$this->logger           = $this->createMock( LoggerInterface::class );
 
 		$this->listener = new FileListener(
 			$this->filecacheService,
 			$this->metadataService,
-			$this->appConfig,
+			$this->ruleService,
 			$this->logger,
 		);
 	}
@@ -110,16 +110,13 @@ class FileListenerTest
 	public function testOnWriteForceClearsAndMarksPending(): void
 	{
 
-		$file = $this->createMock( File::class );
-		$file->method( 'getId' )
-		     ->willReturn( 42 )
-		;
+		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
 
 		$event = new NodeWrittenEvent( $file );
 
-		$this->appConfig->method( 'getValueString' )
-		                ->with( Application::APP_ID, 'update_hash_on_file_write', 'auto' )
-		                ->willReturn( 'force' )
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->with( '/files/user/foo.txt' )
+		                  ->willReturn( [ 'mode' => 'force' ] )
 		;
 
 		$this->metadataService->expects( $this->once() )
@@ -139,16 +136,13 @@ class FileListenerTest
 	public function testOnWriteLazyClearsAndMarksPending(): void
 	{
 
-		$file = $this->createMock( File::class );
-		$file->method( 'getId' )
-		     ->willReturn( 42 )
-		;
+		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
 
 		$event = new NodeWrittenEvent( $file );
 
-		$this->appConfig->method( 'getValueString' )
-		                ->with( Application::APP_ID, 'update_hash_on_file_write', 'auto' )
-		                ->willReturn( 'lazy' )
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->with( '/files/user/foo.txt' )
+		                  ->willReturn( [ 'mode' => 'lazy' ] )
 		;
 
 		$this->metadataService->expects( $this->once() )
@@ -168,16 +162,13 @@ class FileListenerTest
 	public function testOnWriteAutoMarksPendingIfHashExists(): void
 	{
 
-		$file = $this->createMock( File::class );
-		$file->method( 'getId' )
-		     ->willReturn( 42 )
-		;
+		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
 
 		$event = new NodeWrittenEvent( $file );
 
-		$this->appConfig->method( 'getValueString' )
-		                ->with( Application::APP_ID, 'update_hash_on_file_write', 'auto' )
-		                ->willReturn( 'auto' )
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->with( '/files/user/foo.txt' )
+		                  ->willReturn( [ 'mode' => 'auto' ] )
 		;
 
 		$this->metadataService->method( 'countByFileId' )
@@ -197,16 +188,13 @@ class FileListenerTest
 	public function testOnWriteAutoSkipsIfNoHash(): void
 	{
 
-		$file = $this->createMock( File::class );
-		$file->method( 'getId' )
-		     ->willReturn( 42 )
-		;
+		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
 
 		$event = new NodeWrittenEvent( $file );
 
-		$this->appConfig->method( 'getValueString' )
-		                ->with( Application::APP_ID, 'update_hash_on_file_write', 'auto' )
-		                ->willReturn( 'auto' )
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->with( '/files/user/foo.txt' )
+		                  ->willReturn( [ 'mode' => 'auto' ] )
 		;
 
 		$this->metadataService->method( 'countByFileId' )
@@ -225,16 +213,37 @@ class FileListenerTest
 	public function testOnWriteOffDoesNothing(): void
 	{
 
-		$file = $this->createMock( File::class );
-		$file->method( 'getId' )
-		     ->willReturn( 42 )
-		;
+		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
 
 		$event = new NodeWrittenEvent( $file );
 
-		$this->appConfig->method( 'getValueString' )
-		                ->with( Application::APP_ID, 'update_hash_on_file_write', 'auto' )
-		                ->willReturn( 'off' )
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->with( '/files/user/foo.txt' )
+		                  ->willReturn( [ 'mode' => 'off' ] )
+		;
+
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'clearMetadata' )
+		;
+
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'markPending' )
+		;
+
+		$this->listener->handle( $event );
+	}
+
+
+	public function testOnWriteNoMatchingRuleDoesNothing(): void
+	{
+
+		$file = $this->makeFileMock( 42, '/files/user/untracked.txt' );
+
+		$event = new NodeWrittenEvent( $file );
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->with( '/files/user/untracked.txt' )
+		                  ->willReturn( null )
 		;
 
 		$this->metadataService->expects( $this->never() )
@@ -252,16 +261,13 @@ class FileListenerTest
 	public function testOnCreateForceClearsAndMarksPending(): void
 	{
 
-		$file = $this->createMock( File::class );
-		$file->method( 'getId' )
-		     ->willReturn( 42 )
-		;
+		$file = $this->makeFileMock( 42, '/files/user/new.txt' );
 
 		$event = new NodeCreatedEvent( $file );
 
-		$this->appConfig->method( 'getValueString' )
-		                ->with( Application::APP_ID, 'update_hash_on_file_create', 'off' )
-		                ->willReturn( 'force' )
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->with( '/files/user/new.txt' )
+		                  ->willReturn( [ 'mode' => 'force' ] )
 		;
 
 		$this->metadataService->expects( $this->once() )
@@ -281,16 +287,13 @@ class FileListenerTest
 	public function testOnCreateLazyMarksPending(): void
 	{
 
-		$file = $this->createMock( File::class );
-		$file->method( 'getId' )
-		     ->willReturn( 42 )
-		;
+		$file = $this->makeFileMock( 42, '/files/user/new.txt' );
 
 		$event = new NodeCreatedEvent( $file );
 
-		$this->appConfig->method( 'getValueString' )
-		                ->with( Application::APP_ID, 'update_hash_on_file_create', 'off' )
-		                ->willReturn( 'lazy' )
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->with( '/files/user/new.txt' )
+		                  ->willReturn( [ 'mode' => 'lazy' ] )
 		;
 
 		$this->metadataService->expects( $this->once() )
@@ -302,95 +305,16 @@ class FileListenerTest
 	}
 
 
-	public function testOnCreateOffDoesNothing(): void
+	public function testOnCreateAutoMarksPendingIfHashExists(): void
 	{
 
-		$file = $this->createMock( File::class );
-		$file->method( 'getId' )
-		     ->willReturn( 42 )
-		;
+		$file = $this->makeFileMock( 42, '/files/user/new.txt' );
 
 		$event = new NodeCreatedEvent( $file );
 
-		$this->appConfig->method( 'getValueString' )
-		                ->with( Application::APP_ID, 'update_hash_on_file_create', 'off' )
-		                ->willReturn( 'off' )
-		;
-
-		$this->metadataService->expects( $this->never() )
-		                      ->method( 'clearMetadata' )
-		;
-		$this->metadataService->expects( $this->never() )
-		                      ->method( 'markPending' )
-		;
-
-		$this->listener->handle( $event );
-	}
-
-
-	public function testOnDeleteOnClearsMetadata(): void
-	{
-
-		$file = $this->createMock( File::class );
-		$file->method( 'getId' )
-		     ->willReturn( 42 )
-		;
-
-		$event = new NodeDeletedEvent( $file );
-
-		$this->appConfig->method( 'getValueString' )
-		                ->with( Application::APP_ID, 'update_hash_on_file_delete', 'off' )
-		                ->willReturn( 'on' )
-		;
-
-		$this->metadataService->expects( $this->once() )
-		                      ->method( 'clearMetadata' )
-		                      ->with( 42 )
-		;
-
-		$this->listener->handle( $event );
-	}
-
-
-	public function testOnDeleteOffDoesNothing(): void
-	{
-
-		$file = $this->createMock( File::class );
-		$file->method( 'getId' )
-		     ->willReturn( 42 )
-		;
-
-		$event = new NodeDeletedEvent( $file );
-
-		$this->appConfig->method( 'getValueString' )
-		                ->with( Application::APP_ID, 'update_hash_on_file_delete', 'off' )
-		                ->willReturn( 'off' )
-		;
-
-		$this->metadataService->expects( $this->never() )
-		                      ->method( 'clearMetadata' )
-		;
-
-		$this->listener->handle( $event );
-
-		$this->addToAssertionCount( 1 );
-	}
-
-
-	public function testDefaultConfigWriteIsAuto(): void
-	{
-
-		$file = $this->createMock( File::class );
-		$file->method( 'getId' )
-		     ->willReturn( 42 )
-		;
-
-		$event = new NodeWrittenEvent( $file );
-
-		// Return 'auto' when config is not set (default)
-		$this->appConfig->method( 'getValueString' )
-		                ->with( Application::APP_ID, 'update_hash_on_file_write', 'auto' )
-		                ->willReturn( 'auto' )
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->with( '/files/user/new.txt' )
+		                  ->willReturn( [ 'mode' => 'auto' ] )
 		;
 
 		$this->metadataService->method( 'countByFileId' )
@@ -404,6 +328,135 @@ class FileListenerTest
 		;
 
 		$this->listener->handle( $event );
+	}
+
+
+	public function testOnCreateOffDoesNothing(): void
+	{
+
+		$file = $this->makeFileMock( 42, '/files/user/new.txt' );
+
+		$event = new NodeCreatedEvent( $file );
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->with( '/files/user/new.txt' )
+		                  ->willReturn( [ 'mode' => 'off' ] )
+		;
+
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'clearMetadata' )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'markPending' )
+		;
+
+		$this->listener->handle( $event );
+	}
+
+
+	public function testOnCreateNoMatchingRuleDoesNothing(): void
+	{
+
+		$file = $this->makeFileMock( 42, '/files/user/untracked.txt' );
+
+		$event = new NodeCreatedEvent( $file );
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->with( '/files/user/untracked.txt' )
+		                  ->willReturn( null )
+		;
+
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'clearMetadata' )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'markPending' )
+		;
+
+		$this->listener->handle( $event );
+	}
+
+
+	public function testOnDeleteClearsMetadataWhenRuleMatches(): void
+	{
+
+		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
+
+		$event = new NodeDeletedEvent( $file );
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->with( '/files/user/foo.txt' )
+		                  ->willReturn( [ 'mode' => 'auto' ] )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'clearMetadata' )
+		                      ->with( 42 )
+		;
+
+		$this->listener->handle( $event );
+	}
+
+
+	public function testOnDeleteOffModeDoesNothing(): void
+	{
+
+		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
+
+		$event = new NodeDeletedEvent( $file );
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->with( '/files/user/foo.txt' )
+		                  ->willReturn( [ 'mode' => 'off' ] )
+		;
+
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'clearMetadata' )
+		;
+
+		$this->listener->handle( $event );
+
+		$this->addToAssertionCount( 1 );
+	}
+
+
+	public function testOnDeleteNoMatchingRuleDoesNothing(): void
+	{
+
+		$file = $this->makeFileMock( 42, '/files/user/untracked.txt' );
+
+		$event = new NodeDeletedEvent( $file );
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->with( '/files/user/untracked.txt' )
+		                  ->willReturn( null )
+		;
+
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'clearMetadata' )
+		;
+
+		$this->listener->handle( $event );
+
+		$this->addToAssertionCount( 1 );
+	}
+
+
+	/**
+	 * Create a File mock with getId() and getPath() configured.
+	 */
+	private function makeFileMock( int $id, string $path ): MockObject|File
+	{
+
+		$file = $this->createMock( File::class );
+		$file->method( 'getId' )
+		     ->willReturn( $id )
+		;
+		$file->method( 'getPath' )
+		     ->willReturn( $path )
+		;
+
+		return $file;
 	}
 
 }

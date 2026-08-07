@@ -238,6 +238,40 @@ class RuleService
 	}
 
 
+	/**
+	 * Find the first enabled rule whose path glob matches the given file path.
+	 *
+	 * @return array|null Rule definition or null if no match
+	 */
+	public function findFirstMatchingRule( string $filePath ): ?array
+	{
+
+		$rules = $this->loadRules();
+
+		foreach ( $rules as $rule )
+		{
+			if ( empty( $rule['enabled'] ) )
+			{
+				continue;
+			}
+
+			$pathGlob = $rule['path'] ?? '**';
+
+			if ( $pathGlob === '' || $pathGlob === '/' )
+			{
+				$pathGlob = '**';
+			}
+
+			if ( fnmatch( $pathGlob, $filePath ) )
+			{
+				return $rule;
+			}
+		}
+
+		return null;
+	}
+
+
 	public function ruleAdd( array $definition ): void
 	{
 
@@ -330,6 +364,8 @@ class RuleService
 	/**
 	 * Search for files matching a path glob within a user folder.
 	 *
+	 * Delegates to {@see searchFilesByGlob()}.
+	 *
 	 * @return File[]
 	 */
 	public function searchFiles(
@@ -338,28 +374,76 @@ class RuleService
 		int    $limit,
 	): array {
 
-		$likePattern = self::globToLike( $pathGlob );
+		return $this->searchFilesByGlob( $userFolder, $pathGlob, $limit );
+	}
 
-		$query = new SearchQuery(
-			new SearchComparison(
-				ISearchComparison::COMPARE_LIKE,
-				'name',
-				$likePattern,
-			),
-			$limit,
-			0,
-			[],
-		);
 
-		$results = $userFolder->search( $query );
+	/**
+	 * Search for files matching a path glob within a folder.
+	 *
+	 * Uses offset-based pagination: fetches SQL batches, filters each
+	 * with fnmatch (SQL LIKE over-matches because % matches / while
+	 * glob * does not), and stops when enough matches are collected.
+	 *
+	 * A safety cap limits total scanned rows to 10× the requested
+	 * limit to avoid unbounded scanning on very broad patterns.
+	 *
+	 * @return File[]
+	 */
+	public function searchFilesByGlob(
+		Folder $folder,
+		string $pathGlob,
+		int    $limit,
+		int    $pageSize = 500,
+	): array {
 
-		$files = [];
-		foreach ( $results as $node )
+		$likePattern = self::globToLike( $pathGlob );;
+		$maxScan = max( $limit * 5, $pageSize );
+		$files   = [];
+		$offset  = 0;
+
+		while ( count( $files ) < $limit && $offset < $maxScan )
 		{
-			if ( $node instanceof File )
+			$query = new SearchQuery(
+				new SearchComparison(
+					ISearchComparison::COMPARE_LIKE,
+					'path',
+					$likePattern,
+				),
+				$pageSize,
+				$offset,
+				[],
+			);
+
+			$results = $folder->search( $query );
+
+			if ( empty( $results ) )
 			{
-				$files[] = $node;
+				break;
 			}
+
+			foreach ( $results as $node )
+			{
+				if ( ! ( $node instanceof File ) )
+				{
+					continue;
+				}
+
+				// SQL LIKE is approximate — fnmatch ensures exact glob semantics
+				if ( ! fnmatch( $pathGlob, $node->getPath() ) )
+				{
+					continue;
+				}
+
+				$files[] = $node;
+
+				if ( count( $files ) >= $limit )
+				{
+					break;
+				}
+			}
+
+			$offset += $pageSize;
 		}
 
 		return $files;

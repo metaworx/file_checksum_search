@@ -14,9 +14,11 @@ use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\NotFoundException;
+use OCP\User\Exceptions\UserNotFoundException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -36,6 +38,7 @@ class GenerateHashes
 		private readonly HashCalculationService $hashCalc,
 		private readonly MetadataService        $metadataService,
 		private readonly FilecacheService       $filecacheService,
+		private readonly RuleService            $ruleService,
 		private readonly LoggerInterface        $logger,
 	) {
 
@@ -242,7 +245,7 @@ class GenerateHashes
 			{
 				$userFolder = $this->filecacheService->getUserFolder( $userId );
 			}
-			catch ( \OCP\User\Exceptions\UserNotFoundException )
+			catch ( UserNotFoundException )
 			{
 				$output->writeln( '    User folder not found, skipping.' );
 
@@ -281,7 +284,9 @@ class GenerateHashes
 	}
 
 	/**
-	 * Recursively mark files in a folder as pending:auto.
+	 * Mark files matching a path glob as pending:auto.
+	 *
+	 * Delegates file search to RuleService::searchFilesByGlob().
 	 *
 	 * @return int Number of files marked
 	 */
@@ -291,33 +296,22 @@ class GenerateHashes
 		?int     &$remaining,
 	): int {
 
+		$files = $this->ruleService->searchFilesByGlob(
+			$folder,
+			$pathPattern ?? '**',
+			$remaining ?? 0,
+		);
+
 		$marked = 0;
 
-		foreach ( $folder->getDirectoryListing() as $node )
+		foreach ( $files as $file )
 		{
 			if ( $remaining !== null && $remaining <= 0 )
 			{
 				break;
 			}
 
-			if ( $node instanceof Folder )
-			{
-				$marked += $this->markFolder( $node, $pathPattern, $remaining );
-
-				continue;
-			}
-
-			if ( ! ( $node instanceof File ) )
-			{
-				continue;
-			}
-
-			if ( $pathPattern !== null && ! fnmatch( $pathPattern, $node->getName() ) )
-			{
-				continue;
-			}
-
-			$this->metadataService->markPending( $node->getId(), 'pending:auto' );
+			$this->metadataService->markPending( $file->getId(), 'pending:auto' );
 			$marked ++;
 
 			if ( $remaining !== null )

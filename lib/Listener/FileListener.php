@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Listener;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\EventDispatcher\Event;
 use OCP\EventDispatcher\IEventListener;
@@ -20,7 +21,6 @@ use OCP\Files\Events\Node\NodeCreatedEvent;
 use OCP\Files\Events\Node\NodeDeletedEvent;
 use OCP\Files\Events\Node\NodeWrittenEvent;
 use OCP\Files\File;
-use OCP\IAppConfig;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -40,7 +40,7 @@ class FileListener
 	public function __construct(
 		private readonly FilecacheService $filecacheService,
 		private readonly MetadataService  $metadataService,
-		private readonly IAppConfig       $appConfig,
+		private readonly RuleService      $ruleService,
 		private readonly LoggerInterface  $logger,
 	) {
 	}
@@ -119,15 +119,17 @@ class FileListener
 			return;
 		}
 
-		$behavior = $this->appConfig->getValueString(
-			Application::APP_ID,
-			'update_hash_on_file_write',
-			'auto',
-		);
+		$rule = $this->ruleService->findFirstMatchingRule( $node->getPath() );
 
+		if ( $rule === null )
+		{
+			return;
+		}
+
+		$mode   = $rule['mode'] ?? 'auto';
 		$fileId = $node->getId();
 
-		switch ( $behavior )
+		switch ( $mode )
 		{
 		case 'off':
 			break;
@@ -189,15 +191,17 @@ class FileListener
 			return;
 		}
 
-		$behavior = $this->appConfig->getValueString(
-			Application::APP_ID,
-			'update_hash_on_file_create',
-			'off',
-		);
+		$rule = $this->ruleService->findFirstMatchingRule( $node->getPath() );
 
+		if ( $rule === null )
+		{
+			return;
+		}
+
+		$mode   = $rule['mode'] ?? 'auto';
 		$fileId = $node->getId();
 
-		switch ( $behavior )
+		switch ( $mode )
 		{
 		case 'off':
 			break;
@@ -228,6 +232,22 @@ class FileListener
 			);
 
 			break;
+
+		case 'auto':
+			if ( $this->metadataService->countByFileId( $fileId ) > 0 )
+			{
+				$this->metadataService->markPending( $fileId, 'pending:auto' );
+
+				$this->logger->debug(
+					'FCIAS FileListener: auto-queued on create',
+					[
+						'app'    => Application::APP_ID,
+						'fileId' => $fileId,
+					],
+				);
+			}
+
+			break;
 		}
 	}
 
@@ -242,13 +262,16 @@ class FileListener
 			return;
 		}
 
-		$behavior = $this->appConfig->getValueString(
-			Application::APP_ID,
-			'update_hash_on_file_delete',
-			'off',
-		);
+		$rule = $this->ruleService->findFirstMatchingRule( $node->getPath() );
 
-		if ( $behavior === 'on' )
+		if ( $rule === null )
+		{
+			return;
+		}
+
+		$mode = $rule['mode'] ?? 'auto';
+
+		if ( $mode !== 'off' )
 		{
 			$fileId = $node->getId();
 

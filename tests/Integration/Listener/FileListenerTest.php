@@ -14,13 +14,13 @@ use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Listener\FileListener;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
 use OCP\Files\Events\Node\NodeCreatedEvent;
 use OCP\Files\Events\Node\NodeDeletedEvent;
 use OCP\Files\Events\Node\NodeWrittenEvent;
 use OCP\Files\File;
 use OCP\Files\IRootFolder;
-use OCP\IAppConfig;
 use OCP\Server;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -44,7 +44,7 @@ class FileListenerTest
 
 	private MetadataService  $metadataService;
 
-	private IAppConfig       $appConfig;
+	private RuleService      $ruleService;
 
 	private FileListener     $listener;
 
@@ -54,6 +54,9 @@ class FileListenerTest
 	/** @var list<int> */
 	private array $cleanupFileIds = [];
 
+	/** @var list<string> IDs of rules created during tests for cleanup */
+	private array $cleanupRuleIds = [];
+
 
 	protected function setUp(): void
 	{
@@ -62,16 +65,16 @@ class FileListenerTest
 
 		$this->filecacheService = Server::get( FilecacheService::class );
 		$this->metadataService  = Server::get( MetadataService::class );
-		$this->appConfig        = Server::get( IAppConfig::class );
+		$this->ruleService      = Server::get( RuleService::class );
 
 		$this->listener = new FileListener(
 			$this->filecacheService,
 			$this->metadataService,
-			$this->appConfig,
+			$this->ruleService,
 			Server::get( LoggerInterface::class ),
 		);
 
-		$this->resetConfigToDefaults();
+		$this->resetRules();
 	}
 
 
@@ -91,7 +94,7 @@ class FileListenerTest
 			}
 		}
 
-		$this->resetConfigToDefaults();
+		$this->resetRules();
 
 		parent::tearDown();
 	}
@@ -102,11 +105,7 @@ class FileListenerTest
 	public function testFileCreateOffDoesNothing(): void
 	{
 
-		$this->appConfig->setValueString(
-			Application::APP_ID,
-			'update_hash_on_file_create',
-			'off',
-		);
+		$this->setCatchAllRule( 'off' );
 
 		$file  = $this->createTestFile( 'fcias_listener_crt_off_' . time() . '.dat' );
 		$event = new NodeCreatedEvent( $file );
@@ -116,7 +115,7 @@ class FileListenerTest
 		$this->assertSame(
 			0,
 			$this->metadataService->countByFileId( $file->getId() ),
-			'No metadata index entries should exist after create with config off.',
+			'No metadata index entries should exist after create with rule mode off.',
 		);
 	}
 
@@ -124,11 +123,7 @@ class FileListenerTest
 	public function testFileCreateLazyMarksPending(): void
 	{
 
-		$this->appConfig->setValueString(
-			Application::APP_ID,
-			'update_hash_on_file_create',
-			'lazy',
-		);
+		$this->setCatchAllRule( 'lazy' );
 
 		$file   = $this->createTestFile( 'fcias_listener_crt_lazy_' . time() . '.dat' );
 		$fileId = $file->getId();
@@ -151,11 +146,7 @@ class FileListenerTest
 	public function testFileCreateForceClearsAndMarksPending(): void
 	{
 
-		$this->appConfig->setValueString(
-			Application::APP_ID,
-			'update_hash_on_file_create',
-			'force',
-		);
+		$this->setCatchAllRule( 'force' );
 
 		$file   = $this->createTestFile( 'fcias_listener_crt_force_' . time() . '.dat' );
 		$fileId = $file->getId();
@@ -178,11 +169,7 @@ class FileListenerTest
 	public function testFileWriteOffDoesNothing(): void
 	{
 
-		$this->appConfig->setValueString(
-			Application::APP_ID,
-			'update_hash_on_file_write',
-			'off',
-		);
+		$this->setCatchAllRule( 'off' );
 
 		$file   = $this->createTestFile( 'fcias_listener_wrt_off_' . time() . '.dat' );
 		$fileId = $file->getId();
@@ -193,7 +180,7 @@ class FileListenerTest
 		$this->assertSame(
 			0,
 			$this->metadataService->countByFileId( $fileId ),
-			'No metadata changes should occur after write with config off.',
+			'No metadata changes should occur after write with rule mode off.',
 		);
 	}
 
@@ -201,11 +188,7 @@ class FileListenerTest
 	public function testFileWriteForceClearsAndMarksPending(): void
 	{
 
-		$this->appConfig->setValueString(
-			Application::APP_ID,
-			'update_hash_on_file_write',
-			'force',
-		);
+		$this->setCatchAllRule( 'force' );
 
 		$file   = $this->createTestFile( 'fcias_listener_wrt_force_' . time() . '.dat' );
 		$fileId = $file->getId();
@@ -226,11 +209,7 @@ class FileListenerTest
 	public function testFileWriteLazyClearsAndMarksPending(): void
 	{
 
-		$this->appConfig->setValueString(
-			Application::APP_ID,
-			'update_hash_on_file_write',
-			'lazy',
-		);
+		$this->setCatchAllRule( 'lazy' );
 
 		$file   = $this->createTestFile( 'fcias_listener_wrt_lazy_' . time() . '.dat' );
 		$fileId = $file->getId();
@@ -251,11 +230,7 @@ class FileListenerTest
 	public function testFileWriteAutoMarksPendingWhenHashExists(): void
 	{
 
-		$this->appConfig->setValueString(
-			Application::APP_ID,
-			'update_hash_on_file_write',
-			'auto',
-		);
+		$this->setCatchAllRule( 'auto' );
 
 		$file   = $this->createTestFile( 'fcias_listener_wrt_auto_h_' . time() . '.dat' );
 		$fileId = $file->getId();
@@ -286,11 +261,7 @@ class FileListenerTest
 	public function testFileWriteAutoSkipsWhenNoHash(): void
 	{
 
-		$this->appConfig->setValueString(
-			Application::APP_ID,
-			'update_hash_on_file_write',
-			'auto',
-		);
+		$this->setCatchAllRule( 'auto' );
 
 		$file   = $this->createTestFile( 'fcias_listener_wrt_auto_n_' . time() . '.dat' );
 		$fileId = $file->getId();
@@ -311,11 +282,7 @@ class FileListenerTest
 	public function testFileDeleteOffDoesNothing(): void
 	{
 
-		$this->appConfig->setValueString(
-			Application::APP_ID,
-			'update_hash_on_file_delete',
-			'off',
-		);
+		$this->setCatchAllRule( 'off' );
 
 		$file   = $this->createTestFile( 'fcias_listener_del_off_' . time() . '.dat' );
 		$fileId = $file->getId();
@@ -331,7 +298,7 @@ class FileListenerTest
 		$this->assertGreaterThan(
 			0,
 			$this->metadataService->countByFileId( $fileId ),
-			'Metadata should remain after delete with config off.',
+			'Metadata should remain after delete with rule mode off.',
 		);
 	}
 
@@ -339,11 +306,7 @@ class FileListenerTest
 	public function testFileDeleteOnAttemptsClearMetadata(): void
 	{
 
-		$this->appConfig->setValueString(
-			Application::APP_ID,
-			'update_hash_on_file_delete',
-			'on',
-		);
+		$this->setCatchAllRule( 'auto' );
 
 		$file   = $this->createTestFile( 'fcias_listener_del_on_' . time() . '.dat' );
 		$fileId = $file->getId();
@@ -408,6 +371,25 @@ class FileListenerTest
 
 
 	/**
+	 * Set a catch-all rule with the given mode for the current test.
+	 *
+	 * Uses RuleService::ruleAdd() to persist a rule matching all files.
+	 */
+	private function setCatchAllRule( string $mode ): void
+	{
+
+		$this->ruleService->ruleAdd(
+			[
+				'enabled'   => true,
+				'path'      => '**',
+				'mode'      => $mode,
+				'userScope' => 'all',
+			],
+		);
+	}
+
+
+	/**
 	 * Create a real test file in the admin user's storage.
 	 *
 	 * Registers the file and its fileId for automatic cleanup in tearDown().
@@ -467,28 +449,32 @@ class FileListenerTest
 
 
 	/**
-	 * Reset all event-related config keys to their defaults.
-	 *
-	 * Called in setUp() and tearDown() to ensure clean state per test.
+	 * Remove all rules to ensure clean state between tests.
+	 */
+	private function resetRules(): void
+	{
+
+		$rules = $this->ruleService->loadRules();
+
+		foreach ( $rules as $rule )
+		{
+			$id = $rule['id'] ?? null;
+
+			if ( $id !== null )
+			{
+				$this->ruleService->ruleDelete( $id );
+			}
+		}
+	}
+
+
+	/**
+	 * @deprecated Use resetRules() instead.
 	 */
 	private function resetConfigToDefaults(): void
 	{
 
-		$this->appConfig->setValueString(
-			Application::APP_ID,
-			'update_hash_on_file_write',
-			'auto',
-		);
-		$this->appConfig->setValueString(
-			Application::APP_ID,
-			'update_hash_on_file_create',
-			'off',
-		);
-		$this->appConfig->setValueString(
-			Application::APP_ID,
-			'update_hash_on_file_delete',
-			'off',
-		);
+		$this->resetRules();
 	}
 
 }

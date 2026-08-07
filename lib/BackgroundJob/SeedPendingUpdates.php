@@ -13,6 +13,7 @@ namespace OCA\FileChecksumSearch\BackgroundJob;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCP\AppFramework\Utility\ITimeFactory;
+use OCP\BackgroundJob\IJobList;
 use OCP\BackgroundJob\TimedJob;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -32,6 +33,7 @@ class SeedPendingUpdates
 	public function __construct(
 		ITimeFactory                     $time,
 		private readonly MetadataService $metadataService,
+		private readonly IJobList        $jobList,
 		private readonly LoggerInterface $logger,
 	) {
 
@@ -61,6 +63,11 @@ class SeedPendingUpdates
 		try
 		{
 			$inserted = $this->metadataService->seedIndex();
+
+			if ( $inserted > 0 )
+			{
+				$this->jobList->add( ProcessPendingUpdates::class );
+			}
 
 			$this->logger->info(
 				'FCIAS SeedPendingUpdates: seeding complete',

@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\BackgroundJob\ProcessPendingUpdates;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCP\AppFramework\Utility\ITimeFactory;
+use OCP\BackgroundJob\IJobList;
 use OCP\IAppConfig;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -34,6 +35,8 @@ class ProcessPendingUpdatesTest
 
 	private MockObject|IAppConfig             $appConfig;
 
+	private MockObject|IJobList               $jobList;
+
 	private MockObject|LoggerInterface        $logger;
 
 	private ProcessPendingUpdates             $job;
@@ -48,6 +51,7 @@ class ProcessPendingUpdatesTest
 		$this->hashCalc        = $this->createMock( HashCalculationService::class );
 		$this->metadataService = $this->createMock( MetadataService::class );
 		$this->appConfig       = $this->createMock( IAppConfig::class );
+		$this->jobList         = $this->createMock( IJobList::class );
 		$this->logger          = $this->createMock( LoggerInterface::class );
 
 		$this->appConfig->method( 'getValueInt' )
@@ -74,6 +78,7 @@ class ProcessPendingUpdatesTest
 			$this->hashCalc,
 			$this->metadataService,
 			$this->appConfig,
+			$this->jobList,
 			$this->logger,
 		);
 	}
@@ -87,6 +92,7 @@ class ProcessPendingUpdatesTest
 			$this->hashCalc,
 			$this->metadataService,
 			$this->appConfig,
+			$this->jobList,
 			$this->logger,
 		);
 
@@ -148,10 +154,72 @@ class ProcessPendingUpdatesTest
 			               $this->anything(),
 		               )
 		;
+$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
+$reflection->invoke( $this->job, null );
+}
 
-		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
-		$reflection->invoke( $this->job, null );
-	}
+
+public function testRunDispatchesFollowUpWhenBatchFull(): void
+{
+
+// Return exactly batchSize rows → batch is full
+$pendingRows = array_fill(
+	0,
+	50,
+	[
+		MetadataService::FIELD_FILE_ID           => 42,
+		MetadataService::FIELD_META_VALUE_STRING => 'pending:auto',
+	],
+);
+
+$this->metadataService->expects( $this->once() )
+                      ->method( 'fetchPendingBatch' )
+                      ->with( 50 )
+                      ->willReturn( $pendingRows )
+;
+
+$this->hashCalc->expects( $this->exactly( 50 ) )
+               ->method( 'processFile' )
+;
+
+$this->jobList->expects( $this->once() )
+              ->method( 'add' )
+              ->with( ProcessPendingUpdates::class )
+;
+
+$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
+$reflection->invoke( $this->job, null );
+}
+
+
+public function testRunDoesNotDispatchWhenBatchNotFull(): void
+{
+
+$pendingRows = [
+	[
+		MetadataService::FIELD_FILE_ID           => 42,
+		MetadataService::FIELD_META_VALUE_STRING => 'pending:auto',
+	],
+];
+
+$this->metadataService->expects( $this->once() )
+                      ->method( 'fetchPendingBatch' )
+                      ->with( 50 )
+                      ->willReturn( $pendingRows )
+;
+
+$this->hashCalc->expects( $this->once() )
+               ->method( 'processFile' )
+;
+
+$this->jobList->expects( $this->never() )
+              ->method( 'add' )
+;
+
+$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
+$reflection->invoke( $this->job, null );
+}
+
 
 
 	public function testRunParsesPendingPrefixFromStatus(): void
