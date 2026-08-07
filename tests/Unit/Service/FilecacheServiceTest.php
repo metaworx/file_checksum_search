@@ -10,9 +10,8 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use OCA\FileChecksumSearch\Service\FilecacheService;
+use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\DB\IResult;
-use OCP\DB\QueryBuilder\IExpressionBuilder;
-use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Files\Cache\ICache;
 use OCP\Files\File;
 use OCP\Files\Folder;
@@ -22,16 +21,13 @@ use OCP\Files\NotFoundException;
 use OCP\Files\Storage\IStorage;
 use OCP\IDBConnection;
 use PHPUnit\Framework\MockObject\MockObject;
-use PHPUnit\Framework\TestCase;
 
 class FilecacheServiceTest
 	extends
-	TestCase
+	FciasUnitTestCase
 {
 
 	private IRootFolder&MockObject   $rootFolder;
-
-	private IDBConnection&MockObject $db;
 
 	private FilecacheService         $service;
 
@@ -43,7 +39,9 @@ class FilecacheServiceTest
 
 		$this->rootFolder = $this->createMock( IRootFolder::class );
 		$this->db         = $this->createMock( IDBConnection::class );
-		$this->service    = new FilecacheService( $this->rootFolder, $this->db );
+		$this->setUpQueryBuilderMock();
+
+		$this->service = new FilecacheService( $this->rootFolder, $this->db );
 	}
 
 
@@ -428,29 +426,8 @@ class FilecacheServiceTest
 			],
 		];
 
-		$exprBuilder = $this->createMock( IExpressionBuilder::class );
-		$exprBuilder->method( 'in' )
-		            ->willReturn( 'fc.fileid IN (:dcValue1)' )
-		;
-
-		$qb = $this->createMock( IQueryBuilder::class );
-		$qb->method( 'expr' )
-		   ->willReturn( $exprBuilder )
-		;
-		$qb->method( 'select' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'from' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'innerJoin' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'where' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'createNamedParameter' )
-		   ->willReturnArgument( 0 )
+		$this->expr->method( 'in' )
+		           ->willReturn( 'fc.fileid IN (:dcValue1)' )
 		;
 
 		$resultStmt = $this->createMock( IResult::class );
@@ -458,13 +435,13 @@ class FilecacheServiceTest
 		           ->willReturnOnConsecutiveCalls( $mockRows[0], false )
 		;
 
-		$qb->method( 'executeQuery' )
-		   ->willReturn( $resultStmt )
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $resultStmt )
 		;
 
 		$this->db->expects( $this->once() )
 		         ->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
+		         ->willReturn( $this->queryBuilder )
 		;
 
 		$result = $this->service->batchLookupFilecachePaths( $fileIds );
@@ -496,33 +473,8 @@ class FilecacheServiceTest
 			],
 		];
 
-		// Mock the query builder chain
-		$exprBuilder = $this->createMock( IExpressionBuilder::class );
-		$exprBuilder->method( 'in' )
-		            ->willReturn( 'fc.fileid IN (:dcValue1, :dcValue2)' )
-		;
-
-		$qb = $this->createMock( IQueryBuilder::class );
-		$qb->method( 'expr' )
-		   ->willReturn( $exprBuilder )
-		;
-		$qb->method( 'select' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'from' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'innerJoin' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'where' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'andWhere' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'createNamedParameter' )
-		   ->willReturnArgument( 0 )
+		$this->expr->method( 'in' )
+		           ->willReturn( 'fc.fileid IN (:dcValue1, :dcValue2)' )
 		;
 
 		$resultStmt = $this->createMock( IResult::class );
@@ -530,12 +482,8 @@ class FilecacheServiceTest
 		           ->willReturnOnConsecutiveCalls( $mockRows[0], $mockRows[1], false )
 		;
 
-		$qb->method( 'executeQuery' )
-		   ->willReturn( $resultStmt )
-		;
-
-		$this->db->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $resultStmt )
 		;
 
 		$result = $this->service->batchLookupFilecachePaths( $fileIds );
@@ -565,35 +513,11 @@ class FilecacheServiceTest
 			],
 		];
 
-		$exprBuilder = $this->createMock( IExpressionBuilder::class );
-		$exprBuilder->method( 'eq' )
-		            ->willReturn( 's.id = :dcValue1' )
+		$this->expr->method( 'eq' )
+		           ->willReturn( 's.id = :dcValue1' )
 		;
-		$exprBuilder->method( 'in' )
-		            ->willReturn( 'fc.fileid IN (:dcValue2)' )
-		;
-
-		$qb = $this->createMock( IQueryBuilder::class );
-		$qb->method( 'expr' )
-		   ->willReturn( $exprBuilder )
-		;
-		$qb->method( 'select' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'from' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'innerJoin' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'where' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'andWhere' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'createNamedParameter' )
-		   ->willReturnArgument( 0 )
+		$this->expr->method( 'in' )
+		           ->willReturn( 'fc.fileid IN (:dcValue2)' )
 		;
 
 		$resultStmt = $this->createMock( IResult::class );
@@ -601,12 +525,8 @@ class FilecacheServiceTest
 		           ->willReturnOnConsecutiveCalls( $mockRows[0], false )
 		;
 
-		$qb->method( 'executeQuery' )
-		   ->willReturn( $resultStmt )
-		;
-
-		$this->db->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $resultStmt )
 		;
 
 		$result = $this->service->batchLookupFilecachePaths( $fileIds, 'admin' );
@@ -630,29 +550,8 @@ class FilecacheServiceTest
 			],
 		];
 
-		$exprBuilder = $this->createMock( IExpressionBuilder::class );
-		$exprBuilder->method( 'in' )
-		            ->willReturn( 'fc.fileid IN (:dcValue1)' )
-		;
-
-		$qb = $this->createMock( IQueryBuilder::class );
-		$qb->method( 'expr' )
-		   ->willReturn( $exprBuilder )
-		;
-		$qb->method( 'select' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'from' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'innerJoin' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'where' )
-		   ->willReturnSelf()
-		;
-		$qb->method( 'createNamedParameter' )
-		   ->willReturnArgument( 0 )
+		$this->expr->method( 'in' )
+		           ->willReturn( 'fc.fileid IN (:dcValue1)' )
 		;
 
 		$resultStmt = $this->createMock( IResult::class );
@@ -660,12 +559,8 @@ class FilecacheServiceTest
 		           ->willReturnOnConsecutiveCalls( $mockRows[0], false )
 		;
 
-		$qb->method( 'executeQuery' )
-		   ->willReturn( $resultStmt )
-		;
-
-		$this->db->method( 'getQueryBuilder' )
-		         ->willReturn( $qb )
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $resultStmt )
 		;
 
 		$result = $this->service->batchLookupFilecachePaths( $fileIds );

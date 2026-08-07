@@ -13,9 +13,6 @@ use OCA\FileChecksumSearch\Controller\DuplicatesController;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
-use OCP\DB\IResult;
-use OCP\DB\QueryBuilder\IExpressionBuilder;
-use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 use OCP\IGroupManager;
 use OCP\IRequest;
@@ -23,17 +20,17 @@ use OCP\IUser;
 use OCP\IUserManager;
 use OCP\IUserSession;
 use PHPUnit\Framework\MockObject\MockObject;
-use PHPUnit\Framework\TestCase;
+use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use Psr\Log\LoggerInterface;
 
 class DuplicatesControllerTest
 	extends
-	TestCase
+	FciasUnitTestCase
 {
 
 	private MockObject|HashIndexService $hashIndexService;
 
-	private MockObject|IDBConnection    $db;
+	protected IDBConnection&MockObject $db;
 
 	private MockObject|IUserSession     $userSession;
 

@@ -16,12 +16,12 @@ use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCP\IUserManager;
 use PHPUnit\Framework\MockObject\MockObject;
-use PHPUnit\Framework\TestCase;
+use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use Psr\Log\LoggerInterface;
 
 class HashIndexServiceTest
 	extends
-	TestCase
+	FciasUnitTestCase
 {
 
 	private MockObject|HashCalculationService $hashCalc;
