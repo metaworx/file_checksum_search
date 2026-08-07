@@ -37,6 +37,7 @@ class Application
 	public const APP_ID = 'file_checksum_search';
 
 
+	/** @psalm-suppress PossiblyUnusedMethod */
 	public function __construct()
 	{
 

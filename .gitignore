@@ -4,6 +4,7 @@
 /.env.secrets
 /.env.*.secrets
 /.local/
+/.php-cs-fixer.cache
 
 *.phar
 cookie*.txt
@@ -19,4 +20,8 @@ cookie*.txt
 /tests/.phpunit.cache
 /.phpunit.cache/test-results
 /.nextcloudsync.log
-/node_modules
+
+/node_modules/
+/js/
+/css/
+
