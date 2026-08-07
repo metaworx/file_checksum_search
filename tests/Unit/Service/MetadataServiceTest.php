@@ -15,6 +15,7 @@ use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\DB\IResult;
 use OCP\FilesMetadata\IFilesMetadataManager;
+use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\IDBConnection;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
@@ -91,7 +92,8 @@ class MetadataServiceTest
 			                      (
 				                      &
 				                      $registeredKeys,
-			                      ): void {
+			                      ): void
+			                      {
 
 				                      $registeredKeys[] = $key;
 			                      },
@@ -117,7 +119,8 @@ class MetadataServiceTest
 			                      (
 				                      &
 				                      $registeredKeys,
-			                      ): void {
+			                      ): void
+			                      {
 
 				                      $registeredKeys[] = $key;
 			                      },
@@ -131,7 +134,7 @@ class MetadataServiceTest
 			$this->assertContains(
 				'file-checksum-' . $algo,
 				$registeredKeys,
-				"Expected key 'file-checksum-{$algo}' to be registered.",
+				"Expected key 'file-checksum-$algo' to be registered.",
 			);
 		}
 	}
@@ -319,7 +322,8 @@ class MetadataServiceTest
 			         (
 				         &
 				         $capturedSql,
-			         ): int {
+			         ): int
+			         {
 
 				         $capturedSql = $sql;
 
@@ -372,12 +376,13 @@ class MetadataServiceTest
 		           ->willReturnCallback(
 			           function (
 				           string $column,
-				           $value,
+				                  $value,
 			           ) use
 			           (
 				           &
 				           $capturedParams,
-			           ): string {
+			           ): string
+			           {
 
 				           $capturedParams[ $column ] = $value;
 
@@ -415,7 +420,8 @@ class MetadataServiceTest
 			           (
 				           &
 				           $capturedLike,
-			           ): string {
+			           ): string
+			           {
 
 				           $capturedLike = $value;
 
@@ -553,7 +559,14 @@ class MetadataServiceTest
 		$this->assertSame( 'file-checksum-sha1', $groups[0]['meta_key'] );
 		$this->assertSame( 'abc123', $groups[0]['meta_value_string'] );
 		$this->assertSame( 3, $groups[0]['file_count'] );
-		$this->assertSame( [ 42, 108, 256 ], $groups[0]['file_ids'] );
+		$this->assertSame(
+			[
+				42,
+				108,
+				256,
+			],
+			$groups[0]['file_ids'],
+		);
 	}
 
 
@@ -622,6 +635,120 @@ class MetadataServiceTest
 
 		$this->assertCount( 1, $groups );
 		$this->assertSame( 5, $groups[0]['file_count'] );
+	}
+
+
+	public function testSaveMetadataSyncsToFilecache(): void
+	{
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'getFileId' )
+		         ->willReturn( 42 )
+		;
+
+		$algoCount = count( HashIndexService::SUPPORTED_ALGOS );
+		$metadata->expects( $this->exactly( $algoCount ) )
+		         ->method( 'getString' )
+		         ->willReturn( 'dummyhash' )
+		;
+
+		$this->metadataManager->expects( $this->once() )
+		                      ->method( 'saveMetadata' )
+		                      ->with( $metadata )
+		;
+
+		$this->filecacheService->expects( $this->once() )
+		                       ->method( 'setHashes' )
+		                       ->with( 42, $this->isType( 'array' ) )
+		;
+
+		$this->service->saveMetadata( $metadata );
+	}
+
+
+	public function testGetMetadataCreatesFromRawArray(): void
+	{
+
+		$rawData = [
+			'file-checksum-sha1' => [
+				'value' => 'abc123',
+				'type'  => 'string',
+			],
+			'file-checksum-md5'  => [
+				'value' => 'def456',
+				'type'  => 'string',
+			],
+		];
+
+		$metadata = $this->service->getMetadata( 42, $rawData );
+
+		$this->assertInstanceOf( IFilesMetadata::class, $metadata );
+		$this->assertSame( 42, $metadata->getFileId() );
+		$this->assertSame( 'abc123', $metadata->getString( 'file-checksum-sha1' ) );
+		$this->assertSame( 'def456', $metadata->getString( 'file-checksum-md5' ) );
+	}
+
+
+	public function testGetMetadataCreatesFromString(): void
+	{
+
+		$jsonString
+			= '{"file-checksum-sha256":{"value":"abc123","type":"string"},"file-checksum-sha512":{"value":"def456","type":"string"}}';
+
+		$metadata = $this->service->getMetadata( 42, $jsonString );
+
+		$this->assertInstanceOf( IFilesMetadata::class, $metadata );
+		$this->assertSame( 42, $metadata->getFileId() );
+		$this->assertSame( 'abc123', $metadata->getString( 'file-checksum-sha256' ) );
+		$this->assertSame( 'def456', $metadata->getString( 'file-checksum-sha512' ) );
+	}
+
+
+	public function testGetMetadataCreatesFromDbRow(): void
+	{
+
+		$dbRow = [ 'meta_json' => '{"file-checksum-sha1":{"value":"abc123","type":"string"}}' ];
+
+		$metadata = $this->service->getMetadata( 42, $dbRow );
+
+		$this->assertInstanceOf( IFilesMetadata::class, $metadata );
+		$this->assertSame( 42, $metadata->getFileId() );
+		$this->assertSame( 'abc123', $metadata->getString( 'file-checksum-sha1' ) );
+	}
+
+
+	public function testExtractAlgorithmReturnsCorrectAlgo(): void
+	{
+
+		$row = [
+			'meta_key'  => 'file-checksum-sha256',
+			'meta_json' => '{"file-checksum-sha256":{"value":"abc123def","type":"string"}}',
+		];
+
+		$result = $this->service->extractAlgorithm( 42, $row );
+
+		$this->assertSame( 'sha256', $result['algo'] );
+		$this->assertSame( 'abc123def', $result['hash'] );
+	}
+
+
+	public function testEnsureMetadataInitializesEmptyMetadata(): void
+	{
+
+		$metadata = null;
+
+		$dummyMetadata = $this->createMock( IFilesMetadata::class );
+
+		$this->metadataManager->expects( $this->once() )
+		                      ->method( 'getMetadata' )
+		                      ->with( 42, true )
+		                      ->willReturn( $dummyMetadata )
+		;
+
+		$result = $this->service->ensureMetadata( 42, $metadata );
+
+		$this->assertTrue( $result );
+		$this->assertSame( $dummyMetadata, $metadata );
 	}
 
 }
