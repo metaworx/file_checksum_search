@@ -100,7 +100,7 @@ class SettingsController
 	public function saveRule(): DataResponse
 	{
 
-		$body = json_decode( file_get_contents( 'php://input' ), true );
+		$body = json_decode( $this->readRequestBody(), true );
 
 		if ( ! is_array( $body ) )
 		{
@@ -190,7 +190,7 @@ class SettingsController
 	public function deleteRule(): DataResponse
 	{
 
-		$body = json_decode( file_get_contents( 'php://input' ), true );
+		$body = json_decode( $this->readRequestBody(), true );
 		$id   = $body['id'] ?? null;
 
 		if ( $id === null || $id === '' )
@@ -239,7 +239,7 @@ class SettingsController
 	public function toggleRule(): DataResponse
 	{
 
-		$body    = json_decode( file_get_contents( 'php://input' ), true );
+		$body    = json_decode( $this->readRequestBody(), true );
 		$id      = $body['id'] ?? null;
 		$enabled = (bool) ( $body['enabled'] ?? false );
 
@@ -326,6 +326,20 @@ class SettingsController
 		);
 
 		return new DataResponse( [ 'snippet' => $snippet ] );
+	}
+
+
+	/**
+	 * Read the raw HTTP request body.
+	 *
+	 * Protected so unit tests can mock it via
+	 * getMockBuilder()->onlyMethods() — php://input is read-only
+	 * in CLI mode where PHPUnit runs.
+	 */
+	protected function readRequestBody(): string
+	{
+
+		return file_get_contents( 'php://input' );
 	}
 
 
