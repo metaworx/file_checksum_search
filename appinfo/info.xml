@@ -10,7 +10,7 @@
 		Unified Search provider, CLI commands, and an admin settings page for
 		maintenance operations.
 	</description>
-	<version>0.9.1</version>
+	<version>0.10.0</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author mail="apps@metaworx.ch"
 	        homepage="">metaworx resonare rüegg

@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-08-07
+
 ### Added
 
 - Add SettingsControllerTest with 14 tests covering all six controller methods, and expose a mockable readRequestBody() method on SettingsController.
