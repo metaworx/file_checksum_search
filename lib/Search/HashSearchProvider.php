@@ -120,7 +120,7 @@ class HashSearchProvider
 			$entries[] = new SearchResultEntry(
 				thumbnailUrl: '',
 				title: $node->getName(),
-				subline: sprintf( '%s: %s — %s', $extracted['hash'] ?? $hash, $extracted['algo'], $fullPath ),
+				subline: sprintf( '%s: %s — %s', $extracted['hash'] ?? $parsed['hash'], $extracted['algo'], $fullPath ),
 				resourceUrl: $this->urlGenerator->linkToRoute( 'files.view.index', [
 					'dir'      => dirname( $fullPath ),
 					'scrollto' => $node->getName(),
