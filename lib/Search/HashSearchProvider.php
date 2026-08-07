@@ -121,9 +121,12 @@ class HashSearchProvider
 				thumbnailUrl: '',
 				title: $node->getName(),
 				subline: sprintf( '%s: %s — %s', $extracted['hash'] ?? $parsed['hash'], $extracted['algo'], $fullPath ),
-				resourceUrl: $this->urlGenerator->linkToRoute( 'files.view.index', [
-					'dir'      => dirname( $fullPath ),
-					'scrollto' => $node->getName(),
+				resourceUrl: $this->urlGenerator->linkToRoute( 'files.view.showFile', [
+					'fileid'      => $fileId,
+					'dir'         => dirname( $fullPath ),
+					'opendetails' => 'true',
+					'openfile'    => 'false',
+					'scrollto'    => $node->getName(),
 				] ),
 				icon: 'icon-file',
 			);

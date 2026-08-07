@@ -19,6 +19,7 @@ the first stable release.
 - Fix the Vue duplicates template rendering literal unicode escape sequences instead of the check and cross characters.
 - Show a total pending count alongside the per-mode breakdown on the settings page to match the CLI output.
 - Add a Refresh button and a Last Updated timestamp to the settings page Status section.
+- Fix HashSearchProvider search results so clicking a result opens the file details sidebar instead of just navigating to the directory root.
 
 ## [0.10.0] — 2026-08-07
 
