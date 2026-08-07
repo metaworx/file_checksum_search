@@ -78,11 +78,12 @@ function loadStatus(): void {
 			setText('fcias-status-rowcount', String(data.rowCount || 0))
 
 			const stats = data.pendingStats || {}
-			const lines: string[] = []
+			const total = Object.values(stats).reduce((sum, v) => sum + v, 0)
+			const lines: string[] = [`Total: ${total}`]
 			Object.keys(stats).forEach(key => {
 				lines.push(`${escapeHtml(key)}: ${stats[key]}`)
 			})
-			if (lines.length === 0) {
+			if (total === 0) {
 				lines.push('None')
 			}
 			setHtml('fcias-status-pending', lines.join('<br>'))
