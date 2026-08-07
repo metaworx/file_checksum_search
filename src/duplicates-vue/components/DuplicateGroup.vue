@@ -46,8 +46,8 @@ function toggle(): void {
 			<ul class="db-file-list">
 				<li v-for="file in group.files" :key="file.fileid" class="db-file-item">
 					<a :href="fileUrl(file)" target="_blank" rel="noreferrer noopener">{{ file.path || file.name }}</a>
-					<span v-if="file.verified === true" class="db-verified">\u2713</span>
-					<span v-else-if="file.verified === false" class="db-mismatch">\u2717 ({{ file.verify_error || (file.verified_hash ? `now: ${file.verified_hash}` : '?') }})</span>
+					<span v-if="file.verified === true" class="db-verified">✓</span>
+					<span v-else-if="file.verified === false" class="db-mismatch">✗ ({{ file.verify_error || (file.verified_hash ? `now: ${file.verified_hash}` : '?') }})</span>
 				</li>
 			</ul>
 		</div>
