@@ -15,6 +15,7 @@ use OCP\AppFramework\Http\Events\BeforeTemplateRenderedEvent;
 use OCP\EventDispatcher\Event;
 use OCP\EventDispatcher\IEventListener;
 use OCP\Util;
+use Psr\Log\LoggerInterface;
 
 /**
  * Injects the Files sidebar script and CSS on every page load.
@@ -28,6 +29,12 @@ class BeforeTemplateRenderedListener
 	implements
 	IEventListener
 {
+
+	public function __construct(
+		private readonly LoggerInterface $logger,
+	) {
+	}
+
 
 	public static function register( IRegistrationContext $context ): void
 	{
@@ -44,6 +51,11 @@ class BeforeTemplateRenderedListener
 		{
 			return;
 		}
+
+		$this->logger->debug(
+			'FCIAS BeforeTemplateRenderedListener: injecting sidebar init script and style',
+			[ 'app' => Application::APP_ID ],
+		);
 
 		Util::addInitScript( Application::APP_ID, Application::APP_ID . '-sidebar' );
 		Util::addStyle( Application::APP_ID, Application::APP_ID . '-sidebar' );

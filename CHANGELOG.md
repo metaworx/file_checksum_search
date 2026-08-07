@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix the sidebar tab silently failing to register by importing the SVG icon as raw XML instead of a data URL, and add diagnostic logging around tab/action registration.
+
 ## [0.10.0] — 2026-08-07
 
 ### Added

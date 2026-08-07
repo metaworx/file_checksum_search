@@ -4,7 +4,7 @@ import { generateOcsUrl, generateUrl } from '@nextcloud/router'
 import { OCS_API_V1, FRONTEND } from './routes'
 import { escapeHtml } from './utils'
 import './sidebar.css'
-import appIconSvg from '../img/app.svg'
+import appIconSvg from '../img/app.svg?raw'
 
 declare const OC: {
 	requestToken: string
@@ -281,36 +281,49 @@ if (!customElements.get(TAG)) {
 	customElements.define(TAG, ChecksumsSidebarTab)
 }
 
-getSidebar().registerTab({
-	id: 'file_checksum_search-checksums',
-	displayName: t('file_checksum_search', 'Checksums'),
-	iconSvgInline: APP_ICON,
-	order: 55,
-	tagName: TAG,
-	enabled({ node }: { node?: FileNode }) {
-		return node?.type === 'file'
-	},
-})
+try {
+	const sidebar = getSidebar()
+	if (sidebar) {
+		sidebar.registerTab({
+			id: 'file_checksum_search-checksums',
+			displayName: t('file_checksum_search', 'Checksums'),
+			iconSvgInline: APP_ICON,
+			order: 55,
+			tagName: TAG,
+			enabled({ node }: { node?: FileNode }) {
+				return node?.type === 'file'
+			},
+		})
+	} else {
+		console.warn('[FCIAS] getSidebar() returned null/undefined — sidebar tab not registered')
+	}
+} catch (err) {
+	console.error('[FCIAS] Failed to register sidebar tab:', err)
+}
 
 const checksumIcon = APP_ICON
 const checksumName = t('file_checksum_search', 'Checksums')
 
-registerFileAction({
-	id: 'file_checksum_search-checksums',
-	displayName() {
-		return checksumName
-	},
-	iconSvgInline() {
-		return checksumIcon
-	},
-	order: 55,
-	enabled({ nodes }: { nodes: FileNode[] }) {
-		if (nodes.length !== 1) return false
-		return nodes[0]?.type === 'file'
-	},
-	async exec({ nodes }: { nodes: FileNode[] }) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		getSidebar().open(nodes[0] as any, 'file_checksum_search-checksums')
-		return null
-	},
-})
+try {
+	registerFileAction({
+		id: 'file_checksum_search-checksums',
+		displayName() {
+			return checksumName
+		},
+		iconSvgInline() {
+			return checksumIcon
+		},
+		order: 55,
+		enabled({ nodes }: { nodes: FileNode[] }) {
+			if (nodes.length !== 1) return false
+			return nodes[0]?.type === 'file'
+		},
+		async exec({ nodes }: { nodes: FileNode[] }) {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			getSidebar().open(nodes[0] as any, 'file_checksum_search-checksums')
+			return null
+		},
+	})
+} catch (err) {
+	console.error('[FCIAS] Failed to register file action:', err)
+}

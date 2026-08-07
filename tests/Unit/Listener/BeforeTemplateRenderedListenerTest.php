@@ -13,6 +13,7 @@ use OCA\FileChecksumSearch\Listener\BeforeTemplateRenderedListener;
 use OCP\AppFramework\Http\Events\BeforeTemplateRenderedEvent;
 use OCP\EventDispatcher\Event;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class BeforeTemplateRenderedListenerTest
 	extends
@@ -27,7 +28,9 @@ class BeforeTemplateRenderedListenerTest
 
 		parent::setUp();
 
-		$this->listener = new BeforeTemplateRenderedListener();
+		$logger = $this->createMock( LoggerInterface::class );
+
+		$this->listener = new BeforeTemplateRenderedListener( $logger );
 	}
 
 
