@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.8.1] — 2026-08-07
+
 ### Fixed
 
 - Fix several medium-severity issues from the post-migration audit, including a hash search regex that excluded ADLER32/CRC32 lengths, auto mode recomputing all algorithms instead of only existing ones, and file copies being marked with the wrong pending mode.
