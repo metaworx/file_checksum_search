@@ -14,6 +14,9 @@
                   <Item>
                     <option name="path" value="composer.json" />
                   </Item>
+                  <Item>
+                    <option name="path" value="app/file_checksum_search/composer.json" />
+                  </Item>
                 </list>
               </option>
             </SchemaInfo>
