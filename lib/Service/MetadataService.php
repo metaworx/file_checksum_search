@@ -561,6 +561,10 @@ class MetadataService
 			   $qb->createFunction( 'MAX(m.' . self::FIELD_JSON . ')' ),
 			   self::FIELD_JSON_ALIAS,
 		   )
+		   ->selectAlias(
+			   $qb->createFunction( 'MAX(i.' . self::FIELD_META_VALUE_STRING . ')' ),
+			   'index_hash',
+		   )
 		   ->from( self::TABLE_FILES_METADATA_INDEX, 'i' )
 		   ->innerJoin(
 			   'i',
@@ -569,11 +573,19 @@ class MetadataService
 			   'i.' . self::FIELD_FILE_ID . ' = m.' . self::FIELD_FILE_ID,
 		   )
 		   ->where(
-			   $qb->expr()
-			      ->like(
-				      'i.' . self::FIELD_META_KEY,
-				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ),
-			      ),
+		    $qb->expr()
+		       ->andX(
+		        $qb->expr()
+		           ->like(
+		            'i.' . self::FIELD_META_KEY,
+		            $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ),
+		           ),
+		        $qb->expr()
+		           ->neq(
+		            'i.' . self::FIELD_META_KEY,
+		            $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+		           ),
+		       ),
 		   )
 		   ->groupBy( 'i.' . self::FIELD_META_VALUE_STRING )
 		   ->addGroupBy( 'i.' . self::FIELD_META_KEY )
@@ -613,12 +625,18 @@ class MetadataService
 				: [];
 
 			// Read the authoritative hash from oc_files_metadata.json,
-			// not from the index (which may truncate long hashes like SHA-512).
+			// falling back to the index value (meta_value_string).
 			$metaValueJson = (string) ( $row[ self::FIELD_JSON_ALIAS ] ?? '' );
 			$metaValue     = $metaValueJson !== ''
 				? json_decode( $metaValueJson, true )
 				: [];
-			$hashValue     = (string) ( $metaValue[ $row[ self::FIELD_META_KEY ] ] ?? '' );
+			$rawValue      = $metaValue[ $row[ self::FIELD_META_KEY ] ] ?? '';
+			$jsonHash      = is_array( $rawValue )
+				? (string) ( $rawValue[0] ?? '' )
+				: (string) $rawValue;
+			$hashValue     = $jsonHash !== ''
+				? $jsonHash
+				: (string) ( $row['index_hash'] ?? '' );
 
 			return [
 				self::FIELD_META_KEY          => $row[ self::FIELD_META_KEY ],
