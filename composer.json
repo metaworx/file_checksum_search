@@ -3,6 +3,12 @@
 	"description": "File Checksum Index & Search — indexes file checksums for fast reverse hash lookups",
 	"type": "nextcloud-app",
 	"license": "AGPL-3.0-or-later",
+	"authors": [
+		{
+			"name": "metaworx resonare rüegg",
+			"email": "apps@metaworx.ch"
+		}
+	],
 	"autoload": {
 		"psr-4": {
 			"OCA\\FileChecksumSearch\\": "lib/",

@@ -11,10 +11,13 @@
 		maintenance operations.
 	</description>
 	<version>0.9.1</version>
-	<licence>agpl</licence>
-	<author>metaworx</author>
+	<licence>AGPL-3.0-or-later</licence>
+	<author mail="apps@metaworx.ch"
+	        homepage="">metaworx resonare rüegg
+	</author>
 	<namespace>FileChecksumSearch</namespace>
-	<category>tools</category>
+	<category>files</category>
+	<category>search</category>
 	<website>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search</website>
 	<bugs>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/work_items</bugs>
 	<repository type="git">git@gitlab.com:metaworx/open-source/nextcloud/file_checksum_search.git</repository>

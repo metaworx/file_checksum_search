@@ -15,6 +15,10 @@ the first stable release.
 
 - Add SettingsControllerTest with 14 tests covering all six controller methods, and expose a mockable readRequestBody() method on SettingsController.
 
+### Changed
+
+- Update project metadata (code of conduct, license, app info, and composer info).
+
 ## [0.9.1] — 2026-08-07
 
 ### Fixed
