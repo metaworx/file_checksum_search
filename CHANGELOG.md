@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-08-07
+
 ### Added
 
 - Add missing rule-processing features: self-dispatching background jobs when a batch fills up, rule matching in FileListener, path-based rule search with glob pagination, and folder-based hash marking.
