@@ -15,7 +15,7 @@ Activates code-mode execution of the gated Action Plan. Provides a pre-flight ch
 | Follow the Implementation Plan blocks in order | The AP UAMF |
 | Each block completes with its Verification checkpoint before the next begins | This command |
 | UAMF files are NEVER overwritten — each AP revision creates a new file | [`AGENTS.md`](AGENTS.md) §4 |
-| Test runner is `wsl --cd ~/projects/nc_file_checksum_search vendor/bin/phpunit` or JetBrains MCP | [`.aiassistant/TESTING.md`](.aiassistant/TESTING.md) §1 |
+| Test runner is `wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit` or JetBrains MCP | [`.aiassistant/TESTING.md`](.aiassistant/TESTING.md) §1 |
 | Commit workflow follows [`.aiassistant/COMMIT.md`](.aiassistant/COMMIT.md) | This command |
 
 ## 2. Pre-Flight Checklist
@@ -39,20 +39,20 @@ Before writing a single line of code, verify:
 Always prefix with `wsl --cd ~/projects/nc_file_checksum_search`:
 
 ```
-wsl --cd ~/projects/nc_file_checksum_search vendor/bin/phpunit tests/Path/To/Test.php
+wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/Path/To/Test.php
 ```
 
 Scoped runs:
 
 ```
-wsl --cd ~/projects/nc_file_checksum_search vendor/bin/phpunit tests/Unit/Controller/LookupControllerTest.php
-wsl --cd ~/projects/nc_file_checksum_search vendor/bin/phpunit tests/Unit/
+wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/Unit/Controller/LookupControllerTest.php
+wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/Unit/
 ```
 
 Integration tests (as Nextcloud web server user):
 
 ```
-wsl --cd ~/projects/nc_file_checksum_search sudo --user www-data vendor/bin/phpunit tests/Integration/
+wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/Integration/
 ```
 
 Fallback: JetBrains MCP `execute_run_configuration` with `filePath` + `line`.
