@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCP\IUser;
 use OCP\IUserManager;
 use PHPUnit\Framework\MockObject\MockObject;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
@@ -186,6 +187,170 @@ class HashIndexServiceTest
 		$result = $this->service->deleteHashes( 42 );
 
 		$this->assertSame( 1, $result );
+	}
+
+
+	public function testResolveUsersReturnsAllUsers(): void
+	{
+
+		$mockUsers = [
+			$this->createMock( IUser::class ),
+			$this->createMock( IUser::class ),
+			$this->createMock( IUser::class ),
+		];
+
+		$mockUsers[0]->method( 'getUID' )
+		             ->willReturn( 'alice' )
+		;
+		$mockUsers[1]->method( 'getUID' )
+		             ->willReturn( 'bob' )
+		;
+		$mockUsers[2]->method( 'getUID' )
+		             ->willReturn( 'carol' )
+		;
+
+		$this->userManager->expects( $this->once() )
+		                  ->method( 'callForAllUsers' )
+		                  ->willReturnCallback(
+			                  function ( callable $callback ) use
+			                  (
+			                      $mockUsers,
+			                  ): void
+			                  {
+
+				                  foreach ( $mockUsers as $user )
+				                  {
+					                  $callback( $user );
+				                  }
+			                  },
+		                  )
+		;
+
+		$result = $this->service->resolveUsers( 'all' );
+
+		$this->assertSame( [
+			                   'alice',
+			                   'bob',
+			                   'carol',
+		                   ], $result );
+	}
+
+
+	public function testResolveUsersReturnsSpecificUser(): void
+	{
+
+		$user = $this->createMock( IUser::class );
+
+		$user->method( 'getUID' )
+		     ->willReturn( 'alice' )
+		;
+
+		$this->userManager->expects( $this->once() )
+		                  ->method( 'get' )
+		                  ->with( 'alice' )
+		                  ->willReturn( $user )
+		;
+
+		$result = $this->service->resolveUsers( 'alice' );
+
+		$this->assertSame( [ 'alice' ], $result );
+	}
+
+
+	public function testResolveUsersReturnsEmptyForUnknownUser(): void
+	{
+
+		$this->userManager->expects( $this->once() )
+		                  ->method( 'get' )
+		                  ->with( 'nonexistent' )
+		                  ->willReturn( null )
+		;
+
+		$this->logger->expects( $this->once() )
+		             ->method( 'warning' )
+		;
+
+		$result = $this->service->resolveUsers( 'nonexistent' );
+
+		$this->assertSame( [], $result );
+	}
+
+
+	public function testGenerateMissingHashesWithPathPattern(): void
+	{
+
+		$this->hashCalc->expects( $this->once() )
+		               ->method( 'generateMissingHashes' )
+		               ->with( 'alice', 'sha256', '**/*.jpg', 200, null )
+		               ->willReturn(
+			               [
+				               'processed' => 5,
+				               'skipped'   => 2,
+				               'errors'    => 0,
+			               ],
+		               )
+		;
+
+		$result = $this->service->generateMissingHashes(
+			'alice',
+			'sha256',
+			'**/*.jpg',
+			200,
+		);
+
+		$this->assertSame(
+			[
+				'processed' => 5,
+				'skipped'   => 2,
+				'errors'    => 0,
+			],
+			$result,
+		);
+	}
+
+
+	public function testParseQueryTermWith8CharHex(): void
+	{
+
+		$result = HashIndexService::parseQueryTerm( '1a2b3c4d' );
+
+		$this->assertNotNull( $result );
+		$this->assertSame( '1a2b3c4d', $result['hash'] );
+		$this->assertSame( '', $result['algo'] );
+	}
+
+
+	public function testParseQueryTermWith128CharHex(): void
+	{
+
+		$hex128 = str_repeat( 'a', 128 );
+
+		$result = HashIndexService::parseQueryTerm( $hex128 );
+
+		$this->assertNotNull( $result );
+		$this->assertSame( $hex128, $result['hash'] );
+		$this->assertSame( '', $result['algo'] );
+	}
+
+
+	public function testParseQueryTermWithAlgoColonFormat(): void
+	{
+
+		$result = HashIndexService::parseQueryTerm( 'sha256:abcdef1234567890abcdef1234567890abcdef12' );
+
+		$this->assertNotNull( $result );
+		$this->assertSame( 'abcdef1234567890abcdef1234567890abcdef12', $result['hash'] );
+		$this->assertSame( 'sha256', $result['algo'] );
+	}
+
+
+	public function testParseQueryTermWithInvalidFormat(): void
+	{
+
+		$this->assertNull( HashIndexService::parseQueryTerm( '' ) );
+		$this->assertNull( HashIndexService::parseQueryTerm( 'not-a-hash' ) );
+		$this->assertNull( HashIndexService::parseQueryTerm( 'abc' ) );
+		$this->assertNull( HashIndexService::parseQueryTerm( 'sha256:xyz' ) );
 	}
 
 }
