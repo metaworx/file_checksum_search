@@ -21,6 +21,7 @@ the first stable release.
 - Update project metadata (code of conduct, license, app info, and composer info).
 - Migrate routing from appinfo/routes.php to PHP 8 attribute-based routing (#[ApiRoute]/#[FrontpageRoute]) across all controllers, per the Nextcloud 31+ standard.
 - Convert frontend scripts to TypeScript, extract the duplicates index page into a new PageController, fix the Vite entry point, and switch URL generation to @nextcloud/router with centralized route constants.
+- Migrate the frontend build from Webpack to Vite and introduce a Vue 3 SPA for the global duplicate file browser.
 
 ## [0.9.1] — 2026-08-07
 

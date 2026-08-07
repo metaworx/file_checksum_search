@@ -9,11 +9,12 @@ declare( strict_types=1 );
  * @var array $_ Template parameters (unused)
  */
 
+use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\Util;
 
-Util::addScript( 'file_checksum_search', 'duplicates' );
-Util::addStyle( 'file_checksum_search', 'style' );
+Util::addScript( Application::APP_ID, Application::APP_ID . '-duplicates' );
+Util::addStyle( Application::APP_ID, Application::APP_ID . '-duplicates' );
 
 ?>
 
-<fcias-duplicate-browser></fcias-duplicate-browser>
+<div id="fcias-duplicates"></div>

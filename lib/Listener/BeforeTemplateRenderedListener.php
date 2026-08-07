@@ -45,8 +45,8 @@ class BeforeTemplateRenderedListener
 			return;
 		}
 
-		Util::addInitScript( Application::APP_ID, 'sidebar' );
-		Util::addStyle( Application::APP_ID, 'style' );
+		Util::addInitScript( Application::APP_ID, Application::APP_ID . '-sidebar' );
+		Util::addStyle( Application::APP_ID, Application::APP_ID . '-sidebar' );
 	}
 
 }

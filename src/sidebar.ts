@@ -3,6 +3,7 @@ import { t } from '@nextcloud/l10n'
 import { generateOcsUrl, generateUrl } from '@nextcloud/router'
 import { OCS_API_V1, FRONTEND } from './routes'
 import { escapeHtml } from './utils'
+import './sidebar.css'
 import appIconSvg from '../img/app.svg'
 
 declare const OC: {

@@ -8,6 +8,7 @@
 import { generateOcsUrl } from '@nextcloud/router'
 import { OCS_SETTINGS } from './routes'
 import { escapeHtml } from './utils'
+import './settings-admin.css'
 
 declare const OC: {
 	requestToken: string

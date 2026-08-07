@@ -58,7 +58,7 @@ class LoadDuplicatesScriptListener
 			return;
 		}
 
-		Util::addInitScript( Application::APP_ID, 'duplicates' );
+		Util::addInitScript( Application::APP_ID, Application::APP_ID . '-duplicates-legacy' );
 	}
 
 }
