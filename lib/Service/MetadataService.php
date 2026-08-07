@@ -101,6 +101,21 @@ class MetadataService
 
 	/**
 	 * Get metadata for a file. Creates empty metadata if it does not exist.
+	 *
+	 * When $rawMetadata is null (default), the metadata is loaded from the
+	 * metadata manager.  When $rawMetadata is provided, metadata is
+	 * reconstructed in-memory from raw data — useful when the caller
+	 * already has the data (e.g. from a JOIN query).
+	 *
+	 * Accepted forms for $rawMetadata:
+	 * - string:                JSON string; decoded with json_decode()
+	 * - array{meta_json: ...}: DB result row; the 'meta_json' value is
+	 *                          extracted and JSON-decoded
+	 * - array (no meta_json):  Already-decoded associative array, used as-is
+	 *
+	 * @param int|File          $file         File ID or File node
+	 * @param string|array|null $rawMetadata  Raw metadata (see above) or
+	 *                                        null to load from manager
 	 */
 	public function getMetadata(
 		int|File          $file,

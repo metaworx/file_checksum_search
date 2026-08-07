@@ -12,10 +12,15 @@ namespace OCA\FileChecksumSearch\Service;
 use OCP\IConfig;
 
 /**
- * Centralized source of truth for table names.
+ * Centralized source of truth for database table names.
  *
- * Reads the database table prefix from Nextcloud config once and exposes
- * typed getters for every named database object the app touches.
+ * Reads the database table prefix from Nextcloud config once at
+ * construction time and exposes typed getters for the core NC tables
+ * the app queries (filecache, files_metadata, etc.).
+ *
+ * Use the typed getters instead of passing the raw prefix around;
+ * this keeps table-name construction in one place and avoids
+ * hardcoded `oc_` assumptions.
  */
 class TableNameService
 {

@@ -18,6 +18,11 @@ use OCP\EventDispatcher\IEventListener;
 use OCP\Util;
 
 /**
+ * Injects the Duplicates page script when the Files app loads.
+ *
+ * Listens for {@see LoadAdditionalScriptsEvent} and, if the app is
+ * enabled for the current user, adds the 'duplicates' init script.
+ *
  * @template-implements IEventListener<LoadAdditionalScriptsEvent>
  * @noinspection PhpClassCanBeReadonlyInspection
  */

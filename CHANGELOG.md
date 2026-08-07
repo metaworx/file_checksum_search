@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Added
+
+- Add and improve class-level PHPDoc and @throws documentation across several services and listeners with no behavioral changes.
+
 ### Changed
 
 - Clean up code by removing decorative section-header comments, replacing magic pending-mode strings with named MetadataService constants, and extracting glob matching into a shared PathUtil helper.

@@ -16,7 +16,14 @@ use OCP\EventDispatcher\Event;
 use OCP\EventDispatcher\IEventListener;
 use OCP\Util;
 
-/** @template-implements IEventListener<BeforeTemplateRenderedEvent> */
+/**
+ * Injects the Files sidebar script and CSS on every page load.
+ *
+ * Listens for {@see BeforeTemplateRenderedEvent} and adds the
+ * 'sidebar' init script and 'style' CSS via {@see Util}.
+ *
+ * @template-implements IEventListener<BeforeTemplateRenderedEvent>
+ */
 class BeforeTemplateRenderedListener
 	implements
 	IEventListener

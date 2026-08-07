@@ -272,6 +272,10 @@ class RuleService
 	}
 
 
+	/**
+	 * @throws JsonException
+	 * @throws \Random\RandomException
+	 */
 	public function ruleAdd( array $definition ): void
 	{
 
@@ -287,6 +291,9 @@ class RuleService
 	}
 
 
+	/**
+	 * @throws JsonException
+	 */
 	public function ruleDelete( string $id ): void
 	{
 
@@ -308,6 +315,9 @@ class RuleService
 	}
 
 
+	/**
+	 * @throws JsonException
+	 */
 	public function ruleToggle(
 		string $id,
 		bool   $enabled,
@@ -334,6 +344,9 @@ class RuleService
 	}
 
 
+	/**
+	 * @throws JsonException
+	 */
 	public function ruleUpdate(
 		string $id,
 		array  $definition,

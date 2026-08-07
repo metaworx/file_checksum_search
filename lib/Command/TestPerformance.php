@@ -16,6 +16,12 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
+ * Benchmark command comparing metadata-index lookup vs filecache LIKE scan.
+ *
+ * Runs 100 iterations of {@see MetadataService::queryByHash()} against
+ * 100 iterations of a filecache.checksum LIKE query and reports the
+ * speedup factor.
+ *
  * @noinspection PhpUnused
  */
 class TestPerformance

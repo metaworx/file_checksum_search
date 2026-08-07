@@ -10,7 +10,16 @@ use OCP\Files\Node;
 use OCP\Files\NotFoundException;
 use OCP\IDBConnection;
 
-/** @noinspection PhpClassCanBeReadonlyInspection */
+/**
+ * Filecache checksum read/write bridge.
+ *
+ * Reads and writes hash values in Nextcloud's native filecache.checksum
+ * column (format: "ALGO:hex ALGO:hex ...").  Also provides Node resolution
+ * helpers (by filecache ID), batch path lookups via filecache+storages join,
+ * and checksum-copy support for NodeCopiedEvent.
+ *
+ * @noinspection PhpClassCanBeReadonlyInspection
+ */
 class FilecacheService
 {
 
