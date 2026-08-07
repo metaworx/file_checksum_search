@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.9.1] — 2026-08-07
+
 ### Fixed
 
 - Fix undefined $hash variable in HashSearchProvider::search() by using the correctly parsed $parsed['hash'] value.
