@@ -12,14 +12,11 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\DB\IResult;
-use OCP\DB\QueryBuilder\IExpressionBuilder;
-use OCP\DB\QueryBuilder\IQueryBuilder;
-use OCP\DB\QueryBuilder\IFunctionBuilder;
 use OCP\FilesMetadata\IFilesMetadataManager;
 use OCP\IDBConnection;
 use PHPUnit\Framework\MockObject\MockObject;
-use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 
@@ -31,24 +28,16 @@ use RuntimeException;
  */
 class MetadataServiceTest
 	extends
-	TestCase
+	FciasUnitTestCase
 {
 
-	private IDBConnection&MockObject         $db;
+	private IFilesMetadataManager&MockObject $metadataManager;
 
-	private IFilesMetadataManager&MockObject  $metadataManager;
+	private FilecacheService&MockObject      $filecacheService;
 
-	private FilecacheService&MockObject       $filecacheService;
+	private LoggerInterface&MockObject       $logger;
 
-	private LoggerInterface&MockObject        $logger;
-
-	private MetadataService                   $service;
-
-	private IQueryBuilder&MockObject          $queryBuilder;
-
-	private IExpressionBuilder&MockObject     $expr;
-
-	private IFunctionBuilder&MockObject       $func;
+	private MetadataService                  $service;
 
 
 	protected function setUp(): void
@@ -60,39 +49,8 @@ class MetadataServiceTest
 		$this->metadataManager  = $this->createMock( IFilesMetadataManager::class );
 		$this->filecacheService = $this->createMock( FilecacheService::class );
 		$this->logger           = $this->createMock( LoggerInterface::class );
-		$this->queryBuilder     = $this->createMock( IQueryBuilder::class );
-		$this->expr             = $this->createMock( IExpressionBuilder::class );
-		$this->func             = $this->createMock( IFunctionBuilder::class );
 
-		$this->db->method( 'getQueryBuilder' )
-		         ->willReturn( $this->queryBuilder )
-		;
-
-		$this->queryBuilder->method( 'expr' )
-		                   ->willReturn( $this->expr )
-		;
-
-		$this->queryBuilder->method( 'func' )
-		                   ->willReturn( $this->func )
-		;
-
-		$this->queryBuilder->method( 'createNamedParameter' )
-		                   ->willReturnCallback(
-			                   fn ( $value, $type = null ) => $value,
-		                   )
-		;
-
-		$this->expr->method( 'eq' )
-		           ->willReturn( '1=1' )
-		;
-
-		$this->expr->method( 'like' )
-		           ->willReturn( '1=1' )
-		;
-
-		$this->expr->method( 'gte' )
-		           ->willReturn( '1=1' )
-		;
+		$this->setUpQueryBuilderMock();
 
 		$this->service = new MetadataService(
 			$this->db,
@@ -211,7 +169,6 @@ class MetadataServiceTest
 	{
 
 		$result = $this->createMock( IResult::class );
-
 		$result->method( 'fetch' )
 		       ->willReturnOnConsecutiveCalls(
 			       [
@@ -224,26 +181,6 @@ class MetadataServiceTest
 			       ],
 			       false,
 		       )
-		;
-
-		$this->queryBuilder->method( 'select' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->method( 'from' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->method( 'where' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->method( 'orderBy' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->method( 'setMaxResults' )
-		                   ->willReturnSelf()
 		;
 
 		$this->queryBuilder->method( 'executeQuery' )
@@ -268,26 +205,6 @@ class MetadataServiceTest
 		       ->willReturn( false )
 		;
 
-		$this->queryBuilder->method( 'select' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->method( 'from' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->method( 'where' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->method( 'orderBy' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->method( 'setMaxResults' )
-		                   ->willReturnSelf()
-		;
-
 		$this->queryBuilder->method( 'executeQuery' )
 		                   ->willReturn( $result )
 		;
@@ -302,25 +219,12 @@ class MetadataServiceTest
 	{
 
 		$result = $this->createMock( IResult::class );
-
-		$this->queryBuilder->method( 'select' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->method( 'from' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->method( 'where' )
-		                   ->willReturnSelf()
+		$result->method( 'fetchOne' )
+		       ->willReturn( '3' )
 		;
 
 		$this->queryBuilder->method( 'executeQuery' )
 		                   ->willReturn( $result )
-		;
-
-		$result->method( 'fetchOne' )
-		       ->willReturn( '3' )
 		;
 
 		$count = $this->service->countByFileId( 42 );
@@ -333,25 +237,12 @@ class MetadataServiceTest
 	{
 
 		$result = $this->createMock( IResult::class );
-
-		$this->queryBuilder->method( 'select' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->method( 'from' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->method( 'where' )
-		                   ->willReturnSelf()
+		$result->method( 'fetchOne' )
+		       ->willReturn( '1712345678' )
 		;
 
 		$this->queryBuilder->method( 'executeQuery' )
 		                   ->willReturn( $result )
-		;
-
-		$result->method( 'fetchOne' )
-		       ->willReturn( '1712345678' )
 		;
 
 		$ts = $this->service->getUpdatedAt( 42 );
@@ -364,25 +255,12 @@ class MetadataServiceTest
 	{
 
 		$result = $this->createMock( IResult::class );
-
-		$this->queryBuilder->method( 'select' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->method( 'from' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->method( 'where' )
-		                   ->willReturnSelf()
+		$result->method( 'fetchOne' )
+		       ->willReturn( false )
 		;
 
 		$this->queryBuilder->method( 'executeQuery' )
 		                   ->willReturn( $result )
-		;
-
-		$result->method( 'fetchOne' )
-		       ->willReturn( false )
 		;
 
 		$ts = $this->service->getUpdatedAt( 42 );
@@ -520,8 +398,7 @@ class MetadataServiceTest
 	public function testFetchPendingBatchQueriesCorrectKey(): void
 	{
 
-		$capturedKey   = null;
-		$capturedLike  = null;
+		$capturedLike = null;
 
 		$this->expr->expects( $this->once() )
 		           ->method( 'eq' )
@@ -552,26 +429,6 @@ class MetadataServiceTest
 		       ->willReturn( false )
 		;
 
-		$this->queryBuilder->method( 'select' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->method( 'from' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->method( 'where' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->method( 'orderBy' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->method( 'setMaxResults' )
-		                   ->willReturnSelf()
-		;
-
 		$this->queryBuilder->method( 'executeQuery' )
 		                   ->willReturn( $result )
 		;
@@ -579,6 +436,192 @@ class MetadataServiceTest
 		$this->service->fetchPendingBatch( 25 );
 
 		$this->assertSame( 'pending:%', $capturedLike );
+	}
+
+
+	public function testQueryByHashReturnsMatchingRows(): void
+	{
+
+		$mockRows = [
+			[
+				'file_id'   => '42',
+				'meta_key'  => 'file-checksum-sha1',
+				'meta_json' => '{"file-checksum-sha1":"abc123"}',
+			],
+			[
+				'file_id'   => '108',
+				'meta_key'  => 'file-checksum-sha1',
+				'meta_json' => '{"file-checksum-sha1":"abc123"}',
+			],
+		];
+
+		$result = $this->createMock( IResult::class );
+		$result->expects( $this->once() )
+		       ->method( 'fetchAll' )
+		       ->willReturn( $mockRows )
+		;
+
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$rows = $this->service->queryByHash( 'abc123' );
+
+		$this->assertCount( 2, $rows );
+		$this->assertSame( '42', $rows[0]['file_id'] );
+		$this->assertSame( '108', $rows[1]['file_id'] );
+	}
+
+
+	public function testQueryByHashWithAlgoFilter(): void
+	{
+
+		$mockRows = [
+			[
+				'file_id'   => '42',
+				'meta_key'  => 'file-checksum-sha256',
+				'meta_json' => '{"file-checksum-sha256":"def456"}',
+			],
+		];
+
+		$result = $this->createMock( IResult::class );
+		$result->expects( $this->once() )
+		       ->method( 'fetchAll' )
+		       ->willReturn( $mockRows )
+		;
+
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$this->expr->expects( $this->exactly( 2 ) )
+		           ->method( 'eq' )
+		           ->willReturn( '1=1' )
+		;
+
+		$rows = $this->service->queryByHash( 'def456', 'sha256' );
+
+		$this->assertCount( 1, $rows );
+		$this->assertSame( 'file-checksum-sha256', $rows[0]['meta_key'] );
+	}
+
+
+	public function testQueryByHashReturnsEmpty(): void
+	{
+
+		$result = $this->createMock( IResult::class );
+		$result->expects( $this->once() )
+		       ->method( 'fetchAll' )
+		       ->willReturn( [] )
+		;
+
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$rows = $this->service->queryByHash( 'nonexistent' );
+
+		$this->assertCount( 0, $rows );
+	}
+
+
+	public function testQueryDuplicatesReturnsGroups(): void
+	{
+
+		$mockRows = [
+			[
+				'meta_key'  => 'file-checksum-sha1',
+				'cnt'       => '3',
+				'file_ids'  => '42,108,256',
+				'meta_json' => '{"file-checksum-sha1":"abc123"}',
+			],
+		];
+
+		$result = $this->createMock( IResult::class );
+		$result->expects( $this->once() )
+		       ->method( 'fetchAll' )
+		       ->willReturn( $mockRows )
+		;
+
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$groups = $this->service->queryDuplicates();
+
+		$this->assertCount( 1, $groups );
+		$this->assertSame( 'file-checksum-sha1', $groups[0]['meta_key'] );
+		$this->assertSame( 'abc123', $groups[0]['meta_value_string'] );
+		$this->assertSame( 3, $groups[0]['file_count'] );
+		$this->assertSame( [ 42, 108, 256 ], $groups[0]['file_ids'] );
+	}
+
+
+	public function testQueryDuplicatesWithAlgoFilter(): void
+	{
+
+		$mockRows = [
+			[
+				'meta_key'  => 'file-checksum-sha256',
+				'cnt'       => '2',
+				'file_ids'  => '42,108',
+				'meta_json' => '{"file-checksum-sha256":"def456"}',
+			],
+		];
+
+		$result = $this->createMock( IResult::class );
+		$result->expects( $this->once() )
+		       ->method( 'fetchAll' )
+		       ->willReturn( $mockRows )
+		;
+
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$this->expr->expects( $this->once() )
+		           ->method( 'eq' )
+		           ->willReturn( '1=1' )
+		;
+
+		$groups = $this->service->queryDuplicates( 'sha256' );
+
+		$this->assertCount( 1, $groups );
+		$this->assertSame( 'file-checksum-sha256', $groups[0]['meta_key'] );
+	}
+
+
+	public function testQueryDuplicatesWithMinCount(): void
+	{
+
+		$mockRows = [
+			[
+				'meta_key'  => 'file-checksum-sha1',
+				'cnt'       => '5',
+				'file_ids'  => '1,2,3,4,5',
+				'meta_json' => '{"file-checksum-sha1":"dup123"}',
+			],
+		];
+
+		$result = $this->createMock( IResult::class );
+		$result->expects( $this->once() )
+		       ->method( 'fetchAll' )
+		       ->willReturn( $mockRows )
+		;
+
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$this->expr->expects( $this->once() )
+		           ->method( 'gte' )
+		           ->willReturn( '1=1' )
+		;
+
+		$groups = $this->service->queryDuplicates( minCount: 5 );
+
+		$this->assertCount( 1, $groups );
+		$this->assertSame( 5, $groups[0]['file_count'] );
 	}
 
 }

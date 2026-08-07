@@ -14,6 +14,7 @@ the first stable release.
 ### Added
 
 - Add and improve class-level PHPDoc and @throws documentation across several services and listeners with no behavioral changes.
+- Add FciasUnitTestCase base class and unit tests covering MetadataService queryDuplicates/queryByHash and HashCalculationService processFile.
 
 ### Changed
 
