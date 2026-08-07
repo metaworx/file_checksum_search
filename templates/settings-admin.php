@@ -26,7 +26,10 @@ Util::addStyle( Application::APP_ID, Application::APP_ID . '-settings-admin' );
 
 	<div class="fcias-section">
 		<h4><?php
-			p( $l->t( 'Status' ) ); ?></h4>
+			p( $l->t( 'Status' ) ); ?>
+			<button class="fcias-btn" id="fcias-btn-refresh-status" style="margin-left:12px"><?php
+				p( $l->t( 'Refresh' ) ); ?></button>
+		</h4>
 		<table class="grid">
 			<tbody>
 			<tr>
@@ -48,6 +51,11 @@ Util::addStyle( Application::APP_ID, Application::APP_ID . '-settings-admin' );
 				<td><?php
 					p( $l->t( 'Pending Updates' ) ); ?></td>
 				<td id="fcias-status-pending">—</td>
+			</tr>
+			<tr>
+				<td><?php
+					p( $l->t( 'Last Updated' ) ); ?></td>
+				<td id="fcias-status-lastupdated">—</td>
 			</tr>
 			</tbody>
 		</table>

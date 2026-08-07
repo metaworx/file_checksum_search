@@ -18,6 +18,7 @@ the first stable release.
 - Fix duplicate search to exclude the updated_at metadata field from grouping, correctly handle hash values stored as JSON arrays, and fall back to the indexed hash when extraction yields an empty value.
 - Fix the Vue duplicates template rendering literal unicode escape sequences instead of the check and cross characters.
 - Show a total pending count alongside the per-mode breakdown on the settings page to match the CLI output.
+- Add a Refresh button and a Last Updated timestamp to the settings page Status section.
 
 ## [0.10.0] — 2026-08-07
 

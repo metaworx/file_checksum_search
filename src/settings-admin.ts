@@ -87,6 +87,7 @@ function loadStatus(): void {
 				lines.push('None')
 			}
 			setHtml('fcias-status-pending', lines.join('<br>'))
+			setText('fcias-status-lastupdated', new Date().toLocaleString())
 		})
 		.catch(() => {
 			setHtml('fcias-msg', '<p class="fcias-error">Failed to load status.</p>')
@@ -437,6 +438,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	loadStatus()
 	loadDefinitions()
 
+	document.getElementById('fcias-btn-refresh-status')?.addEventListener('click', loadStatus)
 	document.getElementById('fcias-btn-add-definition')?.addEventListener('click', () => { showDefinitionForm(null) })
 	document.getElementById('fcias-btn-save-definition')?.addEventListener('click', saveDefinition)
 	document.getElementById('fcias-btn-cancel-definition')?.addEventListener('click', hideDefinitionForm)
