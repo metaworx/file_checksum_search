@@ -311,7 +311,7 @@ class GenerateHashes
 				break;
 			}
 
-			$this->metadataService->markPending( $file->getId(), 'pending:auto' );
+			$this->metadataService->markPending( $file->getId(), MetadataService::PENDING_AUTO );
 			$marked ++;
 
 			if ( $remaining !== null )

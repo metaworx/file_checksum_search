@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Changed
+
+- Clean up code by removing decorative section-header comments, replacing magic pending-mode strings with named MetadataService constants, and extracting glob matching into a shared PathUtil helper.
+
 ## [0.8.1] — 2026-08-07
 
 ### Fixed

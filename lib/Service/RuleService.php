@@ -262,7 +262,7 @@ class RuleService
 				$pathGlob = '**';
 			}
 
-			if ( fnmatch( $pathGlob, $filePath ) )
+			if ( PathUtil::matchesGlob( $pathGlob, $filePath ) )
 			{
 				return $rule;
 			}
@@ -429,8 +429,8 @@ class RuleService
 					continue;
 				}
 
-				// SQL LIKE is approximate — fnmatch ensures exact glob semantics
-				if ( ! fnmatch( $pathGlob, $node->getPath() ) )
+				// SQL LIKE is approximate — PathUtil::matchesGlob ensures exact glob semantics
+				if ( ! PathUtil::matchesGlob( $pathGlob, $node->getPath() ) )
 				{
 					continue;
 				}

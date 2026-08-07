@@ -145,7 +145,7 @@ class HashCalculationService
 				$userFolderPath,
 			);
 
-			if ( $pathPattern !== null && ! fnmatch( $pathPattern, $relativePath ) )
+			if ( $pathPattern !== null && ! PathUtil::matchesGlob( $pathPattern, $relativePath ) )
 			{
 				continue;
 			}
@@ -309,7 +309,12 @@ class HashCalculationService
 			$this->metadataService->clearMetadata( $metadata, false );
 			break;
 
-			/** @noinspection PhpMissingBreakStatementInspection */
+			/**
+			 * 'force' mode: clear all existing metadata, then intentionally
+			 * fall through to 'missing' mode to recompute every algo.
+			 *
+			 * @noinspection PhpMissingBreakStatementInspection
+			 */
 		case 'force':
 			$this->metadataService->clearMetadata( $metadata, false );
 

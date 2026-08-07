@@ -49,8 +49,17 @@ class MetadataService
 	public const KEY_FILE_CHECKSUM_LIKE       = self::KEY_FILE_CHECKSUM_PREFIX . '%';
 	public const KEY_FILE_CHECKSUM_PREFIX     = 'file-checksum-';
 	public const KEY_FILE_CHECKSUM_UPDATED_AT = 'file-checksum-updated_at';
-	public const PENDING_LIKE                 = self::PENDING_PREFIX . '%';
+	public const PENDING_MODE_NEW             = 'new';
+	public const PENDING_MODE_AUTO            = 'auto';
+	public const PENDING_MODE_FORCE           = 'force';
+	public const PENDING_MODE_LAZY            = 'lazy';
+	public const PENDING_MODE_OFF             = 'off';
 	public const PENDING_PREFIX               = 'pending:';
+	public const PENDING_AUTO                 = self::PENDING_PREFIX . self::PENDING_MODE_AUTO;
+	public const PENDING_FORCE                = self::PENDING_PREFIX . self::PENDING_MODE_FORCE;
+	public const PENDING_LAZY                 = self::PENDING_PREFIX . self::PENDING_MODE_LAZY;
+	public const PENDING_NEW                  = self::PENDING_PREFIX . self::PENDING_MODE_NEW;
+	public const PENDING_LIKE                 = self::PENDING_PREFIX . '%';
 	public const TABLE_FILES_METADATA         = 'files_metadata';
 	public const TABLE_FILES_METADATA_INDEX   = 'files_metadata_index';
 
@@ -698,14 +707,15 @@ class MetadataService
 
 		try
 		{
-			$inserted = $this->db->executeStatement(
+			$pendingNew = self::PENDING_NEW;
+			$inserted   = $this->db->executeStatement(
 				<<<"SQL"
 INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`)
-SELECT `fc`.`fileid`, 'file-checksum-updated_at', 'pending:new', 0
+SELECT `fc`.`fileid`, 'file-checksum-updated_at', '{$pendingNew}', 0
 FROM `*PREFIX*filecache` `fc`
 WHERE `fc`.`fileid` NOT IN (
-    SELECT `file_id` FROM `*PREFIX*files_metadata_index`
-    WHERE `meta_key` = 'file-checksum-updated_at'
+		  SELECT `file_id` FROM `*PREFIX*files_metadata_index`
+		  WHERE `meta_key` = 'file-checksum-updated_at'
 )
 SQL,
 			);

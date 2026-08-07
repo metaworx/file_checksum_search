@@ -96,7 +96,7 @@ class FileListener
 		}
 
 		$this->filecacheService->copyFilecacheChecksum( $source, $target );
-		$this->metadataService->markPending( $target->getId(), 'pending:auto' );
+		$this->metadataService->markPending( $target->getId(), MetadataService::PENDING_AUTO );
 
 		$this->logger->debug(
 			'FCIAS FileListener: copied checksum and marked pending for copied file',
@@ -126,17 +126,19 @@ class FileListener
 			return;
 		}
 
-		$mode   = $rule['mode'] ?? 'auto';
+		$mode   = $rule['mode'] ?? MetadataService::PENDING_MODE_AUTO;
 		$fileId = $node->getId();
 
 		switch ( $mode )
 		{
-		case 'off':
+		case MetadataService::PENDING_MODE_OFF:
 			break;
 
-		case 'force':
+		case MetadataService::PENDING_MODE_FORCE:
 			$this->metadataService->clearMetadata( $fileId );
-			$this->metadataService->markPending( $fileId, 'pending:force' );
+			$this->metadataService->markPending( $fileId,
+				MetadataService::PENDING_FORCE
+			);
 
 			$this->logger->debug(
 				'FCIAS FileListener: force-cleared + queued on write',
@@ -148,9 +150,9 @@ class FileListener
 
 			break;
 
-		case 'lazy':
+		case MetadataService::PENDING_MODE_LAZY:
 			$this->metadataService->clearMetadata( $fileId );
-			$this->metadataService->markPending( $fileId, 'pending:lazy' );
+			$this->metadataService->markPending( $fileId, MetadataService::PENDING_LAZY );
 
 			$this->logger->debug(
 				'FCIAS FileListener: lazy-cleared + queued on write',
@@ -162,10 +164,10 @@ class FileListener
 
 			break;
 
-		case 'auto':
+		case MetadataService::PENDING_MODE_AUTO:
 			if ( $this->metadataService->countByFileId( $fileId ) > 0 )
 			{
-				$this->metadataService->markPending( $fileId, 'pending:auto' );
+				$this->metadataService->markPending( $fileId, MetadataService::PENDING_AUTO );
 
 				$this->logger->debug(
 					'FCIAS FileListener: auto-queued on write',
@@ -198,17 +200,19 @@ class FileListener
 			return;
 		}
 
-		$mode   = $rule['mode'] ?? 'auto';
+		$mode   = $rule['mode'] ?? MetadataService::PENDING_MODE_AUTO;
 		$fileId = $node->getId();
 
 		switch ( $mode )
 		{
-		case 'off':
+		case MetadataService::PENDING_MODE_OFF:
 			break;
 
-		case 'force':
+		case MetadataService::PENDING_MODE_FORCE:
 			$this->metadataService->clearMetadata( $fileId );
-			$this->metadataService->markPending( $fileId, 'pending:force' );
+			$this->metadataService->markPending( $fileId,
+				MetadataService::PENDING_FORCE
+			);
 
 			$this->logger->debug(
 				'FCIAS FileListener: force-cleared + queued on create',
@@ -220,8 +224,8 @@ class FileListener
 
 			break;
 
-		case 'lazy':
-			$this->metadataService->markPending( $fileId, 'pending:lazy' );
+		case MetadataService::PENDING_MODE_LAZY:
+			$this->metadataService->markPending( $fileId, MetadataService::PENDING_LAZY );
 
 			$this->logger->debug(
 				'FCIAS FileListener: queued on create',
@@ -233,10 +237,10 @@ class FileListener
 
 			break;
 
-		case 'auto':
+		case MetadataService::PENDING_MODE_AUTO:
 			if ( $this->metadataService->countByFileId( $fileId ) > 0 )
 			{
-				$this->metadataService->markPending( $fileId, 'pending:auto' );
+				$this->metadataService->markPending( $fileId, MetadataService::PENDING_AUTO );
 
 				$this->logger->debug(
 					'FCIAS FileListener: auto-queued on create',
@@ -269,9 +273,9 @@ class FileListener
 			return;
 		}
 
-		$mode = $rule['mode'] ?? 'auto';
+		$mode = $rule['mode'] ?? MetadataService::PENDING_MODE_AUTO;
 
-		if ( $mode !== 'off' )
+		if ( $mode !== MetadataService::PENDING_MODE_OFF )
 		{
 			$fileId = $node->getId();
 
