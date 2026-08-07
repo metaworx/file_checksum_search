@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-08-07
+
 ### Added
 
 - Add and improve class-level PHPDoc and @throws documentation across several services and listeners with no behavioral changes.
