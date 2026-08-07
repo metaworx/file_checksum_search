@@ -66,19 +66,17 @@ class SearchHash
 			[ 'app' => Application::APP_ID ],
 		);
 
-		$algo = null;
+		// Parse algo:hash or raw hash
+		$parsed = HashIndexService::parseQueryTerm( $term );
 
-		if ( preg_match( '/^([a-z0-9]+):([a-f0-9]{32,64})$/i', $term, $matches ) )
+		if ( $parsed === null )
 		{
-			$algo = strtolower( $matches[1] );
-			$hash = strtolower( $matches[2] );
-		}
-		else
-		{
-			$hash = strtolower( $term );
+			$output->writeln( "Invalid hash: $term" );
+
+			return Command::FAILURE;
 		}
 
-		$rows = $this->hashIndexService->findByHash( $hash, $algo );
+		$rows = $this->hashIndexService->findByHash( $parsed['hash'], $parsed['algo'] );
 
 		if ( empty( $rows ) )
 		{

@@ -119,7 +119,7 @@ class FilecacheServiceTest
 		     ->willReturn( 'SHA1:abc123 MD5:def456' )
 		;
 
-		$hashes = $this->service->getHashes( $file );
+		$hashes = $this->service->getChecksums( $file );
 
 		$this->assertSame(
 			[
@@ -139,7 +139,7 @@ class FilecacheServiceTest
 		     ->willReturn( 'SHA1:abc123 MD5:def456 SHA256:ghi789' )
 		;
 
-		$hashes = $this->service->getHashes(
+		$hashes = $this->service->getChecksums(
 			$file,
 			[
 				'sha1',
@@ -165,7 +165,7 @@ class FilecacheServiceTest
 		     ->willReturn( null )
 		;
 
-		$hashes = $this->service->getHashes( $file );
+		$hashes = $this->service->getChecksums( $file );
 
 		$this->assertSame( [], $hashes );
 	}
@@ -179,7 +179,7 @@ class FilecacheServiceTest
 		     ->willReturn( '' )
 		;
 
-		$hashes = $this->service->getHashes( $file );
+		$hashes = $this->service->getChecksums( $file );
 
 		$this->assertSame( [], $hashes );
 	}

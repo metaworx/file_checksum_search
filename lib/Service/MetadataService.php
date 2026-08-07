@@ -414,15 +414,35 @@ class MetadataService
 
 		$updated = $this->executeStatement( $qb );
 
-		$this->logger->debug(
-			'FCIAS MetadataService: markPending',
-			[
-				'app'     => Application::APP_ID,
-				'fileId'  => $fileId,
-				'mode'    => $mode,
-				'updated' => $updated,
-			],
-		);
+		if ( $updated === 0 )
+		{
+			$this->logger->debug(
+				'FCIAS MetadataService: markPending — no row updated (file may not be seeded)',
+				[
+					'app'    => Application::APP_ID,
+					'fileId' => $fileId,
+					'mode'   => $mode,
+				],
+			);
+		}
+	}
+
+	/**
+	 * Parse a pending mode string by stripping the 'pending:' prefix.
+	 *
+	 * @param  string  $status  E.g. 'pending:auto', 'pending:force', or 'auto'
+	 *
+	 * @return string  The processing mode without the prefix, e.g. 'auto'
+	 */
+	public static function parseMode( string $status ): string
+	{
+
+		if ( str_starts_with( $status, self::PENDING_PREFIX ) )
+		{
+			return substr( $status, strlen( self::PENDING_PREFIX ) );
+		}
+
+		return $status;
 	}
 
 

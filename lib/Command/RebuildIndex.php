@@ -112,11 +112,7 @@ class RebuildIndex
 			$fileId = $row[ MetadataService::FIELD_FILE_ID ];
 			$mode   = (string) $row[ MetadataService::FIELD_META_VALUE_STRING ];
 
-			// Strip 'pending:' prefix to get the processing mode
-			if ( str_starts_with( $mode, MetadataService::PENDING_PREFIX ) )
-			{
-				$mode = substr( $mode, strlen( MetadataService::PENDING_PREFIX ) );
-			}
+			$mode = MetadataService::parseMode( $mode );
 
 			try
 			{

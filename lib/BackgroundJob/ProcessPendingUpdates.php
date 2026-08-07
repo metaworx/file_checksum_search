@@ -101,10 +101,7 @@ class ProcessPendingUpdates
 				$fileId = $row[ MetadataService::FIELD_FILE_ID ];
 				$status = $row[ MetadataService::FIELD_META_VALUE_STRING ];
 
-				// Parse mode from meta_value_string: 'pending:auto' → 'auto'
-				$mode = str_starts_with( $status, MetadataService::PENDING_PREFIX )
-					? substr( $status, strlen( MetadataService::PENDING_PREFIX ) )
-					: 'auto';
+				$mode = MetadataService::parseMode( $status );
 
 				try
 				{

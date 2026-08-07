@@ -96,7 +96,7 @@ class FileListener
 		}
 
 		$this->filecacheService->copyFilecacheChecksum( $source, $target );
-		$this->metadataService->markPending( $target->getId(), 'pending:lazy' );
+		$this->metadataService->markPending( $target->getId(), 'pending:auto' );
 
 		$this->logger->debug(
 			'FCIAS FileListener: copied checksum and marked pending for copied file',

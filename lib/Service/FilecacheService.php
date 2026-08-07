@@ -48,7 +48,7 @@ class FilecacheService
 	}
 
 
-	public function getHashes(
+	public function getChecksums(
 		int|File $file,
 		?array   $hashFilter = null,
 	): array {
@@ -144,7 +144,7 @@ class FilecacheService
 		$file = $this->getFile( $file );
 
 		$existingHashes = $keepAdditional
-			? $this->getHashes( $file )
+			? $this->getChecksums( $file )
 			: [];
 
 		$newHashes = [];

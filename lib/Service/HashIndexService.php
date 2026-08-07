@@ -41,9 +41,6 @@ class HashIndexService
 			'adler32',
 		];
 
-	public const EVENT_TYPE_WRITE  = 'write';
-	public const EVENT_TYPE_CREATE = 'create';
-
 
 	public static function getDefaultAlgo(): string
 	{
@@ -217,6 +214,31 @@ class HashIndexService
 		$this->metadataService->clearMetadata( $fileId );
 
 		return 1;
+	}
+
+
+	public static function parseQueryTerm( string $term ): ?array
+	{
+
+		// Parse algo:hash or raw hash
+		if ( ! preg_match( '/^(?:([a-zA-F0-9]+):)?([a-fA-F0-9]{8,128})$/', $term, $matches ) )
+		{
+			// Not a valid hex hash
+			return null;
+		}
+
+		$hash = strtolower( $matches[2] );
+		$algo = $matches[1] ?? null;
+
+		if ( is_string( $algo ) )
+		{
+			$algo = strtolower( $algo );
+		}
+
+		return [
+			'algo' => $algo,
+			'hash' => $hash,
+		];
 	}
 
 }

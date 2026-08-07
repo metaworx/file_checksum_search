@@ -80,7 +80,7 @@ class FileListenerTest
 
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'markPending' )
-		                      ->with( 2, 'pending:lazy' )
+		                      ->with( 2, 'pending:auto' )
 		;
 
 		$this->listener->handle( $event );

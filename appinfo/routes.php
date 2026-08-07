@@ -57,22 +57,22 @@ return [
 
 		// Rule management
 		[
-			'name' => 'settings#listJobDefinitions',
+			'name' => 'settings#listRules',
 			'url'  => '/settings/cron/definitions',
 			'verb' => 'GET',
 		],
 		[
-			'name' => 'settings#saveJobDefinition',
+			'name' => 'settings#saveRule',
 			'url'  => '/settings/cron/save',
 			'verb' => 'POST',
 		],
 		[
-			'name' => 'settings#deleteJobDefinition',
+			'name' => 'settings#deleteRule',
 			'url'  => '/settings/cron/delete',
 			'verb' => 'POST',
 		],
 		[
-			'name' => 'settings#toggleJobDefinition',
+			'name' => 'settings#toggleRule',
 			'url'  => '/settings/cron/toggle',
 			'verb' => 'POST',
 		],

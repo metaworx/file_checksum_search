@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Search;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCP\Files\IRootFolder;
 use OCP\IURLGenerator;
@@ -82,24 +83,15 @@ class HashSearchProvider
 		}
 
 		// Parse algo:hash or raw hash
-		$algo = null;
+		$parsed = HashIndexService::parseQueryTerm( $term );
 
-		if ( preg_match( '/^([a-z0-9]+):([a-f0-9]{32,64})$/i', $term, $matches ) )
-		{
-			$algo = strtolower( $matches[1] );
-			$hash = strtolower( $matches[2] );
-		}
-		elseif ( ! preg_match( '/^[a-f0-9]{32,64}$/i', $term ) )
+		if ( $parsed === null )
 		{
 			// Not a valid hex hash
 			return SearchResult::complete( $this->getName(), [] );
 		}
-		else
-		{
-			$hash = strtolower( $term );
-		}
 
-		$rows = $this->metadataService->queryByHash( $hash, $algo, $query->getLimit() );
+		$rows = $this->metadataService->queryByHash( $parsed['hash'], $parsed['algo'], $query->getLimit() );
 
 		$userFolder = $this->rootFolder->getUserFolder( $user->getUID() );
 		$entries    = [];

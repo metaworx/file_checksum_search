@@ -313,7 +313,6 @@ class HashCalculationService
 		case 'force':
 			$this->metadataService->clearMetadata( $metadata, false );
 
-		case 'auto':
 		case 'missing':
 			foreach ( $algos as $algo )
 			{
@@ -331,13 +330,51 @@ class HashCalculationService
 						],
 					);
 
-					$this->metadataService->markPending( $fileId, 'pending:' . $mode );
+					$this->metadataService->markPending( $fileId, MetadataService::PENDING_PREFIX . $mode );
 
 					return;
 				}
 
 				$metadata->setString(
-					'file-checksum-' . $algo,
+					MetadataService::KEY_FILE_CHECKSUM_PREFIX . $algo,
+					$result['hash'],
+					true,
+				);
+			}
+			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, time() );
+
+			break;
+
+		case 'auto':
+			foreach ( $algos as $algo )
+			{
+				$metaKey = MetadataService::getHashKey( $algo );
+				if ( ! $metadata->hasKey( $metaKey ) )
+				{
+					continue;
+				}
+
+				$result = $this->recalcHash( $fileId, $algo, true, $metadata );
+
+				if ( ! $result['success'] )
+				{
+					$this->logger->warning(
+						'FCIAS: processFile recalcHash failed for algo {algo}',
+						[
+							'app'    => Application::APP_ID,
+							'fileId' => $fileId,
+							'algo'   => $algo,
+							'error'  => $result['error'] ?? 'unknown',
+						],
+					);
+
+					$this->metadataService->markPending( $fileId, MetadataService::PENDING_PREFIX . $mode );
+
+					return;
+				}
+
+				$metadata->setString(
+					MetadataService::KEY_FILE_CHECKSUM_PREFIX . $algo,
 					$result['hash'],
 					true,
 				);
@@ -371,7 +408,8 @@ class HashCalculationService
 	public function recalcAllExistingAlgos( int|File $file ): array
 	{
 
-		$file = $this->filecacheService->getFile($file);
+		$file     = $this->filecacheService->getFile( $file );
+		$metadata = $this->metadataService->getMetadata( $file );
 
 		// Check if any hash keys exist for this file in metadata
 		$count = $this->metadataService->countByFileId( $file->getId() );
@@ -382,12 +420,11 @@ class HashCalculationService
 		}
 		else
 		{
-			$algos = HashIndexService::SUPPORTED_ALGOS;
+			$algos = $this->metadataService->getHashes( $metadata );
 		}
 
 		$processed = 0;
 		$locked    = false;
-		$metadata  = $this->metadataService->getMetadata( $file );
 
 		foreach ( $algos as $algo )
 		{
@@ -445,10 +482,10 @@ class HashCalculationService
 
 		$fileId    = $file->getId();
 		$needsSave = $this->metadataService->ensureMetadata( $fileId, $metadata );
-		$hashes    = $this->filecacheService->getHashes( $file );
+		$checksums = $this->filecacheService->getChecksums( $file );
 
 		// Sync: copy hash from filecache.checksum → metadata
-		foreach ( $hashes as $prefix => $hexHash )
+		foreach ( $checksums as $prefix => $hexHash )
 		{
 			$metaKey = MetadataService::getHashKey( $prefix );
 			if ( ! $metadata->hasKey( $metaKey ) )

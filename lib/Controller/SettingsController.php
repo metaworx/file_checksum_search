@@ -66,7 +66,7 @@ class SettingsController
 	 * @noinspection PhpUnused
 	 */
 	#[NoCSRFRequired]
-	public function listJobDefinitions(): DataResponse
+	public function listRules(): DataResponse
 	{
 
 		$users = [];
@@ -97,7 +97,7 @@ class SettingsController
 	 *
 	 * @noinspection PhpUnused
 	 */
-	public function saveJobDefinition(): DataResponse
+	public function saveRule(): DataResponse
 	{
 
 		$body = json_decode( file_get_contents( 'php://input' ), true );
@@ -165,7 +165,7 @@ class SettingsController
 		catch ( Throwable $e )
 		{
 			$this->logger->error(
-				'FCIAS SettingsController: saveJobDefinition failed',
+				'FCIAS SettingsController: saveRule failed',
 				[
 					'app'       => Application::APP_ID,
 					'exception' => $e,
@@ -187,7 +187,7 @@ class SettingsController
 	 *
 	 * @noinspection PhpUnused
 	 */
-	public function deleteJobDefinition(): DataResponse
+	public function deleteRule(): DataResponse
 	{
 
 		$body = json_decode( file_get_contents( 'php://input' ), true );
@@ -213,7 +213,7 @@ class SettingsController
 		catch ( Throwable $e )
 		{
 			$this->logger->error(
-				'FCIAS SettingsController: deleteJobDefinition failed',
+				'FCIAS SettingsController: deleteRule failed',
 				[
 					'app'       => Application::APP_ID,
 					'id'        => $id,
@@ -236,7 +236,7 @@ class SettingsController
 	 *
 	 * @noinspection PhpUnused
 	 */
-	public function toggleJobDefinition(): DataResponse
+	public function toggleRule(): DataResponse
 	{
 
 		$body    = json_decode( file_get_contents( 'php://input' ), true );
@@ -263,7 +263,7 @@ class SettingsController
 		catch ( Throwable $e )
 		{
 			$this->logger->error(
-				'FCIAS SettingsController: toggleJobDefinition failed',
+				'FCIAS SettingsController: toggleRule failed',
 				[
 					'app'       => Application::APP_ID,
 					'id'        => $id,
