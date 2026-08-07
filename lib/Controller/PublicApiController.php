@@ -292,6 +292,12 @@ class PublicApiController
 			? ( $body['algo'] ?? null )
 			: null;
 
+		// Fall back to query-string parameter (used by frontend fetch calls)
+		if ( $algo === null )
+		{
+			$algo = $this->request->getParam( 'algo' );
+		}
+
 		$this->logger->debug(
 			'FCIAS PublicApiController: recalcHash called',
 			[

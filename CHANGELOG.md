@@ -14,6 +14,7 @@ the first stable release.
 ### Fixed
 
 - Fix the sidebar tab silently failing to register by importing the SVG icon as raw XML instead of a data URL, and add diagnostic logging around tab/action registration.
+- Fix recalcHash always defaulting to SHA-1 by also reading the algo parameter from the query string when the request body is empty.
 
 ## [0.10.0] — 2026-08-07
 
