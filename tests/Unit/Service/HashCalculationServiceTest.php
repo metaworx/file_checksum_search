@@ -329,4 +329,97 @@ class HashCalculationServiceTest
 		$this->service->processFile( 42, 'missing', [ 'sha1', 'sha256' ] );
 	}
 
+
+	public function testRecalcAllExistingAlgosOnlyRecalculatesExisting(): void
+	{
+
+		$fileId  = 99;
+		$file    = $this->createMock( \OCP\Files\File::class );
+		$file->method( 'getId' )
+		     ->willReturn( $fileId )
+		;
+
+		$metadata = $this->createMock( \OCP\FilesMetadata\Model\IFilesMetadata::class );
+
+		$this->filecacheService->expects( $this->once() )
+		                       ->method( 'getFile' )
+		                       ->with( $fileId )
+		                       ->willReturn( $file )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'getMetadata' )
+		                      ->with( $file )
+		                      ->willReturn( $metadata )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'countByFileId' )
+		                      ->with( $fileId )
+		                      ->willReturn( 2 )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'getHashes' )
+		                      ->with( $metadata )
+		                      ->willReturn( [ 'sha1', 'sha256' ] )
+		;
+
+		$this->service->expects( $this->exactly( 2 ) )
+		              ->method( 'recalcHash' )
+		              ->willReturnMap(
+			              [
+				              [ $file, 'sha1', true, $metadata, [ 'success' => true, 'hash' => 'aaa' ] ],
+				              [ $file, 'sha256', true, $metadata, [ 'success' => true, 'hash' => 'bbb' ] ],
+			              ],
+		              )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'saveMetadata' )
+		                      ->with( $metadata )
+		;
+
+		$result = $this->service->recalcAllExistingAlgos( $fileId );
+
+		$this->assertSame( 2, $result['processed'] );
+		$this->assertSame( [ 'sha1', 'sha256' ], $result['algos'] );
+		$this->assertFalse( $result['locked'] );
+	}
+
+
+	public function testGenerateMissingHashesCollectsAndGenerates(): void
+	{
+
+		$userId         = 'testuser';
+		$algo           = 'sha1';
+		$userFolderPath = '/testuser/files';
+
+		$this->filecacheService->expects( $this->once() )
+		                       ->method( 'getUserFolderPath' )
+		                       ->with( $userId )
+		                       ->willReturn( $userFolderPath )
+		;
+
+		$folderMock = $this->createMock( \OCP\Files\Folder::class );
+		$folderMock->method( 'get' )
+		           ->with( '' )
+		           ->willReturn( $folderMock )
+		;
+		$folderMock->method( 'getDirectoryListing' )
+		           ->willReturn( [] )
+		;
+
+		$this->filecacheService->expects( $this->once() )
+		                       ->method( 'getUserFolder' )
+		                       ->with( $userId )
+		                       ->willReturn( $folderMock )
+		;
+
+		$result = $this->service->generateMissingHashes( $userId, $algo );
+
+		$this->assertSame( 0, $result['processed'] );
+		$this->assertSame( 0, $result['skipped'] );
+	}
+
 }
