@@ -10,11 +10,13 @@ cookie*.txt
 .phpunit.result.cache
 
 /vendor
+/vendor-bin/*/vendor/
 /log/
 /.aiassistant/chat/
 /.aiassistant/messages/
 /.aiassistant/tools/commit-msg.txt
 /.aiassistant/temp/
+/tests/.phpunit.cache
 /.phpunit.cache/test-results
 /.nextcloudsync.log
 /node_modules
