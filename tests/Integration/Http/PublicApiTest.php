@@ -61,7 +61,7 @@ class PublicApiTest
 		$this->cleanupLeftovers();
 
 		// Use 127.0.0.1 to avoid NC HTTP client localhost SSRF block.
-		$this->baseUrl    = 'http://127.0.0.1/index.php/apps/file_checksum_search';
+		$this->baseUrl    = 'http://127.0.0.1/ocs/v2.php/apps/file_checksum_search';
 		$this->authHeader = 'Authorization: Basic '
 		                    . base64_encode( self::TEST_USER . ':' . self::TEST_PASSWORD );
 

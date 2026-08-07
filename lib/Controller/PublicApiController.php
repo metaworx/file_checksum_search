@@ -13,6 +13,7 @@ use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Public\ChecksumApi;
 use OCP\AppFramework\ApiController;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\Attribute\ApiRoute;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
@@ -51,6 +52,7 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[ApiRoute(verb: 'GET', url: '/api/v1/file/{fileId}/hashes')]
 	public function getHashes( int $fileId ): DataResponse
 	{
 
@@ -94,6 +96,7 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[ApiRoute(verb: 'GET', url: '/api/v1/status')]
 	public function getStatus(): DataResponse
 	{
 
@@ -133,6 +136,7 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[ApiRoute(verb: 'GET', url: '/api/v1/duplicates')]
 	public function findAllDuplicates(
 		?string $algo = null,
 		int     $minCount = 2,
@@ -182,6 +186,7 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[ApiRoute(verb: 'GET', url: '/api/v1/file/{fileId}/duplicates')]
 	public function findDuplicates( int $fileId ): DataResponse
 	{
 
@@ -225,6 +230,7 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[ApiRoute(verb: 'GET', url: '/api/v1/lookup')]
 	public function lookup(
 		string  $hash,
 		?string $algo = null,
@@ -277,6 +283,7 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[ApiRoute(verb: 'POST', url: '/api/v1/file/{fileId}/recalc')]
 	public function recalcHash( int $fileId ): DataResponse
 	{
 

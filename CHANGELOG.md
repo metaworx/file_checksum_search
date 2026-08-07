@@ -19,6 +19,7 @@ the first stable release.
 ### Changed
 
 - Update project metadata (code of conduct, license, app info, and composer info).
+- Migrate routing from appinfo/routes.php to PHP 8 attribute-based routing (#[ApiRoute]/#[FrontpageRoute]) across all controllers, per the Nextcloud 31+ standard.
 
 ## [0.9.1] — 2026-08-07
 

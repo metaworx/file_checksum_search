@@ -93,7 +93,7 @@ class ChecksumsSidebarTab extends HTMLElement {
 		container.innerHTML = `<p class="fcias-loading">${ escapeHtml( t( 'file_checksum_search', 'Loading checksums …' ) ) }</p>`
 
 		try {
-			const url = OC.generateUrl( '/apps/file_checksum_search/api/v1/file/{fileId}/hashes', {
+			const url = OC.generateUrl( 'file_checksum_search.publicapi.gethashes', {
 				fileId,
 			} )
 			const response = await fetch( url, { signal: this.#abortController.signal } )
@@ -146,7 +146,7 @@ class ChecksumsSidebarTab extends HTMLElement {
 					btn.disabled = true
 					btn.textContent = '…'
 					try {
-						const recalcUrl = OC.generateUrl( '/apps/file_checksum_search/api/v1/file/{fileId}/recalc', { fileId } )
+						const recalcUrl = OC.generateUrl( 'file_checksum_search.publicapi.recalchash', { fileId } )
 						const res = await fetch( recalcUrl + '?algo=' + algo, {
 							method: 'POST',
 							headers: { 'requesttoken': OC.requestToken },
@@ -205,7 +205,7 @@ class ChecksumsSidebarTab extends HTMLElement {
 
 		try {
 			const fileId = this.node?.fileid ?? this.node?.attributes?.fileid
-			const url = OC.generateUrl( '/apps/file_checksum_search/api/v1/file/{fileId}/duplicates', { fileId } )
+			const url = OC.generateUrl( 'file_checksum_search.publicapi.findduplicates', { fileId } )
 			const response = await fetch( url )
 			if ( !response.ok ) throw new Error( 'HTTP ' + response.status )
 			const data = await response.json()

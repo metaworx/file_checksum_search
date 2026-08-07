@@ -13,6 +13,8 @@ use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCP\AppFramework\ApiController;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\Attribute\ApiRoute;
+use OCP\AppFramework\Http\Attribute\FrontpageRoute;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
@@ -50,6 +52,7 @@ class DuplicatesController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[ApiRoute(verb: 'GET', url: '/duplicates/data')]
 	public function findAll(
 		?string $algo = null,
 		int     $minCount = 2,
@@ -203,6 +206,7 @@ class DuplicatesController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[FrontpageRoute(verb: 'GET', url: '/duplicates')]
 	public function index(): TemplateResponse
 	{
 

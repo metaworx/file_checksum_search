@@ -16,6 +16,8 @@ use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\StatusService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\Attribute\ApiRoute;
+use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\IRequest;
@@ -47,7 +49,9 @@ class SettingsController
 	 *
 	 * @noinspection PhpUnused
 	 */
+	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[ApiRoute(verb: 'GET', url: '/settings/status')]
 	public function getStatus(): DataResponse
 	{
 
@@ -65,7 +69,9 @@ class SettingsController
 	 *
 	 * @noinspection PhpUnused
 	 */
+	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[ApiRoute(verb: 'GET', url: '/settings/cron/definitions')]
 	public function listRules(): DataResponse
 	{
 
@@ -97,6 +103,8 @@ class SettingsController
 	 *
 	 * @noinspection PhpUnused
 	 */
+	#[NoAdminRequired]
+	#[ApiRoute(verb: 'POST', url: '/settings/cron/save')]
 	public function saveRule(): DataResponse
 	{
 
@@ -187,6 +195,8 @@ class SettingsController
 	 *
 	 * @noinspection PhpUnused
 	 */
+	#[NoAdminRequired]
+	#[ApiRoute(verb: 'POST', url: '/settings/cron/delete')]
 	public function deleteRule(): DataResponse
 	{
 
@@ -236,6 +246,8 @@ class SettingsController
 	 *
 	 * @noinspection PhpUnused
 	 */
+	#[NoAdminRequired]
+	#[ApiRoute(verb: 'POST', url: '/settings/cron/toggle')]
 	public function toggleRule(): DataResponse
 	{
 
@@ -287,7 +299,9 @@ class SettingsController
 	 *
 	 * @noinspection PhpUnused
 	 */
+	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[ApiRoute(verb: 'GET', url: '/settings/cron/snippet')]
 	public function getCrontabSnippet(): DataResponse
 	{
 
