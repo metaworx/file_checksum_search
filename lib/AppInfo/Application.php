@@ -16,12 +16,10 @@ use OCA\FileChecksumSearch\Listener\FileListener;
 use OCA\FileChecksumSearch\Listener\LoadDuplicatesScriptListener;
 use OCA\FileChecksumSearch\Listener\MetadataListener;
 use OCA\FileChecksumSearch\Search\HashSearchProvider;
-use OCA\FileChecksumSearch\Service\MetadataService;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
-use OCP\Server;
 
 class Application
 	extends
@@ -57,11 +55,6 @@ class Application
 
 	public function boot( IBootContext $context ): void
 	{
-
-		// Register metadata keys with oc_files_metadata
-		Server::get( MetadataService::class )
-		      ->register()
-		;
 	}
 
 }

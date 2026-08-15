@@ -85,6 +85,12 @@ class Version010000Date20260806100000
 		array   $options,
 	): void {
 
+		$output->info( 'FCIAS: registering metadata keys ...' );
+
+		Server::get( MetadataService::class )
+		      ->register()
+		;
+
 		$output->info(
 			sprintf( 'FCIAS: seeding %s index entries ...', MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ),
 		);
