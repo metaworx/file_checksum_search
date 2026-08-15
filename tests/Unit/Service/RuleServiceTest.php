@@ -10,7 +10,6 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
-use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
@@ -18,6 +17,8 @@ use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\IAppConfig;
+use OCP\IUser;
+use OCP\IUserManager;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -34,17 +35,17 @@ class RuleServiceTest
 	FciasUnitTestCase
 {
 
-	private MockObject|IAppConfig       $appConfig;
+	private MockObject|IAppConfig      $appConfig;
 
-	private MockObject|IRootFolder      $rootFolder;
+	private MockObject|IRootFolder     $rootFolder;
 
-	private MockObject|HashIndexService $hashIndexService;
+	private MockObject|IUserManager    $userManager;
 
-	private MockObject|MetadataService  $metadataService;
+	private MockObject|MetadataService $metadataService;
 
-	private MockObject|LoggerInterface  $logger;
+	private MockObject|LoggerInterface $logger;
 
-	private RuleService                 $service;
+	private RuleService                $service;
 
 
 	protected function setUp(): void
@@ -52,19 +53,49 @@ class RuleServiceTest
 
 		parent::setUp();
 
-		$this->appConfig        = $this->createMock( IAppConfig::class );
-		$this->rootFolder       = $this->createMock( IRootFolder::class );
-		$this->hashIndexService = $this->createMock( HashIndexService::class );
-		$this->metadataService  = $this->createMock( MetadataService::class );
-		$this->logger           = $this->createMock( LoggerInterface::class );
+		$this->appConfig       = $this->createMock( IAppConfig::class );
+		$this->rootFolder      = $this->createMock( IRootFolder::class );
+		$this->userManager     = $this->createMock( IUserManager::class );
+		$this->metadataService = $this->createMock( MetadataService::class );
+		$this->logger          = $this->createMock( LoggerInterface::class );
 
 		$this->service = new RuleService(
 			$this->appConfig,
 			$this->rootFolder,
-			$this->hashIndexService,
+			$this->userManager,
 			$this->metadataService,
 			$this->logger,
 		);
+	}
+
+
+	private function mockResolveAllUsers( array $uids ): void
+	{
+
+		$users = array_map(
+			fn(
+				string $uid,
+			) => $this->createConfiguredMock( IUser::class, [ 'getUID' => $uid ] ),
+			$uids,
+		);
+
+		$this->userManager->method( 'callForAllUsers' )
+		                  ->willReturnCallback(
+			                  function (
+				                  callable $callback,
+			                  ) use
+			                  (
+				                  $users,
+			                  ): void
+			                  {
+
+				                  foreach ( $users as $user )
+				                  {
+					                  $callback( $user );
+				                  }
+			                  },
+		                  )
+		;
 	}
 
 
@@ -76,7 +107,7 @@ class RuleServiceTest
 		            ->setConstructorArgs( [
 			            $this->appConfig,
 			            $this->rootFolder,
-			            $this->hashIndexService,
+			            $this->userManager,
 			            $this->metadataService,
 			            $this->logger,
 		            ] )
@@ -87,16 +118,22 @@ class RuleServiceTest
 
 
 	private function createFileMock(
-		int $id,
-		int $mtime = 1000,
+		int    $id,
+		int    $mtime = 1000,
 		string $path = '/files/test.txt',
 	): File&MockObject {
 
 		$file = $this->createMock( File::class );
-		$file->method( 'getId' )->willReturn( $id );
-		$file->method( 'getMTime' )->willReturn( $mtime );
+		$file->method( 'getId' )
+		     ->willReturn( $id )
+		;
+		$file->method( 'getMTime' )
+		     ->willReturn( $mtime )
+		;
 
-		$file->method( 'getPath' )->willReturn( $path );
+		$file->method( 'getPath' )
+		     ->willReturn( $path )
+		;
 
 		return $file;
 	}
@@ -107,7 +144,9 @@ class RuleServiceTest
 	): Folder&MockObject {
 
 		$folder = $this->createMock( Folder::class );
-		$folder->method( 'search' )->willReturn( $searchResults );
+		$folder->method( 'search' )
+		       ->willReturn( $searchResults )
+		;
 
 		return $folder;
 	}
@@ -146,7 +185,6 @@ class RuleServiceTest
 
 	// evaluateRules
 
-
 	public function testEvaluateRulesProcessesEnabledRules(): void
 	{
 
@@ -154,10 +192,7 @@ class RuleServiceTest
 
 		$this->setupRulesConfig( [ $rule ] );
 
-		$this->hashIndexService->method( 'resolveUsers' )
-		                       ->with( 'all' )
-		                       ->willReturn( [ 'user1' ] )
-		;
+		$this->mockResolveAllUsers( [ 'user1' ] );
 
 		$file = $this->createFileMock( 42 );
 
@@ -193,8 +228,8 @@ class RuleServiceTest
 		$this->setupRulesConfig( [ $rule ] );
 
 		// resolveUsers should NOT be called because the rule is disabled
-		$this->hashIndexService->expects( $this->never() )
-		                       ->method( 'resolveUsers' )
+		$this->userManager->expects( $this->never() )
+		                  ->method( 'callForAllUsers' )
 		;
 
 		$result = $this->service->evaluateRules();
@@ -210,14 +245,16 @@ class RuleServiceTest
 		$rule1 = $this->defaultRule( [ 'id' => 'r1' ] );
 		$rule2 = $this->defaultRule( [ 'id' => 'r2' ] );
 
-		$this->setupRulesConfig( [ $rule1, $rule2 ] );
+		$this->setupRulesConfig(
+			[
+				$rule1,
+				$rule2,
+			],
+		);
 
 		// Rule 1: resolve to user1
 		// Rule 2: resolve to user1 (same user, file excluded by rule1)
-		$this->hashIndexService->method( 'resolveUsers' )
-		                       ->with( 'all' )
-		                       ->willReturn( [ 'user1' ] )
-		;
+		$this->mockResolveAllUsers( [ 'user1' ] );
 
 		$file1 = $this->createFileMock( 42 );
 
@@ -255,17 +292,17 @@ class RuleServiceTest
 
 		$this->setupRulesConfig( [ $rule ] );
 
-		$this->hashIndexService->method( 'resolveUsers' )
-		                       ->with( 'all' )
-		                       ->willReturn( [ 'baduser' ] )
-		;
+		$this->mockResolveAllUsers( [ 'baduser' ] );
 
 		$this->rootFolder->method( 'getUserFolder' )
 		                 ->with( 'baduser' )
 		                 ->willThrowException(
 			                 new class( 'User folder not found' )
-				                 extends \Exception
-				                 implements Throwable {
+				                 extends
+				                 \Exception
+				                 implements
+				                 Throwable {
+
 			                 },
 		                 )
 		;
@@ -283,7 +320,6 @@ class RuleServiceTest
 
 	// processRule
 
-
 	public function testProcessRuleMarksStaleFiles(): void
 	{
 
@@ -295,10 +331,7 @@ class RuleServiceTest
 		        ->willReturn( [ $file ] )
 		;
 
-		$this->hashIndexService->method( 'resolveUsers' )
-		                       ->with( 'all' )
-		                       ->willReturn( [ 'user1' ] )
-		;
+		$this->mockResolveAllUsers( [ 'user1' ] );
 
 		$folder = $this->createFolderMock();
 
@@ -330,7 +363,9 @@ class RuleServiceTest
 
 		$file = $this->createFileMock( 42, 2000 );
 		// updatedAt >= mtime → fresh, skip
-		$file->method( 'getMTime' )->willReturn( 1000 );
+		$file->method( 'getMTime' )
+		     ->willReturn( 1000 )
+		;
 
 		$partial = $this->createRuleServicePartial( [ 'searchFiles' ] );
 
@@ -338,10 +373,7 @@ class RuleServiceTest
 		        ->willReturn( [ $file ] )
 		;
 
-		$this->hashIndexService->method( 'resolveUsers' )
-		                       ->with( 'all' )
-		                       ->willReturn( [ 'user1' ] )
-		;
+		$this->mockResolveAllUsers( [ 'user1' ] );
 
 		$folder = $this->createFolderMock();
 
@@ -383,10 +415,7 @@ class RuleServiceTest
 		        ->willReturn( $files )
 		;
 
-		$this->hashIndexService->method( 'resolveUsers' )
-		                       ->with( 'all' )
-		                       ->willReturn( [ 'user1' ] )
-		;
+		$this->mockResolveAllUsers( [ 'user1' ] );
 
 		$folder = $this->createFolderMock();
 
@@ -414,14 +443,18 @@ class RuleServiceTest
 
 	// searchFilesByGlob
 
-
 	public function testSearchFilesByGlobReturnsMatchingFiles(): void
 	{
 
 		$file1 = $this->createFileMock( 1, 1000, '/files/photos/img1.jpg' );
 		$file2 = $this->createFileMock( 2, 1000, '/files/docs/report.pdf' );
 
-		$folder = $this->createFolderMock( [ $file1, $file2 ] );
+		$folder = $this->createFolderMock(
+			[
+				$file1,
+				$file2,
+			],
+		);
 
 		$results = $this->service->searchFilesByGlob( $folder, '**/*.jpg', 10 );
 
@@ -483,7 +516,6 @@ class RuleServiceTest
 
 	// globToLike
 
-
 	public function testGlobToLikeConvertsGlobToSqlLike(): void
 	{
 
@@ -495,7 +527,6 @@ class RuleServiceTest
 
 
 	// ruleAdd
-
 
 	public function testRuleAddGeneratesIdAndPersists(): void
 	{
@@ -516,15 +547,17 @@ class RuleServiceTest
 			                Application::APP_ID,
 			                'rule_definitions',
 			                $this->callback(
-				                function ( string $json ): bool {
+				                function (
+					                string $json,
+				                ): bool {
 
 					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
 
 					                return is_array( $rules )
-					                       && count( $rules ) === 2
-					                       && isset( $rules[1]['id'] )
-					                       && strlen( $rules[1]['id'] ) === 32
-					                       && $rules[1]['path'] === 'Docs/*.pdf';
+						                && count( $rules ) === 2
+						                && isset( $rules[1]['id'] )
+						                && strlen( $rules[1]['id'] ) === 32
+						                && $rules[1]['path'] === 'Docs/*.pdf';
 				                },
 			                ),
 		                )
@@ -536,14 +569,19 @@ class RuleServiceTest
 
 	// ruleDelete
 
-
 	public function testRuleDeleteRemovesCorrectRule(): void
 	{
 
 		$rules = [
-			[ 'id' => 'r1', 'enabled' => true ],
-			[ 'id' => 'r2', 'enabled' => false ],
-			[ 'id' => 'r3', 'enabled' => true ],
+			[ 'id'      => 'r1',
+			  'enabled' => true,
+			],
+			[ 'id'      => 'r2',
+			  'enabled' => false,
+			],
+			[ 'id'      => 'r3',
+			  'enabled' => true,
+			],
 		];
 
 		$this->setupRulesConfig( $rules );
@@ -554,13 +592,15 @@ class RuleServiceTest
 			                Application::APP_ID,
 			                'rule_definitions',
 			                $this->callback(
-				                function ( string $json ): bool {
+				                function (
+					                string $json,
+				                ): bool {
 
 					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
 
 					                return count( $rules ) === 2
-					                       && $rules[0]['id'] === 'r1'
-					                       && $rules[1]['id'] === 'r3';
+						                && $rules[0]['id'] === 'r1'
+						                && $rules[1]['id'] === 'r3';
 				                },
 			                ),
 		                )
@@ -574,7 +614,9 @@ class RuleServiceTest
 	{
 
 		$rules = [
-			[ 'id' => 'r1', 'enabled' => true ],
+			[ 'id'      => 'r1',
+			  'enabled' => true,
+			],
 		];
 
 		$this->setupRulesConfig( $rules );
@@ -585,12 +627,14 @@ class RuleServiceTest
 			                Application::APP_ID,
 			                'rule_definitions',
 			                $this->callback(
-				                function ( string $json ): bool {
+				                function (
+					                string $json,
+				                ): bool {
 
 					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
 
 					                return count( $rules ) === 1
-					                       && $rules[0]['id'] === 'r1';
+						                && $rules[0]['id'] === 'r1';
 				                },
 			                ),
 		                )
@@ -602,13 +646,16 @@ class RuleServiceTest
 
 	// ruleToggle
 
-
 	public function testRuleToggleFlipsEnabled(): void
 	{
 
 		$rules = [
-			[ 'id' => 'r1', 'enabled' => true ],
-			[ 'id' => 'r2', 'enabled' => false ],
+			[ 'id'      => 'r1',
+			  'enabled' => true,
+			],
+			[ 'id'      => 'r2',
+			  'enabled' => false,
+			],
 		];
 
 		$this->setupRulesConfig( $rules );
@@ -619,7 +666,9 @@ class RuleServiceTest
 			                Application::APP_ID,
 			                'rule_definitions',
 			                $this->callback(
-				                function ( string $json ): bool {
+				                function (
+					                string $json,
+				                ): bool {
 
 					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
 
@@ -635,12 +684,14 @@ class RuleServiceTest
 
 	// ruleUpdate
 
-
 	public function testRuleUpdateReplacesFields(): void
 	{
 
 		$rules = [
-			[ 'id' => 'r1', 'enabled' => true, 'path' => '**' ],
+			[ 'id'      => 'r1',
+			  'enabled' => true,
+			  'path'    => '**',
+			],
 		];
 
 		$this->setupRulesConfig( $rules );
@@ -651,13 +702,15 @@ class RuleServiceTest
 			                Application::APP_ID,
 			                'rule_definitions',
 			                $this->callback(
-				                function ( string $json ): bool {
+				                function (
+					                string $json,
+				                ): bool {
 
 					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
 
 					                return $rules[0]['path'] === 'Docs/**'
-					                       && $rules[0]['mode'] === 'force'
-					                       && $rules[0]['id'] === 'r1';
+						                && $rules[0]['mode'] === 'force'
+						                && $rules[0]['id'] === 'r1';
 				                },
 			                ),
 		                )
@@ -671,7 +724,6 @@ class RuleServiceTest
 
 
 	// loadRules
-
 
 	public function testLoadRulesHandlesInvalidJson(): void
 	{
@@ -713,14 +765,22 @@ class RuleServiceTest
 
 	// findFirstMatchingRule
 
-
 	public function testFindFirstMatchingRuleReturnsFirstEnabledMatch(): void
 	{
 
 		$rules = [
-			[ 'id' => 'r1', 'enabled' => false, 'path' => '**/*.jpg' ],
-			[ 'id' => 'r2', 'enabled' => true, 'path' => '**/*.pdf' ],
-			[ 'id' => 'r3', 'enabled' => true, 'path' => '**/*.pdf' ],
+			[ 'id'      => 'r1',
+			  'enabled' => false,
+			  'path'    => '**/*.jpg',
+			],
+			[ 'id'      => 'r2',
+			  'enabled' => true,
+			  'path'    => '**/*.pdf',
+			],
+			[ 'id'      => 'r3',
+			  'enabled' => true,
+			  'path'    => '**/*.pdf',
+			],
 		];
 
 		$this->setupRulesConfig( $rules );
@@ -736,7 +796,10 @@ class RuleServiceTest
 	{
 
 		$rules = [
-			[ 'id' => 'r1', 'enabled' => true, 'path' => '**/*.jpg' ],
+			[ 'id'      => 'r1',
+			  'enabled' => true,
+			  'path'    => '**/*.jpg',
+			],
 		];
 
 		$this->setupRulesConfig( $rules );
@@ -744,6 +807,96 @@ class RuleServiceTest
 		$result = $this->service->findFirstMatchingRule( '/files/docs/report.pdf' );
 
 		$this->assertNull( $result );
+	}
+
+
+	// resolveUsers
+
+	public function testResolveUsersReturnsAllUsers(): void
+	{
+
+		$mockUsers = [
+			$this->createMock( IUser::class ),
+			$this->createMock( IUser::class ),
+			$this->createMock( IUser::class ),
+		];
+
+		$mockUsers[0]->method( 'getUID' )
+		             ->willReturn( 'alice' )
+		;
+		$mockUsers[1]->method( 'getUID' )
+		             ->willReturn( 'bob' )
+		;
+		$mockUsers[2]->method( 'getUID' )
+		             ->willReturn( 'carol' )
+		;
+
+		$this->userManager->expects( $this->once() )
+		                  ->method( 'callForAllUsers' )
+		                  ->willReturnCallback(
+			                  function (
+				                  callable $callback,
+			                  ) use
+			                  (
+				                  $mockUsers,
+			                  ): void
+			                  {
+
+				                  foreach ( $mockUsers as $user )
+				                  {
+					                  $callback( $user );
+				                  }
+			                  },
+		                  )
+		;
+
+		$result = $this->service->resolveUsers( 'all' );
+
+		$this->assertSame( [
+			'alice',
+			'bob',
+			'carol',
+		], $result );
+	}
+
+
+	public function testResolveUsersReturnsSpecificUser(): void
+	{
+
+		$user = $this->createMock( IUser::class );
+
+		$user->method( 'getUID' )
+		     ->willReturn( 'alice' )
+		;
+
+		$this->userManager->expects( $this->once() )
+		                  ->method( 'get' )
+		                  ->with( 'alice' )
+		                  ->willReturn( $user )
+		;
+
+		$result = $this->service->resolveUsers( 'alice' );
+
+		$this->assertSame( [ 'alice' ], $result );
+	}
+
+
+	public function testResolveUsersReturnsEmptyForUnknownUser(): void
+	{
+
+		$this->userManager->expects( $this->once() )
+		                  ->method( 'get' )
+		                  ->with( 'nonexistent' )
+		                  ->willReturn( null )
+		;
+
+		$this->logger->expects( $this->once() )
+		             ->method( 'warning' )
+		;
+
+		$result = $this->service->resolveUsers( 'nonexistent' );
+
+		$this->assertSame( [], $result );
 	}
 
 }

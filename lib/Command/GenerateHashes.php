@@ -15,9 +15,7 @@ use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
-use OCP\Files\File;
 use OCP\Files\Folder;
-use OCP\Files\NotFoundException;
 use OCP\User\Exceptions\UserNotFoundException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -44,6 +42,7 @@ class GenerateHashes
 
 		parent::__construct();
 	}
+
 
 	/**
 	 * Configure the generate command.
@@ -74,7 +73,7 @@ class GenerateHashes
 			     null,
 			     InputOption::VALUE_OPTIONAL,
 			     'Hash algorithm',
-			     HashIndexService::getDefaultAlgo(),
+			     HashCalculationService::getDefaultAlgo(),
 		     )
 		     ->addOption(
 			     'batch-size',
@@ -90,6 +89,7 @@ class GenerateHashes
 		     )
 		;
 	}
+
 
 	/**
 	 * Execute the generate command.
@@ -110,7 +110,7 @@ class GenerateHashes
 			: null;
 		$markOnly    = (bool) $input->getOption( 'mark' );
 
-		$users = $this->hashIndexService->resolveUsers( $userScope );
+		$users = $this->ruleService->resolveUsers( $userScope );
 
 		if ( empty( $users ) )
 		{
@@ -200,12 +200,13 @@ class GenerateHashes
 		return Command::SUCCESS;
 	}
 
+
 	/**
 	 * Mark-only mode: walk user folders and mark matching files as pending:auto.
 	 *
-	 * @param  string[]     $users
-	 * @param  string|null  $pathPattern
-	 * @param  int|null     $batchSize
+	 * @param  string[]         $users
+	 * @param  string|null      $pathPattern
+	 * @param  int|null         $batchSize
 	 * @param  OutputInterface  $output
 	 *
 	 * @return int
@@ -283,6 +284,7 @@ class GenerateHashes
 		return Command::SUCCESS;
 	}
 
+
 	/**
 	 * Mark files matching a path glob as pending:auto.
 	 *
@@ -291,9 +293,9 @@ class GenerateHashes
 	 * @return int Number of files marked
 	 */
 	private function markFolder(
-		Folder   $folder,
-		?string  $pathPattern,
-		?int     &$remaining,
+		Folder  $folder,
+		?string $pathPattern,
+		?int    &$remaining,
 	): int {
 
 		$files = $this->ruleService->searchFilesByGlob(

@@ -9,10 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Service;
 
-use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\Files\File;
-use OCP\IUserManager;
-use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -25,84 +22,18 @@ use Symfony\Component\Console\Output\OutputInterface;
  * - FilecacheService (filecache operations)
  *
  * Directly handles: user resolution.
+ *
+ * @noinspection PhpClassCanBeReadonlyInspection
  */
 class HashIndexService
 {
-
-	public const SUPPORTED_ALGOS
-		= [
-			'sha1',
-			'md5',
-			'sha256',
-			'sha512',
-			'sha3-256',
-			'sha3-512',
-			'crc32',
-			'adler32',
-		];
-
-
-	public static function getDefaultAlgo(): string
-	{
-
-		return self::SUPPORTED_ALGOS[0];
-	}
-
 
 	public function __construct(
 		private readonly HashCalculationService $hashCalc,
 		private readonly DuplicateService       $duplicates,
 		private readonly MetadataService        $metadataService,
 		private readonly FilecacheService       $filecacheService,
-		private readonly IUserManager           $userManager,
-		private readonly LoggerInterface        $logger,
 	) {
-	}
-
-
-	/**
-	 * @return string[]
-	 */
-	public function resolveUsers( string $userScope ): array
-	{
-
-		if ( $userScope === 'all' )
-		{
-			$allUsers = [];
-
-			$this->userManager->callForAllUsers(
-				function (
-					$user,
-				) use
-				(
-					&
-					$allUsers,
-				): void
-				{
-
-					$allUsers[] = $user->getUID();
-				},
-			);
-
-			return $allUsers;
-		}
-
-		$user = $this->userManager->get( $userScope );
-
-		if ( $user === null )
-		{
-			$this->logger->warning(
-				'FCIAS: resolveUsers — user not found.',
-				[
-					'app'       => Application::APP_ID,
-					'userScope' => $userScope,
-				],
-			);
-
-			return [];
-		}
-
-		return [ $user->getUID() ];
 	}
 
 
@@ -214,31 +145,6 @@ class HashIndexService
 		$this->metadataService->clearMetadata( $fileId );
 
 		return 1;
-	}
-
-
-	public static function parseQueryTerm( string $term ): ?array
-	{
-
-		// Parse algo:hash or raw hash
-		if ( ! preg_match( '/^(?:([a-zA-F0-9]+):)?([a-fA-F0-9]{8,128})$/', $term, $matches ) )
-		{
-			// Not a valid hex hash
-			return null;
-		}
-
-		$hash = strtolower( $matches[2] );
-		$algo = $matches[1] ?? null;
-
-		if ( is_string( $algo ) )
-		{
-			$algo = strtolower( $algo );
-		}
-
-		return [
-			'algo' => $algo,
-			'hash' => $hash,
-		];
 	}
 
 }

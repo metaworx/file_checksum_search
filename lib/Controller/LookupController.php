@@ -12,7 +12,7 @@ namespace OCA\FileChecksumSearch\Controller;
 use InvalidArgumentException;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Public\ChecksumApi;
-use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCP\AppFramework\ApiController;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\ApiRoute;
@@ -58,7 +58,7 @@ class LookupController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[ApiRoute(verb: 'GET', url: '/api/1.0/lookup/{hash}')]
+	#[ApiRoute( verb: 'GET', url: '/api/1.0/lookup/{hash}' )]
 	public function byHash(
 		string  $hash,
 		?string $algo = null,
@@ -109,7 +109,7 @@ class LookupController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[ApiRoute(verb: 'GET', url: '/api/1.0/file/{fileId}/hashes')]
+	#[ApiRoute( verb: 'GET', url: '/api/1.0/file/{fileId}/hashes' )]
 	public function getHashesByFileId( int $fileId ): DataResponse
 	{
 
@@ -155,7 +155,7 @@ class LookupController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[ApiRoute(verb: 'GET', url: '/api/1.0/file/{fileId}/duplicates')]
+	#[ApiRoute( verb: 'GET', url: '/api/1.0/file/{fileId}/duplicates' )]
 	public function sameHash( int $fileId ): DataResponse
 	{
 
@@ -198,13 +198,13 @@ class LookupController
 	 * @noinspection PhpUnused
 	 */
 	#[NoAdminRequired]
-	#[ApiRoute(verb: 'POST', url: '/api/1.0/file/{fileId}/recalc')]
+	#[ApiRoute( verb: 'POST', url: '/api/1.0/file/{fileId}/recalc' )]
 	public function recalcHash(
 		int     $fileId,
 		?string $algo = null,
 	): DataResponse {
 
-		$algo ??= HashIndexService::getDefaultAlgo();
+		$algo ??= HashCalculationService::getDefaultAlgo();
 
 		$this->logger->debug(
 			'FCIAS LookupController: recalcHash called',

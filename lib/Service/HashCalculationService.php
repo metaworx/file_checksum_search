@@ -26,18 +26,37 @@ use Throwable;
  * Handles file-level hash operations: computing new hashes,
  * recalculating existing ones, and the two-phase collection+generate
  * pattern for batch hash generation.
- *
- * @noinspection PhpClassCanBeReadonlyInspection
  */
 class HashCalculationService
 {
+
+	public const SUPPORTED_ALGOS
+		= [
+			'sha1',
+			'md5',
+			'adler32',
+			'crc32',
+			'sha256',
+			'sha512',
+			'sha3-256',
+			'sha3-512',
+		];
+
 
 	public function __construct(
 		private readonly FilecacheService $filecacheService,
 		private readonly ILockingProvider $lockingProvider,
 		private readonly MetadataService  $metadataService,
+		private readonly RuleService      $ruleService,
 		private readonly LoggerInterface  $logger,
 	) {
+	}
+
+
+	public static function getDefaultAlgo(): string
+	{
+
+		return self::SUPPORTED_ALGOS[0];
 	}
 
 
@@ -302,6 +321,41 @@ class HashCalculationService
 	): void {
 
 		$metadata = $this->metadataService->getMetadata( $fileId );
+		$file     = null;
+
+		if ( $mode === MetadataService::PENDING_MODE_NEW )
+		{
+			try
+			{
+				$file = $this->filecacheService->getFile( $fileId );
+				$rule = $this->ruleService->findFirstMatchingRule( $file->getPath() );
+
+				if ( $rule !== null )
+				{
+					$mode  = $rule['mode'] ?? MetadataService::PENDING_MODE_AUTO;
+					$algos = $rule['algos'] ?? self::SUPPORTED_ALGOS;
+				}
+				else
+				{
+					$mode  = MetadataService::PENDING_MODE_AUTO;
+					$algos = self::SUPPORTED_ALGOS;
+				}
+			}
+			catch ( Throwable $e )
+			{
+				$this->logger->warning(
+					'FCIAS: processFile unable to resolve rule for fileId {fileId}, defaulting to auto.',
+					[
+						'app'       => Application::APP_ID,
+						'fileId'    => $fileId,
+						'exception' => $e,
+					],
+				);
+
+				$mode  = MetadataService::PENDING_MODE_AUTO;
+				$algos = self::SUPPORTED_ALGOS;
+			}
+		}
 
 		switch ( $mode )
 		{
@@ -321,7 +375,7 @@ class HashCalculationService
 		case 'missing':
 			foreach ( $algos as $algo )
 			{
-				$result = $this->recalcHash( $fileId, $algo, true, $metadata );
+				$result = $this->recalcHash( $file ?? $fileId, $algo, true, $metadata );
 
 				if ( ! $result['success'] )
 				{
@@ -359,7 +413,7 @@ class HashCalculationService
 					continue;
 				}
 
-				$result = $this->recalcHash( $fileId, $algo, true, $metadata );
+				$result = $this->recalcHash( $file ?? $fileId, $algo, true, $metadata );
 
 				if ( ! $result['success'] )
 				{
@@ -421,7 +475,7 @@ class HashCalculationService
 
 		if ( $count === 0 )
 		{
-			$algos = [ HashIndexService::getDefaultAlgo() ];
+			$algos = [ self::getDefaultAlgo() ];
 		}
 		else
 		{
@@ -474,7 +528,7 @@ class HashCalculationService
 
 		$algo = strtolower( $algo );
 
-		if ( ! in_array( $algo, HashIndexService::SUPPORTED_ALGOS, true ) )
+		if ( ! in_array( $algo, self::SUPPORTED_ALGOS, true ) )
 		{
 			return [
 				'success' => false,

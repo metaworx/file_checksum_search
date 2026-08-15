@@ -14,11 +14,8 @@ use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
-use OCP\IUser;
-use OCP\IUserManager;
-use PHPUnit\Framework\MockObject\MockObject;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
-use Psr\Log\LoggerInterface;
+use PHPUnit\Framework\MockObject\MockObject;
 
 class HashIndexServiceTest
 	extends
@@ -33,10 +30,6 @@ class HashIndexServiceTest
 
 	private MockObject|FilecacheService       $filecacheService;
 
-	private MockObject|IUserManager           $userManager;
-
-	private MockObject|LoggerInterface        $logger;
-
 	private HashIndexService                  $service;
 
 
@@ -49,16 +42,12 @@ class HashIndexServiceTest
 		$this->duplicates       = $this->createMock( DuplicateService::class );
 		$this->metadataService  = $this->createMock( MetadataService::class );
 		$this->filecacheService = $this->createMock( FilecacheService::class );
-		$this->userManager      = $this->createMock( IUserManager::class );
-		$this->logger           = $this->createMock( LoggerInterface::class );
 
 		$this->service = new HashIndexService(
 			$this->hashCalc,
 			$this->duplicates,
 			$this->metadataService,
 			$this->filecacheService,
-			$this->userManager,
-			$this->logger,
 		);
 	}
 
@@ -66,14 +55,14 @@ class HashIndexServiceTest
 	public function testGetDefaultAlgoReturnsSha1(): void
 	{
 
-		$this->assertSame( 'sha1', HashIndexService::getDefaultAlgo() );
+		$this->assertSame( 'sha1', HashCalculationService::getDefaultAlgo() );
 	}
 
 
 	public function testSupportedAlgosContainsExpectedValues(): void
 	{
 
-		$algos = HashIndexService::SUPPORTED_ALGOS;
+		$algos = HashCalculationService::SUPPORTED_ALGOS;
 
 		$this->assertContains( 'sha1', $algos );
 		$this->assertContains( 'sha256', $algos );
@@ -190,92 +179,6 @@ class HashIndexServiceTest
 	}
 
 
-	public function testResolveUsersReturnsAllUsers(): void
-	{
-
-		$mockUsers = [
-			$this->createMock( IUser::class ),
-			$this->createMock( IUser::class ),
-			$this->createMock( IUser::class ),
-		];
-
-		$mockUsers[0]->method( 'getUID' )
-		             ->willReturn( 'alice' )
-		;
-		$mockUsers[1]->method( 'getUID' )
-		             ->willReturn( 'bob' )
-		;
-		$mockUsers[2]->method( 'getUID' )
-		             ->willReturn( 'carol' )
-		;
-
-		$this->userManager->expects( $this->once() )
-		                  ->method( 'callForAllUsers' )
-		                  ->willReturnCallback(
-			                  function ( callable $callback ) use
-			                  (
-			                      $mockUsers,
-			                  ): void
-			                  {
-
-				                  foreach ( $mockUsers as $user )
-				                  {
-					                  $callback( $user );
-				                  }
-			                  },
-		                  )
-		;
-
-		$result = $this->service->resolveUsers( 'all' );
-
-		$this->assertSame( [
-			                   'alice',
-			                   'bob',
-			                   'carol',
-		                   ], $result );
-	}
-
-
-	public function testResolveUsersReturnsSpecificUser(): void
-	{
-
-		$user = $this->createMock( IUser::class );
-
-		$user->method( 'getUID' )
-		     ->willReturn( 'alice' )
-		;
-
-		$this->userManager->expects( $this->once() )
-		                  ->method( 'get' )
-		                  ->with( 'alice' )
-		                  ->willReturn( $user )
-		;
-
-		$result = $this->service->resolveUsers( 'alice' );
-
-		$this->assertSame( [ 'alice' ], $result );
-	}
-
-
-	public function testResolveUsersReturnsEmptyForUnknownUser(): void
-	{
-
-		$this->userManager->expects( $this->once() )
-		                  ->method( 'get' )
-		                  ->with( 'nonexistent' )
-		                  ->willReturn( null )
-		;
-
-		$this->logger->expects( $this->once() )
-		             ->method( 'warning' )
-		;
-
-		$result = $this->service->resolveUsers( 'nonexistent' );
-
-		$this->assertSame( [], $result );
-	}
-
-
 	public function testGenerateMissingHashesWithPathPattern(): void
 	{
 
@@ -306,51 +209,6 @@ class HashIndexServiceTest
 			],
 			$result,
 		);
-	}
-
-
-	public function testParseQueryTermWith8CharHex(): void
-	{
-
-		$result = HashIndexService::parseQueryTerm( '1a2b3c4d' );
-
-		$this->assertNotNull( $result );
-		$this->assertSame( '1a2b3c4d', $result['hash'] );
-		$this->assertSame( '', $result['algo'] );
-	}
-
-
-	public function testParseQueryTermWith128CharHex(): void
-	{
-
-		$hex128 = str_repeat( 'a', 128 );
-
-		$result = HashIndexService::parseQueryTerm( $hex128 );
-
-		$this->assertNotNull( $result );
-		$this->assertSame( $hex128, $result['hash'] );
-		$this->assertSame( '', $result['algo'] );
-	}
-
-
-	public function testParseQueryTermWithAlgoColonFormat(): void
-	{
-
-		$result = HashIndexService::parseQueryTerm( 'sha256:abcdef1234567890abcdef1234567890abcdef12' );
-
-		$this->assertNotNull( $result );
-		$this->assertSame( 'abcdef1234567890abcdef1234567890abcdef12', $result['hash'] );
-		$this->assertSame( 'sha256', $result['algo'] );
-	}
-
-
-	public function testParseQueryTermWithInvalidFormat(): void
-	{
-
-		$this->assertNull( HashIndexService::parseQueryTerm( '' ) );
-		$this->assertNull( HashIndexService::parseQueryTerm( 'not-a-hash' ) );
-		$this->assertNull( HashIndexService::parseQueryTerm( 'abc' ) );
-		$this->assertNull( HashIndexService::parseQueryTerm( 'sha256:xyz' ) );
 	}
 
 }

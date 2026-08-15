@@ -10,7 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use OCA\FileChecksumSearch\Service\FilecacheService;
-use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\DB\IResult;
@@ -62,10 +62,55 @@ class MetadataServiceTest
 	}
 
 
+	public function testParseQueryTermWith8CharHex(): void
+	{
+
+		$result = MetadataService::parseQueryTerm( '1a2b3c4d' );
+
+		$this->assertNotNull( $result );
+		$this->assertSame( '1a2b3c4d', $result['hash'] );
+		$this->assertSame( '', $result['algo'] );
+	}
+
+
+	public function testParseQueryTermWith128CharHex(): void
+	{
+
+		$hex128 = str_repeat( 'a', 128 );
+
+		$result = MetadataService::parseQueryTerm( $hex128 );
+
+		$this->assertNotNull( $result );
+		$this->assertSame( $hex128, $result['hash'] );
+		$this->assertSame( '', $result['algo'] );
+	}
+
+
+	public function testParseQueryTermWithAlgoColonFormat(): void
+	{
+
+		$result = MetadataService::parseQueryTerm( 'sha256:abcdef1234567890abcdef1234567890abcdef12' );
+
+		$this->assertNotNull( $result );
+		$this->assertSame( 'abcdef1234567890abcdef1234567890abcdef12', $result['hash'] );
+		$this->assertSame( 'sha256', $result['algo'] );
+	}
+
+
+	public function testParseQueryTermWithInvalidFormat(): void
+	{
+
+		$this->assertNull( MetadataService::parseQueryTerm( '' ) );
+		$this->assertNull( MetadataService::parseQueryTerm( 'not-a-hash' ) );
+		$this->assertNull( MetadataService::parseQueryTerm( 'abc' ) );
+		$this->assertNull( MetadataService::parseQueryTerm( 'sha256:xyz' ) );
+	}
+
+
 	public function testRegisterInitializesAllAlgoKeys(): void
 	{
 
-		$expectedCalls = count( HashIndexService::SUPPORTED_ALGOS ) + 1;
+		$expectedCalls = count( HashCalculationService::SUPPORTED_ALGOS ) + 1;
 
 		$this->metadataManager->expects( $this->exactly( $expectedCalls ) )
 		                      ->method( 'initMetadata' )
@@ -129,7 +174,7 @@ class MetadataServiceTest
 
 		$this->service->register();
 
-		foreach ( HashIndexService::SUPPORTED_ALGOS as $algo )
+		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
 		{
 			$this->assertContains(
 				'file-checksum-' . $algo,
@@ -646,7 +691,7 @@ class MetadataServiceTest
 		         ->willReturn( 42 )
 		;
 
-		$algoCount = count( HashIndexService::SUPPORTED_ALGOS );
+		$algoCount = count( HashCalculationService::SUPPORTED_ALGOS );
 		$metadata->expects( $this->exactly( $algoCount ) )
 		         ->method( 'getString' )
 		         ->willReturn( 'dummyhash' )

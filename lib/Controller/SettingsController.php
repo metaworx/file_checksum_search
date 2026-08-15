@@ -10,7 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Controller;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
-use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\StatusService;
@@ -31,13 +31,13 @@ class SettingsController
 {
 
 	public function __construct(
-		string                                 $appName,
-		IRequest                               $request,
-		private readonly LoggerInterface       $logger,
-		private readonly StatusService         $statusService,
-		private readonly IUserManager          $userManager,
-		private readonly RuleService           $ruleService,
-		private readonly MetadataService       $metadataService,
+		string                           $appName,
+		IRequest                         $request,
+		private readonly LoggerInterface $logger,
+		private readonly StatusService   $statusService,
+		private readonly IUserManager    $userManager,
+		private readonly RuleService     $ruleService,
+		private readonly MetadataService $metadataService,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -51,7 +51,7 @@ class SettingsController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[ApiRoute(verb: 'GET', url: '/settings/status')]
+	#[ApiRoute( verb: 'GET', url: '/settings/status' )]
 	public function getStatus(): DataResponse
 	{
 
@@ -71,7 +71,7 @@ class SettingsController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[ApiRoute(verb: 'GET', url: '/settings/cron/definitions')]
+	#[ApiRoute( verb: 'GET', url: '/settings/cron/definitions' )]
 	public function listRules(): DataResponse
 	{
 
@@ -92,7 +92,7 @@ class SettingsController
 
 		return new DataResponse( [
 			'definitions'    => $this->ruleService->loadRules(),
-			'supportedAlgos' => HashIndexService::SUPPORTED_ALGOS,
+			'supportedAlgos' => HashCalculationService::SUPPORTED_ALGOS,
 			'users'          => $users,
 		] );
 	}
@@ -104,7 +104,7 @@ class SettingsController
 	 * @noinspection PhpUnused
 	 */
 	#[NoAdminRequired]
-	#[ApiRoute(verb: 'POST', url: '/settings/cron/save')]
+	#[ApiRoute( verb: 'POST', url: '/settings/cron/save' )]
 	public function saveRule(): DataResponse
 	{
 
@@ -121,17 +121,21 @@ class SettingsController
 			);
 		}
 
-		$algos = $body['algos'] ?? [ HashIndexService::getDefaultAlgo() ];
+		$algos = $body['algos'] ?? [ HashCalculationService::getDefaultAlgo() ];
 
 		if ( ! is_array( $algos ) )
 		{
 			$algos = [ $algos ];
 		}
 
-		$algos = array_values( array_filter(
-			$algos,
-			static fn( $a ): bool => is_string( $a ) && in_array( $a, HashIndexService::SUPPORTED_ALGOS, true ),
-		) );
+		$algos = array_values(
+			array_filter(
+				$algos,
+				static fn(
+					$a,
+				): bool => is_string( $a ) && in_array( $a, HashCalculationService::SUPPORTED_ALGOS, true ),
+			),
+		);
 
 		if ( empty( $algos ) )
 		{
@@ -196,7 +200,7 @@ class SettingsController
 	 * @noinspection PhpUnused
 	 */
 	#[NoAdminRequired]
-	#[ApiRoute(verb: 'POST', url: '/settings/cron/delete')]
+	#[ApiRoute( verb: 'POST', url: '/settings/cron/delete' )]
 	public function deleteRule(): DataResponse
 	{
 
@@ -247,7 +251,7 @@ class SettingsController
 	 * @noinspection PhpUnused
 	 */
 	#[NoAdminRequired]
-	#[ApiRoute(verb: 'POST', url: '/settings/cron/toggle')]
+	#[ApiRoute( verb: 'POST', url: '/settings/cron/toggle' )]
 	public function toggleRule(): DataResponse
 	{
 
@@ -301,13 +305,13 @@ class SettingsController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[ApiRoute(verb: 'GET', url: '/settings/cron/snippet')]
+	#[ApiRoute( verb: 'GET', url: '/settings/cron/snippet' )]
 	public function getCrontabSnippet(): DataResponse
 	{
 
 		$userScope = $this->request->getParam( 'userScope', 'all' );
 		$path      = $this->request->getParam( 'path', '/' );
-		$algo      = $this->request->getParam( 'algo', HashIndexService::getDefaultAlgo() );
+		$algo      = $this->request->getParam( 'algo', HashCalculationService::getDefaultAlgo() );
 		$batchSize = (int) $this->request->getParam( 'batchSize', 100 );
 		$interval  = (int) $this->request->getParam( 'interval', 900 );
 

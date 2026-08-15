@@ -12,7 +12,6 @@ namespace OCA\FileChecksumSearch\BackgroundJob;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
-use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJobList;
@@ -108,7 +107,7 @@ class ProcessPendingUpdates
 					$this->hashCalc->processFile(
 						$fileId,
 						$mode,
-						HashIndexService::SUPPORTED_ALGOS,
+						HashCalculationService::SUPPORTED_ALGOS,
 					);
 
 					$processed ++;

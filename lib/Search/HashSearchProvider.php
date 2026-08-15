@@ -10,7 +10,6 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Search;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
-use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCP\Files\IRootFolder;
 use OCP\IURLGenerator;
@@ -83,7 +82,7 @@ class HashSearchProvider
 		}
 
 		// Parse algo:hash or raw hash
-		$parsed = HashIndexService::parseQueryTerm( $term );
+		$parsed = MetadataService::parseQueryTerm( $term );
 
 		if ( $parsed === null )
 		{

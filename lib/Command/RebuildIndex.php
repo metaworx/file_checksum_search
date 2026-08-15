@@ -37,6 +37,7 @@ class RebuildIndex
 		parent::__construct();
 	}
 
+
 	/**
 	 * Configure the rebuild command.
 	 *
@@ -56,6 +57,7 @@ class RebuildIndex
 		     )
 		;
 	}
+
 
 	/**
 	 * Execute the rebuild command.
@@ -119,7 +121,7 @@ class RebuildIndex
 				$this->hashCalc->processFile(
 					$fileId,
 					$mode,
-					HashIndexService::SUPPORTED_ALGOS,
+					HashCalculationService::SUPPORTED_ALGOS,
 				);
 				$processed ++;
 			}

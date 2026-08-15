@@ -10,7 +10,6 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Integration\Service;
 
 use OCA\FileChecksumSearch\Service\HashCalculationService;
-use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
 use OCP\Files\IRootFolder;
 use OCP\Server;
@@ -157,17 +156,17 @@ class HashCalculationServiceTest
 	public function testSupportedAlgosContainsAllTestedValues(): void
 	{
 
-		$this->assertContains( 'sha1', HashIndexService::SUPPORTED_ALGOS );
-		$this->assertContains( 'sha256', HashIndexService::SUPPORTED_ALGOS );
-		$this->assertContains( 'sha512', HashIndexService::SUPPORTED_ALGOS );
-		$this->assertContains( 'md5', HashIndexService::SUPPORTED_ALGOS );
+		$this->assertContains( 'sha1', HashCalculationService::SUPPORTED_ALGOS );
+		$this->assertContains( 'sha256', HashCalculationService::SUPPORTED_ALGOS );
+		$this->assertContains( 'sha512', HashCalculationService::SUPPORTED_ALGOS );
+		$this->assertContains( 'md5', HashCalculationService::SUPPORTED_ALGOS );
 	}
 
 
 	public function testDefaultAlgoIsSha1(): void
 	{
 
-		$this->assertSame( 'sha1', HashIndexService::getDefaultAlgo() );
+		$this->assertSame( 'sha1', HashCalculationService::getDefaultAlgo() );
 	}
 
 }

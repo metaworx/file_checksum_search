@@ -18,6 +18,7 @@ use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\Files\Search\ISearchComparison;
 use OCP\IAppConfig;
+use OCP\IUserManager;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -36,11 +37,11 @@ class RuleService
 
 
 	public function __construct(
-		private readonly IAppConfig       $appConfig,
-		private readonly IRootFolder      $rootFolder,
-		private readonly HashIndexService $hashIndexService,
-		private readonly MetadataService  $metadataService,
-		private readonly LoggerInterface  $logger,
+		private readonly IAppConfig      $appConfig,
+		private readonly IRootFolder     $rootFolder,
+		private readonly IUserManager    $userManager,
+		private readonly MetadataService $metadataService,
+		private readonly LoggerInterface $logger,
 	) {
 	}
 
@@ -53,6 +54,52 @@ class RuleService
 	 *
 	 * @return array{marked: int, matched: int}
 	 */
+	/**
+	 * @return string[]
+	 */
+	public function resolveUsers( string $userScope ): array
+	{
+
+		if ( $userScope === 'all' )
+		{
+			$allUsers = [];
+
+			$this->userManager->callForAllUsers(
+				function (
+					$user,
+				) use
+				(
+					&
+					$allUsers,
+				): void
+				{
+
+					$allUsers[] = $user->getUID();
+				},
+			);
+
+			return $allUsers;
+		}
+
+		$user = $this->userManager->get( $userScope );
+
+		if ( $user === null )
+		{
+			$this->logger->warning(
+				'FCIAS: resolveUsers — user not found.',
+				[
+					'app'       => Application::APP_ID,
+					'userScope' => $userScope,
+				],
+			);
+
+			return [];
+		}
+
+		return [ $user->getUID() ];
+	}
+
+
 	public function evaluateRules(): array
 	{
 
@@ -152,7 +199,7 @@ class RuleService
 			$pathGlob = '**';
 		}
 
-		$users = $this->hashIndexService->resolveUsers( $userScope );
+		$users = $this->resolveUsers( $userScope );
 
 		foreach ( $users as $userId )
 		{

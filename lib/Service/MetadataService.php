@@ -83,7 +83,7 @@ class MetadataService
 
 		$hashes = [];
 
-		foreach ( HashIndexService::SUPPORTED_ALGOS as $algo )
+		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
 		{
 			$key = self::getHashKey( $algo );
 			try
@@ -113,9 +113,9 @@ class MetadataService
 	 *                          extracted and JSON-decoded
 	 * - array (no meta_json):  Already-decoded associative array, used as-is
 	 *
-	 * @param int|File          $file         File ID or File node
-	 * @param string|array|null $rawMetadata  Raw metadata (see above) or
-	 *                                        null to load from manager
+	 * @param  int|File           $file         File ID or File node
+	 * @param  string|array|null  $rawMetadata  Raw metadata (see above) or
+	 *                                          null to load from manager
 	 */
 	public function getMetadata(
 		int|File          $file,
@@ -451,6 +451,7 @@ class MetadataService
 		}
 	}
 
+
 	/**
 	 * Parse a pending mode string by stripping the 'pending:' prefix.
 	 *
@@ -573,19 +574,19 @@ class MetadataService
 			   'i.' . self::FIELD_FILE_ID . ' = m.' . self::FIELD_FILE_ID,
 		   )
 		   ->where(
-		    $qb->expr()
-		       ->andX(
-		        $qb->expr()
-		           ->like(
-		            'i.' . self::FIELD_META_KEY,
-		            $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ),
-		           ),
-		        $qb->expr()
-		           ->neq(
-		            'i.' . self::FIELD_META_KEY,
-		            $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
-		           ),
-		       ),
+			   $qb->expr()
+			      ->andX(
+				      $qb->expr()
+				         ->like(
+					         'i.' . self::FIELD_META_KEY,
+					         $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ),
+				         ),
+				      $qb->expr()
+				         ->neq(
+					         'i.' . self::FIELD_META_KEY,
+					         $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+				         ),
+			      ),
 		   )
 		   ->groupBy( 'i.' . self::FIELD_META_VALUE_STRING )
 		   ->addGroupBy( 'i.' . self::FIELD_META_KEY )
@@ -656,7 +657,7 @@ class MetadataService
 	public function register(): void
 	{
 
-		foreach ( HashIndexService::SUPPORTED_ALGOS as $algo )
+		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
 		{
 			$this->metadataManager->initMetadata(
 				self::KEY_FILE_CHECKSUM_PREFIX . $algo,
@@ -799,6 +800,31 @@ SQL,
 	{
 
 		return self::KEY_FILE_CHECKSUM_PREFIX . strtolower( $algo );
+	}
+
+
+	public static function parseQueryTerm( string $term ): ?array
+	{
+
+		// Parse algo:hash or raw hash
+		if ( ! preg_match( '/^(?:([a-zA-F0-9]+):)?([a-fA-F0-9]{8,128})$/', $term, $matches ) )
+		{
+			// Not a valid hex hash
+			return null;
+		}
+
+		$hash = strtolower( $matches[2] );
+		$algo = $matches[1] ?? null;
+
+		if ( is_string( $algo ) )
+		{
+			$algo = strtolower( $algo );
+		}
+
+		return [
+			'algo' => $algo,
+			'hash' => $hash,
+		];
 	}
 
 }

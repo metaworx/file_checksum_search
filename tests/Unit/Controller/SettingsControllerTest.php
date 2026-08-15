@@ -11,7 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
 use OCA\FileChecksumSearch\Controller\SettingsController;
 use OCA\FileChecksumSearch\Service\DatabaseService;
-use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\StatusService;
@@ -195,7 +195,7 @@ class SettingsControllerTest
 		$data = $response->getData();
 
 		$this->assertSame( $definitions, $data['definitions'] );
-		$this->assertSame( HashIndexService::SUPPORTED_ALGOS, $data['supportedAlgos'] );
+		$this->assertSame( HashCalculationService::SUPPORTED_ALGOS, $data['supportedAlgos'] );
 		$this->assertSame(
 			[
 				'alice',

@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\Lock\ILockingProvider;
@@ -29,16 +30,18 @@ class HashCalculationServiceTest
 	FciasUnitTestCase
 {
 
-	private FilecacheService&MockObject    $filecacheService;
+	private FilecacheService&MockObject $filecacheService;
 
-	private ILockingProvider&MockObject    $lockingProvider;
+	private ILockingProvider&MockObject $lockingProvider;
 
-	private MetadataService&MockObject     $metadataService;
+	private MetadataService&MockObject  $metadataService;
 
-	private LoggerInterface&MockObject     $logger;
+	private RuleService&MockObject      $ruleService;
+
+	private LoggerInterface&MockObject  $logger;
 
 	/** @var HashCalculationService&MockObject */
-	private HashCalculationService         $service;
+	private HashCalculationService $service;
 
 
 	protected function setUp(): void
@@ -49,6 +52,7 @@ class HashCalculationServiceTest
 		$this->filecacheService = $this->createMock( FilecacheService::class );
 		$this->lockingProvider  = $this->createMock( ILockingProvider::class );
 		$this->metadataService  = $this->createMock( MetadataService::class );
+		$this->ruleService      = $this->createMock( RuleService::class );
 		$this->logger           = $this->createMock( LoggerInterface::class );
 
 		$this->service = $this->getMockBuilder( HashCalculationService::class )
@@ -58,6 +62,7 @@ class HashCalculationServiceTest
 				                      $this->filecacheService,
 				                      $this->lockingProvider,
 				                      $this->metadataService,
+				                      $this->ruleService,
 				                      $this->logger,
 			                      ],
 		                      )
@@ -91,7 +96,14 @@ class HashCalculationServiceTest
 		              ->method( 'recalcHash' )
 		;
 
-		$this->service->processFile( 42, 'lazy', [ 'sha1', 'sha256' ] );
+		$this->service->processFile(
+			42,
+			'lazy',
+			[
+				'sha1',
+				'sha256',
+			],
+		);
 	}
 
 
@@ -115,8 +127,26 @@ class HashCalculationServiceTest
 		              ->method( 'recalcHash' )
 		              ->willReturnMap(
 			              [
-				              [ 42, 'sha1', true, $metadata, [ 'success' => true, 'hash' => 'abc' ] ],
-				              [ 42, 'sha256', true, $metadata, [ 'success' => true, 'hash' => 'def' ] ],
+				              [
+					              42,
+					              'sha1',
+					              true,
+					              $metadata,
+					              [
+						              'success' => true,
+						              'hash'    => 'abc',
+					              ],
+				              ],
+				              [
+					              42,
+					              'sha256',
+					              true,
+					              $metadata,
+					              [
+						              'success' => true,
+						              'hash'    => 'def',
+					              ],
+				              ],
 			              ],
 		              )
 		;
@@ -137,7 +167,14 @@ class HashCalculationServiceTest
 		                      ->with( $metadata )
 		;
 
-		$this->service->processFile( 42, 'force', [ 'sha1', 'sha256' ] );
+		$this->service->processFile(
+			42,
+			'force',
+			[
+				'sha1',
+				'sha256',
+			],
+		);
 	}
 
 
@@ -157,8 +194,14 @@ class HashCalculationServiceTest
 		         ->method( 'hasKey' )
 		         ->willReturnMap(
 			         [
-				         [ MetadataService::getHashKey( 'sha1' ), true ],
-				         [ MetadataService::getHashKey( 'sha256' ), false ],
+				         [
+					         MetadataService::getHashKey( 'sha1' ),
+					         true,
+				         ],
+				         [
+					         MetadataService::getHashKey( 'sha256' ),
+					         false,
+				         ],
 			         ],
 		         )
 		;
@@ -167,7 +210,12 @@ class HashCalculationServiceTest
 		$this->service->expects( $this->once() )
 		              ->method( 'recalcHash' )
 		              ->with( 42, 'sha1', true, $metadata )
-		              ->willReturn( [ 'success' => true, 'hash' => 'abc' ] )
+		              ->willReturn(
+			              [
+				              'success' => true,
+				              'hash'    => 'abc',
+			              ],
+		              )
 		;
 
 		$metadata->expects( $this->once() )
@@ -186,7 +234,14 @@ class HashCalculationServiceTest
 		                      ->with( $metadata )
 		;
 
-		$this->service->processFile( 42, 'auto', [ 'sha1', 'sha256' ] );
+		$this->service->processFile(
+			42,
+			'auto',
+			[
+				'sha1',
+				'sha256',
+			],
+		);
 	}
 
 
@@ -210,8 +265,26 @@ class HashCalculationServiceTest
 		              ->method( 'recalcHash' )
 		              ->willReturnMap(
 			              [
-				              [ 42, 'sha1', true, $metadata, [ 'success' => true, 'hash' => 'abc' ] ],
-				              [ 42, 'sha256', true, $metadata, [ 'success' => true, 'hash' => 'def' ] ],
+				              [
+					              42,
+					              'sha1',
+					              true,
+					              $metadata,
+					              [
+						              'success' => true,
+						              'hash'    => 'abc',
+					              ],
+				              ],
+				              [
+					              42,
+					              'sha256',
+					              true,
+					              $metadata,
+					              [
+						              'success' => true,
+						              'hash'    => 'def',
+					              ],
+				              ],
 			              ],
 		              )
 		;
@@ -231,7 +304,14 @@ class HashCalculationServiceTest
 		                      ->with( $metadata )
 		;
 
-		$this->service->processFile( 42, 'missing', [ 'sha1', 'sha256' ] );
+		$this->service->processFile(
+			42,
+			'missing',
+			[
+				'sha1',
+				'sha256',
+			],
+		);
 	}
 
 
@@ -268,7 +348,14 @@ class HashCalculationServiceTest
 		                      ->with( $metadata )
 		;
 
-		$this->service->processFile( 42, 'auto', [ 'sha1', 'sha256' ] );
+		$this->service->processFile(
+			42,
+			'auto',
+			[
+				'sha1',
+				'sha256',
+			],
+		);
 	}
 
 
@@ -288,13 +375,25 @@ class HashCalculationServiceTest
 		              ->method( 'recalcHash' )
 		              ->willReturnMap(
 			              [
-				              [ 42, 'sha1', true, $metadata, [ 'success' => true, 'hash' => 'abc' ] ],
+				              [
+					              42,
+					              'sha1',
+					              true,
+					              $metadata,
+					              [
+						              'success' => true,
+						              'hash'    => 'abc',
+					              ],
+				              ],
 				              [
 					              42,
 					              'sha256',
 					              true,
 					              $metadata,
-					              [ 'success' => false, 'error' => 'hash failed' ],
+					              [
+						              'success' => false,
+						              'error'   => 'hash failed',
+					              ],
 				              ],
 			              ],
 		              )
@@ -326,15 +425,22 @@ class HashCalculationServiceTest
 		                      ->method( 'saveMetadata' )
 		;
 
-		$this->service->processFile( 42, 'missing', [ 'sha1', 'sha256' ] );
+		$this->service->processFile(
+			42,
+			'missing',
+			[
+				'sha1',
+				'sha256',
+			],
+		);
 	}
 
 
 	public function testRecalcAllExistingAlgosOnlyRecalculatesExisting(): void
 	{
 
-		$fileId  = 99;
-		$file    = $this->createMock( \OCP\Files\File::class );
+		$fileId = 99;
+		$file   = $this->createMock( \OCP\Files\File::class );
 		$file->method( 'getId' )
 		     ->willReturn( $fileId )
 		;
@@ -362,15 +468,38 @@ class HashCalculationServiceTest
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'getHashes' )
 		                      ->with( $metadata )
-		                      ->willReturn( [ 'sha1', 'sha256' ] )
+		                      ->willReturn(
+			                      [
+				                      'sha1',
+				                      'sha256',
+			                      ],
+		                      )
 		;
 
 		$this->service->expects( $this->exactly( 2 ) )
 		              ->method( 'recalcHash' )
 		              ->willReturnMap(
 			              [
-				              [ $file, 'sha1', true, $metadata, [ 'success' => true, 'hash' => 'aaa' ] ],
-				              [ $file, 'sha256', true, $metadata, [ 'success' => true, 'hash' => 'bbb' ] ],
+				              [
+					              $file,
+					              'sha1',
+					              true,
+					              $metadata,
+					              [
+						              'success' => true,
+						              'hash'    => 'aaa',
+					              ],
+				              ],
+				              [
+					              $file,
+					              'sha256',
+					              true,
+					              $metadata,
+					              [
+						              'success' => true,
+						              'hash'    => 'bbb',
+					              ],
+				              ],
 			              ],
 		              )
 		;
@@ -383,7 +512,13 @@ class HashCalculationServiceTest
 		$result = $this->service->recalcAllExistingAlgos( $fileId );
 
 		$this->assertSame( 2, $result['processed'] );
-		$this->assertSame( [ 'sha1', 'sha256' ], $result['algos'] );
+		$this->assertSame(
+			[
+				'sha1',
+				'sha256',
+			],
+			$result['algos'],
+		);
 		$this->assertFalse( $result['locked'] );
 	}
 
@@ -391,8 +526,8 @@ class HashCalculationServiceTest
 	public function testGenerateMissingHashesCollectsAndGenerates(): void
 	{
 
-		$userId         = 'testuser';
-		$algo           = 'sha1';
+		$userId = 'testuser';
+		$algo = 'sha1';
 		$userFolderPath = '/testuser/files';
 
 		$this->filecacheService->expects( $this->once() )

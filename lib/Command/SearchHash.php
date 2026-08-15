@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Command;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\MetadataService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -67,7 +68,7 @@ class SearchHash
 		);
 
 		// Parse algo:hash or raw hash
-		$parsed = HashIndexService::parseQueryTerm( $term );
+		$parsed = MetadataService::parseQueryTerm( $term );
 
 		if ( $parsed === null )
 		{

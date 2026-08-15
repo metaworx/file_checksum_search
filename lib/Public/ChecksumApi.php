@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Public;
 
+use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\StatusService;
@@ -400,7 +401,7 @@ class ChecksumApi
 		?string $algo = null,
 	): array {
 
-		$algo ??= HashIndexService::getDefaultAlgo();
+		$algo ??= HashCalculationService::getDefaultAlgo();
 
 		return $this->hashIndexService->recalcHash( $fileId, $algo );
 	}

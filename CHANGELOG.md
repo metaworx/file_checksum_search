@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Changed
+
+- Fix cron.php never processing pending:new entries by resolving the matching rule before dispatch, and break a circular dependency between HashCalculationService and RuleService by relocating responsibilities to their natural owners.
+
 ## [0.10.1] — 2026-08-07
 
 ### Fixed
