@@ -9,9 +9,6 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\AppInfo;
 
-use OCA\FileChecksumSearch\BackgroundJob\ProcessPendingUpdates;
-use OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob;
-use OCA\FileChecksumSearch\BackgroundJob\SeedPendingUpdates;
 use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Listener\AppDisableListener;
 use OCA\FileChecksumSearch\Listener\BeforeTemplateRenderedListener;
@@ -24,7 +21,6 @@ use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
-use OCP\BackgroundJob\IJobList;
 use OCP\Server;
 
 class Application
@@ -66,13 +62,6 @@ class Application
 		Server::get( MetadataService::class )
 		      ->register()
 		;
-
-		$jobList = Server::get( IJobList::class );
-
-		// Register the metadata-backed job pipeline
-		$jobList->add( RuleProcessingJob::class );
-		$jobList->add( ProcessPendingUpdates::class );
-		$jobList->add( SeedPendingUpdates::class );
 	}
 
 }

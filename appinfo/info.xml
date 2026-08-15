@@ -45,4 +45,9 @@
 		<command>OCA\FileChecksumSearch\Command\ShowConfig</command>
 		<command>OCA\FileChecksumSearch\Command\FindDuplicates</command>
 	</commands>
+	<background-jobs>
+		<job>OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob</job>
+		<job>OCA\FileChecksumSearch\BackgroundJob\ProcessPendingUpdates</job>
+		<job>OCA\FileChecksumSearch\BackgroundJob\SeedPendingUpdates</job>
+	</background-jobs>
 </info>
