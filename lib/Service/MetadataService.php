@@ -252,7 +252,7 @@ class MetadataService
 		}
 
 		$metadata->removeStartsWith( self::KEY_FILE_CHECKSUM_PREFIX );
-		$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, 0 );
+		$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, 0, true );
 
 		if ( $save )
 		{

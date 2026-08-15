@@ -158,7 +158,7 @@ class HashCalculationServiceTest
 
 		$metadata->expects( $this->once() )
 		         ->method( 'setInt' )
-		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $this->anything() )
+		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $this->anything(), true )
 		         ->willReturnSelf()
 		;
 
@@ -225,7 +225,7 @@ class HashCalculationServiceTest
 
 		$metadata->expects( $this->once() )
 		         ->method( 'setInt' )
-		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $this->anything() )
+		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $this->anything(), true )
 		         ->willReturnSelf()
 		;
 
@@ -296,6 +296,7 @@ class HashCalculationServiceTest
 
 		$metadata->expects( $this->once() )
 		         ->method( 'setInt' )
+		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $this->anything(), true )
 		         ->willReturnSelf()
 		;
 
@@ -339,7 +340,7 @@ class HashCalculationServiceTest
 
 		$metadata->expects( $this->once() )
 		         ->method( 'setInt' )
-		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $this->anything() )
+		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $this->anything(), true )
 		         ->willReturnSelf()
 		;
 

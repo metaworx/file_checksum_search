@@ -400,7 +400,7 @@ class HashCalculationService
 					true,
 				);
 			}
-			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, time() );
+			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, time(), true );
 
 			break;
 
@@ -438,7 +438,7 @@ class HashCalculationService
 					true,
 				);
 			}
-			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, time() );
+			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, time(), true );
 
 			break;
 		}

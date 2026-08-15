@@ -151,6 +151,31 @@ class MetadataServiceTest
 	}
 
 
+	public function testClearMetadataMarksUpdatedAtAsIndexed(): void
+	{
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+
+		$metadata->expects( $this->once() )
+		         ->method( 'removeStartsWith' )
+		         ->with( MetadataService::KEY_FILE_CHECKSUM_PREFIX )
+		         ->willReturnSelf()
+		;
+
+		$metadata->expects( $this->once() )
+		         ->method( 'setInt' )
+		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, 0, true )
+		         ->willReturnSelf()
+		;
+
+		$this->metadataManager->expects( $this->never() )
+		                      ->method( 'saveMetadata' )
+		;
+
+		$this->service->clearMetadata( $metadata, false );
+	}
+
+
 	public function testRegisterIncludesAllAlgos(): void
 	{
 

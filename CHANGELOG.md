@@ -14,6 +14,7 @@ the first stable release.
 ### Fixed
 
 - Register background jobs once via info.xml instead of on every boot, fixing NC 33's JobList::add() resetting last_run and preventing the pending-updates queue from ever draining.
+- Mark file-checksum-updated_at as an indexed metadata value when saving, so the pending queue actually drains after successful hash processing under NC 33.
 
 ## [0.11.0] — 2026-08-15
 
