@@ -5,8 +5,8 @@
 	<name>File Checksum Index &amp; Search</name>
 	<summary>Index file checksums for fast reverse hash lookups</summary>
 	<description>
-		Deploys a MariaDB shadow table with automatic trigger-based synchronization
-		from oc_filecache, enabling O(1) reverse hash lookups. Provides a REST API,
+		Indexes file checksums in Nextcloud's files metadata index for fast reverse
+		hash lookups without custom tables or database triggers. Provides a REST API,
 		Unified Search provider, CLI commands, and an admin settings page for
 		maintenance operations.
 	</description>

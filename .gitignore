@@ -25,3 +25,6 @@ cookie*.txt
 /js/
 /css/
 
+/build/
+/.appstore/
+

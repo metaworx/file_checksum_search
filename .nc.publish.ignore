@@ -1,0 +1,66 @@
+# .nc.publish.ignore — files/directories excluded from the Nextcloud App Store
+# release package. Consumed by package.sh via `rsync --exclude-from`.
+#
+# Patterns use rsync(1) exclude syntax:
+#   - a leading '/' anchors the pattern to the package root
+#   - '*' matches within a single path component
+#   - unanchored patterns match at any depth
+
+# VCS / repository metadata
+.git
+.gitignore
+.gitattributes
+.github
+# Placeholder files
+*.gitkeep
+
+# Release tooling (this file and the packaging script)
+/.nc.publish.ignore
+/package.sh
+
+# IDE / editor
+.idea
+.editorconfig
+
+# Agent / project tooling
+/.aiassistant
+/.aiignore
+/.roo
+/.junie
+/.appstore
+/AGENTS.md
+
+# Node / frontend tooling
+/node_modules
+/src
+/package.json
+/package-lock.json
+/.nvmrc
+/.eslintrc.cjs
+/stylelint.config.cjs
+/tsconfig.json
+/vite.config.ts
+/cypress.config.js
+
+# PHP tooling
+/vendor
+/vendor-bin
+/.php-cs-fixer.dist.php
+/psalm.xml
+/rector.php
+openapi.json
+
+# Tests & dev-only docs
+/tests
+/docs/app-store-publishing.md
+/CONTRIBUTING.md
+/CODE_OF_CONDUCT.md
+/CODE_STYLE.md
+
+# Build artifacts
+/build
+/dist
+
+# Legacy scaffold artifacts
+/app
+/app.tar

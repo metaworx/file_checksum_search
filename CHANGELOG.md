@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Added
+
+- Add a GitHub Actions App Store release pipeline (build, package, optional signing) and refresh README/info.xml to describe the files-metadata-based architecture.
+
 ## [0.11.1] — 2026-08-15
 
 ### Fixed

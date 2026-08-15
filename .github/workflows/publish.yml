@@ -1,0 +1,85 @@
+name: Publish to Nextcloud App Store
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Build, sign and publish app
+    runs-on: ubuntu-latest
+    env:
+      # Pin a specific tag or digest for reproducibility via the
+      # APPSTORE_SIG_IMAGE repository variable, e.g.:
+      #   ghcr.io/nextcloud/appstore-sig@sha256:...
+      APPSTORE_SIG_IMAGE: ${{ vars.APPSTORE_SIG_IMAGE || 'ghcr.io/nextcloud/appstore-sig:latest' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+          extensions: pdo
+          tools: composer:v2
+
+      - name: Read app version
+        id: app-meta
+        run: |
+          version="$(sed -n 's|.*<version>\([^<]*\)</version>.*|\1|p' appinfo/info.xml | head -n1 | tr -d '[:space:]')"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build and package app
+        run: bash package.sh
+
+      - name: Sign app archive (appstore-sig)
+        if: vars.APPSTORE_SIGNING_ENABLED == 'true'
+        env:
+          APPSTORE_CERT: ${{ secrets.APPSTORE_CERT }}
+          APPSTORE_KEY: ${{ secrets.APPSTORE_KEY }}
+        run: |
+          set -euo pipefail
+          archive="build/file_checksum_search-${{ steps.app-meta.outputs.version }}.tar.gz"
+          mkdir -p .appstore
+          printf '%s\n' "$APPSTORE_CERT" > .appstore/cert.crt
+          printf '%s\n' "$APPSTORE_KEY" > .appstore/key.pem
+          docker run --rm \
+            -v "$PWD:/app:rw" \
+            "$APPSTORE_SIG_IMAGE" \
+            appstore-sig sign \
+              --cert /app/.appstore/cert.crt \
+              --key /app/.appstore/key.pem \
+              "/app/${archive}"
+
+      - name: Verify app signature
+        if: vars.APPSTORE_SIGNING_ENABLED == 'true'
+        run: |
+          set -euo pipefail
+          archive="build/file_checksum_search-${{ steps.app-meta.outputs.version }}.tar.gz"
+          docker run --rm \
+            -v "$PWD:/app:ro" \
+            "$APPSTORE_SIG_IMAGE" \
+            appstore-sig verify "/app/${archive}"
+
+      - name: Upload release assets
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/file_checksum_search.tar.gz
+            build/file_checksum_search-${{ steps.app-meta.outputs.version }}.tar.gz
