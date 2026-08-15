@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.11.1] — 2026-08-15
+
 ### Fixed
 
 - Register background jobs once via info.xml instead of on every boot, fixing NC 33's JobList::add() resetting last_run and preventing the pending-updates queue from ever draining.
