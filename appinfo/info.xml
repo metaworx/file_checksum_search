@@ -1,19 +1,19 @@
 <?xml version="1.0"?>
 <info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+	  xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
 	<id>file_checksum_search</id>
 	<name>File Checksum Index &amp; Search</name>
 	<summary>Index file checksums for fast reverse hash lookups</summary>
 	<description>
 		Indexes file checksums in Nextcloud's files metadata index for fast reverse
-		hash lookups without custom tables or database triggers. Provides a REST API,
-		Unified Search provider, CLI commands, and an admin settings page for
+		hash lookups without custom tables. Provides a Unified Search provider, REST API, CLI commands, and an admin
+		settings page for
 		maintenance operations.
 	</description>
 	<version>0.11.1</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author mail="apps@metaworx.ch"
-	        homepage="">metaworx resonare rüegg
+			homepage="">metaworx resonare rüegg
 	</author>
 	<namespace>FileChecksumSearch</namespace>
 	<category>files</category>
@@ -23,7 +23,7 @@
 	<repository type="git">git@gitlab.com:metaworx/open-source/nextcloud/file_checksum_search.git</repository>
 	<dependencies>
 		<nextcloud min-version="33"
-		           max-version="34"/>
+				   max-version="34"/>
 	</dependencies>
 	<settings>
 		<admin>OCA\FileChecksumSearch\Settings\Admin</admin>

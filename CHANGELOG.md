@@ -15,6 +15,10 @@ the first stable release.
 
 - Add a GitHub Actions App Store release pipeline (build, package, optional signing) and refresh README/info.xml to describe the files-metadata-based architecture.
 
+### Changed
+
+- Refresh README and info.xml to describe the files-metadata-index architecture, any-DB support, the 7 CLI commands, and rule-based hashing.
+
 ## [0.11.1] — 2026-08-15
 
 ### Fixed

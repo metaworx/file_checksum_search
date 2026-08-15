@@ -4,18 +4,18 @@ A Nextcloud app that indexes file checksums for fast reverse hash lookups.
 
 Nextcloud's `oc_filecache` stores checksums as space-delimited `algo:hash` pairs in a single unindexed TEXT column. Searching for files by hash requires a full-table `LIKE '%hash%'` scan — O(n) and unusable at scale.
 
-FCIAS deploys a **MariaDB Trigger + Shadow Table** architecture that normalizes checksums into an indexed lookup table, enabling O(1) reverse hash lookups.
+FCIAS stores checksums in Nextcloud's built-in **files metadata index** (`oc_files_metadata_index`) and mirrors them back into the `filecache` checksum column, enabling fast indexed reverse hash lookups without a custom table or database triggers.
 
 ## Features
 
-- **Automatic index maintenance** via database triggers (INSERT/UPDATE/DELETE on `oc_filecache`)
+- **Duplicate file browser** — standalone page (`/duplicates`) and sidebar integration for finding files with identical hashes
+- **Files sidebar tab** showing checksums for the selected file with recalculate and duplicate-finding actions
+- **Unified Search** integration — type a hash directly into Nextcloud's search bar
+- **Admin settings page** with status overview, rule-based hash generation
+- **Automatic index maintenance** via Nextcloud file event listeners and background jobs (no database triggers required)
 - **Lazy & deferred hash recalculation** with a pending queue drained by a background job
 - **REST API** for hash lookup, file-hash retrieval, recalculation, and duplicate detection
-- **Unified Search** integration — type a hash directly into Nextcloud's search bar
-- **Duplicate file browser** — standalone page (`/duplicates`) and sidebar integration for finding files with identical hashes
-- **12 CLI commands** for administration and maintenance
-- **Admin settings page** with status overview, compatibility test, rehash behavior configuration, cron job management, and maintenance actions
-- **Files sidebar tab** showing checksums for the selected file with recalculate and duplicate-finding actions
+- **7 CLI commands** for search, administration, and maintenance
 
 ## Requirements
 
@@ -23,10 +23,11 @@ FCIAS deploys a **MariaDB Trigger + Shadow Table** architecture that normalizes 
 |-----------|----------------|
 | Nextcloud | v33 |
 | PHP | 8.2 |
-| Database | MariaDB ≥ 10.2 with TRIGGER privilege |
+| Database | Any Nextcloud-supported database (MySQL/MariaDB, PostgreSQL, SQLite) |
 | Node.js | ≥ 18 (build only, not needed at runtime) |
 
-> **Note:** This app requires MariaDB. It does not support SQLite or PostgreSQL.
+> **Note:** FCIAS uses Nextcloud's built-in files metadata index and adds
+> composite indices on it. No custom tables are required.
 
 ## Installation
 
@@ -45,7 +46,7 @@ cd /var/www/nextcloud
 php occ app:enable file_checksum_search
 ```
 
-The app will automatically deploy its database objects (shadow tables, stored procedure, triggers) during the enable step.
+During the enable step the app registers its checksum metadata keys and seeds the metadata index for existing files.
 
 ## CLI Reference
 
@@ -53,23 +54,18 @@ The app will automatically deploy its database objects (shadow tables, stored pr
 
 | Command | Description |
 |---------|-------------|
-| `file-checksum-search:rebuild` | Backfill the hash index from existing filecache checksums |
 | `file-checksum-search:search <query>` | Search files by hash value or `algo:hash` pair |
 | `file-checksum-search:generate --user=<user> [--path=<glob>] [--algo=<algo>]` | Generate checksums for user files. Default algo: `sha1` |
 | `file-checksum-search:find-duplicates [--algo=<algo>] [--user=<user>] [--min-count=<n>] [--output=<fmt>] [--verify]` | Find files with duplicate hash values |
+| `file-checksum-search:rebuild` | Backfill the hash index from existing filecache checksums |
 | `file-checksum-search:test-perf` | Benchmark indexed lookup vs unindexed LIKE scan |
 
-### Admin Commands
+### Status & Configuration Commands
 
 | Command | Description |
 |---------|-------------|
-| `file-checksum-search:status` | Display app version, DB version, index status, and compatibility |
+| `file-checksum-search:status` | Display app version, DB version, metadata index status, and pending stats |
 | `file-checksum-search:show-config` | Display all app config key/value pairs |
-| `file-checksum-search:purge` | Truncate the hash index table |
-| `file-checksum-search:teardown` | Drop triggers and stored procedure (preserves hash table) |
-| `file-checksum-search:deploy-triggers` | Create triggers and stored procedure (idempotent) |
-| `file-checksum-search:remove-table` | Drop the hash table entirely (run teardown first) |
-| `file-checksum-search:create-table` | Create the hash table if it does not exist (idempotent) |
 
 ### Examples
 
@@ -95,8 +91,7 @@ php occ file-checksum-search:show-config --output=json_pretty
 # Check status
 php occ file-checksum-search:status
 
-# Rebuild index after purge
-php occ file-checksum-search:purge --force
+# Rebuild the checksum metadata index from filecache
 php occ file-checksum-search:rebuild
 ```
 
@@ -112,31 +107,30 @@ FCIAS provides a global duplicate file browser at **`/apps/file_checksum_search/
 
 The files sidebar also includes a **"Find duplicates"** button that shows files sharing hash values with the currently selected file.
 
-## Rehash Behavior Settings
+## Hash Generation Rules
 
-Configure how the hash index responds to file system events via **Admin settings → File Checksum Index & Search → File Update Handling**:
+FCIAS reacts to file events (create, write, copy, delete) according to **hash
+generation rules** configured in **Admin settings → File Checksum Index & Search**.
+Each rule combines a user scope, a path glob, an algorithm set, and a processing **mode**:
 
-| Event | Options | Default | Description |
-|-------|---------|---------|-------------|
-| On File Write | `off`, `force`, `lazy`, `auto` | `auto` | `auto`: recalc only if hashes exist; `force`: immediate recalc; `lazy`: delete hashes + queue for later |
-| On File Create | `off`, `lazy`, `force` | `off` | When to hash newly created files |
-| On File Delete | `off`, `on` | `off` | Whether to delete hash rows when files are deleted |
+| Mode | Description |
+|------|-------------|
+| `auto` | Recalculate existing hashes only when stale |
+| `missing` | Recalculate existing hashes and fill in missing ones |
+| `force` | Clear all hashes and recalculate immediately |
+| `lazy` | Clear hashes and defer recalculation to the background queue |
 
 ## Pending Hash Queue
 
-When rehash behavior is set to `lazy` (or when a file is locked at write time with `force`), hash updates are deferred to a **pending queue** (`file_checksum_search_pending` table). A background job (`DrainPendingUpdates`) runs every 60 seconds, processing up to 50 pending entries per cycle.
+When a rule's mode is `lazy` (or when a file is locked at write time with `force`),
+hash updates are deferred by marking the file's `file-checksum-updated_at`
+metadata entry as `pending:<mode>`. The `ProcessPendingUpdates` background job
+runs every 60 seconds and drains up to 50 pending entries per cycle.
 
-## Cron Job Management
+## Cron Scheduling
 
-Via **Admin settings → File Checksum Index & Search → NC Background Job Definitions**, you can create, edit, enable/disable, and delete cron job definitions. Each definition specifies:
-
-- **User Scope**: Single user or all users
-- **Path**: Glob pattern for file paths (e.g. `**/*.pdf`)
-- **Algorithm**: Hash algorithm to generate
-- **Batch Size**: Maximum files per run
-- **Interval**: 5, 15, 30, or 60 minutes
-
-A crontab snippet generator is also available for users who prefer system-level cron.
+A crontab snippet generator in the admin settings produces `occ` commands for
+CLI-based hash generation, for users who prefer system-level cron scheduling.
 
 ## Public API (v1)
 
@@ -215,23 +209,11 @@ The original `/api/1.0/` routes are retained for backward compatibility but are 
 Navigate to **Administration settings → Additional settings → File Checksum Index & Search**.
 
 The settings page provides:
-- **Status overview**: App version, DB version, indexed hash count, pending updates, table/SP/trigger state
-- **File Update Handling**: Configure rehash behavior for write/create/delete events
-- **Cron Job Definitions**: Create and manage background hash generation jobs
+- **Status overview**: App version, DB version, indexed hash count, and pending update stats by mode
+- **Hash Generation Rules**: Global rule plus additional path-scoped rules (user scope, path glob, algorithms, mode)
 - **Crontab Snippet Generator**: Generate crontab entries for CLI-based hash generation
-- **Compatibility test**: Verifies MariaDB ≥ 10.2, TRIGGER privilege, checksum column
-- **Maintenance actions**: Purge index, rebuild index, deploy triggers & SP, remove triggers & SP, create hash table, remove hash table
 
 ## Troubleshooting
-
-### "TRIGGER privilege" error
-
-The database user must have the `TRIGGER` privilege. Run:
-
-```sql
-GRANT TRIGGER ON nextcloud.* TO 'nextcloud'@'localhost';
-FLUSH PRIVILEGES;
-```
 
 ### "Table prefix" issues
 
@@ -241,12 +223,11 @@ FCIAS uses Nextcloud's table prefix dynamically (`$db->getPrefix()`). If you use
 'config_prefix' => 'mycustomprefix_',
 ```
 
-### Rebuilding after corruption
+### Rebuilding the metadata index
 
-If the shadow table becomes out of sync with `oc_filecache`:
+If the checksum metadata index becomes out of sync with `oc_filecache`:
 
 ```bash
-php occ file-checksum-search:purge --force
 php occ file-checksum-search:rebuild
 ```
 
