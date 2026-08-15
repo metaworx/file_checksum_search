@@ -47,6 +47,10 @@ jobs:
         run: composer install --no-interaction --no-scripts
         working-directory: nextcloud/apps/file_checksum_search
 
+      - name: Install PHPUnit (bamarni bin)
+        run: composer bin phpunit install --no-interaction
+        working-directory: nextcloud/apps/file_checksum_search
+
       - name: Enable the app
         run: php occ app:enable file_checksum_search
         working-directory: nextcloud
