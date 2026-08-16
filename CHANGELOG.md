@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.12.1] — 2026-08-16
+
 ### Fixed
 
 - Guard against overflowing the oc_filecache.checksum column by dropping algorithm/hash pairs that don't fit, preventing multi-algo files from failing to save in FilecacheService::setHashes().
