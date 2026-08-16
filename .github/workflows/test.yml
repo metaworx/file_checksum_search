@@ -55,6 +55,29 @@ jobs:
         run: php occ app:enable file_checksum_search
         working-directory: nextcloud
 
+      - name: Create HTTP test user
+        run: |
+          NC_PASS='Str0ng!T3st#P4ss!' php occ user:add --password-from-env fcias_http_test
+        working-directory: nextcloud
+
+      - name: Start Nextcloud HTTP server
+        run: |
+          PHP_BIN="$(command -v php)"
+          sudo "$PHP_BIN" -S 127.0.0.1:80 -t . > /tmp/nc-http.log 2>&1 &
+        working-directory: nextcloud
+
+      - name: Wait for HTTP server
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1/status.php > /dev/null 2>&1; then
+              echo "HTTP server is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "HTTP server did not become ready in 30s" >&2
+          exit 1
+
       - name: Run PHPUnit tests
         run: php -d error_reporting='E_ALL & ~E_DEPRECATED' ./vendor/bin/phpunit -c tests/phpunit.xml --display-warnings
         working-directory: nextcloud/apps/file_checksum_search
