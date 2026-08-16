@@ -1,4 +1,4 @@
-# Testing Conventions (v2.4.0)
+# Testing Conventions (v2.4.1)
 
 Project-specific testing conventions for FCIAS (File Checksum Index & Search Nextcloud app).
 Generic agent flow-control rules are in `AGENTS.md`; contributor context is in `CONTRIBUTING.md`.
@@ -175,7 +175,7 @@ Cypress is available via the `ddev/ddev-cypress` add-on (already installed in th
 ddev cypress-run --browser chrome
 ```
 
-Configuration is in `cypress.config.js` at the project root. E2E tests live in `tests/e2e/`.
+Configuration is in `cypress.config.cjs` at the project root. E2E tests live in `tests/e2e/`.
 
 Credentials are passed via environment variables to avoid hardcoding:
 
@@ -202,6 +202,7 @@ Common inspections to watch for:
 
 | Version | Date       | Changed sections                              | Change type | Agent impact                                                                                                                                                                            |
 |---------|------------|-----------------------------------------------|-------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| v2.4.1  | 2026-08-16 | 9                                             | fix         | Renamed cypress.config.js to cypress.config.cjs to fix the ESM/CommonJS conflict in the CI Cypress job.                                                                                 |
 | v2.4.0  | 2026-08-06 | 14                                            | minor       | Added JetBrains MCP Quality Workflow (§14). Author: metaworx.                                                                                                                           |
 | v2.3.0  | 2026-08-05 | 1                                             | minor       | Added --display-warnings note for CI PHPUnit with failOnWarning="true".                                                                                                                 |
 | v2.2.0  | 2026-08-05 | 1.1, 8–13                                     | minor       | Documented phpunit wrapper; added Cypress E2E section; fixed ddev path notes.                                                                                                           |

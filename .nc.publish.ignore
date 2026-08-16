@@ -40,7 +40,7 @@
 /stylelint.config.cjs
 /tsconfig.json
 /vite.config.ts
-/cypress.config.js
+/cypress.config.cjs
 
 # PHP tooling
 /vendor
