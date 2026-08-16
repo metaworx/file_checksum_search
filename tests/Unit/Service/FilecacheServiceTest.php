@@ -569,4 +569,105 @@ class FilecacheServiceTest
 		$this->assertSame( 'user1', $result[42]['user'] );
 	}
 
+
+	public function testFitChecksumPairsReturnsEmptyForEmptyInput(): void
+	{
+
+		$this->assertSame( '', FilecacheService::fitChecksumPairs( [] ) );
+	}
+
+
+	public function testFitChecksumPairsKeepsAllPairsWhenUnderLimit(): void
+	{
+
+		$pairs = [
+			'SHA1:aaa',
+			'MD5:bbb',
+		];
+
+		$this->assertSame(
+			'SHA1:aaa MD5:bbb',
+			FilecacheService::fitChecksumPairs( $pairs ),
+		);
+	}
+
+
+	public function testFitChecksumPairsDropsPairsExceedingColumnLimit(): void
+	{
+
+		$pairs = [
+			'SHA1:' . str_repeat( 'a', 40 ),
+			'MD5:' . str_repeat( 'b', 32 ),
+			'ADLER32:' . str_repeat( 'c', 8 ),
+			'CRC32:' . str_repeat( 'd', 8 ),
+			'SHA256:' . str_repeat( 'e', 64 ),
+			'SHA512:' . str_repeat( 'f', 128 ),
+			'SHA3-256:' . str_repeat( '1', 64 ),
+			'SHA3-512:' . str_repeat( '2', 128 ),
+		];
+
+		$result = FilecacheService::fitChecksumPairs( $pairs );
+
+		$this->assertLessThanOrEqual( FilecacheService::CHECKSUM_MAX_LENGTH, strlen( $result ) );
+		$this->assertStringContainsString( 'SHA1:', $result );
+		$this->assertStringContainsString( 'MD5:', $result );
+		$this->assertStringContainsString( 'ADLER32:', $result );
+		$this->assertStringContainsString( 'CRC32:', $result );
+		$this->assertStringContainsString( 'SHA256:', $result );
+		$this->assertStringNotContainsString( 'SHA512:', $result );
+		$this->assertStringNotContainsString( 'SHA3-256:', $result );
+		$this->assertStringNotContainsString( 'SHA3-512:', $result );
+	}
+
+
+	public function testSetHashesWritesTruncatedChecksumToCache(): void
+	{
+
+		$file    = $this->createMock( File::class );
+		$storage = $this->createMock( IStorage::class );
+		$cache   = $this->createMock( ICache::class );
+
+		$file->method( 'getId' )
+		     ->willReturn( 42 )
+		;
+		$file->method( 'getStorage' )
+		     ->willReturn( $storage )
+		;
+		$storage->method( 'getCache' )
+		        ->willReturn( $cache )
+		;
+
+		$cache->expects( $this->once() )
+		      ->method( 'update' )
+		      ->with(
+			      42,
+			      $this->callback( function (
+				      array $data,
+			      ) {
+
+				      $checksum = $data['checksum'] ?? '';
+
+				      return is_string( $checksum )
+					      && strlen( $checksum ) <= FilecacheService::CHECKSUM_MAX_LENGTH
+					      && str_contains( $checksum, 'SHA1:' )
+					      && ! str_contains( $checksum, 'SHA512:' );
+			      } ),
+		      )
+		;
+
+		$this->service->setHashes(
+			$file,
+			[
+				'sha1'     => str_repeat( 'a', 40 ),
+				'md5'      => str_repeat( 'b', 32 ),
+				'adler32'  => str_repeat( 'c', 8 ),
+				'crc32'    => str_repeat( 'd', 8 ),
+				'sha256'   => str_repeat( 'e', 64 ),
+				'sha512'   => str_repeat( 'f', 128 ),
+				'sha3-256' => str_repeat( '1', 64 ),
+				'sha3-512' => str_repeat( '2', 128 ),
+			],
+		);
+	}
+
 }

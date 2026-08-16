@@ -23,6 +23,9 @@ use OCP\IDBConnection;
 class FilecacheService
 {
 
+	public const CHECKSUM_MAX_LENGTH = 255;
+
+
 	public function __construct(
 		private readonly IRootFolder  $rootFolder,
 		private readonly IDBConnection $db,
@@ -180,8 +183,41 @@ class FilecacheService
 
 		$file->getStorage()
 		     ->getCache()
-		     ->update( $file->getId(), [ 'checksum' => implode( ' ', $newHashes ) ] )
+		     ->update( $file->getId(), [ 'checksum' => self::fitChecksumPairs( $newHashes ) ] )
 		;
+	}
+
+
+	/**
+	 * Build a checksum string from "ALGO:hash" pairs, keeping pairs in the
+	 * given order and dropping any that would exceed the filecache.checksum
+	 * column limit. A pair that does not fit is omitted entirely (never
+	 * truncated mid-hash).
+	 *
+	 * @param  list<string>  $pairs
+	 *
+	 * @return string
+	 */
+	public static function fitChecksumPairs( array $pairs ): string
+	{
+
+		$checksum = '';
+
+		foreach ( $pairs as $pair )
+		{
+			$candidate = $checksum === ''
+				? $pair
+				: "$checksum $pair";
+
+			if ( strlen( $candidate ) > self::CHECKSUM_MAX_LENGTH )
+			{
+				continue;
+			}
+
+			$checksum = $candidate;
+		}
+
+		return $checksum;
 	}
 
 
