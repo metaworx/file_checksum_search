@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Changed
+
+- Give the admin page its own dedicated settings section and add a read-only Documentation tab that renders the bundled docs, including Markdown.
+
 ## [0.12.1] — 2026-08-16
 
 ### Fixed

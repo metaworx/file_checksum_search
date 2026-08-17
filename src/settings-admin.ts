@@ -434,9 +434,28 @@ function copySnippet(): void {
 	}
 }
 
+function activateTab(tab: string): void {
+	const isDocs = tab === 'docs'
+	document.querySelectorAll<HTMLButtonElement>('.fcias-tab').forEach(btn => {
+		const active = btn.dataset.tab === tab
+		btn.classList.toggle('is-active', active)
+		btn.setAttribute('aria-selected', active ? 'true' : 'false')
+	})
+	const settingsPanel = document.getElementById('fcias-tab-panel-settings')
+	const docsPanel = document.getElementById('fcias-tab-panel-docs')
+	if (settingsPanel) settingsPanel.hidden = isDocs
+	if (docsPanel) docsPanel.hidden = !isDocs
+}
+
 document.addEventListener('DOMContentLoaded', () => {
 	loadStatus()
 	loadDefinitions()
+
+	document.querySelectorAll<HTMLButtonElement>('.fcias-tab').forEach(btn => {
+		btn.addEventListener('click', () => {
+			activateTab(btn.dataset.tab || 'settings')
+		})
+	})
 
 	document.getElementById('fcias-btn-refresh-status')?.addEventListener('click', loadStatus)
 	document.getElementById('fcias-btn-add-definition')?.addEventListener('click', () => { showDefinitionForm(null) })

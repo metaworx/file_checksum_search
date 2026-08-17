@@ -40,6 +40,12 @@ export const OCS_SETTINGS = {
 	getCrontabSnippet: `${APP_BASE}/settings/cron/snippet`,
 } as const
 
+/** OCS admin endpoints (PageController) */
+export const OCS_ADMIN = {
+	/** GET    /admin/docs */
+	getDocs: `${APP_BASE}/admin/docs`,
+} as const
+
 /** Frontend routes (Files app) */
 export const FRONTEND = {
 	/** /apps/files/files/{fileid} */

@@ -7,6 +7,7 @@ export default createAppConfig(
 		'duplicates-legacy': resolve(join('src', 'duplicates.ts')),
 		sidebar: resolve(join('src', 'sidebar.ts')),
 		'settings-admin': resolve(join('src', 'settings-admin.ts')),
+		'settings-admin-docs': resolve(join('src', 'docs-vue', 'main.ts')),
 	},
 	{
 		createEmptyCSSEntryPoints: true,

@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Settings;
 
+use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\Settings\ISettings;
 
@@ -27,7 +28,7 @@ class Admin
 	public function getSection(): string
 	{
 
-		return 'additional';
+		return Application::APP_ID;
 	}
 
 
