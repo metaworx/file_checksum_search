@@ -35,6 +35,7 @@ interface DefinitionData {
 	algo?: string
 	userScope?: string
 	path?: string
+	admin_enforced?: boolean
 }
 
 interface DefinitionsResponse {
@@ -195,6 +196,10 @@ function renderGlobalRule(def: DefinitionData | null): void {
 		'<label>Status</label>' +
 		'<span class="' + (def.enabled ? 'fcias-compat-pass' : 'fcias-compat-fail') + '">' + (def.enabled ? 'Enabled' : 'Disabled') + '</span>' +
 		'</div>' +
+		'<div class="fcias-cron-form-row">' +
+		'<label for="fcias-global-admin-enforced">Users may not edit this rule</label>' +
+		'<input type="checkbox" id="fcias-global-admin-enforced"' + (def.admin_enforced ? ' checked' : '') + '/>' +
+		'</div>' +
 		'<div class="fcias-cron-form-actions">' +
 		'<button class="fcias-btn" id="fcias-btn-save-global">Save Global Rule</button> ' +
 		'<button class="fcias-btn" id="fcias-btn-toggle-global">' + (def.enabled ? 'Disable' : 'Enable') + '</button>' +
@@ -228,6 +233,7 @@ function saveGlobalRule(id: string | number | null): void {
 		algos: getCheckedAlgos('fcias-global-algos'),
 		userScope: 'all',
 		path: '**',
+		admin_enforced: (document.getElementById('fcias-global-admin-enforced') as HTMLInputElement).checked,
 	}
 	fetch(cronSaveUrl, {
 		method: 'POST',
@@ -261,7 +267,7 @@ function renderAdditionalRules(definitions: DefinitionData[]): void {
 	}
 
 	let html = '<table class="grid fcias-cron-table"><thead><tr>' +
-		'<th>Priority</th><th>User</th><th>Path</th><th>Algos</th><th>Mode</th><th>Status</th><th></th>' +
+		'<th>Priority</th><th>User</th><th>Path</th><th>Algos</th><th>Mode</th><th>Status</th><th>Enforced</th><th></th>' +
 		'</tr></thead><tbody>'
 	definitions.forEach((def, index) => {
 		const statusClass = def.enabled ? 'fcias-compat-pass' : 'fcias-compat-fail'
@@ -274,6 +280,7 @@ function renderAdditionalRules(definitions: DefinitionData[]): void {
 			`<td>${escapeHtml(algosText)}</td>` +
 			`<td>${escapeHtml(def.mode || 'auto')}</td>` +
 			`<td><span class="${statusClass}">${statusText}</span></td>` +
+			`<td>${def.admin_enforced ? 'Yes' : 'No'}</td>` +
 			'<td class="fcias-cron-actions">' +
 			'<button class="fcias-btn fcias-btn-edit" data-action="edit">Edit</button> ' +
 			`<button class="fcias-btn fcias-btn-toggle" data-action="toggle">${def.enabled ? 'Disable' : 'Enable'}</button> ` +
@@ -291,9 +298,11 @@ function showDefinitionForm(def: DefinitionData | null): void {
 	const userscope = document.getElementById('fcias-cron-userscope') as HTMLSelectElement
 	const path = document.getElementById('fcias-cron-path') as HTMLInputElement
 	const mode = document.getElementById('fcias-cron-mode') as HTMLSelectElement
+	const enforced = document.getElementById('fcias-cron-admin-enforced') as HTMLInputElement
 	if (userscope) userscope.value = def ? (def.userScope || 'all') : 'all'
 	if (path) path.value = def ? (def.path || '/') : '/'
 	if (mode) mode.value = def ? (def.mode || 'auto') : 'auto'
+	if (enforced) enforced.checked = def ? def.admin_enforced === true : false
 	buildAlgoCheckboxes('fcias-cron-algos', def ? (def.algos || (def.algo ? [def.algo] : ['sha1'])) : ['sha1'])
 	const form = document.getElementById('fcias-cron-form')
 	if (form) form.style.display = 'block'
@@ -315,6 +324,7 @@ function saveDefinition(): void {
 		algos: getCheckedAlgos('fcias-cron-algos'),
 		userScope: (document.getElementById('fcias-cron-userscope') as HTMLSelectElement).value,
 		path: (document.getElementById('fcias-cron-path') as HTMLInputElement).value,
+		admin_enforced: (document.getElementById('fcias-cron-admin-enforced') as HTMLInputElement).checked,
 	}
 	fetch(cronSaveUrl, {
 		method: 'POST',

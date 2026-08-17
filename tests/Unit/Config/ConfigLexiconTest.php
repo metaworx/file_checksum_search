@@ -44,7 +44,7 @@ class ConfigLexiconTest
 		$configs = $this->lexicon->getAppConfigs();
 
 		$this->assertIsArray( $configs );
-		$this->assertCount( 2, $configs );
+		$this->assertCount( 5, $configs );
 
 		$keys = array_map(
 			static fn ( Entry $e ): string => $e->getKey(),
@@ -53,6 +53,9 @@ class ConfigLexiconTest
 
 		$this->assertContains( 'rule_definitions', $keys );
 		$this->assertContains( 'rule_processing_interval', $keys );
+		$this->assertContains( 'rule_editors_all_users', $keys );
+		$this->assertContains( 'rule_editors_groups', $keys );
+		$this->assertContains( 'rule_editors_users', $keys );
 	}
 
 

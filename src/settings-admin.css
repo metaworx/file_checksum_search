@@ -1,5 +1,9 @@
 /* FCIAS Admin Settings Styles */
 
+#fcias-personal-rules {
+	margin: 12px 0;
+}
+
 .fcias-section {
 	margin-bottom: 24px;
 }

@@ -12,6 +12,7 @@ use OCP\Util;
 
 Util::addScript( Application::APP_ID, Application::APP_ID . '-settings-admin' );
 Util::addScript( Application::APP_ID, Application::APP_ID . '-settings-admin-docs' );
+Util::addScript( Application::APP_ID, Application::APP_ID . '-settings-admin-permission' );
 Util::addStyle( Application::APP_ID, Application::APP_ID . '-settings-admin' );
 
 /** @var \OCP\IL10N $l is auto-injected by NC's TemplateResponse renderer via \OCP\Util::getL10N('file_checksum_search'). */
@@ -74,6 +75,20 @@ Util::addStyle( Application::APP_ID, Application::APP_ID . '-settings-admin' );
 
 		<div class="fcias-section">
 			<h4><?php
+				p( $l->t( 'Rule Editing Permission' ) ); ?></h4>
+
+			<p class="fcias-hint"><?php
+				p(
+					$l->t(
+						'Users in the selected groups, the selected users, or everyone (when enabled) may edit and create rules for folders they can write to.',
+					),
+				); ?></p>
+
+			<div id="fcias-admin-permission"></div>
+		</div>
+
+		<div class="fcias-section">
+			<h4><?php
 				p( $l->t( 'Rule Definitions' ) ); ?></h4>
 
 			<p class="fcias-hint"><?php
@@ -98,7 +113,7 @@ Util::addStyle( Application::APP_ID, Application::APP_ID . '-settings-admin' );
 
 			<div id="fcias-cron-list">
 				<p><?php
-					p( $l->t( 'No additional rules.' ) ); ?></p>
+					p( $l->t( 'Loading …' ) ); ?></p>
 			</div>
 
 			<button class="fcias-btn" id="fcias-btn-add-definition"><?php
@@ -138,6 +153,11 @@ Util::addStyle( Application::APP_ID, Application::APP_ID . '-settings-admin' );
 							<option value="lazy"><?php
 								p( $l->t( 'Lazy (delete hashes, recalc later)' ) ); ?></option>
 						</select>
+					</div>
+					<div class="fcias-cron-form-row">
+						<label for="fcias-cron-admin-enforced"><?php
+							p( $l->t( 'Users may not edit this rule' ) ); ?></label>
+						<input type="checkbox" id="fcias-cron-admin-enforced"/>
 					</div>
 					<div class="fcias-cron-form-actions">
 						<button class="fcias-btn" id="fcias-btn-save-definition"><?php

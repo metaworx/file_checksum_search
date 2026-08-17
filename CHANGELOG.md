@@ -14,6 +14,7 @@ the first stable release.
 ### Changed
 
 - Give the admin page its own dedicated settings section and add a read-only Documentation tab that renders the bundled docs, including Markdown.
+- Let users edit and create hash-generation rules from a personal settings page, with admins able to lock individual rules via a per-rule admin_enforced flag and control access via allowed groups/users.
 
 ## [0.12.1] — 2026-08-16
 

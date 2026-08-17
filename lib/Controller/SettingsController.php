@@ -149,11 +149,12 @@ class SettingsController
 		}
 
 		$definition = [
-			'enabled'   => (bool) ( $body['enabled'] ?? true ),
-			'mode'      => $body['mode'] ?? 'auto',
-			'algos'     => $algos,
-			'path'      => $body['path'] ?? '/',
-			'userScope' => $body['userScope'] ?? 'all',
+			'enabled'       => (bool) ( $body['enabled'] ?? true ),
+			'mode'          => $body['mode'] ?? 'auto',
+			'algos'         => $algos,
+			'path'          => $body['path'] ?? '/',
+			'userScope'     => $body['userScope'] ?? 'all',
+			'admin_enforced' => (bool) ( $body['admin_enforced'] ?? false ),
 		];
 
 		$existingId = $body['id'] ?? null;
@@ -344,6 +345,108 @@ class SettingsController
 		);
 
 		return new DataResponse( [ 'snippet' => $snippet ] );
+	}
+
+
+	/**
+	 * Read the rule-editing permission options (admin only).
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[NoCSRFRequired]
+	#[ApiRoute( verb: 'GET', url: '/settings/admin-options' )]
+	public function getAdminOptions(): DataResponse
+	{
+
+		$users = [];
+		$this->userManager->callForAllUsers(
+			function (
+				$user,
+			) use
+			(
+				&
+				$users,
+			): void
+			{
+
+				$users[] = [
+					'id'          => $user->getUID(),
+					'displayName' => $user->getDisplayName(),
+				];
+			},
+		);
+
+		return new DataResponse( [
+			'success'        => true,
+			'allowAllUsers'  => $this->ruleService->isAllUsersEnabled(),
+			'groups'         => $this->ruleService->getRuleEditorGroups(),
+			'users'          => $this->ruleService->getRuleEditorUsers(),
+			'availableUsers' => $users,
+		] );
+	}
+
+
+	/**
+	 * Persist the rule-editing permission options (admin only).
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[ApiRoute( verb: 'POST', url: '/settings/admin-options/save' )]
+	public function saveAdminOptions(): DataResponse
+	{
+
+		$body = json_decode( $this->readRequestBody(), true );
+
+		if ( ! is_array( $body ) )
+		{
+			return new DataResponse(
+				[
+					'success' => false,
+					'error'   => 'Invalid request body.',
+				],
+				Http::STATUS_BAD_REQUEST,
+			);
+		}
+
+		$allowAll = (bool) ( $body['allowAllUsers'] ?? false );
+		$groups   = $body['groups'] ?? [];
+		$users    = $body['users'] ?? [];
+
+		if ( ! is_array( $groups ) )
+		{
+			$groups = [ $groups ];
+		}
+
+		if ( ! is_array( $users ) )
+		{
+			$users = [ $users ];
+		}
+
+		try
+		{
+			$this->ruleService->setAllUsersEnabled( $allowAll );
+			$this->ruleService->setRuleEditorGroups( $groups );
+			$this->ruleService->setRuleEditorUsers( $users );
+
+			return new DataResponse( [ 'success' => true ] );
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->error(
+				'FCIAS SettingsController: saveAdminOptions failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
+			return new DataResponse(
+				[
+					'success' => false,
+					'error'   => $e->getMessage(),
+				], Http::STATUS_INTERNAL_SERVER_ERROR,
+			);
+		}
 	}
 
 

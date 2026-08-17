@@ -28,6 +28,8 @@
 	<settings>
 		<admin>OCA\FileChecksumSearch\Settings\Admin</admin>
 		<admin-section>OCA\FileChecksumSearch\Settings\AdminSection</admin-section>
+		<personal>OCA\FileChecksumSearch\Settings\Personal</personal>
+		<personal-section>OCA\FileChecksumSearch\Settings\PersonalSection</personal-section>
 	</settings>
 	<navigations>
 		<navigation>

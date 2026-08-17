@@ -621,4 +621,97 @@ class SettingsControllerTest
 		$this->assertStringNotContainsString( '--path=', $snippet );
 	}
 
+
+// ── getAdminOptions ──────────────────────────────────────────────────
+
+	public function testGetAdminOptionsReturnsPermissionFields(): void
+	{
+
+		$this->userManager->expects( $this->once() )
+		                  ->method( 'callForAllUsers' )
+		                  ->willReturnCallback(
+			                  function (
+				                  \Closure $callback,
+			                  ): void {
+
+				                  $alice = $this->createConfiguredMock(
+					                  IUser::class,
+					                  [
+						                  'getUID'         => 'alice',
+						                  'getDisplayName' => 'Alice',
+					                  ],
+				                  );
+				                  $callback( $alice );
+			                  },
+		                  )
+		;
+
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'isAllUsersEnabled' )
+		                  ->willReturn( true )
+		;
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'getRuleEditorGroups' )
+		                  ->willReturn( [ 'staff' ] )
+		;
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'getRuleEditorUsers' )
+		                  ->willReturn( [ 'alice' ] )
+		;
+
+		$response = $this->controller->getAdminOptions();
+
+		$this->assertInstanceOf( DataResponse::class, $response );
+		$data = $response->getData();
+		$this->assertTrue( $data['success'] );
+		$this->assertTrue( $data['allowAllUsers'] );
+		$this->assertSame( [ 'staff' ], $data['groups'] );
+		$this->assertSame( [ 'alice' ], $data['users'] );
+		$this->assertSame(
+			[
+				[
+					'id'          => 'alice',
+					'displayName' => 'Alice',
+				],
+			],
+			$data['availableUsers'],
+		);
+	}
+
+
+// ── saveAdminOptions ─────────────────────────────────────────────────
+
+	public function testSaveAdminOptionsPersistsFields(): void
+	{
+
+		$this->controller->method( 'readRequestBody' )
+		                 ->willReturn(
+			                 json_encode( [
+				                 'allowAllUsers' => true,
+				                 'groups'        => [ 'staff' ],
+				                 'users'         => [ 'alice' ],
+			                 ] ),
+		                 )
+		;
+
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'setAllUsersEnabled' )
+		                  ->with( true )
+		;
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'setRuleEditorGroups' )
+		                  ->with( [ 'staff' ] )
+		;
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'setRuleEditorUsers' )
+		                  ->with( [ 'alice' ] )
+		;
+
+		$response = $this->controller->saveAdminOptions();
+
+		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
+		$data = $response->getData();
+		$this->assertTrue( $data['success'] );
+	}
+
 }

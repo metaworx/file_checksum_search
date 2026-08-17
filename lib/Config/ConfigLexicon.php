@@ -55,6 +55,30 @@ class ConfigLexicon
 				lazy: false,
 				flags: IAppConfig::FLAG_INTERNAL,
 			),
+			new Entry(
+				key: 'rule_editors_all_users',
+				type: ValueType::BOOL,
+				defaultRaw: false,
+				definition: 'Whether all users may edit rules.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
+				key: 'rule_editors_groups',
+				type: ValueType::STRING,
+				defaultRaw: '[]',
+				definition: 'JSON array of group IDs allowed to edit rules.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
+				key: 'rule_editors_users',
+				type: ValueType::STRING,
+				defaultRaw: '[]',
+				definition: 'JSON array of user IDs allowed to edit rules.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
 		];
 	}
 

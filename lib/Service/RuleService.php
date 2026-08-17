@@ -18,6 +18,7 @@ use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\Files\Search\ISearchComparison;
 use OCP\IAppConfig;
+use OCP\IGroupManager;
 use OCP\IUserManager;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -34,6 +35,9 @@ class RuleService
 
 // constants
 	private const CONFIG_KEY_RULES = 'rule_definitions';
+	private const CONFIG_KEY_RULE_EDITORS_ALL_USERS = 'rule_editors_all_users';
+	private const CONFIG_KEY_RULE_EDITORS_GROUPS = 'rule_editors_groups';
+	private const CONFIG_KEY_RULE_EDITORS_USERS = 'rule_editors_users';
 
 
 	public function __construct(
@@ -42,6 +46,7 @@ class RuleService
 		private readonly IUserManager    $userManager,
 		private readonly MetadataService $metadataService,
 		private readonly LoggerInterface $logger,
+		private readonly ?IGroupManager  $groupManager = null,
 	) {
 	}
 
@@ -418,6 +423,299 @@ class RuleService
 			self::CONFIG_KEY_RULES,
 			json_encode( $rules, JSON_THROW_ON_ERROR ),
 		);
+	}
+
+
+	/**
+	 * Whether all users may edit rules.
+	 */
+	public function isAllUsersEnabled(): bool
+	{
+
+		return $this->appConfig->getValueBool(
+			Application::APP_ID,
+			self::CONFIG_KEY_RULE_EDITORS_ALL_USERS,
+			false,
+		);
+	}
+
+
+	/**
+	 * Set whether all users may edit rules.
+	 */
+	public function setAllUsersEnabled( bool $enabled ): void
+	{
+
+		$this->appConfig->setValueBool(
+			Application::APP_ID,
+			self::CONFIG_KEY_RULE_EDITORS_ALL_USERS,
+			$enabled,
+		);
+	}
+
+
+	/**
+	 * Load the group IDs allowed to edit rules.
+	 *
+	 * @return string[]
+	 */
+	public function getRuleEditorGroups(): array
+	{
+
+		return $this->loadStringList( self::CONFIG_KEY_RULE_EDITORS_GROUPS );
+	}
+
+
+	/**
+	 * Persist the group IDs allowed to edit rules.
+	 *
+	 * @param  string[]  $groups
+	 *
+	 * @throws JsonException
+	 */
+	public function setRuleEditorGroups( array $groups ): void
+	{
+
+		$this->saveStringList( self::CONFIG_KEY_RULE_EDITORS_GROUPS, $groups );
+	}
+
+
+	/**
+	 * Load the user IDs allowed to edit rules.
+	 *
+	 * @return string[]
+	 */
+	public function getRuleEditorUsers(): array
+	{
+
+		return $this->loadStringList( self::CONFIG_KEY_RULE_EDITORS_USERS );
+	}
+
+
+	/**
+	 * Persist the user IDs allowed to edit rules.
+	 *
+	 * @param  string[]  $users
+	 *
+	 * @throws JsonException
+	 */
+	public function setRuleEditorUsers( array $users ): void
+	{
+
+		$this->saveStringList( self::CONFIG_KEY_RULE_EDITORS_USERS, $users );
+	}
+
+
+	/**
+	 * Whether the given user may edit rules at all.
+	 */
+	public function canUserEditRules( string $userId ): bool
+	{
+
+		if ( $this->isAllUsersEnabled() )
+		{
+			return true;
+		}
+
+		if ( in_array( $userId, $this->getRuleEditorUsers(), true ) )
+		{
+			return true;
+		}
+
+		if ( $this->groupManager !== null )
+		{
+			foreach ( $this->getRuleEditorGroups() as $groupId )
+			{
+				if ( $this->groupManager->isInGroup( $userId, $groupId ) )
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+
+	/**
+	 * Load a JSON string-list config value.
+	 *
+	 * @return string[]
+	 */
+	private function loadStringList( string $key ): array
+	{
+
+		$json = $this->appConfig->getValueString(
+			Application::APP_ID,
+			$key,
+			'[]',
+		);
+
+		try
+		{
+			$list = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
+		}
+		catch ( JsonException )
+		{
+			return [];
+		}
+
+		if ( ! is_array( $list ) )
+		{
+			return [];
+		}
+
+		return array_values(
+			array_filter(
+				$list,
+				static fn(
+					$entry,
+				): bool => is_string( $entry ) && $entry !== '',
+			),
+		);
+	}
+
+
+	/**
+	 * Persist a JSON string-list config value.
+	 *
+	 * @param  string[]  $list
+	 *
+	 * @throws JsonException
+	 */
+	private function saveStringList(
+		string $key,
+		array  $list,
+	): void {
+
+		$list = array_values(
+			array_filter(
+				$list,
+				static fn(
+					$entry,
+				): bool => is_string( $entry ) && $entry !== '',
+			),
+		);
+
+		$this->appConfig->setValueString(
+			Application::APP_ID,
+			$key,
+			json_encode( $list, JSON_THROW_ON_ERROR ),
+		);
+	}
+
+
+	/**
+	 * Find a rule by its ID.
+	 *
+	 * @return array|null
+	 */
+	public function findRuleById( string $id ): ?array
+	{
+
+		foreach ( $this->loadRules() as $rule )
+		{
+			if ( ( $rule['id'] ?? '' ) === $id )
+			{
+				return $rule;
+			}
+		}
+
+		return null;
+	}
+
+
+	/**
+	 * List rules applicable to the user's visible storages, annotated
+	 * with a normalized admin_enforced flag and a canEdit flag.
+	 *
+	 * @return list<array>
+	 */
+	public function getPersonalRulesForUser( string $userId ): array
+	{
+
+		$canEdit = $this->canUserEditRules( $userId );
+		$rules   = [];
+
+		foreach ( $this->loadRules() as $rule )
+		{
+			$userScope = $rule['userScope'] ?? 'all';
+
+			if ( $userScope !== 'all' && $userScope !== $userId )
+			{
+				continue;
+			}
+
+			$rule['admin_enforced'] = (bool) ( $rule['admin_enforced'] ?? false );
+			$rule['canEdit']        = $canEdit
+				&& ! $rule['admin_enforced']
+				&& $this->isPathWritableByUser( $userId, $rule['path'] ?? '/' );
+
+			$rules[] = $rule;
+		}
+
+		return $rules;
+	}
+
+
+	/**
+	 * Whether the path's target folder is write-accessible to the user.
+	 */
+	public function isPathWritableByUser(
+		string $userId,
+		string $path,
+	): bool {
+
+		$folderPath = $this->pathToFolder( $path );
+
+		try
+		{
+			$userFolder = $this->rootFolder->getUserFolder( $userId );
+
+			if ( $folderPath === '/' )
+			{
+				return $userFolder->isCreatable();
+			}
+
+			$node = $userFolder->get( $folderPath );
+
+			return $node instanceof Folder && $node->isCreatable();
+		}
+		catch ( Throwable )
+		{
+			return false;
+		}
+	}
+
+
+	/**
+	 * Derive the literal folder portion of a rule path glob.
+	 */
+	private function pathToFolder( string $path ): string
+	{
+
+		$path = trim( $path );
+
+		if ( $path === '' || $path === '/' || $path === '**' )
+		{
+			return '/';
+		}
+
+		$cut     = strcspn( $path, '*?[{' );
+		$literal = substr( $path, 0, $cut );
+		$folder  = rtrim( $literal, '/' );
+
+		if ( $folder === '' )
+		{
+			return '/';
+		}
+
+		if ( $folder[0] !== '/' )
+		{
+			$folder = '/' . $folder;
+		}
+
+		return $folder;
 	}
 
 

@@ -17,6 +17,7 @@ use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\IAppConfig;
+use OCP\IGroupManager;
 use OCP\IUser;
 use OCP\IUserManager;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -43,6 +44,8 @@ class RuleServiceTest
 
 	private MockObject|MetadataService $metadataService;
 
+	private MockObject|IGroupManager   $groupManager;
+
 	private MockObject|LoggerInterface $logger;
 
 	private RuleService                $service;
@@ -57,6 +60,7 @@ class RuleServiceTest
 		$this->rootFolder      = $this->createMock( IRootFolder::class );
 		$this->userManager     = $this->createMock( IUserManager::class );
 		$this->metadataService = $this->createMock( MetadataService::class );
+		$this->groupManager    = $this->createMock( IGroupManager::class );
 		$this->logger          = $this->createMock( LoggerInterface::class );
 
 		$this->service = new RuleService(
@@ -65,6 +69,7 @@ class RuleServiceTest
 			$this->userManager,
 			$this->metadataService,
 			$this->logger,
+			$this->groupManager,
 		);
 	}
 
@@ -897,6 +902,320 @@ class RuleServiceTest
 		$result = $this->service->resolveUsers( 'nonexistent' );
 
 		$this->assertSame( [], $result );
+	}
+
+
+	// rule editor lists
+
+	public function testGetRuleEditorGroupsDecodesJsonArray(): void
+	{
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'getValueString' )
+		                ->with( Application::APP_ID, 'rule_editors_groups', '[]' )
+		                ->willReturn( json_encode( [ 'staff', 'admins' ], JSON_THROW_ON_ERROR ) )
+		;
+
+		$this->assertSame( [ 'staff', 'admins' ], $this->service->getRuleEditorGroups() );
+	}
+
+
+	public function testGetRuleEditorGroupsHandlesInvalidJson(): void
+	{
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'getValueString' )
+		                ->with( Application::APP_ID, 'rule_editors_groups', '[]' )
+		                ->willReturn( '{invalid' )
+		;
+
+		$this->assertSame( [], $this->service->getRuleEditorGroups() );
+	}
+
+
+	public function testSetRuleEditorGroupsFiltersAndPersists(): void
+	{
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'setValueString' )
+		                ->with(
+			                Application::APP_ID,
+			                'rule_editors_groups',
+			                $this->callback(
+				                function (
+					                string $json,
+				                ): bool {
+
+					                return json_decode( $json, true, 512, JSON_THROW_ON_ERROR )
+						                === [ 'staff', 'admins' ];
+				                },
+			                ),
+		                )
+		;
+
+		$this->service->setRuleEditorGroups( [ 'staff', '', 'admins' ] );
+	}
+
+
+	public function testGetRuleEditorUsersDecodesJsonArray(): void
+	{
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'getValueString' )
+		                ->with( Application::APP_ID, 'rule_editors_users', '[]' )
+		                ->willReturn( json_encode( [ 'alice' ], JSON_THROW_ON_ERROR ) )
+		;
+
+		$this->assertSame( [ 'alice' ], $this->service->getRuleEditorUsers() );
+	}
+
+
+	public function testSetRuleEditorUsersFiltersAndPersists(): void
+	{
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'setValueString' )
+		                ->with(
+			                Application::APP_ID,
+			                'rule_editors_users',
+			                $this->callback(
+				                function (
+					                string $json,
+				                ): bool {
+
+					                return json_decode( $json, true, 512, JSON_THROW_ON_ERROR )
+						                === [ 'alice' ];
+				                },
+			                ),
+		                )
+		;
+
+		$this->service->setRuleEditorUsers( [ 'alice', '' ] );
+	}
+
+
+	public function testIsAllUsersEnabledReadsAppConfig(): void
+	{
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'getValueBool' )
+		                ->with( Application::APP_ID, 'rule_editors_all_users', false )
+		                ->willReturn( true )
+		;
+
+		$this->assertTrue( $this->service->isAllUsersEnabled() );
+	}
+
+
+	// canUserEditRules
+
+	public function testCanUserEditRulesAllowsAllUsersFlag(): void
+	{
+
+		$this->appConfig->method( 'getValueBool' )
+		                ->with( Application::APP_ID, 'rule_editors_all_users', false )
+		                ->willReturn( true )
+		;
+
+		$this->assertTrue( $this->service->canUserEditRules( 'alice' ) );
+	}
+
+
+	public function testCanUserEditRulesAllowsListedUser(): void
+	{
+
+		$this->appConfig->method( 'getValueBool' )
+		                ->with( Application::APP_ID, 'rule_editors_all_users', false )
+		                ->willReturn( false )
+		;
+		$this->appConfig->method( 'getValueString' )
+		                ->with( Application::APP_ID, 'rule_editors_users', '[]' )
+		                ->willReturn( json_encode( [ 'alice' ], JSON_THROW_ON_ERROR ) )
+		;
+
+		$this->assertTrue( $this->service->canUserEditRules( 'alice' ) );
+	}
+
+
+	public function testCanUserEditRulesAllowsGroupMember(): void
+	{
+
+		$this->appConfig->method( 'getValueBool' )
+		                ->with( Application::APP_ID, 'rule_editors_all_users', false )
+		                ->willReturn( false )
+		;
+		$this->appConfig->method( 'getValueString' )
+		                ->willReturnMap( [
+			                [ Application::APP_ID, 'rule_editors_users', '[]', '[]' ],
+			                [ Application::APP_ID, 'rule_editors_groups', '[]', json_encode( [ 'staff' ], JSON_THROW_ON_ERROR ) ],
+		                ] )
+		;
+		$this->groupManager->method( 'isInGroup' )
+		                   ->with( 'bob', 'staff' )
+		                   ->willReturn( true )
+		;
+
+		$this->assertTrue( $this->service->canUserEditRules( 'bob' ) );
+	}
+
+
+	public function testCanUserEditRulesDeniesUnlistedUser(): void
+	{
+
+		$this->appConfig->method( 'getValueBool' )
+		                ->with( Application::APP_ID, 'rule_editors_all_users', false )
+		                ->willReturn( false )
+		;
+		$this->appConfig->method( 'getValueString' )
+		                ->willReturnMap( [
+			                [ Application::APP_ID, 'rule_editors_users', '[]', '[]' ],
+			                [ Application::APP_ID, 'rule_editors_groups', '[]', '[]' ],
+		                ] )
+		;
+
+		$this->assertFalse( $this->service->canUserEditRules( 'carol' ) );
+	}
+
+
+	// findRuleById
+
+	public function testFindRuleByIdReturnsMatchingRule(): void
+	{
+
+		$this->setupRulesConfig( [
+			[ 'id' => 'r1', 'path' => '**' ],
+			[ 'id' => 'r2', 'path' => '/docs' ],
+		] );
+
+		$this->assertSame(
+			[ 'id' => 'r2', 'path' => '/docs' ],
+			$this->service->findRuleById( 'r2' ),
+		);
+	}
+
+
+	public function testFindRuleByIdReturnsNullWhenNotFound(): void
+	{
+
+		$this->setupRulesConfig( [
+			[ 'id' => 'r1', 'path' => '**' ],
+		] );
+
+		$this->assertNull( $this->service->findRuleById( 'nope' ) );
+	}
+
+
+	// getPersonalRulesForUser
+
+	public function testGetPersonalRulesForUserFiltersByScopeAndAnnotates(): void
+	{
+
+		$this->appConfig->method( 'getValueString' )
+		                ->willReturnCallback(
+			                function (
+				                string $app,
+				                string $key,
+				                string $default = '',
+				                bool   $lazy = false,
+			                ): string {
+
+				                if ( $key === 'rule_definitions' )
+				                {
+					                return json_encode(
+						                [
+							                [ 'id' => 'admin-all', 'userScope' => 'all', 'path' => '**' ],
+							                [ 'id' => 'admin-alice', 'userScope' => 'alice', 'path' => '/alice', 'admin_enforced' => true ],
+							                [ 'id' => 'admin-bob', 'userScope' => 'bob', 'path' => '/bob' ],
+						                ],
+						                JSON_THROW_ON_ERROR,
+					                );
+				                }
+
+				                return $default;
+				               },
+				              )
+		;
+
+		$this->appConfig->method( 'getValueBool' )
+				              ->with( Application::APP_ID, 'rule_editors_all_users', false )
+				              ->willReturn( true )
+		;
+
+		$folder = $this->createFolderMock();
+		$folder->method( 'isCreatable' )
+		       ->willReturn( true )
+		;
+
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->with( 'alice' )
+		                 ->willReturn( $folder )
+		;
+
+		$rules = $this->service->getPersonalRulesForUser( 'alice' );
+
+		$this->assertCount( 2, $rules );
+		$this->assertSame( 'admin-all', $rules[0]['id'] );
+		$this->assertFalse( $rules[0]['admin_enforced'] );
+		$this->assertTrue( $rules[0]['canEdit'] );
+		$this->assertSame( 'admin-alice', $rules[1]['id'] );
+		$this->assertTrue( $rules[1]['admin_enforced'] );
+		$this->assertFalse( $rules[1]['canEdit'] );
+	}
+
+
+	// isPathWritableByUser
+
+	public function testIsPathWritableByUserReturnsTrueForWritableRoot(): void
+	{
+
+		$folder = $this->createFolderMock();
+		$folder->method( 'isCreatable' )
+		       ->willReturn( true )
+		;
+
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->with( 'alice' )
+		                 ->willReturn( $folder )
+		;
+
+		$this->assertTrue( $this->service->isPathWritableByUser( 'alice', '/' ) );
+	}
+
+
+	public function testIsPathWritableByUserReturnsFalseForNonWritableRoot(): void
+	{
+
+		$folder = $this->createFolderMock();
+		$folder->method( 'isCreatable' )
+		       ->willReturn( false )
+		;
+
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->with( 'alice' )
+		                 ->willReturn( $folder )
+		;
+
+		$this->assertFalse( $this->service->isPathWritableByUser( 'alice', '/' ) );
+	}
+
+
+	public function testIsPathWritableByUserReturnsFalseOnException(): void
+	{
+
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->with( 'alice' )
+		                 ->willThrowException(
+			                 new class( 'nope' )
+				                 extends
+				                 \Exception
+				                 implements
+				                 Throwable {
+
+			                 },
+		                 )
+		;
+
+		$this->assertFalse( $this->service->isPathWritableByUser( 'alice', '/' ) );
 	}
 
 }

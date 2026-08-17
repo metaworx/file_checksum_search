@@ -38,6 +38,22 @@ export const OCS_SETTINGS = {
 	toggleRule: `${APP_BASE}/settings/cron/toggle`,
 	/** GET    /settings/cron/snippet */
 	getCrontabSnippet: `${APP_BASE}/settings/cron/snippet`,
+	/** GET    /settings/admin-options */
+	getAdminOptions: `${APP_BASE}/settings/admin-options`,
+	/** POST   /settings/admin-options/save */
+	saveAdminOptions: `${APP_BASE}/settings/admin-options/save`,
+} as const
+
+/** OCS personal settings endpoints (PersonalSettingsController) */
+export const OCS_PERSONAL = {
+	/** GET    /personal/rules */
+	getRules: `${APP_BASE}/personal/rules`,
+	/** POST   /personal/rules/save */
+	saveRule: `${APP_BASE}/personal/rules/save`,
+	/** POST   /personal/rules/delete */
+	deleteRule: `${APP_BASE}/personal/rules/delete`,
+	/** POST   /personal/rules/toggle */
+	toggleRule: `${APP_BASE}/personal/rules/toggle`,
 } as const
 
 /** OCS admin endpoints (PageController) */
