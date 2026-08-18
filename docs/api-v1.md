@@ -103,8 +103,8 @@ Get all checksums for a file by its filecache ID.
 [
     'fileid' => 12345,
     'hashes' => [
-        ['algo' => 'sha1', 'hash' => 'da39a3...'],
-        ['algo' => 'sha256', 'hash' => 'e3b0c4...'],
+        ['algo' => 'sha1', 'hash' => 'da39a3...', 'updated_at' => '2026-08-18T10:00:00+00:00'],
+        ['algo' => 'sha256', 'hash' => 'e3b0c4...', 'updated_at' => '2026-08-18T10:00:00+00:00'],
     ],
 ]
 ```
@@ -242,8 +242,8 @@ Read-only health/status snapshot.
 **Returns:**
 ```php
 [
-    'version' => '1.0.0',
-    'dbVersion' => '10.11.6-MariaDB',
+    'version' => '1.9.2',
+    'dbVersion' => '10.11.6',
     'rowCount' => 15423,
     'pendingRows' => 5,
 ]
@@ -319,8 +319,8 @@ GET /apps/file_checksum_search/api/v1/file/{fileId}/hashes
 {
   "fileid": 12345,
   "hashes": [
-    {"algo": "sha1", "hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709"},
-    {"algo": "sha256", "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}
+    {"algo": "sha1", "hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709", "updated_at": "2026-08-18T10:00:00+00:00"},
+    {"algo": "sha256", "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "updated_at": "2026-08-18T10:00:00+00:00"}
   ]
 }
 ```
@@ -366,7 +366,7 @@ Content-Type: application/json
 | Parameter | Type | Required | Default |
 |-----------|------|----------|---------|
 | `fileId` | int (path) | **Yes** | — |
-| `algo` | string (body) | No | `sha1` |
+| `algo` | string (body or query) | No | `sha1` |
 
 **Response (200):**
 ```json
@@ -426,8 +426,8 @@ No parameters.
 **Response (200):**
 ```json
 {
-  "version": "1.0.0",
-  "dbVersion": "10.11.6-MariaDB",
+  "version": "1.9.2",
+  "dbVersion": "10.11.6",
   "rowCount": 15423,
   "pendingRows": 5
 }
@@ -473,7 +473,7 @@ All API endpoints use `#[NoCSRFRequired]`. CSRF tokens are not needed for API ac
 
 ### Authorization
 
-All API endpoints use `#[NoAdminRequired]`. Any authenticated user can access the public API. Admin-only operations (rebuild, purge, teardown, etc.) are **not** exposed through the public API — they remain in the admin settings page and CLI.
+All API endpoints use `#[NoAdminRequired]`. Any authenticated user can access the public API. Admin-only operations (rebuild, rule management, etc.) are **not** exposed through the public API — they remain in the admin settings page and CLI.
 
 ---
 

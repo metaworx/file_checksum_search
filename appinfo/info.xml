@@ -3,12 +3,12 @@
 	  xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
 	<id>file_checksum_search</id>
 	<name>File Checksum Index &amp; Search</name>
-	<summary>Index file checksums for fast reverse hash lookups</summary>
-	<description>
-		Indexes file checksums in Nextcloud's files metadata index for fast reverse
-		hash lookups without custom tables. Provides a Unified Search provider, REST API, CLI commands, and an admin
-		settings page for
-		maintenance operations.
+	<summary>Index file checksums for fast reverse hash lookups and duplicate detection</summary>
+	<description>Indexes file checksums in Nextcloud's built-in files metadata index for fast reverse hash lookups and
+		duplicate detection without custom tables.
+
+		Provides a Unified Search provider, a duplicate file browser, rule-based hash generation (admin and personal
+		settings), a stable REST API (v1), CLI commands, and a user-facing FAQ and help.
 	</description>
 	<version>0.12.1</version>
 	<licence>AGPL-3.0-or-later</licence>

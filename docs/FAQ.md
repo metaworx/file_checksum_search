@@ -11,7 +11,7 @@ require a full-table `LIKE '%hash%'` scan, which is O(n) and unusable at
 scale. FCIAS stores checksums in Nextcloud's built-in files metadata index
 (`oc_files_metadata_index`) and mirrors them back into the filecache
 checksum column, enabling fast indexed reverse hash lookups without custom
-tables or database triggers.
+tables.
 
 Key features:
 
@@ -38,8 +38,8 @@ The computed checksums are also mirrored back into Nextcloud's `filecache`
 `checksum` column as `algo:hash` pairs, so the values remain visible to
 anything that reads the standard filecache checksum field.
 
-No custom tables or database triggers are required — FCIAS adds composite
-indices to the built-in metadata index.
+No custom tables are required — FCIAS adds composite indices to the
+built-in metadata index.
 
 ## How do rules work?
 
