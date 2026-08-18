@@ -5,6 +5,12 @@ const appName = 'File Checksum Index & Search'
 // Nextcloud checkout lives in ./nextcloud. Override via CYPRESS_occ
 // for local/ddev runs (e.g. CYPRESS_occ="php /var/www/html/occ").
 let occ = 'php nextcloud/occ'
+let adminUser = 'admin'
+let adminPassword = 'admin'
+
+// Safety net: the CI job warms the app store cache via `occ update:check`,
+// but keep a generous timeout in case the app list is still slow to render.
+const FIND_TIMEOUT = 30000
 
 const assertAppEnabledCli = () => {
 	cy.exec( `${ occ } app:list --enabled` ).then( ( { stdout } ) => {
@@ -20,15 +26,21 @@ const assertAppDisabledCli = () => {
 
 describe( 'FCIAS App Enable', () => {
 	before( () => {
-		cy.env( [ 'occ' ] ).then( ( { occ: customOcc } ) => {
-			if ( customOcc ) {
-				occ = customOcc
+		cy.env( [ 'occ', 'NC_ADMIN_USER', 'NC_ADMIN_PASSWORD' ] ).then( ( env ) => {
+			if ( env.occ ) {
+				occ = env.occ
+			}
+			if ( env.NC_ADMIN_USER ) {
+				adminUser = env.NC_ADMIN_USER
+			}
+			if ( env.NC_ADMIN_PASSWORD ) {
+				adminPassword = env.NC_ADMIN_PASSWORD
 			}
 		} )
 	} )
 
 	beforeEach( () => {
-		cy.login()
+		cy.login( adminUser, adminPassword )
 	} )
 
 	it( 'enables the app via the web UI and verifies the enabled state (UI + CLI)', () => {
@@ -41,7 +53,7 @@ describe( 'FCIAS App Enable', () => {
 		cy.visit( '/index.php/settings/apps/disabled' )
 
 		// Find the FCIAS app entry (its name links to the app details page).
-		cy.get( `a[href*="${ appId }"]` )
+		cy.get( `a[href*="${ appId }"]`, { timeout: FIND_TIMEOUT } )
 			.closest( 'tr.app-item' )
 			.should( 'exist' )
 			.as( 'appRow' )
@@ -56,7 +68,7 @@ describe( 'FCIAS App Enable', () => {
 
 		// UI: it is now listed under the enabled apps ("Active apps").
 		cy.visit( '/index.php/settings/apps/enabled' )
-		cy.get( `a[href*="${ appId }"]` )
+		cy.get( `a[href*="${ appId }"]`, { timeout: FIND_TIMEOUT } )
 			.closest( 'tr.app-item' )
 			.within( () => {
 				cy.contains( 'button', 'Disable' ).should( 'exist' )
@@ -67,7 +79,7 @@ describe( 'FCIAS App Enable', () => {
 
 		// Navigate to the app's admin settings section and verify it renders.
 		cy.visit( `/index.php/settings/admin/${ appId }` )
-		cy.get( '#fcias-admin-settings' )
+		cy.get( '#fcias-admin-settings', { timeout: FIND_TIMEOUT } )
 			.should( 'exist' )
 			.and( 'contain', appName )
 	} )
@@ -79,7 +91,7 @@ describe( 'FCIAS App Enable', () => {
 
 		cy.visit( '/index.php/settings/apps/enabled' )
 
-		cy.get( `a[href*="${ appId }"]` )
+		cy.get( `a[href*="${ appId }"]`, { timeout: FIND_TIMEOUT } )
 			.closest( 'tr.app-item' )
 			.should( 'exist' )
 			.as( 'appRow' )
@@ -94,7 +106,7 @@ describe( 'FCIAS App Enable', () => {
 
 		// UI: it is now listed under "Disabled apps".
 		cy.visit( '/index.php/settings/apps/disabled' )
-		cy.get( `a[href*="${ appId }"]` )
+		cy.get( `a[href*="${ appId }"]`, { timeout: FIND_TIMEOUT } )
 			.closest( 'tr.app-item' )
 			.within( () => {
 				cy.contains( 'button', 'Enable' ).should( 'exist' )

@@ -26,5 +26,6 @@ cookie*.txt
 /css/
 
 /build/
+/cypress/
 /.appstore/
 
