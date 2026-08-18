@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Added
+
+- Add FAQ and user help documentation with in-app help tabs on the personal settings and duplicates pages, plus a public help endpoint.
+
 ### Changed
 
 - Give the admin page its own dedicated settings section and add a read-only Documentation tab that renders the bundled docs, including Markdown.

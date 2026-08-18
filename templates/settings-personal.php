@@ -19,6 +19,16 @@ Util::addStyle( Application::APP_ID, Application::APP_ID . '-settings-personal' 
 	<h3><?php
 		p( $l->t( 'File Checksum Index & Search' ) ); ?></h3>
 
+	<div class="fcias-tabs" role="tablist">
+		<button type="button" class="fcias-tab is-active" id="fcias-tab-btn-rules" data-tab="rules" role="tab"
+		        aria-selected="true" aria-controls="fcias-tab-panel-rules"><?php
+			p( $l->t( 'Rules' ) ); ?></button>
+		<button type="button" class="fcias-tab" id="fcias-tab-btn-faq" data-tab="faq" role="tab" aria-selected="false"
+		        aria-controls="fcias-tab-panel-faq"><?php
+			p( $l->t( 'FAQ' ) ); ?></button>
+	</div>
+
+	<div id="fcias-tab-panel-rules" class="fcias-tab-panel" role="tabpanel" aria-labelledby="fcias-tab-btn-rules">
 	<h4><?php
 		p( $l->t( 'Rules applying to your files' ) ); ?></h4>
 
@@ -73,5 +83,10 @@ Util::addStyle( Application::APP_ID, Application::APP_ID . '-settings-personal' 
 					p( $l->t( 'Cancel' ) ); ?></button>
 			</div>
 		</div>
+	</div>
+	</div>
+
+	<div id="fcias-tab-panel-faq" class="fcias-tab-panel" role="tabpanel" aria-labelledby="fcias-tab-btn-faq" hidden>
+		<div id="fcias-personal-faq-viewer"></div>
 	</div>
 </div>

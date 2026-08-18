@@ -14,6 +14,7 @@ Util::addScript( Application::APP_ID, Application::APP_ID . '-settings-admin' );
 Util::addScript( Application::APP_ID, Application::APP_ID . '-settings-admin-docs' );
 Util::addScript( Application::APP_ID, Application::APP_ID . '-settings-admin-permission' );
 Util::addStyle( Application::APP_ID, Application::APP_ID . '-settings-admin' );
+Util::addStyle( Application::APP_ID, Application::APP_ID . '-settings-admin-docs' );
 
 /** @var \OCP\IL10N $l is auto-injected by NC's TemplateResponse renderer via \OCP\Util::getL10N('file_checksum_search'). */
 ?>

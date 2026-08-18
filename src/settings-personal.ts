@@ -5,9 +5,11 @@
  * Personal settings page — rules applying to the current user's files.
  */
 
+import { createApp } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
-import { OCS_PERSONAL } from './routes'
+import { OCS_ADMIN, OCS_PERSONAL } from './routes'
 import { escapeHtml } from './utils'
+import DocsViewer from './docs-vue/DocsViewer.vue'
 import './settings-admin.css'
 
 declare const OC: {
@@ -245,8 +247,39 @@ function toggleRule(id: string | number, enabled: boolean): void {
 		})
 }
 
+function activateTab(tab: string): void {
+	document.querySelectorAll<HTMLButtonElement>('.fcias-tab').forEach(btn => {
+		const active = btn.dataset.tab === tab
+		btn.classList.toggle('is-active', active)
+		btn.setAttribute('aria-selected', active ? 'true' : 'false')
+	})
+	document.querySelectorAll<HTMLElement>('.fcias-tab-panel').forEach(panel => {
+		panel.hidden = panel.id !== `fcias-tab-panel-${tab}`
+	})
+}
+
+function tabFromHash(): string {
+	const tab = window.location.hash.replace(/^#/, '').split('/')[0]
+	return tab === 'faq' ? 'faq' : 'rules'
+}
+
 document.addEventListener('DOMContentLoaded', () => {
 	loadRules()
+	activateTab(tabFromHash())
+
+	document.querySelectorAll<HTMLButtonElement>('.fcias-tab').forEach(btn => {
+		btn.addEventListener('click', () => {
+			const tab = btn.dataset.tab || 'rules'
+			activateTab(tab)
+			window.location.hash = tab
+		})
+	})
+
+	window.addEventListener('hashchange', () => {
+		activateTab(tabFromHash())
+	})
+
+	createApp(DocsViewer, { endpoint: OCS_ADMIN.getHelp, only: 'docs/FAQ.md' }).mount('#fcias-personal-faq-viewer')
 
 	document.getElementById('fcias-personal-add')?.addEventListener('click', () => { showForm(null) })
 	document.getElementById('fcias-personal-save')?.addEventListener('click', saveRule)

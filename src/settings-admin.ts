@@ -445,26 +445,36 @@ function copySnippet(): void {
 }
 
 function activateTab(tab: string): void {
-	const isDocs = tab === 'docs'
 	document.querySelectorAll<HTMLButtonElement>('.fcias-tab').forEach(btn => {
 		const active = btn.dataset.tab === tab
 		btn.classList.toggle('is-active', active)
 		btn.setAttribute('aria-selected', active ? 'true' : 'false')
 	})
-	const settingsPanel = document.getElementById('fcias-tab-panel-settings')
-	const docsPanel = document.getElementById('fcias-tab-panel-docs')
-	if (settingsPanel) settingsPanel.hidden = isDocs
-	if (docsPanel) docsPanel.hidden = !isDocs
+	document.querySelectorAll<HTMLElement>('.fcias-tab-panel').forEach(panel => {
+		panel.hidden = panel.id !== `fcias-tab-panel-${tab}`
+	})
+}
+
+function tabFromHash(): string {
+	const tab = window.location.hash.replace(/^#/, '').split('/')[0]
+	return tab === 'docs' ? 'docs' : 'settings'
 }
 
 document.addEventListener('DOMContentLoaded', () => {
 	loadStatus()
 	loadDefinitions()
+	activateTab(tabFromHash())
 
 	document.querySelectorAll<HTMLButtonElement>('.fcias-tab').forEach(btn => {
 		btn.addEventListener('click', () => {
-			activateTab(btn.dataset.tab || 'settings')
+			const tab = btn.dataset.tab || 'settings'
+			activateTab(tab)
+			window.location.hash = tab
 		})
+	})
+
+	window.addEventListener('hashchange', () => {
+		activateTab(tabFromHash())
 	})
 
 	document.getElementById('fcias-btn-refresh-status')?.addEventListener('click', loadStatus)

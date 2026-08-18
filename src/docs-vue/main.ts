@@ -8,4 +8,4 @@
 import { createApp } from 'vue'
 import DocsViewer from './DocsViewer.vue'
 
-createApp(DocsViewer).mount('#fcias-docs-viewer')
+createApp(DocsViewer, { hashPrefix: 'docs' }).mount('#fcias-docs-viewer')

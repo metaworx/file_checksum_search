@@ -67,36 +67,90 @@ class PageController
 	public function getDocs(): DataResponse
 	{
 
-		$appRoot = dirname( __DIR__, 2 );
+		return new DataResponse( [
+			'docs' => $this->readDocs(
+				[
+					[
+						'label' => 'FAQ',
+						'name'  => 'docs/FAQ.md',
+						'path'  => 'docs/FAQ.md',
+					],
+					[
+						'label' => 'README',
+						'name'  => 'README.md',
+						'path'  => 'README.md',
+					],
+					[
+						'label' => 'API v1 (OpenAPI)',
+						'name'  => 'docs/api-v1-openapi.yaml',
+						'path'  => 'docs/api-v1-openapi.yaml',
+					],
+					[
+						'label' => 'API v1 (Markdown)',
+						'name'  => 'docs/api-v1.md',
+						'path'  => 'docs/api-v1.md',
+					],
+					[
+						'label' => 'openapi.json',
+						'name'  => 'openapi.json',
+						'path'  => 'openapi.json',
+					],
+					[
+						'label' => 'LICENSE',
+						'name'  => 'LICENSE',
+						'path'  => 'LICENSE',
+					],
+				],
+			),
+		] );
+	}
 
-		// Whitelist of bundled docs — never serve arbitrary paths.
-		$files = [
-			[
-				'label' => 'README',
-				'name'  => 'README.md',
-				'path'  => 'README.md',
-			],
-			[
-				'label' => 'API v1 (OpenAPI)',
-				'name'  => 'docs/api-v1-openapi.yaml',
-				'path'  => 'docs/api-v1-openapi.yaml',
-			],
-			[
-				'label' => 'API v1 (Markdown)',
-				'name'  => 'docs/api-v1.md',
-				'path'  => 'docs/api-v1.md',
-			],
-			[
-				'label' => 'openapi.json',
-				'name'  => 'openapi.json',
-				'path'  => 'openapi.json',
-			],
-			[
-				'label' => 'LICENSE',
-				'name'  => 'LICENSE',
-				'path'  => 'LICENSE',
-			],
-		];
+
+	/**
+	 * Serve public-facing help documentation to all authenticated users.
+	 *
+	 * The duplicate browser and personal settings pages are available to
+	 * every user, so the FAQ and user help must be readable without admin
+	 * privileges.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	#[ApiRoute( verb: 'GET', url: '/help' )]
+	public function getHelp(): DataResponse
+	{
+
+		return new DataResponse( [
+			'docs' => $this->readDocs(
+				[
+					[
+						'label' => 'FAQ',
+						'name'  => 'docs/FAQ.md',
+						'path'  => 'docs/FAQ.md',
+					],
+					[
+						'label' => 'User Help',
+						'name'  => 'docs/HELP.md',
+						'path'  => 'docs/HELP.md',
+					],
+				],
+			),
+		] );
+	}
+
+
+	/**
+	 * Read the given bundled doc files and return label/name/path/content entries.
+	 *
+	 * @param  array<int, array{label: string, name: string, path: string}>  $files
+	 *
+	 * @return array<int, array{label: string, name: string, path: string, content: string|null}>
+	 */
+	private function readDocs( array $files ): array
+	{
+
+		$appRoot = dirname( __DIR__, 2 );
 
 		$docs = [];
 
@@ -120,7 +174,7 @@ class PageController
 			];
 		}
 
-		return new DataResponse( [ 'docs' => $docs ] );
+		return $docs;
 	}
 
 }

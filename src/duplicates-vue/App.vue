@@ -13,6 +13,8 @@ import DuplicateGroup from './components/DuplicateGroup.vue'
 import VerifyButton from './components/VerifyButton.vue'
 import { useDuplicates } from './composables/useDuplicates'
 import type { DuplicateGroup as GroupType } from './composables/useDuplicates'
+import DocsViewer from '../docs-vue/DocsViewer.vue'
+import { OCS_ADMIN } from '../routes'
 
 const {
 	algo,
@@ -44,6 +46,17 @@ const algoOptions = [
 ]
 
 const verifiedOnly = ref(false)
+const activeTab = ref<'duplicates' | 'help'>('duplicates')
+
+function tabFromHash(): 'duplicates' | 'help' {
+	const tab = window.location.hash.replace(/^#/, '').split('/')[0]
+	return tab === 'help' ? 'help' : 'duplicates'
+}
+
+function setTab(tab: 'duplicates' | 'help'): void {
+	activeTab.value = tab
+	window.location.hash = tab
+}
 
 const filteredGroups = computed<GroupType[]>(() => {
 	if (!verifiedOnly.value) return groups.value
@@ -73,6 +86,10 @@ async function onVerify(): Promise<void> {
 }
 
 onMounted(() => {
+	activeTab.value = tabFromHash()
+	window.addEventListener('hashchange', () => {
+		activeTab.value = tabFromHash()
+	})
 	load()
 })
 </script>
@@ -81,44 +98,71 @@ onMounted(() => {
 	<NcContent app-name="file_checksum_search">
 		<NcAppContent :class="$style.content">
 			<div class="db-wrap">
-				<div class="db-controls">
-					<select v-model="algo" class="db-select">
-						<option v-for="opt in algoOptions" :key="opt.value" :value="opt.value">
-							{{ opt.label }}
-						</option>
-					</select>
-					<label class="db-label">
-						Min:
-						<input v-model.number="minCount" type="number" min="2" max="100" class="db-input-narrow">
-					</label>
-					<label class="db-label">
-						Limit:
-						<input v-model.number="limit" type="number" min="1" max="500" class="db-input-narrow">
-					</label>
-					<button class="db-btn primary" @click="refresh">Refresh</button>
-					<VerifyButton :verifying="verifying" :has-verified="hasVerified" @verify="onVerify" />
-					<label class="db-label" title="Show only groups where all files were confirmed matching">
-						<input v-model="verifiedOnly" type="checkbox"> Only matching
-					</label>
+				<div class="db-tabs" role="tablist">
+					<button
+						type="button"
+						class="db-tab"
+						:class="{ 'is-active': activeTab === 'duplicates' }"
+						role="tab"
+						:aria-selected="activeTab === 'duplicates'"
+						@click="setTab('duplicates')">
+						Duplicates
+					</button>
+					<button
+						type="button"
+						class="db-tab"
+						:class="{ 'is-active': activeTab === 'help' }"
+						role="tab"
+						:aria-selected="activeTab === 'help'"
+						@click="setTab('help')">
+						Help
+					</button>
 				</div>
 
-				<div class="db-scroll">
-					<div v-if="loading" class="db-loading">Searching …</div>
-					<div v-else-if="error" class="db-error">{{ error }}</div>
-					<div v-else-if="filteredGroups.length === 0" class="db-empty">
-						{{ groups.length === 0 ? 'No duplicate files found.' : 'No matching duplicate files found.' }}
+				<template v-if="activeTab === 'duplicates'">
+					<div class="db-controls">
+						<select v-model="algo" class="db-select">
+							<option v-for="opt in algoOptions" :key="opt.value" :value="opt.value">
+								{{ opt.label }}
+							</option>
+						</select>
+						<label class="db-label">
+							Min:
+							<input v-model.number="minCount" type="number" min="2" max="100" class="db-input-narrow">
+						</label>
+						<label class="db-label">
+							Limit:
+							<input v-model.number="limit" type="number" min="1" max="500" class="db-input-narrow">
+						</label>
+						<button class="db-btn primary" @click="refresh">Refresh</button>
+						<VerifyButton :verifying="verifying" :has-verified="hasVerified" @verify="onVerify" />
+						<label class="db-label" title="Show only groups where all files were confirmed matching">
+							<input v-model="verifiedOnly" type="checkbox"> Only matching
+						</label>
 					</div>
-					<DuplicateGroup
-						v-for="(group, idx) in filteredGroups"
-						:key="`${group.algo}-${group.hash_value}-${idx}`"
-						:group="group"
-						:file-url="fileUrl"
-					/>
-				</div>
 
-				<div class="db-pagination">
-					<button v-if="offset > 0" class="db-btn" @click="prevPage">← Previous</button>
-					<button v-if="hasMore" class="db-btn" @click="nextPage">Next →</button>
+					<div class="db-scroll">
+						<div v-if="loading" class="db-loading">Searching …</div>
+						<div v-else-if="error" class="db-error">{{ error }}</div>
+						<div v-else-if="filteredGroups.length === 0" class="db-empty">
+							{{ groups.length === 0 ? 'No duplicate files found.' : 'No matching duplicate files found.' }}
+						</div>
+						<DuplicateGroup
+							v-for="(group, idx) in filteredGroups"
+							:key="`${group.algo}-${group.hash_value}-${idx}`"
+							:group="group"
+							:file-url="fileUrl"
+						/>
+					</div>
+
+					<div class="db-pagination">
+						<button v-if="offset > 0" class="db-btn" @click="prevPage">← Previous</button>
+						<button v-if="hasMore" class="db-btn" @click="nextPage">Next →</button>
+					</div>
+				</template>
+
+				<div v-else class="db-help">
+					<DocsViewer :endpoint="OCS_ADMIN.getHelp" only="docs/HELP.md" />
 				</div>
 			</div>
 		</NcAppContent>
@@ -139,6 +183,28 @@ onMounted(() => {
 	margin: 0 auto;
 	padding: 16px;
 	width: 100%;
+}
+.db-tabs {
+	display: flex;
+	gap: 4px;
+	border-bottom: 1px solid var(--color-border);
+	margin-bottom: 16px;
+}
+.db-tab {
+	background: transparent;
+	border: none;
+	border-bottom: 2px solid transparent;
+	padding: 8px 14px;
+	font-weight: 600;
+	color: var(--color-text-maxcontrast);
+	cursor: pointer;
+}
+.db-tab.is-active {
+	color: var(--color-main-text);
+	border-bottom-color: var(--color-primary);
+}
+.db-help {
+	padding: 8px 0;
 }
 .db-controls {
 	display: flex;

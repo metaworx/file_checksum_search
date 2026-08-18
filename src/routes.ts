@@ -58,8 +58,10 @@ export const OCS_PERSONAL = {
 
 /** OCS admin endpoints (PageController) */
 export const OCS_ADMIN = {
-	/** GET    /admin/docs */
+	/** GET    /admin/docs (admin only) */
 	getDocs: `${APP_BASE}/admin/docs`,
+	/** GET    /help (public, all authenticated users) */
+	getHelp: `${APP_BASE}/help`,
 } as const
 
 /** Frontend routes (Files app) */
