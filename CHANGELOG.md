@@ -20,6 +20,7 @@ the first stable release.
 - Give the admin page its own dedicated settings section and add a read-only Documentation tab that renders the bundled docs, including Markdown.
 - Let users edit and create hash-generation rules from a personal settings page, with admins able to lock individual rules via a per-rule admin_enforced flag and control access via allowed groups/users.
 - Revise README, info.xml, API docs, and the changelog to reflect the current feature set, removing stale references to database triggers, MariaDB-only support, and Webpack.
+- Update info.xml for App Store metadata compliance (PHP/database dependencies, documentation links, HTTPS repository URL) and add app store screenshots.
 
 ### Removed
 

@@ -13,15 +13,40 @@
 	<version>0.12.1</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author mail="apps@metaworx.ch"
-			homepage="">metaworx resonare rüegg
+			homepage="https://github.com/metaworx/">metaworx resonare rüegg
 	</author>
+	<documentation>
+		<user>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/blob/master/docs/HELP.md</user>
+		<admin>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/blob/master/README.md</admin>
+		<developer>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/blob/master/docs/api-v1.md
+		</developer>
+	</documentation>
 	<namespace>FileChecksumSearch</namespace>
 	<category>files</category>
 	<category>search</category>
 	<website>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search</website>
 	<bugs>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/work_items</bugs>
-	<repository type="git">git@gitlab.com:metaworx/open-source/nextcloud/file_checksum_search.git</repository>
+	<repository type="git">https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search.git</repository>
+	<screenshot>
+		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/master/docs/Screenshots/Duplicates-Page.png
+	</screenshot>
+	<screenshot>
+		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/master/docs/Screenshots/File-Detail-Pane.png
+	</screenshot>
+	<screenshot>
+		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/master/docs/Screenshots/Unified_Search.png
+	</screenshot>
+	<screenshot>
+		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/master/docs/Screenshots/User-Settings.png
+	</screenshot>
+	<screenshot>
+		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/master/docs/Screenshots/Admin-Settings.png
+	</screenshot>
 	<dependencies>
+		<php min-version="8.2"/>
+		<database>sqlite</database>
+		<database>mysql</database>
+		<database>pgsql</database>
 		<nextcloud min-version="33"
 				   max-version="34"/>
 	</dependencies>
