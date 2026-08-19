@@ -118,8 +118,8 @@ jobs:
           node-version: '24'
           database: mysql
 
-      - name: Warm app store cache (so the Apps page loads fast in E2E)
-        run: php occ update:check || true
+      - name: Disable app store (E2E apps page lists installed apps only)
+        run: php occ config:system:set appstoreenabled --value=false --type=boolean
         working-directory: nextcloud
 
       - name: Inject app into integration instance
