@@ -8,9 +8,9 @@ let occ = 'php nextcloud/occ'
 let adminUser = 'admin'
 let adminPassword = 'admin'
 
-// Safety net: the CI job warms the app store cache via `occ update:check`,
-// but keep a generous timeout in case the app list is still slow to render.
-const FIND_TIMEOUT = 30000
+// Allow a generous timeout when locating the app row: the first app-list
+// request can be slow on a cold PHP worker.
+const FIND_TIMEOUT = 60000
 
 const assertAppEnabledCli = () => {
 	cy.exec( `${ occ } app:list --enabled` ).then( ( { stdout } ) => {
@@ -62,6 +62,10 @@ describe( 'FCIAS App Enable', () => {
 		cy.get( '@appRow' ).within( () => {
 			cy.contains( 'button', 'Enable' ).click()
 		} )
+
+		// Enabling an app requires password confirmation (strict mode).
+		cy.get( 'input[type="password"]', { timeout: FIND_TIMEOUT } ).type( adminPassword )
+		cy.contains( 'button', 'Confirm' ).click()
 
 		// The app leaves the "Disabled apps" list once it has been enabled.
 		cy.get( `a[href*="${ appId }"]` ).should( 'not.exist' )

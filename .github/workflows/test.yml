@@ -118,8 +118,10 @@ jobs:
           node-version: '24'
           database: mysql
 
-      - name: Disable app store (E2E apps page lists installed apps only)
-        run: php occ config:system:set appstoreenabled --value=false --type=boolean
+      - name: Configure Nextcloud for E2E (disable app store, force English)
+        run: |
+          php occ config:system:set appstoreenabled --value=false --type=boolean
+          php occ config:system:set force_language --value=en
         working-directory: nextcloud
 
       - name: Inject app into integration instance
@@ -140,6 +142,14 @@ jobs:
         working-directory: nextcloud
         env:
           PHP_CLI_SERVER_WORKERS: 3
+
+      - name: Warm up Nextcloud HTTP server
+        run: |
+          for i in $(seq 1 30); do
+            curl -fsS -o /dev/null http://localhost:8081/status.php && break
+            sleep 1
+          done
+          curl -fsS -o /dev/null http://localhost:8081/index.php/login || true
 
       - name: Run Integration Tests (Headless Chrome)
         uses: cypress-io/github-action@v6
