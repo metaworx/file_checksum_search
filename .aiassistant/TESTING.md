@@ -1,4 +1,4 @@
-# Testing Conventions (v2.4.1)
+# Testing Conventions (v2.5.0)
 
 Project-specific testing conventions for FCIAS (File Checksum Index & Search Nextcloud app).
 Generic agent flow-control rules are in `AGENTS.md`; contributor context is in `CONTRIBUTING.md`.
@@ -169,19 +169,41 @@ $request = $this->createMock(\OCP\IRequest::class);
 
 ## 9. Cypress E2E Testing
 
-Cypress is available via the `ddev/ddev-cypress` add-on (already installed in the helioscloud ddev project).
+Cypress is a dev dependency of this project (`package.json`); specs live in `tests/e2e/` and are
+configured in `cypress.config.cjs` at the project root.
+
+### 9.1 Running locally
+
+Run Cypress directly from this repository against the local ddev Nextcloud instance (helioscloud):
 
 ```bash
-ddev cypress-run --browser chrome
+wsl bash -lc "cd ~/projects/nc_file_checksum_search && \
+  CYPRESS_baseUrl=https://helioscloud.ddev.site \
+  CYPRESS_occ='cd ~/projects/helioscloud && ddev exec php /var/www/html/occ' \
+  CYPRESS_NC_ADMIN_PASSWORD='<admin-password>' \
+  npx cypress run --spec tests/e2e/app-enable.cy.js"
 ```
 
-Configuration is in `cypress.config.cjs` at the project root. E2E tests live in `tests/e2e/`.
+Environment variables (read via `cy.env()` in the specs):
 
-Credentials are passed via environment variables to avoid hardcoding:
+- `CYPRESS_baseUrl` — Nextcloud base URL; defaults to `https://helioscloud.ddev.site`.
+- `CYPRESS_occ` — shell prefix used to invoke `occ`; must resolve from this repo's WSL path.
+- `CYPRESS_NC_ADMIN_USER` / `CYPRESS_NC_ADMIN_PASSWORD` — admin credentials (default `admin`/`admin`).
+  The helioscloud instance enforces a strong password, so set a non-trivial one locally.
 
-```bash
-ddev cypress-run --browser chrome --env NC_ADMIN_USER="Admin",NC_ADMIN_PASSWORD="..."
-```
+Prerequisites:
+
+- The ddev project is running and responsive (`ddev start` in `~/projects/helioscloud`).
+- The instance UI is English: either set `force_language=en`
+  (`ddev exec php /var/www/html/occ config:system:set force_language --value=en`), or run with
+  `--browser chrome`, which is forced to `--lang=en-US` in `cypress.config.cjs` (Electron ignores the flag).
+
+### 9.2 Notes
+
+- Enabling an app via the Apps page requires a password confirmation dialog
+  (`PasswordConfirmationRequired`); the spec fills it after clicking **Enable**.
+- CI runs the same specs in `cypress-io/github-action` against `http://localhost:8081` with
+  `appstoreenabled=false` and `force_language=en` (see `.github/workflows/test.yml`).
 
 ## 14. JetBrains MCP Quality Workflow
 
@@ -202,6 +224,7 @@ Common inspections to watch for:
 
 | Version | Date       | Changed sections                              | Change type | Agent impact                                                                                                                                                                            |
 |---------|------------|-----------------------------------------------|-------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| v2.5.0  | 2026-08-19 | 9                                             | minor       | Documented the local E2E run procedure (`npx cypress run` + `CYPRESS_*` env vars, `force_language`) and the app-enable password confirmation.                                            |
 | v2.4.1  | 2026-08-16 | 9                                             | fix         | Renamed cypress.config.js to cypress.config.cjs to fix the ESM/CommonJS conflict in the CI Cypress job.                                                                                 |
 | v2.4.0  | 2026-08-06 | 14                                            | minor       | Added JetBrains MCP Quality Workflow (§14). Author: metaworx.                                                                                                                           |
 | v2.3.0  | 2026-08-05 | 1                                             | minor       | Added --display-warnings note for CI PHPUnit with failOnWarning="true".                                                                                                                 |
