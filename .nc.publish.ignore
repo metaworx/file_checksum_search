@@ -17,6 +17,7 @@
 # Release tooling (this file and the packaging script)
 /.nc.publish.ignore
 /package.sh
+/.gitlab-ci.yml
 
 # IDE / editor
 .idea

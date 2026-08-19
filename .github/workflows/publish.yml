@@ -12,11 +12,6 @@ jobs:
   publish:
     name: Build, sign and publish app
     runs-on: ubuntu-latest
-    env:
-      # Pin a specific tag or digest for reproducibility via the
-      # APPSTORE_SIG_IMAGE repository variable, e.g.:
-      #   ghcr.io/nextcloud/appstore-sig@sha256:...
-      APPSTORE_SIG_IMAGE: ${{ vars.APPSTORE_SIG_IMAGE || 'ghcr.io/nextcloud/appstore-sig:latest' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,34 +41,12 @@ jobs:
       - name: Build and package app
         run: bash package.sh
 
-      - name: Sign app archive (appstore-sig)
+      - name: Sign app archive (openssl)
         if: vars.APPSTORE_SIGNING_ENABLED == 'true'
         env:
-          APPSTORE_CERT: ${{ secrets.APPSTORE_CERT }}
           APPSTORE_KEY: ${{ secrets.APPSTORE_KEY }}
-        run: |
-          set -euo pipefail
-          archive="build/file_checksum_search-${{ steps.app-meta.outputs.version }}.tar.gz"
-          mkdir -p .appstore
-          printf '%s\n' "$APPSTORE_CERT" > .appstore/cert.crt
-          printf '%s\n' "$APPSTORE_KEY" > .appstore/key.pem
-          docker run --rm \
-            -v "$PWD:/app:rw" \
-            "$APPSTORE_SIG_IMAGE" \
-            appstore-sig sign \
-              --cert /app/.appstore/cert.crt \
-              --key /app/.appstore/key.pem \
-              "/app/${archive}"
-
-      - name: Verify app signature
-        if: vars.APPSTORE_SIGNING_ENABLED == 'true'
-        run: |
-          set -euo pipefail
-          archive="build/file_checksum_search-${{ steps.app-meta.outputs.version }}.tar.gz"
-          docker run --rm \
-            -v "$PWD:/app:ro" \
-            "$APPSTORE_SIG_IMAGE" \
-            appstore-sig verify "/app/${archive}"
+          APPSTORE_CERT: ${{ secrets.APPSTORE_CERT }}
+        run: bash package.sh --sign-only
 
       - name: Upload release assets
         if: github.event_name == 'release'
@@ -82,3 +55,9 @@ jobs:
           files: |
             build/file_checksum_search.tar.gz
             build/file_checksum_search-${{ steps.app-meta.outputs.version }}.tar.gz
+
+      - name: Upload signature
+        if: github.event_name == 'release' && vars.APPSTORE_SIGNING_ENABLED == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/file_checksum_search-${{ steps.app-meta.outputs.version }}.tar.gz.signature

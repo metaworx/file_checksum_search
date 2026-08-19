@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# package.sh — Build and package the file_checksum_search app for the
-# Nextcloud App Store.
+# package.sh — Build, package, and (optionally) sign the file_checksum_search
+# app for the Nextcloud App Store.
 #
 # What it does:
 #   1. Builds the frontend assets (npm ci + npm run build) if needed.
@@ -9,19 +9,67 @@
 #   3. Removes dev-only files listed in .nc.publish.ignore.
 #   4. Installs production Composer dependencies.
 #   5. Creates build/file_checksum_search.tar.gz and a versioned copy.
+#   6. Signs the versioned archive (see "Signing" below).
 #
 # The archive contains a single top-level directory named after the app id
 # (file_checksum_search/), which is what the Nextcloud App Store expects.
 #
-# Usage:
-#   bash package.sh
+# Signing
+# -------
+# The App Store requires an SHA-512 signature of the archive:
+#   openssl dgst -sha512 -sign <key> <archive> | openssl base64
+# package.sh signs automatically when a key is available, resolved in order:
+#   1. APPSTORE_KEY / APPSTORE_CERT environment variables
+#      (PEM content, or a path to a file — GitLab file-type variables).
+#   2. ~/.nextcloud/certificates/<app_id>.key and .crt (local development).
+# The signature is written next to the archive as <archive>.signature and is
+# also printed to stdout for pasting into the App Store upload form.
 #
-# Requires: bash, rsync, tar, npm, composer.
+# Usage:
+#   bash package.sh              # build, package, and sign (if key available)
+#   bash package.sh --sign-only  # only sign the existing versioned archive
+#   PHP=php8.2 bash package.sh   # use a specific PHP binary for Composer
+#
+# Requires: bash, rsync, tar, npm, composer, openssl. PHP is auto-detected as
+# php8.2 (falling back to php) and can be overridden via the PHP env var.
 
 set -euo pipefail
 
+SCRIPT_VERSION="1.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+echo "==> Building Script for File Checksum Index & Search ..."
+echo "    Script:         ${BASH_SOURCE[0]}"
+echo "    Script Version: $SCRIPT_VERSION"
+echo "    Script Path:    $SCRIPT_DIR"
+
 cd "$SCRIPT_DIR"
+
+SIGN_ONLY=false
+for arg in "$@"; do
+	case "$arg" in
+		--sign-only) SIGN_ONLY=true ;;
+		*) echo "ERROR: unknown argument: $arg" >&2; exit 2 ;;
+	esac
+done
+
+echo "==> Looking for required binaries ..."
+
+# Resolve the PHP binary: $PHP env override, else php8.2, else php.
+PHP_BIN="${PHP:-$(command -v php8.2 || command -v php || true)}"
+if [ -z "$PHP_BIN" ]; then
+	echo "ERROR: no PHP binary found — set the PHP env var (e.g. PHP=/usr/bin/php8.2)." >&2
+	exit 1
+fi
+echo "    $PHP_BIN"
+
+for bin in bash rsync tar npm composer openssl; do
+	if ! command -v "$bin" > /dev/null 2>&1; then
+		echo "ERROR: required binary '${bin}' not found in PATH." >&2
+		exit 1
+	fi
+	echo "    $(command -v "$bin")"
+done
 
 # ---------------------------------------------------------------------------
 # App metadata
@@ -43,6 +91,106 @@ BUILD_DIR="${BUILD_DIR:-build}"
 STAGING_DIR="${BUILD_DIR}/${APP_ID}"
 ARTIFACT="${BUILD_DIR}/${APP_ID}.tar.gz"
 VERSIONED_ARTIFACT="${BUILD_DIR}/${APP_ID}-${VERSION}.tar.gz"
+
+echo "==> App Metadata:"
+echo "    App ID:         $APP_ID"
+echo "    App Version:    $VERSION"
+echo "    App Build Dir:  $BUILD_DIR"
+
+# ---------------------------------------------------------------------------
+# Signing
+# ---------------------------------------------------------------------------
+KEY_FILE=""
+CERT_FILE=""
+
+# Resolve the signing key/cert paths into the globals KEY_FILE / CERT_FILE.
+# Materializes PEM content from the environment into the given temp dir.
+resolve_signing_material() {
+	local tmp="$1"
+	KEY_FILE=""
+	CERT_FILE=""
+
+	if [ -n "${APPSTORE_KEY:-}" ]; then
+		if [ -f "$APPSTORE_KEY" ]; then
+			KEY_FILE="$APPSTORE_KEY"
+		else
+			printf '%s\n' "$APPSTORE_KEY" > "$tmp/key.pem"
+			KEY_FILE="$tmp/key.pem"
+		fi
+		if [ -n "${APPSTORE_CERT:-}" ]; then
+			if [ -f "$APPSTORE_CERT" ]; then
+				CERT_FILE="$APPSTORE_CERT"
+			else
+				printf '%s\n' "$APPSTORE_CERT" > "$tmp/cert.crt"
+				CERT_FILE="$tmp/cert.crt"
+			fi
+		fi
+	else
+		local cert_dir="${NEXTCLOUD_CERT_DIR:-${HOME}/.nextcloud/certificates}"
+		KEY_FILE="${cert_dir}/${APP_ID}.key"
+		CERT_FILE="${cert_dir}/${APP_ID}.crt"
+	fi
+}
+
+# openssl SHA-512 signature of an archive (detached, base64) — what the App
+# Store upload form expects.
+sign_archive() {
+	local archive="$1"
+	local tmp key_file cert_file signature_file signed_archive
+	tmp="$(mktemp -d)"
+
+	resolve_signing_material "$tmp"
+	key_file="$KEY_FILE"
+	cert_file="$CERT_FILE"
+
+	if [ ! -f "$key_file" ]; then
+		echo "==> No signing key found (${key_file}) — skipping signature (Option B)."
+		rm -rf "$tmp"
+		return 0
+	fi
+
+	echo "==> Signing ${archive} (openssl dgst -sha512)"
+	signature_file="${archive}.signature"
+	if ! openssl dgst -sha512 -sign "$key_file" "$archive" | openssl base64 -A > "$signature_file"; then
+		echo "ERROR: signing failed." >&2
+		rm -rf "$tmp"
+		return 1
+	fi
+
+	if [ -f "${cert_file:-}" ]; then
+		if ! openssl x509 -in "$cert_file" -pubkey -noout > "$tmp/pubkey.pem" \
+			|| ! openssl base64 -d -A < "$signature_file" > "$tmp/sig.bin" \
+			|| ! openssl dgst -sha512 -verify "$tmp/pubkey.pem" -signature "$tmp/sig.bin" "$archive" > /dev/null 2>&1; then
+			echo "ERROR: signature verification failed." >&2
+			rm -rf "$tmp"
+			return 1
+		fi
+		echo "    Signature verified against ${cert_file}."
+	fi
+
+	signed_archive="${archive%.tar.gz}-signed.tar.gz"
+	cp "$archive" "$signed_archive"
+	echo "    Signed archive: ${signed_archive}"
+
+	echo "    Signature file: ${signature_file}"
+	echo ""
+	echo "    --- Signature (paste into the App Store upload form) ---"
+	cat "$signature_file"
+	echo ""
+	echo "    -------------------------------------------------------"
+
+	rm -rf "$tmp"
+	return 0
+}
+
+if [ "$SIGN_ONLY" = true ]; then
+	if [ ! -f "$VERSIONED_ARTIFACT" ]; then
+		echo "ERROR: ${VERSIONED_ARTIFACT} not found — run package.sh first." >&2
+		exit 1
+	fi
+	sign_archive "$VERSIONED_ARTIFACT"
+	exit $?
+fi
 
 echo "==> Packaging ${APP_ID} v${VERSION}"
 
@@ -77,10 +225,10 @@ rsync -a \
 # ---------------------------------------------------------------------------
 # 3. Production dependencies
 # ---------------------------------------------------------------------------
-echo "==> Installing production Composer dependencies"
+echo "==> Installing production Composer dependencies (PHP: ${PHP_BIN})"
 (
 	cd "$STAGING_DIR"
-	composer install --no-dev --no-scripts --optimize-autoloader --no-interaction
+	"$PHP_BIN" "$(command -v composer)" install --no-dev --no-scripts --optimize-autoloader --no-interaction
 )
 
 # ---------------------------------------------------------------------------
@@ -94,3 +242,8 @@ cp "$ARTIFACT" "$VERSIONED_ARTIFACT"
 echo "==> Done"
 echo "    ${ARTIFACT}"
 echo "    ${VERSIONED_ARTIFACT}"
+
+# ---------------------------------------------------------------------------
+# 5. Sign (if a key is available)
+# ---------------------------------------------------------------------------
+sign_archive "$VERSIONED_ARTIFACT"

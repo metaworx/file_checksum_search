@@ -1,0 +1,54 @@
+stages:
+  - build
+  - release
+
+variables:
+  APP_ID: file_checksum_search
+
+build:
+  stage: build
+  image: node:24-bookworm
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends php-cli php-xml php-mbstring rsync openssl
+    - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+    - php composer-setup.php --install-dir=/usr/local/bin --filename=composer --quiet
+    - rm -f composer-setup.php
+    - composer --version
+  script:
+    - bash package.sh
+    - echo "APP_VERSION=$(sed -n 's|.*<version>\([^<]*\)</version>.*|\1|p' appinfo/info.xml | head -n1 | tr -d '[:space:]')" > build.env
+  artifacts:
+    paths:
+      - build/
+    reports:
+      dotenv: build.env
+    expire_in: 1 week
+
+release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  needs:
+    - job: build
+      artifacts: true
+  rules:
+    - if: $CI_COMMIT_TAG
+  script:
+    - echo "Creating release ${CI_COMMIT_TAG}"
+  release:
+    name: 'FCIAS ${CI_COMMIT_TAG}'
+    tag_name: '${CI_COMMIT_TAG}'
+    ref: '${CI_COMMIT_SHA}'
+    description: |
+      Release ${CI_COMMIT_TAG}.
+
+      Artifacts are produced by the `build` job. The signature asset is only
+      available when the `APPSTORE_KEY` / `APPSTORE_CERT` CI variables are set.
+    assets:
+      links:
+        - name: '${APP_ID}.tar.gz'
+          url: '${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/build/${APP_ID}.tar.gz?job=build'
+        - name: '${APP_ID}-${APP_VERSION}.tar.gz'
+          url: '${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/build/${APP_ID}-${APP_VERSION}.tar.gz?job=build'
+        - name: '${APP_ID}-${APP_VERSION}.tar.gz.signature'
+          url: '${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/build/${APP_ID}-${APP_VERSION}.tar.gz.signature?job=build'

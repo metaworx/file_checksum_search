@@ -5,74 +5,86 @@ published to the Nextcloud App Store.
 
 ## Pipeline overview
 
-Publishing is driven by [`.github/workflows/publish.yml`](../.github/workflows/publish.yml)
-and the [package.sh](../package.sh) packaging script.
+Publishing is driven by:
 
-Two options are supported:
+- [`package.sh`](../package.sh) — builds and packages the app, and signs the
+  archive when a certificate is available.
+- [`.github/workflows/publish.yml`](../.github/workflows/publish.yml) — GitHub
+  Actions release pipeline.
+- [`.gitlab-ci.yml`](../.gitlab-ci.yml) — GitLab CI build/release pipeline.
 
-| Option | Description | Required secrets |
-|--------|-------------|------------------|
-| **A**  | Automated signing with `appstore-sig` in CI | `APPSTORE_CERT`, `APPSTORE_KEY` |
-| **B**  | Unsigned tarball uploaded as a GitHub release asset, then manually uploaded to the store | none |
+Both CI platforms produce the same artifacts:
 
-The workflow always runs Option B. Option A is an additional signing step that
-is enabled by setting the repository variable `APPSTORE_SIGNING_ENABLED=true`.
+- `build/file_checksum_search.tar.gz` — unversioned archive.
+- `build/file_checksum_search-<version>.tar.gz` — versioned archive.
+- `build/file_checksum_search-<version>.tar.gz.signature` — SHA-512 signature
+  (only produced when signing is configured).
 
-## What the workflow does
+## Signing
+
+The App Store requires a SHA-512 signature of the archive, generated with:
+
+```bash
+openssl dgst -sha512 -sign ~/.nextcloud/certificates/file_checksum_search.key \
+  file_checksum_search-<version>.tar.gz | openssl base64
+```
+
+`package.sh` performs this automatically. The signing key is resolved in order:
+
+1. `APPSTORE_KEY` / `APPSTORE_CERT` environment variables (PEM content, or a
+   path to a file — GitLab file-type variables set the path).
+2. `~/.nextcloud/certificates/<app_id>.key` and `.crt` (local development).
+
+The signature is written next to the archive as `<archive>.signature`, printed
+to stdout for pasting into the upload form, and verified against the
+certificate when one is present.
+
+## GitHub Actions
 
 On `release: published` (or manual `workflow_dispatch`):
 
-1. Checks out the code.
-2. Installs Node.js 24 and PHP 8.2.
-3. Installs frontend dependencies (`npm ci`).
-4. Runs `bash package.sh`, which:
-   - builds the frontend assets into `js/` and `css/`,
-   - copies the app to `build/file_checksum_search/`,
-   - removes dev-only files listed in [`.nc.publish.ignore`](../.nc.publish.ignore)
-     (`.git`, `.github`, `tests`, `src`, `vendor-bin`, `node_modules`, `docs`,
-     `.aiassistant`, ...),
-   - runs `composer install --no-dev`,
-   - creates `build/file_checksum_search.tar.gz` and
-     `build/file_checksum_search-<version>.tar.gz`.
-5. If `APPSTORE_SIGNING_ENABLED=true`, signs the versioned archive with
-   `appstore-sig` using the configured certificate/key, then verifies the
-   signature before upload.
-6. Uploads the tarball(s) as GitHub release assets.
+1. Checks out the code and installs Node.js 24 and PHP 8.2.
+2. Runs `npm ci` and `bash package.sh` (produces the unsigned tarballs).
+3. If `APPSTORE_SIGNING_ENABLED=true`, runs `bash package.sh --sign-only` with
+   the `APPSTORE_KEY`/`APPSTORE_CERT` secrets (signs the versioned archive).
+4. Uploads the tarballs and (when signed) the signature as release assets.
 
-## Configuring Option A (signing)
+Option A (signing) requires:
 
-1. Obtain an app certificate from the Nextcloud App Store developer portal
-   (see the "Certificate" section of the app store developer account).
-2. Add the following repository secrets:
-   - `APPSTORE_CERT`: the certificate (`appstore.crt`) PEM content.
-   - `APPSTORE_KEY`: the private key PEM content.
+- Secrets `APPSTORE_CERT` (certificate PEM) and `APPSTORE_KEY` (private key
+  PEM). Both must be the same certificate/key pair registered for the app in
+  the portal — a mismatch causes the store to reject the upload.
+- Variable `APPSTORE_SIGNING_ENABLED` = `true`.
 
-   > **Important:** both must be the **same** certificate/key pair registered
-   > for the app in the portal. A mismatch causes the store to reject the upload.
-3. Add the repository variable:
-   - `APPSTORE_SIGNING_ENABLED` = `true`.
-4. Optionally pin the signing tool image via the repository variable
-   `APPSTORE_SIG_IMAGE` (defaults to `ghcr.io/nextcloud/appstore-sig:latest`).
-   Pinning a specific tag or digest is recommended for reproducible builds.
+## GitLab CI
 
-## Option B — manual upload (fallback)
+The [`build`](../.gitlab-ci.yml) job builds, packages, and signs the app (using
+the `APPSTORE_KEY`/`APPSTORE_CERT` CI variables when defined) and exposes the
+artifacts. The `release` job runs on Git tags and publishes a GitLab Release
+with links to the artifacts.
 
-When signing is not configured, the workflow still produces a valid, unsigned
-tarball and attaches it to the GitHub release. To publish manually:
+Add the CI variables `APPSTORE_KEY` and `APPSTORE_CERT` (masked/protected) to
+enable signing. Value-type variables carry the PEM content; file-type variables
+carry the path, which `package.sh` handles transparently.
 
-1. Download `file_checksum_search.tar.gz` from the GitHub release.
-2. Go to the Nextcloud App Store developer portal (`https://apps.nextcloud.com/developer/`)
-   and open the upload page for the `file_checksum_search` app.
-3. Select the downloaded archive and submit it for review.
+## Manual upload (Option B fallback)
+
+When no signing key is configured, the pipeline still produces a valid unsigned
+tarball. To publish manually:
+
+1. Download `file_checksum_search.tar.gz` from the release.
+2. Go to the Nextcloud App Store developer portal
+   (`https://apps.nextcloud.com/developer/`).
+3. Upload the archive and paste its signature (see "Signing" above). Generate
+   the signature locally if signing is not configured in CI.
 4. Track the release status in the app store dashboard.
 
 ## Local packaging
-
-Run the packaging script from the repo root:
 
 ```bash
 bash package.sh
 ```
 
-Artifacts are written to `build/`. The archive contains a single top-level
-`file_checksum_search/` directory, as required by the Nextcloud App Store.
+Place your certificate in `~/.nextcloud/certificates/file_checksum_search.{crt,key}`
+to have `package.sh` sign the archive locally. The signature is written to
+`build/file_checksum_search-<version>.tar.gz.signature`.
