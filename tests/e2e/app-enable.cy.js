@@ -1,6 +1,12 @@
 const appId = 'file_checksum_search'
 const appName = 'File Checksum Index & Search'
 
+// The app appears in two places: the apps management list (details link
+// under /settings/apps/) and, when enabled, a top-menu entry
+// (/apps/<id>/...). Scope to the management list so the top-menu entry is
+// never matched.
+const appLink = `a[href*="/settings/apps/"][href*="${ appId }"]`
+
 // Default to the CI layout: Cypress runs in the repo root and the
 // Nextcloud checkout lives in ./nextcloud. Override via CYPRESS_occ
 // for local/ddev runs (e.g. CYPRESS_occ="php /var/www/html/occ").
@@ -21,6 +27,20 @@ const assertAppEnabledCli = () => {
 const assertAppDisabledCli = () => {
 	cy.exec( `${ occ } app:list --disabled` ).then( ( { stdout } ) => {
 		expect( stdout ).to.include( appId )
+	} )
+}
+
+// Fill the password-confirmation dialog if it appears. Enabling always
+// prompts (strict); disabling prompts only if there was no recent
+// confirmation (lax), so this is conditional.
+const confirmPasswordIfPrompted = () => {
+	cy.wait( 1000 )
+	cy.get( 'body' ).then( ( $body ) => {
+		const $input = $body.find( 'input[type="password"]' )
+		if ( $input.length > 0 ) {
+			cy.wrap( $input ).type( adminPassword )
+			cy.contains( 'button', 'Confirm' ).click()
+		}
 	} )
 }
 
@@ -53,8 +73,8 @@ describe( 'FCIAS App Enable', () => {
 		cy.visit( '/index.php/settings/apps/disabled' )
 
 		// Find the FCIAS app entry (its name links to the app details page).
-		cy.get( `a[href*="${ appId }"]`, { timeout: FIND_TIMEOUT } )
-			.closest( 'tr.app-item' )
+		cy.get( appLink, { timeout: FIND_TIMEOUT } )
+			.closest( 'tr' )
 			.should( 'exist' )
 			.as( 'appRow' )
 
@@ -68,12 +88,12 @@ describe( 'FCIAS App Enable', () => {
 		cy.contains( 'button', 'Confirm' ).click()
 
 		// The app leaves the "Disabled apps" list once it has been enabled.
-		cy.get( `a[href*="${ appId }"]` ).should( 'not.exist' )
+		cy.get( appLink ).should( 'not.exist' )
 
 		// UI: it is now listed under the enabled apps ("Active apps").
 		cy.visit( '/index.php/settings/apps/enabled' )
-		cy.get( `a[href*="${ appId }"]`, { timeout: FIND_TIMEOUT } )
-			.closest( 'tr.app-item' )
+		cy.get( appLink, { timeout: FIND_TIMEOUT } )
+			.closest( 'tr' )
 			.within( () => {
 				cy.contains( 'button', 'Disable' ).should( 'exist' )
 			} )
@@ -95,8 +115,8 @@ describe( 'FCIAS App Enable', () => {
 
 		cy.visit( '/index.php/settings/apps/enabled' )
 
-		cy.get( `a[href*="${ appId }"]`, { timeout: FIND_TIMEOUT } )
-			.closest( 'tr.app-item' )
+		cy.get( appLink, { timeout: FIND_TIMEOUT } )
+			.closest( 'tr' )
 			.should( 'exist' )
 			.as( 'appRow' )
 
@@ -105,13 +125,16 @@ describe( 'FCIAS App Enable', () => {
 			cy.contains( 'button', 'Disable' ).click()
 		} )
 
+		// Disabling may prompt for password confirmation (lax mode).
+		confirmPasswordIfPrompted()
+
 		// The app leaves the "Active apps" list once it has been disabled.
-		cy.get( `a[href*="${ appId }"]` ).should( 'not.exist' )
+		cy.get( appLink ).should( 'not.exist' )
 
 		// UI: it is now listed under "Disabled apps".
 		cy.visit( '/index.php/settings/apps/disabled' )
-		cy.get( `a[href*="${ appId }"]`, { timeout: FIND_TIMEOUT } )
-			.closest( 'tr.app-item' )
+		cy.get( appLink, { timeout: FIND_TIMEOUT } )
+			.closest( 'tr' )
 			.within( () => {
 				cy.contains( 'button', 'Enable' ).should( 'exist' )
 			} )
