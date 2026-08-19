@@ -39,6 +39,25 @@ The signature is written next to the archive as `<archive>.signature`, printed
 to stdout for pasting into the upload form, and verified against the
 certificate when one is present.
 
+## Publishing to the App Store (REST API)
+
+`package.sh --appstore` publishes the built release via the App Store REST API
+(`POST /api/v1/apps/releases`). It requires:
+
+- The archive hosted at a public HTTPS URL (`DOWNLOAD_URL` env var).
+- A signing key (resolved as described above).
+- An App Store API token: `API_TOKEN` env var or `~/.nextcloud/API_TOKEN.txt`.
+
+Add `--nightly` to publish the release as a nightly:
+
+```bash
+DOWNLOAD_URL=https://example.com/file_checksum_search.tar.gz \
+  bash package.sh --appstore --nightly
+```
+
+> Note: the app id must already be registered on the App Store (one-time,
+> `POST /api/v1/apps`) before the first release can be published.
+
 ## GitHub Actions
 
 On `release: published` (or manual `workflow_dispatch`):
@@ -48,6 +67,9 @@ On `release: published` (or manual `workflow_dispatch`):
 3. If `APPSTORE_SIGNING_ENABLED=true`, runs `bash package.sh --sign-only` with
    the `APPSTORE_KEY`/`APPSTORE_CERT` secrets (signs the versioned archive).
 4. Uploads the tarballs and (when signed) the signature as release assets.
+5. If `APPSTORE_PUBLISH=true`, signs the unversioned tarball and posts the
+   release to the App Store (`POST /api/v1/apps/releases`) using the GitHub
+   release download URL.
 
 Option A (signing) requires:
 
@@ -56,6 +78,11 @@ Option A (signing) requires:
   the portal — a mismatch causes the store to reject the upload.
 - Variable `APPSTORE_SIGNING_ENABLED` = `true`.
 
+Publishing (step 5) additionally requires:
+
+- Secret `APPSTORE_TOKEN` (App Store API token).
+- Variable `APPSTORE_PUBLISH` = `true`.
+
 ## GitLab CI
 
 The [`build`](../.gitlab-ci.yml) job builds, packages, and signs the app (using
@@ -63,9 +90,15 @@ the `APPSTORE_KEY`/`APPSTORE_CERT` CI variables when defined) and exposes the
 artifacts. The `release` job runs on Git tags and publishes a GitLab Release
 with links to the artifacts.
 
+The `publish_appstore` job runs on tags when `APPSTORE_PUBLISH=true`: it uploads
+the unversioned tarball to the GitLab generic package registry, signs it, and
+posts the release to the App Store (`POST /api/v1/apps/releases`).
+
 Add the CI variables `APPSTORE_KEY` and `APPSTORE_CERT` (masked/protected) to
 enable signing. Value-type variables carry the PEM content; file-type variables
-carry the path, which `package.sh` handles transparently.
+carry the path, which `package.sh` handles transparently. Publishing requires
+the additional CI variables `APPSTORE_TOKEN` (API token) and `APPSTORE_PUBLISH`
+(`true`).
 
 ## Manual upload (Option B fallback)
 
@@ -88,3 +121,10 @@ bash package.sh
 Place your certificate in `~/.nextcloud/certificates/file_checksum_search.{crt,key}`
 to have `package.sh` sign the archive locally. The signature is written to
 `build/file_checksum_search-<version>.tar.gz.signature`.
+
+To publish a release directly from the command line (archive must already be
+hosted at a public HTTPS URL):
+
+```bash
+DOWNLOAD_URL=https://example.com/file_checksum_search.tar.gz bash package.sh --appstore
+```

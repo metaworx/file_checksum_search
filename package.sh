@@ -28,10 +28,14 @@
 # Usage:
 #   bash package.sh              # build, package, and sign (if key available)
 #   bash package.sh --sign-only  # only sign the existing versioned archive
+#   DOWNLOAD_URL=... bash package.sh --appstore           # publish a release
+#   DOWNLOAD_URL=... bash package.sh --appstore --nightly
 #   PHP=php8.2 bash package.sh   # use a specific PHP binary for Composer
 #
-# Requires: bash, rsync, tar, npm, composer, openssl. PHP is auto-detected as
-# php8.2 (falling back to php) and can be overridden via the PHP env var.
+# Requires: bash, rsync, tar, npm, composer, openssl (curl for --register and
+# --appstore). PHP is auto-detected as php8.2 (falling back to php) and can be
+# overridden via the PHP env var. The App Store API token is read from the
+# API_TOKEN env var or ~/.nextcloud/API_TOKEN.txt.
 
 set -euo pipefail
 
@@ -46,9 +50,13 @@ echo "    Script Path:    $SCRIPT_DIR"
 cd "$SCRIPT_DIR"
 
 SIGN_ONLY=false
+APPSTORE=false
+NIGHTLY=false
 for arg in "$@"; do
 	case "$arg" in
 		--sign-only) SIGN_ONLY=true ;;
+		--appstore) APPSTORE=true ;;
+		--nightly) NIGHTLY=true ;;
 		*) echo "ERROR: unknown argument: $arg" >&2; exit 2 ;;
 	esac
 done
@@ -182,6 +190,55 @@ sign_archive() {
 	rm -rf "$tmp"
 	return 0
 }
+
+# Resolve the App Store API token into $TOKEN: $API_TOKEN env, else file.
+resolve_token() {
+	if [ -n "${API_TOKEN:-}" ]; then
+		TOKEN="$API_TOKEN"
+	elif [ -f "${HOME}/.nextcloud/API_TOKEN.txt" ]; then
+		TOKEN="$(tr -d '[:space:]' < "${HOME}/.nextcloud/API_TOKEN.txt")"
+	else
+		echo "ERROR: no App Store API token — set API_TOKEN or create ${HOME}/.nextcloud/API_TOKEN.txt" >&2
+		return 1
+	fi
+}
+
+# Publish a release on the App Store (download URL + signature + nightly flag).
+publish_appstore() {
+	local archive="$1"
+	local tmp key_file sig
+	tmp="$(mktemp -d)"
+
+	command -v curl > /dev/null 2>&1 || { echo "ERROR: curl is required for --appstore." >&2; rm -rf "$tmp"; return 1; }
+
+	resolve_signing_material "$tmp"
+	key_file="$KEY_FILE"
+
+	[ -f "$key_file" ] || { echo "ERROR: no signing key (${key_file})." >&2; rm -rf "$tmp"; return 1; }
+	[ -n "${DOWNLOAD_URL:-}" ] || { echo "ERROR: DOWNLOAD_URL env var is required (public HTTPS link to the archive)." >&2; rm -rf "$tmp"; return 1; }
+
+	resolve_token || { rm -rf "$tmp"; return 1; }
+
+	sig="$(openssl dgst -sha512 -sign "$key_file" "$archive" | openssl base64 -A)"
+
+	echo "==> Publishing release '${APP_ID}' v${VERSION} on the App Store (nightly=${NIGHTLY})"
+	curl -sS -X POST "https://apps.nextcloud.com/api/v1/apps/releases" \
+		-H "Authorization: Token ${TOKEN}" \
+		-H "Content-Type: application/json" \
+		-d "{\"download\":\"${DOWNLOAD_URL}\",\"signature\":\"${sig}\",\"nightly\":${NIGHTLY}}" \
+		-w "\nHTTP %{http_code}\n"
+
+	rm -rf "$tmp"
+}
+
+if [ "$APPSTORE" = true ]; then
+	if [ ! -f "$VERSIONED_ARTIFACT" ]; then
+		echo "ERROR: ${VERSIONED_ARTIFACT} not found — run package.sh first." >&2
+		exit 1
+	fi
+	publish_appstore "$VERSIONED_ARTIFACT"
+	exit $?
+fi
 
 if [ "$SIGN_ONLY" = true ]; then
 	if [ ! -f "$VERSIONED_ARTIFACT" ]; then
