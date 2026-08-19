@@ -21,6 +21,10 @@ the first stable release.
 - Let users edit and create hash-generation rules from a personal settings page, with admins able to lock individual rules via a per-rule admin_enforced flag and control access via allowed groups/users.
 - Revise README, info.xml, API docs, and the changelog to reflect the current feature set, removing stale references to database triggers, MariaDB-only support, and Webpack.
 
+### Removed
+
+- Remove redundant .gitkeep placeholder files.
+
 ## [0.12.1] — 2026-08-16
 
 ### Fixed
