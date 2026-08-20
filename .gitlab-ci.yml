@@ -12,7 +12,7 @@ test:
   image: node:24-bookworm
   before_script:
     - apt-get update -qq
-    - apt-get install -y -qq --no-install-recommends php-cli php-xml php-mbstring rsync openssl unzip wget
+    - apt-get install -y -qq --no-install-recommends php-cli php-xml php-mbstring php-intl php-gd php-curl php-zip php-sqlite3 rsync openssl unzip wget
     - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
     - php composer-setup.php --install-dir=/usr/local/bin --filename=composer --quiet
     - rm -f composer-setup.php
@@ -22,7 +22,9 @@ test:
     - mkdir -p nextcloud/apps
     - rsync -a --exclude='.git' --exclude='nextcloud' ./ "nextcloud/apps/${APP_ID}/"
   script:
-    - cd "nextcloud/apps/${APP_ID}"
+    - cd nextcloud
+    - php occ maintenance:install --database=sqlite --database-name=nextcloud --admin-user=admin --admin-pass=admin
+    - cd "apps/${APP_ID}"
     - composer install --no-interaction
     - php -d error_reporting='E_ALL & ~E_DEPRECATED' vendor/bin/phpunit -c tests/phpunit.xml --testsuite unit --display-warnings
 
