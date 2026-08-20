@@ -1,4 +1,4 @@
-# Testing Conventions (v2.5.0)
+# Testing Conventions (v2.6.0)
 
 Project-specific testing conventions for FCIAS (File Checksum Index & Search Nextcloud app).
 Generic agent flow-control rules are in `AGENTS.md`; contributor context is in `CONTRIBUTING.md`.
@@ -198,7 +198,36 @@ Prerequisites:
   (`ddev exec php /var/www/html/occ config:system:set force_language --value=en`), or run with
   `--browser chrome`, which is forced to `--lang=en-US` in `cypress.config.cjs` (Electron ignores the flag).
 
-### 9.2 Notes
+### 9.2 Testing against vanilla NC 33/34 instances
+
+For version-specific testing, use the `~/projects/nextcloud_testing` DDEV harness (see its README),
+which provides clean NC 33/34 instances with admin `admin`/`admin`:
+
+```bash
+cd ~/projects/nextcloud_testing
+./scripts/mount-app.sh 34 file_checksum_search ~/projects/nc_file_checksum_search
+(cd instances/34 && ddev exec php occ app:enable file_checksum_search)
+```
+
+Then run Cypress from this repository against that instance:
+
+```bash
+CYPRESS_baseUrl=https://nextcloud-34.ddev.site \
+CYPRESS_occ='cd ~/projects/nextcloud_testing/instances/34 && ddev exec php occ' \
+npx cypress run
+```
+
+Or for a specific test only:
+
+```bash
+CYPRESS_baseUrl=https://nextcloud-34.ddev.site \
+CYPRESS_occ='cd ~/projects/nextcloud_testing/instances/34 && ddev exec php occ' \
+npx cypress run --spec tests/e2e/app-enable.cy.js
+```
+
+Substitute `33` (and `nextcloud-33.ddev.site`) to test NC 33.
+
+### 9.3 Notes
 
 - Enabling an app via the Apps page requires a password confirmation dialog
   (`PasswordConfirmationRequired`); the spec fills it after clicking **Enable**.
@@ -224,7 +253,8 @@ Common inspections to watch for:
 
 | Version | Date       | Changed sections                              | Change type | Agent impact                                                                                                                                                                            |
 |---------|------------|-----------------------------------------------|-------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| v2.5.0  | 2026-08-19 | 9                                             | minor       | Documented the local E2E run procedure (`npx cypress run` + `CYPRESS_*` env vars, `force_language`) and the app-enable password confirmation.                                            |
+| v2.6.0  | 2026-08-20 | 9                                             | minor       | Documented the vanilla NC 33/34 `nextcloud_testing` DDEV harness for local E2E runs.                                                                                                    |
+| v2.5.0  | 2026-08-19 | 9                                             | minor       | Documented the local E2E run procedure (`npx cypress run` + `CYPRESS_*` env vars, `force_language`) and the app-enable password confirmation.                                           |
 | v2.4.1  | 2026-08-16 | 9                                             | fix         | Renamed cypress.config.js to cypress.config.cjs to fix the ESM/CommonJS conflict in the CI Cypress job.                                                                                 |
 | v2.4.0  | 2026-08-06 | 14                                            | minor       | Added JetBrains MCP Quality Workflow (§14). Author: metaworx.                                                                                                                           |
 | v2.3.0  | 2026-08-05 | 1                                             | minor       | Added --display-warnings note for CI PHPUnit with failOnWarning="true".                                                                                                                 |
