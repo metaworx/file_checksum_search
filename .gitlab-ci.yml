@@ -26,6 +26,7 @@ test:
     - php occ maintenance:install --database=sqlite --database-name=nextcloud --admin-user=admin --admin-pass=admin
     - cd "apps/${APP_ID}"
     - composer install --no-interaction
+    - php ../../occ app:enable "${APP_ID}"
     - php -d error_reporting='E_ALL & ~E_DEPRECATED' vendor/bin/phpunit -c tests/phpunit.xml --testsuite unit --display-warnings
 
 build:
