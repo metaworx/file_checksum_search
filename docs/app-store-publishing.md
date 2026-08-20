@@ -85,20 +85,23 @@ Publishing (step 5) additionally requires:
 
 ## GitLab CI
 
-The [`build`](../.gitlab-ci.yml) job builds, packages, and signs the app (using
-the `APPSTORE_KEY_B64`/`APPSTORE_CERT_B64` CI variables when defined) and
-exposes the artifacts. The `release` job runs on Git tags and publishes a
-GitLab Release with links to the artifacts.
+The [`test`](../.gitlab-ci.yml) job installs a Nextcloud server, injects the
+app, and runs the PHPUnit unit suite. The [`build`](../.gitlab-ci.yml) job
+builds, packages, and signs the app (using the `APPSTORE_KEY_B64`/
+`APPSTORE_CERT_B64` CI variables when defined) and exposes the artifacts. The
+`release` job runs on Git tags and publishes a GitLab Release with links to the
+artifacts.
 
 The `publish_appstore` job runs on tags when `APPSTORE_PUBLISH=true`: it uploads
 the unversioned tarball to the GitLab generic package registry, signs it, and
 posts the release to the App Store (`POST /api/v1/apps/releases`).
 
-Add the CI variables `APPSTORE_KEY_B64` and `APPSTORE_CERT_B64` (Base64-encoded
-PEM, masked/protected — GitLab masked variables cannot contain whitespace, so
-the PEM must be Base64-encoded) to enable signing. Publishing requires the
-additional CI variables `APPSTORE_TOKEN` (API token) and `APPSTORE_PUBLISH`
-(`true`).
+Add the CI variable `APPSTORE_KEY_B64` (Base64-encoded private key, masked —
+GitLab masked variables cannot contain whitespace, so the PEM must be
+Base64-encoded) and `APPSTORE_CERT` (FILE-type variable pointing at the public
+certificate — it is public data and does not need masking) to enable signing.
+Publishing requires the additional CI variables `APPSTORE_TOKEN` (API token)
+and `APPSTORE_PUBLISH` (`true`).
 
 ## Manual upload (Option B fallback)
 

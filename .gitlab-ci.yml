@@ -1,10 +1,30 @@
 stages:
+  - test
   - build
   - release
   - publish
 
 variables:
   APP_ID: file_checksum_search
+
+test:
+  stage: test
+  image: node:24-bookworm
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends php-cli php-xml php-mbstring rsync openssl unzip wget
+    - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+    - php composer-setup.php --install-dir=/usr/local/bin --filename=composer --quiet
+    - rm -f composer-setup.php
+    - wget -q https://download.nextcloud.com/server/releases/latest-33.zip -O nextcloud.zip
+    - unzip -q nextcloud.zip
+    - test -d nextcloud || mv nextcloud-* nextcloud
+    - mkdir -p nextcloud/apps
+    - rsync -a --exclude='.git' --exclude='nextcloud' ./ "nextcloud/apps/${APP_ID}/"
+  script:
+    - cd "nextcloud/apps/${APP_ID}"
+    - composer install --no-interaction
+    - php -d error_reporting='E_ALL & ~E_DEPRECATED' vendor/bin/phpunit -c tests/phpunit.xml --testsuite unit --display-warnings
 
 build:
   stage: build
@@ -21,13 +41,17 @@ build:
       if [ -n "${APPSTORE_KEY_B64:-}" ]; then
         echo "$APPSTORE_KEY_B64" | base64 -d > key.pem
         export APPSTORE_KEY="$PWD/key.pem"
-      fi
-      if [ -n "${APPSTORE_CERT_B64:-}" ]; then
-        echo "$APPSTORE_CERT_B64" | base64 -d > cert.crt
-        export APPSTORE_CERT="$PWD/cert.crt"
+        echo "Signing enabled (APPSTORE_KEY_B64 decoded)."
+      else
+        echo "APPSTORE_KEY_B64 not set — building unsigned (Option B)."
       fi
     - bash package.sh
-    - rm -f key.pem cert.crt
+    - |
+      if [ -f key.pem ]; then
+        dd if=/dev/urandom of=key.pem bs=4096 count=1 status=none 2>/dev/null || true
+        sync || true
+      fi
+    - rm -f key.pem
     - echo "APP_VERSION=$(sed -n 's|.*<version>\([^<]*\)</version>.*|\1|p' appinfo/info.xml | head -n1 | tr -d '[:space:]')" > build.env
   artifacts:
     paths:
@@ -54,7 +78,7 @@ release:
       Release ${CI_COMMIT_TAG}.
 
       Artifacts are produced by the `build` job. The signature asset is only
-      available when the `APPSTORE_KEY_B64` / `APPSTORE_CERT_B64` CI variables
+      available when the `APPSTORE_KEY_B64` / `APPSTORE_CERT` CI variables
       are set.
     assets:
       links:
@@ -80,6 +104,11 @@ publish_appstore:
     - 'curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "build/${APP_ID}.tar.gz" "${DOWNLOAD_URL}"'
     - echo "$APPSTORE_KEY_B64" | base64 -d > key.pem
     - SIGNATURE="$(openssl dgst -sha512 -sign key.pem "build/${APP_ID}.tar.gz" | openssl base64 -A)"
+    - |
+      if [ -f key.pem ]; then
+        dd if=/dev/urandom of=key.pem bs=4096 count=1 status=none 2>/dev/null || true
+        sync || true
+      fi
     - rm -f key.pem
     - |
       curl -X POST https://apps.nextcloud.com/api/v1/apps/releases \
