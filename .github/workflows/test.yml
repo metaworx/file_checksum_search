@@ -120,8 +120,11 @@ jobs:
 
       - name: Configure Nextcloud for E2E (disable app store, force English)
         run: |
+          php occ config:system:set upgrade.disable-web --value=true
           php occ config:system:set appstoreenabled --value=false --type=boolean
+          php occ config:system:set default_language --value=en
           php occ config:system:set force_language --value=en
+          php occ app:disable firstrunwizard
         working-directory: nextcloud
 
       - name: Inject app into integration instance
@@ -138,6 +141,9 @@ jobs:
 
       - name: Build frontend assets
         run: npm run build
+
+      - name: Copy built frontend assets into the app
+        run: rsync -a css js nextcloud/apps/file_checksum_search/
 
       - name: Start Nextcloud
         run: |

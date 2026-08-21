@@ -29,6 +29,67 @@ test:
     - php ../../occ app:enable "${APP_ID}"
     - php -d error_reporting='E_ALL & ~E_DEPRECATED' vendor/bin/phpunit -c tests/phpunit.xml --testsuite unit --display-warnings
 
+e2e:
+  stage: test
+  image: node:24-bookworm
+  parallel:
+    matrix:
+      - NC_VERSION: [ '33', '34' ]
+  variables:
+    CYPRESS_baseUrl: 'http://localhost:8081'
+    CYPRESS_CACHE_FOLDER: "$CI_PROJECT_DIR/.cache/Cypress"
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .cache/Cypress
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends gnupg php-cli php-xml php-mbstring php-intl php-gd php-curl php-zip php-sqlite3 rsync openssl unzip wget libgtk2.0-0 libgtk-3-0 libgbm-dev libnotify-dev libnss3 libxss1 libasound2 libxtst6 xauth xvfb
+    # Google Chrome (headless) for Cypress
+    - wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg
+    - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends google-chrome-stable
+    # Nextcloud
+    - wget -q "https://download.nextcloud.com/server/releases/latest-${NC_VERSION}.zip" -O nextcloud.zip
+    - unzip -q nextcloud.zip
+    - test -d nextcloud || mv nextcloud-* nextcloud
+    - mkdir -p nextcloud/apps
+    - rsync -a --exclude='.git' --exclude='nextcloud' --exclude='node_modules' --exclude='vendor' --exclude='build' --exclude='cypress' --exclude='js' --exclude='css' ./ "nextcloud/apps/${APP_ID}/"
+    - cd nextcloud
+    - php occ maintenance:install --database=sqlite --database-name=nextcloud --admin-user=admin --admin-pass=admin
+    - php occ config:system:set upgrade.disable-web --value=true
+    - php occ config:system:set appstoreenabled --value=false --type=boolean
+    - php occ config:system:set default_language --value=en
+    - php occ config:system:set force_language --value=en
+    - php occ app:disable firstrunwizard
+    - cd "$CI_PROJECT_DIR"
+    - npm ci
+    - npm run build
+    - rsync -a css js "nextcloud/apps/${APP_ID}/"
+    - cd nextcloud
+    - php occ app:enable "${APP_ID}"
+    - cd "$CI_PROJECT_DIR"
+  script:
+    - cd nextcloud
+    - php -S 0.0.0.0:8081 -t . > /tmp/nc-http.log 2>&1 &
+    - cd "$CI_PROJECT_DIR"
+    - |
+      for i in $(seq 1 60); do
+        curl -fsS -o /dev/null http://localhost:8081/status.php && break
+        sleep 1
+      done
+      curl -fsS -o /dev/null http://localhost:8081/index.php/login || true
+    - npx cypress run --browser chrome
+  artifacts:
+    when: always
+    paths:
+      - cypress/screenshots/
+      - cypress/videos/
+    expire_in: 1 week
+
 build:
   stage: build
   image: node:24-bookworm
