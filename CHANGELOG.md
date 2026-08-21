@@ -21,6 +21,7 @@ the first stable release.
 - Let users edit and create hash-generation rules from a personal settings page, with admins able to lock individual rules via a per-rule admin_enforced flag and control access via allowed groups/users.
 - Revise README, info.xml, API docs, and the changelog to reflect the current feature set, removing stale references to database triggers, MariaDB-only support, and Webpack.
 - Update info.xml for App Store metadata compliance (PHP/database dependencies, documentation links, HTTPS repository URL) and add app store screenshots.
+- Migrate the checksums sidebar tab from a hand-rolled HTMLElement to a Vue custom element with a loading spinner during hash load and recalculation.
 
 ### Removed
 
