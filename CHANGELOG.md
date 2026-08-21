@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-08-21
+
 ### Added
 
 - Add FAQ and user help documentation with in-app help tabs on the personal settings and duplicates pages, plus a public help endpoint.
