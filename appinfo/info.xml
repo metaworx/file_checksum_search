@@ -10,7 +10,7 @@
 		Provides a Unified Search provider, a duplicate file browser, rule-based hash generation (admin and personal
 		settings), a stable REST API (v1), CLI commands, and a user-facing FAQ and help.
 	</description>
-	<version>0.13.1</version>
+	<version>0.14.0</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author mail="apps@metaworx.ch"
 			homepage="https://github.com/metaworx/">metaworx resonare rüegg
