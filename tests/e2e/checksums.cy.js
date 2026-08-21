@@ -125,7 +125,7 @@ describe( 'FCIAS checksums sidebar', () => {
 		cy.get( '.fcias-recalc-btn[data-algo="sha1"]' ).click()
 		cy.get( '.fcias-selectable-hash', { timeout: FIND_TIMEOUT } ).should( 'have.length.at.least', 1 )
 
-		cy.get( '.fcias-recalc-btn' ).should( 'have.length', 2 )
+		cy.get( '.fcias-recalc-btn' ).should( 'have.length', 3 )
 		cy.contains( '.fcias-dup-btn', 'Find duplicates' ).should( 'exist' )
 	} )
 
@@ -141,5 +141,19 @@ describe( 'FCIAS checksums sidebar', () => {
 		cy.contains( 'Checksums', { timeout: FIND_TIMEOUT } ).click()
 		cy.get( '.fcias-dup-btn' ).click()
 		cy.get( '.fcias-dup-results', { timeout: FIND_TIMEOUT } ).should( 'contain', fileNameB )
+	} )
+
+	it( 'selects a different algorithm and recalculates it', () => {
+		expect( fileIdA, 'fileIdA should be resolved' ).to.be.a( 'number' ).and.greaterThan( 0 )
+
+		cy.visit( fileUrl( fileIdA ) )
+		cy.contains( 'Checksums', { timeout: FIND_TIMEOUT } ).click()
+
+		// Open the algorithm dropdown and choose SHA512.
+		cy.get( '.fcias-recalc-custom .vs__dropdown-toggle', { timeout: FIND_TIMEOUT } ).click()
+		cy.get( '.vs__dropdown-option' ).contains( 'SHA512' ).click()
+
+		cy.get( '.fcias-recalc-custom .fcias-recalc-btn' ).click()
+		cy.get( '.fcias-algo-badge', { timeout: FIND_TIMEOUT } ).should( 'contain', 'sha512' )
 	} )
 } )

@@ -23,6 +23,7 @@ the first stable release.
 - Update info.xml for App Store metadata compliance (PHP/database dependencies, documentation links, HTTPS repository URL) and add app store screenshots.
 - Migrate the checksums sidebar tab from a hand-rolled HTMLElement to a Vue custom element with a loading spinner during hash load and recalculation.
 - Replace the admin and personal settings algorithm checkboxes with a shared NcSelect-based multiselect component.
+- Rework the checksums sidebar into sharing-tab-style sections with help popovers, an algorithm selector with a recalc button, and full-hash tooltips on a container-constrained hash table.
 
 ### Removed
 

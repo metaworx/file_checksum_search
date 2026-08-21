@@ -6,14 +6,18 @@
  * Sidebar tab showing indexed checksums for the selected file, with
  * SHA-1/MD5 recalc and inline duplicate lookup.
  */
-import { watch } from 'vue'
-import { translate as t } from '@nextcloud/l10n'
-import { generateUrl } from '@nextcloud/router'
+import {computed, ref, watch} from 'vue'
+import {translate as t} from '@nextcloud/l10n'
+import {generateUrl} from '@nextcloud/router'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
-import { FRONTEND } from '../routes'
-import { useSidebarHashes } from './composables/useSidebarHashes'
-import { useClipboard } from './composables/useClipboard'
-import type { DuplicateFile, FileNode } from './types'
+import NcSelect from '@nextcloud/vue/components/NcSelect'
+import {FRONTEND} from '../routes'
+import {type AlgoOption, SUPPORTED_ALGOS, toAlgoOptions} from '../algorithms'
+import {useSidebarHashes} from './composables/useSidebarHashes'
+import {useClipboard} from './composables/useClipboard'
+import RecalcButton from './components/RecalcButton.vue'
+import SectionHeader from './components/SectionHeader.vue'
+import type {DuplicateFile, FileNode} from './types'
 
 const props = withDefaults(
 	defineProps<{
@@ -41,11 +45,25 @@ const {
 	toggleDuplicates,
 } = useSidebarHashes(() => props.node)
 
-const { copied, copyToClipboard } = useClipboard()
+const {copied, copyToClipboard} = useClipboard()
+
+const algoOptions: AlgoOption[] = toAlgoOptions([...SUPPORTED_ALGOS])
+const selectedAlgo = ref('sha256')
+const selectedAlgoOption = computed<AlgoOption>(
+	() => algoOptions.find((o) => o.id === selectedAlgo.value) ?? algoOptions[0],
+)
+
+function onAlgorithmChange(option: AlgoOption | string): void {
+	selectedAlgo.value = typeof option === 'string' ? option : (option?.id ?? '')
+}
+
+function onRecalc(algo: string | null): void {
+	recalc(algo === null ? selectedAlgo.value : algo)
+}
 
 function fileLink(file: DuplicateFile): string {
 	const dirPath = file.path ? (file.path.substring(0, file.path.lastIndexOf('/')) || '/') : '/'
-	return `${generateUrl(FRONTEND.fileLink, { fileid: file.fileid })}?dir=${encodeURIComponent(dirPath)}&opendetails=true`
+	return `${generateUrl(FRONTEND.fileLink, {fileid: file.fileid})}?dir=${encodeURIComponent(dirPath)}&opendetails=true`
 }
 
 watch(
@@ -53,84 +71,111 @@ watch(
 	() => {
 		void loadHashes()
 	},
-	{ immediate: true },
+	{immediate: true},
 )
 </script>
 
 <template>
 	<div class="fcias-container">
-		<div v-if="loading" class="fcias-loading">
-			<NcLoadingIcon :size="20" />
-			<span>{{ t('file_checksum_search', 'Loading checksums …') }}</span>
-		</div>
-		<div v-else-if="error" class="fcias-error">{{ error }}</div>
-		<div v-else-if="hashes.length === 0" class="fcias-empty">
-			{{ t('file_checksum_search', 'No checksums available for this file.') }}
-		</div>
-		<table v-else class="fcias-hash-table">
-			<tbody>
-				<tr v-for="entry in hashes" :key="entry.algo">
-					<td><span class="fcias-algo-badge">{{ entry.algo }}</span></td>
-					<td class="fcias-hash-value">
-						<span
-							class="fcias-selectable-hash"
-							:data-hash="entry.hash"
-							:title="entry.updated_at ? `Last computed: ${entry.updated_at}` : undefined"
-							@click="copyToClipboard(entry.hash)">{{ entry.hash }}</span>
-					</td>
-				</tr>
-			</tbody>
-		</table>
-
-		<div v-if="!loading && !error" class="fcias-actions">
-			<div class="fcias-recalc-row">
-				<button
-					class="fcias-recalc-btn"
-					data-algo="sha1"
-					:disabled="recalculating !== null"
-					@click="recalc('sha1')">
-					<NcLoadingIcon v-if="recalculating === 'sha1'" :size="14" />
-					<span v-else>{{ recalcError === 'sha1' ? t('file_checksum_search', 'Error') : t('file_checksum_search', 'Recalc SHA-1') }}</span>
-				</button>
-				<button
-					class="fcias-recalc-btn"
-					data-algo="md5"
-					:disabled="recalculating !== null"
-					@click="recalc('md5')">
-					<NcLoadingIcon v-if="recalculating === 'md5'" :size="14" />
-					<span v-else>{{ recalcError === 'md5' ? t('file_checksum_search', 'Error') : t('file_checksum_search', 'Recalc MD5') }}</span>
-				</button>
+		<section class="fcias-section">
+			<SectionHeader
+				:title="t('file_checksum_search', 'Checksums')"
+				:help="t('file_checksum_search', 'Checksums indexed for this file. Click a hash to copy it.')" />
+			<div v-if="loading" class="fcias-loading">
+				<NcLoadingIcon :size="20"/>
+				<span>{{ t('file_checksum_search', 'Loading checksums …') }}</span>
 			</div>
+			<div v-else-if="error" class="fcias-error">{{ error }}</div>
+			<div v-else-if="hashes.length === 0" class="fcias-empty">
+				{{ t('file_checksum_search', 'No checksums available for this file.') }}
+			</div>
+			<div v-else class="fcias-hash-table-wrap">
+				<table class="fcias-hash-table">
+					<tbody>
+					<tr v-for="entry in hashes" :key="entry.algo">
+						<td><span class="fcias-algo-badge">{{ entry.algo }}</span></td>
+						<td class="fcias-hash-value">
+							<span
+								class="fcias-selectable-hash"
+								:data-hash="entry.hash"
+								:title="entry.hash"
+								@click="copyToClipboard(entry.hash)">{{ entry.hash }}</span>
+						</td>
+					</tr>
+					</tbody>
+				</table>
+			</div>
+		</section>
 
-			<div class="fcias-dup-section">
-				<button class="fcias-dup-btn" :disabled="searching" @click="toggleDuplicates">
-					{{ t('file_checksum_search', 'Find duplicates') }}
-				</button>
-				<div v-if="showDuplicates" class="fcias-dup-results">
-					<div v-if="searching" class="fcias-loading">
-						<NcLoadingIcon :size="14" />
-						<span>{{ t('file_checksum_search', 'Searching …') }}</span>
+		<section v-if="!loading && !error" class="fcias-section">
+			<SectionHeader
+				:title="t('file_checksum_search', 'Recalculate')"
+				:help="t('file_checksum_search', 'Compute a checksum for the selected algorithm.')" />
+			<div class="fcias-recalc-row">
+				<RecalcButton
+					algo="sha1"
+					label="SHA-1"
+					:recalculating="recalculating"
+					:recalc-error="recalcError"
+					@recalc="onRecalc" />
+				<RecalcButton
+					algo="md5"
+					label="MD5"
+					:recalculating="recalculating"
+					:recalc-error="recalcError"
+					@recalc="onRecalc" />
+
+				<div class="fcias-recalc-custom">
+					<div class="fcias-algo-select-wrap">
+						<NcSelect
+							:model-value="selectedAlgoOption"
+							:options="algoOptions"
+							label="label"
+							track-by="id"
+							@update:model-value="onAlgorithmChange"/>
 					</div>
-					<div v-else-if="dupError" class="fcias-error">{{ dupError }}</div>
-					<div v-else-if="duplicates && duplicates.length === 0" class="fcias-empty">
-						{{ t('file_checksum_search', 'No other files share checksums with this file.') }}
-					</div>
-					<div v-else>
-						<div v-for="group in duplicates" :key="`${group.algo}-${group.hash_value}`" class="fcias-dup-group">
-							<div class="fcias-dup-group-header">
-								<span class="fcias-algo-badge">{{ group.algo }}</span>
-								<span class="fcias-dup-hash-label">{{ group.hash_value }}</span>
-							</div>
-							<ul class="fcias-dup-list">
-								<li v-for="file in group.files" :key="file.fileid" class="fcias-dup-item">
-									<a class="fcias-dup-item-link" :href="fileLink(file)" target="_blank" rel="noreferrer noopener">{{ file.path }}</a>
-								</li>
-							</ul>
+					<RecalcButton
+						:label="t('file_checksum_search', 'Recalc')"
+						:recalculating="recalculating"
+						:recalc-error="recalcError"
+						@recalc="onRecalc" />
+				</div>
+			</div>
+		</section>
+
+		<section v-if="!loading && !error" class="fcias-section">
+			<SectionHeader
+				:title="t('file_checksum_search', 'Duplicates')"
+				:help="t('file_checksum_search', 'Find other files sharing a checksum with this file.')" />
+			<button class="fcias-dup-btn" :disabled="searching" @click="toggleDuplicates">
+				{{ t('file_checksum_search', 'Find duplicates') }}
+			</button>
+			<div v-if="showDuplicates" class="fcias-dup-results">
+				<div v-if="searching" class="fcias-loading">
+					<NcLoadingIcon :size="14"/>
+					<span>{{ t('file_checksum_search', 'Searching …') }}</span>
+				</div>
+				<div v-else-if="dupError" class="fcias-error">{{ dupError }}</div>
+				<div v-else-if="duplicates && duplicates.length === 0" class="fcias-empty">
+					{{ t('file_checksum_search', 'No other files share checksums with this file.') }}
+				</div>
+				<div v-else>
+					<div v-for="group in duplicates" :key="`${group.algo}-${group.hash_value}`"
+					     class="fcias-dup-group">
+						<div class="fcias-dup-group-header">
+							<span class="fcias-algo-badge">{{ group.algo }}</span>
+							<span class="fcias-dup-hash-label">{{ group.hash_value }}</span>
 						</div>
+						<ul class="fcias-dup-list">
+							<li v-for="file in group.files" :key="file.fileid" class="fcias-dup-item">
+								<a class="fcias-dup-item-link" :href="fileLink(file)" target="_blank"
+								   rel="noreferrer noopener">{{ file.path }}</a>
+							</li>
+						</ul>
 					</div>
 				</div>
 			</div>
-		</div>
+		</section>
 
 		<div v-if="copied" class="fcias-copied-toast">
 			{{ t('file_checksum_search', 'Copied!') }}
@@ -139,6 +184,14 @@ watch(
 </template>
 
 <style scoped>
+.fcias-container {
+	overflow-x: hidden;
+}
+
+.fcias-section {
+	margin: 12px 0;
+}
+
 .fcias-algo-badge {
 	display: inline-block;
 	padding: 2px 6px;
@@ -159,6 +212,11 @@ watch(
 .fcias-selectable-hash {
 	user-select: all;
 	cursor: pointer;
+}
+
+.fcias-hash-table-wrap {
+	overflow-x: auto;
+	max-width: 100%;
 }
 
 .fcias-hash-table {
@@ -194,33 +252,30 @@ watch(
 	color: var(--color-error);
 }
 
-.fcias-actions {
-	margin-top: 12px;
-}
-
 .fcias-recalc-row {
 	margin: 8px 0;
 	display: flex;
+	flex-wrap: wrap;
 	gap: 8px;
-}
-
-.fcias-recalc-btn {
-	display: inline-flex;
 	align-items: center;
-	gap: 4px;
-	margin: 0;
-	padding: 4px 10px;
-	font-size: 12px;
-	cursor: pointer;
 }
 
-.fcias-recalc-btn:disabled {
-	opacity: 0.5;
-	cursor: default;
+.fcias-recalc-custom {
+	display: flex;
+	flex-shrink: 0;
 }
 
-.fcias-dup-section {
-	margin-top: 12px;
+.fcias-algo-select-wrap {
+	flex: 0 0 185px;
+	max-width: 185px;
+}
+
+.fcias-algo-select-wrap :deep(> div.v-select.vs--single.vs--searchable.select > div.vs__dropdown-toggle) {
+	max-width: 185px;
+}
+
+.fcias-algo-select-wrap :deep(> div.v-select.vs--single.vs--searchable.select) {
+	min-width: 185px;
 }
 
 .fcias-dup-btn {
@@ -282,7 +337,7 @@ watch(
 	inset-inline-start: 50%;
 	transform: translateX(-50%);
 	background: var(--color-success);
-	color: #fff;
+	color: #ffffff;
 	padding: 8px 16px;
 	border-radius: 4px;
 	font-size: 13px;
