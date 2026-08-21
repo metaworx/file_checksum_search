@@ -103,7 +103,11 @@ build:
   script:
     - |
       if [ -n "${APPSTORE_KEY_B64:-}" ]; then
-        echo "$APPSTORE_KEY_B64" | base64 -d > key.pem
+        if [ -f "$APP_PRIVATE_KEY_B64" ]; then
+          base64 -d < "$APP_PRIVATE_KEY_B64" > key.pem
+        else
+          echo "$APP_PRIVATE_KEY_B64" | base64 -d > key.pem
+        fi
         export APPSTORE_KEY="$PWD/key.pem"
         echo "Signing enabled (APPSTORE_KEY_B64 decoded)."
       else
@@ -166,7 +170,16 @@ publish_appstore:
   script:
     - DOWNLOAD_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${APP_ID}/${CI_COMMIT_TAG}/${APP_ID}.tar.gz"
     - 'curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "build/${APP_ID}.tar.gz" "${DOWNLOAD_URL}"'
-    - echo "$APPSTORE_KEY_B64" | base64 -d > key.pem
+    - |
+      if [ -z "${APPSTORE_KEY_B64:-}" ]; then
+        echo "ERROR: APPSTORE_KEY_B64 is not set." >&2
+        exit 1
+      fi
+      if [ -f "$APP_PRIVATE_KEY_B64" ]; then
+        base64 -d < "$APP_PRIVATE_KEY_B64" > key.pem
+      else
+        echo "$APP_PRIVATE_KEY_B64" | base64 -d > key.pem
+      fi
     - SIGNATURE="$(openssl dgst -sha512 -sign key.pem "build/${APP_ID}.tar.gz" | openssl base64 -A)"
     - |
       if [ -f key.pem ]; then
