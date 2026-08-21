@@ -1,4 +1,4 @@
-# Testing Conventions (v2.6.0)
+# Testing Conventions (v2.7.0)
 
 Project-specific testing conventions for FCIAS (File Checksum Index & Search Nextcloud app).
 Generic agent flow-control rules are in `AGENTS.md`; contributor context is in `CONTRIBUTING.md`.
@@ -234,6 +234,14 @@ Substitute `33` (and `nextcloud-33.ddev.site`) to test NC 33.
 - CI runs the same specs in `cypress-io/github-action` against `http://localhost:8081` with
   `appstoreenabled=false` and `force_language=en` (see `.github/workflows/test.yml`).
 
+### 9.4 Test suite documentation
+
+[`tests/e2e/README.md`](../tests/e2e/README.md) documents what each spec does and
+the data strategy. Note the **execution order**: specs run alphabetically
+(`app-enable` → `checksums` → `duplicates` → `rules`), and `checksums.cy.js`
+creates the real duplicate pair that `duplicates.cy.js` asserts on. Do **not**
+run `duplicates.cy.js` standalone — it will fail without that data.
+
 ## 14. JetBrains MCP Quality Workflow
 
 After editing PHP files, run through this quality pipeline using JetBrains MCP tools:
@@ -253,6 +261,7 @@ Common inspections to watch for:
 
 | Version | Date       | Changed sections                              | Change type | Agent impact                                                                                                                                                                            |
 |---------|------------|-----------------------------------------------|-------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| v2.7.0  | 2026-08-21 | 9                                             | minor       | Added §9.4 linking the new `tests/e2e/README.md` and documenting the spec-ordering dependency (`checksums` → `duplicates`).                                                              |
 | v2.6.0  | 2026-08-20 | 9                                             | minor       | Documented the vanilla NC 33/34 `nextcloud_testing` DDEV harness for local E2E runs.                                                                                                    |
 | v2.5.0  | 2026-08-19 | 9                                             | minor       | Documented the local E2E run procedure (`npx cypress run` + `CYPRESS_*` env vars, `force_language`) and the app-enable password confirmation.                                           |
 | v2.4.1  | 2026-08-16 | 9                                             | fix         | Renamed cypress.config.js to cypress.config.cjs to fix the ESM/CommonJS conflict in the CI Cypress job.                                                                                 |
