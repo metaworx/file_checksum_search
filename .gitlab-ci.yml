@@ -102,24 +102,43 @@ build:
     - composer --version
   script:
     - |
-      if [ -n "${APPSTORE_KEY_B64:-}" ]; then
-        if [ -f "$APP_PRIVATE_KEY_B64" ]; then
-          base64 -d < "$APP_PRIVATE_KEY_B64" > key.pem
-        else
-          echo "$APP_PRIVATE_KEY_B64" | base64 -d > key.pem
-        fi
-        export APPSTORE_KEY="$PWD/key.pem"
-        echo "Signing enabled (APPSTORE_KEY_B64 decoded)."
+      if [ -z "${APPSTORE_KEY_B64:-}" ]; then
+        echo "DEBUG: APPSTORE_KEY_B64 is NOT set — building unsigned (Option B)."
       else
-        echo "APPSTORE_KEY_B64 not set — building unsigned (Option B)."
+        echo "DEBUG: APPSTORE_KEY_B64 is set (length ${#APPSTORE_KEY_B64})."
+        if [ -f "$APPSTORE_KEY_B64" ]; then
+          echo "DEBUG: APPSTORE_KEY_B64 is a FILE path: ${APPSTORE_KEY_B64}"
+          SRC="$(cat "$APPSTORE_KEY_B64")"
+        else
+          echo "DEBUG: APPSTORE_KEY_B64 is a VALUE (not a file path)."
+          SRC="$APPSTORE_KEY_B64"
+        fi
+        echo "DEBUG: source first line: $(printf '%s' "$SRC" | head -n1)"
+        case "$SRC" in
+          *"-----BEGIN"*)
+            echo "DEBUG: content is already PEM; using as-is."
+            printf '%s\n' "$SRC" > "$PWD/key.pem"
+            ;;
+          *)
+            echo "DEBUG: content looks like base64; decoding."
+            if ! printf '%s\n' "$SRC" | base64 -d > "$PWD/key.pem" 2>/dev/null; then
+              echo "ERROR: could not base64-decode APPSTORE_KEY_B64." >&2
+              exit 1
+            fi
+            ;;
+        esac
+        echo "DEBUG: key.pem first line: $(head -n1 "$PWD/key.pem")"
+        echo "DEBUG: key.pem bytes: $(wc -c < "$PWD/key.pem")"
+        export APPSTORE_KEY="$PWD/key.pem"
+        echo "Signing enabled."
       fi
     - bash package.sh
     - |
-      if [ -f key.pem ]; then
-        dd if=/dev/urandom of=key.pem bs=4096 count=1 status=none 2>/dev/null || true
+      if [ -f "$PWD/key.pem" ]; then
+        dd if=/dev/urandom of="$PWD/key.pem" bs=4096 count=1 status=none 2>/dev/null || true
         sync || true
       fi
-    - rm -f key.pem
+    - rm -f "$PWD/key.pem"
     - echo "APP_VERSION=$(sed -n 's|.*<version>\([^<]*\)</version>.*|\1|p' appinfo/info.xml | head -n1 | tr -d '[:space:]')" > build.env
   artifacts:
     paths:
@@ -175,18 +194,35 @@ publish_appstore:
         echo "ERROR: APPSTORE_KEY_B64 is not set." >&2
         exit 1
       fi
-      if [ -f "$APP_PRIVATE_KEY_B64" ]; then
-        base64 -d < "$APP_PRIVATE_KEY_B64" > key.pem
+      if [ -f "$APPSTORE_KEY_B64" ]; then
+        echo "DEBUG: APPSTORE_KEY_B64 is a FILE path."
+        SRC="$(cat "$APPSTORE_KEY_B64")"
       else
-        echo "$APP_PRIVATE_KEY_B64" | base64 -d > key.pem
+        echo "DEBUG: APPSTORE_KEY_B64 is a VALUE."
+        SRC="$APPSTORE_KEY_B64"
       fi
-    - SIGNATURE="$(openssl dgst -sha512 -sign key.pem "build/${APP_ID}.tar.gz" | openssl base64 -A)"
+      echo "DEBUG: source first line: $(printf '%s' "$SRC" | head -n1)"
+      case "$SRC" in
+        *"-----BEGIN"*)
+          echo "DEBUG: content is already PEM; using as-is."
+          printf '%s\n' "$SRC" > "$PWD/key.pem"
+          ;;
+        *)
+          echo "DEBUG: content looks like base64; decoding."
+          if ! printf '%s\n' "$SRC" | base64 -d > "$PWD/key.pem" 2>/dev/null; then
+            echo "ERROR: could not base64-decode APPSTORE_KEY_B64." >&2
+            exit 1
+          fi
+          ;;
+      esac
+      echo "DEBUG: key.pem first line: $(head -n1 "$PWD/key.pem")"
+    - SIGNATURE="$(openssl dgst -sha512 -sign "$PWD/key.pem" "build/${APP_ID}.tar.gz" | openssl base64 -A)"
     - |
-      if [ -f key.pem ]; then
-        dd if=/dev/urandom of=key.pem bs=4096 count=1 status=none 2>/dev/null || true
+      if [ -f "$PWD/key.pem" ]; then
+        dd if=/dev/urandom of="$PWD/key.pem" bs=4096 count=1 status=none 2>/dev/null || true
         sync || true
       fi
-    - rm -f key.pem
+    - rm -f "$PWD/key.pem"
     - |
       curl -X POST https://apps.nextcloud.com/api/v1/apps/releases \
         -H "Authorization: Token ${APPSTORE_TOKEN}" \
