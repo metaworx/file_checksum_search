@@ -3,13 +3,12 @@
  * @license   AGPL-3.0-or-later
  *
  * Cypress E2E tests for the global duplicates page.
+ *
+ * Depends on checksums.cy.js (which runs first) having created a real
+ * duplicate pair via the Files sidebar.
  */
 
 const appId = 'file_checksum_search'
-
-// Deterministic stub hashes for the duplicate groups.
-const H1 = '0b4e7a0e5fe84ad35fb5f95b9ceeac79'
-const H2 = '7c6a180b36896a0a8c02787eeafb0e4c'
 
 // Default to the CI layout: Cypress runs in the repo root and the
 // Nextcloud checkout lives in ./nextcloud. Override via CYPRESS_occ
@@ -24,59 +23,51 @@ const FIND_TIMEOUT = 60000
 
 const DUPLICATES_URL = '/index.php/apps/file_checksum_search/duplicates'
 
+// Stub hashes used only by the "Only matching" filter test, which needs
+// one fully-verified and one mixed group to exercise the checkbox.
+const H1 = '0b4e7a0e5fe84ad35fb5f95b9ceeac79'
+const H2 = '7c6a180b36896a0a8c02787eeafb0e4c'
+
 const findAllDuplicatesUrl = '**/ocs/v2.php/apps/file_checksum_search/api/v1/duplicates*'
-const recalcUrl = '**/ocs/v2.php/apps/file_checksum_search/api/v1/file/*/recalc*'
 
 const file = ( fileid, path ) => ( { fileid, path, name: path.split( '/' ).pop() } )
 
 describe( 'FCIAS Duplicates page', () => {
 	before( () => {
-		occ = Cypress.env( 'occ' ) || occ
-		adminUser = Cypress.env( 'NC_ADMIN_USER' ) || adminUser
-		adminPassword = Cypress.env( 'NC_ADMIN_PASSWORD' ) || adminPassword
-		cy.exec( `${ occ } app:enable ${ appId }`, { failOnNonZeroExit: false } )
+		cy.env( [ 'occ', 'NC_ADMIN_USER', 'NC_ADMIN_PASSWORD' ] ).then( ( env ) => {
+			if ( env.occ ) {
+				occ = env.occ
+			}
+			if ( env.NC_ADMIN_USER ) {
+				adminUser = env.NC_ADMIN_USER
+			}
+			if ( env.NC_ADMIN_PASSWORD ) {
+				adminPassword = env.NC_ADMIN_PASSWORD
+			}
+		} )
 	} )
 
 	beforeEach( () => {
+		cy.exec( `${ occ } app:enable ${ appId }`, { failOnNonZeroExit: false } )
 		cy.login( adminUser, adminPassword )
 	} )
 
-	it( 'loads the duplicates page', () => {
-		cy.intercept( 'GET', findAllDuplicatesUrl, { duplicates: [] } ).as( 'duplicates' )
-
+	it( 'loads the duplicates page and shows the real duplicate group', () => {
 		cy.visit( DUPLICATES_URL )
 
 		cy.get( '#fcias-duplicates', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 		cy.contains( 'button', 'Duplicates' ).should( 'exist' )
-		cy.contains( 'button', 'Verify hashes' ).should( 'exist' )
-		cy.contains( 'label', 'Only matching' ).should( 'exist' )
+		cy.get( '.db-group', { timeout: FIND_TIMEOUT } ).should( 'have.length.at.least', 1 )
 	} )
 
-	it( 'verifies hashes when the "Verify hashes" button is clicked', () => {
-		cy.intercept( 'GET', findAllDuplicatesUrl, {
-			duplicates: [
-				{
-					algo: 'sha1',
-					hash_value: H1,
-					file_count: 2,
-					files: [
-						file( 1001, '/folder/one.txt' ),
-						file( 1002, '/folder/two.txt' ),
-					],
-				},
-			],
-		} ).as( 'duplicates' )
-		cy.intercept( 'POST', recalcUrl, { success: true, hash: H1, algo: 'sha1' } ).as( 'recalc' )
-
+	it( 'verifies hashes on the real duplicate group', () => {
 		cy.visit( DUPLICATES_URL )
-		cy.get( '.db-group', { timeout: FIND_TIMEOUT } ).should( 'have.length', 1 )
 
+		cy.get( '.db-group', { timeout: FIND_TIMEOUT } ).should( 'have.length.at.least', 1 )
 		cy.contains( 'button', 'Verify hashes' ).click()
 
-		// All stubbed files match, so the button flips to the verified state
-		// and one recalc request was issued per file.
+		// Identical content → every file verifies as a match.
 		cy.contains( 'button', '✓ Verified', { timeout: FIND_TIMEOUT } ).should( 'exist' )
-		cy.get( '@recalc.all' ).should( 'have.length', 2 )
 	} )
 
 	it( 'filters groups with the "Only matching" checkbox', () => {

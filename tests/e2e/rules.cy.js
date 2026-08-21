@@ -80,13 +80,21 @@ const ruleRow = ( path ) => cy.contains( '#fcias-cron-list td', path ).closest( 
 
 describe( 'FCIAS admin rules', () => {
 	before( () => {
-		occ = Cypress.env( 'occ' ) || occ
-		adminUser = Cypress.env( 'NC_ADMIN_USER' ) || adminUser
-		adminPassword = Cypress.env( 'NC_ADMIN_PASSWORD' ) || adminPassword
-		cy.exec( `${ occ } app:enable ${ appId }`, { failOnNonZeroExit: false } )
+		cy.env( [ 'occ', 'NC_ADMIN_USER', 'NC_ADMIN_PASSWORD' ] ).then( ( env ) => {
+			if ( env.occ ) {
+				occ = env.occ
+			}
+			if ( env.NC_ADMIN_USER ) {
+				adminUser = env.NC_ADMIN_USER
+			}
+			if ( env.NC_ADMIN_PASSWORD ) {
+				adminPassword = env.NC_ADMIN_PASSWORD
+			}
+		} )
 	} )
 
 	beforeEach( () => {
+		cy.exec( `${ occ } app:enable ${ appId }`, { failOnNonZeroExit: false } )
 		cy.login( adminUser, adminPassword )
 	} )
 
@@ -104,9 +112,9 @@ describe( 'FCIAS admin rules', () => {
 		cy.get( '#fcias-cron-list', { timeout: FIND_TIMEOUT } ).should( 'contain', 'No additional rules.' )
 
 		cy.get( '#fcias-btn-add-definition' ).click()
-		cy.get( '#fcias-cron-form' ).should( 'be.visible' )
-		cy.get( '#fcias-cron-path' ).clear().type( '/test-dir' )
-		cy.get( '#fcias-btn-save-definition' ).click()
+		cy.get( '#fcias-cron-form' ).scrollIntoView().should( 'be.visible' )
+		cy.get( '#fcias-cron-path' ).scrollIntoView().clear().type( '/test-dir' )
+		cy.get( '#fcias-btn-save-definition' ).scrollIntoView().click()
 		cy.wait( '@saveRule' )
 
 		cy.get( '#fcias-cron-list', { timeout: FIND_TIMEOUT } ).should( 'contain', '/test-dir' )
@@ -128,9 +136,9 @@ describe( 'FCIAS admin rules', () => {
 		cy.get( '#fcias-cron-list', { timeout: FIND_TIMEOUT } ).should( 'contain', '/old-path' )
 
 		ruleRow( '/old-path' ).find( 'button[data-action="edit"]' ).click()
-		cy.get( '#fcias-cron-form' ).should( 'be.visible' )
-		cy.get( '#fcias-cron-path' ).should( 'have.value', '/old-path' ).clear().type( '/new-path' )
-		cy.get( '#fcias-btn-save-definition' ).click()
+		cy.get( '#fcias-cron-form' ).scrollIntoView().should( 'be.visible' )
+		cy.get( '#fcias-cron-path' ).scrollIntoView().should( 'have.value', '/old-path' ).clear().type( '/new-path' )
+		cy.get( '#fcias-btn-save-definition' ).scrollIntoView().click()
 		cy.wait( '@saveRule' )
 
 		cy.get( '#fcias-cron-list', { timeout: FIND_TIMEOUT } ).should( 'contain', '/new-path' )
