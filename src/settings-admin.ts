@@ -8,6 +8,9 @@
 import { generateOcsUrl } from '@nextcloud/router'
 import { OCS_SETTINGS } from './routes'
 import { escapeHtml } from './utils'
+import { toAlgoOptions } from './algorithms'
+import { getAlgoSelection, mountAlgoSelect } from './settings-vue/useAlgoSelect'
+import { activateTab, tabFromHash } from './tabs'
 import './settings-admin.css'
 
 declare const OC: {
@@ -95,29 +98,6 @@ function loadStatus(): void {
 		})
 }
 
-function buildAlgoCheckboxes(containerId: string, selectedAlgos?: string[]): void {
-	const container = document.getElementById(containerId)
-	if (!container) return
-	selectedAlgos = selectedAlgos || []
-	let html = ''
-	supportedAlgos.forEach(algo => {
-		const checked = selectedAlgos!.indexOf(algo) !== -1 ? ' checked' : ''
-		html += `<label class="fcias-checkbox-label"><input type="checkbox" name="fcias-algo" value="${escapeHtml(algo)}"${checked}> ${escapeHtml(algo)}</label> `
-	})
-	container.innerHTML = html
-}
-
-function getCheckedAlgos(containerId: string): string[] {
-	const container = document.getElementById(containerId)
-	if (!container) return []
-	const boxes = container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]:checked')
-	const algos: string[] = []
-	for (let i = 0; i < boxes.length; i++) {
-		algos.push(boxes[i].value)
-	}
-	return algos
-}
-
 function populateDropdowns(): void {
 	const userSelects = document.querySelectorAll<HTMLSelectElement>('#fcias-cron-userscope, #fcias-snippet-userscope')
 	userSelects.forEach(sel => {
@@ -181,7 +161,7 @@ function renderGlobalRule(def: DefinitionData | null): void {
 		'</div>' +
 		'<div class="fcias-cron-form-row">' +
 		'<label>Algorithms</label>' +
-		'<div id="fcias-global-algos" class="fcias-checkbox-group"></div>' +
+		'<div id="fcias-global-algos" class="fcias-algo-select"></div>' +
 		'</div>' +
 		'<div class="fcias-cron-form-row">' +
 		'<label for="fcias-global-mode">Mode</label>' +
@@ -207,7 +187,7 @@ function renderGlobalRule(def: DefinitionData | null): void {
 		'</div>'
 	container.innerHTML = html
 
-	buildAlgoCheckboxes('fcias-global-algos', def.algos || (def.algo ? [def.algo] : ['sha1']))
+	mountAlgoSelect('fcias-global-algos', toAlgoOptions(supportedAlgos), def.algos || (def.algo ? [def.algo] : ['sha1']))
 
 	const globalDefId = def.id || null
 	const globalEnabled = def.enabled !== false
@@ -230,7 +210,7 @@ function saveGlobalRule(id: string | number | null): void {
 		id: id || undefined,
 		enabled: true,
 		mode: (document.getElementById('fcias-global-mode') as HTMLSelectElement).value,
-		algos: getCheckedAlgos('fcias-global-algos'),
+		algos: getAlgoSelection('fcias-global-algos'),
 		userScope: 'all',
 		path: '**',
 		admin_enforced: (document.getElementById('fcias-global-admin-enforced') as HTMLInputElement).checked,
@@ -303,7 +283,7 @@ function showDefinitionForm(def: DefinitionData | null): void {
 	if (path) path.value = def ? (def.path || '/') : '/'
 	if (mode) mode.value = def ? (def.mode || 'auto') : 'auto'
 	if (enforced) enforced.checked = def ? def.admin_enforced === true : false
-	buildAlgoCheckboxes('fcias-cron-algos', def ? (def.algos || (def.algo ? [def.algo] : ['sha1'])) : ['sha1'])
+	mountAlgoSelect('fcias-cron-algos', toAlgoOptions(supportedAlgos), def ? (def.algos || (def.algo ? [def.algo] : ['sha1'])) : ['sha1'])
 	const form = document.getElementById('fcias-cron-form')
 	if (form) form.style.display = 'block'
 }
@@ -321,7 +301,7 @@ function saveDefinition(): void {
 		id: editingDefinitionId || undefined,
 		enabled: true,
 		mode: (document.getElementById('fcias-cron-mode') as HTMLSelectElement).value,
-		algos: getCheckedAlgos('fcias-cron-algos'),
+		algos: getAlgoSelection('fcias-cron-algos'),
 		userScope: (document.getElementById('fcias-cron-userscope') as HTMLSelectElement).value,
 		path: (document.getElementById('fcias-cron-path') as HTMLInputElement).value,
 		admin_enforced: (document.getElementById('fcias-cron-admin-enforced') as HTMLInputElement).checked,
@@ -444,26 +424,10 @@ function copySnippet(): void {
 	}
 }
 
-function activateTab(tab: string): void {
-	document.querySelectorAll<HTMLButtonElement>('.fcias-tab').forEach(btn => {
-		const active = btn.dataset.tab === tab
-		btn.classList.toggle('is-active', active)
-		btn.setAttribute('aria-selected', active ? 'true' : 'false')
-	})
-	document.querySelectorAll<HTMLElement>('.fcias-tab-panel').forEach(panel => {
-		panel.hidden = panel.id !== `fcias-tab-panel-${tab}`
-	})
-}
-
-function tabFromHash(): string {
-	const tab = window.location.hash.replace(/^#/, '').split('/')[0]
-	return tab === 'docs' ? 'docs' : 'settings'
-}
-
 document.addEventListener('DOMContentLoaded', () => {
 	loadStatus()
 	loadDefinitions()
-	activateTab(tabFromHash())
+	activateTab(tabFromHash('settings', 'docs'))
 
 	document.querySelectorAll<HTMLButtonElement>('.fcias-tab').forEach(btn => {
 		btn.addEventListener('click', () => {
@@ -474,7 +438,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	})
 
 	window.addEventListener('hashchange', () => {
-		activateTab(tabFromHash())
+		activateTab(tabFromHash('settings', 'docs'))
 	})
 
 	document.getElementById('fcias-btn-refresh-status')?.addEventListener('click', loadStatus)

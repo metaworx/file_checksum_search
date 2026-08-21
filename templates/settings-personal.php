@@ -60,7 +60,7 @@ Util::addStyle( Application::APP_ID, Application::APP_ID . '-settings-personal' 
 			<div class="fcias-cron-form-row">
 				<label><?php
 					p( $l->t( 'Algorithms' ) ); ?></label>
-				<div id="fcias-personal-algos" class="fcias-checkbox-group"></div>
+				<div id="fcias-personal-algos" class="fcias-algo-select"></div>
 			</div>
 			<div class="fcias-cron-form-row">
 				<label for="fcias-personal-mode"><?php

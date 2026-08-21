@@ -22,6 +22,7 @@ the first stable release.
 - Revise README, info.xml, API docs, and the changelog to reflect the current feature set, removing stale references to database triggers, MariaDB-only support, and Webpack.
 - Update info.xml for App Store metadata compliance (PHP/database dependencies, documentation links, HTTPS repository URL) and add app store screenshots.
 - Migrate the checksums sidebar tab from a hand-rolled HTMLElement to a Vue custom element with a loading spinner during hash load and recalculation.
+- Replace the admin and personal settings algorithm checkboxes with a shared NcSelect-based multiselect component.
 
 ### Removed
 

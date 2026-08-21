@@ -9,6 +9,9 @@ import { createApp } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import { OCS_ADMIN, OCS_PERSONAL } from './routes'
 import { escapeHtml } from './utils'
+import { toAlgoOptions } from './algorithms'
+import { getAlgoSelection, mountAlgoSelect } from './settings-vue/useAlgoSelect'
+import { activateTab, tabFromHash } from './tabs'
 import DocsViewer from './docs-vue/DocsViewer.vue'
 import './settings-admin.css'
 
@@ -56,29 +59,6 @@ function setHtml(id: string, html: string): void {
 	if (el) {
 		el.innerHTML = html
 	}
-}
-
-function buildAlgoCheckboxes(containerId: string, selectedAlgos?: string[]): void {
-	const container = document.getElementById(containerId)
-	if (!container) return
-	selectedAlgos = selectedAlgos || []
-	let html = ''
-	supportedAlgos.forEach(algo => {
-		const checked = selectedAlgos!.indexOf(algo) !== -1 ? ' checked' : ''
-		html += `<label class="fcias-checkbox-label"><input type="checkbox" name="fcias-algo" value="${escapeHtml(algo)}"${checked}> ${escapeHtml(algo)}</label> `
-	})
-	container.innerHTML = html
-}
-
-function getCheckedAlgos(containerId: string): string[] {
-	const container = document.getElementById(containerId)
-	if (!container) return []
-	const boxes = container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]:checked')
-	const algos: string[] = []
-	for (let i = 0; i < boxes.length; i++) {
-		algos.push(boxes[i].value)
-	}
-	return algos
 }
 
 function loadRules(): void {
@@ -148,7 +128,7 @@ function showForm(def: PersonalRule | null): void {
 	const mode = document.getElementById('fcias-personal-mode') as HTMLSelectElement
 	if (path) path.value = def ? (def.path || '/') : '/'
 	if (mode) mode.value = def ? (def.mode || 'auto') : 'auto'
-	buildAlgoCheckboxes('fcias-personal-algos', def ? (def.algos || (def.algo ? [def.algo] : ['sha1'])) : ['sha1'])
+	mountAlgoSelect('fcias-personal-algos', toAlgoOptions(supportedAlgos), def ? (def.algos || (def.algo ? [def.algo] : ['sha1'])) : ['sha1'])
 	const form = document.getElementById('fcias-personal-form')
 	if (form) form.style.display = 'block'
 }
@@ -165,7 +145,7 @@ function saveRule(): void {
 		id: editingId || undefined,
 		enabled: true,
 		mode: (document.getElementById('fcias-personal-mode') as HTMLSelectElement).value,
-		algos: getCheckedAlgos('fcias-personal-algos'),
+		algos: getAlgoSelection('fcias-personal-algos'),
 		path: (document.getElementById('fcias-personal-path') as HTMLInputElement).value,
 	}
 	fetch(saveUrl, {
@@ -247,25 +227,9 @@ function toggleRule(id: string | number, enabled: boolean): void {
 		})
 }
 
-function activateTab(tab: string): void {
-	document.querySelectorAll<HTMLButtonElement>('.fcias-tab').forEach(btn => {
-		const active = btn.dataset.tab === tab
-		btn.classList.toggle('is-active', active)
-		btn.setAttribute('aria-selected', active ? 'true' : 'false')
-	})
-	document.querySelectorAll<HTMLElement>('.fcias-tab-panel').forEach(panel => {
-		panel.hidden = panel.id !== `fcias-tab-panel-${tab}`
-	})
-}
-
-function tabFromHash(): string {
-	const tab = window.location.hash.replace(/^#/, '').split('/')[0]
-	return tab === 'faq' ? 'faq' : 'rules'
-}
-
 document.addEventListener('DOMContentLoaded', () => {
 	loadRules()
-	activateTab(tabFromHash())
+	activateTab(tabFromHash('rules', 'faq'))
 
 	document.querySelectorAll<HTMLButtonElement>('.fcias-tab').forEach(btn => {
 		btn.addEventListener('click', () => {
@@ -276,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	})
 
 	window.addEventListener('hashchange', () => {
-		activateTab(tabFromHash())
+		activateTab(tabFromHash('rules', 'faq'))
 	})
 
 	createApp(DocsViewer, { endpoint: OCS_ADMIN.getHelp, only: 'docs/FAQ.md' }).mount('#fcias-personal-faq-viewer')

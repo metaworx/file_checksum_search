@@ -139,7 +139,7 @@ Util::addStyle( Application::APP_ID, Application::APP_ID . '-settings-admin-docs
 					<div class="fcias-cron-form-row">
 						<label><?php
 							p( $l->t( 'Algorithms' ) ); ?></label>
-						<div id="fcias-cron-algos" class="fcias-checkbox-group"></div>
+						<div id="fcias-cron-algos" class="fcias-algo-select"></div>
 					</div>
 					<div class="fcias-cron-form-row">
 						<label for="fcias-cron-mode"><?php

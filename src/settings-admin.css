@@ -153,18 +153,8 @@
 	margin-bottom: 4px;
 }
 
-.fcias-checkbox-group {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 4px 12px;
-}
-
-.fcias-checkbox-label {
-	display: inline-flex;
-	align-items: center;
-	gap: 4px;
-	cursor: pointer;
-	font-weight: normal;
+.fcias-algo-select {
+	width: 100%;
 }
 
 .fcias-global-rule-form {
