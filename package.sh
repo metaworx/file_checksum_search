@@ -19,8 +19,10 @@
 # The App Store requires an SHA-512 signature of the archive:
 #   openssl dgst -sha512 -sign <key> <archive> | openssl base64
 # package.sh signs automatically when a key is available, resolved in order:
-#   1. APPSTORE_KEY / APPSTORE_CERT environment variables
-#      (PEM content, or a path to a file — GitLab file-type variables).
+#   1. APPSTORE_KEY / APPSTORE_CERT environment variables — accepted as a
+#      path to a file (GitLab file-type variables), raw PEM content, or
+#      base64-encoded PEM (GitLab masked variables reject whitespace, so a
+#      base64 encoding is required there).
 #   2. ~/.nextcloud/certificates/<app_id>.key and .crt (local development).
 # The signature is written next to the archive as <archive>.signature and is
 # also printed to stdout for pasting into the App Store upload form.
@@ -32,10 +34,11 @@
 #   DOWNLOAD_URL=... bash package.sh --appstore --nightly
 #   PHP=php8.2 bash package.sh   # use a specific PHP binary for Composer
 #
-# Requires: bash, rsync, tar, npm, composer, openssl (curl for --register and
-# --appstore). PHP is auto-detected as php8.2 (falling back to php) and can be
-# overridden via the PHP env var. The App Store API token is read from the
-# API_TOKEN env var or ~/.nextcloud/API_TOKEN.txt.
+# Requires: bash, openssl always; curl additionally for --appstore; rsync,
+# tar, npm, composer, php additionally for a full build (no flags). PHP is
+# auto-detected as php8.2 (falling back to php) and can be overridden via the
+# PHP env var. The App Store API token is read from the API_TOKEN env var or
+# ~/.nextcloud/API_TOKEN.txt.
 
 set -euo pipefail
 
@@ -63,15 +66,30 @@ done
 
 echo "==> Looking for required binaries ..."
 
-# Resolve the PHP binary: $PHP env override, else php8.2, else php.
-PHP_BIN="${PHP:-$(command -v php8.2 || command -v php || true)}"
-if [ -z "$PHP_BIN" ]; then
-	echo "ERROR: no PHP binary found — set the PHP env var (e.g. PHP=/usr/bin/php8.2)." >&2
-	exit 1
+# Full builds need the whole toolchain; --sign-only/--appstore only touch an
+# already-built archive and don't need PHP, rsync, tar, npm, or composer.
+NEED_FULL_BUILD=true
+if [ "$SIGN_ONLY" = true ] || [ "$APPSTORE" = true ]; then
+	NEED_FULL_BUILD=false
 fi
-echo "    $PHP_BIN"
 
-for bin in bash rsync tar npm composer openssl; do
+REQUIRED_BINS=(bash openssl)
+if [ "$APPSTORE" = true ]; then
+	REQUIRED_BINS+=(curl)
+fi
+if [ "$NEED_FULL_BUILD" = true ]; then
+	REQUIRED_BINS+=(rsync tar npm composer)
+
+	# Resolve the PHP binary: $PHP env override, else php8.2, else php.
+	PHP_BIN="${PHP:-$(command -v php8.2 || command -v php || true)}"
+	if [ -z "$PHP_BIN" ]; then
+		echo "ERROR: no PHP binary found — set the PHP env var (e.g. PHP=/usr/bin/php8.2)." >&2
+		exit 1
+	fi
+	echo "    $PHP_BIN"
+fi
+
+for bin in "${REQUIRED_BINS[@]}"; do
 	if ! command -v "$bin" > /dev/null 2>&1; then
 		echo "ERROR: required binary '${bin}' not found in PATH." >&2
 		exit 1
@@ -111,6 +129,37 @@ echo "    App Build Dir:  $BUILD_DIR"
 KEY_FILE=""
 CERT_FILE=""
 
+# Materializes a PEM env var value (file path, raw PEM, or base64-encoded
+# PEM) into $out_file. Never echoes any part of $value.
+materialize_pem() {
+	local value="$1" out_file="$2" label="$3"
+
+	if [ -f "$value" ]; then
+		echo "==> ${label}: file path" >&2
+		printf '%s' "$value"
+		return 0
+	fi
+
+	case "$value" in
+		"-----BEGIN"*)
+			echo "==> ${label}: raw PEM" >&2
+			printf '%s\n' "$value" > "$out_file"
+			printf '%s' "$out_file"
+			return 0
+			;;
+	esac
+
+	if printf '%s' "$value" | base64 -d > "$out_file" 2>/dev/null && grep -q -- "-----BEGIN" "$out_file"; then
+		echo "==> ${label}: base64-encoded PEM" >&2
+		printf '%s' "$out_file"
+		return 0
+	fi
+
+	echo "ERROR: ${label} is neither a file path, PEM content, nor valid base64-encoded PEM." >&2
+	rm -f "$out_file"
+	return 1
+}
+
 # Resolve the signing key/cert paths into the globals KEY_FILE / CERT_FILE.
 # Materializes PEM content from the environment into the given temp dir.
 resolve_signing_material() {
@@ -119,19 +168,9 @@ resolve_signing_material() {
 	CERT_FILE=""
 
 	if [ -n "${APPSTORE_KEY:-}" ]; then
-		if [ -f "$APPSTORE_KEY" ]; then
-			KEY_FILE="$APPSTORE_KEY"
-		else
-			printf '%s\n' "$APPSTORE_KEY" > "$tmp/key.pem"
-			KEY_FILE="$tmp/key.pem"
-		fi
+		KEY_FILE="$(materialize_pem "$APPSTORE_KEY" "$tmp/key.pem" "APPSTORE_KEY")" || return 1
 		if [ -n "${APPSTORE_CERT:-}" ]; then
-			if [ -f "$APPSTORE_CERT" ]; then
-				CERT_FILE="$APPSTORE_CERT"
-			else
-				printf '%s\n' "$APPSTORE_CERT" > "$tmp/cert.crt"
-				CERT_FILE="$tmp/cert.crt"
-			fi
+			CERT_FILE="$(materialize_pem "$APPSTORE_CERT" "$tmp/cert.crt" "APPSTORE_CERT")" || return 1
 		fi
 	else
 		local cert_dir="${NEXTCLOUD_CERT_DIR:-${HOME}/.nextcloud/certificates}"

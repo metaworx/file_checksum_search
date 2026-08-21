@@ -2,7 +2,7 @@ name: Publish to Nextcloud App Store
 
 on:
   release:
-    types: [published]
+    types: [ published ]
   workflow_dispatch:
 
 permissions:
@@ -38,18 +38,27 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build and package app
-        run: bash package.sh
-
-      - name: Sign app archive (openssl)
-        if: vars.APPSTORE_SIGNING_ENABLED == 'true'
+      - name: Build, package, and sign app
         env:
           APPSTORE_KEY: ${{ secrets.APPSTORE_KEY }}
           APPSTORE_CERT: ${{ secrets.APPSTORE_CERT }}
-        run: bash package.sh --sign-only
+        run: bash package.sh
+
+      - name: Classify release tag
+        id: tagkind
+        if: github.event_name == 'release'
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "kind=stable" >> "$GITHUB_OUTPUT"
+          elif [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-.+$ ]]; then
+            echo "kind=nightly" >> "$GITHUB_OUTPUT"
+          else
+            echo "kind=skip" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Upload release assets
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' && steps.tagkind.outputs.kind != 'skip'
         uses: softprops/action-gh-release@v2
         with:
           files: |
@@ -57,24 +66,20 @@ jobs:
             build/file_checksum_search-${{ steps.app-meta.outputs.version }}.tar.gz
 
       - name: Upload signature
-        if: github.event_name == 'release' && vars.APPSTORE_SIGNING_ENABLED == 'true'
+        if: github.event_name == 'release' && steps.tagkind.outputs.kind != 'skip' && hashFiles('build/*.signature') != ''
         uses: softprops/action-gh-release@v2
         with:
           files: build/file_checksum_search-${{ steps.app-meta.outputs.version }}.tar.gz.signature
 
       - name: Publish release to App Store
-        if: github.event_name == 'release' && vars.APPSTORE_PUBLISH == 'true'
+        if: github.event_name == 'release' && steps.tagkind.outputs.kind != 'skip' && vars.APPSTORE_PUBLISH == 'true'
         env:
           API_TOKEN: ${{ secrets.APPSTORE_TOKEN }}
           APPSTORE_KEY: ${{ secrets.APPSTORE_KEY }}
-          DOWNLOAD_URL: "https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/file_checksum_search.tar.gz"
+          DOWNLOAD_URL: "https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/file_checksum_search-${{ steps.app-meta.outputs.version }}.tar.gz"
         run: |
-          set -euo pipefail
-          printf '%s\n' "$APPSTORE_KEY" > .appstore-key.pem
-          SIGNATURE="$(openssl dgst -sha512 -sign .appstore-key.pem build/file_checksum_search.tar.gz | openssl base64 -A)"
-          rm -f .appstore-key.pem
-          curl -sS -X POST https://apps.nextcloud.com/api/v1/apps/releases \
-            -H "Authorization: Token ${API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{\"download\":\"${DOWNLOAD_URL}\",\"signature\":\"${SIGNATURE}\",\"nightly\":false}" \
-            -w "\nHTTP %{http_code}\n"
+          NIGHTLY_FLAG=""
+          if [ "${{ steps.tagkind.outputs.kind }}" = "nightly" ]; then
+            NIGHTLY_FLAG="--nightly"
+          fi
+          bash package.sh --appstore $NIGHTLY_FLAG
