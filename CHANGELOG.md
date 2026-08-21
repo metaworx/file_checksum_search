@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix the generate command reporting zero files hashed when --batch-size was omitted, since the missing value defaulted to 0 and was treated as "collect nothing" instead of unlimited.
+
 ## [0.13.0] — 2026-08-21
 
 ### Added

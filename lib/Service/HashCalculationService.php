@@ -106,9 +106,14 @@ class HashCalculationService
 		string  $userFolderPath,
 		array   &$collected,
 		int     $batchSize,
+		?array  &$stats = null,
 	): void {
 
-		if ( count( $collected ) >= $batchSize )
+		// A non-positive batch size means "no limit" (the generate
+		// command passes 0 when --batch-size is omitted).
+		$unlimited = $batchSize <= 0;
+
+		if ( ! $unlimited && count( $collected ) >= $batchSize )
 		{
 			return;
 		}
@@ -134,7 +139,7 @@ class HashCalculationService
 
 		foreach ( $node->getDirectoryListing() as $child )
 		{
-			if ( count( $collected ) >= $batchSize )
+			if ( ! $unlimited && count( $collected ) >= $batchSize )
 			{
 				return;
 			}
@@ -149,6 +154,7 @@ class HashCalculationService
 					$userFolderPath,
 					$collected,
 					$batchSize,
+					$stats,
 				);
 
 				continue;
@@ -159,6 +165,11 @@ class HashCalculationService
 				continue;
 			}
 
+			if ( $stats !== null )
+			{
+				$stats['files'] = ( $stats['files'] ?? 0 ) + 1;
+			}
+
 			$relativePath = $this->relativeHashPath(
 				$child->getPath(),
 				$userFolderPath,
@@ -166,6 +177,11 @@ class HashCalculationService
 
 			if ( $pathPattern !== null && ! PathUtil::matchesGlob( $pathPattern, $relativePath ) )
 			{
+				if ( $stats !== null )
+				{
+					$stats['globSkipped'] = ( $stats['globSkipped'] ?? 0 ) + 1;
+				}
+
 				continue;
 			}
 
@@ -186,6 +202,10 @@ class HashCalculationService
 			{
 				$collected[] = $child;
 			}
+			elseif ( $stats !== null )
+			{
+				$stats['alreadyHashed'] = ( $stats['alreadyHashed'] ?? 0 ) + 1;
+			}
 		}
 	}
 
@@ -194,6 +214,8 @@ class HashCalculationService
 	 * Two-phase hash generation: collect files needing hashes,
 	 * then process them. Avoids interleaving reads and writes
 	 * to oc_filecache (dirty reads in NC v33 debug mode).
+	 *
+	 * @param int $batchSize Maximum files to collect (a value <= 0 means unlimited)
 	 *
 	 * @return array{processed: int, skipped: int}
 	 */
@@ -209,6 +231,7 @@ class HashCalculationService
 
 		// Phase 1: collect
 		$files = [];
+		$stats = [];
 		$this->collectFilesForUser(
 			$userFolderPath,
 			$userId,
@@ -217,6 +240,7 @@ class HashCalculationService
 			$userFolderPath,
 			$files,
 			$batchSize,
+			$stats,
 		);
 
 		$collected = count( $files );
@@ -241,6 +265,25 @@ class HashCalculationService
 				),
 			);
 		}
+		elseif ( $output !== null && $output->isVerbose() )
+		{
+			$output->writeln(
+				sprintf(
+					'  No files collected (user: %s, path: %s, algo: %s).',
+					$userId,
+					$pathPattern ?? '**',
+					$algo,
+				),
+			);
+			$output->writeln(
+				sprintf(
+					'    Scan stats: %d file(s) seen, %d already hashed, %d glob-mismatched.',
+					$stats['files'] ?? 0,
+					$stats['alreadyHashed'] ?? 0,
+					$stats['globSkipped'] ?? 0,
+				),
+			);
+		}
 
 		// Phase 2: process
 		$processed = 0;
@@ -255,16 +298,36 @@ class HashCalculationService
 				if ( $result['locked'] ?? false )
 				{
 					$skipped ++;
+
+					if ( $output !== null && $output->isVeryVerbose() )
+					{
+						$output->writeln(
+							sprintf( '    Skipped fileId %d (locked).', $file->getId() ),
+						);
+					}
 				}
 				elseif ( $result['existed'] )
 				{
 					$skipped ++;
+
+					if ( $output !== null && $output->isVeryVerbose() )
+					{
+						$output->writeln(
+							sprintf( '    Skipped fileId %d (already hashed).', $file->getId() ),
+						);
+					}
 				}
 				else
 				{
 					$processed ++;
 
-					if ( $processed % 10 == 0 && $output !== null )
+					if ( $output !== null && $output->isVeryVerbose() )
+					{
+						$output->writeln(
+							sprintf( '    Hashed fileId %d (%s).', $file->getId(), $algo ),
+						);
+					}
+					elseif ( $processed % 10 == 0 && $output !== null )
 					{
 						$output->writeln(
 							sprintf( '    %d files processed …', $processed ),

@@ -22,6 +22,7 @@ use OCP\Server;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Tester\CommandTester;
 
 /**
@@ -160,6 +161,26 @@ class CommandTest
 		] );
 
 		$this->assertSame( Command::FAILURE, $exitCode );
+	}
+
+
+	public function testGenerateHashesVerboseReportsZeroCollection(): void
+	{
+
+		$command = Server::get( GenerateHashes::class );
+		$tester  = new CommandTester( $command );
+
+		$exitCode = $tester->execute(
+			[
+				'--user' => 'admin',
+				'--algo' => 'sha1',
+				'--path' => 'no-such-glob-xyz/**',
+			],
+			[ 'verbosity' => OutputInterface::VERBOSITY_VERY_VERBOSE ],
+		);
+
+		$this->assertSame( Command::SUCCESS, $exitCode );
+		$this->assertStringContainsString( 'No files collected', $tester->getDisplay() );
 	}
 
 

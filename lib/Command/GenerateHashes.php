@@ -137,7 +137,20 @@ class GenerateHashes
 			),
 		);
 
-		if ( $batchSize !== null )
+		if ( $output->isVerbose() )
+		{
+			$output->writeln( sprintf( '  User scope: %s', $userScope ) );
+			$output->writeln( sprintf( '  Path pattern: %s', $pathPattern ?? '**' ) );
+			$output->writeln(
+				sprintf(
+					'  Batch size: %s',
+					$batchSize === null
+						? 'unlimited'
+						: (string) $batchSize,
+				),
+			);
+		}
+		elseif ( $batchSize !== null )
 		{
 			$output->writeln( sprintf( '  Batch size: %d', $batchSize ) );
 		}
@@ -171,7 +184,7 @@ class GenerateHashes
 				$userId,
 				$algo,
 				$pathPattern,
-				$remaining ?? 0,
+				$remaining ?? 0, // 0 = unlimited (--batch-size omitted)
 				$output,
 			);
 
@@ -301,7 +314,7 @@ class GenerateHashes
 		$files = $this->ruleService->searchFilesByGlob(
 			$folder,
 			$pathPattern ?? '**',
-			$remaining ?? 0,
+			$remaining ?? 0, // 0 = unlimited (--batch-size omitted)
 		);
 
 		$marked = 0;

@@ -519,6 +519,24 @@ class RuleServiceTest
 	}
 
 
+	public function testSearchFilesByGlobUnlimitedWhenLimitIsZero(): void
+	{
+
+		$file1 = $this->createFileMock( 1, 1000, '/files/a.txt' );
+		$file2 = $this->createFileMock( 2, 1000, '/files/b.txt' );
+
+		$folder = $this->createMock( Folder::class );
+		$folder->expects( $this->exactly( 2 ) )
+		       ->method( 'search' )
+		       ->willReturnOnConsecutiveCalls( [ $file1, $file2 ], [] )
+		;
+
+		$results = $this->service->searchFilesByGlob( $folder, '**/*.txt', 0 );
+
+		$this->assertCount( 2, $results );
+	}
+
+
 	// globToLike
 
 	public function testGlobToLikeConvertsGlobToSqlLike(): void

@@ -743,8 +743,11 @@ class RuleService
 	 * with fnmatch (SQL LIKE over-matches because % matches / while
 	 * glob * does not), and stops when enough matches are collected.
 	 *
-	 * A safety cap limits total scanned rows to 10× the requested
+	 * A safety cap limits total scanned rows to 5× the requested
 	 * limit to avoid unbounded scanning on very broad patterns.
+	 * When $limit <= 0 the search is unlimited (no cap is applied).
+	 *
+	 * @param int $limit Maximum files to return (a value <= 0 means unlimited)
 	 *
 	 * @return File[]
 	 */
@@ -755,12 +758,15 @@ class RuleService
 		int    $pageSize = 500,
 	): array {
 
-		$likePattern = self::globToLike( $pathGlob );;
-		$maxScan = max( $limit * 5, $pageSize );
-		$files   = [];
-		$offset  = 0;
+		$likePattern = self::globToLike( $pathGlob );
+		$unlimited   = $limit <= 0;
+		$maxScan     = $unlimited
+			? PHP_INT_MAX
+			: max( $limit * 5, $pageSize );
+		$files       = [];
+		$offset      = 0;
 
-		while ( count( $files ) < $limit && $offset < $maxScan )
+		while ( ( $unlimited || count( $files ) < $limit ) && $offset < $maxScan )
 		{
 			$query = new SearchQuery(
 				new SearchComparison(
@@ -795,7 +801,7 @@ class RuleService
 
 				$files[] = $node;
 
-				if ( count( $files ) >= $limit )
+				if ( ! $unlimited && count( $files ) >= $limit )
 				{
 					break;
 				}

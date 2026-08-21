@@ -558,4 +558,197 @@ class HashCalculationServiceTest
 		$this->assertSame( 0, $result['skipped'] );
 	}
 
+
+	private function createCollectingServiceMock(): HashCalculationService&MockObject
+	{
+
+		return $this->getMockBuilder( HashCalculationService::class )
+		            ->onlyMethods( [ 'recalcFileHash' ] )
+		            ->setConstructorArgs(
+			            [
+				            $this->filecacheService,
+				            $this->lockingProvider,
+				            $this->metadataService,
+				            $this->ruleService,
+				            $this->logger,
+			            ],
+		            )
+		            ->getMock()
+		;
+	}
+
+
+	public function testGenerateMissingHashesProcessesFilesWithZeroBatchSize(): void
+	{
+
+		$userId         = 'testuser';
+		$algo           = 'sha1';
+		$userFolderPath = '/testuser/files';
+
+		$this->filecacheService->method( 'getUserFolderPath' )
+		                       ->with( $userId )
+		                       ->willReturn( $userFolderPath )
+		;
+
+		$file = $this->createMock( \OCP\Files\File::class );
+		$file->method( 'getChecksum' )
+		     ->willReturn( '' )
+		;
+		$file->method( 'getPath' )
+		     ->willReturn( $userFolderPath . '/a.txt' )
+		;
+		$file->method( 'getId' )
+		     ->willReturn( 101 )
+		;
+
+		$folder = $this->createMock( \OCP\Files\Folder::class );
+		$folder->method( 'get' )
+		       ->with( '' )
+		       ->willReturn( $folder )
+		;
+		$folder->method( 'getDirectoryListing' )
+		       ->willReturn( [ $file ] )
+		;
+
+		$this->filecacheService->method( 'getUserFolder' )
+		                       ->with( $userId )
+		                       ->willReturn( $folder )
+		;
+
+		$service = $this->createCollectingServiceMock();
+		$service->expects( $this->once() )
+		        ->method( 'recalcFileHash' )
+		        ->with( $file, $algo )
+		        ->willReturn(
+			        [
+				        'success' => true,
+				        'algo'    => $algo,
+				        'hash'    => 'abc',
+				        'existed' => false,
+			        ],
+		        )
+		;
+
+		// 0 = unlimited; the command passes 0 when --batch-size is omitted.
+		$result = $service->generateMissingHashes( $userId, $algo, null, 0 );
+
+		$this->assertSame( 1, $result['processed'] );
+		$this->assertSame( 0, $result['skipped'] );
+	}
+
+
+	public function testGenerateMissingHashesSkipsAlreadyHashedFiles(): void
+	{
+
+		$userId         = 'testuser';
+		$algo           = 'sha1';
+		$userFolderPath = '/testuser/files';
+
+		$this->filecacheService->method( 'getUserFolderPath' )
+		                       ->with( $userId )
+		                       ->willReturn( $userFolderPath )
+		;
+
+		$file = $this->createMock( \OCP\Files\File::class );
+		$file->method( 'getChecksum' )
+		     ->willReturn( 'SHA1:deadbeef' )
+		;
+		$file->method( 'getPath' )
+		     ->willReturn( $userFolderPath . '/a.txt' )
+		;
+
+		$folder = $this->createMock( \OCP\Files\Folder::class );
+		$folder->method( 'get' )
+		       ->with( '' )
+		       ->willReturn( $folder )
+		;
+		$folder->method( 'getDirectoryListing' )
+		       ->willReturn( [ $file ] )
+		;
+
+		$this->filecacheService->method( 'getUserFolder' )
+		                       ->with( $userId )
+		                       ->willReturn( $folder )
+		;
+
+		$service = $this->createCollectingServiceMock();
+		$service->expects( $this->never() )
+		        ->method( 'recalcFileHash' )
+		;
+
+		$result = $service->generateMissingHashes( $userId, $algo, null, 0 );
+
+		$this->assertSame( 0, $result['processed'] );
+		$this->assertSame( 0, $result['skipped'] );
+	}
+
+
+	public function testGenerateMissingHashesAppliesPathGlob(): void
+	{
+
+		$userId         = 'testuser';
+		$algo           = 'sha1';
+		$userFolderPath = '/testuser/files';
+
+		$this->filecacheService->method( 'getUserFolderPath' )
+		                       ->with( $userId )
+		                       ->willReturn( $userFolderPath )
+		;
+
+		$pdf = $this->createMock( \OCP\Files\File::class );
+		$pdf->method( 'getChecksum' )
+		    ->willReturn( '' )
+		;
+		$pdf->method( 'getPath' )
+		    ->willReturn( $userFolderPath . '/a.pdf' )
+		;
+		$pdf->method( 'getId' )
+		    ->willReturn( 201 )
+		;
+
+		$txt = $this->createMock( \OCP\Files\File::class );
+		$txt->method( 'getChecksum' )
+		    ->willReturn( '' )
+		;
+		$txt->method( 'getPath' )
+		    ->willReturn( $userFolderPath . '/b.txt' )
+		;
+		$txt->method( 'getId' )
+		    ->willReturn( 202 )
+		;
+
+		$folder = $this->createMock( \OCP\Files\Folder::class );
+		$folder->method( 'get' )
+		       ->with( '' )
+		       ->willReturn( $folder )
+		;
+		$folder->method( 'getDirectoryListing' )
+		       ->willReturn( [ $pdf, $txt ] )
+		;
+
+		$this->filecacheService->method( 'getUserFolder' )
+		                       ->with( $userId )
+		                       ->willReturn( $folder )
+		;
+
+		$service = $this->createCollectingServiceMock();
+		$service->expects( $this->once() )
+		        ->method( 'recalcFileHash' )
+		        ->with( $pdf, $algo )
+		        ->willReturn(
+			        [
+				        'success' => true,
+				        'algo'    => $algo,
+				        'hash'    => 'abc',
+				        'existed' => false,
+			        ],
+		        )
+		;
+
+		$result = $service->generateMissingHashes( $userId, $algo, '*.pdf', 0 );
+
+		$this->assertSame( 1, $result['processed'] );
+		$this->assertSame( 0, $result['skipped'] );
+	}
+
 }
