@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Added
+
+- Add a Vitest-based frontend unit-test scaffold with tests for the algorithm/tab helpers and the useClipboard, useSidebarHashes, and RecalcButton components.
+
 ## [0.13.1] — 2026-08-21
 
 ### Fixed
