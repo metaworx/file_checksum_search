@@ -1,4 +1,4 @@
-# CI Conventions (v1.2.0)
+# CI Conventions (v1.3.0)
 
 Nextcloud‑specific CI conventions for the `nextcloud/setup-server-action@v0.5.0` action.
 
@@ -69,13 +69,21 @@ Nextcloud‑specific CI conventions for the `nextcloud/setup-server-action@v0.5.
 ## 6. Nightly Releases
 
 - The App Store release channel is determined purely by the git tag; there are no push-triggered nightlies.
-  - `vX.Y.Z` (strict semver) → stable release (`package.sh --appstore`).
+  - `v0.Y.Z` (with or without a suffix) → **nightly** release (`package.sh --appstore --nightly`). `CHANGELOG.md`
+    declares everything below `1.0.0` pre-release, so a 0.x tag must never reach the stable channel — this rule is
+    checked **first** and deliberately takes precedence over the strict-semver rule below.
+  - `vX.Y.Z` (strict semver, `X >= 1`) → stable release (`package.sh --appstore`).
   - `vX.Y.Z-<suffix>` (e.g. `-beta.1`, `-rc1`) → nightly release (`package.sh --appstore --nightly`).
   - Any other tag → the publish step does not run.
-- GitLab: expressed as `rules:` regexes on `$CI_COMMIT_TAG` (`^v\d+\.\d+\.\d+$` / `^v\d+\.\d+\.\d+-.+$`) on the
-  `publish_appstore` job, mirrored on the `release` job so stray tags don't create a GitLab Release either.
+- Nightly releases live on the App Store's pre-release channel: only instances that opted into pre-release updates
+  see them. While the app is on 0.x this is intentional — it is not listed for ordinary installs until `v1.0.0`.
+- GitLab: expressed as `rules:` regexes on `$CI_COMMIT_TAG` (`^v0\.\d+\.\d+(-.+)?$` / `^v\d+\.\d+\.\d+$` /
+  `^v\d+\.\d+\.\d+-.+$`) on the `publish_appstore` job. `rules:` is first-match-wins, so the 0.x entry MUST stay
+  above the strict-semver entry. The `release` job mirrors the accepted tag shapes so stray tags don't create a
+  GitLab Release either.
 - GitHub: expressed as a bash regex match against `github.event.release.tag_name` in a "Classify release tag" step,
-  gating the publish/asset-upload steps on the result.
+  gating the publish/asset-upload steps on the result. Same ordering constraint — the 0.x branch comes first in the
+  `if`/`elif` chain.
 
 ## 7. Document Governance
 
@@ -85,6 +93,7 @@ Nextcloud‑specific CI conventions for the `nextcloud/setup-server-action@v0.5.
 
 | Version | Date       | Changes                                                                                            | Agent Impact                                                                                                                                                                    |
 |---------|------------|----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| v1.3.0  | 2026-08-22 | §6: `v0.Y.Z` tags now classify as nightly on both GitLab and GitHub. | 0.x never publishes to the App Store's stable channel; the 0.x rule must stay first in both first-match-wins chains. |
 | v1.2.0  | 2026-08-22 | §5: dropped the `<archive>-signed.tar.gz` convenience copy from `sign_archive()`.                  | Signing produces the archive plus a detached `.signature` only; do not reintroduce a `-signed.tar.gz` copy.                                                                     |
 | v1.1.0  | 2026-08-22 | Added §5 Signing & Publishing (incl. DOWNLOAD_URL/versioned-archive rule) and §6 Nightly Releases. | CI files must call `package.sh` for signing/publishing; `DOWNLOAD_URL` must reference the versioned archive; nightly channel is tag-pattern based, no push-triggered nightlies. |
 | v1.0.0  | 2026-08-05 | Initial document.                                                                                  | Baseline `setup-server-action` conventions.                                                                                                                                     |

@@ -49,7 +49,12 @@ jobs:
         if: github.event_name == 'release'
         run: |
           TAG="${{ github.event.release.tag_name }}"
-          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          # 0.x is pre-release by definition (see CHANGELOG.md) — never stable,
+          # with or without a -suffix. Must stay ahead of the strict semver
+          # branch below, which would otherwise claim plain v0.Y.Z.
+          if [[ "$TAG" =~ ^v0\.[0-9]+\.[0-9]+(-.+)?$ ]]; then
+            echo "kind=nightly" >> "$GITHUB_OUTPUT"
+          elif [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "kind=stable" >> "$GITHUB_OUTPUT"
           elif [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-.+$ ]]; then
             echo "kind=nightly" >> "$GITHUB_OUTPUT"

@@ -169,6 +169,12 @@ publish_appstore:
     - job: build
       artifacts: true
   rules:
+    # 0.x is pre-release by definition (see CHANGELOG.md) — never a stable
+    # channel release, with or without a -suffix. Must stay above the strict
+    # semver rule below, since `rules:` is first-match-wins.
+    - if: '$CI_COMMIT_TAG =~ /^v0\.\d+\.\d+(-.+)?$/ && $APPSTORE_PUBLISH == "true"'
+      variables:
+        APPSTORE_NIGHTLY: "true"
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/ && $APPSTORE_PUBLISH == "true"'
       variables:
         APPSTORE_NIGHTLY: "false"
