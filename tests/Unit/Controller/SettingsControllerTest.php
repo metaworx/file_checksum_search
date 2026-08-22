@@ -19,12 +19,14 @@ use OCA\FileChecksumSearch\Service\TableNameService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\IRequest;
 use OCP\IUser;
 use OCP\IUserManager;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
+use ReflectionMethod;
 use RuntimeException;
 
 class SettingsControllerTest
@@ -712,6 +714,45 @@ class SettingsControllerTest
 		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
 		$data = $response->getData();
 		$this->assertTrue( $data['success'] );
+	}
+
+
+// ── admin-only enforcement ───────────────────────────────────────────
+
+	/**
+	 * Regression test for FCIAS Review §6, Finding 2: these endpoints
+	 * back the *admin* settings page only. Nextcloud's SecurityMiddleware
+	 * requires an administrator precisely when #[NoAdminRequired] is
+	 * absent from the method — so calling the controller method directly
+	 * (as every other test in this class does) can never exercise that
+	 * gate. Assert the attribute's absence directly instead. Personal
+	 * (non-admin) rule editing goes through PersonalSettingsController's
+	 * separate /personal/rules* routes.
+	 */
+	public function testAdminOnlyMethodsDoNotCarryNoAdminRequired(): void
+	{
+
+		$adminOnlyMethods = [
+			'listRules',
+			'saveRule',
+			'deleteRule',
+			'toggleRule',
+			'getCrontabSnippet',
+			'getAdminOptions',
+			'saveAdminOptions',
+		];
+
+		foreach ( $adminOnlyMethods as $method )
+		{
+			$reflection = new ReflectionMethod( SettingsController::class, $method );
+			$attributes = $reflection->getAttributes( NoAdminRequired::class );
+
+			$this->assertCount(
+				0,
+				$attributes,
+				"$method must not carry #[NoAdminRequired] — it must remain admin-only.",
+			);
+		}
 	}
 
 }

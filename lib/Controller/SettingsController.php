@@ -67,9 +67,12 @@ class SettingsController
 	/**
 	 * List rule definitions, supported algorithms, and available users.
 	 *
+	 * Admin only — backs the admin settings page. Non-admin rule
+	 * management goes through PersonalSettingsController's separate
+	 * /personal/rules* routes instead.
+	 *
 	 * @noinspection PhpUnused
 	 */
-	#[NoAdminRequired]
 	#[NoCSRFRequired]
 	#[ApiRoute( verb: 'GET', url: '/settings/cron/definitions' )]
 	public function listRules(): DataResponse
@@ -101,9 +104,10 @@ class SettingsController
 	/**
 	 * Create or update a rule definition.
 	 *
+	 * Admin only — see {@see listRules()}.
+	 *
 	 * @noinspection PhpUnused
 	 */
-	#[NoAdminRequired]
 	#[ApiRoute( verb: 'POST', url: '/settings/cron/save' )]
 	public function saveRule(): DataResponse
 	{
@@ -198,9 +202,10 @@ class SettingsController
 	/**
 	 * Delete a rule definition by ID.
 	 *
+	 * Admin only — see {@see listRules()}.
+	 *
 	 * @noinspection PhpUnused
 	 */
-	#[NoAdminRequired]
 	#[ApiRoute( verb: 'POST', url: '/settings/cron/delete' )]
 	public function deleteRule(): DataResponse
 	{
@@ -249,9 +254,10 @@ class SettingsController
 	/**
 	 * Enable or disable a rule definition.
 	 *
+	 * Admin only — see {@see listRules()}.
+	 *
 	 * @noinspection PhpUnused
 	 */
-	#[NoAdminRequired]
 	#[ApiRoute( verb: 'POST', url: '/settings/cron/toggle' )]
 	public function toggleRule(): DataResponse
 	{
@@ -302,9 +308,10 @@ class SettingsController
 	/**
 	 * Generate a crontab entry snippet for CLI-based hash generation.
 	 *
+	 * Admin only — see {@see listRules()}.
+	 *
 	 * @noinspection PhpUnused
 	 */
-	#[NoAdminRequired]
 	#[NoCSRFRequired]
 	#[ApiRoute( verb: 'GET', url: '/settings/cron/snippet' )]
 	public function getCrontabSnippet(): DataResponse

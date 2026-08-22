@@ -14,6 +14,7 @@ the first stable release.
 ### Security
 
 - Scope the public and legacy API hash lookups (lookup, getHashes, recalcHash) to the requesting user's own files so other users' paths and hashes can no longer be read or force-recalculated by hash or fileId.
+- Require admin privileges for SettingsController's rule management endpoints so non-admins can no longer install or lock a global force-recalculate rule for the whole instance.
 
 ## [0.14.0] — 2026-08-21
 
