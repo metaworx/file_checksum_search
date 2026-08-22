@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix a race where concurrent hash recalculations for different algorithms on the same file could silently drop metadata by saving before releasing the file lock instead of after.
+
 ### Security
 
 - Scope the public and legacy API hash lookups (lookup, getHashes, recalcHash) to the requesting user's own files so other users' paths and hashes can no longer be read or force-recalculated by hash or fileId.

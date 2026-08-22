@@ -14,6 +14,8 @@ use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
+use OCP\Files\File;
+use OCP\Files\Storage\IStorage;
 use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\Lock\ILockingProvider;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -68,6 +70,101 @@ class HashCalculationServiceTest
 		                      )
 		                      ->getMock()
 		;
+	}
+
+
+	// recalcFileHash
+
+	public function testRecalcFileHashSavesMetadataBeforeReleasingLock(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 5: the finally
+		// block used to release the lock before saving metadata, so a
+		// concurrent recalcFileHash() for a different algo on the same
+		// file could interleave its save and silently drop this one's
+		// hash. Save must happen while still holding the lock.
+		$tmpFile = tempnam( sys_get_temp_dir(), 'fcias_test_' );
+		file_put_contents( $tmpFile, 'hello world' );
+
+		$storage = $this->createMock( IStorage::class );
+		$storage->method( 'isLocal' )
+		        ->willReturn( true )
+		;
+		$storage->method( 'getLocalFile' )
+		        ->willReturn( $tmpFile )
+		;
+
+		$file = $this->createMock( File::class );
+		$file->method( 'getId' )
+		     ->willReturn( 42 )
+		;
+		$file->method( 'getMTime' )
+		     ->willReturn( 1000 )
+		;
+		$file->method( 'getStorage' )
+		     ->willReturn( $storage )
+		;
+		$file->method( 'getInternalPath' )
+		     ->willReturn( 'files/test.txt' )
+		;
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'hasKey' )
+		         ->willReturn( false )
+		;
+		$metadata->method( 'setString' )
+		         ->willReturnSelf()
+		;
+
+		$this->metadataService->method( 'ensureMetadata' )
+		                      ->willReturnCallback(
+			                      function (
+				                      $fileOrId,
+				                      &$metadataRef,
+			                      ) use ( $metadata ): bool
+			                      {
+
+				                      $metadataRef = $metadata;
+
+				                      return true;
+			                      },
+		                      )
+		;
+		$this->filecacheService->method( 'getChecksums' )
+		                       ->willReturn( [] )
+		;
+
+		$order = [];
+		$this->metadataService->method( 'saveMetadata' )
+		                      ->willReturnCallback(
+			                      function () use ( &$order ): void
+			                      {
+
+				                      $order[] = 'save';
+			                      },
+		                      )
+		;
+		$this->lockingProvider->method( 'releaseLock' )
+		                      ->willReturnCallback(
+			                      function () use ( &$order ): void
+			                      {
+
+				                      $order[] = 'release';
+			                      },
+		                      )
+		;
+
+		try
+		{
+			$result = $this->service->recalcFileHash( $file, 'sha1' );
+
+			$this->assertTrue( $result['success'] );
+			$this->assertSame( [ 'save', 'release' ], $order );
+		}
+		finally
+		{
+			@unlink( $tmpFile );
+		}
 	}
 
 

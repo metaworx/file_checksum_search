@@ -674,12 +674,16 @@ class HashCalculationService
 		}
 		finally
 		{
-			$this->releaseLock( $fileId );
-
+			// Save while still holding the lock — releasing first would let a
+			// concurrent recalcFileHash() for a different algo on the same
+			// file interleave its save with this one, silently dropping
+			// whichever wrote last (FCIAS Review §6, Finding 5).
 			if ( $needsSave )
 			{
 				$this->metadataService->saveMetadata( $metadata );
 			}
+
+			$this->releaseLock( $fileId );
 		}
 	}
 
