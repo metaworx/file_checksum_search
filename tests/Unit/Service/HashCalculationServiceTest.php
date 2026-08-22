@@ -73,6 +73,31 @@ class HashCalculationServiceTest
 	}
 
 
+	// isValidAlgo
+
+	public function testIsValidAlgoAcceptsSupportedAlgo(): void
+	{
+
+		$this->assertTrue( HashCalculationService::isValidAlgo( 'sha256' ) );
+	}
+
+
+	public function testIsValidAlgoRejectsUnsupportedString(): void
+	{
+
+		$this->assertFalse( HashCalculationService::isValidAlgo( 'bogus' ) );
+	}
+
+
+	public function testIsValidAlgoRejectsNonString(): void
+	{
+
+		$this->assertFalse( HashCalculationService::isValidAlgo( 42 ) );
+		$this->assertFalse( HashCalculationService::isValidAlgo( null ) );
+		$this->assertFalse( HashCalculationService::isValidAlgo( [ 'sha256' ] ) );
+	}
+
+
 	// recalcFileHash
 
 	public function testRecalcFileHashSavesMetadataBeforeReleasingLock(): void

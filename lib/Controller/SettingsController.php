@@ -137,7 +137,7 @@ class SettingsController
 				$algos,
 				static fn(
 					$a,
-				): bool => is_string( $a ) && in_array( $a, HashCalculationService::SUPPORTED_ALGOS, true ),
+				): bool => HashCalculationService::isValidAlgo( $a ),
 			),
 		);
 

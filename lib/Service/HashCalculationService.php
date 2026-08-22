@@ -61,6 +61,19 @@ class HashCalculationService
 
 
 	/**
+	 * Whether $algo is a string present in SUPPORTED_ALGOS.
+	 *
+	 * Accepts mixed so it can validate a raw, untrusted request value
+	 * directly (e.g. one entry of a request body's `algos` array).
+	 */
+	public static function isValidAlgo( mixed $algo ): bool
+	{
+
+		return is_string( $algo ) && in_array( $algo, self::SUPPORTED_ALGOS, true );
+	}
+
+
+	/**
 	 * Check whether the hash table row for (fileid, algo) has an
 	 * updated_at timestamp that is equal to or newer than the file's
 	 * mtime, meaning the hash is still fresh.
