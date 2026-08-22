@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Fixed
+
+- Guard metadata-index seeding against running when its target table doesn't yet exist, warning with the rebuild command instead of silently leaving the index unpopulated.
+
 ## [0.15.0] — 2026-08-22
 
 ### Changed

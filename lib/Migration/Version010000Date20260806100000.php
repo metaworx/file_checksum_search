@@ -91,6 +91,25 @@ class Version010000Date20260806100000
 		      ->register()
 		;
 
+		/** @var ISchemaWrapper $schema */
+		$schema = $schemaClosure();
+
+		// changeSchema() already no-ops the composite indices when this
+		// table is missing; seedIndex() writes directly into it via raw
+		// SQL, so check the same precondition here instead of letting
+		// that INSERT fail. Without this guard, an unlucky core/app
+		// migration ordering would leave the app permanently on
+		// unindexed lookups with no automatic re-trigger.
+		if ( ! $schema->hasTable( 'files_metadata_index' ) )
+		{
+			$output->warning(
+				'FCIAS: files_metadata_index does not exist yet — skipping index seeding. '
+				. 'Run "occ file-checksum-search:rebuild" once it has been created.',
+			);
+
+			return;
+		}
+
 		$output->info(
 			sprintf( 'FCIAS: seeding %s index entries ...', MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ),
 		);
