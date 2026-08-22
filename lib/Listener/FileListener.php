@@ -238,6 +238,15 @@ class FileListener
 			break;
 
 		case MetadataService::PENDING_MODE_AUTO:
+			// Intentionally a no-op for a brand-new file: `auto` means
+			// "recalculate EXISTING hashes only when stale" (README), and
+			// a just-created file has none — countByFileId() is correctly
+			// 0 here. Filling in a first hash for a new file under `auto`
+			// is not this mode's job; use `missing` or `force` on the rule
+			// if that's wanted. New files with genuinely no hash still get
+			// one eventually via the independent MetadataBackgroundEvent →
+			// MetadataListener → pending:new → ProcessPendingUpdates path,
+			// which resolves the matching rule at drain time.
 			if ( $this->metadataService->countByFileId( $fileId ) > 0 )
 			{
 				$this->metadataService->markPending( $fileId, MetadataService::PENDING_AUTO );

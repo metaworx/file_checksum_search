@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Changed
+
+- Document why auto mode intentionally does nothing for newly created files, since it only recalculates existing stale hashes rather than generating a first hash.
+
 ## [0.14.1] — 2026-08-22
 
 ### Fixed
