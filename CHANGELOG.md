@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix the admin settings page losing its app-name heading: the Vue migration left the `<h3>` as a sibling of `#fcias-admin-settings`, which the Vue app then overwrote on mount. The heading and a new inner mount point now live inside that container again.
+
 ## [0.18.0] — 2026-08-22
 
 ### Added

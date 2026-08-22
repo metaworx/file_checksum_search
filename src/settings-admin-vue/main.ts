@@ -9,4 +9,4 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import '../settings-admin.css'
 
-createApp(App).mount('#fcias-admin-settings')
+createApp(App).mount('#fcias-admin-settings-app')
