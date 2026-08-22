@@ -1,4 +1,4 @@
-# AI Agent Guidelines (v2.4.0)
+# AI Agent Guidelines (v2.5.0)
 
 Core behavioral rules for AI agents working on this codebase.  
 All agents MUST comply.
@@ -139,10 +139,12 @@ Latest `<issue_update>` overrides earlier `<issue_description>`.
 
 ## 6. Commit Policy (STRICT)
 
-- Summary MUST start with one of: `[TASK]`, `[FIX]`, `[SECURITY]`, `[CLEANUP]`, `[WIP]`, `[UPDATE]`.
+- Summary MUST start with one of: `[TASK]`, `[FIX]`, `[SECURITY]`, `[CLEANUP]`, `[WIP]`, `[UPDATE]`, `[RELEASE]`.
 - Empty second line.
 - Detailed body explaining what and why.
 - One functional change per commit.
+- Commits touching shipped app code MUST add a `CHANGELOG.md` `[Unreleased]` entry; releases are cut via a
+  dedicated `[RELEASE]` commit. See `.aiassistant/COMMIT.md` §4.3–4.4.
 - **Prefer using commit tools** documented in `.aiassistant/COMMIT.md`.
 
 ## 7. Additional References
@@ -163,4 +165,4 @@ Latest `<issue_update>` overrides earlier `<issue_description>`.
 
 | Version | Date       | Changed Sections | Change Type | Agent Impact                                    |
 |---------|------------|------------------|-------------|-------------------------------------------------|
-| v2.4.0  | 2026-08-05 | 7                | minor       | Added CI.md reference to Additional References. |
+| v2.5.0  | 2026-08-22 | 6                | minor       | Added `[RELEASE]` tag and mandatory `CHANGELOG.md` `[Unreleased]` entries to Commit Policy. |

@@ -153,7 +153,7 @@ Per [`AGENTS.md`](AGENTS.md) §6:
 {Optional: key changes, test results}
 ```
 
-Valid tags: `[TASK]`, `[FIX]`, `[SECURITY]`, `[CLEANUP]`, `[WIP]`, `[UPDATE]`
+Valid tags: `[TASK]`, `[FIX]`, `[SECURITY]`, `[CLEANUP]`, `[WIP]`, `[UPDATE]`, `[RELEASE]` (see `.aiassistant/COMMIT.md` §4.4; use `/release` to cut a version, not this command)
 
 ## 6. Edge Cases
 

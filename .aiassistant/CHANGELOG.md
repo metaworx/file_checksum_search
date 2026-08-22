@@ -71,7 +71,8 @@ Example:
 
 | Version | Date       | Changed sections             | Change type | Agent impact                                                                                                                                                              |
 |---------|------------|------------------------------|-------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| v2.4.0  | 2026-08-05 | 7                            | minor       | Added CI.md reference to Additional References.                                 |
+| v2.5.0  | 2026-08-22 | 6                            | minor       | Added `[RELEASE]` tag and mandatory `CHANGELOG.md` `[Unreleased]` entries to Commit Policy.                                                                               |
+| v2.4.0  | 2026-08-05 | 7                            | minor       | Added CI.md reference to Additional References.                                                                                                                           |
 | v2.3.0  | 2026-06-15 | 5.1                          | minor       | Clarify AP title `{topic}` is a subject descriptor, not a workflow signal (§3).                                                                                           |
 | v2.2.0  | 2026-06-10 | 2                            | minor       | Explicitly allow creation of UAMF in PLANNING-ONLY mode                                                                                                                   |
 | v2.1.0  | 2026-04-22 | 2, 3, 8, Rule Map            | minor       | Added compact routing map, canonical rule-owner mapping, and first-response contract while keeping the document concise.                                                  |

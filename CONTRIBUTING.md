@@ -25,6 +25,7 @@ Generic runtime and agent flow-control rules are defined in `AGENTS.md`.
         - `[CLEANUP]` - formatting/layout-only changes without functional changes.
         - `[WIP]` - intermediate work-in-progress commits.
         - `[UPDATE]` - environment/dependency/test-configuration updates.
+        - `[RELEASE]` - version-bump commit; reserved for the release workflow (see below).
 3. **Prefix semantics**
     - `[CLEANUP]` MUST ONLY be used for changes in formatting of code or data, or rearranging file layout, and MUST
       NEVER be used for any functional change. Example boundary:
@@ -38,11 +39,18 @@ Generic runtime and agent flow-control rules are defined in `AGENTS.md`.
 
         - The "full" commit SHOULD reference the `[WIP]` commit by including `Follows [WIP] commit [hash]` as its own
           paragraph (e.g., via a separate `-m` parameter) at the bottom of the commit message.
-4. **Message structure**
+    - `[RELEASE]` cuts a version: it promotes `CHANGELOG.md`'s `## [Unreleased]` bullets to a new version section
+      and bumps `appinfo/info.xml`. It touches only those two files. See `.aiassistant/COMMIT.md` §4.4 for the
+      exact format and versioning rule (pre-`1.0.0`: `[FIX]`/`[SECURITY]` bump patch, everything else bumps minor).
+4. **CHANGELOG.md**
+    - Any commit touching shipped app code (`lib/`, `src/`, `css/`, `js/`, `templates/`, `img/`,
+      `appinfo/routes.php`, `appinfo/info.xml`) MUST add a bullet to `## [Unreleased]` in the same commit,
+      summarizing the actual effect (not just the summary line) — see `.aiassistant/COMMIT.md` §4.3.
+5. **Message structure**
     - Line 1: summary with prefix.
     - Line 2: must be empty.
     - Line 3+: details about what changed and why.
-5. **Automated commit trailer**
+6. **Automated commit trailer**
     - Commits made by assistants should include a `Co-authored-by` trailer.
 
 ### Example Commit Message

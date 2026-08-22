@@ -90,14 +90,28 @@ Create `docs/changelog/NNN-slug.md`. Condense — do not copy any UAMF file verb
 | YYYY-MM-DD | Implemented. |
 ````
 
-### 2.5 Stage and Commit
+### 2.5 Update CHANGELOG.md
 
-1. Stage: `git add docs/changelog/NNN-slug.md` plus all changed source/test files
+Not to be confused with the `docs/changelog/NNN-slug.md` AP log written in §2.4 — this is the project's
+root `CHANGELOG.md` (Keep a Changelog, semver).
+
+If the AP's changed files include any shipped app code (`lib/`, `src/`, `css/`, `js/`, `templates/`, `img/`,
+`appinfo/routes.php`, `appinfo/info.xml`), add one bullet to `## [Unreleased]` in `CHANGELOG.md` describing the
+actual effect of the change (per `.aiassistant/COMMIT.md` §4.3) — drawn from the Analysis/Implementation
+sections just written, not copied from the AP title. Skip this step if the AP touched only CI/tests/docs/IDE
+files.
+
+This does not cut a release — that's a separate, dedicated `[RELEASE]` commit via `/release`
+(`.aiassistant/COMMIT.md` §4.4). Do not bump `appinfo/info.xml` here.
+
+### 2.6 Stage and Commit
+
+1. Stage: `git add docs/changelog/NNN-slug.md` plus all changed source/test files, plus `CHANGELOG.md` if §2.5 applied
 2. Write commit message to `.aiassistant/tools/commit-msg.txt`, then run the appropriate commit script (`.aiassistant/COMMIT.md` §6.1)
 3. Present commit gate following `AGENTS.md` §1.1 Universal Gate Template
 4. Execute according to the signal in §1
 
-### 2.6 Commit Gate Format
+### 2.7 Commit Gate Format
 
 Follow `AGENTS.md` §1.1 Universal Gate Template. The gate message MUST include:
 
@@ -108,6 +122,7 @@ Last Action: Created AP at {UAMF path}
 Pending action: {numbered blocks from Implementation Plan}
 Proposed commit message: {complete message per `.aiassistant/COMMIT.md` §3 format}
 Changelog: {The changelog file path being created}
+CHANGELOG.md entry: {bullet text added under [Unreleased], or "not applicable — no app code touched"}
 Files to be committed: {List of files to be committed}
 Confirmation needed: EXEC / EXEC+ / EXEC++ / EXEC+++ / ROLLBACK
 ```
@@ -117,7 +132,7 @@ Ask the user to confirm with an `EXEC`-family signal or provide feedback for rev
 **Delivery mechanism (STRICT):** Use the native tool `ask_followup_question`. Write the gate message in the `question` parameter of `ask_followup_question` **ending with a short call-to-action label**.
 
 - **Tool**: Use the native tool`ask_followup_question`
-- **`question` parameter**: Full gate summary in Markdown (Checkpoint, Overall Task, Last Action, Pending action, Proposed commit message, Changelog, Files to be committed). Write this exactly as you would any other response body. Ending on a single short line: `"Confirmation needed: EXEC / EXEC+ / EXEC++ / EXEC+++ / ROLLBACK"`.
+- **`question` parameter**: Full gate summary in Markdown (Checkpoint, Overall Task, Last Action, Pending action, Proposed commit message, Changelog, CHANGELOG.md entry, Files to be committed). Write this exactly as you would any other response body. Ending on a single short line: `"Confirmation needed: EXEC / EXEC+ / EXEC++ / EXEC+++ / ROLLBACK"`.
 - **`follow_up` parameter**: User choice buttons with mode switches where appropriate.
 
 ## 3. Slug Convention
