@@ -56,7 +56,13 @@ export function useDuplicates() {
 		error: null,
 	})
 
+	let abortController: AbortController | null = null
+
 	async function load(): Promise<void> {
+		abortController?.abort()
+		abortController = new AbortController()
+		const { signal } = abortController
+
 		state.loading = true
 		state.error = null
 
@@ -71,17 +77,20 @@ export function useDuplicates() {
 			}
 
 			const url = `${generateOcsUrl(OCS_API_V1.findAllDuplicates)}?${params.toString()}`
-			const response = await fetch(url)
+			const response = await fetch(url, { signal })
 			if (!response.ok) throw new Error(`HTTP ${response.status}`)
 			const data = (await response.json()) as { duplicates?: DuplicateGroup[] }
 
 			state.groups = data.duplicates || []
 			state.hasMore = state.groups.length >= state.limit
 		} catch (err) {
+			if (err instanceof DOMException && err.name === 'AbortError') return
 			state.error = 'Failed to load duplicates.'
 			state.groups = []
 		} finally {
-			state.loading = false
+			if (!signal.aborted) {
+				state.loading = false
+			}
 		}
 	}
 

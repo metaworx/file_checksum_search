@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Fixed
+
+- Guard useDuplicates against stale-response races by cancelling in-flight requests when filters change, matching the pattern already used by useSidebarHashes.
+
 ## [0.16.0] — 2026-08-22
 
 ### Removed
