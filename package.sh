@@ -204,16 +204,21 @@ sign_archive() {
 		return 1
 	fi
 
-	if [ -f "${cert_file:-}" ]; then
-		if ! openssl x509 -in "$cert_file" -pubkey -noout > "$tmp/pubkey.pem" \
-			|| ! openssl base64 -d -A < "$signature_file" > "$tmp/sig.bin" \
-			|| ! openssl dgst -sha512 -verify "$tmp/pubkey.pem" -signature "$tmp/sig.bin" "$archive" > /dev/null 2>&1; then
-			echo "ERROR: signature verification failed." >&2
-			rm -rf "$tmp"
-			return 1
-		fi
-		echo "    Signature verified against ${cert_file}."
+	if [ ! -f "${cert_file:-}" ]; then
+		echo "ERROR: no certificate found (${cert_file:-<unset>}) — cannot verify the signature just produced." >&2
+		echo "       Set APPSTORE_CERT (or place it at the local cert path) alongside the key, or use --sign-only once it is available." >&2
+		rm -rf "$tmp"
+		return 1
 	fi
+
+	if ! openssl x509 -in "$cert_file" -pubkey -noout > "$tmp/pubkey.pem" \
+		|| ! openssl base64 -d -A < "$signature_file" > "$tmp/sig.bin" \
+		|| ! openssl dgst -sha512 -verify "$tmp/pubkey.pem" -signature "$tmp/sig.bin" "$archive" > /dev/null 2>&1; then
+		echo "ERROR: signature verification failed." >&2
+		rm -rf "$tmp"
+		return 1
+	fi
+	echo "    Signature verified against ${cert_file}."
 
 	signed_archive="${archive%.tar.gz}-signed.tar.gz"
 	cp "$archive" "$signed_archive"

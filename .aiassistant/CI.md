@@ -50,7 +50,10 @@ Nextcloud‑specific CI conventions for the `nextcloud/setup-server-action@v0.5.
   for GitLab masked variables, which reject whitespace/newlines).
 - `bash package.sh` (no flags) signs automatically whenever a key is configured and silently skips signing otherwise
   — there is no separate "signing enabled" toggle. Use `bash package.sh --sign-only` to (re-)sign an existing
-  archive, and `bash package.sh --appstore [--nightly]` to publish.
+  archive, and `bash package.sh --appstore [--nightly]` to publish. If a key is configured but no matching
+  certificate is found, signing **fails loudly** (non-zero exit) rather than producing an unverified signature —
+  provide both `APPSTORE_KEY`/`APPSTORE_CERT` (or their GitLab `_B64`/local-cert-dir equivalents) together, or
+  neither.
 - `--sign-only` and `--appstore` only require `bash`/`openssl` (plus `curl` for `--appstore`) — they do not need PHP,
   npm, composer, rsync, or tar. This lets a publish job run from a minimal image (e.g. `alpine` + `apk add bash
   openssl curl`).

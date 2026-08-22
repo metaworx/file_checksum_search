@@ -37,7 +37,10 @@ openssl dgst -sha512 -sign ~/.nextcloud/certificates/file_checksum_search.key \
 
 The signature is written next to the archive as `<archive>.signature`, printed
 to stdout for pasting into the upload form, and verified against the
-certificate when one is present.
+certificate. If a key is available but no matching certificate is found,
+signing now **fails loudly** rather than silently skipping verification —
+either provide both, or provide neither to fall back to an unsigned build
+(Option B).
 
 ## Publishing to the App Store (REST API)
 
