@@ -1,4 +1,4 @@
-# Testing Conventions (v2.7.1)
+# Testing Conventions (v2.8.0)
 
 Project-specific testing conventions for FCIAS (File Checksum Index & Search Nextcloud app).
 Generic agent flow-control rules are in `AGENTS.md`; contributor context is in `CONTRIBUTING.md`.
@@ -19,6 +19,7 @@ Generic agent flow-control rules are in `AGENTS.md`; contributor context is in `
 12. Document Governance
 13. Version History
 14. JetBrains MCP Quality Workflow
+15. Frontend Unit Tests (Vitest) — Gotchas
 
 ## 1. Gate Command
 
@@ -108,6 +109,16 @@ PHPUnit 10.5 relies on class inheritance to generate test doubles. PHP `readonly
 2. **Anonymous fakes** — Use `new class extends Foo { ... }` (good for DTOs/simple services)
 3. **Property-level readonly** — Remove class `readonly`, mark individual constructor properties as `readonly` (pragmatic, preserves immutability)
 4. **Runtime bypass** — Use `dg/bypass-finals` or Mockery for third-party classes you can't modify
+
+### 6.2 Mock Expectations After Adding Optional Parameters
+
+When a method gains a new optional trailing parameter (e.g. `$userName = null`) and the calling
+code is updated to explicitly pass it — even as `null` — every existing `->with(...)` mock
+expectation on that call breaks. PHPUnit records exactly what the caller explicitly wrote at the
+call site, not what the signature's default would produce for an *omitted* argument, but it
+**does** record an explicitly-passed `null`. Whenever you thread a new parameter through existing
+call sites, audit every mock's `->with()` expectations for that method — don't assume adding an
+optional parameter is mock-transparent just because it has a default.
 
 ## 7. Diagnosis Strategy
 
@@ -257,10 +268,47 @@ Common inspections to watch for:
 - "Unhandled exceptions" — evaluate and either add `@throws` tag to the docblock, or suppress with `/** @noinspection PhpUnhandledExceptionInspection */` just before the statement (merge with existing comment if present), or place in the method's docblock as deemed appropriate
 - "No data sources configured" (harmless IDE config issue, can be ignored)
 
+## 15. Frontend Unit Tests (Vitest) — Gotchas
+
+Frontend unit tests use Vitest with the `happy-dom` environment (config: `vitest.config.ts`,
+specs colocated as `src/**/*.spec.ts`). Run via `npm run test` (or `npm run test:watch`).
+`npm run build` (Vite production build) is also a real check, not a formality — it has caught
+wiring mistakes (wrong prop names, stale imports) unit tests alone missed; run it after any
+frontend change of consequence.
+
+- **`window.location.hash` leaks between tests in the same spec file.** Page-level `App.vue`
+  components (`duplicates-vue`, `settings-admin-vue`, `settings-personal-vue`) read
+  `window.location.hash` at setup time to pick their initial tab. `mount()` creates a fresh
+  component instance per test, but happy-dom's `window` is shared across tests in one file — a
+  test that switches tabs (setting `window.location.hash`) leaves that hash set for the *next*
+  test's `mount()`, silently changing which tab starts active there. The resulting failure looks
+  unrelated to the real cause (e.g. "Cannot call trigger on an empty DOMWrapper" for a button
+  that plainly exists in the rendered HTML — because it's inside a tab panel that isn't the one
+  actually mounted). Fix: reset it in `afterEach`:
+  ```ts
+  afterEach(() => {
+      window.location.hash = ''
+  })
+  ```
+- **Testing the `AbortController` stale-response guard** (used by every composable that fetches —
+  `useDuplicates.ts`, `useAdminSettings.ts`, `usePersonalSettings.ts`, `useSidebarHashes.ts`):
+  a plain resolved/rejected mock isn't enough, since the guard's behavior depends on the request's
+  `signal` actually firing an `abort` event. Use a `mockAbortableFetch()` helper that queues a
+  resolver per call and rejects a call's own promise with a real `AbortError` when its `signal`
+  aborts (see `useDuplicates.spec.ts` for the canonical implementation) — copy it into new specs
+  rather than reinventing it per composable.
+- **A vanilla-JS module that calls `document.addEventListener('DOMContentLoaded', ...)` at import
+  time, combined with `vi.resetModules()` + repeated dynamic `import()` across tests in one file,
+  accumulates listeners** — a single dispatched event then fires every previously-registered
+  handler from earlier tests, corrupting later stateful tests. The frontend is now fully Vue (no
+  vanilla-JS DOM-manipulation entry points remain), so this shouldn't recur here, but the gotcha
+  applies to any future black-box test of a vanilla-JS file with a module-level global listener.
+
 ## 13. Version History
 
 | Version | Date       | Changed sections                              | Change type | Agent impact                                                                                                                                                                            |
 |---------|------------|-----------------------------------------------|-------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| v2.8.0  | 2026-08-22 | 6.2, 15                                       | minor       | Added §6.2 (PHPUnit `->with()` breaks when a new optional param is explicitly passed at call sites) and §15 (Vitest gotchas: `window.location.hash` test-leak, `AbortController` mock pattern, `DOMContentLoaded` listener accumulation) — carried over from the settings-Vue-migration session handoff. |
 | v2.7.1  | 2026-08-21 | 9                                             | minor       | Generalized §9.4 into a generic pointer so TESTING.md no longer enumerates specs (details live in `tests/e2e/README.md`).                                                               |
 | v2.7.0  | 2026-08-21 | 9                                             | minor       | Added §9.4 linking the new `tests/e2e/README.md` and documenting the spec-ordering dependency (`checksums` → `duplicates`).                                                             |
 | v2.6.0  | 2026-08-20 | 9                                             | minor       | Documented the vanilla NC 33/34 `nextcloud_testing` DDEV harness for local E2E runs.                                                                                                    |

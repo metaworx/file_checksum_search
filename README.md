@@ -6,6 +6,14 @@ Nextcloud's `oc_filecache` stores checksums as space-delimited `algo:hash` pairs
 
 FCIAS stores checksums in Nextcloud's built-in **files metadata index** (`oc_files_metadata` / `oc_files_metadata_index`) and mirrors them back into the `filecache` checksum column. It adds composite indices to the built-in metadata index, enabling fast indexed reverse hash lookups without any custom tables.
 
+> **Note on long hashes:** Nextcloud core's `oc_files_metadata_index.meta_value_string` column is
+> `VARCHAR(63)` — a hard limit set by Nextcloud itself, not by FCIAS. SHA-256/SHA-512/SHA3-256/
+> SHA3-512 digests (64+ hex chars) get silently truncated by the database when stored there.
+> FCIAS accounts for this at every lookup and duplicate-grouping path (see
+> `MetadataService::META_VALUE_STRING_MAX_LENGTH` and its truncation-aware query helpers) so
+> results stay correct, but any *new* code that queries this index directly needs the same
+> treatment or it will silently misbehave for long hashes.
+
 ## Features
 
 - **Duplicate file browser** — a standalone page (`/duplicates`) and files sidebar integration for finding files with identical hashes

@@ -9,6 +9,7 @@ Generic runtime and agent flow-control rules are defined in `AGENTS.md`.
 
 - [Commit Rules](#commit-rules)
 - [Testing](#testing)
+- [Nextcloud Integration Notes](#nextcloud-integration-notes)
 - [Code Style & Documentation](#code-style--documentation)
 
 ## Commit Rules
@@ -142,6 +143,32 @@ npm run build   # Vite production build must succeed
   `SimpleMigrationStep`) that must call `\OCP\Server::get()` internally (required by Nextcloud's own
   migration contract) should keep that call isolated so the surrounding logic stays testable via a mocked
   `ISchemaWrapper`/`IOutput` — see `tests/Integration/Migration/` for the pattern.
+
+## Nextcloud Integration Notes
+
+FCIAS integrates with two Nextcloud-provided capabilities that are **not part of core `OCP`**
+(`lib/public`) — both are separate, normally-bundled apps, and any code using them must treat
+them as optional dependencies: check availability defensively, never hard-depend on them in
+`info.xml`, and provide a graceful fallback.
+
+- **`viewer`** — exposes `window.OCA.Viewer.open({ path, list?, fileInfo? })`, the standard
+  cross-app file-preview integration point (Files, Photos, and Text all use it for their own
+  "open preview" actions). This is public but not `OCP`-versioned API: guard with
+  `typeof OCA?.Viewer?.open === 'function'`, fall back (e.g. to an open-in-new-tab link) when it
+  isn't available, and verify the exact call signature against the target Nextcloud version
+  before shipping new code that calls it.
+- **`files_versions`** — owns Nextcloud's file version history entirely; there is nothing under
+  `OCP\Files_Versions`. The real API lives at `OCA\Files_Versions\Versions\{IVersionManager,
+  IVersionBackend, IVersion, IVersionsImporterBackend, IDeletableVersionBackend}`. Of particular
+  note: `IVersionsImporterBackend::importVersionsForFile(IUser $user, Node $source, Node $target,
+  array $versions)` (`@since 29.0.0`) is the documented mechanism for importing one file's
+  version history into another. Check `class_exists(IVersionManager::class)` and that the
+  resolved backend actually `instanceof IVersionsImporterBackend` before calling it — not every
+  storage backend supports import.
+
+If you need to check whether some other Nextcloud capability is part of core `OCP` or lives in a
+separate app, this repo keeps full checkouts of `nextcloud-v33/` and `nextcloud-v34/` for exactly
+this kind of lookup — search `lib/public/` first, then `apps/<name>/lib/` if it isn't there.
 
 ## Code Style & Documentation
 
