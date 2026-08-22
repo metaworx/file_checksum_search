@@ -21,8 +21,23 @@ describe('RuleRow', () => {
 		const wrapper = mount(RuleRow, {
 			props: { rule: makeRule({ path: '<script>alert(1)</script>' }), variant: 'admin' },
 		})
-		expect(wrapper.html()).not.toContain('<script>alert')
-		expect(wrapper.text()).toContain('<script>alert(1)</script>')
+		const pathCell = wrapper.findAll('td')[2]
+
+		// Asserted structurally rather than by searching the serialised HTML:
+		// the cell also carries the raw value in a `title` tooltip, and HTML
+		// attribute serialisation does not escape < or >, so a substring check
+		// reports a payload that is in fact inert inside a quoted attribute.
+		expect(wrapper.element.querySelectorAll('script')).toHaveLength(0)
+		expect(pathCell.element.childElementCount).toBe(0)
+		expect(pathCell.text()).toBe('<script>alert(1)</script>')
+		expect(pathCell.attributes('title')).toBe('<script>alert(1)</script>')
+	})
+
+	it('starts the Priority column at priorityOffset when given', () => {
+		const wrapper = mount(RuleRow, {
+			props: { rule: makeRule(), variant: 'admin', index: 0, priorityOffset: 0 },
+		})
+		expect(wrapper.findAll('td')[0].text()).toBe('0')
 	})
 
 	it('shows a Priority column and Yes/No enforced text for the admin variant', () => {
@@ -33,11 +48,13 @@ describe('RuleRow', () => {
 		expect(wrapper.text()).toContain('Yes')
 	})
 
-	it('hides the Priority column and shows a disabled checkbox for the personal variant', () => {
+	it('shows the Priority column and a disabled checkbox for the personal variant', () => {
 		const wrapper = mount(RuleRow, {
-			props: { rule: makeRule({ admin_enforced: true, canEdit: true }), variant: 'personal' },
+			props: { rule: makeRule({ admin_enforced: true, canEdit: true }), variant: 'personal', index: 1 },
 		})
-		expect(wrapper.findAll('td')[0].text()).not.toBe('1')
+		// Personal rules are an ordered subset evaluated first-match-wins, so
+		// their position is a real priority and is shown like the admin page's.
+		expect(wrapper.findAll('td')[0].text()).toBe('2')
 		const checkbox = wrapper.find('input[type="checkbox"]')
 		expect(checkbox.exists()).toBe(true)
 		expect((checkbox.element as HTMLInputElement).disabled).toBe(true)

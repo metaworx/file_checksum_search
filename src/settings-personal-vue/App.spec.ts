@@ -9,6 +9,24 @@ vi.mock('@nextcloud/router', () => ({
 vi.mock('@nextcloud/vue/components/NcSelect', () => ({
 	default: { name: 'NcSelect', render: () => null },
 }))
+vi.mock('@nextcloud/vue/components/NcPopover', () => ({
+	default: {
+		name: 'NcPopover',
+		template: '<div class="nc-popover"><slot name="trigger" /><slot /></div>',
+	},
+}))
+vi.mock('@nextcloud/vue/components/NcCheckboxRadioSwitch', () => ({
+	default: {
+		name: 'NcCheckboxRadioSwitch',
+		props: ['modelValue', 'type'],
+		emits: ['update:modelValue'],
+		template: '<span class="nc-switch"><input type="checkbox" :checked="modelValue"'
+			+ ' @change="$emit(\'update:modelValue\', $event.target.checked)"><slot /></span>',
+	},
+}))
+vi.mock('@nextcloud/vue/components/NcDialog', () => ({
+	default: { name: 'NcDialog', template: '<div><slot /></div>' },
+}))
 vi.mock('@nextcloud/vue/components/NcRichText', () => ({
 	default: { name: 'NcRichText', render: () => null },
 }))

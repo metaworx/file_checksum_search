@@ -12,6 +12,7 @@ import { generateOcsUrl } from '@nextcloud/router'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
 import NcSettingsSelectGroup from '@nextcloud/vue/components/NcSettingsSelectGroup'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
+import HelpPopover from '../components/HelpPopover.vue'
 import { OCS_SETTINGS } from '../routes'
 
 interface UserOption {
@@ -29,6 +30,21 @@ const allowedGroups = ref<string[]>([])
 const selectedUsers = ref<UserOption[]>([])
 const userOptions = ref<UserOption[]>([])
 const saving = ref(false)
+/**
+ * The group/user selects stay hidden until the saved options are in. Rendering
+ * them from the default allowAll=false and hiding them once the response lands
+ * made them flash on every page load.
+ */
+const loaded = ref(false)
+
+const HELP = {
+	allowAll: 'When on, every user of this instance may create and edit rules for folders they can '
+		+ 'write to. When off, that permission is limited to the groups and individual users you select.',
+	groups: 'Members of these groups may create and edit rules for folders they can write to. '
+		+ 'Selected groups and selected users are combined — being in either is enough.',
+	users: 'Individual users who may create and edit rules for folders they can write to, in '
+		+ 'addition to the members of any selected groups.',
+}
 
 async function load(): Promise<void> {
 	try {
@@ -46,6 +62,8 @@ async function load(): Promise<void> {
 		selectedUsers.value = userOptions.value.filter((u) => selectedIds.includes(u.id))
 	} catch (e) {
 		OC.Notification.showTemporary('Failed to load permission options.')
+	} finally {
+		loaded.value = true
 	}
 }
 
@@ -82,27 +100,36 @@ onMounted(load)
 
 <template>
 	<div>
-		<NcCheckboxRadioSwitch v-model="allowAll" type="switch">
-			Allow all users to edit rules
-		</NcCheckboxRadioSwitch>
-
-		<div v-if="!allowAll" class="fcias-permission-selects">
-			<NcSettingsSelectGroup
-				v-model="allowedGroups"
-				label="Groups"
-				placeholder="Select groups…" />
-
-			<NcSelect
-				v-model="selectedUsers"
-				:multiple="true"
-				:options="userOptions"
-				input-label="Users"
-				placeholder="Search users…"
-				label-outside
-				track-by="id" />
+		<div class="fcias-permission-switch">
+			<NcCheckboxRadioSwitch v-model="allowAll" type="switch">
+				Allow all users to edit rules
+			</NcCheckboxRadioSwitch>
+			<HelpPopover :text="HELP.allowAll" label="Allow all users to edit rules" />
 		</div>
 
-		<div class="fcias-cron-form-actions">
+		<div v-if="loaded && !allowAll" class="fcias-permission-selects">
+			<div class="fcias-permission-row">
+				<NcSettingsSelectGroup
+					v-model="allowedGroups"
+					label="Groups"
+					placeholder="Select groups…" />
+				<HelpPopover :text="HELP.groups" label="Groups" />
+			</div>
+
+			<div class="fcias-permission-row">
+				<NcSelect
+					v-model="selectedUsers"
+					:multiple="true"
+					:options="userOptions"
+					input-label="Users"
+					placeholder="Search users…"
+					label-outside
+					track-by="id" />
+				<HelpPopover :text="HELP.users" label="Users" />
+			</div>
+		</div>
+
+		<div class="fcias-cron-form-actions fcias-cron-form-actions--start">
 			<button class="fcias-btn" :disabled="saving" @click="save">
 				{{ saving ? 'Saving…' : 'Save' }}
 			</button>
@@ -111,10 +138,40 @@ onMounted(load)
 </template>
 
 <style scoped>
+.fcias-permission-switch {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
 .fcias-permission-selects {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
 	margin: 12px 0;
+}
+
+.fcias-permission-row {
+	display: flex;
+	align-items: flex-end;
+	gap: 4px;
+}
+
+/* NcSettingsSelectGroup wraps its NcSelect in an unstyled div, so the select
+   keeps its intrinsic width instead of filling the row the way the bare
+   NcSelect below it does. Stretch the wrapper and the select inside it. */
+.fcias-permission-row > :first-child {
+	flex: 1;
+	min-width: 0;
+}
+
+.fcias-permission-row :deep(.v-select.select) {
+	min-width: 0;
+	width: 100%;
+}
+
+.fcias-permission-row :deep(.v-select.select > .vs__dropdown-toggle) {
+	max-width: 100%;
+	width: 100%;
 }
 </style>

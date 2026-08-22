@@ -156,6 +156,7 @@ loadRules()
 				<RuleTable
 					:rules="rules"
 					variant="personal"
+					:priority-offset="0"
 					:can-edit-any="canEditAny"
 					@edit="openEditRule"
 					@toggle="handleToggleRule"

@@ -5,6 +5,29 @@ import RuleForm from './RuleForm.vue'
 vi.mock('@nextcloud/vue/components/NcSelect', () => ({
 	default: { name: 'NcSelect', render: () => null },
 }))
+vi.mock('@nextcloud/vue/components/NcPopover', () => ({
+	default: {
+		name: 'NcPopover',
+		template: '<div class="nc-popover"><slot name="trigger" /><slot /></div>',
+	},
+}))
+vi.mock('@nextcloud/vue/components/NcCheckboxRadioSwitch', () => ({
+	default: {
+		name: 'NcCheckboxRadioSwitch',
+		props: ['modelValue', 'type'],
+		emits: ['update:modelValue'],
+		template: '<span class="nc-switch"><input type="checkbox" :checked="modelValue"'
+			+ ' @change="$emit(\'update:modelValue\', $event.target.checked)"><slot /></span>',
+	},
+}))
+vi.mock('@nextcloud/vue/components/NcDialog', () => ({
+	default: {
+		name: 'NcDialog',
+		props: ['open', 'name', 'size'],
+		emits: ['update:open'],
+		template: '<div><slot /></div>',
+	},
+}))
 
 describe('RuleForm', () => {
 	it('seeds defaults for a new rule and uses the admin element ids', () => {
@@ -49,6 +72,16 @@ describe('RuleForm', () => {
 		const payload = wrapper.emitted('save')?.[0]?.[0] as { path: string; mode: string }
 		expect(payload.path).toBe('/new-path')
 		expect(payload.mode).toBe('force')
+	})
+
+	it('cancels when the dialog closes itself (Esc, the X button, a click outside)', async () => {
+		const wrapper = mount(RuleForm, {
+			props: { rule: null, variant: 'admin', supportedAlgos: ['sha1'] },
+		})
+		await wrapper.findComponent({ name: 'NcDialog' }).vm.$emit('update:open', false)
+
+		expect(wrapper.emitted('cancel')).toHaveLength(1)
+		expect(wrapper.emitted('save')).toBeUndefined()
 	})
 
 	it('emits cancel', async () => {

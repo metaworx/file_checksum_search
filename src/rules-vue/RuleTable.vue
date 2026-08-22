@@ -14,6 +14,12 @@ const props = defineProps<{
 	variant: 'admin' | 'personal'
 	/** Personal variant only: whether the current user may edit at least the rules they own. */
 	canEditAny?: boolean
+	/** Number the Priority column starts at. The global rule's own table passes 0. */
+	priorityOffset?: number
+	/** Set to hide the per-row Delete button (the global rule). */
+	hideDelete?: boolean
+	/** Overrides the "no rules" placeholder text. */
+	emptyText?: string
 }>()
 
 const emit = defineEmits<{
@@ -30,16 +36,29 @@ const emit = defineEmits<{
 		</p>
 
 		<p v-if="rules.length === 0">
-			{{ variant === 'admin' ? 'No additional rules.' : 'No rules.' }}
+			{{ emptyText ?? (variant === 'admin' ? 'No additional rules.' : 'No rules.') }}
 		</p>
 
 		<table v-else class="grid fcias-cron-table">
+			<!-- One grid for all three tables (global, additional, personal), so
+			     rows line up across them. Status fits its badge and the action
+			     column fits Edit + Disable + Delete without clipping. -->
+			<colgroup>
+				<col style="width: 6%">
+				<col style="width: 9%">
+				<col style="width: 20%">
+				<col style="width: 11%">
+				<col style="width: 8%">
+				<col style="width: 11%">
+				<col style="width: 7%">
+				<col style="width: 28%">
+			</colgroup>
 			<thead>
 				<tr>
-					<th v-if="variant === 'admin'">Priority</th>
+					<th>Priority</th>
 					<th>{{ variant === 'admin' ? 'User' : 'Scope' }}</th>
 					<th>Path</th>
-					<th>Algos</th>
+					<th>Algorithms</th>
 					<th>Mode</th>
 					<th>Status</th>
 					<th>{{ variant === 'admin' ? 'Enforced' : 'Admin-enforced' }}</th>
@@ -53,6 +72,8 @@ const emit = defineEmits<{
 					:rule="rule"
 					:variant="variant"
 					:index="index"
+					:priority-offset="priorityOffset"
+					:hide-delete="hideDelete"
 					@edit="emit('edit', $event)"
 					@toggle="emit('toggle', $event)"
 					@delete="emit('delete', $event)" />

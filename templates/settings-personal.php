@@ -16,7 +16,7 @@ Util::addStyle( Application::APP_ID, Application::APP_ID . '-settings-personal' 
 /** @var \OCP\IL10N $l is auto-injected by NC's TemplateResponse renderer via \OCP\Util::getL10N('file_checksum_search'). */
 ?>
 
-<h3><?php
-	p( $l->t( 'File Checksum Index & Search' ) ); ?></h3>
+<?php
+require __DIR__ . '/partials/settings-header.php'; ?>
 
 <div id="fcias-personal-settings"></div>

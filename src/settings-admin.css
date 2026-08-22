@@ -69,6 +69,24 @@
 .fcias-cron-table {
 	width: 100%;
 	margin-bottom: 16px;
+	/* Honours the <colgroup> percentages, so the single-row global rule table
+	   and the additional-rules table below it share one column grid. */
+	table-layout: fixed;
+}
+
+.fcias-cron-table td {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.fcias-status-table {
+	table-layout: fixed;
+	width: 100%;
+}
+
+.fcias-status-table td:first-child {
+	width: 220px;
 }
 
 .fcias-cron-table th,
@@ -79,14 +97,15 @@
 
 .fcias-cron-actions {
 	white-space: nowrap;
+	text-align: left;
+	/* Buttons must not inherit the value cells' ellipsis clipping. */
+	overflow: visible;
+	text-overflow: clip;
 }
 
+/* Rendered inside an NcDialog, which already supplies the frame and padding. */
 .fcias-cron-form {
-	margin: 12px 0;
-	border: 1px solid var(--color-border);
-	padding: 12px;
-	border-radius: var(--border-radius, 3px);
-	background-color: var(--color-background-dark, #f5f5f5);
+	margin: 0;
 }
 
 .fcias-cron-form-row {
@@ -105,13 +124,38 @@
 .fcias-cron-form-row input[type="number"],
 .fcias-cron-form-row select {
 	flex: 1;
-	max-width: 300px;
+	/* Without this a long value would push the row wider than the dialog. */
+	min-width: 0;
+}
+
+/* Read-only stand-in for an input (the global rule's User Scope and Path).
+   Rendered as plain text so it cannot be mistaken for an editable field. */
+.fcias-cron-form-static {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	color: var(--color-main-text);
+}
+
+/* Pushes a trailing help button to the right edge on rows whose control
+   does not stretch (the admin-enforced checkbox). */
+.fcias-cron-form-fill {
+	flex: 1;
 }
 
 .fcias-cron-form-actions {
-	margin-top: 12px;
+	margin: 16px 0;
 	display: flex;
+	justify-content: center;
 	gap: 8px;
+}
+
+/* Page-level actions sit left with the rest of the page; only the dialog's
+   own Save/Cancel pair is centred. */
+.fcias-cron-form-actions--start {
+	justify-content: flex-start;
 }
 
 #fcias-cron-snippet-container {
@@ -154,24 +198,38 @@
 }
 
 .fcias-algo-select {
+	flex: 1;
+	min-width: 0;
+}
+
+/* NcSelect pins itself to min-width 260px and sizes its inner toggle to the
+   content. Both have to be released for the control to fill the row — see the
+   same two-part override (constraining rather than stretching) on
+   .fcias-algo-select-wrap in ChecksumsSidebarTab.vue. */
+.fcias-algo-select > .v-select.select {
+	min-width: 0;
 	width: 100%;
 }
 
-.fcias-global-rule-form {
-	background: var(--color-background-dark);
-	border: 1px solid var(--color-border);
-	border-radius: 4px;
-	padding: 12px;
-	margin-bottom: 16px;
+.fcias-algo-select > .v-select.select > .vs__dropdown-toggle {
+	max-width: 100%;
+	width: 100%;
 }
 
 /* Tabs */
 
+/* Padding rather than margin, so the underline keeps running to both edges
+   while the buttons line up with the panel content below. */
 .fcias-tabs {
 	display: flex;
 	gap: 4px;
+	padding: 0 16px;
 	border-bottom: 1px solid var(--color-border);
 	margin-bottom: 16px;
+}
+
+.fcias-settings-title {
+	padding: 0 16px;
 }
 
 .fcias-tab {
@@ -193,14 +251,10 @@
 	display: none;
 }
 
-#fcias-tab-panel-settings {
-	padding-left: 16px;
+/* Applies to every tab panel on both settings pages. It used to be scoped to
+   the admin page's Settings panel by id, which left the personal page's
+   panels flush against the edge. */
+.fcias-tab-panel {
+	padding: 0 16px;
 }
 
-#fcias-global-rule {
-	margin-left: -16px;
-}
-
-#fcias-cron-form {
-	margin-left: -16px;
-}

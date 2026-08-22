@@ -12,8 +12,12 @@ import type { Rule } from './types'
 const props = defineProps<{
 	rule: Rule
 	variant: 'admin' | 'personal'
-	/** Row position within the table (admin variant only, for the Priority column). */
+	/** Row position within the table, shown in the Priority column. */
 	index?: number
+	/** Number the Priority column starts at. The global rule's own table uses 0. */
+	priorityOffset?: number
+	/** Set for rules that must not be removed (the global rule). */
+	hideDelete?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -27,10 +31,10 @@ const canManage = props.variant === 'admin' || props.rule.canEdit === true
 
 <template>
 	<tr :data-id="String(rule.id)">
-		<td v-if="variant === 'admin'">{{ (index ?? 0) + 1 }}</td>
-		<td>{{ rule.userScope || 'all' }}</td>
-		<td>{{ rule.path || '/' }}</td>
-		<td>{{ (rule.algos || []).join(', ') }}</td>
+		<td>{{ (index ?? 0) + (priorityOffset ?? 1) }}</td>
+		<td :title="rule.userScope || 'all'">{{ rule.userScope || 'all' }}</td>
+		<td :title="rule.path || '/'">{{ rule.path || '/' }}</td>
+		<td :title="(rule.algos || []).join(', ')">{{ (rule.algos || []).join(', ') }}</td>
 		<td>{{ rule.mode || 'auto' }}</td>
 		<td>
 			<span :class="rule.enabled ? 'fcias-compat-pass' : 'fcias-compat-fail'">
@@ -47,7 +51,11 @@ const canManage = props.variant === 'admin' || props.rule.canEdit === true
 				<button class="fcias-btn fcias-btn-toggle" data-action="toggle" @click="emit('toggle', rule)">
 					{{ rule.enabled ? 'Disable' : 'Enable' }}
 				</button>
-				<button class="fcias-btn fcias-btn-danger fcias-btn-delete" data-action="delete" @click="emit('delete', rule)">
+				<button
+					v-if="!hideDelete"
+					class="fcias-btn fcias-btn-danger fcias-btn-delete"
+					data-action="delete"
+					@click="emit('delete', rule)">
 					Delete
 				</button>
 			</template>

@@ -17,12 +17,8 @@ Util::addStyle( Application::APP_ID, Application::APP_ID . '-settings-admin' );
 ?>
 
 <div id="fcias-admin-settings">
-	<h3>
-		<?php
-		echo str_replace( 'fill="#fff"', 'fill="currentColor"', file_get_contents( __DIR__ . '/../img/app.svg' ) ); ?>
-		<?php
-		p( $l->t( 'File Checksum Index & Search' ) ); ?>
-	</h3>
+	<?php
+	require __DIR__ . '/partials/settings-header.php'; ?>
 
 	<div id="fcias-admin-settings-app"></div>
 </div>

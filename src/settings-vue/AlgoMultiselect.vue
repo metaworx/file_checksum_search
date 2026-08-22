@@ -5,32 +5,31 @@
  *
  * Reusable NcSelect multiselect for algorithm selection.
  *
- * Initialised from a one-shot `initial` prop and reports changes through the
- * `onChange` callback so it can be mounted into vanilla DOM containers.
+ * Bound with `v-model` over the selected algorithm ids. The mapping between
+ * ids and `AlgoOption`s is a writable computed rather than a seeded ref: both
+ * `modelValue` and `options` arrive asynchronously on the settings pages, and
+ * a snapshot taken at setup time would filter an empty option list and leave
+ * the widget permanently blank.
  */
-import { ref, watch } from 'vue'
+import { computed } from 'vue'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import type { AlgoOption } from '../algorithms'
 
 const props = defineProps<{
-	initial: string[]
+	modelValue: string[]
 	options: AlgoOption[]
 	label?: string
 	placeholder?: string
-	onChange?: (value: string[]) => void
 }>()
 
-const selected = ref<AlgoOption[]>(
-	props.options.filter((o) => props.initial.includes(o.id)),
-)
+const emit = defineEmits<{
+	(e: 'update:modelValue', value: string[]): void
+}>()
 
-watch(
-	selected,
-	(val) => {
-		props.onChange?.(val.map((o) => o.id))
-	},
-	{ deep: true },
-)
+const selected = computed<AlgoOption[]>({
+	get: () => props.options.filter((o) => props.modelValue.includes(o.id)),
+	set: (value) => emit('update:modelValue', value.map((o) => o.id)),
+})
 </script>
 
 <template>

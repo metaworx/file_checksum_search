@@ -11,8 +11,27 @@ the first stable release.
 
 ## [Unreleased]
 
+### Changed
+
+- Move rule creation and editing into an NcDialog popup on both the admin and personal settings pages, instead of a form that expanded inline below the rule list.
+- Show the global rule as an ordinary rule row in its own table above the additional rules, replacing the separate always-visible form, so both kinds of rule read and are edited the same way. The global rule shows its fixed User Scope and Path as plain text rather than disabled inputs, keeps them pinned server-side, and has no Delete button — disable it instead.
+- Add a help button with a short explanation to every rule and permission setting, reusing the sidebar's popover as a shared component.
+- Stretch the rule form's inputs, the algorithm multiselect and the permission group/user selects to the full width of their row, so controls line up on a common right edge instead of stopping at their intrinsic widths.
+- Give the rule tables percentage column widths, so the single-row global rule table and the additional-rules table below it share one column grid.
+- Show the full value as a tooltip on rule table cells and on the rule form's Path field, for values too long for the space.
+- Centre the settings pages' Save and Cancel buttons and give them room to breathe, and match the rule dialog's "Users may not edit this rule" toggle to the switch used elsewhere in the settings.
+- Focus the first editable field when the rule dialog opens, instead of the first help button, and close the dialog on Escape as if Cancel had been pressed — an open help popover or select dropdown takes the first Escape for itself. The dialog's own close button is gone as a result: the built-in close had to be turned off for Escape to be handled in the right order, and Cancel already sits next to Save.
+- Indent every tab panel, the page heading and the tab buttons on both settings pages, while the tab underline still runs the full width. The indent was previously scoped to the admin page's Settings panel, leaving the personal page flush against the edge.
+- Share one server-rendered header partial between the admin and personal settings pages, so the personal page shows the app logo too and the two cannot drift apart.
+- Show the Priority column on the personal rules page. Personal rules are an ordered subset evaluated first-match-wins, so their position is a real priority, numbered as on the admin page.
+- Rename the rule tables' "Algos" column to "Algorithms", give all three rule tables one shared column grid, and left-align their action buttons.
+- Label the rule dialog's admin-enforced switch "Enforced" so it lines up with the other fields, and left-align the Rule Editing Permission page's Save button while the dialog's own buttons stay centred.
+- Cap the status table's label column so its values are not pushed across the page.
+- Keep the permission group and user selects hidden until the saved options have loaded, instead of rendering and then hiding them on every page load.
+
 ### Fixed
 
+- Fix the admin settings page never showing the global rule's stored algorithms: the algorithm multiselect captured its selection once at setup, when the asynchronously loaded algorithm list was still empty, and stayed blank from then on. It now tracks both the bound value and the option list.
 - Fix the admin settings page losing its app-name heading: the Vue migration left the `<h3>` as a sibling of `#fcias-admin-settings`, which the Vue app then overwrote on mount. The heading and a new inner mount point now live inside that container again.
 
 ## [0.18.0] — 2026-08-22
