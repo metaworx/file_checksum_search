@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Removed
+
+- Remove the unused legacy vanilla-JS duplicates bundle and its loading listener, since the real duplicates page has used the Vue bundle instead.
+
 ## [0.15.1] — 2026-08-22
 
 ### Fixed

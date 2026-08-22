@@ -13,7 +13,6 @@ use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Listener\AppDisableListener;
 use OCA\FileChecksumSearch\Listener\BeforeTemplateRenderedListener;
 use OCA\FileChecksumSearch\Listener\FileListener;
-use OCA\FileChecksumSearch\Listener\LoadDuplicatesScriptListener;
 use OCA\FileChecksumSearch\Listener\MetadataListener;
 use OCA\FileChecksumSearch\Search\HashSearchProvider;
 use OCP\AppFramework\App;
@@ -45,7 +44,6 @@ class Application
 		$context->registerConfigLexicon( ConfigLexicon::class );
 		$context->registerSearchProvider( HashSearchProvider::class );
 
-		LoadDuplicatesScriptListener::register( $context );
 		FileListener::register( $context );
 		MetadataListener::register( $context );
 		BeforeTemplateRenderedListener::register( $context );
