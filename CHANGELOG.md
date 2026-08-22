@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.14.1] — 2026-08-22
+
 ### Fixed
 
 - Fix a race where concurrent hash recalculations for different algorithms on the same file could silently drop metadata by saving before releasing the file lock instead of after.
