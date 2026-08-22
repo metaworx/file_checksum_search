@@ -26,7 +26,7 @@ Key features:
 ## How are checksums computed and stored?
 
 FCIAS supports the following algorithms: `sha1`, `md5`, `sha256`, `sha512`,
-`sha3-256`, `sha3-512`, and `crc32`.
+`sha3-256`, `sha3-512`, `crc32`, and `adler32`.
 
 For each file, the configured algorithm(s) produce a hex digest of the file
 content. Digests are stored as metadata keys of the form

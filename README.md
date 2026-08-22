@@ -115,7 +115,7 @@ Rules are evaluated in order — the first matching rule handles a file. Each ru
 | `enabled` | Whether the rule is active |
 | `userScope` | `all` users or a single user ID |
 | `path` | A path glob (Symfony Finder `**` syntax), e.g. `/` or `**/*.pdf` |
-| `algos` | One or more of `sha1`, `md5`, `sha256`, `sha512`, `sha3-256`, `sha3-512`, `crc32` |
+| `algos` | One or more of `sha1`, `md5`, `sha256`, `sha512`, `sha3-256`, `sha3-512`, `crc32`, `adler32` |
 | `mode` | How stale hashes are handled (see below) |
 | `admin_enforced` | Whether users may edit the rule (admin-only lock) |
 

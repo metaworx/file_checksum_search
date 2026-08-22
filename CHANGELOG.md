@@ -16,6 +16,7 @@ the first stable release.
 - Extract a shared algorithm-whitelist validator to remove the duplicated validation logic between SettingsController and PersonalSettingsController.
 - Compute all required checksums for a file in a single read pass instead of one read per algorithm, cutting up to eight reads down to one on remote and local storage alike.
 - Extract a shared default-duplicate-limit constant to replace six hardcoded copies of the default duplicate-group page size.
+- Document adler32 support in README, FAQ, API docs, and OpenAPI spec, and add canary tests on both the PHP and TypeScript sides so the two supported-algorithm lists can no longer silently drift apart.
 
 ## [0.16.1] — 2026-08-22
 

@@ -44,7 +44,7 @@ paths:
           description: Algorithm filter
           schema:
             type: string
-            enum: [sha1, md5, sha256, sha512, sha3-256, sha3-512, crc32]
+            enum: [sha1, md5, sha256, sha512, sha3-256, sha3-512, crc32, adler32]
             example: sha1
         - name: limit
           in: query
@@ -150,7 +150,7 @@ paths:
               properties:
                 algo:
                   type: string
-                  enum: [sha1, md5, sha256, sha512, sha3-256, sha3-512, crc32]
+                  enum: [sha1, md5, sha256, sha512, sha3-256, sha3-512, crc32, adler32]
                   default: sha1
                   description: Hash algorithm (default sha1)
                   example: sha256
@@ -183,7 +183,7 @@ paths:
           description: Algorithm filter
           schema:
             type: string
-            enum: [sha1, md5, sha256, sha512, sha3-256, sha3-512, crc32]
+            enum: [sha1, md5, sha256, sha512, sha3-256, sha3-512, crc32, adler32]
             example: sha1
         - name: min_count
           in: query

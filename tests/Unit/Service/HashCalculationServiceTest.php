@@ -98,6 +98,32 @@ class HashCalculationServiceTest
 	}
 
 
+	/**
+	 * Canary for FCIAS Review §2, Finding 7: this list is mirrored by
+	 * hand in src/algorithms.ts (SUPPORTED_ALGOS), with no automated
+	 * cross-language check. If this test forces you to update it,
+	 * update the TS mirror (and its own canary test in
+	 * src/algorithms.spec.ts) in the same commit.
+	 */
+	public function testSupportedAlgosMatchesFrontendMirror(): void
+	{
+
+		$this->assertSame(
+			[
+				'sha1',
+				'md5',
+				'adler32',
+				'crc32',
+				'sha256',
+				'sha512',
+				'sha3-256',
+				'sha3-512',
+			],
+			HashCalculationService::SUPPORTED_ALGOS,
+		);
+	}
+
+
 	// recalcFileHash
 
 	public function testRecalcFileHashSavesMetadataBeforeReleasingLock(): void

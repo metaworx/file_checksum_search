@@ -72,8 +72,8 @@ Search for files matching a given hash value.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `$hash` | `string` | Yes | Hex-encoded hash (32/40/64/128 chars depending on algorithm) |
-| `$algo` | `?string` | No | Algorithm filter (`sha1`, `md5`, `sha256`, `sha512`, `sha3-256`, `sha3-512`, `crc32`) |
+| `$hash` | `string` | Yes | Hex-encoded hash (8/32/40/64/128 chars depending on algorithm) |
+| `$algo` | `?string` | No | Algorithm filter (`sha1`, `md5`, `sha256`, `sha512`, `sha3-256`, `sha3-512`, `crc32`, `adler32`) |
 | `$limit` | `int` | No | Max results (1–500, default 100) |
 
 **Returns:**
