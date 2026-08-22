@@ -14,6 +14,7 @@ the first stable release.
 ### Added
 
 - Add Vitest coverage for the vanilla-JS admin and personal settings pages, testing their manual HTML-escaping and DOM rendering black-box to guard against XSS regressions.
+- Add useAdminSettings and usePersonalSettings composables that port the settings pages' fetch logic to the existing composable pattern, adding an AbortController stale-response guard neither page had before.
 
 ### Changed
 
