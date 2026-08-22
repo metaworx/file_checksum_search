@@ -18,6 +18,7 @@ the first stable release.
 ### Changed
 
 - Document DatabaseService's safeBool/safeInt/safeString/safeArray sentinel-on-failure pattern so callers can tell a genuine empty result from a logged DB failure.
+- Extract shared RuleTable, RuleRow, and RuleForm Vue components to replace the duplicated string-concatenated markup in the admin and personal settings pages.
 
 ## [0.17.1] — 2026-08-22
 
