@@ -122,7 +122,13 @@ class FilecacheService
 	 *
 	 * @return \OCP\Files\Folder
 	 * @throws \OCP\Files\NotPermittedException
-	 * @throws \OCP\User\Exceptions\UserNotFoundException
+	 * @throws \OC\User\NoUserException  If $userId doesn't resolve to a real user.
+	 *                                   Callers that can't use OCP\Server::get()
+	 *                                   internals should catch \Throwable instead
+	 *                                   of this internal class — see
+	 *                                   RuleService::isPathWritableByUser() and
+	 *                                   GenerateHashes::executeMarkOnly() for the
+	 *                                   established pattern.
 	 */
 	public function getUserFolder( string $userId ): Folder
 	{

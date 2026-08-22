@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix generate --mark to catch Throwable instead of a non-existent OCP UserNotFoundException class, so a vanished user no longer crashes the whole run instead of being skipped.
+
 ## [0.17.0] — 2026-08-22
 
 ### Changed

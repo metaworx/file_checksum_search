@@ -16,8 +16,8 @@ use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\Files\Folder;
-use OCP\User\Exceptions\UserNotFoundException;
 use Psr\Log\LoggerInterface;
+use Throwable;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -285,7 +285,7 @@ class GenerateHashes
 			{
 				$userFolder = $this->filecacheService->getUserFolder( $userId );
 			}
-			catch ( UserNotFoundException )
+			catch ( Throwable )
 			{
 				$output->writeln( '    User folder not found, skipping.' );
 
