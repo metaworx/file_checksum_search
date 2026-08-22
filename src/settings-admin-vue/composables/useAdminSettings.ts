@@ -2,10 +2,18 @@
  * @copyright Copyright (c) 2026 metaworx
  * @license   AGPL-3.0-or-later
  *
- * Composable for the admin settings page: status, the global rule, the
- * additional-rules list, and the crontab snippet generator. Ported from
- * settings-admin.ts, adding the AbortController stale-response guard on
- * loadStatus()/loadDefinitions() that the vanilla page never had.
+ * Composable for the admin settings page: status, the global rule, and
+ * the additional-rules list. Ported from settings-admin.ts, adding the
+ * AbortController stale-response guard on loadStatus()/loadDefinitions()
+ * that the vanilla page never had.
+ *
+ * Deliberately excludes the crontab snippet generator: its markup never
+ * existed in templates/settings-admin.php (settings-admin.ts's
+ * generateSnippet()/copySnippet() referenced DOM ids that were never
+ * rendered, so the feature was silently unreachable despite being
+ * documented in README.md/docs/FAQ.md). Rebuilding it is deferred to a
+ * separate feature covering the requested cron-mode selector
+ * (cron.php / custom-cron-only / parallel) and per-job run history.
  */
 
 import { reactive, toRefs } from 'vue'
@@ -34,15 +42,6 @@ interface DefinitionsResponse {
 interface ApiResponse {
 	success?: boolean
 	error?: string
-	snippet?: string
-}
-
-interface SnippetParams {
-	userScope: string
-	path: string
-	algo: string
-	batchSize: string
-	interval: string
 }
 
 interface State {
@@ -56,10 +55,6 @@ interface State {
 	availableUsers: string[]
 	definitionsLoading: boolean
 	definitionsError: string | null
-
-	snippetFormVisible: boolean
-	snippet: string
-	snippetVisible: boolean
 }
 
 export function useAdminSettings() {
@@ -74,10 +69,6 @@ export function useAdminSettings() {
 		availableUsers: [],
 		definitionsLoading: false,
 		definitionsError: null,
-
-		snippetFormVisible: false,
-		snippet: '',
-		snippetVisible: false,
 	})
 
 	let statusAbort: AbortController | null = null
@@ -203,18 +194,6 @@ export function useAdminSettings() {
 		return data
 	}
 
-	function revealSnippetForm(): void {
-		state.snippetFormVisible = true
-	}
-
-	async function generateSnippet(params: SnippetParams): Promise<void> {
-		const query = new URLSearchParams(params)
-		const response = await fetch(`${generateOcsUrl(OCS_SETTINGS.getCrontabSnippet)}?${query.toString()}`)
-		const data = (await response.json()) as ApiResponse
-		state.snippet = data.snippet || ''
-		state.snippetVisible = true
-	}
-
 	return {
 		...toRefs(state),
 		loadStatus,
@@ -225,7 +204,5 @@ export function useAdminSettings() {
 		saveRule,
 		deleteRule,
 		toggleRule,
-		revealSnippetForm,
-		generateSnippet,
 	}
 }

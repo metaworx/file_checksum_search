@@ -12,7 +12,7 @@ FCIAS stores checksums in Nextcloud's built-in **files metadata index** (`oc_fil
 - **Files sidebar "Checksums" tab** — shows the selected file's checksums with recalculate and find-duplicates actions
 - **Unified Search provider** — type a hash directly into Nextcloud's search bar
 - **Rule-based hash generation** — `auto`, `missing`, `force`, and `lazy` modes, configurable in admin and personal settings
-- **Admin settings page** — status overview, rule management, rule-editing permissions, and a crontab snippet generator
+- **Admin settings page** — status overview, rule management, and rule-editing permissions
 - **Personal settings page** — users can view, create, and edit rules subject to permissions; per-rule `admin_enforced` locks
 - **Automatic index maintenance** — Nextcloud file event listeners and background jobs
 - **Lazy & deferred hash recalculation** — a pending queue drained by a background job
@@ -234,7 +234,6 @@ The admin settings page provides:
 - **Status overview** — app version, indexed hash count, and pending update stats by mode
 - **Hash generation rules** — create, edit, toggle, and delete rules; per-rule `admin_enforced` checkbox
 - **Rule-editing permissions** — allow-all toggle, group list, and user list
-- **Crontab snippet generator** — produce `occ` commands for CLI-based hash generation
 - **Documentation** — in-app access to FAQ, README, API specs, and license
 
 The personal settings page lists the rules applying to the current user, with read-only `admin_enforced` state and edit actions only where permitted.

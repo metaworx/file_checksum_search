@@ -55,10 +55,6 @@ time), FCIAS marks it pending and a background job drains the queue shortly
 after. See [README.md § Pending Hash Queue](../README.md#pending-hash-queue)
 for the exact mechanism, interval, and batch size.
 
-The admin settings page also includes a crontab snippet generator that
-produces `occ` commands for CLI-based hash generation, for users who prefer
-system-level cron scheduling.
-
 ## How do duplicates get detected?
 
 Duplicates are files that share the same hash value for a given algorithm.

@@ -20,6 +20,7 @@ the first stable release.
 
 - Document DatabaseService's safeBool/safeInt/safeString/safeArray sentinel-on-failure pattern so callers can tell a genuine empty result from a logged DB failure.
 - Extract shared RuleTable, RuleRow, and RuleForm Vue components to replace the duplicated string-concatenated markup in the admin and personal settings pages.
+- Migrate the admin settings page to a single Vue app built on the new RuleTable/RuleForm components, consolidating four build entries into one and removing the unreachable dead crontab snippet generator and its inaccurate documentation.
 
 ## [0.17.1] — 2026-08-22
 
