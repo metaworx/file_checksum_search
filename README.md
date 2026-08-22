@@ -248,25 +248,13 @@ Both are also served in-app: the FAQ and user help are available to all authenti
 
 ## Troubleshooting
 
-### Rebuilding the metadata index
-
-If the checksum metadata index becomes out of sync with `oc_filecache`:
+If the checksum metadata index becomes out of sync with `oc_filecache`, rebuild it:
 
 ```bash
 php occ file-checksum-search:rebuild
 ```
 
-### Hashes are missing or stale
-
-Check the admin settings status overview (indexed hashes and pending updates). If pending entries accumulate, ensure Nextcloud's background jobs (cron) are running — the `ProcessPendingUpdates` job drains the queue every 60 seconds. You can also generate hashes on demand:
-
-```bash
-php occ file-checksum-search:generate --user=alice --path="**"
-```
-
-### Table prefix
-
-FCIAS reads Nextcloud's table prefix dynamically. If you use a non-default prefix, ensure `dbtableprefix` is correctly configured in `config.php`.
+For hashes that are missing or stale, table-prefix configuration, and other common issues, see [docs/FAQ.md § Troubleshooting](docs/FAQ.md#troubleshooting).
 
 ## License
 

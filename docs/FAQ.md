@@ -43,43 +43,20 @@ built-in metadata index.
 
 ## How do rules work?
 
-Rules control which files get hashes, with which algorithms, and when. They
-are evaluated in priority order: the global rule (priority 0) first, then
-additional rules. Each file is handled by the first matching rule.
-
-A rule combines:
-
-- **User scope** — `all` users or a single user ID
-- **Path glob** — a `**` glob (Symfony Finder syntax), e.g. `/` or `**/*.pdf`
-- **Algorithms** — one or more of the supported algorithms
-- **Mode** — how stale hashes are handled
-- **Admin-enforced** — whether users may edit the rule
-
-### Modes
-
-| Mode | Behavior |
-|------|----------|
-| `auto` | Recalculate existing hashes only when they are stale |
-| `missing` | Recalculate stale existing hashes and fill in missing ones |
-| `force` | Clear all hashes and recalculate immediately |
-| `lazy` | Clear hashes and defer recalculation to the background queue |
+Rules control which files get hashes, with which algorithms, and when — each
+file is handled by the first matching rule, evaluated in order. See
+[README.md § Hash Generation Rules](../README.md#hash-generation-rules) for
+the full field reference and mode table (`auto`, `missing`, `force`, `lazy`).
 
 ## How does cron / pending processing work?
 
-FCIAS reacts to file events (create, write, copy, delete) through Nextcloud
-listeners. When a rule's mode is `lazy` — or when a file is locked at write
-time — the hash update is deferred.
+When a rule defers a hash update (mode `lazy`, or a file locked at write
+time), FCIAS marks it pending and a background job drains the queue shortly
+after. See [README.md § Pending Hash Queue](../README.md#pending-hash-queue)
+for the exact mechanism, interval, and batch size.
 
-Deferred updates are recorded by setting the file's
-`file-checksum-updated_at` metadata entry to `pending:<mode>` (for example
-`pending:lazy` or `pending:force`).
-
-The `ProcessPendingUpdates` background job runs every 60 seconds and drains
-up to 50 pending entries per cycle. Each cycle recalculates the queued
-hashes and repeats until the queue is empty.
-
-The admin settings page includes a crontab snippet generator that produces
-`occ` commands for CLI-based hash generation, for users who prefer
+The admin settings page also includes a crontab snippet generator that
+produces `occ` commands for CLI-based hash generation, for users who prefer
 system-level cron scheduling.
 
 ## How do duplicates get detected?
@@ -98,46 +75,28 @@ groups that failed verification.
 
 ## How does the public API work?
 
-FCIAS exposes a stable, versioned API at
-`/apps/file_checksum_search/api/v1/` (see the API documentation).
-Authentication uses the Nextcloud session cookie, HTTP Basic Auth, or a
-Bearer token.
+FCIAS exposes a stable, versioned REST API at
+`/apps/file_checksum_search/api/v1/`, plus an equivalent PHP API
+(`OCA\FileChecksumSearch\Public\ChecksumApi`) for other Nextcloud apps.
+[`docs/api-v1.md`](api-v1.md) is the authoritative reference for both
+surfaces — full endpoint/method list, authentication, request/response
+examples, versioning policy, and error handling.
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/v1/lookup?hash=<hex>&algo=<algo>` | GET | Search files by hash value |
-| `/api/v1/file/{fileId}/hashes` | GET | Get all checksums for a file |
-| `/api/v1/file/{fileId}/duplicates` | GET | Find files sharing hash values |
-| `/api/v1/file/{fileId}/recalc` | POST | Recalculate a file's hash |
-| `/api/v1/duplicates?algo=<algo>&min_count=<n>` | GET | Global duplicate groups |
-| `/api/v1/status` | GET | Read-only health/status |
-
-The same functionality is available to PHP consumers through the
-`OCA\FileChecksumSearch\Public\ChecksumApi` class (dependency injection or
-bootstrap). The legacy `/api/1.0/` routes are frozen and retained for
-backward compatibility only — migrate to `/api/v1/` for new integrations.
+The legacy `/api/1.0/` routes are frozen and retained for backward
+compatibility only — migrate to `/api/v1/` for new integrations.
 
 ## How do personal settings and admin_enforced work?
 
 There is a single global list of rules. Administrators edit all rules and
-can lock individual rules with the **admin-enforced** flag.
+can lock individual rules with the **admin-enforced** flag; a locked rule is
+shown to users as read-only. Whether a given user can create/edit rules at
+all is configured in admin settings (allow-all toggle, groups, users), and
+is further limited to rules whose path they can write to.
 
-Rule editing permission is configured in admin settings via three options:
-**Allow all users to edit rules**, **Groups**, and **Users**. Users may
-create and edit rules when:
-
-1. they are in an enabled group/user list (or editing is enabled for
-   everyone), **and**
-2. the rule's path is in a folder they can write to.
-
-Rules marked `admin_enforced` are shown to users as read-only; users cannot
-edit, delete, toggle, or otherwise modify them. The `admin_enforced` and
-`userScope` fields are never trusted from user requests — the server strips
-them, so users cannot forge them.
-
-In the personal settings page, each applicable rule shows its status, whether
-it is admin-enforced (grayed out), and edit actions only when the current
-user is allowed to edit that rule.
+`admin_enforced` and `userScope` are never trusted from a user's own
+request — the server always decides them. See
+[README.md § Rule-editing permissions](../README.md#rule-editing-permissions-admin_enforced)
+for the full permission model.
 
 ## Troubleshooting
 
