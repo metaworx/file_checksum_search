@@ -69,11 +69,11 @@ class GenerateHashes
 			     null,
 		     )
 		     ->addOption(
-			     'algo',
-			     null,
-			     InputOption::VALUE_OPTIONAL,
-			     'Hash algorithm',
-			     HashCalculationService::getDefaultAlgo(),
+		      'algo',
+		      null,
+		      InputOption::VALUE_OPTIONAL,
+		      'Hash algorithm(s), comma-separated, or "all" for every supported algorithm',
+		      HashCalculationService::getDefaultAlgo(),
 		     )
 		     ->addOption(
 			     'batch-size',
@@ -104,6 +104,8 @@ class GenerateHashes
 		$userScope   = $input->getOption( 'user' );
 		$pathPattern = $input->getOption( 'path' );
 		$algo        = $input->getOption( 'algo' );
+		$algos       = $this->normalizeAlgoList( $algo );
+		$algoLabel   = implode( ',', $algos );
 		$batchSize   = $input->getOption( 'batch-size' );
 		$batchSize   = $batchSize !== null
 			? (int) $batchSize
@@ -132,7 +134,7 @@ class GenerateHashes
 		$output->writeln(
 			sprintf(
 				'Generating %s hashes for %d user(s) …',
-				$algo,
+				$algoLabel,
 				count( $users ),
 			),
 		);
@@ -161,7 +163,7 @@ class GenerateHashes
 				'app'         => Application::APP_ID,
 				'userScope'   => $userScope,
 				'users'       => $users,
-				'algo'        => $algo,
+				'algo'        => $algoLabel,
 				'pathPattern' => $pathPattern,
 				'batchSize'   => $batchSize,
 			],
@@ -182,7 +184,7 @@ class GenerateHashes
 
 			$result = $this->hashIndexService->generateMissingHashes(
 				$userId,
-				$algo,
+				$algos,
 				$pathPattern,
 				$remaining ?? 0, // 0 = unlimited (--batch-size omitted)
 				$output,
@@ -215,7 +217,31 @@ class GenerateHashes
 
 
 	/**
-	 * Mark-only mode: walk user folders and mark matching files as pending:auto.
+		* Normalize the --algo option value into a lowercase, unique algorithm
+		* list. The literal "all" expands to every supported algorithm.
+		*
+		* @param  mixed  $algo
+		*
+		* @return string[]
+		*/
+	private function normalizeAlgoList( mixed $algo ): array
+	{
+
+		$algo = (string) $algo;
+
+		if ( strtolower( trim( $algo ) ) === 'all' )
+		{
+			return HashCalculationService::SUPPORTED_ALGOS;
+		}
+
+		$algos = array_filter( array_map( 'trim', explode( ',', $algo ) ), 'strlen' );
+
+		return array_values( array_unique( array_map( 'strtolower', $algos ) ) );
+	}
+
+
+	/**
+		* Mark-only mode: walk user folders and mark matching files as pending:auto.
 	 *
 	 * @param  string[]         $users
 	 * @param  string|null      $pathPattern

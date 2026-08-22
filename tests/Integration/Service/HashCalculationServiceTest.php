@@ -169,4 +169,35 @@ class HashCalculationServiceTest
 		$this->assertSame( 'sha1', HashCalculationService::getDefaultAlgo() );
 	}
 
+
+	public function testRecalcHashesMultiAlgoMatchesHashFile(): void
+	{
+
+		$rootFolder = Server::get( IRootFolder::class );
+		$userFolder = $rootFolder->getUserFolder( 'admin' );
+
+		$file = $userFolder->newFile( 'fcias_test_multi.dat', 'The quick brown fox jumps over the lazy dog.' );
+
+		try
+		{
+			$result = $this->service->recalcHashes( $file, HashCalculationService::SUPPORTED_ALGOS, false );
+
+			$this->assertFalse( $result['locked'] );
+
+			foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+			{
+				$this->assertTrue( $result['results'][ $algo ]['success'], "recalcHashes($algo) should succeed." );
+				$this->assertSame(
+					hash_file( $algo, $this->tempFile ),
+					$result['results'][ $algo ]['hash'],
+					"recalcHashes($algo) should match hash_file($algo).",
+				);
+			}
+		}
+		finally
+		{
+			$file->delete();
+		}
+	}
+
 }

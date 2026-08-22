@@ -58,7 +58,7 @@ class HashCalculationServiceTest
 		$this->logger           = $this->createMock( LoggerInterface::class );
 
 		$this->service = $this->getMockBuilder( HashCalculationService::class )
-		                      ->onlyMethods( [ 'recalcHash' ] )
+		                      ->onlyMethods( [ 'recalcHashes' ] )
 		                      ->setConstructorArgs(
 			                      [
 				                      $this->filecacheService,
@@ -181,7 +181,7 @@ class HashCalculationServiceTest
 
 		try
 		{
-			$result = $this->service->recalcFileHash( $file, 'sha1' );
+			$result = $this->createRealService()->recalcFileHash( $file, 'sha1' );
 
 			$this->assertTrue( $result['success'] );
 			$this->assertSame( [ 'save', 'release' ], $order );
@@ -215,7 +215,7 @@ class HashCalculationServiceTest
 		;
 
 		$this->service->expects( $this->never() )
-		              ->method( 'recalcHash' )
+		              ->method( 'recalcHashes' )
 		;
 
 		$this->service->processFile(
@@ -245,30 +245,16 @@ class HashCalculationServiceTest
 		                      ->with( $metadata, false )
 		;
 
-		$this->service->expects( $this->exactly( 2 ) )
-		              ->method( 'recalcHash' )
-		              ->willReturnMap(
+		$this->service->expects( $this->once() )
+		              ->method( 'recalcHashes' )
+		              ->with( 42, [ 'sha1', 'sha256' ], true, $metadata )
+		              ->willReturn(
 			              [
-				              [
-					              42,
-					              'sha1',
-					              true,
-					              $metadata,
-					              [
-						              'success' => true,
-						              'hash'    => 'abc',
-					              ],
+				              'results' => [
+					              'sha1'   => [ 'success' => true, 'hash' => 'abc', 'existed' => false ],
+					              'sha256' => [ 'success' => true, 'hash' => 'def', 'existed' => false ],
 				              ],
-				              [
-					              42,
-					              'sha256',
-					              true,
-					              $metadata,
-					              [
-						              'success' => true,
-						              'hash'    => 'def',
-					              ],
-				              ],
+				              'locked'  => false,
 			              ],
 		              )
 		;
@@ -330,12 +316,14 @@ class HashCalculationServiceTest
 
 		// Only sha1 should be recalculated
 		$this->service->expects( $this->once() )
-		              ->method( 'recalcHash' )
-		              ->with( 42, 'sha1', true, $metadata )
+		              ->method( 'recalcHashes' )
+		              ->with( 42, [ 'sha1' ], true, $metadata )
 		              ->willReturn(
 			              [
-				              'success' => true,
-				              'hash'    => 'abc',
+				              'results' => [
+					              'sha1' => [ 'success' => true, 'hash' => 'abc', 'existed' => false ],
+				              ],
+				              'locked'  => false,
 			              ],
 		              )
 		;
@@ -383,30 +371,16 @@ class HashCalculationServiceTest
 		                      ->method( 'clearMetadata' )
 		;
 
-		$this->service->expects( $this->exactly( 2 ) )
-		              ->method( 'recalcHash' )
-		              ->willReturnMap(
+		$this->service->expects( $this->once() )
+		              ->method( 'recalcHashes' )
+		              ->with( 42, [ 'sha1', 'sha256' ], true, $metadata )
+		              ->willReturn(
 			              [
-				              [
-					              42,
-					              'sha1',
-					              true,
-					              $metadata,
-					              [
-						              'success' => true,
-						              'hash'    => 'abc',
-					              ],
+				              'results' => [
+					              'sha1'   => [ 'success' => true, 'hash' => 'abc', 'existed' => false ],
+					              'sha256' => [ 'success' => true, 'hash' => 'def', 'existed' => false ],
 				              ],
-				              [
-					              42,
-					              'sha256',
-					              true,
-					              $metadata,
-					              [
-						              'success' => true,
-						              'hash'    => 'def',
-					              ],
-				              ],
+				              'locked'  => false,
 			              ],
 		              )
 		;
@@ -455,9 +429,9 @@ class HashCalculationServiceTest
 		         ->willReturn( false )
 		;
 
-		// recalcHash should not be called
+		// recalcHashes should not be called
 		$this->service->expects( $this->never() )
-		              ->method( 'recalcHash' )
+		              ->method( 'recalcHashes' )
 		;
 
 		$metadata->expects( $this->once() )
@@ -493,31 +467,17 @@ class HashCalculationServiceTest
 		                      ->willReturn( $metadata )
 		;
 
-		// First algo succeeds, second fails
-		$this->service->expects( $this->exactly( 2 ) )
-		              ->method( 'recalcHash' )
-		              ->willReturnMap(
+		// sha1 succeeds, sha256 fails
+		$this->service->expects( $this->once() )
+		              ->method( 'recalcHashes' )
+		              ->with( 42, [ 'sha1', 'sha256' ], true, $metadata )
+		              ->willReturn(
 			              [
-				              [
-					              42,
-					              'sha1',
-					              true,
-					              $metadata,
-					              [
-						              'success' => true,
-						              'hash'    => 'abc',
-					              ],
+				              'results' => [
+					              'sha1'   => [ 'success' => true, 'hash' => 'abc', 'existed' => false ],
+					              'sha256' => [ 'success' => false, 'hash' => '', 'existed' => false, 'error' => 'hash failed' ],
 				              ],
-				              [
-					              42,
-					              'sha256',
-					              true,
-					              $metadata,
-					              [
-						              'success' => false,
-						              'error'   => 'hash failed',
-					              ],
-				              ],
+				              'locked'  => false,
 			              ],
 		              )
 		;
@@ -599,30 +559,16 @@ class HashCalculationServiceTest
 		                      )
 		;
 
-		$this->service->expects( $this->exactly( 2 ) )
-		              ->method( 'recalcHash' )
-		              ->willReturnMap(
+		$this->service->expects( $this->once() )
+		              ->method( 'recalcHashes' )
+		              ->with( $file, [ 'sha1', 'sha256' ], true, $metadata )
+		              ->willReturn(
 			              [
-				              [
-					              $file,
-					              'sha1',
-					              true,
-					              $metadata,
-					              [
-						              'success' => true,
-						              'hash'    => 'aaa',
-					              ],
+				              'results' => [
+					              'sha1'   => [ 'success' => true, 'hash' => 'aaa', 'existed' => false ],
+					              'sha256' => [ 'success' => true, 'hash' => 'bbb', 'existed' => false ],
 				              ],
-				              [
-					              $file,
-					              'sha256',
-					              true,
-					              $metadata,
-					              [
-						              'success' => true,
-						              'hash'    => 'bbb',
-					              ],
-				              ],
+				              'locked'  => false,
 			              ],
 		              )
 		;
@@ -685,7 +631,7 @@ class HashCalculationServiceTest
 	{
 
 		return $this->getMockBuilder( HashCalculationService::class )
-		            ->onlyMethods( [ 'recalcFileHash' ] )
+		            ->onlyMethods( [ 'recalcHashes' ] )
 		            ->setConstructorArgs(
 			            [
 				            $this->filecacheService,
@@ -739,14 +685,14 @@ class HashCalculationServiceTest
 
 		$service = $this->createCollectingServiceMock();
 		$service->expects( $this->once() )
-		        ->method( 'recalcFileHash' )
-		        ->with( $file, $algo )
+		        ->method( 'recalcHashes' )
+		        ->with( $file, [ $algo ], true )
 		        ->willReturn(
 			        [
-				        'success' => true,
-				        'algo'    => $algo,
-				        'hash'    => 'abc',
-				        'existed' => false,
+				        'results' => [
+					        $algo => [ 'success' => true, 'hash' => 'abc', 'existed' => false ],
+				        ],
+				        'locked'  => false,
 			        ],
 		        )
 		;
@@ -795,7 +741,7 @@ class HashCalculationServiceTest
 
 		$service = $this->createCollectingServiceMock();
 		$service->expects( $this->never() )
-		        ->method( 'recalcFileHash' )
+		        ->method( 'recalcHashes' )
 		;
 
 		$result = $service->generateMissingHashes( $userId, $algo, null, 0 );
@@ -855,19 +801,160 @@ class HashCalculationServiceTest
 
 		$service = $this->createCollectingServiceMock();
 		$service->expects( $this->once() )
-		        ->method( 'recalcFileHash' )
-		        ->with( $pdf, $algo )
+		        ->method( 'recalcHashes' )
+		        ->with( $pdf, [ $algo ], true )
 		        ->willReturn(
 			        [
-				        'success' => true,
-				        'algo'    => $algo,
-				        'hash'    => 'abc',
-				        'existed' => false,
+				        'results' => [
+					        $algo => [ 'success' => true, 'hash' => 'abc', 'existed' => false ],
+				        ],
+				        'locked'  => false,
 			        ],
 		        )
 		;
 
 		$result = $service->generateMissingHashes( $userId, $algo, '*.pdf', 0 );
+
+		$this->assertSame( 1, $result['processed'] );
+		$this->assertSame( 0, $result['skipped'] );
+	}
+
+
+	private function createRealService(): HashCalculationService
+	{
+
+		return new HashCalculationService(
+			$this->filecacheService,
+			$this->lockingProvider,
+			$this->metadataService,
+			$this->ruleService,
+			$this->logger,
+		);
+	}
+
+
+	public function testRecalcFileHashRejectsUnsupportedAlgo(): void
+	{
+
+		$file = $this->createMock( File::class );
+		$file->method( 'getId' )
+		     ->willReturn( 42 )
+		;
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+
+		$this->metadataService->method( 'ensureMetadata' )
+		                      ->willReturnCallback(
+			                      function (
+				                      $fileOrId,
+				                      &$metadataRef,
+			                      ) use ( $metadata ): bool
+			                      {
+
+				                      $metadataRef = $metadata;
+
+				                      return false;
+			                      },
+		                      )
+		;
+		$this->filecacheService->method( 'getChecksums' )
+		                       ->willReturn( [] )
+		;
+
+		$result = $this->createRealService()->recalcFileHash( $file, 'blake2b' );
+
+		$this->assertFalse( $result['success'] );
+		$this->assertStringContainsString( 'Unsupported algorithm', $result['error'] ?? '' );
+	}
+
+
+	public function testRecalcHashesSkipsUpToDateAlgosWithoutLocking(): void
+	{
+
+		$file = $this->createMock( File::class );
+		$file->method( 'getId' )
+		     ->willReturn( 42 )
+		;
+		$file->method( 'getMTime' )
+		     ->willReturn( 1000 )
+		;
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'hasKey' )
+		         ->willReturn( true )
+		;
+		$metadata->method( 'getString' )
+		         ->willReturn( 'abc' )
+		;
+
+		$this->filecacheService->method( 'getChecksums' )
+		                       ->willReturn( [] )
+		;
+		$this->metadataService->method( 'getUpdatedAt' )
+		                      ->willReturn( 1000 )
+		;
+		$this->lockingProvider->expects( $this->never() )
+		                      ->method( 'acquireLock' )
+		;
+
+		$result = $this->createRealService()->recalcHashes( $file, [ 'sha1' ], true, $metadata );
+
+		$this->assertFalse( $result['locked'] );
+		$this->assertTrue( $result['results']['sha1']['success'] );
+		$this->assertTrue( $result['results']['sha1']['existed'] );
+	}
+
+
+	public function testGenerateMissingHashesCollectsFileMissingAnyAlgo(): void
+	{
+
+		$userId         = 'testuser';
+		$userFolderPath = '/testuser/files';
+
+		$this->filecacheService->method( 'getUserFolderPath' )
+		                       ->with( $userId )
+		                       ->willReturn( $userFolderPath )
+		;
+
+		// File already has sha1 but not sha256.
+		$file = $this->createMock( File::class );
+		$file->method( 'getChecksum' )
+		     ->willReturn( 'SHA1:deadbeef' )
+		;
+		$file->method( 'getPath' )
+		     ->willReturn( $userFolderPath . '/a.txt' )
+		;
+
+		$folder = $this->createMock( \OCP\Files\Folder::class );
+		$folder->method( 'get' )
+		       ->with( '' )
+		       ->willReturn( $folder )
+		;
+		$folder->method( 'getDirectoryListing' )
+		       ->willReturn( [ $file ] )
+		;
+
+		$this->filecacheService->method( 'getUserFolder' )
+		                       ->with( $userId )
+		                       ->willReturn( $folder )
+		;
+
+		$service = $this->createCollectingServiceMock();
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->with( $file, [ 'sha1', 'sha256' ], true )
+		        ->willReturn(
+			        [
+				        'results' => [
+					        'sha1'   => [ 'success' => true, 'hash' => 'deadbeef', 'existed' => true ],
+					        'sha256' => [ 'success' => true, 'hash' => 'abc', 'existed' => false ],
+				        ],
+				        'locked'  => false,
+			        ],
+		        )
+		;
+
+		$result = $service->generateMissingHashes( $userId, [ 'sha1', 'sha256' ], null, 0 );
 
 		$this->assertSame( 1, $result['processed'] );
 		$this->assertSame( 0, $result['skipped'] );

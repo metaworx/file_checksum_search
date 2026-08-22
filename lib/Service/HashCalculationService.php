@@ -13,6 +13,7 @@ use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\NotFoundException;
+use OCP\Files\Storage\IStorage;
 use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\Lock\ILockingProvider;
 use OCP\Lock\LockedException;
@@ -41,6 +42,8 @@ class HashCalculationService
 			'sha3-256',
 			'sha3-512',
 		];
+
+	public const CHUNK_SIZE = 8192;
 
 
 	public function __construct(
@@ -114,7 +117,7 @@ class HashCalculationService
 	private function collectFilesForUser(
 		string  $folderPath,
 		string  $userId,
-		string  $algo,
+		array   $algos,
 		?string $pathPattern,
 		string  $userFolderPath,
 		array   &$collected,
@@ -148,7 +151,12 @@ class HashCalculationService
 			return;
 		}
 
-		$prefix = strtoupper( $algo ) . ':';
+		$prefixes = array_map(
+			static fn(
+				string $algo,
+			): string => strtoupper( $algo ) . ':',
+			$algos,
+		);
 
 		foreach ( $node->getDirectoryListing() as $child )
 		{
@@ -162,7 +170,7 @@ class HashCalculationService
 				$this->collectFilesForUser(
 					$child->getPath(),
 					$userId,
-					$algo,
+					$algos,
 					$pathPattern,
 					$userFolderPath,
 					$collected,
@@ -199,19 +207,31 @@ class HashCalculationService
 			}
 
 			$existingChecksum = $child->getChecksum() ?? '';
-			$alreadyHas       = false;
+			$hasAll           = true;
 
-			foreach ( explode( ' ', $existingChecksum ) as $pair )
+			foreach ( $prefixes as $prefix )
 			{
-				if ( str_starts_with( $pair, $prefix ) )
+				$found = false;
+
+				foreach ( explode( ' ', $existingChecksum ) as $pair )
 				{
-					$alreadyHas = true;
+					if ( str_starts_with( $pair, $prefix ) )
+					{
+						$found = true;
+
+						break;
+					}
+				}
+
+				if ( ! $found )
+				{
+					$hasAll = false;
 
 					break;
 				}
 			}
 
-			if ( ! $alreadyHas )
+			if ( ! $hasAll )
 			{
 				$collected[] = $child;
 			}
@@ -228,17 +248,20 @@ class HashCalculationService
 	 * then process them. Avoids interleaving reads and writes
 	 * to oc_filecache (dirty reads in NC v33 debug mode).
 	 *
-	 * @param int $batchSize Maximum files to collect (a value <= 0 means unlimited)
+	 * @param  int  $batchSize  Maximum files to collect (a value <= 0 means unlimited)
 	 *
 	 * @return array{processed: int, skipped: int}
 	 */
 	public function generateMissingHashes(
 		string           $userId,
-		string           $algo,
+		string|array     $algo,
 		?string          $pathPattern = null,
 		int              $batchSize = 100,
 		?OutputInterface $output = null,
 	): array {
+
+		$algos     = array_values( array_unique( array_map( 'strtolower', (array) $algo ) ) );
+		$algoLabel = implode( ',', $algos );
 
 		$userFolderPath = $this->filecacheService->getUserFolderPath( $userId );
 
@@ -248,7 +271,7 @@ class HashCalculationService
 		$this->collectFilesForUser(
 			$userFolderPath,
 			$userId,
-			$algo,
+			$algos,
 			$pathPattern,
 			$userFolderPath,
 			$files,
@@ -265,7 +288,7 @@ class HashCalculationService
 				[
 					'app'    => Application::APP_ID,
 					'userId' => $userId,
-					'algo'   => $algo,
+					'algo'   => $algoLabel,
 					'count'  => $collected,
 				],
 			);
@@ -274,7 +297,7 @@ class HashCalculationService
 				sprintf(
 					'  Collected %d files without %s checksums.',
 					$collected,
-					$algo,
+					$algoLabel,
 				),
 			);
 		}
@@ -285,7 +308,7 @@ class HashCalculationService
 					'  No files collected (user: %s, path: %s, algo: %s).',
 					$userId,
 					$pathPattern ?? '**',
-					$algo,
+					$algoLabel,
 				),
 			);
 			$output->writeln(
@@ -306,9 +329,9 @@ class HashCalculationService
 		{
 			try
 			{
-				$result = $this->recalcFileHash( $file, $algo );
+				$batch = $this->recalcHashes( $file, $algos, true );
 
-				if ( $result['locked'] ?? false )
+				if ( $batch['locked'] )
 				{
 					$skipped ++;
 
@@ -318,8 +341,39 @@ class HashCalculationService
 							sprintf( '    Skipped fileId %d (locked).', $file->getId() ),
 						);
 					}
+
+					continue;
 				}
-				elseif ( $result['existed'] )
+
+				$anyHashed = false;
+				foreach ( $batch['results'] as $result )
+				{
+					if ( $result['success'] && ! $result['existed'] )
+					{
+						$anyHashed = true;
+
+						break;
+					}
+				}
+
+				if ( $anyHashed )
+				{
+					$processed ++;
+
+					if ( $output !== null && $output->isVeryVerbose() )
+					{
+						$output->writeln(
+							sprintf( '    Hashed fileId %d (%s).', $file->getId(), $algoLabel ),
+						);
+					}
+					elseif ( $processed % 10 == 0 && $output !== null )
+					{
+						$output->writeln(
+							sprintf( '    %d files processed …', $processed ),
+						);
+					}
+				}
+				else
 				{
 					$skipped ++;
 
@@ -330,39 +384,22 @@ class HashCalculationService
 						);
 					}
 				}
-				else
-				{
-					$processed ++;
-
-					if ( $output !== null && $output->isVeryVerbose() )
-					{
-						$output->writeln(
-							sprintf( '    Hashed fileId %d (%s).', $file->getId(), $algo ),
-						);
-					}
-					elseif ( $processed % 10 == 0 && $output !== null )
-					{
-						$output->writeln(
-							sprintf( '    %d files processed …', $processed ),
-						);
-					}
-				}
 			}
 			catch ( Throwable $e )
 			{
 				$this->logger->error(
-					'FCIAS: recalcFileHash failed in generateMissingHashes',
+					'FCIAS: recalcHashes failed in generateMissingHashes',
 					[
 						'app'       => Application::APP_ID,
 						'fileId'    => $file->getId(),
-						'algo'      => $algo,
+						'algo'      => $algoLabel,
 						'exception' => $e,
 					],
 				);
 
 				$output?->warning(
 					sprintf(
-						'  WARNING: recalcFileHash failed for fileId %d: %s',
+						'  WARNING: recalcHashes failed for fileId %d: %s',
 						$file->getId(),
 						$e->getMessage(),
 					),
@@ -404,7 +441,11 @@ class HashCalculationService
 			try
 			{
 				$file = $this->filecacheService->getFile( $fileId );
-				$rule = $this->ruleService->findFirstMatchingRule( $file->getPath(), $file->getOwner()?->getUID() );
+				$rule = $this->ruleService->findFirstMatchingRule(
+					$file->getPath(),
+					$file->getOwner()
+					     ?->getUID(),
+				);
 
 				if ( $rule !== null )
 				{
@@ -449,71 +490,45 @@ class HashCalculationService
 			$this->metadataService->clearMetadata( $metadata, false );
 
 		case 'missing':
-			foreach ( $algos as $algo )
+			if ( ! $this->applyBatchResults(
+				$this->recalcHashes( $file ?? $fileId, $algos, true, $metadata ),
+				$algos,
+				$fileId,
+				$mode,
+				$metadata,
+			) )
 			{
-				$result = $this->recalcHash( $file ?? $fileId, $algo, true, $metadata );
-
-				if ( ! $result['success'] )
-				{
-					$this->logger->warning(
-						'FCIAS: processFile recalcHash failed for algo {algo}',
-						[
-							'app'    => Application::APP_ID,
-							'fileId' => $fileId,
-							'algo'   => $algo,
-							'error'  => $result['error'] ?? 'unknown',
-						],
-					);
-
-					$this->metadataService->markPending( $fileId, MetadataService::PENDING_PREFIX . $mode );
-
-					return;
-				}
-
-				$metadata->setString(
-					MetadataService::KEY_FILE_CHECKSUM_PREFIX . $algo,
-					$result['hash'],
-					true,
-				);
+				return;
 			}
+
 			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, time(), true );
 
 			break;
 
 		case 'auto':
+			$algosToRecalc = [];
 			foreach ( $algos as $algo )
 			{
-				$metaKey = MetadataService::getHashKey( $algo );
-				if ( ! $metadata->hasKey( $metaKey ) )
+				if ( $metadata->hasKey( MetadataService::getHashKey( $algo ) ) )
 				{
-					continue;
+					$algosToRecalc[] = $algo;
 				}
+			}
 
-				$result = $this->recalcHash( $file ?? $fileId, $algo, true, $metadata );
-
-				if ( ! $result['success'] )
+			if ( $algosToRecalc !== [] )
+			{
+				if ( ! $this->applyBatchResults(
+					$this->recalcHashes( $file ?? $fileId, $algosToRecalc, true, $metadata ),
+					$algosToRecalc,
+					$fileId,
+					$mode,
+					$metadata,
+				) )
 				{
-					$this->logger->warning(
-						'FCIAS: processFile recalcHash failed for algo {algo}',
-						[
-							'app'    => Application::APP_ID,
-							'fileId' => $fileId,
-							'algo'   => $algo,
-							'error'  => $result['error'] ?? 'unknown',
-						],
-					);
-
-					$this->metadataService->markPending( $fileId, MetadataService::PENDING_PREFIX . $mode );
-
 					return;
 				}
-
-				$metadata->setString(
-					MetadataService::KEY_FILE_CHECKSUM_PREFIX . $algo,
-					$result['hash'],
-					true,
-				);
 			}
+
 			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, time(), true );
 
 			break;
@@ -530,6 +545,55 @@ class HashCalculationService
 				'algos'  => $algos,
 			],
 		);
+	}
+
+
+	/**
+	 * Persist a recalcHashes() result set for one mode, marking the file
+	 * pending and returning false on the first failing algorithm.
+	 *
+	 * @param  array<string, array{success: bool, hash: string, existed: bool, error?: string}>  $batch
+	 * @param  string[]                                                                          $algos
+	 *
+	 * @return bool  True when every algorithm was applied successfully
+	 */
+	private function applyBatchResults(
+		array          $batch,
+		array          $algos,
+		int            $fileId,
+		string         $mode,
+		IFilesMetadata $metadata,
+	): bool {
+
+		foreach ( $algos as $algo )
+		{
+			$result = $batch['results'][ $algo ] ?? null;
+
+			if ( $result === null || ! $result['success'] )
+			{
+				$this->logger->warning(
+					'FCIAS: processFile recalcHashes failed for algo {algo}',
+					[
+						'app'    => Application::APP_ID,
+						'fileId' => $fileId,
+						'algo'   => $algo,
+						'error'  => $result['error'] ?? 'unknown',
+					],
+				);
+
+				$this->metadataService->markPending( $fileId, MetadataService::PENDING_PREFIX . $mode );
+
+				return false;
+			}
+
+			$metadata->setString(
+				MetadataService::KEY_FILE_CHECKSUM_PREFIX . $algo,
+				$result['hash'],
+				true,
+			);
+		}
+
+		return true;
 	}
 
 
@@ -558,20 +622,17 @@ class HashCalculationService
 			$algos = $this->metadataService->getHashes( $metadata );
 		}
 
+		$batch = $this->recalcHashes( $file, array_values( $algos ), true, $metadata );
+
 		$processed = 0;
-		$locked    = false;
 
-		foreach ( $algos as $algo )
+		foreach ( array_values( $algos ) as $algo )
 		{
-			$result = $this->recalcHash( $file, $algo, metadata: $metadata );
+			$result = $batch['results'][ $algo ] ?? null;
 
-			if ( $result['success'] )
+			if ( $result !== null && $result['success'] )
 			{
 				$processed ++;
-			}
-			elseif ( $result['locked'] ?? false )
-			{
-				$locked = true;
 			}
 		}
 
@@ -580,8 +641,302 @@ class HashCalculationService
 		return [
 			'processed' => $processed,
 			'algos'     => $algos,
-			'locked'    => $locked,
+			'locked'    => $batch['locked'],
 		];
+	}
+
+
+	/**
+	 * Compute hashes for one or more algorithms in a single pass.
+	 *
+	 * For a single algorithm the existing per-algo path is used unchanged
+	 * (hash_file() for local storage, a single streamed read otherwise).
+	 * For two or more algorithms the file is opened once and each read
+	 * chunk is fanned out into one hash context per algorithm, so remote
+	 * or external storage is read only once instead of once per algorithm.
+	 *
+	 * @return array{
+	 *   results: array<string, array{success: bool, hash: string, existed: bool, error?: string}>,
+	 *   locked: bool
+	 * }
+	 */
+	public function recalcHashes(
+		int|File        $file,
+		array           $algos,
+		bool            $skipExisting = true,
+		?IFilesMetadata $metadata = null,
+	): array {
+
+		$algos = array_values( array_unique( array_map( 'strtolower', $algos ) ) );
+
+		// Validate first; invalid algos fail without touching the file.
+		$results = [];
+		$valid   = [];
+		foreach ( $algos as $algo )
+		{
+			if ( in_array( $algo, self::SUPPORTED_ALGOS, true ) )
+			{
+				$valid[] = $algo;
+
+				continue;
+			}
+
+			$results[ $algo ] = [
+				'success' => false,
+				'hash'    => '',
+				'existed' => false,
+				'error'   => 'Unsupported algorithm: ' . $algo,
+			];
+		}
+
+		if ( ! $file instanceof File )
+		{
+			try
+			{
+				$file = $this->filecacheService->getNodeById( $file );
+			}
+			catch ( NotFoundException )
+			{
+				foreach ( $valid as $algo )
+				{
+					$results[ $algo ] = [
+						'success' => false,
+						'hash'    => '',
+						'existed' => false,
+						'error'   => 'File not found.',
+					];
+				}
+
+				return [
+					'results' => $results,
+					'locked'  => false,
+				];
+			}
+
+			if ( ! $file instanceof File )
+			{
+				foreach ( $valid as $algo )
+				{
+					$results[ $algo ] = [
+						'success' => false,
+						'hash'    => '',
+						'existed' => false,
+						'error'   => 'Node is not a file.',
+					];
+				}
+
+				return [
+					'results' => $results,
+					'locked'  => false,
+				];
+			}
+		}
+
+		$fileId    = $file->getId();
+		$needsSave = $this->metadataService->ensureMetadata( $fileId, $metadata );
+		$checksums = $this->filecacheService->getChecksums( $file );
+
+		// Sync: copy hash from filecache.checksum → metadata
+		foreach ( $checksums as $prefix => $hexHash )
+		{
+			$metaKey = MetadataService::getHashKey( $prefix );
+			if ( ! $metadata->hasKey( $metaKey ) )
+			{
+				$metadata->setString( $metaKey, $hexHash, true );
+			}
+		}
+
+		$mtime  = $file->getMTime();
+		$needed = [];
+		foreach ( $valid as $algo )
+		{
+			$metaKey = MetadataService::getHashKey( $algo );
+			if ( $skipExisting && $metadata->hasKey( $metaKey ) && $this->isHashUpToDate( $metadata, $mtime ) )
+			{
+				$results[ $algo ] = [
+					'success' => true,
+					'hash'    => $metadata->getString( $metaKey ),
+					'existed' => true,
+				];
+
+				continue;
+			}
+
+			$needed[] = $algo;
+		}
+
+		if ( $needed === [] )
+		{
+			return [
+				'results' => $results,
+				'locked'  => false,
+			];
+		}
+
+		if ( ! $this->acquireLock( $fileId ) )
+		{
+			foreach ( $needed as $algo )
+			{
+				$results[ $algo ] = [
+					'success' => false,
+					'hash'    => '',
+					'existed' => false,
+				];
+			}
+
+			return [
+				'results' => $results,
+				'locked'  => true,
+			];
+		}
+
+		try
+		{
+			$storage = $file->getStorage();
+
+			foreach ( $needed as $algo )
+			{
+				$metadata->unset( MetadataService::getHashKey( $algo ) );
+			}
+
+			$hashes = count( $needed ) === 1
+				? [ $needed[0] => $this->computeSingleHash( $file, $storage, $needed[0] ) ]
+				: $this->computeMultiHash( $file, $needed );
+
+			foreach ( $hashes as $algo => $hash )
+			{
+				$metadata->setString( MetadataService::getHashKey( $algo ), $hash, true );
+				$results[ $algo ] = [
+					'success' => true,
+					'hash'    => $hash,
+					'existed' => false,
+				];
+			}
+		}
+		catch ( Throwable $e )
+		{
+			foreach ( $needed as $algo )
+			{
+				$results[ $algo ] = [
+					'success' => false,
+					'hash'    => '',
+					'existed' => false,
+					'error'   => $e->getMessage(),
+				];
+			}
+
+			// Do not persist unset keys when hashing failed.
+			$needsSave = false;
+		}
+		finally
+		{
+			if ( $needsSave )
+			{
+				$this->metadataService->saveMetadata( $metadata );
+			}
+
+			$this->releaseLock( $fileId );
+		}
+
+		return [
+			'results' => $results,
+			'locked'  => false,
+		];
+	}
+
+
+	/**
+	 * Compute a single algorithm's hash using the pre-batch fast paths.
+	 */
+	private function computeSingleHash(
+		File     $file,
+		IStorage $storage,
+		string   $algo,
+	): string {
+
+		if ( $storage->isLocal() )
+		{
+			$absolutePath = $storage->getLocalFile( $file->getInternalPath() );
+
+			return hash_file( $algo, $absolutePath );
+		}
+
+		$handle = $file->fopen( 'rb' );
+
+		if ( $handle === false )
+		{
+			throw new \RuntimeException( 'Unable to open file for reading.' );
+		}
+
+		try
+		{
+			$ctx = hash_init( $algo );
+			hash_update_stream( $ctx, $handle );
+
+			return hash_final( $ctx );
+		}
+		finally
+		{
+			fclose( $handle );
+		}
+	}
+
+
+	/**
+	 * Stream a file once and feed each chunk into one hash context per
+	 * algorithm.
+	 *
+	 * @param  string[]  $algos
+	 *
+	 * @return array<string, string>  Algo => hex hash
+	 */
+	private function computeMultiHash(
+		File  $file,
+		array $algos,
+	): array {
+
+		$handle = $file->fopen( 'rb' );
+
+		if ( $handle === false )
+		{
+			throw new \RuntimeException( 'Unable to open file for reading.' );
+		}
+
+		try
+		{
+			$contexts = [];
+			foreach ( $algos as $algo )
+			{
+				$contexts[ $algo ] = hash_init( $algo );
+			}
+
+			while ( ! feof( $handle ) )
+			{
+				$chunk = fread( $handle, self::CHUNK_SIZE );
+
+				if ( $chunk === false )
+				{
+					break;
+				}
+
+				foreach ( $contexts as $ctx )
+				{
+					hash_update( $ctx, $chunk );
+				}
+			}
+
+			$hashes = [];
+			foreach ( $contexts as $algo => $ctx )
+			{
+				$hashes[ $algo ] = hash_final( $ctx );
+			}
+
+			return $hashes;
+		}
+		finally
+		{
+			fclose( $handle );
+		}
 	}
 
 
@@ -602,102 +957,27 @@ class HashCalculationService
 		?IFilesMetadata $metadata = null,
 	): array {
 
-		$algo = strtolower( $algo );
+		$algo   = strtolower( $algo );
+		$result = $this->recalcHashes( $file, [ $algo ], $skipExisting, $metadata );
+		$single = $result['results'][ $algo ];
 
-		if ( ! in_array( $algo, self::SUPPORTED_ALGOS, true ) )
+		$out = [
+			'success' => $single['success'],
+			'algo'    => $algo,
+			'hash'    => $single['hash'],
+			'existed' => $single['existed'],
+		];
+
+		if ( $result['locked'] )
 		{
-			return [
-				'success' => false,
-				'algo'    => $algo,
-				'hash'    => '',
-				'existed' => false,
-				'error'   => 'Unsupported algorithm: ' . $algo,
-			];
+			$out['locked'] = true;
+		}
+		elseif ( ( $single['error'] ?? '' ) !== '' )
+		{
+			$out['error'] = $single['error'];
 		}
 
-		$fileId    = $file->getId();
-		$needsSave = $this->metadataService->ensureMetadata( $fileId, $metadata );
-		$checksums = $this->filecacheService->getChecksums( $file );
-
-		// Sync: copy hash from filecache.checksum → metadata
-		foreach ( $checksums as $prefix => $hexHash )
-		{
-			$metaKey = MetadataService::getHashKey( $prefix );
-			if ( ! $metadata->hasKey( $metaKey ) )
-			{
-				$metadata->setString( $metaKey, $hexHash, true );
-			}
-		}
-
-		// Sync: copy hash from metadata → filecache.checksum happens on metadata save
-		$metaKey = MetadataService::getHashKey( $algo );
-
-		// Check metadata for existing hash (checksum field limited to 256 chars)
-		if ( $skipExisting && $metadata->hasKey( $metaKey ) )
-		{
-			if ( $this->isHashUpToDate( $metadata, $file->getMTime() ) )
-			{
-				return [
-					'success' => true,
-					'algo'    => $algo,
-					'hash'    => $metadata->getString( $metaKey ),
-					'existed' => true,
-				];
-			}
-		}
-
-		if ( ! $this->acquireLock( $fileId ) )
-		{
-			return [
-				'success' => false,
-				'algo'    => $algo,
-				'hash'    => '',
-				'existed' => false,
-				'locked'  => true,
-			];
-		}
-
-		try
-		{
-			$storage = $file->getStorage();
-			$metadata->unset( $metaKey );
-
-			if ( $storage->isLocal() )
-			{
-				$absolutePath = $storage->getLocalFile( $file->getInternalPath() );
-				$hash         = hash_file( $algo, $absolutePath );
-			}
-			else
-			{
-				$handle = $file->fopen( 'rb' );
-				$ctx    = hash_init( $algo );
-				hash_update_stream( $ctx, $handle );
-				fclose( $handle );
-				$hash = hash_final( $ctx );
-			}
-
-			$metadata->setString( $metaKey, $hash, true );
-
-			return [
-				'success' => true,
-				'algo'    => $algo,
-				'hash'    => $hash,
-				'existed' => false,
-			];
-		}
-		finally
-		{
-			// Save while still holding the lock — releasing first would let a
-			// concurrent recalcFileHash() for a different algo on the same
-			// file interleave its save with this one, silently dropping
-			// whichever wrote last (FCIAS Review §6, Finding 5).
-			if ( $needsSave )
-			{
-				$this->metadataService->saveMetadata( $metadata );
-			}
-
-			$this->releaseLock( $fileId );
-		}
+		return $out;
 	}
 
 

@@ -66,7 +66,7 @@ class HashIndexService
 
 	public function generateMissingHashes(
 		string           $userId,
-		string           $algo,
+		string|array     $algo,
 		?string          $pathPattern = null,
 		int              $batchSize = 100,
 		?OutputInterface $output = null,
