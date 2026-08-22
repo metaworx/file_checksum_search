@@ -1,4 +1,4 @@
-# Testing Conventions (v2.8.0)
+# Testing Conventions (v2.9.0)
 
 Project-specific testing conventions for FCIAS (File Checksum Index & Search Nextcloud app).
 Generic agent flow-control rules are in `AGENTS.md`; contributor context is in `CONTRIBUTING.md`.
@@ -46,15 +46,19 @@ The preferred way to run tests is through `.aiassistant/tools/phpunit`:
 ```
 
 The wrapper auto-detects whether ddev is available:
-- **With ddev**: executes `ddev exec php` inside the helioscloud container with FCIAS mount paths
+- **With ddev**: executes `ddev exec php` inside the `nextcloud_testing` instance the app is
+  mounted into, using the in-container mount path (§9.1)
 - **Without ddev**: falls back to direct `vendor/bin/phpunit`
 
 Relative path arguments (`tests/`, `vendor/`) are automatically prefixed with the container mount path when running inside ddev.
 
+The instance is selected by `FCIAS_DDEV_DIR` (default `~/projects/nextcloud_testing/instances/34`);
+set it to `.../instances/33` to run the suite against NC 33 instead.
+
 For manual ddev execution:
 
 ```bash
-wsl --cd ~/projects/helioscloud bash -c "ddev exec php /var/www/html/custom_apps/file_checksum_search/vendor/bin/phpunit -c /var/www/html/custom_apps/file_checksum_search/tests/phpunit.xml /var/www/html/custom_apps/file_checksum_search/tests/Unit/Path/To/Test.php"
+wsl --cd ~/projects/nextcloud_testing/instances/34 bash -c "ddev exec php /var/www/html/apps/file_checksum_search/vendor/bin/phpunit -c /var/www/html/apps/file_checksum_search/tests/phpunit.xml /var/www/html/apps/file_checksum_search/tests/Unit/Path/To/Test.php"
 ```
 
 The `tests/bootstrap.php` loads NC autoloader from `/var/www/html/3rdparty/autoload.php` and `/var/www/html/lib/base.php` for OCP class availability inside ddev.
@@ -183,67 +187,77 @@ $request = $this->createMock(\OCP\IRequest::class);
 Cypress is a dev dependency of this project (`package.json`); specs live in `tests/e2e/` and are
 configured in `cypress.config.cjs` at the project root.
 
-### 9.1 Running locally
+### 9.1 Preparing an instance
 
-Run Cypress directly from this repository against the local ddev Nextcloud instance (helioscloud):
+Local E2E runs go against the `~/projects/nextcloud_testing` DDEV harness (see its own
+`README.md`), which provides clean NC 33/34 instances (admin `admin`/`admin`). Its `nc-test` CLI
+mounts this repository into the instance at `/var/www/html/apps/file_checksum_search` and
+pre-configures everything the specs need — `appstoreenabled=false` and forced English — so no
+manual `occ config:system:set` is required.
+
+```bash
+cd ~/projects/nextcloud_testing
+./scripts/nc-test check 34 ~/projects/nc_file_checksum_search   # free, or already ours?
+./scripts/nc-test reset 34 file_checksum_search                 # mount + wipe DB/data + enable
+```
+
+`reset` is the command to reach for before an E2E run: it wipes the database and data directory,
+so the instance matches CI's fresh-install state instead of accumulating data across runs.
+Use `mount` instead of `reset` to keep existing data. Substitute `33` to target NC 33.
+
+The app's built assets are served from the mounted working tree, so run `npm run build` after any
+frontend change before running the specs — nothing in the harness builds for you.
+
+Bumping `appinfo/info.xml`'s `<version>` puts an already-installed instance into
+"needs upgrade", where every page answers **503** and Cypress fails in its `before each` login
+hook. `ddev exec php occ status` reports `needsDbUpgrade: true`; fix it with
+`ddev exec php occ upgrade` (or a `nc-test reset`, which reinstalls the app anyway).
+
+### 9.2 Running locally
+
+Run Cypress from this repository against that instance:
 
 ```bash
 wsl bash -lc "cd ~/projects/nc_file_checksum_search && \
-  CYPRESS_baseUrl=https://helioscloud.ddev.site \
-  CYPRESS_occ='cd ~/projects/helioscloud && ddev exec php /var/www/html/occ' \
-  CYPRESS_NC_ADMIN_PASSWORD='<admin-password>' \
+  CYPRESS_baseUrl=https://nextcloud-34.ddev.site \
+  CYPRESS_occ='cd ~/projects/nextcloud_testing/instances/34 && ddev exec php occ' \
+  npx cypress run"
+```
+
+Or for a single spec:
+
+```bash
+wsl bash -lc "cd ~/projects/nc_file_checksum_search && \
+  CYPRESS_baseUrl=https://nextcloud-34.ddev.site \
+  CYPRESS_occ='cd ~/projects/nextcloud_testing/instances/34 && ddev exec php occ' \
   npx cypress run --spec tests/e2e/app-enable.cy.js"
 ```
 
 Environment variables (read via `cy.env()` in the specs):
 
-- `CYPRESS_baseUrl` — Nextcloud base URL; defaults to `https://helioscloud.ddev.site`.
+- `CYPRESS_baseUrl` — Nextcloud base URL (`https://nextcloud-<version>.ddev.site`).
 - `CYPRESS_occ` — shell prefix used to invoke `occ`; must resolve from this repo's WSL path.
-- `CYPRESS_NC_ADMIN_USER` / `CYPRESS_NC_ADMIN_PASSWORD` — admin credentials (default `admin`/`admin`).
-  The helioscloud instance enforces a strong password, so set a non-trivial one locally.
+- `CYPRESS_NC_ADMIN_USER` / `CYPRESS_NC_ADMIN_PASSWORD` — admin credentials, default `admin`/`admin`.
+  The harness installs with those defaults, so both can normally be omitted.
 
 Prerequisites:
 
-- The ddev project is running and responsive (`ddev start` in `~/projects/helioscloud`).
-- The instance UI is English: either set `force_language=en`
-  (`ddev exec php /var/www/html/occ config:system:set force_language --value=en`), or run with
-  `--browser chrome`, which is forced to `--lang=en-US` in `cypress.config.cjs` (Electron ignores the flag).
-
-### 9.2 Testing against vanilla NC 33/34 instances
-
-For version-specific testing, use the `~/projects/nextcloud_testing` DDEV harness (see its README),
-which provides clean NC 33/34 instances with admin `admin`/`admin`:
-
-```bash
-cd ~/projects/nextcloud_testing
-./scripts/mount-app.sh 34 file_checksum_search ~/projects/nc_file_checksum_search
-(cd instances/34 && ddev exec php occ app:enable file_checksum_search)
-```
-
-Then run Cypress from this repository against that instance:
-
-```bash
-CYPRESS_baseUrl=https://nextcloud-34.ddev.site \
-CYPRESS_occ='cd ~/projects/nextcloud_testing/instances/34 && ddev exec php occ' \
-npx cypress run
-```
-
-Or for a specific test only:
-
-```bash
-CYPRESS_baseUrl=https://nextcloud-34.ddev.site \
-CYPRESS_occ='cd ~/projects/nextcloud_testing/instances/34 && ddev exec php occ' \
-npx cypress run --spec tests/e2e/app-enable.cy.js
-```
-
-Substitute `33` (and `nextcloud-33.ddev.site`) to test NC 33.
+- The instance is running and reachable
+  (`curl -sS -o /dev/null -w '%{http_code}\n' https://nextcloud-34.ddev.site/login` → `200`/`302`).
+- The UI is English. The harness forces this already; on any other instance either set
+  `force_language=en` or run with `--browser chrome`, which `cypress.config.cjs` forces to
+  `--lang=en-US` (Electron ignores the flag).
+- Chrome is not always installed locally — `--browser electron` (or `firefox`) is the fallback.
 
 ### 9.3 Notes
 
 - Enabling an app via the Apps page requires a password confirmation dialog
   (`PasswordConfirmationRequired`); the spec fills it after clicking **Enable**.
-- CI runs the same specs in `cypress-io/github-action` against `http://localhost:8081` with
-  `appstoreenabled=false` and `force_language=en` (see `.github/workflows/test.yml`).
+- A `cy.visit()` that dies with `ESOCKETTIMEDOUT` on `/settings/apps/...` is an instance/network
+  problem, not a spec failure — those pages hit the app store when `appstoreenabled` is left on.
+- CI runs the same specs from the `e2e` job in `.gitlab-ci.yml`, as an NC 33/34 matrix against
+  `http://localhost:8081` on a freshly installed instance with `appstoreenabled=false` and
+  `force_language=en`, using `--browser chrome`.
 
 ### 9.4 Test suite documentation
 
@@ -308,6 +322,7 @@ frontend change of consequence.
 
 | Version | Date       | Changed sections                              | Change type | Agent impact                                                                                                                                                                            |
 |---------|------------|-----------------------------------------------|-------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| v2.9.0  | 2026-08-22 | 1.1, 9                                        | minor       | Replaced the `helioscloud` ddev instance with the `~/projects/nextcloud_testing` harness as the documented local target for PHPUnit-in-ddev and Cypress; corrected the harness CLI (`scripts/nc-test`, not `mount-app.sh`), the in-container mount path (`apps/`, not `custom_apps/`), and the CI reference (GitLab `e2e` job, not a GitHub workflow); documented `nc-test reset` for a CI-like fresh instance and the `ESOCKETTIMEDOUT` app-store symptom. |
 | v2.8.0  | 2026-08-22 | 6.2, 15                                       | minor       | Added §6.2 (PHPUnit `->with()` breaks when a new optional param is explicitly passed at call sites) and §15 (Vitest gotchas: `window.location.hash` test-leak, `AbortController` mock pattern, `DOMContentLoaded` listener accumulation) — carried over from the settings-Vue-migration session handoff. |
 | v2.7.1  | 2026-08-21 | 9                                             | minor       | Generalized §9.4 into a generic pointer so TESTING.md no longer enumerates specs (details live in `tests/e2e/README.md`).                                                               |
 | v2.7.0  | 2026-08-21 | 9                                             | minor       | Added §9.4 linking the new `tests/e2e/README.md` and documenting the spec-ordering dependency (`checksums` → `duplicates`).                                                             |

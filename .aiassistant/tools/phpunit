@@ -12,7 +12,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-FCIAS_MOUNT="/var/www/html/custom_apps/file_checksum_search"
+# In-container path the app is mounted at by the nextcloud_testing harness
+# (templates/.ddev/docker-compose.app.yaml maps it to /var/www/html/apps/<app-id>).
+FCIAS_MOUNT="${FCIAS_MOUNT:-/var/www/html/apps/file_checksum_search}"
+# ddev project to exec in. Override to target another NC version, e.g.
+#   FCIAS_DDEV_DIR=~/projects/nextcloud_testing/instances/33 ./.aiassistant/tools/phpunit
+FCIAS_DDEV_DIR="${FCIAS_DDEV_DIR:-$HOME/projects/nextcloud_testing/instances/34}"
 PHPUNIT_BIN="vendor/bin/phpunit"
 PHPUNIT_CONFIG="tests/phpunit.xml"
 
@@ -38,7 +43,7 @@ if command -v ddev &>/dev/null; then
 		fi
 	done
 
-	cd "$HOME/projects/helioscloud" 2>/dev/null || cd "$PROJECT_DIR"
+	cd "$FCIAS_DDEV_DIR" 2>/dev/null || cd "$PROJECT_DIR"
 
 	if $SHOW_DEPRECATIONS; then
 		exec ddev exec php "$FCIAS_MOUNT/$PHPUNIT_BIN" -c "$FCIAS_MOUNT/$PHPUNIT_CONFIG" "${ARGS[@]}"
