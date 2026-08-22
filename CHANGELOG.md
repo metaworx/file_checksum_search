@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Added
+
+- Add Vitest coverage for the vanilla-JS admin and personal settings pages, testing their manual HTML-escaping and DOM rendering black-box to guard against XSS regressions.
+
 ## [0.17.1] — 2026-08-22
 
 ### Fixed
