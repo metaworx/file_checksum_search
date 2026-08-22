@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Controller;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Service\DuplicateService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCP\AppFramework\ApiController;
 use OCP\AppFramework\Http;
@@ -54,7 +55,7 @@ class DuplicatesController
 	public function findAll(
 		?string $algo = null,
 		int     $minCount = 2,
-		int     $limit = 50,
+		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,
 		int     $offset = 0,
 		?string $user = null,
 	): DataResponse {

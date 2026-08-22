@@ -20,6 +20,16 @@ namespace OCA\FileChecksumSearch\Service;
 class DuplicateService
 {
 
+	/**
+	 * Default page size for duplicate-group listings (findAllDuplicates()
+	 * and the callers that route through it). Unrelated to
+	 * MetadataService::fetchPendingBatch()'s pending-queue batch size,
+	 * which happens to share the same numeric default today but is a
+	 * separate, independently-tunable concern.
+	 */
+	public const DEFAULT_DUPLICATE_LIMIT = 50;
+
+
 	public function __construct(
 		private readonly MetadataService  $metadataService,
 		private readonly FilecacheService $filecacheService,
@@ -43,7 +53,7 @@ class DuplicateService
 	public function findAllDuplicates(
 		?string $algo = null,
 		int     $minCount = 2,
-		int     $limit = 50,
+		int     $limit = self::DEFAULT_DUPLICATE_LIMIT,
 		int     $offset = 0,
 	): array {
 

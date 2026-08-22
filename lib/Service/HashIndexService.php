@@ -88,7 +88,7 @@ class HashIndexService
 	public function findAllDuplicates(
 		?string $algo = null,
 		int     $minCount = 2,
-		int     $limit = 50,
+		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,
 		int     $offset = 0,
 	): array {
 

@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Controller;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Public\ChecksumApi;
+use OCA\FileChecksumSearch\Service\DuplicateService;
 use OCP\AppFramework\ApiController;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\ApiRoute;
@@ -182,7 +183,7 @@ class PublicApiController
 	public function findAllDuplicates(
 		?string $algo = null,
 		int     $minCount = 2,
-		int     $limit = 50,
+		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,
 		int     $offset = 0,
 	): DataResponse {
 

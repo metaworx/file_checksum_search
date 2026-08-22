@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Public;
 
+use OCA\FileChecksumSearch\Service\DuplicateService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
@@ -227,7 +228,7 @@ class ChecksumApi
 	public function findDuplicates(
 		?string $algo = null,
 		int     $minCount = 2,
-		int     $limit = 50,
+		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,
 		int     $offset = 0,
 	): array {
 
