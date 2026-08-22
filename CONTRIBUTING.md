@@ -159,6 +159,18 @@ npm run build   # Vite production build must succeed
   composer psalm       # static analysis
   ```
 
+### Frontend code style
+
+- The frontend is uniformly Vue 3 (`<script setup lang="ts">` SFCs) — no vanilla-JS DOM-manipulation entry
+  points remain. Shared UI (e.g. the rule table/form used by both settings pages) lives under
+  `src/rules-vue/`; page-level apps live under `src/<page>-vue/`, each mounted once from its own `main.ts`.
+- **Linting/Formatting**:
+
+  ```bash
+  npm run lint        # eslint src
+  npm run stylelint   # stylelint across .vue/.scss/.css
+  ```
+
 ### Documentation
 
 - Document non-obvious behavior changes in code comments only when needed.
