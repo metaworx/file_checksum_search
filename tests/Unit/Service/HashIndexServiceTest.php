@@ -98,7 +98,7 @@ class HashIndexServiceTest
 
 		$this->duplicates->expects( $this->once() )
 		                 ->method( 'findByHash' )
-		                 ->with( 'abc123', null, 100 )
+		                 ->with( 'abc123', null, 100, null )
 		                 ->willReturn( [] )
 		;
 
@@ -113,11 +113,26 @@ class HashIndexServiceTest
 
 		$this->duplicates->expects( $this->once() )
 		                 ->method( 'findByHash' )
-		                 ->with( 'abc123', 'sha256', 50 )
+		                 ->with( 'abc123', 'sha256', 50, null )
 		                 ->willReturn( [] )
 		;
 
 		$result = $this->service->findByHash( 'abc123', 'sha256', 50 );
+
+		$this->assertIsArray( $result );
+	}
+
+
+	public function testFindByHashPassesUserNameThrough(): void
+	{
+
+		$this->duplicates->expects( $this->once() )
+		                 ->method( 'findByHash' )
+		                 ->with( 'abc123', null, 100, 'alice' )
+		                 ->willReturn( [] )
+		;
+
+		$result = $this->service->findByHash( 'abc123', null, 100, 'alice' );
 
 		$this->assertIsArray( $result );
 	}

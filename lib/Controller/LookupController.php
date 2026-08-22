@@ -19,7 +19,10 @@ use OCP\AppFramework\Http\Attribute\ApiRoute;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\Files\NotFoundException;
+use OCP\IGroupManager;
 use OCP\IRequest;
+use OCP\IUserSession;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -28,7 +31,8 @@ use Throwable;
  *
  * All methods now delegate to ChecksumApi — the single source of truth.
  * Routes are kept for backward compatibility with external consumers
- * that may still call /api/1.0/ endpoints.
+ * that may still call /api/1.0/ endpoints. Non-admin callers are scoped
+ * to their own files — see {@see resolveRequestingUserScope()}.
  *
  * New integrations should use the v1 /api/v1/ routes via PublicApiController.
  */
@@ -41,10 +45,37 @@ class LookupController
 		string                           $appName,
 		IRequest                         $request,
 		private readonly ChecksumApi     $api,
+		private readonly IUserSession    $userSession,
+		private readonly IGroupManager   $groupManager,
 		private readonly LoggerInterface $logger,
 	) {
 
 		parent::__construct( $appName, $request );
+	}
+
+
+	/**
+	 * Resolve the ownership scope to enforce for the current request.
+	 *
+	 * - `false`  : no authenticated user (should not normally be reachable,
+	 *              since every route below requires a logged-in user).
+	 * - `null`   : an admin is calling — unrestricted, system-wide access.
+	 * - `string` : a regular user's UID — results/actions must be
+	 *              restricted to files that UID can access.
+	 */
+	private function resolveRequestingUserScope(): string|false|null
+	{
+
+		$user = $this->userSession->getUser();
+
+		if ( $user === null )
+		{
+			return false;
+		}
+
+		return $this->groupManager->isAdmin( $user->getUID() )
+			? null
+			: $user->getUID();
 	}
 
 
@@ -72,9 +103,16 @@ class LookupController
 			],
 		);
 
+		$scope = $this->resolveRequestingUserScope();
+
+		if ( $scope === false )
+		{
+			return new DataResponse( [ 'error' => 'Not authenticated.' ], Http::STATUS_UNAUTHORIZED );
+		}
+
 		try
 		{
-			$result = $this->api->findByHash( $hash, $algo );
+			$result = $this->api->findByHash( $hash, $algo, 100, $scope );
 
 			return new DataResponse( $result );
 		}
@@ -121,11 +159,22 @@ class LookupController
 			],
 		);
 
+		$scope = $this->resolveRequestingUserScope();
+
+		if ( $scope === false )
+		{
+			return new DataResponse( [ 'error' => 'Not authenticated.' ], Http::STATUS_UNAUTHORIZED );
+		}
+
 		try
 		{
-			$result = $this->api->getHashesByFileId( $fileId );
+			$result = $this->api->getHashesByFileId( $fileId, $scope );
 
 			return new DataResponse( $result );
+		}
+		catch ( NotFoundException )
+		{
+			return new DataResponse( [ 'error' => 'File not found.' ], Http::STATUS_NOT_FOUND );
 		}
 		catch ( Throwable $e )
 		{
@@ -215,9 +264,22 @@ class LookupController
 			],
 		);
 
+		$scope = $this->resolveRequestingUserScope();
+
+		if ( $scope === false )
+		{
+			return new DataResponse(
+				[
+					'success' => false,
+					'error'   => 'Not authenticated.',
+				],
+				Http::STATUS_UNAUTHORIZED,
+			);
+		}
+
 		try
 		{
-			$result = $this->api->recalcHash( $fileId, $algo );
+			$result = $this->api->recalcHash( $fileId, $algo, $scope );
 
 			if ( $result['success'] )
 			{

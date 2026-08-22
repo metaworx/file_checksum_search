@@ -75,12 +75,16 @@ class DuplicateService
 	 * Delegates to MetadataService::queryByHash() for the search, then
 	 * batch-looks up filecache paths for each matched file_id.
 	 *
+	 * @param  string|null  $userName  When provided, results are restricted to
+	 *                                 files in that user's home storage.
+	 *
 	 * @return array<int, array{fileid: int, algo: string, hash_value: string, path: string, name: string}>
 	 */
 	public function findByHash(
 		string  $hash,
 		?string $algo = null,
 		int     $limit = 100,
+		?string $userName = null,
 	): array {
 
 		$rows = $this->metadataService->queryByHash( $hash, $algo, $limit );
@@ -97,7 +101,7 @@ class DuplicateService
 			return (int) $row[ MetadataService::FIELD_FILE_ID ];
 		}, $rows );
 
-		$fcPaths = $this->filecacheService->batchLookupFilecachePaths( $fileIds );
+		$fcPaths = $this->filecacheService->batchLookupFilecachePaths( $fileIds, $userName );
 
 		$results = [];
 

@@ -111,15 +111,19 @@ class HashIndexService
 
 
 	/**
+	 * @param  string|null  $userName  When provided, results are restricted to
+	 *                                 files in that user's home storage.
+	 *
 	 * @return array<int, array{fileid: int, algo: string, hash_value: string, path: string, name: string}>
 	 */
 	public function findByHash(
 		string  $hash,
 		?string $algo = null,
 		int     $limit = 100,
+		?string $userName = null,
 	): array {
 
-		return $this->duplicates->findByHash( $hash, $algo, $limit );
+		return $this->duplicates->findByHash( $hash, $algo, $limit, $userName );
 	}
 
 

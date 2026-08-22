@@ -13,7 +13,11 @@ use OCA\FileChecksumSearch\Controller\PublicApiController;
 use OCA\FileChecksumSearch\Public\ChecksumApi;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\Files\NotFoundException;
+use OCP\IGroupManager;
 use OCP\IRequest;
+use OCP\IUser;
+use OCP\IUserSession;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -26,6 +30,10 @@ class PublicApiControllerTest
 // private properties
 	private MockObject|ChecksumApi     $api;
 
+	private MockObject|IUserSession    $userSession;
+
+	private MockObject|IGroupManager   $groupManager;
+
 	private MockObject|LoggerInterface $logger;
 
 	private PublicApiController        $controller;
@@ -36,14 +44,34 @@ class PublicApiControllerTest
 
 		parent::setUp();
 
-		$this->api    = $this->createMock( ChecksumApi::class );
-		$this->logger = $this->createMock( LoggerInterface::class );
-		$request      = $this->createMock( IRequest::class );
+		$this->api          = $this->createMock( ChecksumApi::class );
+		$this->userSession  = $this->createMock( IUserSession::class );
+		$this->groupManager = $this->createMock( IGroupManager::class );
+		$this->logger       = $this->createMock( LoggerInterface::class );
+		$request            = $this->createMock( IRequest::class );
+
+		// Default to an authenticated admin (unrestricted scope: null) so
+		// existing expectations that predate the ownership scoping fix
+		// keep passing unchanged; tests exercising non-admin scoping
+		// override this per-test.
+		$adminUser = $this->createMock( IUser::class );
+		$adminUser->method( 'getUID' )
+		          ->willReturn( 'admin' )
+		;
+		$this->userSession->method( 'getUser' )
+		                  ->willReturn( $adminUser )
+		;
+		$this->groupManager->method( 'isAdmin' )
+		                   ->with( 'admin' )
+		                   ->willReturn( true )
+		;
 
 		$this->controller = new PublicApiController(
 			'file_checksum_search',
 			$request,
 			$this->api,
+			$this->userSession,
+			$this->groupManager,
 			$this->logger,
 		);
 	}
@@ -163,7 +191,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'getHashesByFileId' )
-		          ->with( 42 )
+		          ->with( 42, null )
 		          ->willReturn( [
 			          'fileid' => 42,
 			          'hashes' => [
@@ -181,6 +209,88 @@ class PublicApiControllerTest
 		$data = $response->getData();
 		$this->assertSame( 42, $data['fileid'] );
 		$this->assertCount( 1, $data['hashes'] );
+	}
+
+
+	public function testGetHashesReturnsUnauthorizedWhenNoUser(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 1.
+		$this->userSession = $this->createMock( IUserSession::class );
+		$this->userSession->method( 'getUser' )
+		                  ->willReturn( null )
+		;
+		$this->controller = new PublicApiController(
+			'file_checksum_search',
+			$this->createMock( IRequest::class ),
+			$this->api,
+			$this->userSession,
+			$this->groupManager,
+			$this->logger,
+		);
+
+		$this->api->expects( $this->never() )
+		          ->method( 'getHashesByFileId' )
+		;
+
+		$response = $this->controller->getHashes( 42 );
+
+		$this->assertSame( Http::STATUS_UNAUTHORIZED, $response->getStatus() );
+	}
+
+
+	public function testGetHashesScopesNonAdminCallerToOwnFiles(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 1: a non-admin
+		// caller must be scoped to their own UID, not passed through
+		// unrestricted.
+		$user = $this->createMock( IUser::class );
+		$user->method( 'getUID' )
+		     ->willReturn( 'alice' )
+		;
+		$this->userSession = $this->createMock( IUserSession::class );
+		$this->userSession->method( 'getUser' )
+		                  ->willReturn( $user )
+		;
+		$this->groupManager = $this->createMock( IGroupManager::class );
+		$this->groupManager->method( 'isAdmin' )
+		                   ->with( 'alice' )
+		                   ->willReturn( false )
+		;
+		$this->controller = new PublicApiController(
+			'file_checksum_search',
+			$this->createMock( IRequest::class ),
+			$this->api,
+			$this->userSession,
+			$this->groupManager,
+			$this->logger,
+		);
+
+		$this->api->expects( $this->once() )
+		          ->method( 'getHashesByFileId' )
+		          ->with( 42, 'alice' )
+		          ->willReturn( [
+			          'fileid' => 42,
+			          'hashes' => [],
+		          ] )
+		;
+
+		$this->controller->getHashes( 42 );
+	}
+
+
+	public function testGetHashesReturnsNotFoundWhenFileInaccessibleToCaller(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 1.
+		$this->api->method( 'getHashesByFileId' )
+		          ->willThrowException( new NotFoundException( 'Invalid file ID: 42' ) )
+		;
+
+		$response = $this->controller->getHashes( 42 );
+
+		$this->assertSame( Http::STATUS_NOT_FOUND, $response->getStatus() );
 	}
 
 
@@ -244,7 +354,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'findByHash' )
-		          ->with( 'abc123', 'md5', 100 )
+		          ->with( 'abc123', 'md5', 100, null )
 		          ->willReturn( [ 'results' => [] ] )
 		;
 
@@ -276,7 +386,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'findByHash' )
-		          ->with( 'abc123', null, 100 )
+		          ->with( 'abc123', null, 100, null )
 		          ->willReturn( [
 			          'results' => [
 				          [
@@ -299,6 +409,42 @@ class PublicApiControllerTest
 	}
 
 
+	public function testLookupScopesNonAdminCallerToOwnFiles(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 1.
+		$user = $this->createMock( IUser::class );
+		$user->method( 'getUID' )
+		     ->willReturn( 'alice' )
+		;
+		$this->userSession = $this->createMock( IUserSession::class );
+		$this->userSession->method( 'getUser' )
+		                  ->willReturn( $user )
+		;
+		$this->groupManager = $this->createMock( IGroupManager::class );
+		$this->groupManager->method( 'isAdmin' )
+		                   ->with( 'alice' )
+		                   ->willReturn( false )
+		;
+		$this->controller = new PublicApiController(
+			'file_checksum_search',
+			$this->createMock( IRequest::class ),
+			$this->api,
+			$this->userSession,
+			$this->groupManager,
+			$this->logger,
+		);
+
+		$this->api->expects( $this->once() )
+		          ->method( 'findByHash' )
+		          ->with( 'abc123', null, 100, 'alice' )
+		          ->willReturn( [ 'results' => [] ] )
+		;
+
+		$this->controller->lookup( 'abc123' );
+	}
+
+
 	public function testLookupReturnsServerErrorOnRuntimeException(): void
 	{
 
@@ -318,7 +464,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'recalcHash' )
-		          ->with( 99999, null )
+		          ->with( 99999, null, null )
 		          ->willReturn( [
 			          'success' => false,
 			          'error'   => 'File not found.',
@@ -352,7 +498,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'recalcHash' )
-		          ->with( 42, null )
+		          ->with( 42, null, null )
 		          ->willReturn( [
 			          'success' => true,
 			          'algo'    => 'sha1',
@@ -366,6 +512,42 @@ class PublicApiControllerTest
 		$this->assertInstanceOf( DataResponse::class, $response );
 		$data = $response->getData();
 		$this->assertTrue( $data['success'] );
+	}
+
+
+	public function testRecalcHashScopesNonAdminCallerToOwnFiles(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 1.
+		$user = $this->createMock( IUser::class );
+		$user->method( 'getUID' )
+		     ->willReturn( 'alice' )
+		;
+		$this->userSession = $this->createMock( IUserSession::class );
+		$this->userSession->method( 'getUser' )
+		                  ->willReturn( $user )
+		;
+		$this->groupManager = $this->createMock( IGroupManager::class );
+		$this->groupManager->method( 'isAdmin' )
+		                   ->with( 'alice' )
+		                   ->willReturn( false )
+		;
+		$this->controller = new PublicApiController(
+			'file_checksum_search',
+			$this->createMock( IRequest::class ),
+			$this->api,
+			$this->userSession,
+			$this->groupManager,
+			$this->logger,
+		);
+
+		$this->api->expects( $this->once() )
+		          ->method( 'recalcHash' )
+		          ->with( 42, null, 'alice' )
+		          ->willReturn( [ 'success' => true ] )
+		;
+
+		$this->controller->recalcHash( 42 );
 	}
 
 }

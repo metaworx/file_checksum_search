@@ -63,12 +63,23 @@ class ChecksumApi
 	/**
 	 * Get all checksums for a file by its filecache ID.
 	 *
-	 * @param  int  $fileId  The filecache fileid
+	 * @param  int          $fileId          The filecache fileid
+	 * @param  string|null  $requestingUser  When provided, the fileid must resolve
+	 *                                       within this user's own file tree or a
+	 *                                       NotFoundException is thrown. Omit (or
+	 *                                       pass null) for trusted/admin callers
+	 *                                       that intentionally bypass this check.
 	 *
 	 * @return array{fileid: int, hashes: array<int, array{algo: string, hash: string}>}
+	 * @throws NotFoundException  If $requestingUser is set and cannot access $fileId
 	 */
-	public function getHashesByFileId( int $fileId ): array
+	public function getHashesByFileId( int $fileId, ?string $requestingUser = null ): array
 	{
+
+		if ( $requestingUser !== null && ! $this->userCanAccessFile( $requestingUser, $fileId ) )
+		{
+			throw new NotFoundException( "Invalid file ID: $fileId" );
+		}
 
 		$hashes    = $this->metadataService->getHashes( $fileId );
 		$updatedAt = $this->metadataService->getUpdatedAt( $fileId );
@@ -157,9 +168,14 @@ class ChecksumApi
 	/**
 	 * Search for files by hash value, with optional algorithm filter.
 	 *
-	 * @param  string       $hash   Hex-encoded hash value
-	 * @param  string|null  $algo   Optional algorithm filter (sha1, md5, sha256, sha512, sha3-256, sha3-512, crc32)
-	 * @param  int          $limit  Max results (1–500)
+	 * @param  string       $hash            Hex-encoded hash value
+	 * @param  string|null  $algo            Optional algorithm filter (sha1, md5, sha256, sha512, sha3-256, sha3-512, crc32)
+	 * @param  int          $limit           Max results (1–500)
+	 * @param  string|null  $requestingUser  When provided, results are restricted to
+	 *                                       files in this user's own home storage.
+	 *                                       Omit (or pass null) for trusted/admin
+	 *                                       callers that intentionally search
+	 *                                       system-wide.
 	 *
 	 * @return array{results: array<int, array{fileid: int, algo: string, hash: string, path: string, name: string}>}
 	 */
@@ -167,6 +183,7 @@ class ChecksumApi
 		string  $hash,
 		?string $algo = null,
 		int     $limit = 100,
+		?string $requestingUser = null,
 	): array {
 
 		$hash = trim( $hash );
@@ -178,7 +195,7 @@ class ChecksumApi
 
 		$limit = max( 1, min( $limit, 500 ) );
 
-		$rows = $this->hashIndexService->findByHash( $hash, $algo, $limit );
+		$rows = $this->hashIndexService->findByHash( $hash, $algo, $limit, $requestingUser );
 
 		$results = array_map( function (
 			array $row,
@@ -391,19 +408,58 @@ class ChecksumApi
 	 *
 	 * This is the only mutating operation in the public API.
 	 *
-	 * @param  int          $fileId  The filecache fileid
-	 * @param  string|null  $algo    Algorithm (default: sha1)
+	 * @param  int          $fileId          The filecache fileid
+	 * @param  string|null  $algo            Algorithm (default: sha1)
+	 * @param  string|null  $requestingUser  When provided, the fileid must resolve
+	 *                                       within this user's own file tree or
+	 *                                       recalculation is refused. Omit (or
+	 *                                       pass null) for trusted/admin callers
+	 *                                       that intentionally bypass this check.
 	 *
 	 * @return array{success: bool, algo?: string, hash?: string, fileid?: int, error?: string}
 	 */
 	public function recalcHash(
 		int     $fileId,
 		?string $algo = null,
+		?string $requestingUser = null,
 	): array {
+
+		if ( $requestingUser !== null && ! $this->userCanAccessFile( $requestingUser, $fileId ) )
+		{
+			return [
+				'success' => false,
+				'error'   => 'File not found.',
+			];
+		}
 
 		$algo ??= HashCalculationService::getDefaultAlgo();
 
 		return $this->hashIndexService->recalcHash( $fileId, $algo );
+	}
+
+
+	/**
+	 * Whether $uid's own file tree contains $fileId.
+	 *
+	 * Used to enforce the ownership boundary on the public-facing
+	 * (HTTP) surface without restricting trusted DI/bootstrap callers
+	 * that intentionally omit $requestingUser.
+	 */
+	private function userCanAccessFile(
+		string $uid,
+		int    $fileId,
+	): bool {
+
+		try
+		{
+			$nodes = $this->rootFolder->getUserFolder( $uid )->getById( $fileId );
+		}
+		catch ( \Throwable )
+		{
+			return false;
+		}
+
+		return ! empty( $nodes );
 	}
 
 }

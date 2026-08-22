@@ -82,7 +82,7 @@ class ChecksumApiTest
 
 		$this->hashIndexService->expects( $this->once() )
 		                       ->method( 'findByHash' )
-		                       ->with( 'abc', null, 500 )
+		                       ->with( 'abc', null, 500, null )
 		                       ->willReturn( [] )
 		;
 
@@ -95,7 +95,7 @@ class ChecksumApiTest
 
 		$this->hashIndexService->expects( $this->once() )
 		                       ->method( 'findByHash' )
-		                       ->with( 'abc', 'md5', 100 )
+		                       ->with( 'abc', 'md5', 100, null )
 		                       ->willReturn( [] )
 		;
 
@@ -120,7 +120,7 @@ class ChecksumApiTest
 
 		$this->hashIndexService->expects( $this->once() )
 		                       ->method( 'findByHash' )
-		                       ->with( 'abc123', null, 100 )
+		                       ->with( 'abc123', null, 100, null )
 		                       ->willReturn( $rows )
 		;
 
@@ -149,13 +149,30 @@ class ChecksumApiTest
 
 		$this->hashIndexService->expects( $this->once() )
 		                       ->method( 'findByHash' )
-		                       ->with( 'abc123', null, 100 )
+		                       ->with( 'abc123', null, 100, null )
 		                       ->willReturn( [] )
 		;
 
 		$result = $this->api->findByHash( '  abc123  ' );
 
 		$this->assertEmpty( $result['results'] );
+	}
+
+
+	public function testFindByHashPassesRequestingUserThrough(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 1: /api/v1/lookup had
+		// no per-file ownership check. $requestingUser must reach
+		// HashIndexService so the search is restricted to that user's own
+		// files unless the caller (a trusted/admin caller) omits it.
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'findByHash' )
+		                       ->with( 'abc123', null, 100, 'alice' )
+		                       ->willReturn( [] )
+		;
+
+		$this->api->findByHash( 'abc123', null, 100, 'alice' );
 	}
 
 
@@ -360,6 +377,61 @@ class ChecksumApiTest
 		$this->assertSame( 'sha1', $data['hashes'][0]['algo'] );
 		$this->assertSame( 'abc', $data['hashes'][0]['hash'] );
 		$this->assertNotNull( $data['hashes'][0]['updated_at'] );
+	}
+
+
+	public function testGetHashesByFileIdThrowsWhenRequestingUserCannotAccessFile(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 1.
+		$userFolder = $this->createMock( Folder::class );
+
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->with( 'alice' )
+		                 ->willReturn( $userFolder )
+		;
+		$userFolder->method( 'getById' )
+		           ->with( 42 )
+		           ->willReturn( [] )
+		;
+
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'getHashes' )
+		;
+
+		$this->expectException( NotFoundException::class );
+
+		$this->api->getHashesByFileId( 42, 'alice' );
+	}
+
+
+	public function testGetHashesByFileIdAllowsRequestingUserWithAccess(): void
+	{
+
+		$userFolder = $this->createMock( Folder::class );
+		$node       = $this->createMock( File::class );
+
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->with( 'alice' )
+		                 ->willReturn( $userFolder )
+		;
+		$userFolder->method( 'getById' )
+		           ->with( 42 )
+		           ->willReturn( [ $node ] )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'getHashes' )
+		                      ->with( 42 )
+		                      ->willReturn( [ 'sha1' => 'abc' ] )
+		;
+		$this->metadataService->method( 'getUpdatedAt' )
+		                      ->willReturn( null )
+		;
+
+		$data = $this->api->getHashesByFileId( 42, 'alice' );
+
+		$this->assertSame( 42, $data['fileid'] );
 	}
 
 
@@ -643,6 +715,59 @@ class ChecksumApiTest
 		;
 
 		$this->api->recalcHash( 42 );
+	}
+
+
+	public function testRecalcHashReturnsFailureWhenRequestingUserCannotAccessFile(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 1.
+		$userFolder = $this->createMock( Folder::class );
+
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->with( 'alice' )
+		                 ->willReturn( $userFolder )
+		;
+		$userFolder->method( 'getById' )
+		           ->with( 99999 )
+		           ->willReturn( [] )
+		;
+
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'recalcHash' )
+		;
+
+		$result = $this->api->recalcHash( 99999, 'sha1', 'alice' );
+
+		$this->assertFalse( $result['success'] );
+		$this->assertSame( 'File not found.', $result['error'] );
+	}
+
+
+	public function testRecalcHashProceedsWhenRequestingUserHasAccess(): void
+	{
+
+		$userFolder = $this->createMock( Folder::class );
+		$node       = $this->createMock( File::class );
+
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->with( 'alice' )
+		                 ->willReturn( $userFolder )
+		;
+		$userFolder->method( 'getById' )
+		           ->with( 42 )
+		           ->willReturn( [ $node ] )
+		;
+
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'recalcHash' )
+		                       ->with( 42, 'sha256' )
+		                       ->willReturn( [ 'success' => true ] )
+		;
+
+		$result = $this->api->recalcHash( 42, 'sha256', 'alice' );
+
+		$this->assertTrue( $result['success'] );
 	}
 
 }

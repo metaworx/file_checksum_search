@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Security
+
+- Scope the public and legacy API hash lookups (lookup, getHashes, recalcHash) to the requesting user's own files so other users' paths and hashes can no longer be read or force-recalculated by hash or fileId.
+
 ## [0.14.0] — 2026-08-21
 
 ### Added

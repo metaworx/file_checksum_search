@@ -13,7 +13,11 @@ use OCA\FileChecksumSearch\Controller\LookupController;
 use OCA\FileChecksumSearch\Public\ChecksumApi;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\Files\NotFoundException;
+use OCP\IGroupManager;
 use OCP\IRequest;
+use OCP\IUser;
+use OCP\IUserSession;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -29,6 +33,10 @@ class LookupControllerTest
 
 	private MockObject|IRequest        $request;
 
+	private MockObject|IUserSession    $userSession;
+
+	private MockObject|IGroupManager   $groupManager;
+
 	private MockObject|LoggerInterface $logger;
 
 	private LookupController           $controller;
@@ -39,13 +47,34 @@ class LookupControllerTest
 
 		parent::setUp();
 
-		$this->api        = $this->createMock( ChecksumApi::class );
-		$this->request    = $this->createMock( IRequest::class );
-		$this->logger     = $this->createMock( LoggerInterface::class );
+		$this->api          = $this->createMock( ChecksumApi::class );
+		$this->request      = $this->createMock( IRequest::class );
+		$this->userSession  = $this->createMock( IUserSession::class );
+		$this->groupManager = $this->createMock( IGroupManager::class );
+		$this->logger       = $this->createMock( LoggerInterface::class );
+
+		// Default to an authenticated admin (unrestricted scope: null) so
+		// existing expectations that predate the ownership scoping fix
+		// keep passing unchanged; tests exercising non-admin scoping
+		// override this per-test.
+		$adminUser = $this->createMock( IUser::class );
+		$adminUser->method( 'getUID' )
+		          ->willReturn( 'admin' )
+		;
+		$this->userSession->method( 'getUser' )
+		                  ->willReturn( $adminUser )
+		;
+		$this->groupManager->method( 'isAdmin' )
+		                   ->with( 'admin' )
+		                   ->willReturn( true )
+		;
+
 		$this->controller = new LookupController(
 			'file_checksum_search',
 			$this->request,
 			$this->api,
+			$this->userSession,
+			$this->groupManager,
 			$this->logger,
 		);
 	}
@@ -58,7 +87,7 @@ class LookupControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'findByHash' )
-		          ->with( '', null, 100 )
+		          ->with( '', null, 100, null )
 		          ->willReturn( [ 'results' => [] ] )
 		;
 
@@ -74,7 +103,7 @@ class LookupControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'findByHash' )
-		          ->with( 'da39a3ee5e6b4b0d3255bfef95601890afd80709', null, 100 )
+		          ->with( 'da39a3ee5e6b4b0d3255bfef95601890afd80709', null, 100, null )
 		          ->willReturn( [
 			          'results' => [
 				          [
@@ -105,7 +134,7 @@ class LookupControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'findByHash' )
-		          ->with( 'abc123', 'sha256', 100 )
+		          ->with( 'abc123', 'sha256', 100, null )
 		          ->willReturn( [ 'results' => [] ] )
 		;
 
@@ -136,7 +165,7 @@ class LookupControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'getHashesByFileId' )
-		          ->with( 42 )
+		          ->with( 42, null )
 		          ->willReturn( [
 			          'hashes' => [
 				          [
@@ -172,7 +201,7 @@ class LookupControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'getHashesByFileId' )
-		          ->with( 99999 )
+		          ->with( 99999, null )
 		          ->willReturn( [
 			          'hashes' => [],
 			          'fileid' => 99999,
@@ -200,6 +229,47 @@ class LookupControllerTest
 	}
 
 
+	public function testGetHashesByFileIdReturnsNotFoundWhenFileInaccessibleToCaller(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 1.
+		$this->api->method( 'getHashesByFileId' )
+		          ->willThrowException( new NotFoundException( 'Invalid file ID: 42' ) )
+		;
+
+		$response = $this->controller->getHashesByFileId( 42 );
+
+		$this->assertSame( Http::STATUS_NOT_FOUND, $response->getStatus() );
+	}
+
+
+	public function testGetHashesByFileIdReturnsUnauthorizedWhenNoUser(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 1.
+		$this->userSession = $this->createMock( IUserSession::class );
+		$this->userSession->method( 'getUser' )
+		                  ->willReturn( null )
+		;
+		$this->controller = new LookupController(
+			'file_checksum_search',
+			$this->request,
+			$this->api,
+			$this->userSession,
+			$this->groupManager,
+			$this->logger,
+		);
+
+		$this->api->expects( $this->never() )
+		          ->method( 'getHashesByFileId' )
+		;
+
+		$response = $this->controller->getHashesByFileId( 42 );
+
+		$this->assertSame( Http::STATUS_UNAUTHORIZED, $response->getStatus() );
+	}
+
+
 	// ─── recalcHash ──────────────────────────────────────────────────
 
 	public function testRecalcHashDelegatesToApi(): void
@@ -207,7 +277,7 @@ class LookupControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'recalcHash' )
-		          ->with( 42, 'sha1' )
+		          ->with( 42, 'sha1', null )
 		          ->willReturn( [
 			          'success' => true,
 			          'algo'    => 'sha1',
@@ -229,7 +299,7 @@ class LookupControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'recalcHash' )
-		          ->with( 99999, 'sha1' )
+		          ->with( 99999, 'sha1', null )
 		          ->willReturn( [
 			          'success' => false,
 			          'error'   => 'File not found.',
@@ -253,6 +323,42 @@ class LookupControllerTest
 		$response = $this->controller->recalcHash( 42 );
 
 		$this->assertSame( Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus() );
+	}
+
+
+	public function testRecalcHashScopesNonAdminCallerToOwnFiles(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 1.
+		$user = $this->createMock( IUser::class );
+		$user->method( 'getUID' )
+		     ->willReturn( 'alice' )
+		;
+		$this->userSession = $this->createMock( IUserSession::class );
+		$this->userSession->method( 'getUser' )
+		                  ->willReturn( $user )
+		;
+		$this->groupManager = $this->createMock( IGroupManager::class );
+		$this->groupManager->method( 'isAdmin' )
+		                   ->with( 'alice' )
+		                   ->willReturn( false )
+		;
+		$this->controller = new LookupController(
+			'file_checksum_search',
+			$this->request,
+			$this->api,
+			$this->userSession,
+			$this->groupManager,
+			$this->logger,
+		);
+
+		$this->api->expects( $this->once() )
+		          ->method( 'recalcHash' )
+		          ->with( 42, 'sha1', 'alice' )
+		          ->willReturn( [ 'success' => true ] )
+		;
+
+		$this->controller->recalcHash( 42 );
 	}
 
 }

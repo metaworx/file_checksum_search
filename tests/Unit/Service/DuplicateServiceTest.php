@@ -113,7 +113,7 @@ class DuplicateServiceTest
 
 		$this->filecacheService->expects( $this->once() )
 		                       ->method( 'batchLookupFilecachePaths' )
-		                       ->with( [ 42 ] )
+		                       ->with( [ 42 ], null )
 		                       ->willReturn( $fcPaths )
 		;
 
@@ -166,7 +166,7 @@ class DuplicateServiceTest
 
 		$this->filecacheService->expects( $this->once() )
 		                       ->method( 'batchLookupFilecachePaths' )
-		                       ->with( [ 10, 20 ] )
+		                       ->with( [ 10, 20 ], null )
 		                       ->willReturn( $fcPaths )
 		;
 
@@ -181,6 +181,52 @@ class DuplicateServiceTest
 		// Only fileId 10 should be present; fileId 20 skipped due to missing path
 		$this->assertCount( 1, $result );
 		$this->assertSame( 10, $result[0]['fileid'] );
+	}
+
+
+	public function testFindByHashScopesLookupToGivenUser(): void
+	{
+
+		$hash = 'abc123';
+
+		$rows = [
+			[
+				MetadataService::FIELD_FILE_ID  => 42,
+				MetadataService::FIELD_META_KEY => MetadataService::KEY_FILE_CHECKSUM_PREFIX . 'sha1',
+			],
+		];
+
+		$fcPaths = [
+			42 => [
+				'path' => '/files/Documents',
+				'name' => 'report.pdf',
+			],
+		];
+
+		$this->metadataService->method( 'queryByHash' )
+		                      ->willReturn( $rows )
+		;
+
+		// The requesting user's UID must reach FilecacheService so results
+		// are restricted to that user's own home storage (see FCIAS Review
+		// §6, Finding 1 — public API lookups previously leaked cross-user
+		// file paths because this filter was never threaded through).
+		$this->filecacheService->expects( $this->once() )
+		                       ->method( 'batchLookupFilecachePaths' )
+		                       ->with( [ 42 ], 'alice' )
+		                       ->willReturn( $fcPaths )
+		;
+
+		$this->metadataService->method( 'extractAlgorithm' )
+		                      ->willReturn( [
+			                      'algo' => 'sha1',
+			                      'hash' => $hash,
+		                      ] )
+		;
+
+		$result = $this->service->findByHash( $hash, null, 100, 'alice' );
+
+		$this->assertCount( 1, $result );
 	}
 
 }
