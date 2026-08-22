@@ -114,13 +114,11 @@ Confirmation needed: EXEC / EXEC+ / EXEC++ / EXEC+++ / ROLLBACK
 
 Ask the user to confirm with an `EXEC`-family signal or provide feedback for revision.
 
-**Delivery mechanism (STRICT):** Write the gate message in the **message body** as you normally would. Use the `question` parameter of `ask_followup_question` **only for a short call-to-action label** — do NOT duplicate the full gate content there.
+**Delivery mechanism (STRICT):** Use the native tool `ask_followup_question`. Write the gate message in the `question` parameter of `ask_followup_question` **ending with a short call-to-action label**.
 
-- **Message body**: Full gate summary in Markdown (Checkpoint, Overall Task, Last Action, Pending action, Proposed commit message, Changelog, Files to be committed). Write this exactly as you would any other response body.
-- **`question` parameter**: A single short line: `"Confirmation needed: EXEC / EXEC+ / EXEC++ / EXEC+++ / ROLLBACK"`. This is just a header — the real content is in the body.
+- **Tool**: Use the native tool`ask_followup_question`
+- **`question` parameter**: Full gate summary in Markdown (Checkpoint, Overall Task, Last Action, Pending action, Proposed commit message, Changelog, Files to be committed). Write this exactly as you would any other response body. Ending on a single short line: `"Confirmation needed: EXEC / EXEC+ / EXEC++ / EXEC+++ / ROLLBACK"`.
 - **`follow_up` parameter**: User choice buttons with mode switches where appropriate.
-
-> **Why:** The platform enforces that every assistant response must include a tool call. You naturally write a message body before every tool call — do NOT suppress this habit. Instead, keep the `question` parameter short so it reads as a natural prompt after your body text, not as a duplicate of it. The result: body text (gate summary) → short question header → action buttons. No duplication.
 
 ## 3. Slug Convention
 
