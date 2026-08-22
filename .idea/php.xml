@@ -182,6 +182,8 @@
       <path value="$PROJECT_DIR$/vendor-bin/phpunit/vendor/sebastian/global-state" />
       <path value="$PROJECT_DIR$/vendor-bin/phpunit/vendor/sebastian/recursion-context" />
       <path value="$PROJECT_DIR$/vendor-bin/phpunit/vendor/sebastian/complexity" />
+      <path value="$PROJECT_DIR$/nextcloud-v33" />
+      <path value="$PROJECT_DIR$/nextcloud-v34" />
     </include_path>
   </component>
   <component name="PhpStan">
@@ -195,7 +197,6 @@
   <component name="PhpUnit">
     <phpunit_settings>
       <PhpUnitSettings custom_loader_path="$PROJECT_DIR$/vendor-bin/phpunit/vendor/autoload.php" />
-      <PhpUnitSettings custom_loader_path="$PROJECT_DIR$/§Server/vendor-bin/phpunit/vendor/autoload.php" />
     </phpunit_settings>
   </component>
   <component name="Psalm">
