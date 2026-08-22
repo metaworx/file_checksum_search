@@ -22,6 +22,23 @@ use Throwable;
 /**
  * Generic cross-DB database abstraction layer.
  *
+ * All query methods below route through one of the private safeBool() /
+ * safeInt() / safeString() / safeArray() helpers, which catch any
+ * Throwable, log it as a warning, optionally echo it to $output, and
+ * return a fixed sentinel instead of propagating the exception:
+ *
+ * - safeBool()   -> false
+ * - safeInt()    -> 0
+ * - safeString() -> 'unknown'
+ * - safeArray()  -> []
+ *
+ * This means the sentinel is indistinguishable from a genuine result —
+ * countRows() returning 0 could mean "the table is empty" or "the query
+ * failed"; columnExists() returning false could mean "no such column"
+ * or "the schema lookup threw". Callers that need to tell those apart
+ * must check the logs (or $output, in CLI contexts) rather than the
+ * return value alone.
+ *
  * @noinspection PhpClassCanBeReadonlyInspection
  */
 class DatabaseService
@@ -34,6 +51,11 @@ class DatabaseService
 	}
 
 
+	/**
+	 * The database server's version string (e.g. "10.11.6-MariaDB").
+	 *
+	 * @return string  The version string, or 'unknown' if the query failed.
+	 */
 	public function getDatabaseVersion( ?OutputInterface $output = null ): string
 	{
 
@@ -46,6 +68,7 @@ class DatabaseService
 	}
 
 
+	/** The underlying Doctrine DBAL connection, for calls IDBConnection doesn't expose. */
 	public function getRawConnection(): Connection
 	{
 
@@ -53,6 +76,7 @@ class DatabaseService
 	}
 
 
+	/** Doctrine's schema introspection manager (tablesExist(), listTableColumns(), etc.). */
 	public function getSchemaManager(): AbstractSchemaManager
 	{
 
@@ -62,6 +86,12 @@ class DatabaseService
 	}
 
 
+	/**
+	 * Whether $tableName has a column named $columnName.
+	 *
+	 * @return bool  False both for "no such column" and "the schema
+	 *               lookup failed" — see the class docblock.
+	 */
 	public function columnExists(
 		string           $tableName,
 		string           $columnName,
@@ -94,6 +124,12 @@ class DatabaseService
 	}
 
 
+	/**
+	 * Row count for $tableName.
+	 *
+	 * @return int  0 both for "the table is empty" and "the query
+	 *              failed" — see the class docblock.
+	 */
 	public function countRows(
 		string           $tableName,
 		?OutputInterface $output = null,
@@ -234,7 +270,9 @@ class DatabaseService
 
 
 	/**
-	 * @return string[] Installed migration version strings
+	 * @return string[]  Installed migration version strings for $appId, or
+	 *                   [] both for "none installed" and "the query
+	 *                   failed" — see the class docblock.
 	 */
 	public function getInstalledMigrations(
 		string           $appId,
@@ -275,6 +313,12 @@ class DatabaseService
 	}
 
 
+	/**
+	 * Whether $tableName exists.
+	 *
+	 * @return bool  False both for "no such table" and "the schema
+	 *               lookup failed" — see the class docblock.
+	 */
 	public function tableExist(
 		string           $tableName,
 		?OutputInterface $output = null,

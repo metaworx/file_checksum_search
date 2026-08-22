@@ -15,6 +15,10 @@ the first stable release.
 
 - Add Vitest coverage for the vanilla-JS admin and personal settings pages, testing their manual HTML-escaping and DOM rendering black-box to guard against XSS regressions.
 
+### Changed
+
+- Document DatabaseService's safeBool/safeInt/safeString/safeArray sentinel-on-failure pattern so callers can tell a genuine empty result from a logged DB failure.
+
 ## [0.17.1] — 2026-08-22
 
 ### Fixed
