@@ -833,6 +833,67 @@ class RuleServiceTest
 	}
 
 
+	public function testFindFirstMatchingRuleSkipsRuleScopedToAnotherUser(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 4: a rule scoped
+		// to a specific user must not match a different user's file.
+		$rules = [
+			[ 'id'        => 'r1',
+			  'enabled'   => true,
+			  'path'      => '**/*.pdf',
+			  'userScope' => 'bob',
+			],
+		];
+
+		$this->setupRulesConfig( $rules );
+
+		$result = $this->service->findFirstMatchingRule( '/files/docs/report.pdf', 'alice' );
+
+		$this->assertNull( $result );
+	}
+
+
+	public function testFindFirstMatchingRuleMatchesRuleScopedToRequestingUser(): void
+	{
+
+		$rules = [
+			[ 'id'        => 'r1',
+			  'enabled'   => true,
+			  'path'      => '**/*.pdf',
+			  'userScope' => 'alice',
+			],
+		];
+
+		$this->setupRulesConfig( $rules );
+
+		$result = $this->service->findFirstMatchingRule( '/files/docs/report.pdf', 'alice' );
+
+		$this->assertNotNull( $result );
+		$this->assertSame( 'r1', $result['id'] );
+	}
+
+
+	public function testFindFirstMatchingRuleMatchesAllScopedRuleForAnyOwner(): void
+	{
+
+		$rules = [
+			[ 'id'        => 'r1',
+			  'enabled'   => true,
+			  'path'      => '**/*.pdf',
+			  'userScope' => 'all',
+			],
+		];
+
+		$this->setupRulesConfig( $rules );
+
+		$result = $this->service->findFirstMatchingRule( '/files/docs/report.pdf', 'alice' );
+
+		$this->assertNotNull( $result );
+		$this->assertSame( 'r1', $result['id'] );
+	}
+
+
 	// resolveUsers
 
 	public function testResolveUsersReturnsAllUsers(): void
@@ -1178,6 +1239,98 @@ class RuleServiceTest
 		$this->assertSame( 'admin-alice', $rules[1]['id'] );
 		$this->assertTrue( $rules[1]['admin_enforced'] );
 		$this->assertFalse( $rules[1]['canEdit'] );
+	}
+
+
+	// canUserMutateRule
+
+	public function testCanUserMutateRuleRejectsAdminEnforcedRule(): void
+	{
+
+		$rule = [
+			'userScope'      => 'alice',
+			'path'           => '/',
+			'admin_enforced' => true,
+		];
+
+		$this->assertFalse( $this->service->canUserMutateRule( 'alice', $rule ) );
+	}
+
+
+	public function testCanUserMutateRuleRejectsDifferentUsersRule(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 3: a user must
+		// not be able to mutate another specific user's rule.
+		$rule = [
+			'userScope' => 'bob',
+			'path'      => '/',
+		];
+
+		$this->assertFalse( $this->service->canUserMutateRule( 'alice', $rule ) );
+	}
+
+
+	public function testCanUserMutateRuleAllowsOwnRuleWhenPathWritable(): void
+	{
+
+		$folder = $this->createFolderMock();
+		$folder->method( 'isCreatable' )
+		       ->willReturn( true )
+		;
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->with( 'alice' )
+		                 ->willReturn( $folder )
+		;
+
+		$rule = [
+			'userScope' => 'alice',
+			'path'      => '/',
+		];
+
+		$this->assertTrue( $this->service->canUserMutateRule( 'alice', $rule ) );
+	}
+
+
+	public function testCanUserMutateRuleAllowsAllScopedRuleWhenPathWritable(): void
+	{
+
+		$folder = $this->createFolderMock();
+		$folder->method( 'isCreatable' )
+		       ->willReturn( true )
+		;
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->with( 'alice' )
+		                 ->willReturn( $folder )
+		;
+
+		$rule = [
+			'userScope' => 'all',
+			'path'      => '/',
+		];
+
+		$this->assertTrue( $this->service->canUserMutateRule( 'alice', $rule ) );
+	}
+
+
+	public function testCanUserMutateRuleRejectsUnwritablePath(): void
+	{
+
+		$folder = $this->createFolderMock();
+		$folder->method( 'isCreatable' )
+		       ->willReturn( false )
+		;
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->with( 'alice' )
+		                 ->willReturn( $folder )
+		;
+
+		$rule = [
+			'userScope' => 'alice',
+			'path'      => '/',
+		];
+
+		$this->assertFalse( $this->service->canUserMutateRule( 'alice', $rule ) );
 	}
 
 

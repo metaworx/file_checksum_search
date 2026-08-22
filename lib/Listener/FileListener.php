@@ -119,7 +119,7 @@ class FileListener
 			return;
 		}
 
-		$rule = $this->ruleService->findFirstMatchingRule( $node->getPath() );
+		$rule = $this->ruleService->findFirstMatchingRule( $node->getPath(), $node->getOwner()?->getUID() );
 
 		if ( $rule === null )
 		{
@@ -193,7 +193,7 @@ class FileListener
 			return;
 		}
 
-		$rule = $this->ruleService->findFirstMatchingRule( $node->getPath() );
+		$rule = $this->ruleService->findFirstMatchingRule( $node->getPath(), $node->getOwner()?->getUID() );
 
 		if ( $rule === null )
 		{
@@ -266,7 +266,7 @@ class FileListener
 			return;
 		}
 
-		$rule = $this->ruleService->findFirstMatchingRule( $node->getPath() );
+		$rule = $this->ruleService->findFirstMatchingRule( $node->getPath(), $node->getOwner()?->getUID() );
 
 		if ( $rule === null )
 		{

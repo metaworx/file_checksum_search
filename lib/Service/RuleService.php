@@ -293,16 +293,34 @@ class RuleService
 	/**
 	 * Find the first enabled rule whose path glob matches the given file path.
 	 *
+	 * @param  string       $filePath  Path to match against each rule's glob
+	 * @param  string|null  $ownerUid  The file's owning user. When provided,
+	 *                                 rules scoped to a *different* specific
+	 *                                 user are skipped — mirrors the user
+	 *                                 resolution {@see processRule()} already
+	 *                                 does for the batch path. Omit only when
+	 *                                 the caller has no reliable owner to
+	 *                                 check against.
+	 *
 	 * @return array|null Rule definition or null if no match
 	 */
-	public function findFirstMatchingRule( string $filePath ): ?array
-	{
+	public function findFirstMatchingRule(
+		string  $filePath,
+		?string $ownerUid = null,
+	): ?array {
 
 		$rules = $this->loadRules();
 
 		foreach ( $rules as $rule )
 		{
 			if ( empty( $rule['enabled'] ) )
+			{
+				continue;
+			}
+
+			$userScope = $rule['userScope'] ?? 'all';
+
+			if ( $ownerUid !== null && $userScope !== 'all' && $userScope !== $ownerUid )
 			{
 				continue;
 			}
@@ -634,8 +652,8 @@ class RuleService
 	public function getPersonalRulesForUser( string $userId ): array
 	{
 
-		$canEdit = $this->canUserEditRules( $userId );
-		$rules   = [];
+		$canEditAny = $this->canUserEditRules( $userId );
+		$rules      = [];
 
 		foreach ( $this->loadRules() as $rule )
 		{
@@ -647,14 +665,43 @@ class RuleService
 			}
 
 			$rule['admin_enforced'] = (bool) ( $rule['admin_enforced'] ?? false );
-			$rule['canEdit']        = $canEdit
-				&& ! $rule['admin_enforced']
-				&& $this->isPathWritableByUser( $userId, $rule['path'] ?? '/' );
+			$rule['canEdit']        = $canEditAny && $this->canUserMutateRule( $userId, $rule );
 
 			$rules[] = $rule;
 		}
 
 		return $rules;
+	}
+
+
+	/**
+	 * Whether $userId may create/update/delete/toggle $rule via the
+	 * personal-settings surface.
+	 *
+	 * Mirrors the visibility rule in {@see getPersonalRulesForUser()}:
+	 * the rule must not be admin_enforced, must be scoped to 'all' or to
+	 * $userId specifically, and its path must be write-accessible to
+	 * $userId. Does NOT check the global rule-editing permission — call
+	 * {@see canUserEditRules()} for that separately.
+	 */
+	public function canUserMutateRule(
+		string $userId,
+		array  $rule,
+	): bool {
+
+		if ( ! empty( $rule['admin_enforced'] ) )
+		{
+			return false;
+		}
+
+		$userScope = $rule['userScope'] ?? 'all';
+
+		if ( $userScope !== 'all' && $userScope !== $userId )
+		{
+			return false;
+		}
+
+		return $this->isPathWritableByUser( $userId, $rule['path'] ?? '/' );
 	}
 
 

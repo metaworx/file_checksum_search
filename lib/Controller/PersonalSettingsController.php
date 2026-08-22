@@ -169,7 +169,7 @@ class PersonalSettingsController
 					);
 				}
 
-				if ( ! empty( $existing['admin_enforced'] ) )
+				if ( ! $this->ruleService->canUserMutateRule( $userId, $existing ) )
 				{
 					return $this->forbidden();
 				}
@@ -259,7 +259,7 @@ class PersonalSettingsController
 			);
 		}
 
-		if ( ! empty( $existing['admin_enforced'] ) || ! $this->ruleService->isPathWritableByUser( $userId, $existing['path'] ?? '/' ) )
+		if ( ! $this->ruleService->canUserMutateRule( $userId, $existing ) )
 		{
 			return $this->forbidden();
 		}
@@ -341,7 +341,7 @@ class PersonalSettingsController
 			);
 		}
 
-		if ( ! empty( $existing['admin_enforced'] ) || ! $this->ruleService->isPathWritableByUser( $userId, $existing['path'] ?? '/' ) )
+		if ( ! $this->ruleService->canUserMutateRule( $userId, $existing ) )
 		{
 			return $this->forbidden();
 		}

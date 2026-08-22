@@ -19,6 +19,7 @@ use OCP\Files\Events\Node\NodeCreatedEvent;
 use OCP\Files\Events\Node\NodeDeletedEvent;
 use OCP\Files\Events\Node\NodeWrittenEvent;
 use OCP\Files\File;
+use OCP\IUser;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -115,7 +116,7 @@ class FileListenerTest
 		$event = new NodeWrittenEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/foo.txt' )
+		                  ->with( '/files/user/foo.txt', 'owner-uid' )
 		                  ->willReturn( [ 'mode' => 'force' ] )
 		;
 
@@ -141,7 +142,7 @@ class FileListenerTest
 		$event = new NodeWrittenEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/foo.txt' )
+		                  ->with( '/files/user/foo.txt', 'owner-uid' )
 		                  ->willReturn( [ 'mode' => 'lazy' ] )
 		;
 
@@ -167,7 +168,7 @@ class FileListenerTest
 		$event = new NodeWrittenEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/foo.txt' )
+		                  ->with( '/files/user/foo.txt', 'owner-uid' )
 		                  ->willReturn( [ 'mode' => 'auto' ] )
 		;
 
@@ -193,7 +194,7 @@ class FileListenerTest
 		$event = new NodeWrittenEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/foo.txt' )
+		                  ->with( '/files/user/foo.txt', 'owner-uid' )
 		                  ->willReturn( [ 'mode' => 'auto' ] )
 		;
 
@@ -218,7 +219,7 @@ class FileListenerTest
 		$event = new NodeWrittenEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/foo.txt' )
+		                  ->with( '/files/user/foo.txt', 'owner-uid' )
 		                  ->willReturn( [ 'mode' => 'off' ] )
 		;
 
@@ -242,7 +243,7 @@ class FileListenerTest
 		$event = new NodeWrittenEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/untracked.txt' )
+		                  ->with( '/files/user/untracked.txt', 'owner-uid' )
 		                  ->willReturn( null )
 		;
 
@@ -266,7 +267,7 @@ class FileListenerTest
 		$event = new NodeCreatedEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/new.txt' )
+		                  ->with( '/files/user/new.txt', 'owner-uid' )
 		                  ->willReturn( [ 'mode' => 'force' ] )
 		;
 
@@ -292,7 +293,7 @@ class FileListenerTest
 		$event = new NodeCreatedEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/new.txt' )
+		                  ->with( '/files/user/new.txt', 'owner-uid' )
 		                  ->willReturn( [ 'mode' => 'lazy' ] )
 		;
 
@@ -313,7 +314,7 @@ class FileListenerTest
 		$event = new NodeCreatedEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/new.txt' )
+		                  ->with( '/files/user/new.txt', 'owner-uid' )
 		                  ->willReturn( [ 'mode' => 'auto' ] )
 		;
 
@@ -339,7 +340,7 @@ class FileListenerTest
 		$event = new NodeCreatedEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/new.txt' )
+		                  ->with( '/files/user/new.txt', 'owner-uid' )
 		                  ->willReturn( [ 'mode' => 'off' ] )
 		;
 
@@ -362,7 +363,7 @@ class FileListenerTest
 		$event = new NodeCreatedEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/untracked.txt' )
+		                  ->with( '/files/user/untracked.txt', 'owner-uid' )
 		                  ->willReturn( null )
 		;
 
@@ -385,7 +386,7 @@ class FileListenerTest
 		$event = new NodeDeletedEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/foo.txt' )
+		                  ->with( '/files/user/foo.txt', 'owner-uid' )
 		                  ->willReturn( [ 'mode' => 'auto' ] )
 		;
 
@@ -406,7 +407,7 @@ class FileListenerTest
 		$event = new NodeDeletedEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/foo.txt' )
+		                  ->with( '/files/user/foo.txt', 'owner-uid' )
 		                  ->willReturn( [ 'mode' => 'off' ] )
 		;
 
@@ -428,7 +429,7 @@ class FileListenerTest
 		$event = new NodeDeletedEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/untracked.txt' )
+		                  ->with( '/files/user/untracked.txt', 'owner-uid' )
 		                  ->willReturn( null )
 		;
 
@@ -443,10 +444,16 @@ class FileListenerTest
 
 
 	/**
-	 * Create a File mock with getId() and getPath() configured.
+	 * Create a File mock with getId(), getPath(), and getOwner()
+	 * configured — the owner UID is always 'owner-uid' in this suite.
 	 */
 	private function makeFileMock( int $id, string $path ): MockObject|File
 	{
+
+		$owner = $this->createMock( IUser::class );
+		$owner->method( 'getUID' )
+		      ->willReturn( 'owner-uid' )
+		;
 
 		$file = $this->createMock( File::class );
 		$file->method( 'getId' )
@@ -455,8 +462,31 @@ class FileListenerTest
 		$file->method( 'getPath' )
 		     ->willReturn( $path )
 		;
+		$file->method( 'getOwner' )
+		     ->willReturn( $owner )
+		;
 
 		return $file;
+	}
+
+
+	public function testOnWritePassesFileOwnerToRuleLookup(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 4: real-time rule
+		// matching must resolve the file's owner and pass it through, so
+		// a rule scoped to a different user can't fire on this file.
+		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
+
+		$event = new NodeWrittenEvent( $file );
+
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'findFirstMatchingRule' )
+		                  ->with( '/files/user/foo.txt', 'owner-uid' )
+		                  ->willReturn( null )
+		;
+
+		$this->listener->handle( $event );
 	}
 
 }

@@ -391,7 +391,7 @@ class HashCalculationService
 			try
 			{
 				$file = $this->filecacheService->getFile( $fileId );
-				$rule = $this->ruleService->findFirstMatchingRule( $file->getPath() );
+				$rule = $this->ruleService->findFirstMatchingRule( $file->getPath(), $file->getOwner()?->getUID() );
 
 				if ( $rule !== null )
 				{

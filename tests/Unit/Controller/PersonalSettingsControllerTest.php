@@ -187,6 +187,9 @@ class PersonalSettingsControllerTest
 		                  ->with( 'r1' )
 		                  ->willReturn( [ 'id' => 'r1', 'userScope' => 'alice', 'admin_enforced' => false ] )
 		;
+		$this->ruleService->method( 'canUserMutateRule' )
+		                  ->willReturn( true )
+		;
 		$this->controller->method( 'readRequestBody' )
 		                 ->willReturn(
 			                 json_encode( [
@@ -286,6 +289,47 @@ class PersonalSettingsControllerTest
 	}
 
 
+	public function testSavePersonalRuleReturns403WhenUpdatingAnotherUsersRule(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 3: a user must
+		// not be able to update another user's rule by guessing its ID.
+		$this->mockUser( 'alice' );
+		$this->ruleService->method( 'canUserEditRules' )
+		                  ->with( 'alice' )
+		                  ->willReturn( true )
+		;
+		$this->ruleService->method( 'isPathWritableByUser' )
+		                  ->with( 'alice', '/Docs' )
+		                  ->willReturn( true )
+		;
+		$this->ruleService->method( 'findRuleById' )
+		                  ->with( 'r1' )
+		                  ->willReturn( [ 'id' => 'r1', 'userScope' => 'bob', 'admin_enforced' => false ] )
+		;
+		$this->ruleService->method( 'canUserMutateRule' )
+		                  ->willReturn( false )
+		;
+		$this->controller->method( 'readRequestBody' )
+		                 ->willReturn(
+			                 json_encode( [
+				                 'id'    => 'r1',
+				                 'algos' => [ 'sha256' ],
+				                 'path'  => '/Docs',
+			                 ] ),
+		                 )
+		;
+
+		$this->ruleService->expects( $this->never() )
+		                  ->method( 'ruleUpdate' )
+		;
+
+		$response = $this->controller->savePersonalRule();
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $response->getStatus() );
+	}
+
+
 	public function testSavePersonalRuleRejectsInvalidAlgos(): void
 	{
 
@@ -322,8 +366,7 @@ class PersonalSettingsControllerTest
 		                  ->with( 'r1' )
 		                  ->willReturn( [ 'id' => 'r1', 'path' => '/', 'admin_enforced' => false ] )
 		;
-		$this->ruleService->method( 'isPathWritableByUser' )
-		                  ->with( 'alice', '/' )
+		$this->ruleService->method( 'canUserMutateRule' )
 		                  ->willReturn( true )
 		;
 		$this->controller->method( 'readRequestBody' )
@@ -354,6 +397,41 @@ class PersonalSettingsControllerTest
 		                  ->with( 'r1' )
 		                  ->willReturn( [ 'id' => 'r1', 'path' => '/', 'admin_enforced' => true ] )
 		;
+		$this->ruleService->method( 'canUserMutateRule' )
+		                  ->willReturn( false )
+		;
+		$this->controller->method( 'readRequestBody' )
+		                 ->willReturn( json_encode( [ 'id' => 'r1' ] ) )
+		;
+
+		$this->ruleService->expects( $this->never() )
+		                  ->method( 'ruleDelete' )
+		;
+
+		$response = $this->controller->deletePersonalRule();
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $response->getStatus() );
+	}
+
+
+	public function testDeletePersonalRuleReturns403WhenRuleBelongsToAnotherUser(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 3: a user must
+		// not be able to delete another user's rule by guessing its ID,
+		// even when its path would be writable in their own home.
+		$this->mockUser( 'alice' );
+		$this->ruleService->method( 'canUserEditRules' )
+		                  ->with( 'alice' )
+		                  ->willReturn( true )
+		;
+		$this->ruleService->method( 'findRuleById' )
+		                  ->with( 'r1' )
+		                  ->willReturn( [ 'id' => 'r1', 'path' => '/', 'userScope' => 'bob', 'admin_enforced' => false ] )
+		;
+		$this->ruleService->method( 'canUserMutateRule' )
+		                  ->willReturn( false )
+		;
 		$this->controller->method( 'readRequestBody' )
 		                 ->willReturn( json_encode( [ 'id' => 'r1' ] ) )
 		;
@@ -382,8 +460,7 @@ class PersonalSettingsControllerTest
 		                  ->with( 'r1' )
 		                  ->willReturn( [ 'id' => 'r1', 'path' => '/', 'admin_enforced' => false ] )
 		;
-		$this->ruleService->method( 'isPathWritableByUser' )
-		                  ->with( 'alice', '/' )
+		$this->ruleService->method( 'canUserMutateRule' )
 		                  ->willReturn( true )
 		;
 		$this->controller->method( 'readRequestBody' )
@@ -414,6 +491,41 @@ class PersonalSettingsControllerTest
 		$this->ruleService->method( 'canUserEditRules' )
 		                  ->with( 'alice' )
 		                  ->willReturn( false )
+		;
+
+		$response = $this->controller->togglePersonalRule();
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $response->getStatus() );
+	}
+
+
+	public function testTogglePersonalRuleReturns403WhenRuleBelongsToAnotherUser(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 3.
+		$this->mockUser( 'alice' );
+		$this->ruleService->method( 'canUserEditRules' )
+		                  ->with( 'alice' )
+		                  ->willReturn( true )
+		;
+		$this->ruleService->method( 'findRuleById' )
+		                  ->with( 'r1' )
+		                  ->willReturn( [ 'id' => 'r1', 'path' => '/', 'userScope' => 'bob', 'admin_enforced' => false ] )
+		;
+		$this->ruleService->method( 'canUserMutateRule' )
+		                  ->willReturn( false )
+		;
+		$this->controller->method( 'readRequestBody' )
+		                 ->willReturn(
+			                 json_encode( [
+				                 'id'      => 'r1',
+				                 'enabled' => true,
+			                 ] ),
+		                 )
+		;
+
+		$this->ruleService->expects( $this->never() )
+		                  ->method( 'ruleToggle' )
 		;
 
 		$response = $this->controller->togglePersonalRule();
