@@ -183,7 +183,7 @@ resolve_signing_material() {
 # Store upload form expects.
 sign_archive() {
 	local archive="$1"
-	local tmp key_file cert_file signature_file signed_archive
+	local tmp key_file cert_file signature_file
 	tmp="$(mktemp -d)"
 
 	resolve_signing_material "$tmp"
@@ -219,10 +219,6 @@ sign_archive() {
 		return 1
 	fi
 	echo "    Signature verified against ${cert_file}."
-
-	signed_archive="${archive%.tar.gz}-signed.tar.gz"
-	cp "$archive" "$signed_archive"
-	echo "    Signed archive: ${signed_archive}"
 
 	echo "    Signature file: ${signature_file}"
 	echo ""

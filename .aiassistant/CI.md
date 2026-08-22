@@ -1,4 +1,4 @@
-# CI Conventions (v1.1.0)
+# CI Conventions (v1.2.0)
 
 Nextcloud‑specific CI conventions for the `nextcloud/setup-server-action@v0.5.0` action.
 
@@ -60,11 +60,11 @@ Nextcloud‑specific CI conventions for the `nextcloud/setup-server-action@v0.5.
 - Never echo any slice of key/cert content to CI logs, not even the PEM header line via `head -n1` — classify the
   input format only (e.g. "base64-encoded PEM") if a debug line is needed.
 - The App Store publish API (`POST /api/v1/apps/releases`) has no "signed archive" file format — it always downloads
-  a plain `.tar.gz` from `download` and verifies it against the separately-transmitted `signature` field.
-  `sign_archive()`'s `<archive>-signed.tar.gz` output is a byte-identical convenience copy for manual web-UI
-  uploads only; never point `DOWNLOAD_URL` at it. `DOWNLOAD_URL` MUST reference the exact same **versioned** archive
-  (`<app_id>-<version>.tar.gz`) that `package.sh --appstore` signs (`$VERSIONED_ARTIFACT`) — CI files upload and link
-  that versioned file, not the unversioned `<app_id>.tar.gz` copy.
+  a plain `.tar.gz` from `download` and verifies it against the separately-transmitted `signature` field. Signing
+  therefore produces exactly two outputs: the unchanged archive and the detached `<archive>.signature`.
+- `DOWNLOAD_URL` MUST reference the exact same **versioned** archive (`<app_id>-<version>.tar.gz`) that
+  `package.sh --appstore` signs (`$VERSIONED_ARTIFACT`) — CI files upload and link that versioned file, not the
+  unversioned `<app_id>.tar.gz` copy.
 
 ## 6. Nightly Releases
 
@@ -83,7 +83,8 @@ Nextcloud‑specific CI conventions for the `nextcloud/setup-server-action@v0.5.
 
 ## 8. Document History
 
-| Version | Date       | Changes                                                        | Agent Impact                                                                 |
-|---------|------------|-----------------------------------------------------------------|-------------------------------------------------------------------------------|
+| Version | Date       | Changes                                                                                            | Agent Impact                                                                                                                                                                    |
+|---------|------------|----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| v1.2.0  | 2026-08-22 | §5: dropped the `<archive>-signed.tar.gz` convenience copy from `sign_archive()`.                  | Signing produces the archive plus a detached `.signature` only; do not reintroduce a `-signed.tar.gz` copy.                                                                     |
 | v1.1.0  | 2026-08-22 | Added §5 Signing & Publishing (incl. DOWNLOAD_URL/versioned-archive rule) and §6 Nightly Releases. | CI files must call `package.sh` for signing/publishing; `DOWNLOAD_URL` must reference the versioned archive; nightly channel is tag-pattern based, no push-triggered nightlies. |
-| v1.0.0  | 2026-08-05 | Initial document.                                              | Baseline `setup-server-action` conventions.                                    |
+| v1.0.0  | 2026-08-05 | Initial document.                                                                                  | Baseline `setup-server-action` conventions.                                                                                                                                     |
