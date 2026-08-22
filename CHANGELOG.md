@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-08-22
+
 ### Changed
 
 - Extract a shared algorithm-whitelist validator to remove the duplicated validation logic between SettingsController and PersonalSettingsController.
