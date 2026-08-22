@@ -350,6 +350,11 @@ class ChecksumApi
 		{
 			$rows = $this->metadataService->queryByHash( $hashValue, $algo );
 
+			// queryByHash() matches against the truncated index value for
+			// hashes longer than the index column allows, so a candidate
+			// row may only share a truncated prefix with $hashValue.
+			$isTruncatable = strlen( $hashValue ) > MetadataService::META_VALUE_STRING_MAX_LENGTH;
+
 			foreach ( $rows as $row )
 			{
 				$dupFileId = (int) $row[ MetadataService::FIELD_FILE_ID ];
@@ -357,6 +362,16 @@ class ChecksumApi
 				if ( $dupFileId === $fileId )
 				{
 					continue;
+				}
+
+				if ( $isTruncatable )
+				{
+					$extracted = $this->metadataService->extractAlgorithm( $dupFileId, $row );
+
+					if ( ( $extracted['hash'] ?? null ) !== $hashValue )
+					{
+						continue;
+					}
 				}
 
 				$resolvedPath = '';

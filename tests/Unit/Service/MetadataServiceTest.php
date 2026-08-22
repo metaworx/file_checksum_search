@@ -601,6 +601,35 @@ class MetadataServiceTest
 	}
 
 
+	public function testQueryByHashTruncatesLongHashForIndexComparison(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 6: the index
+		// column truncates values longer than META_VALUE_STRING_MAX_LENGTH,
+		// so the search term must be truncated the same way or a full
+		// SHA-512/SHA3-512 hash never matches its (truncated) index row.
+		$longHash  = str_repeat( 'a', 128 );
+		$truncated = substr( $longHash, 0, MetadataService::META_VALUE_STRING_MAX_LENGTH );
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchAll' )
+		       ->willReturn( [] )
+		;
+
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$this->expr->expects( $this->once() )
+		           ->method( 'eq' )
+		           ->with( 'i.' . MetadataService::FIELD_META_VALUE_STRING, $truncated )
+		           ->willReturn( '1=1' )
+		;
+
+		$this->service->queryByHash( $longHash );
+	}
+
+
 	public function testQueryDuplicatesReturnsGroups(): void
 	{
 
@@ -705,6 +734,103 @@ class MetadataServiceTest
 
 		$this->assertCount( 1, $groups );
 		$this->assertSame( 5, $groups[0]['file_count'] );
+	}
+
+
+	public function testQueryDuplicatesSplitsFalsePositiveTruncatedGroup(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 7: SQL grouped
+		// files by the truncated index value, so two files whose full
+		// hashes only agree on the truncated prefix were reported as
+		// duplicates without checking the full value. 42 and 108 share
+		// $fullHashA; 256 shares only the 63-char prefix but differs
+		// after that — it must be split out of the group.
+		$sharedPrefix = str_repeat( 'a', MetadataService::META_VALUE_STRING_MAX_LENGTH );
+		$fullHashA    = $sharedPrefix . '1';
+		$fullHashB    = $sharedPrefix . '2';
+
+		$mockRows = [
+			[
+				'meta_key'  => 'file-checksum-sha256',
+				'cnt'       => '3',
+				'file_ids'  => '42,108,256',
+				'meta_json' => json_encode( [ 'file-checksum-sha256' => $fullHashA ] ),
+			],
+		];
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchAll' )
+		       ->willReturn( $mockRows )
+		;
+
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$metaA = $this->createMock( IFilesMetadata::class );
+		$metaA->method( 'getString' )
+		      ->willReturn( $fullHashA )
+		;
+		$metaB = $this->createMock( IFilesMetadata::class );
+		$metaB->method( 'getString' )
+		      ->willReturn( $fullHashB )
+		;
+
+		$this->metadataManager->method( 'getMetadata' )
+		                      ->willReturnMap( [
+			                      [ 42, true, $metaA ],
+			                      [ 108, true, $metaA ],
+			                      [ 256, true, $metaB ],
+		                      ] )
+		;
+
+		$groups = $this->service->queryDuplicates( 'sha256', 2 );
+
+		$this->assertCount( 1, $groups );
+		$this->assertSame( [ 42, 108 ], $groups[0]['file_ids'] );
+		$this->assertSame( $fullHashA, $groups[0]['meta_value_string'] );
+	}
+
+
+	public function testQueryDuplicatesKeepsVerifiedTruncatedGroupIntact(): void
+	{
+
+		$sharedPrefix = str_repeat( 'a', MetadataService::META_VALUE_STRING_MAX_LENGTH );
+		$fullHash     = $sharedPrefix . '1';
+
+		$mockRows = [
+			[
+				'meta_key'  => 'file-checksum-sha256',
+				'cnt'       => '2',
+				'file_ids'  => '42,108',
+				'meta_json' => json_encode( [ 'file-checksum-sha256' => $fullHash ] ),
+			],
+		];
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchAll' )
+		       ->willReturn( $mockRows )
+		;
+
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$meta = $this->createMock( IFilesMetadata::class );
+		$meta->method( 'getString' )
+		     ->willReturn( $fullHash )
+		;
+
+		$this->metadataManager->method( 'getMetadata' )
+		                      ->willReturn( $meta )
+		;
+
+		$groups = $this->service->queryDuplicates( 'sha256', 2 );
+
+		$this->assertCount( 1, $groups );
+		$this->assertSame( [ 42, 108 ], $groups[0]['file_ids'] );
+		$this->assertSame( 2, $groups[0]['file_count'] );
 	}
 
 

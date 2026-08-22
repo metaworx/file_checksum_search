@@ -184,6 +184,48 @@ class DuplicateServiceTest
 	}
 
 
+	public function testFindByHashRejectsTruncatedPrefixFalsePositive(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 6: queryByHash()
+		// matches on the truncated index value for long hashes, so a
+		// candidate row may only share the truncated prefix. The full
+		// authoritative hash from extractAlgorithm() must be checked
+		// before trusting the match.
+		$hash = str_repeat( 'a', 128 );
+
+		$rows = [
+			[
+				MetadataService::FIELD_FILE_ID  => 42,
+				MetadataService::FIELD_META_KEY => MetadataService::KEY_FILE_CHECKSUM_PREFIX . 'sha512',
+			],
+		];
+
+		$this->metadataService->method( 'queryByHash' )
+		                      ->willReturn( $rows )
+		;
+		$this->filecacheService->method( 'batchLookupFilecachePaths' )
+		                       ->willReturn( [
+			                       42 => [
+				                       'path' => '/files/Docs',
+				                       'name' => 'report.pdf',
+			                       ],
+		                       ] )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'extractAlgorithm' )
+		                      ->willReturn( [
+			                      'algo' => 'sha512',
+			                      'hash' => str_repeat( 'a', 63 ) . 'b', // differs after the shared 63-char prefix
+		                      ] )
+		;
+
+		$result = $this->service->findByHash( $hash );
+
+		$this->assertCount( 0, $result );
+	}
+
+
 	public function testFindByHashScopesLookupToGivenUser(): void
 	{
 

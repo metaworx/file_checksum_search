@@ -63,6 +63,16 @@ class MetadataService
 	public const TABLE_FILES_METADATA         = 'files_metadata';
 	public const TABLE_FILES_METADATA_INDEX   = 'files_metadata_index';
 
+	/**
+	 * Nextcloud core's `files_metadata_index.meta_value_string` column
+	 * length (see core Migrations\Version28000Date20231004103301). Hash
+	 * values longer than this (sha256, sha3-256: 64 chars; sha512,
+	 * sha3-512: 128 chars) are silently truncated by the database when
+	 * the index row is written — sha1 (40), md5 (32), and crc32 (8) fit
+	 * within it untouched.
+	 */
+	public const META_VALUE_STRING_MAX_LENGTH = 63;
+
 
 	public function __construct(
 		private readonly IDBConnection         $db,
@@ -472,9 +482,27 @@ class MetadataService
 
 
 	/**
+	 * Truncate a value to what the index column actually stores.
+	 */
+	public static function truncateForIndex( string $value ): string
+	{
+
+		return strlen( $value ) > self::META_VALUE_STRING_MAX_LENGTH
+			? substr( $value, 0, self::META_VALUE_STRING_MAX_LENGTH )
+			: $value;
+	}
+
+
+	/**
 	 * Find files matching a given hex hash value.
 	 *
-	 * Searches across all file-checksum-* keys.
+	 * Searches across all file-checksum-* keys. The index column
+	 * truncates values longer than {@see META_VALUE_STRING_MAX_LENGTH}
+	 * (sha256, sha3-256, sha512, sha3-512), so the comparison matches
+	 * against the same truncated prefix the database actually stored —
+	 * callers that need the full, untruncated hash confirmed should
+	 * verify it against the authoritative value from
+	 * {@see extractAlgorithm()} before trusting a match.
 	 *
 	 * @return array<int, array{file_id: int}>
 	 */
@@ -496,7 +524,10 @@ class MetadataService
 		   )
 		   ->where(
 			   $qb->expr()
-			      ->eq( 'i.' . self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( $hash ) ),
+			      ->eq(
+					  'i.' . self::FIELD_META_VALUE_STRING,
+					  $qb->createNamedParameter( self::truncateForIndex( $hash ) ),
+				  ),
 		   )
 		   ->setMaxResults( $limit )
 		;
@@ -616,7 +647,7 @@ class MetadataService
 		$rows   = $result->fetchAll();
 		$result->closeCursor();
 
-		return array_map( function (
+		$groups = array_map( function (
 			array $row,
 		): array {
 
@@ -646,6 +677,76 @@ class MetadataService
 				'file_ids'                    => $fileIds,
 			];
 		}, $rows );
+
+		return $this->verifyTruncatedDuplicateGroups( $groups, $minCount );
+	}
+
+
+	/**
+	 * Re-verify duplicate groups whose meta_value_string may have been
+	 * truncated by the index column (see {@see META_VALUE_STRING_MAX_LENGTH}).
+	 *
+	 * SQL groups by the truncated index value, so two files whose full
+	 * hashes only agree on the truncated prefix would otherwise be
+	 * reported as duplicates of each other. Re-fetch each member's own
+	 * authoritative hash from oc_files_metadata.json and split the group
+	 * by the real, full value, dropping any resulting sub-group below
+	 * $minCount.
+	 *
+	 * @param  list<array{meta_key: string, meta_value_string: string, file_count: int, file_ids: int[]}>  $groups
+	 *
+	 * @return list<array{meta_key: string, meta_value_string: string, file_count: int, file_ids: int[]}>
+	 */
+	private function verifyTruncatedDuplicateGroups(
+		array $groups,
+		int   $minCount,
+	): array {
+
+		$verified = [];
+
+		foreach ( $groups as $group )
+		{
+			if ( strlen( $group[ self::FIELD_META_VALUE_STRING ] ) < self::META_VALUE_STRING_MAX_LENGTH )
+			{
+				// Short enough that the index couldn't have truncated it —
+				// no collision risk, keep the group as-is.
+				$verified[] = $group;
+
+				continue;
+			}
+
+			$metaKey    = $group[ self::FIELD_META_KEY ];
+			$byFullHash = [];
+
+			foreach ( $group['file_ids'] as $fileId )
+			{
+				try
+				{
+					$fullHash = $this->getMetadata( $fileId )->getString( $metaKey );
+				}
+				catch ( FilesMetadataNotFoundException|FilesMetadataTypeException )
+				{
+					$fullHash = $group[ self::FIELD_META_VALUE_STRING ];
+				}
+
+				$byFullHash[ $fullHash ][] = $fileId;
+			}
+
+			foreach ( $byFullHash as $fullHash => $fileIds )
+			{
+				if ( count( $fileIds ) >= $minCount )
+				{
+					$verified[] = [
+						self::FIELD_META_KEY          => $metaKey,
+						self::FIELD_META_VALUE_STRING => $fullHash,
+						'file_count'                  => count( $fileIds ),
+						'file_ids'                    => $fileIds,
+					];
+				}
+			}
+		}
+
+		return $verified;
 	}
 
 

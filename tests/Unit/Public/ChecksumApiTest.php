@@ -644,6 +644,48 @@ class ChecksumApiTest
 	}
 
 
+	public function testFindSameHashRejectsTruncatedPrefixFalsePositive(): void
+	{
+
+		// Regression test for FCIAS Review §6, Finding 6: queryByHash()
+		// matches on the truncated index value for long hashes, so a
+		// candidate row may only share the truncated prefix. The full
+		// authoritative hash must be verified via extractAlgorithm()
+		// before the file is reported as sharing the hash.
+		$fullHash = str_repeat( 'a', 128 );
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'getHashes' )
+		                      ->with( 42 )
+		                      ->willReturn( [ 'sha512' => $fullHash ] )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'queryByHash' )
+		                      ->with( $fullHash, 'sha512' )
+		                      ->willReturn( [
+			                      [
+				                      MetadataService::FIELD_FILE_ID    => 108,
+				                      MetadataService::FIELD_META_KEY   => 'file-checksum-sha512',
+				                      MetadataService::FIELD_JSON_ALIAS => '{}',
+			                      ],
+		                      ] )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'extractAlgorithm' )
+		                      ->willReturn( [
+			                      'algo' => 'sha512',
+			                      'hash' => str_repeat( 'a', 63 ) . 'b', // differs after the shared 63-char prefix
+		                      ] )
+		;
+
+		$data = $this->api->findSameHash( 42 );
+
+		$this->assertEmpty( $data['duplicates'] );
+	}
+
+
 	// ─── getStatus ──────────────────────────────────────────────────
 
 	public function testGetStatusReturnsExpectedShape(): void

@@ -14,6 +14,7 @@ the first stable release.
 ### Fixed
 
 - Fix a race where concurrent hash recalculations for different algorithms on the same file could silently drop metadata by saving before releasing the file lock instead of after.
+- Fix truncated-hash comparisons for SHA-256/SHA3-256 and SHA-512/SHA3-512 so full-hash searches match correctly and duplicate groups are verified against the untruncated hash instead of risking false positives.
 
 ### Security
 
