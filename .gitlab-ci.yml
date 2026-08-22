@@ -32,7 +32,7 @@ variables:
     - test -d nextcloud || mv nextcloud-* nextcloud
     - mkdir -p nextcloud/apps
 
-test:
+phpunit:
   stage: test
   image: node:24-bookworm
   variables:
