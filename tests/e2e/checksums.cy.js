@@ -37,6 +37,15 @@ const propfindBody = [
 	'</d:propfind>',
 ].join( '' )
 
+// Opens the Checksums sidebar tab. The wait is split so a slow Files app is
+// reported as "the sidebar never opened" rather than "Checksums not found",
+// and the tab lookup is scoped to the sidebar so it cannot match stray text
+// elsewhere on the page.
+const openChecksumsTab = () => {
+	cy.get( '.app-sidebar', { timeout: FIND_TIMEOUT } ).should( 'be.visible' )
+	cy.get( '.app-sidebar' ).contains( 'Checksums', { timeout: FIND_TIMEOUT } ).click()
+}
+
 const fileUrl = ( fileId ) =>
 	`/index.php/apps/files/files/${ fileId }?dir=${ encodeURIComponent( '/' + dupDir ) }&opendetails=true`
 
@@ -120,7 +129,7 @@ describe( 'FCIAS checksums sidebar', () => {
 		expect( fileIdA, 'fileIdA should be resolved' ).to.be.a( 'number' ).and.greaterThan( 0 )
 
 		cy.visit( fileUrl( fileIdA ) )
-		cy.contains( 'Checksums', { timeout: FIND_TIMEOUT } ).click()
+		openChecksumsTab()
 
 		cy.get( '.fcias-recalc-btn[data-algo="sha1"]' ).click()
 		cy.get( '.fcias-selectable-hash', { timeout: FIND_TIMEOUT } ).should( 'have.length.at.least', 1 )
@@ -133,12 +142,12 @@ describe( 'FCIAS checksums sidebar', () => {
 		expect( fileIdB, 'fileIdB should be resolved' ).to.be.a( 'number' ).and.greaterThan( 0 )
 
 		cy.visit( fileUrl( fileIdB ) )
-		cy.contains( 'Checksums', { timeout: FIND_TIMEOUT } ).click()
+		openChecksumsTab()
 		cy.get( '.fcias-recalc-btn[data-algo="sha1"]' ).click()
 		cy.get( '.fcias-selectable-hash', { timeout: FIND_TIMEOUT } ).should( 'have.length.at.least', 1 )
 
 		cy.visit( fileUrl( fileIdA ) )
-		cy.contains( 'Checksums', { timeout: FIND_TIMEOUT } ).click()
+		openChecksumsTab()
 		cy.get( '.fcias-dup-btn' ).click()
 		cy.get( '.fcias-dup-results', { timeout: FIND_TIMEOUT } ).should( 'contain', fileNameB )
 	} )
@@ -147,7 +156,7 @@ describe( 'FCIAS checksums sidebar', () => {
 		expect( fileIdA, 'fileIdA should be resolved' ).to.be.a( 'number' ).and.greaterThan( 0 )
 
 		cy.visit( fileUrl( fileIdA ) )
-		cy.contains( 'Checksums', { timeout: FIND_TIMEOUT } ).click()
+		openChecksumsTab()
 
 		// Open the algorithm dropdown and choose SHA512.
 		cy.get( '.fcias-recalc-custom .vs__dropdown-toggle', { timeout: FIND_TIMEOUT } ).click()

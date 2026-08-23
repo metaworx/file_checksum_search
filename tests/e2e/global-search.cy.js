@@ -27,6 +27,8 @@ let adminPassword = 'admin'
 // request can be slow on a cold PHP worker.
 const FIND_TIMEOUT = 60000
 
+const SEARCH_INPUT = '[data-cy-unified-search-input]'
+
 describe( 'FCIAS global search', () => {
 	before( () => {
 		cy.env( [ 'occ', 'NC_ADMIN_USER', 'NC_ADMIN_PASSWORD' ] ).then( ( env ) => {
@@ -47,7 +49,36 @@ describe( 'FCIAS global search', () => {
 		cy.login( adminUser, adminPassword )
 	} )
 
+	// The unified-search field is a controlled Vue input that is re-rendered as
+	// results stream in, and typing into it a character at a time is unreliable:
+	// runs have ended up with only the first character in the field, and
+	// cy.clear() can leave a residue that the following type() appends to,
+	// producing a query like "ddeadbeef...". Either way the search then
+	// correctly reports no matches and the test fails somewhere further down.
+	// Setting the value through the native setter and dispatching a single
+	// input event is atomic, and the input event is what the component binds to.
+	const enterQuery = ( value ) => {
+		cy.get( SEARCH_INPUT ).then( ( $input ) => {
+			const el = $input[ 0 ]
+			const setValue = Object.getOwnPropertyDescriptor(
+				el.ownerDocument.defaultView.HTMLInputElement.prototype,
+				'value',
+			).set
+			setValue.call( el, value )
+			el.dispatchEvent( new Event( 'input', { bubbles: true } ) )
+		} )
+		cy.get( SEARCH_INPUT ).should( 'have.value', value )
+	}
+
 	it( 'lists the File Checksums provider and finds files by hash', () => {
+		// The provider request is the only reliable signal that a query has
+		// actually been answered: the input is debounced, so asserting straight
+		// after typing races the search.
+		cy.intercept(
+			'GET',
+			'**/search/providers/file_checksum_search_provider/search**',
+		).as( 'hashSearch' )
+
 		cy.visit( '/index.php/apps/files/' )
 
 		// Open the global search (trigger markup differs slightly across NC 33/34).
@@ -58,18 +89,25 @@ describe( 'FCIAS global search', () => {
 		cy.contains( 'File Checksums', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 
 		// Dismiss the popover by focusing the search input.
-		cy.get( '[data-cy-unified-search-input]' ).click()
+		cy.get( SEARCH_INPUT ).click()
 
 		// A valid but non-existent hash yields no file results.
-		cy.get( '[data-cy-unified-search-input]' ).type( MISSING )
+		enterQuery( MISSING )
+		cy.wait( '@hashSearch', { timeout: FIND_TIMEOUT } )
 		cy.get( '.unified-search-modal', { timeout: FIND_TIMEOUT } )
 			.should( 'not.contain', 'a.txt' )
 			.and( 'not.contain', 'b.txt' )
 
 		// The real hash lists the indexed files.
-		cy.get( '[data-cy-unified-search-input]' ).clear().type( SHA1 )
-		cy.contains( 'a.txt', { timeout: FIND_TIMEOUT } ).should( 'exist' )
-		cy.contains( 'b.txt', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		enterQuery( SHA1 )
+		cy.wait( '@hashSearch', { timeout: FIND_TIMEOUT } )
+
+		// Scoped to the modal: an unscoped cy.contains() also matches the Files
+		// list rendered behind the overlay, which passes even when the search
+		// returned nothing.
+		cy.get( '.unified-search-modal', { timeout: FIND_TIMEOUT } )
+			.should( 'contain', 'a.txt' )
+			.and( 'contain', 'b.txt' )
 
 		// Results link to the file details view (opendetails=true), not the file itself.
 		cy.get( '.unified-search-modal a[href*="opendetails=true"][href*="openfile=false"]', { timeout: FIND_TIMEOUT } )

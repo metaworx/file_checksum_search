@@ -1,4 +1,4 @@
-# Testing Conventions (v2.9.0)
+# Testing Conventions (v2.10.0)
 
 Project-specific testing conventions for FCIAS (File Checksum Index & Search Nextcloud app).
 Generic agent flow-control rules are in `AGENTS.md`; contributor context is in `CONTRIBUTING.md`.
@@ -253,6 +253,11 @@ Prerequisites:
 
 - Enabling an app via the Apps page requires a password confirmation dialog
   (`PasswordConfirmationRequired`); the spec fills it after clicking **Enable**.
+- **Run only one suite at a time against an instance.** Every spec shares that instance's single
+  database, and `app-enable.cy.js` disables and re-enables the app instance-wide, so a second
+  concurrent run pulls the app out from under the first. Failures caused this way look like
+  ordinary flakes and will send you hunting for a bug that is not there. CI is unaffected: its
+  NC 33/34 matrix jobs each get their own instance.
 - A `cy.visit()` that dies with `ESOCKETTIMEDOUT` on `/settings/apps/...` is an instance/network
   problem, not a spec failure — those pages hit the app store when `appstoreenabled` is left on.
 - CI runs the same specs from the `e2e` job in `.gitlab-ci.yml`, as an NC 33/34 matrix against
@@ -322,6 +327,7 @@ frontend change of consequence.
 
 | Version | Date       | Changed sections                              | Change type | Agent impact                                                                                                                                                                            |
 |---------|------------|-----------------------------------------------|-------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| v2.10.0 | 2026-08-23 | 9.3                                           | minor       | Documented that only one Cypress suite may run against an instance at a time: the specs share one database and `app-enable.cy.js` toggles the app instance-wide, so concurrent runs sabotage each other and the failures look like flakes. |
 | v2.9.0  | 2026-08-22 | 1.1, 9                                        | minor       | Replaced the `helioscloud` ddev instance with the `~/projects/nextcloud_testing` harness as the documented local target for PHPUnit-in-ddev and Cypress; corrected the harness CLI (`scripts/nc-test`, not `mount-app.sh`), the in-container mount path (`apps/`, not `custom_apps/`), and the CI reference (GitLab `e2e` job, not a GitHub workflow); documented `nc-test reset` for a CI-like fresh instance and the `ESOCKETTIMEDOUT` app-store symptom. |
 | v2.8.0  | 2026-08-22 | 6.2, 15                                       | minor       | Added §6.2 (PHPUnit `->with()` breaks when a new optional param is explicitly passed at call sites) and §15 (Vitest gotchas: `window.location.hash` test-leak, `AbortController` mock pattern, `DOMContentLoaded` listener accumulation) — carried over from the settings-Vue-migration session handoff. |
 | v2.7.1  | 2026-08-21 | 9                                             | minor       | Generalized §9.4 into a generic pointer so TESTING.md no longer enumerates specs (details live in `tests/e2e/README.md`).                                                               |
