@@ -217,6 +217,7 @@
       <excludeFolder url="file://$MODULE_DIR$/app.nc_checksum" />
       <excludeFolder url="file://$MODULE_DIR$/nextcloud-v33" />
       <excludeFolder url="file://$MODULE_DIR$/nextcloud-v34" />
+      <excludeFolder url="file://$MODULE_DIR$/css" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
