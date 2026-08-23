@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.19.0] — 2026-08-23
+
 ### Changed
 
 - Move rule creation and editing into an NcDialog popup on both the admin and personal settings pages, instead of a form that expanded inline below the rule list.
