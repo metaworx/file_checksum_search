@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\Files\File;
@@ -63,13 +64,17 @@ class RuleServiceTest
 		$this->groupManager    = $this->createMock( IGroupManager::class );
 		$this->logger          = $this->createMock( LoggerInterface::class );
 
+		// A real PermissionService over the same IAppConfig mock, not a mock
+		// of it: the rule-editing permission cases below assert against the
+		// config keys and values they always did, which is what makes them
+		// evidence that moving the logic out of RuleService preserved it.
 		$this->service = new RuleService(
 			$this->appConfig,
 			$this->rootFolder,
 			$this->userManager,
 			$this->metadataService,
 			$this->logger,
-			$this->groupManager,
+			new PermissionService( $this->appConfig, $this->groupManager ),
 		);
 	}
 
@@ -115,6 +120,7 @@ class RuleServiceTest
 			            $this->userManager,
 			            $this->metadataService,
 			            $this->logger,
+			            new PermissionService( $this->appConfig, $this->groupManager ),
 		            ] )
 		            ->onlyMethods( $methods )
 		            ->getMock()

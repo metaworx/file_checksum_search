@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Changed
+
+- Extract the allow-all-users/groups/users permission logic out of `RuleService` into a new generic `PermissionService`, keyed by permission. Rule editing is its first key and keeps its existing config keys (`rule_editors_all_users`, `rule_editors_groups`, `rule_editors_users`), so nothing needs migrating and `RuleService`'s rule-editing methods behave exactly as before — they now delegate. Permissions added later reuse the mechanism instead of copying the triple a third time.
+
 ### Added
 
 - Rate limit the expensive public API endpoints per user, using Nextcloud's own `#[UserRateLimit]` attribute: 60 requests/minute on `lookup` and `duplicates`, and 20 requests/minute on `recalc`, which reads file content from storage.

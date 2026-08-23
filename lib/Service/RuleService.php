@@ -18,7 +18,6 @@ use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\Files\Search\ISearchComparison;
 use OCP\IAppConfig;
-use OCP\IGroupManager;
 use OCP\IUserManager;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -29,24 +28,25 @@ use Throwable;
  * Loads rules from IAppConfig, resolves user scope, searches for
  * matching files via Folder::search(), checks staleness via
  * MetadataService, and marks stale files as pending:{mode}.
+ *
+ * The rule-editing permission methods are a façade over
+ * {@see PermissionService}, which owns the allow-all/groups/users shape and
+ * the config keys behind it.
  */
 class RuleService
 {
 
 // constants
 	private const CONFIG_KEY_RULES = 'rule_definitions';
-	private const CONFIG_KEY_RULE_EDITORS_ALL_USERS = 'rule_editors_all_users';
-	private const CONFIG_KEY_RULE_EDITORS_GROUPS = 'rule_editors_groups';
-	private const CONFIG_KEY_RULE_EDITORS_USERS = 'rule_editors_users';
 
 
 	public function __construct(
-		private readonly IAppConfig      $appConfig,
-		private readonly IRootFolder     $rootFolder,
-		private readonly IUserManager    $userManager,
-		private readonly MetadataService $metadataService,
-		private readonly LoggerInterface $logger,
-		private readonly ?IGroupManager  $groupManager = null,
+		private readonly IAppConfig        $appConfig,
+		private readonly IRootFolder       $rootFolder,
+		private readonly IUserManager      $userManager,
+		private readonly MetadataService   $metadataService,
+		private readonly LoggerInterface   $logger,
+		private readonly PermissionService $permissionService,
 	) {
 	}
 
@@ -450,10 +450,8 @@ class RuleService
 	public function isAllUsersEnabled(): bool
 	{
 
-		return $this->appConfig->getValueBool(
-			Application::APP_ID,
-			self::CONFIG_KEY_RULE_EDITORS_ALL_USERS,
-			false,
+		return $this->permissionService->isAllUsersEnabled(
+			PermissionService::PERMISSION_RULE_EDITING,
 		);
 	}
 
@@ -464,9 +462,8 @@ class RuleService
 	public function setAllUsersEnabled( bool $enabled ): void
 	{
 
-		$this->appConfig->setValueBool(
-			Application::APP_ID,
-			self::CONFIG_KEY_RULE_EDITORS_ALL_USERS,
+		$this->permissionService->setAllUsersEnabled(
+			PermissionService::PERMISSION_RULE_EDITING,
 			$enabled,
 		);
 	}
@@ -480,7 +477,9 @@ class RuleService
 	public function getRuleEditorGroups(): array
 	{
 
-		return $this->loadStringList( self::CONFIG_KEY_RULE_EDITORS_GROUPS );
+		return $this->permissionService->getGroups(
+			PermissionService::PERMISSION_RULE_EDITING,
+		);
 	}
 
 
@@ -494,7 +493,10 @@ class RuleService
 	public function setRuleEditorGroups( array $groups ): void
 	{
 
-		$this->saveStringList( self::CONFIG_KEY_RULE_EDITORS_GROUPS, $groups );
+		$this->permissionService->setGroups(
+			PermissionService::PERMISSION_RULE_EDITING,
+			$groups,
+		);
 	}
 
 
@@ -506,7 +508,9 @@ class RuleService
 	public function getRuleEditorUsers(): array
 	{
 
-		return $this->loadStringList( self::CONFIG_KEY_RULE_EDITORS_USERS );
+		return $this->permissionService->getUsers(
+			PermissionService::PERMISSION_RULE_EDITING,
+		);
 	}
 
 
@@ -520,7 +524,10 @@ class RuleService
 	public function setRuleEditorUsers( array $users ): void
 	{
 
-		$this->saveStringList( self::CONFIG_KEY_RULE_EDITORS_USERS, $users );
+		$this->permissionService->setUsers(
+			PermissionService::PERMISSION_RULE_EDITING,
+			$users,
+		);
 	}
 
 
@@ -530,95 +537,9 @@ class RuleService
 	public function canUserEditRules( string $userId ): bool
 	{
 
-		if ( $this->isAllUsersEnabled() )
-		{
-			return true;
-		}
-
-		if ( in_array( $userId, $this->getRuleEditorUsers(), true ) )
-		{
-			return true;
-		}
-
-		if ( $this->groupManager !== null )
-		{
-			foreach ( $this->getRuleEditorGroups() as $groupId )
-			{
-				if ( $this->groupManager->isInGroup( $userId, $groupId ) )
-				{
-					return true;
-				}
-			}
-		}
-
-		return false;
-	}
-
-
-	/**
-	 * Load a JSON string-list config value.
-	 *
-	 * @return string[]
-	 */
-	private function loadStringList( string $key ): array
-	{
-
-		$json = $this->appConfig->getValueString(
-			Application::APP_ID,
-			$key,
-			'[]',
-		);
-
-		try
-		{
-			$list = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
-		}
-		catch ( JsonException )
-		{
-			return [];
-		}
-
-		if ( ! is_array( $list ) )
-		{
-			return [];
-		}
-
-		return array_values(
-			array_filter(
-				$list,
-				static fn(
-					$entry,
-				): bool => is_string( $entry ) && $entry !== '',
-			),
-		);
-	}
-
-
-	/**
-	 * Persist a JSON string-list config value.
-	 *
-	 * @param  string[]  $list
-	 *
-	 * @throws JsonException
-	 */
-	private function saveStringList(
-		string $key,
-		array  $list,
-	): void {
-
-		$list = array_values(
-			array_filter(
-				$list,
-				static fn(
-					$entry,
-				): bool => is_string( $entry ) && $entry !== '',
-			),
-		);
-
-		$this->appConfig->setValueString(
-			Application::APP_ID,
-			$key,
-			json_encode( $list, JSON_THROW_ON_ERROR ),
+		return $this->permissionService->isAllowed(
+			PermissionService::PERMISSION_RULE_EDITING,
+			$userId,
 		);
 	}
 
