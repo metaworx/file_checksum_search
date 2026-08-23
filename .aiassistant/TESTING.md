@@ -1,4 +1,4 @@
-# Testing Conventions (v2.11.0)
+# Testing Conventions (v2.12.0)
 
 Project-specific testing conventions for FCIAS (File Checksum Index & Search Nextcloud app).
 Generic agent flow-control rules are in `AGENTS.md`; contributor context is in `CONTRIBUTING.md`.
@@ -68,6 +68,32 @@ The `tests/bootstrap.php` loads NC autoloader from `/var/www/html/3rdparty/autol
 > **CI display‑warnings:** When `failOnWarning="true"` is set in `tests/phpunit.xml`, always include `--display-warnings` in the CI PHPUnit command (e.g. `./vendor/bin/phpunit -c tests/phpunit.xml --display-warnings`). Without this flag, warnings are invisible in CI logs but still cause exit code 1.
 
 Fallback: JetBrains MCP `execute_run_configuration` with `filePath` + `line` on individual test methods.
+
+### 1.2 Running the unit suite without a server
+
+When the working copy is not inside a Nextcloud installation and no ddev instance is up,
+`tests/bootstrap.php` falls back to a server source tree checked out beside the app —
+`nextcloud-v34`, `nextcloud-v33`, … — taking the highest version it finds:
+
+```bash
+vendor/bin/phpunit -c tests/phpunit.xml --testsuite unit
+```
+
+Set `FCIAS_NC_ROOT` to force a particular tree:
+
+```bash
+FCIAS_NC_ROOT=$PWD/nextcloud-v33 vendor/bin/phpunit -c tests/phpunit.xml --testsuite unit
+```
+
+The fallback loads only the two autoloaders, never `lib/base.php`: an unconfigured source
+tree cannot boot a server, and attempting it produces a fatal instead of a test report. The
+consequence is that tests needing the global `OC` class — currently three, in
+`SettingsControllerTest` and `BeforeTemplateRenderedListenerTest` — error out here and must
+be run under ddev or in CI. Everything written against OCP interfaces and mocks runs.
+
+This path is a local convenience only. The source trees are excluded per-clone via
+`.git/info/exclude`, so CI is unaffected: it installs the app into a real server, where the
+first branch of the bootstrap applies exactly as before.
 
 ## 2. Expectations
 
@@ -364,6 +390,7 @@ frontend change of consequence.
 
 | Version | Date       | Changed sections                              | Change type | Agent impact                                                                                                                                                                            |
 |---------|------------|-----------------------------------------------|-------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| v2.12.0 | 2026-08-23 | 1.2                                           | minor       | Documented that `tests/bootstrap.php` now falls back to a Nextcloud source tree checked out beside the app (highest `nextcloud-v*` found, or `FCIAS_NC_ROOT`), so the unit suite runs without a server or ddev. Records why `lib/base.php` is deliberately not loaded there and which tests are unrunnable as a result. |
 | v2.11.0 | 2026-08-23 | 9.5                                           | minor       | Added the e2e failure diagnostic (support/e2e.js + the `fciasDiag` task) and how to read its dump, plus the two NC 34 sidebar facts (reactive `currentTabs`, global tab registry) that rule out a registration or `enabled()` race as the cause of a missing tab. |
 | v2.10.0 | 2026-08-23 | 9.3                                           | minor       | Documented that only one Cypress suite may run against an instance at a time: the specs share one database and `app-enable.cy.js` toggles the app instance-wide, so concurrent runs sabotage each other and the failures look like flakes. |
 | v2.9.0  | 2026-08-22 | 1.1, 9                                        | minor       | Replaced the `helioscloud` ddev instance with the `~/projects/nextcloud_testing` harness as the documented local target for PHPUnit-in-ddev and Cypress; corrected the harness CLI (`scripts/nc-test`, not `mount-app.sh`), the in-container mount path (`apps/`, not `custom_apps/`), and the CI reference (GitLab `e2e` job, not a GitHub workflow); documented `nc-test reset` for a CI-like fresh instance and the `ESOCKETTIMEDOUT` app-store symptom. |
