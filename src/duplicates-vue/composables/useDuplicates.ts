@@ -58,6 +58,10 @@ export function useDuplicates() {
 
 	let abortController: AbortController | null = null
 
+	// Set when a verification run stopped early on the recalc rate limit,
+	// so the next run resumes instead of replaying what it already did.
+	let verifyInterrupted = false
+
 	async function load(): Promise<void> {
 		abortController?.abort()
 		abortController = new AbortController()
@@ -96,18 +100,48 @@ export function useDuplicates() {
 
 	async function verifyGroups(groups: DuplicateGroup[]): Promise<void> {
 		state.verifying = true
+		state.error = null
+
+		// The recalc endpoint is rate limited per user (see docs/api-v1.md).
+		// Verification issues one request per file, so a large enough run will
+		// hit the limit; stop there and say so rather than marking every
+		// remaining file as a mismatch.
+		let rateLimited = false
+
+		// Only a run that follows an interrupted one resumes; an ordinary
+		// repeat click still re-checks every file.
+		const resuming = verifyInterrupted
 
 		for (const group of groups) {
+			if (rateLimited) {
+				break
+			}
+
 			let matchCount = 0
 			let mismatchCount = 0
 
 			for (const file of group.files) {
+				// Already verified by the run that hit the limit — keep its
+				// result so this one picks up where that one left off.
+				if (resuming && file.verified !== undefined) {
+					if (file.verified) {
+						matchCount++
+					} else {
+						mismatchCount++
+					}
+					continue
+				}
+
 				try {
 					const url = `${generateOcsUrl(OCS_API_V1.recalcHash, { fileId: file.fileid })}?algo=${group.algo}`
 					const res = await fetch(url, {
 						method: 'POST',
 						headers: { requesttoken: OC.requestToken },
 					})
+					if (res.status === 429) {
+						rateLimited = true
+						break
+					}
 					const result = (await res.json()) as { success?: boolean; hash?: string; error?: string }
 					if (result.success) {
 						file.verified_hash = result.hash
@@ -130,8 +164,18 @@ export function useDuplicates() {
 				}
 			}
 
-			group.match_count = matchCount
-			group.mismatch_count = mismatchCount
+			// Leave an interrupted group's counts alone — partial totals would
+			// read as a completed verification.
+			if (!rateLimited) {
+				group.match_count = matchCount
+				group.mismatch_count = mismatchCount
+			}
+		}
+
+		verifyInterrupted = rateLimited
+
+		if (rateLimited) {
+			state.error = 'Verification stopped: too many recalculation requests. Wait a minute and verify the remaining files.'
 		}
 
 		state.verifying = false

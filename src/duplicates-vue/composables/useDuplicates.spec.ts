@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDuplicates } from './useDuplicates'
 
 vi.mock('@nextcloud/router', () => ({
@@ -70,6 +70,128 @@ describe('useDuplicates', () => {
 			{ algo: 'sha256', hash_value: 'new', file_count: 2, files: [] },
 		])
 		expect(error.value).toBeNull()
+	})
+
+	describe('verifyGroups', () => {
+		// The recalc endpoint is rate limited per user, and verification
+		// issues one request per file, so a long enough run will hit the
+		// limit mid-way.
+		beforeEach(() => {
+			vi.stubGlobal('OC', { requestToken: 'token' })
+		})
+
+		afterEach(() => {
+			vi.unstubAllGlobals()
+		})
+
+		function group(...names: string[]) {
+			return {
+				algo: 'sha256',
+				hash_value: 'abc',
+				file_count: names.length,
+				files: names.map((name, index) => ({ fileid: index + 1, path: `/${name}`, name })),
+			}
+		}
+
+		it('marks files as verified against the group hash', async () => {
+			vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+				Promise.resolve(jsonResponse({ success: true, hash: 'abc' })),
+			)
+
+			const { verifyGroups } = useDuplicates()
+			const g = group('a.txt', 'b.txt')
+			await verifyGroups([g])
+
+			expect(g.files.every((f) => f.verified === true)).toBe(true)
+			expect(g.match_count).toBe(2)
+			expect(g.mismatch_count).toBe(0)
+		})
+
+		it('stops verifying and reports the limit when the recalc endpoint returns 429', async () => {
+			// Regression test: the loop used to parse the 429's empty body,
+			// find no `success` field, and silently mark every remaining
+			// file as a mismatch — indistinguishable from real hash drift.
+			let calls = 0
+			vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
+				calls++
+				return Promise.resolve(
+					calls === 1
+						? jsonResponse({ success: true, hash: 'abc' })
+						: new Response('[]', { status: 429 }),
+				)
+			})
+
+			const { error, verifyGroups } = useDuplicates()
+			const g = group('a.txt', 'b.txt', 'c.txt')
+			await verifyGroups([g])
+
+			expect(g.files[0].verified).toBe(true)
+			// The files past the limit are left untouched, not marked as
+			// mismatching.
+			expect(g.files[1].verified).toBeUndefined()
+			expect(g.files[2].verified).toBeUndefined()
+			expect(error.value).toMatch(/too many recalculation requests/i)
+		})
+
+		it('leaves an interrupted group without match counts', async () => {
+			// Partial totals would read as a completed verification.
+			vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+				Promise.resolve(new Response('[]', { status: 429 })),
+			)
+
+			const { verifyGroups } = useDuplicates()
+			const g = group('a.txt', 'b.txt')
+			await verifyGroups([g])
+
+			expect(g.match_count).toBeUndefined()
+			expect(g.mismatch_count).toBeUndefined()
+		})
+
+		it('resumes where the interrupted run stopped, and only then', async () => {
+			let attempt = 0
+			const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
+				attempt++
+				return Promise.resolve(
+					attempt === 1
+						? jsonResponse({ success: true, hash: 'abc' })
+						: new Response('[]', { status: 429 }),
+				)
+			})
+
+			const { verifyGroups } = useDuplicates()
+			const g = group('a.txt', 'b.txt')
+			await verifyGroups([g])
+			expect(fetchMock).toHaveBeenCalledTimes(2)
+
+			// The limit has cleared: the second run skips the file the first
+			// one already verified and starts at the one it could not reach.
+			fetchMock.mockImplementation(() =>
+				Promise.resolve(jsonResponse({ success: true, hash: 'abc' })),
+			)
+			fetchMock.mockClear()
+			await verifyGroups([g])
+			expect(fetchMock).toHaveBeenCalledTimes(1)
+			expect(g.match_count).toBe(2)
+
+			// That run completed, so a further click is an ordinary re-check
+			// of every file, not a resume.
+			fetchMock.mockClear()
+			await verifyGroups([g])
+			expect(fetchMock).toHaveBeenCalledTimes(2)
+		})
+
+		it('does not start later groups once the limit was hit', async () => {
+			const fetchMock = vi
+				.spyOn(globalThis, 'fetch')
+				.mockImplementation(() => Promise.resolve(new Response('[]', { status: 429 })))
+
+			const { verifyGroups } = useDuplicates()
+			await verifyGroups([group('a.txt'), group('b.txt')])
+
+			// One attempt, then the run stops — the second group is never
+			// requested.
+			expect(fetchMock).toHaveBeenCalledTimes(1)
+		})
 	})
 
 	it('loads duplicate groups on success', async () => {

@@ -11,6 +11,16 @@ the first stable release.
 
 ## [Unreleased]
 
+### Added
+
+- Rate limit the expensive public API endpoints per user, using Nextcloud's own `#[UserRateLimit]` attribute: 60 requests/minute on `lookup` and `duplicates`, and 20 requests/minute on `recalc`, which reads file content from storage.
+
+### Fixed
+
+- Fix `docs/api-v1.md` documenting a rate-limiting scheme that did not exist. It described `occ config:app:set` keys (`rate_limit_enabled`, `rate_limit_max_requests`, `rate_limit_window_seconds`) that were never read by any code, so an administrator following it saw the commands succeed and believed protection was enabled when none was. The section now documents the limits that are actually enforced, the empty-bodied 429 Nextcloud returns, and the `ratelimit_overwrite` system setting that changes them.
+- Fix the duplicate browser's Verify hashes run misreporting a rate limit as hash drift. It POSTs one recalculation per file and never checked the response status, so once the new limit is reached it would parse the empty 429 body, find no `success` field, and mark every remaining file as a mismatch. It now stops at the limit, leaves the unchecked files and the interrupted group's counts untouched, says why, and resumes from that point on the next run.
+- Fix `docs/api-v1-openapi.yaml` declaring a `429` response with a `Retry-After` header and a `retry_after` body field on all six endpoints. No code path could emit that response, so generated clients could carry retry logic for it. The `429` is now declared only on the three rate-limited endpoints, with the empty body Nextcloud actually sends.
+
 ### Removed
 
 - Remove the legacy `/api/1.0/` REST routes and the `LookupController` that served them. The app was never published, so nothing external can be relying on them, and keeping a second, frozen copy of the same four operations meant every API change had to be made and reviewed twice. Everything they did is available on `/api/v1/`: `lookup/{hash}` → `lookup?hash=…`, and `file/{id}/hashes`, `file/{id}/duplicates` and `file/{id}/recalc` under the same names.

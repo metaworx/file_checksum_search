@@ -94,8 +94,6 @@ paths:
                 $ref: "#/components/schemas/FileHashesResponse"
         "404":
           $ref: "#/components/responses/NotFound"
-        "429":
-          $ref: "#/components/responses/RateLimited"
         "500":
           $ref: "#/components/responses/ServerError"
 
@@ -122,8 +120,6 @@ paths:
                 $ref: "#/components/schemas/SameHashResponse"
         "404":
           $ref: "#/components/responses/NotFound"
-        "429":
-          $ref: "#/components/responses/RateLimited"
         "500":
           $ref: "#/components/responses/ServerError"
 
@@ -237,8 +233,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/StatusResponse"
-        "429":
-          $ref: "#/components/responses/RateLimited"
         "500":
           $ref: "#/components/responses/ServerError"
 
@@ -267,18 +261,6 @@ components:
           type: string
           description: Human-readable error message
           example: "Hash parameter is required."
-
-    RateLimitError:
-      type: object
-      required: [error, retry_after]
-      properties:
-        error:
-          type: string
-          example: "Too many requests"
-        retry_after:
-          type: integer
-          description: Seconds until the rate limit resets
-          example: 30
 
     HashLookupResponse:
       type: object
@@ -456,19 +438,18 @@ components:
             error: "File not found."
 
     RateLimited:
-      description: Too many requests
-      headers:
-        Retry-After:
-          schema:
-            type: integer
-          description: Seconds until rate limit resets
+      description: >-
+        Too many requests. The per-user rate limit for this endpoint was
+        exceeded; the request was rejected by Nextcloud before reaching the
+        controller. The body is empty and no Retry-After header is sent — back
+        off for the length of the limit window and retry.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/RateLimitError"
-          example:
-            error: "Too many requests"
-            retry_after: 30
+            type: array
+            maxItems: 0
+            items: {}
+          example: []
 
     ServerError:
       description: Internal server error

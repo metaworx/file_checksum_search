@@ -15,7 +15,9 @@ same checksum.
 - **Limit** — how many groups to show per page.
 - **Refresh** — reload the list.
 - **Verify hashes** — recalculate every hash in the list from file content
-  and flag groups whose hashes no longer match.
+  and flag groups whose hashes no longer match. Recalculation is rate limited
+  to 20 files per minute, so a long list stops partway with a message; wait a
+  minute and click again to continue with the rest.
 - **Only matching** — show only groups that passed verification.
 
 Click a group header to expand it and see the files in the group, with

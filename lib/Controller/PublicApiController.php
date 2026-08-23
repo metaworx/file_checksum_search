@@ -17,6 +17,7 @@ use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\ApiRoute;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\IGroupManager;
 use OCP\IRequest;
@@ -179,6 +180,7 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[UserRateLimit(limit: 60, period: 60)]
 	#[ApiRoute(verb: 'GET', url: '/api/v1/duplicates')]
 	public function findAllDuplicates(
 		?string $algo = null,
@@ -273,6 +275,7 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[UserRateLimit(limit: 60, period: 60)]
 	#[ApiRoute(verb: 'GET', url: '/api/v1/lookup')]
 	public function lookup(
 		string  $hash,
@@ -333,6 +336,7 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[UserRateLimit(limit: 20, period: 60)]
 	#[ApiRoute(verb: 'POST', url: '/api/v1/file/{fileId}/recalc')]
 	public function recalcHash( int $fileId ): DataResponse
 	{

@@ -512,26 +512,64 @@ Deprecated items remain functional for one full major version before removal.
 
 ## Rate Limiting
 
-By default, no custom rate limiting is applied. Administrators can enable it:
+The expensive endpoints carry a per-user rate limit, enforced by Nextcloud's own
+`RateLimitingMiddleware` via the [`#[UserRateLimit]`](https://docs.nextcloud.com/server/latest/developer_manual/basics/controllers.html)
+attribute. Limits are counted **per user, per endpoint** — one user exhausting `lookup`
+does not affect another user, nor their own access to the other endpoints.
 
-```bash
-# Enable rate limiting
-php occ config:app:set file_checksum_search rate_limit_enabled --value=true
+| Endpoint | Limit |
+|----------|-------|
+| `GET /api/v1/lookup` | 60 requests / 60 s |
+| `GET /api/v1/duplicates` | 60 requests / 60 s |
+| `POST /api/v1/file/{fileId}/recalc` | 20 requests / 60 s |
 
-# Max requests per window (default: 100)
-php occ config:app:set file_checksum_search rate_limit_max_requests --value=100
+Recalculation is limited more tightly because it reads file content from storage. The
+remaining endpoints (`/status`, `/file/{fileId}/hashes`, `/file/{fileId}/duplicates`)
+are index lookups only and are not rate limited.
 
-# Window in seconds (default: 60)
-php occ config:app:set file_checksum_search rate_limit_window_seconds --value=60
+Requests are counted only for authenticated users. There is no anonymous limit, because
+every endpoint requires authentication in the first place.
+
+### Exceeding a limit
+
+Once the limit is exceeded within the window, the request is rejected **before** the
+controller runs:
+
+```
+HTTP/1.1 429 Too Many Requests
+Content-Type: application/json
+
+[]
 ```
 
-When enabled and exceeded, the API returns:
+The body is empty and there is no `Retry-After` header — this is Nextcloud's standard
+429 for non-HTML clients, not an app-specific response. Clients should back off for the
+length of the window (60 seconds) and retry.
 
-```json
-{"error": "Too many requests", "retry_after": 30}
+### Changing the limits
+
+The limits are not app configuration; they are overridden per endpoint through
+Nextcloud's `ratelimit_overwrite` system setting in `config/config.php`. The key is
+`<app>.<controller-without-suffix>.<method>`, lowercased:
+
+```php
+'ratelimit_overwrite' => [
+    'file_checksum_search.publicapi.lookup' => [
+        'user' => ['limit' => 600, 'period' => 60],
+    ],
+    'file_checksum_search.publicapi.recalchash' => [
+        'user' => ['limit' => 60, 'period' => 60],
+    ],
+],
 ```
 
-HTTP status: `429 Too Many Requests`.
+Both `limit` and `period` must be present and greater than zero, or the override is
+ignored and a warning is logged.
+
+> **Note:** earlier revisions of this document described `occ config:app:set` keys
+> (`rate_limit_enabled`, `rate_limit_max_requests`, `rate_limit_window_seconds`) and a
+> `{"error": ..., "retry_after": ...}` response body. Those were never implemented and
+> have been removed. Setting those config keys has no effect.
 
 ---
 
@@ -544,7 +582,7 @@ HTTP status: `429 Too Many Requests`.
 | 200 | Success | Normal response |
 | 400 | Bad request (validation error) | `{"error": "message"}` |
 | 404 | Resource not found | `{"error": "message"}` |
-| 429 | Rate limited | `{"error": "Too many requests", "retry_after": seconds}` |
+| 429 | Rate limited (see [Rate Limiting](#rate-limiting)) | Empty body |
 | 500 | Internal server error | `{"error": "message"}` |
 
 ### PHP Exceptions
