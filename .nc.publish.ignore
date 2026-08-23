@@ -65,3 +65,17 @@ openapi.json
 # Legacy scaffold artifacts
 /app
 /app.tar
+/app.nc_checksum
+
+# Local-only working directories. These are gitignored, so they never show up
+# in `git status`, but rsync copies them into the package all the same — the
+# nextcloud-v* trees are full Nextcloud checkouts created by
+# `nc-test --link` (see .aiassistant/TESTING.md 9.1) and carry their own
+# data/ directory.
+/nextcloud-v*
+/cypress
+/.cache
+/.claude
+
+# Test tooling not covered above
+/vitest.config.ts

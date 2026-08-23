@@ -336,6 +336,16 @@ mkdir -p "$BUILD_DIR"
 tar -czf "$ARTIFACT" -C "$BUILD_DIR" "$APP_ID"
 cp "$ARTIFACT" "$VERSIONED_ARTIFACT"
 
+# The tarballs are what ship. Leaving the unpacked staging tree behind doubles
+# the size of build/ and of the CI artifact that publishes it. Set
+# FCIAS_KEEP_STAGING=1 to keep it for inspection.
+if [ "${FCIAS_KEEP_STAGING:-0}" = "1" ]; then
+	echo "==> Keeping staging directory ${STAGING_DIR} (FCIAS_KEEP_STAGING=1)"
+else
+	echo "==> Removing staging directory ${STAGING_DIR}"
+	rm -rf "$STAGING_DIR"
+fi
+
 echo "==> Done"
 echo "    ${ARTIFACT}"
 echo "    ${VERSIONED_ARTIFACT}"
