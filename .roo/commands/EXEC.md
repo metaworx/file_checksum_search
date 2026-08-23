@@ -45,7 +45,7 @@ wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/P
 Scoped runs:
 
 ```
-wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/Unit/Controller/LookupControllerTest.php
+wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/Unit/Controller/PublicApiControllerTest.php
 wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/Unit/
 ```
 

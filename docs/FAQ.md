@@ -78,9 +78,6 @@ FCIAS exposes a stable, versioned REST API at
 surfaces — full endpoint/method list, authentication, request/response
 examples, versioning policy, and error handling.
 
-The legacy `/api/1.0/` routes are frozen and retained for backward
-compatibility only — migrate to `/api/v1/` for new integrations.
-
 ## How do personal settings and admin_enforced work?
 
 There is a single global list of rules. Administrators edit all rules and

@@ -32,7 +32,7 @@ wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit
 Scoped run (single file or directory):
 
 ```bash
-wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/Unit/Controller/LookupControllerTest.php
+wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/Unit/Controller/PublicApiControllerTest.php
 wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/Unit/
 ```
 

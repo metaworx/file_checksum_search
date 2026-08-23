@@ -222,17 +222,6 @@ $hashes = $api->getHashesByFile($file);
 
 Full PHP method reference in [`docs/api-v1.md`](docs/api-v1.md#php-api).
 
-### Legacy `/api/1.0/` Endpoints
-
-The original `/api/1.0/` routes are retained for backward compatibility but are **frozen** — no new features. Migrate to `/api/v1/` for new integrations.
-
-| Endpoint | v1 Equivalent |
-|----------|--------------|
-| `GET /api/1.0/lookup/{hash}` | `GET /api/v1/lookup?hash=...` |
-| `GET /api/1.0/file/{id}/hashes` | `GET /api/v1/file/{id}/hashes` |
-| `GET /api/1.0/file/{id}/duplicates` | `GET /api/v1/file/{id}/duplicates` |
-| `POST /api/1.0/file/{id}/recalc` | `POST /api/v1/file/{id}/recalc` |
-
 ## Admin & Personal Settings
 
 Navigate to **Administration settings → Additional settings → File Checksum Index & Search**.

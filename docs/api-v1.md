@@ -508,10 +508,6 @@ Warning: 299 - "The field 'old_name' is deprecated. Use 'new_name' instead. Will
 
 Deprecated items remain functional for one full major version before removal.
 
-### Legacy `/api/1.0/` Routes
-
-The existing `/api/1.0/` endpoints are retained for backward compatibility but are frozen — no new features will be added. Consumers should migrate to `/api/v1/`.
-
 ---
 
 ## Rate Limiting

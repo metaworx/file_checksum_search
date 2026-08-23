@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Removed
+
+- Remove the legacy `/api/1.0/` REST routes and the `LookupController` that served them. The app was never published, so nothing external can be relying on them, and keeping a second, frozen copy of the same four operations meant every API change had to be made and reviewed twice. Everything they did is available on `/api/v1/`: `lookup/{hash}` → `lookup?hash=…`, and `file/{id}/hashes`, `file/{id}/duplicates` and `file/{id}/recalc` under the same names.
+
 ## [0.19.0] — 2026-08-23
 
 ### Changed
