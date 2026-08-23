@@ -1,4 +1,4 @@
-# Testing Conventions (v2.10.0)
+# Testing Conventions (v2.11.0)
 
 Project-specific testing conventions for FCIAS (File Checksum Index & Search Nextcloud app).
 Generic agent flow-control rules are in `AGENTS.md`; contributor context is in `CONTRIBUTING.md`.
@@ -272,6 +272,43 @@ alphabetically), any ordering dependencies between specs, and the data strategy.
 Consult it before adding or running a spec — some specs depend on data produced
 by earlier-running specs and must not be run standalone.
 
+### 9.5 Failure diagnostic
+
+A failed spec prints a context dump to stdout, so a CI failure can be read without
+reproducing it locally. It is wired up in two places: `tests/e2e/support/e2e.js` collects the
+payload in an `afterEach` guarded on `this.currentTest.state === 'failed'`, and the `fciasDiag`
+task in `cypress.config.cjs` prints it — `cy.log()` does not reach stdout under `cypress run`,
+which is exactly where the context is wanted. A passing run pays nothing for this.
+
+```
+=== FCIAS failure diagnostic ===
+{ "test": ..., "url": ..., "sidebarOpen": true, "sidebarHeader": "Loading …",
+  "sidebarTabs": [], "fciasScripts": ["file_checksum_search-sidebar.mjs"],
+  "consoleLog": [ ... ] }
+=== end FCIAS failure diagnostic ===
+```
+
+Reading it when a sidebar tab is missing:
+
+- `sidebarTabs: []` with `sidebarHeader: "Loading …"` — the files app never established a
+  context (`node` + `activeFolder` + `activeView`), so **no** app's tab renders, not just ours.
+  Not an FCIAS bug.
+- tabs listed but Checksums absent, and `fciasScripts` empty — the app was disabled, or its
+  init script was not injected, for that page load.
+- tabs listed, Checksums absent, `fciasScripts` populated — our `enabled()` returned false;
+  check the node type.
+
+Two facts about NC 34's sidebar, dug out of `apps/files/src/store/sidebar.ts`, are worth not
+re-deriving:
+
+- `currentTabs` is a `computed` over the active node, folder and view, so a tab's `enabled()`
+  is **re-evaluated reactively**. A transiently-missing node cannot hide a tab permanently.
+- `getSidebar()` always returns a proxy whose `registerTab()` writes to a global registry, so
+  registration never silently fails because the sidebar is not mounted yet.
+
+To extend the dump, add fields in `collectDiagnostic()`; it is wrapped in try/catch so a
+malformed DOM reports `collectionError` instead of masking the real failure.
+
 ## 14. JetBrains MCP Quality Workflow
 
 After editing PHP files, run through this quality pipeline using JetBrains MCP tools:
@@ -327,6 +364,7 @@ frontend change of consequence.
 
 | Version | Date       | Changed sections                              | Change type | Agent impact                                                                                                                                                                            |
 |---------|------------|-----------------------------------------------|-------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| v2.11.0 | 2026-08-23 | 9.5                                           | minor       | Added the e2e failure diagnostic (support/e2e.js + the `fciasDiag` task) and how to read its dump, plus the two NC 34 sidebar facts (reactive `currentTabs`, global tab registry) that rule out a registration or `enabled()` race as the cause of a missing tab. |
 | v2.10.0 | 2026-08-23 | 9.3                                           | minor       | Documented that only one Cypress suite may run against an instance at a time: the specs share one database and `app-enable.cy.js` toggles the app instance-wide, so concurrent runs sabotage each other and the failures look like flakes. |
 | v2.9.0  | 2026-08-22 | 1.1, 9                                        | minor       | Replaced the `helioscloud` ddev instance with the `~/projects/nextcloud_testing` harness as the documented local target for PHPUnit-in-ddev and Cypress; corrected the harness CLI (`scripts/nc-test`, not `mount-app.sh`), the in-container mount path (`apps/`, not `custom_apps/`), and the CI reference (GitLab `e2e` job, not a GitHub workflow); documented `nc-test reset` for a CI-like fresh instance and the `ESOCKETTIMEDOUT` app-store symptom. |
 | v2.8.0  | 2026-08-22 | 6.2, 15                                       | minor       | Added §6.2 (PHPUnit `->with()` breaks when a new optional param is explicitly passed at call sites) and §15 (Vitest gotchas: `window.location.hash` test-leak, `AbortController` mock pattern, `DOMContentLoaded` listener accumulation) — carried over from the settings-Vue-migration session handoff. |
