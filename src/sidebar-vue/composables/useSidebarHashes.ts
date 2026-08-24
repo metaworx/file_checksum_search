@@ -19,6 +19,8 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 	const error = ref('')
 	const recalculating = ref<string | null>(null)
 	const recalcError = ref<string | null>(null)
+	/** Why the last recalculation failed, when the server said. */
+	const recalcErrorMessage = ref('')
 	const duplicates = ref<DuplicateGroup[] | null>(null)
 	const searching = ref(false)
 	const dupError = ref('')
@@ -68,6 +70,7 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 
 		recalculating.value = algo
 		recalcError.value = null
+		recalcErrorMessage.value = ''
 
 		try {
 			const url = generateOcsUrl(OCS_API_V1.recalcHash, { fileId: id })
@@ -75,14 +78,19 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 				method: 'POST',
 				headers: { requesttoken: OC.requestToken },
 			})
-			const result = (await response.json()) as { success?: boolean }
+			const result = (await response.json()) as { success?: boolean; error?: string }
 			if (result.success) {
 				await loadHashes()
 			} else {
 				recalcError.value = algo
+				// A refusal is usually policy, not breakage — an exclude rule
+				// blocking the read. "Error" alone leaves that looking like a
+				// malfunction to retry, so say what the server said.
+				recalcErrorMessage.value = result.error || 'Recalculation failed.'
 			}
 		} catch {
 			recalcError.value = algo
+			recalcErrorMessage.value = 'Recalculation failed.'
 		} finally {
 			recalculating.value = null
 		}
@@ -120,6 +128,7 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 		error,
 		recalculating,
 		recalcError,
+		recalcErrorMessage,
 		duplicates,
 		searching,
 		dupError,

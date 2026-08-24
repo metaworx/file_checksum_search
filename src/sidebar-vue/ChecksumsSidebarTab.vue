@@ -36,6 +36,7 @@ const {
 	error,
 	recalculating,
 	recalcError,
+	recalcErrorMessage,
 	duplicates,
 	searching,
 	dupError,
@@ -141,6 +142,9 @@ watch(
 						@recalc="onRecalc" />
 				</div>
 			</div>
+			<p v-if="recalcErrorMessage" class="fcias-error fcias-recalc-error">
+				{{ recalcErrorMessage }}
+			</p>
 		</section>
 
 		<section v-if="!loading && !error" class="fcias-section">
@@ -246,6 +250,10 @@ watch(
 	display: flex;
 	align-items: center;
 	gap: 6px;
+}
+
+.fcias-recalc-error {
+	margin-top: 8px;
 }
 
 .fcias-error {

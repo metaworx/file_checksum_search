@@ -64,10 +64,42 @@ describe('useSidebarHashes', () => {
 	it('sets recalcError when recalculation fails', async () => {
 		vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('network'))
 
-		const { recalcError, recalc } = useSidebarHashes(() => fileNode(123))
+		const { recalcError, recalcErrorMessage, recalc } = useSidebarHashes(() => fileNode(123))
 		await recalc('sha256')
 
 		expect(recalcError.value).toBe('sha256')
+		expect(recalcErrorMessage.value).toBe('Recalculation failed.')
+	})
+
+	it('keeps the server\'s reason for a refused recalculation', async () => {
+		// An exclude rule refusing the read is policy, not breakage. Reporting
+		// it as a bare "Error" reads as a malfunction worth retrying.
+		vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse({
+			success: false,
+			error: 'Hashing is excluded for this path by an administrator rule.',
+			excluded: true,
+			ruleId: 'abc123',
+		}))
+
+		const { recalcError, recalcErrorMessage, recalc } = useSidebarHashes(() => fileNode(123))
+		await recalc('sha1')
+
+		expect(recalcError.value).toBe('sha1')
+		expect(recalcErrorMessage.value).toContain('excluded for this path')
+	})
+
+	it('clears a previous reason when a recalculation is retried', async () => {
+		vi.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(jsonResponse({ success: false, error: 'Nope.' }))
+			.mockResolvedValueOnce(jsonResponse({ success: true }))
+			.mockResolvedValueOnce(jsonResponse({ hashes: [] }))
+
+		const { recalcErrorMessage, recalc } = useSidebarHashes(() => fileNode(123))
+		await recalc('sha1')
+		expect(recalcErrorMessage.value).toBe('Nope.')
+
+		await recalc('sha1')
+		expect(recalcErrorMessage.value).toBe('')
 	})
 
 	it('finds duplicate groups', async () => {
