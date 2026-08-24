@@ -136,14 +136,20 @@ export function useAdminSettings() {
 		}
 	}
 
-	/** The first definition returned by listRules is always the global (priority 0) rule. */
+	/**
+	 * The catch-all default rule, identified by its `pinned` flag.
+	 *
+	 * It used to be whatever sat at index 0. Rules are now stored in band
+	 * order and the catch-all evaluates *last*, so slot 0 is no longer it —
+	 * the flag is the only reliable identifier.
+	 */
 	function globalRule(): Rule | null {
-		return state.definitions[0] ?? null
+		return state.definitions.find((rule) => rule.pinned === true) ?? null
 	}
 
-	/** Every definition after the global rule. */
+	/** Every rule except the pinned catch-all, in band order. */
 	function additionalRules(): Rule[] {
-		return state.definitions.slice(1)
+		return state.definitions.filter((rule) => rule.pinned !== true)
 	}
 
 	async function saveGlobalRule(fields: { id?: string | number; mode: string; algos: string[]; admin_enforced: boolean }): Promise<ApiResponse> {
@@ -155,6 +161,8 @@ export function useAdminSettings() {
 			userScope: 'all',
 			path: '**',
 			admin_enforced: fields.admin_enforced,
+			// Marks this as the catch-all default, which evaluates last.
+			pinned: true,
 		})
 		if (data.success) {
 			await loadDefinitions()
@@ -194,14 +202,6 @@ export function useAdminSettings() {
 		return data
 	}
 
-	async function reorderRules(orderedIds: Array<string | number>): Promise<ApiResponse> {
-		const data = await post(generateOcsUrl(OCS_SETTINGS.reorderRules), { orderedIds })
-		if (data.success) {
-			await loadDefinitions()
-		}
-		return data
-	}
-
 	return {
 		...toRefs(state),
 		loadStatus,
@@ -212,6 +212,5 @@ export function useAdminSettings() {
 		saveRule,
 		deleteRule,
 		toggleRule,
-		reorderRules,
 	}
 }

@@ -101,29 +101,4 @@ describe('usePersonalSettings', () => {
 		expect(result).toEqual({ success: false, error: 'nope' })
 		expect(globalThis.fetch).toHaveBeenCalledTimes(1)
 	})
-
-	it('reorderRules posts the ordered IDs and reloads rules on success', async () => {
-		const fetchMock = vi
-			.spyOn(globalThis, 'fetch')
-			.mockResolvedValueOnce(jsonResponse({ success: true }))
-			.mockResolvedValueOnce(jsonResponse({ rules: [{ id: 2, path: '/b' }, { id: 1, path: '/a' }] }))
-
-		const { rules, reorderRules } = usePersonalSettings()
-		const result = await reorderRules([2, 1])
-
-		expect(result.success).toBe(true)
-		expect(rules.value).toEqual([{ id: 2, path: '/b' }, { id: 1, path: '/a' }])
-		const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)
-		expect(body).toEqual({ orderedIds: [2, 1] })
-	})
-
-	it('reorderRules does not reload rules when the request fails', async () => {
-		vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse({ success: false, error: 'nope' }))
-
-		const { reorderRules } = usePersonalSettings()
-		const result = await reorderRules([1])
-
-		expect(result).toEqual({ success: false, error: 'nope' })
-		expect(globalThis.fetch).toHaveBeenCalledTimes(1)
-	})
 })

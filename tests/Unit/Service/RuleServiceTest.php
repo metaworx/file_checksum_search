@@ -19,6 +19,8 @@ use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\IAppConfig;
+use OCP\IGroup;
+use OCP\IGroupManager;
 use OCP\IUser;
 use OCP\IUserManager;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -47,6 +49,8 @@ class RuleServiceTest
 
 	private MockObject|PermissionService $permissionService;
 
+	private MockObject|IGroupManager     $groupManager;
+
 	private MockObject|LoggerInterface   $logger;
 
 	private RuleService                  $service;
@@ -62,6 +66,7 @@ class RuleServiceTest
 		$this->userManager       = $this->createMock( IUserManager::class );
 		$this->metadataService   = $this->createMock( MetadataService::class );
 		$this->permissionService = $this->createMock( PermissionService::class );
+		$this->groupManager      = $this->createMock( IGroupManager::class );
 		$this->logger            = $this->createMock( LoggerInterface::class );
 
 		$this->service = new RuleService(
@@ -71,6 +76,7 @@ class RuleServiceTest
 			$this->metadataService,
 			$this->logger,
 			$this->permissionService,
+			$this->groupManager,
 		);
 	}
 
@@ -117,6 +123,7 @@ class RuleServiceTest
 			            $this->metadataService,
 			            $this->logger,
 			            $this->permissionService,
+			            $this->groupManager,
 		            ] )
 		            ->onlyMethods( $methods )
 		            ->getMock()
@@ -1046,231 +1053,289 @@ class RuleServiceTest
 	}
 
 
-	// reorderRules — admin ($requestingUserId === null)
+	// bandOf / scope helpers
 
-	public function testReorderRulesPersistsNewOrderLeavingSlotZeroFixed(): void
+
+	/**
+	 * @dataProvider bandProvider
+	 */
+	public function testBandOfDerivesTheBandFromScopeAndFlags(
+		array $rule,
+		int   $expected,
+	): void {
+
+		$this->assertSame( $expected, RuleService::bandOf( $rule ) );
+	}
+
+
+	/**
+	 * @return array<string, array{array, int}>
+	 */
+	public static function bandProvider(): array
 	{
 
-		$rules = [
-			[
-				'id'   => 'global',
-				'path' => '**',
+		return [
+			'user enforced'   => [
+				[
+					'userScope'      => 'alice',
+					'admin_enforced' => true,
+				],
+				RuleService::BAND_USER_ENFORCED,
 			],
-			[
-				'id'   => 'r1',
-				'path' => '/a',
+			'group enforced'  => [
+				[
+					'userScope'      => 'group:staff',
+					'admin_enforced' => true,
+				],
+				RuleService::BAND_GROUP_ENFORCED,
 			],
-			[
-				'id'   => 'r2',
-				'path' => '/b',
+			'global enforced' => [
+				[
+					'userScope'      => 'all',
+					'admin_enforced' => true,
+				],
+				RuleService::BAND_GLOBAL_ENFORCED,
 			],
-			[
-				'id'   => 'r3',
-				'path' => '/c',
+			'user'            => [
+				[ 'userScope' => 'alice' ],
+				RuleService::BAND_USER,
+			],
+			'group'           => [
+				[ 'userScope' => 'group:staff' ],
+				RuleService::BAND_GROUP,
+			],
+			'global'          => [
+				[ 'userScope' => 'all' ],
+				RuleService::BAND_GLOBAL,
+			],
+			'scope omitted'   => [
+				[],
+				RuleService::BAND_GLOBAL,
+			],
+			// pinned wins over everything else, including the enforced flag.
+			'pinned'          => [
+				[
+					'userScope' => 'all',
+					'pinned'    => true,
+				],
+				RuleService::BAND_DEFAULT,
+			],
+			'pinned enforced' => [
+				[
+					'userScope'      => 'all',
+					'admin_enforced' => true,
+					'pinned'         => true,
+				],
+				RuleService::BAND_DEFAULT,
 			],
 		];
-
-		$this->setupRulesConfig( $rules );
-
-		$this->appConfig->expects( $this->once() )
-		                ->method( 'setValueString' )
-		                ->with(
-			                Application::APP_ID,
-			                'rule_definitions',
-			                $this->callback(
-				                function (
-					                string $json,
-				                ): bool {
-
-					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
-
-					                return array_column( $rules, 'id' ) === [
-							                'global',
-							                'r3',
-							                'r1',
-							                'r2',
-						                ];
-				                },
-			                ),
-		                )
-		;
-
-		$this->service->reorderRules(
-			[
-				'r3',
-				'r1',
-				'r2',
-			],
-		);
 	}
 
 
-	public function testReorderRulesRejectsAnAttemptToMoveTheRuleInSlotZero(): void
+	public function testScopeHelpersParseGroupScopes(): void
 	{
 
-		$this->setupRulesConfig( [
-			[
-				'id'   => 'global',
-				'path' => '**',
-			],
-			[
-				'id'   => 'r1',
-				'path' => '/a',
-			],
-			[
-				'id'   => 'r2',
-				'path' => '/b',
-			],
-		] );
+		$this->assertSame( 'global', RuleService::scopeKind( 'all' ) );
+		$this->assertSame( 'group', RuleService::scopeKind( 'group:staff' ) );
+		$this->assertSame( 'user', RuleService::scopeKind( 'alice' ) );
 
-		$this->appConfig->expects( $this->never() )
-		                ->method( 'setValueString' )
-		;
-
-		$this->expectException( InvalidArgumentException::class );
-
-		// 'global' occupies slot 0 and must never appear in an admin
-		// orderedIds payload, however it's positioned within it.
-		$this->service->reorderRules(
-			[
-				'global',
-				'r2',
-				'r1',
-			],
-		);
+		$this->assertSame( 'staff', RuleService::scopeGroupId( 'group:staff' ) );
+		$this->assertNull( RuleService::scopeGroupId( 'alice' ) );
+		$this->assertNull( RuleService::scopeGroupId( 'all' ) );
 	}
 
 
-	public function testReorderRulesRejectsAnIncompleteOrder(): void
+	public function testSortIntoBandsIsStableWithinABand(): void
 	{
-
-		$this->setupRulesConfig( [
-			[
-				'id'   => 'global',
-				'path' => '**',
-			],
-			[
-				'id'   => 'r1',
-				'path' => '/a',
-			],
-			[
-				'id'   => 'r2',
-				'path' => '/b',
-			],
-		] );
-
-		$this->appConfig->expects( $this->never() )
-		                ->method( 'setValueString' )
-		;
-
-		$this->expectException( InvalidArgumentException::class );
-
-		// Omits 'r2' — a partial reorder could silently drop a rule from
-		// evaluation order rather than merely reordering it.
-		$this->service->reorderRules( [ 'r1' ] );
-	}
-
-
-	public function testReorderRulesRejectsAnUnknownId(): void
-	{
-
-		$this->setupRulesConfig( [
-			[
-				'id'   => 'global',
-				'path' => '**',
-			],
-			[
-				'id'   => 'r1',
-				'path' => '/a',
-			],
-		] );
-
-		$this->appConfig->expects( $this->never() )
-		                ->method( 'setValueString' )
-		;
-
-		$this->expectException( InvalidArgumentException::class );
-
-		$this->service->reorderRules( [ 'not-a-real-id' ] );
-	}
-
-
-	public function testReorderRulesRejectsADuplicateId(): void
-	{
-
-		$this->setupRulesConfig( [
-			[
-				'id'   => 'global',
-				'path' => '**',
-			],
-			[
-				'id'   => 'r1',
-				'path' => '/a',
-			],
-			[
-				'id'   => 'r2',
-				'path' => '/b',
-			],
-		] );
-
-		$this->appConfig->expects( $this->never() )
-		                ->method( 'setValueString' )
-		;
-
-		$this->expectException( InvalidArgumentException::class );
-
-		// Same set by content, but 'r1' twice and 'r2' missing — a naive
-		// set-equality check on the sorted arrays alone would miss this.
-		$this->service->reorderRules(
-			[
-				'r1',
-				'r1',
-			],
-		);
-	}
-
-
-	// reorderRules — personal ($requestingUserId given)
-
-	public function testReorderRulesRestrictsPersonalCallerToTheirOwnMutableRules(): void
-	{
-
-		$folder = $this->createFolderMock();
-		$folder->method( 'isCreatable' )
-		       ->willReturn( true )
-		;
-		$this->rootFolder->method( 'getUserFolder' )
-		                 ->with( 'alice' )
-		                 ->willReturn( $folder )
-		;
 
 		$rules = [
-			// Not alice's — must never move, regardless of what she submits.
 			[
-				'id'        => 'bobs-rule',
-				'userScope' => 'bob',
-				'path'      => '/',
+				'id'        => 'g1',
+				'userScope' => 'all',
 			],
 			[
-				'id'        => 'r1',
+				'id'        => 'u1',
 				'userScope' => 'alice',
-				'path'      => '/',
 			],
 			[
-				'id'        => 'r2',
-				'userScope' => 'alice',
-				'path'      => '/',
+				'id'        => 'g2',
+				'userScope' => 'all',
 			],
-			// Alice-scoped but locked — must also never move.
 			[
-				'id'             => 'locked',
+				'id'             => 'e1',
 				'userScope'      => 'alice',
-				'path'           => '/',
 				'admin_enforced' => true,
 			],
+			[
+				'id'        => 'd1',
+				'userScope' => 'all',
+				'pinned'    => true,
+			],
+			[
+				'id'        => 'u2',
+				'userScope' => 'alice',
+			],
 		];
 
-		$this->setupRulesConfig( $rules );
+		// Bands ascend; within each band the original relative order holds,
+		// which is what makes within-band position the real priority.
+		$this->assertSame(
+			[
+				'e1',
+				'u1',
+				'u2',
+				'g1',
+				'g2',
+				'd1',
+			],
+			array_column( RuleService::sortIntoBands( $rules ), 'id' ),
+		);
+	}
+
+
+	// matching order
+
+	public function testFindFirstMatchingRuleFollowsBandOrderNotArrayOrder(): void
+	{
+
+		// Regression test for the priority inversion: the `**` catch-all used
+		// to sit at slot 0 and shadow every rule below it, so no additional
+		// rule could ever match. It is now the pinned last band.
+		$this->setupRulesConfig( [
+			[
+				'id'        => 'default',
+				'enabled'   => true,
+				'userScope' => 'all',
+				'path'      => '**',
+				'pinned'    => true,
+			],
+			[
+				'id'        => 'docs',
+				'enabled'   => true,
+				'userScope' => 'all',
+				'path'      => '**/*.txt',
+			],
+		] );
+
+		$match = $this->service->findFirstMatchingRule( '/files/Documents/a.txt', 'alice' );
+
+		$this->assertNotNull( $match );
+		$this->assertSame( 'docs', $match['id'] );
+	}
+
+
+	public function testFindFirstMatchingRulePrefersTheSpecificEnforcedRule(): void
+	{
+
+		// Within the enforced half, specific beats general — so an admin can
+		// enforce something instance-wide and still carve out one user.
+		$this->setupRulesConfig( [
+			[
+				'id'             => 'global-enforced',
+				'enabled'        => true,
+				'userScope'      => 'all',
+				'path'           => '**',
+				'admin_enforced' => true,
+			],
+			[
+				'id'             => 'alice-enforced',
+				'enabled'        => true,
+				'userScope'      => 'alice',
+				'path'           => '**',
+				'admin_enforced' => true,
+			],
+		] );
+
+		$match = $this->service->findFirstMatchingRule( '/files/a.txt', 'alice' );
+
+		$this->assertNotNull( $match );
+		$this->assertSame( 'alice-enforced', $match['id'] );
+	}
+
+
+	public function testFindFirstMatchingRuleMatchesGroupScopeByMembership(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'        => 'staff',
+				'enabled'   => true,
+				'userScope' => 'group:staff',
+				'path'      => '**',
+			],
+		] );
+
+		$this->groupManager->method( 'isInGroup' )
+		                   ->willReturnCallback(
+			                   static fn(
+				                   string $uid,
+				                   string $gid,
+			                   ): bool => $uid === 'alice' && $gid === 'staff',
+		                   )
+		;
+
+		$this->assertSame(
+			'staff',
+			$this->service->findFirstMatchingRule( '/files/a.txt', 'alice' )['id'] ?? null,
+		);
+		$this->assertNull( $this->service->findFirstMatchingRule( '/files/a.txt', 'bob' ) );
+	}
+
+
+	// resolveUsers — group scope
+
+	public function testResolveUsersExpandsGroupMembership(): void
+	{
+
+		$group = $this->createMock( IGroup::class );
+		$group->method( 'getUsers' )
+		      ->willReturn( [
+			      $this->createConfiguredMock( IUser::class, [ 'getUID' => 'alice' ] ),
+			      $this->createConfiguredMock( IUser::class, [ 'getUID' => 'bob' ] ),
+		      ] )
+		;
+
+		$this->groupManager->method( 'get' )
+		                   ->with( 'staff' )
+		                   ->willReturn( $group )
+		;
+
+		$this->assertSame(
+			[
+				'alice',
+				'bob',
+			],
+			$this->service->resolveUsers( 'group:staff' ),
+		);
+	}
+
+
+	public function testResolveUsersReturnsEmptyForUnknownGroup(): void
+	{
+
+		$this->groupManager->method( 'get' )
+		                   ->willReturn( null )
+		;
+
+		$this->assertSame( [], $this->service->resolveUsers( 'group:nope' ) );
+	}
+
+
+	// band placement on write
+
+	public function testRuleAddLandsAtTheEndOfItsOwnBand(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'        => 'u1',
+				'userScope' => 'alice',
+			],
+			[
+				'id'        => 'g1',
+				'userScope' => 'all',
+			],
+		] );
 
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'setValueString' )
@@ -1278,157 +1343,675 @@ class RuleServiceTest
 			                Application::APP_ID,
 			                'rule_definitions',
 			                $this->callback(
-				                function (
+				                static function (
+					                string $json,
+				                ): bool {
+
+					                $ids = array_column(
+						                json_decode( $json, true, 512, JSON_THROW_ON_ERROR ),
+						                'id',
+					                );
+
+					                // The new band-4 rule follows u1 but still
+					                // precedes the band-6 rule.
+					                return $ids[0] === 'u1'
+						                && $ids[2] === 'g1'
+						                && count( $ids ) === 3;
+				                },
+			                ),
+		                )
+		;
+
+		$this->service->ruleAdd(
+			[
+				'userScope' => 'bob-is-a-user',
+				'path'      => '/x',
+			],
+		);
+	}
+
+
+	public function testRuleUpdateMovesToTheEndOfItsNewBandWhenEnforcedChanges(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'             => 'e1',
+				'userScope'      => 'alice',
+				'admin_enforced' => true,
+			],
+			[
+				'id'        => 'target',
+				'userScope' => 'alice',
+			],
+		] );
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'setValueString' )
+		                ->with(
+			                Application::APP_ID,
+			                'rule_definitions',
+			                $this->callback(
+				                static function (
 					                string $json,
 				                ): bool {
 
 					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
 
+					                // Promoted into band 1, and placed after the
+					                // rule already there rather than ahead of it.
 					                return array_column( $rules, 'id' ) === [
-							                'bobs-rule',
-							                'r2',
-							                'r1',
-							                'locked',
+							                'e1',
+							                'target',
 						                ];
 				                },
 			                ),
 		                )
 		;
 
-		$this->service->reorderRules(
+		$this->service->ruleUpdate(
+			'target',
 			[
-				'r2',
-				'r1',
+				'userScope'      => 'alice',
+				'admin_enforced' => true,
 			],
-			'alice',
 		);
 	}
 
 
-	public function testReorderRulesRejectsAnIdOutsideThePersonalCallersMutableSet(): void
+	public function testRuleUpdateKeepsThePinnedFlag(): void
 	{
-
-		$folder = $this->createFolderMock();
-		$folder->method( 'isCreatable' )
-		       ->willReturn( true )
-		;
-		$this->rootFolder->method( 'getUserFolder' )
-		                 ->with( 'alice' )
-		                 ->willReturn( $folder )
-		;
 
 		$this->setupRulesConfig( [
 			[
-				'id'        => 'bobs-rule',
-				'userScope' => 'bob',
-				'path'      => '/',
-			],
-			[
-				'id'        => 'r1',
-				'userScope' => 'alice',
-				'path'      => '/',
+				'id'        => 'default',
+				'userScope' => 'all',
+				'path'      => '**',
+				'pinned'    => true,
 			],
 		] );
 
-		$this->appConfig->expects( $this->never() )
+		$this->appConfig->expects( $this->once() )
 		                ->method( 'setValueString' )
-		;
+		                ->with(
+			                Application::APP_ID,
+			                'rule_definitions',
+			                $this->callback(
+				                static function (
+					                string $json,
+				                ): bool {
 
-		$this->expectException( InvalidArgumentException::class );
+					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
 
-		// A user cannot reorder someone else's rule by naming it, even
-		// alongside their own.
-		$this->service->reorderRules(
-			[
-				'r1',
-				'bobs-rule',
-			],
-			'alice',
-		);
-	}
-
-
-	public function testReorderRulesRejectsAPartialOrderForThePersonalCaller(): void
-	{
-
-		$folder = $this->createFolderMock();
-		$folder->method( 'isCreatable' )
-		       ->willReturn( true )
-		;
-		$this->rootFolder->method( 'getUserFolder' )
-		                 ->with( 'alice' )
-		                 ->willReturn( $folder )
-		;
-
-		$this->setupRulesConfig( [
-			[
-				'id'        => 'r1',
-				'userScope' => 'alice',
-				'path'      => '/',
-			],
-			[
-				'id'        => 'r2',
-				'userScope' => 'alice',
-				'path'      => '/',
-			],
-		] );
-
-		$this->appConfig->expects( $this->never() )
-		                ->method( 'setValueString' )
-		;
-
-		$this->expectException( InvalidArgumentException::class );
-
-		$this->service->reorderRules( [ 'r1' ], 'alice' );
-	}
-
-
-	// getPersonalRulesForUser
-
-	public function testGetPersonalRulesForUserFiltersByScopeAndAnnotates(): void
-	{
-
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturnCallback(
-			                function (
-				                string $app,
-				                string $key,
-				                string $default = '',
-				                bool   $lazy = false,
-			                ): string {
-
-				                if ( $key === 'rule_definitions' )
-				                {
-					                return json_encode(
-						                [
-							                [
-								                'id'        => 'admin-all',
-								                'userScope' => 'all',
-								                'path'      => '**',
-							                ],
-							                [
-								                'id'             => 'admin-alice',
-								                'userScope'      => 'alice',
-								                'path'           => '/alice',
-								                'admin_enforced' => true,
-							                ],
-							                [
-								                'id'        => 'admin-bob',
-								                'userScope' => 'bob',
-								                'path'      => '/bob',
-							                ],
-						                ],
-						                JSON_THROW_ON_ERROR,
-					                );
-				                }
-
-				                return $default;
-			                },
+					                // An edit that does not mention `pinned`
+					                // must not silently unpin the default.
+					                return $rules[0]['pinned'] === true;
+				                },
+			                ),
 		                )
 		;
 
+		$this->service->ruleUpdate(
+			'default',
+			[
+				'userScope' => 'all',
+				'path'      => '**',
+				'mode'      => 'force',
+			],
+		);
+	}
+
+
+	public function testOnlyOnePinnedRuleSurvivesAWrite(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'        => 'first',
+				'userScope' => 'all',
+				'pinned'    => true,
+			],
+			[
+				'id'        => 'second',
+				'userScope' => 'all',
+				'pinned'    => true,
+			],
+		] );
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'setValueString' )
+		                ->with(
+			                Application::APP_ID,
+			                'rule_definitions',
+			                $this->callback(
+				                static function (
+					                string $json,
+				                ): bool {
+
+					                $rules  = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
+					                $pinned = array_filter(
+						                $rules,
+						                static fn(
+							                array $r,
+						                ): bool => ! empty( $r['pinned'] ),
+					                );
+
+					                return count( $pinned ) === 1;
+				                },
+			                ),
+		                )
+		;
+
+		$this->service->ruleAdd(
+			[
+				'userScope' => 'all',
+				'path'      => '/x',
+			],
+		);
+	}
+
+
+	// migrateToBands
+
+	public function testMigrateToBandsPinsSlotZeroAndSorts(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'        => 'default',
+				'userScope' => 'all',
+				'path'      => '**',
+			],
+			[
+				'id'        => 'u1',
+				'userScope' => 'alice',
+			],
+			[
+				'id'             => 'e1',
+				'userScope'      => 'alice',
+				'admin_enforced' => true,
+			],
+		] );
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'setValueString' )
+		                ->with(
+			                Application::APP_ID,
+			                'rule_definitions',
+			                $this->callback(
+				                static function (
+					                string $json,
+				                ): bool {
+
+					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
+
+					                return array_column( $rules, 'id' ) === [
+							                'e1',
+							                'u1',
+							                'default',
+						                ]
+						                && $rules[2]['pinned'] === true;
+				                },
+			                ),
+		                )
+		;
+
+		$result = $this->service->migrateToBands();
+
+		$this->assertSame( 'default', $result['pinnedId'] );
+		$this->assertSame( 3, $result['rules'] );
+	}
+
+
+	public function testMigrateToBandsPinsTheFirstGlobalRuleWhenSlotZeroIsNot(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'        => 'u1',
+				'userScope' => 'alice',
+			],
+			[
+				'id'        => 'default',
+				'userScope' => 'all',
+				'path'      => '**',
+			],
+		] );
+
+		$result = $this->service->migrateToBands();
+
+		$this->assertSame( 'default', $result['pinnedId'] );
+	}
+
+
+	public function testMigrateToBandsIsIdempotent(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'        => 'u1',
+				'userScope' => 'alice',
+			],
+			[
+				'id'        => 'default',
+				'userScope' => 'all',
+				'pinned'    => true,
+			],
+		] );
+
+		$result = $this->service->migrateToBands();
+
+		// Already pinned — the existing flag is kept, nothing is re-pinned.
+		$this->assertSame( 'default', $result['pinnedId'] );
+	}
+
+
+	public function testMigrateToBandsHandlesAnEmptyRuleList(): void
+	{
+
+		$this->setupRulesConfig( [] );
+
+		$this->appConfig->expects( $this->never() )
+		                ->method( 'setValueString' )
+		;
+
+		$this->assertSame(
+			[
+				'pinnedId' => null,
+				'rules'    => 0,
+			],
+			$this->service->migrateToBands(),
+		);
+	}
+
+
+	// reorderBand
+
+	public function testReorderBandPermutesOneBandAndLeavesOthersUntouched(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'             => 'e1',
+				'userScope'      => 'alice',
+				'admin_enforced' => true,
+			],
+			[
+				'id'        => 'g1',
+				'userScope' => 'all',
+			],
+			[
+				'id'        => 'g2',
+				'userScope' => 'all',
+			],
+			[
+				'id'        => 'g3',
+				'userScope' => 'all',
+			],
+			[
+				'id'        => 'd1',
+				'userScope' => 'all',
+				'pinned'    => true,
+			],
+		] );
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'setValueString' )
+		                ->with(
+			                Application::APP_ID,
+			                'rule_definitions',
+			                $this->callback(
+				                static function (
+					                string $json,
+				                ): bool {
+
+					                $ids = array_column(
+						                json_decode( $json, true, 512, JSON_THROW_ON_ERROR ),
+						                'id',
+					                );
+
+					                return $ids === [
+							                'e1',
+							                'g3',
+							                'g1',
+							                'g2',
+							                'd1',
+						                ];
+				                },
+			                ),
+		                )
+		;
+
+		$this->service->reorderBand(
+			RuleService::BAND_GLOBAL,
+			null,
+			[
+				'g3',
+				'g1',
+				'g2',
+			],
+		);
+	}
+
+
+	public function testReorderBandRejectsThePinnedBand(): void
+	{
+
+		$this->appConfig->expects( $this->never() )
+		                ->method( 'setValueString' )
+		;
+
+		$this->expectException( InvalidArgumentException::class );
+
+		$this->service->reorderBand( RuleService::BAND_DEFAULT, null, [ 'd1' ] );
+	}
+
+
+	/**
+	 * @dataProvider badPermutationProvider
+	 */
+	public function testReorderBandRejectsAnythingThatIsNotAnExactPermutation(
+		array $orderedIds,
+	): void {
+
+		$this->setupRulesConfig( [
+			[
+				'id'        => 'g1',
+				'userScope' => 'all',
+			],
+			[
+				'id'        => 'g2',
+				'userScope' => 'all',
+			],
+			[
+				'id'        => 'u1',
+				'userScope' => 'alice',
+			],
+		] );
+
+		$this->appConfig->expects( $this->never() )
+		                ->method( 'setValueString' )
+		;
+
+		$this->expectException( InvalidArgumentException::class );
+
+		$this->service->reorderBand( RuleService::BAND_GLOBAL, null, $orderedIds );
+	}
+
+
+	/**
+	 * @return array<string, array{array}>
+	 */
+	public static function badPermutationProvider(): array
+	{
+
+		return [
+			'incomplete'         => [ [ 'g1' ] ],
+			'unknown id'         => [
+				[
+					'g1',
+					'g2',
+					'nope',
+				],
+			],
+			'duplicate'          => [
+				[
+					'g1',
+					'g1',
+				],
+			],
+			// u1 is band 4 — naming it in a band-6 reorder must be rejected
+			// rather than silently pulling it across a band boundary.
+			'id from other band' => [
+				[
+					'g1',
+					'g2',
+					'u1',
+				],
+			],
+		];
+	}
+
+
+	public function testReorderBandRestrictsANonAdminToTheirOwnRules(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'        => 'bob1',
+				'userScope' => 'bob',
+			],
+			[
+				'id'        => 'alice1',
+				'userScope' => 'alice',
+			],
+			[
+				'id'        => 'alice2',
+				'userScope' => 'alice',
+			],
+		] );
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'setValueString' )
+		                ->with(
+			                Application::APP_ID,
+			                'rule_definitions',
+			                $this->callback(
+				                static function (
+					                string $json,
+				                ): bool {
+
+					                $ids = array_column(
+						                json_decode( $json, true, 512, JSON_THROW_ON_ERROR ),
+						                'id',
+					                );
+
+					                // bob's rule never moves, and alice's two swap
+					                // within the slots they already occupied.
+					                return $ids === [
+							                'bob1',
+							                'alice2',
+							                'alice1',
+						                ];
+				                },
+			                ),
+		                )
+		;
+
+		$this->service->reorderBand(
+			RuleService::BAND_USER,
+			null,
+			[
+				'alice2',
+				'alice1',
+			],
+			'alice',
+		);
+	}
+
+
+	public function testReorderBandRejectsAnotherUsersRuleForANonAdmin(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'        => 'bob1',
+				'userScope' => 'bob',
+			],
+			[
+				'id'        => 'alice1',
+				'userScope' => 'alice',
+			],
+		] );
+
+		$this->appConfig->expects( $this->never() )
+		                ->method( 'setValueString' )
+		;
+
+		$this->expectException( InvalidArgumentException::class );
+
+		// Naming another user's rule is not a permutation of alice's segment.
+		$this->service->reorderBand(
+			RuleService::BAND_USER,
+			null,
+			[
+				'alice1',
+				'bob1',
+			],
+			'alice',
+		);
+	}
+
+
+	public function testReorderBandRejectsANonAdminTouchingAnyOtherBand(): void
+	{
+
+		$this->appConfig->expects( $this->never() )
+		                ->method( 'setValueString' )
+		;
+
+		$this->expectException( InvalidArgumentException::class );
+
+		$this->service->reorderBand(
+			RuleService::BAND_GLOBAL,
+			null,
+			[ 'g1' ],
+			'alice',
+		);
+	}
+
+
+	public function testReorderBandRequiresAnOwnerForTheUserBand(): void
+	{
+
+		$this->appConfig->expects( $this->never() )
+		                ->method( 'setValueString' )
+		;
+
+		$this->expectException( InvalidArgumentException::class );
+
+		$this->service->reorderBand( RuleService::BAND_USER, null, [] );
+	}
+
+
+	// listRulesFor
+
+	public function testListRulesForAdminReturnsEverythingBandedAndNumbered(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'        => 'default',
+				'userScope' => 'all',
+				'path'      => '**',
+				'pinned'    => true,
+			],
+			[
+				'id'        => 'alice1',
+				'userScope' => 'alice',
+			],
+			[
+				'id'        => 'bob1',
+				'userScope' => 'bob',
+			],
+			[
+				'id'             => 'e1',
+				'userScope'      => 'alice',
+				'admin_enforced' => true,
+			],
+		] );
+
+		$rules = $this->service->listRulesFor( null );
+
+		$this->assertSame(
+			[
+				'e1',
+				'alice1',
+				'bob1',
+				'default',
+			],
+			array_column( $rules, 'id' ),
+		);
+		$this->assertSame(
+			[
+				1,
+				4,
+				4,
+				7,
+			],
+			array_column( $rules, 'band' ),
+		);
+		$this->assertSame(
+			[
+				1,
+				1,
+				2,
+				1,
+			],
+			array_column( $rules, 'position' ),
+		);
+		// An admin may edit every rule.
+		$this->assertSame(
+			[
+				true,
+				true,
+				true,
+				true,
+			],
+			array_column( $rules, 'canEdit' ),
+		);
+	}
+
+
+	public function testListRulesForUserHidesRulesTargetingFoldersTheyCannotSee(): void
+	{
+
+		$this->setupRulesConfig( [
+			[ 'id' => 'mine', 'userScope' => 'all', 'path' => '**' ],
+			[ 'id' => 'finance', 'userScope' => 'all', 'path' => '/Finance/**' ],
+		] );
+
 		$this->permissionService->method( 'canUserEditRules' )
-		                        ->with( 'alice' )
+		                        ->willReturn( false )
+		;
+
+		$folder = $this->createFolderMock();
+		$folder->method( 'nodeExists' )
+		       ->willReturnCallback(
+			       static fn(
+				       string $path,
+			       ): bool => $path !== '/Finance',
+		       )
+		;
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->willReturn( $folder )
+		;
+
+		// The scope covers alice either way, but a rule confined to a folder
+		// that does not exist in her tree cannot touch anything she can see,
+		// so it is noise on a page about her own files.
+		$this->assertSame(
+			[ 'mine' ],
+			array_column( $this->service->listRulesFor( 'alice' ), 'id' ),
+		);
+	}
+
+
+	public function testListRulesForAnAdminOnTheirOwnPersonalPageCannotEditGlobalRules(): void
+	{
+
+		// Surface, not permission: an administrator asking as themselves —
+		// which is what the personal settings page does — gets the same
+		// read-only view of instance-wide rules as anyone else. Editing those
+		// is available from the admin page, where the scope of the change is
+		// evident. The REST layer still allows it; the UI simply never offers
+		// it from the wrong place.
+		$this->setupRulesConfig( [
+			[ 'id' => 'global', 'userScope' => 'all', 'path' => '**' ],
+			[ 'id' => 'own', 'userScope' => 'theadmin', 'path' => '/' ],
+		] );
+
+		$this->permissionService->method( 'canUserEditRules' )
 		                        ->willReturn( true )
 		;
 
@@ -1436,25 +2019,185 @@ class RuleServiceTest
 		$folder->method( 'isCreatable' )
 		       ->willReturn( true )
 		;
-
+		$folder->method( 'nodeExists' )
+		       ->willReturn( true )
+		;
 		$this->rootFolder->method( 'getUserFolder' )
-		                 ->with( 'alice' )
 		                 ->willReturn( $folder )
 		;
 
-		$rules = $this->service->getPersonalRulesForUser( 'alice' );
+		$rules  = $this->service->listRulesFor( 'theadmin' );
+		$byId   = array_column( $rules, 'canEdit', 'id' );
 
-		$this->assertCount( 2, $rules );
-		$this->assertSame( 'admin-all', $rules[0]['id'] );
-		$this->assertFalse( $rules[0]['admin_enforced'] );
-		$this->assertTrue( $rules[0]['canEdit'] );
-		$this->assertSame( 'admin-alice', $rules[1]['id'] );
-		$this->assertTrue( $rules[1]['admin_enforced'] );
-		$this->assertFalse( $rules[1]['canEdit'] );
+		$this->assertFalse( $byId['global'] );
+		$this->assertTrue( $byId['own'] );
+
+		// Asking as the admin surface instead, the same rule is editable.
+		$this->assertSame(
+			[ true, true ],
+			array_column( $this->service->listRulesFor( null ), 'canEdit' ),
+		);
+	}
+
+
+	public function testListRulesForUserHidesOtherUsersRulesAndNumbersWhatRemains(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'        => 'default',
+				'userScope' => 'all',
+				'path'      => '**',
+				'pinned'    => true,
+			],
+			[
+				'id'        => 'bob1',
+				'userScope' => 'bob',
+			],
+			[
+				'id'        => 'alice1',
+				'userScope' => 'alice',
+				'path'      => '/',
+			],
+			[
+				'id'        => 'staff1',
+				'userScope' => 'group:staff',
+			],
+		] );
+
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->willReturn( true )
+		;
+		$this->groupManager->method( 'isInGroup' )
+		                   ->willReturn( true )
+		;
+
+		$folder = $this->createFolderMock();
+		$folder->method( 'isCreatable' )
+		       ->willReturn( true )
+		;
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->willReturn( $folder )
+		;
+
+		$rules = $this->service->listRulesFor( 'alice' );
+
+		// bob's rule is filtered out; alice's own is numbered 4.1 rather than
+		// 4.2, because a rule she cannot see cannot compete with hers.
+		$this->assertSame(
+			[
+				'alice1',
+				'staff1',
+				'default',
+			],
+			array_column( $rules, 'id' ),
+		);
+		$this->assertSame(
+			[
+				4,
+				5,
+				7,
+			],
+			array_column( $rules, 'band' ),
+		);
+		$this->assertSame(
+			[
+				1,
+				1,
+				1,
+			],
+			array_column( $rules, 'position' ),
+		);
+
+		// Only her own band-4 rule is editable.
+		$this->assertSame(
+			[
+				true,
+				false,
+				false,
+			],
+			array_column( $rules, 'canEdit' ),
+		);
 	}
 
 
 	// canUserMutateRule
+
+	public function testCanUserMutateRuleRejectsAnInstanceWideRule(): void
+	{
+
+		// Regression test: a non-admin used to be able to mutate a rule
+		// scoped to 'all' — changing its path, mode or algorithms for every
+		// user on the instance. A user's writable surface is now their own
+		// rules only.
+		$folder = $this->createFolderMock();
+		$folder->method( 'isCreatable' )
+		       ->willReturn( true )
+		;
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->willReturn( $folder )
+		;
+
+		$this->assertFalse(
+			$this->service->canUserMutateRule(
+				'alice',
+				[
+					'userScope' => 'all',
+					'path'      => '/',
+				],
+			),
+		);
+	}
+
+
+	public function testCanUserMutateRuleRejectsThePinnedDefault(): void
+	{
+
+		$folder = $this->createFolderMock();
+		$folder->method( 'isCreatable' )
+		       ->willReturn( true )
+		;
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->willReturn( $folder )
+		;
+
+		$this->assertFalse(
+			$this->service->canUserMutateRule(
+				'alice',
+				[
+					'userScope' => 'alice',
+					'path'      => '/',
+					'pinned'    => true,
+				],
+			),
+		);
+	}
+
+
+	public function testCanUserMutateRuleRejectsAGroupRule(): void
+	{
+
+		$folder = $this->createFolderMock();
+		$folder->method( 'isCreatable' )
+		       ->willReturn( true )
+		;
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->willReturn( $folder )
+		;
+
+		// Group rules are admin-authored; being a member does not make them
+		// yours to edit.
+		$this->assertFalse(
+			$this->service->canUserMutateRule(
+				'alice',
+				[
+					'userScope' => 'group:staff',
+					'path'      => '/',
+				],
+			),
+		);
+	}
+
 
 	public function testCanUserMutateRuleRejectsAdminEnforcedRule(): void
 	{
@@ -1497,27 +2240,6 @@ class RuleServiceTest
 
 		$rule = [
 			'userScope' => 'alice',
-			'path'      => '/',
-		];
-
-		$this->assertTrue( $this->service->canUserMutateRule( 'alice', $rule ) );
-	}
-
-
-	public function testCanUserMutateRuleAllowsAllScopedRuleWhenPathWritable(): void
-	{
-
-		$folder = $this->createFolderMock();
-		$folder->method( 'isCreatable' )
-		       ->willReturn( true )
-		;
-		$this->rootFolder->method( 'getUserFolder' )
-		                 ->with( 'alice' )
-		                 ->willReturn( $folder )
-		;
-
-		$rule = [
-			'userScope' => 'all',
 			'path'      => '/',
 		];
 

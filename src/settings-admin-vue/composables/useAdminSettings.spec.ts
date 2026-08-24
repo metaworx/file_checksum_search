@@ -83,22 +83,43 @@ describe('useAdminSettings', () => {
 		expect(definitions.value).toEqual([{ id: 2, path: '/new' }])
 	})
 
-	it('splits the global rule (first definition) from the additional rules', async () => {
+	it('identifies the global rule by its pinned flag, not by position', async () => {
 		const { pending } = mockAbortableFetch()
 		const { globalRule, additionalRules, loadDefinitions } = useAdminSettings()
 
 		const p = loadDefinitions()
+		// Band order puts the catch-all default LAST, so it is no longer at
+		// index 0 — reading position instead of the flag would pick '/a'.
 		pending[0](
 			jsonResponse({
-				definitions: [{ id: 1, path: '**' }, { id: 2, path: '/a' }, { id: 3, path: '/b' }],
+				definitions: [
+					{ id: 2, path: '/a', band: 4 },
+					{ id: 3, path: '/b', band: 6 },
+					{ id: 1, path: '**', band: 7, pinned: true },
+				],
 				supportedAlgos: ['sha1'],
 				users: ['alice'],
 			}),
 		)
 		await p
 
-		expect(globalRule()).toEqual({ id: 1, path: '**' })
-		expect(additionalRules()).toEqual([{ id: 2, path: '/a' }, { id: 3, path: '/b' }])
+		expect(globalRule()).toEqual({ id: 1, path: '**', band: 7, pinned: true })
+		expect(additionalRules()).toEqual([
+			{ id: 2, path: '/a', band: 4 },
+			{ id: 3, path: '/b', band: 6 },
+		])
+	})
+
+	it('returns no global rule when none is pinned', async () => {
+		const { pending } = mockAbortableFetch()
+		const { globalRule, additionalRules, loadDefinitions } = useAdminSettings()
+
+		const p = loadDefinitions()
+		pending[0](jsonResponse({ definitions: [{ id: 2, path: '/a' }], supportedAlgos: [], users: [] }))
+		await p
+
+		expect(globalRule()).toBeNull()
+		expect(additionalRules()).toEqual([{ id: 2, path: '/a' }])
 	})
 
 	it('saveRule posts and reloads definitions on success', async () => {
@@ -122,32 +143,6 @@ describe('useAdminSettings', () => {
 		const result = await deleteRule(1)
 
 		expect(result).toEqual({ success: false, error: 'nope' })
-		expect(globalThis.fetch).toHaveBeenCalledTimes(1)
-	})
-
-	it('reorderRules posts the ordered IDs and reloads definitions on success', async () => {
-		const fetchMock = vi
-			.spyOn(globalThis, 'fetch')
-			.mockResolvedValueOnce(jsonResponse({ success: true }))
-			.mockResolvedValueOnce(jsonResponse({ definitions: [{ id: 1, path: '**' }, { id: 3, path: '/b' }, { id: 2, path: '/a' }] }))
-
-		const { definitions, reorderRules } = useAdminSettings()
-		const result = await reorderRules([3, 2])
-
-		expect(result.success).toBe(true)
-		expect(definitions.value).toEqual([{ id: 1, path: '**' }, { id: 3, path: '/b' }, { id: 2, path: '/a' }])
-		expect(fetchMock).toHaveBeenCalledTimes(2)
-		const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)
-		expect(body).toEqual({ orderedIds: [3, 2] })
-	})
-
-	it('reorderRules does not reload definitions when the request fails', async () => {
-		vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse({ success: false, error: 'orderedIds must be exactly a permutation of the rule IDs this caller may reorder.' }))
-
-		const { reorderRules } = useAdminSettings()
-		const result = await reorderRules([2])
-
-		expect(result.success).toBe(false)
 		expect(globalThis.fetch).toHaveBeenCalledTimes(1)
 	})
 })

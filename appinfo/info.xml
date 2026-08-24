@@ -73,6 +73,11 @@
 		<command>OCA\FileChecksumSearch\Command\ShowConfig</command>
 		<command>OCA\FileChecksumSearch\Command\FindDuplicates</command>
 	</commands>
+	<repair-steps>
+		<post-migration>
+			<step>OCA\FileChecksumSearch\Migration\RepairBandOrder</step>
+		</post-migration>
+	</repair-steps>
 	<background-jobs>
 		<job>OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob</job>
 		<job>OCA\FileChecksumSearch\BackgroundJob\ProcessPendingUpdates</job>

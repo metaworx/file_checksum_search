@@ -27,7 +27,6 @@ const {
 	saveRule,
 	deleteRule,
 	toggleRule,
-	reorderRules,
 } = usePersonalSettings()
 
 function tabFromHash(): 'rules' | 'faq' {
@@ -109,13 +108,6 @@ async function handleToggleRule(rule: Rule): Promise<void> {
 	}
 }
 
-async function handleReorderRules(orderedIds: Array<Rule['id']>): Promise<void> {
-	const result = await reorderRules(orderedIds)
-	if (!result.success) {
-		ruleMsg.value = result.error || 'Reorder failed.'
-	}
-}
-
 loadRules()
 </script>
 
@@ -166,11 +158,9 @@ loadRules()
 					variant="personal"
 					:priority-offset="0"
 					:can-edit-any="canEditAny"
-					:reorderable="true"
 					@edit="openEditRule"
 					@toggle="handleToggleRule"
-					@delete="handleDeleteRule"
-					@reorder="handleReorderRules" />
+					@delete="handleDeleteRule" />
 			</div>
 
 			<button v-if="canEditAny" id="fcias-personal-add" class="fcias-btn" @click="openAddRule">

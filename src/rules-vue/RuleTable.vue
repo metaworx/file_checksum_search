@@ -38,10 +38,13 @@ const emit = defineEmits<{
 	(e: 'delete', rule: Rule): void
 	/**
 	 * A drag-and-drop reorder completed. Carries only the IDs of rows this
-	 * table allows dragging, in their new relative order — locked/foreign
-	 * rows are never included, since they never moved (the backend keeps
-	 * them exactly where they already were; see
-	 * RuleService::reorderRules()).
+	 * table allows dragging, in their new relative order.
+	 *
+	 * Currently unwired: rule priority moved to a band model, where a
+	 * reorder permutes one band at a time and the payload identifies the
+	 * band. Both settings pages therefore render without drag handles until
+	 * the banded table lands; the mechanics below are kept as the basis for
+	 * it (see RuleService::reorderBand()).
 	 */
 	(e: 'reorder', orderedIds: Array<Rule['id']>): void
 }>()

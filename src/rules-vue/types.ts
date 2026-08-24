@@ -15,7 +15,13 @@ export interface Rule {
 	path: string
 	userScope: string
 	admin_enforced: boolean
-	/** Personal variant only: whether the current user may edit this rule. Always editable for the admin variant. */
+	/** True for the single catch-all default rule, which is undeletable and always evaluates last. */
+	pinned?: boolean
+	/** Derived priority band 1–7 (lower evaluates first). Server-computed; never sent back. */
+	band?: number
+	/** 1-based position within the band, among the rules this caller can see. */
+	position?: number
+	/** Whether the current user may edit this rule. */
 	canEdit?: boolean
 }
 

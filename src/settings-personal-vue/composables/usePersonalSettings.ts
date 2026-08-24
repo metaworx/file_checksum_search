@@ -118,20 +118,11 @@ export function usePersonalSettings() {
 		return data
 	}
 
-	async function reorderRules(orderedIds: Array<string | number>): Promise<ApiResponse> {
-		const data = await post(generateOcsUrl(OCS_PERSONAL.reorderRules), { orderedIds })
-		if (data.success) {
-			await loadRules()
-		}
-		return data
-	}
-
 	return {
 		...toRefs(state),
 		loadRules,
 		saveRule,
 		deleteRule,
 		toggleRule,
-		reorderRules,
 	}
 }

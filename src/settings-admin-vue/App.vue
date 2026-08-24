@@ -32,7 +32,6 @@ const {
 	saveRule,
 	deleteRule,
 	toggleRule,
-	reorderRules,
 } = useAdminSettings()
 
 function tabFromHash(): 'settings' | 'docs' {
@@ -172,13 +171,6 @@ async function handleToggleRule(rule: Rule): Promise<void> {
 	}
 }
 
-async function handleReorderRules(orderedIds: Array<Rule['id']>): Promise<void> {
-	const result = await reorderRules(orderedIds)
-	if (!result.success) {
-		ruleMsg.value = result.error || 'Reorder failed.'
-	}
-}
-
 loadStatus()
 loadDefinitions()
 </script>
@@ -271,9 +263,10 @@ loadDefinitions()
 					Which algorithms are computed for which files, on real-time file events.
 				</p>
 
-				<h5>Global Rule (priority 0)</h5>
+				<h5>Global Default Rule</h5>
 				<p class="fcias-hint">
-					Applies to every user and every path. It cannot be deleted — disable it instead.
+					Applies to every user and every path, and is evaluated <em>last</em> — every other rule gets
+					the chance to claim a file first. It cannot be deleted — disable it instead.
 				</p>
 
 				<div id="fcias-global-rule">
@@ -302,11 +295,9 @@ loadDefinitions()
 					<RuleTable
 						:rules="additionalRules()"
 						variant="admin"
-						:reorderable="true"
 						@edit="openEditRule"
 						@toggle="handleToggleRule"
-						@delete="handleDeleteRule"
-						@reorder="handleReorderRules" />
+						@delete="handleDeleteRule" />
 				</div>
 
 				<button id="fcias-btn-add-definition" class="fcias-btn" @click="openAddRule">

@@ -47,10 +47,11 @@ function mockFetch(): void {
 			return Promise.resolve(jsonResponse({ version: '1.0', dbVersion: '1', rowCount: 3, pendingStats: {} }))
 		}
 		if (url.includes('/settings/cron/definitions')) {
+			// Server order is band order: the pinned catch-all evaluates last.
 			return Promise.resolve(jsonResponse({
 				definitions: [
-					{ id: 1, path: '**', userScope: 'all', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false },
-					{ id: 2, path: '/docs', userScope: 'all', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false },
+					{ id: 2, path: '/docs', userScope: 'all', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false, band: 6, position: 1, priority: '6.1' },
+					{ id: 1, path: '**', userScope: 'all', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false, pinned: true, band: 7, position: 1, priority: '7.1' },
 				],
 				supportedAlgos: ['sha1', 'sha256'],
 				users: ['alice'],
@@ -187,49 +188,5 @@ describe('settings-admin App', () => {
 		)
 		expect(deleteCall).toBeDefined()
 		expect(JSON.parse((deleteCall![1] as RequestInit).body as string)).toEqual({ id: 2 })
-	})
-
-	it('posts the new order after dragging an additional rule row', async () => {
-		vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
-			const url = String(input)
-			if (url.includes('/settings/status')) {
-				return Promise.resolve(jsonResponse({ version: '1.0', dbVersion: '1', rowCount: 3, pendingStats: {} }))
-			}
-			if (url.includes('/settings/cron/definitions')) {
-				return Promise.resolve(jsonResponse({
-					definitions: [
-						{ id: 1, path: '**', userScope: 'all', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false },
-						{ id: 2, path: '/a', userScope: 'all', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false },
-						{ id: 3, path: '/b', userScope: 'all', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false },
-					],
-					supportedAlgos: ['sha1', 'sha256'],
-					users: ['alice'],
-				}))
-			}
-			if (url.includes('/settings/admin-options')) {
-				return Promise.resolve(jsonResponse({ allowAllUsers: false, groups: [], users: [], availableUsers: [] }))
-			}
-			return Promise.resolve(jsonResponse({ success: true }))
-		})
-
-		const wrapper = mount(App)
-		await flushPromises()
-
-		// The global rule renders in its own table; only #fcias-cron-list's
-		// rows are draggable, so drag the second additional rule (id 3) onto
-		// the first (id 2).
-		const rows = wrapper.find('#fcias-cron-list').findAll('tbody tr')
-		expect(rows).toHaveLength(2)
-
-		await rows[1].find('.fcias-drag-handle').trigger('dragstart')
-		await rows[0].trigger('dragover')
-		await rows[0].trigger('drop')
-		await flushPromises()
-
-		const reorderCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.find(
-			([reqInput]) => String(reqInput).includes('/settings/cron/reorder'),
-		)
-		expect(reorderCall).toBeDefined()
-		expect(JSON.parse((reorderCall![1] as RequestInit).body as string)).toEqual({ orderedIds: [3, 2] })
 	})
 })

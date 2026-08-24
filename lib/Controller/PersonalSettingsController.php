@@ -62,7 +62,7 @@ class PersonalSettingsController
 
 		return new DataResponse( [
 			'success'        => true,
-			'rules'          => $this->ruleService->getPersonalRulesForUser( $userId ),
+			'rules'          => $this->ruleService->listRulesFor( $userId ),
 			'canEdit'        => $this->permissionService->canUserEditRules( $userId ),
 			'supportedAlgos' => HashCalculationService::SUPPORTED_ALGOS,
 		] );
@@ -176,7 +176,10 @@ class PersonalSettingsController
 					return $this->forbidden();
 				}
 
-				$definition['userScope'] = $existing['userScope'] ?? $userId;
+				// canUserMutateRule() has already established the rule is
+				// scoped to this user; pinning it explicitly means no edit
+				// path can ever widen a rule's scope.
+				$definition['userScope'] = $userId;
 
 				$this->ruleService->ruleUpdate( $existingId, $definition );
 			}
@@ -368,89 +371,6 @@ class PersonalSettingsController
 					'app'       => Application::APP_ID,
 					'id'        => $id,
 					'enabled'   => $enabled,
-					'exception' => $e,
-				],
-			);
-
-			return new DataResponse(
-				[
-					'success' => false,
-					'error'   => $e->getMessage(),
-				], Http::STATUS_INTERNAL_SERVER_ERROR,
-			);
-		}
-	}
-
-
-	/**
-	 * Reorder the caller's own rules (drag-and-drop on the personal
-	 * settings page).
-	 *
-	 * Unlike delete/toggle, there is no single rule to check ownership of
-	 * up front — {@see RuleService::reorderRules()} checks each rule in
-	 * orderedIds individually against {@see RuleService::canUserMutateRule()}
-	 * and rejects the whole request if any of them isn't the caller's to
-	 * move. Rules the caller cannot mutate stay exactly where they are,
-	 * whether or not their ID appears in orderedIds.
-	 *
-	 * @noinspection PhpUnused
-	 */
-	#[NoAdminRequired]
-	#[ApiRoute( verb: 'POST', url: '/personal/rules/reorder' )]
-	public function reorderPersonalRules(): DataResponse
-	{
-
-		$userId = $this->currentUserId();
-
-		if ( $userId === null )
-		{
-			return $this->unauthorized();
-		}
-
-		if ( ! $this->permissionService->canUserEditRules( $userId ) )
-		{
-			return $this->forbidden();
-		}
-
-		$body       = json_decode( $this->readRequestBody(), true );
-		$orderedIds = is_array( $body )
-			? ( $body['orderedIds'] ?? null )
-			: null;
-
-		if ( ! is_array( $orderedIds ) )
-		{
-			return new DataResponse(
-				[
-					'success' => false,
-					'error'   => 'orderedIds is required.',
-				],
-				Http::STATUS_BAD_REQUEST,
-			);
-		}
-
-		try
-		{
-			$this->ruleService->reorderRules( $orderedIds, $userId );
-
-			return new DataResponse( [ 'success' => true ] );
-		}
-		catch ( \InvalidArgumentException $e )
-		{
-			return new DataResponse(
-				[
-					'success' => false,
-					'error'   => $e->getMessage(),
-				],
-				Http::STATUS_BAD_REQUEST,
-			);
-		}
-		catch ( Throwable $e )
-		{
-			$this->logger->error(
-				'FCIAS PersonalSettingsController: reorderPersonalRules failed',
-				[
-					'app'       => Application::APP_ID,
-					'userId'    => $userId,
 					'exception' => $e,
 				],
 			);

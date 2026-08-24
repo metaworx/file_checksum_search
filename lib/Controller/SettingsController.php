@@ -96,7 +96,7 @@ class SettingsController
 		);
 
 		return new DataResponse( [
-			'definitions'    => $this->ruleService->loadRules(),
+			'definitions'    => $this->ruleService->listRulesFor( null ),
 			'supportedAlgos' => HashCalculationService::SUPPORTED_ALGOS,
 			'users'          => $users,
 		] );
@@ -162,6 +162,13 @@ class SettingsController
 			'userScope'      => $body['userScope'] ?? 'all',
 			'admin_enforced' => (bool) ( $body['admin_enforced'] ?? false ),
 		];
+
+		// Marks the single catch-all default. RuleService keeps the
+		// at-most-one invariant, so a stray flag cannot create a second.
+		if ( ! empty( $body['pinned'] ) )
+		{
+			$definition['pinned'] = true;
+		}
 
 		$existingId = $body['id'] ?? null;
 
@@ -293,72 +300,6 @@ class SettingsController
 					'app'       => Application::APP_ID,
 					'id'        => $id,
 					'enabled'   => $enabled,
-					'exception' => $e,
-				],
-			);
-
-			return new DataResponse(
-				[
-					'success' => false,
-					'error'   => $e->getMessage(),
-				], Http::STATUS_INTERNAL_SERVER_ERROR,
-			);
-		}
-	}
-
-
-	/**
-	 * Reorder the additional rules (drag-and-drop on the settings page).
-	 *
-	 * The global rule's slot is never part of orderedIds — see
-	 * {@see RuleService::reorderRules()}'s admin case.
-	 *
-	 * Admin only — see {@see listRules()}.
-	 *
-	 * @noinspection PhpUnused
-	 */
-	#[ApiRoute( verb: 'POST', url: '/settings/cron/reorder' )]
-	public function reorderRules(): DataResponse
-	{
-
-		$body       = json_decode( $this->readRequestBody(), true );
-		$orderedIds = is_array( $body )
-			? ( $body['orderedIds'] ?? null )
-			: null;
-
-		if ( ! is_array( $orderedIds ) )
-		{
-			return new DataResponse(
-				[
-					'success' => false,
-					'error'   => 'orderedIds is required.',
-				],
-				Http::STATUS_BAD_REQUEST,
-			);
-		}
-
-		try
-		{
-			$this->ruleService->reorderRules( $orderedIds );
-
-			return new DataResponse( [ 'success' => true ] );
-		}
-		catch ( \InvalidArgumentException $e )
-		{
-			return new DataResponse(
-				[
-					'success' => false,
-					'error'   => $e->getMessage(),
-				],
-				Http::STATUS_BAD_REQUEST,
-			);
-		}
-		catch ( Throwable $e )
-		{
-			$this->logger->error(
-				'FCIAS SettingsController: reorderRules failed',
-				[
-					'app'       => Application::APP_ID,
 					'exception' => $e,
 				],
 			);
