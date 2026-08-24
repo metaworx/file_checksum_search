@@ -14,7 +14,7 @@ the first stable release.
 ### Changed
 
 - Reformat the rule and permission services, the two settings controllers and their tests to the project code style. No behaviour change — layout, alignment and trailing commas only.
-- Extract the allow-all-users/groups/users permission logic out of `RuleService` into a new generic `PermissionService`, keyed by permission. Rule editing is its first key and keeps its existing config keys (`rule_editors_all_users`, `rule_editors_groups`, `rule_editors_users`), so nothing needs migrating and `RuleService`'s rule-editing methods behave exactly as before — they now delegate. Permissions added later reuse the mechanism instead of copying the triple a third time.
+- Extract the allow-all-users/groups/users permission logic out of `RuleService` into a new generic `PermissionService`, keyed by permission. Rule editing is its first key and keeps its existing config keys (`rule_editors_all_users`, `rule_editors_groups`, `rule_editors_users`), so nothing needs migrating and the permission behaves exactly as before. `RuleService` no longer exposes it at all — the admin and personal settings controllers ask `PermissionService` directly — so permissions added later reuse one mechanism through one door, rather than copying the triple a third time.
 
 ### Added
 

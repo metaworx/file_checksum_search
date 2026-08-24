@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Controller;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
+use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
@@ -29,11 +30,12 @@ class PersonalSettingsController
 {
 
 	public function __construct(
-		string                           $appName,
-		IRequest                         $request,
-		private readonly RuleService     $ruleService,
-		private readonly IUserSession    $userSession,
-		private readonly LoggerInterface $logger,
+		string                             $appName,
+		IRequest                           $request,
+		private readonly RuleService       $ruleService,
+		private readonly PermissionService $permissionService,
+		private readonly IUserSession      $userSession,
+		private readonly LoggerInterface   $logger,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -61,7 +63,7 @@ class PersonalSettingsController
 		return new DataResponse( [
 			'success'        => true,
 			'rules'          => $this->ruleService->getPersonalRulesForUser( $userId ),
-			'canEdit'        => $this->ruleService->canUserEditRules( $userId ),
+			'canEdit'        => $this->permissionService->canUserEditRules( $userId ),
 			'supportedAlgos' => HashCalculationService::SUPPORTED_ALGOS,
 		] );
 	}
@@ -86,7 +88,7 @@ class PersonalSettingsController
 			return $this->unauthorized();
 		}
 
-		if ( ! $this->ruleService->canUserEditRules( $userId ) )
+		if ( ! $this->permissionService->canUserEditRules( $userId ) )
 		{
 			return $this->forbidden();
 		}
@@ -227,7 +229,7 @@ class PersonalSettingsController
 			return $this->unauthorized();
 		}
 
-		if ( ! $this->ruleService->canUserEditRules( $userId ) )
+		if ( ! $this->permissionService->canUserEditRules( $userId ) )
 		{
 			return $this->forbidden();
 		}
@@ -310,7 +312,7 @@ class PersonalSettingsController
 			return $this->unauthorized();
 		}
 
-		if ( ! $this->ruleService->canUserEditRules( $userId ) )
+		if ( ! $this->permissionService->canUserEditRules( $userId ) )
 		{
 			return $this->forbidden();
 		}

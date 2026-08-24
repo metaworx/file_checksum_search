@@ -98,6 +98,21 @@ class PermissionService
 
 
 	/**
+	 * Whether the given user may create and edit hash-generation rules.
+	 *
+	 * A named shortcut for the one permission checked at guard sites rather
+	 * than in a settings form, where spelling out
+	 * `isAllowed( self::PERMISSION_RULE_EDITING, $userId )` on every early
+	 * return buries what the guard is actually about.
+	 */
+	public function canUserEditRules( string $userId ): bool
+	{
+
+		return $this->isAllowed( self::PERMISSION_RULE_EDITING, $userId );
+	}
+
+
+	/**
 	 * Whether the permission is granted to every user.
 	 *
 	 * @throws InvalidArgumentException on an unknown permission
@@ -198,6 +213,7 @@ class PermissionService
 	 * loudly beats reading an empty allow-list, which would silently deny
 	 * everyone, or writing to a key nothing reads back.
 	 *
+	 * @param  string                       $permission
 	 * @param  'allUsers'|'groups'|'users'  $which
 	 *
 	 * @throws InvalidArgumentException on an unknown permission

@@ -29,9 +29,8 @@ use Throwable;
  * matching files via Folder::search(), checks staleness via
  * MetadataService, and marks stale files as pending:{mode}.
  *
- * The rule-editing permission methods are a façade over
- * {@see PermissionService}, which owns the allow-all/groups/users shape and
- * the config keys behind it.
+ * Who may edit rules at all is {@see PermissionService}'s concern; this class
+ * only asks it, when deciding whether a user may mutate a particular rule.
  */
 class RuleService
 {
@@ -445,106 +444,6 @@ class RuleService
 
 
 	/**
-	 * Whether all users may edit rules.
-	 */
-	public function isAllUsersEnabled(): bool
-	{
-
-		return $this->permissionService->isAllUsersEnabled(
-			PermissionService::PERMISSION_RULE_EDITING,
-		);
-	}
-
-
-	/**
-	 * Set whether all users may edit rules.
-	 */
-	public function setAllUsersEnabled( bool $enabled ): void
-	{
-
-		$this->permissionService->setAllUsersEnabled(
-			PermissionService::PERMISSION_RULE_EDITING,
-			$enabled,
-		);
-	}
-
-
-	/**
-	 * Load the group IDs allowed to edit rules.
-	 *
-	 * @return string[]
-	 */
-	public function getRuleEditorGroups(): array
-	{
-
-		return $this->permissionService->getGroups(
-			PermissionService::PERMISSION_RULE_EDITING,
-		);
-	}
-
-
-	/**
-	 * Persist the group IDs allowed to edit rules.
-	 *
-	 * @param  string[]  $groups
-	 *
-	 * @throws JsonException
-	 */
-	public function setRuleEditorGroups( array $groups ): void
-	{
-
-		$this->permissionService->setGroups(
-			PermissionService::PERMISSION_RULE_EDITING,
-			$groups,
-		);
-	}
-
-
-	/**
-	 * Load the user IDs allowed to edit rules.
-	 *
-	 * @return string[]
-	 */
-	public function getRuleEditorUsers(): array
-	{
-
-		return $this->permissionService->getUsers(
-			PermissionService::PERMISSION_RULE_EDITING,
-		);
-	}
-
-
-	/**
-	 * Persist the user IDs allowed to edit rules.
-	 *
-	 * @param  string[]  $users
-	 *
-	 * @throws JsonException
-	 */
-	public function setRuleEditorUsers( array $users ): void
-	{
-
-		$this->permissionService->setUsers(
-			PermissionService::PERMISSION_RULE_EDITING,
-			$users,
-		);
-	}
-
-
-	/**
-	 * Whether the given user may edit rules at all.
-	 */
-	public function canUserEditRules( string $userId ): bool
-	{
-
-		return $this->permissionService->isAllowed(
-			PermissionService::PERMISSION_RULE_EDITING,
-			$userId,
-		);
-	}
-
-
-	/**
 	 * Find a rule by its ID.
 	 *
 	 * @return array|null
@@ -573,7 +472,7 @@ class RuleService
 	public function getPersonalRulesForUser( string $userId ): array
 	{
 
-		$canEditAny = $this->canUserEditRules( $userId );
+		$canEditAny = $this->permissionService->canUserEditRules( $userId );
 		$rules      = [];
 
 		foreach ( $this->loadRules() as $rule )
@@ -603,7 +502,7 @@ class RuleService
 	 * the rule must not be admin_enforced, must be scoped to 'all' or to
 	 * $userId specifically, and its path must be write-accessible to
 	 * $userId. Does NOT check the global rule-editing permission — call
-	 * {@see canUserEditRules()} for that separately.
+	 * {@see PermissionService::canUserEditRules()} for that separately.
 	 */
 	public function canUserMutateRule(
 		string $userId,

@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
 use OCA\FileChecksumSearch\Controller\PersonalSettingsController;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
+use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\AppFramework\Http;
@@ -26,15 +27,17 @@ class PersonalSettingsControllerTest
 	FciasUnitTestCase
 {
 
-	private MockObject|RuleService     $ruleService;
+	private MockObject|RuleService       $ruleService;
 
-	private MockObject|IUserSession    $userSession;
+	private MockObject|PermissionService $permissionService;
 
-	private MockObject|IRequest        $request;
+	private MockObject|IUserSession      $userSession;
 
-	private MockObject|LoggerInterface $logger;
+	private MockObject|IRequest          $request;
 
-	private PersonalSettingsController $controller;
+	private MockObject|LoggerInterface   $logger;
+
+	private PersonalSettingsController   $controller;
 
 
 	protected function setUp(): void
@@ -42,10 +45,11 @@ class PersonalSettingsControllerTest
 
 		parent::setUp();
 
-		$this->ruleService = $this->createMock( RuleService::class );
-		$this->userSession = $this->createMock( IUserSession::class );
-		$this->request     = $this->createMock( IRequest::class );
-		$this->logger      = $this->createMock( LoggerInterface::class );
+		$this->ruleService       = $this->createMock( RuleService::class );
+		$this->permissionService = $this->createMock( PermissionService::class );
+		$this->userSession       = $this->createMock( IUserSession::class );
+		$this->request           = $this->createMock( IRequest::class );
+		$this->logger            = $this->createMock( LoggerInterface::class );
 
 		// Partial mock: only readRequestBody() is mocked so php://input
 		// (read-only in CLI) can return test-provided JSON payloads.
@@ -55,6 +59,7 @@ class PersonalSettingsControllerTest
 			                         'file_checksum_search',
 			                         $this->request,
 			                         $this->ruleService,
+			                         $this->permissionService,
 			                         $this->userSession,
 			                         $this->logger,
 		                         ] )
@@ -100,9 +105,9 @@ class PersonalSettingsControllerTest
 			                  ],
 		                  ] )
 		;
-		$this->ruleService->method( 'canUserEditRules' )
-		                  ->with( 'alice' )
-		                  ->willReturn( true )
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->with( 'alice' )
+		                        ->willReturn( true )
 		;
 
 		$response = $this->controller->getPersonalRules();
@@ -133,9 +138,9 @@ class PersonalSettingsControllerTest
 	{
 
 		$this->mockUser( 'alice' );
-		$this->ruleService->method( 'canUserEditRules' )
-		                  ->with( 'alice' )
-		                  ->willReturn( true )
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->with( 'alice' )
+		                        ->willReturn( true )
 		;
 		$this->ruleService->method( 'isPathWritableByUser' )
 		                  ->with( 'alice', '/Documents' )
@@ -180,9 +185,9 @@ class PersonalSettingsControllerTest
 	{
 
 		$this->mockUser( 'alice' );
-		$this->ruleService->method( 'canUserEditRules' )
-		                  ->with( 'alice' )
-		                  ->willReturn( true )
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->with( 'alice' )
+		                        ->willReturn( true )
 		;
 		$this->ruleService->method( 'isPathWritableByUser' )
 		                  ->with( 'alice', '/Docs' )
@@ -239,9 +244,9 @@ class PersonalSettingsControllerTest
 	{
 
 		$this->mockUser( 'alice' );
-		$this->ruleService->method( 'canUserEditRules' )
-		                  ->with( 'alice' )
-		                  ->willReturn( false )
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->with( 'alice' )
+		                        ->willReturn( false )
 		;
 		$this->ruleService->expects( $this->never() )
 		                  ->method( 'ruleAdd' )
@@ -257,9 +262,9 @@ class PersonalSettingsControllerTest
 	{
 
 		$this->mockUser( 'alice' );
-		$this->ruleService->method( 'canUserEditRules' )
-		                  ->with( 'alice' )
-		                  ->willReturn( true )
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->with( 'alice' )
+		                        ->willReturn( true )
 		;
 		$this->controller->method( 'readRequestBody' )
 		                 ->willReturn(
@@ -286,9 +291,9 @@ class PersonalSettingsControllerTest
 	{
 
 		$this->mockUser( 'alice' );
-		$this->ruleService->method( 'canUserEditRules' )
-		                  ->with( 'alice' )
-		                  ->willReturn( true )
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->with( 'alice' )
+		                        ->willReturn( true )
 		;
 		$this->ruleService->method( 'isPathWritableByUser' )
 		                  ->willReturn( true )
@@ -321,9 +326,9 @@ class PersonalSettingsControllerTest
 		// Regression test for FCIAS Review §6, Finding 3: a user must
 		// not be able to update another user's rule by guessing its ID.
 		$this->mockUser( 'alice' );
-		$this->ruleService->method( 'canUserEditRules' )
-		                  ->with( 'alice' )
-		                  ->willReturn( true )
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->with( 'alice' )
+		                        ->willReturn( true )
 		;
 		$this->ruleService->method( 'isPathWritableByUser' )
 		                  ->with( 'alice', '/Docs' )
@@ -366,9 +371,9 @@ class PersonalSettingsControllerTest
 	{
 
 		$this->mockUser( 'alice' );
-		$this->ruleService->method( 'canUserEditRules' )
-		                  ->with( 'alice' )
-		                  ->willReturn( true )
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->with( 'alice' )
+		                        ->willReturn( true )
 		;
 		$this->controller->method( 'readRequestBody' )
 		                 ->willReturn( json_encode( [ 'algos' => [ 'bogus' ] ] ) )
@@ -390,9 +395,9 @@ class PersonalSettingsControllerTest
 	{
 
 		$this->mockUser( 'alice' );
-		$this->ruleService->method( 'canUserEditRules' )
-		                  ->with( 'alice' )
-		                  ->willReturn( true )
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->with( 'alice' )
+		                        ->willReturn( true )
 		;
 		$this->ruleService->method( 'findRuleById' )
 		                  ->with( 'r1' )
@@ -427,9 +432,9 @@ class PersonalSettingsControllerTest
 	{
 
 		$this->mockUser( 'alice' );
-		$this->ruleService->method( 'canUserEditRules' )
-		                  ->with( 'alice' )
-		                  ->willReturn( true )
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->with( 'alice' )
+		                        ->willReturn( true )
 		;
 		$this->ruleService->method( 'findRuleById' )
 		                  ->with( 'r1' )
@@ -465,9 +470,9 @@ class PersonalSettingsControllerTest
 		// not be able to delete another user's rule by guessing its ID,
 		// even when its path would be writable in their own home.
 		$this->mockUser( 'alice' );
-		$this->ruleService->method( 'canUserEditRules' )
-		                  ->with( 'alice' )
-		                  ->willReturn( true )
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->with( 'alice' )
+		                        ->willReturn( true )
 		;
 		$this->ruleService->method( 'findRuleById' )
 		                  ->with( 'r1' )
@@ -503,9 +508,9 @@ class PersonalSettingsControllerTest
 	{
 
 		$this->mockUser( 'alice' );
-		$this->ruleService->method( 'canUserEditRules' )
-		                  ->with( 'alice' )
-		                  ->willReturn( true )
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->with( 'alice' )
+		                        ->willReturn( true )
 		;
 		$this->ruleService->method( 'findRuleById' )
 		                  ->with( 'r1' )
@@ -545,9 +550,9 @@ class PersonalSettingsControllerTest
 	{
 
 		$this->mockUser( 'alice' );
-		$this->ruleService->method( 'canUserEditRules' )
-		                  ->with( 'alice' )
-		                  ->willReturn( false )
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->with( 'alice' )
+		                        ->willReturn( false )
 		;
 
 		$response = $this->controller->togglePersonalRule();
@@ -561,9 +566,9 @@ class PersonalSettingsControllerTest
 
 		// Regression test for FCIAS Review §6, Finding 3.
 		$this->mockUser( 'alice' );
-		$this->ruleService->method( 'canUserEditRules' )
-		                  ->with( 'alice' )
-		                  ->willReturn( true )
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->with( 'alice' )
+		                        ->willReturn( true )
 		;
 		$this->ruleService->method( 'findRuleById' )
 		                  ->with( 'r1' )

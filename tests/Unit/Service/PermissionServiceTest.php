@@ -281,6 +281,126 @@ class PermissionServiceTest
 	}
 
 
+	/**
+	 * The read side of the same mapping. RuleService used to own these keys;
+	 * pinning both directions is what makes the move a refactor rather than a
+	 * rename that silently orphans every configured allow-list.
+	 */
+	public function testReadsTheHistoricalConfigKeys(): void
+	{
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'getValueBool' )
+		                ->with( Application::APP_ID, 'rule_editors_all_users', false )
+		                ->willReturn( true )
+		;
+		$this->appConfig->method( 'getValueString' )
+		                ->willReturnMap( [
+			                [
+				                Application::APP_ID,
+				                'rule_editors_groups',
+				                '[]',
+				                json_encode( [ 'staff' ], JSON_THROW_ON_ERROR ),
+			                ],
+			                [
+				                Application::APP_ID,
+				                'rule_editors_users',
+				                '[]',
+				                json_encode( [ 'alice' ], JSON_THROW_ON_ERROR ),
+			                ],
+		                ] )
+		;
+
+		$this->assertTrue(
+			$this->service->isAllUsersEnabled( PermissionService::PERMISSION_RULE_EDITING ),
+		);
+		$this->assertSame(
+			[ 'staff' ],
+			$this->service->getGroups( PermissionService::PERMISSION_RULE_EDITING ),
+		);
+		$this->assertSame(
+			[ 'alice' ],
+			$this->service->getUsers( PermissionService::PERMISSION_RULE_EDITING ),
+		);
+	}
+
+
+	// canUserEditRules shortcut
+
+
+	/**
+	 * The named shortcut must stay a pure alias — if it ever drifted from
+	 * isAllowed(), the four guard sites calling it would enforce something
+	 * different from what the settings form configures.
+	 *
+	 * @dataProvider ruleEditingConfigurationProvider
+	 */
+	public function testCanUserEditRulesMatchesIsAllowed(
+		bool   $allUsers,
+		array  $users,
+		array  $groups,
+		bool   $inGroup,
+		string $userId,
+		bool   $expected,
+	): void {
+
+		$this->configure( allUsers: $allUsers, users: $users, groups: $groups );
+
+		$this->groupManager->method( 'isInGroup' )
+		                   ->willReturn( $inGroup )
+		;
+
+		$this->assertSame( $expected, $this->service->canUserEditRules( $userId ) );
+		$this->assertSame(
+			$this->service->isAllowed( PermissionService::PERMISSION_RULE_EDITING, $userId ),
+			$this->service->canUserEditRules( $userId ),
+		);
+	}
+
+
+	/**
+	 * @return array<string, array{bool, string[], string[], bool, string, bool}>
+	 */
+	public static function ruleEditingConfigurationProvider(): array
+	{
+
+		return [
+			'all users'    => [
+				true,
+				[],
+				[],
+				false,
+				'anyone',
+				true,
+			],
+			'listed user'  => [
+				false,
+				[ 'alice' ],
+				[],
+				false,
+				'alice',
+				true,
+			],
+			'group member' => [
+				false,
+				[],
+				[ 'staff' ],
+				true,
+				'bob',
+				true,
+			],
+			'unlisted'     => [
+				false,
+				[ 'alice' ],
+				[ 'staff' ],
+				false,
+				'carol',
+				false,
+			],
+		];
+	}
+
+
 	// unknown permissions
 
 

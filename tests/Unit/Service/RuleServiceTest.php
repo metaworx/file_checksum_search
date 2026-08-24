@@ -18,7 +18,6 @@ use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\IAppConfig;
-use OCP\IGroupManager;
 use OCP\IUser;
 use OCP\IUserManager;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -37,19 +36,19 @@ class RuleServiceTest
 	FciasUnitTestCase
 {
 
-	private MockObject|IAppConfig      $appConfig;
+	private MockObject|IAppConfig        $appConfig;
 
-	private MockObject|IRootFolder     $rootFolder;
+	private MockObject|IRootFolder       $rootFolder;
 
-	private MockObject|IUserManager    $userManager;
+	private MockObject|IUserManager      $userManager;
 
-	private MockObject|MetadataService $metadataService;
+	private MockObject|MetadataService   $metadataService;
 
-	private MockObject|IGroupManager   $groupManager;
+	private MockObject|PermissionService $permissionService;
 
-	private MockObject|LoggerInterface $logger;
+	private MockObject|LoggerInterface   $logger;
 
-	private RuleService                $service;
+	private RuleService                  $service;
 
 
 	protected function setUp(): void
@@ -57,24 +56,20 @@ class RuleServiceTest
 
 		parent::setUp();
 
-		$this->appConfig       = $this->createMock( IAppConfig::class );
-		$this->rootFolder      = $this->createMock( IRootFolder::class );
-		$this->userManager     = $this->createMock( IUserManager::class );
-		$this->metadataService = $this->createMock( MetadataService::class );
-		$this->groupManager    = $this->createMock( IGroupManager::class );
-		$this->logger          = $this->createMock( LoggerInterface::class );
+		$this->appConfig         = $this->createMock( IAppConfig::class );
+		$this->rootFolder        = $this->createMock( IRootFolder::class );
+		$this->userManager       = $this->createMock( IUserManager::class );
+		$this->metadataService   = $this->createMock( MetadataService::class );
+		$this->permissionService = $this->createMock( PermissionService::class );
+		$this->logger            = $this->createMock( LoggerInterface::class );
 
-		// A real PermissionService over the same IAppConfig mock, not a mock
-		// of it: the rule-editing permission cases below assert against the
-		// config keys and values they always did, which is what makes them
-		// evidence that moving the logic out of RuleService preserved it.
 		$this->service = new RuleService(
 			$this->appConfig,
 			$this->rootFolder,
 			$this->userManager,
 			$this->metadataService,
 			$this->logger,
-			new PermissionService( $this->appConfig, $this->groupManager ),
+			$this->permissionService,
 		);
 	}
 
@@ -120,7 +115,7 @@ class RuleServiceTest
 			            $this->userManager,
 			            $this->metadataService,
 			            $this->logger,
-			            new PermissionService( $this->appConfig, $this->groupManager ),
+			            $this->permissionService,
 		            ] )
 		            ->onlyMethods( $methods )
 		            ->getMock()
@@ -1009,226 +1004,6 @@ class RuleServiceTest
 	}
 
 
-	// rule editor lists
-
-	public function testGetRuleEditorGroupsDecodesJsonArray(): void
-	{
-
-		$this->appConfig->expects( $this->once() )
-		                ->method( 'getValueString' )
-		                ->with( Application::APP_ID, 'rule_editors_groups', '[]' )
-		                ->willReturn(
-			                json_encode(
-				                [
-					                'staff',
-					                'admins',
-				                ],
-				                JSON_THROW_ON_ERROR,
-			                ),
-		                )
-		;
-
-		$this->assertSame(
-			[
-				'staff',
-				'admins',
-			],
-			$this->service->getRuleEditorGroups(),
-		);
-	}
-
-
-	public function testGetRuleEditorGroupsHandlesInvalidJson(): void
-	{
-
-		$this->appConfig->expects( $this->once() )
-		                ->method( 'getValueString' )
-		                ->with( Application::APP_ID, 'rule_editors_groups', '[]' )
-		                ->willReturn( '{invalid' )
-		;
-
-		$this->assertSame( [], $this->service->getRuleEditorGroups() );
-	}
-
-
-	public function testSetRuleEditorGroupsFiltersAndPersists(): void
-	{
-
-		$this->appConfig->expects( $this->once() )
-		                ->method( 'setValueString' )
-		                ->with(
-			                Application::APP_ID,
-			                'rule_editors_groups',
-			                $this->callback(
-				                function (
-					                string $json,
-				                ): bool {
-
-					                return json_decode( $json, true, 512, JSON_THROW_ON_ERROR )
-						                === [
-							                'staff',
-							                'admins',
-						                ];
-				                },
-			                ),
-		                )
-		;
-
-		$this->service->setRuleEditorGroups(
-			[
-				'staff',
-				'',
-				'admins',
-			],
-		);
-	}
-
-
-	public function testGetRuleEditorUsersDecodesJsonArray(): void
-	{
-
-		$this->appConfig->expects( $this->once() )
-		                ->method( 'getValueString' )
-		                ->with( Application::APP_ID, 'rule_editors_users', '[]' )
-		                ->willReturn( json_encode( [ 'alice' ], JSON_THROW_ON_ERROR ) )
-		;
-
-		$this->assertSame( [ 'alice' ], $this->service->getRuleEditorUsers() );
-	}
-
-
-	public function testSetRuleEditorUsersFiltersAndPersists(): void
-	{
-
-		$this->appConfig->expects( $this->once() )
-		                ->method( 'setValueString' )
-		                ->with(
-			                Application::APP_ID,
-			                'rule_editors_users',
-			                $this->callback(
-				                function (
-					                string $json,
-				                ): bool {
-
-					                return json_decode( $json, true, 512, JSON_THROW_ON_ERROR )
-						                === [ 'alice' ];
-				                },
-			                ),
-		                )
-		;
-
-		$this->service->setRuleEditorUsers(
-			[
-				'alice',
-				'',
-			],
-		);
-	}
-
-
-	public function testIsAllUsersEnabledReadsAppConfig(): void
-	{
-
-		$this->appConfig->expects( $this->once() )
-		                ->method( 'getValueBool' )
-		                ->with( Application::APP_ID, 'rule_editors_all_users', false )
-		                ->willReturn( true )
-		;
-
-		$this->assertTrue( $this->service->isAllUsersEnabled() );
-	}
-
-
-	// canUserEditRules
-
-	public function testCanUserEditRulesAllowsAllUsersFlag(): void
-	{
-
-		$this->appConfig->method( 'getValueBool' )
-		                ->with( Application::APP_ID, 'rule_editors_all_users', false )
-		                ->willReturn( true )
-		;
-
-		$this->assertTrue( $this->service->canUserEditRules( 'alice' ) );
-	}
-
-
-	public function testCanUserEditRulesAllowsListedUser(): void
-	{
-
-		$this->appConfig->method( 'getValueBool' )
-		                ->with( Application::APP_ID, 'rule_editors_all_users', false )
-		                ->willReturn( false )
-		;
-		$this->appConfig->method( 'getValueString' )
-		                ->with( Application::APP_ID, 'rule_editors_users', '[]' )
-		                ->willReturn( json_encode( [ 'alice' ], JSON_THROW_ON_ERROR ) )
-		;
-
-		$this->assertTrue( $this->service->canUserEditRules( 'alice' ) );
-	}
-
-
-	public function testCanUserEditRulesAllowsGroupMember(): void
-	{
-
-		$this->appConfig->method( 'getValueBool' )
-		                ->with( Application::APP_ID, 'rule_editors_all_users', false )
-		                ->willReturn( false )
-		;
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturnMap( [
-			                [
-				                Application::APP_ID,
-				                'rule_editors_users',
-				                '[]',
-				                '[]',
-			                ],
-			                [
-				                Application::APP_ID,
-				                'rule_editors_groups',
-				                '[]',
-				                json_encode( [ 'staff' ], JSON_THROW_ON_ERROR ),
-			                ],
-		                ] )
-		;
-		$this->groupManager->method( 'isInGroup' )
-		                   ->with( 'bob', 'staff' )
-		                   ->willReturn( true )
-		;
-
-		$this->assertTrue( $this->service->canUserEditRules( 'bob' ) );
-	}
-
-
-	public function testCanUserEditRulesDeniesUnlistedUser(): void
-	{
-
-		$this->appConfig->method( 'getValueBool' )
-		                ->with( Application::APP_ID, 'rule_editors_all_users', false )
-		                ->willReturn( false )
-		;
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturnMap( [
-			                [
-				                Application::APP_ID,
-				                'rule_editors_users',
-				                '[]',
-				                '[]',
-			                ],
-			                [
-				                Application::APP_ID,
-				                'rule_editors_groups',
-				                '[]',
-				                '[]',
-			                ],
-		                ] )
-		;
-
-		$this->assertFalse( $this->service->canUserEditRules( 'carol' ) );
-	}
-
-
 	// findRuleById
 
 	public function testFindRuleByIdReturnsMatchingRule(): void
@@ -1313,9 +1088,9 @@ class RuleServiceTest
 		                )
 		;
 
-		$this->appConfig->method( 'getValueBool' )
-		                ->with( Application::APP_ID, 'rule_editors_all_users', false )
-		                ->willReturn( true )
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->with( 'alice' )
+		                        ->willReturn( true )
 		;
 
 		$folder = $this->createFolderMock();

@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Controller;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\StatusService;
 use OCP\AppFramework\Controller;
@@ -31,13 +32,14 @@ class SettingsController
 {
 
 	public function __construct(
-		string                           $appName,
-		IRequest                         $request,
-		private readonly LoggerInterface $logger,
-		private readonly StatusService   $statusService,
-		private readonly IUserManager    $userManager,
-		private readonly RuleService     $ruleService,
-		private readonly MetadataService $metadataService,
+		string                             $appName,
+		IRequest                           $request,
+		private readonly LoggerInterface   $logger,
+		private readonly StatusService     $statusService,
+		private readonly IUserManager      $userManager,
+		private readonly RuleService       $ruleService,
+		private readonly MetadataService   $metadataService,
+		private readonly PermissionService $permissionService,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -385,9 +387,11 @@ class SettingsController
 
 		return new DataResponse( [
 			'success'        => true,
-			'allowAllUsers'  => $this->ruleService->isAllUsersEnabled(),
-			'groups'         => $this->ruleService->getRuleEditorGroups(),
-			'users'          => $this->ruleService->getRuleEditorUsers(),
+			'allowAllUsers'  => $this->permissionService->isAllUsersEnabled(
+				PermissionService::PERMISSION_RULE_EDITING,
+			),
+			'groups'         => $this->permissionService->getGroups( PermissionService::PERMISSION_RULE_EDITING ),
+			'users'          => $this->permissionService->getUsers( PermissionService::PERMISSION_RULE_EDITING ),
 			'availableUsers' => $users,
 		] );
 	}
@@ -431,9 +435,9 @@ class SettingsController
 
 		try
 		{
-			$this->ruleService->setAllUsersEnabled( $allowAll );
-			$this->ruleService->setRuleEditorGroups( $groups );
-			$this->ruleService->setRuleEditorUsers( $users );
+			$this->permissionService->setAllUsersEnabled( PermissionService::PERMISSION_RULE_EDITING, $allowAll );
+			$this->permissionService->setGroups( PermissionService::PERMISSION_RULE_EDITING, $groups );
+			$this->permissionService->setUsers( PermissionService::PERMISSION_RULE_EDITING, $users );
 
 			return new DataResponse( [ 'success' => true ] );
 		}

@@ -13,6 +13,7 @@ use OCA\FileChecksumSearch\Controller\SettingsController;
 use OCA\FileChecksumSearch\Service\DatabaseService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\StatusService;
 use OCA\FileChecksumSearch\Service\TableNameService;
@@ -36,23 +37,25 @@ class SettingsControllerTest
 
 // ── private properties ───────────────────────────────────────────────
 
-	private StatusService              $statusService;
+	private StatusService                $statusService;
 
-	private MockObject|IAppManager     $appManager;
+	private MockObject|IAppManager       $appManager;
 
-	private MockObject|DatabaseService $databaseService;
+	private MockObject|DatabaseService   $databaseService;
 
-	private MockObject|IUserManager    $userManager;
+	private MockObject|IUserManager      $userManager;
 
-	private MockObject|RuleService     $ruleService;
+	private MockObject|RuleService       $ruleService;
 
-	private MockObject|MetadataService $metadataService;
+	private MockObject|PermissionService $permissionService;
 
-	private MockObject|IRequest        $request;
+	private MockObject|MetadataService   $metadataService;
 
-	private MockObject|LoggerInterface $logger;
+	private MockObject|IRequest          $request;
 
-	private SettingsController         $controller;
+	private MockObject|LoggerInterface   $logger;
+
+	private SettingsController           $controller;
 
 
 // ── setUp ────────────────────────────────────────────────────────────
@@ -76,10 +79,11 @@ class SettingsControllerTest
 			$this->metadataService,
 		);
 
-		$this->userManager = $this->createMock( IUserManager::class );
-		$this->ruleService = $this->createMock( RuleService::class );
-		$this->request     = $this->createMock( IRequest::class );
-		$this->logger      = $this->createMock( LoggerInterface::class );
+		$this->userManager       = $this->createMock( IUserManager::class );
+		$this->ruleService       = $this->createMock( RuleService::class );
+		$this->permissionService = $this->createMock( PermissionService::class );
+		$this->request           = $this->createMock( IRequest::class );
+		$this->logger            = $this->createMock( LoggerInterface::class );
 
 		// Partial mock: only readRequestBody() is mocked so php://input
 		// (read-only in CLI) can return test-provided JSON payloads.
@@ -93,6 +97,7 @@ class SettingsControllerTest
 			                         $this->userManager,
 			                         $this->ruleService,
 			                         $this->metadataService,
+			                         $this->permissionService,
 		                         ] )
 		                         ->getMock()
 		;
@@ -648,17 +653,20 @@ class SettingsControllerTest
 		                  )
 		;
 
-		$this->ruleService->expects( $this->once() )
-		                  ->method( 'isAllUsersEnabled' )
-		                  ->willReturn( true )
+		$this->permissionService->expects( $this->once() )
+		                        ->method( 'isAllUsersEnabled' )
+		                        ->with( PermissionService::PERMISSION_RULE_EDITING )
+		                        ->willReturn( true )
 		;
-		$this->ruleService->expects( $this->once() )
-		                  ->method( 'getRuleEditorGroups' )
-		                  ->willReturn( [ 'staff' ] )
+		$this->permissionService->expects( $this->once() )
+		                        ->method( 'getGroups' )
+		                        ->with( PermissionService::PERMISSION_RULE_EDITING )
+		                        ->willReturn( [ 'staff' ] )
 		;
-		$this->ruleService->expects( $this->once() )
-		                  ->method( 'getRuleEditorUsers' )
-		                  ->willReturn( [ 'alice' ] )
+		$this->permissionService->expects( $this->once() )
+		                        ->method( 'getUsers' )
+		                        ->with( PermissionService::PERMISSION_RULE_EDITING )
+		                        ->willReturn( [ 'alice' ] )
 		;
 
 		$response = $this->controller->getAdminOptions();
@@ -696,17 +704,17 @@ class SettingsControllerTest
 		                 )
 		;
 
-		$this->ruleService->expects( $this->once() )
-		                  ->method( 'setAllUsersEnabled' )
-		                  ->with( true )
+		$this->permissionService->expects( $this->once() )
+		                        ->method( 'setAllUsersEnabled' )
+		                        ->with( PermissionService::PERMISSION_RULE_EDITING, true )
 		;
-		$this->ruleService->expects( $this->once() )
-		                  ->method( 'setRuleEditorGroups' )
-		                  ->with( [ 'staff' ] )
+		$this->permissionService->expects( $this->once() )
+		                        ->method( 'setGroups' )
+		                        ->with( PermissionService::PERMISSION_RULE_EDITING, [ 'staff' ] )
 		;
-		$this->ruleService->expects( $this->once() )
-		                  ->method( 'setRuleEditorUsers' )
-		                  ->with( [ 'alice' ] )
+		$this->permissionService->expects( $this->once() )
+		                        ->method( 'setUsers' )
+		                        ->with( PermissionService::PERMISSION_RULE_EDITING, [ 'alice' ] )
 		;
 
 		$response = $this->controller->saveAdminOptions();
