@@ -71,6 +71,7 @@ Example:
 
 | Version | Date       | Changed sections             | Change type | Agent impact                                                                                                                                                              |
 |---------|------------|------------------------------|-------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| v2.6.0  | 2026-08-24 | 2.1, 7                       | minor       | Added `.aiassistant/ENVIRONMENTS.md` as the canonical owner for agent-host command/tool-name conventions (§2.1); referenced it in §7.                                       |
 | v2.5.0  | 2026-08-22 | 6                            | minor       | Added `[RELEASE]` tag and mandatory `CHANGELOG.md` `[Unreleased]` entries to Commit Policy.                                                                               |
 | v2.4.0  | 2026-08-05 | 7                            | minor       | Added CI.md reference to Additional References.                                                                                                                           |
 | v2.3.0  | 2026-06-15 | 5.1                          | minor       | Clarify AP title `{topic}` is a subject descriptor, not a workflow signal (§3).                                                                                           |

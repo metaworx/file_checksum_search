@@ -1,6 +1,8 @@
-# PHPUnit Wrapper (v1.0.0)
+# PHPUnit Wrapper (v1.1.0)
 
 Agent-facing guidance for `\.aiassistant\tools\phpunit`.
+
+> **Not used in FCIAS** — see §8. Kept for reference; do not follow for this project. Where PowerShell/bash forms are shown side by side below, `.aiassistant/ENVIRONMENTS.md` explains which agent host each is for.
 
 ## Contents
 
@@ -118,3 +120,4 @@ With TestDox (`--testdox`):
 | Version | Date       | Changed sections | Change type | Agent impact |
 |---------|------------|------------------|-------------|--------------|
 | v1.0.0  | 2026-04-23 | Initial document | minor       | Establishes wrapper-specific behavior, options, and wrapper-first usage guidance for agents. |
+| v1.1.0  | 2026-08-24 | Title             | minor       | Added a top-of-document note that this wrapper is inapplicable to FCIAS (§8) and a pointer to `.aiassistant/ENVIRONMENTS.md` for the existing PowerShell/bash example pairs. |

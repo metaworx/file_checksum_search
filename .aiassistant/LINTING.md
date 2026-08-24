@@ -1,7 +1,9 @@
-# Linting & Code Style Conventions (v2.0.0)
+# Linting & Code Style Conventions (v2.1.0)
 
 Project-specific linting and style conventions for FCIAS (File Checksum Index & Search Nextcloud app).
 Generic agent flow-control rules are in `AGENTS.md`; contributor context is in `CONTRIBUTING.md`.
+
+> **Agent host note:** Tool names below (`mcp--jetbrains--*`) are the Windows-hosted agent's. See `.aiassistant/ENVIRONMENTS.md` before running any example — WSL-based agents (e.g. Claude Code) use different tool names (`mcp__phpstorm__*`) and setup.
 
 ## Contents
 
@@ -15,7 +17,7 @@ Generic agent flow-control rules are in `AGENTS.md`; contributor context is in `
 
 ## 1. Linting Tool
 
-FCIAS uses JetBrains IDE inspections for linting and validation. All invocations go through the JetBrains MCP server.
+FCIAS uses JetBrains IDE inspections for linting and validation. All invocations go through the JetBrains MCP server. Tool names below are the Windows-hosted agent's — see `.aiassistant/ENVIRONMENTS.md` §2.2 for the Claude Code (`mcp__phpstorm__*`) equivalents.
 
 | Purpose | Tool | Notes |
 |---------|------|-------|
@@ -61,6 +63,7 @@ FCIAS uses JetBrains IDE inspections for linting and validation. All invocations
 
 | Version | Date       | Changed sections                              | Change type | Agent impact                                                     |
 |---------|------------|-----------------------------------------------|-------------|------------------------------------------------------------------|
+| v2.1.0  | 2026-08-24 | Title, 1                                       | minor       | Added a pointer to `.aiassistant/ENVIRONMENTS.md` — tool names in §1 are the Windows-hosted agent's (`mcp--jetbrains--*`); WSL-based agents use `mcp__phpstorm__*`. |
 | v2.0.0  | 2026-08-03 | All sections                                  | major       | Project switch: Kunstarchiv → FCIAS. Linting tool: `ecs.php` → JetBrains MCP (`lint_files`, `get_file_problems`, `build_project`, `reformat_file`). |
 | v1.2.0  | 2026-04-22 | Contents, 1-7                                 | minor       | Adds section numbering (Kunstarchiv). |
 | v1.1.0  | 2026-04-22 | Title, Contents, Document Governance, History | minor       | Adds explicit versioning (Kunstarchiv). |

@@ -1,6 +1,8 @@
-# AI Agent Commit Guidelines (v1.3.0)
+# AI Agent Commit Guidelines (v1.4.0)
 
 This document defines the complete commit workflow, message format, and execution signals for AI agents. Follow these rules precisely when preparing and executing commits.
+
+> **Agent host note:** The commands in §6.1 are shown in their WSL-native (bare) form. Windows-hosted agents need a `wsl --cd` prefix and a `cwd: "C:\\"` tool argument — see `.aiassistant/ENVIRONMENTS.md` §1 before running them.
 
 ## Contents
 
@@ -173,23 +175,23 @@ section and bumps `appinfo/info.xml`'s `<version>`. Nothing else changes in this
 
 ## 6. Commit Tools (`/.aiassistant/tools/`)
 
-Reusable PowerShell scripts simplify creating compliant commits.
+> Commands below are WSL-native (bare); see `.aiassistant/ENVIRONMENTS.md` §1 for the Windows-hosted agent form.
+
+Reusable helper scripts simplify creating compliant commits.
 
 ### 6.1 Workflow
 
 1. Write the complete commit message to `.aiassistant/tools/commit-msg.txt` (do not delete; it's `.gitignore'd`).
-2. Run the appropriate command from WSL:
+2. Run the appropriate command:
 
     - **New commit**:
-      ```
-      wsl --cd ~/projects/nc_file_checksum_search /home/mdr/bin/git commit -F .aiassistant/tools/commit-msg.txt --trailer "Co-authored-by: Agent <agent@example.com>"
+      ```bash
+      /home/mdr/bin/git commit -F .aiassistant/tools/commit-msg.txt --trailer "Co-authored-by: Agent <agent@example.com>"
       ```
     - **Amend last commit**:
+      ```bash
+      /home/mdr/bin/git commit --amend -F .aiassistant/tools/commit-msg.txt --trailer "Co-authored-by: Agent <agent@example.com>"
       ```
-      wsl --cd ~/projects/nc_file_checksum_search /home/mdr/bin/git commit --amend -F .aiassistant/tools/commit-msg.txt --trailer "Co-authored-by: Agent <agent@example.com>"
-      ```
-
-> **Important:** When using the native agent `execute_command` tool, always pass `cwd: "C:\\"` to avoid CMD.EXE UNC path errors with `\\wsl.localhost\...` paths.
 
 The `--trailer` flag appends the `Co-authored-by` trailer automatically.
 
@@ -232,6 +234,7 @@ Co-authored-by: Agent <agent@example.com>
 
 | Version | Date       | Changes                                                                                                                              | Agent Impact                                                                                                                            |
 |---------|------------|--------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| v1.4.0  | 2026-08-24 | Commands in §6.1 are now shown WSL-native (bare); the Windows-agent `wsl --cd` prefix and duplicated `cwd: "C:\\"` note moved to `.aiassistant/ENVIRONMENTS.md` §1, and a top-of-document pointer was added. | Run §6.1 commands as-is on WSL-based agents; Windows-hosted agents must add the prefix/argument per `ENVIRONMENTS.md` before running them. |
 | v1.3.0  | 2026-08-22 | Added `[RELEASE]` tag (§4.4) and mandatory `CHANGELOG.md` `[Unreleased]` entries (§4.3); updated checklist and tag list accordingly. | Agents must now maintain `CHANGELOG.md` as part of normal commits, and use dedicated `[RELEASE]` commits + signed tags to cut versions. |
 | v1.2.0  | 2026-08-05 | Added trailer mutual-exclusion warning and ask-user-first identity rule in §6.1.                                                     | Prevents duplicate Co-authored-by trailers; ensures correct identity string.                                                            |
 | v1.1.0  | 2026-04-22 | Added `EXEC` signal mini-matrix with quick examples for faster commit confirmation.                                                  | Improves commit signal clarity in user-agent interaction.                                                                               |

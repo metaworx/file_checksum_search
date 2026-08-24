@@ -1,7 +1,9 @@
-# Testing Conventions (v2.12.0)
+# Testing Conventions (v2.15.0)
 
 Project-specific testing conventions for FCIAS (File Checksum Index & Search Nextcloud app).
 Generic agent flow-control rules are in `AGENTS.md`; contributor context is in `CONTRIBUTING.md`.
+
+> **Agent host note:** Commands and MCP/IDE tool names below assume a specific host (Windows-hosted agent vs WSL-based agent). Translate per `.aiassistant/ENVIRONMENTS.md` before running any example — do not guess the prefix or tool-name form.
 
 ## Contents
 
@@ -13,27 +15,28 @@ Generic agent flow-control rules are in `AGENTS.md`; contributor context is in `
 6. Testability Patterns
 7. Diagnosis Strategy
 8. Nextcloud Integration Tests
-9. Cypress E2E Testing
-10. Mocking Nextcloud Services
-11. Database Test Isolation
-12. Document Governance
-13. Version History
-14. JetBrains MCP Quality Workflow
-15. Frontend Unit Tests (Vitest) — Gotchas
+9. Mocking Nextcloud Services
+10. Database Test Isolation
+11. Document Governance
+12. Cypress E2E Testing
+13. JetBrains MCP Quality Workflow
+14. Frontend Unit Tests (Vitest) — Gotchas
+15. Agent Environments
+16. Version History
 
 ## 1. Gate Command
 
-The primary test runner is Composer-installed PHPUnit. Always prefix WSL commands with `wsl --cd ~/projects/nc_file_checksum_search`:
+The primary test runner is Composer-installed PHPUnit. Commands below are the WSL-native (bare) form — see `.aiassistant/ENVIRONMENTS.md` for the Windows-agent prefix:
 
 ```bash
-wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit
+./.aiassistant/tools/phpunit
 ```
 
 Scoped run (single file or directory):
 
 ```bash
-wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/Unit/Controller/PublicApiControllerTest.php
-wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/Unit/
+./.aiassistant/tools/phpunit tests/Unit/Controller/PublicApiControllerTest.php
+./.aiassistant/tools/phpunit tests/Unit/
 ```
 
 ### 1.1 Test Runner Wrapper
@@ -47,7 +50,7 @@ The preferred way to run tests is through `.aiassistant/tools/phpunit`:
 
 The wrapper auto-detects whether ddev is available:
 - **With ddev**: executes `ddev exec php` inside the `nextcloud_testing` instance the app is
-  mounted into, using the in-container mount path (§9.1)
+  mounted into, using the in-container mount path (§12.1)
 - **Without ddev**: falls back to direct `vendor/bin/phpunit`
 
 Relative path arguments (`tests/`, `vendor/`) are automatically prefixed with the container mount path when running inside ddev.
@@ -58,12 +61,12 @@ set it to `.../instances/33` to run the suite against NC 33 instead.
 For manual ddev execution:
 
 ```bash
-wsl --cd ~/projects/nextcloud_testing/instances/34 bash -c "ddev exec php /var/www/html/apps/file_checksum_search/vendor/bin/phpunit -c /var/www/html/apps/file_checksum_search/tests/phpunit.xml /var/www/html/apps/file_checksum_search/tests/Unit/Path/To/Test.php"
+(cd ~/projects/nextcloud_testing/instances/34 && ddev exec php /var/www/html/apps/file_checksum_search/vendor/bin/phpunit -c /var/www/html/apps/file_checksum_search/tests/phpunit.xml /var/www/html/apps/file_checksum_search/tests/Unit/Path/To/Test.php)
 ```
 
 The `tests/bootstrap.php` loads NC autoloader from `/var/www/html/3rdparty/autoload.php` and `/var/www/html/lib/base.php` for OCP class availability inside ddev.
 
-> **Important:** When using the native agent `execute_command` tool, always pass `cwd: "C:\\"` to avoid CMD.EXE UNC path errors with `\\wsl.localhost\...` paths.
+> Host-specific command prefixing (Windows-agent `wsl --cd` / `cwd: "C:\\"`) is documented once in `.aiassistant/ENVIRONMENTS.md` §1 — not repeated per example here.
 
 > **CI display‑warnings:** When `failOnWarning="true"` is set in `tests/phpunit.xml`, always include `--display-warnings` in the CI PHPUnit command (e.g. `./vendor/bin/phpunit -c tests/phpunit.xml --display-warnings`). Without this flag, warnings are invisible in CI logs but still cause exit code 1.
 
@@ -164,7 +167,7 @@ Nextcloud integration tests (e.g., trigger cascade tests) must run as the NC web
 inside WSL:
 
 ```bash
-wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/Integration/
+./.aiassistant/tools/phpunit tests/Integration/
 ```
 
 Prerequisites:
@@ -208,12 +211,12 @@ $request = $this->createMock(\OCP\IRequest::class);
 - This document follows the shared governance rules in `.aiassistant/CHANGELOG.md`.
 - Update the title version on each change and append a new row in `Version History`.
 
-## 9. Cypress E2E Testing
+## 12. Cypress E2E Testing
 
 Cypress is a dev dependency of this project (`package.json`); specs live in `tests/e2e/` and are
 configured in `cypress.config.cjs` at the project root.
 
-### 9.1 Preparing an instance
+### 12.1 Preparing an instance
 
 Local E2E runs go against the `~/projects/nextcloud_testing` DDEV harness (see its own
 `README.md`), which provides clean NC 33/34 instances (admin `admin`/`admin`). Its `nc-test` CLI
@@ -239,24 +242,23 @@ Bumping `appinfo/info.xml`'s `<version>` puts an already-installed instance into
 hook. `ddev exec php occ status` reports `needsDbUpgrade: true`; fix it with
 `ddev exec php occ upgrade` (or a `nc-test reset`, which reinstalls the app anyway).
 
-### 9.2 Running locally
+### 12.2 Running locally
 
-Run Cypress from this repository against that instance:
+Run Cypress from this repository against that instance. Commands below are WSL-native (bare);
+see `.aiassistant/ENVIRONMENTS.md` §1 for the Windows-hosted agent form.
 
 ```bash
-wsl bash -lc "cd ~/projects/nc_file_checksum_search && \
-  CYPRESS_baseUrl=https://nextcloud-34.ddev.site \
+CYPRESS_baseUrl=https://nextcloud-34.ddev.site \
   CYPRESS_occ='cd ~/projects/nextcloud_testing/instances/34 && ddev exec php occ' \
-  npx cypress run"
+  npx cypress run
 ```
 
 Or for a single spec:
 
 ```bash
-wsl bash -lc "cd ~/projects/nc_file_checksum_search && \
-  CYPRESS_baseUrl=https://nextcloud-34.ddev.site \
+CYPRESS_baseUrl=https://nextcloud-34.ddev.site \
   CYPRESS_occ='cd ~/projects/nextcloud_testing/instances/34 && ddev exec php occ' \
-  npx cypress run --spec tests/e2e/app-enable.cy.js"
+  npx cypress run --spec tests/e2e/app-enable.cy.js
 ```
 
 Environment variables (read via `cy.env()` in the specs):
@@ -275,7 +277,7 @@ Prerequisites:
   `--lang=en-US` (Electron ignores the flag).
 - Chrome is not always installed locally — `--browser electron` (or `firefox`) is the fallback.
 
-### 9.3 Notes
+### 12.3 Notes
 
 - Enabling an app via the Apps page requires a password confirmation dialog
   (`PasswordConfirmationRequired`); the spec fills it after clicking **Enable**.
@@ -290,7 +292,7 @@ Prerequisites:
   `http://localhost:8081` on a freshly installed instance with `appstoreenabled=false` and
   `force_language=en`, using `--browser chrome`.
 
-### 9.4 Test suite documentation
+### 12.4 Test suite documentation
 
 [`tests/e2e/README.md`](../tests/e2e/README.md) is the canonical description of
 the Cypress suite: what each spec does, the execution order (Cypress runs specs
@@ -298,7 +300,7 @@ alphabetically), any ordering dependencies between specs, and the data strategy.
 Consult it before adding or running a spec — some specs depend on data produced
 by earlier-running specs and must not be run standalone.
 
-### 9.5 Failure diagnostic
+### 12.5 Failure diagnostic
 
 A failed spec prints a context dump to stdout, so a CI failure can be read without
 reproducing it locally. It is wired up in two places: `tests/e2e/support/e2e.js` collects the
@@ -335,9 +337,12 @@ re-deriving:
 To extend the dump, add fields in `collectDiagnostic()`; it is wrapped in try/catch so a
 malformed DOM reports `collectionError` instead of masking the real failure.
 
-## 14. JetBrains MCP Quality Workflow
+## 13. JetBrains MCP Quality Workflow
 
 After editing PHP files, run through this quality pipeline using JetBrains MCP tools:
+
+> Tool names below are the Windows-hosted agent's. See `.aiassistant/ENVIRONMENTS.md` §2.2
+> for the Claude Code (`mcp__phpstorm__*`) equivalents and setup prerequisites.
 
 1. **Reformat**: `mcp--jetbrains--reformat_file` with `files: ["path/relative/to/project"]`
 2. **Inspect**: `mcp--jetbrains--get_inspections` with `filePath: "path/relative/to/project"` — shows errors, warnings, weak warnings including "Unnecessary curly braces"
@@ -350,7 +355,53 @@ Common inspections to watch for:
 - "Unhandled exceptions" — evaluate and either add `@throws` tag to the docblock, or suppress with `/** @noinspection PhpUnhandledExceptionInspection */` just before the statement (merge with existing comment if present), or place in the method's docblock as deemed appropriate
 - "No data sources configured" (harmless IDE config issue, can be ignored)
 
-## 15. Frontend Unit Tests (Vitest) — Gotchas
+### 13.1 Inspection noise from the dual NC trees
+
+Both §1.2 fallback trees are checked out — `nextcloud-v33` and `nextcloud-v34` — and PhpStorm
+indexes both. Every OCP symbol therefore resolves twice and inspections report
+`Multiple definitions exist for class '...'` throughout: measured across the app's changed PHP
+files on 2026-08-24, **261 of 348 findings (75%)** were this message, and one controller showed
+62 of 63.
+
+This is expected, not a misconfiguration — cross-version resolution is why both trees are
+linked. Do **not** exclude either tree. Filter the message when triaging inspection output.
+
+### 13.2 A file's IDE buffer can silently lag disk by commits, not seconds
+
+`reformat_file`/`get_inspections`/`lint_files`/`read_file` go through PhpStorm's in-memory view
+of a file, not the filesystem. **Root cause on this setup:** the IDE's file watcher does not work
+reliably across the WSL boundary, so external changes are only picked up by periodic polling —
+a closed file's view can lag disk for a long time. Observed consequence on 2026-08-24:
+`reformat_file` on `tests/Unit/Service/RuleServiceTest.php` wrote a buffer that was **two
+commits stale** back to disk, resurrecting nine deleted tests and dropping eight just-added
+ones; `git diff --stat` looked unremarkable and only a full test run surfaced it.
+
+The fix is to never rely on the watcher: force a targeted reload with `invoke_ide_action`,
+`actionId: "SynchronizeCurrentFile"`, `filePaths: ["<file>"]` (per-file; `"Synchronize"` reloads
+the whole project — during the incident only the untargeted form was tried, so treat the
+targeted form as the primary tool). Both only reload from disk, never write.
+
+The guard is asymmetric, because only `reformat_file` and `apply_quick_fix` **write** the
+buffer back to disk:
+
+- **Read-only tools** (`get_inspections`, `lint_files`, `read_file`, `search_*`): a stale buffer
+  wastes the call but cannot corrupt anything. `SynchronizeCurrentFile` the file before the
+  first such call in a session and after any out-of-IDE edit (Edit/Write/Bash, another agent,
+  `git checkout`); no verification needed.
+- **Buffer-writing tools** (`reformat_file`, `apply_quick_fix`): a stale buffer here is the
+  unrecoverable case. `SynchronizeCurrentFile` immediately before, and verify **after** with a
+  content probe: `grep -c` for one distinctive string from the just-made edit (it must still be
+  present) — a plain change-detector is not enough here, since a legitimate reformat and a
+  stale-buffer overwrite both change the file. For pure did-anything-change-under-me checks
+  (before diffing, before staging), `md5sum <file>` is the tool — as cheap as `wc -l` and,
+  unlike a line count, cannot collide on same-length corruption.
+
+The `PostToolUse` hook that auto-fires `get_inspections` after every `Edit`/`Write` is not a
+substitute: its payload can echo the same stale buffer, and it looks identical in shape whether
+the file is fresh or two commits behind. A hook-fired finding naming a symbol that shouldn't
+exist in the current file (per `grep`) is the tell.
+
+## 14. Frontend Unit Tests (Vitest) — Gotchas
 
 Frontend unit tests use Vitest with the `happy-dom` environment (config: `vitest.config.ts`,
 specs colocated as `src/**/*.spec.ts`). Run via `npm run test` (or `npm run test:watch`).
@@ -386,10 +437,19 @@ frontend change of consequence.
   vanilla-JS DOM-manipulation entry points remain), so this shouldn't recur here, but the gotcha
   applies to any future black-box test of a vanilla-JS file with a module-level global listener.
 
-## 13. Version History
+## 15. Agent Environments
+
+Command prefixing and IDE tool-name conventions differ by agent host (Windows-hosted vs WSL-based) and by agent. This is documented once, canonically, in `.aiassistant/ENVIRONMENTS.md` — see it before running any example in this document,
+including the JetBrains MCP pipeline in §13 and the dual-tree inspection note in §13.1.
+
+## 16. Version History
 
 | Version | Date       | Changed sections                              | Change type | Agent impact                                                                                                                                                                            |
 |---------|------------|-----------------------------------------------|-------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| v2.15.0 | 2026-08-24 | 13.2                                           | minor       | Added §13.2: on WSL the IDE's file watcher is unreliable and a closed file's buffer can lag disk by whole commits (observed: `reformat_file` wrote a two-commits-stale buffer over a same-session edit, resurrecting deleted tests and dropping new ones, with `git diff --stat` giving no warning). Procedure: targeted `SynchronizeCurrentFile` (with `filePaths`) before any MCP call on a file — the watcher must never be relied on; the two buffer-writing tools (`reformat_file`, `apply_quick_fix`) additionally get a post-write sentinel `grep` (a change-detector alone can't distinguish a legit reformat from corruption); `md5sum` over `wc -l` for pure change detection. The auto-fired inspection hook can echo the same stale content indistinguishably from fresh. |
+| v2.14.1 | 2026-08-24 | 12.2                                           | patch       | Stripped the `wsl bash -lc "cd ... && ..."` Windows-agent wrapper from both §12.2 Cypress commands (missed in v2.14.0, which only searched for `wsl --cd`); added the same `ENVIRONMENTS.md` §1 pointer. |
+| v2.14.0 | 2026-08-24 | Title, 1, 8, 13, 15                           | minor       | Extracted §15 into `.aiassistant/ENVIRONMENTS.md` as the canonical, cross-document owner; §15 is now a pointer. Stripped the Windows-agent `wsl --cd` prefix from every bare command example (§1, §8) and the duplicated `cwd: "C:\\"` note — both are now stated once in `ENVIRONMENTS.md` §1. Added a top-of-document callout directing readers there before running any example. |
+| v2.13.0 | 2026-08-24 | 12–16, Contents                               | minor       | Added §15 (Agent Environments), splitting conventions by agent host: Windows-based agents keep the `wsl --cd` prefix and `cwd: "C:\"` rule, WSL-based agents drop both but must still address the IDE by its `//wsl.localhost/...` UNC path. Per-agent subsections for Roo Code and Claude Code; records Claude's `mcp__phpstorm__*` tool names, their deferred/ToolSearch loading, and the `phpstorm` server-name and router-only-mode prerequisites. Added §13.1 on the dual `nextcloud-v33`/`v34` index making "Multiple definitions exist for class" ~75% of findings (expected, do not exclude a tree). Renumbered sections to remove the duplicate §9 and out-of-order §13/§14/§15 — earlier rows in this table use the pre-v2.13.0 numbering. |
 | v2.12.0 | 2026-08-23 | 1.2                                           | minor       | Documented that `tests/bootstrap.php` now falls back to a Nextcloud source tree checked out beside the app (highest `nextcloud-v*` found, or `FCIAS_NC_ROOT`), so the unit suite runs without a server or ddev. Records why `lib/base.php` is deliberately not loaded there and which tests are unrunnable as a result. |
 | v2.11.0 | 2026-08-23 | 9.5                                           | minor       | Added the e2e failure diagnostic (support/e2e.js + the `fciasDiag` task) and how to read its dump, plus the two NC 34 sidebar facts (reactive `currentTabs`, global tab registry) that rule out a registration or `enabled()` race as the cause of a missing tab. |
 | v2.10.0 | 2026-08-23 | 9.3                                           | minor       | Documented that only one Cypress suite may run against an instance at a time: the specs share one database and `app-enable.cy.js` toggles the app instance-wide, so concurrent runs sabotage each other and the failures look like flakes. |

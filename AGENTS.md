@@ -1,4 +1,4 @@
-# AI Agent Guidelines (v2.5.0)
+# AI Agent Guidelines (v2.6.0)
 
 Core behavioral rules for AI agents working on this codebase.  
 All agents MUST comply.
@@ -86,6 +86,7 @@ This document is intentionally concise; refer to linked documents for extended g
 | Test depth and commands                                                                   | `.aiassistant/TESTING.md`       |
 | Lint/style commands and policy                                                            | `.aiassistant/LINTING.md`       |
 | Document governance rules and canonical history ownership                                 | `.aiassistant/CHANGELOG.md`     |
+| Agent-host command/tool-name conventions (Windows-hosted vs WSL-based, per-agent specifics) | `.aiassistant/ENVIRONMENTS.md`  |
 | AP requirements (`MUST`)                                                                  | `AGENTS.md` §1.2 and §5         |
 
 If overlap exists, follow the canonical owner document for that rule family.
@@ -153,6 +154,7 @@ Latest `<issue_update>` overrides earlier `<issue_description>`.
 - `.aiassistant/tools/README.md` – helper scripts and tooling.
 - `.aiassistant/tools/RUNTIME_TOOLS.md` – runtime tool capabilities and adaptation rules.
 - `.aiassistant/CI.md` – CI conventions and setup‑server‑action behavior, if used.
+- `.aiassistant/ENVIRONMENTS.md` – canonical agent-host command/tool-name conventions.
 
 ## 8. Document Governance
 
@@ -165,4 +167,4 @@ Latest `<issue_update>` overrides earlier `<issue_description>`.
 
 | Version | Date       | Changed Sections | Change Type | Agent Impact                                    |
 |---------|------------|------------------|-------------|-------------------------------------------------|
-| v2.5.0  | 2026-08-22 | 6                | minor       | Added `[RELEASE]` tag and mandatory `CHANGELOG.md` `[Unreleased]` entries to Commit Policy. |
+| v2.6.0  | 2026-08-24 | 2.1, 7           | minor       | Added `.aiassistant/ENVIRONMENTS.md` as the canonical owner for agent-host command/tool-name conventions (§2.1); referenced it in §7. |

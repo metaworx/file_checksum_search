@@ -5,6 +5,8 @@ Thank you for your interest in contributing to File Checksum Index & Search (FCI
 This document contains repository-specific contributor conventions for FCIAS.
 Generic runtime and agent flow-control rules are defined in `AGENTS.md`.
 
+> **Note for AI agents:** Where this document shows PowerShell and bash forms of a command side by side, that split follows the Windows-hosted-agent / WSL-based-agent distinction documented canonically in `.aiassistant/ENVIRONMENTS.md` — see it for which form applies to your runtime and for IDE/MCP tool-name equivalents.
+
 ## Table of Contents
 
 - [Commit Rules](#commit-rules)
@@ -80,6 +82,8 @@ Co-authored-by: Agent <agent@example.com>
 ```
 
 ### Commit message formatting tips
+
+> PowerShell examples below are for Windows-hosted agents; see `.aiassistant/ENVIRONMENTS.md` §1 for that convention and its WSL-native equivalent.
 
 - Multiple `-m` flags (PowerShell):
 
