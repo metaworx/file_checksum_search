@@ -159,6 +159,8 @@ paths:
                 $ref: "#/components/schemas/RecalcResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/HashingExcluded"
         "404":
           $ref: "#/components/responses/NotFound"
         "429":
@@ -729,6 +731,33 @@ components:
           description: Exactly a permutation of that band's rule IDs
 
   responses:
+    HashingExcluded:
+      description: >-
+        An `exclude` rule covers this file, so it must not be read at all and a
+        manual recalculation is refused along with every automatic route. The
+        request is well-formed and retrying will not help, which is why this is
+        403 rather than 400. An `ignore` rule does not produce this response —
+        hashing on request is what `ignore` still allows.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: string
+                example: "Hashing is excluded for this path by an administrator rule."
+              excluded:
+                type: boolean
+                description: Always true; distinguishes a policy refusal from any other 403.
+                example: true
+              ruleId:
+                type: string
+                description: The rule that decided, as shown in the rules table.
+                example: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
+
     BadRequest:
       description: Validation error
       content:

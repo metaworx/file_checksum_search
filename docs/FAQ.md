@@ -44,12 +44,27 @@ built-in metadata index.
 ## How do rules work?
 
 Rules control which files get hashes, with which algorithms, and when — each
-file is handled by the first matching rule, evaluated in order. That order
-follows from what each rule is: administrator-enforced rules are evaluated
-before users' own rules, which are evaluated before the non-enforced defaults,
-with the catch-all `**` rule last. A rule can also say *not* to hash — `ignore`
-stops automatic hashing while still allowing it on request, and `exclude`
-blocks it entirely. See
+file is handled by the first matching rule, evaluated in order, and that
+decision is final: there is no fall-through to a later rule.
+
+The order follows from what each rule *is*, not from where anyone put it.
+Rules fall into seven **bands**: administrator-enforced rules first (aimed at
+a single user, then at a group, then at everyone), then users' own rules, then
+the non-enforced administrator defaults in the same order, and the catch-all
+`**` rule last. Enforced beats unenforced; within each half, specific beats
+general. So no rule of a user's own can outrun one an administrator enforced,
+while it *can* override a default — which is what leaving a rule unenforced
+offers.
+
+The settings pages write a rule's priority as `<band>.<position>`, both
+ascending as priority falls: `1.1` is the strongest rule on the instance and
+the catch-all is always last. A rule moves between bands by having its scope
+or its enforced flag changed, never by being dragged; dragging only reorders
+rules inside one band.
+
+A rule can also say *not* to hash — `ignore` stops automatic hashing while
+still allowing it on request, and `exclude` blocks it entirely, including the
+sidebar's Recalculate button and the `occ` command. See
 [README.md § Hash Generation Rules](../README.md#hash-generation-rules) for
 the full field and band reference, the rule types, and the mode table
 (`auto`, `missing`, `force`, `lazy`).
@@ -91,6 +106,11 @@ can lock individual rules with the **admin-enforced** flag; a locked rule is
 shown to users as read-only. Whether a given user can create/edit rules at
 all is configured in admin settings (allow-all toggle, groups, users), and
 is further limited to rules whose path they can write to.
+
+Personal settings shows a user every rule that can decide one of their files,
+not only the ones they may change: the enforced rules above their own and the
+defaults below, both read-only. Seeing only the editable part would make a
+file's actual fate look like it came from nowhere.
 
 `admin_enforced` and `userScope` are never trusted from a user's own
 request — the server always decides them. See

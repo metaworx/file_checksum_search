@@ -384,6 +384,24 @@ Content-Type: application/json
 {"success": false, "error": "Unsupported algorithm: sha999"}
 ```
 
+**Refused (403)** — an `exclude` rule covers the file:
+```json
+{
+  "success": false,
+  "error": "Hashing is excluded for this path by an administrator rule.",
+  "excluded": true,
+  "ruleId": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
+}
+```
+
+`exclude` means the file must not be read at all, so a manual recalculation is
+refused along with every automatic route. The status is 403 rather than 400
+because the request is well-formed and retrying it will not help — a client
+should surface the reason instead of treating it as a transient failure.
+`ruleId` names the rule that decided, so an administrator can find it in the
+rules table. An `ignore` rule does **not** produce this: hashing on request is
+exactly what `ignore` still allows.
+
 ---
 
 #### 5. Find All Duplicates

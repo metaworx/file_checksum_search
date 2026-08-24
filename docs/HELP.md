@@ -46,6 +46,55 @@ sidebar (the file detail pane). It shows:
 - A **Find duplicates** action that lists files sharing hash values with
   the selected file.
 
-> **Note:** FCIAS computes checksums according to the rules configured by
-> your administrator. Some algorithms may be missing until the background
-> job has processed the file.
+> **Note:** FCIAS computes checksums according to the rules described below.
+> Some algorithms may be missing until the background job has processed the
+> file. If **Recalculate** reports that the file is excluded, a rule blocks
+> hashing it entirely — see *Your hashing rules*.
+
+## Your hashing rules
+
+Open **Personal settings → File Checksum Index & Search** to see which rules
+decide your files. Every file is handled by the **first rule that matches it**,
+and that decision is final — no later rule gets a say.
+
+The table lists the rules in exactly the order they are checked, grouped into
+bands. Each band opens with a header saying what it is, and each rule shows its
+priority as `<band>.<position>` — `4.2` is the second rule in band 4. Lower is
+stronger, so the top of the table wins and the catch-all `**` rule at the
+bottom only decides files nothing else matched. Every heading has an **i**
+button explaining what that column's values mean.
+
+You will normally see three kinds of row:
+
+- **Above yours** — rules your administrator enforced. They come first, you
+  cannot change or disable them, and nothing of yours can outrun them.
+- **Your own rules** — the ones you may edit, delete and reorder among
+  themselves. They decide a file only where no enforced rule matched it first.
+- **Below yours** — the administrator's defaults, including the catch-all.
+  They apply where nothing more specific matched, which means one of your own
+  rules can override them.
+
+Rows you may not change show **Read-only** in place of the buttons. If you see
+"You are not allowed to edit rules", your administrator has not granted the
+permission; you can still read the table. Even with the permission, you can
+only create a rule for a path in a folder you can write to.
+
+### What the Type column means
+
+| Type | Automatic hashing | The sidebar's Recalculate button |
+|------|-------------------|----------------------------------|
+| `include` | yes | works |
+| `ignore` | no | works — hashing on request is exactly what `ignore` allows |
+| `exclude` | no | refused |
+
+`exclude` is a blanket "do not read these files", so it blocks every route,
+your own Recalculate included. This is normally deliberate: it is the setting
+used for storage that is slow or costs money to read.
+
+### Reordering your rules
+
+Drag a rule by the handle on its left to move it. A rule can only be dropped
+inside its own band — elsewhere the cursor shows "no drop" — because moving it
+between bands would change who it can outrank. To move a rule to a different
+band, change what it *is*: its scope or, for an administrator, its enforced
+flag. Reordering currently needs a pointer; there is no keyboard equivalent.

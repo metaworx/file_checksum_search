@@ -134,6 +134,23 @@ no user rule can outrun one an administrator enforced, while a user rule *can* o
 non-enforced defaults below it — which is what leaving a rule unenforced offers. A rule changes
 band by changing its scope or its enforced flag, not by being moved.
 
+### Ordering within a band
+
+The settings pages show each rule's priority as `<band>.<position>` — `4.2` is the second rule
+in band 4. Both numbers ascend as priority falls, so `1.1` is the strongest rule on the instance
+and the catch-all is always last. Neither is stored: the band is derived from the rule's scope
+and its enforced flag, and the position is the rule's index inside its band.
+
+Rules are reordered by dragging them, and a drag is confined to the band it started in — there is
+no drop target outside it, so the browser shows a "no drop" cursor rather than accepting a move
+that would change a rule's band behind your back. Band 4 holds every user's own rules, so in the
+administrator's view a drag there is further confined to the one user's own segment; different
+users' rules never compete for a file, and mixing them would only make the list harder to read.
+To move a rule into a different band, change its scope or its enforced flag.
+
+There is no keyboard equivalent to the drag yet. Everything else on the rules page — creating,
+editing, enabling, deleting — is reachable without a pointer; only reordering is not.
+
 Rules created before the band model are sorted into bands by a repair step, which also marks the
 catch-all `**` rule as the pinned default of band 7. It runs during the app upgrade that
 introduces bands, so an ordinary installation needs nothing. Run it on demand with:
