@@ -134,6 +134,22 @@ no user rule can outrun one an administrator enforced, while a user rule *can* o
 non-enforced defaults below it — which is what leaving a rule unenforced offers. A rule changes
 band by changing its scope or its enforced flag, not by being moved.
 
+Rules created before the band model are sorted into bands by a repair step, which also marks the
+catch-all `**` rule as the pinned default of band 7. It runs during the app upgrade that
+introduces bands, so an ordinary installation needs nothing. Run it on demand with:
+
+```bash
+php occ maintenance:repair
+```
+
+That runs every enabled app's repair steps, including this one — look for *"File Checksum Index &
+Search: sort rules into priority bands"* in the output. It is idempotent, so running it again
+changes nothing. Reach for it if the rules table shows the catch-all `**` rule in a band other
+than the last: on an instance that received the band model without the app version changing — any
+working copy tracking the repository between releases — Nextcloud never enters the upgrade path,
+so the step has not run and the catch-all is still an ordinary global rule showing as `6.1`
+instead of `7.1`.
+
 Each rule combines:
 
 | Field | Description |
