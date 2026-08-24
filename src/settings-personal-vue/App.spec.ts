@@ -74,6 +74,37 @@ describe('settings-personal App', () => {
 		expect(wrapper.find('#fcias-personal-rules').text()).toContain('/docs')
 	})
 
+	it('shows the enforced and default bands around the user\'s own, read-only', async () => {
+		// The whole point of the personal page is that a user sees what will
+		// actually decide their files, not only the part they may change.
+		vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+			if (!String(input).includes('/api/v1/rules')) {
+				return Promise.resolve(jsonResponse({ success: true }))
+			}
+			return Promise.resolve(jsonResponse({
+				success: true,
+				rules: [
+					{ id: 'e1', path: '/legal/**', userScope: 'alice', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: true, band: 1, position: 1, canEdit: false },
+					{ id: 'm1', path: '/docs', userScope: 'alice', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false, band: 4, position: 1, canEdit: true },
+					{ id: 'd1', path: '**', userScope: 'all', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false, pinned: true, band: 7, position: 1, canEdit: false },
+				],
+				canCreate: true,
+				supportedAlgos: ['sha1'],
+			}))
+		})
+		const wrapper = mount(App)
+		await flushPromises()
+
+		const rows = wrapper.find('#fcias-personal-rules').findAll('tbody tr[data-id]')
+		expect(rows.map((r) => r.attributes('data-band'))).toEqual(['1', '4', '7'])
+
+		// Only the middle one is theirs to touch, and only it can be dragged.
+		expect(rows[0].text()).toContain('Read-only')
+		expect(rows[2].text()).toContain('Read-only')
+		expect(rows[1].find('button[data-action="edit"]').exists()).toBe(true)
+		expect(wrapper.findAll('#fcias-personal-rules .fcias-drag-handle')).toHaveLength(1)
+	})
+
 	it('hides the Add Rule button and shows the banner when the user cannot edit any rule', async () => {
 		mockFetch(false)
 		const wrapper = mount(App)

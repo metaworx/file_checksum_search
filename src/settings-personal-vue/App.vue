@@ -27,6 +27,7 @@ const {
 	saveRule,
 	deleteRule,
 	toggleRule,
+	reorderBand,
 } = usePersonalSettings()
 
 function tabFromHash(): 'rules' | 'faq' {
@@ -57,6 +58,7 @@ function openAddRule(): void {
 function openEditRule(rule: Rule): void {
 	editingRule.value = {
 		id: rule.id,
+		type: rule.type ?? 'include',
 		mode: rule.mode,
 		algos: rule.algos,
 		path: rule.path,
@@ -97,6 +99,13 @@ function handleDeleteRule(rule: Rule): void {
 		},
 		true,
 	)
+}
+
+async function handleReorder(payload: { band: number; ownerId?: string; orderedIds: Array<Rule['id']> }): Promise<void> {
+	const result = await reorderBand(payload.band, payload.orderedIds, payload.ownerId)
+	if (!result.success) {
+		ruleMsg.value = result.error || 'Reorder failed.'
+	}
 }
 
 async function handleToggleRule(rule: Rule): Promise<void> {
@@ -144,8 +153,11 @@ loadRules()
 			<h4>Rules applying to your files</h4>
 
 			<p class="fcias-hint">
-				These rules apply to your files. Admin-enforced rules are read-only. You can edit rules only if you are in
-				an enabled group and the rule path is in a folder you can write to.
+				Every rule that can affect your files, in the order they are evaluated — the first match
+				decides. Rules an administrator enforced come first and are read-only; your own rules come
+				next and are yours to edit and reorder; the defaults below them apply only where none of
+				your rules matched. You can create rules only if you have been given permission and the
+				path is in a folder you can write to.
 			</p>
 
 			<div id="fcias-personal-msg">
@@ -156,11 +168,12 @@ loadRules()
 				<RuleTable
 					:rules="rules"
 					variant="personal"
-					:priority-offset="0"
 					:can-edit-any="canEditAny"
+					:reorderable="true"
 					@edit="openEditRule"
 					@toggle="handleToggleRule"
-					@delete="handleDeleteRule" />
+					@delete="handleDeleteRule"
+					@reorder="handleReorder" />
 			</div>
 
 			<button v-if="canEditAny" id="fcias-personal-add" class="fcias-btn" @click="openAddRule">

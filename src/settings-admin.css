@@ -69,8 +69,8 @@
 .fcias-cron-table {
 	width: 100%;
 	margin-bottom: 16px;
-	/* Honours the <colgroup> percentages, so the single-row global rule table
-	   and the additional-rules table below it share one column grid. */
+	/* Honours the <colgroup> percentages, so every column keeps its share of the
+	   width regardless of content length. */
 	table-layout: fixed;
 }
 
@@ -125,6 +125,92 @@
 
 .fcias-cron-table tbody tr.fcias-drag-over {
 	box-shadow: inset 0 2px 0 var(--color-primary-element, var(--color-primary));
+}
+
+/* Priority bands.
+   Colour is never the only cue: each band opens with a labelled header row and
+   every rule shows its "<band>.<position>" in the Priority column. The tints
+   come from theme variables so they follow light and dark. */
+.fcias-cron-table tbody tr.fcias-band-header th {
+	background-color: var(--color-background-dark);
+	color: var(--color-text-maxcontrast);
+	font-size: 0.85em;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	padding: 10px 8px 4px;
+	border-top: 2px solid var(--color-border);
+}
+
+.fcias-cron-table tbody tr:first-child.fcias-band-header th {
+	border-top: none;
+}
+
+/* Enforced bands read as "not yours to change"; the catch-all as a footnote. */
+.fcias-cron-table tbody tr.fcias-band-1 td,
+.fcias-cron-table tbody tr.fcias-band-2 td,
+.fcias-cron-table tbody tr.fcias-band-3 td {
+	background-color: var(--color-background-hover);
+}
+
+.fcias-cron-table tbody tr.fcias-band-7 td {
+	background-color: var(--color-background-dark);
+	font-style: italic;
+}
+
+/* Column and band headings carry a help button, so the heading itself becomes
+   a two-part row: the word, then the affordance that explains it. */
+.fcias-cron-table th .fcias-th-inner {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	min-width: 0;
+}
+
+.fcias-cron-table th .fcias-th-label {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+/* HelpPopover sizes its trigger for a form row; in a table heading that would
+   set the row height on its own. Narrower here, and never squeezed away by a
+   long column label. */
+.fcias-cron-table th .fcias-help-icon {
+	width: 22px;
+	height: 22px;
+	min-width: 22px;
+	min-height: 22px;
+	border-radius: 4px;
+	flex: 0 0 auto;
+}
+
+.fcias-cron-table th .fcias-help-icon svg {
+	width: 16px;
+	height: 16px;
+}
+
+.fcias-priority-cell {
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.fcias-rule-type {
+	padding: 1px 6px;
+	border-radius: var(--border-radius, 3px);
+	font-size: 0.9em;
+}
+
+.fcias-rule-type-ignore,
+.fcias-rule-type-exclude {
+	background-color: var(--color-warning, var(--color-background-dark));
+	color: var(--color-main-text);
+	font-weight: 600;
+}
+
+.fcias-band-preview {
+	margin-top: 8px;
+	border-top: 1px solid var(--color-border);
+	padding-top: 8px;
 }
 
 /* Rendered inside an NcDialog, which already supplies the frame and padding. */

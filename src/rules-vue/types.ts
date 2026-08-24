@@ -15,6 +15,8 @@ export interface Rule {
 	path: string
 	userScope: string
 	admin_enforced: boolean
+	/** `include` (default), `ignore`, or `exclude` — what the rule does when it matches. */
+	type?: string
 	/** True for the single catch-all default rule, which is undeletable and always evaluates last. */
 	pinned?: boolean
 	/** Derived priority band 1–7 (lower evaluates first). Server-computed; never sent back. */
@@ -27,9 +29,14 @@ export interface Rule {
 
 export interface RuleDraft {
 	id?: string | number
+	/** `include` (default), `ignore`, or `exclude`. */
+	type?: string
 	mode: string
 	algos: string[]
 	path: string
 	userScope: string
 	admin_enforced: boolean
+	/** The catch-all default; set only by the global-rule path. */
+	pinned?: boolean
+	enabled?: boolean
 }

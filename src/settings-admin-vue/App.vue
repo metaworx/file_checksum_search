@@ -6,7 +6,7 @@
  * Root component for the admin settings page.
  */
 
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import RuleTable from '../rules-vue/RuleTable.vue'
 import RuleForm from '../rules-vue/RuleForm.vue'
 import type { Rule, RuleDraft } from '../rules-vue/types'
@@ -24,14 +24,16 @@ const {
 	lastUpdated,
 	supportedAlgos,
 	availableUsers,
+	availableGroups,
+	definitions,
 	loadStatus,
 	loadDefinitions,
 	globalRule,
-	additionalRules,
 	saveGlobalRule,
 	saveRule,
 	deleteRule,
 	toggleRule,
+	reorderBand,
 } = useAdminSettings()
 
 function tabFromHash(): 'settings' | 'docs' {
@@ -61,20 +63,16 @@ const editingRule = ref<RuleDraft | null>(null)
 /** True while the dialog is editing the global rule rather than an additional one. */
 const editingGlobal = ref(false)
 
-/** The global rule as a single-row list, so it renders through RuleTable like any other rule. */
-const globalRuleRows = computed<Rule[]>(() => {
-	const g = globalRule()
-	return g ? [g] : []
-})
-
 function toDraft(rule: Rule): RuleDraft {
 	return {
 		id: rule.id,
+		type: rule.type ?? 'include',
 		mode: rule.mode,
 		algos: rule.algos,
 		path: rule.path,
 		userScope: rule.userScope,
 		admin_enforced: rule.admin_enforced,
+		pinned: rule.pinned,
 	}
 }
 
@@ -86,13 +84,9 @@ function openAddRule(): void {
 
 function openEditRule(rule: Rule): void {
 	editingRule.value = toDraft(rule)
-	editingGlobal.value = false
-	showRuleForm.value = true
-}
-
-function openEditGlobalRule(rule: Rule): void {
-	editingRule.value = toDraft(rule)
-	editingGlobal.value = true
+	// The catch-all's `**`/`all` reach is what makes it the default, so its
+	// dialog locks those two fields wherever it is edited from.
+	editingGlobal.value = rule.pinned === true
 	showRuleForm.value = true
 }
 
@@ -100,11 +94,13 @@ function openEditGlobalRule(rule: Rule): void {
 function openCreateGlobalRule(): void {
 	editingRule.value = {
 		id: undefined,
+		type: 'include',
 		mode: 'auto',
 		algos: ['sha1'],
 		path: '**',
 		userScope: 'all',
 		admin_enforced: false,
+		pinned: true,
 	}
 	editingGlobal.value = true
 	showRuleForm.value = true
@@ -114,13 +110,6 @@ function closeRuleForm(): void {
 	showRuleForm.value = false
 	editingRule.value = null
 	editingGlobal.value = false
-}
-
-async function toggleGlobalRule(rule: Rule): Promise<void> {
-	const result = await toggleRule(rule.id, !rule.enabled)
-	if (!result.success) {
-		ruleMsg.value = result.error || 'Toggle failed.'
-	}
 }
 
 async function handleSaveRule(draft: RuleDraft): Promise<void> {
@@ -160,6 +149,13 @@ function handleDeleteRule(rule: Rule): void {
 		},
 		true,
 	)
+}
+
+async function handleReorder(payload: { band: number; ownerId?: string; orderedIds: Array<Rule['id']> }): Promise<void> {
+	const result = await reorderBand(payload.band, payload.orderedIds, payload.ownerId)
+	if (!result.success) {
+		ruleMsg.value = result.error || 'Reorder failed.'
+	}
 }
 
 async function handleToggleRule(rule: Rule): Promise<void> {
@@ -263,45 +259,34 @@ loadDefinitions()
 					Which algorithms are computed for which files, on real-time file events.
 				</p>
 
-				<h5>Global Default Rule</h5>
 				<p class="fcias-hint">
-					Applies to every user and every path, and is evaluated <em>last</em> — every other rule gets
-					the chance to claim a file first. It cannot be deleted — disable it instead.
+					Evaluated top to bottom — the first matching rule decides the file. A rule's band follows
+					from its scope and whether it is enforced, so enforced rules always precede users' own
+					rules, and the catch-all default is last. Drag a rule by its handle to reorder it
+					<em>within</em> its band; to move it between bands, change its scope or its Enforced flag.
 				</p>
-
-				<div id="fcias-global-rule">
-					<RuleTable
-						:rules="globalRuleRows"
-						variant="admin"
-						:priority-offset="0"
-						:hide-delete="true"
-						empty-text="No global rule yet."
-						@edit="openEditGlobalRule"
-						@toggle="toggleGlobalRule" />
-				</div>
-
-				<button
-					v-if="globalRuleRows.length === 0"
-					id="fcias-btn-create-global"
-					class="fcias-btn"
-					@click="openCreateGlobalRule">
-					Create Global Rule
-				</button>
-
-				<h5>Additional Rules</h5>
-				<p class="fcias-hint">Rules are processed in order — each file is handled by the first matching rule.</p>
 
 				<div id="fcias-cron-list">
 					<RuleTable
-						:rules="additionalRules()"
+						:rules="definitions"
 						variant="admin"
+						:reorderable="true"
+						empty-text="No rules yet."
 						@edit="openEditRule"
 						@toggle="handleToggleRule"
-						@delete="handleDeleteRule" />
+						@delete="handleDeleteRule"
+						@reorder="handleReorder" />
 				</div>
 
 				<button id="fcias-btn-add-definition" class="fcias-btn" @click="openAddRule">
 					Add Rule
+				</button>
+				<button
+					v-if="globalRule() === null"
+					id="fcias-btn-create-global"
+					class="fcias-btn"
+					@click="openCreateGlobalRule">
+					Create Catch-all Default
 				</button>
 
 				<RuleForm
@@ -310,8 +295,9 @@ loadDefinitions()
 					variant="admin"
 					:supported-algos="supportedAlgos"
 					:available-users="availableUsers"
+					:available-groups="availableGroups"
 					:lock-scope="editingGlobal"
-					:title="editingGlobal ? 'Global rule' : undefined"
+					:title="editingGlobal ? 'Catch-all default rule' : undefined"
 					@save="handleSaveRule"
 					@cancel="closeRuleForm" />
 

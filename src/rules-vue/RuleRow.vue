@@ -3,27 +3,24 @@
  * @copyright Copyright (c) 2026 metaworx
  * @license   AGPL-3.0-or-later
  *
- * One rule row, shared by the admin and personal rule tables. Vue's
- * `{{ }}` interpolation auto-escapes every field below — no manual
- * escapeHtml() calls are needed here, unlike the vanilla-JS predecessor.
+ * One rule row. Vue's `{{ }}` interpolation auto-escapes every field below —
+ * no manual escapeHtml() calls are needed here, unlike the vanilla-JS
+ * predecessor.
  */
+import { priorityLabel, scopeLabel } from './bands'
 import type { Rule } from './types'
 
 const props = defineProps<{
 	rule: Rule
 	variant: 'admin' | 'personal'
-	/** Row position within the table, shown in the Priority column. */
-	index?: number
-	/** Number the Priority column starts at. The global rule's own table uses 0. */
-	priorityOffset?: number
-	/** Set for rules that must not be removed (the global rule). */
-	hideDelete?: boolean
-	/** Whether this row's handle may be grabbed to start a drag (reorder feature). */
+	/** Whether this row's handle may be grabbed to start a drag. */
 	canDrag?: boolean
-	/** Set while this row is the one currently being dragged. */
+	/** Set while this row is the one being dragged. */
 	isDragging?: boolean
 	/** Set while another row is being dragged over this one. */
 	isDragOver?: boolean
+	/** Set on the first row of each band, which carries the band label. */
+	startsBand?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -37,13 +34,23 @@ const emit = defineEmits<{
 	(e: 'row-dragend'): void
 }>()
 
-const canManage = props.variant === 'admin' || props.rule.canEdit === true
+/** An ignore/exclude rule computes nothing, so it has no algorithms or mode. */
+const computesHashes = (props.rule.type ?? 'include') === 'include'
 </script>
 
 <template>
 	<tr
 		:data-id="String(rule.id)"
-		:class="{ 'fcias-dragging': isDragging, 'fcias-drag-over': isDragOver }"
+		:data-band="rule.band"
+		:class="[
+			`fcias-band-${rule.band ?? 0}`,
+			{
+				'fcias-band-start': startsBand,
+				'fcias-dragging': isDragging,
+				'fcias-drag-over': isDragOver,
+				'fcias-rule-pinned': rule.pinned,
+			},
+		]"
 		@dragover="emit('row-dragover', rule, $event)"
 		@dragleave="emit('row-dragleave', rule)"
 		@drop="emit('row-drop', rule, $event)">
@@ -53,24 +60,36 @@ const canManage = props.variant === 'admin' || props.rule.canEdit === true
 				class="fcias-drag-handle"
 				draggable="true"
 				aria-hidden="true"
-				title="Drag to reorder"
+				title="Drag to reorder within this band"
 				@dragstart="emit('row-dragstart', rule, $event)"
 				@dragend="emit('row-dragend')">⠿</span>
 		</td>
-		<td>{{ (index ?? 0) + (priorityOffset ?? 1) }}</td>
-		<td :title="rule.userScope || 'all'">{{ rule.userScope || 'all' }}</td>
+		<td class="fcias-priority-cell" :title="`Band ${rule.band}, position ${rule.position}`">
+			{{ priorityLabel(rule) }}
+		</td>
+		<td :title="scopeLabel(rule.userScope)">{{ scopeLabel(rule.userScope) }}</td>
 		<td :title="rule.path || '/'">{{ rule.path || '/' }}</td>
-		<td :title="(rule.algos || []).join(', ')">{{ (rule.algos || []).join(', ') }}</td>
-		<td>{{ rule.mode || 'auto' }}</td>
+		<td>
+			<span :class="`fcias-rule-type fcias-rule-type-${rule.type ?? 'include'}`">
+				{{ rule.type ?? 'include' }}
+			</span>
+		</td>
+		<td :title="computesHashes ? (rule.algos || []).join(', ') : ''">
+			<span v-if="computesHashes">{{ (rule.algos || []).join(', ') }}</span>
+			<span v-else class="fcias-muted">—</span>
+		</td>
+		<td>
+			<span v-if="computesHashes">{{ rule.mode || 'auto' }}</span>
+			<span v-else class="fcias-muted">—</span>
+		</td>
 		<td>
 			<span :class="rule.enabled ? 'fcias-compat-pass' : 'fcias-compat-fail'">
 				{{ rule.enabled ? 'Enabled' : 'Disabled' }}
 			</span>
 		</td>
-		<td v-if="variant === 'admin'">{{ rule.admin_enforced ? 'Yes' : 'No' }}</td>
-		<td v-else><input type="checkbox" :checked="rule.admin_enforced" disabled></td>
+		<td>{{ rule.admin_enforced ? 'Yes' : 'No' }}</td>
 		<td class="fcias-cron-actions">
-			<template v-if="canManage">
+			<template v-if="rule.canEdit">
 				<button class="fcias-btn fcias-btn-edit" data-action="edit" @click="emit('edit', rule)">
 					Edit
 				</button>
@@ -78,7 +97,7 @@ const canManage = props.variant === 'admin' || props.rule.canEdit === true
 					{{ rule.enabled ? 'Disable' : 'Enable' }}
 				</button>
 				<button
-					v-if="!hideDelete"
+					v-if="!rule.pinned"
 					class="fcias-btn fcias-btn-danger fcias-btn-delete"
 					data-action="delete"
 					@click="emit('delete', rule)">

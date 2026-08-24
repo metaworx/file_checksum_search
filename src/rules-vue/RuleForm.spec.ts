@@ -91,4 +91,124 @@ describe('RuleForm', () => {
 		await wrapper.find('#fcias-personal-cancel').trigger('click')
 		expect(wrapper.emitted('cancel')).toHaveLength(1)
 	})
+
+	describe('type selector', () => {
+		it('drops Algorithms and Mode for a rule that computes nothing', async () => {
+			const wrapper = mount(RuleForm, {
+				props: { rule: null, variant: 'admin', supportedAlgos: ['sha1'] },
+			})
+			expect(wrapper.find('#fcias-cron-mode').exists()).toBe(true)
+			expect(wrapper.find('#fcias-cron-algos').exists()).toBe(true)
+
+			await wrapper.find('#fcias-cron-type').setValue('exclude')
+
+			// An exclude rule never hashes, so asking which algorithms it uses
+			// would be a field with no meaning.
+			expect(wrapper.find('#fcias-cron-mode').exists()).toBe(false)
+			expect(wrapper.find('#fcias-cron-algos').exists()).toBe(false)
+		})
+
+		it('saves the chosen type and defaults an untyped rule to include', async () => {
+			const wrapper = mount(RuleForm, {
+				props: { rule: null, variant: 'personal', supportedAlgos: ['sha1'] },
+			})
+			await wrapper.find('#fcias-personal-type').setValue('ignore')
+			await wrapper.find('#fcias-personal-save').trigger('click')
+			expect((wrapper.emitted('save')?.[0]?.[0] as { type: string }).type).toBe('ignore')
+
+			const seeded = mount(RuleForm, {
+				props: {
+					rule: { id: 7, path: '/a', mode: 'auto', algos: ['sha1'], userScope: 'all', admin_enforced: false },
+					variant: 'personal',
+					supportedAlgos: ['sha1'],
+				},
+			})
+			expect((seeded.find('#fcias-personal-type').element as HTMLSelectElement).value).toBe('include')
+		})
+	})
+
+	describe('scope controls', () => {
+		it('reveals a group picker and composes the group scope string', async () => {
+			const wrapper = mount(RuleForm, {
+				props: {
+					rule: null,
+					variant: 'admin',
+					supportedAlgos: ['sha1'],
+					availableGroups: ['staff', 'admin'],
+				},
+			})
+			expect(wrapper.find('#fcias-cron-scope-target').exists()).toBe(false)
+
+			await wrapper.find('#fcias-cron-userscope').setValue('group')
+			await wrapper.find('#fcias-cron-scope-target').setValue('staff')
+			await wrapper.find('#fcias-btn-save-definition').trigger('click')
+
+			// Two controls in the dialog, one string on the wire.
+			expect((wrapper.emitted('save')?.[0]?.[0] as { userScope: string }).userScope).toBe('group:staff')
+		})
+
+		it('splits an existing group scope back into its two controls', () => {
+			const wrapper = mount(RuleForm, {
+				props: {
+					rule: { id: 3, path: '/a', mode: 'auto', algos: ['sha1'], userScope: 'group:staff', admin_enforced: false },
+					variant: 'admin',
+					supportedAlgos: ['sha1'],
+					availableGroups: ['staff'],
+				},
+			})
+			expect((wrapper.find('#fcias-cron-userscope').element as HTMLSelectElement).value).toBe('group')
+			expect((wrapper.find('#fcias-cron-scope-target').element as HTMLSelectElement).value).toBe('staff')
+		})
+	})
+
+	describe('band preview', () => {
+		it('follows the scope and enforced controls while editing', async () => {
+			const wrapper = mount(RuleForm, {
+				props: {
+					rule: null,
+					variant: 'admin',
+					supportedAlgos: ['sha1'],
+					availableUsers: ['alice'],
+				},
+			})
+			const preview = () => wrapper.find('.fcias-band-preview').text()
+
+			// Band is derived, never chosen — the preview is what makes that
+			// legible before saving rather than only after.
+			expect(preview()).toContain('band 6')
+			expect(preview()).toContain('Defaults — everyone')
+
+			await wrapper.find('#fcias-cron-userscope').setValue('user')
+			await wrapper.find('#fcias-cron-scope-target').setValue('alice')
+			expect(preview()).toContain('band 4')
+
+			// The id lands on the switch component's root; the control is its input.
+			await wrapper.find('#fcias-cron-admin-enforced input').setValue(true)
+			expect(preview()).toContain('band 1')
+			expect(preview()).toContain('Enforced — per user')
+		})
+
+		it('keeps the pinned catch-all in the last band whatever else is set', async () => {
+			const wrapper = mount(RuleForm, {
+				props: {
+					rule: {
+						id: 'd1',
+						path: '**',
+						mode: 'auto',
+						algos: ['sha1'],
+						userScope: 'all',
+						admin_enforced: false,
+						pinned: true,
+					},
+					variant: 'admin',
+					supportedAlgos: ['sha1'],
+					lockScope: true,
+				},
+			})
+			expect(wrapper.find('.fcias-band-preview').text()).toContain('band 7')
+
+			await wrapper.find('#fcias-cron-admin-enforced input').setValue(true)
+			expect(wrapper.find('.fcias-band-preview').text()).toContain('band 7')
+		})
+	})
 })

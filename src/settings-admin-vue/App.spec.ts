@@ -73,14 +73,20 @@ describe('settings-admin App', () => {
 		window.location.hash = ''
 	})
 
-	it('loads status and splits the global rule from the additional rules', async () => {
+	it('loads status and lists every rule in one banded table', async () => {
 		mockFetch()
 		const wrapper = mount(App)
 		await flushPromises()
 
 		expect(wrapper.find('#fcias-status-rowcount').text()).toBe('3')
-		expect(wrapper.find('#fcias-cron-list').text()).toContain('/docs')
-		expect(wrapper.find('#fcias-cron-list').text()).not.toContain('**')
+
+		// One table now, in evaluation order: the catch-all is a row in it
+		// rather than a separate table above.
+		const rows = wrapper.find('#fcias-cron-list').findAll('tbody tr[data-id]')
+		expect(rows).toHaveLength(2)
+		expect(rows[0].text()).toContain('/docs')
+		expect(rows[1].text()).toContain('**')
+		expect(rows[1].findAll('td')[1].text()).toBe('7.1')
 	})
 
 	it('switches to the Documentation tab', async () => {
@@ -102,7 +108,8 @@ describe('settings-admin App', () => {
 		const wrapper = mount(App)
 		await flushPromises()
 
-		await wrapper.find('#fcias-cron-list').find('button[data-action="edit"]').trigger('click')
+		await wrapper.find('#fcias-cron-list').findAll('tbody tr[data-id]')[0]
+			.find('button[data-action="edit"]').trigger('click')
 
 		expect(wrapper.find('#fcias-cron-path').element.tagName).toBe('INPUT')
 		expect(wrapper.find('#fcias-cron-userscope').element.tagName).toBe('SELECT')
@@ -123,19 +130,23 @@ describe('settings-admin App', () => {
 		expect(wrapper.find('#fcias-cron-form').exists()).toBe(false)
 	})
 
-	it('renders the global rule as a row in its own table, without a Delete button', async () => {
+	it('gives the catch-all no Delete button and no drag handle', async () => {
 		mockFetch()
 		const wrapper = mount(App)
 		await flushPromises()
 
-		const globalTable = wrapper.find('#fcias-global-rule')
-		expect(globalTable.text()).toContain('**')
-		// Priority column starts at 0 for the global rule, 1 for additional rules.
-		// findAll('td')[0] is the drag-handle cell, [1] is Priority.
-		expect(globalTable.findAll('td')[1].text()).toBe('0')
-		expect(globalTable.find('button[data-action="delete"]').exists()).toBe(false)
-		expect(globalTable.find('button[data-action="edit"]').exists()).toBe(true)
-		expect(wrapper.find('#fcias-cron-list').find('button[data-action="delete"]').exists()).toBe(true)
+		const rows = wrapper.find('#fcias-cron-list').findAll('tbody tr[data-id]')
+		const pinned = rows[1]
+
+		// It is the last resort by definition: it can be disabled, never
+		// deleted, and never moved out of the final band.
+		expect(pinned.find('button[data-action="delete"]').exists()).toBe(false)
+		expect(pinned.find('.fcias-drag-handle').exists()).toBe(false)
+		expect(pinned.find('button[data-action="edit"]').exists()).toBe(true)
+
+		// An ordinary rule keeps both.
+		expect(rows[0].find('button[data-action="delete"]').exists()).toBe(true)
+		expect(rows[0].find('.fcias-drag-handle').exists()).toBe(true)
 	})
 
 	it('edits the global rule through the shared dialog with Path/User Scope locked', async () => {
@@ -143,7 +154,8 @@ describe('settings-admin App', () => {
 		const wrapper = mount(App)
 		await flushPromises()
 
-		await wrapper.find('#fcias-global-rule').find('button[data-action="edit"]').trigger('click')
+		const pinnedRow = wrapper.find('#fcias-cron-list').findAll('tbody tr[data-id]')[1]
+		await pinnedRow.find('button[data-action="edit"]').trigger('click')
 
 		// The global rule's fixed reach is rendered as plain text, not as a
 		// disabled input, so it cannot be mistaken for an editable field.
@@ -176,7 +188,7 @@ describe('settings-admin App', () => {
 
 		// Regression guard: AlgoMultiselect used to snapshot its selection at
 		// setup time, when supportedAlgos was still empty, and stayed blank.
-		expect(wrapper.find('#fcias-global-rule').text()).toContain('sha1')
+		expect(wrapper.find('#fcias-cron-list').text()).toContain('sha1')
 	})
 
 	it('deletes an additional rule after confirmation', async () => {
@@ -184,7 +196,8 @@ describe('settings-admin App', () => {
 		const wrapper = mount(App)
 		await flushPromises()
 
-		await wrapper.find('#fcias-cron-list').find('button[data-action="delete"]').trigger('click')
+		await wrapper.find('#fcias-cron-list').findAll('tbody tr[data-id]')[0]
+			.find('button[data-action="delete"]').trigger('click')
 		await flushPromises()
 
 		expect(confirmMock).toHaveBeenCalled()
