@@ -236,6 +236,167 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
+  /api/v1/rules:
+    get:
+      operationId: listRules
+      summary: List hash-generation rules
+      description: >-
+        Rules are returned in evaluation order — first match decides. `scope`
+        selects a view, not a permission: `own` lists the rules concerning the
+        caller's own files and marks only their own editable, `all` is the
+        administrator's whole-instance view. An administrator asking for `own`
+        gets the personal view, which is what lets the personal settings page
+        stay personal for everyone.
+      tags: [rules]
+      parameters:
+        - name: scope
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [own, all]
+            default: own
+      responses:
+        "200":
+          description: The rules visible in the requested view
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RulesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+    post:
+      operationId: createRule
+      summary: Create a rule
+      description: >-
+        From a non-administrator, `userScope` is forced to the caller and
+        `admin_enforced` to false whatever the payload says, and `pinned` is
+        ignored. A non-administrator must also have write access to the path.
+      tags: [rules]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RuleInput"
+      responses:
+        "200":
+          description: The stored rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleMutationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/v1/rules/order:
+    put:
+      operationId: reorderRuleBand
+      summary: Reorder one priority band
+      description: >-
+        `orderedIds` must be exactly a permutation of that band's rule IDs —
+        never a partial order, which would silently drop rules from evaluation.
+        Band 7 (the pinned catch-all) is not orderable. Band 4 holds every
+        user's own rules, so it also names whose segment is reordered; a
+        non-administrator may only reorder band 4 and is always forced to their
+        own segment.
+      tags: [rules]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RuleOrderInput"
+      responses:
+        "200":
+          description: The band was reordered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/v1/rules/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: "^[0-9a-f]{32}$"
+    put:
+      operationId: updateRule
+      summary: Update a rule
+      description: >-
+        Enabling or disabling a rule is an update of `enabled` — there is no
+        separate toggle endpoint. Omitted fields keep their stored values, so a
+        minimal body is complete and safe. Changing `userScope` or
+        `admin_enforced` moves the rule to the end of its new band, since
+        position has no meaning across bands.
+      tags: [rules]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RuleInput"
+      responses:
+        "200":
+          description: The stored rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleMutationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+    delete:
+      operationId: deleteRule
+      summary: Delete a rule
+      description: The pinned catch-all default cannot be deleted, only disabled.
+      tags: [rules]
+      responses:
+        "200":
+          description: The rule was deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
 components:
   securitySchemes:
     basicAuth:
@@ -418,6 +579,155 @@ components:
           description: Number of pending hash updates
           example: 5
 
+    SuccessResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+
+    Rule:
+      type: object
+      description: >-
+        `band` and `position` are computed from the rule's scope and flags and
+        are read-only. There is deliberately no combined "<band>.<position>"
+        field — it would be a third value derived from two already present.
+      properties:
+        id:
+          type: string
+          pattern: "^[0-9a-f]{32}$"
+        enabled:
+          type: boolean
+        type:
+          type: string
+          enum: [include, ignore, exclude]
+          default: include
+          description: >-
+            include hashes automatically and on request; ignore stops only
+            automatic hashing; exclude blocks it by every route — the correct
+            choice for storage that must not be read.
+        path:
+          type: string
+          description: Glob, Symfony Finder `**` syntax
+        userScope:
+          type: string
+          description: "`all`, `group:<gid>`, or a user ID"
+        algos:
+          type: array
+          items:
+            type: string
+          description: Include rules only
+        mode:
+          type: string
+          enum: [auto, missing, force, lazy, off]
+          description: Include rules only
+        admin_enforced:
+          type: boolean
+        pinned:
+          type: boolean
+          description: The single catch-all default; administrator-only
+        band:
+          type: integer
+          minimum: 1
+          maximum: 7
+          readOnly: true
+        position:
+          type: integer
+          minimum: 1
+          readOnly: true
+        canEdit:
+          type: boolean
+          readOnly: true
+
+    RuleInput:
+      type: object
+      required: [path]
+      properties:
+        enabled:
+          type: boolean
+        type:
+          type: string
+          enum: [include, ignore, exclude]
+        path:
+          type: string
+        userScope:
+          type: string
+          description: Administrator-only; forced to the caller otherwise
+        algos:
+          type: array
+          items:
+            type: string
+        mode:
+          type: string
+          enum: [auto, missing, force, lazy, off]
+        admin_enforced:
+          type: boolean
+          description: Administrator-only; forced to false otherwise
+        pinned:
+          type: boolean
+          description: Administrator-only; at most one rule may be pinned
+
+    RuleMutationResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        rule:
+          $ref: "#/components/schemas/Rule"
+
+    RulesResponse:
+      type: object
+      required: [success, rules]
+      properties:
+        success:
+          type: boolean
+        rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/Rule"
+        canCreate:
+          type: boolean
+        supportedAlgos:
+          type: array
+          items:
+            type: string
+        modes:
+          type: array
+          items:
+            type: string
+        types:
+          type: array
+          items:
+            type: string
+        availableUsers:
+          type: array
+          items:
+            type: string
+          description: Present only for scope=all
+        availableGroups:
+          type: array
+          items:
+            type: string
+          description: Present only for scope=all
+
+    RuleOrderInput:
+      type: object
+      required: [band, orderedIds]
+      properties:
+        band:
+          type: integer
+          minimum: 1
+          maximum: 6
+        ownerId:
+          type: string
+          description: Required for band 4; ignored for a non-administrator
+        orderedIds:
+          type: array
+          items:
+            type: string
+          description: Exactly a permutation of that band's rule IDs
+
   responses:
     BadRequest:
       description: Validation error
@@ -450,6 +760,20 @@ components:
             maxItems: 0
             items: {}
           example: []
+
+    Unauthorized:
+      description: Not logged in
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    Forbidden:
+      description: The caller may not perform this operation
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
 
     ServerError:
       description: Internal server error

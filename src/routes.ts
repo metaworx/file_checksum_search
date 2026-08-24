@@ -24,34 +24,35 @@ export const OCS_API_V1 = {
 	recalcHash: `${APP_BASE}/api/v1/file/{fileId}/recalc`,
 } as const
 
+/**
+ * Hash-generation rules (RulesController).
+ *
+ * One resource for both settings pages: what a caller may do follows from who
+ * they are, not from which URL they used. The only thing a caller chooses is
+ * the view — `?scope=own` (default) or `?scope=all` (admin) — which is what
+ * keeps the personal page personal even for an administrator.
+ */
+export const API_RULES = {
+	/** GET    /api/v1/rules[?scope=own|all] */
+	list: `${APP_BASE}/api/v1/rules`,
+	/** POST   /api/v1/rules */
+	create: `${APP_BASE}/api/v1/rules`,
+	/** PUT    /api/v1/rules/{id} — enabling/disabling is an update of `enabled` */
+	update: `${APP_BASE}/api/v1/rules/{id}`,
+	/** DELETE /api/v1/rules/{id} */
+	remove: `${APP_BASE}/api/v1/rules/{id}`,
+	/** PUT    /api/v1/rules/order */
+	order: `${APP_BASE}/api/v1/rules/order`,
+} as const
+
 /** OCS settings endpoints (SettingsController) */
 export const OCS_SETTINGS = {
 	/** GET    /settings/status */
 	getStatus: `${APP_BASE}/settings/status`,
-	/** GET    /settings/cron/definitions */
-	listRules: `${APP_BASE}/settings/cron/definitions`,
-	/** POST   /settings/cron/save */
-	saveRule: `${APP_BASE}/settings/cron/save`,
-	/** POST   /settings/cron/delete */
-	deleteRule: `${APP_BASE}/settings/cron/delete`,
-	/** POST   /settings/cron/toggle */
-	toggleRule: `${APP_BASE}/settings/cron/toggle`,
 	/** GET    /settings/admin-options */
 	getAdminOptions: `${APP_BASE}/settings/admin-options`,
 	/** POST   /settings/admin-options/save */
 	saveAdminOptions: `${APP_BASE}/settings/admin-options/save`,
-} as const
-
-/** OCS personal settings endpoints (PersonalSettingsController) */
-export const OCS_PERSONAL = {
-	/** GET    /personal/rules */
-	getRules: `${APP_BASE}/personal/rules`,
-	/** POST   /personal/rules/save */
-	saveRule: `${APP_BASE}/personal/rules/save`,
-	/** POST   /personal/rules/delete */
-	deleteRule: `${APP_BASE}/personal/rules/delete`,
-	/** POST   /personal/rules/toggle */
-	toggleRule: `${APP_BASE}/personal/rules/toggle`,
 } as const
 
 /** OCS admin endpoints (PageController) */

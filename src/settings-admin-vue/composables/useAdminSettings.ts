@@ -2,28 +2,19 @@
  * @copyright Copyright (c) 2026 metaworx
  * @license   AGPL-3.0-or-later
  *
- * Composable for the admin settings page: status, the global rule, and
- * the additional-rules list. Ported from settings-admin.ts, adding the
- * AbortController stale-response guard on loadStatus()/loadDefinitions()
- * that the vanilla page never had.
+ * Composable for the admin settings page: instance status, plus the rule list
+ * in its whole-instance view.
  *
- * Deliberately excludes the crontab snippet generator: its markup never
- * existed in templates/settings-admin.php (settings-admin.ts's
- * generateSnippet()/copySnippet() referenced DOM ids that were never
- * rendered, so the feature was silently unreachable despite being
- * documented in README.md/docs/FAQ.md). Rebuilding it is deferred to a
- * separate feature covering the requested cron-mode selector
- * (cron.php / custom-cron-only / parallel) and per-job run history.
+ * Rule CRUD itself lives in the shared useRules composable — this page is the
+ * `all` view of the same resource the personal page reads as `own`. Only the
+ * status block and the catch-all default's fixed reach are specific to it.
  */
 
 import { reactive, toRefs } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import { OCS_SETTINGS } from '../../routes'
-import type { Rule, RuleDraft } from '../../rules-vue/types'
-
-declare const OC: {
-	requestToken: string
-}
+import { useRules, type ApiResponse } from '../../rules-vue/composables/useRules'
+import type { Rule } from '../../rules-vue/types'
 
 interface StatusData {
 	version?: string
@@ -32,29 +23,11 @@ interface StatusData {
 	pendingStats?: Record<string, number>
 }
 
-interface DefinitionsResponse {
-	success?: boolean
-	supportedAlgos?: string[]
-	users?: string[]
-	definitions?: Rule[]
-}
-
-interface ApiResponse {
-	success?: boolean
-	error?: string
-}
-
 interface State {
 	status: StatusData
 	statusLoading: boolean
 	statusError: string | null
 	lastUpdated: string | null
-
-	definitions: Rule[]
-	supportedAlgos: string[]
-	availableUsers: string[]
-	definitionsLoading: boolean
-	definitionsError: string | null
 }
 
 export function useAdminSettings() {
@@ -63,16 +36,11 @@ export function useAdminSettings() {
 		statusLoading: false,
 		statusError: null,
 		lastUpdated: null,
-
-		definitions: [],
-		supportedAlgos: [],
-		availableUsers: [],
-		definitionsLoading: false,
-		definitionsError: null,
 	})
 
+	const rules = useRules('all')
+
 	let statusAbort: AbortController | null = null
-	let definitionsAbort: AbortController | null = null
 
 	async function loadStatus(): Promise<void> {
 		statusAbort?.abort()
@@ -96,46 +64,6 @@ export function useAdminSettings() {
 		}
 	}
 
-	async function loadDefinitions(): Promise<void> {
-		definitionsAbort?.abort()
-		definitionsAbort = new AbortController()
-		const { signal } = definitionsAbort
-
-		state.definitionsLoading = true
-		state.definitionsError = null
-
-		try {
-			const response = await fetch(generateOcsUrl(OCS_SETTINGS.listRules), { signal })
-			const data = (await response.json()) as DefinitionsResponse
-			state.supportedAlgos = data.supportedAlgos || []
-			state.availableUsers = data.users || []
-			state.definitions = data.definitions || []
-		} catch (err) {
-			if (err instanceof DOMException && err.name === 'AbortError') return
-			state.definitionsError = 'Failed to load definitions.'
-		} finally {
-			if (!signal.aborted) {
-				state.definitionsLoading = false
-			}
-		}
-	}
-
-	async function post(url: string, body: unknown): Promise<ApiResponse> {
-		try {
-			const response = await fetch(url, {
-				method: 'POST',
-				headers: {
-					requesttoken: OC.requestToken,
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify(body),
-			})
-			return (await response.json()) as ApiResponse
-		} catch {
-			return { success: false, error: 'Request failed.' }
-		}
-	}
-
 	/**
 	 * The catch-all default rule, identified by its `pinned` flag.
 	 *
@@ -144,18 +72,26 @@ export function useAdminSettings() {
 	 * the flag is the only reliable identifier.
 	 */
 	function globalRule(): Rule | null {
-		return state.definitions.find((rule) => rule.pinned === true) ?? null
+		return rules.rules.value.find((rule) => rule.pinned === true) ?? null
 	}
 
 	/** Every rule except the pinned catch-all, in band order. */
 	function additionalRules(): Rule[] {
-		return state.definitions.filter((rule) => rule.pinned !== true)
+		return rules.rules.value.filter((rule) => rule.pinned !== true)
 	}
 
-	async function saveGlobalRule(fields: { id?: string | number; mode: string; algos: string[]; admin_enforced: boolean }): Promise<ApiResponse> {
-		const data = await post(generateOcsUrl(OCS_SETTINGS.saveRule), {
-			id: fields.id || undefined,
-			enabled: true,
+	/**
+	 * Save the catch-all default. Its reach is pinned server-side, so a
+	 * locked-but-tampered form can never narrow it into an ordinary rule.
+	 */
+	async function saveGlobalRule(fields: {
+		id?: Rule['id']
+		mode: string
+		algos: string[]
+		admin_enforced: boolean
+	}): Promise<ApiResponse> {
+		return rules.saveRule({
+			id: fields.id,
 			mode: fields.mode,
 			algos: fields.algos,
 			userScope: 'all',
@@ -164,53 +100,27 @@ export function useAdminSettings() {
 			// Marks this as the catch-all default, which evaluates last.
 			pinned: true,
 		})
-		if (data.success) {
-			await loadDefinitions()
-		}
-		return data
-	}
-
-	async function saveRule(draft: RuleDraft): Promise<ApiResponse> {
-		const data = await post(generateOcsUrl(OCS_SETTINGS.saveRule), {
-			id: draft.id || undefined,
-			enabled: true,
-			mode: draft.mode,
-			algos: draft.algos,
-			userScope: draft.userScope,
-			path: draft.path,
-			admin_enforced: draft.admin_enforced,
-		})
-		if (data.success) {
-			await loadDefinitions()
-		}
-		return data
-	}
-
-	async function deleteRule(id: string | number): Promise<ApiResponse> {
-		const data = await post(generateOcsUrl(OCS_SETTINGS.deleteRule), { id })
-		if (data.success) {
-			await loadDefinitions()
-		}
-		return data
-	}
-
-	async function toggleRule(id: string | number, enabled: boolean): Promise<ApiResponse> {
-		const data = await post(generateOcsUrl(OCS_SETTINGS.toggleRule), { id, enabled })
-		if (data.success) {
-			await loadDefinitions()
-		}
-		return data
 	}
 
 	return {
 		...toRefs(state),
 		loadStatus,
-		loadDefinitions,
+
+		definitions: rules.rules,
+		supportedAlgos: rules.supportedAlgos,
+		availableUsers: rules.availableUsers,
+		availableGroups: rules.availableGroups,
+		modes: rules.modes,
+		types: rules.types,
+		definitionsError: rules.error,
+
+		loadDefinitions: rules.load,
 		globalRule,
 		additionalRules,
 		saveGlobalRule,
-		saveRule,
-		deleteRule,
-		toggleRule,
+		saveRule: rules.saveRule,
+		deleteRule: rules.deleteRule,
+		toggleRule: rules.toggleRule,
+		reorderBand: rules.reorderBand,
 	}
 }

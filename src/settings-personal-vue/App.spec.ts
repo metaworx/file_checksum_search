@@ -46,12 +46,13 @@ function jsonResponse(body: unknown): Response {
 function mockFetch(canEdit = true): void {
 	vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
 		const url = String(input)
-		if (url.includes('/personal/rules') && !url.includes('/save') && !url.includes('/delete') && !url.includes('/toggle')) {
+		if (url.includes('/api/v1/rules')) {
 			return Promise.resolve(jsonResponse({
+				success: true,
 				rules: [
-					{ id: 1, path: '/docs', userScope: 'all', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false, canEdit },
+					{ id: 1, path: '/docs', userScope: 'all', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false, band: 4, position: 1, canEdit },
 				],
-				canEdit,
+				canCreate: canEdit,
 				supportedAlgos: ['sha1', 'sha256'],
 			}))
 		}
@@ -120,9 +121,9 @@ describe('settings-personal App', () => {
 
 		expect(confirmMock).toHaveBeenCalled()
 		const deleteCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.find(
-			([input]) => String(input).includes('/personal/rules/delete'),
+			([, init]) => (init as RequestInit | undefined)?.method === 'DELETE',
 		)
 		expect(deleteCall).toBeDefined()
-		expect(JSON.parse((deleteCall![1] as RequestInit).body as string)).toEqual({ id: 1 })
+		expect(String(deleteCall![0])).toBe('/apps/file_checksum_search/api/v1/rules/1')
 	})
 })

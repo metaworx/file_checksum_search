@@ -67,41 +67,29 @@ describe('useAdminSettings', () => {
 		expect(statusLoading.value).toBe(false)
 	})
 
-	it('discards a stale definitions response when a newer loadDefinitions() supersedes it', async () => {
-		const { pending } = mockAbortableFetch()
-		const { definitions, loadDefinitions } = useAdminSettings()
+	it('asks for the whole-instance view of the rules', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ rules: [] }))
 
-		const first = loadDefinitions()
-		const second = loadDefinitions()
+		await useAdminSettings().loadDefinitions()
 
-		pending[1](jsonResponse({ definitions: [{ id: 2, path: '/new' }], supportedAlgos: [], users: [] }))
-		await second
-
-		pending[0](jsonResponse({ definitions: [{ id: 1, path: '/stale' }], supportedAlgos: [], users: [] }))
-		await first
-
-		expect(definitions.value).toEqual([{ id: 2, path: '/new' }])
+		expect(String(fetchMock.mock.calls[0][0])).toContain('scope=all')
 	})
 
 	it('identifies the global rule by its pinned flag, not by position', async () => {
-		const { pending } = mockAbortableFetch()
-		const { globalRule, additionalRules, loadDefinitions } = useAdminSettings()
-
-		const p = loadDefinitions()
 		// Band order puts the catch-all default LAST, so it is no longer at
 		// index 0 — reading position instead of the flag would pick '/a'.
-		pending[0](
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(
 			jsonResponse({
-				definitions: [
+				rules: [
 					{ id: 2, path: '/a', band: 4 },
 					{ id: 3, path: '/b', band: 6 },
 					{ id: 1, path: '**', band: 7, pinned: true },
 				],
-				supportedAlgos: ['sha1'],
-				users: ['alice'],
 			}),
 		)
-		await p
+
+		const { globalRule, additionalRules, loadDefinitions } = useAdminSettings()
+		await loadDefinitions()
 
 		expect(globalRule()).toEqual({ id: 1, path: '**', band: 7, pinned: true })
 		expect(additionalRules()).toEqual([
@@ -111,38 +99,28 @@ describe('useAdminSettings', () => {
 	})
 
 	it('returns no global rule when none is pinned', async () => {
-		const { pending } = mockAbortableFetch()
-		const { globalRule, additionalRules, loadDefinitions } = useAdminSettings()
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ rules: [{ id: 2, path: '/a' }] }))
 
-		const p = loadDefinitions()
-		pending[0](jsonResponse({ definitions: [{ id: 2, path: '/a' }], supportedAlgos: [], users: [] }))
-		await p
+		const { globalRule, additionalRules, loadDefinitions } = useAdminSettings()
+		await loadDefinitions()
 
 		expect(globalRule()).toBeNull()
 		expect(additionalRules()).toEqual([{ id: 2, path: '/a' }])
 	})
 
-	it('saveRule posts and reloads definitions on success', async () => {
-		const fetchMock = vi
-			.spyOn(globalThis, 'fetch')
-			.mockResolvedValueOnce(jsonResponse({ success: true }))
-			.mockResolvedValueOnce(jsonResponse({ definitions: [{ id: 1, path: '/updated' }] }))
+	it('saves the global rule with its reach and pinned flag fixed', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ success: true, rules: [] }))
 
-		const { definitions, saveRule } = useAdminSettings()
-		const result = await saveRule({ path: '/updated', mode: 'auto', algos: ['sha1'], userScope: 'all', admin_enforced: false })
+		await useAdminSettings().saveGlobalRule({
+			id: 'abc',
+			mode: 'force',
+			algos: ['sha1'],
+			admin_enforced: false,
+		})
 
-		expect(result.success).toBe(true)
-		expect(definitions.value).toEqual([{ id: 1, path: '/updated' }])
-		expect(fetchMock).toHaveBeenCalledTimes(2)
-	})
-
-	it('deleteRule does not reload definitions when the request fails', async () => {
-		vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse({ success: false, error: 'nope' }))
-
-		const { deleteRule } = useAdminSettings()
-		const result = await deleteRule(1)
-
-		expect(result).toEqual({ success: false, error: 'nope' })
-		expect(globalThis.fetch).toHaveBeenCalledTimes(1)
+		const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)
+		// A locked-but-tampered form can never narrow the catch-all into an
+		// ordinary rule: its scope, path and pinned flag are set here.
+		expect(body).toMatchObject({ userScope: 'all', path: '**', pinned: true, mode: 'force' })
 	})
 })

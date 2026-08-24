@@ -96,6 +96,24 @@ class RuleService
 
 	public const TYPE_EXCLUDE = 'exclude';
 
+	/**
+	 * Modes an include rule may use — how eagerly it refreshes hashes.
+	 *
+	 * `new` is deliberately absent: it is an internal pending-queue state
+	 * meaning "resolve the rule at processing time", never something a rule
+	 * declares about itself.
+	 *
+	 * @var list<string>
+	 */
+	public const MODES
+		= [
+			'auto',
+			'missing',
+			'force',
+			'lazy',
+			'off',
+		];
+
 	/** @var list<string> */
 	public const TYPES
 		= [
@@ -391,6 +409,16 @@ class RuleService
 	{
 
 		return $rule !== null && self::verdictOf( $rule ) === self::TYPE_INCLUDE;
+	}
+
+
+	/**
+	 * Whether a value is an accepted rule mode.
+	 */
+	public static function isValidMode( mixed $mode ): bool
+	{
+
+		return is_string( $mode ) && in_array( $mode, self::MODES, true );
 	}
 
 

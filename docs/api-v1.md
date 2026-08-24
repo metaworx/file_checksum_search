@@ -14,10 +14,11 @@ All three surfaces use the same [`ChecksumApi`](lib/Public/ChecksumApi.php) clas
 
 1. [PHP API](#php-api)
 2. [HTTP REST API](#http-rest-api)
-3. [Authentication](#authentication)
-4. [Versioning & Compatibility](#versioning--compatibility)
-5. [Rate Limiting](#rate-limiting)
-6. [Error Handling](#error-handling)
+3. [Rules](#rules)
+4. [Authentication](#authentication)
+5. [Versioning & Compatibility](#versioning--compatibility)
+6. [Rate Limiting](#rate-limiting)
+7. [Error Handling](#error-handling)
 
 ---
 
@@ -265,6 +266,11 @@ All endpoints are under `/apps/file_checksum_search/api/v1/`. Responses are plai
 | 4 | `/api/v1/file/{fileId}/recalc` | POST | `recalcHash` | Recalculate hash |
 | 5 | `/api/v1/duplicates` | GET | `findDuplicates` | Global duplicate groups |
 | 6 | `/api/v1/status` | GET | `getStatus` | Health/status |
+| 7 | `/api/v1/rules` | GET | — | List hash-generation rules |
+| 8 | `/api/v1/rules` | POST | — | Create a rule |
+| 9 | `/api/v1/rules/{id}` | PUT | — | Update a rule (including enable/disable) |
+| 10 | `/api/v1/rules/{id}` | DELETE | — | Delete a rule |
+| 11 | `/api/v1/rules/order` | PUT | — | Reorder one priority band |
 
 > **Note:** `getHashesByFile()` and `getHashesByPath()` are PHP-only convenience methods with no HTTP equivalent. HTTP consumers should use `getHashesByFileId()` after obtaining a `fileId` from NC's WebDAV PROPFIND or other APIs.
 
@@ -432,6 +438,129 @@ No parameters.
   "pendingRows": 5
 }
 ```
+
+---
+
+## Rules
+
+Hash-generation rules, as configured on the admin and personal settings pages.
+These endpoints have no `ChecksumApi` equivalent — they are HTTP-only.
+
+### Priority bands
+
+Rules are evaluated top to bottom and **the first match decides the file**. A rule's position is
+not free-form: it is derived from what the rule *is*.
+
+| Band | Contents |
+|------|----------|
+| 1 | user-scoped, `admin_enforced` |
+| 2 | group-scoped, `admin_enforced` |
+| 3 | global, `admin_enforced` |
+| 4 | user-scoped, not enforced |
+| 5 | group-scoped, not enforced |
+| 6 | global, not enforced |
+| 7 | the single pinned `**` catch-all default |
+
+Enforced beats unenforced; within each half, specific beats general; the catch-all is last. So a
+user's rule can override the non-enforced defaults below it, but can never outrun an enforced
+one. A rule changes band by changing its `userScope` or `admin_enforced` — never by reordering,
+which only permutes rules *inside* one band.
+
+`band` and `position` are returned per rule and are **computed, never stored**. Do not send them.
+There is deliberately no combined `"<band>.<position>"` field: it would be a third value derived
+from two already present, free to disagree with them. Compose it client-side if you display it.
+
+### Rule shape
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | string | 32 hex characters; server-assigned |
+| `enabled` | bool | |
+| `type` | string | `include` (default) \| `ignore` \| `exclude` |
+| `path` | string | glob, Symfony Finder `**` syntax |
+| `userScope` | string | `all` \| `group:<gid>` \| `<uid>` |
+| `algos` | string[] | include rules only |
+| `mode` | string | include rules only: `auto` \| `missing` \| `force` \| `lazy` \| `off` |
+| `admin_enforced` | bool | administrator-only |
+| `pinned` | bool | the catch-all default; administrator-only, at most one |
+| `band`, `position` | int | computed, read-only |
+| `canEdit` | bool | computed for the calling user |
+
+An `ignore` or `exclude` rule computes nothing, so it stores no `algos` and no `mode`; sending
+them is not an error, they are simply not kept.
+
+### `GET /api/v1/rules`
+
+| Parameter | Values | Default | Notes |
+|-----------|--------|---------|-------|
+| `scope` | `own`, `all` | `own` | `all` requires administrator rights (403 otherwise) |
+
+`scope` selects a **view**, not a permission. `own` lists the rules that concern the caller's own
+files — covered by scope *and* able to reach a path they can see — and marks only their own as
+editable. `all` is the administrator's whole-instance view.
+
+An administrator asking for `own` gets the personal view: the capability exists but is not
+exercised. That is what lets the personal settings page stay personal for everyone. It is a
+convenience for honest clients, not a security boundary — mutations are judged on capability
+alone, so nothing depends on a client honouring it.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "rules": [
+    { "id": "0f1e…", "enabled": true, "type": "include", "path": "**/*.pdf",
+      "userScope": "all", "algos": ["sha256"], "mode": "auto",
+      "admin_enforced": false, "pinned": false,
+      "band": 6, "position": 1, "canEdit": true }
+  ],
+  "canCreate": true,
+  "supportedAlgos": ["sha1", "md5", "sha256"],
+  "modes": ["auto", "missing", "force", "lazy", "off"],
+  "types": ["include", "ignore", "exclude"],
+  "availableUsers": ["alice"],
+  "availableGroups": ["staff"]
+}
+```
+
+`availableUsers` and `availableGroups` are present only for `scope=all` — they exist to populate
+scope pickers, and no other view can assign those scopes.
+
+### `POST /api/v1/rules` — create
+
+Body is the rule shape above. From a non-administrator, `userScope` is forced to the caller and
+`admin_enforced` to `false`, whatever the payload says; `pinned` is ignored. A non-administrator
+must also have write access to the rule's path (403 otherwise).
+
+### `PUT /api/v1/rules/{id}` — update
+
+Same body. **Enabling or disabling a rule is an update of `enabled`** — there is no separate
+toggle endpoint. Omitted fields keep their stored values, so `{"enabled": false}` is a complete
+and safe request.
+
+Changing `userScope` or `admin_enforced` moves the rule to the **end of its new band**, since
+position has no meaning across bands.
+
+### `DELETE /api/v1/rules/{id}`
+
+400 for the pinned default — it cannot be deleted, only disabled.
+
+### `PUT /api/v1/rules/order` — reorder one band
+
+```json
+{ "band": 4, "ownerId": "alice", "orderedIds": ["0f1e…", "2a3b…"] }
+```
+
+`orderedIds` must be **exactly a permutation** of that band's rule IDs — never a partial order,
+which would silently drop rules from evaluation. Band 7 is not orderable. Band 4 holds every
+user's own rules, so it additionally names whose segment is being reordered; different users'
+rules never compete, and one user's reorder cannot move another's.
+
+A non-administrator may reorder only band 4, always their own segment — `ownerId` is ignored and
+forced to the caller.
+
+**Errors:** 400 on a non-permutation, an unorderable band, or an ID from another band; 403 for a
+caller without rule-editing permission.
 
 ---
 

@@ -46,15 +46,18 @@ function mockFetch(): void {
 		if (url.includes('/settings/status')) {
 			return Promise.resolve(jsonResponse({ version: '1.0', dbVersion: '1', rowCount: 3, pendingStats: {} }))
 		}
-		if (url.includes('/settings/cron/definitions')) {
+		if (url.includes('/api/v1/rules')) {
 			// Server order is band order: the pinned catch-all evaluates last.
 			return Promise.resolve(jsonResponse({
-				definitions: [
-					{ id: 2, path: '/docs', userScope: 'all', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false, band: 6, position: 1, priority: '6.1' },
-					{ id: 1, path: '**', userScope: 'all', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false, pinned: true, band: 7, position: 1, priority: '7.1' },
+				success: true,
+				rules: [
+					{ id: 2, path: '/docs', userScope: 'all', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false, band: 6, position: 1, canEdit: true },
+					{ id: 1, path: '**', userScope: 'all', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false, pinned: true, band: 7, position: 1, canEdit: true },
 				],
+				canCreate: true,
 				supportedAlgos: ['sha1', 'sha256'],
-				users: ['alice'],
+				availableUsers: ['alice'],
+				availableGroups: [],
 			}))
 		}
 		if (url.includes('/settings/admin-options')) {
@@ -156,12 +159,14 @@ describe('settings-admin App', () => {
 		await wrapper.find('#fcias-btn-save-definition').trigger('click')
 		await flushPromises()
 
+		// The listing GET also hits /api/v1/rules, so match the mutation.
 		const saveCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.find(
-			([input]) => String(input).includes('/settings/cron/save'),
+			([, init]) => (init as RequestInit | undefined)?.method === 'PUT',
 		)
 		expect(saveCall).toBeDefined()
+		expect(String(saveCall![0])).toBe('/apps/file_checksum_search/api/v1/rules/1')
 		const body = JSON.parse((saveCall![1] as RequestInit).body as string)
-		expect(body).toMatchObject({ id: 1, path: '**', userScope: 'all', mode: 'force' })
+		expect(body).toMatchObject({ path: '**', userScope: 'all', mode: 'force', pinned: true })
 	})
 
 	it('shows the stored algorithms of the global rule once the async load resolves', async () => {
@@ -184,9 +189,9 @@ describe('settings-admin App', () => {
 
 		expect(confirmMock).toHaveBeenCalled()
 		const deleteCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.find(
-			([input]) => String(input).includes('/settings/cron/delete'),
+			([, init]) => (init as RequestInit | undefined)?.method === 'DELETE',
 		)
 		expect(deleteCall).toBeDefined()
-		expect(JSON.parse((deleteCall![1] as RequestInit).body as string)).toEqual({ id: 2 })
+		expect(String(deleteCall![0])).toBe('/apps/file_checksum_search/api/v1/rules/2')
 	})
 })

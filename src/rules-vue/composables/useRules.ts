@@ -1,0 +1,173 @@
+/**
+ * @copyright Copyright (c) 2026 metaworx
+ * @license   AGPL-3.0-or-later
+ *
+ * Rule CRUD against /api/v1/rules, shared by the admin and personal pages.
+ *
+ * One resource serves both: what a caller may do follows from who they are,
+ * so the pages differ only in which *view* they request. `scope: 'all'` is the
+ * administrator's whole-instance view; `scope: 'own'` lists the rules that
+ * concern the caller's own files and marks only their own as editable — which
+ * is what keeps the personal page personal even for an administrator.
+ */
+
+import { reactive, toRefs } from 'vue'
+import { generateOcsUrl } from '@nextcloud/router'
+import { API_RULES } from '../../routes'
+import type { Rule, RuleDraft } from '../types'
+
+declare const OC: {
+	requestToken: string
+}
+
+export interface ApiResponse {
+	success?: boolean
+	error?: string
+}
+
+interface RulesResponse extends ApiResponse {
+	rules?: Rule[]
+	canCreate?: boolean
+	supportedAlgos?: string[]
+	modes?: string[]
+	types?: string[]
+	availableUsers?: string[]
+	availableGroups?: string[]
+}
+
+interface State {
+	rules: Rule[]
+	canCreate: boolean
+	supportedAlgos: string[]
+	modes: string[]
+	types: string[]
+	availableUsers: string[]
+	availableGroups: string[]
+	loading: boolean
+	error: string | null
+}
+
+export function useRules(scope: 'own' | 'all') {
+	const state = reactive<State>({
+		rules: [],
+		canCreate: false,
+		supportedAlgos: [],
+		modes: [],
+		types: [],
+		availableUsers: [],
+		availableGroups: [],
+		loading: false,
+		error: null,
+	})
+
+	let abortController: AbortController | null = null
+
+	async function load(): Promise<void> {
+		abortController?.abort()
+		abortController = new AbortController()
+		const { signal } = abortController
+
+		state.loading = true
+		state.error = null
+
+		try {
+			const url = `${generateOcsUrl(API_RULES.list)}?scope=${scope}`
+			const data = (await (await fetch(url, { signal })).json()) as RulesResponse
+
+			state.rules = data.rules || []
+			state.canCreate = data.canCreate === true
+			state.supportedAlgos = data.supportedAlgos || []
+			state.modes = data.modes || []
+			state.types = data.types || []
+			state.availableUsers = data.availableUsers || []
+			state.availableGroups = data.availableGroups || []
+		} catch (err) {
+			if (err instanceof DOMException && err.name === 'AbortError') return
+			state.error = 'Failed to load rules.'
+		} finally {
+			if (!signal.aborted) {
+				state.loading = false
+			}
+		}
+	}
+
+	async function request(method: string, url: string, body?: unknown): Promise<ApiResponse> {
+		try {
+			const response = await fetch(url, {
+				method,
+				headers: {
+					requesttoken: OC.requestToken,
+					'Content-Type': 'application/json',
+				},
+				...(body === undefined ? {} : { body: JSON.stringify(body) }),
+			})
+			return (await response.json()) as ApiResponse
+		} catch {
+			return { success: false, error: 'Request failed.' }
+		}
+	}
+
+	/** Runs a mutation and reloads only if it took, so a failure leaves the view intact. */
+	async function mutate(method: string, url: string, body?: unknown): Promise<ApiResponse> {
+		const data = await request(method, url, body)
+		if (data.success) {
+			await load()
+		}
+		return data
+	}
+
+	function ruleUrl(id: Rule['id']): string {
+		return generateOcsUrl(API_RULES.update).replace('{id}', String(id))
+	}
+
+	/** Create when the draft has no id, update when it has one. */
+	async function saveRule(draft: RuleDraft & { type?: string; enabled?: boolean; pinned?: boolean }): Promise<ApiResponse> {
+		const payload = {
+			type: draft.type,
+			mode: draft.mode,
+			algos: draft.algos,
+			path: draft.path,
+			userScope: draft.userScope,
+			admin_enforced: draft.admin_enforced,
+			enabled: draft.enabled ?? true,
+			// Only ever set for the catch-all default; the server ignores it
+			// from a non-admin and holds it to an at-most-one invariant.
+			...(draft.pinned === undefined ? {} : { pinned: draft.pinned }),
+		}
+
+		return draft.id
+			? mutate('PUT', ruleUrl(draft.id), payload)
+			: mutate('POST', generateOcsUrl(API_RULES.create), payload)
+	}
+
+	async function deleteRule(id: Rule['id']): Promise<ApiResponse> {
+		return mutate('DELETE', ruleUrl(id))
+	}
+
+	/**
+	 * Enabling or disabling is an update of `enabled` — there is no separate
+	 * toggle endpoint. The server fills the rest from the stored rule, so a
+	 * minimal payload cannot erase it.
+	 */
+	async function toggleRule(id: Rule['id'], enabled: boolean): Promise<ApiResponse> {
+		return mutate('PUT', ruleUrl(id), { enabled })
+	}
+
+	/** Reorder one band; band 4 additionally names whose segment it is. */
+	async function reorderBand(band: number, orderedIds: Array<Rule['id']>, ownerId?: string): Promise<ApiResponse> {
+		return mutate('PUT', generateOcsUrl(API_RULES.order), {
+			band,
+			orderedIds,
+			...(ownerId === undefined ? {} : { ownerId }),
+		})
+	}
+
+	return {
+		...toRefs(state),
+		load,
+		saveRule,
+		deleteRule,
+		toggleRule,
+		reorderBand,
+	}
+}
