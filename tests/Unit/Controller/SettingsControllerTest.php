@@ -25,7 +25,6 @@ use OCP\AppFramework\Http\DataResponse;
 use OCP\IRequest;
 use OCP\IUser;
 use OCP\IUserManager;
-use InvalidArgumentException;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
 use ReflectionMethod;
@@ -643,109 +642,6 @@ class SettingsControllerTest
 	}
 
 
-// ── getCrontabSnippet ────────────────────────────────────────────────
-
-	public function testGetCrontabSnippetGeneratesCorrectLine(): void
-	{
-
-		$this->request->expects( $this->exactly( 5 ) )
-		              ->method( 'getParam' )
-		              ->willReturnMap( [
-			              [
-				              'userScope',
-				              'all',
-				              'all',
-			              ],
-			              [
-				              'path',
-				              '/',
-				              '',
-			              ],
-			              [
-				              'algo',
-				              'sha1',
-				              'sha256',
-			              ],
-			              [
-				              'batchSize',
-				              100,
-				              200,
-			              ],
-			              [
-				              'interval',
-				              900,
-				              3600,
-			              ],
-		              ] )
-		;
-
-		$response = $this->controller->getCrontabSnippet();
-
-		$this->assertInstanceOf( DataResponse::class, $response );
-
-		$data    = $response->getData();
-		$snippet = $data['snippet'];
-
-		$this->assertIsString( $snippet );
-		// interval=3600 → 60 minutes → "0 */1 * * *"
-		$this->assertStringStartsWith( '0 */1 * * * ', $snippet );
-		$this->assertStringContainsString( 'file-checksum-search:generate', $snippet );
-		$this->assertStringContainsString( '--user=all', $snippet );
-		// path default '/' is suppressed; algo is escapeshellarg-quoted
-		$this->assertStringContainsString( "--algo='sha256'", $snippet );
-		$this->assertStringContainsString( '--batch-size=200', $snippet );
-	}
-
-
-	public function testGetCrontabSnippetUsesDefaults(): void
-	{
-
-		$this->request->expects( $this->exactly( 5 ) )
-		              ->method( 'getParam' )
-		              ->willReturnMap( [
-			              [
-				              'userScope',
-				              'all',
-				              'all',
-			              ],
-			              [
-				              'path',
-				              '/',
-				              '/',
-			              ],
-			              [
-				              'algo',
-				              'sha1',
-				              'sha1',
-			              ],
-			              [
-				              'batchSize',
-				              100,
-				              100,
-			              ],
-			              [
-				              'interval',
-				              900,
-				              900,
-			              ],
-		              ] )
-		;
-
-		$response = $this->controller->getCrontabSnippet();
-
-		$data    = $response->getData();
-		$snippet = $data['snippet'];
-
-		// interval=900 → 15 minutes → "*/15 * * *"
-		$this->assertStringStartsWith( '*/15 * * * ', $snippet );
-		$this->assertStringContainsString( '--user=all', $snippet );
-		$this->assertStringContainsString( "--algo='sha1'", $snippet );
-		// batchSize=100 > 0 → included; path='/' → suppressed
-		$this->assertStringContainsString( '--batch-size=100', $snippet );
-		$this->assertStringNotContainsString( '--path=', $snippet );
-	}
-
-
 // ── getAdminOptions ──────────────────────────────────────────────────
 
 	public function testGetAdminOptionsReturnsPermissionFields(): void
@@ -863,7 +759,6 @@ class SettingsControllerTest
 			'saveRule',
 			'deleteRule',
 			'toggleRule',
-			'getCrontabSnippet',
 			'getAdminOptions',
 			'saveAdminOptions',
 		];

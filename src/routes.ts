@@ -38,8 +38,6 @@ export const OCS_SETTINGS = {
 	toggleRule: `${APP_BASE}/settings/cron/toggle`,
 	/** POST   /settings/cron/reorder */
 	reorderRules: `${APP_BASE}/settings/cron/reorder`,
-	/** GET    /settings/cron/snippet */
-	getCrontabSnippet: `${APP_BASE}/settings/cron/snippet`,
 	/** GET    /settings/admin-options */
 	getAdminOptions: `${APP_BASE}/settings/admin-options`,
 	/** POST   /settings/admin-options/save */

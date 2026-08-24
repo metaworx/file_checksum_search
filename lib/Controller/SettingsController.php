@@ -374,56 +374,6 @@ class SettingsController
 
 
 	/**
-	 * Generate a crontab entry snippet for CLI-based hash generation.
-	 *
-	 * Admin only — see {@see listRules()}.
-	 *
-	 * @noinspection PhpUnused
-	 */
-	#[NoCSRFRequired]
-	#[ApiRoute( verb: 'GET', url: '/settings/cron/snippet' )]
-	public function getCrontabSnippet(): DataResponse
-	{
-
-		$userScope = $this->request->getParam( 'userScope', 'all' );
-		$path      = $this->request->getParam( 'path', '/' );
-		$algo      = $this->request->getParam( 'algo', HashCalculationService::getDefaultAlgo() );
-		$batchSize = (int) $this->request->getParam( 'batchSize', 100 );
-		$interval  = (int) $this->request->getParam( 'interval', 900 );
-
-		$occPath = isset( \OC::$SERVERROOT )
-			? \OC::$SERVERROOT . '/occ'
-			: '/var/www/nextcloud/occ';
-
-		$intervalStr = $this->intervalToCron( $interval );
-
-		$userArg = $userScope === 'all'
-			? '--user=all'
-			: '--user=' . escapeshellarg( $userScope );
-
-		$pathArg  = $path !== '' && $path !== '/'
-			? ' --path=' . escapeshellarg( $path )
-			: '';
-		$batchArg = $batchSize > 0
-			? ' --batch-size=' . $batchSize
-			: '';
-		$algoArg  = ' --algo=' . escapeshellarg( $algo );
-
-		$snippet = sprintf(
-			'%s php %s file-checksum-search:generate %s%s%s%s',
-			$intervalStr,
-			$occPath,
-			$userArg,
-			$pathArg,
-			$algoArg,
-			$batchArg,
-		);
-
-		return new DataResponse( [ 'snippet' => $snippet ] );
-	}
-
-
-	/**
 	 * Read the rule-editing permission options (admin only).
 	 *
 	 * @noinspection PhpUnused
@@ -538,27 +488,6 @@ class SettingsController
 	{
 
 		return file_get_contents( 'php://input' );
-	}
-
-
-	private function intervalToCron( int $seconds ): string
-	{
-
-		$minutes = (int) round( $seconds / 60 );
-
-		if ( $minutes >= 60 && $minutes % 60 === 0 )
-		{
-			$hours = $minutes / 60;
-
-			if ( $hours >= 24 && $hours % 24 === 0 )
-			{
-				return sprintf( '0 */%d * * *', $hours / 24 );
-			}
-
-			return sprintf( '0 */%d * * *', $hours );
-		}
-
-		return sprintf( '*/%d * * *', max( 1, $minutes ) );
 	}
 
 }

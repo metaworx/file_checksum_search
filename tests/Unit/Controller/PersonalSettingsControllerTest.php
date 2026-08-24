@@ -9,7 +9,6 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
-use InvalidArgumentException;
 use OCA\FileChecksumSearch\Controller\PersonalSettingsController;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\PermissionService;
@@ -22,7 +21,6 @@ use OCP\IUser;
 use OCP\IUserSession;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
-use RuntimeException;
 
 class PersonalSettingsControllerTest
 	extends

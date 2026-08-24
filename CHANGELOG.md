@@ -29,6 +29,7 @@ the first stable release.
 
 ### Removed
 
+- Remove the dead crontab-snippet generator endpoint (`GET /settings/cron/snippet`). Its UI was already gone: the Vue settings migration dropped the snippet panel, and the README/FAQ claims about it were removed at the same time, leaving a reachable endpoint no code called. It offered nothing the documented `occ file-checksum-search:generate` flags don't — it only assembled the crontab line for you. If the planned cron work revives this, it comes back as part of that feature rather than lingering as a fragment of it.
 - Remove the legacy `/api/1.0/` REST routes and the `LookupController` that served them. The app was never published, so nothing external can be relying on them, and keeping a second, frozen copy of the same four operations meant every API change had to be made and reviewed twice. Everything they did is available on `/api/v1/`: `lookup/{hash}` → `lookup?hash=…`, and `file/{id}/hashes`, `file/{id}/duplicates` and `file/{id}/recalc` under the same names.
 
 ## [0.19.0] — 2026-08-23
