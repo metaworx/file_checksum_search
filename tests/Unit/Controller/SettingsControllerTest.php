@@ -719,6 +719,7 @@ class SettingsControllerTest
 
 // ── admin-only enforcement ───────────────────────────────────────────
 
+
 	/**
 	 * Regression test for FCIAS Review §6, Finding 2: these endpoints
 	 * back the *admin* settings page only. Nextcloud's SecurityMiddleware

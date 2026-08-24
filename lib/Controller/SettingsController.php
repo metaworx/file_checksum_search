@@ -153,11 +153,11 @@ class SettingsController
 		}
 
 		$definition = [
-			'enabled'       => (bool) ( $body['enabled'] ?? true ),
-			'mode'          => $body['mode'] ?? 'auto',
-			'algos'         => $algos,
-			'path'          => $body['path'] ?? '/',
-			'userScope'     => $body['userScope'] ?? 'all',
+			'enabled'        => (bool) ( $body['enabled'] ?? true ),
+			'mode'           => $body['mode'] ?? 'auto',
+			'algos'          => $algos,
+			'path'           => $body['path'] ?? '/',
+			'userScope'      => $body['userScope'] ?? 'all',
 			'admin_enforced' => (bool) ( $body['admin_enforced'] ?? false ),
 		];
 

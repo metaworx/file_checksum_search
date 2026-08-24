@@ -715,7 +715,7 @@ class RuleService
 	 * limit to avoid unbounded scanning on very broad patterns.
 	 * When $limit <= 0 the search is unlimited (no cap is applied).
 	 *
-	 * @param int $limit Maximum files to return (a value <= 0 means unlimited)
+	 * @param  int  $limit  Maximum files to return (a value <= 0 means unlimited)
 	 *
 	 * @return File[]
 	 */

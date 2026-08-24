@@ -205,7 +205,10 @@ class PermissionServiceTest
 				                ): bool {
 
 					                return json_decode( $json, true, 512, JSON_THROW_ON_ERROR )
-						                === [ 'staff', 'admins' ];
+						                === [
+							                'staff',
+							                'admins',
+						                ];
 				                },
 			                ),
 		                )
@@ -213,7 +216,11 @@ class PermissionServiceTest
 
 		$this->service->setGroups(
 			PermissionService::PERMISSION_RULE_EDITING,
-			[ 'staff', '', 'admins' ],
+			[
+				'staff',
+				'',
+				'admins',
+			],
 		);
 	}
 
@@ -250,17 +257,32 @@ class PermissionServiceTest
 	{
 
 		$this->appConfig->method( 'getValueString' )
-		                ->willReturn( json_encode( [ 'alice', 42, '', null, 'bob' ], JSON_THROW_ON_ERROR ) )
+		                ->willReturn(
+			                json_encode(
+				                [
+					                'alice',
+					                42,
+					                '',
+					                null,
+					                'bob',
+				                ],
+				                JSON_THROW_ON_ERROR,
+			                ),
+		                )
 		;
 
 		$this->assertSame(
-			[ 'alice', 'bob' ],
+			[
+				'alice',
+				'bob',
+			],
 			$this->service->getUsers( PermissionService::PERMISSION_RULE_EDITING ),
 		);
 	}
 
 
 	// unknown permissions
+
 
 	/**
 	 * An unknown permission must fail loudly. Returning false instead would
@@ -286,13 +308,41 @@ class PermissionServiceTest
 	{
 
 		return [
-			'isAllowed'          => [ static fn( PermissionService $s ) => $s->isAllowed( 'no_such_permission', 'alice' ) ],
-			'isAllUsersEnabled'  => [ static fn( PermissionService $s ) => $s->isAllUsersEnabled( 'no_such_permission' ) ],
-			'setAllUsersEnabled' => [ static fn( PermissionService $s ) => $s->setAllUsersEnabled( 'no_such_permission', true ) ],
-			'getGroups'          => [ static fn( PermissionService $s ) => $s->getGroups( 'no_such_permission' ) ],
-			'setGroups'          => [ static fn( PermissionService $s ) => $s->setGroups( 'no_such_permission', [] ) ],
-			'getUsers'           => [ static fn( PermissionService $s ) => $s->getUsers( 'no_such_permission' ) ],
-			'setUsers'           => [ static fn( PermissionService $s ) => $s->setUsers( 'no_such_permission', [] ) ],
+			'isAllowed'          => [
+				static fn(
+					PermissionService $s,
+				) => $s->isAllowed( 'no_such_permission', 'alice' ),
+			],
+			'isAllUsersEnabled'  => [
+				static fn(
+					PermissionService $s,
+				) => $s->isAllUsersEnabled( 'no_such_permission' ),
+			],
+			'setAllUsersEnabled' => [
+				static fn(
+					PermissionService $s,
+				) => $s->setAllUsersEnabled( 'no_such_permission', true ),
+			],
+			'getGroups'          => [
+				static fn(
+					PermissionService $s,
+				) => $s->getGroups( 'no_such_permission' ),
+			],
+			'setGroups'          => [
+				static fn(
+					PermissionService $s,
+				) => $s->setGroups( 'no_such_permission', [] ),
+			],
+			'getUsers'           => [
+				static fn(
+					PermissionService $s,
+				) => $s->getUsers( 'no_such_permission' ),
+			],
+			'setUsers'           => [
+				static fn(
+					PermissionService $s,
+				) => $s->setUsers( 'no_such_permission', [] ),
+			],
 		];
 	}
 
@@ -314,4 +364,5 @@ class PermissionServiceTest
 
 		$this->service->setUsers( 'no_such_permission', [ 'alice' ] );
 	}
+
 }

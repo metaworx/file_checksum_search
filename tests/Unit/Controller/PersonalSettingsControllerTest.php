@@ -26,15 +26,15 @@ class PersonalSettingsControllerTest
 	FciasUnitTestCase
 {
 
-	private MockObject|RuleService               $ruleService;
+	private MockObject|RuleService     $ruleService;
 
-	private MockObject|IUserSession              $userSession;
+	private MockObject|IUserSession    $userSession;
 
-	private MockObject|IRequest                  $request;
+	private MockObject|IRequest        $request;
 
-	private MockObject|LoggerInterface           $logger;
+	private MockObject|LoggerInterface $logger;
 
-	private PersonalSettingsController           $controller;
+	private PersonalSettingsController $controller;
 
 
 	protected function setUp(): void
@@ -92,7 +92,12 @@ class PersonalSettingsControllerTest
 		$this->ruleService->method( 'getPersonalRulesForUser' )
 		                  ->with( 'alice' )
 		                  ->willReturn( [
-			                  [ 'id' => 'r1', 'path' => '**', 'admin_enforced' => false, 'canEdit' => true ],
+			                  [
+				                  'id'             => 'r1',
+				                  'path'           => '**',
+				                  'admin_enforced' => false,
+				                  'canEdit'        => true,
+			                  ],
 		                  ] )
 		;
 		$this->ruleService->method( 'canUserEditRules' )
@@ -185,7 +190,13 @@ class PersonalSettingsControllerTest
 		;
 		$this->ruleService->method( 'findRuleById' )
 		                  ->with( 'r1' )
-		                  ->willReturn( [ 'id' => 'r1', 'userScope' => 'alice', 'admin_enforced' => false ] )
+		                  ->willReturn(
+			                  [
+				                  'id'             => 'r1',
+				                  'userScope'      => 'alice',
+				                  'admin_enforced' => false,
+			                  ],
+		                  )
 		;
 		$this->ruleService->method( 'canUserMutateRule' )
 		                  ->willReturn( true )
@@ -251,7 +262,14 @@ class PersonalSettingsControllerTest
 		                  ->willReturn( true )
 		;
 		$this->controller->method( 'readRequestBody' )
-		                 ->willReturn( json_encode( [ 'algos' => [ 'sha1' ], 'path' => '/Nowhere' ] ) )
+		                 ->willReturn(
+			                 json_encode(
+				                 [
+					                 'algos' => [ 'sha1' ],
+					                 'path'  => '/Nowhere',
+				                 ],
+			                 ),
+		                 )
 		;
 		$this->ruleService->method( 'isPathWritableByUser' )
 		                  ->with( 'alice', '/Nowhere' )
@@ -280,7 +298,15 @@ class PersonalSettingsControllerTest
 		                  ->willReturn( null )
 		;
 		$this->controller->method( 'readRequestBody' )
-		                 ->willReturn( json_encode( [ 'id' => 'missing', 'algos' => [ 'sha1' ], 'path' => '/' ] ) )
+		                 ->willReturn(
+			                 json_encode(
+				                 [
+					                 'id'    => 'missing',
+					                 'algos' => [ 'sha1' ],
+					                 'path'  => '/',
+				                 ],
+			                 ),
+		                 )
 		;
 
 		$response = $this->controller->savePersonalRule();
@@ -305,7 +331,13 @@ class PersonalSettingsControllerTest
 		;
 		$this->ruleService->method( 'findRuleById' )
 		                  ->with( 'r1' )
-		                  ->willReturn( [ 'id' => 'r1', 'userScope' => 'bob', 'admin_enforced' => false ] )
+		                  ->willReturn(
+			                  [
+				                  'id'             => 'r1',
+				                  'userScope'      => 'bob',
+				                  'admin_enforced' => false,
+			                  ],
+		                  )
 		;
 		$this->ruleService->method( 'canUserMutateRule' )
 		                  ->willReturn( false )
@@ -364,7 +396,13 @@ class PersonalSettingsControllerTest
 		;
 		$this->ruleService->method( 'findRuleById' )
 		                  ->with( 'r1' )
-		                  ->willReturn( [ 'id' => 'r1', 'path' => '/', 'admin_enforced' => false ] )
+		                  ->willReturn(
+			                  [
+				                  'id'             => 'r1',
+				                  'path'           => '/',
+				                  'admin_enforced' => false,
+			                  ],
+		                  )
 		;
 		$this->ruleService->method( 'canUserMutateRule' )
 		                  ->willReturn( true )
@@ -395,7 +433,13 @@ class PersonalSettingsControllerTest
 		;
 		$this->ruleService->method( 'findRuleById' )
 		                  ->with( 'r1' )
-		                  ->willReturn( [ 'id' => 'r1', 'path' => '/', 'admin_enforced' => true ] )
+		                  ->willReturn(
+			                  [
+				                  'id'             => 'r1',
+				                  'path'           => '/',
+				                  'admin_enforced' => true,
+			                  ],
+		                  )
 		;
 		$this->ruleService->method( 'canUserMutateRule' )
 		                  ->willReturn( false )
@@ -427,7 +471,14 @@ class PersonalSettingsControllerTest
 		;
 		$this->ruleService->method( 'findRuleById' )
 		                  ->with( 'r1' )
-		                  ->willReturn( [ 'id' => 'r1', 'path' => '/', 'userScope' => 'bob', 'admin_enforced' => false ] )
+		                  ->willReturn(
+			                  [
+				                  'id'             => 'r1',
+				                  'path'           => '/',
+				                  'userScope'      => 'bob',
+				                  'admin_enforced' => false,
+			                  ],
+		                  )
 		;
 		$this->ruleService->method( 'canUserMutateRule' )
 		                  ->willReturn( false )
@@ -458,7 +509,13 @@ class PersonalSettingsControllerTest
 		;
 		$this->ruleService->method( 'findRuleById' )
 		                  ->with( 'r1' )
-		                  ->willReturn( [ 'id' => 'r1', 'path' => '/', 'admin_enforced' => false ] )
+		                  ->willReturn(
+			                  [
+				                  'id'             => 'r1',
+				                  'path'           => '/',
+				                  'admin_enforced' => false,
+			                  ],
+		                  )
 		;
 		$this->ruleService->method( 'canUserMutateRule' )
 		                  ->willReturn( true )
@@ -510,7 +567,14 @@ class PersonalSettingsControllerTest
 		;
 		$this->ruleService->method( 'findRuleById' )
 		                  ->with( 'r1' )
-		                  ->willReturn( [ 'id' => 'r1', 'path' => '/', 'userScope' => 'bob', 'admin_enforced' => false ] )
+		                  ->willReturn(
+			                  [
+				                  'id'             => 'r1',
+				                  'path'           => '/',
+				                  'userScope'      => 'bob',
+				                  'admin_enforced' => false,
+			                  ],
+		                  )
 		;
 		$this->ruleService->method( 'canUserMutateRule' )
 		                  ->willReturn( false )

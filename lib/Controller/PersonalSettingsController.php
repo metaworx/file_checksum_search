@@ -233,7 +233,9 @@ class PersonalSettingsController
 		}
 
 		$body = json_decode( $this->readRequestBody(), true );
-		$id   = is_array( $body ) ? ( $body['id'] ?? null ) : null;
+		$id   = is_array( $body )
+			? ( $body['id'] ?? null )
+			: null;
 
 		if ( $id === null || $id === '' )
 		{
@@ -314,8 +316,12 @@ class PersonalSettingsController
 		}
 
 		$body    = json_decode( $this->readRequestBody(), true );
-		$id      = is_array( $body ) ? ( $body['id'] ?? null ) : null;
-		$enabled = (bool) ( is_array( $body ) ? ( $body['enabled'] ?? false ) : false );
+		$id      = is_array( $body )
+			? ( $body['id'] ?? null )
+			: null;
+		$enabled = (bool) ( is_array( $body )
+			? ( $body['enabled'] ?? false )
+			: false );
 
 		if ( $id === null || $id === '' )
 		{

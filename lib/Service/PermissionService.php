@@ -36,6 +36,7 @@ class PermissionService
 {
 
 // constants
+
 	/** Who may create and edit hash-generation rules. */
 	public const PERMISSION_RULE_EDITING = 'rule_editing';
 
@@ -44,13 +45,14 @@ class PermissionService
 	 *
 	 * @var array<string, array{allUsers: string, groups: string, users: string}>
 	 */
-	private const CONFIG_KEYS = [
-		self::PERMISSION_RULE_EDITING => [
-			'allUsers' => 'rule_editors_all_users',
-			'groups'   => 'rule_editors_groups',
-			'users'    => 'rule_editors_users',
-		],
-	];
+	private const CONFIG_KEYS
+		= [
+			self::PERMISSION_RULE_EDITING => [
+				'allUsers' => 'rule_editors_all_users',
+				'groups'   => 'rule_editors_groups',
+				'users'    => 'rule_editors_users',
+			],
+		];
 
 
 	public function __construct(
@@ -205,14 +207,14 @@ class PermissionService
 		string $which,
 	): string {
 
-		if ( ! isset( self::CONFIG_KEYS[$permission] ) )
+		if ( ! isset( self::CONFIG_KEYS[ $permission ] ) )
 		{
 			throw new InvalidArgumentException(
 				sprintf( 'Unknown permission "%s".', $permission ),
 			);
 		}
 
-		return self::CONFIG_KEYS[$permission][$which];
+		return self::CONFIG_KEYS[ $permission ][ $which ];
 	}
 
 
@@ -282,4 +284,5 @@ class PermissionService
 			json_encode( $list, JSON_THROW_ON_ERROR ),
 		);
 	}
+
 }

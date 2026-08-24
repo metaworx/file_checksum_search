@@ -534,7 +534,12 @@ class RuleServiceTest
 		$folder = $this->createMock( Folder::class );
 		$folder->expects( $this->exactly( 2 ) )
 		       ->method( 'search' )
-		       ->willReturnOnConsecutiveCalls( [ $file1, $file2 ], [] )
+		       ->willReturnOnConsecutiveCalls(
+			       [
+				       $file1,
+				       $file2,
+			       ], [],
+		       )
 		;
 
 		$results = $this->service->searchFilesByGlob( $folder, '**/*.txt', 0 );
@@ -602,14 +607,17 @@ class RuleServiceTest
 	{
 
 		$rules = [
-			[ 'id'      => 'r1',
-			  'enabled' => true,
+			[
+				'id'      => 'r1',
+				'enabled' => true,
 			],
-			[ 'id'      => 'r2',
-			  'enabled' => false,
+			[
+				'id'      => 'r2',
+				'enabled' => false,
 			],
-			[ 'id'      => 'r3',
-			  'enabled' => true,
+			[
+				'id'      => 'r3',
+				'enabled' => true,
 			],
 		];
 
@@ -643,8 +651,9 @@ class RuleServiceTest
 	{
 
 		$rules = [
-			[ 'id'      => 'r1',
-			  'enabled' => true,
+			[
+				'id'      => 'r1',
+				'enabled' => true,
 			],
 		];
 
@@ -679,11 +688,13 @@ class RuleServiceTest
 	{
 
 		$rules = [
-			[ 'id'      => 'r1',
-			  'enabled' => true,
+			[
+				'id'      => 'r1',
+				'enabled' => true,
 			],
-			[ 'id'      => 'r2',
-			  'enabled' => false,
+			[
+				'id'      => 'r2',
+				'enabled' => false,
 			],
 		];
 
@@ -717,9 +728,10 @@ class RuleServiceTest
 	{
 
 		$rules = [
-			[ 'id'      => 'r1',
-			  'enabled' => true,
-			  'path'    => '**',
+			[
+				'id'      => 'r1',
+				'enabled' => true,
+				'path'    => '**',
 			],
 		];
 
@@ -798,17 +810,20 @@ class RuleServiceTest
 	{
 
 		$rules = [
-			[ 'id'      => 'r1',
-			  'enabled' => false,
-			  'path'    => '**/*.jpg',
+			[
+				'id'      => 'r1',
+				'enabled' => false,
+				'path'    => '**/*.jpg',
 			],
-			[ 'id'      => 'r2',
-			  'enabled' => true,
-			  'path'    => '**/*.pdf',
+			[
+				'id'      => 'r2',
+				'enabled' => true,
+				'path'    => '**/*.pdf',
 			],
-			[ 'id'      => 'r3',
-			  'enabled' => true,
-			  'path'    => '**/*.pdf',
+			[
+				'id'      => 'r3',
+				'enabled' => true,
+				'path'    => '**/*.pdf',
 			],
 		];
 
@@ -825,9 +840,10 @@ class RuleServiceTest
 	{
 
 		$rules = [
-			[ 'id'      => 'r1',
-			  'enabled' => true,
-			  'path'    => '**/*.jpg',
+			[
+				'id'      => 'r1',
+				'enabled' => true,
+				'path'    => '**/*.jpg',
 			],
 		];
 
@@ -845,10 +861,11 @@ class RuleServiceTest
 		// Regression test for FCIAS Review §6, Finding 4: a rule scoped
 		// to a specific user must not match a different user's file.
 		$rules = [
-			[ 'id'        => 'r1',
-			  'enabled'   => true,
-			  'path'      => '**/*.pdf',
-			  'userScope' => 'bob',
+			[
+				'id'        => 'r1',
+				'enabled'   => true,
+				'path'      => '**/*.pdf',
+				'userScope' => 'bob',
 			],
 		];
 
@@ -864,10 +881,11 @@ class RuleServiceTest
 	{
 
 		$rules = [
-			[ 'id'        => 'r1',
-			  'enabled'   => true,
-			  'path'      => '**/*.pdf',
-			  'userScope' => 'alice',
+			[
+				'id'        => 'r1',
+				'enabled'   => true,
+				'path'      => '**/*.pdf',
+				'userScope' => 'alice',
 			],
 		];
 
@@ -884,10 +902,11 @@ class RuleServiceTest
 	{
 
 		$rules = [
-			[ 'id'        => 'r1',
-			  'enabled'   => true,
-			  'path'      => '**/*.pdf',
-			  'userScope' => 'all',
+			[
+				'id'        => 'r1',
+				'enabled'   => true,
+				'path'      => '**/*.pdf',
+				'userScope' => 'all',
 			],
 		];
 
@@ -998,10 +1017,24 @@ class RuleServiceTest
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'getValueString' )
 		                ->with( Application::APP_ID, 'rule_editors_groups', '[]' )
-		                ->willReturn( json_encode( [ 'staff', 'admins' ], JSON_THROW_ON_ERROR ) )
+		                ->willReturn(
+			                json_encode(
+				                [
+					                'staff',
+					                'admins',
+				                ],
+				                JSON_THROW_ON_ERROR,
+			                ),
+		                )
 		;
 
-		$this->assertSame( [ 'staff', 'admins' ], $this->service->getRuleEditorGroups() );
+		$this->assertSame(
+			[
+				'staff',
+				'admins',
+			],
+			$this->service->getRuleEditorGroups(),
+		);
 	}
 
 
@@ -1032,13 +1065,22 @@ class RuleServiceTest
 				                ): bool {
 
 					                return json_decode( $json, true, 512, JSON_THROW_ON_ERROR )
-						                === [ 'staff', 'admins' ];
+						                === [
+							                'staff',
+							                'admins',
+						                ];
 				                },
 			                ),
 		                )
 		;
 
-		$this->service->setRuleEditorGroups( [ 'staff', '', 'admins' ] );
+		$this->service->setRuleEditorGroups(
+			[
+				'staff',
+				'',
+				'admins',
+			],
+		);
 	}
 
 
@@ -1075,7 +1117,12 @@ class RuleServiceTest
 		                )
 		;
 
-		$this->service->setRuleEditorUsers( [ 'alice', '' ] );
+		$this->service->setRuleEditorUsers(
+			[
+				'alice',
+				'',
+			],
+		);
 	}
 
 
@@ -1131,8 +1178,18 @@ class RuleServiceTest
 		;
 		$this->appConfig->method( 'getValueString' )
 		                ->willReturnMap( [
-			                [ Application::APP_ID, 'rule_editors_users', '[]', '[]' ],
-			                [ Application::APP_ID, 'rule_editors_groups', '[]', json_encode( [ 'staff' ], JSON_THROW_ON_ERROR ) ],
+			                [
+				                Application::APP_ID,
+				                'rule_editors_users',
+				                '[]',
+				                '[]',
+			                ],
+			                [
+				                Application::APP_ID,
+				                'rule_editors_groups',
+				                '[]',
+				                json_encode( [ 'staff' ], JSON_THROW_ON_ERROR ),
+			                ],
 		                ] )
 		;
 		$this->groupManager->method( 'isInGroup' )
@@ -1153,8 +1210,18 @@ class RuleServiceTest
 		;
 		$this->appConfig->method( 'getValueString' )
 		                ->willReturnMap( [
-			                [ Application::APP_ID, 'rule_editors_users', '[]', '[]' ],
-			                [ Application::APP_ID, 'rule_editors_groups', '[]', '[]' ],
+			                [
+				                Application::APP_ID,
+				                'rule_editors_users',
+				                '[]',
+				                '[]',
+			                ],
+			                [
+				                Application::APP_ID,
+				                'rule_editors_groups',
+				                '[]',
+				                '[]',
+			                ],
 		                ] )
 		;
 
@@ -1168,12 +1235,21 @@ class RuleServiceTest
 	{
 
 		$this->setupRulesConfig( [
-			[ 'id' => 'r1', 'path' => '**' ],
-			[ 'id' => 'r2', 'path' => '/docs' ],
+			[
+				'id'   => 'r1',
+				'path' => '**',
+			],
+			[
+				'id'   => 'r2',
+				'path' => '/docs',
+			],
 		] );
 
 		$this->assertSame(
-			[ 'id' => 'r2', 'path' => '/docs' ],
+			[
+				'id'   => 'r2',
+				'path' => '/docs',
+			],
 			$this->service->findRuleById( 'r2' ),
 		);
 	}
@@ -1183,7 +1259,10 @@ class RuleServiceTest
 	{
 
 		$this->setupRulesConfig( [
-			[ 'id' => 'r1', 'path' => '**' ],
+			[
+				'id'   => 'r1',
+				'path' => '**',
+			],
 		] );
 
 		$this->assertNull( $this->service->findRuleById( 'nope' ) );
@@ -1208,22 +1287,35 @@ class RuleServiceTest
 				                {
 					                return json_encode(
 						                [
-							                [ 'id' => 'admin-all', 'userScope' => 'all', 'path' => '**' ],
-							                [ 'id' => 'admin-alice', 'userScope' => 'alice', 'path' => '/alice', 'admin_enforced' => true ],
-							                [ 'id' => 'admin-bob', 'userScope' => 'bob', 'path' => '/bob' ],
+							                [
+								                'id'        => 'admin-all',
+								                'userScope' => 'all',
+								                'path'      => '**',
+							                ],
+							                [
+								                'id'             => 'admin-alice',
+								                'userScope'      => 'alice',
+								                'path'           => '/alice',
+								                'admin_enforced' => true,
+							                ],
+							                [
+								                'id'        => 'admin-bob',
+								                'userScope' => 'bob',
+								                'path'      => '/bob',
+							                ],
 						                ],
 						                JSON_THROW_ON_ERROR,
 					                );
 				                }
 
 				                return $default;
-				               },
-				              )
+			                },
+		                )
 		;
 
 		$this->appConfig->method( 'getValueBool' )
-				              ->with( Application::APP_ID, 'rule_editors_all_users', false )
-				              ->willReturn( true )
+		                ->with( Application::APP_ID, 'rule_editors_all_users', false )
+		                ->willReturn( true )
 		;
 
 		$folder = $this->createFolderMock();
