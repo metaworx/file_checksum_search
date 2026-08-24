@@ -95,6 +95,21 @@ class FileListener
 			return;
 		}
 
+		// The copy lands at a new path, which may be governed by a different
+		// rule than the source was. Copying a checksum into a location whose
+		// rule says not to hash would create exactly the stored hash that
+		// rule exists to prevent.
+		if ( ! RuleService::maintainsHashes(
+			$this->ruleService->findFirstMatchingRule(
+				$target->getPath(),
+				$target->getOwner()
+				       ?->getUID(),
+			),
+		) )
+		{
+			return;
+		}
+
 		$this->filecacheService->copyFilecacheChecksum( $source, $target );
 		$this->metadataService->markPending( $target->getId(), MetadataService::PENDING_AUTO );
 
@@ -119,15 +134,37 @@ class FileListener
 			return;
 		}
 
-		$rule = $this->ruleService->findFirstMatchingRule( $node->getPath(), $node->getOwner()?->getUID() );
+		$rule   = $this->ruleService->findFirstMatchingRule(
+			$node->getPath(),
+			$node->getOwner()
+			     ?->getUID(),
+		);
+		$fileId = $node->getId();
 
-		if ( $rule === null )
+		if ( ! RuleService::maintainsHashes( $rule ) )
 		{
+			// Nothing will refresh this file's hashes, and its content just
+			// changed — so anything stored for it is now provably wrong. A
+			// wrong hash is worse than no hash: it makes a modified file look
+			// intact and can pair it with unrelated files as a duplicate.
+			// (Excluding a file does not purge it; modifying one does.)
+			if ( $this->metadataService->countByFileId( $fileId ) > 0 )
+			{
+				$this->metadataService->clearMetadata( $fileId );
+
+				$this->logger->debug(
+					'FCIAS FileListener: dropped stale hashes for an unmaintained file on write',
+					[
+						'app'    => Application::APP_ID,
+						'fileId' => $fileId,
+					],
+				);
+			}
+
 			return;
 		}
 
-		$mode   = $rule['mode'] ?? MetadataService::PENDING_MODE_AUTO;
-		$fileId = $node->getId();
+		$mode = $rule['mode'] ?? MetadataService::PENDING_MODE_AUTO;
 
 		switch ( $mode )
 		{
@@ -136,8 +173,9 @@ class FileListener
 
 		case MetadataService::PENDING_MODE_FORCE:
 			$this->metadataService->clearMetadata( $fileId );
-			$this->metadataService->markPending( $fileId,
-				MetadataService::PENDING_FORCE
+			$this->metadataService->markPending(
+				$fileId,
+				MetadataService::PENDING_FORCE,
 			);
 
 			$this->logger->debug(
@@ -193,9 +231,12 @@ class FileListener
 			return;
 		}
 
-		$rule = $this->ruleService->findFirstMatchingRule( $node->getPath(), $node->getOwner()?->getUID() );
+		$rule = $this->ruleService->findFirstMatchingRule( $node->getPath(),
+			$node->getOwner()
+			     ?->getUID(),
+		);
 
-		if ( $rule === null )
+		if ( ! RuleService::maintainsHashes( $rule ) )
 		{
 			return;
 		}
@@ -210,8 +251,9 @@ class FileListener
 
 		case MetadataService::PENDING_MODE_FORCE:
 			$this->metadataService->clearMetadata( $fileId );
-			$this->metadataService->markPending( $fileId,
-				MetadataService::PENDING_FORCE
+			$this->metadataService->markPending(
+				$fileId,
+				MetadataService::PENDING_FORCE,
 			);
 
 			$this->logger->debug(
@@ -275,7 +317,10 @@ class FileListener
 			return;
 		}
 
-		$rule = $this->ruleService->findFirstMatchingRule( $node->getPath(), $node->getOwner()?->getUID() );
+		$rule = $this->ruleService->findFirstMatchingRule( $node->getPath(),
+			$node->getOwner()
+			     ?->getUID(),
+		);
 
 		if ( $rule === null )
 		{

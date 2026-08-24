@@ -44,11 +44,15 @@ built-in metadata index.
 ## How do rules work?
 
 Rules control which files get hashes, with which algorithms, and when — each
-file is handled by the first matching rule, evaluated in order. Drag a rule's
-row by its handle to change that order. See
+file is handled by the first matching rule, evaluated in order. That order
+follows from what each rule is: administrator-enforced rules are evaluated
+before users' own rules, which are evaluated before the non-enforced defaults,
+with the catch-all `**` rule last. A rule can also say *not* to hash — `ignore`
+stops automatic hashing while still allowing it on request, and `exclude`
+blocks it entirely. See
 [README.md § Hash Generation Rules](../README.md#hash-generation-rules) for
-the full field reference, the reordering rules, and the mode table (`auto`,
-`missing`, `force`, `lazy`).
+the full field and band reference, the rule types, and the mode table
+(`auto`, `missing`, `force`, `lazy`).
 
 ## How does cron / pending processing work?
 

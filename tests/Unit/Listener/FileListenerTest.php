@@ -59,6 +59,138 @@ class FileListenerTest
 	}
 
 
+	public function testOnWriteDropsStaleHashesForAFileTheRulesNoLongerMaintain(): void
+	{
+
+		$node = $this->createMock( File::class );
+		$node->method( 'getId' )
+		     ->willReturn( 7 )
+		;
+		$node->method( 'getPath' )
+		     ->willReturn( '/files/Archive/big.iso' )
+		;
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn( [
+			                  'id'   => 'archive',
+			                  'type' => 'exclude',
+		                  ] )
+		;
+
+		$this->metadataService->method( 'countByFileId' )
+		                      ->with( 7 )
+		                      ->willReturn( 2 )
+		;
+
+		// Excluding a file leaves its hashes alone — they still describe the
+		// content. Modifying it does not: the stored hash is now provably
+		// wrong, and a wrong hash is worse than none, because it makes a
+		// changed file look intact and can pair it with unrelated files.
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'clearMetadata' )
+		                      ->with( 7 )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'markPending' )
+		;
+
+		$this->listener->handle( new NodeWrittenEvent( $node ) );
+	}
+
+
+	public function testOnWriteTouchesNothingForAnUnmaintainedFileWithNoHashes(): void
+	{
+
+		$node = $this->createMock( File::class );
+		$node->method( 'getId' )
+		     ->willReturn( 8 )
+		;
+		$node->method( 'getPath' )
+		     ->willReturn( '/files/Archive/other.iso' )
+		;
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn( [
+			                  'id'   => 'archive',
+			                  'type' => 'ignore',
+		                  ] )
+		;
+
+		$this->metadataService->method( 'countByFileId' )
+		                      ->willReturn( 0 )
+		;
+
+		// Nothing stored means nothing to invalidate — no pointless write.
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'clearMetadata' )
+		;
+
+		$this->listener->handle( new NodeWrittenEvent( $node ) );
+	}
+
+
+	public function testOnCreateQueuesNothingForAnExcludedPath(): void
+	{
+
+		$node = $this->createMock( File::class );
+		$node->method( 'getId' )
+		     ->willReturn( 9 )
+		;
+		$node->method( 'getPath' )
+		     ->willReturn( '/files/Archive/new.iso' )
+		;
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn( [
+			                  'id'   => 'archive',
+			                  'type' => 'exclude',
+		                  ] )
+		;
+
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'markPending' )
+		;
+
+		$this->listener->handle( new NodeCreatedEvent( $node ) );
+	}
+
+
+	public function testOnCopyCarriesNothingIntoAnExcludedDestination(): void
+	{
+
+		$source = $this->createMock( File::class );
+		$target = $this->createMock( File::class );
+
+		$source->method( 'getId' )
+		       ->willReturn( 1 )
+		;
+		$target->method( 'getId' )
+		       ->willReturn( 2 )
+		;
+		$target->method( 'getPath' )
+		       ->willReturn( '/files/Archive/copy.txt' )
+		;
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn( [
+			                  'id'   => 'archive',
+			                  'type' => 'exclude',
+		                  ] )
+		;
+
+		// Copying a checksum in would create precisely the stored hash the
+		// rule exists to prevent, so neither the copy nor the queueing runs.
+		$this->filecacheService->expects( $this->never() )
+		                       ->method( 'copyFilecacheChecksum' )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'markPending' )
+		;
+
+		$this->listener->handle( new NodeCopiedEvent( $source, $target ) );
+	}
+
+
 	public function testOnCopyCopiesChecksumAndMarksPending(): void
 	{
 
@@ -70,6 +202,20 @@ class FileListenerTest
 		;
 		$target->method( 'getId' )
 		       ->willReturn( 2 )
+		;
+		$target->method( 'getPath' )
+		       ->willReturn( '/files/copy.txt' )
+		;
+
+		// The copy's destination decides, so the listener now consults the
+		// rule governing the target path.
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn(
+			                  [
+				                  'id'   => 'r1',
+				                  'mode' => 'auto',
+			                  ],
+		                  )
 		;
 
 		$event = new NodeCopiedEvent( $source, $target );
@@ -447,8 +593,9 @@ class FileListenerTest
 	 * Create a File mock with getId(), getPath(), and getOwner()
 	 * configured — the owner UID is always 'owner-uid' in this suite.
 	 */
-	private function makeFileMock( int $id, string $path ): MockObject|File
-	{
+	private function makeFileMock( int    $id,
+	                               string $path,
+	): MockObject|File {
 
 		$owner = $this->createMock( IUser::class );
 		$owner->method( 'getUID' )

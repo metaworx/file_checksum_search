@@ -106,6 +106,19 @@ class PersonalSettingsController
 			);
 		}
 
+		$type = $body['type'] ?? RuleService::TYPE_INCLUDE;
+
+		if ( ! RuleService::isValidType( $type ) )
+		{
+			return new DataResponse(
+				[
+					'success' => false,
+					'error'   => 'Unknown rule type.',
+				],
+				Http::STATUS_BAD_REQUEST,
+			);
+		}
+
 		$algos = $body['algos'] ?? [ HashCalculationService::getDefaultAlgo() ];
 
 		if ( ! is_array( $algos ) )
@@ -122,7 +135,7 @@ class PersonalSettingsController
 			),
 		);
 
-		if ( empty( $algos ) )
+		if ( $type === RuleService::TYPE_INCLUDE && empty( $algos ) )
 		{
 			return new DataResponse(
 				[
@@ -134,12 +147,21 @@ class PersonalSettingsController
 		}
 
 		// Never trust admin_enforced or userScope from a user request.
-		$definition = [
-			'enabled' => (bool) ( $body['enabled'] ?? true ),
-			'mode'    => $body['mode'] ?? 'auto',
-			'algos'   => $algos,
-			'path'    => $body['path'] ?? '/',
-		];
+		// Only an include rule computes anything, so only an include rule
+		// stores algorithms and a mode.
+		$definition = $type === RuleService::TYPE_INCLUDE
+			? [
+				'enabled' => (bool) ( $body['enabled'] ?? true ),
+				'type'    => RuleService::TYPE_INCLUDE,
+				'mode'    => $body['mode'] ?? 'auto',
+				'algos'   => $algos,
+				'path'    => $body['path'] ?? '/',
+			]
+			: [
+				'enabled' => (bool) ( $body['enabled'] ?? true ),
+				'type'    => $type,
+				'path'    => $body['path'] ?? '/',
+			];
 
 		if ( ! $this->ruleService->isPathWritableByUser( $userId, $definition['path'] ) )
 		{

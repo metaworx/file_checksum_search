@@ -1282,6 +1282,182 @@ class RuleServiceTest
 	}
 
 
+	// verdicts
+
+
+	/**
+	 * @dataProvider verdictProvider
+	 */
+	public function testVerdictOfDefaultsToIncludeForAnythingUnrecognised(
+		array  $rule,
+		string $expected,
+	): void {
+
+		$this->assertSame( $expected, RuleService::verdictOf( $rule ) );
+	}
+
+
+	/**
+	 * @return array<string, array{array, string}>
+	 */
+	public static function verdictProvider(): array
+	{
+
+		return [
+			'include'      => [
+				[ 'type' => 'include' ],
+				RuleService::TYPE_INCLUDE,
+			],
+			'ignore'       => [
+				[ 'type' => 'ignore' ],
+				RuleService::TYPE_IGNORE,
+			],
+			'exclude'      => [
+				[ 'type' => 'exclude' ],
+				RuleService::TYPE_EXCLUDE,
+			],
+			// Rules written before verdicts existed carry no type and must
+			// keep behaving exactly as they did.
+			'absent'       => [
+				[],
+				RuleService::TYPE_INCLUDE,
+			],
+			'unrecognised' => [
+				[ 'type' => 'nonsense' ],
+				RuleService::TYPE_INCLUDE,
+			],
+		];
+	}
+
+
+	public function testMaintainsHashesOnlyForIncludeRules(): void
+	{
+
+		$this->assertTrue( RuleService::maintainsHashes( [ 'type' => 'include' ] ) );
+		$this->assertTrue( RuleService::maintainsHashes( [] ) );
+		$this->assertFalse( RuleService::maintainsHashes( [ 'type' => 'ignore' ] ) );
+		$this->assertFalse( RuleService::maintainsHashes( [ 'type' => 'exclude' ] ) );
+		// No rule at all is not a licence to hash automatically either.
+		$this->assertFalse( RuleService::maintainsHashes( null ) );
+	}
+
+
+	public function testAnEnforcedExcludeBeatsAUserIncludeBelowIt(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'        => 'user-include',
+				'enabled'   => true,
+				'userScope' => 'alice',
+				'path'      => '**',
+			],
+			[
+				'id'             => 'mandate',
+				'enabled'        => true,
+				'userScope'      => 'all',
+				'path'           => '**/*.key',
+				'admin_enforced' => true,
+				'type'           => 'exclude',
+			],
+		] );
+
+		// Band 3 precedes band 4, so the mandate is reached first and the
+		// user's own include never gets the file.
+		$match = $this->service->findFirstMatchingRule( '/files/secret.key', 'alice' );
+
+		$this->assertSame( 'mandate', $match['id'] ?? null );
+		$this->assertFalse( RuleService::maintainsHashes( $match ) );
+	}
+
+
+	public function testAUserExcludeSuppressesTheDefaultsBelowIt(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'        => 'default',
+				'enabled'   => true,
+				'userScope' => 'all',
+				'path'      => '**',
+				'pinned'    => true,
+			],
+			[
+				'id'        => 'mine',
+				'enabled'   => true,
+				'userScope' => 'alice',
+				'path'      => '**/*.iso',
+				'type'      => 'exclude',
+			],
+		] );
+
+		$match = $this->service->findFirstMatchingRule( '/files/big.iso', 'alice' );
+
+		// Overriding a *default* is exactly what a non-enforced rule may do.
+		$this->assertSame( 'mine', $match['id'] ?? null );
+		$this->assertFalse( RuleService::maintainsHashes( $match ) );
+	}
+
+
+	public function testADefaultExcludeIsBeatenByAUserInclude(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'        => 'suggestion',
+				'enabled'   => true,
+				'userScope' => 'all',
+				'path'      => '**/*.iso',
+				'type'      => 'exclude',
+			],
+			[
+				'id'        => 'mine',
+				'enabled'   => true,
+				'userScope' => 'alice',
+				'path'      => '**/*.iso',
+			],
+		] );
+
+		// Band 4 precedes band 6: an admin who did not enforce the exclusion
+		// offered it as a default, and the user is entitled to override it.
+		$match = $this->service->findFirstMatchingRule( '/files/big.iso', 'alice' );
+
+		$this->assertSame( 'mine', $match['id'] ?? null );
+		$this->assertTrue( RuleService::maintainsHashes( $match ) );
+	}
+
+
+	public function testProcessRuleClaimsFilesForANonIncludeRuleWithoutQueueingThem(): void
+	{
+
+		$file = $this->createFileMock( 42 );
+
+		$this->mockResolveAllUsers( [ 'alice' ] );
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->willReturn( $this->createFolderMock( [ $file ] ) )
+		;
+
+		// Nothing is queued — but the file is still reported as matched, which
+		// is what keeps a lower-priority rule from picking it up afterwards.
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'markPending' )
+		;
+
+		$result = $this->service->processRule(
+			[
+				'userScope' => 'all',
+				'path'      => '**',
+				'type'      => 'exclude',
+			],
+			[],
+		);
+
+		$this->assertSame( 0, $result['marked'] );
+		$this->assertSame( 1, $result['matched'] );
+		$this->assertSame( [ 42 ], $result['fileIds'] );
+	}
+
+
 	// resolveUsers — group scope
 
 	public function testResolveUsersExpandsGroupMembership(): void
@@ -1967,8 +2143,16 @@ class RuleServiceTest
 	{
 
 		$this->setupRulesConfig( [
-			[ 'id' => 'mine', 'userScope' => 'all', 'path' => '**' ],
-			[ 'id' => 'finance', 'userScope' => 'all', 'path' => '/Finance/**' ],
+			[
+				'id'        => 'mine',
+				'userScope' => 'all',
+				'path'      => '**',
+			],
+			[
+				'id'        => 'finance',
+				'userScope' => 'all',
+				'path'      => '/Finance/**',
+			],
 		] );
 
 		$this->permissionService->method( 'canUserEditRules' )
@@ -2007,8 +2191,16 @@ class RuleServiceTest
 		// evident. The REST layer still allows it; the UI simply never offers
 		// it from the wrong place.
 		$this->setupRulesConfig( [
-			[ 'id' => 'global', 'userScope' => 'all', 'path' => '**' ],
-			[ 'id' => 'own', 'userScope' => 'theadmin', 'path' => '/' ],
+			[
+				'id'        => 'global',
+				'userScope' => 'all',
+				'path'      => '**',
+			],
+			[
+				'id'        => 'own',
+				'userScope' => 'theadmin',
+				'path'      => '/',
+			],
 		] );
 
 		$this->permissionService->method( 'canUserEditRules' )
@@ -2026,15 +2218,18 @@ class RuleServiceTest
 		                 ->willReturn( $folder )
 		;
 
-		$rules  = $this->service->listRulesFor( 'theadmin' );
-		$byId   = array_column( $rules, 'canEdit', 'id' );
+		$rules = $this->service->listRulesFor( 'theadmin' );
+		$byId  = array_column( $rules, 'canEdit', 'id' );
 
 		$this->assertFalse( $byId['global'] );
 		$this->assertTrue( $byId['own'] );
 
 		// Asking as the admin surface instead, the same rule is editable.
 		$this->assertSame(
-			[ true, true ],
+			[
+				true,
+				true,
+			],
 			array_column( $this->service->listRulesFor( null ), 'canEdit' ),
 		);
 	}

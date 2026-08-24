@@ -69,11 +69,11 @@ class GenerateHashes
 			     null,
 		     )
 		     ->addOption(
-		      'algo',
-		      null,
-		      InputOption::VALUE_OPTIONAL,
-		      'Hash algorithm(s), comma-separated, or "all" for every supported algorithm',
-		      HashCalculationService::getDefaultAlgo(),
+			     'algo',
+			     null,
+			     InputOption::VALUE_OPTIONAL,
+			     'Hash algorithm(s), comma-separated, or "all" for every supported algorithm',
+			     HashCalculationService::getDefaultAlgo(),
 		     )
 		     ->addOption(
 			     'batch-size',
@@ -217,13 +217,13 @@ class GenerateHashes
 
 
 	/**
-		* Normalize the --algo option value into a lowercase, unique algorithm
-		* list. The literal "all" expands to every supported algorithm.
-		*
-		* @param  mixed  $algo
-		*
-		* @return string[]
-		*/
+	 * Normalize the --algo option value into a lowercase, unique algorithm
+	 * list. The literal "all" expands to every supported algorithm.
+	 *
+	 * @param  mixed  $algo
+	 *
+	 * @return string[]
+	 */
 	private function normalizeAlgoList( mixed $algo ): array
 	{
 
@@ -241,7 +241,7 @@ class GenerateHashes
 
 
 	/**
-		* Mark-only mode: walk user folders and mark matching files as pending:auto.
+	 * Mark-only mode: walk user folders and mark matching files as pending:auto.
 	 *
 	 * @param  string[]         $users
 	 * @param  string|null      $pathPattern
@@ -269,8 +269,9 @@ class GenerateHashes
 			$output->writeln( sprintf( '  Batch size: %d', $batchSize ) );
 		}
 
-		$totalMarked = 0;
-		$remaining   = $batchSize;
+		$totalMarked  = 0;
+		$totalSkipped = 0;
+		$remaining    = $batchSize;
 
 		foreach ( $users as $userId )
 		{
@@ -292,31 +293,41 @@ class GenerateHashes
 				continue;
 			}
 
-			$marked = $this->markFolder(
+			$skipped = 0;
+			$marked  = $this->markFolder(
 				$userFolder,
 				$pathPattern,
 				$remaining,
+				$skipped,
 			);
 
-			$totalMarked += $marked;
+			$totalMarked  += $marked;
+			$totalSkipped += $skipped;
 
 			if ( $remaining !== null )
 			{
 				$remaining -= $marked;
 			}
 
-			$output->writeln( sprintf( '    Marked %d files.', $marked ) );
+			$output->writeln(
+				$skipped > 0
+					? sprintf( '    Marked %d files, skipped %d excluded by rules.', $marked, $skipped )
+					: sprintf( '    Marked %d files.', $marked ),
+			);
 		}
 
 		$limitReached = $batchSize !== null && $totalMarked >= $batchSize;
 
 		$output->writeln(
 			sprintf(
-				'%s %d files marked as pending:auto.',
+				'%s %d files marked as pending:auto.%s',
 				$limitReached
 					? 'Batch limit reached.'
 					: 'Done.',
 				$totalMarked,
+				$totalSkipped > 0
+					? sprintf( ' %d skipped: a rule excludes them from hashing.', $totalSkipped )
+					: '',
 			),
 		);
 
@@ -327,7 +338,13 @@ class GenerateHashes
 	/**
 	 * Mark files matching a path glob as pending:auto.
 	 *
-	 * Delegates file search to RuleService::searchFilesByGlob().
+	 * Delegates file search to RuleService::searchFilesByGlob(). Files whose
+	 * governing rule says not to hash them automatically are skipped and
+	 * counted in $skipped: this command is bulk maintenance, the CLI face of
+	 * the background job, so an `ignore` or `exclude` verdict applies to it
+	 * just as it does to the job. A user asking for one specific file by hand
+	 * goes through the recalculation endpoint instead, where only `exclude`
+	 * refuses.
 	 *
 	 * @return int Number of files marked
 	 */
@@ -335,6 +352,7 @@ class GenerateHashes
 		Folder  $folder,
 		?string $pathPattern,
 		?int    &$remaining,
+		int     &$skipped = 0,
 	): int {
 
 		$files = $this->ruleService->searchFilesByGlob(
@@ -350,6 +368,19 @@ class GenerateHashes
 			if ( $remaining !== null && $remaining <= 0 )
 			{
 				break;
+			}
+
+			if ( ! RuleService::maintainsHashes(
+				$this->ruleService->findFirstMatchingRule(
+					$file->getPath(),
+					$file->getOwner()
+					     ?->getUID(),
+				),
+			) )
+			{
+				$skipped ++;
+
+				continue;
 			}
 
 			$this->metadataService->markPending( $file->getId(), MetadataService::PENDING_AUTO );

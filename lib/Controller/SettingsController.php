@@ -127,6 +127,34 @@ class SettingsController
 			);
 		}
 
+		$type = $body['type'] ?? RuleService::TYPE_INCLUDE;
+
+		if ( ! RuleService::isValidType( $type ) )
+		{
+			return new DataResponse(
+				[
+					'success' => false,
+					'error'   => 'Unknown rule type.',
+				],
+				Http::STATUS_BAD_REQUEST,
+			);
+		}
+
+		// Only an include rule computes anything, so only an include rule
+		// carries algorithms and a mode.
+		if ( $type !== RuleService::TYPE_INCLUDE )
+		{
+			$definition = [
+				'enabled'        => (bool) ( $body['enabled'] ?? true ),
+				'type'           => $type,
+				'path'           => $body['path'] ?? '/',
+				'userScope'      => $body['userScope'] ?? 'all',
+				'admin_enforced' => (bool) ( $body['admin_enforced'] ?? false ),
+			];
+
+			return $this->persistRule( $body['id'] ?? null, $definition );
+		}
+
 		$algos = $body['algos'] ?? [ HashCalculationService::getDefaultAlgo() ];
 
 		if ( ! is_array( $algos ) )
@@ -156,6 +184,7 @@ class SettingsController
 
 		$definition = [
 			'enabled'        => (bool) ( $body['enabled'] ?? true ),
+			'type'           => RuleService::TYPE_INCLUDE,
 			'mode'           => $body['mode'] ?? 'auto',
 			'algos'          => $algos,
 			'path'           => $body['path'] ?? '/',
@@ -170,13 +199,24 @@ class SettingsController
 			$definition['pinned'] = true;
 		}
 
-		$existingId = $body['id'] ?? null;
+		return $this->persistRule( $body['id'] ?? null, $definition );
+	}
+
+
+	/**
+	 * Create or update, shared by the include and non-include branches of
+	 * {@see saveRule()}.
+	 */
+	private function persistRule(
+		mixed $existingId,
+		array $definition,
+	): DataResponse {
 
 		try
 		{
 			if ( $existingId !== null && $existingId !== '' )
 			{
-				$this->ruleService->ruleUpdate( $existingId, $definition );
+				$this->ruleService->ruleUpdate( (string) $existingId, $definition );
 			}
 			else
 			{

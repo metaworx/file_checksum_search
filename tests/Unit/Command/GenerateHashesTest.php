@@ -34,13 +34,13 @@ class GenerateHashesTest
 
 	private MockObject|MetadataService        $metadataService;
 
-	private MockObject|FilecacheService        $filecacheService;
+	private MockObject|FilecacheService       $filecacheService;
 
-	private MockObject|RuleService             $ruleService;
+	private MockObject|RuleService            $ruleService;
 
-	private MockObject|LoggerInterface         $logger;
+	private MockObject|LoggerInterface        $logger;
 
-	private CommandTester                      $tester;
+	private CommandTester                     $tester;
 
 
 	protected function setUp(): void
@@ -99,7 +99,12 @@ class GenerateHashesTest
 			                       0,
 			                       $this->anything(),
 		                       )
-		                       ->willReturn( [ 'processed' => 5, 'skipped' => 1 ] )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 5,
+				                       'skipped'   => 1,
+			                       ],
+		                       )
 		;
 
 		$exitCode = $this->tester->execute( [ '--user' => 'alice' ] );
@@ -120,15 +125,28 @@ class GenerateHashesTest
 		                       ->method( 'generateMissingHashes' )
 		                       ->with(
 			                       'alice',
-			                       [ 'sha1', 'md5' ],
+			                       [
+				                       'sha1',
+				                       'md5',
+			                       ],
 			                       null,
 			                       0,
 			                       $this->anything(),
 		                       )
-		                       ->willReturn( [ 'processed' => 0, 'skipped' => 0 ] )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 0,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
 		;
 
-		$this->tester->execute( [ '--user' => 'alice', '--algo' => 'SHA1, md5, sha1' ] );
+		$this->tester->execute(
+			[
+				'--user' => 'alice',
+				'--algo' => 'SHA1, md5, sha1',
+			],
+		);
 	}
 
 
@@ -148,10 +166,20 @@ class GenerateHashesTest
 			                       0,
 			                       $this->anything(),
 		                       )
-		                       ->willReturn( [ 'processed' => 0, 'skipped' => 0 ] )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 0,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
 		;
 
-		$this->tester->execute( [ '--user' => 'alice', '--algo' => 'all' ] );
+		$this->tester->execute(
+			[
+				'--user' => 'alice',
+				'--algo' => 'all',
+			],
+		);
 	}
 
 
@@ -165,10 +193,20 @@ class GenerateHashesTest
 		$this->hashIndexService->expects( $this->once() )
 		                       ->method( 'generateMissingHashes' )
 		                       ->with( 'alice', $this->anything(), '**/*.pdf', 0, $this->anything() )
-		                       ->willReturn( [ 'processed' => 0, 'skipped' => 0 ] )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 0,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
 		;
 
-		$this->tester->execute( [ '--user' => 'alice', '--path' => '**/*.pdf' ] );
+		$this->tester->execute(
+			[
+				'--user' => 'alice',
+				'--path' => '**/*.pdf',
+			],
+		);
 	}
 
 
@@ -177,14 +215,25 @@ class GenerateHashesTest
 
 		$this->ruleService->method( 'resolveUsers' )
 		                  ->with( 'all' )
-		                  ->willReturn( [ 'alice', 'bob' ] )
+		                  ->willReturn(
+			                  [
+				                  'alice',
+				                  'bob',
+			                  ],
+		                  )
 		;
 
 		$this->hashIndexService->expects( $this->exactly( 2 ) )
 		                       ->method( 'generateMissingHashes' )
 		                       ->willReturnOnConsecutiveCalls(
-			                       [ 'processed' => 3, 'skipped' => 0 ],
-			                       [ 'processed' => 2, 'skipped' => 1 ],
+			                       [
+				                       'processed' => 3,
+				                       'skipped'   => 0,
+			                       ],
+			                       [
+				                       'processed' => 2,
+				                       'skipped'   => 1,
+			                       ],
 		                       )
 		;
 
@@ -198,19 +247,32 @@ class GenerateHashesTest
 	{
 
 		$this->ruleService->method( 'resolveUsers' )
-		                  ->willReturn( [ 'alice', 'bob' ] )
+		                  ->willReturn(
+			                  [
+				                  'alice',
+				                  'bob',
+			                  ],
+		                  )
 		;
 
 		// alice consumes the entire batch; bob should never be processed.
 		$this->hashIndexService->expects( $this->once() )
 		                       ->method( 'generateMissingHashes' )
 		                       ->with( 'alice', $this->anything(), null, 10, $this->anything() )
-		                       ->willReturn( [ 'processed' => 10, 'skipped' => 0 ] )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 10,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
 		;
 
 		$this->tester->execute( [ '--batch-size' => '10' ] );
 
-		$this->assertStringContainsString( 'Batch limit reached. 10 files hashed, 0 skipped.', $this->tester->getDisplay() );
+		$this->assertStringContainsString(
+			'Batch limit reached. 10 files hashed, 0 skipped.',
+			$this->tester->getDisplay(),
+		);
 	}
 
 
@@ -234,11 +296,93 @@ class GenerateHashesTest
 		$exitCode = $this->tester->execute( [ '--batch-size' => 'not-a-number' ] );
 
 		$this->assertSame( Command::SUCCESS, $exitCode );
-		$this->assertStringContainsString( 'Batch limit reached. 0 files hashed, 0 skipped.', $this->tester->getDisplay() );
+		$this->assertStringContainsString(
+			'Batch limit reached. 0 files hashed, 0 skipped.',
+			$this->tester->getDisplay(),
+		);
 	}
 
 
 	// --mark
+
+	public function testMarkSkipsAndReportsFilesTheRulesExclude(): void
+	{
+
+		$this->ruleService->method( 'resolveUsers' )
+		                  ->willReturn( [ 'alice' ] )
+		;
+
+		$userFolder = $this->createMock( Folder::class );
+		$this->filecacheService->method( 'getUserFolder' )
+		                       ->with( 'alice' )
+		                       ->willReturn( $userFolder )
+		;
+
+		$kept = $this->createMock( File::class );
+		$kept->method( 'getId' )
+		     ->willReturn( 1 )
+		;
+		$kept->method( 'getPath' )
+		     ->willReturn( '/files/a.txt' )
+		;
+		$skipped = $this->createMock( File::class );
+		$skipped->method( 'getId' )
+		        ->willReturn( 2 )
+		;
+		$skipped->method( 'getPath' )
+		        ->willReturn( '/files/Archive/b.txt' )
+		;
+
+		$this->ruleService->method( 'searchFilesByGlob' )
+		                  ->willReturn(
+			                  [
+				                  $kept,
+				                  $skipped,
+			                  ],
+		                  )
+		;
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturnCallback(
+			                  static fn(
+				                  string $path,
+			                  ): array => str_contains( $path, '/Archive/' )
+				                  ? [
+					                  'id'   => 'archive',
+					                  'type' => 'exclude',
+				                  ]
+				                  : [
+					                  'id'   => 'r1',
+					                  'mode' => 'auto',
+				                  ],
+		                  )
+		;
+
+		// This command is the CLI face of the background job, so a rule that
+		// stops automatic hashing stops it too — and says so, rather than
+		// silently doing less than asked.
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 1, MetadataService::PENDING_AUTO )
+		;
+
+		$this->tester->execute(
+			[
+				'--user' => 'alice',
+				'--mark' => true,
+			],
+		);
+
+		$this->assertStringContainsString(
+			'Marked 1 files, skipped 1 excluded by rules.',
+			$this->tester->getDisplay(),
+		);
+		$this->assertStringContainsString(
+			'1 skipped: a rule excludes them from hashing.',
+			$this->tester->getDisplay(),
+		);
+	}
+
 
 	public function testMarkOnlyMarksMatchingFilesAsPendingAuto(): void
 	{
@@ -254,24 +398,59 @@ class GenerateHashesTest
 		;
 
 		$file1 = $this->createMock( File::class );
-		$file1->method( 'getId' )->willReturn( 1 );
+		$file1->method( 'getId' )
+		      ->willReturn( 1 )
+		;
+		$file1->method( 'getPath' )
+		      ->willReturn( '/files/a.txt' )
+		;
 		$file2 = $this->createMock( File::class );
-		$file2->method( 'getId' )->willReturn( 2 );
+		$file2->method( 'getId' )
+		      ->willReturn( 2 )
+		;
+		$file2->method( 'getPath' )
+		      ->willReturn( '/files/b.txt' )
+		;
 
 		$this->ruleService->method( 'searchFilesByGlob' )
 		                  ->with( $userFolder, '**', 0 )
-		                  ->willReturn( [ $file1, $file2 ] )
+		                  ->willReturn(
+			                  [
+				                  $file1,
+				                  $file2,
+			                  ],
+		                  )
+		;
+
+		// Marking now asks whether each file is one the rules maintain.
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn(
+			                  [
+				                  'id'   => 'r1',
+				                  'mode' => 'auto',
+			                  ],
+		                  )
 		;
 
 		$this->metadataService->expects( $this->exactly( 2 ) )
 		                      ->method( 'markPending' )
-		                      ->willReturnCallback( function ( int $fileId, string $mode ): void {
+		                      ->willReturnCallback(
+			                      function (
+				                      int    $fileId,
+				                      string $mode,
+			                      ): void {
 
-			                      $this->assertSame( MetadataService::PENDING_AUTO, $mode );
-		                      } )
+				                      $this->assertSame( MetadataService::PENDING_AUTO, $mode );
+			                      },
+		                      )
 		;
 
-		$exitCode = $this->tester->execute( [ '--user' => 'alice', '--mark' => true ] );
+		$exitCode = $this->tester->execute(
+			[
+				'--user' => 'alice',
+				'--mark' => true,
+			],
+		);
 
 		$this->assertSame( Command::SUCCESS, $exitCode );
 		$this->assertStringContainsString( 'Marked 2 files.', $this->tester->getDisplay() );
@@ -299,7 +478,12 @@ class GenerateHashesTest
 		                      ->method( 'markPending' )
 		;
 
-		$exitCode = $this->tester->execute( [ '--user' => 'ghost', '--mark' => true ] );
+		$exitCode = $this->tester->execute(
+			[
+				'--user' => 'ghost',
+				'--mark' => true,
+			],
+		);
 
 		$this->assertSame( Command::SUCCESS, $exitCode );
 		$this->assertStringContainsString( 'User folder not found, skipping.', $this->tester->getDisplay() );

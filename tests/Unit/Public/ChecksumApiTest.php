@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\Public\ChecksumApi;
 use OCA\FileChecksumSearch\Service\DatabaseService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\StatusService;
 use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\App\IAppManager;
@@ -42,6 +43,8 @@ class ChecksumApiTest
 
 	private MockObject|IUserSession     $userSession;
 
+	private MockObject|RuleService      $ruleService;
+
 	private ChecksumApi                 $api;
 
 
@@ -65,12 +68,15 @@ class ChecksumApiTest
 		$this->rootFolder  = $this->createMock( IRootFolder::class );
 		$this->userSession = $this->createMock( IUserSession::class );
 
+		$this->ruleService = $this->createMock( RuleService::class );
+
 		$this->api = new ChecksumApi(
 			$this->hashIndexService,
 			$this->metadataService,
 			$this->statusService,
 			$this->rootFolder,
 			$this->userSession,
+			$this->ruleService,
 		);
 	}
 
@@ -676,7 +682,8 @@ class ChecksumApiTest
 		                      ->method( 'extractAlgorithm' )
 		                      ->willReturn( [
 			                      'algo' => 'sha512',
-			                      'hash' => str_repeat( 'a', 63 ) . 'b', // differs after the shared 63-char prefix
+			                      'hash' => str_repeat( 'a', 63 ) . 'b',
+			                      // differs after the shared 63-char prefix
 		                      ] )
 		;
 
@@ -706,6 +713,87 @@ class ChecksumApiTest
 
 
 	// ─── recalcHash ─────────────────────────────────────────────────
+
+	public function testRecalcHashRefusesAFileAnExcludeRuleCovers(): void
+	{
+
+		$node = $this->createMock( File::class );
+		$node->method( 'getPath' )
+		     ->willReturn( '/files/Archive/big.iso' )
+		;
+
+		$this->rootFolder->method( 'getById' )
+		                 ->with( 42 )
+		                 ->willReturn( [ $node ] )
+		;
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn( [
+			                  'id'   => 'archive',
+			                  'type' => 'exclude',
+		                  ] )
+		;
+
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'recalcHash' )
+		;
+
+		$result = $this->api->recalcHash( 42 );
+
+		$this->assertFalse( $result['success'] );
+		$this->assertTrue( $result['excluded'] );
+		$this->assertSame( 'archive', $result['ruleId'] );
+	}
+
+
+	public function testRecalcHashAllowsAFileAnIgnoreRuleCovers(): void
+	{
+
+		$node = $this->createMock( File::class );
+		$node->method( 'getPath' )
+		     ->willReturn( '/files/Photos/a.jpg' )
+		;
+
+		$this->rootFolder->method( 'getById' )
+		                 ->willReturn( [ $node ] )
+		;
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn( [
+			                  'id'   => 'photos',
+			                  'type' => 'ignore',
+		                  ] )
+		;
+
+		// `ignore` stops *automatic* hashing. Asking for one file by hand is
+		// precisely the case it leaves open.
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'recalcHash' )
+		                       ->willReturn( [ 'success' => true ] )
+		;
+
+		$this->assertTrue( $this->api->recalcHash( 42 )['success'] );
+	}
+
+
+	public function testRecalcHashProceedsWhenTheRuleLookupFails(): void
+	{
+
+		$this->rootFolder->method( 'getById' )
+		                 ->willThrowException( new \RuntimeException( 'storage unavailable' ) )
+		;
+
+		// The ownership check is the security boundary; this lookup is a
+		// policy check, so a failure here must not block a recalculation that
+		// would have been allowed before verdicts existed.
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'recalcHash' )
+		                       ->willReturn( [ 'success' => true ] )
+		;
+
+		$this->assertTrue( $this->api->recalcHash( 42 )['success'] );
+	}
+
 
 	public function testRecalcHashDelegatesToHashIndexService(): void
 	{

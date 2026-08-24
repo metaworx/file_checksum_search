@@ -85,7 +85,7 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[ApiRoute(verb: 'GET', url: '/api/v1/file/{fileId}/hashes')]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/file/{fileId}/hashes' )]
 	public function getHashes( int $fileId ): DataResponse
 	{
 
@@ -140,7 +140,7 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[ApiRoute(verb: 'GET', url: '/api/v1/status')]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/status' )]
 	public function getStatus(): DataResponse
 	{
 
@@ -180,8 +180,8 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[UserRateLimit(limit: 60, period: 60)]
-	#[ApiRoute(verb: 'GET', url: '/api/v1/duplicates')]
+	#[UserRateLimit( limit: 60, period: 60 )]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/duplicates' )]
 	public function findAllDuplicates(
 		?string $algo = null,
 		int     $minCount = 2,
@@ -231,7 +231,7 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[ApiRoute(verb: 'GET', url: '/api/v1/file/{fileId}/duplicates')]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/file/{fileId}/duplicates' )]
 	public function findDuplicates( int $fileId ): DataResponse
 	{
 
@@ -275,8 +275,8 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[UserRateLimit(limit: 60, period: 60)]
-	#[ApiRoute(verb: 'GET', url: '/api/v1/lookup')]
+	#[UserRateLimit( limit: 60, period: 60 )]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/lookup' )]
 	public function lookup(
 		string  $hash,
 		?string $algo = null,
@@ -336,8 +336,8 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[UserRateLimit(limit: 20, period: 60)]
-	#[ApiRoute(verb: 'POST', url: '/api/v1/file/{fileId}/recalc')]
+	#[UserRateLimit( limit: 20, period: 60 )]
+	#[ApiRoute( verb: 'POST', url: '/api/v1/file/{fileId}/recalc' )]
 	public function recalcHash( int $fileId ): DataResponse
 	{
 
@@ -383,7 +383,14 @@ class PublicApiController
 				return new DataResponse( $result );
 			}
 
-			return new DataResponse( $result, Http::STATUS_BAD_REQUEST );
+			// A rule forbidding hashing is a policy refusal, not a malformed
+			// request — 403 tells a client that retrying will not help.
+			return new DataResponse(
+				$result,
+				empty( $result['excluded'] )
+					? Http::STATUS_BAD_REQUEST
+					: Http::STATUS_FORBIDDEN,
+			);
 		}
 		catch ( Throwable $e )
 		{

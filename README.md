@@ -116,20 +116,52 @@ php occ file-checksum-search:rebuild
 
 FCIAS reacts to file events (create, write, copy, delete) according to **hash generation rules** configured in **Administration settings → File Checksum Index & Search** (and, for permitted users, in **Personal settings**).
 
-Rules are evaluated in order — the first matching rule handles a file. Drag a row by its handle
-(⠿) to change that order; the global rule always stays first, and a personal user can only
-reorder rules they're allowed to edit — dragging past a locked or another user's rule leaves it
-exactly where it was. Reordering is drag-and-drop only; there's no keyboard equivalent yet. Each
-rule combines:
+Rules are evaluated in order — the first matching rule handles a file, and a lower band number
+is a higher priority. A rule's position is not arbitrary: it follows from what the rule *is*.
+
+| Band | Rules | Ordered by |
+|------|-------|------------|
+| 1 | user-scoped, admin-enforced | administrator |
+| 2 | group-scoped, admin-enforced | administrator |
+| 3 | global, admin-enforced | administrator |
+| 4 | a user's own rules | that user |
+| 5 | group-scoped defaults | administrator |
+| 6 | global defaults | administrator |
+| 7 | the catch-all `**` default | — |
+
+Enforced beats unenforced; within each half, specific beats general; the catch-all is last. So
+no user rule can outrun one an administrator enforced, while a user rule *can* override the
+non-enforced defaults below it — which is what leaving a rule unenforced offers. A rule changes
+band by changing its scope or its enforced flag, not by being moved.
+
+Each rule combines:
 
 | Field | Description |
 |-------|-------------|
 | `enabled` | Whether the rule is active |
-| `userScope` | `all` users or a single user ID |
+| `userScope` | `all` users, `group:<id>` for a group, or a single user ID |
 | `path` | A path glob (Symfony Finder `**` syntax), e.g. `/` or `**/*.pdf` |
 | `algos` | One or more of `sha1`, `md5`, `sha256`, `sha512`, `sha3-256`, `sha3-512`, `crc32`, `adler32` |
 | `mode` | How stale hashes are handled (see below) |
 | `admin_enforced` | Whether users may edit the rule (admin-only lock) |
+| `type` | `include` (default), `ignore`, or `exclude` — see below |
+
+### Rule types
+
+The first matching rule decides a file's fate outright; there is no fall-through.
+
+| Type | Automatic hashing | Manual recalculation | Use it for |
+|------|-------------------|----------------------|------------|
+| `include` | yes, per `algos` and `mode` | yes | the normal case |
+| `ignore` | no | yes | reducing noise, while leaving the file hashable on request |
+| `exclude` | no | no | storage that must not be read at all |
+
+**For metered or expensive storage, `exclude` is the correct tool.** Every other option still
+reads the file eventually — even `lazy` mode only defers the read to the background queue.
+
+An `ignore` or `exclude` rule computes nothing, so it stores no algorithms and no mode. What a
+verdict can override depends on where its rule sits: an admin-enforced exclude is a mandate no
+user rule can undo, while a user's own exclude only overrides the defaults below it.
 
 ### Modes
 

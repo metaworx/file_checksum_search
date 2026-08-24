@@ -13,6 +13,7 @@ use OCA\FileChecksumSearch\Service\DuplicateService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\StatusService;
 use OCP\Files\File;
 use OCP\Files\IRootFolder;
@@ -41,6 +42,7 @@ class ChecksumApi
 		private readonly StatusService    $statusService,
 		private readonly IRootFolder      $rootFolder,
 		private readonly IUserSession     $userSession,
+		private readonly RuleService      $ruleService,
 	) {
 	}
 
@@ -74,8 +76,9 @@ class ChecksumApi
 	 * @return array{fileid: int, hashes: array<int, array{algo: string, hash: string}>}
 	 * @throws NotFoundException  If $requestingUser is set and cannot access $fileId
 	 */
-	public function getHashesByFileId( int $fileId, ?string $requestingUser = null ): array
-	{
+	public function getHashesByFileId( int     $fileId,
+	                                   ?string $requestingUser = null,
+	): array {
 
 		if ( $requestingUser !== null && ! $this->userCanAccessFile( $requestingUser, $fileId ) )
 		{
@@ -170,7 +173,8 @@ class ChecksumApi
 	 * Search for files by hash value, with optional algorithm filter.
 	 *
 	 * @param  string       $hash            Hex-encoded hash value
-	 * @param  string|null  $algo            Optional algorithm filter (sha1, md5, sha256, sha512, sha3-256, sha3-512, crc32)
+	 * @param  string|null  $algo            Optional algorithm filter (sha1, md5, sha256, sha512, sha3-256, sha3-512,
+	 *                                       crc32)
 	 * @param  int          $limit           Max results (1–500)
 	 * @param  string|null  $requestingUser  When provided, results are restricted to
 	 *                                       files in this user's own home storage.
@@ -448,9 +452,63 @@ class ChecksumApi
 			];
 		}
 
+		$excludedBy = $this->excludingRuleFor( $fileId );
+
+		if ( $excludedBy !== null )
+		{
+			return [
+				'success'  => false,
+				'error'    => 'Hashing is excluded for this path by an administrator rule.',
+				'excluded' => true,
+				'ruleId'   => $excludedBy,
+			];
+		}
+
 		$algo ??= HashCalculationService::getDefaultAlgo();
 
 		return $this->hashIndexService->recalcHash( $fileId, $algo );
+	}
+
+
+	/**
+	 * The ID of the rule that forbids hashing this file, or null if none does.
+	 *
+	 * Only `exclude` blocks a deliberate, user-initiated recalculation.
+	 * `ignore` merely stops *automatic* hashing — asking for it by hand is
+	 * exactly the case it leaves open — and an unmatched file was never
+	 * governed by a rule at all.
+	 */
+	private function excludingRuleFor( int $fileId ): ?string
+	{
+
+		try
+		{
+			$nodes = $this->rootFolder->getById( $fileId );
+			$node  = $nodes[0] ?? null;
+
+			if ( $node === null )
+			{
+				return null;
+			}
+
+			$rule = $this->ruleService->findFirstMatchingRule(
+				$node->getPath(),
+				$node->getOwner()
+				     ?->getUID(),
+			);
+		}
+		catch ( \Throwable )
+		{
+			// Never block a recalculation because the rule lookup failed —
+			// the ownership check above is the security boundary; this is a
+			// policy check, and failing it open preserves existing behaviour.
+			return null;
+		}
+
+		return $rule !== null
+		&& RuleService::verdictOf( $rule ) === RuleService::TYPE_EXCLUDE
+			? (string) ( $rule['id'] ?? '' )
+			: null;
 	}
 
 
@@ -468,7 +526,9 @@ class ChecksumApi
 
 		try
 		{
-			$nodes = $this->rootFolder->getUserFolder( $uid )->getById( $fileId );
+			$nodes = $this->rootFolder->getUserFolder( $uid )
+			                          ->getById( $fileId )
+			;
 		}
 		catch ( \Throwable )
 		{

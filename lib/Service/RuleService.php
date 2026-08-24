@@ -73,6 +73,37 @@ class RuleService
 	/** The single pinned `**` default. Not orderable. */
 	public const BAND_DEFAULT = 7;
 
+	/**
+	 * Rule verdicts. The first matching rule decides a file's fate outright —
+	 * there is no fall-through and no per-dimension resolution.
+	 *
+	 * Hashing has two triggers, and the verdicts differ in which they stop:
+	 *
+	 *  - `include` — maintain hashes automatically, and allow on-demand
+	 *                recalculation. The default when `type` is absent.
+	 *  - `ignore`  — never hash automatically, but a user may still ask for
+	 *                it explicitly. For carve-outs that are about noise.
+	 *  - `exclude` — never hash at all, by any route. For storage that must
+	 *                not be read: metered links, cold archives.
+	 *
+	 * Authority comes from band position, not from the verdict: an enforced
+	 * exclude is a mandate nothing below can undo, while a user's own
+	 * exclude only overrides the defaults beneath it.
+	 */
+	public const TYPE_INCLUDE = 'include';
+
+	public const TYPE_IGNORE = 'ignore';
+
+	public const TYPE_EXCLUDE = 'exclude';
+
+	/** @var list<string> */
+	public const TYPES
+		= [
+			self::TYPE_INCLUDE,
+			self::TYPE_IGNORE,
+			self::TYPE_EXCLUDE,
+		];
+
 
 	public function __construct(
 		private readonly IAppConfig        $appConfig,
@@ -335,6 +366,45 @@ class RuleService
 
 
 	/**
+	 * A rule's verdict. Absent `type` means include, so every rule written
+	 * before verdicts existed keeps behaving exactly as it did.
+	 *
+	 * @return self::TYPE_*
+	 */
+	public static function verdictOf( array $rule ): string
+	{
+
+		$type = $rule['type'] ?? self::TYPE_INCLUDE;
+
+		return in_array( $type, self::TYPES, true )
+			? $type
+			: self::TYPE_INCLUDE;
+	}
+
+
+	/**
+	 * Whether a rule causes hashes to be maintained automatically.
+	 *
+	 * The one question the file listeners and the batch job need to ask.
+	 */
+	public static function maintainsHashes( ?array $rule ): bool
+	{
+
+		return $rule !== null && self::verdictOf( $rule ) === self::TYPE_INCLUDE;
+	}
+
+
+	/**
+	 * Whether a value is an accepted rule type.
+	 */
+	public static function isValidType( mixed $type ): bool
+	{
+
+		return is_string( $type ) && in_array( $type, self::TYPES, true );
+	}
+
+
+	/**
 	 * Whether a scope applies to a given user.
 	 */
 	public function scopeAppliesTo(
@@ -471,6 +541,7 @@ class RuleService
 		$pathGlob  = $rule['path'] ?? '/';
 		$userScope = $rule['userScope'] ?? 'all';
 		$batchSize = 100;
+		$maintains = self::maintainsHashes( $rule );
 
 		if ( $pathGlob === '' || $pathGlob === '/' )
 		{
@@ -533,6 +604,14 @@ class RuleService
 
 				$matched ++;
 				$fileIds[] = $fileId;
+
+				if ( ! $maintains )
+				{
+					// The rule claims the file — that is what stops a
+					// lower-priority rule from hashing it — but an ignore or
+					// exclude verdict means nothing gets queued for it.
+					continue;
+				}
 
 				$updatedAt = $this->metadataService->getUpdatedAt( $fileId );
 
