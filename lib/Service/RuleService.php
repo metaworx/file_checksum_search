@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Service;
 
+use InvalidArgumentException;
 use JsonException;
 use OC\Files\Search\SearchComparison;
 use OC\Files\Search\SearchQuery;
@@ -460,6 +461,100 @@ class RuleService
 		}
 
 		return null;
+	}
+
+
+	/**
+	 * Reorder rules — first-match-wins evaluation makes rule order a real
+	 * priority list, so this is the single mutation point for it.
+	 *
+	 * $orderedIds must be exactly a permutation of the reorderable rule IDs
+	 * for this context — never trust the client to have submitted the full
+	 * picture. What "reorderable" means depends on the caller:
+	 *
+	 * - Admin ($requestingUserId === null): every rule except whichever
+	 *   currently occupies slot 0. The admin settings page treats that slot
+	 *   as the global rule (see {@see getPersonalRulesForUser()}'s sibling
+	 *   convention) and never renders a way to drag it, so the backend
+	 *   refuses to move it too, rather than trusting the UI alone.
+	 * - Personal ($requestingUserId given): every rule where
+	 *   {@see canUserMutateRule()} is true for that user — the same set
+	 *   they may already edit, delete, or toggle.
+	 *
+	 * Rules outside the reorderable set are never moved: each submitted ID
+	 * is spliced back into the same slot its rule already occupied, so a
+	 * personal user reordering their own rules cannot disturb another
+	 * user's rules (or the admin's), and an admin reordering the additional
+	 * rules cannot dislodge the global rule from slot 0.
+	 *
+	 * @param  array<int, string>  $orderedIds
+	 *
+	 * @throws InvalidArgumentException  if $orderedIds is not exactly a
+	 *                                   permutation of the reorderable IDs
+	 * @throws JsonException
+	 */
+	public function reorderRules(
+		array   $orderedIds,
+		?string $requestingUserId = null,
+	): void {
+
+		$rules = $this->loadRules();
+
+		$isReorderable = $requestingUserId === null
+			? static fn( int $index ): bool => $index !== 0
+			: fn( int $index, array $rule ): bool => $this->canUserMutateRule( $requestingUserId, $rule );
+
+		$reorderableIds = [];
+
+		foreach ( $rules as $index => $rule )
+		{
+			if ( $isReorderable( $index, $rule ) )
+			{
+				$reorderableIds[] = (string) ( $rule['id'] ?? '' );
+			}
+		}
+
+		$submittedIds = array_map( 'strval', $orderedIds );
+		$sortedSubmitted = $submittedIds;
+		$sortedReorderable = $reorderableIds;
+		sort( $sortedSubmitted );
+		sort( $sortedReorderable );
+
+		if ( $sortedSubmitted !== $sortedReorderable
+			|| count( $submittedIds ) !== count( array_unique( $submittedIds ) ) )
+		{
+			throw new InvalidArgumentException(
+				'orderedIds must be exactly a permutation of the rule IDs this caller may reorder.',
+			);
+		}
+
+		$rulesById = [];
+
+		foreach ( $rules as $rule )
+		{
+			$rulesById[(string) ( $rule['id'] ?? '' )] = $rule;
+		}
+
+		$queue    = $submittedIds;
+		$reordered = [];
+
+		foreach ( $rules as $index => $rule )
+		{
+			if ( $isReorderable( $index, $rule ) )
+			{
+				$reordered[] = $rulesById[array_shift( $queue )];
+			}
+			else
+			{
+				$reordered[] = $rule;
+			}
+		}
+
+		$this->appConfig->setValueString(
+			Application::APP_ID,
+			self::CONFIG_KEY_RULES,
+			json_encode( $reordered, JSON_THROW_ON_ERROR ),
+		);
 	}
 
 

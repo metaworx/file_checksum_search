@@ -18,19 +18,45 @@ const props = defineProps<{
 	priorityOffset?: number
 	/** Set for rules that must not be removed (the global rule). */
 	hideDelete?: boolean
+	/** Whether this row's handle may be grabbed to start a drag (reorder feature). */
+	canDrag?: boolean
+	/** Set while this row is the one currently being dragged. */
+	isDragging?: boolean
+	/** Set while another row is being dragged over this one. */
+	isDragOver?: boolean
 }>()
 
 const emit = defineEmits<{
 	(e: 'edit', rule: Rule): void
 	(e: 'toggle', rule: Rule): void
 	(e: 'delete', rule: Rule): void
+	(e: 'row-dragstart', rule: Rule, event: DragEvent): void
+	(e: 'row-dragover', rule: Rule, event: DragEvent): void
+	(e: 'row-dragleave', rule: Rule): void
+	(e: 'row-drop', rule: Rule, event: DragEvent): void
+	(e: 'row-dragend'): void
 }>()
 
 const canManage = props.variant === 'admin' || props.rule.canEdit === true
 </script>
 
 <template>
-	<tr :data-id="String(rule.id)">
+	<tr
+		:data-id="String(rule.id)"
+		:class="{ 'fcias-dragging': isDragging, 'fcias-drag-over': isDragOver }"
+		@dragover="emit('row-dragover', rule, $event)"
+		@dragleave="emit('row-dragleave', rule)"
+		@drop="emit('row-drop', rule, $event)">
+		<td class="fcias-drag-handle-cell">
+			<span
+				v-if="canDrag"
+				class="fcias-drag-handle"
+				draggable="true"
+				aria-hidden="true"
+				title="Drag to reorder"
+				@dragstart="emit('row-dragstart', rule, $event)"
+				@dragend="emit('row-dragend')">⠿</span>
+		</td>
 		<td>{{ (index ?? 0) + (priorityOffset ?? 1) }}</td>
 		<td :title="rule.userScope || 'all'">{{ rule.userScope || 'all' }}</td>
 		<td :title="rule.path || '/'">{{ rule.path || '/' }}</td>

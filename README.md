@@ -116,7 +116,11 @@ php occ file-checksum-search:rebuild
 
 FCIAS reacts to file events (create, write, copy, delete) according to **hash generation rules** configured in **Administration settings → File Checksum Index & Search** (and, for permitted users, in **Personal settings**).
 
-Rules are evaluated in order — the first matching rule handles a file. Each rule combines:
+Rules are evaluated in order — the first matching rule handles a file. Drag a row by its handle
+(⠿) to change that order; the global rule always stays first, and a personal user can only
+reorder rules they're allowed to edit — dragging past a locked or another user's rule leaves it
+exactly where it was. Reordering is drag-and-drop only; there's no keyboard equivalent yet. Each
+rule combines:
 
 | Field | Description |
 |-------|-------------|

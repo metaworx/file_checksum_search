@@ -19,6 +19,7 @@ the first stable release.
 ### Added
 
 - Rate limit the expensive public API endpoints per user, using Nextcloud's own `#[UserRateLimit]` attribute: 60 requests/minute on `lookup` and `duplicates`, and 20 requests/minute on `recalc`, which reads file content from storage.
+- Add drag-and-drop rule reordering to the admin and personal settings pages. `RuleService::reorderRules()` is the single mutation point for it: an admin may reorder the additional rules freely (the global rule's slot is never part of the payload), and a personal user may reorder only the rules they're already allowed to edit — dragging past a locked or another user's rule leaves it exactly where it was, since only the reordered IDs move and everything else stays in its existing slot. New `POST /settings/cron/reorder` and `POST /personal/rules/reorder` endpoints back the two pages; both reject a submitted order that isn't exactly a permutation of the caller's reorderable rule IDs. This is mouse/touch-only for now — there's no keyboard equivalent.
 
 ### Fixed
 

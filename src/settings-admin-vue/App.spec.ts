@@ -127,7 +127,8 @@ describe('settings-admin App', () => {
 		const globalTable = wrapper.find('#fcias-global-rule')
 		expect(globalTable.text()).toContain('**')
 		// Priority column starts at 0 for the global rule, 1 for additional rules.
-		expect(globalTable.find('td').text()).toBe('0')
+		// findAll('td')[0] is the drag-handle cell, [1] is Priority.
+		expect(globalTable.findAll('td')[1].text()).toBe('0')
 		expect(globalTable.find('button[data-action="delete"]').exists()).toBe(false)
 		expect(globalTable.find('button[data-action="edit"]').exists()).toBe(true)
 		expect(wrapper.find('#fcias-cron-list').find('button[data-action="delete"]').exists()).toBe(true)
@@ -186,5 +187,49 @@ describe('settings-admin App', () => {
 		)
 		expect(deleteCall).toBeDefined()
 		expect(JSON.parse((deleteCall![1] as RequestInit).body as string)).toEqual({ id: 2 })
+	})
+
+	it('posts the new order after dragging an additional rule row', async () => {
+		vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+			const url = String(input)
+			if (url.includes('/settings/status')) {
+				return Promise.resolve(jsonResponse({ version: '1.0', dbVersion: '1', rowCount: 3, pendingStats: {} }))
+			}
+			if (url.includes('/settings/cron/definitions')) {
+				return Promise.resolve(jsonResponse({
+					definitions: [
+						{ id: 1, path: '**', userScope: 'all', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false },
+						{ id: 2, path: '/a', userScope: 'all', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false },
+						{ id: 3, path: '/b', userScope: 'all', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false },
+					],
+					supportedAlgos: ['sha1', 'sha256'],
+					users: ['alice'],
+				}))
+			}
+			if (url.includes('/settings/admin-options')) {
+				return Promise.resolve(jsonResponse({ allowAllUsers: false, groups: [], users: [], availableUsers: [] }))
+			}
+			return Promise.resolve(jsonResponse({ success: true }))
+		})
+
+		const wrapper = mount(App)
+		await flushPromises()
+
+		// The global rule renders in its own table; only #fcias-cron-list's
+		// rows are draggable, so drag the second additional rule (id 3) onto
+		// the first (id 2).
+		const rows = wrapper.find('#fcias-cron-list').findAll('tbody tr')
+		expect(rows).toHaveLength(2)
+
+		await rows[1].find('.fcias-drag-handle').trigger('dragstart')
+		await rows[0].trigger('dragover')
+		await rows[0].trigger('drop')
+		await flushPromises()
+
+		const reorderCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.find(
+			([reqInput]) => String(reqInput).includes('/settings/cron/reorder'),
+		)
+		expect(reorderCall).toBeDefined()
+		expect(JSON.parse((reorderCall![1] as RequestInit).body as string)).toEqual({ orderedIds: [3, 2] })
 	})
 })

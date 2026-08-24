@@ -21,7 +21,7 @@ describe('RuleRow', () => {
 		const wrapper = mount(RuleRow, {
 			props: { rule: makeRule({ path: '<script>alert(1)</script>' }), variant: 'admin' },
 		})
-		const pathCell = wrapper.findAll('td')[2]
+		const pathCell = wrapper.findAll('td')[3]
 
 		// Asserted structurally rather than by searching the serialised HTML:
 		// the cell also carries the raw value in a `title` tooltip, and HTML
@@ -37,14 +37,14 @@ describe('RuleRow', () => {
 		const wrapper = mount(RuleRow, {
 			props: { rule: makeRule(), variant: 'admin', index: 0, priorityOffset: 0 },
 		})
-		expect(wrapper.findAll('td')[0].text()).toBe('0')
+		expect(wrapper.findAll('td')[1].text()).toBe('0')
 	})
 
 	it('shows a Priority column and Yes/No enforced text for the admin variant', () => {
 		const wrapper = mount(RuleRow, {
 			props: { rule: makeRule({ admin_enforced: true }), variant: 'admin', index: 2 },
 		})
-		expect(wrapper.findAll('td')[0].text()).toBe('3')
+		expect(wrapper.findAll('td')[1].text()).toBe('3')
 		expect(wrapper.text()).toContain('Yes')
 	})
 
@@ -54,7 +54,7 @@ describe('RuleRow', () => {
 		})
 		// Personal rules are an ordered subset evaluated first-match-wins, so
 		// their position is a real priority and is shown like the admin page's.
-		expect(wrapper.findAll('td')[0].text()).toBe('2')
+		expect(wrapper.findAll('td')[1].text()).toBe('2')
 		const checkbox = wrapper.find('input[type="checkbox"]')
 		expect(checkbox.exists()).toBe(true)
 		expect((checkbox.element as HTMLInputElement).disabled).toBe(true)
@@ -67,6 +67,43 @@ describe('RuleRow', () => {
 		})
 		expect(wrapper.find('button[data-action="edit"]').exists()).toBe(false)
 		expect(wrapper.text()).toContain('Read-only')
+	})
+
+	it('renders a drag handle only when canDrag is true', () => {
+		const withHandle = mount(RuleRow, { props: { rule: makeRule(), variant: 'admin', canDrag: true } })
+		expect(withHandle.find('.fcias-drag-handle').exists()).toBe(true)
+		expect(withHandle.find('.fcias-drag-handle').attributes('draggable')).toBe('true')
+
+		const withoutHandle = mount(RuleRow, { props: { rule: makeRule(), variant: 'admin', canDrag: false } })
+		expect(withoutHandle.find('.fcias-drag-handle').exists()).toBe(false)
+		// The cell itself is always present, so the column grid stays
+		// identical whether or not this particular row is draggable.
+		expect(withoutHandle.find('.fcias-drag-handle-cell').exists()).toBe(true)
+	})
+
+	it('applies dragging/drag-over classes from props', () => {
+		const wrapper = mount(RuleRow, {
+			props: { rule: makeRule(), variant: 'admin', isDragging: true, isDragOver: true },
+		})
+		expect(wrapper.classes()).toContain('fcias-dragging')
+		expect(wrapper.classes()).toContain('fcias-drag-over')
+	})
+
+	it('forwards drag events tied to its own rule', async () => {
+		const rule = makeRule()
+		const wrapper = mount(RuleRow, { props: { rule, variant: 'admin', canDrag: true } })
+
+		await wrapper.find('.fcias-drag-handle').trigger('dragstart')
+		await wrapper.find('.fcias-drag-handle').trigger('dragend')
+		await wrapper.trigger('dragover')
+		await wrapper.trigger('dragleave')
+		await wrapper.trigger('drop')
+
+		expect(wrapper.emitted('row-dragstart')?.[0]?.[0]).toEqual(rule)
+		expect(wrapper.emitted('row-dragend')).toBeTruthy()
+		expect(wrapper.emitted('row-dragover')?.[0]?.[0]).toEqual(rule)
+		expect(wrapper.emitted('row-dragleave')?.[0]?.[0]).toEqual(rule)
+		expect(wrapper.emitted('row-drop')?.[0]?.[0]).toEqual(rule)
 	})
 
 	it('emits edit/toggle/delete with the rule payload', async () => {

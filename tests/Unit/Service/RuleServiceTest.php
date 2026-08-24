@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
+use InvalidArgumentException;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\PermissionService;
@@ -533,7 +534,8 @@ class RuleServiceTest
 			       [
 				       $file1,
 				       $file2,
-			       ], [],
+			       ],
+			       [],
 		       )
 		;
 
@@ -1041,6 +1043,343 @@ class RuleServiceTest
 		] );
 
 		$this->assertNull( $this->service->findRuleById( 'nope' ) );
+	}
+
+
+	// reorderRules — admin ($requestingUserId === null)
+
+	public function testReorderRulesPersistsNewOrderLeavingSlotZeroFixed(): void
+	{
+
+		$rules = [
+			[
+				'id'   => 'global',
+				'path' => '**',
+			],
+			[
+				'id'   => 'r1',
+				'path' => '/a',
+			],
+			[
+				'id'   => 'r2',
+				'path' => '/b',
+			],
+			[
+				'id'   => 'r3',
+				'path' => '/c',
+			],
+		];
+
+		$this->setupRulesConfig( $rules );
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'setValueString' )
+		                ->with(
+			                Application::APP_ID,
+			                'rule_definitions',
+			                $this->callback(
+				                function (
+					                string $json,
+				                ): bool {
+
+					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
+
+					                return array_column( $rules, 'id' ) === [
+							                'global',
+							                'r3',
+							                'r1',
+							                'r2',
+						                ];
+				                },
+			                ),
+		                )
+		;
+
+		$this->service->reorderRules(
+			[
+				'r3',
+				'r1',
+				'r2',
+			],
+		);
+	}
+
+
+	public function testReorderRulesRejectsAnAttemptToMoveTheRuleInSlotZero(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'   => 'global',
+				'path' => '**',
+			],
+			[
+				'id'   => 'r1',
+				'path' => '/a',
+			],
+			[
+				'id'   => 'r2',
+				'path' => '/b',
+			],
+		] );
+
+		$this->appConfig->expects( $this->never() )
+		                ->method( 'setValueString' )
+		;
+
+		$this->expectException( InvalidArgumentException::class );
+
+		// 'global' occupies slot 0 and must never appear in an admin
+		// orderedIds payload, however it's positioned within it.
+		$this->service->reorderRules(
+			[
+				'global',
+				'r2',
+				'r1',
+			],
+		);
+	}
+
+
+	public function testReorderRulesRejectsAnIncompleteOrder(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'   => 'global',
+				'path' => '**',
+			],
+			[
+				'id'   => 'r1',
+				'path' => '/a',
+			],
+			[
+				'id'   => 'r2',
+				'path' => '/b',
+			],
+		] );
+
+		$this->appConfig->expects( $this->never() )
+		                ->method( 'setValueString' )
+		;
+
+		$this->expectException( InvalidArgumentException::class );
+
+		// Omits 'r2' — a partial reorder could silently drop a rule from
+		// evaluation order rather than merely reordering it.
+		$this->service->reorderRules( [ 'r1' ] );
+	}
+
+
+	public function testReorderRulesRejectsAnUnknownId(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'   => 'global',
+				'path' => '**',
+			],
+			[
+				'id'   => 'r1',
+				'path' => '/a',
+			],
+		] );
+
+		$this->appConfig->expects( $this->never() )
+		                ->method( 'setValueString' )
+		;
+
+		$this->expectException( InvalidArgumentException::class );
+
+		$this->service->reorderRules( [ 'not-a-real-id' ] );
+	}
+
+
+	public function testReorderRulesRejectsADuplicateId(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'   => 'global',
+				'path' => '**',
+			],
+			[
+				'id'   => 'r1',
+				'path' => '/a',
+			],
+			[
+				'id'   => 'r2',
+				'path' => '/b',
+			],
+		] );
+
+		$this->appConfig->expects( $this->never() )
+		                ->method( 'setValueString' )
+		;
+
+		$this->expectException( InvalidArgumentException::class );
+
+		// Same set by content, but 'r1' twice and 'r2' missing — a naive
+		// set-equality check on the sorted arrays alone would miss this.
+		$this->service->reorderRules(
+			[
+				'r1',
+				'r1',
+			],
+		);
+	}
+
+
+	// reorderRules — personal ($requestingUserId given)
+
+	public function testReorderRulesRestrictsPersonalCallerToTheirOwnMutableRules(): void
+	{
+
+		$folder = $this->createFolderMock();
+		$folder->method( 'isCreatable' )
+		       ->willReturn( true )
+		;
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->with( 'alice' )
+		                 ->willReturn( $folder )
+		;
+
+		$rules = [
+			// Not alice's — must never move, regardless of what she submits.
+			[
+				'id'        => 'bobs-rule',
+				'userScope' => 'bob',
+				'path'      => '/',
+			],
+			[
+				'id'        => 'r1',
+				'userScope' => 'alice',
+				'path'      => '/',
+			],
+			[
+				'id'        => 'r2',
+				'userScope' => 'alice',
+				'path'      => '/',
+			],
+			// Alice-scoped but locked — must also never move.
+			[
+				'id'             => 'locked',
+				'userScope'      => 'alice',
+				'path'           => '/',
+				'admin_enforced' => true,
+			],
+		];
+
+		$this->setupRulesConfig( $rules );
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'setValueString' )
+		                ->with(
+			                Application::APP_ID,
+			                'rule_definitions',
+			                $this->callback(
+				                function (
+					                string $json,
+				                ): bool {
+
+					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
+
+					                return array_column( $rules, 'id' ) === [
+							                'bobs-rule',
+							                'r2',
+							                'r1',
+							                'locked',
+						                ];
+				                },
+			                ),
+		                )
+		;
+
+		$this->service->reorderRules(
+			[
+				'r2',
+				'r1',
+			],
+			'alice',
+		);
+	}
+
+
+	public function testReorderRulesRejectsAnIdOutsideThePersonalCallersMutableSet(): void
+	{
+
+		$folder = $this->createFolderMock();
+		$folder->method( 'isCreatable' )
+		       ->willReturn( true )
+		;
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->with( 'alice' )
+		                 ->willReturn( $folder )
+		;
+
+		$this->setupRulesConfig( [
+			[
+				'id'        => 'bobs-rule',
+				'userScope' => 'bob',
+				'path'      => '/',
+			],
+			[
+				'id'        => 'r1',
+				'userScope' => 'alice',
+				'path'      => '/',
+			],
+		] );
+
+		$this->appConfig->expects( $this->never() )
+		                ->method( 'setValueString' )
+		;
+
+		$this->expectException( InvalidArgumentException::class );
+
+		// A user cannot reorder someone else's rule by naming it, even
+		// alongside their own.
+		$this->service->reorderRules(
+			[
+				'r1',
+				'bobs-rule',
+			],
+			'alice',
+		);
+	}
+
+
+	public function testReorderRulesRejectsAPartialOrderForThePersonalCaller(): void
+	{
+
+		$folder = $this->createFolderMock();
+		$folder->method( 'isCreatable' )
+		       ->willReturn( true )
+		;
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->with( 'alice' )
+		                 ->willReturn( $folder )
+		;
+
+		$this->setupRulesConfig( [
+			[
+				'id'        => 'r1',
+				'userScope' => 'alice',
+				'path'      => '/',
+			],
+			[
+				'id'        => 'r2',
+				'userScope' => 'alice',
+				'path'      => '/',
+			],
+		] );
+
+		$this->appConfig->expects( $this->never() )
+		                ->method( 'setValueString' )
+		;
+
+		$this->expectException( InvalidArgumentException::class );
+
+		$this->service->reorderRules( [ 'r1' ], 'alice' );
 	}
 
 

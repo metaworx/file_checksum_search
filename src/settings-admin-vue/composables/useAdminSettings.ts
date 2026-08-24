@@ -194,6 +194,14 @@ export function useAdminSettings() {
 		return data
 	}
 
+	async function reorderRules(orderedIds: Array<string | number>): Promise<ApiResponse> {
+		const data = await post(generateOcsUrl(OCS_SETTINGS.reorderRules), { orderedIds })
+		if (data.success) {
+			await loadDefinitions()
+		}
+		return data
+	}
+
 	return {
 		...toRefs(state),
 		loadStatus,
@@ -204,5 +212,6 @@ export function useAdminSettings() {
 		saveRule,
 		deleteRule,
 		toggleRule,
+		reorderRules,
 	}
 }

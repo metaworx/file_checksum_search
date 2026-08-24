@@ -103,6 +103,30 @@
 	text-overflow: clip;
 }
 
+.fcias-drag-handle-cell {
+	text-align: center;
+	/* A single glyph never needs ellipsis clipping. */
+	overflow: visible;
+}
+
+.fcias-drag-handle {
+	cursor: grab;
+	color: var(--color-text-maxcontrast);
+	user-select: none;
+}
+
+.fcias-drag-handle:active {
+	cursor: grabbing;
+}
+
+.fcias-cron-table tbody tr.fcias-dragging {
+	opacity: 0.4;
+}
+
+.fcias-cron-table tbody tr.fcias-drag-over {
+	box-shadow: inset 0 2px 0 var(--color-primary-element, var(--color-primary));
+}
+
 /* Rendered inside an NcDialog, which already supplies the frame and padding. */
 .fcias-cron-form {
 	margin: 0;

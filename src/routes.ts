@@ -36,6 +36,8 @@ export const OCS_SETTINGS = {
 	deleteRule: `${APP_BASE}/settings/cron/delete`,
 	/** POST   /settings/cron/toggle */
 	toggleRule: `${APP_BASE}/settings/cron/toggle`,
+	/** POST   /settings/cron/reorder */
+	reorderRules: `${APP_BASE}/settings/cron/reorder`,
 	/** GET    /settings/cron/snippet */
 	getCrontabSnippet: `${APP_BASE}/settings/cron/snippet`,
 	/** GET    /settings/admin-options */
@@ -54,6 +56,8 @@ export const OCS_PERSONAL = {
 	deleteRule: `${APP_BASE}/personal/rules/delete`,
 	/** POST   /personal/rules/toggle */
 	toggleRule: `${APP_BASE}/personal/rules/toggle`,
+	/** POST   /personal/rules/reorder */
+	reorderRules: `${APP_BASE}/personal/rules/reorder`,
 } as const
 
 /** OCS admin endpoints (PageController) */

@@ -32,6 +32,7 @@ const {
 	saveRule,
 	deleteRule,
 	toggleRule,
+	reorderRules,
 } = useAdminSettings()
 
 function tabFromHash(): 'settings' | 'docs' {
@@ -171,6 +172,13 @@ async function handleToggleRule(rule: Rule): Promise<void> {
 	}
 }
 
+async function handleReorderRules(orderedIds: Array<Rule['id']>): Promise<void> {
+	const result = await reorderRules(orderedIds)
+	if (!result.success) {
+		ruleMsg.value = result.error || 'Reorder failed.'
+	}
+}
+
 loadStatus()
 loadDefinitions()
 </script>
@@ -294,9 +302,11 @@ loadDefinitions()
 					<RuleTable
 						:rules="additionalRules()"
 						variant="admin"
+						:reorderable="true"
 						@edit="openEditRule"
 						@toggle="handleToggleRule"
-						@delete="handleDeleteRule" />
+						@delete="handleDeleteRule"
+						@reorder="handleReorderRules" />
 				</div>
 
 				<button id="fcias-btn-add-definition" class="fcias-btn" @click="openAddRule">

@@ -25,6 +25,7 @@ use OCP\AppFramework\Http\DataResponse;
 use OCP\IRequest;
 use OCP\IUser;
 use OCP\IUserManager;
+use InvalidArgumentException;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
 use ReflectionMethod;
@@ -517,6 +518,122 @@ class SettingsControllerTest
 		;
 
 		$response = $this->controller->toggleRule();
+
+		$this->assertSame( Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus() );
+
+		$data = $response->getData();
+		$this->assertFalse( $data['success'] );
+		$this->assertSame( 'DB write error', $data['error'] );
+	}
+
+
+// ── reorderRules ─────────────────────────────────────────────────────
+
+	public function testReorderRulesDelegatesToRuleService(): void
+	{
+
+		$this->controller->method( 'readRequestBody' )
+		                 ->willReturn( json_encode( [ 'orderedIds' => [ 'r2', 'r1' ] ] ) )
+		;
+
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'reorderRules' )
+		                  ->with( [ 'r2', 'r1' ] )
+		;
+
+		$response = $this->controller->reorderRules();
+
+		$this->assertInstanceOf( DataResponse::class, $response );
+		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
+
+		$data = $response->getData();
+		$this->assertTrue( $data['success'] );
+	}
+
+
+	public function testReorderRulesRequiresOrderedIds(): void
+	{
+
+		$this->controller->method( 'readRequestBody' )
+		                 ->willReturn( json_encode( [] ) )
+		;
+
+		$this->ruleService->expects( $this->never() )
+		                  ->method( 'reorderRules' )
+		;
+
+		$response = $this->controller->reorderRules();
+
+		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
+
+		$data = $response->getData();
+		$this->assertFalse( $data['success'] );
+		$this->assertSame( 'orderedIds is required.', $data['error'] );
+	}
+
+
+	public function testReorderRulesRejectsANonArrayOrderedIds(): void
+	{
+
+		$this->controller->method( 'readRequestBody' )
+		                 ->willReturn( json_encode( [ 'orderedIds' => 'not-an-array' ] ) )
+		;
+
+		$this->ruleService->expects( $this->never() )
+		                  ->method( 'reorderRules' )
+		;
+
+		$response = $this->controller->reorderRules();
+
+		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
+	}
+
+
+	public function testReorderRulesReturnsBadRequestOnInvalidPermutation(): void
+	{
+
+		$this->controller->method( 'readRequestBody' )
+		                 ->willReturn( json_encode( [ 'orderedIds' => [ 'global' ] ] ) )
+		;
+
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'reorderRules' )
+		                  ->with( [ 'global' ] )
+		                  ->willThrowException(
+			                  new InvalidArgumentException( 'orderedIds must be exactly a permutation of the rule IDs this caller may reorder.' ),
+		                  )
+		;
+
+		$response = $this->controller->reorderRules();
+
+		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
+
+		$data = $response->getData();
+		$this->assertFalse( $data['success'] );
+		$this->assertSame(
+			'orderedIds must be exactly a permutation of the rule IDs this caller may reorder.',
+			$data['error'],
+		);
+	}
+
+
+	public function testReorderRulesReturnsServerErrorOnException(): void
+	{
+
+		$this->controller->method( 'readRequestBody' )
+		                 ->willReturn( json_encode( [ 'orderedIds' => [ 'r1' ] ] ) )
+		;
+
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'reorderRules' )
+		                  ->willThrowException( new RuntimeException( 'DB write error' ) )
+		;
+
+		$this->logger->expects( $this->once() )
+		             ->method( 'error' )
+		;
+
+		$response = $this->controller->reorderRules();
 
 		$this->assertSame( Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus() );
 

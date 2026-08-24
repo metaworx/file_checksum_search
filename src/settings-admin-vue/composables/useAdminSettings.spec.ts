@@ -124,4 +124,30 @@ describe('useAdminSettings', () => {
 		expect(result).toEqual({ success: false, error: 'nope' })
 		expect(globalThis.fetch).toHaveBeenCalledTimes(1)
 	})
+
+	it('reorderRules posts the ordered IDs and reloads definitions on success', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(jsonResponse({ success: true }))
+			.mockResolvedValueOnce(jsonResponse({ definitions: [{ id: 1, path: '**' }, { id: 3, path: '/b' }, { id: 2, path: '/a' }] }))
+
+		const { definitions, reorderRules } = useAdminSettings()
+		const result = await reorderRules([3, 2])
+
+		expect(result.success).toBe(true)
+		expect(definitions.value).toEqual([{ id: 1, path: '**' }, { id: 3, path: '/b' }, { id: 2, path: '/a' }])
+		expect(fetchMock).toHaveBeenCalledTimes(2)
+		const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string)
+		expect(body).toEqual({ orderedIds: [3, 2] })
+	})
+
+	it('reorderRules does not reload definitions when the request fails', async () => {
+		vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse({ success: false, error: 'orderedIds must be exactly a permutation of the rule IDs this caller may reorder.' }))
+
+		const { reorderRules } = useAdminSettings()
+		const result = await reorderRules([2])
+
+		expect(result.success).toBe(false)
+		expect(globalThis.fetch).toHaveBeenCalledTimes(1)
+	})
 })

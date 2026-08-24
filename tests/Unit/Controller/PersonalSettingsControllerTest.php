@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
+use InvalidArgumentException;
 use OCA\FileChecksumSearch\Controller\PersonalSettingsController;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\PermissionService;
@@ -21,6 +22,7 @@ use OCP\IUser;
 use OCP\IUserSession;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
+use RuntimeException;
 
 class PersonalSettingsControllerTest
 	extends
@@ -600,6 +602,143 @@ class PersonalSettingsControllerTest
 		$response = $this->controller->togglePersonalRule();
 
 		$this->assertSame( Http::STATUS_FORBIDDEN, $response->getStatus() );
+	}
+
+
+	// reorderPersonalRules
+
+	public function testReorderPersonalRulesReturns401WhenNotLoggedIn(): void
+	{
+
+		$this->mockUser( null );
+
+		$response = $this->controller->reorderPersonalRules();
+
+		$this->assertSame( Http::STATUS_UNAUTHORIZED, $response->getStatus() );
+	}
+
+
+	public function testReorderPersonalRulesReturns403WhenNotAllowedToEditRules(): void
+	{
+
+		$this->mockUser( 'alice' );
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->with( 'alice' )
+		                        ->willReturn( false )
+		;
+
+		$this->ruleService->expects( $this->never() )
+		                  ->method( 'reorderRules' )
+		;
+
+		$response = $this->controller->reorderPersonalRules();
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $response->getStatus() );
+	}
+
+
+	public function testReorderPersonalRulesDelegatesToRuleServiceScopedToTheCaller(): void
+	{
+
+		$this->mockUser( 'alice' );
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->with( 'alice' )
+		                        ->willReturn( true )
+		;
+		$this->controller->method( 'readRequestBody' )
+		                 ->willReturn( json_encode( [ 'orderedIds' => [ 'r2', 'r1' ] ] ) )
+		;
+
+		// Per-rule ownership is RuleService::reorderRules()'s job (it checks
+		// canUserMutateRule() against each submitted ID) — the controller
+		// only gates on the caller being allowed to edit rules at all, then
+		// passes the caller's own ID through unchanged.
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'reorderRules' )
+		                  ->with( [ 'r2', 'r1' ], 'alice' )
+		;
+
+		$response = $this->controller->reorderPersonalRules();
+
+		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
+		$this->assertTrue( $response->getData()['success'] );
+	}
+
+
+	public function testReorderPersonalRulesRequiresOrderedIds(): void
+	{
+
+		$this->mockUser( 'alice' );
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->willReturn( true )
+		;
+		$this->controller->method( 'readRequestBody' )
+		                 ->willReturn( json_encode( [] ) )
+		;
+
+		$this->ruleService->expects( $this->never() )
+		                  ->method( 'reorderRules' )
+		;
+
+		$response = $this->controller->reorderPersonalRules();
+
+		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
+		$this->assertSame( 'orderedIds is required.', $response->getData()['error'] );
+	}
+
+
+	public function testReorderPersonalRulesReturns400WhenAnIdIsOutsideTheCallersMutableSet(): void
+	{
+
+		// Regression guard mirroring FCIAS Review §6, Finding 3: a
+		// personal user must not be able to reorder another user's rule
+		// by naming it in orderedIds, even alongside their own.
+		$this->mockUser( 'alice' );
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->willReturn( true )
+		;
+		$this->controller->method( 'readRequestBody' )
+		                 ->willReturn( json_encode( [ 'orderedIds' => [ 'r1', 'bobs-rule' ] ] ) )
+		;
+
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'reorderRules' )
+		                  ->with( [ 'r1', 'bobs-rule' ], 'alice' )
+		                  ->willThrowException(
+			                  new InvalidArgumentException( 'orderedIds must be exactly a permutation of the rule IDs this caller may reorder.' ),
+		                  )
+		;
+
+		$response = $this->controller->reorderPersonalRules();
+
+		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
+		$this->assertFalse( $response->getData()['success'] );
+	}
+
+
+	public function testReorderPersonalRulesReturnsServerErrorOnException(): void
+	{
+
+		$this->mockUser( 'alice' );
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->willReturn( true )
+		;
+		$this->controller->method( 'readRequestBody' )
+		                 ->willReturn( json_encode( [ 'orderedIds' => [ 'r1' ] ] ) )
+		;
+
+		$this->ruleService->method( 'reorderRules' )
+		                  ->willThrowException( new RuntimeException( 'DB write error' ) )
+		;
+
+		$this->logger->expects( $this->once() )
+		             ->method( 'error' )
+		;
+
+		$response = $this->controller->reorderPersonalRules();
+
+		$this->assertSame( Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus() );
+		$this->assertSame( 'DB write error', $response->getData()['error'] );
 	}
 
 }

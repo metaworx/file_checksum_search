@@ -125,4 +125,42 @@ describe('settings-personal App', () => {
 		expect(deleteCall).toBeDefined()
 		expect(JSON.parse((deleteCall![1] as RequestInit).body as string)).toEqual({ id: 1 })
 	})
+
+	it('posts the new order after dragging a rule row, omitting a locked one', async () => {
+		vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+			const url = String(input)
+			if (url.includes('/personal/rules') && !url.includes('/save') && !url.includes('/delete') && !url.includes('/toggle') && !url.includes('/reorder')) {
+				return Promise.resolve(jsonResponse({
+					rules: [
+						{ id: 1, path: '/a', userScope: 'alice', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false, canEdit: true },
+						{ id: 2, path: '/b', userScope: 'alice', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false, canEdit: true },
+						// Not alice's to move — admin_enforced, so canEdit is false.
+						{ id: 3, path: '/c', userScope: 'all', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: true, canEdit: false },
+					],
+					canEdit: true,
+					supportedAlgos: ['sha1', 'sha256'],
+				}))
+			}
+			return Promise.resolve(jsonResponse({ success: true }))
+		})
+
+		const wrapper = mount(App)
+		await flushPromises()
+
+		const rows = wrapper.find('#fcias-personal-rules').findAll('tbody tr')
+		expect(rows).toHaveLength(3)
+
+		// Drag rule 2 onto the locked rule 3's position: the locked row is a
+		// valid drop target but never moves, so it drops out of the payload.
+		await rows[1].find('.fcias-drag-handle').trigger('dragstart')
+		await rows[2].trigger('dragover')
+		await rows[2].trigger('drop')
+		await flushPromises()
+
+		const reorderCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.find(
+			([input]) => String(input).includes('/personal/rules/reorder'),
+		)
+		expect(reorderCall).toBeDefined()
+		expect(JSON.parse((reorderCall![1] as RequestInit).body as string)).toEqual({ orderedIds: [1, 2] })
+	})
 })

@@ -308,6 +308,72 @@ class SettingsController
 
 
 	/**
+	 * Reorder the additional rules (drag-and-drop on the settings page).
+	 *
+	 * The global rule's slot is never part of orderedIds — see
+	 * {@see RuleService::reorderRules()}'s admin case.
+	 *
+	 * Admin only — see {@see listRules()}.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[ApiRoute( verb: 'POST', url: '/settings/cron/reorder' )]
+	public function reorderRules(): DataResponse
+	{
+
+		$body       = json_decode( $this->readRequestBody(), true );
+		$orderedIds = is_array( $body )
+			? ( $body['orderedIds'] ?? null )
+			: null;
+
+		if ( ! is_array( $orderedIds ) )
+		{
+			return new DataResponse(
+				[
+					'success' => false,
+					'error'   => 'orderedIds is required.',
+				],
+				Http::STATUS_BAD_REQUEST,
+			);
+		}
+
+		try
+		{
+			$this->ruleService->reorderRules( $orderedIds );
+
+			return new DataResponse( [ 'success' => true ] );
+		}
+		catch ( \InvalidArgumentException $e )
+		{
+			return new DataResponse(
+				[
+					'success' => false,
+					'error'   => $e->getMessage(),
+				],
+				Http::STATUS_BAD_REQUEST,
+			);
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->error(
+				'FCIAS SettingsController: reorderRules failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
+			return new DataResponse(
+				[
+					'success' => false,
+					'error'   => $e->getMessage(),
+				], Http::STATUS_INTERNAL_SERVER_ERROR,
+			);
+		}
+	}
+
+
+	/**
 	 * Generate a crontab entry snippet for CLI-based hash generation.
 	 *
 	 * Admin only — see {@see listRules()}.
