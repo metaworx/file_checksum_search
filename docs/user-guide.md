@@ -1,7 +1,31 @@
-# FCIAS — User Help
+# FCIAS — User Guide
 
-This page explains the day-to-day features for regular users of File
-Checksum Index & Search.
+This page explains the day-to-day features of File Checksum Index & Search.
+It is written for anyone using Nextcloud; your administrator's reference is
+[FAQ.md](FAQ.md).
+
+## What this app does for you
+
+A **checksum** is a short string calculated from a file's contents, the same
+way every time. Two files with the same checksum are almost certainly the
+same file; a file whose checksum has changed is definitely not the file it
+was.
+
+FCIAS keeps those checksums for your files and lets you use them:
+
+- **Find copies of a file.** The duplicate browser groups files that share a
+  checksum, so you can see what you are storing more than once before you go
+  looking through folders.
+- **Search by checksum.** If you know a file's hash — from a download page,
+  a colleague, a receipt — paste it into Nextcloud's search bar to find every
+  copy of that exact file in your account.
+- **Check a file is intact.** The Checksums tab in the file sidebar shows
+  what was computed and lets you recompute it from the current contents. If
+  the two differ, the file changed since it was last checked.
+
+Which files get checksums, and which algorithms are used, is decided by
+**rules** — some set by your administrator, some possibly your own. See
+*Your hashing rules* below.
 
 ## The duplicate browser
 

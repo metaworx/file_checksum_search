@@ -41,7 +41,7 @@ class PageControllerTest
 		$data = $response->getData();
 
 		$this->assertArrayHasKey( 'docs', $data );
-		$this->assertCount( 6, $data['docs'] );
+		$this->assertCount( 7, $data['docs'] );
 
 		$names = array_map(
 			static fn(
@@ -53,6 +53,7 @@ class PageControllerTest
 		$this->assertSame(
 			[
 				'docs/FAQ.md',
+				'docs/user-guide.md',
 				'README.md',
 				'docs/api-v1-openapi.yaml',
 				'docs/api-v1.md',
@@ -91,7 +92,7 @@ class PageControllerTest
 		$this->assertSame(
 			[
 				'docs/FAQ.md',
-				'docs/HELP.md',
+				'docs/user-guide.md',
 			],
 			$names,
 		);

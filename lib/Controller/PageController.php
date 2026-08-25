@@ -76,6 +76,14 @@ class PageController
 						'path'  => 'docs/FAQ.md',
 					],
 					[
+						// The document users are shown on their own settings
+						// page. An administrator answering a question about it
+						// should be reading the same words they are.
+						'label' => 'User Guide',
+						'name'  => 'docs/user-guide.md',
+						'path'  => 'docs/user-guide.md',
+					],
+					[
 						'label' => 'README',
 						'name'  => 'README.md',
 						'path'  => 'README.md',
@@ -130,9 +138,9 @@ class PageController
 						'path'  => 'docs/FAQ.md',
 					],
 					[
-						'label' => 'User Help',
-						'name'  => 'docs/HELP.md',
-						'path'  => 'docs/HELP.md',
+						'label' => 'User Guide',
+						'name'  => 'docs/user-guide.md',
+						'path'  => 'docs/user-guide.md',
 					],
 				],
 			),

@@ -30,14 +30,16 @@ const {
 	reorderBand,
 } = usePersonalSettings()
 
-function tabFromHash(): 'rules' | 'faq' {
+function tabFromHash(): 'rules' | 'help' {
 	const tab = window.location.hash.replace(/^#/, '').split('/')[0]
-	return tab === 'faq' ? 'faq' : 'rules'
+	// 'faq' still resolves: this tab was called that until the FAQ became the
+	// administrator's document, and links to #faq are already out there.
+	return tab === 'help' || tab === 'faq' ? 'help' : 'rules'
 }
 
-const activeTab = ref<'rules' | 'faq'>(tabFromHash())
+const activeTab = ref<'rules' | 'help'>(tabFromHash())
 
-function setTab(tab: 'rules' | 'faq'): void {
+function setTab(tab: 'rules' | 'help'): void {
 	activeTab.value = tab
 	window.location.hash = tab
 }
@@ -136,12 +138,12 @@ loadRules()
 			<button
 				type="button"
 				class="fcias-tab"
-				:class="{ 'is-active': activeTab === 'faq' }"
+				:class="{ 'is-active': activeTab === 'help' }"
 				role="tab"
-				:aria-selected="activeTab === 'faq'"
-				aria-controls="fcias-tab-panel-faq"
-				@click="setTab('faq')">
-				FAQ
+				:aria-selected="activeTab === 'help'"
+				aria-controls="fcias-tab-panel-help"
+				@click="setTab('help')">
+				Help
 			</button>
 		</div>
 
@@ -195,11 +197,11 @@ loadRules()
 		</div>
 
 		<div
-			v-if="activeTab === 'faq'"
-			id="fcias-tab-panel-faq"
+			v-if="activeTab === 'help'"
+			id="fcias-tab-panel-help"
 			class="fcias-tab-panel"
 			role="tabpanel">
-			<DocsViewer :endpoint="OCS_ADMIN.getHelp" only="docs/FAQ.md" />
+			<DocsViewer :endpoint="OCS_ADMIN.getHelp" only="docs/user-guide.md" />
 		</div>
 	</div>
 </template>

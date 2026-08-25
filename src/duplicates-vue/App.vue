@@ -179,7 +179,7 @@ onMounted(() => {
 				</template>
 
 				<div v-else class="db-help">
-					<DocsViewer :endpoint="OCS_ADMIN.getHelp" only="docs/HELP.md" />
+					<DocsViewer :endpoint="OCS_ADMIN.getHelp" only="docs/user-guide.md" />
 				</div>
 			</div>
 		</NcAppContent>

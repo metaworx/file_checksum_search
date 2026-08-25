@@ -1,5 +1,9 @@
 # FCIAS — Frequently Asked Questions
 
+This page answers how the app works, for administrators and integrators.
+What your users see and do is in [user-guide.md](user-guide.md), which is also what the
+personal settings page shows them.
+
 ## What does FCIAS do?
 
 File Checksum Index & Search (FCIAS) is a Nextcloud app that indexes file
@@ -67,7 +71,9 @@ still allowing it on request, and `exclude` blocks it entirely, including the
 sidebar's Recalculate button and the `occ` command. See
 [README.md § Hash Generation Rules](../README.md#hash-generation-rules) for
 the full field and band reference, the rule types, and the mode table
-(`auto`, `missing`, `force`, `lazy`).
+(`auto`, `missing`, `force`, `lazy`), and
+[user-guide.md § Your hashing rules](user-guide.md#your-hashing-rules) for the same model
+explained to the people who see it on their personal settings page.
 
 ## How does cron / pending processing work?
 
@@ -110,7 +116,9 @@ is further limited to rules whose path they can write to.
 Personal settings shows a user every rule that can decide one of their files,
 not only the ones they may change: the enforced rules above their own and the
 defaults below, both read-only. Seeing only the editable part would make a
-file's actual fate look like it came from nowhere.
+file's actual fate look like it came from nowhere. That page's Help tab
+renders [user-guide.md](user-guide.md), so what a user reads about rules is the same
+document you can read yourself when supporting them.
 
 `admin_enforced` and `userScope` are never trusted from a user's own
 request — the server always decides them. See

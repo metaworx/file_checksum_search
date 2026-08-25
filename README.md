@@ -26,7 +26,7 @@ FCIAS stores checksums in Nextcloud's built-in **files metadata index** (`oc_fil
 - **Lazy & deferred hash recalculation** — a pending queue drained by a background job
 - **Public API v1** — HTTP REST and PHP surfaces with an OpenAPI spec
 - **7 CLI commands** for search, administration, and maintenance
-- **FAQ & user help** — served in-app to all authenticated users
+- **User guide & FAQ** — served in-app, split by audience (see [Documentation](#documentation))
 
 ## Requirements
 
@@ -300,16 +300,24 @@ The admin settings page provides:
 - **Status overview** — app version, indexed hash count, and pending update stats by mode
 - **Hash generation rules** — create, edit, toggle, and delete rules; per-rule `admin_enforced` checkbox
 - **Rule-editing permissions** — allow-all toggle, group list, and user list
-- **Documentation** — in-app access to FAQ, README, API specs, and license
+- **Documentation** — in-app access to the FAQ, the user guide, README, API specs, and license
 
-The personal settings page lists the rules applying to the current user, with read-only `admin_enforced` state and edit actions only where permitted.
+The personal settings page lists the rules applying to the current user, with read-only `admin_enforced` state and edit actions only where permitted. Its second tab is the user guide.
 
-## FAQ & Help
+## Documentation
 
-- User help: [`docs/HELP.md`](docs/HELP.md)
-- FAQ: [`docs/FAQ.md`](docs/FAQ.md)
+The three documents are split by who is reading, not by topic:
 
-Both are also served in-app: the FAQ and user help are available to all authenticated users via the `GET /help` endpoint, and administrators get a broader documentation set via the admin settings "Documentation" tab.
+| Document | Audience | Where it is shown in-app |
+|----------|----------|--------------------------|
+| [`docs/user-guide.md`](docs/user-guide.md) | users | Personal settings → Help, and the Duplicates page |
+| [`docs/FAQ.md`](docs/FAQ.md) | administrators, integrators | Admin settings → Documentation |
+| This README | administrators, developers | Admin settings → Documentation |
+
+`GET /help` serves the user guide and the FAQ to any authenticated user, since both pages that
+use it are reachable by everyone. Administrators get the broader set — README, API specs and
+licence included — through the admin settings **Documentation** tab, which also carries the user
+guide, so whoever answers a question is reading the same words as the person asking it.
 
 ## Troubleshooting
 

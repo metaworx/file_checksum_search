@@ -114,18 +114,27 @@ describe('settings-personal App', () => {
 		expect(wrapper.text()).toContain('not allowed to edit')
 	})
 
-	it('switches to the FAQ tab', async () => {
+	it('switches to the Help tab', async () => {
 		mockFetch()
 		const wrapper = mount(App)
 		await flushPromises()
 
 		expect(wrapper.find('#fcias-tab-panel-rules').exists()).toBe(true)
-		expect(wrapper.find('#fcias-tab-panel-faq').exists()).toBe(false)
+		expect(wrapper.find('#fcias-tab-panel-help').exists()).toBe(false)
 
 		await wrapper.findAll('.fcias-tab').at(1)!.trigger('click')
 
 		expect(wrapper.find('#fcias-tab-panel-rules').exists()).toBe(false)
-		expect(wrapper.find('#fcias-tab-panel-faq').exists()).toBe(true)
+		expect(wrapper.find('#fcias-tab-panel-help').exists()).toBe(true)
+	})
+
+	it('still honours a #faq link, which this tab used to be called', async () => {
+		window.location.hash = 'faq'
+		mockFetch()
+		const wrapper = mount(App)
+		await flushPromises()
+
+		expect(wrapper.find('#fcias-tab-panel-help').exists()).toBe(true)
 	})
 
 	it('opens and cancels the add-rule form', async () => {
