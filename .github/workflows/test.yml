@@ -1,6 +1,33 @@
 name: Nextcloud App Testing Matrix
 on: [ push, pull_request ]
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout app code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # Deliberately its own job rather than a step on the integration job:
+      # it needs no Nextcloud server, so it answers in under a minute, and a
+      # style failure should not be reported as an end-to-end failure.
+      - name: ESLint
+        run: npm run lint
+
+      - name: Stylelint
+        run: npm run stylelint
+
+      - name: PHP syntax check
+        run: composer lint
+
   phpunit:
     runs-on: ubuntu-latest
     strategy:

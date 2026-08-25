@@ -38,6 +38,13 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      # Publishing is the one place an unlinted build cannot be taken back,
+      # so the same checks that gate a push gate a release.
+      - name: Lint frontend
+        run: |
+          npm run lint
+          npm run stylelint
+
       - name: Build, package, and sign app
         env:
           APPSTORE_KEY: ${{ secrets.APPSTORE_KEY }}
