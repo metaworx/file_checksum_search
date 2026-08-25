@@ -21,7 +21,7 @@ description: "agent tooling precedence and usage guide"
 | `search_files` | Regex search across project. Use `file_pattern` glob to narrow (e.g., `*.php`). | Rust regex syntax, not PCRE. No lookahead/lookbehind. |
 | `search_text` | Literal substring search — faster than regex for exact strings. | Case-sensitive by default. |
 | `list_files` | Directory exploration. Use `recursive:true` for deep scans. | Prefer this over `ls`/`dir` — works cross-platform. |
-| `execute_command` | Run CLI commands. | **CRITICAL: always pass `cwd: "C:\\"`** — the default workspace `\\wsl.localhost\...` is a UNC path unsupported by CMD.EXE. All WSL commands must use `wsl --cd ~/projects/nc_file_checksum_search` prefix. |
+| `execute_command` | Run CLI commands. | **CRITICAL: always pass `cwd: "C:\\"`** — the default workspace `\\wsl.localhost\...` is a UNC path unsupported by CMD.EXE. All WSL commands must use `wsl --cd "$PWD"` prefix. |
 
 ## 3. JetBrains MCP Server (Fallback)
 
@@ -67,31 +67,30 @@ Use `get_composer_dependencies` to check library availability, `get_php_project_
 ### 5.2 WSL Command Prefix
 All commands targeting the project must use:
 ```
-wsl --cd ~/projects/nc_file_checksum_search <command>
+wsl --cd "$PWD" <command>
 ```
 
 ### 5.3 Test Runner
 ```
-wsl --cd ~/projects/nc_file_checksum_search vendor/bin/phpunit tests/Unit/...
+wsl --cd "$PWD" vendor/bin/phpunit tests/Unit/...
 ```
 
 ### 5.4 Integration Tests
 ```
-wsl --cd ~/projects/nc_file_checksum_search sudo --user www-data vendor/bin/phpunit tests/Integration/...
+wsl --cd "$PWD" sudo --user www-data vendor/bin/phpunit tests/Integration/...
 ```
 
 ### 5.5 Commit
 ```
-wsl --cd ~/projects/nc_file_checksum_search /home/mdr/bin/git add <files>
-wsl --cd ~/projects/nc_file_checksum_search /home/mdr/bin/git commit -F .aiassistant/tools/commit-msg.txt --trailer "Co-authored-by: Agent <agent@example.com>"
+wsl --cd "$PWD" git add <files>
+wsl --cd "$PWD" git commit -F .aiassistant/temp/commit-msg.txt --trailer "Co-authored-by: Agent <agent@example.com>"
 ```
 
 ### 5.6 Environment Reference
 | Item | Value |
 |------|-------|
-| Project root (WSL) | `/home/mdr/projects/nc_file_checksum_search` |
-| WSL home shorthand | `~/projects/nc_file_checksum_search` |
-| Git binary | `/home/mdr/bin/git` |
+| Project root (WSL) | `$PWD` |
+| Git binary | `git` |
 | PHPUnit | `vendor/bin/phpunit` |
 | PHP version | ≥8.2 |
 | NC version | v33–v34 |

@@ -107,7 +107,7 @@ This does not cut a release — that's a separate, dedicated `[RELEASE]` commit 
 ### 2.6 Stage and Commit
 
 1. Stage: `git add docs/changelog/NNN-slug.md` plus all changed source/test files, plus `CHANGELOG.md` if §2.5 applied
-2. Write commit message to `.aiassistant/tools/commit-msg.txt`, then run the appropriate commit script (`.aiassistant/COMMIT.md` §6.1)
+2. Write commit message to `.aiassistant/temp/commit-msg.txt`, then run the appropriate commit script (`.aiassistant/COMMIT.md` §6.1)
 3. Present commit gate following `AGENTS.md` §1.1 Universal Gate Template
 4. Execute according to the signal in §1
 

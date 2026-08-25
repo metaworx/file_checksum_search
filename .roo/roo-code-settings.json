@@ -55,7 +55,7 @@
             "..aiassistanttoolsphpunit.bat",
             "..aiassistanttoolsphpunit",
             "mkdir",
-            "powershell -File .aiassistant/tools/do-commit.ps1"
+            "powershell -File .aiassistant/shared/tools/do-commit.ps1"
         ],
         "deniedCommands": [],
         "allowedMaxRequests": null,

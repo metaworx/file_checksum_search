@@ -15,7 +15,7 @@ Activates code-mode execution of the gated Action Plan. Provides a pre-flight ch
 | Follow the Implementation Plan blocks in order | The AP UAMF |
 | Each block completes with its Verification checkpoint before the next begins | This command |
 | UAMF files are NEVER overwritten — each AP revision creates a new file | [`AGENTS.md`](AGENTS.md) §4 |
-| Test runner is `wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit` or JetBrains MCP | [`.aiassistant/TESTING.md`](.aiassistant/TESTING.md) §1 |
+| Test runner is `wsl --cd "$PWD" .aiassistant/shared/lang/php/tools/phpunit` or JetBrains MCP | [`.aiassistant/TESTING.md`](.aiassistant/TESTING.md) §1 |
 | Commit workflow follows [`.aiassistant/COMMIT.md`](.aiassistant/COMMIT.md) | This command |
 
 ## 2. Pre-Flight Checklist
@@ -36,30 +36,30 @@ Before writing a single line of code, verify:
 
 ### 3.1 Test Runner
 
-Always prefix with `wsl --cd ~/projects/nc_file_checksum_search`:
+Always prefix with `wsl --cd "$PWD"`:
 
 ```
-wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/Path/To/Test.php
+wsl --cd "$PWD" .aiassistant/shared/lang/php/tools/phpunit tests/Path/To/Test.php
 ```
 
 Scoped runs:
 
 ```
-wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/Unit/Controller/PublicApiControllerTest.php
-wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/Unit/
+wsl --cd "$PWD" .aiassistant/shared/lang/php/tools/phpunit tests/Unit/Controller/PublicApiControllerTest.php
+wsl --cd "$PWD" .aiassistant/shared/lang/php/tools/phpunit tests/Unit/
 ```
 
 Integration tests (as Nextcloud web server user):
 
 ```
-wsl --cd ~/projects/nc_file_checksum_search ./.aiassistant/tools/phpunit tests/Integration/
+wsl --cd "$PWD" .aiassistant/shared/lang/php/tools/phpunit tests/Integration/
 ```
 
 Fallback: JetBrains MCP `execute_run_configuration` with `filePath` + `line`.
 
 > **Important:** When using the native agent `execute_command` tool, always pass `cwd: "C:\\"` — the default workspace path `\\wsl.localhost\...` is a UNC path unsupported by CMD.EXE.
 
-> Use `.aiassistant/tools/phpunit` for all test runs — it auto-detects ddev vs direct execution and handles path translation.
+> Use `.aiassistant/shared/lang/php/tools/phpunit` for all test runs — it auto-detects ddev vs direct execution and handles path translation.
 
 ### 3.2 Database Commands
 
@@ -83,12 +83,12 @@ Use Git to move files where possible.
 
 ### 3.4 Git
 
-Commit workflow — always prefix with `wsl --cd ~/projects/nc_file_checksum_search`:
+Commit workflow — always prefix with `wsl --cd "$PWD"`:
 
-1. Write the commit message to `.aiassistant/tools/commit-msg.txt`
-2. Stage: `wsl --cd ~/projects/nc_file_checksum_search /home/mdr/bin/git add <files>`
-3. Commit: `wsl --cd ~/projects/nc_file_checksum_search /home/mdr/bin/git commit -F .aiassistant/tools/commit-msg.txt --trailer "Co-authored-by: Agent <agent@example.com>"`
-4. Amend: `wsl --cd ~/projects/nc_file_checksum_search /home/mdr/bin/git commit --amend -F .aiassistant/tools/commit-msg.txt --trailer "Co-authored-by: Agent <agent@example.com>"`
+1. Write the commit message to `.aiassistant/temp/commit-msg.txt`
+2. Stage: `wsl --cd "$PWD" git add <files>`
+3. Commit: `wsl --cd "$PWD" git commit -F .aiassistant/temp/commit-msg.txt --trailer "Co-authored-by: Agent <agent@example.com>"`
+4. Amend: `wsl --cd "$PWD" git commit --amend -F .aiassistant/temp/commit-msg.txt --trailer "Co-authored-by: Agent <agent@example.com>"`
 
 > **Important:** When using the native agent `execute_command` tool, always pass `cwd: "C:\\"` to avoid CMD.EXE UNC path errors.
 
