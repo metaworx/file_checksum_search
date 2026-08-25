@@ -186,7 +186,7 @@ into a project's `AGENTS.md`: `.aiassistant` is the project's agent directory an
 
 ---
 
-# Project Guidelines Entry Point (v1.0.0)
+# Project Guidelines Entry Point (v1.1.0)
 
 This file is the project-specific entry point for agent-facing guidance in
 **File Checksum Index & Search** (FCIAS) — a Nextcloud app that indexes file
@@ -194,10 +194,15 @@ checksums and makes them searchable.
 
 ## 1. Project Facts
 
+> No absolute paths here. An agent is already inside the checkout, so the
+> repository root is `git rev-parse --show-toplevel`; Windows-hosted agents
+> prefix with `wsl --cd "$PWD"` (see `.aiassistant/shared/ENVIRONMENTS.md`).
+> Machine-specific values belong in `.aiassistant/.env.local`, untracked.
+
+
 | Fact                  | Value |
 |-----------------------|-------|
 | Project name          | `metaworx/file_checksum_search`, Nextcloud app id `file_checksum_search` |
-| Repository root       | `/home/mdr/projects/nc_file_checksum_search` (WSL). Windows agents prefix commands per `.aiassistant/shared/ENVIRONMENTS.md` §1. |
 | Language(s)           | PHP (backend), TypeScript + Vue (frontend), SCSS/CSS, YAML (CI) |
 | Source directories    | `lib/` (PSR-4 `OCA\FileChecksumSearch\`), `src/` (frontend), `tests/` (PSR-4 `OCA\FileChecksumSearch\Tests\`), `appinfo/`, `templates/` |
 | Shipped-code paths    | `lib/`, `src/`, `css/`, `js/`, `templates/`, `img/`, `appinfo/routes.php`, `appinfo/info.xml` |
@@ -258,4 +263,5 @@ the change is not project-specific, port it there as well.
 
 | Version | Date       | Changed sections | Change type | Agent impact |
 |---------|------------|------------------|-------------|--------------|
+| v1.1.0  | 2026-08-25 | 1, 3             | minor       | Removes the absolute repository root; the root is derived and Windows hosts prefix with wsl --cd \"$PWD\". |
 | v1.0.0  | 2026-08-25 | All              | major       | Replaces this project's own copies of the agent documents with the shared submodule plus these project facts. The documents removed here (AGENTS.md v2.6.0, ENVIRONMENTS.md, the testing and linting baselines) were the newest lineage in the set and are preserved in the shared repository's history. |
