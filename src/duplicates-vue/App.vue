@@ -128,13 +128,23 @@ onMounted(() => {
 						</select>
 						<label class="db-label">
 							Min:
-							<input v-model.number="minCount" type="number" min="2" max="100" class="db-input-narrow">
+							<input v-model.number="minCount"
+								type="number"
+								min="2"
+								max="100"
+								class="db-input-narrow">
 						</label>
 						<label class="db-label">
 							Limit:
-							<input v-model.number="limit" type="number" min="1" max="500" class="db-input-narrow">
+							<input v-model.number="limit"
+								type="number"
+								min="1"
+								max="500"
+								class="db-input-narrow">
 						</label>
-						<button class="db-btn primary" @click="refresh">Refresh</button>
+						<button class="db-btn primary" @click="refresh">
+							Refresh
+						</button>
 						<VerifyButton :verifying="verifying" :has-verified="hasVerified" @verify="onVerify" />
 						<label class="db-label" title="Show only groups where all files were confirmed matching">
 							<input v-model="verifiedOnly" type="checkbox"> Only matching
@@ -142,8 +152,12 @@ onMounted(() => {
 					</div>
 
 					<div class="db-scroll">
-						<div v-if="loading" class="db-loading">Searching …</div>
-						<div v-else-if="error" class="db-error">{{ error }}</div>
+						<div v-if="loading" class="db-loading">
+							Searching …
+						</div>
+						<div v-else-if="error" class="db-error">
+							{{ error }}
+						</div>
 						<div v-else-if="filteredGroups.length === 0" class="db-empty">
 							{{ groups.length === 0 ? 'No duplicate files found.' : 'No matching duplicate files found.' }}
 						</div>
@@ -151,13 +165,16 @@ onMounted(() => {
 							v-for="(group, idx) in filteredGroups"
 							:key="`${group.algo}-${group.hash_value}-${idx}`"
 							:group="group"
-							:file-url="fileUrl"
-						/>
+							:file-url="fileUrl" />
 					</div>
 
 					<div class="db-pagination">
-						<button v-if="offset > 0" class="db-btn" @click="prevPage">← Previous</button>
-						<button v-if="hasMore" class="db-btn" @click="nextPage">Next →</button>
+						<button v-if="offset > 0" class="db-btn" @click="prevPage">
+							← Previous
+						</button>
+						<button v-if="hasMore" class="db-btn" @click="nextPage">
+							Next →
+						</button>
 					</div>
 				</template>
 
@@ -184,12 +201,14 @@ onMounted(() => {
 	padding: 16px;
 	width: 100%;
 }
+
 .db-tabs {
 	display: flex;
 	gap: 4px;
 	border-bottom: 1px solid var(--color-border);
 	margin-bottom: 16px;
 }
+
 .db-tab {
 	background: transparent;
 	border: none;
@@ -199,13 +218,16 @@ onMounted(() => {
 	color: var(--color-text-maxcontrast);
 	cursor: pointer;
 }
+
 .db-tab.is-active {
 	color: var(--color-main-text);
 	border-bottom-color: var(--color-primary);
 }
+
 .db-help {
 	padding: 8px 0;
 }
+
 .db-controls {
 	display: flex;
 	gap: 8px;
@@ -213,6 +235,7 @@ onMounted(() => {
 	flex-wrap: wrap;
 	align-items: center;
 }
+
 .db-select,
 .db-input-narrow,
 .db-btn {
@@ -223,24 +246,30 @@ onMounted(() => {
 	background: var(--color-main-background);
 	color: var(--color-main-text);
 }
+
 .db-btn {
 	cursor: pointer;
 }
+
 .db-btn:disabled {
 	opacity: 0.5;
 	cursor: default;
 }
+
 .db-btn.primary {
 	background: var(--color-primary-element);
 	color: #fff;
 	border-color: var(--color-primary-element);
 }
+
 .db-input-narrow {
 	width: 55px;
 }
+
 .db-label {
 	font-size: 13px;
 }
+
 .db-scroll {
 	max-height: calc(100vh - 180px);
 	overflow-y: auto;
@@ -248,18 +277,21 @@ onMounted(() => {
 	border: 1px solid var(--color-border);
 	border-radius: var(--border-radius);
 }
+
 .db-pagination {
 	display: flex;
 	gap: 8px;
 	justify-content: center;
 	margin-top: 16px;
 }
+
 .db-empty,
 .db-loading {
 	text-align: center;
 	padding: 32px;
 	color: var(--color-text-maxcontrast);
 }
+
 .db-error {
 	color: var(--color-error);
 	text-align: center;

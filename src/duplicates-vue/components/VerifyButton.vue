@@ -21,8 +21,7 @@ const emit = defineEmits<{
 		class="verify-btn"
 		:disabled="verifying"
 		:title="hasVerified ? 'All groups verified' : 'Recalculate all hashes from file content'"
-		@click="emit('verify')"
-	>
+		@click="emit('verify')">
 		{{ verifying ? 'Verifying …' : hasVerified ? '\u2713 Verified' : 'Verify hashes' }}
 	</button>
 </template>
@@ -37,6 +36,7 @@ const emit = defineEmits<{
 	color: var(--color-main-text);
 	cursor: pointer;
 }
+
 .verify-btn:disabled {
 	opacity: 0.5;
 	cursor: default;

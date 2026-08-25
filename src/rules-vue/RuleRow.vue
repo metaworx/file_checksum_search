@@ -27,11 +27,11 @@ const emit = defineEmits<{
 	(e: 'edit', rule: Rule): void
 	(e: 'toggle', rule: Rule): void
 	(e: 'delete', rule: Rule): void
-	(e: 'row-dragstart', rule: Rule, event: DragEvent): void
-	(e: 'row-dragover', rule: Rule, event: DragEvent): void
-	(e: 'row-dragleave', rule: Rule): void
-	(e: 'row-drop', rule: Rule, event: DragEvent): void
-	(e: 'row-dragend'): void
+	(e: 'rowDragstart', rule: Rule, event: DragEvent): void
+	(e: 'rowDragover', rule: Rule, event: DragEvent): void
+	(e: 'rowDragleave', rule: Rule): void
+	(e: 'rowDrop', rule: Rule, event: DragEvent): void
+	(e: 'rowDragend'): void
 }>()
 
 /** An ignore/exclude rule computes nothing, so it has no algorithms or mode. */
@@ -51,9 +51,9 @@ const computesHashes = (props.rule.type ?? 'include') === 'include'
 				'fcias-rule-pinned': rule.pinned,
 			},
 		]"
-		@dragover="emit('row-dragover', rule, $event)"
-		@dragleave="emit('row-dragleave', rule)"
-		@drop="emit('row-drop', rule, $event)">
+		@dragover="emit('rowDragover', rule, $event)"
+		@dragleave="emit('rowDragleave', rule)"
+		@drop="emit('rowDrop', rule, $event)">
 		<td class="fcias-drag-handle-cell">
 			<span
 				v-if="canDrag"
@@ -61,14 +61,18 @@ const computesHashes = (props.rule.type ?? 'include') === 'include'
 				draggable="true"
 				aria-hidden="true"
 				title="Drag to reorder within this band"
-				@dragstart="emit('row-dragstart', rule, $event)"
-				@dragend="emit('row-dragend')">⠿</span>
+				@dragstart="emit('rowDragstart', rule, $event)"
+				@dragend="emit('rowDragend')">⠿</span>
 		</td>
 		<td class="fcias-priority-cell" :title="`Band ${rule.band}, position ${rule.position}`">
 			{{ priorityLabel(rule) }}
 		</td>
-		<td :title="scopeLabel(rule.userScope)">{{ scopeLabel(rule.userScope) }}</td>
-		<td :title="rule.path || '/'">{{ rule.path || '/' }}</td>
+		<td :title="scopeLabel(rule.userScope)">
+			{{ scopeLabel(rule.userScope) }}
+		</td>
+		<td :title="rule.path || '/'">
+			{{ rule.path || '/' }}
+		</td>
 		<td>
 			<span :class="`fcias-rule-type fcias-rule-type-${rule.type ?? 'include'}`">
 				{{ rule.type ?? 'include' }}

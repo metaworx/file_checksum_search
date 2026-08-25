@@ -19,7 +19,7 @@
 }
 
 .fcias-btn {
-	margin-right: 8px;
+	margin-inline-end: 8px;
 }
 
 .fcias-btn-danger {
@@ -97,7 +97,7 @@
 
 .fcias-cron-actions {
 	white-space: nowrap;
-	text-align: left;
+	text-align: start;
 	/* Buttons must not inherit the value cells' ellipsis clipping. */
 	overflow: visible;
 	text-overflow: clip;

@@ -9,7 +9,7 @@
  * Escape HTML entities in a value for safe insertion into DOM.
  *
  * @param val - Value to escape (non-strings are coerced)
- * @returns HTML-escaped string
+ * @return HTML-escaped string
  */
 export function escapeHtml(val: unknown): string {
 	const div = document.createElement('div')

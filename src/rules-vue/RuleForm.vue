@@ -215,9 +215,15 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 			<div class="fcias-cron-form-row">
 				<label :for="ids.type">Type</label>
 				<select :id="ids.type" v-model="draft.type">
-					<option value="include">Include (compute checksums)</option>
-					<option value="ignore">Ignore (no automatic hashing; still allowed on request)</option>
-					<option value="exclude">Exclude (never hash these files)</option>
+					<option value="include">
+						Include (compute checksums)
+					</option>
+					<option value="ignore">
+						Ignore (no automatic hashing; still allowed on request)
+					</option>
+					<option value="exclude">
+						Exclude (never hash these files)
+					</option>
 				</select>
 				<HelpPopover :text="HELP.type" label="Type" />
 			</div>
@@ -228,9 +234,15 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 					{{ draft.userScope === 'all' ? 'All Users' : draft.userScope }}
 				</span>
 				<select v-else :id="ids.userscope" v-model="scopeChoice">
-					<option value="global">All Users</option>
-					<option value="group">A group</option>
-					<option value="user">A single user</option>
+					<option value="global">
+						All Users
+					</option>
+					<option value="group">
+						A group
+					</option>
+					<option value="user">
+						A single user
+					</option>
 				</select>
 				<HelpPopover :text="HELP.userScope" label="User Scope" />
 			</div>
@@ -238,7 +250,9 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 			<div v-if="variant === 'admin' && !lockScope && scopeChoice === 'group'" class="fcias-cron-form-row">
 				<label :for="ids.scopeTarget">Group</label>
 				<select :id="ids.scopeTarget" v-model="scopeTarget">
-					<option value="">— pick a group —</option>
+					<option value="">
+						— pick a group —
+					</option>
 					<option v-for="gid in availableGroups ?? []" :key="gid" :value="gid">
 						{{ gid }}
 					</option>
@@ -248,7 +262,9 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 			<div v-if="variant === 'admin' && !lockScope && scopeChoice === 'user'" class="fcias-cron-form-row">
 				<label :for="ids.scopeTarget">User</label>
 				<select :id="ids.scopeTarget" v-model="scopeTarget">
-					<option value="">— pick a user —</option>
+					<option value="">
+						— pick a user —
+					</option>
 					<option v-for="uid in availableUsers ?? []" :key="uid" :value="uid">
 						{{ uid }}
 					</option>
@@ -296,10 +312,18 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 			<div v-if="computesHashes" class="fcias-cron-form-row">
 				<label :for="ids.mode">Mode</label>
 				<select :id="ids.mode" v-model="draft.mode">
-					<option value="auto">Auto (recalc existing only if stale)</option>
-					<option value="missing">Missing (recalc existing + missing)</option>
-					<option value="force">Force (delete all, recalc all)</option>
-					<option value="lazy">Lazy (delete hashes, recalc later)</option>
+					<option value="auto">
+						Auto (recalc existing only if stale)
+					</option>
+					<option value="missing">
+						Missing (recalc existing + missing)
+					</option>
+					<option value="force">
+						Force (delete all, recalc all)
+					</option>
+					<option value="lazy">
+						Lazy (delete hashes, recalc later)
+					</option>
 				</select>
 				<HelpPopover :text="HELP.mode" label="Mode" />
 			</div>

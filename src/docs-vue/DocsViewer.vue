@@ -29,6 +29,10 @@ const props = withDefaults(defineProps<{
 	hashPrefix?: string
 }>(), {
 	endpoint: OCS_ADMIN.getDocs,
+	// Undefined and "" mean the same thing to both of these — show every doc,
+	// put nothing in the hash — so state it rather than leaving it implied.
+	only: '',
+	hashPrefix: '',
 })
 
 const docs = ref<DocEntry[]>([])
@@ -121,7 +125,11 @@ onBeforeUnmount(() => {
 					:title="doc.name ?? doc.label"
 					:aria-label="`Download ${doc.name ?? doc.label}`"
 					@click="downloadDoc(doc)">
-					<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+					<svg viewBox="0 0 24 24"
+						width="16"
+						height="16"
+						fill="currentColor"
+						aria-hidden="true">
 						<path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z" />
 					</svg>
 				</button>
@@ -129,7 +137,9 @@ onBeforeUnmount(() => {
 		</nav>
 
 		<div class="fcias-docs-content">
-			<p v-if="error" class="fcias-error">{{ error }}</p>
+			<p v-if="error" class="fcias-error">
+				{{ error }}
+			</p>
 			<NcRichText
 				v-else-if="activeDoc && isMarkdown(activeDoc)"
 				:text="activeDoc.content ?? ''"
@@ -137,7 +147,9 @@ onBeforeUnmount(() => {
 				:use-extended-markdown="true"
 				:autolink="true" />
 			<pre v-else-if="activeDoc" class="fcias-docs-raw">{{ activeDoc.content }}</pre>
-			<p v-else class="fcias-muted">No documentation available.</p>
+			<p v-else class="fcias-muted">
+				No documentation available.
+			</p>
 		</div>
 	</div>
 </template>
@@ -162,7 +174,7 @@ onBeforeUnmount(() => {
 	border: none;
 	border-radius: var(--border-radius, 3px);
 	padding: 6px 10px;
-	text-align: left;
+	text-align: start;
 	color: var(--color-main-text);
 	cursor: pointer;
 }
@@ -229,7 +241,9 @@ onBeforeUnmount(() => {
 	font-family: monospace;
 	font-size: 0.85em;
 	white-space: pre-wrap;
-	word-break: break-word;
+	/* `word-break: break-word` is deprecated; this is its standard spelling
+	   and breaks only words that would otherwise overflow. */
+	overflow-wrap: break-word;
 }
 
 .fcias-docs-content table {

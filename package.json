@@ -6,7 +6,8 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite --mode development build --watch",
-    "lint": "eslint src",
+    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint src",
+    "lint:fix": "ESLINT_USE_FLAT_CONFIG=false eslint src --fix",
     "stylelint": "stylelint src/**/*.vue src/**/*.scss src/**/*.css",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -31,6 +32,7 @@
   "dependencies": {
     "@nextcloud/files": "^4.0.0",
     "@nextcloud/l10n": "^3.4.0",
+    "@nextcloud/router": "^3.1.0",
     "@nextcloud/vue": "^9.8.2",
     "vue": "^3.5.35"
   },

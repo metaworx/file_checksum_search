@@ -161,7 +161,9 @@ loadRules()
 			</p>
 
 			<div id="fcias-personal-msg">
-				<p v-if="ruleMsg" class="fcias-error">{{ ruleMsg }}</p>
+				<p v-if="ruleMsg" class="fcias-error">
+					{{ ruleMsg }}
+				</p>
 			</div>
 
 			<div id="fcias-personal-rules">
@@ -176,7 +178,10 @@ loadRules()
 					@reorder="handleReorder" />
 			</div>
 
-			<button v-if="canEditAny" id="fcias-personal-add" class="fcias-btn" @click="openAddRule">
+			<button v-if="canEditAny"
+				id="fcias-personal-add"
+				class="fcias-btn"
+				@click="openAddRule">
 				Add Rule
 			</button>
 

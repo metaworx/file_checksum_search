@@ -31,7 +31,7 @@ vi.mock('@nextcloud/vue/components/NcRichText', () => ({
 	default: { name: 'NcRichText', render: () => null },
 }))
 
-const confirmMock = vi.fn((_text: string, _title: string, callback: (confirmed: boolean) => void) => callback(true))
+const confirmMock = vi.fn((_text: string, _title: string, onConfirm: (confirmed: boolean) => void) => onConfirm(true))
 
 ;(globalThis as unknown as { OC: unknown }).OC = {
 	requestToken: 'token',

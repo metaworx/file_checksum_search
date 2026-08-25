@@ -143,7 +143,7 @@ describe('RuleTable', () => {
 			const rows = ruleRows(wrapper)
 
 			// Dragging a user rule onto a default would promote it past every
-            // rule between — exactly what bands exist to prevent.
+			// rule between — exactly what bands exist to prevent.
 			await rows[0].find('.fcias-drag-handle').trigger('dragstart')
 			await rows[1].trigger('dragover')
 			await rows[1].trigger('drop')

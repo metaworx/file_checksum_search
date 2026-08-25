@@ -6,18 +6,18 @@
  * Sidebar tab showing indexed checksums for the selected file, with
  * SHA-1/MD5 recalc and inline duplicate lookup.
  */
-import {computed, ref, watch} from 'vue'
-import {translate as t} from '@nextcloud/l10n'
-import {generateUrl} from '@nextcloud/router'
+import { computed, ref, watch } from 'vue'
+import { translate as t } from '@nextcloud/l10n'
+import { generateUrl } from '@nextcloud/router'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
-import {FRONTEND} from '../routes'
-import {type AlgoOption, SUPPORTED_ALGOS, toAlgoOptions} from '../algorithms'
-import {useSidebarHashes} from './composables/useSidebarHashes'
-import {useClipboard} from './composables/useClipboard'
+import { FRONTEND } from '../routes'
+import { type AlgoOption, SUPPORTED_ALGOS, toAlgoOptions } from '../algorithms'
+import { useSidebarHashes } from './composables/useSidebarHashes'
+import { useClipboard } from './composables/useClipboard'
 import RecalcButton from './components/RecalcButton.vue'
 import SectionHeader from './components/SectionHeader.vue'
-import type {DuplicateFile, FileNode} from './types'
+import type { DuplicateFile, FileNode } from './types'
 
 const props = withDefaults(
 	defineProps<{
@@ -46,7 +46,7 @@ const {
 	toggleDuplicates,
 } = useSidebarHashes(() => props.node)
 
-const {copied, copyToClipboard} = useClipboard()
+const { copied, copyToClipboard } = useClipboard()
 
 const algoOptions: AlgoOption[] = toAlgoOptions([...SUPPORTED_ALGOS])
 const selectedAlgo = ref('sha256')
@@ -64,15 +64,17 @@ function onRecalc(algo: string | null): void {
 
 function fileLink(file: DuplicateFile): string {
 	const dirPath = file.path ? (file.path.substring(0, file.path.lastIndexOf('/')) || '/') : '/'
-	return `${generateUrl(FRONTEND.fileLink, {fileid: file.fileid})}?dir=${encodeURIComponent(dirPath)}&opendetails=true`
+	return `${generateUrl(FRONTEND.fileLink, { fileid: file.fileid })}?dir=${encodeURIComponent(dirPath)}&opendetails=true`
 }
 
 watch(
 	() => props.node,
 	() => {
-		void loadHashes()
+		// Fire-and-forget: loadHashes() reports its own failures through the
+		// `error` ref, so there is nothing for a caller to await or catch.
+		loadHashes()
 	},
-	{immediate: true},
+	{ immediate: true },
 )
 </script>
 
@@ -83,26 +85,28 @@ watch(
 				:title="t('file_checksum_search', 'Checksums')"
 				:help="t('file_checksum_search', 'Checksums indexed for this file. Click a hash to copy it.')" />
 			<div v-if="loading" class="fcias-loading">
-				<NcLoadingIcon :size="20"/>
+				<NcLoadingIcon :size="20" />
 				<span>{{ t('file_checksum_search', 'Loading checksums …') }}</span>
 			</div>
-			<div v-else-if="error" class="fcias-error">{{ error }}</div>
+			<div v-else-if="error" class="fcias-error">
+				{{ error }}
+			</div>
 			<div v-else-if="hashes.length === 0" class="fcias-empty">
 				{{ t('file_checksum_search', 'No checksums available for this file.') }}
 			</div>
 			<div v-else class="fcias-hash-table-wrap">
 				<table class="fcias-hash-table">
 					<tbody>
-					<tr v-for="entry in hashes" :key="entry.algo">
-						<td><span class="fcias-algo-badge">{{ entry.algo }}</span></td>
-						<td class="fcias-hash-value">
-							<span
-								class="fcias-selectable-hash"
-								:data-hash="entry.hash"
-								:title="entry.hash"
-								@click="copyToClipboard(entry.hash)">{{ entry.hash }}</span>
-						</td>
-					</tr>
+						<tr v-for="entry in hashes" :key="entry.algo">
+							<td><span class="fcias-algo-badge">{{ entry.algo }}</span></td>
+							<td class="fcias-hash-value">
+								<span
+									class="fcias-selectable-hash"
+									:data-hash="entry.hash"
+									:title="entry.hash"
+									@click="copyToClipboard(entry.hash)">{{ entry.hash }}</span>
+							</td>
+						</tr>
 					</tbody>
 				</table>
 			</div>
@@ -133,7 +137,7 @@ watch(
 							:options="algoOptions"
 							label="label"
 							track-by="id"
-							@update:model-value="onAlgorithmChange"/>
+							@update:model-value="onAlgorithmChange" />
 					</div>
 					<RecalcButton
 						:label="t('file_checksum_search', 'Recalc')"
@@ -156,24 +160,29 @@ watch(
 			</button>
 			<div v-if="showDuplicates" class="fcias-dup-results">
 				<div v-if="searching" class="fcias-loading">
-					<NcLoadingIcon :size="14"/>
+					<NcLoadingIcon :size="14" />
 					<span>{{ t('file_checksum_search', 'Searching …') }}</span>
 				</div>
-				<div v-else-if="dupError" class="fcias-error">{{ dupError }}</div>
+				<div v-else-if="dupError" class="fcias-error">
+					{{ dupError }}
+				</div>
 				<div v-else-if="duplicates && duplicates.length === 0" class="fcias-empty">
 					{{ t('file_checksum_search', 'No other files share checksums with this file.') }}
 				</div>
 				<div v-else>
-					<div v-for="group in duplicates" :key="`${group.algo}-${group.hash_value}`"
-					     class="fcias-dup-group">
+					<div v-for="group in duplicates"
+						:key="`${group.algo}-${group.hash_value}`"
+						class="fcias-dup-group">
 						<div class="fcias-dup-group-header">
 							<span class="fcias-algo-badge">{{ group.algo }}</span>
 							<span class="fcias-dup-hash-label">{{ group.hash_value }}</span>
 						</div>
 						<ul class="fcias-dup-list">
 							<li v-for="file in group.files" :key="file.fileid" class="fcias-dup-item">
-								<a class="fcias-dup-item-link" :href="fileLink(file)" target="_blank"
-								   rel="noreferrer noopener">{{ file.path }}</a>
+								<a class="fcias-dup-item-link"
+									:href="fileLink(file)"
+									target="_blank"
+									rel="noreferrer noopener">{{ file.path }}</a>
 							</li>
 						</ul>
 					</div>

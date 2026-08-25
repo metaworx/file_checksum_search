@@ -92,7 +92,7 @@
 
 .fcias-dup-item {
 	padding: 3px 0 3px 8px;
-	border-left: 2px solid var(--color-border);
+	border-inline-start: 2px solid var(--color-border);
 	margin-bottom: 2px;
 }
 

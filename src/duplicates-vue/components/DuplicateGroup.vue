@@ -58,9 +58,11 @@ function toggle(): void {
 .db-group {
 	border-bottom: 1px solid var(--color-border);
 }
+
 .db-group:last-child {
 	border-bottom: none;
 }
+
 .db-group-header {
 	padding: 10px 14px;
 	background: var(--color-background-dark);
@@ -69,9 +71,11 @@ function toggle(): void {
 	justify-content: space-between;
 	align-items: center;
 }
+
 .db-group-header:hover {
 	background: var(--color-background-hover);
 }
+
 .db-algo-badge {
 	display: inline-block;
 	padding: 2px 8px;
@@ -79,60 +83,73 @@ function toggle(): void {
 	background: var(--color-background-darker);
 	font-weight: 600;
 	font-size: 12px;
-	margin-right: 8px;
+	margin-inline-end: 8px;
 }
+
 .db-hash {
 	font-family: var(--font-face-monospace);
 	font-size: 12px;
 	color: var(--color-text-maxcontrast);
 	word-break: break-all;
 }
+
 .db-count {
 	font-size: 12px;
 	color: var(--color-text-maxcontrast);
 	white-space: nowrap;
-	margin-left: 12px;
+	margin-inline-start: 12px;
 }
+
 .db-group-body {
 	display: none;
 }
+
 .db-group.open .db-group-body {
 	display: block;
 }
+
 .db-file-list {
 	margin: 0;
 	padding: 0;
 	list-style: none;
 }
+
 .db-file-item {
 	padding: 6px 14px;
 	border-top: 1px solid var(--color-border);
 	font-size: 13px;
 	background: var(--color-main-background);
 }
+
 .db-file-item a {
 	color: var(--color-main-text);
 }
+
 .db-file-item a:hover {
 	color: var(--color-primary-element);
 }
+
 .db-verified {
 	color: var(--color-success);
-	margin-left: 4px;
+	margin-inline-start: 4px;
 	font-weight: bold;
 }
+
 .db-mismatch {
 	color: var(--color-error);
-	margin-left: 4px;
+	margin-inline-start: 4px;
 }
+
 .db-group-header-status {
 	font-size: 12px;
 	font-weight: 600;
 	white-space: nowrap;
 }
+
 .db-group-header-status.verified {
 	color: var(--color-success);
 }
+
 .db-group-header-status.mixed {
 	color: var(--color-warning);
 }

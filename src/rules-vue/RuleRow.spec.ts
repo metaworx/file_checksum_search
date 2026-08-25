@@ -134,11 +134,11 @@ describe('RuleRow', () => {
 		await wrapper.trigger('dragleave')
 		await wrapper.trigger('drop')
 
-		expect(wrapper.emitted('row-dragstart')?.[0]?.[0]).toEqual(rule)
-		expect(wrapper.emitted('row-dragend')).toBeTruthy()
-		expect(wrapper.emitted('row-dragover')?.[0]?.[0]).toEqual(rule)
-		expect(wrapper.emitted('row-dragleave')?.[0]?.[0]).toEqual(rule)
-		expect(wrapper.emitted('row-drop')?.[0]?.[0]).toEqual(rule)
+		expect(wrapper.emitted('rowDragstart')?.[0]?.[0]).toEqual(rule)
+		expect(wrapper.emitted('rowDragend')).toBeTruthy()
+		expect(wrapper.emitted('rowDragover')?.[0]?.[0]).toEqual(rule)
+		expect(wrapper.emitted('rowDragleave')?.[0]?.[0]).toEqual(rule)
+		expect(wrapper.emitted('rowDrop')?.[0]?.[0]).toEqual(rule)
 	})
 
 	it('emits edit/toggle/delete with the rule payload', async () => {

@@ -204,7 +204,10 @@ loadDefinitions()
 			<div class="fcias-section">
 				<h4>
 					Status
-					<button id="fcias-btn-refresh-status" class="fcias-btn" style="margin-left:12px" @click="loadStatus">
+					<button id="fcias-btn-refresh-status"
+						class="fcias-btn"
+						style="margin-left:12px"
+						@click="loadStatus">
 						Refresh
 					</button>
 				</h4>
@@ -212,15 +215,21 @@ loadDefinitions()
 					<tbody>
 						<tr>
 							<td>App Version</td>
-							<td id="fcias-status-version">{{ status.version || '—' }}</td>
+							<td id="fcias-status-version">
+								{{ status.version || '—' }}
+							</td>
 						</tr>
 						<tr>
 							<td>Database Version</td>
-							<td id="fcias-status-dbversion">{{ status.dbVersion || '—' }}</td>
+							<td id="fcias-status-dbversion">
+								{{ status.dbVersion || '—' }}
+							</td>
 						</tr>
 						<tr>
 							<td>Indexed Hashes</td>
-							<td id="fcias-status-rowcount">{{ status.rowCount || 0 }}</td>
+							<td id="fcias-status-rowcount">
+								{{ status.rowCount || 0 }}
+							</td>
 						</tr>
 						<tr>
 							<td>Pending Updates</td>
@@ -238,7 +247,9 @@ loadDefinitions()
 						</tr>
 						<tr>
 							<td>Last Updated</td>
-							<td id="fcias-status-lastupdated">{{ lastUpdated || '—' }}</td>
+							<td id="fcias-status-lastupdated">
+								{{ lastUpdated || '—' }}
+							</td>
 						</tr>
 					</tbody>
 				</table>
@@ -302,7 +313,9 @@ loadDefinitions()
 					@cancel="closeRuleForm" />
 
 				<div id="fcias-cron-msg">
-					<p v-if="ruleMsg" class="fcias-error">{{ ruleMsg }}</p>
+					<p v-if="ruleMsg" class="fcias-error">
+						{{ ruleMsg }}
+					</p>
 				</div>
 			</div>
 		</div>
