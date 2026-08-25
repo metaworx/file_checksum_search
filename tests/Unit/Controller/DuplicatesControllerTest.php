@@ -30,19 +30,19 @@ class DuplicatesControllerTest
 
 	private MockObject|HashIndexService $hashIndexService;
 
-	protected IDBConnection&MockObject $db;
+	protected IDBConnection&MockObject  $db;
 
 	private MockObject|IUserSession     $userSession;
 
 	private MockObject|IGroupManager    $groupManager;
 
 	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
-	private MockObject|IUserManager     $userManager;
+	private MockObject|IUserManager $userManager;
 
 	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
-	private MockObject|LoggerInterface  $logger;
+	private MockObject|LoggerInterface $logger;
 
-	private DuplicatesController        $controller;
+	private DuplicatesController       $controller;
 
 
 	protected function setUp(): void
@@ -76,17 +76,18 @@ class DuplicatesControllerTest
 	public function testFindAllReturnsEmptyWhenNoGroups(): void
 	{
 
-		$user = $this->createMock( IUser::class );
-		$user->method( 'getUID' )
-		     ->willReturn( 'bob' )
-		;
-		$this->userSession->method( 'getUser' )
-		                  ->willReturn( $user )
-		;
+		$this->signedInAs( 'bob' );
 
 		$this->hashIndexService->expects( $this->once() )
-		                       ->method( 'findAllDuplicates' )
-		                       ->willReturn( [] )
+		                       ->method( 'listDuplicatesForUser' )
+		                       ->willReturn( [
+			                       'duplicates'   => [],
+			                       'total_groups' => 0,
+			                       'pagination'   => [
+				                       'offset' => 0,
+				                       'limit'  => 50,
+			                       ],
+		                       ] )
 		;
 
 		$response = $this->controller->findAll();
@@ -97,93 +98,125 @@ class DuplicatesControllerTest
 	}
 
 
-	public function testFindAllReturnsUserDuplicates(): void
+	/**
+	 * The grouping and per-user filtering itself lives in HashIndexService and
+	 * is tested there; what matters here is that the controller asks for the
+	 * signed-in user's view and returns the answer untouched.
+	 */
+	public function testFindAllReturnsTheListingForTheSignedInUser(): void
 	{
 
-		$user = $this->createMock( IUser::class );
-		$user->method( 'getUID' )
-		     ->willReturn( 'bob' )
-		;
-		$this->userSession->method( 'getUser' )
-		                  ->willReturn( $user )
-		;
+		$this->signedInAs( 'bob' );
 
-		$this->hashIndexService->method( 'findAllDuplicates' )
-		                       ->willReturn( [
-			                       [
-				                       'algo'       => 'sha1',
-				                       'hash_value' => 'abc',
-				                       'file_count' => 2,
-				                       'fileids'    => [
-					                       42,
-					                       108,
-				                       ],
-			                       ],
-		                       ] )
-		;
+		$listing = [
+			'duplicates'   => [
+				[
+					'algo'       => 'sha1',
+					'hash_value' => 'abc',
+					'file_count' => 2,
+					'files'      => [
+						[
+							'fileid' => 42,
+							'path'   => 'files/photo.jpg',
+							'name'   => 'photo.jpg',
+						],
+						[
+							'fileid' => 108,
+							'path'   => 'files/backup/photo.jpg',
+							'name'   => 'photo.jpg',
+						],
+					],
+				],
+			],
+			'total_groups' => 1,
+			'pagination'   => [
+				'offset' => 0,
+				'limit'  => 50,
+			],
+		];
 
-		// Mock batchLookupFilecachePaths on HashIndexService
-		$this->hashIndexService->method( 'batchLookupFilecachePaths' )
-		                       ->willReturn( [
-			                       42  => [
-				                       'path'       => 'files/photo.jpg',
-				                       'name'       => 'photo.jpg',
-				                       'storage_id' => 'home::bob',
-				                       'user'       => 'bob',
-			                       ],
-			                       108 => [
-				                       'path'       => 'files/backup/photo.jpg',
-				                       'name'       => 'photo.jpg',
-				                       'storage_id' => 'home::bob',
-				                       'user'       => 'bob',
-			                       ],
-		                       ] )
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'listDuplicatesForUser' )
+		                       ->with( 'bob' )
+		                       ->willReturn( $listing )
 		;
 
-		$response = $this->controller->findAll();
-
-		$data = $response->getData();
-		$this->assertCount( 1, $data['duplicates'] );
-		$this->assertCount( 2, $data['duplicates'][0]['files'] );
+		$this->assertSame(
+			$listing,
+			$this->controller->findAll()
+			                 ->getData(),
+		);
 	}
 
 
 	/**
 	 * @noinspection PhpConditionAlreadyCheckedInspection
 	 */
-	public function testFindAllAcceptsAlgoFilter(): void
+	public function testFindAllPassesTheQueryParametersThrough(): void
 	{
 
-		$user = $this->createMock( IUser::class );
-		$user->method( 'getUID' )
-		     ->willReturn( 'bob' )
-		;
-		$this->userSession->method( 'getUser' )
-		                  ->willReturn( $user )
-		;
+		$this->signedInAs( 'bob' );
 
 		$this->hashIndexService->expects( $this->once() )
-		                       ->method( 'findAllDuplicates' )
-		                       ->with( 'sha1', 2, 10000, 0 )
-		                       ->willReturn( [] )
+		                       ->method( 'listDuplicatesForUser' )
+		                       ->with( 'bob', 'sha1', 3, 10, 20 )
+		                       ->willReturn( [
+			                       'duplicates'   => [],
+			                       'total_groups' => 0,
+			                       'pagination'   => [
+				                       'offset' => 20,
+				                       'limit'  => 10,
+			                       ],
+		                       ] )
 		;
 
-		$response = $this->controller->findAll( algo: 'sha1' );
+		$response = $this->controller->findAll( algo: 'sha1', minCount: 3, limit: 10, offset: 20 );
 
 		$this->assertInstanceOf( DataResponse::class, $response );
+	}
+
+
+	public function testFindAllQueriesTheTargetUserWhenAnAdminNamesOne(): void
+	{
+
+		$this->signedInAs( 'admin' );
+		$this->groupManager->method( 'isAdmin' )
+		                   ->with( 'admin' )
+		                   ->willReturn( true )
+		;
+
+		$alice = $this->createMock( IUser::class );
+		$alice->method( 'getUID' )
+		      ->willReturn( 'alice' )
+		;
+		$this->userManager->method( 'get' )
+		                  ->with( 'alice' )
+		                  ->willReturn( $alice )
+		;
+
+		// The whole point of the admin parameter: the listing is built for
+		// alice, not for the admin making the request.
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'listDuplicatesForUser' )
+		                       ->with( 'alice' )
+		                       ->willReturn( [
+			                       'duplicates'   => [],
+			                       'total_groups' => 0,
+			                       'pagination'   => [
+				                       'offset' => 0,
+				                       'limit'  => 50,
+			                       ],
+		                       ] )
+		;
+
+		$this->controller->findAll( user: 'alice' );
 	}
 
 
 	public function testFindAllRejectsNonAdminUserParam(): void
 	{
 
-		$user = $this->createMock( IUser::class );
-		$user->method( 'getUID' )
-		     ->willReturn( 'bob' )
-		;
-		$this->userSession->method( 'getUser' )
-		                  ->willReturn( $user )
-		;
+		$this->signedInAs( 'bob' );
 		$this->groupManager->method( 'isAdmin' )
 		                   ->with( 'bob' )
 		                   ->willReturn( false )
@@ -192,6 +225,19 @@ class DuplicatesControllerTest
 		$response = $this->controller->findAll( user: 'alice' );
 
 		$this->assertSame( Http::STATUS_FORBIDDEN, $response->getStatus() );
+	}
+
+
+	private function signedInAs( string $uid ): void
+	{
+
+		$user = $this->createMock( IUser::class );
+		$user->method( 'getUID' )
+		     ->willReturn( $uid )
+		;
+		$this->userSession->method( 'getUser' )
+		                  ->willReturn( $user )
+		;
 	}
 
 }

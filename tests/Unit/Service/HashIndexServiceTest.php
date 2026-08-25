@@ -28,10 +28,9 @@ class HashIndexServiceTest
 
 	private MockObject|MetadataService        $metadataService;
 
-	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
-	private MockObject|FilecacheService       $filecacheService;
+	private MockObject|FilecacheService $filecacheService;
 
-	private HashIndexService                  $service;
+	private HashIndexService            $service;
 
 
 	protected function setUp(): void
@@ -225,6 +224,270 @@ class HashIndexServiceTest
 			],
 			$result,
 		);
+	}
+
+
+	// ─── listDuplicatesForUser ──────────────────────────────────────
+
+	public function testListDuplicatesForUserReturnsAnEmptyListingWhenNoGroupsExist(): void
+	{
+
+		$this->duplicates->method( 'findAllDuplicates' )
+		                 ->willReturn( [] )
+		;
+		$this->filecacheService->expects( $this->never() )
+		                       ->method( 'batchLookupFilecachePaths' )
+		;
+
+		$result = $this->service->listDuplicatesForUser( 'bob' );
+
+		$this->assertSame(
+			[
+				'duplicates'   => [],
+				'total_groups' => 0,
+				'pagination'   => [
+					'offset' => 0,
+					'limit'  => DuplicateService::DEFAULT_DUPLICATE_LIMIT,
+				],
+			],
+			$result,
+		);
+	}
+
+
+	public function testListDuplicatesForUserResolvesEveryGroupsPathsInOneLookup(): void
+	{
+
+		$this->duplicates->method( 'findAllDuplicates' )
+		                 ->willReturn( [
+			                 $this->group(
+				                 'abc',
+				                 [
+					                 42,
+					                 108,
+				                 ],
+			                 ),
+			                 $this->group(
+				                 'def',
+				                 [
+					                 7,
+					                 9,
+				                 ],
+			                 ),
+		                 ] )
+		;
+
+		// One batched lookup for both groups, not one per group.
+		$this->filecacheService->expects( $this->once() )
+		                       ->method( 'batchLookupFilecachePaths' )
+		                       ->with(
+			                       [
+				                       42,
+				                       108,
+				                       7,
+				                       9,
+			                       ],
+			                       'bob',
+		                       )
+		                       ->willReturn(
+			                       $this->paths(
+				                       [
+					                       42,
+					                       108,
+					                       7,
+					                       9,
+				                       ],
+			                       ),
+		                       )
+		;
+
+		$result = $this->service->listDuplicatesForUser( 'bob' );
+
+		$this->assertCount( 2, $result['duplicates'] );
+		$this->assertSame( 2, $result['total_groups'] );
+	}
+
+
+	public function testListDuplicatesForUserKeepsOnlyTheFilesThatUserCanSee(): void
+	{
+
+		$this->duplicates->method( 'findAllDuplicates' )
+		                 ->willReturn(
+			                 [
+				                 $this->group(
+					                 'abc',
+					                 [
+						                 42,
+						                 108,
+						                 200,
+					                 ],
+				                 ),
+			                 ],
+		                 )
+		;
+
+		// 200 belongs to somebody else, so the lookup does not return it.
+		$this->filecacheService->method( 'batchLookupFilecachePaths' )
+		                       ->willReturn(
+			                       $this->paths(
+				                       [
+					                       42,
+					                       108,
+				                       ],
+			                       ),
+		                       )
+		;
+
+		$result = $this->service->listDuplicatesForUser( 'bob' );
+
+		$this->assertCount( 1, $result['duplicates'] );
+		$this->assertCount( 2, $result['duplicates'][0]['files'] );
+		// file_count is recomputed from what survived, not carried over.
+		$this->assertSame( 2, $result['duplicates'][0]['file_count'] );
+		$this->assertSame(
+			[
+				42,
+				108,
+			],
+			array_column( $result['duplicates'][0]['files'], 'fileid' ),
+		);
+	}
+
+
+	public function testListDuplicatesForUserDropsAGroupThatFallsBelowMinCount(): void
+	{
+
+		$this->duplicates->method( 'findAllDuplicates' )
+		                 ->willReturn(
+			                 [
+				                 $this->group(
+					                 'abc',
+					                 [
+						                 42,
+						                 108,
+					                 ],
+				                 ),
+			                 ],
+		                 )
+		;
+
+		// Only one of the two files is this user's, so for them it is not a
+		// duplicate at all — reporting it would mean claiming a file
+		// duplicates itself.
+		$this->filecacheService->method( 'batchLookupFilecachePaths' )
+		                       ->willReturn( $this->paths( [ 42 ] ) )
+		;
+
+		$result = $this->service->listDuplicatesForUser( 'bob' );
+
+		$this->assertSame( [], $result['duplicates'] );
+		$this->assertSame( 0, $result['total_groups'] );
+	}
+
+
+	public function testListDuplicatesForUserOverFetchesThenAppliesTheCallersLimit(): void
+	{
+
+		// The limit cannot be pushed into the query: how many groups survive
+		// per-user filtering is unknown until after it. So the query asks for
+		// far more than the caller wants, and the caller's limit trims what is
+		// left.
+		$this->duplicates->expects( $this->once() )
+		                 ->method( 'findAllDuplicates' )
+		                 ->with( 'sha1', 2, 10000, 5 )
+		                 ->willReturn( [
+			                 $this->group(
+				                 'a',
+				                 [
+					                 1,
+					                 2,
+				                 ],
+			                 ),
+			                 $this->group(
+				                 'b',
+				                 [
+					                 3,
+					                 4,
+				                 ],
+			                 ),
+			                 $this->group(
+				                 'c',
+				                 [
+					                 5,
+					                 6,
+				                 ],
+			                 ),
+		                 ] )
+		;
+		$this->filecacheService->method( 'batchLookupFilecachePaths' )
+		                       ->willReturn(
+			                       $this->paths(
+				                       [
+					                       1,
+					                       2,
+					                       3,
+					                       4,
+					                       5,
+					                       6,
+				                       ],
+			                       ),
+		                       )
+		;
+
+		$result = $this->service->listDuplicatesForUser( 'bob', 'sha1', 2, 2, 5 );
+
+		$this->assertCount( 2, $result['duplicates'] );
+		$this->assertSame( 2, $result['total_groups'] );
+		$this->assertSame(
+			[
+				'offset' => 5,
+				'limit'  => 2,
+			],
+			$result['pagination'],
+		);
+	}
+
+
+	/**
+	 * @param  int[]  $fileIds
+	 *
+	 * @return array{algo: string, hash_value: string, file_count: int, fileids: int[]}
+	 */
+	private function group(
+		string $hash,
+		array  $fileIds,
+	): array {
+
+		return [
+			'algo'       => 'sha1',
+			'hash_value' => $hash,
+			'file_count' => count( $fileIds ),
+			'fileids'    => $fileIds,
+		];
+	}
+
+
+	/**
+	 * @param  int[]  $fileIds
+	 *
+	 * @return array<int, array{path: string, name: string, storage_id: string, user: string}>
+	 */
+	private function paths( array $fileIds ): array
+	{
+
+		$paths = [];
+
+		foreach ( $fileIds as $fileId )
+		{
+			$paths[ $fileId ] = [
+				'path'       => "files/f$fileId.pdf",
+				'name'       => "f$fileId.pdf",
+				'storage_id' => 'home::bob',
+				'user'       => 'bob',
+			];
+		}
+
+		return $paths;
 	}
 
 }

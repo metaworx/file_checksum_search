@@ -76,8 +76,9 @@ class ChecksumApi
 	 * @return array{fileid: int, hashes: array<int, array{algo: string, hash: string}>}
 	 * @throws NotFoundException  If $requestingUser is set and cannot access $fileId
 	 */
-	public function getHashesByFileId( int     $fileId,
-	                                   ?string $requestingUser = null,
+	public function getHashesByFileId(
+		int     $fileId,
+		?string $requestingUser = null,
 	): array {
 
 		if ( $requestingUser !== null && ! $this->userCanAccessFile( $requestingUser, $fileId ) )
@@ -253,76 +254,7 @@ class ChecksumApi
 			];
 		}
 
-		$groups = $this->hashIndexService->findAllDuplicates( $algo, $minCount, 10000, $offset );
-
-		if ( empty( $groups ) )
-		{
-			return [
-				'duplicates'   => [],
-				'total_groups' => 0,
-				'pagination'   => [
-					'offset' => $offset,
-					'limit'  => $limit,
-				],
-			];
-		}
-
-		$allFileIds = [];
-
-		foreach ( $groups as $group )
-		{
-			foreach ( $group['fileids'] as $fid )
-			{
-				$allFileIds[] = $fid;
-			}
-		}
-
-		$fcPaths = $this->hashIndexService->batchLookupFilecachePaths( $allFileIds, $uid );
-
-		$result = [];
-
-		foreach ( $groups as $group )
-		{
-			$files = [];
-
-			foreach ( $group['fileids'] as $fid )
-			{
-				if ( isset( $fcPaths[ $fid ] ) )
-				{
-					$files[] = [
-						'fileid' => $fid,
-						'path'   => $fcPaths[ $fid ]['path'],
-						'name'   => $fcPaths[ $fid ]['name'],
-					];
-				}
-			}
-
-			if ( count( $files ) < $minCount )
-			{
-				continue;
-			}
-
-			$result[] = [
-				'algo'       => $group['algo'],
-				'hash_value' => $group['hash_value'],
-				'file_count' => count( $files ),
-				'files'      => $files,
-			];
-		}
-
-		if ( count( $result ) > $limit )
-		{
-			$result = array_slice( $result, 0, $limit );
-		}
-
-		return [
-			'duplicates'   => $result,
-			'total_groups' => count( $result ),
-			'pagination'   => [
-				'offset' => $offset,
-				'limit'  => $limit,
-			],
-		];
+		return $this->hashIndexService->listDuplicatesForUser( $uid, $algo, $minCount, $limit, $offset );
 	}
 
 

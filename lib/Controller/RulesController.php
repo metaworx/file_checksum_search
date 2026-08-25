@@ -141,26 +141,19 @@ class RulesController
 	public function create(): DataResponse
 	{
 
-		$userId = $this->currentUserId();
+		$context = $this->authorizeWrite();
 
-		if ( $userId === null )
+		if ( $context instanceof DataResponse )
 		{
-			return $this->unauthorized();
+			return $context;
 		}
 
-		$isAdmin = $this->groupManager->isAdmin( $userId );
-
-		if ( ! $isAdmin && ! $this->permissionService->canUserEditRules( $userId ) )
-		{
-			return $this->forbidden();
-		}
-
-		$body = $this->decodeBody();
-
-		if ( $body === null )
-		{
-			return $this->badRequest( 'Invalid request body.' );
-		}
+		[
+			'userId'  => $userId,
+			'isAdmin' => $isAdmin,
+			'body'    => $body,
+		]
+			= $context;
 
 		try
 		{
@@ -336,26 +329,19 @@ class RulesController
 	public function reorder(): DataResponse
 	{
 
-		$userId = $this->currentUserId();
+		$context = $this->authorizeWrite();
 
-		if ( $userId === null )
+		if ( $context instanceof DataResponse )
 		{
-			return $this->unauthorized();
+			return $context;
 		}
 
-		$isAdmin = $this->groupManager->isAdmin( $userId );
-
-		if ( ! $isAdmin && ! $this->permissionService->canUserEditRules( $userId ) )
-		{
-			return $this->forbidden();
-		}
-
-		$body = $this->decodeBody();
-
-		if ( $body === null )
-		{
-			return $this->badRequest( 'Invalid request body.' );
-		}
+		[
+			'userId'  => $userId,
+			'isAdmin' => $isAdmin,
+			'body'    => $body,
+		]
+			= $context;
 
 		$band       = $body['band'] ?? null;
 		$orderedIds = $body['orderedIds'] ?? null;
@@ -585,6 +571,50 @@ class RulesController
 				$this->groupManager->search( '' ),
 			),
 		);
+	}
+
+
+	/**
+	 * The checks create() and reorder() both open with: who is asking, may
+	 * they write rules at all, and did they send a body we can read.
+	 *
+	 * update() and destroy() deliberately do not use this. They authorise
+	 * against the rule being changed rather than against the caller alone —
+	 * permission to write rules is not permission to write *that* rule — so
+	 * sharing this prefix with them would invite the weaker check.
+	 *
+	 * @return array{userId: string, isAdmin: bool, body: array}|DataResponse
+	 *         The caller's context, or the response to return as-is.
+	 */
+	private function authorizeWrite(): array|DataResponse
+	{
+
+		$userId = $this->currentUserId();
+
+		if ( $userId === null )
+		{
+			return $this->unauthorized();
+		}
+
+		$isAdmin = $this->groupManager->isAdmin( $userId );
+
+		if ( ! $isAdmin && ! $this->permissionService->canUserEditRules( $userId ) )
+		{
+			return $this->forbidden();
+		}
+
+		$body = $this->decodeBody();
+
+		if ( $body === null )
+		{
+			return $this->badRequest( 'Invalid request body.' );
+		}
+
+		return [
+			'userId'  => $userId,
+			'isAdmin' => $isAdmin,
+			'body'    => $body,
+		];
 	}
 
 

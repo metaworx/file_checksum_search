@@ -51,7 +51,7 @@ class DuplicatesController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[ApiRoute(verb: 'GET', url: '/duplicates/data')]
+	#[ApiRoute( verb: 'GET', url: '/duplicates/data' )]
 	public function findAll(
 		?string $algo = null,
 		int     $minCount = 2,
@@ -112,90 +112,9 @@ class DuplicatesController
 			);
 		}
 
-		// Fetch all groups (limit=0 → LIMIT 0, so use large number)
-		$groups = $this->hashIndexService->findAllDuplicates(
-			$algo,
-			$minCount,
-			10000,
-			$offset,
-		);
-
-		if ( empty( $groups ) )
-		{
-			return new DataResponse(
-				[
-					'duplicates'   => [],
-					'total_groups' => 0,
-					'pagination'   => [
-						'offset' => $offset,
-						'limit'  => $limit,
-					],
-				],
-			);
-		}
-
-		// Collect all file IDs
-		$allFileIds = [];
-
-		foreach ( $groups as $group )
-		{
-			foreach ( $group['fileids'] as $fileId )
-			{
-				$allFileIds[] = $fileId;
-			}
-		}
-
-		// Batch-lookup filecache paths filtered by user
-		$fcPaths = $this->hashIndexService->batchLookupFilecachePaths( $allFileIds, $uid );
-
-		$result = [];
-
-		foreach ( $groups as $group )
-		{
-			$files = [];
-
-			foreach ( $group['fileids'] as $fileId )
-			{
-				if ( isset( $fcPaths[ $fileId ] ) )
-				{
-					$files[] = [
-						'fileid' => $fileId,
-						'path'   => $fcPaths[ $fileId ]['path'],
-						'name'   => $fcPaths[ $fileId ]['name'],
-					];
-				}
-			}
-
-			if ( count( $files ) < $minCount )
-			{
-				continue;
-			}
-
-			$result[] = [
-				'algo'       => $group['algo'],
-				'hash_value' => $group['hash_value'],
-				'file_count' => count( $files ),
-				'files'      => $files,
-			];
-		}
-
-		// Apply user-specified limit after filtering
-		if ( count( $result ) > $limit )
-		{
-			$result = array_slice( $result, 0, $limit );
-		}
-
 		return new DataResponse(
-			[
-				'duplicates'   => $result,
-				'total_groups' => count( $result ),
-				'pagination'   => [
-					'offset' => $offset,
-					'limit'  => $limit,
-				],
-			],
+			$this->hashIndexService->listDuplicatesForUser( $uid, $algo, $minCount, $limit, $offset ),
 		);
 	}
-
 
 }

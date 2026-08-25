@@ -38,15 +38,15 @@ class ChecksumApiTest
 	private MockObject|MetadataService  $metadataService;
 
 	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
-	private StatusService               $statusService;
+	private StatusService           $statusService;
 
-	private MockObject|IRootFolder      $rootFolder;
+	private MockObject|IRootFolder  $rootFolder;
 
-	private MockObject|IUserSession     $userSession;
+	private MockObject|IUserSession $userSession;
 
-	private MockObject|RuleService      $ruleService;
+	private MockObject|RuleService  $ruleService;
 
-	private ChecksumApi                 $api;
+	private ChecksumApi             $api;
 
 
 	protected function setUp(): void
@@ -188,21 +188,14 @@ class ChecksumApiTest
 	public function testFindDuplicatesClampsLimit(): void
 	{
 
-		$user = $this->createMock( IUser::class );
-		$user->method( 'getUID' )
-		     ->willReturn( 'bob' )
-		;
-		$this->userSession->method( 'getUser' )
-		                  ->willReturn( $user )
-		;
+		$this->signedInAs( 'bob' );
 
-		$this->hashIndexService->method( 'findAllDuplicates' )
-		                       ->willReturn( [] )
-		;
-
-		// limit > 500 should be clamped
-		$this->hashIndexService->method( 'batchLookupFilecachePaths' )
-		                       ->willReturn( [] )
+		// A caller asking for 999 gets 500, and the clamped value is what the
+		// listing is built with — not just what the response reports.
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'listDuplicatesForUser' )
+		                       ->with( 'bob', null, 2, 500, 0 )
+		                       ->willReturn( $this->emptyListing( 500 ) )
 		;
 
 		$result = $this->api->findDuplicates( null, 2, 999 );
@@ -214,18 +207,12 @@ class ChecksumApiTest
 	public function testFindDuplicatesRespectsAlgoAndMinCount(): void
 	{
 
-		$user = $this->createMock( IUser::class );
-		$user->method( 'getUID' )
-		     ->willReturn( 'bob' )
-		;
-		$this->userSession->method( 'getUser' )
-		                  ->willReturn( $user )
-		;
+		$this->signedInAs( 'bob' );
 
 		$this->hashIndexService->expects( $this->once() )
-		                       ->method( 'findAllDuplicates' )
-		                       ->with( 'sha256', 3, 10000, 0 )
-		                       ->willReturn( [] )
+		                       ->method( 'listDuplicatesForUser' )
+		                       ->with( 'bob', 'sha256', 3, 50, 0 )
+		                       ->willReturn( $this->emptyListing() )
 		;
 
 		$result = $this->api->findDuplicates( 'sha256', 3 );
@@ -241,6 +228,11 @@ class ChecksumApiTest
 		                  ->willReturn( null )
 		;
 
+		// Nobody to filter to, so nothing is queried at all.
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'listDuplicatesForUser' )
+		;
+
 		$result = $this->api->findDuplicates();
 
 		$this->assertEmpty( $result['duplicates'] );
@@ -248,63 +240,82 @@ class ChecksumApiTest
 	}
 
 
-	public function testFindDuplicatesReturnsGroupedResults(): void
+	/**
+	 * The grouping itself lives in HashIndexService and is tested there; this
+	 * checks the API hands back what it was given, for the signed-in user.
+	 */
+	public function testFindDuplicatesReturnsTheListingUntouched(): void
+	{
+
+		$this->signedInAs( 'bob' );
+
+		$listing = [
+			'duplicates'   => [
+				[
+					'algo'       => 'sha1',
+					'hash_value' => 'abc',
+					'file_count' => 2,
+					'files'      => [
+						[
+							'fileid' => 42,
+							'path'   => 'files/a.pdf',
+							'name'   => 'a.pdf',
+						],
+						[
+							'fileid' => 108,
+							'path'   => 'files/b.pdf',
+							'name'   => 'b.pdf',
+						],
+					],
+				],
+			],
+			'total_groups' => 1,
+			'pagination'   => [
+				'offset' => 0,
+				'limit'  => 50,
+			],
+		];
+
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'listDuplicatesForUser' )
+		                       ->with( 'bob', null, 2, 50, 0 )
+		                       ->willReturn( $listing )
+		;
+
+		$this->assertSame( $listing, $this->api->findDuplicates() );
+	}
+
+
+	/**
+	 * @noinspection PhpSameParameterValueInspection
+	 */
+	private function signedInAs( string $uid ): void
 	{
 
 		$user = $this->createMock( IUser::class );
 		$user->method( 'getUID' )
-		     ->willReturn( 'bob' )
+		     ->willReturn( $uid )
 		;
 		$this->userSession->method( 'getUser' )
 		                  ->willReturn( $user )
 		;
+	}
 
-		$this->hashIndexService->expects( $this->once() )
-		                       ->method( 'findAllDuplicates' )
-		                       ->with( null, 2, 10000, 0 )
-		                       ->willReturn( [
-			                       [
-				                       'algo'       => 'sha1',
-				                       'hash_value' => 'abc',
-				                       'file_count' => 2,
-				                       'fileids'    => [
-					                       42,
-					                       108,
-				                       ],
-			                       ],
-		                       ] )
-		;
 
-		$this->hashIndexService->expects( $this->once() )
-		                       ->method( 'batchLookupFilecachePaths' )
-		                       ->with(
-			                       [
-				                       42,
-				                       108,
-			                       ],
-			                       'bob',
-		                       )
-		                       ->willReturn( [
-			                       42  => [
-				                       'path'       => 'files/a.pdf',
-				                       'name'       => 'a.pdf',
-				                       'storage_id' => 'home::bob',
-				                       'user'       => 'bob',
-			                       ],
-			                       108 => [
-				                       'path'       => 'files/b.pdf',
-				                       'name'       => 'b.pdf',
-				                       'storage_id' => 'home::bob',
-				                       'user'       => 'bob',
-			                       ],
-		                       ] )
-		;
+	/**
+	 * @return array{duplicates: array, total_groups: int, pagination: array{offset: int, limit: int}}
+	 */
+	private function emptyListing( int $limit = 50 ): array
+	{
 
-		$result = $this->api->findDuplicates();
-
-		$this->assertCount( 1, $result['duplicates'] );
-		$this->assertSame( 1, $result['total_groups'] );
-		$this->assertCount( 2, $result['duplicates'][0]['files'] );
+		return [
+			'duplicates'   => [],
+			'total_groups' => 0,
+			'pagination'   => [
+				'offset' => 0,
+				'limit'  => $limit,
+			],
+		];
 	}
 
 
@@ -338,6 +349,7 @@ class ChecksumApiTest
 
 
 	// ─── getHashesByFileId ──────────────────────────────────────────
+
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
