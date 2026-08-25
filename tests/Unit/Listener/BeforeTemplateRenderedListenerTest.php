@@ -37,6 +37,17 @@ class BeforeTemplateRenderedListenerTest
 	public function testHandleAddsInitScriptAndStyle(): void
 	{
 
+		// Util::addInitScript() resolves through the global \OC container,
+		// which only exists when lib/base.php has booted a server. Under the
+		// source-tree fallback in tests/bootstrap.php only the autoloaders are
+		// loaded, so this test can only run inside a real installation (as in
+		// CI). Skipping is the honest report: the code is untestable here,
+		// not broken.
+		if ( ! class_exists( \OC::class ) )
+		{
+			$this->markTestSkipped( 'Requires a booted Nextcloud server (global OC); see tests/bootstrap.php.' );
+		}
+
 		$event = $this->createMock( BeforeTemplateRenderedEvent::class );
 
 		// The Util::addInitScript / Util::addStyle calls are static and
