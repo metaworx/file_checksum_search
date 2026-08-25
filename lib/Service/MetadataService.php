@@ -369,7 +369,7 @@ class MetadataService
 		{
 			$authoritativeHash = $metadata->getString( $metaKey );
 		}
-		catch ( FilesMetadataNotFoundException|FilesMetadataTypeException $e )
+		catch ( FilesMetadataNotFoundException|FilesMetadataTypeException )
 		{
 			$authoritativeHash = null;
 		}
@@ -525,9 +525,9 @@ class MetadataService
 		   ->where(
 			   $qb->expr()
 			      ->eq(
-					  'i.' . self::FIELD_META_VALUE_STRING,
-					  $qb->createNamedParameter( self::truncateForIndex( $hash ) ),
-				  ),
+				      'i.' . self::FIELD_META_VALUE_STRING,
+				      $qb->createNamedParameter( self::truncateForIndex( $hash ) ),
+			      ),
 		   )
 		   ->setMaxResults( $limit )
 		;
@@ -722,7 +722,9 @@ class MetadataService
 			{
 				try
 				{
-					$fullHash = $this->getMetadata( $fileId )->getString( $metaKey );
+					$fullHash = $this->getMetadata( $fileId )
+					                 ->getString( $metaKey )
+					;
 				}
 				catch ( FilesMetadataNotFoundException|FilesMetadataTypeException )
 				{
@@ -846,7 +848,7 @@ class MetadataService
 			$inserted   = $this->db->executeStatement(
 				<<<"SQL"
 INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`)
-SELECT `fc`.`fileid`, 'file-checksum-updated_at', '{$pendingNew}', 0
+SELECT `fc`.`fileid`, 'file-checksum-updated_at', '$pendingNew', 0
 FROM `*PREFIX*filecache` `fc`
 WHERE `fc`.`fileid` NOT IN (
 		  SELECT `file_id` FROM `*PREFIX*files_metadata_index`

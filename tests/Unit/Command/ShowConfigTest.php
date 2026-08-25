@@ -25,6 +25,7 @@ class ShowConfigTest
 
 	private MockObject|IAppConfig      $appConfig;
 
+	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 	private MockObject|LoggerInterface $logger;
 
 	private CommandTester              $tester;

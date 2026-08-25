@@ -15,6 +15,7 @@ use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\Files\File;
+use OCP\Files\Folder;
 use OCP\Files\Storage\IStorage;
 use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\Lock\ILockingProvider;
@@ -219,6 +220,9 @@ class HashCalculationServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testProcessFileLazyMode(): void
 	{
 
@@ -255,6 +259,9 @@ class HashCalculationServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testProcessFileForceMode(): void
 	{
 
@@ -312,6 +319,9 @@ class HashCalculationServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testProcessFileAutoModeSkipsMissingKeys(): void
 	{
 
@@ -381,6 +391,9 @@ class HashCalculationServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testProcessFileMissingMode(): void
 	{
 
@@ -438,6 +451,9 @@ class HashCalculationServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testProcessFileAutoModeAllKeysMissing(): void
 	{
 
@@ -482,6 +498,9 @@ class HashCalculationServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testProcessFileFailureMarksPending(): void
 	{
 
@@ -549,12 +568,12 @@ class HashCalculationServiceTest
 	{
 
 		$fileId = 99;
-		$file   = $this->createMock( \OCP\Files\File::class );
+		$file   = $this->createMock( File::class );
 		$file->method( 'getId' )
 		     ->willReturn( $fileId )
 		;
 
-		$metadata = $this->createMock( \OCP\FilesMetadata\Model\IFilesMetadata::class );
+		$metadata = $this->createMock( IFilesMetadata::class );
 
 		$this->filecacheService->expects( $this->once() )
 		                       ->method( 'getFile' )
@@ -631,7 +650,7 @@ class HashCalculationServiceTest
 		                       ->willReturn( $userFolderPath )
 		;
 
-		$folderMock = $this->createMock( \OCP\Files\Folder::class );
+		$folderMock = $this->createMock( Folder::class );
 		$folderMock->method( 'get' )
 		           ->with( '' )
 		           ->willReturn( $folderMock )
@@ -684,7 +703,7 @@ class HashCalculationServiceTest
 		                       ->willReturn( $userFolderPath )
 		;
 
-		$file = $this->createMock( \OCP\Files\File::class );
+		$file = $this->createMock( File::class );
 		$file->method( 'getChecksum' )
 		     ->willReturn( '' )
 		;
@@ -695,7 +714,7 @@ class HashCalculationServiceTest
 		     ->willReturn( 101 )
 		;
 
-		$folder = $this->createMock( \OCP\Files\Folder::class );
+		$folder = $this->createMock( Folder::class );
 		$folder->method( 'get' )
 		       ->with( '' )
 		       ->willReturn( $folder )
@@ -743,7 +762,7 @@ class HashCalculationServiceTest
 		                       ->willReturn( $userFolderPath )
 		;
 
-		$file = $this->createMock( \OCP\Files\File::class );
+		$file = $this->createMock( File::class );
 		$file->method( 'getChecksum' )
 		     ->willReturn( 'SHA1:deadbeef' )
 		;
@@ -751,7 +770,7 @@ class HashCalculationServiceTest
 		     ->willReturn( $userFolderPath . '/a.txt' )
 		;
 
-		$folder = $this->createMock( \OCP\Files\Folder::class );
+		$folder = $this->createMock( Folder::class );
 		$folder->method( 'get' )
 		       ->with( '' )
 		       ->willReturn( $folder )
@@ -789,7 +808,7 @@ class HashCalculationServiceTest
 		                       ->willReturn( $userFolderPath )
 		;
 
-		$pdf = $this->createMock( \OCP\Files\File::class );
+		$pdf = $this->createMock( File::class );
 		$pdf->method( 'getChecksum' )
 		    ->willReturn( '' )
 		;
@@ -800,7 +819,7 @@ class HashCalculationServiceTest
 		    ->willReturn( 201 )
 		;
 
-		$txt = $this->createMock( \OCP\Files\File::class );
+		$txt = $this->createMock( File::class );
 		$txt->method( 'getChecksum' )
 		    ->willReturn( '' )
 		;
@@ -811,7 +830,7 @@ class HashCalculationServiceTest
 		    ->willReturn( 202 )
 		;
 
-		$folder = $this->createMock( \OCP\Files\Folder::class );
+		$folder = $this->createMock( Folder::class );
 		$folder->method( 'get' )
 		       ->with( '' )
 		       ->willReturn( $folder )
@@ -951,7 +970,7 @@ class HashCalculationServiceTest
 		     ->willReturn( $userFolderPath . '/a.txt' )
 		;
 
-		$folder = $this->createMock( \OCP\Files\Folder::class );
+		$folder = $this->createMock( Folder::class );
 		$folder->method( 'get' )
 		       ->with( '' )
 		       ->willReturn( $folder )

@@ -9,7 +9,6 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\Listener;
 
-use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Listener\FileListener;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\MetadataService;
@@ -19,6 +18,7 @@ use OCP\Files\Events\Node\NodeCreatedEvent;
 use OCP\Files\Events\Node\NodeDeletedEvent;
 use OCP\Files\Events\Node\NodeWrittenEvent;
 use OCP\Files\File;
+use OCP\Files\Folder;
 use OCP\IUser;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -35,6 +35,7 @@ class FileListenerTest
 
 	private MockObject|RuleService      $ruleService;
 
+	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 	private MockObject|LoggerInterface  $logger;
 
 	private FileListener                $listener;
@@ -238,7 +239,7 @@ class FileListenerTest
 	{
 
 		$source = $this->createMock( File::class );
-		$target = $this->createMock( \OCP\Files\Folder::class );
+		$target = $this->createMock( Folder::class );
 
 		$event = new NodeCopiedEvent( $source, $target );
 
@@ -592,9 +593,11 @@ class FileListenerTest
 	/**
 	 * Create a File mock with getId(), getPath(), and getOwner()
 	 * configured — the owner UID is always 'owner-uid' in this suite.
+	 * @noinspection PhpSameParameterValueInspection
 	 */
-	private function makeFileMock( int    $id,
-	                               string $path,
+	private function makeFileMock(
+		int    $id,
+		string $path,
 	): MockObject|File {
 
 		$owner = $this->createMock( IUser::class );

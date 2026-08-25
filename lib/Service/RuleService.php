@@ -1372,7 +1372,8 @@ class RuleService
 			],
 			$glob,
 		);
-		$like = str_replace(
+
+		return str_replace(
 			[
 				'*',
 				'?',
@@ -1383,8 +1384,6 @@ class RuleService
 			],
 			$like,
 		);
-
-		return $like;
 	}
 
 }

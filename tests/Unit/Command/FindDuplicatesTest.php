@@ -28,6 +28,7 @@ class FindDuplicatesTest
 
 	private MockObject|IUserManager     $userManager;
 
+	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 	private MockObject|LoggerInterface  $logger;
 
 	private CommandTester               $tester;

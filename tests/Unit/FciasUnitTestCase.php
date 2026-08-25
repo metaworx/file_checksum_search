@@ -51,6 +51,7 @@ abstract class FciasUnitTestCase
 	 * on every commonly-used chainable method.
 	 *
 	 * Call this AFTER setting $this->db in the child setUp().
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	protected function setUpQueryBuilderMock(): void
 	{

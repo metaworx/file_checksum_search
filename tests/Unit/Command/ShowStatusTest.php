@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\DB\IResult;
 use OCP\IAppConfig;
+use OCP\IDBConnection;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -28,6 +29,7 @@ class ShowStatusTest
 
 	private MockObject|IAppConfig      $appConfig;
 
+	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 	private MockObject|LoggerInterface $logger;
 
 	private CommandTester              $tester;
@@ -38,12 +40,12 @@ class ShowStatusTest
 
 		parent::setUp();
 
-		$this->db              = $this->createMock( \OCP\IDBConnection::class );
+		$this->db = $this->createMock( IDBConnection::class );
 		$this->setUpQueryBuilderMock();
 
 		$this->metadataService = $this->createMock( MetadataService::class );
-		$this->appConfig        = $this->createMock( IAppConfig::class );
-		$this->logger           = $this->createMock( LoggerInterface::class );
+		$this->appConfig       = $this->createMock( IAppConfig::class );
+		$this->logger          = $this->createMock( LoggerInterface::class );
 
 		$result = $this->createMock( IResult::class );
 		$result->method( 'fetchOne' )
@@ -71,7 +73,12 @@ class ShowStatusTest
 		                ->willReturn( '1.9.2' )
 		;
 		$this->metadataService->method( 'getPendingStats' )
-		                      ->willReturn( [ 'pending:auto' => 3, 'pending:force' => 1 ] )
+		                      ->willReturn(
+			                      [
+				                      'pending:auto'  => 3,
+				                      'pending:force' => 1,
+			                      ],
+		                      )
 		;
 
 		$exitCode = $this->tester->execute( [] );

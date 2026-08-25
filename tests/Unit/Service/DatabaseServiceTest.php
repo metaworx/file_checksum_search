@@ -16,6 +16,7 @@ use OCA\FileChecksumSearch\Service\DatabaseService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\DB\IResult;
 use OCP\DB\QueryBuilder\IQueryFunction;
+use OCP\IDBConnection;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
 
@@ -24,13 +25,15 @@ class DatabaseServiceTest
 	FciasUnitTestCase
 {
 
-	private LoggerInterface&MockObject  $logger;
+	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
+	private LoggerInterface&MockObject       $logger;
 
-	private DatabaseService             $service;
+	private DatabaseService                  $service;
 
-	private DoctrineConnection&MockObject     $doctrineConn;
+	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
+	private DoctrineConnection&MockObject    $doctrineConn;
 
-	private AbstractSchemaManager&MockObject  $schemaManager;
+	private AbstractSchemaManager&MockObject $schemaManager;
 
 
 	protected function setUp(): void
@@ -38,7 +41,7 @@ class DatabaseServiceTest
 
 		parent::setUp();
 
-		$this->db     = $this->createMock( \OCP\IDBConnection::class );
+		$this->db     = $this->createMock( IDBConnection::class );
 		$this->logger = $this->createMock( LoggerInterface::class );
 
 		$this->setUpQueryBuilderMock();
@@ -55,7 +58,12 @@ class DatabaseServiceTest
 		// Partial mock: override only getRawConnection() so the Doctrine
 		// layer is isolated; keep real implementations of methods under test.
 		$this->service = $this->getMockBuilder( DatabaseService::class )
-		                      ->setConstructorArgs( [ $this->db, $this->logger ] )
+		                      ->setConstructorArgs(
+			                      [
+				                      $this->db,
+				                      $this->logger,
+			                      ],
+		                      )
 		                      ->onlyMethods( [ 'getRawConnection' ] )
 		                      ->getMock()
 		;

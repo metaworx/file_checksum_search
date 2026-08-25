@@ -30,6 +30,9 @@ class HashCalculationServiceTest
 	private HashCalculationService $service;
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	protected function setUp(): void
 	{
 
@@ -120,6 +123,9 @@ class HashCalculationServiceTest
 
 	// ─── HashCalculationService validation ───────────────────────────
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRecalcFileHashReturnsErrorForUnsupportedAlgo(): void
 	{
 
@@ -170,6 +176,9 @@ class HashCalculationServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRecalcHashesMultiAlgoMatchesHashFile(): void
 	{
 

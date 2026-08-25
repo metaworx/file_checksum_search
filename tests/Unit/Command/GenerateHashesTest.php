@@ -28,19 +28,18 @@ class GenerateHashesTest
 	TestCase
 {
 
-	private MockObject|HashIndexService       $hashIndexService;
+	private MockObject|HashIndexService $hashIndexService;
 
-	private MockObject|HashCalculationService $hashCalc;
+	private MockObject|MetadataService  $metadataService;
 
-	private MockObject|MetadataService        $metadataService;
+	private MockObject|FilecacheService $filecacheService;
 
-	private MockObject|FilecacheService       $filecacheService;
+	private MockObject|RuleService      $ruleService;
 
-	private MockObject|RuleService            $ruleService;
+	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
+	private MockObject|LoggerInterface  $logger;
 
-	private MockObject|LoggerInterface        $logger;
-
-	private CommandTester                     $tester;
+	private CommandTester               $tester;
 
 
 	protected function setUp(): void
@@ -49,7 +48,6 @@ class GenerateHashesTest
 		parent::setUp();
 
 		$this->hashIndexService = $this->createMock( HashIndexService::class );
-		$this->hashCalc         = $this->createMock( HashCalculationService::class );
 		$this->metadataService  = $this->createMock( MetadataService::class );
 		$this->filecacheService = $this->createMock( FilecacheService::class );
 		$this->ruleService      = $this->createMock( RuleService::class );
@@ -57,7 +55,6 @@ class GenerateHashesTest
 
 		$command      = new GenerateHashes(
 			$this->hashIndexService,
-			$this->hashCalc,
 			$this->metadataService,
 			$this->filecacheService,
 			$this->ruleService,

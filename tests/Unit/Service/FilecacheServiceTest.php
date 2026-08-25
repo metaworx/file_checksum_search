@@ -45,6 +45,9 @@ class FilecacheServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testGetFileReturnsFileWhenFilePassed(): void
 	{
 
@@ -56,6 +59,9 @@ class FilecacheServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testGetFileResolvesById(): void
 	{
 
@@ -287,6 +293,9 @@ class FilecacheServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testGetNodeByIdReturnsNode(): void
 	{
 
@@ -319,6 +328,9 @@ class FilecacheServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testGetUserFolderDelegates(): void
 	{
 
@@ -336,6 +348,9 @@ class FilecacheServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testGetUserFolderPathReturnsPath(): void
 	{
 

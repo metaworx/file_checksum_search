@@ -94,6 +94,9 @@ class CommandTest
 
 	// ─── ShowStatus ──────────────────────────────────────────────────
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testShowStatusJsonOutputIsValid(): void
 	{
 
@@ -115,6 +118,9 @@ class CommandTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testShowStatusPlainOutputContainsExpectedSections(): void
 	{
 
@@ -135,6 +141,9 @@ class CommandTest
 
 	// ─── FindDuplicates ──────────────────────────────────────────────
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFindDuplicatesRunsWithoutError(): void
 	{
 
@@ -149,6 +158,9 @@ class CommandTest
 
 	// ─── GenerateHashes ──────────────────────────────────────────────
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testGenerateHashesWithNonexistentUserReturnsFailure(): void
 	{
 
@@ -164,6 +176,9 @@ class CommandTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testGenerateHashesVerboseReportsZeroCollection(): void
 	{
 
@@ -186,6 +201,9 @@ class CommandTest
 
 	// ─── RebuildIndex ────────────────────────────────────────────────
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRebuildIndexRunsWithoutException(): void
 	{
 
@@ -204,6 +222,9 @@ class CommandTest
 
 	// ─── ShowConfig ──────────────────────────────────────────────────
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testShowConfigJsonOutputIsValid(): void
 	{
 
@@ -219,6 +240,9 @@ class CommandTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testShowConfigPlainOutput(): void
 	{
 
@@ -238,6 +262,9 @@ class CommandTest
 
 	// ─── TestPerformance ─────────────────────────────────────────────
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testTestPerformanceRunsWithoutError(): void
 	{
 

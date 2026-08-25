@@ -52,6 +52,7 @@ class PermissionServiceTest
 
 	/**
 	 * Deny by default, then allow via each of the three routes in turn.
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function configure(
 		bool  $allUsers = false,
@@ -85,6 +86,9 @@ class PermissionServiceTest
 
 	// isAllowed
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testAllUsersFlagAllowsAnyone(): void
 	{
 
@@ -96,6 +100,9 @@ class PermissionServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testListedUserIsAllowed(): void
 	{
 
@@ -107,6 +114,9 @@ class PermissionServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testMemberOfListedGroupIsAllowed(): void
 	{
 
@@ -123,6 +133,9 @@ class PermissionServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testUnlistedUserIsDenied(): void
 	{
 
@@ -142,6 +155,7 @@ class PermissionServiceTest
 	 * IGroupManager is optional, so group membership must not be consulted
 	 * when it is absent — and its absence must not deny a user who is
 	 * allowed by name.
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testGroupsAreSkippedWithoutAGroupManager(): void
 	{
@@ -161,6 +175,7 @@ class PermissionServiceTest
 	/**
 	 * The allow-all flag short-circuits, so a denied lookup never costs a
 	 * group-membership check per configured group.
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testAllUsersFlagSkipsTheGroupLookup(): void
 	{
@@ -191,6 +206,9 @@ class PermissionServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testStringListsAreFilteredBeforePersisting(): void
 	{
 
@@ -253,6 +271,9 @@ class PermissionServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testNonStringEntriesAreDroppedOnRead(): void
 	{
 
@@ -285,6 +306,7 @@ class PermissionServiceTest
 	 * The read side of the same mapping. RuleService used to own these keys;
 	 * pinning both directions is what makes the move a refactor rather than a
 	 * rename that silently orphans every configured allow-list.
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testReadsTheHistoricalConfigKeys(): void
 	{
@@ -334,6 +356,7 @@ class PermissionServiceTest
 	 * different from what the settings form configures.
 	 *
 	 * @dataProvider ruleEditingConfigurationProvider
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testCanUserEditRulesMatchesIsAllowed(
 		bool   $allUsers,
@@ -469,6 +492,7 @@ class PermissionServiceTest
 
 	/**
 	 * A rejected write must not reach the config at all.
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testUnknownPermissionWriteTouchesNothing(): void
 	{

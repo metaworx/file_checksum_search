@@ -626,7 +626,7 @@ class HashCalculationService
 
 		$processed = 0;
 
-		foreach ( array_values( $algos ) as $algo )
+		foreach ( $algos as $algo )
 		{
 			$result = $batch['results'][ $algo ] ?? null;
 

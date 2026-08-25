@@ -28,6 +28,7 @@ class HashIndexServiceTest
 
 	private MockObject|MetadataService        $metadataService;
 
+	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 	private MockObject|FilecacheService       $filecacheService;
 
 	private HashIndexService                  $service;

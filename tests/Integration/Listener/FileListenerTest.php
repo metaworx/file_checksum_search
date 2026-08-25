@@ -10,7 +10,6 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Integration\Listener;
 
-use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Listener\FileListener;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\MetadataService;
@@ -20,6 +19,7 @@ use OCP\Files\Events\Node\NodeCreatedEvent;
 use OCP\Files\Events\Node\NodeDeletedEvent;
 use OCP\Files\Events\Node\NodeWrittenEvent;
 use OCP\Files\File;
+use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\Server;
 use Psr\Log\LoggerInterface;
@@ -40,6 +40,7 @@ class FileListenerTest
 	DatabaseTestCase
 {
 
+	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 	private FilecacheService $filecacheService;
 
 	private MetadataService  $metadataService;
@@ -54,10 +55,10 @@ class FileListenerTest
 	/** @var list<int> */
 	private array $cleanupFileIds = [];
 
-	/** @var list<string> IDs of rules created during tests for cleanup */
-	private array $cleanupRuleIds = [];
 
-
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	protected function setUp(): void
 	{
 
@@ -102,6 +103,9 @@ class FileListenerTest
 
 	// ─── File Create ──────────────────────────────────────────────────
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFileCreateOffDoesNothing(): void
 	{
 
@@ -120,6 +124,9 @@ class FileListenerTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFileCreateLazyMarksPending(): void
 	{
 
@@ -143,6 +150,9 @@ class FileListenerTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFileCreateForceClearsAndMarksPending(): void
 	{
 
@@ -166,6 +176,9 @@ class FileListenerTest
 
 	// ─── File Write ───────────────────────────────────────────────────
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFileWriteOffDoesNothing(): void
 	{
 
@@ -185,6 +198,9 @@ class FileListenerTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFileWriteForceClearsAndMarksPending(): void
 	{
 
@@ -206,6 +222,9 @@ class FileListenerTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFileWriteLazyClearsAndMarksPending(): void
 	{
 
@@ -227,6 +246,9 @@ class FileListenerTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFileWriteAutoMarksPendingWhenHashExists(): void
 	{
 
@@ -258,6 +280,9 @@ class FileListenerTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFileWriteAutoSkipsWhenNoHash(): void
 	{
 
@@ -279,6 +304,9 @@ class FileListenerTest
 
 	// ─── File Delete ──────────────────────────────────────────────────
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFileDeleteOffDoesNothing(): void
 	{
 
@@ -303,6 +331,9 @@ class FileListenerTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFileDeleteOnAttemptsClearMetadata(): void
 	{
 
@@ -334,7 +365,7 @@ class FileListenerTest
 	public function testHandleIgnoresNonFileEventsGracefully(): void
 	{
 
-		$folder = $this->createMock( \OCP\Files\Folder::class );
+		$folder = $this->createMock( Folder::class );
 		$event  = new NodeDeletedEvent( $folder );
 
 		// Should not throw.
@@ -351,6 +382,7 @@ class FileListenerTest
 	/**
 	 * Seed metadata index entries via raw SQL to avoid triggering
 	 * the old filecache hash-table trigger (pre-existing issue).
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function seedMetadataIndex( int $fileId ): void
 	{
@@ -374,6 +406,7 @@ class FileListenerTest
 	 * Set a catch-all rule with the given mode for the current test.
 	 *
 	 * Uses RuleService::ruleAdd() to persist a rule matching all files.
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function setCatchAllRule( string $mode ): void
 	{
@@ -393,6 +426,7 @@ class FileListenerTest
 	 * Create a real test file in the admin user's storage.
 	 *
 	 * Registers the file and its fileId for automatic cleanup in tearDown().
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function createTestFile( string $name ): File
 	{
@@ -450,6 +484,7 @@ class FileListenerTest
 
 	/**
 	 * Remove all rules to ensure clean state between tests.
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function resetRules(): void
 	{
@@ -467,14 +502,5 @@ class FileListenerTest
 		}
 	}
 
-
-	/**
-	 * @deprecated Use resetRules() instead.
-	 */
-	private function resetConfigToDefaults(): void
-	{
-
-		$this->resetRules();
-	}
 
 }

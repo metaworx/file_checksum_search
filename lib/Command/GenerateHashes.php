@@ -32,12 +32,11 @@ class GenerateHashes
 {
 
 	public function __construct(
-		private readonly HashIndexService       $hashIndexService,
-		private readonly HashCalculationService $hashCalc,
-		private readonly MetadataService        $metadataService,
-		private readonly FilecacheService       $filecacheService,
-		private readonly RuleService            $ruleService,
-		private readonly LoggerInterface        $logger,
+		private readonly HashIndexService $hashIndexService,
+		private readonly MetadataService  $metadataService,
+		private readonly FilecacheService $filecacheService,
+		private readonly RuleService      $ruleService,
+		private readonly LoggerInterface  $logger,
 	) {
 
 		parent::__construct();

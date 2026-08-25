@@ -11,7 +11,6 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Command;
 
 use OCA\FileChecksumSearch\Command\RebuildIndex;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
-use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -29,8 +28,6 @@ class RebuildIndexTest
 
 	private MockObject|HashCalculationService $hashCalc;
 
-	private MockObject|HashIndexService       $hashIndexService;
-
 	private MockObject|LoggerInterface        $logger;
 
 	private CommandTester                     $tester;
@@ -41,15 +38,13 @@ class RebuildIndexTest
 
 		parent::setUp();
 
-		$this->metadataService  = $this->createMock( MetadataService::class );
-		$this->hashCalc         = $this->createMock( HashCalculationService::class );
-		$this->hashIndexService = $this->createMock( HashIndexService::class );
-		$this->logger           = $this->createMock( LoggerInterface::class );
+		$this->metadataService = $this->createMock( MetadataService::class );
+		$this->hashCalc        = $this->createMock( HashCalculationService::class );
+		$this->logger          = $this->createMock( LoggerInterface::class );
 
 		$command      = new RebuildIndex(
 			$this->metadataService,
 			$this->hashCalc,
-			$this->hashIndexService,
 			$this->logger,
 		);
 		$this->tester = new CommandTester( $command );
@@ -106,8 +101,18 @@ class RebuildIndexTest
 		$this->hashCalc->expects( $this->exactly( 2 ) )
 		               ->method( 'processFile' )
 		               ->willReturnMap( [
-			               [ 42, 'auto', HashCalculationService::SUPPORTED_ALGOS, null ],
-			               [ 108, 'force', HashCalculationService::SUPPORTED_ALGOS, null ],
+			               [
+				               42,
+				               'auto',
+				               HashCalculationService::SUPPORTED_ALGOS,
+				               null,
+			               ],
+			               [
+				               108,
+				               'force',
+				               HashCalculationService::SUPPORTED_ALGOS,
+				               null,
+			               ],
 		               ] )
 		;
 

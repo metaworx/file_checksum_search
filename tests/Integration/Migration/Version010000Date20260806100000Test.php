@@ -37,6 +37,9 @@ class Version010000Date20260806100000Test
 	private Version010000Date20260806100000 $migration;
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	protected function setUp(): void
 	{
 

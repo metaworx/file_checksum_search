@@ -11,7 +11,6 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
 use OCA\FileChecksumSearch\Controller\SettingsController;
 use OCA\FileChecksumSearch\Service\DatabaseService;
-use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\StatusService;
@@ -27,7 +26,6 @@ use OCP\IUserManager;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
 use ReflectionMethod;
-use RuntimeException;
 
 class SettingsControllerTest
 	extends
@@ -36,6 +34,7 @@ class SettingsControllerTest
 
 // ── private properties ───────────────────────────────────────────────
 
+	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 	private StatusService                $statusService;
 
 	private MockObject|IAppManager       $appManager;
@@ -48,8 +47,10 @@ class SettingsControllerTest
 
 	private MockObject|MetadataService   $metadataService;
 
+	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 	private MockObject|IRequest          $request;
 
+	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 	private MockObject|LoggerInterface   $logger;
 
 	private SettingsController           $controller;
@@ -101,6 +102,9 @@ class SettingsControllerTest
 
 // ── getStatus ────────────────────────────────────────────────────────
 
+	/**
+	 * @noinspection PhpConditionAlreadyCheckedInspection
+	 */
 	public function testGetStatusReturnsAppVersionAndCounts(): void
 	{
 
@@ -146,6 +150,9 @@ class SettingsControllerTest
 
 // ── getAdminOptions ──────────────────────────────────────────────────
 
+	/**
+	 * @noinspection PhpConditionAlreadyCheckedInspection
+	 */
 	public function testGetAdminOptionsReturnsPermissionFields(): void
 	{
 
@@ -252,6 +259,7 @@ class SettingsControllerTest
 	 * gate. Assert the attribute's absence directly instead. Personal
 	 * (non-admin) rule editing goes through PersonalSettingsController's
 	 * separate /personal/rules* routes.
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testAdminOnlyMethodsDoNotCarryNoAdminRequired(): void
 	{

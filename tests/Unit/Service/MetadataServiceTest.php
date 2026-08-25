@@ -737,6 +737,9 @@ class MetadataServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpRedundantOptionalArgumentInspection
+	 */
 	public function testQueryDuplicatesSplitsFalsePositiveTruncatedGroup(): void
 	{
 
@@ -793,6 +796,9 @@ class MetadataServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpRedundantOptionalArgumentInspection
+	 */
 	public function testQueryDuplicatesKeepsVerifiedTruncatedGroupIntact(): void
 	{
 
@@ -834,6 +840,9 @@ class MetadataServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testSaveMetadataSyncsToFilecache(): void
 	{
 
@@ -862,6 +871,10 @@ class MetadataServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 * @noinspection PhpConditionAlreadyCheckedInspection
+	 */
 	public function testGetMetadataCreatesFromRawArray(): void
 	{
 
@@ -885,6 +898,10 @@ class MetadataServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 * @noinspection PhpConditionAlreadyCheckedInspection
+	 */
 	public function testGetMetadataCreatesFromString(): void
 	{
 
@@ -900,6 +917,10 @@ class MetadataServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 * @noinspection PhpConditionAlreadyCheckedInspection
+	 */
 	public function testGetMetadataCreatesFromDbRow(): void
 	{
 

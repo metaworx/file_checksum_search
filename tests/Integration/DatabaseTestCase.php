@@ -42,6 +42,9 @@ abstract class DatabaseTestCase
 	private ?string $tablePrefix = null;
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	protected function setUp(): void
 	{
 
@@ -56,6 +59,7 @@ abstract class DatabaseTestCase
 	 *
 	 * Call this from your test's setUp() or at the start of each test
 	 * method when you need isolation.
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	protected function beginTransaction(): void
 	{
@@ -100,6 +104,9 @@ abstract class DatabaseTestCase
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	protected function getSchemaManager(): AbstractSchemaManager
 	{
 
@@ -111,6 +118,9 @@ abstract class DatabaseTestCase
 
 	// ─── naming helpers ──────────────────────────────────────────────
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	protected function getTablePrefix(): string
 	{
 
@@ -132,6 +142,9 @@ abstract class DatabaseTestCase
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	protected function assertTableExists( string $tableName ): void
 	{
 
@@ -143,6 +156,9 @@ abstract class DatabaseTestCase
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	protected function assertTableNotExists( string $tableName ): void
 	{
 
@@ -154,6 +170,9 @@ abstract class DatabaseTestCase
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	protected function assertColumnExists(
 		string $tableName,
 		string $columnName,
@@ -177,6 +196,9 @@ abstract class DatabaseTestCase
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	protected function assertColumnNotExists(
 		string $tableName,
 		string $columnName,
@@ -205,6 +227,7 @@ abstract class DatabaseTestCase
 	 *
 	 * Use sparingly — prefer IDBConnection::getQueryBuilder() for
 	 * portable queries.  This is intended for DDL helpers and cleanup.
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	protected function executeRawSql( string $sql ): void
 	{
@@ -217,6 +240,7 @@ abstract class DatabaseTestCase
 
 	/**
 	 * Count rows in a table (simple convenience wrapper).
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	protected function countRows( string $tableName ): int
 	{

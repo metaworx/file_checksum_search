@@ -48,6 +48,9 @@ class DuplicateServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpRedundantOptionalArgumentInspection
+	 */
 	public function testFindAllDuplicatesDelegatesToMetadataService(): void
 	{
 

@@ -58,6 +58,9 @@ class ProcessPendingUpdatesIntegrationTest
 	private array $cleanupFileIds = [];
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	protected function setUp(): void
 	{
 
@@ -148,6 +151,7 @@ class ProcessPendingUpdatesIntegrationTest
 	/**
 	 * Cron drains pending entries and computes hashes for both the
 	 * pending:new (rule-resolved) and pending:missing (direct) markers.
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testCronDrainsPendingEntriesAndComputesHashes(): void
 	{
@@ -260,6 +264,9 @@ class ProcessPendingUpdatesIntegrationTest
 	// ─── helpers ──────────────────────────────────────────────────────
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	private function buildJob(): ProcessPendingUpdates
 	{
 
@@ -276,6 +283,7 @@ class ProcessPendingUpdatesIntegrationTest
 
 	/**
 	 * Add a catch-all rule with mode=force so pending:new computes hashes.
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function addCatchAllForceRule(): void
 	{
@@ -304,6 +312,7 @@ class ProcessPendingUpdatesIntegrationTest
 
 	/**
 	 * Create a real test file in the admin user's storage.
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function createTestFile( string $name ): File
 	{
@@ -321,6 +330,9 @@ class ProcessPendingUpdatesIntegrationTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	private function insertPendingMarker( int $fileId, string $marker ): void
 	{
 
@@ -335,6 +347,7 @@ class ProcessPendingUpdatesIntegrationTest
 
 	/**
 	 * Remove every pending row except those belonging to $keepFileIds.
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function deleteOtherPendingRows( array $keepFileIds ): void
 	{
@@ -350,6 +363,9 @@ class ProcessPendingUpdatesIntegrationTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	private function countPendingRows( array $fileIds ): int
 	{
 
@@ -386,6 +402,8 @@ class ProcessPendingUpdatesIntegrationTest
 
 	/**
 	 * @return array{id: int, class: string, last_run: int}|null
+	 * @noinspection PhpUnhandledExceptionInspection
+	 * @noinspection PhpDocMissingThrowsInspection
 	 */
 	private function fetchJobRow( string $class ): ?array
 	{
@@ -413,6 +431,9 @@ class ProcessPendingUpdatesIntegrationTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	private function setJobLastRun( string $class, int $lastRun ): void
 	{
 

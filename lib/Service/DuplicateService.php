@@ -14,8 +14,6 @@ namespace OCA\FileChecksumSearch\Service;
  *
  * Delegates search to MetadataService against oc_files_metadata_index.
  * Path resolution via FilecacheService.
- *
- * @noinspection PhpClassCanBeReadonlyInspection
  */
 class DuplicateService
 {

@@ -17,8 +17,6 @@ use OCP\IDBConnection;
  * column (format: "ALGO:hex ALGO:hex ...").  Also provides Node resolution
  * helpers (by filecache ID), batch path lookups via filecache+storages join,
  * and checksum-copy support for NodeCopiedEvent.
- *
- * @noinspection PhpClassCanBeReadonlyInspection
  */
 class FilecacheService
 {
@@ -27,7 +25,7 @@ class FilecacheService
 
 
 	public function __construct(
-		private readonly IRootFolder  $rootFolder,
+		private readonly IRootFolder   $rootFolder,
 		private readonly IDBConnection $db,
 	) {
 	}
@@ -140,7 +138,7 @@ class FilecacheService
 	/**
 	 * @param  string  $userId
 	 *
-	 * @return \OCP\Files\Folder
+	 * @return string  The user folder's absolute path.
 	 * @throws \OCP\Files\NotPermittedException
 	 * @throws \OCP\User\Exceptions\UserNotFoundException
 	 */

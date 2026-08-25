@@ -79,6 +79,9 @@ class PublicApiControllerTest
 
 	// ─── lookup ─────────────────────────────────────────────────────
 
+	/**
+	 * @noinspection PhpConditionAlreadyCheckedInspection
+	 */
 	public function testFindAllDuplicatesPassesAllParams(): void
 	{
 
@@ -101,6 +104,9 @@ class PublicApiControllerTest
 	}
 
 
+	/**
+	 * @noinspection PhpConditionAlreadyCheckedInspection
+	 */
 	public function testFindAllDuplicatesReturnsGroups(): void
 	{
 
@@ -139,6 +145,9 @@ class PublicApiControllerTest
 	}
 
 
+	/**
+	 * @noinspection PhpConditionAlreadyCheckedInspection
+	 */
 	public function testFindDuplicatesReturnsGroups(): void
 	{
 
@@ -186,6 +195,9 @@ class PublicApiControllerTest
 	}
 
 
+	/**
+	 * @noinspection PhpConditionAlreadyCheckedInspection
+	 */
 	public function testGetHashesReturnsFileHashes(): void
 	{
 
@@ -310,6 +322,9 @@ class PublicApiControllerTest
 	}
 
 
+	/**
+	 * @noinspection PhpConditionAlreadyCheckedInspection
+	 */
 	public function testGetStatusReturnsHealthInfo(): void
 	{
 
@@ -349,6 +364,9 @@ class PublicApiControllerTest
 	}
 
 
+	/**
+	 * @noinspection PhpConditionAlreadyCheckedInspection
+	 */
 	public function testLookupPassesAlgoParameter(): void
 	{
 
@@ -381,6 +399,9 @@ class PublicApiControllerTest
 
 	// ─── findAllDuplicates ──────────────────────────────────────────
 
+	/**
+	 * @noinspection PhpConditionAlreadyCheckedInspection
+	 */
 	public function testLookupReturnsResults(): void
 	{
 
@@ -493,6 +514,9 @@ class PublicApiControllerTest
 	}
 
 
+	/**
+	 * @noinspection PhpConditionAlreadyCheckedInspection
+	 */
 	public function testRecalcHashReturnsSuccess(): void
 	{
 

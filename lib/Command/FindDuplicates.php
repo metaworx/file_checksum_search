@@ -348,7 +348,6 @@ class FindDuplicates
 
 			if ( $verified )
 			{
-				$match    = $group['match_count'] ?? 0;
 				$mismatch = $group['mismatch_count'] ?? 0;
 
 				if ( $mismatch > 0 )

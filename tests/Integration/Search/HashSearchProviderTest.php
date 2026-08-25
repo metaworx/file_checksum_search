@@ -48,6 +48,9 @@ class HashSearchProviderTest
 	private int $inaccessibleFileId;
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	protected function setUp(): void
 	{
 
@@ -87,6 +90,9 @@ class HashSearchProviderTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testSearchReturnsResultsForKnownHash(): void
 	{
 
@@ -123,6 +129,9 @@ class HashSearchProviderTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testSearchReturnsResultsForAlgoColonHashFormat(): void
 	{
 
@@ -201,6 +210,9 @@ class HashSearchProviderTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testSearchExcludesInaccessibleFiles(): void
 	{
 
@@ -243,6 +255,9 @@ SQL,
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testSearchFiltersByAlgoInColonFormat(): void
 	{
 
@@ -282,6 +297,9 @@ SQL,
 
 	// ─── helpers ─────────────────────────────────────────────────────
 
+	/**
+	 * @noinspection PhpSameParameterValueInspection
+	 */
 	private function createSearchQuery(
 		string $term,
 		int    $limit = 100,
@@ -312,6 +330,8 @@ SQL,
 	 * Full hash is preserved in JSON.
 	 *
 	 * @param array<string, string> $hashes  algo => hex-hash pairs
+	 * @noinspection PhpUnhandledExceptionInspection
+	 * @noinspection PhpDocMissingThrowsInspection
 	 */
 	private function insertHashMetadata(
 		int   $fileId,

@@ -102,6 +102,9 @@ class RulesControllerTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	private function body( array $payload ): void
 	{
 
@@ -278,6 +281,9 @@ class RulesControllerTest
 
 	// create
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testCreateForcesANonAdminsScopeAndEnforcedFlag(): void
 	{
 
@@ -341,6 +347,9 @@ class RulesControllerTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testCreateRefusesAPathTheUserCannotWriteTo(): void
 	{
 
@@ -364,6 +373,9 @@ class RulesControllerTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testCreateLetsAnAdminSetScopeAndEnforcement(): void
 	{
 
@@ -399,6 +411,9 @@ class RulesControllerTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testCreateRejectsAScopeNamingAGroupThatDoesNotExist(): void
 	{
 
@@ -428,6 +443,7 @@ class RulesControllerTest
 
 	/**
 	 * @dataProvider invalidPayloadProvider
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testCreateRejectsAnInvalidPayload( array $payload ): void
 	{
@@ -483,6 +499,9 @@ class RulesControllerTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testCreateStoresNoAlgorithmsForANonIncludeRule(): void
 	{
 
@@ -562,6 +581,9 @@ class RulesControllerTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testUpdateCarriesUnchangedFieldsFromTheStoredRule(): void
 	{
 
@@ -651,6 +673,9 @@ class RulesControllerTest
 
 	// reorder
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testReorderPassesTheCallersIdForANonAdmin(): void
 	{
 
@@ -689,6 +714,9 @@ class RulesControllerTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testReorderPassesNoCallerForAnAdmin(): void
 	{
 
@@ -719,6 +747,9 @@ class RulesControllerTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testReorderMapsAnInvalidPermutationToBadRequest(): void
 	{
 
@@ -741,6 +772,7 @@ class RulesControllerTest
 
 	/**
 	 * @dataProvider invalidReorderProvider
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testReorderRejectsAMalformedPayload( array $payload ): void
 	{
@@ -785,6 +817,9 @@ class RulesControllerTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testAFailureIsLoggedAndReportedAsAServerError(): void
 	{
 

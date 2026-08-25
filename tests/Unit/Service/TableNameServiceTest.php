@@ -84,10 +84,12 @@ class TableNameServiceTest
 
 		$service = new TableNameService( $config );
 
-		// Calling the getters repeatedly must not re-read config.
-		$service->getPrefix();
-		$service->getPrefix();
-		$service->getFilecacheTableName();
+		// Calling the getters repeatedly must not re-read config — the
+		// expects( once() ) above is the real assertion; these check that the
+		// cached answers stay the same rather than discarding them.
+		$this->assertSame( 'oc_', $service->getPrefix() );
+		$this->assertSame( 'oc_', $service->getPrefix() );
+		$this->assertSame( 'oc_filecache', $service->getFilecacheTableName() );
 	}
 
 }

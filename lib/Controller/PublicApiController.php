@@ -19,6 +19,7 @@ use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\Files\NotFoundException;
 use OCP\IGroupManager;
 use OCP\IRequest;
 use OCP\IUserSession;
@@ -110,7 +111,7 @@ class PublicApiController
 
 			return new DataResponse( $result );
 		}
-		catch ( \OCP\Files\NotFoundException )
+		catch ( NotFoundException )
 		{
 			return new DataResponse( [ 'error' => 'File not found.' ], Http::STATUS_NOT_FOUND );
 		}

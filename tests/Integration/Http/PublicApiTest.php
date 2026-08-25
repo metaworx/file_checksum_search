@@ -306,6 +306,8 @@ class PublicApiTest
 	}
 
 
+	/**
+	 */
 	private function httpPost(
 		string $path,
 		array  $data,
@@ -344,6 +346,8 @@ class PublicApiTest
 	 * JSON format matches NC MetadataValueWrapper serialization.
 	 *
 	 * @param  array<string, string>  $hashes  algo => hex-hash pairs
+	 * @noinspection PhpUnhandledExceptionInspection
+	 * @noinspection PhpDocMissingThrowsInspection
 	 */
 	private function insertHashMetadata(
 		int   $fileId,

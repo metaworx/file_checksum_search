@@ -111,6 +111,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpSameParameterValueInspection
+	 */
 	private function createRuleServicePartial(
 		array $methods,
 	): RuleService&MockObject {
@@ -166,6 +169,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	private function setupRulesConfig( array $rules ): void
 	{
 
@@ -199,6 +205,9 @@ class RuleServiceTest
 
 	// evaluateRules
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testEvaluateRulesProcessesEnabledRules(): void
 	{
 
@@ -234,6 +243,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testEvaluateRulesSkipsDisabledRules(): void
 	{
 
@@ -253,6 +265,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testEvaluateRulesBuildsExclusionList(): void
 	{
 
@@ -299,6 +314,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testEvaluateRulesHandlesUserResolutionFailure(): void
 	{
 
@@ -457,6 +475,9 @@ class RuleServiceTest
 
 	// searchFilesByGlob
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testSearchFilesByGlobReturnsMatchingFiles(): void
 	{
 
@@ -479,6 +500,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testSearchFilesByGlobHandlesOffsetPagination(): void
 	{
 
@@ -566,6 +590,9 @@ class RuleServiceTest
 
 	// ruleAdd
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRuleAddGeneratesIdAndPersists(): void
 	{
 
@@ -607,6 +634,9 @@ class RuleServiceTest
 
 	// ruleDelete
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRuleDeleteRemovesCorrectRule(): void
 	{
 
@@ -651,6 +681,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRuleDeleteHandlesNonexistentId(): void
 	{
 
@@ -688,6 +721,9 @@ class RuleServiceTest
 
 	// ruleToggle
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRuleToggleFlipsEnabled(): void
 	{
 
@@ -728,6 +764,9 @@ class RuleServiceTest
 
 	// ruleUpdate
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRuleUpdateReplacesFields(): void
 	{
 
@@ -810,6 +849,9 @@ class RuleServiceTest
 
 	// findFirstMatchingRule
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFindFirstMatchingRuleReturnsFirstEnabledMatch(): void
 	{
 
@@ -840,6 +882,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFindFirstMatchingRuleReturnsNullWhenNoMatch(): void
 	{
 
@@ -859,6 +904,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFindFirstMatchingRuleSkipsRuleScopedToAnotherUser(): void
 	{
 
@@ -881,6 +929,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFindFirstMatchingRuleMatchesRuleScopedToRequestingUser(): void
 	{
 
@@ -902,6 +953,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFindFirstMatchingRuleMatchesAllScopedRuleForAnyOwner(): void
 	{
 
@@ -1015,6 +1069,9 @@ class RuleServiceTest
 
 	// findRuleById
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFindRuleByIdReturnsMatchingRule(): void
 	{
 
@@ -1039,6 +1096,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFindRuleByIdReturnsNullWhenNotFound(): void
 	{
 
@@ -1195,6 +1255,9 @@ class RuleServiceTest
 
 	// matching order
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFindFirstMatchingRuleFollowsBandOrderNotArrayOrder(): void
 	{
 
@@ -1224,6 +1287,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFindFirstMatchingRulePrefersTheSpecificEnforcedRule(): void
 	{
 
@@ -1253,6 +1319,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testFindFirstMatchingRuleMatchesGroupScopeByMembership(): void
 	{
 
@@ -1342,6 +1411,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testAnEnforcedExcludeBeatsAUserIncludeBelowIt(): void
 	{
 
@@ -1371,6 +1443,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testAUserExcludeSuppressesTheDefaultsBelowIt(): void
 	{
 
@@ -1399,6 +1474,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testADefaultExcludeIsBeatenByAUserInclude(): void
 	{
 
@@ -1499,6 +1577,9 @@ class RuleServiceTest
 
 	// band placement on write
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRuleAddLandsAtTheEndOfItsOwnBand(): void
 	{
 
@@ -1547,6 +1628,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRuleUpdateMovesToTheEndOfItsNewBandWhenEnforcedChanges(): void
 	{
 
@@ -1595,6 +1679,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRuleUpdateKeepsThePinnedFlag(): void
 	{
 
@@ -1638,6 +1725,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testOnlyOnePinnedRuleSurvivesAWrite(): void
 	{
 
@@ -1689,6 +1779,9 @@ class RuleServiceTest
 
 	// migrateToBands
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testMigrateToBandsPinsSlotZeroAndSorts(): void
 	{
 
@@ -1739,6 +1832,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testMigrateToBandsPinsTheFirstGlobalRuleWhenSlotZeroIsNot(): void
 	{
 
@@ -1760,6 +1856,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testMigrateToBandsIsIdempotent(): void
 	{
 
@@ -1782,6 +1881,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testMigrateToBandsHandlesAnEmptyRuleList(): void
 	{
 
@@ -1803,6 +1905,9 @@ class RuleServiceTest
 
 	// reorderBand
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testReorderBandPermutesOneBandAndLeavesOthersUntouched(): void
 	{
 
@@ -1870,6 +1975,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testReorderBandRejectsThePinnedBand(): void
 	{
 
@@ -1885,6 +1993,7 @@ class RuleServiceTest
 
 	/**
 	 * @dataProvider badPermutationProvider
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testReorderBandRejectsAnythingThatIsNotAnExactPermutation(
 		array $orderedIds,
@@ -1949,6 +2058,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testReorderBandRestrictsANonAdminToTheirOwnRules(): void
 	{
 
@@ -2006,6 +2118,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testReorderBandRejectsAnotherUsersRuleForANonAdmin(): void
 	{
 
@@ -2039,6 +2154,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testReorderBandRejectsANonAdminTouchingAnyOtherBand(): void
 	{
 
@@ -2057,6 +2175,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testReorderBandRequiresAnOwnerForTheUserBand(): void
 	{
 
@@ -2072,6 +2193,9 @@ class RuleServiceTest
 
 	// listRulesFor
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testListRulesForAdminReturnsEverythingBandedAndNumbered(): void
 	{
 
@@ -2139,6 +2263,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testListRulesForUserHidesRulesTargetingFoldersTheyCannotSee(): void
 	{
 
@@ -2181,6 +2308,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testListRulesForAnAdminOnTheirOwnPersonalPageCannotEditGlobalRules(): void
 	{
 
@@ -2235,6 +2365,9 @@ class RuleServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testListRulesForUserHidesOtherUsersRulesAndNumbersWhatRemains(): void
 	{
 

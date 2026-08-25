@@ -66,6 +66,9 @@ class RuleProcessingJobTest
 	}
 
 
+	/**
+	 * @noinspection PhpConditionAlreadyCheckedInspection
+	 */
 	public function testJobConstructsWithDefaultInterval(): void
 	{
 
@@ -86,6 +89,9 @@ class RuleProcessingJobTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRunDelegatesToRuleService(): void
 	{
 
@@ -107,6 +113,9 @@ class RuleProcessingJobTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRunDispatchesWhenMarked(): void
 	{
 
@@ -128,6 +137,9 @@ class RuleProcessingJobTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRunCatchesThrowableAndLogsError(): void
 	{
 

@@ -32,6 +32,7 @@ class StatusServiceTest
 
 	private TableNameService&MockObject $tables;
 
+	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 	private IAppManager&MockObject      $appManager;
 
 	private MetadataService&MockObject  $metadataService;

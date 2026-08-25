@@ -55,6 +55,9 @@ class SeedPendingUpdatesTest
 	}
 
 
+	/**
+	 * @noinspection PhpConditionAlreadyCheckedInspection
+	 */
 	public function testJobConstructsWith21hInterval(): void
 	{
 
@@ -69,6 +72,9 @@ class SeedPendingUpdatesTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRunCallsSeedIndex(): void
 	{
 
@@ -82,6 +88,9 @@ class SeedPendingUpdatesTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRunLogsInsertedCount(): void
 	{
 
@@ -99,6 +108,9 @@ class SeedPendingUpdatesTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRunCatchesThrowable(): void
 	{
 
@@ -118,6 +130,9 @@ class SeedPendingUpdatesTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRunDispatchesProcessorWhenInserted(): void
 	{
 
@@ -136,6 +151,9 @@ class SeedPendingUpdatesTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRunDoesNotDispatchWhenNoInserts(): void
 	{
 

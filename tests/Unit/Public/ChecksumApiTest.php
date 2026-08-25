@@ -37,6 +37,7 @@ class ChecksumApiTest
 
 	private MockObject|MetadataService  $metadataService;
 
+	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 	private StatusService               $statusService;
 
 	private MockObject|IRootFolder      $rootFolder;
@@ -338,6 +339,9 @@ class ChecksumApiTest
 
 	// ─── getHashesByFileId ──────────────────────────────────────────
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testGetHashesByFileIdReturnsEmptyForUnknownFile(): void
 	{
 
@@ -359,6 +363,9 @@ class ChecksumApiTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testGetHashesByFileIdReturnsHashes(): void
 	{
 
@@ -411,6 +418,9 @@ class ChecksumApiTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testGetHashesByFileIdAllowsRequestingUserWithAccess(): void
 	{
 
@@ -459,6 +469,9 @@ class ChecksumApiTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testGetHashesByPathWithUserResolvesRelativePath(): void
 	{
 
@@ -500,6 +513,9 @@ class ChecksumApiTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testGetHashesByPathWithoutUserResolvesAbsolutePath(): void
 	{
 

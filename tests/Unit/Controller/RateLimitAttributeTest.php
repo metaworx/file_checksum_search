@@ -49,6 +49,7 @@ class RateLimitAttributeTest
 
 	/**
 	 * @dataProvider rateLimitedEndpointProvider
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testEndpointDeclaresExpectedRateLimit(
 		string $class,
@@ -79,6 +80,7 @@ class RateLimitAttributeTest
 	 * Recalculation must not be looser than the read endpoints — it
 	 * does real file I/O, so a regression that raised its limit to
 	 * match `lookup` would defeat the point.
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRecalcIsStricterThanReads(): void
 	{

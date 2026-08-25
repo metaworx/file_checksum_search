@@ -84,6 +84,9 @@ class ProcessPendingUpdatesTest
 	}
 
 
+	/**
+	 * @noinspection PhpConditionAlreadyCheckedInspection
+	 */
 	public function testJobConstructsWithDefaultInterval(): void
 	{
 
@@ -100,6 +103,9 @@ class ProcessPendingUpdatesTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRunWithEmptyPendingBatchLogsAndReturns(): void
 	{
 
@@ -126,6 +132,9 @@ class ProcessPendingUpdatesTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRunProcessesPendingBatch(): void
 	{
 
@@ -154,74 +163,82 @@ class ProcessPendingUpdatesTest
 			               $this->anything(),
 		               )
 		;
-$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
-$reflection->invoke( $this->job, null );
-}
+		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
+		$reflection->invoke( $this->job, null );
+	}
 
 
-public function testRunDispatchesFollowUpWhenBatchFull(): void
-{
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testRunDispatchesFollowUpWhenBatchFull(): void
+	{
 
 // Return exactly batchSize rows → batch is full
-$pendingRows = array_fill(
-	0,
-	50,
-	[
-		MetadataService::FIELD_FILE_ID           => 42,
-		MetadataService::FIELD_META_VALUE_STRING => 'pending:auto',
-	],
-);
+		$pendingRows = array_fill(
+			0,
+			50,
+			[
+				MetadataService::FIELD_FILE_ID           => 42,
+				MetadataService::FIELD_META_VALUE_STRING => 'pending:auto',
+			],
+		);
 
-$this->metadataService->expects( $this->once() )
-                      ->method( 'fetchPendingBatch' )
-                      ->with( 50 )
-                      ->willReturn( $pendingRows )
-;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'fetchPendingBatch' )
+		                      ->with( 50 )
+		                      ->willReturn( $pendingRows )
+		;
 
-$this->hashCalc->expects( $this->exactly( 50 ) )
-               ->method( 'processFile' )
-;
+		$this->hashCalc->expects( $this->exactly( 50 ) )
+		               ->method( 'processFile' )
+		;
 
-$this->jobList->expects( $this->once() )
-              ->method( 'add' )
-              ->with( ProcessPendingUpdates::class )
-;
+		$this->jobList->expects( $this->once() )
+		              ->method( 'add' )
+		              ->with( ProcessPendingUpdates::class )
+		;
 
-$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
-$reflection->invoke( $this->job, null );
-}
-
-
-public function testRunDoesNotDispatchWhenBatchNotFull(): void
-{
-
-$pendingRows = [
-	[
-		MetadataService::FIELD_FILE_ID           => 42,
-		MetadataService::FIELD_META_VALUE_STRING => 'pending:auto',
-	],
-];
-
-$this->metadataService->expects( $this->once() )
-                      ->method( 'fetchPendingBatch' )
-                      ->with( 50 )
-                      ->willReturn( $pendingRows )
-;
-
-$this->hashCalc->expects( $this->once() )
-               ->method( 'processFile' )
-;
-
-$this->jobList->expects( $this->never() )
-              ->method( 'add' )
-;
-
-$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
-$reflection->invoke( $this->job, null );
-}
+		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
+		$reflection->invoke( $this->job, null );
+	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testRunDoesNotDispatchWhenBatchNotFull(): void
+	{
 
+		$pendingRows = [
+			[
+				MetadataService::FIELD_FILE_ID           => 42,
+				MetadataService::FIELD_META_VALUE_STRING => 'pending:auto',
+			],
+		];
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'fetchPendingBatch' )
+		                      ->with( 50 )
+		                      ->willReturn( $pendingRows )
+		;
+
+		$this->hashCalc->expects( $this->once() )
+		               ->method( 'processFile' )
+		;
+
+		$this->jobList->expects( $this->never() )
+		              ->method( 'add' )
+		;
+
+		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
+		$reflection->invoke( $this->job, null );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRunParsesPendingPrefixFromStatus(): void
 	{
 
@@ -247,6 +264,11 @@ $reflection->invoke( $this->job, null );
 	}
 
 
+	/**
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 * @noinspection PhpUnusedParameterInspection
+	 */
 	public function testRunContinuesAfterProcessFailure(): void
 	{
 
@@ -271,9 +293,9 @@ $reflection->invoke( $this->job, null );
 		               ->method( 'processFile' )
 		               ->willReturnCallback(
 			               function (
-			                int    $fileId,
-			                string $_mode,
-			                array  $_algos,
+				               int    $fileId,
+				               string $_mode,
+				               array  $_algos,
 			               ): void {
 
 				               if ( $fileId === 42 )
@@ -293,6 +315,9 @@ $reflection->invoke( $this->job, null );
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testRunCatchesTopLevelThrowable(): void
 	{
 

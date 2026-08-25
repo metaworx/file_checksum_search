@@ -36,8 +36,10 @@ class DuplicatesControllerTest
 
 	private MockObject|IGroupManager    $groupManager;
 
+	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 	private MockObject|IUserManager     $userManager;
 
+	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 	private MockObject|LoggerInterface  $logger;
 
 	private DuplicatesController        $controller;
@@ -68,6 +70,9 @@ class DuplicatesControllerTest
 	}
 
 
+	/**
+	 * @noinspection PhpConditionAlreadyCheckedInspection
+	 */
 	public function testFindAllReturnsEmptyWhenNoGroups(): void
 	{
 
@@ -143,6 +148,9 @@ class DuplicatesControllerTest
 	}
 
 
+	/**
+	 * @noinspection PhpConditionAlreadyCheckedInspection
+	 */
 	public function testFindAllAcceptsAlgoFilter(): void
 	{
 

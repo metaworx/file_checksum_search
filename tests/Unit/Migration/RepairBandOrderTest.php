@@ -44,6 +44,9 @@ class RepairBandOrderTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testReportsWhatItSorted(): void
 	{
 
@@ -64,6 +67,9 @@ class RepairBandOrderTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testSaysSoWhenThereIsNothingToSort(): void
 	{
 
@@ -83,6 +89,9 @@ class RepairBandOrderTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testAFailureWarnsAndLogsRatherThanBlockingTheUpgrade(): void
 	{
 
