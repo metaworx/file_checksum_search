@@ -673,27 +673,40 @@ class RuleService
 	/**
 	 * Find the first enabled rule whose path glob matches the given file path.
 	 *
-	 * @param  string       $filePath  Path to match against each rule's glob
-	 * @param  string|null  $ownerUid  The file's owning user. When provided,
-	 *                                 rules scoped to a *different* specific
-	 *                                 user are skipped — mirrors the user
-	 *                                 resolution {@see processRule()} already
-	 *                                 does for the batch path. Omit only when
-	 *                                 the caller has no reliable owner to
-	 *                                 check against.
+	 * @param  string        $filePath       Path to match against each rule's glob
+	 * @param  string|null   $ownerUid       The file's owning user. When provided,
+	 *                                       rules scoped to a *different* specific
+	 *                                       user are skipped — mirrors the user
+	 *                                       resolution {@see processRule()} already
+	 *                                       does for the batch path. Omit only when
+	 *                                       the caller has no reliable owner to
+	 *                                       check against.
+	 * @param  list<string>  $ignoreRuleIds  Rule IDs to evaluate as though they
+	 *                                       did not exist, so the next matching
+	 *                                       rule decides. Set aside a rule for
+	 *                                       one run without editing it; a file
+	 *                                       no other rule matches still falls
+	 *                                       through to null.
 	 *
 	 * @return array|null Rule definition or null if no match
 	 */
 	public function findFirstMatchingRule(
 		string  $filePath,
 		?string $ownerUid = null,
+		array   $ignoreRuleIds = [],
 	): ?array {
 
-		$rules = $this->loadRules();
+		$rules  = $this->loadRules();
+		$ignore = array_flip( $ignoreRuleIds );
 
 		foreach ( $rules as $rule )
 		{
 			if ( empty( $rule['enabled'] ) )
+			{
+				continue;
+			}
+
+			if ( isset( $ignore[ (string) ( $rule['id'] ?? '' ) ] ) )
 			{
 				continue;
 			}

@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\RuleOverrides;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\Files\File;
@@ -173,7 +174,10 @@ class HashCalculationServiceTest
 			                      function (
 				                      $fileOrId,
 				                      &$metadataRef,
-			                      ) use ( $metadata ): bool
+			                      ) use
+			                      (
+				                      $metadata,
+			                      ): bool
 			                      {
 
 				                      $metadataRef = $metadata;
@@ -189,7 +193,11 @@ class HashCalculationServiceTest
 		$order = [];
 		$this->metadataService->method( 'saveMetadata' )
 		                      ->willReturnCallback(
-			                      function () use ( &$order ): void
+			                      function () use
+			                      (
+				                      &
+				                      $order,
+			                      ): void
 			                      {
 
 				                      $order[] = 'save';
@@ -198,7 +206,11 @@ class HashCalculationServiceTest
 		;
 		$this->lockingProvider->method( 'releaseLock' )
 		                      ->willReturnCallback(
-			                      function () use ( &$order ): void
+			                      function () use
+			                      (
+				                      &
+				                      $order,
+			                      ): void
 			                      {
 
 				                      $order[] = 'release';
@@ -208,10 +220,18 @@ class HashCalculationServiceTest
 
 		try
 		{
-			$result = $this->createRealService()->recalcFileHash( $file, 'sha1' );
+			$result = $this->createRealService()
+			               ->recalcFileHash( $file, 'sha1' )
+			;
 
 			$this->assertTrue( $result['success'] );
-			$this->assertSame( [ 'save', 'release' ], $order );
+			$this->assertSame(
+				[
+					'save',
+					'release',
+				],
+				$order,
+			);
 		}
 		finally
 		{
@@ -280,12 +300,28 @@ class HashCalculationServiceTest
 
 		$this->service->expects( $this->once() )
 		              ->method( 'recalcHashes' )
-		              ->with( 42, [ 'sha1', 'sha256' ], true, $metadata )
+		              ->with(
+			              42,
+			              [
+				              'sha1',
+				              'sha256',
+			              ],
+			              true,
+			              $metadata,
+		              )
 		              ->willReturn(
 			              [
 				              'results' => [
-					              'sha1'   => [ 'success' => true, 'hash' => 'abc', 'existed' => false ],
-					              'sha256' => [ 'success' => true, 'hash' => 'def', 'existed' => false ],
+					              'sha1'   => [
+						              'success' => true,
+						              'hash'    => 'abc',
+						              'existed' => false,
+					              ],
+					              'sha256' => [
+						              'success' => true,
+						              'hash'    => 'def',
+						              'existed' => false,
+					              ],
 				              ],
 				              'locked'  => false,
 			              ],
@@ -357,7 +393,11 @@ class HashCalculationServiceTest
 		              ->willReturn(
 			              [
 				              'results' => [
-					              'sha1' => [ 'success' => true, 'hash' => 'abc', 'existed' => false ],
+					              'sha1' => [
+						              'success' => true,
+						              'hash'    => 'abc',
+						              'existed' => false,
+					              ],
 				              ],
 				              'locked'  => false,
 			              ],
@@ -412,12 +452,28 @@ class HashCalculationServiceTest
 
 		$this->service->expects( $this->once() )
 		              ->method( 'recalcHashes' )
-		              ->with( 42, [ 'sha1', 'sha256' ], true, $metadata )
+		              ->with(
+			              42,
+			              [
+				              'sha1',
+				              'sha256',
+			              ],
+			              true,
+			              $metadata,
+		              )
 		              ->willReturn(
 			              [
 				              'results' => [
-					              'sha1'   => [ 'success' => true, 'hash' => 'abc', 'existed' => false ],
-					              'sha256' => [ 'success' => true, 'hash' => 'def', 'existed' => false ],
+					              'sha1'   => [
+						              'success' => true,
+						              'hash'    => 'abc',
+						              'existed' => false,
+					              ],
+					              'sha256' => [
+						              'success' => true,
+						              'hash'    => 'def',
+						              'existed' => false,
+					              ],
 				              ],
 				              'locked'  => false,
 			              ],
@@ -515,12 +571,29 @@ class HashCalculationServiceTest
 		// sha1 succeeds, sha256 fails
 		$this->service->expects( $this->once() )
 		              ->method( 'recalcHashes' )
-		              ->with( 42, [ 'sha1', 'sha256' ], true, $metadata )
+		              ->with(
+			              42,
+			              [
+				              'sha1',
+				              'sha256',
+			              ],
+			              true,
+			              $metadata,
+		              )
 		              ->willReturn(
 			              [
 				              'results' => [
-					              'sha1'   => [ 'success' => true, 'hash' => 'abc', 'existed' => false ],
-					              'sha256' => [ 'success' => false, 'hash' => '', 'existed' => false, 'error' => 'hash failed' ],
+					              'sha1'   => [
+						              'success' => true,
+						              'hash'    => 'abc',
+						              'existed' => false,
+					              ],
+					              'sha256' => [
+						              'success' => false,
+						              'hash'    => '',
+						              'existed' => false,
+						              'error'   => 'hash failed',
+					              ],
 				              ],
 				              'locked'  => false,
 			              ],
@@ -606,12 +679,28 @@ class HashCalculationServiceTest
 
 		$this->service->expects( $this->once() )
 		              ->method( 'recalcHashes' )
-		              ->with( $file, [ 'sha1', 'sha256' ], true, $metadata )
+		              ->with(
+			              $file,
+			              [
+				              'sha1',
+				              'sha256',
+			              ],
+			              true,
+			              $metadata,
+		              )
 		              ->willReturn(
 			              [
 				              'results' => [
-					              'sha1'   => [ 'success' => true, 'hash' => 'aaa', 'existed' => false ],
-					              'sha256' => [ 'success' => true, 'hash' => 'bbb', 'existed' => false ],
+					              'sha1'   => [
+						              'success' => true,
+						              'hash'    => 'aaa',
+						              'existed' => false,
+					              ],
+					              'sha256' => [
+						              'success' => true,
+						              'hash'    => 'bbb',
+						              'existed' => false,
+					              ],
 				              ],
 				              'locked'  => false,
 			              ],
@@ -640,8 +729,8 @@ class HashCalculationServiceTest
 	public function testGenerateMissingHashesCollectsAndGenerates(): void
 	{
 
-		$userId = 'testuser';
-		$algo = 'sha1';
+		$userId         = 'testuser';
+		$algo           = 'sha1';
 		$userFolderPath = '/testuser/files';
 
 		$this->filecacheService->expects( $this->once() )
@@ -694,6 +783,17 @@ class HashCalculationServiceTest
 	public function testGenerateMissingHashesProcessesFilesWithZeroBatchSize(): void
 	{
 
+		// The direct path now honours rule verdicts, so a file needs a rule
+		// that says to hash it — as it always did under --mark.
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn(
+			                  [
+				                  'id'   => 'r1',
+				                  'type' => 'include',
+			                  ],
+		                  )
+		;
+
 		$userId         = 'testuser';
 		$algo           = 'sha1';
 		$userFolderPath = '/testuser/files';
@@ -735,7 +835,11 @@ class HashCalculationServiceTest
 		        ->willReturn(
 			        [
 				        'results' => [
-					        $algo => [ 'success' => true, 'hash' => 'abc', 'existed' => false ],
+					        $algo => [
+						        'success' => true,
+						        'hash'    => 'abc',
+						        'existed' => false,
+					        ],
 				        ],
 				        'locked'  => false,
 			        ],
@@ -799,6 +903,17 @@ class HashCalculationServiceTest
 	public function testGenerateMissingHashesAppliesPathGlob(): void
 	{
 
+		// The direct path now honours rule verdicts, so a file needs a rule
+		// that says to hash it — as it always did under --mark.
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn(
+			                  [
+				                  'id'   => 'r1',
+				                  'type' => 'include',
+			                  ],
+		                  )
+		;
+
 		$userId         = 'testuser';
 		$algo           = 'sha1';
 		$userFolderPath = '/testuser/files';
@@ -836,7 +951,12 @@ class HashCalculationServiceTest
 		       ->willReturn( $folder )
 		;
 		$folder->method( 'getDirectoryListing' )
-		       ->willReturn( [ $pdf, $txt ] )
+		       ->willReturn(
+			       [
+				       $pdf,
+				       $txt,
+			       ],
+		       )
 		;
 
 		$this->filecacheService->method( 'getUserFolder' )
@@ -851,7 +971,11 @@ class HashCalculationServiceTest
 		        ->willReturn(
 			        [
 				        'results' => [
-					        $algo => [ 'success' => true, 'hash' => 'abc', 'existed' => false ],
+					        $algo => [
+						        'success' => true,
+						        'hash'    => 'abc',
+						        'existed' => false,
+					        ],
 				        ],
 				        'locked'  => false,
 			        ],
@@ -893,7 +1017,10 @@ class HashCalculationServiceTest
 			                      function (
 				                      $fileOrId,
 				                      &$metadataRef,
-			                      ) use ( $metadata ): bool
+			                      ) use
+			                      (
+				                      $metadata,
+			                      ): bool
 			                      {
 
 				                      $metadataRef = $metadata;
@@ -906,7 +1033,9 @@ class HashCalculationServiceTest
 		                       ->willReturn( [] )
 		;
 
-		$result = $this->createRealService()->recalcFileHash( $file, 'blake2b' );
+		$result = $this->createRealService()
+		               ->recalcFileHash( $file, 'blake2b' )
+		;
 
 		$this->assertFalse( $result['success'] );
 		$this->assertStringContainsString( 'Unsupported algorithm', $result['error'] ?? '' );
@@ -942,7 +1071,9 @@ class HashCalculationServiceTest
 		                      ->method( 'acquireLock' )
 		;
 
-		$result = $this->createRealService()->recalcHashes( $file, [ 'sha1' ], true, $metadata );
+		$result = $this->createRealService()
+		               ->recalcHashes( $file, [ 'sha1' ], true, $metadata )
+		;
 
 		$this->assertFalse( $result['locked'] );
 		$this->assertTrue( $result['results']['sha1']['success'] );
@@ -950,8 +1081,140 @@ class HashCalculationServiceTest
 	}
 
 
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testGenerateMissingHashesSkipsFilesTheirRuleExcludes(): void
+	{
+
+		// Regression: the direct path used to hash every collected file
+		// without ever asking for a verdict, so `occ generate` read storage an
+		// exclude rule existed to keep it out of — while --mark, the same
+		// command's other half, honoured the same rule.
+		$service = $this->collectingServiceOverOneFile(
+			[
+				'id'   => 'metered',
+				'type' => 'exclude',
+			],
+		);
+		$service->expects( $this->never() )
+		        ->method( 'recalcHashes' )
+		;
+
+		$result = $service->generateMissingHashes( 'testuser', [ 'sha1' ], null, 0 );
+
+		$this->assertSame( 0, $result['processed'] );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testGenerateMissingHashesSkipsAFileNoRuleMatches(): void
+	{
+
+		$service = $this->collectingServiceOverOneFile( null );
+		$service->expects( $this->never() )
+		        ->method( 'recalcHashes' )
+		;
+
+		$this->assertSame( 0, $service->generateMissingHashes( 'testuser', [ 'sha1' ], null, 0 )['processed'] );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testGenerateMissingHashesProcessesAnIgnoredFileWhenAskedTo(): void
+	{
+
+		$service = $this->collectingServiceOverOneFile(
+			[
+				'id'   => 'quiet',
+				'type' => 'ignore',
+			],
+		);
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->willReturn(
+			        [
+				        'results' => [
+					        'sha1' => [
+						        'success' => true,
+						        'hash'    => 'abc',
+						        'existed' => false,
+					        ],
+				        ],
+				        'locked'  => false,
+			        ],
+		        )
+		;
+
+		$result = $service->generateMissingHashes(
+			'testuser',
+			[ 'sha1' ],
+			null,
+			0,
+			null,
+			new RuleOverrides( withIgnored: true ),
+		);
+
+		$this->assertSame( 1, $result['processed'] );
+	}
+
+
+	/**
+	 * A collecting service over a single unhashed file governed by $rule.
+	 */
+	private function collectingServiceOverOneFile( ?array $rule ): HashCalculationService&MockObject
+	{
+
+		$userFolderPath = '/testuser/files';
+
+		$this->filecacheService->method( 'getUserFolderPath' )
+		                       ->willReturn( $userFolderPath )
+		;
+
+		$file = $this->createMock( File::class );
+		$file->method( 'getChecksum' )
+		     ->willReturn( '' )
+		;
+		$file->method( 'getPath' )
+		     ->willReturn( $userFolderPath . '/a.txt' )
+		;
+
+		$folder = $this->createMock( Folder::class );
+		$folder->method( 'get' )
+		       ->willReturn( $folder )
+		;
+		$folder->method( 'getDirectoryListing' )
+		       ->willReturn( [ $file ] )
+		;
+		$this->filecacheService->method( 'getUserFolder' )
+		                       ->willReturn( $folder )
+		;
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn( $rule )
+		;
+
+		return $this->createCollectingServiceMock();
+	}
+
+
 	public function testGenerateMissingHashesCollectsFileMissingAnyAlgo(): void
 	{
+
+		// The direct path now honours rule verdicts, so a file needs a rule
+		// that says to hash it — as it always did under --mark.
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn(
+			                  [
+				                  'id'   => 'r1',
+				                  'type' => 'include',
+			                  ],
+		                  )
+		;
 
 		$userId         = 'testuser';
 		$userFolderPath = '/testuser/files';
@@ -987,19 +1250,42 @@ class HashCalculationServiceTest
 		$service = $this->createCollectingServiceMock();
 		$service->expects( $this->once() )
 		        ->method( 'recalcHashes' )
-		        ->with( $file, [ 'sha1', 'sha256' ], true )
+		        ->with(
+			        $file,
+			        [
+				        'sha1',
+				        'sha256',
+			        ],
+			        true,
+		        )
 		        ->willReturn(
 			        [
 				        'results' => [
-					        'sha1'   => [ 'success' => true, 'hash' => 'deadbeef', 'existed' => true ],
-					        'sha256' => [ 'success' => true, 'hash' => 'abc', 'existed' => false ],
+					        'sha1'   => [
+						        'success' => true,
+						        'hash'    => 'deadbeef',
+						        'existed' => true,
+					        ],
+					        'sha256' => [
+						        'success' => true,
+						        'hash'    => 'abc',
+						        'existed' => false,
+					        ],
 				        ],
 				        'locked'  => false,
 			        ],
 		        )
 		;
 
-		$result = $service->generateMissingHashes( $userId, [ 'sha1', 'sha256' ], null, 0 );
+		$result = $service->generateMissingHashes(
+			$userId,
+			[
+				'sha1',
+				'sha256',
+			],
+			null,
+			0,
+		);
 
 		$this->assertSame( 1, $result['processed'] );
 		$this->assertSame( 0, $result['skipped'] );

@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\RuleOverrides;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\Files\File;
 use OCP\Files\Folder;
@@ -21,6 +22,7 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Tester\CommandTester;
 
 class GenerateHashesTest
@@ -36,10 +38,9 @@ class GenerateHashesTest
 
 	private MockObject|RuleService      $ruleService;
 
-	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
-	private MockObject|LoggerInterface  $logger;
+	private MockObject|LoggerInterface $logger;
 
-	private CommandTester               $tester;
+	private CommandTester              $tester;
 
 
 	protected function setUp(): void
@@ -484,6 +485,380 @@ class GenerateHashesTest
 
 		$this->assertSame( Command::SUCCESS, $exitCode );
 		$this->assertStringContainsString( 'User folder not found, skipping.', $this->tester->getDisplay() );
+	}
+
+
+	// ─── rule overrides ─────────────────────────────────────────────
+
+	public function testWithIgnoredProcessesIgnoredFilesButStillSkipsExcluded(): void
+	{
+
+		$this->markSetup(
+			[
+				'/files/a.txt'         => [
+					'id'   => 'r1',
+					'type' => 'include',
+				],
+				'/files/quiet/b.txt'   => [
+					'id'   => 'quiet',
+					'type' => 'ignore',
+				],
+				'/files/metered/c.txt' => [
+					'id'   => 'metered',
+					'type' => 'exclude',
+				],
+			],
+		);
+
+		// "ignore" means not automatically, but when asked — and an operator
+		// typing a command is asking. "exclude" means the storage must not be
+		// read, which no amount of asking changes.
+		$marked = [];
+		$this->metadataService->method( 'markPending' )
+		                      ->willReturnCallback(
+			                      static function (
+				                      int $fileId,
+			                      ) use
+			                      (
+				                      &
+				                      $marked,
+			                      ): void
+			                      {
+
+				                      $marked[] = $fileId;
+			                      },
+		                      )
+		;
+
+		$this->tester->execute(
+			[
+				'--user'         => 'alice',
+				'--mark'         => true,
+				'--with-ignored' => true,
+			],
+		);
+
+		$this->assertSame(
+			[
+				1,
+				2,
+			],
+			$marked,
+		);
+		$this->assertStringContainsString(
+			'Processing files their rule says to ignore.',
+			$this->tester->getDisplay(),
+		);
+	}
+
+
+	public function testIgnoreRuleIsPassedToTheLookupSoTheNextRuleDecides(): void
+	{
+
+		$this->ruleService->method( 'resolveUsers' )
+		                  ->willReturn( [ 'alice' ] )
+		;
+		$this->ruleService->method( 'findRuleById' )
+		                  ->with( 'metered' )
+		                  ->willReturn(
+			                  [
+				                  'id'   => 'metered',
+				                  'type' => 'exclude',
+				                  'path' => '/metered/**',
+			                  ],
+		                  )
+		;
+
+		// The override is not a permit to hash: it changes which rule governs,
+		// and whatever answers next still decides.
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'generateMissingHashes' )
+		                       ->with(
+			                       'alice',
+			                       $this->anything(),
+			                       $this->anything(),
+			                       $this->anything(),
+			                       $this->anything(),
+			                       $this->callback(
+				                       static fn(
+					                       RuleOverrides $overrides,
+				                       ): bool => $overrides->ignoreRuleIds === [ 'metered' ]
+					                       && ! $overrides->withIgnored,
+			                       ),
+		                       )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 0,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+
+		$exit = $this->tester->execute(
+			[
+				'--user'        => 'alice',
+				'--ignore-rule' => [ 'metered' ],
+			],
+		);
+
+		$this->assertSame( Command::SUCCESS, $exit );
+	}
+
+
+	public function testIgnoreRuleIsRepeatable(): void
+	{
+
+		$this->ruleService->method( 'resolveUsers' )
+		                  ->willReturn( [ 'alice' ] )
+		;
+		$this->ruleService->method( 'findRuleById' )
+		                  ->willReturnCallback(
+			                  static fn(
+				                  string $id,
+			                  ): array => [
+				                  'id'   => $id,
+				                  'type' => 'exclude',
+			                  ],
+		                  )
+		;
+
+		$this->hashIndexService->method( 'generateMissingHashes' )
+		                       ->with(
+			                       $this->anything(),
+			                       $this->anything(),
+			                       $this->anything(),
+			                       $this->anything(),
+			                       $this->anything(),
+			                       $this->callback(
+				                       static fn(
+					                       RuleOverrides $overrides,
+				                       ): bool => $overrides->ignoreRuleIds === [
+						                       'one',
+						                       'two',
+					                       ],
+			                       ),
+		                       )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 0,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+
+		$this->assertSame(
+			Command::SUCCESS,
+			$this->tester->execute(
+				[
+					'--user'        => 'alice',
+					'--ignore-rule' => [
+						'one',
+						'two',
+					],
+				],
+			),
+		);
+	}
+
+
+	public function testUnknownIgnoreRuleIdFailsRatherThanBeingSkipped(): void
+	{
+
+		$this->ruleService->method( 'findRuleById' )
+		                  ->willReturn( null )
+		;
+
+		// A typo must not produce a normal-looking run that quietly honoured
+		// the rule the operator meant to set aside.
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'generateMissingHashes' )
+		;
+
+		$exit = $this->tester->execute(
+			[
+				'--user'        => 'alice',
+				'--ignore-rule' => [ 'nosuchrule' ],
+			],
+		);
+
+		$this->assertSame( Command::FAILURE, $exit );
+		$this->assertStringContainsString( 'No rule with ID "nosuchrule".', $this->tester->getDisplay() );
+	}
+
+
+	public function testSettingAsideAnEnforcedRuleIsAllowedButLoggedAndAnnounced(): void
+	{
+
+		$this->ruleService->method( 'resolveUsers' )
+		                  ->willReturn( [ 'alice' ] )
+		;
+		$this->ruleService->method( 'findRuleById' )
+		                  ->willReturn(
+			                  [
+				                  'id'             => 'mandate',
+				                  'type'           => 'exclude',
+				                  'path'           => '/metered/**',
+				                  'admin_enforced' => true,
+			                  ],
+		                  )
+		;
+
+		// Shell access as the web server user is already the highest privilege
+		// here, so there is nothing to protect — but an enforced rule is the
+		// one an administrator wrote down as non-negotiable, so setting it
+		// aside leaves a trace someone else can find.
+		$this->logger->expects( $this->once() )
+		             ->method( 'warning' )
+		             ->with(
+			             $this->stringContains( 'set aside admin-enforced rule' ),
+			             $this->callback(
+				             static fn(
+					             array $context,
+				             ): bool => $context['ruleId'] === 'mandate',
+			             ),
+		             )
+		;
+
+		$this->hashIndexService->method( 'generateMissingHashes' )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 0,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+
+		$this->tester->execute(
+			[
+				'--user'        => 'alice',
+				'--ignore-rule' => [ 'mandate' ],
+			],
+		);
+
+		$this->assertStringContainsString(
+			'Setting aside admin-enforced rule mandate',
+			$this->tester->getDisplay(),
+		);
+	}
+
+
+	public function testVerboseNamesTheRuleThatSkippedEachFile(): void
+	{
+
+		$this->markSetup(
+			[
+				'/files/a.txt'         => [
+					'id'   => 'r1',
+					'type' => 'include',
+				],
+				'/files/metered/c.txt' => [
+					'id'   => 'metered',
+					'type' => 'exclude',
+				],
+			],
+		);
+
+		$this->tester->execute(
+			[
+				'--user' => 'alice',
+				'--mark' => true,
+			],
+			[ 'verbosity' => OutputInterface::VERBOSITY_VERBOSE ],
+		);
+
+		$display = $this->tester->getDisplay();
+
+		// -v answers "why is this file not being hashed" for the skipped ones…
+		$this->assertStringContainsString( 'skip /files/metered/c.txt [metered: band', $display );
+		$this->assertStringContainsString( 'exclude]', $display );
+		// …and stays quiet about the ones that proceeded.
+		$this->assertStringNotContainsString( 'hash /files/a.txt', $display );
+	}
+
+
+	public function testVeryVerboseAlsoNamesTheRuleForFilesThatProceeded(): void
+	{
+
+		$this->markSetup(
+			[
+				'/files/a.txt' => [
+					'id'   => 'r1',
+					'type' => 'include',
+				],
+			],
+		);
+
+		$this->tester->execute(
+			[
+				'--user' => 'alice',
+				'--mark' => true,
+			],
+			[ 'verbosity' => OutputInterface::VERBOSITY_VERY_VERBOSE ],
+		);
+
+		$this->assertStringContainsString( 'hash /files/a.txt [r1: band', $this->tester->getDisplay() );
+	}
+
+
+	public function testAFileNoRuleMatchesIsReportedAsSuch(): void
+	{
+
+		$this->markSetup( [ '/files/a.txt' => null ] );
+
+		$this->tester->execute(
+			[
+				'--user' => 'alice',
+				'--mark' => true,
+			],
+			[ 'verbosity' => OutputInterface::VERBOSITY_VERBOSE ],
+		);
+
+		// Nothing decided, so nothing is hashed — and the reason says so
+		// rather than leaving the file simply absent from the output.
+		$this->assertStringContainsString( 'skip /files/a.txt [no matching rule]', $this->tester->getDisplay() );
+	}
+
+
+	/**
+	 * Wire up a --mark run over $rulesByPath, one file per path, ids from 1.
+	 *
+	 * @param  array<string, array|null>  $rulesByPath
+	 */
+	private function markSetup( array $rulesByPath ): void
+	{
+
+		$this->ruleService->method( 'resolveUsers' )
+		                  ->willReturn( [ 'alice' ] )
+		;
+		$this->filecacheService->method( 'getUserFolder' )
+		                       ->willReturn( $this->createMock( Folder::class ) )
+		;
+
+		$files = [];
+		$id    = 1;
+
+		foreach ( array_keys( $rulesByPath ) as $path )
+		{
+			$file = $this->createMock( File::class );
+			$file->method( 'getId' )
+			     ->willReturn( $id ++ )
+			;
+			$file->method( 'getPath' )
+			     ->willReturn( $path )
+			;
+			$files[] = $file;
+		}
+
+		$this->ruleService->method( 'searchFilesByGlob' )
+		                  ->willReturn( $files )
+		;
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturnCallback(
+			                  static fn(
+				                  string $path,
+			                  ): ?array => $rulesByPath[ $path ] ?? null,
+		                  )
+		;
 	}
 
 }

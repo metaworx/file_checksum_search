@@ -77,6 +77,7 @@ class HashIndexService
 		?string          $pathPattern = null,
 		int              $batchSize = 100,
 		?OutputInterface $output = null,
+		?RuleOverrides   $overrides = null,
 	): array {
 
 		return $this->hashCalc->generateMissingHashes(
@@ -85,6 +86,7 @@ class HashIndexService
 			$pathPattern,
 			$batchSize,
 			$output,
+			$overrides,
 		);
 	}
 

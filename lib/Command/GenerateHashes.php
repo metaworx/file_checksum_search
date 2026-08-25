@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\RuleOverrides;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\Files\Folder;
 use Psr\Log\LoggerInterface;
@@ -86,6 +87,18 @@ class GenerateHashes
 			     InputOption::VALUE_NONE,
 			     'Mark files as pending:auto instead of computing hashes immediately',
 		     )
+		     ->addOption(
+			     'with-ignored',
+			     null,
+			     InputOption::VALUE_NONE,
+			     'Also process files whose governing rule is "ignore". Does not affect "exclude".',
+		     )
+		     ->addOption(
+			     'ignore-rule',
+			     null,
+			     InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY,
+			     'Evaluate as if this rule did not exist, so the next matching rule decides. Repeatable.',
+		     )
 		;
 	}
 
@@ -111,6 +124,13 @@ class GenerateHashes
 			: null;
 		$markOnly    = (bool) $input->getOption( 'mark' );
 
+		$overrides = $this->overridesFrom( $input, $output );
+
+		if ( $overrides === null )
+		{
+			return Command::FAILURE;
+		}
+
 		$users = $this->ruleService->resolveUsers( $userScope );
 
 		if ( empty( $users ) )
@@ -127,7 +147,7 @@ class GenerateHashes
 
 		if ( $markOnly )
 		{
-			return $this->executeMarkOnly( $users, $pathPattern, $batchSize, $output );
+			return $this->executeMarkOnly( $users, $pathPattern, $batchSize, $overrides, $output );
 		}
 
 		$output->writeln(
@@ -187,6 +207,7 @@ class GenerateHashes
 				$pathPattern,
 				$remaining ?? 0, // 0 = unlimited (--batch-size omitted)
 				$output,
+				$overrides,
 			);
 
 			$totalProcessed += $result['processed'];
@@ -212,6 +233,78 @@ class GenerateHashes
 		);
 
 		return Command::SUCCESS;
+	}
+
+
+	/**
+	 * Build the run's rule overrides, or null when the input is not usable.
+	 *
+	 * An unknown --ignore-rule id fails the run rather than being skipped
+	 * quietly: the whole point of naming a rule is that the operator has a
+	 * specific one in mind, and a typo would otherwise produce a normal-looking
+	 * run that honoured the rule they meant to set aside.
+	 *
+	 * Setting aside an admin-enforced rule is allowed — this command already
+	 * requires shell access as the web server user, so there is no privilege to
+	 * protect — but it is logged at warning level naming the rule, because an
+	 * enforced rule is the one an administrator wrote down as non-negotiable.
+	 */
+	private function overridesFrom(
+		InputInterface  $input,
+		OutputInterface $output,
+	): ?RuleOverrides {
+
+		/** @var list<string> $ignoreRuleIds */
+		$ignoreRuleIds = $input->getOption( 'ignore-rule' );
+		$withIgnored   = (bool) $input->getOption( 'with-ignored' );
+
+		foreach ( $ignoreRuleIds as $ruleId )
+		{
+			$rule = $this->ruleService->findRuleById( $ruleId );
+
+			if ( $rule === null )
+			{
+				$output->writeln(
+					sprintf( '<error>No rule with ID "%s".</error>', $ruleId ),
+				);
+
+				return null;
+			}
+
+			if ( empty( $rule['admin_enforced'] ) )
+			{
+				continue;
+			}
+
+			$this->logger->warning(
+				'FCIAS: generate command set aside admin-enforced rule {ruleId}',
+				[
+					'app'       => Application::APP_ID,
+					'ruleId'    => $ruleId,
+					'path'      => $rule['path'] ?? '',
+					'userScope' => $rule['userScope'] ?? '',
+					'type'      => RuleService::verdictOf( $rule ),
+				],
+			);
+
+			$output->writeln(
+				sprintf(
+					'<comment>Setting aside admin-enforced rule %s (%s on %s).</comment>',
+					$ruleId,
+					RuleService::verdictOf( $rule ),
+					$rule['path'] ?? '**',
+				),
+			);
+		}
+
+		if ( $withIgnored )
+		{
+			$output->writeln(
+				'<comment>Processing files their rule says to ignore. Excluded files are still skipped.</comment>',
+			);
+		}
+
+		return new RuleOverrides( $withIgnored, $ignoreRuleIds );
 	}
 
 
@@ -245,6 +338,7 @@ class GenerateHashes
 	 * @param  string[]         $users
 	 * @param  string|null      $pathPattern
 	 * @param  int|null         $batchSize
+	 * @param  RuleOverrides    $overrides
 	 * @param  OutputInterface  $output
 	 *
 	 * @return int
@@ -253,6 +347,7 @@ class GenerateHashes
 		array           $users,
 		?string         $pathPattern,
 		?int            $batchSize,
+		RuleOverrides   $overrides,
 		OutputInterface $output,
 	): int {
 
@@ -296,6 +391,8 @@ class GenerateHashes
 			$marked  = $this->markFolder(
 				$userFolder,
 				$pathPattern,
+				$overrides,
+				$output,
 				$remaining,
 				$skipped,
 			);
@@ -348,10 +445,12 @@ class GenerateHashes
 	 * @return int Number of files marked
 	 */
 	private function markFolder(
-		Folder  $folder,
-		?string $pathPattern,
-		?int    &$remaining,
-		int     &$skipped = 0,
+		Folder          $folder,
+		?string         $pathPattern,
+		RuleOverrides   $overrides,
+		OutputInterface $output,
+		?int            &$remaining,
+		int             &$skipped = 0,
 	): int {
 
 		$files = $this->ruleService->searchFilesByGlob(
@@ -369,18 +468,22 @@ class GenerateHashes
 				break;
 			}
 
-			if ( ! RuleService::maintainsHashes(
-				$this->ruleService->findFirstMatchingRule(
-					$file->getPath(),
-					$file->getOwner()
-					     ?->getUID(),
-				),
-			) )
+			$rule = $this->ruleService->findFirstMatchingRule(
+				$file->getPath(),
+				$file->getOwner()
+				     ?->getUID(),
+				$overrides->ignoreRuleIds,
+			);
+
+			if ( ! $overrides->allows( $rule ) )
 			{
 				$skipped ++;
+				$overrides->report( $output, $file->getPath(), $rule, false );
 
 				continue;
 			}
+
+			$overrides->report( $output, $file->getPath(), $rule, true );
 
 			$this->metadataService->markPending( $file->getId(), MetadataService::PENDING_AUTO );
 			$marked ++;

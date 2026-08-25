@@ -115,14 +115,16 @@ class HashCalculationService
 
 
 	private function collectFilesForUser(
-		string  $folderPath,
-		string  $userId,
-		array   $algos,
-		?string $pathPattern,
-		string  $userFolderPath,
-		array   &$collected,
-		int     $batchSize,
-		?array  &$stats = null,
+		string           $folderPath,
+		string           $userId,
+		array            $algos,
+		?string          $pathPattern,
+		string           $userFolderPath,
+		array            &$collected,
+		int              $batchSize,
+		RuleOverrides    $overrides,
+		?OutputInterface $output = null,
+		?array           &$stats = null,
 	): void {
 
 		// A non-positive batch size means "no limit" (the generate
@@ -175,6 +177,8 @@ class HashCalculationService
 					$userFolderPath,
 					$collected,
 					$batchSize,
+					$overrides,
+					$output,
 					$stats,
 				);
 
@@ -202,6 +206,24 @@ class HashCalculationService
 				{
 					$stats['globSkipped'] = ( $stats['globSkipped'] ?? 0 ) + 1;
 				}
+
+				continue;
+			}
+
+			$rule = $this->ruleService->findFirstMatchingRule(
+				$child->getPath(),
+				$userId,
+				$overrides->ignoreRuleIds,
+			);
+
+			if ( ! $overrides->allows( $rule ) )
+			{
+				if ( $stats !== null )
+				{
+					$stats['ruleSkipped'] = ( $stats['ruleSkipped'] ?? 0 ) + 1;
+				}
+
+				$overrides->report( $output, $child->getPath(), $rule, false );
 
 				continue;
 			}
@@ -234,6 +256,12 @@ class HashCalculationService
 			if ( ! $hasAll )
 			{
 				$collected[] = $child;
+
+				// Reported only once the file is actually queued, so a "hash"
+				// line always means work is about to happen — a file that
+				// already has every algorithm is not hashed and does not claim
+				// to be.
+				$overrides->report( $output, $child->getPath(), $rule, true );
 			}
 			elseif ( $stats !== null )
 			{
@@ -258,7 +286,10 @@ class HashCalculationService
 		?string          $pathPattern = null,
 		int              $batchSize = 100,
 		?OutputInterface $output = null,
+		?RuleOverrides   $overrides = null,
 	): array {
+
+		$overrides ??= new RuleOverrides();
 
 		$algos     = array_values( array_unique( array_map( 'strtolower', (array) $algo ) ) );
 		$algoLabel = implode( ',', $algos );
@@ -276,6 +307,8 @@ class HashCalculationService
 			$userFolderPath,
 			$files,
 			$batchSize,
+			$overrides,
+			$output,
 			$stats,
 		);
 

@@ -72,6 +72,25 @@ FCIAS provides 7 `occ` commands. Run them as `php occ <command>`.
 | `file-checksum-search:rebuild [--batch-size=<n>]` | Backfill the hash index from existing filecache checksums |
 | `file-checksum-search:test-perf` | Benchmark indexed lookup vs unindexed LIKE scan |
 
+#### `generate` and the rules
+
+`generate` honours the hash generation rules, in both its direct and its `--mark` form: it is the
+CLI face of the background job, so a rule saying not to hash a file stops it too. Three options
+deviate from that deliberately, and only in ways that say what they are doing:
+
+| Option | Effect |
+|--------|--------|
+| `--with-ignored` | Also process files whose governing rule is `ignore`. That verdict means "not automatically, but when asked", and typing a command *is* asking. Never affects `exclude`. |
+| `--ignore-rule=<id>` | Evaluate as if that rule did not exist, so the next matching rule decides. Repeatable. An unknown ID fails the run rather than being skipped quietly. |
+| `-v` / `-vv` | `-v` names the rule that skipped each file; `-vv` also names the rule for each file that proceeds. |
+
+There is deliberately **no blanket `--force`**. The rules are a statement of intent about the
+storage — an `exclude` on a metered mount means reading costs money — not a permission boundary,
+and a flag whose main use is doing the expensive thing the configuration exists to avoid does not
+earn its place in a cron line nobody is watching. `--ignore-rule` names what is being set aside,
+so it is legible in shell history; it may set aside an admin-enforced rule, and logs a warning
+naming that rule when it does.
+
 ### Status & Configuration Commands
 
 | Command | Description |
@@ -98,6 +117,12 @@ php occ file-checksum-search:generate --user=alice --algo=sha256
 
 # Mark files as pending instead of hashing immediately
 php occ file-checksum-search:generate --user=alice --mark
+
+# Hash files an "ignore" rule normally leaves alone (excluded files stay excluded)
+php occ file-checksum-search:generate --user=alice --with-ignored
+
+# Set one rule aside for this run and show which rule decided each file
+php occ file-checksum-search:generate --user=alice --ignore-rule=a1b2c3d4 -v
 
 # Find SHA-1 duplicates (min 2 files per group) and verify from content
 php occ file-checksum-search:find-duplicates --algo=sha1 --min-count=2 --verify
