@@ -940,6 +940,32 @@ class RuleService
 
 
 	/**
+	 * Whether a rule can meaningfully be applied at all.
+	 *
+	 * Shared by {@see applyRule()} and the surfaces that *enqueue* an apply,
+	 * so an impossible request is refused at submission time instead of
+	 * becoming a background job that can only fail out of sight.
+	 *
+	 * @throws InvalidArgumentException for a disabled or non-include rule
+	 */
+	public static function assertApplicable( array $rule ): void
+	{
+
+		if ( empty( $rule['enabled'] ) )
+		{
+			throw new InvalidArgumentException( 'A disabled rule cannot be applied — enable it first.' );
+		}
+
+		if ( self::verdictOf( $rule ) !== self::TYPE_INCLUDE )
+		{
+			throw new InvalidArgumentException(
+				sprintf( 'An %s rule computes nothing, so there is nothing to apply.', self::verdictOf( $rule ) ),
+			);
+		}
+	}
+
+
+	/**
 	 * Apply one rule to the files it currently governs: an uncapped,
 	 * paged scan that queues every matching stale-or-unhashed file as
 	 * pending:<mode>.
@@ -963,17 +989,7 @@ class RuleService
 		?string          $actor = null,
 	): array {
 
-		if ( empty( $rule['enabled'] ) )
-		{
-			throw new InvalidArgumentException( 'A disabled rule cannot be applied — enable it first.' );
-		}
-
-		if ( self::verdictOf( $rule ) !== self::TYPE_INCLUDE )
-		{
-			throw new InvalidArgumentException(
-				sprintf( 'An %s rule computes nothing, so there is nothing to apply.', self::verdictOf( $rule ) ),
-			);
-		}
+		self::assertApplicable( $rule );
 
 		$mode = $modeOverride ?? ( $rule['mode'] ?? 'auto' );
 

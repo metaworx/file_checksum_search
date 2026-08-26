@@ -13,6 +13,10 @@ use OCA\FileChecksumSearch\Service\DuplicateService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
+use OCA\FileChecksumSearch\Service\PermissionService;
+use OCP\IGroupManager;
+use InvalidArgumentException;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\StatusService;
 use OCP\Files\File;
@@ -28,21 +32,24 @@ use OCP\IUserSession;
  * - PHP DI (via constructor injection in other NC apps)
  * - PHP Bootstrap (via \OC::$server->get() after require_once base.php)
  *
- * All methods are read-only except recalcHash(). Internal lifecycle
- * operations (rebuild, purge, teardown, etc.) are NOT exposed here.
- *
- * @noinspection PhpClassCanBeReadonlyInspection
+ * Reads are unrestricted; the mutating surface is recalcHash() and the
+ * rules methods, which follow the trusted-caller pattern described on the
+ * rules section below. Internal lifecycle operations (rebuild, purge,
+ * teardown, etc.) are NOT exposed here.
  */
 class ChecksumApi
 {
 
 	public function __construct(
-		private readonly HashIndexService $hashIndexService,
-		private readonly MetadataService  $metadataService,
-		private readonly StatusService    $statusService,
-		private readonly IRootFolder      $rootFolder,
-		private readonly IUserSession     $userSession,
-		private readonly RuleService      $ruleService,
+		private readonly HashIndexService        $hashIndexService,
+		private readonly MetadataService         $metadataService,
+		private readonly StatusService           $statusService,
+		private readonly IRootFolder             $rootFolder,
+		private readonly IUserSession            $userSession,
+		private readonly RuleService             $ruleService,
+		private readonly RuleDefinitionValidator $definitionValidator,
+		private readonly PermissionService       $permissionService,
+		private readonly IGroupManager           $groupManager,
 	) {
 	}
 
@@ -441,6 +448,219 @@ class ChecksumApi
 		&& RuleService::verdictOf( $rule ) === RuleService::TYPE_EXCLUDE
 			? (string) ( $rule['id'] ?? '' )
 			: null;
+	}
+
+
+	// ─── rules ──────────────────────────────────────────────────────
+	//
+	// The trusted-caller pattern, same as the rest of this class:
+	// $requestingUser === null means the caller is server-side code acting
+	// with full authority (occ-equivalent); a non-null user is enforced
+	// exactly as the REST API enforces that user. All payloads validate
+	// through the same RuleDefinitionValidator as REST and occ, and every
+	// mutation is audit-logged by RuleService with the actor named.
+
+	/**
+	 * List rules, in evaluation order, annotated for display.
+	 *
+	 * Null = the administrator's full view; a user gets the rules that can
+	 * concern them, with per-rule canEdit.
+	 *
+	 * @return array{rules: array, canCreate: bool}
+	 */
+	public function listRules( ?string $requestingUser = null ): array
+	{
+
+		return [
+			'rules'     => $this->ruleService->listRulesFor( $requestingUser ),
+			'canCreate' => $this->actsAsAdmin( $requestingUser )
+				|| $this->permissionService->canUserEditRules( (string) $requestingUser ),
+		];
+	}
+
+
+	/**
+	 * Create a rule.
+	 *
+	 * @return string  The new rule's id
+	 * @throws InvalidArgumentException  on an invalid payload, or when
+	 *                                   $requestingUser may not create rules
+	 *                                   or write to the rule's path
+	 * @throws \JsonException
+	 */
+	public function createRule(
+		array   $definition,
+		?string $requestingUser = null,
+	): string {
+
+		$isAdmin = $this->actsAsAdmin( $requestingUser );
+
+		if ( ! $isAdmin && ! $this->permissionService->canUserEditRules( (string) $requestingUser ) )
+		{
+			throw new InvalidArgumentException( 'This user may not edit rules.' );
+		}
+
+		$validated = $this->definitionValidator->definitionFrom(
+			$definition,
+			$requestingUser ?? self::TRUSTED_ACTOR,
+			$isAdmin,
+		);
+
+		if ( ! $isAdmin
+			&& ! $this->ruleService->isPathWritableByUser( (string) $requestingUser, $validated['path'] ) )
+		{
+			throw new InvalidArgumentException( 'The path is not in a folder this user can write to.' );
+		}
+
+		return $this->ruleService->ruleAdd( $validated, $requestingUser ?? self::TRUSTED_ACTOR );
+	}
+
+
+	/**
+	 * Update a rule; omitted fields keep their value.
+	 *
+	 * @throws InvalidArgumentException  on an unknown rule, an invalid
+	 *                                   payload, or a caller who may not
+	 *                                   change this rule
+	 * @throws \JsonException
+	 */
+	public function updateRule(
+		string  $id,
+		array   $definition,
+		?string $requestingUser = null,
+	): void {
+
+		$existing = $this->requireRule( $id );
+		$isAdmin  = $this->actsAsAdmin( $requestingUser );
+
+		if ( ! $this->mayMutate( $requestingUser, $existing ) )
+		{
+			throw new InvalidArgumentException( 'This user may not change this rule.' );
+		}
+
+		$validated = $this->definitionValidator->definitionFrom(
+			$definition,
+			$requestingUser ?? self::TRUSTED_ACTOR,
+			$isAdmin,
+			$existing,
+		);
+
+		if ( ! $isAdmin
+			&& ! $this->ruleService->isPathWritableByUser( (string) $requestingUser, $validated['path'] ) )
+		{
+			throw new InvalidArgumentException( 'The path is not in a folder this user can write to.' );
+		}
+
+		$this->ruleService->ruleUpdate( $id, $validated, $requestingUser ?? self::TRUSTED_ACTOR );
+	}
+
+
+	/**
+	 * Delete a rule. The pinned catch-all refuses, as on every surface —
+	 * disable it instead.
+	 *
+	 * @throws InvalidArgumentException
+	 * @throws \JsonException
+	 */
+	public function deleteRule(
+		string  $id,
+		?string $requestingUser = null,
+	): void {
+
+		$existing = $this->requireRule( $id );
+
+		if ( ! empty( $existing['pinned'] ) )
+		{
+			throw new InvalidArgumentException(
+				'The catch-all default rule cannot be deleted — disable it instead.',
+			);
+		}
+
+		if ( ! $this->mayMutate( $requestingUser, $existing ) )
+		{
+			throw new InvalidArgumentException( 'This user may not change this rule.' );
+		}
+
+		$this->ruleService->ruleDelete( $id, $requestingUser ?? self::TRUSTED_ACTOR );
+	}
+
+
+	/**
+	 * Apply a rule now: scan and queue every file it currently governs.
+	 *
+	 * Synchronous, unlike the REST endpoint (which enqueues a background
+	 * job): a DI caller controls its own execution context and usually
+	 * wants the result. Wrap it in a job of your own for a large instance.
+	 *
+	 * @return array{matched: int, marked: int, skipped: int, fresh: int}
+	 * @throws InvalidArgumentException
+	 */
+	public function applyRule(
+		string  $id,
+		?string $requestingUser = null,
+	): array {
+
+		$existing = $this->requireRule( $id );
+
+		if ( ! $this->mayMutate( $requestingUser, $existing ) )
+		{
+			throw new InvalidArgumentException( 'This user may not apply this rule.' );
+		}
+
+		return $this->ruleService->applyRule(
+			$existing,
+			null,
+			null,
+			$requestingUser ?? self::TRUSTED_ACTOR,
+		);
+	}
+
+
+	/** The audit actor named for mutations by trusted (null-user) callers. */
+	private const TRUSTED_ACTOR = 'api';
+
+
+	/**
+	 * @throws InvalidArgumentException
+	 */
+	private function requireRule( string $id ): array
+	{
+
+		$rule = $this->ruleService->findRuleById( $id );
+
+		if ( $rule === null )
+		{
+			throw new InvalidArgumentException( sprintf( 'No rule with ID "%s".', $id ) );
+		}
+
+		return $rule;
+	}
+
+
+	private function actsAsAdmin( ?string $requestingUser ): bool
+	{
+
+		return $requestingUser === null
+			|| $this->groupManager->isAdmin( $requestingUser );
+	}
+
+
+	/**
+	 * The same rule as REST: an administrator may change anything; anyone
+	 * else needs the edit permission and the rule has to be their own.
+	 */
+	private function mayMutate(
+		?string $requestingUser,
+		array   $rule,
+	): bool {
+
+		if ( $this->actsAsAdmin( $requestingUser ) )
+		{
+			return true;
+		}
+
+		return $this->permissionService->canUserEditRules( (string) $requestingUser )
+			&& $this->ruleService->canUserMutateRule( (string) $requestingUser, $rule );
 	}
 
 

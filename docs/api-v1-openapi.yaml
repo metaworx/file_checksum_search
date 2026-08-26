@@ -335,6 +335,44 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
+  /api/v1/rules/{id}/apply:
+    post:
+      tags: [Rules]
+      summary: Queue a full apply pass for one rule
+      description: >-
+        Marks every file the rule currently governs for background hashing, uncapped.
+        Enqueues a one-shot background job and returns immediately; the outcome appears in the
+        server's audit log. Applying is judged as writing the rule. Refused at submission time
+        for a disabled or non-include rule.
+      operationId: applyRule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9a-f]{32}$"
+      responses:
+        "200":
+          description: The apply pass was queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  queued:
+                    type: boolean
+                    example: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          description: The caller may not change this rule
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/v1/rules/{id}:
     parameters:
       - name: id

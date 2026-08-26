@@ -14,6 +14,10 @@ use OCA\FileChecksumSearch\Public\ChecksumApi;
 use OCA\FileChecksumSearch\Service\DatabaseService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\PermissionService;
+use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
+use OCP\IGroupManager;
+use OCP\IUserManager;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\StatusService;
 use OCA\FileChecksumSearch\Service\TableNameService;
@@ -38,15 +42,19 @@ class ChecksumApiTest
 	private MockObject|MetadataService  $metadataService;
 
 	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
-	private StatusService           $statusService;
+	private StatusService                $statusService;
 
-	private MockObject|IRootFolder  $rootFolder;
+	private MockObject|IRootFolder       $rootFolder;
 
-	private MockObject|IUserSession $userSession;
+	private MockObject|IUserSession      $userSession;
 
-	private MockObject|RuleService  $ruleService;
+	private MockObject|RuleService       $ruleService;
 
-	private ChecksumApi             $api;
+	private MockObject|PermissionService $permissionService;
+
+	private MockObject|IGroupManager     $groupManager;
+
+	private ChecksumApi                  $api;
 
 
 	protected function setUp(): void
@@ -69,7 +77,17 @@ class ChecksumApiTest
 		$this->rootFolder  = $this->createMock( IRootFolder::class );
 		$this->userSession = $this->createMock( IUserSession::class );
 
-		$this->ruleService = $this->createMock( RuleService::class );
+		$this->ruleService       = $this->createMock( RuleService::class );
+		$this->permissionService = $this->createMock( PermissionService::class );
+		$this->groupManager      = $this->createMock( IGroupManager::class );
+
+		$userManager = $this->createMock( IUserManager::class );
+		$userManager->method( 'userExists' )
+		            ->willReturn( true )
+		;
+		$this->groupManager->method( 'groupExists' )
+		                   ->willReturn( true )
+		;
 
 		$this->api = new ChecksumApi(
 			$this->hashIndexService,
@@ -78,6 +96,9 @@ class ChecksumApiTest
 			$this->rootFolder,
 			$this->userSession,
 			$this->ruleService,
+			new RuleDefinitionValidator( $this->groupManager, $userManager ),
+			$this->permissionService,
+			$this->groupManager,
 		);
 	}
 
@@ -926,6 +947,160 @@ class ChecksumApiTest
 		$result = $this->api->recalcHash( 42, 'sha256', 'alice' );
 
 		$this->assertTrue( $result['success'] );
+	}
+
+
+	// ─── rules surface ──────────────────────────────────────────────
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTrustedCallerActsAsAdminAndIsAuditedAsApi(): void
+	{
+
+		// null requesting user = server-side code with full authority: the
+		// scope passes through as an administrator's would, and the audit
+		// names the surface.
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'ruleAdd' )
+		                  ->with(
+			                  $this->callback(
+				                  static fn(
+					                  array $definition,
+				                  ): bool => $definition['userScope'] === 'group:staff'
+					                  && $definition['admin_enforced'] === true,
+			                  ),
+			                  'api',
+		                  )
+		                  ->willReturn( 'newid' )
+		;
+
+		$id = $this->api->createRule(
+			[
+				'path'           => '/legal/**',
+				'userScope'      => 'group:staff',
+				'admin_enforced' => true,
+			],
+		);
+
+		$this->assertSame( 'newid', $id );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testANamedNonAdminIsEnforcedExactlyLikeRest(): void
+	{
+
+		$this->groupManager->method( 'isAdmin' )
+		                   ->with( 'bob' )
+		                   ->willReturn( false )
+		;
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->with( 'bob' )
+		                        ->willReturn( true )
+		;
+		$this->ruleService->method( 'isPathWritableByUser' )
+		                  ->willReturn( true )
+		;
+
+		// Whatever the payload claims: bob's rule is bob's, never enforced.
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'ruleAdd' )
+		                  ->with(
+			                  $this->callback(
+				                  static fn(
+					                  array $definition,
+				                  ): bool => $definition['userScope'] === 'bob'
+					                  && $definition['admin_enforced'] === false,
+			                  ),
+			                  'bob',
+		                  )
+		                  ->willReturn( 'newid' )
+		;
+
+		$this->api->createRule(
+			[
+				'path'           => '/docs/**',
+				'userScope'      => 'all',
+				'admin_enforced' => true,
+			],
+			'bob',
+		);
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testANamedUserWithoutThePermissionIsRefused(): void
+	{
+
+		$this->groupManager->method( 'isAdmin' )
+		                   ->willReturn( false )
+		;
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->willReturn( false )
+		;
+		$this->ruleService->expects( $this->never() )
+		                  ->method( 'ruleAdd' )
+		;
+
+		$this->expectException( InvalidArgumentException::class );
+
+		$this->api->createRule( [ 'path' => '/docs/**' ], 'bob' );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testDeleteRefusesThePinnedCatchAllOnThisSurfaceToo(): void
+	{
+
+		$this->ruleService->method( 'findRuleById' )
+		                  ->willReturn( [
+			                  'id'     => 'd1',
+			                  'pinned' => true,
+		                  ] )
+		;
+		$this->ruleService->expects( $this->never() )
+		                  ->method( 'ruleDelete' )
+		;
+
+		$this->expectException( InvalidArgumentException::class );
+		$this->expectExceptionMessage( 'disable it instead' );
+
+		$this->api->deleteRule( 'd1' );
+	}
+
+
+	public function testApplyRunsSynchronouslyAndReturnsTheBuckets(): void
+	{
+
+		$rule = [
+			'id'      => 'r1',
+			'enabled' => true,
+			'type'    => 'include',
+		];
+		$this->ruleService->method( 'findRuleById' )
+		                  ->willReturn( $rule )
+		;
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'applyRule' )
+		                  ->with( $rule, null, null, 'api' )
+		                  ->willReturn( [
+			                  'matched' => 4,
+			                  'marked'  => 2,
+			                  'skipped' => 1,
+			                  'fresh'   => 1,
+		                  ] )
+		;
+
+		// Synchronous by design: a DI caller controls its own execution
+		// context and usually wants the result.
+		$this->assertSame( 2, $this->api->applyRule( 'r1' )['marked'] );
 	}
 
 }

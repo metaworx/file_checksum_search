@@ -10,12 +10,14 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
 use InvalidArgumentException;
+use OCA\FileChecksumSearch\BackgroundJob\ApplyRuleJob;
 use OCA\FileChecksumSearch\Controller\RulesController;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\AppFramework\Http;
+use OCP\BackgroundJob\IJobList;
 use OCP\IGroupManager;
 use OCP\IRequest;
 use OCP\IUser;
@@ -42,6 +44,8 @@ class RulesControllerTest
 
 	private MockObject|IRequest          $request;
 
+	private MockObject|IJobList          $jobList;
+
 	private MockObject|LoggerInterface   $logger;
 
 	private RulesController              $controller;
@@ -58,6 +62,7 @@ class RulesControllerTest
 		$this->groupManager      = $this->createMock( IGroupManager::class );
 		$this->userManager       = $this->createMock( IUserManager::class );
 		$this->request           = $this->createMock( IRequest::class );
+		$this->jobList           = $this->createMock( IJobList::class );
 		$this->logger            = $this->createMock( LoggerInterface::class );
 
 		// Partial mock: only readRequestBody() is mocked so php://input
@@ -76,6 +81,7 @@ class RulesControllerTest
 			                         // validation through the controller door.
 			                         new RuleDefinitionValidator( $this->groupManager, $this->userManager ),
 			                         $this->userManager,
+			                         $this->jobList,
 			                         $this->logger,
 		                         ] )
 		                         ->getMock()
@@ -848,6 +854,106 @@ class RulesControllerTest
 
 		$this->assertSame( Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus() );
 		$this->assertSame( 'config write failed', $response->getData()['error'] );
+	}
+
+
+	// ─── apply ──────────────────────────────────────────────────────
+
+	public function testApplyEnqueuesTheJobWithRuleAndActor(): void
+	{
+
+		$this->signIn( 'admin', true );
+		$this->ruleService->method( 'findRuleById' )
+		                  ->willReturn( [
+			                  'id'      => str_repeat( 'a', 32 ),
+			                  'enabled' => true,
+			                  'type'    => 'include',
+		                  ] )
+		;
+
+		// Enqueue and return — the uncapped scan has no place inside an
+		// HTTP request. The actor rides along so the audit line names them.
+		$this->jobList->expects( $this->once() )
+		              ->method( 'add' )
+		              ->with(
+			              ApplyRuleJob::class,
+			              [
+				              'ruleId' => str_repeat( 'a', 32 ),
+				              'actor'  => 'admin',
+			              ],
+		              )
+		;
+
+		$response = $this->controller->apply( str_repeat( 'a', 32 ) );
+
+		$this->assertSame(
+			[
+				'success' => true,
+				'queued'  => true,
+			],
+			$response->getData(),
+		);
+	}
+
+
+	public function testApplyRefusesADisabledRuleAtSubmissionTime(): void
+	{
+
+		$this->signIn( 'admin', true );
+		$this->ruleService->method( 'findRuleById' )
+		                  ->willReturn( [
+			                  'id'      => str_repeat( 'a', 32 ),
+			                  'enabled' => false,
+		                  ] )
+		;
+
+		// Refused here, not queued to fail out of sight.
+		$this->jobList->expects( $this->never() )
+		              ->method( 'add' )
+		;
+
+		$response = $this->controller->apply( str_repeat( 'a', 32 ) );
+
+		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
+	}
+
+
+	public function testApplyIsJudgedAsWriting(): void
+	{
+
+		// A non-admin without mutation rights on the rule spends no
+		// authority over the files it governs.
+		$this->signIn( 'bob' );
+		$this->permissionService->method( 'canUserEditRules' )
+		                        ->willReturn( false )
+		;
+		$this->ruleService->method( 'findRuleById' )
+		                  ->willReturn( [
+			                  'id'      => str_repeat( 'a', 32 ),
+			                  'enabled' => true,
+			                  'type'    => 'include',
+		                  ] )
+		;
+
+		$response = $this->controller->apply( str_repeat( 'a', 32 ) );
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $response->getStatus() );
+	}
+
+
+	public function testApplyOnAnUnknownRuleIs404(): void
+	{
+
+		$this->signIn( 'admin', true );
+		$this->ruleService->method( 'findRuleById' )
+		                  ->willReturn( null )
+		;
+
+		$this->assertSame(
+			Http::STATUS_NOT_FOUND,
+			$this->controller->apply( str_repeat( 'a', 32 ) )
+			                 ->getStatus(),
+		);
 	}
 
 }

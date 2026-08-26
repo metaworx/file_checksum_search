@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Controller;
 
 use InvalidArgumentException;
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\BackgroundJob\ApplyRuleJob;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
@@ -21,6 +22,7 @@ use OCP\AppFramework\Http\Attribute\ApiRoute;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\BackgroundJob\IJobList;
 use OCP\IGroupManager;
 use OCP\IRequest;
 use OCP\IUserManager;
@@ -67,6 +69,7 @@ class RulesController
 		private readonly IGroupManager           $groupManager,
 		private readonly RuleDefinitionValidator $definitionValidator,
 		private readonly IUserManager            $userManager,
+		private readonly IJobList                $jobList,
 		private readonly LoggerInterface         $logger,
 	) {
 
@@ -315,6 +318,75 @@ class RulesController
 		{
 			return $this->serverError( 'delete', $e );
 		}
+	}
+
+
+	/**
+	 * Queue a full apply pass for one rule: every file it currently governs
+	 * is marked for background hashing, uncapped.
+	 *
+	 * Enqueues and returns immediately — the scan has no place inside an
+	 * HTTP request. Applying is judged as writing (mayMutate), since it
+	 * spends the same authority: deciding that work happens to the files
+	 * this rule governs.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	#[ApiRoute(
+		verb: 'POST',
+		url: '/api/v1/rules/{id}/apply',
+		requirements: [ 'id' => '[0-9a-f]{32}' ],
+	)]
+	public function apply( string $id ): DataResponse
+	{
+
+		$userId = $this->currentUserId();
+
+		if ( $userId === null )
+		{
+			return $this->unauthorized();
+		}
+
+		$isAdmin  = $this->groupManager->isAdmin( $userId );
+		$existing = $this->ruleService->findRuleById( $id );
+
+		if ( $existing === null )
+		{
+			return $this->notFound();
+		}
+
+		if ( ! $this->mayMutate( $userId, $isAdmin, $existing ) )
+		{
+			return $this->forbidden();
+		}
+
+		try
+		{
+			// Refuse at submission time what the job could only fail on out
+			// of sight: a disabled or non-include rule.
+			RuleService::assertApplicable( $existing );
+		}
+		catch ( InvalidArgumentException $e )
+		{
+			return $this->badRequest( $e->getMessage() );
+		}
+
+		$this->jobList->add(
+			ApplyRuleJob::class,
+			[
+				'ruleId' => $id,
+				'actor'  => $userId,
+			],
+		);
+
+		return new DataResponse(
+			[
+				'success' => true,
+				'queued'  => true,
+			],
+		);
 	}
 
 

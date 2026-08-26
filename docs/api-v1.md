@@ -563,6 +563,27 @@ position has no meaning across bands.
 
 400 for the pinned default — it cannot be deleted, only disabled.
 
+### `POST /api/v1/rules/{id}/apply` — apply one rule now
+
+Queues a full apply pass: every file the rule currently governs is marked for background
+hashing, uncapped (unlike the periodic sweep). The request enqueues a one-shot background job
+and returns immediately —
+
+```json
+{ "success": true, "queued": true }
+```
+
+— the scan itself happens out of band, and its outcome appears in the audit log naming the
+requesting user. Applying is judged as *writing* the rule: an administrator may apply any rule,
+anyone else needs rule-editing permission and the rule must be their own. Files claimed by a
+higher-band rule are skipped, never marked; files already fresh are skipped under `auto`/
+`missing` modes.
+
+**Errors:** 404 for an unknown id; 403 for a caller who may not change the rule; 400 for a rule
+that cannot meaningfully be applied — disabled, or an `ignore`/`exclude` rule, which computes
+nothing. These are refused at submission time rather than becoming a background job that can
+only fail out of sight.
+
 ### `PUT /api/v1/rules/order` — reorder one band
 
 ```json
