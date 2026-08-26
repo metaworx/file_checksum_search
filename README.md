@@ -95,6 +95,23 @@ earn its place in a cron line nobody is watching. `--ignore-rule` names what is 
 so it is legible in shell history; it may set aside an admin-enforced rule, and logs a warning
 naming that rule when it does.
 
+### Rule Management Commands
+
+| Command | Description |
+|---------|-------------|
+| `file-checksum-search:rules:list [-o json]` | List the rules in evaluation order, with ids, `band.position`, and every field |
+| `file-checksum-search:rules:add [options]` | Create a rule (`--path`, `--type`, `--scope`, `-a/--algo`, `-m/--mode`, `--enforced`, `--enable/--disable`) |
+| `file-checksum-search:rules:modify <id> [options]` | Change a rule; omitted options keep their value; a bare `--enable`/`--disable` is a toggle |
+| `file-checksum-search:rules:delete <id> [-y]` | Delete a rule (the pinned catch-all refuses — disable it instead) |
+| `file-checksum-search:rules:apply <id> [-m <mode>]` | Queue every file the rule currently governs for background hashing — uncapped, unlike the periodic sweep; `-m` overrides the rule's mode for this run (logged) |
+
+Every command also answers to a short `fcias:` alias (`fcias:rules:list`, …). occ acts as an
+administrator, and everything validates through the same code path as the web UI and REST —
+scope existence, algorithm names, the pinned rule's protections — so no surface can accept what
+another refuses. `rules:list` is also where the ids for `hash --ignore-rule` come from. All rule
+mutations are audit-logged with the acting surface; changes to admin-enforced rules log at
+warning level.
+
 ### Status & Configuration Commands
 
 | Command | Description |

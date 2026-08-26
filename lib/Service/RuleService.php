@@ -23,6 +23,7 @@ use OCP\IGroupManager;
 use OCP\IUser;
 use OCP\IUserManager;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Console\Output\OutputInterface;
 use Throwable;
 
 /**
@@ -745,34 +746,64 @@ class RuleService
 	 * @throws JsonException
 	 * @throws \Random\RandomException
 	 */
-	public function ruleAdd( array $definition ): void
-	{
+	public function ruleAdd(
+		array   $definition,
+		?string $actor = null,
+	): string {
 
 		$rules            = $this->loadRules();
 		$definition['id'] = bin2hex( random_bytes( 16 ) );
 		$rules[]          = $definition;
 
 		$this->saveRules( $rules );
+		$this->auditLog( 'created', $definition, $actor );
+
+		return $definition['id'];
 	}
 
 
 	/**
 	 * @throws JsonException
 	 */
-	public function ruleDelete( string $id ): void
-	{
+	public function ruleDelete(
+		string  $id,
+		?string $actor = null,
+	): void {
 
-		$rules = $this->loadRules();
+		$rules   = $this->loadRules();
+		$deleted = null;
+
 		$rules = array_values(
 			array_filter(
 				$rules,
-				static fn(
+				static function (
 					array $rule,
-				): bool => ( $rule['id'] ?? '' ) !== $id,
+				) use
+				(
+					$id,
+					&
+					$deleted,
+				): bool
+				{
+
+					if ( ( $rule['id'] ?? '' ) === $id )
+					{
+						$deleted = $rule;
+
+						return false;
+					}
+
+					return true;
+				},
 			),
 		);
 
 		$this->saveRules( $rules );
+
+		if ( $deleted !== null )
+		{
+			$this->auditLog( 'deleted', $deleted, $actor );
+		}
 	}
 
 
@@ -780,17 +811,20 @@ class RuleService
 	 * @throws JsonException
 	 */
 	public function ruleToggle(
-		string $id,
-		bool   $enabled,
+		string  $id,
+		bool    $enabled,
+		?string $actor = null,
 	): void {
 
-		$rules = $this->loadRules();
+		$rules   = $this->loadRules();
+		$toggled = null;
 
 		foreach ( $rules as &$rule )
 		{
 			if ( ( $rule['id'] ?? '' ) === $id )
 			{
 				$rule['enabled'] = $enabled;
+				$toggled         = $rule;
 
 				break;
 			}
@@ -798,6 +832,17 @@ class RuleService
 		unset( $rule );
 
 		$this->saveRules( $rules );
+
+		if ( $toggled !== null )
+		{
+			$this->auditLog(
+				$enabled
+					? 'enabled'
+					: 'disabled',
+				$toggled,
+				$actor,
+			);
+		}
 	}
 
 
@@ -805,8 +850,9 @@ class RuleService
 	 * @throws JsonException
 	 */
 	public function ruleUpdate(
-		string $id,
-		array  $definition,
+		string  $id,
+		array   $definition,
+		?string $actor = null,
 	): void {
 
 		$rules = $this->loadRules();
@@ -843,10 +889,213 @@ class RuleService
 				$rules[] = $definition;
 			}
 
+			$this->auditLog( 'updated', $definition, $actor, $existing );
+
 			break;
 		}
 
 		$this->saveRules( $rules );
+	}
+
+
+	/**
+	 * Audit every rule mutation, whichever surface asked for it.
+	 *
+	 * INFO for ordinary rules; WARNING when the mutation touches an
+	 * admin-enforced one — those are the rules someone wrote down as
+	 * non-negotiable, so changing one should leave a trace another person
+	 * can find. UI, REST, occ and the public PHP API all funnel through the
+	 * mutation methods on this class, so no surface can mutate silently.
+	 */
+	private function auditLog(
+		string  $operation,
+		array   $rule,
+		?string $actor,
+		?array  $previous = null,
+	): void {
+
+		$enforced = ! empty( $rule['admin_enforced'] ) || ! empty( $previous['admin_enforced'] );
+
+		$context = [
+			'app'       => Application::APP_ID,
+			'operation' => $operation,
+			'ruleId'    => (string) ( $rule['id'] ?? '' ),
+			'path'      => $rule['path'] ?? '',
+			'userScope' => $rule['userScope'] ?? '',
+			'type'      => self::verdictOf( $rule ),
+			'enabled'   => ! empty( $rule['enabled'] ),
+			'enforced'  => $enforced,
+			'actor'     => $actor ?? 'unknown',
+		];
+
+		if ( $enforced )
+		{
+			$this->logger->warning( 'FCIAS rule audit: admin-enforced rule {operation}', $context );
+
+			return;
+		}
+
+		$this->logger->info( 'FCIAS rule audit: rule {operation}', $context );
+	}
+
+
+	/**
+	 * Apply one rule to the files it currently governs: an uncapped,
+	 * paged scan that queues every matching stale-or-unhashed file as
+	 * pending:<mode>.
+	 *
+	 * Band discipline holds for a single-rule apply exactly as for the full
+	 * sweep: each candidate is resolved through {@see findFirstMatchingRule()}
+	 * and only marked when *this* rule is the one that governs it — a file
+	 * claimed by a higher band is reported as skipped, never marked.
+	 *
+	 * $modeOverride queues a different processing mode than the rule's own
+	 * (the drain still takes verdict and algorithms from the rule itself).
+	 * Deviating from an enforced rule's mode is logged at warning level.
+	 *
+	 * @return array{matched: int, marked: int, skipped: int, fresh: int}
+	 * @throws InvalidArgumentException for a disabled or non-include rule, or an unknown mode
+	 */
+	public function applyRule(
+		array            $rule,
+		?string          $modeOverride = null,
+		?OutputInterface $output = null,
+		?string          $actor = null,
+	): array {
+
+		if ( empty( $rule['enabled'] ) )
+		{
+			throw new InvalidArgumentException( 'A disabled rule cannot be applied — enable it first.' );
+		}
+
+		if ( self::verdictOf( $rule ) !== self::TYPE_INCLUDE )
+		{
+			throw new InvalidArgumentException(
+				sprintf( 'An %s rule computes nothing, so there is nothing to apply.', self::verdictOf( $rule ) ),
+			);
+		}
+
+		$mode = $modeOverride ?? ( $rule['mode'] ?? 'auto' );
+
+		if ( ! self::isValidMode( $mode ) )
+		{
+			throw new InvalidArgumentException( sprintf( 'Unknown mode "%s".', $mode ) );
+		}
+
+		$ruleId   = (string) ( $rule['id'] ?? '' );
+		$pathGlob = $rule['path'] ?? '**';
+
+		if ( $pathGlob === '' || $pathGlob === '/' )
+		{
+			$pathGlob = '**';
+		}
+
+		$matched = 0;
+		$marked  = 0;
+		$skipped = 0;
+		$fresh   = 0;
+
+		foreach ( $this->resolveUsers( $rule['userScope'] ?? self::SCOPE_ALL ) as $userId )
+		{
+			try
+			{
+				$userFolder = $this->rootFolder->getUserFolder( $userId );
+			}
+			catch ( Throwable )
+			{
+				continue;
+			}
+
+			// 0 = unlimited: an explicit apply runs to completion; only the
+			// periodic sweep trickles.
+			foreach ( $this->searchFilesByGlob( $userFolder, $pathGlob, 0 ) as $file )
+			{
+				if ( ! $file instanceof File )
+				{
+					continue;
+				}
+
+				$matched ++;
+
+				$governing = $this->findFirstMatchingRule( $file->getPath(), $userId );
+
+				if ( ( $governing['id'] ?? null ) !== $ruleId )
+				{
+					$skipped ++;
+					$output?->writeln(
+						sprintf(
+							'    skip %s [claimed by %s]',
+							$file->getPath(),
+							$governing['id'] ?? 'no rule',
+						),
+						OutputInterface::VERBOSITY_VERBOSE,
+					);
+
+					continue;
+				}
+
+				// force and lazy act on fresh files by definition; auto and
+				// missing have nothing to do where the hash is current.
+				if ( in_array(
+					$mode,
+					[
+						'auto',
+						'missing',
+					],
+					true,
+				) )
+				{
+					$updatedAt = $this->metadataService->getUpdatedAt( $file->getId() );
+
+					if ( $updatedAt !== null && $updatedAt >= $file->getMTime() )
+					{
+						$fresh ++;
+
+						continue;
+					}
+				}
+
+				$this->metadataService->markPending(
+					$file->getId(),
+					MetadataService::PENDING_PREFIX . $mode,
+				);
+
+				$marked ++;
+				$output?->writeln(
+					sprintf( '    queue %s [pending:%s]', $file->getPath(), $mode ),
+					OutputInterface::VERBOSITY_VERBOSE,
+				);
+			}
+		}
+
+		$context = [
+			'app'      => Application::APP_ID,
+			'ruleId'   => $ruleId,
+			'mode'     => $mode,
+			'override' => $modeOverride !== null,
+			'matched'  => $matched,
+			'marked'   => $marked,
+			'skipped'  => $skipped,
+			'fresh'    => $fresh,
+			'actor'    => $actor ?? 'unknown',
+		];
+
+		if ( $modeOverride !== null && ! empty( $rule['admin_enforced'] ) )
+		{
+			// Deviating from the mode someone wrote down as non-negotiable.
+			$this->logger->warning( 'FCIAS rule audit: admin-enforced rule applied with mode override', $context );
+		}
+		else
+		{
+			$this->logger->info( 'FCIAS rule audit: rule applied', $context );
+		}
+
+		return [
+			'matched' => $matched,
+			'marked'  => $marked,
+			'skipped' => $skipped,
+			'fresh'   => $fresh,
+		];
 	}
 
 
@@ -987,6 +1236,7 @@ class RuleService
 		?string $ownerId,
 		array   $orderedIds,
 		?string $requestingUserId = null,
+		?string $actor = null,
 	): void {
 
 		if ( $band < self::BAND_USER_ENFORCED || $band > self::BAND_GLOBAL )
@@ -1068,6 +1318,17 @@ class RuleService
 		}
 
 		$this->saveRules( $rules );
+
+		$this->logger->info(
+			'FCIAS rule audit: band {band} reordered',
+			[
+				'app'   => Application::APP_ID,
+				'band'  => $band,
+				'owner' => $ownerId,
+				'order' => $orderedIds,
+				'actor' => $actor ?? $requestingUserId ?? 'unknown',
+			],
+		);
 	}
 
 

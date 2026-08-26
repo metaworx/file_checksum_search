@@ -13,6 +13,7 @@ use InvalidArgumentException;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\PermissionService;
+use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\AppFramework\ApiController;
 use OCP\AppFramework\Http;
@@ -58,14 +59,15 @@ class RulesController
 
 
 	public function __construct(
-		string                             $appName,
-		IRequest                           $request,
-		private readonly RuleService       $ruleService,
-		private readonly PermissionService $permissionService,
-		private readonly IUserSession      $userSession,
-		private readonly IGroupManager     $groupManager,
-		private readonly IUserManager      $userManager,
-		private readonly LoggerInterface   $logger,
+		string                                   $appName,
+		IRequest                                 $request,
+		private readonly RuleService             $ruleService,
+		private readonly PermissionService       $permissionService,
+		private readonly IUserSession            $userSession,
+		private readonly IGroupManager           $groupManager,
+		private readonly RuleDefinitionValidator $definitionValidator,
+		private readonly IUserManager            $userManager,
+		private readonly LoggerInterface         $logger,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -157,7 +159,7 @@ class RulesController
 
 		try
 		{
-			$definition = $this->definitionFrom( $body, $userId, $isAdmin );
+			$definition = $this->definitionValidator->definitionFrom( $body, $userId, $isAdmin );
 		}
 		catch ( InvalidArgumentException $e )
 		{
@@ -172,7 +174,7 @@ class RulesController
 
 		try
 		{
-			$this->ruleService->ruleAdd( $definition );
+			$this->ruleService->ruleAdd( $definition, $userId );
 
 			return new DataResponse( [
 				'success' => true,
@@ -233,7 +235,7 @@ class RulesController
 
 		try
 		{
-			$definition = $this->definitionFrom( $body, $userId, $isAdmin, $existing );
+			$definition = $this->definitionValidator->definitionFrom( $body, $userId, $isAdmin, $existing );
 		}
 		catch ( InvalidArgumentException $e )
 		{
@@ -248,7 +250,7 @@ class RulesController
 
 		try
 		{
-			$this->ruleService->ruleUpdate( $id, $definition );
+			$this->ruleService->ruleUpdate( $id, $definition, $userId );
 
 			return new DataResponse( [
 				'success' => true,
@@ -305,7 +307,7 @@ class RulesController
 
 		try
 		{
-			$this->ruleService->ruleDelete( $id );
+			$this->ruleService->ruleDelete( $id, $userId );
 
 			return new DataResponse( [ 'success' => true ] );
 		}
@@ -367,6 +369,7 @@ class RulesController
 				$isAdmin
 					? null
 					: $userId,
+				$userId,
 			);
 
 			return new DataResponse( [ 'success' => true ] );
@@ -379,136 +382,6 @@ class RulesController
 		{
 			return $this->serverError( 'reorder', $e );
 		}
-	}
-
-
-	/**
-	 * Build a stored rule definition from a request body.
-	 *
-	 * Scope and the enforced flag are never taken from a non-administrator:
-	 * their rules are always their own and never enforced, whatever the
-	 * payload claims. `pinned` is administrator-only and additionally held to
-	 * an at-most-one invariant inside {@see RuleService}.
-	 *
-	 * @throws InvalidArgumentException on anything the caller may not express
-	 */
-	private function definitionFrom(
-		array  $body,
-		string $userId,
-		bool   $isAdmin,
-		?array $existing = null,
-	): array {
-
-		$type = $body['type'] ?? RuleService::TYPE_INCLUDE;
-
-		if ( ! RuleService::isValidType( $type ) )
-		{
-			throw new InvalidArgumentException( 'Unknown rule type.' );
-		}
-
-		$path = $body['path'] ?? ( $existing['path'] ?? '/' );
-
-		if ( ! is_string( $path ) || trim( $path ) === '' )
-		{
-			throw new InvalidArgumentException( 'A path is required.' );
-		}
-
-		$definition = [
-			'enabled'        => (bool) ( $body['enabled'] ?? $existing['enabled'] ?? true ),
-			'type'           => $type,
-			'path'           => $path,
-			'userScope'      => $isAdmin
-				? $this->validatedScope( $body, $existing )
-				: $userId,
-			'admin_enforced' => $isAdmin
-				&& ( $body['admin_enforced'] ?? $existing['admin_enforced'] ?? false ),
-		];
-
-		if ( $isAdmin && ! empty( $body['pinned'] ) )
-		{
-			$definition['pinned'] = true;
-		}
-
-		if ( $type !== RuleService::TYPE_INCLUDE )
-		{
-			// Nothing is computed, so nothing about how to compute is stored.
-			return $definition;
-		}
-
-		$mode = $body['mode'] ?? ( $existing['mode'] ?? 'auto' );
-
-		if ( ! RuleService::isValidMode( $mode ) )
-		{
-			throw new InvalidArgumentException( 'Unknown rule mode.' );
-		}
-
-		$algos = $body['algos'] ?? ( $existing['algos'] ?? [ HashCalculationService::getDefaultAlgo() ] );
-
-		if ( ! is_array( $algos ) )
-		{
-			$algos = [ $algos ];
-		}
-
-		$algos = array_values(
-			array_filter(
-				$algos,
-				static fn(
-					$algo,
-				): bool => HashCalculationService::isValidAlgo( $algo ),
-			),
-		);
-
-		if ( $algos === [] )
-		{
-			throw new InvalidArgumentException( 'At least one supported algorithm is required.' );
-		}
-
-		$definition['mode']  = $mode;
-		$definition['algos'] = $algos;
-
-		return $definition;
-	}
-
-
-	/**
-	 * Validate an administrator-supplied scope, rejecting one that names a
-	 * group or user that does not exist — otherwise the rule would sit in the
-	 * list matching nothing, with no indication why.
-	 *
-	 * @throws InvalidArgumentException
-	 */
-	private function validatedScope(
-		array  $body,
-		?array $existing,
-	): string {
-
-		$scope = $body['userScope'] ?? ( $existing['userScope'] ?? RuleService::SCOPE_ALL );
-
-		if ( ! is_string( $scope ) || $scope === '' )
-		{
-			throw new InvalidArgumentException( 'userScope must be a non-empty string.' );
-		}
-
-		switch ( RuleService::scopeKind( $scope ) )
-		{
-		case 'group':
-			if ( ! $this->groupManager->groupExists( (string) RuleService::scopeGroupId( $scope ) ) )
-			{
-				throw new InvalidArgumentException( 'Unknown group.' );
-			}
-
-			break;
-
-		case 'user':
-			if ( ! $this->userManager->userExists( $scope ) )
-			{
-				throw new InvalidArgumentException( 'Unknown user.' );
-			}
-
-			break;
-		}
-
-		return $scope;
 	}
 
 

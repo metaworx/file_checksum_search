@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 use InvalidArgumentException;
 use OCA\FileChecksumSearch\Controller\RulesController;
 use OCA\FileChecksumSearch\Service\PermissionService;
+use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\AppFramework\Http;
@@ -70,6 +71,10 @@ class RulesControllerTest
 			                         $this->permissionService,
 			                         $this->userSession,
 			                         $this->groupManager,
+			                         // Real validator over the same mocks: the
+			                         // existing payload tests keep exercising
+			                         // validation through the controller door.
+			                         new RuleDefinitionValidator( $this->groupManager, $this->userManager ),
 			                         $this->userManager,
 			                         $this->logger,
 		                         ] )
@@ -280,6 +285,7 @@ class RulesControllerTest
 
 
 	// create
+
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
@@ -672,6 +678,7 @@ class RulesControllerTest
 
 
 	// reorder
+
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection

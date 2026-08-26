@@ -111,9 +111,6 @@ class RuleServiceTest
 	}
 
 
-	/**
-	 * @noinspection PhpSameParameterValueInspection
-	 */
 	private function createRuleServicePartial(
 		array $methods,
 	): RuleService&MockObject {
@@ -204,6 +201,7 @@ class RuleServiceTest
 
 
 	// evaluateRules
+
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
@@ -475,6 +473,7 @@ class RuleServiceTest
 
 	// searchFilesByGlob
 
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
@@ -590,6 +589,7 @@ class RuleServiceTest
 
 	// ruleAdd
 
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
@@ -633,6 +633,7 @@ class RuleServiceTest
 
 
 	// ruleDelete
+
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
@@ -721,6 +722,7 @@ class RuleServiceTest
 
 	// ruleToggle
 
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
@@ -763,6 +765,7 @@ class RuleServiceTest
 
 
 	// ruleUpdate
+
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
@@ -848,6 +851,7 @@ class RuleServiceTest
 
 
 	// findFirstMatchingRule
+
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
@@ -1069,6 +1073,7 @@ class RuleServiceTest
 
 	// findRuleById
 
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
@@ -1254,6 +1259,7 @@ class RuleServiceTest
 
 
 	// matching order
+
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
@@ -1577,6 +1583,7 @@ class RuleServiceTest
 
 	// band placement on write
 
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
@@ -1779,6 +1786,7 @@ class RuleServiceTest
 
 	// migrateToBands
 
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
@@ -1904,6 +1912,7 @@ class RuleServiceTest
 
 
 	// reorderBand
+
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
@@ -2192,6 +2201,7 @@ class RuleServiceTest
 
 
 	// listRulesFor
+
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
@@ -2649,6 +2659,274 @@ class RuleServiceTest
 		;
 
 		$this->assertFalse( $this->service->isPathWritableByUser( 'alice', '/' ) );
+	}
+
+
+	// ─── applyRule ──────────────────────────────────────────────────
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testApplyRuleQueuesGovernedStaleFilesUncapped(): void
+	{
+
+		$rule = [
+			'id'        => 'r1',
+			'enabled'   => true,
+			'type'      => 'include',
+			'path'      => '**',
+			'userScope' => 'alice',
+			'mode'      => 'missing',
+		];
+
+		$this->setupRulesConfig( [ $rule ] );
+
+		$stale = $this->createFileMock( 1, mtime: 2000, path: '/alice/files/a.txt' );
+		$fresh = $this->createFileMock( 2, path: '/alice/files/b.txt' );
+
+		$partial = $this->createRuleServicePartial(
+			[
+				'searchFilesByGlob',
+				'resolveUsers',
+			],
+		);
+		$partial->method( 'resolveUsers' )
+		        ->willReturn( [ 'alice' ] )
+		;
+		$partial->method( 'searchFilesByGlob' )
+		        ->with( $this->anything(), '**', 0 )
+		        ->willReturn(
+			        [
+				        $stale,
+				        $fresh,
+			        ],
+		        )
+		;
+
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->willReturn( $this->createMock( Folder::class ) )
+		;
+		$this->metadataService->method( 'getUpdatedAt' )
+		                      ->willReturnMap( [
+			                      [
+				                      1,
+				                      1500,
+			                      ],
+			                      [
+				                      2,
+				                      1500,
+			                      ],
+		                      ] )
+		;
+
+		// Only the stale file is queued, with the rule's own mode.
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 1, 'pending:missing' )
+		;
+
+		$result = $partial->applyRule( $rule );
+
+		$this->assertSame(
+			[
+				'matched' => 2,
+				'marked'  => 1,
+				'skipped' => 0,
+				'fresh'   => 1,
+			],
+			$result,
+		);
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testApplyRuleNeverMarksAFileAHigherBandClaims(): void
+	{
+
+		$mine   = [
+			'id'        => 'mine',
+			'enabled'   => true,
+			'type'      => 'include',
+			'path'      => '**',
+			'userScope' => 'all',
+			'mode'      => 'force',
+		];
+		$higher = [
+			'id'             => 'mandate',
+			'enabled'        => true,
+			'type'           => 'exclude',
+			'path'           => '**',
+			'userScope'      => 'alice',
+			'admin_enforced' => true,
+		];
+
+		// Band discipline holds for a single-rule apply exactly as for the
+		// sweep: the enforced band-1 rule claims alice's files, so applying
+		// the band-6 rule must not touch them.
+		$this->setupRulesConfig(
+			[
+				$higher,
+				$mine,
+			],
+		);
+
+		$file    = $this->createFileMock( 1, path: '/alice/files/a.txt' );
+		$partial = $this->createRuleServicePartial(
+			[
+				'searchFilesByGlob',
+				'resolveUsers',
+			],
+		);
+		$partial->method( 'resolveUsers' )
+		        ->willReturn( [ 'alice' ] )
+		;
+		$partial->method( 'searchFilesByGlob' )
+		        ->willReturn( [ $file ] )
+		;
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->willReturn( $this->createMock( Folder::class ) )
+		;
+
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'markPending' )
+		;
+
+		$result = $partial->applyRule( $mine );
+
+		$this->assertSame( 1, $result['skipped'] );
+	}
+
+
+	public function testApplyRuleRefusesADisabledRule(): void
+	{
+
+		$this->expectException( InvalidArgumentException::class );
+		$this->expectExceptionMessage( 'disabled' );
+
+		$this->service->applyRule(
+			[
+				'id'      => 'r1',
+				'enabled' => false,
+				'type'    => 'include',
+			],
+		);
+	}
+
+
+	public function testApplyRuleRefusesANonIncludeRule(): void
+	{
+
+		// An ignore/exclude rule computes nothing, so applying it could only
+		// queue work the drain is designed to drop.
+		$this->expectException( InvalidArgumentException::class );
+
+		$this->service->applyRule(
+			[
+				'id'      => 'r1',
+				'enabled' => true,
+				'type'    => 'exclude',
+			],
+		);
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testApplyRuleWithModeOverrideOnAnEnforcedRuleWarns(): void
+	{
+
+		$rule = [
+			'id'             => 'mandate',
+			'enabled'        => true,
+			'type'           => 'include',
+			'path'           => '**',
+			'userScope'      => 'alice',
+			'mode'           => 'auto',
+			'admin_enforced' => true,
+		];
+
+		$partial = $this->createRuleServicePartial(
+			[
+				'searchFilesByGlob',
+				'resolveUsers',
+			],
+		);
+		$partial->method( 'resolveUsers' )
+		        ->willReturn( [] )
+		;
+
+		// Deviating from the mode someone wrote down as non-negotiable
+		// leaves a trace another person can find.
+		$this->logger->expects( $this->once() )
+		             ->method( 'warning' )
+		             ->with( $this->stringContains( 'mode override' ), $this->anything() )
+		;
+
+		$partial->applyRule( $rule, 'force', null, 'cli' );
+	}
+
+
+	// ─── audit logging ──────────────────────────────────────────────
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testMutationsAreAuditLoggedWithTheActor(): void
+	{
+
+		$this->setupRulesConfig( [] );
+
+		$this->logger->expects( $this->once() )
+		             ->method( 'info' )
+		             ->with(
+			             $this->stringContains( 'rule audit' ),
+			             $this->callback(
+				             static fn(
+					             array $context,
+				             ): bool => $context['operation'] === 'created'
+					             && $context['actor'] === 'alice',
+			             ),
+		             )
+		;
+
+		$this->service->ruleAdd(
+			[
+				'enabled'   => true,
+				'path'      => '/docs/**',
+				'userScope' => 'alice',
+			],
+			'alice',
+		);
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testMutatingAnEnforcedRuleEscalatesToWarning(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'             => 'mandate',
+				'enabled'        => true,
+				'path'           => '**',
+				'userScope'      => 'all',
+				'admin_enforced' => true,
+			],
+		] );
+
+		$this->logger->expects( $this->once() )
+		             ->method( 'warning' )
+		             ->with( $this->stringContains( 'admin-enforced' ), $this->anything() )
+		;
+
+		$this->service->ruleDelete( 'mandate', 'cli' );
 	}
 
 }

@@ -107,6 +107,7 @@ class RepairQuietStart
 					'admin_enforced' => false,
 					'pinned'         => true,
 				],
+				'repair',
 			);
 
 			$output->info(

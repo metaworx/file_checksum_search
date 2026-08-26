@@ -72,6 +72,11 @@
 		<command>OCA\FileChecksumSearch\Command\ShowStatus</command>
 		<command>OCA\FileChecksumSearch\Command\ShowConfig</command>
 		<command>OCA\FileChecksumSearch\Command\FindDuplicates</command>
+		<command>OCA\FileChecksumSearch\Command\Rules\ListRules</command>
+		<command>OCA\FileChecksumSearch\Command\Rules\AddRule</command>
+		<command>OCA\FileChecksumSearch\Command\Rules\ModifyRule</command>
+		<command>OCA\FileChecksumSearch\Command\Rules\DeleteRule</command>
+		<command>OCA\FileChecksumSearch\Command\Rules\ApplyRule</command>
 	</commands>
 	<repair-steps>
 		<post-migration>
