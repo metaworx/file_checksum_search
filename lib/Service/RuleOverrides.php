@@ -27,6 +27,20 @@ use Symfony\Component\Console\Output\OutputInterface;
 readonly class RuleOverrides
 {
 
+	public const UNMATCHED_SKIP = 'skip';
+
+	public const UNMATCHED_INCLUDE = 'include';
+
+	public const UNMATCHED_ONLY = 'unmatched';
+
+	public const UNMATCHED_CHOICES
+		= [
+			self::UNMATCHED_SKIP,
+			self::UNMATCHED_INCLUDE,
+			self::UNMATCHED_ONLY,
+		];
+
+
 	/**
 	 * @param  bool          $withIgnored    Process files whose governing rule
 	 *                                       is `ignore`. That verdict means
@@ -40,10 +54,20 @@ readonly class RuleOverrides
 	 *                                       general permit: a file no other
 	 *                                       rule matches still falls through
 	 *                                       to the default.
+	 * @param  string        $unmatched      What to do with a file no rule
+	 *                                       governs: 'skip' (default — the
+	 *                                       background job's answer too),
+	 *                                       'include' (process them along
+	 *                                       with the matched ones), or
+	 *                                       'unmatched' (process *only*
+	 *                                       them — the inverse view, for
+	 *                                       hashing a corner no rule covers
+	 *                                       without touching the rest).
 	 */
 	public function __construct(
-		public bool  $withIgnored = false,
-		public array $ignoreRuleIds = [],
+		public bool   $withIgnored = false,
+		public array  $ignoreRuleIds = [],
+		public string $unmatched = self::UNMATCHED_SKIP,
 	) {
 	}
 
@@ -58,13 +82,25 @@ readonly class RuleOverrides
 	public function allows( ?array $rule ): bool
 	{
 
+		// The inverse view: only files with no governing rule at all. A
+		// matched file is out of scope here whatever its verdict says —
+		// including `include`.
+		if ( $this->unmatched === self::UNMATCHED_ONLY )
+		{
+			return $rule === null;
+		}
+
+		if ( $rule === null )
+		{
+			return $this->unmatched === self::UNMATCHED_INCLUDE;
+		}
+
 		if ( RuleService::maintainsHashes( $rule ) )
 		{
 			return true;
 		}
 
 		return $this->withIgnored
-			&& $rule !== null
 			&& RuleService::verdictOf( $rule ) === RuleService::TYPE_IGNORE;
 	}
 
@@ -129,7 +165,9 @@ readonly class RuleOverrides
 	public function isEmpty(): bool
 	{
 
-		return ! $this->withIgnored && $this->ignoreRuleIds === [];
+		return ! $this->withIgnored
+			&& $this->ignoreRuleIds === []
+			&& $this->unmatched === self::UNMATCHED_SKIP;
 	}
 
 }

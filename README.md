@@ -75,11 +75,15 @@ FCIAS provides 7 `occ` commands. Run them as `php occ <command>`.
 #### `hash` and the rules
 
 `hash` honours the hash generation rules, in both its direct and its `--mark` form: it is the
-CLI face of the background job, so a rule saying not to hash a file stops it too. Three options
-deviate from that deliberately, and only in ways that say what they are doing:
+CLI face of the background job, so a rule saying not to hash a file stops it too. Its options
+split into two groups — *what to compute*, and *named deviations from the rules*:
 
 | Option | Effect |
 |--------|--------|
+| `-a`, `--algo=<name\|all\|auto>` | Repeatable (commas work too). Default `auto`: each file gets its **governing rule's** algorithms. Explicit names are exclusive — the rule's list is not consulted; combining names with `auto` forms the union. Unknown names fail the run. |
+| `-m`, `--mode=<missing\|force>` | Default `missing`: compute each file's absent algorithms and refresh stale ones (hashes older than the file's mtime). `force` recomputes everything requested. `auto` and `lazy` are rejected — the first is the background drain's semantics, the second is spelled `--mark`. |
+| `-k`, `--mark` | Queue matching files as `pending:<mode>` for the background job instead of computing now. The drain resolves each file's rule at that point, so `--algo` does not apply to marked files (the command says so if you combine them). |
+| `-u`, `--unmatched[=include\|skip\|unmatched]` | Files no rule governs: `skip` (default), `include` (process them too), or `unmatched` — bare `-u` — to process **only** them: the inverse view, for hashing a corner no rule covers without touching the rest. Needs at least one explicit `--algo`, since there is no rule to supply one; cannot be combined with `--mark`, whose drain would drop such files by design. |
 | `--with-ignored` | Also process files whose governing rule is `ignore`. That verdict means "not automatically, but when asked", and typing a command *is* asking. Never affects `exclude`. |
 | `--ignore-rule=<id>` | Evaluate as if that rule did not exist, so the next matching rule decides. Repeatable. An unknown ID fails the run rather than being skipped quietly. |
 | `-v` / `-vv` | `-v` names the rule that skipped each file; `-vv` also names the rule for each file that proceeds. |
@@ -112,8 +116,14 @@ php occ file-checksum-search:search sha256:e3b0c44298fc1c149afbf4c8996fb92427ae4
 # Generate SHA-1 hashes for all PDFs of a user
 php occ file-checksum-search:hash --user=alice --path="**/*.pdf"
 
-# Generate SHA-256 hashes for all files of a user
+# Hash a user's files with each file's rule-configured algorithms (the default)
+php occ file-checksum-search:hash --user=alice
+
+# Compute SHA-256 specifically, regardless of what the rules configure
 php occ file-checksum-search:hash --user=alice --algo=sha256
+
+# Hash the one corner no rule covers yet, without touching anything else
+php occ file-checksum-search:hash --user=alice --path='Scans/**' -u -a sha1
 
 # Mark files as pending instead of hashing immediately
 php occ file-checksum-search:hash --user=alice --mark

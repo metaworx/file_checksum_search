@@ -32,6 +32,13 @@ class HashFiles
 	Command
 {
 
+	/**
+	 * Sentinel default for --unmatched, distinguishing "option absent"
+	 * (→ skip) from "present without a value" (→ unmatched-only).
+	 */
+	private const UNMATCHED_ABSENT = "\0absent";
+
+
 	public function __construct(
 		private readonly HashIndexService $hashIndexService,
 		private readonly MetadataService  $metadataService,
@@ -71,10 +78,28 @@ class HashFiles
 		     )
 		     ->addOption(
 			     'algo',
-			     null,
+			     'a',
+			     InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY,
+			     'Algorithm name, "all", or "auto" (the governing rule\'s list). Repeatable; '
+			     . 'comma-separated values work too. Explicit names are exclusive; combining '
+			     . 'them with "auto" forms the union.',
+			     [ HashCalculationService::ALGO_AUTO ],
+		     )
+		     ->addOption(
+			     'mode',
+			     'm',
+			     InputOption::VALUE_REQUIRED,
+			     '"missing" computes absent hashes and refreshes stale ones; "force" recomputes '
+			     . 'everything requested. ("auto" is the background drain\'s job; deferring is --mark.)',
+			     MetadataService::PENDING_MODE_MISSING,
+		     )
+		     ->addOption(
+			     'unmatched',
+			     'u',
 			     InputOption::VALUE_OPTIONAL,
-			     'Hash algorithm(s), comma-separated, or "all" for every supported algorithm',
-			     HashCalculationService::getDefaultAlgo(),
+			     'Files no rule governs: "skip" (default), "include" (process them too), or '
+			     . '"unmatched" (process only them). Bare -u means "unmatched".',
+			     self::UNMATCHED_ABSENT,
 		     )
 		     ->addOption(
 			     'batch-size',
@@ -84,9 +109,10 @@ class HashFiles
 		     )
 		     ->addOption(
 			     'mark',
-			     null,
+			     'k',
 			     InputOption::VALUE_NONE,
-			     'Mark files as pending:auto instead of computing hashes immediately',
+			     'Queue matching files as pending:<mode> for the background job instead of '
+			     . 'computing now',
 		     )
 		     ->addOption(
 			     'with-ignored',
@@ -116,20 +142,95 @@ class HashFiles
 
 		$userScope   = $input->getOption( 'user' );
 		$pathPattern = $input->getOption( 'path' );
-		$algo        = $input->getOption( 'algo' );
-		$algos       = $this->normalizeAlgoList( $algo );
+		$algos       = $this->normalizeAlgoList( $input->getOption( 'algo' ) );
 		$algoLabel   = implode( ',', $algos );
 		$batchSize   = $input->getOption( 'batch-size' );
 		$batchSize   = $batchSize !== null
 			? (int) $batchSize
 			: null;
 		$markOnly    = (bool) $input->getOption( 'mark' );
+		$mode        = (string) $input->getOption( 'mode' );
+
+		$invalid = array_diff(
+			$algos,
+			HashCalculationService::SUPPORTED_ALGOS,
+			[ HashCalculationService::ALGO_AUTO ],
+		);
+
+		if ( $invalid !== [] )
+		{
+			// An unknown algorithm used to flow through silently and simply
+			// produce nothing; a typo must fail, not underdeliver.
+			$output->writeln(
+				sprintf( '<error>Unsupported algorithm(s): %s.</error>', implode( ', ', $invalid ) ),
+			);
+
+			return Command::FAILURE;
+		}
+
+		if ( ! in_array(
+			$mode,
+			[
+				MetadataService::PENDING_MODE_MISSING,
+				MetadataService::PENDING_MODE_FORCE,
+			],
+			true,
+		) )
+		{
+			$output->writeln(
+				sprintf(
+					'<error>Unsupported mode "%s". Use "missing" or "force" — "auto" is the '
+					. 'background drain\'s semantics, and deferring is --mark.</error>',
+					$mode,
+				),
+			);
+
+			return Command::FAILURE;
+		}
 
 		$overrides = $this->overridesFrom( $input, $output );
 
 		if ( $overrides === null )
 		{
 			return Command::FAILURE;
+		}
+
+		$hasExplicitAlgos = $algos !== [ HashCalculationService::ALGO_AUTO ]
+			&& array_diff( $algos, [ HashCalculationService::ALGO_AUTO ] ) !== [];
+
+		if ( $overrides->unmatched !== RuleOverrides::UNMATCHED_SKIP && ! $hasExplicitAlgos )
+		{
+			// An unmatched file has no rule to supply algorithms, so a run
+			// that includes them under pure "auto" could only skip every one
+			// of them — a normal-looking run that did nothing asked of it.
+			$output->writeln(
+				'<error>--unmatched processes files no rule governs, so no rule can supply '
+				. 'their algorithms: pass at least one explicit --algo.</error>',
+			);
+
+			return Command::FAILURE;
+		}
+
+		if ( $markOnly && $overrides->unmatched !== RuleOverrides::UNMATCHED_SKIP )
+		{
+			// The background drain resolves rules at action time and drops
+			// marks nothing governs, so deferring unmatched files would queue
+			// work the drain is designed to refuse.
+			$output->writeln(
+				'<error>--mark cannot defer unmatched files: the background job honours the '
+				. 'rules, and a file no rule governs would be dropped at drain time. Run '
+				. 'without --mark to hash them now.</error>',
+			);
+
+			return Command::FAILURE;
+		}
+
+		if ( $markOnly && $hasExplicitAlgos )
+		{
+			$output->writeln(
+				'<comment>--algo is ignored with --mark: the background job takes each '
+				. 'file\'s algorithms from its governing rule at drain time.</comment>',
+			);
 		}
 
 		$users = $this->ruleService->resolveUsers( $userScope );
@@ -148,7 +249,7 @@ class HashFiles
 
 		if ( $markOnly )
 		{
-			return $this->executeMarkOnly( $users, $pathPattern, $batchSize, $overrides, $output );
+			return $this->executeMarkOnly( $users, $pathPattern, $batchSize, $overrides, $mode, $output );
 		}
 
 		$output->writeln(
@@ -209,6 +310,7 @@ class HashFiles
 				$remaining ?? 0, // 0 = unlimited (--batch-size omitted)
 				$output,
 				$overrides,
+				$mode,
 			);
 
 			$totalProcessed += $result['processed'];
@@ -258,6 +360,27 @@ class HashFiles
 		/** @var list<string> $ignoreRuleIds */
 		$ignoreRuleIds = $input->getOption( 'ignore-rule' );
 		$withIgnored   = (bool) $input->getOption( 'with-ignored' );
+		$unmatchedRaw  = $input->getOption( 'unmatched' );
+
+		// Absent → skip; bare --unmatched / -u → only unmatched files.
+		$unmatched = match ( $unmatchedRaw )
+		{
+			self::UNMATCHED_ABSENT => RuleOverrides::UNMATCHED_SKIP,
+			null => RuleOverrides::UNMATCHED_ONLY,
+			default => strtolower( (string) $unmatchedRaw ),
+		};
+
+		if ( ! in_array( $unmatched, RuleOverrides::UNMATCHED_CHOICES, true ) )
+		{
+			$output->writeln(
+				sprintf(
+					'<error>Unsupported --unmatched value "%s". Use include, skip, or unmatched.</error>',
+					$unmatchedRaw,
+				),
+			);
+
+			return null;
+		}
 
 		foreach ( $ignoreRuleIds as $ruleId )
 		{
@@ -305,31 +428,56 @@ class HashFiles
 			);
 		}
 
-		return new RuleOverrides( $withIgnored, $ignoreRuleIds );
+		if ( $unmatched === RuleOverrides::UNMATCHED_ONLY )
+		{
+			$output->writeln(
+				'<comment>Processing only files no rule governs. Matched files are skipped, '
+				. 'whatever their verdict.</comment>',
+			);
+		}
+
+		return new RuleOverrides( $withIgnored, $ignoreRuleIds, $unmatched );
 	}
 
 
 	/**
-	 * Normalize the --algo option value into a lowercase, unique algorithm
-	 * list. The literal "all" expands to every supported algorithm.
+	 * Normalize the repeatable --algo option into a lowercase, unique token
+	 * list. Each value may itself be comma-separated; "all" expands to every
+	 * supported algorithm; "auto" is kept as a token for the service to
+	 * resolve per file against the governing rule.
 	 *
-	 * @param  mixed  $algo
+	 * @param  string[]  $values
 	 *
 	 * @return string[]
 	 */
-	private function normalizeAlgoList( mixed $algo ): array
+	private function normalizeAlgoList( array $values ): array
 	{
 
-		$algo = (string) $algo;
+		$tokens = [];
 
-		if ( strtolower( trim( $algo ) ) === 'all' )
+		foreach ( $values as $value )
 		{
-			return HashCalculationService::SUPPORTED_ALGOS;
+			foreach ( explode( ',', strtolower( $value ) ) as $token )
+			{
+				$token = trim( $token );
+
+				if ( $token === '' )
+				{
+					continue;
+				}
+
+				if ( $token === 'all' )
+				{
+					$tokens = array_merge( $tokens, HashCalculationService::SUPPORTED_ALGOS );
+
+					continue;
+				}
+
+				$tokens[] = $token;
+			}
 		}
 
-		$algos = array_filter( array_map( 'trim', explode( ',', $algo ) ), 'strlen' );
-
-		return array_values( array_unique( array_map( 'strtolower', $algos ) ) );
+		return array_values( array_unique( $tokens ) );
 	}
 
 
@@ -340,6 +488,7 @@ class HashFiles
 	 * @param  string|null      $pathPattern
 	 * @param  int|null         $batchSize
 	 * @param  RuleOverrides    $overrides
+	 * @param  string           $mode
 	 * @param  OutputInterface  $output
 	 *
 	 * @return int
@@ -349,6 +498,7 @@ class HashFiles
 		?string         $pathPattern,
 		?int            $batchSize,
 		RuleOverrides   $overrides,
+		string          $mode,
 		OutputInterface $output,
 	): int {
 
@@ -393,6 +543,7 @@ class HashFiles
 				$userFolder,
 				$pathPattern,
 				$overrides,
+				$mode,
 				$output,
 				$remaining,
 				$skipped,
@@ -449,6 +600,7 @@ class HashFiles
 		Folder          $folder,
 		?string         $pathPattern,
 		RuleOverrides   $overrides,
+		string          $mode,
 		OutputInterface $output,
 		?int            &$remaining,
 		int             &$skipped = 0,
@@ -486,7 +638,12 @@ class HashFiles
 
 			$overrides->report( $output, $file->getPath(), $rule, true );
 
-			$this->metadataService->markPending( $file->getId(), MetadataService::PENDING_AUTO );
+			// pending:<mode>, not a hardcoded pending:auto — "queue a forced
+			// background recompute" is expressible now.
+			$this->metadataService->markPending(
+				$file->getId(),
+				MetadataService::PENDING_PREFIX . $mode,
+			);
 			$marked ++;
 
 			if ( $remaining !== null )

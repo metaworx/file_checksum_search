@@ -38,9 +38,9 @@ class HashFilesTest
 
 	private MockObject|RuleService      $ruleService;
 
-	private MockObject|LoggerInterface $logger;
+	private MockObject|LoggerInterface  $logger;
 
-	private CommandTester              $tester;
+	private CommandTester               $tester;
 
 
 	protected function setUp(): void
@@ -88,11 +88,13 @@ class HashFilesTest
 		                  ->willReturn( [ 'alice' ] )
 		;
 
+		// The default is 'auto' — each file's governing rule supplies its
+		// algorithms — not a hardcoded sha1.
 		$this->hashIndexService->expects( $this->once() )
 		                       ->method( 'generateMissingHashes' )
 		                       ->with(
 			                       'alice',
-			                       [ HashCalculationService::getDefaultAlgo() ],
+			                       [ HashCalculationService::ALGO_AUTO ],
 			                       null,
 			                       0,
 			                       $this->anything(),
@@ -142,7 +144,10 @@ class HashFilesTest
 		$this->tester->execute(
 			[
 				'--user' => 'alice',
-				'--algo' => 'SHA1, md5, sha1',
+				'--algo' => [
+					'SHA1, md5',
+					'sha1',
+				],
 			],
 		);
 	}
@@ -175,7 +180,7 @@ class HashFilesTest
 		$this->tester->execute(
 			[
 				'--user' => 'alice',
-				'--algo' => 'all',
+				'--algo' => [ 'all' ],
 			],
 		);
 	}
@@ -361,7 +366,7 @@ class HashFilesTest
 		// silently doing less than asked.
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'markPending' )
-		                      ->with( 1, MetadataService::PENDING_AUTO )
+		                      ->with( 1, 'pending:missing' )
 		;
 
 		$this->tester->execute(
@@ -382,7 +387,7 @@ class HashFilesTest
 	}
 
 
-	public function testMarkOnlyMarksMatchingFilesAsPendingAuto(): void
+	public function testMarkOnlyMarksMatchingFilesAsPendingMode(): void
 	{
 
 		$this->ruleService->method( 'resolveUsers' )
@@ -438,7 +443,8 @@ class HashFilesTest
 				                      string $mode,
 			                      ): void {
 
-				                      $this->assertSame( MetadataService::PENDING_AUTO, $mode );
+				                      // pending:<--mode> — the default mode is missing.
+				                      $this->assertSame( 'pending:missing', $mode );
 			                      },
 		                      )
 		;
@@ -816,6 +822,262 @@ class HashFilesTest
 		// Nothing decided, so nothing is hashed — and the reason says so
 		// rather than leaving the file simply absent from the output.
 		$this->assertStringContainsString( 'skip /files/a.txt [no matching rule]', $this->tester->getDisplay() );
+	}
+
+
+	// ─── option validation & new semantics ──────────────────────────
+
+	public function testUnknownAlgorithmFailsInsteadOfUnderdelivering(): void
+	{
+
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'generateMissingHashes' )
+		;
+
+		$exit = $this->tester->execute(
+			[
+				'--user' => 'alice',
+				'--algo' => [
+					'sha1',
+					'shaFive',
+				],
+			],
+		);
+
+		$this->assertSame( Command::FAILURE, $exit );
+		$this->assertStringContainsString( 'Unsupported algorithm(s): shafive.', $this->tester->getDisplay() );
+	}
+
+
+	public function testAutoAndLazyModesAreRejectedWithAnExplanation(): void
+	{
+
+		foreach (
+			[
+				'auto',
+				'lazy',
+			] as $mode
+		)
+		{
+			$exit = $this->tester->execute(
+				[
+					'--user' => 'alice',
+					'--mode' => $mode,
+				],
+			);
+
+			$this->assertSame( Command::FAILURE, $exit );
+		}
+
+		// The rejection teaches, it does not just refuse.
+		$this->assertStringContainsString( 'deferring is --mark', $this->tester->getDisplay() );
+	}
+
+
+	public function testModeForceIsPassedThroughToTheService(): void
+	{
+
+		$this->ruleService->method( 'resolveUsers' )
+		                  ->willReturn( [ 'alice' ] )
+		;
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'generateMissingHashes' )
+		                       ->with(
+			                       'alice',
+			                       $this->anything(),
+			                       $this->anything(),
+			                       $this->anything(),
+			                       $this->anything(),
+			                       $this->anything(),
+			                       'force',
+		                       )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 0,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+
+		$this->assertSame(
+			Command::SUCCESS,
+			$this->tester->execute(
+				[
+					'--user' => 'alice',
+					'--mode' => 'force',
+				],
+			),
+		);
+	}
+
+
+	public function testBareUnmatchedMeansUnmatchedOnly(): void
+	{
+
+		$this->ruleService->method( 'resolveUsers' )
+		                  ->willReturn( [ 'alice' ] )
+		;
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'generateMissingHashes' )
+		                       ->with(
+			                       'alice',
+			                       [ 'sha1' ],
+			                       $this->anything(),
+			                       $this->anything(),
+			                       $this->anything(),
+			                       $this->callback(
+				                       static fn(
+					                       RuleOverrides $overrides,
+				                       ): bool => $overrides->unmatched === RuleOverrides::UNMATCHED_ONLY,
+			                       ),
+		                       )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 0,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+
+		// Bare flag, no value: the inverse view.
+		$exit = $this->tester->execute(
+			[
+				'--user'      => 'alice',
+				'--algo'      => [ 'sha1' ],
+				'--unmatched' => null,
+			],
+		);
+
+		$this->assertSame( Command::SUCCESS, $exit );
+		$this->assertStringContainsString( 'only files no rule governs', $this->tester->getDisplay() );
+	}
+
+
+	public function testUnmatchedWithPureAutoFailsFast(): void
+	{
+
+		// Unmatched files have no rule to supply algorithms; a run that
+		// could only skip every file it was asked to process must not look
+		// like a normal run.
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'generateMissingHashes' )
+		;
+
+		$exit = $this->tester->execute(
+			[
+				'--user'      => 'alice',
+				'--unmatched' => 'include',
+			],
+		);
+
+		$this->assertSame( Command::FAILURE, $exit );
+		$this->assertStringContainsString( 'pass at least one explicit --algo', $this->tester->getDisplay() );
+	}
+
+
+	public function testMarkRefusesUnmatchedFiles(): void
+	{
+
+		// The drain honours rules at action time and would drop these marks;
+		// queueing work designed to be refused is not an option.
+		$exit = $this->tester->execute(
+			[
+				'--user'      => 'alice',
+				'--algo'      => [ 'sha1' ],
+				'--unmatched' => 'include',
+				'--mark'      => true,
+			],
+		);
+
+		$this->assertSame( Command::FAILURE, $exit );
+		$this->assertStringContainsString( 'dropped at drain time', $this->tester->getDisplay() );
+	}
+
+
+	public function testMarkWithExplicitAlgosSaysTheyAreIgnored(): void
+	{
+
+		$this->markSetup(
+			[
+				'/files/a.txt' => [
+					'id'   => 'r1',
+					'type' => 'include',
+				],
+			],
+		);
+
+		$this->tester->execute(
+			[
+				'--user' => 'alice',
+				'--algo' => [ 'sha256' ],
+				'--mark' => true,
+			],
+		);
+
+		$this->assertStringContainsString( '--algo is ignored with --mark', $this->tester->getDisplay() );
+	}
+
+
+	public function testMarkWithForceQueuesPendingForce(): void
+	{
+
+		$this->markSetup(
+			[
+				'/files/a.txt' => [
+					'id'   => 'r1',
+					'type' => 'include',
+				],
+			],
+		);
+
+		// The previously inexpressible case: queue a forced background
+		// recompute.
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 1, 'pending:force' )
+		;
+
+		$this->tester->execute(
+			[
+				'--user' => 'alice',
+				'--mode' => 'force',
+				'--mark' => true,
+			],
+		);
+	}
+
+
+	public function testShorthandsResolveToTheirOptions(): void
+	{
+
+		$definition = ( new HashFiles(
+			$this->hashIndexService,
+			$this->metadataService,
+			$this->filecacheService,
+			$this->ruleService,
+			$this->logger,
+		) )->getDefinition();
+
+		$this->assertSame(
+			'algo',
+			$definition->getOptionForShortcut( 'a' )
+			           ->getName(),
+		);
+		$this->assertSame(
+			'mode',
+			$definition->getOptionForShortcut( 'm' )
+			           ->getName(),
+		);
+		$this->assertSame(
+			'unmatched',
+			$definition->getOptionForShortcut( 'u' )
+			           ->getName(),
+		);
+		$this->assertSame(
+			'mark',
+			$definition->getOptionForShortcut( 'k' )
+			           ->getName(),
+		);
 	}
 
 

@@ -1322,11 +1322,265 @@ class HashCalculationServiceTest
 	}
 
 
+	// ─── effective algorithm set / --mode semantics ─────────────────
+
+
 	/**
-	 * A collecting service over a single unhashed file governed by $rule.
+	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	private function collectingServiceOverOneFile( ?array $rule ): HashCalculationService&MockObject
+	public function testAutoTakesTheAlgorithmsFromTheGoverningRule(): void
 	{
+
+		$service = $this->collectingServiceOverOneFile(
+			[
+				'id'    => 'r1',
+				'type'  => 'include',
+				'algos' => [ 'sha256' ],
+			],
+		);
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->with( $this->anything(), [ 'sha256' ], true )
+		        ->willReturn( $this->oneSuccess( 'sha256' ) )
+		;
+
+		$result = $service->generateMissingHashes( 'testuser', [ 'auto' ], null, 0 );
+
+		$this->assertSame( 1, $result['processed'] );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testExplicitAlgorithmsAreExclusiveOfTheRulesList(): void
+	{
+
+		// The rule says sha256; the operator said md5. Explicit means
+		// exactly that — the rule's list is not consulted.
+		$service = $this->collectingServiceOverOneFile(
+			[
+				'id'    => 'r1',
+				'type'  => 'include',
+				'algos' => [ 'sha256' ],
+			],
+		);
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->with( $this->anything(), [ 'md5' ], true )
+		        ->willReturn( $this->oneSuccess( 'md5' ) )
+		;
+
+		$service->generateMissingHashes( 'testuser', [ 'md5' ], null, 0 );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAutoPlusExplicitFormsTheUnion(): void
+	{
+
+		$service = $this->collectingServiceOverOneFile(
+			[
+				'id'    => 'r1',
+				'type'  => 'include',
+				'algos' => [ 'sha256' ],
+			],
+		);
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->with(
+			        $this->anything(),
+			        [
+				        'md5',
+				        'sha256',
+			        ],
+			        true,
+		        )
+		        ->willReturn( $this->oneSuccess( 'sha256' ) )
+		;
+
+		$service->generateMissingHashes(
+			'testuser',
+			[
+				'md5',
+				'auto',
+			],
+			null,
+			0,
+		);
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testMissingModeRefreshesAStaleFileThatHasEveryAlgorithm(): void
+	{
+
+		// The file carries the hash, but its content changed after it was
+		// computed (updated_at < mtime). "Missing and outdated" is what the
+		// missing mode means — presence alone is not done-ness.
+		$service = $this->collectingServiceOverOneFile(
+			[
+				'id'    => 'r1',
+				'type'  => 'include',
+				'algos' => [ 'sha1' ],
+			],
+			checksum: 'SHA1:dead',
+			mtime: 2000,
+			updatedAt: 1000,
+		);
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->willReturn( $this->oneSuccess( 'sha1' ) )
+		;
+
+		$service->generateMissingHashes( 'testuser', [ 'auto' ], null, 0 );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testMissingModeSkipsAFreshFullyHashedFile(): void
+	{
+
+		$service = $this->collectingServiceOverOneFile(
+			[
+				'id'    => 'r1',
+				'type'  => 'include',
+				'algos' => [ 'sha1' ],
+			],
+			checksum: 'SHA1:dead',
+			updatedAt: 2000,
+		);
+		$service->expects( $this->never() )
+		        ->method( 'recalcHashes' )
+		;
+
+		$result = $service->generateMissingHashes( 'testuser', [ 'auto' ], null, 0 );
+
+		$this->assertSame( 0, $result['processed'] );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testForceModeRecomputesAFreshFullyHashedFile(): void
+	{
+
+		$service = $this->collectingServiceOverOneFile(
+			[
+				'id'    => 'r1',
+				'type'  => 'include',
+				'algos' => [ 'sha1' ],
+			],
+			checksum: 'SHA1:dead',
+			updatedAt: 2000,
+		);
+		// skipExisting=false: force discards the freshness shortcut.
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->with( $this->anything(), [ 'sha1' ], false )
+		        ->willReturn( $this->oneSuccess( 'sha1' ) )
+		;
+
+		$service->generateMissingHashes( 'testuser', [ 'auto' ], null, 0, null, null, 'force' );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testUnmatchedOnlySkipsAMatchedIncludeFile(): void
+	{
+
+		// The inverse view: a file an include rule governs is out of scope.
+		$service = $this->collectingServiceOverOneFile(
+			[
+				'id'    => 'r1',
+				'type'  => 'include',
+				'algos' => [ 'sha1' ],
+			],
+		);
+		$service->expects( $this->never() )
+		        ->method( 'recalcHashes' )
+		;
+
+		$result = $service->generateMissingHashes(
+			'testuser',
+			[ 'sha1' ],
+			null,
+			0,
+			null,
+			new RuleOverrides( unmatched: RuleOverrides::UNMATCHED_ONLY ),
+		);
+
+		$this->assertSame( 0, $result['processed'] );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testUnmatchedOnlyProcessesAFileNoRuleGoverns(): void
+	{
+
+		$service = $this->collectingServiceOverOneFile( null );
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->with( $this->anything(), [ 'sha1' ], true )
+		        ->willReturn( $this->oneSuccess( 'sha1' ) )
+		;
+
+		$result = $service->generateMissingHashes(
+			'testuser',
+			[ 'sha1' ],
+			null,
+			0,
+			null,
+			new RuleOverrides( unmatched: RuleOverrides::UNMATCHED_ONLY ),
+		);
+
+		$this->assertSame( 1, $result['processed'] );
+	}
+
+
+	/**
+	 * @return array{results: array<string, array{success: bool, hash: string, existed: bool}>, locked: bool}
+	 */
+	private function oneSuccess( string $algo ): array
+	{
+
+		return [
+			'results' => [
+				$algo => [
+					'success' => true,
+					'hash'    => 'abc',
+					'existed' => false,
+				],
+			],
+			'locked'  => false,
+		];
+	}
+
+
+	/**
+	 * A collecting service over a single file governed by $rule.
+	 *
+	 * $checksum is the filecache checksum string (presence source), $mtime
+	 * the file's modification time, $updatedAt what the metadata claims —
+	 * together they steer the missing/stale/fresh decision.
+	 */
+	private function collectingServiceOverOneFile(
+		?array $rule,
+		string $checksum = '',
+		int    $mtime = 1000,
+		?int   $updatedAt = null,
+	): HashCalculationService&MockObject {
 
 		$userFolderPath = '/testuser/files';
 
@@ -1335,8 +1589,14 @@ class HashCalculationServiceTest
 		;
 
 		$file = $this->createMock( File::class );
+		$file->method( 'getId' )
+		     ->willReturn( 42 )
+		;
 		$file->method( 'getChecksum' )
-		     ->willReturn( '' )
+		     ->willReturn( $checksum )
+		;
+		$file->method( 'getMTime' )
+		     ->willReturn( $mtime )
 		;
 		$file->method( 'getPath' )
 		     ->willReturn( $userFolderPath . '/a.txt' )
@@ -1355,6 +1615,9 @@ class HashCalculationServiceTest
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
 		                  ->willReturn( $rule )
+		;
+		$this->metadataService->method( 'getUpdatedAt' )
+		                      ->willReturn( $updatedAt )
 		;
 
 		return $this->createCollectingServiceMock();

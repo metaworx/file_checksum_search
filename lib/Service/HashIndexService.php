@@ -78,6 +78,7 @@ class HashIndexService
 		int              $batchSize = 100,
 		?OutputInterface $output = null,
 		?RuleOverrides   $overrides = null,
+		string           $mode = MetadataService::PENDING_MODE_MISSING,
 	): array {
 
 		return $this->hashCalc->generateMissingHashes(
@@ -87,6 +88,7 @@ class HashIndexService
 			$batchSize,
 			$output,
 			$overrides,
+			$mode,
 		);
 	}
 

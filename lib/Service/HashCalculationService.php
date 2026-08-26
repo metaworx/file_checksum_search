@@ -56,6 +56,10 @@ class HashCalculationService
 	}
 
 
+	/** The --algo token that delegates to the governing rule's algorithm list. */
+	public const ALGO_AUTO = 'auto';
+
+
 	public static function getDefaultAlgo(): string
 	{
 
@@ -117,7 +121,9 @@ class HashCalculationService
 	private function collectFilesForUser(
 		string           $folderPath,
 		string           $userId,
-		array            $algos,
+		array            $explicitAlgos,
+		bool             $useRuleAlgos,
+		string           $mode,
 		?string          $pathPattern,
 		string           $userFolderPath,
 		array            &$collected,
@@ -153,13 +159,6 @@ class HashCalculationService
 			return;
 		}
 
-		$prefixes = array_map(
-			static fn(
-				string $algo,
-			): string => strtoupper( $algo ) . ':',
-			$algos,
-		);
-
 		foreach ( $node->getDirectoryListing() as $child )
 		{
 			if ( ! $unlimited && count( $collected ) >= $batchSize )
@@ -172,7 +171,9 @@ class HashCalculationService
 				$this->collectFilesForUser(
 					$child->getPath(),
 					$userId,
-					$algos,
+					$explicitAlgos,
+					$useRuleAlgos,
+					$mode,
 					$pathPattern,
 					$userFolderPath,
 					$collected,
@@ -228,46 +229,88 @@ class HashCalculationService
 				continue;
 			}
 
-			$existingChecksum = $child->getChecksum() ?? '';
-			$hasAll           = true;
+			// Effective set: explicit names are exclusive; the 'auto' token
+			// adds the governing rule's list; both together form the union.
+			$fileAlgos = $explicitAlgos;
 
-			foreach ( $prefixes as $prefix )
+			if ( $useRuleAlgos )
 			{
-				$found = false;
-
-				foreach ( explode( ' ', $existingChecksum ) as $pair )
-				{
-					if ( str_starts_with( $pair, $prefix ) )
-					{
-						$found = true;
-
-						break;
-					}
-				}
-
-				if ( ! $found )
-				{
-					$hasAll = false;
-
-					break;
-				}
+				$fileAlgos = array_values(
+					array_unique(
+						array_merge( $fileAlgos, $rule['algos'] ?? [] ),
+					),
+				);
 			}
 
-			if ( ! $hasAll )
+			if ( $fileAlgos === [] )
 			{
-				$collected[] = $child;
+				// Only reachable for an unmatched file under a pure-auto run
+				// the caller allowed through — nothing says which algorithms,
+				// so nothing is computed.
+				if ( $stats !== null )
+				{
+					$stats['noAlgos'] = ( $stats['noAlgos'] ?? 0 ) + 1;
+				}
 
-				// Reported only once the file is actually queued, so a "hash"
-				// line always means work is about to happen — a file that
-				// already has every algorithm is not hashed and does not claim
-				// to be.
-				$overrides->report( $output, $child->getPath(), $rule, true );
+				$output?->writeln(
+					sprintf( '    skip %s [no rule to supply algorithms]', $child->getPath() ),
+					OutputInterface::VERBOSITY_VERBOSE,
+				);
+
+				continue;
 			}
-			elseif ( $stats !== null )
+
+			if ( $mode !== MetadataService::PENDING_MODE_FORCE
+				&& $this->hasAllAndFresh( $child, $fileAlgos ) )
 			{
-				$stats['alreadyHashed'] = ( $stats['alreadyHashed'] ?? 0 ) + 1;
+				if ( $stats !== null )
+				{
+					$stats['alreadyHashed'] = ( $stats['alreadyHashed'] ?? 0 ) + 1;
+				}
+
+				continue;
+			}
+
+			$collected[] = [
+				'file'  => $child,
+				'algos' => $fileAlgos,
+			];
+
+			// Reported only once the file is actually queued, so a "hash"
+			// line always means work is about to happen.
+			$overrides->report( $output, $child->getPath(), $rule, true );
+		}
+	}
+
+
+	/**
+	 * Whether $file already carries every algorithm of $algos, fresh.
+	 *
+	 * Presence is read from the filecache checksum string (no extra query);
+	 * freshness compares the metadata updated_at against the file's mtime —
+	 * a file modified after its hashes were computed is stale, and 'missing'
+	 * mode refreshes it rather than skipping it as done. The timestamp is a
+	 * single indexed point lookup, and only files that pass the presence
+	 * check pay for it.
+	 */
+	private function hasAllAndFresh(
+		File  $file,
+		array $algos,
+	): bool {
+
+		$existing = FilecacheService::parseChecksumString( $file->getChecksum() ?? '' );
+
+		foreach ( $algos as $algo )
+		{
+			if ( ! isset( $existing[ $algo ] ) )
+			{
+				return false;
 			}
 		}
+
+		$updatedAt = $this->metadataService->getUpdatedAt( $file->getId() );
+
+		return $updatedAt !== null && $updatedAt >= $file->getMTime();
 	}
 
 
@@ -275,6 +318,17 @@ class HashCalculationService
 	 * Two-phase hash generation: collect files needing hashes,
 	 * then process them. Avoids interleaving reads and writes
 	 * to oc_filecache (dirty reads in NC v33 debug mode).
+	 *
+	 * $algo may contain the token 'auto', which resolves per file to the
+	 * governing rule's algorithm list: 'auto' alone delegates entirely to the
+	 * rules, explicit names are exclusive, and both together form the union.
+	 * A file whose effective set comes out empty (no rule to delegate to) is
+	 * skipped and, at -v, says so.
+	 *
+	 * $mode is the existing rule-mode vocabulary applied to a direct run:
+	 * 'missing' (default) computes each file's absent algorithms and — when
+	 * the file's updated_at predates its mtime — refreshes the stale ones;
+	 * 'force' recomputes the full effective set regardless.
 	 *
 	 * @param  int  $batchSize  Maximum files to collect (a value <= 0 means unlimited)
 	 *
@@ -287,12 +341,15 @@ class HashCalculationService
 		int              $batchSize = 100,
 		?OutputInterface $output = null,
 		?RuleOverrides   $overrides = null,
+		string           $mode = MetadataService::PENDING_MODE_MISSING,
 	): array {
 
 		$overrides ??= new RuleOverrides();
 
-		$algos     = array_values( array_unique( array_map( 'strtolower', (array) $algo ) ) );
-		$algoLabel = implode( ',', $algos );
+		$tokens        = array_values( array_unique( array_map( 'strtolower', (array) $algo ) ) );
+		$useRuleAlgos  = in_array( self::ALGO_AUTO, $tokens, true );
+		$explicitAlgos = array_values( array_diff( $tokens, [ self::ALGO_AUTO ] ) );
+		$algoLabel     = implode( ',', $tokens );
 
 		$userFolderPath = $this->filecacheService->getUserFolderPath( $userId );
 
@@ -302,7 +359,9 @@ class HashCalculationService
 		$this->collectFilesForUser(
 			$userFolderPath,
 			$userId,
-			$algos,
+			$explicitAlgos,
+			$useRuleAlgos,
+			$mode,
 			$pathPattern,
 			$userFolderPath,
 			$files,
@@ -358,11 +417,20 @@ class HashCalculationService
 		$processed = 0;
 		$skipped   = 0;
 
-		foreach ( $files as $file )
+		foreach ( $files as $entry )
 		{
+			$file      = $entry['file'];
+			$fileAlgos = $entry['algos'];
+
 			try
 			{
-				$batch = $this->recalcHashes( $file, $algos, true );
+				// Under 'missing', recalcHashes itself skips per-algorithm
+				// hashes that are present and fresh; 'force' recomputes them.
+				$batch = $this->recalcHashes(
+					$file,
+					$fileAlgos,
+					$mode !== MetadataService::PENDING_MODE_FORCE,
+				);
 
 				if ( $batch['locked'] )
 				{

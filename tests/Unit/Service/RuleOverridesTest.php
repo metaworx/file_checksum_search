@@ -110,6 +110,33 @@ class RuleOverridesTest
 	}
 
 
+	public function testUnmatchedOnlyIsTheInverseView(): void
+	{
+
+		$overrides = new RuleOverrides( unmatched: RuleOverrides::UNMATCHED_ONLY );
+
+		// Only files with no governing rule — a matched file is out of
+		// scope whatever its verdict, include included.
+		$this->assertTrue( $overrides->allows( null ) );
+		$this->assertFalse( $overrides->allows( [ 'type' => 'include' ] ) );
+		$this->assertFalse( $overrides->allows( [ 'type' => 'exclude' ] ) );
+		$this->assertFalse( $overrides->isEmpty() );
+	}
+
+
+	public function testUnmatchedIncludeWidensButOverridesNothing(): void
+	{
+
+		$overrides = new RuleOverrides( unmatched: RuleOverrides::UNMATCHED_INCLUDE );
+
+		$this->assertTrue( $overrides->allows( null ) );
+		$this->assertTrue( $overrides->allows( [ 'type' => 'include' ] ) );
+		// Widening to unmatched files changes nothing about verdicts.
+		$this->assertFalse( $overrides->allows( [ 'type' => 'exclude' ] ) );
+		$this->assertFalse( $overrides->allows( [ 'type' => 'ignore' ] ) );
+	}
+
+
 	public function testReportNamesTheRuleBandAndVerdict(): void
 	{
 
