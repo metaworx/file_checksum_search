@@ -76,7 +76,7 @@ class MetadataListenerTest
 	}
 
 
-	public function testHandleMarksPendingMissingWhenCountPositive(): void
+	public function testHandleMarksPendingMissing(): void
 	{
 
 		$file     = $this->createMock( File::class );
@@ -87,41 +87,12 @@ class MetadataListenerTest
 		     ->willReturn( 42 )
 		;
 
-		$this->metadataService->expects( $this->once() )
-		                      ->method( 'countByFileId' )
-		                      ->with( 42 )
-		                      ->willReturn( 3 )
-		;
-
+		// One mark for every case: whether the file gets hashed at all, and
+		// with which algorithms, is the governing rule's call at drain time —
+		// the listener no longer distinguishes new from incomplete files.
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'markPending' )
 		                      ->with( 42, 'pending:missing' )
-		;
-
-		$this->listener->handle( $event );
-	}
-
-
-	public function testHandleMarksPendingNewWhenCountZero(): void
-	{
-
-		$file     = $this->createMock( File::class );
-		$metadata = $this->createMock( IFilesMetadata::class );
-		$event    = new MetadataBackgroundEvent( $file, $metadata );
-
-		$file->method( 'getId' )
-		     ->willReturn( 77 )
-		;
-
-		$this->metadataService->expects( $this->once() )
-		                      ->method( 'countByFileId' )
-		                      ->with( 77 )
-		                      ->willReturn( 0 )
-		;
-
-		$this->metadataService->expects( $this->once() )
-		                      ->method( 'markPending' )
-		                      ->with( 77, 'pending:new' )
 		;
 
 		$this->listener->handle( $event );
@@ -140,7 +111,7 @@ class MetadataListenerTest
 		;
 
 		$this->metadataService->expects( $this->once() )
-		                      ->method( 'countByFileId' )
+		                      ->method( 'markPending' )
 		                      ->willThrowException( new RuntimeException( 'DB down' ) )
 		;
 

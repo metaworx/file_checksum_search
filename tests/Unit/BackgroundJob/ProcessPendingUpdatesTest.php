@@ -145,7 +145,7 @@ class ProcessPendingUpdatesTest
 			],
 			[
 				MetadataService::FIELD_FILE_ID           => 99,
-				MetadataService::FIELD_META_VALUE_STRING => 'pending:new',
+				MetadataService::FIELD_META_VALUE_STRING => 'pending:missing',
 			],
 		];
 
@@ -159,8 +159,7 @@ class ProcessPendingUpdatesTest
 		               ->method( 'processFile' )
 		               ->with(
 			               $this->logicalOr( 42, 99 ),
-			               $this->logicalOr( 'auto', 'new' ),
-			               $this->anything(),
+			               $this->logicalOr( 'auto', 'missing' ),
 		               )
 		;
 		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
@@ -295,7 +294,6 @@ class ProcessPendingUpdatesTest
 			               function (
 				               int    $fileId,
 				               string $_mode,
-				               array  $_algos,
 			               ): void {
 
 				               if ( $fileId === 42 )

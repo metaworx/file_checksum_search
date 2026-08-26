@@ -450,12 +450,23 @@ class HashCalculationService
 
 
 	/**
-	 * Centralized processing logic for a single file.
+	 * Centralized processing logic for a single file drained from the queue.
 	 *
-	 * ALWAYS removes all existing algo keys first (rules may have changed).
-	 * Then computes required algos based on mode.
+	 * With $algos omitted (the queue-drain case) the governing rule is
+	 * resolved here, at action time: an `include` rule supplies the
+	 * algorithm list, and anything else — `ignore`, `exclude`, or no rule
+	 * at all — drops the pending mark without hashing. The mark encoded the
+	 * *mode* someone asked for; whether the file should be hashed at all is
+	 * the rules' call, and rules may have changed between mark and drain.
+	 * Before this, the drain hashed every marked file with every supported
+	 * algorithm, ignoring the rule's own list.
 	 *
-	 * @param  string[]  $algos  Algos to process (from rule or caller)
+	 * An explicit $algos bypasses the rule lookup — for callers that have
+	 * already made the decision (the CLI's direct path resolves verdicts,
+	 * overrides included, before ever queueing or calling this).
+	 *
+	 * @param  string[]|null  $algos  Algorithms to process, or null to take
+	 *                                them from the governing rule
 	 *
 	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataNotFoundException
 	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
@@ -463,13 +474,13 @@ class HashCalculationService
 	public function processFile(
 		int    $fileId,
 		string $mode,
-		array  $algos,
+		?array $algos = null,
 	): void {
 
 		$metadata = $this->metadataService->getMetadata( $fileId );
 		$file     = null;
 
-		if ( $mode === MetadataService::PENDING_MODE_NEW )
+		if ( $algos === null )
 		{
 			try
 			{
@@ -479,22 +490,11 @@ class HashCalculationService
 					$file->getOwner()
 					     ?->getUID(),
 				);
-
-				if ( $rule !== null )
-				{
-					$mode  = $rule['mode'] ?? MetadataService::PENDING_MODE_AUTO;
-					$algos = $rule['algos'] ?? self::SUPPORTED_ALGOS;
-				}
-				else
-				{
-					$mode  = MetadataService::PENDING_MODE_AUTO;
-					$algos = self::SUPPORTED_ALGOS;
-				}
 			}
 			catch ( Throwable $e )
 			{
 				$this->logger->warning(
-					'FCIAS: processFile unable to resolve rule for fileId {fileId}, defaulting to auto.',
+					'FCIAS: processFile unable to resolve rule for fileId {fileId}, dropping the mark.',
 					[
 						'app'       => Application::APP_ID,
 						'fileId'    => $fileId,
@@ -502,9 +502,27 @@ class HashCalculationService
 					],
 				);
 
-				$mode  = MetadataService::PENDING_MODE_AUTO;
-				$algos = self::SUPPORTED_ALGOS;
+				$this->metadataService->markPending( $fileId, '' );
+
+				return;
 			}
+
+			if ( ! RuleService::maintainsHashes( $rule ) )
+			{
+				$this->logger->debug(
+					'FCIAS: processFile — no include rule governs fileId {fileId}, dropping the mark.',
+					[
+						'app'    => Application::APP_ID,
+						'fileId' => $fileId,
+					],
+				);
+
+				$this->metadataService->markPending( $fileId, '' );
+
+				return;
+			}
+
+			$algos = $rule['algos'] ?? [ self::getDefaultAlgo() ];
 		}
 
 		switch ( $mode )
@@ -565,6 +583,24 @@ class HashCalculationService
 			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, time(), true );
 
 			break;
+
+		default:
+			// A mode this code no longer knows (a leftover 'pending:new'
+			// from before the quiet-start migration, or hand-edited data).
+			// Clearing the mark is what keeps it from being re-fetched and
+			// re-dropped forever.
+			$this->logger->warning(
+				'FCIAS: processFile — unknown pending mode "{mode}" for fileId {fileId}, dropping the mark.',
+				[
+					'app'    => Application::APP_ID,
+					'fileId' => $fileId,
+					'mode'   => $mode,
+				],
+			);
+
+			$this->metadataService->markPending( $fileId, '' );
+
+			return;
 		}
 
 		$this->metadataService->saveMetadata( $metadata );

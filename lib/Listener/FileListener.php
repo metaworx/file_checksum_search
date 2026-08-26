@@ -150,7 +150,10 @@ class FileListener
 			// (Excluding a file does not purge it; modifying one does.)
 			if ( $this->metadataService->countByFileId( $fileId ) > 0 )
 			{
-				$this->metadataService->clearMetadata( $fileId );
+				// 'eroded' rather than a bare clear: the loss stays queryable
+				// on the status page and heals itself when a rule covers the
+				// file again.
+				$this->metadataService->markEroded( $fileId );
 
 				$this->logger->debug(
 					'FCIAS FileListener: dropped stale hashes for an unmaintained file on write',
@@ -231,7 +234,8 @@ class FileListener
 			return;
 		}
 
-		$rule = $this->ruleService->findFirstMatchingRule( $node->getPath(),
+		$rule = $this->ruleService->findFirstMatchingRule(
+			$node->getPath(),
 			$node->getOwner()
 			     ?->getUID(),
 		);
@@ -287,8 +291,8 @@ class FileListener
 			// is not this mode's job; use `missing` or `force` on the rule
 			// if that's wanted. New files with genuinely no hash still get
 			// one eventually via the independent MetadataBackgroundEvent →
-			// MetadataListener → pending:new → ProcessPendingUpdates path,
-			// which resolves the matching rule at drain time.
+			// MetadataListener → pending:missing → ProcessPendingUpdates
+			// path, which resolves the matching rule at drain time.
 			if ( $this->metadataService->countByFileId( $fileId ) > 0 )
 			{
 				$this->metadataService->markPending( $fileId, MetadataService::PENDING_AUTO );
@@ -317,7 +321,8 @@ class FileListener
 			return;
 		}
 
-		$rule = $this->ruleService->findFirstMatchingRule( $node->getPath(),
+		$rule = $this->ruleService->findFirstMatchingRule(
+			$node->getPath(),
 			$node->getOwner()
 			     ?->getUID(),
 		);

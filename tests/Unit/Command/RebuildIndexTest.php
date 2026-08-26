@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Command;
 
 use OCA\FileChecksumSearch\Command\RebuildIndex;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
+use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -28,6 +29,8 @@ class RebuildIndexTest
 
 	private MockObject|HashCalculationService $hashCalc;
 
+	private MockObject|HashIndexService       $hashIndexService;
+
 	private MockObject|LoggerInterface        $logger;
 
 	private CommandTester                     $tester;
@@ -38,25 +41,32 @@ class RebuildIndexTest
 
 		parent::setUp();
 
-		$this->metadataService = $this->createMock( MetadataService::class );
-		$this->hashCalc        = $this->createMock( HashCalculationService::class );
-		$this->logger          = $this->createMock( LoggerInterface::class );
+		$this->metadataService  = $this->createMock( MetadataService::class );
+		$this->hashCalc         = $this->createMock( HashCalculationService::class );
+		$this->hashIndexService = $this->createMock( HashIndexService::class );
+		$this->logger           = $this->createMock( LoggerInterface::class );
 
 		$command      = new RebuildIndex(
 			$this->metadataService,
 			$this->hashCalc,
+			$this->hashIndexService,
 			$this->logger,
 		);
 		$this->tester = new CommandTester( $command );
 	}
 
 
-	public function testStopsAfterSeedingWhenNothingIsPending(): void
+	public function testStopsAfterBackfillWhenNothingIsPending(): void
 	{
 
-		$this->metadataService->expects( $this->once() )
-		                      ->method( 'seedIndex' )
-		                      ->willReturn( 7 )
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'backfillFromFilecache' )
+		                       ->willReturn(
+			                       [
+				                       'files'  => 7,
+				                       'hashes' => 9,
+			                       ],
+		                       )
 		;
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn( [] )
@@ -69,7 +79,7 @@ class RebuildIndexTest
 
 		$this->assertSame( Command::SUCCESS, $exitCode );
 		$display = $this->tester->getDisplay();
-		$this->assertStringContainsString( '7 new files added to index.', $display );
+		$this->assertStringContainsString( '9 hashes copied for 7 files.', $display );
 		$this->assertStringContainsString( 'No pending files to process.', $display );
 	}
 
@@ -77,8 +87,13 @@ class RebuildIndexTest
 	public function testProcessesPendingBatchAndReportsSuccess(): void
 	{
 
-		$this->metadataService->method( 'seedIndex' )
-		                      ->willReturn( 0 )
+		$this->hashIndexService->method( 'backfillFromFilecache' )
+		                       ->willReturn(
+			                       [
+				                       'files'  => 0,
+				                       'hashes' => 0,
+			                       ],
+		                       )
 		;
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn( [ 'pending:auto' => 2 ] )
@@ -98,19 +113,21 @@ class RebuildIndexTest
 		                      ] )
 		;
 
+		// Algorithms are the governing rule's call at drain time, so the
+		// command passes only the queued mode.
 		$this->hashCalc->expects( $this->exactly( 2 ) )
 		               ->method( 'processFile' )
 		               ->willReturnMap( [
 			               [
 				               42,
 				               'auto',
-				               HashCalculationService::SUPPORTED_ALGOS,
+				               null,
 				               null,
 			               ],
 			               [
 				               108,
 				               'force',
-				               HashCalculationService::SUPPORTED_ALGOS,
+				               null,
 				               null,
 			               ],
 		               ] )
@@ -126,8 +143,13 @@ class RebuildIndexTest
 	public function testReturnsFailureWhenAFileFailsToProcess(): void
 	{
 
-		$this->metadataService->method( 'seedIndex' )
-		                      ->willReturn( 0 )
+		$this->hashIndexService->method( 'backfillFromFilecache' )
+		                       ->willReturn(
+			                       [
+				                       'files'  => 0,
+				                       'hashes' => 0,
+			                       ],
+		                       )
 		;
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn( [ 'pending:auto' => 1 ] )
@@ -159,8 +181,13 @@ class RebuildIndexTest
 	public function testBatchSizeOptionIsPassedToFetchPendingBatch(): void
 	{
 
-		$this->metadataService->method( 'seedIndex' )
-		                      ->willReturn( 0 )
+		$this->hashIndexService->method( 'backfillFromFilecache' )
+		                       ->willReturn(
+			                       [
+				                       'files'  => 0,
+				                       'hashes' => 0,
+			                       ],
+		                       )
 		;
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn( [ 'pending:auto' => 1 ] )
@@ -178,8 +205,13 @@ class RebuildIndexTest
 	public function testNonPositiveBatchSizeIsClampedToOne(): void
 	{
 
-		$this->metadataService->method( 'seedIndex' )
-		                      ->willReturn( 0 )
+		$this->hashIndexService->method( 'backfillFromFilecache' )
+		                       ->willReturn(
+			                       [
+				                       'files'  => 0,
+				                       'hashes' => 0,
+			                       ],
+		                       )
 		;
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn( [ 'pending:auto' => 1 ] )

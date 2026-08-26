@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Service;
 
 use OC\FilesMetadata\Model\FilesMetadata;
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCP\DB\Exception;
 use OCP\DB\IResult;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Files\File;
@@ -21,7 +22,6 @@ use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\FilesMetadata\Model\IMetadataValueWrapper;
 use OCP\IDBConnection;
 use Psr\Log\LoggerInterface;
-use Throwable;
 
 /**
  * Central service for all oc_files_metadata + oc_files_metadata_index operations.
@@ -49,8 +49,8 @@ class MetadataService
 	public const KEY_FILE_CHECKSUM_LIKE       = self::KEY_FILE_CHECKSUM_PREFIX . '%';
 	public const KEY_FILE_CHECKSUM_PREFIX     = 'file-checksum-';
 	public const KEY_FILE_CHECKSUM_UPDATED_AT = 'file-checksum-updated_at';
-	public const PENDING_MODE_NEW             = 'new';
 	public const PENDING_MODE_AUTO            = 'auto';
+	public const PENDING_MODE_MISSING         = 'missing';
 	public const PENDING_MODE_FORCE           = 'force';
 	public const PENDING_MODE_LAZY            = 'lazy';
 	public const PENDING_MODE_OFF             = 'off';
@@ -58,8 +58,8 @@ class MetadataService
 	public const PENDING_AUTO                 = self::PENDING_PREFIX . self::PENDING_MODE_AUTO;
 	public const PENDING_FORCE                = self::PENDING_PREFIX . self::PENDING_MODE_FORCE;
 	public const PENDING_LAZY                 = self::PENDING_PREFIX . self::PENDING_MODE_LAZY;
-	public const PENDING_NEW                  = self::PENDING_PREFIX . self::PENDING_MODE_NEW;
 	public const PENDING_LIKE                 = self::PENDING_PREFIX . '%';
+	public const STATE_ERODED                 = 'eroded';
 	public const TABLE_FILES_METADATA         = 'files_metadata';
 	public const TABLE_FILES_METADATA_INDEX   = 'files_metadata_index';
 
@@ -427,17 +427,128 @@ class MetadataService
 	/**
 	 * Mark a file as pending for a specific processing mode.
 	 *
-	 * Updates meta_value_string on the file-checksum-updated_at index row.
-	 * Does NOT create the row if it doesn't exist (seeding handles that).
+	 * Upserts meta_value_string on the file-checksum-updated_at index row.
+	 * The row exists iff the file has ever been queued, hashed, or eroded —
+	 * absence means "never considered". (This replaces the old contract of
+	 * refusing to insert and relying on universal seeding, which made every
+	 * mark on an unseeded file a silent no-op.)
 	 */
 	public function markPending(
 		int    $fileId,
 		string $mode,
 	): void {
 
+		$this->upsertUpdatedAtString( $fileId, $mode );
+	}
+
+
+	/**
+	 * Record that a file's hashes were dropped because nothing maintains them.
+	 *
+	 * Strips every stored hash and stamps the updated_at index row with the
+	 * literal 'eroded'. Unlike a bare clear, this leaves a queryable, indexed
+	 * trace: the status page can count it, and the state is self-healing —
+	 * the next time a rule covers the file again, re-hashing overwrites it.
+	 * 'eroded' never matches the queue's 'pending:%' filter.
+	 *
+	 * Distinguishes "had hashes, lost them on write" (eroded) from "never
+	 * considered" (no row at all).
+	 *
+	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
+	 */
+	public function markEroded( int $fileId ): void
+	{
+
+		$metadata = $this->getMetadata( $fileId );
+		$metadata->removeStartsWith( self::KEY_FILE_CHECKSUM_PREFIX );
+		$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, 0, true );
+		$this->metadataManager->saveMetadata( $metadata );
+
+		// After the save: saving regenerates the index rows, so the string
+		// has to be written once the regenerated row exists.
+		$this->upsertUpdatedAtString( $fileId, self::STATE_ERODED );
+	}
+
+
+	/**
+	 * How many files lost their hashes to erosion and have not been re-hashed.
+	 */
+	public function countEroded(): int
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->selectAlias(
+			$qb->func()
+			   ->count( self::FIELD_FILE_ID ),
+			'cnt',
+		)
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			   $qb->expr()
+			      ->eq( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( self::STATE_ERODED ) ),
+		   )
+		;
+
+		$result = $this->executeQuery( $qb );
+		$count  = (int) $result->fetchOne();
+		$result->closeCursor();
+
+		return $count;
+	}
+
+
+	/**
+	 * Set the file-checksum-updated_at index row's string value, creating the
+	 * row when the file has never been considered before.
+	 *
+	 * UPDATE first (the common case), INSERT on a miss. The race window
+	 * between the two legs is closed by retrying the UPDATE once when the
+	 * INSERT collides with a concurrent writer.
+	 */
+	private function upsertUpdatedAtString(
+		int    $fileId,
+		string $value,
+	): void {
+
+		if ( $this->updateUpdatedAtString( $fileId, $value ) > 0 )
+		{
+			return;
+		}
+
+		try
+		{
+			$qb = $this->db->getQueryBuilder();
+			$qb->insert( self::TABLE_FILES_METADATA_INDEX )
+			   ->values(
+				   [
+					   self::FIELD_FILE_ID           => $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ),
+					   self::FIELD_META_KEY          => $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+					   self::FIELD_META_VALUE_STRING => $qb->createNamedParameter( $value ),
+					   self::FIELD_META_VALUE_INT    => $qb->createNamedParameter( 0, IQueryBuilder::PARAM_INT ),
+				   ],
+			   )
+			;
+
+			$this->executeStatement( $qb );
+		}
+		catch ( Exception )
+		{
+			// Lost the insert race — the row exists now, so the update wins.
+			$this->updateUpdatedAtString( $fileId, $value );
+		}
+	}
+
+
+	private function updateUpdatedAtString(
+		int    $fileId,
+		string $value,
+	): int {
+
 		$qb = $this->db->getQueryBuilder();
 		$qb->update( self::TABLE_FILES_METADATA_INDEX )
-		   ->set( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( $mode ) )
+		   ->set( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( $value ) )
 		   ->where(
 			   $qb->expr()
 			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
@@ -446,19 +557,66 @@ class MetadataService
 		   )
 		;
 
-		$updated = $this->executeStatement( $qb );
+		return $this->executeStatement( $qb );
+	}
 
-		if ( $updated === 0 )
+
+	/**
+	 * Copy already-known hashes into the metadata index for one file.
+	 *
+	 * Backfill only: writes hash keys the file does not have yet and never
+	 * overwrites an existing one — the filecache value is the *older* claim,
+	 * so where both exist the metadata wins. When at least one key was added
+	 * and no valid timestamp exists yet, updated_at is stamped with the
+	 * file's mtime rather than now(): the copied hash describes the content
+	 * as of that mtime, which is exactly what the filecache asserts. Reads
+	 * no file content.
+	 *
+	 * @param  array<string, string>  $algoToHash  lowercase algo => hex hash
+	 *
+	 * @return int  Number of hash keys added
+	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
+	 */
+	public function backfillHashes(
+		int   $fileId,
+		array $algoToHash,
+		int   $mtime,
+	): int {
+
+		if ( $algoToHash === [] )
 		{
-			$this->logger->debug(
-				'FCIAS MetadataService: markPending — no row updated (file may not be seeded)',
-				[
-					'app'    => Application::APP_ID,
-					'fileId' => $fileId,
-					'mode'   => $mode,
-				],
-			);
+			return 0;
 		}
+
+		$metadata = $this->getMetadata( $fileId );
+		$added    = 0;
+
+		foreach ( $algoToHash as $algo => $hash )
+		{
+			$metaKey = self::getHashKey( $algo );
+
+			if ( $metadata->hasKey( $metaKey ) )
+			{
+				continue;
+			}
+
+			$metadata->setString( $metaKey, $hash, true );
+			$added ++;
+		}
+
+		if ( $added === 0 )
+		{
+			return 0;
+		}
+
+		if ( ( $this->getUpdatedAt( $metadata ) ?? 0 ) < 1 )
+		{
+			$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, $mtime, true );
+		}
+
+		$this->metadataManager->saveMetadata( $metadata );
+
+		return $added;
 	}
 
 
@@ -831,54 +989,6 @@ class MetadataService
 		return (int) $this->executeQuery( $qb )
 		                  ->fetchOne()
 		;
-	}
-
-
-	/**
-	 * Seed file-checksum-updated_at index entries for files that don't have one.
-	 *
-	 * @return int Number of inserted rows
-	 */
-	public function seedIndex(): int
-	{
-
-		try
-		{
-			$pendingNew = self::PENDING_NEW;
-			$inserted   = $this->db->executeStatement(
-				<<<"SQL"
-INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`)
-SELECT `fc`.`fileid`, 'file-checksum-updated_at', '$pendingNew', 0
-FROM `*PREFIX*filecache` `fc`
-WHERE `fc`.`fileid` NOT IN (
-		  SELECT `file_id` FROM `*PREFIX*files_metadata_index`
-		  WHERE `meta_key` = 'file-checksum-updated_at'
-)
-SQL,
-			);
-
-			$this->logger->info(
-				'FCIAS MetadataService: seedIndex completed',
-				[
-					'app'      => Application::APP_ID,
-					'inserted' => $inserted,
-				],
-			);
-
-			return $inserted;
-		}
-		catch ( Throwable $e )
-		{
-			$this->logger->error(
-				'FCIAS MetadataService: seedIndex failed',
-				[
-					'app'       => Application::APP_ID,
-					'exception' => $e,
-				],
-			);
-
-			return 0;
-		}
 	}
 
 

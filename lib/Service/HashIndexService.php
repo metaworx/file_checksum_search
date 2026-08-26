@@ -106,6 +106,71 @@ class HashIndexService
 
 
 	/**
+	 * Copy every checksum the filecache already knows into the metadata
+	 * index, without reading any file content.
+	 *
+	 * This is the whole of what installing the app does to existing data:
+	 * hashes Nextcloud (or another app) has already computed become
+	 * searchable immediately, and nothing is read or computed that was not
+	 * already there. Idempotent — existing metadata hashes are never
+	 * overwritten, and a re-run adds only what is still absent.
+	 *
+	 * Keyset-paged, so it holds one page of rows at a time regardless of
+	 * instance size.
+	 *
+	 * @return array{files: int, hashes: int}  Files touched / hash keys added
+	 */
+	public function backfillFromFilecache(
+		?OutputInterface $output = null,
+		int              $pageSize = 1000,
+	): array {
+
+		$lastFileId = 0;
+		$files      = 0;
+		$hashes     = 0;
+
+		while ( true )
+		{
+			$page = $this->filecacheService->pageFileidChecksums( $lastFileId, $pageSize );
+
+			if ( $page === [] )
+			{
+				break;
+			}
+
+			foreach ( $page as $fileId => $row )
+			{
+				$lastFileId = $fileId;
+				$parsed     = FilecacheService::parseChecksumString( $row['checksum'] );
+
+				if ( $parsed === [] )
+				{
+					continue;
+				}
+
+				$added = $this->metadataService->backfillHashes( $fileId, $parsed, $row['mtime'] );
+
+				if ( $added > 0 )
+				{
+					$files ++;
+					$hashes += $added;
+				}
+			}
+
+			$output?->writeln(
+				sprintf( '  … %d files backfilled (%d hashes) so far.', $files, $hashes ),
+				OutputInterface::VERBOSITY_VERBOSE,
+			);
+		}
+
+		return [
+			'files'  => $files,
+			'hashes' => $hashes,
+		];
+	}
+
+
+	/**
 	 * The duplicate-group listing for one user, ready to be returned as-is.
 	 *
 	 * Duplicate groups are found instance-wide and only then filtered to the

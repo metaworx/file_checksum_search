@@ -63,16 +63,33 @@ class FilecacheService
 		?array   $hashFilter = null,
 	): array {
 
-		$file             = $this->getFile( $file );
-		$existingChecksum = $file->getChecksum() ?? '';
-		$hashes           = [];
-		$count            = $hashFilter === null
-			? 0
-			: count( $hashFilter );
+		$file   = $this->getFile( $file );
+		$hashes = self::parseChecksumString( $file->getChecksum() ?? '' );
 
-		foreach ( explode( ' ', $existingChecksum ) as $pair )
+		if ( $hashFilter === null )
 		{
-			if ( $pair === '' )
+			return $hashes;
+		}
+
+		return array_intersect_key( $hashes, array_flip( $hashFilter ) );
+	}
+
+
+	/**
+	 * Parse a filecache checksum column value ("ALGO:hex ALGO:hex ...") into
+	 * lowercase algo => hex pairs. Malformed fragments are skipped rather
+	 * than fatal — the column is free text as far as the database cares.
+	 *
+	 * @return array<string, string>
+	 */
+	public static function parseChecksumString( string $checksum ): array
+	{
+
+		$hashes = [];
+
+		foreach ( explode( ' ', $checksum ) as $pair )
+		{
+			if ( ! str_contains( $pair, ':' ) )
 			{
 				continue;
 			}
@@ -81,22 +98,63 @@ class FilecacheService
 				$algoUpper,
 				$hash,
 			]
-				= explode( ':', $pair );
+				= explode( ':', $pair, 2 );
 
-			$algo = strtolower( $algoUpper );
-
-			if ( $hashFilter === null || in_array( $algo, $hashFilter ) )
+			if ( $algoUpper === '' || $hash === '' )
 			{
-				$hashes[ $algo ] = $hash;
+				continue;
 			}
 
-			if ( count( $hashes ) === $count )
-			{
-				break;
-			}
+			$hashes[ strtolower( $algoUpper ) ] = $hash;
 		}
 
 		return $hashes;
+	}
+
+
+	/**
+	 * One page of filecache rows that carry a checksum, for backfilling.
+	 *
+	 * Keyset pagination (fileid > $lastFileId, ordered ascending) so a full
+	 * sweep over a large instance never re-reads or skips rows regardless of
+	 * concurrent inserts.
+	 *
+	 * @return array<int, array{checksum: string, mtime: int}>  Keyed by fileid
+	 * @throws \OCP\DB\Exception
+	 */
+	public function pageFileidChecksums(
+		int $lastFileId,
+		int $limit,
+	): array {
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( 'fileid', 'checksum', 'mtime' )
+		   ->from( 'filecache' )
+		   ->where(
+			   $qb->expr()
+			      ->gt( 'fileid', $qb->createNamedParameter( $lastFileId, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->isNotNull( 'checksum' ),
+			   $qb->expr()
+			      ->neq( 'checksum', $qb->createNamedParameter( '' ) ),
+		   )
+		   ->orderBy( 'fileid', 'ASC' )
+		   ->setMaxResults( $limit )
+		;
+
+		$result = $qb->executeQuery();
+		$rows   = [];
+
+		while ( ( $row = $result->fetch() ) !== false )
+		{
+			$rows[ (int) $row['fileid'] ] = [
+				'checksum' => (string) $row['checksum'],
+				'mtime'    => (int) $row['mtime'],
+			];
+		}
+		$result->closeCursor();
+
+		return $rows;
 	}
 
 

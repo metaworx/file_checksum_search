@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Command;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
+use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -29,6 +30,7 @@ class RebuildIndex
 	public function __construct(
 		private readonly MetadataService        $metadataService,
 		private readonly HashCalculationService $hashCalc,
+		private readonly HashIndexService       $hashIndexService,
 		private readonly LoggerInterface        $logger,
 	) {
 
@@ -60,8 +62,9 @@ class RebuildIndex
 	/**
 	 * Execute the rebuild command.
 	 *
-	 * Seeds unprocessed files into the metadata index, then processes the
-	 * pending queue using HashCalculationService::processFile().
+	 * Backfills checksums the filecache already carries into the metadata
+	 * index (no content reads), then drains whatever the pending queue
+	 * holds via HashCalculationService::processFile().
 	 *
 	 * @noinspection PhpUnused
 	 */
@@ -81,11 +84,18 @@ class RebuildIndex
 			],
 		);
 
-		// Phase 1: Seed unprocessed files into the pending index
-		$output->writeln( 'Seeding unprocessed files into metadata index …' );
+		// Phase 1: copy checksums the filecache already knows — no content
+		// is read, and nothing existing is overwritten.
+		$output->writeln( 'Backfilling checksums from the filecache …' );
 
-		$seeded = $this->metadataService->seedIndex();
-		$output->writeln( sprintf( '  %d new files added to index.', $seeded ) );
+		$backfilled = $this->hashIndexService->backfillFromFilecache( $output );
+		$output->writeln(
+			sprintf(
+				'  %d hashes copied for %d files.',
+				$backfilled['hashes'],
+				$backfilled['files'],
+			),
+		);
 
 		// Phase 2: Show current pending stats
 		$pendingStats = $this->metadataService->getPendingStats();
@@ -116,11 +126,7 @@ class RebuildIndex
 
 			try
 			{
-				$this->hashCalc->processFile(
-					$fileId,
-					$mode,
-					HashCalculationService::SUPPORTED_ALGOS,
-				);
+				$this->hashCalc->processFile( $fileId, $mode );
 				$processed ++;
 			}
 			catch ( \Throwable $e )

@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Migration;
 
 use Closure;
+use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\DB\ISchemaWrapper;
@@ -95,31 +96,37 @@ class Version010000Date20260806100000
 		$schema = $schemaClosure();
 
 		// changeSchema() already no-ops the composite indices when this
-		// table is missing; seedIndex() writes directly into it via raw
-		// SQL, so check the same precondition here instead of letting
-		// that INSERT fail. Without this guard, an unlucky core/app
-		// migration ordering would leave the app permanently on
-		// unindexed lookups with no automatic re-trigger.
+		// table is missing; the backfill writes into it, so check the same
+		// precondition here instead of letting those INSERTs fail. Without
+		// this guard, an unlucky core/app migration ordering would leave
+		// the app permanently on unindexed lookups with no automatic
+		// re-trigger.
 		if ( ! $schema->hasTable( 'files_metadata_index' ) )
 		{
 			$output->warning(
-				'FCIAS: files_metadata_index does not exist yet — skipping index seeding. '
+				'FCIAS: files_metadata_index does not exist yet — skipping the checksum backfill. '
 				. 'Run "occ file-checksum-search:rebuild" once it has been created.',
 			);
 
 			return;
 		}
 
-		$output->info(
-			sprintf( 'FCIAS: seeding %s index entries ...', MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ),
-		);
+		// Quiet start: the only work installing does to existing data is
+		// copying checksums the filecache already carries — searchable
+		// immediately, no content read, nothing computed. Hashing begins
+		// when an administrator enables a rule, not before.
+		$output->info( 'FCIAS: backfilling checksums from the filecache ...' );
 
-		$inserted = Server::get( MetadataService::class )
-		                  ->seedIndex()
+		$backfilled = Server::get( HashIndexService::class )
+		                    ->backfillFromFilecache()
 		;
 
 		$output->info(
-			sprintf( 'FCIAS: seeded %d %s index entries.', $inserted, MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ),
+			sprintf(
+				'FCIAS: backfilled %d hashes for %d files.',
+				$backfilled['hashes'],
+				$backfilled['files'],
+			),
 		);
 	}
 

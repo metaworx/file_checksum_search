@@ -67,12 +67,10 @@ class MetadataListener
 
 			$fileId = $node->getId();
 
-			// If no hash keys exist for this file, mark as pending:new.
-			// If hash keys exist but may be stale or incomplete, mark as pending:missing.
-			$count = $this->metadataService->countByFileId( $fileId );
-			$mode  = $count > 0
-				? MetadataService::PENDING_PREFIX . 'missing'
-				: MetadataService::PENDING_PREFIX . 'new';
+			// Queue the file; whether it gets hashed at all, and with which
+			// algorithms, is the governing rule's call at drain time. 'missing'
+			// covers both cases — fill absent hashes, refresh stale ones.
+			$mode = MetadataService::PENDING_PREFIX . MetadataService::PENDING_MODE_MISSING;
 
 			$this->metadataService->markPending( $fileId, $mode );
 

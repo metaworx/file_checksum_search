@@ -36,9 +36,9 @@ class FileListenerTest
 	private MockObject|RuleService      $ruleService;
 
 	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
-	private MockObject|LoggerInterface  $logger;
+	private MockObject|LoggerInterface $logger;
 
-	private FileListener                $listener;
+	private FileListener               $listener;
 
 
 	protected function setUp(): void
@@ -87,8 +87,10 @@ class FileListenerTest
 		// content. Modifying it does not: the stored hash is now provably
 		// wrong, and a wrong hash is worse than none, because it makes a
 		// changed file look intact and can pair it with unrelated files.
+		// The loss is recorded as 'eroded' rather than silently cleared, so
+		// the status page can count it.
 		$this->metadataService->expects( $this->once() )
-		                      ->method( 'clearMetadata' )
+		                      ->method( 'markEroded' )
 		                      ->with( 7 )
 		;
 		$this->metadataService->expects( $this->never() )
@@ -593,6 +595,7 @@ class FileListenerTest
 	/**
 	 * Create a File mock with getId(), getPath(), and getOwner()
 	 * configured — the owner UID is always 'owner-uid' in this suite.
+	 *
 	 * @noinspection PhpSameParameterValueInspection
 	 */
 	private function makeFileMock(

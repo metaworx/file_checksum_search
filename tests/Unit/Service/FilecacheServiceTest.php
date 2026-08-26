@@ -27,9 +27,9 @@ class FilecacheServiceTest
 	FciasUnitTestCase
 {
 
-	private IRootFolder&MockObject   $rootFolder;
+	private IRootFolder&MockObject $rootFolder;
 
-	private FilecacheService         $service;
+	private FilecacheService       $service;
 
 
 	protected function setUp(): void
@@ -683,6 +683,34 @@ class FilecacheServiceTest
 				'sha3-512' => str_repeat( '2', 128 ),
 			],
 		);
+	}
+
+
+	// ─── parseChecksumString ────────────────────────────────────────
+
+	public function testParseChecksumStringLowercasesAlgosAndKeepsHashes(): void
+	{
+
+		$this->assertSame(
+			[
+				'sha1' => 'dead',
+				'md5'  => 'cafe',
+			],
+			FilecacheService::parseChecksumString( 'SHA1:dead MD5:cafe' ),
+		);
+	}
+
+
+	public function testParseChecksumStringSkipsMalformedFragments(): void
+	{
+
+		// The column is free text as far as the database cares; a broken
+		// fragment must not take the parseable ones down with it.
+		$this->assertSame(
+			[ 'sha1' => 'dead' ],
+			FilecacheService::parseChecksumString( 'nocolon SHA1:dead :emptyalgo SHA256:' ),
+		);
+		$this->assertSame( [], FilecacheService::parseChecksumString( '' ) );
 	}
 
 }

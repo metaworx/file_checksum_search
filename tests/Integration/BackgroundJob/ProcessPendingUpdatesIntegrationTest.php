@@ -30,7 +30,7 @@ use Throwable;
 
 /**
  * End-to-end verification that ProcessPendingUpdates actually drains
- * pending metadata index entries (pending:new / pending:missing) and
+ * pending metadata index entries (pending:auto / pending:missing) and
  * computes hashes, and that Application::boot() no longer re-registers
  * background jobs on every request (which reset last_run).
  */
@@ -150,7 +150,9 @@ class ProcessPendingUpdatesIntegrationTest
 
 	/**
 	 * Cron drains pending entries and computes hashes for both the
-	 * pending:new (rule-resolved) and pending:missing (direct) markers.
+	 * pending:auto and pending:missing markers; the algorithms come from
+	 * the governing rule, resolved at drain time.
+	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testCronDrainsPendingEntriesAndComputesHashes(): void
@@ -160,16 +162,19 @@ class ProcessPendingUpdatesIntegrationTest
 		$newFile     = $this->createTestFile( 'fcias_cron_new_' . time() . '.dat' );
 		$missingFile = $this->createTestFile( 'fcias_cron_missing_' . time() . '.dat' );
 
-		// Catch-all force rule so pending:new resolves to force mode.
+		// Catch-all force rule: the drain resolves it and its algorithms.
 		$this->addCatchAllForceRule();
 
 		$newFileId     = $newFile->getId();
 		$missingFileId = $missingFile->getId();
-		$testFileIds   = [ $newFileId, $missingFileId ];
+		$testFileIds   = [
+			$newFileId,
+			$missingFileId,
+		];
 
 		$this->beginTransaction();
 
-		$this->insertPendingMarker( $newFileId, MetadataService::PENDING_NEW );
+		$this->insertPendingMarker( $newFileId, MetadataService::PENDING_FORCE );
 		$this->insertPendingMarker(
 			$missingFileId,
 			MetadataService::PENDING_PREFIX . 'missing',
@@ -282,7 +287,8 @@ class ProcessPendingUpdatesIntegrationTest
 
 
 	/**
-	 * Add a catch-all rule with mode=force so pending:new computes hashes.
+	 * Add a catch-all rule with mode=force whose algorithms the drain uses.
+	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function addCatchAllForceRule(): void
@@ -312,6 +318,7 @@ class ProcessPendingUpdatesIntegrationTest
 
 	/**
 	 * Create a real test file in the admin user's storage.
+	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function createTestFile( string $name ): File
@@ -333,13 +340,19 @@ class ProcessPendingUpdatesIntegrationTest
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	private function insertPendingMarker( int $fileId, string $marker ): void
-	{
+	private function insertPendingMarker(
+		int    $fileId,
+		string $marker,
+	): void {
 
 		$this->getRawConnection()
 		     ->executeStatement(
 			     'INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`) VALUES (?, ?, ?, 0)',
-			     [ $fileId, MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $marker ],
+			     [
+				     $fileId,
+				     MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT,
+				     $marker,
+			     ],
 		     )
 		;
 	}
@@ -347,6 +360,7 @@ class ProcessPendingUpdatesIntegrationTest
 
 	/**
 	 * Remove every pending row except those belonging to $keepFileIds.
+	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function deleteOtherPendingRows( array $keepFileIds ): void
@@ -434,8 +448,10 @@ class ProcessPendingUpdatesIntegrationTest
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	private function setJobLastRun( string $class, int $lastRun ): void
-	{
+	private function setJobLastRun(
+		string $class,
+		int    $lastRun,
+	): void {
 
 		$qb = $this->db->getQueryBuilder();
 		$qb->update( 'jobs' )

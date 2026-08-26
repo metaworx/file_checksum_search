@@ -104,11 +104,10 @@ class ProcessPendingUpdates
 
 				try
 				{
-					$this->hashCalc->processFile(
-						$fileId,
-						$mode,
-						HashCalculationService::SUPPORTED_ALGOS,
-					);
+					// Algorithms come from the governing rule, resolved at
+					// action time — an ignore/exclude/no-rule verdict drops
+					// the mark instead of hashing.
+					$this->hashCalc->processFile( $fileId, $mode );
 
 					$processed ++;
 				}

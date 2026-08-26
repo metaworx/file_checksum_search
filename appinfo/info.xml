@@ -81,6 +81,5 @@
 	<background-jobs>
 		<job>OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob</job>
 		<job>OCA\FileChecksumSearch\BackgroundJob\ProcessPendingUpdates</job>
-		<job>OCA\FileChecksumSearch\BackgroundJob\SeedPendingUpdates</job>
 	</background-jobs>
 </info>

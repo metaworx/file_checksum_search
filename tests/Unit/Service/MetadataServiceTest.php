@@ -13,6 +13,7 @@ use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
+use OCP\DB\Exception;
 use OCP\DB\IResult;
 use OCP\FilesMetadata\IFilesMetadataManager;
 use OCP\FilesMetadata\Model\IFilesMetadata;
@@ -25,7 +26,7 @@ use RuntimeException;
  * Unit tests for MetadataService.
  *
  * Verifies key registration, pending marking/fetching, hash queries,
- * duplicate detection, counting, staleness checks, and seeding.
+ * duplicate detection, counting, staleness checks, erosion, and backfill.
  */
 class MetadataServiceTest
 	extends
@@ -210,7 +211,7 @@ class MetadataServiceTest
 	}
 
 
-	public function testMarkPendingUpdatesIndexRow(): void
+	public function testMarkPendingUpdatesTheExistingIndexRow(): void
 	{
 
 		$this->queryBuilder->expects( $this->once() )
@@ -219,14 +220,9 @@ class MetadataServiceTest
 		                   ->willReturnSelf()
 		;
 
-		$this->queryBuilder->expects( $this->once() )
-		                   ->method( 'set' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->expects( $this->once() )
-		                   ->method( 'where' )
-		                   ->willReturnSelf()
+		// The UPDATE hits, so no INSERT leg runs.
+		$this->queryBuilder->expects( $this->never() )
+		                   ->method( 'insert' )
 		;
 
 		$this->queryBuilder->expects( $this->once() )
@@ -235,6 +231,218 @@ class MetadataServiceTest
 		;
 
 		$this->service->markPending( 42, 'pending:auto' );
+	}
+
+
+	public function testMarkPendingInsertsWhenTheFileWasNeverConsidered(): void
+	{
+
+		// Regression: this used to be a silent no-op by documented contract
+		// ("seeding handles that"), which made RuleProcessingJob's marking
+		// silently fail for any file the 21-hour seed had not reached yet.
+		$this->queryBuilder->expects( $this->once() )
+		                   ->method( 'update' )
+		                   ->willReturnSelf()
+		;
+
+		$this->queryBuilder->expects( $this->once() )
+		                   ->method( 'insert' )
+		                   ->with( 'files_metadata_index' )
+		                   ->willReturnSelf()
+		;
+
+		$this->queryBuilder->expects( $this->once() )
+		                   ->method( 'values' )
+		                   ->willReturnSelf()
+		;
+
+		// First executeStatement = the UPDATE (misses), second = the INSERT.
+		$this->queryBuilder->method( 'executeStatement' )
+		                   ->willReturnOnConsecutiveCalls( 0, 1 )
+		;
+
+		$this->service->markPending( 42, 'pending:missing' );
+	}
+
+
+	public function testMarkPendingRetriesAsUpdateWhenLosingTheInsertRace(): void
+	{
+
+		$this->queryBuilder->method( 'update' )
+		                   ->willReturnSelf()
+		;
+		$this->queryBuilder->method( 'insert' )
+		                   ->willReturnSelf()
+		;
+		$this->queryBuilder->method( 'values' )
+		                   ->willReturnSelf()
+		;
+
+		$calls = 0;
+		$this->queryBuilder->method( 'executeStatement' )
+		                   ->willReturnCallback(
+			                   static function () use
+			                   (
+				                   &
+				                   $calls,
+			                   ): int
+			                   {
+
+				                   $calls ++;
+
+				                   // 1st: UPDATE misses. 2nd: INSERT collides
+				                   // with a concurrent writer. 3rd: retry
+				                   // UPDATE, which now hits.
+				                   if ( $calls === 2 )
+				                   {
+					                   throw new Exception( 'duplicate key' );
+				                   }
+
+				                   return $calls === 3
+					                   ? 1
+					                   : 0;
+			                   },
+		                   )
+		;
+
+		$this->service->markPending( 42, 'pending:auto' );
+
+		$this->assertSame( 3, $calls );
+	}
+
+
+	public function testMarkErodedStripsHashesAndStampsTheIndexRow(): void
+	{
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$this->metadataManager->method( 'getMetadata' )
+		                      ->with( 42, true )
+		                      ->willReturn( $metadata )
+		;
+
+		$metadata->expects( $this->once() )
+		         ->method( 'removeStartsWith' )
+		         ->with( MetadataService::KEY_FILE_CHECKSUM_PREFIX )
+		;
+		$metadata->expects( $this->once() )
+		         ->method( 'setInt' )
+		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, 0, true )
+		;
+		$this->metadataManager->expects( $this->once() )
+		                      ->method( 'saveMetadata' )
+		                      ->with( $metadata )
+		;
+
+		// The string is written after the save, because saving regenerates
+		// the index rows and would clobber anything written before it.
+		$this->queryBuilder->method( 'update' )
+		                   ->willReturnSelf()
+		;
+		$this->queryBuilder->expects( $this->once() )
+		                   ->method( 'executeStatement' )
+		                   ->willReturn( 1 )
+		;
+
+		$this->service->markEroded( 42 );
+	}
+
+
+	public function testBackfillHashesAddsOnlyAbsentKeysAndStampsMtime(): void
+	{
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$this->metadataManager->method( 'getMetadata' )
+		                      ->willReturn( $metadata )
+		;
+
+		// sha1 already exists in the metadata — the filecache copy is the
+		// older claim and must not overwrite it.
+		$metadata->method( 'hasKey' )
+		         ->willReturnCallback(
+			         static fn(
+				         string $key,
+			         ): bool => $key === MetadataService::getHashKey( 'sha1' ),
+		         )
+		;
+		$metadata->expects( $this->once() )
+		         ->method( 'setString' )
+		         ->with( MetadataService::getHashKey( 'md5' ), 'cafe', true )
+		;
+		// No timestamp yet → stamped with the file's mtime, not now(): the
+		// copied hash describes the content as of that mtime.
+		$metadata->method( 'getInt' )
+		         ->willReturn( 0 )
+		;
+		$metadata->expects( $this->once() )
+		         ->method( 'setInt' )
+		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, 1700000000, true )
+		;
+		$this->metadataManager->expects( $this->once() )
+		                      ->method( 'saveMetadata' )
+		;
+
+		$added = $this->service->backfillHashes(
+			42,
+			[
+				'sha1' => 'dead',
+				'md5'  => 'cafe',
+			],
+			1700000000,
+		);
+
+		$this->assertSame( 1, $added );
+	}
+
+
+	public function testBackfillHashesIsANoOpWhenNothingIsAbsent(): void
+	{
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$this->metadataManager->method( 'getMetadata' )
+		                      ->willReturn( $metadata )
+		;
+		$metadata->method( 'hasKey' )
+		         ->willReturn( true )
+		;
+
+		$this->metadataManager->expects( $this->never() )
+		                      ->method( 'saveMetadata' )
+		;
+
+		$this->assertSame( 0, $this->service->backfillHashes( 42, [ 'sha1' => 'dead' ], 1700000000 ) );
+		$this->assertSame( 0, $this->service->backfillHashes( 42, [], 1700000000 ) );
+	}
+
+
+	public function testCountErodedCountsOnlyTheErodedState(): void
+	{
+
+		$this->queryBuilder->expects( $this->once() )
+		                   ->method( 'selectAlias' )
+		                   ->willReturnSelf()
+		;
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchOne' )
+		       ->willReturn( 7 )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$this->assertSame( 7, $this->service->countEroded() );
+	}
+
+
+	public function testErodedNeverMatchesThePendingQueueFilter(): void
+	{
+
+		// The queue fetch filters on 'pending:%'; the eroded state must be
+		// invisible to it or eroded files would loop through the drain.
+		$this->assertStringNotContainsString(
+			MetadataService::PENDING_PREFIX,
+			MetadataService::STATE_ERODED,
+		);
 	}
 
 
@@ -339,78 +547,6 @@ class MetadataServiceTest
 		$ts = $this->service->getUpdatedAt( 42 );
 
 		$this->assertNull( $ts );
-	}
-
-
-	public function testSeedIndexReturnsInsertedCount(): void
-	{
-
-		$this->db->expects( $this->once() )
-		         ->method( 'executeStatement' )
-		         ->willReturn( 150 )
-		;
-
-		$this->logger->expects( $this->once() )
-		             ->method( 'info' )
-		;
-
-		$inserted = $this->service->seedIndex();
-
-		$this->assertSame( 150, $inserted );
-	}
-
-
-	public function testSeedIndexReturnsZeroOnException(): void
-	{
-
-		$this->db->expects( $this->once() )
-		         ->method( 'executeStatement' )
-		         ->willThrowException( new RuntimeException( 'DB error' ) )
-		;
-
-		$this->logger->expects( $this->once() )
-		             ->method( 'error' )
-		;
-
-		$inserted = $this->service->seedIndex();
-
-		$this->assertSame( 0, $inserted );
-	}
-
-
-	public function testSeedIndexSqlContainsExpectedTables(): void
-	{
-
-		$capturedSql = null;
-
-		$this->db->expects( $this->once() )
-		         ->method( 'executeStatement' )
-		         ->willReturnCallback(
-			         function (
-				         string $sql,
-			         ) use
-			         (
-				         &
-				         $capturedSql,
-			         ): int
-			         {
-
-				         $capturedSql = $sql;
-
-				         return 0;
-			         },
-		         )
-		;
-
-		$this->service->seedIndex();
-
-		$this->assertNotNull( $capturedSql, 'SQL should have been captured.' );
-		$this->assertStringContainsString( 'files_metadata_index', $capturedSql );
-		$this->assertStringContainsString( 'filecache', $capturedSql );
-		$this->assertStringContainsString( 'file-checksum-updated_at', $capturedSql );
-		$this->assertStringContainsString( 'pending:new', $capturedSql );
-		$this->assertStringContainsString( 'INSERT INTO', $capturedSql );
-		$this->assertStringContainsString( 'NOT IN', $capturedSql );
 	}
 
 
@@ -782,16 +918,34 @@ class MetadataServiceTest
 
 		$this->metadataManager->method( 'getMetadata' )
 		                      ->willReturnMap( [
-			                      [ 42, true, $metaA ],
-			                      [ 108, true, $metaA ],
-			                      [ 256, true, $metaB ],
+			                      [
+				                      42,
+				                      true,
+				                      $metaA,
+			                      ],
+			                      [
+				                      108,
+				                      true,
+				                      $metaA,
+			                      ],
+			                      [
+				                      256,
+				                      true,
+				                      $metaB,
+			                      ],
 		                      ] )
 		;
 
 		$groups = $this->service->queryDuplicates( 'sha256', 2 );
 
 		$this->assertCount( 1, $groups );
-		$this->assertSame( [ 42, 108 ], $groups[0]['file_ids'] );
+		$this->assertSame(
+			[
+				42,
+				108,
+			],
+			$groups[0]['file_ids'],
+		);
 		$this->assertSame( $fullHashA, $groups[0]['meta_value_string'] );
 	}
 
@@ -835,7 +989,13 @@ class MetadataServiceTest
 		$groups = $this->service->queryDuplicates( 'sha256', 2 );
 
 		$this->assertCount( 1, $groups );
-		$this->assertSame( [ 42, 108 ], $groups[0]['file_ids'] );
+		$this->assertSame(
+			[
+				42,
+				108,
+			],
+			$groups[0]['file_ids'],
+		);
 		$this->assertSame( 2, $groups[0]['file_count'] );
 	}
 

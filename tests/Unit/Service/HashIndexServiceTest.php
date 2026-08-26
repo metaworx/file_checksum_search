@@ -28,9 +28,9 @@ class HashIndexServiceTest
 
 	private MockObject|MetadataService        $metadataService;
 
-	private MockObject|FilecacheService $filecacheService;
+	private MockObject|FilecacheService       $filecacheService;
 
-	private HashIndexService            $service;
+	private HashIndexService                  $service;
 
 
 	protected function setUp(): void
@@ -223,6 +223,124 @@ class HashIndexServiceTest
 				'errors'    => 0,
 			],
 			$result,
+		);
+	}
+
+
+	// ─── backfillFromFilecache ──────────────────────────────────────
+
+	public function testBackfillPagesUntilExhaustedAndSumsTheCounts(): void
+	{
+
+		$this->filecacheService->method( 'pageFileidChecksums' )
+		                       ->willReturnCallback(
+			                       static fn(
+				                       int $lastFileId,
+			                       ): array => match ( $lastFileId )
+			                       {
+				                       0 => [
+					                       5 => [
+						                       'checksum' => 'SHA1:dead MD5:cafe',
+						                       'mtime'    => 100,
+					                       ],
+					                       9 => [
+						                       'checksum' => 'SHA1:beef',
+						                       'mtime'    => 200,
+					                       ],
+				                       ],
+				                       9 => [
+					                       12 => [
+						                       'checksum' => 'garbage-without-colon',
+						                       'mtime'    => 300,
+					                       ],
+				                       ],
+				                       default => [],
+			                       },
+		                       )
+		;
+
+		$calls = [];
+		$this->metadataService->method( 'backfillHashes' )
+		                      ->willReturnCallback(
+			                      static function (
+				                      int   $fileId,
+				                      array $algoToHash,
+				                      int   $mtime,
+			                      ) use
+			                      (
+				                      &
+				                      $calls,
+			                      ): int
+			                      {
+
+				                      $calls[ $fileId ] = [
+					                      $algoToHash,
+					                      $mtime,
+				                      ];
+
+				                      return count( $algoToHash );
+			                      },
+		                      )
+		;
+
+		$result = $this->service->backfillFromFilecache();
+
+		// File 12's checksum parses to nothing, so it is never offered.
+		$this->assertSame(
+			[
+				5,
+				9,
+			],
+			array_keys( $calls ),
+		);
+		$this->assertSame(
+			[
+				[
+					'sha1' => 'dead',
+					'md5'  => 'cafe',
+				],
+				100,
+			],
+			$calls[5],
+		);
+		$this->assertSame(
+			[
+				'files'  => 2,
+				'hashes' => 3,
+			],
+			$result,
+		);
+	}
+
+
+	public function testBackfillCountsOnlyFilesThatGainedSomething(): void
+	{
+
+		$this->filecacheService->method( 'pageFileidChecksums' )
+		                       ->willReturnCallback(
+			                       static fn(
+				                       int $lastFileId,
+			                       ): array => $lastFileId === 0
+				                       ? [
+					                       5 => [
+						                       'checksum' => 'SHA1:dead',
+						                       'mtime'    => 100,
+					                       ],
+				                       ]
+				                       : [],
+		                       )
+		;
+		// Everything already present — nothing added, nothing counted.
+		$this->metadataService->method( 'backfillHashes' )
+		                      ->willReturn( 0 )
+		;
+
+		$this->assertSame(
+			[
+				'files'  => 0,
+				'hashes' => 0,
+			],
+			$this->service->backfillFromFilecache(),
 		);
 	}
 

@@ -243,6 +243,165 @@ class HashCalculationServiceTest
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testProcessFileWithoutAlgosTakesThemFromTheGoverningRule(): void
+	{
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$this->metadataService->method( 'getMetadata' )
+		                      ->willReturn( $metadata )
+		;
+
+		$file = $this->createMock( File::class );
+		$file->method( 'getPath' )
+		     ->willReturn( '/alice/files/a.txt' )
+		;
+		$this->filecacheService->method( 'getFile' )
+		                       ->with( 42 )
+		                       ->willReturn( $file )
+		;
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn( [
+			                  'id'    => 'r1',
+			                  'type'  => 'include',
+			                  'algos' => [ 'sha256' ],
+			                  'mode'  => 'auto',
+		                  ] )
+		;
+
+		// The rule's list, not all eight: before this the drain hashed every
+		// marked file with every supported algorithm.
+		$service = $this->createCollectingServiceMock();
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->with( $this->anything(), [ 'sha256' ], true, $metadata )
+		        ->willReturn(
+			        [
+				        'results' => [
+					        'sha256' => [
+						        'success' => true,
+						        'hash'    => 'abc',
+						        'existed' => false,
+					        ],
+				        ],
+				        'locked'  => false,
+			        ],
+		        )
+		;
+
+		$service->processFile( 42, 'missing' );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testProcessFileDropsTheMarkWhenNoIncludeRuleGoverns(): void
+	{
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$this->metadataService->method( 'getMetadata' )
+		                      ->willReturn( $metadata )
+		;
+
+		$file = $this->createMock( File::class );
+		$file->method( 'getPath' )
+		     ->willReturn( '/alice/files/metered/a.txt' )
+		;
+		$this->filecacheService->method( 'getFile' )
+		                       ->willReturn( $file )
+		;
+		// Rules may change between mark and drain — verdicts are resolved at
+		// action time, and an exclude that arrived in between wins.
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn( [
+			                  'id'   => 'metered',
+			                  'type' => 'exclude',
+		                  ] )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 42, '' )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'saveMetadata' )
+		;
+
+		$service = $this->createCollectingServiceMock();
+		$service->expects( $this->never() )
+		        ->method( 'recalcHashes' )
+		;
+
+		$service->processFile( 42, 'missing' );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testProcessFileDropsTheMarkWhenNoRuleMatchesAtAll(): void
+	{
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$this->metadataService->method( 'getMetadata' )
+		                      ->willReturn( $metadata )
+		;
+
+		$file = $this->createMock( File::class );
+		$file->method( 'getPath' )
+		     ->willReturn( '/alice/files/a.txt' )
+		;
+		$this->filecacheService->method( 'getFile' )
+		                       ->willReturn( $file )
+		;
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn( null )
+		;
+
+		// Quiet start: unmatched means untouched — the background path no
+		// longer invents "all eight algorithms" for a file nothing governs.
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 42, '' )
+		;
+
+		$service = $this->createCollectingServiceMock();
+		$service->expects( $this->never() )
+		        ->method( 'recalcHashes' )
+		;
+
+		$service->processFile( 42, 'auto' );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testProcessFileDropsAnUnknownModeInsteadOfLoopingIt(): void
+	{
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$this->metadataService->method( 'getMetadata' )
+		                      ->willReturn( $metadata )
+		;
+
+		// A leftover 'pending:new' from before the quiet-start migration:
+		// the mark is cleared (with a warning), never re-fetched forever.
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 42, '' )
+		;
+		$this->logger->expects( $this->once() )
+		             ->method( 'warning' )
+		;
+
+		$this->service->processFile( 42, 'new', [ 'sha1' ] );
+	}
+
+
 	public function testProcessFileLazyMode(): void
 	{
 
