@@ -183,7 +183,7 @@ class FilecacheService
 	 *                                   internals should catch \Throwable instead
 	 *                                   of this internal class — see
 	 *                                   RuleService::isPathWritableByUser() and
-	 *                                   GenerateHashes::executeMarkOnly() for the
+	 *                                   HashFiles::executeMarkOnly() for the
 	 *                                   established pattern.
 	 */
 	public function getUserFolder( string $userId ): Folder

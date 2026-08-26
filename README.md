@@ -67,14 +67,14 @@ FCIAS provides 7 `occ` commands. Run them as `php occ <command>`.
 | Command | Description |
 |---------|-------------|
 | `file-checksum-search:search <query>` | Search files by hash value or `algo:hash` pair |
-| `file-checksum-search:generate [options]` | Generate checksums for user files, or mark them for background processing |
+| `file-checksum-search:hash [options]` | Compute checksums for user files, or mark them for background processing |
 | `file-checksum-search:find-duplicates [options]` | Find files with duplicate hash values |
 | `file-checksum-search:rebuild [--batch-size=<n>]` | Backfill the hash index from existing filecache checksums |
 | `file-checksum-search:test-perf` | Benchmark indexed lookup vs unindexed LIKE scan |
 
-#### `generate` and the rules
+#### `hash` and the rules
 
-`generate` honours the hash generation rules, in both its direct and its `--mark` form: it is the
+`hash` honours the hash generation rules, in both its direct and its `--mark` form: it is the
 CLI face of the background job, so a rule saying not to hash a file stops it too. Three options
 deviate from that deliberately, and only in ways that say what they are doing:
 
@@ -110,19 +110,19 @@ php occ file-checksum-search:search da39a3ee5e6b4b0d3255bfef95601890afd80709
 php occ file-checksum-search:search sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 
 # Generate SHA-1 hashes for all PDFs of a user
-php occ file-checksum-search:generate --user=alice --path="**/*.pdf"
+php occ file-checksum-search:hash --user=alice --path="**/*.pdf"
 
 # Generate SHA-256 hashes for all files of a user
-php occ file-checksum-search:generate --user=alice --algo=sha256
+php occ file-checksum-search:hash --user=alice --algo=sha256
 
 # Mark files as pending instead of hashing immediately
-php occ file-checksum-search:generate --user=alice --mark
+php occ file-checksum-search:hash --user=alice --mark
 
 # Hash files an "ignore" rule normally leaves alone (excluded files stay excluded)
-php occ file-checksum-search:generate --user=alice --with-ignored
+php occ file-checksum-search:hash --user=alice --with-ignored
 
 # Set one rule aside for this run and show which rule decided each file
-php occ file-checksum-search:generate --user=alice --ignore-rule=a1b2c3d4 -v
+php occ file-checksum-search:hash --user=alice --ignore-rule=a1b2c3d4 -v
 
 # Find SHA-1 duplicates (min 2 files per group) and verify from content
 php occ file-checksum-search:find-duplicates --algo=sha1 --min-count=2 --verify

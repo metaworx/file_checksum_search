@@ -10,7 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Integration\Command;
 
 use OCA\FileChecksumSearch\Command\FindDuplicates;
-use OCA\FileChecksumSearch\Command\GenerateHashes;
+use OCA\FileChecksumSearch\Command\HashFiles;
 use OCA\FileChecksumSearch\Command\RebuildIndex;
 use OCA\FileChecksumSearch\Command\SearchHash;
 use OCA\FileChecksumSearch\Command\ShowConfig;
@@ -156,15 +156,15 @@ class CommandTest
 	}
 
 
-	// ─── GenerateHashes ──────────────────────────────────────────────
+	// ─── HashFiles ───────────────────────────────────────────────────
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testGenerateHashesWithNonexistentUserReturnsFailure(): void
+	public function testHashFilesWithNonexistentUserReturnsFailure(): void
 	{
 
-		$command = Server::get( GenerateHashes::class );
+		$command = Server::get( HashFiles::class );
 		$tester  = new CommandTester( $command );
 
 		$exitCode = $tester->execute( [
@@ -179,10 +179,10 @@ class CommandTest
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testGenerateHashesVerboseReportsZeroCollection(): void
+	public function testHashFilesVerboseReportsZeroCollection(): void
 	{
 
-		$command = Server::get( GenerateHashes::class );
+		$command = Server::get( HashFiles::class );
 		$tester  = new CommandTester( $command );
 
 		$exitCode = $tester->execute(

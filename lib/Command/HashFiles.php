@@ -27,7 +27,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 /**
  * @noinspection PhpUnused
  */
-class GenerateHashes
+class HashFiles
 	extends
 	Command
 {
@@ -45,15 +45,16 @@ class GenerateHashes
 
 
 	/**
-	 * Configure the generate command.
+	 * Configure the hash command.
 	 *
 	 * @noinspection PhpUnused
 	 */
 	protected function configure(): void
 	{
 
-		$this->setName( 'file-checksum-search:generate' )
-		     ->setDescription( 'Generate checksums for user files or mark them for background processing' )
+		$this->setName( 'file-checksum-search:hash' )
+		     ->setAliases( [ 'fcias:hash' ] )
+		     ->setDescription( 'Compute checksums for user files, or mark them for background processing' )
 		     ->addOption(
 			     'user',
 			     null,
@@ -104,7 +105,7 @@ class GenerateHashes
 
 
 	/**
-	 * Execute the generate command.
+	 * Execute the hash command.
 	 *
 	 * @noinspection PhpUnused
 	 */
@@ -177,7 +178,7 @@ class GenerateHashes
 		}
 
 		$this->logger->debug(
-			'FCIAS: generate command starting',
+			'FCIAS: hash command starting',
 			[
 				'app'         => Application::APP_ID,
 				'userScope'   => $userScope,
@@ -277,7 +278,7 @@ class GenerateHashes
 			}
 
 			$this->logger->warning(
-				'FCIAS: generate command set aside admin-enforced rule {ruleId}',
+				'FCIAS: hash command set aside admin-enforced rule {ruleId}',
 				[
 					'app'       => Application::APP_ID,
 					'ruleId'    => $ruleId,

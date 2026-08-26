@@ -9,7 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\Command;
 
-use OCA\FileChecksumSearch\Command\GenerateHashes;
+use OCA\FileChecksumSearch\Command\HashFiles;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
@@ -25,7 +25,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Tester\CommandTester;
 
-class GenerateHashesTest
+class HashFilesTest
 	extends
 	TestCase
 {
@@ -54,7 +54,7 @@ class GenerateHashesTest
 		$this->ruleService      = $this->createMock( RuleService::class );
 		$this->logger           = $this->createMock( LoggerInterface::class );
 
-		$command      = new GenerateHashes(
+		$command      = new HashFiles(
 			$this->hashIndexService,
 			$this->metadataService,
 			$this->filecacheService,

@@ -143,7 +143,7 @@ updates). If pending entries accumulate, ensure Nextcloud's background jobs
 60 seconds. You can also generate hashes on demand:
 
 ```bash
-php occ file-checksum-search:generate --user=alice --path="**"
+php occ file-checksum-search:hash --user=alice --path="**"
 ```
 
 ### A file's hash does not match its content

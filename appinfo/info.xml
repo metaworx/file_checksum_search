@@ -67,7 +67,7 @@
 	<commands>
 		<command>OCA\FileChecksumSearch\Command\RebuildIndex</command>
 		<command>OCA\FileChecksumSearch\Command\SearchHash</command>
-		<command>OCA\FileChecksumSearch\Command\GenerateHashes</command>
+		<command>OCA\FileChecksumSearch\Command\HashFiles</command>
 		<command>OCA\FileChecksumSearch\Command\TestPerformance</command>
 		<command>OCA\FileChecksumSearch\Command\ShowStatus</command>
 		<command>OCA\FileChecksumSearch\Command\ShowConfig</command>
