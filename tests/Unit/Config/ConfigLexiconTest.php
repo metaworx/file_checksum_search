@@ -44,7 +44,7 @@ class ConfigLexiconTest
 		$configs = $this->lexicon->getAppConfigs();
 
 		$this->assertIsArray( $configs );
-		$this->assertCount( 6, $configs );
+		$this->assertCount( 10, $configs );
 
 		$keys = array_map(
 			static fn(
@@ -55,6 +55,10 @@ class ConfigLexiconTest
 
 		$this->assertContains( 'rule_definitions', $keys );
 		$this->assertContains( 'idle_banner_ack', $keys );
+		$this->assertContains( 'stats_rule_sweep_last_run', $keys );
+		$this->assertContains( 'stats_rule_sweep_last_counts', $keys );
+		$this->assertContains( 'stats_pending_drain_last_run', $keys );
+		$this->assertContains( 'stats_pending_drain_last_counts', $keys );
 		$this->assertContains( 'rule_processing_interval', $keys );
 		$this->assertContains( 'rule_editors_all_users', $keys );
 		$this->assertContains( 'rule_editors_groups', $keys );

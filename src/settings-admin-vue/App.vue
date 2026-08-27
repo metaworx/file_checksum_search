@@ -90,6 +90,21 @@ const ruleMsg = ref('')
 
 const pendingTotal = (stats: Record<string, number> = {}) => Object.values(stats).reduce((sum, v) => sum + v, 0)
 
+/** Display names for the background jobs' heartbeat lines (D17). */
+const JOB_LABELS: Record<string, string> = {
+	rule_sweep: 'Rule sweep',
+	pending_drain: 'Queue drain',
+}
+
+const jobRows = computed(() => Object.entries(status.value.jobs ?? {}).map(([key, run]) => ({
+	key,
+	label: JOB_LABELS[key] ?? key,
+	time: run.lastRun === null ? 'never ran yet' : new Date(run.lastRun * 1000).toLocaleString(),
+	countsText: run.lastRun === null
+		? ''
+		: Object.entries(run.counts).map(([name, value]) => `${name} ${value}`).join(', '),
+})))
+
 // --- Rule editing (global + additional rules share one dialog) ---
 
 const showRuleForm = ref(false)
@@ -246,11 +261,10 @@ loadDefinitions().then(() => {
 			</NcNoteCard>
 
 			<div class="fcias-section">
-				<h4>
-					Status
+				<h4 class="fcias-status-header">
+					<span>Status Info</span>
 					<button id="fcias-btn-refresh-status"
 						class="fcias-btn"
-						style="margin-left:12px"
 						@click="loadStatus">
 						Refresh
 					</button>
@@ -290,9 +304,38 @@ loadDefinitions().then(() => {
 							</td>
 						</tr>
 						<tr>
+							<td>Eroded Hashes</td>
+							<td id="fcias-status-eroded">
+								{{ status.erodedCount ?? 0 }}
+								<span v-if="(status.erodedCount ?? 0) > 0" class="fcias-hint">
+									— files whose hashes were dropped on write because no rule maintains
+									them; heals itself once a rule covers them again
+								</span>
+							</td>
+						</tr>
+						<tr>
+							<td>Background Jobs</td>
+							<td id="fcias-status-jobs">
+								<div v-if="jobRows.length" class="fcias-job-grid">
+									<template v-for="job in jobRows" :key="job.key">
+										<span>{{ job.label }}</span>
+										<span class="fcias-job-time">{{ job.time }}</span>
+										<span>{{ job.countsText }}</span>
+									</template>
+								</div>
+								<template v-else>
+									—
+								</template>
+							</td>
+						</tr>
+						<tr>
 							<td>Last Updated</td>
 							<td id="fcias-status-lastupdated">
-								{{ lastUpdated || '—' }}
+								<div class="fcias-job-grid">
+									<span />
+									<span class="fcias-job-time">{{ lastUpdated || '—' }}</span>
+									<span />
+								</div>
 							</td>
 						</tr>
 					</tbody>

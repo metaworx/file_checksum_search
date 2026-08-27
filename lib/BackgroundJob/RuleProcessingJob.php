@@ -11,6 +11,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\BackgroundJob;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJobList;
@@ -33,10 +34,11 @@ class RuleProcessingJob
 {
 
 	public function __construct(
-		ITimeFactory                $time,
-		private readonly RuleService    $ruleService,
-		private readonly IAppConfig     $appConfig,
-		private readonly IJobList       $jobList,
+		ITimeFactory                     $time,
+		private readonly RuleService     $ruleService,
+		private readonly IAppConfig      $appConfig,
+		private readonly IJobList        $jobList,
+		private readonly JobStatsService $jobStats,
 		private readonly LoggerInterface $logger,
 	) {
 
@@ -75,6 +77,14 @@ class RuleProcessingJob
 		try
 		{
 			$result = $this->ruleService->evaluateRules();
+
+			$this->jobStats->record(
+				JobStatsService::JOB_RULE_SWEEP,
+				[
+					'matched' => $result['matched'],
+					'marked'  => $result['marked'],
+				],
+			);
 
 			if ( $result['marked'] > 0 )
 			{

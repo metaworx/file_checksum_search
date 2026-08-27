@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\BackgroundJob;
 
+use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\ProcessPendingUpdates;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
@@ -37,6 +38,8 @@ class ProcessPendingUpdatesTest
 
 	private MockObject|IJobList               $jobList;
 
+	private MockObject|JobStatsService        $jobStats;
+
 	private MockObject|LoggerInterface        $logger;
 
 	private ProcessPendingUpdates             $job;
@@ -52,6 +55,7 @@ class ProcessPendingUpdatesTest
 		$this->metadataService = $this->createMock( MetadataService::class );
 		$this->appConfig       = $this->createMock( IAppConfig::class );
 		$this->jobList         = $this->createMock( IJobList::class );
+		$this->jobStats        = $this->createMock( JobStatsService::class );
 		$this->logger          = $this->createMock( LoggerInterface::class );
 
 		$this->appConfig->method( 'getValueInt' )
@@ -79,6 +83,7 @@ class ProcessPendingUpdatesTest
 			$this->metadataService,
 			$this->appConfig,
 			$this->jobList,
+			$this->jobStats,
 			$this->logger,
 		);
 	}
@@ -96,6 +101,7 @@ class ProcessPendingUpdatesTest
 			$this->metadataService,
 			$this->appConfig,
 			$this->jobList,
+			$this->jobStats,
 			$this->logger,
 		);
 
@@ -332,6 +338,34 @@ class ProcessPendingUpdatesTest
 		$reflection->invoke( $this->job, null );
 
 		$this->assertTrue( true );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testRunRecordsItsStatsEvenForAnEmptyBatch(): void
+	{
+
+		$this->metadataService->method( 'fetchPendingBatch' )
+		                      ->willReturn( [] )
+		;
+
+		// An empty run is still a run — the heartbeat is the point.
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'record' )
+		               ->with(
+			               JobStatsService::JOB_PENDING_DRAIN,
+			               [
+				               'processed' => 0,
+				               'failed'    => 0,
+				               'total'     => 0,
+			               ],
+		               )
+		;
+
+		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
+		$reflection->invoke( $this->job, null );
 	}
 
 }

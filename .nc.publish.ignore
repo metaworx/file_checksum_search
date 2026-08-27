@@ -24,7 +24,8 @@
 .editorconfig
 
 # Agent / project tooling
-/.aiassistant
+/GUIDELINES
+/AGENTS.md
 /.aiignore
 /.roo
 /.junie
@@ -70,7 +71,7 @@ openapi.json
 # Local-only working directories. These are gitignored, so they never show up
 # in `git status`, but rsync copies them into the package all the same — the
 # nextcloud-v* trees are full Nextcloud checkouts created by
-# `nc-test --link` (see .aiassistant/TESTING.md 9.1) and carry their own
+# `nc-test --link` (see GUIDELINES/shared TESTING.md 9.1) and carry their own
 # data/ directory.
 /nextcloud-v*
 /cypress

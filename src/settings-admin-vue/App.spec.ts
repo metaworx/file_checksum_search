@@ -63,6 +63,11 @@ function mockFetch(options: { rules?: unknown[], idleBannerAcknowledged?: boolea
 				dbVersion: '1',
 				rowCount: 3,
 				pendingStats: {},
+				erodedCount: 4,
+				jobs: {
+					rule_sweep: { lastRun: 1700000000, counts: { matched: 12, marked: 3 } },
+					pending_drain: { lastRun: null, counts: {} },
+				},
 				idleBannerAcknowledged: options.idleBannerAcknowledged ?? false,
 			}))
 		}
@@ -183,6 +188,14 @@ describe('settings-admin App', () => {
 		await flushPromises()
 
 		expect(wrapper.find('#fcias-status-rowcount').text()).toBe('3')
+
+		// D17: erosion is queryable state, and each job carries a heartbeat.
+		expect(wrapper.find('#fcias-status-eroded').text()).toContain('4')
+		const jobs = wrapper.find('#fcias-status-jobs').text()
+		expect(jobs).toContain('Rule sweep')
+		expect(jobs).toContain('matched 12, marked 3')
+		expect(jobs).toContain('Queue drain')
+		expect(jobs).toContain('never ran yet')
 
 		// One table now, in evaluation order: the catch-all is a row in it
 		// rather than a separate table above.

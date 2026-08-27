@@ -15,11 +15,18 @@ import { generateOcsUrl } from '@nextcloud/router'
 import { OCS_SETTINGS } from '../../routes'
 import { useRules } from '../../rules-vue/composables/useRules'
 
+interface JobRun {
+	lastRun: number | null
+	counts: Record<string, number>
+}
+
 interface StatusData {
 	version?: string
 	dbVersion?: string
 	rowCount?: number
 	pendingStats?: Record<string, number>
+	erodedCount?: number
+	jobs?: Record<string, JobRun>
 	idleBannerAcknowledged?: boolean
 }
 

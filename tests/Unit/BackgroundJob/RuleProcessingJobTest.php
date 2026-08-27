@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\BackgroundJob;
 
+use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\ProcessPendingUpdates;
 use OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob;
@@ -35,6 +36,8 @@ class RuleProcessingJobTest
 
 	private MockObject|IJobList        $jobList;
 
+	private MockObject|JobStatsService $jobStats;
+
 	private MockObject|LoggerInterface $logger;
 
 	private RuleProcessingJob          $job;
@@ -49,6 +52,7 @@ class RuleProcessingJobTest
 		$this->ruleService = $this->createMock( RuleService::class );
 		$this->appConfig   = $this->createMock( IAppConfig::class );
 		$this->jobList     = $this->createMock( IJobList::class );
+		$this->jobStats    = $this->createMock( JobStatsService::class );
 		$this->logger      = $this->createMock( LoggerInterface::class );
 
 		$this->appConfig->method( 'getValueInt' )
@@ -61,6 +65,7 @@ class RuleProcessingJobTest
 			$this->ruleService,
 			$this->appConfig,
 			$this->jobList,
+			$this->jobStats,
 			$this->logger,
 		);
 	}
@@ -82,6 +87,7 @@ class RuleProcessingJobTest
 			$this->ruleService,
 			$this->appConfig,
 			$this->jobList,
+			$this->jobStats,
 			$this->logger,
 		);
 
@@ -156,6 +162,35 @@ class RuleProcessingJobTest
 		$reflection->invoke( $this->job, null );
 
 		$this->assertTrue( true );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testRunRecordsItsStats(): void
+	{
+
+		$this->ruleService->method( 'evaluateRules' )
+		                  ->willReturn( [
+			                  'marked'  => 3,
+			                  'matched' => 12,
+		                  ] )
+		;
+
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'record' )
+		               ->with(
+			               JobStatsService::JOB_RULE_SWEEP,
+			               [
+				               'matched' => 12,
+				               'marked'  => 3,
+			               ],
+		               )
+		;
+
+		$reflection = new ReflectionMethod( RuleProcessingJob::class, 'run' );
+		$reflection->invoke( $this->job, null );
 	}
 
 }

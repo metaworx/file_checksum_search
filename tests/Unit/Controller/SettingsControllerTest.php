@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
+use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Controller\SettingsController;
 use OCA\FileChecksumSearch\Service\DatabaseService;
 use OCA\FileChecksumSearch\Service\MetadataService;
@@ -49,6 +50,8 @@ class SettingsControllerTest
 
 	private MockObject|IAppConfig        $appConfig;
 
+	private MockObject|JobStatsService   $jobStats;
+
 	private MockObject|MetadataService   $metadataService;
 
 	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
@@ -84,6 +87,7 @@ class SettingsControllerTest
 		$this->userManager       = $this->createMock( IUserManager::class );
 		$this->permissionService = $this->createMock( PermissionService::class );
 		$this->appConfig         = $this->createMock( IAppConfig::class );
+		$this->jobStats          = $this->createMock( JobStatsService::class );
 		$this->request           = $this->createMock( IRequest::class );
 		$this->logger            = $this->createMock( LoggerInterface::class );
 
@@ -100,6 +104,7 @@ class SettingsControllerTest
 			                         $this->metadataService,
 			                         $this->permissionService,
 			                         $this->appConfig,
+			                         $this->jobStats,
 		                         ] )
 		                         ->getMock()
 		;
@@ -152,6 +157,35 @@ class SettingsControllerTest
 			'pending:auto'    => 12,
 			'pending:preview' => 3,
 		], $data['pendingStats'] );
+	}
+
+
+// ── status: erosion + job heartbeats (D17) ──────────────────────────
+
+	public function testGetStatusReportsErosionAndJobHeartbeats(): void
+	{
+
+		$this->metadataService->method( 'countEroded' )
+		                      ->willReturn( 4 )
+		;
+		$this->jobStats->method( 'lastRuns' )
+		               ->willReturn( [
+			               'rule_sweep' => [
+				               'lastRun' => 1700000000,
+				               'counts'  => [
+					               'matched' => 12,
+					               'marked'  => 3,
+				               ],
+			               ],
+		               ] )
+		;
+
+		$data = $this->controller->getStatus()
+		                         ->getData()
+		;
+
+		$this->assertSame( 4, $data['erodedCount'] );
+		$this->assertSame( 1700000000, $data['jobs']['rule_sweep']['lastRun'] );
 	}
 
 

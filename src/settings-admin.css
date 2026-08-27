@@ -380,3 +380,27 @@
 	gap: 8px;
 	margin-block-start: 8px;
 }
+
+/* Background-job heartbeats: three aligned columns beat prose lines, and
+   tabular numerals keep the timestamps from wobbling between rows. The
+   label column is fixed rather than max-content so SEPARATE instances of
+   the grid — the jobs cell and the Last Updated cell — put their
+   timestamps on the same axis. */
+.fcias-job-grid {
+	display: inline-grid;
+	grid-template-columns: 8em max-content 1fr;
+	column-gap: 16px;
+	row-gap: 2px;
+	font-variant-numeric: tabular-nums;
+}
+
+.fcias-job-time {
+	color: var(--color-text-maxcontrast);
+}
+
+/* Title and Refresh sit on one line with a plain gap. */
+.fcias-status-header {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}

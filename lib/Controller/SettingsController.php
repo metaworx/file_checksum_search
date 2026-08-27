@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Controller;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\PermissionService;
@@ -40,6 +41,7 @@ class SettingsController
 		private readonly MetadataService   $metadataService,
 		private readonly PermissionService $permissionService,
 		private readonly IAppConfig        $appConfig,
+		private readonly JobStatsService   $jobStats,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -62,6 +64,8 @@ class SettingsController
 			'dbVersion'              => $this->statusService->getDbVersion(),
 			'rowCount'               => $this->statusService->getHashRowCount(),
 			'pendingStats'           => $this->metadataService->getPendingStats(),
+			'erodedCount'            => $this->metadataService->countEroded(),
+			'jobs'                   => $this->jobStats->lastRuns(),
 			'idleBannerAcknowledged' => $this->appConfig->getValueBool(
 				Application::APP_ID,
 				RuleService::CONFIG_KEY_IDLE_BANNER_ACK,

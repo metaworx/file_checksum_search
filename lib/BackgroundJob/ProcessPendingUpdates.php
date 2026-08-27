@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\BackgroundJob;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
+use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJobList;
@@ -37,6 +38,7 @@ class ProcessPendingUpdates
 		private readonly MetadataService        $metadataService,
 		private readonly IAppConfig             $appConfig,
 		private readonly IJobList               $jobList,
+		private readonly JobStatsService        $jobStats,
 		private readonly LoggerInterface        $logger,
 	) {
 
@@ -89,6 +91,17 @@ class ProcessPendingUpdates
 					[ 'app' => Application::APP_ID ],
 				);
 
+				// An empty run is still a run: the heartbeat on the status
+				// page is the point.
+				$this->jobStats->record(
+					JobStatsService::JOB_PENDING_DRAIN,
+					[
+						'processed' => 0,
+						'failed'    => 0,
+						'total'     => 0,
+					],
+				);
+
 				return;
 			}
 
@@ -126,6 +139,15 @@ class ProcessPendingUpdates
 					);
 				}
 			}
+
+			$this->jobStats->record(
+				JobStatsService::JOB_PENDING_DRAIN,
+				[
+					'processed' => $processed,
+					'failed'    => $failed,
+					'total'     => count( $pendingRows ),
+				],
+			);
 
 			// Re-dispatch when batch was full to process remaining pending rows
 			if ( count( $pendingRows ) >= $batchLimit )
