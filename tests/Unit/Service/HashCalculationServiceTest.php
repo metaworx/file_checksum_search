@@ -944,12 +944,17 @@ class HashCalculationServiceTest
 
 		// The direct path now honours rule verdicts, so a file needs a rule
 		// that says to hash it — as it always did under --mark.
-		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->willReturn(
-			                  [
-				                  'id'   => 'r1',
-				                  'type' => 'include',
-			                  ],
+		$this->ruleService->method( 'governingRulesForFileIds' )
+		                  ->willReturnCallback(
+			                  static fn(
+				                  array $fileIds,
+			                  ): array => array_fill_keys(
+				                  $fileIds,
+				                  [
+					                  'id'   => 'r1',
+					                  'type' => 'include',
+				                  ],
+			                  ),
 		                  )
 		;
 
@@ -1067,12 +1072,17 @@ class HashCalculationServiceTest
 
 		// The direct path now honours rule verdicts, so a file needs a rule
 		// that says to hash it — as it always did under --mark.
-		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->willReturn(
-			                  [
-				                  'id'   => 'r1',
-				                  'type' => 'include',
-			                  ],
+		$this->ruleService->method( 'governingRulesForFileIds' )
+		                  ->willReturnCallback(
+			                  static fn(
+				                  array $fileIds,
+			                  ): array => array_fill_keys(
+				                  $fileIds,
+				                  [
+					                  'id'   => 'r1',
+					                  'type' => 'include',
+				                  ],
+			                  ),
 		                  )
 		;
 
@@ -1616,8 +1626,12 @@ class HashCalculationServiceTest
 		                       ->willReturn( $folder )
 		;
 
-		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->willReturn( $rule )
+		$this->ruleService->method( 'governingRulesForFileIds' )
+		                  ->willReturnCallback(
+			                  static fn(
+				                  array $fileIds,
+			                  ): array => array_fill_keys( $fileIds, $rule ),
+		                  )
 		;
 		$this->metadataService->method( 'getUpdatedAt' )
 		                      ->willReturn( $updatedAt )
@@ -1632,12 +1646,17 @@ class HashCalculationServiceTest
 
 		// The direct path now honours rule verdicts, so a file needs a rule
 		// that says to hash it — as it always did under --mark.
-		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->willReturn(
-			                  [
-				                  'id'   => 'r1',
-				                  'type' => 'include',
-			                  ],
+		$this->ruleService->method( 'governingRulesForFileIds' )
+		                  ->willReturnCallback(
+			                  static fn(
+				                  array $fileIds,
+			                  ): array => array_fill_keys(
+				                  $fileIds,
+				                  [
+					                  'id'   => 'r1',
+					                  'type' => 'include',
+				                  ],
+			                  ),
 		                  )
 		;
 

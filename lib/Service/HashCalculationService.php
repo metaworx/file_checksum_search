@@ -159,7 +159,37 @@ class HashCalculationService
 			return;
 		}
 
-		foreach ( $node->getDirectoryListing() as $child )
+		$listing = $node->getDirectoryListing();
+
+		// Prefetch this listing's verdicts in one scan: same glob pre-filter
+		// as the loop below (which also does the stats counting), so only
+		// files that will actually be judged cost a lookup.
+		$candidateIds = [];
+
+		foreach ( $listing as $child )
+		{
+			if ( ! ( $child instanceof File ) )
+			{
+				continue;
+			}
+
+			$candidateRelative = $this->relativeHashPath(
+				$child->getPath(),
+				$userFolderPath,
+			);
+
+			if ( $pathPattern === null || PathUtil::matchesGlob( $pathPattern, $candidateRelative ) )
+			{
+				$candidateIds[] = $child->getId();
+			}
+		}
+
+		$rulesByFileId = $this->ruleService->governingRulesForFileIds(
+			$candidateIds,
+			$overrides->ignoreRuleIds,
+		);
+
+		foreach ( $listing as $child )
 		{
 			if ( ! $unlimited && count( $collected ) >= $batchSize )
 			{
@@ -213,11 +243,9 @@ class HashCalculationService
 
 			// By identity: the collector walks a home view, but that view
 			// contains mounts — shares, group folders — whose files are not
-			// this user's and answer to their own rules.
-			$rule = $this->ruleService->findFirstMatchingRule(
-				$child->getId(),
-				$overrides->ignoreRuleIds,
-			);
+			// this user's and answer to their own rules. Resolved above for
+			// the whole listing in one scan.
+			$rule = $rulesByFileId[ $child->getId() ] ?? null;
 
 			if ( ! $overrides->allows( $rule ) )
 			{

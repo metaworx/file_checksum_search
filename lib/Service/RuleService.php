@@ -847,14 +847,44 @@ class RuleService
 		array $ignoreRuleIds = [],
 	): ?array {
 
-		$location = $this->filecacheService->locate( $fileId );
+		return $this->governingRulesForFileIds( [ $fileId ], $ignoreRuleIds )[ $fileId ];
+	}
 
-		if ( $location === null )
+
+	/**
+	 * The governing rules for many files, resolved in one scan.
+	 *
+	 * The batch face of {@see findFirstMatchingRule()}, for loops that
+	 * resolve a verdict per file: one filecache query per thousand ids
+	 * ({@see FilecacheService::locateAll()}), then in-memory matching
+	 * against the memoised rule list. Every requested id has an entry —
+	 * null when no filecache row exists, no rule matches, or the row lies
+	 * outside a files area.
+	 *
+	 * @param  list<int>     $fileIds
+	 * @param  list<string>  $ignoreRuleIds  See {@see governingRuleForLocation()}.
+	 *
+	 * @return array<int, array|null>  keyed by file id
+	 * @throws \OCP\DB\Exception
+	 */
+	public function governingRulesForFileIds(
+		array $fileIds,
+		array $ignoreRuleIds = [],
+	): array {
+
+		$locations = $this->filecacheService->locateAll( $fileIds );
+		$rules     = [];
+
+		foreach ( $fileIds as $fileId )
 		{
-			return null;
+			$location = $locations[ $fileId ] ?? null;
+
+			$rules[ $fileId ] = $location === null
+				? null
+				: $this->governingRuleForLocation( $location, $ignoreRuleIds );
 		}
 
-		return $this->governingRuleForLocation( $location, $ignoreRuleIds );
+		return $rules;
 	}
 
 

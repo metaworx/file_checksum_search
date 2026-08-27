@@ -205,11 +205,11 @@ class RuleServiceTest
 			$byId[ $location->fileId ] = $location;
 		}
 
-		$this->filecacheService->method( 'locate' )
+		$this->filecacheService->method( 'locateAll' )
 		                       ->willReturnCallback(
 			                       static fn(
-				                       int $fileId,
-			                       ): ?FileLocation => $byId[ $fileId ] ?? null,
+				                       array $fileIds,
+			                       ): array => array_intersect_key( $byId, array_flip( $fileIds ) ),
 		                       )
 		;
 	}
@@ -1509,6 +1509,54 @@ class RuleServiceTest
 
 
 	// canonical identity (Block G)
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testGoverningRulesForFileIdsResolvesTheBatchInOneScan(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'       => 'alice-all',
+				'enabled'  => true,
+				'selector' => 'home:alice',
+				'path'     => '**',
+			],
+		] );
+
+		// One locateAll() for the whole batch — that is the method's point.
+		$this->filecacheService->expects( $this->once() )
+		                       ->method( 'locateAll' )
+		                       ->with( [
+			                       1,
+			                       2,
+			                       3,
+		                       ] )
+		                       ->willReturn( [
+			                       1 => $this->homeLocation( 1, 'alice', '/a.txt' ),
+			                       2 => $this->homeLocation( 2, 'bob', '/b.txt' ),
+		                       ] )
+		;
+
+		$rules = $this->service->governingRulesForFileIds( [
+			1,
+			2,
+			3,
+		] );
+
+		// Every requested id has an entry: a governing rule, or null for a
+		// file no rule matches (2) or one with no filecache row (3).
+		$this->assertSame( 'alice-all', $rules[1]['id'] ?? null );
+		$this->assertNull( $rules[2] );
+		$this->assertNull( $rules[3] );
+		$this->assertSame( [
+			1,
+			2,
+			3,
+		], array_keys( $rules ) );
+	}
 
 
 	/**

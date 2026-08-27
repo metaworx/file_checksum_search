@@ -345,19 +345,24 @@ class HashFilesTest
 		                  )
 		;
 
-		$this->ruleService->method( 'findFirstMatchingRule' )
+		$this->ruleService->method( 'governingRulesForFileIds' )
 		                  ->willReturnCallback(
 			                  static fn(
-				                  int $fileId,
-			                  ): array => $fileId === 2
-				                  ? [
-					                  'id'   => 'archive',
-					                  'type' => 'exclude',
-				                  ]
-				                  : [
-					                  'id'   => 'r1',
-					                  'mode' => 'auto',
-				                  ],
+				                  array $fileIds,
+			                  ): array => array_map(
+				                  static fn(
+					                  int $fileId,
+				                  ): array => $fileId === 2
+					                  ? [
+						                  'id'   => 'archive',
+						                  'type' => 'exclude',
+					                  ]
+					                  : [
+						                  'id'   => 'r1',
+						                  'mode' => 'auto',
+					                  ],
+				                  array_combine( $fileIds, $fileIds ),
+			                  ),
 		                  )
 		;
 
@@ -425,13 +430,19 @@ class HashFilesTest
 		                  )
 		;
 
-		// Marking now asks whether each file is one the rules maintain.
-		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->willReturn(
-			                  [
-				                  'id'   => 'r1',
-				                  'mode' => 'auto',
-			                  ],
+		// Marking now asks whether each file is one the rules maintain —
+		// resolved for the whole result set in one call.
+		$this->ruleService->method( 'governingRulesForFileIds' )
+		                  ->willReturnCallback(
+			                  static fn(
+				                  array $fileIds,
+			                  ): array => array_fill_keys(
+				                  $fileIds,
+				                  [
+					                  'id'   => 'r1',
+					                  'mode' => 'auto',
+				                  ],
+			                  ),
 		                  )
 		;
 
@@ -1119,11 +1130,16 @@ class HashFilesTest
 		$this->ruleService->method( 'searchFilesByGlob' )
 		                  ->willReturn( $files )
 		;
-		$this->ruleService->method( 'findFirstMatchingRule' )
+		$this->ruleService->method( 'governingRulesForFileIds' )
 		                  ->willReturnCallback(
 			                  static fn(
-				                  int $fileId,
-			                  ): ?array => $rulesById[ $fileId ] ?? null,
+				                  array $fileIds,
+			                  ): array => array_map(
+				                  static fn(
+					                  int $fileId,
+				                  ): ?array => $rulesById[ $fileId ] ?? null,
+				                  array_combine( $fileIds, $fileIds ),
+			                  ),
 		                  )
 		;
 	}

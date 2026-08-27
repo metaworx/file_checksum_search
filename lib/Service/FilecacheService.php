@@ -164,31 +164,66 @@ class FilecacheService
 	public function locate( int $fileId ): ?FileLocation
 	{
 
-		$qb = $this->db->getQueryBuilder();
-		$qb->select( 'fc.fileid', 'fc.path', 'fc.mtime', 'st.id' )
-		   ->from( 'filecache', 'fc' )
-		   ->innerJoin( 'fc', 'storages', 'st', 'fc.storage = st.numeric_id' )
-		   ->where(
-			   $qb->expr()
-			      ->eq( 'fc.fileid', $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
-		   )
-		;
+		return $this->locateAll( [ $fileId ] )[ $fileId ] ?? null;
+	}
 
-		$result = $qb->executeQuery();
-		$row    = $result->fetch();
-		$result->closeCursor();
 
-		if ( $row === false )
+	/**
+	 * The canonical identities of many files in one scan.
+	 *
+	 * The batch face of {@see locate()}, for loops that resolve verdicts
+	 * per file: one IN() query per thousand ids instead of one round-trip
+	 * each. Ids without a filecache row are simply absent from the result.
+	 *
+	 * @param  list<int>  $fileIds
+	 *
+	 * @return array<int, FileLocation>  keyed by file id
+	 * @throws \OCP\DB\Exception
+	 */
+	public function locateAll( array $fileIds ): array
+	{
+
+		$locations = [];
+
+		// 1000 per IN(): Oracle's placeholder ceiling, and the chunk size
+		// Nextcloud itself uses.
+		foreach (
+			array_chunk(
+				array_values( array_unique( array_map( intval( ... ), $fileIds ) ) ),
+				1000,
+			) as $chunk
+		)
 		{
-			return null;
+			$qb = $this->db->getQueryBuilder();
+			$qb->select( 'fc.fileid', 'fc.path', 'fc.mtime', 'st.id' )
+			   ->from( 'filecache', 'fc' )
+			   ->innerJoin( 'fc', 'storages', 'st', 'fc.storage = st.numeric_id' )
+			   ->where(
+				   $qb->expr()
+				      ->in(
+					      'fc.fileid',
+					      $qb->createNamedParameter( $chunk, IQueryBuilder::PARAM_INT_ARRAY ),
+				      ),
+			   )
+			;
+
+			$result = $qb->executeQuery();
+
+			while ( ( $row = $result->fetch() ) !== false )
+			{
+				$location = FileLocation::fromRow(
+					(int) $row['fileid'],
+					(string) $row['id'],
+					(string) $row['path'],
+					(int) $row['mtime'],
+				);
+
+				$locations[ $location->fileId ] = $location;
+			}
+			$result->closeCursor();
 		}
 
-		return FileLocation::fromRow(
-			(int) $row['fileid'],
-			(string) $row['id'],
-			(string) $row['path'],
-			(int) $row['mtime'],
-		);
+		return $locations;
 	}
 
 

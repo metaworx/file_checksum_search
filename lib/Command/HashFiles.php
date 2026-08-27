@@ -16,6 +16,7 @@ use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleOverrides;
 use OCA\FileChecksumSearch\Service\RuleService;
+use OCP\Files\File;
 use OCP\Files\Folder;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -617,6 +618,17 @@ class HashFiles
 
 		$marked = 0;
 
+		// One scan for the whole result set instead of a lookup per file.
+		$rulesByFileId = $this->ruleService->governingRulesForFileIds(
+			array_map(
+				static fn(
+					File $file,
+				): int => $file->getId(),
+				$files,
+			),
+			$overrides->ignoreRuleIds,
+		);
+
 		foreach ( $files as $file )
 		{
 			if ( $remaining !== null && $remaining <= 0 )
@@ -624,10 +636,7 @@ class HashFiles
 				break;
 			}
 
-			$rule = $this->ruleService->findFirstMatchingRule(
-				$file->getId(),
-				$overrides->ignoreRuleIds,
-			);
+			$rule = $rulesByFileId[ $file->getId() ] ?? null;
 
 			if ( ! $overrides->allows( $rule ) )
 			{
