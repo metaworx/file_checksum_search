@@ -310,9 +310,8 @@ class RulesControllerTest
 		$this->body( [
 			'path'           => '/Documents',
 			'algos'          => [ 'sha1' ],
-			'userScope'      => 'all',
+			'selector'       => 'home:*',
 			'admin_enforced' => true,
-			'pinned'         => true,
 		] );
 
 		$this->ruleService->expects( $this->once() )
@@ -323,9 +322,9 @@ class RulesControllerTest
 					                  array $definition,
 				                  ): bool {
 
-					                  return $definition['userScope'] === 'alice'
+					                  return $definition['selector'] === 'home:alice'
 						                  && $definition['admin_enforced'] === false
-						                  && ! isset( $definition['pinned'] );
+						                  && ! array_key_exists( 'pinned', $definition );
 				                  },
 			                  ),
 		                  )
@@ -399,7 +398,7 @@ class RulesControllerTest
 		$this->body( [
 			'path'           => '/Shared',
 			'algos'          => [ 'sha256' ],
-			'userScope'      => 'group:staff',
+			'selector'       => 'group:staff',
 			'admin_enforced' => true,
 		] );
 
@@ -409,7 +408,7 @@ class RulesControllerTest
 			                  $this->callback(
 				                  static fn(
 					                  array $definition,
-				                  ): bool => $definition['userScope'] === 'group:staff'
+				                  ): bool => $definition['selector'] === 'group:staff'
 					                  && $definition['admin_enforced'] === true,
 			                  ),
 		                  )
@@ -436,9 +435,9 @@ class RulesControllerTest
 		                   ->willReturn( false )
 		;
 		$this->body( [
-			'path'      => '/Shared',
-			'algos'     => [ 'sha1' ],
-			'userScope' => 'group:ghosts',
+			'path'     => '/Shared',
+			'algos'    => [ 'sha1' ],
+			'selector' => 'group:ghosts',
 		] );
 
 		$this->ruleService->expects( $this->never() )
@@ -639,29 +638,6 @@ class RulesControllerTest
 
 	// destroy
 
-	public function testDestroyRefusesToDeleteThePinnedDefault(): void
-	{
-
-		$this->signIn( 'theadmin', isAdmin: true );
-		$this->ruleService->method( 'findRuleById' )
-		                  ->willReturn( [
-			                  'id'     => 'default',
-			                  'pinned' => true,
-		                  ] )
-		;
-
-		$this->ruleService->expects( $this->never() )
-		                  ->method( 'ruleDelete' )
-		;
-
-		$this->assertSame(
-			Http::STATUS_BAD_REQUEST,
-			$this->controller->destroy( 'default' )
-			                 ->getStatus(),
-		);
-	}
-
-
 	public function testDestroyRemovesARuleTheCallerMayMutate(): void
 	{
 
@@ -697,24 +673,25 @@ class RulesControllerTest
 		                        ->willReturn( true )
 		;
 		$this->body( [
-			'band'       => 4,
+			'selector'   => 'home:alice',
 			'orderedIds' => [
 				'b',
 				'a',
 			],
 		] );
 
-		// The service confines a non-admin to their own band-4 segment; the
+		// The service confines a non-admin to their own segment; the
 		// controller's job is only to hand it the caller's identity.
 		$this->ruleService->expects( $this->once() )
-		                  ->method( 'reorderBand' )
+		                  ->method( 'reorderSegment' )
 		                  ->with(
-			                  4,
-			                  null,
+			                  'home:alice',
+			                  false,
 			                  [
 				                  'b',
 				                  'a',
 			                  ],
+			                  'alice',
 			                  'alice',
 		                  )
 		;
@@ -735,8 +712,7 @@ class RulesControllerTest
 
 		$this->signIn( 'theadmin', isAdmin: true );
 		$this->body( [
-			'band'       => 4,
-			'ownerId'    => 'alice',
+			'selector'   => 'home:alice',
 			'orderedIds' => [
 				'b',
 				'a',
@@ -744,15 +720,16 @@ class RulesControllerTest
 		] );
 
 		$this->ruleService->expects( $this->once() )
-		                  ->method( 'reorderBand' )
+		                  ->method( 'reorderSegment' )
 		                  ->with(
-			                  4,
-			                  'alice',
+			                  'home:alice',
+			                  false,
 			                  [
 				                  'b',
 				                  'a',
 			                  ],
 			                  null,
+			                  'theadmin',
 		                  )
 		;
 
@@ -768,11 +745,11 @@ class RulesControllerTest
 
 		$this->signIn( 'theadmin', isAdmin: true );
 		$this->body( [
-			'band'       => 6,
+			'selector'   => 'home:*',
 			'orderedIds' => [ 'a' ],
 		] );
 
-		$this->ruleService->method( 'reorderBand' )
+		$this->ruleService->method( 'reorderSegment' )
 		                  ->willThrowException( new InvalidArgumentException( 'not a permutation' ) )
 		;
 
@@ -794,7 +771,7 @@ class RulesControllerTest
 		$this->body( $payload );
 
 		$this->ruleService->expects( $this->never() )
-		                  ->method( 'reorderBand' )
+		                  ->method( 'reorderSegment' )
 		;
 
 		$this->assertSame(
@@ -812,17 +789,17 @@ class RulesControllerTest
 	{
 
 		return [
-			'no band'           => [ [ 'orderedIds' => [ 'a' ] ] ],
-			'band not an int'   => [
+			'no selector'           => [ [ 'orderedIds' => [ 'a' ] ] ],
+			'selector not a string' => [
 				[
-					'band'       => 'four',
+					'selector'   => 4,
 					'orderedIds' => [ 'a' ],
 				],
 			],
-			'no orderedIds'     => [ [ 'band' => 4 ] ],
-			'orderedIds scalar' => [
+			'no orderedIds'         => [ [ 'selector' => 'home:*' ] ],
+			'orderedIds scalar'     => [
 				[
-					'band'       => 4,
+					'selector'   => 'home:*',
 					'orderedIds' => 'a',
 				],
 			],
@@ -838,11 +815,11 @@ class RulesControllerTest
 
 		$this->signIn( 'theadmin', isAdmin: true );
 		$this->body( [
-			'band'       => 6,
+			'selector'   => 'home:*',
 			'orderedIds' => [],
 		] );
 
-		$this->ruleService->method( 'reorderBand' )
+		$this->ruleService->method( 'reorderSegment' )
 		                  ->willThrowException( new RuntimeException( 'config write failed' ) )
 		;
 

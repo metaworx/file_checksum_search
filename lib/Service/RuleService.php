@@ -43,36 +43,33 @@ class RuleService
 	private const CONFIG_KEY_RULES = 'rule_definitions';
 
 	/** Scope value meaning "every user". */
-	public const SCOPE_ALL = 'all';
-
 	/**
 	 * Prefix marking a group-scoped rule: `group:<gid>`. Nextcloud user IDs
 	 * cannot contain a colon, so this can never collide with a uid.
 	 */
-	public const SCOPE_GROUP_PREFIX = 'group:';
-
 	/**
 	 * Priority bands. Rules are stored and evaluated in band order, first
 	 * match wins, so a lower band number is a higher priority.
 	 *
 	 * Enforced beats unenforced; within each half, specific beats general;
-	 * the pinned catch-all is last. Band membership is always *derived* from
+	 * each segment's bare-`**` default last within it. Band membership is always *derived* from
 	 * a rule's scope and flags — it is never stored.
 	 */
-	public const BAND_USER_ENFORCED = 1;
+	public const BAND_EXACT_ENFORCED = 1;
 
 	public const BAND_GROUP_ENFORCED = 2;
 
-	public const BAND_GLOBAL_ENFORCED = 3;
+	public const BAND_NAMESPACE_ENFORCED = 3;
 
-	public const BAND_USER = 4;
+	public const BAND_UNIVERSAL_ENFORCED = 4;
 
-	public const BAND_GROUP = 5;
+	public const BAND_EXACT = 5;
 
-	public const BAND_GLOBAL = 6;
+	public const BAND_GROUP = 6;
 
-	/** The single pinned `**` default. Not orderable. */
-	public const BAND_DEFAULT = 7;
+	public const BAND_NAMESPACE = 7;
+
+	public const BAND_UNIVERSAL = 8;
 
 	/**
 	 * Rule verdicts. The first matching rule decides a file's fate outright —
@@ -137,15 +134,23 @@ class RuleService
 
 
 	/**
-	 * Resolve a rule's scope to the list of user IDs it applies to.
+	 * The users whose home folders a home-universe selector sweeps.
+	 *
+	 * Only home-kind selectors (and the universal one, whose home half this
+	 * is) resolve to users at all; groupfolder: and storage: selectors are
+	 * swept by storage, not by user.
 	 *
 	 * @return string[]
 	 */
-	public function resolveUsers( string $userScope ): array
+	public function resolveUsers( string $selectorValue ): array
 	{
 
-		if ( $userScope === 'all' )
+		$selector = Selector::fromStored( $selectorValue );
+
+		switch ( $selector->kind )
 		{
+		case Selector::KIND_HOME_ALL:
+		case Selector::KIND_UNIVERSAL:
 			$allUsers = [];
 
 			$this->userManager->callForAllUsers(
@@ -163,12 +168,9 @@ class RuleService
 			);
 
 			return $allUsers;
-		}
 
-		if ( self::scopeKind( $userScope ) === 'group' )
-		{
-			$groupId = (string) self::scopeGroupId( $userScope );
-			$group   = $this->groupManager->get( $groupId );
+		case Selector::KIND_GROUP:
+			$group = $this->groupManager->get( (string) $selector->target );
 
 			if ( $group === null )
 			{
@@ -176,7 +178,7 @@ class RuleService
 					'FCIAS: resolveUsers — group not found.',
 					[
 						'app'     => Application::APP_ID,
-						'groupId' => $groupId,
+						'groupId' => $selector->target,
 					],
 				);
 
@@ -191,24 +193,28 @@ class RuleService
 					$group->getUsers(),
 				),
 			);
-		}
 
-		$user = $this->userManager->get( $userScope );
+		case Selector::KIND_USER:
+			$user = $this->userManager->get( (string) $selector->target );
 
-		if ( $user === null )
-		{
-			$this->logger->warning(
-				'FCIAS: resolveUsers — user not found.',
-				[
-					'app'       => Application::APP_ID,
-					'userScope' => $userScope,
-				],
-			);
+			if ( $user === null )
+			{
+				$this->logger->warning(
+					'FCIAS: resolveUsers — user not found.',
+					[
+						'app'      => Application::APP_ID,
+						'selector' => $selectorValue,
+					],
+				);
 
+				return [];
+			}
+
+			return [ $user->getUID() ];
+
+		default:
 			return [];
 		}
-
-		return [ $user->getUID() ];
 	}
 
 
@@ -279,20 +285,16 @@ class RuleService
 	public function loadRules(): array
 	{
 
-		return self::sortIntoBands( $this->loadRulesRaw() );
+		return self::sortRules( $this->readStoredRules() );
 	}
 
 
 	/**
-	 * Load rule definitions exactly as stored, without the band sort.
-	 *
-	 * Only {@see migrateToBands()} needs this: it has to inspect the
-	 * *original* slot 0 to recognise the pre-band catch-all convention, and
-	 * sorting first would hide it.
+	 * The stored list, exactly as persisted — no derived ordering applied.
 	 *
 	 * @return list<array>
 	 */
-	private function loadRulesRaw(): array
+	private function readStoredRules(): array
 	{
 
 		$json = $this->appConfig->getValueString(
@@ -317,70 +319,56 @@ class RuleService
 
 
 	/**
-	 * Which kind of scope a `userScope` value expresses.
-	 *
-	 * @param  string  $userScope
-	 *
-	 * @return 'global'|'group'|'user'
+	 * The rule's selector, reading the canonical 'selector' key and falling
+	 * back to the pre-selector 'userScope' key so rules written before the
+	 * migration keep working while it runs.
 	 */
-	public static function scopeKind( string $userScope ): string
+	public static function ruleSelector( array $rule ): Selector
 	{
 
-		if ( $userScope === self::SCOPE_ALL )
-		{
-			return 'global';
-		}
-
-		if ( str_starts_with( $userScope, self::SCOPE_GROUP_PREFIX ) )
-		{
-			return 'group';
-		}
-
-		return 'user';
+		return Selector::fromStored(
+			(string) ( $rule['selector'] ?? $rule['userScope'] ?? '*' ),
+		);
 	}
 
 
 	/**
-	 * The group ID of a group-scoped rule, or null for any other scope.
+	 * Whether a rule is default-shaped: its glob is the bare catch-all.
+	 *
+	 * Shape drives the per-segment partition — within every segment,
+	 * default-shaped rules form a trailing sub-segment, so a segment's
+	 * catch-all can never shadow the specific rules above it and a newly
+	 * created rule never needs dragging past the default.
 	 */
-	public static function scopeGroupId( string $userScope ): ?string
+	public static function isDefaultShaped( array $rule ): bool
 	{
 
-		return self::scopeKind( $userScope ) === 'group'
-			? substr( $userScope, strlen( self::SCOPE_GROUP_PREFIX ) )
-			: null;
+		return in_array(
+			$rule['path'] ?? '**',
+			[
+				'**',
+				'',
+				'/',
+			],
+			true,
+		);
 	}
 
 
 	/**
-	 * The priority band a rule belongs to — always derived, never stored.
+	 * The display band a rule occupies — always derived, never stored.
 	 *
-	 * Enforced beats unenforced; within each half, specific beats general;
-	 * the pinned catch-all is last. See the BAND_* constants.
+	 * Band = the selector's specificity rank (exact > group > namespace-wide
+	 * > universal), in the enforced tier (1–4) or the unenforced tier (5–8).
+	 * Namespaces are disjoint, so rules of different segments in one band
+	 * can never compete for a file.
 	 */
 	public static function bandOf( array $rule ): int
 	{
 
-		if ( ! empty( $rule['pinned'] ) )
-		{
-			return self::BAND_DEFAULT;
-		}
-
-		$enforced = ! empty( $rule['admin_enforced'] );
-
-		return match ( self::scopeKind( $rule['userScope'] ?? self::SCOPE_ALL ) )
-		{
-			'user' => $enforced
-				? self::BAND_USER_ENFORCED
-				: self::BAND_USER,
-			'group' => $enforced
-				? self::BAND_GROUP_ENFORCED
-				: self::BAND_GROUP,
-			// must be 'global'
-			default => $enforced
-				? self::BAND_GLOBAL_ENFORCED
-				: self::BAND_GLOBAL,
-		};
+		return self::ruleSelector( $rule )
+		           ->band( ! empty( $rule['admin_enforced'] ) )
+		;
 	}
 
 
@@ -434,48 +422,74 @@ class RuleService
 
 
 	/**
-	 * Whether a scope applies to a given user.
+	 * Whether a selector covers this user's own (home) files.
+	 *
+	 * The home-universe half of matching: exact user, group membership,
+	 * all-homes, and the universal selector answer here; groupfolder: and
+	 * storage: selectors never do — their files are not anyone's home.
 	 */
-	public function scopeAppliesTo(
-		string $userScope,
-		string $userId,
+	public function selectorAppliesTo(
+		Selector $selector,
+		string   $userId,
 	): bool {
 
-		return match ( self::scopeKind( $userScope ) )
+		return match ( $selector->kind )
 		{
-			'global' => true,
-			'group' => $this->groupManager->isInGroup(
-				$userId,
-				(string) self::scopeGroupId( $userScope ),
-			),
-			// must be 'user'
-			default => $userScope === $userId,
+			Selector::KIND_USER => $selector->target === $userId,
+			Selector::KIND_GROUP => $this->groupManager->isInGroup( $userId, (string) $selector->target ),
+			Selector::KIND_HOME_ALL,
+			Selector::KIND_UNIVERSAL => true,
+			default => false,
 		};
 	}
 
 
 	/**
-	 * Order rules by band, preserving each band's existing internal order.
+	 * Derive the evaluation order: band, then segment, then the shape
+	 * partition, preserving stored order inside each partition.
 	 *
-	 * `usort()` has been stable since PHP 8.0, so equal-band rules keep the
-	 * relative order they were given — which is what makes within-band
-	 * position the authoritative priority.
+	 * `usort()` has been stable since PHP 8.0, so equal-key rules keep the
+	 * relative order they were given — which is what makes within-partition
+	 * position the authoritative priority. The partition key is what makes a
+	 * segment's bare-`**` default always evaluate after its specific rules:
+	 * a newly created rule never needs dragging past the default, and the
+	 * old priority inversion cannot recur inside a segment.
 	 *
 	 * @param  list<array>  $rules
 	 *
 	 * @return list<array>
 	 */
-	public static function sortIntoBands( array $rules ): array
+	public static function sortRules( array $rules ): array
 	{
 
 		$rules = array_values( $rules );
 
 		usort(
 			$rules,
-			static fn(
+			static function (
 				array $a,
 				array $b,
-			): int => self::bandOf( $a ) <=> self::bandOf( $b ),
+			): int {
+
+				$cmp = self::bandOf( $a ) <=> self::bandOf( $b );
+
+				if ( $cmp !== 0 )
+				{
+					return $cmp;
+				}
+
+				$cmp = self::ruleSelector( $a )
+				           ->canonical() <=> self::ruleSelector( $b )
+				                                 ->canonical()
+				;
+
+				if ( $cmp !== 0 )
+				{
+					return $cmp;
+				}
+
+				return (int) self::isDefaultShaped( $a ) <=> (int) self::isDefaultShaped( $b );
+			},
 		);
 
 		return $rules;
@@ -496,56 +510,26 @@ class RuleService
 	private function saveRules( array $rules ): void
 	{
 
+		// Canonicalise on every write: the selector key in its canonical
+		// spelling, legacy keys gone. The stored array is always in
+		// evaluation order, so no reader has to remember to sort.
+		foreach ( $rules as &$rule )
+		{
+			$rule['selector'] = self::ruleSelector( $rule )
+			                        ->canonical()
+			;
+			unset( $rule['userScope'], $rule['pinned'] );
+		}
+		unset( $rule );
+
 		$this->appConfig->setValueString(
 			Application::APP_ID,
 			self::CONFIG_KEY_RULES,
 			json_encode(
-				self::sortIntoBands( self::normalisePinned( $rules ) ),
+				self::sortRules( $rules ),
 				JSON_THROW_ON_ERROR,
 			),
 		);
-	}
-
-
-	/**
-	 * Enforce the at-most-one-pinned-rule invariant.
-	 *
-	 * `pinned` marks the single catch-all default and puts a rule in the
-	 * last band. A second pinned rule would give the instance two
-	 * "last" rules, one of which could never be reached, so extras are
-	 * demoted to ordinary rules of their own scope. Applied at the write
-	 * gate, this holds no matter which mutation path set the flag.
-	 *
-	 * @param  list<array>  $rules
-	 *
-	 * @return list<array>
-	 */
-	private static function normalisePinned( array $rules ): array
-	{
-
-		$seen = false;
-
-		foreach ( $rules as $index => $rule )
-		{
-			if ( empty( $rule['pinned'] ) )
-			{
-				unset( $rules[ $index ]['pinned'] );
-
-				continue;
-			}
-
-			if ( $seen )
-			{
-				unset( $rules[ $index ]['pinned'] );
-
-				continue;
-			}
-
-			$rules[ $index ]['pinned'] = true;
-			$seen                      = true;
-		}
-
-		return array_values( $rules );
 	}
 
 
@@ -566,18 +550,20 @@ class RuleService
 		$matched = 0;
 		$fileIds = [];
 
-		$mode      = $rule['mode'] ?? 'auto';
-		$pathGlob  = $rule['path'] ?? '/';
-		$userScope = $rule['userScope'] ?? 'all';
-		$batchSize = 100;
-		$maintains = self::maintainsHashes( $rule );
+		$mode          = $rule['mode'] ?? 'auto';
+		$pathGlob      = $rule['path'] ?? '/';
+		$selectorValue = self::ruleSelector( $rule )
+		                     ->canonical()
+		;
+		$batchSize     = 100;
+		$maintains     = self::maintainsHashes( $rule );
 
 		if ( $pathGlob === '' || $pathGlob === '/' )
 		{
 			$pathGlob = '**';
 		}
 
-		$users = $this->resolveUsers( $userScope );
+		$users = $this->resolveUsers( $selectorValue );
 
 		foreach ( $users as $userId )
 		{
@@ -712,12 +698,12 @@ class RuleService
 				continue;
 			}
 
-			$userScope = $rule['userScope'] ?? self::SCOPE_ALL;
+			$selector = self::ruleSelector( $rule );
 
 			// An unknown owner cannot be tested against a user- or
-			// group-scoped rule, so those are left in play rather than
+			// group-bound selector, so those are left in play rather than
 			// silently dropped — preserving the pre-band behaviour.
-			if ( $ownerUid !== null && ! $this->scopeAppliesTo( $userScope, $ownerUid ) )
+			if ( $ownerUid !== null && ! $this->selectorAppliesTo( $selector, $ownerUid ) )
 			{
 				continue;
 			}
@@ -866,24 +852,22 @@ class RuleService
 
 			$definition['id'] = $id;
 
-			// `pinned` identifies the one catch-all default and is never
-			// settable through a rule payload — carry it across the update
-			// rather than letting an edit silently unpin it.
-			if ( ! empty( $existing['pinned'] ) )
-			{
-				$definition['pinned'] = true;
-			}
+			// Same band, same segment, same partition: an in-place edit
+			// keeps its position. Anything else re-enters through the
+			// derived ordering (appended, so it lands last within its new
+			// partition — before the defaults, if it is not one itself).
+			$samePlace = self::bandOf( $definition ) === self::bandOf( $existing )
+				&& self::ruleSelector( $definition )
+				       ->canonical() === self::ruleSelector( $existing )
+				                             ->canonical()
+				&& self::isDefaultShaped( $definition ) === self::isDefaultShaped( $existing );
 
-			if ( self::bandOf( $definition ) === self::bandOf( $existing ) )
+			if ( $samePlace )
 			{
 				$rules[ $index ] = $definition;
 			}
 			else
 			{
-				// Position is only meaningful within a band, so an edit that
-				// changes scope or the enforced flag re-enters at the end of
-				// the band it now belongs to (appending before the stable
-				// band sort puts it last among its new peers).
 				unset( $rules[ $index ] );
 				$rules   = array_values( $rules );
 				$rules[] = $definition;
@@ -1011,7 +995,12 @@ class RuleService
 		$skipped = 0;
 		$fresh   = 0;
 
-		foreach ( $this->resolveUsers( $rule['userScope'] ?? self::SCOPE_ALL ) as $userId )
+		foreach (
+			$this->resolveUsers(
+				self::ruleSelector( $rule )
+				    ->canonical(),
+			) as $userId
+		)
 		{
 			try
 			{
@@ -1116,81 +1105,22 @@ class RuleService
 
 
 	/**
-	 * One-time migration of a pre-band rule list into band order.
+	 * Re-persist the stored rules through the canonical write path.
 	 *
-	 * Before bands, the rule at slot 0 was the "global rule (priority 0)"
-	 * by convention, and evaluation ran front-to-first-match — which made
-	 * that catch-all shadow every rule below it. Bands put the catch-all
-	 * last, where the original design intended it, so this marks it
-	 * `pinned` and sorts everything into band order.
+	 * One stroke migrates everything saveRules() normalises: legacy
+	 * 'userScope' values become canonical selectors, retired keys are
+	 * dropped, and the derived ordering applies. Idempotent.
 	 *
-	 * Idempotent: once a pinned rule exists the marking is skipped, and the
-	 * band sort is stable, so repeated runs change nothing.
-	 *
-	 * @return array{pinnedId: string|null, rules: int}
+	 * @return int  Number of rules stored
 	 * @throws JsonException
 	 */
-	public function migrateToBands(): array
+	public function resaveCanonical(): int
 	{
 
-		$rules = $this->loadRulesRaw();
-
-		if ( $rules === [] )
-		{
-			return [
-				'pinnedId' => null,
-				'rules'    => 0,
-			];
-		}
-
-		$pinnedId = null;
-
-		foreach ( $rules as $rule )
-		{
-			if ( ! empty( $rule['pinned'] ) )
-			{
-				$pinnedId = (string) ( $rule['id'] ?? '' );
-
-				break;
-			}
-		}
-
-		if ( $pinnedId === null )
-		{
-			// Slot 0 is the catch-all by the old convention — but only trust
-			// it if it really is global-scoped; otherwise take the first
-			// global rule, and if there is none, pin nothing (an instance
-			// with no default is a legitimate state).
-			$target = ( $rules[0]['userScope'] ?? '' ) === self::SCOPE_ALL
-				? 0
-				: null;
-
-			if ( $target === null )
-			{
-				foreach ( $rules as $index => $rule )
-				{
-					if ( ( $rule['userScope'] ?? '' ) === self::SCOPE_ALL )
-					{
-						$target = $index;
-
-						break;
-					}
-				}
-			}
-
-			if ( $target !== null )
-			{
-				$rules[ $target ]['pinned'] = true;
-				$pinnedId                   = (string) ( $rules[ $target ]['id'] ?? '' );
-			}
-		}
-
+		$rules = $this->loadRules();
 		$this->saveRules( $rules );
 
-		return [
-			'pinnedId' => $pinnedId,
-			'rules'    => count( $rules ),
-		];
+		return count( $rules );
 	}
 
 
@@ -1217,87 +1147,60 @@ class RuleService
 
 
 	/**
-	 * Reorder the rules inside one band — the single mutation point for
-	 * rule priority.
+	 * Reorder the rules inside one segment partition — the single mutation
+	 * point for rule priority.
 	 *
-	 * Bands make cross-boundary moves structurally impossible rather than
-	 * merely validated: a reorder only ever permutes rules *within* one
-	 * band, and band membership is derived from a rule's scope and flags
-	 * ({@see bandOf()}), so no reorder can promote a rule past one it must
-	 * not outrun. Changing a rule's band is done by editing its scope or
-	 * its enforced flag, not by dragging.
+	 * A segment is one selector value's rules; the partition separates its
+	 * regular rules from its bare-`**` defaults. Reordering only ever
+	 * permutes rules *within* one partition of one segment: cross-segment
+	 * and cross-partition moves are structurally impossible, so no reorder
+	 * can promote a rule past one it must not outrun, and a segment's
+	 * default can never be dragged above its specific rules.
 	 *
-	 * $orderedIds must be exactly a permutation of the IDs in the target
-	 * band — never trust a client to have submitted the full picture, and
-	 * never accept a partial order, which would silently drop rules.
+	 * $orderedIds must be exactly a permutation of that partition's IDs —
+	 * never trust a client to have submitted the full picture, and never
+	 * accept a partial order, which would silently drop rules.
 	 *
-	 * Band 4 holds every user's own rules, and different users' rules never
-	 * compete (they are filtered by scope at match time), so a band-4
-	 * reorder targets exactly one owner's segment and leaves every other
-	 * owner's rules untouched.
+	 * @param  list<string>  $orderedIds
+	 * @param  string|null   $requestingUserId  Non-null = a non-admin, who
+	 *                                          may only reorder the segment
+	 *                                          home:<their own uid>
 	 *
-	 * @param  int                 $band              1..6; {@see BAND_DEFAULT} is not orderable
-	 * @param  string|null         $ownerId           required for {@see BAND_USER}; ignored otherwise
-	 * @param  array<int, string>  $orderedIds        the band's IDs in their new order
-	 * @param  string|null         $requestingUserId  null = admin; a uid restricts the
-	 *                                                caller to their own band-4 segment
-	 *
-	 * @throws InvalidArgumentException  on a non-orderable band, a band the
-	 *                                   caller may not touch, or anything
-	 *                                   that is not an exact permutation
+	 * @throws InvalidArgumentException
 	 * @throws JsonException
 	 */
-	public function reorderBand(
-		int     $band,
-		?string $ownerId,
+	public function reorderSegment(
+		string  $selectorValue,
+		bool    $defaultsPartition,
 		array   $orderedIds,
 		?string $requestingUserId = null,
 		?string $actor = null,
 	): void {
 
-		if ( $band < self::BAND_USER_ENFORCED || $band > self::BAND_GLOBAL )
-		{
-			throw new InvalidArgumentException(
-				sprintf( 'Band %d cannot be reordered.', $band ),
-			);
-		}
+		$selector  = Selector::parse( $selectorValue );
+		$canonical = $selector->canonical();
 
-		if ( $requestingUserId !== null )
+		if ( $requestingUserId !== null && $canonical !== 'home:' . $requestingUserId )
 		{
-			// A non-admin owns nothing outside band 4.
-			if ( $band !== self::BAND_USER )
-			{
-				throw new InvalidArgumentException(
-					'You may only reorder your own rules.',
-				);
-			}
-
-			$ownerId = $requestingUserId;
-		}
-
-		if ( $band === self::BAND_USER && ( $ownerId === null || $ownerId === '' ) )
-		{
-			throw new InvalidArgumentException(
-				'ownerId is required when reordering user rules.',
-			);
+			throw new InvalidArgumentException( 'You may only reorder your own rules.' );
 		}
 
 		$rules = $this->loadRules();
 
 		// The slots this reorder may rewrite. Every other slot keeps its
-		// current rule, so nothing outside the target segment can move.
+		// current rule, so nothing outside the target partition can move.
 		$targetSlots = [];
 		$currentIds  = [];
 
 		foreach ( $rules as $index => $rule )
 		{
-			if ( self::bandOf( $rule ) !== $band )
+			if ( self::ruleSelector( $rule )
+			         ->canonical() !== $canonical )
 			{
 				continue;
 			}
 
-			if ( $band === self::BAND_USER
-				&& ( $rule['userScope'] ?? self::SCOPE_ALL ) !== $ownerId )
+			if ( self::isDefaultShaped( $rule ) !== $defaultsPartition )
 			{
 				continue;
 			}
@@ -1317,7 +1220,7 @@ class RuleService
 			|| count( $submittedIds ) !== count( array_unique( $submittedIds ) ) )
 		{
 			throw new InvalidArgumentException(
-				'orderedIds must be exactly a permutation of the rule IDs in this band.',
+				'orderedIds must be exactly a permutation of the rule IDs in this segment partition.',
 			);
 		}
 
@@ -1336,13 +1239,13 @@ class RuleService
 		$this->saveRules( $rules );
 
 		$this->logger->info(
-			'FCIAS rule audit: band {band} reordered',
+			'FCIAS rule audit: segment {selector} reordered',
 			[
-				'app'   => Application::APP_ID,
-				'band'  => $band,
-				'owner' => $ownerId,
-				'order' => $orderedIds,
-				'actor' => $actor ?? $requestingUserId ?? 'unknown',
+				'app'      => Application::APP_ID,
+				'selector' => $canonical,
+				'defaults' => $defaultsPartition,
+				'order'    => $orderedIds,
+				'actor'    => $actor ?? $requestingUserId ?? 'unknown',
 			],
 		);
 	}
@@ -1384,15 +1287,25 @@ class RuleService
 				continue;
 			}
 
-			$band               = self::bandOf( $rule );
-			$positions[ $band ] = ( $positions[ $band ] ?? 0 ) + 1;
+			$selector = self::ruleSelector( $rule )
+			                ->canonical()
+			;
+			$band     = self::bandOf( $rule );
+
+			// A segment is one selector value *within one band*: the same
+			// selector's enforced and unenforced rules are different
+			// segments and number independently.
+			$segmentKey               = $band . '|' . $selector;
+			$positions[ $segmentKey ] = ( $positions[ $segmentKey ] ?? 0 ) + 1;
 
 			$rule['admin_enforced'] = (bool) ( $rule['admin_enforced'] ?? false );
-			$rule['pinned']         = (bool) ( $rule['pinned'] ?? false );
+			$rule['selector']       = $selector;
 			$rule['band']           = $band;
-			$rule['position']       = $positions[ $band ];
+			$rule['position']       = $positions[ $segmentKey ];
+			$rule['isDefault']      = self::isDefaultShaped( $rule );
 			$rule['canEdit']        = $userId === null
 				|| ( $canEditAny && $this->canUserMutateRule( $userId, $rule ) );
+			unset( $rule['userScope'], $rule['pinned'] );
 
 			$listed[] = $rule;
 		}
@@ -1412,7 +1325,16 @@ class RuleService
 		array  $rule,
 	): bool {
 
-		return $this->scopeAppliesTo( $rule['userScope'] ?? self::SCOPE_ALL, $userId )
+		$selector = self::ruleSelector( $rule );
+
+		if ( ! $selector->isHomeKind() && $selector->kind !== Selector::KIND_UNIVERSAL )
+		{
+			// groupfolder:/storage: rules govern shared infrastructure, not
+			// anyone's own files — not this page's subject.
+			return false;
+		}
+
+		return $this->selectorAppliesTo( $selector, $userId )
 			&& $this->isPathVisibleToUser( $userId, $rule['path'] ?? '/' );
 	}
 
@@ -1421,7 +1343,7 @@ class RuleService
 	 * Whether $userId may create/update/delete/toggle/reorder $rule.
 	 *
 	 * A non-admin's writable surface is exactly band 4 restricted to their
-	 * own rules: the rule must not be admin_enforced, must not be the pinned
+	 * own rules: the rule must not be admin_enforced, must be the segment
 	 * default, must be scoped to $userId specifically, and its path must be
 	 * write-accessible to them.
 	 *
@@ -1437,12 +1359,13 @@ class RuleService
 		array  $rule,
 	): bool {
 
-		if ( ! empty( $rule['admin_enforced'] ) || ! empty( $rule['pinned'] ) )
+		if ( ! empty( $rule['admin_enforced'] ) )
 		{
 			return false;
 		}
 
-		if ( ( $rule['userScope'] ?? self::SCOPE_ALL ) !== $userId )
+		if ( self::ruleSelector( $rule )
+		         ->canonical() !== 'home:' . $userId )
 		{
 			return false;
 		}

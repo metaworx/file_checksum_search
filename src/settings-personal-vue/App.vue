@@ -27,7 +27,7 @@ const {
 	saveRule,
 	deleteRule,
 	toggleRule,
-	reorderBand,
+	reorderSegment,
 } = usePersonalSettings()
 
 function tabFromHash(): 'rules' | 'help' {
@@ -64,7 +64,7 @@ function openEditRule(rule: Rule): void {
 		mode: rule.mode,
 		algos: rule.algos,
 		path: rule.path,
-		userScope: rule.userScope,
+		selector: rule.selector,
 		admin_enforced: rule.admin_enforced,
 	}
 	showRuleForm.value = true
@@ -103,8 +103,8 @@ function handleDeleteRule(rule: Rule): void {
 	)
 }
 
-async function handleReorder(payload: { band: number; ownerId?: string; orderedIds: Array<Rule['id']> }): Promise<void> {
-	const result = await reorderBand(payload.band, payload.orderedIds, payload.ownerId)
+async function handleReorder(payload: { selector: string; defaults: boolean; orderedIds: Array<Rule['id']> }): Promise<void> {
+	const result = await reorderSegment(payload.selector, payload.defaults, payload.orderedIds)
 	if (!result.success) {
 		ruleMsg.value = result.error || 'Reorder failed.'
 	}

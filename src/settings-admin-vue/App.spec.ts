@@ -47,12 +47,12 @@ function mockFetch(): void {
 			return Promise.resolve(jsonResponse({ version: '1.0', dbVersion: '1', rowCount: 3, pendingStats: {} }))
 		}
 		if (url.includes('/api/v1/rules')) {
-			// Server order is band order: the pinned catch-all evaluates last.
+			// Server order is derived order: the segment's default last.
 			return Promise.resolve(jsonResponse({
 				success: true,
 				rules: [
-					{ id: 2, path: '/docs', userScope: 'all', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false, band: 6, position: 1, canEdit: true },
-					{ id: 1, path: '**', userScope: 'all', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false, pinned: true, band: 7, position: 1, canEdit: true },
+					{ id: 2, path: '/docs', selector: 'home:*', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false, band: 7, position: 1, canEdit: true },
+					{ id: 1, path: '**', selector: 'home:*', mode: 'auto', algos: ['sha1'], enabled: true, admin_enforced: false, isDefault: true, band: 7, position: 2, canEdit: true },
 				],
 				canCreate: true,
 				supportedAlgos: ['sha1', 'sha256'],
@@ -86,7 +86,8 @@ describe('settings-admin App', () => {
 		expect(rows).toHaveLength(2)
 		expect(rows[0].text()).toContain('/docs')
 		expect(rows[1].text()).toContain('**')
-		expect(rows[1].findAll('td')[1].text()).toBe('7.1')
+		// Position numbers run through the whole segment, defaults included.
+		expect(rows[1].findAll('td')[1].text()).toBe('7.2')
 	})
 
 	it('switches to the Documentation tab', async () => {
@@ -130,42 +131,36 @@ describe('settings-admin App', () => {
 		expect(wrapper.find('#fcias-cron-form').exists()).toBe(false)
 	})
 
-	it('gives the catch-all no Delete button and no drag handle', async () => {
+	it('treats a default like any other rule of its segment', async () => {
 		mockFetch()
 		const wrapper = mount(App)
 		await flushPromises()
 
 		const rows = wrapper.find('#fcias-cron-list').findAll('tbody tr[data-id]')
-		const pinned = rows[1]
+		const dflt = rows[1]
 
-		// It is the last resort by definition: it can be disabled, never
-		// deleted, and never moved out of the final band.
-		expect(pinned.find('button[data-action="delete"]').exists()).toBe(false)
-		expect(pinned.find('.fcias-drag-handle').exists()).toBe(false)
-		expect(pinned.find('button[data-action="edit"]').exists()).toBe(true)
-
-		// An ordinary rule keeps both.
-		expect(rows[0].find('button[data-action="delete"]').exists()).toBe(true)
-		expect(rows[0].find('.fcias-drag-handle').exists()).toBe(true)
+		// pinned is gone: a deleted shipped default is recreated (disabled)
+		// by the repair step, so the full action set applies. What protects
+		// evaluation order is the partition, not button removal.
+		expect(dflt.find('button[data-action="delete"]').exists()).toBe(true)
+		expect(dflt.find('.fcias-drag-handle').exists()).toBe(true)
+		expect(dflt.find('button[data-action="edit"]').exists()).toBe(true)
 	})
 
-	it('edits the global rule through the shared dialog with Path/User Scope locked', async () => {
+	it('edits a default through the same dialog as every other rule', async () => {
 		mockFetch()
 		const wrapper = mount(App)
 		await flushPromises()
 
-		const pinnedRow = wrapper.find('#fcias-cron-list').findAll('tbody tr[data-id]')[1]
-		await pinnedRow.find('button[data-action="edit"]').trigger('click')
+		const defaultRow = wrapper.find('#fcias-cron-list').findAll('tbody tr[data-id]')[1]
+		await defaultRow.find('button[data-action="edit"]').trigger('click')
 
-		// The global rule's fixed reach is rendered as plain text, not as a
-		// disabled input, so it cannot be mistaken for an editable field.
+		// No locked fields any more: a default is an ordinary rule whose
+		// shape puts it in the trailing partition. The dialog seeds its
+		// selector and path like anyone else's.
 		const path = wrapper.find('#fcias-cron-path')
-		const scope = wrapper.find('#fcias-cron-userscope')
-		expect(path.element.tagName).toBe('SPAN')
-		expect(path.text()).toBe('**')
-		expect(path.attributes('title')).toBe('**')
-		expect(scope.element.tagName).toBe('SPAN')
-		expect(scope.text()).toBe('All Users')
+		expect(path.element.tagName).toBe('INPUT')
+		expect((path.element as HTMLInputElement).value).toBe('**')
 
 		await wrapper.find('#fcias-cron-mode').setValue('force')
 		await wrapper.find('#fcias-btn-save-definition').trigger('click')
@@ -178,7 +173,7 @@ describe('settings-admin App', () => {
 		expect(saveCall).toBeDefined()
 		expect(String(saveCall![0])).toBe('/apps/file_checksum_search/api/v1/rules/1')
 		const body = JSON.parse((saveCall![1] as RequestInit).body as string)
-		expect(body).toMatchObject({ path: '**', userScope: 'all', mode: 'force', pinned: true })
+		expect(body).toMatchObject({ path: '**', selector: 'home:*', mode: 'force' })
 	})
 
 	it('shows the stored algorithms of the global rule once the async load resolves', async () => {

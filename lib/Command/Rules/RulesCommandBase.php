@@ -61,7 +61,12 @@ abstract class RulesCommandBase
 				'Glob pattern the file path must match, e.g. "**" or "Documents/**"',
 			)
 			->addOption( 'type', null, InputOption::VALUE_REQUIRED, 'Rule verdict: include, ignore, or exclude' )
-			->addOption( 'scope', null, InputOption::VALUE_REQUIRED, 'Whose files: "all", "group:<gid>", or a user id' )
+			->addOption(
+				'selector',
+				null,
+				InputOption::VALUE_REQUIRED,
+				'Which slice: home:<uid>, group:<gid>, home:*, groupfolder:<id>, storage:<raw id>, or *',
+			)
 			->addOption(
 				'algo',
 				'a',
@@ -103,9 +108,9 @@ abstract class RulesCommandBase
 			$payload['type'] = strtolower( (string) $input->getOption( 'type' ) );
 		}
 
-		if ( $input->getOption( 'scope' ) !== null )
+		if ( $input->getOption( 'selector' ) !== null )
 		{
-			$payload['userScope'] = (string) $input->getOption( 'scope' );
+			$payload['selector'] = (string) $input->getOption( 'selector' );
 		}
 
 		$algos = [];
@@ -187,7 +192,8 @@ abstract class RulesCommandBase
 				? 'no'
 				: 'yes',
 			'type'     => RuleService::verdictOf( $rule ),
-			'scope'    => (string) ( $rule['userScope'] ?? RuleService::SCOPE_ALL ),
+			'selector' => RuleService::ruleSelector( $rule )
+			                         ->canonical(),
 			'path'     => (string) ( $rule['path'] ?? '**' ),
 			'algos'    => $computes
 				? implode( ',', $rule['algos'] ?? [] )
@@ -198,9 +204,9 @@ abstract class RulesCommandBase
 			'enforced' => empty( $rule['admin_enforced'] )
 				? 'no'
 				: 'yes',
-			'pinned'   => empty( $rule['pinned'] )
-				? 'no'
-				: 'yes',
+			'default'  => RuleService::isDefaultShaped( $rule )
+				? 'yes'
+				: 'no',
 		];
 	}
 

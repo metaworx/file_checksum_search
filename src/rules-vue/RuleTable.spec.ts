@@ -19,9 +19,9 @@ function makeRule(overrides: Partial<Rule> = {}): Rule {
 		mode: 'auto',
 		algos: ['sha1'],
 		path: '/docs',
-		userScope: 'all',
+		selector: 'home:*',
 		admin_enforced: false,
-		band: 6,
+		band: 7,
 		position: 1,
 		canEdit: true,
 		...overrides,
@@ -66,10 +66,10 @@ describe('RuleTable', () => {
 	describe('bands', () => {
 		it('opens each band with a labelled header row', () => {
 			const rules = [
-				makeRule({ id: 'e1', band: 1, userScope: 'alice', admin_enforced: true }),
-				makeRule({ id: 'u1', band: 4, userScope: 'alice' }),
-				makeRule({ id: 'u2', band: 4, userScope: 'alice', position: 2 }),
-				makeRule({ id: 'd1', band: 7, pinned: true }),
+				makeRule({ id: 'e1', band: 1, selector: 'home:alice', admin_enforced: true }),
+				makeRule({ id: 'u1', band: 5, selector: 'home:alice' }),
+				makeRule({ id: 'u2', band: 5, selector: 'home:alice', position: 2 }),
+				makeRule({ id: 'd1', band: 8, selector: '*', isDefault: true }),
 			]
 			const wrapper = mount(RuleTable, { props: { rules, variant: 'admin' } })
 
@@ -77,9 +77,9 @@ describe('RuleTable', () => {
 			// grouping does not depend on telling the tints apart.
 			const headers = wrapper.findAll('tbody tr.fcias-band-header')
 			expect(headers).toHaveLength(3)
-			expect(headers[0].text()).toContain('Enforced — per user')
-			expect(headers[1].text()).toContain('User rules')
-			expect(headers[2].text()).toContain('Catch-all default')
+			expect(headers[0].text()).toContain('Enforced — specific')
+			expect(headers[1].text()).toContain('Specific rules')
+			expect(headers[2].text()).toContain('Everything')
 		})
 
 		it('explains each band on its header row', () => {
@@ -107,37 +107,39 @@ describe('RuleTable', () => {
 	})
 
 	describe('drag-and-drop reorder', () => {
-		const band6 = [
-			makeRule({ id: 'g1', band: 6, position: 1 }),
-			makeRule({ id: 'g2', band: 6, position: 2 }),
-			makeRule({ id: 'g3', band: 6, position: 3 }),
+		const homeAll = [
+			makeRule({ id: 'g1', band: 7, position: 1, path: '/a/**' }),
+			makeRule({ id: 'g2', band: 7, position: 2, path: '/b/**' }),
+			makeRule({ id: 'g3', band: 7, position: 3, path: '/c/**' }),
 		]
 
 		it('renders handles only when reorderable', () => {
-			const off = mount(RuleTable, { props: { rules: band6, variant: 'admin' } })
+			const off = mount(RuleTable, { props: { rules: homeAll, variant: 'admin' } })
 			expect(off.find('.fcias-drag-handle').exists()).toBe(false)
 			// The cell stays either way, so the column grid never shifts.
 			expect(off.find('.fcias-drag-handle-cell').exists()).toBe(true)
 
-			const on = mount(RuleTable, { props: { rules: band6, variant: 'admin', reorderable: true } })
+			const on = mount(RuleTable, { props: { rules: homeAll, variant: 'admin', reorderable: true } })
 			expect(on.findAll('.fcias-drag-handle')).toHaveLength(3)
 		})
 
-		it('emits the new order for the dragged row\'s band', async () => {
-			const wrapper = mount(RuleTable, { props: { rules: band6, variant: 'admin', reorderable: true } })
+		it('emits the new order for the dragged row\'s segment partition', async () => {
+			const wrapper = mount(RuleTable, { props: { rules: homeAll, variant: 'admin', reorderable: true } })
 			const rows = ruleRows(wrapper)
 
 			await rows[0].find('.fcias-drag-handle').trigger('dragstart')
 			await rows[2].trigger('dragover')
 			await rows[2].trigger('drop')
 
-			expect(wrapper.emitted('reorder')?.[0]).toEqual([{ band: 6, orderedIds: ['g2', 'g3', 'g1'] }])
+			expect(wrapper.emitted('reorder')?.[0]).toEqual([
+				{ selector: 'home:*', defaults: false, orderedIds: ['g2', 'g3', 'g1'] },
+			])
 		})
 
-		it('refuses a drop into a different band', async () => {
+		it('refuses a drop into a different segment', async () => {
 			const rules = [
-				makeRule({ id: 'u1', band: 4, userScope: 'alice' }),
-				makeRule({ id: 'g1', band: 6 }),
+				makeRule({ id: 'u1', band: 5, selector: 'home:alice' }),
+				makeRule({ id: 'g1', band: 7 }),
 			]
 			const wrapper = mount(RuleTable, { props: { rules, variant: 'admin', reorderable: true } })
 			const rows = ruleRows(wrapper)
@@ -151,11 +153,11 @@ describe('RuleTable', () => {
 			expect(wrapper.emitted('reorder')).toBeUndefined()
 		})
 
-		it('names the owner in band 4 and never crosses to another user', async () => {
+		it('keeps different users\' segments apart even inside one band', async () => {
 			const rules = [
-				makeRule({ id: 'a1', band: 4, userScope: 'alice', position: 1 }),
-				makeRule({ id: 'a2', band: 4, userScope: 'alice', position: 2 }),
-				makeRule({ id: 'b1', band: 4, userScope: 'bob', position: 3 }),
+				makeRule({ id: 'a1', band: 5, selector: 'home:alice', position: 1, path: '/a/**' }),
+				makeRule({ id: 'a2', band: 5, selector: 'home:alice', position: 2, path: '/b/**' }),
+				makeRule({ id: 'b1', band: 5, selector: 'home:bob', position: 3, path: '/c/**' }),
 			]
 			const wrapper = mount(RuleTable, { props: { rules, variant: 'admin', reorderable: true } })
 			const rows = ruleRows(wrapper)
@@ -174,15 +176,25 @@ describe('RuleTable', () => {
 			await rows[0].trigger('drop')
 
 			expect(wrapper.emitted('reorder')?.[0]).toEqual([
-				{ band: 4, ownerId: 'alice', orderedIds: ['a2', 'a1'] },
+				{ selector: 'home:alice', defaults: false, orderedIds: ['a2', 'a1'] },
 			])
 		})
 
-		it('never offers a handle for the pinned catch-all', () => {
-			const rules = [makeRule({ id: 'd1', band: 7, pinned: true })]
+		it('refuses a drop across the defaults partition', async () => {
+			// A default can be reordered among defaults, never dragged above
+			// the segment's specific rules — the old inversion cannot recur.
+			const rules = [
+				makeRule({ id: 'g1', band: 7, path: '/a/**' }),
+				makeRule({ id: 'd1', band: 7, path: '**', isDefault: true }),
+			]
 			const wrapper = mount(RuleTable, { props: { rules, variant: 'admin', reorderable: true } })
+			const rows = ruleRows(wrapper)
 
-			expect(wrapper.find('.fcias-drag-handle').exists()).toBe(false)
+			await rows[1].find('.fcias-drag-handle').trigger('dragstart')
+			await rows[0].trigger('dragover')
+			await rows[0].trigger('drop')
+
+			expect(wrapper.emitted('reorder')).toBeUndefined()
 		})
 
 		it('never offers a handle for a rule the caller may not edit', () => {
@@ -193,7 +205,7 @@ describe('RuleTable', () => {
 		})
 
 		it('does nothing when a row is dropped on itself', async () => {
-			const wrapper = mount(RuleTable, { props: { rules: band6, variant: 'admin', reorderable: true } })
+			const wrapper = mount(RuleTable, { props: { rules: homeAll, variant: 'admin', reorderable: true } })
 			const rows = ruleRows(wrapper)
 
 			await rows[0].find('.fcias-drag-handle').trigger('dragstart')
@@ -204,7 +216,7 @@ describe('RuleTable', () => {
 		})
 
 		it('clears the dragging state on dragend without a drop', async () => {
-			const wrapper = mount(RuleTable, { props: { rules: band6, variant: 'admin', reorderable: true } })
+			const wrapper = mount(RuleTable, { props: { rules: homeAll, variant: 'admin', reorderable: true } })
 			const rows = ruleRows(wrapper)
 
 			await rows[0].find('.fcias-drag-handle').trigger('dragstart')

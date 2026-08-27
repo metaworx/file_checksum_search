@@ -296,13 +296,6 @@ class RulesController
 			return $this->notFound();
 		}
 
-		if ( ! empty( $existing['pinned'] ) )
-		{
-			return $this->badRequest(
-				'The catch-all default rule cannot be deleted — disable it instead.',
-			);
-		}
-
 		if ( ! $this->mayMutate( $userId, $isAdmin, $existing ) )
 		{
 			return $this->forbidden();
@@ -391,10 +384,11 @@ class RulesController
 
 
 	/**
-	 * Reorder one band.
+	 * Reorder one segment partition.
 	 *
-	 * Priority is only meaningful within a band, so a reorder names the band
-	 * it applies to and submits that band's IDs in full.
+	 * Priority is only meaningful within one selector's rules, so a reorder
+	 * names the selector (and whether it targets the defaults partition) and
+	 * submits that partition's IDs in full.
 	 *
 	 * @noinspection PhpUnused
 	 */
@@ -417,12 +411,13 @@ class RulesController
 		]
 			= $context;
 
-		$band       = $body['band'] ?? null;
+		$selector   = $body['selector'] ?? null;
+		$defaults   = (bool) ( $body['defaults'] ?? false );
 		$orderedIds = $body['orderedIds'] ?? null;
 
-		if ( ! is_int( $band ) )
+		if ( ! is_string( $selector ) || $selector === '' )
 		{
-			return $this->badRequest( 'band is required and must be an integer.' );
+			return $this->badRequest( 'selector is required.' );
 		}
 
 		if ( ! is_array( $orderedIds ) )
@@ -432,11 +427,9 @@ class RulesController
 
 		try
 		{
-			$this->ruleService->reorderBand(
-				$band,
-				is_string( $body['ownerId'] ?? null )
-					? $body['ownerId']
-					: null,
+			$this->ruleService->reorderSegment(
+				$selector,
+				$defaults,
 				$orderedIds,
 				$isAdmin
 					? null

@@ -51,15 +51,14 @@ class RuleDefinitionValidatorTest
 		$definition = $this->validator->definitionFrom(
 			[
 				'path'           => '/docs/**',
-				'userScope'      => 'all',
+				'selector'       => '*',
 				'admin_enforced' => true,
-				'pinned'         => true,
 			],
 			'alice',
 			false,
 		);
 
-		$this->assertSame( 'alice', $definition['userScope'] );
+		$this->assertSame( 'home:alice', $definition['selector'] );
 		$this->assertFalse( $definition['admin_enforced'] );
 		$this->assertArrayNotHasKey( 'pinned', $definition );
 	}
@@ -78,8 +77,8 @@ class RuleDefinitionValidatorTest
 
 		$this->validator->definitionFrom(
 			[
-				'path'      => '**',
-				'userScope' => 'group:nosuch',
+				'path'     => '**',
+				'selector' => 'group:nosuch',
 			],
 			'cli',
 			true,
@@ -127,7 +126,8 @@ class RuleDefinitionValidatorTest
 		);
 
 		$this->assertSame( '/docs/**', $definition['path'] );
-		$this->assertSame( 'alice', $definition['userScope'] );
+		// The legacy stored form canonicalises on the way through.
+		$this->assertSame( 'home:alice', $definition['selector'] );
 		$this->assertFalse( $definition['enabled'] );
 		$this->assertSame( [ 'sha256' ], $definition['algos'] );
 		$this->assertSame( 'force', $definition['mode'] );

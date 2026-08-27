@@ -28,12 +28,10 @@ const {
 	definitions,
 	loadStatus,
 	loadDefinitions,
-	globalRule,
-	saveGlobalRule,
 	saveRule,
 	deleteRule,
 	toggleRule,
-	reorderBand,
+	reorderSegment,
 } = useAdminSettings()
 
 function tabFromHash(): 'settings' | 'docs' {
@@ -60,8 +58,6 @@ const pendingTotal = (stats: Record<string, number> = {}) => Object.values(stats
 
 const showRuleForm = ref(false)
 const editingRule = ref<RuleDraft | null>(null)
-/** True while the dialog is editing the global rule rather than an additional one. */
-const editingGlobal = ref(false)
 
 function toDraft(rule: Rule): RuleDraft {
 	return {
@@ -70,64 +66,34 @@ function toDraft(rule: Rule): RuleDraft {
 		mode: rule.mode,
 		algos: rule.algos,
 		path: rule.path,
-		userScope: rule.userScope,
+		selector: rule.selector,
 		admin_enforced: rule.admin_enforced,
-		pinned: rule.pinned,
 	}
 }
 
 function openAddRule(): void {
 	editingRule.value = null
-	editingGlobal.value = false
 	showRuleForm.value = true
 }
 
 function openEditRule(rule: Rule): void {
+	// Defaults are ordinary rules now: same dialog, no locked fields. A
+	// deleted shipped default is recreated (disabled) by the repair step.
 	editingRule.value = toDraft(rule)
-	// The catch-all's `**`/`all` reach is what makes it the default, so its
-	// dialog locks those two fields wherever it is edited from.
-	editingGlobal.value = rule.pinned === true
-	showRuleForm.value = true
-}
-
-/** No global rule stored yet — open the dialog seeded with its fixed reach. */
-function openCreateGlobalRule(): void {
-	editingRule.value = {
-		id: undefined,
-		type: 'include',
-		mode: 'auto',
-		algos: ['sha1'],
-		path: '**',
-		userScope: 'all',
-		admin_enforced: false,
-		pinned: true,
-	}
-	editingGlobal.value = true
 	showRuleForm.value = true
 }
 
 function closeRuleForm(): void {
 	showRuleForm.value = false
 	editingRule.value = null
-	editingGlobal.value = false
 }
 
 async function handleSaveRule(draft: RuleDraft): Promise<void> {
-	// saveGlobalRule pins path/userScope server-side, so a locked-but-tampered
-	// form can never narrow the global rule into an ordinary one.
-	const result = editingGlobal.value
-		? await saveGlobalRule({
-			id: draft.id,
-			mode: draft.mode,
-			algos: draft.algos,
-			admin_enforced: draft.admin_enforced,
-		})
-		: await saveRule(draft)
+	const result = await saveRule(draft)
 
 	if (result.success) {
-		const label = editingGlobal.value ? 'Global rule saved.' : 'Rule saved.'
 		closeRuleForm()
-		OC.Notification.showTemporary(label)
+		OC.Notification.showTemporary('Rule saved.')
 	} else {
 		ruleMsg.value = result.error || 'Save failed.'
 	}
@@ -151,8 +117,8 @@ function handleDeleteRule(rule: Rule): void {
 	)
 }
 
-async function handleReorder(payload: { band: number; ownerId?: string; orderedIds: Array<Rule['id']> }): Promise<void> {
-	const result = await reorderBand(payload.band, payload.orderedIds, payload.ownerId)
+async function handleReorder(payload: { selector: string; defaults: boolean; orderedIds: Array<Rule['id']> }): Promise<void> {
+	const result = await reorderSegment(payload.selector, payload.defaults, payload.orderedIds)
 	if (!result.success) {
 		ruleMsg.value = result.error || 'Reorder failed.'
 	}
@@ -292,14 +258,6 @@ loadDefinitions()
 				<button id="fcias-btn-add-definition" class="fcias-btn" @click="openAddRule">
 					Add Rule
 				</button>
-				<button
-					v-if="globalRule() === null"
-					id="fcias-btn-create-global"
-					class="fcias-btn"
-					@click="openCreateGlobalRule">
-					Create Catch-all Default
-				</button>
-
 				<RuleForm
 					v-if="showRuleForm"
 					:rule="editingRule"
@@ -307,8 +265,6 @@ loadDefinitions()
 					:supported-algos="supportedAlgos"
 					:available-users="availableUsers"
 					:available-groups="availableGroups"
-					:lock-scope="editingGlobal"
-					:title="editingGlobal ? 'Catch-all default rule' : undefined"
 					@save="handleSaveRule"
 					@cancel="closeRuleForm" />
 

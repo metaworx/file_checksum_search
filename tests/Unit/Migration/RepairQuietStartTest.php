@@ -60,56 +60,87 @@ class RepairQuietStartTest
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testCreatesTheDefaultRuleDisabledWhenNoGlobalRuleExists(): void
+	public function testCreatesBothShippedDefaultsDisabledWhenAbsent(): void
 	{
 
 		$this->ruleService->method( 'loadRules' )
 		                  ->willReturn( [
 			                  [
-				                  'id'        => 'u1',
-				                  'userScope' => 'alice',
-				                  'path'      => '/docs/**',
+				                  'id'       => 'u1',
+				                  'selector' => 'home:alice',
+				                  'path'     => '/docs/**',
 			                  ],
 		                  ] )
 		;
 
-		// The one property everything else hangs on: it is created disabled.
-		// No app silently starts doing work the admin has not configured.
-		$this->ruleService->expects( $this->once() )
-		                  ->method( 'ruleAdd' )
-		                  ->with(
-			                  $this->callback(
-				                  static fn(
-					                  array $rule,
-				                  ): bool => $rule['enabled'] === false
-					                  && $rule['pinned'] === true
-					                  && $rule['userScope'] === RuleService::SCOPE_ALL
-					                  && $rule['path'] === '**'
-					                  && $rule['type'] === RuleService::TYPE_INCLUDE,
-			                  ),
+		$created = [];
+		$this->ruleService->method( 'ruleAdd' )
+		                  ->willReturnCallback(
+			                  static function (
+				                  array   $rule,
+				                  ?string $actor,
+			                  ) use
+			                  (
+				                  &
+				                  $created,
+			                  ): string
+			                  {
+
+				                  $created[] = [
+					                  $rule['selector'],
+					                  $rule['enabled'],
+					                  $actor,
+				                  ];
+
+				                  return 'id';
+			                  },
 		                  )
 		;
 
 		$this->step->run( $this->output );
+
+		// Both defaults, both disabled, audited as the repair step. Enabling
+		// the home one is safe; the universal one — external storage and
+		// group folders included — is its own deliberate switch.
+		$this->assertSame(
+			[
+				[
+					'home:*',
+					false,
+					'repair',
+				],
+				[
+					'*',
+					false,
+					'repair',
+				],
+			],
+			$created,
+		);
 	}
 
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testLeavesAnExistingGlobalRuleExactlyAsItIs(): void
+	public function testLeavesExistingDefaultsExactlyAsTheyAre(): void
 	{
 
-		// Upgrades never turn off what an administrator turned on: an
-		// enabled catch-all stays enabled, and no second one is added.
+		// An enabled default stays enabled: upgrades never turn off what an
+		// administrator turned on, and never duplicate what exists.
 		$this->ruleService->method( 'loadRules' )
 		                  ->willReturn( [
 			                  [
-				                  'id'        => 'g1',
-				                  'userScope' => 'all',
-				                  'path'      => '**',
-				                  'enabled'   => true,
-				                  'pinned'    => true,
+				                  'id'       => 'd1',
+				                  'selector' => 'home:*',
+				                  'path'     => '**',
+				                  'enabled'  => true,
+			                  ],
+			                  [
+				                  'id'       => 'd2',
+				                  'selector' => '*',
+				                  'path'     => '**',
+				                  'enabled'  => true,
 			                  ],
 		                  ] )
 		;

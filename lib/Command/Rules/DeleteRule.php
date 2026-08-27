@@ -58,18 +58,6 @@ class DeleteRule
 			return self::FAILURE;
 		}
 
-		if ( ! empty( $rule['pinned'] ) )
-		{
-			// Same refusal as REST: the catch-all is the last resort by
-			// definition; it can be disabled, never deleted.
-			$output->writeln(
-				'<error>The catch-all default rule cannot be deleted — disable it instead '
-				. '(rules:modify ' . $id . ' --disable).</error>',
-			);
-
-			return self::FAILURE;
-		}
-
 		if ( ! $input->getOption( 'yes' ) )
 		{
 			$row       = $this->ruleRow( $rule );

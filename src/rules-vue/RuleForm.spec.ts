@@ -42,7 +42,7 @@ describe('RuleForm', () => {
 	it('seeds fields from an existing rule', () => {
 		const wrapper = mount(RuleForm, {
 			props: {
-				rule: { id: 5, path: '/existing', mode: 'force', algos: ['md5'], userScope: 'alice', admin_enforced: true },
+				rule: { id: 5, path: '/existing', mode: 'force', algos: ['md5'], selector: 'home:alice', admin_enforced: true },
 				variant: 'admin',
 				supportedAlgos: ['sha1', 'md5'],
 			},
@@ -127,8 +127,8 @@ describe('RuleForm', () => {
 		})
 	})
 
-	describe('scope controls', () => {
-		it('reveals a group picker and composes the group scope string', async () => {
+	describe('selector controls', () => {
+		it('reveals a group picker and composes the group selector string', async () => {
 			const wrapper = mount(RuleForm, {
 				props: {
 					rule: null,
@@ -144,13 +144,13 @@ describe('RuleForm', () => {
 			await wrapper.find('#fcias-btn-save-definition').trigger('click')
 
 			// Two controls in the dialog, one string on the wire.
-			expect((wrapper.emitted('save')?.[0]?.[0] as { userScope: string }).userScope).toBe('group:staff')
+			expect((wrapper.emitted('save')?.[0]?.[0] as { selector: string }).selector).toBe('group:staff')
 		})
 
-		it('splits an existing group scope back into its two controls', () => {
+		it('splits an existing group selector back into its two controls', () => {
 			const wrapper = mount(RuleForm, {
 				props: {
-					rule: { id: 3, path: '/a', mode: 'auto', algos: ['sha1'], userScope: 'group:staff', admin_enforced: false },
+					rule: { id: 3, path: '/a', mode: 'auto', algos: ['sha1'], selector: 'group:staff', admin_enforced: false },
 					variant: 'admin',
 					supportedAlgos: ['sha1'],
 					availableGroups: ['staff'],
@@ -175,20 +175,20 @@ describe('RuleForm', () => {
 
 			// Band is derived, never chosen — the preview is what makes that
 			// legible before saving rather than only after.
-			expect(preview()).toContain('band 6')
-			expect(preview()).toContain('Defaults — everyone')
+			expect(preview()).toContain('band 7')
+			expect(preview()).toContain('All home folders')
 
 			await wrapper.find('#fcias-cron-userscope').setValue('user')
 			await wrapper.find('#fcias-cron-scope-target').setValue('alice')
-			expect(preview()).toContain('band 4')
+			expect(preview()).toContain('band 5')
 
 			// The id lands on the switch component's root; the control is its input.
 			await wrapper.find('#fcias-cron-admin-enforced input').setValue(true)
 			expect(preview()).toContain('band 1')
-			expect(preview()).toContain('Enforced — per user')
+			expect(preview()).toContain('Enforced — specific')
 		})
 
-		it('keeps the pinned catch-all in the last band whatever else is set', async () => {
+		it('moves the universal selector between bands 8 and 4 with the enforced flag', async () => {
 			const wrapper = mount(RuleForm, {
 				props: {
 					rule: {
@@ -196,19 +196,17 @@ describe('RuleForm', () => {
 						path: '**',
 						mode: 'auto',
 						algos: ['sha1'],
-						userScope: 'all',
+						selector: '*',
 						admin_enforced: false,
-						pinned: true,
 					},
 					variant: 'admin',
 					supportedAlgos: ['sha1'],
-					lockScope: true,
 				},
 			})
-			expect(wrapper.find('.fcias-band-preview').text()).toContain('band 7')
+			expect(wrapper.find('.fcias-band-preview').text()).toContain('band 8')
 
 			await wrapper.find('#fcias-cron-admin-enforced input').setValue(true)
-			expect(wrapper.find('.fcias-band-preview').text()).toContain('band 7')
+			expect(wrapper.find('.fcias-band-preview').text()).toContain('band 4')
 		})
 	})
 })

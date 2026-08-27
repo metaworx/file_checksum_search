@@ -80,7 +80,6 @@
 	</commands>
 	<repair-steps>
 		<post-migration>
-			<step>OCA\FileChecksumSearch\Migration\RepairBandOrder</step>
 			<step>OCA\FileChecksumSearch\Migration\RepairQuietStart</step>
 		</post-migration>
 	</repair-steps>

@@ -13,8 +13,7 @@
 import { reactive, toRefs } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import { OCS_SETTINGS } from '../../routes'
-import { useRules, type ApiResponse } from '../../rules-vue/composables/useRules'
-import type { Rule } from '../../rules-vue/types'
+import { useRules } from '../../rules-vue/composables/useRules'
 
 interface StatusData {
 	version?: string
@@ -64,44 +63,6 @@ export function useAdminSettings() {
 		}
 	}
 
-	/**
-	 * The catch-all default rule, identified by its `pinned` flag.
-	 *
-	 * It used to be whatever sat at index 0. Rules are now stored in band
-	 * order and the catch-all evaluates *last*, so slot 0 is no longer it —
-	 * the flag is the only reliable identifier.
-	 */
-	function globalRule(): Rule | null {
-		return rules.rules.value.find((rule) => rule.pinned === true) ?? null
-	}
-
-	/** Every rule except the pinned catch-all, in band order. */
-	function additionalRules(): Rule[] {
-		return rules.rules.value.filter((rule) => rule.pinned !== true)
-	}
-
-	/**
-	 * Save the catch-all default. Its reach is pinned server-side, so a
-	 * locked-but-tampered form can never narrow it into an ordinary rule.
-	 */
-	async function saveGlobalRule(fields: {
-		id?: Rule['id']
-		mode: string
-		algos: string[]
-		admin_enforced: boolean
-	}): Promise<ApiResponse> {
-		return rules.saveRule({
-			id: fields.id,
-			mode: fields.mode,
-			algos: fields.algos,
-			userScope: 'all',
-			path: '**',
-			admin_enforced: fields.admin_enforced,
-			// Marks this as the catch-all default, which evaluates last.
-			pinned: true,
-		})
-	}
-
 	return {
 		...toRefs(state),
 		loadStatus,
@@ -115,12 +76,9 @@ export function useAdminSettings() {
 		definitionsError: rules.error,
 
 		loadDefinitions: rules.load,
-		globalRule,
-		additionalRules,
-		saveGlobalRule,
 		saveRule: rules.saveRule,
 		deleteRule: rules.deleteRule,
 		toggleRule: rules.toggleRule,
-		reorderBand: rules.reorderBand,
+		reorderSegment: rules.reorderSegment,
 	}
 }

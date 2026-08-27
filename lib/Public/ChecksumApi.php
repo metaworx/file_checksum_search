@@ -556,8 +556,9 @@ class ChecksumApi
 
 
 	/**
-	 * Delete a rule. The pinned catch-all refuses, as on every surface —
-	 * disable it instead.
+	 * Delete a rule. A deleted shipped default is recreated (disabled) by
+	 * the repair step, so deleting one is reversible housekeeping, not a
+	 * decision that needs guarding.
 	 *
 	 * @throws InvalidArgumentException
 	 * @throws \JsonException
@@ -568,13 +569,6 @@ class ChecksumApi
 	): void {
 
 		$existing = $this->requireRule( $id );
-
-		if ( ! empty( $existing['pinned'] ) )
-		{
-			throw new InvalidArgumentException(
-				'The catch-all default rule cannot be deleted — disable it instead.',
-			);
-		}
 
 		if ( ! $this->mayMutate( $requestingUser, $existing ) )
 		{

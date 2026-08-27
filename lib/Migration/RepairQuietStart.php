@@ -72,52 +72,83 @@ class RepairQuietStart
 	public function run( IOutput $output ): void
 	{
 
-		$this->ensureDefaultRule( $output );
+		$this->ensureSelectorModel( $output );
 		$this->purgeLegacyPendingNew( $output );
 		$this->removeLegacySeedJob( $output );
 	}
 
 
-	private function ensureDefaultRule( IOutput $output ): void
+	/**
+	 * Canonicalise stored rules to the selector model, then make sure both
+	 * shipped defaults exist.
+	 *
+	 * The resave migrates in one stroke: legacy 'userScope' values ('all',
+	 * bare uid, group:<gid>) become canonical selectors, the retired
+	 * 'pinned' flag is dropped, and the derived segment/partition ordering
+	 * applies. The two defaults — home:* (all home folders) and * (every
+	 * storage) — are created disabled iff absent: deleting one is
+	 * reversible housekeeping, enabling one is the administrator's explicit
+	 * decision, and neither ever flips a rule an administrator configured.
+	 */
+	private function ensureSelectorModel( IOutput $output ): void
 	{
 
 		try
 		{
+			$this->ruleService->resaveCanonical();
+
+			$existing = [];
+
 			foreach ( $this->ruleService->loadRules() as $rule )
 			{
-				if ( RuleService::scopeKind( $rule['userScope'] ?? RuleService::SCOPE_ALL ) === 'global' )
+				if ( RuleService::isDefaultShaped( $rule ) )
 				{
-					$output->info( 'FCIAS: a global rule already exists — leaving the rules untouched.' );
-
-					return;
+					$existing[ RuleService::ruleSelector( $rule )
+					                      ->canonical() ]
+						= true;
 				}
 			}
 
-			$this->ruleService->ruleAdd(
+			foreach (
 				[
-					'enabled'        => false,
-					'type'           => RuleService::TYPE_INCLUDE,
-					'path'           => '**',
-					'userScope'      => RuleService::SCOPE_ALL,
-					'mode'           => 'auto',
-					'algos'          => [
-						'sha1',
-						'md5',
-					],
-					'admin_enforced' => false,
-					'pinned'         => true,
-				],
-				'repair',
-			);
+					'home:*',
+					'*',
+				] as $selector
+			)
+			{
+				if ( isset( $existing[ $selector ] ) )
+				{
+					continue;
+				}
 
-			$output->info(
-				'FCIAS: created the catch-all default rule, disabled. '
-				. 'No automatic hashing starts until a rule is enabled.',
-			);
+				$this->ruleService->ruleAdd(
+					[
+						'enabled'        => false,
+						'type'           => RuleService::TYPE_INCLUDE,
+						'path'           => '**',
+						'selector'       => $selector,
+						'mode'           => 'auto',
+						'algos'          => [
+							'sha1',
+							'md5',
+						],
+						'admin_enforced' => false,
+					],
+					'repair',
+				);
+
+				$output->info(
+					sprintf(
+						'FCIAS: created the %s default rule, disabled. '
+						. 'No automatic hashing starts until a rule is enabled.',
+						$selector,
+					),
+				);
+			}
 		}
 		catch ( Throwable $e )
 		{
-			$this->warn( $output, 'could not ensure the default rule', $e );
+			$this->warn( $output, 'could not ensure the selector defaults', $e );
 		}
 	}
 

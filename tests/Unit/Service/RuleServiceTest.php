@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleService;
+use OCA\FileChecksumSearch\Service\Selector;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\Files\File;
 use OCP\Files\Folder;
@@ -618,11 +619,14 @@ class RuleServiceTest
 
 					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
 
+					                // The new regular rule lands before the
+					                // segment's ** default — never behind it.
 					                return is_array( $rules )
 						                && count( $rules ) === 2
-						                && isset( $rules[1]['id'] )
-						                && strlen( $rules[1]['id'] ) === 32
-						                && $rules[1]['path'] === 'Docs/*.pdf';
+						                && isset( $rules[0]['id'] )
+						                && strlen( $rules[0]['id'] ) === 32
+						                && $rules[0]['path'] === 'Docs/*.pdf'
+						                && $rules[1]['id'] === 'existing-id';
 				                },
 			                ),
 		                )
@@ -1140,120 +1144,186 @@ class RuleServiceTest
 	{
 
 		return [
-			'user enforced'   => [
+			'user enforced'        => [
 				[
-					'userScope'      => 'alice',
+					'selector'       => 'home:alice',
 					'admin_enforced' => true,
 				],
-				RuleService::BAND_USER_ENFORCED,
+				RuleService::BAND_EXACT_ENFORCED,
 			],
-			'group enforced'  => [
+			'group enforced'       => [
 				[
-					'userScope'      => 'group:staff',
+					'selector'       => 'group:staff',
 					'admin_enforced' => true,
 				],
 				RuleService::BAND_GROUP_ENFORCED,
 			],
-			'global enforced' => [
+			// Group folders sit with groups: shared things next to groups,
+			// not next to individuals. Disjoint namespaces make the
+			// placement matching-irrelevant either way.
+			'groupfolder enforced' => [
 				[
-					'userScope'      => 'all',
+					'selector'       => 'groupfolder:5',
 					'admin_enforced' => true,
 				],
-				RuleService::BAND_GLOBAL_ENFORCED,
+				RuleService::BAND_GROUP_ENFORCED,
 			],
-			'user'            => [
-				[ 'userScope' => 'alice' ],
-				RuleService::BAND_USER,
+			'all homes enforced'   => [
+				[
+					'selector'       => 'home:*',
+					'admin_enforced' => true,
+				],
+				RuleService::BAND_NAMESPACE_ENFORCED,
 			],
-			'group'           => [
-				[ 'userScope' => 'group:staff' ],
+			'universal enforced'   => [
+				[
+					'selector'       => '*',
+					'admin_enforced' => true,
+				],
+				RuleService::BAND_UNIVERSAL_ENFORCED,
+			],
+			'user'                 => [
+				[ 'selector' => 'home:alice' ],
+				RuleService::BAND_EXACT,
+			],
+			'storage'              => [
+				[ 'selector' => 'storage:smb::u@h//share/' ],
+				RuleService::BAND_EXACT,
+			],
+			'group'                => [
+				[ 'selector' => 'group:staff' ],
 				RuleService::BAND_GROUP,
 			],
-			'global'          => [
+			'groupfolder'          => [
+				[ 'selector' => 'groupfolder:5' ],
+				RuleService::BAND_GROUP,
+			],
+			'all homes'            => [
+				[ 'selector' => 'home:*' ],
+				RuleService::BAND_NAMESPACE,
+			],
+			'universal'            => [
+				[ 'selector' => '*' ],
+				RuleService::BAND_UNIVERSAL,
+			],
+			// Legacy stored forms keep working while the migration runs.
+			'legacy all'           => [
 				[ 'userScope' => 'all' ],
-				RuleService::BAND_GLOBAL,
+				RuleService::BAND_NAMESPACE,
 			],
-			'scope omitted'   => [
-				[],
-				RuleService::BAND_GLOBAL,
-			],
-			// pinned wins over everything else, including the enforced flag.
-			'pinned'          => [
-				[
-					'userScope' => 'all',
-					'pinned'    => true,
-				],
-				RuleService::BAND_DEFAULT,
-			],
-			'pinned enforced' => [
-				[
-					'userScope'      => 'all',
-					'admin_enforced' => true,
-					'pinned'         => true,
-				],
-				RuleService::BAND_DEFAULT,
+			'legacy bare uid'      => [
+				[ 'userScope' => 'alice' ],
+				RuleService::BAND_EXACT,
 			],
 		];
 	}
 
 
-	public function testScopeHelpersParseGroupScopes(): void
+	public function testSelectorParsingAndCanonicalForms(): void
 	{
 
-		$this->assertSame( 'global', RuleService::scopeKind( 'all' ) );
-		$this->assertSame( 'group', RuleService::scopeKind( 'group:staff' ) );
-		$this->assertSame( 'user', RuleService::scopeKind( 'alice' ) );
+		$this->assertSame(
+			'home:*',
+			Selector::fromStored( 'all' )
+			        ->canonical(),
+		);
+		$this->assertSame(
+			'home:alice',
+			Selector::fromStored( 'alice' )
+			        ->canonical(),
+		);
+		$this->assertSame(
+			'group:staff',
+			Selector::parse( 'group:staff' )
+			        ->canonical(),
+		);
+		$this->assertSame(
+			'groupfolder:5',
+			Selector::parse( 'groupfolder:5' )
+			        ->canonical(),
+		);
+		// Raw storage ids may contain ':' and '//' — value semantics, no
+		// escaping: everything after the first colon is the target.
+		$this->assertSame(
+			'smb::u@h//share/',
+			Selector::parse( 'storage:smb::u@h//share/' )->target,
+		);
+		$this->assertSame(
+			'*',
+			Selector::parse( '*' )
+			        ->canonical(),
+		);
 
-		$this->assertSame( 'staff', RuleService::scopeGroupId( 'group:staff' ) );
-		$this->assertNull( RuleService::scopeGroupId( 'alice' ) );
-		$this->assertNull( RuleService::scopeGroupId( 'all' ) );
+		// group:* is deliberately not a value.
+		$this->expectException( InvalidArgumentException::class );
+		Selector::parse( 'group:*' );
 	}
 
 
-	public function testSortIntoBandsIsStableWithinABand(): void
+	public function testSortRulesOrdersByBandSegmentAndPartition(): void
 	{
 
 		$rules = [
+			// home:* default first in storage — the partition must push it
+			// after the segment's specific rule regardless of stored order.
 			[
-				'id'        => 'g1',
-				'userScope' => 'all',
+				'id'       => 'd1',
+				'selector' => 'home:*',
+				'path'     => '**',
 			],
 			[
-				'id'        => 'u1',
-				'userScope' => 'alice',
+				'id'       => 'g1',
+				'selector' => 'home:*',
+				'path'     => '/media/**',
 			],
 			[
-				'id'        => 'g2',
-				'userScope' => 'all',
+				'id'       => 'u1',
+				'selector' => 'home:alice',
+				'path'     => '/docs/**',
 			],
 			[
 				'id'             => 'e1',
-				'userScope'      => 'alice',
+				'selector'       => 'home:alice',
 				'admin_enforced' => true,
+				'path'           => '/legal/**',
 			],
 			[
-				'id'        => 'd1',
-				'userScope' => 'all',
-				'pinned'    => true,
+				'id'       => 'u2',
+				'selector' => 'home:alice',
+				'path'     => '/img/**',
 			],
 			[
-				'id'        => 'u2',
-				'userScope' => 'alice',
+				'id'       => 'univ',
+				'selector' => '*',
+				'path'     => '**',
+			],
+			[
+				'id'       => 'gf',
+				'selector' => 'groupfolder:5',
+				'path'     => '/**',
 			],
 		];
 
-		// Bands ascend; within each band the original relative order holds,
-		// which is what makes within-band position the real priority.
+		// Bands ascend (enforced 1-4, unenforced 5-8); within a segment the
+		// stored order holds, except that a bare-** default always trails
+		// its segment's specific rules.
 		$this->assertSame(
 			[
 				'e1',
+				// band 1
 				'u1',
+				// band 5, home:alice
 				'u2',
+				'gf',
+				// band 6, groupfolder:5
 				'g1',
-				'g2',
+				// band 7, home:* — specific before default
 				'd1',
+				// band 7, home:* default partition
+				'univ',
+				// band 8
 			],
-			array_column( RuleService::sortIntoBands( $rules ), 'id' ),
+			array_column( RuleService::sortRules( $rules ), 'id' ),
 		);
 	}
 
@@ -1689,14 +1759,14 @@ class RuleServiceTest
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testRuleUpdateKeepsThePinnedFlag(): void
+	public function testSavingCanonicalisesLegacyKeysAndDropsPinned(): void
 	{
 
 		$this->setupRulesConfig( [
 			[
-				'id'        => 'default',
+				'id'        => 'legacy',
 				'userScope' => 'all',
-				'path'      => '**',
+				'path'      => '/docs/**',
 				'pinned'    => true,
 			],
 		] );
@@ -1713,41 +1783,31 @@ class RuleServiceTest
 
 					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
 
-					                // An edit that does not mention `pinned`
-					                // must not silently unpin the default.
-					                return $rules[0]['pinned'] === true;
+					                // Every write migrates: canonical
+					                // selector in, retired keys out.
+					                return $rules[0]['selector'] === 'home:*'
+						                && ! array_key_exists( 'userScope', $rules[0] )
+						                && ! array_key_exists( 'pinned', $rules[0] );
 				                },
 			                ),
 		                )
 		;
 
-		$this->service->ruleUpdate(
-			'default',
-			[
-				'userScope' => 'all',
-				'path'      => '**',
-				'mode'      => 'force',
-			],
-		);
+		$this->service->resaveCanonical();
 	}
 
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testOnlyOnePinnedRuleSurvivesAWrite(): void
+	public function testANewRuleLandsBeforeItsSegmentsDefault(): void
 	{
 
 		$this->setupRulesConfig( [
 			[
-				'id'        => 'first',
-				'userScope' => 'all',
-				'pinned'    => true,
-			],
-			[
-				'id'        => 'second',
-				'userScope' => 'all',
-				'pinned'    => true,
+				'id'       => 'default',
+				'selector' => 'home:*',
+				'path'     => '**',
 			],
 		] );
 
@@ -1761,15 +1821,13 @@ class RuleServiceTest
 					                string $json,
 				                ): bool {
 
-					                $rules  = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
-					                $pinned = array_filter(
-						                $rules,
-						                static fn(
-							                array $r,
-						                ): bool => ! empty( $r['pinned'] ),
-					                );
+					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
 
-					                return count( $pinned ) === 1;
+					                // The usability property the partition
+					                // exists for: creating a rule never
+					                // requires dragging it past the default.
+					                return $rules[0]['path'] === '/docs/**'
+						                && $rules[1]['id'] === 'default';
 				                },
 			                ),
 		                )
@@ -1777,8 +1835,9 @@ class RuleServiceTest
 
 		$this->service->ruleAdd(
 			[
-				'userScope' => 'all',
-				'path'      => '/x',
+				'selector' => 'home:*',
+				'path'     => '/docs/**',
+				'enabled'  => true,
 			],
 		);
 	}
@@ -1786,162 +1845,40 @@ class RuleServiceTest
 
 	// migrateToBands
 
-
-	/**
-	 * @noinspection PhpUnhandledExceptionInspection
-	 */
-	public function testMigrateToBandsPinsSlotZeroAndSorts(): void
-	{
-
-		$this->setupRulesConfig( [
-			[
-				'id'        => 'default',
-				'userScope' => 'all',
-				'path'      => '**',
-			],
-			[
-				'id'        => 'u1',
-				'userScope' => 'alice',
-			],
-			[
-				'id'             => 'e1',
-				'userScope'      => 'alice',
-				'admin_enforced' => true,
-			],
-		] );
-
-		$this->appConfig->expects( $this->once() )
-		                ->method( 'setValueString' )
-		                ->with(
-			                Application::APP_ID,
-			                'rule_definitions',
-			                $this->callback(
-				                static function (
-					                string $json,
-				                ): bool {
-
-					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
-
-					                return array_column( $rules, 'id' ) === [
-							                'e1',
-							                'u1',
-							                'default',
-						                ]
-						                && $rules[2]['pinned'] === true;
-				                },
-			                ),
-		                )
-		;
-
-		$result = $this->service->migrateToBands();
-
-		$this->assertSame( 'default', $result['pinnedId'] );
-		$this->assertSame( 3, $result['rules'] );
-	}
-
-
-	/**
-	 * @noinspection PhpUnhandledExceptionInspection
-	 */
-	public function testMigrateToBandsPinsTheFirstGlobalRuleWhenSlotZeroIsNot(): void
-	{
-
-		$this->setupRulesConfig( [
-			[
-				'id'        => 'u1',
-				'userScope' => 'alice',
-			],
-			[
-				'id'        => 'default',
-				'userScope' => 'all',
-				'path'      => '**',
-			],
-		] );
-
-		$result = $this->service->migrateToBands();
-
-		$this->assertSame( 'default', $result['pinnedId'] );
-	}
-
-
-	/**
-	 * @noinspection PhpUnhandledExceptionInspection
-	 */
-	public function testMigrateToBandsIsIdempotent(): void
-	{
-
-		$this->setupRulesConfig( [
-			[
-				'id'        => 'u1',
-				'userScope' => 'alice',
-			],
-			[
-				'id'        => 'default',
-				'userScope' => 'all',
-				'pinned'    => true,
-			],
-		] );
-
-		$result = $this->service->migrateToBands();
-
-		// Already pinned — the existing flag is kept, nothing is re-pinned.
-		$this->assertSame( 'default', $result['pinnedId'] );
-	}
-
-
-	/**
-	 * @noinspection PhpUnhandledExceptionInspection
-	 */
-	public function testMigrateToBandsHandlesAnEmptyRuleList(): void
-	{
-
-		$this->setupRulesConfig( [] );
-
-		$this->appConfig->expects( $this->never() )
-		                ->method( 'setValueString' )
-		;
-
-		$this->assertSame(
-			[
-				'pinnedId' => null,
-				'rules'    => 0,
-			],
-			$this->service->migrateToBands(),
-		);
-	}
-
-
 	// reorderBand
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testReorderBandPermutesOneBandAndLeavesOthersUntouched(): void
+	public function testReorderSegmentPermutesOnePartitionAndLeavesTheRestUntouched(): void
 	{
 
 		$this->setupRulesConfig( [
 			[
 				'id'             => 'e1',
-				'userScope'      => 'alice',
+				'selector'       => 'home:alice',
+				'path'           => '/legal/**',
 				'admin_enforced' => true,
 			],
 			[
-				'id'        => 'g1',
-				'userScope' => 'all',
+				'id'       => 'g1',
+				'selector' => 'home:*',
+				'path'     => '/a/**',
 			],
 			[
-				'id'        => 'g2',
-				'userScope' => 'all',
+				'id'       => 'g2',
+				'selector' => 'home:*',
+				'path'     => '/b/**',
 			],
 			[
-				'id'        => 'g3',
-				'userScope' => 'all',
+				'id'       => 'g3',
+				'selector' => 'home:*',
+				'path'     => '/c/**',
 			],
 			[
-				'id'        => 'd1',
-				'userScope' => 'all',
-				'pinned'    => true,
+				'id'       => 'd1',
+				'selector' => 'home:*',
+				'path'     => '**',
 			],
 		] );
 
@@ -1960,6 +1897,9 @@ class RuleServiceTest
 						                'id',
 					                );
 
+					                // The default partition (d1) is not part
+					                // of the reordered regular partition and
+					                // cannot move.
 					                return $ids === [
 							                'e1',
 							                'g3',
@@ -1972,9 +1912,9 @@ class RuleServiceTest
 		                )
 		;
 
-		$this->service->reorderBand(
-			RuleService::BAND_GLOBAL,
-			null,
+		$this->service->reorderSegment(
+			'home:*',
+			false,
 			[
 				'g3',
 				'g1',
@@ -1985,18 +1925,38 @@ class RuleServiceTest
 
 
 	/**
+	 * A default-shaped rule belongs to the defaults partition: submitting it
+	 * as part of the regular partition's order is a non-permutation, which
+	 * is what makes dragging a default above the specific rules impossible.
+	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testReorderBandRejectsThePinnedBand(): void
+	public function testReorderSegmentKeepsThePartitionsApart(): void
 	{
 
-		$this->appConfig->expects( $this->never() )
-		                ->method( 'setValueString' )
-		;
+		$this->setupRulesConfig( [
+			[
+				'id'       => 'g1',
+				'selector' => 'home:*',
+				'path'     => '/a/**',
+			],
+			[
+				'id'       => 'd1',
+				'selector' => 'home:*',
+				'path'     => '**',
+			],
+		] );
 
 		$this->expectException( InvalidArgumentException::class );
 
-		$this->service->reorderBand( RuleService::BAND_DEFAULT, null, [ 'd1' ] );
+		$this->service->reorderSegment(
+			'home:*',
+			false,
+			[
+				'd1',
+				'g1',
+			],
+		);
 	}
 
 
@@ -2004,22 +1964,25 @@ class RuleServiceTest
 	 * @dataProvider badPermutationProvider
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testReorderBandRejectsAnythingThatIsNotAnExactPermutation(
+	public function testReorderSegmentRejectsAnythingThatIsNotAnExactPermutation(
 		array $orderedIds,
 	): void {
 
 		$this->setupRulesConfig( [
 			[
-				'id'        => 'g1',
-				'userScope' => 'all',
+				'id'       => 'g1',
+				'selector' => 'home:*',
+				'path'     => '/a/**',
 			],
 			[
-				'id'        => 'g2',
-				'userScope' => 'all',
+				'id'       => 'g2',
+				'selector' => 'home:*',
+				'path'     => '/b/**',
 			],
 			[
-				'id'        => 'u1',
-				'userScope' => 'alice',
+				'id'       => 'u1',
+				'selector' => 'home:alice',
+				'path'     => '/c/**',
 			],
 		] );
 
@@ -2029,7 +1992,7 @@ class RuleServiceTest
 
 		$this->expectException( InvalidArgumentException::class );
 
-		$this->service->reorderBand( RuleService::BAND_GLOBAL, null, $orderedIds );
+		$this->service->reorderSegment( 'home:*', false, $orderedIds );
 	}
 
 
@@ -2040,23 +2003,24 @@ class RuleServiceTest
 	{
 
 		return [
-			'incomplete'         => [ [ 'g1' ] ],
-			'unknown id'         => [
+			'incomplete'            => [ [ 'g1' ] ],
+			'unknown id'            => [
 				[
 					'g1',
 					'g2',
 					'nope',
 				],
 			],
-			'duplicate'          => [
+			'duplicate'             => [
 				[
 					'g1',
 					'g1',
 				],
 			],
-			// u1 is band 4 — naming it in a band-6 reorder must be rejected
-			// rather than silently pulling it across a band boundary.
-			'id from other band' => [
+			// u1 belongs to home:alice — naming it in a home:* reorder must
+			// be rejected rather than silently pulled across a segment
+			// boundary.
+			'id from other segment' => [
 				[
 					'g1',
 					'g2',
@@ -2070,21 +2034,24 @@ class RuleServiceTest
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testReorderBandRestrictsANonAdminToTheirOwnRules(): void
+	public function testReorderSegmentRestrictsANonAdminToTheirOwnRules(): void
 	{
 
 		$this->setupRulesConfig( [
 			[
-				'id'        => 'bob1',
-				'userScope' => 'bob',
+				'id'       => 'bob1',
+				'selector' => 'home:bob',
+				'path'     => '/a/**',
 			],
 			[
-				'id'        => 'alice1',
-				'userScope' => 'alice',
+				'id'       => 'alice1',
+				'selector' => 'home:alice',
+				'path'     => '/b/**',
 			],
 			[
-				'id'        => 'alice2',
-				'userScope' => 'alice',
+				'id'       => 'alice2',
+				'selector' => 'home:alice',
+				'path'     => '/c/**',
 			],
 		] );
 
@@ -2103,21 +2070,23 @@ class RuleServiceTest
 						                'id',
 					                );
 
-					                // bob's rule never moves, and alice's two swap
-					                // within the slots they already occupied.
+					                // The derived order groups segments
+					                // alphabetically (home:alice before
+					                // home:bob); alice's two swap and bob's
+					                // rule keeps its place in its segment.
 					                return $ids === [
-							                'bob1',
 							                'alice2',
 							                'alice1',
+							                'bob1',
 						                ];
 				                },
 			                ),
 		                )
 		;
 
-		$this->service->reorderBand(
-			RuleService::BAND_USER,
-			null,
+		$this->service->reorderSegment(
+			'home:alice',
+			false,
 			[
 				'alice2',
 				'alice1',
@@ -2130,17 +2099,19 @@ class RuleServiceTest
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testReorderBandRejectsAnotherUsersRuleForANonAdmin(): void
+	public function testReorderSegmentRejectsAnotherUsersRuleForANonAdmin(): void
 	{
 
 		$this->setupRulesConfig( [
 			[
-				'id'        => 'bob1',
-				'userScope' => 'bob',
+				'id'       => 'bob1',
+				'selector' => 'home:bob',
+				'path'     => '/a/**',
 			],
 			[
-				'id'        => 'alice1',
-				'userScope' => 'alice',
+				'id'       => 'alice1',
+				'selector' => 'home:alice',
+				'path'     => '/b/**',
 			],
 		] );
 
@@ -2151,9 +2122,9 @@ class RuleServiceTest
 		$this->expectException( InvalidArgumentException::class );
 
 		// Naming another user's rule is not a permutation of alice's segment.
-		$this->service->reorderBand(
-			RuleService::BAND_USER,
-			null,
+		$this->service->reorderSegment(
+			'home:alice',
+			false,
 			[
 				'alice1',
 				'bob1',
@@ -2166,7 +2137,7 @@ class RuleServiceTest
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testReorderBandRejectsANonAdminTouchingAnyOtherBand(): void
+	public function testReorderSegmentRejectsANonAdminTouchingAnyOtherSegment(): void
 	{
 
 		$this->appConfig->expects( $this->never() )
@@ -2175,28 +2146,13 @@ class RuleServiceTest
 
 		$this->expectException( InvalidArgumentException::class );
 
-		$this->service->reorderBand(
-			RuleService::BAND_GLOBAL,
-			null,
+		// A non-admin owns exactly one segment: home:<their own uid>.
+		$this->service->reorderSegment(
+			'home:*',
+			false,
 			[ 'g1' ],
 			'alice',
 		);
-	}
-
-
-	/**
-	 * @noinspection PhpUnhandledExceptionInspection
-	 */
-	public function testReorderBandRequiresAnOwnerForTheUserBand(): void
-	{
-
-		$this->appConfig->expects( $this->never() )
-		                ->method( 'setValueString' )
-		;
-
-		$this->expectException( InvalidArgumentException::class );
-
-		$this->service->reorderBand( RuleService::BAND_USER, null, [] );
 	}
 
 
@@ -2245,17 +2201,19 @@ class RuleServiceTest
 		$this->assertSame(
 			[
 				1,
-				4,
-				4,
+				5,
+				5,
 				7,
 			],
 			array_column( $rules, 'band' ),
 		);
+		// alice's and bob's rules are separate segments now — each numbers
+		// from 1; there is no shared "band 4" counter to be second in.
 		$this->assertSame(
 			[
 				1,
 				1,
-				2,
+				1,
 				1,
 			],
 			array_column( $rules, 'position' ),
@@ -2432,8 +2390,8 @@ class RuleServiceTest
 		);
 		$this->assertSame(
 			[
-				4,
 				5,
+				6,
 				7,
 			],
 			array_column( $rules, 'band' ),
@@ -2488,7 +2446,7 @@ class RuleServiceTest
 	}
 
 
-	public function testCanUserMutateRuleRejectsThePinnedDefault(): void
+	public function testCanUserMutateRuleAcceptsOnlyTheUsersOwnSegment(): void
 	{
 
 		$folder = $this->createFolderMock();
@@ -2499,16 +2457,38 @@ class RuleServiceTest
 		                 ->willReturn( $folder )
 		;
 
-		$this->assertFalse(
+		// pinned is gone: a user's own default-shaped rule is theirs to
+		// edit like any other of their rules …
+		$this->assertTrue(
 			$this->service->canUserMutateRule(
 				'alice',
 				[
-					'userScope' => 'alice',
-					'path'      => '/',
-					'pinned'    => true,
+					'selector' => 'home:alice',
+					'path'     => '/',
 				],
 			),
 		);
+
+		// … but nothing outside their own segment ever is.
+		foreach (
+			[
+				'home:*',
+				'groupfolder:5',
+				'*',
+				'home:bob',
+			] as $selector
+		)
+		{
+			$this->assertFalse(
+				$this->service->canUserMutateRule(
+					'alice',
+					[
+						'selector' => $selector,
+						'path'     => '/',
+					],
+				),
+			);
+		}
 	}
 
 

@@ -18,7 +18,7 @@ import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwit
 import HelpPopover from '../components/HelpPopover.vue'
 import { toAlgoOptions } from '../algorithms'
 import AlgoMultiselect from '../settings-vue/AlgoMultiselect.vue'
-import { BAND_LABELS, bandOf, SCOPE_GROUP_PREFIX, scopeGroupId, scopeKind } from './bands'
+import { BAND_LABELS, bandOf, selectorKind, selectorTarget } from './bands'
 import type { RuleDraft } from './types'
 
 const props = defineProps<{
@@ -75,17 +75,17 @@ const draft = reactive<RuleDraft>({
 	path: '/',
 	mode: 'auto',
 	algos: ['sha1'],
-	userScope: 'all',
+	selector: 'home:*',
 	admin_enforced: false,
 })
 
 /**
- * Scope is edited as two controls — kind, then which group or user — because
- * picking "Group" has to reveal the group picker. `userScope` stays the single
+ * The selector is edited as two controls — kind, then the target — because
+ * picking "Group" has to reveal the group picker. `selector` stays the single
  * stored string the server expects; these two only compose it.
  */
-const scopeChoice = ref<'global' | 'group' | 'user'>('global')
-const scopeTarget = ref('')
+const selectorChoice = ref<'homeAll' | 'group' | 'user' | 'groupfolder' | 'storage' | 'universal'>('homeAll')
+const selectorTargetValue = ref('')
 
 function seed(rule: RuleDraft | null): void {
 	draft.id = rule?.id
@@ -93,25 +93,35 @@ function seed(rule: RuleDraft | null): void {
 	draft.path = rule?.path || '/'
 	draft.mode = rule?.mode || 'auto'
 	draft.algos = rule?.algos?.length ? rule.algos.slice() : ['sha1']
-	draft.userScope = rule?.userScope || 'all'
+	draft.selector = rule?.selector || 'home:*'
 	draft.admin_enforced = rule?.admin_enforced === true
 
-	scopeChoice.value = scopeKind(draft.userScope)
-	scopeTarget.value = scopeChoice.value === 'group'
-		? (scopeGroupId(draft.userScope) ?? '')
-		: (scopeChoice.value === 'user' ? draft.userScope : '')
+	selectorChoice.value = selectorKind(draft.selector)
+	selectorTargetValue.value = selectorTarget(draft.selector) ?? ''
 }
 
 watch(() => props.rule, seed, { immediate: true })
 
-/** Recompose `userScope` whenever either half of the scope control changes. */
-watch([scopeChoice, scopeTarget], ([kind, target]) => {
-	if (kind === 'global') {
-		draft.userScope = 'all'
-	} else if (kind === 'group') {
-		draft.userScope = target ? `${SCOPE_GROUP_PREFIX}${target}` : ''
-	} else {
-		draft.userScope = target
+/** Recompose `selector` whenever either half of the control changes. */
+watch([selectorChoice, selectorTargetValue], ([kind, target]) => {
+	switch (kind) {
+	case 'universal':
+		draft.selector = '*'
+		break
+	case 'homeAll':
+		draft.selector = 'home:*'
+		break
+	case 'group':
+		draft.selector = target ? `group:${target}` : ''
+		break
+	case 'groupfolder':
+		draft.selector = target ? `groupfolder:${target}` : ''
+		break
+	case 'storage':
+		draft.selector = target ? `storage:${target}` : ''
+		break
+	default:
+		draft.selector = target ? `home:${target}` : ''
 	}
 })
 
@@ -125,9 +135,8 @@ const computesHashes = computed(() => draft.type === 'include')
  * while editing, instead of only after saving.
  */
 const previewBand = computed(() => bandOf({
-	userScope: draft.userScope,
+	selector: draft.selector,
 	admin_enforced: draft.admin_enforced,
-	pinned: props.rule?.pinned,
 }))
 
 const dialogName = computed(
@@ -135,8 +144,9 @@ const dialogName = computed(
 )
 
 const HELP = {
-	userScope: 'Which users this rule applies to. "All Users" covers everyone on this instance; '
-		+ 'otherwise the rule only applies to the files of the single user you pick.',
+	selector: 'Which slice of the file universe this rule addresses: all home folders, one '
+		+ 'group\'s members, a single user, one group folder, one storage by its raw id, or '
+		+ 'everything — every storage there is, external mounts and group folders included.',
 	path: 'Glob pattern the file path must match. "**" matches every file; "/Documents/**" matches '
 		+ 'everything below that folder. Rules are checked in order and the first match wins.',
 	algos: 'Checksum algorithms computed for matching files. Each algorithm you add is indexed '
@@ -229,13 +239,13 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 			</div>
 
 			<div v-if="variant === 'admin'" class="fcias-cron-form-row">
-				<label :for="lockScope ? undefined : ids.userscope">User Scope</label>
+				<label :for="lockScope ? undefined : ids.userscope">Applies to</label>
 				<span v-if="lockScope" :id="ids.userscope" class="fcias-cron-form-static">
-					{{ draft.userScope === 'all' ? 'All Users' : draft.userScope }}
+					{{ draft.selector }}
 				</span>
-				<select v-else :id="ids.userscope" v-model="scopeChoice">
-					<option value="global">
-						All Users
+				<select v-else :id="ids.userscope" v-model="selectorChoice">
+					<option value="homeAll">
+						All home folders
 					</option>
 					<option value="group">
 						A group
@@ -243,13 +253,22 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 					<option value="user">
 						A single user
 					</option>
+					<option value="groupfolder">
+						A group folder
+					</option>
+					<option value="storage">
+						A storage (raw id)
+					</option>
+					<option value="universal">
+						Everything — every storage
+					</option>
 				</select>
-				<HelpPopover :text="HELP.userScope" label="User Scope" />
+				<HelpPopover :text="HELP.selector" label="Applies to" />
 			</div>
 
-			<div v-if="variant === 'admin' && !lockScope && scopeChoice === 'group'" class="fcias-cron-form-row">
+			<div v-if="variant === 'admin' && !lockScope && selectorChoice === 'group'" class="fcias-cron-form-row">
 				<label :for="ids.scopeTarget">Group</label>
-				<select :id="ids.scopeTarget" v-model="scopeTarget">
+				<select :id="ids.scopeTarget" v-model="selectorTargetValue">
 					<option value="">
 						— pick a group —
 					</option>
@@ -259,9 +278,9 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 				</select>
 			</div>
 
-			<div v-if="variant === 'admin' && !lockScope && scopeChoice === 'user'" class="fcias-cron-form-row">
+			<div v-if="variant === 'admin' && !lockScope && selectorChoice === 'user'" class="fcias-cron-form-row">
 				<label :for="ids.scopeTarget">User</label>
-				<select :id="ids.scopeTarget" v-model="scopeTarget">
+				<select :id="ids.scopeTarget" v-model="selectorTargetValue">
 					<option value="">
 						— pick a user —
 					</option>
@@ -269,6 +288,18 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 						{{ uid }}
 					</option>
 				</select>
+			</div>
+
+			<div
+				v-if="variant === 'admin' && !lockScope
+					&& (selectorChoice === 'groupfolder' || selectorChoice === 'storage')"
+				class="fcias-cron-form-row">
+				<label :for="ids.scopeTarget">{{ selectorChoice === 'groupfolder' ? 'Folder id' : 'Storage id' }}</label>
+				<input
+					:id="ids.scopeTarget"
+					v-model="selectorTargetValue"
+					type="text"
+					:placeholder="selectorChoice === 'groupfolder' ? '5' : 'local::/path/ or smb::…'">
 			</div>
 
 			<p v-if="variant === 'personal'" class="fcias-hint fcias-cron-form-static">

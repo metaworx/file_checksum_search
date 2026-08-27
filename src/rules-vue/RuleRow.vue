@@ -7,7 +7,7 @@
  * no manual escapeHtml() calls are needed here, unlike the vanilla-JS
  * predecessor.
  */
-import { priorityLabel, scopeLabel } from './bands'
+import { priorityLabel, selectorLabel } from './bands'
 import type { Rule } from './types'
 
 const props = defineProps<{
@@ -48,7 +48,7 @@ const computesHashes = (props.rule.type ?? 'include') === 'include'
 				'fcias-band-start': startsBand,
 				'fcias-dragging': isDragging,
 				'fcias-drag-over': isDragOver,
-				'fcias-rule-pinned': rule.pinned,
+				'fcias-rule-default': rule.isDefault,
 			},
 		]"
 		@dragover="emit('rowDragover', rule, $event)"
@@ -67,8 +67,8 @@ const computesHashes = (props.rule.type ?? 'include') === 'include'
 		<td class="fcias-priority-cell" :title="`Band ${rule.band}, position ${rule.position}`">
 			{{ priorityLabel(rule) }}
 		</td>
-		<td :title="scopeLabel(rule.userScope)">
-			{{ scopeLabel(rule.userScope) }}
+		<td :title="selectorLabel(rule.selector)">
+			{{ selectorLabel(rule.selector) }}
 		</td>
 		<td :title="rule.path || '/'">
 			{{ rule.path || '/' }}
@@ -101,7 +101,6 @@ const computesHashes = (props.rule.type ?? 'include') === 'include'
 					{{ rule.enabled ? 'Disable' : 'Enable' }}
 				</button>
 				<button
-					v-if="!rule.pinned"
 					class="fcias-btn fcias-btn-danger fcias-btn-delete"
 					data-action="delete"
 					@click="emit('delete', rule)">

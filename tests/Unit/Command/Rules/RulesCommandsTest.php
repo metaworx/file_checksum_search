@@ -76,23 +76,22 @@ class RulesCommandsTest
 		$this->ruleService->method( 'loadRules' )
 		                  ->willReturn( [
 			                  [
-				                  'id'        => 'u1',
-				                  'enabled'   => true,
-				                  'path'      => '/docs/**',
-				                  'userScope' => 'alice',
+				                  'id'       => 'u1',
+				                  'enabled'  => true,
+				                  'path'     => '/docs/**',
+				                  'selector' => 'home:alice',
 			                  ],
 			                  [
-				                  'id'        => 'u2',
-				                  'enabled'   => false,
-				                  'path'      => '/img/**',
-				                  'userScope' => 'alice',
+				                  'id'       => 'u2',
+				                  'enabled'  => false,
+				                  'path'     => '/img/**',
+				                  'selector' => 'home:alice',
 			                  ],
 			                  [
-				                  'id'        => 'd1',
-				                  'enabled'   => true,
-				                  'path'      => '**',
-				                  'userScope' => 'all',
-				                  'pinned'    => true,
+				                  'id'       => 'd1',
+				                  'enabled'  => true,
+				                  'path'     => '**',
+				                  'selector' => 'home:*',
 			                  ],
 		                  ] )
 		;
@@ -106,8 +105,8 @@ class RulesCommandsTest
 		// settings pages show — the ids feed --ignore-rule and rules:apply.
 		$this->assertSame(
 			[
-				'4.1',
-				'4.2',
+				'5.1',
+				'5.2',
 				'7.1',
 			],
 			array_column( $rows, 'priority' ),
@@ -135,7 +134,7 @@ class RulesCommandsTest
 			                  $this->callback(
 				                  static fn(
 					                  array $definition,
-				                  ): bool => $definition['userScope'] === 'group:staff'
+				                  ): bool => $definition['selector'] === 'group:staff'
 					                  && $definition['admin_enforced'] === true
 					                  && $definition['enabled'] === false
 					                  && $definition['algos'] === [ 'sha256' ],
@@ -157,7 +156,7 @@ class RulesCommandsTest
 		$exit   = $tester->execute(
 			[
 				'--path'     => '/legal/**',
-				'--scope'    => 'group:staff',
+				'--selector' => 'group:staff',
 				'--algo'     => [ 'sha256' ],
 				'--enforced' => true,
 				'--disable'  => true,
@@ -287,33 +286,6 @@ class RulesCommandsTest
 			$this->assertSame( Command::FAILURE, $exit );
 			$this->assertStringContainsString( 'No rule with ID "nosuch"', $tester->getDisplay() );
 		}
-	}
-
-
-	public function testDeleteRefusesThePinnedCatchAll(): void
-	{
-
-		$this->ruleService->method( 'findRuleById' )
-		                  ->willReturn( [
-			                  'id'      => 'd1',
-			                  'enabled' => true,
-			                  'pinned'  => true,
-		                  ] )
-		;
-		$this->ruleService->expects( $this->never() )
-		                  ->method( 'ruleDelete' )
-		;
-
-		$tester = $this->tester( new DeleteRule( $this->ruleService, $this->validator ) );
-		$exit   = $tester->execute(
-			[
-				'id'    => 'd1',
-				'--yes' => true,
-			],
-		);
-
-		$this->assertSame( Command::FAILURE, $exit );
-		$this->assertStringContainsString( 'disable it instead', $tester->getDisplay() );
 	}
 
 

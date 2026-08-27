@@ -952,6 +952,7 @@ class ChecksumApiTest
 
 	// ─── rules surface ──────────────────────────────────────────────
 
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
@@ -967,7 +968,7 @@ class ChecksumApiTest
 			                  $this->callback(
 				                  static fn(
 					                  array $definition,
-				                  ): bool => $definition['userScope'] === 'group:staff'
+				                  ): bool => $definition['selector'] === 'group:staff'
 					                  && $definition['admin_enforced'] === true,
 			                  ),
 			                  'api',
@@ -978,7 +979,7 @@ class ChecksumApiTest
 		$id = $this->api->createRule(
 			[
 				'path'           => '/legal/**',
-				'userScope'      => 'group:staff',
+				'selector'       => 'group:staff',
 				'admin_enforced' => true,
 			],
 		);
@@ -1012,7 +1013,7 @@ class ChecksumApiTest
 			                  $this->callback(
 				                  static fn(
 					                  array $definition,
-				                  ): bool => $definition['userScope'] === 'bob'
+				                  ): bool => $definition['selector'] === 'home:bob'
 					                  && $definition['admin_enforced'] === false,
 			                  ),
 			                  'bob',
@@ -1023,7 +1024,7 @@ class ChecksumApiTest
 		$this->api->createRule(
 			[
 				'path'           => '/docs/**',
-				'userScope'      => 'all',
+				'selector'       => '*',
 				'admin_enforced' => true,
 			],
 			'bob',
@@ -1050,29 +1051,6 @@ class ChecksumApiTest
 		$this->expectException( InvalidArgumentException::class );
 
 		$this->api->createRule( [ 'path' => '/docs/**' ], 'bob' );
-	}
-
-
-	/**
-	 * @noinspection PhpUnhandledExceptionInspection
-	 */
-	public function testDeleteRefusesThePinnedCatchAllOnThisSurfaceToo(): void
-	{
-
-		$this->ruleService->method( 'findRuleById' )
-		                  ->willReturn( [
-			                  'id'     => 'd1',
-			                  'pinned' => true,
-		                  ] )
-		;
-		$this->ruleService->expects( $this->never() )
-		                  ->method( 'ruleDelete' )
-		;
-
-		$this->expectException( InvalidArgumentException::class );
-		$this->expectExceptionMessage( 'disable it instead' );
-
-		$this->api->deleteRule( 'd1' );
 	}
 
 

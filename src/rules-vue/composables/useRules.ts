@@ -121,18 +121,17 @@ export function useRules(scope: 'own' | 'all') {
 	}
 
 	/** Create when the draft has no id, update when it has one. */
-	async function saveRule(draft: RuleDraft & { type?: string; enabled?: boolean; pinned?: boolean }): Promise<ApiResponse> {
+	async function saveRule(draft: RuleDraft & { type?: string; enabled?: boolean }): Promise<ApiResponse> {
 		const payload = {
 			type: draft.type,
 			mode: draft.mode,
 			algos: draft.algos,
 			path: draft.path,
-			userScope: draft.userScope,
+			selector: draft.selector,
 			admin_enforced: draft.admin_enforced,
 			enabled: draft.enabled ?? true,
 			// Only ever set for the catch-all default; the server ignores it
 			// from a non-admin and holds it to an at-most-one invariant.
-			...(draft.pinned === undefined ? {} : { pinned: draft.pinned }),
 		}
 
 		return draft.id
@@ -154,12 +153,16 @@ export function useRules(scope: 'own' | 'all') {
 	}
 
 	/** Reorder one band; band 4 additionally names whose segment it is. */
-	async function reorderBand(band: number, orderedIds: Array<Rule['id']>, ownerId?: string): Promise<ApiResponse> {
-		return mutate('PUT', generateOcsUrl(API_RULES.order), {
-			band,
+	async function reorderSegment(selector: string, defaults: boolean, orderedIds: Array<Rule['id']>): Promise<ApiResponse> {
+		const result = await request('PUT', API_RULES.reorder, {
+			selector,
+			defaults,
 			orderedIds,
-			...(ownerId === undefined ? {} : { ownerId }),
 		})
+		if (result.success) {
+			await load()
+		}
+		return result
 	}
 
 	return {
@@ -168,6 +171,6 @@ export function useRules(scope: 'own' | 'all') {
 		saveRule,
 		deleteRule,
 		toggleRule,
-		reorderBand,
+		reorderSegment,
 	}
 }

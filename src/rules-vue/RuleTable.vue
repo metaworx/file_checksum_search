@@ -14,7 +14,7 @@
 import { computed, ref } from 'vue'
 import RuleRow from './RuleRow.vue'
 import HelpPopover from '../components/HelpPopover.vue'
-import { BAND, BAND_HELP, BAND_LABELS } from './bands'
+import { BAND_HELP, BAND_LABELS } from './bands'
 import type { Rule } from './types'
 
 const props = defineProps<{
@@ -33,22 +33,18 @@ const emit = defineEmits<{
 	(e: 'toggle', rule: Rule): void
 	(e: 'delete', rule: Rule): void
 	/**
-	 * A reorder completed within one band. `ownerId` is carried for band 4,
-	 * where every user's own rules live and a reorder targets one user's
-	 * segment.
+	 * A reorder completed within one segment partition: one selector's
+	 * regular rules, or its defaults.
 	 */
-	(e: 'reorder', payload: { band: number; ownerId?: string; orderedIds: Array<Rule['id']> }): void
+	(e: 'reorder', payload: { selector: string; defaults: boolean; orderedIds: Array<Rule['id']> }): void
 }>()
 
 const draggedId = ref<Rule['id'] | null>(null)
 const dragOverId = ref<Rule['id'] | null>(null)
 
-/** The pinned catch-all is never moved: it is the last resort by definition. */
 function isDraggable(rule: Rule): boolean {
 	return props.reorderable === true
 		&& rule.canEdit === true
-		&& rule.pinned !== true
-		&& rule.band !== BAND.DEFAULT
 }
 
 /** True on the first row of each band, which carries the band label. */
@@ -117,8 +113,12 @@ function onDragStart(rule: Rule, event: DragEvent): void {
 function isValidTarget(target: Rule): boolean {
 	const source = draggedId.value === null ? undefined : ruleById(draggedId.value)
 	if (source === undefined) return false
+	// One selector's rules are one segment; the shape partition separates a
+	// segment's regular rules from its ** defaults. Crossing either would
+	// change what the rule can outrank, so neither is a legal drop.
+	if (source.selector !== target.selector) return false
 	if (source.band !== target.band) return false
-	if (source.band === BAND.USER && source.userScope !== target.userScope) return false
+	if ((source.isDefault === true) !== (target.isDefault === true)) return false
 	return true
 }
 
@@ -142,14 +142,17 @@ function onDrop(target: Rule, event: DragEvent): void {
 
 	if (sourceId === null || sourceId === target.id) return
 	const source = ruleById(sourceId)
-	if (source === undefined || source.band !== target.band) return
-	if (source.band === BAND.USER && source.userScope !== target.userScope) return
+	if (source === undefined) return
+	if (source.selector !== target.selector) return
+	if (source.band !== target.band) return
+	if ((source.isDefault === true) !== (target.isDefault === true)) return
 
-	// The payload is the target band's own segment, reordered — never the
-	// whole table, so the server can hold it to an exact permutation.
+	// The payload is the segment partition, reordered — never the whole
+	// table, so the server can hold it to an exact permutation.
 	const segment = props.rules.filter(
-		(rule) => rule.band === source.band
-			&& (source.band !== BAND.USER || rule.userScope === source.userScope),
+		(rule) => rule.selector === source.selector
+			&& rule.band === source.band
+			&& (rule.isDefault === true) === (source.isDefault === true),
 	)
 
 	const orderedIds = segment.map((rule) => rule.id)
@@ -161,8 +164,8 @@ function onDrop(target: Rule, event: DragEvent): void {
 	orderedIds.splice(to, 0, sourceId)
 
 	emit('reorder', {
-		band: source.band as number,
-		...(source.band === BAND.USER ? { ownerId: source.userScope } : {}),
+		selector: source.selector,
+		defaults: source.isDefault === true,
 		orderedIds,
 	})
 }

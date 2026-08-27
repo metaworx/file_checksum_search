@@ -10,9 +10,9 @@ function makeRule(overrides: Partial<Rule> = {}): Rule {
 		mode: 'auto',
 		algos: ['sha1'],
 		path: '/docs',
-		userScope: 'all',
+		selector: 'home:*',
 		admin_enforced: false,
-		band: 6,
+		band: 7,
 		position: 1,
 		canEdit: true,
 		...overrides,
@@ -63,11 +63,16 @@ describe('RuleRow', () => {
 		expect(wrapper.findAll('td')[COL.priority].text()).toBe('1.1')
 	})
 
-	it('reads a group scope as a group rather than a raw prefix', () => {
+	it('reads selectors as words rather than raw prefixes', () => {
 		const wrapper = mount(RuleRow, {
-			props: { rule: makeRule({ userScope: 'group:staff' }), variant: 'admin' },
+			props: { rule: makeRule({ selector: 'group:staff' }), variant: 'admin' },
 		})
 		expect(wrapper.findAll('td')[COL.scope].text()).toBe('Group: staff')
+
+		const universal = mount(RuleRow, {
+			props: { rule: makeRule({ selector: '*' }), variant: 'admin' },
+		})
+		expect(universal.findAll('td')[COL.scope].text()).toBe('Everything')
 	})
 
 	it('shows no algorithms or mode for a rule that computes nothing', () => {
@@ -95,12 +100,14 @@ describe('RuleRow', () => {
 		expect(wrapper.text()).toContain('Read-only')
 	})
 
-	it('offers no Delete for the pinned catch-all, which can only be disabled', () => {
+	it('offers the full action set for a default rule too', () => {
+		// pinned is gone: a deleted shipped default is recreated (disabled)
+		// by the repair step, so deleting one is reversible housekeeping.
 		const wrapper = mount(RuleRow, {
-			props: { rule: makeRule({ pinned: true, band: 7 }), variant: 'admin' },
+			props: { rule: makeRule({ isDefault: true, band: 7 }), variant: 'admin' },
 		})
 
-		expect(wrapper.find('button[data-action="delete"]').exists()).toBe(false)
+		expect(wrapper.find('button[data-action="delete"]').exists()).toBe(true)
 		expect(wrapper.find('button[data-action="edit"]').exists()).toBe(true)
 		expect(wrapper.find('button[data-action="toggle"]').exists()).toBe(true)
 	})

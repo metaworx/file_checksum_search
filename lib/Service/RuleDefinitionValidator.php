@@ -76,17 +76,12 @@ readonly class RuleDefinitionValidator
 			'enabled'        => (bool) ( $body['enabled'] ?? $existing['enabled'] ?? true ),
 			'type'           => $type,
 			'path'           => $path,
-			'userScope'      => $isAdmin
-				? $this->validatedScope( $body, $existing )
-				: $userId,
+			'selector'       => $isAdmin
+				? $this->validatedSelector( $body, $existing )
+				: 'home:' . $userId,
 			'admin_enforced' => $isAdmin
 				&& ( $body['admin_enforced'] ?? $existing['admin_enforced'] ?? false ),
 		];
-
-		if ( $isAdmin && ! empty( $body['pinned'] ) )
-		{
-			$definition['pinned'] = true;
-		}
 
 		if ( $type !== RuleService::TYPE_INCLUDE )
 		{
@@ -130,44 +125,58 @@ readonly class RuleDefinitionValidator
 
 
 	/**
-	 * Validate an administrator-supplied scope, rejecting one that names a
-	 * group or user that does not exist — otherwise the rule would sit in the
-	 * list matching nothing, with no indication why.
+	 * Validate an administrator-supplied selector, rejecting one whose
+	 * target does not exist — otherwise the rule would sit in the list
+	 * matching nothing, with no indication why.
 	 *
 	 * @throws InvalidArgumentException
 	 */
-	private function validatedScope(
+	private function validatedSelector(
 		array  $body,
 		?array $existing,
 	): string {
 
-		$scope = $body['userScope'] ?? ( $existing['userScope'] ?? RuleService::SCOPE_ALL );
+		$value = $body['selector']
+			?? ( $existing !== null
+				? RuleService::ruleSelector( $existing )
+				             ->canonical()
+				: 'home:*' );
 
-		if ( ! is_string( $scope ) || $scope === '' )
+		if ( ! is_string( $value ) || $value === '' )
 		{
-			throw new InvalidArgumentException( 'userScope must be a non-empty string.' );
+			throw new InvalidArgumentException( 'selector must be a non-empty string.' );
 		}
 
-		switch ( RuleService::scopeKind( $scope ) )
+		$selector = Selector::parse( $value );
+
+		switch ( $selector->kind )
 		{
-		case 'group':
-			if ( ! $this->groupManager->groupExists( (string) RuleService::scopeGroupId( $scope ) ) )
+		case Selector::KIND_GROUP:
+			if ( ! $this->groupManager->groupExists( (string) $selector->target ) )
 			{
 				throw new InvalidArgumentException( 'Unknown group.' );
 			}
 
 			break;
 
-		case 'user':
-			if ( ! $this->userManager->userExists( $scope ) )
+		case Selector::KIND_USER:
+			if ( ! $this->userManager->userExists( (string) $selector->target ) )
 			{
 				throw new InvalidArgumentException( 'Unknown user.' );
 			}
 
 			break;
+
+		case Selector::KIND_GROUPFOLDER:
+			if ( ! ctype_digit( (string) $selector->target ) )
+			{
+				throw new InvalidArgumentException( 'groupfolder: takes the numeric folder id.' );
+			}
+
+			break;
 		}
 
-		return $scope;
+		return $selector->canonical();
 	}
 
 }

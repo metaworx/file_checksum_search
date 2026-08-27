@@ -93,18 +93,19 @@ describe('useRules', () => {
 		expect(call(0).body).toEqual({ enabled: false })
 	})
 
-	it('reorders one band, naming the owner only when given', async () => {
-		vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ success: true, rules: [] }))
-		const { reorderBand } = useRules('all')
+	it('reorders one segment partition', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ success: true, rules: [] }))
+		const { reorderSegment } = useRules('all')
 
-		await reorderBand(6, ['b', 'a'])
-		expect(call(0).method).toBe('PUT')
-		expect(call(0).url).toBe('/apps/file_checksum_search/api/v1/rules/order')
-		expect(call(0).body).toEqual({ band: 6, orderedIds: ['b', 'a'] })
+		await reorderSegment('home:*', false, ['b', 'a'])
 
-		vi.mocked(globalThis.fetch).mockClear()
-		await reorderBand(4, ['b', 'a'], 'alice')
-		expect(call(0).body).toEqual({ band: 4, orderedIds: ['b', 'a'], ownerId: 'alice' })
+		const call = fetchMock.mock.calls[0]!
+		expect((call[1] as RequestInit).method).toBe('PUT')
+		expect(JSON.parse((call[1] as RequestInit).body as string)).toEqual({
+			selector: 'home:*',
+			defaults: false,
+			orderedIds: ['b', 'a'],
+		})
 	})
 
 	it('reloads after a successful mutation but not after a failed one', async () => {
