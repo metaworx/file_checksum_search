@@ -1,39 +1,41 @@
-# Project Guidelines Entry Point (v1.1.0)
+> **Fragment** — inlined by `tools/sync.sh`; not a standalone document.
 
-This file is the project-specific entry point for agent-facing guidance in
-**File Checksum Index & Search** (FCIAS) — a Nextcloud app that indexes file
-checksums and makes them searchable.
+# {{project_name}} — Project Contract (v2.0.0)
+
+What binds work in this project, for everyone working on it. Inlined into
+`/AGENTS.md` for agents and into `{{guidelines_root}}/README.md` for people, so
+that the two cannot drift apart.
+
+A Nextcloud app that indexes file checksums and makes them searchable.
 
 ## 1. Project Facts
 
 > No absolute paths here. An agent is already inside the checkout, so the
 > repository root is `git rev-parse --show-toplevel`; Windows-hosted agents
-> prefix with `wsl --cd "$PWD"` (see `{{.aiassistant_shared}}/ENVIRONMENTS.md`).
-> Machine-specific values belong in `{{.aiassistant_root}}/.env.local`, untracked.
-
+> prefix with `wsl --cd "$PWD"` (see `{{shared_root}}/ENVIRONMENTS.md`).
+> Machine-specific values belong in `{{guidelines_root}}/config.local.ini`,
+> which is not tracked.
 
 | Fact                  | Value |
 |-----------------------|-------|
 | Project name          | `metaworx/file_checksum_search`, Nextcloud app id `file_checksum_search` |
-| Language(s)           | PHP (backend), TypeScript + Vue (frontend), SCSS/CSS, YAML (CI) |
+| Language(s)           | declared as `project.languages` in `{{guidelines_root}}/config.ini`, kept honest by `{{shared_root}}/tools/detect-languages.sh --check`. PHP backend, TypeScript and Vue frontend, SCSS/CSS, YAML for CI — of which Vue and YAML have no shared baseline, so they are not declared. |
 | Source directories    | `lib/` (PSR-4 `OCA\FileChecksumSearch\`), `src/` (frontend), `tests/` (PSR-4 `OCA\FileChecksumSearch\Tests\`), `appinfo/`, `templates/` |
 | Shipped-code paths    | `lib/`, `src/`, `css/`, `js/`, `templates/`, `img/`, `appinfo/routes.php`, `appinfo/info.xml` |
-| Version manifest      | `appinfo/info.xml` (`<version>`, currently `0.19.0`) |
+| Version manifest      | `appinfo/info.xml` (`<version>`) |
 | Test gate command     | `composer test` (unit + integration); individually `composer test:unit`, `composer test:integration`, `vendor/bin/phpunit -c tests/phpunit.xml`; frontend `npm test` (Vitest) |
 | Lint command          | `composer cs:check` / `composer cs:fix` (php-cs-fixer), `composer psalm`, `composer rector`; frontend `npm run lint` and `npm run stylelint` |
 
 ## 2. Primary References
 
-- `{{.aiassistant_shared}}/GUIDELINES.md` - runtime behavior contract, gating flow, action-plan workflow.
-- `{{.aiassistant_shared}}/QUALITY.md` - the quality pass; this project is multi-language,
+- `/AGENTS.md` — runtime behavior contract, gating flow, action-plan workflow.
+- `{{shared_root}}/QUALITY.md` — the quality pass; this project is multi-language,
   so it applies to `.vue`, `.ts`, `.scss` and `.yaml` files as much as to `.php` ones.
-- `{{.aiassistant_shared}}/lang/php/TESTING.md`, `{{.aiassistant_shared}}/lang/ts/TESTING.md`
-  and the matching `LINTING.md` files - language baselines; the facts table above
+- `{{shared_root}}/lang/php/TESTING.md`, `{{shared_root}}/lang/ts/TESTING.md`
+  and the matching `LINTING.md` files — language baselines; the facts table above
   overrides their example commands.
-- `{{.aiassistant_shared}}/COMMIT.md` - commit workflow, gating, and the `CHANGELOG.md`
+- `{{shared_root}}/COMMIT.md` — commit workflow, gating, and the `CHANGELOG.md`
   rules that apply here (see §3.3).
-- `{{.aiassistant_shared}}/ENVIRONMENTS.md` - host/agent command conventions.
-- `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `README.md` - contributor documentation.
 
 ## 3. Project-Specific Conventions
 
@@ -43,7 +45,7 @@ The app is developed against more than one Nextcloud release; local source trees
 (`nextcloud-v33`, `nextcloud-v34`) are linked so cross-version symbol resolution
 works. The IDE therefore indexes every OCP symbol twice and reports
 `Multiple definitions exist for class '...'` in bulk. This is expected — see
-`{{.aiassistant_shared}}/QUALITY.md` §6: filter the message when triaging, and
+`{{shared_root}}/QUALITY.md` §6: filter the message when triaging, and
 never exclude a tree to silence it.
 
 ### 3.2 Frontend and backend are one deliverable
@@ -56,7 +58,7 @@ the app, and both count as shipped code. Run the quality pass and the tests for
 
 This project keeps a Keep-a-Changelog `CHANGELOG.md` and cuts releases with
 `[RELEASE]` commits that bump `appinfo/info.xml`. The rules in
-`{{.aiassistant_shared}}/COMMIT.md` §4.3 and §4.4 apply in full: any commit
+`{{shared_root}}/COMMIT.md` §4.3 and §4.4 apply in full: any commit
 touching the shipped-code paths above adds or amends a bullet under
 `## [Unreleased]` in the same commit.
 
@@ -64,16 +66,23 @@ touching the shipped-code paths above adds or amends a bullet under
 
 `.roo/commands/` and `.roo/roo-code-settings.json` are tracked here because Roo
 reads them from the project root. The shared repository keeps reference copies
-under `{{.aiassistant_shared}}/assistants/roo/`; when a prompt changes here and
+under `{{shared_root}}/assistants/roo/`; when a prompt changes here and
 the change is not project-specific, port it there as well.
+
+### 3.5 The harness that tests this app is a separate repository
+
+`nextcloud_testing` spins up the Nextcloud versions above and mounts this app
+into them. It has its own contract; a change to how instances are built belongs
+there, not here.
 
 ## 4. Document Governance
 
-- This document follows the shared governance rules in `{{.aiassistant_shared}}/GOVERNANCE.md`.
+- This document follows the shared governance rules in `{{shared_root}}/GOVERNANCE.md`.
 
 ## 5. Version History
 
 | Version | Date       | Changed sections | Change type | Agent impact |
 |---------|------------|------------------|-------------|--------------|
-| v1.1.0  | 2026-08-25 | 1, 3             | minor       | Removes the absolute repository root; the root is derived and Windows hosts prefix with wsl --cd \"$PWD\". |
+| v2.0.0  | 2026-08-27 | All              | major       | Becomes the fragment `project/_CONTRACT.md` under `GUIDELINES/`, inlined into the human-facing `GUIDELINES/README.md` as well as `AGENTS.md`. Placeholders move from the v2-era `{{.aiassistant_root}}` / `{{.aiassistant_shared}}`, which this document still carried and the generator had long stopped substituting, to `{{guidelines_root}}` / `{{shared_root}}`. The contract is cited as `/AGENTS.md`; the languages row points at `project.languages` and says which of this project's languages have no shared baseline; the version manifest no longer names a version number that had gone stale; §3.5 names the harness repository. |
+| v1.1.0  | 2026-08-25 | 1, 3             | minor       | Removes the absolute repository root; the root is derived and Windows hosts prefix with wsl --cd "$PWD". |
 | v1.0.0  | 2026-08-25 | All              | major       | Replaces this project's own copies of the agent documents with the shared submodule plus these project facts. The documents removed here (AGENTS.md v2.6.0, ENVIRONMENTS.md, the testing and linting baselines) were the newest lineage in the set and are preserved in the shared repository's history. |

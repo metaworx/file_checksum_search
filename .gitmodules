@@ -1,3 +1,3 @@
-[submodule ".aiassistant/shared"]
+[submodule "GUIDELINES/shared"]
 	path = GUIDELINES/shared
-	url = git@gitlab.com:metaworx/open-source/mwx-agent-guidelines.git
+	url = https://gitlab.com/metaworx/open-source/mwx-guidelines.git

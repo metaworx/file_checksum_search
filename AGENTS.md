@@ -1,9 +1,10 @@
 <!-- GENERATED FILE - DO NOT EDIT.
-     Source: .aiassistant/shared/GUIDELINES.md + .aiassistant/PROJECT.md
-     Regenerate: .aiassistant/shared/tools/sync.sh
-     Shared contract version: v3.0.0 -->
+     Source: shared/_AGENTS.md + project/_CONTRACT.md
+     Regenerate: GUIDELINES/shared/tools/sync.sh
+     Contract version: v3.4.1 -->
 
-# AI Agent Guidelines (v3.0.0)
+
+# AI Agent Guidelines (v3.4.1)
 
 Core behavioral rules for AI agents working on this codebase.  
 All agents MUST comply.
@@ -37,7 +38,7 @@ This document is intentionally concise; refer to linked documents for extended g
     - Additional information according to specialized gate message (e.g. AP or commit)
 - A gate message is the **only** valid way to request user confirmation. Echoing "waiting for input" via shell commands
   is a **violation** of this rule.
-- A visual workflow diagram is available in `.aiassistant/shared/GATE_WORKFLOW.md`.
+- A visual workflow diagram is available in `GUIDELINES/shared/GATE_WORKFLOW.md`.
 
 ### 1.2 Action Plan (AP) Requirement
 
@@ -51,7 +52,7 @@ This document is intentionally concise; refer to linked documents for extended g
 
 - Before `git commit`, the agent MUST present a gate message containing the complete proposed commit message.
 - Commit‑related execution signals (`EXEC`, `EXEC+`, `EXEC++`, `EXEC+++`) and commit tools are detailed in [
-  `.aiassistant/shared/COMMIT.md`](.aiassistant/shared/COMMIT.md).
+  `GUIDELINES/shared/COMMIT.md`](GUIDELINES/shared/COMMIT.md).
 - The gate message must follow the Universal Gate Template.
 
 ### 1.4 `undo_edit` Authorization (`ROLLBACK`)
@@ -66,7 +67,10 @@ This document is intentionally concise; refer to linked documents for extended g
 
 - **Do not delete and recreate files** when making large changes. Instead, write the new content to a temporary file and
   atomically replace the original (`mv` on Linux/macOS, `Move-Item` on Windows). This preserves local IDE history.
-- Temporary files SHOULD be placed in `/.aiassistant/temp/`.
+- Temporary files SHOULD be placed in `GUIDELINES/temp/`, which is scratch:
+  it may be deleted wholesale at any time. User-visible artifacts belong in
+  `GUIDELINES/messages/`, which is durable and never purged - the two are
+  siblings so that reclaiming disk space cannot destroy the written record.
 - Always prefer history‑preserving edit tools (e.g., `apply_patch`, in‑place edits) over raw shell writes.
 
 ## 2. Instruction Precedence (STRICT)
@@ -86,13 +90,13 @@ This document is intentionally concise; refer to linked documents for extended g
 
 | Need                                                                                      | Canonical location              |
 |-------------------------------------------------------------------------------------------|---------------------------------|
-| Gate lifecycle, pause behavior, mixed-signal gate handling, `ERR` recovery, gate template | `.aiassistant/shared/GATE_WORKFLOW.md` |
-| Commit gate and `EXEC+` variants in commit context, commit message format, commit tooling | `.aiassistant/shared/COMMIT.md`        |
-| Test depth and commands                                                                   | `.aiassistant/shared/lang/<language>/TESTING.md`       |
-| Quality pass over changed source files, of any language                                   | `.aiassistant/shared/QUALITY.md` |
-| Lint/style commands and policy                                                            | `.aiassistant/shared/lang/<language>/LINTING.md`       |
-| Document governance rules and canonical history ownership                                 | `.aiassistant/shared/GOVERNANCE.md`     |
-| Agent-host command/tool-name conventions (Windows-hosted vs WSL-based, per-agent specifics) | `.aiassistant/shared/ENVIRONMENTS.md`  |
+| Gate lifecycle, pause behavior, mixed-signal gate handling, `ERR` recovery, gate template | `GUIDELINES/shared/GATE_WORKFLOW.md` |
+| Commit gate and `EXEC+` variants in commit context, commit message format, commit tooling | `GUIDELINES/shared/COMMIT.md`        |
+| Test depth and commands                                                                   | `GUIDELINES/shared/lang/<language>/TESTING.md`       |
+| Quality pass over changed source files, of any language                                   | `GUIDELINES/shared/QUALITY.md` |
+| Lint/style commands and policy                                                            | `GUIDELINES/shared/lang/<language>/LINTING.md`       |
+| Document governance rules and canonical history ownership                                 | `GUIDELINES/shared/GOVERNANCE.md`     |
+| Agent-host command/tool-name conventions (Windows-hosted vs WSL-based, per-agent specifics) | `GUIDELINES/shared/ENVIRONMENTS.md`  |
 | AP requirements (`MUST`)                                                                  | this document §1.2 and §5      |
 
 If overlap exists, follow the canonical owner document for that rule family.
@@ -102,9 +106,9 @@ If overlap exists, follow the canonical owner document for that rule family.
 - **`ASK`** – Standalone: Send `<answer>` in [chat] mode. Combined with other keywords: include answer in new gate
   message (if task-relevant) or with the result of the gated action.
 - **`PLAN`** – Produce/update AP, present it, send gate message.
-- **`EXEC`** – Execute gated action(s). For `EXEC+`-family see [`.aiassistant/shared/COMMIT.md`](.aiassistant/shared/COMMIT.md).
+- **`EXEC`** – Execute gated action(s). For `EXEC+`-family see [`GUIDELINES/shared/COMMIT.md`](GUIDELINES/shared/COMMIT.md).
 - **`ROLLBACK`** – Authorize an `undo_edit` action (see [§1.4](#14-undo_edit-authorization-rollback)).
-- **`ERR`** – Apply recovery protocol (detailed in `.aiassistant/shared/GATE_WORKFLOW.md`).
+- **`ERR`** – Apply recovery protocol (detailed in `GUIDELINES/shared/GATE_WORKFLOW.md`).
 - **`UAMF`** – Instructs agent to write a [UAMF](#4-useraccessible-message-files-uamf) message file.
 
 Latest `<issue_update>` overrides earlier `<issue_description>`.
@@ -117,7 +121,7 @@ Latest `<issue_update>` overrides earlier `<issue_description>`.
 
 ## 4. User‑Accessible Message Files (UAMF)
 
-- Store user‑visible artifacts in `/.aiassistant/messages/` with a timestamp prefix `YYYY-MM-DD_HH-NN_`.
+- Store user‑visible artifacts in `/GUIDELINES/messages/` with a timestamp prefix `YYYY-MM-DD_HH-NN_`.
 - Never overwrite existing files; create new ones.
 - This includes Action Plan iterations (see [§5.3](#53-persistence-uamf)).
 
@@ -151,77 +155,78 @@ Latest `<issue_update>` overrides earlier `<issue_description>`.
 - Detailed body explaining what and why.
 - One functional change per commit.
 - Commits touching shipped app code MUST add a `CHANGELOG.md` `[Unreleased]` entry; releases are cut via a
-  dedicated `[RELEASE]` commit. See `.aiassistant/shared/COMMIT.md` §4.3–4.4.
-- **Prefer using commit tools** documented in `.aiassistant/shared/COMMIT.md`.
+  dedicated `[RELEASE]` commit. See `GUIDELINES/shared/COMMIT.md` §4.3–4.4.
+- **Prefer using commit tools** documented in `GUIDELINES/shared/COMMIT.md`.
 
 ## 7. Additional References
 
 Paths below use two placeholders, substituted when this document is inlined
-into a project's `AGENTS.md`: `.aiassistant` is the project's agent directory and
-`.aiassistant/shared` is the shared guidelines submodule. Their values come from
-`.aiassistant/.env`.
+into a project's `AGENTS.md`: `GUIDELINES` is the project's agent directory and
+`GUIDELINES/shared` is the shared guidelines submodule. Their values come from
+`GUIDELINES/config.ini`.
 
-- `.aiassistant/PROJECT.md` – project facts: paths, versions, exact test and lint commands.
-- `.aiassistant/shared/COMMIT.md` – commit workflow, gating, message and changelog policy.
-- `.aiassistant/shared/GATE_WORKFLOW.md` – gate lifecycle and `ERR` recovery protocol.
-- `.aiassistant/shared/ENVIRONMENTS.md` – agent-host command and tool-name conventions.
-- `.aiassistant/shared/GOVERNANCE.md` – document versioning and history rules.
-- `.aiassistant/shared/QUALITY.md` – the quality pass to run over every changed source file.
-- `.aiassistant/shared/lang/<language>/TESTING.md` and `LINTING.md` – language baselines.
-- `.aiassistant/shared/tools/README.md`, `.aiassistant/shared/tools/RUNTIME_TOOLS.md` – helper scripts and runtime tools.
-- `.aiassistant/CI.md` – CI conventions, if the project has any.
+- `GUIDELINES/project/_CONTRACT.md` – project facts: paths, versions, exact test and lint commands.
+- `GUIDELINES/shared/COMMIT.md` – commit workflow, gating, message and changelog policy.
+- `GUIDELINES/shared/GATE_WORKFLOW.md` – gate lifecycle and `ERR` recovery protocol.
+- `GUIDELINES/shared/ENVIRONMENTS.md` – agent-host command and tool-name conventions.
+- `GUIDELINES/shared/GOVERNANCE.md` – document versioning and history rules.
+- `GUIDELINES/shared/QUALITY.md` – the quality pass to run over every changed source file.
+- `GUIDELINES/shared/lang/<language>/TESTING.md` and `LINTING.md` – language baselines.
+- `GUIDELINES/shared/tools/README.md`, `GUIDELINES/shared/tools/RUNTIME_TOOLS.md` – helper scripts and runtime tools.
+- `GUIDELINES/project/CI.md` – CI conventions, if the project has any.
 
 ## 8. Document Governance
 
 - Version updated on every change (SemVer).
-- Full document history is maintained in `.aiassistant/shared/GOVERNANCE.md`.
+- Full document history is maintained in `GUIDELINES/shared/GOVERNANCE.md`.
 - Drift-check: when a specialized rule document changes ownership semantics, update §2.1 in the same change.
-- In `8.1 Current version`, keep only the latest row; move older entries to `.aiassistant/shared/GOVERNANCE.md`, section 2.1.
+- In `8.1 Current version`, keep only the latest row; move older entries to `GUIDELINES/shared/GOVERNANCE.md`, section 2.1.
 
 ### 8.1 Current version
 
 | Version | Date       | Changed Sections | Change Type | Agent Impact                                    |
 |---------|------------|------------------|-------------|-------------------------------------------------|
-| v2.6.0  | 2026-08-24 | 2.1, 7           | minor       | Added `.aiassistant/ENVIRONMENTS.md` as the canonical owner for agent-host command/tool-name conventions (§2.1); referenced it in §7. |
+| v3.4.0  | 2026-08-26 | 2.1, 7, 8.1      | minor       | References to the contract point at the generated `/AGENTS.md` rather than the `_AGENTS.md` fragment; placeholders renamed to `GUIDELINES/shared` / `GUIDELINES` / `{{runtime_root}}`; links traversing out of the document tree removed. Numbered v3.4.0 rather than v3.0.1 once the three unversioned changes below were reconstructed. |
 
 ---
 
-# Project Guidelines Entry Point (v1.1.0)
 
-This file is the project-specific entry point for agent-facing guidance in
-**File Checksum Index & Search** (FCIAS) — a Nextcloud app that indexes file
-checksums and makes them searchable.
+# File Checksum Index & Search — Project Contract (v2.0.0)
+
+What binds work in this project, for everyone working on it. Inlined into
+`/AGENTS.md` for agents and into `GUIDELINES/README.md` for people, so
+that the two cannot drift apart.
+
+A Nextcloud app that indexes file checksums and makes them searchable.
 
 ## 1. Project Facts
 
 > No absolute paths here. An agent is already inside the checkout, so the
 > repository root is `git rev-parse --show-toplevel`; Windows-hosted agents
-> prefix with `wsl --cd "$PWD"` (see `.aiassistant/shared/ENVIRONMENTS.md`).
-> Machine-specific values belong in `.aiassistant/.env.local`, untracked.
-
+> prefix with `wsl --cd "$PWD"` (see `GUIDELINES/shared/ENVIRONMENTS.md`).
+> Machine-specific values belong in `GUIDELINES/config.local.ini`,
+> which is not tracked.
 
 | Fact                  | Value |
 |-----------------------|-------|
 | Project name          | `metaworx/file_checksum_search`, Nextcloud app id `file_checksum_search` |
-| Language(s)           | PHP (backend), TypeScript + Vue (frontend), SCSS/CSS, YAML (CI) |
+| Language(s)           | declared as `project.languages` in `GUIDELINES/config.ini`, kept honest by `GUIDELINES/shared/tools/detect-languages.sh --check`. PHP backend, TypeScript and Vue frontend, SCSS/CSS, YAML for CI — of which Vue and YAML have no shared baseline, so they are not declared. |
 | Source directories    | `lib/` (PSR-4 `OCA\FileChecksumSearch\`), `src/` (frontend), `tests/` (PSR-4 `OCA\FileChecksumSearch\Tests\`), `appinfo/`, `templates/` |
 | Shipped-code paths    | `lib/`, `src/`, `css/`, `js/`, `templates/`, `img/`, `appinfo/routes.php`, `appinfo/info.xml` |
-| Version manifest      | `appinfo/info.xml` (`<version>`, currently `0.19.0`) |
+| Version manifest      | `appinfo/info.xml` (`<version>`) |
 | Test gate command     | `composer test` (unit + integration); individually `composer test:unit`, `composer test:integration`, `vendor/bin/phpunit -c tests/phpunit.xml`; frontend `npm test` (Vitest) |
 | Lint command          | `composer cs:check` / `composer cs:fix` (php-cs-fixer), `composer psalm`, `composer rector`; frontend `npm run lint` and `npm run stylelint` |
 
 ## 2. Primary References
 
-- `.aiassistant/shared/GUIDELINES.md` - runtime behavior contract, gating flow, action-plan workflow.
-- `.aiassistant/shared/QUALITY.md` - the quality pass; this project is multi-language,
+- `/AGENTS.md` — runtime behavior contract, gating flow, action-plan workflow.
+- `GUIDELINES/shared/QUALITY.md` — the quality pass; this project is multi-language,
   so it applies to `.vue`, `.ts`, `.scss` and `.yaml` files as much as to `.php` ones.
-- `.aiassistant/shared/lang/php/TESTING.md`, `.aiassistant/shared/lang/ts/TESTING.md`
-  and the matching `LINTING.md` files - language baselines; the facts table above
+- `GUIDELINES/shared/lang/php/TESTING.md`, `GUIDELINES/shared/lang/ts/TESTING.md`
+  and the matching `LINTING.md` files — language baselines; the facts table above
   overrides their example commands.
-- `.aiassistant/shared/COMMIT.md` - commit workflow, gating, and the `CHANGELOG.md`
+- `GUIDELINES/shared/COMMIT.md` — commit workflow, gating, and the `CHANGELOG.md`
   rules that apply here (see §3.3).
-- `.aiassistant/shared/ENVIRONMENTS.md` - host/agent command conventions.
-- `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `README.md` - contributor documentation.
 
 ## 3. Project-Specific Conventions
 
@@ -231,7 +236,7 @@ The app is developed against more than one Nextcloud release; local source trees
 (`nextcloud-v33`, `nextcloud-v34`) are linked so cross-version symbol resolution
 works. The IDE therefore indexes every OCP symbol twice and reports
 `Multiple definitions exist for class '...'` in bulk. This is expected — see
-`.aiassistant/shared/QUALITY.md` §6: filter the message when triaging, and
+`GUIDELINES/shared/QUALITY.md` §6: filter the message when triaging, and
 never exclude a tree to silence it.
 
 ### 3.2 Frontend and backend are one deliverable
@@ -244,7 +249,7 @@ the app, and both count as shipped code. Run the quality pass and the tests for
 
 This project keeps a Keep-a-Changelog `CHANGELOG.md` and cuts releases with
 `[RELEASE]` commits that bump `appinfo/info.xml`. The rules in
-`.aiassistant/shared/COMMIT.md` §4.3 and §4.4 apply in full: any commit
+`GUIDELINES/shared/COMMIT.md` §4.3 and §4.4 apply in full: any commit
 touching the shipped-code paths above adds or amends a bullet under
 `## [Unreleased]` in the same commit.
 
@@ -252,16 +257,23 @@ touching the shipped-code paths above adds or amends a bullet under
 
 `.roo/commands/` and `.roo/roo-code-settings.json` are tracked here because Roo
 reads them from the project root. The shared repository keeps reference copies
-under `.aiassistant/shared/assistants/roo/`; when a prompt changes here and
+under `GUIDELINES/shared/assistants/roo/`; when a prompt changes here and
 the change is not project-specific, port it there as well.
+
+### 3.5 The harness that tests this app is a separate repository
+
+`nextcloud_testing` spins up the Nextcloud versions above and mounts this app
+into them. It has its own contract; a change to how instances are built belongs
+there, not here.
 
 ## 4. Document Governance
 
-- This document follows the shared governance rules in `.aiassistant/shared/GOVERNANCE.md`.
+- This document follows the shared governance rules in `GUIDELINES/shared/GOVERNANCE.md`.
 
 ## 5. Version History
 
 | Version | Date       | Changed sections | Change type | Agent impact |
 |---------|------------|------------------|-------------|--------------|
-| v1.1.0  | 2026-08-25 | 1, 3             | minor       | Removes the absolute repository root; the root is derived and Windows hosts prefix with wsl --cd \"$PWD\". |
+| v2.0.0  | 2026-08-27 | All              | major       | Becomes the fragment `project/_CONTRACT.md` under `GUIDELINES/`, inlined into the human-facing `GUIDELINES/README.md` as well as `AGENTS.md`. Placeholders move from the v2-era `{{.aiassistant_root}}` / `{{.aiassistant_shared}}`, which this document still carried and the generator had long stopped substituting, to `GUIDELINES` / `GUIDELINES/shared`. The contract is cited as `/AGENTS.md`; the languages row points at `project.languages` and says which of this project's languages have no shared baseline; the version manifest no longer names a version number that had gone stale; §3.5 names the harness repository. |
+| v1.1.0  | 2026-08-25 | 1, 3             | minor       | Removes the absolute repository root; the root is derived and Windows hosts prefix with wsl --cd "$PWD". |
 | v1.0.0  | 2026-08-25 | All              | major       | Replaces this project's own copies of the agent documents with the shared submodule plus these project facts. The documents removed here (AGENTS.md v2.6.0, ENVIRONMENTS.md, the testing and linting baselines) were the newest lineage in the set and are preserved in the shared repository's history. |

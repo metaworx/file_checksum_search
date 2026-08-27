@@ -13,10 +13,11 @@ cookie*.txt
 /vendor
 /vendor-bin/*/vendor/
 /log/
-/.aiassistant/chat/
-/.aiassistant/messages/
-/.aiassistant/tools/commit-msg.txt
-/.aiassistant/temp/
+# The guidelines root ignores its own runtime directories; these entries are
+# kept so a checkout without the submodule still ignores them.
+/GUIDELINES/messages/
+/GUIDELINES/temp/
+/GUIDELINES/config.local.ini
 /tests/.phpunit.cache
 /.phpunit.cache/test-results
 /.nextcloudsync.log
