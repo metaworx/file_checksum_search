@@ -170,9 +170,9 @@ class RulesController
 		}
 
 		if ( ! $isAdmin
-			&& ! $this->ruleService->isPathWritableByUser( $userId, $definition['path'] ) )
+			&& ( $refusal = $this->ruleService->ruleTargetRefusal( $userId, $definition['path'] ) ) !== null )
 		{
-			return $this->forbidden( 'The selected path is not write-accessible to you.' );
+			return $this->forbidden( $refusal );
 		}
 
 		try
@@ -246,9 +246,9 @@ class RulesController
 		}
 
 		if ( ! $isAdmin
-			&& ! $this->ruleService->isPathWritableByUser( $userId, $definition['path'] ) )
+			&& ( $refusal = $this->ruleService->ruleTargetRefusal( $userId, $definition['path'] ) ) !== null )
 		{
-			return $this->forbidden( 'The selected path is not write-accessible to you.' );
+			return $this->forbidden( $refusal );
 		}
 
 		try

@@ -95,16 +95,14 @@ class FileListener
 			return;
 		}
 
-		// The copy lands at a new path, which may be governed by a different
-		// rule than the source was. Copying a checksum into a location whose
-		// rule says not to hash would create exactly the stored hash that
-		// rule exists to prevent.
+		// The copy lands at a new location, which may be governed by a
+		// different rule than the source was. Copying a checksum into a
+		// location whose rule says not to hash would create exactly the
+		// stored hash that rule exists to prevent. Resolved by file id —
+		// identity, not the acting user's view path: a recipient copying
+		// into a share is governed by the share's own rules.
 		if ( ! RuleService::maintainsHashes(
-			$this->ruleService->findFirstMatchingRule(
-				$target->getPath(),
-				$target->getOwner()
-				       ?->getUID(),
-			),
+			$this->ruleService->findFirstMatchingRule( $target->getId() ),
 		) )
 		{
 			return;
@@ -134,12 +132,12 @@ class FileListener
 			return;
 		}
 
-		$rule   = $this->ruleService->findFirstMatchingRule(
-			$node->getPath(),
-			$node->getOwner()
-			     ?->getUID(),
-		);
 		$fileId = $node->getId();
+
+		// By identity, not by the acting user's view: a share recipient's
+		// edit of the owner's file is governed by the rules that govern the
+		// owner's file, under the path the owner knows it by.
+		$rule = $this->ruleService->findFirstMatchingRule( $fileId );
 
 		if ( ! RuleService::maintainsHashes( $rule ) )
 		{
@@ -234,11 +232,7 @@ class FileListener
 			return;
 		}
 
-		$rule = $this->ruleService->findFirstMatchingRule(
-			$node->getPath(),
-			$node->getOwner()
-			     ?->getUID(),
-		);
+		$rule = $this->ruleService->findFirstMatchingRule( $node->getId() );
 
 		if ( ! RuleService::maintainsHashes( $rule ) )
 		{
@@ -321,33 +315,22 @@ class FileListener
 			return;
 		}
 
-		$rule = $this->ruleService->findFirstMatchingRule(
-			$node->getPath(),
-			$node->getOwner()
-			     ?->getUID(),
+		// Unconditional: by the time this event fires the filecache row is
+		// gone or moved into a trash area, so no rule can be said to govern
+		// the file any more — and this app's metadata rows only ever exist
+		// for files it hashed, so clearing is a no-op for everything else.
+		// Hashes describe content; content the user removed keeps none.
+		$fileId = $node->getId();
+
+		$this->metadataService->clearMetadata( $fileId );
+
+		$this->logger->debug(
+			'FCIAS FileListener: cleared metadata on file delete',
+			[
+				'app'    => Application::APP_ID,
+				'fileId' => $fileId,
+			],
 		);
-
-		if ( $rule === null )
-		{
-			return;
-		}
-
-		$mode = $rule['mode'] ?? MetadataService::PENDING_MODE_AUTO;
-
-		if ( $mode !== MetadataService::PENDING_MODE_OFF )
-		{
-			$fileId = $node->getId();
-
-			$this->metadataService->clearMetadata( $fileId );
-
-			$this->logger->debug(
-				'FCIAS FileListener: cleared metadata on file delete',
-				[
-					'app'    => Application::APP_ID,
-					'fileId' => $fileId,
-				],
-			);
-		}
 	}
 
 }

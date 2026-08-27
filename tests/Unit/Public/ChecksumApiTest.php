@@ -1002,8 +1002,8 @@ class ChecksumApiTest
 		                        ->with( 'bob' )
 		                        ->willReturn( true )
 		;
-		$this->ruleService->method( 'isPathWritableByUser' )
-		                  ->willReturn( true )
+		$this->ruleService->method( 'ruleTargetRefusal' )
+		                  ->willReturn( null )
 		;
 
 		// Whatever the payload claims: bob's rule is bob's, never enforced.

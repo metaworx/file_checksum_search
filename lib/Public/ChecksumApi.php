@@ -422,19 +422,7 @@ class ChecksumApi
 
 		try
 		{
-			$nodes = $this->rootFolder->getById( $fileId );
-			$node  = $nodes[0] ?? null;
-
-			if ( $node === null )
-			{
-				return null;
-			}
-
-			$rule = $this->ruleService->findFirstMatchingRule(
-				$node->getPath(),
-				$node->getOwner()
-				     ?->getUID(),
-			);
+			$rule = $this->ruleService->findFirstMatchingRule( $fileId );
 		}
 		catch ( \Throwable )
 		{
@@ -507,9 +495,12 @@ class ChecksumApi
 		);
 
 		if ( ! $isAdmin
-			&& ! $this->ruleService->isPathWritableByUser( (string) $requestingUser, $validated['path'] ) )
+			&& ( $refusal = $this->ruleService->ruleTargetRefusal(
+				(string) $requestingUser,
+				$validated['path'],
+			) ) !== null )
 		{
-			throw new InvalidArgumentException( 'The path is not in a folder this user can write to.' );
+			throw new InvalidArgumentException( $refusal );
 		}
 
 		return $this->ruleService->ruleAdd( $validated, $requestingUser ?? self::TRUSTED_ACTOR );
@@ -546,9 +537,12 @@ class ChecksumApi
 		);
 
 		if ( ! $isAdmin
-			&& ! $this->ruleService->isPathWritableByUser( (string) $requestingUser, $validated['path'] ) )
+			&& ( $refusal = $this->ruleService->ruleTargetRefusal(
+				(string) $requestingUser,
+				$validated['path'],
+			) ) !== null )
 		{
-			throw new InvalidArgumentException( 'The path is not in a folder this user can write to.' );
+			throw new InvalidArgumentException( $refusal );
 		}
 
 		$this->ruleService->ruleUpdate( $id, $validated, $requestingUser ?? self::TRUSTED_ACTOR );

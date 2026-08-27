@@ -112,6 +112,271 @@ class FilecacheService
 	}
 
 
+	/** Cache for {@see directoryMimetypeId()}. */
+	private ?int $directoryMimetypeId = null;
+
+
+	/**
+	 * The mimetype id of httpd/unix-directory — per-instance, so looked up
+	 * once and cached for the process.
+	 *
+	 * @throws \OCP\DB\Exception
+	 */
+	private function directoryMimetypeId(): int
+	{
+
+		if ( $this->directoryMimetypeId !== null )
+		{
+			return $this->directoryMimetypeId;
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( 'id' )
+		   ->from( 'mimetypes' )
+		   ->where(
+			   $qb->expr()
+			      ->eq( 'mimetype', $qb->createNamedParameter( 'httpd/unix-directory' ) ),
+		   )
+		;
+
+		$result = $qb->executeQuery();
+		$id     = $result->fetchOne();
+		$result->closeCursor();
+
+		// -1 can never equal a real mimetype id, so a missing row (an
+		// instance that has never indexed a folder) filters nothing out.
+		return $this->directoryMimetypeId = $id === false
+			? - 1
+			: (int) $id;
+	}
+
+
+	/**
+	 * A file's canonical identity — its actual filecache row, classified.
+	 *
+	 * One indexed query, and deliberately NOT derived from a Node: a Node
+	 * from a share recipient's context reports the recipient's view path
+	 * and a wrapper storage, while the row is the single truth every view
+	 * resolves to.
+	 *
+	 * @throws \OCP\DB\Exception
+	 */
+	public function locate( int $fileId ): ?FileLocation
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( 'fc.fileid', 'fc.path', 'fc.mtime', 'st.id' )
+		   ->from( 'filecache', 'fc' )
+		   ->innerJoin( 'fc', 'storages', 'st', 'fc.storage = st.numeric_id' )
+		   ->where(
+			   $qb->expr()
+			      ->eq( 'fc.fileid', $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+		   )
+		;
+
+		$result = $qb->executeQuery();
+		$row    = $result->fetch();
+		$result->closeCursor();
+
+		if ( $row === false )
+		{
+			return null;
+		}
+
+		return FileLocation::fromRow(
+			(int) $row['fileid'],
+			(string) $row['id'],
+			(string) $row['path'],
+			(int) $row['mtime'],
+		);
+	}
+
+
+	/**
+	 * The numeric ids of the given users' home storages.
+	 *
+	 * Each uid has at most one: `home::<uid>` on filesystem-backed
+	 * instances, `object::user:<uid>` on primary object storage. Kept
+	 * separate from {@see storageNumericIdsFor()} because expanding a
+	 * group selector to member uids needs the group manager, which lives
+	 * a layer above this service.
+	 *
+	 * @param  string[]  $uids
+	 *
+	 * @return int[]
+	 * @throws \OCP\DB\Exception
+	 */
+	public function homeStorageNumericIds( array $uids ): array
+	{
+
+		if ( $uids === [] )
+		{
+			return [];
+		}
+
+		$storageIds = [];
+
+		foreach ( $uids as $uid )
+		{
+			$storageIds[] = 'home::' . $uid;
+			$storageIds[] = 'object::user:' . $uid;
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( 'numeric_id' )
+		   ->from( 'storages' )
+		   ->where(
+			   $qb->expr()
+			      ->in(
+				      'id',
+				      $qb->createNamedParameter( $storageIds, IQueryBuilder::PARAM_STR_ARRAY ),
+			      ),
+		   )
+		;
+
+		$result = $qb->executeQuery();
+		$ids    = [];
+
+		while ( ( $row = $result->fetch() ) !== false )
+		{
+			$ids[] = (int) $row['numeric_id'];
+		}
+		$result->closeCursor();
+
+		return $ids;
+	}
+
+
+	/**
+	 * The numeric storage ids a non-group selector sweeps.
+	 *
+	 * home:* is every home storage (matched by id prefix — cheaper and no
+	 * less exact than enumerating users). groupfolder:<id> is the folder's
+	 * dedicated jail storage plus, for the legacy layout, any local root
+	 * storage — whose rows are told apart per row at classification time.
+	 * storage:<raw> is an exact id. '*' is every storage there is: rows are
+	 * unique per file, so sweeping all storages never double-counts.
+	 *
+	 * user: and group: selectors resolve via {@see homeStorageNumericIds()}.
+	 *
+	 * @return int[]
+	 * @throws \OCP\DB\Exception
+	 */
+	public function storageNumericIdsFor( Selector $selector ): array
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( 'numeric_id', 'id' )
+		   ->from( 'storages' )
+		;
+
+		switch ( $selector->kind )
+		{
+		case Selector::KIND_STORAGE:
+			$qb->where(
+				$qb->expr()
+				   ->eq( 'id', $qb->createNamedParameter( (string) $selector->target ) ),
+			);
+
+			break;
+
+		case Selector::KIND_HOME_ALL:
+			$qb->where(
+				$qb->expr()
+				   ->orX(
+					   $qb->expr()
+					      ->like( 'id', $qb->createNamedParameter( 'home::%' ) ),
+					   $qb->expr()
+					      ->like( 'id', $qb->createNamedParameter( 'object::user:%' ) ),
+				   ),
+			);
+
+			break;
+		}
+
+		$result = $qb->executeQuery();
+		$ids    = [];
+
+		while ( ( $row = $result->fetch() ) !== false )
+		{
+			$storageId = (string) $row['id'];
+
+			if ( $selector->kind === Selector::KIND_GROUPFOLDER )
+			{
+				$isJail      = preg_match(
+						'#^local::.*/__groupfolders/' . (int) $selector->target . '/?$#',
+						$storageId,
+					) === 1;
+				$isLocalRoot = str_starts_with( $storageId, 'local::' )
+					&& ! str_contains( $storageId, '__groupfolders' );
+
+				// The jail is the folder; the root storage may hold legacy
+				// rows, told apart per row at classification time.
+				if ( ! $isJail && ! $isLocalRoot )
+				{
+					continue;
+				}
+			}
+
+			$ids[] = (int) $row['numeric_id'];
+		}
+		$result->closeCursor();
+
+		return $ids;
+	}
+
+
+	/**
+	 * One page of a storage's filecache rows, classified — for non-home
+	 * sweeps, which iterate the storage once instead of once per member
+	 * view. Keyset-paged like the backfill.
+	 *
+	 * @return FileLocation[]
+	 * @throws \OCP\DB\Exception
+	 */
+	public function pageStorageFiles(
+		int $storageNumericId,
+		int $lastFileId,
+		int $limit,
+	): array {
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( 'fc.fileid', 'fc.path', 'fc.mtime', 'st.id' )
+		   ->from( 'filecache', 'fc' )
+		   ->innerJoin( 'fc', 'storages', 'st', 'fc.storage = st.numeric_id' )
+		   ->where(
+			   $qb->expr()
+			      ->eq( 'fc.storage', $qb->createNamedParameter( $storageNumericId, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->gt( 'fc.fileid', $qb->createNamedParameter( $lastFileId, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->neq(
+				      'fc.mimetype',
+				      $qb->createNamedParameter( $this->directoryMimetypeId(), IQueryBuilder::PARAM_INT ),
+			      ),
+		   )
+		   ->orderBy( 'fc.fileid', 'ASC' )
+		   ->setMaxResults( $limit )
+		;
+
+		$result    = $qb->executeQuery();
+		$locations = [];
+
+		while ( ( $row = $result->fetch() ) !== false )
+		{
+			$locations[] = FileLocation::fromRow(
+				(int) $row['fileid'],
+				(string) $row['id'],
+				(string) $row['path'],
+				(int) $row['mtime'],
+			);
+		}
+		$result->closeCursor();
+
+		return $locations;
+	}
+
+
 	/**
 	 * One page of filecache rows that carry a checksum, for backfilling.
 	 *
@@ -182,7 +447,7 @@ class FilecacheService
 	 *                                   Callers that can't use OCP\Server::get()
 	 *                                   internals should catch \Throwable instead
 	 *                                   of this internal class — see
-	 *                                   RuleService::isPathWritableByUser() and
+	 *                                   RuleService::ruleTargetRefusal() and
 	 *                                   HashFiles::executeMarkOnly() for the
 	 *                                   established pattern.
 	 */

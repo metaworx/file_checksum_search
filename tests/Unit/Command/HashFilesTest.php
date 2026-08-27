@@ -348,8 +348,8 @@ class HashFilesTest
 		$this->ruleService->method( 'findFirstMatchingRule' )
 		                  ->willReturnCallback(
 			                  static fn(
-				                  string $path,
-			                  ): array => str_contains( $path, '/Archive/' )
+				                  int $fileId,
+			                  ): array => $fileId === 2
 				                  ? [
 					                  'id'   => 'archive',
 					                  'type' => 'exclude',
@@ -458,7 +458,7 @@ class HashFilesTest
 
 		$this->assertSame( Command::SUCCESS, $exitCode );
 		$this->assertStringContainsString( 'Marked 2 files.', $this->tester->getDisplay() );
-		$this->assertStringContainsString( 'Done. 2 files marked as pending:auto.', $this->tester->getDisplay() );
+		$this->assertStringContainsString( 'Done. 2 files marked as pending:missing.', $this->tester->getDisplay() );
 	}
 
 
@@ -1083,6 +1083,8 @@ class HashFilesTest
 
 	/**
 	 * Wire up a --mark run over $rulesByPath, one file per path, ids from 1.
+	 * The rule lookup is identity-based, so the stub maps the generated file
+	 * ids back to the per-path rules.
 	 *
 	 * @param  array<string, array|null>  $rulesByPath
 	 */
@@ -1096,19 +1098,22 @@ class HashFilesTest
 		                       ->willReturn( $this->createMock( Folder::class ) )
 		;
 
-		$files = [];
-		$id    = 1;
+		$files     = [];
+		$rulesById = [];
+		$id        = 1;
 
-		foreach ( array_keys( $rulesByPath ) as $path )
+		foreach ( $rulesByPath as $path => $rule )
 		{
 			$file = $this->createMock( File::class );
 			$file->method( 'getId' )
-			     ->willReturn( $id ++ )
+			     ->willReturn( $id )
 			;
 			$file->method( 'getPath' )
 			     ->willReturn( $path )
 			;
-			$files[] = $file;
+			$files[]          = $file;
+			$rulesById[ $id ] = $rule;
+			$id ++;
 		}
 
 		$this->ruleService->method( 'searchFilesByGlob' )
@@ -1117,8 +1122,8 @@ class HashFilesTest
 		$this->ruleService->method( 'findFirstMatchingRule' )
 		                  ->willReturnCallback(
 			                  static fn(
-				                  string $path,
-			                  ): ?array => $rulesByPath[ $path ] ?? null,
+				                  int $fileId,
+			                  ): ?array => $rulesById[ $fileId ] ?? null,
 		                  )
 		;
 	}

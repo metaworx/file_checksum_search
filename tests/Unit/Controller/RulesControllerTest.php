@@ -303,8 +303,8 @@ class RulesControllerTest
 		$this->permissionService->method( 'canUserEditRules' )
 		                        ->willReturn( true )
 		;
-		$this->ruleService->method( 'isPathWritableByUser' )
-		                  ->willReturn( true )
+		$this->ruleService->method( 'ruleTargetRefusal' )
+		                  ->willReturn( null )
 		;
 		// A payload claiming an instance-wide, enforced rule.
 		$this->body( [
@@ -368,8 +368,8 @@ class RulesControllerTest
 		$this->permissionService->method( 'canUserEditRules' )
 		                        ->willReturn( true )
 		;
-		$this->ruleService->method( 'isPathWritableByUser' )
-		                  ->willReturn( false )
+		$this->ruleService->method( 'ruleTargetRefusal' )
+		                  ->willReturn( 'The path is not in a folder you can write to.' )
 		;
 		$this->body( [
 			'path'  => '/SomeoneElse',

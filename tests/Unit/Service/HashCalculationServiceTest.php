@@ -1026,6 +1026,9 @@ class HashCalculationServiceTest
 		;
 
 		$file = $this->createMock( File::class );
+		$file->method( 'getId' )
+		     ->willReturn( 42 )
+		;
 		$file->method( 'getChecksum' )
 		     ->willReturn( 'SHA1:deadbeef' )
 		;
@@ -1648,6 +1651,9 @@ class HashCalculationServiceTest
 
 		// File already has sha1 but not sha256.
 		$file = $this->createMock( File::class );
+		$file->method( 'getId' )
+		     ->willReturn( 42 )
+		;
 		$file->method( 'getChecksum' )
 		     ->willReturn( 'SHA1:deadbeef' )
 		;

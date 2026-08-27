@@ -11,6 +11,8 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use InvalidArgumentException;
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Service\FilecacheService;
+use OCA\FileChecksumSearch\Service\FileLocation;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleService;
@@ -19,6 +21,7 @@ use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
+use OCP\Files\Storage\IStorage;
 use OCP\IAppConfig;
 use OCP\IGroup;
 use OCP\IGroupManager;
@@ -48,6 +51,8 @@ class RuleServiceTest
 
 	private MockObject|MetadataService   $metadataService;
 
+	private MockObject|FilecacheService  $filecacheService;
+
 	private MockObject|PermissionService $permissionService;
 
 	private MockObject|IGroupManager     $groupManager;
@@ -66,6 +71,7 @@ class RuleServiceTest
 		$this->rootFolder        = $this->createMock( IRootFolder::class );
 		$this->userManager       = $this->createMock( IUserManager::class );
 		$this->metadataService   = $this->createMock( MetadataService::class );
+		$this->filecacheService  = $this->createMock( FilecacheService::class );
 		$this->permissionService = $this->createMock( PermissionService::class );
 		$this->groupManager      = $this->createMock( IGroupManager::class );
 		$this->logger            = $this->createMock( LoggerInterface::class );
@@ -78,6 +84,7 @@ class RuleServiceTest
 			$this->logger,
 			$this->permissionService,
 			$this->groupManager,
+			$this->filecacheService,
 		);
 	}
 
@@ -125,6 +132,7 @@ class RuleServiceTest
 			            $this->logger,
 			            $this->permissionService,
 			            $this->groupManager,
+			            $this->filecacheService,
 		            ] )
 		            ->onlyMethods( $methods )
 		            ->getMock()
@@ -156,6 +164,7 @@ class RuleServiceTest
 
 	private function createFolderMock(
 		array $searchResults = [],
+		bool  $homeStorage = true,
 	): Folder&MockObject {
 
 		$folder = $this->createMock( Folder::class );
@@ -163,7 +172,76 @@ class RuleServiceTest
 		       ->willReturn( $searchResults )
 		;
 
+		$storage = $this->createMock( IStorage::class );
+		$storage->method( 'instanceOfStorage' )
+		        ->willReturn( $homeStorage )
+		;
+		$folder->method( 'getStorage' )
+		       ->willReturn( $storage )
+		;
+
 		return $folder;
+	}
+
+
+	private function homeLocation(
+		int    $fileId,
+		string $owner,
+		string $relative,
+		int    $mtime = 1000,
+	): FileLocation {
+
+		return FileLocation::fromRow( $fileId, 'home::' . $owner, 'files' . $relative, $mtime );
+	}
+
+
+	private function stubLocate( FileLocation ...$locations ): void
+	{
+
+		$byId = [];
+
+		foreach ( $locations as $location )
+		{
+			$byId[ $location->fileId ] = $location;
+		}
+
+		$this->filecacheService->method( 'locate' )
+		                       ->willReturnCallback(
+			                       static fn(
+				                       int $fileId,
+			                       ): ?FileLocation => $byId[ $fileId ] ?? null,
+		                       )
+		;
+	}
+
+
+	/**
+	 * Feed the storage-paged sweep one synthetic storage holding these rows.
+	 */
+	private function stubSweep( FileLocation ...$locations ): void
+	{
+
+		$this->filecacheService->method( 'storageNumericIdsFor' )
+		                       ->willReturn( [ 7 ] )
+		;
+		$this->filecacheService->method( 'homeStorageNumericIds' )
+		                       ->willReturn( [ 7 ] )
+		;
+		$this->filecacheService->method( 'pageStorageFiles' )
+		                       ->willReturnCallback(
+			                       static fn(
+				                       int $storageNumericId,
+				                       int $lastFileId,
+			                       ): array => array_values(
+				                       array_filter(
+					                       $locations,
+					                       static fn(
+						                       FileLocation $location,
+					                       ): bool => $location->fileId > $lastFileId,
+				                       ),
+			                       ),
+		                       )
+		;
 	}
 
 
@@ -214,16 +292,7 @@ class RuleServiceTest
 
 		$this->setupRulesConfig( [ $rule ] );
 
-		$this->mockResolveAllUsers( [ 'user1' ] );
-
-		$file = $this->createFileMock( 42 );
-
-		$folder = $this->createFolderMock( [ $file ] );
-
-		$this->rootFolder->method( 'getUserFolder' )
-		                 ->with( 'user1' )
-		                 ->willReturn( $folder )
-		;
+		$this->stubSweep( $this->homeLocation( 42, 'user1', '/test.txt' ) );
 
 		$this->metadataService->method( 'getUpdatedAt' )
 		                      ->with( 42 )
@@ -280,18 +349,8 @@ class RuleServiceTest
 			],
 		);
 
-		// Rule 1: resolve to user1
-		// Rule 2: resolve to user1 (same user, file excluded by rule1)
-		$this->mockResolveAllUsers( [ 'user1' ] );
-
-		$file1 = $this->createFileMock( 42 );
-
-		$folder = $this->createFolderMock( [ $file1 ] );
-
-		$this->rootFolder->method( 'getUserFolder' )
-		                 ->with( 'user1' )
-		                 ->willReturn( $folder )
-		;
+		// Both rules sweep the same storage and see the same row.
+		$this->stubSweep( $this->homeLocation( 42, 'user1', '/test.txt' ) );
 
 		// Rule 1: file 42 is stale → marked
 		// Rule 2: file 42 is in exclusion list → skipped
@@ -316,26 +375,25 @@ class RuleServiceTest
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testEvaluateRulesHandlesUserResolutionFailure(): void
+	public function testEvaluateRulesSurvivesASweepFailure(): void
 	{
 
 		$rule = $this->defaultRule();
 
 		$this->setupRulesConfig( [ $rule ] );
 
-		$this->mockResolveAllUsers( [ 'baduser' ] );
+		// A rule whose sweep fails (storage listing, paging, …) is logged
+		// and skipped; it must not abort the whole evaluation.
+		$this->filecacheService->method( 'storageNumericIdsFor' )
+		                       ->willThrowException(
+			                       new class( 'db gone' )
+				                       extends
+				                       \Exception
+				                       implements
+				                       Throwable {
 
-		$this->rootFolder->method( 'getUserFolder' )
-		                 ->with( 'baduser' )
-		                 ->willThrowException(
-			                 new class( 'User folder not found' )
-				                 extends
-				                 \Exception
-				                 implements
-				                 Throwable {
-
-			                 },
-		                 )
+			                       },
+		                       )
 		;
 
 		$this->logger->expects( $this->once() )
@@ -354,22 +412,7 @@ class RuleServiceTest
 	public function testProcessRuleMarksStaleFiles(): void
 	{
 
-		$file = $this->createFileMock( 42 );
-
-		$partial = $this->createRuleServicePartial( [ 'searchFiles' ] );
-
-		$partial->method( 'searchFiles' )
-		        ->willReturn( [ $file ] )
-		;
-
-		$this->mockResolveAllUsers( [ 'user1' ] );
-
-		$folder = $this->createFolderMock();
-
-		$this->rootFolder->method( 'getUserFolder' )
-		                 ->with( 'user1' )
-		                 ->willReturn( $folder )
-		;
+		$this->stubSweep( $this->homeLocation( 42, 'user1', '/test.txt' ) );
 
 		$this->metadataService->method( 'getUpdatedAt' )
 		                      ->with( 42 )
@@ -381,7 +424,7 @@ class RuleServiceTest
 		                      ->with( 42, MetadataService::PENDING_PREFIX . 'auto' )
 		;
 
-		$result = $partial->processRule( $this->defaultRule(), [] );
+		$result = $this->service->processRule( $this->defaultRule(), [] );
 
 		$this->assertSame( 1, $result['marked'] );
 		$this->assertSame( 1, $result['matched'] );
@@ -392,26 +435,8 @@ class RuleServiceTest
 	public function testProcessRuleSkipsFreshFiles(): void
 	{
 
-		$file = $this->createFileMock( 42, 2000 );
-		// updatedAt >= mtime → fresh, skip
-		$file->method( 'getMTime' )
-		     ->willReturn( 1000 )
-		;
-
-		$partial = $this->createRuleServicePartial( [ 'searchFiles' ] );
-
-		$partial->method( 'searchFiles' )
-		        ->willReturn( [ $file ] )
-		;
-
-		$this->mockResolveAllUsers( [ 'user1' ] );
-
-		$folder = $this->createFolderMock();
-
-		$this->rootFolder->method( 'getUserFolder' )
-		                 ->with( 'user1' )
-		                 ->willReturn( $folder )
-		;
+		// updatedAt (2000) >= mtime (1000) → fresh, skip
+		$this->stubSweep( $this->homeLocation( 42, 'user1', '/test.txt', mtime: 1000 ) );
 
 		// updatedAt (2000) >= mtime (1000) → fresh
 		$this->metadataService->method( 'getUpdatedAt' )
@@ -423,7 +448,7 @@ class RuleServiceTest
 		                      ->method( 'markPending' )
 		;
 
-		$result = $partial->processRule( $this->defaultRule(), [] );
+		$result = $this->service->processRule( $this->defaultRule(), [] );
 
 		$this->assertSame( 0, $result['marked'] );
 		$this->assertSame( 1, $result['matched'] );
@@ -433,27 +458,14 @@ class RuleServiceTest
 	public function testProcessRuleRespectsBatchLimit(): void
 	{
 
-		$files = [];
+		$locations = [];
 
 		for ( $i = 1; $i <= 150; $i ++ )
 		{
-			$files[] = $this->createFileMock( $i );
+			$locations[] = $this->homeLocation( $i, 'user1', '/f' . $i . '.txt' );
 		}
 
-		$partial = $this->createRuleServicePartial( [ 'searchFiles' ] );
-
-		$partial->method( 'searchFiles' )
-		        ->willReturn( $files )
-		;
-
-		$this->mockResolveAllUsers( [ 'user1' ] );
-
-		$folder = $this->createFolderMock();
-
-		$this->rootFolder->method( 'getUserFolder' )
-		                 ->with( 'user1' )
-		                 ->willReturn( $folder )
-		;
+		$this->stubSweep( ...$locations );
 
 		$this->metadataService->method( 'getUpdatedAt' )
 		                      ->willReturn( null )
@@ -464,7 +476,7 @@ class RuleServiceTest
 		                      ->method( 'markPending' )
 		;
 
-		$result = $partial->processRule( $this->defaultRule(), [] );
+		$result = $this->service->processRule( $this->defaultRule(), [] );
 
 		$this->assertSame( 100, $result['marked'] );
 		$this->assertSame( 100, $result['matched'] );
@@ -816,6 +828,61 @@ class RuleServiceTest
 
 	// loadRules
 
+	public function testLoadRulesMemoisesTheDecodedList(): void
+	{
+
+		// Verdict loops resolve a rule per file; the decode + sort must be
+		// paid once per process, not once per file.
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'getValueString' )
+		                ->willReturn( '[]' )
+		;
+
+		$this->service->loadRules();
+		$this->service->loadRules();
+	}
+
+
+	public function testLoadRulesRefreshRereadsStorage(): void
+	{
+
+		$this->appConfig->expects( $this->exactly( 2 ) )
+		                ->method( 'getValueString' )
+		                ->willReturn( '[]' )
+		;
+
+		$this->service->loadRules();
+		$this->service->loadRules( refresh: true );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAMutationInvalidatesTheLoadRulesMemo(): void
+	{
+
+		// ruleAdd() serves its own read from the memo, then saveRules() —
+		// the single write path — drops it, so the next read re-derives
+		// from what was actually persisted.
+		$this->appConfig->expects( $this->exactly( 2 ) )
+		                ->method( 'getValueString' )
+		                ->willReturn( '[]' )
+		;
+
+		$this->service->loadRules();
+		$this->service->ruleAdd(
+			[
+				'enabled'  => true,
+				'path'     => '**',
+				'selector' => 'home:alice',
+			],
+			'test',
+		);
+		$this->service->loadRules();
+	}
+
+
 	public function testLoadRulesHandlesInvalidJson(): void
 	{
 
@@ -882,8 +949,9 @@ class RuleServiceTest
 		];
 
 		$this->setupRulesConfig( $rules );
+		$this->stubLocate( $this->homeLocation( 42, 'alice', '/docs/report.pdf' ) );
 
-		$result = $this->service->findFirstMatchingRule( '/files/docs/report.pdf' );
+		$result = $this->service->findFirstMatchingRule( 42 );
 
 		$this->assertNotNull( $result );
 		$this->assertSame( 'r2', $result['id'] );
@@ -905,8 +973,9 @@ class RuleServiceTest
 		];
 
 		$this->setupRulesConfig( $rules );
+		$this->stubLocate( $this->homeLocation( 42, 'alice', '/docs/report.pdf' ) );
 
-		$result = $this->service->findFirstMatchingRule( '/files/docs/report.pdf' );
+		$result = $this->service->findFirstMatchingRule( 42 );
 
 		$this->assertNull( $result );
 	}
@@ -930,8 +999,9 @@ class RuleServiceTest
 		];
 
 		$this->setupRulesConfig( $rules );
+		$this->stubLocate( $this->homeLocation( 42, 'alice', '/docs/report.pdf' ) );
 
-		$result = $this->service->findFirstMatchingRule( '/files/docs/report.pdf', 'alice' );
+		$result = $this->service->findFirstMatchingRule( 42 );
 
 		$this->assertNull( $result );
 	}
@@ -953,8 +1023,9 @@ class RuleServiceTest
 		];
 
 		$this->setupRulesConfig( $rules );
+		$this->stubLocate( $this->homeLocation( 42, 'alice', '/docs/report.pdf' ) );
 
-		$result = $this->service->findFirstMatchingRule( '/files/docs/report.pdf', 'alice' );
+		$result = $this->service->findFirstMatchingRule( 42 );
 
 		$this->assertNotNull( $result );
 		$this->assertSame( 'r1', $result['id'] );
@@ -977,8 +1048,9 @@ class RuleServiceTest
 		];
 
 		$this->setupRulesConfig( $rules );
+		$this->stubLocate( $this->homeLocation( 42, 'alice', '/docs/report.pdf' ) );
 
-		$result = $this->service->findFirstMatchingRule( '/files/docs/report.pdf', 'alice' );
+		$result = $this->service->findFirstMatchingRule( 42 );
 
 		$this->assertNotNull( $result );
 		$this->assertSame( 'r1', $result['id'] );
@@ -1356,7 +1428,9 @@ class RuleServiceTest
 			],
 		] );
 
-		$match = $this->service->findFirstMatchingRule( '/files/Documents/a.txt', 'alice' );
+		$this->stubLocate( $this->homeLocation( 42, 'alice', '/Documents/a.txt' ) );
+
+		$match = $this->service->findFirstMatchingRule( 42 );
 
 		$this->assertNotNull( $match );
 		$this->assertSame( 'docs', $match['id'] );
@@ -1388,7 +1462,9 @@ class RuleServiceTest
 			],
 		] );
 
-		$match = $this->service->findFirstMatchingRule( '/files/a.txt', 'alice' );
+		$this->stubLocate( $this->homeLocation( 42, 'alice', '/a.txt' ) );
+
+		$match = $this->service->findFirstMatchingRule( 42 );
 
 		$this->assertNotNull( $match );
 		$this->assertSame( 'alice-enforced', $match['id'] );
@@ -1419,11 +1495,235 @@ class RuleServiceTest
 		                   )
 		;
 
+		$this->stubLocate(
+			$this->homeLocation( 42, 'alice', '/a.txt' ),
+			$this->homeLocation( 43, 'bob', '/a.txt' ),
+		);
+
 		$this->assertSame(
 			'staff',
-			$this->service->findFirstMatchingRule( '/files/a.txt', 'alice' )['id'] ?? null,
+			$this->service->findFirstMatchingRule( 42 )['id'] ?? null,
 		);
-		$this->assertNull( $this->service->findFirstMatchingRule( '/files/a.txt', 'bob' ) );
+		$this->assertNull( $this->service->findFirstMatchingRule( 43 ) );
+	}
+
+
+	// canonical identity (Block G)
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testGoverningRuleIsResolvedByOwnerIdentityNotActingView(): void
+	{
+
+		// The share-edit regression, service half: whoever's view the event
+		// came through, the file id resolves to the OWNER's identity, so the
+		// owner's rules — written against the owner's paths — govern.
+		$this->setupRulesConfig( [
+			[
+				'id'       => 'alice-photos',
+				'enabled'  => true,
+				'selector' => 'home:alice',
+				'path'     => 'Photos/**',
+			],
+		] );
+
+		$this->stubLocate(
+		// Alice's file — reachable in bob's view as /bob/files/Shared/x.jpg,
+		// but its one filecache row is alice's.
+			$this->homeLocation( 42, 'alice', '/Photos/x.jpg' ),
+			// Bob's own file at the same relative path.
+			$this->homeLocation( 43, 'bob', '/Photos/x.jpg' ),
+		);
+
+		$this->assertSame(
+			'alice-photos',
+			$this->service->findFirstMatchingRule( 42 )['id'] ?? null,
+		);
+		$this->assertNull( $this->service->findFirstMatchingRule( 43 ) );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAGroupfolderSelectorGovernsOnlyItsFolder(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'       => 'team',
+				'enabled'  => true,
+				'selector' => 'groupfolder:5',
+				'path'     => '**',
+			],
+		] );
+
+		$this->stubLocate(
+			FileLocation::fromRow( 50, 'local::/data/__groupfolders/5/', 'files/doc.md', 100 ),
+			FileLocation::fromRow( 51, 'local::/data/__groupfolders/6/', 'files/doc.md', 100 ),
+			$this->homeLocation( 52, 'alice', '/doc.md' ),
+		);
+
+		$this->assertSame( 'team', $this->service->findFirstMatchingRule( 50 )['id'] ?? null );
+		$this->assertNull( $this->service->findFirstMatchingRule( 51 ) );
+		$this->assertNull( $this->service->findFirstMatchingRule( 52 ) );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAStorageSelectorMatchesItsRawIdWhateverTheNamespace(): void
+	{
+
+		// storage:<raw id> is exact identity — including a home storage:
+		// storage:home::alice and home:alice describe the same files.
+		$this->setupRulesConfig( [
+			[
+				'id'       => 'that-storage',
+				'enabled'  => true,
+				'selector' => 'storage:home::alice',
+				'path'     => '**',
+			],
+		] );
+
+		$this->stubLocate(
+			$this->homeLocation( 60, 'alice', '/a.txt' ),
+			$this->homeLocation( 61, 'bob', '/a.txt' ),
+		);
+
+		$this->assertSame( 'that-storage', $this->service->findFirstMatchingRule( 60 )['id'] ?? null );
+		$this->assertNull( $this->service->findFirstMatchingRule( 61 ) );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheUniversalSelectorGovernsEveryNamespace(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'       => 'everything',
+				'enabled'  => true,
+				'selector' => '*',
+				'path'     => '**',
+			],
+		] );
+
+		$this->stubLocate(
+			$this->homeLocation( 70, 'alice', '/a.txt' ),
+			FileLocation::fromRow( 71, 'local::/data/__groupfolders/5/', 'files/b.txt', 100 ),
+			FileLocation::fromRow( 72, 'smb::u@host//share/', 'files/c.txt', 100 ),
+		);
+
+		foreach (
+			[
+				70,
+				71,
+				72,
+			] as $fileId
+		)
+		{
+			$this->assertSame(
+				'everything',
+				$this->service->findFirstMatchingRule( $fileId )['id'] ?? null,
+			);
+		}
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testLocationsOutsideAFilesAreaAreGovernedByNothing(): void
+	{
+
+		// Trash and versions rows exist in the filecache, but no rule — not
+		// even a universal catch-all — may reach them. The rules are not
+		// even loaded: the classification decides before any rule is read.
+		$this->stubLocate(
+			FileLocation::fromRow( 80, 'home::alice', 'files_trashbin/files/x.d1', 100 ),
+		);
+
+		$this->assertNull( $this->service->findFirstMatchingRule( 80 ) );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testRuleGlobsMatchWithOrWithoutALeadingSlash(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'       => 'slashed',
+				'enabled'  => true,
+				'selector' => 'home:alice',
+				'path'     => '/Photos/**',
+			],
+		] );
+
+		$this->stubLocate( $this->homeLocation( 90, 'alice', '/Photos/x.jpg' ) );
+
+		$this->assertSame(
+			'slashed',
+			$this->service->findFirstMatchingRule( 90 )['id'] ?? null,
+		);
+	}
+
+
+	public function testAGroupfolderSweepSkipsLegacyRowsOfOtherFolders(): void
+	{
+
+		// The legacy root-jail layout stores many folders on one storage, so
+		// the sweep must tell rows apart by their per-row folder id.
+		$this->filecacheService->method( 'storageNumericIdsFor' )
+		                       ->willReturn( [ 9 ] )
+		;
+
+		$rows = [
+			FileLocation::fromRow( 1, 'local::/data/', '__groupfolders/5/files/in.md', 100 ),
+			FileLocation::fromRow( 2, 'local::/data/', '__groupfolders/6/files/out.md', 100 ),
+			FileLocation::fromRow( 3, 'local::/data/', '__groupfolders/5/trash/gone.md', 100 ),
+		];
+		$this->filecacheService->method( 'pageStorageFiles' )
+		                       ->willReturnCallback(
+			                       static fn(
+				                       int $storageNumericId,
+				                       int $lastFileId,
+			                       ): array => array_values(
+				                       array_filter(
+					                       $rows,
+					                       static fn(
+						                       FileLocation $location,
+					                       ): bool => $location->fileId > $lastFileId,
+				                       ),
+			                       ),
+		                       )
+		;
+
+		$this->metadataService->method( 'getUpdatedAt' )
+		                      ->willReturn( null )
+		;
+
+		$result = $this->service->processRule(
+			[
+				'id'       => 'team',
+				'enabled'  => true,
+				'selector' => 'groupfolder:5',
+				'path'     => '**',
+				'mode'     => 'auto',
+			],
+			[],
+		);
+
+		// Folder 6's row and folder 5's trash row are both invisible.
+		$this->assertSame( [ 1 ], $result['fileIds'] );
 	}
 
 
@@ -1510,9 +1810,11 @@ class RuleServiceTest
 			],
 		] );
 
+		$this->stubLocate( $this->homeLocation( 42, 'alice', '/secret.key' ) );
+
 		// Band 3 precedes band 4, so the mandate is reached first and the
 		// user's own include never gets the file.
-		$match = $this->service->findFirstMatchingRule( '/files/secret.key', 'alice' );
+		$match = $this->service->findFirstMatchingRule( 42 );
 
 		$this->assertSame( 'mandate', $match['id'] ?? null );
 		$this->assertFalse( RuleService::maintainsHashes( $match ) );
@@ -1542,7 +1844,9 @@ class RuleServiceTest
 			],
 		] );
 
-		$match = $this->service->findFirstMatchingRule( '/files/big.iso', 'alice' );
+		$this->stubLocate( $this->homeLocation( 42, 'alice', '/big.iso' ) );
+
+		$match = $this->service->findFirstMatchingRule( 42 );
 
 		// Overriding a *default* is exactly what a non-enforced rule may do.
 		$this->assertSame( 'mine', $match['id'] ?? null );
@@ -1572,9 +1876,11 @@ class RuleServiceTest
 			],
 		] );
 
+		$this->stubLocate( $this->homeLocation( 42, 'alice', '/big.iso' ) );
+
 		// Band 4 precedes band 6: an admin who did not enforce the exclusion
 		// offered it as a default, and the user is entitled to override it.
-		$match = $this->service->findFirstMatchingRule( '/files/big.iso', 'alice' );
+		$match = $this->service->findFirstMatchingRule( 42 );
 
 		$this->assertSame( 'mine', $match['id'] ?? null );
 		$this->assertTrue( RuleService::maintainsHashes( $match ) );
@@ -1584,12 +1890,7 @@ class RuleServiceTest
 	public function testProcessRuleClaimsFilesForANonIncludeRuleWithoutQueueingThem(): void
 	{
 
-		$file = $this->createFileMock( 42 );
-
-		$this->mockResolveAllUsers( [ 'alice' ] );
-		$this->rootFolder->method( 'getUserFolder' )
-		                 ->willReturn( $this->createFolderMock( [ $file ] ) )
-		;
+		$this->stubSweep( $this->homeLocation( 42, 'alice', '/test.txt' ) );
 
 		// Nothing is queued — but the file is still reported as matched, which
 		// is what keeps a lower-priority rule from picking it up afterwards.
@@ -2588,7 +2889,7 @@ class RuleServiceTest
 
 	// isPathWritableByUser
 
-	public function testIsPathWritableByUserReturnsTrueForWritableRoot(): void
+	public function testRuleTargetRefusalAcceptsAWritableOwnHomeRoot(): void
 	{
 
 		$folder = $this->createFolderMock();
@@ -2601,11 +2902,11 @@ class RuleServiceTest
 		                 ->willReturn( $folder )
 		;
 
-		$this->assertTrue( $this->service->isPathWritableByUser( 'alice', '/' ) );
+		$this->assertNull( $this->service->ruleTargetRefusal( 'alice', '/' ) );
 	}
 
 
-	public function testIsPathWritableByUserReturnsFalseForNonWritableRoot(): void
+	public function testRuleTargetRefusalRefusesANonWritableRoot(): void
 	{
 
 		$folder = $this->createFolderMock();
@@ -2618,11 +2919,14 @@ class RuleServiceTest
 		                 ->willReturn( $folder )
 		;
 
-		$this->assertFalse( $this->service->isPathWritableByUser( 'alice', '/' ) );
+		$this->assertStringContainsString(
+			'write',
+			(string) $this->service->ruleTargetRefusal( 'alice', '/' ),
+		);
 	}
 
 
-	public function testIsPathWritableByUserReturnsFalseOnException(): void
+	public function testRuleTargetRefusalRefusesOnException(): void
 	{
 
 		$this->rootFolder->method( 'getUserFolder' )
@@ -2638,7 +2942,36 @@ class RuleServiceTest
 		                 )
 		;
 
-		$this->assertFalse( $this->service->isPathWritableByUser( 'alice', '/' ) );
+		$this->assertNotNull( $this->service->ruleTargetRefusal( 'alice', '/' ) );
+	}
+
+
+	public function testRuleTargetRefusalNamesAMountedPath(): void
+	{
+
+		// G9: a received share or a mounted group folder is writable — but a
+		// personal rule is home:<uid> and by identity never governs another
+		// namespace's files, so the path is refused with the reason.
+		$mounted = $this->createFolderMock( homeStorage: false );
+		$mounted->method( 'isCreatable' )
+		        ->willReturn( true )
+		;
+
+		$home = $this->createFolderMock();
+		$home->method( 'get' )
+		     ->with( '/RenamedShare' )
+		     ->willReturn( $mounted )
+		;
+
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->with( 'bob' )
+		                 ->willReturn( $home )
+		;
+
+		$this->assertStringContainsString(
+			'received share',
+			(string) $this->service->ruleTargetRefusal( 'bob', '/RenamedShare/**' ),
+		);
 	}
 
 
@@ -2662,31 +2995,11 @@ class RuleServiceTest
 
 		$this->setupRulesConfig( [ $rule ] );
 
-		$stale = $this->createFileMock( 1, mtime: 2000, path: '/alice/files/a.txt' );
-		$fresh = $this->createFileMock( 2, path: '/alice/files/b.txt' );
-
-		$partial = $this->createRuleServicePartial(
-			[
-				'searchFilesByGlob',
-				'resolveUsers',
-			],
+		$this->stubSweep(
+			$this->homeLocation( 1, 'alice', '/a.txt', mtime: 2000 ),
+			$this->homeLocation( 2, 'alice', '/b.txt', mtime: 1000 ),
 		);
-		$partial->method( 'resolveUsers' )
-		        ->willReturn( [ 'alice' ] )
-		;
-		$partial->method( 'searchFilesByGlob' )
-		        ->with( $this->anything(), '**', 0 )
-		        ->willReturn(
-			        [
-				        $stale,
-				        $fresh,
-			        ],
-		        )
-		;
 
-		$this->rootFolder->method( 'getUserFolder' )
-		                 ->willReturn( $this->createMock( Folder::class ) )
-		;
 		$this->metadataService->method( 'getUpdatedAt' )
 		                      ->willReturnMap( [
 			                      [
@@ -2706,7 +3019,7 @@ class RuleServiceTest
 		                      ->with( 1, 'pending:missing' )
 		;
 
-		$result = $partial->applyRule( $rule );
+		$result = $this->service->applyRule( $rule );
 
 		$this->assertSame(
 			[
@@ -2753,28 +3066,13 @@ class RuleServiceTest
 			],
 		);
 
-		$file    = $this->createFileMock( 1, path: '/alice/files/a.txt' );
-		$partial = $this->createRuleServicePartial(
-			[
-				'searchFilesByGlob',
-				'resolveUsers',
-			],
-		);
-		$partial->method( 'resolveUsers' )
-		        ->willReturn( [ 'alice' ] )
-		;
-		$partial->method( 'searchFilesByGlob' )
-		        ->willReturn( [ $file ] )
-		;
-		$this->rootFolder->method( 'getUserFolder' )
-		                 ->willReturn( $this->createMock( Folder::class ) )
-		;
+		$this->stubSweep( $this->homeLocation( 1, 'alice', '/a.txt' ) );
 
 		$this->metadataService->expects( $this->never() )
 		                      ->method( 'markPending' )
 		;
 
-		$result = $partial->applyRule( $mine );
+		$result = $this->service->applyRule( $mine );
 
 		$this->assertSame( 1, $result['skipped'] );
 	}
@@ -2829,14 +3127,11 @@ class RuleServiceTest
 			'admin_enforced' => true,
 		];
 
-		$partial = $this->createRuleServicePartial(
-			[
-				'searchFilesByGlob',
-				'resolveUsers',
-			],
-		);
-		$partial->method( 'resolveUsers' )
-		        ->willReturn( [] )
+		// An empty sweep: the selector's user resolves, but their home
+		// storage holds nothing (the mocked filecache returns no ids).
+		$this->userManager->method( 'get' )
+		                  ->with( 'alice' )
+		                  ->willReturn( $this->createConfiguredMock( IUser::class, [ 'getUID' => 'alice' ] ) )
 		;
 
 		// Deviating from the mode someone wrote down as non-negotiable
@@ -2846,7 +3141,7 @@ class RuleServiceTest
 		             ->with( $this->stringContains( 'mode override' ), $this->anything() )
 		;
 
-		$partial->applyRule( $rule, 'force', null, 'cli' );
+		$this->service->applyRule( $rule, 'force', null, 'cli' );
 	}
 
 

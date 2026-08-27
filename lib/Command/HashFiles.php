@@ -403,11 +403,12 @@ class HashFiles
 			$this->logger->warning(
 				'FCIAS: hash command set aside admin-enforced rule {ruleId}',
 				[
-					'app'       => Application::APP_ID,
-					'ruleId'    => $ruleId,
-					'path'      => $rule['path'] ?? '',
-					'userScope' => $rule['userScope'] ?? '',
-					'type'      => RuleService::verdictOf( $rule ),
+					'app'      => Application::APP_ID,
+					'ruleId'   => $ruleId,
+					'path'     => $rule['path'] ?? '',
+					'selector' => RuleService::ruleSelector( $rule )
+					                         ->canonical(),
+					'type'     => RuleService::verdictOf( $rule ),
 				],
 			);
 
@@ -482,7 +483,7 @@ class HashFiles
 
 
 	/**
-	 * Mark-only mode: walk user folders and mark matching files as pending:auto.
+	 * Mark-only mode: walk user folders and mark matching files as pending:<mode>.
 	 *
 	 * @param  string[]         $users
 	 * @param  string|null      $pathPattern
@@ -504,7 +505,8 @@ class HashFiles
 
 		$output->writeln(
 			sprintf(
-				'Marking files as pending:auto for %d user(s) …',
+				'Marking files as pending:%s for %d user(s) …',
+				$mode,
 				count( $users ),
 			),
 		);
@@ -568,11 +570,12 @@ class HashFiles
 
 		$output->writeln(
 			sprintf(
-				'%s %d files marked as pending:auto.%s',
+				'%s %d files marked as pending:%s.%s',
 				$limitReached
 					? 'Batch limit reached.'
 					: 'Done.',
 				$totalMarked,
+				$mode,
 				$totalSkipped > 0
 					? sprintf( ' %d skipped: a rule excludes them from hashing.', $totalSkipped )
 					: '',
@@ -584,7 +587,7 @@ class HashFiles
 
 
 	/**
-	 * Mark files matching a path glob as pending:auto.
+	 * Mark files matching a path glob as pending:<mode>.
 	 *
 	 * Delegates file search to RuleService::searchFilesByGlob(). Files whose
 	 * governing rule says not to hash them automatically are skipped and
@@ -622,9 +625,7 @@ class HashFiles
 			}
 
 			$rule = $this->ruleService->findFirstMatchingRule(
-				$file->getPath(),
-				$file->getOwner()
-				     ?->getUID(),
+				$file->getId(),
 				$overrides->ignoreRuleIds,
 			);
 

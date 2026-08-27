@@ -265,7 +265,7 @@ class FileListenerTest
 		$event = new NodeWrittenEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/foo.txt', 'owner-uid' )
+		                  ->with( 42 )
 		                  ->willReturn( [ 'mode' => 'force' ] )
 		;
 
@@ -291,7 +291,7 @@ class FileListenerTest
 		$event = new NodeWrittenEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/foo.txt', 'owner-uid' )
+		                  ->with( 42 )
 		                  ->willReturn( [ 'mode' => 'lazy' ] )
 		;
 
@@ -317,7 +317,7 @@ class FileListenerTest
 		$event = new NodeWrittenEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/foo.txt', 'owner-uid' )
+		                  ->with( 42 )
 		                  ->willReturn( [ 'mode' => 'auto' ] )
 		;
 
@@ -343,7 +343,7 @@ class FileListenerTest
 		$event = new NodeWrittenEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/foo.txt', 'owner-uid' )
+		                  ->with( 42 )
 		                  ->willReturn( [ 'mode' => 'auto' ] )
 		;
 
@@ -368,7 +368,7 @@ class FileListenerTest
 		$event = new NodeWrittenEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/foo.txt', 'owner-uid' )
+		                  ->with( 42 )
 		                  ->willReturn( [ 'mode' => 'off' ] )
 		;
 
@@ -392,7 +392,7 @@ class FileListenerTest
 		$event = new NodeWrittenEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/untracked.txt', 'owner-uid' )
+		                  ->with( 42 )
 		                  ->willReturn( null )
 		;
 
@@ -416,7 +416,7 @@ class FileListenerTest
 		$event = new NodeCreatedEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/new.txt', 'owner-uid' )
+		                  ->with( 42 )
 		                  ->willReturn( [ 'mode' => 'force' ] )
 		;
 
@@ -442,7 +442,7 @@ class FileListenerTest
 		$event = new NodeCreatedEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/new.txt', 'owner-uid' )
+		                  ->with( 42 )
 		                  ->willReturn( [ 'mode' => 'lazy' ] )
 		;
 
@@ -463,7 +463,7 @@ class FileListenerTest
 		$event = new NodeCreatedEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/new.txt', 'owner-uid' )
+		                  ->with( 42 )
 		                  ->willReturn( [ 'mode' => 'auto' ] )
 		;
 
@@ -489,7 +489,7 @@ class FileListenerTest
 		$event = new NodeCreatedEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/new.txt', 'owner-uid' )
+		                  ->with( 42 )
 		                  ->willReturn( [ 'mode' => 'off' ] )
 		;
 
@@ -512,7 +512,7 @@ class FileListenerTest
 		$event = new NodeCreatedEvent( $file );
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/untracked.txt', 'owner-uid' )
+		                  ->with( 42 )
 		                  ->willReturn( null )
 		;
 
@@ -527,17 +527,12 @@ class FileListenerTest
 	}
 
 
-	public function testOnDeleteClearsMetadataWhenRuleMatches(): void
+	public function testOnDeleteClearsMetadata(): void
 	{
 
 		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
 
 		$event = new NodeDeletedEvent( $file );
-
-		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/foo.txt', 'owner-uid' )
-		                  ->willReturn( [ 'mode' => 'auto' ] )
-		;
 
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'clearMetadata' )
@@ -548,47 +543,27 @@ class FileListenerTest
 	}
 
 
-	public function testOnDeleteOffModeDoesNothing(): void
+	public function testOnDeleteClearsWithoutConsultingRules(): void
 	{
 
-		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
-
-		$event = new NodeDeletedEvent( $file );
-
-		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/foo.txt', 'owner-uid' )
-		                  ->willReturn( [ 'mode' => 'off' ] )
-		;
-
-		$this->metadataService->expects( $this->never() )
-		                      ->method( 'clearMetadata' )
-		;
-
-		$this->listener->handle( $event );
-
-		$this->addToAssertionCount( 1 );
-	}
-
-
-	public function testOnDeleteNoMatchingRuleDoesNothing(): void
-	{
-
+		// By the time NodeDeletedEvent fires, the filecache row is gone or
+		// moved to a trash area — no rule can be resolved for it, and this
+		// app's metadata rows only exist for files it hashed. Clearing is
+		// therefore unconditional, and no rule lookup happens at all.
 		$file = $this->makeFileMock( 42, '/files/user/untracked.txt' );
 
 		$event = new NodeDeletedEvent( $file );
 
-		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/untracked.txt', 'owner-uid' )
-		                  ->willReturn( null )
+		$this->ruleService->expects( $this->never() )
+		                  ->method( 'findFirstMatchingRule' )
 		;
 
-		$this->metadataService->expects( $this->never() )
+		$this->metadataService->expects( $this->once() )
 		                      ->method( 'clearMetadata' )
+		                      ->with( 42 )
 		;
 
 		$this->listener->handle( $event );
-
-		$this->addToAssertionCount( 1 );
 	}
 
 
@@ -623,19 +598,21 @@ class FileListenerTest
 	}
 
 
-	public function testOnWritePassesFileOwnerToRuleLookup(): void
+	public function testOnWriteResolvesRulesByFileIdNotViewPath(): void
 	{
 
-		// Regression test for FCIAS Review §6, Finding 4: real-time rule
-		// matching must resolve the file's owner and pass it through, so
-		// a rule scoped to a different user can't fire on this file.
-		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
+		// The share-edit regression, listener half: this node comes from a
+		// recipient's context — its getPath() is the recipient's renamed
+		// mount, its getOwner() answers for the mount. Neither may reach the
+		// rule lookup; only the file id does, and RuleService resolves the
+		// canonical identity (the owner and the owner's path) from it.
+		$file = $this->makeFileMock( 42, '/bob/files/RenamedShare/foo.txt' );
 
 		$event = new NodeWrittenEvent( $file );
 
 		$this->ruleService->expects( $this->once() )
 		                  ->method( 'findFirstMatchingRule' )
-		                  ->with( '/files/user/foo.txt', 'owner-uid' )
+		                  ->with( 42 )
 		                  ->willReturn( null )
 		;
 

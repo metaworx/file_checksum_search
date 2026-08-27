@@ -74,7 +74,7 @@ class DeleteRule
 							                  : 'plain',
 						                  $row['type'],
 						                  $row['path'],
-						                  $row['scope'],
+						                  $row['selector'],
 					                  ),
 					                  false,
 				                  ),

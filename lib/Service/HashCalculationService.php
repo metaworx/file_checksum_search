@@ -211,9 +211,11 @@ class HashCalculationService
 				continue;
 			}
 
+			// By identity: the collector walks a home view, but that view
+			// contains mounts — shares, group folders — whose files are not
+			// this user's and answer to their own rules.
 			$rule = $this->ruleService->findFirstMatchingRule(
-				$child->getPath(),
-				$userId,
+				$child->getId(),
 				$overrides->ignoreRuleIds,
 			);
 
@@ -553,11 +555,7 @@ class HashCalculationService
 			try
 			{
 				$file = $this->filecacheService->getFile( $fileId );
-				$rule = $this->ruleService->findFirstMatchingRule(
-					$file->getPath(),
-					$file->getOwner()
-					     ?->getUID(),
-				);
+				$rule = $this->ruleService->findFirstMatchingRule( $fileId );
 			}
 			catch ( Throwable $e )
 			{

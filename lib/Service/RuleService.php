@@ -16,6 +16,7 @@ use OC\Files\Search\SearchQuery;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\Files\File;
 use OCP\Files\Folder;
+use OCP\Files\IHomeStorage;
 use OCP\Files\IRootFolder;
 use OCP\Files\Search\ISearchComparison;
 use OCP\IAppConfig;
@@ -120,6 +121,9 @@ class RuleService
 			self::TYPE_EXCLUDE,
 		];
 
+	/** Decoded, sorted rules — memoised per process by {@see loadRules()}. */
+	private ?array $rulesCache = null;
+
 
 	public function __construct(
 		private readonly IAppConfig        $appConfig,
@@ -129,6 +133,7 @@ class RuleService
 		private readonly LoggerInterface   $logger,
 		private readonly PermissionService $permissionService,
 		private readonly IGroupManager     $groupManager,
+		private readonly FilecacheService  $filecacheService,
 	) {
 	}
 
@@ -280,12 +285,28 @@ class RuleService
 	 * `occ config:app:set`. Sorting on read makes correct evaluation
 	 * independent of whether every writer honoured the invariant.
 	 *
+	 * The decoded, sorted list is memoised for the process: verdict loops
+	 * resolve a rule per file, and re-paying the JSON decode and sort per
+	 * file bought nothing — IAppConfig already serves the raw string from
+	 * its own in-memory cache, so a re-read never saw fresher data anyway.
+	 * Every mutation invalidates the memo through {@see saveRules()}, the
+	 * single write path.
+	 *
+	 * @param  bool  $refresh  Drop the memo and re-derive from storage —
+	 *                         for callers that must see ground truth, such
+	 *                         as the repair step.
+	 *
 	 * @return list<array>
 	 */
-	public function loadRules(): array
+	public function loadRules( bool $refresh = false ): array
 	{
 
-		return self::sortRules( $this->readStoredRules() );
+		if ( ! $refresh && $this->rulesCache !== null )
+		{
+			return $this->rulesCache;
+		}
+
+		return $this->rulesCache = self::sortRules( $this->readStoredRules() );
 	}
 
 
@@ -530,16 +551,27 @@ class RuleService
 				JSON_THROW_ON_ERROR,
 			),
 		);
+
+		// Invalidate rather than assign: the next read re-derives from the
+		// persisted JSON, so the memo can never diverge from what a storage
+		// round-trip actually yields.
+		$this->rulesCache = null;
 	}
 
 
 	/**
-	 * Process a single rule: resolve users, search files, mark stale.
+	 * Mark one rule's stale files as pending, up to an internal batch cap.
 	 *
-	 * @param  array  $rule             Rule definition from IAppConfig
-	 * @param  int[]  $excludedFileIds  File IDs matched by higher-priority rules
+	 * Storage-paged: the selector resolves to the set of storages it sweeps
+	 * and each storage's filecache rows are walked directly — no user views,
+	 * no mounts. A share or group folder mounted into someone's home is
+	 * therefore never swept as that person's file; every row is classified
+	 * once, by identity ({@see FileLocation}).
 	 *
-	 * @return array{marked: int, matched: int, fileIds: int[]}
+	 * $excludedFileIds are files a higher-priority rule already claimed in
+	 * this evaluation round; they are skipped entirely.
+	 *
+	 * @return array{marked: int, matched: int, fileIds: list<int>}
 	 */
 	public function processRule(
 		array $rule,
@@ -550,75 +582,22 @@ class RuleService
 		$matched = 0;
 		$fileIds = [];
 
-		$mode          = $rule['mode'] ?? 'auto';
-		$pathGlob      = $rule['path'] ?? '/';
-		$selectorValue = self::ruleSelector( $rule )
-		                     ->canonical()
-		;
-		$batchSize     = 100;
-		$maintains     = self::maintainsHashes( $rule );
+		$mode      = $rule['mode'] ?? 'auto';
+		$batchSize = 100;
+		$maintains = self::maintainsHashes( $rule );
+		$excluded  = array_flip( $excludedFileIds );
 
-		if ( $pathGlob === '' || $pathGlob === '/' )
+		try
 		{
-			$pathGlob = '**';
-		}
-
-		$users = $this->resolveUsers( $selectorValue );
-
-		foreach ( $users as $userId )
-		{
-			try
+			foreach ( $this->sweepLocations( $rule ) as $location )
 			{
-				$userFolder = $this->rootFolder->getUserFolder( $userId );
-			}
-			catch ( Throwable )
-			{
-				$this->logger->warning(
-					'FCIAS RuleService: unable to get user folder, skipping user.',
-					[
-						'app'    => Application::APP_ID,
-						'userId' => $userId,
-					],
-				);
-
-				continue;
-			}
-
-			try
-			{
-				$files = $this->searchFiles( $userFolder, $pathGlob, $batchSize );
-			}
-			catch ( Throwable $e )
-			{
-				$this->logger->warning(
-					'FCIAS RuleService: file search failed for user.',
-					[
-						'app'       => Application::APP_ID,
-						'userId'    => $userId,
-						'pathGlob'  => $pathGlob,
-						'exception' => $e,
-					],
-				);
-
-				continue;
-			}
-
-			foreach ( $files as $file )
-			{
-				if ( ! $file instanceof File )
-				{
-					continue;
-				}
-
-				$fileId = $file->getId();
-
-				if ( in_array( $fileId, $excludedFileIds, true ) )
+				if ( isset( $excluded[ $location->fileId ] ) )
 				{
 					continue;
 				}
 
 				$matched ++;
-				$fileIds[] = $fileId;
+				$fileIds[] = $location->fileId;
 
 				if ( ! $maintains )
 				{
@@ -628,15 +607,15 @@ class RuleService
 					continue;
 				}
 
-				$updatedAt = $this->metadataService->getUpdatedAt( $fileId );
+				$updatedAt = $this->metadataService->getUpdatedAt( $location->fileId );
 
-				if ( $updatedAt !== null && $updatedAt >= $file->getMTime() )
+				if ( $updatedAt !== null && $updatedAt >= $location->mtime )
 				{
 					continue; // fresh, skip
 				}
 
 				$this->metadataService->markPending(
-					$fileId,
+					$location->fileId,
 					MetadataService::PENDING_PREFIX . $mode,
 				);
 
@@ -644,9 +623,22 @@ class RuleService
 
 				if ( $marked >= $batchSize )
 				{
-					break 2;
+					break;
 				}
 			}
+		}
+		catch ( Throwable $e )
+		{
+			// A rule whose sweep fails is skipped, not fatal: the periodic
+			// evaluation must survive one bad storage or one bad rule.
+			$this->logger->warning(
+				'FCIAS RuleService: rule sweep failed.',
+				[
+					'app'       => Application::APP_ID,
+					'ruleId'    => $rule['id'] ?? null,
+					'exception' => $e,
+				],
+			);
 		}
 
 		return [
@@ -658,35 +650,158 @@ class RuleService
 
 
 	/**
-	 * Find the first enabled rule whose path glob matches the given file path.
+	 * The numeric storage ids a selector sweeps.
 	 *
-	 * @param  string        $filePath       Path to match against each rule's glob
-	 * @param  string|null   $ownerUid       The file's owning user. When provided,
-	 *                                       rules scoped to a *different* specific
-	 *                                       user are skipped — mirrors the user
-	 *                                       resolution {@see processRule()} already
-	 *                                       does for the batch path. Omit only when
-	 *                                       the caller has no reliable owner to
-	 *                                       check against.
+	 * user: and group: selectors expand to member uids first (the group
+	 * manager lives here, not in the filecache layer); everything else maps
+	 * straight to storages.
+	 *
+	 * @return int[]
+	 * @throws \OCP\DB\Exception
+	 */
+	private function storageIdsForSelector( Selector $selector ): array
+	{
+
+		return match ( $selector->kind )
+		{
+			Selector::KIND_USER,
+			Selector::KIND_GROUP => $this->filecacheService->homeStorageNumericIds(
+				$this->resolveUsers( $selector->canonical() ),
+			),
+			default => $this->filecacheService->storageNumericIdsFor( $selector ),
+		};
+	}
+
+
+	/**
+	 * Every file location a rule's selector and glob cover, lazily.
+	 *
+	 * Walks each swept storage's filecache rows in keyset pages and yields
+	 * only classified, in-files-area rows whose namespace-relative path
+	 * matches the rule's glob. For a groupfolder selector the per-row folder
+	 * id is checked too: the legacy root-jail layout stores many folders on
+	 * one storage.
+	 *
+	 * @return \Generator<FileLocation>
+	 * @throws \OCP\DB\Exception
+	 */
+	private function sweepLocations( array $rule ): \Generator
+	{
+
+		$selector = self::ruleSelector( $rule );
+		$pathGlob = $rule['path'] ?? '**';
+
+		foreach ( $this->storageIdsForSelector( $selector ) as $storageNumericId )
+		{
+			$lastFileId = 0;
+
+			while ( true )
+			{
+				$page = $this->filecacheService->pageStorageFiles( $storageNumericId, $lastFileId, 500 );
+
+				if ( $page === [] )
+				{
+					break;
+				}
+
+				foreach ( $page as $location )
+				{
+					$lastFileId = $location->fileId;
+
+					if ( $location->relativePath === null )
+					{
+						continue;
+					}
+
+					if ( $selector->kind === Selector::KIND_GROUPFOLDER
+						&& $location->groupFolderId !== (int) $selector->target )
+					{
+						continue;
+					}
+
+					if ( ! PathUtil::matchesRelativeGlob( $pathGlob, $location->relativePath ) )
+					{
+						continue;
+					}
+
+					yield $location;
+				}
+			}
+		}
+	}
+
+
+	/**
+	 * Whether a selector's slice of the file universe contains this location.
+	 *
+	 * The universal selector contains everything; a storage selector contains
+	 * exactly its raw storage id, whatever namespace that storage serves
+	 * (storage:home::alice and home:alice describe the same files); the rest
+	 * is per namespace — home files belong to their owner's user, group and
+	 * all-homes selectors, group-folder files to their folder's selector, and
+	 * neither ever to the other's.
+	 */
+	public function selectorMatchesLocation(
+		Selector     $selector,
+		FileLocation $location,
+	): bool {
+
+		if ( $selector->kind === Selector::KIND_UNIVERSAL )
+		{
+			return true;
+		}
+
+		if ( $selector->kind === Selector::KIND_STORAGE )
+		{
+			return $selector->target === $location->storageId;
+		}
+
+		return match ( $location->namespace )
+		{
+			FileLocation::NS_HOME => match ( $selector->kind )
+			{
+				Selector::KIND_USER => $selector->target === $location->owner,
+				Selector::KIND_GROUP => $location->owner !== null
+					&& $this->groupManager->isInGroup( $location->owner, (string) $selector->target ),
+				Selector::KIND_HOME_ALL => true,
+				default => false,
+			},
+			FileLocation::NS_GROUPFOLDER => $selector->kind === Selector::KIND_GROUPFOLDER
+				&& (int) $selector->target === $location->groupFolderId,
+			default => false,
+		};
+	}
+
+
+	/**
+	 * The first enabled rule that governs this location, or null.
+	 *
+	 * The single verdict path: selectors are matched against the file's
+	 * canonical identity and globs against its namespace-relative path — the
+	 * same subject the rule's author wrote the glob for, no matter through
+	 * whose view or mount the file was reached. Locations outside a files
+	 * area (trash bins, versions, appdata) are governed by nothing.
+	 *
 	 * @param  list<string>  $ignoreRuleIds  Rule IDs to evaluate as though they
 	 *                                       did not exist, so the next matching
 	 *                                       rule decides. Set aside a rule for
 	 *                                       one run without editing it; a file
 	 *                                       no other rule matches still falls
 	 *                                       through to null.
-	 *
-	 * @return array|null Rule definition or null if no match
 	 */
-	public function findFirstMatchingRule(
-		string  $filePath,
-		?string $ownerUid = null,
-		array   $ignoreRuleIds = [],
+	public function governingRuleForLocation(
+		FileLocation $location,
+		array        $ignoreRuleIds = [],
 	): ?array {
 
-		$rules  = $this->loadRules();
+		if ( $location->relativePath === null )
+		{
+			return null;
+		}
+
 		$ignore = array_flip( $ignoreRuleIds );
 
-		foreach ( $rules as $rule )
+		foreach ( $this->loadRules() as $rule )
 		{
 			if ( empty( $rule['enabled'] ) )
 			{
@@ -698,30 +813,48 @@ class RuleService
 				continue;
 			}
 
-			$selector = self::ruleSelector( $rule );
-
-			// An unknown owner cannot be tested against a user- or
-			// group-bound selector, so those are left in play rather than
-			// silently dropped — preserving the pre-band behaviour.
-			if ( $ownerUid !== null && ! $this->selectorAppliesTo( $selector, $ownerUid ) )
+			if ( ! $this->selectorMatchesLocation( self::ruleSelector( $rule ), $location ) )
 			{
 				continue;
 			}
 
-			$pathGlob = $rule['path'] ?? '**';
-
-			if ( $pathGlob === '' || $pathGlob === '/' )
-			{
-				$pathGlob = '**';
-			}
-
-			if ( PathUtil::matchesGlob( $pathGlob, $filePath ) )
+			if ( PathUtil::matchesRelativeGlob( $rule['path'] ?? '**', $location->relativePath ) )
 			{
 				return $rule;
 			}
 		}
 
 		return null;
+	}
+
+
+	/**
+	 * The first enabled rule that governs this file, or null.
+	 *
+	 * Identity-based: the file id resolves to its canonical location
+	 * ({@see FilecacheService::locate()}), never to the path of whoever
+	 * happens to be acting — a share recipient editing an owner's file is
+	 * governed by the rules that govern the owner's file, under the path
+	 * the owner (or the group folder) knows it by.
+	 *
+	 * @param  list<string>  $ignoreRuleIds  See {@see governingRuleForLocation()}.
+	 *
+	 * @return array|null Rule definition or null if no match
+	 * @throws \OCP\DB\Exception
+	 */
+	public function findFirstMatchingRule(
+		int   $fileId,
+		array $ignoreRuleIds = [],
+	): ?array {
+
+		$location = $this->filecacheService->locate( $fileId );
+
+		if ( $location === null )
+		{
+			return null;
+		}
+
+		return $this->governingRuleForLocation( $location, $ignoreRuleIds );
 	}
 
 
@@ -905,7 +1038,8 @@ class RuleService
 			'operation' => $operation,
 			'ruleId'    => (string) ( $rule['id'] ?? '' ),
 			'path'      => $rule['path'] ?? '',
-			'userScope' => $rule['userScope'] ?? '',
+			'selector'  => self::ruleSelector( $rule )
+			                   ->canonical(),
 			'type'      => self::verdictOf( $rule ),
 			'enabled'   => ! empty( $rule['enabled'] ),
 			'enforced'  => $enforced,
@@ -955,7 +1089,7 @@ class RuleService
 	 * pending:<mode>.
 	 *
 	 * Band discipline holds for a single-rule apply exactly as for the full
-	 * sweep: each candidate is resolved through {@see findFirstMatchingRule()}
+	 * sweep: each candidate is resolved through {@see governingRuleForLocation()}
 	 * and only marked when *this* rule is the one that governs it — a file
 	 * claimed by a higher band is reported as skipped, never marked.
 	 *
@@ -982,95 +1116,68 @@ class RuleService
 			throw new InvalidArgumentException( sprintf( 'Unknown mode "%s".', $mode ) );
 		}
 
-		$ruleId   = (string) ( $rule['id'] ?? '' );
-		$pathGlob = $rule['path'] ?? '**';
-
-		if ( $pathGlob === '' || $pathGlob === '/' )
-		{
-			$pathGlob = '**';
-		}
+		$ruleId = (string) ( $rule['id'] ?? '' );
 
 		$matched = 0;
 		$marked  = 0;
 		$skipped = 0;
 		$fresh   = 0;
 
-		foreach (
-			$this->resolveUsers(
-				self::ruleSelector( $rule )
-				    ->canonical(),
-			) as $userId
-		)
+		// The same identity-based sweep the periodic evaluation uses — but
+		// uncapped: an explicit apply runs to completion; only the periodic
+		// sweep trickles.
+		foreach ( $this->sweepLocations( $rule ) as $location )
 		{
-			try
+			$matched ++;
+
+			$governing = $this->governingRuleForLocation( $location );
+
+			if ( ( $governing['id'] ?? null ) !== $ruleId )
 			{
-				$userFolder = $this->rootFolder->getUserFolder( $userId );
-			}
-			catch ( Throwable )
-			{
+				$skipped ++;
+				$output?->writeln(
+					sprintf(
+						'    skip %s [claimed by %s]',
+						$location->describe(),
+						$governing['id'] ?? 'no rule',
+					),
+					OutputInterface::VERBOSITY_VERBOSE,
+				);
+
 				continue;
 			}
 
-			// 0 = unlimited: an explicit apply runs to completion; only the
-			// periodic sweep trickles.
-			foreach ( $this->searchFilesByGlob( $userFolder, $pathGlob, 0 ) as $file )
+			// force and lazy act on fresh files by definition; auto and
+			// missing have nothing to do where the hash is current.
+			if ( in_array(
+				$mode,
+				[
+					'auto',
+					'missing',
+				],
+				true,
+			) )
 			{
-				if ( ! $file instanceof File )
+				$updatedAt = $this->metadataService->getUpdatedAt( $location->fileId );
+
+				if ( $updatedAt !== null && $updatedAt >= $location->mtime )
 				{
-					continue;
-				}
-
-				$matched ++;
-
-				$governing = $this->findFirstMatchingRule( $file->getPath(), $userId );
-
-				if ( ( $governing['id'] ?? null ) !== $ruleId )
-				{
-					$skipped ++;
-					$output?->writeln(
-						sprintf(
-							'    skip %s [claimed by %s]',
-							$file->getPath(),
-							$governing['id'] ?? 'no rule',
-						),
-						OutputInterface::VERBOSITY_VERBOSE,
-					);
+					$fresh ++;
 
 					continue;
 				}
-
-				// force and lazy act on fresh files by definition; auto and
-				// missing have nothing to do where the hash is current.
-				if ( in_array(
-					$mode,
-					[
-						'auto',
-						'missing',
-					],
-					true,
-				) )
-				{
-					$updatedAt = $this->metadataService->getUpdatedAt( $file->getId() );
-
-					if ( $updatedAt !== null && $updatedAt >= $file->getMTime() )
-					{
-						$fresh ++;
-
-						continue;
-					}
-				}
-
-				$this->metadataService->markPending(
-					$file->getId(),
-					MetadataService::PENDING_PREFIX . $mode,
-				);
-
-				$marked ++;
-				$output?->writeln(
-					sprintf( '    queue %s [pending:%s]', $file->getPath(), $mode ),
-					OutputInterface::VERBOSITY_VERBOSE,
-				);
 			}
+
+			$this->metadataService->markPending(
+				$location->fileId,
+				MetadataService::PENDING_PREFIX . $mode,
+			);
+
+			$marked ++;
+			$output?->writeln(
+				sprintf( '    queue %s [pending:%s]', $location->describe(), $mode ),
+				OutputInterface::VERBOSITY_VERBOSE,
+			);
 		}
 
 		$context = [
@@ -1117,7 +1224,7 @@ class RuleService
 	public function resaveCanonical(): int
 	{
 
-		$rules = $this->loadRules();
+		$rules = $this->loadRules( refresh: true );
 		$this->saveRules( $rules );
 
 		return count( $rules );
@@ -1370,7 +1477,7 @@ class RuleService
 			return false;
 		}
 
-		return $this->isPathWritableByUser( $userId, $rule['path'] ?? '/' );
+		return $this->ruleTargetRefusal( $userId, $rule['path'] ?? '/' ) === null;
 	}
 
 
@@ -1413,12 +1520,20 @@ class RuleService
 
 
 	/**
-	 * Whether the path's target folder is write-accessible to the user.
+	 * Why this user may not target a personal rule at this path — null when
+	 * they may.
+	 *
+	 * Two requirements. The folder must be write-accessible, and it must
+	 * live on the user's own home storage: a received share or a mounted
+	 * group folder is writable, but a personal rule is 'home:<uid>' and by
+	 * identity ({@see governingRuleForLocation()}) never governs another
+	 * namespace's files — accepting such a path would store a rule that can
+	 * structurally never match anything. Refused with the reason instead.
 	 */
-	public function isPathWritableByUser(
+	public function ruleTargetRefusal(
 		string $userId,
 		string $path,
-	): bool {
+	): ?string {
 
 		$folderPath = $this->pathToFolder( $path );
 
@@ -1426,18 +1541,28 @@ class RuleService
 		{
 			$userFolder = $this->rootFolder->getUserFolder( $userId );
 
-			if ( $folderPath === '/' )
+			$node = $folderPath === '/'
+				? $userFolder
+				: $userFolder->get( $folderPath );
+
+			if ( ! $node->getStorage()
+			            ->instanceOfStorage( IHomeStorage::class ) )
 			{
-				return $userFolder->isCreatable();
+				return 'The path leads into a received share, a group folder or another mounted storage. '
+					. 'A personal rule only governs your own files; those files are governed by their '
+					. 'owner\'s or the folder\'s own rules.';
 			}
 
-			$node = $userFolder->get( $folderPath );
+			if ( ! ( $node instanceof Folder ) || ! $node->isCreatable() )
+			{
+				return 'The path is not in a folder you can write to.';
+			}
 
-			return $node instanceof Folder && $node->isCreatable();
+			return null;
 		}
 		catch ( Throwable )
 		{
-			return false;
+			return 'The path is not in a folder you can write to.';
 		}
 	}
 
@@ -1493,6 +1618,13 @@ class RuleService
 	/**
 	 * Search for files matching a path glob within a folder.
 	 *
+	 * The glob is matched against paths *relative to the searched folder* —
+	 * the same coordinate system rule globs use relative to their namespace
+	 * root, so 'Photos/**' finds /alice/files/Photos/x when $folder is
+	 * alice's user folder. The SQL LIKE pre-filter gets a leading wildcard
+	 * for the same reason: the database compares full paths, the pattern is
+	 * relative, and precision comes from the fnmatch post-filter anyway.
+	 *
 	 * Uses offset-based pagination: fetches SQL batches, filters each
 	 * with fnmatch (SQL LIKE over-matches because % matches / while
 	 * glob * does not), and stops when enough matches are collected.
@@ -1512,7 +1644,8 @@ class RuleService
 		int    $pageSize = 500,
 	): array {
 
-		$likePattern = self::globToLike( $pathGlob );
+		$likePattern = '%' . ltrim( self::globToLike( $pathGlob ), '/%' );
+		$folderPath  = rtrim( (string) $folder->getPath(), '/' );
 		$unlimited   = $limit <= 0;
 		$maxScan     = $unlimited
 			? PHP_INT_MAX
@@ -1547,8 +1680,13 @@ class RuleService
 					continue;
 				}
 
-				// SQL LIKE is approximate — PathUtil::matchesGlob ensures exact glob semantics
-				if ( ! PathUtil::matchesGlob( $pathGlob, $node->getPath() ) )
+				// SQL LIKE is approximate — the fnmatch ensures exact glob
+				// semantics, on the folder-relative path the glob speaks of.
+				$relative = str_starts_with( $node->getPath(), $folderPath . '/' )
+					? substr( $node->getPath(), strlen( $folderPath ) )
+					: $node->getPath();
+
+				if ( ! PathUtil::matchesRelativeGlob( $pathGlob, $relative ) )
 				{
 					continue;
 				}
