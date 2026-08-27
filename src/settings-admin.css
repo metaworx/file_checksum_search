@@ -368,3 +368,13 @@
 	padding: 0 16px;
 }
 
+/* Idle banner (D5) */
+#fcias-idle-banner p {
+	margin-block-end: 8px;
+}
+
+.fcias-idle-banner-actions {
+	display: flex;
+	gap: 8px;
+	margin-block-start: 8px;
+}

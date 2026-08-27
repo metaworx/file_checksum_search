@@ -6,6 +6,12 @@ vi.mock('@nextcloud/router', () => ({
 	generateOcsUrl: (url: string) => url,
 }))
 
+vi.mock('@nextcloud/vue/components/NcNoteCard', () => ({
+	default: { name: 'NcNoteCard', template: '<div class="nc-note-card"><slot /></div>' },
+}))
+vi.mock('@nextcloud/vue/components/NcButton', () => ({
+	default: { name: 'NcButton', template: '<button @click="$emit(\'click\', $event)"><slot /></button>' },
+}))
 vi.mock('@nextcloud/vue/components/NcSelect', () => ({
 	default: { name: 'NcSelect', render: () => null },
 }))
@@ -40,11 +46,27 @@ function jsonResponse(body: unknown): Response {
 	return new Response(JSON.stringify(body), { status: 200 })
 }
 
-function mockFetch(): void {
+function mockFetch(options: { rules?: unknown[], idleBannerAcknowledged?: boolean } = {}): void {
 	vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
 		const url = String(input)
 		if (url.includes('/settings/status')) {
-			return Promise.resolve(jsonResponse({ version: '1.0', dbVersion: '1', rowCount: 3, pendingStats: {} }))
+			return Promise.resolve(jsonResponse({
+				version: '1.0',
+				dbVersion: '1',
+				rowCount: 3,
+				pendingStats: {},
+				idleBannerAcknowledged: options.idleBannerAcknowledged ?? false,
+			}))
+		}
+		if (url.includes('/api/v1/rules') && options.rules) {
+			return Promise.resolve(jsonResponse({
+				success: true,
+				rules: options.rules,
+				canCreate: true,
+				supportedAlgos: ['sha1', 'sha256'],
+				availableUsers: ['alice'],
+				availableGroups: [],
+			}))
 		}
 		if (url.includes('/api/v1/rules')) {
 			// Server order is derived order: the segment's default last.
@@ -68,6 +90,80 @@ function mockFetch(): void {
 }
 
 describe('settings-admin App', () => {
+	// --- Idle banner (D5) visibility matrix ---
+
+	const disabledInclude = { id: 1, path: '**', selector: 'home:*', mode: 'auto', algos: ['sha1'], enabled: false, admin_enforced: false, isDefault: true, band: 7, position: 1, canEdit: true }
+	const enabledExclude = { id: 2, path: '**/*.iso', selector: 'home:*', type: 'exclude', enabled: true, admin_enforced: false, band: 7, position: 1, canEdit: true }
+
+	it('shows the idle banner when no rules exist at all', async () => {
+		mockFetch({ rules: [] })
+		const wrapper = mount(App)
+		await flushPromises()
+
+		expect(wrapper.find('#fcias-idle-banner').exists()).toBe(true)
+	})
+
+	it('shows the idle banner when every include rule is disabled', async () => {
+		mockFetch({ rules: [disabledInclude] })
+		const wrapper = mount(App)
+		await flushPromises()
+
+		expect(wrapper.find('#fcias-idle-banner').exists()).toBe(true)
+	})
+
+	it('shows the idle banner when only non-include rules are enabled', async () => {
+		// An enabled exclude computes nothing: hashing is still idle.
+		mockFetch({ rules: [enabledExclude, disabledInclude] })
+		const wrapper = mount(App)
+		await flushPromises()
+
+		expect(wrapper.find('#fcias-idle-banner').exists()).toBe(true)
+	})
+
+	it('hides the idle banner when an enabled include rule exists', async () => {
+		mockFetch()
+		const wrapper = mount(App)
+		await flushPromises()
+
+		expect(wrapper.find('#fcias-idle-banner').exists()).toBe(false)
+	})
+
+	it('hides the idle banner once acknowledged server-side', async () => {
+		mockFetch({ rules: [], idleBannerAcknowledged: true })
+		const wrapper = mount(App)
+		await flushPromises()
+
+		expect(wrapper.find('#fcias-idle-banner').exists()).toBe(false)
+	})
+
+	it('Close hides the banner for this view only, without persisting', async () => {
+		mockFetch({ rules: [] })
+		const wrapper = mount(App)
+		await flushPromises()
+
+		const fetchSpy = globalThis.fetch as unknown as ReturnType<typeof vi.fn>
+		const callsBefore = fetchSpy.mock.calls.length
+
+		await wrapper.find('#fcias-idle-banner button[data-action="banner-close"]').trigger('click')
+
+		expect(wrapper.find('#fcias-idle-banner').exists()).toBe(false)
+		expect(fetchSpy.mock.calls.length).toBe(callsBefore)
+	})
+
+	it('Acknowledged persists via the settings endpoint and hides the banner', async () => {
+		mockFetch({ rules: [] })
+		const wrapper = mount(App)
+		await flushPromises()
+
+		await wrapper.find('#fcias-idle-banner button[data-action="banner-ack"]').trigger('click')
+		await flushPromises()
+
+		const fetchSpy = globalThis.fetch as unknown as ReturnType<typeof vi.fn>
+		const ackCall = fetchSpy.mock.calls.find((call) => String(call[0]).includes('/settings/idle-banner/ack'))
+		expect(ackCall).toBeTruthy()
+		expect(wrapper.find('#fcias-idle-banner').exists()).toBe(false)
+	})
+
 	afterEach(() => {
 		vi.restoreAllMocks()
 		window.location.hash = ''

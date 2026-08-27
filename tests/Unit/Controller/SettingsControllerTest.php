@@ -20,6 +20,8 @@ use OCP\App\IAppManager;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\DataResponse;
+use OCA\FileChecksumSearch\Service\RuleService;
+use OCP\IAppConfig;
 use OCP\IRequest;
 use OCP\IUser;
 use OCP\IUserManager;
@@ -45,15 +47,17 @@ class SettingsControllerTest
 
 	private MockObject|PermissionService $permissionService;
 
+	private MockObject|IAppConfig        $appConfig;
+
 	private MockObject|MetadataService   $metadataService;
 
 	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
-	private MockObject|IRequest          $request;
+	private MockObject|IRequest $request;
 
 	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
-	private MockObject|LoggerInterface   $logger;
+	private MockObject|LoggerInterface $logger;
 
-	private SettingsController           $controller;
+	private SettingsController         $controller;
 
 
 // ── setUp ────────────────────────────────────────────────────────────
@@ -79,6 +83,7 @@ class SettingsControllerTest
 
 		$this->userManager       = $this->createMock( IUserManager::class );
 		$this->permissionService = $this->createMock( PermissionService::class );
+		$this->appConfig         = $this->createMock( IAppConfig::class );
 		$this->request           = $this->createMock( IRequest::class );
 		$this->logger            = $this->createMock( LoggerInterface::class );
 
@@ -94,6 +99,7 @@ class SettingsControllerTest
 			                         $this->userManager,
 			                         $this->metadataService,
 			                         $this->permissionService,
+			                         $this->appConfig,
 		                         ] )
 		                         ->getMock()
 		;
@@ -101,6 +107,7 @@ class SettingsControllerTest
 
 
 // ── getStatus ────────────────────────────────────────────────────────
+
 
 	/**
 	 * @noinspection PhpConditionAlreadyCheckedInspection
@@ -148,7 +155,49 @@ class SettingsControllerTest
 	}
 
 
+// ── idle banner ──────────────────────────────────────────────────────
+
+	public function testGetStatusReportsTheIdleBannerAcknowledgement(): void
+	{
+
+		$this->appConfig->method( 'getValueBool' )
+		                ->with(
+			                'file_checksum_search',
+			                RuleService::CONFIG_KEY_IDLE_BANNER_ACK,
+		                )
+		                ->willReturn( true )
+		;
+
+		$data = $this->controller->getStatus()
+		                         ->getData()
+		;
+
+		$this->assertTrue( $data['idleBannerAcknowledged'] );
+	}
+
+
+	public function testAcknowledgeIdleBannerPersistsTheFlag(): void
+	{
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'setValueBool' )
+		                ->with(
+			                'file_checksum_search',
+			                RuleService::CONFIG_KEY_IDLE_BANNER_ACK,
+			                true,
+		                )
+		;
+
+		$data = $this->controller->acknowledgeIdleBanner()
+		                         ->getData()
+		;
+
+		$this->assertTrue( $data['success'] );
+	}
+
+
 // ── getAdminOptions ──────────────────────────────────────────────────
+
 
 	/**
 	 * @noinspection PhpConditionAlreadyCheckedInspection
@@ -259,6 +308,7 @@ class SettingsControllerTest
 	 * gate. Assert the attribute's absence directly instead. Personal
 	 * (non-admin) rule editing goes through PersonalSettingsController's
 	 * separate /personal/rules* routes.
+	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testAdminOnlyMethodsDoNotCarryNoAdminRequired(): void
@@ -267,6 +317,7 @@ class SettingsControllerTest
 		$adminOnlyMethods = [
 			'getAdminOptions',
 			'saveAdminOptions',
+			'acknowledgeIdleBanner',
 		];
 
 		foreach ( $adminOnlyMethods as $method )

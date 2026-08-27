@@ -1508,6 +1508,71 @@ class RuleServiceTest
 	}
 
 
+	// idle banner acknowledgement (D5)
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testSavingAnEnabledIncludeRuleClearsTheIdleBannerAck(): void
+	{
+
+		$this->setupRulesConfig( [] );
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'deleteKey' )
+		                ->with(
+			                Application::APP_ID,
+			                RuleService::CONFIG_KEY_IDLE_BANNER_ACK,
+		                )
+		;
+
+		$this->service->ruleAdd(
+			[
+				'enabled'  => true,
+				'type'     => 'include',
+				'path'     => '**',
+				'selector' => 'home:alice',
+			],
+			'test',
+		);
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testSavingOnlyDisabledOrNonIncludeRulesKeepsTheAck(): void
+	{
+
+		$this->setupRulesConfig( [
+			[
+				'id'       => 'off',
+				'enabled'  => false,
+				'type'     => 'include',
+				'path'     => '**',
+				'selector' => 'home:*',
+			],
+		] );
+
+		// Neither a disabled include nor an enabled exclude turns hashing
+		// on, so the acknowledgement stands.
+		$this->appConfig->expects( $this->never() )
+		                ->method( 'deleteKey' )
+		;
+
+		$this->service->ruleAdd(
+			[
+				'enabled'  => true,
+				'type'     => 'exclude',
+				'path'     => '**/*.iso',
+				'selector' => 'home:alice',
+			],
+			'test',
+		);
+	}
+
+
 	// canonical identity (Block G)
 
 

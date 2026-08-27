@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Controller;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\StatusService;
 use OCP\AppFramework\Controller;
@@ -19,6 +20,7 @@ use OCP\AppFramework\Http\Attribute\ApiRoute;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IAppConfig;
 use OCP\IRequest;
 use OCP\IUserManager;
 use Psr\Log\LoggerInterface;
@@ -37,6 +39,7 @@ class SettingsController
 		private readonly IUserManager      $userManager,
 		private readonly MetadataService   $metadataService,
 		private readonly PermissionService $permissionService,
+		private readonly IAppConfig        $appConfig,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -55,11 +58,37 @@ class SettingsController
 	{
 
 		return new DataResponse( [
-			'version'      => $this->statusService->getAppVersion(),
-			'dbVersion'    => $this->statusService->getDbVersion(),
-			'rowCount'     => $this->statusService->getHashRowCount(),
-			'pendingStats' => $this->metadataService->getPendingStats(),
+			'version'                => $this->statusService->getAppVersion(),
+			'dbVersion'              => $this->statusService->getDbVersion(),
+			'rowCount'               => $this->statusService->getHashRowCount(),
+			'pendingStats'           => $this->metadataService->getPendingStats(),
+			'idleBannerAcknowledged' => $this->appConfig->getValueBool(
+				Application::APP_ID,
+				RuleService::CONFIG_KEY_IDLE_BANNER_ACK,
+			),
 		] );
+	}
+
+
+	/**
+	 * Record that the administrator saw the idle banner and chose to leave
+	 * automatic hashing off. The flag expires by itself: enabling an include
+	 * rule clears it through the rules' single write gate
+	 * ({@see RuleService::CONFIG_KEY_IDLE_BANNER_ACK}).
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[ApiRoute( verb: 'POST', url: '/settings/idle-banner/ack' )]
+	public function acknowledgeIdleBanner(): DataResponse
+	{
+
+		$this->appConfig->setValueBool(
+			Application::APP_ID,
+			RuleService::CONFIG_KEY_IDLE_BANNER_ACK,
+			true,
+		);
+
+		return new DataResponse( [ 'success' => true ] );
 	}
 
 

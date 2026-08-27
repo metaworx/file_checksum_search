@@ -44,14 +44,17 @@ class ConfigLexiconTest
 		$configs = $this->lexicon->getAppConfigs();
 
 		$this->assertIsArray( $configs );
-		$this->assertCount( 5, $configs );
+		$this->assertCount( 6, $configs );
 
 		$keys = array_map(
-			static fn ( Entry $e ): string => $e->getKey(),
+			static fn(
+				Entry $e,
+			): string => $e->getKey(),
 			$configs,
 		);
 
 		$this->assertContains( 'rule_definitions', $keys );
+		$this->assertContains( 'idle_banner_ack', $keys );
 		$this->assertContains( 'rule_processing_interval', $keys );
 		$this->assertContains( 'rule_editors_all_users', $keys );
 		$this->assertContains( 'rule_editors_groups', $keys );

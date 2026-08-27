@@ -56,6 +56,15 @@ class ConfigLexicon
 				flags: IAppConfig::FLAG_INTERNAL,
 			),
 			new Entry(
+				key: 'idle_banner_ack',
+				type: ValueType::BOOL,
+				defaultRaw: false,
+				definition: 'Administrator acknowledged the idle banner (no enabled include rule). '
+				. 'Cleared automatically when an include rule is enabled.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
 				key: 'rule_editors_all_users',
 				type: ValueType::BOOL,
 				defaultRaw: false,

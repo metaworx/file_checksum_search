@@ -20,6 +20,7 @@ interface StatusData {
 	dbVersion?: string
 	rowCount?: number
 	pendingStats?: Record<string, number>
+	idleBannerAcknowledged?: boolean
 }
 
 interface State {
@@ -63,9 +64,31 @@ export function useAdminSettings() {
 		}
 	}
 
+	/**
+	 * Persist the admin's "leave it off" decision. The flag clears itself
+	 * server-side the moment an include rule is enabled, so a later return
+	 * to the idle state shows the banner afresh.
+	 */
+	async function acknowledgeIdleBanner(): Promise<boolean> {
+		try {
+			const response = await fetch(generateOcsUrl(OCS_SETTINGS.ackIdleBanner), {
+				method: 'POST',
+				headers: {
+					requesttoken: (window as unknown as { OC: { requestToken: string } }).OC.requestToken,
+				},
+			})
+			if (!response.ok) return false
+			state.status = { ...state.status, idleBannerAcknowledged: true }
+			return true
+		} catch {
+			return false
+		}
+	}
+
 	return {
 		...toRefs(state),
 		loadStatus,
+		acknowledgeIdleBanner,
 
 		definitions: rules.rules,
 		supportedAlgos: rules.supportedAlgos,

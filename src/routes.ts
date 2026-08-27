@@ -53,6 +53,8 @@ export const OCS_SETTINGS = {
 	getAdminOptions: `${APP_BASE}/settings/admin-options`,
 	/** POST   /settings/admin-options/save */
 	saveAdminOptions: `${APP_BASE}/settings/admin-options/save`,
+	/** POST   /settings/idle-banner/ack */
+	ackIdleBanner: `${APP_BASE}/settings/idle-banner/ack`,
 } as const
 
 /** OCS admin endpoints (PageController) */

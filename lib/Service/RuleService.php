@@ -43,6 +43,13 @@ class RuleService
 // constants
 	private const CONFIG_KEY_RULES = 'rule_definitions';
 
+	/**
+	 * Set when an administrator acknowledged the idle banner; cleared by
+	 * {@see saveRules()} the moment an enabled include rule exists, so a
+	 * later return to the idle state shows the banner afresh (D5).
+	 */
+	public const CONFIG_KEY_IDLE_BANNER_ACK = 'idle_banner_ack';
+
 	/** Scope value meaning "every user". */
 	/**
 	 * Prefix marking a group-scoped rule: `group:<gid>`. Nextcloud user IDs
@@ -556,6 +563,19 @@ class RuleService
 		// persisted JSON, so the memo can never diverge from what a storage
 		// round-trip actually yields.
 		$this->rulesCache = null;
+
+		// The idle banner's acknowledgement expires the moment hashing is
+		// actually on. Done here because this is the single write gate:
+		// UI, REST, occ and the PHP API all enable rules through this line.
+		foreach ( $rules as $rule )
+		{
+			if ( ! empty( $rule['enabled'] ) && self::verdictOf( $rule ) === self::TYPE_INCLUDE )
+			{
+				$this->appConfig->deleteKey( Application::APP_ID, self::CONFIG_KEY_IDLE_BANNER_ACK );
+
+				break;
+			}
+		}
 	}
 
 

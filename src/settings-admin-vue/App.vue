@@ -6,7 +6,9 @@
  * Root component for the admin settings page.
  */
 
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
+import NcButton from '@nextcloud/vue/components/NcButton'
 import RuleTable from '../rules-vue/RuleTable.vue'
 import RuleForm from '../rules-vue/RuleForm.vue'
 import type { Rule, RuleDraft } from '../rules-vue/types'
@@ -27,12 +29,42 @@ const {
 	availableGroups,
 	definitions,
 	loadStatus,
+	acknowledgeIdleBanner,
 	loadDefinitions,
 	saveRule,
 	deleteRule,
 	toggleRule,
 	reorderSegment,
 } = useAdminSettings()
+
+// --- Idle banner (D5) ---
+//
+// Quiet start means the app computes nothing until an include rule is
+// enabled. This banner is how an administrator learns that silence is a
+// decision waiting for them, not a malfunction.
+
+/** Closed for this page view only; reappears on the next load. */
+const bannerClosed = ref(false)
+
+/** Set once the first rules load completed — no banner flash before it. */
+const rulesLoaded = ref(false)
+
+const hashingIdle = computed(
+	() => rulesLoaded.value
+		&& !definitions.value.some((rule) => rule.enabled && (rule.type ?? 'include') === 'include'),
+)
+
+const showIdleBanner = computed(
+	() => hashingIdle.value
+		&& !status.value.idleBannerAcknowledged
+		&& !bannerClosed.value,
+)
+
+async function handleAcknowledgeBanner(): Promise<void> {
+	if (await acknowledgeIdleBanner()) {
+		OC.Notification.showTemporary('Noted — the banner stays away until a rule is enabled and disabled again.')
+	}
+}
 
 function tabFromHash(): 'settings' | 'docs' {
 	const tab = window.location.hash.replace(/^#/, '').split('/')[0]
@@ -134,7 +166,9 @@ async function handleToggleRule(rule: Rule): Promise<void> {
 }
 
 loadStatus()
-loadDefinitions()
+loadDefinitions().then(() => {
+	rulesLoaded.value = true
+})
 </script>
 
 <template>
@@ -167,6 +201,31 @@ loadDefinitions()
 			id="fcias-tab-panel-settings"
 			class="fcias-tab-panel"
 			role="tabpanel">
+			<NcNoteCard
+				v-if="showIdleBanner"
+				id="fcias-idle-banner"
+				type="warning">
+				<p>
+					<strong>Automatic hashing is inactive.</strong>
+					No enabled <em>include</em> rule exists, so no file is hashed until one says so —
+					enable the <em>All home folders</em> default in the table below, or create a rule.
+					Manual recalculation from the file sidebar keeps working either way.
+				</p>
+				<p class="fcias-hint">
+					The home-folders default covers home folders only: files on external storage and in
+					group folders are reached only by the <em>Everything</em> default or by their own
+					group-folder or storage rules.
+				</p>
+				<div class="fcias-idle-banner-actions">
+					<NcButton data-action="banner-ack" @click="handleAcknowledgeBanner">
+						Acknowledged
+					</NcButton>
+					<NcButton data-action="banner-close" variant="tertiary" @click="bannerClosed = true">
+						Close
+					</NcButton>
+				</div>
+			</NcNoteCard>
+
 			<div class="fcias-section">
 				<h4>
 					Status
