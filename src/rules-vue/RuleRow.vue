@@ -10,6 +10,8 @@
 import { computed } from 'vue'
 import NcActions from '@nextcloud/vue/components/NcActions'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
+import MdiIcon from '../components/MdiIcon.vue'
+import { ICON_BIN, ICON_PAUSE, ICON_PENCIL, ICON_PLAY, ICON_REFRESH } from '../components/icons'
 import { priorityLabel, selectorLabel } from './bands'
 import type { Rule } from './types'
 
@@ -104,21 +106,86 @@ const canReapply = computed(() => props.rule.enabled && computesHashes.value)
 		</td>
 		<td>{{ rule.admin_enforced ? 'Yes' : 'No' }}</td>
 		<td class="fcias-cron-actions">
-			<NcActions v-if="rule.canEdit" :aria-label="`Actions for the rule on ${rule.path || '/'}`">
-				<NcActionButton data-action="edit" @click="emit('edit', rule)">
-					Edit
-				</NcActionButton>
-				<NcActionButton data-action="toggle" @click="emit('toggle', rule)">
-					{{ rule.enabled ? 'Disable' : 'Enable' }}
-				</NcActionButton>
-				<NcActionButton v-if="canReapply" data-action="apply" @click="emit('apply', rule)">
-					Re-apply
-				</NcActionButton>
-				<NcActionButton data-action="delete" @click="emit('delete', rule)">
-					Delete
-				</NcActionButton>
-			</NcActions>
+			<span v-if="rule.canEdit" class="fcias-row-actions">
+				<button
+					class="fcias-icon-btn"
+					data-action="edit"
+					type="button"
+					title="Edit rule"
+					:aria-label="`Edit the rule on ${rule.path || '/'}`"
+					@click="emit('edit', rule)">
+					<MdiIcon :path="ICON_PENCIL" :size="16" />
+				</button>
+				<NcActions :aria-label="`More actions for the rule on ${rule.path || '/'}`">
+					<NcActionButton data-action="edit" @click="emit('edit', rule)">
+						<template #icon>
+							<MdiIcon :path="ICON_PENCIL" />
+						</template>
+						Edit
+					</NcActionButton>
+					<NcActionButton data-action="toggle" @click="emit('toggle', rule)">
+						<template #icon>
+							<MdiIcon :path="rule.enabled ? ICON_PAUSE : ICON_PLAY" />
+						</template>
+						{{ rule.enabled ? 'Disable' : 'Enable' }}
+					</NcActionButton>
+					<NcActionButton v-if="canReapply" data-action="apply" @click="emit('apply', rule)">
+						<template #icon>
+							<MdiIcon :path="ICON_REFRESH" />
+						</template>
+						Re-apply
+					</NcActionButton>
+					<NcActionButton data-action="delete" @click="emit('delete', rule)">
+						<template #icon>
+							<MdiIcon :path="ICON_BIN" />
+						</template>
+						Delete
+					</NcActionButton>
+				</NcActions>
+			</span>
 			<span v-else class="fcias-muted">Read-only</span>
 		</td>
 	</tr>
 </template>
+
+<style scoped>
+/* The pen sits beside the actions menu as a first-class shortcut: editing
+   is the one action frequent enough to deserve a click, not a menu trip.
+   The custom properties are supplied by the Nextcloud server's theme at
+   runtime; the IDE cannot see them, hence the suppression and fallbacks. */
+/* noinspection CssUnresolvedCustomProperty */
+.fcias-icon-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--default-clickable-area, 34px);
+	height: var(--default-clickable-area, 34px);
+	margin: 0;
+	padding: 0;
+	background: transparent;
+	border: none;
+	border-radius: var(--border-radius-element, 8px);
+	color: var(--color-main-text, inherit);
+	cursor: pointer;
+	vertical-align: middle;
+}
+
+/* noinspection CssUnresolvedCustomProperty */
+.fcias-icon-btn:hover,
+.fcias-icon-btn:focus-visible {
+	background-color: var(--color-background-hover, rgba(127, 127, 127, 0.15));
+}
+
+/* Pen and menu read as one control group, centred on a shared axis —
+   the menu trigger brings its own height, the pen matches it. */
+.fcias-row-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	vertical-align: middle;
+}
+
+.fcias-cron-actions {
+	white-space: nowrap;
+}
+</style>

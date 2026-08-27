@@ -196,6 +196,18 @@ describe('RuleRow', () => {
 		}
 	})
 
+	it('offers Edit as a pen beside the menu AND mirrored inside it', () => {
+		const wrapper = mount(RuleRow, { props: { rule: makeRule(), variant: 'admin' } })
+
+		// The pen is the one-click shortcut; the menu carries the same entry
+		// with the same icon, which is what says they are one action.
+		const edits = wrapper.findAll('button[data-action="edit"]')
+		expect(edits).toHaveLength(2)
+		expect(edits[0].classes()).toContain('fcias-icon-btn')
+		expect(edits[0].find('svg').exists()).toBe(true)
+		expect(wrapper.find('.nc-actions button[data-action="edit"]').exists()).toBe(true)
+	})
+
 	it('shows no menu at all on a read-only row', () => {
 		const wrapper = mount(RuleRow, { props: { rule: makeRule({ canEdit: false }), variant: 'personal' } })
 
