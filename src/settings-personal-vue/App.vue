@@ -53,8 +53,12 @@ const ruleMsg = ref('')
 const showRuleForm = ref(false)
 const editingRule = ref<RuleDraft | null>(null)
 
+/** A failed save's message — rendered inside the dialog, not on the page. */
+const saveError = ref<string | null>(null)
+
 function openAddRule(): void {
 	editingRule.value = null
+	saveError.value = null
 	showRuleForm.value = true
 }
 
@@ -68,12 +72,14 @@ function openEditRule(rule: Rule): void {
 		selector: rule.selector,
 		admin_enforced: rule.admin_enforced,
 	}
+	saveError.value = null
 	showRuleForm.value = true
 }
 
 function closeRuleForm(): void {
 	showRuleForm.value = false
 	editingRule.value = null
+	saveError.value = null
 }
 
 async function handleSaveRule(draft: RuleDraft): Promise<void> {
@@ -82,7 +88,7 @@ async function handleSaveRule(draft: RuleDraft): Promise<void> {
 		closeRuleForm()
 		OC.Notification.showTemporary('Rule saved.')
 	} else {
-		ruleMsg.value = result.error || 'Save failed.'
+		saveError.value = result.error || 'Saving failed.'
 	}
 }
 
@@ -202,6 +208,7 @@ loadRules()
 				v-if="showRuleForm"
 				:rule="editingRule"
 				variant="personal"
+				:error-message="saveError"
 				:supported-algos="supportedAlgos"
 				@save="handleSaveRule"
 				@cancel="closeRuleForm" />

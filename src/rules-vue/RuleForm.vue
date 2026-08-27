@@ -16,6 +16,7 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
+import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import HelpPopover from '../components/HelpPopover.vue'
 import { toAlgoOptions } from '../algorithms'
 import AlgoMultiselect from '../settings-vue/AlgoMultiselect.vue'
@@ -43,6 +44,11 @@ const props = defineProps<{
 	lockScope?: boolean
 	/** Overrides the dialog title. */
 	title?: string
+	/**
+	 * A failed save's message, shown inside the dialog — the page behind it
+	 * is the wrong place for an error about the form still on screen.
+	 */
+	errorMessage?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -461,6 +467,13 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 				</span>
 				<HelpPopover :text="HELP.band" label="Priority band" />
 			</p>
+
+			<NcNoteCard
+				v-if="errorMessage"
+				type="error"
+				class="fcias-form-error">
+				{{ errorMessage }}
+			</NcNoteCard>
 
 			<div class="fcias-cron-form-actions">
 				<button :id="ids.save" class="fcias-btn" @click="submit">

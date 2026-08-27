@@ -113,9 +113,30 @@ export function useRules(scope: 'own' | 'all') {
 				},
 				...(body === undefined ? {} : { body: JSON.stringify(body) }),
 			})
-			return (await response.json()) as ApiResponse
+
+			// A non-JSON body (an OCS XML error page, a proxy page) must not
+			// collapse into a generic message that hides the status code.
+			let data: ApiResponse | null = null
+			try {
+				data = (await response.json()) as ApiResponse
+			} catch {
+				data = null
+			}
+
+			if (data && typeof data.success === 'boolean') {
+				return data
+			}
+
+			if (!response.ok) {
+				return {
+					success: false,
+					error: `The server answered ${response.status} ${response.statusText || ''}`.trim() + '.',
+				}
+			}
+
+			return data ?? { success: false, error: 'The server sent an answer this page could not read.' }
 		} catch {
-			return { success: false, error: 'Request failed.' }
+			return { success: false, error: 'The request never reached the server.' }
 		}
 	}
 
@@ -129,7 +150,11 @@ export function useRules(scope: 'own' | 'all') {
 	}
 
 	function ruleUrl(id: Rule['id']): string {
-		return generateOcsUrl(API_RULES.update).replace('{id}', String(id))
+		// The router substitutes AND encodes the id; substituting by hand
+		// after generateOcsUrl() misses, because the braces come back
+		// percent-encoded — the request then PUTs to the literal
+		// placeholder and 404s.
+		return generateOcsUrl(API_RULES.update, { id })
 	}
 
 	/** Create when the draft has no id, update when it has one. */
@@ -183,7 +208,7 @@ export function useRules(scope: 'own' | 'all') {
 	 * nothing needs reloading.
 	 */
 	async function applyRule(id: Rule['id']): Promise<ApiResponse> {
-		return request('POST', generateOcsUrl(API_RULES.apply).replace('{id}', String(id)))
+		return request('POST', generateOcsUrl(API_RULES.apply, { id }))
 	}
 
 	return {

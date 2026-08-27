@@ -18,6 +18,9 @@ vi.mock('@nextcloud/vue/components/NcSelect', () => ({
 			+ '</select>',
 	},
 }))
+vi.mock('@nextcloud/vue/components/NcNoteCard', () => ({
+	default: { name: 'NcNoteCard', template: '<div class="nc-note-card"><slot /></div>' },
+}))
 vi.mock('@nextcloud/vue/components/NcPopover', () => ({
 	default: {
 		name: 'NcPopover',
@@ -288,6 +291,29 @@ describe('RuleForm', () => {
 			await kindSelect.setValue('groupfolder')
 			expect(wrapper.find('.fcias-cron-form-row label[for="fcias-cron-scope-target"]').text())
 				.toBe('Team Folders')
+		})
+	})
+
+	describe('save errors', () => {
+		it('shows the failure inside the dialog, where the form still is', () => {
+			const wrapper = mount(RuleForm, {
+				props: {
+					rule: null,
+					variant: 'admin',
+					supportedAlgos: ['sha1'],
+					errorMessage: 'The server answered 404 Not Found.',
+				},
+			})
+
+			expect(wrapper.find('.fcias-form-error').text()).toContain('404')
+		})
+
+		it('shows no error card without a message', () => {
+			const wrapper = mount(RuleForm, {
+				props: { rule: null, variant: 'admin', supportedAlgos: ['sha1'] },
+			})
+
+			expect(wrapper.find('.fcias-form-error').exists()).toBe(false)
 		})
 	})
 

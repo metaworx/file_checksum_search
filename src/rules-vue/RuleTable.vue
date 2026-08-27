@@ -26,6 +26,8 @@ const props = defineProps<{
 	emptyText?: string
 	/** Turns the drag handles on. Rows still need `canEdit` individually. */
 	reorderable?: boolean
+	/** What the groupfolders app calls itself, for the Scope column. */
+	groupFoldersLabel?: string | null
 }>()
 
 const emit = defineEmits<{

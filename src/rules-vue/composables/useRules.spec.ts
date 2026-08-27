@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useRules } from './useRules'
 
 vi.mock('@nextcloud/router', () => ({
-	generateOcsUrl: (url: string) => url,
+	// Mirrors the real router: {tokens} are substituted from params — and a
+	// token nobody substitutes stays visibly in the URL, as it would live.
+	generateOcsUrl: (url: string, params?: Record<string, unknown>) =>
+		url.replace(/\{(\w+)\}/g, (whole, token) => (params && token in params ? String(params[token]) : whole)),
 }))
 
 ;(globalThis as unknown as { OC: { requestToken: string } }).OC = { requestToken: 'token' }
@@ -80,6 +83,37 @@ describe('useRules', () => {
 		expect(call(0).method).toBe('DELETE')
 		expect(call(0).url).toBe('/apps/file_checksum_search/api/v1/rules/abc')
 		expect(call(0).body).toBeUndefined()
+	})
+
+	it('addresses one rule by its substituted id, never the literal placeholder', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ success: true, rules: [] }))
+		const { toggleRule, applyRule } = useRules('all')
+
+		await toggleRule('r7', false)
+		await applyRule('r7')
+
+		// Regression: substituting by hand after generateOcsUrl() missed,
+		// because the router percent-encodes the braces — every rule PUT
+		// went to the literal "{id}" and 404ed.
+		const mutations = fetchMock.mock.calls.filter((call) => !String(call[0]).includes('?scope='))
+		expect(mutations.length).toBeGreaterThanOrEqual(2)
+		for (const call of mutations) {
+			expect(String(call[0])).toContain('/rules/r7')
+			expect(String(call[0])).not.toContain('{id}')
+			expect(String(call[0])).not.toContain('%7B')
+		}
+	})
+
+	it('reports the HTTP status when the server answers with a non-JSON error', async () => {
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response('<?xml version="1.0"?><ocs>…</ocs>', { status: 404, statusText: 'Not Found' }),
+		)
+		const { toggleRule } = useRules('all')
+
+		const result = await toggleRule('r1', true)
+
+		expect(result.success).toBe(false)
+		expect(result.error).toContain('404')
 	})
 
 	it('toggles by updating only `enabled`', async () => {

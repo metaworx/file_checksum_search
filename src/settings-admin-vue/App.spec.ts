@@ -3,7 +3,8 @@ import { flushPromises, mount } from '@vue/test-utils'
 import App from './App.vue'
 
 vi.mock('@nextcloud/router', () => ({
-	generateOcsUrl: (url: string) => url,
+	generateOcsUrl: (url: string, params?: Record<string, unknown>) =>
+		url.replace(/\{(\w+)\}/g, (whole, token) => (params && token in params ? String(params[token]) : whole)),
 }))
 
 vi.mock('@nextcloud/vue/components/NcActions', () => ({

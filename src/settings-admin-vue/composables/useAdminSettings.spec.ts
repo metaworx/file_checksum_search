@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useAdminSettings } from './useAdminSettings'
 
 vi.mock('@nextcloud/router', () => ({
-	generateOcsUrl: (url: string) => url,
+	generateOcsUrl: (url: string, params?: Record<string, unknown>) =>
+		url.replace(/\{(\w+)\}/g, (whole, token) => (params && token in params ? String(params[token]) : whole)),
 }))
 
 ;(globalThis as unknown as { OC: { requestToken: string } }).OC = { requestToken: 'token' }

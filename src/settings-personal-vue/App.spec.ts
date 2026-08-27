@@ -3,9 +3,14 @@ import { flushPromises, mount } from '@vue/test-utils'
 import App from './App.vue'
 
 vi.mock('@nextcloud/router', () => ({
-	generateOcsUrl: (url: string) => url,
+	// Mirrors the real router: {tokens} are substituted from params.
+	generateOcsUrl: (url: string, params?: Record<string, unknown>) =>
+		url.replace(/\{(\w+)\}/g, (whole, token) => (params && token in params ? String(params[token]) : whole)),
 }))
 
+vi.mock('@nextcloud/vue/components/NcNoteCard', () => ({
+	default: { name: 'NcNoteCard', template: '<div class="nc-note-card"><slot /></div>' },
+}))
 vi.mock('@nextcloud/vue/components/NcActions', () => ({
 	default: { name: 'NcActions', template: '<div class="nc-actions"><slot /></div>' },
 }))
