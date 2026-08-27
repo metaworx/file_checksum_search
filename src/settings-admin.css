@@ -307,7 +307,9 @@
 	margin-bottom: 4px;
 }
 
-.fcias-algo-select {
+/* Every searchable select in the rule dialog — algorithms and the three
+   target pickers — shares this width discipline. */
+.fcias-rules-dialog-select {
 	flex: 1;
 	min-width: 0;
 }
@@ -316,12 +318,12 @@
    content. Both have to be released for the control to fill the row — see the
    same two-part override (constraining rather than stretching) on
    .fcias-algo-select-wrap in ChecksumsSidebarTab.vue. */
-.fcias-algo-select > .v-select.select {
+.fcias-rules-dialog-select > .v-select.select {
 	min-width: 0;
 	width: 100%;
 }
 
-.fcias-algo-select > .v-select.select > .vs__dropdown-toggle {
+.fcias-rules-dialog-select > .v-select.select > .vs__dropdown-toggle {
 	max-width: 100%;
 	width: 100%;
 }

@@ -14,7 +14,7 @@
 import { reactive, toRefs } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import { API_RULES } from '../../routes'
-import type { Rule, RuleDraft } from '../types'
+import type { GroupFolderOption, Rule, RuleDraft } from '../types'
 
 declare const OC: {
 	requestToken: string
@@ -33,6 +33,9 @@ interface RulesResponse extends ApiResponse {
 	types?: string[]
 	availableUsers?: string[]
 	availableGroups?: string[]
+	groupFoldersAvailable?: boolean
+	groupFoldersLabel?: string | null
+	availableGroupFolders?: GroupFolderOption[]
 }
 
 interface State {
@@ -43,6 +46,9 @@ interface State {
 	types: string[]
 	availableUsers: string[]
 	availableGroups: string[]
+	groupFoldersAvailable: boolean
+	groupFoldersLabel: string | null
+	availableGroupFolders: GroupFolderOption[]
 	loading: boolean
 	error: string | null
 }
@@ -56,6 +62,9 @@ export function useRules(scope: 'own' | 'all') {
 		types: [],
 		availableUsers: [],
 		availableGroups: [],
+		groupFoldersAvailable: false,
+		groupFoldersLabel: null,
+		availableGroupFolders: [],
 		loading: false,
 		error: null,
 	})
@@ -81,6 +90,9 @@ export function useRules(scope: 'own' | 'all') {
 			state.types = data.types || []
 			state.availableUsers = data.availableUsers || []
 			state.availableGroups = data.availableGroups || []
+			state.groupFoldersAvailable = data.groupFoldersAvailable === true
+			state.groupFoldersLabel = data.groupFoldersLabel || null
+			state.availableGroupFolders = data.availableGroupFolders || []
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return
 			state.error = 'Failed to load rules.'
@@ -152,9 +164,9 @@ export function useRules(scope: 'own' | 'all') {
 		return mutate('PUT', ruleUrl(id), { enabled })
 	}
 
-	/** Reorder one band; band 4 additionally names whose segment it is. */
+	/** Reorder one segment partition: which selector, and whether its defaults. */
 	async function reorderSegment(selector: string, defaults: boolean, orderedIds: Array<Rule['id']>): Promise<ApiResponse> {
-		const result = await request('PUT', API_RULES.reorder, {
+		const result = await request('PUT', generateOcsUrl(API_RULES.order), {
 			selector,
 			defaults,
 			orderedIds,
@@ -165,12 +177,22 @@ export function useRules(scope: 'own' | 'all') {
 		return result
 	}
 
+	/**
+	 * Queue a full apply pass for one rule: every file it currently governs,
+	 * uncapped, in the background. Applying changes no rule definition, so
+	 * nothing needs reloading.
+	 */
+	async function applyRule(id: Rule['id']): Promise<ApiResponse> {
+		return request('POST', generateOcsUrl(API_RULES.apply).replace('{id}', String(id)))
+	}
+
 	return {
 		...toRefs(state),
 		load,
 		saveRule,
 		deleteRule,
 		toggleRule,
+		applyRule,
 		reorderSegment,
 	}
 }

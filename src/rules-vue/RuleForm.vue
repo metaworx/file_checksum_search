@@ -15,11 +15,12 @@
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
+import NcSelect from '@nextcloud/vue/components/NcSelect'
 import HelpPopover from '../components/HelpPopover.vue'
 import { toAlgoOptions } from '../algorithms'
 import AlgoMultiselect from '../settings-vue/AlgoMultiselect.vue'
-import { BAND_LABELS, bandOf, selectorKind, selectorTarget } from './bands'
-import type { RuleDraft } from './types'
+import { BAND_LABELS, bandOfKind, selectorKind, selectorTarget } from './bands'
+import type { GroupFolderOption, RuleDraft } from './types'
 
 const props = defineProps<{
 	rule: RuleDraft | null
@@ -29,6 +30,12 @@ const props = defineProps<{
 	availableUsers?: string[]
 	/** Admin variant only: group ids offered when the scope is a group. */
 	availableGroups?: string[]
+	/** Whether the groupfolders app is installed and enabled. */
+	groupFoldersAvailable?: boolean
+	/** What the groupfolders app calls itself ("Team Folders"); null when absent. */
+	groupFoldersLabel?: string | null
+	/** Admin variant only: the group folders offered when the app is there. */
+	availableGroupFolders?: GroupFolderOption[]
 	/**
 	 * Renders Path and User Scope read-only. Used for the global rule, whose
 	 * `**` / `all` reach is what makes it the global default.
@@ -132,12 +139,63 @@ const computesHashes = computed(() => draft.type === 'include')
  * Which band the rule being described would land in.
  *
  * Band is derived, never chosen — showing it live is what makes that legible
- * while editing, instead of only after saving.
+ * while editing, instead of only after saving. Derived from the *kind*, not
+ * the composed selector: the target never affects the band, and an as-yet
+ * unpicked target must not make every kind preview as band 8.
  */
-const previewBand = computed(() => bandOf({
-	selector: draft.selector,
-	admin_enforced: draft.admin_enforced,
-}))
+const previewBand = computed(() => bandOfKind(selectorChoice.value, draft.admin_enforced === true))
+
+/** One option shape for every searchable picker below. */
+interface PickerOption {
+	id: string
+	label: string
+}
+
+/**
+ * Proxy between a searchable picker's option object and the plain target
+ * string the selector stores. The getter tolerates a target the option list
+ * does not contain (a deleted user, a removed group folder): the raw value
+ * still shows instead of silently blanking an existing rule.
+ */
+function pickerProxy(options: () => PickerOption[]) {
+	return computed<PickerOption | null>({
+		get: () => {
+			if (!selectorTargetValue.value) return null
+			return options().find((option) => option.id === selectorTargetValue.value)
+				?? { id: selectorTargetValue.value, label: selectorTargetValue.value }
+		},
+		set: (option) => {
+			selectorTargetValue.value = option?.id ?? ''
+		},
+	})
+}
+
+const userOptions = computed<PickerOption[]>(
+	() => (props.availableUsers ?? []).map((uid) => ({ id: uid, label: uid })),
+)
+const groupOptions = computed<PickerOption[]>(
+	() => (props.availableGroups ?? []).map((gid) => ({ id: gid, label: gid })),
+)
+const groupFolderOptions = computed<PickerOption[]>(
+	() => (props.availableGroupFolders ?? []).map((folder) => ({
+		id: String(folder.id),
+		label: `${folder.name} (#${folder.id})`,
+	})),
+)
+
+/**
+ * The groupfolders app's own name for itself — "Team Folders" on current
+ * releases — so this dialog says what the rest of the settings UI says.
+ * With the app gone there is nobody to ask, and the slug names the missing
+ * provider honestly.
+ */
+const groupFolderTerm = computed(
+	() => props.groupFoldersLabel ?? (props.groupFoldersAvailable ? 'Team folders' : 'app:groupfolders'),
+)
+
+const selectedUser = pickerProxy(() => userOptions.value)
+const selectedGroup = pickerProxy(() => groupOptions.value)
+const selectedGroupFolder = pickerProxy(() => groupFolderOptions.value)
 
 const dialogName = computed(
 	() => props.title ?? (props.rule?.id !== undefined ? 'Edit rule' : 'New rule'),
@@ -160,6 +218,12 @@ const HELP = {
 		+ '"Ignore" stops automatic hashing but still lets someone recalculate a file by hand. '
 		+ '"Exclude" blocks hashing entirely — use it for storage that must not be read, such as '
 		+ 'a metered external mount.',
+	user: 'The one user whose home folder this rule addresses.',
+	group: 'The rule addresses the home folder of every member of this group.',
+	groupfolder: 'The team folder this rule addresses. Every member sees the same files, and the '
+		+ 'rule follows the folder — not whoever happens to look at it.',
+	storage: 'The raw id from the storages table, matched exactly — whatever kind of storage it '
+		+ 'names. Use this for external mounts, or anything the other choices cannot say.',
 	band: 'Rules are evaluated in band order and the first match decides the file. A rule\'s band '
 		+ 'follows from its scope and whether it is enforced — it is not chosen directly, and '
 		+ 'reordering only moves a rule within its own band.',
@@ -243,7 +307,11 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 				<span v-if="lockScope" :id="ids.userscope" class="fcias-cron-form-static">
 					{{ draft.selector }}
 				</span>
-				<select v-else :id="ids.userscope" v-model="selectorChoice">
+				<select
+					v-else
+					:id="ids.userscope"
+					v-model="selectorChoice"
+					@change="selectorTargetValue = ''">
 					<option value="homeAll">
 						All home folders
 					</option>
@@ -253,8 +321,8 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 					<option value="user">
 						A single user
 					</option>
-					<option value="groupfolder">
-						A group folder
+					<option v-if="groupFoldersAvailable" value="groupfolder">
+						{{ groupFolderTerm }} — one folder
 					</option>
 					<option value="storage">
 						A storage (raw id)
@@ -268,38 +336,53 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 
 			<div v-if="variant === 'admin' && !lockScope && selectorChoice === 'group'" class="fcias-cron-form-row">
 				<label :for="ids.scopeTarget">Group</label>
-				<select :id="ids.scopeTarget" v-model="selectorTargetValue">
-					<option value="">
-						— pick a group —
-					</option>
-					<option v-for="gid in availableGroups ?? []" :key="gid" :value="gid">
-						{{ gid }}
-					</option>
-				</select>
+				<div class="fcias-rules-dialog-select">
+					<NcSelect
+						v-model="selectedGroup"
+						:input-id="ids.scopeTarget"
+						:options="groupOptions"
+						placeholder="Search groups…"
+						track-by="id" />
+				</div>
+				<HelpPopover :text="HELP.group" label="Group" />
 			</div>
 
 			<div v-if="variant === 'admin' && !lockScope && selectorChoice === 'user'" class="fcias-cron-form-row">
 				<label :for="ids.scopeTarget">User</label>
-				<select :id="ids.scopeTarget" v-model="selectorTargetValue">
-					<option value="">
-						— pick a user —
-					</option>
-					<option v-for="uid in availableUsers ?? []" :key="uid" :value="uid">
-						{{ uid }}
-					</option>
-				</select>
+				<div class="fcias-rules-dialog-select">
+					<NcSelect
+						v-model="selectedUser"
+						:input-id="ids.scopeTarget"
+						:options="userOptions"
+						placeholder="Search users…"
+						track-by="id" />
+				</div>
+				<HelpPopover :text="HELP.user" label="User" />
+			</div>
+
+			<div v-if="variant === 'admin' && !lockScope && selectorChoice === 'groupfolder'" class="fcias-cron-form-row">
+				<label :for="ids.scopeTarget">{{ groupFolderTerm }}</label>
+				<div class="fcias-rules-dialog-select">
+					<NcSelect
+						v-model="selectedGroupFolder"
+						:input-id="ids.scopeTarget"
+						:options="groupFolderOptions"
+						:placeholder="`Search ${groupFolderTerm}…`"
+						track-by="id" />
+				</div>
+				<HelpPopover :text="HELP.groupfolder" :label="groupFolderTerm" />
 			</div>
 
 			<div
-				v-if="variant === 'admin' && !lockScope
-					&& (selectorChoice === 'groupfolder' || selectorChoice === 'storage')"
+				v-if="variant === 'admin' && !lockScope && selectorChoice === 'storage'"
 				class="fcias-cron-form-row">
-				<label :for="ids.scopeTarget">{{ selectorChoice === 'groupfolder' ? 'Folder id' : 'Storage id' }}</label>
+				<label :for="ids.scopeTarget">Storage id</label>
 				<input
 					:id="ids.scopeTarget"
 					v-model="selectorTargetValue"
 					type="text"
-					:placeholder="selectorChoice === 'groupfolder' ? '5' : 'local::/path/ or smb::…'">
+					placeholder="local::/path/ or smb::…">
+				<HelpPopover :text="HELP.storage" label="Storage id" />
 			</div>
 
 			<p v-if="variant === 'personal'" class="fcias-hint fcias-cron-form-static">
@@ -332,7 +415,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 
 			<div v-if="computesHashes" class="fcias-cron-form-row">
 				<label>Algorithms</label>
-				<div :id="ids.algos" class="fcias-algo-select">
+				<div :id="ids.algos" class="fcias-rules-dialog-select">
 					<AlgoMultiselect
 						v-model="draft.algos"
 						:options="toAlgoOptions(supportedAlgos)" />
@@ -373,7 +456,9 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 			</div>
 
 			<p class="fcias-hint fcias-band-preview">
-				Evaluates in band <strong>{{ previewBand }}</strong> — {{ BAND_LABELS[previewBand] }}
+				<span class="fcias-band-preview-text">
+					Evaluates in band <strong>{{ previewBand }}</strong> — {{ BAND_LABELS[previewBand] }}
+				</span>
 				<HelpPopover :text="HELP.band" label="Priority band" />
 			</p>
 
@@ -388,3 +473,20 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 		</div>
 	</NcDialog>
 </template>
+
+<style scoped>
+/* The target pickers reuse .fcias-rules-dialog-select from the page stylesheet —
+   the two-part release of NcSelect's 260px min-width pin and its
+   content-sized inner toggle — so they fill the row exactly like the
+   algorithm select above them. */
+
+.fcias-band-preview {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.fcias-band-preview-text {
+	flex: 1;
+}
+</style>

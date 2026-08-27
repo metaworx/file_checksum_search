@@ -7,6 +7,9 @@
  * no manual escapeHtml() calls are needed here, unlike the vanilla-JS
  * predecessor.
  */
+import { computed } from 'vue'
+import NcActions from '@nextcloud/vue/components/NcActions'
+import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import { priorityLabel, selectorLabel } from './bands'
 import type { Rule } from './types'
 
@@ -26,6 +29,7 @@ const props = defineProps<{
 const emit = defineEmits<{
 	(e: 'edit', rule: Rule): void
 	(e: 'toggle', rule: Rule): void
+	(e: 'apply', rule: Rule): void
 	(e: 'delete', rule: Rule): void
 	(e: 'rowDragstart', rule: Rule, event: DragEvent): void
 	(e: 'rowDragover', rule: Rule, event: DragEvent): void
@@ -35,7 +39,14 @@ const emit = defineEmits<{
 }>()
 
 /** An ignore/exclude rule computes nothing, so it has no algorithms or mode. */
-const computesHashes = (props.rule.type ?? 'include') === 'include'
+const computesHashes = computed(() => (props.rule.type ?? 'include') === 'include')
+
+/**
+ * Re-apply queues the rule's full sweep — only meaningful for a rule that
+ * both computes something and is switched on: applying an ignore/exclude
+ * marks nothing, and the server refuses a disabled rule at submission.
+ */
+const canReapply = computed(() => props.rule.enabled && computesHashes.value)
 </script>
 
 <template>
@@ -93,20 +104,20 @@ const computesHashes = (props.rule.type ?? 'include') === 'include'
 		</td>
 		<td>{{ rule.admin_enforced ? 'Yes' : 'No' }}</td>
 		<td class="fcias-cron-actions">
-			<template v-if="rule.canEdit">
-				<button class="fcias-btn fcias-btn-edit" data-action="edit" @click="emit('edit', rule)">
+			<NcActions v-if="rule.canEdit" :aria-label="`Actions for the rule on ${rule.path || '/'}`">
+				<NcActionButton data-action="edit" @click="emit('edit', rule)">
 					Edit
-				</button>
-				<button class="fcias-btn fcias-btn-toggle" data-action="toggle" @click="emit('toggle', rule)">
+				</NcActionButton>
+				<NcActionButton data-action="toggle" @click="emit('toggle', rule)">
 					{{ rule.enabled ? 'Disable' : 'Enable' }}
-				</button>
-				<button
-					class="fcias-btn fcias-btn-danger fcias-btn-delete"
-					data-action="delete"
-					@click="emit('delete', rule)">
+				</NcActionButton>
+				<NcActionButton v-if="canReapply" data-action="apply" @click="emit('apply', rule)">
+					Re-apply
+				</NcActionButton>
+				<NcActionButton data-action="delete" @click="emit('delete', rule)">
 					Delete
-				</button>
-			</template>
+				</NcActionButton>
+			</NcActions>
 			<span v-else class="fcias-muted">Read-only</span>
 		</td>
 	</tr>

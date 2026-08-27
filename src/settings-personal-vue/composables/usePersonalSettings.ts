@@ -29,6 +29,7 @@ export function usePersonalSettings() {
 		saveRule: rules.saveRule,
 		deleteRule: rules.deleteRule,
 		toggleRule: rules.toggleRule,
-		reorderBand: rules.reorderBand,
+		applyRule: rules.applyRule,
+		reorderSegment: rules.reorderSegment,
 	}
 }

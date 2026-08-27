@@ -3,6 +3,13 @@ import { mount } from '@vue/test-utils'
 import RuleTable from './RuleTable.vue'
 import type { Rule } from './types'
 
+vi.mock('@nextcloud/vue/components/NcActions', () => ({
+	default: { name: 'NcActions', template: '<div class="nc-actions"><slot /></div>' },
+}))
+vi.mock('@nextcloud/vue/components/NcActionButton', () => ({
+	default: { name: 'NcActionButton', template: '<button><slot /></button>' },
+}))
+
 // The real one pulls in a stylesheet Vitest cannot load; only its trigger slot
 // matters here, and that is what the help icon lives in.
 vi.mock('@nextcloud/vue/components/NcPopover', () => ({

@@ -94,6 +94,9 @@ export function useAdminSettings() {
 		supportedAlgos: rules.supportedAlgos,
 		availableUsers: rules.availableUsers,
 		availableGroups: rules.availableGroups,
+		groupFoldersAvailable: rules.groupFoldersAvailable,
+		groupFoldersLabel: rules.groupFoldersLabel,
+		availableGroupFolders: rules.availableGroupFolders,
 		modes: rules.modes,
 		types: rules.types,
 		definitionsError: rules.error,
@@ -101,6 +104,7 @@ export function useAdminSettings() {
 		loadDefinitions: rules.load,
 		saveRule: rules.saveRule,
 		deleteRule: rules.deleteRule,
+		applyRule: rules.applyRule,
 		toggleRule: rules.toggleRule,
 		reorderSegment: rules.reorderSegment,
 	}

@@ -100,12 +100,30 @@ describe('useRules', () => {
 		await reorderSegment('home:*', false, ['b', 'a'])
 
 		const call = fetchMock.mock.calls[0]!
+		// The URL assertion is the regression guard: this request once went
+		// to `undefined` because it read a route key that did not exist.
+		expect(String(call[0])).toContain('/api/v1/rules/order')
 		expect((call[1] as RequestInit).method).toBe('PUT')
 		expect(JSON.parse((call[1] as RequestInit).body as string)).toEqual({
 			selector: 'home:*',
 			defaults: false,
 			orderedIds: ['b', 'a'],
 		})
+	})
+
+	it('queues a re-apply on the rule apply endpoint without reloading', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ success: true, queued: true }))
+		const { applyRule } = useRules('all')
+
+		const result = await applyRule('r1')
+
+		expect(result.success).toBe(true)
+		// Applying changes no rule definition, so exactly one request: the
+		// apply POST itself, no follow-up list reload.
+		expect(fetchMock.mock.calls).toHaveLength(1)
+		const call = fetchMock.mock.calls[0]!
+		expect(String(call[0])).toContain('/api/v1/rules/r1/apply')
+		expect((call[1] as RequestInit).method).toBe('POST')
 	})
 
 	it('reloads after a successful mutation but not after a failed one', async () => {

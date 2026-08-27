@@ -6,6 +6,13 @@ vi.mock('@nextcloud/router', () => ({
 	generateOcsUrl: (url: string) => url,
 }))
 
+vi.mock('@nextcloud/vue/components/NcActions', () => ({
+	default: { name: 'NcActions', template: '<div class="nc-actions"><slot /></div>' },
+}))
+vi.mock('@nextcloud/vue/components/NcActionButton', () => ({
+	default: { name: 'NcActionButton', template: '<button><slot /></button>' },
+}))
+
 vi.mock('@nextcloud/vue/components/NcSelect', () => ({
 	default: { name: 'NcSelect', render: () => null },
 }))

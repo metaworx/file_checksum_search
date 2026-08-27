@@ -31,6 +31,7 @@ const props = defineProps<{
 const emit = defineEmits<{
 	(e: 'edit', rule: Rule): void
 	(e: 'toggle', rule: Rule): void
+	(e: 'apply', rule: Rule): void
 	(e: 'delete', rule: Rule): void
 	/**
 	 * A reorder completed within one segment partition: one selector's
@@ -194,14 +195,14 @@ const emptyMessage = computed(
 			<colgroup>
 				<col style="width: 4%">
 				<col style="width: 7%">
-				<col style="width: 12%">
-				<col style="width: 18%">
+				<col style="width: 14%">
+				<col style="width: 23%">
 				<col style="width: 8%">
-				<col style="width: 12%">
+				<col style="width: 14%">
 				<col style="width: 8%">
 				<col style="width: 9%">
 				<col style="width: 7%">
-				<col style="width: 15%">
+				<col style="width: 6%">
 			</colgroup>
 			<thead>
 				<tr>
@@ -242,12 +243,14 @@ const emptyMessage = computed(
 					<RuleRow
 						:rule="rule"
 						:variant="variant"
+						:group-folders-label="groupFoldersLabel"
 						:can-drag="isDraggable(rule)"
 						:is-dragging="draggedId === rule.id"
 						:is-drag-over="dragOverId === rule.id"
 						:starts-band="startsBand(index)"
 						@edit="emit('edit', $event)"
 						@toggle="emit('toggle', $event)"
+						@apply="emit('apply', $event)"
 						@delete="emit('delete', $event)"
 						@row-dragstart="onDragStart"
 						@row-dragover="onDragOver"

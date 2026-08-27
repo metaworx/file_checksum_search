@@ -27,6 +27,7 @@ const {
 	saveRule,
 	deleteRule,
 	toggleRule,
+	applyRule,
 	reorderSegment,
 } = usePersonalSettings()
 
@@ -110,6 +111,15 @@ async function handleReorder(payload: { selector: string; defaults: boolean; ord
 	}
 }
 
+async function handleApplyRule(rule: Rule): Promise<void> {
+	const result = await applyRule(rule.id)
+	if (result.success) {
+		OC.Notification.showTemporary('Re-apply queued — the background job takes it from here.')
+	} else {
+		ruleMsg.value = result.error || 'Re-apply failed.'
+	}
+}
+
 async function handleToggleRule(rule: Rule): Promise<void> {
 	const result = await toggleRule(rule.id, !rule.enabled)
 	if (result.success) {
@@ -176,6 +186,7 @@ loadRules()
 					:reorderable="true"
 					@edit="openEditRule"
 					@toggle="handleToggleRule"
+					@apply="handleApplyRule"
 					@delete="handleDeleteRule"
 					@reorder="handleReorder" />
 			</div>

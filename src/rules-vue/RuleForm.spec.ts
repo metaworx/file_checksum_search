@@ -3,7 +3,20 @@ import { mount } from '@vue/test-utils'
 import RuleForm from './RuleForm.vue'
 
 vi.mock('@nextcloud/vue/components/NcSelect', () => ({
-	default: { name: 'NcSelect', render: () => null },
+	// A native-select stand-in that honours modelValue/options/input-id, so
+	// tests drive the pickers exactly like the plain selects they replaced.
+	default: {
+		name: 'NcSelect',
+		props: ['modelValue', 'options', 'inputId'],
+		emits: ['update:modelValue'],
+		template: '<select :id="inputId"'
+			+ ' @change="$emit(\'update:modelValue\','
+			+ ' (options || []).find((o) => String(o.id) === $event.target.value) ?? null)">'
+			+ '<option value=""></option>'
+			+ '<option v-for="o in options || []" :key="o.id" :value="o.id"'
+			+ ' :selected="!!modelValue && String(modelValue.id) === String(o.id)">{{ o.label }}</option>'
+			+ '</select>',
+	},
 }))
 vi.mock('@nextcloud/vue/components/NcPopover', () => ({
 	default: {
@@ -161,7 +174,144 @@ describe('RuleForm', () => {
 		})
 	})
 
+	describe('group folder picker', () => {
+		it('offers no group-folder option when the app is unavailable', () => {
+			const wrapper = mount(RuleForm, {
+				props: { rule: null, variant: 'admin', supportedAlgos: ['sha1'] },
+			})
+
+			const kinds = wrapper.find('#fcias-cron-userscope').findAll('option')
+				.map((option) => option.attributes('value'))
+			expect(kinds).not.toContain('groupfolder')
+		})
+
+		it('offers group folders by name and stores the folder id', async () => {
+			const wrapper = mount(RuleForm, {
+				props: {
+					rule: null,
+					variant: 'admin',
+					supportedAlgos: ['sha1'],
+					groupFoldersAvailable: true,
+					availableGroupFolders: [{ id: 1, name: 'Team Docs' }],
+				},
+			})
+
+			await wrapper.find('#fcias-cron-userscope').setValue('groupfolder')
+
+			const picker = wrapper.find('#fcias-cron-scope-target')
+			expect(picker.text()).toContain('Team Docs')
+
+			await picker.setValue('1')
+			await wrapper.find('#fcias-btn-save-definition').trigger('click')
+
+			// The name is display only; the selector stores the id.
+			expect((wrapper.emitted('save')?.[0]?.[0] as { selector: string }).selector).toBe('groupfolder:1')
+		})
+
+		it('keeps the raw text input for storage ids', async () => {
+			const wrapper = mount(RuleForm, {
+				props: { rule: null, variant: 'admin', supportedAlgos: ['sha1'] },
+			})
+
+			await wrapper.find('#fcias-cron-userscope').setValue('storage')
+
+			const input = wrapper.find('#fcias-cron-scope-target')
+			expect(input.element.tagName).toBe('INPUT')
+
+			await input.setValue('smb::user@host//share/')
+			await wrapper.find('#fcias-btn-save-definition').trigger('click')
+
+			expect((wrapper.emitted('save')?.[0]?.[0] as { selector: string }).selector)
+				.toBe('storage:smb::user@host//share/')
+		})
+	})
+
+	describe('kind changes', () => {
+		it('clears the picked target when "Applies to" changes', async () => {
+			const wrapper = mount(RuleForm, {
+				props: {
+					rule: null,
+					variant: 'admin',
+					supportedAlgos: ['sha1'],
+					availableUsers: ['alice'],
+					groupFoldersAvailable: true,
+					availableGroupFolders: [{ id: 1, name: 'Team Docs' }],
+				},
+			})
+
+			await wrapper.find('#fcias-cron-userscope').setValue('user')
+			await wrapper.find('#fcias-cron-scope-target').setValue('alice')
+
+			// Switching the kind must not carry alice into a group-folder
+			// selector: a stale target composes a rule nobody asked for.
+			await wrapper.find('#fcias-cron-userscope').setValue('groupfolder')
+
+			const picker = wrapper.find('#fcias-cron-scope-target')
+			expect((picker.element as HTMLSelectElement).value).toBe('')
+
+			await wrapper.find('#fcias-btn-save-definition').trigger('click')
+			expect((wrapper.emitted('save')?.[0]?.[0] as { selector: string }).selector).toBe('')
+		})
+
+		it('keeps the seeded target when editing an existing rule', () => {
+			const wrapper = mount(RuleForm, {
+				props: {
+					rule: { id: 3, path: '/a', mode: 'auto', algos: ['sha1'], selector: 'home:alice', admin_enforced: false },
+					variant: 'admin',
+					supportedAlgos: ['sha1'],
+					availableUsers: ['alice'],
+				},
+			})
+
+			// Seeding is programmatic, not a user interaction — the target
+			// survives it.
+			expect((wrapper.find('#fcias-cron-scope-target').element as HTMLSelectElement).value).toBe('alice')
+		})
+	})
+
+	describe('naming', () => {
+		it('speaks the groupfolders app\'s own name when it supplies one', async () => {
+			const wrapper = mount(RuleForm, {
+				props: {
+					rule: null,
+					variant: 'admin',
+					supportedAlgos: ['sha1'],
+					groupFoldersAvailable: true,
+					groupFoldersLabel: 'Team Folders',
+					availableGroupFolders: [{ id: 1, name: 'Team Docs' }],
+				},
+			})
+
+			const kindSelect = wrapper.find('#fcias-cron-userscope')
+			expect(kindSelect.text()).toContain('Team Folders')
+
+			await kindSelect.setValue('groupfolder')
+			expect(wrapper.find('.fcias-cron-form-row label[for="fcias-cron-scope-target"]').text())
+				.toBe('Team Folders')
+		})
+	})
+
 	describe('band preview', () => {
+		it('previews the band from the kind alone, before any target is picked', async () => {
+			const wrapper = mount(RuleForm, {
+				props: {
+					rule: null,
+					variant: 'admin',
+					supportedAlgos: ['sha1'],
+					availableUsers: ['alice'],
+				},
+			})
+			const preview = () => wrapper.find('.fcias-band-preview').text()
+
+			// Regression: with the preview derived from the composed selector,
+			// an empty target made every kind read as band 8 — Everything.
+			await wrapper.find('#fcias-cron-userscope').setValue('user')
+			expect(preview()).toContain('band 5')
+
+			await wrapper.find('#fcias-cron-userscope').setValue('group')
+			expect(preview()).toContain('band 6')
+		})
+
 		it('follows the scope and enforced controls while editing', async () => {
 			const wrapper = mount(RuleForm, {
 				props: {

@@ -73,8 +73,16 @@ const RANK: Record<SelectorKind, number> = {
 
 /** Mirrors Selector::band(). */
 export function bandOf(rule: Pick<Rule, 'selector' | 'admin_enforced'>): number {
-	const rank = RANK[selectorKind(rule.selector || '*')]
-	return rule.admin_enforced === true ? rank : rank + 4
+	return bandOfKind(selectorKind(rule.selector || '*'), rule.admin_enforced === true)
+}
+
+/**
+ * The band a selector *kind* lands in — the target never matters, which is
+ * what lets a form preview the band before a target is picked.
+ */
+export function bandOfKind(kind: SelectorKind, enforced: boolean): number {
+	const rank = RANK[kind]
+	return enforced ? rank : rank + 4
 }
 
 /** "<band>.<position>" — lower is higher priority. */
@@ -83,7 +91,7 @@ export function priorityLabel(rule: Pick<Rule, 'band' | 'position' | 'selector' 
 }
 
 /** How a selector reads in the table's Selector column. */
-export function selectorLabel(selector: string): string {
+export function selectorLabel(selector: string, groupFolderTerm?: string | null): string {
 	switch (selectorKind(selector || '*')) {
 	case 'universal':
 		return 'Everything'
@@ -92,7 +100,10 @@ export function selectorLabel(selector: string): string {
 	case 'group':
 		return `Group: ${selectorTarget(selector)}`
 	case 'groupfolder':
-		return `Group folder: ${selectorTarget(selector)}`
+		// The groupfolders app calls itself "Team Folders" these days; when
+		// it is there we use its own name, and when it is gone we name the
+		// missing provider by its slug rather than pretending.
+		return `${groupFolderTerm ?? 'app:groupfolders'}: ${selectorTarget(selector)}`
 	case 'storage':
 		return `Storage: ${selectorTarget(selector)}`
 	default:

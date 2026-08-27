@@ -40,3 +40,9 @@ export interface RuleDraft {
 	isDefault?: boolean
 	enabled?: boolean
 }
+
+/** One group folder the groupfolders app knows, offered in the selector picker. */
+export interface GroupFolderOption {
+	id: number
+	name: string
+}

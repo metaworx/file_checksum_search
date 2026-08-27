@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Controller;
 use InvalidArgumentException;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\ApplyRuleJob;
+use OCA\FileChecksumSearch\Service\GroupFolderService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
@@ -70,6 +71,7 @@ class RulesController
 		private readonly RuleDefinitionValidator $definitionValidator,
 		private readonly IUserManager            $userManager,
 		private readonly IJobList                $jobList,
+		private readonly GroupFolderService      $groupFolderService,
 		private readonly LoggerInterface         $logger,
 	) {
 
@@ -130,6 +132,14 @@ class RulesController
 		{
 			$payload['availableUsers']  = $this->allUserIds();
 			$payload['availableGroups'] = $this->allGroupIds();
+
+			// Soft dependency: when the groupfolders app is missing the UI
+			// gets an explicit "not available" rather than an empty list, so
+			// it can drop the selector option instead of offering a picker
+			// with nothing to pick.
+			$payload['groupFoldersAvailable'] = $this->groupFolderService->isAvailable();
+			$payload['groupFoldersLabel']     = $this->groupFolderService->appName();
+			$payload['availableGroupFolders'] = $this->groupFolderService->listFolders();
 		}
 
 		return new DataResponse( $payload );

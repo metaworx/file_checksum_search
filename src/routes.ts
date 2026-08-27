@@ -43,6 +43,8 @@ export const API_RULES = {
 	remove: `${APP_BASE}/api/v1/rules/{id}`,
 	/** PUT    /api/v1/rules/order */
 	order: `${APP_BASE}/api/v1/rules/order`,
+	/** POST   /api/v1/rules/{id}/apply */
+	apply: `${APP_BASE}/api/v1/rules/{id}/apply`,
 } as const
 
 /** OCS settings endpoints (SettingsController) */

@@ -1,7 +1,14 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RuleRow from './RuleRow.vue'
 import type { Rule } from './types'
+
+vi.mock('@nextcloud/vue/components/NcActions', () => ({
+	default: { name: 'NcActions', template: '<div class="nc-actions"><slot /></div>' },
+}))
+vi.mock('@nextcloud/vue/components/NcActionButton', () => ({
+	default: { name: 'NcActionButton', template: '<button><slot /></button>' },
+}))
 
 function makeRule(overrides: Partial<Rule> = {}): Rule {
 	return {
@@ -159,5 +166,40 @@ describe('RuleRow', () => {
 		expect(wrapper.emitted('edit')?.[0]).toEqual([rule])
 		expect(wrapper.emitted('toggle')?.[0]).toEqual([rule])
 		expect(wrapper.emitted('delete')?.[0]).toEqual([rule])
+	})
+
+	// --- actions menu ---
+
+	it('offers Re-apply for an enabled include rule and emits apply', async () => {
+		const wrapper = mount(RuleRow, { props: { rule: makeRule(), variant: 'admin' } })
+
+		const apply = wrapper.find('button[data-action="apply"]')
+		expect(apply.exists()).toBe(true)
+
+		await apply.trigger('click')
+		expect(wrapper.emitted('apply')).toHaveLength(1)
+	})
+
+	it('hides Re-apply for a disabled rule', () => {
+		const wrapper = mount(RuleRow, { props: { rule: makeRule({ enabled: false }), variant: 'admin' } })
+
+		// The server refuses a disabled rule at submission; the menu simply
+		// does not offer what cannot succeed.
+		expect(wrapper.find('button[data-action="apply"]').exists()).toBe(false)
+		expect(wrapper.find('button[data-action="toggle"]').exists()).toBe(true)
+	})
+
+	it('hides Re-apply for rules that compute nothing', () => {
+		for (const type of ['ignore', 'exclude'] as const) {
+			const wrapper = mount(RuleRow, { props: { rule: makeRule({ type }), variant: 'admin' } })
+			expect(wrapper.find('button[data-action="apply"]').exists()).toBe(false)
+		}
+	})
+
+	it('shows no menu at all on a read-only row', () => {
+		const wrapper = mount(RuleRow, { props: { rule: makeRule({ canEdit: false }), variant: 'personal' } })
+
+		expect(wrapper.find('.nc-actions').exists()).toBe(false)
+		expect(wrapper.find('td.fcias-cron-actions').text()).toBe('Read-only')
 	})
 })

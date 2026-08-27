@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 use InvalidArgumentException;
 use OCA\FileChecksumSearch\BackgroundJob\ApplyRuleJob;
 use OCA\FileChecksumSearch\Controller\RulesController;
+use OCA\FileChecksumSearch\Service\GroupFolderService;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCA\FileChecksumSearch\Service\RuleService;
@@ -32,23 +33,25 @@ class RulesControllerTest
 	FciasUnitTestCase
 {
 
-	private MockObject|RuleService       $ruleService;
+	private MockObject|RuleService        $ruleService;
 
-	private MockObject|PermissionService $permissionService;
+	private MockObject|PermissionService  $permissionService;
 
-	private MockObject|IUserSession      $userSession;
+	private MockObject|IUserSession       $userSession;
 
-	private MockObject|IGroupManager     $groupManager;
+	private MockObject|IGroupManager      $groupManager;
 
-	private MockObject|IUserManager      $userManager;
+	private MockObject|IUserManager       $userManager;
 
-	private MockObject|IRequest          $request;
+	private MockObject|IRequest           $request;
 
-	private MockObject|IJobList          $jobList;
+	private MockObject|IJobList           $jobList;
 
-	private MockObject|LoggerInterface   $logger;
+	private MockObject|GroupFolderService $groupFolderService;
 
-	private RulesController              $controller;
+	private MockObject|LoggerInterface    $logger;
+
+	private RulesController               $controller;
 
 
 	protected function setUp(): void
@@ -56,14 +59,15 @@ class RulesControllerTest
 
 		parent::setUp();
 
-		$this->ruleService       = $this->createMock( RuleService::class );
-		$this->permissionService = $this->createMock( PermissionService::class );
-		$this->userSession       = $this->createMock( IUserSession::class );
-		$this->groupManager      = $this->createMock( IGroupManager::class );
-		$this->userManager       = $this->createMock( IUserManager::class );
-		$this->request           = $this->createMock( IRequest::class );
-		$this->jobList           = $this->createMock( IJobList::class );
-		$this->logger            = $this->createMock( LoggerInterface::class );
+		$this->ruleService        = $this->createMock( RuleService::class );
+		$this->permissionService  = $this->createMock( PermissionService::class );
+		$this->userSession        = $this->createMock( IUserSession::class );
+		$this->groupManager       = $this->createMock( IGroupManager::class );
+		$this->userManager        = $this->createMock( IUserManager::class );
+		$this->request            = $this->createMock( IRequest::class );
+		$this->jobList            = $this->createMock( IJobList::class );
+		$this->groupFolderService = $this->createMock( GroupFolderService::class );
+		$this->logger             = $this->createMock( LoggerInterface::class );
 
 		// Partial mock: only readRequestBody() is mocked so php://input
 		// (read-only in CLI) can return test-provided JSON payloads.
@@ -82,6 +86,7 @@ class RulesControllerTest
 			                         new RuleDefinitionValidator( $this->groupManager, $this->userManager ),
 			                         $this->userManager,
 			                         $this->jobList,
+			                         $this->groupFolderService,
 			                         $this->logger,
 		                         ] )
 		                         ->getMock()
@@ -255,6 +260,44 @@ class RulesControllerTest
 
 		$this->assertArrayHasKey( 'availableUsers', $data );
 		$this->assertArrayHasKey( 'availableGroups', $data );
+	}
+
+
+	public function testTheAdminViewOffersGroupFoldersOnlyWhenTheAppIsThere(): void
+	{
+
+		$this->signIn( 'theadmin', isAdmin: true );
+		$this->scope( 'all' );
+		$this->userManager->method( 'callForAllUsers' );
+		$this->groupManager->method( 'search' )
+		                   ->willReturn( [] )
+		;
+		$this->ruleService->method( 'listRulesFor' )
+		                  ->willReturn( [] )
+		;
+
+		$this->groupFolderService->method( 'isAvailable' )
+		                         ->willReturn( true )
+		;
+		$this->groupFolderService->method( 'appName' )
+		                         ->willReturn( 'Team Folders' )
+		;
+		$this->groupFolderService->method( 'listFolders' )
+		                         ->willReturn( [
+			                         [
+				                         'id'   => 1,
+				                         'name' => 'Team Docs',
+			                         ],
+		                         ] )
+		;
+
+		$data = $this->controller->index()
+		                         ->getData()
+		;
+
+		$this->assertTrue( $data['groupFoldersAvailable'] );
+		$this->assertSame( 'Team Folders', $data['groupFoldersLabel'] );
+		$this->assertSame( 'Team Docs', $data['availableGroupFolders'][0]['name'] );
 	}
 
 

@@ -27,6 +27,9 @@ const {
 	supportedAlgos,
 	availableUsers,
 	availableGroups,
+	groupFoldersAvailable,
+	groupFoldersLabel,
+	availableGroupFolders,
 	definitions,
 	loadStatus,
 	acknowledgeIdleBanner,
@@ -34,6 +37,7 @@ const {
 	saveRule,
 	deleteRule,
 	toggleRule,
+	applyRule,
 	reorderSegment,
 } = useAdminSettings()
 
@@ -153,6 +157,15 @@ async function handleReorder(payload: { selector: string; defaults: boolean; ord
 	const result = await reorderSegment(payload.selector, payload.defaults, payload.orderedIds)
 	if (!result.success) {
 		ruleMsg.value = result.error || 'Reorder failed.'
+	}
+}
+
+async function handleApplyRule(rule: Rule): Promise<void> {
+	const result = await applyRule(rule.id)
+	if (result.success) {
+		OC.Notification.showTemporary('Re-apply queued — the background job takes it from here.')
+	} else {
+		ruleMsg.value = result.error || 'Re-apply failed.'
 	}
 }
 
@@ -306,10 +319,12 @@ loadDefinitions().then(() => {
 					<RuleTable
 						:rules="definitions"
 						variant="admin"
+						:group-folders-label="groupFoldersLabel"
 						:reorderable="true"
 						empty-text="No rules yet."
 						@edit="openEditRule"
 						@toggle="handleToggleRule"
+						@apply="handleApplyRule"
 						@delete="handleDeleteRule"
 						@reorder="handleReorder" />
 				</div>
@@ -324,6 +339,9 @@ loadDefinitions().then(() => {
 					:supported-algos="supportedAlgos"
 					:available-users="availableUsers"
 					:available-groups="availableGroups"
+					:group-folders-available="groupFoldersAvailable"
+					:group-folders-label="groupFoldersLabel"
+					:available-group-folders="availableGroupFolders"
 					@save="handleSaveRule"
 					@cancel="closeRuleForm" />
 
