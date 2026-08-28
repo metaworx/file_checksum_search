@@ -44,7 +44,11 @@ describe('RuleTable', () => {
 	it('shows the admin empty-state message when there are no rules', () => {
 		const wrapper = mount(RuleTable, { props: { rules: [], variant: 'admin' } })
 		expect(wrapper.text()).toContain('No rules yet.')
-		expect(wrapper.find('table').exists()).toBe(false)
+
+		// …and, below it, what could be ruled on: with nothing stored, the
+		// home and universal namespaces are both uncovered.
+		expect(wrapper.findAll('tr[data-placeholder]').map((row) => row.attributes('data-placeholder')))
+			.toEqual(['home:*', '*'])
 	})
 
 	it('shows the personal empty-state message when there are no rules', () => {
@@ -232,5 +236,128 @@ describe('RuleTable', () => {
 			await rows[0].find('.fcias-drag-handle').trigger('dragend')
 			expect(ruleRows(wrapper)[0].classes()).not.toContain('fcias-dragging')
 		})
+	})
+
+	// --- placeholder rows for uncovered namespaces ---
+
+	const folderProps = {
+		groupFoldersAvailable: true,
+		availableGroupFolders: [{ id: 1, name: 'Team Docs' }, { id: 2, name: 'Archive' }],
+		groupFoldersLabel: 'Team Folders',
+	}
+
+	/** The four namespace kinds, all covered by a catch-all of their own. */
+	const covered = [
+		makeRule({ id: 'a', selector: 'storage:smb::u@h//share/', path: '**', isDefault: true }),
+		makeRule({ id: 'b', selector: 'groupfolder:1', path: '**', isDefault: true }),
+		makeRule({ id: 'c', selector: 'groupfolder:2', path: '**', isDefault: true }),
+		makeRule({ id: 'd', selector: 'home:*', path: '**', isDefault: true }),
+		makeRule({ id: 'e', selector: '*', path: '**', isDefault: true }),
+	]
+
+	it('lists every namespace kind that has no catch-all of its own', async () => {
+		const wrapper = mount(RuleTable, {
+			props: {
+				// Folder 1 and the home namespace are ruled on; the storage,
+				// folder 2 and the universal namespace are not.
+				rules: [covered[1], covered[3]],
+				variant: 'admin',
+				availableStorages: ['smb::u@h//share/'],
+				...folderProps,
+			},
+		})
+
+		const rows = wrapper.findAll('tr[data-placeholder]')
+		expect(rows.map((row) => row.attributes('data-placeholder')))
+			.toEqual(['storage:smb::u@h//share/', 'groupfolder:2', '*'])
+		expect(rows[1].text()).toContain('Archive')
+
+		await rows[1].find('button[data-action="create"]').trigger('click')
+		expect(wrapper.emitted('create')?.[0]?.[0]).toMatchObject({ selector: 'groupfolder:2' })
+	})
+
+	it('lists nothing once every namespace has its own catch-all', () => {
+		const wrapper = mount(RuleTable, {
+			props: {
+				rules: covered,
+				variant: 'admin',
+				availableStorages: ['smb::u@h//share/'],
+				...folderProps,
+			},
+		})
+
+		expect(wrapper.findAll('tr[data-placeholder]')).toHaveLength(0)
+	})
+
+	it('says so differently when a namespace has rules but no catch-all', () => {
+		const wrapper = mount(RuleTable, {
+			props: {
+				// A rule for the folder, but only for part of it.
+				rules: [makeRule({ selector: 'groupfolder:1', path: 'Photos/**', isDefault: false })],
+				variant: 'admin',
+				...folderProps,
+			},
+		})
+
+		const folderRow = wrapper.find('tr[data-placeholder="groupfolder:1"]')
+		expect(folderRow.text()).toContain('no catch-all rule')
+		expect(wrapper.find('tr[data-placeholder="groupfolder:2"]').text()).toContain('not covered')
+	})
+
+	it('offers no group-folder namespaces when the app is unavailable', () => {
+		const wrapper = mount(RuleTable, {
+			props: { rules: [makeRule()], variant: 'admin' },
+		})
+
+		const selectors = wrapper.findAll('tr[data-placeholder]')
+			.map((row) => row.attributes('data-placeholder'))
+		expect(selectors.some((selector) => selector?.startsWith('groupfolder:'))).toBe(false)
+		// The namespaces that do not depend on that app are still listed.
+		expect(selectors).toContain('home:*')
+	})
+
+	it('offers no placeholders at all on the personal page', () => {
+		const wrapper = mount(RuleTable, {
+			props: { rules: [makeRule()], variant: 'personal', ...folderProps },
+		})
+
+		expect(wrapper.findAll('tr[data-placeholder]')).toHaveLength(0)
+	})
+
+	it('badges a rule whose provider is gone', () => {
+		const missingApp = mount(RuleTable, {
+			props: { rules: [makeRule({ selector: 'groupfolder:1' })], variant: 'admin' },
+		})
+		expect(missingApp.find('.fcias-provider-missing').exists()).toBe(true)
+
+		const deletedFolder = mount(RuleTable, {
+			props: {
+				rules: [makeRule({ selector: 'groupfolder:9' })],
+				variant: 'admin',
+				...folderProps,
+			},
+		})
+		expect(deletedFolder.find('.fcias-provider-missing').exists()).toBe(true)
+
+		const present = mount(RuleTable, {
+			props: {
+				rules: [makeRule({ selector: 'groupfolder:1' })],
+				variant: 'admin',
+				...folderProps,
+			},
+		})
+		expect(present.find('.fcias-provider-missing').exists()).toBe(false)
+	})
+
+	it('names group folders the way the app names itself', () => {
+		const wrapper = mount(RuleTable, {
+			props: {
+				rules: [makeRule({ selector: 'groupfolder:1' })],
+				variant: 'admin',
+				...folderProps,
+			},
+		})
+
+		expect(wrapper.find('tbody tr[data-id] td:nth-child(3)').text()).toContain('Team Folders: 1')
 	})
 })

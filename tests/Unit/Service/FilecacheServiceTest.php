@@ -19,6 +19,7 @@ use OCP\Files\IRootFolder;
 use OCP\Files\Node;
 use OCP\Files\NotFoundException;
 use OCP\Files\Storage\IStorage;
+use OCP\IConfig;
 use OCP\IDBConnection;
 use PHPUnit\Framework\MockObject\MockObject;
 
@@ -28,6 +29,8 @@ class FilecacheServiceTest
 {
 
 	private IRootFolder&MockObject $rootFolder;
+
+	private IConfig&MockObject     $config;
 
 	private FilecacheService       $service;
 
@@ -41,7 +44,9 @@ class FilecacheServiceTest
 		$this->db         = $this->createMock( IDBConnection::class );
 		$this->setUpQueryBuilderMock();
 
-		$this->service = new FilecacheService( $this->rootFolder, $this->db );
+		$this->config = $this->createMock( IConfig::class );
+
+		$this->service = new FilecacheService( $this->rootFolder, $this->db, $this->config );
 	}
 
 
@@ -711,6 +716,47 @@ class FilecacheServiceTest
 			FilecacheService::parseChecksumString( 'nocolon SHA1:dead :emptyalgo SHA256:' ),
 		);
 		$this->assertSame( [], FilecacheService::parseChecksumString( '' ) );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testListAddressableStoragesLeavesOutWhatOtherSelectorsOwn(): void
+	{
+
+		$this->config->method( 'getSystemValue' )
+		             ->with( 'datadirectory', '' )
+		             ->willReturn( '/var/www/html/data' )
+		;
+
+		// The SQL already drops home:: / object::user: / shared::; what
+		// reaches PHP is the rest, and two of those belong to other
+		// selectors: the instance root (no files area of its own) and each
+		// group folder's jail (addressed as groupfolder:<id>).
+		$rows = [
+			[ 'id' => 'local::/var/www/html/data/' ],
+			[ 'id' => 'local::/var/www/html/data/__groupfolders/1/' ],
+			[ 'id' => 'local::/mnt/photos/' ],
+			[ 'id' => 'smb::backup@fileserver//share/root' ],
+			false,
+		];
+
+		$resultStmt = $this->createMock( IResult::class );
+		$resultStmt->method( 'fetch' )
+		           ->willReturnOnConsecutiveCalls( ...$rows )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $resultStmt )
+		;
+
+		$this->assertSame(
+			[
+				'local::/mnt/photos/',
+				'smb::backup@fileserver//share/root',
+			],
+			$this->service->listAddressableStorages(),
+		);
 	}
 
 }

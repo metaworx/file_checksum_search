@@ -36,6 +36,7 @@ interface RulesResponse extends ApiResponse {
 	groupFoldersAvailable?: boolean
 	groupFoldersLabel?: string | null
 	availableGroupFolders?: GroupFolderOption[]
+	availableStorages?: string[]
 }
 
 interface State {
@@ -49,6 +50,7 @@ interface State {
 	groupFoldersAvailable: boolean
 	groupFoldersLabel: string | null
 	availableGroupFolders: GroupFolderOption[]
+	availableStorages: string[]
 	loading: boolean
 	error: string | null
 }
@@ -65,6 +67,7 @@ export function useRules(scope: 'own' | 'all') {
 		groupFoldersAvailable: false,
 		groupFoldersLabel: null,
 		availableGroupFolders: [],
+		availableStorages: [],
 		loading: false,
 		error: null,
 	})
@@ -93,6 +96,7 @@ export function useRules(scope: 'own' | 'all') {
 			state.groupFoldersAvailable = data.groupFoldersAvailable === true
 			state.groupFoldersLabel = data.groupFoldersLabel || null
 			state.availableGroupFolders = data.availableGroupFolders || []
+			state.availableStorages = data.availableStorages || []
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return
 			state.error = 'Failed to load rules.'

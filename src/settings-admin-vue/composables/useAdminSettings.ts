@@ -104,6 +104,7 @@ export function useAdminSettings() {
 		groupFoldersAvailable: rules.groupFoldersAvailable,
 		groupFoldersLabel: rules.groupFoldersLabel,
 		availableGroupFolders: rules.availableGroupFolders,
+		availableStorages: rules.availableStorages,
 		modes: rules.modes,
 		types: rules.types,
 		definitionsError: rules.error,

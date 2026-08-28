@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 use InvalidArgumentException;
 use OCA\FileChecksumSearch\BackgroundJob\ApplyRuleJob;
 use OCA\FileChecksumSearch\Controller\RulesController;
+use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\GroupFolderService;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
@@ -49,6 +50,8 @@ class RulesControllerTest
 
 	private MockObject|GroupFolderService $groupFolderService;
 
+	private MockObject|FilecacheService   $filecacheService;
+
 	private MockObject|LoggerInterface    $logger;
 
 	private RulesController               $controller;
@@ -67,6 +70,7 @@ class RulesControllerTest
 		$this->request            = $this->createMock( IRequest::class );
 		$this->jobList            = $this->createMock( IJobList::class );
 		$this->groupFolderService = $this->createMock( GroupFolderService::class );
+		$this->filecacheService   = $this->createMock( FilecacheService::class );
 		$this->logger             = $this->createMock( LoggerInterface::class );
 
 		// Partial mock: only readRequestBody() is mocked so php://input
@@ -87,6 +91,7 @@ class RulesControllerTest
 			                         $this->userManager,
 			                         $this->jobList,
 			                         $this->groupFolderService,
+			                         $this->filecacheService,
 			                         $this->logger,
 		                         ] )
 		                         ->getMock()
@@ -296,8 +301,40 @@ class RulesControllerTest
 		;
 
 		$this->assertTrue( $data['groupFoldersAvailable'] );
+		$this->assertSame( [], $data['availableStorages'] );
 		$this->assertSame( 'Team Folders', $data['groupFoldersLabel'] );
 		$this->assertSame( 'Team Docs', $data['availableGroupFolders'][0]['name'] );
+	}
+
+
+	public function testAFailingStorageListingStillReturnsTheRules(): void
+	{
+
+		$this->signIn( 'theadmin', isAdmin: true );
+		$this->scope( 'all' );
+		$this->userManager->method( 'callForAllUsers' );
+		$this->groupManager->method( 'search' )
+		                   ->willReturn( [] )
+		;
+		$this->ruleService->method( 'listRulesFor' )
+		                  ->willReturn( [ [ 'id' => 'r1' ] ] )
+		;
+		$this->filecacheService->method( 'listAddressableStorages' )
+		                       ->willThrowException( new \RuntimeException( 'storages table on fire' ) )
+		;
+
+		$this->logger->expects( $this->once() )
+		             ->method( 'warning' )
+		;
+
+		$data = $this->controller->index()
+		                         ->getData()
+		;
+
+		// The coverage view degrades; the page it lives on does not.
+		$this->assertTrue( $data['success'] );
+		$this->assertCount( 1, $data['rules'] );
+		$this->assertSame( [], $data['availableStorages'] );
 	}
 
 

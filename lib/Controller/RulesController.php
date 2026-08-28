@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Controller;
 use InvalidArgumentException;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\ApplyRuleJob;
+use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\GroupFolderService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\PermissionService;
@@ -72,6 +73,7 @@ class RulesController
 		private readonly IUserManager            $userManager,
 		private readonly IJobList                $jobList,
 		private readonly GroupFolderService      $groupFolderService,
+		private readonly FilecacheService        $filecacheService,
 		private readonly LoggerInterface         $logger,
 	) {
 
@@ -140,6 +142,26 @@ class RulesController
 			$payload['groupFoldersAvailable'] = $this->groupFolderService->isAvailable();
 			$payload['groupFoldersLabel']     = $this->groupFolderService->appName();
 			$payload['availableGroupFolders'] = $this->groupFolderService->listFolders();
+
+			// The rest of the coverage view: storages only storage:<id> or
+			// '*' can reach. A failure here costs the placeholder rows, not
+			// the rule list — the page stays useful either way.
+			try
+			{
+				$payload['availableStorages'] = $this->filecacheService->listAddressableStorages();
+			}
+			catch ( Throwable $e )
+			{
+				$this->logger->warning(
+					'FCIAS: could not list addressable storages.',
+					[
+						'app'       => Application::APP_ID,
+						'exception' => $e,
+					],
+				);
+
+				$payload['availableStorages'] = [];
+			}
 		}
 
 		return new DataResponse( $payload );

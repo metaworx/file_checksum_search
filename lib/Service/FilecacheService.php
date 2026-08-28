@@ -8,6 +8,7 @@ use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\Files\Node;
 use OCP\Files\NotFoundException;
+use OCP\IConfig;
 use OCP\IDBConnection;
 
 /**
@@ -27,6 +28,7 @@ class FilecacheService
 	public function __construct(
 		private readonly IRootFolder   $rootFolder,
 		private readonly IDBConnection $db,
+		private readonly IConfig       $config,
 	) {
 	}
 
@@ -224,6 +226,72 @@ class FilecacheService
 		}
 
 		return $locations;
+	}
+
+
+	/**
+	 * The storages a rule could sensibly address by raw id.
+	 *
+	 * The coverage view's third question — after "are home folders ruled
+	 * on?" and "is each group folder?" — is "and what about everything
+	 * else that is mounted?". Home storages answer to `home:*` and group
+	 * folder jails to `groupfolder:<id>`, so both are excluded here; share
+	 * wrappers (`shared::…`) are per-mount views of a file that already
+	 * lives somewhere else; and the instance root holds appdata and jails
+	 * rather than a files area of its own, so no rule could ever match in
+	 * it ({@see FileLocation}). What remains is external mounts and the
+	 * like: namespaces only `storage:<id>` or `*` reaches.
+	 *
+	 * @return list<string>  Raw storage ids, sorted.
+	 * @throws \OCP\DB\Exception
+	 */
+	public function listAddressableStorages(): array
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( 'id' )
+		   ->from( 'storages' )
+		   ->where(
+			   $qb->expr()
+			      ->notLike( 'id', $qb->createNamedParameter( 'home::%' ) ),
+			   $qb->expr()
+			      ->notLike( 'id', $qb->createNamedParameter( 'object::user:%' ) ),
+			   $qb->expr()
+			      ->notLike( 'id', $qb->createNamedParameter( 'shared::%' ) ),
+		   )
+		   ->orderBy( 'id', 'ASC' )
+		;
+
+		$dataRoot = rtrim(
+			$this->config->getSystemValue( 'datadirectory', '' ),
+			'/',
+		);
+
+		$result   = $qb->executeQuery();
+		$storages = [];
+
+		while ( ( $row = $result->fetch() ) !== false )
+		{
+			$storageId = (string) $row['id'];
+
+			// The instance root: appdata and (legacy) group folder jails,
+			// no files area of its own.
+			if ( $dataRoot !== '' && rtrim( $storageId, '/' ) === 'local::' . $dataRoot )
+			{
+				continue;
+			}
+
+			// A group folder's own jail — addressed as groupfolder:<id>.
+			if ( preg_match( '#^local::.*/__groupfolders/\d+/?$#', $storageId ) === 1 )
+			{
+				continue;
+			}
+
+			$storages[] = $storageId;
+		}
+		$result->closeCursor();
+
+		return $storages;
 	}
 
 

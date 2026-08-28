@@ -14,8 +14,8 @@
 import { computed, ref } from 'vue'
 import RuleRow from './RuleRow.vue'
 import HelpPopover from '../components/HelpPopover.vue'
-import { BAND_HELP, BAND_LABELS } from './bands'
-import type { Rule } from './types'
+import { BAND_HELP, BAND_LABELS, selectorKind, selectorTarget } from './bands'
+import type { GroupFolderOption, Rule } from './types'
 
 const props = defineProps<{
 	rules: Rule[]
@@ -28,6 +28,12 @@ const props = defineProps<{
 	reorderable?: boolean
 	/** What the groupfolders app calls itself, for the Scope column. */
 	groupFoldersLabel?: string | null
+	/** Whether the groupfolders app is installed and enabled. */
+	groupFoldersAvailable?: boolean
+	/** The group folders that exist — part of the coverage view. */
+	availableGroupFolders?: GroupFolderOption[]
+	/** Raw ids of storages only storage:<id> or '*' can reach. */
+	availableStorages?: string[]
 }>()
 
 const emit = defineEmits<{
@@ -40,6 +46,8 @@ const emit = defineEmits<{
 	 * regular rules, or its defaults.
 	 */
 	(e: 'reorder', payload: { selector: string; defaults: boolean; orderedIds: Array<Rule['id']> }): void
+	/** A placeholder row's button: create this namespace's first rule. */
+	(e: 'create', payload: { selector: string; label: string }): void
 }>()
 
 const draggedId = ref<Rule['id'] | null>(null)
@@ -178,6 +186,87 @@ function onDragEnd(): void {
 	dragOverId.value = null
 }
 
+/** Selectors that already have a catch-all (`**`) rule of their own. */
+const selectorsWithDefault = computed(
+	() => new Set(
+		props.rules
+			.filter((rule) => rule.isDefault === true)
+			.map((rule) => rule.selector || '*'),
+	),
+)
+
+/** Selectors any rule addresses at all, catch-all or not. */
+const selectorsWithAnyRule = computed(
+	() => new Set(props.rules.map((rule) => rule.selector || '*')),
+)
+
+/**
+ * Every namespace this instance has, in evaluation order.
+ *
+ * The four kinds a catch-all can address: one storage, one group folder,
+ * all home folders, everything. Each is a slice that either has a rule of
+ * its own or is left to whatever more general rule happens to cover it.
+ */
+const namespaces = computed(() => {
+	if (props.variant !== 'admin') return []
+
+	const folderTerm = props.groupFoldersLabel ?? 'Group folder'
+
+	return [
+		...(props.availableStorages ?? []).map((id) => ({
+			selector: `storage:${id}`,
+			label: `Storage: ${id}`,
+		})),
+		...(props.groupFoldersAvailable === true
+			? (props.availableGroupFolders ?? []).map((folder) => ({
+				selector: `groupfolder:${folder.id}`,
+				label: `${folderTerm}: ${folder.name} (#${folder.id})`,
+			}))
+			: []),
+		{ selector: 'home:*', label: 'All home folders' },
+		{ selector: '*', label: 'Everything — every storage' },
+	]
+})
+
+/**
+ * Namespaces with no catch-all rule of their own.
+ *
+ * Rendered as virtual rows — nothing is written until the administrator
+ * says so — because a namespace nobody has ruled on is otherwise
+ * invisible: you would have to know it exists to discover it is uncovered.
+ * A namespace with specific rules but no catch-all is listed too, saying
+ * so in its own words: the gap is real, just narrower.
+ */
+const placeholders = computed(
+	() => namespaces.value
+		.filter((namespace) => !selectorsWithDefault.value.has(namespace.selector))
+		.map((namespace) => ({
+			key: namespace.selector,
+			selector: namespace.selector,
+			label: namespace.label,
+			note: selectorsWithAnyRule.value.has(namespace.selector)
+				? 'no catch-all rule — only the specific rules above apply here'
+				: 'not covered — no rule addresses it, so nothing is hashed there',
+		})),
+)
+
+/**
+ * Whether a rule names a provider that is no longer there — a group folder
+ * rule after the app was disabled, or one naming a folder that was deleted.
+ * Such a rule is inert by construction; saying so beats leaving the reader
+ * to wonder why it never matches.
+ */
+function providerMissing(rule: Rule): boolean {
+	if (props.variant !== 'admin' || selectorKind(rule.selector || '*') !== 'groupfolder') {
+		return false
+	}
+
+	if (props.groupFoldersAvailable !== true) return true
+
+	return !(props.availableGroupFolders ?? [])
+		.some((folder) => String(folder.id) === String(selectorTarget(rule.selector)))
+}
+
 const emptyMessage = computed(
 	() => props.emptyText ?? (props.variant === 'admin' ? 'No rules yet.' : 'No rules apply to your files.'),
 )
@@ -193,7 +282,10 @@ const emptyMessage = computed(
 			{{ emptyMessage }}
 		</p>
 
-		<table v-else class="grid fcias-cron-table">
+		<!-- Placeholders alone are worth a table: on an instance with no
+		     rules at all, they are how an administrator sees what could be
+		     ruled on. -->
+		<table v-if="rules.length > 0 || placeholders.length > 0" class="grid fcias-cron-table">
 			<colgroup>
 				<col style="width: 4%">
 				<col style="width: 7%">
@@ -250,6 +342,7 @@ const emptyMessage = computed(
 						:is-dragging="draggedId === rule.id"
 						:is-drag-over="dragOverId === rule.id"
 						:starts-band="startsBand(index)"
+						:provider-missing="providerMissing(rule)"
 						@edit="emit('edit', $event)"
 						@toggle="emit('toggle', $event)"
 						@apply="emit('apply', $event)"
@@ -259,6 +352,48 @@ const emptyMessage = computed(
 						@row-dragleave="onDragLeave"
 						@row-drop="onDrop"
 						@row-dragend="onDragEnd" />
+				</template>
+
+				<!-- Virtual rows: namespaces that exist but no rule addresses.
+				     Nothing is stored until the button below is used — a page
+				     load must never write configuration. -->
+				<template v-if="placeholders.length">
+					<tr class="fcias-placeholder-header">
+						<th colspan="10" scope="colgroup">
+							<span class="fcias-th-inner">
+								<span>Without a rule of their own</span>
+								<HelpPopover
+									text="These namespaces exist on this instance but have no catch-all rule of
+										their own, so what happens to their files is decided by whatever more
+										general rule covers them — or by nothing at all. Creating a rule from
+										here starts one for that namespace; until then, nothing is stored."
+									label="Without a rule of their own" />
+							</span>
+						</th>
+					</tr>
+					<tr
+						v-for="placeholder in placeholders"
+						:key="placeholder.key"
+						class="fcias-placeholder-row"
+						:data-placeholder="placeholder.selector">
+						<td />
+						<td class="fcias-priority-cell">—</td>
+						<td :title="placeholder.label">
+							{{ placeholder.label }}
+						</td>
+						<td colspan="6" class="fcias-muted">
+							{{ placeholder.note }}
+						</td>
+						<td class="fcias-cron-actions">
+							<button
+								class="fcias-btn"
+								type="button"
+								data-action="create"
+								@click="emit('create', { selector: placeholder.selector, label: placeholder.label })">
+								Create rule
+							</button>
+						</td>
+					</tr>
 				</template>
 			</tbody>
 		</table>

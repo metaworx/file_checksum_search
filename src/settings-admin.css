@@ -404,3 +404,27 @@
 	align-items: center;
 	gap: 12px;
 }
+
+/* Its own header row, styled like a band header but deliberately not one:
+   these rows are not part of the evaluation order. */
+.fcias-cron-table tbody tr.fcias-placeholder-header th {
+	background-color: var(--color-background-dark);
+	color: var(--color-text-maxcontrast);
+	font-size: 0.85em;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	padding: 10px 8px 4px;
+	border-top: 2px solid var(--color-border);
+}
+
+/* Virtual rows for namespaces no rule addresses: present, but visibly not
+   configuration — nothing is stored until the button is used. */
+.fcias-placeholder-row td {
+	opacity: 0.75;
+	font-style: italic;
+}
+
+.fcias-placeholder-row .fcias-cron-actions {
+	font-style: normal;
+	opacity: 1;
+}

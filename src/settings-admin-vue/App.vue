@@ -30,6 +30,7 @@ const {
 	groupFoldersAvailable,
 	groupFoldersLabel,
 	availableGroupFolders,
+	availableStorages,
 	definitions,
 	loadStatus,
 	acknowledgeIdleBanner,
@@ -127,6 +128,25 @@ function toDraft(rule: Rule): RuleDraft {
 
 function openAddRule(): void {
 	editingRule.value = null
+	saveError.value = null
+	showRuleForm.value = true
+}
+
+/**
+ * A placeholder row's button: open the dialog seeded with that namespace's
+ * catch-all. Nothing is stored until the administrator saves — a page load
+ * must never write configuration.
+ */
+function handleCreateForNamespace(payload: { selector: string; label: string }): void {
+	editingRule.value = {
+		id: undefined,
+		type: 'include',
+		mode: 'auto',
+		algos: ['sha1', 'md5'],
+		path: '**',
+		selector: payload.selector,
+		admin_enforced: false,
+	}
 	saveError.value = null
 	showRuleForm.value = true
 }
@@ -369,12 +389,16 @@ loadDefinitions().then(() => {
 						:rules="definitions"
 						variant="admin"
 						:group-folders-label="groupFoldersLabel"
+						:group-folders-available="groupFoldersAvailable"
+						:available-group-folders="availableGroupFolders"
+						:available-storages="availableStorages"
 						:reorderable="true"
 						empty-text="No rules yet."
 						@edit="openEditRule"
 						@toggle="handleToggleRule"
 						@apply="handleApplyRule"
 						@delete="handleDeleteRule"
+						@create="handleCreateForNamespace"
 						@reorder="handleReorder" />
 				</div>
 

@@ -26,6 +26,10 @@ const props = defineProps<{
 	isDragOver?: boolean
 	/** Set on the first row of each band, which carries the band label. */
 	startsBand?: boolean
+	/** What the groupfolders app calls itself, for the Scope column. */
+	groupFoldersLabel?: string | null
+	/** The rule names a provider that is gone, so it can never match. */
+	providerMissing?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -80,8 +84,14 @@ const canReapply = computed(() => props.rule.enabled && computesHashes.value)
 		<td class="fcias-priority-cell" :title="`Band ${rule.band}, position ${rule.position}`">
 			{{ priorityLabel(rule) }}
 		</td>
-		<td :title="selectorLabel(rule.selector)">
-			{{ selectorLabel(rule.selector) }}
+		<td :title="selectorLabel(rule.selector, groupFoldersLabel)">
+			{{ selectorLabel(rule.selector, groupFoldersLabel) }}
+			<span
+				v-if="providerMissing"
+				class="fcias-provider-missing"
+				title="The app or storage this rule names is not available, so the rule can never match.">
+				provider missing
+			</span>
 		</td>
 		<td :title="rule.path || '/'">
 			{{ rule.path || '/' }}
@@ -174,6 +184,20 @@ const canReapply = computed(() => props.rule.enabled && computesHashes.value)
 .fcias-icon-btn:hover,
 .fcias-icon-btn:focus-visible {
 	background-color: var(--color-background-hover, rgba(127, 127, 127, 0.15));
+}
+
+/* A rule whose provider is gone is inert by construction; the badge says
+   so rather than leaving the reader to wonder why it never matches. */
+/* noinspection CssUnresolvedCustomProperty */
+.fcias-provider-missing {
+	display: inline-block;
+	margin-inline-start: 6px;
+	padding: 1px 6px;
+	border-radius: var(--border-radius, 3px);
+	background-color: var(--color-warning, #f0ad4e);
+	color: var(--color-primary-text, #fff);
+	font-size: 0.8em;
+	white-space: nowrap;
 }
 
 /* Pen and menu read as one control group, centred on a shared axis —
