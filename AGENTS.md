@@ -1,10 +1,10 @@
 <!-- GENERATED FILE - DO NOT EDIT.
      Source: shared/_AGENTS.md + project/_CONTRACT.md
      Regenerate: GUIDELINES/shared/tools/sync.sh
-     Contract version: v3.4.1 -->
+     Contract version: v3.8.1 -->
 
 
-# AI Agent Guidelines (v3.4.1)
+# AI Agent Guidelines (v3.8.1)
 
 Core behavioral rules for AI agents working on this codebase.  
 All agents MUST comply.
@@ -32,10 +32,24 @@ This document is intentionally concise; refer to linked documents for extended g
 - The gate message MUST follow the **Universal Gate Template**:
     - `Checkpoint`
     - `Overall Task`
-    - `Last Action`
+    - `Last Action` - optionally extended with bullets of what was implemented,
+      changed or fixed
     - `Pending action`
-    - `Confirmation needed: EXEC/EXEC+/EXEC++/EXEC+++/ROLLBACK`
+    - `CHANGELOG bullet` - the bullet the change ships with, verbatim; `N/A` where it ships none
+    - `Proposed commit message` - wherever a signal at this gate would commit; otherwise `N/A`
+    - `Files to be committed` - conditional: the paths, wherever a signal at this gate would commit
+    - `Important notes` - conditional: what the user needs in order to decide and would not otherwise
+      see; omitted when there is nothing
+    - `Confirmation needed: EXEC/EXEC+/ROLLBACK`
     - Additional information according to specialized gate message (e.g. AP or commit)
+- The gate MUST state, in the user's terms, **what `EXEC` will do** and **what
+  `EXEC+` will continue to** afterwards. A signal the user cannot predict the
+  effect of is not consent.
+- Where the runtime offers a structured question tool (see
+  `GUIDELINES/shared/tools/RUNTIME_TOOLS.md`), the gate SHOULD present the
+  available signals through it as selectable options, with the recommended one
+  first. The text template still applies: the tool carries the choice, not the
+  reasoning.
 - A gate message is the **only** valid way to request user confirmation. Echoing "waiting for input" via shell commands
   is a **violation** of this rule.
 - A visual workflow diagram is available in `GUIDELINES/shared/GATE_WORKFLOW.md`.
@@ -51,7 +65,7 @@ This document is intentionally concise; refer to linked documents for extended g
 ### 1.3 Commit Confirmation Gate
 
 - Before `git commit`, the agent MUST present a gate message containing the complete proposed commit message.
-- Commit‑related execution signals (`EXEC`, `EXEC+`, `EXEC++`, `EXEC+++`) and commit tools are detailed in [
+- Commit‑related execution signals (`EXEC`, `EXEC+`) and commit tools are detailed in [
   `GUIDELINES/shared/COMMIT.md`](GUIDELINES/shared/COMMIT.md).
 - The gate message must follow the Universal Gate Template.
 
@@ -121,9 +135,34 @@ Latest `<issue_update>` overrides earlier `<issue_description>`.
 
 ## 4. User‑Accessible Message Files (UAMF)
 
-- Store user‑visible artifacts in `/GUIDELINES/messages/` with a timestamp prefix `YYYY-MM-DD_HH-NN_`.
-- Never overwrite existing files; create new ones.
-- This includes Action Plan iterations (see [§5.3](#53-persistence-uamf)).
+A UAMF is a stored artefact, written for the user to read, that follows strict
+rules:
+
+- Its name begins with a timestamp, `YYYY-MM-DD_HH-NN_`, then describes its
+  subject.
+- It is **never overwritten**. A revision is a new file carrying a new version
+  in its name; the previous one stays where it is.
+
+Where it is stored depends on how long it needs to live:
+
+| Directory | Tracked | For |
+|-----------|---------|-----|
+| `GUIDELINES/messages/` | no  | the default: analyses, findings and records written for the user |
+| `GUIDELINES/wip/`      | yes | the Action Plan driving the change in progress, and any analysis that change depends on |
+| `GUIDELINES/temp/`     | no  | scratch that is not a UAMF at all |
+
+Citation rules follow from that, and they are absolute:
+
+- **`messages/` is never cited.** Not from a document, not from a commit
+  message, not from another UAMF. It is untracked: it exists in one working copy
+  and nobody else can follow the reference.
+- **`wip/` may be cited from another `wip/` document** — an Action Plan naming
+  the analysis it rests on — **and from a commit message**, which is immutable
+  and dated, so it names something that existed then and that git can still
+  produce.
+- **Nothing that outlives the change may cite either.** If a conclusion is worth
+  citing from a contract, a shared document or a README, it belongs *in* that
+  document.
 
 ## 5. Action Plan (AP)
 
@@ -146,7 +185,16 @@ Latest `<issue_update>` overrides earlier `<issue_description>`.
 
 ### 5.3 Persistence (UAMF)
 
-- Write each AP iteration as a [UAMF](#4-useraccessible-message-files-uamf) before any modifying project files.
+- Write each AP iteration as a [UAMF](#4-useraccessible-message-files-uamf) in
+  `GUIDELINES/wip/` before modifying any project files, and commit it
+  with the work it drives. A plan that exists only in one working copy cannot be
+  reviewed, and a commit that cites it would be citing nothing.
+- An AP is **retired** — deleted — by the commit that completes it. It remains
+  reachable in history: `git log --all --full-history -- <path>` finds it.
+- An AP may span many commits, of any tag, interrupted by other work. Retirement
+  follows completion, not the shape of the commit series.
+- The agent MUST NOT retire an AP on its own judgement. When it believes one is
+  complete it **asks**, in the commit gate, and the user decides.
 
 ## 6. Commit Policy (STRICT)
 
@@ -165,7 +213,7 @@ into a project's `AGENTS.md`: `GUIDELINES` is the project's agent directory and
 `GUIDELINES/shared` is the shared guidelines submodule. Their values come from
 `GUIDELINES/config.ini`.
 
-- `GUIDELINES/project/_CONTRACT.md` – project facts: paths, versions, exact test and lint commands.
+- **This document, below** – project facts: paths, versions, exact test and lint commands. They are inlined here from the project's `project/_CONTRACT.md`.
 - `GUIDELINES/shared/COMMIT.md` – commit workflow, gating, message and changelog policy.
 - `GUIDELINES/shared/GATE_WORKFLOW.md` – gate lifecycle and `ERR` recovery protocol.
 - `GUIDELINES/shared/ENVIRONMENTS.md` – agent-host command and tool-name conventions.
@@ -186,7 +234,7 @@ into a project's `AGENTS.md`: `GUIDELINES` is the project's agent directory and
 
 | Version | Date       | Changed Sections | Change Type | Agent Impact                                    |
 |---------|------------|------------------|-------------|-------------------------------------------------|
-| v3.4.0  | 2026-08-26 | 2.1, 7, 8.1      | minor       | References to the contract point at the generated `/AGENTS.md` rather than the `_AGENTS.md` fragment; placeholders renamed to `GUIDELINES/shared` / `GUIDELINES` / `{{runtime_root}}`; links traversing out of the document tree removed. Numbered v3.4.0 rather than v3.0.1 once the three unversioned changes below were reconstructed. |
+| v3.8.1 | 2026-08-28 | 7, 8.1 | patch | Cites the generated document rather than the `project/_CONTRACT.md` fragment. A fragment is inlined into a generated document and is not somewhere a reader can be sent: the facts are already in `/AGENTS.md`, which an agent has loaded, and the fragment may not have been generated from yet. |
 
 ---
 

@@ -138,7 +138,7 @@ there, not here.
 ---
 
 
-# Working with the agent (v1.1.0)
+# Working with the agent (v1.5.0)
 
 This is the human half of the contract. The agent's rules live in
 `/AGENTS.md`; this explains what the agent will do to you, what the words it
@@ -172,9 +172,16 @@ fields, so you can skim it:
 
 - **Checkpoint** — that this is a stop, not a status update
 - **Overall Task** — what you asked for, as the agent understood it
-- **Last Action** — what it just did
+- **Last Action** — what it just did, sometimes as bullets where that was
+  several things
 - **Pending action** — exactly what it wants to do next
-- **Confirmation needed** — which signal it is waiting for
+- **CHANGELOG bullet** — the line the change will add to the changelog
+- **Proposed commit message** — the exact message, wherever a signal would commit
+- **Files to be committed** — what would go into that commit
+- **Important notes** — anything you need in order to decide and would not
+  otherwise see: a bug fixed on the way, something to check before you answer,
+  a step that went differently than planned
+- **Confirmation needed** — which signal it is waiting for, and what each one does
 
 After sending one the agent must be silent until you answer. If you see it send
 a gate and then keep working, that is a violation of its own contract, and worth
@@ -191,16 +198,15 @@ One word, at the start or anywhere in your reply:
 |-------------|-------|
 | `EXEC`      | Do the gated action. Only that. |
 | `EXEC+`     | Do it, then carry on with the next planned step. |
-| `EXEC++`    | Commit everything currently staged, not only the gated scope. |
-| `EXEC+++`   | Stage everything changed (`git add .`) and commit. |
 | `ROLLBACK`  | Undo the last edit. Required — the agent may not undo unasked. |
 | `ERR`       | That went wrong; stop and diagnose before trying again. |
 | `PLAN`      | Produce or revise the plan; do not execute yet. |
 | `ASK`       | Answer my question; do not treat it as an instruction to act. |
 
-The `+` family widens *scope*, not permission — `EXEC+++` in particular commits
-work the agent may never have shown you. Prefer plain `EXEC` unless you know the
-working tree is exactly as you want it.
+The gate always tells you what `EXEC` will do and where `EXEC+` will go next.
+If it doesn't, that is a defect in the gate, not something for you to infer.
+
+`EXEC++` and `EXEC+++` are retired — say it in words instead.
 
 You can also just answer in prose. "Yes, but rename the second one first" is a
 perfectly good reply; the signals exist for speed, not ceremony.
@@ -274,5 +280,9 @@ git -C GUIDELINES/shared config core.fileMode false
 
 | Version | Date       | Changed sections | Change type | Agent impact |
 |---------|------------|------------------|-------------|--------------|
+| v1.5.0  | 2026-08-27 | 2                            | minor        | `Last Action` may arrive as bullets. A gate at the end of several steps used to report only the last one, leaving the rest to be reconstructed from the diff. |
+| v1.4.0  | 2026-08-27 | 2                            | minor        | A gate lists two more fields where they apply: the files a commit would contain, and anything you need in order to decide that you would not otherwise see - a bug fixed on the way, something to check first, a step that went differently than planned. |
+| v1.3.0  | 2026-08-27 | 2                            | minor        | A gate lists two more fields: the changelog bullet the change will add, and the commit message wherever a signal would commit. Both were already required of the agent; neither was named among the fields you can expect to see. |
+| v1.2.0  | 2026-08-27 | 3                            | minor        | `EXEC++` and `EXEC+++` are retired - say it in words instead. The gate now states what `EXEC` does and where `EXEC+` continues to, so the reader is told rather than left to infer. |
 | v1.1.0  | 2026-08-27 | 8, 9, 10                     | minor        | Adds the one thing a fresh clone needs and nothing anywhere said: the shared documents are a submodule, and every link into them is dead until it is initialised. Sections renumbered. |
 | v1.0.0  | 2026-08-26 | All              | major       | First version. Explains the gate protocol, execution signals, action plans and UAMF from the user's side; nothing previously described the protocol to the person receiving a gate message. |
