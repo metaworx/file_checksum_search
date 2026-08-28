@@ -338,6 +338,7 @@ const emptyMessage = computed(
 						:rule="rule"
 						:variant="variant"
 						:group-folders-label="groupFoldersLabel"
+						:group-folders="availableGroupFolders"
 						:can-drag="isDraggable(rule)"
 						:is-dragging="draggedId === rule.id"
 						:is-drag-over="dragOverId === rule.id"

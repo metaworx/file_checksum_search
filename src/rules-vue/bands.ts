@@ -12,7 +12,7 @@
  * Keep bandOf() in step with Selector::band().
  */
 
-import type { Rule } from './types'
+import type { GroupFolderOption, Rule } from './types'
 
 /** Display bands: the selector's specificity rank, enforced 1–4, unenforced 5–8. */
 export const BAND = {
@@ -90,8 +90,25 @@ export function priorityLabel(rule: Pick<Rule, 'band' | 'position' | 'selector' 
 	return `${rule.band ?? bandOf(rule as Rule)}.${rule.position ?? 1}`
 }
 
-/** How a selector reads in the table's Selector column. */
-export function selectorLabel(selector: string, groupFolderTerm?: string | null): string {
+/** "Team Docs (#1)" when the folder is known, the bare id when it is not. */
+function groupFolderName(id: string | null, folders?: GroupFolderOption[]): string {
+	const folder = (folders ?? []).find((candidate) => String(candidate.id) === String(id))
+
+	return folder ? `${folder.name} (#${folder.id})` : String(id)
+}
+
+/**
+ * What a selector should be called in the Scope column.
+ *
+ * `groupFolders` resolves a folder id to the name people know it by; without
+ * it — or for a folder that no longer exists — the bare id remains, which is
+ * exactly what pairs with the "provider missing" badge.
+ */
+export function selectorLabel(
+	selector: string,
+	options?: { groupFolderTerm?: string | null, groupFolders?: GroupFolderOption[] },
+): string {
+	const groupFolderTerm = options?.groupFolderTerm
 	switch (selectorKind(selector || '*')) {
 	case 'universal':
 		return 'Everything'
@@ -103,7 +120,7 @@ export function selectorLabel(selector: string, groupFolderTerm?: string | null)
 		// The groupfolders app calls itself "Team Folders" these days; when
 		// it is there we use its own name, and when it is gone we name the
 		// missing provider by its slug rather than pretending.
-		return `${groupFolderTerm ?? 'app:groupfolders'}: ${selectorTarget(selector)}`
+		return `${groupFolderTerm ?? 'app:groupfolders'}: ${groupFolderName(selectorTarget(selector), options?.groupFolders)}`
 	case 'storage':
 		return `Storage: ${selectorTarget(selector)}`
 	default:

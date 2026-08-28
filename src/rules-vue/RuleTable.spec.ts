@@ -270,7 +270,7 @@ describe('RuleTable', () => {
 		const rows = wrapper.findAll('tr[data-placeholder]')
 		expect(rows.map((row) => row.attributes('data-placeholder')))
 			.toEqual(['storage:smb::u@h//share/', 'groupfolder:2', '*'])
-		expect(rows[1].text()).toContain('Archive')
+		expect(rows[1].text()).toContain('Team Folders: Archive (#2)')
 
 		await rows[1].find('button[data-action="create"]').trigger('click')
 		expect(wrapper.emitted('create')?.[0]?.[0]).toMatchObject({ selector: 'groupfolder:2' })
@@ -349,7 +349,7 @@ describe('RuleTable', () => {
 		expect(present.find('.fcias-provider-missing').exists()).toBe(false)
 	})
 
-	it('names group folders the way the app names itself', () => {
+	it('names group folders by the app\'s word and the folder\'s own name', () => {
 		const wrapper = mount(RuleTable, {
 			props: {
 				rules: [makeRule({ selector: 'groupfolder:1' })],
@@ -358,6 +358,9 @@ describe('RuleTable', () => {
 			},
 		})
 
-		expect(wrapper.find('tbody tr[data-id] td:nth-child(3)').text()).toContain('Team Folders: 1')
+		// The app's own word for the namespace, and the folder's own name —
+		// the id alone told the reader nothing.
+		expect(wrapper.find('tbody tr[data-id] td:nth-child(3)').text())
+			.toContain('Team Folders: Team Docs (#1)')
 	})
 })

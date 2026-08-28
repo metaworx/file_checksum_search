@@ -13,7 +13,7 @@ import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import MdiIcon from '../components/MdiIcon.vue'
 import { ICON_BIN, ICON_PAUSE, ICON_PENCIL, ICON_PLAY, ICON_REFRESH } from '../components/icons'
 import { priorityLabel, selectorLabel } from './bands'
-import type { Rule } from './types'
+import type { GroupFolderOption, Rule } from './types'
 
 const props = defineProps<{
 	rule: Rule
@@ -28,6 +28,8 @@ const props = defineProps<{
 	startsBand?: boolean
 	/** What the groupfolders app calls itself, for the Scope column. */
 	groupFoldersLabel?: string | null
+	/** The group folders that exist, so the Scope column can name them. */
+	groupFolders?: GroupFolderOption[]
 	/** The rule names a provider that is gone, so it can never match. */
 	providerMissing?: boolean
 }>()
@@ -43,6 +45,11 @@ const emit = defineEmits<{
 	(e: 'rowDrop', rule: Rule, event: DragEvent): void
 	(e: 'rowDragend'): void
 }>()
+
+const scopeLabel = computed(() => selectorLabel(props.rule.selector, {
+	groupFolderTerm: props.groupFoldersLabel,
+	groupFolders: props.groupFolders,
+}))
 
 /** An ignore/exclude rule computes nothing, so it has no algorithms or mode. */
 const computesHashes = computed(() => (props.rule.type ?? 'include') === 'include')
@@ -84,8 +91,8 @@ const canReapply = computed(() => props.rule.enabled && computesHashes.value)
 		<td class="fcias-priority-cell" :title="`Band ${rule.band}, position ${rule.position}`">
 			{{ priorityLabel(rule) }}
 		</td>
-		<td :title="selectorLabel(rule.selector, groupFoldersLabel)">
-			{{ selectorLabel(rule.selector, groupFoldersLabel) }}
+		<td :title="scopeLabel">
+			{{ scopeLabel }}
 			<span
 				v-if="providerMissing"
 				class="fcias-provider-missing"
