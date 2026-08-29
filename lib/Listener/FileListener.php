@@ -169,9 +169,6 @@ class FileListener
 
 		switch ( $mode )
 		{
-		case MetadataService::PENDING_MODE_OFF:
-			break;
-
 		case MetadataService::PENDING_MODE_FORCE:
 			$this->metadataService->clearMetadata( $fileId );
 			$this->metadataService->markPending(
@@ -244,9 +241,6 @@ class FileListener
 
 		switch ( $mode )
 		{
-		case MetadataService::PENDING_MODE_OFF:
-			break;
-
 		case MetadataService::PENDING_MODE_FORCE:
 			$this->metadataService->clearMetadata( $fileId );
 			$this->metadataService->markPending(

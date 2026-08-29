@@ -156,6 +156,54 @@ class RepairQuietStartTest
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
+	public function testConvertsRetiredOffModeRulesToIgnore(): void
+	{
+
+		$this->ruleService->method( 'loadRules' )
+		                  ->willReturn( [
+			                  [
+				                  'id'       => 'r1',
+				                  'enabled'  => true,
+				                  'type'     => 'include',
+				                  'path'     => '/Archive/**',
+				                  'selector' => 'home:*',
+				                  'mode'     => 'off',
+				                  'algos'    => [ 'sha1' ],
+			                  ],
+			                  [
+				                  'id'       => 'r2',
+				                  'enabled'  => true,
+				                  'type'     => 'include',
+				                  'path'     => '**',
+				                  'selector' => '*',
+				                  'mode'     => 'auto',
+			                  ],
+		                  ] )
+		;
+
+		// Only the `off` rule is touched, and it becomes an ignore rule with
+		// no mode and no algorithms — an ignore rule computes nothing, so
+		// there is nothing for those to say.
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'ruleUpdate' )
+		                  ->with(
+			                  'r1',
+			                  $this->callback(
+				                  static fn(
+					                  array $definition,
+				                  ): bool => $definition['type'] === 'ignore'
+					                  && ! isset( $definition['mode'] )
+					                  && ! isset( $definition['algos'] )
+					                  && $definition['path'] === '/Archive/**',
+			                  ),
+			                  'repair',
+		                  )
+		;
+
+		$this->step->run( $this->output );
+	}
+
+
 	public function testPurgesLegacyPendingNewRows(): void
 	{
 

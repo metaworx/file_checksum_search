@@ -96,6 +96,7 @@ class RepairQuietStart
 		try
 		{
 			$this->ruleService->resaveCanonical();
+			$this->retireOffMode( $output );
 
 			$existing = [];
 
@@ -149,6 +150,61 @@ class RepairQuietStart
 		catch ( Throwable $e )
 		{
 			$this->warn( $output, 'could not ensure the selector defaults', $e );
+		}
+	}
+
+
+	/**
+	 * Convert rules still carrying the retired mode `off` into `ignore`
+	 * rules — the verdict that says the same thing and says it properly.
+	 *
+	 * As a mode, `off` suppressed only event-driven queueing: the periodic
+	 * sweep still marked matching files `pending:off`, and the drain, having
+	 * no such case, discarded each one with a warning. An `ignore` rule
+	 * claims the file and queues nothing by any route, which is what these
+	 * rules were reaching for.
+	 *
+	 * Algorithms and mode are dropped, as they are for any ignore rule: it
+	 * computes nothing, so there is nothing for them to say.
+	 *
+	 * @throws \JsonException
+	 */
+	private function retireOffMode( IOutput $output ): void
+	{
+
+		$converted = 0;
+
+		foreach ( $this->ruleService->loadRules() as $rule )
+		{
+			if ( ( $rule['mode'] ?? null ) !== 'off' )
+			{
+				continue;
+			}
+
+			// ruleUpdate() replaces the rule wholesale, so the definition is
+			// built explicitly: carrying $rule over would put `mode: off`
+			// straight back into storage.
+			$definition         = $rule;
+			$definition['type'] = RuleService::TYPE_IGNORE;
+			unset( $definition['mode'], $definition['algos'] );
+
+			$this->ruleService->ruleUpdate(
+				(string) ( $rule['id'] ?? '' ),
+				$definition,
+				'repair',
+			);
+
+			$converted ++;
+		}
+
+		if ( $converted > 0 )
+		{
+			$output->info(
+				sprintf(
+					'FCIAS: converted %d rule(s) from the retired mode "off" to the "ignore" verdict.',
+					$converted,
+				),
+			);
 		}
 	}
 

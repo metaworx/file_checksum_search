@@ -103,13 +103,14 @@ class FileListenerTest
 
 	// ─── File Create ──────────────────────────────────────────────────
 
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testFileCreateOffDoesNothing(): void
+	public function testFileCreateUnderAnIgnoreRuleDoesNothing(): void
 	{
 
-		$this->setCatchAllRule( 'off' );
+		$this->setCatchAllIgnoreRule();
 
 		$file  = $this->createTestFile( 'fcias_listener_crt_off_' . time() . '.dat' );
 		$event = new NodeCreatedEvent( $file );
@@ -176,13 +177,14 @@ class FileListenerTest
 
 	// ─── File Write ───────────────────────────────────────────────────
 
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testFileWriteOffDoesNothing(): void
+	public function testFileWriteUnderAnIgnoreRuleDoesNothing(): void
 	{
 
-		$this->setCatchAllRule( 'off' );
+		$this->setCatchAllIgnoreRule();
 
 		$file   = $this->createTestFile( 'fcias_listener_wrt_off_' . time() . '.dat' );
 		$fileId = $file->getId();
@@ -304,13 +306,14 @@ class FileListenerTest
 
 	// ─── File Delete ──────────────────────────────────────────────────
 
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testFileDeleteOffDoesNothing(): void
+	public function testFileDeleteUnderAnIgnoreRuleDoesNothing(): void
 	{
 
-		$this->setCatchAllRule( 'off' );
+		$this->setCatchAllIgnoreRule();
 
 		$file   = $this->createTestFile( 'fcias_listener_del_off_' . time() . '.dat' );
 		$fileId = $file->getId();
@@ -382,6 +385,7 @@ class FileListenerTest
 	/**
 	 * Seed metadata index entries via raw SQL to avoid triggering
 	 * the old filecache hash-table trigger (pre-existing issue).
+	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function seedMetadataIndex( int $fileId ): void
@@ -390,13 +394,23 @@ class FileListenerTest
 		$this->getRawConnection()
 		     ->executeStatement(
 			     'INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`) VALUES (?, ?, ?, ?)',
-			     [ $fileId, 'file-checksum-sha1', 'abc123', 0 ],
+			     [
+				     $fileId,
+				     'file-checksum-sha1',
+				     'abc123',
+				     0,
+			     ],
 		     )
 		;
 		$this->getRawConnection()
 		     ->executeStatement(
 			     'INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`) VALUES (?, ?, ?, ?)',
-			     [ $fileId, 'file-checksum-updated_at', null, time() ],
+			     [
+				     $fileId,
+				     'file-checksum-updated_at',
+				     null,
+				     time(),
+			     ],
 		     )
 		;
 	}
@@ -406,19 +420,31 @@ class FileListenerTest
 	 * Set a catch-all rule with the given mode for the current test.
 	 *
 	 * Uses RuleService::ruleAdd() to persist a rule matching all files.
+	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	private function setCatchAllRule( string $mode ): void
-	{
+	private function setCatchAllRule(
+		string $mode,
+		string $type = 'include',
+	): void {
 
 		$this->ruleService->ruleAdd(
 			[
-				'enabled'   => true,
-				'path'      => '**',
-				'mode'      => $mode,
-				'userScope' => 'all',
+				'enabled'  => true,
+				'type'     => $type,
+				'path'     => '**',
+				'mode'     => $mode,
+				'selector' => '*',
 			],
 		);
+	}
+
+
+	/** The verdict that replaced the retired mode `off`: claim, queue nothing. */
+	private function setCatchAllIgnoreRule(): void
+	{
+
+		$this->setCatchAllRule( 'auto', 'ignore' );
 	}
 
 
@@ -426,6 +452,7 @@ class FileListenerTest
 	 * Create a real test file in the admin user's storage.
 	 *
 	 * Registers the file and its fileId for automatic cleanup in tearDown().
+	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function createTestFile( string $name ): File
@@ -484,6 +511,7 @@ class FileListenerTest
 
 	/**
 	 * Remove all rules to ensure clean state between tests.
+	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function resetRules(): void
@@ -501,6 +529,5 @@ class FileListenerTest
 			}
 		}
 	}
-
 
 }

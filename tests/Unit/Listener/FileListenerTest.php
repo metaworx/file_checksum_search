@@ -360,7 +360,7 @@ class FileListenerTest
 	}
 
 
-	public function testOnWriteOffDoesNothing(): void
+	public function testOnWriteQueuesNothingForARetiredMode(): void
 	{
 
 		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
@@ -369,7 +369,10 @@ class FileListenerTest
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
 		                  ->with( 42 )
-		                  ->willReturn( [ 'mode' => 'off' ] )
+			// 'off' is retired; the repair step converts such
+			// rules to `ignore`. Until it runs, a rule still
+			// carrying it must queue nothing rather than fail.
+			              ->willReturn( [ 'mode' => 'off' ] )
 		;
 
 		$this->metadataService->expects( $this->never() )
@@ -481,7 +484,7 @@ class FileListenerTest
 	}
 
 
-	public function testOnCreateOffDoesNothing(): void
+	public function testOnCreateQueuesNothingForARetiredMode(): void
 	{
 
 		$file = $this->makeFileMock( 42, '/files/user/new.txt' );
@@ -490,7 +493,10 @@ class FileListenerTest
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
 		                  ->with( 42 )
-		                  ->willReturn( [ 'mode' => 'off' ] )
+			// 'off' is retired; the repair step converts such
+			// rules to `ignore`. Until it runs, a rule still
+			// carrying it must queue nothing rather than fail.
+			              ->willReturn( [ 'mode' => 'off' ] )
 		;
 
 		$this->metadataService->expects( $this->never() )

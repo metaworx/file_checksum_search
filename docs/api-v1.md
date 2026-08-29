@@ -537,7 +537,7 @@ from two already present, free to disagree with them. Compose it client-side if 
 | `path` | string | glob, Symfony Finder `**` syntax |
 | `selector` | string | `home:<uid>` \| `group:<gid>` \| `home:*` \| `groupfolder:<id>` \| `storage:<raw id>` \| `*` — split at the **first** colon, so a raw storage id may contain more |
 | `algos` | string[] | include rules only |
-| `mode` | string | include rules only: `auto` \| `missing` \| `force` \| `lazy` \| `off` |
+| `mode` | string | include rules only: `auto` \| `missing` \| `force` \| `lazy` |
 | `admin_enforced` | bool | administrator-only |
 | `isDefault` | bool | computed: the rule's path is a bare catch-all, placing it in its segment's defaults partition |
 | `band`, `position` | int | computed, read-only |
@@ -573,7 +573,7 @@ alone, so nothing depends on a client honouring it.
   ],
   "canCreate": true,
   "supportedAlgos": ["sha1", "md5", "sha256"],
-  "modes": ["auto", "missing", "force", "lazy", "off"],
+  "modes": ["auto", "missing", "force", "lazy"],
   "types": ["include", "ignore", "exclude"],
   "availableUsers": ["alice"],
   "availableGroups": ["staff"],

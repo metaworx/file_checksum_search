@@ -671,7 +671,7 @@ components:
           description: Include rules only
         mode:
           type: string
-          enum: [auto, missing, force, lazy, off]
+          enum: [auto, missing, force, lazy]
           description: Include rules only
         admin_enforced:
           type: boolean
@@ -716,7 +716,7 @@ components:
             type: string
         mode:
           type: string
-          enum: [auto, missing, force, lazy, off]
+          enum: [auto, missing, force, lazy]
         admin_enforced:
           type: boolean
           description: Administrator-only; forced to false otherwise

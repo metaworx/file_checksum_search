@@ -53,7 +53,6 @@ class MetadataService
 	public const PENDING_MODE_MISSING         = 'missing';
 	public const PENDING_MODE_FORCE           = 'force';
 	public const PENDING_MODE_LAZY            = 'lazy';
-	public const PENDING_MODE_OFF             = 'off';
 	public const PENDING_PREFIX               = 'pending:';
 	public const PENDING_AUTO                 = self::PENDING_PREFIX . self::PENDING_MODE_AUTO;
 	public const PENDING_FORCE                = self::PENDING_PREFIX . self::PENDING_MODE_FORCE;

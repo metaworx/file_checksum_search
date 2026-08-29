@@ -109,6 +109,13 @@ class RuleService
 	 * meaning "resolve the rule at processing time", never something a rule
 	 * declares about itself.
 	 *
+	 * `off` is gone: "claim the file, hash nothing automatically" is what the
+	 * verdict `ignore` says, properly and in one place. As a mode it only
+	 * ever suppressed *event*-driven queueing, so the periodic sweep went on
+	 * marking files `pending:off` for a drain that had no such case and
+	 * discarded them with a warning. The repair step converts any rule still
+	 * carrying it into an `ignore` rule.
+	 *
 	 * @var list<string>
 	 */
 	public const MODES
@@ -117,7 +124,6 @@ class RuleService
 			'missing',
 			'force',
 			'lazy',
-			'off',
 		];
 
 	/** @var list<string> */
