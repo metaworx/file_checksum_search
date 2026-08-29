@@ -275,9 +275,12 @@ paths:
       operationId: createRule
       summary: Create a rule
       description: >-
-        From a non-administrator, `userScope` is forced to the caller and
-        `admin_enforced` to false whatever the payload says, and `pinned` is
-        ignored. A non-administrator must also have write access to the path.
+        From a non-administrator, `selector` is forced to `home:<caller>` and
+        `admin_enforced` to false whatever the payload says. A
+        non-administrator must also have write access to the path on their own
+        home storage: a path leading into a received share, a group folder or
+        another mounted storage is refused, since such a rule could never
+        match.
       tags: [rules]
       requestBody:
         required: true
@@ -303,15 +306,17 @@ paths:
 
   /api/v1/rules/order:
     put:
-      operationId: reorderRuleBand
-      summary: Reorder one priority band
+      operationId: reorderRuleSegment
+      summary: Reorder one segment partition
       description: >-
-        `orderedIds` must be exactly a permutation of that band's rule IDs —
-        never a partial order, which would silently drop rules from evaluation.
-        Band 7 (the pinned catch-all) is not orderable. Band 4 holds every
-        user's own rules, so it also names whose segment is reordered; a
-        non-administrator may only reorder band 4 and is always forced to their
-        own segment.
+        A reorder addresses all rules sharing one `selector`, split by whether
+        their path is a bare catch-all (`defaults`). `orderedIds` must be
+        exactly a permutation of that partition's rule IDs — never a partial
+        order, which would silently drop rules from evaluation, and never a mix
+        of the two partitions, which would let a rule cross the defaults
+        boundary. Rules addressing different things never compete for a file, so
+        a reorder cannot change which rule wins across segments. A
+        non-administrator is always forced to their own segment.
       tags: [rules]
       requestBody:
         required: true
@@ -321,7 +326,7 @@ paths:
               $ref: "#/components/schemas/RuleOrderInput"
       responses:
         "200":
-          description: The band was reordered
+          description: The partition was reordered
           content:
             application/json:
               schema:
@@ -387,7 +392,7 @@ paths:
       description: >-
         Enabling or disabling a rule is an update of `enabled` — there is no
         separate toggle endpoint. Omitted fields keep their stored values, so a
-        minimal body is complete and safe. Changing `userScope` or
+        minimal body is complete and safe. Changing `selector` or
         `admin_enforced` moves the rule to the end of its new band, since
         position has no meaning across bands.
       tags: [rules]
@@ -417,7 +422,10 @@ paths:
     delete:
       operationId: deleteRule
       summary: Delete a rule
-      description: The pinned catch-all default cannot be deleted, only disabled.
+      description: >-
+        Any rule the caller may mutate can be deleted, the two shipped defaults
+        included: a repair step recreates a missing one, disabled, so deleting
+        one is reversible housekeeping.
       tags: [rules]
       responses:
         "200":
@@ -649,9 +657,13 @@ components:
         path:
           type: string
           description: Glob, Symfony Finder `**` syntax
-        userScope:
+        selector:
           type: string
-          description: "`all`, `group:<gid>`, or a user ID"
+          description: >-
+            Which slice of the file universe the rule addresses:
+            `home:<uid>`, `group:<gid>`, `home:*`, `groupfolder:<id>`,
+            `storage:<raw id>`, or `*`. Split at the first colon, so a raw
+            storage id may contain further colons and slashes.
         algos:
           type: array
           items:
@@ -663,13 +675,16 @@ components:
           description: Include rules only
         admin_enforced:
           type: boolean
-        pinned:
+        isDefault:
           type: boolean
-          description: The single catch-all default; administrator-only
+          readOnly: true
+          description: >-
+            Computed: the rule's path is a bare catch-all, placing it in the
+            trailing defaults partition of its segment.
         band:
           type: integer
           minimum: 1
-          maximum: 7
+          maximum: 8
           readOnly: true
         position:
           type: integer
@@ -690,9 +705,11 @@ components:
           enum: [include, ignore, exclude]
         path:
           type: string
-        userScope:
+        selector:
           type: string
-          description: Administrator-only; forced to the caller otherwise
+          description: >-
+            Administrator-only; forced to `home:<caller>` otherwise. See the
+            Rule schema for the accepted forms.
         algos:
           type: array
           items:
@@ -703,9 +720,6 @@ components:
         admin_enforced:
           type: boolean
           description: Administrator-only; forced to false otherwise
-        pinned:
-          type: boolean
-          description: Administrator-only; at most one rule may be pinned
 
     RuleMutationResponse:
       type: object
@@ -750,23 +764,58 @@ components:
           items:
             type: string
           description: Present only for scope=all
+        groupFoldersAvailable:
+          type: boolean
+          description: >-
+            Present only for scope=all. Whether the groupfolders app is
+            installed and enabled; false means `groupfolder:` selectors cannot
+            be offered at all.
+        groupFoldersLabel:
+          type: string
+          nullable: true
+          description: >-
+            Present only for scope=all. What that app calls itself ("Team
+            Folders"); null when it is absent.
+        availableGroupFolders:
+          type: array
+          description: Present only for scope=all. The group folders that exist.
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        availableStorages:
+          type: array
+          items:
+            type: string
+          description: >-
+            Present only for scope=all. Raw ids of storages only
+            `storage:<id>` or `*` reaches; home storages, group folder jails,
+            share wrappers and the instance root are excluded, since other
+            selectors own them or no rule could match in them.
 
     RuleOrderInput:
       type: object
-      required: [band, orderedIds]
+      required: [selector, orderedIds]
       properties:
-        band:
-          type: integer
-          minimum: 1
-          maximum: 6
-        ownerId:
+        selector:
           type: string
-          description: Required for band 4; ignored for a non-administrator
+          description: >-
+            The segment being reordered. A non-administrator is always forced
+            to their own, `home:<caller>`.
+        defaults:
+          type: boolean
+          default: false
+          description: >-
+            Which partition of that segment: its bare catch-all rules, or the
+            rest. A reorder never moves a rule across the boundary.
         orderedIds:
           type: array
           items:
             type: string
-          description: Exactly a permutation of that band's rule IDs
+          description: Exactly a permutation of that partition's rule IDs
 
   responses:
     HashingExcluded:

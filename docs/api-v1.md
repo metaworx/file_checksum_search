@@ -250,6 +250,29 @@ Read-only health/status snapshot.
 ]
 ```
 
+### Rules
+
+The rules surface mirrors the HTTP endpoints below — same validator, same
+permission rules, same audit log — so a calling app cannot express something
+REST would refuse. See [Rules](#rules) for the rule shape, the selector grammar
+and the band model.
+
+Every method takes an optional `$requestingUser`. **`null` means the caller is
+server-side code acting with full authority** (the occ-equivalent); a non-null
+user is enforced exactly as REST enforces that user. Mutations are audit-logged
+with the actor named — `api` for a trusted caller, the uid otherwise.
+
+| Method | Notes |
+|--------|-------|
+| `listRules(?string $requestingUser = null): array` | `['rules' => [...], 'canCreate' => bool]`. With a user, the personal view: the rules that can decide their files, their own marked editable |
+| `createRule(array $definition, ?string $requestingUser = null): string` | Returns the new rule's id. From a non-administrator, `selector` is forced to their own home and `admin_enforced` to `false` |
+| `updateRule(string $id, array $definition, ?string $requestingUser = null): void` | Omitted fields keep their stored values; enabling or disabling is an update of `enabled` |
+| `deleteRule(string $id, ?string $requestingUser = null): void` | A deleted shipped default is recreated (disabled) by the repair step |
+| `applyRule(string $id, ?string $requestingUser = null): array` | Runs the apply pass **synchronously** and returns its counts — `['matched' => int, 'marked' => int, 'skipped' => int, 'fresh' => int]` — where the REST endpoint queues a background job. Refuses a disabled or non-`include` rule |
+
+Anything the caller may not do raises `InvalidArgumentException`; an unknown id
+does the same.
+
 ---
 
 ## HTTP REST API
@@ -270,7 +293,8 @@ All endpoints are under `/apps/file_checksum_search/api/v1/`. Responses are plai
 | 8 | `/api/v1/rules` | POST | — | Create a rule |
 | 9 | `/api/v1/rules/{id}` | PUT | — | Update a rule (including enable/disable) |
 | 10 | `/api/v1/rules/{id}` | DELETE | — | Delete a rule |
-| 11 | `/api/v1/rules/order` | PUT | — | Reorder one priority band |
+| 11 | `/api/v1/rules/order` | PUT | — | Reorder one segment partition |
+| 12 | `/api/v1/rules/{id}/apply` | POST | — | Queue a full apply pass for one rule |
 
 > **Note:** `getHashesByFile()` and `getHashesByPath()` are PHP-only convenience methods with no HTTP equivalent. HTTP consumers should use `getHashesByFileId()` after obtaining a `fileId` from NC's WebDAV PROPFIND or other APIs.
 
@@ -464,25 +488,35 @@ No parameters.
 Hash-generation rules, as configured on the admin and personal settings pages.
 These endpoints have no `ChecksumApi` equivalent — they are HTTP-only.
 
+Nothing is hashed until a rule is enabled: a fresh installation ships two disabled rules
+(`home:*` and `*`, both with path `**`), and an integration that expects hashes to appear on their
+own should check that at least one enabled `include` rule exists.
+
 ### Priority bands
 
 Rules are evaluated top to bottom and **the first match decides the file**. A rule's position is
 not free-form: it is derived from what the rule *is*.
 
-| Band | Contents |
-|------|----------|
-| 1 | user-scoped, `admin_enforced` |
-| 2 | group-scoped, `admin_enforced` |
-| 3 | global, `admin_enforced` |
-| 4 | user-scoped, not enforced |
-| 5 | group-scoped, not enforced |
-| 6 | global, not enforced |
-| 7 | the single pinned `**` catch-all default |
+| Band | Selector addresses | `admin_enforced` |
+|------|--------------------|------------------|
+| 1 | one user's home (`home:<uid>`) or one storage (`storage:<id>`) | true |
+| 2 | one group (`group:<gid>`) or one group folder (`groupfolder:<id>`) | true |
+| 3 | every home folder (`home:*`) | true |
+| 4 | everything (`*`) | true |
+| 5 | one user's home or one storage | false |
+| 6 | one group or one group folder | false |
+| 7 | every home folder | false |
+| 8 | everything | false |
 
-Enforced beats unenforced; within each half, specific beats general; the catch-all is last. So a
-user's rule can override the non-enforced defaults below it, but can never outrun an enforced
-one. A rule changes band by changing its `userScope` or `admin_enforced` — never by reordering,
-which only permutes rules *inside* one band.
+Enforced beats unenforced; within each half, specific beats general. So a user's rule can override
+the non-enforced defaults below it, but can never outrun an enforced one. A rule changes band by
+changing its `selector` or `admin_enforced` — never by reordering, which only permutes rules
+*inside* one segment.
+
+A **segment** is one distinct `selector` value, and reordering happens inside one. Within every
+segment, rules whose `path` is the bare catch-all (`**`, `/`, or empty) form a trailing **defaults
+partition**: created rules are inserted before it, and a reorder may not move a rule across it.
+Rules carry `isDefault` so a client can render that boundary without re-deriving it.
 
 `band` and `position` are returned per rule and are **computed, never stored**. Do not send them.
 There is deliberately no combined `"<band>.<position>"` field: it would be a third value derived
@@ -496,11 +530,11 @@ from two already present, free to disagree with them. Compose it client-side if 
 | `enabled` | bool | |
 | `type` | string | `include` (default) \| `ignore` \| `exclude` |
 | `path` | string | glob, Symfony Finder `**` syntax |
-| `userScope` | string | `all` \| `group:<gid>` \| `<uid>` |
+| `selector` | string | `home:<uid>` \| `group:<gid>` \| `home:*` \| `groupfolder:<id>` \| `storage:<raw id>` \| `*` — split at the **first** colon, so a raw storage id may contain more |
 | `algos` | string[] | include rules only |
 | `mode` | string | include rules only: `auto` \| `missing` \| `force` \| `lazy` \| `off` |
 | `admin_enforced` | bool | administrator-only |
-| `pinned` | bool | the catch-all default; administrator-only, at most one |
+| `isDefault` | bool | computed: the rule's path is a bare catch-all, placing it in its segment's defaults partition |
 | `band`, `position` | int | computed, read-only |
 | `canEdit` | bool | computed for the calling user |
 
@@ -513,9 +547,9 @@ them is not an error, they are simply not kept.
 |-----------|--------|---------|-------|
 | `scope` | `own`, `all` | `own` | `all` requires administrator rights (403 otherwise) |
 
-`scope` selects a **view**, not a permission. `own` lists the rules that concern the caller's own
-files — covered by scope *and* able to reach a path they can see — and marks only their own as
-editable. `all` is the administrator's whole-instance view.
+`scope` selects a **view**, not a permission. `own` lists the rules that can decide the caller's own
+files — those whose selector reaches their home folder, able to match a path they can see — and
+marks only their own as editable. `all` is the administrator's whole-instance view.
 
 An administrator asking for `own` gets the personal view: the capability exists but is not
 exercised. That is what lets the personal settings page stay personal for everyone. It is a
@@ -528,27 +562,45 @@ alone, so nothing depends on a client honouring it.
   "success": true,
   "rules": [
     { "id": "0f1e…", "enabled": true, "type": "include", "path": "**/*.pdf",
-      "userScope": "all", "algos": ["sha256"], "mode": "auto",
-      "admin_enforced": false, "pinned": false,
-      "band": 6, "position": 1, "canEdit": true }
+      "selector": "home:*", "algos": ["sha256"], "mode": "auto",
+      "admin_enforced": false, "isDefault": false,
+      "band": 7, "position": 1, "canEdit": true }
   ],
   "canCreate": true,
   "supportedAlgos": ["sha1", "md5", "sha256"],
   "modes": ["auto", "missing", "force", "lazy", "off"],
   "types": ["include", "ignore", "exclude"],
   "availableUsers": ["alice"],
-  "availableGroups": ["staff"]
+  "availableGroups": ["staff"],
+  "groupFoldersAvailable": true,
+  "groupFoldersLabel": "Team Folders",
+  "availableGroupFolders": [{ "id": 1, "name": "Team Docs" }],
+  "availableStorages": ["smb::user@host//share/"]
 }
 ```
 
-`availableUsers` and `availableGroups` are present only for `scope=all` — they exist to populate
-scope pickers, and no other view can assign those scopes.
+The picker fields are present only for `scope=all` — they exist to populate selector pickers, and
+no other view can assign those selectors:
+
+| Field | Notes |
+|-------|-------|
+| `availableUsers`, `availableGroups` | for `home:<uid>` and `group:<gid>` |
+| `groupFoldersAvailable` | whether the groupfolders app is installed and enabled; `false` means `groupfolder:` selectors cannot be offered at all |
+| `groupFoldersLabel` | what that app calls itself ("Team Folders"); `null` when it is absent |
+| `availableGroupFolders` | the folders that exist, as `{id, name}` |
+| `availableStorages` | raw ids of storages only `storage:<id>` or `*` reaches — home storages, group folder jails, share wrappers and the instance root are excluded, since other selectors own them or no rule could match in them |
+
+The last four are a soft dependency on another app: when it is missing, the fields degrade to
+`false`/`null`/`[]` rather than failing the request. Together with each rule's `isDefault`, they are
+enough for a client to show which namespaces have no catch-all rule of their own.
 
 ### `POST /api/v1/rules` — create
 
-Body is the rule shape above. From a non-administrator, `userScope` is forced to the caller and
-`admin_enforced` to `false`, whatever the payload says; `pinned` is ignored. A non-administrator
-must also have write access to the rule's path (403 otherwise).
+Body is the rule shape above. From a non-administrator, `selector` is forced to `home:<caller>` and
+`admin_enforced` to `false`, whatever the payload says. A non-administrator must also have write
+access to the rule's path **on their own home storage**: a path leading into a received share, a
+group folder or another mounted storage is refused with that reason (403), because such a rule
+could never match — those files answer to their owner's rules or to the folder's own.
 
 ### `PUT /api/v1/rules/{id}` — update
 
@@ -556,12 +608,15 @@ Same body. **Enabling or disabling a rule is an update of `enabled`** — there 
 toggle endpoint. Omitted fields keep their stored values, so `{"enabled": false}` is a complete
 and safe request.
 
-Changing `userScope` or `admin_enforced` moves the rule to the **end of its new band**, since
-position has no meaning across bands.
+Changing `selector` or `admin_enforced` moves the rule to the **end of its new segment**, since
+position has no meaning across segments. Changing `path` into or out of a bare catch-all likewise
+moves it between its segment's partitions.
 
 ### `DELETE /api/v1/rules/{id}`
 
-400 for the pinned default — it cannot be deleted, only disabled.
+Any rule the caller may mutate can be deleted, the two shipped defaults included: a repair step
+recreates a missing one, disabled, so deleting one is reversible housekeeping rather than a
+decision that cannot be taken back.
 
 ### `POST /api/v1/rules/{id}/apply` — apply one rule now
 
@@ -584,19 +639,20 @@ that cannot meaningfully be applied — disabled, or an `ignore`/`exclude` rule,
 nothing. These are refused at submission time rather than becoming a background job that can
 only fail out of sight.
 
-### `PUT /api/v1/rules/order` — reorder one band
+### `PUT /api/v1/rules/order` — reorder one segment partition
 
 ```json
-{ "band": 4, "ownerId": "alice", "orderedIds": ["0f1e…", "2a3b…"] }
+{ "selector": "home:alice", "defaults": false, "orderedIds": ["0f1e…", "2a3b…"] }
 ```
 
-`orderedIds` must be **exactly a permutation** of that band's rule IDs — never a partial order,
-which would silently drop rules from evaluation. Band 7 is not orderable. Band 4 holds every
-user's own rules, so it additionally names whose segment is being reordered; different users'
-rules never compete, and one user's reorder cannot move another's.
+A reorder addresses one **segment partition**: all rules sharing one `selector`, split by whether
+their path is a bare catch-all (`defaults`). `orderedIds` must be **exactly a permutation** of that
+partition's rule IDs — never a partial order, which would silently drop rules from evaluation, and
+never a mix of the two partitions, which would let a rule cross the defaults boundary.
 
-A non-administrator may reorder only band 4, always their own segment — `ownerId` is ignored and
-forced to the caller.
+Rules addressing different things never compete for a file, so a reorder cannot change which rule
+wins across segments; only the order inside one. A non-administrator may reorder only their own
+segment (`home:<caller>`), whatever the payload names.
 
 **Errors:** 400 on a non-permutation, an unorderable band, or an ID from another band; 403 for a
 caller without rule-editing permission.

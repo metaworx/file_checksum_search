@@ -47,24 +47,42 @@ built-in metadata index.
 
 ## How do rules work?
 
+**Nothing is hashed until a rule says so.** A fresh installation ships two
+rules and leaves both disabled: one addressing every home folder, one
+addressing every storage there is. Until one of them — or a rule you write —
+is enabled, the app computes nothing on its own; the admin settings page says
+so in a banner, and manual recalculation from the files sidebar keeps working
+regardless. Enabling the home-folders rule is the safe first step; the
+universal one also reaches external storage and group folders, which is why it
+is a separate, deliberate switch.
+
 Rules control which files get hashes, with which algorithms, and when — each
 file is handled by the first matching rule, evaluated in order, and that
 decision is final: there is no fall-through to a later rule.
 
+Every rule names what it addresses in one field, its **selector**: one user's
+home (`home:<uid>`), a group's members (`group:<gid>`), every home folder
+(`home:*`), one group folder (`groupfolder:<id>`), one storage by its raw id
+(`storage:<id>`), or everything (`*`). Which file a rule is talking about is
+decided by where the file really lives, not by who is touching it: editing a
+file shared with you is governed by its **owner's** rules, under the owner's
+path.
+
 The order follows from what each rule *is*, not from where anyone put it.
-Rules fall into seven **bands**: administrator-enforced rules first (aimed at
-a single user, then at a group, then at everyone), then users' own rules, then
-the non-enforced administrator defaults in the same order, and the catch-all
-`**` rule last. Enforced beats unenforced; within each half, specific beats
-general. So no rule of a user's own can outrun one an administrator enforced,
-while it *can* override a default — which is what leaving a rule unenforced
-offers.
+Rules fall into eight **bands**: the four degrees of specificity above —
+one user or one storage, one group or one group folder, all home folders,
+everything — first as administrator-enforced rules (bands 1–4), then as
+unenforced ones (bands 5–8). Enforced beats unenforced; within each half,
+specific beats general. So no rule of a user's own can outrun one an
+administrator enforced, while it *can* override a default — which is what
+leaving a rule unenforced offers.
 
 The settings pages write a rule's priority as `<band>.<position>`, both
-ascending as priority falls: `1.1` is the strongest rule on the instance and
-the catch-all is always last. A rule moves between bands by having its scope
-or its enforced flag changed, never by being dragged; dragging only reorders
-rules inside one band.
+ascending as priority falls: `1.1` is the strongest rule on the instance and a
+catch-all is always last. A rule moves between bands by having its selector or
+its enforced flag changed, never by being dragged; dragging only reorders
+rules that address the same thing, and never past that selector's own
+catch-all.
 
 A rule can also say *not* to hash — `ignore` stops automatic hashing while
 still allowing it on request, and `exclude` blocks it entirely, including the
@@ -77,10 +95,32 @@ explained to the people who see it on their personal settings page.
 
 ## How does cron / pending processing work?
 
-When a rule defers a hash update (mode `lazy`, or a file locked at write
-time), FCIAS marks it pending and a background job drains the queue shortly
-after. See [README.md § Pending Hash Queue](../README.md#pending-hash-queue)
-for the exact mechanism, interval, and batch size.
+Work is queued by marking a file pending, and a background job drains the
+queue shortly after. The queue records only that a file needs looking at: the
+drain resolves its governing rule at that moment and takes the verdict and the
+algorithms from it, so a rule changed in between is honoured and a file that
+lost its coverage is dropped rather than hashed.
+
+A second job sweeps the storages each enabled rule addresses and queues what is
+stale or unhashed — the net beneath the file events. The admin status page
+shows both jobs' last run with their counts, which is how you tell "nothing to
+do" apart from "not running". See
+[README.md § How hashing happens](../README.md#how-hashing-happens) and
+[§ Pending Hash Queue](../README.md#pending-hash-queue) for the exact
+mechanism, interval, and batch size.
+
+## Why did the number of indexed checksums go down?
+
+Because hashes **erode**. When a file is modified and no rule maintains it any
+more, its stored hashes are dropped rather than kept: they describe content
+that no longer exists, and a wrong hash is worse than none — it makes a changed
+file look intact and can pair it with unrelated files as a duplicate.
+
+This is recorded, not silent: the file's index entry is marked `eroded` and the
+admin status page counts them. It also heals itself — the next time a rule
+covers the file, re-hashing replaces the marker. A rising eroded count usually
+means coverage was narrowed (a rule disabled, an `exclude` added) while the
+files it used to cover are still being edited.
 
 ## How do duplicates get detected?
 
@@ -120,8 +160,11 @@ file's actual fate look like it came from nowhere. That page's Help tab
 renders [user-guide.md](user-guide.md), so what a user reads about rules is the same
 document you can read yourself when supporting them.
 
-`admin_enforced` and `userScope` are never trusted from a user's own
-request — the server always decides them. See
+`admin_enforced` and `selector` are never trusted from a user's own request —
+the server always decides them, and a personal rule is always `home:<uid>`. A
+path leading into a received share or a group folder is refused outright: such
+a rule could never match, since those files answer to their owner's rules or to
+the folder's own. See
 [README.md § Rule-editing permissions](../README.md#rule-editing-permissions-admin_enforced)
 for the full permission model.
 
@@ -138,9 +181,11 @@ php occ file-checksum-search:rebuild
 ### Hashes are missing or stale
 
 Check the admin settings status overview (indexed hashes and pending
-updates). If pending entries accumulate, ensure Nextcloud's background jobs
-(cron) are running — the `ProcessPendingUpdates` job drains the queue every
-60 seconds. You can also generate hashes on demand:
+updates). First check whether an `include` rule is enabled at all — with none,
+nothing is hashed by design. If pending entries accumulate, ensure Nextcloud's
+background jobs (cron) are running: the status page shows each job's last run,
+and `ProcessPendingUpdates` drains the queue every 60 seconds. You can also
+hash on demand:
 
 ```bash
 php occ file-checksum-search:hash --user=alice --path="**"

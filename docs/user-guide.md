@@ -27,6 +27,12 @@ Which files get checksums, and which algorithms are used, is decided by
 **rules** — some set by your administrator, some possibly your own. See
 *Your hashing rules* below.
 
+If your files have no checksums yet, that is most likely because automatic
+hashing has not been switched on for this server: the app does nothing on its
+own until someone enables a rule. The **Recalculate** button in the file
+sidebar still works in the meantime — it computes one file's checksum when you
+ask for it.
+
 ## The duplicate browser
 
 Open **Duplicates** from the top navigation (or the URL
@@ -83,10 +89,15 @@ and that decision is final — no later rule gets a say.
 
 The table lists the rules in exactly the order they are checked, grouped into
 bands. Each band opens with a header saying what it is, and each rule shows its
-priority as `<band>.<position>` — `4.2` is the second rule in band 4. Lower is
-stronger, so the top of the table wins and the catch-all `**` rule at the
-bottom only decides files nothing else matched. Every heading has an **i**
-button explaining what that column's values mean.
+priority as `<band>.<position>` — `5.2` is the second rule in band 5. Lower is
+stronger, so the top of the table wins and a catch-all `**` rule only decides
+files nothing else matched. Every heading has an **i** button explaining what
+that column's values mean.
+
+The **Scope** column says what each rule is about: your own files, everyone's
+home folders, a group you are in, a team folder, or everything on the server.
+A file shared with you is decided by its owner's rules, not by yours — the rule
+follows the file, not the person looking at it.
 
 You will normally see three kinds of row:
 
@@ -98,10 +109,17 @@ You will normally see three kinds of row:
   They apply where nothing more specific matched, which means one of your own
   rules can override them.
 
-Rows you may not change show **Read-only** in place of the buttons. If you see
+Rows you may not change show **Read-only** in place of the menu. If you see
 "You are not allowed to edit rules", your administrator has not granted the
 permission; you can still read the table. Even with the permission, you can
-only create a rule for a path in a folder you can write to.
+only create a rule for a folder in **your own files** — a folder someone shared
+with you, or a team folder, is refused with an explanation, because a rule of
+yours could not decide those files anyway.
+
+Each row you may change carries a pen for editing and a **⋯** menu with the
+rest: enable or disable the rule, delete it, and **Re-apply** — which asks the
+server to go through every file that rule currently governs, rather than
+waiting for the files to be touched.
 
 ### What the Type column means
 
@@ -118,7 +136,10 @@ used for storage that is slow or costs money to read.
 ### Reordering your rules
 
 Drag a rule by the handle on its left to move it. A rule can only be dropped
-inside its own band — elsewhere the cursor shows "no drop" — because moving it
-between bands would change who it can outrank. To move a rule to a different
-band, change what it *is*: its scope or, for an administrator, its enforced
-flag. Reordering currently needs a pointer; there is no keyboard equivalent.
+among the rules addressing the same thing it does — elsewhere the cursor shows
+"no drop" — because moving it further would change who it can outrank. A
+catch-all `**` rule always stays at the end of its group, so a new rule of
+yours never has to be dragged past it to take effect. To move a rule
+somewhere else entirely, change what it *is*: what it applies to, or, for an
+administrator, its enforced flag. Reordering currently needs a pointer; there
+is no keyboard equivalent.
