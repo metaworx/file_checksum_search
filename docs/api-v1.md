@@ -4,11 +4,11 @@ Stable public API for the File Checksum Index & Search Nextcloud app. Three cons
 
 | Surface | Audience | Access Method |
 |---------|----------|---------------|
-| **HTTP REST** | Scripts, external tools, other services | HTTP requests to `/apps/file_checksum_search/api/v1/` |
+| **HTTP REST** | Scripts, external tools, other services | HTTP requests to `/ocs/v2.php/apps/file_checksum_search/api/v1/` |
 | **PHP DI** | Other Nextcloud apps (in-process) | Dependency injection via `\OCP\Server::get()` |
 | **PHP Bootstrap** | External PHP apps | `require_once` NC base, then container lookup |
 
-All three surfaces use the same [`ChecksumApi`](lib/Public/ChecksumApi.php) class as their single public contract.
+All three surfaces use the same [`ChecksumApi`](../lib/Public/ChecksumApi.php) class as their single public contract.
 
 ## Table of Contents
 
@@ -26,7 +26,7 @@ All three surfaces use the same [`ChecksumApi`](lib/Public/ChecksumApi.php) clas
 
 ### Class: `OCA\FileChecksumSearch\Public\ChecksumApi`
 
-Located at [`lib/Public/ChecksumApi.php`](lib/Public/ChecksumApi.php). This is the **single public contract** — all HTTP endpoints delegate to the same methods, guaranteeing behavioral equivalence.
+Located at [`lib/Public/ChecksumApi.php`](../lib/Public/ChecksumApi.php). This is the **single public contract** — all HTTP endpoints delegate to the same methods, guaranteeing behavioral equivalence.
 
 #### Dependency Injection (within NC)
 
@@ -277,7 +277,10 @@ does the same.
 
 ## HTTP REST API
 
-All endpoints are under `/apps/file_checksum_search/api/v1/`. Responses are plain JSON — no OCS wrapper.
+All endpoints are served over OCS, under `/ocs/v2.php/apps/file_checksum_search/api/v1/` —
+`#[ApiRoute]` registers routes in Nextcloud's OCS collection, so the prefix is not optional.
+Responses are nonetheless plain JSON: these are `ApiController`s, not `OCSController`s, so no
+`{"ocs": {"meta": …, "data": …}}` envelope wraps the body.
 
 ### Endpoint Catalog
 
@@ -303,7 +306,7 @@ All endpoints are under `/apps/file_checksum_search/api/v1/`. Responses are plai
 #### 1. Lookup by Hash
 
 ```
-GET /apps/file_checksum_search/api/v1/lookup?hash=<hex>&algo=<algo>&limit=<n>
+GET /ocs/v2.php/apps/file_checksum_search/api/v1/lookup?hash=<hex>&algo=<algo>&limit=<n>
 ```
 
 | Parameter | Type | Required | Default | Max |
@@ -337,7 +340,7 @@ GET /apps/file_checksum_search/api/v1/lookup?hash=<hex>&algo=<algo>&limit=<n>
 #### 2. Get Hashes by File ID
 
 ```
-GET /apps/file_checksum_search/api/v1/file/{fileId}/hashes
+GET /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/hashes
 ```
 
 | Parameter | Type | Required |
@@ -360,7 +363,7 @@ GET /apps/file_checksum_search/api/v1/file/{fileId}/hashes
 #### 3. Find Same-Hash Files
 
 ```
-GET /apps/file_checksum_search/api/v1/file/{fileId}/duplicates
+GET /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/duplicates
 ```
 
 | Parameter | Type | Required |
@@ -387,7 +390,7 @@ GET /apps/file_checksum_search/api/v1/file/{fileId}/duplicates
 #### 4. Recalculate Hash
 
 ```
-POST /apps/file_checksum_search/api/v1/file/{fileId}/recalc
+POST /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/recalc
 Content-Type: application/json
 
 {"algo": "sha256"}
@@ -431,13 +434,13 @@ exactly what `ignore` still allows.
 #### 5. Find All Duplicates
 
 ```
-GET /apps/file_checksum_search/api/v1/duplicates?algo=<algo>&min_count=<n>&limit=<n>&offset=<n>
+GET /ocs/v2.php/apps/file_checksum_search/api/v1/duplicates?algo=<algo>&minCount=<n>&limit=<n>&offset=<n>
 ```
 
 | Parameter | Type | Required | Default | Max |
 |-----------|------|----------|---------|-----|
 | `algo` | string | No | — | — |
-| `min_count` | int | No | 2 | — |
+| `minCount` | int | No | 2 | — |
 | `limit` | int | No | 50 | 500 |
 | `offset` | int | No | 0 | — |
 
@@ -466,7 +469,7 @@ GET /apps/file_checksum_search/api/v1/duplicates?algo=<algo>&min_count=<n>&limit
 #### 6. Status
 
 ```
-GET /apps/file_checksum_search/api/v1/status
+GET /ocs/v2.php/apps/file_checksum_search/api/v1/status
 ```
 
 No parameters.
@@ -677,7 +680,7 @@ Create an app password in Nextcloud: **Settings → Security → Devices & sessi
 
 ```bash
 curl -u alice:your-app-password \
-  "https://nc.example.com/apps/file_checksum_search/api/v1/status"
+  "https://nc.example.com/ocs/v2.php/apps/file_checksum_search/api/v1/status"
 ```
 
 ### 3. Bearer Token
@@ -688,7 +691,7 @@ Authorization: Bearer <app_password_or_oauth_token>
 
 ```bash
 curl -H "Authorization: Bearer your-app-password" \
-  "https://nc.example.com/apps/file_checksum_search/api/v1/status"
+  "https://nc.example.com/ocs/v2.php/apps/file_checksum_search/api/v1/status"
 ```
 
 ### CSRF

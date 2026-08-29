@@ -422,7 +422,10 @@ Full documentation: [`docs/api-v1.md`](docs/api-v1.md) | OpenAPI spec: [`docs/ap
 
 ### HTTP REST API
 
-All endpoints are under `/apps/file_checksum_search/api/v1/`. Authentication via NC session cookie, HTTP Basic Auth, or Bearer token.
+All endpoints are served over OCS, under `/ocs/v2.php/apps/file_checksum_search/api/v1/`.
+Responses are plain JSON — the controllers are `ApiController`s, so there is no OCS envelope
+around the body, but the route prefix is required. Authentication via NC session cookie, HTTP
+Basic Auth, or Bearer token.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -437,7 +440,7 @@ Quick example:
 
 ```bash
 curl -u alice:app-password \
-  "https://nc.example.com/apps/file_checksum_search/api/v1/lookup?hash=da39a3ee5e6b4b0d3255bfef95601890afd80709&algo=sha1"
+  "https://nc.example.com/ocs/v2.php/apps/file_checksum_search/api/v1/lookup?hash=da39a3ee5e6b4b0d3255bfef95601890afd80709&algo=sha1"
 ```
 
 ### PHP API

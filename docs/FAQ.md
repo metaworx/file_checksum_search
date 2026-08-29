@@ -139,7 +139,7 @@ groups that failed verification.
 ## How does the public API work?
 
 FCIAS exposes a stable, versioned REST API at
-`/apps/file_checksum_search/api/v1/`, plus an equivalent PHP API
+`/ocs/v2.php/apps/file_checksum_search/api/v1/`, plus an equivalent PHP API
 (`OCA\FileChecksumSearch\Public\ChecksumApi`) for other Nextcloud apps.
 [`docs/api-v1.md`](api-v1.md) is the authoritative reference for both
 surfaces — full endpoint/method list, authentication, request/response

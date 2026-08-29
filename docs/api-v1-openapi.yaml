@@ -14,7 +14,7 @@ info:
     url: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search
 
 servers:
-  - url: https://nc.example.com/apps/file_checksum_search
+  - url: https://nc.example.com/ocs/v2.php/apps/file_checksum_search
     description: Typical Nextcloud instance (replace hostname)
 
 security:
@@ -183,7 +183,7 @@ paths:
             type: string
             enum: [sha1, md5, sha256, sha512, sha3-256, sha3-512, crc32, adler32]
             example: sha1
-        - name: min_count
+        - name: minCount
           in: query
           required: false
           description: Minimum files per duplicate group (default 2)
