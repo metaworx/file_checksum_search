@@ -142,8 +142,8 @@ export const BAND_HELP: Record<number, string> = {
 		+ 'storage. They decide a file only where no enforced rule matched it first.',
 	[BAND.GROUP]: 'Rules for a group\'s members, or for one group folder. Not enforced: a user\'s own rule '
 		+ 'overrides them for their files.',
-	[BAND.NAMESPACE]: 'Defaults for all home folders. Within this segment the bare ** default always '
-		+ 'evaluates last, after any more specific rules here.',
+	[BAND.NAMESPACE]: 'Defaults for all home folders. Within this segment a catch-all default — path '
+		+ '**, / or empty — always evaluates last, after any more specific rules here.',
 	[BAND.UNIVERSAL]: 'The last resort, covering every storage — external mounts and group folders '
 		+ 'included. Enable deliberately: it can reach storage that is slow or costs money to read.',
 }

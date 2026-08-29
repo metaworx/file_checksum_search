@@ -516,7 +516,9 @@ the non-enforced defaults below it, but can never outrun an enforced one. A rule
 changing its `selector` or `admin_enforced` — never by reordering, which only permutes rules
 *inside* one segment.
 
-A **segment** is one distinct `selector` value, and reordering happens inside one. Within every
+A **segment** is one distinct `selector` value *within one band* — the same selector's enforced and
+unenforced rules are separate segments, and their positions count independently — and reordering
+happens inside one. Within every
 segment, rules whose `path` is the bare catch-all (`**`, `/`, or empty) form a trailing **defaults
 partition**: created rules are inserted before it, and a reorder may not move a rule across it.
 Rules carry `isDefault` so a client can render that boundary without re-deriving it.

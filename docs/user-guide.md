@@ -89,9 +89,9 @@ and that decision is final — no later rule gets a say.
 
 The table lists the rules in exactly the order they are checked, grouped into
 bands. Each band opens with a header saying what it is, and each rule shows its
-priority as `<band>.<position>` — `5.2` is the second rule in band 5. Lower is
-stronger, so the top of the table wins and a catch-all `**` rule only decides
-files nothing else matched. Every heading has an **i** button explaining what
+priority as `<band>.<position>` — `5.2` is the second rule of its group in
+band 5. Lower is stronger, so the top of the table wins and a catch-all rule
+only decides files nothing else matched. Every heading has an **i** button explaining what
 that column's values mean.
 
 The **Scope** column says what each rule is about: your own files, everyone's
@@ -138,8 +138,9 @@ used for storage that is slow or costs money to read.
 Drag a rule by the handle on its left to move it. A rule can only be dropped
 among the rules addressing the same thing it does — elsewhere the cursor shows
 "no drop" — because moving it further would change who it can outrank. A
-catch-all `**` rule always stays at the end of its group, so a new rule of
-yours never has to be dragged past it to take effect. To move a rule
+catch-all rule — one whose path is `**`, `/`, or left empty — always stays at
+the end of its group, so a new rule of yours never has to be dragged past it
+to take effect. To move a rule
 somewhere else entirely, change what it *is*: what it applies to, or, for an
 administrator, its enforced flag. Reordering currently needs a pointer; there
 is no keyboard equivalent.

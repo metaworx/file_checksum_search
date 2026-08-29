@@ -281,17 +281,20 @@ selector or its enforced flag, not by being moved.
 
 ### Ordering within a band
 
-The settings pages show each rule's priority as `<band>.<position>` — `5.2` is the second rule in
-band 5. Both numbers ascend as priority falls, so `1.1` is the strongest rule on the instance and a
-catch-all is always last. Neither is stored: the band is derived from the rule's selector and its
-enforced flag, and the position is the rule's index inside its band.
+The settings pages show each rule's priority as `<band>.<position>` — `5.2` is the second rule of
+its segment in band 5. Both numbers ascend as priority falls, so `1.1` is the strongest rule on the
+instance and a catch-all is always last. Neither is stored: the band is derived from the rule's
+selector and its enforced flag, and the position is the rule's index **within its segment**.
 
-Every distinct selector value forms its own **segment**, and rules only ever compete inside one.
-Two users' own rules never race for a file, so the list never asks you to rank them against each
-other; the same holds for two group folders, or two storages.
+A **segment** is one selector value *inside one band* — so the same selector's enforced and
+unenforced rules are different segments and number independently — and rules only ever compete
+inside one. Two users' own rules never race for a file, so the list never asks you to rank them
+against each other; the same holds for two group folders, or two storages. Two segments that share
+a band both start at position 1, which is why `6.1` can appear twice: once per group folder.
 
-Within every segment, rules whose path is the bare catch-all `**` form a **defaults partition** at
-the end. A newly created rule lands *before* its segment's default, and a rule cannot be dragged
+Within every segment, rules whose path is a bare catch-all form a **defaults partition** at the end.
+Three spellings count as bare: `**`, `/`, and the empty string — they all mean "everything this
+selector reaches", so a rule written any of those ways is a default. A newly created rule lands *before* its segment's default, and a rule cannot be dragged
 across that boundary. This is what makes a default behave like one: you never have to drag a new
 rule past the catch-all that would otherwise shadow it.
 
@@ -334,7 +337,7 @@ Each rule combines:
 |-------|-------------|
 | `enabled` | Whether the rule is active |
 | `selector` | Which slice of the file universe the rule addresses (see above) |
-| `path` | A path glob (Symfony Finder `**` syntax), e.g. `/` or `**/*.pdf` |
+| `path` | A path glob (Symfony Finder `**` syntax), e.g. `**/*.pdf`. A bare `**`, `/` or empty value makes the rule its segment's default |
 | `algos` | One or more of `sha1`, `md5`, `sha256`, `sha512`, `sha3-256`, `sha3-512`, `crc32`, `adler32` |
 | `mode` | How stale hashes are handled (see below) |
 | `admin_enforced` | Whether users may edit the rule (admin-only lock) |
