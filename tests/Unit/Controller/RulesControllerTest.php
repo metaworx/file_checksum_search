@@ -268,6 +268,39 @@ class RulesControllerTest
 	}
 
 
+	public function testCreateReturnsTheStoredRuleIncludingItsId(): void
+	{
+
+		// Without the id a caller cannot address the rule it just created —
+		// there is no other way to learn it.
+		$this->signIn( 'theadmin', isAdmin: true );
+		$this->body( [
+			'path'  => '/Documents',
+			'algos' => [ 'sha1' ],
+		] );
+
+		$this->ruleService->method( 'ruleAdd' )
+		                  ->willReturn( 'newid123' )
+		;
+		$this->ruleService->method( 'findRuleById' )
+		                  ->with( 'newid123' )
+		                  ->willReturn( [
+			                  'id'       => 'newid123',
+			                  'path'     => '/Documents',
+			                  'selector' => 'home:theadmin',
+		                  ] )
+		;
+
+		$data = $this->controller->create()
+		                         ->getData()
+		;
+
+		$this->assertTrue( $data['success'] );
+		$this->assertSame( 'newid123', $data['rule']['id'] );
+		$this->assertSame( 'home:theadmin', $data['rule']['selector'] );
+	}
+
+
 	public function testTheAdminViewOffersGroupFoldersOnlyWhenTheAppIsThere(): void
 	{
 

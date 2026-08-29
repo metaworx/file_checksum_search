@@ -728,7 +728,12 @@ components:
         success:
           type: boolean
         rule:
-          $ref: "#/components/schemas/Rule"
+          allOf:
+            - $ref: "#/components/schemas/Rule"
+          description: >-
+            The stored rule, including the server-assigned `id`. The derived
+            view fields (`band`, `position`, `canEdit`) are annotations of the
+            list endpoint and are not returned here.
 
     RulesResponse:
       type: object

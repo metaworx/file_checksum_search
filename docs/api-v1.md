@@ -601,7 +601,11 @@ enough for a client to show which namespaces have no catch-all rule of their own
 
 ### `POST /api/v1/rules` — create
 
-Body is the rule shape above. From a non-administrator, `selector` is forced to `home:<caller>` and
+Body is the rule shape above; the response echoes the **stored** rule, including the server-assigned
+`id` — the only way a caller learns it. The derived view fields (`band`, `position`, `canEdit`) are
+annotations of the list endpoint and are not part of this response.
+
+From a non-administrator, `selector` is forced to `home:<caller>` and
 `admin_enforced` to `false`, whatever the payload says. A non-administrator must also have write
 access to the rule's path **on their own home storage**: a path leading into a received share, a
 group folder or another mounted storage is refused with that reason (403), because such a rule
@@ -609,7 +613,9 @@ could never match — those files answer to their owner's rules or to the folder
 
 ### `PUT /api/v1/rules/{id}` — update
 
-Same body. **Enabling or disabling a rule is an update of `enabled`** — there is no separate
+Same body, and the response likewise echoes the stored rule — so a partial update comes back as the
+whole rule rather than the fragment that was sent. **Enabling or disabling a rule is an update of
+`enabled`** — there is no separate
 toggle endpoint. Omitted fields keep their stored values, so `{"enabled": false}` is a complete
 and safe request.
 

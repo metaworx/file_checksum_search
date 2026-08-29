@@ -209,11 +209,14 @@ class RulesController
 
 		try
 		{
-			$this->ruleService->ruleAdd( $definition, $userId );
+			$id = $this->ruleService->ruleAdd( $definition, $userId );
 
+			// The stored rule, not the payload: it carries the id the caller
+			// needs in order to address the rule it just created, and the
+			// selector in the canonical spelling the server settled on.
 			return new DataResponse( [
 				'success' => true,
-				'rule'    => $definition,
+				'rule'    => $this->ruleService->findRuleById( $id ) ?? $definition,
 			] );
 		}
 		catch ( Throwable $e )
@@ -287,9 +290,11 @@ class RulesController
 		{
 			$this->ruleService->ruleUpdate( $id, $definition, $userId );
 
+			// As with create: echo what was stored, so a caller sending a
+			// partial update sees the whole rule rather than its own fragment.
 			return new DataResponse( [
 				'success' => true,
-				'rule'    => $definition,
+				'rule'    => $this->ruleService->findRuleById( $id ) ?? $definition,
 			] );
 		}
 		catch ( Throwable $e )
