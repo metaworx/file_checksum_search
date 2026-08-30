@@ -101,6 +101,9 @@ class MetadataService
 	 */
 	public const META_VALUE_STRING_MAX_LENGTH = 63;
 
+	/** How many file ids {@see markAllStale()} disowns per statement. */
+	private const MARK_PAGE_SIZE = 1000;
+
 
 	public function __construct(
 		private readonly IDBConnection         $db,
@@ -606,28 +609,38 @@ class MetadataService
 	 * The whole-instance form of {@see markStale()}, as one statement rather
 	 * than a file list the caller would have to page through first.
 	 *
+	 * **Only files that actually hold hashes.** The marker shares its column
+	 * with the queue, so marking a file writes over whatever it was waiting
+	 * for — and a file with no hashes has nothing to disown, which would make
+	 * resetting the hashes quietly reset the queue as well. Restricting it to
+	 * files with something to lose keeps the two slices separable, and makes
+	 * the number reported afterwards the same one the plan promised.
+	 *
 	 * @return int  Rows marked.
 	 * @throws Exception
 	 */
 	public function markAllStale(): int
 	{
 
-		$qb = $this->db->getQueryBuilder();
-		$qb->update( self::TABLE_FILES_METADATA_INDEX )
-		   ->set(
-			   self::FIELD_META_VALUE_STRING,
-			   $qb->createNamedParameter( self::STATE_RESET ),
-		   )
-		   ->where(
-			   $qb->expr()
-			      ->eq(
-				      self::FIELD_META_KEY,
-				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
-			      ),
-		   )
-		;
+		$marked = 0;
+		$lastId = 0;
 
-		return $qb->executeStatement();
+		// Paged rather than one statement with a subquery: MySQL refuses to
+		// read the table an UPDATE targets, and every file worth marking has
+		// to be found in that same table. One UPDATE per page of ids is the
+		// portable shape, and still one write per thousand files.
+		while ( true )
+		{
+			$fileIds = $this->pageHashedFileIdsAfter( $lastId, self::MARK_PAGE_SIZE );
+
+			if ( $fileIds === [] )
+			{
+				return $marked;
+			}
+
+			$lastId = $fileIds[ array_key_last( $fileIds ) ];
+			$marked += $this->markStale( $fileIds );
+		}
 	}
 
 

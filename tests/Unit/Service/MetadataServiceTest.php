@@ -20,7 +20,6 @@ use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\IDBConnection;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
-use RuntimeException;
 
 /**
  * Unit tests for MetadataService.
@@ -1346,6 +1345,83 @@ class MetadataServiceTest
 
 		$this->assertSame( 3, $marked );
 		$this->assertSame( [ MetadataService::FIELD_META_VALUE_STRING ], $sets );
+	}
+
+
+	/**
+	 * Only files that hold hashes. The marker shares its column with the
+	 * queue, so marking a file writes over whatever it was waiting for — and
+	 * a file with no hashes has nothing to disown, which would make resetting
+	 * the hashes quietly reset the queue as well.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testMarkingEverythingReachesOnlyFilesThatHoldHashes(): void
+	{
+
+		$pages = [
+			[
+				[ MetadataService::FIELD_FILE_ID => 1 ],
+				[ MetadataService::FIELD_FILE_ID => 2 ],
+			],
+			[],
+		];
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetch' )
+		       ->willReturnCallback(
+			       static function () use
+			       (
+				       &
+				       $pages,
+			       ): array|false
+			       {
+
+				       $row = array_shift( $pages[0] );
+
+				       if ( $row === null )
+				       {
+					       array_shift( $pages );
+
+					       return false;
+				       }
+
+				       return $row;
+			       },
+		       )
+		;
+
+		// The page query is the one that names a hash key; without that
+		// restriction a never-hashed file in the queue would be disowned too.
+		$likes = [];
+		$this->expr->method( 'like' )
+		           ->willReturnCallback(
+			           function (
+				           $column,
+				           $value,
+			           ) use
+			           (
+				           &
+				           $likes,
+			           ): string
+			           {
+
+				           $likes[] = (string) $value;
+
+				           return 'like';
+			           },
+		           )
+		;
+
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+		$this->queryBuilder->method( 'executeStatement' )
+		                   ->willReturn( 2 )
+		;
+
+		$this->assertSame( 2, $this->service->markAllStale() );
+		$this->assertContains( MetadataService::KEY_FILE_CHECKSUM_LIKE, $likes );
 	}
 
 

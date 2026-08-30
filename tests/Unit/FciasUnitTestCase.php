@@ -37,13 +37,13 @@ abstract class FciasUnitTestCase
 	TestCase
 {
 
-	protected IDBConnection&MockObject      $db;
+	protected IDBConnection&MockObject $db;
 
-	protected IQueryBuilder&MockObject      $queryBuilder;
+	protected IQueryBuilder&MockObject $queryBuilder;
 
 	protected IExpressionBuilder&MockObject $expr;
 
-	protected IFunctionBuilder&MockObject   $func;
+	protected IFunctionBuilder&MockObject $func;
 
 
 	/**
@@ -51,6 +51,7 @@ abstract class FciasUnitTestCase
 	 * on every commonly-used chainable method.
 	 *
 	 * Call this AFTER setting $this->db in the child setUp().
+	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	protected function setUpQueryBuilderMock(): void
@@ -71,6 +72,10 @@ abstract class FciasUnitTestCase
 		;
 
 		$this->queryBuilder->method( 'selectAlias' )
+		                   ->willReturnSelf()
+		;
+
+		$this->queryBuilder->method( 'selectDistinct' )
 		                   ->willReturnSelf()
 		;
 
@@ -162,13 +167,18 @@ abstract class FciasUnitTestCase
 
 		$this->queryBuilder->method( 'createFunction' )
 		                   ->willReturnCallback(
-			                   fn ( string $sql ) => $sql,
+			                   fn(
+				                   string $sql,
+			                   ) => $sql,
 		                   )
 		;
 
 		$this->queryBuilder->method( 'createNamedParameter' )
 		                   ->willReturnCallback(
-			                   fn ( $value, $type = null ) => $value,
+			                   fn(
+				                   $value,
+				                   $type = null,
+			                   ) => $value,
 		                   )
 		;
 
