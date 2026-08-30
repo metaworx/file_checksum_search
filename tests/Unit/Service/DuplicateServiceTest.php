@@ -58,14 +58,21 @@ class DuplicateServiceTest
 			[
 				MetadataService::FIELD_META_KEY          => MetadataService::KEY_FILE_CHECKSUM_PREFIX . 'sha1',
 				MetadataService::FIELD_META_VALUE_STRING => 'abc123def456',
-				'file_count'                            => 3,
-				'file_ids'                              => [ 10, 20, 30 ],
+				'file_count'                             => 3,
+				'file_ids'                               => [
+					10,
+					20,
+					30,
+				],
 			],
 			[
 				MetadataService::FIELD_META_KEY          => MetadataService::KEY_FILE_CHECKSUM_PREFIX . 'sha256',
 				MetadataService::FIELD_META_VALUE_STRING => 'deadbeef',
-				'file_count'                            => 2,
-				'file_ids'                              => [ 5, 15 ],
+				'file_count'                             => 2,
+				'file_ids'                               => [
+					5,
+					15,
+				],
 			],
 		];
 
@@ -81,22 +88,37 @@ class DuplicateServiceTest
 		$this->assertSame( 'sha1', $result[0]['algo'] );
 		$this->assertSame( 'abc123def456', $result[0]['hash_value'] );
 		$this->assertSame( 3, $result[0]['file_count'] );
-		$this->assertSame( [ 10, 20, 30 ], $result[0]['fileids'] );
+		$this->assertSame(
+			[
+				10,
+				20,
+				30,
+			],
+			$result[0]['fileids'],
+		);
 		$this->assertSame( 'sha256', $result[1]['algo'] );
 		$this->assertSame( 'deadbeef', $result[1]['hash_value'] );
 		$this->assertSame( 2, $result[1]['file_count'] );
-		$this->assertSame( [ 5, 15 ], $result[1]['fileids'] );
+		$this->assertSame(
+			[
+				5,
+				15,
+			],
+			$result[1]['fileids'],
+		);
 	}
 
 
 	public function testFindByHashResolvesFilecachePaths(): void
 	{
 
+		$this->givenTheHashIsConfirmed();
+
 		$hash = 'abc123';
 
 		$rows = [
 			[
-				MetadataService::FIELD_FILE_ID => 42,
+				MetadataService::FIELD_FILE_ID  => 42,
 				MetadataService::FIELD_META_KEY => MetadataService::KEY_FILE_CHECKSUM_PREFIX . 'sha1',
 			],
 		];
@@ -123,7 +145,12 @@ class DuplicateServiceTest
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'extractAlgorithm' )
 		                      ->with( 42, $rows[0] )
-		                      ->willReturn( [ 'algo' => 'sha1', 'hash' => $hash ] )
+		                      ->willReturn(
+			                      [
+				                      'algo' => 'sha1',
+				                      'hash' => $hash,
+			                      ],
+		                      )
 		;
 
 		$result = $this->service->findByHash( $hash );
@@ -140,15 +167,17 @@ class DuplicateServiceTest
 	public function testFindByHashSkipsUnresolvablePaths(): void
 	{
 
+		$this->givenTheHashIsConfirmed();
+
 		$hash = 'deadbeef';
 
 		$rows = [
 			[
-				MetadataService::FIELD_FILE_ID => 10,
+				MetadataService::FIELD_FILE_ID  => 10,
 				MetadataService::FIELD_META_KEY => MetadataService::KEY_FILE_CHECKSUM_PREFIX . 'sha1',
 			],
 			[
-				MetadataService::FIELD_FILE_ID => 20,
+				MetadataService::FIELD_FILE_ID  => 20,
 				MetadataService::FIELD_META_KEY => MetadataService::KEY_FILE_CHECKSUM_PREFIX . 'sha1',
 			],
 		];
@@ -169,14 +198,25 @@ class DuplicateServiceTest
 
 		$this->filecacheService->expects( $this->once() )
 		                       ->method( 'batchLookupFilecachePaths' )
-		                       ->with( [ 10, 20 ], null )
+		                       ->with(
+			                       [
+				                       10,
+				                       20,
+			                       ],
+			                       null,
+		                       )
 		                       ->willReturn( $fcPaths )
 		;
 
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'extractAlgorithm' )
 		                      ->with( 10, $rows[0] )
-		                      ->willReturn( [ 'algo' => 'sha1', 'hash' => $hash ] )
+		                      ->willReturn(
+			                      [
+				                      'algo' => 'sha1',
+				                      'hash' => $hash,
+			                      ],
+		                      )
 		;
 
 		$result = $this->service->findByHash( $hash );
@@ -215,12 +255,16 @@ class DuplicateServiceTest
 			                       ],
 		                       ] )
 		;
+		// The confirmation itself lives in MetadataService, where it is
+		// written once for every caller; what this asserts is that the
+		// duplicate finder honours it and does not report the row anyway.
 		$this->metadataService->expects( $this->once() )
+		                      ->method( 'confirmFullHash' )
+		                      ->with( $rows, $hash )
+		                      ->willReturn( [] )
+		;
+		$this->metadataService->expects( $this->never() )
 		                      ->method( 'extractAlgorithm' )
-		                      ->willReturn( [
-			                      'algo' => 'sha512',
-			                      'hash' => str_repeat( 'a', 63 ) . 'b', // differs after the shared 63-char prefix
-		                      ] )
 		;
 
 		$result = $this->service->findByHash( $hash );
@@ -231,6 +275,8 @@ class DuplicateServiceTest
 
 	public function testFindByHashScopesLookupToGivenUser(): void
 	{
+
+		$this->givenTheHashIsConfirmed();
 
 		$hash = 'abc123';
 
@@ -272,6 +318,23 @@ class DuplicateServiceTest
 		$result = $this->service->findByHash( $hash, null, 100, 'alice' );
 
 		$this->assertCount( 1, $result );
+	}
+
+
+	/**
+	 * The confirmation lives in MetadataService; a test that is not about it
+	 * says so by letting every candidate through.
+	 */
+	private function givenTheHashIsConfirmed(): void
+	{
+
+		$this->metadataService->method( 'confirmFullHash' )
+		                      ->willReturnCallback(
+			                      static fn(
+				                      array $rows,
+			                      ): array => $rows,
+		                      )
+		;
 	}
 
 }

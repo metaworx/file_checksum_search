@@ -329,7 +329,6 @@ class MetadataService
 	private function pruneHashIndexRows( int $fileId ): void
 	{
 
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->delete( self::TABLE_FILES_METADATA_INDEX )
 		   ->where(
@@ -431,6 +430,87 @@ class MetadataService
 	{
 
 		return $qb->executeStatement();
+	}
+
+
+	/**
+	 * Keep only the rows whose *full* hash really is the one searched for.
+	 *
+	 * {@see queryByHash()} compares against the index, which holds at most
+	 * {@see META_VALUE_STRING_MAX_LENGTH} characters, so a long-hash lookup
+	 * returns every file whose first 63 characters agree. Confirming the rest
+	 * means reading each candidate's authoritative value from
+	 * `oc_files_metadata.json`.
+	 *
+	 * A hash short enough to be stored whole was already compared in full, so
+	 * those rows come back untouched and nothing is read.
+	 *
+	 * This lives here, and not in each caller, because it used to: the same
+	 * two steps were written out in `ChecksumApi` and in `DuplicateService`,
+	 * `HashSearchProvider` had no copy at all, and a check that is a habit
+	 * rather than a function is one the next caller forgets.
+	 *
+	 * @param  list<array<string, mixed>>  $rows  Rows from {@see queryByHash()}.
+	 *
+	 * @return list<array<string, mixed>>
+	 */
+	public function confirmFullHash(
+		array  $rows,
+		string $hash,
+	): array {
+
+		if ( ! self::isTruncatable( $hash ) )
+		{
+			return $rows;
+		}
+
+		$confirmed = [];
+
+		foreach ( $rows as $row )
+		{
+			$fileId = (int) ( $row[ self::FIELD_FILE_ID ] ?? 0 );
+
+			if ( $fileId === 0 )
+			{
+				continue;
+			}
+
+			if ( ( $this->extractAlgorithm( $fileId, $row )['hash'] ?? null ) === $hash )
+			{
+				$confirmed[] = $row;
+			}
+		}
+
+		return $confirmed;
+	}
+
+
+	/**
+	 * Whether a value held **in full** is longer than the index can store,
+	 * and so was shortened on the way in.
+	 *
+	 * The question a searcher asks about its own search term.
+	 */
+	public static function isTruncatable( string $value ): bool
+	{
+
+		return strlen( $value ) > self::META_VALUE_STRING_MAX_LENGTH;
+	}
+
+
+	/**
+	 * Whether a value read **from the index** may be a prefix rather than the
+	 * whole thing.
+	 *
+	 * The mirror of {@see isTruncatable()}, asked from the other side: at the
+	 * column's width there is no way to tell from the row alone, so anything
+	 * that long needs its full form read from the document before it can be
+	 * trusted. Shorter than that, it was stored whole.
+	 */
+	public static function isPossiblyTruncated( string $storedValue ): bool
+	{
+
+		return strlen( $storedValue ) >= self::META_VALUE_STRING_MAX_LENGTH;
 	}
 
 
@@ -1841,7 +1921,7 @@ class MetadataService
 
 		foreach ( $groups as $group )
 		{
-			if ( strlen( $group[ self::FIELD_META_VALUE_STRING ] ) < self::META_VALUE_STRING_MAX_LENGTH )
+			if ( ! self::isPossiblyTruncated( $group[ self::FIELD_META_VALUE_STRING ] ) )
 			{
 				// Short enough that the index couldn't have truncated it —
 				// no collision risk, keep the group as-is.

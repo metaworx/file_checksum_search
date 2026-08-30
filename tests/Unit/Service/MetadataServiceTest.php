@@ -1635,6 +1635,53 @@ class MetadataServiceTest
 	}
 
 
+	/**
+	 * The check that makes truncation safe, in the one place it now lives.
+	 *
+	 * Two files whose SHA-256 hashes agree for 63 characters and differ in
+	 * the 64th match the same index row. Only one of them is the file being
+	 * searched for, and the document is what says which.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAMatchOnTheTruncatedPrefixIsConfirmedAgainstTheDocument(): void
+	{
+
+		$wanted = str_repeat( 'a', 63 ) . '1';
+		$other  = str_repeat( 'a', 63 ) . '2';
+
+		// The rows carry the document alongside them, the way queryByHash()
+		// returns them: the index says which files are candidates, the
+		// document says what they really hold.
+		$rows = [
+			$this->rowFor( 1, $wanted ),
+			$this->rowFor( 2, $other ),
+		];
+
+		$confirmed = $this->service->confirmFullHash( $rows, $wanted );
+
+		$this->assertCount( 1, $confirmed );
+		$this->assertSame( 1, $confirmed[0][ MetadataService::FIELD_FILE_ID ] );
+	}
+
+
+	/**
+	 * A hash the index stored whole was already compared in full, so there
+	 * is nothing to confirm and no document to read.
+	 */
+	public function testAShortHashIsNotCheckedAgain(): void
+	{
+
+		$rows = [ $this->rowFor( 1, str_repeat( 'a', 40 ), 'sha1' ) ];
+
+		$this->metadataManager->expects( $this->never() )
+		                      ->method( 'getMetadata' )
+		;
+
+		$this->assertSame( $rows, $this->service->confirmFullHash( $rows, str_repeat( 'a', 40 ) ) );
+	}
+
+
 	public function testMarkStaleIsANoOpForAnEmptyList(): void
 	{
 
@@ -1789,6 +1836,38 @@ class MetadataServiceTest
 		$this->service->clearMetadata( $metadata, false );
 
 		$this->addToAssertionCount( 1 );
+	}
+
+
+	/**
+	 * A row as {@see MetadataService::queryByHash()} returns one: the index
+	 * columns plus the file's whole document.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function rowFor(
+		int    $fileId,
+		string $hash,
+		string $algo = 'sha256',
+	): array {
+
+		$metaKey = MetadataService::getHashKey( $algo );
+
+		return [
+			MetadataService::FIELD_FILE_ID    => $fileId,
+			MetadataService::FIELD_META_KEY   => $metaKey,
+			MetadataService::FIELD_JSON_ALIAS => json_encode(
+				[
+					$metaKey => [
+						'value'          => $hash,
+						'type'           => 'string',
+						'etag'           => '',
+						'indexed'        => false,
+						'editPermission' => 0,
+					],
+				],
+			),
+		];
 	}
 
 }

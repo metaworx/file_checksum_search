@@ -292,12 +292,14 @@ class ChecksumApi
 
 		foreach ( $hashes as $algo => $hashValue )
 		{
-			$rows = $this->metadataService->queryByHash( $hashValue, $algo );
-
-			// queryByHash() matches against the truncated index value for
-			// hashes longer than the index column allows, so a candidate
-			// row may only share a truncated prefix with $hashValue.
-			$isTruncatable = strlen( $hashValue ) > MetadataService::META_VALUE_STRING_MAX_LENGTH;
+			// queryByHash() compares against the index, which holds at most
+			// 63 characters, so a long-hash lookup can return a file that
+			// only shares that prefix. One confirmation, shared with every
+			// other caller ({@see MetadataService::confirmFullHash()}).
+			$rows = $this->metadataService->confirmFullHash(
+				$this->metadataService->queryByHash( $hashValue, $algo ),
+				$hashValue,
+			);
 
 			foreach ( $rows as $row )
 			{
@@ -306,16 +308,6 @@ class ChecksumApi
 				if ( $dupFileId === $fileId )
 				{
 					continue;
-				}
-
-				if ( $isTruncatable )
-				{
-					$extracted = $this->metadataService->extractAlgorithm( $dupFileId, $row );
-
-					if ( ( $extracted['hash'] ?? null ) !== $hashValue )
-					{
-						continue;
-					}
 				}
 
 				$resolvedPath = '';

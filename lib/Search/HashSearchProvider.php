@@ -90,7 +90,15 @@ class HashSearchProvider
 			return SearchResult::complete( $this->getName(), [] );
 		}
 
-		$rows = $this->metadataService->queryByHash( $parsed['hash'], $parsed['algo'], $query->getLimit() );
+		// queryByHash() compares against the index, which holds at most 63
+		// characters, so a long-hash lookup can return a file that only
+		// shares that prefix. The unified search used to trust the row and
+		// show it — the API and the duplicate finder each had their own copy
+		// of the confirmation, and this had none.
+		$rows = $this->metadataService->confirmFullHash(
+			$this->metadataService->queryByHash( $parsed['hash'], $parsed['algo'], $query->getLimit() ),
+			$parsed['hash'],
+		);
 
 		$userFolder = $this->rootFolder->getUserFolder( $user->getUID() );
 		$entries    = [];

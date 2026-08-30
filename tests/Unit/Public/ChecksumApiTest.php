@@ -633,6 +633,14 @@ class ChecksumApiTest
 	public function testFindSameHashReturnsGroupedDuplicates(): void
 	{
 
+		$this->metadataService->method( 'confirmFullHash' )
+		                      ->willReturnCallback(
+			                      static fn(
+				                      array $rows,
+			                      ): array => $rows,
+		                      )
+		;
+
 		$user       = $this->createMock( IUser::class );
 		$userFolder = $this->createMock( Folder::class );
 		$dupNode    = $this->createMock( File::class );
@@ -727,13 +735,12 @@ class ChecksumApiTest
 		                      ] )
 		;
 
+		// The confirmation itself lives in MetadataService, written once for
+		// every caller; what this asserts is that the API honours it rather
+		// than reporting the row anyway.
 		$this->metadataService->expects( $this->once() )
-		                      ->method( 'extractAlgorithm' )
-		                      ->willReturn( [
-			                      'algo' => 'sha512',
-			                      'hash' => str_repeat( 'a', 63 ) . 'b',
-			                      // differs after the shared 63-char prefix
-		                      ] )
+		                      ->method( 'confirmFullHash' )
+		                      ->willReturn( [] )
 		;
 
 		$data = $this->api->findSameHash( 42 );

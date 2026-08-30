@@ -111,11 +111,11 @@ class DuplicateService
 
 		$fcPaths = $this->filecacheService->batchLookupFilecachePaths( $fileIds, $userName );
 
-		// queryByHash() matches against the truncated index value for
-		// hashes longer than the index column allows, so a candidate row
-		// may only share a truncated prefix with $hash. Verify the full
-		// value in that case before trusting the match.
-		$isTruncatable = strlen( $hash ) > MetadataService::META_VALUE_STRING_MAX_LENGTH;
+		// queryByHash() compares against the index, which holds at most 63
+		// characters, so a long-hash lookup can return a file that only
+		// shares that prefix. One confirmation, shared with every other
+		// caller ({@see MetadataService::confirmFullHash()}).
+		$rows = $this->metadataService->confirmFullHash( $rows, $hash );
 
 		$results = [];
 
@@ -130,11 +130,6 @@ class DuplicateService
 
 			// Read authoritative hash from oc_files_metadata.json
 			$extracted = $this->metadataService->extractAlgorithm( $fileId, $row );
-
-			if ( $isTruncatable && ( $extracted['hash'] ?? null ) !== $hash )
-			{
-				continue;
-			}
 
 			$results[] = [
 				'fileid'     => $fileId,
