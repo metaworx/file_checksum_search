@@ -715,15 +715,23 @@ class MetadataService
 
 		$total   = $this->countHashedFiles();
 		$cleared = 0;
+		$lastId  = 0;
 
+		// Keyset paging, not "always the first page". A file the clear cannot
+		// finish stays in the index, and re-reading from the start would hand
+		// it back for ever: the loop would never end and the log would fill
+		// with the same failure. Moving past it guarantees the walk finishes
+		// whatever any one file does.
 		while ( true )
 		{
-			$fileIds = $this->pageHashedFileIds( $batchSize );
+			$fileIds = $this->pageHashedFileIdsAfter( $lastId, $batchSize );
 
 			if ( $fileIds === [] )
 			{
 				break;
 			}
+
+			$lastId = $fileIds[ array_key_last( $fileIds ) ];
 
 			foreach ( $fileIds as $fileId )
 			{
@@ -734,14 +742,29 @@ class MetadataService
 				}
 				catch ( Throwable $e )
 				{
+					// Nextcloud refuses to save a document whose file has no
+					// filecache row — it reads the storage id from there and
+					// gets `false`. Such a row describes a file that no longer
+					// exists, so dropping it outright is the honest outcome
+					// rather than leaving it to answer searches for ever.
 					$this->logger->warning(
-						'FCIAS: could not clear metadata for fileId {fileId}; continuing.',
+						'FCIAS: could not clear metadata for fileId {fileId}; dropping its index rows.',
 						[
 							'app'       => Application::APP_ID,
 							'fileId'    => $fileId,
 							'exception' => $e,
 						],
 					);
+
+					try
+					{
+						$this->pruneHashIndexRows( $fileId );
+						$cleared ++;
+					}
+					catch ( Throwable )
+					{
+						// Nothing further to try for this file; the walk goes on.
+					}
 				}
 			}
 
@@ -875,9 +898,10 @@ class MetadataService
 	/**
 	 * One page of file ids that carry hashes, after the given id.
 	 *
-	 * The reading counterpart of {@see pageHashedFileIds()}, which always
-	 * returns the first page because it is read by something that deletes
-	 * what it sees.
+	 * Keyset paging: `file_id > $afterFileId`, so the walk always moves
+	 * forward. Paging by offset would skip rows as a caller deleted what it
+	 * read, and re-reading the first page would never end if one row refused
+	 * to go.
 	 *
 	 * @return list<int>
 	 * @throws Exception
@@ -987,48 +1011,6 @@ class MetadataService
 		$result->closeCursor();
 
 		return $count;
-	}
-
-
-	/**
-	 * One page of file ids that still carry this app's hashes.
-	 *
-	 * Always the *first* page: {@see clearHashesNow()} removes what it reads,
-	 * so the next call sees what is left. Paging by offset would skip files
-	 * as the set shrank underneath it.
-	 *
-	 * @return list<int>
-	 * @throws Exception
-	 */
-	private function pageHashedFileIds( int $limit ): array
-	{
-
-		$qb = $this->db->getQueryBuilder();
-		$qb->selectDistinct( self::FIELD_FILE_ID )
-		   ->from( self::TABLE_FILES_METADATA_INDEX )
-		   ->where(
-			   $qb->expr()
-			      ->like( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
-			   $qb->expr()
-			      ->neq(
-				      self::FIELD_META_KEY,
-				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
-			      ),
-		   )
-		   ->orderBy( self::FIELD_FILE_ID, 'ASC' )
-		   ->setMaxResults( $limit )
-		;
-
-		$result  = $this->executeQuery( $qb );
-		$fileIds = [];
-
-		while ( ( $row = $result->fetch() ) !== false )
-		{
-			$fileIds[] = (int) $row[ self::FIELD_FILE_ID ];
-		}
-		$result->closeCursor();
-
-		return $fileIds;
 	}
 
 
@@ -1270,7 +1252,7 @@ class MetadataService
 
 		foreach ( $algoToHash as $algo => $hash )
 		{
-			$metaKey = self::getHashKey( (string) $algo );
+			$metaKey = self::getHashKey( $algo );
 			$held    = $metadata->hasKey( $metaKey );
 
 			if ( $held && $merge )

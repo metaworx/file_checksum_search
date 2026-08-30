@@ -20,6 +20,7 @@ use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\IDBConnection;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
+use TypeError;
 
 /**
  * Unit tests for MetadataService.
@@ -1422,6 +1423,70 @@ class MetadataServiceTest
 
 		$this->assertSame( 2, $this->service->markAllStale() );
 		$this->assertContains( MetadataService::KEY_FILE_CHECKSUM_LIKE, $likes );
+	}
+
+
+	/**
+	 * The failure this was written after: a file that cannot be cleared used
+	 * to come back on the next page for ever, because the walk always asked
+	 * for the *first* page and the file never left it. Live, that meant a
+	 * reset that never returned and two million identical log lines.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testClearingEverythingFinishesEvenWhenAFileCannotBeCleared(): void
+	{
+
+		// Two pages: one row that always refuses, then nothing. Keyset paging
+		// is what makes the second call return nothing rather than the same
+		// row again — the loop asks for ids *after* the last one it saw.
+		$afterIds = [];
+		$this->expr->method( 'gt' )
+		           ->willReturnCallback(
+			           function (
+				           $column,
+				           $value,
+			           ) use
+			           (
+				           &
+				           $afterIds,
+			           ): string
+			           {
+
+				           $afterIds[] = (int) $value;
+
+				           return 'file_id > ?';
+			           },
+		           )
+		;
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetch' )
+		       ->willReturnOnConsecutiveCalls(
+			       [ MetadataService::FIELD_FILE_ID => 42 ],
+			       false,
+			       false,
+		       )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+		$this->queryBuilder->method( 'executeStatement' )
+		                   ->willReturn( 1 )
+		;
+
+		// What Nextcloud really throws for a file whose filecache row is gone:
+		// it reads the storage id from there, gets false, and refuses.
+		$this->metadataManager->method( 'saveMetadata' )
+		                      ->willThrowException(
+			                      new TypeError( 'setStorageId(): Argument #1 must be of type int, bool given' ),
+		                      )
+		;
+
+		$cleared = $this->service->clearHashesNow();
+
+		$this->assertSame( 1, $cleared, 'the orphan is dropped rather than retried for ever' );
+		$this->assertContains( 42, $afterIds, 'the second page asks for ids after the one that failed' );
 	}
 
 
