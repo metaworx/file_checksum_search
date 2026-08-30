@@ -22,7 +22,7 @@ use Throwable;
  * Two app-config values per job — a timestamp and a small JSON counts
  * object — written by the job at the end of each run and read by the
  * status surface. App-config-sized by design: no schema, no history,
- * just "when did it last run and what did it do". A stale timestamp is
+ * just "when did it last run and what did it do". An old timestamp is
  * itself the signal that a job stopped running.
  *
  * Not readonly: the jobs' tests double this class, and PHPUnit cannot

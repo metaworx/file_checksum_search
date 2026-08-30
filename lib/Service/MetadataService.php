@@ -58,9 +58,36 @@ class MetadataService
 	public const PENDING_FORCE                = self::PENDING_PREFIX . self::PENDING_MODE_FORCE;
 	public const PENDING_LAZY                 = self::PENDING_PREFIX . self::PENDING_MODE_LAZY;
 	public const PENDING_LIKE                 = self::PENDING_PREFIX . '%';
-	public const STATE_ERODED                 = 'eroded';
-	public const TABLE_FILES_METADATA         = 'files_metadata';
-	public const TABLE_FILES_METADATA_INDEX   = 'files_metadata_index';
+	/**
+	 * States meaning the stored hashes are not to be trusted, and nothing is
+	 * coming to fix them by itself.
+	 *
+	 * Namespaced like `pending:` so one `LIKE` answers "which files have
+	 * untrusted hashes" whatever the reason, and so a reason added later is
+	 * excluded from scans by construction rather than by remembering to.
+	 *
+	 * The two differ in what is left behind: erosion already removed the
+	 * hashes ({@see markEroded()} strips them), while a reset disowns hashes
+	 * that are still stored, awaiting the drain — which is why scans have to
+	 * exclude the namespace rather than trust it to be empty.
+	 *
+	 * Not to be confused with a hash that is merely **outdated** — older than
+	 * the file it describes. That is computed from `updated_at < mtime`, never
+	 * stored: a written file is queued as `pending:<mode>` in the same column,
+	 * so the two could not both be recorded.
+	 */
+	public const STATE_STALE_PREFIX = 'stale:';
+
+	public const STATE_ERODED = self::STATE_STALE_PREFIX . 'eroded';
+
+	public const STATE_RESET = self::STATE_STALE_PREFIX . 'reset';
+
+	public const STALE_LIKE = self::STATE_STALE_PREFIX . '%';
+
+	/** The value written before the states were namespaced; migrated by repair. */
+	public const LEGACY_STATE_ERODED        = 'eroded';
+	public const TABLE_FILES_METADATA       = 'files_metadata';
+	public const TABLE_FILES_METADATA_INDEX = 'files_metadata_index';
 
 	/**
 	 * Nextcloud core's `files_metadata_index.meta_value_string` column
@@ -475,6 +502,23 @@ class MetadataService
 	public function countEroded(): int
 	{
 
+		return $this->countByState( self::STATE_ERODED );
+	}
+
+
+	/**
+	 * How many files carry one untrusted-hash state, or all of them.
+	 *
+	 * Pass a `stale:%` pattern for the whole namespace — the point of naming
+	 * the states that way is that "how many files have untrusted hashes"
+	 * stays one question with one answer, however many reasons there are.
+	 *
+	 * @param  string  $state  An exact state, or a LIKE pattern such as
+	 *                         {@see STALE_LIKE}.
+	 */
+	public function countByState( string $state ): int
+	{
+
 		$qb = $this->db->getQueryBuilder();
 		$qb->selectAlias(
 			$qb->func()
@@ -485,8 +529,11 @@ class MetadataService
 		   ->where(
 			   $qb->expr()
 			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
-			   $qb->expr()
-			      ->eq( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( self::STATE_ERODED ) ),
+			   str_contains( $state, '%' )
+				   ? $qb->expr()
+				        ->like( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( $state ) )
+				   : $qb->expr()
+				        ->eq( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( $state ) ),
 		   )
 		;
 
@@ -495,6 +542,44 @@ class MetadataService
 		$result->closeCursor();
 
 		return $count;
+	}
+
+
+	/**
+	 * How many files have untrusted hashes, broken down by why.
+	 *
+	 * @return array<string, int>  State value => count, e.g. `stale:reset` => 12
+	 */
+	public function getStaleStats(): array
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( self::FIELD_META_VALUE_STRING )
+		   ->selectAlias(
+			   $qb->func()
+			      ->count( self::FIELD_FILE_ID ),
+			   'cnt',
+		   )
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			   $qb->expr()
+			      ->like( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( self::STALE_LIKE ) ),
+		   )
+		   ->groupBy( self::FIELD_META_VALUE_STRING )
+		;
+
+		$result = $this->executeQuery( $qb );
+		$stats  = [];
+
+		while ( ( $row = $result->fetch() ) !== false )
+		{
+			$stats[ (string) $row[ self::FIELD_META_VALUE_STRING ] ] = (int) $row['cnt'];
+		}
+		$result->closeCursor();
+
+		return $stats;
 	}
 
 

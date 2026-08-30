@@ -318,7 +318,7 @@ class HashCalculationService
 	 *
 	 * Presence is read from the filecache checksum string (no extra query);
 	 * freshness compares the metadata updated_at against the file's mtime —
-	 * a file modified after its hashes were computed is stale, and 'missing'
+	 * a file modified after its hashes were computed is outdated, and 'missing'
 	 * mode refreshes it rather than skipping it as done. The timestamp is a
 	 * single indexed point lookup, and only files that pass the presence
 	 * check pay for it.
@@ -357,7 +357,7 @@ class HashCalculationService
 	 *
 	 * $mode is the existing rule-mode vocabulary applied to a direct run:
 	 * 'missing' (default) computes each file's absent algorithms and — when
-	 * the file's updated_at predates its mtime — refreshes the stale ones;
+	 * the file's updated_at predates its mtime — refreshes the outdated ones;
 	 * 'force' recomputes the full effective set regardless.
 	 *
 	 * @param  int  $batchSize  Maximum files to collect (a value <= 0 means unlimited)

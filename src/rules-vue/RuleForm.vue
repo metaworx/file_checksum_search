@@ -215,7 +215,7 @@ const HELP = {
 		+ 'everything below that folder. Rules are checked in order and the first match wins.',
 	algos: 'Checksum algorithms computed for matching files. Each algorithm you add is indexed '
 		+ 'separately, so more algorithms means more work per file.',
-	mode: 'What happens to a file that already has a hash. "Auto" only recomputes a stale one, '
+	mode: 'What happens to a file that already has a hash. "Auto" only recomputes an outdated one, '
 		+ '"Missing" also fills gaps, "Force" discards and recomputes everything, and "Lazy" '
 		+ 'clears the hashes now and lets a later run recompute them.',
 	adminEnforced: 'When set, users cannot override or disable this rule from their personal settings. '
@@ -433,7 +433,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 				<label :for="ids.mode">Mode</label>
 				<select :id="ids.mode" v-model="draft.mode">
 					<option value="auto">
-						Auto (recalc existing only if stale)
+						Auto (recalc existing only if outdated)
 					</option>
 					<option value="missing">
 						Missing (recalc existing + missing)

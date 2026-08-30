@@ -90,7 +90,7 @@ class HashFiles
 			     'mode',
 			     'm',
 			     InputOption::VALUE_REQUIRED,
-			     '"missing" computes absent hashes and refreshes stale ones; "force" recomputes '
+			     '"missing" computes absent hashes and refreshes outdated ones; "force" recomputes '
 			     . 'everything requested. ("auto" is the background drain\'s job; deferring is --mark.)',
 			     MetadataService::PENDING_MODE_MISSING,
 		     )

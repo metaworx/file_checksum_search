@@ -84,7 +84,7 @@ split into two groups — *what to compute*, and *named deviations from the rule
 | Option | Effect |
 |--------|--------|
 | `-a`, `--algo=<name\|all\|auto>` | Repeatable (commas work too). Default `auto`: each file gets its **governing rule's** algorithms. Explicit names are exclusive — the rule's list is not consulted; combining names with `auto` forms the union. Unknown names fail the run. |
-| `-m`, `--mode=<missing\|force>` | Default `missing`: compute each file's absent algorithms and refresh stale ones (hashes older than the file's mtime). `force` recomputes everything requested. `auto` and `lazy` are rejected — the first is the background drain's semantics, the second is spelled `--mark`. |
+| `-m`, `--mode=<missing\|force>` | Default `missing`: compute each file's absent algorithms and refresh outdated ones (hashes older than the file's mtime). `force` recomputes everything requested. `auto` and `lazy` are rejected — the first is the background drain's semantics, the second is spelled `--mark`. |
 | `-k`, `--mark` | Queue matching files as `pending:<mode>` for the background job instead of computing now. The drain resolves each file's rule at that point, so `--algo` does not apply to marked files (the command says so if you combine them). |
 | `-u`, `--unmatched[=include\|skip\|unmatched]` | Files no rule governs: `skip` (default), `include` (process them too), or `unmatched` — bare `-u` — to process **only** them: the inverse view, for hashing a corner no rule covers without touching the rest. Needs at least one explicit `--algo`, since there is no rule to supply one; cannot be combined with `--mark`, whose drain would drop such files by design. |
 | `--with-ignored` | Also process files whose governing rule is `ignore`. That verdict means "not automatically, but when asked", and typing a command *is* asking. Never affects `exclude`. |
@@ -193,7 +193,7 @@ Once a rule is enabled, five paths lead to a hash:
    a rule changed between the mark and the drain is honoured, and a file that lost its coverage in
    between is dropped from the queue instead of hashed.
 3. **The periodic sweep.** `RuleProcessingJob` walks the storages each enabled rule addresses and
-   queues what is stale or unhashed. This is the net beneath the events: a file changed while the
+   queues what is outdated or unhashed. This is the net beneath the events: a file changed while the
    app was disabled, a rule enabled after the fact, an event that never fired.
 4. **An explicit pass.** `occ file-checksum-search:rules:apply <id>`, or **Re-apply** in the rules
    table, queues every file that rule currently governs — uncapped, where the periodic sweep
@@ -339,7 +339,7 @@ Each rule combines:
 | `selector` | Which slice of the file universe the rule addresses (see above) |
 | `path` | A path glob (Symfony Finder `**` syntax), e.g. `**/*.pdf`. A bare `**`, `/` or empty value makes the rule its segment's default |
 | `algos` | One or more of `sha1`, `md5`, `sha256`, `sha512`, `sha3-256`, `sha3-512`, `crc32`, `adler32` |
-| `mode` | How stale hashes are handled (see below) |
+| `mode` | How outdated hashes are handled (see below) |
 | `admin_enforced` | Whether users may edit the rule (admin-only lock) |
 | `type` | `include` (default), `ignore`, or `exclude` — see below |
 
@@ -364,8 +364,8 @@ user rule can undo, while a user's own exclude only overrides the defaults below
 
 | Mode | Description |
 |------|-------------|
-| `auto` | Recalculate existing hashes only when stale |
-| `missing` | Recalculate stale hashes and fill in missing ones |
+| `auto` | Recalculate existing hashes only when outdated |
+| `missing` | Recalculate outdated hashes and fill in missing ones |
 | `force` | Clear all hashes and recalculate immediately |
 | `lazy` | Clear hashes and defer recalculation to the background queue |
 
@@ -522,7 +522,7 @@ guide, so whoever answers a question is reading the same words as the person ask
 The admin settings page says so in a banner; enable the *All home folders* rule, or write your own.
 
 **The indexed count went down.** Files were eroded — modified while no rule maintained them, so
-their stale hashes were dropped (see [When hashes go away](#when-hashes-go-away)). The status page
+their outdated hashes were dropped (see [When hashes go away](#when-hashes-go-away)). The status page
 counts them, and coverage heals them.
 
 **A rule never matches.** Check its band and its selector: a higher band may be claiming the files
@@ -536,7 +536,7 @@ If the checksum metadata index becomes out of sync with `oc_filecache`, rebuild 
 php occ file-checksum-search:rebuild
 ```
 
-For hashes that are missing or stale, table-prefix configuration, and other common issues, see [docs/FAQ.md § Troubleshooting](docs/FAQ.md#troubleshooting).
+For hashes that are missing or outdated, table-prefix configuration, and other common issues, see [docs/FAQ.md § Troubleshooting](docs/FAQ.md#troubleshooting).
 
 ## License
 

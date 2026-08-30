@@ -102,7 +102,7 @@ algorithms from it, so a rule changed in between is honoured and a file that
 lost its coverage is dropped rather than hashed.
 
 A second job sweeps the storages each enabled rule addresses and queues what is
-stale or unhashed — the net beneath the file events. The admin status page
+outdated or unhashed — the net beneath the file events. The admin status page
 shows both jobs' last run with their counts, which is how you tell "nothing to
 do" apart from "not running". See
 [README.md § How hashing happens](../README.md#how-hashing-happens) and
@@ -178,7 +178,7 @@ Rebuild the checksum metadata index from existing filecache checksums:
 php occ file-checksum-search:rebuild
 ```
 
-### Hashes are missing or stale
+### Hashes are missing or outdated
 
 Check the admin settings status overview (indexed hashes and pending
 updates). First check whether an `include` rule is enabled at all — with none,
@@ -194,7 +194,7 @@ php occ file-checksum-search:hash --user=alice --path="**"
 ### A file's hash does not match its content
 
 Run the duplicate browser's **Verify hashes** action, or recalculate a
-single file via the API or the sidebar. A stale hash means the file was
+single file via the API or the sidebar. An outdated hash means the file was
 modified after its checksum was last computed.
 
 ### Table prefix issues

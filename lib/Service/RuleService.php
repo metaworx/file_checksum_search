@@ -31,8 +31,8 @@ use Throwable;
  * Rule evaluation engine for hash-generation rules.
  *
  * Loads rules from IAppConfig, resolves user scope, searches for
- * matching files via Folder::search(), checks staleness via
- * MetadataService, and marks stale files as pending:{mode}.
+ * matching files via Folder::search(), checks freshness via
+ * MetadataService, and marks outdated files as pending:{mode}.
  *
  * Who may edit rules at all is {@see PermissionService}'s concern; this class
  * only asks it, when deciding whether a user may mutate a particular rule.
@@ -237,7 +237,7 @@ class RuleService
 
 
 	/**
-	 * Evaluate all enabled rules and mark stale files as pending.
+	 * Evaluate all enabled rules and mark outdated files as pending.
 	 *
 	 * Rules are stored in band order and processed top to bottom, so the
 	 * first matching rule wins and a lower band is a higher priority
@@ -586,7 +586,7 @@ class RuleService
 
 
 	/**
-	 * Mark one rule's stale files as pending, up to an internal batch cap.
+	 * Mark one rule's outdated files as pending, up to an internal batch cap.
 	 *
 	 * Storage-paged: the selector resolves to the set of storages it sweeps
 	 * and each storage's filecache rows are walked directly — no user views,
@@ -1141,7 +1141,7 @@ class RuleService
 
 	/**
 	 * Apply one rule to the files it currently governs: an uncapped,
-	 * paged scan that queues every matching stale-or-unhashed file as
+	 * paged scan that queues every matching outdated-or-unhashed file as
 	 * pending:<mode>.
 	 *
 	 * Band discipline holds for a single-rule apply exactly as for the full

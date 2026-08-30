@@ -154,7 +154,7 @@ class FileListener
 				$this->metadataService->markEroded( $fileId );
 
 				$this->logger->debug(
-					'FCIAS FileListener: dropped stale hashes for an unmaintained file on write',
+					'FCIAS FileListener: dropped outdated hashes for an unmaintained file on write',
 					[
 						'app'    => Application::APP_ID,
 						'fileId' => $fileId,
@@ -273,7 +273,7 @@ class FileListener
 
 		case MetadataService::PENDING_MODE_AUTO:
 			// Intentionally a no-op for a brand-new file: `auto` means
-			// "recalculate EXISTING hashes only when stale" (README), and
+			// "recalculate EXISTING hashes only when outdated" (README), and
 			// a just-created file has none — countByFileId() is correctly
 			// 0 here. Filling in a first hash for a new file under `auto`
 			// is not this mode's job; use `missing` or `force` on the rule

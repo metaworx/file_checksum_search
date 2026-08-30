@@ -1128,4 +1128,57 @@ class MetadataServiceTest
 		$this->assertSame( $dummyMetadata, $metadata );
 	}
 
+
+	public function testStaleStatesNeverLookLikeQueuedWork(): void
+	{
+
+		// The two namespaces have to stay disjoint: a file whose hashes are
+		// disowned is not a file waiting to be hashed, and the queue's LIKE
+		// must not sweep it up.
+		$this->assertStringStartsWith(
+			MetadataService::STATE_STALE_PREFIX,
+			MetadataService::STATE_ERODED,
+		);
+		$this->assertStringStartsWith(
+			MetadataService::STATE_STALE_PREFIX,
+			MetadataService::STATE_RESET,
+		);
+
+		foreach (
+			[
+				MetadataService::STATE_ERODED,
+				MetadataService::STATE_RESET,
+			] as $state
+		)
+		{
+			$this->assertStringStartsNotWith( MetadataService::PENDING_PREFIX, $state );
+			// STALE_LIKE is a SQL pattern; fnmatch speaks glob, so `%` → `*`.
+			$this->assertTrue(
+				fnmatch( str_replace( '%', '*', MetadataService::STALE_LIKE ), $state ),
+				$state . ' must be found by the stale namespace pattern',
+			);
+		}
+	}
+
+
+	public function testCountByStateMatchesAPatternWithLike(): void
+	{
+
+		// A pattern asks a different question of the database than an exact
+		// value does, and the namespace exists so the pattern is askable.
+		$this->expr->expects( $this->once() )
+		           ->method( 'like' )
+		           ->willReturn( 'meta_value_string LIKE :p' )
+		;
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchOne' )
+		       ->willReturn( 4 )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$this->assertSame( 4, $this->service->countByState( MetadataService::STALE_LIKE ) );
+	}
+
 }

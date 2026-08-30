@@ -93,7 +93,7 @@ const COLUMN_HELP: Record<string, string> = {
 		+ 'route, including the sidebar button, the API and the occ command.',
 	algos: 'Checksum algorithms computed for matching files. Each one is indexed separately, so more '
 		+ 'algorithms means more work per file. Shown as "—" for a rule that computes nothing.',
-	mode: 'What happens to a file that already has a hash. "auto" recomputes only a stale one, "missing" '
+	mode: 'What happens to a file that already has a hash. "auto" recomputes only an outdated one, "missing" '
 		+ 'also fills gaps, "force" discards and recomputes everything, and "lazy" clears the hashes now and '
 		+ 'lets a later run recompute them. Shown as "—" for a rule that computes nothing.',
 	status: 'Whether the rule takes part in evaluation at all. A disabled rule is skipped as though it were '

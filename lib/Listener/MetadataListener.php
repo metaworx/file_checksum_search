@@ -69,7 +69,7 @@ class MetadataListener
 
 			// Queue the file; whether it gets hashed at all, and with which
 			// algorithms, is the governing rule's call at drain time. 'missing'
-			// covers both cases — fill absent hashes, refresh stale ones.
+			// covers both cases — fill absent hashes, refresh outdated ones.
 			$mode = MetadataService::PENDING_PREFIX . MetadataService::PENDING_MODE_MISSING;
 
 			$this->metadataService->markPending( $fileId, $mode );

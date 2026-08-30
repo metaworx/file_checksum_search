@@ -73,6 +73,7 @@ class RepairQuietStart
 	{
 
 		$this->ensureSelectorModel( $output );
+		$this->namespaceStaleStates( $output );
 		$this->purgeLegacyPendingNew( $output );
 		$this->removeLegacySeedJob( $output );
 	}
@@ -205,6 +206,60 @@ class RepairQuietStart
 					$converted,
 				),
 			);
+		}
+	}
+
+
+	/**
+	 * Move erosion markers into the `stale:` namespace.
+	 *
+	 * The states that mean "these hashes are not to be trusted" are namespaced
+	 * so one `LIKE` finds them all and a reason added later is excluded from
+	 * scans by construction. Rows written before that carry the bare word.
+	 *
+	 * @throws \OCP\DB\Exception
+	 */
+	private function namespaceStaleStates( IOutput $output ): void
+	{
+
+		try
+		{
+			$qb = $this->db->getQueryBuilder();
+			$qb->update( MetadataService::TABLE_FILES_METADATA_INDEX )
+			   ->set(
+				   MetadataService::FIELD_META_VALUE_STRING,
+				   $qb->createNamedParameter( MetadataService::STATE_ERODED ),
+			   )
+			   ->where(
+				   $qb->expr()
+				      ->eq(
+					      MetadataService::FIELD_META_KEY,
+					      $qb->createNamedParameter( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ),
+				      ),
+				   $qb->expr()
+				      ->eq(
+					      MetadataService::FIELD_META_VALUE_STRING,
+					      $qb->createNamedParameter( MetadataService::LEGACY_STATE_ERODED ),
+				      ),
+			   )
+			;
+
+			$migrated = $qb->executeStatement();
+
+			if ( $migrated > 0 )
+			{
+				$output->info(
+					sprintf(
+						'FCIAS: moved %d erosion marker(s) to the "%s" state.',
+						$migrated,
+						MetadataService::STATE_ERODED,
+					),
+				);
+			}
+		}
+		catch ( Throwable $e )
+		{
+			$this->warn( $output, 'could not namespace the erosion markers', $e );
 		}
 	}
 
