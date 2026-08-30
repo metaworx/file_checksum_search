@@ -1,0 +1,22 @@
+{
+	"schema": 1,
+	"app": "file_checksum_search",
+	"note": "Three files, two of them sharing a hash. Import with --user so the paths are read as relative to that user's files directory, which is what makes this fixture instance-independent: it names no storage, so cy.importFciasFixture()'s anchor supplies one. The spec creates the files; this gives them their hashes without waiting for a background job.",
+	"hashes": [
+		{
+			"path": "fcias-e2e-duplicates/a.txt",
+			"algo": "sha1",
+			"hash": "0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"
+		},
+		{
+			"path": "fcias-e2e-duplicates/b.txt",
+			"algo": "sha1",
+			"hash": "0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"
+		},
+		{
+			"path": "fcias-e2e-duplicates/c.txt",
+			"algo": "sha1",
+			"hash": "62cdb7020ff920e5aa642c3d4066950dd1f01f4d"
+		}
+	]
+}

@@ -32,6 +32,27 @@ produced by `checksums.cy.js`.
   repeated local runs simply accumulate files rather than collide. CI always
   starts from a fresh instance.
 
+## State and fixtures
+
+Two support commands put the instance in a known state instead of accumulating
+whatever earlier specs left behind. Both take the same `occ` prefix the specs
+already resolve from `CYPRESS_occ`.
+
+| Command | What it does |
+|---|---|
+| `cy.resetFciasState( occ )` | `fcias:reset --hashes --status --force --now`, then `maintenance:repair`. `--now` because the default reset leaves the clearing to a background job, and a spec cannot wait for a job it does not control. |
+| `cy.importFciasFixture( occ, name, user = 'admin' )` | Reads `tests/e2e/fixtures/<name>.json` and states the hashes outright, rather than computing them and waiting. |
+
+A fixture names **no storage**, so its paths are read as relative to `user`'s
+files directory — which is what lets one fixture serve any instance. The spec
+creates the files; the fixture gives them their hashes. It travels in on
+standard input, because `cy.exec()` runs on the host while `occ` may run inside
+a container and the two do not agree on where the repository is.
+
+Both allow five minutes rather than `cy.exec()`'s default sixty seconds:
+clearing hashes in the foreground rewrites one metadata document per file, which
+measures at roughly five files a second against ddev.
+
 ## Environment contract
 
 - `CYPRESS_baseUrl` — Nextcloud base URL (e.g. `https://nextcloud-34.ddev.site`).
@@ -44,8 +65,7 @@ produced by `checksums.cy.js`.
 
 ## Running
 
-See [`../../.aiassistant/TESTING.md`](../../.aiassistant/TESTING.md) §9 for the
-local and CI run commands. To run the whole suite:
+Set the environment contract above, then run the whole suite:
 
 ```bash
 CYPRESS_baseUrl=https://nextcloud-34.ddev.site \
