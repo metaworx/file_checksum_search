@@ -52,6 +52,17 @@ class ImportReport
 	 */
 	public array $configRefused = [];
 
+	/**
+	 * Configuration keys this version declares but that record what an
+	 * instance has done rather than how it is configured — a job's last run,
+	 * a completed repair step. Refused, because asserting another instance's
+	 * history here would be false and, for the repair markers, permanently
+	 * so.
+	 *
+	 * @var list<string>
+	 */
+	public array $configNotPortable = [];
+
 
 	/**
 	 * @return array<string, int>

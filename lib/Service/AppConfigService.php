@@ -30,11 +30,26 @@ use Throwable;
  *
  * Not `readonly`: the command tests double this class, and PHPUnit 10.5
  * cannot mock readonly classes (TESTING.md §6.1).
- *
- * @noinspection PhpClassCanBeReadonlyInspection
  */
 class AppConfigService
 {
+
+	/**
+	 * Key prefixes that record what this instance has done.
+	 *
+	 * `stats_` holds each background job's last run and its counts — a
+	 * heartbeat, and restoring another machine's heartbeat would put a time
+	 * on the status page that nothing here ever did. `repair_done_` records
+	 * which one-time repair steps have completed, and importing one is the
+	 * worst case of all: the step is skipped for ever on an instance where
+	 * it never ran.
+	 */
+	private const HISTORY_PREFIXES
+		= [
+			'stats_',
+			'repair_done_',
+		];
+
 
 	public function __construct(
 		private readonly IAppConfig      $appConfig,
@@ -58,6 +73,47 @@ class AppConfigService
 			): string => $entry->getKey(),
 			$this->lexicon->getAppConfigs(),
 		);
+	}
+
+
+	/**
+	 * The owned keys that may travel to another instance.
+	 *
+	 * **Configuration travels; history does not.** A key saying how this
+	 * instance is set up belongs in a backup, and restoring it elsewhere
+	 * means something. A key recording what this instance has *done* —
+	 * when a job last ran, which repair steps have completed — means nothing
+	 * anywhere else, and asserting it can do harm: an instance told that a
+	 * one-time repair has already run will never run it, silently and
+	 * permanently.
+	 *
+	 * The same line the backup already draws between its `config` and
+	 * `status` slices, drawn once more inside the config slice itself.
+	 *
+	 * @return list<string>
+	 */
+	public function portableKeys(): array
+	{
+
+		return array_values( array_filter( $this->ownedKeys(), self::isPortable( ... ) ) );
+	}
+
+
+	/**
+	 * Whether a key describes configuration rather than history.
+	 */
+	public static function isPortable( string $key ): bool
+	{
+
+		foreach ( self::HISTORY_PREFIXES as $prefix )
+		{
+			if ( str_starts_with( $key, $prefix ) )
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 
@@ -100,7 +156,7 @@ class AppConfigService
 
 		foreach ( $this->entries() as $key => $entry )
 		{
-			if ( ! $this->appConfig->hasKey( Application::APP_ID, $key ) )
+			if ( ! self::isPortable( $key ) || ! $this->appConfig->hasKey( Application::APP_ID, $key ) )
 			{
 				continue;
 			}
@@ -199,34 +255,51 @@ class AppConfigService
 		bool  $replace = false,
 	): array {
 
-		$owned   = $this->entries();
-		$written = 0;
-		$skipped = [];
+		$owned       = $this->entries();
+		$written     = 0;
+		$skipped     = [];
+		$notPortable = [];
 
 		foreach ( $config as $key => $value )
 		{
+			$key = (string) $key;
+
 			if ( ! isset( $owned[ $key ] ) )
 			{
-				$skipped[] = (string) $key;
+				$skipped[] = $key;
 
 				continue;
 			}
 
-			$this->write( (string) $key, $owned[ $key ]->getValueType(), (string) $value );
+			// A key this version declares but that records what an instance
+			// has done. Refused rather than written, and reported apart from
+			// an unknown key: the two need different things said about them.
+			if ( ! self::isPortable( $key ) )
+			{
+				$notPortable[] = $key;
+
+				continue;
+			}
+
+			$this->write( $key, $owned[ $key ]->getValueType(), (string) $value );
 			$written ++;
 		}
 
 		if ( $replace )
 		{
-			foreach ( array_diff( array_keys( $owned ), array_keys( $config ) ) as $key )
+			// Replacing means the result is exactly the input — of the keys
+			// that could have been in it. History was never exported, so its
+			// absence says nothing and must not delete anything.
+			foreach ( array_diff( $this->portableKeys(), array_keys( $config ) ) as $key )
 			{
 				$this->deleteKey( $key );
 			}
 		}
 
 		return [
-			'written' => $written,
-			'skipped' => $skipped,
+			'written'      => $written,
+			'skipped'      => $skipped,
+			'not_portable' => $notPortable,
 		];
 	}
 

@@ -270,7 +270,11 @@ class AppConfigServiceTest
 
 		$this->assertNotContains( 'rule_definitions', $deleted );
 		$this->assertContains( 'rule_processing_interval', $deleted );
-		$this->assertCount( count( $this->service->ownedKeys() ) - 1, $deleted );
+
+		// Only the keys that could have been in the file. History was never
+		// exported, so its absence from one says nothing about it.
+		$this->assertNotContains( 'stats_rule_sweep_last_run', $deleted );
+		$this->assertCount( count( $this->service->portableKeys() ) - 1, $deleted );
 	}
 
 
@@ -282,6 +286,69 @@ class AppConfigServiceTest
 		;
 
 		$this->service->import( [ 'rule_definitions' => '[]' ] );
+	}
+
+
+	/**
+	 * Configuration travels; history does not.
+	 *
+	 * A key saying how this instance is set up means something elsewhere. A
+	 * key recording when a job last ran means nothing anywhere else, and the
+	 * repair markers are worse than meaningless: an instance told a one-time
+	 * step has already run never runs it.
+	 */
+	public function testHistoryIsOwnedButNotPortable(): void
+	{
+
+		$owned    = $this->service->ownedKeys();
+		$portable = $this->service->portableKeys();
+
+		$this->assertContains( 'stats_rule_sweep_last_run', $owned );
+		$this->assertNotContains( 'stats_rule_sweep_last_run', $portable );
+		$this->assertContains( 'rule_definitions', $portable );
+
+		$this->assertFalse( AppConfigService::isPortable( 'repair_done_selector_model' ) );
+		$this->assertTrue( AppConfigService::isPortable( 'rule_definitions' ) );
+	}
+
+
+	public function testAHistoryKeyIsNeverExported(): void
+	{
+
+		$this->givenSet(
+			[
+				'rule_definitions'          => '[]',
+				'stats_rule_sweep_last_run' => '1700000000',
+			],
+		);
+
+		$this->assertSame( [ 'rule_definitions' => '[]' ], $this->service->export() );
+	}
+
+
+	/**
+	 * A backup from before the distinction existed still carries them, and
+	 * refusing is reported apart from an unknown key: the two need different
+	 * things said about them.
+	 */
+	public function testAHistoryKeyInAFileIsRefusedNotWritten(): void
+	{
+
+		$this->appConfig->expects( $this->never() )
+		                ->method( 'setValueInt' )
+		;
+
+		$report = $this->service->import(
+			[
+				'rule_definitions'          => '[]',
+				'stats_rule_sweep_last_run' => '1700000000',
+				'from_a_newer_version'      => 'x',
+			],
+		);
+
+		$this->assertSame( 1, $report['written'] );
+		$this->assertSame( [ 'stats_rule_sweep_last_run' ], $report['not_portable'] );
+		$this->assertSame( [ 'from_a_newer_version' ], $report['skipped'] );
 	}
 
 

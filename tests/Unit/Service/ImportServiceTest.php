@@ -417,8 +417,9 @@ class ImportServiceTest
 		                       ->with( [ 'rule_definitions' => '[]' ], true )
 		                       ->willReturn(
 			                       [
-				                       'written' => 1,
-				                       'skipped' => [ 'from_a_newer_version' ],
+				                       'written'      => 1,
+				                       'skipped'      => [ 'from_a_newer_version' ],
+				                       'not_portable' => [ 'stats_rule_sweep_last_run' ],
 			                       ],
 		                       )
 		;
@@ -431,6 +432,7 @@ class ImportServiceTest
 
 		$this->assertSame( 1, $report->configWritten );
 		$this->assertSame( [ 'from_a_newer_version' ], $report->configRefused );
+		$this->assertSame( [ 'stats_rule_sweep_last_run' ], $report->configNotPortable );
 	}
 
 

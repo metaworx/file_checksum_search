@@ -178,9 +178,10 @@ class ImportService
 			return;
 		}
 
-		$result                = $this->appConfigService->import( $config, ! $policy->merge );
-		$report->configWritten = $result['written'];
-		$report->configRefused = $result['skipped'];
+		$result                    = $this->appConfigService->import( $config, ! $policy->merge );
+		$report->configWritten     = $result['written'];
+		$report->configRefused     = $result['skipped'];
+		$report->configNotPortable = $result['not_portable'] ?? [];
 	}
 
 
@@ -301,7 +302,9 @@ class ImportService
 		}
 
 		$acceptable = array_map(
-			static fn( HashRecord $record ): string => $record->hash,
+			static fn(
+				HashRecord $record,
+			): string => $record->hash,
 			$byAlgo,
 		);
 

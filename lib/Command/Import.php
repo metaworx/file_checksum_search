@@ -433,6 +433,14 @@ HELP,
 				. implode( ', ', $report->configRefused ) . '</comment>',
 			);
 		}
+
+		if ( $report->configNotPortable !== [] )
+		{
+			$output->writeln(
+				'<comment>Refused, because they record what an instance has done rather than how it '
+				. 'is configured: ' . implode( ', ', $report->configNotPortable ) . '</comment>',
+			);
+		}
 	}
 
 
