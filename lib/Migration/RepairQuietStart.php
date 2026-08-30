@@ -75,6 +75,7 @@ class RepairQuietStart
 
 		$this->ensureSelectorModel( $output );
 		$this->reregisterMetadataKeys( $output );
+		$this->backfillHashIndex( $output );
 		$this->namespaceStaleStates( $output );
 		$this->purgeLegacyPendingNew( $output );
 		$this->removeLegacySeedJob( $output );
@@ -108,6 +109,39 @@ class RepairQuietStart
 		catch ( Throwable $e )
 		{
 			$this->warn( $output, 'could not refresh the metadata key declarations', $e );
+		}
+	}
+
+
+	/**
+	 * Write the index rows that were never written.
+	 *
+	 * An instance that ran before the app took over indexing its own hashes
+	 * has them in the documents and nowhere else, for every algorithm longer
+	 * than the index column: Nextcloud's insert failed and it logged rather
+	 * than raised, so a SHA-256 search found nothing. Declaring the keys
+	 * differently (above) stops it happening again; this is what fixes what
+	 * already happened.
+	 *
+	 * Files whose rows already match are skipped, so the run after the first
+	 * costs a query per page and no writes.
+	 */
+	private function backfillHashIndex( IOutput $output ): void
+	{
+
+		try
+		{
+			$fixed = $this->metadataService->reindexHashes();
+
+			$output->info(
+				$fixed === 0
+					? 'FCIAS: every stored hash is indexed.'
+					: sprintf( 'FCIAS: indexed the stored hashes of %d files.', $fixed ),
+			);
+		}
+		catch ( Throwable $e )
+		{
+			$this->warn( $output, 'could not index the stored hashes', $e );
 		}
 	}
 

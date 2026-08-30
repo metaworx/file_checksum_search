@@ -283,10 +283,51 @@ class RepairQuietStartTest
 
 
 	/**
+	 * The declaration stops it happening again; this fixes what already
+	 * happened — every hash sitting in a document with no index row, which
+	 * is every long hash on every instance that ran before the fix.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testItIndexesHashesThatWereNeverIndexed(): void
+	{
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'reindexHashes' )
+		                      ->willReturn( 127 )
+		;
+		$this->output->expects( $this->atLeastOnce() )
+		             ->method( 'info' )
+		;
+
+		$this->step->run( $this->output );
+	}
+
+
+	/**
+	 * Repair steps run on upgrade, and one that throws stops the rest.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAFailedBackfillDoesNotStopTheRepair(): void
+	{
+
+		$this->metadataService->method( 'reindexHashes' )
+		                      ->willThrowException( new RuntimeException( 'no' ) )
+		;
+
+		$this->step->run( $this->output );
+
+		$this->addToAssertionCount( 1 );
+	}
+
+
+	/**
 	 * The declaration is stored once, by the install migration. An instance
 	 * that already ran it keeps being told the hash keys are Nextcloud's to
 	 * index — which is what made every SHA-256 row fail to write. Restating
 	 * it on repair is what makes the fix reach instances that already exist.
+	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testItRefreshesTheMetadataKeyDeclarations(): void
@@ -302,6 +343,7 @@ class RepairQuietStartTest
 
 	/**
 	 * Repair steps run on upgrade, and one that throws stops the rest.
+	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testARefusedRefreshDoesNotStopTheRepair(): void

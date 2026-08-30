@@ -1434,6 +1434,177 @@ class MetadataService
 
 
 	/**
+	 * Give every stored hash the index row it should always have had.
+	 *
+	 * The repair for instances that ran before the app took over writing
+	 * these rows: the hashes are in the documents, and for every algorithm
+	 * longer than the column the row was never written, because Nextcloud's
+	 * insert failed and it logged rather than raised.
+	 *
+	 * Walks the **documents**, not the index. {@see exportHashes()} finds its
+	 * files through the index, which is precisely what is missing here.
+	 *
+	 * Files whose rows already match are left alone, so a second run costs
+	 * one query per page and no writes at all — which matters, because this
+	 * runs on every repair.
+	 *
+	 * @param  callable|null  $progress  Called per page with (files seen, files fixed).
+	 *
+	 * @return int  Files whose index rows were rewritten.
+	 * @throws Exception
+	 */
+	public function reindexHashes(
+		int       $pageSize = 500,
+		?callable $progress = null,
+	): int {
+
+		$lastId = 0;
+		$seen   = 0;
+		$fixed  = 0;
+
+		while ( true )
+		{
+			$documents = $this->pageHashDocumentsAfter( $lastId, $pageSize );
+
+			if ( $documents === [] )
+			{
+				return $fixed;
+			}
+
+			$lastId   = array_key_last( $documents );
+			$seen     += count( $documents );
+			$existing = $this->hashIndexKeysFor( array_keys( $documents ) );
+
+			foreach ( $documents as $fileId => $json )
+			{
+				$hashes = $this->getHashes( $this->getMetadata( $fileId, $json ) );
+				$wanted = array_map(
+					static fn(
+						string $algo,
+					): string => self::getHashKey( $algo ),
+					array_keys( array_filter( $hashes, static fn(
+						string $hash,
+					): bool => $hash !== '' ) ),
+				);
+
+				sort( $wanted );
+				$have = $existing[ $fileId ] ?? [];
+				sort( $have );
+
+				if ( $wanted === $have )
+				{
+					continue;
+				}
+
+				$this->syncHashIndex( $fileId, $hashes );
+				$fixed ++;
+			}
+
+			if ( $progress !== null )
+			{
+				$progress( $seen, $fixed );
+			}
+		}
+	}
+
+
+	/**
+	 * One page of metadata documents that mention any of this app's hashes.
+	 *
+	 * `LIKE` on the document rather than a join through the index, because
+	 * the rows this is here to create are the ones that do not exist yet. It
+	 * is a scan, once, over a table with one row per file that has any
+	 * metadata at all — the price of having written nothing down.
+	 *
+	 * @return array<int, string>  file id => the document's JSON, in id order
+	 * @throws Exception
+	 */
+	private function pageHashDocumentsAfter(
+		int $afterFileId,
+		int $limit,
+	): array {
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( self::FIELD_FILE_ID, self::FIELD_JSON )
+		   ->from( self::TABLE_FILES_METADATA )
+		   ->where(
+			   $qb->expr()
+			      ->like(
+				      self::FIELD_JSON,
+				      $qb->createNamedParameter( '%' . self::KEY_FILE_CHECKSUM_PREFIX . '%' ),
+			      ),
+			   $qb->expr()
+			      ->gt(
+				      self::FIELD_FILE_ID,
+				      $qb->createNamedParameter( $afterFileId, IQueryBuilder::PARAM_INT ),
+			      ),
+		   )
+		   ->orderBy( self::FIELD_FILE_ID, 'ASC' )
+		   ->setMaxResults( $limit )
+		;
+
+		$result    = $this->executeQuery( $qb );
+		$documents = [];
+
+		while ( ( $row = $result->fetch() ) !== false )
+		{
+			$documents[ (int) $row[ self::FIELD_FILE_ID ] ] = (string) $row[ self::FIELD_JSON ];
+		}
+		$result->closeCursor();
+
+		return $documents;
+	}
+
+
+	/**
+	 * Which hash keys each of these files already has a row for.
+	 *
+	 * @param  list<int>  $fileIds
+	 *
+	 * @return array<int, list<string>>
+	 * @throws Exception
+	 */
+	private function hashIndexKeysFor( array $fileIds ): array
+	{
+
+		if ( $fileIds === [] )
+		{
+			return [];
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( self::FIELD_FILE_ID, self::FIELD_META_KEY )
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->in(
+				      self::FIELD_FILE_ID,
+				      $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
+			      ),
+			   $qb->expr()
+			      ->like( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
+			   $qb->expr()
+			      ->neq(
+				      self::FIELD_META_KEY,
+				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+			      ),
+		   )
+		;
+
+		$result = $this->executeQuery( $qb );
+		$keys   = [];
+
+		while ( ( $row = $result->fetch() ) !== false )
+		{
+			$keys[ (int) $row[ self::FIELD_FILE_ID ] ][] = (string) $row[ self::FIELD_META_KEY ];
+		}
+		$result->closeCursor();
+
+		return $keys;
+	}
+
+
+	/**
 	 * Write this app's own index rows for a file's hashes.
 	 *
 	 * Nextcloud cannot do it: it indexes the value the document holds, and

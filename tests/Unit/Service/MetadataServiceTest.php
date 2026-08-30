@@ -1682,6 +1682,87 @@ class MetadataServiceTest
 	}
 
 
+	/**
+	 * The backfill's whole point: it walks the **documents**, because the
+	 * rows it exists to create are the ones the index does not have.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testReindexingSkipsFilesWhoseRowsAlreadyMatch(): void
+	{
+
+		$document = json_encode(
+			[
+				MetadataService::getHashKey( 'sha256' ) => [
+					'value'          => str_repeat( 'a', 64 ),
+					'type'           => 'string',
+					'etag'           => '',
+					'indexed'        => false,
+					'editPermission' => 0,
+				],
+			],
+		);
+
+		// One page of one document, then nothing; the file already has the
+		// row its document calls for.
+		$pages = [
+			[
+				[
+					MetadataService::FIELD_FILE_ID => 7,
+					MetadataService::FIELD_JSON    => $document,
+				],
+			],
+			[
+				[
+					MetadataService::FIELD_FILE_ID  => 7,
+					MetadataService::FIELD_META_KEY => MetadataService::getHashKey( 'sha256' ),
+				],
+			],
+			[],
+		];
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetch' )
+		       ->willReturnCallback(
+			       static function () use
+			       (
+				       &
+				       $pages,
+			       ): array|false
+			       {
+
+				       if ( $pages === [] )
+				       {
+					       return false;
+				       }
+
+				       $row = array_shift( $pages[0] );
+
+				       if ( $row === null )
+				       {
+					       array_shift( $pages );
+
+					       return false;
+				       }
+
+				       return $row;
+			       },
+		       )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		// The proof that nothing was rewritten: no row was deleted, which is
+		// how syncHashIndex() starts.
+		$this->queryBuilder->expects( $this->never() )
+		                   ->method( 'delete' )
+		;
+
+		$this->assertSame( 0, $this->service->reindexHashes() );
+	}
+
+
 	public function testMarkStaleIsANoOpForAnEmptyList(): void
 	{
 
