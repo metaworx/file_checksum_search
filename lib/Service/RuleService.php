@@ -50,11 +50,6 @@ class RuleService
 	 */
 	public const CONFIG_KEY_IDLE_BANNER_ACK = 'idle_banner_ack';
 
-	/** Scope value meaning "every user". */
-	/**
-	 * Prefix marking a group-scoped rule: `group:<gid>`. Nextcloud user IDs
-	 * cannot contain a colon, so this can never collide with a uid.
-	 */
 	/**
 	 * Priority bands. Rules are stored and evaluated in band order, first
 	 * match wins, so a lower band number is a higher priority.
