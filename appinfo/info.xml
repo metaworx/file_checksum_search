@@ -16,7 +16,8 @@
 			homepage="https://github.com/metaworx/">metaworx resonare rüegg
 	</author>
 	<documentation>
-		<user>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/blob/master/docs/user-guide.md</user>
+		<user>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/blob/master/docs/user-guide.md
+		</user>
 		<admin>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/blob/master/README.md</admin>
 		<developer>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/blob/master/docs/api-v1.md
 		</developer>
@@ -71,6 +72,7 @@
 		<command>OCA\FileChecksumSearch\Command\TestPerformance</command>
 		<command>OCA\FileChecksumSearch\Command\ShowStatus</command>
 		<command>OCA\FileChecksumSearch\Command\ShowConfig</command>
+		<command>OCA\FileChecksumSearch\Command\Backup</command>
 		<command>OCA\FileChecksumSearch\Command\FindDuplicates</command>
 		<command>OCA\FileChecksumSearch\Command\Rules\ListRules</command>
 		<command>OCA\FileChecksumSearch\Command\Rules\AddRule</command>

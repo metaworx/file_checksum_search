@@ -11,6 +11,8 @@ namespace OCA\FileChecksumSearch\Service;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Config\ConfigLexicon;
+use OCP\Config\Lexicon\Entry;
+use OCP\Config\ValueType;
 use OCP\IAppConfig;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -60,11 +62,34 @@ class AppConfigService
 
 
 	/**
-	 * Every owned key that is actually set, as raw strings.
+	 * The lexicon\'s entries, by key.
 	 *
-	 * Values are exported as stored rather than as typed values: a backup is
-	 * a record of what the instance had, and re-typing it on the way out
-	 * would mean guessing on the way back in.
+	 * @return array<string, Entry>
+	 */
+	public function entries(): array
+	{
+
+		$entries = [];
+
+		foreach ( $this->lexicon->getAppConfigs() as $entry )
+		{
+			$entries[ $entry->getKey() ] = $entry;
+		}
+
+		return $entries;
+	}
+
+
+	/**
+	 * Every owned key that is actually set, as strings.
+	 *
+	 * Each key is read through the getter its **declared type** calls for.
+	 * Nextcloud refuses a read that disagrees with the lexicon — asking for
+	 * an `INT` key as a string is an error, not a coercion — so a backup
+	 * that read everything as a string would fail on the first interval key
+	 * it met. The values are then rendered as strings because that is what a
+	 * backup file can hold; {@see import()} parses them back through the
+	 * same declaration.
 	 *
 	 * @return array<string, string>
 	 */
@@ -73,17 +98,79 @@ class AppConfigService
 
 		$config = [];
 
-		foreach ( $this->ownedKeys() as $key )
+		foreach ( $this->entries() as $key => $entry )
 		{
 			if ( ! $this->appConfig->hasKey( Application::APP_ID, $key ) )
 			{
 				continue;
 			}
 
-			$config[ $key ] = $this->appConfig->getValueString( Application::APP_ID, $key );
+			$config[ $key ] = $this->read( $key, $entry->getValueType() );
 		}
 
 		return $config;
+	}
+
+
+	/**
+	 * One key, read as the lexicon says it is stored.
+	 */
+	private function read(
+		string    $key,
+		ValueType $type,
+	): string {
+
+		return match ( $type )
+		{
+			ValueType::INT => (string) $this->appConfig->getValueInt( Application::APP_ID, $key ),
+			ValueType::FLOAT => (string) $this->appConfig->getValueFloat( Application::APP_ID, $key ),
+			ValueType::BOOL => $this->appConfig->getValueBool( Application::APP_ID, $key )
+				? '1'
+				: '0',
+			ValueType::ARRAY => json_encode(
+				$this->appConfig->getValueArray( Application::APP_ID, $key ),
+				JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
+			),
+			default => $this->appConfig->getValueString( Application::APP_ID, $key ),
+		};
+	}
+
+
+	/**
+	 * One key, written as the lexicon says it is stored.
+	 */
+	private function write(
+		string    $key,
+		ValueType $type,
+		string    $value,
+	): void {
+
+		match ( $type )
+		{
+			ValueType::INT => $this->appConfig->setValueInt( Application::APP_ID, $key, (int) $value ),
+			ValueType::FLOAT => $this->appConfig->setValueFloat( Application::APP_ID, $key, (float) $value ),
+			// Whatever a backup or a hand-edit spells "true" with.
+			ValueType::BOOL => $this->appConfig->setValueBool(
+				Application::APP_ID,
+				$key,
+				in_array(
+					strtolower( $value ),
+					[
+						'1',
+						'true',
+						'yes',
+						'on',
+					],
+					true,
+				),
+			),
+			ValueType::ARRAY => $this->appConfig->setValueArray(
+				Application::APP_ID,
+				$key,
+				json_decode( $value, true ) ?? [],
+			),
+			default => $this->appConfig->setValueString( Application::APP_ID, $key, $value ),
+		};
 	}
 
 
@@ -112,26 +199,26 @@ class AppConfigService
 		bool  $replace = false,
 	): array {
 
-		$owned   = $this->ownedKeys();
+		$owned   = $this->entries();
 		$written = 0;
 		$skipped = [];
 
 		foreach ( $config as $key => $value )
 		{
-			if ( ! in_array( $key, $owned, true ) )
+			if ( ! isset( $owned[ $key ] ) )
 			{
 				$skipped[] = (string) $key;
 
 				continue;
 			}
 
-			$this->appConfig->setValueString( Application::APP_ID, (string) $key, (string) $value );
+			$this->write( (string) $key, $owned[ $key ]->getValueType(), (string) $value );
 			$written ++;
 		}
 
 		if ( $replace )
 		{
-			foreach ( array_diff( $owned, array_keys( $config ) ) as $key )
+			foreach ( array_diff( array_keys( $owned ), array_keys( $config ) ) as $key )
 			{
 				$this->deleteKey( $key );
 			}

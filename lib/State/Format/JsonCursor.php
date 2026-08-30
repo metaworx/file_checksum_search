@@ -146,12 +146,41 @@ class JsonCursor
 
 
 	/**
+	 * Step over one complete value without keeping any of it.
+	 *
+	 * For a section this reader has no use for — the status slice a backup
+	 * records for the operator — whose size is the size of the instance.
+	 * Reading it as text would defeat the streaming it sits in front of.
+	 */
+	public function skipValue(): void
+	{
+
+		$this->skipWhitespace();
+		$this->walkValue();
+	}
+
+
+	/**
 	 * The scan itself, split out so that the pin is released on every exit.
 	 */
 	private function scanRawValue(): string
 	{
 
-		$start   = $this->offset;
+		$start = $this->offset;
+		$this->walkValue();
+
+		return substr( $this->buffer, $start, $this->offset - $start );
+	}
+
+
+	/**
+	 * Advance the cursor past one complete value, whatever its shape.
+	 * Nesting is tracked by depth; quoting by an escape flag, so a brace
+	 * inside a string never ends the value.
+	 */
+	private function walkValue(): void
+	{
+
 		$depth   = 0;
 		$inQuote = false;
 		$escaped = false;
@@ -165,7 +194,7 @@ class JsonCursor
 					throw new RuntimeException( 'Unexpected end of JSON input.' );
 				}
 
-				break;
+				return;
 			}
 
 			$char = $this->buffer[ $this->offset ];
@@ -238,8 +267,6 @@ class JsonCursor
 
 			$this->offset ++;
 		}
-
-		return substr( $this->buffer, $start, $this->offset - $start );
 	}
 
 

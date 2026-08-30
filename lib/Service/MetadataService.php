@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Service;
 
+use Generator;
 use OC\FilesMetadata\Model\FilesMetadata;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\DB\Exception;
@@ -738,6 +739,208 @@ class MetadataService
 		}
 
 		return $cleared;
+	}
+
+
+	/**
+	 * Every stored hash, one file at a time.
+	 *
+	 * Read from the **document**, never from the index: the index truncates
+	 * a value at {@see META_VALUE_STRING_MAX_LENGTH} characters, which is
+	 * shorter than a SHA-512 hash. A backup assembled from index rows would
+	 * look complete and restore half a hash, so the index is used only to
+	 * find *which* files have hashes — the answer it can give with one
+	 * indexed scan — and the document supplies the values.
+	 *
+	 * Keyset paging by file id rather than by offset: the set is read-only
+	 * here, but a keyset page cannot skip a row if anything does change
+	 * underneath it, and it costs nothing.
+	 *
+	 * @return Generator<array{file_id: int, hashes: array<string, string>, updated_at: ?int}>
+	 * @throws Exception
+	 */
+	public function exportHashes( int $pageSize = 500 ): Generator
+	{
+
+		$lastId = 0;
+
+		while ( true )
+		{
+			$fileIds = $this->pageHashedFileIdsAfter( $lastId, $pageSize );
+
+			if ( $fileIds === [] )
+			{
+				return;
+			}
+
+			$lastId = $fileIds[ array_key_last( $fileIds ) ];
+
+			foreach ( $this->fetchDocuments( $fileIds ) as $fileId => $json )
+			{
+				$metadata = $this->getMetadata( $fileId, $json );
+				$hashes   = $this->getHashes( $metadata );
+
+				if ( $hashes === [] )
+				{
+					continue;
+				}
+
+				yield [
+					'file_id'    => $fileId,
+					'hashes'     => $hashes,
+					'updated_at' => $this->getUpdatedAt( $metadata ),
+				];
+			}
+		}
+	}
+
+
+	/**
+	 * Every queue and `stale:` marker, one file at a time.
+	 *
+	 * The string half of `file-checksum-updated_at` — what a file is waiting
+	 * for, or why its hashes are not to be trusted. This one *can* come from
+	 * the index: a marker is short by construction, and
+	 * {@see markPending()} refuses to write one that is not.
+	 *
+	 * @return Generator<array{file_id: int, state: string}>
+	 * @throws Exception
+	 */
+	public function exportStates( int $pageSize = 1000 ): Generator
+	{
+
+		$lastId = 0;
+
+		while ( true )
+		{
+			$qb = $this->db->getQueryBuilder();
+			$qb->select( self::FIELD_FILE_ID, self::FIELD_META_VALUE_STRING )
+			   ->from( self::TABLE_FILES_METADATA_INDEX )
+			   ->where(
+				   $qb->expr()
+				      ->eq(
+					      self::FIELD_META_KEY,
+					      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+				      ),
+				   $qb->expr()
+				      ->neq(
+					      self::FIELD_META_VALUE_STRING,
+					      $qb->createNamedParameter( '' ),
+				      ),
+				   $qb->expr()
+				      ->gt(
+					      self::FIELD_FILE_ID,
+					      $qb->createNamedParameter( $lastId, IQueryBuilder::PARAM_INT ),
+				      ),
+			   )
+			   ->orderBy( self::FIELD_FILE_ID, 'ASC' )
+			   ->setMaxResults( $pageSize )
+			;
+
+			$result = $this->executeQuery( $qb );
+			$rows   = $result->fetchAll();
+			$result->closeCursor();
+
+			if ( $rows === [] )
+			{
+				return;
+			}
+
+			foreach ( $rows as $row )
+			{
+				$lastId = (int) $row[ self::FIELD_FILE_ID ];
+
+				yield [
+					'file_id' => $lastId,
+					'state'   => (string) $row[ self::FIELD_META_VALUE_STRING ],
+				];
+			}
+		}
+	}
+
+
+	/**
+	 * One page of file ids that carry hashes, after the given id.
+	 *
+	 * The reading counterpart of {@see pageHashedFileIds()}, which always
+	 * returns the first page because it is read by something that deletes
+	 * what it sees.
+	 *
+	 * @return list<int>
+	 * @throws Exception
+	 */
+	private function pageHashedFileIdsAfter(
+		int $afterFileId,
+		int $limit,
+	): array {
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->selectDistinct( self::FIELD_FILE_ID )
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->like( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
+			   $qb->expr()
+			      ->neq(
+				      self::FIELD_META_KEY,
+				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+			      ),
+			   $qb->expr()
+			      ->gt(
+				      self::FIELD_FILE_ID,
+				      $qb->createNamedParameter( $afterFileId, IQueryBuilder::PARAM_INT ),
+			      ),
+		   )
+		   ->orderBy( self::FIELD_FILE_ID, 'ASC' )
+		   ->setMaxResults( $limit )
+		;
+
+		$result  = $this->executeQuery( $qb );
+		$fileIds = [];
+
+		while ( ( $row = $result->fetch() ) !== false )
+		{
+			$fileIds[] = (int) $row[ self::FIELD_FILE_ID ];
+		}
+		$result->closeCursor();
+
+		return $fileIds;
+	}
+
+
+	/**
+	 * The raw metadata documents for a page of file ids.
+	 *
+	 * @param  list<int>  $fileIds
+	 *
+	 * @return array<int, string>  file id => the document's JSON
+	 * @throws Exception
+	 */
+	private function fetchDocuments( array $fileIds ): array
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( self::FIELD_FILE_ID, self::FIELD_JSON )
+		   ->from( self::TABLE_FILES_METADATA )
+		   ->where(
+			   $qb->expr()
+			      ->in(
+				      self::FIELD_FILE_ID,
+				      $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
+			      ),
+		   )
+		;
+
+		$result    = $this->executeQuery( $qb );
+		$documents = [];
+
+		while ( ( $row = $result->fetch() ) !== false )
+		{
+			$documents[ (int) $row[ self::FIELD_FILE_ID ] ] = (string) $row[ self::FIELD_JSON ];
+		}
+		$result->closeCursor();
+
+		return $documents;
 	}
 
 

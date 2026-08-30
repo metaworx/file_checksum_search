@@ -51,6 +51,7 @@ class JsonFormatTest
 		$this->assertSame( 'file_checksum_search', $decoded['app'] );
 		$this->assertSame( '1.2.0', $decoded['app_version'] );
 		$this->assertSame( [ 'rule_definitions' => '[]' ], $decoded['config'] );
+		$this->assertCount( 1, $decoded['status'] );
 		$this->assertCount( 2, $decoded['hashes'] );
 	}
 
@@ -114,9 +115,11 @@ class JsonFormatTest
 
 		$text = $this->writeDocument();
 
+		// The key, not the word: the header's own `slices` list names
+		// "hashes" too, and it is written first.
 		$this->assertGreaterThan(
-			strpos( $text, '"config"' ),
-			strpos( $text, '"hashes"' ),
+			strpos( $text, '"config":' ),
+			strpos( $text, '"hashes":' ),
 		);
 	}
 
@@ -144,7 +147,7 @@ class JsonFormatTest
 	public function testABareArrayIsAHashesOnlyDocument(): void
 	{
 
-		$stream = $this->streamOf( '[{"storage":"s","path":"p","algo":"md5","hash":"x"}]' );
+		$stream  = $this->streamOf( '[{"storage":"s","path":"p","algo":"md5","hash":"x"}]' );
 		$records = iterator_to_array( $this->format->read( $stream, new FormatOptions() ), false );
 		fclose( $stream );
 
@@ -205,6 +208,91 @@ class JsonFormatTest
 	}
 
 
+	/**
+	 * The status slice is written for the operator's record and stepped over
+	 * on the way back in — an import may not hand-set what a file is waiting
+	 * for, and the slice is as large as the instance, so reading it would
+	 * defeat the streaming it sits in front of.
+	 */
+	public function testTheStatusSliceIsWrittenButNeverReadBack(): void
+	{
+
+		$stream = $this->streamOf( $this->writeDocument() );
+		$read   = $this->format->readDocument( $stream, new FormatOptions() );
+
+		$this->assertArrayNotHasKey( 'status', $read['header'] );
+		$this->assertSame( [ 'rule_definitions' => '[]' ], $read['config'] );
+		$this->assertCount( 2, iterator_to_array( $read['records'], false ) );
+		fclose( $stream );
+	}
+
+
+	public function testTheStatusSliceComesBeforeTheHashes(): void
+	{
+
+		$text = $this->writeDocument();
+
+		$this->assertGreaterThan( strpos( $text, '"config":' ), strpos( $text, '"status":' ) );
+		$this->assertGreaterThan( strpos( $text, '"status":' ), strpos( $text, '"hashes":' ) );
+	}
+
+
+	public function testADocumentWithNoStatusSliceHasNoStatusKey(): void
+	{
+
+		$stream = fopen( 'php://memory', 'r+' );
+		$this->format->writeDocument( [], null, null, [], $stream, new FormatOptions() );
+		rewind( $stream );
+		$text = stream_get_contents( $stream );
+		fclose( $stream );
+
+		$this->assertStringNotContainsString( '"status"', $text );
+	}
+
+
+	/**
+	 * A slice that was not asked for is absent, never present and empty: the
+	 * two say different things to a restore.
+	 */
+	public function testAnUnrequestedSliceIsAbsentNotEmpty(): void
+	{
+
+		$stream = fopen( 'php://memory', 'r+' );
+		$this->format->writeDocument(
+			[],
+			[ 'rule_definitions' => '[]' ],
+			null,
+			null,
+			$stream,
+			new FormatOptions(),
+		);
+		rewind( $stream );
+		$text = stream_get_contents( $stream );
+		fclose( $stream );
+
+		$this->assertIsArray( json_decode( $text, true ) );
+		$this->assertStringNotContainsString( '"hashes"', $text );
+		$this->assertStringNotContainsString( '"status"', $text );
+	}
+
+
+	/**
+	 * Empty is still a result: a hashes slice that was asked for and found
+	 * nothing is written as an empty array.
+	 */
+	public function testARequestedSliceThatFoundNothingIsAnEmptyArray(): void
+	{
+
+		$stream = fopen( 'php://memory', 'r+' );
+		$this->format->writeDocument( [], null, null, [], $stream, new FormatOptions() );
+		rewind( $stream );
+		$decoded = json_decode( stream_get_contents( $stream ), true );
+		fclose( $stream );
+
+		$this->assertSame( [], $decoded['hashes'] );
+	}
+
+
 	public function testItCarriesConfigAndLosesNothing(): void
 	{
 
@@ -229,6 +317,13 @@ class JsonFormatTest
 				],
 			],
 			[ 'rule_definitions' => '[]' ],
+			[
+				[
+					'storage' => 'home::alice',
+					'path'    => 'files/queued.txt',
+					'state'   => 'pending:auto',
+				],
+			],
 			[
 				new HashRecord( 'home::alice', 'files/a.txt', 'sha256', str_repeat( 'a', 64 ), 1 ),
 				new HashRecord( 'home::alice', 'files/b.txt', 'sha256', str_repeat( 'b', 64 ), null ),

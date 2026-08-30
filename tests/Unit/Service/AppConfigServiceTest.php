@@ -74,26 +74,119 @@ class AppConfigServiceTest
 			'rule_processing_interval' => '300',
 		];
 
-		$this->appConfig->method( 'hasKey' )
-		                ->willReturnCallback(
-			                static fn(
-				                string $app,
-				                string $key,
-			                ): bool => isset( $set[ $key ] ),
-		                )
-		;
-		$this->appConfig->method( 'getValueString' )
-		                ->willReturnCallback(
-			                static fn(
-				                string $app,
-				                string $key,
-			                ): string => $set[ $key ],
-		                )
-		;
+		$this->givenSet( $set );
 
 		// An absent key *is* its default, so exporting one would record
 		// today's default as though the administrator had chosen it.
 		$this->assertSame( $set, $this->service->export() );
+	}
+
+
+	/**
+	 * Nextcloud refuses a read that disagrees with the lexicon — asking for
+	 * an `INT` key as a string is an error, not a coercion — so every key is
+	 * read through the getter its declared type calls for. Reading them all
+	 * as strings failed on the first interval key it met.
+	 */
+	public function testEveryKeyIsReadThroughItsDeclaredType(): void
+	{
+
+		$this->givenSet(
+			[
+				'rule_definitions'         => '[]',
+				'rule_processing_interval' => '300',
+				'idle_banner_ack'          => '1',
+			],
+		);
+
+		$exported = $this->service->export();
+
+		$this->assertSame( '300', $exported['rule_processing_interval'] );
+		$this->assertSame( '1', $exported['idle_banner_ack'] );
+	}
+
+
+	/**
+	 * And back the same way: an integer written as a string would be refused
+	 * on the way in for the same reason.
+	 */
+	public function testEveryKeyIsWrittenThroughItsDeclaredType(): void
+	{
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'setValueInt' )
+		                ->with( Application::APP_ID, 'rule_processing_interval', 300 )
+		;
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'setValueBool' )
+		                ->with( Application::APP_ID, 'idle_banner_ack', true )
+		;
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'setValueString' )
+		                ->with( Application::APP_ID, 'rule_definitions', '[]' )
+		;
+
+		$report = $this->service->import(
+			[
+				'rule_definitions'         => '[]',
+				'rule_processing_interval' => '300',
+				'idle_banner_ack'          => '1',
+			],
+		);
+
+		$this->assertSame( 3, $report['written'] );
+	}
+
+
+	/**
+	 * @dataProvider truthyStrings
+	 */
+	public function testABooleanIsRecognisedHoweverTheBackupSpeltIt(
+		string $written,
+		bool   $expected,
+	): void {
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'setValueBool' )
+		                ->with( Application::APP_ID, 'idle_banner_ack', $expected )
+		;
+
+		$this->service->import( [ 'idle_banner_ack' => $written ] );
+	}
+
+
+	/**
+	 * @return array<string, array{string, bool}>
+	 */
+	public static function truthyStrings(): array
+	{
+
+		return [
+			'one'   => [
+				'1',
+				true,
+			],
+			'true'  => [
+				'true',
+				true,
+			],
+			'TRUE'  => [
+				'TRUE',
+				true,
+			],
+			'zero'  => [
+				'0',
+				false,
+			],
+			'false' => [
+				'false',
+				false,
+			],
+			'empty' => [
+				'',
+				false,
+			],
+		];
 	}
 
 
@@ -254,6 +347,50 @@ class AppConfigServiceTest
 		;
 
 		$this->assertSame( count( $this->service->ownedKeys() ) - 1, $this->service->clear() );
+	}
+
+
+	/**
+	 * Stand in for an instance where exactly these keys are set, answering
+	 * each typed getter from the same stored strings.
+	 *
+	 * @param  array<string, string>  $set
+	 */
+	private function givenSet( array $set ): void
+	{
+
+		$this->appConfig->method( 'hasKey' )
+		                ->willReturnCallback(
+			                static fn(
+				                string $app,
+				                string $key,
+			                ): bool => isset( $set[ $key ] ),
+		                )
+		;
+		$this->appConfig->method( 'getValueString' )
+		                ->willReturnCallback(
+			                static fn(
+				                string $app,
+				                string $key,
+			                ): string => $set[ $key ] ?? '',
+		                )
+		;
+		$this->appConfig->method( 'getValueInt' )
+		                ->willReturnCallback(
+			                static fn(
+				                string $app,
+				                string $key,
+			                ): int => (int) ( $set[ $key ] ?? 0 ),
+		                )
+		;
+		$this->appConfig->method( 'getValueBool' )
+		                ->willReturnCallback(
+			                static fn(
+				                string $app,
+				                string $key,
+			                ): bool => ( $set[ $key ] ?? '' ) === '1',
+		                )
+		;
 	}
 
 }

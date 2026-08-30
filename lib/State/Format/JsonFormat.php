@@ -58,6 +58,13 @@ class JsonFormat
 	/** The key whose array is streamed, and therefore must come last. */
 	public const RECORDS_KEY = 'hashes';
 
+	/**
+	 * What each file is waiting for, or why its hashes are not to be
+	 * trusted. Written for the operator's record; never read back, because
+	 * the queue is not something an import may hand-set.
+	 */
+	public const STATUS_KEY = 'status';
+
 
 	/**
 	 * @param  resource  $stream
@@ -142,6 +149,21 @@ class JsonFormat
 				];
 			}
 
+			// Stepped over, not read: the status slice is as large as the
+			// instance, and an import may not hand-set the queue anyway.
+			if ( $key === self::STATUS_KEY )
+			{
+				$cursor->skipValue();
+				$cursor->skipWhitespace();
+
+				if ( $cursor->peek() === ',' )
+				{
+					$cursor->expect( ',' );
+				}
+
+				continue;
+			}
+
 			$value = $cursor->readValue();
 
 			if ( $key === 'config' )
@@ -173,7 +195,7 @@ class JsonFormat
 		FormatOptions $options,
 	): int {
 
-		return $this->writeDocument( [], null, $records, $stream, $options );
+		return $this->writeDocument( [], null, null, $records, $stream, $options );
 	}
 
 
@@ -186,16 +208,20 @@ class JsonFormat
 	 *
 	 * @param  array<string, mixed>        $header
 	 * @param  array<string, string>|null  $config   Null when the backup carries no config slice.
+	 * @param  ?iterable                   $status   Rows of what each file is waiting for, or
+	 *                                               why its hashes are not to be trusted; null
+	 *                                               for a document with no status slice.
 	 * @param  ?iterable                   $records  {@see HashRecord}s; null for a document
 	 *                                               with no hashes slice at all.
 	 * @param  resource                    $stream
 	 * @param  FormatOptions               $options
 	 *
-	 * @return int  Records written.
+	 * @return int  Records written — the hashes slice only.
 	 */
 	public function writeDocument(
 		array         $header,
 		?array        $config,
+		?iterable     $status,
 		?iterable     $records,
 		              $stream,
 		FormatOptions $options,
@@ -219,49 +245,110 @@ class JsonFormat
 			]
 			+ $header;
 
-		fwrite( $stream, '{' . $newline );
+		fwrite( $stream, '{' );
+
+		$first = true;
 
 		foreach ( $header as $key => $value )
 		{
 			fwrite(
 				$stream,
-				$indent . json_encode( $key ) . ':' . ( $options->pretty
+				( $first
+					? $newline
+					: ',' . $newline ) . $indent . json_encode( $key ) . ':' . ( $options->pretty
 					? ' '
 					: '' )
-				. $this->encode( $value, $flags, $indent ) . ',' . $newline,
+				. $this->encode( $value, $flags, $indent ),
 			);
+			$first = false;
 		}
 
+		// The header always wrote at least `schema` and `app`, so every slice
+		// from here on follows something and needs the comma.
+		$separator = ',' . $newline;
+
+		// A slice that was not asked for is absent, never present and empty:
+		// the two say different things to a restore — "not backed up" against
+		// "backed up, and there was nothing".
 		if ( $config !== null )
 		{
 			fwrite(
 				$stream,
-				$indent . '"config":' . ( $options->pretty
+				$separator . $indent . '"config":' . ( $options->pretty
 					? ' '
 					: '' )
-				. $this->encode( $config, $flags | JSON_FORCE_OBJECT, $indent ) . ',' . $newline,
+				. $this->encode( $config, $flags | JSON_FORCE_OBJECT, $indent ),
 			);
 		}
 
+		if ( $status !== null )
+		{
+			fwrite( $stream, $separator );
+			$this->writeStreamedArray( self::STATUS_KEY, $status, $stream, $options );
+		}
+
+		$written = 0;
+
 		// Last, always: everything after it would have to be read past the
 		// whole array. See the class docblock.
+		if ( $records !== null )
+		{
+			fwrite( $stream, $separator );
+			$written = $this->writeStreamedArray( self::RECORDS_KEY, $records, $stream, $options );
+		}
+
+		fwrite( $stream, $newline . '}' . $newline );
+
+		return $written;
+	}
+
+
+	/**
+	 * Write one array a row at a time, so its size never has to be known.
+	 *
+	 * @param  iterable<HashRecord|array<string, mixed>>  $rows
+	 * @param  resource                                   $stream
+	 *
+	 * @return int  Rows written.
+	 */
+	private function writeStreamedArray(
+		string        $key,
+		iterable      $rows,
+		              $stream,
+		FormatOptions $options,
+	): int {
+
+		$flags = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
+
+		$newline = $options->pretty
+			? "\n"
+			: '';
+		$indent  = $options->pretty
+			? '    '
+			: '';
+
 		fwrite(
 			$stream,
-			$indent . '"' . self::RECORDS_KEY . '":' . ( $options->pretty
+			$indent . json_encode( $key ) . ':' . ( $options->pretty
 				? ' '
 				: '' ) . '[',
 		);
 
 		$written = 0;
 
-		foreach ( $records ?? [] as $record )
+		foreach ( $rows as $row )
 		{
 			fwrite(
 				$stream,
 				( $written > 0
 					? ','
 					: '' ) . $newline . $indent . $indent
-				. json_encode( $record->toArray(), $flags & ~JSON_PRETTY_PRINT ),
+				. json_encode(
+					$row instanceof HashRecord
+						? $row->toArray()
+						: $row,
+					$flags,
+				),
 			);
 			$written ++;
 		}
@@ -271,7 +358,7 @@ class JsonFormat
 			fwrite( $stream, $newline . $indent );
 		}
 
-		fwrite( $stream, ']' . $newline . '}' . $newline );
+		fwrite( $stream, ']' );
 
 		return $written;
 	}
