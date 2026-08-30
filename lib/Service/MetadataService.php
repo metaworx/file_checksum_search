@@ -22,6 +22,7 @@ use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\FilesMetadata\Model\IMetadataValueWrapper;
 use OCP\IDBConnection;
 use Psr\Log\LoggerInterface;
+use Throwable;
 
 /**
  * Central service for all oc_files_metadata + oc_files_metadata_index operations.
@@ -493,6 +494,318 @@ class MetadataService
 		// After the save: saving regenerates the index rows, so the string
 		// has to be written once the regenerated row exists.
 		$this->upsertUpdatedAtString( $fileId, self::STATE_ERODED );
+	}
+
+
+	/**
+	 * Disown the stored hashes of many files at once.
+	 *
+	 * Writes the marker only: the hashes and the freshness stamp stay exactly
+	 * as they are. That is the point — a reset over a large instance would
+	 * otherwise rewrite one metadata document per file, and this is one
+	 * UPDATE over rows the index already has. The drain clears them later,
+	 * or an import replaces them first and the clearing never needs to
+	 * happen.
+	 *
+	 * Nothing is lost by deferring: {@see andWhereNotStale()} takes these
+	 * files out of every scan the moment the marker lands.
+	 *
+	 * Files with no `file-checksum-updated_at` row are not marked. A file the
+	 * app never considered has no hashes to disown, and inventing a row for
+	 * it would make "never considered" and "disowned" indistinguishable.
+	 *
+	 * @param  list<int>  $fileIds
+	 *
+	 * @return int  Rows marked.
+	 * @throws Exception
+	 */
+	public function markStale( array $fileIds ): int
+	{
+
+		if ( $fileIds === [] )
+		{
+			return 0;
+		}
+
+		$marked = 0;
+
+		// Chunked at 1000: Oracle's placeholder ceiling, and the chunk size
+		// Nextcloud itself uses.
+		foreach ( array_chunk( array_values( array_unique( $fileIds ) ), 1000 ) as $chunk )
+		{
+			$qb = $this->db->getQueryBuilder();
+			$qb->update( self::TABLE_FILES_METADATA_INDEX )
+			   ->set(
+				   self::FIELD_META_VALUE_STRING,
+				   $qb->createNamedParameter( self::STATE_RESET ),
+			   )
+			   ->where(
+				   $qb->expr()
+				      ->eq(
+					      self::FIELD_META_KEY,
+					      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+				      ),
+				   $qb->expr()
+				      ->in(
+					      self::FIELD_FILE_ID,
+					      $qb->createNamedParameter( $chunk, IQueryBuilder::PARAM_INT_ARRAY ),
+				      ),
+			   )
+			;
+
+			$marked += $qb->executeStatement();
+		}
+
+		return $marked;
+	}
+
+
+	/**
+	 * Disown every file this app has hashed.
+	 *
+	 * The whole-instance form of {@see markStale()}, as one statement rather
+	 * than a file list the caller would have to page through first.
+	 *
+	 * @return int  Rows marked.
+	 * @throws Exception
+	 */
+	public function markAllStale(): int
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->update( self::TABLE_FILES_METADATA_INDEX )
+		   ->set(
+			   self::FIELD_META_VALUE_STRING,
+			   $qb->createNamedParameter( self::STATE_RESET ),
+		   )
+		   ->where(
+			   $qb->expr()
+			      ->eq(
+				      self::FIELD_META_KEY,
+				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+			      ),
+		   )
+		;
+
+		return $qb->executeStatement();
+	}
+
+
+	/**
+	 * The next files awaiting the drain's attention because they were
+	 * disowned rather than queued.
+	 *
+	 * Deliberately `stale:reset` alone rather than the whole namespace:
+	 * an eroded file has no hashes left to clear, so handing it to the drain
+	 * would be work with nothing to do.
+	 *
+	 * @return list<int>
+	 * @throws Exception
+	 */
+	public function fetchStaleBatch( int $limit = 50 ): array
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( self::FIELD_FILE_ID )
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq(
+				      self::FIELD_META_KEY,
+				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+			      ),
+			   $qb->expr()
+			      ->eq(
+				      self::FIELD_META_VALUE_STRING,
+				      $qb->createNamedParameter( self::STATE_RESET ),
+			      ),
+		   )
+		   ->orderBy( self::FIELD_FILE_ID, 'ASC' )
+		   ->setMaxResults( $limit )
+		;
+
+		$result  = $this->executeQuery( $qb );
+		$fileIds = [];
+
+		while ( ( $row = $result->fetch() ) !== false )
+		{
+			$fileIds[] = (int) $row[ self::FIELD_FILE_ID ];
+		}
+		$result->closeCursor();
+
+		return $fileIds;
+	}
+
+
+	/**
+	 * Clear this app's hashes from files, now, one document at a time.
+	 *
+	 * The synchronous counterpart to {@see markStale()}, for the operator who
+	 * wants the rows gone before they walk away rather than whenever the
+	 * drain next runs. It is the slow path by nature: `files_metadata_index`
+	 * is regenerated from the `files_metadata` document, so hashes can only
+	 * be removed by rewriting each document — a bulk DELETE over the index
+	 * would be undone the next time anything saved that file's metadata.
+	 *
+	 * Paged, and each file's failure is contained: one unreadable document
+	 * must not abandon the rest of the instance half-cleared.
+	 *
+	 * @param  callable(int, int): void|null  $progress  Called as (done, total).
+	 *
+	 * @return int  Files cleared.
+	 * @throws Exception
+	 */
+	public function clearHashesNow(
+		int       $batchSize = 500,
+		?callable $progress = null,
+	): int {
+
+		$total   = $this->countHashedFiles();
+		$cleared = 0;
+
+		while ( true )
+		{
+			$fileIds = $this->pageHashedFileIds( $batchSize );
+
+			if ( $fileIds === [] )
+			{
+				break;
+			}
+
+			foreach ( $fileIds as $fileId )
+			{
+				try
+				{
+					$this->clearMetadata( $fileId );
+					$cleared ++;
+				}
+				catch ( Throwable $e )
+				{
+					$this->logger->warning(
+						'FCIAS: could not clear metadata for fileId {fileId}; continuing.',
+						[
+							'app'       => Application::APP_ID,
+							'fileId'    => $fileId,
+							'exception' => $e,
+						],
+					);
+				}
+			}
+
+			if ( $progress !== null )
+			{
+				$progress( $cleared, $total );
+			}
+		}
+
+		return $cleared;
+	}
+
+
+	/**
+	 * How many files carry any of this app's hashes.
+	 *
+	 * @throws Exception
+	 */
+	public function countHashedFiles(): int
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->selectAlias(
+			$qb->createFunction( 'COUNT(DISTINCT ' . self::FIELD_FILE_ID . ')' ),
+			'cnt',
+		)
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->like( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
+			   $qb->expr()
+			      ->neq(
+				      self::FIELD_META_KEY,
+				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+			      ),
+		   )
+		;
+
+		$result = $this->executeQuery( $qb );
+		$count  = (int) $result->fetchOne();
+		$result->closeCursor();
+
+		return $count;
+	}
+
+
+	/**
+	 * One page of file ids that still carry this app's hashes.
+	 *
+	 * Always the *first* page: {@see clearHashesNow()} removes what it reads,
+	 * so the next call sees what is left. Paging by offset would skip files
+	 * as the set shrank underneath it.
+	 *
+	 * @return list<int>
+	 * @throws Exception
+	 */
+	private function pageHashedFileIds( int $limit ): array
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->selectDistinct( self::FIELD_FILE_ID )
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->like( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
+			   $qb->expr()
+			      ->neq(
+				      self::FIELD_META_KEY,
+				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+			      ),
+		   )
+		   ->orderBy( self::FIELD_FILE_ID, 'ASC' )
+		   ->setMaxResults( $limit )
+		;
+
+		$result  = $this->executeQuery( $qb );
+		$fileIds = [];
+
+		while ( ( $row = $result->fetch() ) !== false )
+		{
+			$fileIds[] = (int) $row[ self::FIELD_FILE_ID ];
+		}
+		$result->closeCursor();
+
+		return $fileIds;
+	}
+
+
+	/**
+	 * Forget the queue: every `pending:%` and `stale:%` marker, cleared.
+	 *
+	 * The state slice of a reset. It empties the string half of
+	 * `file-checksum-updated_at` and leaves the int half — the freshness
+	 * stamp — alone, because the stamp belongs to the hashes, not to the
+	 * queue, and clearing it would make every file look never-hashed.
+	 *
+	 * @return int  Rows cleared.
+	 * @throws Exception
+	 */
+	public function clearQueueState(): int
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->update( self::TABLE_FILES_METADATA_INDEX )
+		   ->set( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( null ) )
+		   ->where(
+			   $qb->expr()
+			      ->eq(
+				      self::FIELD_META_KEY,
+				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+			      ),
+			   $qb->expr()
+			      ->isNotNull( self::FIELD_META_VALUE_STRING ),
+		   )
+		;
+
+		return $qb->executeStatement();
 	}
 
 

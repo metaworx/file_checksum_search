@@ -1305,4 +1305,139 @@ class MetadataServiceTest
 		$this->assertNotContains( 'stale', $joined, 'a file the user opened shows its own hashes' );
 	}
 
+
+	public function testMarkStaleWritesOnlyTheMarker(): void
+	{
+
+		// The whole point of deferring: one UPDATE over the index, with the
+		// hashes and the freshness stamp untouched for the drain — or for an
+		// import that gets there first.
+		$sets = [];
+		$this->queryBuilder->method( 'set' )
+		                   ->willReturnCallback(
+			                   function (
+				                   $column,
+				                   $value,
+			                   ) use
+			                   (
+				                   &
+				                   $sets,
+			                   )
+			                   {
+
+				                   $sets[] = (string) $column;
+
+				                   return $this->queryBuilder;
+			                   },
+		                   )
+		;
+		$this->queryBuilder->method( 'executeStatement' )
+		                   ->willReturn( 3 )
+		;
+		$this->expr->method( 'in' )
+		           ->willReturn( 'file_id IN (:ids)' )
+		;
+
+		$marked = $this->service->markStale( [
+			1,
+			2,
+			3,
+		] );
+
+		$this->assertSame( 3, $marked );
+		$this->assertSame( [ MetadataService::FIELD_META_VALUE_STRING ], $sets );
+	}
+
+
+	public function testMarkStaleIsANoOpForAnEmptyList(): void
+	{
+
+		$this->queryBuilder->expects( $this->never() )
+		                   ->method( 'update' )
+		;
+
+		$this->assertSame( 0, $this->service->markStale( [] ) );
+	}
+
+
+	public function testFetchStaleBatchAsksForResetsOnly(): void
+	{
+
+		// An eroded file has no hashes left to clear, so handing it to the
+		// drain would be work with nothing to do.
+		$compared = [];
+		$this->expr->method( 'eq' )
+		           ->willReturnCallback(
+			           static function (
+				           $left,
+				           $right,
+			           ) use
+			           (
+				           &
+				           $compared,
+			           ): string
+			           {
+
+				           $compared[ (string) $left ] = $right;
+
+				           return '1=1';
+			           },
+		           )
+		;
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetch' )
+		       ->willReturnOnConsecutiveCalls(
+			       [ MetadataService::FIELD_FILE_ID => '42' ],
+			       false,
+		       )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$this->assertSame( [ 42 ], $this->service->fetchStaleBatch() );
+		$this->assertSame(
+			MetadataService::STATE_RESET,
+			$compared[ MetadataService::FIELD_META_VALUE_STRING ] ?? null,
+		);
+	}
+
+
+	public function testClearQueueStateLeavesTheFreshnessStampAlone(): void
+	{
+
+		// The stamp belongs to the hashes, not to the queue: clearing it
+		// would make every file look as though it had never been hashed.
+		$sets = [];
+		$this->queryBuilder->method( 'set' )
+		                   ->willReturnCallback(
+			                   function (
+				                   $column,
+				                   $value,
+			                   ) use
+			                   (
+				                   &
+				                   $sets,
+			                   )
+			                   {
+
+				                   $sets[] = (string) $column;
+
+				                   return $this->queryBuilder;
+			                   },
+		                   )
+		;
+		$this->queryBuilder->method( 'executeStatement' )
+		                   ->willReturn( 7 )
+		;
+		$this->expr->method( 'isNotNull' )
+		           ->willReturn( 'x IS NOT NULL' )
+		;
+
+		$this->assertSame( 7, $this->service->clearQueueState() );
+		$this->assertSame( [ MetadataService::FIELD_META_VALUE_STRING ], $sets );
+		$this->assertNotContains( MetadataService::FIELD_META_VALUE_INT, $sets );
+	}
+
 }
