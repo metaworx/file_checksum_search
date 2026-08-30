@@ -1440,4 +1440,69 @@ class MetadataServiceTest
 		$this->assertNotContains( MetadataService::FIELD_META_VALUE_INT, $sets );
 	}
 
+
+	public function testClearingRemovesTheIndexRowsSavingLeavesBehind(): void
+	{
+
+		// Saving upserts the keys the document has and leaves rows for the
+		// ones it lost, so a cleared file went on answering searches with
+		// hashes it no longer had. The document is the truth; the orphans
+		// have to be collected explicitly.
+		$deleted = false;
+		$this->queryBuilder->method( 'delete' )
+		                   ->willReturnCallback(
+			                   function (
+				                   $table,
+			                   ) use
+			                   (
+				                   &
+				                   $deleted,
+			                   )
+			                   {
+
+				                   $deleted = ( $table === MetadataService::TABLE_FILES_METADATA_INDEX );
+
+				                   return $this->queryBuilder;
+			                   },
+		                   )
+		;
+		$this->queryBuilder->method( 'executeStatement' )
+		                   ->willReturn( 2 )
+		;
+		$this->expr->method( 'like' )
+		           ->willReturn( 'meta_key LIKE :p' )
+		;
+		$this->expr->method( 'neq' )
+		           ->willReturn( 'meta_key <> :p' )
+		;
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'getFileId' )
+		         ->willReturn( 42 )
+		;
+		$this->metadataManager->method( 'getMetadata' )
+		                      ->willReturn( $metadata )
+		;
+
+		$this->service->clearMetadata( 42 );
+
+		$this->assertTrue( $deleted, 'the orphaned hash rows must be deleted' );
+	}
+
+
+	public function testClearingWithoutSavingTouchesNoIndexRows(): void
+	{
+
+		// The caller keeps the document to save later; pruning now would
+		// delete rows the unsaved document still claims.
+		$this->queryBuilder->expects( $this->never() )
+		                   ->method( 'delete' )
+		;
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$this->service->clearMetadata( $metadata, false );
+
+		$this->addToAssertionCount( 1 );
+	}
+
 }

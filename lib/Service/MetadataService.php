@@ -294,7 +294,46 @@ class MetadataService
 		if ( $save )
 		{
 			$this->metadataManager->saveMetadata( $metadata );
+
+			// Saving does not remove index rows for keys the document no
+			// longer has: it upserts what is present and leaves the rest.
+			// Those orphans still answer searches and still form duplicate
+			// groups, so a file whose hashes were cleared keeps being found
+			// by hashes it no longer has.
+			$this->pruneHashIndexRows( $metadata->getFileId() );
 		}
+	}
+
+
+	/**
+	 * Delete this app's hash rows from the index for one file.
+	 *
+	 * The index is derived from the metadata document, so a row for a key the
+	 * document no longer carries is garbage — Nextcloud simply never collects
+	 * it. `file-checksum-updated_at` is deliberately kept: the document still
+	 * has it, and it is what records that this file was considered at all.
+	 *
+	 * @throws Exception
+	 */
+	private function pruneHashIndexRows( int $fileId ): void
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->delete( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->like( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
+			   $qb->expr()
+			      ->neq(
+				      self::FIELD_META_KEY,
+				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+			      ),
+		   )
+		;
+
+		$qb->executeStatement();
 	}
 
 
