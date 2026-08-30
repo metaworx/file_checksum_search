@@ -55,6 +55,7 @@ class RepairQuietStart
 
 	public function __construct(
 		private readonly RuleService     $ruleService,
+		private readonly MetadataService $metadataService,
 		private readonly IDBConnection   $db,
 		private readonly IJobList        $jobList,
 		private readonly LoggerInterface $logger,
@@ -73,9 +74,41 @@ class RepairQuietStart
 	{
 
 		$this->ensureSelectorModel( $output );
+		$this->reregisterMetadataKeys( $output );
 		$this->namespaceStaleStates( $output );
 		$this->purgeLegacyPendingNew( $output );
 		$this->removeLegacySeedJob( $output );
+	}
+
+
+	/**
+	 * Re-declare the metadata keys, so an existing instance learns that the
+	 * hash keys are no longer Nextcloud's to index.
+	 *
+	 * The declaration is stored, and the app states it once — from the
+	 * install migration. An instance that has already run that migration
+	 * keeps whatever it was told then, which for the hash keys was
+	 * `indexed: true`: Nextcloud then tries to write the full value into a
+	 * `varchar(63)` column, the insert fails for every hash longer than that,
+	 * and it swallows the failure as a logged warning. The rows were never
+	 * written and searching for a SHA-256 found nothing.
+	 *
+	 * Restating it here is what makes the fix reach instances that already
+	 * exist. It is idempotent — Nextcloud compares before it writes — and
+	 * cheap enough to run on every repair.
+	 */
+	private function reregisterMetadataKeys( IOutput $output ): void
+	{
+
+		try
+		{
+			$this->metadataService->register();
+			$output->info( 'FCIAS: metadata key declarations refreshed.' );
+		}
+		catch ( Throwable $e )
+		{
+			$this->warn( $output, 'could not refresh the metadata key declarations', $e );
+		}
 	}
 
 

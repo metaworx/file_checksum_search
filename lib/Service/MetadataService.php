@@ -101,6 +101,13 @@ class MetadataService
 	 */
 	public const META_VALUE_STRING_MAX_LENGTH = 63;
 
+	/**
+	 * How many times {@see register()} restates the declarations before
+	 * giving up. Three is one more than the two an eight-key instance was
+	 * measured to need.
+	 */
+	private const REGISTER_PASSES = 3;
+
 	/** How many file ids {@see markAllStale()} disowns per statement. */
 	private const MARK_PAGE_SIZE = 1000;
 
@@ -322,6 +329,7 @@ class MetadataService
 	private function pruneHashIndexRows( int $fileId ): void
 	{
 
+
 		$qb = $this->db->getQueryBuilder();
 		$qb->delete( self::TABLE_FILES_METADATA_INDEX )
 		   ->where(
@@ -534,8 +542,15 @@ class MetadataService
 		$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, 0, true );
 		$this->metadataManager->saveMetadata( $metadata );
 
-		// After the save: saving regenerates the index rows, so the string
-		// has to be written once the regenerated row exists.
+		// The document has no hashes now, so neither may the index: these
+		// keys are not indexed by Nextcloud, so nothing else would remove
+		// them and the file would keep answering searches by hashes it no
+		// longer has.
+		$this->syncHashIndex( $fileId, [] );
+
+		// After the save: saving regenerates the index row for updated_at,
+		// which *is* indexed, so the string has to be written once the
+		// regenerated row exists.
 		$this->upsertUpdatedAtString( $fileId, self::STATE_ERODED );
 	}
 
@@ -1146,7 +1161,13 @@ class MetadataService
 		string $value,
 	): void {
 
-		if ( $this->updateUpdatedAtString( $fileId, $value ) > 0 )
+		// Not "did the update affect a row?" — an UPDATE that sets a column
+		// to the value it already holds reports zero affected rows on MySQL,
+		// and treating that as "no row exists" inserts a duplicate. Ask
+		// whether the row is there instead.
+		$this->updateUpdatedAtString( $fileId, $value );
+
+		if ( $this->hasUpdatedAtRow( $fileId ) )
 		{
 			return;
 		}
@@ -1175,10 +1196,38 @@ class MetadataService
 	}
 
 
+	/**
+	 * Whether the file has its `file-checksum-updated_at` index row.
+	 *
+	 * @throws Exception
+	 */
+	private function hasUpdatedAtRow( int $fileId ): bool
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( self::FIELD_FILE_ID )
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+		   )
+		   ->setMaxResults( 1 )
+		;
+
+		$result = $this->executeQuery( $qb );
+		$found  = $result->fetchOne();
+		$result->closeCursor();
+
+		return $found !== false && $found !== null;
+	}
+
+
 	private function updateUpdatedAtString(
 		int    $fileId,
 		string $value,
-	): int {
+	): void {
 
 		$qb = $this->db->getQueryBuilder();
 		$qb->update( self::TABLE_FILES_METADATA_INDEX )
@@ -1191,7 +1240,7 @@ class MetadataService
 		   )
 		;
 
-		return $this->executeStatement( $qb );
+		$this->executeStatement( $qb );
 	}
 
 
@@ -1262,7 +1311,10 @@ class MetadataService
 				continue;
 			}
 
-			$metadata->setString( $metaKey, $hash, true );
+			// Not indexed by Nextcloud: it would write the full value into a
+			// varchar(63) column and fail for every hash longer than that.
+			// {@see syncHashIndex()} writes the row, truncated to fit.
+			$metadata->setString( $metaKey, $hash, false );
 
 			if ( $held )
 			{
@@ -1288,14 +1340,112 @@ class MetadataService
 			$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, 0, true );
 		}
 
+		$hashes = $this->getHashes( $metadata );
 		$this->metadataManager->saveMetadata( $metadata );
-		$this->filecacheService->setHashes( $fileId, $this->getHashes( $metadata ) );
+		$this->filecacheService->setHashes( $fileId, $hashes );
+		$this->syncHashIndex( $fileId, $hashes );
 
-		// After the save: saving regenerates the index rows, so the string
-		// half has to be read and cleared once the regenerated row exists.
+		// After the save: saving regenerates the index row for updated_at, so
+		// the string half has to be read and cleared once it exists again.
 		$report['markerCleared'] = $this->clearStaleMarker( $fileId );
 
 		return $report;
+	}
+
+
+	/**
+	 * Write this app's own index rows for a file's hashes.
+	 *
+	 * Nextcloud cannot do it: it indexes the value the document holds, and
+	 * `meta_value_string` is varchar(63) — shorter than four of the seven
+	 * algorithms this app supports. So the hash keys are registered
+	 * unindexed ({@see register()}) and the rows are written here instead,
+	 * truncated to fit, exactly as {@see queryByHash()} truncates the term it
+	 * searches for.
+	 *
+	 * A truncated row is recognisable without a marker: hex digests are
+	 * even-length by construction — 8, 32, 40, 64, 128 — so nothing produces
+	 * exactly 63 characters, and `meta_key` names the algorithm, so the full
+	 * length is known. Callers confirm the full value from the document where
+	 * the length says they must. `MetadataServiceTest` guards the assumption.
+	 *
+	 * Called after `saveMetadata()`, like {@see upsertUpdatedAtString()}:
+	 * saving regenerates the index rows for indexed keys, so a row written
+	 * before it would be thrown away.
+	 *
+	 * Both directions: rows for algorithms the document no longer has are
+	 * removed. Nextcloud used to do that on save — it drops and re-inserts
+	 * each indexed key — and now that these keys are not indexed it does not
+	 * touch them at all, so a hash removed from the document would otherwise
+	 * keep answering searches for ever.
+	 *
+	 * @param  array<string, string>  $algoToHash  The document's hashes; empty removes every row.
+	 *
+	 * @return int  Rows written.
+	 * @throws Exception
+	 */
+	public function syncHashIndex(
+		int   $fileId,
+		array $algoToHash,
+	): int {
+
+		$rows = [];
+
+		foreach ( $algoToHash as $algo => $hash )
+		{
+			if ( $hash === '' )
+			{
+				continue;
+			}
+
+			$rows[ self::getHashKey( $algo ) ] = self::truncateForIndex( $hash );
+		}
+
+		// Delete then insert, rather than update-or-insert. An UPDATE that
+		// sets a column to the value it already holds reports **zero** rows
+		// affected on MySQL, so inferring "no row existed" from that count
+		// inserts a duplicate — which is exactly what it did, and what left
+		// two rows for the same key on a file hashed twice.
+		$this->pruneHashIndexRows( $fileId );
+
+		foreach ( $rows as $metaKey => $value )
+		{
+			$this->insertIndexRow( $fileId, $metaKey, $value );
+		}
+
+		return count( $rows );
+	}
+
+
+	/**
+	 * One index row.
+	 *
+	 * Only ever called after {@see pruneHashIndexRows()} has cleared the
+	 * file's rows, so there is nothing to update and nothing to race with
+	 * beyond another process doing the same thing — which the unique
+	 * constraint, if any, would settle either way.
+	 *
+	 * @throws Exception
+	 */
+	private function insertIndexRow(
+		int    $fileId,
+		string $metaKey,
+		string $value,
+	): void {
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->insert( self::TABLE_FILES_METADATA_INDEX )
+		   ->values(
+			   [
+				   self::FIELD_FILE_ID           => $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ),
+				   self::FIELD_META_KEY          => $qb->createNamedParameter( $metaKey ),
+				   self::FIELD_META_VALUE_STRING => $qb->createNamedParameter( $value ),
+				   self::FIELD_META_VALUE_INT    => $qb->createNamedParameter( 0, IQueryBuilder::PARAM_INT ),
+			   ],
+		   )
+		;
+
+		$this->executeStatement( $qb );
 	}
 
 
@@ -1364,7 +1514,10 @@ class MetadataService
 				continue;
 			}
 
-			$metadata->setString( $metaKey, $hash, true );
+			// Not indexed by Nextcloud: it would write the full value into a
+			// varchar(63) column and fail for every hash longer than that.
+			// {@see syncHashIndex()} writes the row, truncated to fit.
+			$metadata->setString( $metaKey, $hash, false );
 			$added ++;
 		}
 
@@ -1379,6 +1532,7 @@ class MetadataService
 		}
 
 		$this->metadataManager->saveMetadata( $metadata );
+		$this->syncHashIndex( $fileId, $this->getHashes( $metadata ) );
 
 		return $added;
 	}
@@ -1741,27 +1895,79 @@ class MetadataService
 	public function register(): void
 	{
 
-		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+		// Repeated because one pass does not always stick. Nextcloud stores
+		// the declarations in one lazy app-config value and rewrites the
+		// whole of it per key; on an instance that already had these keys
+		// declared, the first pass over eight of them landed four. Reading
+		// back and going again is the only way to know it took — and once it
+		// has, every pass after the first is a no-op Nextcloud returns from
+		// immediately.
+		for ( $pass = 0; $pass < self::REGISTER_PASSES; $pass ++ )
 		{
+			foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+			{
+				// Registered **unindexed**, and indexed by this app instead —
+				// see {@see syncHashIndex()}. Nextcloud writes the value it
+				// finds in the document, and `meta_value_string` is
+				// varchar(63): a SHA-256 is 64 characters and a SHA-512 is
+				// 128, so the insert fails, and
+				// `IndexRequestService::updateIndex()` swallows that as a
+				// logged warning. The row is simply never written, and
+				// searching for one of those hashes finds nothing at all.
+				$this->metadataManager->initMetadata(
+					self::KEY_FILE_CHECKSUM_PREFIX . $algo,
+					IMetadataValueWrapper::TYPE_STRING,
+					false,
+					IMetadataValueWrapper::EDIT_FORBIDDEN,
+				);
+			}
+
+			// The stamp *is* Nextcloud's to index: it is an integer, it fits,
+			// and the queue and the freshness checks read it from the index.
 			$this->metadataManager->initMetadata(
-				self::KEY_FILE_CHECKSUM_PREFIX . $algo,
-				IMetadataValueWrapper::TYPE_STRING,
+				self::KEY_FILE_CHECKSUM_UPDATED_AT,
+				IMetadataValueWrapper::TYPE_INT,
 				true,
 				IMetadataValueWrapper::EDIT_FORBIDDEN,
 			);
-		}
 
-		$this->metadataManager->initMetadata(
-			self::KEY_FILE_CHECKSUM_UPDATED_AT,
-			IMetadataValueWrapper::TYPE_INT,
-			true,
-			IMetadataValueWrapper::EDIT_FORBIDDEN,
-		);
+			if ( $this->hashKeysAreUnindexed() )
+			{
+				break;
+			}
+		}
 
 		$this->logger->debug(
 			'FCIAS MetadataService: registered metadata keys',
-			[ 'app' => Application::APP_ID ],
+			[
+				'app'     => Application::APP_ID,
+				'passes'  => $pass + 1,
+				'settled' => $this->hashKeysAreUnindexed(),
+			],
 		);
+	}
+
+
+	/**
+	 * Whether Nextcloud has taken the hash keys off its own index.
+	 *
+	 * A key it still believes it owns is one whose row it will keep trying,
+	 * and failing, to write.
+	 */
+	private function hashKeysAreUnindexed(): bool
+	{
+
+		$known = $this->metadataManager->getKnownMetadata();
+
+		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+		{
+			if ( $known->isIndex( self::KEY_FILE_CHECKSUM_PREFIX . $algo ) )
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 
@@ -1777,7 +1983,9 @@ class MetadataService
 
 		$this->metadataManager->saveMetadata( $metadata );
 
-		$this->filecacheService->setHashes( $file ?? $metadata->getFileId(), $this->getHashes( $metadata ) );
+		$hashes = $this->getHashes( $metadata );
+		$this->filecacheService->setHashes( $file ?? $metadata->getFileId(), $hashes );
+		$this->syncHashIndex( $metadata->getFileId(), $hashes );
 	}
 
 

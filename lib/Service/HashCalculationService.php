@@ -749,10 +749,12 @@ class HashCalculationService
 				return false;
 			}
 
+			// Not indexed by Nextcloud — see MetadataService::syncHashIndex(),
+			// which writes the index row truncated to the column's width.
 			$metadata->setString(
 				MetadataService::KEY_FILE_CHECKSUM_PREFIX . $algo,
 				$result['hash'],
-				true,
+				false,
 			);
 		}
 
@@ -905,7 +907,11 @@ class HashCalculationService
 			$metaKey = MetadataService::getHashKey( $prefix );
 			if ( ! $metadata->hasKey( $metaKey ) )
 			{
-				$metadata->setString( $metaKey, $hexHash, true );
+				// Not indexed by Nextcloud: it would write the full value
+				// into a varchar(63) column and fail for every hash longer
+				// than that. {@see MetadataService::syncHashIndex()} writes
+				// the row, truncated to fit.
+				$metadata->setString( $metaKey, $hexHash, false );
 			}
 		}
 
@@ -968,7 +974,11 @@ class HashCalculationService
 
 			foreach ( $hashes as $algo => $hash )
 			{
-				$metadata->setString( MetadataService::getHashKey( $algo ), $hash, true );
+				// Not indexed by Nextcloud: it would write the full value
+				// into a varchar(63) column and fail for every hash longer
+				// than that. {@see MetadataService::syncHashIndex()} writes
+				// the row, truncated to fit.
+				$metadata->setString( MetadataService::getHashKey( $algo ), $hash, false );
 				$results[ $algo ] = [
 					'success' => true,
 					'hash'    => $hash,

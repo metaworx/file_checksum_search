@@ -220,14 +220,23 @@ class MetadataServiceTest
 		                   ->willReturnSelf()
 		;
 
-		// The UPDATE hits, so no INSERT leg runs.
+		// The row is there, so no INSERT leg runs. Existence is a question
+		// asked of the table, not inferred from affected rows: an UPDATE
+		// writing the value a row already holds reports zero on MySQL, and
+		// reading that as "no row" inserted a duplicate.
 		$this->queryBuilder->expects( $this->never() )
 		                   ->method( 'insert' )
 		;
 
-		$this->queryBuilder->expects( $this->once() )
-		                   ->method( 'executeStatement' )
-		                   ->willReturn( 1 )
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchOne' )
+		       ->willReturn( 42 )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+		$this->queryBuilder->method( 'executeStatement' )
+		                   ->willReturn( 0 )
 		;
 
 		$this->service->markPending( 42, 'pending:auto' );
@@ -333,17 +342,63 @@ class MetadataServiceTest
 		                      ->with( $metadata )
 		;
 
-		// The string is written after the save, because saving regenerates
-		// the index rows and would clobber anything written before it.
-		$this->queryBuilder->method( 'update' )
-		                   ->willReturnSelf()
+		// Two things follow the save, and both have to: the marker is written
+		// after it because saving regenerates the row for updated_at, and the
+		// hash rows are deleted because the hash keys are *not* indexed by
+		// Nextcloud any more — nothing else would remove them, and the file
+		// would keep answering searches by hashes it no longer has.
+		$deleted = 0;
+		$this->queryBuilder->method( 'delete' )
+		                   ->willReturnCallback(
+			                   function (
+				                   $table,
+			                   ) use
+			                   (
+				                   &
+				                   $deleted,
+			                   )
+			                   {
+
+				                   if ( $table === MetadataService::TABLE_FILES_METADATA_INDEX )
+				                   {
+					                   $deleted ++;
+				                   }
+
+				                   return $this->queryBuilder;
+			                   },
+		                   )
 		;
-		$this->queryBuilder->expects( $this->once() )
-		                   ->method( 'executeStatement' )
+
+		$marker = null;
+		$this->queryBuilder->method( 'set' )
+		                   ->willReturnCallback(
+			                   function (
+				                   $column,
+				                   $value,
+			                   ) use
+			                   (
+				                   &
+				                   $marker,
+			                   )
+			                   {
+
+				                   if ( $column === MetadataService::FIELD_META_VALUE_STRING )
+				                   {
+					                   $marker = $value;
+				                   }
+
+				                   return $this->queryBuilder;
+			                   },
+		                   )
+		;
+		$this->queryBuilder->method( 'executeStatement' )
 		                   ->willReturn( 1 )
 		;
 
 		$this->service->markEroded( 42 );
+
+		$this->assertSame( 1, $deleted, 'the hash index rows go with the hashes' );
+		$this->assertSame( MetadataService::STATE_ERODED, $marker );
 	}
 
 
@@ -366,7 +421,10 @@ class MetadataServiceTest
 		;
 		$metadata->expects( $this->once() )
 		         ->method( 'setString' )
-		         ->with( MetadataService::getHashKey( 'md5' ), 'cafe', true )
+			// Not indexed by Nextcloud: it would write the full value
+			// into a varchar(63) column and fail for every hash longer
+			// than that. syncHashIndex() writes the row, truncated.
+			     ->with( MetadataService::getHashKey( 'md5' ), 'cafe', false )
 		;
 		// No timestamp yet → stamped with the file's mtime, not now(): the
 		// copied hash describes the content as of that mtime.
@@ -567,18 +625,25 @@ class MetadataServiceTest
 		                   ->willReturnSelf()
 		;
 
-		$this->queryBuilder->expects( $this->once() )
-		                   ->method( 'where' )
+		$this->queryBuilder->method( 'where' )
 		                   ->willReturnSelf()
 		;
 
-		$this->queryBuilder->expects( $this->once() )
-		                   ->method( 'executeStatement' )
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchOne' )
+		       ->willReturn( 42 )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+		$this->queryBuilder->method( 'executeStatement' )
 		                   ->willReturn( 1 )
 		;
 
-		$this->expr->expects( $this->exactly( 2 ) )
-		           ->method( 'eq' )
+		// The same two columns are compared by the update and by the
+		// existence check that follows it, so the count is not the point —
+		// what each comparison names is.
+		$this->expr->method( 'eq' )
 		           ->willReturnCallback(
 			           function (
 				           string $column,
@@ -1487,6 +1552,86 @@ class MetadataServiceTest
 
 		$this->assertSame( 1, $cleared, 'the orphan is dropped rather than retried for ever' );
 		$this->assertContains( 42, $afterIds, 'the second page asks for ids after the one that failed' );
+	}
+
+
+	/**
+	 * The defect this fixes: `meta_value_string` is varchar(63), Nextcloud
+	 * inserts the value the document holds, and a SHA-256 is 64 characters.
+	 * The insert failed, `IndexRequestService::updateIndex()` swallowed it as
+	 * a logged warning, and searching for a SHA-256 found nothing at all.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testALongHashIsTruncatedToFitTheIndexColumn(): void
+	{
+
+		$stored = [];
+		$this->queryBuilder->method( 'values' )
+		                   ->willReturnCallback(
+			                   function (
+				                   array $values,
+			                   ) use
+			                   (
+				                   &
+				                   $stored,
+			                   )
+			                   {
+
+				                   $stored[] = (string) ( $values[ MetadataService::FIELD_META_VALUE_STRING ] ?? '' );
+
+				                   return $this->queryBuilder;
+			                   },
+		                   )
+		;
+		$this->queryBuilder->method( 'executeStatement' )
+		                   ->willReturn( 1 )
+		;
+
+		$sha256 = str_repeat( 'a', 64 );
+		$sha1   = str_repeat( 'b', 40 );
+
+		$written = $this->service->syncHashIndex(
+			42,
+			[
+				'sha256' => $sha256,
+				'sha1'   => $sha1,
+			],
+		);
+
+		$this->assertSame( 2, $written );
+		$this->assertContains(
+			substr( $sha256, 0, MetadataService::META_VALUE_STRING_MAX_LENGTH ),
+			$stored,
+			'a hash longer than the column is stored as its prefix, not refused',
+		);
+		$this->assertContains( $sha1, $stored, 'one that fits is stored whole' );
+	}
+
+
+	/**
+	 * What makes a truncated row recognisable without storing a marker for
+	 * it: no supported algorithm produces a digest of exactly the column's
+	 * length, so a value of that length is always a prefix — and `meta_key`
+	 * says which algorithm, hence how long the whole thing should be.
+	 *
+	 * If this ever fails, the confirmation step in `confirmFullHash()` would
+	 * skip a truncated value believing it complete. Fail loudly here rather
+	 * than quietly there.
+	 */
+	public function testNoSupportedAlgorithmProducesADigestExactlyTheColumnsLength(): void
+	{
+
+		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+		{
+			$length = strlen( hash( $algo, 'the quick brown fox' ) );
+
+			$this->assertNotSame(
+				MetadataService::META_VALUE_STRING_MAX_LENGTH,
+				$length,
+				$algo . ' would be indistinguishable from a truncated hash',
+			);
+		}
 	}
 
 

@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Migration;
 
 use OCA\FileChecksumSearch\Migration\RepairQuietStart;
+use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\BackgroundJob\IJobList;
@@ -26,6 +27,8 @@ class RepairQuietStartTest
 
 	private MockObject|RuleService     $ruleService;
 
+	private MockObject|MetadataService $metadataService;
+
 	private MockObject|IJobList        $jobList;
 
 	private MockObject|LoggerInterface $logger;
@@ -40,16 +43,18 @@ class RepairQuietStartTest
 
 		parent::setUp();
 
-		$this->db          = $this->createMock( IDBConnection::class );
-		$this->ruleService = $this->createMock( RuleService::class );
-		$this->jobList     = $this->createMock( IJobList::class );
-		$this->logger      = $this->createMock( LoggerInterface::class );
-		$this->output      = $this->createMock( IOutput::class );
+		$this->db              = $this->createMock( IDBConnection::class );
+		$this->ruleService     = $this->createMock( RuleService::class );
+		$this->metadataService = $this->createMock( MetadataService::class );
+		$this->jobList         = $this->createMock( IJobList::class );
+		$this->logger          = $this->createMock( LoggerInterface::class );
+		$this->output          = $this->createMock( IOutput::class );
 
 		$this->setUpQueryBuilderMock();
 
 		$this->step = new RepairQuietStart(
 			$this->ruleService,
+			$this->metadataService,
 			$this->db,
 			$this->jobList,
 			$this->logger,
@@ -274,6 +279,41 @@ class RepairQuietStartTest
 		;
 
 		$this->step->run( $this->output );
+	}
+
+
+	/**
+	 * The declaration is stored once, by the install migration. An instance
+	 * that already ran it keeps being told the hash keys are Nextcloud's to
+	 * index — which is what made every SHA-256 row fail to write. Restating
+	 * it on repair is what makes the fix reach instances that already exist.
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testItRefreshesTheMetadataKeyDeclarations(): void
+	{
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'register' )
+		;
+
+		$this->step->run( $this->output );
+	}
+
+
+	/**
+	 * Repair steps run on upgrade, and one that throws stops the rest.
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testARefusedRefreshDoesNotStopTheRepair(): void
+	{
+
+		$this->metadataService->method( 'register' )
+		                      ->willThrowException( new RuntimeException( 'no' ) )
+		;
+
+		$this->step->run( $this->output );
+
+		$this->addToAssertionCount( 1 );
 	}
 
 }
