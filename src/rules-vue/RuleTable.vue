@@ -378,7 +378,9 @@ const emptyMessage = computed(
 						class="fcias-placeholder-row"
 						:data-placeholder="placeholder.selector">
 						<td />
-						<td class="fcias-priority-cell">—</td>
+						<td class="fcias-priority-cell">
+							—
+						</td>
 						<td :title="placeholder.label">
 							{{ placeholder.label }}
 						</td>
