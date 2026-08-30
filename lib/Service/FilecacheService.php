@@ -24,6 +24,17 @@ class FilecacheService
 
 	public const CHECKSUM_MAX_LENGTH = 255;
 
+	/**
+	 * Storage id => numeric id, for the length of one request.
+	 *
+	 * A backup of a home folder names the same storage on every one of its
+	 * records; without this, resolving it would ask the same question once
+	 * per thousand paths.
+	 *
+	 * @var array<string, int|null>
+	 */
+	private array $storageNumericIds = [];
+
 
 	public function __construct(
 		private readonly IRootFolder   $rootFolder,
@@ -226,6 +237,124 @@ class FilecacheService
 		}
 
 		return $locations;
+	}
+
+
+	/**
+	 * Resolve portable identities back to this instance's file ids.
+	 *
+	 * The inverse of {@see locateAll()}, and the step on which an import
+	 * lives or dies: a record names a file by the storage it lives on and
+	 * the path inside it, because a file id means nothing outside the
+	 * instance that issued it. A pair with no filecache row is a file this
+	 * instance does not have — it is reported, never created.
+	 *
+	 * Storage ids are looked up once and cached for the call: a backup of a
+	 * home folder names the same storage on every one of its records, and
+	 * joining `storages` per chunk would ask the same question thousands of
+	 * times.
+	 *
+	 * @param  array<string, list<string>>  $pathsByStorage  storage id => internal paths
+	 *
+	 * @return array<string, FileLocation>  "<storage>\0<path>" => the row it names
+	 * @throws \OCP\DB\Exception
+	 */
+	public function locateAllByPath( array $pathsByStorage ): array
+	{
+
+		$located = [];
+
+		foreach ( $pathsByStorage as $storageId => $paths )
+		{
+			$numericId = $this->storageNumericId( $storageId );
+
+			if ( $numericId === null )
+			{
+				continue;
+			}
+
+			// 1000 per IN(): Oracle's placeholder ceiling, and the chunk size
+			// Nextcloud itself uses.
+			foreach ( array_chunk( array_values( array_unique( $paths ) ), 1000 ) as $chunk )
+			{
+				$qb = $this->db->getQueryBuilder();
+				$qb->select( 'fileid', 'path', 'mtime' )
+				   ->from( 'filecache' )
+				   ->where(
+					   $qb->expr()
+					      ->eq( 'storage', $qb->createNamedParameter( $numericId, IQueryBuilder::PARAM_INT ) ),
+					   $qb->expr()
+					      ->in( 'path', $qb->createNamedParameter( $chunk, IQueryBuilder::PARAM_STR_ARRAY ) ),
+				   )
+				;
+
+				$result = $qb->executeQuery();
+
+				while ( ( $row = $result->fetch() ) !== false )
+				{
+					$location = FileLocation::fromRow(
+						(int) $row['fileid'],
+						$storageId,
+						(string) $row['path'],
+						(int) $row['mtime'],
+					);
+
+					$located[ self::identityKey( $storageId, $location->internalPath ) ] = $location;
+				}
+				$result->closeCursor();
+			}
+		}
+
+		return $located;
+	}
+
+
+	/**
+	 * The key both directions of an import agree on.
+	 *
+	 * A NUL separator because it is the one byte a storage id and a path
+	 * cannot contain, so no two different pairs can collide on it.
+	 */
+	public static function identityKey(
+		string $storageId,
+		string $path,
+	): string {
+
+		return $storageId . "\0" . $path;
+	}
+
+
+	/**
+	 * A storage's numeric id, or null where this instance has no such
+	 * storage — which is the honest answer for a backup taken elsewhere.
+	 *
+	 * @throws \OCP\DB\Exception
+	 */
+	public function storageNumericId( string $storageId ): ?int
+	{
+
+		if ( array_key_exists( $storageId, $this->storageNumericIds ) )
+		{
+			return $this->storageNumericIds[ $storageId ];
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( 'numeric_id' )
+		   ->from( 'storages' )
+		   ->where(
+			   $qb->expr()
+			      ->eq( 'id', $qb->createNamedParameter( $storageId ) ),
+		   )
+		   ->setMaxResults( 1 )
+		;
+
+		$result = $qb->executeQuery();
+		$found  = $result->fetchOne();
+		$result->closeCursor();
+
+		return $this->storageNumericIds[ $storageId ] = $found === false || $found === null
+			? null
+			: (int) $found;
 	}
 
 

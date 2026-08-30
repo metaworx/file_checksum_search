@@ -70,6 +70,18 @@ readonly class HashRecord
 
 
 	/**
+	 * What this record names, for a message a person has to act on.
+	 */
+	public function describe(): string
+	{
+
+		return $this->storageId === ''
+			? $this->path
+			: $this->storageId . '/' . ltrim( $this->path, '/' );
+	}
+
+
+	/**
 	 * Whether this record says enough to be written anywhere.
 	 */
 	public function isComplete(): bool

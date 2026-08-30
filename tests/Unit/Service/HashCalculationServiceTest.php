@@ -243,9 +243,6 @@ class HashCalculationServiceTest
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	/**
-	 * @noinspection PhpUnhandledExceptionInspection
-	 */
 	public function testProcessFileWithoutAlgosTakesThemFromTheGoverningRule(): void
 	{
 

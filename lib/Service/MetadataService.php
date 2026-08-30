@@ -1214,6 +1214,136 @@ class MetadataService
 
 
 	/**
+	 * Write imported hashes onto one file.
+	 *
+	 * The general form of {@see backfillHashes()}, which is the merge case
+	 * with the stamp fixed to the file's mtime. Here the caller decides both
+	 * questions, because an import has to answer them differently depending
+	 * on where the records came from:
+	 *
+	 * - **merge** writes only algorithms the file does not have. What is
+	 *   stored was computed by this instance from the file itself; an
+	 *   imported claim about the same algorithm is at best a duplicate and
+	 *   at worst a contradiction, and silently preferring the newcomer is
+	 *   not a decision an import should take on its own.
+	 * - **replace** overwrites them, which is what restoring a backup over
+	 *   a reset instance means.
+	 *
+	 * The stamp is written whenever one is given, because it is the caller
+	 * who has weighed it against the file's mtime — see {@see ImportPolicy}.
+	 * A null stamp leaves whatever is there, and stamps zero only where
+	 * nothing was there at all, so a file never ends up claiming a freshness
+	 * nobody asserted.
+	 *
+	 * Any `stale:` marker is cleared, but only when something was actually
+	 * written: hashes have arrived, so the file is no longer waiting for the
+	 * drain to take its old ones away. A `pending:` marker is left alone —
+	 * that is a rule asking for its own hashes, which this import has not
+	 * satisfied.
+	 *
+	 * @param  array<string, string>  $algoToHash
+	 *
+	 * @return array{written: int, overwritten: int, skipped: int, markerCleared: bool}
+	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
+	 * @throws Exception
+	 */
+	public function writeHashes(
+		int   $fileId,
+		array $algoToHash,
+		?int  $stamp,
+		bool  $merge,
+	): array {
+
+		$report = [
+			'written'       => 0,
+			'overwritten'   => 0,
+			'skipped'       => 0,
+			'markerCleared' => false,
+		];
+
+		if ( $algoToHash === [] )
+		{
+			return $report;
+		}
+
+		$metadata = $this->getMetadata( $fileId );
+
+		foreach ( $algoToHash as $algo => $hash )
+		{
+			$metaKey = self::getHashKey( (string) $algo );
+			$held    = $metadata->hasKey( $metaKey );
+
+			if ( $held && $merge )
+			{
+				$report['skipped'] ++;
+
+				continue;
+			}
+
+			$metadata->setString( $metaKey, $hash, true );
+
+			if ( $held )
+			{
+				$report['overwritten'] ++;
+
+				continue;
+			}
+
+			$report['written'] ++;
+		}
+
+		if ( $report['written'] === 0 && $report['overwritten'] === 0 )
+		{
+			return $report;
+		}
+
+		if ( $stamp !== null )
+		{
+			$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, $stamp, true );
+		}
+		elseif ( ! $metadata->hasKey( self::KEY_FILE_CHECKSUM_UPDATED_AT ) )
+		{
+			$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, 0, true );
+		}
+
+		$this->metadataManager->saveMetadata( $metadata );
+		$this->filecacheService->setHashes( $fileId, $this->getHashes( $metadata ) );
+
+		// After the save: saving regenerates the index rows, so the string
+		// half has to be read and cleared once the regenerated row exists.
+		$report['markerCleared'] = $this->clearStaleMarker( $fileId );
+
+		return $report;
+	}
+
+
+	/**
+	 * Take one file out of the `stale:` namespace, if it is in it.
+	 *
+	 * @return bool  Whether there was a marker to clear.
+	 * @throws Exception
+	 */
+	public function clearStaleMarker( int $fileId ): bool
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->update( self::TABLE_FILES_METADATA_INDEX )
+		   ->set( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( null ) )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			   $qb->expr()
+			      ->like( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( self::STALE_LIKE ) ),
+		   )
+		;
+
+		return $this->executeStatement( $qb ) > 0;
+	}
+
+
+	/**
 	 * Copy already-known hashes into the metadata index for one file.
 	 *
 	 * Backfill only: writes hash keys the file does not have yet and never

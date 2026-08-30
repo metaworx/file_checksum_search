@@ -41,6 +41,17 @@ class ImportReport
 	/** Records that said too little to use at all. */
 	public int $malformed = 0;
 
+	/** Configuration keys written. */
+	public int $configWritten = 0;
+
+	/**
+	 * Configuration keys the lexicon does not declare, so they were refused
+	 * rather than written — typically a backup from a newer version.
+	 *
+	 * @var list<string>
+	 */
+	public array $configRefused = [];
+
 
 	/**
 	 * @return array<string, int>
@@ -56,6 +67,7 @@ class ImportReport
 			'overwritten'      => $this->overwritten,
 			'marker_cleared'   => $this->markerCleared,
 			'malformed'        => $this->malformed,
+			'config_written'   => $this->configWritten,
 		];
 	}
 
@@ -66,7 +78,7 @@ class ImportReport
 	public function changedAnything(): bool
 	{
 
-		return $this->written > 0 || $this->overwritten > 0;
+		return $this->written > 0 || $this->overwritten > 0 || $this->configWritten > 0;
 	}
 
 }
