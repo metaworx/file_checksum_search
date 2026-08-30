@@ -736,6 +736,61 @@ class MetadataService
 
 
 	/**
+	 * Exclude files whose hashes an operator or the app disowned.
+	 *
+	 * Applied by every query that **scans** for hashes — search, lookup,
+	 * duplicates — so a disowned hash stops being findable the moment it is
+	 * marked, rather than when the background job gets round to clearing it.
+	 * Without this, a reset would leave wrong hashes answering searches and
+	 * forming duplicate groups for as long as the queue took to drain.
+	 *
+	 * Deliberately **not** applied to the per-file reads
+	 * ({@see getHashes()}, and so the sidebar): a file someone opened shows
+	 * what is actually stored, labelled. Telling them the file has no
+	 * checksums would be a different untruth, and the recalculate button is
+	 * right there.
+	 *
+	 * A LEFT JOIN rather than a correlated NOT EXISTS: it composes with the
+	 * GROUP BY in {@see queryDuplicates()}, and its predicate is exactly
+	 * `f_meta_index (file_id, meta_key, meta_value_string)`, so the lookup is
+	 * index-only.
+	 *
+	 * @param  string  $alias  Alias of the scanned index table in $qb.
+	 */
+	private function andWhereNotStale(
+		IQueryBuilder $qb,
+		string        $alias = 'i',
+	): void {
+
+		$qb->leftJoin(
+			$alias,
+			self::TABLE_FILES_METADATA_INDEX,
+			'stale',
+			$qb->expr()
+			   ->andX(
+				   $qb->expr()
+				      ->eq( 'stale.' . self::FIELD_FILE_ID, $alias . '.' . self::FIELD_FILE_ID ),
+				   $qb->expr()
+				      ->eq(
+					      'stale.' . self::FIELD_META_KEY,
+					      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+				      ),
+				   $qb->expr()
+				      ->like(
+					      'stale.' . self::FIELD_META_VALUE_STRING,
+					      $qb->createNamedParameter( self::STALE_LIKE ),
+				      ),
+			   ),
+		)
+		   ->andWhere(
+			   $qb->expr()
+			      ->isNull( 'stale.' . self::FIELD_FILE_ID ),
+		   )
+		;
+	}
+
+
+	/**
 	 * Find files matching a given hex hash value.
 	 *
 	 * Searches across all file-checksum-* keys. The index column
@@ -773,6 +828,8 @@ class MetadataService
 		   )
 		   ->setMaxResults( $limit )
 		;
+
+		$this->andWhereNotStale( $qb );
 
 		if ( $algo !== null && $algo !== '' )
 		{
@@ -864,6 +921,8 @@ class MetadataService
 		   ->groupBy( 'i.' . self::FIELD_META_VALUE_STRING )
 		   ->addGroupBy( 'i.' . self::FIELD_META_KEY )
 		;
+
+		$this->andWhereNotStale( $qb );
 
 		if ( $algo !== null && $algo !== '' )
 		{

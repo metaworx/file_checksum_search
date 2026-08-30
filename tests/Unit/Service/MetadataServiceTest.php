@@ -706,12 +706,32 @@ class MetadataServiceTest
 		                   ->willReturn( $result )
 		;
 
-		$this->expr->expects( $this->exactly( 2 ) )
-		           ->method( 'eq' )
-		           ->willReturn( '1=1' )
+		// Two comparisons of its own — the hash and the algorithm — plus the
+		// two the stale-exclusion join contributes.
+		$compared = [];
+		$this->expr->method( 'eq' )
+		           ->willReturnCallback(
+			           static function (
+				           $left,
+				           $right,
+			           ) use
+			           (
+				           &
+				           $compared,
+			           ): string
+			           {
+
+				           $compared[] = (string) $left;
+
+				           return '1=1';
+			           },
+		           )
 		;
 
 		$rows = $this->service->queryByHash( 'def456', 'sha256' );
+
+		$this->assertContains( 'i.meta_key', $compared );
+		$this->assertContains( 'stale.file_id', $compared );
 
 		$this->assertCount( 1, $rows );
 		$this->assertSame( 'file-checksum-sha256', $rows[0]['meta_key'] );
@@ -756,13 +776,32 @@ class MetadataServiceTest
 		                   ->willReturn( $result )
 		;
 
-		$this->expr->expects( $this->once() )
-		           ->method( 'eq' )
-		           ->with( 'i.' . MetadataService::FIELD_META_VALUE_STRING, $truncated )
-		           ->willReturn( '1=1' )
+		$compared = [];
+		$this->expr->method( 'eq' )
+		           ->willReturnCallback(
+			           static function (
+				           $left,
+				           $right,
+			           ) use
+			           (
+				           &
+				           $compared,
+			           ): string
+			           {
+
+				           $compared[ (string) $left ] = $right;
+
+				           return '1=1';
+			           },
+		           )
 		;
 
 		$this->service->queryByHash( $longHash );
+
+		$this->assertSame(
+			$truncated,
+			$compared[ 'i.' . MetadataService::FIELD_META_VALUE_STRING ] ?? null,
+		);
 	}
 
 
@@ -827,12 +866,30 @@ class MetadataServiceTest
 		                   ->willReturn( $result )
 		;
 
-		$this->expr->expects( $this->once() )
-		           ->method( 'eq' )
-		           ->willReturn( '1=1' )
+		$compared = [];
+		$this->expr->method( 'eq' )
+		           ->willReturnCallback(
+			           static function (
+				           $left,
+				           $right,
+			           ) use
+			           (
+				           &
+				           $compared,
+			           ): string
+			           {
+
+				           $compared[] = (string) $left;
+
+				           return '1=1';
+			           },
+		           )
 		;
 
 		$groups = $this->service->queryDuplicates( 'sha256' );
+
+		$this->assertContains( 'i.meta_key', $compared );
+		$this->assertContains( 'stale.file_id', $compared );
 
 		$this->assertCount( 1, $groups );
 		$this->assertSame( 'file-checksum-sha256', $groups[0]['meta_key'] );
@@ -1179,6 +1236,73 @@ class MetadataServiceTest
 		;
 
 		$this->assertSame( 4, $this->service->countByState( MetadataService::STALE_LIKE ) );
+	}
+
+
+	public function testScansExcludeDisownedFilesButPerFileReadsDoNot(): void
+	{
+
+		// The guarantee that lets a reset defer its work: a disowned hash
+		// stops being findable when it is marked, not when the job clears
+		// it. Asserted on the join the scans build, since the exclusion is
+		// structural rather than a value the mock can return.
+		$joined = [];
+		$this->queryBuilder->method( 'leftJoin' )
+		                   ->willReturnCallback(
+			                   static function (
+				                   $fromAlias,
+				                   $join,
+				                   $alias,
+			                   ) use
+			                   (
+				                   &
+				                   $joined,
+			                   )
+			                   {
+
+				                   $joined[] = (string) $alias;
+
+				                   return null;
+			                   },
+		                   )
+		;
+		$this->expr->method( 'like' )
+		           ->willReturn( '1=1' )
+		;
+		$this->expr->method( 'isNull' )
+		           ->willReturn( 'x IS NULL' )
+		;
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchAll' )
+		       ->willReturn( [] )
+		;
+		$result->method( 'fetch' )
+		       ->willReturn( false )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$this->service->queryByHash( 'abc123' );
+		$this->assertContains( 'stale', $joined, 'search must exclude disowned files' );
+
+		$joined = [];
+		$this->service->queryDuplicates();
+		$this->assertContains( 'stale', $joined, 'duplicate groups must exclude disowned files' );
+
+		// …but the file's own page keeps showing what is stored, labelled.
+		$joined   = [];
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'getKeys' )
+		         ->willReturn( [] )
+		;
+		$this->metadataManager->method( 'getMetadata' )
+		                      ->willReturn( $metadata )
+		;
+
+		$this->service->getHashes( 42 );
+		$this->assertNotContains( 'stale', $joined, 'a file the user opened shows its own hashes' );
 	}
 
 }
