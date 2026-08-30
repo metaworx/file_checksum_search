@@ -7,12 +7,22 @@ Nextcloud's `oc_filecache` stores checksums as space-delimited `algo:hash` pairs
 FCIAS stores checksums in Nextcloud's built-in **files metadata index** (`oc_files_metadata` / `oc_files_metadata_index`) and mirrors them back into the `filecache` checksum column. It adds composite indices to the built-in metadata index, enabling fast indexed reverse hash lookups without any custom tables.
 
 > **Note on long hashes:** Nextcloud core's `oc_files_metadata_index.meta_value_string` column is
-> `VARCHAR(63)` — a hard limit set by Nextcloud itself, not by FCIAS. SHA-256/SHA-512/SHA3-256/
-> SHA3-512 digests (64+ hex chars) get silently truncated by the database when stored there.
-> FCIAS accounts for this at every lookup and duplicate-grouping path (see
-> `MetadataService::META_VALUE_STRING_MAX_LENGTH` and its truncation-aware query helpers) so
-> results stay correct, but any *new* code that queries this index directly needs the same
-> treatment or it will silently misbehave for long hashes.
+> `VARCHAR(63)` — a hard limit set by Nextcloud itself, not by FCIAS. A SHA-256 digest is 64
+> characters and a SHA-512 is 128, so they do not fit. The database does *not* quietly shorten
+> them: under the strict mode every modern install runs, the insert is rejected outright, and
+> Nextcloud's own index writer logs that failure rather than raising it — which is why, before
+> this was fixed, searching for a SHA-256 found nothing at all rather than finding the wrong file.
+>
+> So FCIAS writes these index rows itself, truncated to the column's width
+> (`MetadataService::syncHashIndex()`), and keeps the whole value in the metadata document. A
+> lookup truncates its search term the same way and then confirms the full value from the document
+> (`MetadataService::confirmFullHash()`), because 63 characters of a 64-character hash can be
+> shared by two different files. Truncated rows need no marker: hex digests are even-length, so
+> nothing produces exactly 63 characters, and `meta_key` names the algorithm and therefore the
+> length to expect.
+>
+> Any *new* code that queries this index directly needs the same treatment — truncate the term,
+> confirm the match — or it will silently misbehave for long hashes.
 
 ## Features
 
