@@ -122,6 +122,72 @@ covers the file, re-hashing replaces the marker. A rising eroded count usually
 means coverage was narrowed (a rule disabled, an `exclude` added) while the
 files it used to cover are still being edited.
 
+## How do I start over?
+
+`occ fcias:reset`. On its own it changes nothing — it reports what it would
+remove and stops there. Adding `--force` carries it out, and what it removes
+cannot be recovered by any other means, which is why it asks twice.
+
+Three slices, and naming none takes all of them:
+
+```bash
+php occ fcias:reset --hashes --force      # disown every stored checksum
+php occ fcias:reset --config --force      # forget the configuration, rules included
+php occ fcias:reset --status --force      # forget the queue
+```
+
+Take a backup first, and stop if it fails:
+
+```bash
+php occ fcias:reset --force --backup=/backups/before.json
+```
+
+Resetting hashes does not clear them there and then. Each file is marked as
+disowned, which takes it out of search and out of duplicate groups
+**immediately**, and the background job clears them as it goes — one database
+write per thousand files instead of one document rewrite each. If you need it
+done before the command returns, add `--now`; expect roughly a file per few
+milliseconds, so a large instance takes a while.
+
+## I already have checksums — can I load them?
+
+Yes, including a plain `sha1sum` listing. `occ fcias:import` reads what
+`fcias:backup` wrote, and also the `csv` and `sum` shapes:
+
+```bash
+# a backup, put back
+php occ fcias:import --replace --hashes -i /backups/fcias.json
+
+# checksums you computed yourself, for one user's files
+cd /path/to/alices/files
+find . -type f -print0 | xargs -0 sha256sum > /tmp/alice.sum
+php occ fcias:import --merge -i /tmp/alice.sum \
+    --format=sum --algo=sha256 --user=alice --stamp=mtime
+```
+
+Spell `--format` out unless the filename says it: it is guessed from the
+extension, and a name like `SHA256SUMS` says nothing, so the import would try
+to read the listing as `json`.
+
+Three things the command will not decide for you:
+
+- **`--merge` or `--replace`.** Merging adds only algorithms a file does not
+  already have; replacing overwrites what is stored. One of the two is
+  required, because guessing wrong is silent either way.
+- **What the timestamps mean.** Freshness here is `updated_at >= mtime`, so a
+  hash stamped later than the content it describes will never be recomputed by
+  anything. The default `--stamp=source` therefore refuses records older than
+  the file; `--stamp=mtime` is right for checksums you just computed, and
+  `--stamp=now` claims more than the data supports and says so.
+- **Where a `sum` file's paths start.** Such a listing names no storage, so say
+  `--user=<uid>` (paths relative to that user's files directory) or
+  `--storage=<id>`. A record that names its own storage — anything from a
+  `json` or `csv` export — is never re-anchored.
+
+Try it with `--dry-run` first: it reports exactly what would happen and writes
+nothing. Files this instance does not have are counted and skipped, never
+created, since an import restores what a file *is*, not that it exists.
+
 ## How do duplicates get detected?
 
 Duplicates are files that share the same hash value for a given algorithm.

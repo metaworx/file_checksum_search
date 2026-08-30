@@ -62,8 +62,8 @@ rule — see [How hashing happens](#how-hashing-happens).
 
 ## CLI Reference
 
-FCIAS provides 12 `occ` commands — five for files and search, five for rules, two for status.
-Run them as `php occ <command>`.
+FCIAS provides 15 `occ` commands — five for files and search, five for rules, two for status,
+and three for the state the app owns. Run them as `php occ <command>`.
 
 ### Core Commands
 
@@ -124,6 +124,19 @@ warning level.
 
 `--output` accepts `plain` (default), `json`, or `json_pretty`.
 
+### State Commands
+
+| Command | Description |
+|---------|-------------|
+| `file-checksum-search:backup [options]` | Write out the app's configuration, queue state and stored hashes |
+| `file-checksum-search:reset [options]` | Give the same three back — reporting only, until `--force` |
+| `file-checksum-search:import [options]` | Read a backup back, or bring in checksums computed elsewhere |
+
+They share the slice flags `--config`, `--status` and `--hashes`; naming none takes all of them,
+except on `import`, where `--status` is refused (see below). See
+[Backing up, resetting and importing](#backing-up-resetting-and-importing) for what each slice is
+and what the options mean.
+
 ### Examples
 
 ```bash
@@ -174,6 +187,24 @@ php occ file-checksum-search:status
 
 # Rebuild the checksum metadata index from filecache
 php occ file-checksum-search:rebuild
+
+# Back up everything the app owns
+php occ fcias:backup -o /backups/fcias.json
+
+# Export one algorithm as a checksum listing anything can read
+php occ fcias:backup --hashes --format=sum --algo=sha256 -o SHA256SUMS
+
+# See what a reset would remove, without removing it
+php occ fcias:reset
+
+# Disown every stored checksum, backing up first and stopping if that fails
+php occ fcias:reset --hashes --force --backup=/backups/before.json
+
+# Put a backup back
+php occ fcias:import --replace --hashes -i /backups/fcias.json
+
+# Load checksums something else computed, for one user's files
+php occ fcias:import --merge -i SHA256SUMS --algo=sha256 --user=alice --stamp=mtime
 ```
 
 ## How hashing happens
@@ -405,6 +436,77 @@ An entry exists only for a file that was actually queued, hashed, or eroded — 
 considered"**. The status page counts the queue by mode, alongside the eroded count and each
 background job's last run.
 
+## Backing up, resetting and importing
+
+The app owns three slices of state, and they are separable because they answer different questions
+and are put back by different means:
+
+| Slice | What it is | Restored by |
+|-------|------------|-------------|
+| `--config` | this app's own configuration keys — the rules among them | `fcias:import --config` |
+| `--hashes` | the stored checksums and the timestamps that say how fresh each one is | `fcias:import --hashes` |
+| `--status` | what each file is waiting for, or why its hashes are untrusted | **nothing** — see below |
+
+Naming no slice takes all of them. `fcias:backup` writes them out; `fcias:reset` gives them back;
+`fcias:import` reads them in.
+
+### The status slice is recorded, never restored
+
+The queue is not stored knowledge — it is worked out from the rules and the files, at the moment
+the drain looks. Loading somebody's queue into an instance would assert something about work this
+instance has not decided to do. So a backup records it for the operator who is about to reset it,
+and `fcias:import --status` is refused with that reason.
+
+### Only `json` is a backup
+
+`--format` takes three values on both `backup` and `import`, and they are not equivalent:
+
+| Format | Carries | Use it for |
+|--------|---------|------------|
+| `json` | everything, plus a header naming the schema, app version and instance | **a backup** — the only format a restore can check itself against |
+| `csv` | storage, path, algorithm, hash, timestamp | handing hashes to another tool |
+| `sum` | one algorithm's hashes and paths — what `sha1sum` writes | reading what your own shell already produced |
+
+`csv` and `sum` refuse `--config`, because they have nowhere to put it, and `sum` needs `--algo`
+because a checksum listing cannot say which algorithm it holds. A `sum` file names no storage
+either, so tell the import what its paths are measured from with `--user` or `--storage`. A record
+that *does* name its own storage — anything from a `json` or `csv` export — is never re-anchored,
+so re-importing a backup with `--user` set still lands each hash on the file it came from.
+
+### Resetting hashes disowns them; it does not stop the world
+
+`fcias:reset` reports what it would remove and changes nothing until `--force`. What it removes
+cannot be recovered by any other means, so the second word is the point.
+
+Removing hashes does not rewrite one metadata document per file. Each file is marked `stale:reset`,
+which takes it out of search and out of duplicate groups **immediately**, and the background job
+does the clearing as it goes — one database write per thousand files rather than one document
+rewrite each. `--now` does the clearing in the foreground instead, which is what a test fixture
+wants. `--backup=<path>` writes a backup first and abandons the whole run if that fails, and every
+forced run leaves one audit line at warning level naming who ran it and what they reset.
+
+### The timestamp is the dangerous part of an import
+
+Freshness here is `updated_at >= mtime`. A hash stamped **later** than the content it describes is
+invisible to every correction path the app has: no sweep notices it, no rule recomputes it. So the
+import asks what the timestamps mean rather than assuming:
+
+| `--stamp=` | Stores | Right when |
+|------------|--------|------------|
+| `source` *(default)* | the record's own timestamp, **refusing** any older than the file | restoring a backup |
+| `mtime` | the file's mtime — the claim the filecache backfill already makes | you ran the checksums a moment ago |
+| `now` | this moment. Asserts more than the data supports, and warns | rarely |
+
+`--allow-stale` imports what `source` would refuse, warning as it goes. `--merge` writes only
+algorithms a file does not already have; `--replace` overwrites them — one of the two is required,
+because merging keeps what this instance worked out for itself, replacing prefers the file, and
+guessing wrong is silent either way. A path this instance does not have is counted and skipped
+(`--strict` stops at the first), because an import restores what a file *is*, never that it exists.
+`--dry-run` reports the whole thing and writes nothing.
+
+Importing acceptable hashes onto a disowned file clears its marker, so a reset undone by an import
+never waits for the background job at all.
+
 ## Duplicate File Browser
 
 FCIAS provides a global duplicate file browser at **`/apps/file_checksum_search/duplicates`** (accessible via the "Duplicates" entry in the top navigation). Features:
@@ -529,6 +631,10 @@ counts them, and coverage heals them.
 first, and a rule addressing a group folder whose app is disabled is badged *provider missing*
 because it cannot match at all. `file-checksum-search:hash --user=<uid> -vv` names the rule that
 decided each file.
+
+**I want to start over, or move an instance.** `occ fcias:backup` writes out everything the app
+owns, `occ fcias:reset` gives it back — reporting only, until `--force` — and `occ fcias:import`
+reads it in again. See [Backing up, resetting and importing](#backing-up-resetting-and-importing).
 
 If the checksum metadata index becomes out of sync with `oc_filecache`, rebuild it:
 
