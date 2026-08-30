@@ -1763,6 +1763,46 @@ class MetadataServiceTest
 	}
 
 
+	/**
+	 * Two paths by length. A long hash matched on its first 63 characters
+	 * only, so the document is asked too — before the row is sent, so a file
+	 * that merely shares the prefix is never fetched or decoded.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testALongHashAlsoAsksTheDocumentBeforeTheRowIsSent(): void
+	{
+
+		$hash = str_repeat( 'a', 64 );
+		$this->givenTheQueryReturnsNothing();
+
+		$this->service->queryByHash( $hash, 'sha256' );
+
+		// The bare hash, not the key and value it sits in: a hex digest
+		// appears verbatim however Nextcloud serialises the document, so this
+		// cannot exclude a file that really holds it.
+		$this->assertContains( '%' . $hash . '%', $this->capturedLikes );
+	}
+
+
+	/**
+	 * A hash the index stored whole was compared whole by the index, so
+	 * there is nothing left to ask and no reason to pay for asking.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAShortHashDoesNotTouchTheDocument(): void
+	{
+
+		$hash = str_repeat( 'a', 40 );
+		$this->givenTheQueryReturnsNothing();
+
+		$this->service->queryByHash( $hash, 'sha1' );
+
+		$this->assertNotContains( '%' . $hash . '%', $this->capturedLikes );
+	}
+
+
 	public function testMarkStaleIsANoOpForAnEmptyList(): void
 	{
 
@@ -1949,6 +1989,23 @@ class MetadataServiceTest
 				],
 			),
 		];
+	}
+
+
+	/**
+	 * An empty result, for a test that is about the query rather than what
+	 * comes back from it.
+	 */
+	private function givenTheQueryReturnsNothing(): void
+	{
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchAll' )
+		       ->willReturn( [] )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
 	}
 
 }

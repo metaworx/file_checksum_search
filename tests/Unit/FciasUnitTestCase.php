@@ -37,13 +37,25 @@ abstract class FciasUnitTestCase
 	TestCase
 {
 
-	protected IDBConnection&MockObject $db;
+	protected IDBConnection&MockObject      $db;
 
-	protected IQueryBuilder&MockObject $queryBuilder;
+	protected IQueryBuilder&MockObject      $queryBuilder;
 
 	protected IExpressionBuilder&MockObject $expr;
 
-	protected IFunctionBuilder&MockObject $func;
+	protected IFunctionBuilder&MockObject   $func;
+
+	/**
+	 * Every LIKE pattern the query under test built, in order.
+	 *
+	 * Recorded here because the shared stubs are registered first and a test
+	 * that adds its own `like` expectation never sees a call: PHPUnit lets
+	 * the earliest matching stub answer. A test that cares about which
+	 * comparisons a query made reads this instead.
+	 *
+	 * @var list<string>
+	 */
+	protected array $capturedLikes = [];
 
 
 	/**
@@ -63,6 +75,12 @@ abstract class FciasUnitTestCase
 
 		$this->db->method( 'getQueryBuilder' )
 		         ->willReturn( $this->queryBuilder )
+		;
+
+		// Escaping a LIKE pattern is a no-op for the values these tests use;
+		// what matters is that the pattern reaches the query intact.
+		$this->db->method( 'escapeLikeParameter' )
+		         ->willReturnArgument( 0 )
 		;
 
 		// --- QueryBuilder: structural methods (always return self) ---
@@ -209,7 +227,17 @@ abstract class FciasUnitTestCase
 		;
 
 		$this->expr->method( 'like' )
-		           ->willReturn( '1=1' )
+		           ->willReturnCallback(
+			           function (
+				           $column,
+				           $value,
+			           ): string {
+
+				           $this->capturedLikes[] = (string) $value;
+
+				           return '1=1';
+			           },
+		           )
 		;
 
 		$this->expr->method( 'in' )

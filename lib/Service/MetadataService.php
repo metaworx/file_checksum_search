@@ -1916,6 +1916,29 @@ class MetadataService
 
 		$this->andWhereNotStale( $qb );
 
+		// Two paths, by length. A hash the index stored whole was compared
+		// whole above and there is nothing left to ask.
+		//
+		// A longer one matched on its first 63 characters only, so the
+		// document is asked as well — server-side, before the row is sent.
+		// The pattern is the bare hash rather than the key and value it sits
+		// in: a hex digest appears verbatim in the document however Nextcloud
+		// serialises it, so this **cannot** exclude a file that really holds
+		// the hash, whatever changes around it. It can over-match, which is
+		// why {@see confirmFullHash()} stays the authority — this narrows,
+		// it does not decide. What it saves is fetching, transporting and
+		// decoding a document only to throw the row away in PHP.
+		if ( self::isTruncatable( $hash ) )
+		{
+			$qb->andWhere(
+				$qb->expr()
+				   ->like(
+					   'm.' . self::FIELD_JSON,
+					   $qb->createNamedParameter( '%' . $this->db->escapeLikeParameter( $hash ) . '%' ),
+				   ),
+			);
+		}
+
 		if ( $algo !== null && $algo !== '' )
 		{
 			$qb->andWhere(
