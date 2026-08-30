@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Migration;
 
 use OCA\FileChecksumSearch\Migration\RepairQuietStart;
+use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
@@ -18,6 +19,7 @@ use OCP\IDBConnection;
 use OCP\Migration\IOutput;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
+use ReflectionClass;
 use RuntimeException;
 
 class RepairQuietStartTest
@@ -25,17 +27,17 @@ class RepairQuietStartTest
 	FciasUnitTestCase
 {
 
-	private MockObject|RuleService     $ruleService;
+	private MockObject|RuleService      $ruleService;
 
-	private MockObject|MetadataService $metadataService;
+	private MockObject|MetadataService  $metadataService;
 
-	private MockObject|IJobList        $jobList;
+	private MockObject|IJobList         $jobList;
 
-	private MockObject|LoggerInterface $logger;
+	private MockObject|LoggerInterface  $logger;
 
-	private MockObject|IOutput         $output;
+	private MockObject|IOutput          $output;
 
-	private RepairQuietStart           $step;
+	private RepairQuietStart            $step;
 
 
 	protected function setUp(): void
@@ -43,18 +45,20 @@ class RepairQuietStartTest
 
 		parent::setUp();
 
-		$this->db              = $this->createMock( IDBConnection::class );
-		$this->ruleService     = $this->createMock( RuleService::class );
-		$this->metadataService = $this->createMock( MetadataService::class );
-		$this->jobList         = $this->createMock( IJobList::class );
-		$this->logger          = $this->createMock( LoggerInterface::class );
-		$this->output          = $this->createMock( IOutput::class );
+		$this->db               = $this->createMock( IDBConnection::class );
+		$this->ruleService      = $this->createMock( RuleService::class );
+		$this->metadataService  = $this->createMock( MetadataService::class );
+		$hashIndexService       = $this->createMock( HashIndexService::class );
+		$this->jobList          = $this->createMock( IJobList::class );
+		$this->logger           = $this->createMock( LoggerInterface::class );
+		$this->output           = $this->createMock( IOutput::class );
 
 		$this->setUpQueryBuilderMock();
 
 		$this->step = new RepairQuietStart(
 			$this->ruleService,
 			$this->metadataService,
+			$hashIndexService,
 			$this->db,
 			$this->jobList,
 			$this->logger,
@@ -356,6 +360,128 @@ class RepairQuietStartTest
 		$this->step->run( $this->output );
 
 		$this->addToAssertionCount( 1 );
+	}
+
+
+	/**
+	 * The registry cannot rot.
+	 *
+	 * `run()` iterates what reflection finds, so a step method without the
+	 * attribute simply never runs — silently, with nothing to notice it. This
+	 * is what notices.
+	 */
+	public function testEveryStepIsDeclaredAndDistinct(): void
+	{
+
+		$names = [];
+
+		foreach ( $this->step->steps() as $entry )
+		{
+			$declared = $entry['step'];
+
+			$this->assertMatchesRegularExpression(
+				'/^[a-z][a-z-]*[a-z]$/',
+				$declared->name,
+				'step names are lower case and dashed, because --step has to be typed',
+			);
+			$this->assertNotSame( '', trim( $declared->title ) );
+			$this->assertNotSame(
+				'',
+				trim( $declared->description ),
+				$declared->name . ' has nothing to tell an administrator',
+			);
+
+			$names[] = $declared->name;
+		}
+
+		$this->assertSame( $names, array_unique( $names ), 'two steps answer to one name' );
+		$this->assertGreaterThanOrEqual( 7, count( $names ) );
+	}
+
+
+	/**
+	 * A private method that looks like a step but carries no attribute is
+	 * dead code at best and a step nobody runs at worst.
+	 */
+	public function testNoStepMethodIsLeftUndeclared(): void
+	{
+
+		$declared = array_map(
+			static fn(
+				array $entry,
+			): string => $entry['method']->getName(),
+			$this->step->steps(),
+		);
+
+		// Helpers that share a step's shape without being one. Naming them
+		// here is the point: a new method of this shape fails the test until
+		// somebody decides which it is, rather than quietly never running.
+		$helpers = [
+			// Part of selector-model, and ordered inside it: the canonical
+			// resave has to happen before it, and the defaults after.
+			'retireOffMode',
+		];
+
+		$suspects = [];
+
+		foreach ( ( new ReflectionClass( RepairQuietStart::class ) )->getMethods() as $method )
+		{
+			// The shape of a step: private, one IOutput parameter, returns nothing.
+			if ( ! $method->isPrivate() || $method->getNumberOfParameters() !== 1 )
+			{
+				continue;
+			}
+
+			if ( (string) $method->getParameters()[0]->getType() !== IOutput::class )
+			{
+				continue;
+			}
+
+			if ( in_array( $method->getName(), $declared, true )
+				|| in_array( $method->getName(), $helpers, true ) )
+			{
+				continue;
+			}
+
+			$suspects[] = $method->getName();
+		}
+
+		$this->assertSame(
+			[],
+			$suspects,
+			'these look like steps but carry no #[RepairStep], so run() will never call them',
+		);
+	}
+
+
+	/**
+	 * Declaration order is the running order, so a method moved in the file
+	 * moves in the repair. This pins the order that matters: the key
+	 * declaration has to be refreshed before anything saves metadata, or
+	 * Nextcloud tries to index a hash it cannot fit and the row is lost.
+	 */
+	public function testTheStepsRunInAnOrderThatWorks(): void
+	{
+
+		$names = array_map(
+			static fn(
+				array $entry,
+			): string => $entry['step']->name,
+			$this->step->steps(),
+		);
+
+		$this->assertSame(
+			[
+				'selector-model',
+				'metadata-keys',
+				'rebuild-from-filecache',
+				'rebuild-from-metadata',
+				'stale-states',
+				'legacy-pending',
+				'legacy-seed-job',
+			],
+			$names,
+		);
 	}
 
 }

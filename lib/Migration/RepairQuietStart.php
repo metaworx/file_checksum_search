@@ -10,12 +10,15 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Migration;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\BackgroundJob\IJobList;
 use OCP\IDBConnection;
 use OCP\Migration\IOutput;
 use OCP\Migration\IRepairStep;
+use ReflectionClass;
+use ReflectionMethod;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -54,11 +57,12 @@ class RepairQuietStart
 
 
 	public function __construct(
-		private readonly RuleService     $ruleService,
-		private readonly MetadataService $metadataService,
-		private readonly IDBConnection   $db,
-		private readonly IJobList        $jobList,
-		private readonly LoggerInterface $logger,
+		private readonly RuleService      $ruleService,
+		private readonly MetadataService  $metadataService,
+		private readonly HashIndexService $hashIndexService,
+		private readonly IDBConnection    $db,
+		private readonly IJobList         $jobList,
+		private readonly LoggerInterface  $logger,
 	) {
 	}
 
@@ -73,75 +77,67 @@ class RepairQuietStart
 	public function run( IOutput $output ): void
 	{
 
-		$this->ensureSelectorModel( $output );
-		$this->reregisterMetadataKeys( $output );
-		$this->backfillHashIndex( $output );
-		$this->namespaceStaleStates( $output );
-		$this->purgeLegacyPendingNew( $output );
-		$this->removeLegacySeedJob( $output );
-	}
-
-
-	/**
-	 * Re-declare the metadata keys, so an existing instance learns that the
-	 * hash keys are no longer Nextcloud's to index.
-	 *
-	 * The declaration is stored, and the app states it once — from the
-	 * install migration. An instance that has already run that migration
-	 * keeps whatever it was told then, which for the hash keys was
-	 * `indexed: true`: Nextcloud then tries to write the full value into a
-	 * `varchar(63)` column, the insert fails for every hash longer than that,
-	 * and it swallows the failure as a logged warning. The rows were never
-	 * written and searching for a SHA-256 found nothing.
-	 *
-	 * Restating it here is what makes the fix reach instances that already
-	 * exist. It is idempotent — Nextcloud compares before it writes — and
-	 * cheap enough to run on every repair.
-	 */
-	private function reregisterMetadataKeys( IOutput $output ): void
-	{
-
-		try
+		foreach ( $this->steps() as $step )
 		{
-			$this->metadataService->register();
-			$output->info( 'FCIAS: metadata key declarations refreshed.' );
-		}
-		catch ( Throwable $e )
-		{
-			$this->warn( $output, 'could not refresh the metadata key declarations', $e );
+			$this->runStep( $step['step'], $step['method'], $output );
 		}
 	}
 
 
 	/**
-	 * Write the index rows that were never written.
+	 * The steps this class carries, in the order they are declared.
 	 *
-	 * An instance that ran before the app took over indexing its own hashes
-	 * has them in the documents and nowhere else, for every algorithm longer
-	 * than the index column: Nextcloud's insert failed and it logged rather
-	 * than raised, so a SHA-256 search found nothing. Declaring the keys
-	 * differently (above) stops it happening again; this is what fixes what
-	 * already happened.
+	 * Read from the methods themselves rather than from a list beside them: a
+	 * list is right on the day it is written, and a step added later without
+	 * an entry in it would simply never run. Declaration order is the running
+	 * order, so the file reads top to bottom the way the repair happens.
 	 *
-	 * Files whose rows already match are skipped, so the run after the first
-	 * costs a query per page and no writes.
+	 * @return list<array{step: RepairStep, method: ReflectionMethod}>
 	 */
-	private function backfillHashIndex( IOutput $output ): void
+	public function steps(): array
 	{
+
+		$steps = [];
+
+		foreach ( ( new ReflectionClass( $this ) )->getMethods() as $method )
+		{
+			$attributes = $method->getAttributes( RepairStep::class );
+
+			if ( $attributes === [] )
+			{
+				continue;
+			}
+
+			$steps[] = [
+				'step'   => $attributes[0]->newInstance(),
+				'method' => $method,
+			];
+		}
+
+		return $steps;
+	}
+
+
+	/**
+	 * Run one step, and let the rest carry on if it will not.
+	 *
+	 * A repair that abandons the remaining work because one part of it failed
+	 * leaves an instance in a state nobody chose. Each step reports its own
+	 * outcome; what escapes is logged and named here.
+	 */
+	private function runStep(
+		RepairStep       $step,
+		ReflectionMethod $method,
+		IOutput          $output,
+	): void {
 
 		try
 		{
-			$fixed = $this->metadataService->reindexHashes();
-
-			$output->info(
-				$fixed === 0
-					? 'FCIAS: every stored hash is indexed.'
-					: sprintf( 'FCIAS: indexed the stored hashes of %d files.', $fixed ),
-			);
+			$method->invoke( $this, $output );
 		}
 		catch ( Throwable $e )
 		{
-			$this->warn( $output, 'could not index the stored hashes', $e );
+			$this->warn( $output, sprintf( 'step %s did not finish', $step->name ), $e );
 		}
 	}
 
@@ -157,7 +153,15 @@ class RepairQuietStart
 	 * storage) — are created disabled iff absent: deleting one is
 	 * reversible housekeeping, enabling one is the administrator's explicit
 	 * decision, and neither ever flips a rule an administrator configured.
+	 *
+	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
 	 */
+	#[RepairStep(
+		name: 'selector-model',
+		title: 'Canonicalise the rules and restore the shipped defaults',
+		description: 'Rewrites stored rules into the selector model — legacy scopes become selectors and the retired pinned flag is dropped — and recreates either shipped default that is missing, always disabled. Never changes a rule an administrator configured, and never enables anything.',
+		expensive: false,
+	)]
 	private function ensureSelectorModel( IOutput $output ): void
 	{
 
@@ -278,6 +282,128 @@ class RepairQuietStart
 
 
 	/**
+	 * Re-declare the metadata keys, so an existing instance learns that the
+	 * hash keys are no longer Nextcloud's to index.
+	 *
+	 * The declaration is stored, and the app states it once — from the
+	 * install migration. An instance that has already run that migration
+	 * keeps whatever it was told then, which for the hash keys was
+	 * `indexed: true`: Nextcloud then tries to write the full value into a
+	 * `varchar(63)` column, the insert fails for every hash longer than that,
+	 * and it swallows the failure as a logged warning. The rows were never
+	 * written and searching for a SHA-256 found nothing.
+	 *
+	 * Restating it here is what makes the fix reach instances that already
+	 * exist. It is idempotent — Nextcloud compares before it writes — and
+	 * cheap enough to run on every repair.
+	 *
+	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
+	 */
+	#[RepairStep(
+		name: 'metadata-keys',
+		title: 'Restate which metadata keys Nextcloud may index',
+		description: 'Tells Nextcloud that this app indexes its own hash values. Without it, Nextcloud writes the whole hash into a varchar(63) column, the insert fails for SHA-256 and longer, and it records that as a log line rather than an error — so no index row is written and those hashes cannot be found. Cheap, and safe to run at any time.',
+		expensive: false,
+	)]
+	private function reregisterMetadataKeys( IOutput $output ): void
+	{
+
+		try
+		{
+			$this->metadataService->register();
+			$output->info( 'FCIAS: metadata key declarations refreshed.' );
+		}
+		catch ( Throwable $e )
+		{
+			$this->warn( $output, 'could not refresh the metadata key declarations', $e );
+		}
+	}
+
+
+	/**
+	 * Copy the checksums Nextcloud already holds into this app's own store.
+	 *
+	 * `oc_filecache.checksum` is core's column, written when a sync client
+	 * uploads with an `OC-Checksum` header and served back over WebDAV. Those
+	 * values are trusted and visible to clients — they are simply not
+	 * searchable, because the column is one unindexed TEXT field. This copies
+	 * them across, reading no file content and overwriting no hash this app
+	 * already holds.
+	 *
+	 * Was the first phase of the retired `fcias:rebuild`.
+	 *
+	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
+	 */
+	#[RepairStep(
+		name: 'rebuild-from-filecache',
+		title: 'Copy the checksums Nextcloud already holds',
+		description: 'Copies checksums out of Nextcloud\'s own filecache column — the ones sync clients '
+		. 'sent on upload and WebDAV serves back — into this app, where they become searchable. Reads no '
+		. 'file content and never overwrites a hash this app already has. Run this when clients show a '
+		. 'checksum for a file that this app does not know.',
+		expensive: true,
+	)]
+	private function rebuildFromFilecache( IOutput $output ): void
+	{
+
+		$copied = $this->hashIndexService->backfillFromFilecache();
+		$hashes = (int) ( $copied['hashes'] ?? 0 );
+		$files  = (int) ( $copied['files'] ?? 0 );
+
+		$output->info(
+			$hashes === 0
+				? 'FCIAS: the filecache holds no checksums this app was missing.'
+				: sprintf(
+				'FCIAS: copied %d checksums for %d files out of the filecache.',
+				$hashes,
+				$files,
+			),
+		);
+	}
+
+
+	/**
+	 * Write the index rows that were never written.
+	 *
+	 * An instance that ran before the app took over indexing its own hashes
+	 * has them in the documents and nowhere else, for every algorithm longer
+	 * than the index column: Nextcloud's insert failed and it logged rather
+	 * than raised, so a SHA-256 search found nothing. Declaring the keys
+	 * differently (above) stops it happening again; this is what fixes what
+	 * already happened.
+	 *
+	 * Files whose rows already match are skipped, so the run after the first
+	 * costs a query per page and no writes.
+	 *
+	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
+	 */
+	#[RepairStep(
+		name: 'rebuild-from-metadata',
+		title: 'Index the hashes this app has already computed',
+		description: 'Writes index rows for hashes the metadata documents hold and the index does not. Reads no file content and changes no stored hash. Run this when a file\'s details show a hash but searching for that hash finds nothing.',
+		expensive: true,
+	)]
+	private function backfillHashIndex( IOutput $output ): void
+	{
+
+		try
+		{
+			$fixed = $this->metadataService->reindexHashes();
+
+			$output->info(
+				$fixed === 0
+					? 'FCIAS: every stored hash is indexed.'
+					: sprintf( 'FCIAS: indexed the stored hashes of %d files.', $fixed ),
+			);
+		}
+		catch ( Throwable $e )
+		{
+			$this->warn( $output, 'could not index the stored hashes', $e );
+		}
+	}
+
+
+	/**
 	 * Move erosion markers into the `stale:` namespace.
 	 *
 	 * The states that mean "these hashes are not to be trusted" are namespaced
@@ -285,7 +411,15 @@ class RepairQuietStart
 	 * scans by construction. Rows written before that carry the bare word.
 	 *
 	 * @throws \OCP\DB\Exception
+	 *
+	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
 	 */
+	#[RepairStep(
+		name: 'stale-states',
+		title: 'Move erosion markers into the stale namespace',
+		description: 'Rewrites the bare marker `eroded` as `stale:eroded`, so that one query finds every file whose hashes are not to be trusted, whatever the reason. One update over rows written before the namespace existed.',
+		expensive: false,
+	)]
 	private function namespaceStaleStates( IOutput $output ): void
 	{
 
@@ -331,6 +465,15 @@ class RepairQuietStart
 	}
 
 
+	/**
+	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
+	 */
+	#[RepairStep(
+		name: 'legacy-pending',
+		title: 'Remove a retired queue state',
+		description: 'Deletes queue markers written by a version that used a state this app no longer understands. A file carrying one would sit in the queue for ever, since nothing knows what to do with it.',
+		expensive: false,
+	)]
 	private function purgeLegacyPendingNew( IOutput $output ): void
 	{
 
@@ -368,6 +511,15 @@ class RepairQuietStart
 	}
 
 
+	/**
+	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
+	 */
+	#[RepairStep(
+		name: 'legacy-seed-job',
+		title: 'Remove a retired background job',
+		description: 'Unschedules a job whose class no longer exists. Nextcloud does not remove scheduled instances of a class that has gone, so it would keep failing on every cron run.',
+		expensive: false,
+	)]
 	private function removeLegacySeedJob( IOutput $output ): void
 	{
 
