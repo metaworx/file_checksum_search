@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\ProcessPendingUpdates;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJobList;
 use OCP\IAppConfig;
@@ -34,6 +35,8 @@ class ProcessPendingUpdatesTest
 
 	private MockObject|MetadataService        $metadataService;
 
+	private MockObject|RuleService            $ruleService;
+
 	private MockObject|IAppConfig             $appConfig;
 
 	private MockObject|IJobList               $jobList;
@@ -53,6 +56,7 @@ class ProcessPendingUpdatesTest
 		$this->time            = $this->createMock( ITimeFactory::class );
 		$this->hashCalc        = $this->createMock( HashCalculationService::class );
 		$this->metadataService = $this->createMock( MetadataService::class );
+		$this->ruleService     = $this->createMock( RuleService::class );
 		$this->appConfig       = $this->createMock( IAppConfig::class );
 		$this->jobList         = $this->createMock( IJobList::class );
 		$this->jobStats        = $this->createMock( JobStatsService::class );
@@ -81,6 +85,7 @@ class ProcessPendingUpdatesTest
 			$this->time,
 			$this->hashCalc,
 			$this->metadataService,
+			$this->ruleService,
 			$this->appConfig,
 			$this->jobList,
 			$this->jobStats,
@@ -99,6 +104,7 @@ class ProcessPendingUpdatesTest
 			$this->time,
 			$this->hashCalc,
 			$this->metadataService,
+			$this->ruleService,
 			$this->appConfig,
 			$this->jobList,
 			$this->jobStats,
@@ -360,12 +366,133 @@ class ProcessPendingUpdatesTest
 				               'processed' => 0,
 				               'failed'    => 0,
 				               'total'     => 0,
+				               'disowned'  => 0,
 			               ],
 		               )
 		;
 
 		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
 		$reflection->invoke( $this->job, null );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testDisownedFilesAreClearedAndRequeuedWhenARuleStillGoverns(): void
+	{
+
+		$this->metadataService->method( 'fetchStaleBatch' )
+		                      ->willReturn( [ 42 ] )
+		;
+		$this->metadataService->method( 'fetchPendingBatch' )
+		                      ->willReturn( [] )
+		;
+
+		// The operator disowned the stored hashes, not the intent to have
+		// them: a file its rule still covers goes straight back on the queue.
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->with( 42 )
+		                  ->willReturn( [
+			                  'id'   => 'r1',
+			                  'type' => 'include',
+			                  'mode' => 'force',
+		                  ] )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'clearMetadata' )
+		                      ->with( 42 )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 42, 'pending:force' )
+		;
+
+		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
+		$reflection->invoke( $this->job, null );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testDisownedFilesNoRuleGovernsAreLeftWithoutHashes(): void
+	{
+
+		$this->metadataService->method( 'fetchStaleBatch' )
+		                      ->willReturn( [ 42 ] )
+		;
+		$this->metadataService->method( 'fetchPendingBatch' )
+		                      ->willReturn( [] )
+		;
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn( null )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'clearMetadata' )
+		                      ->with( 42 )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'markPending' )
+		;
+
+		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
+		$reflection->invoke( $this->job, null );
+	}
+
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testOneUnclearableDisownedFileDoesNotStrandTheRest(): void
+	{
+
+		$this->metadataService->method( 'fetchStaleBatch' )
+		                      ->willReturn( [
+			                      1,
+			                      2,
+		                      ] )
+		;
+		$this->metadataService->method( 'fetchPendingBatch' )
+		                      ->willReturn( [] )
+		;
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn( null )
+		;
+
+		// The first file throws; its marker stays, so the next run retries
+		// it — and the second file is still cleared in this one.
+		$cleared = [];
+		$this->metadataService->method( 'clearMetadata' )
+		                      ->willReturnCallback(
+			                      static function (
+				                      $fileId,
+			                      ) use
+			                      (
+				                      &
+				                      $cleared,
+			                      ): void
+			                      {
+
+				                      if ( $fileId === 1 )
+				                      {
+					                      throw new \RuntimeException( 'unreadable document' );
+				                      }
+
+				                      $cleared[] = $fileId;
+			                      },
+		                      )
+		;
+		$this->logger->expects( $this->once() )
+		             ->method( 'warning' )
+		;
+
+		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
+		$reflection->invoke( $this->job, null );
+
+		$this->assertSame( [ 2 ], $cleared );
 	}
 
 }

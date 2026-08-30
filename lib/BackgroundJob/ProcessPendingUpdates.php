@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJobList;
 use OCP\BackgroundJob\TimedJob;
@@ -36,6 +37,7 @@ class ProcessPendingUpdates
 		ITimeFactory                            $time,
 		private readonly HashCalculationService $hashCalc,
 		private readonly MetadataService        $metadataService,
+		private readonly RuleService            $ruleService,
 		private readonly IAppConfig             $appConfig,
 		private readonly IJobList               $jobList,
 		private readonly JobStatsService        $jobStats,
@@ -63,6 +65,69 @@ class ProcessPendingUpdates
 	}
 
 
+	/**
+	 * Clear the files an operator disowned, and re-queue those a rule still
+	 * governs.
+	 *
+	 * A reset marks rather than clears, so the expensive half — rewriting one
+	 * metadata document per file — lands here, where it is paged and
+	 * interruptible. The marker is dropped as part of clearing, which is what
+	 * ends the file's exclusion from searches.
+	 *
+	 * A file an enabled `include` rule still governs is queued again
+	 * immediately: the operator disowned the stored hashes, not the intent to
+	 * have hashes. A file no rule governs is simply left without any.
+	 *
+	 * An import that already wrote acceptable hashes cleared the marker
+	 * itself, so this never sees that file — the case needs no handling
+	 * because it is the absence of work.
+	 *
+	 * @return int  Files cleared.
+	 */
+	private function clearDisownedFiles( int $batchLimit ): int
+	{
+
+		$fileIds = $this->metadataService->fetchStaleBatch( $batchLimit );
+		$cleared = 0;
+
+		foreach ( $fileIds as $fileId )
+		{
+			try
+			{
+				$this->metadataService->clearMetadata( $fileId );
+
+				$rule = $this->ruleService->findFirstMatchingRule( $fileId );
+
+				if ( RuleService::maintainsHashes( $rule ) )
+				{
+					$this->metadataService->markPending(
+						$fileId,
+						MetadataService::PENDING_PREFIX
+						. ( $rule['mode'] ?? MetadataService::PENDING_MODE_AUTO ),
+					);
+				}
+
+				$cleared ++;
+			}
+			catch ( Throwable $e )
+			{
+				// One unreadable file must not strand the rest: the marker
+				// stays, so the next run tries it again.
+				$this->logger->warning(
+					'FCIAS ProcessPendingUpdates: could not clear disowned fileId {fileId}',
+					[
+						'app'       => Application::APP_ID,
+						'fileId'    => $fileId,
+						'exception' => $e,
+					],
+				);
+			}
+		}
+
+		return $cleared;
+	}
+
+
 	protected function run( $argument ): void
 	{
 
@@ -82,6 +147,12 @@ class ProcessPendingUpdates
 				50,
 			);
 
+			// Disowned files first: they are the cheapest work in the queue —
+			// a document rewrite, no hashing — and clearing one may put it
+			// straight back as pending:<mode>, which this same run then picks
+			// up rather than leaving for the next.
+			$disowned = $this->clearDisownedFiles( $batchLimit );
+
 			$pendingRows = $this->metadataService->fetchPendingBatch( $batchLimit );
 
 			if ( empty( $pendingRows ) )
@@ -99,8 +170,15 @@ class ProcessPendingUpdates
 						'processed' => 0,
 						'failed'    => 0,
 						'total'     => 0,
+						'disowned'  => $disowned,
 					],
 				);
+
+				if ( $disowned > 0 )
+				{
+					// More may be waiting: this pass took one batch of them.
+					$this->jobList->add( self::class );
+				}
 
 				return;
 			}
@@ -146,11 +224,12 @@ class ProcessPendingUpdates
 					'processed' => $processed,
 					'failed'    => $failed,
 					'total'     => count( $pendingRows ),
+					'disowned'  => $disowned,
 				],
 			);
 
-			// Re-dispatch when batch was full to process remaining pending rows
-			if ( count( $pendingRows ) >= $batchLimit )
+			// Re-dispatch when either queue was full: more of it is waiting.
+			if ( count( $pendingRows ) >= $batchLimit || $disowned >= $batchLimit )
 			{
 				$this->jobList->add( self::class );
 			}
@@ -162,6 +241,7 @@ class ProcessPendingUpdates
 					'processed' => $processed,
 					'failed'    => $failed,
 					'total'     => count( $pendingRows ),
+					'disowned'  => $disowned,
 				],
 			);
 		}
