@@ -319,6 +319,41 @@ class ImportTest
 	}
 
 
+	/**
+	 * A hash table has nowhere to put configuration, so "everything the file
+	 * could hold" is the hashes alone. Defaulting to both regardless made a
+	 * plain `--format=sum` import fail on a slice the file was never able to
+	 * carry — which is what the documented example did.
+	 */
+	public function testAHashOnlyFormatDefaultsToHashesAlone(): void
+	{
+
+		$this->importService = $this->createMock( ImportService::class );
+		$this->importService->expects( $this->once() )
+		                    ->method( 'import' )
+		                    ->with(
+			                    $this->anything(),
+			                    $this->anything(),
+			                    $this->anything(),
+			                    $this->anything(),
+			                    false,
+			                    true,
+		                    )
+		                    ->willReturn( new ImportReport() )
+		;
+		$this->rebuild();
+
+		$this->tester->execute(
+			[
+				'--merge'  => true,
+				'--format' => 'sum',
+				'--algo'   => 'sha256',
+				'--input'  => $this->file,
+			],
+		);
+	}
+
+
 	public function testNamingOneSliceLeavesTheOtherOut(): void
 	{
 

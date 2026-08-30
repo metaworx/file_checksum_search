@@ -269,7 +269,7 @@ HELP,
 			$wantsConfig,
 			$wantsHashes,
 		]
-			= $this->slices( $input );
+			= $this->slices( $input, $implementation->carriesConfig() );
 
 		try
 		{
@@ -310,25 +310,39 @@ HELP,
 
 
 	/**
-	 * Which slices to take from the document — both, unless one was named.
+	 * Which slices to take from the document.
+	 *
+	 * Naming none takes everything the file could hold — which for a hash
+	 * table is the hashes and nothing else. Defaulting to both regardless
+	 * would make a plain `--format=sum` import fail on a configuration slice
+	 * the file was never able to carry.
+	 *
+	 * Asking for `--config` on such a format is still refused, with that
+	 * reason: a slice the caller named and did not get is a different thing
+	 * from a slice nobody asked for.
 	 *
 	 * @return array{bool, bool}
 	 */
-	private function slices( InputInterface $input ): array
-	{
+	private function slices(
+		InputInterface $input,
+		bool           $carriesConfig,
+	): array {
 
 		$config = (bool) $input->getOption( ExportService::SLICE_CONFIG );
 		$hashes = (bool) $input->getOption( ExportService::SLICE_HASHES );
 
-		return $config || $hashes
-			? [
+		if ( $config || $hashes )
+		{
+			return [
 				$config,
 				$hashes,
-			]
-			: [
-				true,
-				true,
 			];
+		}
+
+		return [
+			$carriesConfig,
+			true,
+		];
 	}
 
 
