@@ -64,7 +64,7 @@ class SettingsController
 			'dbVersion'              => $this->statusService->getDbVersion(),
 			'rowCount'               => $this->statusService->getHashRowCount(),
 			'pendingStats'           => $this->metadataService->getPendingStats(),
-			'erodedCount'            => $this->metadataService->countEroded(),
+			'staleStats'             => $this->metadataService->getStaleStats(),
 			'jobs'                   => $this->jobStats->lastRuns(),
 			'idleBannerAcknowledged' => $this->appConfig->getValueBool(
 				Application::APP_ID,

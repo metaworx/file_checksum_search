@@ -91,6 +91,26 @@ const ruleMsg = ref('')
 
 const pendingTotal = (stats: Record<string, number> = {}) => Object.values(stats).reduce((sum, v) => sum + v, 0)
 
+/**
+ * What each untrusted state means, in the terms an operator has to act on.
+ *
+ * The two are opposites in what they leave behind: erosion has already thrown
+ * the hashes away, a reset has not yet — which is why one heals itself and the
+ * other is waiting for something to happen.
+ */
+const STALE_REASONS: Record<string, { label: string, hint: string }> = {
+	'stale:eroded': {
+		label: 'Eroded',
+		hint: 'hashes were dropped on write because no rule maintains them; heals itself once a rule covers them again',
+	},
+	'stale:reset': {
+		label: 'Reset',
+		hint: 'disowned by a reset — already hidden from search, and the background job clears them as it goes',
+	},
+}
+
+const staleReason = (state: string) => STALE_REASONS[state] ?? { label: state, hint: '' }
+
 /** Display names for the background jobs' heartbeat lines (D17). */
 const JOB_LABELS: Record<string, string> = {
 	rule_sweep: 'Rule sweep',
@@ -324,13 +344,18 @@ loadDefinitions().then(() => {
 							</td>
 						</tr>
 						<tr>
-							<td>Eroded Hashes</td>
-							<td id="fcias-status-eroded">
-								{{ status.erodedCount ?? 0 }}
-								<span v-if="(status.erodedCount ?? 0) > 0" class="fcias-hint">
-									— files whose hashes were dropped on write because no rule maintains
-									them; heals itself once a rule covers them again
-								</span>
+							<td>Untrusted Hashes</td>
+							<td id="fcias-status-untrusted">
+								<template v-if="pendingTotal(status.staleStats) === 0">
+									Total: 0<br>None
+								</template>
+								<template v-else>
+									Total: {{ pendingTotal(status.staleStats) }}<br>
+									<template v-for="(count, state) in status.staleStats" :key="state">
+										{{ staleReason(String(state)).label }}: {{ count }}
+										<span class="fcias-hint">— {{ staleReason(String(state)).hint }}</span><br>
+									</template>
+								</template>
 							</td>
 						</tr>
 						<tr>

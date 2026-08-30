@@ -28,14 +28,15 @@ class ShowStatus
 {
 
 	public function __construct(
-		private readonly IDBConnection    $db,
-		private readonly MetadataService  $metadataService,
-		private readonly IAppConfig       $appConfig,
-		private readonly LoggerInterface  $logger,
+		private readonly IDBConnection   $db,
+		private readonly MetadataService $metadataService,
+		private readonly IAppConfig      $appConfig,
+		private readonly LoggerInterface $logger,
 	) {
 
 		parent::__construct();
 	}
+
 
 	/**
 	 * Configure the status command.
@@ -56,6 +57,7 @@ class ShowStatus
 		     )
 		;
 	}
+
 
 	/**
 	 * Execute the status command.
@@ -79,17 +81,21 @@ class ShowStatus
 		$metadataCount  = $this->getMetadataCount();
 		$pendingStats   = $this->metadataService->getPendingStats();
 		$totalPending   = array_sum( $pendingStats );
+		$staleStats     = $this->metadataService->getStaleStats();
+		$totalStale     = array_sum( $staleStats );
 
 		if ( $outFmt === 'json' || $outFmt === 'json_pretty' )
 		{
 			$output->writeln(
 				json_encode(
 					[
-						'app_version'      => $appVersion,
-						'filecache_rows'   => $filecacheCount,
-						'metadata_rows'    => $metadataCount,
-						'pending_total'    => $totalPending,
-						'pending_by_mode'  => $pendingStats,
+						'app_version'         => $appVersion,
+						'filecache_rows'      => $filecacheCount,
+						'metadata_rows'       => $metadataCount,
+						'pending_total'       => $totalPending,
+						'pending_by_mode'     => $pendingStats,
+						'untrusted_total'     => $totalStale,
+						'untrusted_by_reason' => $staleStats,
 					],
 					$outFmt === 'json_pretty'
 						? JSON_PRETTY_PRINT
@@ -107,6 +113,7 @@ class ShowStatus
 		$output->writeln( sprintf( 'Filecache entries:      %d', $filecacheCount ) );
 		$output->writeln( sprintf( 'Metadata updated_at:    %d', $metadataCount ) );
 		$output->writeln( sprintf( 'Pending total:          %d', $totalPending ) );
+		$output->writeln( sprintf( 'Untrusted total:        %d', $totalStale ) );
 
 		if ( ! empty( $pendingStats ) )
 		{
@@ -121,8 +128,43 @@ class ShowStatus
 			}
 		}
 
+		if ( ! empty( $staleStats ) )
+		{
+			$output->writeln( '' );
+			$output->writeln( 'Untrusted by reason:' );
+
+			foreach ( $staleStats as $state => $count )
+			{
+				$output->writeln(
+					sprintf( '  %-25s %d   %s', $state, $count, self::reasonFor( $state ) ),
+				);
+			}
+		}
+
 		return Command::SUCCESS;
 	}
+
+
+	/**
+	 * What a reason means, in the terms an operator has to act on.
+	 *
+	 * The two are opposites in what they leave behind: erosion has already
+	 * thrown the hashes away, a reset has not yet — which is why one heals
+	 * itself and the other is waiting for something to happen.
+	 */
+	private static function reasonFor( string $state ): string
+	{
+
+		return match ( $state )
+		{
+			MetadataService::STATE_ERODED => 'hashes dropped on write, no rule maintains them; '
+				. 'heals once a rule covers the file again',
+			MetadataService::STATE_RESET => 'disowned by a reset; the background job clears them, '
+				. 'or an import replaces them first',
+			default => 'unknown reason',
+		};
+	}
+
 
 	private function getAppVersion(): string
 	{
@@ -133,6 +175,7 @@ class ShowStatus
 			'unknown',
 		);
 	}
+
 
 	private function getFilecacheCount(): int
 	{
@@ -149,6 +192,7 @@ class ShowStatus
 		                ->fetchOne()
 		;
 	}
+
 
 	private function getMetadataCount(): int
 	{

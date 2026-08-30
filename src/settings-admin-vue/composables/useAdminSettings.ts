@@ -25,7 +25,8 @@ interface StatusData {
 	dbVersion?: string
 	rowCount?: number
 	pendingStats?: Record<string, number>
-	erodedCount?: number
+	/** Files whose stored hashes are not to be trusted, by reason. */
+	staleStats?: Record<string, number>
 	jobs?: Record<string, JobRun>
 	idleBannerAcknowledged?: boolean
 }

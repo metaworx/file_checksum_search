@@ -160,13 +160,21 @@ class SettingsControllerTest
 	}
 
 
-// ── status: erosion + job heartbeats (D17) ──────────────────────────
+// ── status: untrusted hashes + job heartbeats (D17) ─────────────────
 
-	public function testGetStatusReportsErosionAndJobHeartbeats(): void
+	public function testGetStatusReportsUntrustedHashesAndJobHeartbeats(): void
 	{
 
-		$this->metadataService->method( 'countEroded' )
-		                      ->willReturn( 4 )
+		// Broken down by reason, not one total: erosion has already thrown
+		// the hashes away and heals itself, a reset has not and is waiting —
+		// different things for an operator to do about them.
+		$this->metadataService->method( 'getStaleStats' )
+		                      ->willReturn(
+			                      [
+				                      MetadataService::STATE_ERODED => 4,
+				                      MetadataService::STATE_RESET  => 9,
+			                      ],
+		                      )
 		;
 		$this->jobStats->method( 'lastRuns' )
 		               ->willReturn( [
@@ -184,7 +192,13 @@ class SettingsControllerTest
 		                         ->getData()
 		;
 
-		$this->assertSame( 4, $data['erodedCount'] );
+		$this->assertSame(
+			[
+				MetadataService::STATE_ERODED => 4,
+				MetadataService::STATE_RESET  => 9,
+			],
+			$data['staleStats'],
+		);
 		$this->assertSame( 1700000000, $data['jobs']['rule_sweep']['lastRun'] );
 	}
 

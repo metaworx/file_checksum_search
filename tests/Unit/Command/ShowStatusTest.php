@@ -129,4 +129,71 @@ class ShowStatusTest
 		$this->assertSame( [ 'pending:auto' => 2 ], $decoded['pending_by_mode'] );
 	}
 
+
+	/**
+	 * One total and a breakdown, because the reasons are opposites in what
+	 * they leave behind: erosion has already thrown the hashes away and
+	 * heals itself, a reset has not and is waiting for the drain.
+	 */
+	public function testUntrustedHashesAreReportedByReason(): void
+	{
+
+		$this->appConfig->method( 'getValueString' )
+		                ->willReturn( '1.9.2' )
+		;
+		$this->metadataService->method( 'getStaleStats' )
+		                      ->willReturn(
+			                      [
+				                      MetadataService::STATE_ERODED => 4,
+				                      MetadataService::STATE_RESET  => 9,
+			                      ],
+		                      )
+		;
+
+		$this->tester->execute( [] );
+		$display = $this->tester->getDisplay();
+
+		$this->assertStringContainsString( 'Untrusted total:        13', $display );
+		$this->assertStringContainsString( 'stale:eroded', $display );
+		$this->assertStringContainsString( 'heals once a rule covers', $display );
+		$this->assertStringContainsString( 'stale:reset', $display );
+		$this->assertStringContainsString( 'disowned by a reset', $display );
+	}
+
+
+	public function testUntrustedHashesAreInTheJsonToo(): void
+	{
+
+		$this->appConfig->method( 'getValueString' )
+		                ->willReturn( '1.9.2' )
+		;
+		$this->metadataService->method( 'getStaleStats' )
+		                      ->willReturn( [ MetadataService::STATE_RESET => 9 ] )
+		;
+
+		$this->tester->execute( [ '--output' => 'json' ] );
+		$decoded = json_decode( trim( $this->tester->getDisplay() ), true );
+
+		$this->assertSame( 9, $decoded['untrusted_total'] );
+		$this->assertSame( [ MetadataService::STATE_RESET => 9 ], $decoded['untrusted_by_reason'] );
+	}
+
+
+	public function testNothingUntrustedOmitsTheBreakdown(): void
+	{
+
+		$this->appConfig->method( 'getValueString' )
+		                ->willReturn( 'unknown' )
+		;
+		$this->metadataService->method( 'getStaleStats' )
+		                      ->willReturn( [] )
+		;
+
+		$this->tester->execute( [] );
+		$display = $this->tester->getDisplay();
+
+		$this->assertStringContainsString( 'Untrusted total:        0', $display );
+		$this->assertStringNotContainsString( 'Untrusted by reason:', $display );
+	}
+
 }

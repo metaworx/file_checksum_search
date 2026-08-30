@@ -63,7 +63,7 @@ function mockFetch(options: { rules?: unknown[], idleBannerAcknowledged?: boolea
 				dbVersion: '1',
 				rowCount: 3,
 				pendingStats: {},
-				erodedCount: 4,
+				staleStats: { 'stale:eroded': 4, 'stale:reset': 9 },
 				jobs: {
 					rule_sweep: { lastRun: 1700000000, counts: { matched: 12, marked: 3 } },
 					pending_drain: { lastRun: null, counts: {} },
@@ -189,8 +189,14 @@ describe('settings-admin App', () => {
 
 		expect(wrapper.find('#fcias-status-rowcount').text()).toBe('3')
 
-		// D17: erosion is queryable state, and each job carries a heartbeat.
-		expect(wrapper.find('#fcias-status-eroded').text()).toContain('4')
+		// D17: untrusted hashes are queryable state, and each job carries a
+		// heartbeat. Broken down by reason, because erosion heals itself and
+		// a reset is waiting for something — different things to do about them.
+		const untrusted = wrapper.find('#fcias-status-untrusted').text()
+		expect(untrusted).toContain('Total: 13')
+		expect(untrusted).toContain('Eroded: 4')
+		expect(untrusted).toContain('Reset: 9')
+		expect(untrusted).toContain('heals itself')
 		const jobs = wrapper.find('#fcias-status-jobs').text()
 		expect(jobs).toContain('Rule sweep')
 		expect(jobs).toContain('matched 12, marked 3')
