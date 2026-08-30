@@ -56,6 +56,22 @@ class ConfigLexicon
 				flags: IAppConfig::FLAG_INTERNAL,
 			),
 			new Entry(
+				key: 'process_pending_interval',
+				type: ValueType::INT,
+				defaultRaw: 60,
+				definition: 'Interval in seconds between ProcessPendingUpdates runs.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
+				key: 'pending_batch_limit',
+				type: ValueType::INT,
+				defaultRaw: 50,
+				definition: 'How many queued files ProcessPendingUpdates drains per run.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
 				key: 'idle_banner_ack',
 				type: ValueType::BOOL,
 				defaultRaw: false,

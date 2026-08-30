@@ -44,7 +44,7 @@ class ConfigLexiconTest
 		$configs = $this->lexicon->getAppConfigs();
 
 		$this->assertIsArray( $configs );
-		$this->assertCount( 10, $configs );
+		$this->assertCount( 12, $configs );
 
 		$keys = array_map(
 			static fn(
@@ -60,6 +60,8 @@ class ConfigLexiconTest
 		$this->assertContains( 'stats_pending_drain_last_run', $keys );
 		$this->assertContains( 'stats_pending_drain_last_counts', $keys );
 		$this->assertContains( 'rule_processing_interval', $keys );
+		$this->assertContains( 'process_pending_interval', $keys );
+		$this->assertContains( 'pending_batch_limit', $keys );
 		$this->assertContains( 'rule_editors_all_users', $keys );
 		$this->assertContains( 'rule_editors_groups', $keys );
 		$this->assertContains( 'rule_editors_users', $keys );
