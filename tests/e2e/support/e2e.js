@@ -69,6 +69,15 @@ const collectDiagnostic = ( win, testTitle ) => {
 		// injected, for this particular page load.
 		payload.fciasScripts = [ ...doc.querySelectorAll( 'script[src*="file_checksum_search"]' ) ]
 			.map( ( el ) => ( el.getAttribute( 'src' ) || '' ).split( '/' ).pop() );
+		// The rules table, for the specs that are not about the sidebar. When
+		// a rules assertion times out the question is always the same — did
+		// the table render, and what is in it — and the sidebar probes above
+		// answer none of it.
+		const rulesList = doc.querySelector( '#fcias-cron-list' );
+
+		payload.rulesList = rulesList
+			? rulesList.textContent.replace( /\s+/g, ' ' ).trim().slice( 0, 300 )
+			: null;
 		payload.consoleLog = win.__fciasDiagLog ?? [];
 	} catch ( e ) {
 		payload.collectionError = String( e );
@@ -153,3 +162,119 @@ Cypress.Commands.add( 'importFciasFixture', ( occ, name, user = 'admin' ) => {
 		expect( stdout, `importing ${ name }` ).to.match( /written|overwritten/ )
 	} )
 } )
+
+/**
+ * Take the rule set back to what a fresh install ships.
+ *
+ * Deletes every rule, then lets the repair step recreate the two shipped
+ * defaults — both disabled, which is the quiet-start promise and the state
+ * every rules spec starts from. `fcias:repair` rather than
+ * `maintenance:repair`: it runs this app's steps and no other app's, which is
+ * both faster and the difference between a reset and an instance-wide event.
+ *
+ * occ rather than REST, because REST refuses some of these mutations by
+ * permission design — a reset that a permission model can veto is not a
+ * reset.
+ *
+ * The acknowledgement of the idle banner goes too. It is not a rule, but it
+ * is the one other thing the rules pages remember between runs, and a spec
+ * asserting the banner appears cannot know why it did not.
+ *
+ * @param {string} occ  How to invoke occ, e.g. `php nextcloud/occ`.
+ */
+Cypress.Commands.add( 'fciasResetRules', ( occ ) => {
+	cy.exec( `${ occ } fcias:rules:list -o json`, {
+		timeout: FCIAS_EXEC_TIMEOUT,
+		failOnNonZeroExit: false,
+	} )
+		.then( ( { stdout } ) => {
+			let rules = []
+
+			try
+			{
+				rules = JSON.parse( stdout )
+			}
+			catch ( e )
+			{
+				// No rules at all prints something that is not JSON. Nothing
+				// to delete is a legitimate starting point, not a failure.
+			}
+
+			for ( const rule of rules )
+			{
+				cy.exec( `${ occ } fcias:rules:delete ${ rule.id } -y`, {
+					timeout: FCIAS_EXEC_TIMEOUT,
+					failOnNonZeroExit: false,
+				} )
+			}
+		} )
+
+	cy.exec( `${ occ } config:app:delete file_checksum_search idle_banner_ack`, {
+		timeout: FCIAS_EXEC_TIMEOUT,
+		failOnNonZeroExit: false,
+	} )
+
+	cy.exec( `${ occ } fcias:repair`, { timeout: FCIAS_EXEC_TIMEOUT } )
+} )
+
+/**
+ * Make sure alice and bob exist.
+ *
+ * The developer instance has them; CI starts with admin alone. Creating them
+ * here is what lets one cross-user spec run in both places rather than being
+ * skipped in the environment that matters.
+ *
+ * A user who already exists makes `user:add` exit non-zero, which is the
+ * success case as far as this is concerned.
+ *
+ * @param {string} occ  How to invoke occ.
+ */
+Cypress.Commands.add( 'fciasEnsureUsers', ( occ ) => {
+	for ( const user of [ 'alice', 'bob' ] )
+	{
+		cy.exec(
+			`OC_PASS=SecretPass123! ${ occ } user:add --password-from-env ${ user }`,
+			{ timeout: FCIAS_EXEC_TIMEOUT, failOnNonZeroExit: false },
+		)
+	}
+} )
+
+/**
+ * One authenticated call to this app's API.
+ *
+ * Three things about that API are worth having in one place rather than in
+ * every spec, because each was established by probing rather than by reading:
+ *
+ * - the endpoints answer under `/ocs/v2.php` **only**; `/index.php/apps/…`
+ *   and `/apps/…` are 404;
+ * - the body is plain JSON with no `{ocs:{…}}` envelope, because the
+ *   controllers extend `ApiController` rather than `OCSController` — assert
+ *   on `body.rules`, never `body.ocs.data`;
+ * - `OCS-APIRequest` is not required with basic auth, but is with a cookie
+ *   session, so it goes on every call for uniformity.
+ *
+ * `failOnStatusCode` defaults to false so that an unexpected status is an
+ * assertion failure in the test that asked for it, rather than an abort with
+ * no expected-versus-actual to read.
+ *
+ * @param {object} options  method, url (below the app's API root), body,
+ *                          user, password, failOnStatusCode.
+ */
+Cypress.Commands.add( 'ocs', ( {
+	method = 'GET',
+	url,
+	body,
+	user,
+	password,
+	failOnStatusCode = false,
+} ) => cy.request( {
+	method,
+	url: `/ocs/v2.php/apps/file_checksum_search${ url }`,
+	body,
+	auth: { user, pass: password },
+	headers: {
+		'OCS-APIRequest': 'true',
+		Accept: 'application/json',
+	},
+	failOnStatusCode,
+} ) )
