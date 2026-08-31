@@ -22,7 +22,8 @@ use Attribute;
  *
  * `expensive` marks a step whose cost grows with the instance rather than
  * being a fixed handful of writes. Nextcloud draws the same line for itself
- * with `maintenance:repair --include-expensive`.
+ * with `maintenance:repair --include-expensive`. `manualOnly` goes further:
+ * a step that cannot even ask cheaply whether it has anything to do.
  */
 #[Attribute( Attribute::TARGET_METHOD )]
 readonly class RepairStep
@@ -37,6 +38,17 @@ readonly class RepairStep
 		public string $description,
 		/** Cost grows with the size of the instance. */
 		public bool   $expensive = false,
+		/**
+		 * Never runs unless it is asked for by name, or by
+		 * `--include-expensive`.
+		 *
+		 * For a step that cannot tell cheaply whether it has work, because
+		 * finding the work *is* the expense. Every other expensive step can
+		 * ask first — two counts, an empty subquery — and so is safe to run
+		 * automatically; one that cannot would make every repair pay for a
+		 * search that almost always finds nothing.
+		 */
+		public bool   $manualOnly = false,
 	) {
 	}
 

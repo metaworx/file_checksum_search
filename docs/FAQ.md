@@ -239,7 +239,7 @@ for the full permission model.
 ### The index is out of sync with filecache
 
 Which repair you want depends on where the truth is. `occ fcias:repair --list`
-describes each step; the three that rebuild something are:
+describes each step; the four that rebuild something are:
 
 ```bash
 # clients show a checksum this app does not know
@@ -247,6 +247,11 @@ php occ fcias:repair --step rebuild-from-filecache
 
 # a file's details show a hash, but searching for it finds nothing
 php occ fcias:repair --step rebuild-from-metadata
+
+# after restoring a database: the index has no record of the file at all,
+# so nothing else can find it. Reads every metadata document, and for that
+# reason never runs on its own
+php occ fcias:repair --step unindexed-hashes
 
 # a reset left hashes for the background job to clear
 php occ fcias:repair --step clear-disowned

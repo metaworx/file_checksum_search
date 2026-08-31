@@ -58,6 +58,18 @@ abstract class FciasUnitTestCase
 	 */
 	protected array $capturedLikes = [];
 
+	/**
+	 * The column of every `IN` and `NOT IN` the query built, in order, keyed
+	 * by which of the two it was. Recorded for the same reason as
+	 * {@see $capturedLikes}.
+	 *
+	 * @var array{in: list<string>, notIn: list<string>}
+	 */
+	protected array $capturedSetTests = [
+		'in'    => [],
+		'notIn' => [],
+	];
+
 
 	/**
 	 * Wire the shared QueryBuilder mock chain and set default stubs
@@ -248,11 +260,29 @@ abstract class FciasUnitTestCase
 		;
 
 		$this->expr->method( 'in' )
-		           ->willReturn( '1=1' )
+		           ->willReturnCallback(
+			           function (
+				           $column,
+			           ): string {
+
+				           $this->capturedSetTests['in'][] = (string) $column;
+
+				           return '1=1';
+			           },
+		           )
 		;
 
 		$this->expr->method( 'notIn' )
-		           ->willReturn( '1=1' )
+		           ->willReturnCallback(
+			           function (
+				           $column,
+			           ): string {
+
+				           $this->capturedSetTests['notIn'][] = (string) $column;
+
+				           return '1=1';
+			           },
+		           )
 		;
 
 		// These return a composite, not a string, so the stub has to as well.

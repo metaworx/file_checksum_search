@@ -485,6 +485,7 @@ class RepairQuietStartTest
 				'rebuild-from-filecache',
 				'key-namespace',
 				'rebuild-from-metadata',
+				'unindexed-hashes',
 				'clear-disowned',
 				'stale-states',
 				'legacy-pending',
@@ -492,6 +493,86 @@ class RepairQuietStartTest
 			],
 			$names,
 		);
+	}
+
+	/**
+	 * The whole point of the flag: the step costs a full table scan to find
+	 * out there is nothing to do, so an upgrade must not pay for it.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheScanForForgottenHashesDoesNotRunOnItsOwn(): void
+	{
+
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'reindexUnstampedHashes' )
+		;
+
+		$ran = $this->step->runSteps( $this->output );
+
+		$this->assertNotContains( 'unindexed-hashes', $ran );
+	}
+
+
+	/**
+	 * Naming it counts as asking.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testNamingTheScanRunsIt(): void
+	{
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'reindexUnstampedHashes' )
+		                      ->willReturn( 3 )
+		;
+
+		$ran = $this->step->runSteps( $this->output, [ 'unindexed-hashes' ] );
+
+		$this->assertSame( [ 'unindexed-hashes' ], $ran );
+	}
+
+
+	/**
+	 * So does the flag that already means "do not ask me first".
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testIncludeExpensiveRunsTheScanToo(): void
+	{
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'reindexUnstampedHashes' )
+		                      ->willReturn( 0 )
+		;
+
+		$ran = $this->step->withExpensive()
+		                  ->runSteps( $this->output )
+		;
+
+		$this->assertContains( 'unindexed-hashes', $ran );
+	}
+
+
+	/**
+	 * It runs on upgrade like the rest, so a throw would stop the steps
+	 * after it — and this one only ever runs when an administrator has
+	 * already gone looking for trouble.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAFailedScanDoesNotStopTheRepair(): void
+	{
+
+		$this->metadataService->method( 'reindexUnstampedHashes' )
+		                      ->willThrowException( new RuntimeException( 'no' ) )
+		;
+
+		$ran = $this->step->withExpensive()
+		                  ->runSteps( $this->output )
+		;
+
+		$this->assertContains( 'legacy-seed-job', $ran );
 	}
 
 }

@@ -86,6 +86,10 @@ The <info>%command.name%</info> command runs this app's repair steps — the sam
   <info>occ fcias:repair --step metadata-keys</info>      one of them; repeat the option for more
   <info>occ fcias:repair --dry-run</info>                 what would run, changing nothing
 
+A step marked <comment>only when asked for</comment> is skipped by a plain run: it cannot tell
+whether it has work without doing the expensive part, and the answer is
+almost always none. Name it with <info>--step</info>, or pass <info>--include-expensive</info>.
+
 A step marked <comment>expensive</comment> costs more the larger the instance is, so it does the
 cheapest thing that is correct: it asks whether there is anything to do before
 doing it. <info>--include-expensive</info> tells it not to ask. Reach for that when a step
@@ -199,13 +203,25 @@ HELP,
 		{
 			$step = $entry['step'];
 
+			$labels = [];
+
+			if ( $step->expensive )
+			{
+				$labels[] = 'expensive';
+			}
+
+			if ( $step->manualOnly )
+			{
+				$labels[] = 'only when asked for';
+			}
+
 			$output->writeln(
 				sprintf(
 					'<info>%s</info>%s',
 					$step->name,
-					$step->expensive
-						? '  <comment>(expensive)</comment>'
-						: '',
+					$labels === []
+						? ''
+						: '  <comment>(' . implode( ', ', $labels ) . ')</comment>',
 				),
 			);
 			$output->writeln( '  ' . $step->title );
@@ -244,11 +260,23 @@ HELP,
 				continue;
 			}
 
+			if ( $step->manualOnly && $only === [] && ! $includeExpensive )
+			{
+				$output->writeln(
+					sprintf(
+						'  %-24s skipped, it only runs when asked for by name or with --include-expensive',
+						$step->name,
+					),
+				);
+
+				continue;
+			}
+
 			$output->writeln(
 				sprintf(
 					'  %-24s would run%s',
 					$step->name,
-					$step->expensive && ! $includeExpensive
+					$step->expensive && ! $includeExpensive && ! $step->manualOnly
 						? ', asking first whether there is anything to do'
 						: '',
 				),

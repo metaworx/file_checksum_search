@@ -127,6 +127,13 @@ class RepairQuietStart
 				continue;
 			}
 
+			// A step that cannot ask cheaply whether it has work waits to be
+			// asked for. Naming it counts as asking.
+			if ( $entry['step']->manualOnly && $only === null && ! $this->includeExpensive )
+			{
+				continue;
+			}
+
 			$this->runStep( $entry['step'], $entry['method'], $output );
 			$ran[] = $entry['step']->name;
 		}
@@ -536,6 +543,58 @@ class RepairQuietStart
 		catch ( Throwable $e )
 		{
 			$this->warn( $output, 'could not index the stored hashes', $e );
+		}
+	}
+
+
+	/**
+	 * Find the files the index has forgotten entirely.
+	 *
+	 * Every other correction path starts from a row: the bulk rename from the
+	 * index, `rebuild-from-metadata` from the stamp row, the queue from a
+	 * pending marker. A file whose index rows are *all* gone has none of
+	 * them, so its stored hashes answer nothing and no repair reaches it.
+	 * This is the one that does, and the only way to find it is to read every
+	 * metadata document the instance holds.
+	 *
+	 * That is why it is `manualOnly`. Every other expensive step can ask
+	 * first — two counts, an empty page — and skip itself in a millisecond
+	 * when there is nothing to do. Here the asking *is* the work, and the
+	 * answer is almost always none, so a repair that ran it automatically
+	 * would scan the whole table on every upgrade to find nothing. An
+	 * administrator who has restored a database, or who has a file showing a
+	 * hash that no search will return, asks for it by name.
+	 *
+	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
+	 */
+	#[RepairStep(
+		name: 'unindexed-hashes',
+		title: 'Find stored hashes the index has no record of at all',
+		description: 'Reads every metadata document looking for hashes that have no index rows whatsoever, '
+		. 'and writes the rows back. Reads no file content and changes no stored hash. This is the only '
+		. 'step that finds a file the index has forgotten completely, and the only one that costs a full '
+		. 'scan to find out there is nothing to do — so it never runs on its own. Run it after restoring '
+		. 'a database, or when a file shows a hash that searching cannot find and rebuild-from-metadata '
+		. 'has already been run.',
+		expensive: true,
+		manualOnly: true,
+	)]
+	private function reindexForgottenHashes( IOutput $output ): void
+	{
+
+		try
+		{
+			$fixed = $this->metadataService->reindexUnstampedHashes();
+
+			$output->info(
+				$fixed === 0
+					? 'FCIAS: every stored hash has index rows.'
+					: sprintf( 'FCIAS: gave back the index rows of %d forgotten files.', $fixed ),
+			);
+		}
+		catch ( Throwable $e )
+		{
+			$this->warn( $output, 'could not scan for forgotten hashes', $e );
 		}
 	}
 

@@ -673,6 +673,7 @@ reads it in again. See [Backing up, resetting and importing](#backing-up-resetti
 php occ fcias:repair --list                          # what each step does
 php occ fcias:repair --step rebuild-from-filecache   # clients show a checksum this app lacks
 php occ fcias:repair --step rebuild-from-metadata    # the file's details show a hash search cannot find
+php occ fcias:repair --step unindexed-hashes         # after a restore: the index has no record of the file at all
 php occ fcias:repair --step clear-disowned            # a reset left hashes for the job to clear
 ```
 
@@ -684,9 +685,12 @@ php occ fcias:queue:drain --batch-size 200   # one batch
 php occ fcias:queue:drain --all              # until the queue is empty
 ```
 
-Running `occ fcias:repair` with no step does all of them, and every step is safe to run again.
+Running `occ fcias:repair` with no step does all of them but one, and every step is safe to run again.
 A step marked *expensive* asks whether there is anything to do before doing it;
-`--include-expensive` tells it not to ask.
+`--include-expensive` tells it not to ask. `unindexed-hashes` is the exception it
+cannot make: finding a file the index has forgotten completely means reading every
+metadata document, and the answer is almost always none — so it is skipped unless
+you name it or pass `--include-expensive`.
 
 For hashes that are missing or outdated, table-prefix configuration, and other common issues, see [docs/FAQ.md § Troubleshooting](docs/FAQ.md#troubleshooting).
 

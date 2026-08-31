@@ -2051,6 +2051,151 @@ class MetadataServiceTest
 	}
 
 
+	/**
+	 * The forgotten population is the same scan taken from the other side of
+	 * the stamp subquery, which is the only thing that separates the two
+	 * walks — so it is worth pinning that they differ in exactly that.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheForgottenWalkTakesTheOtherSideOfTheStampRow(): void
+	{
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetch' )
+		       ->willReturn( false )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$this->service->reindexUnstampedHashes();
+
+		$this->assertContains(
+			MetadataService::FIELD_FILE_ID,
+			$this->capturedSetTests['notIn'],
+			'a file the index has forgotten is one with no stamp row',
+		);
+		$this->assertNotContains(
+			MetadataService::FIELD_FILE_ID,
+			$this->capturedSetTests['in'],
+			'and the walk that needs one is the other step',
+		);
+	}
+
+
+	/**
+	 * The stamp row goes back with the hash rows, carrying the timestamp the
+	 * metadata document itself holds. Without it the file would be repaired
+	 * and still invisible to the next run of everything else, which all
+	 * start from that row.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAForgottenFileGetsItsStampRowBack(): void
+	{
+
+		$document = json_encode(
+			[
+				MetadataService::getHashKey( 'sha256' )    => [
+					'value'          => str_repeat( 'a', 64 ),
+					'type'           => 'string',
+					'etag'           => '',
+					'indexed'        => false,
+					'editPermission' => 0,
+				],
+				MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT => [
+					'value'          => 1_700_000_000,
+					'type'           => 'int',
+					'etag'           => '',
+					'indexed'        => true,
+					'editPermission' => 0,
+				],
+			],
+		);
+
+		$pages = [
+			[
+				[
+					MetadataService::FIELD_FILE_ID => 7,
+					MetadataService::FIELD_JSON    => $document,
+				],
+			],
+			[],
+			[],
+		];
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetch' )
+		       ->willReturnCallback(
+			       static function () use
+			       (
+				       &
+				       $pages,
+			       ): array|false
+			       {
+
+				       if ( $pages === [] )
+				       {
+					       return false;
+				       }
+
+				       $row = array_shift( $pages[0] );
+
+				       if ( $row === null )
+				       {
+					       array_shift( $pages );
+
+					       return false;
+				       }
+
+				       return $row;
+			       },
+		       )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+		$this->queryBuilder->method( 'executeStatement' )
+		                   ->willReturn( 1 )
+		;
+
+		$inserted = [];
+		$this->queryBuilder->method( 'values' )
+		                   ->willReturnCallback(
+			                   function (
+				                   array $values,
+			                   ) use
+			                   (
+				                   &
+				                   $inserted,
+			                   )
+			                   {
+
+				                   $inserted[] = $values;
+
+				                   return $this->queryBuilder;
+			                   },
+		                   )
+		;
+
+		$this->assertSame( 1, $this->service->reindexUnstampedHashes() );
+
+		$keys = array_column( $inserted, MetadataService::FIELD_META_KEY );
+
+		$this->assertContains( MetadataService::getHashKey( 'sha256' ), $keys );
+		$this->assertContains( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $keys );
+
+		$stamp = $inserted[ array_search( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $keys, true ) ];
+
+		$this->assertSame(
+			1_700_000_000,
+			$stamp[ MetadataService::FIELD_META_VALUE_INT ],
+			'the stamp is the document\'s own, not the moment of the repair',
+		);
+	}
+
+
 	public function testMarkStaleIsANoOpForAnEmptyList(): void
 	{
 

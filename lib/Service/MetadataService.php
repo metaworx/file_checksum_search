@@ -1456,10 +1456,16 @@ class MetadataService
 	 *
 	 * One `LIKE` per algorithm, on the key as it appears in the document.
 	 *
+	 * @param  bool  $stamped  Which side of the stamp row to take: `true` for
+	 *                         the files this app has considered, `false` for
+	 *                         the ones it has forgotten.
+	 *
 	 * @throws Exception
 	 */
-	private function whereDocumentHoldsAHash( IQueryBuilder $qb ): void
-	{
+	private function whereDocumentHoldsAHash(
+		IQueryBuilder $qb,
+		bool          $stamped = true,
+	): void {
 
 		// Narrowed to the files this app has considered. Every one of them
 		// has a stamp row, and that row is reliable for a structural reason:
@@ -1469,22 +1475,26 @@ class MetadataService
 		// seen — which is what this walk is looking for.
 		//
 		// A file whose index rows were lost *entirely* has no stamp row
-		// either, and is the `unindexed-hashes` step's to find.
-		$stamped = $this->db->getQueryBuilder();
-		$stamped->select( self::FIELD_FILE_ID )
-		        ->from( self::TABLE_FILES_METADATA_INDEX )
-		        ->where(
-			        $stamped->expr()
-			                ->eq(
-				                self::FIELD_META_KEY,
-				                $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
-			                ),
-		        )
+		// either, and is the `unindexed-hashes` step's to find: the same
+		// scan, taken from the other side of this subquery.
+		$considered = $this->db->getQueryBuilder();
+		$considered->select( self::FIELD_FILE_ID )
+		           ->from( self::TABLE_FILES_METADATA_INDEX )
+		           ->where(
+			           $considered->expr()
+			                      ->eq(
+				                      self::FIELD_META_KEY,
+				                      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+			                      ),
+		           )
 		;
 
 		$qb->andWhere(
-			$qb->expr()
-			   ->in( self::FIELD_FILE_ID, $qb->createFunction( $stamped->getSQL() ) ),
+			$stamped
+				? $qb->expr()
+				     ->in( self::FIELD_FILE_ID, $qb->createFunction( $considered->getSQL() ) )
+				: $qb->expr()
+				     ->notIn( self::FIELD_FILE_ID, $qb->createFunction( $considered->getSQL() ) ),
 		);
 
 		$patterns = [];
@@ -1785,25 +1795,16 @@ class MetadataService
 			return 0;
 		}
 
-		$lastId = 0;
-		$seen   = 0;
-		$fixed  = 0;
+		return $this->walkHashDocuments(
+			true,
+			$pageSize,
+			$progress,
+			function (
+				int    $fileId,
+				string $json,
+				array  $have,
+			): bool {
 
-		while ( true )
-		{
-			$documents = $this->pageHashDocumentsAfter( $lastId, $pageSize );
-
-			if ( $documents === [] )
-			{
-				return $fixed;
-			}
-
-			$lastId   = array_key_last( $documents );
-			$seen     += count( $documents );
-			$existing = $this->hashIndexKeysFor( array_keys( $documents ) );
-
-			foreach ( $documents as $fileId => $json )
-			{
 				// Before reading it: a metadata document still in the old
 				// spelling reads as holding no hashes at all, and syncing
 				// from that would delete the very index rows this exists to
@@ -1820,16 +1821,126 @@ class MetadataService
 				);
 
 				sort( $wanted );
-				$have = $existing[ $fileId ] ?? [];
 				sort( $have );
 
 				if ( $wanted === $have )
 				{
-					continue;
+					return false;
 				}
 
 				$this->syncHashIndex( $fileId, $hashes );
-				$fixed ++;
+
+				return true;
+			},
+		);
+	}
+
+
+	/**
+	 * Give back the index rows of a file the index has forgotten entirely.
+	 *
+	 * The other walk finds its work among the files this app has considered,
+	 * which the stamp row identifies. This one takes the same scan from the
+	 * other side: a metadata document that holds a hash and has **no** stamp
+	 * row at all. That file is invisible to every other correction path,
+	 * because every one of them starts from a row it does not have — its
+	 * hashes are stored, and nothing this app can be asked will find them.
+	 *
+	 * How a file gets there is not a bug this app still has. A restore that
+	 * brought back `oc_files_metadata` without `oc_files_metadata_index`, an
+	 * index truncated by hand, an interrupted migration: the causes are all
+	 * outside, which is why there is no cheap question to ask about them.
+	 * Finding out costs the scan, so the step that calls this never runs on
+	 * its own — it is `manualOnly`, and an administrator asks for it.
+	 *
+	 * The stamp row goes back with the hash rows, from the value the document
+	 * itself carries. Without it the file would be repaired and still
+	 * invisible to the next run of everything else.
+	 *
+	 * @param  callable|null  $progress  Called per page with (files seen, files fixed).
+	 *
+	 * @return int  Files given their index rows back.
+	 * @throws Exception
+	 */
+	public function reindexUnstampedHashes(
+		int       $pageSize = 500,
+		?callable $progress = null,
+	): int {
+
+		return $this->walkHashDocuments(
+			false,
+			$pageSize,
+			$progress,
+			function (
+				int    $fileId,
+				string $json,
+			): bool {
+
+				$json     = $this->renameLegacyKeysInDocument( $fileId, $json );
+				$metadata = $this->getMetadata( $fileId, $json );
+
+				$this->syncHashIndex( $fileId, $this->getHashes( $metadata ) );
+				$this->insertIndexRow(
+					$fileId,
+					self::KEY_FILE_CHECKSUM_UPDATED_AT,
+					'',
+					$this->getUpdatedAt( $metadata ) ?? 0,
+				);
+
+				return true;
+			},
+		);
+	}
+
+
+	/**
+	 * Walk the metadata documents that hold a hash, a page at a time.
+	 *
+	 * Keyset paging, not `OFFSET`: the repair changes the rows it is walking
+	 * over — the unstamped walk writes the very row that decides membership —
+	 * and an offset over a shifting set skips work silently.
+	 *
+	 * @param  bool           $stamped   Which population to walk; see
+	 *                                   {@see whereDocumentHoldsAHash()}.
+	 * @param  callable|null  $progress  Called per page with (files seen, files fixed).
+	 * @param  callable       $repair    `fn(int $fileId, string $json, list<string> $have): bool`,
+	 *                                   given the hash keys the index already
+	 *                                   holds for the file, returning whether
+	 *                                   it changed anything.
+	 *
+	 * @return int  Files the repair reported as changed.
+	 * @throws Exception
+	 */
+	private function walkHashDocuments(
+		bool      $stamped,
+		int       $pageSize,
+		?callable $progress,
+		callable  $repair,
+	): int {
+
+		$lastId = 0;
+		$seen   = 0;
+		$fixed  = 0;
+
+		while ( true )
+		{
+			$documents = $this->pageHashDocumentsAfter( $lastId, $pageSize, $stamped );
+
+			if ( $documents === [] )
+			{
+				return $fixed;
+			}
+
+			$lastId   = array_key_last( $documents );
+			$seen     += count( $documents );
+			$existing = $this->hashIndexKeysFor( array_keys( $documents ) );
+
+			foreach ( $documents as $fileId => $json )
+			{
+				if ( $repair( $fileId, $json, $existing[ $fileId ] ?? [] ) )
+				{
+					$fixed ++;
+				}
 			}
 
 			if ( $progress !== null )
@@ -1900,8 +2011,9 @@ class MetadataService
 	 * @throws Exception
 	 */
 	private function pageHashDocumentsAfter(
-		int $afterFileId,
-		int $limit,
+		int  $afterFileId,
+		int  $limit,
+		bool $stamped = true,
 	): array {
 
 		$qb = $this->db->getQueryBuilder();
@@ -1918,7 +2030,7 @@ class MetadataService
 		   ->setMaxResults( $limit )
 		;
 
-		$this->whereDocumentHoldsAHash( $qb );
+		$this->whereDocumentHoldsAHash( $qb, $stamped );
 
 		$result    = $this->executeQuery( $qb );
 		$documents = [];
@@ -2053,12 +2165,16 @@ class MetadataService
 	 * beyond another process doing the same thing — which the unique
 	 * constraint, if any, would settle either way.
 	 *
+	 * A hash row carries its value as a string and nothing in the int; the
+	 * stamp row is the other way round, which is why `$intValue` is here.
+	 *
 	 * @throws Exception
 	 */
 	private function insertIndexRow(
 		int    $fileId,
 		string $metaKey,
 		string $value,
+		int    $intValue = 0,
 	): void {
 
 		$qb = $this->db->getQueryBuilder();
@@ -2068,7 +2184,7 @@ class MetadataService
 				   self::FIELD_FILE_ID           => $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ),
 				   self::FIELD_META_KEY          => $qb->createNamedParameter( $metaKey ),
 				   self::FIELD_META_VALUE_STRING => $qb->createNamedParameter( $value ),
-				   self::FIELD_META_VALUE_INT    => $qb->createNamedParameter( 0, IQueryBuilder::PARAM_INT ),
+				   self::FIELD_META_VALUE_INT    => $qb->createNamedParameter( $intValue, IQueryBuilder::PARAM_INT ),
 			   ],
 		   )
 		;
