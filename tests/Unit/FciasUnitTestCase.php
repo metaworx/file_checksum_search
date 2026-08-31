@@ -184,6 +184,12 @@ abstract class FciasUnitTestCase
 		                   ->willReturn( $this->func )
 		;
 
+		// A builder embedded as a subquery is asked for its SQL; the mock has
+		// to answer with a string, since createFunction() is typed.
+		$this->queryBuilder->method( 'getSQL' )
+		                   ->willReturn( 'SELECT 1' )
+		;
+
 		$this->queryBuilder->method( 'createFunction' )
 		                   ->willReturnCallback(
 			                   fn(

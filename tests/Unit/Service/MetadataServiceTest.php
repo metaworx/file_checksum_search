@@ -1920,6 +1920,137 @@ class MetadataServiceTest
 	}
 
 
+	/**
+	 * The repair, unlike everything else, must recognise the old spelling.
+	 *
+	 * A metadata document restored from before the rename is exactly what
+	 * this walk exists to find, and the bulk rename cannot reach it: that
+	 * one finds its work through the index, and these files have no hash
+	 * rows at all.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheRepairsFinderLooksForBothSpellings(): void
+	{
+
+		$this->givenCountsOf( 100, 100 );
+		$this->service->hashIndexIsComplete();
+
+		$this->assertContains(
+			'%"' . MetadataService::getHashKey( 'sha256' ) . '":%',
+			$this->capturedLikes,
+		);
+		$this->assertContains(
+			'%"' . MetadataService::legacyHashKey( 'sha256' ) . '":%',
+			$this->capturedLikes,
+			'a document written before the rename is what the repair is for',
+		);
+	}
+
+
+	/**
+	 * And the walk renames before it reads. An old-spelled metadata document
+	 * reads as holding no hashes at all, so syncing from it would delete the
+	 * very index rows the walk exists to write.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAnOldSpelledDocumentIsRenamedBeforeItIsRead(): void
+	{
+
+		$legacy   = MetadataService::legacyHashKey( 'sha256' );
+		$document = json_encode(
+			[
+				$legacy => [
+					'value'          => str_repeat( 'a', 64 ),
+					'type'           => 'string',
+					'etag'           => '',
+					'indexed'        => false,
+					'editPermission' => 0,
+				],
+			],
+		);
+
+		$pages = [
+			[
+				[
+					MetadataService::FIELD_FILE_ID => 7,
+					MetadataService::FIELD_JSON    => $document,
+				],
+			],
+			[],
+			[],
+		];
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetch' )
+		       ->willReturnCallback(
+			       static function () use
+			       (
+				       &
+				       $pages,
+			       ): array|false
+			       {
+
+				       if ( $pages === [] )
+				       {
+					       return false;
+				       }
+
+				       $row = array_shift( $pages[0] );
+
+				       if ( $row === null )
+				       {
+					       array_shift( $pages );
+
+					       return false;
+				       }
+
+				       return $row;
+			       },
+		       )
+		;
+		$result->method( 'fetchOne' )
+		       ->willReturn( 0 )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$written = [];
+		$this->queryBuilder->method( 'set' )
+		                   ->willReturnCallback(
+			                   function (
+				                   $column,
+				                   $value,
+			                   ) use
+			                   (
+				                   &
+				                   $written,
+			                   )
+			                   {
+
+				                   if ( $column === MetadataService::FIELD_JSON )
+				                   {
+					                   $written[] = (string) $value;
+				                   }
+
+				                   return $this->queryBuilder;
+			                   },
+		                   )
+		;
+		$this->queryBuilder->method( 'executeStatement' )
+		                   ->willReturn( 1 )
+		;
+
+		$this->service->reindexHashes( force: true );
+
+		$this->assertCount( 1, $written, 'the document is rewritten once' );
+		$this->assertStringContainsString( MetadataService::getHashKey( 'sha256' ), $written[0] );
+		$this->assertStringNotContainsString( '"' . $legacy . '":', $written[0] );
+	}
+
+
 	public function testMarkStaleIsANoOpForAnEmptyList(): void
 	{
 

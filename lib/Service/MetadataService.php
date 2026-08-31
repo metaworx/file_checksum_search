@@ -1461,16 +1461,55 @@ class MetadataService
 	private function whereDocumentHoldsAHash( IQueryBuilder $qb ): void
 	{
 
+		// Narrowed to the files this app has considered. Every one of them
+		// has a stamp row, and that row is reliable for a structural reason:
+		// it is an INT in meta_value_int and never met the varchar(63) limit
+		// that lost the hash rows. So it survived exactly the failure that
+		// leaves a metadata document holding hashes the index has never
+		// seen — which is what this walk is looking for.
+		//
+		// A file whose index rows were lost *entirely* has no stamp row
+		// either, and is the `unindexed-hashes` step's to find.
+		$stamped = $this->db->getQueryBuilder();
+		$stamped->select( self::FIELD_FILE_ID )
+		        ->from( self::TABLE_FILES_METADATA_INDEX )
+		        ->where(
+			        $stamped->expr()
+			                ->eq(
+				                self::FIELD_META_KEY,
+				                $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+			                ),
+		        )
+		;
+
+		$qb->andWhere(
+			$qb->expr()
+			   ->in( self::FIELD_FILE_ID, $qb->createFunction( $stamped->getSQL() ) ),
+		);
+
 		$patterns = [];
 
 		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
 		{
-			$patterns[] = $qb->expr()
-			                 ->like(
-				                 self::FIELD_JSON,
-				                 $qb->createNamedParameter( '%"' . self::getHashKey( $algo ) . '":%' ),
-			                 )
-			;
+			// Both spellings. This is the repair's finder, and a metadata
+			// document restored from before the rename is exactly what it
+			// exists to find — a repair that cannot recognise what it
+			// repairs is no use. Nothing on a request path evaluates these:
+			// the only caller is {@see reindexHashes()}.
+			foreach (
+				[
+					self::getHashKey( $algo ),
+					self::legacyHashKey( $algo ),
+				] as $key
+			)
+			{
+				$patterns[] = $qb->expr()
+				                 ->like(
+					                 self::FIELD_JSON,
+					                 $qb->createNamedParameter( '%"' . $key . '":%' ),
+				                 )
+				;
+			}
 		}
 
 		$qb->andWhere(
@@ -1765,6 +1804,11 @@ class MetadataService
 
 			foreach ( $documents as $fileId => $json )
 			{
+				// Before reading it: a metadata document still in the old
+				// spelling reads as holding no hashes at all, and syncing
+				// from that would delete the very index rows this exists to
+				// write.
+				$json   = $this->renameLegacyKeysInDocument( $fileId, $json );
 				$hashes = $this->getHashes( $this->getMetadata( $fileId, $json ) );
 				$wanted = array_map(
 					static fn(
@@ -1793,6 +1837,54 @@ class MetadataService
 				$progress( $seen, $fixed );
 			}
 		}
+	}
+
+
+	/**
+	 * Rename any legacy hash key inside one metadata document.
+	 *
+	 * The bulk rename finds its work through the index, so it cannot reach a
+	 * file whose hash rows were never written — which is the population the
+	 * index-truncation fix existed to rescue, and exactly what this walk
+	 * meets. Here the document is in hand, so the replacement is done in
+	 * memory and written back as one statement.
+	 *
+	 * @return string  The document as it now stands, renamed or unchanged.
+	 * @throws Exception
+	 */
+	private function renameLegacyKeysInDocument(
+		int    $fileId,
+		string $json,
+	): string {
+
+		$renamed = $json;
+
+		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+		{
+			$renamed = str_replace(
+				'"' . self::legacyHashKey( $algo ) . '":',
+				'"' . self::getHashKey( $algo ) . '":',
+				$renamed,
+			);
+		}
+
+		if ( $renamed === $json )
+		{
+			return $json;
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->update( self::TABLE_FILES_METADATA )
+		   ->set( self::FIELD_JSON, $qb->createNamedParameter( $renamed ) )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+		   )
+		;
+
+		$this->executeStatement( $qb );
+
+		return $renamed;
 	}
 
 
