@@ -67,6 +67,27 @@ class RepairQuietStart
 	}
 
 
+	/**
+	 * Whether an expensive step should do its full work rather than the
+	 * cheapest thing that is correct.
+	 *
+	 * False for the automatic run — `maintenance:repair` should not spend an
+	 * instance-sized walk to confirm what two counts already say. The command
+	 * sets it when asked, which is the only way to reach the cases a guard
+	 * cannot see.
+	 */
+	private bool $includeExpensive = false;
+
+
+	public function withExpensive( bool $includeExpensive = true ): self
+	{
+
+		$this->includeExpensive = $includeExpensive;
+
+		return $this;
+	}
+
+
 	public function getName(): string
 	{
 
@@ -77,10 +98,36 @@ class RepairQuietStart
 	public function run( IOutput $output ): void
 	{
 
-		foreach ( $this->steps() as $step )
+		$this->runSteps( $output );
+	}
+
+
+	/**
+	 * Run some or all of the steps, and say which ran.
+	 *
+	 * @param  list<string>|null  $only  Names to run; null for every step.
+	 *
+	 * @return list<string>  The names that ran, in the order they ran.
+	 */
+	public function runSteps(
+		IOutput $output,
+		?array  $only = null,
+	): array {
+
+		$ran = [];
+
+		foreach ( $this->steps() as $entry )
 		{
-			$this->runStep( $step['step'], $step['method'], $output );
+			if ( $only !== null && ! in_array( $entry['step']->name, $only, true ) )
+			{
+				continue;
+			}
+
+			$this->runStep( $entry['step'], $entry['method'], $output );
+			$ran[] = $entry['step']->name;
 		}
+
+		return $ran;
 	}
 
 
@@ -388,7 +435,7 @@ class RepairQuietStart
 
 		try
 		{
-			$fixed = $this->metadataService->reindexHashes();
+			$fixed = $this->metadataService->reindexHashes( force: $this->includeExpensive );
 
 			$output->info(
 				$fixed === 0

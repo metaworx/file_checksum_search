@@ -75,6 +75,7 @@
 		<command>OCA\FileChecksumSearch\Command\Backup</command>
 		<command>OCA\FileChecksumSearch\Command\Reset</command>
 		<command>OCA\FileChecksumSearch\Command\Import</command>
+		<command>OCA\FileChecksumSearch\Command\Repair</command>
 		<command>OCA\FileChecksumSearch\Command\FindDuplicates</command>
 		<command>OCA\FileChecksumSearch\Command\Rules\ListRules</command>
 		<command>OCA\FileChecksumSearch\Command\Rules\AddRule</command>
