@@ -42,14 +42,25 @@ class MetadataService
 {
 
 // constants
-	public const FIELD_FILE_ID                = 'file_id';
-	public const FIELD_JSON                   = 'json';
-	public const FIELD_JSON_ALIAS             = 'meta_json';
-	public const FIELD_META_KEY               = 'meta_key';
-	public const FIELD_META_VALUE_INT         = 'meta_value_int';
-	public const FIELD_META_VALUE_STRING      = 'meta_value_string';
-	public const KEY_FILE_CHECKSUM_LIKE       = self::KEY_FILE_CHECKSUM_PREFIX . '%';
-	public const KEY_FILE_CHECKSUM_PREFIX     = 'file-checksum-';
+	public const FIELD_FILE_ID           = 'file_id';
+	public const FIELD_JSON              = 'json';
+	public const FIELD_JSON_ALIAS        = 'meta_json';
+	public const FIELD_META_KEY          = 'meta_key';
+	public const FIELD_META_VALUE_INT    = 'meta_value_int';
+	public const FIELD_META_VALUE_STRING = 'meta_value_string';
+	/** Every key this app writes, hashes and stamp alike. */
+	public const KEY_FILE_CHECKSUM_PREFIX = 'file-checksum-';
+
+	/**
+	 * The hashes, and nothing else.
+	 *
+	 * Their own prefix, so that a query can say "the hash keys" instead of
+	 * saying "this app's keys, except the stamp" — which is what every such
+	 * query had to say before, and what two of them silently got wrong.
+	 */
+	public const KEY_FILE_CHECKSUM_HASH_PREFIX = self::KEY_FILE_CHECKSUM_PREFIX . 'hash-';
+
+	public const KEY_FILE_CHECKSUM_LIKE       = self::KEY_FILE_CHECKSUM_HASH_PREFIX . '%';
 	public const KEY_FILE_CHECKSUM_UPDATED_AT = 'file-checksum-updated_at';
 	public const PENDING_MODE_AUTO            = 'auto';
 	public const PENDING_MODE_MISSING         = 'missing';
@@ -1539,6 +1550,168 @@ class MetadataService
 
 
 	/**
+	 * Rename every hash key still written the old way.
+	 *
+	 * Two statements per algorithm, and neither reads a metadata document:
+	 *
+	 * - the metadata documents are renamed by string replacement, because
+	 *   `json` is a TEXT column on every backend — narrowed to the files the
+	 *   index says still hold the old spelling, so the update touches those
+	 *   rows and no others;
+	 * - the index rows are renamed outright.
+	 *
+	 * The pattern carries its quotes and its colon — `"file-checksum-sha256":`
+	 * — so it matches a key and can never match a value; values are hex
+	 * digests and integers.
+	 *
+	 * Each half guards itself: nothing old-spelled means an empty id list and
+	 * an update that touches nothing, so running this on a renamed instance
+	 * costs eight cheap queries and no writes.
+	 *
+	 * Files whose hash rows were never written are invisible here, since
+	 * there is no index row to find them by. Those are
+	 * {@see reindexHashes()}'s to rename, and — where even the stamp row is
+	 * gone — the `unindexed-hashes` step's.
+	 *
+	 * @return array{documents: int, rows: int}
+	 * @throws Exception
+	 */
+	public function renameLegacyHashKeys(): array
+	{
+
+		$touched = [];
+		$rows    = 0;
+
+		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+		{
+			$legacy  = self::legacyHashKey( $algo );
+			$current = self::getHashKey( $algo );
+
+			// Collected before the index is renamed, since that is what says
+			// which metadata documents still need it.
+			$fileIds = $this->fileIdsWithMetaKey( $legacy );
+
+			foreach ( array_chunk( $fileIds, 1000 ) as $chunk )
+			{
+				$this->renameKeyInDocuments( $chunk, $legacy, $current );
+			}
+
+			// Counted as files, not as statements: a document holding four
+			// algorithms is updated four times and is still one document.
+			$touched += array_flip( $fileIds );
+			$rows    += $this->renameIndexRows( $legacy, $current );
+		}
+
+		return [
+			'documents' => count( $touched ),
+			'rows'      => $rows,
+		];
+	}
+
+
+	/**
+	 * Which files have an index row under this key.
+	 *
+	 * @return list<int>
+	 * @throws Exception
+	 */
+	private function fileIdsWithMetaKey( string $metaKey ): array
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->selectDistinct( self::FIELD_FILE_ID )
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( $metaKey ) ),
+		   )
+		;
+
+		$result  = $this->executeQuery( $qb );
+		$fileIds = [];
+
+		while ( ( $row = $result->fetch() ) !== false )
+		{
+			$fileIds[] = (int) $row[ self::FIELD_FILE_ID ];
+		}
+		$result->closeCursor();
+
+		return $fileIds;
+	}
+
+
+	/**
+	 * Rewrite one key's name inside a chunk of metadata documents.
+	 *
+	 * `REPLACE` is implemented by every backend Nextcloud supports, and the
+	 * column is TEXT on all of them, so this needs no JSON support from the
+	 * database and no round trip through PHP.
+	 *
+	 * @param  list<int>  $fileIds
+	 *
+	 * @return int  Rows the statement changed.
+	 * @throws Exception
+	 */
+	private function renameKeyInDocuments(
+		array  $fileIds,
+		string $legacy,
+		string $current,
+	): int {
+
+		if ( $fileIds === [] )
+		{
+			return 0;
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->update( self::TABLE_FILES_METADATA )
+		   ->set(
+			   self::FIELD_JSON,
+			   $qb->createFunction(
+				   sprintf(
+					   'REPLACE(%s, %s, %s)',
+					   self::FIELD_JSON,
+					   $qb->createNamedParameter( '"' . $legacy . '":' ),
+					   $qb->createNamedParameter( '"' . $current . '":' ),
+				   ),
+			   ),
+		   )
+		   ->where(
+			   $qb->expr()
+			      ->in(
+				      self::FIELD_FILE_ID,
+				      $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
+			      ),
+		   )
+		;
+
+		return $this->executeStatement( $qb );
+	}
+
+
+	/**
+	 * @return int  Rows renamed.
+	 * @throws Exception
+	 */
+	private function renameIndexRows(
+		string $legacy,
+		string $current,
+	): int {
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->update( self::TABLE_FILES_METADATA_INDEX )
+		   ->set( self::FIELD_META_KEY, $qb->createNamedParameter( $current ) )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( $legacy ) ),
+		   )
+		;
+
+		return $this->executeStatement( $qb );
+	}
+
+
+	/**
 	 * Give every stored hash the index row it should always have had.
 	 *
 	 * The repair for instances that ran before the app took over writing
@@ -2057,7 +2230,7 @@ class MetadataService
 				$qb->expr()
 				   ->eq(
 					   'i.' . self::FIELD_META_KEY,
-					   $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_PREFIX . $algo ),
+					   $qb->createNamedParameter( self::getHashKey( $algo ) ),
 				   ),
 			);
 		}
@@ -2150,7 +2323,7 @@ class MetadataService
 				$qb->expr()
 				   ->eq(
 					   'i.' . self::FIELD_META_KEY,
-					   $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_PREFIX . $algo ),
+					   $qb->createNamedParameter( self::getHashKey( $algo ) ),
 				   ),
 			);
 		}
@@ -2301,7 +2474,7 @@ class MetadataService
 				// logged warning. The row is simply never written, and
 				// searching for one of those hashes finds nothing at all.
 				$this->metadataManager->initMetadata(
-					self::KEY_FILE_CHECKSUM_PREFIX . $algo,
+					self::getHashKey( $algo ),
 					IMetadataValueWrapper::TYPE_STRING,
 					false,
 					IMetadataValueWrapper::EDIT_FORBIDDEN,
@@ -2347,7 +2520,7 @@ class MetadataService
 
 		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
 		{
-			if ( $known->isIndex( self::KEY_FILE_CHECKSUM_PREFIX . $algo ) )
+			if ( $known->isIndex( self::getHashKey( $algo ) ) )
 			{
 				return false;
 			}
@@ -2417,7 +2590,18 @@ class MetadataService
 	public static function getAlgorithmenFromKey( mixed $metaKey ): mixed
 	{
 
-		return str_replace( MetadataService::KEY_FILE_CHECKSUM_PREFIX, '', $metaKey );
+		// The hash prefix first: stripping the shorter one from
+		// `file-checksum-hash-sha256` would leave `hash-sha256`. A key still
+		// in the old spelling falls through to the second replacement, which
+		// is what lets the repair read one before renaming it.
+		return str_replace(
+			[
+				MetadataService::KEY_FILE_CHECKSUM_HASH_PREFIX,
+				MetadataService::KEY_FILE_CHECKSUM_PREFIX,
+			],
+			'',
+			$metaKey,
+		);
 	}
 
 
@@ -2427,6 +2611,21 @@ class MetadataService
 	 * @return string
 	 */
 	public static function getHashKey( string $algo ): string
+	{
+
+		return self::KEY_FILE_CHECKSUM_HASH_PREFIX . strtolower( $algo );
+	}
+
+
+	/**
+	 * What a hash key was called before it had a prefix of its own.
+	 *
+	 * Only the repair knows this: it is what `key-namespace` renames, and
+	 * what `rebuild-from-metadata` must still recognise in a metadata
+	 * document restored from before the rename. Nothing on a request path
+	 * asks for it.
+	 */
+	public static function legacyHashKey( string $algo ): string
 	{
 
 		return self::KEY_FILE_CHECKSUM_PREFIX . strtolower( $algo );

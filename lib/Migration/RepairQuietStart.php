@@ -9,7 +9,9 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Migration;
 
+use OC\FilesMetadata\FilesMetadataManager;
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
@@ -408,6 +410,92 @@ class RepairQuietStart
 				$files,
 			),
 		);
+	}
+
+
+	/**
+	 * Give the hash keys their own prefix, wherever they are still without
+	 * one.
+	 *
+	 * Every key this app writes used to be spelled `file-checksum-…`, so no
+	 * query could say "the hash keys" without subtracting the stamp by name
+	 * — which two of them silently got wrong. `file-checksum-hash-…` says it
+	 * instead.
+	 *
+	 * Declared **before** `rebuild-from-metadata`, and the order carries
+	 * weight: that step writes index rows from what a metadata document
+	 * says, so meeting an old-spelled document first it would faithfully
+	 * write old-spelled index rows and undo this.
+	 *
+	 * @throws \OCP\DB\Exception
+	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
+	 */
+	#[RepairStep(
+		name: 'key-namespace',
+		title: 'Give the hash keys their own prefix',
+		description: 'Renames stored hashes from file-checksum-<algo> to '
+		. 'file-checksum-hash-<algo>, in both the metadata documents and the index rows, so that a '
+		. 'query can ask for the hashes without also matching the freshness stamp. Reads no file '
+		. 'content, and does nothing on an instance already renamed.',
+	)]
+	private function renameHashKeys( IOutput $output ): void
+	{
+
+		$renamed   = $this->metadataService->renameLegacyHashKeys();
+		$rows      = (int) ( $renamed['rows'] ?? 0 );
+		$documents = (int) ( $renamed['documents'] ?? 0 );
+
+		$output->info(
+			$rows === 0 && $documents === 0
+				? 'FCIAS: the hash keys already have their own prefix.'
+				: sprintf(
+				'FCIAS: renamed %d index rows and %d metadata documents to the hash prefix.',
+				$rows,
+				$documents,
+			),
+		);
+
+		$this->withdrawLegacyDeclarations( $output );
+	}
+
+
+	/**
+	 * Tell Nextcloud to forget the keys this app no longer writes.
+	 *
+	 * `initMetadata()` has no counterpart that withdraws a declaration, but
+	 * they are kept in one app-config array, so removing an entry is a read
+	 * and a write. Safe here because a repair runs inside the upgrade's
+	 * maintenance window, where nothing else is registering keys.
+	 *
+	 * Without it the old names sit in core's configuration for ever, and a
+	 * later reader would reasonably wonder what this app failed to clean up.
+	 */
+	private function withdrawLegacyDeclarations( IOutput $output ): void
+	{
+
+		$declared  = $this->appConfig->getValueArray( 'core', FilesMetadataManager::CONFIG_KEY, lazy: true );
+		$withdrawn = 0;
+
+		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+		{
+			$legacy = MetadataService::legacyHashKey( $algo );
+
+			if ( ! isset( $declared[ $legacy ] ) )
+			{
+				continue;
+			}
+
+			unset( $declared[ $legacy ] );
+			$withdrawn ++;
+		}
+
+		if ( $withdrawn === 0 )
+		{
+			return;
+		}
+
+		$this->appConfig->setValueArray( 'core', FilesMetadataManager::CONFIG_KEY, $declared, lazy: true );
+		$output->info( sprintf( 'FCIAS: withdrew %d superseded metadata key declarations.', $withdrawn ) );
 	}
 
 

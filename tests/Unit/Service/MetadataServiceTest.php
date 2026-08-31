@@ -202,10 +202,17 @@ class MetadataServiceTest
 
 		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
 		{
+			// The hash prefix, not the app's: a key declared under the old
+			// spelling would be re-declared by every repair, undoing the
+			// withdrawal in the same run that performs it.
 			$this->assertContains(
-				'file-checksum-' . $algo,
+				MetadataService::getHashKey( $algo ),
 				$registeredKeys,
-				"Expected key 'file-checksum-$algo' to be registered.",
+				sprintf( 'Expected %s to be registered.', MetadataService::getHashKey( $algo ) ),
+			);
+			$this->assertNotContains(
+				MetadataService::legacyHashKey( $algo ),
+				$registeredKeys,
 			);
 		}
 	}

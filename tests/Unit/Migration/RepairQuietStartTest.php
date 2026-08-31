@@ -400,7 +400,7 @@ class RepairQuietStartTest
 		}
 
 		$this->assertSame( $names, array_unique( $names ), 'two steps answer to one name' );
-		$this->assertGreaterThanOrEqual( 8, count( $names ) );
+		$this->assertGreaterThanOrEqual( 9, count( $names ) );
 	}
 
 
@@ -425,6 +425,9 @@ class RepairQuietStartTest
 			// Part of selector-model, and ordered inside it: the canonical
 			// resave has to happen before it, and the defaults after.
 			'retireOffMode',
+			// Part of key-namespace: the declarations are withdrawn once the
+			// keys they name are gone, in the same step and after it.
+			'withdrawLegacyDeclarations',
 		];
 
 		$suspects = [];
@@ -480,6 +483,7 @@ class RepairQuietStartTest
 				'selector-model',
 				'metadata-keys',
 				'rebuild-from-filecache',
+				'key-namespace',
 				'rebuild-from-metadata',
 				'clear-disowned',
 				'stale-states',
