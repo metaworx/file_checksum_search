@@ -1803,6 +1803,116 @@ class MetadataServiceTest
 	}
 
 
+	/**
+	 * The guard's cheap answer: nothing to do, so no walk.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testACompleteIndexIsNotWalked(): void
+	{
+
+		// Same count on both sides — every file whose document mentions a
+		// hash has a row.
+		$this->givenCountsOf( 100, 100 );
+
+		$this->queryBuilder->expects( $this->never() )
+		                   ->method( 'delete' )
+		;
+
+		$this->assertTrue( $this->service->hashIndexIsComplete() );
+		$this->assertSame( 0, $this->service->reindexHashes() );
+	}
+
+
+	/**
+	 * And when it says there is work, the walk happens — the guard decides
+	 * whether to look, never how much to repair.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAnIncompleteIndexIsWalked(): void
+	{
+
+		$this->givenCountsOf( 98, 100 );
+
+		$this->assertFalse( $this->service->hashIndexIsComplete() );
+	}
+
+
+	/**
+	 * The expensive pass does not ask. A file whose document holds two
+	 * algorithms and whose index holds one counts once on each side, so the
+	 * counts agree while a row is still missing — this is the way to that
+	 * file.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testForcingWalksEvenWhenTheCountsAgree(): void
+	{
+
+		$counted = 0;
+		$result  = $this->createMock( IResult::class );
+		$result->method( 'fetchOne' )
+		       ->willReturnCallback(
+			       static function () use
+			       (
+				       &
+				       $counted,
+			       ): int
+			       {
+
+				       $counted ++;
+
+				       return 100;
+			       },
+		       )
+		;
+		$result->method( 'fetch' )
+		       ->willReturn( false )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$this->service->reindexHashes( force: true );
+
+		$this->assertSame( 0, $counted, 'a forced pass asks no counting question at all' );
+	}
+
+
+	/**
+	 * The flaw this was written after: matching `file-checksum-%` in the
+	 * document counts every file the app has ever *considered*, because
+	 * `file-checksum-updated_at` is one of those keys. On a real instance
+	 * that was 455 documents against 302 holding a hash — so the counts
+	 * never agreed, the guard never fired, and the expensive walk ran on
+	 * every repair while visiting half again as many rows as it needed.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheGuardLooksForHashesNotForTheStamp(): void
+	{
+
+		$this->givenCountsOf( 100, 100 );
+		$this->service->hashIndexIsComplete();
+
+		$this->assertNotContains(
+			'%' . MetadataService::KEY_FILE_CHECKSUM_LIKE . '%',
+			$this->capturedLikes,
+			'a pattern that broad matches the stamp as well as the hashes',
+		);
+		$this->assertContains(
+			'%"' . MetadataService::getHashKey( 'sha256' ) . '":%',
+			$this->capturedLikes,
+			'each algorithm is named, on the key as the document writes it',
+		);
+		$this->assertNotContains(
+			'%"' . MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT . '":%',
+			$this->capturedLikes,
+		);
+	}
+
+
 	public function testMarkStaleIsANoOpForAnEmptyList(): void
 	{
 
@@ -2002,6 +2112,47 @@ class MetadataServiceTest
 		$result = $this->createMock( IResult::class );
 		$result->method( 'fetchAll' )
 		       ->willReturn( [] )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+	}
+
+
+	/**
+	 * The two numbers the guard compares: files the index knows a hash for,
+	 * and documents that hold one.
+	 *
+	 * @noinspection PhpSameParameterValueInspection
+	 */
+	private function givenCountsOf(
+		int $indexed,
+		int $holding,
+	): void {
+
+		// The pair, as often as it is asked for: a test may call the guard
+		// directly and then again through the walk.
+		$call   = 0;
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchOne' )
+		       ->willReturnCallback(
+			       static function () use
+			       (
+				       &
+				       $call,
+				       $indexed,
+				       $holding,
+			       ): int
+			       {
+
+				       return $call ++ % 2 === 0
+					       ? $indexed
+					       : $holding;
+			       },
+		       )
+		;
+		$result->method( 'fetch' )
+		       ->willReturn( false )
 		;
 		$this->queryBuilder->method( 'executeQuery' )
 		                   ->willReturn( $result )

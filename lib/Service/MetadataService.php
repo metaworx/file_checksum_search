@@ -1434,6 +1434,111 @@ class MetadataService
 
 
 	/**
+	 * Match documents that hold an actual hash, not merely a stamp.
+	 *
+	 * `LIKE '%file-checksum-%'` is too broad: `file-checksum-updated_at` is
+	 * one of these keys, so every file the app has ever *considered* matches
+	 * it, hashed or not. On a real instance that is the difference between
+	 * 455 documents and the 302 that hold a hash — enough to make a count
+	 * comparison never agree and a walk visit half again as many rows as it
+	 * needs to.
+	 *
+	 * One `LIKE` per algorithm, on the key as it appears in the document.
+	 *
+	 * @throws Exception
+	 */
+	private function whereDocumentHoldsAHash( IQueryBuilder $qb ): void
+	{
+
+		$patterns = [];
+
+		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+		{
+			$patterns[] = $qb->expr()
+			                 ->like(
+				                 self::FIELD_JSON,
+				                 $qb->createNamedParameter( '%"' . self::getHashKey( $algo ) . '":%' ),
+			                 )
+			;
+		}
+
+		$qb->andWhere(
+			$qb->expr()
+			   ->orX( ...$patterns ),
+		);
+	}
+
+
+	/**
+	 * Whether every file whose document mentions a hash has an index row.
+	 *
+	 * Two counts, to answer in a millisecond a question that otherwise costs
+	 * a walk over every document:
+	 *
+	 * - files the index knows a hash for;
+	 * - documents that mention one.
+	 *
+	 * Equal is the state after a completed pass. Fewer on the index side
+	 * means work is outstanding.
+	 *
+	 * **It can only err towards doing the work.** A file with no index rows
+	 * at all counts on one side and not the other, and that is the whole
+	 * population this exists to find — every file affected by hashes that
+	 * were too long for the column to accept. The reverse mistake is the one
+	 * that matters and it cannot happen.
+	 *
+	 * Its limit, stated rather than buried: a file whose document holds two
+	 * algorithms while the index holds one counts once on each side, so this
+	 * calls it complete. Only an interrupted pass can leave that, and the
+	 * full pass is what answers it — which is why the caller can say it does
+	 * not want to be asked.
+	 *
+	 * @throws Exception
+	 */
+	public function hashIndexIsComplete(): bool
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->selectAlias(
+			$qb->createFunction( 'COUNT(DISTINCT ' . self::FIELD_FILE_ID . ')' ),
+			'cnt',
+		)
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->like( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
+			   $qb->expr()
+			      ->neq(
+				      self::FIELD_META_KEY,
+				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+			      ),
+		   )
+		;
+
+		$result  = $this->executeQuery( $qb );
+		$indexed = (int) $result->fetchOne();
+		$result->closeCursor();
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->selectAlias(
+			$qb->func()
+			   ->count( self::FIELD_FILE_ID ),
+			'cnt',
+		)
+		   ->from( self::TABLE_FILES_METADATA )
+		;
+
+		$this->whereDocumentHoldsAHash( $qb );
+
+		$result  = $this->executeQuery( $qb );
+		$holding = (int) $result->fetchOne();
+		$result->closeCursor();
+
+		return $indexed >= $holding;
+	}
+
+
+	/**
 	 * Give every stored hash the index row it should always have had.
 	 *
 	 * The repair for instances that ran before the app took over writing
@@ -1456,7 +1561,17 @@ class MetadataService
 	public function reindexHashes(
 		int       $pageSize = 500,
 		?callable $progress = null,
+		bool      $force = false,
 	): int {
+
+		// The guard decides whether to walk, never what the walk repairs. If
+		// anything is outstanding the full pass runs and fixes every file it
+		// finds broken — a few or all of them. `$force` skips the asking, for
+		// the caller who wants the pass regardless of what a count says.
+		if ( ! $force && $this->hashIndexIsComplete() )
+		{
+			return 0;
+		}
 
 		$lastId = 0;
 		$seen   = 0;
@@ -1529,11 +1644,6 @@ class MetadataService
 		   ->from( self::TABLE_FILES_METADATA )
 		   ->where(
 			   $qb->expr()
-			      ->like(
-				      self::FIELD_JSON,
-				      $qb->createNamedParameter( '%' . self::KEY_FILE_CHECKSUM_PREFIX . '%' ),
-			      ),
-			   $qb->expr()
 			      ->gt(
 				      self::FIELD_FILE_ID,
 				      $qb->createNamedParameter( $afterFileId, IQueryBuilder::PARAM_INT ),
@@ -1542,6 +1652,8 @@ class MetadataService
 		   ->orderBy( self::FIELD_FILE_ID, 'ASC' )
 		   ->setMaxResults( $limit )
 		;
+
+		$this->whereDocumentHoldsAHash( $qb );
 
 		$result    = $this->executeQuery( $qb );
 		$documents = [];

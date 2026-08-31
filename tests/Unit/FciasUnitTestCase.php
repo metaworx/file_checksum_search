@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit;
 
+use OCP\DB\QueryBuilder\ICompositeExpression;
 use OCP\DB\QueryBuilder\IExpressionBuilder;
 use OCP\DB\QueryBuilder\IFunctionBuilder;
 use OCP\DB\QueryBuilder\IQueryBuilder;
@@ -246,6 +247,17 @@ abstract class FciasUnitTestCase
 
 		$this->expr->method( 'notIn' )
 		           ->willReturn( '1=1' )
+		;
+
+		// These return a composite, not a string, so the stub has to as well.
+		$composite = $this->createMock( ICompositeExpression::class );
+
+		$this->expr->method( 'orX' )
+		           ->willReturn( $composite )
+		;
+
+		$this->expr->method( 'andX' )
+		           ->willReturn( $composite )
 		;
 	}
 
