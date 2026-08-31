@@ -26,10 +26,10 @@ use Psr\Log\LoggerInterface;
 use RuntimeException;
 
 /**
- * Reading a document is the easy half. The half that matters is deciding
- * what may be written: a hash stamped later than the content it describes is
- * invisible to every correction path this app has, so an import that is too
- * willing does damage nothing later notices.
+ * Reading a backup document is the easy half. The half that matters is
+ * deciding what may be written: a hash stamped later than the content it
+ * describes is invisible to every correction path this app has, so an
+ * import that is too willing does damage nothing later notices.
  */
 class ImportServiceTest
 	extends
@@ -70,8 +70,8 @@ class ImportServiceTest
 
 	/**
 	 * A backup names one file once per algorithm; writing them separately
-	 * would rewrite the same document three times and ask the same freshness
-	 * question three times over.
+	 * would rewrite the same metadata document three times and ask the same
+	 * freshness question three times over.
 	 */
 	public function testEveryAlgorithmOfOneFileIsWrittenInOneGo(): void
 	{
@@ -329,8 +329,8 @@ class ImportServiceTest
 
 
 	/**
-	 * A document from a future version may mean something different by the
-	 * same field, and half-applying it is worse than refusing it.
+	 * A backup document from a future version may mean something different
+	 * by the same field, and half-applying it is worse than refusing it.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */

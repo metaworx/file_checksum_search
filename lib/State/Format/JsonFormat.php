@@ -16,8 +16,8 @@ use RuntimeException;
 /**
  * The backup format — the only one of the three that is one.
  *
- * A document is an object whose leading keys describe the file and whose last
- * key carries the records:
+ * A backup document is an object whose leading keys describe the file and
+ * whose last key carries the records:
  *
  *     {
  *       "schema": 1,
@@ -50,7 +50,7 @@ class JsonFormat
 {
 
 	/**
-	 * Bumped when the document's shape changes in a way an older reader
+	 * Bumped when the backup document's shape changes in a way an older reader
 	 * cannot honour. A restore compares this before it writes anything.
 	 */
 	public const SCHEMA_VERSION = 1;
@@ -81,8 +81,9 @@ class JsonFormat
 
 
 	/**
-	 * Read a document whole: its header and config eagerly — they are small —
-	 * and its records as a generator, which is the part that is not.
+	 * Read a backup document whole: its header and config eagerly — they
+	 * are small — and its records as a generator, which is the part that is
+	 * not.
 	 *
 	 * The records generator must be consumed before the stream is closed; the
 	 * header is available before a single record has been read, which is what
@@ -101,8 +102,8 @@ class JsonFormat
 		$cursor->skipWhitespace();
 		$opener = $cursor->peek();
 
-		// A bare array is a hashes-only document with no header — accepted on
-		// the way in, never produced on the way out.
+		// A bare array is a hashes-only backup document with no header —
+		// accepted on the way in, never produced on the way out.
 		if ( $opener === '[' )
 		{
 			$cursor->expect( '[' );
@@ -200,7 +201,7 @@ class JsonFormat
 
 
 	/**
-	 * Write a full document: header, optional config, then the records.
+	 * Write a full backup document: header, optional config, then the records.
 	 *
 	 * The header the caller supplies is merged over the two fields the format
 	 * knows about itself, so a caller cannot accidentally write a document
@@ -368,9 +369,9 @@ class JsonFormat
 	 * Encode one header value at the depth it sits at.
 	 *
 	 * `json_encode()` pretty-prints from column zero, which puts the second
-	 * line of a nested array flush against the left margin of a document that
-	 * is already one level in. Re-indenting the continuation lines is all it
-	 * takes to make the result read as the object it is.
+	 * line of a nested array flush against the left margin of a backup
+	 * document that is already one level in. Re-indenting the continuation
+	 * lines is all it takes to make the result read as the object it is.
 	 */
 	private function encode(
 		mixed  $value,

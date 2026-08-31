@@ -510,11 +510,11 @@ class RepairQuietStart
 	 * Write the index rows that were never written.
 	 *
 	 * An instance that ran before the app took over indexing its own hashes
-	 * has them in the documents and nowhere else, for every algorithm longer
-	 * than the index column: Nextcloud's insert failed and it logged rather
-	 * than raised, so a SHA-256 search found nothing. Declaring the keys
-	 * differently (above) stops it happening again; this is what fixes what
-	 * already happened.
+	 * has them in the metadata documents and nowhere else, for every
+	 * algorithm longer than the index column: Nextcloud's insert failed and
+	 * it logged rather than raised, so a SHA-256 search found nothing.
+	 * Declaring the keys differently (above) stops it happening again; this
+	 * is what fixes what already happened.
 	 *
 	 * Files whose rows already match are skipped, so the run after the first
 	 * costs a query per page and no writes.

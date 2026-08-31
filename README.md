@@ -6,6 +6,34 @@ Nextcloud's `oc_filecache` stores checksums as space-delimited `algo:hash` pairs
 
 FCIAS stores checksums in Nextcloud's built-in **files metadata index** (`oc_files_metadata` / `oc_files_metadata_index`) and mirrors them back into the `filecache` checksum column. It adds composite indices to the built-in metadata index, enabling fast indexed reverse hash lookups without any custom tables.
 
+## What FCIAS stores, and where
+
+Two different things, in two of Nextcloud's own tables, and telling them apart is
+most of understanding this app:
+
+- A **metadata document** is one row of `oc_files_metadata` — a `json` column
+  holding *every* app's metadata for that file, FCIAS's hashes among them. It is
+  the record: values are stored whole, and none of it is searchable.
+- An **index row** is one row of `oc_files_metadata_index` — one per file per key,
+  and the only one of the two a query can reach. It is the lookup, and it is a
+  copy.
+
+FCIAS writes one key per algorithm into the metadata document
+(`file-checksum-hash-sha256`, and so on) alongside a `file-checksum-updated_at`
+stamp recording when the file was last considered, then writes its own index row
+for each hash. The stamp gets an index row too, and that row carries two things
+at once: the timestamp in its integer half, and in its string half what the file
+is waiting for (`pending:auto`) or why its hashes are not to be trusted
+(`stale:reset`). The hashes are additionally mirrored back into
+`oc_filecache.checksum`, where Nextcloud itself and sync clients look for them.
+
+**"Document" here never means the user's file.** A PDF has a metadata document,
+and so does a photo. Where this README and the code say *document* unqualified,
+they mean the row in `oc_files_metadata`.
+
+For what the two tables look like from a database client, see
+[FAQ § What am I looking at in the database?](docs/FAQ.md#what-am-i-looking-at-in-the-database).
+
 > **Note on long hashes:** Nextcloud core's `oc_files_metadata_index.meta_value_string` column is
 > `VARCHAR(63)` — a hard limit set by Nextcloud itself, not by FCIAS. A SHA-256 digest is 64
 > characters and a SHA-512 is 128, so they do not fit. The database does *not* quietly shorten
@@ -15,9 +43,9 @@ FCIAS stores checksums in Nextcloud's built-in **files metadata index** (`oc_fil
 >
 > So FCIAS writes these index rows itself, truncated to the column's width
 > (`MetadataService::syncHashIndex()`), and keeps the whole value in the metadata document. A
-> lookup truncates its search term the same way and then confirms the full value from the document
-> (`MetadataService::confirmFullHash()`), because 63 characters of a 64-character hash can be
-> shared by two different files. Truncated rows need no marker: hex digests are even-length, so
+> lookup truncates its search term the same way and then confirms the full value from the metadata
+> document (`MetadataService::confirmFullHash()`), because 63 characters of a 64-character hash
+> can be shared by two different files. Truncated rows need no marker: hex digests are even-length, so
 > nothing produces exactly 63 characters, and `meta_key` names the algorithm and therefore the
 > length to expect.
 >
@@ -35,7 +63,7 @@ FCIAS stores checksums in Nextcloud's built-in **files metadata index** (`oc_fil
 - **Automatic index maintenance** — Nextcloud file event listeners and background jobs
 - **Lazy & deferred hash recalculation** — a pending queue drained by a background job
 - **Public API v1** — HTTP REST and PHP surfaces with an OpenAPI spec
-- **12 CLI commands** for search, rule management, administration, and maintenance
+- **16 CLI commands** for search, rule management, administration, and maintenance
 - **User guide & FAQ** — served in-app, split by audience (see [Documentation](#documentation))
 
 ## Requirements
@@ -511,8 +539,8 @@ cannot be recovered by any other means, so the second word is the point.
 
 Removing hashes does not rewrite one metadata document per file. Each file is marked `stale:reset`,
 which takes it out of search and out of duplicate groups **immediately**, and the background job
-does the clearing as it goes — one database write per thousand files rather than one document
-rewrite each. `--now` does the clearing in the foreground instead, which is what a test fixture
+does the clearing as it goes — one database write per thousand files rather than one metadata
+document rewrite each. `--now` does the clearing in the foreground instead, which is what a fixture
 wants. `--backup=<path>` writes a backup first and abandons the whole run if that fails, and every
 forced run leaves one audit line at warning level naming who ran it and what they reset.
 

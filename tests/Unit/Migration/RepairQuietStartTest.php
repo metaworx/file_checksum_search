@@ -293,8 +293,9 @@ class RepairQuietStartTest
 
 	/**
 	 * The declaration stops it happening again; this fixes what already
-	 * happened — every hash sitting in a document with no index row, which
-	 * is every long hash on every instance that ran before the fix.
+	 * happened — every hash sitting in a metadata document with no index
+	 * row, which is every long hash on every instance that ran before the
+	 * fix.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */

@@ -310,7 +310,7 @@ HELP,
 
 
 	/**
-	 * Which slices to take from the document.
+	 * Which slices to take from the backup document.
 	 *
 	 * Naming none takes everything the file could hold — which for a hash
 	 * table is the hashes and nothing else. Defaulting to both regardless

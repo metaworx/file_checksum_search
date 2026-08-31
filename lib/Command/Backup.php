@@ -162,8 +162,8 @@ HELP,
 		}
 
 		// Every other format names the algorithm on each record, so --algo has
-		// nothing to do there. Saying so beats writing a document the operator
-		// believes is narrower than it is.
+		// nothing to do there. Saying so beats writing a backup document the
+		// operator believes is narrower than it is.
 		if ( is_string( $algo ) && $format !== FormatRegistry::FORMAT_SUM )
 		{
 			$errors->writeln(
@@ -230,8 +230,8 @@ HELP,
 	 * Where a diagnostic goes.
 	 *
 	 * Standard error where the console offers it: with no `--output` the
-	 * document *is* standard output, and a warning written into it would
-	 * corrupt the file the operator is piping somewhere.
+	 * backup document *is* standard output, and a warning written into it
+	 * would corrupt the file the operator is piping somewhere.
 	 */
 	private function errors( OutputInterface $output ): OutputInterface
 	{
@@ -305,8 +305,9 @@ HELP,
 		OutputInterface $output,
 	): void {
 
-		// To standard output the document *is* the output; a summary printed
-		// alongside it would land in the same stream and corrupt the file.
+		// To standard output the backup document *is* the output; a summary
+		// printed alongside it would land in the same stream and corrupt the
+		// file.
 		if ( ! is_string( $path ) )
 		{
 			return;

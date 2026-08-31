@@ -35,9 +35,9 @@ class JsonFormatTest
 
 
 	/**
-	 * A document must be readable by anything that reads JSON, not only by
-	 * the cursor that streams it — the streaming is an optimisation, not a
-	 * dialect.
+	 * A backup document must be readable by anything that reads JSON, not
+	 * only by the cursor that streams it — the streaming is an
+	 * optimisation, not a dialect.
 	 */
 	public function testWhatItWritesIsOrdinaryJson(): void
 	{
@@ -77,8 +77,8 @@ class JsonFormatTest
 	{
 
 		$stream = fopen( 'php://memory', 'r+' );
-		// A caller that supplies no header at all still gets a document that
-		// says what it is.
+		// A caller that supplies no header at all still gets a backup document
+		// that says what it is.
 		$this->format->write( [], $stream, new FormatOptions() );
 		rewind( $stream );
 		$decoded = json_decode( stream_get_contents( $stream ), true );
@@ -93,7 +93,7 @@ class JsonFormatTest
 	/**
 	 * The records array is streamed in both directions, so nothing can be
 	 * read past it — the writer puts it last and the reader says so when a
-	 * hand-made document does not.
+	 * hand-made backup document does not.
 	 */
 	public function testTheRecordsKeyMustBeLast(): void
 	{
@@ -168,9 +168,10 @@ class JsonFormatTest
 
 
 	/**
-	 * Records are decoded one at a time, so a document larger than anything
-	 * worth holding in memory still reads. The count is the observable part;
-	 * that it never assembled them all is what the cursor exists for.
+	 * Records are decoded one at a time, so a backup document larger than
+	 * anything worth holding in memory still reads. The count is the
+	 * observable part; that it never assembled them all is what the cursor
+	 * exists for.
 	 */
 	public function testManyRecordsReadWithoutAssemblingThemAll(): void
 	{

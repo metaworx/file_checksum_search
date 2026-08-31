@@ -85,9 +85,9 @@ class ProcessPendingUpdates
 			);
 
 			// Disowned files first: they are the cheapest work in the queue —
-			// a document rewrite, no hashing — and clearing one may put it
-			// straight back as pending:<mode>, which this same run then picks
-			// up rather than leaving for the next.
+			// a metadata document rewrite, no hashing — and clearing one may
+			// put it straight back as pending:<mode>, which this same run then
+			// picks up rather than leaving for the next.
 			$disowned = $this->ruleService->clearDisownedFiles( $batchLimit );
 
 			$pendingRows = $this->metadataService->fetchPendingBatch( $batchLimit );

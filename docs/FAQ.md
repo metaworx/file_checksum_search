@@ -33,10 +33,17 @@ FCIAS supports the following algorithms: `sha1`, `md5`, `sha256`, `sha512`,
 `sha3-256`, `sha3-512`, `crc32`, and `adler32`.
 
 For each file, the configured algorithm(s) produce a hex digest of the file
-content. Digests are stored as metadata keys of the form
-`file-checksum-{algo}` in Nextcloud's files metadata index
-(`oc_files_metadata_index`). A companion key `file-checksum-updated_at`
-records when the checksum was last refreshed.
+content. Each digest is stored under a metadata key of the form
+`file-checksum-hash-{algo}` — `file-checksum-hash-sha256`, and so on — in the
+file's **metadata document**, the row in `oc_files_metadata` that holds every
+app's metadata for that file as one JSON column. A companion key
+`file-checksum-updated_at` records when the file was last considered.
+
+Each hash is then copied into an **index row** in `oc_files_metadata_index`,
+which is the table a search can actually reach. The document is the record;
+the index is the lookup. See
+[What am I looking at in the database?](#what-am-i-looking-at-in-the-database)
+for what that distinction costs you if you query the index by hand.
 
 The computed checksums are also mirrored back into Nextcloud's `filecache`
 `checksum` column as `algo:hash` pairs, so the values remain visible to
@@ -44,6 +51,55 @@ anything that reads the standard filecache checksum field.
 
 No custom tables are required — FCIAS adds composite indices to the
 built-in metadata index.
+
+## What am I looking at in the database?
+
+Two tables, both Nextcloud's own, holding two different things.
+
+**`oc_files_metadata`** — one row per file, keyed by `file_id`, with a `json`
+column holding that file's metadata for *every* app. This is the **metadata
+document**. FCIAS's keys in it are:
+
+| Key | Holds |
+|-----|-------|
+| `file-checksum-hash-sha256` (one per algorithm) | the digest, **whole** |
+| `file-checksum-updated_at` | when the file was last considered, as a Unix timestamp |
+
+The word *document* here never means the user's file. A PDF has a metadata
+document; so does a photo.
+
+**`oc_files_metadata_index`** — one row per file per key, and the only one of
+the two that a query can search. FCIAS writes its own hash rows here:
+
+| Column | For a hash row | For the `updated_at` row |
+|--------|----------------|--------------------------|
+| `meta_key` | `file-checksum-hash-{algo}` | `file-checksum-updated_at` |
+| `meta_value_string` | the digest, **truncated to 63 characters** | the queue or trust state — `pending:auto`, `stale:reset`, … — or empty |
+| `meta_value_int` | 0 | the timestamp |
+
+Two things surprise people here.
+
+**The stored hash may be a prefix.** `meta_value_string` is `VARCHAR(63)`, set
+by Nextcloud, and a SHA-256 is 64 characters. FCIAS truncates on the way in and
+truncates its search term the same way, then reads the metadata document to
+confirm the full value before returning a match. **Anything querying this index
+directly must do the same** — compare truncated, confirm from the document —
+or it will happily return a file whose hash merely shares the first 63
+characters. Nothing marks a row as truncated, and nothing needs to: hex digests
+are even-length, so no whole digest is ever exactly 63 characters, and
+`meta_key` names the algorithm and therefore the length to expect.
+
+**The `updated_at` row does double duty.** Its integer half is the freshness
+stamp; its string half is what the file is waiting for or why its hashes are
+not to be trusted. Its absence means something too: a file whose metadata
+document holds hashes but which has no `updated_at` row at all is one the index
+has lost track of entirely, and no ordinary repair can reach it, because every
+one of them starts from a row it does not have. `occ fcias:repair --step
+unindexed-hashes` is the one that finds those.
+
+If you want to read the hashes rather than search them, read the metadata
+document: it holds them whole. `occ fcias:backup --format=sum` writes them out
+for you and does exactly that.
 
 ## How do rules work?
 
@@ -145,7 +201,8 @@ php occ fcias:reset --force --backup=/backups/before.json
 Resetting hashes does not clear them there and then. Each file is marked as
 disowned, which takes it out of search and out of duplicate groups
 **immediately**, and the background job clears them as it goes — one database
-write per thousand files instead of one document rewrite each. If you need it
+write per thousand files instead of one metadata document rewrite each. If you
+need it
 done before the command returns, add `--now`; expect roughly a file per few
 milliseconds, so a large instance takes a while.
 

@@ -99,8 +99,8 @@ class ExportService
 		$wantsHashes = in_array( self::SLICE_HASHES, $slices, true );
 
 		// The refusal belongs here rather than in the command, so that the
-		// PHP API cannot write a document that silently drops a slice the
-		// caller asked for.
+		// PHP API cannot write a backup document that silently drops a slice
+		// the caller asked for.
 		if ( ( $wantsConfig || $wantsStatus ) && ! $format->carriesConfig() )
 		{
 			throw new InvalidArgumentException(

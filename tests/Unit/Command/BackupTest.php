@@ -267,8 +267,9 @@ class BackupTest
 
 
 	/**
-	 * To standard output the document *is* the output: a summary printed
-	 * alongside it would land in the same stream and corrupt the file.
+	 * To standard output the backup document *is* the output: a summary
+	 * printed alongside it would land in the same stream and corrupt the
+	 * file.
 	 */
 	public function testNoSummaryIsPrintedWhenTheDocumentGoesToStandardOutput(): void
 	{
@@ -301,8 +302,8 @@ class BackupTest
 	/**
 	 * `--algo` narrows a checksum listing to one algorithm; every other
 	 * format names the algorithm on each record, so it has nothing to do
-	 * there. Saying so beats writing a document the operator believes is
-	 * narrower than it is.
+	 * there. Saying so beats writing a backup document the operator
+	 * believes is narrower than it is.
 	 */
 	public function testAPointlessAlgoIsCalledOut(): void
 	{

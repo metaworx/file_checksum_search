@@ -60,7 +60,7 @@ class ImportService
 
 
 	/**
-	 * Read a document and apply what it holds.
+	 * Read a backup document and apply what it holds.
 	 *
 	 * @param  resource  $stream
 	 *
@@ -115,7 +115,7 @@ class ImportService
 
 
 	/**
-	 * Refuse a document this version cannot honour.
+	 * Refuse a backup document this version cannot honour.
 	 *
 	 * The schema is the one thing a restore must not guess about: a document
 	 * from a future version may mean something different by the same field,

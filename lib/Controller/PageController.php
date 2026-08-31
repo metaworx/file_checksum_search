@@ -76,7 +76,7 @@ class PageController
 						'path'  => 'docs/FAQ.md',
 					],
 					[
-						// The document users are shown on their own settings
+						// The guide users are shown on their own settings
 						// page. An administrator answering a question about it
 						// should be reading the same words they are.
 						'label' => 'User Guide',

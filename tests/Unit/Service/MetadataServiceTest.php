@@ -1564,9 +1564,10 @@ class MetadataServiceTest
 
 	/**
 	 * The defect this fixes: `meta_value_string` is varchar(63), Nextcloud
-	 * inserts the value the document holds, and a SHA-256 is 64 characters.
-	 * The insert failed, `IndexRequestService::updateIndex()` swallowed it as
-	 * a logged warning, and searching for a SHA-256 found nothing at all.
+	 * inserts the value the metadata document holds, and a SHA-256 is 64
+	 * characters. The insert failed, `IndexRequestService::updateIndex()`
+	 * swallowed it as a logged warning, and searching for a SHA-256 found
+	 * nothing at all.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
@@ -1647,7 +1648,7 @@ class MetadataServiceTest
 	 *
 	 * Two files whose SHA-256 hashes agree for 63 characters and differ in
 	 * the 64th match the same index row. Only one of them is the file being
-	 * searched for, and the document is what says which.
+	 * searched for, and the metadata document is what says which.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
@@ -1657,9 +1658,9 @@ class MetadataServiceTest
 		$wanted = str_repeat( 'a', 63 ) . '1';
 		$other  = str_repeat( 'a', 63 ) . '2';
 
-		// The rows carry the document alongside them, the way queryByHash()
-		// returns them: the index says which files are candidates, the
-		// document says what they really hold.
+		// The rows carry the metadata document alongside them, the way
+		// queryByHash() returns them: the index says which files are
+		// candidates, the document says what they really hold.
 		$rows = [
 			$this->rowFor( 1, $wanted ),
 			$this->rowFor( 2, $other ),
@@ -1674,7 +1675,7 @@ class MetadataServiceTest
 
 	/**
 	 * A hash the index stored whole was already compared in full, so there
-	 * is nothing to confirm and no document to read.
+	 * is nothing to confirm and no metadata document to read.
 	 */
 	public function testAShortHashIsNotCheckedAgain(): void
 	{
@@ -1690,8 +1691,9 @@ class MetadataServiceTest
 
 
 	/**
-	 * The backfill's whole point: it walks the **documents**, because the
-	 * rows it exists to create are the ones the index does not have.
+	 * The backfill's whole point: it walks the **metadata documents**,
+	 * because the rows it exists to create are the ones the index does not
+	 * have.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
@@ -1710,8 +1712,8 @@ class MetadataServiceTest
 			],
 		);
 
-		// One page of one document, then nothing; the file already has the
-		// row its document calls for.
+		// One page of one metadata document, then nothing; the file already
+		// has the row its document calls for.
 		$pages = [
 			[
 				[
@@ -1772,8 +1774,8 @@ class MetadataServiceTest
 
 	/**
 	 * Two paths by length. A long hash matched on its first 63 characters
-	 * only, so the document is asked too — before the row is sent, so a file
-	 * that merely shares the prefix is never fetched or decoded.
+	 * only, so the metadata document is asked too — before the row is sent,
+	 * so a file that merely shares the prefix is never fetched or decoded.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
@@ -1786,8 +1788,8 @@ class MetadataServiceTest
 		$this->service->queryByHash( $hash, 'sha256' );
 
 		// The bare hash, not the key and value it sits in: a hex digest
-		// appears verbatim however Nextcloud serialises the document, so this
-		// cannot exclude a file that really holds it.
+		// appears verbatim however Nextcloud serialises the metadata
+		// document, so this cannot exclude a file that really holds it.
 		$this->assertContains( '%' . $hash . '%', $this->capturedLikes );
 	}
 
@@ -1818,8 +1820,8 @@ class MetadataServiceTest
 	public function testACompleteIndexIsNotWalked(): void
 	{
 
-		// Same count on both sides — every file whose document mentions a
-		// hash has a row.
+		// Same count on both sides — every file whose metadata document
+		// mentions a hash has a row.
 		$this->givenCountsOf( 100, 100 );
 
 		$this->queryBuilder->expects( $this->never() )
@@ -1847,10 +1849,10 @@ class MetadataServiceTest
 
 
 	/**
-	 * The expensive pass does not ask. A file whose document holds two
-	 * algorithms and whose index holds one counts once on each side, so the
-	 * counts agree while a row is still missing — this is the way to that
-	 * file.
+	 * The expensive pass does not ask. A file whose metadata document holds
+	 * two algorithms and whose index holds one counts once on each side, so
+	 * the counts agree while a row is still missing — this is the way to
+	 * that file.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
@@ -1889,11 +1891,12 @@ class MetadataServiceTest
 
 	/**
 	 * The flaw this was written after: matching `file-checksum-%` in the
-	 * document counts every file the app has ever *considered*, because
-	 * `file-checksum-updated_at` is one of those keys. On a real instance
-	 * that was 455 documents against 302 holding a hash — so the counts
-	 * never agreed, the guard never fired, and the expensive walk ran on
-	 * every repair while visiting half again as many rows as it needed.
+	 * metadata document counts every file the app has ever *considered*,
+	 * because `file-checksum-updated_at` is one of those keys. On a real
+	 * instance that was 455 metadata documents against 302 holding a hash —
+	 * so the counts never agreed, the guard never fired, and the expensive
+	 * walk ran on every repair while visiting half again as many rows as it
+	 * needed.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
@@ -1920,8 +1923,8 @@ class MetadataServiceTest
 
 		// The structural claim the one pattern rests on, asserted rather than
 		// assumed: the stamp key does not begin with the hash prefix, so a
-		// document holding nothing but a stamp cannot match. Move the stamp
-		// under that prefix and this fails, which is the point.
+		// metadata document holding nothing but a stamp cannot match. Move
+		// the stamp under that prefix and this fails, which is the point.
 		$this->assertStringStartsNotWith(
 			MetadataService::KEY_FILE_CHECKSUM_HASH_PREFIX,
 			MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT,
@@ -2315,9 +2318,9 @@ class MetadataServiceTest
 	public function testClearingRemovesTheIndexRowsSavingLeavesBehind(): void
 	{
 
-		// Saving upserts the keys the document has and leaves rows for the
-		// ones it lost, so a cleared file went on answering searches with
-		// hashes it no longer had. The document is the truth; the orphans
+		// Saving upserts the keys the metadata document has and leaves rows
+		// for the ones it lost, so a cleared file went on answering searches
+		// with hashes it no longer had. The document is the truth; the orphans
 		// have to be collected explicitly.
 		$deleted = false;
 		$this->queryBuilder->method( 'delete' )
@@ -2364,8 +2367,8 @@ class MetadataServiceTest
 	public function testClearingWithoutSavingTouchesNoIndexRows(): void
 	{
 
-		// The caller keeps the document to save later; pruning now would
-		// delete rows the unsaved document still claims.
+		// The caller keeps the metadata document to save later; pruning now
+		// would delete rows the unsaved document still claims.
 		$this->queryBuilder->expects( $this->never() )
 		                   ->method( 'delete' )
 		;
@@ -2379,7 +2382,7 @@ class MetadataServiceTest
 
 	/**
 	 * A row as {@see MetadataService::queryByHash()} returns one: the index
-	 * columns plus the file's whole document.
+	 * columns plus the file's whole metadata document.
 	 *
 	 * @return array<string, mixed>
 	 */
@@ -2428,7 +2431,7 @@ class MetadataServiceTest
 
 	/**
 	 * The two numbers the guard compares: files the index knows a hash for,
-	 * and documents that hold one.
+	 * and metadata documents that hold one.
 	 *
 	 * @noinspection PhpSameParameterValueInspection
 	 */

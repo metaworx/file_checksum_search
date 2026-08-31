@@ -317,11 +317,11 @@ class MetadataService
 		{
 			$this->metadataManager->saveMetadata( $metadata );
 
-			// Saving does not remove index rows for keys the document no
-			// longer has: it upserts what is present and leaves the rest.
-			// Those orphans still answer searches and still form duplicate
-			// groups, so a file whose hashes were cleared keeps being found
-			// by hashes it no longer has.
+			// Saving does not remove index rows for keys the metadata
+			// document no longer has: it upserts what is present and leaves
+			// the rest. Those orphans still answer searches and still form
+			// duplicate groups, so a file whose hashes were cleared keeps
+			// being found by hashes it no longer has.
 			$this->pruneHashIndexRows( $metadata->getFileId() );
 		}
 	}
@@ -503,10 +503,11 @@ class MetadataService
 	 * Whether a value read **from the index** may be a prefix rather than the
 	 * whole thing.
 	 *
-	 * The mirror of {@see isTruncatable()}, asked from the other side: at the
-	 * column's width there is no way to tell from the row alone, so anything
-	 * that long needs its full form read from the document before it can be
-	 * trusted. Shorter than that, it was stored whole.
+	 * The mirror of {@see isTruncatable()}, asked from the other side: at
+	 * the column's width there is no way to tell from the row alone, so
+	 * anything that long needs its full form read from the metadata
+	 * document before it can be trusted. Shorter than that, it was stored
+	 * whole.
 	 */
 	public static function isPossiblyTruncated( string $storedValue ): bool
 	{
@@ -623,10 +624,10 @@ class MetadataService
 		$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, 0, true );
 		$this->metadataManager->saveMetadata( $metadata );
 
-		// The document has no hashes now, so neither may the index: these
-		// keys are not indexed by Nextcloud, so nothing else would remove
-		// them and the file would keep answering searches by hashes it no
-		// longer has.
+		// The metadata document has no hashes now, so neither may the
+		// index: these keys are not indexed by Nextcloud, so nothing else
+		// would remove them and the file would keep answering searches by
+		// hashes it no longer has.
 		$this->syncHashIndex( $fileId, [] );
 
 		// After the save: saving regenerates the index row for updated_at,
@@ -787,17 +788,18 @@ class MetadataService
 
 
 	/**
-	 * Clear this app's hashes from files, now, one document at a time.
+	 * Clear this app's hashes from files, now, one metadata document at a
+	 * time.
 	 *
 	 * The synchronous counterpart to {@see markStale()}, for the operator who
 	 * wants the rows gone before they walk away rather than whenever the
 	 * drain next runs. It is the slow path by nature: `files_metadata_index`
-	 * is regenerated from the `files_metadata` document, so hashes can only
-	 * be removed by rewriting each document — a bulk DELETE over the index
+	 * is regenerated from the `files_metadata` document, so hashes can only be
+	 * removed by rewriting each of them — a bulk DELETE over the index
 	 * would be undone the next time anything saved that file's metadata.
 	 *
-	 * Paged, and each file's failure is contained: one unreadable document
-	 * must not abandon the rest of the instance half-cleared.
+	 * Paged, and each file's failure is contained: one unreadable metadata
+	 * document must not abandon the rest of the instance half-cleared.
 	 *
 	 * @param  callable(int, int): void|null  $progress  Called as (done, total).
 	 *
@@ -838,11 +840,12 @@ class MetadataService
 				}
 				catch ( Throwable $e )
 				{
-					// Nextcloud refuses to save a document whose file has no
-					// filecache row — it reads the storage id from there and
-					// gets `false`. Such a row describes a file that no longer
-					// exists, so dropping it outright is the honest outcome
-					// rather than leaving it to answer searches for ever.
+					// Nextcloud refuses to save a metadata document whose
+					// file has no filecache row — it reads the storage id
+					// from there and gets `false`. Such a row describes a
+					// file that no longer exists, so dropping it outright
+					// is the honest outcome rather than leaving it to
+					// answer searches for ever.
 					$this->logger->warning(
 						'FCIAS: could not clear metadata for fileId {fileId}; dropping its index rows.',
 						[
@@ -877,12 +880,13 @@ class MetadataService
 	/**
 	 * Every stored hash, one file at a time.
 	 *
-	 * Read from the **document**, never from the index: the index truncates
-	 * a value at {@see META_VALUE_STRING_MAX_LENGTH} characters, which is
-	 * shorter than a SHA-512 hash. A backup assembled from index rows would
-	 * look complete and restore half a hash, so the index is used only to
-	 * find *which* files have hashes — the answer it can give with one
-	 * indexed scan — and the document supplies the values.
+	 * Read from the **metadata document**, never from the index: the index
+	 * truncates a value at {@see META_VALUE_STRING_MAX_LENGTH} characters,
+	 * which is shorter than a SHA-512 hash. A backup assembled from index
+	 * rows would look complete and restore half a hash, so the index is
+	 * used only to find *which* files have hashes — the answer it can give
+	 * with one indexed scan — and the metadata document supplies the
+	 * values.
 	 *
 	 * Keyset paging by file id rather than by offset: the set is read-only
 	 * here, but a keyset page cannot skip a row if anything does change
@@ -1041,7 +1045,7 @@ class MetadataService
 	 *
 	 * @param  list<int>  $fileIds
 	 *
-	 * @return array<int, string>  file id => the document's JSON
+	 * @return array<int, string>  file id => the metadata document's JSON
 	 * @throws Exception
 	 */
 	private function fetchDocuments( array $fileIds ): array
@@ -1425,14 +1429,15 @@ class MetadataService
 
 
 	/**
-	 * Match documents that hold an actual hash, not merely a stamp.
+	 * Match metadata documents that hold an actual hash, not merely a stamp.
 	 *
 	 * One `LIKE` on the hash prefix, which is what the prefix is for: it
-	 * belongs to the hashes alone, so a document holding nothing but the
-	 * freshness stamp does not match it. `LIKE '%file-checksum-%'` did, which
-	 * on a real instance was the difference between 455 documents and the 302
-	 * that hold a hash — enough to make a count comparison never agree and a
-	 * walk visit half again as many rows as it needed to.
+	 * belongs to the hashes alone, so a metadata document holding nothing
+	 * but the freshness stamp does not match it. `LIKE '%file-checksum-%'`
+	 * did, which on a real instance was the difference between 455
+	 * documents and the 302 that hold a hash — enough to make a count
+	 * comparison never agree and a walk visit half again as many rows as it
+	 * needed to.
 	 *
 	 * The old spelling still costs one `LIKE` per algorithm, because
 	 * `file-checksum-` is exactly the ambiguous prefix this app moved away
@@ -1440,10 +1445,10 @@ class MetadataService
 	 * is paid by the repair's finder alone, which is what makes it worth
 	 * paying.
 	 *
-	 * Both match the key as it appears in the document, quoted. A value that
-	 * happened to contain the same text would be a false positive costing one
-	 * document read and nothing else: what the walk does next is decode it
-	 * and ask which hashes it actually holds.
+	 * Both match the key as it appears in the metadata document, quoted. A
+	 * value that happened to contain the same text would be a false
+	 * positive costing one document read and nothing else: what the walk
+	 * does next is decode it and ask which hashes it actually holds.
 	 *
 	 * @param  bool  $stamped  Which side of the stamp row to take: `true` for
 	 *                         the files this app has considered, `false` for
@@ -1518,13 +1523,14 @@ class MetadataService
 
 
 	/**
-	 * Whether every file whose document mentions a hash has an index row.
+	 * Whether every file whose metadata document mentions a hash has an index
+	 * row.
 	 *
 	 * Two counts, to answer in a millisecond a question that otherwise costs
-	 * a walk over every document:
+	 * a walk over every metadata document:
 	 *
 	 * - files the index knows a hash for;
-	 * - documents that mention one.
+	 * - metadata documents that mention one.
 	 *
 	 * Equal is the state after a completed pass. Fewer on the index side
 	 * means work is outstanding.
@@ -1535,11 +1541,11 @@ class MetadataService
 	 * were too long for the column to accept. The reverse mistake is the one
 	 * that matters and it cannot happen.
 	 *
-	 * Its limit, stated rather than buried: a file whose document holds two
-	 * algorithms while the index holds one counts once on each side, so this
-	 * calls it complete. Only an interrupted pass can leave that, and the
-	 * full pass is what answers it — which is why the caller can say it does
-	 * not want to be asked.
+	 * Its limit, stated rather than buried: a file whose metadata document
+	 * holds two algorithms while the index holds one counts once on each
+	 * side, so this calls it complete. Only an interrupted pass can leave
+	 * that, and the full pass is what answers it — which is why the caller
+	 * can say it does not want to be asked.
 	 *
 	 * @throws Exception
 	 */
@@ -1628,8 +1634,8 @@ class MetadataService
 				$this->renameKeyInDocuments( $chunk, $legacy, $current );
 			}
 
-			// Counted as files, not as statements: a document holding four
-			// algorithms is updated four times and is still one document.
+			// Counted as files, not as statements: a metadata document
+			// holding four algorithms is updated four times and is still one.
 			$touched += array_flip( $fileIds );
 			$rows    += $this->renameIndexRows( $legacy, $current );
 		}
@@ -1747,12 +1753,13 @@ class MetadataService
 	 * Give every stored hash the index row it should always have had.
 	 *
 	 * The repair for instances that ran before the app took over writing
-	 * these rows: the hashes are in the documents, and for every algorithm
-	 * longer than the column the row was never written, because Nextcloud's
-	 * insert failed and it logged rather than raised.
+	 * these rows: the hashes are in the metadata documents, and for every
+	 * algorithm longer than the column the row was never written, because
+	 * Nextcloud's insert failed and it logged rather than raised.
 	 *
-	 * Walks the **documents**, not the index. {@see exportHashes()} finds its
-	 * files through the index, which is precisely what is missing here.
+	 * Walks the **metadata documents**, not the index. {@see
+	 * exportHashes()} finds its files through the index, which is precisely
+	 * what is missing here.
 	 *
 	 * Files whose rows already match are left alone, so a second run costs
 	 * one query per page and no writes at all — which matters, because this
@@ -1836,9 +1843,9 @@ class MetadataService
 	 * Finding out costs the scan, so the step that calls this never runs on
 	 * its own — it is `manualOnly`, and an administrator asks for it.
 	 *
-	 * The stamp row goes back with the hash rows, from the value the document
-	 * itself carries. Without it the file would be repaired and still
-	 * invisible to the next run of everything else.
+	 * The stamp row goes back with the hash rows, from the value the
+	 * metadata document itself carries. Without it the file would be
+	 * repaired and still invisible to the next run of everything else.
 	 *
 	 * @param  callable|null  $progress  Called per page with (files seen, files fixed).
 	 *
@@ -1937,13 +1944,13 @@ class MetadataService
 	/**
 	 * Rename any legacy hash key inside one metadata document.
 	 *
-	 * The bulk rename finds its work through the index, so it cannot reach a
-	 * file whose hash rows were never written — which is the population the
-	 * index-truncation fix existed to rescue, and exactly what this walk
-	 * meets. Here the document is in hand, so the replacement is done in
-	 * memory and written back as one statement.
+	 * The bulk rename finds its work through the index, so it cannot reach
+	 * a file whose hash rows were never written — which is the population
+	 * the index-truncation fix existed to rescue, and exactly what this
+	 * walk meets. Here the metadata document is in hand, so the replacement
+	 * is done in memory and written back as one statement.
 	 *
-	 * @return string  The document as it now stands, renamed or unchanged.
+	 * @return string  The metadata document as it now stands, renamed or unchanged.
 	 * @throws Exception
 	 */
 	private function renameLegacyKeysInDocument(
@@ -1985,12 +1992,13 @@ class MetadataService
 	/**
 	 * One page of metadata documents that mention any of this app's hashes.
 	 *
-	 * `LIKE` on the document rather than a join through the index, because
-	 * the rows this is here to create are the ones that do not exist yet. It
-	 * is a scan, once, over a table with one row per file that has any
-	 * metadata at all — the price of having written nothing down.
+	 * `LIKE` on the metadata document rather than a join through the index,
+	 * because the rows this is here to create are the ones that do not
+	 * exist yet. It is a scan, once, over a table with one row per file
+	 * that has any metadata at all — the price of having written nothing
+	 * down.
 	 *
-	 * @return array<int, string>  file id => the document's JSON, in id order
+	 * @return array<int, string>  file id => the metadata document's JSON, in id order
 	 * @throws Exception
 	 */
 	private function pageHashDocumentsAfter(
@@ -2074,30 +2082,31 @@ class MetadataService
 	/**
 	 * Write this app's own index rows for a file's hashes.
 	 *
-	 * Nextcloud cannot do it: it indexes the value the document holds, and
-	 * `meta_value_string` is varchar(63) — shorter than four of the seven
-	 * algorithms this app supports. So the hash keys are registered
-	 * unindexed ({@see register()}) and the rows are written here instead,
-	 * truncated to fit, exactly as {@see queryByHash()} truncates the term it
-	 * searches for.
+	 * Nextcloud cannot do it: it indexes the value the metadata document
+	 * holds, and `meta_value_string` is varchar(63) — shorter than four of
+	 * the seven algorithms this app supports. So the hash keys are
+	 * registered unindexed ({@see register()}) and the rows are written
+	 * here instead, truncated to fit, exactly as {@see queryByHash()}
+	 * truncates the term it searches for.
 	 *
 	 * A truncated row is recognisable without a marker: hex digests are
-	 * even-length by construction — 8, 32, 40, 64, 128 — so nothing produces
-	 * exactly 63 characters, and `meta_key` names the algorithm, so the full
-	 * length is known. Callers confirm the full value from the document where
-	 * the length says they must. `MetadataServiceTest` guards the assumption.
+	 * even-length by construction — 8, 32, 40, 64, 128 — so nothing
+	 * produces exactly 63 characters, and `meta_key` names the algorithm,
+	 * so the full length is known. Callers confirm the full value from the
+	 * metadata document where the length says they must.
+	 * `MetadataServiceTest` guards the assumption.
 	 *
 	 * Called after `saveMetadata()`, like {@see upsertUpdatedAtString()}:
 	 * saving regenerates the index rows for indexed keys, so a row written
 	 * before it would be thrown away.
 	 *
-	 * Both directions: rows for algorithms the document no longer has are
-	 * removed. Nextcloud used to do that on save — it drops and re-inserts
-	 * each indexed key — and now that these keys are not indexed it does not
-	 * touch them at all, so a hash removed from the document would otherwise
-	 * keep answering searches for ever.
+	 * Both directions: rows for algorithms the metadata document no longer
+	 * has are removed. Nextcloud used to do that on save — it drops and
+	 * re-inserts each indexed key — and now that these keys are not indexed
+	 * it does not touch them at all, so a hash removed from the document
+	 * would otherwise keep answering searches for ever.
 	 *
-	 * @param  array<string, string>  $algoToHash  The document's hashes; empty removes every row.
+	 * @param  array<string, string>  $algoToHash  The metadata document's hashes; empty removes every row.
 	 *
 	 * @return int  Rows written.
 	 * @throws Exception
@@ -2391,14 +2400,15 @@ class MetadataService
 		// whole above and there is nothing left to ask.
 		//
 		// A longer one matched on its first 63 characters only, so the
-		// document is asked as well — server-side, before the row is sent.
-		// The pattern is the bare hash rather than the key and value it sits
-		// in: a hex digest appears verbatim in the document however Nextcloud
-		// serialises it, so this **cannot** exclude a file that really holds
-		// the hash, whatever changes around it. It can over-match, which is
-		// why {@see confirmFullHash()} stays the authority — this narrows,
-		// it does not decide. What it saves is fetching, transporting and
-		// decoding a document only to throw the row away in PHP.
+		// metadata document is asked as well — server-side, before the row
+		// is sent. The pattern is the bare hash rather than the key and
+		// value it sits in: a hex digest appears verbatim in the metadata
+		// document however Nextcloud serialises it, so this **cannot**
+		// exclude a file that really holds the hash, whatever changes
+		// around it. It can over-match, which is why {@see
+		// confirmFullHash()} stays the authority — this narrows, it does
+		// not decide. What it saves is fetching, transporting and decoding
+		// a metadata document only to throw the row away in PHP.
 		if ( self::isTruncatable( $hash ) )
 		{
 			$qb->andWhere(
@@ -2643,11 +2653,11 @@ class MetadataService
 		{
 			foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
 			{
-				// Registered **unindexed**, and indexed by this app instead —
-				// see {@see syncHashIndex()}. Nextcloud writes the value it
-				// finds in the document, and `meta_value_string` is
-				// varchar(63): a SHA-256 is 64 characters and a SHA-512 is
-				// 128, so the insert fails, and
+				// Registered **unindexed**, and indexed by this app instead
+				// — see {@see syncHashIndex()}. Nextcloud writes the value
+				// it finds in the metadata document, and
+				// `meta_value_string` is varchar(63): a SHA-256 is 64
+				// characters and a SHA-512 is 128, so the insert fails, and
 				// `IndexRequestService::updateIndex()` swallows that as a
 				// logged warning. The row is simply never written, and
 				// searching for one of those hashes finds nothing at all.

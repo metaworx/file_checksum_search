@@ -27,7 +27,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
 /**
- * Composing the three slices into one document.
+ * Composing the three slices into one backup document.
  */
 class ExportServiceTest
 	extends
@@ -391,7 +391,7 @@ class ExportServiceTest
 
 
 	/**
-	 * The whole document, and the counts an operator reads afterwards.
+	 * The whole backup document, and the counts an operator reads afterwards.
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testAFullBackupCarriesEverySliceAndCountsIt(): void

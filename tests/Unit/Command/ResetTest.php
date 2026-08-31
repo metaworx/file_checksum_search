@@ -153,8 +153,8 @@ class ResetTest
 
 
 	/**
-	 * Disowning is one write per thousand files; clearing is one document
-	 * rewrite each. The default defers, and says so.
+	 * Disowning is one write per thousand files; clearing is one metadata
+	 * document rewrite each. The default defers, and says so.
 	 */
 	public function testHashesAreDisownedRatherThanCleared(): void
 	{
