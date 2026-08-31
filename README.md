@@ -72,8 +72,8 @@ rule — see [How hashing happens](#how-hashing-happens).
 
 ## CLI Reference
 
-FCIAS provides 15 `occ` commands — five for files and search, five for rules, two for status,
-and three for the state the app owns. Run them as `php occ <command>`.
+FCIAS provides 16 `occ` commands — four for files and search, five for rules, two for status,
+three for the state the app owns, one for repair, and one for the queue. Run them as `php occ <command>`.
 
 ### Core Commands
 
@@ -82,7 +82,6 @@ and three for the state the app owns. Run them as `php occ <command>`.
 | `file-checksum-search:search <query>` | Search files by hash value or `algo:hash` pair |
 | `file-checksum-search:hash [options]` | Compute checksums for user files, or mark them for background processing |
 | `file-checksum-search:find-duplicates [options]` | Find files with duplicate hash values |
-| `file-checksum-search:rebuild [--batch-size=<n>]` | Backfill the hash index from existing filecache checksums |
 | `file-checksum-search:test-perf` | Benchmark indexed lookup vs unindexed LIKE scan |
 
 #### `hash` and the rules
@@ -133,6 +132,26 @@ warning level.
 | `file-checksum-search:show-config [--output=<fmt>]` | Display all app config key/value pairs |
 
 `--output` accepts `plain` (default), `json`, or `json_pretty`.
+
+### Repair Commands
+
+| Command | Description |
+|---------|-------------|
+| `file-checksum-search:repair [options]` | Run this app's repair steps, all of them or by name |
+| `file-checksum-search:queue:drain [options]` | Compute the hashes the rules have asked for, without waiting for cron |
+
+`--list` describes every step; `--step <name>` runs some of them and is repeatable; `--dry-run`
+says what would run and changes nothing. A step marked *expensive* costs more the larger the
+instance, so it asks whether there is anything to do before doing it — `--include-expensive`
+tells it not to ask. These are the same steps `occ maintenance:repair` runs, without every other
+app's.
+
+`queue:drain` is deliberately not one of those steps: every repair step reconciles state
+the instance already holds and runs on every upgrade, whereas draining reads file content.
+`--batch-size` takes one batch of that size; with neither flag it takes the
+`pending_batch_limit` setting the background job uses, so tuning that is honoured in both
+places. A run that leaves work behind says how much, which limit stopped it, and both ways
+past it. `--all` keeps going until the queue is empty.
 
 ### State Commands
 
@@ -196,7 +215,9 @@ php occ file-checksum-search:show-config --output=json_pretty
 php occ file-checksum-search:status
 
 # Rebuild the checksum metadata index from filecache
-php occ file-checksum-search:rebuild
+# See what the repair could do, and do one part of it
+php occ fcias:repair --list
+php occ fcias:repair --step rebuild-from-filecache
 
 # Back up everything the app owns
 php occ fcias:backup -o /backups/fcias.json
@@ -243,7 +264,7 @@ Once a rule is enabled, five paths lead to a hash:
    `exclude` rule refuses: `ignore` means "not automatically", and asking is not automatic.
 
 Installing the app reads no file content at all. It copies the checksums Nextcloud's own filecache
-already carries into the searchable index; `occ file-checksum-search:rebuild` does the same on
+already carries into the searchable index; `occ fcias:repair --step rebuild-from-filecache` does the same on
 demand, and neither overwrites a hash the app already stored.
 
 ### Which file a rule is talking about
@@ -646,11 +667,26 @@ decided each file.
 owns, `occ fcias:reset` gives it back — reporting only, until `--force` — and `occ fcias:import`
 reads it in again. See [Backing up, resetting and importing](#backing-up-resetting-and-importing).
 
-If the checksum metadata index becomes out of sync with `oc_filecache`, rebuild it:
+**The index looks wrong.** Which repair you want depends on where the truth is:
 
 ```bash
-php occ file-checksum-search:rebuild
+php occ fcias:repair --list                          # what each step does
+php occ fcias:repair --step rebuild-from-filecache   # clients show a checksum this app lacks
+php occ fcias:repair --step rebuild-from-metadata    # the file's details show a hash search cannot find
+php occ fcias:repair --step clear-disowned            # a reset left hashes for the job to clear
 ```
+
+If the rules have asked for hashes nothing has computed yet, that is not a repair —
+it reads file content — and lives in its own command:
+
+```bash
+php occ fcias:queue:drain --batch-size 200   # one batch
+php occ fcias:queue:drain --all              # until the queue is empty
+```
+
+Running `occ fcias:repair` with no step does all of them, and every step is safe to run again.
+A step marked *expensive* asks whether there is anything to do before doing it;
+`--include-expensive` tells it not to ask.
 
 For hashes that are missing or outdated, table-prefix configuration, and other common issues, see [docs/FAQ.md § Troubleshooting](docs/FAQ.md#troubleshooting).
 

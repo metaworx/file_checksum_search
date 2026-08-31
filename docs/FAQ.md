@@ -238,11 +238,31 @@ for the full permission model.
 
 ### The index is out of sync with filecache
 
-Rebuild the checksum metadata index from existing filecache checksums:
+Which repair you want depends on where the truth is. `occ fcias:repair --list`
+describes each step; the three that rebuild something are:
 
 ```bash
-php occ file-checksum-search:rebuild
+# clients show a checksum this app does not know
+php occ fcias:repair --step rebuild-from-filecache
+
+# a file's details show a hash, but searching for it finds nothing
+php occ fcias:repair --step rebuild-from-metadata
+
+# a reset left hashes for the background job to clear
+php occ fcias:repair --step clear-disowned
 ```
+
+If the rules have asked for hashes that nothing has computed yet, that is not a
+repair — it reads file content — and has its own command:
+
+```bash
+php occ fcias:queue:drain --batch-size 200   # one batch
+php occ fcias:queue:drain --all              # until the queue is empty
+```
+
+With no step named it runs all of them. Every step is safe to run again, and one
+marked *expensive* asks whether there is anything to do before doing it —
+`--include-expensive` tells it not to ask.
 
 ### Hashes are missing or outdated
 
