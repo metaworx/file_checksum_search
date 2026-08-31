@@ -1903,19 +1903,28 @@ class MetadataServiceTest
 		$this->givenCountsOf( 100, 100 );
 		$this->service->hashIndexIsComplete();
 
+		$this->assertContains(
+			'%"' . MetadataService::KEY_FILE_CHECKSUM_HASH_PREFIX . '%',
+			$this->capturedLikes,
+			'one pattern on the prefix, which is what having a prefix is for',
+		);
 		$this->assertNotContains(
-			'%' . MetadataService::KEY_FILE_CHECKSUM_LIKE . '%',
+			'%"' . MetadataService::KEY_FILE_CHECKSUM_PREFIX . '%',
 			$this->capturedLikes,
 			'a pattern that broad matches the stamp as well as the hashes',
-		);
-		$this->assertContains(
-			'%"' . MetadataService::getHashKey( 'sha256' ) . '":%',
-			$this->capturedLikes,
-			'each algorithm is named, on the key as the document writes it',
 		);
 		$this->assertNotContains(
 			'%"' . MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT . '":%',
 			$this->capturedLikes,
+		);
+
+		// The structural claim the one pattern rests on, asserted rather than
+		// assumed: the stamp key does not begin with the hash prefix, so a
+		// document holding nothing but a stamp cannot match. Move the stamp
+		// under that prefix and this fails, which is the point.
+		$this->assertStringStartsNotWith(
+			MetadataService::KEY_FILE_CHECKSUM_HASH_PREFIX,
+			MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT,
 		);
 	}
 
@@ -1937,13 +1946,28 @@ class MetadataServiceTest
 		$this->service->hashIndexIsComplete();
 
 		$this->assertContains(
-			'%"' . MetadataService::getHashKey( 'sha256' ) . '":%',
+			'%"' . MetadataService::KEY_FILE_CHECKSUM_HASH_PREFIX . '%',
 			$this->capturedLikes,
+			'the current spelling needs one pattern, because it has a prefix',
 		);
-		$this->assertContains(
-			'%"' . MetadataService::legacyHashKey( 'sha256' ) . '":%',
+
+		// And the old one needs seven, because `file-checksum-` is the
+		// ambiguous prefix this app moved away from: matching it would bring
+		// back the false positives the rename removed. That asymmetry is the
+		// rename's whole argument, so it is worth a test of its own.
+		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+		{
+			$this->assertContains(
+				'%"' . MetadataService::legacyHashKey( $algo ) . '":%',
+				$this->capturedLikes,
+				'a document written before the rename is what the repair is for',
+			);
+		}
+
+		$this->assertNotContains(
+			'%"' . MetadataService::KEY_FILE_CHECKSUM_PREFIX . '%',
 			$this->capturedLikes,
-			'a document written before the rename is what the repair is for',
+			'and never by the prefix they share with the stamp',
 		);
 	}
 

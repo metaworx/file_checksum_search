@@ -347,11 +347,6 @@ class MetadataService
 			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
 			   $qb->expr()
 			      ->like( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
-			   $qb->expr()
-			      ->neq(
-				      self::FIELD_META_KEY,
-				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
-			      ),
 		   )
 		;
 
@@ -378,11 +373,6 @@ class MetadataService
 			      ->like(
 				      self::FIELD_META_KEY,
 				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ),
-			      ),
-			   $qb->expr()
-			      ->neq(
-				      self::FIELD_META_KEY,
-				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
 			      ),
 		   )
 		;
@@ -1024,11 +1014,6 @@ class MetadataService
 			   $qb->expr()
 			      ->like( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
 			   $qb->expr()
-			      ->neq(
-				      self::FIELD_META_KEY,
-				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
-			      ),
-			   $qb->expr()
 			      ->gt(
 				      self::FIELD_FILE_ID,
 				      $qb->createNamedParameter( $afterFileId, IQueryBuilder::PARAM_INT ),
@@ -1104,11 +1089,6 @@ class MetadataService
 		   ->where(
 			   $qb->expr()
 			      ->like( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
-			   $qb->expr()
-			      ->neq(
-				      self::FIELD_META_KEY,
-				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
-			      ),
 		   )
 		;
 
@@ -1447,14 +1427,23 @@ class MetadataService
 	/**
 	 * Match documents that hold an actual hash, not merely a stamp.
 	 *
-	 * `LIKE '%file-checksum-%'` is too broad: `file-checksum-updated_at` is
-	 * one of these keys, so every file the app has ever *considered* matches
-	 * it, hashed or not. On a real instance that is the difference between
-	 * 455 documents and the 302 that hold a hash — enough to make a count
-	 * comparison never agree and a walk visit half again as many rows as it
-	 * needs to.
+	 * One `LIKE` on the hash prefix, which is what the prefix is for: it
+	 * belongs to the hashes alone, so a document holding nothing but the
+	 * freshness stamp does not match it. `LIKE '%file-checksum-%'` did, which
+	 * on a real instance was the difference between 455 documents and the 302
+	 * that hold a hash — enough to make a count comparison never agree and a
+	 * walk visit half again as many rows as it needed to.
 	 *
-	 * One `LIKE` per algorithm, on the key as it appears in the document.
+	 * The old spelling still costs one `LIKE` per algorithm, because
+	 * `file-checksum-` is exactly the ambiguous prefix this app moved away
+	 * from and matching it would bring those false positives back. That price
+	 * is paid by the repair's finder alone, which is what makes it worth
+	 * paying.
+	 *
+	 * Both match the key as it appears in the document, quoted. A value that
+	 * happened to contain the same text would be a false positive costing one
+	 * document read and nothing else: what the walk does next is decode it
+	 * and ask which hashes it actually holds.
 	 *
 	 * @param  bool  $stamped  Which side of the stamp row to take: `true` for
 	 *                         the files this app has considered, `false` for
@@ -1497,29 +1486,28 @@ class MetadataService
 				     ->notIn( self::FIELD_FILE_ID, $qb->createFunction( $considered->getSQL() ) ),
 		);
 
-		$patterns = [];
+		$patterns = [
+			$qb->expr()
+			   ->like(
+				   self::FIELD_JSON,
+				   $qb->createNamedParameter( '%"' . self::KEY_FILE_CHECKSUM_HASH_PREFIX . '%' ),
+			   ),
+		];
 
 		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
 		{
-			// Both spellings. This is the repair's finder, and a metadata
-			// document restored from before the rename is exactly what it
-			// exists to find — a repair that cannot recognise what it
-			// repairs is no use. Nothing on a request path evaluates these:
-			// the only caller is {@see reindexHashes()}.
-			foreach (
-				[
-					self::getHashKey( $algo ),
-					self::legacyHashKey( $algo ),
-				] as $key
-			)
-			{
-				$patterns[] = $qb->expr()
-				                 ->like(
-					                 self::FIELD_JSON,
-					                 $qb->createNamedParameter( '%"' . $key . '":%' ),
-				                 )
-				;
-			}
+			// The old spelling, named one algorithm at a time. This is the
+			// repair's finder, and a metadata document restored from before
+			// the rename is exactly what it exists to find — a repair that
+			// cannot recognise what it repairs is no use. Nothing on a
+			// request path evaluates these: the only callers are
+			// {@see reindexHashes()} and {@see reindexUnstampedHashes()}.
+			$patterns[] = $qb->expr()
+			                 ->like(
+				                 self::FIELD_JSON,
+				                 $qb->createNamedParameter( '%"' . self::legacyHashKey( $algo ) . '":%' ),
+			                 )
+			;
 		}
 
 		$qb->andWhere(
@@ -1567,11 +1555,6 @@ class MetadataService
 		   ->where(
 			   $qb->expr()
 			      ->like( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
-			   $qb->expr()
-			      ->neq(
-				      self::FIELD_META_KEY,
-				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
-			      ),
 		   )
 		;
 
@@ -2072,11 +2055,6 @@ class MetadataService
 			      ),
 			   $qb->expr()
 			      ->like( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
-			   $qb->expr()
-			      ->neq(
-				      self::FIELD_META_KEY,
-				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
-			      ),
 		   )
 		;
 
@@ -2506,17 +2484,9 @@ class MetadataService
 		   )
 		   ->where(
 			   $qb->expr()
-			      ->andX(
-				      $qb->expr()
-				         ->like(
-					         'i.' . self::FIELD_META_KEY,
-					         $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ),
-				         ),
-				      $qb->expr()
-				         ->neq(
-					         'i.' . self::FIELD_META_KEY,
-					         $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
-				         ),
+			      ->like(
+				      'i.' . self::FIELD_META_KEY,
+				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ),
 			      ),
 		   )
 		   ->groupBy( 'i.' . self::FIELD_META_VALUE_STRING )
@@ -2775,11 +2745,6 @@ class MetadataService
 			      ->like(
 				      self::FIELD_META_KEY,
 				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ),
-			      ),
-			   $qb->expr()
-			      ->neq(
-				      self::FIELD_META_KEY,
-				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
 			      ),
 		   )
 		;
