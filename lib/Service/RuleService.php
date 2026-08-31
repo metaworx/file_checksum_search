@@ -850,6 +850,73 @@ class RuleService
 
 
 	/**
+	 * Clear the files an operator disowned, and re-queue those a rule still
+	 * governs.
+	 *
+	 * A reset marks rather than clears, so the expensive half — rewriting one
+	 * metadata document per file — lands here, where it is paged and
+	 * interruptible. The marker is dropped as part of clearing, which is what
+	 * ends the file's exclusion from searches.
+	 *
+	 * A file an enabled `include` rule still governs is queued again
+	 * immediately: the operator disowned the stored hashes, not the intent to
+	 * have hashes. A file no rule governs is simply left without any.
+	 *
+	 * An import that already wrote acceptable hashes cleared the marker
+	 * itself, so this never sees that file — the case needs no handling
+	 * because it is the absence of work.
+	 *
+	 * Reads no file content, which is what lets the repair run it: it
+	 * reconciles state the instance already holds, where hashing the queue
+	 * computes new state and belongs to a command of its own.
+	 *
+	 * @return int  Files cleared.
+	 */
+	public function clearDisownedFiles( int $batchLimit ): int
+	{
+
+		$fileIds = $this->metadataService->fetchStaleBatch( $batchLimit );
+		$cleared = 0;
+
+		foreach ( $fileIds as $fileId )
+		{
+			try
+			{
+				$this->metadataService->clearMetadata( $fileId );
+
+				$rule = $this->findFirstMatchingRule( $fileId );
+
+				if ( self::maintainsHashes( $rule ) )
+				{
+					$this->metadataService->markPending(
+						$fileId,
+						MetadataService::PENDING_PREFIX
+						. ( $rule['mode'] ?? MetadataService::PENDING_MODE_AUTO ),
+					);
+				}
+
+				$cleared ++;
+			}
+			catch ( Throwable $e )
+			{
+				// One unreadable file must not strand the rest: the marker
+				// stays, so the next run tries it again.
+				$this->logger->warning(
+					'FCIAS: could not clear disowned fileId {fileId}; it stays marked.',
+					[
+						'app'       => Application::APP_ID,
+						'fileId'    => $fileId,
+						'exception' => $e,
+					],
+				);
+			}
+		}
+
+		return $cleared;
+	}
+
+
+	/**
 	 * The first enabled rule that governs this file, or null.
 	 *
 	 * Identity-based: the file id resolves to its canonical location

@@ -29,6 +29,7 @@ use OCP\IUser;
 use OCP\IUserManager;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -3315,6 +3316,163 @@ class RuleServiceTest
 		;
 
 		$this->service->ruleDelete( 'mandate', 'cli' );
+	}
+
+
+	// ─── clearing what a reset disowned ──────────────────────────────
+
+
+	/**
+	 * The operator disowned the stored hashes, not the intent to have them:
+	 * a file its rule still covers goes straight back on the queue.
+	 *
+	 * Lives here rather than in the background job because it is the rules
+	 * that decide, and because the repair calls the same method — the job is
+	 * one caller of two.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testADisownedFileIsClearedAndRequeuedWhenARuleStillGoverns(): void
+	{
+
+		$this->metadataService->method( 'fetchStaleBatch' )
+		                      ->willReturn( [ 42 ] )
+		;
+		$this->givenTheGoverningRuleIs(
+			[
+				'id'      => 'r1',
+				'type'    => 'include',
+				'mode'    => 'force',
+				'enabled' => true,
+			],
+		);
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'clearMetadata' )
+		                      ->with( 42 )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 42, 'pending:force' )
+		;
+
+		$this->assertSame( 1, $this->service->clearDisownedFiles( 50 ) );
+	}
+
+
+	/**
+	 * And a file no rule covers is simply left without hashes.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testADisownedFileNoRuleGovernsIsLeftWithoutHashes(): void
+	{
+
+		$this->metadataService->method( 'fetchStaleBatch' )
+		                      ->willReturn( [ 42 ] )
+		;
+		$this->givenTheGoverningRuleIs( null );
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'clearMetadata' )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'markPending' )
+		;
+
+		$this->assertSame( 1, $this->service->clearDisownedFiles( 50 ) );
+	}
+
+
+	/**
+	 * One file that will not clear must not strand the rest: its marker
+	 * stays, so the next run tries it again.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testOneUnclearableDisownedFileDoesNotStrandTheRest(): void
+	{
+
+		$this->metadataService->method( 'fetchStaleBatch' )
+		                      ->willReturn( [
+			                      1,
+			                      2,
+		                      ] )
+		;
+		$this->givenTheGoverningRuleIs( null );
+
+		$cleared = [];
+		$this->metadataService->method( 'clearMetadata' )
+		                      ->willReturnCallback(
+			                      static function (
+				                      int $fileId,
+			                      ) use
+			                      (
+				                      &
+				                      $cleared,
+			                      ): void
+			                      {
+
+				                      if ( $fileId === 1 )
+				                      {
+					                      throw new RuntimeException( 'unreadable' );
+				                      }
+
+				                      $cleared[] = $fileId;
+			                      },
+		                      )
+		;
+
+		$this->assertSame( 1, $this->service->clearDisownedFiles( 50 ) );
+		$this->assertSame( [ 2 ], $cleared );
+	}
+
+
+	/**
+	 * @param  array<string, mixed>|null  $rule
+	 */
+	private function givenTheGoverningRuleIs( ?array $rule ): void
+	{
+
+		// A verdict needs the file's canonical identity before it needs a
+		// rule: no filecache row, no match, whatever the rules say.
+		$this->filecacheService->method( 'locateAll' )
+		                       ->willReturnCallback(
+			                       static function (
+				                       array $fileIds,
+			                       ): array {
+
+				                       $located = [];
+
+				                       foreach ( $fileIds as $fileId )
+				                       {
+					                       $located[ $fileId ] = FileLocation::fromRow(
+						                       $fileId,
+						                       'home::alice',
+						                       'files/a.txt',
+						                       100,
+					                       );
+				                       }
+
+				                       return $located;
+			                       },
+		                       )
+		;
+
+		$this->appConfig->method( 'getValueString' )
+		                ->willReturn(
+			                $rule === null
+				                ? '[]'
+				                : json_encode(
+				                [
+					                $rule + [
+						                'path'     => '**',
+						                'selector' => '*',
+					                ],
+				                ],
+			                ),
+		                )
+		;
 	}
 
 }

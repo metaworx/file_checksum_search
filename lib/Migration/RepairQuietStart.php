@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\BackgroundJob\IJobList;
+use OCP\IAppConfig;
 use OCP\IDBConnection;
 use OCP\Migration\IOutput;
 use OCP\Migration\IRepairStep;
@@ -60,6 +61,7 @@ class RepairQuietStart
 		private readonly RuleService      $ruleService,
 		private readonly MetadataService  $metadataService,
 		private readonly HashIndexService $hashIndexService,
+		private readonly IAppConfig       $appConfig,
 		private readonly IDBConnection    $db,
 		private readonly IJobList         $jobList,
 		private readonly LoggerInterface  $logger,
@@ -447,6 +449,60 @@ class RepairQuietStart
 		{
 			$this->warn( $output, 'could not index the stored hashes', $e );
 		}
+	}
+
+
+	/**
+	 * Finish what a reset deferred.
+	 *
+	 * `fcias:reset --hashes` marks rather than clears, so the file leaves
+	 * every search at once while the expensive half — one metadata document
+	 * rewritten per file — is left for later. This is later. A file an
+	 * enabled `include` rule still governs goes back on the queue, because
+	 * the operator disowned the stored hashes and not the intent to have
+	 * them.
+	 *
+	 * Reads no file content, which is what makes it a repair: it reconciles
+	 * state the instance already holds. Computing the hashes the queue then
+	 * asks for is different work, and lives in `fcias:queue:drain`.
+	 *
+	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
+	 */
+	#[RepairStep(
+		name: 'clear-disowned',
+		title: 'Finish clearing what a reset disowned',
+		description: 'Clears the stored hashes of files a reset marked as disowned, and puts back on '
+		. 'the queue those a rule still covers. Reads no file content. A reset leaves this work to the '
+		. 'background job; run this to have it done now.',
+		expensive: true,
+	)]
+	private function clearDisowned( IOutput $output ): void
+	{
+
+		$cleared = $this->ruleService->clearDisownedFiles( $this->batchLimit() );
+
+		$output->info(
+			$cleared === 0
+				? 'FCIAS: no disowned files were waiting to be cleared.'
+				: sprintf( 'FCIAS: cleared %d disowned files.', $cleared ),
+		);
+	}
+
+
+	/**
+	 * How many files one pass takes.
+	 *
+	 * The same limit the background job uses, so an administrator who tuned
+	 * it gets it honoured wherever the work happens rather than in one place
+	 * only.
+	 */
+	private function batchLimit(): int
+	{
+
+		return max(
+			1,
+			$this->appConfig->getValueInt( Application::APP_ID, 'pending_batch_limit', 50 ),
+		);
 	}
 
 

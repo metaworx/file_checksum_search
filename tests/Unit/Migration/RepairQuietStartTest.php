@@ -15,6 +15,7 @@ use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\BackgroundJob\IJobList;
+use OCP\IAppConfig;
 use OCP\IDBConnection;
 use OCP\Migration\IOutput;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -27,17 +28,19 @@ class RepairQuietStartTest
 	FciasUnitTestCase
 {
 
-	private MockObject|RuleService      $ruleService;
+	private MockObject|RuleService     $ruleService;
 
-	private MockObject|MetadataService  $metadataService;
+	private MockObject|IAppConfig      $appConfig;
 
-	private MockObject|IJobList         $jobList;
+	private MockObject|MetadataService $metadataService;
 
-	private MockObject|LoggerInterface  $logger;
+	private MockObject|IJobList        $jobList;
 
-	private MockObject|IOutput          $output;
+	private MockObject|LoggerInterface $logger;
 
-	private RepairQuietStart            $step;
+	private MockObject|IOutput         $output;
+
+	private RepairQuietStart           $step;
 
 
 	protected function setUp(): void
@@ -45,13 +48,14 @@ class RepairQuietStartTest
 
 		parent::setUp();
 
-		$this->db               = $this->createMock( IDBConnection::class );
-		$this->ruleService      = $this->createMock( RuleService::class );
-		$this->metadataService  = $this->createMock( MetadataService::class );
-		$hashIndexService       = $this->createMock( HashIndexService::class );
-		$this->jobList          = $this->createMock( IJobList::class );
-		$this->logger           = $this->createMock( LoggerInterface::class );
-		$this->output           = $this->createMock( IOutput::class );
+		$this->db              = $this->createMock( IDBConnection::class );
+		$this->ruleService     = $this->createMock( RuleService::class );
+		$this->appConfig       = $this->createMock( IAppConfig::class );
+		$this->metadataService = $this->createMock( MetadataService::class );
+		$hashIndexService      = $this->createMock( HashIndexService::class );
+		$this->jobList         = $this->createMock( IJobList::class );
+		$this->logger          = $this->createMock( LoggerInterface::class );
+		$this->output          = $this->createMock( IOutput::class );
 
 		$this->setUpQueryBuilderMock();
 
@@ -59,6 +63,7 @@ class RepairQuietStartTest
 			$this->ruleService,
 			$this->metadataService,
 			$hashIndexService,
+			$this->appConfig,
 			$this->db,
 			$this->jobList,
 			$this->logger,
@@ -395,7 +400,7 @@ class RepairQuietStartTest
 		}
 
 		$this->assertSame( $names, array_unique( $names ), 'two steps answer to one name' );
-		$this->assertGreaterThanOrEqual( 7, count( $names ) );
+		$this->assertGreaterThanOrEqual( 8, count( $names ) );
 	}
 
 
@@ -476,6 +481,7 @@ class RepairQuietStartTest
 				'metadata-keys',
 				'rebuild-from-filecache',
 				'rebuild-from-metadata',
+				'clear-disowned',
 				'stale-states',
 				'legacy-pending',
 				'legacy-seed-job',

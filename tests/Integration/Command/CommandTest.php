@@ -11,7 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Integration\Command;
 
 use OCA\FileChecksumSearch\Command\FindDuplicates;
 use OCA\FileChecksumSearch\Command\HashFiles;
-use OCA\FileChecksumSearch\Command\RebuildIndex;
+use OCA\FileChecksumSearch\Command\Repair;
 use OCA\FileChecksumSearch\Command\SearchHash;
 use OCA\FileChecksumSearch\Command\ShowConfig;
 use OCA\FileChecksumSearch\Command\ShowStatus;
@@ -94,6 +94,7 @@ class CommandTest
 
 	// ─── ShowStatus ──────────────────────────────────────────────────
 
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
@@ -141,6 +142,7 @@ class CommandTest
 
 	// ─── FindDuplicates ──────────────────────────────────────────────
 
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
@@ -157,6 +159,7 @@ class CommandTest
 
 
 	// ─── HashFiles ───────────────────────────────────────────────────
+
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
@@ -199,28 +202,59 @@ class CommandTest
 	}
 
 
-	// ─── RebuildIndex ────────────────────────────────────────────────
+	// ─── Repair ──────────────────────────────────────────────────────
+
 
 	/**
+	 * The successor to the retired `rebuild`, whose three phases are now
+	 * three of this command's steps.
+	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testRebuildIndexRunsWithoutException(): void
+	public function testRepairListsItsStepsWithoutRunningThem(): void
 	{
 
-		$command = Server::get( RebuildIndex::class );
-		$tester  = new CommandTester( $command );
+		$tester = new CommandTester( Server::get( Repair::class ) );
 
-		$exitCode = $tester->execute( [] );
+		$this->assertSame( Command::SUCCESS, $tester->execute( [ '--list' => true ] ) );
 
-		// May return SUCCESS or FAILURE depending on whether test DB
-		// has processable files. The key assertion is the command runs
-		// without throwing an exception.
-		$this->assertContains( $exitCode, [ Command::SUCCESS, Command::FAILURE ] );
-		$this->assertStringContainsString( 'Seeding', $tester->getDisplay() );
+		$display = $tester->getDisplay();
+
+		foreach (
+			[
+				'rebuild-from-filecache',
+				'rebuild-from-metadata',
+				'drain-queue',
+			] as $step
+		)
+		{
+			$this->assertStringContainsString( $step, $display );
+		}
+	}
+
+
+	/**
+	 * The steps run against a real container, which is what this suite is
+	 * for: the anonymous IOutput the command hands them only meets the real
+	 * interface here.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testRepairRunsOneStepAgainstARealInstance(): void
+	{
+
+		$tester = new CommandTester( Server::get( Repair::class ) );
+
+		$this->assertSame(
+			Command::SUCCESS,
+			$tester->execute( [ '--step' => [ 'metadata-keys' ] ] ),
+		);
+		$this->assertStringContainsString( 'Ran 1 step(s)', $tester->getDisplay() );
 	}
 
 
 	// ─── ShowConfig ──────────────────────────────────────────────────
+
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
@@ -261,6 +295,7 @@ class CommandTest
 
 
 	// ─── TestPerformance ─────────────────────────────────────────────
+
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection

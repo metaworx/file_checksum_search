@@ -66,7 +66,6 @@
 		</navigation>
 	</navigations>
 	<commands>
-		<command>OCA\FileChecksumSearch\Command\RebuildIndex</command>
 		<command>OCA\FileChecksumSearch\Command\SearchHash</command>
 		<command>OCA\FileChecksumSearch\Command\HashFiles</command>
 		<command>OCA\FileChecksumSearch\Command\TestPerformance</command>
@@ -76,6 +75,7 @@
 		<command>OCA\FileChecksumSearch\Command\Reset</command>
 		<command>OCA\FileChecksumSearch\Command\Import</command>
 		<command>OCA\FileChecksumSearch\Command\Repair</command>
+		<command>OCA\FileChecksumSearch\Command\Queue\Drain</command>
 		<command>OCA\FileChecksumSearch\Command\FindDuplicates</command>
 		<command>OCA\FileChecksumSearch\Command\Rules\ListRules</command>
 		<command>OCA\FileChecksumSearch\Command\Rules\AddRule</command>

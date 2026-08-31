@@ -97,6 +97,28 @@ class ProcessPendingUpdatesTest
 	/**
 	 * @noinspection PhpConditionAlreadyCheckedInspection
 	 */
+	/**
+	 * The clearing itself lives in RuleService — it asks the rules what
+	 * should happen to a disowned file, which is what that class is for, and
+	 * the repair calls the same method. What the job owes is asking for it,
+	 * before it spends the run on hashing.
+	 */
+	public function testTheJobDelegatesDisownedClearingToTheRules(): void
+	{
+
+		$this->metadataService->method( 'fetchPendingBatch' )
+		                      ->willReturn( [] )
+		;
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'clearDisownedFiles' )
+		                  ->willReturn( 3 )
+		;
+
+		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
+		$reflection->invoke( $this->job, null );
+	}
+
+
 	public function testJobConstructsWithDefaultInterval(): void
 	{
 
@@ -373,126 +395,6 @@ class ProcessPendingUpdatesTest
 
 		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
 		$reflection->invoke( $this->job, null );
-	}
-
-
-	/**
-	 * @noinspection PhpUnhandledExceptionInspection
-	 */
-	public function testDisownedFilesAreClearedAndRequeuedWhenARuleStillGoverns(): void
-	{
-
-		$this->metadataService->method( 'fetchStaleBatch' )
-		                      ->willReturn( [ 42 ] )
-		;
-		$this->metadataService->method( 'fetchPendingBatch' )
-		                      ->willReturn( [] )
-		;
-
-		// The operator disowned the stored hashes, not the intent to have
-		// them: a file its rule still covers goes straight back on the queue.
-		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->with( 42 )
-		                  ->willReturn( [
-			                  'id'   => 'r1',
-			                  'type' => 'include',
-			                  'mode' => 'force',
-		                  ] )
-		;
-
-		$this->metadataService->expects( $this->once() )
-		                      ->method( 'clearMetadata' )
-		                      ->with( 42 )
-		;
-		$this->metadataService->expects( $this->once() )
-		                      ->method( 'markPending' )
-		                      ->with( 42, 'pending:force' )
-		;
-
-		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
-		$reflection->invoke( $this->job, null );
-	}
-
-
-	/**
-	 * @noinspection PhpUnhandledExceptionInspection
-	 */
-	public function testDisownedFilesNoRuleGovernsAreLeftWithoutHashes(): void
-	{
-
-		$this->metadataService->method( 'fetchStaleBatch' )
-		                      ->willReturn( [ 42 ] )
-		;
-		$this->metadataService->method( 'fetchPendingBatch' )
-		                      ->willReturn( [] )
-		;
-		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->willReturn( null )
-		;
-
-		$this->metadataService->expects( $this->once() )
-		                      ->method( 'clearMetadata' )
-		                      ->with( 42 )
-		;
-		$this->metadataService->expects( $this->never() )
-		                      ->method( 'markPending' )
-		;
-
-		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
-		$reflection->invoke( $this->job, null );
-	}
-
-
-	/**
-	 * @noinspection PhpUnhandledExceptionInspection
-	 */
-	public function testOneUnclearableDisownedFileDoesNotStrandTheRest(): void
-	{
-
-		$this->metadataService->method( 'fetchStaleBatch' )
-		                      ->willReturn( [
-			                      1,
-			                      2,
-		                      ] )
-		;
-		$this->metadataService->method( 'fetchPendingBatch' )
-		                      ->willReturn( [] )
-		;
-		$this->ruleService->method( 'findFirstMatchingRule' )
-		                  ->willReturn( null )
-		;
-
-		// The first file throws; its marker stays, so the next run retries
-		// it — and the second file is still cleared in this one.
-		$cleared = [];
-		$this->metadataService->method( 'clearMetadata' )
-		                      ->willReturnCallback(
-			                      static function (
-				                      $fileId,
-			                      ) use
-			                      (
-				                      &
-				                      $cleared,
-			                      ): void
-			                      {
-
-				                      if ( $fileId === 1 )
-				                      {
-					                      throw new \RuntimeException( 'unreadable document' );
-				                      }
-
-				                      $cleared[] = $fileId;
-			                      },
-		                      )
-		;
-		$this->logger->expects( $this->once() )
-		             ->method( 'warning' )
-		;
-
-		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
-		$reflection->invoke( $this->job, null );
-
-		$this->assertSame( [ 2 ], $cleared );
 	}
 
 }
