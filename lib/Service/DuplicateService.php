@@ -61,9 +61,11 @@ class DuplicateService
 			array $row,
 		): array {
 
-			$algo = str_replace(
-				MetadataService::KEY_FILE_CHECKSUM_PREFIX,
-				'',
+			// Through getAlgorithmenFromKey(), never stripped inline: taking
+			// only `file-checksum-` off `file-checksum-hash-sha1` leaves
+			// `hash-sha1`, which is not an algorithm anyone can recalculate —
+			// and recalculating is exactly what the page does next.
+			$algo = MetadataService::getAlgorithmenFromKey(
 				$row[ MetadataService::FIELD_META_KEY ],
 			);
 

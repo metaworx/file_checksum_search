@@ -56,7 +56,7 @@ class DuplicateServiceTest
 
 		$rows = [
 			[
-				MetadataService::FIELD_META_KEY          => MetadataService::KEY_FILE_CHECKSUM_PREFIX . 'sha1',
+				MetadataService::FIELD_META_KEY          => MetadataService::getHashKey( 'sha1' ),
 				MetadataService::FIELD_META_VALUE_STRING => 'abc123def456',
 				'file_count'                             => 3,
 				'file_ids'                               => [
@@ -66,7 +66,7 @@ class DuplicateServiceTest
 				],
 			],
 			[
-				MetadataService::FIELD_META_KEY          => MetadataService::KEY_FILE_CHECKSUM_PREFIX . 'sha256',
+				MetadataService::FIELD_META_KEY          => MetadataService::getHashKey( 'sha256' ),
 				MetadataService::FIELD_META_VALUE_STRING => 'deadbeef',
 				'file_count'                             => 2,
 				'file_ids'                               => [
@@ -119,7 +119,7 @@ class DuplicateServiceTest
 		$rows = [
 			[
 				MetadataService::FIELD_FILE_ID  => 42,
-				MetadataService::FIELD_META_KEY => MetadataService::KEY_FILE_CHECKSUM_PREFIX . 'sha1',
+				MetadataService::FIELD_META_KEY => MetadataService::getHashKey( 'sha1' ),
 			],
 		];
 
@@ -174,11 +174,11 @@ class DuplicateServiceTest
 		$rows = [
 			[
 				MetadataService::FIELD_FILE_ID  => 10,
-				MetadataService::FIELD_META_KEY => MetadataService::KEY_FILE_CHECKSUM_PREFIX . 'sha1',
+				MetadataService::FIELD_META_KEY => MetadataService::getHashKey( 'sha1' ),
 			],
 			[
 				MetadataService::FIELD_FILE_ID  => 20,
-				MetadataService::FIELD_META_KEY => MetadataService::KEY_FILE_CHECKSUM_PREFIX . 'sha1',
+				MetadataService::FIELD_META_KEY => MetadataService::getHashKey( 'sha1' ),
 			],
 		];
 
@@ -240,7 +240,7 @@ class DuplicateServiceTest
 		$rows = [
 			[
 				MetadataService::FIELD_FILE_ID  => 42,
-				MetadataService::FIELD_META_KEY => MetadataService::KEY_FILE_CHECKSUM_PREFIX . 'sha512',
+				MetadataService::FIELD_META_KEY => MetadataService::getHashKey( 'sha512' ),
 			],
 		];
 
@@ -283,7 +283,7 @@ class DuplicateServiceTest
 		$rows = [
 			[
 				MetadataService::FIELD_FILE_ID  => 42,
-				MetadataService::FIELD_META_KEY => MetadataService::KEY_FILE_CHECKSUM_PREFIX . 'sha1',
+				MetadataService::FIELD_META_KEY => MetadataService::getHashKey( 'sha1' ),
 			],
 		];
 

@@ -751,8 +751,13 @@ class HashCalculationService
 
 			// Not indexed by Nextcloud — see MetadataService::syncHashIndex(),
 			// which writes the index row truncated to the column's width.
+			//
+			// Through getHashKey(), never spelled out here: an inline prefix
+			// is how this wrote the pre-rename key long after the rename, so
+			// every hash the background job computed landed under a name no
+			// reader looks for.
 			$metadata->setString(
-				MetadataService::KEY_FILE_CHECKSUM_PREFIX . $algo,
+				MetadataService::getHashKey( $algo ),
 				$result['hash'],
 				false,
 			);

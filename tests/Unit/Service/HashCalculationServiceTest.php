@@ -484,9 +484,29 @@ class HashCalculationServiceTest
 		              )
 		;
 
+		// The key, not merely the call count. Every setString expectation in
+		// this class asserted how many times it was called and nothing about
+		// what it wrote, which is how this method went on writing the
+		// pre-rename spelling after the rename: the background job's hashes
+		// landed under a name no reader looks for, and only a repair could
+		// find them again.
+		$written = [];
+
 		$metadata->expects( $this->exactly( 2 ) )
 		         ->method( 'setString' )
-		         ->willReturnSelf()
+		         ->willReturnCallback( function (
+			         string $key,
+		         ) use
+		         (
+			         &
+			         $written,
+			         $metadata,
+		         ) {
+
+			         $written[] = $key;
+
+			         return $metadata;
+		         } )
 		;
 
 		$metadata->expects( $this->once() )
@@ -507,6 +527,15 @@ class HashCalculationServiceTest
 				'sha1',
 				'sha256',
 			],
+		);
+
+		$this->assertSame(
+			[
+				MetadataService::getHashKey( 'sha1' ),
+				MetadataService::getHashKey( 'sha256' ),
+			],
+			$written,
+			'the hashes go under the keys the readers look for',
 		);
 	}
 
