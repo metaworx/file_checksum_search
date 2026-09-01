@@ -1,0 +1,12 @@
+{
+	"schema": 1,
+	"app": "file_checksum_search",
+	"note": "One file in a folder its owner shares with nobody, so a search for its hash by anyone else must come back empty. Import with --user=alice; the spec creates the file. The hash is sha1('FCIAS e2e private content') — keep the two in step.",
+	"hashes": [
+		{
+			"path": "fcias-e2e-private/secret.txt",
+			"algo": "sha1",
+			"hash": "59b280295a6bfa90201c4effb28745c030480fbb"
+		}
+	]
+}

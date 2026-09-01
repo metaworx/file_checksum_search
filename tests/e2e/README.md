@@ -17,6 +17,7 @@ what the specs below spend their `before()` hooks on.
 | `global-search.cy.js` | Creates one file with a hash nothing else has, then opens the unified search, verifies the **"File Checksums"** provider appears under **"Places"**, and checks a hit and a miss.                                   |
 | `rules-admin.cy.js`   | Live, no stubs: quiet start and the idle banner, the banded table, creating a rule through the dialog, placeholder rows, the in-dialog error card, the provider-missing badge, and the row action menu.              |
 | `rules-api.cy.js`     | No browser: the rules API's permission matrix across admin, alice and bob — who may read what, whose rule may be mutated by whom, and what a non-administrator's selector is turned into.                            |
+| `rules-personal.cy.js`| Alice's own page, an enforced rule she may not touch, bob refused a recalculation by *alice's* rule on a file she shares with him, and a hash search returning nothing to someone who cannot reach the file.         |
 
 The stub-era `rules.cy.js` was removed: it stubbed `/settings/cron/*` endpoints
 that no longer exist and waited for UI text that had changed, failing 4/4
@@ -44,6 +45,12 @@ against a live instance. `rules-admin.cy.js` replaces it.
   back 200 and alice was allowed to write a rule for bob, both because admin's
   session was still in the jar. `cy.ocs()` clears cookies on every call for
   exactly this reason; a raw `cy.request()` has to do it itself.
+- **`cy.ocs()` clears cookies, which ends any browser session the spec had.**
+  Convenient in an API-only spec, a trap in a UI one: log in again after
+  calling it, or the next `cy.visit()` lands on the login page.
+- **The unified-search provider is a *core* OCS route**, so unlike this app's
+  own endpoints it does wrap its answer in `{ocs:{data}}`. Assert on
+  `body.ocs.data.entries`.
 - **Measure the status code before asserting it.** Two of this matrix's rows
   were written from a plausible guess and were wrong in a way that mattered: a
   non-administrator's selector is not validated and refused, it is *replaced*
