@@ -52,6 +52,7 @@ const H1 = '0b4e7a0e5fe84ad35fb5f95b9ceeac79'
 const H2 = '7c6a180b36896a0a8c02787eeafb0e4c'
 
 const findAllDuplicatesUrl = '**/ocs/v2.php/apps/file_checksum_search/api/v1/duplicates*'
+const recalcUrl = '**/ocs/v2.php/apps/file_checksum_search/api/v1/file/*/recalc*'
 
 const file = ( fileid, path ) => ( { fileid, path, name: path.split( '/' ).pop() } )
 
@@ -128,6 +129,32 @@ describe( 'FCIAS Duplicates page', () => {
 		ownGroup().find( '.db-group-header-status.verified', { timeout: FIND_TIMEOUT } )
 			.should( 'exist' )
 		ownGroup().find( '.db-group-header-status.mixed' ).should( 'not.exist' )
+	} )
+
+	it( 'stops verifying when the rate limit answers, and says so', () => {
+		// Stubbed, because the real limit is 20 recalculations a minute and
+		// a test that reached it honestly would take a minute to do it. The
+		// contract being checked is the frontend's: on a 429 it stops where
+		// it is rather than marking every file it never asked about as a
+		// mismatch, which is what it used to do.
+		cy.intercept( 'POST', recalcUrl, {
+			statusCode: 429,
+			body: { success: false, error: 'Too many requests' },
+		} ).as( 'recalcLimited' )
+
+		cy.visit( DUPLICATES_URL )
+		ownGroup().should( 'have.length', 1 )
+		cy.get( '.verify-btn' ).click()
+
+		cy.wait( '@recalcLimited' )
+
+		// It says why, rather than leaving a half-verified list looking
+		// finished.
+		cy.get( '.db-error', { timeout: FIND_TIMEOUT } ).should( 'exist' ).and( 'not.be.empty' )
+
+		// And nothing is marked either way: a file it never got an answer
+		// for is not a mismatch.
+		cy.get( '.db-group-header-status' ).should( 'not.exist' )
 	} )
 
 	it( 'filters groups with the "Only matching" checkbox', () => {

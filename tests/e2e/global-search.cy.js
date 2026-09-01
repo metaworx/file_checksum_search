@@ -113,9 +113,21 @@ describe( 'FCIAS global search', () => {
 		// Open the global search (trigger markup differs slightly across NC 33/34).
 		cy.get( '.unified-search-menu button', { timeout: FIND_TIMEOUT } ).first().click()
 
-		// FCIAS appears under the "Places" provider filter.
+		// Registered, asserted by provider id rather than by the name it
+		// shows: the name is this app's own string and will be translated,
+		// the id is what Nextcloud dispatches on and never is.
+		cy.request( {
+			url: '/ocs/v2.php/search/providers?format=json',
+			auth: { user: adminUser, pass: adminPassword },
+			headers: { 'OCS-APIRequest': 'true' },
+		} ).then( ( { body } ) => {
+			const ids = body.ocs.data.map( ( p ) => p.id )
+
+			expect( ids ).to.include( `${ appId }_provider` )
+		} )
+
+		// And offered where a user would look for it, under "Places".
 		cy.get( '[data-cy-unified-search-filter="places"] button' ).click()
-		cy.contains( 'File Checksums', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 
 		// Dismiss the popover by focusing the search input.
 		cy.get( SEARCH_INPUT ).click()

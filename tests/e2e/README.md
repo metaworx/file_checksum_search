@@ -18,6 +18,7 @@ what the specs below spend their `before()` hooks on.
 | `rules-admin.cy.js`   | Live, no stubs: quiet start and the idle banner, the banded table, creating a rule through the dialog, placeholder rows, the in-dialog error card, the provider-missing badge, and the row action menu.              |
 | `rules-api.cy.js`     | No browser: the rules API's permission matrix across admin, alice and bob — who may read what, whose rule may be mutated by whom, and what a non-administrator's selector is turned into.                            |
 | `rules-personal.cy.js`| Alice's own page, an enforced rule she may not touch, bob refused a recalculation by *alice's* rule on a file she shares with him, and a hash search returning nothing to someone who cannot reach the file.         |
+| `status.cy.js`        | The admin status panel: hash count, versions, an empty queue reported as empty, what a reset disowns and what finishing it leaves, the background-job heartbeat, and Refresh.                                        |
 
 The stub-era `rules.cy.js` was removed: it stubbed `/settings/cron/*` endpoints
 that no longer exist and waited for UI text that had changed, failing 4/4
@@ -51,6 +52,14 @@ against a live instance. `rules-admin.cy.js` replaces it.
 - **The unified-search provider is a *core* OCS route**, so unlike this app's
   own endpoints it does wrap its answer in `{ocs:{data}}`. Assert on
   `body.ocs.data.entries`.
+- **Chain `invoke()`, never `then()`, when asserting on rendered text.** A
+  `then()` resolves once and hands on a plain value, so the assertion after it
+  stops retrying the DOM — and every cell on the status panel renders a
+  placeholder first and its value when the request answers. Written with
+  `then()`, a passing panel reads as a broken one.
+- **Build state next to the assertion that needs it**, not once in `before()`.
+  A spec that resets or disowns on purpose invalidates its own earlier counts,
+  and a number established at the top stops being true a test or two later.
 - **Measure the status code before asserting it.** Two of this matrix's rows
   were written from a plausible guess and were wrong in a way that mattered: a
   non-administrator's selector is not validated and refused, it is *replaced*

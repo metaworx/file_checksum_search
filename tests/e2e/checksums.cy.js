@@ -51,7 +51,10 @@ const propfindBody = [
 // elsewhere on the page.
 const openChecksumsTab = () => {
 	cy.get( '.app-sidebar', { timeout: FIND_TIMEOUT } ).should( 'be.visible' )
-	cy.get( '.app-sidebar' ).contains( 'Checksums', { timeout: FIND_TIMEOUT } ).click()
+	// The tab's registered id, not its caption: the sidebar is the one part
+	// of this app that already goes through t(), so its label is the first
+	// thing translation will move.
+	cy.get( '#tab-button-file_checksum_search-checksums', { timeout: FIND_TIMEOUT } ).click()
 }
 
 const fileUrl = ( fileId ) =>
@@ -143,7 +146,7 @@ describe( 'FCIAS checksums sidebar', () => {
 		cy.get( '.fcias-selectable-hash', { timeout: FIND_TIMEOUT } ).should( 'have.length.at.least', 1 )
 
 		cy.get( '.fcias-recalc-btn' ).should( 'have.length', 3 )
-		cy.contains( '.fcias-dup-btn', 'Find duplicates' ).should( 'exist' )
+		cy.get( '.fcias-dup-btn' ).should( 'exist' )
 	} )
 
 	it( 'recalculates the second file and finds duplicates inline', () => {

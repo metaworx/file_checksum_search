@@ -82,7 +82,10 @@ const ruleEditingForEveryone = ( allowAllUsers ) => cy.ocs( {
 
 const openChecksumsTab = () => {
 	cy.get( '.app-sidebar', { timeout: FIND_TIMEOUT } ).should( 'be.visible' )
-	cy.get( '.app-sidebar' ).contains( 'Checksums', { timeout: FIND_TIMEOUT } ).click()
+	// The tab's registered id, not its caption: the sidebar is the one part
+	// of this app that already goes through t(), so its label is the first
+	// thing translation will move.
+	cy.get( '#tab-button-file_checksum_search-checksums', { timeout: FIND_TIMEOUT } ).click()
 }
 
 describe( 'FCIAS for a user who is not an administrator', () => {
