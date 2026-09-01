@@ -266,6 +266,14 @@ Cypress.Commands.add( 'fciasEnsureUsers', ( occ ) => {
  * assertion failure in the test that asked for it, rather than an abort with
  * no expected-versus-actual to read.
  *
+ * Cookies are cleared first, every time. `cy.request()` shares the browser's
+ * cookie jar, and Nextcloud issues a session on the first authenticated call —
+ * so without this, the second call is attributed to the *first* caller
+ * whatever credentials it carries. That turns a permission matrix into a
+ * matrix about one user: measured, an anonymous request came back 200 and
+ * alice was allowed to write a rule for bob, both because the session admin
+ * had opened was still in the jar.
+ *
  * @param {object} options  method, url (below the app's API root), body,
  *                          user, password, failOnStatusCode.
  */
@@ -276,7 +284,7 @@ Cypress.Commands.add( 'ocs', ( {
 	user,
 	password,
 	failOnStatusCode = false,
-} ) => cy.request( {
+} ) => cy.clearCookies().then( () => cy.request( {
 	method,
 	url: `/ocs/v2.php/apps/file_checksum_search${ url }`,
 	body,
@@ -286,4 +294,4 @@ Cypress.Commands.add( 'ocs', ( {
 		Accept: 'application/json',
 	},
 	failOnStatusCode,
-} ) )
+} ) ) )
