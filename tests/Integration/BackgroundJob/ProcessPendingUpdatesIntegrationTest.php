@@ -13,6 +13,7 @@ namespace OCA\FileChecksumSearch\Tests\Integration\BackgroundJob;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\ProcessPendingUpdates;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
+use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
@@ -279,8 +280,10 @@ class ProcessPendingUpdatesIntegrationTest
 			Server::get( ITimeFactory::class ),
 			Server::get( HashCalculationService::class ),
 			$this->metadataService,
+			Server::get( RuleService::class ),
 			$this->appConfig,
 			$this->jobList,
+			Server::get( JobStatsService::class ),
 			Server::get( LoggerInterface::class ),
 		);
 	}
@@ -294,17 +297,29 @@ class ProcessPendingUpdatesIntegrationTest
 	private function addCatchAllForceRule(): void
 	{
 
-		// Prepend so it takes precedence over any pre-existing rules
-		// (findFirstMatchingRule returns the first path match).
+		// Prepend so it takes precedence over any pre-existing rules: the
+		// first match decides, and there is no fall-through to a later one.
+		//
+		// Written in the selector model, which is what the drain reads. This
+		// used to carry `userScope: all` and neither a type nor an algorithm
+		// list — the shape from before selectors, when the drain hashed with
+		// every supported algorithm regardless of what the rule asked for.
+		// It now resolves the governing rule at action time and takes its
+		// list, so a rule naming none is a rule that computes nothing.
 		$rules = $this->ruleService->loadRules();
 		array_unshift(
 			$rules,
 			[
-				'id'        => 'fcias_inttest_catchall',
-				'enabled'   => true,
-				'path'      => '**',
-				'mode'      => MetadataService::PENDING_MODE_FORCE,
-				'userScope' => 'all',
+				'id'       => 'fcias_inttest_catchall',
+				'enabled'  => true,
+				'type'     => 'include',
+				'path'     => '**',
+				'mode'     => MetadataService::PENDING_MODE_FORCE,
+				'selector' => '*',
+				'algos'    => [
+					'sha1',
+					'sha256',
+				],
 			],
 		);
 
@@ -313,6 +328,14 @@ class ProcessPendingUpdatesIntegrationTest
 			self::RULE_CONFIG_KEY,
 			json_encode( $rules, JSON_THROW_ON_ERROR ),
 		);
+
+		// The decoded list is memoised per process and invalidated only
+		// through saveRules(), which writing the config key directly goes
+		// around. Without this the drain resolves against the list as it was
+		// before this rule existed — reads no include rule, drops both marks
+		// without hashing, and the test fails on an empty hash set rather
+		// than on the rule it thought it had installed.
+		$this->ruleService->loadRules( refresh: true );
 	}
 
 

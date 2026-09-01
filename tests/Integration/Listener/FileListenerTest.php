@@ -310,7 +310,7 @@ class FileListenerTest
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testFileDeleteUnderAnIgnoreRuleDoesNothing(): void
+	public function testFileDeleteClearsMetadataEvenUnderAnIgnoreRule(): void
 	{
 
 		$this->setCatchAllIgnoreRule();
@@ -326,10 +326,15 @@ class FileListenerTest
 		$event = new NodeDeletedEvent( $file );
 		$this->listener->handle( $event );
 
-		$this->assertGreaterThan(
+		// No rule can spare a deleted file. By the time this event arrives
+		// the filecache row is gone or moved to trash, so nothing can be
+		// said to govern it — and the hashes describe content the user
+		// removed. This test used to assert the opposite, from before that
+		// was settled.
+		$this->assertSame(
 			0,
 			$this->metadataService->countByFileId( $fileId ),
-			'Metadata should remain after delete with rule mode off.',
+			'Deleting a file clears its metadata whatever the rules say.',
 		);
 	}
 
@@ -396,7 +401,7 @@ class FileListenerTest
 			     'INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`) VALUES (?, ?, ?, ?)',
 			     [
 				     $fileId,
-				     'file-checksum-sha1',
+				     MetadataService::getHashKey( 'sha1' ),
 				     'abc123',
 				     0,
 			     ],

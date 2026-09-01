@@ -10,6 +10,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Integration\Http;
 
+use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
 use OCP\Files\IRootFolder;
 use OCP\Server;
@@ -358,7 +359,7 @@ class PublicApiTest
 
 		foreach ( $hashes as $algo => $hash )
 		{
-			$json[ 'file-checksum-' . $algo ] = [
+			$json[ MetadataService::getHashKey( $algo ) ] = [
 				'value'          => $hash,
 				'type'           => 'string',
 				'etag'           => '',
@@ -389,7 +390,7 @@ class PublicApiTest
 				     'INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`) VALUES (?, ?, ?, ?)',
 				     [
 					     $fileId,
-					     'file-checksum-' . $algo,
+					     MetadataService::getHashKey( $algo ),
 					     substr( $hash, 0, 63 ),
 					     0,
 				     ],

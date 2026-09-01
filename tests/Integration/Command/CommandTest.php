@@ -172,7 +172,7 @@ class CommandTest
 
 		$exitCode = $tester->execute( [
 			'--user' => 'nonexistent_user_xyz',
-			'--algo' => 'sha1',
+			'--algo' => [ 'sha1' ],
 		] );
 
 		$this->assertSame( Command::FAILURE, $exitCode );
@@ -191,7 +191,7 @@ class CommandTest
 		$exitCode = $tester->execute(
 			[
 				'--user' => 'admin',
-				'--algo' => 'sha1',
+				'--algo' => [ 'sha1' ],
 				'--path' => 'no-such-glob-xyz/**',
 			],
 			[ 'verbosity' => OutputInterface::VERBOSITY_VERY_VERBOSE ],
@@ -224,12 +224,24 @@ class CommandTest
 			[
 				'rebuild-from-filecache',
 				'rebuild-from-metadata',
-				'drain-queue',
+				'unindexed-hashes',
+				'clear-disowned',
 			] as $step
 		)
 		{
 			$this->assertStringContainsString( $step, $display );
 		}
+
+		// Not a repair step, and the only one of these that reads file
+		// content: computing hashes lives in `fcias:queue:drain`, because
+		// every repair step runs on every upgrade and hashing an instance is
+		// not something an upgrade should decide to do.
+		$this->assertStringNotContainsString( 'drain-queue', $display );
+
+		// The step that costs a full scan to find out it has nothing to do
+		// says so here, since that is the only place an administrator finds
+		// out why a plain run skipped it.
+		$this->assertStringContainsString( 'only when asked for', $display );
 	}
 
 

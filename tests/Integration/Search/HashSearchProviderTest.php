@@ -11,6 +11,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Integration\Search;
 
 use OCA\FileChecksumSearch\Search\HashSearchProvider;
+use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
 use OCP\Files\File;
 use OCP\Files\IRootFolder;
@@ -342,7 +343,7 @@ SQL,
 
 		foreach ( $hashes as $algo => $hash )
 		{
-			$json[ 'file-checksum-' . $algo ] = [
+			$json[ MetadataService::getHashKey( $algo ) ] = [
 				'value'          => $hash,
 				'type'           => 'string',
 				'etag'           => '',
@@ -370,7 +371,7 @@ SQL,
 			$this->getRawConnection()
 			     ->executeStatement(
 				     'INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`) VALUES (?, ?, ?, ?)',
-				     [ $fileId, 'file-checksum-' . $algo, substr( $hash, 0, 63 ), 0 ],
+				     [ $fileId, MetadataService::getHashKey( $algo ), substr( $hash, 0, 63 ), 0 ],
 			     )
 			;
 		}

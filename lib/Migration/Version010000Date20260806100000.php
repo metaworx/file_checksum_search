@@ -105,7 +105,7 @@ class Version010000Date20260806100000
 		{
 			$output->warning(
 				'FCIAS: files_metadata_index does not exist yet — skipping the checksum backfill. '
-				. 'Run "occ file-checksum-search:rebuild" once it has been created.',
+				. 'Run "occ fcias:repair --step rebuild-from-filecache" once it has been created.',
 			);
 
 			return;

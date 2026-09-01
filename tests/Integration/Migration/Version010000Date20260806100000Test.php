@@ -51,7 +51,7 @@ class Version010000Date20260806100000Test
 	}
 
 
-	public function testPostSchemaChangeSkipsSeedingWhenTableMissing(): void
+	public function testPostSchemaChangeSkipsTheBackfillWhenTableMissing(): void
 	{
 
 		$schema = $this->createMock( ISchemaWrapper::class );
@@ -74,7 +74,7 @@ class Version010000Date20260806100000Test
 		;
 		$output->expects( $this->atLeastOnce() )
 		       ->method( 'warning' )
-		       ->with( $this->stringContains( 'occ file-checksum-search:rebuild' ) )
+		       ->with( $this->stringContains( 'occ fcias:repair --step rebuild-from-filecache' ) )
 		;
 
 		$this->migration->postSchemaChange(
@@ -86,14 +86,14 @@ class Version010000Date20260806100000Test
 		$this->assertEmpty(
 			array_filter(
 				$infoMessages,
-				static fn ( $m ): bool => str_contains( (string) $m, 'seeding' ),
+				static fn ( $m ): bool => str_contains( (string) $m, 'backfilling' ),
 			),
-			'Seeding must be skipped when files_metadata_index is missing.',
+			'The backfill must be skipped when files_metadata_index is missing.',
 		);
 	}
 
 
-	public function testPostSchemaChangeSeedsWhenTableExists(): void
+	public function testPostSchemaChangeBackfillsWhenTableExists(): void
 	{
 
 		/** @var MockObject|IOutput $output */
@@ -129,12 +129,16 @@ class Version010000Date20260806100000Test
 			[],
 		);
 
+		// "Backfilling", not "seeding". Installing copies the checksums the
+		// filecache already carries and computes nothing; the seeding job
+		// that this once looked for was retired with the pending model it
+		// belonged to.
 		$this->assertNotEmpty(
 			array_filter(
 				$infoMessages,
-				static fn ( $m ): bool => str_contains( (string) $m, 'seeding' ),
+				static fn ( $m ): bool => str_contains( (string) $m, 'backfilling' ),
 			),
-			'Expected an "...seeding..." info message when the table exists.',
+			'Expected a "...backfilling..." info message when the table exists.',
 		);
 	}
 
