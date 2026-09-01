@@ -42,6 +42,11 @@ class PublicApiTest
 	/** The account's name is this plus a per-run random suffix. */
 	private const TEST_USER_PREFIX = 'fcias_http_test';
 
+	/** Named, so the recalc tests can assert the hash and not just its key. */
+	private const FILE_1_CONTENT = 'HTTP integration test content A';
+
+	private const FILE_2_CONTENT = 'HTTP integration test content B';
+
 	private static string $testUser;
 
 	private static string $testPassword;
@@ -95,8 +100,8 @@ class PublicApiTest
 		;
 
 		$ts                     = time();
-		$file1                  = $userFolder->newFile( "fcias_http_1_$ts.dat", 'HTTP integration test content A' );
-		$file2                  = $userFolder->newFile( "fcias_http_2_$ts.dat", 'HTTP integration test content B' );
+		$file1                  = $userFolder->newFile( "fcias_http_1_$ts.dat", self::FILE_1_CONTENT );
+		$file2                  = $userFolder->newFile( "fcias_http_2_$ts.dat", self::FILE_2_CONTENT );
 		$this->testFileId1      = $file1->getId();
 		$this->testFileId2      = $file2->getId();
 		$this->cleanupFileIds[] = $this->testFileId1;
@@ -217,13 +222,9 @@ class PublicApiTest
 		$this->assertIsArray( $response );
 		$this->assertArrayHasKey( 'duplicates', $response );
 
-		if ( empty( $response['duplicates'] ) )
-		{
-			$this->markTestSkipped(
-				'No duplicates returned — user session may not be available in HTTP test context.',
-			);
-		}
-
+		// No skip here. An empty answer is the one failure this test exists
+		// to catch — the two seeded files share a sha1 — and turning it into
+		// a skip made the assertion below unreachable.
 		$this->assertNotEmpty( $response['duplicates'], 'Should find duplicates for file1.' );
 
 		foreach ( $response['duplicates'] as $group )
@@ -263,17 +264,21 @@ class PublicApiTest
 		);
 
 		$this->assertIsArray( $response );
-		$this->assertArrayHasKey( 'success', $response, 'Recalc response should have success field.' );
+		$this->assertTrue(
+			$response['success'] ?? false,
+			'Recalculating is the thing under test; a refusal is a failure, not a branch. '
+			. 'Server said: ' . ( $response['error'] ?? '(no reason given)' ),
+		);
+		$this->assertSame( 'sha256', $response['algo'] ?? null );
 
-		if ( $response['success'] )
-		{
-			$this->assertArrayHasKey( 'algo', $response );
-			$this->assertArrayHasKey( 'hash', $response );
-		}
-		else
-		{
-			$this->assertArrayHasKey( 'error', $response );
-		}
+		// The value, not merely the key. A recalculation that answered with
+		// somebody else's hash, or an empty one, satisfied every assertion
+		// this test used to make.
+		$this->assertSame(
+			hash( 'sha256', self::FILE_1_CONTENT ),
+			$response['hash'] ?? null,
+			'The hash is of the content this test wrote.',
+		);
 	}
 
 
@@ -283,12 +288,12 @@ class PublicApiTest
 		$response = $this->httpPost( "/api/v1/file/$this->testFileId1/recalc", [] );
 
 		$this->assertIsArray( $response );
-		$this->assertArrayHasKey( 'success', $response );
-
-		if ( $response['success'] )
-		{
-			$this->assertSame( 'sha1', $response['algo'] ?? null, 'Default algo should be sha1.' );
-		}
+		$this->assertTrue(
+			$response['success'] ?? false,
+			'Server said: ' . ( $response['error'] ?? '(no reason given)' ),
+		);
+		$this->assertSame( 'sha1', $response['algo'] ?? null, 'Default algo should be sha1.' );
+		$this->assertSame( sha1( self::FILE_1_CONTENT ), $response['hash'] ?? null );
 	}
 
 

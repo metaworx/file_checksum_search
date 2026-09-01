@@ -126,6 +126,21 @@ describe( 'FCIAS admin rules', () => {
 	} )
 
 	it( 'enabling an include rule clears the acknowledgement', () => {
+		// Set here rather than inherited from the test above: this asserts
+		// the ack goes away, which is not an assertion at all if it was
+		// never there. Ordering made it true; saying so makes it stay true.
+		cy.ocs( {
+			method: 'POST',
+			url: '/settings/idle-banner/ack',
+			user: adminUser,
+			password: adminPassword,
+		} ).its( 'status' ).should( 'eq', 200 )
+
+		cy.exec( `${ occ } config:app:get ${ appId } idle_banner_ack`, {
+			failOnNonZeroExit: false,
+		} ).its( 'stdout' ).should( 'not.be.empty' )
+
+		cy.login( adminUser, adminPassword )
 		cy.visit( ADMIN_URL )
 		cy.get( '#fcias-cron-list tr[data-band="7"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 
@@ -183,10 +198,45 @@ describe( 'FCIAS admin rules', () => {
 		cy.get( '#fcias-cron-list tr[data-placeholder]', { timeout: FIND_TIMEOUT } )
 			.should( 'have.length.at.least', 1 )
 
-		cy.get( '#fcias-cron-list tr[data-placeholder] [data-action="create"]' ).first().click()
+		// The namespace the row stands for, read off the row itself — the
+		// point of a placeholder is that it seeds the dialog with *that*
+		// namespace, and asserting only the path proved nothing about which
+		// one was chosen.
+		cy.get( '#fcias-cron-list tr[data-placeholder]' ).first()
+			.invoke( 'attr', 'data-placeholder' )
+			.then( ( selector ) => {
+				cy.get( '#fcias-cron-list tr[data-placeholder] [data-action="create"]' ).first().click()
 
-		cy.get( '#fcias-cron-form', { timeout: FIND_TIMEOUT } ).should( 'be.visible' )
-		cy.get( '#fcias-cron-path' ).should( 'have.value', '**' )
+				cy.get( '#fcias-cron-form', { timeout: FIND_TIMEOUT } ).should( 'be.visible' )
+				cy.get( '#fcias-cron-path' ).should( 'have.value', '**' )
+
+				// Two of the six selector kinds name no target — they *are*
+				// the whole namespace — and the dialog has no target field
+				// for them. The rest carry their value beside the kind.
+				const kindOf = {
+					'home:*': 'homeAll',
+					'*': 'universal',
+				}
+
+				if ( kindOf[ selector ] !== undefined )
+				{
+					cy.get( '#fcias-cron-userscope' ).should( 'have.value', kindOf[ selector ] )
+					cy.get( '#fcias-cron-scope-target' ).should( 'not.exist' )
+
+					return
+				}
+
+				const separator = String( selector ).indexOf( ':' )
+				const kind = String( selector ).slice( 0, separator )
+				// The remainder verbatim, not split again: a raw storage id
+				// may itself contain colons (smb::user@host//share/).
+				const target = String( selector ).slice( separator + 1 )
+
+				cy.get( '#fcias-cron-userscope' ).should( 'have.value', kind === 'home'
+					? 'user'
+					: kind )
+				cy.get( '#fcias-cron-scope-target' ).should( 'have.value', target )
+			} )
 	} )
 
 	it( 'refuses a bad rule inside the dialog rather than behind it', () => {

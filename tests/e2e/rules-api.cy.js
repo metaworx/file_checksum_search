@@ -39,6 +39,9 @@ let aliceRuleId = null
 
 const asAdmin = () => ( { user: adminUser, password: adminPassword } )
 
+/** What the rule-editing permission was before this spec granted it. */
+let ruleEditingWas = false
+
 describe( 'FCIAS rules API', () => {
 	before( () => {
 		cy.env( [ 'occ', 'NC_ADMIN_USER', 'NC_ADMIN_PASSWORD' ] ).then( ( env ) => {
@@ -55,6 +58,16 @@ describe( 'FCIAS rules API', () => {
 			cy.exec( `${ occ } app:enable ${ appId }`, { failOnNonZeroExit: false } )
 			cy.fciasEnsureUsers( occ )
 			cy.fciasResetRules( occ )
+
+			// Half this matrix is about what a *permitted* user still may
+			// not do, which is a different question from whether they are
+			// permitted at all — and the shipped default is that they are
+			// not. Without this every row below fails on a fresh instance
+			// while passing on a developer's, which is the difference this
+			// spec exists to stop mattering.
+			cy.fciasRuleEditing( asAdmin(), true ).then( ( previous ) => {
+				ruleEditingWas = previous
+			} )
 
 			// The folders the rules below name. A rule whose path cannot
 			// reach anything in the caller's own tree is refused, and
@@ -98,10 +111,27 @@ describe( 'FCIAS rules API', () => {
 			cy.ocs( { url: '/api/v1/rules', ...alice } ).then( ( { body } ) => {
 				aliceRuleId = body.rules.find( ( r ) => r.selector === 'home:alice' ).id
 			} )
+
+			// And one bob owns. Without it, "alice sees nothing of bob's" is
+			// a claim about an empty set — it held because no bob rule
+			// existed anywhere, not because the filtering works.
+			cy.ocs( {
+				method: 'POST',
+				url: '/api/v1/rules',
+				body: {
+					selector: `home:${ bob.user }`,
+					path: '**',
+					type: 'include',
+					algos: [ 'sha1' ],
+					mode: 'auto',
+				},
+				...bob,
+			} ).its( 'status' ).should( 'eq', 200 )
 		} )
 	} )
 
 	after( () => {
+		cy.fciasRuleEditing( asAdmin(), ruleEditingWas )
 		cy.fciasResetRules( occ )
 	} )
 
@@ -129,6 +159,13 @@ describe( 'FCIAS rules API', () => {
 				expect( body.rules.every(
 					( r ) => [ 'home:alice', 'home:*', '*' ].includes( r.selector ),
 				) ).to.eq( true )
+				expect( body.rules.map( ( r ) => r.selector ) ).to.include( 'home:alice' )
+			} )
+
+			// bob's rule exists, so the line above is about filtering rather
+			// than about an empty instance.
+			cy.ocs( { url: '/api/v1/rules?scope=all', ...asAdmin() } ).then( ( { body } ) => {
+				expect( body.rules.map( ( r ) => r.selector ) ).to.include( `home:${ bob.user }` )
 			} )
 		} )
 

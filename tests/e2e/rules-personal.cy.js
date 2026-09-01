@@ -64,21 +64,16 @@ const searchAs = ( who, term ) => cy.clearCookies().then( () => cy.request( {
 	failOnStatusCode: false,
 } ) )
 
-// Grant or revoke rule editing through the endpoint the admin page uses,
-// rather than by writing the config key. The key is declared internal, so
-// occ refuses it without --internal — and a test that reaches around an
-// app's own lever stops testing the lever.
-const ruleEditingForEveryone = ( allowAllUsers ) => cy.ocs( {
-	method: 'POST',
-	url: '/settings/admin-options/save',
-	body: {
-		allowAllUsers,
-		groups: [],
-		users: [],
-	},
-	user: adminUser,
-	password: adminPassword,
-} ).its( 'status' ).should( 'eq', 200 )
+// What the rule-editing permission was before this spec touched it, so
+// after() can put that back rather than a guess. Restoring it to `true`
+// would leave an instance permanently permissive; worse, a failure between
+// revoking and restoring used to leave it permanently denied.
+let ruleEditingWas = false
+
+const ruleEditingForEveryone = ( allow ) => cy.fciasRuleEditing(
+	{ user: adminUser, password: adminPassword },
+	allow,
+)
 
 const openChecksumsTab = () => {
 	cy.get( '.app-sidebar', { timeout: FIND_TIMEOUT } ).should( 'be.visible' )
@@ -108,7 +103,9 @@ describe( 'FCIAS for a user who is not an administrator', () => {
 			// Set rather than assumed: the shipped default is that nobody
 			// but an administrator may write a rule, and the developer
 			// instance has it switched on while a fresh CI one does not.
-			ruleEditingForEveryone( true )
+			ruleEditingForEveryone( true ).then( ( previous ) => {
+				ruleEditingWas = previous
+			} )
 
 			// Alice's two folders: one she shares with bob, one she does not.
 			for ( const dir of [ sharedDir, privateDir ] ) {
@@ -203,6 +200,7 @@ describe( 'FCIAS for a user who is not an administrator', () => {
 	} )
 
 	after( () => {
+		ruleEditingForEveryone( ruleEditingWas )
 		cy.fciasResetRules( occ )
 	} )
 

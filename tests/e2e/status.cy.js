@@ -158,12 +158,19 @@ describe( 'FCIAS status panel', () => {
 	} )
 
 	it( 'reports an empty queue as empty rather than as nothing', () => {
+		givenThreeHashes()
 		cy.visit( ADMIN_URL )
 
 		// A blank cell and a zero look the same to a reader who does not
 		// already know which they are looking at, so the page says Total: 0.
 		cellText( '#fcias-status-pending' ).should( 'contain', 'Total: 0' )
 		cellText( '#fcias-status-untrusted' ).should( 'contain', 'Total: 0' )
+
+		// Both cells render "Total: 0" when the stats are empty *and* when
+		// the status request failed outright, so on their own they are also
+		// what a broken panel looks like. This is the cell that tells the
+		// two apart: it shows a number the page could not have invented.
+		cellText( '#fcias-status-rowcount' ).should( 'eq', '3' )
 	} )
 
 	it( 'counts what a reset disowned, and what finishing it leaves', () => {
@@ -242,10 +249,17 @@ describe( 'FCIAS status panel', () => {
 	} )
 
 	it( 'refreshes without a page load', () => {
+		givenThreeHashes()
 		cy.visit( ADMIN_URL )
-		cellText( '#fcias-status-rowcount' ).should( 'not.be.empty' )
+		cellText( '#fcias-status-rowcount' ).should( 'eq', '3' )
+
+		// Change something behind the page's back, then ask it to look
+		// again. Asserting that the timestamp is not an em dash proved
+		// nothing: it is filled on mount, so a Refresh button wired to
+		// nothing passed.
+		cy.exec( `${ occ } fcias:reset --hashes --status --force --now`, { timeout: 300000 } )
 
 		cy.get( '#fcias-btn-refresh-status' ).click()
-		cellText( '#fcias-status-lastupdated' ).should( 'not.eq', '—' )
+		cellText( '#fcias-status-rowcount' ).should( 'eq', '0' )
 	} )
 } )

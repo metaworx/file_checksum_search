@@ -140,10 +140,16 @@ class FileListenerTest
 
 		$this->listener->handle( $event );
 
+		// Nothing queued and nothing stored: an ignore rule claims the file
+		// and asks for no work, so there is no stamp row to carry a state.
+		$this->assertNull(
+			$this->stateOf( $file->getId() ),
+			'An ignore rule queues nothing on create.',
+		);
 		$this->assertSame(
 			0,
 			$this->metadataService->countByFileId( $file->getId() ),
-			'No metadata index entries should exist after create with rule mode off.',
+			'And computes no hashes.',
 		);
 	}
 
@@ -162,15 +168,18 @@ class FileListenerTest
 
 		$this->listener->handle( $event );
 
-		// Lazy mode: no hash computation, just a pending mark.
-		// Note: markPending requires an existing index row (seeded).
-		// Without seeding, the UPDATE affects 0 rows.
-		// Verify no hashes were computed.
+		// The mark is the point, and it is what this used to assert the
+		// absence of: markPending() became an upsert when the seeding job
+		// was retired, so a file with no rows gets one rather than silently
+		// updating nothing.
 		$this->assertSame(
-			0,
-			$this->metadataService->countByFileId( $fileId ),
-			'No metadata index entries should exist after lazy create without seeding.',
+			MetadataService::PENDING_LAZY,
+			$this->stateOf( $fileId ),
+			'Lazy queues the file rather than hashing it.',
 		);
+
+		// And computes nothing now, which is what lazy means.
+		$this->assertSame( 0, $this->metadataService->countByFileId( $fileId ) );
 	}
 
 
@@ -188,13 +197,15 @@ class FileListenerTest
 
 		$this->listener->handle( $event );
 
-		// Force mark-only: clears metadata + marks pending:force.
-		// No hash rows should be computed immediately.
 		$this->assertSame(
-			0,
-			$this->metadataService->countByFileId( $fileId ),
-			'No metadata index entries should exist immediately after force create (mark-only).',
+			MetadataService::PENDING_FORCE,
+			$this->stateOf( $fileId ),
+			'Force queues the file for recomputation.',
 		);
+
+		// Mark-only: the drain reads file content, and an event listener is
+		// not the place to do that.
+		$this->assertSame( 0, $this->metadataService->countByFileId( $fileId ) );
 	}
 
 
@@ -215,11 +226,11 @@ class FileListenerTest
 		$event = new NodeWrittenEvent( $file );
 		$this->listener->handle( $event );
 
-		$this->assertSame(
-			0,
-			$this->metadataService->countByFileId( $fileId ),
-			'No metadata changes should occur after write with rule mode off.',
+		$this->assertNull(
+			$this->stateOf( $fileId ),
+			'An ignore rule queues nothing on write.',
 		);
+		$this->assertSame( 0, $this->metadataService->countByFileId( $fileId ) );
 	}
 
 
@@ -237,13 +248,12 @@ class FileListenerTest
 		$event = new NodeWrittenEvent( $file );
 		$this->listener->handle( $event );
 
-		// Force mark-only: clearMetadata + markPending('pending:force').
-		// No hashes computed immediately.
 		$this->assertSame(
-			0,
-			$this->metadataService->countByFileId( $fileId ),
-			'No metadata index entries should exist after force write (mark-only).',
+			MetadataService::PENDING_FORCE,
+			$this->stateOf( $fileId ),
+			'Force queues the rewritten file.',
 		);
+		$this->assertSame( 0, $this->metadataService->countByFileId( $fileId ) );
 	}
 
 
@@ -261,13 +271,12 @@ class FileListenerTest
 		$event = new NodeWrittenEvent( $file );
 		$this->listener->handle( $event );
 
-		// Lazy write: clearMetadata + markPending('pending:lazy').
-		// No hashes computed immediately.
 		$this->assertSame(
-			0,
-			$this->metadataService->countByFileId( $fileId ),
-			'No metadata index entries should exist after lazy write (mark-only).',
+			MetadataService::PENDING_LAZY,
+			$this->stateOf( $fileId ),
+			'Lazy queues the rewritten file.',
 		);
+		$this->assertSame( 0, $this->metadataService->countByFileId( $fileId ) );
 	}
 
 
@@ -291,17 +300,25 @@ class FileListenerTest
 		$event = new NodeWrittenEvent( $file );
 		$this->listener->handle( $event );
 
-		// Auto mode with existing hashes: marks pending:auto.
-		// No immediate recalculation. Metadata should still exist (not cleared).
+		// The mark is what changed, and it is the only thing here that
+		// distinguishes a listener that ran from one that did not: the seed
+		// already left both a hash row and a stamp row, so "the count is
+		// still positive" and "the stamp row exists" were true before
+		// handle() was called.
+		$this->assertSame(
+			MetadataService::PENDING_AUTO,
+			$this->stateOf( $fileId ),
+			'Auto queues a file that already has hashes to refresh.',
+		);
+
+		// Mark-only: the stored hashes stay until the drain replaces them,
+		// because a hash that is merely suspect is better than none while
+		// the queue catches up.
 		$this->assertGreaterThan(
 			0,
 			$this->metadataService->countByFileId( $fileId ),
-			'Metadata should still exist after auto write (mark-only, not cleared).',
+			'Auto does not clear what it queues.',
 		);
-
-		// Verify the pending mark was set on the index row.
-		$updatedAt = $this->metadataService->getUpdatedAt( $fileId );
-		$this->assertNotNull( $updatedAt, 'Updated-at index row should exist.' );
 	}
 
 
@@ -319,11 +336,15 @@ class FileListenerTest
 		$event = new NodeWrittenEvent( $file );
 		$this->listener->handle( $event );
 
-		$this->assertSame(
-			0,
-			$this->metadataService->countByFileId( $fileId ),
-			'No metadata should appear after auto write without prior hash (mark-only).',
+		// `auto` means "refresh hashes that exist when they go outdated". A
+		// file with none has nothing to refresh, so nothing is queued —
+		// which is a decision, not an oversight: a first hash for a new file
+		// is `missing`'s job or `force`'s.
+		$this->assertNull(
+			$this->stateOf( $fileId ),
+			'Auto queues nothing for a file that has no hashes yet.',
 		);
+		$this->assertSame( 0, $this->metadataService->countByFileId( $fileId ) );
 	}
 
 
@@ -456,7 +477,7 @@ class FileListenerTest
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testFileDeleteOnAttemptsClearMetadata(): void
+	public function testFileDeleteClearsTheHashesAndQueuesNothing(): void
 	{
 
 		$this->setCatchAllRule( 'auto' );
@@ -472,13 +493,27 @@ class FileListenerTest
 		$event = new NodeDeletedEvent( $file );
 		$this->listener->handle( $event );
 
-		// clearMetadata() calls saveMetadata() → setHashes() which hits
-		// the old filecache trigger referencing the dropped
-		// oc_file_checksum_search_hashes table. The exception is caught
-		// by handle(), so the save is aborted. This is a pre-existing
-		// env issue — will be resolved when old triggers are torn down
-		// in Block 7.
-		$this->addToAssertionCount( 1 );
+		// Deleting clears, whatever the rules say: by the time this event
+		// arrives the filecache row is gone or in the trash, so no rule can
+		// be said to govern the file, and the hashes describe content the
+		// user removed.
+		//
+		// This used to assert nothing at all, blamed on a filecache trigger
+		// that its sibling above disproves by asserting exactly this.
+		$this->assertSame(
+			0,
+			$this->metadataService->countByFileId( $fileId ),
+			'Deleting a file clears its hashes.',
+		);
+		// The stamp row itself survives, emptied rather than removed — the
+		// file is gone, so nothing is waiting for it. Asserting the row's
+		// absence would be asserting a detail of how clearing is done
+		// rather than that nothing is queued.
+		$this->assertStringNotContainsString(
+			MetadataService::PENDING_PREFIX,
+			(string) $this->stateOf( $fileId ),
+			'And leaves nothing queued for a file that is gone.',
+		);
 	}
 
 
@@ -507,6 +542,43 @@ class FileListenerTest
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
+	/**
+	 * What the file is waiting for, read from the row that records it.
+	 *
+	 * `countByFileId()` cannot answer this and never could since the hash
+	 * keys got a prefix of their own: it counts `file-checksum-hash-%`
+	 * rows, which is what its callers in FileListener mean by "does this
+	 * file have hashes". A pending mark is the *stamp* row's string half,
+	 * so every test here that asserted a count of 0 after marking one was
+	 * asserting something true whether the listener ran or not.
+	 *
+	 * @return string|null  The state, or null when the file has no stamp row.
+	 */
+	private function stateOf( int $fileId ): ?string
+	{
+
+		$result = $this->getRawConnection()
+		               ->executeQuery(
+			               'SELECT `meta_value_string` FROM `*PREFIX*files_metadata_index` '
+			               . 'WHERE `file_id` = ? AND `meta_key` = ?',
+			               [
+				               $fileId,
+				               MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT,
+			               ],
+		               )
+		;
+
+		$value = $result->fetchOne();
+		$result->free();
+
+		return $value === false
+			? null
+			: ( $value === null
+				? ''
+				: (string) $value );
+	}
+
+
 	private function seedMetadataIndex( int $fileId ): void
 	{
 

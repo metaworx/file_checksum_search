@@ -64,6 +64,8 @@ class RulesApiTest
 
 	private ?string       $aliceRuleId    = null;
 
+	private ?string       $bobRuleId      = null;
+
 	private ?string       $homeAllRuleId  = null;
 
 	private ?string       $universalRuleId = null;
@@ -197,6 +199,26 @@ class RulesApiTest
 		$this->aliceRuleId = $created['body']['rule']['id'] ?? null;
 
 		$this->assertNotNull( $this->aliceRuleId, 'the created rule reports its id.' );
+
+		// And one bob owns. Without it, "alice sees nothing of bob's" is a
+		// claim about an empty set: it held because no bob rule existed
+		// anywhere in this suite, not because the filtering works.
+		$bobRule = $this->request(
+			'POST',
+			'/api/v1/rules',
+			[
+				'selector' => 'home:' . self::$bobUid,
+				'path'     => '**',
+				'type'     => 'include',
+				'algos'    => [ 'sha1' ],
+				'mode'     => 'auto',
+			],
+			'bob',
+		);
+
+		$this->assertSame( 200, $bobRule['status'], 'bob may write a rule for his own files.' );
+
+		$this->bobRuleId = $bobRule['body']['rule']['id'] ?? null;
 	}
 
 
@@ -225,6 +247,17 @@ class RulesApiTest
 		// cannot act on.
 		$this->assertContains( 'home:' . self::$aliceUid, $selectors );
 		$this->assertNotContains( 'home:' . self::$bobUid, $selectors );
+
+		// bob's rule exists — setUp made one — so the line above is a
+		// statement about filtering rather than about an empty instance.
+		$this->assertNotNull( $this->bobRuleId );
+
+		$everything = array_column(
+			$this->request( 'GET', '/api/v1/rules?scope=all', null, 'admin' )['body']['rules'],
+			'selector',
+		);
+
+		$this->assertContains( 'home:' . self::$bobUid, $everything, 'and an administrator does see it' );
 	}
 
 
@@ -403,18 +436,88 @@ class RulesApiTest
 	public function testASegmentGivenInFullIsReordered(): void
 	{
 
+		// Two rules, or there is no order to assert. Reordering a segment of
+		// one returns 200 whether the ids are honoured or ignored, which is
+		// what this test used to check.
+		//
+		// Both named-path, because the rule setUp made is `**` — which is
+		// default-shaped and therefore lives in its segment's *defaults*
+		// partition, a different partition from these. Submitting a mix is
+		// refused, and rightly: the ids must be exactly a permutation of one
+		// partition.
+		//
+		// The folders first: a rule whose path cannot reach anything in the
+		// caller's own tree is refused, which is its own test above.
+		$aliceFolder = Server::get( IRootFolder::class )
+		                     ->getUserFolder( self::$aliceUid )
+		;
+		$ids         = [];
+
+		foreach (
+			[
+				'Second',
+				'Third',
+			] as $name
+		)
+		{
+			if ( ! $aliceFolder->nodeExists( $name ) )
+			{
+				$aliceFolder->newFolder( $name );
+			}
+
+			$created = $this->request(
+				'POST',
+				'/api/v1/rules',
+				[
+					'selector' => 'home:' . self::$aliceUid,
+					'path'     => '/' . $name . '/**',
+					'type'     => 'include',
+					'algos'    => [ 'sha1' ],
+					'mode'     => 'auto',
+				],
+				'alice',
+			);
+
+			$this->assertSame( 200, $created['status'], "alice may write a rule on /$name" );
+
+			$ids[] = $created['body']['rule']['id'];
+		}
+
+		$segment  = 'home:' . self::$aliceUid;
+		$reversed = array_reverse( $ids );
+
 		$this->assertSame(
 			200,
 			$this->request(
 				'PUT',
 				'/api/v1/rules/order',
 				[
-					'selector'   => 'home:*',
-					'defaults'   => true,
-					'orderedIds' => [ $this->homeAllRuleId ],
+					'selector'   => $segment,
+					'defaults'   => false,
+					'orderedIds' => $reversed,
 				],
 				'admin',
 			)['status'],
+		);
+
+		// Read it back. An implementation that answered 200 and ignored
+		// orderedIds would pass everything above this line.
+		$stored = [];
+
+		foreach ( $this->request( 'GET', '/api/v1/rules?scope=all', null, 'admin' )['body']['rules'] as $rule )
+		{
+			if ( $rule['selector'] === $segment && $rule['path'] !== '**' )
+			{
+				$stored[ $rule['position'] ] = $rule['id'];
+			}
+		}
+
+		ksort( $stored );
+
+		$this->assertSame(
+			$reversed,
+			array_values( $stored ),
+			'the segment is stored in the order it was given',
 		);
 	}
 

@@ -236,17 +236,76 @@ Cypress.Commands.add( 'fciasResetRules', ( occ ) => {
  * A user who already exists makes `user:add` exit non-zero, which is the
  * success case as far as this is concerned.
  *
+ * The password goes through `cy.exec`'s own `env` rather than as a
+ * `VAR=value command` prefix. `occ` is a *shell prefix*, and the documented
+ * ddev one begins with `cd` — so the prefix form assigns the variable to
+ * `cd`, leaves `OC_PASS` empty by the time occ reads it, and creates the
+ * accounts with no password at all. It works with CI's plain binary path,
+ * which is exactly why it went unnoticed.
+ *
  * @param {string} occ  How to invoke occ.
  */
 Cypress.Commands.add( 'fciasEnsureUsers', ( occ ) => {
 	for ( const user of [ 'alice', 'bob' ] )
 	{
 		cy.exec(
-			`OC_PASS=SecretPass123! ${ occ } user:add --password-from-env ${ user }`,
-			{ timeout: FCIAS_EXEC_TIMEOUT, failOnNonZeroExit: false },
+			`${ occ } user:add --password-from-env ${ user }`,
+			{
+				timeout: FCIAS_EXEC_TIMEOUT,
+				failOnNonZeroExit: false,
+				env: { OC_PASS: 'SecretPass123!' },
+			},
 		)
 	}
 } )
+
+
+/**
+ * Grant or revoke rule editing for every user, and say what it was before.
+ *
+ * The shipped default is that nobody but an administrator may write a rule
+ * ({@see ConfigLexicon}), and a spec that needs a user to write one has to
+ * say so rather than inherit it: the developer instance has it switched on
+ * and a fresh one does not, which is the difference between a spec that
+ * passes locally and one that passes anywhere.
+ *
+ * Through the endpoint the admin page uses rather than the config key: the
+ * key is declared internal, occ refuses it without `--internal`, and a test
+ * that reaches around an app's own lever stops testing the lever.
+ *
+ * Yields the previous value so a spec can put it back exactly, rather than
+ * guessing that it was on.
+ *
+ * @param {object}  admin  { user, password }
+ * @param {boolean} allow  Whether every user may edit rules.
+ *
+ * @returns {Cypress.Chainable<boolean>}  What it was set to before.
+ */
+Cypress.Commands.add( 'fciasRuleEditing', ( admin, allow ) => cy.ocs( {
+	url: '/settings/admin-options',
+	user: admin.user,
+	password: admin.password,
+} ).then( ( { status, body } ) => {
+	expect( status, 'reading the rule-editing permission' ).to.eq( 200 )
+
+	const previous = body.allowAllUsers === true
+
+	return cy.ocs( {
+		method: 'POST',
+		url: '/settings/admin-options/save',
+		body: {
+			allowAllUsers: allow,
+			groups: body.groups ?? [],
+			users: body.users ?? [],
+		},
+		user: admin.user,
+		password: admin.password,
+	} ).then( ( saved ) => {
+		expect( saved.status, 'setting the rule-editing permission' ).to.eq( 200 )
+
+		return previous
+	} )
+} ) )
 
 /**
  * One authenticated call to this app's API.

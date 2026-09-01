@@ -299,10 +299,15 @@ class CommandTest
 
 		$this->assertSame( Command::SUCCESS, $exitCode );
 
-		$display = $tester->getDisplay();
-		// Plain output may be empty if no config values are set;
-		// verify the command completes without error.
-		$this->assertNotNull( $display );
+		// `getDisplay()` returns a string, so asserting it is not null said
+		// nothing. There is always something to print: the command's own
+		// header, and this app always has config keys — its rule
+		// definitions among them, which the repair step guarantees.
+		$this->assertStringContainsString(
+			'rule_definitions',
+			$tester->getDisplay(),
+			'the config listing names the keys this app owns',
+		);
 	}
 
 
