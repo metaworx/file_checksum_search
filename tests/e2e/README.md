@@ -15,10 +15,24 @@ what the specs below spend their `before()` hooks on.
 | `checksums.cy.js`     | Uploads two identical files via WebDAV and computes their sha1 through the sidebar **"Recalc SHA-1"** action — the one spec that makes the app hash something for real. Also asserts inline "Find duplicates".      |
 | `duplicates.cy.js`    | Creates three files, resets, states their hashes from a fixture, then asserts the page's group, verifies hashes end to end, and exercises the "Only matching" filter against a stub.                                |
 | `global-search.cy.js` | Creates one file with a hash nothing else has, then opens the unified search, verifies the **"File Checksums"** provider appears under **"Places"**, and checks a hit and a miss.                                   |
+| `rules-admin.cy.js`   | Live, no stubs: quiet start and the idle banner, the banded table, creating a rule through the dialog, placeholder rows, the in-dialog error card, the provider-missing badge, and the row action menu.              |
 
-`rules.cy.js` was removed: it stubbed `/settings/cron/*` endpoints that no
-longer exist and waited for UI text that had changed, failing 4/4 against a live
-instance. Live replacements are planned under AP\_E2ETests.
+The stub-era `rules.cy.js` was removed: it stubbed `/settings/cron/*` endpoints
+that no longer exist and waited for UI text that had changed, failing 4/4
+against a live instance. `rules-admin.cy.js` replaces it.
+
+### Two things worth knowing about the rules page
+
+- **The row action menu is an `NcActions` popover.** Its trigger
+  (`.action-item__menutoggle`) is inside the `<tr>`; the items it opens render
+  **outside** it, in `.action-item__popper`, so an item lookup cannot be scoped
+  to the row. NcActions also leaves a popper in the DOM after it closes —
+  reload between two menus rather than asserting that the second one lacks
+  something the first one had.
+- **The page asks for `?scope=all`.** That is the difference between `canEdit`
+  true and false on a rule whose selector is not the caller's own home, and so
+  between a row that has an action menu and one that reads "Read-only". A
+  `cy.ocs()` assertion has to request the same view the page does.
 
 ## Data strategy
 
