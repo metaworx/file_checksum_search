@@ -13,6 +13,8 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use OCP\IConfig;
 use OCP\IDBConnection;
+use OCP\IUserManager;
+use OCP\Security\ISecureRandom;
 use OCP\Server;
 use PHPUnit\Framework\TestCase;
 use Throwable;
@@ -23,6 +25,8 @@ use Throwable;
  * Provides:
  * - NC-bootstrapped IDBConnection via \OCP\Server
  * - Table prefix helper
+ * - makeAccount(), which provisions a randomly named account with a
+ *   random password for the length of the run, and removes it afterwards
  * - assertTableExists / assertColumnExists / assertTableNotExists
  * - Transaction-wrapped setUp/tearDown (subclasses opt in via beginTransaction)
  *
@@ -40,6 +44,14 @@ abstract class DatabaseTestCase
 
 	/** Cache for dbtableprefix (lazy-loaded). */
 	private ?string $tablePrefix = null;
+
+	/**
+	 * Accounts {@see makeAccount()} created for this run, and so the only
+	 * ones it may delete again.
+	 *
+	 * @var list<string>
+	 */
+	private static array $provisionedUsers = [];
 
 
 	/**
@@ -71,6 +83,126 @@ abstract class DatabaseTestCase
 
 		$this->db->beginTransaction();
 		$this->inTransaction = true;
+	}
+
+
+	// ─── accounts a test needs ───────────────────────────────────────
+
+	/**
+	 * Make an account for this run, and hand back how to authenticate as it.
+	 *
+	 * A test that needs an account other than `admin` used to name a fixed
+	 * one, state it as a prerequisite in a docblock, and error ten times
+	 * over when nobody had read it — with `NoUserException: Backends
+	 * provided no user object`, which names neither the account nor the fact
+	 * that creating it is the remedy.
+	 *
+	 * It is created here instead, and deleted again in
+	 * {@see tearDownAfterClass()}. Three things about how:
+	 *
+	 * - **A fresh account every run, never a reused one.** A test can only
+	 *   authenticate as an account whose password it knows, and the only
+	 *   way to know a pre-existing account's password is to have written it
+	 *   down in the source — which is precisely what should not be there.
+	 *   Creating the account is what makes a secret-free test possible.
+	 * - **A random name.** `$base` is a prefix, not the account. Nothing
+	 *   collides with an account somebody made by hand, so nothing has to
+	 *   decide whether it may delete one — this only ever removes what it
+	 *   made, and an account that is already there is left entirely alone,
+	 *   along with its files.
+	 * - **A random password, discarded when the run ends.** It exists in
+	 *   this process and nowhere else. If teardown fails and the account
+	 *   survives, what survives is an obviously-ephemeral name with a
+	 *   password nobody holds, rather than a predictable account with a
+	 *   published one.
+	 *
+	 * If it cannot be created — a password policy, a backend that refuses —
+	 * the suite is skipped with the reason, rather than failing every test
+	 * in it for a cause none of them mention.
+	 *
+	 * @return array{0: string, 1: string}  The account's id and its password.
+	 */
+	protected static function makeAccount( string $base ): array
+	{
+
+		$random   = Server::get( ISecureRandom::class );
+		$uid      = $base . '_' . $random->generate( 8, ISecureRandom::CHAR_LOWER . ISecureRandom::CHAR_DIGITS );
+		$password = self::strongPassword( $random );
+
+		try
+		{
+			$created = Server::get( IUserManager::class )
+			                 ->createUser( $uid, $password )
+			;
+		}
+		catch ( Throwable $e )
+		{
+			$created = false;
+			$reason  = $e->getMessage();
+		}
+
+		if ( $created === false )
+		{
+			self::markTestSkipped(
+				sprintf(
+					'FCIAS integration: could not create the test account "%s"%s. '
+					. 'This suite needs an account other than admin to authenticate as.',
+					$uid,
+					isset( $reason )
+						? ' (' . $reason . ')'
+						: '',
+				),
+			);
+		}
+
+		self::$provisionedUsers[] = $uid;
+
+		return [
+			$uid,
+			$password,
+		];
+	}
+
+
+	/**
+	 * A password no policy will refuse and nobody will guess.
+	 *
+	 * One character from each class the common policies ask for, then
+	 * length from the full alphabet — assembled rather than generated and
+	 * retried, so a strict policy cannot turn this into a loop.
+	 */
+	private static function strongPassword( ISecureRandom $random ): string
+	{
+
+		$password = $random->generate( 1, ISecureRandom::CHAR_UPPER )
+		            . $random->generate( 1, ISecureRandom::CHAR_LOWER )
+		            . $random->generate( 1, ISecureRandom::CHAR_DIGITS )
+		            . $random->generate( 1, '!#$%&*+-=?@^_' )
+		            . $random->generate(
+			            28,
+			            ISecureRandom::CHAR_ALPHANUMERIC,
+		            )
+		;
+
+		return $password;
+	}
+
+
+	public static function tearDownAfterClass(): void
+	{
+
+		$userManager = Server::get( IUserManager::class );
+
+		foreach ( self::$provisionedUsers as $uid )
+		{
+			$userManager->get( $uid )
+			            ?->delete()
+			;
+		}
+
+		self::$provisionedUsers = [];
+
+		parent::tearDownAfterClass();
 	}
 
 

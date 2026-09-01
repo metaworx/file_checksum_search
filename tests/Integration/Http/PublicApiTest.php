@@ -23,18 +23,28 @@ use Throwable;
  * via file_get_contents with basic authentication.
  * Inserts test data via Doctrine raw SQL and verifies JSON responses.
  *
- * Prerequisite: test user `fcias_http_test` must exist.
- * Create with:
- *   ddev exec bash -c 'NC_PASS=Str0ng!T3st#P4ss! php occ user:add --password-from-env fcias_http_test'
+ * The account it authenticates as is made for the run and removed after
+ * it — randomly named, randomly passworded, holding nothing anybody
+ * needs afterwards. See {@see DatabaseTestCase::makeAccount()}.
+ *
+ * It used to be a fixed account with its password written here, stated
+ * as a prerequisite in this comment. That is a fine way to document
+ * something and no way at all to make it true: on an instance without
+ * that account every test in this class errored with
+ * `NoUserException: Backends provided no user object`, which mentions
+ * neither the account nor the remedy.
  */
 class PublicApiTest
 	extends
 	DatabaseTestCase
 {
 
-	private const TEST_USER = 'fcias_http_test';
+	/** The account's name is this plus a per-run random suffix. */
+	private const TEST_USER_PREFIX = 'fcias_http_test';
 
-	private const TEST_PASSWORD = 'Str0ng!T3st#P4ss!';
+	private static string $testUser;
+
+	private static string $testPassword;
 
 	private string $baseUrl;
 
@@ -52,6 +62,19 @@ class PublicApiTest
 	private string $sha256Hash     = 'def456def456def456def456def456def456def456def4';
 
 
+	public static function setUpBeforeClass(): void
+	{
+
+		parent::setUpBeforeClass();
+
+		[
+			self::$testUser,
+			self::$testPassword,
+		]
+			= self::makeAccount( self::TEST_USER_PREFIX );
+	}
+
+
 	/** @noinspection PhpUnhandledExceptionInspection */
 	protected function setUp(): void
 	{
@@ -64,11 +87,11 @@ class PublicApiTest
 		// Use 127.0.0.1 to avoid NC HTTP client localhost SSRF block.
 		$this->baseUrl    = 'http://127.0.0.1/ocs/v2.php/apps/file_checksum_search';
 		$this->authHeader = 'Authorization: Basic '
-		                    . base64_encode( self::TEST_USER . ':' . self::TEST_PASSWORD );
+		                    . base64_encode( self::$testUser . ':' . self::$testPassword );
 
 		// Create two test files; file2 shares sha1 with file1 for duplicate detection.
 		$userFolder = Server::get( IRootFolder::class )
-		                    ->getUserFolder( self::TEST_USER )
+		                    ->getUserFolder( self::$testUser )
 		;
 
 		$ts                     = time();
