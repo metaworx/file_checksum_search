@@ -69,6 +69,7 @@ class RulesApiTest
 	private ?string       $universalRuleId = null;
 
 
+
 	public static function setUpBeforeClass(): void
 	{
 
@@ -137,6 +138,8 @@ class RulesApiTest
 
 		parent::setUp();
 
+		$this->preserveStoredRules();
+
 		// 127.0.0.1 rather than the site name: Nextcloud's HTTP client
 		// blocks requests to its own hostname as SSRF, and this goes through
 		// the same stack.
@@ -195,6 +198,8 @@ class RulesApiTest
 
 		$this->assertNotNull( $this->aliceRuleId, 'the created rule reports its id.' );
 	}
+
+
 
 
 	// ─── reading ─────────────────────────────────────────────────────

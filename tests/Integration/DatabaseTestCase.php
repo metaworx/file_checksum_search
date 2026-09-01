@@ -11,6 +11,9 @@ namespace OCA\FileChecksumSearch\Tests\Integration;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\AbstractSchemaManager;
+use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Service\RuleService;
+use OCP\IAppConfig;
 use OCP\IConfig;
 use OCP\IDBConnection;
 use OCP\IUserManager;
@@ -27,6 +30,8 @@ use Throwable;
  * - Table prefix helper
  * - makeAccount(), which provisions a randomly named account with a
  *   random password for the length of the run, and removes it afterwards
+ * - preserveStoredRules(), which puts the instance's rule set back after
+ *   a test that had to replace it
  * - assertTableExists / assertColumnExists / assertTableNotExists
  * - Transaction-wrapped setUp/tearDown (subclasses opt in via beginTransaction)
  *
@@ -52,6 +57,12 @@ abstract class DatabaseTestCase
 	 * @var list<string>
 	 */
 	private static array $provisionedUsers = [];
+
+	/** Where the rules live, for {@see preserveStoredRules()}. */
+	private const RULES_CONFIG_KEY = 'rule_definitions';
+
+	/** The stored rules as this test found them, or null if not preserved. */
+	private ?string $rulesBefore = null;
 
 
 	/**
@@ -206,8 +217,54 @@ abstract class DatabaseTestCase
 	}
 
 
+	// ─── the instance's own rules ────────────────────────────────────
+
+	/**
+	 * Remember the stored rules, and put them back when the test ends.
+	 *
+	 * This suite runs against a live instance — a developer's, and in CI a
+	 * throwaway one — and several of its tests replace the rule set to get
+	 * a state they can assert on. Whoever configured that instance did not
+	 * agree to have it emptied, so a test that overwrites the key restores
+	 * it afterwards.
+	 *
+	 * Call from setUp(); {@see tearDown()} does the rest.
+	 */
+	protected function preserveStoredRules(): void
+	{
+
+		$this->rulesBefore = Server::get( IAppConfig::class )
+		                           ->getValueString( Application::APP_ID, self::RULES_CONFIG_KEY )
+		;
+	}
+
+
+	private function restoreStoredRules(): void
+	{
+
+		if ( $this->rulesBefore === null )
+		{
+			return;
+		}
+
+		Server::get( IAppConfig::class )
+		      ->setValueString( Application::APP_ID, self::RULES_CONFIG_KEY, $this->rulesBefore )
+		;
+
+		// The decoded list is memoised per process and invalidated only
+		// through the write path this went around.
+		Server::get( RuleService::class )
+		      ->loadRules( refresh: true )
+		;
+
+		$this->rulesBefore = null;
+	}
+
+
 	protected function tearDown(): void
 	{
+
+		$this->restoreStoredRules();
 
 		if ( $this->inTransaction )
 		{

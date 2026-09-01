@@ -75,6 +75,9 @@ class FileListenerTest
 			Server::get( LoggerInterface::class ),
 		);
 
+		// Emptied for the tests below, and put back afterwards: the rules on
+		// the instance this runs against are somebody's configuration.
+		$this->preserveStoredRules();
 		$this->resetRules();
 	}
 
