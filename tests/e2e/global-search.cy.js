@@ -4,14 +4,22 @@
  *
  * Cypress E2E test for the unified (global) search provider.
  *
- * Depends on checksums.cy.js (which runs first) having indexed the
- * sha1 of the shared duplicate content.
+ * Builds its own state and depends on no other spec. It used to search
+ * for a hash that checksums.cy.js happened to have indexed, which made it
+ * fail for reasons in a spec it never mentions — and pinned that spec's
+ * file contents in place, since changing them changed this constant.
  */
 
 const appId = 'file_checksum_search'
 
-// sha1('FCIAS e2e duplicate content') — the token indexed by checksums.cy.js.
-const SHA1 = '5853843c7e93df9018a3cf5df1fda7b85d6ca07b'
+// The file this spec creates, and the hash the fixture states for it.
+// sha1('FCIAS e2e search needle') — nothing else on the instance has it,
+// which is what lets the assertion be "these results" and not "at least
+// one". Keep the three in step: content, hash, and fixtures/search.json.
+const searchDir = 'fcias-e2e-search'
+const searchFile = 'needle.txt'
+const searchContent = 'FCIAS e2e search needle'
+const SHA1 = '029548e960064e7ded4bb37f147ad2f64bfb3bae'
 
 // A well-formed 40-char hex hash that is not present in the index.
 const MISSING = 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef'
@@ -41,11 +49,32 @@ describe( 'FCIAS global search', () => {
 			if ( env.NC_ADMIN_PASSWORD ) {
 				adminPassword = env.NC_ADMIN_PASSWORD
 			}
+		} ).then( () => {
+			cy.exec( `${ occ } app:enable ${ appId }`, { failOnNonZeroExit: false } )
+
+			cy.request( {
+				method: 'MKCOL',
+				url: `/remote.php/dav/files/${ adminUser }/${ searchDir }`,
+				auth: { user: adminUser, pass: adminPassword },
+				failOnStatusCode: false,
+			} )
+			cy.request( {
+				method: 'PUT',
+				url: `/remote.php/dav/files/${ adminUser }/${ searchDir }/${ searchFile }`,
+				auth: { user: adminUser, pass: adminPassword },
+				headers: { 'Content-Type': 'text/plain' },
+				body: searchContent,
+			} )
+
+			// No reset here. The hash this searches for belongs to one file
+			// this spec owns, so what else the instance holds cannot change
+			// the answer — and resetting would throw away the state the
+			// duplicates spec built before it.
+			cy.importFciasFixture( occ, 'search', adminUser )
 		} )
 	} )
 
 	beforeEach( () => {
-		cy.exec( `${ occ } app:enable ${ appId }`, { failOnNonZeroExit: false } )
 		cy.login( adminUser, adminPassword )
 	} )
 
@@ -95,8 +124,7 @@ describe( 'FCIAS global search', () => {
 		enterQuery( MISSING )
 		cy.wait( '@hashSearch', { timeout: FIND_TIMEOUT } )
 		cy.get( '.unified-search-modal', { timeout: FIND_TIMEOUT } )
-			.should( 'not.contain', 'a.txt' )
-			.and( 'not.contain', 'b.txt' )
+			.should( 'not.contain', searchFile )
 
 		// The real hash lists the indexed files.
 		enterQuery( SHA1 )
@@ -106,8 +134,7 @@ describe( 'FCIAS global search', () => {
 		// list rendered behind the overlay, which passes even when the search
 		// returned nothing.
 		cy.get( '.unified-search-modal', { timeout: FIND_TIMEOUT } )
-			.should( 'contain', 'a.txt' )
-			.and( 'contain', 'b.txt' )
+			.should( 'contain', searchFile )
 
 		// Results link to the file details view (opendetails=true), not the file itself.
 		cy.get( '.unified-search-modal a[href*="opendetails=true"][href*="openfile=false"]', { timeout: FIND_TIMEOUT } )

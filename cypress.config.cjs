@@ -16,7 +16,7 @@ module.exports = defineConfig( {
 		setupNodeEvents( on, config ) {
 			// cy.log() never reaches stdout in `cypress run`, so the failure
 			// diagnostic in support/e2e.js hands its payload to Node instead.
-			// This is what makes the dump readable in CI. See TESTING.md 9.5.
+			// This is what makes the dump readable in CI.
 			on( 'task', {
 				fciasDiag( payload ) {
 					console.log( '\n=== FCIAS failure diagnostic ===' );

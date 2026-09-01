@@ -1,0 +1,12 @@
+{
+	"schema": 1,
+	"app": "file_checksum_search",
+	"note": "One file with a hash nothing else on the instance has, so a search for it can assert an exact result set. Import with --user so the path is read as relative to that user's files directory; the spec creates the file, this gives it its hash without waiting for a background job. The hash is sha1('FCIAS e2e search needle') — keep the two in step.",
+	"hashes": [
+		{
+			"path": "fcias-e2e-search/needle.txt",
+			"algo": "sha1",
+			"hash": "029548e960064e7ded4bb37f147ad2f64bfb3bae"
+		}
+	]
+}

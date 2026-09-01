@@ -4,10 +4,14 @@
  *
  * Cypress E2E tests for the Files app checksums sidebar tab.
  *
- * Runs before duplicates.cy.js (alphabetical order) and creates two
- * files with identical content whose sha1 hashes are computed through
- * the sidebar's "Recalc SHA-1" action. That produces a real duplicate
- * pair which the duplicates spec then asserts on.
+ * Creates two files with identical content and computes their sha1
+ * through the sidebar's "Recalc SHA-1" action — the one spec that makes
+ * the app hash something for real, rather than stating hashes from a
+ * fixture. No other spec depends on what it leaves behind.
+ *
+ * Its green run also proves the quiet-start promise from the outside:
+ * both shipped defaults are disabled on the instance under test, nothing
+ * is hashed automatically, and recalculating by hand still works.
  */
 
 const appId = 'file_checksum_search'
@@ -23,7 +27,11 @@ let adminPassword = 'admin'
 // request can be slow on a cold PHP worker.
 const FIND_TIMEOUT = 60000
 
-const dupDir = `fcias-e2e-sidebar-${ Date.now() }`
+// A fixed directory, not a timestamped one. Every run used to leave another
+// `fcias-e2e-sidebar-<ts>` folder behind, and two more files with the same
+// content; the accumulation is what eventually broke the duplicates spec.
+// Re-running overwrites these two instead.
+const dupDir = 'fcias-e2e-sidebar'
 const fileNameA = 'a.txt'
 const fileNameB = 'b.txt'
 const dupContent = 'FCIAS e2e duplicate content'

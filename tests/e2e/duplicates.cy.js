@@ -4,8 +4,16 @@
  *
  * Cypress E2E tests for the global duplicates page.
  *
- * Depends on checksums.cy.js (which runs first) having created a real
- * duplicate pair via the Files sidebar.
+ * Builds its own state and depends on no other spec. It used to read
+ * whatever checksums.cy.js had left behind, which is how it rotted: each
+ * run added two more files with the same content, and by 145 of them
+ * Verify hashes was hitting the per-user recalculation rate limit
+ * partway through and failing on a real instance for a reason that had
+ * nothing to do with the page.
+ *
+ * Now: three files created here, hashes stated by a fixture rather than
+ * computed, and a reset in front of both so the page is showing this
+ * run's files and nothing else.
  */
 
 const appId = 'file_checksum_search'
@@ -23,6 +31,21 @@ const FIND_TIMEOUT = 60000
 
 const DUPLICATES_URL = '/index.php/apps/file_checksum_search/duplicates'
 
+// The directory and contents tests/e2e/fixtures/duplicates.json describes.
+// A fixed directory, not a timestamped one: re-running overwrites the same
+// three files instead of leaving a fourth, fifth and sixth copy behind.
+const dupDir = 'fcias-e2e-duplicates'
+const files = [
+	{ name: 'a.txt', content: 'foo' },
+	{ name: 'b.txt', content: 'foo' },
+	{ name: 'c.txt', content: 'bar' },
+]
+
+// sha1('foo'), shared by a.txt and b.txt — the one duplicate group this
+// spec asserts on. c.txt is sha1('bar') and forms no group, which is what
+// makes "how many groups" a meaningful question.
+const DUP_HASH = '0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33'
+
 // Stub hashes used only by the "Only matching" filter test, which needs
 // one fully-verified and one mixed group to exercise the checkbox.
 const H1 = '0b4e7a0e5fe84ad35fb5f95b9ceeac79'
@@ -31,6 +54,14 @@ const H2 = '7c6a180b36896a0a8c02787eeafb0e4c'
 const findAllDuplicatesUrl = '**/ocs/v2.php/apps/file_checksum_search/api/v1/duplicates*'
 
 const file = ( fileid, path ) => ( { fileid, path, name: path.split( '/' ).pop() } )
+
+const webdavUrl = ( path ) => `/remote.php/dav/files/${ adminUser }${ path }`
+
+// The group this run created, found by its hash rather than by position:
+// the page may legitimately show others, and asserting on the first one
+// would make this spec depend on an ordering nothing promises.
+const ownGroup = () => cy.get( '.db-group', { timeout: FIND_TIMEOUT } )
+	.filter( ( _i, el ) => el.querySelector( '.db-hash' )?.textContent?.trim() === DUP_HASH )
 
 describe( 'FCIAS Duplicates page', () => {
 	before( () => {
@@ -44,33 +75,67 @@ describe( 'FCIAS Duplicates page', () => {
 			if ( env.NC_ADMIN_PASSWORD ) {
 				adminPassword = env.NC_ADMIN_PASSWORD
 			}
+		} ).then( () => {
+			cy.exec( `${ occ } app:enable ${ appId }`, { failOnNonZeroExit: false } )
+
+			cy.request( {
+				method: 'MKCOL',
+				url: webdavUrl( `/${ dupDir }` ),
+				auth: { user: adminUser, pass: adminPassword },
+				failOnStatusCode: false,
+			} )
+
+			for ( const { name, content } of files ) {
+				cy.request( {
+					method: 'PUT',
+					url: webdavUrl( `/${ dupDir }/${ name }` ),
+					auth: { user: adminUser, pass: adminPassword },
+					headers: { 'Content-Type': 'text/plain' },
+					body: content,
+				} )
+			}
+
+			// Reset first, then state the hashes: the files have to exist
+			// before the import can resolve their paths, and the reset has to
+			// come before the import or it would clear what was just stated.
+			cy.resetFciasState( occ )
+			cy.importFciasFixture( occ, 'duplicates', adminUser )
 		} )
 	} )
 
 	beforeEach( () => {
-		cy.exec( `${ occ } app:enable ${ appId }`, { failOnNonZeroExit: false } )
 		cy.login( adminUser, adminPassword )
 	} )
 
-	it( 'loads the duplicates page and shows the real duplicate group', () => {
+	it( 'loads the duplicates page and shows this run\'s duplicate group', () => {
 		cy.visit( DUPLICATES_URL )
 
 		cy.get( '#fcias-duplicates', { timeout: FIND_TIMEOUT } ).should( 'exist' )
-		cy.contains( 'button', 'Duplicates' ).should( 'exist' )
-		cy.get( '.db-group', { timeout: FIND_TIMEOUT } ).should( 'have.length.at.least', 1 )
+		cy.get( '.db-tab.is-active' ).should( 'exist' )
+		ownGroup().should( 'have.length', 1 )
+		ownGroup().find( '.db-count' ).should( 'contain', '2' )
 	} )
 
-	it( 'verifies hashes on the real duplicate group', () => {
+	it( 'verifies hashes and the group comes back matching', () => {
 		cy.visit( DUPLICATES_URL )
 
-		cy.get( '.db-group', { timeout: FIND_TIMEOUT } ).should( 'have.length.at.least', 1 )
-		cy.contains( 'button', 'Verify hashes' ).click()
+		ownGroup().should( 'have.length', 1 )
+		cy.get( '.verify-btn' ).click()
 
-		// Identical content → every file verifies as a match.
-		cy.contains( 'button', '✓ Verified', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		// Identical content and a stated hash that agrees with it, so every
+		// file verifies. The status class is the assertion rather than the
+		// button's caption, which is a translatable string.
+		ownGroup().find( '.db-group-header-status.verified', { timeout: FIND_TIMEOUT } )
+			.should( 'exist' )
+		ownGroup().find( '.db-group-header-status.mixed' ).should( 'not.exist' )
 	} )
 
 	it( 'filters groups with the "Only matching" checkbox', () => {
+		// Stubbed, deliberately: this asserts the frontend's contract with a
+		// response shape — one fully-verified group and one mixed — that the
+		// server would only produce from files whose content had been made to
+		// disagree with their stored hashes. The server side of verification
+		// is the test above.
 		cy.intercept( 'GET', findAllDuplicatesUrl, {
 			duplicates: [
 				{
@@ -102,12 +167,12 @@ describe( 'FCIAS Duplicates page', () => {
 		cy.get( '.db-group', { timeout: FIND_TIMEOUT } ).should( 'have.length', 2 )
 
 		// Only the fully-verified group remains when "Only matching" is set.
-		cy.contains( 'label', 'Only matching' ).find( 'input[type="checkbox"]' ).check()
+		cy.get( '.db-label input[type="checkbox"]' ).check()
 		cy.get( '.db-group' ).should( 'have.length', 1 )
 		cy.get( '.db-hash' ).should( 'contain', H1 ).and( 'not.contain', H2 )
 
 		// Unchecking restores both groups.
-		cy.contains( 'label', 'Only matching' ).find( 'input[type="checkbox"]' ).uncheck()
+		cy.get( '.db-label input[type="checkbox"]' ).uncheck()
 		cy.get( '.db-group' ).should( 'have.length', 2 )
 	} )
 } )

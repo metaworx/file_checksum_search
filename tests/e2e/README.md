@@ -3,19 +3,22 @@
 End-to-end tests for the File Checksum Index & Search (FCIAS) Nextcloud app,
 run against a live Nextcloud instance (NC 33/34) via Cypress.
 
-## Specs and execution order
+## Specs
 
-Cypress runs specs in alphabetical order, and the order matters. Do **not** run
-`duplicates.cy.js` or `global-search.cy.js` standalone — both depend on the data
-produced by `checksums.cy.js`.
+Cypress runs specs in alphabetical order. **Every spec builds its own state**,
+so any one of them can be run on its own — which was not true before, and is
+what the specs below spend their `before()` hooks on.
 
-| Order | Spec                  | What it does                                                                                                                                                                                                                                                                 |
-|-------|-----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1     | `app-enable.cy.js`    | Enables/disables the app via the UI + `occ`, leaving it **enabled** for the following specs.                                                                                                                                                                                 |
-| 2     | `checksums.cy.js`     | Uploads two identical files via WebDAV, computes their sha1 through the sidebar **"Recalc SHA-1"** action, verifies hash display and the recalc / "Find duplicates" buttons, then finds the duplicate **inline**. Produces the real duplicate pair the next spec asserts on. |
-| 3     | `duplicates.cy.js`    | Asserts the duplicates page shows the real duplicate group, verifies hashes end-to-end, and exercises the "Only matching" filter.                                                                                                                                            |
-| 4     | `global-search.cy.js` | Opens the unified search, verifies the **"File Checksums"** provider appears under **"Places"**, shows no files for an unknown hash, lists the indexed files for the real hash, and links to the file details view.                                                          |
-| 5     | `rules.cy.js`         | Adds, edits, deletes, and toggles admin rule definitions against a stateful stubbed API.                                                                                                                                                                                     |
+| Spec                  | What it does                                                                                                                                                                                                        |
+|-----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `app-enable.cy.js`    | Enables/disables the app via the UI + `occ`, leaving it **enabled** for the following specs.                                                                                                                        |
+| `checksums.cy.js`     | Uploads two identical files via WebDAV and computes their sha1 through the sidebar **"Recalc SHA-1"** action — the one spec that makes the app hash something for real. Also asserts inline "Find duplicates".      |
+| `duplicates.cy.js`    | Creates three files, resets, states their hashes from a fixture, then asserts the page's group, verifies hashes end to end, and exercises the "Only matching" filter against a stub.                                |
+| `global-search.cy.js` | Creates one file with a hash nothing else has, then opens the unified search, verifies the **"File Checksums"** provider appears under **"Places"**, and checks a hit and a miss.                                   |
+
+`rules.cy.js` was removed: it stubbed `/settings/cron/*` endpoints that no
+longer exist and waited for UI text that had changed, failing 4/4 against a live
+instance. Live replacements are planned under AP\_E2ETests.
 
 ## Data strategy
 
@@ -27,10 +30,18 @@ produced by `checksums.cy.js`.
   e.g. the "Only matching" filter needs one verified and one mixed group.
 - **File ids** are resolved from a DAV `PROPFIND` (`oc:fileid`) request with an
   explicit `<d:propfind>` body.
-- **Re-runnable without a DB reset**: each run uploads into a unique timestamped
-  folder, and the hashed content (hence the search token) is constant, so
-  repeated local runs simply accumulate files rather than collide. CI always
-  starts from a fresh instance.
+- **Re-runnable**: fixed directories and a reset, not accumulation. Specs upload
+  into a fixed folder so a re-run overwrites the same files, and
+  `cy.resetFciasState()` clears the hashes before a spec states its own. This
+  paragraph used to claim that repeated runs "simply accumulate files rather
+  than collide" — the accumulation was the bug: one hash group reached 145 files
+  and Verify hashes started hitting the per-user recalculation rate limit
+  partway through, failing for a reason that had nothing to do with the page.
+- **Selectors are text-free.** Assert on `data-*` attributes, ids and API
+  payload fields, never on the app's own visible strings: the app is not
+  translated yet, and every `cy.contains( 'Enable' )` becomes a failure the day
+  it is. Untranslated Nextcloud core chrome (the login page, the apps list) is
+  the one exception.
 
 ## State and fixtures
 
@@ -40,8 +51,11 @@ already resolve from `CYPRESS_occ`.
 
 | Command | What it does |
 |---|---|
-| `cy.resetFciasState( occ )` | `fcias:reset --hashes --status --force --now`, then `maintenance:repair`. `--now` because the default reset leaves the clearing to a background job, and a spec cannot wait for a job it does not control. |
+| `cy.resetFciasState( occ )` | `fcias:reset --hashes --status --force --now`, then `fcias:repair --step selector-model --step metadata-keys`. `--now` because the default reset leaves the clearing to a background job, and a spec cannot wait for a job it does not control. Those two steps and no others: a whole repair would run `rebuild-from-filecache`, which copies checksums back out of `oc_filecache.checksum` — a column a hash reset deliberately leaves alone — and so undoes the reset it follows. |
 | `cy.importFciasFixture( occ, name, user = 'admin' )` | Reads `tests/e2e/fixtures/<name>.json` and states the hashes outright, rather than computing them and waiting. |
+| `cy.fciasResetRules( occ )` | Deletes every rule, drops the idle-banner acknowledgement, and lets `fcias:repair` recreate the two shipped defaults — both disabled, which is the quiet-start state. Through `occ`, because REST refuses some of these mutations by permission design. |
+| `cy.fciasEnsureUsers( occ )` | Creates `alice` and `bob` (password `SecretPass123!`). The developer instance has them; CI starts with `admin` alone, so a cross-user spec has to make its own. |
+| `cy.ocs( { method, url, body, user, password } )` | One authenticated call to this app's API. The endpoints answer under `/ocs/v2.php` **only**, the body is plain JSON with no `ocs` envelope (the controllers extend `ApiController`), and `failOnStatusCode` defaults to `false` so a wrong status is an assertion failure with both numbers rather than an abort. |
 
 A fixture names **no storage**, so its paths are read as relative to `user`'s
 files directory — which is what lets one fixture serve any instance. The spec

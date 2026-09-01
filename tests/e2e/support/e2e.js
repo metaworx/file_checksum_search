@@ -23,7 +23,7 @@ Cypress.Commands.add( 'login', ( user = 'admin', password = 'admin' ) => {
 // Runs only for a test that has already failed, so a green run pays nothing
 // beyond a string test per console call. The payload goes through cy.task()
 // because cy.log() does not reach stdout under `cypress run`, which is
-// exactly where the context is needed. See TESTING.md 9.5 for how to read it.
+// exactly where the context is needed. tests/e2e/README.md says how to read it.
 // ---------------------------------------------------------------------------
 
 const DIAG_LOG_LIMIT = 12;
@@ -111,7 +111,7 @@ afterEach( function () {
  * `cy.exec()` defaults to 60 seconds, and clearing hashes in the foreground is
  * one metadata document rewritten per file — measured at roughly five files a
  * second against ddev, so a few hundred files already exceed the default.
- * `maintenance:repair` is slow for its own reasons.
+ * A repair run is slow for its own reasons.
  */
 const FCIAS_EXEC_TIMEOUT = 300000
 
@@ -120,8 +120,18 @@ const FCIAS_EXEC_TIMEOUT = 300000
  *
  * `--now` rather than the default: the deferred reset leaves the clearing to
  * the background job, and a spec cannot wait for a job it does not control.
- * `maintenance:repair` afterwards recreates whatever the app seeds on install,
- * so the state is the shipped one rather than merely empty.
+ *
+ * Two named repair steps afterwards, not a whole repair. The point of running
+ * one at all is to put back what the app seeds on install — its rule defaults
+ * and its metadata key declarations — and those are the two steps that do it.
+ *
+ * A whole repair would undo the reset it follows. `rebuild-from-filecache`
+ * copies checksums out of `oc_filecache.checksum`, a column this app writes
+ * but does not own and a reset therefore leaves alone: measured on the
+ * developer instance, a reset cleared 309 files and the repair immediately
+ * copied 891 checksums for 303 of them straight back. A spec starting from
+ * that is starting from the state of whatever ran last, which is the thing
+ * this command exists to prevent.
  *
  * @param {string} occ  How to invoke occ, e.g. `php nextcloud/occ`.
  */
@@ -129,9 +139,8 @@ Cypress.Commands.add( 'resetFciasState', ( occ ) => {
 	cy.exec( `${ occ } fcias:reset --hashes --status --force --now`, {
 		timeout: FCIAS_EXEC_TIMEOUT,
 	} )
-	cy.exec( `${ occ } maintenance:repair`, {
+	cy.exec( `${ occ } fcias:repair --step selector-model --step metadata-keys`, {
 		timeout: FCIAS_EXEC_TIMEOUT,
-		failOnNonZeroExit: false,
 	} )
 } )
 
