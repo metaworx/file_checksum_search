@@ -20,8 +20,11 @@ use OCP\Files\Events\Node\NodeDeletedEvent;
 use OCP\Files\Events\Node\NodeWrittenEvent;
 use OCP\Files\File;
 use OCP\Files\Folder;
+use OCP\Constants;
 use OCP\Files\IRootFolder;
 use OCP\Server;
+use OCP\Share\IManager as IShareManager;
+use OCP\Share\IShare;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -54,6 +57,9 @@ class FileListenerTest
 
 	/** @var list<int> */
 	private array $cleanupFileIds = [];
+
+	/** @var list<callable(): void> */
+	private array $cleanup = [];
 
 
 	/**
@@ -97,6 +103,20 @@ class FileListenerTest
 			{
 			}
 		}
+
+		foreach ( array_reverse( $this->cleanup ) as $undo )
+		{
+			try
+			{
+				$undo();
+			}
+			catch ( Throwable )
+			{
+				// A fixture already gone is the outcome we wanted.
+			}
+		}
+
+		$this->cleanup = [];
 
 		$this->resetRules();
 
@@ -304,6 +324,97 @@ class FileListenerTest
 			$this->metadataService->countByFileId( $fileId ),
 			'No metadata should appear after auto write without prior hash (mark-only).',
 		);
+	}
+
+
+	// ─── A file somebody else owns ────────────────────────────────────
+
+
+	/**
+	 * The property the whole FileLocation rework exists for.
+	 *
+	 * A recipient writing into a share is governed by the *owner's* rules,
+	 * because the file is the owner's. Resolving from the actor's own path
+	 * instead was the defect: a recipient sees a mount they may have
+	 * renamed, so pairing that path with the owner's uid produced a
+	 * mismatched identity that could silently pick the wrong rule.
+	 *
+	 * Written through the recipient's view on purpose — that is the only
+	 * way a share is ever written, and the only way the two paths differ.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testARecipientsWriteIsJudgedByTheOwnersRule(): void
+	{
+
+		[
+			$ownerUid,
+			$ownerPassword,
+		]
+			= self::makeAccount( 'fcias_listener_owner' );
+
+		[
+			$recipientUid,
+			$recipientPassword,
+		]
+			= self::makeAccount( 'fcias_listener_recipient' );
+
+		$rootFolder    = Server::get( IRootFolder::class );
+		$ownerFolder   = $rootFolder->getUserFolder( $ownerUid );
+		$sharedDirName = 'fcias_shared_' . bin2hex( random_bytes( 4 ) );
+		$sharedDir     = $ownerFolder->newFolder( $sharedDirName );
+
+		$shareManager = Server::get( IShareManager::class );
+		$share        = $shareManager->newShare();
+		$share->setNode( $sharedDir )
+		      ->setShareType( IShare::TYPE_USER )
+		      ->setSharedWith( $recipientUid )
+		      ->setSharedBy( $ownerUid )
+		      ->setPermissions( Constants::PERMISSION_ALL )
+		;
+		$shareManager->createShare( $share );
+
+		// An exclude over the owner's copy of the folder. The recipient has
+		// never seen this rule and cannot edit it.
+		$this->ruleService->ruleAdd( [
+			'enabled'  => true,
+			'type'     => 'exclude',
+			'path'     => '/' . $sharedDirName . '/**',
+			'selector' => 'home:' . $ownerUid,
+		] );
+
+		// The recipient's own view of the same folder, which is a different
+		// path in a different user's tree.
+		$recipientView = $rootFolder->getUserFolder( $recipientUid )
+		                            ->get( $sharedDirName )
+		;
+		$written       = $recipientView->newFile(
+			'from_the_recipient.txt',
+			'written by somebody who is not the owner',
+		);
+
+		$this->cleanupFiles[]   = $written;
+		$this->cleanupFileIds[] = $written->getId();
+
+		$location = $this->filecacheService->locate( $written->getId() );
+
+		$this->assertNotNull( $location );
+
+		// Identity comes from the file, not from who is holding it: the
+		// owner's uid and the path inside the *owner's* home.
+		$this->assertSame( $ownerUid, $location->owner );
+		$this->assertStringContainsString(
+			'/' . $sharedDirName . '/',
+			(string) $location->relativePath,
+			'the path is the one inside the owner\'s home',
+		);
+
+		$governing = $this->ruleService->governingRuleForLocation( $location );
+
+		$this->assertNotNull( $governing, 'the owner\'s rule reaches the recipient\'s write' );
+		$this->assertSame( 'exclude', $governing['type'] );
+
+		$this->cleanup[] = static fn (): mixed => $sharedDir->delete();
 	}
 
 
