@@ -630,7 +630,7 @@ components:
           example: [sha1, md5, adler32, crc32, sha256, sha384, sha512, sha3-256, sha3-384, sha3-512]
         default:
           type: string
-          description: Used when no algorithm is named; the first in force.
+          description: Used when no algorithm is named. Designated by the administrator; the first allowed when none is.
           example: sha1
     HashEntry:
       type: object

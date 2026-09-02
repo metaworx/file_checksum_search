@@ -30,11 +30,18 @@ use OCP\IAppConfig;
  * Length needs no handling here. The index stores 63 characters and
  * {@see MetadataService::isTruncatable()} decides by length, so a 96-hex
  * `sha384` takes the same truncate-and-confirm path `sha512` always has.
+ *
+ * The default is designated, not positional: the allowlist is a set, and
+ * {@see default()} answers from `default_algorithm` before it answers
+ * "the first allowed".
  */
 class AlgorithmCatalogue
 {
 
 	public const CONFIG_KEY = 'allowed_algorithms';
+
+	/** The algorithm used where none is named; empty means the first allowed. */
+	public const DEFAULT_KEY = 'default_algorithm';
 
 	/**
 	 * What ships enabled: the eight the app always computed, plus the two
@@ -59,6 +66,8 @@ class AlgorithmCatalogue
 
 	/** @var list<string>|null */
 	private ?array $algorithms = null;
+
+	private ?string $default = null;
 
 
 	public function __construct(
@@ -113,12 +122,54 @@ class AlgorithmCatalogue
 
 
 	/**
-	 * The algorithm used when none is named: the first in force.
+	 * The algorithm used when none is named: the one the administrator
+	 * designated, as long as it is in force, else the first allowed.
+	 *
+	 * The fallback is for a designation that reached the config past
+	 * {@see setAllowlist()} — occ, or a PHP build that lost the algorithm;
+	 * the allowlist path clears a dropped default itself.
 	 */
 	public function default(): string
 	{
 
-		return $this->algorithms()[0];
+		if ( $this->default !== null )
+		{
+			return $this->default;
+		}
+
+		$stored = $this->appConfig->getValueString( Application::APP_ID, self::DEFAULT_KEY, '' );
+
+		return $this->default = $this->isValid( $stored ) ? $stored : $this->algorithms()[0];
+	}
+
+
+	/**
+	 * Designate the default. A name not in force is refused — a default
+	 * nothing computes is no default — and the empty name clears the
+	 * designation, so the first allowed applies again.
+	 */
+	public function setDefault( string $name ): bool
+	{
+
+		$name = strtolower( trim( $name ) );
+
+		if ( $name === '' )
+		{
+			$this->appConfig->deleteKey( Application::APP_ID, self::DEFAULT_KEY );
+			$this->default = null;
+
+			return true;
+		}
+
+		if ( ! $this->isValid( $name ) )
+		{
+			return false;
+		}
+
+		$this->appConfig->setValueString( Application::APP_ID, self::DEFAULT_KEY, $name );
+		$this->default = $name;
+
+		return true;
 	}
 
 
@@ -156,7 +207,18 @@ class AlgorithmCatalogue
 		}
 
 		$this->appConfig->setValueArray( Application::APP_ID, self::CONFIG_KEY, $kept );
-		$this->algorithms = null;
+		$this->algorithms = $kept;
+		$this->default    = null;
+
+		// A designated default the new list no longer contains is cleared,
+		// not kept dormant: the default snaps to the first remaining, and
+		// re-allowing the algorithm later does not silently reinstate it.
+		$stored = $this->appConfig->getValueString( Application::APP_ID, self::DEFAULT_KEY, '' );
+
+		if ( $stored !== '' && ! in_array( $stored, $kept, true ) )
+		{
+			$this->appConfig->deleteKey( Application::APP_ID, self::DEFAULT_KEY );
+		}
 
 		return $kept;
 	}

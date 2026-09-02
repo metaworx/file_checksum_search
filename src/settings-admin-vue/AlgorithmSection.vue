@@ -3,13 +3,14 @@
  * @copyright Copyright (c) 2026 metaworx
  * @license   AGPL-3.0-or-later
  *
- * Which hash algorithms this instance computes.
+ * Which hash algorithms this instance computes, and which one is the default.
  *
  * The choice is what PHP offers, narrowed to what the administrator allows;
- * this section edits the second half. Every picker in the app reads the
- * result from the server, so nothing here needs a release to take effect.
+ * this section edits the second half, and designates one of it as the
+ * default used wherever no algorithm is named. Every picker in the app reads
+ * the result from the server, so nothing here needs a release to take effect.
  */
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import AlgorithmSelect from '../components/AlgorithmSelect.vue'
 import HelpPopover from '../components/HelpPopover.vue'
@@ -22,19 +23,30 @@ const OC = window.OC as unknown as {
 
 const availableIds = ref<string[]>([])
 const selectedIds = ref<string[]>([])
-const defaultAlgorithm = ref('')
+const defaultId = ref('')
 const saving = ref(false)
 const loaded = ref(false)
 
 const HELP = {
 	allowed: 'The algorithms rules may compute and pickers may offer, chosen from what this server\'s '
 		+ 'PHP provides. Removing one does not delete hashes already stored under it — they stay '
-		+ 'searchable — it only stops new ones being computed. The first in the list is the default, '
-		+ 'used wherever no algorithm is named.',
+		+ 'searchable — it only stops new ones being computed.',
+	default: 'The algorithm used wherever none is named: new rules, the command line, the API, and the '
+		+ 'sidebar\'s first button for users who have not chosen one of their own. Only an allowed '
+		+ 'algorithm can be the default; removing the default from the list above moves it to the '
+		+ 'first remaining.',
 }
 
-/** The first selected algorithm is the default; say so beside the picker. */
-const defaultLabel = computed(() => (selectedIds.value[0] ?? defaultAlgorithm.value).toUpperCase())
+/** The default follows the allowlist: dropped from it, it moves to the first remaining. */
+watch(selectedIds, (ids) => {
+	if (!ids.includes(defaultId.value)) {
+		defaultId.value = ids[0] ?? ''
+	}
+})
+
+function takeDefault(wanted: string | undefined): void {
+	defaultId.value = wanted && selectedIds.value.includes(wanted) ? wanted : (selectedIds.value[0] ?? '')
+}
 
 async function load(): Promise<void> {
 	try {
@@ -45,9 +57,8 @@ async function load(): Promise<void> {
 			defaultAlgorithm?: string
 		}
 		availableIds.value = data.availableAlgorithms ?? []
-		// The allowlist's own order: it decides which is the default.
 		selectedIds.value = (data.allowedAlgorithms ?? []).filter((id) => availableIds.value.includes(id))
-		defaultAlgorithm.value = data.defaultAlgorithm ?? ''
+		takeDefault(data.defaultAlgorithm)
 	} catch (e) {
 		OC.Notification.showTemporary('Failed to load the algorithm list.')
 	} finally {
@@ -64,15 +75,21 @@ async function save(): Promise<void> {
 				requesttoken: OC.requestToken,
 				'Content-Type': 'application/json',
 			},
-			// Only this section's field: absent fields are left untouched.
-			body: JSON.stringify({ allowedAlgorithms: selectedIds.value }),
+			// Only this section's fields: absent fields are left untouched.
+			body: JSON.stringify({ allowedAlgorithms: selectedIds.value, defaultAlgorithm: defaultId.value }),
 		})
-		const data = (await response.json()) as { success?: boolean; error?: string; allowedAlgorithms?: string[] }
+		const data = (await response.json()) as {
+			success?: boolean
+			error?: string
+			allowedAlgorithms?: string[]
+			defaultAlgorithm?: string
+		}
 		if (data.success) {
 			OC.Notification.showTemporary('Algorithms saved.')
 			if (data.allowedAlgorithms) {
-				defaultAlgorithm.value = data.allowedAlgorithms[0] ?? ''
+				selectedIds.value = data.allowedAlgorithms
 			}
+			takeDefault(data.defaultAlgorithm)
 		} else {
 			OC.Notification.showTemporary(data.error || 'Save failed.')
 		}
@@ -88,7 +105,7 @@ onMounted(load)
 
 <template>
 	<div>
-		<div v-if="loaded" class="fcias-permission-row">
+		<div v-if="loaded" class="fcias-field-row">
 			<AlgorithmSelect
 				v-model="selectedIds"
 				:algorithms="availableIds"
@@ -98,14 +115,18 @@ onMounted(load)
 				placeholder="Add an algorithm…" />
 			<HelpPopover :text="HELP.allowed" label="Allowed algorithms" />
 		</div>
-		<p v-if="loaded" class="fcias-hint" data-testid="fcias-default-algorithm">
-			Default: <strong>{{ defaultLabel }}</strong> — the first in the list. Drag is not
-			supported here; remove and re-add to change the order.
-		</p>
+		<div v-if="loaded" class="fcias-field-row">
+			<AlgorithmSelect
+				v-model="defaultId"
+				:algorithms="selectedIds"
+				input-id="fcias-default-algorithm"
+				label="Default algorithm" />
+			<HelpPopover :text="HELP.default" label="Default algorithm" />
+		</div>
 		<div class="fcias-rule-form-actions fcias-rule-form-actions--start">
 			<button id="fcias-btn-save-algorithms"
 				class="fcias-btn"
-				:disabled="saving || selectedIds.length === 0"
+				:disabled="saving || selectedIds.length === 0 || !defaultId"
 				@click="save">
 				{{ saving ? 'Saving…' : 'Save' }}
 			</button>

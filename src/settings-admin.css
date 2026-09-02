@@ -428,3 +428,33 @@
 	font-style: normal;
 	opacity: 1;
 }
+
+/* A field beside its help icon: the control grows, the icon keeps its size at
+   the end. Unscoped on purpose — three sections on two pages share it, and a
+   scoped copy in one of them matched nothing in the others. NcSelect (and the
+   unstyled div NcSettingsSelectGroup wraps around it) otherwise keeps its
+   intrinsic width. */
+.fcias-field-row {
+	display: flex;
+	align-items: flex-end;
+	gap: 4px;
+}
+
+.fcias-field-row + .fcias-field-row {
+	margin-top: 8px;
+}
+
+.fcias-field-row > :first-child {
+	flex: 1;
+	min-width: 0;
+}
+
+.fcias-field-row .v-select.select {
+	min-width: 0;
+	width: 100%;
+}
+
+.fcias-field-row .v-select.select > .vs__dropdown-toggle {
+	max-width: 100%;
+	width: 100%;
+}

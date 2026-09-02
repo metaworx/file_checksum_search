@@ -97,7 +97,7 @@ onMounted(load)
 <template>
 	<div id="fcias-personal-preference" class="fcias-section">
 		<h4>Your preferred algorithm</h4>
-		<div class="fcias-permission-row">
+		<div class="fcias-field-row">
 			<AlgorithmSelect
 				v-if="loaded"
 				:model-value="stored"

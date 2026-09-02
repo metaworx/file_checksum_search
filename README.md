@@ -662,8 +662,8 @@ The admin settings page provides:
   row menu), enable/disable, re-apply, and delete; drag to reorder within a segment; rows for
   namespaces without a rule of their own
 - **Rule-editing permissions** — allow-all toggle, group list, and user list
-- **Hash Algorithms** — which algorithms this server computes, chosen from what its PHP provides;
-  the first in the list is the default. Every picker in the app offers exactly these
+- **Hash Algorithms** — which algorithms this server computes, chosen from what its PHP provides,
+  and which of them is the default. Every picker in the app offers exactly these
 - **Documentation** — in-app access to the FAQ, the user guide, README, API specs, and license
 
 The personal settings page lists the rules applying to the current user — the enforced ones above

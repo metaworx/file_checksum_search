@@ -61,6 +61,14 @@ class ConfigLexicon
 				flags: IAppConfig::FLAG_INTERNAL,
 			),
 			new Entry(
+				key: AlgorithmCatalogue::DEFAULT_KEY,
+				type: ValueType::STRING,
+				defaultRaw: '',
+				definition: 'The algorithm used where none is named. Must be allowed; empty means the first allowed.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
 				key: 'rule_processing_interval',
 				type: ValueType::INT,
 				defaultRaw: 300,

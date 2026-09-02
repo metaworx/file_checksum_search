@@ -432,4 +432,39 @@ class SettingsControllerTest
 		$this->assertFalse( $response->getData()['success'] );
 	}
 
+
+	/**
+	 * The default is designated in the same request as the allowlist and
+	 * applied after it, so a default from a list being widened is accepted.
+	 */
+	public function testTheDefaultIsAppliedAfterTheAllowlistAndEchoed(): void
+	{
+
+		$this->controller->method( 'readRequestBody' )
+		                 ->willReturn( json_encode( [
+			                 'allowedAlgorithms' => [ 'sha1', 'sha256' ],
+			                 'defaultAlgorithm'  => 'sha256',
+		                 ] ) )
+		;
+
+		$response = $this->controller->saveAdminOptions();
+
+		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
+		$this->assertSame( 'sha256', $response->getData()['defaultAlgorithm'] );
+	}
+
+
+	public function testADefaultOutsideTheAllowedSetIsRefused(): void
+	{
+
+		$this->controller->method( 'readRequestBody' )
+		                 ->willReturn( json_encode( [ 'defaultAlgorithm' => 'nonsense' ] ) )
+		;
+
+		$response = $this->controller->saveAdminOptions();
+
+		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
+		$this->assertFalse( $response->getData()['success'] );
+	}
+
 }

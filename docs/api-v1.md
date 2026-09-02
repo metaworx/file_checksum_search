@@ -522,7 +522,8 @@ No parameters.
 The set is not fixed. It is what this server's PHP offers, narrowed to what the
 administrator has allowed (admin settings → *Hash Algorithms*); the example above
 is the shipped default. Every `algo` parameter in this API accepts exactly the
-names this endpoint lists, and `default` is what is used when none is given. A
+names this endpoint lists, and `default` — the administrator's designation,
+else the first allowed — is what is used when none is given. A
 client that carries its own list will be wrong the day an administrator changes
 this one — ask, and cache per session.
 

@@ -136,7 +136,7 @@ class SettingsController
 			'availableUsers' => $users,
 			// The catalogue, both halves: what is in force, and what this PHP
 			// build could offer if allowed. The picker shows the second and
-			// marks the first.
+			// marks the first; the default picker offers the first.
 			'allowedAlgorithms'   => $this->catalogue->algorithms(),
 			'availableAlgorithms' => $this->catalogue->available(),
 			'defaultAlgorithm'    => $this->catalogue->default(),
@@ -177,6 +177,9 @@ class SettingsController
 		// silently replaced by the default, because the administrator asked
 		// for something and should hear that it could not be done.
 		$algorithms = $this->listOrNull( $body, 'allowedAlgorithms' );
+		// Applied after the allowlist when both are sent, so a default from a
+		// list that is being widened in the same request is accepted.
+		$default    = array_key_exists( 'defaultAlgorithm', $body ) ? $body['defaultAlgorithm'] : null;
 
 		try
 		{
@@ -211,9 +214,21 @@ class SettingsController
 				}
 			}
 
+			if ( $default !== null && ( ! is_string( $default ) || ! $this->catalogue->setDefault( $default ) ) )
+			{
+				return new DataResponse(
+					[
+						'success' => false,
+						'error'   => 'The default must be one of the allowed algorithms.',
+					],
+					Http::STATUS_BAD_REQUEST,
+				);
+			}
+
 			return new DataResponse( [
 				'success'           => true,
 				'allowedAlgorithms' => $this->catalogue->algorithms(),
+				'defaultAlgorithm'  => $this->catalogue->default(),
 			] );
 		}
 		catch ( Throwable $e )

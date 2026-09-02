@@ -392,8 +392,8 @@ loadRules().then(() => {
 			<div class="fcias-section">
 				<h4>Hash Algorithms</h4>
 				<p class="fcias-hint">
-					Which algorithms this server computes, from what its PHP provides. Rules may only use these,
-					and every picker in the app offers exactly these; the first one is the default.
+					Which algorithms this server computes, from what its PHP provides, and which of them is the
+					default. Rules may only use these, and every picker in the app offers exactly these.
 				</p>
 				<AlgorithmSection />
 			</div>

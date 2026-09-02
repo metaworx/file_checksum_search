@@ -32,12 +32,16 @@ class AlgorithmCatalogueTest
 	}
 
 
-	private function withAllowlist( array $stored ): AlgorithmCatalogue
+	private function withAllowlist( array $stored, string $default = '' ): AlgorithmCatalogue
 	{
 
 		$this->appConfig->method( 'getValueArray' )
 		                ->with( Application::APP_ID, AlgorithmCatalogue::CONFIG_KEY, [] )
 		                ->willReturn( $stored )
+		;
+		$this->appConfig->method( 'getValueString' )
+		                ->with( Application::APP_ID, AlgorithmCatalogue::DEFAULT_KEY, '' )
+		                ->willReturn( $default )
 		;
 
 		return new AlgorithmCatalogue( $this->appConfig );
@@ -144,6 +148,110 @@ class AlgorithmCatalogueTest
 		$catalogue = new AlgorithmCatalogue( $this->appConfig );
 
 		$this->assertSame( [], $catalogue->setAllowlist( [ 'bogus', 'sha512/256' ] ) );
+	}
+
+
+	public function testADesignatedDefaultIsHonoured(): void
+	{
+
+		$catalogue = $this->withAllowlist( [ 'sha1', 'sha256' ], 'sha256' );
+
+		$this->assertSame( 'sha256', $catalogue->default() );
+	}
+
+
+	/**
+	 * A designation that is not in force — reached the config past
+	 * setAllowlist(), or the PHP build lost the algorithm — is not an error
+	 * and not a default: the first allowed applies.
+	 */
+	public function testADesignationNotInForceFallsBackToTheFirstAllowed(): void
+	{
+
+		$catalogue = $this->withAllowlist( [ 'sha1', 'sha256' ], 'md5' );
+
+		$this->assertSame( 'sha1', $catalogue->default() );
+	}
+
+
+	public function testDesignatingTheDefaultStoresItAndAppliesAtOnce(): void
+	{
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'setValueString' )
+		                ->with( Application::APP_ID, AlgorithmCatalogue::DEFAULT_KEY, 'sha256' )
+		;
+
+		$catalogue = $this->withAllowlist( [ 'sha1', 'sha256' ] );
+
+		$this->assertTrue( $catalogue->setDefault( ' SHA256 ' ) );
+		$this->assertSame( 'sha256', $catalogue->default() );
+	}
+
+
+	public function testDesignatingAnAlgorithmNotInForceIsRefused(): void
+	{
+
+		$this->appConfig->expects( $this->never() )
+		                ->method( 'setValueString' )
+		;
+
+		$catalogue = $this->withAllowlist( [ 'sha1' ] );
+
+		$this->assertFalse( $catalogue->setDefault( 'sha256' ) );
+		$this->assertSame( 'sha1', $catalogue->default() );
+	}
+
+
+	public function testTheEmptyNameClearsTheDesignation(): void
+	{
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'deleteKey' )
+		                ->with( Application::APP_ID, AlgorithmCatalogue::DEFAULT_KEY )
+		;
+		$this->appConfig->expects( $this->never() )
+		                ->method( 'setValueString' )
+		;
+
+		$catalogue = $this->withAllowlist( [ 'sha1', 'sha256' ] );
+
+		$this->assertTrue( $catalogue->setDefault( '' ) );
+	}
+
+
+	/**
+	 * Dropping the default from the allowlist clears the designation rather
+	 * than leaving it dormant, so re-allowing the algorithm later does not
+	 * silently make it the default again.
+	 */
+	public function testAnAllowlistThatDropsTheDefaultClearsIt(): void
+	{
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'deleteKey' )
+		                ->with( Application::APP_ID, AlgorithmCatalogue::DEFAULT_KEY )
+		;
+
+		$catalogue = $this->withAllowlist( [ 'sha1', 'sha256' ], 'sha256' );
+
+		$this->assertSame( [ 'sha1' ], $catalogue->setAllowlist( [ 'sha1' ] ) );
+		$this->assertSame( 'sha1', $catalogue->default() );
+	}
+
+
+	public function testAnAllowlistThatKeepsTheDefaultLeavesItAlone(): void
+	{
+
+		$this->appConfig->expects( $this->never() )
+		                ->method( 'deleteKey' )
+		;
+
+		$catalogue = $this->withAllowlist( [ 'sha1', 'sha256' ], 'sha256' );
+
+		$catalogue->setAllowlist( [ 'md5', 'sha256' ] );
+
+		$this->assertSame( 'sha256', $catalogue->default() );
 	}
 
 }

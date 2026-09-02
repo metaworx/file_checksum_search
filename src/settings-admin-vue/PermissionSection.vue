@@ -108,7 +108,7 @@ onMounted(load)
 		</div>
 
 		<div v-if="loaded && !allowAll" class="fcias-permission-selects">
-			<div class="fcias-permission-row">
+			<div class="fcias-field-row">
 				<NcSettingsSelectGroup
 					v-model="allowedGroups"
 					label="Groups"
@@ -116,7 +116,7 @@ onMounted(load)
 				<HelpPopover :text="HELP.groups" label="Groups" />
 			</div>
 
-			<div class="fcias-permission-row">
+			<div class="fcias-field-row">
 				<NcSelect
 					v-model="selectedUsers"
 					:multiple="true"
@@ -149,29 +149,5 @@ onMounted(load)
 	flex-direction: column;
 	gap: 8px;
 	margin: 12px 0;
-}
-
-.fcias-permission-row {
-	display: flex;
-	align-items: flex-end;
-	gap: 4px;
-}
-
-/* NcSettingsSelectGroup wraps its NcSelect in an unstyled div, so the select
-   keeps its intrinsic width instead of filling the row the way the bare
-   NcSelect below it does. Stretch the wrapper and the select inside it. */
-.fcias-permission-row > :first-child {
-	flex: 1;
-	min-width: 0;
-}
-
-.fcias-permission-row :deep(.v-select.select) {
-	min-width: 0;
-	width: 100%;
-}
-
-.fcias-permission-row :deep(.v-select.select > .vs__dropdown-toggle) {
-	max-width: 100%;
-	width: 100%;
 }
 </style>
