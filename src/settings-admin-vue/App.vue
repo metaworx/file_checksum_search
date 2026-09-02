@@ -115,6 +115,7 @@ const staleReason = (state: string) => STALE_REASONS[state] ?? { label: state, h
 const JOB_LABELS: Record<string, string> = {
 	rule_sweep: 'Rule sweep',
 	pending_drain: 'Queue drain',
+	orphan_purge: 'Orphan purge',
 }
 
 const jobRows = computed(() => Object.entries(status.value.jobs ?? {}).map(([key, run]) => ({

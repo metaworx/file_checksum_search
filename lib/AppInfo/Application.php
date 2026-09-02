@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\AppInfo;
 
 use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Listener\AppDisableListener;
+use OCA\FileChecksumSearch\Listener\UserDeletedListener;
 use OCA\FileChecksumSearch\Listener\BeforeTemplateRenderedListener;
 use OCA\FileChecksumSearch\Listener\FileListener;
 use OCA\FileChecksumSearch\Listener\MetadataListener;
@@ -48,6 +49,7 @@ class Application
 		MetadataListener::register( $context );
 		BeforeTemplateRenderedListener::register( $context );
 		AppDisableListener::register( $context );
+		UserDeletedListener::register( $context );
 	}
 
 

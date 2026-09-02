@@ -39,10 +39,14 @@ class JobStatsService
 	/** The pending-queue drain (ProcessPendingUpdates). */
 	public const JOB_PENDING_DRAIN = 'pending_drain';
 
+	/** The daily purge of metadata for files that no longer exist (rides RuleProcessingJob). */
+	public const JOB_ORPHAN_PURGE = 'orphan_purge';
+
 	public const JOBS
 		= [
 			self::JOB_RULE_SWEEP,
 			self::JOB_PENDING_DRAIN,
+			self::JOB_ORPHAN_PURGE,
 		];
 
 
