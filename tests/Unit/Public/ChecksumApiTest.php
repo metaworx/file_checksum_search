@@ -18,6 +18,7 @@ use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCP\IGroupManager;
+use OCP\Config\IUserConfig;
 use OCP\IAppConfig;
 use OCP\IUserManager;
 use OCA\FileChecksumSearch\Service\RuleService;
@@ -102,6 +103,7 @@ class ChecksumApiTest
 			$this->permissionService,
 			$this->groupManager,
 			new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ),
+			$this->createMock( IUserConfig::class ),
 		);
 	}
 
@@ -426,6 +428,13 @@ class ChecksumApiTest
 		$this->assertSame( 'sha1', $data['hashes'][0]['algo'] );
 		$this->assertSame( 'abc', $data['hashes'][0]['hash'] );
 		$this->assertNotNull( $data['hashes'][0]['updated_at'] );
+
+		// What the sidebar composes its quick buttons from. No rule governs the
+		// mocked file and no preference is stored, so: nothing from a rule, the
+		// instance default, and no preference.
+		$this->assertSame( [], $data['algos'] );
+		$this->assertSame( 'sha1', $data['default'] );
+		$this->assertSame( '', $data['preferred'] );
 	}
 
 

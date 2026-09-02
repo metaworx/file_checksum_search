@@ -145,7 +145,10 @@ describe( 'FCIAS checksums sidebar', () => {
 		cy.get( '.fcias-recalc-btn[data-algo="sha1"]' ).click()
 		cy.get( '.fcias-selectable-hash', { timeout: FIND_TIMEOUT } ).should( 'have.length.at.least', 1 )
 
-		cy.get( '.fcias-recalc-btn' ).should( 'have.length', 3 )
+		// The quick buttons are composed per file — the user's preference or the
+		// default, then the governing rule's first other algorithm — so there are
+		// one or two of them, plus the picker's own button.
+		cy.get( '.fcias-recalc-btn' ).should( 'have.length.at.least', 2 )
 		cy.get( '.fcias-dup-btn' ).should( 'exist' )
 	} )
 

@@ -256,6 +256,60 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
+  /api/v1/preferences/{key}:
+    parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [preferred_algorithm]
+        description: "The namespace was reserved for per-user preferences; preferred_algorithm is its first key."
+    get:
+      tags: [preferences]
+      summary: One of the caller's own preferences
+      operationId: getPreference
+      responses:
+        "200":
+          description: The stored value, the instance default, and which applies
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreferenceResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [preferences]
+      summary: Set one of the caller's own preferences
+      description: "An empty value returns to the instance default. For preferred_algorithm the value must be an algorithm GET /api/v1/algorithms lists."
+      operationId: setPreference
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value]
+              properties:
+                value:
+                  type: string
+                  example: sha256
+      responses:
+        "200":
+          description: The preference after the change
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreferenceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/v1/rules:
     get:
       operationId: listRules
@@ -522,7 +576,7 @@ components:
 
     FileHashesResponse:
       type: object
-      required: [fileid, hashes]
+      required: [fileid, hashes, algos, preferred, default]
       properties:
         fileid:
           type: integer
@@ -531,7 +585,40 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/HashEntry"
+        algos:
+          type: array
+          items:
+            type: string
+          description: "The algorithms the file's governing include rule computes; empty when no rule maintains the file."
+          example: [sha256, sha1]
+        preferred:
+          type: string
+          description: "The asking user's stored preferred algorithm, if it is in force; empty otherwise."
+          example: sha256
+        default:
+          type: string
+          description: "The instance default, used when no algorithm is named."
+          example: sha1
 
+    PreferenceResponse:
+      type: object
+      required: [key, value, default, active]
+      properties:
+        key:
+          type: string
+          example: preferred_algorithm
+        value:
+          type: string
+          description: What the user stored; empty when nothing.
+          example: sha256
+        default:
+          type: string
+          description: The instance default.
+          example: sha1
+        active:
+          type: string
+          description: Which of the two applies — the preference where it is still in force, else the default.
+          example: sha256
     AlgorithmsResponse:
       type: object
       required: [algorithms, default]

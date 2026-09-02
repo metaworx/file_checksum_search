@@ -26,6 +26,10 @@ class ConfigLexicon
 	ILexicon
 {
 
+	/** Per-user: the algorithm the sidebar offers first. Empty means the instance default. */
+	public const USER_PREFERRED_ALGORITHM = 'preferred_algorithm';
+
+
 	public function getStrictness(): Strictness
 	{
 
@@ -187,7 +191,16 @@ class ConfigLexicon
 	public function getUserConfigs(): array
 	{
 
-		return [];
+		return [
+			new Entry(
+				key: self::USER_PREFERRED_ALGORITHM,
+				type: ValueType::STRING,
+				defaultRaw: '',
+				definition: 'The algorithm this user wants first in the sidebar. Empty means the instance default.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+		];
 	}
 
 }

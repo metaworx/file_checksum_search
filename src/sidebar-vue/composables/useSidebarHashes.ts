@@ -16,6 +16,10 @@ declare const OC: {
 export function useSidebarHashes(getNode: () => FileNode | null) {
 	const loading = ref(false)
 	const hashes = ref<HashEntry[]>([])
+	// What the quick buttons are composed from; see ChecksumsSidebarTab.
+	const ruleAlgos = ref<string[]>([])
+	const preferredAlgo = ref('')
+	const defaultAlgo = ref('')
 	const error = ref('')
 	const recalculating = ref<string | null>(null)
 	const recalcError = ref<string | null>(null)
@@ -43,6 +47,9 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 		const id = fileId.value
 		if (id === null) {
 			hashes.value = []
+			ruleAlgos.value = []
+			preferredAlgo.value = ''
+			defaultAlgo.value = ''
 			return
 		}
 
@@ -54,8 +61,16 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 			const url = generateOcsUrl(OCS_API_V1.getHashes, { fileId: id })
 			const response = await fetch(url, { signal: abortController.signal })
 			if (!response.ok) throw new Error(`HTTP ${response.status}`)
-			const data = (await response.json()) as { hashes?: HashEntry[] }
+			const data = (await response.json()) as {
+				hashes?: HashEntry[]
+				algos?: string[]
+				preferred?: string
+				default?: string
+			}
 			hashes.value = data.hashes || []
+			ruleAlgos.value = Array.isArray(data.algos) ? data.algos : []
+			preferredAlgo.value = typeof data.preferred === 'string' ? data.preferred : ''
+			defaultAlgo.value = typeof data.default === 'string' ? data.default : ''
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return
 			error.value = 'Failed to load checksums.'
@@ -125,6 +140,9 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 	return {
 		loading,
 		hashes,
+		ruleAlgos,
+		preferredAlgo,
+		defaultAlgo,
 		error,
 		recalculating,
 		recalcError,

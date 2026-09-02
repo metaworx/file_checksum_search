@@ -112,4 +112,25 @@ describe('useSidebarHashes', () => {
 
 		expect(duplicates.value).toEqual([{ algo: 'sha1', hash_value: 'abc', files: [] }])
 	})
+
+	// The quick buttons are composed from three things the hashes response
+	// now carries; a response from an older server carries none, and the
+	// composable must not invent them.
+	it('carries the composition inputs from the response, or nothing', async () => {
+		vi.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(jsonResponse({ hashes: [], algos: ['sha256', 'sha1'], preferred: 'md5', default: 'sha1' }))
+			.mockResolvedValueOnce(jsonResponse({ hashes: [] }))
+
+		const { ruleAlgos, preferredAlgo, defaultAlgo, loadHashes } = useSidebarHashes(() => fileNode(123))
+
+		await loadHashes()
+		expect(ruleAlgos.value).toEqual(['sha256', 'sha1'])
+		expect(preferredAlgo.value).toBe('md5')
+		expect(defaultAlgo.value).toBe('sha1')
+
+		await loadHashes()
+		expect(ruleAlgos.value).toEqual([])
+		expect(preferredAlgo.value).toBe('')
+		expect(defaultAlgo.value).toBe('')
+	})
 })

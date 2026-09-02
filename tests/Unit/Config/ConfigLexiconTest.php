@@ -76,7 +76,9 @@ class ConfigLexiconTest
 	public function testGetUserConfigsReturnsEmpty(): void
 	{
 
-		$this->assertSame( [], $this->lexicon->getUserConfigs() );
+		$userConfigs = $this->lexicon->getUserConfigs();
+		$this->assertCount( 1, $userConfigs );
+		$this->assertSame( 'preferred_algorithm', $userConfigs[0]->getKey() );
 	}
 
 }

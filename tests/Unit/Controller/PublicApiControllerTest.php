@@ -11,6 +11,8 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
 use OCA\FileChecksumSearch\Controller\PublicApiController;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
+use OCP\Config\IUserConfig;
+use OCP\IAppConfig;
 use OCA\FileChecksumSearch\Public\ChecksumApi;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
@@ -37,6 +39,8 @@ class PublicApiControllerTest
 
 	private MockObject|LoggerInterface $logger;
 
+	private IUserConfig&MockObject $userConfig;
+
 	private PublicApiController        $controller;
 
 
@@ -49,6 +53,7 @@ class PublicApiControllerTest
 		$this->userSession  = $this->createMock( IUserSession::class );
 		$this->groupManager = $this->createMock( IGroupManager::class );
 		$this->logger       = $this->createMock( LoggerInterface::class );
+		$this->userConfig = $this->createMock( IUserConfig::class );
 		$request            = $this->createMock( IRequest::class );
 
 		// Default to an authenticated admin (unrestricted scope: null) so
@@ -75,6 +80,7 @@ class PublicApiControllerTest
 			$this->groupManager,
 			$this->logger,
 			$this->createMock( AlgorithmCatalogue::class ),
+			$this->userConfig,
 		);
 	}
 
@@ -242,6 +248,7 @@ class PublicApiControllerTest
 			$this->groupManager,
 			$this->logger,
 			$this->createMock( AlgorithmCatalogue::class ),
+			$this->userConfig,
 		);
 
 		$this->api->expects( $this->never() )
@@ -281,6 +288,7 @@ class PublicApiControllerTest
 			$this->groupManager,
 			$this->logger,
 			$this->createMock( AlgorithmCatalogue::class ),
+			$this->userConfig,
 		);
 
 		$this->api->expects( $this->once() )
@@ -459,6 +467,7 @@ class PublicApiControllerTest
 			$this->groupManager,
 			$this->logger,
 			$this->createMock( AlgorithmCatalogue::class ),
+			$this->userConfig,
 		);
 
 		$this->api->expects( $this->once() )
@@ -569,6 +578,7 @@ class PublicApiControllerTest
 			$this->groupManager,
 			$this->logger,
 			$this->createMock( AlgorithmCatalogue::class ),
+			$this->userConfig,
 		);
 
 		$this->api->expects( $this->once() )
@@ -578,6 +588,155 @@ class PublicApiControllerTest
 		;
 
 		$this->controller->recalcHash( 42 );
+	}
+
+
+	// ── preferences ─────────────────────────────────────────────────────
+
+	/**
+	 * A controller of its own for these: setUp() pins the session to an
+	 * administrator and PHPUnit keeps the first stub it is given, so the
+	 * anonymous case and the body under test need fresh mocks. The catalogue
+	 * is real — its default is what `active` falls back to.
+	 */
+	private function preferenceController( ?string $uid, mixed $value = '' ): PublicApiController
+	{
+
+		$session = $this->createMock( IUserSession::class );
+		if ( $uid !== null )
+		{
+			$user = $this->createMock( IUser::class );
+			$user->method( 'getUID' )
+			     ->willReturn( $uid )
+			;
+			$session->method( 'getUser' )
+			        ->willReturn( $user )
+			;
+		}
+
+		$request = $this->createMock( IRequest::class );
+		$request->method( 'getParam' )
+		        ->willReturnCallback( static fn( string $key, mixed $default = null ): mixed => $key === 'value' ? $value : $default )
+		;
+
+		return new PublicApiController(
+			'file_checksum_search',
+			$request,
+			$this->api,
+			$session,
+			$this->groupManager,
+			$this->logger,
+			new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ),
+			$this->userConfig,
+		);
+	}
+
+
+	public function testAPreferenceNeedsASession(): void
+	{
+
+		$controller = $this->preferenceController( null );
+
+		$this->assertSame( Http::STATUS_UNAUTHORIZED, $controller->getPreference( 'preferred_algorithm' )->getStatus() );
+		$this->assertSame( Http::STATUS_UNAUTHORIZED, $controller->setPreference( 'preferred_algorithm' )->getStatus() );
+	}
+
+
+	public function testAnUnknownPreferenceIsNotFound(): void
+	{
+
+		$this->assertSame(
+			Http::STATUS_NOT_FOUND,
+			$this->preferenceController( 'alice' )->getPreference( 'favourite_colour' )->getStatus(),
+		);
+	}
+
+
+	/**
+	 * `value` is what was stored, `default` the instance's, `active` which of
+	 * the two applies.
+	 */
+	public function testReadingThePreferenceSaysWhichOneIsActive(): void
+	{
+
+		$this->userConfig->method( 'getValueString' )
+		                 ->willReturn( 'sha256' )
+		;
+
+		$data = $this->preferenceController( 'alice' )->getPreference( 'preferred_algorithm' )->getData();
+
+		$this->assertSame( 'preferred_algorithm', $data['key'] );
+		$this->assertSame( 'sha256', $data['value'] );
+		$this->assertSame( 'sha1', $data['default'] );
+		$this->assertSame( 'sha256', $data['active'] );
+	}
+
+
+	/**
+	 * A stored preference the administrator has since disallowed is kept but
+	 * not applied: the default is active until the user picks again.
+	 */
+	public function testAStoredPreferenceNoLongerInForceYieldsToTheDefault(): void
+	{
+
+		$this->userConfig->method( 'getValueString' )
+		                 ->willReturn( 'whirlpool' )
+		;
+
+		$data = $this->preferenceController( 'alice' )->getPreference( 'preferred_algorithm' )->getData();
+
+		$this->assertSame( 'whirlpool', $data['value'] );
+		$this->assertSame( 'sha1', $data['active'] );
+	}
+
+
+	public function testAnEmptyValueReturnsToTheDefault(): void
+	{
+
+		$this->userConfig->expects( $this->once() )
+		                 ->method( 'deleteUserConfig' )
+		                 ->with( 'alice', 'file_checksum_search', 'preferred_algorithm' )
+		;
+		$this->userConfig->expects( $this->never() )
+		                 ->method( 'setValueString' )
+		;
+
+		$response = $this->preferenceController( 'alice', '' )
+		                 ->setPreference( 'preferred_algorithm' )
+		;
+
+		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
+	}
+
+
+	public function testAnAlgorithmNotInForceIsRefused(): void
+	{
+
+		$this->userConfig->expects( $this->never() )
+		                 ->method( 'setValueString' )
+		;
+
+		$response = $this->preferenceController( 'alice', 'whirlpool' )
+		                 ->setPreference( 'preferred_algorithm' )
+		;
+
+		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
+	}
+
+
+	public function testAnAlgorithmInForceIsStoredLowerCased(): void
+	{
+
+		$this->userConfig->expects( $this->once() )
+		                 ->method( 'setValueString' )
+		                 ->with( 'alice', 'file_checksum_search', 'preferred_algorithm', 'sha256' )
+		;
+
+		$response = $this->preferenceController( 'alice', ' SHA256 ' )
+		                 ->setPreference( 'preferred_algorithm' )
+		;
+
+		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
 	}
 
 }

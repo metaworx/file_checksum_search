@@ -12,6 +12,8 @@ namespace OCA\FileChecksumSearch\Controller;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Public\ChecksumApi;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
+use OCP\Config\IUserConfig;
+use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Service\DuplicateService;
 use OCP\AppFramework\ApiController;
 use OCP\AppFramework\Http;
@@ -50,6 +52,7 @@ class PublicApiController
 		private readonly IGroupManager   $groupManager,
 		private readonly LoggerInterface $logger,
 		private readonly AlgorithmCatalogue $catalogue,
+		private readonly IUserConfig     $userConfig,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -97,6 +100,114 @@ class PublicApiController
 	 *
 	 * @noinspection PhpUnused
 	 */
+	/**
+	 * One of the caller's own preferences.
+	 *
+	 * `/api/v1/preferences/{key}` was reserved by AP RuleBands for exactly
+	 * this: per-user settings that belong to the API rather than to a page.
+	 * The first key is `preferred_algorithm` — the algorithm the sidebar
+	 * offers first. `value` is what the user stored (empty when nothing),
+	 * `default` is the instance's, and `active` is which of the two applies.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/preferences/{key}' )]
+	public function getPreference( string $key ): DataResponse
+	{
+
+		$uid = $this->userSession->getUser()?->getUID();
+
+		if ( $uid === null )
+		{
+			return new DataResponse( [ 'error' => 'Not authenticated.' ], Http::STATUS_UNAUTHORIZED );
+		}
+
+		if ( $key !== ConfigLexicon::USER_PREFERRED_ALGORITHM )
+		{
+			return new DataResponse( [ 'error' => 'Unknown preference.' ], Http::STATUS_NOT_FOUND );
+		}
+
+		return new DataResponse( $this->preferredAlgorithm( $uid ) );
+	}
+
+
+	/**
+	 * Set one of the caller's own preferences. The body is `{"value": …}`;
+	 * an empty value returns to the instance default.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[NoAdminRequired]
+	#[ApiRoute( verb: 'PUT', url: '/api/v1/preferences/{key}' )]
+	public function setPreference( string $key ): DataResponse
+	{
+
+		$uid = $this->userSession->getUser()?->getUID();
+
+		if ( $uid === null )
+		{
+			return new DataResponse( [ 'error' => 'Not authenticated.' ], Http::STATUS_UNAUTHORIZED );
+		}
+
+		if ( $key !== ConfigLexicon::USER_PREFERRED_ALGORITHM )
+		{
+			return new DataResponse( [ 'error' => 'Unknown preference.' ], Http::STATUS_NOT_FOUND );
+		}
+
+		// Nextcloud decodes an application/json body into the request's
+		// params, so the body {"value": …} arrives as one param.
+		$value = $this->request->getParam( 'value', '' );
+
+		if ( ! is_string( $value ) )
+		{
+			return new DataResponse( [ 'error' => 'value must be a string.' ], Http::STATUS_BAD_REQUEST );
+		}
+
+		$value = strtolower( trim( $value ) );
+
+		if ( $value === '' )
+		{
+			$this->userConfig->deleteUserConfig( $uid, Application::APP_ID, $key );
+		}
+		elseif ( $this->catalogue->isValid( $value ) )
+		{
+			$this->userConfig->setValueString( $uid, Application::APP_ID, $key, $value );
+		}
+		else
+		{
+			return new DataResponse(
+				[ 'error' => 'Not an algorithm this instance computes: ' . $value ],
+				Http::STATUS_BAD_REQUEST,
+			);
+		}
+
+		return new DataResponse( $this->preferredAlgorithm( $uid ) );
+	}
+
+
+	/**
+	 * @return array{key: string, value: string, default: string, active: string}
+	 */
+	private function preferredAlgorithm( string $uid ): array
+	{
+
+		$stored  = $this->userConfig->getValueString( $uid, Application::APP_ID, ConfigLexicon::USER_PREFERRED_ALGORITHM );
+		$default = $this->catalogue->default();
+		// A stored preference the administrator has since disallowed is kept
+		// but not applied: the default is active until the user picks again.
+		$active  = $this->catalogue->isValid( $stored ) ? $stored : $default;
+
+		return [
+			'key'     => ConfigLexicon::USER_PREFERRED_ALGORITHM,
+			'value'   => $stored,
+			'default' => $default,
+			'active'  => $active,
+		];
+	}
+
+
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
 	#[ApiRoute( verb: 'GET', url: '/api/v1/algorithms' )]

@@ -306,6 +306,7 @@ Responses are nonetheless plain JSON: these are `ApiController`s, not `OCSContro
 | 11 | `/api/v1/rules/order` | PUT | — | Reorder one segment partition |
 | 12 | `/api/v1/rules/{id}/apply` | POST | — | Queue a full apply pass for one rule |
 | 13 | `/api/v1/algorithms` | GET | — | The algorithms this instance computes, and its default |
+| 14 | `/api/v1/preferences/{key}` | GET, PUT | — | One of the caller's own preferences; first key `preferred_algorithm` |
 
 > **Note:** `getHashesByFile()` and `getHashesByPath()` are PHP-only convenience methods with no HTTP equivalent. HTTP consumers should use `getHashesByFileId()` after obtaining a `fileId` from NC's WebDAV PROPFIND or other APIs.
 
@@ -362,9 +363,19 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/hashes
   "hashes": [
     {"algo": "sha1", "hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709", "updated_at": "2026-08-18T10:00:00+00:00"},
     {"algo": "sha256", "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "updated_at": "2026-08-18T10:00:00+00:00"}
-  ]
+  ],
+  "algos": ["sha256", "sha1"],
+  "preferred": "sha256",
+  "default": "sha1"
 }
 ```
+
+The three fields after `hashes` are what the files sidebar composes its quick
+buttons from: `algos` are the algorithms the file's governing `include` rule
+computes (empty when no rule maintains the file), `preferred` is the asking
+user's stored preference where it is still in force (empty otherwise), and
+`default` is the instance's. The first button is `preferred`, else `default`;
+the second is the first of `algos` that differs from it.
 
 ---
 
@@ -518,6 +529,36 @@ this one — ask, and cache per session.
 Names are restricted to `[a-z0-9-]+` because they double as metadata keys, so
 PHP algorithms such as `sha512/256` or `tiger192,3` are never offered.
 
+
+#### 8. Preferences
+
+```
+GET /ocs/v2.php/apps/file_checksum_search/api/v1/preferences/{key}
+PUT /ocs/v2.php/apps/file_checksum_search/api/v1/preferences/{key}
+```
+
+Per-user preferences, the caller's own. The namespace was reserved for this;
+its first key is `preferred_algorithm`, the algorithm the sidebar offers first.
+Any other key answers 404.
+
+**Response (200), both verbs:**
+```json
+{
+  "key": "preferred_algorithm",
+  "value": "sha256",
+  "default": "sha1",
+  "active": "sha256"
+}
+```
+
+`value` is what the user stored (empty when nothing), `default` the instance's,
+`active` which of the two applies — a stored preference the administrator has
+since disallowed is kept but not applied, so `active` falls back to `default`
+until the user picks again.
+
+**PUT body:** `{"value": "sha256"}`. An empty value returns to the default. For
+`preferred_algorithm` the value must be one `GET /api/v1/algorithms` lists;
+anything else is 400. Requires a session (401 without one).
 ---
 
 ## Rules

@@ -65,6 +65,9 @@ function jsonResponse(body: unknown): Response {
 function mockFetch(canEdit = true): void {
 	vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
 		const url = String(input)
+		if (url.includes('/api/v1/preferences/')) {
+			return Promise.resolve(jsonResponse({ key: 'preferred_algorithm', value: '', default: 'sha1', active: 'sha1' }))
+		}
 		if (url.includes('/api/v1/rules')) {
 			return Promise.resolve(jsonResponse({
 				success: true,

@@ -11,6 +11,9 @@ namespace OCA\FileChecksumSearch\Public;
 
 use OCA\FileChecksumSearch\Service\DuplicateService;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
+use OCP\Config\IUserConfig;
+use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
@@ -51,6 +54,7 @@ class ChecksumApi
 		private readonly PermissionService       $permissionService,
 		private readonly IGroupManager           $groupManager,
 		private readonly AlgorithmCatalogue      $catalogue,
+		private readonly IUserConfig             $userConfig,
 	) {
 	}
 
@@ -62,7 +66,7 @@ class ChecksumApi
 	 *
 	 * @param  File  $file  A Nextcloud File node
 	 *
-	 * @return array{fileid: int, hashes: array<int, array{algo: string, hash: string}>}
+	 * @return array{fileid: int, hashes: array<int, array{algo: string, hash: string, updated_at: ?string}>, algos: list<string>, preferred: string, default: string}
 	 */
 	public function getHashesByFile( File $file ): array
 	{
@@ -81,7 +85,7 @@ class ChecksumApi
 	 *                                       pass null) for trusted/admin callers
 	 *                                       that intentionally bypass this check.
 	 *
-	 * @return array{fileid: int, hashes: array<int, array{algo: string, hash: string}>}
+	 * @return array{fileid: int, hashes: array<int, array{algo: string, hash: string, updated_at: ?string}>, algos: list<string>, preferred: string, default: string}
 	 * @throws NotFoundException  If $requestingUser is set and cannot access $fileId
 	 */
 	public function getHashesByFileId(
@@ -110,9 +114,24 @@ class ChecksumApi
 			];
 		}
 
+		// What the sidebar composes its quick buttons from: the algorithms the
+		// file's governing include rule computes (nothing for a file no rule
+		// maintains), the asking user's stored preference where it is still in
+		// force, and the instance default.
+		$rule      = $this->ruleService->findFirstMatchingRule( $fileId );
+		$uid       = $requestingUser ?? $this->userSession->getUser()?->getUID();
+		$preferred = $uid !== null
+			? $this->userConfig->getValueString( $uid, Application::APP_ID, ConfigLexicon::USER_PREFERRED_ALGORITHM )
+			: '';
+
 		return [
-			'hashes' => $result,
-			'fileid' => $fileId,
+			'hashes'    => $result,
+			'fileid'    => $fileId,
+			'algos'     => RuleService::maintainsHashes( $rule )
+				? array_values( array_filter( (array) ( $rule['algos'] ?? [] ), 'is_string' ) )
+				: [],
+			'preferred' => $this->catalogue->isValid( $preferred ) ? $preferred : '',
+			'default'   => $this->catalogue->default(),
 		];
 	}
 

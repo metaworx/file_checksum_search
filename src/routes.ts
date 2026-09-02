@@ -23,6 +23,8 @@ export const OCS_API_V1 = {
 	/** POST   /api/v1/file/{fileId}/recalc */
 	recalcHash: `${APP_BASE}/api/v1/file/{fileId}/recalc`,
 	getAlgorithms: `${APP_BASE}/api/v1/algorithms`,
+	/** GET/PUT /api/v1/preferences/{key} — the caller's own; first key `preferred_algorithm` */
+	preference: `${APP_BASE}/api/v1/preferences/{key}`,
 } as const
 
 /**

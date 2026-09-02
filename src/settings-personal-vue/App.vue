@@ -11,6 +11,7 @@ import RuleTable from '../rules-vue/RuleTable.vue'
 import RuleForm from '../rules-vue/RuleForm.vue'
 import type { Rule, RuleDraft } from '../rules-vue/types'
 import DocsViewer from '../docs-vue/DocsViewer.vue'
+import PreferenceSection from './PreferenceSection.vue'
 import { OCS_ADMIN } from '../routes'
 import { useRules } from '../rules-vue/composables/useRules'
 
@@ -178,6 +179,7 @@ loadRules()
 				path is in a folder you can write to.
 			</p>
 
+			<PreferenceSection :algorithms="supportedAlgos" />
 			<div id="fcias-personal-msg">
 				<p v-if="ruleMsg" class="fcias-error">
 					{{ ruleMsg }}

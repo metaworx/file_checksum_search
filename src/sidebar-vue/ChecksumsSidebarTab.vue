@@ -33,6 +33,9 @@ const props = withDefaults(
 const {
 	loading,
 	hashes,
+	ruleAlgos,
+	preferredAlgo,
+	defaultAlgo,
 	error,
 	recalculating,
 	recalcError,
@@ -47,6 +50,28 @@ const {
 } = useSidebarHashes(() => props.node)
 
 const { copied, copyToClipboard } = useClipboard()
+
+/** The quick buttons' captions; anything else is its id in capitals. */
+const QUICK_LABELS: Record<string, string> = { sha1: 'SHA-1', md5: 'MD5' }
+
+/**
+ * Which algorithms get a one-click button, for this file and this user.
+ *
+ * First the user's preference, else the instance default. Second, the first
+ * algorithm the file's governing rule computes that is not already first —
+ * so a user whose rules produce SHA-256 sees it, and one who chose MD5 sees
+ * MD5 beside whatever their rules do. One button when they coincide, or when
+ * no rule maintains the file. Everything else is in the picker.
+ */
+const quickAlgos = computed<AlgoOption[]>(() => {
+	const first = preferredAlgo.value || defaultAlgo.value
+	if (!first) {
+		return []
+	}
+	const second = ruleAlgos.value.find((a) => a !== first)
+	return [first, ...(second ? [second] : [])]
+		.map((id) => ({ id, label: QUICK_LABELS[id] ?? id.toUpperCase() }))
+})
 
 // The picker offers what the instance computes, read from the server once
 // per page. Until it answers, the picker is empty and the two quick buttons
@@ -134,14 +159,10 @@ watch(
 				:help="t('file_checksum_search', 'Compute a checksum for the selected algorithm.')" />
 			<div class="fcias-recalc-row">
 				<RecalcButton
-					algo="sha1"
-					label="SHA-1"
-					:recalculating="recalculating"
-					:recalc-error="recalcError"
-					@recalc="onRecalc" />
-				<RecalcButton
-					algo="md5"
-					label="MD5"
+					v-for="quick in quickAlgos"
+					:key="quick.id"
+					:algo="quick.id"
+					:label="quick.label"
 					:recalculating="recalculating"
 					:recalc-error="recalcError"
 					@recalc="onRecalc" />
