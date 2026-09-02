@@ -140,6 +140,11 @@ its enforced flag changed, never by being dragged; dragging only reorders
 rules that address the same thing, and never past that selector's own
 catch-all.
 
+A rule *is* that catch-all when its path is a bare `**`, a `/`, or left
+empty — all three mean the same "everything this selector reaches", and all
+three sink to the end of their segment. That is why a rule you write for a
+scope you already have a catch-all on lands above it without dragging.
+
 A rule can also say *not* to hash — `ignore` stops automatic hashing while
 still allowing it on request, and `exclude` blocks it entirely, including the
 sidebar's Recalculate button and the `occ` command. See
@@ -328,12 +333,30 @@ marked *expensive* asks whether there is anything to do before doing it —
 
 ### Hashes are missing or outdated
 
-Check the admin settings status overview (indexed hashes and pending
-updates). First check whether an `include` rule is enabled at all — with none,
-nothing is hashed by design. If pending entries accumulate, ensure Nextcloud's
-background jobs (cron) are running: the status page shows each job's last run,
-and `ProcessPendingUpdates` drains the queue every 60 seconds. You can also
-hash on demand:
+First check whether an `include` rule is enabled at all — with none, nothing is
+hashed by design.
+
+The admin settings page's **Status Info** section is where the rest shows. Four
+rows answer four different questions, and it is worth knowing which one you are
+reading:
+
+- **Indexed Hashes** — how many the index holds. Zero with rules enabled means
+  the work has not happened yet, not that it failed.
+- **Untrusted Hashes** — files whose stored hashes are not to be believed, with
+  a breakdown by reason. *Eroded* means they were dropped on write because no
+  rule maintains the file any more, and heals itself once a rule covers it
+  again. *Reset* means they are still stored but disowned, already hidden from
+  search, waiting for the background job or an import.
+- **Background Jobs** — each job's last run and its counts. The timestamp is
+  the point: a job that stopped running is invisible until someone notices its
+  clock has not moved.
+- **Last Updated** — when the page itself last asked, not when anything was
+  hashed.
+
+If pending entries accumulate, ensure Nextcloud's background jobs (cron) are
+running — that is what the Background Jobs clock tells you — and
+`ProcessPendingUpdates` drains the queue every 60 seconds. You can also hash on
+demand:
 
 ```bash
 php occ file-checksum-search:hash --user=alice --path="**"
