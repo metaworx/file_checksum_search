@@ -24,6 +24,8 @@ const {
 	rules,
 	canCreate,
 	supportedAlgos,
+	loaded,
+	error,
 	loadRules,
 	saveRule,
 	deleteRule,
@@ -181,9 +183,11 @@ loadRules()
 				path is in a folder you can write to.
 			</p>
 
+			<!-- The one place a failed request reports: a load that never
+			     answered, or an action the server refused. -->
 			<div id="fcias-personal-msg">
-				<p v-if="ruleMsg" class="fcias-error">
-					{{ ruleMsg }}
+				<p v-if="ruleMsg || error" class="fcias-error">
+					{{ ruleMsg || error }}
 				</p>
 			</div>
 
@@ -192,6 +196,7 @@ loadRules()
 					:rules="rules"
 					variant="personal"
 					:can-edit-any="canCreate"
+					:loading="!loaded"
 					:reorderable="true"
 					@edit="openEditRule"
 					@toggle="handleToggleRule"

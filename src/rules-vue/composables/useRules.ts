@@ -52,6 +52,8 @@ interface State {
 	availableGroupFolders: GroupFolderOption[]
 	availableStorages: string[]
 	loading: boolean
+	/** Whether the first load has answered, well or badly. Until then the page has nothing to say. */
+	loaded: boolean
 	error: string | null
 }
 
@@ -69,6 +71,7 @@ export function useRules(scope: 'own' | 'all') {
 		availableGroupFolders: [],
 		availableStorages: [],
 		loading: false,
+		loaded: false,
 		error: null,
 	})
 
@@ -103,6 +106,7 @@ export function useRules(scope: 'own' | 'all') {
 		} finally {
 			if (!signal.aborted) {
 				state.loading = false
+				state.loaded = true
 			}
 		}
 	}

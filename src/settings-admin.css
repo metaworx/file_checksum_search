@@ -32,9 +32,10 @@
 	background-color: var(--color-error-hover, #cc0000);
 }
 
+/* Sized like Nextcloud's own section descriptions (.settings-section__desc):
+   normal size, max-contrast colour. Only the colour marks it as secondary. */
 .fcias-hint {
 	color: var(--color-text-maxcontrast);
-	font-size: 0.9em;
 }
 
 .fcias-compat-pass {

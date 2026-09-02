@@ -22,6 +22,8 @@ const props = defineProps<{
 	variant: 'admin' | 'personal'
 	/** Whether the caller may create rules at all; drives the empty-state hint. */
 	canEditAny?: boolean
+	/** True until the rules have been loaded once: neither hint nor empty state is shown before. */
+	loading?: boolean
 	/** Overrides the "no rules" placeholder text. */
 	emptyText?: string
 	/** Turns the drag handles on. Rows still need `canEdit` individually. */
@@ -276,11 +278,14 @@ const emptyMessage = computed(
 
 <template>
 	<div>
-		<p v-if="variant === 'personal' && canEditAny === false" class="fcias-error">
+		<!-- Information, not a failure: it stays for as long as it is true, so
+		     it is styled as a hint. Failed requests report in the page's own
+		     message slot above this table. -->
+		<p v-if="variant === 'personal' && !loading && canEditAny === false" class="fcias-hint">
 			You are not allowed to edit rules. Contact an administrator.
 		</p>
 
-		<p v-if="rules.length === 0">
+		<p v-if="!loading && rules.length === 0">
 			{{ emptyMessage }}
 		</p>
 

@@ -56,6 +56,15 @@ describe('RuleTable', () => {
 		expect(wrapper.text()).toContain('No rules apply to your files.')
 	})
 
+	// Before the first answer the flag is only its initial value and the list
+	// only its initial emptiness; saying either would be saying something the
+	// page does not know yet, in red.
+	it('says nothing about permission or emptiness while the rules are still loading', () => {
+		const wrapper = mount(RuleTable, { props: { rules: [], variant: 'personal', canEditAny: false, loading: true } })
+		expect(wrapper.text()).not.toContain('not allowed to edit')
+		expect(wrapper.text()).not.toContain('No rules apply')
+	})
+
 	it('shows the "not allowed to edit" banner only for the personal variant when canEditAny is false', () => {
 		const withBanner = mount(RuleTable, { props: { rules: [], variant: 'personal', canEditAny: false } })
 		expect(withBanner.text()).toContain('not allowed to edit')

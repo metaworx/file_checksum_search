@@ -187,11 +187,14 @@ describe('useRules', () => {
 	it('sets an error message when the load itself fails', async () => {
 		vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('network'))
 
-		const { rules, error, loadRules } = useRules('own')
+		const { rules, error, loaded, loadRules } = useRules('own')
+		expect(loaded.value).toBe(false)
 		await loadRules()
 
 		expect(error.value).toBe('Failed to load rules.')
 		expect(rules.value).toEqual([])
+		// Answered badly is still answered: the page may now show its state.
+		expect(loaded.value).toBe(true)
 	})
 
 	it('discards a stale response when a newer loadRules() supersedes it', async () => {
