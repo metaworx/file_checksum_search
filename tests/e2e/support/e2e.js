@@ -354,3 +354,56 @@ Cypress.Commands.add( 'ocs', ( {
 	},
 	failOnStatusCode,
 } ) ) )
+
+// ---------------------------------------------------------------------------
+// NcSelect
+//
+// The component keeps its selection in reactive state and renders only the
+// label, so neither the id nor a whole label is where a test would look for
+// them: `input.vs__search` is always empty — it holds what you type, not what
+// you picked — and the label is split across two spans by the middle-ellipsis.
+//
+// Two readings, because they answer different questions. What is stored is
+// the id, and it is what a rule is built from. What is shown is the label,
+// and it is what a person checks. A test that means one should not assert the
+// other.
+// ---------------------------------------------------------------------------
+
+/**
+ * The id behind the current selection.
+ *
+ * Read from the `data-selected-id` the app's own `#selected-option` slot
+ * puts there — NcSelect's default slot drops everything but the label, so
+ * without that override this cannot be asked at all. Nextcloud's own suite
+ * asserts the label instead, which is why the override is ours to add.
+ *
+ * @param {string} inputSelector  The select's input, e.g. '#fcias-cron-scope-target'.
+ * @param {string} expected       The option id it should hold.
+ */
+Cypress.Commands.add( 'assertNcSelectValue', ( inputSelector, expected ) => {
+	cy.get( `${ inputSelector }` ).should( 'exist' )
+	cy.get( `${ inputSelector }` )
+		.closest( '.v-select' )
+		.find( '.vs__selected [data-selected-id]' )
+		.invoke( 'attr', 'data-selected-id' )
+		.should( 'eq', expected )
+} )
+
+/**
+ * The label the current selection shows.
+ *
+ * From the `title` attribute rather than the text, because the rendered
+ * label is cut into `name-parts__first` and `name-parts__last` and neither
+ * half is the whole thing. The title carries it intact.
+ *
+ * @param {string} inputSelector  The select's input.
+ * @param {string} expected       The label it should show.
+ */
+Cypress.Commands.add( 'assertNcSelectDisplayValue', ( inputSelector, expected ) => {
+	cy.get( `${ inputSelector }` ).should( 'exist' )
+	cy.get( `${ inputSelector }` )
+		.closest( '.v-select' )
+		.find( '.vs__selected [title]' )
+		.invoke( 'attr', 'title' )
+		.should( 'eq', expected )
+} )

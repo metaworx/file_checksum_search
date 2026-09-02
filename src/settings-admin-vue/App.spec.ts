@@ -14,6 +14,13 @@ vi.mock('@nextcloud/vue/components/NcActionButton', () => ({
 	default: { name: 'NcActionButton', template: '<button><slot /></button>' },
 }))
 
+vi.mock('@nextcloud/vue/components/NcEllipsisedOption', () => ({
+	default: {
+		name: 'NcEllipsisedOption',
+		props: ['name'],
+		template: '<span class="name-parts" :title="name">{{ name }}</span>',
+	},
+}))
 vi.mock('@nextcloud/vue/components/NcNoteCard', () => ({
 	default: { name: 'NcNoteCard', template: '<div class="nc-note-card"><slot /></div>' },
 }))

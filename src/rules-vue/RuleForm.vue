@@ -16,6 +16,7 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
+import NcEllipsisedOption from '@nextcloud/vue/components/NcEllipsisedOption'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import HelpPopover from '../components/HelpPopover.vue'
 import { toAlgoOptions } from '../algorithms'
@@ -348,7 +349,27 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 						:input-id="ids.scopeTarget"
 						:options="groupOptions"
 						placeholder="Search groups…"
-						track-by="id" />
+						track-by="id">
+						<template #selected-option="option">
+							<!--
+								The picked option's id, which NcSelect otherwise
+								keeps in reactive state and nowhere in the page:
+								its default #selected-option slot renders the
+								label alone and drops the rest of the option. A
+								caller cannot read back what is selected, only
+								what it is called — and what it is called is a
+								composed label, so a test asserting on it is
+								really asserting how we happen to phrase things.
+
+								Overriding the slot is the supported way to say
+								otherwise. NcEllipsisedOption is what the default
+								renders, so this changes nothing anyone sees.
+							-->
+							<NcEllipsisedOption
+								:name="option.label"
+								:data-selected-id="option.id" />
+						</template>
+					</NcSelect>
 				</div>
 				<HelpPopover :text="HELP.group" label="Group" />
 			</div>
@@ -361,7 +382,13 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 						:input-id="ids.scopeTarget"
 						:options="userOptions"
 						placeholder="Search users…"
-						track-by="id" />
+						track-by="id">
+						<template #selected-option="option">
+							<NcEllipsisedOption
+								:name="option.label"
+								:data-selected-id="option.id" />
+						</template>
+					</NcSelect>
 				</div>
 				<HelpPopover :text="HELP.user" label="User" />
 			</div>
@@ -374,7 +401,13 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 						:input-id="ids.scopeTarget"
 						:options="groupFolderOptions"
 						:placeholder="`Search ${groupFolderTerm}…`"
-						track-by="id" />
+						track-by="id">
+						<template #selected-option="option">
+							<NcEllipsisedOption
+								:name="option.label"
+								:data-selected-id="option.id" />
+						</template>
+					</NcSelect>
 				</div>
 				<HelpPopover :text="HELP.groupfolder" :label="groupFolderTerm" />
 			</div>

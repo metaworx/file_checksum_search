@@ -8,6 +8,13 @@ vi.mock('@nextcloud/router', () => ({
 		url.replace(/\{(\w+)\}/g, (whole, token) => (params && token in params ? String(params[token]) : whole)),
 }))
 
+vi.mock('@nextcloud/vue/components/NcEllipsisedOption', () => ({
+	default: {
+		name: 'NcEllipsisedOption',
+		props: ['name'],
+		template: '<span class="name-parts" :title="name">{{ name }}</span>',
+	},
+}))
 vi.mock('@nextcloud/vue/components/NcNoteCard', () => ({
 	default: { name: 'NcNoteCard', template: '<div class="nc-note-card"><slot /></div>' },
 }))

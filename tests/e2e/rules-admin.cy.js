@@ -47,6 +47,28 @@ const rules = () => cy.ocs( {
 	return body.rules
 } )
 
+// Open the admin page and wait for it to stop moving.
+//
+// The page fetches its rules and its status separately, and the table
+// re-renders when each answers. Clicking before both have landed fails
+// with "the page updated while this command was executing" — about one
+// run in three, on whichever click happened to be first.
+// Group folder id => the name the server reports for it, filled in before()
+// from the same payload the page reads.
+const groupFolderNames = {}
+
+
+const visitAdmin = () => {
+	cy.intercept( 'GET', '**/apps/file_checksum_search/api/v1/rules*' ).as( 'rulesLoaded' )
+	cy.intercept( 'GET', '**/apps/file_checksum_search/settings/status*' ).as( 'statusLoaded' )
+
+	cy.visit( ADMIN_URL )
+
+	cy.wait( [ '@rulesLoaded', '@statusLoaded' ], { timeout: FIND_TIMEOUT } )
+	cy.get( '#fcias-cron-list', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+}
+
+
 // Open a row's action menu and click one of its items. The menu is an
 // NcActions popover: the trigger lives inside the <tr>, and the items it
 // opens render outside it, so the item lookup cannot be scoped to the row.
@@ -73,6 +95,22 @@ describe( 'FCIAS admin rules', () => {
 		} ).then( () => {
 			cy.exec( `${ occ } app:enable ${ appId }`, { failOnNonZeroExit: false } )
 			cy.fciasResetRules( occ )
+
+			// The folder names the page will show, from the payload it
+			// reads them from — so the label assertion below compares
+			// against the server's answer rather than a name typed here.
+			rules().then( ( _list ) => {
+				cy.ocs( {
+					url: '/api/v1/rules?scope=all',
+					user: adminUser,
+					password: adminPassword,
+				} ).then( ( { body } ) => {
+					for ( const folder of body.availableGroupFolders ?? [] )
+					{
+						groupFolderNames[ String( folder.id ) ] = folder.name
+					}
+				} )
+			} )
 		} )
 	} )
 
@@ -87,7 +125,7 @@ describe( 'FCIAS admin rules', () => {
 	} )
 
 	it( 'quiet start: two disabled defaults and the idle banner', () => {
-		cy.visit( ADMIN_URL )
+		visitAdmin()
 
 		cy.get( '#fcias-idle-banner', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 		cy.get( '#fcias-cron-list tr[data-band="7"]' ).should( 'have.length', 1 )
@@ -105,7 +143,7 @@ describe( 'FCIAS admin rules', () => {
 	} )
 
 	it( 'banner: Close hides it for the view, Acknowledged persists', () => {
-		cy.visit( ADMIN_URL )
+		visitAdmin()
 
 		cy.get( '#fcias-idle-banner [data-action="banner-close"]', { timeout: FIND_TIMEOUT } ).click()
 		cy.get( '#fcias-idle-banner' ).should( 'not.exist' )
@@ -141,7 +179,7 @@ describe( 'FCIAS admin rules', () => {
 		} ).its( 'stdout' ).should( 'not.be.empty' )
 
 		cy.login( adminUser, adminPassword )
-		cy.visit( ADMIN_URL )
+		visitAdmin()
 		cy.get( '#fcias-cron-list tr[data-band="7"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 
 		rowAction( '#fcias-cron-list tr[data-band="7"]', 'toggle' )
@@ -159,7 +197,7 @@ describe( 'FCIAS admin rules', () => {
 	} )
 
 	it( 'creates a rule through the dialog; it lands above its segment default', () => {
-		cy.visit( ADMIN_URL )
+		visitAdmin()
 		cy.get( '#fcias-btn-add-definition', { timeout: FIND_TIMEOUT } ).click()
 		cy.get( '#fcias-cron-form' ).should( 'be.visible' )
 
@@ -194,7 +232,14 @@ describe( 'FCIAS admin rules', () => {
 	} )
 
 	it( 'a placeholder row seeds the dialog with that namespace', () => {
-		cy.visit( ADMIN_URL )
+		visitAdmin()
+
+		// Which namespaces appear as placeholders is derived from which of
+		// them already have a catch-all rule, so the set is only meaningful
+		// once the rules have rendered.
+		cy.get( '#fcias-cron-list tr[data-band="7"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.get( '#fcias-cron-list tr[data-band="8"]' ).should( 'exist' )
+
 		cy.get( '#fcias-cron-list tr[data-placeholder]', { timeout: FIND_TIMEOUT } )
 			.should( 'have.length.at.least', 1 )
 
@@ -205,7 +250,12 @@ describe( 'FCIAS admin rules', () => {
 		cy.get( '#fcias-cron-list tr[data-placeholder]' ).first()
 			.invoke( 'attr', 'data-placeholder' )
 			.then( ( selector ) => {
-				cy.get( '#fcias-cron-list tr[data-placeholder] [data-action="create"]' ).first().click()
+				// Addressed by that value rather than by position a second
+				// time: two `.first()` queries against a table that can
+				// re-render could pick different rows.
+				cy.get(
+					`#fcias-cron-list tr[data-placeholder="${ selector }"] [data-action="create"]`,
+				).click()
 
 				cy.get( '#fcias-cron-form', { timeout: FIND_TIMEOUT } ).should( 'be.visible' )
 				cy.get( '#fcias-cron-path' ).should( 'have.value', '**' )
@@ -235,12 +285,38 @@ describe( 'FCIAS admin rules', () => {
 				cy.get( '#fcias-cron-userscope' ).should( 'have.value', kind === 'home'
 					? 'user'
 					: kind )
-				cy.get( '#fcias-cron-scope-target' ).should( 'have.value', target )
+
+				// A storage is a plain text field; the other three kinds are
+				// NcSelects, whose input is always empty because it holds
+				// what you type rather than what you picked.
+				if ( kind === 'storage' )
+				{
+					cy.get( '#fcias-cron-scope-target' ).should( 'have.value', target )
+
+					return
+				}
+
+				// Both readings: the id the rule will be built from, and the
+				// label a person sees. The first is the assertion that
+				// matters, and it is only askable because the dialog's
+				// #selected-option slot puts the id in the page.
+				cy.assertNcSelectValue( '#fcias-cron-scope-target', target )
+
+				// And the label, which is the other half of the same
+				// question: the id says what the rule will be built from,
+				// this says whether a person can tell which folder they
+				// picked. Deliberately coupled to how RuleForm composes the
+				// label, because that composition *is* what it asserts —
+				// which is why it is the id above that carries the weight.
+				cy.assertNcSelectDisplayValue(
+					'#fcias-cron-scope-target',
+					`${ groupFolderNames[ target ] } (#${ target })`,
+				)
 			} )
 	} )
 
 	it( 'refuses a bad rule inside the dialog rather than behind it', () => {
-		cy.visit( ADMIN_URL )
+		visitAdmin()
 		cy.get( '#fcias-btn-add-definition', { timeout: FIND_TIMEOUT } ).click()
 		cy.get( '#fcias-cron-form' ).should( 'be.visible' )
 
@@ -262,7 +338,7 @@ describe( 'FCIAS admin rules', () => {
 			+ ' --path \'**\' --type include -a sha1',
 		)
 
-		cy.visit( ADMIN_URL )
+		visitAdmin()
 		cy.get( '#fcias-cron-list', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 
 		// Inert by construction: nothing can match a folder that is not
@@ -271,7 +347,7 @@ describe( 'FCIAS admin rules', () => {
 	} )
 
 	it( 'offers Re-apply only where it can succeed', () => {
-		cy.visit( ADMIN_URL )
+		visitAdmin()
 		cy.get( '#fcias-cron-list tr[data-band="7"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 
 		// Enabled include rule: re-applying queues the same uncapped pass
