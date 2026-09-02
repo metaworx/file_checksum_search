@@ -12,7 +12,7 @@ import RuleForm from '../rules-vue/RuleForm.vue'
 import type { Rule, RuleDraft } from '../rules-vue/types'
 import DocsViewer from '../docs-vue/DocsViewer.vue'
 import { OCS_ADMIN } from '../routes'
-import { usePersonalSettings } from './composables/usePersonalSettings'
+import { useRules } from '../rules-vue/composables/useRules'
 
 declare const OC: {
 	Notification: { showTemporary: (msg: string) => void }
@@ -21,7 +21,7 @@ declare const OC: {
 
 const {
 	rules,
-	canEditAny,
+	canCreate,
 	supportedAlgos,
 	loadRules,
 	saveRule,
@@ -29,7 +29,7 @@ const {
 	toggleRule,
 	applyRule,
 	reorderSegment,
-} = usePersonalSettings()
+} = useRules('own')
 
 function tabFromHash(): 'rules' | 'help' {
 	const tab = window.location.hash.replace(/^#/, '').split('/')[0]
@@ -188,7 +188,7 @@ loadRules()
 				<RuleTable
 					:rules="rules"
 					variant="personal"
-					:can-edit-any="canEditAny"
+					:can-edit-any="canCreate"
 					:reorderable="true"
 					@edit="openEditRule"
 					@toggle="handleToggleRule"
@@ -197,7 +197,7 @@ loadRules()
 					@reorder="handleReorder" />
 			</div>
 
-			<button v-if="canEditAny"
+			<button v-if="canCreate"
 				id="fcias-personal-add"
 				class="fcias-btn"
 				@click="openAddRule">

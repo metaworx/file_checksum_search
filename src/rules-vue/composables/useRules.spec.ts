@@ -181,6 +181,19 @@ describe('useRules', () => {
 		expect(fetchMock).toHaveBeenCalledTimes(1)
 	})
 
+	// A rejected load leaves the page with an empty list, which on its own is
+	// indistinguishable from an instance that has no rules — so the message is
+	// the whole difference between "nothing here" and "we could not ask".
+	it('sets an error message when the load itself fails', async () => {
+		vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('network'))
+
+		const { rules, error, loadRules } = useRules('own')
+		await loadRules()
+
+		expect(error.value).toBe('Failed to load rules.')
+		expect(rules.value).toEqual([])
+	})
+
 	it('discards a stale response when a newer loadRules() supersedes it', async () => {
 		const pending: Array<(response: Response) => void> = []
 		vi.spyOn(globalThis, 'fetch').mockImplementation((_url, options) => {
