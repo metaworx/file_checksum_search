@@ -9,13 +9,17 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
 import NcContent from '@nextcloud/vue/components/NcContent'
+import NcButton from '@nextcloud/vue/components/NcButton'
+import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
+import NcSelect from '@nextcloud/vue/components/NcSelect'
+import NcTextField from '@nextcloud/vue/components/NcTextField'
 import DuplicateGroup from './components/DuplicateGroup.vue'
 import VerifyButton from './components/VerifyButton.vue'
 import { useDuplicates } from './composables/useDuplicates'
 import type { DuplicateGroup as GroupType } from './composables/useDuplicates'
 import DocsViewer from '../docs-vue/DocsViewer.vue'
 import { OCS_ADMIN } from '../routes'
-import { fetchAlgorithms, toAlgoOptions } from '../algorithms'
+import { type AlgoOption, fetchAlgorithms, toAlgoOptions } from '../algorithms'
 
 const {
 	algo,
@@ -39,18 +43,30 @@ const {
 // list carried here would be wrong the day an administrator enabled an
 // algorithm, and it was — this page listed seven of the eight the app
 // always supported, and `adler32` could not be browsed for duplicates.
-const algoOptions = ref<{ value: string, label: string }[]>([{ value: '', label: 'All algorithms' }])
+const ALL_ALGORITHMS: AlgoOption = { id: '', label: 'All algorithms' }
+const algoOptions = ref<AlgoOption[]>([ALL_ALGORITHMS])
 
 fetchAlgorithms()
 	.then(({ algorithms }) => {
-		algoOptions.value = [
-			{ value: '', label: 'All algorithms' },
-			...toAlgoOptions(algorithms).map((o) => ({ value: o.id, label: o.label })),
-		]
+		algoOptions.value = [ALL_ALGORITHMS, ...toAlgoOptions(algorithms)]
 	})
 	.catch(() => {
 		// The filter stays at "All algorithms"; the page still works.
 	})
+
+// NcSelect holds an option object; the composable holds the algorithm id.
+const algoOption = computed<AlgoOption>({
+	get: () => algoOptions.value.find((o) => o.id === algo.value) ?? ALL_ALGORITHMS,
+	set: (option) => {
+		algo.value = option?.id ?? ''
+	},
+})
+
+// NcTextField emits string | number; the composable wants a bounded integer.
+function bounded(value: string | number, min: number, max: number, fallback: number): number {
+	const n = Math.trunc(Number(value))
+	return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback
+}
 
 const verifiedOnly = ref(false)
 const activeTab = ref<'duplicates' | 'help'>('duplicates')
@@ -128,34 +144,46 @@ onMounted(() => {
 
 				<template v-if="activeTab === 'duplicates'">
 					<div class="db-controls">
-						<select v-model="algo" class="db-select">
-							<option v-for="opt in algoOptions" :key="opt.value" :value="opt.value">
-								{{ opt.label }}
-							</option>
-						</select>
-						<label class="db-label">
-							Min:
-							<input v-model.number="minCount"
-								type="number"
-								min="2"
-								max="100"
-								class="db-input-narrow">
-						</label>
-						<label class="db-label">
-							Limit:
-							<input v-model.number="limit"
-								type="number"
-								min="1"
-								max="500"
-								class="db-input-narrow">
-						</label>
-						<button class="db-btn primary" @click="refresh">
+						<NcSelect
+							v-model="algoOption"
+							:options="algoOptions"
+							:clearable="false"
+							input-id="fcias-duplicates-algorithm"
+							input-label="Algorithm"
+							label="label"
+							track-by="id"
+							label-outside
+							class="db-control db-control--algo" />
+						<NcTextField
+							:model-value="minCount"
+							type="number"
+							label="Min"
+							label-outside
+							min="2"
+							max="100"
+							class="db-control db-control--narrow"
+							@update:model-value="minCount = bounded($event, 2, 100, 2)" />
+						<NcTextField
+							:model-value="limit"
+							type="number"
+							label="Limit"
+							label-outside
+							min="1"
+							max="500"
+							class="db-control db-control--narrow"
+							@update:model-value="limit = bounded($event, 1, 500, 50)" />
+						<NcButton variant="primary" @click="refresh">
 							Refresh
-						</button>
+						</NcButton>
 						<VerifyButton :verifying="verifying" :has-verified="hasVerified" @verify="onVerify" />
-						<label class="db-label" title="Show only groups where all files were confirmed matching">
-							<input v-model="verifiedOnly" type="checkbox"> Only matching
-						</label>
+						<!-- The wrapper carries the test hook: the component does not put attributes on an ancestor of its input. -->
+						<span data-testid="fcias-only-matching">
+							<NcCheckboxRadioSwitch
+								v-model="verifiedOnly"
+								title="Show only groups where all files were confirmed matching">
+								Only matching
+							</NcCheckboxRadioSwitch>
+						</span>
 					</div>
 
 					<div class="db-scroll">
@@ -176,12 +204,12 @@ onMounted(() => {
 					</div>
 
 					<div class="db-pagination">
-						<button v-if="offset > 0" class="db-btn" @click="prevPage">
+						<NcButton v-if="offset > 0" @click="prevPage">
 							← Previous
-						</button>
-						<button v-if="hasMore" class="db-btn" @click="nextPage">
+						</NcButton>
+						<NcButton v-if="hasMore" @click="nextPage">
 							Next →
-						</button>
+						</NcButton>
 					</div>
 				</template>
 
@@ -243,38 +271,18 @@ onMounted(() => {
 	align-items: center;
 }
 
-.db-select,
-.db-input-narrow,
-.db-btn {
-	padding: 6px 10px;
-	font-size: 13px;
-	border: 1px solid var(--color-border);
-	border-radius: var(--border-radius);
-	background: var(--color-main-background);
-	color: var(--color-main-text);
+.db-control--algo {
+	min-width: 220px;
 }
 
-.db-btn {
-	cursor: pointer;
+.db-control--narrow {
+	width: 110px;
 }
 
-.db-btn:disabled {
-	opacity: 0.5;
-	cursor: default;
-}
-
-.db-btn.primary {
-	background: var(--color-primary-element);
-	color: #fff;
-	border-color: var(--color-primary-element);
-}
-
-.db-input-narrow {
-	width: 55px;
-}
-
-.db-label {
-	font-size: 13px;
+/* Outside labels sit above the fields; the buttons and the switch align on the fields' bottom edge. */
+.db-controls :deep(.button-vue),
+.db-controls :deep(.checkbox-radio-switch) {
+	align-self: flex-end;
 }
 
 .db-scroll {

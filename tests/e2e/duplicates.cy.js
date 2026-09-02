@@ -194,12 +194,14 @@ describe( 'FCIAS Duplicates page', () => {
 		cy.get( '.db-group', { timeout: FIND_TIMEOUT } ).should( 'have.length', 2 )
 
 		// Only the fully-verified group remains when "Only matching" is set.
-		cy.get( '.db-label input[type="checkbox"]' ).check()
+		// NcCheckboxRadioSwitch hides its native input behind a styled label, so
+		// Cypress must be told the click on the hidden input is intended.
+		cy.get( '[data-testid="fcias-only-matching"] input[type="checkbox"]' ).check( { force: true } )
 		cy.get( '.db-group' ).should( 'have.length', 1 )
 		cy.get( '.db-hash' ).should( 'contain', H1 ).and( 'not.contain', H2 )
 
 		// Unchecking restores both groups.
-		cy.get( '.db-label input[type="checkbox"]' ).uncheck()
+		cy.get( '[data-testid="fcias-only-matching"] input[type="checkbox"]' ).uncheck( { force: true } )
 		cy.get( '.db-group' ).should( 'have.length', 2 )
 	} )
 } )

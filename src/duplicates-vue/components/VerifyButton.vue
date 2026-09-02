@@ -4,7 +4,12 @@
  * @license   AGPL-3.0-or-later
  *
  * Button to trigger hash verification of all displayed groups.
+ *
+ * Keeps the `verify-btn` class: the e2e suite addresses it, and a class
+ * that names what the button does is worth more than one that names the
+ * component it happens to be built from.
  */
+import NcButton from '@nextcloud/vue/components/NcButton'
 
 defineProps<{
 	verifying: boolean
@@ -17,28 +22,11 @@ const emit = defineEmits<{
 </script>
 
 <template>
-	<button
+	<NcButton
 		class="verify-btn"
 		:disabled="verifying"
 		:title="hasVerified ? 'All groups verified' : 'Recalculate all hashes from file content'"
 		@click="emit('verify')">
-		{{ verifying ? 'Verifying …' : hasVerified ? '\u2713 Verified' : 'Verify hashes' }}
-	</button>
+		{{ verifying ? 'Verifying …' : hasVerified ? '✓ Verified' : 'Verify hashes' }}
+	</NcButton>
 </template>
-
-<style scoped>
-.verify-btn {
-	padding: 6px 10px;
-	font-size: 13px;
-	border: 1px solid var(--color-border);
-	border-radius: var(--border-radius);
-	background: var(--color-main-background);
-	color: var(--color-main-text);
-	cursor: pointer;
-}
-
-.verify-btn:disabled {
-	opacity: 0.5;
-	cursor: default;
-}
-</style>
