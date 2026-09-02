@@ -110,7 +110,7 @@ export function useAdminSettings() {
 		types: rules.types,
 		error: rules.error,
 
-		loadRules: rules.load,
+		loadRules: rules.loadRules,
 		saveRule: rules.saveRule,
 		deleteRule: rules.deleteRule,
 		applyRule: rules.applyRule,

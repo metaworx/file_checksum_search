@@ -74,7 +74,7 @@ export function useRules(scope: 'own' | 'all') {
 
 	let abortController: AbortController | null = null
 
-	async function load(): Promise<void> {
+	async function loadRules(): Promise<void> {
 		abortController?.abort()
 		abortController = new AbortController()
 		const { signal } = abortController
@@ -148,7 +148,7 @@ export function useRules(scope: 'own' | 'all') {
 	async function mutate(method: string, url: string, body?: unknown): Promise<ApiResponse> {
 		const data = await request(method, url, body)
 		if (data.success) {
-			await load()
+			await loadRules()
 		}
 		return data
 	}
@@ -201,7 +201,7 @@ export function useRules(scope: 'own' | 'all') {
 			orderedIds,
 		})
 		if (result.success) {
-			await load()
+			await loadRules()
 		}
 		return result
 	}
@@ -217,7 +217,7 @@ export function useRules(scope: 'own' | 'all') {
 
 	return {
 		...toRefs(state),
-		load,
+		loadRules,
 		saveRule,
 		deleteRule,
 		toggleRule,

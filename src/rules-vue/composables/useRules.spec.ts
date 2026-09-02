@@ -33,11 +33,11 @@ describe('useRules', () => {
 	it('requests the view it was created for', async () => {
 		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ rules: [] }))
 
-		await useRules('own').load()
+		await useRules('own').loadRules()
 		expect(call(0).url).toContain('scope=own')
 
 		fetchMock.mockClear()
-		await useRules('all').load()
+		await useRules('all').loadRules()
 		expect(call(0).url).toContain('scope=all')
 	})
 
@@ -52,8 +52,8 @@ describe('useRules', () => {
 			}),
 		)
 
-		const { rules, canCreate, supportedAlgos, types, load } = useRules('own')
-		await load()
+		const { rules, canCreate, supportedAlgos, types, loadRules } = useRules('own')
+		await loadRules()
 
 		expect(rules.value).toEqual([{ id: 'r1', band: 4, position: 1 }])
 		expect(canCreate.value).toBe(true)
@@ -181,7 +181,7 @@ describe('useRules', () => {
 		expect(fetchMock).toHaveBeenCalledTimes(1)
 	})
 
-	it('discards a stale response when a newer load() supersedes it', async () => {
+	it('discards a stale response when a newer loadRules() supersedes it', async () => {
 		const pending: Array<(response: Response) => void> = []
 		vi.spyOn(globalThis, 'fetch').mockImplementation((_url, options) => {
 			let resolveFn!: (value: Response) => void
@@ -194,9 +194,9 @@ describe('useRules', () => {
 			return promise
 		})
 
-		const { rules, load } = useRules('own')
-		const first = load()
-		const second = load()
+		const { rules, loadRules } = useRules('own')
+		const first = loadRules()
+		const second = loadRules()
 
 		pending[1](jsonResponse({ rules: [{ id: 'new' }] }))
 		await second

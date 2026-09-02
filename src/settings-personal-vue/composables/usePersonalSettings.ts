@@ -25,7 +25,7 @@ export function usePersonalSettings() {
 		loading: rules.loading,
 		error: rules.error,
 
-		loadRules: rules.load,
+		loadRules: rules.loadRules,
 		saveRule: rules.saveRule,
 		deleteRule: rules.deleteRule,
 		toggleRule: rules.toggleRule,
