@@ -84,8 +84,10 @@ const COLUMN_HELP: Record<string, string> = {
 		+ 'matches a file decides it outright, so a lower number is stronger. The band follows from the '
 		+ 'rule\'s scope and whether it is enforced — it is never chosen directly — and the position is the '
 		+ 'rule\'s place inside that band, which is what dragging changes.',
-	scope: 'Whose files this rule can apply to: "All users" for everyone on this instance, "Group: <name>" '
-		+ 'for the members of one group, or a single user\'s ID for just that person.',
+	scope: 'Which slice of files the rule addresses: one user\'s home folder, the members of one group, '
+		+ '"All home folders", one group folder, one storage by its id, or "Everything". A rule only ever '
+		+ 'meets files inside its slice — "All home folders" reaches every personal folder and nothing else, '
+		+ 'while "Everything" also reaches group folders and external storage.',
 	path: 'Glob pattern the file path must match. "**" matches every file, "**/*.txt" matches by extension, '
 		+ 'and "/Documents/**" matches everything below one folder.',
 	type: 'What happens when this rule matches. "include" computes the checksums in this row. "ignore" stops '
@@ -99,7 +101,7 @@ const COLUMN_HELP: Record<string, string> = {
 	status: 'Whether the rule takes part in evaluation at all. A disabled rule is skipped as though it were '
 		+ 'not there, so the next matching rule decides instead.',
 	enforced: '"Yes" means an administrator set this rule and users cannot override or disable it from their '
-		+ 'personal settings. Enforced rules fill the first three bands, so no rule of a user\'s own can '
+		+ 'personal settings. Enforced rules fill the first four bands, so no rule of a user\'s own can '
 		+ 'outrun one.',
 }
 
