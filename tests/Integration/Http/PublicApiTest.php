@@ -99,9 +99,14 @@ class PublicApiTest
 		                    ->getUserFolder( self::$testUser )
 		;
 
-		$ts                     = time();
-		$file1                  = $userFolder->newFile( "fcias_http_1_$ts.dat", self::FILE_1_CONTENT );
-		$file2                  = $userFolder->newFile( "fcias_http_2_$ts.dat", self::FILE_2_CONTENT );
+		// Random, not `time()`: setUp runs per test and several finish
+		// inside the same second, so a timestamp is not the unique name it
+		// looks like. With this it genuinely is — and `newFile()` throwing
+		// on a name that somehow already exists is then the right outcome
+		// rather than a collision to absorb.
+		$run                    = bin2hex( random_bytes( 4 ) );
+		$file1                  = $userFolder->newFile( "fcias_http_1_$run.dat", self::FILE_1_CONTENT );
+		$file2                  = $userFolder->newFile( "fcias_http_2_$run.dat", self::FILE_2_CONTENT );
 		$this->testFileId1      = $file1->getId();
 		$this->testFileId2      = $file2->getId();
 		$this->cleanupFileIds[] = $this->testFileId1;
