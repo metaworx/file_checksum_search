@@ -198,7 +198,7 @@ async function handleSaveRule(draft: RuleDraft): Promise<void> {
 
 function handleDeleteRule(rule: Rule): void {
 	OC.dialogs.confirm(
-		'Delete this rule definition?',
+		'Delete this rule?',
 		'Confirm Delete',
 		(confirmed: boolean) => {
 			if (!confirmed) return
@@ -397,7 +397,7 @@ loadDefinitions().then(() => {
 			</div>
 
 			<div class="fcias-section">
-				<h4>Rule Definitions</h4>
+				<h4>Rules</h4>
 				<p class="fcias-hint">
 					Which algorithms are computed for which files, on real-time file events.
 				</p>
