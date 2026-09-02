@@ -71,7 +71,7 @@ describe('useAdminSettings', () => {
 	it('asks for the whole-instance view of the rules', async () => {
 		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ rules: [] }))
 
-		await useAdminSettings().loadDefinitions()
+		await useAdminSettings().loadRules()
 
 		expect(String(fetchMock.mock.calls[0][0])).toContain('scope=all')
 	})

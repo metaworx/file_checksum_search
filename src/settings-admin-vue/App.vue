@@ -31,10 +31,10 @@ const {
 	groupFoldersLabel,
 	availableGroupFolders,
 	availableStorages,
-	definitions,
+	rules,
 	loadStatus,
 	acknowledgeIdleBanner,
-	loadDefinitions,
+	loadRules,
 	saveRule,
 	deleteRule,
 	toggleRule,
@@ -56,7 +56,7 @@ const rulesLoaded = ref(false)
 
 const hashingIdle = computed(
 	() => rulesLoaded.value
-		&& !definitions.value.some((rule) => rule.enabled && (rule.type ?? 'include') === 'include'),
+		&& !rules.value.some((rule) => rule.enabled && (rule.type ?? 'include') === 'include'),
 )
 
 const showIdleBanner = computed(
@@ -240,7 +240,7 @@ async function handleToggleRule(rule: Rule): Promise<void> {
 }
 
 loadStatus()
-loadDefinitions().then(() => {
+loadRules().then(() => {
 	rulesLoaded.value = true
 })
 </script>
@@ -411,7 +411,7 @@ loadDefinitions().then(() => {
 
 				<div id="fcias-rules-list">
 					<RuleTable
-						:rules="definitions"
+						:rules="rules"
 						variant="admin"
 						:group-folders-label="groupFoldersLabel"
 						:group-folders-available="groupFoldersAvailable"

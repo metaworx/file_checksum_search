@@ -98,7 +98,7 @@ export function useAdminSettings() {
 		loadStatus,
 		acknowledgeIdleBanner,
 
-		definitions: rules.rules,
+		rules: rules.rules,
 		supportedAlgos: rules.supportedAlgos,
 		availableUsers: rules.availableUsers,
 		availableGroups: rules.availableGroups,
@@ -108,9 +108,9 @@ export function useAdminSettings() {
 		availableStorages: rules.availableStorages,
 		modes: rules.modes,
 		types: rules.types,
-		definitionsError: rules.error,
+		error: rules.error,
 
-		loadDefinitions: rules.load,
+		loadRules: rules.load,
 		saveRule: rules.saveRule,
 		deleteRule: rules.deleteRule,
 		applyRule: rules.applyRule,
