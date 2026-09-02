@@ -491,6 +491,7 @@ class RepairQuietStartTest
 				'stale-states',
 				'legacy-pending',
 				'legacy-seed-job',
+				'orphaned-metadata',
 			],
 			$names,
 		);

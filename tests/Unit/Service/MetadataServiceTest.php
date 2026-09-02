@@ -2364,6 +2364,79 @@ class MetadataServiceTest
 	}
 
 
+	/**
+	 * A document that held nothing but this app's keys is deleted outright.
+	 *
+	 * Nextcloud does not do it: saveMetadata() serialises an emptied set to
+	 * `{}` and stores that, so a purge which only saved would leave a row per
+	 * deleted file forever. Deleting is safe exactly here — the set is empty,
+	 * so nothing of another app's goes with it.
+	 */
+	public function testPurgingADocumentOfOursAloneDeletesTheRecord(): void
+	{
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'getFileId' )
+		         ->willReturn( 42 )
+		;
+		$metadata->expects( $this->once() )
+		         ->method( 'removeStartsWith' )
+		         ->with( MetadataService::KEY_FILE_CHECKSUM_PREFIX )
+		;
+		$metadata->method( 'getKeys' )
+		         ->willReturn( [] )
+		;
+
+		$this->metadataManager->method( 'getMetadata' )
+		                      ->willReturn( $metadata )
+		;
+
+		$this->metadataManager->expects( $this->once() )
+		                      ->method( 'deleteMetadata' )
+		                      ->with( 42 )
+		;
+		$this->metadataManager->expects( $this->never() )
+		                      ->method( 'saveMetadata' )
+		;
+
+		$this->service->purgeMetadata( 42 );
+	}
+
+
+	/**
+	 * A document another app still uses is kept, and only our keys leave it.
+	 */
+	public function testPurgingADocumentAnotherAppSharesKeepsTheRecord(): void
+	{
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'getFileId' )
+		         ->willReturn( 42 )
+		;
+		$metadata->expects( $this->once() )
+		         ->method( 'removeStartsWith' )
+		         ->with( MetadataService::KEY_FILE_CHECKSUM_PREFIX )
+		;
+		$metadata->method( 'getKeys' )
+		         ->willReturn( [ 'photos-exif' ] )
+		;
+
+		$this->metadataManager->method( 'getMetadata' )
+		                      ->willReturn( $metadata )
+		;
+
+		$this->metadataManager->expects( $this->never() )
+		                      ->method( 'deleteMetadata' )
+		;
+		$this->metadataManager->expects( $this->once() )
+		                      ->method( 'saveMetadata' )
+		                      ->with( $metadata )
+		;
+
+		$this->service->purgeMetadata( 42 );
+	}
+
+
 	public function testClearingWithoutSavingTouchesNoIndexRows(): void
 	{
 

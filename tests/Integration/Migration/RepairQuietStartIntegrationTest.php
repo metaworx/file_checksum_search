@@ -11,9 +11,12 @@ namespace OCA\FileChecksumSearch\Tests\Integration\Migration;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Migration\RepairQuietStart;
+use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
+use OCP\Files\IRootFolder;
 use OCP\IAppConfig;
+use OCP\IUserManager;
 use OCP\Migration\IOutput;
 use OCP\Server;
 
@@ -292,6 +295,96 @@ class RepairQuietStartIntegrationTest
 	 *
 	 * @param  list<array>  $rules
 	 */
+	/**
+	 * Deleting a user leaves this app's metadata behind, and the sweep is
+	 * what notices.
+	 *
+	 * Nextcloud's own cleanup runs from `CacheEntriesRemovedEvent`, which the
+	 * bulk teardown paths never dispatch — a deleted user's filecache rows go
+	 * in one statement, and the metadata keyed on those file ids simply
+	 * stays. It stays *findable*, too: those rows still answer a hash search,
+	 * which is how this was found in the first place.
+	 *
+	 * The account is made and destroyed here rather than borrowed, because
+	 * the whole assertion is about what its destruction leaves.
+	 */
+	public function testMetadataOfADeletedUserIsSweptUp(): void
+	{
+
+		[ $uid, $password ] = self::makeAccount( 'fcias_sweep' );
+
+		$file = Server::get( IRootFolder::class )
+		              ->getUserFolder( $uid )
+		              ->newFile( 'swept.txt', 'FCIAS sweep integration content' )
+		;
+
+		$fileId = $file->getId();
+
+		Server::get( MetadataService::class )
+		      ->writeHashes(
+			      $fileId,
+			      [ 'sha1' => sha1( 'FCIAS sweep integration content' ) ],
+			      time(),
+			      false,
+		      )
+		;
+
+		$this->assertGreaterThan(
+			0,
+			$this->countMetadataRowsFor( $fileId ),
+			'the file must carry this app\'s metadata before its owner is deleted',
+		);
+
+		Server::get( IUserManager::class )
+		      ->get( $uid )
+		      ?->delete()
+		;
+
+		// The premise: deletion took the file and left the metadata.
+		$this->assertGreaterThan(
+			0,
+			$this->countMetadataRowsFor( $fileId ),
+			'deleting the user is expected to leave the metadata behind — if this fails, '
+			. 'Nextcloud has started cleaning up and this sweep may no longer be needed',
+		);
+
+		Server::get( RepairQuietStart::class )
+		      ->runSteps( $this->createMock( IOutput::class ), [ 'orphaned-metadata' ] )
+		;
+
+		$this->assertSame(
+			0,
+			$this->countMetadataRowsFor( $fileId ),
+			'the sweep must remove both the document and the index rows of a file that is gone',
+		);
+	}
+
+
+	/**
+	 * Rows in either metadata table for one file id.
+	 */
+	private function countMetadataRowsFor( int $fileId ): int
+	{
+
+		$total = 0;
+
+		foreach ( [ 'files_metadata', 'files_metadata_index' ] as $table )
+		{
+			$result = $this->getRawConnection()
+			               ->executeQuery(
+				               "SELECT COUNT(*) FROM `*PREFIX*$table` WHERE `file_id` = ?",
+				               [ $fileId ],
+			               )
+			;
+
+			$total += (int) $result->fetchOne();
+			$result->free();
+		}
+
+		return $total;
+	}
+
+
 	private function givenStoredRules( array $rules ): void
 	{
 

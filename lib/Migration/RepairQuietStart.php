@@ -790,6 +790,55 @@ class RepairQuietStart
 	}
 
 
+	/**
+	 * Metadata for files that no longer exist.
+	 *
+	 * Nextcloud removes an app's metadata when a file goes, but only from
+	 * `CacheEntriesRemovedEvent`, which its own bulk teardown paths never
+	 * dispatch: deleting a user, removing an external storage and dropping a
+	 * group folder each delete the filecache rows in one statement and emit
+	 * nothing. The rows they leave still answer a hash search, which is how
+	 * they were found — a user could not see their own file for the copies
+	 * of it belonging to accounts that no longer existed.
+	 *
+	 * Nothing announces this, so nothing is waited for: the files are
+	 * identified by having index rows and no filecache entry. That also
+	 * makes the step impossible to run too early — a file still present is
+	 * simply not among them.
+	 *
+	 * Reads no file content.
+	 *
+	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
+	 */
+	#[RepairStep(
+		name: 'orphaned-metadata',
+		title: 'Forget files that no longer exist',
+		description: 'Removes this app\'s metadata and index rows for files that are gone from the '
+		. 'filecache — what deleting a user or removing a storage leaves behind, because Nextcloud\'s '
+		. 'own cleanup does not run on those paths. Keeps a metadata document that another app still '
+		. 'uses, and deletes one only when nothing but this app\'s keys was in it. Reads no file content.',
+		expensive: true,
+	)]
+	private function purgeOrphanedMetadata( IOutput $output ): void
+	{
+
+		try
+		{
+			$purged = $this->metadataService->purgeOrphanedMetadata( $this->batchLimit() );
+
+			$output->info(
+				$purged === 0
+					? 'FCIAS: no metadata was left behind by deleted files.'
+					: sprintf( 'FCIAS: forgot %d files that no longer exist.', $purged ),
+			);
+		}
+		catch ( Throwable $e )
+		{
+			$this->warn( $output, 'could not purge orphaned metadata', $e );
+		}
+	}
+
+
 	private function warn(
 		IOutput   $output,
 		string    $what,

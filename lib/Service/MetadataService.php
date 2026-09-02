@@ -328,6 +328,201 @@ class MetadataService
 
 
 	/**
+	 * Remove every trace of this app from a file that no longer exists.
+	 *
+	 * Not {@see clearMetadata()}, which is for a *live* file: that one puts
+	 * `file-checksum-updated_at` back at zero so the file still records
+	 * having been considered. For a deleted file that would leave one of our
+	 * keys and one index row behind, and a sweep looking for exactly those
+	 * would never finish.
+	 *
+	 * Only our own keys are removed. If the document holds nothing else
+	 * afterwards it is deleted outright, through Nextcloud's own API, which
+	 * drops the document and its index rows together — safe precisely
+	 * because the set is empty, so nothing of another app's goes with it.
+	 * A document that still holds another app's keys is kept and saved:
+	 * Nextcloud does not delete an emptied document by itself
+	 * ({@see IFilesMetadataManager::saveMetadata()} stores `{}`), and it is
+	 * not ours to delete when it is not empty.
+	 *
+	 * @throws Exception
+	 */
+	public function purgeMetadata( int $fileId ): void
+	{
+
+		$metadata = $this->getMetadata( $fileId );
+
+		$metadata->removeStartsWith( self::KEY_FILE_CHECKSUM_PREFIX );
+
+		if ( $metadata->getKeys() === [] )
+		{
+			$this->metadataManager->deleteMetadata( $fileId );
+
+			return;
+		}
+
+		$this->metadataManager->saveMetadata( $metadata );
+
+		$this->pruneAllIndexRows( $fileId );
+	}
+
+
+	/**
+	 * Index rows this app owns for one file, the stamp included.
+	 *
+	 * {@see pruneHashIndexRows()} spares `file-checksum-updated_at` because a
+	 * live file still needs it. This one does not, and is only for a file
+	 * that is gone.
+	 *
+	 * @throws Exception
+	 */
+	private function pruneAllIndexRows( int $fileId ): void
+	{
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->delete( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->like(
+				      self::FIELD_META_KEY,
+				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_PREFIX . '%' ),
+			      ),
+		   )
+		;
+
+		$qb->executeStatement();
+	}
+
+
+	/**
+	 * Files this app still has index rows for, whose file no longer exists.
+	 *
+	 * Found by their absence from the filecache rather than by anything we
+	 * were told: Nextcloud's own metadata cleanup runs from
+	 * `CacheEntriesRemovedEvent`, which the bulk teardown paths never
+	 * dispatch — deleting a user, removing an external storage, dropping a
+	 * group folder all delete filecache rows in a single statement and emit
+	 * nothing. An anti-join needs no announcement and cannot be run too
+	 * early: a file still present is simply not returned.
+	 *
+	 * Both tables are asked, because either can outlive the other. An index
+	 * row without its document answers a hash search directly; a document
+	 * without index rows is worse than inert, because `rebuild-from-metadata`
+	 * builds index rows back out of documents — so purging only what the
+	 * index still knows about would be undone by the next repair.
+	 *
+	 * @return list<int>
+	 * @throws Exception
+	 */
+	public function fetchOrphanedFileIds( int $limit = 500 ): array
+	{
+
+		$fileIds = [];
+
+		// Index rows whose file is gone.
+		$qb = $this->db->getQueryBuilder();
+		$qb->selectDistinct( 'i.' . self::FIELD_FILE_ID )
+		   ->from( self::TABLE_FILES_METADATA_INDEX, 'i' )
+		   ->leftJoin( 'i', 'filecache', 'f', 'f.fileid = i.' . self::FIELD_FILE_ID )
+		   ->where(
+			   $qb->expr()
+			      ->like(
+				      'i.' . self::FIELD_META_KEY,
+				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_PREFIX . '%' ),
+			      ),
+		   )
+		   ->andWhere( $qb->expr()->isNull( 'f.fileid' ) )
+		   ->setMaxResults( $limit )
+		;
+
+		$result = $this->executeQuery( $qb );
+
+		while ( ( $row = $result->fetch() ) !== false )
+		{
+			$fileIds[] = (int) $row[ self::FIELD_FILE_ID ];
+		}
+
+		$result->closeCursor();
+
+		if ( count( $fileIds ) >= $limit )
+		{
+			return $fileIds;
+		}
+
+		// Documents whose file is gone. The pattern is the key prefix as it
+		// appears in the serialised document, the same technique
+		// {@see queryByHash()} uses on the same column: it can over-match,
+		// and {@see purgeMetadata()} is unharmed by that — it removes our
+		// keys, and a document holding none is left exactly as it was.
+		$qb2 = $this->db->getQueryBuilder();
+		$qb2->selectDistinct( 'm.' . self::FIELD_FILE_ID )
+		    ->from( self::TABLE_FILES_METADATA, 'm' )
+		    ->leftJoin( 'm', 'filecache', 'f', 'f.fileid = m.' . self::FIELD_FILE_ID )
+		    ->where(
+			    $qb2->expr()
+			        ->like(
+				        'm.' . self::FIELD_JSON,
+				        $qb2->createNamedParameter(
+					        '%' . $this->db->escapeLikeParameter( self::KEY_FILE_CHECKSUM_PREFIX ) . '%',
+				        ),
+			        ),
+		    )
+		    ->andWhere( $qb2->expr()->isNull( 'f.fileid' ) )
+		    ->setMaxResults( $limit - count( $fileIds ) )
+		;
+
+		$result2 = $this->executeQuery( $qb2 );
+
+		while ( ( $row = $result2->fetch() ) !== false )
+		{
+			$fileIds[] = (int) $row[ self::FIELD_FILE_ID ];
+		}
+
+		$result2->closeCursor();
+
+		return array_values( array_unique( $fileIds ) );
+	}
+
+
+	/**
+	 * Purge what {@see fetchOrphanedFileIds()} finds, one batch.
+	 *
+	 * @return int  Files purged.
+	 */
+	public function purgeOrphanedMetadata( int $batchLimit = 500 ): int
+	{
+
+		$purged = 0;
+
+		foreach ( $this->fetchOrphanedFileIds( $batchLimit ) as $fileId )
+		{
+			try
+			{
+				$this->purgeMetadata( $fileId );
+				$purged ++;
+			}
+			catch ( Throwable $e )
+			{
+				// One unreadable document must not strand the rest; the rows
+				// stay, so the next run tries them again.
+				$this->logger->warning(
+					'FCIAS: could not purge orphaned metadata for fileId {fileId}.',
+					[
+						'app'       => Application::APP_ID,
+						'fileId'    => $fileId,
+						'exception' => $e,
+					],
+				);
+			}
+		}
+
+		return $purged;
+	}
+
+
+	/**
 	 * Delete this app's hash rows from the index for one file.
 	 *
 	 * The index is derived from the metadata document, so a row for a key the
