@@ -37,10 +37,11 @@ ask for it.
 
 Open **Duplicates** from the top navigation (or the URL
 `/apps/file_checksum_search/duplicates`) to browse files that share the
-same checksum.
+same checksum. The page has two tabs: **Duplicates**, and **Help**, which
+is this guide.
 
-- **Algorithm** — filter results to a single hash algorithm (SHA-1, MD5,
-  SHA-256, SHA-512, SHA3-256, SHA3-512, CRC32) or show all.
+- **Algorithm** — filter to one hash algorithm, or *All algorithms*. The list
+  offers whatever your administrator has enabled on this server.
 - **Min** — the minimum number of files a group must contain to be listed.
 - **Limit** — how many groups to show per page.
 - **Refresh** — reload the list.
@@ -50,8 +51,11 @@ same checksum.
   minute and click again to continue with the rest.
 - **Only matching** — show only groups that passed verification.
 
-Click a group header to expand it and see the files in the group, with
-links that open each file in the Files app.
+Click a group header to expand it and see the files in the group; each file
+opens in the Files app **in a new tab**. Long lists are paged with
+**← Previous** and **Next →** at the bottom. An empty page says which of two
+things it means: *No duplicate files found*, or — with **Only matching** on —
+*No matching duplicate files found*.
 
 ## Finding files by hash (global search)
 
@@ -60,8 +64,7 @@ search bar (Unified Search):
 
 1. Type a hash value — either the raw hex string or an `algo:hash` pair,
    for example `sha256:e3b0c44298fc1c149afbf4c8996fb924`.
-2. Pick the **File Checksum Index & Search** result to jump to matching
-   files.
+2. Pick the **File Checksums** result to jump to matching files.
 
 This works without browsing folders and is useful for identifying known
 files (e.g. a known-good ISO image) or finding every copy of a file.
@@ -69,23 +72,41 @@ files (e.g. a known-good ISO image) or finding every copy of a file.
 ## The file detail pane
 
 Select any file in the Files app and open the **Checksums** tab in the
-sidebar (the file detail pane). It shows:
+sidebar (the file detail pane). It has three sections:
 
-- The checksums computed for the selected file, per algorithm.
-- A **Recalculate** action that recomputes the hash from current content.
-- A **Find duplicates** action that lists files sharing hash values with
-  the selected file.
+- **Checksums** — what has been computed for this file, one row per
+  algorithm. Click a value to copy it.
+- **Recalculate** — one or two quick buttons, then a picker with every other
+  algorithm this server computes and its own **Recalculate** button. The first
+  quick button is *your preferred algorithm* (see *Your hashing rules*), or the
+  server's default if you have not chosen one; the second is the first
+  algorithm the rule governing this file computes, when that is a different
+  one. So the buttons follow both you and the file.
+- **Duplicates** — a **Find duplicates** button that lists, in place, the
+  other files sharing a checksum with this one.
 
 > **Note:** FCIAS computes checksums according to the rules described below.
 > Some algorithms may be missing until the background job has processed the
-> file. If **Recalculate** reports that the file is excluded, a rule blocks
-> hashing it entirely — see *Your hashing rules*.
+> file. If a recalculation is refused with *Hashing is excluded for this path
+> by an administrator rule.*, a rule blocks hashing the file by every route —
+> see *Your hashing rules*.
 
 ## Your hashing rules
 
-Open **Personal settings → File Checksum Index & Search** to see which rules
-decide your files. Every file is handled by the **first rule that matches it**,
-and that decision is final — no later rule gets a say.
+Open **Personal settings → File Checksum Index & Search**. The page has two
+tabs: **Rules**, and **Help**, which is this guide.
+
+Above the rules sits **Your preferred algorithm**: the one the sidebar's first
+quick button offers. Its first entry reads *Default (…)* and names the
+server's default, and the line beneath it says which algorithm is actually
+active for you. Pick one to have it first for every file; leave it on the
+default to follow the server. If your choice stops being available — your
+administrator can change which algorithms this server computes — it is kept
+but not applied, and the line says so.
+
+The **Rules** tab shows which rules decide your files. Every file is handled
+by the **first rule that matches it**, and that decision is final — no later
+rule gets a say.
 
 The table lists the rules in exactly the order they are checked, grouped into
 bands. Each band opens with a header saying what it is, and each rule shows its

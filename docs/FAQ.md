@@ -292,6 +292,13 @@ file's actual fate look like it came from nowhere. That page's Help tab
 renders [user-guide.md](user-guide.md), so what a user reads about rules is the same
 document you can read yourself when supporting them.
 
+The same page carries the user's one preference, the algorithm the sidebar
+offers first (`GET`/`PUT /api/v1/preferences/preferred_algorithm`). Its select
+names your instance default as its first entry, and a line beside it says
+which algorithm is active — the preference where it is still among the
+algorithms you allow, otherwise the default. Disallowing an algorithm does not
+delete anyone's preference for it; it stops applying until they pick again.
+
 `admin_enforced` and `selector` are never trusted from a user's own request —
 the server always decides them, and a personal rule is always `home:<uid>`. A
 path leading into a received share or a group folder is refused outright: such

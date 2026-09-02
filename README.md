@@ -653,8 +653,8 @@ Navigate to **Administration settings → Additional settings → File Checksum 
 
 The admin settings page provides:
 
-- **Status overview** — app version, indexed hash count, pending updates by mode, the eroded count,
-  and each background job's last run with its counts
+- **Status overview** — app version, indexed hash count, pending updates by mode, the *Untrusted
+  Hashes* total with its reasons (eroded, reset), and each background job's last run with its counts
 - **An idle banner** — shown while no enabled `include` rule exists, saying that automatic hashing
   is off, that sidebar recalculation still works, and that the home-folders default covers home
   folders only. *Acknowledged* silences it until hashing is switched on and off again
@@ -662,11 +662,15 @@ The admin settings page provides:
   row menu), enable/disable, re-apply, and delete; drag to reorder within a segment; rows for
   namespaces without a rule of their own
 - **Rule-editing permissions** — allow-all toggle, group list, and user list
+- **Hash Algorithms** — which algorithms this server computes, chosen from what its PHP provides;
+  the first in the list is the default. Every picker in the app offers exactly these
 - **Documentation** — in-app access to the FAQ, the user guide, README, API specs, and license
 
 The personal settings page lists the rules applying to the current user — the enforced ones above
 and the defaults below their own, read-only, so what will actually decide a file is visible rather
-than only the part they may change. Its second tab is the user guide.
+than only the part they may change. Above the rules sits the user's **preferred algorithm**, the one
+the sidebar's first quick button offers, with the instance default as its first entry and a line
+saying which is active. Its second tab is the user guide.
 
 ## Documentation
 
