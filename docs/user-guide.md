@@ -98,11 +98,11 @@ tabs: **Rules**, and **Help**, which is this guide.
 
 Above the rules sits **Your preferred algorithm**: the one the sidebar's first
 quick button offers. Its first entry reads *Default (…)* and names the
-server's default, and the line beneath it says which algorithm is actually
-active for you. Pick one to have it first for every file; leave it on the
+server's default. Pick one to have it first for every file; leave it on the
 default to follow the server. If your choice stops being available — your
 administrator can change which algorithms this server computes — it is kept
-but not applied, and the line says so.
+but not applied, and a line beneath the select says so for as long as that
+lasts.
 
 The **Rules** tab shows which rules decide your files. Every file is handled
 by the **first rule that matches it**, and that decision is final — no later

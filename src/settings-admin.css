@@ -458,3 +458,8 @@
 	max-width: 100%;
 	width: 100%;
 }
+
+/* One field on a page of prose: the select need not span the page. */
+#fcias-personal-preference .fcias-field-row {
+	max-width: 410px;
+}

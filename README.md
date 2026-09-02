@@ -669,8 +669,8 @@ The admin settings page provides:
 The personal settings page lists the rules applying to the current user — the enforced ones above
 and the defaults below their own, read-only, so what will actually decide a file is visible rather
 than only the part they may change. Above the rules sits the user's **preferred algorithm**, the one
-the sidebar's first quick button offers, with the instance default as its first entry and a line
-saying which is active. Its second tab is the user guide.
+the sidebar's first quick button offers, with the instance default as its first entry. Its second tab
+is the user guide.
 
 ## Documentation
 

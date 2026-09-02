@@ -7,6 +7,8 @@
  * first. Stored through `/api/v1/preferences/preferred_algorithm`; the
  * instance default is what applies when nothing is stored, and the select
  * says so in its first entry rather than hiding the default behind a blank.
+ * The select shows what is active; a line appears only when the stored
+ * choice is not in force.
  */
 import { computed, onMounted, ref } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
@@ -41,8 +43,6 @@ const defaultEntry = computed<AlgoOption>(() => ({
 	id: '',
 	label: `Default (${defaultAlgo.value.toUpperCase() || '…'})`,
 }))
-
-const activeLabel = computed(() => (active.value ? active.value.toUpperCase() : '…'))
 
 function endpoint(): string {
 	return generateOcsUrl(OCS_API_V1.preference, { key: KEY })
@@ -109,9 +109,9 @@ onMounted(load)
 				@update:model-value="save(String($event))" />
 			<HelpPopover :text="HELP" label="Preferred algorithm" />
 		</div>
-		<p class="fcias-hint" data-testid="fcias-active-algorithm">
-			Active: <strong>{{ activeLabel }}</strong>
-			<span v-if="stored && stored !== active"> — your choice is not available on this server at the moment, so the default applies.</span>
+		<p v-if="stored && stored !== active" class="fcias-hint" data-testid="fcias-preference-stale">
+			{{ stored.toUpperCase() }} is not available on this server at the moment, so the default
+			({{ active.toUpperCase() }}) applies.
 		</p>
 	</div>
 </template>
