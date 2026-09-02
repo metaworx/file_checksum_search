@@ -59,16 +59,16 @@ const emit = defineEmits<{
 
 const ids = props.variant === 'admin'
 	? {
-		form: 'fcias-cron-form',
-		path: 'fcias-cron-path',
+		form: 'fcias-rule-form',
+		path: 'fcias-rule-path',
 		userscope: 'fcias-cron-userscope',
 		scopeTarget: 'fcias-cron-scope-target',
-		type: 'fcias-cron-type',
-		algos: 'fcias-cron-algos',
-		mode: 'fcias-cron-mode',
-		adminEnforced: 'fcias-cron-admin-enforced',
-		save: 'fcias-btn-save-definition',
-		cancel: 'fcias-btn-cancel-definition',
+		type: 'fcias-rule-type',
+		algos: 'fcias-rule-algos',
+		mode: 'fcias-rule-mode',
+		adminEnforced: 'fcias-rule-admin-enforced',
+		save: 'fcias-btn-save-rule',
+		cancel: 'fcias-btn-cancel-rule',
 	}
 	: {
 		form: 'fcias-personal-form',
@@ -292,8 +292,8 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 		:no-close="true"
 		size="normal"
 		@update:open="onOpenChange">
-		<div :id="ids.form" ref="formEl" class="fcias-cron-form">
-			<div class="fcias-cron-form-row">
+		<div :id="ids.form" ref="formEl" class="fcias-rule-form">
+			<div class="fcias-rule-form-row">
 				<label :for="ids.type">Type</label>
 				<select :id="ids.type" v-model="draft.type">
 					<option value="include">
@@ -309,9 +309,9 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 				<HelpPopover :text="HELP.type" label="Type" />
 			</div>
 
-			<div v-if="variant === 'admin'" class="fcias-cron-form-row">
+			<div v-if="variant === 'admin'" class="fcias-rule-form-row">
 				<label :for="lockScope ? undefined : ids.userscope">Applies to</label>
-				<span v-if="lockScope" :id="ids.userscope" class="fcias-cron-form-static">
+				<span v-if="lockScope" :id="ids.userscope" class="fcias-rule-form-static">
 					{{ draft.selector }}
 				</span>
 				<select
@@ -341,7 +341,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 				<HelpPopover :text="HELP.selector" label="Applies to" />
 			</div>
 
-			<div v-if="variant === 'admin' && !lockScope && selectorChoice === 'group'" class="fcias-cron-form-row">
+			<div v-if="variant === 'admin' && !lockScope && selectorChoice === 'group'" class="fcias-rule-form-row">
 				<label :for="ids.scopeTarget">Group</label>
 				<div class="fcias-rules-dialog-select">
 					<NcSelect
@@ -374,7 +374,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 				<HelpPopover :text="HELP.group" label="Group" />
 			</div>
 
-			<div v-if="variant === 'admin' && !lockScope && selectorChoice === 'user'" class="fcias-cron-form-row">
+			<div v-if="variant === 'admin' && !lockScope && selectorChoice === 'user'" class="fcias-rule-form-row">
 				<label :for="ids.scopeTarget">User</label>
 				<div class="fcias-rules-dialog-select">
 					<NcSelect
@@ -393,7 +393,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 				<HelpPopover :text="HELP.user" label="User" />
 			</div>
 
-			<div v-if="variant === 'admin' && !lockScope && selectorChoice === 'groupfolder'" class="fcias-cron-form-row">
+			<div v-if="variant === 'admin' && !lockScope && selectorChoice === 'groupfolder'" class="fcias-rule-form-row">
 				<label :for="ids.scopeTarget">{{ groupFolderTerm }}</label>
 				<div class="fcias-rules-dialog-select">
 					<NcSelect
@@ -414,7 +414,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 
 			<div
 				v-if="variant === 'admin' && !lockScope && selectorChoice === 'storage'"
-				class="fcias-cron-form-row">
+				class="fcias-rule-form-row">
 				<label :for="ids.scopeTarget">Storage id</label>
 				<input
 					:id="ids.scopeTarget"
@@ -424,17 +424,17 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 				<HelpPopover :text="HELP.storage" label="Storage id" />
 			</div>
 
-			<p v-if="variant === 'personal'" class="fcias-hint fcias-cron-form-static">
+			<p v-if="variant === 'personal'" class="fcias-hint fcias-rule-form-static">
 				This is your own rule. It applies only to your files and is evaluated after any rule
 				an administrator has enforced.
 			</p>
 
-			<div class="fcias-cron-form-row">
+			<div class="fcias-rule-form-row">
 				<label :for="lockScope ? undefined : ids.path">Path (glob)</label>
 				<span
 					v-if="lockScope"
 					:id="ids.path"
-					class="fcias-cron-form-static"
+					class="fcias-rule-form-static"
 					:title="draft.path">
 					{{ draft.path }}
 				</span>
@@ -452,7 +452,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 				The global rule always applies to every user and every path, so these two cannot be changed.
 			</p>
 
-			<div v-if="computesHashes" class="fcias-cron-form-row">
+			<div v-if="computesHashes" class="fcias-rule-form-row">
 				<label>Algorithms</label>
 				<div :id="ids.algos" class="fcias-rules-dialog-select">
 					<AlgoMultiselect
@@ -462,7 +462,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 				<HelpPopover :text="HELP.algos" label="Algorithms" />
 			</div>
 
-			<div v-if="computesHashes" class="fcias-cron-form-row">
+			<div v-if="computesHashes" class="fcias-rule-form-row">
 				<label :for="ids.mode">Mode</label>
 				<select :id="ids.mode" v-model="draft.mode">
 					<option value="auto">
@@ -481,9 +481,9 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 				<HelpPopover :text="HELP.mode" label="Mode" />
 			</div>
 
-			<div v-if="variant === 'admin'" class="fcias-cron-form-row">
+			<div v-if="variant === 'admin'" class="fcias-rule-form-row">
 				<label :for="ids.adminEnforced">Enforced</label>
-				<span class="fcias-cron-form-fill">
+				<span class="fcias-rule-form-fill">
 					<NcCheckboxRadioSwitch
 						:id="ids.adminEnforced"
 						v-model="draft.admin_enforced"
@@ -508,7 +508,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 				{{ errorMessage }}
 			</NcNoteCard>
 
-			<div class="fcias-cron-form-actions">
+			<div class="fcias-rule-form-actions">
 				<button :id="ids.save" class="fcias-btn" @click="submit">
 					Save
 				</button>

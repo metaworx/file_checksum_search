@@ -65,7 +65,7 @@ const visitAdmin = () => {
 	cy.visit( ADMIN_URL )
 
 	cy.wait( [ '@rulesLoaded', '@statusLoaded' ], { timeout: FIND_TIMEOUT } )
-	cy.get( '#fcias-cron-list', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+	cy.get( '#fcias-rules-list', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 }
 
 
@@ -128,13 +128,13 @@ describe( 'FCIAS admin rules', () => {
 		visitAdmin()
 
 		cy.get( '#fcias-idle-banner', { timeout: FIND_TIMEOUT } ).should( 'exist' )
-		cy.get( '#fcias-cron-list tr[data-band="7"]' ).should( 'have.length', 1 )
-		cy.get( '#fcias-cron-list tr[data-band="8"]' ).should( 'have.length', 1 )
+		cy.get( '#fcias-rules-list tr[data-band="7"]' ).should( 'have.length', 1 )
+		cy.get( '#fcias-rules-list tr[data-band="8"]' ).should( 'have.length', 1 )
 
 		// Both shipped disabled, which is the promise the banner is about:
 		// the app computes nothing until an administrator says so.
-		cy.get( '#fcias-cron-list tr[data-band] .fcias-compat-fail' ).should( 'have.length', 2 )
-		cy.get( '#fcias-cron-list tr[data-band] .fcias-compat-pass' ).should( 'not.exist' )
+		cy.get( '#fcias-rules-list tr[data-band] .fcias-compat-fail' ).should( 'have.length', 2 )
+		cy.get( '#fcias-rules-list tr[data-band] .fcias-compat-pass' ).should( 'not.exist' )
 
 		rules().then( ( list ) => {
 			expect( list ).to.have.length( 2 )
@@ -154,7 +154,7 @@ describe( 'FCIAS admin rules', () => {
 
 		cy.get( '#fcias-idle-banner [data-action="banner-ack"]' ).click()
 		cy.reload()
-		cy.get( '#fcias-cron-list', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.get( '#fcias-rules-list', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 		cy.get( '#fcias-idle-banner' ).should( 'not.exist' )
 
 		// Acknowledged is stored, not merely remembered by the page.
@@ -180,11 +180,11 @@ describe( 'FCIAS admin rules', () => {
 
 		cy.login( adminUser, adminPassword )
 		visitAdmin()
-		cy.get( '#fcias-cron-list tr[data-band="7"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.get( '#fcias-rules-list tr[data-band="7"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 
-		rowAction( '#fcias-cron-list tr[data-band="7"]', 'toggle' )
+		rowAction( '#fcias-rules-list tr[data-band="7"]', 'toggle' )
 
-		cy.get( '#fcias-cron-list tr[data-band="7"] .fcias-compat-pass', { timeout: FIND_TIMEOUT } )
+		cy.get( '#fcias-rules-list tr[data-band="7"] .fcias-compat-pass', { timeout: FIND_TIMEOUT } )
 			.should( 'exist' )
 		cy.get( '#fcias-idle-banner' ).should( 'not.exist' )
 
@@ -198,18 +198,18 @@ describe( 'FCIAS admin rules', () => {
 
 	it( 'creates a rule through the dialog; it lands above its segment default', () => {
 		visitAdmin()
-		cy.get( '#fcias-btn-add-definition', { timeout: FIND_TIMEOUT } ).click()
-		cy.get( '#fcias-cron-form' ).should( 'be.visible' )
+		cy.get( '#fcias-btn-add-rule', { timeout: FIND_TIMEOUT } ).click()
+		cy.get( '#fcias-rule-form' ).should( 'be.visible' )
 
 		// All home folders, which is the segment the shipped band-7 default
 		// sits in — so "above the default" is a question with an answer.
 		// A named path rather than **, which is what keeps it out of the
 		// defaults partition.
 		cy.get( '#fcias-cron-userscope' ).select( 'homeAll' )
-		cy.get( '#fcias-cron-path' ).clear().type( '/Photos/**' )
-		cy.get( '#fcias-btn-save-definition' ).click()
+		cy.get( '#fcias-rule-path' ).clear().type( '/Photos/**' )
+		cy.get( '#fcias-btn-save-rule' ).click()
 
-		cy.get( '#fcias-cron-form' ).should( 'not.exist' )
+		cy.get( '#fcias-rule-form' ).should( 'not.exist' )
 
 		rules().then( ( list ) => {
 			const band7 = list.filter( ( r ) => r.band === 7 )
@@ -237,28 +237,28 @@ describe( 'FCIAS admin rules', () => {
 		// Which namespaces appear as placeholders is derived from which of
 		// them already have a catch-all rule, so the set is only meaningful
 		// once the rules have rendered.
-		cy.get( '#fcias-cron-list tr[data-band="7"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
-		cy.get( '#fcias-cron-list tr[data-band="8"]' ).should( 'exist' )
+		cy.get( '#fcias-rules-list tr[data-band="7"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.get( '#fcias-rules-list tr[data-band="8"]' ).should( 'exist' )
 
-		cy.get( '#fcias-cron-list tr[data-placeholder]', { timeout: FIND_TIMEOUT } )
+		cy.get( '#fcias-rules-list tr[data-placeholder]', { timeout: FIND_TIMEOUT } )
 			.should( 'have.length.at.least', 1 )
 
 		// The namespace the row stands for, read off the row itself — the
 		// point of a placeholder is that it seeds the dialog with *that*
 		// namespace, and asserting only the path proved nothing about which
 		// one was chosen.
-		cy.get( '#fcias-cron-list tr[data-placeholder]' ).first()
+		cy.get( '#fcias-rules-list tr[data-placeholder]' ).first()
 			.invoke( 'attr', 'data-placeholder' )
 			.then( ( selector ) => {
 				// Addressed by that value rather than by position a second
 				// time: two `.first()` queries against a table that can
 				// re-render could pick different rows.
 				cy.get(
-					`#fcias-cron-list tr[data-placeholder="${ selector }"] [data-action="create"]`,
+					`#fcias-rules-list tr[data-placeholder="${ selector }"] [data-action="create"]`,
 				).click()
 
-				cy.get( '#fcias-cron-form', { timeout: FIND_TIMEOUT } ).should( 'be.visible' )
-				cy.get( '#fcias-cron-path' ).should( 'have.value', '**' )
+				cy.get( '#fcias-rule-form', { timeout: FIND_TIMEOUT } ).should( 'be.visible' )
+				cy.get( '#fcias-rule-path' ).should( 'have.value', '**' )
 
 				// Two of the six selector kinds name no target — they *are*
 				// the whole namespace — and the dialog has no target field
@@ -317,19 +317,19 @@ describe( 'FCIAS admin rules', () => {
 
 	it( 'refuses a bad rule inside the dialog rather than behind it', () => {
 		visitAdmin()
-		cy.get( '#fcias-btn-add-definition', { timeout: FIND_TIMEOUT } ).click()
-		cy.get( '#fcias-cron-form' ).should( 'be.visible' )
+		cy.get( '#fcias-btn-add-rule', { timeout: FIND_TIMEOUT } ).click()
+		cy.get( '#fcias-rule-form' ).should( 'be.visible' )
 
 		// A storage selector with no storage named: the server refuses it,
 		// and the error belongs on the form still on screen rather than on
 		// the page behind it.
 		cy.get( '#fcias-cron-userscope' ).select( 'storage' )
 		cy.get( '#fcias-cron-scope-target' ).clear()
-		cy.get( '#fcias-cron-path' ).clear().type( '**' )
-		cy.get( '#fcias-btn-save-definition' ).click()
+		cy.get( '#fcias-rule-path' ).clear().type( '**' )
+		cy.get( '#fcias-btn-save-rule' ).click()
 
-		cy.get( '#fcias-cron-form .fcias-form-error', { timeout: FIND_TIMEOUT } ).should( 'exist' )
-		cy.get( '#fcias-cron-form' ).should( 'be.visible' )
+		cy.get( '#fcias-rule-form .fcias-form-error', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.get( '#fcias-rule-form' ).should( 'be.visible' )
 	} )
 
 	it( 'badges a rule whose provider is gone', () => {
@@ -339,7 +339,7 @@ describe( 'FCIAS admin rules', () => {
 		)
 
 		visitAdmin()
-		cy.get( '#fcias-cron-list', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.get( '#fcias-rules-list', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 
 		// Inert by construction: nothing can match a folder that is not
 		// there, and silence about that reads as a bug in the app.
@@ -348,22 +348,22 @@ describe( 'FCIAS admin rules', () => {
 
 	it( 'offers Re-apply only where it can succeed', () => {
 		visitAdmin()
-		cy.get( '#fcias-cron-list tr[data-band="7"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.get( '#fcias-rules-list tr[data-band="7"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 
 		// Enabled include rule: re-applying queues the same uncapped pass
 		// `occ fcias:rules:apply` runs.
-		cy.get( '#fcias-cron-list tr[data-band="7"] .action-item__menutoggle' ).first().click()
+		cy.get( '#fcias-rules-list tr[data-band="7"] .action-item__menutoggle' ).first().click()
 		cy.get( '.action-item__popper [data-action="apply"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 
 		// A reload rather than dismissing the popover: NcActions leaves the
 		// popper it opened in the DOM, so asserting that the *next* menu has
 		// no Re-apply would keep finding the previous one's.
 		cy.reload()
-		cy.get( '#fcias-cron-list tr[data-band="8"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.get( '#fcias-rules-list tr[data-band="8"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 
 		// Disabled one: the server refuses it at submission, so the UI does
 		// not offer it.
-		cy.get( '#fcias-cron-list tr[data-band="8"] .action-item__menutoggle' ).first().click()
+		cy.get( '#fcias-rules-list tr[data-band="8"] .action-item__menutoggle' ).first().click()
 		cy.get( '.action-item__popper [data-action="toggle"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 		cy.get( '.action-item__popper [data-action="apply"]' ).should( 'not.exist' )
 	} )

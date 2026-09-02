@@ -285,7 +285,7 @@ const emptyMessage = computed(
 		<!-- Placeholders alone are worth a table: on an instance with no
 		     rules at all, they are how an administrator sees what could be
 		     ruled on. -->
-		<table v-if="rules.length > 0 || placeholders.length > 0" class="grid fcias-cron-table">
+		<table v-if="rules.length > 0 || placeholders.length > 0" class="grid fcias-rules-table">
 			<colgroup>
 				<col style="width: 4%">
 				<col style="width: 7%">
@@ -387,7 +387,7 @@ const emptyMessage = computed(
 						<td colspan="6" class="fcias-muted">
 							{{ placeholder.note }}
 						</td>
-						<td class="fcias-cron-actions">
+						<td class="fcias-rules-actions">
 							<button
 								class="fcias-btn"
 								type="button"

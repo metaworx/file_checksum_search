@@ -66,7 +66,7 @@
 	margin-top: 12px;
 }
 
-.fcias-cron-table {
+.fcias-rules-table {
 	width: 100%;
 	margin-bottom: 16px;
 	/* Honours the <colgroup> percentages, so every column keeps its share of the
@@ -74,7 +74,7 @@
 	table-layout: fixed;
 }
 
-.fcias-cron-table td {
+.fcias-rules-table td {
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
@@ -89,13 +89,13 @@
 	width: 220px;
 }
 
-.fcias-cron-table th,
-.fcias-cron-table td {
+.fcias-rules-table th,
+.fcias-rules-table td {
 	padding: 6px 8px;
 	vertical-align: middle;
 }
 
-.fcias-cron-actions {
+.fcias-rules-actions {
 	white-space: nowrap;
 	text-align: start;
 	/* Buttons must not inherit the value cells' ellipsis clipping. */
@@ -119,11 +119,11 @@
 	cursor: grabbing;
 }
 
-.fcias-cron-table tbody tr.fcias-dragging {
+.fcias-rules-table tbody tr.fcias-dragging {
 	opacity: 0.4;
 }
 
-.fcias-cron-table tbody tr.fcias-drag-over {
+.fcias-rules-table tbody tr.fcias-drag-over {
 	box-shadow: inset 0 2px 0 var(--color-primary-element, var(--color-primary));
 }
 
@@ -131,7 +131,7 @@
    Colour is never the only cue: each band opens with a labelled header row and
    every rule shows its "<band>.<position>" in the Priority column. The tints
    come from theme variables so they follow light and dark. */
-.fcias-cron-table tbody tr.fcias-band-header th {
+.fcias-rules-table tbody tr.fcias-band-header th {
 	background-color: var(--color-background-dark);
 	color: var(--color-text-maxcontrast);
 	font-size: 0.85em;
@@ -141,32 +141,32 @@
 	border-top: 2px solid var(--color-border);
 }
 
-.fcias-cron-table tbody tr:first-child.fcias-band-header th {
+.fcias-rules-table tbody tr:first-child.fcias-band-header th {
 	border-top: none;
 }
 
 /* Enforced bands read as "not yours to change"; the catch-all as a footnote. */
-.fcias-cron-table tbody tr.fcias-band-1 td,
-.fcias-cron-table tbody tr.fcias-band-2 td,
-.fcias-cron-table tbody tr.fcias-band-3 td {
+.fcias-rules-table tbody tr.fcias-band-1 td,
+.fcias-rules-table tbody tr.fcias-band-2 td,
+.fcias-rules-table tbody tr.fcias-band-3 td {
 	background-color: var(--color-background-hover);
 }
 
-.fcias-cron-table tbody tr.fcias-band-7 td {
+.fcias-rules-table tbody tr.fcias-band-7 td {
 	background-color: var(--color-background-dark);
 	font-style: italic;
 }
 
 /* Column and band headings carry a help button, so the heading itself becomes
    a two-part row: the word, then the affordance that explains it. */
-.fcias-cron-table th .fcias-th-inner {
+.fcias-rules-table th .fcias-th-inner {
 	display: flex;
 	align-items: center;
 	gap: 2px;
 	min-width: 0;
 }
 
-.fcias-cron-table th .fcias-th-label {
+.fcias-rules-table th .fcias-th-label {
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
@@ -175,7 +175,7 @@
 /* HelpPopover sizes its trigger for a form row; in a table heading that would
    set the row height on its own. Narrower here, and never squeezed away by a
    long column label. */
-.fcias-cron-table th .fcias-help-icon {
+.fcias-rules-table th .fcias-help-icon {
 	width: 22px;
 	height: 22px;
 	min-width: 22px;
@@ -184,7 +184,7 @@
 	flex: 0 0 auto;
 }
 
-.fcias-cron-table th .fcias-help-icon svg {
+.fcias-rules-table th .fcias-help-icon svg {
 	width: 16px;
 	height: 16px;
 }
@@ -214,25 +214,25 @@
 }
 
 /* Rendered inside an NcDialog, which already supplies the frame and padding. */
-.fcias-cron-form {
+.fcias-rule-form {
 	margin: 0;
 }
 
-.fcias-cron-form-row {
+.fcias-rule-form-row {
 	display: flex;
 	align-items: center;
 	margin-bottom: 8px;
 	gap: 8px;
 }
 
-.fcias-cron-form-row label {
+.fcias-rule-form-row label {
 	min-width: 120px;
 	font-weight: 600;
 }
 
-.fcias-cron-form-row input[type="text"],
-.fcias-cron-form-row input[type="number"],
-.fcias-cron-form-row select {
+.fcias-rule-form-row input[type="text"],
+.fcias-rule-form-row input[type="number"],
+.fcias-rule-form-row select {
 	flex: 1;
 	/* Without this a long value would push the row wider than the dialog. */
 	min-width: 0;
@@ -240,7 +240,7 @@
 
 /* Read-only stand-in for an input (the global rule's User Scope and Path).
    Rendered as plain text so it cannot be mistaken for an editable field. */
-.fcias-cron-form-static {
+.fcias-rule-form-static {
 	flex: 1;
 	min-width: 0;
 	overflow: hidden;
@@ -251,11 +251,11 @@
 
 /* Pushes a trailing help button to the right edge on rows whose control
    does not stretch (the admin-enforced checkbox). */
-.fcias-cron-form-fill {
+.fcias-rule-form-fill {
 	flex: 1;
 }
 
-.fcias-cron-form-actions {
+.fcias-rule-form-actions {
 	margin: 16px 0;
 	display: flex;
 	justify-content: center;
@@ -264,15 +264,15 @@
 
 /* Page-level actions sit left with the rest of the page; only the dialog's
    own Save/Cancel pair is centred. */
-.fcias-cron-form-actions--start {
+.fcias-rule-form-actions--start {
 	justify-content: flex-start;
 }
 
-#fcias-cron-snippet-container {
+#fcias-rule-snippet-container {
 	margin-top: 12px;
 }
 
-#fcias-cron-snippet {
+#fcias-rule-snippet {
 	background-color: var(--color-background-dark, #f0f0f0);
 	padding: 12px;
 	border-radius: var(--border-radius, 3px);
@@ -283,7 +283,7 @@
 	word-break: break-all;
 }
 
-#fcias-cron-msg {
+#fcias-rules-msg {
 	margin-top: 8px;
 }
 
@@ -407,7 +407,7 @@
 
 /* Its own header row, styled like a band header but deliberately not one:
    these rows are not part of the evaluation order. */
-.fcias-cron-table tbody tr.fcias-placeholder-header th {
+.fcias-rules-table tbody tr.fcias-placeholder-header th {
 	background-color: var(--color-background-dark);
 	color: var(--color-text-maxcontrast);
 	font-size: 0.85em;
@@ -424,7 +424,7 @@
 	font-style: italic;
 }
 
-.fcias-placeholder-row .fcias-cron-actions {
+.fcias-placeholder-row .fcias-rules-actions {
 	font-style: normal;
 	opacity: 1;
 }

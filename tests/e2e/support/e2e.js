@@ -73,7 +73,7 @@ const collectDiagnostic = ( win, testTitle ) => {
 		// a rules assertion times out the question is always the same — did
 		// the table render, and what is in it — and the sidebar probes above
 		// answer none of it.
-		const rulesList = doc.querySelector( '#fcias-cron-list' );
+		const rulesList = doc.querySelector( '#fcias-rules-list' );
 
 		payload.rulesList = rulesList
 			? rulesList.textContent.replace( /\s+/g, ' ' ).trim().slice( 0, 300 )

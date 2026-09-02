@@ -212,7 +212,7 @@ describe('settings-admin App', () => {
 
 		// One table now, in evaluation order: the catch-all is a row in it
 		// rather than a separate table above.
-		const rows = wrapper.find('#fcias-cron-list').findAll('tbody tr[data-id]')
+		const rows = wrapper.find('#fcias-rules-list').findAll('tbody tr[data-id]')
 		expect(rows).toHaveLength(2)
 		expect(rows[0].text()).toContain('/docs')
 		expect(rows[1].text()).toContain('**')
@@ -239,12 +239,12 @@ describe('settings-admin App', () => {
 		const wrapper = mount(App)
 		await flushPromises()
 
-		await wrapper.find('#fcias-cron-list').findAll('tbody tr[data-id]')[0]
+		await wrapper.find('#fcias-rules-list').findAll('tbody tr[data-id]')[0]
 			.find('button[data-action="edit"]').trigger('click')
 
-		expect(wrapper.find('#fcias-cron-path').element.tagName).toBe('INPUT')
+		expect(wrapper.find('#fcias-rule-path').element.tagName).toBe('INPUT')
 		expect(wrapper.find('#fcias-cron-userscope').element.tagName).toBe('SELECT')
-		expect((wrapper.find('#fcias-cron-path').element as HTMLInputElement).value).toBe('/docs')
+		expect((wrapper.find('#fcias-rule-path').element as HTMLInputElement).value).toBe('/docs')
 	})
 
 	it('opens and cancels the add-rule form', async () => {
@@ -252,13 +252,13 @@ describe('settings-admin App', () => {
 		const wrapper = mount(App)
 		await flushPromises()
 
-		expect(wrapper.find('#fcias-cron-form').exists()).toBe(false)
+		expect(wrapper.find('#fcias-rule-form').exists()).toBe(false)
 
-		await wrapper.find('#fcias-btn-add-definition').trigger('click')
-		expect(wrapper.find('#fcias-cron-form').exists()).toBe(true)
+		await wrapper.find('#fcias-btn-add-rule').trigger('click')
+		expect(wrapper.find('#fcias-rule-form').exists()).toBe(true)
 
-		await wrapper.find('#fcias-btn-cancel-definition').trigger('click')
-		expect(wrapper.find('#fcias-cron-form').exists()).toBe(false)
+		await wrapper.find('#fcias-btn-cancel-rule').trigger('click')
+		expect(wrapper.find('#fcias-rule-form').exists()).toBe(false)
 	})
 
 	it('treats a default like any other rule of its segment', async () => {
@@ -266,7 +266,7 @@ describe('settings-admin App', () => {
 		const wrapper = mount(App)
 		await flushPromises()
 
-		const rows = wrapper.find('#fcias-cron-list').findAll('tbody tr[data-id]')
+		const rows = wrapper.find('#fcias-rules-list').findAll('tbody tr[data-id]')
 		const dflt = rows[1]
 
 		// pinned is gone: a deleted shipped default is recreated (disabled)
@@ -282,18 +282,18 @@ describe('settings-admin App', () => {
 		const wrapper = mount(App)
 		await flushPromises()
 
-		const defaultRow = wrapper.find('#fcias-cron-list').findAll('tbody tr[data-id]')[1]
+		const defaultRow = wrapper.find('#fcias-rules-list').findAll('tbody tr[data-id]')[1]
 		await defaultRow.find('button[data-action="edit"]').trigger('click')
 
 		// No locked fields any more: a default is an ordinary rule whose
 		// shape puts it in the trailing partition. The dialog seeds its
 		// selector and path like anyone else's.
-		const path = wrapper.find('#fcias-cron-path')
+		const path = wrapper.find('#fcias-rule-path')
 		expect(path.element.tagName).toBe('INPUT')
 		expect((path.element as HTMLInputElement).value).toBe('**')
 
-		await wrapper.find('#fcias-cron-mode').setValue('force')
-		await wrapper.find('#fcias-btn-save-definition').trigger('click')
+		await wrapper.find('#fcias-rule-mode').setValue('force')
+		await wrapper.find('#fcias-btn-save-rule').trigger('click')
 		await flushPromises()
 
 		// The listing GET also hits /api/v1/rules, so match the mutation.
@@ -313,7 +313,7 @@ describe('settings-admin App', () => {
 
 		// Regression guard: AlgoMultiselect used to snapshot its selection at
 		// setup time, when supportedAlgos was still empty, and stayed blank.
-		expect(wrapper.find('#fcias-cron-list').text()).toContain('sha1')
+		expect(wrapper.find('#fcias-rules-list').text()).toContain('sha1')
 	})
 
 	it('deletes an additional rule after confirmation', async () => {
@@ -321,7 +321,7 @@ describe('settings-admin App', () => {
 		const wrapper = mount(App)
 		await flushPromises()
 
-		await wrapper.find('#fcias-cron-list').findAll('tbody tr[data-id]')[0]
+		await wrapper.find('#fcias-rules-list').findAll('tbody tr[data-id]')[0]
 			.find('button[data-action="delete"]').trigger('click')
 		await flushPromises()
 

@@ -122,7 +122,7 @@ const canReapply = computed(() => props.rule.enabled && computesHashes.value)
 			</span>
 		</td>
 		<td>{{ rule.admin_enforced ? 'Yes' : 'No' }}</td>
-		<td class="fcias-cron-actions">
+		<td class="fcias-rules-actions">
 			<span v-if="rule.canEdit" class="fcias-row-actions">
 				<button
 					class="fcias-icon-btn"
@@ -216,7 +216,7 @@ const canReapply = computed(() => props.rule.enabled && computesHashes.value)
 	vertical-align: middle;
 }
 
-.fcias-cron-actions {
+.fcias-rules-actions {
 	white-space: nowrap;
 }
 </style>

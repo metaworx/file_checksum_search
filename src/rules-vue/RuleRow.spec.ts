@@ -212,6 +212,6 @@ describe('RuleRow', () => {
 		const wrapper = mount(RuleRow, { props: { rule: makeRule({ canEdit: false }), variant: 'personal' } })
 
 		expect(wrapper.find('.nc-actions').exists()).toBe(false)
-		expect(wrapper.find('td.fcias-cron-actions').text()).toBe('Read-only')
+		expect(wrapper.find('td.fcias-rules-actions').text()).toBe('Read-only')
 	})
 })

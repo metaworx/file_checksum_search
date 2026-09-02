@@ -129,7 +129,7 @@ onMounted(load)
 			</div>
 		</div>
 
-		<div class="fcias-cron-form-actions fcias-cron-form-actions--start">
+		<div class="fcias-rule-form-actions fcias-rule-form-actions--start">
 			<button class="fcias-btn" :disabled="saving" @click="save">
 				{{ saving ? 'Saving…' : 'Save' }}
 			</button>

@@ -57,9 +57,9 @@ describe('RuleForm', () => {
 		const wrapper = mount(RuleForm, {
 			props: { rule: null, variant: 'admin', supportedAlgos: ['sha1', 'sha256'] },
 		})
-		expect((wrapper.find('#fcias-cron-path').element as HTMLInputElement).value).toBe('/')
+		expect((wrapper.find('#fcias-rule-path').element as HTMLInputElement).value).toBe('/')
 		expect(wrapper.find('#fcias-cron-userscope').exists()).toBe(true)
-		expect(wrapper.find('#fcias-cron-admin-enforced').exists()).toBe(true)
+		expect(wrapper.find('#fcias-rule-admin-enforced').exists()).toBe(true)
 	})
 
 	it('seeds fields from an existing rule', () => {
@@ -70,8 +70,8 @@ describe('RuleForm', () => {
 				supportedAlgos: ['sha1', 'md5'],
 			},
 		})
-		expect((wrapper.find('#fcias-cron-path').element as HTMLInputElement).value).toBe('/existing')
-		expect((wrapper.find('#fcias-cron-mode').element as HTMLSelectElement).value).toBe('force')
+		expect((wrapper.find('#fcias-rule-path').element as HTMLInputElement).value).toBe('/existing')
+		expect((wrapper.find('#fcias-rule-mode').element as HTMLSelectElement).value).toBe('force')
 	})
 
 	it('hides admin-only fields for the personal variant and uses personal element ids', () => {
@@ -88,9 +88,9 @@ describe('RuleForm', () => {
 		const wrapper = mount(RuleForm, {
 			props: { rule: null, variant: 'admin', supportedAlgos: ['sha1'] },
 		})
-		await wrapper.find('#fcias-cron-path').setValue('/new-path')
-		await wrapper.find('#fcias-cron-mode').setValue('force')
-		await wrapper.find('#fcias-btn-save-definition').trigger('click')
+		await wrapper.find('#fcias-rule-path').setValue('/new-path')
+		await wrapper.find('#fcias-rule-mode').setValue('force')
+		await wrapper.find('#fcias-btn-save-rule').trigger('click')
 
 		const payload = wrapper.emitted('save')?.[0]?.[0] as { path: string; mode: string }
 		expect(payload.path).toBe('/new-path')
@@ -120,15 +120,15 @@ describe('RuleForm', () => {
 			const wrapper = mount(RuleForm, {
 				props: { rule: null, variant: 'admin', supportedAlgos: ['sha1'] },
 			})
-			expect(wrapper.find('#fcias-cron-mode').exists()).toBe(true)
-			expect(wrapper.find('#fcias-cron-algos').exists()).toBe(true)
+			expect(wrapper.find('#fcias-rule-mode').exists()).toBe(true)
+			expect(wrapper.find('#fcias-rule-algos').exists()).toBe(true)
 
-			await wrapper.find('#fcias-cron-type').setValue('exclude')
+			await wrapper.find('#fcias-rule-type').setValue('exclude')
 
 			// An exclude rule never hashes, so asking which algorithms it uses
 			// would be a field with no meaning.
-			expect(wrapper.find('#fcias-cron-mode').exists()).toBe(false)
-			expect(wrapper.find('#fcias-cron-algos').exists()).toBe(false)
+			expect(wrapper.find('#fcias-rule-mode').exists()).toBe(false)
+			expect(wrapper.find('#fcias-rule-algos').exists()).toBe(false)
 		})
 
 		it('saves the chosen type and defaults an untyped rule to include', async () => {
@@ -164,7 +164,7 @@ describe('RuleForm', () => {
 
 			await wrapper.find('#fcias-cron-userscope').setValue('group')
 			await wrapper.find('#fcias-cron-scope-target').setValue('staff')
-			await wrapper.find('#fcias-btn-save-definition').trigger('click')
+			await wrapper.find('#fcias-btn-save-rule').trigger('click')
 
 			// Two controls in the dialog, one string on the wire.
 			expect((wrapper.emitted('save')?.[0]?.[0] as { selector: string }).selector).toBe('group:staff')
@@ -212,7 +212,7 @@ describe('RuleForm', () => {
 			expect(picker.text()).toContain('Team Docs')
 
 			await picker.setValue('1')
-			await wrapper.find('#fcias-btn-save-definition').trigger('click')
+			await wrapper.find('#fcias-btn-save-rule').trigger('click')
 
 			// The name is display only; the selector stores the id.
 			expect((wrapper.emitted('save')?.[0]?.[0] as { selector: string }).selector).toBe('groupfolder:1')
@@ -229,7 +229,7 @@ describe('RuleForm', () => {
 			expect(input.element.tagName).toBe('INPUT')
 
 			await input.setValue('smb::user@host//share/')
-			await wrapper.find('#fcias-btn-save-definition').trigger('click')
+			await wrapper.find('#fcias-btn-save-rule').trigger('click')
 
 			expect((wrapper.emitted('save')?.[0]?.[0] as { selector: string }).selector)
 				.toBe('storage:smb::user@host//share/')
@@ -259,7 +259,7 @@ describe('RuleForm', () => {
 			const picker = wrapper.find('#fcias-cron-scope-target')
 			expect((picker.element as HTMLSelectElement).value).toBe('')
 
-			await wrapper.find('#fcias-btn-save-definition').trigger('click')
+			await wrapper.find('#fcias-btn-save-rule').trigger('click')
 			expect((wrapper.emitted('save')?.[0]?.[0] as { selector: string }).selector).toBe('')
 		})
 
@@ -296,7 +296,7 @@ describe('RuleForm', () => {
 			expect(kindSelect.text()).toContain('Team Folders')
 
 			await kindSelect.setValue('groupfolder')
-			expect(wrapper.find('.fcias-cron-form-row label[for="fcias-cron-scope-target"]').text())
+			expect(wrapper.find('.fcias-rule-form-row label[for="fcias-cron-scope-target"]').text())
 				.toBe('Team Folders')
 		})
 	})
@@ -366,7 +366,7 @@ describe('RuleForm', () => {
 			expect(preview()).toContain('band 5')
 
 			// The id lands on the switch component's root; the control is its input.
-			await wrapper.find('#fcias-cron-admin-enforced input').setValue(true)
+			await wrapper.find('#fcias-rule-admin-enforced input').setValue(true)
 			expect(preview()).toContain('band 1')
 			expect(preview()).toContain('Enforced — specific')
 		})
@@ -388,7 +388,7 @@ describe('RuleForm', () => {
 			})
 			expect(wrapper.find('.fcias-band-preview').text()).toContain('band 8')
 
-			await wrapper.find('#fcias-cron-admin-enforced input').setValue(true)
+			await wrapper.find('#fcias-rule-admin-enforced input').setValue(true)
 			expect(wrapper.find('.fcias-band-preview').text()).toContain('band 4')
 		})
 	})

@@ -409,7 +409,7 @@ loadDefinitions().then(() => {
 					<em>within</em> its band; to move it between bands, change its scope or its Enforced flag.
 				</p>
 
-				<div id="fcias-cron-list">
+				<div id="fcias-rules-list">
 					<RuleTable
 						:rules="definitions"
 						variant="admin"
@@ -427,7 +427,7 @@ loadDefinitions().then(() => {
 						@reorder="handleReorder" />
 				</div>
 
-				<button id="fcias-btn-add-definition" class="fcias-btn" @click="openAddRule">
+				<button id="fcias-btn-add-rule" class="fcias-btn" @click="openAddRule">
 					Add Rule
 				</button>
 				<RuleForm
@@ -444,7 +444,7 @@ loadDefinitions().then(() => {
 					@save="handleSaveRule"
 					@cancel="closeRuleForm" />
 
-				<div id="fcias-cron-msg">
+				<div id="fcias-rules-msg">
 					<p v-if="ruleMsg" class="fcias-error">
 						{{ ruleMsg }}
 					</p>
