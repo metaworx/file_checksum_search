@@ -14,9 +14,9 @@ import DocsViewer from '../docs-vue/DocsViewer.vue'
 import PreferenceSection from './PreferenceSection.vue'
 import { OCS_ADMIN } from '../routes'
 import { useRules } from '../rules-vue/composables/useRules'
+import { toastSuccess } from '../toast'
 
 declare const OC: {
-	Notification: { showTemporary: (msg: string) => void }
 	dialogs: { confirm: (text: string, title: string, callback: (confirmed: boolean) => void, modal?: boolean) => void }
 }
 
@@ -89,7 +89,7 @@ async function handleSaveRule(draft: RuleDraft): Promise<void> {
 	const result = await saveRule(draft)
 	if (result.success) {
 		closeRuleForm()
-		OC.Notification.showTemporary('Rule saved.')
+		toastSuccess('Rule saved.')
 	} else {
 		saveError.value = result.error || 'Saving failed.'
 	}
@@ -103,7 +103,7 @@ function handleDeleteRule(rule: Rule): void {
 			if (!confirmed) return
 			deleteRule(rule.id).then((result) => {
 				if (result.success) {
-					OC.Notification.showTemporary('Rule deleted.')
+					toastSuccess('Rule deleted.')
 				} else {
 					ruleMsg.value = result.error || 'Delete failed.'
 				}
@@ -123,7 +123,7 @@ async function handleReorder(payload: { selector: string; defaults: boolean; ord
 async function handleApplyRule(rule: Rule): Promise<void> {
 	const result = await applyRule(rule.id)
 	if (result.success) {
-		OC.Notification.showTemporary('Re-apply queued — the background job takes it from here.')
+		toastSuccess('Re-apply queued — the background job takes it from here.')
 	} else {
 		ruleMsg.value = result.error || 'Re-apply failed.'
 	}
@@ -132,7 +132,7 @@ async function handleApplyRule(rule: Rule): Promise<void> {
 async function handleToggleRule(rule: Rule): Promise<void> {
 	const result = await toggleRule(rule.id, !rule.enabled)
 	if (result.success) {
-		OC.Notification.showTemporary(rule.enabled ? 'Rule disabled.' : 'Rule enabled.')
+		toastSuccess(rule.enabled ? 'Rule disabled.' : 'Rule enabled.')
 	} else {
 		ruleMsg.value = result.error || 'Toggle failed.'
 	}

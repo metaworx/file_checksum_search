@@ -30,6 +30,7 @@
     "vitest": "^3.2.1"
   },
   "dependencies": {
+    "@nextcloud/dialogs": "^7.5.0",
     "@nextcloud/files": "^4.0.0",
     "@nextcloud/l10n": "^3.4.0",
     "@nextcloud/router": "^3.1.0",

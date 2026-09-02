@@ -15,6 +15,7 @@ import { generateOcsUrl } from '@nextcloud/router'
 import AlgorithmSelect from '../components/AlgorithmSelect.vue'
 import HelpPopover from '../components/HelpPopover.vue'
 import { OCS_API_V1 } from '../routes'
+import { toastError, toastSaved } from '../toast'
 import type { AlgoOption } from '../algorithms'
 
 defineProps<{
@@ -22,10 +23,7 @@ defineProps<{
 	algorithms: string[]
 }>()
 
-const OC = window.OC as unknown as {
-	requestToken: string
-	Notification: { showTemporary: (msg: string) => void }
-}
+const OC = window.OC as unknown as { requestToken: string }
 
 const KEY = 'preferred_algorithm'
 const stored = ref('')
@@ -81,11 +79,12 @@ async function save(value: string): Promise<void> {
 		const data = (await response.json()) as { error?: string, value?: string, default?: string, active?: string }
 		if (response.ok) {
 			take(data)
+			toastSaved()
 		} else {
-			OC.Notification.showTemporary(data.error || 'Could not save the preference.')
+			toastError(data.error || 'Could not save the preference.')
 		}
 	} catch (e) {
-		OC.Notification.showTemporary('Request failed.')
+		toastError('Request failed.')
 	} finally {
 		saving.value = false
 	}

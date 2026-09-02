@@ -11,6 +11,13 @@ vi.mock('@nextcloud/vue/components/NcPopover', () => ({
 	default: { name: 'NcPopover', template: '<div><slot name="trigger" /><slot /></div>' },
 }))
 
+const toastSaved = vi.fn()
+const toastError = vi.fn()
+vi.mock('../toast', () => ({
+	toastSaved: (...args: unknown[]) => toastSaved(...args),
+	toastError: (...args: unknown[]) => toastError(...args),
+}))
+
 // The picker's own behaviour has its own spec; here it is a plain control that
 // reports what it was offered and what is bound.
 vi.mock('../components/AlgorithmSelect.vue', () => ({
@@ -29,10 +36,9 @@ function jsonResponse(body: unknown): Response {
 }
 
 beforeEach(() => {
-	(window as unknown as { OC: unknown }).OC = {
-		requestToken: 'token',
-		Notification: { showTemporary: vi.fn() },
-	}
+	(window as unknown as { OC: unknown }).OC = { requestToken: 'token' }
+	toastSaved.mockReset()
+	toastError.mockReset()
 	fetchMock.mockReset()
 	fetchMock.mockImplementation((url: string, init?: RequestInit) => {
 		if (init?.method === 'PUT') {
@@ -100,5 +106,28 @@ describe('AlgorithmSection', () => {
 			allowedAlgorithms: ['sha1', 'sha256', 'md5'],
 			defaultAlgorithm: 'md5',
 		})
+		// Said once the server has confirmed, not when the button was pressed.
+		expect(toastSaved).toHaveBeenCalledTimes(1)
+		expect(toastError).not.toHaveBeenCalled()
+	})
+
+	it('reports a refused save as an error and says nothing was saved', async () => {
+		fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+			if (init?.method === 'PUT') {
+				return Promise.resolve(jsonResponse({ success: false, error: 'None of those is available.' }))
+			}
+			return Promise.resolve(jsonResponse({
+				allowedAlgorithms: ['sha1'],
+				availableAlgorithms: ['sha1', 'md5'],
+				defaultAlgorithm: 'sha1',
+			}))
+		})
+		const { wrapper } = await mounted()
+
+		await wrapper.find('#fcias-btn-save-algorithms').trigger('click')
+		await flushPromises()
+
+		expect(toastError).toHaveBeenCalledWith('None of those is available.')
+		expect(toastSaved).not.toHaveBeenCalled()
 	})
 })

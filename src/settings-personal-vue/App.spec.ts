@@ -8,6 +8,13 @@ vi.mock('@nextcloud/router', () => ({
 		url.replace(/\{(\w+)\}/g, (whole, token) => (params && token in params ? String(params[token]) : whole)),
 }))
 
+// Toasts are asserted in the sections' own specs; here they only must not throw.
+vi.mock('../toast', () => ({
+	toastSaved: () => undefined,
+	toastSuccess: () => undefined,
+	toastError: () => undefined,
+}))
+
 vi.mock('@nextcloud/vue/components/NcEllipsisedOption', () => ({
 	default: {
 		name: 'NcEllipsisedOption',
@@ -54,7 +61,6 @@ const confirmMock = vi.fn((_text: string, _title: string, onConfirm: (confirmed:
 
 ;(globalThis as unknown as { OC: unknown }).OC = {
 	requestToken: 'token',
-	Notification: { showTemporary: vi.fn() },
 	dialogs: { confirm: confirmMock },
 }
 

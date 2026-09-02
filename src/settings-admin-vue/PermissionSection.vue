@@ -14,16 +14,14 @@ import NcSettingsSelectGroup from '@nextcloud/vue/components/NcSettingsSelectGro
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import HelpPopover from '../components/HelpPopover.vue'
 import { OCS_SETTINGS } from '../routes'
+import { toastError, toastSaved } from '../toast'
 
 interface UserOption {
 	id: string
 	label: string
 }
 
-const OC = window.OC as unknown as {
-	requestToken: string
-	Notification: { showTemporary: (msg: string) => void }
-}
+const OC = window.OC as unknown as { requestToken: string }
 
 const allowAll = ref(false)
 const allowedGroups = ref<string[]>([])
@@ -61,7 +59,7 @@ async function load(): Promise<void> {
 		const selectedIds = data.users || []
 		selectedUsers.value = userOptions.value.filter((u) => selectedIds.includes(u.id))
 	} catch (e) {
-		OC.Notification.showTemporary('Failed to load permission options.')
+		toastError('Failed to load permission options.')
 	} finally {
 		loaded.value = true
 	}
@@ -84,12 +82,12 @@ async function save(): Promise<void> {
 		})
 		const data = (await response.json()) as { success?: boolean; error?: string }
 		if (data.success) {
-			OC.Notification.showTemporary('Options saved.')
+			toastSaved()
 		} else {
-			OC.Notification.showTemporary(data.error || 'Save failed.')
+			toastError(data.error || 'Save failed.')
 		}
 	} catch (e) {
-		OC.Notification.showTemporary('Request failed.')
+		toastError('Request failed.')
 	} finally {
 		saving.value = false
 	}

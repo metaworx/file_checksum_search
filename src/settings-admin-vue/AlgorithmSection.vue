@@ -15,11 +15,9 @@ import { generateOcsUrl } from '@nextcloud/router'
 import AlgorithmSelect from '../components/AlgorithmSelect.vue'
 import HelpPopover from '../components/HelpPopover.vue'
 import { OCS_SETTINGS } from '../routes'
+import { toastError, toastSaved } from '../toast'
 
-const OC = window.OC as unknown as {
-	requestToken: string
-	Notification: { showTemporary: (msg: string) => void }
-}
+const OC = window.OC as unknown as { requestToken: string }
 
 const availableIds = ref<string[]>([])
 const selectedIds = ref<string[]>([])
@@ -60,7 +58,7 @@ async function load(): Promise<void> {
 		selectedIds.value = (data.allowedAlgorithms ?? []).filter((id) => availableIds.value.includes(id))
 		takeDefault(data.defaultAlgorithm)
 	} catch (e) {
-		OC.Notification.showTemporary('Failed to load the algorithm list.')
+		toastError('Failed to load the algorithm list.')
 	} finally {
 		loaded.value = true
 	}
@@ -85,16 +83,16 @@ async function save(): Promise<void> {
 			defaultAlgorithm?: string
 		}
 		if (data.success) {
-			OC.Notification.showTemporary('Algorithms saved.')
+			toastSaved()
 			if (data.allowedAlgorithms) {
 				selectedIds.value = data.allowedAlgorithms
 			}
 			takeDefault(data.defaultAlgorithm)
 		} else {
-			OC.Notification.showTemporary(data.error || 'Save failed.')
+			toastError(data.error || 'Save failed.')
 		}
 	} catch (e) {
-		OC.Notification.showTemporary('Request failed.')
+		toastError('Request failed.')
 	} finally {
 		saving.value = false
 	}
