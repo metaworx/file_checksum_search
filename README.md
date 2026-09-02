@@ -291,6 +291,12 @@ Once a rule is enabled, five paths lead to a hash:
 5. **By hand.** The **Checksums** tab in the files sidebar recalculates one file on request. Only an
    `exclude` rule refuses: `ignore` means "not automatically", and asking is not automatic.
 
+The periodic sweep also carries the app's one piece of housekeeping: once a day — `orphan_purge_interval`,
+in seconds, default 86400 — it forgets files that no longer exist, the metadata that deleting a user or
+removing a storage leaves behind because Nextcloud's own cleanup does not run on those paths. Deleting a
+user makes that due at once. The status page shows when it last ran, as *Orphan purge*, beside the other
+two jobs; `occ fcias:repair --step orphaned-metadata` runs it by hand.
+
 Installing the app reads no file content at all. It copies the checksums Nextcloud's own filecache
 already carries into the searchable index; `occ fcias:repair --step rebuild-from-filecache` does the same on
 demand, and neither overwrites a hash the app already stored.

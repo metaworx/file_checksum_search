@@ -347,9 +347,11 @@ reading:
   rule maintains the file any more, and heals itself once a rule covers it
   again. *Reset* means they are still stored but disowned, already hidden from
   search, waiting for the background job or an import.
-- **Background Jobs** — each job's last run and its counts. The timestamp is
-  the point: a job that stopped running is invisible until someone notices its
-  clock has not moved.
+- **Background Jobs** — each job's last run and its counts: the *Rule sweep*,
+  the *Queue drain*, and the *Orphan purge*, which rides the sweep once a day
+  (`orphan_purge_interval`, seconds) to forget files that no longer exist and
+  runs at once after a user is deleted. The timestamp is the point: a job that
+  stopped running is invisible until someone notices its clock has not moved.
 - **Last Updated** — when the page itself last asked, not when anything was
   hashed.
 
