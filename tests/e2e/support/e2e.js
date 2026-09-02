@@ -227,36 +227,126 @@ Cypress.Commands.add( 'fciasResetRules', ( occ ) => {
 } )
 
 /**
- * Make sure alice and bob exist.
+ * A password no policy will refuse and nobody will guess.
  *
- * The developer instance has them; CI starts with admin alone. Creating them
- * here is what lets one cross-user spec run in both places rather than being
- * skipped in the environment that matters.
+ * One character from each class the common policies ask for, then length
+ * from the full alphabet — assembled rather than generated and retried, so
+ * a strict policy cannot turn this into a loop. The same composition as
+ * the PHPUnit suite's DatabaseTestCase::strongPassword().
  *
- * A user who already exists makes `user:add` exit non-zero, which is the
- * success case as far as this is concerned.
- *
- * The password goes through `cy.exec`'s own `env` rather than as a
- * `VAR=value command` prefix. `occ` is a *shell prefix*, and the documented
- * ddev one begins with `cd` — so the prefix form assigns the variable to
- * `cd`, leaves `OC_PASS` empty by the time occ reads it, and creates the
- * accounts with no password at all. It works with CI's plain binary path,
- * which is exactly why it went unnoticed.
- *
- * @param {string} occ  How to invoke occ.
+ * @param {number} length  Total length, at least 4.
+ * @returns {string}
  */
-Cypress.Commands.add( 'fciasEnsureUsers', ( occ ) => {
-	for ( const user of [ 'alice', 'bob' ] )
-	{
-		cy.exec(
-			`${ occ } user:add --password-from-env ${ user }`,
-			{
-				timeout: FCIAS_EXEC_TIMEOUT,
-				failOnNonZeroExit: false,
-				env: { OC_PASS: 'SecretPass123!' },
-			},
-		)
+const strongPassword = ( length = 32 ) => {
+	const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+	const lower = 'abcdefghijklmnopqrstuvwxyz'
+	const digits = '0123456789'
+	const symbols = '!#$%&*+-=?@^_'
+	const alphanumeric = upper + lower + digits
+
+	const pick = ( alphabet, count ) => {
+		const bytes = new Uint32Array( count )
+		crypto.getRandomValues( bytes )
+		return Array.from( bytes, ( byte ) => alphabet[ byte % alphabet.length ] ).join( '' )
 	}
+
+	return pick( upper, 1 )
+		+ pick( lower, 1 )
+		+ pick( digits, 1 )
+		+ pick( symbols, 1 )
+		+ pick( alphanumeric, length - 4 )
+}
+
+/**
+ * Create an account for this run alone, and say what it is.
+ *
+ * Nothing in the suite authenticates as a name it did not make. A fixed
+ * `alice` with a password written into the repository is standing risk on
+ * every instance the suite has ever touched, and it also poses a question
+ * teardown cannot answer — whether the account it is about to delete was
+ * the suite's or the developer's. A random name answers it by construction.
+ *
+ * The base rides in the name (`fcias_e2e_alice_9f3a1c04`) so a failing run
+ * still says which account was the sharer and which the sharee. What it
+ * does not carry is anything an attacker could use: the password is fresh
+ * per account and never leaves the run.
+ *
+ * A run that crashes before its `after()` leaves the account behind. That
+ * is the point rather than a gap — what it leaves is inert and identifiable
+ * by the prefix, where `alice` with a published password is neither.
+ *
+ * Through the provisioning API rather than `occ user:add`, because the
+ * password has to reach the account and `--password-from-env` cannot carry
+ * it everywhere this suite runs. `cy.exec`'s `env` sets a variable for the
+ * process it starts, and where `occ` is a wrapper that re-enters a
+ * container — the ddev form — the variable stops at the wrapper and occ
+ * reads an empty `OC_PASS`. It works where `occ` is a plain binary, which
+ * is why the old helper's `failOnNonZeroExit: false` hid it: the accounts
+ * it was asked to create already existed. HTTP carries the password to the
+ * server the same way in both.
+ *
+ * @param {{user: string, password: string}} admin  An administrator.
+ * @param {string} base  What this account is for, e.g. 'alice'.
+ * @returns {Cypress.Chainable<{user: string, password: string}>}
+ */
+Cypress.Commands.add( 'fciasMakeAccount', ( admin, base ) => {
+	const suffix = new Uint32Array( 1 )
+	crypto.getRandomValues( suffix )
+
+	const account = {
+		user: `fcias_e2e_${ base }_${ suffix[ 0 ].toString( 16 ).padStart( 8, '0' ) }`,
+		password: strongPassword(),
+	}
+
+	return cy.request( {
+		method: 'POST',
+		url: '/ocs/v2.php/cloud/users?format=json',
+		auth: { user: admin.user, pass: admin.password },
+		headers: {
+			'OCS-APIRequest': 'true',
+			'Content-Type': 'application/json',
+		},
+		body: {
+			userid: account.user,
+			password: account.password,
+		},
+		failOnStatusCode: false,
+	} ).then( ( response ) => {
+		// Asserted rather than assumed: an account that was not created
+		// fails every later request as a bare 401, which reads as a broken
+		// endpoint rather than as missing setup.
+		expect(
+			response.status,
+			`creating the test account ${ account.user }`,
+		).to.eq( 200 )
+
+		return account
+	} )
+} )
+
+/**
+ * Delete an account this suite made.
+ *
+ * Tolerant of one that is already gone, because a spec whose setup failed
+ * halfway still runs its `after()` and the missing account is the outcome
+ * that hook wanted.
+ *
+ * @param {{user: string, password: string}} admin  An administrator.
+ * @param {string} user  The uid, as returned by cy.fciasMakeAccount().
+ */
+Cypress.Commands.add( 'fciasDeleteAccount', ( admin, user ) => {
+	if ( ! user )
+	{
+		return
+	}
+
+	cy.request( {
+		method: 'DELETE',
+		url: `/ocs/v2.php/cloud/users/${ user }?format=json`,
+		auth: { user: admin.user, pass: admin.password },
+		headers: { 'OCS-APIRequest': 'true' },
+		failOnStatusCode: false,
+	} )
 } )
 
 

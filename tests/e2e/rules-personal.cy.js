@@ -23,8 +23,12 @@ let occ = 'php nextcloud/occ'
 let adminUser = 'admin'
 let adminPassword = 'admin'
 
-const alice = { user: 'alice', password: 'SecretPass123!' }
-const bob = { user: 'bob', password: 'SecretPass123!' }
+// Made in before(), deleted in after(), and named for the run rather than
+// for the instance: nothing here authenticates as an account it did not
+// create. The base rides in the uid so a failure still says which of the
+// two was the sharer.
+let alice = {}
+let bob = {}
 
 const FIND_TIMEOUT = 60000
 
@@ -97,7 +101,23 @@ describe( 'FCIAS for a user who is not an administrator', () => {
 			}
 		} ).then( () => {
 			cy.exec( `${ occ } app:enable ${ appId }`, { failOnNonZeroExit: false } )
-			cy.fciasEnsureUsers( occ )
+
+			const admin = { user: adminUser, password: adminPassword }
+
+			cy.fciasMakeAccount( admin, 'alice' ).then( ( account ) => {
+				alice = account
+			} )
+			cy.fciasMakeAccount( admin, 'bob' ).then( ( account ) => {
+				bob = account
+			} )
+
+			// Everything below reads alice.user and bob.user, and a Cypress
+			// command's options are built when it is *queued*, not when it
+			// runs — so the rest of this hook has to be queued from a later
+			// then(), after the two assignments above have happened. With
+			// the fixed names this was a module constant and the question
+			// never arose.
+		} ).then( () => {
 			cy.fciasResetRules( occ )
 
 			// Set rather than assumed: the shipped default is that nobody
@@ -201,7 +221,16 @@ describe( 'FCIAS for a user who is not an administrator', () => {
 
 	after( () => {
 		ruleEditingForEveryone( ruleEditingWas )
+
+		// Rules first: the enforced one names `home:<alice>`, and clearing
+		// what points at an account before the account itself is the order
+		// that stays truthful rather than merely working.
 		cy.fciasResetRules( occ )
+
+		const admin = { user: adminUser, password: adminPassword }
+
+		cy.fciasDeleteAccount( admin, alice.user )
+		cy.fciasDeleteAccount( admin, bob.user )
 	} )
 
 	describe( 'her own rules page', () => {
