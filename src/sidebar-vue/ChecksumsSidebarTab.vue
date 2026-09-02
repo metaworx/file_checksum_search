@@ -10,9 +10,9 @@ import { computed, ref, watch } from 'vue'
 import { translate as t } from '@nextcloud/l10n'
 import { generateUrl } from '@nextcloud/router'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
-import NcSelect from '@nextcloud/vue/components/NcSelect'
 import { FRONTEND } from '../routes'
-import { type AlgoOption, fetchAlgorithms, toAlgoOptions } from '../algorithms'
+import AlgorithmSelect from '../components/AlgorithmSelect.vue'
+import { type AlgoOption, fetchAlgorithms } from '../algorithms'
 import { useSidebarHashes } from './composables/useSidebarHashes'
 import { useClipboard } from './composables/useClipboard'
 import RecalcButton from './components/RecalcButton.vue'
@@ -74,15 +74,15 @@ const quickAlgos = computed<AlgoOption[]>(() => {
 })
 
 // The picker offers what the instance computes, read from the server once
-// per page. Until it answers, the picker is empty and the two quick buttons
-// still work; if it never answers, the picker stays empty and says so by
-// having nothing to pick.
-const algoOptions = ref<AlgoOption[]>([])
+// per page. Until it answers the picker is empty and the quick buttons still
+// work; if it never answers it stays empty, which is what "nothing to pick"
+// looks like.
+const algorithmIds = ref<string[]>([])
 const selectedAlgo = ref('sha256')
 
 fetchAlgorithms()
 	.then(({ algorithms, default: fallback }) => {
-		algoOptions.value = toAlgoOptions(algorithms)
+		algorithmIds.value = algorithms
 		if (!algorithms.includes(selectedAlgo.value)) {
 			selectedAlgo.value = algorithms.includes('sha256') ? 'sha256' : fallback
 		}
@@ -90,14 +90,6 @@ fetchAlgorithms()
 	.catch(() => {
 		// Nothing to offer beyond the quick buttons; leave the picker empty.
 	})
-
-const selectedAlgoOption = computed<AlgoOption | undefined>(
-	() => algoOptions.value.find((o) => o.id === selectedAlgo.value) ?? algoOptions.value[0],
-)
-
-function onAlgorithmChange(option: AlgoOption | string): void {
-	selectedAlgo.value = typeof option === 'string' ? option : (option?.id ?? '')
-}
 
 function onRecalc(algo: string | null): void {
 	recalc(algo === null ? selectedAlgo.value : algo)
@@ -169,12 +161,10 @@ watch(
 
 				<div class="fcias-recalc-custom">
 					<div class="fcias-algo-select-wrap">
-						<NcSelect
-							:model-value="selectedAlgoOption"
-							:options="algoOptions"
-							label="label"
-							track-by="id"
-							@update:model-value="onAlgorithmChange" />
+						<AlgorithmSelect
+							v-model="selectedAlgo"
+							:algorithms="algorithmIds"
+							label="Algorithm" />
 					</div>
 					<RecalcButton
 						:label="t('file_checksum_search', 'Recalc')"

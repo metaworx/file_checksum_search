@@ -311,7 +311,7 @@ describe('settings-admin App', () => {
 		const wrapper = mount(App)
 		await flushPromises()
 
-		// Regression guard: AlgoMultiselect used to snapshot its selection at
+		// Regression guard: the algorithm picker used to snapshot its selection at
 		// setup time, when supportedAlgos was still empty, and stayed blank.
 		expect(wrapper.find('#fcias-rules-list').text()).toContain('sha1')
 	})

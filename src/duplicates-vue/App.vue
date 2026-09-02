@@ -11,15 +11,15 @@ import NcAppContent from '@nextcloud/vue/components/NcAppContent'
 import NcContent from '@nextcloud/vue/components/NcContent'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
-import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
+import AlgorithmSelect from '../components/AlgorithmSelect.vue'
 import DuplicateGroup from './components/DuplicateGroup.vue'
 import VerifyButton from './components/VerifyButton.vue'
 import { useDuplicates } from './composables/useDuplicates'
 import type { DuplicateGroup as GroupType } from './composables/useDuplicates'
 import DocsViewer from '../docs-vue/DocsViewer.vue'
 import { OCS_ADMIN } from '../routes'
-import { type AlgoOption, fetchAlgorithms, toAlgoOptions } from '../algorithms'
+import { type AlgoOption, fetchAlgorithms } from '../algorithms'
 
 const {
 	algo,
@@ -44,23 +44,15 @@ const {
 // algorithm, and it was — this page listed seven of the eight the app
 // always supported, and `adler32` could not be browsed for duplicates.
 const ALL_ALGORITHMS: AlgoOption = { id: '', label: 'All algorithms' }
-const algoOptions = ref<AlgoOption[]>([ALL_ALGORITHMS])
+const algorithmIds = ref<string[]>([])
 
 fetchAlgorithms()
 	.then(({ algorithms }) => {
-		algoOptions.value = [ALL_ALGORITHMS, ...toAlgoOptions(algorithms)]
+		algorithmIds.value = algorithms
 	})
 	.catch(() => {
 		// The filter stays at "All algorithms"; the page still works.
 	})
-
-// NcSelect holds an option object; the composable holds the algorithm id.
-const algoOption = computed<AlgoOption>({
-	get: () => algoOptions.value.find((o) => o.id === algo.value) ?? ALL_ALGORITHMS,
-	set: (option) => {
-		algo.value = option?.id ?? ''
-	},
-})
 
 // NcTextField emits string | number; the composable wants a bounded integer.
 function bounded(value: string | number, min: number, max: number, fallback: number): number {
@@ -144,15 +136,12 @@ onMounted(() => {
 
 				<template v-if="activeTab === 'duplicates'">
 					<div class="db-controls">
-						<NcSelect
-							v-model="algoOption"
-							:options="algoOptions"
-							:clearable="false"
+						<AlgorithmSelect
+							v-model="algo"
+							:algorithms="algorithmIds"
+							:leading="ALL_ALGORITHMS"
 							input-id="fcias-duplicates-algorithm"
-							input-label="Algorithm"
-							label="label"
-							track-by="id"
-							label-outside
+							label="Algorithm"
 							class="db-control db-control--algo" />
 						<NcTextField
 							:model-value="minCount"

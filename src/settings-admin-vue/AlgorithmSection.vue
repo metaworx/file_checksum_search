@@ -11,18 +11,17 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
-import NcSelect from '@nextcloud/vue/components/NcSelect'
+import AlgorithmSelect from '../components/AlgorithmSelect.vue'
 import HelpPopover from '../components/HelpPopover.vue'
 import { OCS_SETTINGS } from '../routes'
-import { type AlgoOption, toAlgoOptions } from '../algorithms'
 
 const OC = window.OC as unknown as {
 	requestToken: string
 	Notification: { showTemporary: (msg: string) => void }
 }
 
-const available = ref<AlgoOption[]>([])
-const selected = ref<AlgoOption[]>([])
+const availableIds = ref<string[]>([])
+const selectedIds = ref<string[]>([])
 const defaultAlgorithm = ref('')
 const saving = ref(false)
 const loaded = ref(false)
@@ -35,7 +34,7 @@ const HELP = {
 }
 
 /** The first selected algorithm is the default; say so beside the picker. */
-const defaultLabel = computed(() => (selected.value[0]?.label ?? defaultAlgorithm.value.toUpperCase()))
+const defaultLabel = computed(() => (selectedIds.value[0] ?? defaultAlgorithm.value).toUpperCase())
 
 async function load(): Promise<void> {
 	try {
@@ -45,12 +44,9 @@ async function load(): Promise<void> {
 			availableAlgorithms?: string[]
 			defaultAlgorithm?: string
 		}
-		available.value = toAlgoOptions(data.availableAlgorithms ?? [])
-		const allowed = new Set(data.allowedAlgorithms ?? [])
-		// Keep the allowlist's own order: it decides which is the default.
-		selected.value = (data.allowedAlgorithms ?? [])
-			.map((id) => available.value.find((o) => o.id === id))
-			.filter((o): o is AlgoOption => o !== undefined && allowed.has(o.id))
+		availableIds.value = data.availableAlgorithms ?? []
+		// The allowlist's own order: it decides which is the default.
+		selectedIds.value = (data.allowedAlgorithms ?? []).filter((id) => availableIds.value.includes(id))
 		defaultAlgorithm.value = data.defaultAlgorithm ?? ''
 	} catch (e) {
 		OC.Notification.showTemporary('Failed to load the algorithm list.')
@@ -69,7 +65,7 @@ async function save(): Promise<void> {
 				'Content-Type': 'application/json',
 			},
 			// Only this section's field: absent fields are left untouched.
-			body: JSON.stringify({ allowedAlgorithms: selected.value.map((o) => o.id) }),
+			body: JSON.stringify({ allowedAlgorithms: selectedIds.value }),
 		})
 		const data = (await response.json()) as { success?: boolean; error?: string; allowedAlgorithms?: string[] }
 		if (data.success) {
@@ -93,16 +89,13 @@ onMounted(load)
 <template>
 	<div>
 		<div v-if="loaded" class="fcias-permission-row">
-			<NcSelect
-				v-model="selected"
-				:multiple="true"
-				:options="available"
-				:close-on-select="false"
+			<AlgorithmSelect
+				v-model="selectedIds"
+				:algorithms="availableIds"
+				multiple
 				input-id="fcias-allowed-algorithms"
-				input-label="Allowed algorithms"
-				placeholder="Add an algorithm…"
-				label-outside
-				track-by="id" />
+				label="Allowed algorithms"
+				placeholder="Add an algorithm…" />
 			<HelpPopover :text="HELP.allowed" label="Allowed algorithms" />
 		</div>
 		<p v-if="loaded" class="fcias-hint" data-testid="fcias-default-algorithm">
@@ -112,7 +105,7 @@ onMounted(load)
 		<div class="fcias-rule-form-actions fcias-rule-form-actions--start">
 			<button id="fcias-btn-save-algorithms"
 				class="fcias-btn"
-				:disabled="saving || selected.length === 0"
+				:disabled="saving || selectedIds.length === 0"
 				@click="save">
 				{{ saving ? 'Saving…' : 'Save' }}
 			</button>

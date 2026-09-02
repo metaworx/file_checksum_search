@@ -19,8 +19,7 @@ import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcEllipsisedOption from '@nextcloud/vue/components/NcEllipsisedOption'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import HelpPopover from '../components/HelpPopover.vue'
-import { toAlgoOptions } from '../algorithms'
-import AlgoMultiselect from '../settings-vue/AlgoMultiselect.vue'
+import AlgorithmSelect from '../components/AlgorithmSelect.vue'
 import { BAND_LABELS, bandOfKind, selectorKind, selectorTarget } from './bands'
 import type { GroupFolderOption, RuleDraft } from './types'
 
@@ -455,9 +454,10 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 			<div v-if="computesHashes" class="fcias-rule-form-row">
 				<label>Algorithms</label>
 				<div :id="ids.algos" class="fcias-rules-dialog-select">
-					<AlgoMultiselect
+					<AlgorithmSelect
 						v-model="draft.algos"
-						:options="toAlgoOptions(supportedAlgos)" />
+						:algorithms="supportedAlgos"
+						multiple />
 				</div>
 				<HelpPopover :text="HELP.algos" label="Algorithms" />
 			</div>

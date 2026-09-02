@@ -169,6 +169,8 @@ loadRules()
 			id="fcias-tab-panel-rules"
 			class="fcias-tab-panel"
 			role="tabpanel">
+			<PreferenceSection :algorithms="supportedAlgos" />
+
 			<h4>Rules applying to your files</h4>
 
 			<p class="fcias-hint">
@@ -179,7 +181,6 @@ loadRules()
 				path is in a folder you can write to.
 			</p>
 
-			<PreferenceSection :algorithms="supportedAlgos" />
 			<div id="fcias-personal-msg">
 				<p v-if="ruleMsg" class="fcias-error">
 					{{ ruleMsg }}

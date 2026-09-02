@@ -10,12 +10,12 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
-import NcSelect from '@nextcloud/vue/components/NcSelect'
+import AlgorithmSelect from '../components/AlgorithmSelect.vue'
 import HelpPopover from '../components/HelpPopover.vue'
 import { OCS_API_V1 } from '../routes'
-import { type AlgoOption, toAlgoOptions } from '../algorithms'
+import type { AlgoOption } from '../algorithms'
 
-const props = defineProps<{
+defineProps<{
 	/** The algorithms in force on this instance, from the rules payload. */
 	algorithms: string[]
 }>()
@@ -36,17 +36,11 @@ const HELP = 'The algorithm the Checksums tab in the file sidebar offers as its 
 	+ 'Leave it on the default to follow the server; pick one to have it first for every file, '
 	+ 'with the file\'s own rule providing the second button.'
 
-const options = computed<AlgoOption[]>(() => [
-	{ id: '', label: `Default (${defaultAlgo.value.toUpperCase() || '…'})` },
-	...toAlgoOptions(props.algorithms),
-])
-
-const selected = computed<AlgoOption>({
-	get: () => options.value.find((o) => o.id === stored.value) ?? options.value[0],
-	set: (option) => {
-		save(option?.id ?? '')
-	},
-})
+/** The first entry: what an empty choice means, spelled out. */
+const defaultEntry = computed<AlgoOption>(() => ({
+	id: '',
+	label: `Default (${defaultAlgo.value.toUpperCase() || '…'})`,
+}))
 
 const activeLabel = computed(() => (active.value ? active.value.toUpperCase() : '…'))
 
@@ -104,17 +98,15 @@ onMounted(load)
 	<div id="fcias-personal-preference" class="fcias-section">
 		<h4>Your preferred algorithm</h4>
 		<div class="fcias-permission-row">
-			<NcSelect
+			<AlgorithmSelect
 				v-if="loaded"
-				v-model="selected"
-				:options="options"
-				:clearable="false"
+				:model-value="stored"
+				:algorithms="algorithms"
+				:leading="defaultEntry"
 				:disabled="saving"
 				input-id="fcias-preferred-algorithm"
-				input-label="Preferred algorithm"
-				label="label"
-				track-by="id"
-				label-outside />
+				label="Preferred algorithm"
+				@update:model-value="save(String($event))" />
 			<HelpPopover :text="HELP" label="Preferred algorithm" />
 		</div>
 		<p class="fcias-hint" data-testid="fcias-active-algorithm">
