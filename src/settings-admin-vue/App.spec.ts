@@ -243,7 +243,7 @@ describe('settings-admin App', () => {
 			.find('button[data-action="edit"]').trigger('click')
 
 		expect(wrapper.find('#fcias-rule-path').element.tagName).toBe('INPUT')
-		expect(wrapper.find('#fcias-cron-userscope').element.tagName).toBe('SELECT')
+		expect(wrapper.find('#fcias-rule-selector').element.tagName).toBe('SELECT')
 		expect((wrapper.find('#fcias-rule-path').element as HTMLInputElement).value).toBe('/docs')
 	})
 

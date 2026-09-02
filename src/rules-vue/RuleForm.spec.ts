@@ -58,7 +58,7 @@ describe('RuleForm', () => {
 			props: { rule: null, variant: 'admin', supportedAlgos: ['sha1', 'sha256'] },
 		})
 		expect((wrapper.find('#fcias-rule-path').element as HTMLInputElement).value).toBe('/')
-		expect(wrapper.find('#fcias-cron-userscope').exists()).toBe(true)
+		expect(wrapper.find('#fcias-rule-selector').exists()).toBe(true)
 		expect(wrapper.find('#fcias-rule-admin-enforced').exists()).toBe(true)
 	})
 
@@ -79,8 +79,8 @@ describe('RuleForm', () => {
 			props: { rule: null, variant: 'personal', supportedAlgos: ['sha1'] },
 		})
 		expect(wrapper.find('#fcias-personal-path').exists()).toBe(true)
-		expect(wrapper.find('#fcias-cron-userscope').exists()).toBe(false)
-		expect(wrapper.find('#fcias-personal-userscope').exists()).toBe(false)
+		expect(wrapper.find('#fcias-rule-selector').exists()).toBe(false)
+		expect(wrapper.find('#fcias-personal-selector').exists()).toBe(false)
 		expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
 	})
 
@@ -160,10 +160,10 @@ describe('RuleForm', () => {
 					availableGroups: ['staff', 'admin'],
 				},
 			})
-			expect(wrapper.find('#fcias-cron-scope-target').exists()).toBe(false)
+			expect(wrapper.find('#fcias-rule-selector-target').exists()).toBe(false)
 
-			await wrapper.find('#fcias-cron-userscope').setValue('group')
-			await wrapper.find('#fcias-cron-scope-target').setValue('staff')
+			await wrapper.find('#fcias-rule-selector').setValue('group')
+			await wrapper.find('#fcias-rule-selector-target').setValue('staff')
 			await wrapper.find('#fcias-btn-save-rule').trigger('click')
 
 			// Two controls in the dialog, one string on the wire.
@@ -179,8 +179,8 @@ describe('RuleForm', () => {
 					availableGroups: ['staff'],
 				},
 			})
-			expect((wrapper.find('#fcias-cron-userscope').element as HTMLSelectElement).value).toBe('group')
-			expect((wrapper.find('#fcias-cron-scope-target').element as HTMLSelectElement).value).toBe('staff')
+			expect((wrapper.find('#fcias-rule-selector').element as HTMLSelectElement).value).toBe('group')
+			expect((wrapper.find('#fcias-rule-selector-target').element as HTMLSelectElement).value).toBe('staff')
 		})
 	})
 
@@ -190,7 +190,7 @@ describe('RuleForm', () => {
 				props: { rule: null, variant: 'admin', supportedAlgos: ['sha1'] },
 			})
 
-			const kinds = wrapper.find('#fcias-cron-userscope').findAll('option')
+			const kinds = wrapper.find('#fcias-rule-selector').findAll('option')
 				.map((option) => option.attributes('value'))
 			expect(kinds).not.toContain('groupfolder')
 		})
@@ -206,9 +206,9 @@ describe('RuleForm', () => {
 				},
 			})
 
-			await wrapper.find('#fcias-cron-userscope').setValue('groupfolder')
+			await wrapper.find('#fcias-rule-selector').setValue('groupfolder')
 
-			const picker = wrapper.find('#fcias-cron-scope-target')
+			const picker = wrapper.find('#fcias-rule-selector-target')
 			expect(picker.text()).toContain('Team Docs')
 
 			await picker.setValue('1')
@@ -223,9 +223,9 @@ describe('RuleForm', () => {
 				props: { rule: null, variant: 'admin', supportedAlgos: ['sha1'] },
 			})
 
-			await wrapper.find('#fcias-cron-userscope').setValue('storage')
+			await wrapper.find('#fcias-rule-selector').setValue('storage')
 
-			const input = wrapper.find('#fcias-cron-scope-target')
+			const input = wrapper.find('#fcias-rule-selector-target')
 			expect(input.element.tagName).toBe('INPUT')
 
 			await input.setValue('smb::user@host//share/')
@@ -249,14 +249,14 @@ describe('RuleForm', () => {
 				},
 			})
 
-			await wrapper.find('#fcias-cron-userscope').setValue('user')
-			await wrapper.find('#fcias-cron-scope-target').setValue('alice')
+			await wrapper.find('#fcias-rule-selector').setValue('user')
+			await wrapper.find('#fcias-rule-selector-target').setValue('alice')
 
 			// Switching the kind must not carry alice into a group-folder
 			// selector: a stale target composes a rule nobody asked for.
-			await wrapper.find('#fcias-cron-userscope').setValue('groupfolder')
+			await wrapper.find('#fcias-rule-selector').setValue('groupfolder')
 
-			const picker = wrapper.find('#fcias-cron-scope-target')
+			const picker = wrapper.find('#fcias-rule-selector-target')
 			expect((picker.element as HTMLSelectElement).value).toBe('')
 
 			await wrapper.find('#fcias-btn-save-rule').trigger('click')
@@ -275,7 +275,7 @@ describe('RuleForm', () => {
 
 			// Seeding is programmatic, not a user interaction — the target
 			// survives it.
-			expect((wrapper.find('#fcias-cron-scope-target').element as HTMLSelectElement).value).toBe('alice')
+			expect((wrapper.find('#fcias-rule-selector-target').element as HTMLSelectElement).value).toBe('alice')
 		})
 	})
 
@@ -292,11 +292,11 @@ describe('RuleForm', () => {
 				},
 			})
 
-			const kindSelect = wrapper.find('#fcias-cron-userscope')
+			const kindSelect = wrapper.find('#fcias-rule-selector')
 			expect(kindSelect.text()).toContain('Team Folders')
 
 			await kindSelect.setValue('groupfolder')
-			expect(wrapper.find('.fcias-rule-form-row label[for="fcias-cron-scope-target"]').text())
+			expect(wrapper.find('.fcias-rule-form-row label[for="fcias-rule-selector-target"]').text())
 				.toBe('Team Folders')
 		})
 	})
@@ -338,10 +338,10 @@ describe('RuleForm', () => {
 
 			// Regression: with the preview derived from the composed selector,
 			// an empty target made every kind read as band 8 — Everything.
-			await wrapper.find('#fcias-cron-userscope').setValue('user')
+			await wrapper.find('#fcias-rule-selector').setValue('user')
 			expect(preview()).toContain('band 5')
 
-			await wrapper.find('#fcias-cron-userscope').setValue('group')
+			await wrapper.find('#fcias-rule-selector').setValue('group')
 			expect(preview()).toContain('band 6')
 		})
 
@@ -361,8 +361,8 @@ describe('RuleForm', () => {
 			expect(preview()).toContain('band 7')
 			expect(preview()).toContain('All home folders')
 
-			await wrapper.find('#fcias-cron-userscope').setValue('user')
-			await wrapper.find('#fcias-cron-scope-target').setValue('alice')
+			await wrapper.find('#fcias-rule-selector').setValue('user')
+			await wrapper.find('#fcias-rule-selector-target').setValue('alice')
 			expect(preview()).toContain('band 5')
 
 			// The id lands on the switch component's root; the control is its input.

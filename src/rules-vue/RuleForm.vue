@@ -61,8 +61,8 @@ const ids = props.variant === 'admin'
 	? {
 		form: 'fcias-rule-form',
 		path: 'fcias-rule-path',
-		userscope: 'fcias-cron-userscope',
-		scopeTarget: 'fcias-cron-scope-target',
+		selector: 'fcias-rule-selector',
+		selectorTarget: 'fcias-rule-selector-target',
 		type: 'fcias-rule-type',
 		algos: 'fcias-rule-algos',
 		mode: 'fcias-rule-mode',
@@ -73,8 +73,8 @@ const ids = props.variant === 'admin'
 	: {
 		form: 'fcias-personal-form',
 		path: 'fcias-personal-path',
-		userscope: '',
-		scopeTarget: '',
+		selector: '',
+		selectorTarget: '',
 		type: 'fcias-personal-type',
 		algos: 'fcias-personal-algos',
 		mode: 'fcias-personal-mode',
@@ -310,13 +310,13 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 			</div>
 
 			<div v-if="variant === 'admin'" class="fcias-rule-form-row">
-				<label :for="lockScope ? undefined : ids.userscope">Applies to</label>
-				<span v-if="lockScope" :id="ids.userscope" class="fcias-rule-form-static">
+				<label :for="lockScope ? undefined : ids.selector">Applies to</label>
+				<span v-if="lockScope" :id="ids.selector" class="fcias-rule-form-static">
 					{{ draft.selector }}
 				</span>
 				<select
 					v-else
-					:id="ids.userscope"
+					:id="ids.selector"
 					v-model="selectorChoice"
 					@change="selectorTargetValue = ''">
 					<option value="homeAll">
@@ -342,11 +342,11 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 			</div>
 
 			<div v-if="variant === 'admin' && !lockScope && selectorChoice === 'group'" class="fcias-rule-form-row">
-				<label :for="ids.scopeTarget">Group</label>
+				<label :for="ids.selectorTarget">Group</label>
 				<div class="fcias-rules-dialog-select">
 					<NcSelect
 						v-model="selectedGroup"
-						:input-id="ids.scopeTarget"
+						:input-id="ids.selectorTarget"
 						:options="groupOptions"
 						placeholder="Search groups…"
 						track-by="id">
@@ -375,11 +375,11 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 			</div>
 
 			<div v-if="variant === 'admin' && !lockScope && selectorChoice === 'user'" class="fcias-rule-form-row">
-				<label :for="ids.scopeTarget">User</label>
+				<label :for="ids.selectorTarget">User</label>
 				<div class="fcias-rules-dialog-select">
 					<NcSelect
 						v-model="selectedUser"
-						:input-id="ids.scopeTarget"
+						:input-id="ids.selectorTarget"
 						:options="userOptions"
 						placeholder="Search users…"
 						track-by="id">
@@ -394,11 +394,11 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 			</div>
 
 			<div v-if="variant === 'admin' && !lockScope && selectorChoice === 'groupfolder'" class="fcias-rule-form-row">
-				<label :for="ids.scopeTarget">{{ groupFolderTerm }}</label>
+				<label :for="ids.selectorTarget">{{ groupFolderTerm }}</label>
 				<div class="fcias-rules-dialog-select">
 					<NcSelect
 						v-model="selectedGroupFolder"
-						:input-id="ids.scopeTarget"
+						:input-id="ids.selectorTarget"
 						:options="groupFolderOptions"
 						:placeholder="`Search ${groupFolderTerm}…`"
 						track-by="id">
@@ -415,9 +415,9 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 			<div
 				v-if="variant === 'admin' && !lockScope && selectorChoice === 'storage'"
 				class="fcias-rule-form-row">
-				<label :for="ids.scopeTarget">Storage id</label>
+				<label :for="ids.selectorTarget">Storage id</label>
 				<input
-					:id="ids.scopeTarget"
+					:id="ids.selectorTarget"
 					v-model="selectorTargetValue"
 					type="text"
 					placeholder="local::/path/ or smb::…">

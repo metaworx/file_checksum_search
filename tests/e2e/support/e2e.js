@@ -377,7 +377,7 @@ Cypress.Commands.add( 'ocs', ( {
  * without that override this cannot be asked at all. Nextcloud's own suite
  * asserts the label instead, which is why the override is ours to add.
  *
- * @param {string} inputSelector  The select's input, e.g. '#fcias-cron-scope-target'.
+ * @param {string} inputSelector  The select's input, e.g. '#fcias-rule-selector-target'.
  * @param {string} expected       The option id it should hold.
  */
 Cypress.Commands.add( 'assertNcSelectValue', ( inputSelector, expected ) => {

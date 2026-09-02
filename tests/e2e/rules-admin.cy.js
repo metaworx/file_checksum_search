@@ -205,7 +205,7 @@ describe( 'FCIAS admin rules', () => {
 		// sits in — so "above the default" is a question with an answer.
 		// A named path rather than **, which is what keeps it out of the
 		// defaults partition.
-		cy.get( '#fcias-cron-userscope' ).select( 'homeAll' )
+		cy.get( '#fcias-rule-selector' ).select( 'homeAll' )
 		cy.get( '#fcias-rule-path' ).clear().type( '/Photos/**' )
 		cy.get( '#fcias-btn-save-rule' ).click()
 
@@ -270,8 +270,8 @@ describe( 'FCIAS admin rules', () => {
 
 				if ( kindOf[ selector ] !== undefined )
 				{
-					cy.get( '#fcias-cron-userscope' ).should( 'have.value', kindOf[ selector ] )
-					cy.get( '#fcias-cron-scope-target' ).should( 'not.exist' )
+					cy.get( '#fcias-rule-selector' ).should( 'have.value', kindOf[ selector ] )
+					cy.get( '#fcias-rule-selector-target' ).should( 'not.exist' )
 
 					return
 				}
@@ -282,7 +282,7 @@ describe( 'FCIAS admin rules', () => {
 				// may itself contain colons (smb::user@host//share/).
 				const target = String( selector ).slice( separator + 1 )
 
-				cy.get( '#fcias-cron-userscope' ).should( 'have.value', kind === 'home'
+				cy.get( '#fcias-rule-selector' ).should( 'have.value', kind === 'home'
 					? 'user'
 					: kind )
 
@@ -291,7 +291,7 @@ describe( 'FCIAS admin rules', () => {
 				// what you type rather than what you picked.
 				if ( kind === 'storage' )
 				{
-					cy.get( '#fcias-cron-scope-target' ).should( 'have.value', target )
+					cy.get( '#fcias-rule-selector-target' ).should( 'have.value', target )
 
 					return
 				}
@@ -300,7 +300,7 @@ describe( 'FCIAS admin rules', () => {
 				// label a person sees. The first is the assertion that
 				// matters, and it is only askable because the dialog's
 				// #selected-option slot puts the id in the page.
-				cy.assertNcSelectValue( '#fcias-cron-scope-target', target )
+				cy.assertNcSelectValue( '#fcias-rule-selector-target', target )
 
 				// And the label, which is the other half of the same
 				// question: the id says what the rule will be built from,
@@ -309,7 +309,7 @@ describe( 'FCIAS admin rules', () => {
 				// label, because that composition *is* what it asserts —
 				// which is why it is the id above that carries the weight.
 				cy.assertNcSelectDisplayValue(
-					'#fcias-cron-scope-target',
+					'#fcias-rule-selector-target',
 					`${ groupFolderNames[ target ] } (#${ target })`,
 				)
 			} )
@@ -323,8 +323,8 @@ describe( 'FCIAS admin rules', () => {
 		// A storage selector with no storage named: the server refuses it,
 		// and the error belongs on the form still on screen rather than on
 		// the page behind it.
-		cy.get( '#fcias-cron-userscope' ).select( 'storage' )
-		cy.get( '#fcias-cron-scope-target' ).clear()
+		cy.get( '#fcias-rule-selector' ).select( 'storage' )
+		cy.get( '#fcias-rule-selector-target' ).clear()
 		cy.get( '#fcias-rule-path' ).clear().type( '**' )
 		cy.get( '#fcias-btn-save-rule' ).click()
 
