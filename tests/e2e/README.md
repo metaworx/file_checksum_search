@@ -16,9 +16,16 @@ what the specs below spend their `before()` hooks on.
 | `duplicates.cy.js`    | Creates three files, resets, states their hashes from a fixture, then asserts the page's group, verifies hashes end to end, and exercises the "Only matching" filter against a stub.                                |
 | `global-search.cy.js` | Creates one file with a hash nothing else has, then opens the unified search, verifies the **"File Checksums"** provider appears under **"Places"**, and checks a hit and a miss.                                   |
 | `rules-admin.cy.js`   | Live, no stubs: quiet start and the idle banner, the banded table, creating a rule through the dialog, placeholder rows, the in-dialog error card, the provider-missing badge, and the row action menu.              |
-| `rules-api.cy.js`     | No browser: the rules API's permission matrix across admin, alice and bob — who may read what, whose rule may be mutated by whom, and what a non-administrator's selector is turned into.                            |
 | `rules-personal.cy.js`| Alice's own page, an enforced rule she may not touch, bob refused a recalculation by *alice's* rule on a file she shares with him, and a hash search returning nothing to someone who cannot reach the file.         |
 | `status.cy.js`        | The admin status panel: hash count, versions, an empty queue reported as empty, what a reset disowns and what finishing it leaves, the background-job heartbeat, and Refresh.                                        |
+
+`rules-api.cy.js` was removed too, for the opposite reason: it was a browser
+test that used no browser. Every one of its rows is covered by
+`tests/Integration/Http/RulesApiTest.php`, which asks the same questions of the
+same endpoints over the same HTTP, from inside a process that is already
+booted — faster, and in the PHPUnit job, which CI would fail on independently.
+Splitting the three 404 rows and the two reorder rows was the only difference;
+the PHPUnit twin combines them.
 
 The stub-era `rules.cy.js` was removed: it stubbed `/settings/cron/*` endpoints
 that no longer exist and waited for UI text that had changed, failing 4/4
@@ -38,6 +45,11 @@ against a live instance. `rules-admin.cy.js` replaces it.
   `cy.ocs()` assertion has to request the same view the page does.
 
 ### Writing API assertions
+
+Prefer `tests/Integration/Http/` for anything that is only a request and a
+status code. A Cypress spec earns its cost when a browser is involved — a page,
+a session, a rendered state. When it is not, the PHPUnit integration suite
+tests the same stack in a fraction of the time.
 
 - **`cy.request()` shares the browser's cookie jar**, and Nextcloud issues a
   session on the first authenticated call. Without clearing cookies, every
