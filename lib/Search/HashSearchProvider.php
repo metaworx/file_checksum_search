@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Search;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCP\Files\Config\IUserMountCache;
 use OCP\Files\IRootFolder;
 use OCP\IURLGenerator;
 use OCP\IUser;
@@ -31,6 +32,7 @@ class HashSearchProvider
 	public function __construct(
 		private readonly MetadataService $metadataService,
 		private readonly IRootFolder     $rootFolder,
+		private readonly IUserMountCache $userMountCache,
 		private readonly IURLGenerator   $urlGenerator,
 		private readonly LoggerInterface $logger,
 	) {
@@ -95,8 +97,24 @@ class HashSearchProvider
 		// shares that prefix. The unified search used to trust the row and
 		// show it — the API and the duplicate finder each had their own copy
 		// of the confirmation, and this had none.
+		// The storages this user has mounted, so the limit below is spent on
+		// rows they might actually be able to open. Without it the limit is
+		// applied first and the ownership check second, and five foreign
+		// copies of a hash — the unified search's default limit — are enough
+		// to hide somebody's own file from them. getById() below remains the
+		// authority; this only decides which rows are worth fetching.
+		$visibleStorageIds = array_map(
+			static fn ( $mount ) => $mount->getStorageId(),
+			$this->userMountCache->getMountsForUser( $user ),
+		);
+
 		$rows = $this->metadataService->confirmFullHash(
-			$this->metadataService->queryByHash( $parsed['hash'], $parsed['algo'], $query->getLimit() ),
+			$this->metadataService->queryByHash(
+				$parsed['hash'],
+				$parsed['algo'],
+				$query->getLimit(),
+				array_values( $visibleStorageIds ),
+			),
 			$parsed['hash'],
 		);
 

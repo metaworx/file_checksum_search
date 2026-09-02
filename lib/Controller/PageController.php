@@ -99,11 +99,6 @@ class PageController
 						'path'  => 'docs/api-v1.md',
 					],
 					[
-						'label' => 'openapi.json',
-						'name'  => 'openapi.json',
-						'path'  => 'openapi.json',
-					],
-					[
 						'label' => 'LICENSE',
 						'name'  => 'LICENSE',
 						'path'  => 'LICENSE',

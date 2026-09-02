@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Search;
 
 use OCA\FileChecksumSearch\Search\HashSearchProvider;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCP\Files\Config\IUserMountCache;
 use OCP\Files\IRootFolder;
 use OCP\IURLGenerator;
 use PHPUnit\Framework\TestCase;
@@ -32,6 +33,7 @@ class HashSearchProviderTest
 		$this->provider = new HashSearchProvider(
 			$this->createMock( MetadataService::class ),
 			$this->createMock( IRootFolder::class ),
+			$this->createMock( IUserMountCache::class ),
 			$this->createMock( IURLGenerator::class ),
 			$this->createMock( LoggerInterface::class ),
 		);

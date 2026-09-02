@@ -41,7 +41,7 @@ class PageControllerTest
 		$data = $response->getData();
 
 		$this->assertArrayHasKey( 'docs', $data );
-		$this->assertCount( 7, $data['docs'] );
+		$this->assertCount( 6, $data['docs'] );
 
 		$names = array_map(
 			static fn(
@@ -57,7 +57,6 @@ class PageControllerTest
 				'README.md',
 				'docs/api-v1-openapi.yaml',
 				'docs/api-v1.md',
-				'openapi.json',
 				'LICENSE',
 			],
 			$names,

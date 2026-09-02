@@ -269,6 +269,107 @@ class HashSearchProviderTest
 
 
 	/**
+	 * A file the caller owns stays findable however many copies of the same
+	 * hash they cannot reach.
+	 *
+	 * The limit is applied by the database and the ownership check in PHP
+	 * afterwards, so before the storage narrowing the limit was spent on
+	 * rows that were then discarded: with the unified search's default of
+	 * five, five foreign copies were enough to hide somebody's own file
+	 * from them. Not a contrived number — an empty file, or any document
+	 * circulated on an instance, reaches it easily. This is that case with
+	 * one to spare, and it fails without the narrowing.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testOwnFileIsFoundBehindMoreUnreachableCopiesThanTheLimit(): void
+	{
+
+		$testHash = 'facefeedfacefeedfacefeedfacefeedfaceffff';
+		$limit    = 5;
+
+		// Six, so the caller's own file cannot fit inside the limit even if
+		// it sorted last among them.
+		$foreignIds = [];
+
+		for ( $i = 0; $i < 6; $i ++ )
+		{
+			$foreignIds[]           = $this->inaccessibleFileId + 100 + $i;
+			$this->cleanupFileIds[] = $this->inaccessibleFileId + 100 + $i;
+		}
+
+		// A run that died before its teardown leaves these rows behind, and
+		// the ids are derived from the clock rather than random, so they do
+		// recur. Clearing first makes the test independent of how the last
+		// one ended.
+		$this->cleanupLeftovers();
+
+		foreach ( $foreignIds as $foreignId )
+		{
+			$this->insertUnreachableFile( $foreignId );
+			$this->insertHashMetadata( $foreignId, [ 'sha1' => $testHash ] );
+		}
+
+		$userFolder           = Server::get( IRootFolder::class )
+		                              ->getUserFolder( 'admin' )
+		;
+		$file                 = $userFolder->newFile( 'fcias_own_copy_' . time() . '.dat', 'own content' );
+		$this->cleanupFiles[] = $file;
+
+		$ownId                  = $file->getId();
+		$this->cleanupFileIds[] = $ownId;
+
+		$this->insertHashMetadata( $ownId, [ 'sha1' => $testHash ] );
+
+		$result = $this->provider->search(
+			$this->adminUser,
+			$this->createSearchQuery( $testHash, $limit ),
+		);
+
+		$data = $result->jsonSerialize();
+
+		$this->assertNotEmpty(
+			$data['entries'],
+			'A user must find their own file even when more copies than the limit are unreachable to them.',
+		);
+	}
+
+
+	/**
+	 * A filecache row on a storage nobody has mounted: present to the
+	 * index, unreachable to every user.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function insertUnreachableFile( int $fileId ): void
+	{
+
+		$now    = time();
+		$insert = $this->db->getQueryBuilder();
+		$insert->insert( 'filecache' )
+		       ->values( [
+			       'fileid'           => $insert->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ),
+			       'storage'          => $insert->createNamedParameter( 99999, IQueryBuilder::PARAM_INT ),
+			       'path'             => $insert->createNamedParameter( 'files/unreachable_' . $fileId . '.dat' ),
+			       'path_hash'        => $insert->createNamedParameter( md5( 'unreachable_' . $fileId ) ),
+			       'parent'           => $insert->createNamedParameter( -1, IQueryBuilder::PARAM_INT ),
+			       'name'             => $insert->createNamedParameter( 'unreachable.dat' ),
+			       'mimetype'         => $insert->createNamedParameter( 0, IQueryBuilder::PARAM_INT ),
+			       'mimepart'         => $insert->createNamedParameter( 0, IQueryBuilder::PARAM_INT ),
+			       'size'             => $insert->createNamedParameter( 0, IQueryBuilder::PARAM_INT ),
+			       'mtime'            => $insert->createNamedParameter( $now, IQueryBuilder::PARAM_INT ),
+			       'storage_mtime'    => $insert->createNamedParameter( $now, IQueryBuilder::PARAM_INT ),
+			       'encrypted'        => $insert->createNamedParameter( 0, IQueryBuilder::PARAM_INT ),
+			       'unencrypted_size' => $insert->createNamedParameter( 0, IQueryBuilder::PARAM_INT ),
+			       'etag'             => $insert->createNamedParameter( md5( 'etag_unreachable_' . $fileId ) ),
+			       'checksum'         => $insert->createNamedParameter( '' ),
+		       ] )
+		;
+		$insert->executeStatement();
+	}
+
+
+	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testSearchFiltersByAlgoInColonFormat(): void

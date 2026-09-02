@@ -2366,13 +2366,39 @@ class MetadataService
 	 * verify it against the authoritative value from
 	 * {@see extractAlgorithm()} before trusting a match.
 	 *
+	 * @param  list<int>|null  $visibleStorageIds  The storages the asking user
+	 *                                             has mounted, from
+	 *                                             {@see IUserMountCache}. Null
+	 *                                             for a caller that answers for
+	 *                                             the instance rather than for
+	 *                                             a person.
+	 *
 	 * @return array<int, array{file_id: int}>
 	 */
 	public function queryByHash(
-		string  $hash,
-		?string $algo = null,
-		int     $limit = 100,
+		string     $hash,
+		?string    $algo = null,
+		int        $limit = 100,
+		?array     $visibleStorageIds = null,
 	): array {
+
+		// A caller that will drop what its user cannot open has to say so
+		// *here*, because the limit is applied by the database. Filtering
+		// afterwards means the limit is spent on rows that are then thrown
+		// away, and a user whose own file sorts behind enough unreachable
+		// ones never sees it at all — with the unified search's default
+		// limit of five, five foreign copies of a hash are enough to hide
+		// somebody's own file from them.
+		//
+		// Like the JSON pattern below, this narrows and does not decide:
+		// storage membership is not an authorisation test, because a share
+		// of a subfolder mounts the owner's whole storage. The caller's
+		// per-file check stays the authority. It cannot wrongly exclude,
+		// because anything a user can see is in one of their mounts.
+		if ( $visibleStorageIds !== null && $visibleStorageIds === [] )
+		{
+			return [];
+		}
 
 		$qb = $this->db->getQueryBuilder();
 		$qb->select( 'i.' . self::FIELD_FILE_ID, 'i.' . self::FIELD_META_KEY )
@@ -2393,6 +2419,32 @@ class MetadataService
 		   )
 		   ->setMaxResults( $limit )
 		;
+
+		// Chunked rather than unbounded: Oracle refuses an IN list beyond
+		// 1000, and a user with more distinct storages than that is better
+		// served by no narrowing at all than by a query that throws — the
+		// per-file check still decides, so the only cost is the one this
+		// narrowing exists to avoid.
+		if ( $visibleStorageIds !== null && count( $visibleStorageIds ) <= 1000 )
+		{
+			$qb->innerJoin(
+				'i',
+				'filecache',
+				'f',
+				'f.fileid = i.' . self::FIELD_FILE_ID,
+			)
+			   ->andWhere(
+				   $qb->expr()
+				      ->in(
+					      'f.storage',
+					      $qb->createNamedParameter(
+						      array_values( array_unique( $visibleStorageIds ) ),
+						      IQueryBuilder::PARAM_INT_ARRAY,
+					      ),
+				      ),
+			   )
+			;
+		}
 
 		$this->andWhereNotStale( $qb );
 
