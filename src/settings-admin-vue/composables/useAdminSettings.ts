@@ -98,23 +98,6 @@ export function useAdminSettings() {
 		loadStatus,
 		acknowledgeIdleBanner,
 
-		rules: rules.rules,
-		supportedAlgos: rules.supportedAlgos,
-		availableUsers: rules.availableUsers,
-		availableGroups: rules.availableGroups,
-		groupFoldersAvailable: rules.groupFoldersAvailable,
-		groupFoldersLabel: rules.groupFoldersLabel,
-		availableGroupFolders: rules.availableGroupFolders,
-		availableStorages: rules.availableStorages,
-		modes: rules.modes,
-		types: rules.types,
-		error: rules.error,
-
-		loadRules: rules.loadRules,
-		saveRule: rules.saveRule,
-		deleteRule: rules.deleteRule,
-		applyRule: rules.applyRule,
-		toggleRule: rules.toggleRule,
-		reorderSegment: rules.reorderSegment,
+		...rules,
 	}
 }
