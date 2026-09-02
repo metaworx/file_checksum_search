@@ -64,8 +64,8 @@ paths:
                 $ref: "#/components/schemas/HashLookupResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
-        "404":
-          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "429":
           $ref: "#/components/responses/RateLimited"
         "500":
@@ -92,6 +92,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/FileHashesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
@@ -118,8 +120,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SameHashResponse"
-        "404":
-          $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/ServerError"
 
@@ -159,10 +159,10 @@ paths:
                 $ref: "#/components/schemas/RecalcResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/HashingExcluded"
-        "404":
-          $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/RateLimited"
         "500":
@@ -215,8 +215,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DuplicatesResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
         "429":
           $ref: "#/components/responses/RateLimited"
         "500":
@@ -373,6 +371,8 @@ paths:
                     example: true
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "403":
           description: The caller may not change this rule
         "404":
@@ -522,6 +522,16 @@ components:
         hash:
           type: string
           example: "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: >-
+            When the stored hashes were last written, from the freshness
+            stamp. Null where the file carries hashes but no stamp — the
+            state `occ fcias:repair --step unindexed-hashes` exists to
+            correct.
+          example: "2026-09-02T15:17:00+00:00"
 
     SameHashResponse:
       type: object
@@ -696,7 +706,10 @@ components:
 
     RuleInput:
       type: object
-      required: [path]
+      description: >-
+        `path` is not required: an absent one defaults to `/`, and on an
+        update the stored value is kept. A path that is present but empty
+        or blank is refused with 400.
       properties:
         enabled:
           type: boolean

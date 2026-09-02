@@ -50,7 +50,6 @@
 /.php-cs-fixer.dist.php
 /psalm.xml
 /rector.php
-openapi.json
 
 # Tests & dev-only docs
 /tests
