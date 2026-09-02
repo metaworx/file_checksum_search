@@ -1764,4 +1764,36 @@ class HashCalculationServiceTest
 		$this->assertSame( 0, $result['skipped'] );
 	}
 
+	/**
+	 * The algorithm list and the default are part of this app's contract:
+	 * dropping one silently narrows what a stored rule can ask for, and
+	 * changing the default changes what `--algo auto` computes.
+	 *
+	 * Here rather than in the integration suite, where these sat until the
+	 * audit pointed out that asserting a constant does not need a booted
+	 * server.
+	 */
+	public function testTheSupportedAlgorithmsIncludeTheOnesRulesRelyOn(): void
+	{
+
+		foreach (
+			[
+				'sha1',
+				'md5',
+				'sha256',
+				'sha512',
+			] as $algo
+		)
+		{
+			$this->assertContains( $algo, HashCalculationService::SUPPORTED_ALGOS );
+		}
+	}
+
+
+	public function testTheDefaultAlgorithmIsSha1(): void
+	{
+
+		$this->assertSame( 'sha1', HashCalculationService::getDefaultAlgo() );
+	}
+
 }

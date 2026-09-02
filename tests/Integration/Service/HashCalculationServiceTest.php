@@ -58,69 +58,6 @@ class HashCalculationServiceTest
 	}
 
 
-	// ─── raw hash_file verification ──────────────────────────────────
-
-
-	/** @return array<string, array{0: string}> */
-	public static function algoProvider(): array
-	{
-
-		return [
-			'sha1'   => [ 'sha1' ],
-			'sha256' => [ 'sha256' ],
-			'sha512' => [ 'sha512' ],
-			'md5'    => [ 'md5' ],
-		];
-	}
-
-
-	/**
-	 * @dataProvider algoProvider
-	 */
-	public function testHashFileProducesCorrectOutput( string $algo ): void
-	{
-
-		$hash = hash_file( $algo, $this->tempFile );
-
-		$this->assertNotEmpty( $hash, "hash_file($algo) should return a non-empty string." );
-
-		$expectedLength = match ( $algo )
-		{
-			'sha1' => 40,
-			'sha256' => 64,
-			'sha512' => 128,
-			'md5' => 32,
-			default => 0,
-		};
-
-		$this->assertSame(
-			$expectedLength,
-			strlen( $hash ),
-			"hash_file($algo) should produce a $expectedLength-char hex string.",
-		);
-	}
-
-
-	public function testHashFileIsDeterministic(): void
-	{
-
-		$hash1 = hash_file( 'sha256', $this->tempFile );
-		$hash2 = hash_file( 'sha256', $this->tempFile );
-
-		$this->assertSame( $hash1, $hash2, 'Same file should produce identical hashes.' );
-	}
-
-
-	public function testHashFileProducesDifferentValueForDifferentAlgos(): void
-	{
-
-		$sha256 = hash_file( 'sha256', $this->tempFile );
-		$md5    = hash_file( 'md5', $this->tempFile );
-
-		$this->assertNotSame( $sha256, $md5, 'Different algos should produce different hashes.' );
-	}
-
-
 	// ─── HashCalculationService validation ───────────────────────────
 
 	/**
@@ -159,21 +96,8 @@ class HashCalculationServiceTest
 	}
 
 
-	public function testSupportedAlgosContainsAllTestedValues(): void
-	{
-
-		$this->assertContains( 'sha1', HashCalculationService::SUPPORTED_ALGOS );
-		$this->assertContains( 'sha256', HashCalculationService::SUPPORTED_ALGOS );
-		$this->assertContains( 'sha512', HashCalculationService::SUPPORTED_ALGOS );
-		$this->assertContains( 'md5', HashCalculationService::SUPPORTED_ALGOS );
-	}
 
 
-	public function testDefaultAlgoIsSha1(): void
-	{
-
-		$this->assertSame( 'sha1', HashCalculationService::getDefaultAlgo() );
-	}
 
 
 	/**
