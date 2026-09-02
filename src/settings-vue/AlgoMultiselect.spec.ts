@@ -29,8 +29,8 @@ describe('AlgoMultiselect', () => {
 	})
 
 	it('picks up options that arrive after mount', async () => {
-		// Regression guard: the settings pages fetch supportedAlgos and the rule
-		// definitions asynchronously, so this component mounts with an empty
+		// Regression guard: the settings pages fetch supportedAlgos and the
+		// rules asynchronously, so this component mounts with an empty
 		// option list. It used to snapshot the selection at setup time, which
 		// filtered [] and left the widget permanently blank even though the
 		// server had algorithms stored.

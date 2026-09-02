@@ -27,9 +27,9 @@ booted — faster, and in the PHPUnit job, which CI would fail on independently.
 Splitting the three 404 rows and the two reorder rows was the only difference;
 the PHPUnit twin combines them.
 
-The stub-era `rules.cy.js` was removed: it stubbed `/settings/cron/*` endpoints
-that no longer exist and waited for UI text that had changed, failing 4/4
-against a live instance. `rules-admin.cy.js` replaces it.
+The stub-era `rules.cy.js` was removed: it stubbed endpoints that no longer
+exist and waited for UI text that had changed, failing 4/4 against a live
+instance. `rules-admin.cy.js` replaces it.
 
 ### Two things worth knowing about the rules page
 

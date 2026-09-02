@@ -152,7 +152,7 @@ describe('useRules', () => {
 		const result = await applyRule('r1')
 
 		expect(result.success).toBe(true)
-		// Applying changes no rule definition, so exactly one request: the
+		// Applying changes no rule, so exactly one request: the
 		// apply POST itself, no follow-up list reload.
 		expect(fetchMock.mock.calls).toHaveLength(1)
 		const call = fetchMock.mock.calls[0]!

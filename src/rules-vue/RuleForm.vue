@@ -7,10 +7,10 @@
  * the admin page's global rule. Rendered inside an NcDialog; the parent
  * mounts this component only while the form should be open.
  *
- * Element ids are kept per-variant and identical to the previous
- * vanilla-JS markup (`#fcias-cron-*` / `#fcias-personal-*`) so the
- * existing Cypress e2e selectors (tests/e2e/rules.cy.js) keep working
- * unmodified.
+ * Element ids are kept per-variant (`#fcias-rule-*` for the admin form,
+ * `#fcias-personal-*` for the personal one) because the Cypress e2e
+ * suite addresses them, and because the two forms are on different
+ * pages and would otherwise collide in a test that visited both.
  */
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import NcDialog from '@nextcloud/vue/components/NcDialog'

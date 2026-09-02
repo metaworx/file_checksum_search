@@ -208,7 +208,7 @@ export function useRules(scope: 'own' | 'all') {
 
 	/**
 	 * Queue a full apply pass for one rule: every file it currently governs,
-	 * uncapped, in the background. Applying changes no rule definition, so
+	 * uncapped, in the background. Applying changes no rule, so
 	 * nothing needs reloading.
 	 */
 	async function applyRule(id: Rule['id']): Promise<ApiResponse> {
