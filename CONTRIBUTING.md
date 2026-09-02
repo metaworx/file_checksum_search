@@ -5,7 +5,7 @@ Thank you for your interest in contributing to File Checksum Index & Search (FCI
 This document contains repository-specific contributor conventions for FCIAS.
 Generic runtime and agent flow-control rules are defined in `AGENTS.md`.
 
-> **Note for AI agents:** Where this document shows PowerShell and bash forms of a command side by side, that split follows the Windows-hosted-agent / WSL-based-agent distinction documented canonically in `.aiassistant/ENVIRONMENTS.md` — see it for which form applies to your runtime and for IDE/MCP tool-name equivalents.
+> **Note for AI agents:** Where this document shows PowerShell and bash forms of a command side by side, that split follows the Windows-hosted-agent / WSL-based-agent distinction documented canonically in `GUIDELINES/shared/ENVIRONMENTS.md` — see it for which form applies to your runtime and for IDE/MCP tool-name equivalents.
 
 ## Table of Contents
 
@@ -42,12 +42,12 @@ Generic runtime and agent flow-control rules are defined in `AGENTS.md`.
         - The "full" commit SHOULD reference the `[WIP]` commit by including `Follows [WIP] commit [hash]` as its own
           paragraph (e.g., via a separate `-m` parameter) at the bottom of the commit message.
     - `[RELEASE]` cuts a version: it promotes `CHANGELOG.md`'s `## [Unreleased]` bullets to a new version section
-      and bumps `appinfo/info.xml`. It touches only those two files. See `.aiassistant/COMMIT.md` §4.4 for the
+      and bumps `appinfo/info.xml`. It touches only those two files. See `GUIDELINES/shared/COMMIT.md` §4.4 for the
       exact format and versioning rule (pre-`1.0.0`: `[FIX]`/`[SECURITY]` bump patch, everything else bumps minor).
 4. **CHANGELOG.md**
     - Any commit touching shipped app code (`lib/`, `src/`, `css/`, `js/`, `templates/`, `img/`,
       `appinfo/routes.php`, `appinfo/info.xml`) MUST add a bullet to `## [Unreleased]` in the same commit,
-      summarizing the actual effect (not just the summary line) — see `.aiassistant/COMMIT.md` §4.3.
+      summarizing the actual effect (not just the summary line) — see `GUIDELINES/shared/COMMIT.md` §4.3.
 5. **Message structure**
     - Line 1: summary with prefix.
     - Line 2: must be empty.
@@ -83,7 +83,7 @@ Co-authored-by: Agent <agent@example.com>
 
 ### Commit message formatting tips
 
-> PowerShell examples below are for Windows-hosted agents; see `.aiassistant/ENVIRONMENTS.md` §1 for that convention and its WSL-native equivalent.
+> PowerShell examples below are for Windows-hosted agents; see `GUIDELINES/shared/ENVIRONMENTS.md` §1 for that convention and its WSL-native equivalent.
 
 - Multiple `-m` flags (PowerShell):
 
@@ -104,20 +104,23 @@ controllers that duplicated the validation closure.
 Then run:
 
 ```powershell
-git commit -F .aiassistant\tools\commit-msg.txt
+git commit -F GUIDELINES\temp\commit-msg.txt
 ```
 
 ## Testing
 
 ### Gate command
 
-Use PHPUnit 10 as the primary framework, run through the ddev-aware wrapper (falls back to
-`vendor/bin/phpunit` directly when ddev isn't available):
+Use PHPUnit 10 as the primary framework. The `-c` is not optional: without it PHPUnit
+finds no configuration, and the suite names below do not resolve.
 
 ```bash
-./.aiassistant/tools/phpunit tests/Unit/
-./.aiassistant/tools/phpunit tests/Integration/ --display-warnings
+vendor/bin/phpunit -c tests/phpunit.xml --testsuite unit
+vendor/bin/phpunit -c tests/phpunit.xml --testsuite integration --display-warnings
 ```
+
+`composer test` runs both; `composer test:unit` and `composer test:integration` run one
+each. The integration suite needs a booted server, so it runs inside the container.
 
 Frontend changes additionally require:
 
@@ -219,6 +222,6 @@ this kind of lookup — search `lib/public/` first, then `apps/<name>/lib/` if i
 ### Project references
 
 - `AGENTS.md` - runtime behavior contract and flow-control rules.
-- `.aiassistant/GUIDELINES.md` - agent-facing entry point for project references.
-- `.aiassistant/tools/README.md` - helper scripts and usage notes.
+- `AGENTS.md` - agent-facing entry point, generated from the fragments under `GUIDELINES/`.
+- `GUIDELINES/shared/tools/README.md` - helper scripts and usage notes.
 - `docs/api-v1.md` - the public API's source of truth (HTTP + PHP surfaces).
