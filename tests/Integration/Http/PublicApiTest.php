@@ -10,6 +10,8 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Integration\Http;
 
+use DateTime;
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
 use OCP\Files\IRootFolder;
@@ -403,18 +405,32 @@ class PublicApiTest
 
 		$jsonPayload = json_encode( $json );
 
-		$this->getRawConnection()
-		     ->executeStatement(
-			     'INSERT INTO `*PREFIX*files_metadata` (`file_id`, `json`, `sync_token`, `last_update`) '
-			     . 'VALUES (?, ?, ?, NOW()) '
-			     . 'ON DUPLICATE KEY UPDATE `json` = VALUES(`json`), `last_update` = NOW()',
-			     [
-				     $fileId,
-				     $jsonPayload,
-				     '',
-			     ],
-		     )
+		// Through the query builder, and delete-then-insert rather than an
+		// upsert. `ON DUPLICATE KEY UPDATE`, `NOW()` and `UNIX_TIMESTAMP()`
+		// are MySQL's alone, and this app supports every database Nextcloud
+		// does — a fixture that only seeds on MariaDB makes the suite
+		// untestable on the others the day anyone tries.
+		$delete = $this->db->getQueryBuilder();
+		$delete->delete( 'files_metadata' )
+		       ->where(
+			       $delete->expr()
+			              ->eq( 'file_id', $delete->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+		       )
 		;
+		$delete->executeStatement();
+
+		$insert = $this->db->getQueryBuilder();
+		$insert->insert( 'files_metadata' )
+		       ->values( [
+			       'file_id'     => $insert->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ),
+			       'json'        => $insert->createNamedParameter( $jsonPayload ),
+			       'sync_token'  => $insert->createNamedParameter( '' ),
+			       'last_update' => $insert->createNamedParameter(
+				       ( new DateTime() )->format( 'Y-m-d H:i:s' ),
+			       ),
+		       ] )
+		;
+		$insert->executeStatement();
 
 		foreach ( $hashes as $algo => $hash )
 		{

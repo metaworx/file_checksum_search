@@ -10,6 +10,8 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Integration\Search;
 
+use DateTime;
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCA\FileChecksumSearch\Search\HashSearchProvider;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
@@ -222,22 +224,32 @@ class HashSearchProviderTest
 
 		// Insert a filecache row with a non‑existent storage ID.
 		// getById() won't resolve this, so the search must filter it out.
-		$this->getRawConnection()
-		     ->executeStatement(
-			     <<<SQL
-INSERT INTO `$this->fcTable` (`fileid`, `storage`, `path`, `path_hash`, `parent`, `name`, `mimetype`,
-                                `mimepart`, `size`, `mtime`, `storage_mtime`, `encrypted`, `unencrypted_size`,
-                                `etag`, `checksum`)
-VALUES (?, 99999, ?, ?, -1, 'inaccessible.dat', 0, 0, 0, UNIX_TIMESTAMP(), UNIX_TIMESTAMP(), 0, 0, ?, '')
-SQL,
-			     [
-				     $fileId,
-				     'files/inaccessible_' . $fileId . '.dat',
-				     md5( 'inaccessible_' . $fileId ),
-				     md5( 'etag_inaccessible_' . $fileId ),
-			     ],
-		     )
+		// `UNIX_TIMESTAMP()` is MySQL's; PHP's own time() is every
+		// backend's, and the value is the same thing.
+		$now    = time();
+		$insert = $this->db->getQueryBuilder();
+		$insert->insert( 'filecache' )
+		       ->values( [
+			       'fileid'           => $insert->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ),
+			       'storage'          => $insert->createNamedParameter( 99999, IQueryBuilder::PARAM_INT ),
+			       'path'             => $insert->createNamedParameter(
+				       'files/inaccessible_' . $fileId . '.dat',
+			       ),
+			       'path_hash'        => $insert->createNamedParameter( md5( 'inaccessible_' . $fileId ) ),
+			       'parent'           => $insert->createNamedParameter( -1, IQueryBuilder::PARAM_INT ),
+			       'name'             => $insert->createNamedParameter( 'inaccessible.dat' ),
+			       'mimetype'         => $insert->createNamedParameter( 0, IQueryBuilder::PARAM_INT ),
+			       'mimepart'         => $insert->createNamedParameter( 0, IQueryBuilder::PARAM_INT ),
+			       'size'             => $insert->createNamedParameter( 0, IQueryBuilder::PARAM_INT ),
+			       'mtime'            => $insert->createNamedParameter( $now, IQueryBuilder::PARAM_INT ),
+			       'storage_mtime'    => $insert->createNamedParameter( $now, IQueryBuilder::PARAM_INT ),
+			       'encrypted'        => $insert->createNamedParameter( 0, IQueryBuilder::PARAM_INT ),
+			       'unencrypted_size' => $insert->createNamedParameter( 0, IQueryBuilder::PARAM_INT ),
+			       'etag'             => $insert->createNamedParameter( md5( 'etag_inaccessible_' . $fileId ) ),
+			       'checksum'         => $insert->createNamedParameter( '' ),
+		       ] )
 		;
+		$insert->executeStatement();
 
 		$testHash = 'cafebabecafebabecafebabecafebabecafebabe';
 
@@ -354,16 +366,35 @@ SQL,
 
 		$jsonPayload = json_encode( $json );
 
-		// Insert/replace metadata JSON row.
-		// oc_files_metadata requires sync_token and last_update (NOT NULL, no defaults).
-		$this->getRawConnection()
-		     ->executeStatement(
-			     'INSERT INTO `*PREFIX*files_metadata` (`file_id`, `json`, `sync_token`, `last_update`) '
-			     . 'VALUES (?, ?, ?, NOW()) '
-			     . 'ON DUPLICATE KEY UPDATE `json` = VALUES(`json`), `last_update` = NOW()',
-			     [ $fileId, $jsonPayload, '' ],
-		     )
+		// Through the query builder, and delete-then-insert rather than an
+		// upsert. `ON DUPLICATE KEY UPDATE` and `NOW()` are MySQL's alone,
+		// and this app supports every database Nextcloud does — a fixture
+		// that only seeds on MariaDB makes the suite untestable on the
+		// others the day anyone tries.
+		//
+		// `sync_token` and `last_update` are NOT NULL with no defaults, so
+		// both are given values here rather than left out.
+		$delete = $this->db->getQueryBuilder();
+		$delete->delete( 'files_metadata' )
+		       ->where(
+			       $delete->expr()
+			              ->eq( 'file_id', $delete->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+		       )
 		;
+		$delete->executeStatement();
+
+		$insert = $this->db->getQueryBuilder();
+		$insert->insert( 'files_metadata' )
+		       ->values( [
+			       'file_id'     => $insert->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ),
+			       'json'        => $insert->createNamedParameter( $jsonPayload ),
+			       'sync_token'  => $insert->createNamedParameter( '' ),
+			       'last_update' => $insert->createNamedParameter(
+				       ( new DateTime() )->format( 'Y-m-d H:i:s' ),
+			       ),
+		       ] )
+		;
+		$insert->executeStatement();
 
 		// Insert index rows (one per algo), truncating hash to 63 chars
 		foreach ( $hashes as $algo => $hash )
