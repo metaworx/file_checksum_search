@@ -67,7 +67,7 @@ $hashes = $api->getHashesByPath('Documents/report.pdf', 'alice');
 
 ### Method Reference
 
-#### `findByHash(string $hash, ?string $algo = null, int $limit = 100): array`
+#### `findByHash(string $hash, ?string $algo = null, int $limit = 100, ?string $requestingUser = null): array`
 
 Search for files matching a given hash value.
 
@@ -76,6 +76,7 @@ Search for files matching a given hash value.
 | `$hash` | `string` | Yes | Hex-encoded hash (8/32/40/64/128 chars depending on algorithm) |
 | `$algo` | `?string` | No | Algorithm filter (`sha1`, `md5`, `sha256`, `sha512`, `sha3-256`, `sha3-512`, `crc32`, `adler32`) |
 | `$limit` | `int` | No | Max results (1–500, default 100) |
+| `$requestingUser` | `?string` | No | Whose permissions the answer is checked against. `null` means server-side authority — the caller has already established who is asking, or is the server itself. A uid filters the result to what that user could open. |
 
 **Returns:**
 ```php
@@ -91,13 +92,14 @@ Search for files matching a given hash value.
 
 ---
 
-#### `getHashesByFileId(int $fileId): array`
+#### `getHashesByFileId(int $fileId, ?string $requestingUser = null): array`
 
 Get all checksums for a file by its filecache ID.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `$fileId` | `int` | Yes | The filecache `fileid` |
+| `$requestingUser` | `?string` | No | Whose permissions the answer is checked against. `null` means server-side authority — the caller has already established who is asking, or is the server itself. A uid filters the result to what that user could open. |
 
 **Returns:**
 ```php
@@ -159,7 +161,11 @@ Convenience method — get checksums by filesystem path.
 
 #### `findDuplicates(?string $algo = null, int $minCount = 2, int $limit = 50, int $offset = 0): array`
 
-Find all duplicate hash groups across the entire system.
+Find duplicate hash groups among the files the calling user can open.
+
+Not instance-wide: the method resolves the session user and asks for that
+user's duplicates, so a caller with no session gets an empty set. An
+administrator sees their own files, not everyone's.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -215,7 +221,7 @@ Find other files sharing hash values with the given file.
 
 ---
 
-#### `recalcHash(int $fileId, ?string $algo = null): array`
+#### `recalcHash(int $fileId, ?string $algo = null, ?string $requestingUser = null): array`
 
 Trigger hash recalculation for a file. **This is the only mutating operation** in the public API.
 
@@ -223,6 +229,7 @@ Trigger hash recalculation for a file. **This is the only mutating operation** i
 |-----------|------|----------|-------------|
 | `$fileId` | `int` | Yes | The filecache `fileid` |
 | `$algo` | `?string` | No | Algorithm (default: `sha1`) |
+| `$requestingUser` | `?string` | No | Whose permissions the answer is checked against. `null` means server-side authority — the caller has already established who is asking, or is the server itself. A uid filters the result to what that user could open. |
 
 **Returns (success):**
 ```php
@@ -231,7 +238,7 @@ Trigger hash recalculation for a file. **This is the only mutating operation** i
 
 **Returns (failure):**
 ```php
-['success' => false, 'error' => 'File not found: 99999']
+['success' => false, 'error' => 'File not found.']
 ```
 
 ---
@@ -704,11 +711,20 @@ curl -H "Authorization: Bearer your-app-password" \
 
 ### CSRF
 
-All API endpoints use `#[NoCSRFRequired]`. CSRF tokens are not needed for API access.
+Most read endpoints carry `#[NoCSRFRequired]`, but the four rule mutations and the
+two settings POSTs do not. What lets those through from a cookie session is the
+`OCS-APIRequest: true` header, which Nextcloud accepts in place of a CSRF token.
+Send it on every request and the distinction never arises. With basic auth it is
+optional.
 
 ### Authorization
 
-All API endpoints use `#[NoAdminRequired]`. Any authenticated user can access the public API. Admin-only operations (rebuild, rule management, etc.) are **not** exposed through the public API — they remain in the admin settings page and CLI.
+All API endpoints use `#[NoAdminRequired]`: any authenticated user can reach the
+public API. **Rule management is part of it** — see the rules endpoints above —
+but what a caller may do there depends on who they are: a non-administrator's
+`selector` is forced to their own home and `admin_enforced` to `false`, and an
+enforced rule is not theirs to change. The repair and queue operations are the
+ones that stay out, in the admin settings page and the CLI.
 
 ---
 
@@ -816,6 +832,8 @@ ignored and a warning is logged.
 |------|---------|---------------|
 | 200 | Success | Normal response |
 | 400 | Bad request (validation error) | `{"error": "message"}` |
+| 401 | Not authenticated | `{"error": "message"}` |
+| 403 | Authenticated, but not allowed this file or this rule | `{"error": "message"}` |
 | 404 | Resource not found | `{"error": "message"}` |
 | 429 | Rate limited (see [Rate Limiting](#rate-limiting)) | Empty body |
 | 500 | Internal server error | `{"error": "message"}` |
@@ -830,10 +848,20 @@ The PHP API throws the following exceptions:
 | `\RuntimeException` | Internal service failure |
 | `\OCP\Files\NotFoundException` | File/path cannot be resolved (`getHashesByFile`, `getHashesByPath`) |
 
-### All Error Responses Follow the Same Shape
+### Two Error Shapes
+
+The read endpoints answer with
 
 ```json
 {"error": "Human-readable description"}
 ```
 
-Consumers can reliably check `response.error` for error conditions.
+while the rule mutations and `recalc` answer with
+
+```json
+{"success": false, "error": "Human-readable description"}
+```
+
+`error` is present in both, so a consumer can check that field alone for the
+message. It cannot use its **absence** to mean success on the second group —
+there, `success` is the field that says so.
