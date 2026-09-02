@@ -11,12 +11,14 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Public;
 
 use InvalidArgumentException;
 use OCA\FileChecksumSearch\Public\ChecksumApi;
+use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\DatabaseService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCP\IGroupManager;
+use OCP\IAppConfig;
 use OCP\IUserManager;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\StatusService;
@@ -96,9 +98,10 @@ class ChecksumApiTest
 			$this->rootFolder,
 			$this->userSession,
 			$this->ruleService,
-			new RuleDefinitionValidator( $this->groupManager, $userManager ),
+			new RuleDefinitionValidator( $this->groupManager, $userManager, new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ) ),
 			$this->permissionService,
 			$this->groupManager,
+			new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ),
 		);
 	}
 

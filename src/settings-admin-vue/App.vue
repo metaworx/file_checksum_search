@@ -12,6 +12,7 @@ import NcButton from '@nextcloud/vue/components/NcButton'
 import RuleTable from '../rules-vue/RuleTable.vue'
 import RuleForm from '../rules-vue/RuleForm.vue'
 import type { Rule, RuleDraft } from '../rules-vue/types'
+import AlgorithmSection from './AlgorithmSection.vue'
 import PermissionSection from './PermissionSection.vue'
 import DocsViewer from '../docs-vue/DocsViewer.vue'
 import { useAdminSettings } from './composables/useAdminSettings'
@@ -386,6 +387,15 @@ loadRules().then(() => {
 						</tr>
 					</tbody>
 				</table>
+			</div>
+
+			<div class="fcias-section">
+				<h4>Hash Algorithms</h4>
+				<p class="fcias-hint">
+					Which algorithms this server computes, from what its PHP provides. Rules may only use these,
+					and every picker in the app offers exactly these; the first one is the default.
+				</p>
+				<AlgorithmSection />
 			</div>
 
 			<div class="fcias-section">

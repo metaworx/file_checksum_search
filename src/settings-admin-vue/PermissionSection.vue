@@ -48,7 +48,7 @@ const HELP = {
 
 async function load(): Promise<void> {
 	try {
-		const response = await fetch(generateOcsUrl(OCS_SETTINGS.getAdminOptions))
+		const response = await fetch(generateOcsUrl(OCS_SETTINGS.getGlobal))
 		const data = (await response.json()) as {
 			allowAllUsers?: boolean
 			groups?: string[]
@@ -70,8 +70,8 @@ async function load(): Promise<void> {
 async function save(): Promise<void> {
 	saving.value = true
 	try {
-		const response = await fetch(generateOcsUrl(OCS_SETTINGS.saveAdminOptions), {
-			method: 'POST',
+		const response = await fetch(generateOcsUrl(OCS_SETTINGS.saveGlobal), {
+			method: 'PUT',
 			headers: {
 				requesttoken: OC.requestToken,
 				'Content-Type': 'application/json',

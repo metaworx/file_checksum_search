@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
+use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
@@ -16,6 +17,7 @@ use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\DB\Exception;
 use OCP\DB\IResult;
 use OCP\FilesMetadata\IFilesMetadataManager;
+use OCP\IAppConfig;
 use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\IDBConnection;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -37,6 +39,8 @@ class MetadataServiceTest
 
 	private FilecacheService&MockObject      $filecacheService;
 
+	private AlgorithmCatalogue               $catalogue;
+
 	private LoggerInterface&MockObject       $logger;
 
 	private MetadataService                  $service;
@@ -54,11 +58,17 @@ class MetadataServiceTest
 
 		$this->setUpQueryBuilderMock();
 
+		// A real catalogue over a mocked app config: getValueArray() answers
+		// [] and the catalogue falls back to the shipped default, which is
+		// what an instance that never touched the allowlist has.
+		$this->catalogue = new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) );
+
 		$this->service = new MetadataService(
 			$this->db,
 			$this->metadataManager,
 			$this->filecacheService,
 			$this->logger,
+			$this->catalogue,
 		);
 	}
 
@@ -111,7 +121,7 @@ class MetadataServiceTest
 	public function testRegisterInitializesAllAlgoKeys(): void
 	{
 
-		$expectedCalls = count( HashCalculationService::SUPPORTED_ALGOS ) + 1;
+		$expectedCalls = count( array_values( array_unique( array_merge( MetadataService::LEGACY_ALGOS, $this->catalogue->algorithms() ) ) ) ) + 1;
 
 		$this->metadataManager->expects( $this->exactly( $expectedCalls ) )
 		                      ->method( 'initMetadata' )
@@ -200,7 +210,7 @@ class MetadataServiceTest
 
 		$this->service->register();
 
-		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+		foreach ( array_values( array_unique( array_merge( MetadataService::LEGACY_ALGOS, $this->catalogue->algorithms() ) ) ) as $algo )
 		{
 			// The hash prefix, not the app's: a key declared under the old
 			// spelling would be re-declared by every repair, undoing the
@@ -1140,8 +1150,16 @@ class MetadataServiceTest
 		         ->willReturn( 42 )
 		;
 
-		$algoCount = count( HashCalculationService::SUPPORTED_ALGOS );
-		$metadata->expects( $this->exactly( $algoCount ) )
+		// getHashes() reads what the document holds, so the document has to
+		// say what it holds: one hash key per legacy algorithm here.
+		$keys = array_map(
+			static fn( string $algo ): string => MetadataService::getHashKey( $algo ),
+			MetadataService::LEGACY_ALGOS,
+		);
+		$metadata->method( 'getKeys' )
+		         ->willReturn( $keys )
+		;
+		$metadata->expects( $this->exactly( count( $keys ) ) )
 		         ->method( 'getString' )
 		         ->willReturn( 'dummyhash' )
 		;
@@ -1630,7 +1648,9 @@ class MetadataServiceTest
 	public function testNoSupportedAlgorithmProducesADigestExactlyTheColumnsLength(): void
 	{
 
-		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+		// Everything this PHP build could be allowed to compute, not only what
+		// is in force: an administrator may enable any of these tomorrow.
+		foreach ( $this->catalogue->available() as $algo )
 		{
 			$length = strlen( hash( $algo, 'the quick brown fox' ) );
 
@@ -1958,7 +1978,7 @@ class MetadataServiceTest
 		// ambiguous prefix this app moved away from: matching it would bring
 		// back the false positives the rename removed. That asymmetry is the
 		// rename's whole argument, so it is worth a test of its own.
-		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+		foreach ( MetadataService::LEGACY_ALGOS as $algo )
 		{
 			$this->assertContains(
 				'%"' . MetadataService::legacyHashKey( $algo ) . '":%',

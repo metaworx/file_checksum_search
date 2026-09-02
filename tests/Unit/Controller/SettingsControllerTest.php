@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
 use OCA\FileChecksumSearch\Service\JobStatsService;
+use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Controller\SettingsController;
 use OCA\FileChecksumSearch\Service\DatabaseService;
 use OCA\FileChecksumSearch\Service\MetadataService;
@@ -105,7 +106,8 @@ class SettingsControllerTest
 			                         $this->permissionService,
 			                         $this->appConfig,
 			                         $this->jobStats,
-		                         ] )
+				new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ),
+			] )
 		                         ->getMock()
 		;
 	}
@@ -379,6 +381,55 @@ class SettingsControllerTest
 				"$method must not carry #[NoAdminRequired] — it must remain admin-only.",
 			);
 		}
+	}
+
+
+	/**
+	 * Two sections of the admin page save to this one endpoint, each sending
+	 * only its own fields. A field that is not sent must be left exactly as
+	 * it was — not reset to a default the sending section never showed.
+	 */
+	public function testAPartialBodyLeavesTheFieldsItDoesNotSendAlone(): void
+	{
+
+		$this->controller->method( 'readRequestBody' )
+		                 ->willReturn( json_encode( [ 'allowedAlgorithms' => [ 'sha256', 'sha1' ] ] ) )
+		;
+
+		$this->permissionService->expects( $this->never() )
+		                        ->method( 'setAllUsersEnabled' )
+		;
+		$this->permissionService->expects( $this->never() )
+		                        ->method( 'setGroups' )
+		;
+		$this->permissionService->expects( $this->never() )
+		                        ->method( 'setUsers' )
+		;
+
+		$response = $this->controller->saveAdminOptions();
+
+		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
+		$data = $response->getData();
+		$this->assertTrue( $data['success'] );
+		$this->assertIsArray( $data['allowedAlgorithms'] );
+		$this->assertNotEmpty( $data['allowedAlgorithms'] );
+	}
+
+
+	/**
+	 * A list that keeps nothing is refused, and the previous list stays.
+	 */
+	public function testAnAllowlistNothingOnThisServerCanHonourIsRefused(): void
+	{
+
+		$this->controller->method( 'readRequestBody' )
+		                 ->willReturn( json_encode( [ 'allowedAlgorithms' => [ 'nonsense', 'sha512/256' ] ] ) )
+		;
+
+		$response = $this->controller->saveAdminOptions();
+
+		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
+		$this->assertFalse( $response->getData()['success'] );
 	}
 
 }

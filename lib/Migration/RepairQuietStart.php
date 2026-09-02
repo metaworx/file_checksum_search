@@ -11,7 +11,6 @@ namespace OCA\FileChecksumSearch\Migration;
 
 use OC\FilesMetadata\FilesMetadataManager;
 use OCA\FileChecksumSearch\AppInfo\Application;
-use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
@@ -483,7 +482,7 @@ class RepairQuietStart
 		$declared  = $this->appConfig->getValueArray( 'core', FilesMetadataManager::CONFIG_KEY, lazy: true );
 		$withdrawn = 0;
 
-		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+		foreach ( MetadataService::LEGACY_ALGOS as $algo )
 		{
 			$legacy = MetadataService::legacyHashKey( $algo );
 

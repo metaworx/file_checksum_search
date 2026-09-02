@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
 use OCA\FileChecksumSearch\Controller\PublicApiController;
+use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Public\ChecksumApi;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
@@ -73,6 +74,7 @@ class PublicApiControllerTest
 			$this->userSession,
 			$this->groupManager,
 			$this->logger,
+			$this->createMock( AlgorithmCatalogue::class ),
 		);
 	}
 
@@ -239,6 +241,7 @@ class PublicApiControllerTest
 			$this->userSession,
 			$this->groupManager,
 			$this->logger,
+			$this->createMock( AlgorithmCatalogue::class ),
 		);
 
 		$this->api->expects( $this->never() )
@@ -277,6 +280,7 @@ class PublicApiControllerTest
 			$this->userSession,
 			$this->groupManager,
 			$this->logger,
+			$this->createMock( AlgorithmCatalogue::class ),
 		);
 
 		$this->api->expects( $this->once() )
@@ -454,6 +458,7 @@ class PublicApiControllerTest
 			$this->userSession,
 			$this->groupManager,
 			$this->logger,
+			$this->createMock( AlgorithmCatalogue::class ),
 		);
 
 		$this->api->expects( $this->once() )
@@ -563,6 +568,7 @@ class PublicApiControllerTest
 			$this->userSession,
 			$this->groupManager,
 			$this->logger,
+			$this->createMock( AlgorithmCatalogue::class ),
 		);
 
 		$this->api->expects( $this->once() )

@@ -52,23 +52,8 @@ class HashIndexServiceTest
 	}
 
 
-	public function testGetDefaultAlgoReturnsSha1(): void
-	{
-
-		$this->assertSame( 'sha1', HashCalculationService::getDefaultAlgo() );
-	}
-
-
-	public function testSupportedAlgosContainsExpectedValues(): void
-	{
-
-		$algos = HashCalculationService::SUPPORTED_ALGOS;
-
-		$this->assertContains( 'sha1', $algos );
-		$this->assertContains( 'sha256', $algos );
-		$this->assertContains( 'sha512', $algos );
-		$this->assertContains( 'adler32', $algos );
-	}
+	// The default algorithm and the list it heads moved to AlgorithmCatalogue,
+	// which has its own tests; nothing about them is HashIndexService's.
 
 
 	public function testRecalcHashDelegatesToHashCalc(): void

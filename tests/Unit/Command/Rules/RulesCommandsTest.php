@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Command\Rules;
 
 use OCA\FileChecksumSearch\Command\Rules\AddRule;
+use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Command\Rules\ApplyRule;
 use OCA\FileChecksumSearch\Command\Rules\DeleteRule;
 use OCA\FileChecksumSearch\Command\Rules\ListRules;
@@ -17,6 +18,7 @@ use OCA\FileChecksumSearch\Command\Rules\ModifyRule;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\IGroupManager;
+use OCP\IAppConfig;
 use OCP\IUserManager;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -56,7 +58,7 @@ class RulesCommandsTest
 		            ->willReturn( true )
 		;
 
-		$this->validator = new RuleDefinitionValidator( $groupManager, $userManager );
+		$this->validator = new RuleDefinitionValidator( $groupManager, $userManager, new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ) );
 	}
 
 

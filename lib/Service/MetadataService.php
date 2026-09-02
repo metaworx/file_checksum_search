@@ -29,7 +29,7 @@ use Throwable;
  * Central service for all oc_files_metadata + oc_files_metadata_index operations.
  *
  * Responsibilities:
- * - Key registration (initMetadata for all SUPPORTED_ALGOS + updated_at)
+ * - Key registration (initMetadata for every algorithm in force or ever written, + updated_at)
  * - Pending marking (meta_value_string = 'pending:{mode}')
  * - Pending batch fetching
  * - Hash lookup by value
@@ -62,6 +62,25 @@ class MetadataService
 
 	public const KEY_FILE_CHECKSUM_LIKE       = self::KEY_FILE_CHECKSUM_HASH_PREFIX . '%';
 	public const KEY_FILE_CHECKSUM_UPDATED_AT = 'file-checksum-updated_at';
+
+	/**
+	 * Every algorithm a previous release could have written under the old key
+	 * spelling. The repair paths that rename those keys iterate this, not the
+	 * live catalogue: an algorithm the administrator has since disallowed
+	 * still has rows in the old spelling that must be found and renamed.
+	 * Append-only — nothing here may ever be removed.
+	 */
+	public const LEGACY_ALGOS
+		= [
+			'sha1',
+			'md5',
+			'adler32',
+			'crc32',
+			'sha256',
+			'sha512',
+			'sha3-256',
+			'sha3-512',
+		];
 	public const PENDING_MODE_AUTO            = 'auto';
 	public const PENDING_MODE_MISSING         = 'missing';
 	public const PENDING_MODE_FORCE           = 'force';
@@ -128,6 +147,7 @@ class MetadataService
 		private readonly IFilesMetadataManager $metadataManager,
 		private readonly FilecacheService      $filecacheService,
 		private readonly LoggerInterface       $logger,
+		private readonly AlgorithmCatalogue    $catalogue,
 	) {
 	}
 
@@ -142,12 +162,21 @@ class MetadataService
 
 		$hashes = [];
 
-		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+
+		// What the document holds, not what the catalogue currently allows: a
+		// hash computed under an algorithm the administrator has since
+		// disallowed is still this file's hash, and still what a backup,
+		// a search or the sidebar should see.
+		foreach ( $fileOrMetadata->getKeys() as $key )
 		{
-			$key = self::getHashKey( $algo );
+			if ( ! str_starts_with( $key, self::KEY_FILE_CHECKSUM_HASH_PREFIX ) )
+			{
+				continue;
+			}
+
 			try
 			{
-				$hashes[ $algo ] = $fileOrMetadata->getString( $key );
+				$hashes[ (string) self::getAlgorithmenFromKey( $key ) ] = $fileOrMetadata->getString( $key );
 			}
 			catch ( FilesMetadataNotFoundException|FilesMetadataTypeException )
 			{
@@ -1694,7 +1723,7 @@ class MetadataService
 			   ),
 		];
 
-		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+		foreach ( self::LEGACY_ALGOS as $algo )
 		{
 			// The old spelling, named one algorithm at a time. This is the
 			// repair's finder, and a metadata document restored from before
@@ -1815,7 +1844,7 @@ class MetadataService
 		$touched = [];
 		$rows    = 0;
 
-		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+		foreach ( self::LEGACY_ALGOS as $algo )
 		{
 			$legacy  = self::legacyHashKey( $algo );
 			$current = self::getHashKey( $algo );
@@ -2155,7 +2184,7 @@ class MetadataService
 
 		$renamed = $json;
 
-		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+		foreach ( self::LEGACY_ALGOS as $algo )
 		{
 			$renamed = str_replace(
 				'"' . self::legacyHashKey( $algo ) . '":',
@@ -2898,7 +2927,7 @@ class MetadataService
 		// immediately.
 		for ( $pass = 0; $pass < self::REGISTER_PASSES; $pass ++ )
 		{
-			foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+			foreach ( $this->registeredAlgos() as $algo )
 			{
 				// Registered **unindexed**, and indexed by this app instead
 				// — see {@see syncHashIndex()}. Nextcloud writes the value
@@ -2942,6 +2971,20 @@ class MetadataService
 	}
 
 
+
+	/**
+	 * The keys Nextcloud must know about: every algorithm in force plus every
+	 * one a previous release wrote, so a key that still exists in some
+	 * document stays a known, indexed key however the allowlist changes.
+	 *
+	 * @return list<string>
+	 */
+	private function registeredAlgos(): array
+	{
+
+		return array_values( array_unique( array_merge( self::LEGACY_ALGOS, $this->catalogue->algorithms() ) ) );
+	}
+
 	/**
 	 * Whether Nextcloud has taken the hash keys off its own index.
 	 *
@@ -2953,7 +2996,7 @@ class MetadataService
 
 		$known = $this->metadataManager->getKnownMetadata();
 
-		foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+		foreach ( $this->registeredAlgos() as $algo )
 		{
 			if ( $known->isIndex( self::getHashKey( $algo ) ) )
 			{

@@ -5,25 +5,55 @@
  * Shared algorithm option helpers for the FCIAS frontend.
  */
 
+import { generateOcsUrl } from '@nextcloud/router'
+import { OCS_API_V1 } from './routes'
+
 export interface AlgoOption {
 	id: string
 	label: string
 }
 
+export interface AlgorithmCatalogue {
+	algorithms: string[]
+	default: string
+}
+
+let catalogue: Promise<AlgorithmCatalogue> | null = null
+
 /**
- * Canonical algorithm list, mirroring
- * `HashCalculationService::SUPPORTED_ALGOS` (lib/Service/HashCalculationService.php).
+ * The algorithms this instance computes, and the one used when none is named.
+ *
+ * Read from the server rather than carried here: the set is what PHP offers
+ * narrowed to what the administrator allows, and a picker that shipped its
+ * own copy would be wrong the day an administrator changed it. Fetched once
+ * per page load and shared by every picker on the page; a failed fetch is
+ * not cached, so the next caller tries again.
  */
-export const SUPPORTED_ALGOS: readonly string[] = [
-	'sha1',
-	'md5',
-	'adler32',
-	'crc32',
-	'sha256',
-	'sha512',
-	'sha3-256',
-	'sha3-512',
-]
+export function fetchAlgorithms(): Promise<AlgorithmCatalogue> {
+	if (catalogue === null) {
+		catalogue = fetch(generateOcsUrl(OCS_API_V1.getAlgorithms))
+			.then(async (response) => {
+				if (!response.ok) {
+					throw new Error(`algorithms: HTTP ${response.status}`)
+				}
+				const data = (await response.json()) as Partial<AlgorithmCatalogue>
+				return {
+					algorithms: Array.isArray(data.algorithms) ? data.algorithms : [],
+					default: typeof data.default === 'string' ? data.default : '',
+				}
+			})
+			.catch((error) => {
+				catalogue = null
+				throw error
+			})
+	}
+	return catalogue
+}
+
+/** Test seam: forget the cached catalogue. */
+export function resetAlgorithmCache(): void {
+	catalogue = null
+}
 
 /**
  * Convert a list of algorithm ids into `{ id, label }` options for NcSelect.

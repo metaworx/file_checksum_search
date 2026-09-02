@@ -372,7 +372,7 @@ Cypress.Commands.add( 'fciasDeleteAccount', ( admin, user ) => {
  * @returns {Cypress.Chainable<boolean>}  What it was set to before.
  */
 Cypress.Commands.add( 'fciasRuleEditing', ( admin, allow ) => cy.ocs( {
-	url: '/settings/admin-options',
+	url: '/settings/global',
 	user: admin.user,
 	password: admin.password,
 } ).then( ( { status, body } ) => {
@@ -381,8 +381,8 @@ Cypress.Commands.add( 'fciasRuleEditing', ( admin, allow ) => cy.ocs( {
 	const previous = body.allowAllUsers === true
 
 	return cy.ocs( {
-		method: 'POST',
-		url: '/settings/admin-options/save',
+		method: 'PUT',
+		url: '/settings/global',
 		body: {
 			allowAllUsers: allow,
 			groups: body.groups ?? [],

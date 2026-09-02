@@ -12,7 +12,7 @@ import { generateUrl } from '@nextcloud/router'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import { FRONTEND } from '../routes'
-import { type AlgoOption, SUPPORTED_ALGOS, toAlgoOptions } from '../algorithms'
+import { type AlgoOption, fetchAlgorithms, toAlgoOptions } from '../algorithms'
 import { useSidebarHashes } from './composables/useSidebarHashes'
 import { useClipboard } from './composables/useClipboard'
 import RecalcButton from './components/RecalcButton.vue'
@@ -48,10 +48,26 @@ const {
 
 const { copied, copyToClipboard } = useClipboard()
 
-const algoOptions: AlgoOption[] = toAlgoOptions([...SUPPORTED_ALGOS])
+// The picker offers what the instance computes, read from the server once
+// per page. Until it answers, the picker is empty and the two quick buttons
+// still work; if it never answers, the picker stays empty and says so by
+// having nothing to pick.
+const algoOptions = ref<AlgoOption[]>([])
 const selectedAlgo = ref('sha256')
-const selectedAlgoOption = computed<AlgoOption>(
-	() => algoOptions.find((o) => o.id === selectedAlgo.value) ?? algoOptions[0],
+
+fetchAlgorithms()
+	.then(({ algorithms, default: fallback }) => {
+		algoOptions.value = toAlgoOptions(algorithms)
+		if (!algorithms.includes(selectedAlgo.value)) {
+			selectedAlgo.value = algorithms.includes('sha256') ? 'sha256' : fallback
+		}
+	})
+	.catch(() => {
+		// Nothing to offer beyond the quick buttons; leave the picker empty.
+	})
+
+const selectedAlgoOption = computed<AlgoOption | undefined>(
+	() => algoOptions.value.find((o) => o.id === selectedAlgo.value) ?? algoOptions.value[0],
 )
 
 function onAlgorithmChange(option: AlgoOption | string): void {

@@ -29,8 +29,12 @@ Key features:
 
 ## How are checksums computed and stored?
 
-FCIAS supports the following algorithms: `sha1`, `md5`, `sha256`, `sha512`,
-`sha3-256`, `sha3-512`, `crc32`, and `adler32`.
+FCIAS computes whichever algorithms the administrator allows, chosen from what the
+server's PHP provides (admin settings → *Hash Algorithms*). Out of the box that is
+`sha1`, `md5`, `adler32`, `crc32`, `sha256`, `sha384`, `sha512`, `sha3-256`, `sha3-384`
+and `sha3-512`; `GET /api/v1/algorithms` lists what is in force. Removing an
+algorithm stops new hashes being computed under it — hashes already stored stay
+searchable. Names are limited to `[a-z0-9-]`, because they double as metadata keys.
 
 For each file, the configured algorithm(s) produce a hex digest of the file
 content. Each digest is stored under a metadata key of the form

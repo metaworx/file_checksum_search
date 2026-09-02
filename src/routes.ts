@@ -22,6 +22,7 @@ export const OCS_API_V1 = {
 	lookup: `${APP_BASE}/api/v1/lookup`,
 	/** POST   /api/v1/file/{fileId}/recalc */
 	recalcHash: `${APP_BASE}/api/v1/file/{fileId}/recalc`,
+	getAlgorithms: `${APP_BASE}/api/v1/algorithms`,
 } as const
 
 /**
@@ -51,10 +52,10 @@ export const API_RULES = {
 export const OCS_SETTINGS = {
 	/** GET    /settings/status */
 	getStatus: `${APP_BASE}/settings/status`,
-	/** GET    /settings/admin-options */
-	getAdminOptions: `${APP_BASE}/settings/admin-options`,
-	/** POST   /settings/admin-options/save */
-	saveAdminOptions: `${APP_BASE}/settings/admin-options/save`,
+	/** GET    /settings/global — every instance-wide option, one resource */
+	getGlobal: `${APP_BASE}/settings/global`,
+	/** PUT    /settings/global — only the fields sent are changed */
+	saveGlobal: `${APP_BASE}/settings/global`,
 	/** POST   /settings/idle-banner/ack */
 	ackIdleBanner: `${APP_BASE}/settings/idle-banner/ack`,
 } as const

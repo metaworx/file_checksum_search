@@ -31,17 +31,6 @@ use Throwable;
 class HashCalculationService
 {
 
-	public const SUPPORTED_ALGOS
-		= [
-			'sha1',
-			'md5',
-			'adler32',
-			'crc32',
-			'sha256',
-			'sha512',
-			'sha3-256',
-			'sha3-512',
-		];
 
 	public const CHUNK_SIZE = 8192;
 
@@ -52,6 +41,7 @@ class HashCalculationService
 		private readonly MetadataService  $metadataService,
 		private readonly RuleService      $ruleService,
 		private readonly LoggerInterface  $logger,
+		private readonly AlgorithmCatalogue $catalogue,
 	) {
 	}
 
@@ -60,23 +50,23 @@ class HashCalculationService
 	public const ALGO_AUTO = 'auto';
 
 
-	public static function getDefaultAlgo(): string
+	public function getDefaultAlgo(): string
 	{
 
-		return self::SUPPORTED_ALGOS[0];
+		return $this->catalogue->default();
 	}
 
 
 	/**
-	 * Whether $algo is a string present in SUPPORTED_ALGOS.
+	 * Whether $algo names an algorithm the catalogue has in force.
 	 *
 	 * Accepts mixed so it can validate a raw, untrusted request value
 	 * directly (e.g. one entry of a request body's `algos` array).
 	 */
-	public static function isValidAlgo( mixed $algo ): bool
+	public function isValidAlgo( mixed $algo ): bool
 	{
 
-		return is_string( $algo ) && in_array( $algo, self::SUPPORTED_ALGOS, true );
+		return $this->catalogue->isValid( $algo );
 	}
 
 
@@ -616,7 +606,7 @@ class HashCalculationService
 				return;
 			}
 
-			$algos = $rule['algos'] ?? [ self::getDefaultAlgo() ];
+			$algos = $rule['algos'] ?? [ $this->getDefaultAlgo() ];
 		}
 
 		switch ( $mode )
@@ -785,7 +775,7 @@ class HashCalculationService
 
 		if ( $count === 0 )
 		{
-			$algos = [ self::getDefaultAlgo() ];
+			$algos = [ $this->getDefaultAlgo() ];
 		}
 		else
 		{
@@ -844,7 +834,7 @@ class HashCalculationService
 		$valid   = [];
 		foreach ( $algos as $algo )
 		{
-			if ( in_array( $algo, self::SUPPORTED_ALGOS, true ) )
+			if ( $this->catalogue->isValid( $algo ) )
 			{
 				$valid[] = $algo;
 

@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Integration\Service;
 
+use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
 use OCP\Files\IRootFolder;
@@ -113,11 +114,12 @@ class HashCalculationServiceTest
 
 		try
 		{
-			$result = $this->service->recalcHashes( $file, HashCalculationService::SUPPORTED_ALGOS, false );
+			$algos  = Server::get( AlgorithmCatalogue::class )->algorithms();
+			$result = $this->service->recalcHashes( $file, $algos, false );
 
 			$this->assertFalse( $result['locked'] );
 
-			foreach ( HashCalculationService::SUPPORTED_ALGOS as $algo )
+			foreach ( $algos as $algo )
 			{
 				$this->assertTrue( $result['results'][ $algo ]['success'], "recalcHashes($algo) should succeed." );
 				$this->assertSame(

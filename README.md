@@ -434,7 +434,7 @@ Each rule combines:
 | `enabled` | Whether the rule is active |
 | `selector` | Which slice of the file universe the rule addresses (see above) |
 | `path` | A path glob (Symfony Finder `**` syntax), e.g. `**/*.pdf`. A bare `**`, `/` or empty value makes the rule its segment's default |
-| `algos` | One or more of `sha1`, `md5`, `sha256`, `sha512`, `sha3-256`, `sha3-512`, `crc32`, `adler32` |
+| `algos` | One or more of the algorithms this instance allows — `GET /api/v1/algorithms`, or admin settings → *Hash Algorithms*. Shipped default: `sha1`, `md5`, `adler32`, `crc32`, `sha256`, `sha384`, `sha512`, `sha3-256`, `sha3-384`, `sha3-512` |
 | `mode` | How outdated hashes are handled (see below) |
 | `admin_enforced` | Whether users may edit the rule (admin-only lock) |
 | `type` | `include` (default), `ignore`, or `exclude` — see below |

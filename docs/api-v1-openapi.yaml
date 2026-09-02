@@ -44,7 +44,7 @@ paths:
           description: Algorithm filter
           schema:
             type: string
-            enum: [sha1, md5, sha256, sha512, sha3-256, sha3-512, crc32, adler32]
+            description: "Any name GET /api/v1/algorithms lists for this instance. The set is configured, not fixed; the shipped default is sha1, md5, adler32, crc32, sha256, sha384, sha512, sha3-256, sha3-384 and sha3-512."
             example: sha1
         - name: limit
           in: query
@@ -146,7 +146,7 @@ paths:
               properties:
                 algo:
                   type: string
-                  enum: [sha1, md5, sha256, sha512, sha3-256, sha3-512, crc32, adler32]
+                  description: "Any name GET /api/v1/algorithms lists for this instance. The set is configured, not fixed; the shipped default is sha1, md5, adler32, crc32, sha256, sha384, sha512, sha3-256, sha3-384 and sha3-512."
                   default: sha1
                   description: Hash algorithm (default sha1)
                   example: sha256
@@ -181,7 +181,7 @@ paths:
           description: Algorithm filter
           schema:
             type: string
-            enum: [sha1, md5, sha256, sha512, sha3-256, sha3-512, crc32, adler32]
+            description: "Any name GET /api/v1/algorithms lists for this instance. The set is configured, not fixed; the shipped default is sha1, md5, adler32, crc32, sha256, sha384, sha512, sha3-256, sha3-384 and sha3-512."
             example: sha1
         - name: minCount
           in: query
@@ -233,6 +233,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/StatusResponse"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/v1/algorithms:
+    get:
+      tags: [status]
+      summary: The algorithms this instance computes, and its default
+      description: >-
+        What this server's PHP offers, narrowed to what the administrator has
+        allowed. Every `algo` parameter in this API accepts exactly these names.
+        Names are restricted to `[a-z0-9-]+` because they double as metadata
+        keys. Not fixed: ask, and cache per session.
+      operationId: getAlgorithms
+      responses:
+        "200":
+          description: The catalogue in force
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlgorithmsResponse"
         "500":
           $ref: "#/components/responses/ServerError"
 
@@ -512,6 +532,19 @@ components:
           items:
             $ref: "#/components/schemas/HashEntry"
 
+    AlgorithmsResponse:
+      type: object
+      required: [algorithms, default]
+      properties:
+        algorithms:
+          type: array
+          items:
+            type: string
+          example: [sha1, md5, adler32, crc32, sha256, sha384, sha512, sha3-256, sha3-384, sha3-512]
+        default:
+          type: string
+          description: Used when no algorithm is named; the first in force.
+          example: sha1
     HashEntry:
       type: object
       required: [algo, hash]

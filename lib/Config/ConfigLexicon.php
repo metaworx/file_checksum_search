@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Config;
 
+use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCP\Config\Lexicon\Entry;
 use OCP\Config\Lexicon\ILexicon;
 use OCP\Config\Lexicon\Strictness;
@@ -44,6 +45,14 @@ class ConfigLexicon
 				type: ValueType::STRING,
 				defaultRaw: '[]',
 				definition: 'JSON array of rule definitions for hash generation.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
+				key: AlgorithmCatalogue::CONFIG_KEY,
+				type: ValueType::ARRAY,
+				defaultRaw: AlgorithmCatalogue::DEFAULT_ALLOWLIST,
+				definition: 'Hash algorithms this instance computes, from what PHP offers. Empty falls back to the shipped default.',
 				lazy: false,
 				flags: IAppConfig::FLAG_INTERNAL,
 			),

@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Command;
 
 use OCA\FileChecksumSearch\Command\HashFiles;
+use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
@@ -20,6 +21,7 @@ use OCP\Files\File;
 use OCP\Files\Folder;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use OCP\IAppConfig;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -40,6 +42,8 @@ class HashFilesTest
 
 	private MockObject|LoggerInterface  $logger;
 
+	private AlgorithmCatalogue $catalogue;
+
 	private CommandTester               $tester;
 
 
@@ -53,6 +57,7 @@ class HashFilesTest
 		$this->filecacheService = $this->createMock( FilecacheService::class );
 		$this->ruleService      = $this->createMock( RuleService::class );
 		$this->logger           = $this->createMock( LoggerInterface::class );
+		$this->catalogue = new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) );
 
 		$command      = new HashFiles(
 			$this->hashIndexService,
@@ -60,6 +65,7 @@ class HashFilesTest
 			$this->filecacheService,
 			$this->ruleService,
 			$this->logger,
+			$this->catalogue,
 		);
 		$this->tester = new CommandTester( $command );
 	}
@@ -164,7 +170,7 @@ class HashFilesTest
 		                       ->method( 'generateMissingHashes' )
 		                       ->with(
 			                       'alice',
-			                       HashCalculationService::SUPPORTED_ALGOS,
+			                       AlgorithmCatalogue::DEFAULT_ALLOWLIST,
 			                       null,
 			                       0,
 			                       $this->anything(),
@@ -1067,6 +1073,7 @@ class HashFilesTest
 			$this->filecacheService,
 			$this->ruleService,
 			$this->logger,
+			$this->catalogue,
 		) )->getDefinition();
 
 		$this->assertSame(

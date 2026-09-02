@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
 use InvalidArgumentException;
 use OCA\FileChecksumSearch\BackgroundJob\ApplyRuleJob;
+use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Controller\RulesController;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\GroupFolderService;
@@ -19,6 +20,7 @@ use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\AppFramework\Http;
+use OCP\IAppConfig;
 use OCP\BackgroundJob\IJobList;
 use OCP\IGroupManager;
 use OCP\IRequest;
@@ -87,13 +89,14 @@ class RulesControllerTest
 			                         // Real validator over the same mocks: the
 			                         // existing payload tests keep exercising
 			                         // validation through the controller door.
-			                         new RuleDefinitionValidator( $this->groupManager, $this->userManager ),
+			                         new RuleDefinitionValidator( $this->groupManager, $this->userManager, new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ) ),
 			                         $this->userManager,
 			                         $this->jobList,
 			                         $this->groupFolderService,
 			                         $this->filecacheService,
 			                         $this->logger,
-		                         ] )
+					new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ),
+			] )
 		                         ->getMock()
 		;
 	}

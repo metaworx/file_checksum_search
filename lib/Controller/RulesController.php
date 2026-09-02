@@ -12,9 +12,9 @@ namespace OCA\FileChecksumSearch\Controller;
 use InvalidArgumentException;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\ApplyRuleJob;
+use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\GroupFolderService;
-use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCA\FileChecksumSearch\Service\RuleService;
@@ -75,6 +75,7 @@ class RulesController
 		private readonly GroupFolderService      $groupFolderService,
 		private readonly FilecacheService        $filecacheService,
 		private readonly LoggerInterface         $logger,
+		private readonly AlgorithmCatalogue      $catalogue,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -121,7 +122,7 @@ class RulesController
 					: $userId,
 			),
 			'canCreate'      => $isAdmin || $this->permissionService->canUserEditRules( $userId ),
-			'supportedAlgos' => HashCalculationService::SUPPORTED_ALGOS,
+			'supportedAlgos' => $this->catalogue->algorithms(),
 			'modes'          => RuleService::MODES,
 			'types'          => RuleService::TYPES,
 		];

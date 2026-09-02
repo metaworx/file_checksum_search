@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Command;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
@@ -46,6 +47,7 @@ class HashFiles
 		private readonly FilecacheService $filecacheService,
 		private readonly RuleService      $ruleService,
 		private readonly LoggerInterface  $logger,
+		private readonly AlgorithmCatalogue $catalogue,
 	) {
 
 		parent::__construct();
@@ -154,7 +156,7 @@ class HashFiles
 
 		$invalid = array_diff(
 			$algos,
-			HashCalculationService::SUPPORTED_ALGOS,
+			$this->catalogue->algorithms(),
 			[ HashCalculationService::ALGO_AUTO ],
 		);
 
@@ -470,7 +472,7 @@ class HashFiles
 
 				if ( $token === 'all' )
 				{
-					$tokens = array_merge( $tokens, HashCalculationService::SUPPORTED_ALGOS );
+					$tokens = array_merge( $tokens, $this->catalogue->algorithms() );
 
 					continue;
 				}

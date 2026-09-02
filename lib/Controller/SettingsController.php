@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Controller;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
@@ -42,6 +43,7 @@ class SettingsController
 		private readonly PermissionService $permissionService,
 		private readonly IAppConfig        $appConfig,
 		private readonly JobStatsService   $jobStats,
+		private readonly AlgorithmCatalogue $catalogue,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -102,7 +104,7 @@ class SettingsController
 	 * @noinspection PhpUnused
 	 */
 	#[NoCSRFRequired]
-	#[ApiRoute( verb: 'GET', url: '/settings/admin-options' )]
+	#[ApiRoute( verb: 'GET', url: '/settings/global' )]
 	public function getAdminOptions(): DataResponse
 	{
 
@@ -132,6 +134,12 @@ class SettingsController
 			'groups'         => $this->permissionService->getGroups( PermissionService::PERMISSION_RULE_EDITING ),
 			'users'          => $this->permissionService->getUsers( PermissionService::PERMISSION_RULE_EDITING ),
 			'availableUsers' => $users,
+			// The catalogue, both halves: what is in force, and what this PHP
+			// build could offer if allowed. The picker shows the second and
+			// marks the first.
+			'allowedAlgorithms'   => $this->catalogue->algorithms(),
+			'availableAlgorithms' => $this->catalogue->available(),
+			'defaultAlgorithm'    => $this->catalogue->default(),
 		] );
 	}
 
@@ -141,7 +149,7 @@ class SettingsController
 	 *
 	 * @noinspection PhpUnused
 	 */
-	#[ApiRoute( verb: 'POST', url: '/settings/admin-options/save' )]
+	#[ApiRoute( verb: 'PUT', url: '/settings/global' )]
 	public function saveAdminOptions(): DataResponse
 	{
 
@@ -158,27 +166,55 @@ class SettingsController
 			);
 		}
 
-		$allowAll = (bool) ( $body['allowAllUsers'] ?? false );
-		$groups   = $body['groups'] ?? [];
-		$users    = $body['users'] ?? [];
-
-		if ( ! is_array( $groups ) )
-		{
-			$groups = [ $groups ];
-		}
-
-		if ( ! is_array( $users ) )
-		{
-			$users = [ $users ];
-		}
+		// Every field is optional and an absent one is left as it is: the
+		// page has more than one section saving to this endpoint, and a
+		// section must be able to save its own part without resetting the
+		// others to defaults it never showed.
+		$allowAll   = array_key_exists( 'allowAllUsers', $body ) ? (bool) $body['allowAllUsers'] : null;
+		$groups     = $this->listOrNull( $body, 'groups' );
+		$users      = $this->listOrNull( $body, 'users' );
+		// A list that would leave nothing in force is refused rather than
+		// silently replaced by the default, because the administrator asked
+		// for something and should hear that it could not be done.
+		$algorithms = $this->listOrNull( $body, 'allowedAlgorithms' );
 
 		try
 		{
-			$this->permissionService->setAllUsersEnabled( PermissionService::PERMISSION_RULE_EDITING, $allowAll );
-			$this->permissionService->setGroups( PermissionService::PERMISSION_RULE_EDITING, $groups );
-			$this->permissionService->setUsers( PermissionService::PERMISSION_RULE_EDITING, $users );
+			if ( $allowAll !== null )
+			{
+				$this->permissionService->setAllUsersEnabled( PermissionService::PERMISSION_RULE_EDITING, $allowAll );
+			}
 
-			return new DataResponse( [ 'success' => true ] );
+			if ( $groups !== null )
+			{
+				$this->permissionService->setGroups( PermissionService::PERMISSION_RULE_EDITING, $groups );
+			}
+
+			if ( $users !== null )
+			{
+				$this->permissionService->setUsers( PermissionService::PERMISSION_RULE_EDITING, $users );
+			}
+
+			if ( $algorithms !== null )
+			{
+				$kept = $this->catalogue->setAllowlist( $algorithms );
+
+				if ( $kept === [] )
+				{
+					return new DataResponse(
+						[
+							'success' => false,
+							'error'   => 'None of the requested algorithms is available on this server; the previous list is kept.',
+						],
+						Http::STATUS_BAD_REQUEST,
+					);
+				}
+			}
+
+			return new DataResponse( [
+				'success'           => true,
+				'allowedAlgorithms' => $this->catalogue->algorithms(),
+			] );
 		}
 		catch ( Throwable $e )
 		{
@@ -211,6 +247,28 @@ class SettingsController
 	{
 
 		return file_get_contents( 'php://input' );
+	}
+
+
+	/**
+	 * A body field as a list, or null when the field is absent. A scalar is
+	 * one entry, so a client sending a single value is not sending nothing.
+	 *
+	 * @return list<mixed>|null
+	 */
+	private function listOrNull(
+		array  $body,
+		string $key,
+	): ?array {
+
+		if ( ! array_key_exists( $key, $body ) )
+		{
+			return null;
+		}
+
+		return is_array( $body[ $key ] )
+			? array_values( $body[ $key ] )
+			: [ $body[ $key ] ];
 	}
 
 }

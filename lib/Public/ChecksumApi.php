@@ -10,7 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Public;
 
 use OCA\FileChecksumSearch\Service\DuplicateService;
-use OCA\FileChecksumSearch\Service\HashCalculationService;
+use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
@@ -50,6 +50,7 @@ class ChecksumApi
 		private readonly RuleDefinitionValidator $definitionValidator,
 		private readonly PermissionService       $permissionService,
 		private readonly IGroupManager           $groupManager,
+		private readonly AlgorithmCatalogue      $catalogue,
 	) {
 	}
 
@@ -395,7 +396,7 @@ class ChecksumApi
 			];
 		}
 
-		$algo ??= HashCalculationService::getDefaultAlgo();
+		$algo ??= $this->catalogue->default();
 
 		return $this->hashIndexService->recalcHash( $fileId, $algo );
 	}

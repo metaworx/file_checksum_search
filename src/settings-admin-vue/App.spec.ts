@@ -102,8 +102,8 @@ function mockFetch(options: { rules?: unknown[], idleBannerAcknowledged?: boolea
 				availableGroups: [],
 			}))
 		}
-		if (url.includes('/settings/admin-options')) {
-			return Promise.resolve(jsonResponse({ allowAllUsers: false, groups: [], users: [], availableUsers: [] }))
+		if (url.includes('/settings/global')) {
+			return Promise.resolve(jsonResponse({ allowAllUsers: false, groups: [], users: [], availableUsers: [], allowedAlgorithms: ['sha1', 'sha256'], availableAlgorithms: ['sha1', 'md5', 'sha256'], defaultAlgorithm: 'sha1' }))
 		}
 		return Promise.resolve(jsonResponse({ success: true }))
 	})

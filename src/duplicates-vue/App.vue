@@ -15,6 +15,7 @@ import { useDuplicates } from './composables/useDuplicates'
 import type { DuplicateGroup as GroupType } from './composables/useDuplicates'
 import DocsViewer from '../docs-vue/DocsViewer.vue'
 import { OCS_ADMIN } from '../routes'
+import { fetchAlgorithms, toAlgoOptions } from '../algorithms'
 
 const {
 	algo,
@@ -34,16 +35,22 @@ const {
 	nextPage,
 } = useDuplicates()
 
-const algoOptions = [
-	{ value: '', label: 'All algorithms' },
-	{ value: 'sha1', label: 'SHA-1' },
-	{ value: 'md5', label: 'MD5' },
-	{ value: 'sha256', label: 'SHA-256' },
-	{ value: 'sha512', label: 'SHA-512' },
-	{ value: 'sha3-256', label: 'SHA3-256' },
-	{ value: 'sha3-512', label: 'SHA3-512' },
-	{ value: 'crc32', label: 'CRC32' },
-]
+// The filter offers what the instance computes, read from the server: a
+// list carried here would be wrong the day an administrator enabled an
+// algorithm, and it was — this page listed seven of the eight the app
+// always supported, and `adler32` could not be browsed for duplicates.
+const algoOptions = ref<{ value: string, label: string }[]>([{ value: '', label: 'All algorithms' }])
+
+fetchAlgorithms()
+	.then(({ algorithms }) => {
+		algoOptions.value = [
+			{ value: '', label: 'All algorithms' },
+			...toAlgoOptions(algorithms).map((o) => ({ value: o.id, label: o.label })),
+		]
+	})
+	.catch(() => {
+		// The filter stays at "All algorithms"; the page still works.
+	})
 
 const verifiedOnly = ref(false)
 const activeTab = ref<'duplicates' | 'help'>('duplicates')

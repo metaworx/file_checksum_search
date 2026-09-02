@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
+use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
@@ -21,6 +22,7 @@ use OCP\Files\Storage\IStorage;
 use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\Lock\ILockingProvider;
 use PHPUnit\Framework\MockObject\MockObject;
+use OCP\IAppConfig;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -44,6 +46,8 @@ class HashCalculationServiceTest
 
 	private LoggerInterface&MockObject  $logger;
 
+	private AlgorithmCatalogue $catalogue;
+
 	/** @var HashCalculationService&MockObject */
 	private HashCalculationService $service;
 
@@ -58,6 +62,9 @@ class HashCalculationServiceTest
 		$this->metadataService  = $this->createMock( MetadataService::class );
 		$this->ruleService      = $this->createMock( RuleService::class );
 		$this->logger           = $this->createMock( LoggerInterface::class );
+		// Real catalogue over a mocked app config: [] stored, so the shipped
+		// default list is in force — what an untouched instance has.
+		$this->catalogue = new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) );
 
 		$this->service = $this->getMockBuilder( HashCalculationService::class )
 		                      ->onlyMethods( [ 'recalcHashes' ] )
@@ -68,6 +75,7 @@ class HashCalculationServiceTest
 				                      $this->metadataService,
 				                      $this->ruleService,
 				                      $this->logger,
+					$this->catalogue,
 			                      ],
 		                      )
 		                      ->getMock()
@@ -80,50 +88,26 @@ class HashCalculationServiceTest
 	public function testIsValidAlgoAcceptsSupportedAlgo(): void
 	{
 
-		$this->assertTrue( HashCalculationService::isValidAlgo( 'sha256' ) );
+		$this->assertTrue( $this->service->isValidAlgo( 'sha256' ) );
 	}
 
 
 	public function testIsValidAlgoRejectsUnsupportedString(): void
 	{
 
-		$this->assertFalse( HashCalculationService::isValidAlgo( 'bogus' ) );
+		$this->assertFalse( $this->service->isValidAlgo( 'bogus' ) );
 	}
 
 
 	public function testIsValidAlgoRejectsNonString(): void
 	{
 
-		$this->assertFalse( HashCalculationService::isValidAlgo( 42 ) );
-		$this->assertFalse( HashCalculationService::isValidAlgo( null ) );
-		$this->assertFalse( HashCalculationService::isValidAlgo( [ 'sha256' ] ) );
+		$this->assertFalse( $this->service->isValidAlgo( 42 ) );
+		$this->assertFalse( $this->service->isValidAlgo( null ) );
+		$this->assertFalse( $this->service->isValidAlgo( [ 'sha256' ] ) );
 	}
 
 
-	/**
-	 * Canary for FCIAS Review §2, Finding 7: this list is mirrored by
-	 * hand in src/algorithms.ts (SUPPORTED_ALGOS), with no automated
-	 * cross-language check. If this test forces you to update it,
-	 * update the TS mirror (and its own canary test in
-	 * src/algorithms.spec.ts) in the same commit.
-	 */
-	public function testSupportedAlgosMatchesFrontendMirror(): void
-	{
-
-		$this->assertSame(
-			[
-				'sha1',
-				'md5',
-				'adler32',
-				'crc32',
-				'sha256',
-				'sha512',
-				'sha3-256',
-				'sha3-512',
-			],
-			HashCalculationService::SUPPORTED_ALGOS,
-		);
-	}
 
 
 	// recalcFileHash
@@ -958,6 +942,7 @@ class HashCalculationServiceTest
 				            $this->metadataService,
 				            $this->ruleService,
 				            $this->logger,
+					$this->catalogue,
 			            ],
 		            )
 		            ->getMock()
@@ -1196,6 +1181,7 @@ class HashCalculationServiceTest
 			$this->metadataService,
 			$this->ruleService,
 			$this->logger,
+			$this->catalogue,
 		);
 	}
 
@@ -1785,7 +1771,7 @@ class HashCalculationServiceTest
 			] as $algo
 		)
 		{
-			$this->assertContains( $algo, HashCalculationService::SUPPORTED_ALGOS );
+			$this->assertContains( $algo, MetadataService::LEGACY_ALGOS );
 		}
 	}
 
@@ -1793,7 +1779,7 @@ class HashCalculationServiceTest
 	public function testTheDefaultAlgorithmIsSha1(): void
 	{
 
-		$this->assertSame( 'sha1', HashCalculationService::getDefaultAlgo() );
+		$this->assertSame( 'sha1', $this->service->getDefaultAlgo() );
 	}
 
 }

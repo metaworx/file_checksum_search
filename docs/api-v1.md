@@ -74,7 +74,7 @@ Search for files matching a given hash value.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `$hash` | `string` | Yes | Hex-encoded hash (8/32/40/64/128 chars depending on algorithm) |
-| `$algo` | `?string` | No | Algorithm filter (`sha1`, `md5`, `sha256`, `sha512`, `sha3-256`, `sha3-512`, `crc32`, `adler32`) |
+| `$algo` | `?string` | No | Algorithm filter — any name `GET /api/v1/algorithms` lists for this instance |
 | `$limit` | `int` | No | Max results (1–500, default 100) |
 | `$requestingUser` | `?string` | No | Whose permissions the answer is checked against. `null` means server-side authority — the caller has already established who is asking, or is the server itself. A uid filters the result to what that user could open. |
 
@@ -305,6 +305,7 @@ Responses are nonetheless plain JSON: these are `ApiController`s, not `OCSContro
 | 10 | `/api/v1/rules/{id}` | DELETE | — | Delete a rule |
 | 11 | `/api/v1/rules/order` | PUT | — | Reorder one segment partition |
 | 12 | `/api/v1/rules/{id}/apply` | POST | — | Queue a full apply pass for one rule |
+| 13 | `/api/v1/algorithms` | GET | — | The algorithms this instance computes, and its default |
 
 > **Note:** `getHashesByFile()` and `getHashesByPath()` are PHP-only convenience methods with no HTTP equivalent. HTTP consumers should use `getHashesByFileId()` after obtaining a `fileId` from NC's WebDAV PROPFIND or other APIs.
 
@@ -491,6 +492,32 @@ No parameters.
 }
 ```
 
+#### 7. Algorithms
+
+```
+GET /ocs/v2.php/apps/file_checksum_search/api/v1/algorithms
+```
+
+No parameters.
+
+**Response (200):**
+```json
+{
+  "algorithms": ["sha1", "md5", "adler32", "crc32", "sha256", "sha384", "sha512", "sha3-256", "sha3-384", "sha3-512"],
+  "default": "sha1"
+}
+```
+
+The set is not fixed. It is what this server's PHP offers, narrowed to what the
+administrator has allowed (admin settings → *Hash Algorithms*); the example above
+is the shipped default. Every `algo` parameter in this API accepts exactly the
+names this endpoint lists, and `default` is what is used when none is given. A
+client that carries its own list will be wrong the day an administrator changes
+this one — ask, and cache per session.
+
+Names are restricted to `[a-z0-9-]+` because they double as metadata keys, so
+PHP algorithms such as `sha512/256` or `tiger192,3` are never offered.
+
 ---
 
 ## Rules
@@ -543,7 +570,7 @@ from two already present, free to disagree with them. Compose it client-side if 
 | `type` | string | `include` (default) \| `ignore` \| `exclude` |
 | `path` | string | glob, Symfony Finder `**` syntax |
 | `selector` | string | `home:<uid>` \| `group:<gid>` \| `home:*` \| `groupfolder:<id>` \| `storage:<raw id>` \| `*` — split at the **first** colon, so a raw storage id may contain more |
-| `algos` | string[] | include rules only |
+| `algos` | string[] | include rules only; each a name `GET /api/v1/algorithms` lists |
 | `mode` | string | include rules only: `auto` \| `missing` \| `force` \| `lazy` |
 | `admin_enforced` | bool | administrator-only |
 | `isDefault` | bool | computed: the rule's path is a bare catch-all, placing it in its segment's defaults partition |

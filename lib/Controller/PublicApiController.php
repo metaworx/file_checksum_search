@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Controller;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Public\ChecksumApi;
+use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\DuplicateService;
 use OCP\AppFramework\ApiController;
 use OCP\AppFramework\Http;
@@ -48,6 +49,7 @@ class PublicApiController
 		private readonly IUserSession    $userSession,
 		private readonly IGroupManager   $groupManager,
 		private readonly LoggerInterface $logger,
+		private readonly AlgorithmCatalogue $catalogue,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -84,6 +86,30 @@ class PublicApiController
 	 *
 	 * @noinspection PhpUnused
 	 */
+	/**
+	 * The algorithms this instance computes, and the one used when none is
+	 * named.
+	 *
+	 * Neither is fixed: the set is what PHP offers narrowed to what the
+	 * administrator allows, and every picker in the app reads it from here
+	 * rather than carrying its own copy — which is what lets an
+	 * administrator enable `sha384` without a release.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/algorithms' )]
+	public function getAlgorithms(): DataResponse
+	{
+
+		return new DataResponse( [
+			'algorithms' => $this->catalogue->algorithms(),
+			'default'    => $this->catalogue->default(),
+		] );
+	}
+
+
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
 	#[ApiRoute( verb: 'GET', url: '/api/v1/file/{fileId}/hashes' )]

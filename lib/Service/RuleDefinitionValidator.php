@@ -31,8 +31,9 @@ readonly class RuleDefinitionValidator
 {
 
 	public function __construct(
-		private IGroupManager $groupManager,
-		private IUserManager  $userManager,
+		private IGroupManager      $groupManager,
+		private IUserManager       $userManager,
+		private AlgorithmCatalogue $catalogue,
 	) {
 	}
 
@@ -96,7 +97,7 @@ readonly class RuleDefinitionValidator
 			throw new InvalidArgumentException( 'Unknown rule mode.' );
 		}
 
-		$algos = $body['algos'] ?? ( $existing['algos'] ?? [ HashCalculationService::getDefaultAlgo() ] );
+		$algos = $body['algos'] ?? ( $existing['algos'] ?? [ $this->catalogue->default() ] );
 
 		if ( ! is_array( $algos ) )
 		{
@@ -106,9 +107,9 @@ readonly class RuleDefinitionValidator
 		$algos = array_values(
 			array_filter(
 				$algos,
-				static fn(
+				fn(
 					$algo,
-				): bool => HashCalculationService::isValidAlgo( $algo ),
+				): bool => $this->catalogue->isValid( $algo ),
 			),
 		);
 
