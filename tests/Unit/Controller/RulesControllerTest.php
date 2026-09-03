@@ -271,6 +271,36 @@ class RulesControllerTest
 	}
 
 
+	/**
+	 * An unexpected failure answers generically and logs the detail: a DB
+	 * exception's message carries driver text and SQL fragments, and create
+	 * is reachable by anyone with rule-editing permission.
+	 */
+	public function testCreateHidesAnUnexpectedFailureBehindAGenericMessage(): void
+	{
+
+		$this->signIn( 'theadmin', isAdmin: true );
+		$this->body( [
+			'path'  => '/Documents',
+			'algos' => [ 'sha1' ],
+		] );
+
+		$this->ruleService->method( 'ruleAdd' )
+		                  ->willThrowException(
+			                  new \OCP\DB\Exception( 'SQLSTATE[42S02]: Base table or view not found: oc_fcias_rules' ),
+		                  )
+		;
+		$this->logger->expects( $this->once() )
+		             ->method( 'error' )
+		;
+
+		$response = $this->controller->create();
+
+		$this->assertSame( Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus() );
+		$this->assertSame( 'Internal server error.', $response->getData()['error'] );
+	}
+
+
 	public function testCreateReturnsTheStoredRuleIncludingItsId(): void
 	{
 
@@ -935,8 +965,11 @@ class RulesControllerTest
 			'orderedIds' => [],
 		] );
 
+		// The message leaks nothing: a DB exception's own text carries
+		// driver detail and SQL, and this branch answers anyone with the
+		// rule-editing permission. Generic to the client, detail to the log.
 		$this->ruleService->method( 'reorderSegment' )
-		                  ->willThrowException( new RuntimeException( 'config write failed' ) )
+		                  ->willThrowException( new RuntimeException( 'config write failed: INSERT INTO oc_fcias_rules …' ) )
 		;
 
 		$this->logger->expects( $this->once() )
@@ -946,7 +979,7 @@ class RulesControllerTest
 		$response = $this->controller->reorder();
 
 		$this->assertSame( Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus() );
-		$this->assertSame( 'config write failed', $response->getData()['error'] );
+		$this->assertSame( 'Internal server error.', $response->getData()['error'] );
 	}
 
 

@@ -694,10 +694,16 @@ class RulesController
 			],
 		);
 
+		// Generic to the client, detail to the log: $e->getMessage() on a
+		// DB exception carries driver text and SQL fragments, and this is
+		// reached by anyone with rule-editing permission. The validation
+		// errors above (badRequest) are written for the editor and stay;
+		// this branch is the unexpected failure. PublicApiController does
+		// the same.
 		return new DataResponse(
 			[
 				'success' => false,
-				'error'   => $e->getMessage(),
+				'error'   => 'Internal server error.',
 			],
 			Http::STATUS_INTERNAL_SERVER_ERROR,
 		);
