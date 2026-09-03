@@ -1138,23 +1138,15 @@ class MetadataServiceTest
 		      ->willReturn( $fullHashB )
 		;
 
-		$this->metadataManager->method( 'getMetadata' )
-		                      ->willReturnMap( [
-			                      [
-				                      42,
-				                      true,
-				                      $metaA,
-			                      ],
-			                      [
-				                      108,
-				                      true,
-				                      $metaA,
-			                      ],
-			                      [
-				                      256,
-				                      true,
-				                      $metaB,
-			                      ],
+		// One batched read for the whole group's documents, not a query
+		// per member.
+		$this->metadataManager->expects( $this->once() )
+		                      ->method( 'getMetadataForFiles' )
+		                      ->with( [ 42, 108, 256 ] )
+		                      ->willReturn( [
+			                      42  => $metaA,
+			                      108 => $metaA,
+			                      256 => $metaB,
 		                      ] )
 		;
 
@@ -1204,8 +1196,12 @@ class MetadataServiceTest
 		     ->willReturn( $fullHash )
 		;
 
-		$this->metadataManager->method( 'getMetadata' )
-		                      ->willReturn( $meta )
+		$this->metadataManager->method( 'getMetadataForFiles' )
+		                      ->with( [ 42, 108 ] )
+		                      ->willReturn( [
+			                      42  => $meta,
+			                      108 => $meta,
+		                      ] )
 		;
 
 		$groups = $this->service->queryDuplicates( 'sha256', 2 );

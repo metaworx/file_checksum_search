@@ -2932,13 +2932,18 @@ class MetadataService
 			$metaKey    = $group[ self::FIELD_META_KEY ];
 			$byFullHash = [];
 
+			// One batched read for the whole group's documents, not a query
+			// per member: a group on a common hash (the empty file) can hold
+			// thousands of ids, and each used to cost its own round trip.
+			$documents = $this->metadataManager->getMetadataForFiles( $group['file_ids'] );
+
 			foreach ( $group['file_ids'] as $fileId )
 			{
 				try
 				{
-					$fullHash = $this->getMetadata( $fileId )
-					                 ->getString( $metaKey )
-					;
+					$fullHash = isset( $documents[ $fileId ] )
+						? $documents[ $fileId ]->getString( $metaKey )
+						: throw new FilesMetadataNotFoundException( (string) $fileId );
 				}
 				catch ( FilesMetadataNotFoundException|FilesMetadataTypeException )
 				{
