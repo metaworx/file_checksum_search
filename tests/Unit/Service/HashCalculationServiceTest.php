@@ -806,6 +806,12 @@ class HashCalculationServiceTest
 	}
 
 
+	/**
+	 * The mock here is the point. `getHashes()` answers `algo => hash`, and
+	 * this test used to stub it with a plain list — so the assertion below
+	 * passed while the production path fed the *hashes* to `recalcHashes()`
+	 * as algorithm names and recomputed nothing.
+	 */
 	public function testRecalcAllExistingAlgosOnlyRecalculatesExisting(): void
 	{
 
@@ -840,8 +846,8 @@ class HashCalculationServiceTest
 		                      ->with( $metadata )
 		                      ->willReturn(
 			                      [
-				                      'sha1',
-				                      'sha256',
+				                      'sha1'   => 'aaa',
+				                      'sha256' => 'bbb',
 			                      ],
 		                      )
 		;

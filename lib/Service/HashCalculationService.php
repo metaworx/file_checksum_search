@@ -779,10 +779,14 @@ class HashCalculationService
 		}
 		else
 		{
-			$algos = $this->metadataService->getHashes( $metadata );
+			// getHashes() answers algo => hash. The names are the keys; the
+			// values are the hashes themselves, and passing those as
+			// algorithm names is how this used to recompute nothing at all —
+			// recalcHashes() rejects each one as unsupported.
+			$algos = array_keys( $this->metadataService->getHashes( $metadata ) );
 		}
 
-		$batch = $this->recalcHashes( $file, array_values( $algos ), true, $metadata );
+		$batch = $this->recalcHashes( $file, $algos, true, $metadata );
 
 		$processed = 0;
 
