@@ -175,7 +175,7 @@ class MetadataService
 
 			try
 			{
-				$hashes[ (string) self::getAlgorithmenFromKey( $key ) ] = $fileOrMetadata->getString( $key );
+				$hashes[ self::algorithmFromKey( $key ) ] = $fileOrMetadata->getString( $key );
 			}
 			catch ( FilesMetadataNotFoundException|FilesMetadataTypeException )
 			{
@@ -238,6 +238,7 @@ class MetadataService
 	 * Get pending statistics grouped by meta_value_string.
 	 *
 	 * @return array<string, int>
+	 * @throws \OCP\DB\Exception
 	 */
 	public function getPendingStats(): array
 	{
@@ -279,6 +280,7 @@ class MetadataService
 	 * Get the updated_at timestamp for a file from the metadata index.
 	 *
 	 * @return int|null Unix timestamp or null if not set
+	 * @throws \OCP\DB\Exception
 	 */
 	public function getUpdatedAt( int|File|IFilesMetadata $fileOrMetadata ): ?int
 	{
@@ -579,6 +581,8 @@ class MetadataService
 
 	/**
 	 * Count metadata index entries for a given file_id.
+	 *
+	 * @throws \OCP\DB\Exception
 	 */
 	public function countByFileId( int $fileId ): int
 	{
@@ -758,7 +762,7 @@ class MetadataService
 		}
 
 		// Determine algo from input or from meta_key
-		$resultAlgo = MetadataService::getAlgorithmenFromKey( $metaKey );
+		$resultAlgo = MetadataService::algorithmFromKey( $metaKey );
 
 		return [
 			'algo' => $resultAlgo,
@@ -771,6 +775,7 @@ class MetadataService
 	 * Fetch a batch of pending rows ordered by file_id.
 	 *
 	 * @return array<int, array{file_id: int, meta_value_string: string}>
+	 * @throws \OCP\DB\Exception
 	 */
 	public function fetchPendingBatch( int $limit = 50 ): array
 	{
@@ -815,6 +820,8 @@ class MetadataService
 	 * absence means "never considered". (This replaces the old contract of
 	 * refusing to insert and relying on universal seeding, which made every
 	 * mark on an unseeded file a silent no-op.)
+	 *
+	 * @throws \OCP\DB\Exception
 	 */
 	public function markPending(
 		int    $fileId,
@@ -1361,6 +1368,8 @@ class MetadataService
 
 	/**
 	 * How many files lost their hashes to erosion and have not been re-hashed.
+	 *
+	 * @throws \OCP\DB\Exception
 	 */
 	public function countEroded(): int
 	{
@@ -2597,6 +2606,7 @@ class MetadataService
 	 *                                             a person.
 	 *
 	 * @return array<int, array{file_id: int}>
+	 * @throws \OCP\DB\Exception
 	 */
 	public function queryByHash(
 		string     $hash,
@@ -2731,6 +2741,7 @@ class MetadataService
 	 * of long hashes (SHA-512/SHA3-512 truncated in index).
 	 *
 	 * @return array<int, array{meta_key: string, meta_value_string: string, file_count: int, file_ids: int[]}>
+	 * @throws \OCP\DB\Exception
 	 */
 	public function queryDuplicates(
 		?string $algo = null,
@@ -3029,6 +3040,7 @@ class MetadataService
 	 * Count all hash metadata index entries (file-checksum-* keys excluding updated_at).
 	 *
 	 * @return int
+	 * @throws \OCP\DB\Exception
 	 */
 	public function countHashEntries(): int
 	{
@@ -3055,11 +3067,14 @@ class MetadataService
 
 
 	/**
-	 * @param  mixed  $metaKey
+	 * The algorithm a metadata key names.
 	 *
-	 * @return mixed|string|string[]
+	 * The inverse of {@see hashKey()} and {@see legacyHashKey()}, and it has
+	 * to know about both: a document written before the key rename still
+	 * spells the prefix the old way, and the repair reads one before
+	 * renaming it.
 	 */
-	public static function getAlgorithmenFromKey( mixed $metaKey ): mixed
+	public static function algorithmFromKey( string $metaKey ): string
 	{
 
 		// The hash prefix first: stripping the shorter one from

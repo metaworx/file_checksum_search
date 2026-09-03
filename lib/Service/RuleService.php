@@ -985,6 +985,7 @@ class RuleService
 	 * Append a new rule at the end of the band its scope and flags place it
 	 * in (the stable band sort in {@see saveRules()} does the placing).
 	 *
+	 * @return string  The new rule's id
 	 * @throws JsonException
 	 * @throws \Random\RandomException
 	 */
@@ -1222,6 +1223,7 @@ class RuleService
 	 *
 	 * @return array{matched: int, marked: int, skipped: int, fresh: int}
 	 * @throws InvalidArgumentException for a disabled or non-include rule, or an unknown mode
+	 * @throws \OCP\DB\Exception
 	 */
 	public function applyRule(
 		array            $rule,

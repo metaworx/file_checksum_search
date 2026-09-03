@@ -147,7 +147,7 @@ class ChecksumApi
 	 * @param  string       $path  Filesystem path
 	 * @param  string|null  $user  If provided, path is relative to this user's home
 	 *
-	 * @return array{fileid: int, path: string, hashes: array<int, array{algo: string, hash: string}>}
+	 * @return array{fileid: int, path: string, hashes: array<int, array{algo: string, hash: string, updated_at: ?string}>, algos: list<string>, preferred: string, default: string}
 	 * @throws NotFoundException  If the path cannot be resolved to a file
 	 */
 	public function getHashesByPath(
@@ -211,6 +211,8 @@ class ChecksumApi
 	 *                                       system-wide.
 	 *
 	 * @return array{results: array<int, array{fileid: int, algo: string, hash: string, path: string, name: string}>}
+	 * @throws \InvalidArgumentException  When $hash is empty once trimmed. The
+	 *                                    REST layer turns this into a 400.
 	 */
 	public function findByHash(
 		string  $hash,
@@ -391,7 +393,10 @@ class ChecksumApi
 	 *                                       pass null) for trusted/admin callers
 	 *                                       that intentionally bypass this check.
 	 *
-	 * @return array{success: bool, algo?: string, hash?: string, fileid?: int, error?: string}
+	 * @return array{success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string}
+	 *         `excluded` says a rule refused the file rather than anything
+	 *         going wrong, and names the rule in `ruleId`; the REST layer
+	 *         answers 403 for it and 400 for every other failure.
 	 */
 	public function recalcHash(
 		int     $fileId,

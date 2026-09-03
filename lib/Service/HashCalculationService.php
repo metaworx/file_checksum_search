@@ -1116,10 +1116,12 @@ class HashCalculationService
 	 * in the filecache, then write it back.
 	 *
 	 * If the checksum already exists for this algo, it is returned
-	 * without recomputation.  For forced recalculation, use
-	 * {@see recalcFileHash()} with skipExisting = false.
+	 * without recomputation. Pass $skipExisting = false to recompute it
+	 * anyway.
 	 *
-	 * @return array{success: bool, algo: string, hash: string, existed: bool}
+	 * @return array{success: bool, algo: string, hash: string, existed: bool, locked?: bool, error?: string}
+	 *         `locked` means another process holds the file and nothing was
+	 *         computed — a reason to come back later, not a failure.
 	 */
 	public function recalcFileHash(
 		File            $file,
@@ -1153,7 +1155,15 @@ class HashCalculationService
 
 
 	/**
-	 * Recalculate hash for a file by fileId, resolving through rootFolder.
+	 * Recalculate one algorithm's hash for a file, resolving a fileId
+	 * through the root folder first.
+	 *
+	 * Never throws: a fileid that resolves to nothing, or to something that
+	 * is not a file, comes back as an unsuccessful result carrying the
+	 * reason, because every caller is answering a request that should say
+	 * what went wrong rather than failing.
+	 *
+	 * @return array{success: bool, algo: string, hash: string, existed: bool, locked?: bool, error?: string}
 	 */
 	public function recalcHash(
 		int|File        $file,

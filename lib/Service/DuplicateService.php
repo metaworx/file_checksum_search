@@ -61,11 +61,11 @@ class DuplicateService
 			array $row,
 		): array {
 
-			// Through getAlgorithmenFromKey(), never stripped inline: taking
+			// Through algorithmFromKey(), never stripped inline: taking
 			// only `file-checksum-` off `file-checksum-hash-sha1` leaves
 			// `hash-sha1`, which is not an algorithm anyone can recalculate —
 			// and recalculating is exactly what the page does next.
-			$algo = MetadataService::getAlgorithmenFromKey(
+			$algo = MetadataService::algorithmFromKey(
 				$row[ MetadataService::FIELD_META_KEY ],
 			);
 
