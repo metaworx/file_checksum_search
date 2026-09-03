@@ -44,6 +44,10 @@ export interface DuplicateScope {
 
 interface State {
 	algo: string
+	/** Filter to hashes this names; empty is no filter. */
+	hash: string
+	/** Match the term anywhere in the hash rather than at its start. */
+	anywhere: boolean
 	minCount: number
 	limit: number
 	offset: number
@@ -61,6 +65,8 @@ interface State {
 export function useDuplicates() {
 	const state = reactive<State>({
 		algo: '',
+		hash: '',
+		anywhere: false,
 		minCount: 2,
 		limit: 50,
 		offset: 0,
@@ -95,6 +101,12 @@ export function useDuplicates() {
 			})
 			if (state.algo) {
 				params.set('algo', state.algo)
+			}
+			if (state.hash.trim()) {
+				params.set('hash', state.hash.trim())
+				if (state.anywhere) {
+					params.set('anywhere', '1')
+				}
 			}
 
 			// A scope means the cross-account route. It carries the password

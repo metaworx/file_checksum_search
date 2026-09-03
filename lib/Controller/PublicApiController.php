@@ -466,6 +466,8 @@ class PublicApiController
 		int     $minCount = 2,
 		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,
 		int     $offset = 0,
+		?string $hash = null,
+		bool    $anywhere = false,
 	): DataResponse {
 
 		$scope = $this->scopeOrRefusal();
@@ -475,7 +477,7 @@ class PublicApiController
 			return $scope;
 		}
 
-		$response = $this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset );
+		$response = $this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere );
 
 		// Whether the caller may switch to the instance-wide view. Rides on
 		// the listing the page loads anyway, so the page needs no second
@@ -507,13 +509,15 @@ class PublicApiController
 		int     $minCount = 2,
 		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,
 		int     $offset = 0,
+		?string $hash = null,
+		bool    $anywhere = false,
 	): DataResponse {
 
 		$scope = $this->sudoScopeOrRefusal( $user );
 
 		return $scope instanceof DataResponse
 			? $scope
-			: $this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset );
+			: $this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere );
 	}
 
 
@@ -527,6 +531,8 @@ class PublicApiController
 		int     $minCount,
 		int     $limit,
 		int     $offset,
+		?string $hash = null,
+		bool    $anywhere = false,
 	): DataResponse {
 
 		$this->logger->debug(
@@ -542,7 +548,7 @@ class PublicApiController
 
 		try
 		{
-			$result = $this->api->findDuplicatesFor( $scope, $algo, $minCount, $limit, $offset );
+			$result = $this->api->findDuplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere );
 
 			return new DataResponse( $result );
 		}

@@ -215,6 +215,57 @@ describe('useDuplicates', () => {
 	})
 })
 
+describe('the hash filter', () => {
+	afterEach(() => {
+		vi.restoreAllMocks()
+	})
+
+	it('sends nothing extra when the field is empty', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ duplicates: [] }))
+		const { load } = useDuplicates()
+
+		await load()
+
+		const url = String(fetchMock.mock.calls[0][0])
+		expect(url).not.toContain('hash=')
+		expect(url).not.toContain('anywhere=')
+	})
+
+	it('sends the term, trimmed, and no anywhere flag by default', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ duplicates: [] }))
+		const { hash, load } = useDuplicates()
+
+		hash.value = '  0beec7  '
+		await load()
+
+		const url = String(fetchMock.mock.calls[0][0])
+		expect(url).toContain('hash=0beec7')
+		expect(url).not.toContain('anywhere=')
+	})
+
+	it('sends the anywhere flag when asked', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ duplicates: [] }))
+		const { hash, anywhere, load } = useDuplicates()
+
+		hash.value = 'eec7'
+		anywhere.value = true
+		await load()
+
+		expect(String(fetchMock.mock.calls[0][0])).toContain('anywhere=1')
+	})
+
+	// The flag alone filters nothing; without a term it must not narrow.
+	it('ignores the anywhere flag with no term', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ duplicates: [] }))
+		const { anywhere, load } = useDuplicates()
+
+		anywhere.value = true
+		await load()
+
+		expect(String(fetchMock.mock.calls[0][0])).not.toContain('anywhere=')
+	})
+})
+
 describe('the instance-wide view', () => {
 	const statusResponse = (status: number, body: unknown = {}): Response =>
 		({ ok: status < 400, status, json: () => Promise.resolve(body) } as unknown as Response)

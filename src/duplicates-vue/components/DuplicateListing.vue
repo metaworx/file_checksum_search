@@ -57,10 +57,15 @@ const HELP = {
 		+ 'as duplicates. Two is every duplicate; a higher number finds the widely copied ones.',
 	limit: 'How many groups one page shows. Verify hashes recomputes every file on the page, '
 		+ 'and recomputation is rate limited, so a smaller page verifies in one go.',
+	hash: 'Show only groups whose checksum this names. Whole values come first, then those that '
+		+ 'start with what you typed. Tick Search anywhere to match it in the middle of a hash too. '
+		+ 'Upper case is fine.',
 }
 
 const {
 	canSudo,
+	hash,
+	anywhere,
 	// Renamed: the prop is the caller's wish, this ref is what the composable
 	// currently asks the server for. The watcher below copies one to the other.
 	scope: activeScope,
@@ -82,6 +87,31 @@ const {
 } = useDuplicates()
 
 const verifiedOnly = ref(false)
+
+/**
+ * The hash field reloads as it is typed, but not per keystroke: a hash is
+ * long, and each character would otherwise cost a query whose answer is
+ * thrown away by the next one.
+ */
+let hashTimer: ReturnType<typeof setTimeout> | undefined
+
+function onHashInput(value: string | number): void {
+	hash.value = String(value)
+	clearTimeout(hashTimer)
+	hashTimer = setTimeout(() => {
+		resetOffset()
+		load()
+	}, 300)
+}
+
+function onAnywhere(value: boolean): void {
+	anywhere.value = value
+	// Only worth re-asking when there is a term for it to change.
+	if (hash.value.trim()) {
+		resetOffset()
+		load()
+	}
+}
 
 // NcTextField emits string | number; the composable wants a bounded integer.
 function bounded(value: string | number, min: number, max: number, fallback: number): number {
@@ -198,7 +228,29 @@ onMounted(() => {
 					title="Groups per page, 1 to 500"
 					@update:model-value="limit = bounded($event, 1, 500, 50)" />
 			</div>
+			<div class="db-field db-field--hash">
+				<span class="db-label">
+					<label :for="`${props.idPrefix}-hash`">Hash</label>
+					<HelpPopover :text="HELP.hash" label="Hash" />
+				</span>
+				<NcTextField
+					:id="`${props.idPrefix}-hash`"
+					:model-value="hash"
+					label="Hash"
+					label-outside
+					placeholder="Whole or start of a checksum"
+					title="Show only groups whose checksum starts with this"
+					@update:model-value="onHashInput" />
+			</div>
 			<div class="db-actions">
+				<span :data-testid="`${props.idPrefix}-anywhere`">
+					<NcCheckboxRadioSwitch
+						:model-value="anywhere"
+						title="Match the term anywhere in the hash, not only at its start"
+						@update:model-value="onAnywhere">
+						Search anywhere
+					</NcCheckboxRadioSwitch>
+				</span>
 				<NcButton variant="primary" @click="refresh">
 					Refresh
 				</NcButton>
@@ -273,6 +325,11 @@ onMounted(() => {
 
 .db-field--narrow {
 	width: 100px;
+}
+
+/* Wide enough for a sha1 to be read back, and it wraps with the rest. */
+.db-field--hash {
+	width: 320px;
 }
 
 .db-label {

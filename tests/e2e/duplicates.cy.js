@@ -169,13 +169,18 @@ describe( 'FCIAS Duplicates page', () => {
 
 	// Every control says what it is, with a label a reader can see and a
 	// help button beside it. By the `for`, not the caption.
-	it( 'labels the algorithm, min and limit controls', () => {
+	it( 'labels the algorithm, min, limit and hash controls', () => {
 		cy.visit( DUPLICATES_URL )
-		for ( const id of [ 'fcias-duplicates-algorithm', 'fcias-duplicates-min', 'fcias-duplicates-limit' ] ) {
+		for ( const id of [
+			'fcias-duplicates-algorithm',
+			'fcias-duplicates-min',
+			'fcias-duplicates-limit',
+			'fcias-duplicates-hash',
+		] ) {
 			cy.get( `label[for="${ id }"]`, { timeout: FIND_TIMEOUT } ).should( 'exist' )
 			cy.get( `#${ id }` ).should( 'exist' )
 		}
-		cy.get( '.db-label .fcias-help-icon' ).should( 'have.length', 3 )
+		cy.get( '.db-label .fcias-help-icon' ).should( 'have.length', 4 )
 	} )
 
 	// The tab asks the server who may be named, and shows the listing on its
@@ -192,6 +197,27 @@ describe( 'FCIAS Duplicates page', () => {
 		cy.get( '[data-testid="fcias-awaiting-scope"]' ).should( 'exist' )
 		// Its own controls, so the ordinary tab's filters are left alone.
 		cy.get( '#fcias-others-min' ).should( 'exist' )
+	} )
+
+	// The filter narrows to a group this run planted, by the start of its
+	// hash; a fragment from the middle finds nothing until Search anywhere
+	// says to look there too.
+	it( 'filters the listing by hash, and by fragment when asked', () => {
+		cy.visit( DUPLICATES_URL )
+
+		ownGroup().should( 'have.length', 1 )
+
+		cy.get( '#fcias-duplicates-hash', { timeout: FIND_TIMEOUT } ).type( DUP_HASH.slice( 0, 6 ) )
+		cy.get( '.db-group', { timeout: FIND_TIMEOUT } ).should( 'have.length', 1 )
+		ownGroup().should( 'have.length', 1 )
+
+		// A slice from the middle: no prefix matches it.
+		cy.get( '#fcias-duplicates-hash' ).clear().type( DUP_HASH.slice( 6, 12 ) )
+		cy.get( '.db-empty', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+
+		cy.get( '[data-testid="fcias-duplicates-anywhere"] input[type="checkbox"]' )
+			.click( { force: true } )
+		ownGroup().should( 'have.length', 1 )
 	} )
 
 	// A bookmarked #others opens the tab, the way #help does. The hash
