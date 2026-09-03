@@ -23,13 +23,58 @@ Cypress.on( 'uncaught:exception', ( err ) => {
 	return ours
 } )
 
+// Every account this spec logs in as. A form login mints a browser token in
+// oc_authtoken, and nothing in a test run ever ends that session: the suite
+// had left 918 of them on the administrator before anyone looked. Throwaway
+// accounts take their tokens with them when they are deleted; the
+// administrator does not.
+const loggedInAs = new Set()
+
 Cypress.Commands.add( 'login', ( user = 'admin', password = 'admin' ) => {
+	loggedInAs.add( user )
 	cy.session( [ user, password ], () => {
 		cy.visit( '/login' )
 		cy.get( 'input[name="user"]' ).type( user )
 		cy.get( 'input[name="password"]' ).type( `${ password }{enter}` )
 		// Wait until we leave the login page
 		cy.url().should( 'not.include', '/login' )
+	} )
+} )
+
+// Delete the tokens this run's logins minted. Not by logging out: a session
+// cannot be restored inside an after() hook — Cypress replays the login form
+// instead, which mints one more token and fails outright for an account the
+// spec has just deleted. By name, through occ: every token the test browser
+// makes carries "Cypress/" in its user agent, and no real browser's does, so
+// the sweep never reaches a person's own session. An account that no longer
+// exists makes occ fail, which is the expected answer and is ignored.
+after( () => {
+	// cy.env(), not Cypress.env(): this suite runs with allowCypressEnv off,
+	// and the specs read occ the same way.
+	cy.env( [ 'occ' ] ).then( ( { occ } ) => {
+		if ( ! occ ) {
+			return
+		}
+		for ( const user of loggedInAs ) {
+			cy.exec( `${ occ } user:auth-tokens:list ${ user } --output=json`, { failOnNonZeroExit: false } )
+				// No exit-code check: the result's `code` is undefined here,
+				// and a non-JSON answer (an account that is already gone)
+				// fails the parse below, which is the same outcome.
+				.then( ( { stdout } ) => {
+					let tokens = []
+					try {
+						tokens = JSON.parse( stdout )
+					} catch ( e ) {
+						return
+					}
+					for ( const token of tokens ) {
+						if ( String( token.name ).includes( 'Cypress/' ) ) {
+							cy.exec( `${ occ } user:auth-tokens:delete ${ user } ${ token.id }`, { failOnNonZeroExit: false } )
+						}
+					}
+				} )
+		}
+		loggedInAs.clear()
 	} )
 } )
 
