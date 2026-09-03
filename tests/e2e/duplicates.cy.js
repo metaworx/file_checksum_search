@@ -165,6 +165,37 @@ describe( 'FCIAS Duplicates page', () => {
 		cy.get( '[data-testid="fcias-show-all"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 	} )
 
+	// Every control says what it is, with a label a reader can see and a
+	// help button beside it. By the `for`, not the caption.
+	it( 'labels the algorithm, min and limit controls', () => {
+		cy.visit( DUPLICATES_URL )
+		for ( const id of [ 'fcias-duplicates-algorithm', 'fcias-duplicates-min', 'fcias-duplicates-limit' ] ) {
+			cy.get( `label[for="${ id }"]`, { timeout: FIND_TIMEOUT } ).should( 'exist' )
+			cy.get( `#${ id }` ).should( 'exist' )
+		}
+		cy.get( '.db-label .fcias-help-icon' ).should( 'have.length', 3 )
+	} )
+
+	// On, the page lists every account's files through the sudo route, and
+	// the switch turns red for as long as it does; off is back to one's own.
+	// Core's confirmation dialog is skipped within thirty minutes of a login,
+	// which a Cypress session always is.
+	it( 'turns "Show all users" red while the view is instance-wide', () => {
+		cy.intercept( 'GET', '**/apps/file_checksum_search/api/v1/sudo/duplicates*' ).as( 'sudoList' )
+		cy.visit( DUPLICATES_URL )
+
+		const wrapper = '[data-testid="fcias-show-all"]'
+		const input = `${ wrapper } input[type="checkbox"]`
+
+		cy.get( wrapper, { timeout: FIND_TIMEOUT } ).should( 'not.have.class', 'db-sudo-on' )
+		cy.get( input ).click( { force: true } )
+		cy.wait( '@sudoList', { timeout: FIND_TIMEOUT } )
+		cy.get( wrapper ).should( 'have.class', 'db-sudo-on' )
+
+		cy.get( input ).click( { force: true } )
+		cy.get( wrapper ).should( 'not.have.class', 'db-sudo-on' )
+	} )
+
 	it( 'does not offer "Show all users" to an account nobody named', () => {
 		cy.env( [ 'NC_ADMIN_USER', 'NC_ADMIN_PASSWORD' ] ).then( ( env ) => {
 			const admin = { user: env.NC_ADMIN_USER || 'admin', password: env.NC_ADMIN_PASSWORD || 'admin' }

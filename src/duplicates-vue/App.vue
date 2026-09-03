@@ -13,6 +13,7 @@ import NcButton from '@nextcloud/vue/components/NcButton'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 import AlgorithmSelect from '../components/AlgorithmSelect.vue'
+import HelpPopover from '../components/HelpPopover.vue'
 import DuplicateGroup from './components/DuplicateGroup.vue'
 import VerifyButton from './components/VerifyButton.vue'
 import { useDuplicates } from './composables/useDuplicates'
@@ -75,6 +76,16 @@ fetchAlgorithms()
 	.catch(() => {
 		// The filter stays at "All algorithms"; the page still works.
 	})
+
+/** What each control decides, for the help button beside its label. */
+const HELP = {
+	algo: 'Only groups of this algorithm, or every algorithm at once. The list is what this '
+		+ 'server computes; an algorithm nobody has enabled is not offered.',
+	min: 'The smallest group to list: how many files must share a checksum before they count '
+		+ 'as duplicates. Two is every duplicate; a higher number finds the widely copied ones.',
+	limit: 'How many groups one page shows. Verify hashes recomputes every file on the page, '
+		+ 'and recomputation is rate limited, so a smaller page verifies in one go.',
+}
 
 // NcTextField emits string | number; the composable wants a bounded integer.
 function bounded(value: string | number, min: number, max: number, fallback: number): number {
@@ -157,55 +168,88 @@ onMounted(() => {
 				</div>
 
 				<template v-if="activeTab === 'duplicates'">
+					<!-- Labelled columns that flow on one row where there is room. The
+					     labels are the page's own: NcTextField with label-outside renders
+					     none, and drops its class on the input rather than its root, which
+					     is why each field is sized by the wrapper around it. -->
 					<div class="db-controls">
-						<AlgorithmSelect
-							v-model="algo"
-							:algorithms="algorithmIds"
-							:leading="ALL_ALGORITHMS"
-							input-id="fcias-duplicates-algorithm"
-							label="Algorithm"
-							class="db-control db-control--algo" />
-						<NcTextField
-							:model-value="minCount"
-							type="number"
-							label="Min"
-							label-outside
-							min="2"
-							max="100"
-							class="db-control db-control--narrow"
-							@update:model-value="minCount = bounded($event, 2, 100, 2)" />
-						<NcTextField
-							:model-value="limit"
-							type="number"
-							label="Limit"
-							label-outside
-							min="1"
-							max="500"
-							class="db-control db-control--narrow"
-							@update:model-value="limit = bounded($event, 1, 500, 50)" />
-						<NcButton variant="primary" @click="refresh">
-							Refresh
-						</NcButton>
-						<VerifyButton :verifying="verifying" :has-verified="hasVerified" @verify="onVerify" />
-						<!-- The wrapper carries the test hook: the component does not put attributes on an ancestor of its input. -->
-						<span data-testid="fcias-only-matching">
-							<NcCheckboxRadioSwitch
-								v-model="verifiedOnly"
-								title="Show only groups where all files were confirmed matching">
-								Only matching
-							</NcCheckboxRadioSwitch>
-						</span>
-						<!-- Only for a viewer the listing reports may look across accounts.
-						     On costs a password; off, or a reload, is back to one's own files. -->
-						<span v-if="canSudo" data-testid="fcias-show-all">
-							<NcCheckboxRadioSwitch
-								:model-value="showAll"
-								type="switch"
-								title="Every account's duplicates, after confirming your password"
-								@update:model-value="onShowAll">
-								Show all users
-							</NcCheckboxRadioSwitch>
-						</span>
+						<div class="db-field db-field--algo">
+							<span class="db-label">
+								<label for="fcias-duplicates-algorithm">Algorithm</label>
+								<HelpPopover :text="HELP.algo" label="Algorithm" />
+							</span>
+							<AlgorithmSelect
+								v-model="algo"
+								:algorithms="algorithmIds"
+								:leading="ALL_ALGORITHMS"
+								input-id="fcias-duplicates-algorithm"
+								label="Algorithm" />
+						</div>
+						<div class="db-field db-field--narrow">
+							<span class="db-label">
+								<label for="fcias-duplicates-min">Min</label>
+								<HelpPopover :text="HELP.min" label="Min" />
+							</span>
+							<NcTextField
+								id="fcias-duplicates-min"
+								:model-value="minCount"
+								type="number"
+								label="Min"
+								label-outside
+								min="2"
+								max="100"
+								title="Smallest group to list: files sharing a checksum, 2 to 100"
+								@update:model-value="minCount = bounded($event, 2, 100, 2)" />
+						</div>
+						<div class="db-field db-field--narrow">
+							<span class="db-label">
+								<label for="fcias-duplicates-limit">Limit</label>
+								<HelpPopover :text="HELP.limit" label="Limit" />
+							</span>
+							<NcTextField
+								id="fcias-duplicates-limit"
+								:model-value="limit"
+								type="number"
+								label="Limit"
+								label-outside
+								min="1"
+								max="500"
+								title="Groups per page, 1 to 500"
+								@update:model-value="limit = bounded($event, 1, 500, 50)" />
+						</div>
+						<div class="db-actions">
+							<NcButton variant="primary" @click="refresh">
+								Refresh
+							</NcButton>
+							<VerifyButton :verifying="verifying" :has-verified="hasVerified" @verify="onVerify" />
+							<!-- The wrapper carries the test hook: the component does not put attributes on an ancestor of its input. -->
+							<span data-testid="fcias-only-matching">
+								<NcCheckboxRadioSwitch
+									v-model="verifiedOnly"
+									title="Show only groups where all files were confirmed matching">
+									Only matching
+								</NcCheckboxRadioSwitch>
+							</span>
+							<!-- Only for a viewer the listing reports may look across accounts.
+							     On costs a password; off, or a reload, is back to one's own files.
+							     Red while on: it is the one control that changes whose files are
+							     shown, and that must not be missed. -->
+							<span
+								v-if="canSudo"
+								data-testid="fcias-show-all"
+								class="db-sudo"
+								:class="{ 'db-sudo-on': showAll }">
+								<NcCheckboxRadioSwitch
+									:model-value="showAll"
+									type="switch"
+									:title="showAll
+										? 'Showing every account\'s duplicates — switch off to see only your own'
+										: 'Every account\'s duplicates, after confirming your password'"
+									@update:model-value="onShowAll">
+									Show all users
+								</NcCheckboxRadioSwitch>
+							</span>
+						</div>
 					</div>
 
 					<div class="db-scroll">
@@ -285,26 +329,94 @@ onMounted(() => {
 	padding: 8px 0;
 }
 
+/* One row where there is room, wrapping where there is not; everything
+   sits on the fields' bottom edge, the labels above their fields. */
 .db-controls {
 	display: flex;
-	gap: 8px;
+	gap: 8px 12px;
 	margin-bottom: 16px;
 	flex-wrap: wrap;
+	/* The labels line up along the top; the select is a few pixels taller
+	   than a text field, and that difference is better hidden at the bottom. */
+	align-items: flex-start;
+}
+
+.db-field {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+/* NcSelect's own minimum is 260px; a narrower wrapper is overflowed, and the
+   chevron ends up under the next field. */
+.db-field--algo {
+	width: 260px;
+}
+
+.db-field--algo :deep(.v-select.select) {
+	min-width: 0;
+	width: 100%;
+}
+
+.db-field--narrow {
+	width: 100px;
+}
+
+.db-label {
+	display: flex;
 	align-items: center;
+	gap: 2px;
+	font-weight: 600;
+	color: var(--color-text-maxcontrast);
 }
 
-.db-control--algo {
-	min-width: 220px;
+/* The help button is sized for a settings row; beside a small label it is
+   trimmed to the label's height so the row does not grow around it. */
+.db-label :deep(.fcias-help-icon) {
+	width: 24px;
+	height: 24px;
+	min-width: 24px;
+	min-height: 24px;
 }
 
-.db-control--narrow {
-	width: 110px;
-}
-
-/* Outside labels sit above the fields; the buttons and the switch align on the fields' bottom edge. */
-.db-controls :deep(.button-vue),
-.db-controls :deep(.checkbox-radio-switch) {
+.db-actions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	align-items: center;
+	/* On the fields' bottom edge, the labels being above the fields. */
 	align-self: flex-end;
+}
+
+.db-sudo {
+	display: inline-flex;
+}
+
+/* The instance-wide view, while it is on: red, so a page of everyone's
+   files is never mistaken for one's own. On the rounded content box inside
+   the switch — the one that carries the radius and the hover background —
+   not on the square outer box, whose corners showed behind it. The tripled
+   class outweighs the component's own checked-and-hovered rule, which
+   stacks two :not() on the outer box. */
+.db-sudo-on :deep(.checkbox-radio-switch__content) {
+	background-color: var(--color-error);
+}
+
+.db-sudo-on :deep(.checkbox-radio-switch--checked .checkbox-radio-switch__content.checkbox-radio-switch__content.checkbox-radio-switch__content:hover),
+.db-sudo-on :deep(.checkbox-radio-switch--checked:focus-within .checkbox-radio-switch__content.checkbox-radio-switch__content.checkbox-radio-switch__content) {
+	background-color: var(--color-error-hover, var(--color-error));
+}
+
+.db-sudo-on :deep(.checkbox-radio-switch__text),
+.db-sudo-on :deep(.checkbox-radio-switch__icon) {
+	color: var(--color-error-text);
+}
+
+/* The toggle's track is a path filled from a colour the icon component
+   sets on itself, so the wrapper's colour never reaches it; the fill is
+   set on the path. The knob keeps its own fill and stays readable. */
+.db-sudo-on :deep(.checkbox-radio-switch__icon svg path) {
+	fill: var(--color-error-text);
 }
 
 .db-scroll {
@@ -330,7 +442,8 @@ onMounted(() => {
 }
 
 .db-error {
-	color: var(--color-error);
+	/* The palette's text red; --color-error is the background one. */
+	color: var(--color-error-text);
 	text-align: center;
 	padding: 16px;
 }

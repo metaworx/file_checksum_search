@@ -40,6 +40,9 @@ Open **Duplicates** from the top navigation (or the URL
 same checksum. The page has two tabs: **Duplicates**, and **Help**, which
 is this guide.
 
+Each control carries its label, and an **i** button beside the label says what
+it decides.
+
 - **Algorithm** — filter to one hash algorithm, or *All algorithms*. The list
   offers whatever your administrator has enabled on this server.
 - **Min** — the minimum number of files a group must contain to be listed.
@@ -50,6 +53,10 @@ is this guide.
   to 20 files per minute, so a long list stops partway with a message; wait a
   minute and click again to continue with the rest.
 - **Only matching** — show only groups that passed verification.
+- **Show all users** — offered only if your administrator lets you look across
+  accounts. On asks for your password, then lists every account's duplicates;
+  the switch stays red for as long as it does. Off, or a reload, is back to
+  your own files.
 
 Click a group header to expand it and see the files in the group; each file
 opens in the Files app **in a new tab**. Long lists are paged with
