@@ -430,7 +430,7 @@ class PublicApiController
 
 		try
 		{
-			$result = $this->api->getStatus();
+			$result = $this->api->getStatus( $this->userSession->getUser()?->getUID() );
 
 			return new DataResponse( $result );
 		}

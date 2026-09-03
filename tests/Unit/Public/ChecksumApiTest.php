@@ -792,13 +792,18 @@ class ChecksumApiTest
 
 	// ─── getStatus ──────────────────────────────────────────────────
 
-	public function testGetStatusReturnsExpectedShape(): void
+	public function testGetStatusGivesAnAdminTheWholeSnapshot(): void
 	{
+
+		$this->groupManager->method( 'isAdmin' )
+		                   ->with( 'theadmin' )
+		                   ->willReturn( true )
+		;
 
 		// StatusService is a real instance with mocked collaborators.
 		// The collaborators return defaults (null/0), so we verify the
 		// response shape rather than exact values.
-		$status = $this->api->getStatus();
+		$status = $this->api->getStatus( 'theadmin' );
 
 		$this->assertArrayHasKey( 'version', $status );
 		$this->assertArrayHasKey( 'dbVersion', $status );
@@ -806,6 +811,24 @@ class ChecksumApiTest
 		$this->assertArrayHasKey( 'pendingRows', $status );
 		$this->assertIsInt( $status['rowCount'] );
 		$this->assertIsInt( $status['pendingRows'] );
+	}
+
+
+	/**
+	 * The version is a compatibility marker and harmless; the rest describes
+	 * the instance and is the administrator's. A non-admin — including the
+	 * anonymous caller, uid null — gets the version and nothing else.
+	 */
+	public function testGetStatusGivesANonAdminTheVersionAlone(): void
+	{
+
+		$this->groupManager->method( 'isAdmin' )
+		                   ->willReturn( false )
+		;
+
+		$status = $this->api->getStatus( 'bob' );
+
+		$this->assertSame( [ 'version' ], array_keys( $status ) );
 	}
 
 

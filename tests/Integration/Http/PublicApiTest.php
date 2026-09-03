@@ -137,19 +137,23 @@ class PublicApiTest
 
 	// ─── GET /api/v1/status ──────────────────────────────────────────
 
-	public function testStatusEndpoint(): void
+	/**
+	 * The test account is a non-admin (made for the run, in no group), so
+	 * the status it gets is the version and nothing that describes the
+	 * instance — its database version, how much it holds, its backlog are
+	 * the administrator's to see.
+	 */
+	public function testStatusEndpointGivesANonAdminTheVersionAlone(): void
 	{
 
 		$response = $this->httpGet( '/api/v1/status' );
 
 		$this->assertIsArray( $response );
 		$this->assertArrayHasKey( 'version', $response, 'Status should include version.' );
-		$this->assertArrayHasKey( 'dbVersion', $response, 'Status should include dbVersion.' );
-		$this->assertArrayHasKey( 'rowCount', $response, 'Status should include rowCount.' );
-		$this->assertArrayHasKey( 'pendingRows', $response, 'Status should include pendingRows.' );
 		$this->assertIsString( $response['version'] );
-		$this->assertIsInt( $response['rowCount'] );
-		$this->assertIsInt( $response['pendingRows'] );
+		$this->assertArrayNotHasKey( 'dbVersion', $response, 'A non-admin must not see the database version.' );
+		$this->assertArrayNotHasKey( 'rowCount', $response, 'A non-admin must not see the index size.' );
+		$this->assertArrayNotHasKey( 'pendingRows', $response, 'A non-admin must not see the backlog.' );
 	}
 
 

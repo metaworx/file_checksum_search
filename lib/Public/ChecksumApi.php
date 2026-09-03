@@ -188,8 +188,19 @@ class ChecksumApi
 	 *
 	 * @return array{version: string, dbVersion: string, rowCount: int, pendingRows: int}
 	 */
-	public function getStatus(): array
+	public function getStatus( ?string $requestingUser = null ): array
 	{
+
+		// The version is harmless — clients check it for compatibility. The
+		// rest describes the instance (its database version, how much it
+		// holds, its backlog) and is the administrator's to see, not every
+		// account's.
+		if ( ! $this->actsAsAdmin( $requestingUser ) )
+		{
+			return [
+				'version' => $this->statusService->getAppVersion(),
+			];
+		}
 
 		return [
 			'version'     => $this->statusService->getAppVersion(),

@@ -64,7 +64,9 @@ class SettingsController
 	 *
 	 * @noinspection PhpUnused
 	 */
-	#[NoAdminRequired]
+	// Admin-only: the status describes the instance — its database version,
+	// how much it holds, its hashing backlog, its jobs — and only the admin
+	// page reads it. No #[NoAdminRequired].
 	#[NoCSRFRequired]
 	#[ApiRoute( verb: 'GET', url: '/settings/status' )]
 	public function getStatus(): DataResponse

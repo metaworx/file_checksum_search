@@ -371,6 +371,7 @@ class SettingsControllerTest
 	{
 
 		$adminOnlyMethods = [
+			'getStatus',
 			'getAdminOptions',
 			'saveAdminOptions',
 			'acknowledgeIdleBanner',
