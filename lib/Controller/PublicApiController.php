@@ -23,6 +23,7 @@ use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\Files\NotFoundException;
+use OCP\IAppConfig;
 use OCP\IGroupManager;
 use OCP\IRequest;
 use OCP\IUserSession;
@@ -63,6 +64,7 @@ class PublicApiController
 		private readonly ISession        $session,
 		private readonly PermissionService $permissions,
 		private readonly SudoConfirmation $confirmation,
+		private readonly IAppConfig      $appConfig,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -734,6 +736,61 @@ class PublicApiController
 		return $scope instanceof DataResponse
 			? $scope
 			: $this->lookupFor( $hash, $algo, $limit, $scope );
+	}
+
+
+	/**
+	 * The groups and accounts the caller may name on the cross-account
+	 * routes.
+	 *
+	 * The companion question to {@see sudoFindAllDuplicates()}: before you
+	 * can ask for someone's duplicates you have to know whom you may ask
+	 * about. A member of `admin`, or anyone `instance_view` names, may name
+	 * anyone; a sub-admin only the groups they administer and their members;
+	 * anyone else may name nobody and is refused.
+	 *
+	 * `prefill` false means there are more than a picker holds at once, so
+	 * the caller should come back with `?search=` as the user types. The
+	 * threshold is an instance setting (admin settings → Advanced).
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	#[UserRateLimit( limit: 60, period: 60 )]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/selectable' )]
+	public function sudoSelectable( ?string $search = null ): DataResponse
+	{
+
+		$own = $this->scopeOrRefusal();
+
+		if ( $own instanceof DataResponse )
+		{
+			return $own;
+		}
+
+		$offer = $this->sudo->selectableFor(
+			$own,
+			$search,
+			$this->appConfig->getValueInt(
+				Application::APP_ID,
+				ConfigLexicon::CROSS_ACCOUNT_PREFILL_LIMIT,
+			),
+		);
+
+		if ( $offer === false )
+		{
+			return new DataResponse(
+				[ 'success' => false, 'error' => 'Not yours to look at.' ],
+				Http::STATUS_FORBIDDEN,
+			);
+		}
+
+		// Whether the caller may also ask for every account at once — only a
+		// sudoer is offered that.
+		$offer['all'] = $this->sudo->isSudoer( $own );
+
+		return new DataResponse( $offer );
 	}
 
 

@@ -9,7 +9,6 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
-use OCA\FileChecksumSearch\Controller\DuplicatesController;
 use OCA\FileChecksumSearch\Controller\PublicApiController;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use PHPUnit\Framework\TestCase;
@@ -46,7 +45,7 @@ class RateLimitAttributeTest
 			'v1 recalc'         => [ PublicApiController::class, 'recalcHash', 20, 60 ],
 			// The picker's source: cheap per call, but it searches accounts
 			// and groups, so it is metered like the rest.
-			'picker source'     => [ DuplicatesController::class, 'selectable', 60, 60 ],
+			'v1 sudo selectable' => [ PublicApiController::class, 'sudoSelectable', 60, 60 ],
 		];
 	}
 

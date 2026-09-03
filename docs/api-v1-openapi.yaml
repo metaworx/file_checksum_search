@@ -210,6 +210,24 @@ paths:
             type: integer
             minimum: 0
             default: 0
+        - name: hash
+          in: query
+          required: false
+          description: >-
+            Keep only groups whose checksum this names — whole values first, then those beginning
+            with it. Case is ignored. A term longer than the index column's 63 characters is
+            compared there on its first 63 and matched against the metadata document as well, so a
+            full SHA-512 finds exactly its group.
+          schema:
+            type: string
+            example: 0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33
+        - name: anywhere
+          in: query
+          required: false
+          description: Match the term anywhere in the hash rather than only at its start
+          schema:
+            type: boolean
+            default: false
       responses:
         "200":
           description: Duplicate groups
@@ -339,6 +357,57 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
+  /api/v1/sudo/selectable:
+    get:
+      tags: [Sudo]
+      summary: Which groups and accounts the caller may name
+      description: >-
+        The companion to the cross-account routes: before asking for someone's duplicates, a caller
+        has to know whom it may ask about. A member of `admin`, or anyone the `instance_view`
+        permission names, may name anyone; a sub-admin only the groups they administer and those
+        groups' members; anyone else may name nobody and is refused with 403. `prefill` false means
+        there are more than a picker holds at once, so the caller should come back with `search` as
+        the user types; the threshold is an instance setting (admin settings, Advanced).
+      operationId: sudoSelectable
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Narrow the offered groups and accounts as the user types
+          schema:
+            type: string
+      responses:
+        "200":
+          description: What may be named
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  prefill:
+                    type: boolean
+                    description: Whether the lists below are complete
+                  all:
+                    type: boolean
+                    description: Whether the caller may also ask for every account at once
+                  groups:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: {type: string}
+                        label: {type: string}
+                  users:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: {type: string}
+                        label: {type: string}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The caller may name nobody
   /api/v1/sudo/duplicates:
     get:
       tags: [Sudo]
@@ -404,6 +473,19 @@ paths:
           schema:
             type: integer
             default: 0
+        - name: hash
+          in: query
+          required: false
+          description: As on the ordinary route — keep only groups whose checksum this names
+          schema:
+            type: string
+        - name: anywhere
+          in: query
+          required: false
+          description: Match the term anywhere in the hash rather than only at its start
+          schema:
+            type: boolean
+            default: false
       responses:
         "200":
           description: As the ordinary route

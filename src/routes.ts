@@ -18,6 +18,8 @@ export const OCS_API_V1 = {
 	findAllDuplicates: `${APP_BASE}/api/v1/duplicates`,
 	/** GET    /api/v1/sudo/duplicates — every account; password confirmation, sudoers only */
 	sudoFindAllDuplicates: `${APP_BASE}/api/v1/sudo/duplicates`,
+	/** GET    /api/v1/sudo/selectable — the groups and accounts the caller may name */
+	sudoSelectable: `${APP_BASE}/api/v1/sudo/selectable`,
 	/** GET    /api/v1/file/{fileId}/duplicates */
 	findDuplicates: `${APP_BASE}/api/v1/file/{fileId}/duplicates`,
 	/** GET    /api/v1/lookup */
@@ -27,12 +29,6 @@ export const OCS_API_V1 = {
 	getAlgorithms: `${APP_BASE}/api/v1/algorithms`,
 	/** GET/PUT /api/v1/preferences/{key} — the caller's own; first key `preferred_algorithm` */
 	preference: `${APP_BASE}/api/v1/preferences/{key}`,
-} as const
-
-/** The Duplicates page's own endpoints (DuplicatesController). */
-export const OCS_DUPLICATES = {
-	/** GET /duplicates/selectable — the groups and accounts the caller may name */
-	selectable: `${APP_BASE}/duplicates/selectable`,
 } as const
 
 /**

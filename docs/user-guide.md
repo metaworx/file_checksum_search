@@ -52,6 +52,13 @@ it decides.
   and flag groups whose hashes no longer match. Recalculation is rate limited
   to 20 files per minute, so a long list stops partway with a message; wait a
   minute and click again to continue with the rest.
+- **Hash** — show only groups whose checksum this names. Whole values come
+  first, then those that *start* with what you typed, so pasting a full hash
+  finds its group and typing the first few characters narrows the list.
+  Upper case is fine.
+- **Search anywhere** — with **Hash** filled in, match the term anywhere in
+  the checksum rather than only at its start. Useful when you have a fragment
+  from the middle of a hash; slower to narrow, since far more can match.
 - **Only matching** — show only groups that passed verification.
 
 ### Looking at other accounts

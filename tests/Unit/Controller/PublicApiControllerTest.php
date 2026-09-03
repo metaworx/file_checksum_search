@@ -56,6 +56,8 @@ class PublicApiControllerTest
 
 	private SudoConfirmation&MockObject $confirmation;
 
+	private IAppConfig&MockObject $appConfig;
+
 	private PublicApiController        $controller;
 
 
@@ -96,6 +98,10 @@ class PublicApiControllerTest
 		$this->confirmation->method( 'isConfirmed' )
 		                   ->willReturn( true )
 		;
+		$this->appConfig = $this->createMock( IAppConfig::class );
+		$this->appConfig->method( 'getValueInt' )
+		                ->willReturn( 21 )
+		;
 
 		$adminUser = $this->createMock( IUser::class );
 		$adminUser->method( 'getUID' )
@@ -123,6 +129,7 @@ class PublicApiControllerTest
 			$this->session,
 			$this->permissions,
 			$this->confirmation,
+			$this->appConfig,
 		);
 	}
 
@@ -160,6 +167,7 @@ class PublicApiControllerTest
 			$this->session,
 			$this->permissions,
 			$this->confirmation,
+			$this->appConfig,
 		);
 		$this->api->expects( $this->never() )
 		          ->method( 'getHashesByFileId' )
@@ -207,6 +215,7 @@ class PublicApiControllerTest
 			$this->session,
 			$this->permissions,
 			$this->confirmation,
+			$this->appConfig,
 		);
 
 		$this->assertSame( Http::STATUS_FORBIDDEN, $viaToken->getHashes( 42 )->getStatus() );
@@ -231,6 +240,7 @@ class PublicApiControllerTest
 			$this->createMock( ISession::class ),
 			$this->permissions,
 			$this->confirmation,
+			$this->appConfig,
 		);
 
 		$this->assertSame( Http::STATUS_OK, $viaPage->getHashes( 42 )->getStatus() );
@@ -272,6 +282,7 @@ class PublicApiControllerTest
 			$this->session,
 			$this->permissions,
 			$this->confirmation,
+			$this->appConfig,
 		);
 
 		$this->assertSame( Http::STATUS_OK, $controller->getHashes( 42 )->getStatus() );
@@ -335,6 +346,7 @@ class PublicApiControllerTest
 			$this->createMock( ISession::class ),
 			$this->permissions,
 			$this->confirmation,
+			$this->appConfig,
 		);
 
 		$this->assertSame( Http::STATUS_FORBIDDEN, $controller->lookup( 'abc123' )->getStatus() );
@@ -389,6 +401,7 @@ class PublicApiControllerTest
 			$this->session,
 			$this->permissions,
 			$this->confirmation,
+			$this->appConfig,
 		);
 		$this->api->expects( $this->once() )
 		          ->method( 'getHashesByFileId' )
@@ -509,6 +522,7 @@ class PublicApiControllerTest
 			$this->session,
 			$this->permissions,
 			$this->confirmation,
+			$this->appConfig,
 		);
 		$this->api->expects( $this->never() )
 		          ->method( 'getHashesByFileId' )
@@ -691,6 +705,7 @@ class PublicApiControllerTest
 			$this->session,
 			$this->permissions,
 			$this->confirmation,
+			$this->appConfig,
 		);
 
 		$this->api->expects( $this->never() )
@@ -736,6 +751,7 @@ class PublicApiControllerTest
 			$this->session,
 			$this->permissions,
 			$this->confirmation,
+			$this->appConfig,
 		);
 
 		$this->api->expects( $this->once() )
@@ -920,6 +936,7 @@ class PublicApiControllerTest
 			$this->session,
 			$this->permissions,
 			$this->confirmation,
+			$this->appConfig,
 		);
 
 		$this->api->expects( $this->once() )
@@ -1058,6 +1075,7 @@ class PublicApiControllerTest
 			$this->session,
 			$this->permissions,
 			$this->confirmation,
+			$this->appConfig,
 		);
 
 		$this->api->expects( $this->once() )
@@ -1112,6 +1130,7 @@ class PublicApiControllerTest
 			$this->session,
 			$this->permissions,
 			$this->confirmation,
+			$this->appConfig,
 		);
 	}
 

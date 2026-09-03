@@ -311,6 +311,7 @@ Responses are nonetheless plain JSON: these are `ApiController`s, not `OCSContro
 | 16 | `/api/v1/sudo/file/{fileId}/duplicates` | GET | — | Any account's file, duplicates from every account; as 15 |
 | 17 | `/api/v1/sudo/lookup` | GET | — | Every account; as 15 |
 | 18 | `/api/v1/sudo/duplicates` | GET | — | One named account (`user`), a set (`users[]`/`groups[]`, merged), or every account; sudoers, or a sub-admin naming their own members |
+| 19 | `/api/v1/sudo/selectable` | GET | — | Which groups and accounts the caller may name on the routes above |
 
 > **Note:** `getHashesByFile()` and `getHashesByPath()` are PHP-only convenience methods with no HTTP equivalent. HTTP consumers should use `getHashesByFileId()` after obtaining a `fileId` from NC's WebDAV PROPFIND or other APIs.
 
@@ -471,7 +472,7 @@ exactly what `ignore` still allows.
 #### 5. Find All Duplicates
 
 ```
-GET /ocs/v2.php/apps/file_checksum_search/api/v1/duplicates?algo=<algo>&minCount=<n>&limit=<n>&offset=<n>
+GET /ocs/v2.php/apps/file_checksum_search/api/v1/duplicates?algo=<algo>&minCount=<n>&limit=<n>&offset=<n>&hash=<hash>&anywhere=<0|1>
 ```
 
 | Parameter | Type | Required | Default | Max |
@@ -480,6 +481,16 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/duplicates?algo=<algo>&minCount
 | `minCount` | int | No | 2 | — |
 | `limit` | int | No | 50 | 500 |
 | `offset` | int | No | 0 | — |
+| `hash` | string | No | — | — |
+| `anywhere` | bool | No | false | — |
+
+`hash` keeps only the groups whose checksum it names: whole values first, then
+those beginning with it. Case is ignored. With `anywhere=1` the term matches
+anywhere in the hash instead of only at its start.
+
+A term longer than the index column's 63 characters is compared there on its
+first 63 and matched against the metadata document as well — the same two-part
+shape `lookup` uses — so a full SHA-512 finds exactly its group.
 
 **Response (200):**
 ```json
@@ -857,8 +868,7 @@ not read refuses the whole request with 403 rather than quietly narrowing it:
 a listing that answers for fewer accounts than were asked for hides the
 refusal.
 
-**`GET /duplicates/selectable`** (not under `/api/v1/`; it serves the
-Duplicates page) answers what the caller may name — `groups`, `users`, `all`
+**`GET /api/v1/sudo/selectable`** answers what the caller may name — `groups`, `users`, `all`
 for a sudoer, and `prefill` saying whether those lists are complete. When
 `prefill` is false there are more than the picker holds at once and it must
 pass `?search=` as the user types. The threshold is an instance setting

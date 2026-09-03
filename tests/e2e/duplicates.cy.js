@@ -186,7 +186,7 @@ describe( 'FCIAS Duplicates page', () => {
 	// The tab asks the server who may be named, and shows the listing on its
 	// own amber ground with nothing loaded until a target is chosen.
 	it( 'opens the Others tab with a picker and nothing named yet', () => {
-		cy.intercept( 'GET', '**/apps/file_checksum_search/duplicates/selectable*' ).as( 'selectable' )
+		cy.intercept( 'GET', '**/apps/file_checksum_search/api/v1/sudo/selectable*' ).as( 'selectable' )
 		cy.visit( DUPLICATES_URL )
 
 		cy.get( '.db-tab[data-tab="others"]', { timeout: FIND_TIMEOUT } ).click()
@@ -224,7 +224,7 @@ describe( 'FCIAS Duplicates page', () => {
 	// is safe to honour: every cross-account read is confirmed server-side, so
 	// arriving by URL reveals nothing on its own.
 	it( 'opens the Others tab straight from the hash', () => {
-		cy.intercept( 'GET', '**/apps/file_checksum_search/duplicates/selectable*' ).as( 'selectable' )
+		cy.intercept( 'GET', '**/apps/file_checksum_search/api/v1/sudo/selectable*' ).as( 'selectable' )
 		cy.visit( `${ DUPLICATES_URL }#others` )
 
 		cy.get( '[data-testid="fcias-others"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
@@ -234,7 +234,7 @@ describe( 'FCIAS Duplicates page', () => {
 	// A group and an account can carry the same name — "admin" is both on a
 	// stock instance — so the picker says which is which.
 	it( 'marks groups apart from accounts in the picker', () => {
-		cy.intercept( 'GET', '**/apps/file_checksum_search/duplicates/selectable*' ).as( 'selectable' )
+		cy.intercept( 'GET', '**/apps/file_checksum_search/api/v1/sudo/selectable*' ).as( 'selectable' )
 		cy.visit( `${ DUPLICATES_URL }#others` )
 		cy.wait( '@selectable', { timeout: FIND_TIMEOUT } )
 
@@ -250,7 +250,7 @@ describe( 'FCIAS Duplicates page', () => {
 	// that two different selections give different answers is what catches it.
 	it( 'scopes the listing to whoever the picker names', () => {
 		const sudoUrl = '**/apps/file_checksum_search/api/v1/sudo/duplicates*'
-		cy.intercept( 'GET', '**/apps/file_checksum_search/duplicates/selectable*' ).as( 'selectable' )
+		cy.intercept( 'GET', '**/apps/file_checksum_search/api/v1/sudo/selectable*' ).as( 'selectable' )
 		cy.intercept( 'GET', sudoUrl ).as( 'sudoList' )
 
 		cy.visit( `${ DUPLICATES_URL }#others` )

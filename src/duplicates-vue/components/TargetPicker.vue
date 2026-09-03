@@ -14,7 +14,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
-import { OCS_DUPLICATES } from '../../routes'
+import { OCS_API_V1 } from '../../routes'
 import type { DuplicateScope } from '../composables/useDuplicates'
 
 interface Option {
@@ -42,7 +42,7 @@ const noOptionsText = computed(
 async function fetchOptions(search: string | null = null): Promise<void> {
 	loading.value = true
 	try {
-		const url = new URL(generateOcsUrl(OCS_DUPLICATES.selectable), window.location.origin)
+		const url = new URL(generateOcsUrl(OCS_API_V1.sudoSelectable), window.location.origin)
 		if (search) {
 			url.searchParams.set('search', search)
 		}
