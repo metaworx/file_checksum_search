@@ -12,6 +12,7 @@ the first stable release.
 ## [Unreleased]
 
 ### Security
+- **Checksums adopted from Nextcloud's own column are checked before they are believed.** `oc_filecache.checksum` holds whatever a sync client sent in its `OC-Checksum` header — core stores it verbatim — and this app copied every pair of it into its own store, algorithm name included. That let a client choose a metadata key: `file-checksum-hash-<token>` has 31 characters to fit into, so a token over twelve broke the row, and any hash could be planted on one's own file to poison duplicate groups. Both adoption paths, the recalculation and the repair step, now keep only pairs naming an algorithm this instance computes whose value is hex of that algorithm's own length. The hash is still not recomputed: adopting what is already there is the point.
 - **Asking which files share a file's hash no longer answers for files you cannot open.** `GET /api/v1/file/{fileId}/duplicates` read the reference file's hashes before checking anything, and only filtered the *duplicates* it found to the caller's own tree. Because file ids are sequential, sweeping them turned the endpoint into a content-equality oracle over the whole instance: a non-empty answer said that file holds something you also hold. The reference file is now resolved through the caller's own tree first, as every sibling endpoint already did, and the endpoint is rate limited like the other expensive ones. Administrators are unaffected for now and keep the instance-wide view.
 
 ### Changed

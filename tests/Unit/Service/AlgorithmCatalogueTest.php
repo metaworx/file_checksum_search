@@ -254,4 +254,61 @@ class AlgorithmCatalogueTest
 		$this->assertSame( 'sha256', $catalogue->default() );
 	}
 
+
+	/**
+	 * The filecache checksum column holds whatever a sync client put in its
+	 * OC-Checksum header, so a pair is adopted only when it could be one of
+	 * ours: an algorithm in force, and hex of that algorithm's own length.
+	 */
+	public function testOnlyPlausiblePairsAreKept(): void
+	{
+
+		$catalogue = $this->withAllowlist( [ 'sha1', 'sha256' ] );
+
+		$sha1   = str_repeat( 'a', 40 );
+		$sha256 = str_repeat( 'b', 64 );
+
+		$kept = $catalogue->keepPlausible( [
+			'sha1'                    => $sha1,
+			'sha256'                  => strtoupper( $sha256 ),
+			// Not in force on this instance.
+			'md5'                     => str_repeat( 'c', 32 ),
+			// Long enough to overflow a 31-character meta_key.
+			'averylongalgorithmname'  => $sha1,
+			// Right algorithm, wrong length.
+			'sha1-but-short'          => 'abcd',
+			// Not hex.
+			'sha256:'                 => $sha256,
+		] );
+
+		$this->assertSame(
+			[
+				'sha1'   => $sha1,
+				'sha256' => $sha256,
+			],
+			$kept,
+			'Uppercase hex is kept, lower-cased; everything else is dropped.',
+		);
+	}
+
+
+	public function testAHashOfTheWrongLengthIsNotThatAlgorithmsHash(): void
+	{
+
+		$catalogue = $this->withAllowlist( [ 'sha256' ] );
+
+		$this->assertSame( [], $catalogue->keepPlausible( [ 'sha256' => str_repeat( 'a', 40 ) ] ) );
+		$this->assertSame( [], $catalogue->keepPlausible( [ 'sha256' => str_repeat( 'a', 65 ) ] ) );
+		$this->assertSame( [], $catalogue->keepPlausible( [ 'sha256' => '' ] ) );
+	}
+
+
+	public function testNonHexIsNeverKept(): void
+	{
+
+		$catalogue = $this->withAllowlist( [ 'sha1' ] );
+
+		$this->assertSame( [], $catalogue->keepPlausible( [ 'sha1' => str_repeat( 'z', 40 ) ] ) );
+	}
+
 }

@@ -2494,6 +2494,10 @@ class MetadataService
 		int   $mtime,
 	): int {
 
+		// Client-supplied, like every value in the filecache's checksum
+		// column. {@see AlgorithmCatalogue::keepPlausible()}.
+		$algoToHash = $this->catalogue->keepPlausible( $algoToHash );
+
 		if ( $algoToHash === [] )
 		{
 			return 0;

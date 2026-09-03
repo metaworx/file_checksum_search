@@ -924,7 +924,11 @@ class HashCalculationService
 
 		$fileId    = $file->getId();
 		$needsSave = $this->metadataService->ensureMetadata( $fileId, $metadata );
-		$checksums = $this->filecacheService->getChecksums( $file );
+		// Only the pairs this instance could have produced: the column is
+		// client-supplied. {@see AlgorithmCatalogue::keepPlausible()}.
+		$checksums = $this->catalogue->keepPlausible(
+			$this->filecacheService->getChecksums( $file ),
+		);
 
 		// Sync: copy hash from filecache.checksum → metadata
 		foreach ( $checksums as $prefix => $hexHash )

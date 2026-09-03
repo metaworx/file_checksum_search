@@ -184,6 +184,58 @@ class AlgorithmCatalogue
 
 
 	/**
+	 * Keep only the algo => hash pairs this instance could itself have
+	 * produced, with the hashes lower-cased.
+	 *
+	 * For pairs that came from `oc_filecache.checksum`. That column holds
+	 * whatever a sync client put in its `OC-Checksum` header — core stores
+	 * it verbatim — so the algorithm name is not a name this app chose and
+	 * the value is not a hash this app computed. Adopting them saves
+	 * recomputing what somebody already computed, which is the point of the
+	 * column; adopting them unread is how a client gets to name a metadata
+	 * key. `file-checksum-hash-<token>` has 31 characters to fit into, and
+	 * an algorithm this instance does not compute has no business being one
+	 * of its keys whatever its length.
+	 *
+	 * This checks the shape, not the content: it cannot tell whether the
+	 * hash is really this file's without reading the file, which is the one
+	 * thing adopting the column exists to avoid.
+	 *
+	 * @param  array<string, string>  $pairs
+	 *
+	 * @return array<string, string>
+	 */
+	public function keepPlausible( array $pairs ): array
+	{
+
+		$kept = [];
+
+		foreach ( $pairs as $algo => $hash )
+		{
+			$algo = strtolower( trim( (string) $algo ) );
+			$hash = strtolower( trim( (string) $hash ) );
+
+			if ( ! $this->isValid( $algo ) )
+			{
+				continue;
+			}
+
+			// Hex, and as many digits as this algorithm produces. A hash of
+			// the wrong length is not this algorithm's, whoever sent it.
+			if ( preg_match( '/^[0-9a-f]+$/', $hash ) !== 1
+			     || strlen( $hash ) !== strlen( hash( $algo, '' ) ) )
+			{
+				continue;
+			}
+
+			$kept[ $algo ] = $hash;
+		}
+
+		return $kept;
+	}
+
+
+	/**
 	 * Store a new allowlist, keeping only what can be used. Returns what was
 	 * kept, so a caller can tell the administrator what it dropped.
 	 *

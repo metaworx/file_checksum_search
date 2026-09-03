@@ -383,9 +383,12 @@ class RepairQuietStart
 	 * Copy the checksums Nextcloud already holds into this app's own store.
 	 *
 	 * `oc_filecache.checksum` is core's column, written when a sync client
-	 * uploads with an `OC-Checksum` header and served back over WebDAV. Those
-	 * values are trusted and visible to clients — they are simply not
-	 * searchable, because the column is one unindexed TEXT field. This copies
+	 * uploads with an `OC-Checksum` header and served back over WebDAV. Core
+	 * stores that header verbatim, so the values are the client's word rather
+	 * than anything this instance computed: only pairs that could be ours are
+	 * adopted ({@see AlgorithmCatalogue::keepPlausible()}), and even those are
+	 * a shape check, not proof. They are simply not searchable where they sit,
+	 * because the column is one unindexed TEXT field. This copies
 	 * them across, reading no file content and overwriting no hash this app
 	 * already holds.
 	 *

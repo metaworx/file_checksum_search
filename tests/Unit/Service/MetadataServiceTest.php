@@ -490,7 +490,7 @@ class MetadataServiceTest
 			// Not indexed by Nextcloud: it would write the full value
 			// into a varchar(63) column and fail for every hash longer
 			// than that. syncHashIndex() writes the row, truncated.
-			     ->with( MetadataService::getHashKey( 'md5' ), 'cafe', false )
+			     ->with( MetadataService::getHashKey( 'md5' ), str_repeat( 'c', 32 ), false )
 		;
 		// No timestamp yet → stamped with the file's mtime, not now(): the
 		// copied hash describes the content as of that mtime.
@@ -505,16 +505,50 @@ class MetadataServiceTest
 		                      ->method( 'saveMetadata' )
 		;
 
+		// Hashes of the length their algorithms produce: anything else is
+		// somebody's word rather than a hash, and is dropped on the way in.
 		$added = $this->service->backfillHashes(
 			42,
 			[
-				'sha1' => 'dead',
-				'md5'  => 'cafe',
+				'sha1' => str_repeat( 'd', 40 ),
+				'md5'  => str_repeat( 'c', 32 ),
 			],
 			1700000000,
 		);
 
 		$this->assertSame( 1, $added );
+	}
+
+
+	/**
+	 * The column is the client's word: core stores the OC-Checksum header
+	 * verbatim. A pair naming an algorithm this instance does not compute
+	 * would otherwise become one of its metadata keys.
+	 */
+	public function testBackfillHashesDropsWhatThisInstanceCouldNotHaveComputed(): void
+	{
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$this->metadataManager->method( 'getMetadata' )
+		                      ->willReturn( $metadata )
+		;
+		$metadata->expects( $this->never() )
+		         ->method( 'setString' )
+		;
+		$this->metadataManager->expects( $this->never() )
+		                      ->method( 'saveMetadata' )
+		;
+
+		$added = $this->service->backfillHashes(
+			42,
+			[
+				'averylongalgorithmnamethatwouldoverflowthekey' => str_repeat( 'a', 40 ),
+				'sha1'                                          => 'not-hex-and-far-too-short',
+			],
+			1700000000,
+		);
+
+		$this->assertSame( 0, $added );
 	}
 
 
