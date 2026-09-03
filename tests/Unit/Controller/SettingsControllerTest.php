@@ -274,20 +274,19 @@ class SettingsControllerTest
 		                  )
 		;
 
-		$this->permissionService->expects( $this->once() )
-		                        ->method( 'isAllUsersEnabled' )
-		                        ->with( PermissionService::PERMISSION_RULE_EDITING )
-		                        ->willReturn( true )
+		// The endpoint asks for every permission the service knows; only the
+		// rule-editing one carries fixture values, the rest answer "nobody".
+		$only = static fn ( mixed $value, mixed $otherwise ): \Closure => static fn ( string $permission ): mixed => $permission === PermissionService::PERMISSION_RULE_EDITING
+			? $value
+			: $otherwise;
+		$this->permissionService->method( 'isAllUsersEnabled' )
+		                        ->willReturnCallback( $only( true, false ) )
 		;
-		$this->permissionService->expects( $this->once() )
-		                        ->method( 'getGroups' )
-		                        ->with( PermissionService::PERMISSION_RULE_EDITING )
-		                        ->willReturn( [ 'staff' ] )
+		$this->permissionService->method( 'getGroups' )
+		                        ->willReturnCallback( $only( [ 'staff' ], [] ) )
 		;
-		$this->permissionService->expects( $this->once() )
-		                        ->method( 'getUsers' )
-		                        ->with( PermissionService::PERMISSION_RULE_EDITING )
-		                        ->willReturn( [ 'alice' ] )
+		$this->permissionService->method( 'getUsers' )
+		                        ->willReturnCallback( $only( [ 'alice' ], [] ) )
 		;
 
 		$response = $this->controller->getAdminOptions();
@@ -295,9 +294,12 @@ class SettingsControllerTest
 		$this->assertInstanceOf( DataResponse::class, $response );
 		$data = $response->getData();
 		$this->assertTrue( $data['success'] );
-		$this->assertTrue( $data['allowAllUsers'] );
-		$this->assertSame( [ 'staff' ], $data['groups'] );
-		$this->assertSame( [ 'alice' ], $data['users'] );
+		$mine = $data['permissions']['rule_editing'];
+		$this->assertTrue( $mine['allowAll'] );
+		$this->assertSame( [ 'staff' ], $mine['groups'] );
+		$this->assertSame( [ 'alice' ], $mine['users'] );
+		// Every permission the service knows is present, in the same shape.
+		$this->assertSame( PermissionService::keys(), array_keys( $data['permissions'] ) );
 		$this->assertSame(
 			[
 				[
@@ -318,9 +320,13 @@ class SettingsControllerTest
 		$this->controller->method( 'readRequestBody' )
 		                 ->willReturn(
 			                 json_encode( [
-				                 'allowAllUsers' => true,
-				                 'groups'        => [ 'staff' ],
-				                 'users'         => [ 'alice' ],
+				                 'permissions' => [
+					                 'rule_editing' => [
+						                 'allowAll' => true,
+						                 'groups'   => [ 'staff' ],
+						                 'users'    => [ 'alice' ],
+					                 ],
+				                 ],
 			                 ] ),
 		                 )
 		;

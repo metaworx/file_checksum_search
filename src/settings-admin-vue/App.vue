@@ -18,6 +18,26 @@ import DocsViewer from '../docs-vue/DocsViewer.vue'
 import { useAdminSettings } from './composables/useAdminSettings'
 import { toastSuccess } from '../toast'
 
+/** The words each permission section shows; the component is the same. */
+const PERMISSION_HELP = {
+	rule_editing: {
+		allowAll: 'When on, every user of this instance may create and edit rules for folders they can '
+			+ 'write to. When off, that permission is limited to the groups and individual users you select.',
+		groups: 'Members of these groups may create and edit rules for folders they can write to. '
+			+ 'Selected groups and selected users are combined — being in either is enough.',
+		users: 'Individual users who may create and edit rules for folders they can write to, in '
+			+ 'addition to the members of any selected groups.',
+	},
+	instance_view: {
+		allowAll: 'When on, every user may switch to the instance-wide view after confirming their password. '
+			+ 'When off, only members of the admin group and the groups and users selected here may.',
+		groups: 'Members of these groups may look across accounts once they have confirmed their password. '
+			+ 'Selected groups and selected users are combined — being in either is enough.',
+		users: 'Individual users who may look across accounts once they have confirmed their password, in '
+			+ 'addition to the members of any selected groups and of the admin group.',
+	},
+}
+
 declare const OC: {
 	dialogs: { confirm: (text: string, title: string, callback: (confirmed: boolean) => void, modal?: boolean) => void }
 }
@@ -404,7 +424,22 @@ loadRules().then(() => {
 					Users in the selected groups, the selected users, or everyone (when enabled) may edit and create rules
 					for folders they can write to.
 				</p>
-				<PermissionSection />
+				<PermissionSection
+					permission="rule_editing"
+					switch-label="Allow all users to edit rules"
+					:help="PERMISSION_HELP.rule_editing" />
+			</div>
+
+			<div class="fcias-section">
+				<h4>Who may look across accounts</h4>
+				<p class="fcias-hint">
+					The sudoers: members of the admin group always, plus the groups and users selected here. Looking
+					across accounts still costs a password confirmation each time; this only says who may be asked.
+				</p>
+				<PermissionSection
+					permission="instance_view"
+					switch-label="Allow all users to look across accounts"
+					:help="PERMISSION_HELP.instance_view" />
 			</div>
 
 			<div class="fcias-section">

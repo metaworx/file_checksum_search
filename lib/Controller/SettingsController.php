@@ -135,13 +135,23 @@ class SettingsController
 			},
 		);
 
+		// Every permission, keyed, in one shape: the page has one section
+		// per key and one component behind all of them, and the endpoint
+		// loops rather than naming any.
+		$permissions = [];
+
+		foreach ( PermissionService::keys() as $key )
+		{
+			$permissions[ $key ] = [
+				'allowAll' => $this->permissionService->isAllUsersEnabled( $key ),
+				'groups'   => $this->permissionService->getGroups( $key ),
+				'users'    => $this->permissionService->getUsers( $key ),
+			];
+		}
+
 		return new DataResponse( [
 			'success'        => true,
-			'allowAllUsers'  => $this->permissionService->isAllUsersEnabled(
-				PermissionService::PERMISSION_RULE_EDITING,
-			),
-			'groups'         => $this->permissionService->getGroups( PermissionService::PERMISSION_RULE_EDITING ),
-			'users'          => $this->permissionService->getUsers( PermissionService::PERMISSION_RULE_EDITING ),
+			'permissions'    => $permissions,
 			'availableUsers' => $users,
 			// The catalogue, both halves: what is in force, and what this PHP
 			// build could offer if allowed. The picker shows the second and
@@ -179,9 +189,9 @@ class SettingsController
 		// page has more than one section saving to this endpoint, and a
 		// section must be able to save its own part without resetting the
 		// others to defaults it never showed.
-		$allowAll   = array_key_exists( 'allowAllUsers', $body ) ? (bool) $body['allowAllUsers'] : null;
-		$groups     = $this->listOrNull( $body, 'groups' );
-		$users      = $this->listOrNull( $body, 'users' );
+		// `permissions` is a map of key => {allowAll?, groups?, users?}; each
+		// key and each field inside it is optional, for the same reason.
+		$permissions = is_array( $body['permissions'] ?? null ) ? $body['permissions'] : [];
 		// A list that would leave nothing in force is refused rather than
 		// silently replaced by the default, because the administrator asked
 		// for something and should hear that it could not be done.
@@ -192,19 +202,33 @@ class SettingsController
 
 		try
 		{
-			if ( $allowAll !== null )
+			foreach ( PermissionService::keys() as $key )
 			{
-				$this->permissionService->setAllUsersEnabled( PermissionService::PERMISSION_RULE_EDITING, $allowAll );
-			}
+				$sent = $permissions[ $key ] ?? null;
 
-			if ( $groups !== null )
-			{
-				$this->permissionService->setGroups( PermissionService::PERMISSION_RULE_EDITING, $groups );
-			}
+				if ( ! is_array( $sent ) )
+				{
+					continue;
+				}
 
-			if ( $users !== null )
-			{
-				$this->permissionService->setUsers( PermissionService::PERMISSION_RULE_EDITING, $users );
+				if ( array_key_exists( 'allowAll', $sent ) )
+				{
+					$this->permissionService->setAllUsersEnabled( $key, (bool) $sent['allowAll'] );
+				}
+
+				$groups = $this->listOrNull( $sent, 'groups' );
+
+				if ( $groups !== null )
+				{
+					$this->permissionService->setGroups( $key, $groups );
+				}
+
+				$users = $this->listOrNull( $sent, 'users' );
+
+				if ( $users !== null )
+				{
+					$this->permissionService->setUsers( $key, $users );
+				}
 			}
 
 			if ( $algorithms !== null )

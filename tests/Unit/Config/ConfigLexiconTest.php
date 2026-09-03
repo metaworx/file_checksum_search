@@ -44,7 +44,7 @@ class ConfigLexiconTest
 		$configs = $this->lexicon->getAppConfigs();
 
 		$this->assertIsArray( $configs );
-		$this->assertCount( 18, $configs );
+		$this->assertCount( 27, $configs );
 
 		$keys = array_map(
 			static fn(
@@ -70,6 +70,15 @@ class ConfigLexiconTest
 		$this->assertContains( 'rule_editors_all_users', $keys );
 		$this->assertContains( 'rule_editors_groups', $keys );
 		$this->assertContains( 'rule_editors_users', $keys );
+		$this->assertContains( 'instance_view_all_users', $keys );
+		$this->assertContains( 'instance_view_groups', $keys );
+		$this->assertContains( 'instance_view_users', $keys );
+		$this->assertContains( 'manual_recalc_all_users', $keys );
+		$this->assertContains( 'manual_recalc_groups', $keys );
+		$this->assertContains( 'manual_recalc_users', $keys );
+		$this->assertContains( 'api_access_all_users', $keys );
+		$this->assertContains( 'api_access_groups', $keys );
+		$this->assertContains( 'api_access_users', $keys );
 	}
 
 

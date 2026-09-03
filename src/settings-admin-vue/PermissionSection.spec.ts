@@ -55,9 +55,7 @@ beforeEach(() => {
 			return Promise.resolve(jsonResponse({ success: true }))
 		}
 		return Promise.resolve(jsonResponse({
-			allowAllUsers: false,
-			groups: ['staff'],
-			users: ['alice'],
+			permissions: { rule_editing: { allowAll: false, groups: ['staff'], users: ['alice'] } },
 			availableUsers: [{ id: 'alice', displayName: 'Alice' }, { id: 'bob', displayName: 'Bob' }],
 		}))
 	})
@@ -69,7 +67,13 @@ afterEach(() => {
 })
 
 async function mounted() {
-	const wrapper = mount(PermissionSection)
+	const wrapper = mount(PermissionSection, {
+		props: {
+			permission: 'rule_editing',
+			switchLabel: 'Allow all users to edit rules',
+			help: { allowAll: 'a', groups: 'g', users: 'u' },
+		},
+	})
 	await flushPromises()
 	const groups = wrapper.findComponent({ name: 'NcSettingsSelectGroup' })
 	const button = () => wrapper.findComponent({ name: 'NcButton' })
@@ -95,14 +99,12 @@ describe('PermissionSection', () => {
 
 		groups.vm.$emit('update:modelValue', ['staff', 'admins'])
 		await nextTick()
-		await wrapper.find('#fcias-btn-save-permissions').trigger('click')
+		await wrapper.find('#fcias-btn-save-rule_editing').trigger('click')
 		await flushPromises()
 
 		const put = fetchMock.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === 'PUT')
 		expect(JSON.parse(String((put![1] as RequestInit).body))).toEqual({
-			allowAllUsers: false,
-			groups: ['staff', 'admins'],
-			users: ['alice'],
+			permissions: { rule_editing: { allowAll: false, groups: ['staff', 'admins'], users: ['alice'] } },
 		})
 		expect(toastSaved).toHaveBeenCalledWith('Permissions saved.')
 		expect(button().props('disabled')).toBe(true)
@@ -121,7 +123,7 @@ describe('PermissionSection', () => {
 
 		groups.vm.$emit('update:modelValue', ['staff', 'admins'])
 		await nextTick()
-		await wrapper.find('#fcias-btn-save-permissions').trigger('click')
+		await wrapper.find('#fcias-btn-save-rule_editing').trigger('click')
 		await flushPromises()
 
 		expect(toastError).toHaveBeenCalledWith('Nope.')

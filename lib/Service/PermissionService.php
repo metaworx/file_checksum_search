@@ -40,6 +40,15 @@ class PermissionService
 	/** Who may create and edit hash-generation rules. */
 	public const PERMISSION_RULE_EDITING = 'rule_editing';
 
+	/** Who may look across accounts, once confirmed — the sudoers. `admin` always may. */
+	public const PERMISSION_INSTANCE_VIEW = 'instance_view';
+
+	/** Who may trigger a recalculation of their own files by hand. */
+	public const PERMISSION_MANUAL_RECALC = 'manual_recalc';
+
+	/** Who may use the public API from outside the app's own pages. */
+	public const PERMISSION_API_ACCESS = 'api_access';
+
 	/**
 	 * Permission key => the three config keys backing it.
 	 *
@@ -52,7 +61,36 @@ class PermissionService
 				'groups'   => 'rule_editors_groups',
 				'users'    => 'rule_editors_users',
 			],
+			self::PERMISSION_INSTANCE_VIEW => [
+				'allUsers' => 'instance_view_all_users',
+				'groups'   => 'instance_view_groups',
+				'users'    => 'instance_view_users',
+			],
+			self::PERMISSION_MANUAL_RECALC => [
+				'allUsers' => 'manual_recalc_all_users',
+				'groups'   => 'manual_recalc_groups',
+				'users'    => 'manual_recalc_users',
+			],
+			self::PERMISSION_API_ACCESS => [
+				'allUsers' => 'api_access_all_users',
+				'groups'   => 'api_access_groups',
+				'users'    => 'api_access_users',
+			],
 		];
+
+
+	/**
+	 * Every permission this service knows, for callers that treat them
+	 * uniformly — the settings endpoint and its page loop over this rather
+	 * than naming one.
+	 *
+	 * @return list<string>
+	 */
+	public static function keys(): array
+	{
+
+		return array_keys( self::CONFIG_KEYS );
+	}
 
 
 	public function __construct(

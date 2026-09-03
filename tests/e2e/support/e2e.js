@@ -439,15 +439,20 @@ Cypress.Commands.add( 'fciasRuleEditing', ( admin, allow ) => cy.ocs( {
 } ).then( ( { status, body } ) => {
 	expect( status, 'reading the rule-editing permission' ).to.eq( 200 )
 
-	const previous = body.allowAllUsers === true
+	const mine = body.permissions?.rule_editing ?? {}
+	const previous = mine.allowAll === true
 
 	return cy.ocs( {
 		method: 'PUT',
 		url: '/settings/global',
 		body: {
-			allowAllUsers: allow,
-			groups: body.groups ?? [],
-			users: body.users ?? [],
+			permissions: {
+				rule_editing: {
+					allowAll: allow,
+					groups: mine.groups ?? [],
+					users: mine.users ?? [],
+				},
+			},
 		},
 		user: admin.user,
 		password: admin.password,

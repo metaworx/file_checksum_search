@@ -3,8 +3,10 @@
  * @copyright Copyright (c) 2026 metaworx
  * @license   AGPL-3.0-or-later
  *
- * Admin "rule editing permission" section — allow all users, or a
- * selection of groups and users that may edit rules.
+ * One permission's section: allow everyone, or a selection of groups and
+ * users. The same component behind every permission the app has — which
+ * one is a prop, and so are the words — so a fourth permission is a fourth
+ * mount, not a fourth copy.
  */
 
 import { computed, onMounted, ref } from 'vue'
@@ -21,6 +23,15 @@ interface UserOption {
 	id: string
 	label: string
 }
+
+const props = defineProps<{
+	/** The permission key, as `PermissionService` names it. */
+	permission: string
+	/** The switch's caption: "Allow all users to …". */
+	switchLabel: string
+	/** Help texts for the switch and the two pickers. */
+	help: { allowAll: string, groups: string, users: string }
+}>()
 
 const OC = window.OC as unknown as { requestToken: string }
 
@@ -44,36 +55,30 @@ const baseline = ref('')
 
 function payload(): string {
 	return JSON.stringify({
-		allowAllUsers: allowAll.value,
-		groups: allowedGroups.value,
-		users: selectedUsers.value.map((u) => u.id),
+		permissions: {
+			[props.permission]: {
+				allowAll: allowAll.value,
+				groups: allowedGroups.value,
+				users: selectedUsers.value.map((u) => u.id),
+			},
+		},
 	})
 }
 
 const dirty = computed(() => loaded.value && payload() !== baseline.value)
 
-const HELP = {
-	allowAll: 'When on, every user of this instance may create and edit rules for folders they can '
-		+ 'write to. When off, that permission is limited to the groups and individual users you select.',
-	groups: 'Members of these groups may create and edit rules for folders they can write to. '
-		+ 'Selected groups and selected users are combined — being in either is enough.',
-	users: 'Individual users who may create and edit rules for folders they can write to, in '
-		+ 'addition to the members of any selected groups.',
-}
-
 async function load(): Promise<void> {
 	try {
 		const response = await fetch(generateOcsUrl(OCS_SETTINGS.getGlobal))
 		const data = (await response.json()) as {
-			allowAllUsers?: boolean
-			groups?: string[]
-			users?: string[]
+			permissions?: Record<string, { allowAll?: boolean, groups?: string[], users?: string[] }>
 			availableUsers?: { id: string; displayName: string }[]
 		}
-		allowAll.value = data.allowAllUsers === true
-		allowedGroups.value = data.groups || []
+		const mine = data.permissions?.[props.permission] ?? {}
+		allowAll.value = mine.allowAll === true
+		allowedGroups.value = mine.groups || []
 		userOptions.value = (data.availableUsers || []).map((u) => ({ id: u.id, label: u.displayName }))
-		const selectedIds = data.users || []
+		const selectedIds = mine.users || []
 		selectedUsers.value = userOptions.value.filter((u) => selectedIds.includes(u.id))
 	} catch (e) {
 		toastError('Failed to load permission options.')
@@ -117,10 +122,10 @@ onMounted(load)
 <template>
 	<div>
 		<div class="fcias-permission-switch">
-			<NcCheckboxRadioSwitch v-model="allowAll" type="switch">
-				Allow all users to edit rules
+			<NcCheckboxRadioSwitch v-model="allowAll" type="switch" :data-testid="`fcias-permission-${permission}-all`">
+				{{ switchLabel }}
 			</NcCheckboxRadioSwitch>
-			<HelpPopover :text="HELP.allowAll" label="Allow all users to edit rules" />
+			<HelpPopover :text="help.allowAll" :label="switchLabel" />
 		</div>
 
 		<div v-if="loaded && !allowAll" class="fcias-permission-selects">
@@ -129,7 +134,7 @@ onMounted(load)
 					v-model="allowedGroups"
 					label="Groups"
 					placeholder="Select groups…" />
-				<HelpPopover :text="HELP.groups" label="Groups" />
+				<HelpPopover :text="help.groups" label="Groups" />
 			</div>
 
 			<div class="fcias-field-row">
@@ -141,14 +146,14 @@ onMounted(load)
 					placeholder="Search users…"
 					label-outside
 					track-by="id" />
-				<HelpPopover :text="HELP.users" label="Users" />
+				<HelpPopover :text="help.users" label="Users" />
 			</div>
 		</div>
 
 		<div class="fcias-rule-form-actions fcias-rule-form-actions--start">
 			<!-- Yellow while there is something to save, and nothing to press
 			     when there is not. Red is the destructive variant. -->
-			<NcButton id="fcias-btn-save-permissions"
+			<NcButton :id="`fcias-btn-save-${permission}`"
 				:variant="dirty ? 'warning' : 'secondary'"
 				:disabled="saving || !dirty"
 				@click="save">
