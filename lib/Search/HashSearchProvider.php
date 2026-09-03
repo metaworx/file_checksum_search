@@ -22,6 +22,16 @@ use OCP\Search\SearchResultEntry;
 use Psr\Log\LoggerInterface;
 
 /**
+ * Finds a file by its hash from Nextcloud's unified search.
+ *
+ * A hash is a fingerprint of content, so answering "who else has this?"
+ * across accounts would leak what other people hold. Three things stand
+ * between the index and an answer, in this order: the caller's mounted
+ * storages narrow the query, the full hash is confirmed against the
+ * document because the index stores only 63 characters, and every surviving
+ * row is resolved through the caller's own folder. The last is the
+ * authority; the first only decides which rows are worth fetching.
+ *
  * @noinspection PhpClassCanBeReadonlyInspection
  */
 class HashSearchProvider
@@ -40,6 +50,10 @@ class HashSearchProvider
 	}
 
 
+	/**
+	 * The provider id, which is also the OCS route clients search through:
+	 * `/ocs/v2.php/search/providers/<id>/search`. Changing it breaks them.
+	 */
 	public function getId(): string
 	{
 
@@ -47,6 +61,10 @@ class HashSearchProvider
 	}
 
 
+	/**
+	 * The heading the results appear under, kept short because the search
+	 * modal gives it one line beside every other provider's.
+	 */
 	public function getName(): string
 	{
 
@@ -54,6 +72,11 @@ class HashSearchProvider
 	}
 
 
+	/**
+	 * Below the providers that answer what most searches are for — files by
+	 * name, people, apps — since a hash is only ever searched deliberately.
+	 * The same order everywhere: no route makes checksums more relevant.
+	 */
 	public function getOrder(
 		string $route,
 		array  $routeParameters,
@@ -63,6 +86,13 @@ class HashSearchProvider
 	}
 
 
+	/**
+	 * Answer with the files this user can open whose hash is the term.
+	 *
+	 * A term that is not a hash is not an error: it is somebody searching
+	 * for something else, and the answer is an empty complete result rather
+	 * than a reason.
+	 */
 	public function search(
 		IUser        $user,
 		ISearchQuery $query,

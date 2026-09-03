@@ -13,6 +13,14 @@ use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\Settings\ISettings;
 
+/**
+ * Registers the personal settings page.
+ *
+ * The page itself is a Vue app; this only hands Nextcloud the template that
+ * mounts it. Its section is a separate one from the administration page's —
+ * same app, different navigation — so {@see PersonalSection} has to agree
+ * with the id returned here.
+ */
 class Personal
 	implements
 	ISettings
@@ -25,6 +33,9 @@ class Personal
 	}
 
 
+	/**
+	 * The section this page appears under, matching {@see PersonalSection}.
+	 */
 	public function getSection(): string
 	{
 
@@ -32,6 +43,9 @@ class Personal
 	}
 
 
+	/**
+	 * Mid-list, where an app with no claim to be first belongs.
+	 */
 	public function getPriority(): int
 	{
 

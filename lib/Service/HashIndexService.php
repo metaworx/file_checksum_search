@@ -44,6 +44,10 @@ class HashIndexService
 	}
 
 
+	/**
+	 * {@see HashCalculationService::recalcFileHash()}, which is where the
+	 * behaviour and the return shape are described.
+	 */
 	public function recalcFileHash(
 		File   $file,
 		string $algo,
@@ -54,6 +58,13 @@ class HashIndexService
 	}
 
 
+	/**
+	 * {@see HashCalculationService::recalcHash()}.
+	 *
+	 * The delegate also accepts an already-loaded metadata document; this
+	 * does not, so a caller coming through the façade pays for one more
+	 * load. That is the price of the façade, not an oversight.
+	 */
 	public function recalcHash(
 		int    $fileId,
 		string $algo,
@@ -64,6 +75,9 @@ class HashIndexService
 	}
 
 
+	/**
+	 * {@see HashCalculationService::recalcAllExistingAlgos()}.
+	 */
 	public function recalcAllExistingAlgos( int $fileId ): array
 	{
 
@@ -71,6 +85,12 @@ class HashIndexService
 	}
 
 
+	/**
+	 * {@see HashCalculationService::generateMissingHashes()}.
+	 *
+	 * A $batchSize of 0 or less means "no limit", which is what the generate
+	 * command passes when its --batch-size option is omitted.
+	 */
 	public function generateMissingHashes(
 		string           $userId,
 		string|array     $algo,

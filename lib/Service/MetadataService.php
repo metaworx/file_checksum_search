@@ -151,6 +151,20 @@ class MetadataService
 	}
 
 
+	/**
+	 * Every hash stored for a file, as algo => hex.
+	 *
+	 * What the document holds, not what the catalogue currently allows: a
+	 * hash computed under an algorithm the administrator has since
+	 * disallowed is still this file's hash, and still what a backup, a
+	 * search or the sidebar should see.
+	 *
+	 * Declared by reference for callers that want to edit the map in place.
+	 * None does today — bind with `=&` if that is what you meant, or ignore
+	 * it, which is what every current caller does.
+	 *
+	 * @return array<string, string>
+	 */
 	public function &getHashes( int|File|IFilesMetadata $fileOrMetadata ): array
 	{
 
@@ -162,10 +176,6 @@ class MetadataService
 		$hashes = [];
 
 
-		// What the document holds, not what the catalogue currently allows: a
-		// hash computed under an algorithm the administrator has since
-		// disallowed is still this file's hash, and still what a backup,
-		// a search or the sidebar should see.
 		foreach ( $fileOrMetadata->getKeys() as $key )
 		{
 			if ( ! str_starts_with( $key, self::KEY_FILE_CHECKSUM_HASH_PREFIX ) )
@@ -325,6 +335,18 @@ class MetadataService
 	}
 
 
+	/**
+	 * Strip this app's keys from a file's metadata and stamp it stale.
+	 *
+	 * The stamp is set to zero rather than removed: a file with no stamp has
+	 * never been considered, while one stamped zero is older than any mtime
+	 * and so is picked up by the next sweep.
+	 *
+	 * $save is only honoured when the caller passes a document it already
+	 * holds and means to save later. Given a fileid, the document is loaded
+	 * here and saving is forced — anything else would load it, empty it and
+	 * throw the result away.
+	 */
 	public function clearMetadata(
 		int|File|IFilesMetadata $fileOrMetadata,
 		bool                    $save = true,
@@ -636,9 +658,10 @@ class MetadataService
 
 
 	/**
-	 * @param  \OCP\DB\QueryBuilder\IQueryBuilder  $qb
+	 * The one place this class runs a read query, and so the one place that
+	 * declares what the database can throw. Every public method above
+	 * inherits that declaration by calling through here.
 	 *
-	 * @return \OCP\DB\IResult
 	 * @throws \OCP\DB\Exception
 	 */
 	private function executeQuery( IQueryBuilder $qb ): IResult
@@ -649,9 +672,8 @@ class MetadataService
 
 
 	/**
-	 * @param  \OCP\DB\QueryBuilder\IQueryBuilder  $qb
+	 * As {@see executeQuery()}, for statements that change rows.
 	 *
-	 * @return int
 	 * @throws \OCP\DB\Exception
 	 */
 	private function executeStatement( IQueryBuilder $qb ): int
@@ -743,6 +765,18 @@ class MetadataService
 	}
 
 
+	/**
+	 * The algorithm and the authoritative hash behind one index row.
+	 *
+	 * The index stores 63 characters, so a row's value may be a prefix of
+	 * the real hash. The document is the authority, and this reads it: the
+	 * row is only used to know which key to ask for.
+	 *
+	 * @param  array  $row  An index row, as returned by the query methods
+	 *
+	 * @return array{algo: string, hash: ?string}  `hash` is null when the
+	 *                                             document has no such key
+	 */
 	public function extractAlgorithm(
 		int   $fileId,
 		array $row,
@@ -3039,7 +3073,6 @@ class MetadataService
 	/**
 	 * Count all hash metadata index entries (file-checksum-* keys excluding updated_at).
 	 *
-	 * @return int
 	 * @throws \OCP\DB\Exception
 	 */
 	public function countHashEntries(): int
@@ -3092,11 +3125,6 @@ class MetadataService
 	}
 
 
-	/**
-	 * @param  string  $algo
-	 *
-	 * @return string
-	 */
 	public static function getHashKey( string $algo ): string
 	{
 

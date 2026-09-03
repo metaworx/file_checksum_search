@@ -37,11 +37,7 @@ class TestPerformance
 		parent::__construct();
 	}
 
-	/**
-	 * Configure the test-perf command.
-	 *
-	 * @noinspection PhpUnused
-	 */
+	/** @noinspection PhpUnused */
 	protected function configure(): void
 	{
 
@@ -50,11 +46,7 @@ class TestPerformance
 		;
 	}
 
-	/**
-	 * Execute the test-perf command.
-	 *
-	 * @noinspection PhpUnused
-	 */
+	/** @noinspection PhpUnused */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,

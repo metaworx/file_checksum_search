@@ -52,9 +52,6 @@ class FilecacheService
 
 
 	/**
-	 * @param  int|\OCP\Files\File  $file
-	 *
-	 * @return File
 	 * @noinspection PhpDocMissingThrowsInspection
 	 * @throws \OCP\Files\NotFoundException
 	 */
@@ -78,6 +75,14 @@ class FilecacheService
 	}
 
 
+	/**
+	 * The checksums Nextcloud itself holds for a file, as algo => hex.
+	 *
+	 * Not this app's hashes: this is the filecache's own column, which is
+	 * where an upload's checksum lands and what the backfill adopts. A null
+	 * filter means everything; a filter is matched against **lowercase**
+	 * algorithm names, so asking for `SHA256` returns nothing.
+	 */
 	public function getChecksums(
 		int|File $file,
 		?array   $hashFilter = null,
@@ -662,6 +667,20 @@ class FilecacheService
 	}
 
 
+	/**
+	 * Resolve a fileid to a node, searching every storage.
+	 *
+	 * Two things a caller must handle. It throws rather than returning null
+	 * when nothing matches, and it returns a Node — a folder resolves as
+	 * happily as a file, so anything that means to hash the result has to
+	 * check that it got a File.
+	 *
+	 * This bypasses per-user reachability by design; a caller answering a
+	 * request must apply its own, normally by resolving through the user's
+	 * folder instead.
+	 *
+	 * @throws NotFoundException  No file with this id, in any storage.
+	 */
 	public function getNodeById( int $fileId ): Node
 	{
 
@@ -714,6 +733,20 @@ class FilecacheService
 	}
 
 
+	/**
+	 * Write hashes into the filecache's checksum column.
+	 *
+	 * The column is one string shared with whatever else writes checksums,
+	 * so $keepAdditional decides whether this is a merge or a replacement.
+	 * True keeps the algorithms already there that $hashes does not mention,
+	 * with $hashes winning where both name one. False replaces the lot —
+	 * and $hashes of null with false is how the column is cleared.
+	 *
+	 * The column has a fixed width, so a merge that would overflow it drops
+	 * whole pairs rather than truncating one: half a hash would read as a
+	 * hash. What is dropped is not reported, because nothing above this
+	 * could act on it — the values live in this app's own metadata too.
+	 */
 	public function setHashes(
 		int|File $file,
 		?array   $hashes = null,
@@ -816,12 +849,7 @@ class FilecacheService
 	}
 
 
-	/**
-	 * @param  int|\OCP\Files\File  $file
-	 *
-	 * @return int
-	 * @noinspection PhpDocMissingThrowsInspection
-	 */
+	/** @noinspection PhpDocMissingThrowsInspection */
 	public static function getFileId( int|File $file ): int
 	{
 

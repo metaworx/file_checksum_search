@@ -153,6 +153,15 @@ readonly class Selector
 	}
 
 
+	/**
+	 * The stored spelling of this selector.
+	 *
+	 * What {@see fromStored()} and {@see parse()} must read back as the same
+	 * selector — that round trip is the invariant, because rules are stored
+	 * as these strings and compared as these strings. Note the two that are
+	 * not `kind:target`: the home namespace is `home:*` and the universal
+	 * selector is a bare `*`.
+	 */
 	public function canonical(): string
 	{
 
@@ -168,6 +177,15 @@ readonly class Selector
 	}
 
 
+	/**
+	 * How specific this selector is, lower being more specific.
+	 *
+	 * The whole precedence model rests on this: one account or one storage
+	 * beats a group, a group beats the home namespace, and the universal
+	 * selector comes last. {@see band()} is this plus four for rules nobody
+	 * enforced, which is why enforcement can never be outranked by
+	 * specificity.
+	 */
 	public function rank(): int
 	{
 

@@ -34,11 +34,7 @@ class ShowConfig
 	}
 
 
-	/**
-	 * Configure the show-config command.
-	 *
-	 * @noinspection PhpUnused
-	 */
+	/** @noinspection PhpUnused */
 	protected function configure(): void
 	{
 
@@ -55,11 +51,7 @@ class ShowConfig
 	}
 
 
-	/**
-	 * Execute the show-config command.
-	 *
-	 * @noinspection PhpUnused
-	 */
+	/** @noinspection PhpUnused */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,

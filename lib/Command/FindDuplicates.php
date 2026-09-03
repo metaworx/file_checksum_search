@@ -36,11 +36,7 @@ class FindDuplicates
 	}
 
 
-	/**
-	 * Configure the find-duplicates command.
-	 *
-	 * @noinspection PhpUnused
-	 */
+	/** @noinspection PhpUnused */
 	protected function configure(): void
 	{
 
@@ -95,11 +91,7 @@ class FindDuplicates
 	}
 
 
-	/**
-	 * Execute the find-duplicates command.
-	 *
-	 * @noinspection PhpUnused
-	 */
+	/** @noinspection PhpUnused */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,

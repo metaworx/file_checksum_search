@@ -24,6 +24,14 @@ use OCP\IUserManager;
 use OCP\IUserSession;
 use Psr\Log\LoggerInterface;
 
+/**
+ * The Duplicates page's endpoint.
+ *
+ * Duplicates are answered for one account at a time, because a hash is a
+ * fingerprint of content and a list spanning accounts would say what other
+ * people hold. An administrator may name another account; anyone else gets
+ * their own.
+ */
 class DuplicatesController
 	extends
 	ApiController

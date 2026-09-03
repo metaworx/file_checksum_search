@@ -28,6 +28,15 @@ use OCP\IUserManager;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
+/**
+ * The settings pages' own endpoints: instance status, permissions, and the
+ * algorithm catalogue.
+ *
+ * Deliberately not part of the public API. These serve two Vue pages and are
+ * free to change with them, which is why they are absent from the OpenAPI
+ * spec while everything under /api/v1 is in it. Every route here is
+ * administrator-only unless its method says otherwise.
+ */
 class SettingsController
 	extends
 	Controller

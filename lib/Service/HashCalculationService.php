@@ -50,6 +50,11 @@ class HashCalculationService
 	public const ALGO_AUTO = 'auto';
 
 
+	/**
+	 * The algorithm to use when a caller names none and no rule decides.
+	 * {@see ALGO_AUTO} is the other answer to "which algorithm": defer to
+	 * whatever the governing rule lists.
+	 */
 	public function getDefaultAlgo(): string
 	{
 
@@ -88,6 +93,14 @@ class HashCalculationService
 	}
 
 
+	/**
+	 * Take an exclusive lock on a file, or report that somebody else has it.
+	 *
+	 * False is not a failure: it means the file is busy — being written,
+	 * being hashed by another worker — and the right response is to skip it
+	 * and let the next sweep find it. Every true must be paired with a
+	 * {@see releaseLock()}.
+	 */
 	private function acquireLock( int $fileId ): bool
 	{
 
@@ -107,6 +120,20 @@ class HashCalculationService
 	}
 
 
+	/**
+	 * Walk one user's folders, collecting the files that need hashing.
+	 *
+	 * Recursive, and the recursion is why the signature is what it is:
+	 * $collected and $stats are accumulators shared down the whole walk, not
+	 * per-call results. It returns nothing; what it found is in $collected.
+	 *
+	 * Stopping early is normal. Once $collected reaches $batchSize the walk
+	 * returns wherever it is, so a partial result is the expected outcome of
+	 * a bounded run rather than a sign that something went wrong. A
+	 * $batchSize of zero or less means no limit at all, which is what the
+	 * generate command passes when --batch-size is omitted — on a large
+	 * instance that walk holds every matching file in memory.
+	 */
 	private function collectFilesForUser(
 		string           $folderPath,
 		string           $userId,
@@ -1207,6 +1234,15 @@ class HashCalculationService
 	}
 
 
+	/**
+	 * A path expressed relative to a base, for display and pattern matching.
+	 *
+	 * Two answers worth knowing: the base itself is the empty string, not
+	 * `/`; and a path that is not under the base at all comes back merely
+	 * stripped of its leading slash rather than raising anything. The second
+	 * is a deliberate degradation — the callers are reporting progress and
+	 * matching globs, where a slightly wrong path beats an exception.
+	 */
 	private function relativeHashPath(
 		string $path,
 		string $basePath,
@@ -1230,6 +1266,11 @@ class HashCalculationService
 	}
 
 
+	/**
+	 * Release the lock {@see acquireLock()} took. Only call it when that
+	 * returned true: this does not check, and Nextcloud's locking provider
+	 * treats an unbalanced release as an error.
+	 */
 	private function releaseLock( int $fileId ): void
 	{
 

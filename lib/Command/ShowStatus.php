@@ -38,11 +38,7 @@ class ShowStatus
 	}
 
 
-	/**
-	 * Configure the status command.
-	 *
-	 * @noinspection PhpUnused
-	 */
+	/** @noinspection PhpUnused */
 	protected function configure(): void
 	{
 
@@ -59,11 +55,7 @@ class ShowStatus
 	}
 
 
-	/**
-	 * Execute the status command.
-	 *
-	 * @noinspection PhpUnused
-	 */
+	/** @noinspection PhpUnused */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,

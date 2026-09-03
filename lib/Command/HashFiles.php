@@ -54,11 +54,7 @@ class HashFiles
 	}
 
 
-	/**
-	 * Configure the hash command.
-	 *
-	 * @noinspection PhpUnused
-	 */
+	/** @noinspection PhpUnused */
 	protected function configure(): void
 	{
 
@@ -133,11 +129,7 @@ class HashFiles
 	}
 
 
-	/**
-	 * Execute the hash command.
-	 *
-	 * @noinspection PhpUnused
-	 */
+	/** @noinspection PhpUnused */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
