@@ -53,9 +53,11 @@ class DuplicateService
 		int     $minCount = 2,
 		int     $limit = self::DEFAULT_DUPLICATE_LIMIT,
 		int     $offset = 0,
+		?string $hash = null,
+		bool    $anywhere = false,
 	): array {
 
-		$rows = $this->metadataService->queryDuplicates( $algo, $minCount, $limit, $offset );
+		$rows = $this->metadataService->queryDuplicates( $algo, $minCount, $limit, $offset, $hash, $anywhere );
 
 		return array_map( function (
 			array $row,

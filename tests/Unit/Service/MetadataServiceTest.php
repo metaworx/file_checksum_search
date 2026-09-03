@@ -1009,6 +1009,79 @@ class MetadataServiceTest
 	}
 
 
+	/**
+	 * The hash filter, in its three shapes. What is asserted is the LIKE
+	 * pattern that reaches the query: a prefix by default (which matches the
+	 * whole value too, the ordering telling them apart), the term wrapped on
+	 * both sides for "search anywhere", and — for a hash longer than the
+	 * index column — a second pattern against the metadata document, the same
+	 * two-part shape queryByHash() uses.
+	 *
+	 * @dataProvider hashFilterProvider
+	 */
+	public function testQueryDuplicatesFiltersByHash(
+		string $needle,
+		bool   $anywhere,
+		array  $expectedPatterns,
+	): void {
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchAll' )
+		       ->willReturn( [] )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$patterns = [];
+		$this->queryBuilder->method( 'createNamedParameter' )
+		                   ->willReturnCallback(
+			                   static function ( $value ) use ( &$patterns ): string {
+
+				                   if ( is_string( $value ) )
+				                   {
+					                   $patterns[] = $value;
+				                   }
+
+				                   return ':p';
+			                   },
+		                   )
+		;
+
+		$this->service->queryDuplicates( null, 2, 50, 0, $needle, $anywhere );
+
+		foreach ( $expectedPatterns as $expected )
+		{
+			$this->assertContains( $expected, $patterns );
+		}
+	}
+
+
+	/**
+	 * @return array<string, array{string, bool, list<string>}>
+	 */
+	public static function hashFilterProvider(): array
+	{
+
+		$long = str_repeat( 'a', 128 );
+
+		return [
+			'prefix by default'      => [ 'abc123', false, [ 'abc123%' ] ],
+			'anywhere when asked'    => [ 'abc123', true, [ '%abc123%' ] ],
+			'upper case is lowered'  => [ 'ABC123', false, [ 'abc123%' ] ],
+			// Truncated for the index, and the document matched as well.
+			'long hash reaches the document' => [
+				$long,
+				false,
+				[
+					str_repeat( 'a', 63 ) . '%',
+					'%' . $long . '%',
+				],
+			],
+		];
+	}
+
+
 	public function testQueryDuplicatesWithAlgoFilter(): void
 	{
 

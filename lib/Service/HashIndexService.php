@@ -128,9 +128,11 @@ class HashIndexService
 		int     $minCount = 2,
 		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,
 		int     $offset = 0,
+		?string $hash = null,
+		bool    $anywhere = false,
 	): array {
 
-		return $this->duplicates->findAllDuplicates( $algo, $minCount, $limit, $offset );
+		return $this->duplicates->findAllDuplicates( $algo, $minCount, $limit, $offset, $hash, $anywhere );
 	}
 
 
@@ -226,6 +228,8 @@ class HashIndexService
 		int     $minCount = 2,
 		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,
 		int     $offset = 0,
+		?string $hash = null,
+		bool    $anywhere = false,
 	): array {
 
 		// The one chokepoint both controllers and the public API reach — so
@@ -254,7 +258,7 @@ class HashIndexService
 
 		while ( count( $result ) < $limit && $scanned < self::UNFILTERED_GROUP_FETCH_LIMIT )
 		{
-			$groups = $this->findAllDuplicates( $algo, $minCount, $pageSize, $rawOffset );
+			$groups = $this->findAllDuplicates( $algo, $minCount, $pageSize, $rawOffset, $hash, $anywhere );
 
 			if ( $groups === [] )
 			{

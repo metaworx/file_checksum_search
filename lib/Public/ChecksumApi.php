@@ -348,6 +348,8 @@ class ChecksumApi
 		int     $minCount = 2,
 		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,
 		int     $offset = 0,
+		?string $hash = null,
+		bool    $anywhere = false,
 	): array {
 
 		$user = $this->userSession->getUser();
@@ -365,7 +367,7 @@ class ChecksumApi
 			];
 		}
 
-		return $this->findDuplicatesFor( $uid, $algo, $minCount, $limit, $offset );
+		return $this->findDuplicatesFor( $uid, $algo, $minCount, $limit, $offset, $hash, $anywhere );
 	}
 
 
@@ -389,11 +391,13 @@ class ChecksumApi
 		int     $minCount = 2,
 		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,
 		int     $offset = 0,
+		?string $hash = null,
+		bool    $anywhere = false,
 	): array {
 
 		$limit = max( 1, min( $limit, 500 ) );
 
-		return $this->hashIndexService->listDuplicatesForUser( $scope, $algo, $minCount, $limit, $offset );
+		return $this->hashIndexService->listDuplicatesForUser( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere );
 	}
 
 

@@ -2789,12 +2789,70 @@ class MetadataService
 	 * @return array<int, array{meta_key: string, meta_value_string: string, file_count: int, file_ids: int[]}>
 	 * @throws \OCP\DB\Exception
 	 */
+	/**
+	 * Narrow a duplicates query to the hashes a term names.
+	 *
+	 * The same two-part shape {@see queryByHash()} uses, for the same reason.
+	 * The index column holds at most
+	 * {@see META_VALUE_STRING_MAX_LENGTH} characters, so a longer term is
+	 * compared there on its first 63 and the metadata document is matched as
+	 * well — server-side, before the row is sent. That pattern can over-match
+	 * but cannot exclude a file that really holds the value, and
+	 * {@see verifyTruncatedDuplicateGroups()} splits any group whose members
+	 * differ past the truncation, so an over-match is corrected before a
+	 * caller sees it.
+	 *
+	 * Wildcards in the term are escaped and every LIKE pattern is assembled
+	 * in PHP: no `||` or `CONCAT` reaches the SQL, which keeps this working
+	 * on every backend the app supports.
+	 *
+	 * @param  bool  $anywhere  Match the term anywhere in the hash rather
+	 *                          than at its start.
+	 */
+	private function andWhereHashMatches(
+		IQueryBuilder $qb,
+		string        $needle,
+		bool          $anywhere,
+	): void {
+
+		$escaped   = $this->db->escapeLikeParameter( self::truncateForIndex( $needle ) );
+		$indexTerm = $anywhere ? '%' . $escaped . '%' : $escaped . '%';
+
+		// A prefix pattern matches the whole value too, so one clause covers
+		// both; the ordering is what tells them apart.
+		$qb->andWhere(
+			$qb->expr()
+			   ->like(
+				   'i.' . self::FIELD_META_VALUE_STRING,
+				   $qb->createNamedParameter( $indexTerm ),
+			   ),
+		);
+
+		if ( self::isTruncatable( $needle ) )
+		{
+			$qb->andWhere(
+				$qb->expr()
+				   ->like(
+					   'm.' . self::FIELD_JSON,
+					   $qb->createNamedParameter( '%' . $this->db->escapeLikeParameter( $needle ) . '%' ),
+				   ),
+			);
+		}
+	}
+
+
 	public function queryDuplicates(
 		?string $algo = null,
 		int     $minCount = 2,
 		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,
 		int     $offset = 0,
+		?string $hash = null,
+		bool    $anywhere = false,
 	): array {
+
+		// Hashes are stored lower-case, so a digest pasted in upper case
+		// still finds its group.
+		$needle = strtolower( trim( (string) $hash ) );
 
 		$qb = $this->db->getQueryBuilder();
 
@@ -2848,11 +2906,34 @@ class MetadataService
 			);
 		}
 
+		if ( $needle !== '' )
+		{
+			$this->andWhereHashMatches( $qb, $needle, $anywhere );
+		}
+
 		$qb->having(
 			$qb->expr()
 			   ->gte( 'cnt', $qb->createNamedParameter( $minCount, IQueryBuilder::PARAM_INT ) ),
 		)
-		   ->orderBy( 'cnt', 'DESC' )
+		;
+
+		if ( $needle !== '' && ! $anywhere )
+		{
+			// Whole matches before ones that merely start with the term, as
+			// the filter promises. CASE WHEN is plain SQL every backend this
+			// app supports takes; the compared column is a grouping column,
+			// so it is legal beside the aggregate order below.
+			$qb->orderBy(
+				$qb->createFunction(
+					'CASE WHEN i.' . self::FIELD_META_VALUE_STRING . ' = '
+					. $qb->createNamedParameter( self::truncateForIndex( $needle ) )
+					. ' THEN 0 ELSE 1 END',
+				),
+				'ASC',
+			);
+		}
+
+		$qb->addOrderBy( 'cnt', 'DESC' )
 		   ->setMaxResults( $limit )
 		   ->setFirstResult( $offset )
 		;

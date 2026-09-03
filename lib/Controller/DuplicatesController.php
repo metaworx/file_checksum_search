@@ -75,6 +75,8 @@ class DuplicatesController
 		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,
 		int     $offset = 0,
 		?string $user = null,
+		?string $hash = null,
+		bool    $anywhere = false,
 	): DataResponse {
 
 		$this->logger->debug(
@@ -117,7 +119,7 @@ class DuplicatesController
 		}
 
 		return new DataResponse(
-			$this->hashIndexService->listDuplicatesForUser( $uid, $algo, $minCount, $limit, $offset ),
+			$this->hashIndexService->listDuplicatesForUser( $uid, $algo, $minCount, $limit, $offset, $hash, $anywhere ),
 		);
 	}
 
@@ -142,6 +144,8 @@ class DuplicatesController
 		int     $offset = 0,
 		?array  $users = null,
 		?array  $groups = null,
+		?string $hash = null,
+		bool    $anywhere = false,
 	): DataResponse {
 
 		$currentUser = $this->userSession->getUser();
@@ -183,7 +187,7 @@ class DuplicatesController
 		$limit = max( 1, min( $limit, 500 ) );
 
 		return new DataResponse(
-			$this->hashIndexService->listDuplicatesForUser( $scope, $algo, $minCount, $limit, $offset ),
+			$this->hashIndexService->listDuplicatesForUser( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere ),
 		);
 	}
 
