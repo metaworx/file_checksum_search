@@ -130,12 +130,13 @@ onMounted(() => fetchOptions())
 <style scoped>
 /* The listing's field styles are scoped to it, so the picker carries its
    own: label above its control, like every other field on the page. */
+/* Full width: several accounts and groups can be selected at once, and the
+   chips need the room. Uncapped, unlike the fixed-width filters below it. */
 .db-field--targets {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
 	width: 100%;
-	max-width: 420px;
 	margin-bottom: 12px;
 }
 

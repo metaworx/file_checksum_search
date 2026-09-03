@@ -238,9 +238,11 @@ onMounted(() => {
 	color: var(--color-warning-text);
 }
 
+/* The picker spans the row: it can hold several accounts and groups at
+   once, and each is a name long enough to be worth the width. It renders
+   only in this tab, so the Duplicates tab's own controls keep their sizes. */
 .db-field--targets {
 	width: 100%;
-	max-width: 420px;
 	margin-bottom: 12px;
 }
 </style>
