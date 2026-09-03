@@ -220,6 +220,184 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
+  /api/v1/sudo/file/{fileId}/hashes:
+    get:
+      tags: [Sudo]
+      summary: Get all checksums for any account's file
+      description: >-
+        The cross-account twin of `/api/v1/file/{fileId}/hashes`. Requires Nextcloud's password confirmation (403 with
+        "Password confirmation required" otherwise), and is refused with 403 for
+        anyone who may not look across accounts: a member of `admin` or anyone the
+        `instance_view` permission names may; a sub-admin may name a member of
+        their own groups in `user` where the route takes one.
+      operationId: sudoGetHashesByFileId
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          description: The filecache file ID, of any account
+          schema:
+            type: integer
+            example: 12345
+      responses:
+        "200":
+          description: As the ordinary route
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileHashesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/v1/sudo/file/{fileId}/duplicates:
+    get:
+      tags: [Sudo]
+      summary: Files across every account sharing a file's hash
+      description: >-
+        The cross-account twin of `/api/v1/file/{fileId}/duplicates`: the reference file may belong to any account, and the duplicates are drawn from every account. Requires Nextcloud's password confirmation (403 with
+        "Password confirmation required" otherwise), and is refused with 403 for
+        anyone who may not look across accounts: a member of `admin` or anyone the
+        `instance_view` permission names may; a sub-admin may name a member of
+        their own groups in `user` where the route takes one.
+      operationId: sudoFindDuplicatesForFile
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          description: The filecache file ID, of any account
+          schema:
+            type: integer
+            example: 12345
+      responses:
+        "200":
+          description: As the ordinary route
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SameHashResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/v1/sudo/lookup:
+    get:
+      tags: [Sudo]
+      summary: Search every account's files by hash
+      description: >-
+        The cross-account twin of `/api/v1/lookup`. Requires Nextcloud's password confirmation (403 with
+        "Password confirmation required" otherwise), and is refused with 403 for
+        anyone who may not look across accounts: a member of `admin` or anyone the
+        `instance_view` permission names may; a sub-admin may name a member of
+        their own groups in `user` where the route takes one.
+      operationId: sudoLookupByHash
+      parameters:
+        - name: hash
+          in: query
+          required: true
+          description: Hex-encoded hash value
+          schema:
+            type: string
+        - name: algo
+          in: query
+          required: false
+          description: Algorithm filter
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Max results (1–500)
+          schema:
+            type: integer
+            default: 100
+      responses:
+        "200":
+          description: As the ordinary route
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HashLookupResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/v1/sudo/duplicates:
+    get:
+      tags: [Sudo]
+      summary: Duplicate groups of one account, or of every account
+      description: >-
+        The cross-account twin of `/api/v1/duplicates`. With `user`, that account's duplicates; without, every account's. Requires Nextcloud's password confirmation (403 with
+        "Password confirmation required" otherwise), and is refused with 403 for
+        anyone who may not look across accounts: a member of `admin` or anyone the
+        `instance_view` permission names may; a sub-admin may name a member of
+        their own groups in `user` where the route takes one.
+      operationId: sudoFindAllDuplicates
+      parameters:
+        - name: user
+          in: query
+          required: false
+          description: Account to list; omit for every account
+          schema:
+            type: string
+        - name: algo
+          in: query
+          required: false
+          description: Algorithm filter
+          schema:
+            type: string
+        - name: minCount
+          in: query
+          required: false
+          description: Minimum files per group
+          schema:
+            type: integer
+            default: 2
+        - name: limit
+          in: query
+          required: false
+          description: Max groups (1–500)
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          description: Pagination offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: As the ordinary route
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DuplicatesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
   /api/v1/status:
     get:
       tags: [Maintenance]
@@ -1043,5 +1221,7 @@ tags:
     description: Hash lookup and file-level operations
   - name: Duplicates
     description: Global duplicate detection
+  - name: Sudo
+    description: Cross-account twins of the ordinary routes, behind a password confirmation — see the API reference's *Cross-account routes*.
   - name: Maintenance
     description: Read-only health and status

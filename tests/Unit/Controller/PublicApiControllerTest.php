@@ -22,6 +22,7 @@ use OCP\IRequest;
 use OCP\IUser;
 use OCP\IUserSession;
 use OCP\Lockdown\ILockdownManager;
+use OCA\FileChecksumSearch\Service\SudoScope;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -43,6 +44,8 @@ class PublicApiControllerTest
 	private IUserConfig&MockObject $userConfig;
 
 	private ILockdownManager&MockObject $lockdown;
+
+	private SudoScope&MockObject $sudo;
 
 	private PublicApiController        $controller;
 
@@ -67,6 +70,11 @@ class PublicApiControllerTest
 		$this->lockdown->method( 'canAccessFilesystem' )
 		               ->willReturn( true )
 		;
+		// Nobody may look across accounts unless a test says so.
+		$this->sudo = $this->createMock( SudoScope::class );
+		$this->sudo->method( 'resolve' )
+		           ->willReturn( false )
+		;
 
 		$adminUser = $this->createMock( IUser::class );
 		$adminUser->method( 'getUID' )
@@ -90,11 +98,82 @@ class PublicApiControllerTest
 			$this->createMock( AlgorithmCatalogue::class ),
 			$this->userConfig,
 			$this->lockdown,
+			$this->sudo,
 		);
 	}
 
 
 	// ─── scope ──────────────────────────────────────────────────────
+
+	/**
+	 * The sudo twin resolves the caller through SudoScope and passes what it
+	 * answers — null for every account — straight down. The password
+	 * confirmation the route carries is core's middleware and is not here.
+	 */
+	public function testTheSudoTwinReadsWhateverScopeTheResolverGrants(): void
+	{
+
+		$this->sudo = $this->createMock( SudoScope::class );
+		$this->sudo->method( 'resolve' )
+		           ->with( 'admin', null )
+		           ->willReturn( null )
+		;
+		$controller = new PublicApiController(
+			'file_checksum_search',
+			$this->createMock( IRequest::class ),
+			$this->api,
+			$this->userSession,
+			$this->groupManager,
+			$this->logger,
+			$this->createMock( AlgorithmCatalogue::class ),
+			$this->userConfig,
+			$this->lockdown,
+			$this->sudo,
+		);
+		$this->api->expects( $this->once() )
+		          ->method( 'getHashesByFileId' )
+		          ->with( 42, null )
+		          ->willReturn( [ 'fileid' => 42, 'hashes' => [] ] )
+		;
+
+		$this->assertSame( Http::STATUS_OK, $controller->sudoGetHashes( 42 )->getStatus() );
+	}
+
+
+	public function testTheSudoTwinRefusesWhoeverTheResolverRefuses(): void
+	{
+
+		$this->api->expects( $this->never() )
+		          ->method( 'getHashesByFileId' )
+		;
+		$this->api->expects( $this->never() )
+		          ->method( 'findByHash' )
+		;
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $this->controller->sudoGetHashes( 42 )->getStatus() );
+		$this->assertSame( Http::STATUS_FORBIDDEN, $this->controller->sudoLookup( 'abc123' )->getStatus() );
+		$this->assertSame( Http::STATUS_FORBIDDEN, $this->controller->sudoFindAllDuplicates( 'alice' )->getStatus() );
+	}
+
+
+	/**
+	 * The ordinary route never crosses accounts, whatever the resolver would
+	 * grant: it does not ask.
+	 */
+	public function testTheOrdinaryRouteNeverAsksTheResolver(): void
+	{
+
+		$this->sudo->expects( $this->never() )
+		           ->method( 'resolve' )
+		;
+		$this->api->method( 'getHashesByFileId' )
+		          ->with( 42, 'admin' )
+		          ->willReturn( [ 'fileid' => 42, 'hashes' => [] ] )
+		;
+
+		$this->assertSame( Http::STATUS_OK, $this->controller->getHashes( 42 )->getStatus() );
+	}
+
 
 	/**
 	 * An app password whose owner switched off "allow filesystem access"
@@ -120,6 +199,7 @@ class PublicApiControllerTest
 			$this->createMock( AlgorithmCatalogue::class ),
 			$this->userConfig,
 			$this->lockdown,
+			$this->sudo,
 		);
 		$this->api->expects( $this->never() )
 		          ->method( 'getHashesByFileId' )
@@ -142,8 +222,8 @@ class PublicApiControllerTest
 	{
 
 		$this->api->expects( $this->once() )
-		          ->method( 'findDuplicates' )
-		          ->with( 'sha256', 3, 10, 20 )
+		          ->method( 'findDuplicatesFor' )
+		          ->with( 'admin', 'sha256', 3, 10, 20 )
 		          ->willReturn( [
 			          'duplicates'   => [],
 			          'total_groups' => 0,
@@ -167,8 +247,8 @@ class PublicApiControllerTest
 	{
 
 		$this->api->expects( $this->once() )
-		          ->method( 'findDuplicates' )
-		          ->with( null, 2, 50, 0 )
+		          ->method( 'findDuplicatesFor' )
+		          ->with( 'admin', null, 2, 50, 0 )
 		          ->willReturn( [
 			          'duplicates'   => [],
 			          'total_groups' => 0,
@@ -191,7 +271,7 @@ class PublicApiControllerTest
 	{
 
 		$this->api->expects( $this->once() )
-		          ->method( 'findDuplicates' )
+		          ->method( 'findDuplicatesFor' )
 		          ->willThrowException( new \RuntimeException( 'DB error' ) )
 		;
 
@@ -298,6 +378,7 @@ class PublicApiControllerTest
 			$this->createMock( AlgorithmCatalogue::class ),
 			$this->userConfig,
 			$this->lockdown,
+			$this->sudo,
 		);
 
 		$this->api->expects( $this->never() )
@@ -339,6 +420,7 @@ class PublicApiControllerTest
 			$this->createMock( AlgorithmCatalogue::class ),
 			$this->userConfig,
 			$this->lockdown,
+			$this->sudo,
 		);
 
 		$this->api->expects( $this->once() )
@@ -519,6 +601,7 @@ class PublicApiControllerTest
 			$this->createMock( AlgorithmCatalogue::class ),
 			$this->userConfig,
 			$this->lockdown,
+			$this->sudo,
 		);
 
 		$this->api->expects( $this->once() )
@@ -631,6 +714,7 @@ class PublicApiControllerTest
 			$this->createMock( AlgorithmCatalogue::class ),
 			$this->userConfig,
 			$this->lockdown,
+			$this->sudo,
 		);
 
 		$this->api->expects( $this->once() )
@@ -681,6 +765,7 @@ class PublicApiControllerTest
 			new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ),
 			$this->userConfig,
 			$this->lockdown,
+			$this->sudo,
 		);
 	}
 

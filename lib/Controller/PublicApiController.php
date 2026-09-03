@@ -27,6 +27,8 @@ use OCP\IGroupManager;
 use OCP\IRequest;
 use OCP\IUserSession;
 use OCP\Lockdown\ILockdownManager;
+use OCP\AppFramework\Http\Attribute\PasswordConfirmationRequired;
+use OCA\FileChecksumSearch\Service\SudoScope;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -55,6 +57,7 @@ class PublicApiController
 		private readonly AlgorithmCatalogue $catalogue,
 		private readonly IUserConfig     $userConfig,
 		private readonly ILockdownManager $lockdown,
+		private readonly SudoScope       $sudo,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -102,6 +105,45 @@ class PublicApiController
 		}
 
 		return $user->getUID();
+	}
+
+
+	/**
+	 * The scope a cross-account route may read, or the response to send
+	 * instead.
+	 *
+	 * Everything {@see scopeOrRefusal()} refuses, this refuses too; on top
+	 * of that the caller must be someone who may look across accounts at
+	 * all ({@see SudoScope}). The password confirmation the route carries is
+	 * core's middleware and has already happened by the time this runs, so
+	 * a 403 from here means "not yours to ask", never "not confirmed".
+	 *
+	 * @param  string|null  $target  One account, or null for every account.
+	 *
+	 * @return string|null|DataResponse  The scope to pass down — null means
+	 *                                   every account — or the refusal.
+	 */
+	private function sudoScopeOrRefusal( ?string $target = null ): string|null|DataResponse
+	{
+
+		$own = $this->scopeOrRefusal();
+
+		if ( $own instanceof DataResponse )
+		{
+			return $own;
+		}
+
+		$scope = $this->sudo->resolve( $own, $target );
+
+		if ( $scope === false )
+		{
+			return new DataResponse(
+				[ 'success' => false, 'error' => 'Not yours to look at.' ],
+				Http::STATUS_FORBIDDEN,
+			);
+		}
+
+		return $scope;
 	}
 
 
@@ -248,6 +290,42 @@ class PublicApiController
 	public function getHashes( int $fileId ): DataResponse
 	{
 
+		$scope = $this->scopeOrRefusal();
+
+		return $scope instanceof DataResponse
+			? $scope
+			: $this->hashesFor( $fileId, $scope );
+	}
+
+
+	/**
+	 * {@see getHashes()} for a file that need not be the caller's own. A
+	 * password confirmation, and only for those who may look across accounts.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	#[PasswordConfirmationRequired]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/file/{fileId}/hashes' )]
+	public function sudoGetHashes( int $fileId ): DataResponse
+	{
+
+		$scope = $this->sudoScopeOrRefusal(  );
+
+		return $scope instanceof DataResponse
+			? $scope
+			: $this->hashesFor( $fileId, $scope );
+	}
+
+
+	/**
+	 * The route's body, for either wrapper: $scope is whose files may be
+	 * read — a uid, or null for every account.
+	 */
+	private function hashesFor( int $fileId, ?string $scope ): DataResponse
+	{
+
 		$this->logger->debug(
 			'FCIAS PublicApiController: getHashes called',
 			[
@@ -255,13 +333,6 @@ class PublicApiController
 				'fileId' => $fileId,
 			],
 		);
-
-		$scope = $this->scopeOrRefusal();
-
-		if ( $scope instanceof DataResponse )
-		{
-			return $scope;
-		}
 
 		try
 		{
@@ -348,6 +419,54 @@ class PublicApiController
 		int     $offset = 0,
 	): DataResponse {
 
+		$scope = $this->scopeOrRefusal();
+
+		return $scope instanceof DataResponse
+			? $scope
+			: $this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset );
+	}
+
+
+	/**
+	 * {@see findAllDuplicates()} for one named account, or for every account
+	 * when `user` is omitted. A password confirmation, and only for those who
+	 * may look across accounts — a sub-admin may name a member of their
+	 * groups and nothing wider.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	#[PasswordConfirmationRequired]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/duplicates' )]
+	public function sudoFindAllDuplicates(
+		?string $user = null,
+		?string $algo = null,
+		int     $minCount = 2,
+		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,
+		int     $offset = 0,
+	): DataResponse {
+
+		$scope = $this->sudoScopeOrRefusal( $user );
+
+		return $scope instanceof DataResponse
+			? $scope
+			: $this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset );
+	}
+
+
+	/**
+	 * The listing's body, for either wrapper: $scope is whose files — a
+	 * uid, or null for every account.
+	 */
+	private function duplicatesFor(
+		?string $scope,
+		?string $algo,
+		int     $minCount,
+		int     $limit,
+		int     $offset,
+	): DataResponse {
+
 		$this->logger->debug(
 			'FCIAS PublicApiController: findAllDuplicates called',
 			[
@@ -361,7 +480,7 @@ class PublicApiController
 
 		try
 		{
-			$result = $this->api->findDuplicates( $algo, $minCount, $limit, $offset );
+			$result = $this->api->findDuplicatesFor( $scope, $algo, $minCount, $limit, $offset );
 
 			return new DataResponse( $result );
 		}
@@ -395,6 +514,43 @@ class PublicApiController
 	public function findDuplicates( int $fileId ): DataResponse
 	{
 
+		$scope = $this->scopeOrRefusal();
+
+		return $scope instanceof DataResponse
+			? $scope
+			: $this->sameHashFor( $fileId, $scope );
+	}
+
+
+	/**
+	 * {@see findDuplicates()} for a file that need not be the caller's own,
+	 * with the duplicates drawn from every account. A password confirmation,
+	 * and only for those who may look across accounts.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	#[PasswordConfirmationRequired]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/file/{fileId}/duplicates' )]
+	public function sudoFindDuplicates( int $fileId ): DataResponse
+	{
+
+		$scope = $this->sudoScopeOrRefusal(  );
+
+		return $scope instanceof DataResponse
+			? $scope
+			: $this->sameHashFor( $fileId, $scope );
+	}
+
+
+	/**
+	 * The route's body, for either wrapper: $scope is whose files may be
+	 * read — a uid, or null for every account.
+	 */
+	private function sameHashFor( int $fileId, ?string $scope ): DataResponse
+	{
+
 		$this->logger->debug(
 			'FCIAS PublicApiController: findDuplicates (per-file) called',
 			[
@@ -402,13 +558,6 @@ class PublicApiController
 				'fileId' => $fileId,
 			],
 		);
-
-		$scope = $this->scopeOrRefusal();
-
-		if ( $scope instanceof DataResponse )
-		{
-			return $scope;
-		}
 
 		try
 		{
@@ -452,7 +601,48 @@ class PublicApiController
 		string  $hash,
 		?string $algo = null,
 		int     $limit = 100,
-	): DataResponse {
+	): DataResponse
+	{
+
+		$scope = $this->scopeOrRefusal();
+
+		return $scope instanceof DataResponse
+			? $scope
+			: $this->lookupFor( $hash, $algo, $limit, $scope );
+	}
+
+
+	/**
+	 * {@see lookup()} across every account. A password confirmation, and only
+	 * for those who may look across accounts.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	#[PasswordConfirmationRequired]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/lookup' )]
+	public function sudoLookup(
+		string  $hash,
+		?string $algo = null,
+		int     $limit = 100,
+	): DataResponse
+	{
+
+		$scope = $this->sudoScopeOrRefusal(  );
+
+		return $scope instanceof DataResponse
+			? $scope
+			: $this->lookupFor( $hash, $algo, $limit, $scope );
+	}
+
+
+	/**
+	 * The route's body, for either wrapper: $scope is whose files may be
+	 * read — a uid, or null for every account.
+	 */
+	private function lookupFor( string $hash, ?string $algo, int $limit, ?string $scope ): DataResponse
+	{
 
 		$this->logger->debug(
 			'FCIAS PublicApiController: lookup called',
@@ -461,13 +651,6 @@ class PublicApiController
 				'algo' => $algo,
 			],
 		);
-
-		$scope = $this->scopeOrRefusal();
-
-		if ( $scope instanceof DataResponse )
-		{
-			return $scope;
-		}
 
 		try
 		{

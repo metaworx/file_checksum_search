@@ -307,6 +307,10 @@ Responses are nonetheless plain JSON: these are `ApiController`s, not `OCSContro
 | 12 | `/api/v1/rules/{id}/apply` | POST | — | Queue a full apply pass for one rule |
 | 13 | `/api/v1/algorithms` | GET | — | The algorithms this instance computes, and its default |
 | 14 | `/api/v1/preferences/{key}` | GET, PUT | — | One of the caller's own preferences; first key `preferred_algorithm` |
+| 15 | `/api/v1/sudo/file/{fileId}/hashes` | GET | — | Any account's file; password confirmation, sudoers only |
+| 16 | `/api/v1/sudo/file/{fileId}/duplicates` | GET | — | Any account's file, duplicates from every account; as 15 |
+| 17 | `/api/v1/sudo/lookup` | GET | — | Every account; as 15 |
+| 18 | `/api/v1/sudo/duplicates` | GET | — | One named account, or every account; sudoers, or a sub-admin naming a member of their groups |
 
 > **Note:** `getHashesByFile()` and `getHashesByPath()` are PHP-only convenience methods with no HTTP equivalent. HTTP consumers should use `getHashesByFileId()` after obtaining a `fileId` from NC's WebDAV PROPFIND or other APIs.
 
@@ -804,6 +808,39 @@ accounts is a separate set of routes, named for it and behind Nextcloud's
 password confirmation, described under *Cross-account routes* below; a script
 that cannot confirm a password uses an app password that an administrator has
 granted for it, described there as well.
+
+---
+
+### Cross-account routes
+
+Every ordinary route reads the caller's own files. Four of them have a twin
+under `/api/v1/sudo/` that reads across accounts, and the Duplicates page has
+one for naming another account:
+
+| Ordinary | Cross-account | Scope of the twin |
+|---|---|---|
+| `GET /api/v1/file/{fileId}/hashes` | `GET /api/v1/sudo/file/{fileId}/hashes` | any account's file |
+| `GET /api/v1/file/{fileId}/duplicates` | `GET /api/v1/sudo/file/{fileId}/duplicates` | any account's file; duplicates from every account |
+| `GET /api/v1/lookup` | `GET /api/v1/sudo/lookup` | every account |
+| `GET /api/v1/duplicates` | `GET /api/v1/sudo/duplicates?user=` | one named account, or every account when `user` is omitted |
+
+Two things stand between a caller and a twin, in this order.
+
+**Who may be asked.** A member of `admin`, or anyone the *instance_view*
+permission names (admin settings → *Who may look across accounts*), may look
+at any account and at every account. A sub-admin — Nextcloud's own delegation,
+set on the Users page — may look at the members of the groups they administer,
+one at a time, by naming them in `user`; asking for everyone, or for someone
+outside their groups, is 403. Anyone else is 403 before any password is asked.
+
+**Confirmation.** Each twin carries Nextcloud's password confirmation: an
+interactive session must have confirmed its password within the last thirty
+minutes, and core answers 403 with `"message": "Password confirmation required"`
+otherwise. The bundled pages prompt for it; a script that cannot cannot use
+these routes with a session and uses a granted app password instead, described
+under *Sudo tokens*.
+
+The ordinary routes never cross accounts, whoever calls them.
 
 ---
 

@@ -210,7 +210,7 @@ class HashIndexService
 	 *                            pagination: array{offset: int, limit: int}}
 	 */
 	public function listDuplicatesForUser(
-		string  $userId,
+		?string $userId,
 		?string $algo = null,
 		int     $minCount = 2,
 		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,

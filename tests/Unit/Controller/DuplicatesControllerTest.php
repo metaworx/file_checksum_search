@@ -19,6 +19,7 @@ use OCP\IRequest;
 use OCP\IUser;
 use OCP\IUserManager;
 use OCP\IUserSession;
+use OCA\FileChecksumSearch\Service\SudoScope;
 use PHPUnit\Framework\MockObject\MockObject;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use Psr\Log\LoggerInterface;
@@ -40,6 +41,8 @@ class DuplicatesControllerTest
 	private MockObject|IUserManager $userManager;
 
 	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
+	private MockObject|SudoScope $sudo;
+
 	private MockObject|LoggerInterface $logger;
 
 	private DuplicatesController       $controller;
@@ -57,6 +60,10 @@ class DuplicatesControllerTest
 		$this->userManager      = $this->createMock( IUserManager::class );
 		$request                = $this->createMock( IRequest::class );
 		$this->logger           = $this->createMock( LoggerInterface::class );
+		$this->sudo             = $this->createMock( SudoScope::class );
+		$this->sudo->method( 'resolve' )
+		           ->willReturn( false )
+		;
 
 		$this->controller = new DuplicatesController(
 			'file_checksum_search',
@@ -66,6 +73,7 @@ class DuplicatesControllerTest
 			$this->groupManager,
 			$this->userManager,
 			$this->logger,
+			$this->sudo,
 		);
 	}
 

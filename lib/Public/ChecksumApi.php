@@ -270,8 +270,6 @@ class ChecksumApi
 		int     $offset = 0,
 	): array {
 
-		$limit = max( 1, min( $limit, 500 ) );
-
 		$user = $this->userSession->getUser();
 		$uid  = $user?->getUID();
 
@@ -282,12 +280,40 @@ class ChecksumApi
 				'total_groups' => 0,
 				'pagination'   => [
 					'offset' => $offset,
-					'limit'  => $limit,
+					'limit'  => max( 1, min( $limit, 500 ) ),
 				],
 			];
 		}
 
-		return $this->hashIndexService->listDuplicatesForUser( $uid, $algo, $minCount, $limit, $offset );
+		return $this->findDuplicatesFor( $uid, $algo, $minCount, $limit, $offset );
+	}
+
+
+	/**
+	 * Duplicate groups for one account, or for every account.
+	 *
+	 * The scoped core behind {@see findDuplicates()}. Not for a session's
+	 * own use: a null $scope lists every account's files, and a string one
+	 * lists an account the caller did not have to be. The routes that reach
+	 * it have already decided the caller may — {@see SudoScope} — and have
+	 * asked for a password on the way.
+	 *
+	 * @param  string|null  $scope  The account whose files to list, or null
+	 *                              for the whole instance
+	 *
+	 * @return array{duplicates: array, total_groups: int, pagination: array{offset: int, limit: int}}
+	 */
+	public function findDuplicatesFor(
+		?string $scope,
+		?string $algo = null,
+		int     $minCount = 2,
+		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,
+		int     $offset = 0,
+	): array {
+
+		$limit = max( 1, min( $limit, 500 ) );
+
+		return $this->hashIndexService->listDuplicatesForUser( $scope, $algo, $minCount, $limit, $offset );
 	}
 
 

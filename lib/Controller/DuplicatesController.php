@@ -22,6 +22,8 @@ use OCP\IGroupManager;
 use OCP\IRequest;
 use OCP\IUserManager;
 use OCP\IUserSession;
+use OCP\AppFramework\Http\Attribute\PasswordConfirmationRequired;
+use OCA\FileChecksumSearch\Service\SudoScope;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -45,6 +47,7 @@ class DuplicatesController
 		private readonly IGroupManager    $groupManager,
 		private readonly IUserManager     $userManager,
 		private readonly LoggerInterface  $logger,
+		private readonly SudoScope        $sudo,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -83,18 +86,15 @@ class DuplicatesController
 
 		$currentUser = $this->userSession->getUser();
 
-		// Resolve target user
+		// Another account's duplicates are a different route, behind a
+		// password confirmation: {@see findAllSudo()}. This one is always
+		// the caller's own, and says so rather than silently answering that.
 		if ( $user !== null && $currentUser !== null )
 		{
-			// Nobody, for now — an administrator included. Reading another
-			// account's duplicates returns as its own route behind a password
-			// confirmation; until then this parameter names nobody it may
-			// name, and says so rather than silently answering with one's own.
 			return new DataResponse(
-				[ 'error' => 'Listing another user\'s duplicates is not available on this route.' ],
+				[ 'error' => 'Use /duplicates/sudo to list another account\'s duplicates.' ],
 				Http::STATUS_FORBIDDEN,
 			);
-
 		}
 		elseif ( $currentUser !== null )
 		{
@@ -112,6 +112,47 @@ class DuplicatesController
 
 		return new DataResponse(
 			$this->hashIndexService->listDuplicatesForUser( $uid, $algo, $minCount, $limit, $offset ),
+		);
+	}
+
+	/**
+	 * {@see findAll()} for one named account, or for every account when
+	 * `user` is omitted — the Duplicates page's *Show all users* switch. A
+	 * password confirmation, and only for those who may look across accounts;
+	 * a sub-admin may name a member of their groups and nothing wider.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	#[PasswordConfirmationRequired]
+	#[ApiRoute( verb: 'GET', url: '/duplicates/sudo' )]
+	public function findAllSudo(
+		?string $user = null,
+		?string $algo = null,
+		int     $minCount = 2,
+		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,
+		int     $offset = 0,
+	): DataResponse {
+
+		$currentUser = $this->userSession->getUser();
+
+		if ( $currentUser === null )
+		{
+			return new DataResponse( [ 'error' => 'Not authenticated.' ], Http::STATUS_UNAUTHORIZED );
+		}
+
+		$scope = $this->sudo->resolve( $currentUser->getUID(), $user );
+
+		if ( $scope === false )
+		{
+			return new DataResponse( [ 'error' => 'Not yours to look at.' ], Http::STATUS_FORBIDDEN );
+		}
+
+		$limit = max( 1, min( $limit, 500 ) );
+
+		return new DataResponse(
+			$this->hashIndexService->listDuplicatesForUser( $scope, $algo, $minCount, $limit, $offset ),
 		);
 	}
 
