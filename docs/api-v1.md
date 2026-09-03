@@ -310,7 +310,7 @@ Responses are nonetheless plain JSON: these are `ApiController`s, not `OCSContro
 | 15 | `/api/v1/sudo/file/{fileId}/hashes` | GET | — | Any account's file; password confirmation, sudoers only |
 | 16 | `/api/v1/sudo/file/{fileId}/duplicates` | GET | — | Any account's file, duplicates from every account; as 15 |
 | 17 | `/api/v1/sudo/lookup` | GET | — | Every account; as 15 |
-| 18 | `/api/v1/sudo/duplicates` | GET | — | One named account, or every account; sudoers, or a sub-admin naming a member of their groups |
+| 18 | `/api/v1/sudo/duplicates` | GET | — | One named account (`user`), a set (`users[]`/`groups[]`, merged), or every account; sudoers, or a sub-admin naming their own members |
 
 > **Note:** `getHashesByFile()` and `getHashesByPath()` are PHP-only convenience methods with no HTTP equivalent. HTTP consumers should use `getHashesByFileId()` after obtaining a `fileId` from NC's WebDAV PROPFIND or other APIs.
 
@@ -837,6 +837,7 @@ one for naming another account:
 | `GET /api/v1/file/{fileId}/duplicates` | `GET /api/v1/sudo/file/{fileId}/duplicates` | any account's file; duplicates from every account |
 | `GET /api/v1/lookup` | `GET /api/v1/sudo/lookup` | every account |
 | `GET /api/v1/duplicates` | `GET /api/v1/sudo/duplicates?user=` | one named account, or every account when `user` is omitted |
+| — | `GET /api/v1/sudo/duplicates?users[]=&groups[]=` | the named accounts and the members of the named groups, as one merged listing |
 
 Two things stand between a caller and a twin, in this order.
 
@@ -844,8 +845,25 @@ Two things stand between a caller and a twin, in this order.
 permission names (admin settings → *Who may look across accounts*), may look
 at any account and at every account. A sub-admin — Nextcloud's own delegation,
 set on the Users page — may look at the members of the groups they administer,
-one at a time, by naming them in `user`; asking for everyone, or for someone
-outside their groups, is 403. Anyone else is 403 before any password is asked.
+by naming them; asking for everyone, or for someone outside their groups, is
+403. Anyone else is 403 before any password is asked.
+
+**Naming several at once.** `users[]` and `groups[]` name a set instead of the
+single `user`. The server expands each group to its members — never the
+client, since membership is not the caller's to enumerate — authorises every
+resulting account, and answers one merged listing, so a file held by two named
+accounts appears as one duplicate group. One account or group the caller may
+not read refuses the whole request with 403 rather than quietly narrowing it:
+a listing that answers for fewer accounts than were asked for hides the
+refusal.
+
+**`GET /duplicates/selectable`** (not under `/api/v1/`; it serves the
+Duplicates page) answers what the caller may name — `groups`, `users`, `all`
+for a sudoer, and `prefill` saying whether those lists are complete. When
+`prefill` is false there are more than the picker holds at once and it must
+pass `?search=` as the user types. The threshold is an instance setting
+(admin settings → *Advanced*), 21 by default. An account that may name nobody
+gets 403.
 
 **Confirmation.** Each twin requires one of two things: a session that
 confirmed its password within the last thirty minutes — Nextcloud's own

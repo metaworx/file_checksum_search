@@ -344,19 +344,39 @@ paths:
       tags: [Sudo]
       summary: Duplicate groups of one account, or of every account
       description: >-
-        The cross-account twin of `/api/v1/duplicates`. With `user`, that account's duplicates; without, every account's. Requires a password confirmed within the last thirty minutes, or a granted app password (403 with
-        "Password confirmation required" otherwise), and is refused with 403 for
+        The cross-account twin of `/api/v1/duplicates`. With `user`, that account's duplicates; with
+        `users[]`/`groups[]`, the named accounts and the members of the named groups as one merged
+        listing; with none of them, every account's. Groups are expanded server-side, never by the
+        client, and one target the caller may not read refuses the whole request rather than
+        narrowing it. Requires a password confirmed within the last thirty minutes, or a granted app
+        password (403 with "Password confirmation required" otherwise), and is refused with 403 for
         anyone who may not look across accounts: a member of `admin` or anyone the
-        `instance_view` permission names may; a sub-admin may name a member of
-        their own groups in `user` where the route takes one.
+        `instance_view` permission names may; a sub-admin may name members of
+        their own groups, and their own groups.
       operationId: sudoFindAllDuplicates
       parameters:
         - name: user
           in: query
           required: false
-          description: Account to list; omit for every account
+          description: Account to list; omit for every account, or use users[]/groups[]
           schema:
             type: string
+        - name: users[]
+          in: query
+          required: false
+          description: Accounts to list together, merged into one listing
+          schema:
+            type: array
+            items:
+              type: string
+        - name: groups[]
+          in: query
+          required: false
+          description: Groups whose members to list, expanded and authorised server-side
+          schema:
+            type: array
+            items:
+              type: string
         - name: algo
           in: query
           required: false

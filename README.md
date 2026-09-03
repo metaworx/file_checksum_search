@@ -672,8 +672,10 @@ The admin settings page provides:
     credentials; the bundled pages keep working for everyone
 - **Sudo tokens** — a tab: every app password on the instance granted the cross-account routes
   without a password prompt, against the live token table, with revoke
-- **Status** — a tab: app version, indexed hash count, pending updates by mode, the *Untrusted
-  Hashes* total with its reasons (eroded, reset), and each background job's last run with its counts
+- **Advanced** — a tab: app version, indexed hash count, pending updates by mode, the *Untrusted
+  Hashes* total with its reasons (eroded, reset), and each background job's last run with its counts;
+  plus the instance's tunables, the first being how many accounts and groups the cross-account
+  picker prefills (21) before it searches server-side instead
 - **Documentation** — the last tab: in-app access to the FAQ, the user guide, README, API specs, and
   license
 

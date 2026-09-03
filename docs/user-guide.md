@@ -37,8 +37,9 @@ ask for it.
 
 Open **Duplicates** from the top navigation (or the URL
 `/apps/file_checksum_search/duplicates`) to browse files that share the
-same checksum. The page has two tabs: **Duplicates**, and **Help**, which
-is this guide.
+same checksum. The page has **Duplicates** and **Help** (this guide), and —
+if your administrator lets you look across accounts — a **Cross-account**
+tab as well.
 
 Each control carries its label, and an **i** button beside the label says what
 it decides.
@@ -53,10 +54,27 @@ it decides.
   to 20 files per minute, so a long list stops partway with a message; wait a
   minute and click again to continue with the rest.
 - **Only matching** — show only groups that passed verification.
-- **Show all users** — offered only if your administrator lets you look across
-  accounts. On asks for your password, then lists every account's duplicates;
-  the switch stays red for as long as it does. Off, or a reload, is back to
-  your own files.
+
+### Looking at other accounts
+
+If your administrator lets you look across accounts, a **Cross-account** tab
+appears beside *Duplicates*. It is a tab of its own, on an amber background,
+because everything in it is somebody else's files — not a mode your own
+listing slips into.
+
+Opening it asks for your password once (Nextcloud remembers that for thirty
+minutes). **Whose files** then names what you want to see: accounts, groups,
+or both at once, shown together as one list of duplicate groups — which is
+how a copy held by two different people shows up as one group.
+
+What you may name depends on who you are. An administrator may name anyone,
+and has an **All accounts** option besides. If you lead groups — a *group
+administrator* in Nextcloud's terms — you may name your own groups and their
+members, and nothing else. The picker only ever offers what you may have; on
+a large server it searches as you type instead of listing everyone.
+
+Your own *Duplicates* tab is unaffected: it keeps its own filters and page,
+and leaving the Cross-account tab puts you back among your own files.
 
 Click a group header to expand it and see the files in the group; each file
 opens in the Files app **in a new tab**. Long lists are paged with
