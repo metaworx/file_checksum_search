@@ -11,6 +11,9 @@ the first stable release.
 
 ## [Unreleased]
 
+### Security
+- **Asking which files share a file's hash no longer answers for files you cannot open.** `GET /api/v1/file/{fileId}/duplicates` read the reference file's hashes before checking anything, and only filtered the *duplicates* it found to the caller's own tree. Because file ids are sequential, sweeping them turned the endpoint into a content-equality oracle over the whole instance: a non-empty answer said that file holds something you also hold. The reference file is now resolved through the caller's own tree first, as every sibling endpoint already did, and the endpoint is rate limited like the other expensive ones. Administrators are unaffected for now and keep the instance-wide view.
+
 ### Changed
 - Docblocks where the contract is not in the signature, and none where it is. Thirty-odd methods gained one: the by-reference return nobody binds by reference, the save flag that is silently forced, the merge that drops whole hash pairs when the column overflows, the lock whose `false` means "busy" rather than "failed", the recursion whose batch size of zero means no limit. Twelve command docblocks that restated the method name and six that echoed the signature are gone, keeping every annotation they carried.
 - `FilecacheService` declares strict types, like every other service in the app. It was the only one without the declaration or the licence header, which is why its annotations had been free to drift. This changes how PHP treats argument and return types inside that one file, so it is a commit of its own: the full PHP suite and the end-to-end suite pass with it, and it can be reverted alone if something uncovered turns up.

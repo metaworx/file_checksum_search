@@ -294,13 +294,34 @@ class ChecksumApi
 	/**
 	 * Find other files sharing the same hash values as a given file.
 	 *
-	 * @param  int  $fileId  The filecache fileid of the reference file
+	 * Both ends are scoped: the reference file must be one $requestingUser
+	 * can open, and only duplicates in their own tree are listed.
+	 *
+	 * @param  int          $fileId          The filecache fileid of the reference file
+	 * @param  string|null  $requestingUser  When provided, the reference file
+	 *                                       must resolve within this user's
+	 *                                       own tree. Omit (or pass null) for
+	 *                                       trusted callers that intentionally
+	 *                                       read across the instance.
 	 *
 	 * @return array{duplicates: array<int, array{algo: string, hash_value: string, files: array<int, array{fileid:
 	 *                           int, path: string, name: string}>}>}
+	 * @throws NotFoundException  If $requestingUser is set and cannot access $fileId
 	 */
-	public function findSameHash( int $fileId ): array
-	{
+	public function findSameHash(
+		int     $fileId,
+		?string $requestingUser = null,
+	): array {
+
+		// Before the hashes are read, not after. A hash is a fingerprint of
+		// content, so answering for a file the caller cannot open turns this
+		// into a content-equality oracle over every file on the instance:
+		// sweep the ids, and a non-empty answer says that file holds
+		// something you also hold.
+		if ( $requestingUser !== null && ! $this->userCanAccessFile( $requestingUser, $fileId ) )
+		{
+			throw new NotFoundException( "Invalid file ID: $fileId" );
+		}
 
 		$hashes = $this->metadataService->getHashes( $fileId );
 

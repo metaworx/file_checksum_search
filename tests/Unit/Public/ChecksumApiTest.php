@@ -599,6 +599,35 @@ class ChecksumApiTest
 
 	// ─── findSameHash ───────────────────────────────────────────────
 
+	/**
+	 * The reference file is checked before its hashes are read. Without
+	 * this, sweeping file ids answers "does that file hold something I also
+	 * hold" for every file on the instance.
+	 */
+	public function testFindSameHashThrowsWhenRequestingUserCannotAccessTheReferenceFile(): void
+	{
+
+		$userFolder = $this->createMock( Folder::class );
+
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->with( 'alice' )
+		                 ->willReturn( $userFolder )
+		;
+		$userFolder->method( 'getById' )
+		           ->with( 42 )
+		           ->willReturn( [] )
+		;
+
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'getHashes' )
+		;
+
+		$this->expectException( NotFoundException::class );
+
+		$this->api->findSameHash( 42, 'alice' );
+	}
+
+
 	public function testFindSameHashReturnsEmptyWhenNoHashes(): void
 	{
 

@@ -369,6 +369,7 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[UserRateLimit( limit: 60, period: 60 )]
 	#[ApiRoute( verb: 'GET', url: '/api/v1/file/{fileId}/duplicates' )]
 	public function findDuplicates( int $fileId ): DataResponse
 	{
@@ -381,11 +382,22 @@ class PublicApiController
 			],
 		);
 
+		$scope = $this->resolveRequestingUserScope();
+
+		if ( $scope === false )
+		{
+			return new DataResponse( [ 'error' => 'Not authenticated.' ], Http::STATUS_UNAUTHORIZED );
+		}
+
 		try
 		{
-			$result = $this->api->findSameHash( $fileId );
+			$result = $this->api->findSameHash( $fileId, $scope );
 
 			return new DataResponse( $result );
+		}
+		catch ( NotFoundException )
+		{
+			return new DataResponse( [ 'error' => 'File not found.' ], Http::STATUS_NOT_FOUND );
 		}
 		catch ( Throwable $e )
 		{
