@@ -82,7 +82,7 @@ async function save(): Promise<void> {
 		})
 		const data = (await response.json()) as { success?: boolean; error?: string }
 		if (data.success) {
-			toastSaved()
+			toastSaved('Permissions saved.')
 		} else {
 			toastError(data.error || 'Save failed.')
 		}

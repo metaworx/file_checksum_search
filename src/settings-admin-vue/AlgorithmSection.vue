@@ -83,7 +83,7 @@ async function save(): Promise<void> {
 			defaultAlgorithm?: string
 		}
 		if (data.success) {
-			toastSaved()
+			toastSaved('Algorithms saved.')
 			if (data.allowedAlgorithms) {
 				selectedIds.value = data.allowedAlgorithms
 			}

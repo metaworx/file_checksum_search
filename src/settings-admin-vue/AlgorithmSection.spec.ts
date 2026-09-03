@@ -107,7 +107,7 @@ describe('AlgorithmSection', () => {
 			defaultAlgorithm: 'md5',
 		})
 		// Said once the server has confirmed, not when the button was pressed.
-		expect(toastSaved).toHaveBeenCalledTimes(1)
+		expect(toastSaved).toHaveBeenCalledWith('Algorithms saved.')
 		expect(toastError).not.toHaveBeenCalled()
 	})
 

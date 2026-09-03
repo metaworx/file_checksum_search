@@ -79,7 +79,7 @@ async function save(value: string): Promise<void> {
 		const data = (await response.json()) as { error?: string, value?: string, default?: string, active?: string }
 		if (response.ok) {
 			take(data)
-			toastSaved()
+			toastSaved('Preferred algorithm saved.')
 		} else {
 			toastError(data.error || 'Could not save the preference.')
 		}

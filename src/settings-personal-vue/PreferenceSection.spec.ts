@@ -75,7 +75,7 @@ describe('PreferenceSection', () => {
 		const put = fetchMock.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === 'PUT')
 		expect(JSON.parse(String((put![1] as RequestInit).body))).toEqual({ value: 'sha256' })
 		expect(picker.props('modelValue')).toBe('sha256')
-		expect(toastSaved).toHaveBeenCalledTimes(1)
+		expect(toastSaved).toHaveBeenCalledWith('Preferred algorithm saved.')
 		expect(toastError).not.toHaveBeenCalled()
 	})
 
