@@ -17,6 +17,7 @@ use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\ApiRoute;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\IGroupManager;
 use OCP\IRequest;
@@ -63,6 +64,7 @@ class DuplicatesController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[UserRateLimit( limit: 60, period: 60 )]
 	#[ApiRoute( verb: 'GET', url: '/duplicates/data' )]
 	public function findAll(
 		?string $algo = null,
@@ -127,6 +129,7 @@ class DuplicatesController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[UserRateLimit( limit: 60, period: 60 )]
 	#[ApiRoute( verb: 'GET', url: '/duplicates/sudo' )]
 	public function findAllSudo(
 		?string $user = null,

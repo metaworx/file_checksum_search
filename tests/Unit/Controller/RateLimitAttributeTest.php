@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
+use OCA\FileChecksumSearch\Controller\DuplicatesController;
 use OCA\FileChecksumSearch\Controller\PublicApiController;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use PHPUnit\Framework\TestCase;
@@ -40,9 +41,14 @@ class RateLimitAttributeTest
 	{
 
 		return [
-			'v1 lookup'     => [ PublicApiController::class, 'lookup', 60, 60 ],
-			'v1 duplicates' => [ PublicApiController::class, 'findAllDuplicates', 60, 60 ],
-			'v1 recalc'     => [ PublicApiController::class, 'recalcHash', 20, 60 ],
+			'v1 lookup'         => [ PublicApiController::class, 'lookup', 60, 60 ],
+			'v1 duplicates'     => [ PublicApiController::class, 'findAllDuplicates', 60, 60 ],
+			'v1 recalc'         => [ PublicApiController::class, 'recalcHash', 20, 60 ],
+			// The browser routes reach the same expensive query as the API
+			// twin and so carry the same limit; without it the page was an
+			// unmetered way to run a 10 000-group aggregate per request.
+			'page duplicates'   => [ DuplicatesController::class, 'findAll', 60, 60 ],
+			'page duplicates su' => [ DuplicatesController::class, 'findAllSudo', 60, 60 ],
 		];
 	}
 

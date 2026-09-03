@@ -488,6 +488,25 @@ class HashIndexServiceTest
 	}
 
 
+	/**
+	 * A group is two files or more; a minCount under 2 makes every hashed
+	 * file its own group and turns the listing into a whole-index scan. The
+	 * controllers pass the client's value straight through, so the clamp is
+	 * here, and the query never sees a number below 2.
+	 */
+	public function testListDuplicatesForUserClampsMinCountToTwo(): void
+	{
+
+		$this->duplicates->expects( $this->once() )
+		                 ->method( 'findAllDuplicates' )
+		                 ->with( 'sha1', 2, 10000, 0 )
+		                 ->willReturn( [] )
+		;
+
+		$this->service->listDuplicatesForUser( 'bob', 'sha1', 0, 50, 0 );
+	}
+
+
 	public function testListDuplicatesForUserOverFetchesThenAppliesTheCallersLimit(): void
 	{
 

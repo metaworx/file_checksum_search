@@ -217,6 +217,13 @@ class HashIndexService
 		int     $offset = 0,
 	): array {
 
+		// The one chokepoint both controllers and the public API reach — so
+		// the clamp lives here, not in each caller. A group is two files or
+		// more by definition; minCount below 2 makes every hashed file its
+		// own "group" and turns the listing into a whole-index scan on
+		// demand. The occ command clamps the same way.
+		$minCount = max( 2, $minCount );
+
 		$pagination = [
 			'offset' => $offset,
 			'limit'  => $limit,
