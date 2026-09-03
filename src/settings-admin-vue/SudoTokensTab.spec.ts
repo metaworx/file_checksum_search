@@ -74,11 +74,43 @@ describe('SudoTokensTab', () => {
 		expect(toastSuccess).toHaveBeenCalledWith('Grant revoked.')
 	})
 
-	it('says so when the token table cannot be read', async () => {
+	// A GET from a session still has to pass core's CSRF check, and the
+	// request token is what passes it. Without the header the listing was
+	// refused before it reached the app — and the page blamed the table.
+	it('sends the request token with the listing request', async () => {
+		mount(SudoTokensTab)
+		await flushPromises()
+
+		const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+		expect((init.headers as Record<string, string>).requesttoken).toBe('token')
+	})
+
+	it('names the status when the request itself fails', async () => {
 		fetchMock.mockResolvedValueOnce(jsonResponse({}, false))
 		const wrapper = mount(SudoTokensTab)
 		await flushPromises()
 
-		expect(wrapper.text()).toContain('listing is unavailable')
+		const line = wrapper.find('[data-testid="fcias-sudo-grants-error"]')
+		expect(line.text()).toContain('could not be loaded')
+		expect(line.text()).toContain('HTTP 500')
+		expect(line.text()).not.toContain('token table')
+	})
+
+	it('says so when the server could not read the token table', async () => {
+		fetchMock.mockResolvedValueOnce(jsonResponse({ grants: [], available: false }))
+		const wrapper = mount(SudoTokensTab)
+		await flushPromises()
+
+		expect(wrapper.find('[data-testid="fcias-sudo-grants-error"]').text()).toContain('token table could not be read')
+		expect(wrapper.find('[data-testid="fcias-sudo-grants-empty"]').exists()).toBe(false)
+	})
+
+	it('says "no grants" only for an answer that says so', async () => {
+		fetchMock.mockResolvedValueOnce(jsonResponse({ grants: [], available: true }))
+		const wrapper = mount(SudoTokensTab)
+		await flushPromises()
+
+		expect(wrapper.find('[data-testid="fcias-sudo-grants-empty"]').exists()).toBe(true)
+		expect(wrapper.find('[data-testid="fcias-sudo-grants-error"]').exists()).toBe(false)
 	})
 })

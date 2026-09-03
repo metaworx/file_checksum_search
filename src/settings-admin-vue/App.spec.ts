@@ -234,10 +234,20 @@ describe('settings-admin App', () => {
 		expect(wrapper.find('#fcias-tab-panel-settings').exists()).toBe(true)
 		expect(wrapper.find('#fcias-tab-panel-docs').exists()).toBe(false)
 
-		await wrapper.findAll('.fcias-tab').at(1)!.trigger('click')
+		// By the panel it controls, not by position: Documentation is the
+		// last tab and stays so, and tabs are added in front of it.
+		await wrapper.find('[aria-controls="fcias-tab-panel-docs"]').trigger('click')
 
 		expect(wrapper.find('#fcias-tab-panel-settings').exists()).toBe(false)
 		expect(wrapper.find('#fcias-tab-panel-docs').exists()).toBe(true)
+	})
+
+	it('keeps Documentation as the last tab', () => {
+		mockFetch()
+		const wrapper = mount(App)
+
+		const tabs = wrapper.findAll('.fcias-tab')
+		expect(tabs.at(-1)!.attributes('aria-controls')).toBe('fcias-tab-panel-docs')
 	})
 
 	it('keeps Path and User Scope editable for an additional rule', async () => {

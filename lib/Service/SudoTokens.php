@@ -126,7 +126,7 @@ class SudoTokens
 
 		$dangling = array_diff( array_keys( $grants ), $seen );
 
-		if ( $dangling !== [] && $this->tokens->listForUser( $uid ) !== [] )
+		if ( $dangling !== [] && ! $this->tokens->wasUnavailable() )
 		{
 			// Only when the table answered: an unreadable table would
 			// otherwise look like "every token is gone" and wipe the grants.
@@ -134,6 +134,17 @@ class SudoTokens
 		}
 
 		return $rows;
+	}
+
+
+	/**
+	 * Whether the last listing was an answer at all. False means the token
+	 * table could not be read, and an empty list is not "none".
+	 */
+	public function listingAvailable(): bool
+	{
+
+		return ! $this->tokens->wasUnavailable();
 	}
 
 

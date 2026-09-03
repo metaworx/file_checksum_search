@@ -288,6 +288,8 @@ loadRules().then(() => {
 
 <template>
 	<div>
+		<!-- Documentation is the last tab, and stays so: a new tab goes in
+		     front of it. App.spec.ts holds the page to that. -->
 		<div class="fcias-tabs" role="tablist">
 			<button
 				type="button"

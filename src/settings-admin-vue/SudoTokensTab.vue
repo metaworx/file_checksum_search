@@ -26,20 +26,38 @@ interface GrantRow {
 
 const OC = window.OC as unknown as { requestToken: string }
 
+interface Listing {
+	grants?: GrantRow[]
+	/** False when the server could not read the token table; the list is then no answer. */
+	available?: boolean
+}
+
 const grants = ref<GrantRow[]>([])
 const loaded = ref(false)
-const failed = ref(false)
+/** What went wrong, in the reader's terms — or null while nothing has. */
+const failure = ref<string | null>(null)
 const busy = ref<string | null>(null)
 
 const key = (g: GrantRow) => `${g.uid}/${g.id}`
 
+function take(data: Listing): void {
+	grants.value = data.grants ?? []
+	failure.value = data.available === false
+		? 'The grant listing is unavailable: the token table could not be read.'
+		: null
+}
+
 async function load(): Promise<void> {
 	try {
-		const response = await fetch(generateOcsUrl(OCS_SETTINGS.allSudoTokens))
+		// A GET, but from a session: the request token is what lets core's
+		// CSRF check pass — the same header every write in the app sends.
+		const response = await fetch(generateOcsUrl(OCS_SETTINGS.allSudoTokens), {
+			headers: { requesttoken: OC.requestToken },
+		})
 		if (!response.ok) throw new Error(`HTTP ${response.status}`)
-		grants.value = ((await response.json()) as { grants?: GrantRow[] }).grants ?? []
+		take((await response.json()) as Listing)
 	} catch (e) {
-		failed.value = true
+		failure.value = `The grant listing could not be loaded (${(e as Error).message}).`
 	} finally {
 		loaded.value = true
 	}
@@ -53,7 +71,7 @@ async function revoke(grant: GrantRow): Promise<void> {
 			headers: { requesttoken: OC.requestToken },
 		})
 		if (!response.ok) throw new Error(`HTTP ${response.status}`)
-		grants.value = ((await response.json()) as { grants?: GrantRow[] }).grants ?? []
+		take((await response.json()) as Listing)
 		toastSuccess('Grant revoked.')
 	} catch (e) {
 		toastError('Could not revoke the grant.')
@@ -77,10 +95,10 @@ onMounted(load)
 			look across accounts at all is decided under <em>Who may look across accounts</em>; a grant replaces
 			the prompt, not the permission.
 		</p>
-		<p v-if="loaded && failed" class="fcias-error">
-			The grant listing is unavailable: the token table could not be read.
+		<p v-if="loaded && failure" class="fcias-error" data-testid="fcias-sudo-grants-error">
+			{{ failure }}
 		</p>
-		<p v-else-if="loaded && grants.length === 0" class="fcias-hint">
+		<p v-else-if="loaded && grants.length === 0" class="fcias-hint" data-testid="fcias-sudo-grants-empty">
 			No grants.
 		</p>
 		<table v-else-if="loaded" class="grid fcias-rules-table" data-testid="fcias-sudo-grants">

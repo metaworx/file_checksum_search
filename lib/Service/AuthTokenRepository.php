@@ -42,6 +42,9 @@ class AuthTokenRepository
 	/** An app password: created on the Security page, long-lived, the only kind worth granting. */
 	public const TYPE_APP_PASSWORD = 1;
 
+	/** Whether the most recent read failed — an empty list that is not an answer. */
+	private bool $unavailable = false;
+
 
 	public function __construct(
 		private readonly IDBConnection   $db,
@@ -103,10 +106,25 @@ class AuthTokenRepository
 
 
 	/**
+	 * Whether the last listing came back empty because the table could not be
+	 * read rather than because there was nothing in it. The pages ask this to
+	 * say "unavailable" instead of "none"; the grant logic asks it before
+	 * treating an empty list as "every token is gone".
+	 */
+	public function wasUnavailable(): bool
+	{
+
+		return $this->unavailable;
+	}
+
+
+	/**
 	 * @return list<array{id: int, uid: string, name: string, type: int, last_activity: int, filesystem: bool}>
 	 */
 	private function rows( IQueryBuilder $qb ): array
 	{
+
+		$this->unavailable = false;
 
 		try
 		{
@@ -133,6 +151,7 @@ class AuthTokenRepository
 		}
 		catch ( Exception $e )
 		{
+			$this->unavailable = true;
 			$this->logger->warning(
 				'FCIAS AuthTokenRepository: oc_authtoken could not be read; the token listing is unavailable',
 				[

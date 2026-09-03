@@ -198,8 +198,47 @@ class SudoTokensControllerTest
 		$this->sudoTokens->method( 'allGrants' )
 		                 ->willReturn( [] )
 		;
+		$this->sudoTokens->method( 'listingAvailable' )
+		                 ->willReturn( true )
+		;
 
-		$this->assertSame( [ 'grants' => [] ], $this->controller->revoke( 'bob', 42 )->getData() );
+		$this->assertSame( [ 'grants' => [], 'available' => true ], $this->controller->revoke( 'bob', 42 )->getData() );
+	}
+
+
+	/**
+	 * An empty list from a table that could not be read is not "no grants",
+	 * and the page must be able to tell the two apart.
+	 */
+	public function testTheListingSaysWhenItIsNoAnswer(): void
+	{
+
+		$this->sudoTokens->method( 'allGrants' )
+		                 ->willReturn( [] )
+		;
+		$this->sudoTokens->method( 'listingAvailable' )
+		                 ->willReturn( false )
+		;
+
+		$data = $this->controller->all()->getData();
+
+		$this->assertSame( [], $data['grants'] );
+		$this->assertFalse( $data['available'] );
+	}
+
+
+	public function testTheCallersListingSaysWhenItIsNoAnswer(): void
+	{
+
+		$this->apiAllowed( true );
+		$this->sudoTokens->method( 'listForUser' )
+		                 ->willReturn( [] )
+		;
+		$this->sudoTokens->method( 'listingAvailable' )
+		                 ->willReturn( false )
+		;
+
+		$this->assertFalse( $this->controller->mine()->getData()['available'] );
 	}
 
 }

@@ -127,4 +127,33 @@ describe('SudoTokensSection', () => {
 
 		expect(toggle().props('disabled')).toBe(true)
 	})
+
+	// A GET from a session still has to pass core's CSRF check, and the
+	// request token is what passes it. Without the header the listing was
+	// refused before it reached the app, and the section told a user with
+	// app passwords that they had none.
+	it('sends the request token with the listing request', async () => {
+		await mounted()
+
+		const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+		expect((init.headers as Record<string, string>).requesttoken).toBe('token')
+	})
+
+	it('reports a failed load rather than "no app passwords yet"', async () => {
+		fetchMock.mockResolvedValueOnce({ ok: false, status: 412, json: () => Promise.resolve({}) } as unknown as Response)
+		const { wrapper } = await mounted()
+
+		const line = wrapper.find('[data-testid="fcias-sudo-tokens-error"]')
+		expect(line.text()).toContain('could not be listed')
+		expect(line.text()).toContain('HTTP 412')
+		expect(wrapper.find('[data-testid="fcias-sudo-tokens-empty"]').exists()).toBe(false)
+	})
+
+	it('says so when the server could not read the token table', async () => {
+		fetchMock.mockResolvedValueOnce(jsonResponse({ canUseApi: true, tokens: [], available: false }))
+		const { wrapper } = await mounted()
+
+		expect(wrapper.find('[data-testid="fcias-sudo-tokens-error"]').text()).toContain('token table could not be read')
+		expect(wrapper.find('[data-testid="fcias-sudo-tokens-empty"]').exists()).toBe(false)
+	})
 })

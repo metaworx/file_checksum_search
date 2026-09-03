@@ -69,6 +69,7 @@ class AuthTokenRepositoryTest
 		$this->assertFalse( $rows[1]['filesystem'], 'a scope that says no' );
 		$this->assertTrue( $rows[2]['filesystem'], 'no scope at all is unrestricted, as LockdownManager reads it' );
 		$this->assertSame( AuthTokenRepository::TYPE_BROWSER, $rows[2]['type'] );
+		$this->assertFalse( $this->repository->wasUnavailable(), 'the table answered' );
 	}
 
 
@@ -109,6 +110,7 @@ class AuthTokenRepositoryTest
 		;
 
 		$this->assertSame( [], $this->repository->listForUser( 'alice' ) );
+		$this->assertTrue( $this->repository->wasUnavailable(), 'an empty list that is not an answer says so' );
 	}
 
 

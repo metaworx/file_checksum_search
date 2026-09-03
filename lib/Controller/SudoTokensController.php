@@ -76,9 +76,12 @@ class SudoTokensController
 			return new DataResponse( [ 'canUseApi' => false, 'tokens' => [] ] );
 		}
 
+		$tokens = $this->sudoTokens->listForUser( $uid );
+
 		return new DataResponse( [
 			'canUseApi' => true,
-			'tokens'    => $this->sudoTokens->listForUser( $uid ),
+			'tokens'    => $tokens,
+			'available' => $this->sudoTokens->listingAvailable(),
 		] );
 	}
 
@@ -125,9 +128,12 @@ class SudoTokensController
 			return new DataResponse( [ 'error' => $e->getMessage() ], Http::STATUS_BAD_REQUEST );
 		}
 
+		$tokens = $this->sudoTokens->listForUser( $uid );
+
 		return new DataResponse( [
-			'success' => true,
-			'tokens'  => $this->sudoTokens->listForUser( $uid ),
+			'success'   => true,
+			'tokens'    => $tokens,
+			'available' => $this->sudoTokens->listingAvailable(),
 		] );
 	}
 
@@ -141,7 +147,7 @@ class SudoTokensController
 	public function all(): DataResponse
 	{
 
-		return new DataResponse( [ 'grants' => $this->sudoTokens->allGrants() ] );
+		return new DataResponse( $this->allGrants() );
 	}
 
 
@@ -160,7 +166,26 @@ class SudoTokensController
 
 		$this->sudoTokens->revoke( $uid, $id );
 
-		return new DataResponse( [ 'grants' => $this->sudoTokens->allGrants() ] );
+		return new DataResponse( $this->allGrants() );
+	}
+
+
+	/**
+	 * The administrator's listing, with whether it is one: `available` is
+	 * false when the token table could not be read, so the page can say
+	 * "unavailable" rather than "no grants".
+	 *
+	 * @return array{grants: list<array<string, mixed>>, available: bool}
+	 */
+	private function allGrants(): array
+	{
+
+		$grants = $this->sudoTokens->allGrants();
+
+		return [
+			'grants'    => $grants,
+			'available' => $this->sudoTokens->listingAvailable(),
+		];
 	}
 
 

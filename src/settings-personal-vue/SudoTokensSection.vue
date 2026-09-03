@@ -30,9 +30,18 @@ interface TokenRow {
 
 const OC = window.OC as unknown as { requestToken: string }
 
+interface Listing {
+	tokens?: TokenRow[]
+	canUseApi?: boolean
+	/** False when the server could not read the token table; the list is then no answer. */
+	available?: boolean
+}
+
 const tokens = ref<TokenRow[]>([])
 const canUseApi = ref(true)
 const loaded = ref(false)
+/** What went wrong, in the reader's terms — or null while nothing has. */
+const failure = ref<string | null>(null)
 const busy = ref<number | null>(null)
 
 const HELP = 'A granted app password may read across accounts through the /api/v1/sudo/ routes without '
@@ -41,21 +50,28 @@ const HELP = 'A granted app password may read across accounts through the /api/v
 	+ 'Who may look across accounts is still decided by the sudoers permission; a grant replaces the '
 	+ 'prompt, not the permission.'
 
-function take(data: { tokens?: TokenRow[], canUseApi?: boolean }): void {
+function take(data: Listing): void {
 	tokens.value = data.tokens ?? []
 	if (typeof data.canUseApi === 'boolean') {
 		canUseApi.value = data.canUseApi
 	}
+	failure.value = data.available === false
+		? 'Your app passwords could not be listed: the token table could not be read.'
+		: null
 }
 
 async function load(): Promise<void> {
 	try {
-		const response = await fetch(generateOcsUrl(OCS_SETTINGS.mySudoTokens))
-		if (response.ok) {
-			take(await response.json())
-		}
+		// A GET, but from a session: the request token is what lets core's
+		// CSRF check pass — the same header the grant switch sends.
+		const response = await fetch(generateOcsUrl(OCS_SETTINGS.mySudoTokens), {
+			headers: { requesttoken: OC.requestToken },
+		})
+		if (!response.ok) throw new Error(`HTTP ${response.status}`)
+		take((await response.json()) as Listing)
 	} catch (e) {
-		// Listing unavailable: the section says so below.
+		// Not "no app passwords yet": that would be an answer, and this is not.
+		failure.value = `Your app passwords could not be listed (${(e as Error).message}).`
 	} finally {
 		loaded.value = true
 	}
@@ -83,7 +99,7 @@ async function toggle(token: TokenRow, granted: boolean): Promise<void> {
 			},
 			body: JSON.stringify({ granted }),
 		})
-		const data = (await response.json()) as { error?: string, tokens?: TokenRow[] }
+		const data = (await response.json()) as Listing & { error?: string }
 		if (response.ok) {
 			take(data)
 			toastSaved(granted ? 'App password granted.' : 'Grant revoked.')
@@ -110,7 +126,10 @@ onMounted(load)
 			Sudo tokens
 			<HelpPopover :text="HELP" label="Sudo tokens" />
 		</h4>
-		<p v-if="tokens.length === 0" class="fcias-hint">
+		<p v-if="failure" class="fcias-error" data-testid="fcias-sudo-tokens-error">
+			{{ failure }}
+		</p>
+		<p v-else-if="tokens.length === 0" class="fcias-hint" data-testid="fcias-sudo-tokens-empty">
 			No app passwords yet. Create one under <em>Security</em>, then grant it here.
 		</p>
 		<table v-else class="grid fcias-rules-table" data-testid="fcias-sudo-tokens">

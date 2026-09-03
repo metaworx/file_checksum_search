@@ -201,9 +201,34 @@ class SudoTokensTest
 		$this->tokens->method( 'listForUser' )
 		             ->willReturn( [] )
 		;
+		$this->tokens->method( 'wasUnavailable' )
+		             ->willReturn( true )
+		;
 
 		$this->assertSame( [], $this->sudoTokens->listForUser( 'alice' ) );
 		$this->assertArrayHasKey( 7, $this->stored['alice'] );
+		$this->assertFalse( $this->sudoTokens->listingAvailable(), 'and the pages are told it was no answer' );
+	}
+
+
+	/**
+	 * The other empty list: a table that answered "nothing". That one is an
+	 * answer, and a leftover grant is tidied on its strength.
+	 */
+	public function testAnEmptyAnswerIsAnAnswer(): void
+	{
+
+		$this->stored['alice'] = [ 7 => [ 'granted_by' => 'root', 'granted_at' => 1 ] ];
+		$this->tokens->method( 'listForUser' )
+		             ->willReturn( [] )
+		;
+		$this->tokens->method( 'wasUnavailable' )
+		             ->willReturn( false )
+		;
+
+		$this->assertSame( [], $this->sudoTokens->listForUser( 'alice' ) );
+		$this->assertArrayNotHasKey( 'alice', $this->stored, 'the last grant went with its token, and the key with it' );
+		$this->assertTrue( $this->sudoTokens->listingAvailable() );
 	}
 
 
