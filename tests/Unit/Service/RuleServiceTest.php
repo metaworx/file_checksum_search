@@ -190,9 +190,11 @@ class RuleServiceTest
 		string $owner,
 		string $relative,
 		int    $mtime = 1000,
+		?int   $updatedAt = null,
 	): FileLocation {
 
-		return FileLocation::fromRow( $fileId, 'home::' . $owner, 'files' . $relative, $mtime );
+		return FileLocation::fromRow( $fileId, 'home::' . $owner, 'files' . $relative, $mtime )
+		                   ->withUpdatedAt( $updatedAt );
 	}
 
 
@@ -293,12 +295,8 @@ class RuleServiceTest
 
 		$this->setupRulesConfig( [ $rule ] );
 
-		$this->stubSweep( $this->homeLocation( 42, 'user1', '/test.txt' ) );
-
-		$this->metadataService->method( 'getUpdatedAt' )
-		                      ->with( 42 )
-		                      ->willReturn( null ) // stale
-		;
+		// updatedAt null on the location → stale; the sweep reads no stamp.
+		$this->stubSweep( $this->homeLocation( 42, 'user1', '/test.txt', updatedAt: null ) );
 
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'markPending' )
@@ -337,7 +335,7 @@ class RuleServiceTest
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testEvaluateRulesBuildsExclusionList(): void
+	public function testEvaluateRulesLetsTheFirstMatchingRuleWin(): void
 	{
 
 		$rule1 = $this->defaultRule( [ 'id' => 'r1' ] );
@@ -350,15 +348,9 @@ class RuleServiceTest
 			],
 		);
 
-		// Both rules sweep the same storage and see the same row.
-		$this->stubSweep( $this->homeLocation( 42, 'user1', '/test.txt' ) );
-
-		// Rule 1: file 42 is stale → marked
-		// Rule 2: file 42 is in exclusion list → skipped
-		$this->metadataService->method( 'getUpdatedAt' )
-		                      ->with( 42 )
-		                      ->willReturn( null )
-		;
+		// Both rules sweep the same storage and see the same row; governance
+		// names r1 (first), so r2 defers to it — the file is marked once.
+		$this->stubSweep( $this->homeLocation( 42, 'user1', '/test.txt', updatedAt: null ) );
 
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'markPending' )
@@ -367,7 +359,6 @@ class RuleServiceTest
 
 		$result = $this->service->evaluateRules();
 
-		// Only rule1 matched and marked; rule2's file was excluded
 		$this->assertSame( 1, $result['marked'] );
 		$this->assertSame( 1, $result['matched'] );
 	}
@@ -413,43 +404,39 @@ class RuleServiceTest
 	public function testProcessRuleMarksStaleFiles(): void
 	{
 
-		$this->stubSweep( $this->homeLocation( 42, 'user1', '/test.txt' ) );
+		// The rule must be loadable so the per-candidate governance check
+		// resolves this file to it — that is what replaced the exclusion set.
+		$this->setupRulesConfig( [ $this->defaultRule() ] );
 
-		$this->metadataService->method( 'getUpdatedAt' )
-		                      ->with( 42 )
-		                      ->willReturn( null ) // stale → updatedAt is null
-		;
+		// updatedAt null → never hashed → stale; the stamp rides on the
+		// location, so processRule asks no query.
+		$this->stubSweep( $this->homeLocation( 42, 'user1', '/test.txt', updatedAt: null ) );
 
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'markPending' )
 		                      ->with( 42, MetadataService::PENDING_PREFIX . 'auto' )
 		;
 
-		$result = $this->service->processRule( $this->defaultRule(), [] );
+		$result = $this->service->processRule( $this->defaultRule() );
 
 		$this->assertSame( 1, $result['marked'] );
 		$this->assertSame( 1, $result['matched'] );
-		$this->assertContains( 42, $result['fileIds'] );
 	}
 
 
 	public function testProcessRuleSkipsFreshFiles(): void
 	{
 
-		// updatedAt (2000) >= mtime (1000) → fresh, skip
-		$this->stubSweep( $this->homeLocation( 42, 'user1', '/test.txt', mtime: 1000 ) );
+		$this->setupRulesConfig( [ $this->defaultRule() ] );
 
-		// updatedAt (2000) >= mtime (1000) → fresh
-		$this->metadataService->method( 'getUpdatedAt' )
-		                      ->with( 42 )
-		                      ->willReturn( 2000 )
-		;
+		// updatedAt (2000) >= mtime (1000) → fresh, skip.
+		$this->stubSweep( $this->homeLocation( 42, 'user1', '/test.txt', mtime: 1000, updatedAt: 2000 ) );
 
 		$this->metadataService->expects( $this->never() )
 		                      ->method( 'markPending' )
 		;
 
-		$result = $this->service->processRule( $this->defaultRule(), [] );
+		$result = $this->service->processRule( $this->defaultRule() );
 
 		$this->assertSame( 0, $result['marked'] );
 		$this->assertSame( 1, $result['matched'] );
@@ -459,29 +446,88 @@ class RuleServiceTest
 	public function testProcessRuleRespectsBatchLimit(): void
 	{
 
+		$this->setupRulesConfig( [ $this->defaultRule() ] );
+
 		$locations = [];
 
 		for ( $i = 1; $i <= 150; $i ++ )
 		{
-			$locations[] = $this->homeLocation( $i, 'user1', '/f' . $i . '.txt' );
+			$locations[] = $this->homeLocation( $i, 'user1', '/f' . $i . '.txt', updatedAt: null );
 		}
 
 		$this->stubSweep( ...$locations );
 
-		$this->metadataService->method( 'getUpdatedAt' )
-		                      ->willReturn( null )
-		;
-
-		// batchSize is 100 (hardcoded in processRule), so only 100 marked
+		// batchSize is 100 (hardcoded in processRule), so only 100 marked.
 		$this->metadataService->expects( $this->exactly( 100 ) )
 		                      ->method( 'markPending' )
 		;
 
-		$result = $this->service->processRule( $this->defaultRule(), [] );
+		$result = $this->service->processRule( $this->defaultRule() );
 
 		$this->assertSame( 100, $result['marked'] );
 		$this->assertSame( 100, $result['matched'] );
-		$this->assertCount( 100, $result['fileIds'] );
+	}
+
+
+	/**
+	 * Exclusion is per candidate now: a maintaining rule sweeping a file that
+	 * a higher-priority rule governs skips it, because governance names the
+	 * other rule — no id set is carried between rules to know that.
+	 */
+	public function testProcessRuleSkipsAFileAHigherPriorityRuleGoverns(): void
+	{
+
+		$exclude = [
+			'id'       => 'admin-exclude',
+			'enabled'  => true,
+			'selector' => 'home:user1',
+			'path'     => '**',
+			'type'     => 'exclude',
+		];
+		$include = $this->defaultRule( [ 'id' => 'mine', 'selector' => 'home:user1' ] );
+
+		// The exclude rule is first, so it governs; the include rule below
+		// sweeps the same file and must defer to it.
+		$this->setupRulesConfig( [ $exclude, $include ] );
+
+		$this->stubSweep( $this->homeLocation( 42, 'user1', '/test.txt', updatedAt: null ) );
+
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'markPending' )
+		;
+
+		$result = $this->service->processRule( $include );
+
+		$this->assertSame( 0, $result['marked'] );
+		$this->assertSame( 0, $result['matched'], 'the file is not this rule\'s to claim' );
+	}
+
+
+	/**
+	 * A rule that maintains no hashes queues nothing and needs no sweep of its
+	 * own: its files are claimed by governing them, which every maintaining
+	 * rule checks per candidate.
+	 */
+	public function testProcessRuleQueuesNothingForANonIncludeRule(): void
+	{
+
+		$this->filecacheService->expects( $this->never() )
+		                       ->method( 'pageStorageFiles' )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'markPending' )
+		;
+
+		$result = $this->service->processRule(
+			[
+				'userScope' => 'all',
+				'path'      => '**',
+				'type'      => 'exclude',
+			],
+		);
+
+		$this->assertSame( 0, $result['marked'] );
+		$this->assertSame( 0, $result['matched'] );
 	}
 
 
@@ -1796,6 +1842,15 @@ class RuleServiceTest
 
 		// The legacy root-jail layout stores many folders on one storage, so
 		// the sweep must tell rows apart by their per-row folder id.
+		$rule = [
+			'id'       => 'team',
+			'enabled'  => true,
+			'selector' => 'groupfolder:5',
+			'path'     => '**',
+			'mode'     => 'auto',
+		];
+		$this->setupRulesConfig( [ $rule ] );
+
 		$this->filecacheService->method( 'storageNumericIdsFor' )
 		                       ->willReturn( [ 9 ] )
 		;
@@ -1821,23 +1876,17 @@ class RuleServiceTest
 		                       )
 		;
 
-		$this->metadataService->method( 'getUpdatedAt' )
-		                      ->willReturn( null )
+		// Folder 6's row and folder 5's trash row are both invisible to the
+		// sweep, so only file 1 is governed by this rule and marked.
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 1, MetadataService::PENDING_PREFIX . 'auto' )
 		;
 
-		$result = $this->service->processRule(
-			[
-				'id'       => 'team',
-				'enabled'  => true,
-				'selector' => 'groupfolder:5',
-				'path'     => '**',
-				'mode'     => 'auto',
-			],
-			[],
-		);
+		$result = $this->service->processRule( $rule );
 
-		// Folder 6's row and folder 5's trash row are both invisible.
-		$this->assertSame( [ 1 ], $result['fileIds'] );
+		$this->assertSame( 1, $result['marked'] );
+		$this->assertSame( 1, $result['matched'] );
 	}
 
 
@@ -2001,30 +2050,9 @@ class RuleServiceTest
 	}
 
 
-	public function testProcessRuleClaimsFilesForANonIncludeRuleWithoutQueueingThem(): void
-	{
-
-		$this->stubSweep( $this->homeLocation( 42, 'alice', '/test.txt' ) );
-
-		// Nothing is queued — but the file is still reported as matched, which
-		// is what keeps a lower-priority rule from picking it up afterwards.
-		$this->metadataService->expects( $this->never() )
-		                      ->method( 'markPending' )
-		;
-
-		$result = $this->service->processRule(
-			[
-				'userScope' => 'all',
-				'path'      => '**',
-				'type'      => 'exclude',
-			],
-			[],
-		);
-
-		$this->assertSame( 0, $result['marked'] );
-		$this->assertSame( 1, $result['matched'] );
-		$this->assertSame( [ 42 ], $result['fileIds'] );
-	}
+	// (A non-include rule now queues nothing and does not sweep — see
+	// testProcessRuleQueuesNothingForANonIncludeRule; exclusion of lower
+	// rules is by governance — see testProcessRuleSkipsAFileAHigherPriorityRuleGoverns.)
 
 
 	// resolveUsers — group scope
@@ -3109,23 +3137,12 @@ class RuleServiceTest
 
 		$this->setupRulesConfig( [ $rule ] );
 
+		// The stamp rides on the location: file 1 (stamp 1500 < mtime 2000) is
+		// stale; file 2 (stamp 1500 >= mtime 1000) is fresh.
 		$this->stubSweep(
-			$this->homeLocation( 1, 'alice', '/a.txt', mtime: 2000 ),
-			$this->homeLocation( 2, 'alice', '/b.txt', mtime: 1000 ),
+			$this->homeLocation( 1, 'alice', '/a.txt', mtime: 2000, updatedAt: 1500 ),
+			$this->homeLocation( 2, 'alice', '/b.txt', mtime: 1000, updatedAt: 1500 ),
 		);
-
-		$this->metadataService->method( 'getUpdatedAt' )
-		                      ->willReturnMap( [
-			                      [
-				                      1,
-				                      1500,
-			                      ],
-			                      [
-				                      2,
-				                      1500,
-			                      ],
-		                      ] )
-		;
 
 		// Only the stale file is queued, with the rule's own mode.
 		$this->metadataService->expects( $this->once() )

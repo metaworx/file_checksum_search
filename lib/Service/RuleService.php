@@ -253,8 +253,9 @@ class RuleService
 		$marked  = 0;
 		$matched = 0;
 
-		$excludedFileIds = [];
-
+		// No exclusion set carried between rules: each rule resolves its own
+		// candidates through governance ({@see processRule()}), so nothing
+		// here grows with the instance's file count.
 		foreach ( $rules as $rule )
 		{
 			if ( empty( $rule['enabled'] ) )
@@ -262,14 +263,10 @@ class RuleService
 				continue;
 			}
 
-			$result = $this->processRule(
-				$rule,
-				$excludedFileIds,
-			);
+			$result = $this->processRule( $rule );
 
-			$marked          += $result['marked'];
-			$matched         += $result['matched'];
-			$excludedFileIds = array_merge( $excludedFileIds, $result['fileIds'] );
+			$marked  += $result['marked'];
+			$matched += $result['matched'];
 		}
 
 		$this->logger->info(
@@ -594,50 +591,61 @@ class RuleService
 	 * therefore never swept as that person's file; every row is classified
 	 * once, by identity ({@see FileLocation}).
 	 *
-	 * $excludedFileIds are files a higher-priority rule already claimed in
-	 * this evaluation round; they are skipped entirely.
+	 * Exclusion is per candidate, not by carrying id sets between rules: each
+	 * swept file is resolved through {@see governingRuleForLocation()} and
+	 * acted on only when *this* rule is the one that governs it — the same
+	 * way {@see applyRule()} does. Nothing here grows with the instance's
+	 * file count. A rule that maintains no hashes (ignore/exclude) claims its
+	 * files by governing them, so it queues nothing and needs no sweep of its
+	 * own; only maintaining rules reach here with work to do.
 	 *
-	 * @return array{marked: int, matched: int, fileIds: list<int>}
+	 * The sweep asks the filecache for stale rows only — no stamp, or one
+	 * older than the file — so an already-hashed instance yields nothing
+	 * rather than a query per fresh file. The stamp rides on the location.
+	 *
+	 * @return array{marked: int, matched: int}
 	 */
-	public function processRule(
-		array $rule,
-		array $excludedFileIds,
-	): array {
+	public function processRule( array $rule ): array
+	{
 
 		$marked  = 0;
 		$matched = 0;
-		$fileIds = [];
 
 		$mode      = $rule['mode'] ?? 'auto';
 		$batchSize = 100;
-		$maintains = self::maintainsHashes( $rule );
-		$excluded  = array_flip( $excludedFileIds );
+		$ruleId    = (string) ( $rule['id'] ?? '' );
+
+		if ( ! self::maintainsHashes( $rule ) )
+		{
+			// An ignore/exclude rule queues nothing; its files are claimed by
+			// governance, which every maintaining rule checks per candidate.
+			return [
+				'marked'  => 0,
+				'matched' => 0,
+			];
+		}
 
 		try
 		{
-			foreach ( $this->sweepLocations( $rule ) as $location )
+			foreach ( $this->sweepLocations( $rule, staleOnly: true ) as $location )
 			{
-				if ( isset( $excluded[ $location->fileId ] ) )
+				// Whoever governs this file decides it. If a higher-priority
+				// rule claims it, that rule — not this — is responsible, so
+				// skip; no id set is carried to know that.
+				$governing = $this->governingRuleForLocation( $location );
+
+				if ( ( $governing['id'] ?? null ) !== $ruleId )
 				{
 					continue;
 				}
 
 				$matched ++;
-				$fileIds[] = $location->fileId;
 
-				if ( ! $maintains )
+				// The page query already kept only stale rows, but the stamp
+				// rides on the location, so confirm without another query.
+				if ( $location->updatedAt !== null && $location->updatedAt >= $location->mtime )
 				{
-					// The rule claims the file — that is what stops a
-					// lower-priority rule from hashing it — but an ignore or
-					// exclude verdict means nothing gets queued for it.
 					continue;
-				}
-
-				$updatedAt = $this->metadataService->getUpdatedAt( $location->fileId );
-
-				if ( $updatedAt !== null && $updatedAt >= $location->mtime )
-				{
-					continue; // fresh, skip
 				}
 
 				$this->metadataService->markPending(
@@ -670,7 +678,6 @@ class RuleService
 		return [
 			'marked'  => $marked,
 			'matched' => $matched,
-			'fileIds' => $fileIds,
 		];
 	}
 
@@ -711,8 +718,10 @@ class RuleService
 	 * @return \Generator<FileLocation>
 	 * @throws \OCP\DB\Exception
 	 */
-	private function sweepLocations( array $rule ): \Generator
-	{
+	private function sweepLocations(
+		array $rule,
+		bool  $staleOnly = false,
+	): \Generator {
 
 		$selector = self::ruleSelector( $rule );
 		$pathGlob = $rule['path'] ?? '**';
@@ -723,7 +732,7 @@ class RuleService
 
 			while ( true )
 			{
-				$page = $this->filecacheService->pageStorageFiles( $storageNumericId, $lastFileId, 500 );
+				$page = $this->filecacheService->pageStorageFiles( $storageNumericId, $lastFileId, 500, $staleOnly );
 
 				if ( $page === [] )
 				{
@@ -1283,9 +1292,9 @@ class RuleService
 				true,
 			) )
 			{
-				$updatedAt = $this->metadataService->getUpdatedAt( $location->fileId );
-
-				if ( $updatedAt !== null && $updatedAt >= $location->mtime )
+				// The stamp rides on the location from the sweep's page query,
+				// so freshness costs no query per file here either.
+				if ( $location->updatedAt !== null && $location->updatedAt >= $location->mtime )
 				{
 					$fresh ++;
 

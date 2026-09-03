@@ -51,6 +51,13 @@ readonly class FileLocation
 		public ?string $owner,
 		public ?int    $groupFolderId,
 		public ?string $relativePath,
+		/**
+		 * When this app last computed a hash for the file, from the index's
+		 * `updated_at` stamp — null when it never has. Carried on the
+		 * location so a sweep can judge freshness without a query per file;
+		 * only the sweep sets it, so it is null everywhere else.
+		 */
+		public ?int    $updatedAt = null,
 	) {
 	}
 
@@ -152,6 +159,27 @@ readonly class FileLocation
 			default => 'storage:' . $this->storageId
 				. ( $this->relativePath ?? '/' . $this->internalPath ),
 		};
+	}
+
+
+	/**
+	 * The same location with its freshness stamp filled in — the sweep sets
+	 * it from the page query so the caller need not ask per file.
+	 */
+	public function withUpdatedAt( ?int $updatedAt ): self
+	{
+
+		return new self(
+			$this->fileId,
+			$this->storageId,
+			$this->internalPath,
+			$this->mtime,
+			$this->namespace,
+			$this->owner,
+			$this->groupFolderId,
+			$this->relativePath,
+			$updatedAt,
+		);
 	}
 
 
