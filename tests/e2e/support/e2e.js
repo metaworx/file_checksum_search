@@ -48,14 +48,19 @@ Cypress.Commands.add( 'login', ( user = 'admin', password = 'admin' ) => {
 // makes carries "Cypress/" in its user agent, and no real browser's does, so
 // the sweep never reaches a person's own session. An account that no longer
 // exists makes occ fail, which is the expected answer and is ignored.
-after( () => {
+// The sweep itself, for the accounts named. Runs twice per spec: at the
+// end, for what the spec minted, and at the start, for what the previous
+// spec minted after its own sweep had run — a spec's own after() hooks run
+// later than this file's, and the API calls they make (cy.ocs re-authenticates
+// with Basic auth, which mints a session token) land after the sweep.
+const sweepCypressTokens = ( users ) => {
 	// cy.env(), not Cypress.env(): this suite runs with allowCypressEnv off,
 	// and the specs read occ the same way.
 	cy.env( [ 'occ' ] ).then( ( { occ } ) => {
 		if ( ! occ ) {
 			return
 		}
-		for ( const user of loggedInAs ) {
+		for ( const user of users ) {
 			cy.exec( `${ occ } user:auth-tokens:list ${ user } --output=json`, { failOnNonZeroExit: false } )
 				// No exit-code check: the result's `code` is undefined here,
 				// and a non-JSON answer (an account that is already gone)
@@ -74,8 +79,17 @@ after( () => {
 					}
 				} )
 		}
-		loggedInAs.clear()
 	} )
+}
+
+before( () => {
+	// The previous spec's leftovers, on the account every spec uses.
+	sweepCypressTokens( [ 'admin' ] )
+} )
+
+after( () => {
+	sweepCypressTokens( loggedInAs )
+	loggedInAs.clear()
 } )
 
 // ---------------------------------------------------------------------------
