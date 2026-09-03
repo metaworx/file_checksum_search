@@ -1,91 +1,111 @@
 <!-- GENERATED FILE - DO NOT EDIT.
      Source: shared/_AGENTS.md + project/_CONTRACT.md
-     Regenerate: GUIDELINES/shared/tools/sync.sh
-     Contract version: v3.8.1 -->
+     Regenerate: GUIDELINES/shared/tools/sync-docs.sh
+     Contract version: v3.11.4 -->
 
 
-# AI Agent Guidelines (v3.8.1)
+# AI Agent Guidelines (v3.11.4)
 
-Core behavioral rules for AI agents working on this codebase.  
+Core behavioral rules for AI agents working on this codebase.
 All agents MUST comply.
-This document is intentionally concise; refer to linked documents for extended guidance.
+This document is intentionally concise;
+refer to linked documents for extended guidance.
 
 ## Contents
 
-1. Critical Behavioral Rules (STRICT)
-2. Instruction Precedence (STRICT)
-3. Task Interpretation & Keywords
-4. User‑Accessible Message Files (UAMF)
-5. Action Plan (AP)
-6. Commit Policy (STRICT)
-7. Additional References
-8. Document Governance
+<!-- BEGIN GENERATED CONTENTS - do not edit; run "GUIDELINES/shared/tools/sync-docs.sh" -->
+- AI Agent Guidelines (v3.11.4)
+  1. Critical Behavioral Rules (STRICT)
+    - 1.1 Gate Message Mechanism
+    - 1.2 Action Plan (AP) Requirement
+    - 1.3 Commit Confirmation Gate
+    - 1.4 `undo_edit` Authorization (`ROLLBACK`)
+    - 1.5 Safe File Edits
+  2. Instruction Precedence (STRICT)
+    - 2.1 Rule Map & Canonical Owners (STRICT)
+  3. Task Interpretation & Keywords
+    - 3.1 First Response Contract
+  4. User-Accessible Message Files (UAMF)
+  5. Action Plan (AP)
+    - 5.1 Format & Versioning
+    - 5.2 Required Sections
+    - 5.3 Persistence (UAMF)
+  6. Commit Policy (STRICT)
+  7. Additional References
+  8. Document Governance
+- File Checksum Index & Search — Project Contract (v2.0.0)
+  1. Project Facts
+  2. Primary References
+  3. Project-Specific Conventions
+    - 3.1 Nextcloud version matrix
+    - 3.2 Frontend and backend are one deliverable
+    - 3.3 CHANGELOG.md is mandatory here
+    - 3.4 Roo Code prompts
+    - 3.5 The harness that tests this app is a separate repository
+  4. Document Governance
+  5. Version History
+<!-- END GENERATED CONTENTS -->
 
 ## 1. Critical Behavioral Rules (STRICT)
 
 ### 1.1 Gate Message Mechanism
 
-- A **gate message** is an `<answer>` (or idempotent) message that concludes the current turn and requests explicit user
-  confirmation.
-- After sending a gate message, the agent MUST **stop** — no further actions, shell commands, or status updates are
-  permitted until the user responds with a new `<issue_update>`.
-- The gate message MUST follow the **Universal Gate Template**:
-    - `Checkpoint`
-    - `Overall Task`
-    - `Last Action` - optionally extended with bullets of what was implemented,
-      changed or fixed
-    - `Pending action`
-    - `CHANGELOG bullet` - the bullet the change ships with, verbatim; `N/A` where it ships none
-    - `Proposed commit message` - wherever a signal at this gate would commit; otherwise `N/A`
-    - `Files to be committed` - conditional: the paths, wherever a signal at this gate would commit
-    - `Important notes` - conditional: what the user needs in order to decide and would not otherwise
-      see; omitted when there is nothing
-    - `Confirmation needed: EXEC/EXEC+/ROLLBACK`
-    - Additional information according to specialized gate message (e.g. AP or commit)
-- The gate MUST state, in the user's terms, **what `EXEC` will do** and **what
-  `EXEC+` will continue to** afterwards. A signal the user cannot predict the
-  effect of is not consent.
+- After sending a gate message, the agent MUST **stop** — no further actions,
+  shell commands, or status updates are permitted until the user responds with a
+  new `<issue_update>`.
+- What a gate message is, and the Pause Latch and No-Input rules,
+  are `GUIDELINES/shared/GATE_WORKFLOW.md` §3.
+- The gate message MUST follow the **Universal Gate Template**
+  (`GUIDELINES/shared/GATE_WORKFLOW.md` §4), which owns its fields.
+- The gate MUST state, in the user's terms,
+  **what `EXEC` will do** and **what `EXEC+` will continue to** afterwards.
+  A signal the user cannot predict the effect of is not consent.
 - Where the runtime offers a structured question tool (see
-  `GUIDELINES/shared/tools/RUNTIME_TOOLS.md`), the gate SHOULD present the
-  available signals through it as selectable options, with the recommended one
-  first. The text template still applies: the tool carries the choice, not the
-  reasoning.
-- A gate message is the **only** valid way to request user confirmation. Echoing "waiting for input" via shell commands
-  is a **violation** of this rule.
+  `GUIDELINES/shared/tools/RUNTIME_TOOLS.md`),
+  the gate SHOULD present the available signals through it as selectable
+  options, with the recommended one first.
+  The text template still applies: the tool carries the choice,
+  not the reasoning.
+- A gate message is the **only** valid way to request user confirmation.
+  Echoing "waiting for input" via shell commands is a **violation** of this
+  rule.
 - A visual workflow diagram is available in `GUIDELINES/shared/GATE_WORKFLOW.md`.
 
 ### 1.2 Action Plan (AP) Requirement
 
 - Every non‑trivial `[CODE]` task requires an Action Plan.
 - Full AP format and versioning rules are defined in [§5](#5-action-plan-ap).
-- Each AP iteration MUST be persisted as a [UAMF](#4-useraccessible-message-files-uamf) **before** any project writes.
-- Unless the execution is directly authorized by an `EXEC`‑family keyword in the same user message, the AP MUST be
-  presented as a **gate message** (see [§1.1](#11-gate-message-mechanism)).
+- Each AP revision MUST be persisted as a
+  [UAMF](#4-user-accessible-message-files-uamf) **before** any project writes.
+- Unless the execution is directly authorized by an `EXEC`‑family keyword in the
+  same user message, the AP MUST be presented as a **gate message** (see
+  [§1.1](#11-gate-message-mechanism)).
 
 ### 1.3 Commit Confirmation Gate
 
-- Before `git commit`, the agent MUST present a gate message containing the complete proposed commit message.
-- Commit‑related execution signals (`EXEC`, `EXEC+`) and commit tools are detailed in [
-  `GUIDELINES/shared/COMMIT.md`](GUIDELINES/shared/COMMIT.md).
-- The gate message must follow the Universal Gate Template.
+- Before `git commit`, the agent MUST present a commit gate.
+  [`GUIDELINES/shared/COMMIT.md`](GUIDELINES/shared/COMMIT.md) §7.1 states what it
+  must contain, and §7.2 the commands that follow it.
 
 ### 1.4 `undo_edit` Authorization (`ROLLBACK`)
 
 - A rollback action (calling `undo_edit`) requires explicit user authorization.
-- Authorization may be given via:
-    - The keyword `ROLLBACK` in the user message, or
-    - An `EXEC`‑family signal that clearly references the rollback.
-- If authorization is absent, the agent MUST present a gate message requesting `ROLLBACK` or `EXEC` confirmation.
+  `GUIDELINES/shared/GATE_WORKFLOW.md` §7.3 states what authorizes it and what the
+  gate must say where authorization is absent.
 
 ### 1.5 Safe File Edits
 
-- **Do not delete and recreate files** when making large changes. Instead, write the new content to a temporary file and
-  atomically replace the original (`mv` on Linux/macOS, `Move-Item` on Windows). This preserves local IDE history.
-- Temporary files SHOULD be placed in `GUIDELINES/temp/`, which is scratch:
-  it may be deleted wholesale at any time. User-visible artifacts belong in
-  `GUIDELINES/messages/`, which is durable and never purged - the two are
-  siblings so that reclaiming disk space cannot destroy the written record.
-- Always prefer history‑preserving edit tools (e.g., `apply_patch`, in‑place edits) over raw shell writes.
+- **Do not delete and recreate files** when making large changes.
+  Instead, write the new content to a temporary file and atomically replace the
+  original (`mv` on Linux/macOS, `Move-Item` on Windows).
+  This preserves local IDE history.
+- Temporary files SHOULD be placed in `GUIDELINES/temp/`,
+  which is scratch: it may be deleted wholesale at any time.
+  User-visible artifacts belong in `GUIDELINES/messages/`,
+  which is durable and never purged.
+  Why the two are siblings is in `GUIDELINES/README.md`.
+- Always prefer history‑preserving edit tools (e.g., `apply_patch`,
+  in‑place edits) over raw shell writes.
 
 ## 2. Instruction Precedence (STRICT)
 
@@ -96,54 +116,67 @@ This document is intentionally concise; refer to linked documents for extended g
 
 **IMPORTANT:**
 
-- Writing *new* [UAMF](#4-useraccessible-message-files-uamf) messages does NOT constitute a source-file edit.
-- Same for writing to .aiassistant/temp to create temporary files during evaluation (e.g. a temporary test file)
+- Writing *new* [UAMF](#4-user-accessible-message-files-uamf) messages does NOT
+  constitute a source-file edit.
+- Same for writing to .aiassistant/temp to create temporary files during
+  evaluation (e.g. a temporary test file)
 - BOTH are explicitly ALLOWED also in PLANNING-ONLY mode.
 
 ### 2.1 Rule Map & Canonical Owners (STRICT)
 
 | Need                                                                                      | Canonical location              |
 |-------------------------------------------------------------------------------------------|---------------------------------|
-| Gate lifecycle, pause behavior, mixed-signal gate handling, `ERR` recovery, gate template | `GUIDELINES/shared/GATE_WORKFLOW.md` |
-| Commit gate and `EXEC+` variants in commit context, commit message format, commit tooling | `GUIDELINES/shared/COMMIT.md`        |
+| Gate lifecycle, execution signals, pause behavior, mixed-signal gate handling, `ERR` recovery, the Universal Gate Template | `GUIDELINES/shared/GATE_WORKFLOW.md` |
+| Commit gate, commit message format and shape, changelog obligation, commit tooling | `GUIDELINES/shared/COMMIT.md`        |
 | Test depth and commands                                                                   | `GUIDELINES/shared/lang/<language>/TESTING.md`       |
 | Quality pass over changed source files, of any language                                   | `GUIDELINES/shared/QUALITY.md` |
 | Lint/style commands and policy                                                            | `GUIDELINES/shared/lang/<language>/LINTING.md`       |
 | Document governance rules and canonical history ownership                                 | `GUIDELINES/shared/GOVERNANCE.md`     |
 | Agent-host command/tool-name conventions (Windows-hosted vs WSL-based, per-agent specifics) | `GUIDELINES/shared/ENVIRONMENTS.md`  |
+| CI conventions: what the pipeline runs, in what order, and why                             | `GUIDELINES/project/CI.md` |
 | AP requirements (`MUST`)                                                                  | this document §1.2 and §5      |
 
 If overlap exists, follow the canonical owner document for that rule family.
 
 ## 3. Task Interpretation & Keywords
 
-- **`ASK`** – Standalone: Send `<answer>` in [chat] mode. Combined with other keywords: include answer in new gate
-  message (if task-relevant) or with the result of the gated action.
+- **`ASK`** – Standalone: Send `<answer>` in [chat] mode.
+  Combined with other keywords:
+  include answer in new gate message (if task-relevant) or with the result of
+  the gated action.
 - **`PLAN`** – Produce/update AP, present it, send gate message.
-- **`EXEC`** – Execute gated action(s). For `EXEC+`-family see [`GUIDELINES/shared/COMMIT.md`](GUIDELINES/shared/COMMIT.md).
-- **`ROLLBACK`** – Authorize an `undo_edit` action (see [§1.4](#14-undo_edit-authorization-rollback)).
-- **`ERR`** – Apply recovery protocol (detailed in `GUIDELINES/shared/GATE_WORKFLOW.md`).
-- **`UAMF`** – Instructs agent to write a [UAMF](#4-useraccessible-message-files-uamf) message file.
+- **`EXEC`** – Execute gated action(s).
+  The signals and their scope are `GUIDELINES/shared/GATE_WORKFLOW.md` §6.
+- **`ROLLBACK`** – Authorize an `undo_edit` action (see
+  [§1.4](#14-undo_edit-authorization-rollback)).
+- **`ERR`** – Apply recovery protocol (detailed in
+  `GUIDELINES/shared/GATE_WORKFLOW.md`).
+- **`UAMF`** – Instructs agent to write a
+  [UAMF](#4-user-accessible-message-files-uamf) message file.
 
 Latest `<issue_update>` overrides earlier `<issue_description>`.
 
 ### 3.1 First Response Contract
 
-- Non-trivial `[CODE]` task without inline `EXEC`: produce AP, persist AP UAMF, send gate.
-- If the same user message includes clear execution authorization (`EXEC` family): execute only the authorized scope.
-- Before `git commit`: always send a commit gate with full proposed commit message.
+- Non-trivial `[CODE]` task without inline `EXEC`: produce AP, persist AP UAMF,
+  send gate.
+- If the same user message includes clear execution authorization (`EXEC`
+  family): execute only the authorized scope.
+- Before `git commit`: always send a commit gate with full proposed commit
+  message.
 
-## 4. User‑Accessible Message Files (UAMF)
+## 4. User-Accessible Message Files (UAMF)
 
-A UAMF is a stored artefact, written for the user to read, that follows strict
-rules:
+A UAMF is a stored artefact, written for the user to read,
+that follows strict rules:
 
-- Its name begins with a timestamp, `YYYY-MM-DD_HH-NN_`, then describes its
-  subject.
-- It is **never overwritten**. A revision is a new file carrying a new version
-  in its name; the previous one stays where it is.
+- Its name begins with a timestamp, `YYYY-MM-DD_HH-NN_`,
+  then describes its subject.
+- It is **never overwritten**.
+  A revision is a new file carrying a new version in its name;
+  the previous one stays where it is.
 
-Where it is stored depends on how long it needs to live:
+Where a file is written depends on what it is and how long it needs to live:
 
 | Directory | Tracked | For |
 |-----------|---------|-----|
@@ -153,25 +186,29 @@ Where it is stored depends on how long it needs to live:
 
 Citation rules follow from that, and they are absolute:
 
-- **`messages/` is never cited.** Not from a document, not from a commit
-  message, not from another UAMF. It is untracked: it exists in one working copy
-  and nobody else can follow the reference.
+- **`messages/` is never cited.** Not from a document,
+  not from a commit message, not from another UAMF.
+  It is untracked: it exists in one working copy and nobody else can follow the
+  reference.
 - **`wip/` may be cited from another `wip/` document** — an Action Plan naming
-  the analysis it rests on — **and from a commit message**, which is immutable
-  and dated, so it names something that existed then and that git can still
-  produce.
+  the analysis it rests on — **and from a commit message**,
+  which is immutable and dated,
+  so it names something that existed then and that git can still produce.
 - **Nothing that outlives the change may cite either.** If a conclusion is worth
-  citing from a contract, a shared document or a README, it belongs *in* that
-  document.
+  citing from a contract, a shared document or a README,
+  it belongs *in* that document.
 
 ## 5. Action Plan (AP)
 
 ### 5.1 Format & Versioning
 
 - Title: `AP {topic} v{Major}.{Minor}: {2-5 word description}`
-    - `{topic}` is a 1-3 word PascalCase slug describing the AP's subject (e.g. `Bild`, `Mock`, `DecisionEngine`, `ECSFixers`).
-    - It is **not** a workflow signal — `PLAN`, `EXEC`, `ASK`, `ROLLBACK`, and `ERR` are user-facing keywords from §3, not AP title components.
-- Examples: `AP Bild v1.0: Extract decision functions`, `AP FilterFix v1.0: Fix type validation`.
+    - `{topic}` is a 1-3 word PascalCase slug describing the AP's subject (e.g.
+      `Bild`, `Mock`, `DecisionEngine`, `ECSFixers`).
+    - It is **not** a workflow signal — `PLAN`, `EXEC`, `ASK`, `ROLLBACK`,
+      and `ERR` are user-facing keywords from §3, not AP title components.
+- Examples: `AP Bild v1.0: Extract decision functions`, `AP FilterFix v1.0:
+  Fix type validation`.
 - Increment version on every update.
 - Retain cumulative `Change History` within the AP document (append‑only).
 
@@ -179,62 +216,64 @@ Citation rules follow from that, and they are absolute:
 
 - **Discussion** (if any)
 - **Analysis**
-- **Implementation Plan** (step‑by‑step; include a **Verification** checkpoint after each logical block)
-- **Proposed commit message** (for changes since the session start or last commit)
+- **Implementation Plan** (step‑by‑step;
+  include a **Verification** checkpoint after each logical block)
+- **Proposed commit message** (for changes since the session start or last
+  commit)
 - **Change History** (all previous version entries)
 
 ### 5.3 Persistence (UAMF)
 
-- Write each AP iteration as a [UAMF](#4-useraccessible-message-files-uamf) in
-  `GUIDELINES/wip/` before modifying any project files, and commit it
-  with the work it drives. A plan that exists only in one working copy cannot be
-  reviewed, and a commit that cites it would be citing nothing.
-- An AP is **retired** — deleted — by the commit that completes it. It remains
-  reachable in history: `git log --all --full-history -- <path>` finds it.
-- An AP may span many commits, of any tag, interrupted by other work. Retirement
-  follows completion, not the shape of the commit series.
-- The agent MUST NOT retire an AP on its own judgement. When it believes one is
-  complete it **asks**, in the commit gate, and the user decides.
+- Write each AP revision as a [UAMF](#4-user-accessible-message-files-uamf) in
+  `GUIDELINES/wip/` before modifying any project files,
+  and commit it with the work it drives.
+  A plan that exists only in one working copy cannot be reviewed,
+  and a commit that cites it would be citing nothing.
+- Retiring an AP - by which commit, what stays reachable afterwards,
+  and the MUST NOT retire on the agent's own judgement - is
+  `GUIDELINES/shared/COMMIT.md` §6.
 
 ## 6. Commit Policy (STRICT)
 
-- Summary MUST start with one of: `[TASK]`, `[FIX]`, `[SECURITY]`, `[CLEANUP]`, `[WIP]`, `[UPDATE]`, `[RELEASE]`.
-- Empty second line.
-- Detailed body explaining what and why.
-- One functional change per commit.
-- Commits touching shipped app code MUST add a `CHANGELOG.md` `[Unreleased]` entry; releases are cut via a
-  dedicated `[RELEASE]` commit. See `GUIDELINES/shared/COMMIT.md` §4.3–4.4.
-- **Prefer using commit tools** documented in `GUIDELINES/shared/COMMIT.md`.
+The rules are [`GUIDELINES/shared/COMMIT.md`](GUIDELINES/shared/COMMIT.md),
+and an agent committing here is held to all of them:
+§2 one functional change with its tests, §3 the message and its shape,
+§4 the rules a tag carries, §5 the `CHANGELOG.md` obligation, §7 the gate,
+the signals and the commands.
 
 ## 7. Additional References
 
-Paths below use two placeholders, substituted when this document is inlined
-into a project's `AGENTS.md`: `GUIDELINES` is the project's agent directory and
-`GUIDELINES/shared` is the shared guidelines submodule. Their values come from
-`GUIDELINES/config.ini`.
+Paths below use two placeholders,
+substituted when this document is inlined into a project's `AGENTS.md`:
+`GUIDELINES` is the project's agent directory and `GUIDELINES/shared` is
+the shared guidelines submodule.
+Their values come from `GUIDELINES/config.ini`.
 
-- **This document, below** – project facts: paths, versions, exact test and lint commands. They are inlined here from the project's `project/_CONTRACT.md`.
-- `GUIDELINES/shared/COMMIT.md` – commit workflow, gating, message and changelog policy.
-- `GUIDELINES/shared/GATE_WORKFLOW.md` – gate lifecycle and `ERR` recovery protocol.
-- `GUIDELINES/shared/ENVIRONMENTS.md` – agent-host command and tool-name conventions.
+- **This document, below** – project facts: paths, versions,
+  exact test and lint commands.
+  They are inlined here from the project's `project/_CONTRACT.md`.
+- `GUIDELINES/shared/COMMIT.md` – commit workflow, gating,
+  message and changelog policy.
+- `GUIDELINES/shared/GATE_WORKFLOW.md` – gate lifecycle and `ERR` recovery
+  protocol.
+- `GUIDELINES/shared/ENVIRONMENTS.md` – agent-host command and tool-name
+  conventions.
 - `GUIDELINES/shared/GOVERNANCE.md` – document versioning and history rules.
-- `GUIDELINES/shared/QUALITY.md` – the quality pass to run over every changed source file.
-- `GUIDELINES/shared/lang/<language>/TESTING.md` and `LINTING.md` – language baselines.
-- `GUIDELINES/shared/tools/README.md`, `GUIDELINES/shared/tools/RUNTIME_TOOLS.md` – helper scripts and runtime tools.
+- `GUIDELINES/shared/QUALITY.md` – the quality pass to run over every changed
+  source file.
+- `GUIDELINES/shared/lang/<language>/TESTING.md`, `LINTING.md` and,
+  where the language has one, `CLI.md` – language baselines.
+- `GUIDELINES/shared/tools/README.md`,
+  `GUIDELINES/shared/tools/RUNTIME_TOOLS.md` – helper scripts and runtime tools.
 - `GUIDELINES/project/CI.md` – CI conventions, if the project has any.
 
 ## 8. Document Governance
 
 - Version updated on every change (SemVer).
-- Full document history is maintained in `GUIDELINES/shared/GOVERNANCE.md`.
-- Drift-check: when a specialized rule document changes ownership semantics, update §2.1 in the same change.
-- In `8.1 Current version`, keep only the latest row; move older entries to `GUIDELINES/shared/GOVERNANCE.md`, section 2.1.
-
-### 8.1 Current version
-
-| Version | Date       | Changed Sections | Change Type | Agent Impact                                    |
-|---------|------------|------------------|-------------|-------------------------------------------------|
-| v3.8.1 | 2026-08-28 | 7, 8.1 | patch | Cites the generated document rather than the `project/_CONTRACT.md` fragment. A fragment is inlined into a generated document and is not somewhere a reader can be sent: the facts are already in `/AGENTS.md`, which an agent has loaded, and the fragment may not have been generated from yet. |
+- History follows `GUIDELINES/shared/GOVERNANCE.md` §1.2: one line per version,
+  in the commit that made it.
+- Drift-check: when a specialized rule document changes ownership semantics,
+  update §2.1 in the same change.
 
 ---
 
