@@ -138,11 +138,17 @@ class HashSearchProvider
 			$this->userMountCache->getMountsForUser( $user ),
 		);
 
+		// Capped regardless of what core hands us: each surviving row costs a
+		// getById() below, and a search for a common hash — the empty file —
+		// with a large limit would otherwise be a cheap way to spend
+		// thousands of queries. 100 is well past what a search dropdown shows.
+		$limit = min( max( 1, $query->getLimit() ), 100 );
+
 		$rows = $this->metadataService->confirmFullHash(
 			$this->metadataService->queryByHash(
 				$parsed['hash'],
 				$parsed['algo'],
-				$query->getLimit(),
+				$limit,
 				array_values( $visibleStorageIds ),
 			),
 			$parsed['hash'],
