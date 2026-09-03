@@ -22,6 +22,7 @@ use OCP\AppFramework\Http\Attribute\ApiRoute;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
+use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCP\IAppConfig;
 use OCP\IRequest;
 use OCP\IUserManager;
@@ -161,6 +162,11 @@ class SettingsController
 			'allowedAlgorithms'   => $this->catalogue->algorithms(),
 			'availableAlgorithms' => $this->catalogue->available(),
 			'defaultAlgorithm'    => $this->catalogue->default(),
+			// Tunables, shown under Advanced beside the diagnostics.
+			'crossAccountPrefillLimit' => $this->appConfig->getValueInt(
+				Application::APP_ID,
+				ConfigLexicon::CROSS_ACCOUNT_PREFILL_LIMIT,
+			),
 		] );
 	}
 
@@ -257,6 +263,17 @@ class SettingsController
 						'error'   => 'The default must be one of the allowed algorithms.',
 					],
 					Http::STATUS_BAD_REQUEST,
+				);
+			}
+
+			if ( array_key_exists( 'crossAccountPrefillLimit', $body ) )
+			{
+				// One is meaningless and a picker of thousands is not a
+				// picker; the bounds are the control's, not the caller's.
+				$this->appConfig->setValueInt(
+					Application::APP_ID,
+					ConfigLexicon::CROSS_ACCOUNT_PREFILL_LIMIT,
+					max( 5, min( 500, (int) $body['crossAccountPrefillLimit'] ) ),
 				);
 			}
 

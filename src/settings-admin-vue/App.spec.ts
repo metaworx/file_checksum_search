@@ -49,6 +49,9 @@ vi.mock('@nextcloud/vue/components/NcDialog', () => ({
 vi.mock('@nextcloud/vue/components/NcCheckboxRadioSwitch', () => ({
 	default: { name: 'NcCheckboxRadioSwitch', render: () => null },
 }))
+vi.mock('@nextcloud/vue/components/NcTextField', () => ({
+	default: { name: 'NcTextField', props: ['modelValue'], render: () => null },
+}))
 vi.mock('@nextcloud/vue/components/NcSettingsSelectGroup', () => ({
 	default: { name: 'NcSettingsSelectGroup', render: () => null },
 }))
@@ -210,7 +213,7 @@ describe('settings-admin App', () => {
 		expect(rows[1].findAll('td')[1].text()).toBe('7.2')
 
 		// The status table is on its own tab; the load happened at mount.
-		await wrapper.find('[aria-controls="fcias-tab-panel-status"]').trigger('click')
+		await wrapper.find('[aria-controls="fcias-tab-panel-advanced"]').trigger('click')
 
 		expect(wrapper.find('#fcias-status-rowcount').text()).toBe('3')
 
@@ -279,7 +282,7 @@ describe('settings-admin App', () => {
 			'fcias-tab-panel-settings',
 			'fcias-tab-panel-permissions',
 			'fcias-tab-panel-tokens',
-			'fcias-tab-panel-status',
+			'fcias-tab-panel-advanced',
 			'fcias-tab-panel-docs',
 		])
 	})
@@ -294,7 +297,7 @@ describe('settings-admin App', () => {
 		expect(wrapper.find('.fcias-status-table').exists()).toBe(false)
 		expect(wrapper.find('#fcias-rules-list').exists()).toBe(true)
 
-		await wrapper.find('[aria-controls="fcias-tab-panel-status"]').trigger('click')
+		await wrapper.find('[aria-controls="fcias-tab-panel-advanced"]').trigger('click')
 
 		expect(wrapper.find('.fcias-status-table').exists()).toBe(true)
 		expect(wrapper.find('#fcias-rules-list').exists()).toBe(false)

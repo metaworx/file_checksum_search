@@ -15,6 +15,7 @@ import type { Rule, RuleDraft } from '../rules-vue/types'
 import AlgorithmSection from './AlgorithmSection.vue'
 import PermissionSection from './PermissionSection.vue'
 import SudoTokensTab from './SudoTokensTab.vue'
+import TunablesSection from './TunablesSection.vue'
 import DocsViewer from '../docs-vue/DocsViewer.vue'
 import { useAdminSettings } from './composables/useAdminSettings'
 import { toastSuccess } from '../toast'
@@ -109,9 +110,9 @@ async function handleAcknowledgeBanner(): Promise<void> {
 	}
 }
 
-type Tab = 'settings' | 'permissions' | 'tokens' | 'status' | 'docs'
+type Tab = 'settings' | 'permissions' | 'tokens' | 'advanced' | 'docs'
 
-const TABS: readonly Tab[] = ['settings', 'permissions', 'tokens', 'status', 'docs']
+const TABS: readonly Tab[] = ['settings', 'permissions', 'tokens', 'advanced', 'docs']
 
 function tabFromHash(): Tab {
 	const tab = window.location.hash.replace(/^#/, '').split('/')[0]
@@ -326,12 +327,12 @@ loadRules().then(() => {
 			<button
 				type="button"
 				class="fcias-tab"
-				:class="{ 'is-active': activeTab === 'status' }"
+				:class="{ 'is-active': activeTab === 'advanced' }"
 				role="tab"
-				:aria-selected="activeTab === 'status'"
-				aria-controls="fcias-tab-panel-status"
-				@click="setTab('status')">
-				Status
+				:aria-selected="activeTab === 'advanced'"
+				aria-controls="fcias-tab-panel-advanced"
+				@click="setTab('advanced')">
+				Advanced
 			</button>
 			<button
 				type="button"
@@ -502,8 +503,8 @@ loadRules().then(() => {
 		     jobs last did. The idle banner is not here — it points at a rule,
 		     and lives with the rules on Settings. -->
 		<div
-			v-if="activeTab === 'status'"
-			id="fcias-tab-panel-status"
+			v-if="activeTab === 'advanced'"
+			id="fcias-tab-panel-advanced"
 			class="fcias-tab-panel"
 			role="tabpanel">
 			<div class="fcias-section">
@@ -592,6 +593,8 @@ loadRules().then(() => {
 					</tbody>
 				</table>
 			</div>
+
+			<TunablesSection />
 		</div>
 
 		<div

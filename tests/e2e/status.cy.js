@@ -25,7 +25,7 @@ const FIND_TIMEOUT = 60000
 const ADMIN_URL = '/index.php/settings/admin/file_checksum_search'
 
 // The status table is a tab of its own; the hash opens it directly.
-const STATUS_URL = `${ ADMIN_URL }#status`
+const STATUS_URL = `${ ADMIN_URL }#advanced`
 
 // The three files fixtures/duplicates.json states hashes for, recreated
 // here so this spec does not depend on the duplicates spec having run.
