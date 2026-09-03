@@ -68,6 +68,13 @@ const extractFileId = ( res ) => {
 let fileIdA = null
 let fileIdB = null
 
+// The sidebar's first quick button is the acting user's preference, else the
+// instance default, and these specs click it by name. Both are pinned in
+// before() and put back in after(): this spec runs as the administrator, an
+// account that outlives the run and can have a preference of its own.
+let defaultAlgorithmWas = ''
+let preferredAlgorithmWas = ''
+
 describe( 'FCIAS checksums sidebar', () => {
 	before( () => {
 		cy.env( [ 'occ', 'NC_ADMIN_USER', 'NC_ADMIN_PASSWORD' ] ).then( ( env ) => {
@@ -82,6 +89,19 @@ describe( 'FCIAS checksums sidebar', () => {
 			}
 		} ).then( () => {
 			cy.exec( `${ occ } app:enable ${ appId }`, { failOnNonZeroExit: false } )
+
+			cy.fciasDefaultAlgorithm(
+				{ user: adminUser, password: adminPassword },
+				'sha1',
+			).then( ( previous ) => {
+				defaultAlgorithmWas = previous
+			} )
+			cy.fciasPreferredAlgorithm(
+				{ user: adminUser, password: adminPassword },
+				'',
+			).then( ( previous ) => {
+				preferredAlgorithmWas = previous
+			} )
 
 			// Two identical files become a duplicate pair once both are hashed.
 			cy.request( {
@@ -130,6 +150,17 @@ describe( 'FCIAS checksums sidebar', () => {
 				fileIdB = extractFileId( res )
 			} )
 		} )
+	} )
+
+	after( () => {
+		cy.fciasDefaultAlgorithm(
+			{ user: adminUser, password: adminPassword },
+			defaultAlgorithmWas,
+		)
+		cy.fciasPreferredAlgorithm(
+			{ user: adminUser, password: adminPassword },
+			preferredAlgorithmWas,
+		)
 	} )
 
 	beforeEach( () => {

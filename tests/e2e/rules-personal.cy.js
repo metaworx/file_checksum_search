@@ -74,6 +74,11 @@ const searchAs = ( who, term ) => cy.clearCookies().then( () => cy.request( {
 // revoking and restoring used to leave it permanently denied.
 let ruleEditingWas = false
 
+// Likewise the instance's default algorithm: the sidebar's first quick button
+// is it, absent a preference, so a spec that clicks the sha1 button is
+// asserting on state the settings page can change.
+let defaultAlgorithmWas = ''
+
 const ruleEditingForEveryone = ( allow ) => cy.fciasRuleEditing(
 	{ user: adminUser, password: adminPassword },
 	allow,
@@ -125,6 +130,15 @@ describe( 'FCIAS for a user who is not an administrator', () => {
 			// instance has it switched on while a fresh CI one does not.
 			ruleEditingForEveryone( true ).then( ( previous ) => {
 				ruleEditingWas = previous
+			} )
+
+			// Bob has no preference, so his sidebar offers the instance
+			// default first; the refusal test below clicks it by name.
+			cy.fciasDefaultAlgorithm(
+				{ user: adminUser, password: adminPassword },
+				'sha1',
+			).then( ( previous ) => {
+				defaultAlgorithmWas = previous
 			} )
 
 			// Alice's two folders: one she shares with bob, one she does not.
@@ -221,6 +235,10 @@ describe( 'FCIAS for a user who is not an administrator', () => {
 
 	after( () => {
 		ruleEditingForEveryone( ruleEditingWas )
+		cy.fciasDefaultAlgorithm(
+			{ user: adminUser, password: adminPassword },
+			defaultAlgorithmWas,
+		)
 
 		// Rules first: the enforced one names `home:<alice>`, and clearing
 		// what points at an account before the account itself is the order

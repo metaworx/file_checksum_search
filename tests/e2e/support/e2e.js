@@ -398,6 +398,84 @@ Cypress.Commands.add( 'fciasRuleEditing', ( admin, allow ) => cy.ocs( {
 } ) )
 
 /**
+ * Pin the instance's default hash algorithm for the length of a spec.
+ *
+ * The sidebar's first quick button is the user's preference, else this — so a
+ * spec that clicks `[data-algo="sha1"]` is asserting on instance state an
+ * administrator can change from the settings page, and did. Specs that need a
+ * particular algorithm say so here and put back what they found.
+ *
+ * What comes back is the *effective* default, which is the designated one or
+ * the first allowed when none is designated; restoring it therefore pins what
+ * had merely been implied. On a test instance that is the honest trade for a
+ * deterministic run.
+ *
+ * @param {object} admin  { user, password }
+ * @param {string} algo   The algorithm to designate, or '' to clear it.
+ *
+ * @returns {Cypress.Chainable<string>}  What it was before.
+ */
+Cypress.Commands.add( 'fciasDefaultAlgorithm', ( admin, algo ) => cy.ocs( {
+	url: '/settings/global',
+	user: admin.user,
+	password: admin.password,
+} ).then( ( { status, body } ) => {
+	expect( status, 'reading the default algorithm' ).to.eq( 200 )
+
+	const previous = body.defaultAlgorithm || ''
+
+	return cy.ocs( {
+		method: 'PUT',
+		url: '/settings/global',
+		body: { defaultAlgorithm: algo },
+		user: admin.user,
+		password: admin.password,
+	} ).then( ( saved ) => {
+		expect( saved.status, 'setting the default algorithm' ).to.eq( 200 )
+
+		return previous
+	} )
+} ) )
+
+/**
+ * Pin one account's preferred algorithm, normally to '' — no preference.
+ *
+ * The quick button a spec clicks is the acting user's preference *before* it
+ * is the instance default, so pinning the default alone is not enough for a
+ * spec that runs as a long-lived account such as the administrator. A fresh
+ * account made by fciasMakeAccount has no preference and needs neither.
+ *
+ * Unlike the default, what comes back is the stored value rather than an
+ * effective one, so restoring it puts back exactly what was there.
+ *
+ * @param {object} who   { user, password }
+ * @param {string} algo  The algorithm to prefer, or '' for none.
+ *
+ * @returns {Cypress.Chainable<string>}  What it was before.
+ */
+Cypress.Commands.add( 'fciasPreferredAlgorithm', ( who, algo ) => cy.ocs( {
+	url: '/api/v1/preferences/preferred_algorithm',
+	user: who.user,
+	password: who.password,
+} ).then( ( { status, body } ) => {
+	expect( status, 'reading the preferred algorithm' ).to.eq( 200 )
+
+	const previous = body.value || ''
+
+	return cy.ocs( {
+		method: 'PUT',
+		url: '/api/v1/preferences/preferred_algorithm',
+		body: { value: algo },
+		user: who.user,
+		password: who.password,
+	} ).then( ( saved ) => {
+		expect( saved.status, 'setting the preferred algorithm' ).to.eq( 200 )
+
+		return previous
+	} )
+} ) )
+
+/**
  * One authenticated call to this app's API.
  *
  * Three things about that API are worth having in one place rather than in
