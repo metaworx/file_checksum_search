@@ -24,6 +24,9 @@ const FIND_TIMEOUT = 60000
 
 const ADMIN_URL = '/index.php/settings/admin/file_checksum_search'
 
+// The status table is a tab of its own; the hash opens it directly.
+const STATUS_URL = `${ ADMIN_URL }#status`
+
 // The three files fixtures/duplicates.json states hashes for, recreated
 // here so this spec does not depend on the duplicates spec having run.
 const stateDir = 'fcias-e2e-duplicates'
@@ -136,7 +139,7 @@ describe( 'FCIAS status panel', () => {
 
 	it( 'counts the hashes the instance actually holds', () => {
 		givenThreeHashes()
-		cy.visit( ADMIN_URL )
+		cy.visit( STATUS_URL )
 
 		// Three files, one algorithm each: the fixture's own arithmetic, so
 		// a page that reported a plausible-looking number from somewhere
@@ -145,7 +148,7 @@ describe( 'FCIAS status panel', () => {
 	} )
 
 	it( 'names the app and database versions it is running on', () => {
-		cy.visit( ADMIN_URL )
+		cy.visit( STATUS_URL )
 
 		statusFromOcc().then( ( fromOcc ) => {
 			cellText( '#fcias-status-version' ).should( 'eq', fromOcc.app_version )
@@ -159,7 +162,7 @@ describe( 'FCIAS status panel', () => {
 
 	it( 'reports an empty queue as empty rather than as nothing', () => {
 		givenThreeHashes()
-		cy.visit( ADMIN_URL )
+		cy.visit( STATUS_URL )
 
 		// A blank cell and a zero look the same to a reader who does not
 		// already know which they are looking at, so the page says Total: 0.
@@ -189,7 +192,7 @@ describe( 'FCIAS status panel', () => {
 
 		// The page says the same, refreshed through its own button rather
 		// than by revisiting the URL it is already on.
-		cy.visit( ADMIN_URL )
+		cy.visit( STATUS_URL )
 		cy.get( '#fcias-btn-refresh-status', { timeout: FIND_TIMEOUT } ).click()
 		cellText( '#fcias-status-untrusted' ).should( 'contain', 'Total: 3' )
 
@@ -235,7 +238,7 @@ describe( 'FCIAS status panel', () => {
 				} )
 			} )
 
-			cy.visit( ADMIN_URL )
+			cy.visit( STATUS_URL )
 			cy.get( '#fcias-status-jobs .fcias-job-grid', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 			cy.get( '#fcias-status-jobs .fcias-job-time' ).should( 'have.length.at.least', 1 )
 
@@ -250,7 +253,7 @@ describe( 'FCIAS status panel', () => {
 
 	it( 'refreshes without a page load', () => {
 		givenThreeHashes()
-		cy.visit( ADMIN_URL )
+		cy.visit( STATUS_URL )
 		cellText( '#fcias-status-rowcount' ).should( 'eq', '3' )
 
 		// Change something behind the page's back, then ask it to look

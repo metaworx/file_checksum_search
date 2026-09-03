@@ -360,7 +360,7 @@ marked *expensive* asks whether there is anything to do before doing it —
 First check whether an `include` rule is enabled at all — with none, nothing is
 hashed by design.
 
-The admin settings page's **Status Info** section is where the rest shows. Four
+The admin settings page's **Status** tab is where the rest shows. Four
 rows answer four different questions, and it is worth knowing which one you are
 reading:
 

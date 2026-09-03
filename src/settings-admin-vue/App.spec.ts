@@ -200,6 +200,18 @@ describe('settings-admin App', () => {
 		const wrapper = mount(App)
 		await flushPromises()
 
+		// One table now, in evaluation order: the catch-all is a row in it
+		// rather than a separate table above.
+		const rows = wrapper.find('#fcias-rules-list').findAll('tbody tr[data-id]')
+		expect(rows).toHaveLength(2)
+		expect(rows[0].text()).toContain('/docs')
+		expect(rows[1].text()).toContain('**')
+		// Position numbers run through the whole segment, defaults included.
+		expect(rows[1].findAll('td')[1].text()).toBe('7.2')
+
+		// The status table is on its own tab; the load happened at mount.
+		await wrapper.find('[aria-controls="fcias-tab-panel-status"]').trigger('click')
+
 		expect(wrapper.find('#fcias-status-rowcount').text()).toBe('3')
 
 		// D17: untrusted hashes are queryable state, and each job carries a
@@ -215,15 +227,6 @@ describe('settings-admin App', () => {
 		expect(jobs).toContain('matched 12, marked 3')
 		expect(jobs).toContain('Queue drain')
 		expect(jobs).toContain('never ran yet')
-
-		// One table now, in evaluation order: the catch-all is a row in it
-		// rather than a separate table above.
-		const rows = wrapper.find('#fcias-rules-list').findAll('tbody tr[data-id]')
-		expect(rows).toHaveLength(2)
-		expect(rows[0].text()).toContain('/docs')
-		expect(rows[1].text()).toContain('**')
-		// Position numbers run through the whole segment, defaults included.
-		expect(rows[1].findAll('td')[1].text()).toBe('7.2')
 	})
 
 	it('switches to the Documentation tab', async () => {
@@ -266,6 +269,35 @@ describe('settings-admin App', () => {
 		// One form for every heading — the reader learns the shape once.
 		const headings = wrapper.findAll('#fcias-tab-panel-permissions h4').map((h) => h.text())
 		expect(headings.every((h) => h.startsWith('Who may '))).toBe(true)
+	})
+
+	it('orders the tabs: settings, permissions, tokens, status, docs', () => {
+		mockFetch()
+		const wrapper = mount(App)
+
+		expect(wrapper.findAll('.fcias-tab').map((t) => t.attributes('aria-controls'))).toEqual([
+			'fcias-tab-panel-settings',
+			'fcias-tab-panel-permissions',
+			'fcias-tab-panel-tokens',
+			'fcias-tab-panel-status',
+			'fcias-tab-panel-docs',
+		])
+	})
+
+	// Diagnostics on their own tab. The idle banner stays with the rules it
+	// points at: the banner cases above find it on Settings, at mount.
+	it('shows the status table on its tab only', async () => {
+		mockFetch()
+		const wrapper = mount(App)
+		await flushPromises()
+
+		expect(wrapper.find('.fcias-status-table').exists()).toBe(false)
+		expect(wrapper.find('#fcias-rules-list').exists()).toBe(true)
+
+		await wrapper.find('[aria-controls="fcias-tab-panel-status"]').trigger('click')
+
+		expect(wrapper.find('.fcias-status-table').exists()).toBe(true)
+		expect(wrapper.find('#fcias-rules-list').exists()).toBe(false)
 	})
 
 	it('keeps Path and User Scope editable for an additional rule', async () => {

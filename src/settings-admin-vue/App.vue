@@ -109,9 +109,9 @@ async function handleAcknowledgeBanner(): Promise<void> {
 	}
 }
 
-type Tab = 'settings' | 'permissions' | 'tokens' | 'docs'
+type Tab = 'settings' | 'permissions' | 'tokens' | 'status' | 'docs'
 
-const TABS: readonly Tab[] = ['settings', 'permissions', 'tokens', 'docs']
+const TABS: readonly Tab[] = ['settings', 'permissions', 'tokens', 'status', 'docs']
 
 function tabFromHash(): Tab {
 	const tab = window.location.hash.replace(/^#/, '').split('/')[0]
@@ -326,6 +326,16 @@ loadRules().then(() => {
 			<button
 				type="button"
 				class="fcias-tab"
+				:class="{ 'is-active': activeTab === 'status' }"
+				role="tab"
+				:aria-selected="activeTab === 'status'"
+				aria-controls="fcias-tab-panel-status"
+				@click="setTab('status')">
+				Status
+			</button>
+			<button
+				type="button"
+				class="fcias-tab"
 				:class="{ 'is-active': activeTab === 'docs' }"
 				role="tab"
 				:aria-selected="activeTab === 'docs'"
@@ -364,93 +374,6 @@ loadRules().then(() => {
 					</NcButton>
 				</div>
 			</NcNoteCard>
-
-			<div class="fcias-section">
-				<h4 class="fcias-status-header">
-					<span>Status Info</span>
-					<button id="fcias-btn-refresh-status"
-						class="fcias-btn"
-						@click="loadStatus">
-						Refresh
-					</button>
-				</h4>
-				<table class="grid fcias-status-table">
-					<tbody>
-						<tr>
-							<td>App Version</td>
-							<td id="fcias-status-version">
-								{{ status.version || '—' }}
-							</td>
-						</tr>
-						<tr>
-							<td>Database Version</td>
-							<td id="fcias-status-dbversion">
-								{{ status.dbVersion || '—' }}
-							</td>
-						</tr>
-						<tr>
-							<td>Indexed Hashes</td>
-							<td id="fcias-status-rowcount">
-								{{ status.rowCount || 0 }}
-							</td>
-						</tr>
-						<tr>
-							<td>Pending Updates</td>
-							<td id="fcias-status-pending">
-								<template v-if="pendingTotal(status.pendingStats) === 0">
-									Total: 0<br>None
-								</template>
-								<template v-else>
-									Total: {{ pendingTotal(status.pendingStats) }}<br>
-									<template v-for="(count, mode) in status.pendingStats" :key="mode">
-										{{ mode }}: {{ count }}<br>
-									</template>
-								</template>
-							</td>
-						</tr>
-						<tr>
-							<td>Untrusted Hashes</td>
-							<td id="fcias-status-untrusted">
-								<template v-if="pendingTotal(status.staleStats) === 0">
-									Total: 0<br>None
-								</template>
-								<template v-else>
-									Total: {{ pendingTotal(status.staleStats) }}<br>
-									<template v-for="(count, state) in status.staleStats" :key="state">
-										{{ staleReason(String(state)).label }}: {{ count }}
-										<span class="fcias-hint">— {{ staleReason(String(state)).hint }}</span><br>
-									</template>
-								</template>
-							</td>
-						</tr>
-						<tr>
-							<td>Background Jobs</td>
-							<td id="fcias-status-jobs">
-								<div v-if="jobRows.length" class="fcias-job-grid">
-									<template v-for="job in jobRows" :key="job.key">
-										<span>{{ job.label }}</span>
-										<span class="fcias-job-time">{{ job.time }}</span>
-										<span>{{ job.countsText }}</span>
-									</template>
-								</div>
-								<template v-else>
-									—
-								</template>
-							</td>
-						</tr>
-						<tr>
-							<td>Last Updated</td>
-							<td id="fcias-status-lastupdated">
-								<div class="fcias-job-grid">
-									<span />
-									<span class="fcias-job-time">{{ lastUpdated || '—' }}</span>
-									<span />
-								</div>
-							</td>
-						</tr>
-					</tbody>
-				</table>
-			</div>
 
 			<div class="fcias-section">
 				<h4>Hash Algorithms</h4>
@@ -572,6 +495,102 @@ loadRules().then(() => {
 					permission="api_access"
 					switch-label="Allow all users to use the API"
 					:help="PERMISSION_HELP.api_access" />
+			</div>
+		</div>
+
+		<!-- Diagnostics, read-only: what the instance holds and what its
+		     jobs last did. The idle banner is not here — it points at a rule,
+		     and lives with the rules on Settings. -->
+		<div
+			v-if="activeTab === 'status'"
+			id="fcias-tab-panel-status"
+			class="fcias-tab-panel"
+			role="tabpanel">
+			<div class="fcias-section">
+				<h4 class="fcias-status-header">
+					<span>Status Info</span>
+					<button id="fcias-btn-refresh-status"
+						class="fcias-btn"
+						@click="loadStatus">
+						Refresh
+					</button>
+				</h4>
+				<table class="grid fcias-status-table">
+					<tbody>
+						<tr>
+							<td>App Version</td>
+							<td id="fcias-status-version">
+								{{ status.version || '—' }}
+							</td>
+						</tr>
+						<tr>
+							<td>Database Version</td>
+							<td id="fcias-status-dbversion">
+								{{ status.dbVersion || '—' }}
+							</td>
+						</tr>
+						<tr>
+							<td>Indexed Hashes</td>
+							<td id="fcias-status-rowcount">
+								{{ status.rowCount || 0 }}
+							</td>
+						</tr>
+						<tr>
+							<td>Pending Updates</td>
+							<td id="fcias-status-pending">
+								<template v-if="pendingTotal(status.pendingStats) === 0">
+									Total: 0<br>None
+								</template>
+								<template v-else>
+									Total: {{ pendingTotal(status.pendingStats) }}<br>
+									<template v-for="(count, mode) in status.pendingStats" :key="mode">
+										{{ mode }}: {{ count }}<br>
+									</template>
+								</template>
+							</td>
+						</tr>
+						<tr>
+							<td>Untrusted Hashes</td>
+							<td id="fcias-status-untrusted">
+								<template v-if="pendingTotal(status.staleStats) === 0">
+									Total: 0<br>None
+								</template>
+								<template v-else>
+									Total: {{ pendingTotal(status.staleStats) }}<br>
+									<template v-for="(count, state) in status.staleStats" :key="state">
+										{{ staleReason(String(state)).label }}: {{ count }}
+										<span class="fcias-hint">— {{ staleReason(String(state)).hint }}</span><br>
+									</template>
+								</template>
+							</td>
+						</tr>
+						<tr>
+							<td>Background Jobs</td>
+							<td id="fcias-status-jobs">
+								<div v-if="jobRows.length" class="fcias-job-grid">
+									<template v-for="job in jobRows" :key="job.key">
+										<span>{{ job.label }}</span>
+										<span class="fcias-job-time">{{ job.time }}</span>
+										<span>{{ job.countsText }}</span>
+									</template>
+								</div>
+								<template v-else>
+									—
+								</template>
+							</td>
+						</tr>
+						<tr>
+							<td>Last Updated</td>
+							<td id="fcias-status-lastupdated">
+								<div class="fcias-job-grid">
+									<span />
+									<span class="fcias-job-time">{{ lastUpdated || '—' }}</span>
+									<span />
+								</div>
+							</td>
+						</tr>
+					</tbody>
+				</table>
 			</div>
 		</div>
 

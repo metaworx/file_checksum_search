@@ -58,7 +58,7 @@ For what the two tables look like from a database client, see
 - **Files sidebar "Checksums" tab** — shows the selected file's checksums with recalculate and find-duplicates actions
 - **Unified Search provider** — type a hash directly into Nextcloud's search bar
 - **Rule-based hash generation** — nothing runs until a rule is enabled; `auto`, `missing`, `force`, and `lazy` modes, addressed at home folders, groups, group folders or storages
-- **Admin settings page** — status overview, rule management, and rule-editing permissions
+- **Admin settings page** — rule management, the four permissions, sudo tokens, status, and the docs, one tab each
 - **Personal settings page** — users can view, create, and edit rules subject to permissions; per-rule `admin_enforced` locks
 - **Automatic index maintenance** — Nextcloud file event listeners and background jobs
 - **Lazy & deferred hash recalculation** — a pending queue drained by a background job
@@ -653,8 +653,6 @@ Navigate to **Administration settings → Additional settings → File Checksum 
 
 The admin settings page provides:
 
-- **Status overview** — app version, indexed hash count, pending updates by mode, the *Untrusted
-  Hashes* total with its reasons (eroded, reset), and each background job's last run with its counts
 - **An idle banner** — shown while no enabled `include` rule exists, saying that automatic hashing
   is off, that sidebar recalculation still works, and that the home-folders default covers home
   folders only. *Acknowledged* silences it until hashing is switched on and off again
@@ -674,6 +672,8 @@ The admin settings page provides:
     credentials; the bundled pages keep working for everyone
 - **Sudo tokens** — a tab: every app password on the instance granted the cross-account routes
   without a password prompt, against the live token table, with revoke
+- **Status** — a tab: app version, indexed hash count, pending updates by mode, the *Untrusted
+  Hashes* total with its reasons (eroded, reset), and each background job's last run with its counts
 - **Documentation** — the last tab: in-app access to the FAQ, the user guide, README, API specs, and
   license
 
