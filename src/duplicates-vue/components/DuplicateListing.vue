@@ -232,6 +232,17 @@ onMounted(() => {
 				<span class="db-label">
 					<label :for="`${props.idPrefix}-hash`">Hash</label>
 					<HelpPopover :text="HELP.hash" label="Hash" />
+					<!-- Beside the field it governs: it changes how the hash is
+					     matched and does nothing on its own. -->
+					<span :data-testid="`${props.idPrefix}-anywhere`" class="db-anywhere">
+						<NcCheckboxRadioSwitch
+							:model-value="anywhere"
+							type="switch"
+							title="Match the term anywhere in the hash, not only at its start"
+							@update:model-value="onAnywhere">
+							Search anywhere
+						</NcCheckboxRadioSwitch>
+					</span>
 				</span>
 				<NcTextField
 					:id="`${props.idPrefix}-hash`"
@@ -243,14 +254,6 @@ onMounted(() => {
 					@update:model-value="onHashInput" />
 			</div>
 			<div class="db-actions">
-				<span :data-testid="`${props.idPrefix}-anywhere`">
-					<NcCheckboxRadioSwitch
-						:model-value="anywhere"
-						title="Match the term anywhere in the hash, not only at its start"
-						@update:model-value="onAnywhere">
-						Search anywhere
-					</NcCheckboxRadioSwitch>
-				</span>
 				<NcButton variant="primary" @click="refresh">
 					Refresh
 				</NcButton>
@@ -328,8 +331,16 @@ onMounted(() => {
 }
 
 /* Wide enough for a sha1 to be read back, and it wraps with the rest. */
+/* Wide enough for a sha1 to be read back, and for the switch that sits in
+   its label row. */
 .db-field--hash {
-	width: 320px;
+	width: 420px;
+}
+
+/* The switch is a caption-sized control here, not a settings row. */
+.db-anywhere :deep(.checkbox-radio-switch__text) {
+	font-weight: 600;
+	color: var(--color-text-maxcontrast);
 }
 
 .db-label {
