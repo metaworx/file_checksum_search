@@ -1967,6 +1967,14 @@ class MetadataService
 			return 0;
 		}
 
+		// Trade-off, accepted here: REPLACE runs over the whole metadata
+		// document, so another app whose value happened to contain the
+		// literal `"file-checksum-<algo>":` would have it rewritten too. It
+		// is tolerated because this is repair-only and the id set is already
+		// narrowed to files the index says still hold the legacy key, so the
+		// blast radius is those documents and the string is this app's own
+		// key. A per-key JSON update would avoid it but is not portable
+		// across the backends the app supports.
 		$qb = $this->db->getQueryBuilder();
 		$qb->update( self::TABLE_FILES_METADATA )
 		   ->set(
@@ -2934,6 +2942,12 @@ class MetadataService
 				}
 				catch ( FilesMetadataNotFoundException|FilesMetadataTypeException )
 				{
+					// Trade-off, accepted here: with no full value in the
+					// document, the 63-char index prefix stands in. Two files
+					// whose full hashes differ only past 63 characters would
+					// then be grouped on the prefix — only reachable when the
+					// index and the document disagree, which the repair job
+					// exists to heal, so the window is narrow and self-closing.
 					$fullHash = $group[ self::FIELD_META_VALUE_STRING ];
 				}
 
