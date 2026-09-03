@@ -912,13 +912,34 @@ class FilecacheService
 	 *
 	 * @return array<int, array{path: string, name: string, storage_id: string, user: string}>
 	 */
+	/**
+	 * @param  string|list<string>|null  $userName  One account to filter to,
+	 *                                              several (the cross-account
+	 *                                              picker names a set), or
+	 *                                              null for every file.
+	 */
 	public function batchLookupFilecachePaths(
-		array   $fileIds,
-		?string $userName = null,
+		array                    $fileIds,
+		string|array|null        $userName = null,
 	): array {
 
 		if ( empty( $fileIds ) )
 		{
+			return [];
+		}
+
+		// A set of accounts filters on their home storages together; one
+		// account is the same query with one id, so the two share a path.
+		$homeStorageIds = $userName === null
+			? null
+			: array_values( array_map(
+				static fn ( string $uid ): string => 'home::' . $uid,
+				is_array( $userName ) ? array_values( $userName ) : [ $userName ],
+			) );
+
+		if ( $homeStorageIds === [] )
+		{
+			// A set naming nobody matches nothing — not everything.
 			return [];
 		}
 
@@ -934,31 +955,21 @@ class FilecacheService
 		   )
 		;
 
-		if ( $userName !== null )
+		$qb->where(
+			$qb->expr()
+			   ->in(
+				   'fc.fileid',
+				   $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
+			   ),
+		);
+
+		if ( $homeStorageIds !== null )
 		{
-			$qb->where(
-				$qb->expr()
-				   ->eq(
-					   's.id',
-					   $qb->createNamedParameter( 'home::' . $userName ),
-				   ),
-			)
-			   ->andWhere(
-				   $qb->expr()
-				      ->in(
-					      'fc.fileid',
-					      $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
-				      ),
-			   )
-			;
-		}
-		else
-		{
-			$qb->where(
+			$qb->andWhere(
 				$qb->expr()
 				   ->in(
-					   'fc.fileid',
-					   $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
+					   's.id',
+					   $qb->createNamedParameter( $homeStorageIds, IQueryBuilder::PARAM_STR_ARRAY ),
 				   ),
 			);
 		}

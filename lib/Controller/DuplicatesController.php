@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Controller;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Service\DuplicateService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCP\AppFramework\ApiController;
@@ -19,6 +20,7 @@ use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IAppConfig;
 use OCP\IGroupManager;
 use OCP\IRequest;
 use OCP\IUserManager;
@@ -50,6 +52,7 @@ class DuplicatesController
 		private readonly LoggerInterface  $logger,
 		private readonly SudoScope        $sudo,
 		private readonly SudoConfirmation $confirmation,
+		private readonly IAppConfig       $appConfig,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -137,6 +140,8 @@ class DuplicatesController
 		int     $minCount = 2,
 		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,
 		int     $offset = 0,
+		?array  $users = null,
+		?array  $groups = null,
 	): DataResponse {
 
 		$currentUser = $this->userSession->getUser();
@@ -146,7 +151,22 @@ class DuplicatesController
 			return new DataResponse( [ 'error' => 'Not authenticated.' ], Http::STATUS_UNAUTHORIZED );
 		}
 
-		$scope = $this->sudo->resolve( $currentUser->getUID(), $user );
+		// Two shapes on one route: `user=` names one account (or is absent
+		// for every account, the sudoer's view), and `users[]`/`groups[]`
+		// name a set — the picker's shape. Groups are expanded and every
+		// target authorised in SudoScope, never here and never in the client.
+		if ( $users !== null || $groups !== null )
+		{
+			$scope = $this->sudo->resolveSet(
+				$currentUser->getUID(),
+				array_values( array_filter( (array) $users, 'is_string' ) ),
+				array_values( array_filter( (array) $groups, 'is_string' ) ),
+			);
+		}
+		else
+		{
+			$scope = $this->sudo->resolve( $currentUser->getUID(), $user );
+		}
 
 		if ( $scope === false )
 		{
@@ -165,6 +185,52 @@ class DuplicatesController
 		return new DataResponse(
 			$this->hashIndexService->listDuplicatesForUser( $scope, $algo, $minCount, $limit, $offset ),
 		);
+	}
+
+
+	/**
+	 * The groups and accounts the caller may name in the cross-account
+	 * picker, and whether the lists are complete.
+	 *
+	 * `prefill` false means there are more than the picker holds at once, so
+	 * it must come back with `?search=` as the user types. Refused for an
+	 * account that may name nobody — the picker is not offered to them.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	#[UserRateLimit( limit: 60, period: 60 )]
+	#[ApiRoute( verb: 'GET', url: '/duplicates/selectable' )]
+	public function selectable( ?string $search = null ): DataResponse
+	{
+
+		$currentUser = $this->userSession->getUser();
+
+		if ( $currentUser === null )
+		{
+			return new DataResponse( [ 'error' => 'Not authenticated.' ], Http::STATUS_UNAUTHORIZED );
+		}
+
+		$offer = $this->sudo->selectableFor(
+			$currentUser->getUID(),
+			$search,
+			$this->appConfig->getValueInt(
+				Application::APP_ID,
+				ConfigLexicon::CROSS_ACCOUNT_PREFILL_LIMIT,
+			),
+		);
+
+		if ( $offer === false )
+		{
+			return new DataResponse( [ 'error' => 'Not yours to look at.' ], Http::STATUS_FORBIDDEN );
+		}
+
+		// Whether the caller may also ask for every account at once — the
+		// picker offers "All accounts" only to a sudoer.
+		$offer['all'] = $this->sudo->isSudoer( $currentUser->getUID() );
+
+		return new DataResponse( $offer );
 	}
 
 }

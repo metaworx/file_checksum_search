@@ -36,6 +36,12 @@ class ConfigLexicon
 	 */
 	public const USER_SUDO_TOKENS = 'sudo_tokens';
 
+	/**
+	 * How many groups and accounts the cross-account picker holds at once
+	 * before it stops prefilling and asks the server as the user types.
+	 */
+	public const CROSS_ACCOUNT_PREFILL_LIMIT = 'cross_account_prefill_limit';
+
 
 	public function getStrictness(): Strictness
 	{
@@ -243,6 +249,16 @@ class ConfigLexicon
 				type: ValueType::STRING,
 				defaultRaw: '[]',
 				definition: 'JSON array of user IDs allowed to recalculate their own files by hand.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
+				key: self::CROSS_ACCOUNT_PREFILL_LIMIT,
+				type: ValueType::INT,
+				// 21 is enough for a small team's picker to open complete;
+				// past it the client asks as the user types instead.
+				defaultRaw: 21,
+				definition: 'How many groups and accounts the cross-account picker prefills before switching to server-side search.',
 				lazy: false,
 				flags: IAppConfig::FLAG_INTERNAL,
 			),

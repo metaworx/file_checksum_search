@@ -210,14 +210,18 @@ class HashIndexService
 	 * is left, and a group that drops below $minCount for this user disappears
 	 * rather than being reported as a duplicate of itself.
 	 *
-	 * @param  string  $userId  Whose files the groups are filtered to.
+	 * @param  string|list<string>|null  $userId  Whose files the groups are
+	 *                                            filtered to: one account,
+	 *                                            several (the cross-account
+	 *                                            picker names a set), or null
+	 *                                            for the whole instance.
 	 *
 	 * @return array{duplicates: array<int, array{algo: string, hash_value: string, file_count: int, files:
 	 *                            array<int, array{fileid: int, path: string, name: string}>}>, total_groups: int,
 	 *                            pagination: array{offset: int, limit: int}}
 	 */
 	public function listDuplicatesForUser(
-		?string $userId,
+		string|array|null $userId,
 		?string $algo = null,
 		int     $minCount = 2,
 		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,
@@ -322,13 +326,15 @@ class HashIndexService
 
 
 	/**
-	 * @param  int[]  $fileIds
+	 * @param  int[]                     $fileIds
+	 * @param  string|list<string>|null  $userName  One account, several, or
+	 *                                              null for every file.
 	 *
 	 * @return array<int, array{path: string, name: string, storage_id: string, user: string}>
 	 */
 	public function batchLookupFilecachePaths(
-		array   $fileIds,
-		?string $userName = null,
+		array             $fileIds,
+		string|array|null $userName = null,
 	): array {
 
 		return $this->filecacheService->batchLookupFilecachePaths( $fileIds, $userName );

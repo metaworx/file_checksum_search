@@ -47,6 +47,8 @@ class DuplicatesControllerTest
 	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 	private MockObject|SudoConfirmation $confirmation;
 
+	private MockObject|\OCP\IAppConfig  $appConfig;
+
 	private MockObject|LoggerInterface $logger;
 
 	private DuplicatesController       $controller;
@@ -70,6 +72,10 @@ class DuplicatesControllerTest
 		;
 		// Confirmed unless a test says so; the rule has its own tests.
 		$this->confirmation = $this->createMock( SudoConfirmation::class );
+		$this->appConfig    = $this->createMock( \OCP\IAppConfig::class );
+		$this->appConfig->method( 'getValueInt' )
+		                ->willReturn( 21 )
+		;
 		$this->confirmation->method( 'isConfirmed' )
 		                   ->willReturn( true )
 		;
@@ -84,6 +90,7 @@ class DuplicatesControllerTest
 			$this->logger,
 			$this->sudo,
 			$this->confirmation,
+			$this->appConfig,
 		);
 	}
 
@@ -235,6 +242,89 @@ class DuplicatesControllerTest
 		$response = $this->controller->findAll( user: 'alice' );
 
 		$this->assertSame( Http::STATUS_FORBIDDEN, $response->getStatus() );
+	}
+
+
+	/**
+	 * The picker's shape: a set of accounts and groups, authorised together
+	 * by SudoScope, which is also what expands the groups. The listing is
+	 * asked for the resolved accounts, merged into one answer.
+	 */
+	public function testFindAllSudoTakesASetAndListsTheResolvedAccounts(): void
+	{
+
+		$this->signedInAs( 'lead' );
+		$this->confirmation->method( 'isConfirmed' )
+		                   ->willReturn( true )
+		;
+		$this->sudo->expects( $this->once() )
+		           ->method( 'resolveSet' )
+		           ->with( 'lead', [ 'alice' ], [ 'team' ] )
+		           ->willReturn( [ 'alice', 'bob' ] )
+		;
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'listDuplicatesForUser' )
+		                       ->with( [ 'alice', 'bob' ] )
+		                       ->willReturn( [ 'duplicates' => [] ] )
+		;
+
+		$response = $this->controller->findAllSudo( users: [ 'alice' ], groups: [ 'team' ] );
+
+		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
+	}
+
+
+	public function testFindAllSudoRefusesASetTheScopeDoesNotAllow(): void
+	{
+
+		$this->signedInAs( 'lead' );
+		$this->sudo->method( 'resolveSet' )
+		           ->willReturn( false )
+		;
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'listDuplicatesForUser' )
+		;
+
+		$this->assertSame(
+			Http::STATUS_FORBIDDEN,
+			$this->controller->findAllSudo( users: [ 'stranger' ] )->getStatus(),
+		);
+	}
+
+
+	public function testSelectableAnswersWhatThePickerMayOfferAndWhetherAllIsOne(): void
+	{
+
+		$this->signedInAs( 'lead' );
+		$this->sudo->method( 'selectableFor' )
+		           ->with( 'lead', null, 21 )
+		           ->willReturn( [
+			           'prefill' => true,
+			           'groups'  => [ [ 'id' => 'team', 'label' => 'Team' ] ],
+			           'users'   => [ [ 'id' => 'member', 'label' => 'Member' ] ],
+		           ] )
+		;
+		$this->sudo->method( 'isSudoer' )
+		           ->willReturn( false )
+		;
+
+		$data = $this->controller->selectable()->getData();
+
+		$this->assertTrue( $data['prefill'] );
+		$this->assertFalse( $data['all'], 'a sub-admin is not offered every account' );
+		$this->assertSame( [ 'team' ], array_column( $data['groups'], 'id' ) );
+	}
+
+
+	public function testSelectableRefusesAnAccountThatMayNameNobody(): void
+	{
+
+		$this->signedInAs( 'bob' );
+		$this->sudo->method( 'selectableFor' )
+		           ->willReturn( false )
+		;
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $this->controller->selectable()->getStatus() );
 	}
 
 

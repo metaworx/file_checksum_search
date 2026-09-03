@@ -44,7 +44,7 @@ class ConfigLexiconTest
 		$configs = $this->lexicon->getAppConfigs();
 
 		$this->assertIsArray( $configs );
-		$this->assertCount( 27, $configs );
+		$this->assertCount( 28, $configs );
 
 		$keys = array_map(
 			static fn(

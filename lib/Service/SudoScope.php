@@ -90,4 +90,179 @@ class SudoScope
 			: false;
 	}
 
+
+	/**
+	 * The accounts $uid may read when naming several of them at once.
+	 *
+	 * Groups are expanded here and never by the client: membership is not
+	 * the caller's to enumerate, and a sub-admin's own picker is built from
+	 * {@see selectableFor()} which already answers only what they may see.
+	 *
+	 * Refuses the whole request when any named target is out of reach rather
+	 * than quietly dropping it — a listing that silently answers for fewer
+	 * accounts than were asked for is worse than one that says no.
+	 *
+	 * @param  list<string>  $uids      Accounts named directly.
+	 * @param  list<string>  $groupIds  Groups whose members are meant.
+	 *
+	 * @return list<string>|false  The accounts to read, deduplicated, or
+	 *                             false when $uid may not have one of them.
+	 */
+	public function resolveSet(
+		string $uid,
+		array  $uids,
+		array  $groupIds,
+	): array|false {
+
+		$isSudoer = $this->isSudoer( $uid );
+		$leader   = $this->userManager->get( $uid );
+
+		if ( ! $isSudoer && $leader === null )
+		{
+			return false;
+		}
+
+		$allowed = [];
+
+		foreach ( $groupIds as $groupId )
+		{
+			$group = $this->groupManager->get( (string) $groupId );
+
+			if ( $group === null )
+			{
+				return false;
+			}
+
+			// A sub-admin may name only a group they administer; every member
+			// of such a group is accessible to them by definition, so the
+			// per-member check below is not repeated here.
+			if ( ! $isSudoer && ( $leader === null || ! $this->subAdmin->isSubAdminOfGroup( $leader, $group ) ) )
+			{
+				return false;
+			}
+
+			foreach ( $group->getUsers() as $member )
+			{
+				$allowed[] = $member->getUID();
+			}
+		}
+
+		foreach ( $uids as $target )
+		{
+			$target = (string) $target;
+			$member = $this->userManager->get( $target );
+
+			if ( $member === null )
+			{
+				return false;
+			}
+
+			if ( ! $isSudoer && ( $leader === null || ! $this->subAdmin->isUserAccessible( $leader, $member ) ) )
+			{
+				return false;
+			}
+
+			$allowed[] = $target;
+		}
+
+		return array_values( array_unique( $allowed ) );
+	}
+
+
+	/**
+	 * The groups and accounts $uid may name, for the picker.
+	 *
+	 * A sudoer may name anyone, so the instance is searched; a sub-admin may
+	 * name only the groups they administer and those groups' members. Anyone
+	 * else may name nothing and is refused — the picker is not offered to
+	 * them at all.
+	 *
+	 * `prefill` says whether the lists are complete. One more than the
+	 * threshold is fetched: if that extra row exists there are more than the
+	 * client should hold at once, so it must ask as the user types instead.
+	 * This costs no count query.
+	 *
+	 * @param  string|null  $search     What the user has typed, or null for
+	 *                                  the opening list.
+	 * @param  int          $threshold  How many of each kind may be prefilled.
+	 *
+	 * @return array{prefill: bool, groups: list<array{id: string, label: string}>, users: list<array{id: string, label: string}>}|false
+	 */
+	public function selectableFor(
+		string  $uid,
+		?string $search,
+		int     $threshold,
+	): array|false {
+
+		$needle   = trim( (string) $search );
+		$probe    = $threshold + 1;
+		$isSudoer = $this->isSudoer( $uid );
+		$leader   = $this->userManager->get( $uid );
+
+		if ( $isSudoer )
+		{
+			$groups = $this->groupManager->search( $needle, $probe );
+			$users  = $this->userManager->searchDisplayName( $needle, $probe );
+		}
+		else
+		{
+			if ( $leader === null )
+			{
+				return false;
+			}
+
+			$groups = $this->subAdmin->getSubAdminsGroups( $leader );
+
+			if ( $groups === [] )
+			{
+				// Not a sudoer and not a sub-admin: nothing to name.
+				return false;
+			}
+
+			$groups = array_values( array_filter(
+				$groups,
+				static fn ( $group ): bool => $needle === ''
+				                              || stripos( $group->getGID(), $needle ) !== false
+				                              || stripos( $group->getDisplayName(), $needle ) !== false,
+			) );
+
+			$users = [];
+
+			foreach ( $groups as $group )
+			{
+				foreach ( $group->getUsers() as $member )
+				{
+					if ( $needle === ''
+					     || stripos( $member->getUID(), $needle ) !== false
+					     || stripos( $member->getDisplayName(), $needle ) !== false )
+					{
+						$users[ $member->getUID() ] = $member;
+					}
+				}
+			}
+
+			$users = array_values( $users );
+		}
+
+		$prefill = count( $groups ) <= $threshold && count( $users ) <= $threshold;
+
+		return [
+			'prefill' => $prefill,
+			'groups'  => array_map(
+				static fn ( $group ): array => [
+					'id'    => $group->getGID(),
+					'label' => $group->getDisplayName(),
+				],
+				array_slice( array_values( $groups ), 0, $threshold ),
+			),
+			'users'   => array_map(
+				static fn ( $user ): array => [
+					'id'    => $user->getUID(),
+					'label' => $user->getDisplayName(),
+				],
+				array_slice( array_values( $users ), 0, $threshold ),
+			),
+		];
+	}
+
 }
