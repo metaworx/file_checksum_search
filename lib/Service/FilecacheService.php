@@ -1,5 +1,12 @@
 <?php
 
+declare( strict_types=1 );
+
+/**
+ * @copyright Copyright (c) 2026 metaworx
+ * @license   AGPL-3.0-or-later
+ */
+
 namespace OCA\FileChecksumSearch\Service;
 
 use OCP\DB\QueryBuilder\IQueryBuilder;
@@ -695,7 +702,8 @@ class FilecacheService
 	 *
 	 * @return string  The user folder's absolute path.
 	 * @throws \OCP\Files\NotPermittedException
-	 * @throws \OCP\User\Exceptions\UserNotFoundException
+	 * @throws \OC\User\NoUserException  No such account. Private, because OCP
+	 *                                   has no public class for it.
 	 */
 	public function getUserFolderPath( string $userId ): string
 	{
