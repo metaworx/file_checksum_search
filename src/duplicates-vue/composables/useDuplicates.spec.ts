@@ -232,30 +232,45 @@ describe('the instance-wide view', () => {
 		expect(canSudo.value).toBe(true)
 	})
 
-	it('reads the cross-account route once the switch is on', async () => {
+	it('reads the cross-account route once a scope is set', async () => {
 		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ duplicates: [] }))
-		const { showAll, load } = useDuplicates()
+		const { scope, load } = useDuplicates()
 
-		showAll.value = true
+		scope.value = { all: true, users: [], groups: [] }
 		await load()
 
 		expect(String(fetchMock.mock.calls[0][0])).toContain('/api/v1/sudo/duplicates')
 	})
 
-	// The confirmation core holds lasts thirty minutes; when it has run out
-	// the route answers 403, and the page drops back to one's own files
-	// rather than showing an error for a view that is simply no longer open.
-	it('drops the switch and reloads its own files when the confirmation has expired', async () => {
-		const fetchMock = vi.spyOn(globalThis, 'fetch')
-			.mockResolvedValueOnce(statusResponse(403, { message: 'Password confirmation required' }))
-			.mockResolvedValueOnce(jsonResponse({ duplicates: [], canSudo: true }))
-		const { showAll, load } = useDuplicates()
+	// Named accounts and groups go to the server as they were chosen: it
+	// expands the groups and authorises each, because membership is not the
+	// client's to enumerate.
+	it('names the chosen accounts and groups rather than expanding them', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ duplicates: [] }))
+		const { scope, load } = useDuplicates()
 
-		showAll.value = true
+		scope.value = { all: false, users: ['alice'], groups: ['team'] }
 		await load()
 
-		expect(showAll.value).toBe(false)
-		expect(fetchMock).toHaveBeenCalledTimes(2)
-		expect(String(fetchMock.mock.calls[1][0])).not.toContain('/sudo/')
+		const url = String(fetchMock.mock.calls[0][0])
+		expect(url).toContain('users%5B%5D=alice')
+		expect(url).toContain('groups%5B%5D=team')
+	})
+
+	// The confirmation core holds lasts thirty minutes. When it has run out
+	// the route answers 403 — and a cross-account listing must say so rather
+	// than quietly falling back to one's own files, which would look like
+	// the other account simply had no duplicates.
+	it('says so when a scoped view is refused rather than showing own files', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(statusResponse(403, { message: 'Password confirmation required' }))
+		const { scope, load, error, groups } = useDuplicates()
+
+		scope.value = { all: true, users: [], groups: [] }
+		await load()
+
+		expect(fetchMock).toHaveBeenCalledTimes(1)
+		expect(groups.value).toEqual([])
+		expect(error.value).toContain('not yours to look at')
 	})
 })

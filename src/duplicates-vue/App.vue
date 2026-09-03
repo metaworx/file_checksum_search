@@ -4,69 +4,32 @@
  * @license   AGPL-3.0-or-later
  *
  * Root component for the duplicates page.
+ *
+ * The page is a shell around three tabs. Two of them show the same listing
+ * ({@see DuplicateListing}) and differ only in whose files it asks for —
+ * one's own, or the accounts the picker names. Cross-account is a tab of its
+ * own rather than a switch inside the ordinary listing: it shows other
+ * people's files, and that is not a state an ordinary view should slip into.
  */
 
-import { ref, computed, watch, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
 import NcContent from '@nextcloud/vue/components/NcContent'
-import NcButton from '@nextcloud/vue/components/NcButton'
-import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
-import NcTextField from '@nextcloud/vue/components/NcTextField'
-import AlgorithmSelect from '../components/AlgorithmSelect.vue'
-import HelpPopover from '../components/HelpPopover.vue'
-import DuplicateGroup from './components/DuplicateGroup.vue'
-import VerifyButton from './components/VerifyButton.vue'
-import { useDuplicates } from './composables/useDuplicates'
-import type { DuplicateGroup as GroupType } from './composables/useDuplicates'
+import DuplicateListing from './components/DuplicateListing.vue'
+import TargetPicker from './components/TargetPicker.vue'
 import DocsViewer from '../docs-vue/DocsViewer.vue'
 import { OCS_ADMIN } from '../routes'
-import { type AlgoOption, fetchAlgorithms } from '../algorithms'
+import { fetchAlgorithms } from '../algorithms'
 import { confirmPassword } from '@nextcloud/password-confirmation'
 import '@nextcloud/password-confirmation/style.css'
+import type { DuplicateScope } from './composables/useDuplicates'
 
-const {
-	canSudo,
-	showAll,
-	algo,
-	minCount,
-	limit,
-	offset,
-	groups,
-	loading,
-	hasMore,
-	verifying,
-	error,
-	load,
-	verifyGroups,
-	fileUrl,
-	resetOffset,
-	prevPage,
-	nextPage,
-} = useDuplicates()
-
-/**
- * The instance-wide view is a thing you switch to, each time. Core's own
- * dialog asks for the password and holds the confirmation for thirty
- * minutes; a dismissed dialog leaves the switch off.
- */
-async function onShowAll(on: boolean): Promise<void> {
-	if (on) {
-		try {
-			await confirmPassword()
-		} catch (e) {
-			return
-		}
-	}
-	showAll.value = on
-	resetOffset()
-	await load()
-}
+type Tab = 'duplicates' | 'crossaccount' | 'help'
 
 // The filter offers what the instance computes, read from the server: a
 // list carried here would be wrong the day an administrator enabled an
 // algorithm, and it was — this page listed seven of the eight the app
 // always supported, and `adler32` could not be browsed for duplicates.
-const ALL_ALGORITHMS: AlgoOption = { id: '', label: 'All algorithms' }
 const algorithmIds = ref<string[]>([])
 
 fetchAlgorithms()
@@ -77,68 +40,65 @@ fetchAlgorithms()
 		// The filter stays at "All algorithms"; the page still works.
 	})
 
-/** What each control decides, for the help button beside its label. */
-const HELP = {
-	algo: 'Only groups of this algorithm, or every algorithm at once. The list is what this '
-		+ 'server computes; an algorithm nobody has enabled is not offered.',
-	min: 'The smallest group to list: how many files must share a checksum before they count '
-		+ 'as duplicates. Two is every duplicate; a higher number finds the widely copied ones.',
-	limit: 'How many groups one page shows. Verify hashes recomputes every file on the page, '
-		+ 'and recomputation is rate limited, so a smaller page verifies in one go.',
-}
+/** Whether the viewer may look across accounts; the ordinary listing says. */
+const canSudo = ref(false)
 
-// NcTextField emits string | number; the composable wants a bounded integer.
-function bounded(value: string | number, min: number, max: number, fallback: number): number {
-	const n = Math.trunc(Number(value))
-	return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback
-}
+/** What the picker has named. Never persisted — a reload starts over. */
+const crossScope = ref<DuplicateScope>({ all: false, users: [], groups: [] })
 
-const verifiedOnly = ref(false)
-const activeTab = ref<'duplicates' | 'help'>('duplicates')
+/** Set once the password has been confirmed for this window. */
+const confirmed = ref(false)
 
-function tabFromHash(): 'duplicates' | 'help' {
+const activeTab = ref<Tab>('duplicates')
+
+const tabs = computed<Array<{ id: Tab, label: string }>>(() => [
+	{ id: 'duplicates', label: 'Duplicates' },
+	...(canSudo.value ? [{ id: 'crossaccount' as Tab, label: 'Cross-account' }] : []),
+	{ id: 'help', label: 'Help' },
+])
+
+function tabFromHash(): Tab {
 	const tab = window.location.hash.replace(/^#/, '').split('/')[0]
-	return tab === 'help' ? 'help' : 'duplicates'
+	return tab === 'help' || tab === 'crossaccount' ? tab : 'duplicates'
 }
 
-function setTab(tab: 'duplicates' | 'help'): void {
+/**
+ * Entering the cross-account tab costs the password, once per window — the
+ * same confirmation the switch used to ask for. A dismissed dialog leaves
+ * the viewer where they were.
+ */
+async function setTab(tab: Tab): Promise<void> {
+	if (tab === 'crossaccount' && !confirmed.value) {
+		try {
+			await confirmPassword()
+			confirmed.value = true
+		} catch (e) {
+			return
+		}
+	}
 	activeTab.value = tab
 	window.location.hash = tab
 }
 
-const filteredGroups = computed<GroupType[]>(() => {
-	if (!verifiedOnly.value) return groups.value
-	return groups.value.filter((g) => (g.mismatch_count ?? 0) === 0)
-})
-
-const hasVerified = computed(() =>
-	groups.value.every((g) => g.match_count !== undefined && g.mismatch_count !== undefined),
-)
-
-watch([algo, minCount, limit], () => {
-	resetOffset()
-	load()
-})
-
-watch(offset, () => {
-	load()
-})
-
-function refresh(): void {
-	resetOffset()
-	load()
-}
-
-async function onVerify(): Promise<void> {
-	await verifyGroups(groups.value)
+function onScope(scope: DuplicateScope): void {
+	crossScope.value = scope
 }
 
 onMounted(() => {
-	activeTab.value = tabFromHash()
+	const wanted = tabFromHash()
+	// A reload straight into the cross-account tab still asks: the hash is
+	// not a credential.
+	if (wanted === 'crossaccount') {
+		activeTab.value = 'duplicates'
+	} else {
+		activeTab.value = wanted
+	}
 	window.addEventListener('hashchange', () => {
-		activeTab.value = tabFromHash()
+		const next = tabFromHash()
+		if (next !== 'crossaccount' || confirmed.value) {
+			activeTab.value = next
+		}
 	})
-	load()
 })
 </script>
 
@@ -148,138 +108,44 @@ onMounted(() => {
 			<div class="db-wrap">
 				<div class="db-tabs" role="tablist">
 					<button
+						v-for="tab in tabs"
+						:key="tab.id"
 						type="button"
 						class="db-tab"
-						:class="{ 'is-active': activeTab === 'duplicates' }"
+						:class="{ 'is-active': activeTab === tab.id }"
 						role="tab"
-						:aria-selected="activeTab === 'duplicates'"
-						@click="setTab('duplicates')">
-						Duplicates
-					</button>
-					<button
-						type="button"
-						class="db-tab"
-						:class="{ 'is-active': activeTab === 'help' }"
-						role="tab"
-						:aria-selected="activeTab === 'help'"
-						@click="setTab('help')">
-						Help
+						:aria-selected="activeTab === tab.id"
+						:data-tab="tab.id"
+						@click="setTab(tab.id)">
+						{{ tab.label }}
 					</button>
 				</div>
 
-				<template v-if="activeTab === 'duplicates'">
-					<!-- Labelled columns that flow on one row where there is room. The
-					     labels are the page's own: NcTextField with label-outside renders
-					     none, and drops its class on the input rather than its root, which
-					     is why each field is sized by the wrapper around it. -->
-					<div class="db-controls">
-						<div class="db-field db-field--algo">
-							<span class="db-label">
-								<label for="fcias-duplicates-algorithm">Algorithm</label>
-								<HelpPopover :text="HELP.algo" label="Algorithm" />
-							</span>
-							<AlgorithmSelect
-								v-model="algo"
-								:algorithms="algorithmIds"
-								:leading="ALL_ALGORITHMS"
-								input-id="fcias-duplicates-algorithm"
-								label="Algorithm" />
-						</div>
-						<div class="db-field db-field--narrow">
-							<span class="db-label">
-								<label for="fcias-duplicates-min">Min</label>
-								<HelpPopover :text="HELP.min" label="Min" />
-							</span>
-							<NcTextField
-								id="fcias-duplicates-min"
-								:model-value="minCount"
-								type="number"
-								label="Min"
-								label-outside
-								min="2"
-								max="100"
-								title="Smallest group to list: files sharing a checksum, 2 to 100"
-								@update:model-value="minCount = bounded($event, 2, 100, 2)" />
-						</div>
-						<div class="db-field db-field--narrow">
-							<span class="db-label">
-								<label for="fcias-duplicates-limit">Limit</label>
-								<HelpPopover :text="HELP.limit" label="Limit" />
-							</span>
-							<NcTextField
-								id="fcias-duplicates-limit"
-								:model-value="limit"
-								type="number"
-								label="Limit"
-								label-outside
-								min="1"
-								max="500"
-								title="Groups per page, 1 to 500"
-								@update:model-value="limit = bounded($event, 1, 500, 50)" />
-						</div>
-						<div class="db-actions">
-							<NcButton variant="primary" @click="refresh">
-								Refresh
-							</NcButton>
-							<VerifyButton :verifying="verifying" :has-verified="hasVerified" @verify="onVerify" />
-							<!-- The wrapper carries the test hook: the component does not put attributes on an ancestor of its input. -->
-							<span data-testid="fcias-only-matching">
-								<NcCheckboxRadioSwitch
-									v-model="verifiedOnly"
-									title="Show only groups where all files were confirmed matching">
-									Only matching
-								</NcCheckboxRadioSwitch>
-							</span>
-							<!-- Only for a viewer the listing reports may look across accounts.
-							     On costs a password; off, or a reload, is back to one's own files.
-							     Red while on: it is the one control that changes whose files are
-							     shown, and that must not be missed. -->
-							<span
-								v-if="canSudo"
-								data-testid="fcias-show-all"
-								class="db-sudo"
-								:class="{ 'db-sudo-on': showAll }">
-								<NcCheckboxRadioSwitch
-									:model-value="showAll"
-									type="switch"
-									:title="showAll
-										? 'Showing every account\'s duplicates — switch off to see only your own'
-										: 'Every account\'s duplicates, after confirming your password'"
-									@update:model-value="onShowAll">
-									Show all users
-								</NcCheckboxRadioSwitch>
-							</span>
-						</div>
-					</div>
+				<!-- Kept alive rather than re-created: switching tabs should not
+				     throw away the filters or the page you were on. -->
+				<DuplicateListing
+					v-show="activeTab === 'duplicates'"
+					:algorithm-ids="algorithmIds"
+					id-prefix="fcias-duplicates"
+					@can-sudo="canSudo = $event" />
 
-					<div class="db-scroll">
-						<div v-if="loading" class="db-loading">
-							Searching …
-						</div>
-						<div v-else-if="error" class="db-error">
-							{{ error }}
-						</div>
-						<div v-else-if="filteredGroups.length === 0" class="db-empty">
-							{{ groups.length === 0 ? 'No duplicate files found.' : 'No matching duplicate files found.' }}
-						</div>
-						<DuplicateGroup
-							v-for="(group, idx) in filteredGroups"
-							:key="`${group.algo}-${group.hash_value}-${idx}`"
-							:group="group"
-							:file-url="fileUrl" />
-					</div>
+				<div
+					v-if="activeTab === 'crossaccount'"
+					class="db-xaccount"
+					data-testid="fcias-crossaccount">
+					<p class="db-xaccount-note">
+						These are other people's files. Everything below is shown because you
+						asked for it by name — leave this tab to go back to your own.
+					</p>
+					<TargetPicker @update:scope="onScope" />
+					<DuplicateListing
+						:scope="crossScope"
+						:algorithm-ids="algorithmIds"
+						id-prefix="fcias-xaccount"
+						empty-scope-text="Choose an account or a group above to see its duplicates." />
+				</div>
 
-					<div class="db-pagination">
-						<NcButton v-if="offset > 0" @click="prevPage">
-							← Previous
-						</NcButton>
-						<NcButton v-if="hasMore" @click="nextPage">
-							Next →
-						</NcButton>
-					</div>
-				</template>
-
-				<div v-else class="db-help">
+				<div v-if="activeTab === 'help'" class="db-help">
 					<DocsViewer :endpoint="OCS_ADMIN.getHelp" only="docs/user-guide.md" />
 				</div>
 			</div>
@@ -331,66 +197,12 @@ onMounted(() => {
 
 /* One row where there is room, wrapping where there is not; everything
    sits on the fields' bottom edge, the labels above their fields. */
-.db-controls {
-	display: flex;
-	gap: 8px 12px;
-	margin-bottom: 16px;
-	flex-wrap: wrap;
-	/* The labels line up along the top; the select is a few pixels taller
-	   than a text field, and that difference is better hidden at the bottom. */
-	align-items: flex-start;
-}
-
-.db-field {
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-}
 
 /* NcSelect's own minimum is 260px; a narrower wrapper is overflowed, and the
    chevron ends up under the next field. */
-.db-field--algo {
-	width: 260px;
-}
-
-.db-field--algo :deep(.v-select.select) {
-	min-width: 0;
-	width: 100%;
-}
-
-.db-field--narrow {
-	width: 100px;
-}
-
-.db-label {
-	display: flex;
-	align-items: center;
-	gap: 2px;
-	font-weight: 600;
-	color: var(--color-text-maxcontrast);
-}
 
 /* The help button is sized for a settings row; beside a small label it is
    trimmed to the label's height so the row does not grow around it. */
-.db-label :deep(.fcias-help-icon) {
-	width: 24px;
-	height: 24px;
-	min-width: 24px;
-	min-height: 24px;
-}
-
-.db-actions {
-	display: flex;
-	gap: 8px;
-	flex-wrap: wrap;
-	align-items: center;
-	/* On the fields' bottom edge, the labels being above the fields. */
-	align-self: flex-end;
-}
-
-.db-sudo {
-	display: inline-flex;
-}
 
 /* The instance-wide view, while it is on: red, so a page of everyone's
    files is never mistaken for one's own. On the rounded content box inside
@@ -398,53 +210,34 @@ onMounted(() => {
    not on the square outer box, whose corners showed behind it. The tripled
    class outweighs the component's own checked-and-hovered rule, which
    stacks two :not() on the outer box. */
-.db-sudo-on :deep(.checkbox-radio-switch__content) {
-	background-color: var(--color-error);
-}
-
-.db-sudo-on :deep(.checkbox-radio-switch--checked .checkbox-radio-switch__content.checkbox-radio-switch__content.checkbox-radio-switch__content:hover),
-.db-sudo-on :deep(.checkbox-radio-switch--checked:focus-within .checkbox-radio-switch__content.checkbox-radio-switch__content.checkbox-radio-switch__content) {
-	background-color: var(--color-error-hover, var(--color-error));
-}
-
-.db-sudo-on :deep(.checkbox-radio-switch__text),
-.db-sudo-on :deep(.checkbox-radio-switch__icon) {
-	color: var(--color-error-text);
-}
 
 /* The toggle's track is a path filled from a colour the icon component
    sets on itself, so the wrapper's colour never reaches it; the fill is
    set on the path. The knob keeps its own fill and stays readable. */
-.db-sudo-on :deep(.checkbox-radio-switch__icon svg path) {
-	fill: var(--color-error-text);
+
+/* Cross-account: other people's files, on an amber ground so the tab can
+   never be mistaken for one's own listing. Amber rather than the error red
+   the old switch used — this is a state to notice, not a fault. */
+.db-xaccount {
+	background: var(--color-warning);
+	color: var(--color-warning-text);
+	border-radius: var(--border-radius-large, 12px);
+	padding: 12px;
 }
 
-.db-scroll {
-	max-height: calc(100vh - 180px);
-	overflow-y: auto;
-	background: var(--color-main-background);
-	border: 1px solid var(--color-border);
-	border-radius: var(--border-radius);
+.db-xaccount-note {
+	margin: 0 0 12px;
+	font-weight: 600;
+	color: var(--color-warning-text);
 }
 
-.db-pagination {
-	display: flex;
-	gap: 8px;
-	justify-content: center;
-	margin-top: 16px;
+.db-xaccount :deep(.db-label) {
+	color: var(--color-warning-text);
 }
 
-.db-empty,
-.db-loading {
-	text-align: center;
-	padding: 32px;
-	color: var(--color-text-maxcontrast);
-}
-
-.db-error {
-	/* The palette's text red; --color-error is the background one. */
-	color: var(--color-error-text);
-	text-align: center;
-	padding: 16px;
+.db-field--targets {
+	width: 100%;
+	max-width: 420px;
+	margin-bottom: 12px;
 }
 </style>

@@ -31,6 +31,17 @@ export interface DuplicateGroup {
 	mismatch_count?: number
 }
 
+/**
+ * Whose files a listing shows. Null is one's own — the ordinary listing.
+ * `all` is every account, offered to a sudoer only; otherwise the named
+ * accounts and groups, which the server expands and authorises.
+ */
+export interface DuplicateScope {
+	all: boolean
+	users: string[]
+	groups: string[]
+}
+
 interface State {
 	algo: string
 	minCount: number
@@ -41,10 +52,10 @@ interface State {
 	hasMore: boolean
 	verifying: boolean
 	error: string | null
-	/** Whether the viewer may switch to the instance-wide view; the ordinary listing says. */
+	/** Whether the viewer may look across accounts at all; the ordinary listing says. */
 	canSudo: boolean
-	/** The instance-wide view, once the password has been confirmed. Never persisted. */
-	showAll: boolean
+	/** Whose files to show, or null for one's own. Never persisted. */
+	scope: DuplicateScope | null
 }
 
 export function useDuplicates() {
@@ -59,7 +70,7 @@ export function useDuplicates() {
 		verifying: false,
 		error: null,
 		canSudo: false,
-		showAll: false,
+		scope: null,
 	})
 
 	let abortController: AbortController | null = null
@@ -86,23 +97,34 @@ export function useDuplicates() {
 				params.set('algo', state.algo)
 			}
 
-			// The cross-account route once the switch is on. It carries core's
-			// password confirmation, which the page has already been through
-			// by the time showAll is true; a 403 here means the thirty minutes
-			// ran out, and the switch drops back rather than the page erroring.
-			const route = state.showAll ? OCS_API_V1.sudoFindAllDuplicates : OCS_API_V1.findAllDuplicates
+			// A scope means the cross-account route. It carries the password
+			// confirmation the tab has already been through; a 403 here means
+			// the thirty minutes ran out, and the listing says so rather than
+			// silently showing one's own files as if nothing happened.
+			const scoped = state.scope !== null
+			const route = scoped ? OCS_API_V1.sudoFindAllDuplicates : OCS_API_V1.findAllDuplicates
+
+			if (scoped && !state.scope!.all) {
+				for (const uid of state.scope!.users) {
+					params.append('users[]', uid)
+				}
+				for (const gid of state.scope!.groups) {
+					params.append('groups[]', gid)
+				}
+			}
+
 			const url = `${generateOcsUrl(route)}?${params.toString()}`
 			const response = await fetch(url, { signal })
-			if (response.status === 403 && state.showAll) {
-				state.showAll = false
-				state.loading = false
-				return load()
+			if (response.status === 403 && scoped) {
+				state.groups = []
+				state.error = 'That view needs your password confirmed again, or is not yours to look at.'
+				return
 			}
 			if (!response.ok) throw new Error(`HTTP ${response.status}`)
 			const data = (await response.json()) as { duplicates?: DuplicateGroup[], canSudo?: boolean }
 
 			state.groups = data.duplicates || []
-			if (!state.showAll) {
+			if (!scoped) {
 				state.canSudo = data.canSudo === true
 			}
 			state.hasMore = state.groups.length >= state.limit

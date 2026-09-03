@@ -157,12 +157,14 @@ describe( 'FCIAS Duplicates page', () => {
 		cy.get( '.db-group-header-status' ).should( 'not.exist' )
 	} )
 
-	// The switch is the sudoer boundary made visible: the administrator gets
-	// it, an account nobody named does not. What happens after the switch —
-	// core's password dialog — is exercised by the AP's closing full run.
-	it( 'offers "Show all users" to the administrator', () => {
+	// The Cross-account tab is the sudoer boundary made visible: the
+	// administrator gets it, an account nobody named does not. It is a tab
+	// rather than a switch because it shows other people's files, and that is
+	// not a state an ordinary listing should slip into. Core's password dialog
+	// is skipped within thirty minutes of a login, which a Cypress session is.
+	it( 'offers the Cross-account tab to the administrator', () => {
 		cy.visit( DUPLICATES_URL )
-		cy.get( '[data-testid="fcias-show-all"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.get( '.db-tab[data-tab="crossaccount"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 	} )
 
 	// Every control says what it is, with a label a reader can see and a
@@ -176,34 +178,30 @@ describe( 'FCIAS Duplicates page', () => {
 		cy.get( '.db-label .fcias-help-icon' ).should( 'have.length', 3 )
 	} )
 
-	// On, the page lists every account's files through the sudo route, and
-	// the switch turns red for as long as it does; off is back to one's own.
-	// Core's confirmation dialog is skipped within thirty minutes of a login,
-	// which a Cypress session always is.
-	it( 'turns "Show all users" red while the view is instance-wide', () => {
-		cy.intercept( 'GET', '**/apps/file_checksum_search/api/v1/sudo/duplicates*' ).as( 'sudoList' )
+	// The tab asks the server who may be named, and shows the listing on its
+	// own amber ground with nothing loaded until a target is chosen.
+	it( 'opens the Cross-account tab with a picker and nothing named yet', () => {
+		cy.intercept( 'GET', '**/apps/file_checksum_search/duplicates/selectable*' ).as( 'selectable' )
 		cy.visit( DUPLICATES_URL )
 
-		const wrapper = '[data-testid="fcias-show-all"]'
-		const input = `${ wrapper } input[type="checkbox"]`
+		cy.get( '.db-tab[data-tab="crossaccount"]', { timeout: FIND_TIMEOUT } ).click()
+		cy.wait( '@selectable', { timeout: FIND_TIMEOUT } )
 
-		cy.get( wrapper, { timeout: FIND_TIMEOUT } ).should( 'not.have.class', 'db-sudo-on' )
-		cy.get( input ).click( { force: true } )
-		cy.wait( '@sudoList', { timeout: FIND_TIMEOUT } )
-		cy.get( wrapper ).should( 'have.class', 'db-sudo-on' )
-
-		cy.get( input ).click( { force: true } )
-		cy.get( wrapper ).should( 'not.have.class', 'db-sudo-on' )
+		cy.get( '[data-testid="fcias-crossaccount"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.get( '[data-testid="fcias-target-picker"]' ).should( 'exist' )
+		cy.get( '[data-testid="fcias-awaiting-scope"]' ).should( 'exist' )
+		// Its own controls, so the ordinary tab's filters are left alone.
+		cy.get( '#fcias-xaccount-min' ).should( 'exist' )
 	} )
 
-	it( 'does not offer "Show all users" to an account nobody named', () => {
+	it( 'does not offer the Cross-account tab to an account nobody named', () => {
 		cy.env( [ 'NC_ADMIN_USER', 'NC_ADMIN_PASSWORD' ] ).then( ( env ) => {
 			const admin = { user: env.NC_ADMIN_USER || 'admin', password: env.NC_ADMIN_PASSWORD || 'admin' }
 			cy.fciasMakeAccount( admin, 'nobody' ).then( ( account ) => {
 				cy.login( account.user, account.password )
 				cy.visit( DUPLICATES_URL )
 				cy.get( '[data-testid="fcias-only-matching"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
-				cy.get( '[data-testid="fcias-show-all"]' ).should( 'not.exist' )
+				cy.get( '.db-tab[data-tab="crossaccount"]' ).should( 'not.exist' )
 				cy.fciasDeleteAccount( admin, account.user )
 			} )
 		} )

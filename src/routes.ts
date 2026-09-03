@@ -29,6 +29,12 @@ export const OCS_API_V1 = {
 	preference: `${APP_BASE}/api/v1/preferences/{key}`,
 } as const
 
+/** The Duplicates page's own endpoints (DuplicatesController). */
+export const OCS_DUPLICATES = {
+	/** GET /duplicates/selectable — the groups and accounts the caller may name */
+	selectable: `${APP_BASE}/duplicates/selectable`,
+} as const
+
 /**
  * Hash-generation rules (RulesController).
  *
