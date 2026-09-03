@@ -312,7 +312,12 @@ describe( 'FCIAS for a user who is not an administrator', () => {
 			)
 			openChecksumsTab()
 
-			cy.get( '.fcias-recalc-btn[data-algo="sha1"]', { timeout: FIND_TIMEOUT } ).click()
+			// Whichever algorithm the first quick button offers. This test is
+			// about the refusal, not about how the button is composed —
+			// checksums.cy.js covers that — and naming an algorithm here
+			// makes it fail whenever the instance default or the acting
+			// account's preference is not what it assumed.
+			cy.get( '.fcias-recalc-btn', { timeout: FIND_TIMEOUT } ).first().click()
 
 			// The verdict comes from the file's owner, not from the person
 			// asking: bob has never seen alice's rule and cannot edit it,
