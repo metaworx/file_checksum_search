@@ -176,40 +176,32 @@ class DuplicatesControllerTest
 	}
 
 
-	public function testFindAllQueriesTheTargetUserWhenAnAdminNamesOne(): void
+	/**
+	 * Membership in the admin group grants nothing on this route any more:
+	 * naming another user is refused for everyone until the confirmed
+	 * cross-account route exists.
+	 */
+	public function testFindAllRefusesAnAdministratorNamingAnotherUser(): void
 	{
 
-		$this->signedInAs( 'admin' );
+		$admin = $this->createMock( IUser::class );
+		$admin->method( 'getUID' )
+		      ->willReturn( 'admin' )
+		;
+		$this->userSession->method( 'getUser' )
+		                  ->willReturn( $admin )
+		;
 		$this->groupManager->method( 'isAdmin' )
 		                   ->with( 'admin' )
 		                   ->willReturn( true )
 		;
-
-		$alice = $this->createMock( IUser::class );
-		$alice->method( 'getUID' )
-		      ->willReturn( 'alice' )
-		;
-		$this->userManager->method( 'get' )
-		                  ->with( 'alice' )
-		                  ->willReturn( $alice )
-		;
-
-		// The whole point of the admin parameter: the listing is built for
-		// alice, not for the admin making the request.
-		$this->hashIndexService->expects( $this->once() )
+		$this->hashIndexService->expects( $this->never() )
 		                       ->method( 'listDuplicatesForUser' )
-		                       ->with( 'alice' )
-		                       ->willReturn( [
-			                       'duplicates'   => [],
-			                       'total_groups' => 0,
-			                       'pagination'   => [
-				                       'offset' => 0,
-				                       'limit'  => 50,
-			                       ],
-		                       ] )
 		;
 
-		$this->controller->findAll( user: 'alice' );
+		$response = $this->controller->findAll( user: 'alice' );
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $response->getStatus() );
 	}
 
 

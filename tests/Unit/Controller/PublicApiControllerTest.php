@@ -21,6 +21,7 @@ use OCP\IGroupManager;
 use OCP\IRequest;
 use OCP\IUser;
 use OCP\IUserSession;
+use OCP\Lockdown\ILockdownManager;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -41,6 +42,8 @@ class PublicApiControllerTest
 
 	private IUserConfig&MockObject $userConfig;
 
+	private ILockdownManager&MockObject $lockdown;
+
 	private PublicApiController        $controller;
 
 
@@ -56,10 +59,15 @@ class PublicApiControllerTest
 		$this->userConfig = $this->createMock( IUserConfig::class );
 		$request            = $this->createMock( IRequest::class );
 
-		// Default to an authenticated admin (unrestricted scope: null) so
-		// existing expectations that predate the ownership scoping fix
-		// keep passing unchanged; tests exercising non-admin scoping
-		// override this per-test.
+		// The default caller is a member of the admin group, which grants
+		// nothing on the read side: every test below expects the caller's own
+		// uid as the scope, administrator or not. Tests about somebody else
+		// override the session per test.
+		$this->lockdown = $this->createMock( ILockdownManager::class );
+		$this->lockdown->method( 'canAccessFilesystem' )
+		               ->willReturn( true )
+		;
+
 		$adminUser = $this->createMock( IUser::class );
 		$adminUser->method( 'getUID' )
 		          ->willReturn( 'admin' )
@@ -81,7 +89,47 @@ class PublicApiControllerTest
 			$this->logger,
 			$this->createMock( AlgorithmCatalogue::class ),
 			$this->userConfig,
+			$this->lockdown,
 		);
+	}
+
+
+	// ─── scope ──────────────────────────────────────────────────────
+
+	/**
+	 * An app password whose owner switched off "allow filesystem access"
+	 * gets nothing from any route. Core enforces that scope by mounting
+	 * nothing, which already empties every path that resolves a file; the
+	 * lookup and the duplicate listing never touch a mount, so the refusal
+	 * is made once, here, where it covers all of them.
+	 */
+	public function testATokenKeptOutOfTheFilesystemIsRefusedOnEveryRoute(): void
+	{
+
+		$this->lockdown = $this->createMock( ILockdownManager::class );
+		$this->lockdown->method( 'canAccessFilesystem' )
+		               ->willReturn( false )
+		;
+		$controller = new PublicApiController(
+			'file_checksum_search',
+			$this->createMock( IRequest::class ),
+			$this->api,
+			$this->userSession,
+			$this->groupManager,
+			$this->logger,
+			$this->createMock( AlgorithmCatalogue::class ),
+			$this->userConfig,
+			$this->lockdown,
+		);
+		$this->api->expects( $this->never() )
+		          ->method( 'getHashesByFileId' )
+		;
+		$this->api->expects( $this->never() )
+		          ->method( 'findByHash' )
+		;
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $controller->getHashes( 42 )->getStatus() );
+		$this->assertSame( Http::STATUS_FORBIDDEN, $controller->lookup( 'abc123' )->getStatus() );
 	}
 
 
@@ -211,7 +259,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'getHashesByFileId' )
-		          ->with( 42, null )
+		          ->with( 42, 'admin' )
 		          ->willReturn( [
 			          'fileid' => 42,
 			          'hashes' => [
@@ -249,6 +297,7 @@ class PublicApiControllerTest
 			$this->logger,
 			$this->createMock( AlgorithmCatalogue::class ),
 			$this->userConfig,
+			$this->lockdown,
 		);
 
 		$this->api->expects( $this->never() )
@@ -289,6 +338,7 @@ class PublicApiControllerTest
 			$this->logger,
 			$this->createMock( AlgorithmCatalogue::class ),
 			$this->userConfig,
+			$this->lockdown,
 		);
 
 		$this->api->expects( $this->once() )
@@ -384,7 +434,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'findByHash' )
-		          ->with( 'abc123', 'md5', 100, null )
+		          ->with( 'abc123', 'md5', 100, 'admin' )
 		          ->willReturn( [ 'results' => [] ] )
 		;
 
@@ -419,7 +469,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'findByHash' )
-		          ->with( 'abc123', null, 100, null )
+		          ->with( 'abc123', null, 100, 'admin' )
 		          ->willReturn( [
 			          'results' => [
 				          [
@@ -468,6 +518,7 @@ class PublicApiControllerTest
 			$this->logger,
 			$this->createMock( AlgorithmCatalogue::class ),
 			$this->userConfig,
+			$this->lockdown,
 		);
 
 		$this->api->expects( $this->once() )
@@ -499,7 +550,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'recalcHash' )
-		          ->with( 99999, null, null )
+		          ->with( 99999, null, 'admin' )
 		          ->willReturn( [
 			          'success' => false,
 			          'error'   => 'File not found.',
@@ -536,7 +587,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'recalcHash' )
-		          ->with( 42, null, null )
+		          ->with( 42, null, 'admin' )
 		          ->willReturn( [
 			          'success' => true,
 			          'algo'    => 'sha1',
@@ -579,6 +630,7 @@ class PublicApiControllerTest
 			$this->logger,
 			$this->createMock( AlgorithmCatalogue::class ),
 			$this->userConfig,
+			$this->lockdown,
 		);
 
 		$this->api->expects( $this->once() )
@@ -628,6 +680,7 @@ class PublicApiControllerTest
 			$this->logger,
 			new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ),
 			$this->userConfig,
+			$this->lockdown,
 		);
 	}
 

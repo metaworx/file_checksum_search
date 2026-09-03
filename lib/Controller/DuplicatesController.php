@@ -86,25 +86,15 @@ class DuplicatesController
 		// Resolve target user
 		if ( $user !== null && $currentUser !== null )
 		{
-			if ( ! $this->groupManager->isAdmin( $currentUser->getUID() ) )
-			{
-				return new DataResponse(
-					[ 'error' => 'Only admins can query other users.' ],
-					Http::STATUS_FORBIDDEN,
-				);
-			}
+			// Nobody, for now — an administrator included. Reading another
+			// account's duplicates returns as its own route behind a password
+			// confirmation; until then this parameter names nobody it may
+			// name, and says so rather than silently answering with one's own.
+			return new DataResponse(
+				[ 'error' => 'Listing another user\'s duplicates is not available on this route.' ],
+				Http::STATUS_FORBIDDEN,
+			);
 
-			$target = $this->userManager->get( $user );
-
-			if ( $target === null )
-			{
-				return new DataResponse(
-					[ 'error' => 'User not found.' ],
-					Http::STATUS_NOT_FOUND,
-				);
-			}
-
-			$uid = $target->getUID();
 		}
 		elseif ( $currentUser !== null )
 		{

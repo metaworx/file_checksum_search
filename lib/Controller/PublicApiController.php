@@ -26,6 +26,7 @@ use OCP\Files\NotFoundException;
 use OCP\IGroupManager;
 use OCP\IRequest;
 use OCP\IUserSession;
+use OCP\Lockdown\ILockdownManager;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -35,7 +36,7 @@ use Throwable;
  * Thin HTTP adapter over ChecksumApi. All endpoints are public
  * (NoAdminRequired) and CSRF-exempt (NoCSRFRequired) for API access.
  * Non-admin callers are scoped to their own files — see
- * {@see resolveRequestingUserScope()}.
+ * {@see scopeOrRefusal()}.
  *
  * @noinspection PhpUnused
  */
@@ -53,6 +54,7 @@ class PublicApiController
 		private readonly LoggerInterface $logger,
 		private readonly AlgorithmCatalogue $catalogue,
 		private readonly IUserConfig     $userConfig,
+		private readonly ILockdownManager $lockdown,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -60,27 +62,46 @@ class PublicApiController
 
 
 	/**
-	 * Resolve the ownership scope to enforce for the current request.
+	 * Whose files a request may read: the caller's own, always.
 	 *
-	 * - `false`  : no authenticated user (should not normally be reachable,
-	 *              since every route below requires a logged-in user).
-	 * - `null`   : an admin is calling — unrestricted, system-wide access.
-	 * - `string` : a regular user's UID — results/actions must be
-	 *              restricted to files that UID can access.
+	 * This used to answer `null` — unrestricted — for a member of the admin
+	 * group, so an administrator who merely opened a file was reading across
+	 * every account, unasked and unseen. Membership grants nothing here now.
+	 * Looking across accounts is a separate set of routes, named for it and
+	 * behind a password confirmation or an explicit grant.
+	 *
+	 * A token its owner kept out of the filesystem is refused outright. Core
+	 * enforces that scope by mounting nothing, which already empties every
+	 * path that resolves a file through the user's folder; the lookup and
+	 * the duplicate listing never touch a mount, and a hash is still a fact
+	 * about a file, so the refusal is made here where it covers all of them.
+	 *
+	 * @return string|DataResponse  The caller's uid, or the response to send
+	 *                              instead: 401 with no session, 403 for a
+	 *                              token kept out of files.
 	 */
-	private function resolveRequestingUserScope(): string|false|null
+	private function scopeOrRefusal(): string|DataResponse
 	{
 
 		$user = $this->userSession->getUser();
 
 		if ( $user === null )
 		{
-			return false;
+			return new DataResponse(
+				[ 'success' => false, 'error' => 'Not authenticated.' ],
+				Http::STATUS_UNAUTHORIZED,
+			);
 		}
 
-		return $this->groupManager->isAdmin( $user->getUID() )
-			? null
-			: $user->getUID();
+		if ( ! $this->lockdown->canAccessFilesystem() )
+		{
+			return new DataResponse(
+				[ 'success' => false, 'error' => 'This app password may not access files.' ],
+				Http::STATUS_FORBIDDEN,
+			);
+		}
+
+		return $user->getUID();
 	}
 
 
@@ -235,11 +256,11 @@ class PublicApiController
 			],
 		);
 
-		$scope = $this->resolveRequestingUserScope();
+		$scope = $this->scopeOrRefusal();
 
-		if ( $scope === false )
+		if ( $scope instanceof DataResponse )
 		{
-			return new DataResponse( [ 'error' => 'Not authenticated.' ], Http::STATUS_UNAUTHORIZED );
+			return $scope;
 		}
 
 		try
@@ -382,11 +403,11 @@ class PublicApiController
 			],
 		);
 
-		$scope = $this->resolveRequestingUserScope();
+		$scope = $this->scopeOrRefusal();
 
-		if ( $scope === false )
+		if ( $scope instanceof DataResponse )
 		{
-			return new DataResponse( [ 'error' => 'Not authenticated.' ], Http::STATUS_UNAUTHORIZED );
+			return $scope;
 		}
 
 		try
@@ -441,11 +462,11 @@ class PublicApiController
 			],
 		);
 
-		$scope = $this->resolveRequestingUserScope();
+		$scope = $this->scopeOrRefusal();
 
-		if ( $scope === false )
+		if ( $scope instanceof DataResponse )
 		{
-			return new DataResponse( [ 'error' => 'Not authenticated.' ], Http::STATUS_UNAUTHORIZED );
+			return $scope;
 		}
 
 		try
@@ -511,17 +532,11 @@ class PublicApiController
 			],
 		);
 
-		$scope = $this->resolveRequestingUserScope();
+		$scope = $this->scopeOrRefusal();
 
-		if ( $scope === false )
+		if ( $scope instanceof DataResponse )
 		{
-			return new DataResponse(
-				[
-					'success' => false,
-					'error'   => 'Not authenticated.',
-				],
-				Http::STATUS_UNAUTHORIZED,
-			);
+			return $scope;
 		}
 
 		try

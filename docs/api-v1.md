@@ -795,6 +795,16 @@ but what a caller may do there depends on who they are: a non-administrator's
 enforced rule is not theirs to change. The repair and queue operations are the
 ones that stay out, in the admin settings page and the CLI.
 
+**Reads are the caller's own.** Every endpoint that names a file — the hashes,
+the per-file duplicates, recalculation — resolves it through the caller's own
+folder and answers 404 when it does not resolve, and the lookup and the
+duplicate listing return only files the caller can open. That holds for
+administrators too: membership in `admin` grants nothing here. Looking across
+accounts is a separate set of routes, named for it and behind Nextcloud's
+password confirmation, described under *Cross-account routes* below; a script
+that cannot confirm a password uses an app password that an administrator has
+granted for it, described there as well.
+
 ---
 
 ## Versioning & Compatibility
