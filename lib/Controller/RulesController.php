@@ -365,8 +365,10 @@ class RulesController
 	 *
 	 * @noinspection PhpUnused
 	 */
+	// No #[NoCSRFRequired]: a mutating POST, and that attribute drops the
+	// strict-cookie check along with the CSRF one. The rule pages send the
+	// request token (useRules.ts); an API caller sends OCS-APIRequest.
 	#[NoAdminRequired]
-	#[NoCSRFRequired]
 	#[ApiRoute(
 		verb: 'POST',
 		url: '/api/v1/rules/{id}/apply',

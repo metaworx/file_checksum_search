@@ -346,7 +346,7 @@ class PublicApiTest
 
 		$context = stream_context_create( [
 			'http' => [
-				'header'        => $this->authHeader . "\r\nAccept: application/json",
+				'header'        => $this->authHeader . "\r\nAccept: application/json\r\nOCS-APIRequest: true",
 				'ignore_errors' => true,
 			],
 		] );
@@ -378,7 +378,12 @@ class PublicApiTest
 		$context = stream_context_create( [
 			'http' => [
 				'method'        => 'POST',
-				'header'        => "Content-Type: application/json\r\n" . $this->authHeader . "\r\nAccept: application/json",
+				// OCS-APIRequest is what a real API client sends, and what
+				// lets a mutating POST pass the CSRF check now that recalc no
+				// longer waives it (F7). GETs pass without it, but a client
+				// sends it on every call, so it rides on both helpers.
+				'header'        => "Content-Type: application/json\r\n" . $this->authHeader
+				                   . "\r\nAccept: application/json\r\nOCS-APIRequest: true",
 				'content'       => $jsonPayload,
 				'ignore_errors' => true,
 			],

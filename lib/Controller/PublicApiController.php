@@ -748,8 +748,13 @@ class PublicApiController
 	 *
 	 * @noinspection PhpUnused
 	 */
+	// No #[NoCSRFRequired]: this is a mutating POST, and that attribute drops
+	// the strict-cookie check with the CSRF one. A browser sends the request
+	// token (useSidebarHashes.ts, useDuplicates.ts); an API caller sends
+	// OCS-APIRequest, which OCS accepts in its place. The read routes below
+	// keep it — a GET is not the concern, and an app password carries no
+	// token.
 	#[NoAdminRequired]
-	#[NoCSRFRequired]
 	#[UserRateLimit( limit: 20, period: 60 )]
 	#[ApiRoute( verb: 'POST', url: '/api/v1/file/{fileId}/recalc' )]
 	public function recalcHash( int $fileId ): DataResponse
