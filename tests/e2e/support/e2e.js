@@ -1,10 +1,26 @@
+// This app's own name, as it appears in bundle paths and therefore in the
+// stack of anything it throws.
+const APP_ID = 'file_checksum_search'
+
 Cypress.on( 'uncaught:exception', ( err ) => {
 	// Nextcloud core apps (Photos, Recommendations, User Status, …) throw
 	// benign unhandled rejections while the dashboard loads on a fresh
-	// install (missing upload folder, 404s on their OCS endpoints). The
-	// specs assert on the DOM, so ignore these instead of failing.
-	console.error( 'Ignoring uncaught exception:', err.message )
-	return false
+	// install (missing upload folder, 404s on their OCS endpoints). Those
+	// are not this suite's business.
+	//
+	// Anything thrown by this app is. Ignoring every exception is how
+	// nineteen dead OC.Notification calls went unnoticed for as long as they
+	// existed — each one a TypeError at the end of a request that had
+	// already succeeded, so nothing else in the DOM ever looked wrong.
+	const ours = `${ err.message }\n${ err.stack || '' }`.includes( APP_ID )
+
+	console.error(
+		`${ ours ? 'Failing on' : 'Ignoring' } uncaught exception:`,
+		err.message,
+	)
+
+	// Returning false is what tells Cypress not to fail the test.
+	return ours
 } )
 
 Cypress.Commands.add( 'login', ( user = 'admin', password = 'admin' ) => {
