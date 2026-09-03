@@ -3,8 +3,11 @@
  * @copyright Copyright (c) 2026 metaworx
  * @license   AGPL-3.0-or-later
  *
- * Sidebar tab showing indexed checksums for the selected file, with
- * SHA-1/MD5 recalc and inline duplicate lookup.
+ * Sidebar tab showing the checksums stored for the selected file.
+ *
+ * Recalculation is offered twice over: one or two quick buttons composed for
+ * this file and this user ({@see quickAlgos}), and a picker holding
+ * everything the instance computes. Duplicate lookup is inline.
  */
 import { computed, ref, watch } from 'vue'
 import { translate as t } from '@nextcloud/l10n'

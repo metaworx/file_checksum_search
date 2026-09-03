@@ -313,8 +313,9 @@ class HashIndexService
 	/**
 	 * Invalidate hashes for a file by clearing its metadata.
 	 *
-	 * The ProcessPendingUpdates job will recalculate hashes later.
-	 * This replaces the old custom-table DELETE with a metadata clear.
+	 * Clearing is not forgetting: the file keeps its stamp at zero, so the
+	 * next rule sweep sees it as stale and the queue-drain job recomputes
+	 * what a rule still asks for.
 	 */
 	public function deleteHashes( int $fileId ): int
 	{

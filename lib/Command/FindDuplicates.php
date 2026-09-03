@@ -56,7 +56,7 @@ class FindDuplicates
 			     'user',
 			     'u',
 			     InputOption::VALUE_REQUIRED,
-			     'Show only files accessible to this user (filters by filecache path prefix)',
+			     'Show only files in this user\'s home storage',
 		     )
 		     ->addOption(
 			     'min-count',

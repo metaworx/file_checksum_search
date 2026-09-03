@@ -54,8 +54,11 @@ class ListRules
 		$rows      = [];
 		$positions = [];
 
-		// loadRules() is band-sorted; the position is the ordinal within
-		// each band, matching the <band>.<position> the settings pages show.
+		// loadRules() is band-sorted, and this numbers within each band.
+		// The settings pages number within each *segment* — band plus
+		// selector — so a band holding two selectors shows two rules
+		// numbered 1 there and 1 and 2 here. Same order either way; only
+		// the ordinal differs.
 		foreach ( $this->ruleService->loadRules() as $rule )
 		{
 			$band               = RuleService::bandOf( $rule );

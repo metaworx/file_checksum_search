@@ -27,7 +27,8 @@ use Throwable;
  *
  * Thin orchestrator — all rule evaluation logic lives in RuleService.
  *
- * Registered in Application::boot() via IJobList.
+ * Scheduled from appinfo/info.xml's <background-jobs>, which is what puts
+ * it in the job list; the app's boot() registers nothing.
  */
 class RuleProcessingJob
 	extends

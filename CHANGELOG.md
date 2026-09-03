@@ -12,6 +12,7 @@ the first stable release.
 ## [Unreleased]
 
 ### Changed
+- Comments that contradicted the code are corrected or deleted. Two model generations had been left behind in prose: seven bands where there are eight, a single undeletable catch-all default where the shape is derived per segment and the app ships two, the retired `pinned` flag and "user scope" vocabulary, a seeding step that no longer exists, jobs said to be registered in code that registers nothing, and duplicate lookups described as instance-wide when they are scoped to the person asking. The rule dialog also loses a `lockScope` prop that no caller passed, along with the five template branches behind it.
 
 - The end-to-end suite no longer swallows this app's own exceptions. Its `uncaught:exception` handler ignored everything thrown in the browser, which is how nineteen dead notification calls survived unnoticed for as long as they existed; it now fails the spec when the error comes from this app and keeps ignoring the unrelated noise core's dashboard throws on a fresh install.
 - Save buttons say whether there is anything to save. Both admin settings sections compare what is on screen against what the server last gave them: with no change the Save button is disabled, and as soon as something differs it turns yellow (`NcButton` variant `warning`) until the save goes through. Red was not used, since it is the destructive variant in Nextcloud's palette. The personal page saves on select and has no button to colour.

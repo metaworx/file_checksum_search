@@ -28,11 +28,16 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Throwable;
 
 /**
- * Rule evaluation engine for hash-generation rules.
+ * Everything the app knows about rules: the ones it stores and the files
+ * they decide.
  *
- * Loads rules from IAppConfig, resolves user scope, searches for
- * matching files via Folder::search(), checks freshness via
- * MetadataService, and marks outdated files as pending:{mode}.
+ * Two halves that share the stored definitions. The evaluation half loads
+ * rules from IAppConfig, resolves each one's selector to the folders it
+ * reaches, searches them via Folder::search(), checks freshness against
+ * MetadataService and marks outdated files as pending:{mode}. The other half
+ * owns the definitions themselves — creating, updating and deleting them,
+ * deriving each rule's band and segment from its selector, and ordering
+ * within a segment.
  *
  * Who may edit rules at all is {@see PermissionService}'s concern; this class
  * only asks it, when deciding whether a user may mutate a particular rule.
@@ -1567,14 +1572,16 @@ class RuleService
 	/**
 	 * Whether $userId may create/update/delete/toggle/reorder $rule.
 	 *
-	 * A non-admin's writable surface is exactly band 4 restricted to their
-	 * own rules: the rule must not be admin_enforced, must be the segment
-	 * default, must be scoped to $userId specifically, and its path must be
-	 * write-accessible to them.
+	 * Three conditions, and the selector carries two of them: the rule must
+	 * not be admin_enforced, its selector must canonicalise to exactly
+	 * `home:<userId>`, and its path must be write-accessible to them. A rule
+	 * shaped that way sits in {@see BAND_EXACT}; the band is not tested for,
+	 * because it is derived from the selector this already pinned down.
 	 *
-	 * Scope 'all' is deliberately NOT accepted. It used to be, which let a
-	 * non-admin edit an instance-wide rule's path/mode/algos for every user
-	 * on the instance.
+	 * Anything wider is refused by the selector test alone — `home:*` and the
+	 * universal `*` included. That is the point: a wider selector used to be
+	 * accepted, which let a non-administrator edit the path, mode and
+	 * algorithms of a rule that decides every account's files.
 	 *
 	 * Does NOT check the global rule-editing permission — call
 	 * {@see PermissionService::canUserEditRules()} for that separately.

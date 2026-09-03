@@ -19,8 +19,13 @@ use OCP\Migration\SimpleMigrationStep;
 use OCP\Server;
 
 /**
- * Adds custom indices on oc_files_metadata_index for FCIAS queries
- * and seeds file-checksum-updated_at index entries for existing files.
+ * Adds this app's indices to oc_files_metadata_index, then adopts the
+ * checksums the filecache already holds.
+ *
+ * The backfill is why the migration has a postSchemaChange half at all: a
+ * file whose hash Nextcloud computed on upload is already hashed, and
+ * copying those values in is cheaper than recomputing them and kinder than
+ * pretending the instance starts empty.
  *
  * @noinspection PhpUnused
  */

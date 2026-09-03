@@ -17,9 +17,14 @@ export interface Rule {
 	admin_enforced: boolean
 	/** `include` (default), `ignore`, or `exclude` — what the rule does when it matches. */
 	type?: string
-	/** True for the single catch-all default rule, which is undeletable and always evaluates last. */
+	/**
+	 * True when the rule's path is a bare catch-all (`**`, `/`, or empty), which puts it in the
+	 * trailing defaults partition of its own segment. Several rules are default-shaped — the app
+	 * ships two — and any of them can be deleted; a repair step recreates the shipped pair, disabled.
+	 * Derived from the path, never stored.
+	 */
 	isDefault?: boolean
-	/** Derived priority band 1–7 (lower evaluates first). Server-computed; never sent back. */
+	/** Derived priority band, 1–8 (lower evaluates first). Server-computed; never sent back. */
 	band?: number
 	/** 1-based position within the band, among the rules this caller can see. */
 	position?: number
@@ -36,7 +41,7 @@ export interface RuleDraft {
 	path: string
 	selector: string
 	admin_enforced: boolean
-	/** The catch-all default; set only by the global-rule path. */
+	/** Read-only here: the server derives it from `path` and ignores whatever a draft claims. */
 	isDefault?: boolean
 	enabled?: boolean
 }

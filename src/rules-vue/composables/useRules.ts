@@ -175,8 +175,8 @@ export function useRules(scope: 'own' | 'all') {
 			selector: draft.selector,
 			admin_enforced: draft.admin_enforced,
 			enabled: draft.enabled ?? true,
-			// Only ever set for the catch-all default; the server ignores it
-			// from a non-admin and holds it to an at-most-one invariant.
+			// No isDefault: it is derived from the path, and the server
+			// would ignore it anyway.
 		}
 
 		return draft.id

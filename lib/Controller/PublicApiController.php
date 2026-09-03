@@ -312,7 +312,7 @@ class PublicApiController
 
 
 	/**
-	 * Find all duplicate groups across the system.
+	 * Find duplicate groups among the files the session user can reach.
 	 *
 	 * @noinspection PhpUnused
 	 */

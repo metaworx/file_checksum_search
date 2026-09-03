@@ -27,9 +27,9 @@ const props = defineProps<{
 	rule: RuleDraft | null
 	variant: 'admin' | 'personal'
 	supportedAlgos: string[]
-	/** Admin variant only: user ids offered in the User Scope select. */
+	/** Admin variant only: user ids offered when "Applies to" is one user. */
 	availableUsers?: string[]
-	/** Admin variant only: group ids offered when the scope is a group. */
+	/** Admin variant only: group ids offered when "Applies to" is a group. */
 	availableGroups?: string[]
 	/** Whether the groupfolders app is installed and enabled. */
 	groupFoldersAvailable?: boolean
@@ -37,11 +37,6 @@ const props = defineProps<{
 	groupFoldersLabel?: string | null
 	/** Admin variant only: the group folders offered when the app is there. */
 	availableGroupFolders?: GroupFolderOption[]
-	/**
-	 * Renders Path and User Scope read-only. Used for the global rule, whose
-	 * `**` / `all` reach is what makes it the global default.
-	 */
-	lockScope?: boolean
 	/** Overrides the dialog title. */
 	title?: string
 	/**
@@ -245,9 +240,9 @@ const formEl = ref<HTMLElement | null>(null)
  * Put the caret on the first field the admin actually edits.
  *
  * The dialog otherwise focuses the first focusable descendant, which is the
- * User Scope help button. Buttons are excluded here so focus lands on the
- * first real control — the User Scope select, the Path input, or, when the
- * global rule's fixed fields are plain text, the algorithm select.
+ * "Applies to" help button. Buttons are excluded here so focus lands on the
+ * first real control — the "Applies to" select, or the Path input on the
+ * personal variant, which has no selector to choose.
  */
 onMounted(async () => {
 	await nextTick()
@@ -309,12 +304,8 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 			</div>
 
 			<div v-if="variant === 'admin'" class="fcias-rule-form-row">
-				<label :for="lockScope ? undefined : ids.selector">Applies to</label>
-				<span v-if="lockScope" :id="ids.selector" class="fcias-rule-form-static">
-					{{ draft.selector }}
-				</span>
+				<label :for="ids.selector">Applies to</label>
 				<select
-					v-else
 					:id="ids.selector"
 					v-model="selectorChoice"
 					@change="selectorTargetValue = ''">
@@ -340,7 +331,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 				<HelpPopover :text="HELP.selector" label="Applies to" />
 			</div>
 
-			<div v-if="variant === 'admin' && !lockScope && selectorChoice === 'group'" class="fcias-rule-form-row">
+			<div v-if="variant === 'admin' && selectorChoice === 'group'" class="fcias-rule-form-row">
 				<label :for="ids.selectorTarget">Group</label>
 				<div class="fcias-rules-dialog-select">
 					<NcSelect
@@ -373,7 +364,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 				<HelpPopover :text="HELP.group" label="Group" />
 			</div>
 
-			<div v-if="variant === 'admin' && !lockScope && selectorChoice === 'user'" class="fcias-rule-form-row">
+			<div v-if="variant === 'admin' && selectorChoice === 'user'" class="fcias-rule-form-row">
 				<label :for="ids.selectorTarget">User</label>
 				<div class="fcias-rules-dialog-select">
 					<NcSelect
@@ -392,7 +383,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 				<HelpPopover :text="HELP.user" label="User" />
 			</div>
 
-			<div v-if="variant === 'admin' && !lockScope && selectorChoice === 'groupfolder'" class="fcias-rule-form-row">
+			<div v-if="variant === 'admin' && selectorChoice === 'groupfolder'" class="fcias-rule-form-row">
 				<label :for="ids.selectorTarget">{{ groupFolderTerm }}</label>
 				<div class="fcias-rules-dialog-select">
 					<NcSelect
@@ -412,7 +403,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 			</div>
 
 			<div
-				v-if="variant === 'admin' && !lockScope && selectorChoice === 'storage'"
+				v-if="variant === 'admin' && selectorChoice === 'storage'"
 				class="fcias-rule-form-row">
 				<label :for="ids.selectorTarget">Storage id</label>
 				<input
@@ -429,16 +420,8 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 			</p>
 
 			<div class="fcias-rule-form-row">
-				<label :for="lockScope ? undefined : ids.path">Path (glob)</label>
-				<span
-					v-if="lockScope"
-					:id="ids.path"
-					class="fcias-rule-form-static"
-					:title="draft.path">
-					{{ draft.path }}
-				</span>
+				<label :for="ids.path">Path (glob)</label>
 				<input
-					v-else
 					:id="ids.path"
 					v-model="draft.path"
 					type="text"
@@ -446,10 +429,6 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 					:title="draft.path">
 				<HelpPopover :text="HELP.path" label="Path (glob)" />
 			</div>
-
-			<p v-if="lockScope" class="fcias-hint">
-				The global rule always applies to every user and every path, so these two cannot be changed.
-			</p>
 
 			<div v-if="computesHashes" class="fcias-rule-form-row">
 				<label>Algorithms</label>

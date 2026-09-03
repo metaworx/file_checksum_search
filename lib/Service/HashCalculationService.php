@@ -71,12 +71,11 @@ class HashCalculationService
 
 
 	/**
-	 * Check whether the hash table row for (fileid, algo) has an
-	 * updated_at timestamp that is equal to or newer than the file's
-	 * mtime, meaning the hash is still fresh.
+	 * Whether the file's hashes are at least as new as the file.
 	 *
-	 * Returns false if no row exists, updated_at is NULL, or the
-	 * timestamp is older than mtime.
+	 * One stamp covers the whole document, not one per algorithm: the file
+	 * changed or it did not, and every hash of it is stale together. A file
+	 * with no stamp at all has never been hashed, and counts as stale.
 	 */
 	private function isHashUpToDate(
 		int|File|IFilesMetadata $fileOrMetadata,

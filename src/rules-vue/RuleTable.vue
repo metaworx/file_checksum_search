@@ -120,10 +120,11 @@ function onDragStart(rule: Rule, event: DragEvent): void {
 }
 
 /**
- * A drop is only offered inside the dragged row's own band — and, in band 4,
- * only within the same owner's rules. Refusing to preventDefault() is what
- * makes the browser show a "no drop" cursor elsewhere, so the constraint is
- * visible while dragging rather than only enforced on release.
+ * A drop is only offered where the move would not change what the rule can
+ * outrank: inside its own segment, and on its own side of that segment's
+ * defaults boundary. Refusing to preventDefault() is what makes the browser
+ * show a "no drop" cursor elsewhere, so the constraint is visible while
+ * dragging rather than only enforced on release.
  */
 function isValidTarget(target: Rule): boolean {
 	const source = draggedId.value === null ? undefined : ruleById(draggedId.value)

@@ -22,8 +22,8 @@ use OCP\IUserManager;
  * format the result; the meaning of that input is decided here.
  *
  * Trust is expressed the same way throughout: $isAdmin true means the caller
- * is trusted with scope, enforcement and pinning (occ always is; REST decides
- * per session; DI callers decide via their requesting-user parameter).
+ * may name any selector and may enforce (occ always may; REST decides per
+ * session; DI callers decide via their requesting-user parameter).
  * A non-administrator's rule is always their own and never enforced,
  * whatever the payload claims.
  */
@@ -45,8 +45,8 @@ readonly class RuleDefinitionValidator
 	 * @param  string      $userId    Who is asking ('cli' etc. for trusted
 	 *                                non-session callers — only read when
 	 *                                $isAdmin is false)
-	 * @param  bool        $isAdmin   Whether the caller is trusted with
-	 *                                scope, enforcement and pinning
+	 * @param  bool        $isAdmin   Whether the caller may name any
+	 *                                selector and may enforce
 	 * @param  array|null  $existing  The rule being updated, as fallback for
 	 *                                omitted fields; null when creating
 	 *

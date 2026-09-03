@@ -248,7 +248,11 @@ class ChecksumApi
 
 
 	/**
-	 * Find all duplicate hash groups across the system.
+	 * Find duplicate hash groups among the files the session user can reach.
+	 *
+	 * Not an instance-wide view: without a session user there is nobody to
+	 * resolve reachability against, and the answer is empty rather than
+	 * everybody's files.
 	 *
 	 * @param  string|null  $algo      Optional algorithm filter
 	 * @param  int          $minCount  Minimum files per group (default 2)

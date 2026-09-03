@@ -35,7 +35,6 @@ use Throwable;
  * - Hash lookup by value
  * - Duplicate detection (GROUP BY + INNER JOIN metadata)
  * - Staleness checks (getUpdatedAt)
- * - Seeding (INSERT...SELECT for unprocessed files)
  * - Pending stats (for :status command)
  */
 class MetadataService

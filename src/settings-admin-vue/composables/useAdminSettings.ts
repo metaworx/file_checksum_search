@@ -6,8 +6,8 @@
  * in its whole-instance view.
  *
  * Rule CRUD itself lives in the shared useRules composable — this page is the
- * `all` view of the same resource the personal page reads as `own`. Only the
- * status block and the catch-all default's fixed reach are specific to it.
+ * `all` view of the same resource the personal page reads as `own`. The
+ * status block is the only part specific to this page.
  */
 
 import { reactive, toRefs } from 'vue'

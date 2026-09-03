@@ -25,25 +25,27 @@ use Psr\Log\LoggerInterface;
 use Throwable;
 
 /**
- * Post-migration repair for the quiet-start model.
+ * The app's repair steps, in one class.
  *
- * Three idempotent cleanups, each safe to re-run (`occ maintenance:repair`
- * included — that is the documented lever for working copies that track the
- * repository between releases and therefore never enter the upgrade path):
+ * Every step is idempotent and safe to re-run — `occ maintenance:repair`
+ * included, which is the documented lever for working copies that track the
+ * repository between releases and therefore never enter the upgrade path.
+ * Each carries a {@see RepairStep} attribute naming it and saying whether it
+ * is expensive; the attribute is the registry, so adding a step is adding a
+ * method.
  *
- * 1. Ensure a catch-all default rule exists, created **disabled**. No app
- *    should silently start doing work the administrator has not configured;
- *    a disabled band-7 rule makes the decision visible and enabling it one
- *    click, instead of an empty table with nothing to look at. An existing
- *    global rule — enabled or not — is left exactly as it is: upgrades never
- *    turn off what an administrator turned on.
- * 2. Purge leftover 'pending:new' index rows. Under the old model one such
- *    row existed per file to mean "seeded, never considered"; the new
- *    model's word for that is *no row*.
- * 3. Deregister the deleted SeedPendingUpdates job by its FQCN string —
- *    Nextcloud does not remove scheduled instances of a class that no
- *    longer exists, and the class name has to be a literal here because
- *    the class is gone.
+ * What they cover, in the order they run: the selector model and the two
+ * shipped defaults, metadata key registration, the two rebuild paths
+ * (from the filecache, and from documents written before the key rename),
+ * index rows that lost their document or their file, and the leftovers of
+ * models this app has since abandoned — 'pending:new' rows, the deleted
+ * seed job's schedule.
+ *
+ * The defaults are created **disabled**. No app should silently start doing
+ * work the administrator has not configured; two visible disabled rules —
+ * `home:*` in band 7 and the universal `*` in band 8 — make the decision one
+ * click instead of an empty table. An existing rule, enabled or not, is left
+ * exactly as it is: upgrades never turn off what an administrator turned on.
  *
  * Warns and logs rather than throwing: a throwing repair step aborts the
  * whole Nextcloud upgrade, and everything here is recoverable by hand.
