@@ -44,11 +44,9 @@ class RateLimitAttributeTest
 			'v1 lookup'         => [ PublicApiController::class, 'lookup', 60, 60 ],
 			'v1 duplicates'     => [ PublicApiController::class, 'findAllDuplicates', 60, 60 ],
 			'v1 recalc'         => [ PublicApiController::class, 'recalcHash', 20, 60 ],
-			// The browser routes reach the same expensive query as the API
-			// twin and so carry the same limit; without it the page was an
-			// unmetered way to run a 10 000-group aggregate per request.
-			'page duplicates'   => [ DuplicatesController::class, 'findAll', 60, 60 ],
-			'page duplicates su' => [ DuplicatesController::class, 'findAllSudo', 60, 60 ],
+			// The picker's source: cheap per call, but it searches accounts
+			// and groups, so it is metered like the rest.
+			'picker source'     => [ DuplicatesController::class, 'selectable', 60, 60 ],
 		];
 	}
 
