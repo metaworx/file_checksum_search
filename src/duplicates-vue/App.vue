@@ -12,7 +12,7 @@
  * people's files, and that is not a state an ordinary view should slip into.
  */
 
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
 import NcContent from '@nextcloud/vue/components/NcContent'
 import DuplicateListing from './components/DuplicateListing.vue'
@@ -65,7 +65,8 @@ function tabFromHash(): Tab {
 /**
  * Entering the cross-account tab costs the password, once per window — the
  * same confirmation the switch used to ask for. A dismissed dialog leaves
- * the viewer where they were.
+ * the viewer where they were, and puts the hash back so the address bar
+ * does not claim a tab that is not open.
  */
 async function setTab(tab: Tab): Promise<void> {
 	if (tab === 'crossaccount' && !confirmed.value) {
@@ -73,6 +74,7 @@ async function setTab(tab: Tab): Promise<void> {
 			await confirmPassword()
 			confirmed.value = true
 		} catch (e) {
+			window.location.hash = activeTab.value
 			return
 		}
 	}
@@ -80,25 +82,49 @@ async function setTab(tab: Tab): Promise<void> {
 	window.location.hash = tab
 }
 
+/**
+ * Open whatever the hash names, asking for the password if that is the
+ * cross-account tab. The hash is safe to honour: every cross-account read
+ * is confirmed server-side, so arriving by URL reveals nothing on its own —
+ * it only saves the viewer a click.
+ *
+ * Cross-account is the one tab whose existence is not known at mount: it
+ * appears only once the ordinary listing reports the viewer may look across
+ * accounts. A hash naming it is therefore held until that answer arrives.
+ */
+const pendingTab = ref<Tab | null>(null)
+
+function applyHash(): void {
+	const next = tabFromHash()
+
+	if (next === 'crossaccount') {
+		if (canSudo.value) {
+			setTab(next)
+		} else {
+			// Not known yet, or not allowed. Held; the watcher below decides.
+			pendingTab.value = next
+		}
+		return
+	}
+
+	pendingTab.value = null
+	activeTab.value = next
+}
+
+watch(canSudo, (allowed) => {
+	if (allowed && pendingTab.value === 'crossaccount') {
+		pendingTab.value = null
+		setTab('crossaccount')
+	}
+})
+
 function onScope(scope: DuplicateScope): void {
 	crossScope.value = scope
 }
 
 onMounted(() => {
-	const wanted = tabFromHash()
-	// A reload straight into the cross-account tab still asks: the hash is
-	// not a credential.
-	if (wanted === 'crossaccount') {
-		activeTab.value = 'duplicates'
-	} else {
-		activeTab.value = wanted
-	}
-	window.addEventListener('hashchange', () => {
-		const next = tabFromHash()
-		if (next !== 'crossaccount' || confirmed.value) {
-			activeTab.value = next
-		}
-	})
+	applyHash()
+	window.addEventListener('hashchange', applyHash)
 })
 </script>
 
@@ -195,29 +221,6 @@ onMounted(() => {
 	padding: 8px 0;
 }
 
-/* One row where there is room, wrapping where there is not; everything
-   sits on the fields' bottom edge, the labels above their fields. */
-
-/* NcSelect's own minimum is 260px; a narrower wrapper is overflowed, and the
-   chevron ends up under the next field. */
-
-/* The help button is sized for a settings row; beside a small label it is
-   trimmed to the label's height so the row does not grow around it. */
-
-/* The instance-wide view, while it is on: red, so a page of everyone's
-   files is never mistaken for one's own. On the rounded content box inside
-   the switch — the one that carries the radius and the hover background —
-   not on the square outer box, whose corners showed behind it. The tripled
-   class outweighs the component's own checked-and-hovered rule, which
-   stacks two :not() on the outer box. */
-
-/* The toggle's track is a path filled from a colour the icon component
-   sets on itself, so the wrapper's colour never reaches it; the fill is
-   set on the path. The knob keeps its own fill and stays readable. */
-
-/* Cross-account: other people's files, on an amber ground so the tab can
-   never be mistaken for one's own listing. Amber rather than the error red
-   the old switch used — this is a state to notice, not a fault. */
 .db-xaccount {
 	background: var(--color-warning);
 	color: var(--color-warning-text);

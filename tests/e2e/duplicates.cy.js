@@ -194,6 +194,30 @@ describe( 'FCIAS Duplicates page', () => {
 		cy.get( '#fcias-xaccount-min' ).should( 'exist' )
 	} )
 
+	// A bookmarked #crossaccount opens the tab, the way #help does. The hash
+	// is safe to honour: every cross-account read is confirmed server-side, so
+	// arriving by URL reveals nothing on its own.
+	it( 'opens the Cross-account tab straight from the hash', () => {
+		cy.intercept( 'GET', '**/apps/file_checksum_search/duplicates/selectable*' ).as( 'selectable' )
+		cy.visit( `${ DUPLICATES_URL }#crossaccount` )
+
+		cy.get( '[data-testid="fcias-crossaccount"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.wait( '@selectable', { timeout: FIND_TIMEOUT } )
+	} )
+
+	// A group and an account can carry the same name — "admin" is both on a
+	// stock instance — so the picker says which is which.
+	it( 'marks groups apart from accounts in the picker', () => {
+		cy.intercept( 'GET', '**/apps/file_checksum_search/duplicates/selectable*' ).as( 'selectable' )
+		cy.visit( `${ DUPLICATES_URL }#crossaccount` )
+		cy.wait( '@selectable', { timeout: FIND_TIMEOUT } )
+
+		cy.get( '[data-testid="fcias-target-picker"] input', { timeout: FIND_TIMEOUT } )
+			.click( { force: true } )
+		cy.get( '.vs__dropdown-menu', { timeout: FIND_TIMEOUT } )
+			.should( 'contain', '(Group)' )
+	} )
+
 	it( 'does not offer the Cross-account tab to an account nobody named', () => {
 		cy.env( [ 'NC_ADMIN_USER', 'NC_ADMIN_PASSWORD' ] ).then( ( env ) => {
 			const admin = { user: env.NC_ADMIN_USER || 'admin', password: env.NC_ADMIN_PASSWORD || 'admin' }

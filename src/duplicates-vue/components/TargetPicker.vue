@@ -58,7 +58,9 @@ async function fetchOptions(search: string | null = null): Promise<void> {
 		prefill.value = data.prefill !== false
 		options.value = [
 			...(data.all ? [ALL] : []),
-			...(data.groups ?? []).map((g) => ({ id: g.id, label: g.label, kind: 'group' as const })),
+			// A group and an account can carry the same name — "admin" is both
+			// on a stock instance — so the kind is said, not implied.
+			...(data.groups ?? []).map((g) => ({ id: g.id, label: `${g.label} (Group)`, kind: 'group' as const })),
 			...(data.users ?? []).map((u) => ({ id: u.id, label: u.label, kind: 'user' as const })),
 		]
 		failed.value = false
