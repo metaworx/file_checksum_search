@@ -11,6 +11,14 @@ vi.mock('@nextcloud/vue/components/NcPopover', () => ({
 	default: { name: 'NcPopover', template: '<div><slot name="trigger" /><slot /></div>' },
 }))
 
+vi.mock('@nextcloud/vue/components/NcButton', () => ({
+	default: {
+		name: 'NcButton',
+		props: ['variant', 'disabled'],
+		template: '<button :disabled="disabled" @click="$emit(\'click\', $event)"><slot /></button>',
+	},
+}))
+
 const toastSaved = vi.fn()
 const toastError = vi.fn()
 vi.mock('../toast', () => ({
@@ -62,7 +70,8 @@ async function mounted() {
 	const wrapper = mount(AlgorithmSection)
 	await flushPromises()
 	const [allowed, def] = wrapper.findAllComponents({ name: 'AlgorithmSelect' })
-	return { wrapper, allowed, def }
+	const button = () => wrapper.findComponent({ name: 'NcButton' })
+	return { wrapper, allowed, def, button }
 }
 
 describe('AlgorithmSection', () => {
@@ -117,17 +126,48 @@ describe('AlgorithmSection', () => {
 				return Promise.resolve(jsonResponse({ success: false, error: 'None of those is available.' }))
 			}
 			return Promise.resolve(jsonResponse({
-				allowedAlgorithms: ['sha1'],
+				allowedAlgorithms: ['sha1', 'md5'],
 				availableAlgorithms: ['sha1', 'md5'],
 				defaultAlgorithm: 'sha1',
 			}))
 		})
-		const { wrapper } = await mounted()
+		const { wrapper, def, button } = await mounted()
 
+		def.vm.$emit('update:modelValue', 'md5')
+		await nextTick()
 		await wrapper.find('#fcias-btn-save-algorithms').trigger('click')
 		await flushPromises()
 
 		expect(toastError).toHaveBeenCalledWith('None of those is available.')
 		expect(toastSaved).not.toHaveBeenCalled()
+		// Still unsaved, so the button still offers to try again.
+		expect(button().props('disabled')).toBe(false)
+	})
+
+	// Nothing to save is nothing to press, and something to save is worth
+	// seeing from across the page.
+	it('offers Save only once something differs from what the server gave it', async () => {
+		const { def, button } = await mounted()
+
+		expect(button().props('disabled')).toBe(true)
+		expect(button().props('variant')).toBe('secondary')
+
+		def.vm.$emit('update:modelValue', 'md5')
+		await nextTick()
+
+		expect(button().props('disabled')).toBe(false)
+		expect(button().props('variant')).toBe('warning')
+	})
+
+	it('goes quiet again once the save has gone through', async () => {
+		const { wrapper, def, button } = await mounted()
+
+		def.vm.$emit('update:modelValue', 'md5')
+		await nextTick()
+		await wrapper.find('#fcias-btn-save-algorithms').trigger('click')
+		await flushPromises()
+
+		expect(button().props('disabled')).toBe(true)
+		expect(button().props('variant')).toBe('secondary')
 	})
 })

@@ -7,11 +7,12 @@
  * selection of groups and users that may edit rules.
  */
 
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
 import NcSettingsSelectGroup from '@nextcloud/vue/components/NcSettingsSelectGroup'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
+import NcButton from '@nextcloud/vue/components/NcButton'
 import HelpPopover from '../components/HelpPopover.vue'
 import { OCS_SETTINGS } from '../routes'
 import { toastError, toastSaved } from '../toast'
@@ -34,6 +35,22 @@ const saving = ref(false)
  * made them flash on every page load.
  */
 const loaded = ref(false)
+
+/**
+ * What the server last confirmed, as the body a save would send. Anything
+ * else on screen means there is something to save, and the button says so.
+ */
+const baseline = ref('')
+
+function payload(): string {
+	return JSON.stringify({
+		allowAllUsers: allowAll.value,
+		groups: allowedGroups.value,
+		users: selectedUsers.value.map((u) => u.id),
+	})
+}
+
+const dirty = computed(() => loaded.value && payload() !== baseline.value)
 
 const HELP = {
 	allowAll: 'When on, every user of this instance may create and edit rules for folders they can '
@@ -62,11 +79,13 @@ async function load(): Promise<void> {
 		toastError('Failed to load permission options.')
 	} finally {
 		loaded.value = true
+		baseline.value = payload()
 	}
 }
 
 async function save(): Promise<void> {
 	saving.value = true
+	const sent = payload()
 	try {
 		const response = await fetch(generateOcsUrl(OCS_SETTINGS.saveGlobal), {
 			method: 'PUT',
@@ -74,14 +93,13 @@ async function save(): Promise<void> {
 				requesttoken: OC.requestToken,
 				'Content-Type': 'application/json',
 			},
-			body: JSON.stringify({
-				allowAllUsers: allowAll.value,
-				groups: allowedGroups.value,
-				users: selectedUsers.value.map((u) => u.id),
-			}),
+			// Snapshotted before the request, so a change made while it is in
+			// flight still counts as unsaved when the answer arrives.
+			body: sent,
 		})
 		const data = (await response.json()) as { success?: boolean; error?: string }
 		if (data.success) {
+			baseline.value = sent
 			toastSaved('Permissions saved.')
 		} else {
 			toastError(data.error || 'Save failed.')
@@ -128,9 +146,14 @@ onMounted(load)
 		</div>
 
 		<div class="fcias-rule-form-actions fcias-rule-form-actions--start">
-			<button class="fcias-btn" :disabled="saving" @click="save">
+			<!-- Yellow while there is something to save, and nothing to press
+			     when there is not. Red is the destructive variant. -->
+			<NcButton id="fcias-btn-save-permissions"
+				:variant="dirty ? 'warning' : 'secondary'"
+				:disabled="saving || !dirty"
+				@click="save">
 				{{ saving ? 'Saving…' : 'Save' }}
-			</button>
+			</NcButton>
 		</div>
 	</div>
 </template>

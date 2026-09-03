@@ -10,8 +10,9 @@
  * default used wherever no algorithm is named. Every picker in the app reads
  * the result from the server, so nothing here needs a release to take effect.
  */
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
+import NcButton from '@nextcloud/vue/components/NcButton'
 import AlgorithmSelect from '../components/AlgorithmSelect.vue'
 import HelpPopover from '../components/HelpPopover.vue'
 import { OCS_SETTINGS } from '../routes'
@@ -24,6 +25,18 @@ const selectedIds = ref<string[]>([])
 const defaultId = ref('')
 const saving = ref(false)
 const loaded = ref(false)
+
+/**
+ * What the server last confirmed, as the body a save would send. Anything
+ * else on screen means there is something to save, and the button says so.
+ */
+const baseline = ref('')
+
+function payload(): string {
+	return JSON.stringify({ allowedAlgorithms: selectedIds.value, defaultAlgorithm: defaultId.value })
+}
+
+const dirty = computed(() => loaded.value && payload() !== baseline.value)
 
 const HELP = {
 	allowed: 'The algorithms rules may compute and pickers may offer, chosen from what this server\'s '
@@ -61,6 +74,7 @@ async function load(): Promise<void> {
 		toastError('Failed to load the algorithm list.')
 	} finally {
 		loaded.value = true
+		baseline.value = payload()
 	}
 }
 
@@ -74,7 +88,7 @@ async function save(): Promise<void> {
 				'Content-Type': 'application/json',
 			},
 			// Only this section's fields: absent fields are left untouched.
-			body: JSON.stringify({ allowedAlgorithms: selectedIds.value, defaultAlgorithm: defaultId.value }),
+			body: payload(),
 		})
 		const data = (await response.json()) as {
 			success?: boolean
@@ -88,6 +102,7 @@ async function save(): Promise<void> {
 				selectedIds.value = data.allowedAlgorithms
 			}
 			takeDefault(data.defaultAlgorithm)
+			baseline.value = payload()
 		} else {
 			toastError(data.error || 'Save failed.')
 		}
@@ -122,12 +137,14 @@ onMounted(load)
 			<HelpPopover :text="HELP.default" label="Default algorithm" />
 		</div>
 		<div class="fcias-rule-form-actions fcias-rule-form-actions--start">
-			<button id="fcias-btn-save-algorithms"
-				class="fcias-btn"
-				:disabled="saving || selectedIds.length === 0 || !defaultId"
+			<!-- Yellow while there is something to save, and nothing to press
+			     when there is not. Red is the destructive variant. -->
+			<NcButton id="fcias-btn-save-algorithms"
+				:variant="dirty ? 'warning' : 'secondary'"
+				:disabled="saving || !dirty || selectedIds.length === 0 || !defaultId"
 				@click="save">
 				{{ saving ? 'Saving…' : 'Save' }}
-			</button>
+			</NcButton>
 		</div>
 	</div>
 </template>
