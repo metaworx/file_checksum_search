@@ -662,6 +662,10 @@ The admin settings page provides:
   row menu), enable/disable, re-apply, and delete; drag to reorder within a segment; rows for
   namespaces without a rule of their own
 - **Rule-editing permissions** — allow-all toggle, group list, and user list
+- **Who may look across accounts** — the sudoers: members of `admin` always, plus the groups and users
+  chosen here; a password confirmation is asked each time, this only says who may be asked
+- **Who may use the API** — who may call the public routes with an app password or other credentials;
+  the bundled pages keep working for everyone
 - **Hash Algorithms** — which algorithms this server computes, chosen from what its PHP provides,
   and which of them is the default. Every picker in the app offers exactly these
 - **Documentation** — in-app access to the FAQ, the user guide, README, API specs, and license

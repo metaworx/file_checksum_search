@@ -28,6 +28,7 @@ export interface ApiResponse {
 interface RulesResponse extends ApiResponse {
 	rules?: Rule[]
 	canCreate?: boolean
+	canUseApi?: boolean
 	supportedAlgos?: string[]
 	modes?: string[]
 	types?: string[]
@@ -42,6 +43,8 @@ interface RulesResponse extends ApiResponse {
 interface State {
 	rules: Rule[]
 	canCreate: boolean
+	/** Whether this user may call the public API with an app password — and so be offered token grants. */
+	canUseApi: boolean
 	supportedAlgos: string[]
 	modes: string[]
 	types: string[]
@@ -61,6 +64,7 @@ export function useRules(scope: 'own' | 'all') {
 	const state = reactive<State>({
 		rules: [],
 		canCreate: false,
+		canUseApi: false,
 		supportedAlgos: [],
 		modes: [],
 		types: [],
@@ -91,6 +95,7 @@ export function useRules(scope: 'own' | 'all') {
 
 			state.rules = data.rules || []
 			state.canCreate = data.canCreate === true
+			state.canUseApi = data.canUseApi === true
 			state.supportedAlgos = data.supportedAlgos || []
 			state.modes = data.modes || []
 			state.types = data.types || []

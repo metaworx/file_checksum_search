@@ -122,6 +122,8 @@ class RulesController
 					: $userId,
 			),
 			'canCreate'      => $isAdmin || $this->permissionService->canUserEditRules( $userId ),
+			// What the personal page needs to know before offering token grants.
+			'canUseApi'      => $isAdmin || $this->permissionService->isAllowed( PermissionService::PERMISSION_API_ACCESS, $userId ),
 			'supportedAlgos' => $this->catalogue->algorithms(),
 			'modes'          => RuleService::MODES,
 			'types'          => RuleService::TYPES,

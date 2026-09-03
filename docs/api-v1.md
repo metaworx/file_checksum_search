@@ -842,6 +842,14 @@ under *Sudo tokens*.
 
 The ordinary routes never cross accounts, whoever calls them.
 
+**Who may use the API at all** is a permission of its own (admin settings →
+*Who may use the API*): allow everyone, or name groups and users. It gates
+requests that arrive with an app password, or with credentials in an
+`Authorization` header — a script, another app — and answers 403 on every
+public route for an account it does not name. It does not gate the browser
+session: the bundled pages reach these same routes over it and keep working
+for everyone, because they are the app and not the API.
+
 ---
 
 ## Versioning & Compatibility

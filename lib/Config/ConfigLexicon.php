@@ -29,6 +29,13 @@ class ConfigLexicon
 	/** Per-user: the algorithm the sidebar offers first. Empty means the instance default. */
 	public const USER_PREFERRED_ALGORITHM = 'preferred_algorithm';
 
+	/**
+	 * Per-user: the app passwords granted the cross-account routes without a
+	 * password prompt, as token id => {granted_by, granted_at}. A standing
+	 * grant, so the administrator's tab lists every one of them.
+	 */
+	public const USER_SUDO_TOKENS = 'sudo_tokens';
+
 
 	public function getStrictness(): Strictness
 	{
@@ -240,8 +247,10 @@ class ConfigLexicon
 			new Entry(
 				key: 'api_access_all_users',
 				type: ValueType::BOOL,
-				defaultRaw: false,
-				definition: 'Whether all users may use the public API from outside the app.',
+				// Allowed until narrowed: every script that called the API
+				// before this key existed must go on working after the upgrade.
+				defaultRaw: true,
+				definition: 'Whether all users may use the public API from outside the app. Defaults to yes; an administrator narrows it.',
 				lazy: false,
 				flags: IAppConfig::FLAG_INTERNAL,
 			),
@@ -277,6 +286,14 @@ class ConfigLexicon
 				type: ValueType::STRING,
 				defaultRaw: '',
 				definition: 'The algorithm this user wants first in the sidebar. Empty means the instance default.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
+				key: self::USER_SUDO_TOKENS,
+				type: ValueType::ARRAY,
+				defaultRaw: [],
+				definition: 'App passwords of this user granted the cross-account routes without a password prompt: token id => {granted_by, granted_at}. Core removes it with the account.',
 				lazy: false,
 				flags: IAppConfig::FLAG_INTERNAL,
 			),

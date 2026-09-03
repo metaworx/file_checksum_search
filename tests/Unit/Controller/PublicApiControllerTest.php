@@ -23,6 +23,8 @@ use OCP\IUser;
 use OCP\IUserSession;
 use OCP\Lockdown\ILockdownManager;
 use OCA\FileChecksumSearch\Service\SudoScope;
+use OCA\FileChecksumSearch\Service\PermissionService;
+use OCP\ISession;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -47,6 +49,10 @@ class PublicApiControllerTest
 
 	private SudoScope&MockObject $sudo;
 
+	private ISession&MockObject $session;
+
+	private PermissionService&MockObject $permissions;
+
 	private PublicApiController        $controller;
 
 
@@ -69,6 +75,12 @@ class PublicApiControllerTest
 		$this->lockdown = $this->createMock( ILockdownManager::class );
 		$this->lockdown->method( 'canAccessFilesystem' )
 		               ->willReturn( true )
+		;
+		// A browser session, and an account allowed the API, unless a test says so.
+		$this->session = $this->createMock( ISession::class );
+		$this->permissions = $this->createMock( PermissionService::class );
+		$this->permissions->method( 'isAllowed' )
+		                  ->willReturn( true )
 		;
 		// Nobody may look across accounts unless a test says so.
 		$this->sudo = $this->createMock( SudoScope::class );
@@ -99,11 +111,178 @@ class PublicApiControllerTest
 			$this->userConfig,
 			$this->lockdown,
 			$this->sudo,
+			$this->session,
+			$this->permissions,
 		);
 	}
 
 
 	// ─── scope ──────────────────────────────────────────────────────
+
+	/**
+	 * The API permission gates requests that arrive with an app password —
+	 * core leaves `app_password` in such a session — and not the browser
+	 * session the bundled pages use to reach the very same routes.
+	 */
+	public function testAnAccountDeniedTheApiIsRefusedWithAnAppPasswordButNotFromThePages(): void
+	{
+
+		// An ordinary account: the administrator is never locked out, so the
+		// refusal can only be seen on somebody who is not one.
+		[ $session, $groups ] = $this->signedInAs( 'bob' );
+		$this->permissions = $this->createMock( PermissionService::class );
+		$this->permissions->method( 'isAllowed' )
+		                  ->with( PermissionService::PERMISSION_API_ACCESS, 'bob' )
+		                  ->willReturn( false )
+		;
+		$this->session = $this->createMock( ISession::class );
+		$this->session->method( 'get' )
+		              ->with( 'app_password' )
+		              ->willReturn( 'a-token' )
+		;
+		$viaToken = new PublicApiController(
+			'file_checksum_search',
+			$this->createMock( IRequest::class ),
+			$this->api,
+			$session,
+			$groups,
+			$this->logger,
+			$this->createMock( AlgorithmCatalogue::class ),
+			$this->userConfig,
+			$this->lockdown,
+			$this->sudo,
+			$this->session,
+			$this->permissions,
+		);
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $viaToken->getHashes( 42 )->getStatus() );
+
+		// The same account over a plain browser session: nothing in the
+		// session, no Authorization header — the app, not the API.
+		$this->api->method( 'getHashesByFileId' )
+		          ->with( 42, 'bob' )
+		          ->willReturn( [ 'fileid' => 42, 'hashes' => [] ] )
+		;
+		$viaPage = new PublicApiController(
+			'file_checksum_search',
+			$this->createMock( IRequest::class ),
+			$this->api,
+			$session,
+			$groups,
+			$this->logger,
+			$this->createMock( AlgorithmCatalogue::class ),
+			$this->userConfig,
+			$this->lockdown,
+			$this->sudo,
+			$this->createMock( ISession::class ),
+			$this->permissions,
+		);
+
+		$this->assertSame( Http::STATUS_OK, $viaPage->getHashes( 42 )->getStatus() );
+	}
+
+
+	/**
+	 * The permission is the administrator's to set, and a setting that could
+	 * cut off the account that fixes settings is a trap: an administrator is
+	 * served whatever the permission says.
+	 */
+	public function testAnAdministratorIsNeverLockedOutOfTheApi(): void
+	{
+
+		$this->permissions = $this->createMock( PermissionService::class );
+		$this->permissions->expects( $this->never() )
+		                  ->method( 'isAllowed' )
+		;
+		$this->session = $this->createMock( ISession::class );
+		$this->session->method( 'get' )
+		              ->with( 'app_password' )
+		              ->willReturn( 'a-token' )
+		;
+		$this->api->method( 'getHashesByFileId' )
+		          ->with( 42, 'admin' )
+		          ->willReturn( [ 'fileid' => 42, 'hashes' => [] ] )
+		;
+		$controller = new PublicApiController(
+			'file_checksum_search',
+			$this->createMock( IRequest::class ),
+			$this->api,
+			$this->userSession,
+			$this->groupManager,
+			$this->logger,
+			$this->createMock( AlgorithmCatalogue::class ),
+			$this->userConfig,
+			$this->lockdown,
+			$this->sudo,
+			$this->session,
+			$this->permissions,
+		);
+
+		$this->assertSame( Http::STATUS_OK, $controller->getHashes( 42 )->getStatus() );
+	}
+
+
+	/**
+	 * A session and a group manager for an ordinary account, for the tests
+	 * whose point is that the caller is not an administrator.
+	 *
+	 * @return array{0: IUserSession&MockObject, 1: IGroupManager&MockObject}
+	 */
+	private function signedInAs( string $uid ): array
+	{
+
+		$user = $this->createMock( IUser::class );
+		$user->method( 'getUID' )
+		     ->willReturn( $uid )
+		;
+		$session = $this->createMock( IUserSession::class );
+		$session->method( 'getUser' )
+		        ->willReturn( $user )
+		;
+		$groups = $this->createMock( IGroupManager::class );
+		$groups->method( 'isAdmin' )
+		       ->willReturn( false )
+		;
+
+		return [ $session, $groups ];
+	}
+
+
+	/**
+	 * A script with the account password over Basic auth is the API too:
+	 * core does not mark that session, so the header is the tell.
+	 */
+	public function testCredentialsInTheAuthorizationHeaderCountAsTheApi(): void
+	{
+
+		[ $session, $groups ] = $this->signedInAs( 'bob' );
+		$this->permissions = $this->createMock( PermissionService::class );
+		$this->permissions->method( 'isAllowed' )
+		                  ->willReturn( false )
+		;
+		$request = $this->createMock( IRequest::class );
+		$request->method( 'getHeader' )
+		        ->with( 'Authorization' )
+		        ->willReturn( 'Basic Ym9iOnNlY3JldA==' )
+		;
+		$controller = new PublicApiController(
+			'file_checksum_search',
+			$request,
+			$this->api,
+			$session,
+			$groups,
+			$this->logger,
+			$this->createMock( AlgorithmCatalogue::class ),
+			$this->userConfig,
+			$this->lockdown,
+			$this->sudo,
+			$this->createMock( ISession::class ),
+			$this->permissions,
+		);
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $controller->lookup( 'abc123' )->getStatus() );
+	}
+
 
 	/**
 	 * The listing the Duplicates page loads says whether its viewer may
@@ -150,6 +329,8 @@ class PublicApiControllerTest
 			$this->userConfig,
 			$this->lockdown,
 			$this->sudo,
+			$this->session,
+			$this->permissions,
 		);
 		$this->api->expects( $this->once() )
 		          ->method( 'getHashesByFileId' )
@@ -221,6 +402,8 @@ class PublicApiControllerTest
 			$this->userConfig,
 			$this->lockdown,
 			$this->sudo,
+			$this->session,
+			$this->permissions,
 		);
 		$this->api->expects( $this->never() )
 		          ->method( 'getHashesByFileId' )
@@ -400,6 +583,8 @@ class PublicApiControllerTest
 			$this->userConfig,
 			$this->lockdown,
 			$this->sudo,
+			$this->session,
+			$this->permissions,
 		);
 
 		$this->api->expects( $this->never() )
@@ -442,6 +627,8 @@ class PublicApiControllerTest
 			$this->userConfig,
 			$this->lockdown,
 			$this->sudo,
+			$this->session,
+			$this->permissions,
 		);
 
 		$this->api->expects( $this->once() )
@@ -623,6 +810,8 @@ class PublicApiControllerTest
 			$this->userConfig,
 			$this->lockdown,
 			$this->sudo,
+			$this->session,
+			$this->permissions,
 		);
 
 		$this->api->expects( $this->once() )
@@ -736,6 +925,8 @@ class PublicApiControllerTest
 			$this->userConfig,
 			$this->lockdown,
 			$this->sudo,
+			$this->session,
+			$this->permissions,
 		);
 
 		$this->api->expects( $this->once() )
@@ -787,6 +978,8 @@ class PublicApiControllerTest
 			$this->userConfig,
 			$this->lockdown,
 			$this->sudo,
+			$this->session,
+			$this->permissions,
 		);
 	}
 

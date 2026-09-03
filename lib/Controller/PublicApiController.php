@@ -27,6 +27,8 @@ use OCP\IGroupManager;
 use OCP\IRequest;
 use OCP\IUserSession;
 use OCP\Lockdown\ILockdownManager;
+use OCP\ISession;
+use OCA\FileChecksumSearch\Service\PermissionService;
 use OCP\AppFramework\Http\Attribute\PasswordConfirmationRequired;
 use OCA\FileChecksumSearch\Service\SudoScope;
 use Psr\Log\LoggerInterface;
@@ -58,6 +60,8 @@ class PublicApiController
 		private readonly IUserConfig     $userConfig,
 		private readonly ILockdownManager $lockdown,
 		private readonly SudoScope       $sudo,
+		private readonly ISession        $session,
+		private readonly PermissionService $permissions,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -81,7 +85,8 @@ class PublicApiController
 	 *
 	 * @return string|DataResponse  The caller's uid, or the response to send
 	 *                              instead: 401 with no session, 403 for a
-	 *                              token kept out of files.
+	 *                              token kept out of files or for an account
+	 *                              the API permission does not name.
 	 */
 	private function scopeOrRefusal(): string|DataResponse
 	{
@@ -104,7 +109,41 @@ class PublicApiController
 			);
 		}
 
+		// The API permission gates the API, not the app: the bundled pages
+		// reach these same routes over the browser session and keep working
+		// for everyone. What makes a request "the API" is how it
+		// authenticated — see isApiRequest(). An administrator is never
+		// locked out: the permission is theirs to set, and a setting that
+		// could cut off the account that fixes settings is a trap.
+		if ( $this->isApiRequest()
+		     && ! $this->groupManager->isAdmin( $user->getUID() )
+		     && ! $this->permissions->isAllowed( PermissionService::PERMISSION_API_ACCESS, $user->getUID() ) )
+		{
+			return new DataResponse(
+				[ 'success' => false, 'error' => 'This account may not use the API.' ],
+				Http::STATUS_FORBIDDEN,
+			);
+		}
+
 		return $user->getUID();
+	}
+
+
+	/**
+	 * Whether this request came from outside the app's own pages.
+	 *
+	 * Core marks a session that was opened with an app password by leaving
+	 * `app_password` in it (Session::logClientIn); a login with the account
+	 * password over Basic auth is not marked, so the Authorization header
+	 * is the other half of the test. A browser session sends neither. The
+	 * session key is a core-private name in a public store — the same kind
+	 * of coupling as reading a core table, and worth this sentence.
+	 */
+	private function isApiRequest(): bool
+	{
+
+		return $this->session->get( 'app_password' ) !== null
+		       || $this->request->getHeader( 'Authorization' ) !== '';
 	}
 
 

@@ -78,6 +78,24 @@ class PermissionService
 			],
 		];
 
+	/**
+	 * What "allow all users" answers before an administrator has touched it.
+	 *
+	 * Absent from this list means off: rule editing and the instance-wide
+	 * view are grants, and nobody holds a grant they were not given. The API
+	 * is the other way round — every script that called it before this
+	 * permission existed must go on calling it the morning after the
+	 * upgrade, so it ships allowed and an administrator narrows it. The
+	 * lexicon's default for the key says the same; this is the answer the
+	 * service gives on its own.
+	 *
+	 * @var array<string, bool>
+	 */
+	private const DEFAULT_ALL_USERS
+		= [
+			self::PERMISSION_API_ACCESS => true,
+		];
+
 
 	/**
 	 * Every permission this service knows, for callers that treat them
@@ -161,7 +179,7 @@ class PermissionService
 		return $this->appConfig->getValueBool(
 			Application::APP_ID,
 			$this->configKey( $permission, 'allUsers' ),
-			false,
+			self::DEFAULT_ALL_USERS[ $permission ] ?? false,
 		);
 	}
 

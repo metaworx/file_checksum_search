@@ -82,12 +82,13 @@ class ConfigLexiconTest
 	}
 
 
-	public function testGetUserConfigsReturnsEmpty(): void
+	public function testGetUserConfigsDeclaresThePerUserKeys(): void
 	{
 
 		$userConfigs = $this->lexicon->getUserConfigs();
-		$this->assertCount( 1, $userConfigs );
+		$this->assertCount( 2, $userConfigs );
 		$this->assertSame( 'preferred_algorithm', $userConfigs[0]->getKey() );
+		$this->assertSame( 'sudo_tokens', $userConfigs[1]->getKey() );
 	}
 
 }

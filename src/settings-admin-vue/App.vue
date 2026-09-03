@@ -28,6 +28,14 @@ const PERMISSION_HELP = {
 		users: 'Individual users who may create and edit rules for folders they can write to, in '
 			+ 'addition to the members of any selected groups.',
 	},
+	api_access: {
+		allowAll: 'When on, every user may call the public API with an app password. When off, only the '
+			+ 'groups and individual users selected here may; the app\'s own pages keep working for everyone.',
+		groups: 'Members of these groups may call the public API with an app password. Selected groups and '
+			+ 'selected users are combined — being in either is enough.',
+		users: 'Individual users who may call the public API with an app password, in addition to the '
+			+ 'members of any selected groups.',
+	},
 	instance_view: {
 		allowAll: 'When on, every user may switch to the instance-wide view after confirming their password. '
 			+ 'When off, only members of the admin group and the groups and users selected here may.',
@@ -440,6 +448,19 @@ loadRules().then(() => {
 					permission="instance_view"
 					switch-label="Allow all users to look across accounts"
 					:help="PERMISSION_HELP.instance_view" />
+			</div>
+
+			<div class="fcias-section">
+				<h4>Who may use the API</h4>
+				<p class="fcias-hint">
+					Scripts and other apps calling this app's public API with an app password. The bundled pages —
+					this one, the Duplicates page, the file sidebar — keep working for everyone; this decides who may
+					reach the same routes from outside them.
+				</p>
+				<PermissionSection
+					permission="api_access"
+					switch-label="Allow all users to use the API"
+					:help="PERMISSION_HELP.api_access" />
 			</div>
 
 			<div class="fcias-section">
