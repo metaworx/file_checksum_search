@@ -157,6 +157,27 @@ describe( 'FCIAS Duplicates page', () => {
 		cy.get( '.db-group-header-status' ).should( 'not.exist' )
 	} )
 
+	// The switch is the sudoer boundary made visible: the administrator gets
+	// it, an account nobody named does not. What happens after the switch —
+	// core's password dialog — is exercised by the AP's closing full run.
+	it( 'offers "Show all users" to the administrator', () => {
+		cy.visit( DUPLICATES_URL )
+		cy.get( '[data-testid="fcias-show-all"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+	} )
+
+	it( 'does not offer "Show all users" to an account nobody named', () => {
+		cy.env( [ 'NC_ADMIN_USER', 'NC_ADMIN_PASSWORD' ] ).then( ( env ) => {
+			const admin = { user: env.NC_ADMIN_USER || 'admin', password: env.NC_ADMIN_PASSWORD || 'admin' }
+			cy.fciasMakeAccount( admin, 'nobody' ).then( ( account ) => {
+				cy.login( account.user, account.password )
+				cy.visit( DUPLICATES_URL )
+				cy.get( '[data-testid="fcias-only-matching"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+				cy.get( '[data-testid="fcias-show-all"]' ).should( 'not.exist' )
+				cy.fciasDeleteAccount( admin, account.user )
+			} )
+		} )
+	} )
+
 	it( 'filters groups with the "Only matching" checkbox', () => {
 		// Stubbed, deliberately: this asserts the frontend's contract with a
 		// response shape — one fully-verified group and one mixed — that the

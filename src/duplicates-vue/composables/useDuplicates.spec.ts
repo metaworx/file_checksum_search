@@ -214,3 +214,48 @@ describe('useDuplicates', () => {
 		expect(hasMore.value).toBe(false)
 	})
 })
+
+describe('the instance-wide view', () => {
+	const statusResponse = (status: number, body: unknown = {}): Response =>
+		({ ok: status < 400, status, json: () => Promise.resolve(body) } as unknown as Response)
+
+	afterEach(() => {
+		vi.restoreAllMocks()
+	})
+
+	it('learns from the ordinary listing whether the viewer may switch', async () => {
+		vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse({ duplicates: [], canSudo: true }))
+		const { canSudo, load } = useDuplicates()
+
+		await load()
+
+		expect(canSudo.value).toBe(true)
+	})
+
+	it('reads the cross-account route once the switch is on', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ duplicates: [] }))
+		const { showAll, load } = useDuplicates()
+
+		showAll.value = true
+		await load()
+
+		expect(String(fetchMock.mock.calls[0][0])).toContain('/api/v1/sudo/duplicates')
+	})
+
+	// The confirmation core holds lasts thirty minutes; when it has run out
+	// the route answers 403, and the page drops back to one's own files
+	// rather than showing an error for a view that is simply no longer open.
+	it('drops the switch and reloads its own files when the confirmation has expired', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(statusResponse(403, { message: 'Password confirmation required' }))
+			.mockResolvedValueOnce(jsonResponse({ duplicates: [], canSudo: true }))
+		const { showAll, load } = useDuplicates()
+
+		showAll.value = true
+		await load()
+
+		expect(showAll.value).toBe(false)
+		expect(fetchMock).toHaveBeenCalledTimes(2)
+		expect(String(fetchMock.mock.calls[1][0])).not.toContain('/sudo/')
+	})
+})

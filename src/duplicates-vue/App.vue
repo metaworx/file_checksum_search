@@ -20,8 +20,12 @@ import type { DuplicateGroup as GroupType } from './composables/useDuplicates'
 import DocsViewer from '../docs-vue/DocsViewer.vue'
 import { OCS_ADMIN } from '../routes'
 import { type AlgoOption, fetchAlgorithms } from '../algorithms'
+import { confirmPassword } from '@nextcloud/password-confirmation'
+import '@nextcloud/password-confirmation/style.css'
 
 const {
+	canSudo,
+	showAll,
 	algo,
 	minCount,
 	limit,
@@ -38,6 +42,24 @@ const {
 	prevPage,
 	nextPage,
 } = useDuplicates()
+
+/**
+ * The instance-wide view is a thing you switch to, each time. Core's own
+ * dialog asks for the password and holds the confirmation for thirty
+ * minutes; a dismissed dialog leaves the switch off.
+ */
+async function onShowAll(on: boolean): Promise<void> {
+	if (on) {
+		try {
+			await confirmPassword()
+		} catch (e) {
+			return
+		}
+	}
+	showAll.value = on
+	resetOffset()
+	await load()
+}
 
 // The filter offers what the instance computes, read from the server: a
 // list carried here would be wrong the day an administrator enabled an
@@ -171,6 +193,17 @@ onMounted(() => {
 								v-model="verifiedOnly"
 								title="Show only groups where all files were confirmed matching">
 								Only matching
+							</NcCheckboxRadioSwitch>
+						</span>
+						<!-- Only for a viewer the listing reports may look across accounts.
+						     On costs a password; off, or a reload, is back to one's own files. -->
+						<span v-if="canSudo" data-testid="fcias-show-all">
+							<NcCheckboxRadioSwitch
+								:model-value="showAll"
+								type="switch"
+								title="Every account's duplicates, after confirming your password"
+								@update:model-value="onShowAll">
+								Show all users
 							</NcCheckboxRadioSwitch>
 						</span>
 					</div>

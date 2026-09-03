@@ -41,6 +41,10 @@ interface State {
 	hasMore: boolean
 	verifying: boolean
 	error: string | null
+	/** Whether the viewer may switch to the instance-wide view; the ordinary listing says. */
+	canSudo: boolean
+	/** The instance-wide view, once the password has been confirmed. Never persisted. */
+	showAll: boolean
 }
 
 export function useDuplicates() {
@@ -54,6 +58,8 @@ export function useDuplicates() {
 		hasMore: false,
 		verifying: false,
 		error: null,
+		canSudo: false,
+		showAll: false,
 	})
 
 	let abortController: AbortController | null = null
@@ -80,12 +86,25 @@ export function useDuplicates() {
 				params.set('algo', state.algo)
 			}
 
-			const url = `${generateOcsUrl(OCS_API_V1.findAllDuplicates)}?${params.toString()}`
+			// The cross-account route once the switch is on. It carries core's
+			// password confirmation, which the page has already been through
+			// by the time showAll is true; a 403 here means the thirty minutes
+			// ran out, and the switch drops back rather than the page erroring.
+			const route = state.showAll ? OCS_API_V1.sudoFindAllDuplicates : OCS_API_V1.findAllDuplicates
+			const url = `${generateOcsUrl(route)}?${params.toString()}`
 			const response = await fetch(url, { signal })
+			if (response.status === 403 && state.showAll) {
+				state.showAll = false
+				state.loading = false
+				return load()
+			}
 			if (!response.ok) throw new Error(`HTTP ${response.status}`)
-			const data = (await response.json()) as { duplicates?: DuplicateGroup[] }
+			const data = (await response.json()) as { duplicates?: DuplicateGroup[], canSudo?: boolean }
 
 			state.groups = data.duplicates || []
+			if (!state.showAll) {
+				state.canSudo = data.canSudo === true
+			}
 			state.hasMore = state.groups.length >= state.limit
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return

@@ -106,6 +106,27 @@ class PublicApiControllerTest
 	// ─── scope ──────────────────────────────────────────────────────
 
 	/**
+	 * The listing the Duplicates page loads says whether its viewer may
+	 * switch to the instance-wide view, so the page asks nothing else.
+	 */
+	public function testTheListingSaysWhetherTheCallerMaySudo(): void
+	{
+
+		$this->sudo->method( 'isSudoer' )
+		           ->with( 'admin' )
+		           ->willReturn( true )
+		;
+		$this->api->method( 'findDuplicatesFor' )
+		          ->willReturn( [ 'duplicates' => [], 'total_groups' => 0, 'pagination' => [ 'offset' => 0, 'limit' => 50 ] ] )
+		;
+
+		$data = $this->controller->findAllDuplicates()->getData();
+
+		$this->assertTrue( $data['canSudo'] );
+	}
+
+
+	/**
 	 * The sudo twin resolves the caller through SudoScope and passes what it
 	 * answers — null for every account — straight down. The password
 	 * confirmation the route carries is core's middleware and is not here.

@@ -16,6 +16,8 @@ export const OCS_API_V1 = {
 	getStatus: `${APP_BASE}/api/v1/status`,
 	/** GET    /api/v1/duplicates */
 	findAllDuplicates: `${APP_BASE}/api/v1/duplicates`,
+	/** GET    /api/v1/sudo/duplicates — every account; password confirmation, sudoers only */
+	sudoFindAllDuplicates: `${APP_BASE}/api/v1/sudo/duplicates`,
 	/** GET    /api/v1/file/{fileId}/duplicates */
 	findDuplicates: `${APP_BASE}/api/v1/file/{fileId}/duplicates`,
 	/** GET    /api/v1/lookup */

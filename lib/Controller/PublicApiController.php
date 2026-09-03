@@ -421,9 +421,23 @@ class PublicApiController
 
 		$scope = $this->scopeOrRefusal();
 
-		return $scope instanceof DataResponse
-			? $scope
-			: $this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset );
+		if ( $scope instanceof DataResponse )
+		{
+			return $scope;
+		}
+
+		$response = $this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset );
+
+		// Whether the caller may switch to the instance-wide view. Rides on
+		// the listing the page loads anyway, so the page needs no second
+		// request to know whether to offer the switch — and a script gets
+		// the same fact for free.
+		if ( $response->getStatus() === Http::STATUS_OK )
+		{
+			$response->setData( $response->getData() + [ 'canSudo' => $this->sudo->isSudoer( $scope ) ] );
+		}
+
+		return $response;
 	}
 
 
