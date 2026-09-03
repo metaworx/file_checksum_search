@@ -223,8 +223,10 @@ class ConfigLexicon
 			new Entry(
 				key: 'manual_recalc_all_users',
 				type: ValueType::BOOL,
-				defaultRaw: false,
-				definition: 'Whether all users may recalculate their own files by hand.',
+				// Allowed until narrowed, like the API: recalculating by hand
+				// worked for everyone before this key existed.
+				defaultRaw: true,
+				definition: 'Whether all users may recalculate their own files by hand. Defaults to yes; an administrator narrows it.',
 				lazy: false,
 				flags: IAppConfig::FLAG_INTERNAL,
 			),

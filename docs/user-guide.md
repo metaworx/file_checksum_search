@@ -81,7 +81,9 @@ sidebar (the file detail pane). It has three sections:
   quick button is *your preferred algorithm* (see *Your hashing rules*), or the
   server's default if you have not chosen one; the second is the first
   algorithm the rule governing this file computes, when that is a different
-  one. So the buttons follow both you and the file.
+  one. So the buttons follow both you and the file. The whole section is absent
+  if your administrator has not allowed you to recalculate by hand; what is
+  already computed still shows.
 - **Duplicates** — a **Find duplicates** button that lists, in place, the
   other files sharing a checksum with this one.
 

@@ -39,6 +39,7 @@ const {
 	ruleAlgos,
 	preferredAlgo,
 	defaultAlgo,
+	canRecalc,
 	error,
 	recalculating,
 	recalcError,
@@ -148,7 +149,9 @@ watch(
 			</div>
 		</section>
 
-		<section v-if="!loading && !error" class="fcias-section">
+		<!-- Hidden, not disabled, for a user the manual-recalculation permission
+		     does not name: a button that can only fail is not an offer. -->
+		<section v-if="!loading && !error && canRecalc" class="fcias-section">
 			<SectionHeader
 				:title="t('file_checksum_search', 'Recalculate')"
 				:help="t('file_checksum_search', 'Compute a checksum for the selected algorithm.')" />

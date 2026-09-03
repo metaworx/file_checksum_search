@@ -109,7 +109,7 @@ function mockFetch(options: { rules?: unknown[], idleBannerAcknowledged?: boolea
 			}))
 		}
 		if (url.includes('/settings/global')) {
-			return Promise.resolve(jsonResponse({ permissions: { rule_editing: { allowAll: false, groups: [], users: [] }, instance_view: { allowAll: false, groups: [], users: [] }, api_access: { allowAll: true, groups: [], users: [] } }, availableUsers: [], allowedAlgorithms: ['sha1', 'sha256'], availableAlgorithms: ['sha1', 'md5', 'sha256'], defaultAlgorithm: 'sha1' }))
+			return Promise.resolve(jsonResponse({ permissions: { rule_editing: { allowAll: false, groups: [], users: [] }, instance_view: { allowAll: false, groups: [], users: [] }, api_access: { allowAll: true, groups: [], users: [] }, manual_recalc: { allowAll: true, groups: [], users: [] } }, availableUsers: [], allowedAlgorithms: ['sha1', 'sha256'], availableAlgorithms: ['sha1', 'md5', 'sha256'], defaultAlgorithm: 'sha1' }))
 		}
 		return Promise.resolve(jsonResponse({ success: true }))
 	})

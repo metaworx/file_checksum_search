@@ -127,7 +127,10 @@ paths:
     post:
       tags: [Lookup]
       summary: Recalculate hash for a file
-      description: Trigger checksum recalculation for a file. Reads the file content and recomputes the hash.
+      description: >-
+        Trigger checksum recalculation for a file. Reads the file content and recomputes the hash.
+        Refused with 403 when an `exclude` rule covers the file, or when the account may not
+        recalculate by hand (the *manual_recalc* permission; members of `admin` always may).
       operationId: recalcHash
       parameters:
         - name: fileId
@@ -148,7 +151,6 @@ paths:
                   type: string
                   description: "Any name GET /api/v1/algorithms lists for this instance. The set is configured, not fixed; the shipped default is sha1, md5, adler32, crc32, sha256, sha384, sha512, sha3-256, sha3-384 and sha3-512."
                   default: sha1
-                  description: Hash algorithm (default sha1)
                   example: sha256
       responses:
         "200":
@@ -1136,10 +1138,13 @@ components:
   responses:
     HashingExcluded:
       description: >-
-        An `exclude` rule covers this file, so it must not be read at all and a
-        manual recalculation is refused along with every automatic route. The
-        request is well-formed and retrying will not help, which is why this is
-        403 rather than 400. An `ignore` rule does not produce this response —
+        A policy refusal, one of two: an `exclude` rule covers this file, so it
+        must not be read at all and a manual recalculation is refused along with
+        every automatic route (`excluded: true`, with the rule in `ruleId`); or
+        the account may not recalculate by hand — the *manual_recalc*
+        permission, which members of `admin` always hold (`forbidden: true`).
+        The request is well-formed and retrying will not help, which is why this
+        is 403 rather than 400. An `ignore` rule does not produce this response —
         hashing on request is what `ignore` still allows.
       content:
         application/json:

@@ -918,6 +918,28 @@ class PublicApiControllerTest
 	}
 
 
+	/**
+	 * A permission refusal is policy, like an exclude rule: 403, so a client
+	 * knows retrying will not help, and the reason travels with it.
+	 */
+	public function testRecalcHashAnswers403WhenThePermissionRefuses(): void
+	{
+
+		$this->api->method( 'recalcHash' )
+		          ->willReturn( [
+			          'success'   => false,
+			          'error'     => 'This account may not recalculate by hand.',
+			          'forbidden' => true,
+		          ] )
+		;
+
+		$response = $this->controller->recalcHash( 42 );
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $response->getStatus() );
+		$this->assertTrue( $response->getData()['forbidden'] );
+	}
+
+
 	// ─── getStatus ──────────────────────────────────────────────────
 
 	public function testRecalcHashReturnsServerErrorOnException(): void

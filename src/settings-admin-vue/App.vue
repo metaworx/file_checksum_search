@@ -29,6 +29,14 @@ const PERMISSION_HELP = {
 		users: 'Individual users who may create and edit rules for folders they can write to, in '
 			+ 'addition to the members of any selected groups.',
 	},
+	manual_recalc: {
+		allowAll: 'When on, every user may trigger a recalculation of their own files. When off, only the '
+			+ 'groups and individual users selected here may; everyone still sees the hashes already computed.',
+		groups: 'Members of these groups may trigger a recalculation of their own files. Selected groups and '
+			+ 'selected users are combined — being in either is enough.',
+		users: 'Individual users who may trigger a recalculation of their own files, in addition to the '
+			+ 'members of any selected groups.',
+	},
 	api_access: {
 		allowAll: 'When on, every user may call the public API with an app password. When off, only the '
 			+ 'groups and individual users selected here may; the app\'s own pages keep working for everyone.',
@@ -474,6 +482,19 @@ loadRules().then(() => {
 					permission="api_access"
 					switch-label="Allow all users to use the API"
 					:help="PERMISSION_HELP.api_access" />
+			</div>
+
+			<div class="fcias-section">
+				<h4>Who may recalculate by hand</h4>
+				<p class="fcias-hint">
+					Triggering a computation of one's own files — the sidebar's Recalculate buttons and the API's
+					recalc route — on top of owning them. Reading what is already computed is untouched; an account
+					not named here simply does not see the buttons.
+				</p>
+				<PermissionSection
+					permission="manual_recalc"
+					switch-label="Allow all users to recalculate by hand"
+					:help="PERMISSION_HELP.manual_recalc" />
 			</div>
 
 			<div class="fcias-section">

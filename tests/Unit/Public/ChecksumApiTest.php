@@ -811,6 +811,47 @@ class ChecksumApiTest
 
 	// ─── recalcHash ─────────────────────────────────────────────────
 
+	/**
+	 * The manual-recalculation permission gates triggering work, on top of
+	 * owning the file: an account it does not name is refused before any
+	 * rule is looked up, with a reason the client can show.
+	 */
+	public function testRecalcHashRefusesAnAccountThePermissionDoesNotName(): void
+	{
+
+		$node       = $this->createMock( File::class );
+		$userFolder = $this->createMock( Folder::class );
+		$userFolder->method( 'getById' )
+		           ->with( 42 )
+		           ->willReturn( [ $node ] )
+		;
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->with( 'alice' )
+		                 ->willReturn( $userFolder )
+		;
+		$this->groupManager->method( 'isAdmin' )
+		                   ->with( 'alice' )
+		                   ->willReturn( false )
+		;
+		$this->permissionService->method( 'isAllowed' )
+		                        ->with( PermissionService::PERMISSION_MANUAL_RECALC, 'alice' )
+		                        ->willReturn( false )
+		;
+		$this->ruleService->expects( $this->never() )
+		                  ->method( 'findFirstMatchingRule' )
+		;
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'recalcHash' )
+		;
+
+		$result = $this->api->recalcHash( 42, null, 'alice' );
+
+		$this->assertFalse( $result['success'] );
+		$this->assertTrue( $result['forbidden'] );
+		$this->assertArrayNotHasKey( 'excluded', $result );
+	}
+
+
 	public function testRecalcHashRefusesAFileAnExcludeRuleCovers(): void
 	{
 
@@ -984,6 +1025,13 @@ class ChecksumApiTest
 		$userFolder->method( 'getById' )
 		           ->with( 42 )
 		           ->willReturn( [ $node ] )
+		;
+
+		// Owning the file is one gate, the manual-recalculation permission the
+		// other; this test is about the first, so the second says yes.
+		$this->permissionService->method( 'isAllowed' )
+		                        ->with( PermissionService::PERMISSION_MANUAL_RECALC, 'alice' )
+		                        ->willReturn( true )
 		;
 
 		$this->hashIndexService->expects( $this->once() )

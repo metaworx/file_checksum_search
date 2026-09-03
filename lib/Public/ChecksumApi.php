@@ -132,6 +132,9 @@ class ChecksumApi
 				: [],
 			'preferred' => $this->catalogue->isValid( $preferred ) ? $preferred : '',
 			'default'   => $this->catalogue->default(),
+			// So the sidebar can hide its Recalculate buttons for an account
+			// that may not, instead of offering them to fail.
+			'canRecalc' => $this->mayRecalc( $requestingUser ),
 		];
 	}
 
@@ -440,10 +443,11 @@ class ChecksumApi
 	 *                                       pass null) for trusted/admin callers
 	 *                                       that intentionally bypass this check.
 	 *
-	 * @return array{success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string}
+	 * @return array{success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string, forbidden?: bool}
 	 *         `excluded` says a rule refused the file rather than anything
-	 *         going wrong, and names the rule in `ruleId`; the REST layer
-	 *         answers 403 for it and 400 for every other failure.
+	 *         going wrong, and names the rule in `ruleId`; `forbidden` says
+	 *         the account may not recalculate by hand. The REST layer
+	 *         answers 403 for either and 400 for every other failure.
 	 */
 	public function recalcHash(
 		int     $fileId,
@@ -456,6 +460,18 @@ class ChecksumApi
 			return [
 				'success' => false,
 				'error'   => 'File not found.',
+			];
+		}
+
+		// Owning the file is not the same as being allowed to make the
+		// server work on it: the manual-recalculation permission is checked
+		// here, before any rule is consulted, so the reason is the plain one.
+		if ( ! $this->mayRecalc( $requestingUser ) )
+		{
+			return [
+				'success'   => false,
+				'error'     => 'This account may not recalculate by hand.',
+				'forbidden' => true,
 			];
 		}
 
@@ -698,6 +714,20 @@ class ChecksumApi
 
 		return $requestingUser === null
 			|| $this->groupManager->isAdmin( $requestingUser );
+	}
+
+
+	/**
+	 * Whether the caller may trigger a recalculation by hand: a trusted
+	 * caller or an administrator always, anyone else if the permission names
+	 * them. The permission ships allowed, so this is "yes" until an
+	 * administrator narrows it.
+	 */
+	private function mayRecalc( ?string $requestingUser ): bool
+	{
+
+		return $this->actsAsAdmin( $requestingUser )
+			|| $this->permissionService->isAllowed( PermissionService::PERMISSION_MANUAL_RECALC, $requestingUser );
 	}
 
 

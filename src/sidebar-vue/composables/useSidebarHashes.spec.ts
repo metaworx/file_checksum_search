@@ -45,6 +45,18 @@ describe('useSidebarHashes', () => {
 		)
 	})
 
+	// The permission rides on the hashes response; only an explicit "no"
+	// hides the buttons, so an answer that does not mention it changes nothing.
+	it('takes from the server whether recalculation may be offered', async () => {
+		vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse({ hashes: [], canRecalc: false }))
+		const { canRecalc, loadHashes } = useSidebarHashes(() => fileNode(123))
+
+		expect(canRecalc.value).toBe(true)
+		await loadHashes()
+
+		expect(canRecalc.value).toBe(false)
+	})
+
 	it('recalculates an algorithm and reloads the hashes', async () => {
 		const fetchMock = vi.spyOn(globalThis, 'fetch')
 			.mockResolvedValueOnce(jsonResponse({ success: true }))

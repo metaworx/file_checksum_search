@@ -93,7 +93,8 @@ class PermissionService
 	 */
 	private const DEFAULT_ALL_USERS
 		= [
-			self::PERMISSION_API_ACCESS => true,
+			self::PERMISSION_API_ACCESS    => true,
+			self::PERMISSION_MANUAL_RECALC => true,
 		];
 
 

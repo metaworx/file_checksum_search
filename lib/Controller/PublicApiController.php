@@ -791,11 +791,12 @@ class PublicApiController
 				return new DataResponse( $result );
 			}
 
-			// A rule forbidding hashing is a policy refusal, not a malformed
-			// request — 403 tells a client that retrying will not help.
+			// A rule forbidding hashing, or an account that may not ask by
+			// hand, is a policy refusal, not a malformed request — 403 tells a
+			// client that retrying will not help.
 			return new DataResponse(
 				$result,
-				empty( $result['excluded'] )
+				empty( $result['excluded'] ) && empty( $result['forbidden'] )
 					? Http::STATUS_BAD_REQUEST
 					: Http::STATUS_FORBIDDEN,
 			);

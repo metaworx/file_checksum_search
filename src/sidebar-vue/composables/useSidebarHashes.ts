@@ -20,6 +20,13 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 	const ruleAlgos = ref<string[]>([])
 	const preferredAlgo = ref('')
 	const defaultAlgo = ref('')
+	/**
+	 * Whether this user may trigger a recalculation at all — the server's
+	 * manual-recalculation permission, carried on the hashes response so
+	 * the buttons are hidden rather than shown to fail. True until told
+	 * otherwise: the section renders only after the response has landed.
+	 */
+	const canRecalc = ref(true)
 	const error = ref('')
 	const recalculating = ref<string | null>(null)
 	const recalcError = ref<string | null>(null)
@@ -66,11 +73,13 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 				algos?: string[]
 				preferred?: string
 				default?: string
+				canRecalc?: boolean
 			}
 			hashes.value = data.hashes || []
 			ruleAlgos.value = Array.isArray(data.algos) ? data.algos : []
 			preferredAlgo.value = typeof data.preferred === 'string' ? data.preferred : ''
 			defaultAlgo.value = typeof data.default === 'string' ? data.default : ''
+			canRecalc.value = data.canRecalc !== false
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return
 			error.value = 'Failed to load checksums.'
@@ -143,6 +152,7 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 		ruleAlgos,
 		preferredAlgo,
 		defaultAlgo,
+		canRecalc,
 		error,
 		recalculating,
 		recalcError,
