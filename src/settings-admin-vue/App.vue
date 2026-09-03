@@ -30,11 +30,11 @@ const PERMISSION_HELP = {
 			+ 'addition to the members of any selected groups.',
 	},
 	manual_recalc: {
-		allowAll: 'When on, every user may trigger a recalculation of their own files. When off, only the '
+		allowAll: 'When on, every user may trigger a computation of their own files by hand. When off, only the '
 			+ 'groups and individual users selected here may; everyone still sees the hashes already computed.',
-		groups: 'Members of these groups may trigger a recalculation of their own files. Selected groups and '
-			+ 'selected users are combined — being in either is enough.',
-		users: 'Individual users who may trigger a recalculation of their own files, in addition to the '
+		groups: 'Members of these groups may trigger a computation of their own files by hand. Selected groups '
+			+ 'and selected users are combined — being in either is enough.',
+		users: 'Individual users who may trigger a computation of their own files by hand, in addition to the '
 			+ 'members of any selected groups.',
 	},
 	api_access: {
@@ -109,11 +109,13 @@ async function handleAcknowledgeBanner(): Promise<void> {
 	}
 }
 
-type Tab = 'settings' | 'tokens' | 'docs'
+type Tab = 'settings' | 'permissions' | 'tokens' | 'docs'
+
+const TABS: readonly Tab[] = ['settings', 'permissions', 'tokens', 'docs']
 
 function tabFromHash(): Tab {
 	const tab = window.location.hash.replace(/^#/, '').split('/')[0]
-	return tab === 'docs' || tab === 'tokens' ? tab : 'settings'
+	return (TABS as readonly string[]).includes(tab) ? (tab as Tab) : 'settings'
 }
 
 const activeTab = ref<Tab>(tabFromHash())
@@ -304,6 +306,16 @@ loadRules().then(() => {
 			<button
 				type="button"
 				class="fcias-tab"
+				:class="{ 'is-active': activeTab === 'permissions' }"
+				role="tab"
+				:aria-selected="activeTab === 'permissions'"
+				aria-controls="fcias-tab-panel-permissions"
+				@click="setTab('permissions')">
+				Permissions
+			</button>
+			<button
+				type="button"
+				class="fcias-tab"
 				:class="{ 'is-active': activeTab === 'tokens' }"
 				role="tab"
 				:aria-selected="activeTab === 'tokens'"
@@ -450,56 +462,6 @@ loadRules().then(() => {
 			</div>
 
 			<div class="fcias-section">
-				<h4>Rule Editing Permission</h4>
-				<p class="fcias-hint">
-					Users in the selected groups, the selected users, or everyone (when enabled) may edit and create rules
-					for folders they can write to.
-				</p>
-				<PermissionSection
-					permission="rule_editing"
-					switch-label="Allow all users to edit rules"
-					:help="PERMISSION_HELP.rule_editing" />
-			</div>
-
-			<div class="fcias-section">
-				<h4>Who may look across accounts</h4>
-				<p class="fcias-hint">
-					The sudoers: members of the admin group always, plus the groups and users selected here. Looking
-					across accounts still costs a password confirmation each time; this only says who may be asked.
-				</p>
-				<PermissionSection
-					permission="instance_view"
-					switch-label="Allow all users to look across accounts"
-					:help="PERMISSION_HELP.instance_view" />
-			</div>
-
-			<div class="fcias-section">
-				<h4>Who may use the API</h4>
-				<p class="fcias-hint">
-					Scripts and other apps calling this app's public API with an app password. The bundled pages —
-					this one, the Duplicates page, the file sidebar — keep working for everyone; this decides who may
-					reach the same routes from outside them.
-				</p>
-				<PermissionSection
-					permission="api_access"
-					switch-label="Allow all users to use the API"
-					:help="PERMISSION_HELP.api_access" />
-			</div>
-
-			<div class="fcias-section">
-				<h4>Who may recalculate by hand</h4>
-				<p class="fcias-hint">
-					Triggering a computation of one's own files — the sidebar's Recalculate buttons and the API's
-					recalc route — on top of owning them. Reading what is already computed is untouched; an account
-					not named here simply does not see the buttons.
-				</p>
-				<PermissionSection
-					permission="manual_recalc"
-					switch-label="Allow all users to recalculate by hand"
-					:help="PERMISSION_HELP.manual_recalc" />
-			</div>
-
-			<div class="fcias-section">
 				<h4>Rules</h4>
 				<p class="fcias-hint">
 					Which algorithms are computed for which files, on real-time file events.
@@ -552,6 +514,64 @@ loadRules().then(() => {
 						{{ ruleMsg }}
 					</p>
 				</div>
+			</div>
+		</div>
+
+		<!-- Every permission, each a "Who may …" in the same shape: a switch
+		     for everyone, and groups and users when the switch is off. -->
+		<div
+			v-if="activeTab === 'permissions'"
+			id="fcias-tab-panel-permissions"
+			class="fcias-tab-panel"
+			role="tabpanel">
+			<div class="fcias-section">
+				<h4>Who may calculate by hand</h4>
+				<p class="fcias-hint">
+					Triggering a computation of one's own files — the sidebar's Recalculate buttons and the API's
+					recalc route — on top of owning them. Reading what is already computed is untouched; an account
+					not named here simply does not see the buttons.
+				</p>
+				<PermissionSection
+					permission="manual_recalc"
+					switch-label="Allow all users to calculate by hand"
+					:help="PERMISSION_HELP.manual_recalc" />
+			</div>
+
+			<div class="fcias-section">
+				<h4>Who may edit rules</h4>
+				<p class="fcias-hint">
+					Creating and editing rules for folders one can write to. An administrator always may; a rule an
+					administrator has enforced is read-only for everyone else regardless.
+				</p>
+				<PermissionSection
+					permission="rule_editing"
+					switch-label="Allow all users to edit rules"
+					:help="PERMISSION_HELP.rule_editing" />
+			</div>
+
+			<div class="fcias-section">
+				<h4>Who may look across accounts</h4>
+				<p class="fcias-hint">
+					The sudoers: members of the admin group always, plus the groups and users selected here. Looking
+					across accounts still costs a password confirmation each time; this only says who may be asked.
+				</p>
+				<PermissionSection
+					permission="instance_view"
+					switch-label="Allow all users to look across accounts"
+					:help="PERMISSION_HELP.instance_view" />
+			</div>
+
+			<div class="fcias-section">
+				<h4>Who may use the API</h4>
+				<p class="fcias-hint">
+					Scripts and other apps calling this app's public API with an app password. The bundled pages —
+					this one, the Duplicates page, the file sidebar — keep working for everyone; this decides who may
+					reach the same routes from outside them.
+				</p>
+				<PermissionSection
+					permission="api_access"
+					switch-label="Allow all users to use the API"
+					:help="PERMISSION_HELP.api_access" />
 			</div>
 		</div>
 

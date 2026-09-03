@@ -661,18 +661,21 @@ The admin settings page provides:
 - **Hash generation rules** — one banded table in evaluation order: create, edit (the pen, or the
   row menu), enable/disable, re-apply, and delete; drag to reorder within a segment; rows for
   namespaces without a rule of their own
-- **Rule-editing permissions** — allow-all toggle, group list, and user list
-- **Who may look across accounts** — the sudoers: members of `admin` always, plus the groups and users
-  chosen here; a password confirmation is asked each time, this only says who may be asked
-- **Who may use the API** — who may call the public routes with an app password or other credentials;
-  the bundled pages keep working for everyone
-- **Who may recalculate by hand** — who may trigger a computation of their own files, from the sidebar
-  or the API, on top of owning them; reading what is already computed is untouched
 - **Hash Algorithms** — which algorithms this server computes, chosen from what its PHP provides,
   and which of them is the default. Every picker in the app offers exactly these
-- **Documentation** — in-app access to the FAQ, the user guide, README, API specs, and license
-- **Sudo tokens** — a third tab: every app password on the instance granted the cross-account routes
+- **Permissions** — a tab of its own, four sections in one shape (allow everyone, or the groups and
+  users chosen; members of `admin` always may):
+  - **Who may calculate by hand** — who may trigger a computation of their own files, from the
+    sidebar or the API, on top of owning them; reading what is already computed is untouched
+  - **Who may edit rules** — who may create and edit rules for folders they can write to
+  - **Who may look across accounts** — the sudoers; a password confirmation is asked each time, this
+    only says who may be asked
+  - **Who may use the API** — who may call the public routes with an app password or other
+    credentials; the bundled pages keep working for everyone
+- **Sudo tokens** — a tab: every app password on the instance granted the cross-account routes
   without a password prompt, against the live token table, with revoke
+- **Documentation** — the last tab: in-app access to the FAQ, the user guide, README, API specs, and
+  license
 
 The personal settings page lists the rules applying to the current user — the enforced ones above
 and the defaults below their own, read-only, so what will actually decide a file is visible rather

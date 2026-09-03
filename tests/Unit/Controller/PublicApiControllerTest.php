@@ -928,7 +928,7 @@ class PublicApiControllerTest
 		$this->api->method( 'recalcHash' )
 		          ->willReturn( [
 			          'success'   => false,
-			          'error'     => 'This account may not recalculate by hand.',
+			          'error'     => 'This account may not calculate by hand.',
 			          'forbidden' => true,
 		          ] )
 		;

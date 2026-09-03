@@ -444,18 +444,18 @@ Content-Type: application/json
 }
 ```
 
-**Refused (403)** — the account may not recalculate by hand:
+**Refused (403)** — the account may not calculate by hand:
 ```json
 {
   "success": false,
-  "error": "This account may not recalculate by hand.",
+  "error": "This account may not calculate by hand.",
   "forbidden": true
 }
 ```
 
 `exclude` means the file must not be read at all, so a manual recalculation is
 refused along with every automatic route. The second refusal is the *Who may
-recalculate by hand* permission (admin settings), which gates triggering a
+calculate by hand* permission (admin settings, *Permissions* tab), which gates triggering a
 computation on top of owning the file; reading what is already computed is
 untouched, and the sidebar hides its Recalculate buttons for such an account
 rather than offering them to fail. Members of `admin` always may. Both

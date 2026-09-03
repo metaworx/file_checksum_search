@@ -130,7 +130,7 @@ paths:
       description: >-
         Trigger checksum recalculation for a file. Reads the file content and recomputes the hash.
         Refused with 403 when an `exclude` rule covers the file, or when the account may not
-        recalculate by hand (the *manual_recalc* permission; members of `admin` always may).
+        calculate by hand (the *manual_recalc* permission; members of `admin` always may).
       operationId: recalcHash
       parameters:
         - name: fileId
@@ -1141,7 +1141,7 @@ components:
         A policy refusal, one of two: an `exclude` rule covers this file, so it
         must not be read at all and a manual recalculation is refused along with
         every automatic route (`excluded: true`, with the rule in `ruleId`); or
-        the account may not recalculate by hand — the *manual_recalc*
+        the account may not calculate by hand — the *manual_recalc*
         permission, which members of `admin` always hold (`forbidden: true`).
         The request is well-formed and retrying will not help, which is why this
         is 403 rather than 400. An `ignore` rule does not produce this response —

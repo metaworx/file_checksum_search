@@ -446,7 +446,7 @@ class ChecksumApi
 	 * @return array{success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string, forbidden?: bool}
 	 *         `excluded` says a rule refused the file rather than anything
 	 *         going wrong, and names the rule in `ruleId`; `forbidden` says
-	 *         the account may not recalculate by hand. The REST layer
+	 *         the account may not calculate by hand. The REST layer
 	 *         answers 403 for either and 400 for every other failure.
 	 */
 	public function recalcHash(
@@ -470,7 +470,7 @@ class ChecksumApi
 		{
 			return [
 				'success'   => false,
-				'error'     => 'This account may not recalculate by hand.',
+				'error'     => 'This account may not calculate by hand.',
 				'forbidden' => true,
 			];
 		}

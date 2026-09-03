@@ -250,6 +250,24 @@ describe('settings-admin App', () => {
 		expect(tabs.at(-1)!.attributes('aria-controls')).toBe('fcias-tab-panel-docs')
 	})
 
+	it('gathers every permission on the Permissions tab, and none on Settings', async () => {
+		mockFetch()
+		const wrapper = mount(App)
+		await flushPromises()
+
+		expect(wrapper.findAllComponents({ name: 'PermissionSection' })).toHaveLength(0)
+
+		await wrapper.find('[aria-controls="fcias-tab-panel-permissions"]').trigger('click')
+
+		const sections = wrapper.findAllComponents({ name: 'PermissionSection' })
+		expect(sections.map((s) => s.props('permission'))).toEqual([
+			'manual_recalc', 'rule_editing', 'instance_view', 'api_access',
+		])
+		// One form for every heading — the reader learns the shape once.
+		const headings = wrapper.findAll('#fcias-tab-panel-permissions h4').map((h) => h.text())
+		expect(headings.every((h) => h.startsWith('Who may '))).toBe(true)
+	})
+
 	it('keeps Path and User Scope editable for an additional rule', async () => {
 		mockFetch()
 		const wrapper = mount(App)

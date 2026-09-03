@@ -152,8 +152,8 @@ scope you already have a catch-all on lands above it without dragging.
 A rule can also say *not* to hash — `ignore` stops automatic hashing while
 still allowing it on request, and `exclude` blocks it entirely, including the
 sidebar's Recalculate button and the `occ` command. Whether a person may ask
-by hand at all is a permission of its own, *Who may recalculate by hand* on
-the admin page: it gates triggering a computation on top of owning the file,
+by hand at all is a permission of its own, *Who may calculate by hand* on
+the admin page's *Permissions* tab: it gates triggering a computation on top of owning the file,
 ships allowed, and hides the sidebar's buttons for an account it does not
 name rather than offering them to fail. See
 [README.md § Hash Generation Rules](../README.md#hash-generation-rules) for
