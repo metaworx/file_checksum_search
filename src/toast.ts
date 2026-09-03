@@ -7,10 +7,14 @@
  * `OC.Notification.showTemporary()` is gone from Nextcloud 34's core bundles,
  * so calling it is a TypeError after the request has already succeeded — a
  * toast nobody sees and an error nobody reports. `@nextcloud/dialogs` is the
- * supported way; core ships the toast styles, so nothing is imported here
- * but the functions. One module so specs mock one module.
+ * supported way. Both stylesheets are imported here rather than in the page
+ * entry points, so that anything showing a toast gets the library's own
+ * container styles and this app's placement without having to know it needs
+ * them. One module, so specs mock one module.
  */
 import { showError, showSuccess } from '@nextcloud/dialogs'
+import '@nextcloud/dialogs/style.css'
+import './toast.css'
 
 /** Long enough to read, short enough not to need dismissing. */
 const SUCCESS_TIMEOUT = 5000

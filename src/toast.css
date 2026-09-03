@@ -1,0 +1,19 @@
+/*
+ * Toast placement: top right, where Nextcloud puts them.
+ *
+ * @nextcloud/dialogs 7.5 positions its own container bottom-left, offset by
+ * the navigation. Core's toast stylesheet — the one it still ships for the
+ * older toastify markup — puts them top-end below the header, which is where
+ * an app update or a share notice appears and therefore where people look.
+ *
+ * The container's class is a CSS-module hash, so it is matched by the stable
+ * half of the name. If a future release renames it, these rules stop matching
+ * and the toasts fall back to the library's own placement — the wrong corner,
+ * not a broken page. The `body` prefix is only there to outrank the library's
+ * own single-class rules whatever order the stylesheets load in.
+ */
+body [class*="_toastContainer_"] {
+	inset-block: var(--header-height, 50px) auto;
+	inset-inline: auto var(--body-container-margin, 8px);
+	align-items: flex-end;
+}
