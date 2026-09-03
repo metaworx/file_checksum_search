@@ -289,8 +289,20 @@ class PublicApiTest
 	}
 
 
+	/**
+	 * Naming no algorithm means the instance default — whichever that is.
+	 *
+	 * This asked for `sha1` by name until an administrator designated a
+	 * different default and the test failed on an app that was working: the
+	 * shipped default is not the contract, "the same one the API reports" is.
+	 */
 	public function testRecalcHashEndpointWithDefaultAlgo(): void
 	{
+
+		$catalogue = $this->httpGet( '/api/v1/algorithms' );
+		$default   = $catalogue['default'] ?? null;
+
+		$this->assertIsString( $default, 'The API must say what its default is.' );
 
 		$response = $this->httpPost( "/api/v1/file/$this->testFileId1/recalc", [] );
 
@@ -299,8 +311,16 @@ class PublicApiTest
 			$response['success'] ?? false,
 			'Server said: ' . ( $response['error'] ?? '(no reason given)' ),
 		);
-		$this->assertSame( 'sha1', $response['algo'] ?? null, 'Default algo should be sha1.' );
-		$this->assertSame( sha1( self::FILE_1_CONTENT ), $response['hash'] ?? null );
+		$this->assertSame(
+			$default,
+			$response['algo'] ?? null,
+			'Recalculating without an algorithm must use the instance default.',
+		);
+		$this->assertSame(
+			hash( $default, self::FILE_1_CONTENT ),
+			$response['hash'] ?? null,
+			'The hash is of the content this test wrote, under that default.',
+		);
 	}
 
 
