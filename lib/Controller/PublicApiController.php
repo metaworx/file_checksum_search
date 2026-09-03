@@ -29,8 +29,8 @@ use OCP\IUserSession;
 use OCP\Lockdown\ILockdownManager;
 use OCP\ISession;
 use OCA\FileChecksumSearch\Service\PermissionService;
-use OCP\AppFramework\Http\Attribute\PasswordConfirmationRequired;
 use OCA\FileChecksumSearch\Service\SudoScope;
+use OCA\FileChecksumSearch\Service\SudoConfirmation;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -62,6 +62,7 @@ class PublicApiController
 		private readonly SudoScope       $sudo,
 		private readonly ISession        $session,
 		private readonly PermissionService $permissions,
+		private readonly SudoConfirmation $confirmation,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -151,11 +152,11 @@ class PublicApiController
 	 * The scope a cross-account route may read, or the response to send
 	 * instead.
 	 *
-	 * Everything {@see scopeOrRefusal()} refuses, this refuses too; on top
-	 * of that the caller must be someone who may look across accounts at
-	 * all ({@see SudoScope}). The password confirmation the route carries is
-	 * core's middleware and has already happened by the time this runs, so
-	 * a 403 from here means "not yours to ask", never "not confirmed".
+	 * Everything {@see scopeOrRefusal()} refuses, this refuses too. On top
+	 * of that, two things, in this order: the caller must be someone who may
+	 * look across accounts at all ({@see SudoScope}), and the request must be
+	 * confirmed ({@see SudoConfirmation}). Permission first, so that someone
+	 * who may not ask is told so without being made to type a password first.
 	 *
 	 * @param  string|null  $target  One account, or null for every account.
 	 *
@@ -173,6 +174,16 @@ class PublicApiController
 		}
 
 		$scope = $this->sudo->resolve( $own, $target );
+
+		if ( $scope !== false && ! $this->confirmation->isConfirmed( $own ) )
+		{
+			// The message core's own middleware uses, so the confirmation
+			// dialog the pages already run recognises it.
+			return new DataResponse(
+				[ 'success' => false, 'message' => 'Password confirmation required' ],
+				Http::STATUS_FORBIDDEN,
+			);
+		}
 
 		if ( $scope === false )
 		{
@@ -345,7 +356,6 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[PasswordConfirmationRequired]
 	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/file/{fileId}/hashes' )]
 	public function sudoGetHashes( int $fileId ): DataResponse
 	{
@@ -490,7 +500,6 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[PasswordConfirmationRequired]
 	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/duplicates' )]
 	public function sudoFindAllDuplicates(
 		?string $user = null,
@@ -584,7 +593,6 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[PasswordConfirmationRequired]
 	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/file/{fileId}/duplicates' )]
 	public function sudoFindDuplicates( int $fileId ): DataResponse
 	{
@@ -673,7 +681,6 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[PasswordConfirmationRequired]
 	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/lookup' )]
 	public function sudoLookup(
 		string  $hash,

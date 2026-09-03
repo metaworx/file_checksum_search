@@ -104,6 +104,15 @@ administrator can change which algorithms this server computes — it is kept
 but not applied, and a line beneath the select says so for as long as that
 lasts.
 
+If your account may use the API, **Sudo tokens** follows: your app passwords,
+each with a switch. A granted app password may read across accounts through
+the `/api/v1/sudo/` routes without anyone typing a password — for a script,
+which cannot. Granting asks for your password, since it is a standing
+authorisation; every grant is visible to your administrators, who can revoke
+it. Only an app password can be granted, and only one allowed to access
+files; create it under *Security* first. Whether you may look across accounts
+at all is decided by your administrator, not by the grant.
+
 The **Rules** tab shows which rules decide your files. Every file is handled
 by the **first rule that matches it**, and that decision is final — no later
 rule gets a say.

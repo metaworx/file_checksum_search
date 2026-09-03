@@ -225,7 +225,7 @@ paths:
       tags: [Sudo]
       summary: Get all checksums for any account's file
       description: >-
-        The cross-account twin of `/api/v1/file/{fileId}/hashes`. Requires Nextcloud's password confirmation (403 with
+        The cross-account twin of `/api/v1/file/{fileId}/hashes`. Requires a password confirmed within the last thirty minutes, or a granted app password (403 with
         "Password confirmation required" otherwise), and is refused with 403 for
         anyone who may not look across accounts: a member of `admin` or anyone the
         `instance_view` permission names may; a sub-admin may name a member of
@@ -260,7 +260,7 @@ paths:
       tags: [Sudo]
       summary: Files across every account sharing a file's hash
       description: >-
-        The cross-account twin of `/api/v1/file/{fileId}/duplicates`: the reference file may belong to any account, and the duplicates are drawn from every account. Requires Nextcloud's password confirmation (403 with
+        The cross-account twin of `/api/v1/file/{fileId}/duplicates`: the reference file may belong to any account, and the duplicates are drawn from every account. Requires a password confirmed within the last thirty minutes, or a granted app password (403 with
         "Password confirmation required" otherwise), and is refused with 403 for
         anyone who may not look across accounts: a member of `admin` or anyone the
         `instance_view` permission names may; a sub-admin may name a member of
@@ -295,7 +295,7 @@ paths:
       tags: [Sudo]
       summary: Search every account's files by hash
       description: >-
-        The cross-account twin of `/api/v1/lookup`. Requires Nextcloud's password confirmation (403 with
+        The cross-account twin of `/api/v1/lookup`. Requires a password confirmed within the last thirty minutes, or a granted app password (403 with
         "Password confirmation required" otherwise), and is refused with 403 for
         anyone who may not look across accounts: a member of `admin` or anyone the
         `instance_view` permission names may; a sub-admin may name a member of
@@ -342,7 +342,7 @@ paths:
       tags: [Sudo]
       summary: Duplicate groups of one account, or of every account
       description: >-
-        The cross-account twin of `/api/v1/duplicates`. With `user`, that account's duplicates; without, every account's. Requires Nextcloud's password confirmation (403 with
+        The cross-account twin of `/api/v1/duplicates`. With `user`, that account's duplicates; without, every account's. Requires a password confirmed within the last thirty minutes, or a granted app password (403 with
         "Password confirmation required" otherwise), and is refused with 403 for
         anyone who may not look across accounts: a member of `admin` or anyone the
         `instance_view` permission names may; a sub-admin may name a member of

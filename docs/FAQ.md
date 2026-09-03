@@ -151,7 +151,11 @@ scope you already have a catch-all on lands above it without dragging.
 
 A rule can also say *not* to hash — `ignore` stops automatic hashing while
 still allowing it on request, and `exclude` blocks it entirely, including the
-sidebar's Recalculate button and the `occ` command. See
+sidebar's Recalculate button and the `occ` command. Whether a person may ask
+by hand at all is a permission of its own, *Who may recalculate by hand* on
+the admin page: it gates triggering a computation on top of owning the file,
+ships allowed, and hides the sidebar's buttons for an account it does not
+name rather than offering them to fail. See
 [README.md § Hash Generation Rules](../README.md#hash-generation-rules) for
 the full field and band reference, the rule types, and the mode table
 (`auto`, `missing`, `force`, `lazy`), and
@@ -297,6 +301,16 @@ offers first (`GET`/`PUT /api/v1/preferences/preferred_algorithm`). Its select
 names your instance default as its first entry. Disallowing an algorithm does
 not delete anyone's preference for it; it stops applying until they pick
 again, and the page says so beneath the select while that is the case.
+
+For an account the *Who may use the API* permission names, the page also
+lists their app passwords under *Sudo tokens*, each with a switch granting it
+the `/api/v1/sudo/` routes without a password prompt — for a script, which
+cannot confirm one. A grant is a standing authorisation: it costs the user's
+password to make, it is only offered on an app password allowed to access
+files, and every grant on the instance is on your admin page's *Sudo tokens*
+tab, where you can revoke any of them. It replaces the prompt, not the
+permission: whether that account may look across accounts at all is still
+*Who may look across accounts*.
 
 `admin_enforced` and `selector` are never trusted from a user's own request —
 the server always decides them, and a personal rule is always `home:<uid>`. A

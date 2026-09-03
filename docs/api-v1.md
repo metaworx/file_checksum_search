@@ -444,10 +444,24 @@ Content-Type: application/json
 }
 ```
 
+**Refused (403)** — the account may not recalculate by hand:
+```json
+{
+  "success": false,
+  "error": "This account may not recalculate by hand.",
+  "forbidden": true
+}
+```
+
 `exclude` means the file must not be read at all, so a manual recalculation is
-refused along with every automatic route. The status is 403 rather than 400
-because the request is well-formed and retrying it will not help — a client
-should surface the reason instead of treating it as a transient failure.
+refused along with every automatic route. The second refusal is the *Who may
+recalculate by hand* permission (admin settings), which gates triggering a
+computation on top of owning the file; reading what is already computed is
+untouched, and the sidebar hides its Recalculate buttons for such an account
+rather than offering them to fail. Members of `admin` always may. Both
+statuses are 403 rather than 400 because the request is well-formed and
+retrying it will not help — a client should surface the reason instead of
+treating it as a transient failure.
 `ruleId` names the rule that decided, so an administrator can find it in the
 rules table. An `ignore` rule does **not** produce this: hashing on request is
 exactly what `ignore` still allows.
@@ -833,12 +847,14 @@ set on the Users page — may look at the members of the groups they administer,
 one at a time, by naming them in `user`; asking for everyone, or for someone
 outside their groups, is 403. Anyone else is 403 before any password is asked.
 
-**Confirmation.** Each twin carries Nextcloud's password confirmation: an
-interactive session must have confirmed its password within the last thirty
-minutes, and core answers 403 with `"message": "Password confirmation required"`
-otherwise. The bundled pages prompt for it; a script that cannot cannot use
-these routes with a session and uses a granted app password instead, described
-under *Sudo tokens*.
+**Confirmation.** Each twin requires one of two things: a session that
+confirmed its password within the last thirty minutes — Nextcloud's own
+window, set by its own dialog, which the bundled pages run — or an app
+password that has been granted, described under *Sudo tokens* below. Neither
+present, the answer is 403 with `"message": "Password confirmation required"`,
+the same message core's middleware uses. The check is this app's own rather
+than core's `#[PasswordConfirmationRequired]`, because that middleware refuses
+every app-password session outright and a granted token could never pass it.
 
 The ordinary routes never cross accounts, whoever calls them.
 
@@ -849,6 +865,28 @@ requests that arrive with an app password, or with credentials in an
 public route for an account it does not name. It does not gate the browser
 session: the bundled pages reach these same routes over it and keep working
 for everyone, because they are the app and not the API.
+
+### Sudo tokens
+
+A script cannot confirm a password, so the cross-account routes accept a
+second credential: an **app password that has been granted**. Grants are
+made on the personal settings page (*Sudo tokens*), one switch per app
+password, behind the same password confirmation as any other widening; an
+administrator sees every grant on the instance under the admin page's *Sudo
+tokens* tab and can revoke any of them there. Only an app password can be
+granted — a browser session is made and discarded by a login — and only one
+allowed to access files.
+
+A grant replaces the confirmation, not the permission: the token's owner
+must still be someone who may look across accounts, and an account the *Who
+may use the API* permission does not name is not offered grants at all,
+because it could not use them.
+
+What a grant is, technically: a per-user setting keyed by the token's id —
+never its secret and never its name, which core keeps neither unique nor
+stable. A token deleted on the Security page cannot authenticate at all, so
+a grant left behind is unreachable; it is shown on the administrator's tab
+as such and dropped from the owner's list.
 
 ---
 

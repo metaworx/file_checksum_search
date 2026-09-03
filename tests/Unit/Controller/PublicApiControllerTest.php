@@ -23,6 +23,7 @@ use OCP\IUser;
 use OCP\IUserSession;
 use OCP\Lockdown\ILockdownManager;
 use OCA\FileChecksumSearch\Service\SudoScope;
+use OCA\FileChecksumSearch\Service\SudoConfirmation;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCP\ISession;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -52,6 +53,8 @@ class PublicApiControllerTest
 	private ISession&MockObject $session;
 
 	private PermissionService&MockObject $permissions;
+
+	private SudoConfirmation&MockObject $confirmation;
 
 	private PublicApiController        $controller;
 
@@ -87,6 +90,12 @@ class PublicApiControllerTest
 		$this->sudo->method( 'resolve' )
 		           ->willReturn( false )
 		;
+		// Confirmed, unless a test says so: the confirmation rule has its own
+		// tests, and these are about what the routes do with its answer.
+		$this->confirmation = $this->createMock( SudoConfirmation::class );
+		$this->confirmation->method( 'isConfirmed' )
+		                   ->willReturn( true )
+		;
 
 		$adminUser = $this->createMock( IUser::class );
 		$adminUser->method( 'getUID' )
@@ -113,11 +122,55 @@ class PublicApiControllerTest
 			$this->sudo,
 			$this->session,
 			$this->permissions,
+			$this->confirmation,
 		);
 	}
 
 
 	// ─── scope ──────────────────────────────────────────────────────
+
+	/**
+	 * Permission first, confirmation second: a sudoer who has not confirmed
+	 * gets core's own message, which the pages' dialog recognises, and the
+	 * API is never asked.
+	 */
+	public function testAnUnconfirmedSudoerIsAskedToConfirm(): void
+	{
+
+		$this->sudo = $this->createMock( SudoScope::class );
+		$this->sudo->method( 'resolve' )
+		           ->willReturn( null )
+		;
+		$this->confirmation = $this->createMock( SudoConfirmation::class );
+		$this->confirmation->method( 'isConfirmed' )
+		                   ->with( 'admin' )
+		                   ->willReturn( false )
+		;
+		$controller = new PublicApiController(
+			'file_checksum_search',
+			$this->createMock( IRequest::class ),
+			$this->api,
+			$this->userSession,
+			$this->groupManager,
+			$this->logger,
+			$this->createMock( AlgorithmCatalogue::class ),
+			$this->userConfig,
+			$this->lockdown,
+			$this->sudo,
+			$this->session,
+			$this->permissions,
+			$this->confirmation,
+		);
+		$this->api->expects( $this->never() )
+		          ->method( 'getHashesByFileId' )
+		;
+
+		$response = $controller->sudoGetHashes( 42 );
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $response->getStatus() );
+		$this->assertSame( 'Password confirmation required', $response->getData()['message'] );
+	}
+
 
 	/**
 	 * The API permission gates requests that arrive with an app password —
@@ -153,6 +206,7 @@ class PublicApiControllerTest
 			$this->sudo,
 			$this->session,
 			$this->permissions,
+			$this->confirmation,
 		);
 
 		$this->assertSame( Http::STATUS_FORBIDDEN, $viaToken->getHashes( 42 )->getStatus() );
@@ -176,6 +230,7 @@ class PublicApiControllerTest
 			$this->sudo,
 			$this->createMock( ISession::class ),
 			$this->permissions,
+			$this->confirmation,
 		);
 
 		$this->assertSame( Http::STATUS_OK, $viaPage->getHashes( 42 )->getStatus() );
@@ -216,6 +271,7 @@ class PublicApiControllerTest
 			$this->sudo,
 			$this->session,
 			$this->permissions,
+			$this->confirmation,
 		);
 
 		$this->assertSame( Http::STATUS_OK, $controller->getHashes( 42 )->getStatus() );
@@ -278,6 +334,7 @@ class PublicApiControllerTest
 			$this->sudo,
 			$this->createMock( ISession::class ),
 			$this->permissions,
+			$this->confirmation,
 		);
 
 		$this->assertSame( Http::STATUS_FORBIDDEN, $controller->lookup( 'abc123' )->getStatus() );
@@ -331,6 +388,7 @@ class PublicApiControllerTest
 			$this->sudo,
 			$this->session,
 			$this->permissions,
+			$this->confirmation,
 		);
 		$this->api->expects( $this->once() )
 		          ->method( 'getHashesByFileId' )
@@ -404,6 +462,7 @@ class PublicApiControllerTest
 			$this->sudo,
 			$this->session,
 			$this->permissions,
+			$this->confirmation,
 		);
 		$this->api->expects( $this->never() )
 		          ->method( 'getHashesByFileId' )
@@ -585,6 +644,7 @@ class PublicApiControllerTest
 			$this->sudo,
 			$this->session,
 			$this->permissions,
+			$this->confirmation,
 		);
 
 		$this->api->expects( $this->never() )
@@ -629,6 +689,7 @@ class PublicApiControllerTest
 			$this->sudo,
 			$this->session,
 			$this->permissions,
+			$this->confirmation,
 		);
 
 		$this->api->expects( $this->once() )
@@ -812,6 +873,7 @@ class PublicApiControllerTest
 			$this->sudo,
 			$this->session,
 			$this->permissions,
+			$this->confirmation,
 		);
 
 		$this->api->expects( $this->once() )
@@ -927,6 +989,7 @@ class PublicApiControllerTest
 			$this->sudo,
 			$this->session,
 			$this->permissions,
+			$this->confirmation,
 		);
 
 		$this->api->expects( $this->once() )
@@ -980,6 +1043,7 @@ class PublicApiControllerTest
 			$this->sudo,
 			$this->session,
 			$this->permissions,
+			$this->confirmation,
 		);
 	}
 

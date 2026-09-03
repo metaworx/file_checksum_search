@@ -14,6 +14,7 @@ import RuleForm from '../rules-vue/RuleForm.vue'
 import type { Rule, RuleDraft } from '../rules-vue/types'
 import AlgorithmSection from './AlgorithmSection.vue'
 import PermissionSection from './PermissionSection.vue'
+import SudoTokensTab from './SudoTokensTab.vue'
 import DocsViewer from '../docs-vue/DocsViewer.vue'
 import { useAdminSettings } from './composables/useAdminSettings'
 import { toastSuccess } from '../toast'
@@ -100,14 +101,16 @@ async function handleAcknowledgeBanner(): Promise<void> {
 	}
 }
 
-function tabFromHash(): 'settings' | 'docs' {
+type Tab = 'settings' | 'tokens' | 'docs'
+
+function tabFromHash(): Tab {
 	const tab = window.location.hash.replace(/^#/, '').split('/')[0]
-	return tab === 'docs' ? 'docs' : 'settings'
+	return tab === 'docs' || tab === 'tokens' ? tab : 'settings'
 }
 
-const activeTab = ref<'settings' | 'docs'>(tabFromHash())
+const activeTab = ref<Tab>(tabFromHash())
 
-function setTab(tab: 'settings' | 'docs'): void {
+function setTab(tab: Tab): void {
 	activeTab.value = tab
 	window.location.hash = tab
 }
@@ -287,6 +290,16 @@ loadRules().then(() => {
 				aria-controls="fcias-tab-panel-settings"
 				@click="setTab('settings')">
 				Settings
+			</button>
+			<button
+				type="button"
+				class="fcias-tab"
+				:class="{ 'is-active': activeTab === 'tokens' }"
+				role="tab"
+				:aria-selected="activeTab === 'tokens'"
+				aria-controls="fcias-tab-panel-tokens"
+				@click="setTab('tokens')">
+				Sudo tokens
 			</button>
 			<button
 				type="button"
@@ -525,6 +538,14 @@ loadRules().then(() => {
 			class="fcias-tab-panel"
 			role="tabpanel">
 			<DocsViewer />
+		</div>
+
+		<div
+			v-if="activeTab === 'tokens'"
+			id="fcias-tab-panel-tokens"
+			class="fcias-tab-panel"
+			role="tabpanel">
+			<SudoTokensTab />
 		</div>
 	</div>
 </template>

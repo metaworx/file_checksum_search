@@ -22,7 +22,7 @@ use OCP\IGroupManager;
 use OCP\IRequest;
 use OCP\IUserManager;
 use OCP\IUserSession;
-use OCP\AppFramework\Http\Attribute\PasswordConfirmationRequired;
+use OCA\FileChecksumSearch\Service\SudoConfirmation;
 use OCA\FileChecksumSearch\Service\SudoScope;
 use Psr\Log\LoggerInterface;
 
@@ -48,6 +48,7 @@ class DuplicatesController
 		private readonly IUserManager     $userManager,
 		private readonly LoggerInterface  $logger,
 		private readonly SudoScope        $sudo,
+		private readonly SudoConfirmation $confirmation,
 	) {
 
 		parent::__construct( $appName, $request );
@@ -117,15 +118,15 @@ class DuplicatesController
 
 	/**
 	 * {@see findAll()} for one named account, or for every account when
-	 * `user` is omitted — the Duplicates page's *Show all users* switch. A
-	 * password confirmation, and only for those who may look across accounts;
-	 * a sub-admin may name a member of their groups and nothing wider.
+	 * `user` is omitted — the Duplicates page's *Show all users* switch. Only
+	 * for those who may look across accounts, and only once confirmed
+	 * ({@see SudoConfirmation}); a sub-admin may name a member of their
+	 * groups and nothing wider.
 	 *
 	 * @noinspection PhpUnused
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[PasswordConfirmationRequired]
 	#[ApiRoute( verb: 'GET', url: '/duplicates/sudo' )]
 	public function findAllSudo(
 		?string $user = null,
@@ -147,6 +148,13 @@ class DuplicatesController
 		if ( $scope === false )
 		{
 			return new DataResponse( [ 'error' => 'Not yours to look at.' ], Http::STATUS_FORBIDDEN );
+		}
+
+		// Permission first, confirmation second, as on the API's twins: the
+		// message is core's own, so the page's dialog recognises it.
+		if ( ! $this->confirmation->isConfirmed( $currentUser->getUID() ) )
+		{
+			return new DataResponse( [ 'message' => 'Password confirmation required' ], Http::STATUS_FORBIDDEN );
 		}
 
 		$limit = max( 1, min( $limit, 500 ) );

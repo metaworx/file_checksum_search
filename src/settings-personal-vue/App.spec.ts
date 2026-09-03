@@ -15,6 +15,12 @@ vi.mock('../toast', () => ({
 	toastError: () => undefined,
 }))
 
+// The token section has its own spec and pulls in core's password-confirmation
+// dialog, which has no business in a test about the rules page.
+vi.mock('./SudoTokensSection.vue', () => ({
+	default: { name: 'SudoTokensSection', template: '<div class="sudo-tokens-stub" />' },
+}))
+
 vi.mock('@nextcloud/vue/components/NcEllipsisedOption', () => ({
 	default: {
 		name: 'NcEllipsisedOption',

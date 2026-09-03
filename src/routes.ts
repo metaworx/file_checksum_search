@@ -62,6 +62,14 @@ export const OCS_SETTINGS = {
 	saveGlobal: `${APP_BASE}/settings/global`,
 	/** POST   /settings/idle-banner/ack */
 	ackIdleBanner: `${APP_BASE}/settings/idle-banner/ack`,
+	/** GET    /settings/personal/sudo-tokens — the caller's app passwords with their grants */
+	mySudoTokens: `${APP_BASE}/settings/personal/sudo-tokens`,
+	/** PUT    /settings/personal/sudo-tokens/{id} — {granted: bool}; granting asks for the password */
+	mySudoToken: `${APP_BASE}/settings/personal/sudo-tokens/{id}`,
+	/** GET    /settings/sudo-tokens — every grant on the instance (admin) */
+	allSudoTokens: `${APP_BASE}/settings/sudo-tokens`,
+	/** DELETE /settings/sudo-tokens/{uid}/{id} — revoke anybody's grant (admin) */
+	revokeSudoToken: `${APP_BASE}/settings/sudo-tokens/{uid}/{id}`,
 } as const
 
 /** OCS admin endpoints (PageController) */

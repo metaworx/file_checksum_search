@@ -666,15 +666,20 @@ The admin settings page provides:
   chosen here; a password confirmation is asked each time, this only says who may be asked
 - **Who may use the API** — who may call the public routes with an app password or other credentials;
   the bundled pages keep working for everyone
+- **Who may recalculate by hand** — who may trigger a computation of their own files, from the sidebar
+  or the API, on top of owning them; reading what is already computed is untouched
 - **Hash Algorithms** — which algorithms this server computes, chosen from what its PHP provides,
   and which of them is the default. Every picker in the app offers exactly these
 - **Documentation** — in-app access to the FAQ, the user guide, README, API specs, and license
+- **Sudo tokens** — a third tab: every app password on the instance granted the cross-account routes
+  without a password prompt, against the live token table, with revoke
 
 The personal settings page lists the rules applying to the current user — the enforced ones above
 and the defaults below their own, read-only, so what will actually decide a file is visible rather
 than only the part they may change. Above the rules sits the user's **preferred algorithm**, the one
-the sidebar's first quick button offers, with the instance default as its first entry. Its second tab
-is the user guide.
+the sidebar's first quick button offers, with the instance default as its first entry, and — for an
+account allowed the API — their **sudo tokens**: one switch per app password, granting it the
+cross-account routes for a script that cannot confirm a password. Its second tab is the user guide.
 
 ## Documentation
 

@@ -19,6 +19,7 @@ use OCP\IRequest;
 use OCP\IUser;
 use OCP\IUserManager;
 use OCP\IUserSession;
+use OCA\FileChecksumSearch\Service\SudoConfirmation;
 use OCA\FileChecksumSearch\Service\SudoScope;
 use PHPUnit\Framework\MockObject\MockObject;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
@@ -43,6 +44,9 @@ class DuplicatesControllerTest
 	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 	private MockObject|SudoScope $sudo;
 
+	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
+	private MockObject|SudoConfirmation $confirmation;
+
 	private MockObject|LoggerInterface $logger;
 
 	private DuplicatesController       $controller;
@@ -64,6 +68,11 @@ class DuplicatesControllerTest
 		$this->sudo->method( 'resolve' )
 		           ->willReturn( false )
 		;
+		// Confirmed unless a test says so; the rule has its own tests.
+		$this->confirmation = $this->createMock( SudoConfirmation::class );
+		$this->confirmation->method( 'isConfirmed' )
+		                   ->willReturn( true )
+		;
 
 		$this->controller = new DuplicatesController(
 			'file_checksum_search',
@@ -74,6 +83,7 @@ class DuplicatesControllerTest
 			$this->userManager,
 			$this->logger,
 			$this->sudo,
+			$this->confirmation,
 		);
 	}
 

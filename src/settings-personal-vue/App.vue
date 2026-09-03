@@ -12,6 +12,7 @@ import RuleForm from '../rules-vue/RuleForm.vue'
 import type { Rule, RuleDraft } from '../rules-vue/types'
 import DocsViewer from '../docs-vue/DocsViewer.vue'
 import PreferenceSection from './PreferenceSection.vue'
+import SudoTokensSection from './SudoTokensSection.vue'
 import { OCS_ADMIN } from '../routes'
 import { useRules } from '../rules-vue/composables/useRules'
 import { toastSuccess } from '../toast'
@@ -220,6 +221,9 @@ loadRules()
 				:supported-algos="supportedAlgos"
 				@save="handleSaveRule"
 				@cancel="closeRuleForm" />
+
+			<!-- Hides itself for an account the API permission does not name. -->
+			<SudoTokensSection />
 		</div>
 
 		<div
