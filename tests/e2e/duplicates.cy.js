@@ -157,14 +157,14 @@ describe( 'FCIAS Duplicates page', () => {
 		cy.get( '.db-group-header-status' ).should( 'not.exist' )
 	} )
 
-	// The Cross-account tab is the sudoer boundary made visible: the
+	// The Others tab is the sudoer boundary made visible: the
 	// administrator gets it, an account nobody named does not. It is a tab
 	// rather than a switch because it shows other people's files, and that is
 	// not a state an ordinary listing should slip into. Core's password dialog
 	// is skipped within thirty minutes of a login, which a Cypress session is.
-	it( 'offers the Cross-account tab to the administrator', () => {
+	it( 'offers the Others tab to the administrator', () => {
 		cy.visit( DUPLICATES_URL )
-		cy.get( '.db-tab[data-tab="crossaccount"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.get( '.db-tab[data-tab="others"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 	} )
 
 	// Every control says what it is, with a label a reader can see and a
@@ -180,28 +180,28 @@ describe( 'FCIAS Duplicates page', () => {
 
 	// The tab asks the server who may be named, and shows the listing on its
 	// own amber ground with nothing loaded until a target is chosen.
-	it( 'opens the Cross-account tab with a picker and nothing named yet', () => {
+	it( 'opens the Others tab with a picker and nothing named yet', () => {
 		cy.intercept( 'GET', '**/apps/file_checksum_search/duplicates/selectable*' ).as( 'selectable' )
 		cy.visit( DUPLICATES_URL )
 
-		cy.get( '.db-tab[data-tab="crossaccount"]', { timeout: FIND_TIMEOUT } ).click()
+		cy.get( '.db-tab[data-tab="others"]', { timeout: FIND_TIMEOUT } ).click()
 		cy.wait( '@selectable', { timeout: FIND_TIMEOUT } )
 
-		cy.get( '[data-testid="fcias-crossaccount"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.get( '[data-testid="fcias-others"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 		cy.get( '[data-testid="fcias-target-picker"]' ).should( 'exist' )
 		cy.get( '[data-testid="fcias-awaiting-scope"]' ).should( 'exist' )
 		// Its own controls, so the ordinary tab's filters are left alone.
-		cy.get( '#fcias-xaccount-min' ).should( 'exist' )
+		cy.get( '#fcias-others-min' ).should( 'exist' )
 	} )
 
-	// A bookmarked #crossaccount opens the tab, the way #help does. The hash
+	// A bookmarked #others opens the tab, the way #help does. The hash
 	// is safe to honour: every cross-account read is confirmed server-side, so
 	// arriving by URL reveals nothing on its own.
-	it( 'opens the Cross-account tab straight from the hash', () => {
+	it( 'opens the Others tab straight from the hash', () => {
 		cy.intercept( 'GET', '**/apps/file_checksum_search/duplicates/selectable*' ).as( 'selectable' )
-		cy.visit( `${ DUPLICATES_URL }#crossaccount` )
+		cy.visit( `${ DUPLICATES_URL }#others` )
 
-		cy.get( '[data-testid="fcias-crossaccount"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.get( '[data-testid="fcias-others"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 		cy.wait( '@selectable', { timeout: FIND_TIMEOUT } )
 	} )
 
@@ -209,7 +209,7 @@ describe( 'FCIAS Duplicates page', () => {
 	// stock instance — so the picker says which is which.
 	it( 'marks groups apart from accounts in the picker', () => {
 		cy.intercept( 'GET', '**/apps/file_checksum_search/duplicates/selectable*' ).as( 'selectable' )
-		cy.visit( `${ DUPLICATES_URL }#crossaccount` )
+		cy.visit( `${ DUPLICATES_URL }#others` )
 		cy.wait( '@selectable', { timeout: FIND_TIMEOUT } )
 
 		cy.get( '[data-testid="fcias-target-picker"] input', { timeout: FIND_TIMEOUT } )
@@ -218,14 +218,14 @@ describe( 'FCIAS Duplicates page', () => {
 			.should( 'contain', '(Group)' )
 	} )
 
-	it( 'does not offer the Cross-account tab to an account nobody named', () => {
+	it( 'does not offer the Others tab to an account nobody named', () => {
 		cy.env( [ 'NC_ADMIN_USER', 'NC_ADMIN_PASSWORD' ] ).then( ( env ) => {
 			const admin = { user: env.NC_ADMIN_USER || 'admin', password: env.NC_ADMIN_PASSWORD || 'admin' }
 			cy.fciasMakeAccount( admin, 'nobody' ).then( ( account ) => {
 				cy.login( account.user, account.password )
 				cy.visit( DUPLICATES_URL )
 				cy.get( '[data-testid="fcias-only-matching"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
-				cy.get( '.db-tab[data-tab="crossaccount"]' ).should( 'not.exist' )
+				cy.get( '.db-tab[data-tab="others"]' ).should( 'not.exist' )
 				cy.fciasDeleteAccount( admin, account.user )
 			} )
 		} )

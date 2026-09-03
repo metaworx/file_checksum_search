@@ -37,9 +37,8 @@ ask for it.
 
 Open **Duplicates** from the top navigation (or the URL
 `/apps/file_checksum_search/duplicates`) to browse files that share the
-same checksum. The page has **Duplicates** and **Help** (this guide), and —
-if your administrator lets you look across accounts — a **Cross-account**
-tab as well.
+same checksum. The page has **Mine** and **Help** (this guide), and — if your
+administrator lets you look across accounts — **Others** as well.
 
 Each control carries its label, and an **i** button beside the label says what
 it decides.
@@ -57,8 +56,8 @@ it decides.
 
 ### Looking at other accounts
 
-If your administrator lets you look across accounts, a **Cross-account** tab
-appears beside *Duplicates*. It is a tab of its own, on an amber background,
+If your administrator lets you look across accounts, an **Others** tab
+appears beside *Mine*. It is a tab of its own, on an amber background,
 because everything in it is somebody else's files — not a mode your own
 listing slips into.
 
@@ -73,8 +72,8 @@ administrator* in Nextcloud's terms — you may name your own groups and their
 members, and nothing else. The picker only ever offers what you may have; on
 a large server it searches as you type instead of listing everyone.
 
-Your own *Duplicates* tab is unaffected: it keeps its own filters and page,
-and leaving the Cross-account tab puts you back among your own files.
+Your own *Mine* tab is unaffected: it keeps its own filters and page,
+and leaving the *Others* tab puts you back among your own files.
 
 Click a group header to expand it and see the files in the group; each file
 opens in the Files app **in a new tab**. Long lists are paged with

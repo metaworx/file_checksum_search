@@ -106,11 +106,11 @@ onMounted(() => fetchOptions())
 <template>
 	<div class="db-field db-field--targets" data-testid="fcias-target-picker">
 		<span class="db-label">
-			<label for="fcias-xaccount-targets">Whose files</label>
+			<label for="fcias-others-targets">Whose files</label>
 		</span>
 		<NcSelect
 			v-model="selected"
-			input-id="fcias-xaccount-targets"
+			input-id="fcias-others-targets"
 			:options="options"
 			:multiple="true"
 			:loading="loading"
@@ -129,9 +129,9 @@ onMounted(() => fetchOptions())
 
 <style scoped>
 /* The listing's field styles are scoped to it, so the picker carries its
-   own: label above its control, like every other field on the page. */
-/* Full width: several accounts and groups can be selected at once, and the
-   chips need the room. Uncapped, unlike the fixed-width filters below it. */
+   own: label above its control, like every other field on the page. Full
+   width, because several accounts and groups can be selected at once and the
+   chips need the room — unlike the fixed-width filters below it. */
 .db-field--targets {
 	display: flex;
 	flex-direction: column;

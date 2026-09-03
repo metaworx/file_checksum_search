@@ -6,7 +6,7 @@
  * One duplicates listing: the filters, the groups, the pages.
  *
  * Written once and rendered twice — the Duplicates tab passes no scope and
- * gets one's own files; the Cross-account tab passes the accounts the
+ * gets one's own files; the Others tab passes the accounts the
  * picker named. Everything below the picker is identical between them, so
  * it lives here rather than being copied per tab, and each instance owns
  * its own {@see useDuplicates} state so switching tabs does not reset the
