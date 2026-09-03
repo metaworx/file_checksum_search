@@ -1,0 +1,298 @@
+<?php
+
+declare( strict_types=1 );
+
+/**
+ * @copyright Copyright (c) 2026 metaworx
+ * @license   AGPL-3.0-or-later
+ */
+
+namespace OCA\FileChecksumSearch\Tests\Integration\Http;
+
+use OCA\FileChecksumSearch\Service\AuthTokenRepository;
+use OCA\FileChecksumSearch\Service\SudoTokens;
+use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
+use OCP\IGroupManager;
+use OCP\IUserManager;
+use OCP\Server;
+
+/**
+ * The cross-account routes over HTTP, with the credentials a script has.
+ *
+ * The rule — a password confirmed within thirty minutes, or an app
+ * password that has been granted — is unit-tested in SudoConfirmation.
+ * What that cannot show is the wiring: that a request authenticated with
+ * a real app password reaches the check with the token core resolved for
+ * it, and that the grant stored under that token's id is the one read.
+ * Nothing exercised that path end to end until the sudo-token listings
+ * turned out never to have loaded from a browser (629b95c), which is the
+ * kind of gap this class is for.
+ *
+ * The account is made for the run and deleted after it, and is put in
+ * the admin group so that it is a sudoer without touching the instance's
+ * permission settings. The app password is minted by occ, as a user's
+ * would be on the Security page; its id is read back through the app's
+ * own repository, never the secret.
+ */
+class SudoRouteTest
+	extends
+	DatabaseTestCase
+{
+
+	private const TEST_USER_PREFIX = 'fcias_sudo_test';
+
+	private const APP_PASSWORD_NAME = 'fcias sudo route test';
+
+	private const BASE_URL = 'http://127.0.0.1/ocs/v2.php/apps/file_checksum_search';
+
+	/** Any well-formed hash nobody stored: the route's answer is the point, not its contents. */
+	private const HASH = 'abc123abc123abc123abc123abc123abc123abc1';
+
+	private static string $uid;
+
+	private static string $password;
+
+	private string $appPassword;
+
+	private int    $tokenId;
+
+
+	public static function setUpBeforeClass(): void
+	{
+
+		parent::setUpBeforeClass();
+
+		[
+			self::$uid,
+			self::$password,
+		]
+			= self::makeAccount( self::TEST_USER_PREFIX );
+
+		self::adminGroup( true );
+	}
+
+
+	public static function tearDownAfterClass(): void
+	{
+
+		// Deleting the account drops the membership too; done here as well
+		// so a deletion that fails does not leave a dead admin behind.
+		self::adminGroup( false );
+
+		parent::tearDownAfterClass();
+	}
+
+
+	protected function setUp(): void
+	{
+
+		parent::setUp();
+
+		$this->appPassword = $this->mintAppPassword();
+		$this->tokenId     = $this->tokenIdByName( self::APP_PASSWORD_NAME );
+	}
+
+
+	protected function tearDown(): void
+	{
+
+		Server::get( SudoTokens::class )->revoke( self::$uid, $this->tokenId );
+		$this->occ( 'user:auth-tokens:delete', self::$uid, (string) $this->tokenId );
+		self::adminGroup( true );
+
+		parent::tearDown();
+	}
+
+
+	/**
+	 * The login password over Basic auth is a login, and a login is a
+	 * confirmation — the same thirty-minute rule core applies.
+	 */
+	public function testTheAccountPasswordCountsAsAConfirmation(): void
+	{
+
+		$response = $this->get( '/api/v1/sudo/lookup?hash=' . self::HASH, self::$password );
+
+		$this->assertSame( 200, $response['status'] );
+		$this->assertSame( [], $response['body']['results'] );
+	}
+
+
+	public function testAnAppPasswordWithoutAGrantIsRefusedWithTheMessageTheDialogKnows(): void
+	{
+
+		$response = $this->get( '/api/v1/sudo/lookup?hash=' . self::HASH, $this->appPassword );
+
+		$this->assertSame( 403, $response['status'] );
+		$this->assertSame( 'Password confirmation required', $response['body']['message'] );
+	}
+
+
+	public function testAGrantedAppPasswordPasses(): void
+	{
+
+		Server::get( SudoTokens::class )->grant( self::$uid, $this->tokenId, self::$uid );
+
+		$response = $this->get( '/api/v1/sudo/lookup?hash=' . self::HASH, $this->appPassword );
+
+		$this->assertSame( 200, $response['status'] );
+		$this->assertSame( [], $response['body']['results'] );
+	}
+
+
+	public function testAGrantRevokedIsAGrantGone(): void
+	{
+
+		$sudoTokens = Server::get( SudoTokens::class );
+		$sudoTokens->grant( self::$uid, $this->tokenId, self::$uid );
+		$sudoTokens->revoke( self::$uid, $this->tokenId );
+
+		$response = $this->get( '/api/v1/sudo/lookup?hash=' . self::HASH, $this->appPassword );
+
+		$this->assertSame( 403, $response['status'] );
+	}
+
+
+	/**
+	 * A grant replaces the prompt, not the permission: an account nobody
+	 * named as a sudoer is refused with the grant in place, and by the
+	 * scope rule rather than the confirmation one.
+	 */
+	public function testAGrantDoesNotMakeASudoer(): void
+	{
+
+		Server::get( SudoTokens::class )->grant( self::$uid, $this->tokenId, self::$uid );
+		self::adminGroup( false );
+
+		$response = $this->get( '/api/v1/sudo/lookup?hash=' . self::HASH, $this->appPassword );
+
+		$this->assertSame( 403, $response['status'] );
+		$this->assertSame( 'Not yours to look at.', $response['body']['error'] );
+	}
+
+
+	/**
+	 * The ordinary routes never ask: an ungranted app password reads its
+	 * own account as before.
+	 */
+	public function testTheOrdinaryRouteAsksForNoGrant(): void
+	{
+
+		$response = $this->get( '/api/v1/lookup?hash=' . self::HASH, $this->appPassword );
+
+		$this->assertSame( 200, $response['status'] );
+	}
+
+
+	// ─── helpers ─────────────────────────────────────────────────────
+
+	/**
+	 * @return array{status: int, body: array<string, mixed>}
+	 */
+	private function get(
+		string $path,
+		string $secret,
+	): array {
+
+		$context = stream_context_create( [
+			'http' => [
+				'header'        => 'Authorization: Basic ' . base64_encode( self::$uid . ':' . $secret )
+				                   . "\r\nAccept: application/json",
+				'ignore_errors' => true,
+			],
+		] );
+
+		$body = file_get_contents( self::BASE_URL . $path, false, $context );
+
+		$this->assertNotFalse( $body, "GET $path answered nothing." );
+
+		// file_get_contents leaves the status line in this variable.
+		$statusLine = $http_response_header[0] ?? '';
+		$status     = (int) ( preg_match( '/\s(\d{3})\s/', $statusLine, $m ) ? $m[1] : 0 );
+
+		$decoded = json_decode( $body, true );
+
+		$this->assertIsArray( $decoded, "GET $path did not answer JSON: " . substr( $body, 0, 200 ) );
+
+		return [
+			'status' => $status,
+			'body'   => $decoded,
+		];
+	}
+
+
+	/**
+	 * An app password the way a user gets one: from occ, non-interactively,
+	 * which mints one without the login password — all a listing or a
+	 * read needs. The secret is the last line occ prints.
+	 */
+	private function mintAppPassword(): string
+	{
+
+		$lines = $this->occ( 'user:auth-tokens:add', self::$uid, '--name=' . self::APP_PASSWORD_NAME, '-n' );
+		$last  = trim( (string) end( $lines ) );
+
+		$this->assertMatchesRegularExpression( '/^[A-Za-z0-9]{40,}$/', $last, 'occ printed the app password last: ' . implode( ' | ', $lines ) );
+
+		return $last;
+	}
+
+
+	private function tokenIdByName( string $name ): int
+	{
+
+		foreach ( Server::get( AuthTokenRepository::class )->listForUser( self::$uid ) as $token )
+		{
+			if ( $token['name'] === $name )
+			{
+				return $token['id'];
+			}
+		}
+
+		$this->fail( "No token named \"$name\" on " . self::$uid );
+	}
+
+
+	/**
+	 * @return list<string>  What occ printed.
+	 */
+	private function occ( string ...$args ): array
+	{
+
+		$command = PHP_BINARY . ' ' . escapeshellarg( \OC::$SERVERROOT . '/occ' )
+		           . ' ' . implode( ' ', array_map( 'escapeshellarg', $args ) ) . ' 2>&1';
+
+		exec( $command, $lines, $code );
+
+		$this->assertSame( 0, $code, "occ failed: $command\n" . implode( "\n", $lines ) );
+
+		return $lines;
+	}
+
+
+	/**
+	 * In or out of the admin group — the one thing that decides whether
+	 * the account is a sudoer here.
+	 */
+	private static function adminGroup( bool $member ): void
+	{
+
+		$user  = Server::get( IUserManager::class )->get( self::$uid );
+		$group = Server::get( IGroupManager::class )->get( 'admin' );
+
+		if ( $user === null || $group === null )
+		{
+			return;
+		}
+
+		if ( $member )
+		{
+			$group->addUser( $user );
+		}
+		else
+		{
+			$group->removeUser( $user );
+		}
+	}
+
+}

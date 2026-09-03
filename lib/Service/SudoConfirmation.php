@@ -58,19 +58,24 @@ class SudoConfirmation
 			return true;
 		}
 
-		if ( $this->session->get( 'app_password' ) === null )
+		// For a request that authenticated with an app password, core keeps
+		// the password itself in the session under this key and creates no
+		// session token for it — so the session id is not a token here, and
+		// the app password is the only handle on the one that was used.
+		$appPassword = $this->session->get( 'app_password' );
+
+		if ( ! is_string( $appPassword ) || $appPassword === '' )
 		{
 			return false;
 		}
 
 		try
 		{
-			$tokenId = $this->tokenProvider->getToken( $this->session->getId() )->getId();
+			$tokenId = $this->tokenProvider->getToken( $appPassword )->getId();
 		}
 		catch ( Throwable )
 		{
-			// No token behind this session after all, or none core can
-			// still find: nothing to hold a grant.
+			// None core can still find: nothing to hold a grant.
 			return false;
 		}
 

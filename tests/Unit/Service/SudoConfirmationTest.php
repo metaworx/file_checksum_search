@@ -60,9 +60,9 @@ class SudoConfirmationTest
 
 		$this->session->method( 'get' )
 		              ->willReturnCallback( static fn ( string $key ): mixed => $values[ $key ] ?? null );
-		$this->session->method( 'getId' )
-		              ->willReturn( 'session-id' )
-		;
+		// No getId() stub, on purpose: an app-password request has no
+		// session token, so the session id is nothing to look a token up by.
+		// The check once did, and every granted token was refused for it.
 	}
 
 
@@ -109,7 +109,7 @@ class SudoConfirmationTest
 		      ->willReturn( 7 )
 		;
 		$this->tokens->method( 'getToken' )
-		             ->with( 'session-id' )
+		             ->with( 'secret' )
 		             ->willReturn( $token )
 		;
 		$this->grants->method( 'isGranted' )
