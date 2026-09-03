@@ -198,6 +198,54 @@ class PublicApiController
 
 
 	/**
+	 * The accounts a cross-account route may read when the caller names a
+	 * set, or the response to send instead.
+	 *
+	 * The set twin of {@see sudoScopeOrRefusal()}, and it refuses in the same
+	 * order: everything {@see scopeOrRefusal()} refuses, then whether the
+	 * caller may read every named target ({@see SudoScope::resolveSet()},
+	 * which expands the groups), then whether the request is confirmed.
+	 *
+	 * @param  list<string>  $users
+	 * @param  list<string>  $groups
+	 *
+	 * @return list<string>|DataResponse
+	 */
+	private function sudoSetOrRefusal(
+		array $users,
+		array $groups,
+	): array|DataResponse {
+
+		$own = $this->scopeOrRefusal();
+
+		if ( $own instanceof DataResponse )
+		{
+			return $own;
+		}
+
+		$scope = $this->sudo->resolveSet( $own, $users, $groups );
+
+		if ( $scope !== false && ! $this->confirmation->isConfirmed( $own ) )
+		{
+			return new DataResponse(
+				[ 'success' => false, 'message' => 'Password confirmation required' ],
+				Http::STATUS_FORBIDDEN,
+			);
+		}
+
+		if ( $scope === false )
+		{
+			return new DataResponse(
+				[ 'success' => false, 'error' => 'Not yours to look at.' ],
+				Http::STATUS_FORBIDDEN,
+			);
+		}
+
+		return $scope;
+	}
+
+
+	/**
 	 * Get all checksums for a file by filecache ID.
 	 *
 	 * @noinspection PhpUnused
@@ -511,9 +559,19 @@ class PublicApiController
 		int     $offset = 0,
 		?string $hash = null,
 		bool    $anywhere = false,
+		?array  $users = null,
+		?array  $groups = null,
 	): DataResponse {
 
-		$scope = $this->sudoScopeOrRefusal( $user );
+		// Two shapes on one route, as on the page's own twin: `user=` names
+		// one account (absent means every account, for a sudoer), and
+		// `users[]`/`groups[]` name a set — what the picker sends.
+		$scope = ( $users !== null || $groups !== null )
+			? $this->sudoSetOrRefusal(
+				array_values( array_filter( (array) $users, 'is_string' ) ),
+				array_values( array_filter( (array) $groups, 'is_string' ) ),
+			)
+			: $this->sudoScopeOrRefusal( $user );
 
 		return $scope instanceof DataResponse
 			? $scope
@@ -526,7 +584,7 @@ class PublicApiController
 	 * uid, or null for every account.
 	 */
 	private function duplicatesFor(
-		?string $scope,
+		string|array|null $scope,
 		?string $algo,
 		int     $minCount,
 		int     $limit,

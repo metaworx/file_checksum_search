@@ -400,6 +400,52 @@ class PublicApiControllerTest
 	}
 
 
+	/**
+	 * The picker names a set, and this is the route the page actually calls —
+	 * so the set has to reach the listing here, not only on the page's own
+	 * twin. It did not, once: `users[]` was ignored, the route fell through
+	 * to "every account", and every selection looked identical.
+	 */
+	public function testTheSudoTwinListsTheAccountsTheSetResolvesTo(): void
+	{
+
+		$this->sudo->expects( $this->once() )
+		           ->method( 'resolveSet' )
+		           ->with( 'admin', [ 'alice' ], [ 'team' ] )
+		           ->willReturn( [ 'alice', 'bob' ] )
+		;
+		$this->api->expects( $this->once() )
+		          ->method( 'findDuplicatesFor' )
+		          ->with( [ 'alice', 'bob' ] )
+		          ->willReturn( [ 'duplicates' => [] ] )
+		;
+
+		$response = $this->controller->sudoFindAllDuplicates(
+			users: [ 'alice' ],
+			groups: [ 'team' ],
+		);
+
+		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
+	}
+
+
+	public function testTheSudoTwinRefusesASetTheResolverRefuses(): void
+	{
+
+		$this->sudo->method( 'resolveSet' )
+		           ->willReturn( false )
+		;
+		$this->api->expects( $this->never() )
+		          ->method( 'findDuplicatesFor' )
+		;
+
+		$this->assertSame(
+			Http::STATUS_FORBIDDEN,
+			$this->controller->sudoFindAllDuplicates( users: [ 'stranger' ] )->getStatus(),
+		);
+	}
+
+
 	public function testTheSudoTwinRefusesWhoeverTheResolverRefuses(): void
 	{
 

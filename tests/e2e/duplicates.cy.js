@@ -244,6 +244,33 @@ describe( 'FCIAS Duplicates page', () => {
 			.should( 'contain', '(Group)' )
 	} )
 
+	// The picker must actually scope the listing. It once did not: the page
+	// calls /api/v1/sudo/duplicates, which ignored users[]/groups[] and fell
+	// through to every account, so every selection looked identical. Asserting
+	// that two different selections give different answers is what catches it.
+	it( 'scopes the listing to whoever the picker names', () => {
+		const sudoUrl = '**/apps/file_checksum_search/api/v1/sudo/duplicates*'
+		cy.intercept( 'GET', '**/apps/file_checksum_search/duplicates/selectable*' ).as( 'selectable' )
+		cy.intercept( 'GET', sudoUrl ).as( 'sudoList' )
+
+		cy.visit( `${ DUPLICATES_URL }#others` )
+		cy.wait( '@selectable', { timeout: FIND_TIMEOUT } )
+
+		// This run's own duplicates belong to the administrator, so naming
+		// them shows the planted group…
+		cy.get( '[data-testid="fcias-target-picker"] input', { timeout: FIND_TIMEOUT } )
+			.click( { force: true } )
+		cy.get( '.vs__dropdown-menu li', { timeout: FIND_TIMEOUT } )
+			.contains( new RegExp( `^${ adminUser }$` ) )
+			.click( { force: true } )
+
+		cy.wait( '@sudoList', { timeout: FIND_TIMEOUT } ).its( 'request.url' )
+			.should( 'include', `users%5B%5D=${ adminUser }` )
+		cy.get( '#fcias-others-hash', { timeout: FIND_TIMEOUT } ).type( DUP_HASH.slice( 0, 6 ) )
+		cy.get( '[data-testid="fcias-others"] .db-group', { timeout: FIND_TIMEOUT } )
+			.should( 'have.length', 1 )
+	} )
+
 	it( 'does not offer the Others tab to an account nobody named', () => {
 		cy.env( [ 'NC_ADMIN_USER', 'NC_ADMIN_PASSWORD' ] ).then( ( env ) => {
 			const admin = { user: env.NC_ADMIN_USER || 'admin', password: env.NC_ADMIN_PASSWORD || 'admin' }

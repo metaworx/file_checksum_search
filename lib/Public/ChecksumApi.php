@@ -380,13 +380,14 @@ class ChecksumApi
 	 * it have already decided the caller may — {@see SudoScope} — and have
 	 * asked for a password on the way.
 	 *
-	 * @param  string|null  $scope  The account whose files to list, or null
-	 *                              for the whole instance
+	 * @param  string|list<string>|null  $scope  The account whose files to
+	 *                              list, several of them, or null for the
+	 *                              whole instance
 	 *
 	 * @return array{duplicates: array, total_groups: int, pagination: array{offset: int, limit: int}}
 	 */
 	public function findDuplicatesFor(
-		?string $scope,
+		string|array|null $scope,
 		?string $algo = null,
 		int     $minCount = 2,
 		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,
