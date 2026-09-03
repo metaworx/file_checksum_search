@@ -497,9 +497,10 @@ class HashIndexServiceTest
 	public function testListDuplicatesForUserClampsMinCountToTwo(): void
 	{
 
+		// The page size, not the old fixed 10 000: max(limit 50, 200) = 200.
 		$this->duplicates->expects( $this->once() )
 		                 ->method( 'findAllDuplicates' )
-		                 ->with( 'sha1', 2, 10000, 0 )
+		                 ->with( 'sha1', 2, 200, 0 )
 		                 ->willReturn( [] )
 		;
 
@@ -507,16 +508,16 @@ class HashIndexServiceTest
 	}
 
 
-	public function testListDuplicatesForUserOverFetchesThenAppliesTheCallersLimit(): void
+	public function testListDuplicatesForUserPagesTheFilterAndAppliesTheCallersLimit(): void
 	{
 
 		// The limit cannot be pushed into the query: how many groups survive
-		// per-user filtering is unknown until after it. So the query asks for
-		// far more than the caller wants, and the caller's limit trims what is
-		// left.
+		// per-user filtering is unknown until after it. So it reads a page
+		// (max(limit 2, 200) = 200) and trims to the caller's limit; a short
+		// page means the raw groups are exhausted, so one round suffices.
 		$this->duplicates->expects( $this->once() )
 		                 ->method( 'findAllDuplicates' )
-		                 ->with( 'sha1', 2, 10000, 5 )
+		                 ->with( 'sha1', 2, 200, 5 )
 		                 ->willReturn( [
 			                 $this->group(
 				                 'a',
@@ -567,6 +568,41 @@ class HashIndexServiceTest
 			],
 			$result['pagination'],
 		);
+	}
+
+
+	/**
+	 * A full page whose groups all survive the filter meets the caller's
+	 * limit in one round: the loop stops there rather than scanning on toward
+	 * the safety bound. This is the whole point of paging over the old fixed
+	 * 10 000-group fetch.
+	 */
+	public function testListDuplicatesForUserStopsOnceTheLimitIsMet(): void
+	{
+
+		$page = [];
+
+		for ( $i = 1; $i <= 200; $i ++ )
+		{
+			$page[] = $this->group( 'h' . $i, [ $i * 2 - 1, $i * 2 ] );
+		}
+
+		// Exactly one round: the first page of 200 already yields far more
+		// than the caller's limit of 3, so findAllDuplicates is asked once.
+		$this->duplicates->expects( $this->once() )
+		                 ->method( 'findAllDuplicates' )
+		                 ->with( 'sha1', 2, 200, 0 )
+		                 ->willReturn( $page )
+		;
+		$this->filecacheService->method( 'batchLookupFilecachePaths' )
+		                       ->willReturnCallback(
+			                       fn( array $fileIds ): array => $this->paths( $fileIds ),
+		                       )
+		;
+
+		$result = $this->service->listDuplicatesForUser( 'bob', 'sha1', 2, 3, 0 );
+
+		$this->assertCount( 3, $result['duplicates'] );
 	}
 
 

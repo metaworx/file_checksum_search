@@ -27,12 +27,19 @@ class HashIndexService
 {
 
 	/**
-	 * How many duplicate groups to fetch before per-user filtering.
-	 *
-	 * See {@see listDuplicatesForUser()} for why the caller's limit cannot be
-	 * pushed down into the query.
+	 * The most raw groups {@see listDuplicatesForUser()} will scan across all
+	 * its pages before giving up — the safety bound for a caller who can see
+	 * almost none of what the query returns. The paging stops long before
+	 * this whenever the caller's own limit is met.
 	 */
 	private const UNFILTERED_GROUP_FETCH_LIMIT = 10000;
+
+	/**
+	 * Raw groups fetched per round of the per-user filter. A round reads this
+	 * many, keeps the caller's, and the loop stops once the caller's limit is
+	 * in hand — so an ordinary request reads about one round, not the bound.
+	 */
+	private const DUPLICATE_PAGE_SIZE = 200;
 
 
 	public function __construct(
@@ -229,58 +236,76 @@ class HashIndexService
 			'limit'  => $limit,
 		];
 
-		$groups = $this->findAllDuplicates( $algo, $minCount, self::UNFILTERED_GROUP_FETCH_LIMIT, $offset );
+		// How many groups survive the per-user filter is unknown until it
+		// runs, so the query cannot carry the caller's limit. But it need not
+		// fetch a fixed 10 000 either: read a page, keep what the caller can
+		// see, and stop the moment $limit groups are in hand. A caller who
+		// owns most of what they ask for reads roughly one page; the scan is
+		// still bounded, at UNFILTERED_GROUP_FETCH_LIMIT raw groups, for the
+		// caller who owns little.
+		$pageSize  = max( $limit, self::DUPLICATE_PAGE_SIZE );
+		$result    = [];
+		$rawOffset = $offset;
+		$scanned   = 0;
 
-		if ( $groups === [] )
+		while ( count( $result ) < $limit && $scanned < self::UNFILTERED_GROUP_FETCH_LIMIT )
 		{
-			return [
-				'duplicates'   => [],
-				'total_groups' => 0,
-				'pagination'   => $pagination,
-			];
-		}
+			$groups = $this->findAllDuplicates( $algo, $minCount, $pageSize, $rawOffset );
 
-		$allFileIds = [];
-
-		foreach ( $groups as $group )
-		{
-			foreach ( $group['fileids'] as $fileId )
+			if ( $groups === [] )
 			{
-				$allFileIds[] = $fileId;
+				break;
 			}
-		}
 
-		$fcPaths = $this->batchLookupFilecachePaths( $allFileIds, $userId );
+			$rawOffset += count( $groups );
+			$scanned   += count( $groups );
 
-		$result = [];
+			$pageFileIds = [];
 
-		foreach ( $groups as $group )
-		{
-			$files = [];
-
-			foreach ( $group['fileids'] as $fileId )
+			foreach ( $groups as $group )
 			{
-				if ( isset( $fcPaths[ $fileId ] ) )
+				foreach ( $group['fileids'] as $fileId )
 				{
-					$files[] = [
-						'fileid' => $fileId,
-						'path'   => $fcPaths[ $fileId ]['path'],
-						'name'   => $fcPaths[ $fileId ]['name'],
-					];
+					$pageFileIds[] = $fileId;
 				}
 			}
 
-			if ( count( $files ) < $minCount )
+			$fcPaths = $this->batchLookupFilecachePaths( $pageFileIds, $userId );
+
+			foreach ( $groups as $group )
 			{
-				continue;
+				$files = [];
+
+				foreach ( $group['fileids'] as $fileId )
+				{
+					if ( isset( $fcPaths[ $fileId ] ) )
+					{
+						$files[] = [
+							'fileid' => $fileId,
+							'path'   => $fcPaths[ $fileId ]['path'],
+							'name'   => $fcPaths[ $fileId ]['name'],
+						];
+					}
+				}
+
+				if ( count( $files ) < $minCount )
+				{
+					continue;
+				}
+
+				$result[] = [
+					'algo'       => $group['algo'],
+					'hash_value' => $group['hash_value'],
+					'file_count' => count( $files ),
+					'files'      => $files,
+				];
 			}
 
-			$result[] = [
-				'algo'       => $group['algo'],
-				'hash_value' => $group['hash_value'],
-				'file_count' => count( $files ),
-				'files'      => $files,
-			];
+			if ( count( $groups ) < $pageSize )
+			{
+				// The page came back short: the raw groups are exhausted.
+				break;
+			}
 		}
 
 		if ( count( $result ) > $limit )
