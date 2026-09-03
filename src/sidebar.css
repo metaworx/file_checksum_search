@@ -45,8 +45,10 @@
 	padding: 12px;
 }
 
+/* The text colour of the palette, not --color-error: that one is the
+   background red, and near-invisible as text on the dark theme. */
 .fcias-error {
-	color: var(--color-error);
+	color: var(--color-error-text);
 }
 
 .fcias-dup-section {

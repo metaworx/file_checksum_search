@@ -63,7 +63,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-	<NcPopover v-if="text" v-model:shown="shown" popover-role="dialog">
+	<NcPopover
+		v-if="text"
+		v-model:shown="shown"
+		class="fcias-help"
+		popover-role="dialog">
 		<template #trigger>
 			<button
 				class="fcias-help-icon"
@@ -88,8 +92,20 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+/* The popover's own root, a <div class="v-popper"> around the trigger. A
+   block box inside a heading drops onto its own line under the title, and
+   spans it — which is also where the popover then anchors, in the middle of
+   nothing. Inline, it sits after the text wherever the icon is placed, in a
+   flex row or in an <h4> alike, and the popover opens at the icon. */
+.fcias-help {
+	display: inline-block;
+	vertical-align: middle;
+	margin-inline-start: 4px;
+}
+
 .fcias-help-icon {
-	display: flex;
+	display: inline-flex;
+	vertical-align: middle;
 	align-items: center;
 	justify-content: center;
 	width: 34px;
