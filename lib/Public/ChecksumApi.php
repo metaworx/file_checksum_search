@@ -22,9 +22,11 @@ use OCP\IGroupManager;
 use InvalidArgumentException;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\StatusService;
+use OCP\Files\Config\IUserMountCache;
 use OCP\Files\File;
 use OCP\Files\IRootFolder;
 use OCP\Files\NotFoundException;
+use OCP\IUserManager;
 use OCP\IUserSession;
 
 /**
@@ -55,6 +57,8 @@ class ChecksumApi
 		private readonly IGroupManager           $groupManager,
 		private readonly AlgorithmCatalogue      $catalogue,
 		private readonly IUserConfig             $userConfig,
+		private readonly IUserMountCache         $userMountCache,
+		private readonly IUserManager            $userManager,
 	) {
 	}
 
@@ -244,20 +248,82 @@ class ChecksumApi
 
 		$limit = max( 1, min( $limit, 500 ) );
 
-		$rows = $this->hashIndexService->findByHash( $hash, $algo, $limit, $requestingUser );
+		// No person to scope to — a sudoer reading every account, or the occ
+		// command. Instance-wide, resolved against the filecache as before.
+		if ( $requestingUser === null )
+		{
+			$rows = $this->hashIndexService->findByHash( $hash, $algo, $limit, null );
 
-		$results = array_map( function (
-			array $row,
-		): array {
+			$results = array_map( static function (
+				array $row,
+			): array {
 
-			return [
-				'fileid' => (int) $row['fileid'],
-				'algo'   => $row['algo'],
-				'hash'   => $row['hash_value'],
-				'path'   => $row['path'],
-				'name'   => $row['name'],
+				return [
+					'fileid' => (int) $row['fileid'],
+					'algo'   => $row['algo'],
+					'hash'   => $row['hash_value'],
+					'path'   => $row['path'],
+					'name'   => $row['name'],
+				];
+			}, $rows );
+
+			return [ 'results' => $results ];
+		}
+
+		// Scoped to one account. Spend the limit on rows in that account's
+		// mounts — not the query's first N regardless of who owns them, which
+		// hid a user's own file behind foreign copies of the same hash — and
+		// let getById() be the authority, so shares, group folders and
+		// object-store homes count too, not just `home::<uid>`. The same
+		// shape {@see findSameHash()} and the unified-search provider use.
+		$user = $this->userManager->get( $requestingUser );
+
+		if ( $user === null )
+		{
+			return [ 'results' => [] ];
+		}
+
+		$visibleStorageIds = array_values( array_map(
+			static fn ( $mount ) => $mount->getStorageId(),
+			$this->userMountCache->getMountsForUser( $user ),
+		) );
+
+		$rows = $this->metadataService->confirmFullHash(
+			$this->metadataService->queryByHash( $hash, $algo, $limit, $visibleStorageIds ),
+			$hash,
+		);
+
+		$userFolder = $this->rootFolder->getUserFolder( $requestingUser );
+		$results    = [];
+
+		foreach ( $rows as $row )
+		{
+			$fileId = (int) $row[ MetadataService::FIELD_FILE_ID ];
+			$nodes  = $userFolder->getById( $fileId );
+
+			if ( $nodes === [] )
+			{
+				continue;
+			}
+
+			$node     = $nodes[0];
+			$relative = $userFolder->getRelativePath( $node->getPath() );
+
+			if ( $relative === null )
+			{
+				continue;
+			}
+
+			$extracted = $this->metadataService->extractAlgorithm( $fileId, $row );
+
+			$results[] = [
+				'fileid' => $fileId,
+				'algo'   => $extracted['algo'],
+				'hash'   => $extracted['hash'] ?? $hash,
+				'path'   => $relative,
+				'name'   => $node->getName(),
 			];
-		}, $rows );
+		}
 
 		return [ 'results' => $results ];
 	}

@@ -27,6 +27,7 @@ use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\App\IAppManager;
 use OCP\Files\File;
 use OCP\Files\Folder;
+use OCP\Files\Config\IUserMountCache;
 use OCP\Files\IRootFolder;
 use OCP\Files\NotFoundException;
 use OCP\IUser;
@@ -48,6 +49,10 @@ class ChecksumApiTest
 	private StatusService                $statusService;
 
 	private MockObject|IRootFolder       $rootFolder;
+
+	private MockObject|IUserMountCache   $userMountCache;
+
+	private MockObject|IUserManager      $userManager;
 
 	private MockObject|IUserSession      $userSession;
 
@@ -77,17 +82,19 @@ class ChecksumApiTest
 			$this->createMock( MetadataService::class ),
 		);
 
-		$this->rootFolder  = $this->createMock( IRootFolder::class );
-		$this->userSession = $this->createMock( IUserSession::class );
+		$this->rootFolder     = $this->createMock( IRootFolder::class );
+		$this->userMountCache = $this->createMock( IUserMountCache::class );
+		$this->userSession    = $this->createMock( IUserSession::class );
 
 		$this->ruleService       = $this->createMock( RuleService::class );
 		$this->permissionService = $this->createMock( PermissionService::class );
 		$this->groupManager      = $this->createMock( IGroupManager::class );
 
-		$userManager = $this->createMock( IUserManager::class );
-		$userManager->method( 'userExists' )
-		            ->willReturn( true )
+		$this->userManager = $this->createMock( IUserManager::class );
+		$this->userManager->method( 'userExists' )
+		                  ->willReturn( true )
 		;
+		$userManager = $this->userManager;
 		$this->groupManager->method( 'groupExists' )
 		                   ->willReturn( true )
 		;
@@ -104,6 +111,8 @@ class ChecksumApiTest
 			$this->groupManager,
 			new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ),
 			$this->createMock( IUserConfig::class ),
+			$this->userMountCache,
+			$this->userManager,
 		);
 	}
 
@@ -167,6 +176,75 @@ class ChecksumApiTest
 	}
 
 
+	/**
+	 * A scoped lookup — one account, as every non-sudo call is — spends its
+	 * limit on that account's mounts and lets getById() decide visibility:
+	 * a row the user cannot open is dropped, not counted, so a share or a
+	 * group-folder copy is found and a foreign copy never hides an own file.
+	 */
+	public function testFindByHashScopedResolvesThroughGetByIdAndDropsWhatTheUserCannotOpen(): void
+	{
+
+		$this->userManager->method( 'get' )
+		                  ->with( 'bob' )
+		                  ->willReturn( $this->createMock( IUser::class ) )
+		;
+
+		$mount = $this->createMock( \OCP\Files\Config\ICachedMountInfo::class );
+		$mount->method( 'getStorageId' )
+		      ->willReturn( 42 )
+		;
+		$this->userMountCache->method( 'getMountsForUser' )
+		                     ->willReturn( [ $mount ] )
+		;
+
+		$rows = [
+			[ MetadataService::FIELD_FILE_ID => 7, MetadataService::FIELD_META_KEY => 'file-checksum-sha1' ],
+			[ MetadataService::FIELD_FILE_ID => 8, MetadataService::FIELD_META_KEY => 'file-checksum-sha1' ],
+		];
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'queryByHash' )
+		                      ->with( 'abc', null, 100, [ 42 ] )
+		                      ->willReturn( $rows )
+		;
+		$this->metadataService->method( 'confirmFullHash' )
+		                      ->willReturn( $rows )
+		;
+
+		$userFolder = $this->createMock( Folder::class );
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->with( 'bob' )
+		                 ->willReturn( $userFolder )
+		;
+
+		$mine = $this->createMock( \OCP\Files\Node::class );
+		$mine->method( 'getPath' )->willReturn( '/bob/files/Docs/report.pdf' );
+		$mine->method( 'getName' )->willReturn( 'report.pdf' );
+
+		// File 7 is the user's; file 8 is a foreign copy of the same hash —
+		// getById() answers empty for it, and it never reaches the results.
+		$userFolder->method( 'getById' )
+		           ->willReturnMap( [
+			           [ 7, [ $mine ] ],
+			           [ 8, [] ],
+		           ] );
+		$userFolder->method( 'getRelativePath' )
+		           ->with( '/bob/files/Docs/report.pdf' )
+		           ->willReturn( 'Docs/report.pdf' )
+		;
+		$this->metadataService->method( 'extractAlgorithm' )
+		                      ->willReturn( [ 'algo' => 'sha1', 'hash' => 'abc' ] )
+		;
+
+		$result = $this->api->findByHash( 'abc', null, 100, 'bob' );
+
+		$this->assertCount( 1, $result['results'] );
+		$this->assertSame( 7, $result['results'][0]['fileid'] );
+		$this->assertSame( 'Docs/report.pdf', $result['results'][0]['path'] );
+	}
+
+
 	public function testFindByHashThrowsOnEmptyHash(): void
 	{
 
@@ -192,20 +270,23 @@ class ChecksumApiTest
 	}
 
 
-	public function testFindByHashPassesRequestingUserThrough(): void
+	/**
+	 * A scoped lookup resolves visibility through the account, so an account
+	 * that no longer exists reads nothing — and never falls through to the
+	 * instance-wide path, which would answer for everyone.
+	 */
+	public function testFindByHashScopedToAGoneAccountReadsNothing(): void
 	{
 
-		// Regression test for FCIAS Review §6, Finding 1: /api/v1/lookup had
-		// no per-file ownership check. $requestingUser must reach
-		// HashIndexService so the search is restricted to that user's own
-		// files unless the caller (a trusted/admin caller) omits it.
-		$this->hashIndexService->expects( $this->once() )
+		$this->userManager->method( 'get' )
+		                  ->with( 'ghost' )
+		                  ->willReturn( null )
+		;
+		$this->hashIndexService->expects( $this->never() )
 		                       ->method( 'findByHash' )
-		                       ->with( 'abc123', null, 100, 'alice' )
-		                       ->willReturn( [] )
 		;
 
-		$this->api->findByHash( 'abc123', null, 100, 'alice' );
+		$this->assertSame( [ 'results' => [] ], $this->api->findByHash( 'abc123', null, 100, 'ghost' ) );
 	}
 
 
