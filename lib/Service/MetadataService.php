@@ -3105,13 +3105,29 @@ class MetadataService
 	}
 
 
+	/**
+	 * Read a search term of the form `<algo>:<hash>`, or a bare hash.
+	 *
+	 * The algorithm half is matched against what a name may look like
+	 * ({@see AlgorithmCatalogue::NAME_PATTERN}), not against what this
+	 * instance currently computes: whether `sha3-256` is allowed today has
+	 * no bearing on whether somebody may search for a hash stored under it,
+	 * and the caller is better placed to say what it does with an algorithm
+	 * it does not recognise. The hyphen is why — the class used to be
+	 * `[a-zA-F0-9]`, which quietly rejected every hyphenated name and every
+	 * uppercase prefix, so `sha3-256:…` and `SHA256:…` were "not a hash".
+	 *
+	 * A term that is not a hash at all is `null` rather than an exception:
+	 * every caller is a search box, where "this is not a hash" is an answer.
+	 *
+	 * @return array{algo: string, hash: string}|null  Lower-cased; `algo` is
+	 *                                                 empty for a bare hash.
+	 */
 	public static function parseQueryTerm( string $term ): ?array
 	{
 
-		// Parse algo:hash or raw hash
-		if ( ! preg_match( '/^(?:([a-zA-F0-9]+):)?([a-fA-F0-9]{8,128})$/', $term, $matches ) )
+		if ( ! preg_match( '/^(?:([a-zA-Z0-9-]+):)?([a-fA-F0-9]{8,128})$/', $term, $matches ) )
 		{
-			// Not a valid hex hash
 			return null;
 		}
 

@@ -118,6 +118,55 @@ class MetadataServiceTest
 	}
 
 
+	/**
+	 * Two of the ten algorithms this app ships enabled carry a hyphen, and
+	 * the term parser used to reject every one of them: the search found
+	 * nothing for `sha3-256:<hash>` while `sha256:<hash>` worked.
+	 */
+	public function testParseQueryTermAcceptsHyphenatedAlgorithmNames(): void
+	{
+
+		$hash = str_repeat( 'a', 64 );
+
+		foreach ( [ 'sha3-256', 'sha3-384', 'sha3-512' ] as $algo )
+		{
+			$result = MetadataService::parseQueryTerm( "$algo:$hash" );
+
+			$this->assertNotNull( $result, "$algo must parse" );
+			$this->assertSame( $algo, $result['algo'] );
+			$this->assertSame( $hash, $result['hash'] );
+		}
+	}
+
+
+	/**
+	 * Typing the algorithm the way it is usually written down.
+	 */
+	public function testParseQueryTermAcceptsAnUppercaseAlgorithmPrefix(): void
+	{
+
+		$hash   = str_repeat( 'b', 40 );
+		$result = MetadataService::parseQueryTerm( "SHA3-256:$hash" );
+
+		$this->assertNotNull( $result );
+		$this->assertSame( 'sha3-256', $result['algo'] );
+	}
+
+
+	/**
+	 * The parser reads a shape; whether the name means anything is the
+	 * catalogue's business, and the caller's to act on.
+	 */
+	public function testParseQueryTermDoesNotJudgeTheAlgorithmName(): void
+	{
+
+		$result = MetadataService::parseQueryTerm( 'no-such-algo:' . str_repeat( 'c', 32 ) );
+
+		$this->assertNotNull( $result );
+		$this->assertSame( 'no-such-algo', $result['algo'] );
+	}
+
+
 	public function testRegisterInitializesAllAlgoKeys(): void
 	{
 
