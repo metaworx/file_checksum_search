@@ -236,15 +236,15 @@ class PublicApiControllerTest
 	/**
 	 * What block 6 is for. These two routes asked
 	 * {@see SudoScope::resolve()} with no target, which means "every
-	 * account" — something no sub-admin may ever have — so a group leader
-	 * allowed to *list* their members' duplicates was refused the moment
-	 * they asked anything about one of the files in that listing. The
-	 * per-file question has a per-file answer now.
+	 * account", so the answer never depended on the file at all. They ask
+	 * {@see SudoScope::mayReachFile()} now, and act on whatever it says.
 	 *
-	 * `mayReachFile` returning true is what a sub-admin gets for a member's
-	 * file; the point is that the route no longer refuses on the way there.
+	 * Who that currently admits is that method's business and is tested
+	 * there — today only a sudoer, the delegated answer being switched off.
+	 * What is pinned here is that a granted reach is acted on rather than
+	 * refused a second time on the way past.
 	 */
-	public function testTheSudoPerFileRoutesServeASubAdminTheirMembersFile(): void
+	public function testTheSudoPerFileRoutesActOnAGrantedReach(): void
 	{
 
 		$controller = $this->withReach( true );

@@ -9,11 +9,9 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Service;
 
-use OCP\Files\Config\IUserMountCache;
 use OCP\Group\ISubAdmin;
 use OCP\IGroupManager;
 use OCP\IUserManager;
-use Throwable;
 
 /**
  * Who may look across accounts, and how far.
@@ -26,10 +24,11 @@ use Throwable;
  * Everyone else is refused.
  *
  * Asked about an account, that is {@see resolve()} or {@see resolveSet()}.
- * Asked about one file, it is {@see mayReachFile()} — a separate question
- * because a per-file route holds a file id and not an account, and putting
- * it to `resolve()` as "everyone" refuses a sub-admin for files their own
- * listing shows them.
+ * Asked about one file, it is {@see mayReachFile()} — a separate question,
+ * because a per-file route holds a file id and not an account. Its delegated
+ * answer is switched off for now, so a sub-admin reaches no file that is not
+ * their own; that method says why, and the rework named there decides what
+ * replaces it.
  *
  * This decides only *who may be asked*. The asking — a password
  * confirmation on the interactive routes, a granted app password on the
@@ -43,7 +42,6 @@ class SudoScope
 		private readonly ISubAdmin         $subAdmin,
 		private readonly IUserManager      $userManager,
 		private readonly PermissionService $permissions,
-		private readonly IUserMountCache   $mountCache,
 	) {
 	}
 
@@ -183,58 +181,34 @@ class SudoScope
 	 *
 	 * The per-file twin of {@see resolve()}, and it exists because the
 	 * per-file routes cannot ask that one: `resolve()` wants an account, and
-	 * a file id is what they hold. Asking it anyway — with null, meaning
-	 * "everyone" — is why they refuse a sub-admin outright today, even for a
-	 * file the listing beside them is happy to show.
+	 * a file id is what they hold.
 	 *
-	 * A sudoer reaches anything. Anyone else reaches a file when some account
-	 * holding it is accessible to them, which core answers for us and answers
-	 * generously in the two places that matter: one's own file is always
-	 * accessible, and an administrator's never is.
+	 * A sudoer reaches anything. **Nobody else reaches anything, for now.**
 	 *
-	 * Mounts, not ownership. A file reachable by an account a sub-admin
-	 * administers is a file already in the listing they are looking at, so
-	 * ownership would refuse rows the page shows. It also costs nothing
-	 * extra: a share and a group folder are mounts like any other.
+	 * The delegated branch that stood here accepted a file when any *mount*
+	 * holding it belonged to an account accessible to $uid. That was justified
+	 * on the claim that such a file is already in the listing the sub-admin is
+	 * looking at — and the claim is false. The listing filters on the home
+	 * storages of the named accounts ({@see FilecacheService::queryDuplicates()}),
+	 * so a file merely *shared into* a member's home was reachable here while
+	 * never appearing there, whoever owned it: someone outside the leader's
+	 * groups, an administrator included. Since block 5 wired recalculation to
+	 * this question, that reach also bought a content read and a hash write on
+	 * such a file.
+	 *
+	 * It is switched off rather than narrowed, deliberately. Narrowing it to
+	 * home storages would match today's listing, and
+	 * `wip/2026-09-04_12-44_ANALYSIS_CrossAccountDesign_v1.0` proposes moving
+	 * the listing to mounts instead — so a narrowing now is as likely to be
+	 * undone as kept. A sub-admin is refused, as they were before this method
+	 * existed; the rework decides what they get, within this release.
 	 */
 	public function mayReachFile(
 		string $uid,
 		int    $fileId,
 	): bool {
 
-		if ( $this->isSudoer( $uid ) )
-		{
-			return true;
-		}
-
-		$leader = $this->userManager->get( $uid );
-
-		if ( $leader === null )
-		{
-			return false;
-		}
-
-		try
-		{
-			$mounts = $this->mountCache->getMountsForFileId( $fileId );
-		}
-		catch ( Throwable )
-		{
-			// A file id nothing knows about reaches nobody. Refusing is the
-			// safe answer and the honest one — the caller cannot act on a
-			// file the mount cache cannot place.
-			return false;
-		}
-
-		foreach ( $mounts as $mount )
-		{
-			if ( $this->subAdmin->isUserAccessible( $leader, $mount->getUser() ) )
-			{
-				return true;
-			}
-		}
-
-		return false;
+		return $this->isSudoer( $uid );
 	}
 
 
