@@ -9,9 +9,11 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Service;
 
+use OCP\Files\Config\IUserMountCache;
 use OCP\Group\ISubAdmin;
 use OCP\IGroupManager;
 use OCP\IUserManager;
+use Throwable;
 
 /**
  * Who may look across accounts, and how far.
@@ -22,6 +24,12 @@ use OCP\IUserManager;
  * they administer, one at a time, which is core's own delegation model
  * ({@see ISubAdmin::isUserAccessible()}) and needs no configuration of ours.
  * Everyone else is refused.
+ *
+ * Asked about an account, that is {@see resolve()} or {@see resolveSet()}.
+ * Asked about one file, it is {@see mayReachFile()} — a separate question
+ * because a per-file route holds a file id and not an account, and putting
+ * it to `resolve()` as "everyone" refuses a sub-admin for files their own
+ * listing shows them.
  *
  * This decides only *who may be asked*. The asking — a password
  * confirmation on the interactive routes, a granted app password on the
@@ -35,6 +43,7 @@ class SudoScope
 		private readonly ISubAdmin         $subAdmin,
 		private readonly IUserManager      $userManager,
 		private readonly PermissionService $permissions,
+		private readonly IUserMountCache   $mountCache,
 	) {
 	}
 
@@ -166,6 +175,66 @@ class SudoScope
 		}
 
 		return array_values( array_unique( $allowed ) );
+	}
+
+
+	/**
+	 * Whether $uid may act on one file that need not be their own.
+	 *
+	 * The per-file twin of {@see resolve()}, and it exists because the
+	 * per-file routes cannot ask that one: `resolve()` wants an account, and
+	 * a file id is what they hold. Asking it anyway — with null, meaning
+	 * "everyone" — is why they refuse a sub-admin outright today, even for a
+	 * file the listing beside them is happy to show.
+	 *
+	 * A sudoer reaches anything. Anyone else reaches a file when some account
+	 * holding it is accessible to them, which core answers for us and answers
+	 * generously in the two places that matter: one's own file is always
+	 * accessible, and an administrator's never is.
+	 *
+	 * Mounts, not ownership. A file reachable by an account a sub-admin
+	 * administers is a file already in the listing they are looking at, so
+	 * ownership would refuse rows the page shows. It also costs nothing
+	 * extra: a share and a group folder are mounts like any other.
+	 */
+	public function mayReachFile(
+		string $uid,
+		int    $fileId,
+	): bool {
+
+		if ( $this->isSudoer( $uid ) )
+		{
+			return true;
+		}
+
+		$leader = $this->userManager->get( $uid );
+
+		if ( $leader === null )
+		{
+			return false;
+		}
+
+		try
+		{
+			$mounts = $this->mountCache->getMountsForFileId( $fileId );
+		}
+		catch ( Throwable )
+		{
+			// A file id nothing knows about reaches nobody. Refusing is the
+			// safe answer and the honest one — the caller cannot act on a
+			// file the mount cache cannot place.
+			return false;
+		}
+
+		foreach ( $mounts as $mount )
+		{
+			if ( $this->subAdmin->isUserAccessible( $leader, $mount->getUser() ) )
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 

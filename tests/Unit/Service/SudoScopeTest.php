@@ -11,6 +11,8 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\SudoScope;
+use OCP\Files\Config\ICachedMountFileInfo;
+use OCP\Files\Config\IUserMountCache;
 use OCP\Group\ISubAdmin;
 use OCP\IGroupManager;
 use OCP\IUser;
@@ -31,6 +33,8 @@ class SudoScopeTest
 
 	private PermissionService&MockObject $permissions;
 
+	private IUserMountCache&MockObject   $mounts;
+
 	private SudoScope                    $scope;
 
 
@@ -43,13 +47,20 @@ class SudoScopeTest
 		$this->subAdmin    = $this->createMock( ISubAdmin::class );
 		$this->users       = $this->createMock( IUserManager::class );
 		$this->permissions = $this->createMock( PermissionService::class );
+		$this->mounts      = $this->createMock( IUserMountCache::class );
 
 		$this->users->method( 'get' )
 		            ->willReturnCallback( fn ( string $uid ): ?IUser => in_array( $uid, [ 'lead', 'member', 'stranger', 'root' ], true )
 			            ? $this->createConfiguredMock( IUser::class, [ 'getUID' => $uid ] )
 			            : null );
 
-		$this->scope = new SudoScope( $this->groups, $this->subAdmin, $this->users, $this->permissions );
+		$this->scope = new SudoScope(
+			$this->groups,
+			$this->subAdmin,
+			$this->users,
+			$this->permissions,
+			$this->mounts,
+		);
 	}
 
 
@@ -295,6 +306,158 @@ class SudoScopeTest
 
 		$this->assertFalse( $offer['prefill'], 'three users past a threshold of two' );
 		$this->assertCount( 2, $offer['users'], 'and the overflow row is not handed out' );
+	}
+
+
+	// ─── mayReachFile: asking about a file, not an account ───────────
+
+	/**
+	 * Say which accounts hold $fileId, as the mount cache would.
+	 *
+	 * @param  list<string>  $holders
+	 */
+	private function fileHeldBy(
+		int   $fileId,
+		array $holders,
+	): void {
+
+		$this->mounts->method( 'getMountsForFileId' )
+		             ->with( $fileId )
+		             ->willReturn( array_map(
+			             fn ( string $uid ) => $this->createConfiguredMock( ICachedMountFileInfo::class, [
+				             'getUser' => $this->createConfiguredMock( IUser::class, [ 'getUID' => $uid ] ),
+			             ] ),
+			             $holders,
+		             ) )
+		;
+	}
+
+
+	public function testASudoerReachesAFileWithoutTheMountCacheBeingAsked(): void
+	{
+
+		$this->asSudoer();
+
+		$this->mounts->expects( $this->never() )
+		             ->method( 'getMountsForFileId' )
+		;
+
+		$this->assertTrue( $this->scope->mayReachFile( 'root', 42 ) );
+	}
+
+
+	public function testASubAdminReachesAFileAMemberHolds(): void
+	{
+
+		$this->asSubAdminOf( 'team' );
+		$this->fileHeldBy( 42, [ 'member' ] );
+
+		$this->assertTrue( $this->scope->mayReachFile( 'lead', 42 ) );
+	}
+
+
+	public function testASubAdminDoesNotReachAStrangersFile(): void
+	{
+
+		$this->asSubAdminOf( 'team' );
+		$this->fileHeldBy( 42, [ 'stranger' ] );
+
+		$this->assertFalse( $this->scope->mayReachFile( 'lead', 42 ) );
+	}
+
+
+	/**
+	 * One reachable holder is enough. A file shared out of a stranger's home
+	 * to a member is a file the sub-admin's own listing shows them, so
+	 * refusing it here would contradict the listing beside it.
+	 */
+	public function testOneReachableHolderAmongSeveralIsEnough(): void
+	{
+
+		$this->asSubAdminOf( 'team' );
+		$this->fileHeldBy( 42, [ 'stranger', 'member' ] );
+
+		$this->assertTrue( $this->scope->mayReachFile( 'lead', 42 ) );
+	}
+
+
+	public function testAFileNobodyHoldsReachesNobody(): void
+	{
+
+		$this->asSubAdminOf( 'team' );
+		$this->fileHeldBy( 99, [] );
+
+		$this->assertFalse( $this->scope->mayReachFile( 'lead', 99 ) );
+	}
+
+
+	public function testAnUnknownAccountReachesNothing(): void
+	{
+
+		$this->asSubAdminOf( 'team' );
+
+		$this->mounts->expects( $this->never() )
+		             ->method( 'getMountsForFileId' )
+		;
+
+		$this->assertFalse( $this->scope->mayReachFile( 'ghost', 42 ) );
+	}
+
+
+	/**
+	 * A plain account is neither a sudoer nor accessible to itself through
+	 * anyone else's delegation — and reaches nothing but by way of core's
+	 * own answer, which is what {@see asSubAdminOf()} stands in for here.
+	 */
+	public function testAPlainAccountReachesNothing(): void
+	{
+
+		$this->asSubAdminOf( 'team' );
+		$this->fileHeldBy( 42, [ 'stranger' ] );
+
+		$this->assertFalse( $this->scope->mayReachFile( 'member', 42 ) );
+	}
+
+
+	/**
+	 * Core's `isUserAccessible()` answers true for oneself before it looks at
+	 * any delegation, so an ordinary account reaches its own file through
+	 * this method too. Stubbed the way core behaves rather than through
+	 * {@see asSubAdminOf()}, whose callback knows only the leader case — the
+	 * claim being checked is about core's rule, so the mock has to carry it.
+	 */
+	public function testAnyoneReachesTheirOwnFile(): void
+	{
+
+		$this->groups->method( 'isAdmin' )
+		             ->willReturn( false )
+		;
+		$this->permissions->method( 'isAllowed' )
+		                  ->willReturn( false )
+		;
+		$this->subAdmin->method( 'isUserAccessible' )
+		               ->willReturnCallback( static fn ( IUser $a, IUser $b ): bool => $a->getUID() === $b->getUID() )
+		;
+
+		$this->fileHeldBy( 42, [ 'member' ] );
+
+		$this->assertTrue( $this->scope->mayReachFile( 'member', 42 ) );
+	}
+
+
+	/**
+	 * A mount cache that cannot answer is not a licence to proceed.
+	 */
+	public function testAMountCacheFailureRefuses(): void
+	{
+
+		$this->asSubAdminOf( 'team' );
+
+		$this->mounts->method( 'getMountsForFileId' )
+		             ->willThrowException( new \RuntimeException( 'cache down' ) )
+		;
+
+		$this->assertFalse( $this->scope->mayReachFile( 'lead', 42 ) );
 	}
 
 }
