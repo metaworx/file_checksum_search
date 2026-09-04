@@ -26,6 +26,8 @@ export const OCS_API_V1 = {
 	lookup: `${APP_BASE}/api/v1/lookup`,
 	/** POST   /api/v1/file/{fileId}/recalc */
 	recalcHash: `${APP_BASE}/api/v1/file/{fileId}/recalc`,
+	/** POST   /api/v1/sudo/file/{fileId}/recalc — for a file that is not the caller's own */
+	sudoRecalcHash: `${APP_BASE}/api/v1/sudo/file/{fileId}/recalc`,
 	getAlgorithms: `${APP_BASE}/api/v1/algorithms`,
 	/** GET/PUT /api/v1/preferences/{key} — the caller's own; first key `preferred_algorithm` */
 	preference: `${APP_BASE}/api/v1/preferences/{key}`,

@@ -517,13 +517,37 @@ class ChecksumApi
 	 *
 	 * This is the only mutating operation in the public API.
 	 *
-	 * @param  int          $fileId          The filecache fileid
-	 * @param  string|null  $algo            Algorithm (default: sha1)
-	 * @param  string|null  $requestingUser  When provided, the fileid must resolve
-	 *                                       within this user's own file tree or
-	 *                                       recalculation is refused. Omit (or
-	 *                                       pass null) for trusted/admin callers
-	 *                                       that intentionally bypass this check.
+	 * Two questions, and they are not the same one. *Who is asking* decides
+	 * whether the account may calculate by hand at all; *what they may reach*
+	 * decides whether this file is theirs to ask about. The read methods
+	 * beside this one fold both into a single parameter and are right to —
+	 * they only read, so the parameter has one job. This one writes, and a
+	 * caller that needed to widen the reach would otherwise have had to pass
+	 * null and give away the permission check with it.
+	 *
+	 * Neither is a boundary against PHP callers, and cannot be: code running
+	 * in this process already has the server's privileges, and anything able
+	 * to call this can call {@see IRootFolder::getUserFolder()} for any
+	 * account directly. These are a convenience for the HTTP layer, whose
+	 * boundary is {@see PublicApiController::scopeOrRefusal()} — that reads
+	 * the session and never a request parameter, so `$actingUser` cannot be
+	 * chosen by a client.
+	 *
+	 * @param  int          $fileId      The filecache fileid
+	 * @param  string|null  $algo        Algorithm (default: sha1)
+	 * @param  string|null  $actingUser  Who is asking. The manual-calculation
+	 *                                   permission is checked against this
+	 *                                   always, and unless `$anyAccount` the
+	 *                                   fileid must resolve within their own
+	 *                                   file tree. Null is a trusted
+	 *                                   DI/bootstrap caller: both are skipped.
+	 * @param  bool         $anyAccount  The caller has established already
+	 *                                   that `$actingUser` may reach this
+	 *                                   file — {@see SudoScope::mayReachFile()}
+	 *                                   — so the own-tree check is waived.
+	 *                                   Waives that and nothing else: the
+	 *                                   permission, and any rule excluding the
+	 *                                   path, are still answered.
 	 *
 	 * @return array{success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string, forbidden?: bool}
 	 *         `excluded` says a rule refused the file rather than anything
@@ -534,10 +558,11 @@ class ChecksumApi
 	public function recalcHash(
 		int     $fileId,
 		?string $algo = null,
-		?string $requestingUser = null,
+		?string $actingUser = null,
+		bool    $anyAccount = false,
 	): array {
 
-		if ( $requestingUser !== null && ! $this->userCanAccessFile( $requestingUser, $fileId ) )
+		if ( ! $anyAccount && $actingUser !== null && ! $this->userCanAccessFile( $actingUser, $fileId ) )
 		{
 			return [
 				'success' => false,
@@ -548,7 +573,9 @@ class ChecksumApi
 		// Owning the file is not the same as being allowed to make the
 		// server work on it: the manual-recalculation permission is checked
 		// here, before any rule is consulted, so the reason is the plain one.
-		if ( ! $this->mayRecalc( $requestingUser ) )
+		// Reaching across accounts never waives it — whoever is acting needs
+		// the permission whether the file is theirs or somebody else's.
+		if ( ! $this->mayRecalc( $actingUser ) )
 		{
 			return [
 				'success'   => false,
@@ -571,7 +598,64 @@ class ChecksumApi
 
 		$algo ??= $this->catalogue->default();
 
+		// Resolving by id alone goes through the root folder, which holds
+		// only what the *session's* account has mounted — so another
+		// account's file is "not found" there however far the permission
+		// checks got. Waiving the reach therefore means resolving the node
+		// somewhere it can actually be seen: inside a folder belonging to an
+		// account that holds it.
+		if ( $anyAccount )
+		{
+			$file = $this->fileForAnyAccount( $fileId );
+
+			return $file === null
+				? [ 'success' => false, 'error' => 'File not found.' ]
+				: $this->hashIndexService->recalcFileHash( $file, $algo );
+		}
+
 		return $this->hashIndexService->recalcHash( $fileId, $algo );
+	}
+
+
+	/**
+	 * One file, resolved through a folder that can see it.
+	 *
+	 * The mount cache says which accounts hold the id; asking any of them for
+	 * their own folder sets that account's filesystem up, which is what makes
+	 * the id resolvable at all. The first holder that yields a file wins —
+	 * they are all the same file, reached by different paths.
+	 *
+	 * Whether the *caller* may do this was settled before we got here
+	 * ({@see SudoScope::mayReachFile()}); this only finds the node.
+	 */
+	private function fileForAnyAccount( int $fileId ): ?File
+	{
+
+		foreach ( $this->userMountCache->getMountsForFileId( $fileId ) as $mount )
+		{
+			try
+			{
+				$nodes = $this->rootFolder->getUserFolder( $mount->getUser()->getUID() )
+				                          ->getById( $fileId )
+				;
+			}
+			catch ( \Throwable )
+			{
+				// An account whose folder will not open tells us nothing
+				// about the next one.
+				continue;
+			}
+
+			foreach ( $nodes as $node )
+			{
+				if ( $node instanceof File )
+				{
+					return $node;
+				}
+			}
+		}
+
+		return null;
 	}
 
 

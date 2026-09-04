@@ -244,6 +244,33 @@ describe('useDuplicates', () => {
 			// requested.
 			expect(fetchMock).toHaveBeenCalledTimes(1)
 		})
+
+		// The bug this fixes: the Others tab answered "File not found." for
+		// every row, because the ordinary route resolves the file in the
+		// caller's own home and none of those files are there.
+		it('verifies a scoped listing through the cross-account route', async () => {
+			const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+				Promise.resolve(jsonResponse({ success: true, hash: 'abc' })),
+			)
+
+			const { scope, verifyGroups } = useDuplicates()
+			scope.value = { all: true, users: [], groups: [] }
+			await verifyGroups([group('a.txt')])
+
+			expect(fetchMock.mock.calls[0][0]).toContain('/sudo/file/1/recalc')
+		})
+
+		it('verifies an unscoped listing through the ordinary route', async () => {
+			const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+				Promise.resolve(jsonResponse({ success: true, hash: 'abc' })),
+			)
+
+			const { verifyGroups } = useDuplicates()
+			await verifyGroups([group('a.txt')])
+
+			expect(fetchMock.mock.calls[0][0]).toContain('/file/1/recalc')
+			expect(fetchMock.mock.calls[0][0]).not.toContain('/sudo/')
+		})
 	})
 
 	it('loads duplicate groups on success', async () => {

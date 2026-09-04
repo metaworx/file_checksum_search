@@ -184,7 +184,95 @@ class SudoRouteTest
 	}
 
 
+	// ─── recalculating a file that is not one's own ──────────────────
+
+	/**
+	 * A file id nothing knows about is the point: it proves the request got
+	 * *past* the gate, since only the body can answer "File not found." A
+	 * 403 here would mean the reach check or the confirmation refused, and
+	 * those are what the two cases below assert instead.
+	 */
+	public function testASudoerReachesTheRecalcBodyForAFileThatIsNotTheirs(): void
+	{
+
+		Server::get( SudoTokens::class )->grant( self::$uid, $this->tokenId, self::$uid );
+
+		$response = $this->post( '/api/v1/sudo/file/999999999/recalc?algo=sha1', $this->appPassword );
+
+		$this->assertSame( 400, $response['status'], 'the gate passed and the body answered' );
+		$this->assertSame( 'File not found.', $response['body']['error'] );
+	}
+
+
+	public function testTheRecalcRouteAsksForTheSameConfirmationTheOthersDo(): void
+	{
+
+		$response = $this->post( '/api/v1/sudo/file/999999999/recalc?algo=sha1', $this->appPassword );
+
+		$this->assertSame( 403, $response['status'] );
+		$this->assertSame( 'Password confirmation required', $response['body']['message'] );
+	}
+
+
+	/**
+	 * And a grant is still not a permission: an account that reaches no
+	 * account but its own is refused by the reach rule, holding a grant.
+	 */
+	public function testAGrantDoesNotLetOneRecalculateAnotherAccountsFile(): void
+	{
+
+		Server::get( SudoTokens::class )->grant( self::$uid, $this->tokenId, self::$uid );
+		self::adminGroup( false );
+
+		$response = $this->post( '/api/v1/sudo/file/999999999/recalc?algo=sha1', $this->appPassword );
+
+		$this->assertSame( 403, $response['status'] );
+		$this->assertSame( 'Not yours to look at.', $response['body']['error'] );
+	}
+
+
 	// ─── helpers ─────────────────────────────────────────────────────
+
+	/**
+	 * The mutating twin of {@see get()}. The route deliberately keeps the
+	 * CSRF check, and an app password carries no request token — OCS accepts
+	 * `OCS-APIRequest` in its place, which is what a script sends.
+	 *
+	 * @return array{status: int, body: array<string, mixed>}
+	 */
+	private function post(
+		string $path,
+		string $secret,
+	): array {
+
+		$context = stream_context_create( [
+			'http' => [
+				'method'        => 'POST',
+				'header'        => 'Authorization: Basic ' . base64_encode( self::$uid . ':' . $secret )
+				                   . "\r\nAccept: application/json"
+				                   . "\r\nOCS-APIRequest: true"
+				                   . "\r\nContent-Length: 0",
+				'ignore_errors' => true,
+			],
+		] );
+
+		$body = file_get_contents( self::BASE_URL . $path, false, $context );
+
+		$this->assertNotFalse( $body, "POST $path answered nothing." );
+
+		$statusLine = $http_response_header[0] ?? '';
+		$status     = (int) ( preg_match( '/\s(\d{3})\s/', $statusLine, $m ) ? $m[1] : 0 );
+
+		$decoded = json_decode( $body, true );
+
+		$this->assertIsArray( $decoded, "POST $path did not answer JSON: " . substr( $body, 0, 200 ) );
+
+		return [
+			'status' => $status,
+			'body'   => $decoded,
+		];
+	}
+
 
 	/**
 	 * @return array{status: int, body: array<string, mixed>}

@@ -240,6 +240,62 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
+  /api/v1/sudo/file/{fileId}/recalc:
+    post:
+      tags: [Sudo]
+      summary: Recalculate the hash of a file that need not be your own
+      description: >-
+        The cross-account twin of `/api/v1/file/{fileId}/recalc`, and the only
+        cross-account route that writes. Requires a password confirmed within the
+        last thirty minutes, or a granted app password (403 with "Password
+        confirmation required" otherwise), and 403 "Not yours to look at." when
+        the file is out of the caller's reach: a member of `admin`, or anyone the
+        `instance_view` permission names, reaches any file; a sub-admin reaches a
+        file held by an account in one of the groups they administer.
+        Reaching a file is not permission to recalculate it. The *manual_recalc*
+        permission is answered against whoever is asking — never against the
+        file's owner — and an `exclude` rule still refuses the path, which is
+        what keeps this from reading storage that costs money. The call is
+        logged at info level naming the acting account.
+      operationId: sudoRecalcHash
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          description: The filecache file ID, of any account the caller may reach
+          schema:
+            type: integer
+            example: 12345
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                algo:
+                  type: string
+                  description: "Any name GET /api/v1/algorithms lists for this instance."
+                  default: sha1
+                  example: sha256
+      responses:
+        "200":
+          description: As the ordinary route
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecalcResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
   /api/v1/sudo/file/{fileId}/hashes:
     get:
       tags: [Sudo]

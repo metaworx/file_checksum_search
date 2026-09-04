@@ -165,6 +165,14 @@ export function useDuplicates() {
 		// repeat click still re-checks every file.
 		const resuming = verifyInterrupted
 
+		// A scoped listing shows files that are not the caller's own, and the
+		// ordinary route resolves the file in the caller's own home — so it
+		// answered "File not found." for every row on the Others tab. The
+		// cross-account route asks whether the caller may reach the file
+		// instead; it needs the same password confirmation the tab already
+		// went through.
+		const route = state.scope !== null ? OCS_API_V1.sudoRecalcHash : OCS_API_V1.recalcHash
+
 		for (const group of groups) {
 			if (rateLimited) {
 				break
@@ -186,7 +194,7 @@ export function useDuplicates() {
 				}
 
 				try {
-					const url = `${generateOcsUrl(OCS_API_V1.recalcHash, { fileId: file.fileid })}?algo=${group.algo}`
+					const url = `${generateOcsUrl(route, { fileId: file.fileid })}?algo=${group.algo}`
 					const res = await fetch(url, {
 						method: 'POST',
 						headers: { requesttoken: OC.requestToken },

@@ -200,6 +200,52 @@ class PublicApiController
 
 
 	/**
+	 * The caller's own uid when they may act on one file that need not be
+	 * theirs, or the response to send instead.
+	 *
+	 * The per-file twin of {@see sudoScopeOrRefusal()}. That one asks
+	 * {@see SudoScope::resolve()} about an account, and a per-file route has
+	 * none to name — passing null means "every account", which only a sudoer
+	 * may have, so a sub-admin was refused for files their own listing shows
+	 * them. {@see SudoScope::mayReachFile()} answers the question actually
+	 * being asked.
+	 *
+	 * Returns the *caller*, not a scope: the reach is settled here, and what
+	 * the route still needs downstream is who is acting.
+	 */
+	private function sudoFileOrRefusal( int $fileId ): string|DataResponse
+	{
+
+		$own = $this->scopeOrRefusal();
+
+		if ( $own instanceof DataResponse )
+		{
+			return $own;
+		}
+
+		$mayReach = $this->sudo->mayReachFile( $own, $fileId );
+
+		if ( $mayReach && ! $this->confirmation->isConfirmed( $own ) )
+		{
+			return new DataResponse(
+				[ 'success' => false, 'message' => 'Password confirmation required' ],
+				Http::STATUS_FORBIDDEN,
+			);
+		}
+
+		if ( ! $mayReach )
+		{
+			return new DataResponse(
+				[ 'success' => false, 'error' => 'Not yours to look at.' ],
+				Http::STATUS_FORBIDDEN,
+			);
+		}
+
+		return $own;
+	}
+
+
+	/**
 	 * The accounts a cross-account route may read when the caller names a
 	 * set, or the response to send instead.
 	 *
@@ -881,6 +927,71 @@ class PublicApiController
 	public function recalcHash( int $fileId ): DataResponse
 	{
 
+		$scope = $this->scopeOrRefusal();
+
+		return $scope instanceof DataResponse
+			? $scope
+			: $this->recalcFor( $fileId, $scope, false );
+	}
+
+
+	/**
+	 * {@see recalcHash()} for a file that need not be the caller's own.
+	 *
+	 * Refuses in the order the other cross-account routes do — who may use
+	 * the API at all, then whether this file is theirs to reach, then the
+	 * password confirmation — so someone who may not ask is told so without
+	 * being made to type a password first.
+	 *
+	 * Reaching the file is not permission to make the server work on it: the
+	 * manual-calculation permission is still answered against the caller,
+	 * inside {@see ChecksumApi::recalcHash()}, and so is any rule excluding
+	 * the path.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	// No #[NoCSRFRequired], for the reason given on the route above.
+	#[NoAdminRequired]
+	#[UserRateLimit( limit: 20, period: 60 )]
+	#[ApiRoute( verb: 'POST', url: '/api/v1/sudo/file/{fileId}/recalc' )]
+	public function sudoRecalcHash( int $fileId ): DataResponse
+	{
+
+		$scope = $this->sudoFileOrRefusal( $fileId );
+
+		if ( $scope instanceof DataResponse )
+		{
+			return $scope;
+		}
+
+		// Info, not debug: this one writes a hash onto a file that is not the
+		// caller's, and the log is the only place that says who asked. The
+		// lines further down carry the fileid and never a uid, so without
+		// this a cross-account recalculation reads as though the owner did it.
+		$this->logger->info(
+			'FCIAS PublicApiController: cross-account recalculation',
+			[
+				'app'        => Application::APP_ID,
+				'fileId'     => $fileId,
+				'actingUser' => $scope,
+			],
+		);
+
+		return $this->recalcFor( $fileId, $scope, true );
+	}
+
+
+	/**
+	 * The route's body, for either wrapper. $actingUser is who asked —
+	 * always the session's account, never anything a client sent — and
+	 * $anyAccount says the reach was settled before we got here.
+	 */
+	private function recalcFor(
+		int    $fileId,
+		string $actingUser,
+		bool   $anyAccount,
+	): DataResponse {
+
 		$body = json_decode( file_get_contents( 'php://input' ), true );
 		$algo = is_array( $body )
 			? ( $body['algo'] ?? null )
@@ -895,22 +1006,16 @@ class PublicApiController
 		$this->logger->debug(
 			'FCIAS PublicApiController: recalcHash called',
 			[
-				'app'    => Application::APP_ID,
-				'fileId' => $fileId,
-				'algo'   => $algo,
+				'app'        => Application::APP_ID,
+				'fileId'     => $fileId,
+				'algo'       => $algo,
+				'actingUser' => $actingUser,
 			],
 		);
 
-		$scope = $this->scopeOrRefusal();
-
-		if ( $scope instanceof DataResponse )
-		{
-			return $scope;
-		}
-
 		try
 		{
-			$result = $this->api->recalcHash( $fileId, $algo, $scope );
+			$result = $this->api->recalcHash( $fileId, $algo, $actingUser, $anyAccount );
 
 			if ( $result['success'] )
 			{

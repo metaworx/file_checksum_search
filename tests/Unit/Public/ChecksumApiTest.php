@@ -1150,6 +1150,147 @@ class ChecksumApiTest
 	}
 
 
+	/**
+	 * The point of the fourth parameter: the caller has established the reach
+	 * elsewhere ({@see SudoScope::mayReachFile()}), so the own-tree check is
+	 * waived — the file is somebody else's and there is nothing to find in
+	 * alice's own folder.
+	 */
+	public function testRecalcHashReachesAnotherAccountsFileWhenTheReachWasSettled(): void
+	{
+
+		$this->permissionService->method( 'isAllowed' )
+		                        ->with( PermissionService::PERMISSION_MANUAL_RECALC, 'alice' )
+		                        ->willReturn( true )
+		;
+
+		// bob holds it, so bob's folder is where it resolves. Alice's own is
+		// never consulted — there is nothing of hers to find.
+		$this->userMountCache->method( 'getMountsForFileId' )
+		                     ->with( 42 )
+		                     ->willReturn( [
+			                     $this->createConfiguredMock( \OCP\Files\Config\ICachedMountFileInfo::class, [
+				                     'getUser' => $this->createConfiguredMock( IUser::class, [ 'getUID' => 'bob' ] ),
+			                     ] ),
+		                     ] )
+		;
+
+		$file       = $this->createMock( File::class );
+		$bobsFolder = $this->createMock( Folder::class );
+		$bobsFolder->method( 'getById' )
+		           ->with( 42 )
+		           ->willReturn( [ $file ] )
+		;
+		$this->rootFolder->expects( $this->once() )
+		                 ->method( 'getUserFolder' )
+		                 ->with( 'bob' )
+		                 ->willReturn( $bobsFolder )
+		;
+
+		// The node, not the id: resolving by id goes through the session's
+		// own root, where another account's file is not mounted at all.
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'recalcHash' )
+		;
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'recalcFileHash' )
+		                       ->with( $file, 'sha256' )
+		                       ->willReturn( [ 'success' => true ] )
+		;
+
+		$result = $this->api->recalcHash( 42, 'sha256', 'alice', true );
+
+		$this->assertTrue( $result['success'] );
+	}
+
+
+	/**
+	 * A file no account holds cannot be resolved anywhere, and says so
+	 * rather than reaching the hashing service with nothing.
+	 */
+	public function testRecalcHashAcrossAccountsFailsWhenNoHolderCanResolveTheFile(): void
+	{
+
+		$this->permissionService->method( 'isAllowed' )
+		                        ->with( PermissionService::PERMISSION_MANUAL_RECALC, 'alice' )
+		                        ->willReturn( true )
+		;
+		$this->userMountCache->method( 'getMountsForFileId' )
+		                     ->with( 42 )
+		                     ->willReturn( [] )
+		;
+
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'recalcFileHash' )
+		;
+
+		$result = $this->api->recalcHash( 42, 'sha256', 'alice', true );
+
+		$this->assertFalse( $result['success'] );
+		$this->assertSame( 'File not found.', $result['error'] );
+	}
+
+
+	/**
+	 * And what it does *not* waive. Reaching a file is not permission to make
+	 * the server work on it: an account without the manual-calculation
+	 * permission is refused whether the file is theirs or somebody else's.
+	 * Conflating the two was what made splitting the parameter necessary —
+	 * passing null to widen the reach would have given this away with it.
+	 */
+	public function testReachingAcrossAccountsDoesNotWaiveTheCalculationPermission(): void
+	{
+
+		$this->groupManager->method( 'isAdmin' )
+		                   ->with( 'alice' )
+		                   ->willReturn( false )
+		;
+		$this->permissionService->method( 'isAllowed' )
+		                        ->with( PermissionService::PERMISSION_MANUAL_RECALC, 'alice' )
+		                        ->willReturn( false )
+		;
+
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'recalcHash' )
+		;
+
+		$result = $this->api->recalcHash( 42, 'sha256', 'alice', true );
+
+		$this->assertFalse( $result['success'] );
+		$this->assertTrue( $result['forbidden'] );
+	}
+
+
+	/**
+	 * Nor does it waive an administrator's exclude rule, which is about the
+	 * path and not about who is asking — and is the one control an
+	 * administrator has over reads that cost money.
+	 */
+	public function testReachingAcrossAccountsDoesNotWaiveAnExcludeRule(): void
+	{
+
+		$this->permissionService->method( 'isAllowed' )
+		                        ->with( PermissionService::PERMISSION_MANUAL_RECALC, 'alice' )
+		                        ->willReturn( true )
+		;
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->with( 42 )
+		                  ->willReturn( [ 'id' => 'r1', 'type' => 'exclude' ] )
+		;
+
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'recalcHash' )
+		;
+
+		$result = $this->api->recalcHash( 42, 'sha256', 'alice', true );
+
+		$this->assertFalse( $result['success'] );
+		$this->assertTrue( $result['excluded'] );
+		$this->assertSame( 'r1', $result['ruleId'] );
+	}
+
+
 	// ─── rules surface ──────────────────────────────────────────────
 
 

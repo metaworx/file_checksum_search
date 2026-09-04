@@ -137,6 +137,118 @@ class PublicApiControllerTest
 	// ─── scope ──────────────────────────────────────────────────────
 
 	/**
+	 * A controller wired to a specific reach answer and confirmation state,
+	 * for the per-file cross-account route. Everything else is the default
+	 * caller from {@see setUp()}, an administrator.
+	 */
+	private function withReach(
+		bool $mayReach,
+		bool $confirmed = true,
+	): PublicApiController {
+
+		$sudo = $this->createMock( SudoScope::class );
+		$sudo->method( 'mayReachFile' )
+		     ->willReturn( $mayReach )
+		;
+
+		$confirmation = $this->createMock( SudoConfirmation::class );
+		$confirmation->method( 'isConfirmed' )
+		             ->willReturn( $confirmed )
+		;
+
+		return new PublicApiController(
+			'file_checksum_search',
+			$this->createMock( IRequest::class ),
+			$this->api,
+			$this->userSession,
+			$this->groupManager,
+			$this->logger,
+			$this->createMock( AlgorithmCatalogue::class ),
+			$this->userConfig,
+			$this->lockdown,
+			$sudo,
+			$this->session,
+			$this->permissions,
+			$confirmation,
+			$this->appConfig,
+		);
+	}
+
+
+	/**
+	 * Permission before password here too: someone who may not reach the file
+	 * is told so rather than being made to confirm first and refused after.
+	 */
+	public function testRecalcAcrossAccountsRefusesAFileOutOfReach(): void
+	{
+
+		$this->api->expects( $this->never() )
+		          ->method( 'recalcHash' )
+		;
+
+		$response = $this->withReach( false, false )
+		                 ->sudoRecalcHash( 42 )
+		;
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $response->getStatus() );
+		$this->assertSame( 'Not yours to look at.', $response->getData()['error'] );
+	}
+
+
+	public function testRecalcAcrossAccountsAsksAnUnconfirmedCallerToConfirm(): void
+	{
+
+		$this->api->expects( $this->never() )
+		          ->method( 'recalcHash' )
+		;
+
+		$response = $this->withReach( true, false )
+		                 ->sudoRecalcHash( 42 )
+		;
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $response->getStatus() );
+		$this->assertSame( 'Password confirmation required', $response->getData()['message'] );
+	}
+
+
+	/**
+	 * The reach settled, the API is asked to waive the own-tree check — and
+	 * told who is acting, so the permission it still checks is checked
+	 * against the caller and not against the file's owner.
+	 */
+	public function testRecalcAcrossAccountsPassesTheActingUserAndWaivesOnlyTheReach(): void
+	{
+
+		$this->api->expects( $this->once() )
+		          ->method( 'recalcHash' )
+		          ->with( 42, $this->anything(), 'admin', true )
+		          ->willReturn( [ 'success' => true, 'hash' => 'abc' ] )
+		;
+
+		$response = $this->withReach( true )
+		                 ->sudoRecalcHash( 42 )
+		;
+
+		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
+	}
+
+
+	/**
+	 * The ordinary route never waives it, whoever is calling.
+	 */
+	public function testRecalcOnOnesOwnFileNeverWaivesTheReach(): void
+	{
+
+		$this->api->expects( $this->once() )
+		          ->method( 'recalcHash' )
+		          ->with( 42, $this->anything(), 'admin', false )
+		          ->willReturn( [ 'success' => true, 'hash' => 'abc' ] )
+		;
+
+		$this->assertSame( Http::STATUS_OK, $this->controller->recalcHash( 42 )->getStatus() );
+	}
+
+	/**
 	 * Permission first, confirmation second: a sudoer who has not confirmed
 	 * gets core's own message, which the pages' dialog recognises, and the
 	 * API is never asked.

@@ -312,6 +312,7 @@ Responses are nonetheless plain JSON: these are `ApiController`s, not `OCSContro
 | 17 | `/api/v1/sudo/lookup` | GET | — | Every account; as 15 |
 | 18 | `/api/v1/sudo/duplicates` | GET | — | One named account (`user`), a set (`users[]`/`groups[]`, merged), or every account; sudoers, or a sub-admin naming their own members |
 | 19 | `/api/v1/sudo/selectable` | GET | — | Which groups and accounts the caller may name on the routes above |
+| 20 | `/api/v1/sudo/file/{fileId}/recalc` | POST | 20/min | Recalculate a file that need not be the caller's own; password confirmation, and the file must be within the caller's reach |
 
 > **Note:** `getHashesByFile()` and `getHashesByPath()` are PHP-only convenience methods with no HTTP equivalent. HTTP consumers should use `getHashesByFileId()` after obtaining a `fileId` from NC's WebDAV PROPFIND or other APIs.
 
@@ -838,9 +839,9 @@ granted for it, described there as well.
 
 ### Cross-account routes
 
-Every ordinary route reads the caller's own files. Four of them have a twin
-under `/api/v1/sudo/` that reads across accounts, and the Duplicates page has
-one for naming another account:
+Every ordinary route reads the caller's own files. Five of them have a twin
+under `/api/v1/sudo/` that crosses accounts, and the Duplicates page has one
+for naming another account:
 
 | Ordinary | Cross-account | Scope of the twin |
 |---|---|---|
@@ -849,6 +850,15 @@ one for naming another account:
 | `GET /api/v1/lookup` | `GET /api/v1/sudo/lookup` | every account |
 | `GET /api/v1/duplicates` | `GET /api/v1/sudo/duplicates?user=` | one named account, or every account when `user` is omitted |
 | — | `GET /api/v1/sudo/duplicates?users[]=&groups[]=` | the named accounts and the members of the named groups, as one merged listing |
+| `POST /api/v1/file/{fileId}/recalc` | `POST /api/v1/sudo/file/{fileId}/recalc` | any file the caller may reach |
+
+The last one is the only twin that *writes*, and two things about it do not
+change by crossing accounts: the **Who may calculate by hand** permission is
+answered against whoever is asking, not against the file's owner, and an
+administrator's `exclude` rule still refuses the path — which is what keeps a
+cross-account recalculation from reading storage that costs money. A
+cross-account recalculation is logged at info level naming the account that
+asked, because nothing else records who did it.
 
 Two things stand between a caller and a twin, in this order.
 
