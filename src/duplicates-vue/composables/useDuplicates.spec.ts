@@ -181,6 +181,57 @@ describe('useDuplicates', () => {
 			expect(fetchMock).toHaveBeenCalledTimes(2)
 		})
 
+		// Verification is asked for per file now, so one file must be able to
+		// answer without its neighbours being read — that is the whole point
+		// of the change: reading costs money on metered storage.
+		it('verifies one file without touching the rest of its group', async () => {
+			const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+				Promise.resolve(jsonResponse({ success: true, hash: 'abc' })),
+			)
+
+			const { verifyFile } = useDuplicates()
+			const g = group('a.txt', 'b.txt')
+			await verifyFile(g, g.files[0])
+
+			expect(fetchMock).toHaveBeenCalledTimes(1)
+			expect(g.files[0].verified).toBe(true)
+			expect(g.files[1].verified).toBeUndefined()
+		})
+
+		// The header must not claim a verdict for a group only half of which
+		// has been read.
+		it('leaves the group unjudged until every file has an answer', async () => {
+			vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+				Promise.resolve(jsonResponse({ success: true, hash: 'abc' })),
+			)
+
+			const { verifyFile } = useDuplicates()
+			const g = group('a.txt', 'b.txt')
+
+			await verifyFile(g, g.files[0])
+			expect(g.match_count).toBeUndefined()
+
+			await verifyFile(g, g.files[1])
+			expect(g.match_count).toBe(2)
+			expect(g.mismatch_count).toBe(0)
+		})
+
+		// An explicit click re-reads, even where an interrupted run had
+		// already answered for that file.
+		it('re-checks a file that was already verified', async () => {
+			const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+				Promise.resolve(jsonResponse({ success: true, hash: 'abc' })),
+			)
+
+			const { verifyFile } = useDuplicates()
+			const g = group('a.txt')
+			await verifyFile(g, g.files[0])
+			fetchMock.mockClear()
+
+			await verifyFile(g, g.files[0])
+			expect(fetchMock).toHaveBeenCalledTimes(1)
+		})
+
 		it('does not start later groups once the limit was hit', async () => {
 			const fetchMock = vi
 				.spyOn(globalThis, 'fetch')

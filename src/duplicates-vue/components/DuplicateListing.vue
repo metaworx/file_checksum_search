@@ -12,14 +12,13 @@
  * its own {@see useDuplicates} state so switching tabs does not reset the
  * other's filters.
  */
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, watch, onMounted } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 import AlgorithmSelect from '../../components/AlgorithmSelect.vue'
 import HelpPopover from '../../components/HelpPopover.vue'
 import DuplicateGroup from './DuplicateGroup.vue'
-import VerifyButton from './VerifyButton.vue'
 import { useDuplicates, type DuplicateScope, type DuplicateGroup as GroupType } from '../composables/useDuplicates'
 import { type AlgoOption } from '../../algorithms'
 
@@ -55,8 +54,8 @@ const HELP = {
 		+ 'server computes; an algorithm nobody has enabled is not offered.',
 	min: 'The smallest group to list: how many files must share a checksum before they count '
 		+ 'as duplicates. Two is every duplicate; a higher number finds the widely copied ones.',
-	limit: 'How many groups one page shows. Verify hashes recomputes every file on the page, '
-		+ 'and recomputation is rate limited, so a smaller page verifies in one go.',
+	limit: 'How many groups one page shows. Nothing here is read from disk until you ask a group '
+		+ 'or a file to verify, so a larger page costs a longer query, not longer reads.',
 	hash: 'Show only groups whose checksum this names. Whole values come first, then those that '
 		+ 'start with what you typed. Tick Search anywhere to match it in the middle of a hash too. '
 		+ 'Upper case is fine.',
@@ -80,13 +79,12 @@ const {
 	error,
 	load,
 	verifyGroups,
+	verifyFile,
 	fileUrl,
 	resetOffset,
 	prevPage,
 	nextPage,
 } = useDuplicates()
-
-const verifiedOnly = ref(false)
 
 /**
  * The hash field reloads as it is typed, but not per keystroke: a hash is
@@ -118,15 +116,6 @@ function bounded(value: string | number, min: number, max: number, fallback: num
 	const n = Math.trunc(Number(value))
 	return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback
 }
-
-const filteredGroups = computed<GroupType[]>(() => {
-	if (!verifiedOnly.value) return groups.value
-	return groups.value.filter((g) => (g.mismatch_count ?? 0) === 0)
-})
-
-const hasVerified = computed(() =>
-	groups.value.every((g) => g.match_count !== undefined && g.mismatch_count !== undefined),
-)
 
 /** A scoped listing with nothing named yet has nothing to ask for. */
 const awaitingScope = computed(
@@ -165,8 +154,12 @@ function refresh(): void {
 	load()
 }
 
-async function onVerify(): Promise<void> {
-	await verifyGroups(groups.value)
+/**
+ * Verification is asked for per group or per file, never for the page:
+ * reading every file costs time and, on metered storage, money.
+ */
+async function onVerifyGroup(group: GroupType): Promise<void> {
+	await verifyGroups([group])
 }
 
 onMounted(() => {
@@ -257,15 +250,6 @@ onMounted(() => {
 				<NcButton variant="primary" @click="refresh">
 					Refresh
 				</NcButton>
-				<VerifyButton :verifying="verifying" :has-verified="hasVerified" @verify="onVerify" />
-				<!-- The wrapper carries the test hook: the component does not put attributes on an ancestor of its input. -->
-				<span data-testid="fcias-only-matching">
-					<NcCheckboxRadioSwitch
-						v-model="verifiedOnly"
-						title="Show only groups where all files were confirmed matching">
-						Only matching
-					</NcCheckboxRadioSwitch>
-				</span>
 			</div>
 		</div>
 
@@ -279,14 +263,17 @@ onMounted(() => {
 			<div v-else-if="error" class="db-error">
 				{{ error }}
 			</div>
-			<div v-else-if="filteredGroups.length === 0" class="db-empty">
-				{{ groups.length === 0 ? 'No duplicate files found.' : 'No matching duplicate files found.' }}
+			<div v-else-if="groups.length === 0" class="db-empty">
+				No duplicate files found.
 			</div>
 			<DuplicateGroup
-				v-for="(group, idx) in filteredGroups"
+				v-for="(group, idx) in groups"
 				:key="`${group.algo}-${group.hash_value}-${idx}`"
 				:group="group"
-				:file-url="fileUrl" />
+				:file-url="fileUrl"
+				:verifying="verifying"
+				@verify-group="onVerifyGroup"
+				@verify-file="verifyFile" />
 		</div>
 
 		<div class="db-pagination">

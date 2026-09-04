@@ -234,6 +234,37 @@ export function useDuplicates() {
 		state.verifying = false
 	}
 
+	/**
+	 * Verify one file, through the same loop a group goes through — so it
+	 * obeys the same rate limit and reports the same way. The group's counts
+	 * are refreshed from its files afterwards, since one file changing its
+	 * answer changes what the header says.
+	 */
+	async function verifyFile(group: DuplicateGroup, file: DuplicateFileItem): Promise<void> {
+		// An explicit click always re-reads the file. Without this the resume
+		// path — which skips what an interrupted run already answered — would
+		// quietly return the old verdict instead of checking again.
+		file.verified = undefined
+		file.verified_hash = undefined
+		file.verify_error = undefined
+
+		await verifyGroups([{ ...group, files: [file] }])
+
+		// verifyGroups counted the group of one; recount the real group from
+		// what its files now say, leaving the never-verified ones out.
+		const judged = group.files.filter((f) => f.verified !== undefined)
+
+		if (judged.length === group.files.length) {
+			group.match_count = judged.filter((f) => f.verified).length
+			group.mismatch_count = judged.length - group.match_count
+		} else {
+			// Not every file has an answer yet, so the header must not claim
+			// the group was verified.
+			group.match_count = undefined
+			group.mismatch_count = undefined
+		}
+	}
+
 	function fileUrl(file: DuplicateFileItem): string {
 		const dirPath = file.path ? (file.path.substring(0, file.path.lastIndexOf('/')) || '/') : '/'
 		return `${generateUrl(FRONTEND.fileLink, { fileid: file.fileid })}?dir=${encodeURIComponent(dirPath)}&opendetails=true`
@@ -255,6 +286,7 @@ export function useDuplicates() {
 		...toRefs(state),
 		load,
 		verifyGroups,
+		verifyFile,
 		fileUrl,
 		resetOffset,
 		prevPage,
