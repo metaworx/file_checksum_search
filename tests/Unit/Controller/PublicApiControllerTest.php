@@ -234,6 +234,55 @@ class PublicApiControllerTest
 
 
 	/**
+	 * What block 6 is for. These two routes asked
+	 * {@see SudoScope::resolve()} with no target, which means "every
+	 * account" — something no sub-admin may ever have — so a group leader
+	 * allowed to *list* their members' duplicates was refused the moment
+	 * they asked anything about one of the files in that listing. The
+	 * per-file question has a per-file answer now.
+	 *
+	 * `mayReachFile` returning true is what a sub-admin gets for a member's
+	 * file; the point is that the route no longer refuses on the way there.
+	 */
+	public function testTheSudoPerFileRoutesServeASubAdminTheirMembersFile(): void
+	{
+
+		$controller = $this->withReach( true );
+
+		$this->api->expects( $this->once() )
+		          ->method( 'getHashesByFileId' )
+		          ->with( 42, null )
+		          ->willReturn( [ 'fileid' => 42, 'hashes' => [] ] )
+		;
+		$this->api->expects( $this->once() )
+		          ->method( 'findSameHash' )
+		          ->with( 42, null )
+		          ->willReturn( [ 'duplicates' => [] ] )
+		;
+
+		$this->assertSame( Http::STATUS_OK, $controller->sudoGetHashes( 42 )->getStatus() );
+		$this->assertSame( Http::STATUS_OK, $controller->sudoFindDuplicates( 42 )->getStatus() );
+	}
+
+
+	public function testTheSudoPerFileRoutesStillRefuseAFileOutOfReach(): void
+	{
+
+		$controller = $this->withReach( false );
+
+		$this->api->expects( $this->never() )
+		          ->method( 'getHashesByFileId' )
+		;
+		$this->api->expects( $this->never() )
+		          ->method( 'findSameHash' )
+		;
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $controller->sudoGetHashes( 42 )->getStatus() );
+		$this->assertSame( Http::STATUS_FORBIDDEN, $controller->sudoFindDuplicates( 42 )->getStatus() );
+	}
+
+
+	/**
 	 * The ordinary route never waives it, whoever is calling.
 	 */
 	public function testRecalcOnOnesOwnFileNeverWaivesTheReach(): void
@@ -257,8 +306,8 @@ class PublicApiControllerTest
 	{
 
 		$this->sudo = $this->createMock( SudoScope::class );
-		$this->sudo->method( 'resolve' )
-		           ->willReturn( null )
+		$this->sudo->method( 'mayReachFile' )
+		           ->willReturn( true )
 		;
 		$this->confirmation = $this->createMock( SudoConfirmation::class );
 		$this->confirmation->method( 'isConfirmed' )
@@ -495,9 +544,9 @@ class PublicApiControllerTest
 	{
 
 		$this->sudo = $this->createMock( SudoScope::class );
-		$this->sudo->method( 'resolve' )
-		           ->with( 'admin', null )
-		           ->willReturn( null )
+		$this->sudo->method( 'mayReachFile' )
+		           ->with( 'admin', 42 )
+		           ->willReturn( true )
 		;
 		$controller = new PublicApiController(
 			'file_checksum_search',

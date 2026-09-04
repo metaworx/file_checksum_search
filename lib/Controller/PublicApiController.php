@@ -456,11 +456,13 @@ class PublicApiController
 	public function sudoGetHashes( int $fileId ): DataResponse
 	{
 
-		$scope = $this->sudoScopeOrRefusal(  );
+		$scope = $this->sudoFileOrRefusal( $fileId );
 
+		// As above: the reach is settled against this file, so the body is
+		// told not to ask the own-tree question a second time.
 		return $scope instanceof DataResponse
 			? $scope
-			: $this->hashesFor( $fileId, $scope );
+			: $this->hashesFor( $fileId, null );
 	}
 
 
@@ -709,11 +711,13 @@ class PublicApiController
 	public function sudoFindDuplicates( int $fileId ): DataResponse
 	{
 
-		$scope = $this->sudoScopeOrRefusal(  );
+		$scope = $this->sudoFileOrRefusal( $fileId );
 
+		// The reach was settled against this file; null tells the body not to
+		// re-ask the own-tree question, which is the whole point of being here.
 		return $scope instanceof DataResponse
 			? $scope
-			: $this->sameHashFor( $fileId, $scope );
+			: $this->sameHashFor( $fileId, null );
 	}
 
 
