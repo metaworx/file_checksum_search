@@ -13,7 +13,7 @@ what the specs below spend their `before()` hooks on.
 |-----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `app-enable.cy.js`    | Enables/disables the app via the UI + `occ`, leaving it **enabled** for the following specs.                                                                                                                        |
 | `checksums.cy.js`     | Uploads two identical files via WebDAV and computes their sha1 through the sidebar **"Recalc SHA-1"** action — the one spec that makes the app hash something for real. Also asserts inline "Find duplicates".      |
-| `duplicates.cy.js`    | Creates three files, resets, states their hashes from a fixture, then asserts the page's group, verifies hashes end to end, and exercises the "Only matching" filter against a stub.                                |
+| `duplicates.cy.js`    | Creates three files, resets, states their hashes from a fixture, then asserts the page's group and verifies end to end — a whole group through **Verify all**, one row through **Verify**.                          |
 | `global-search.cy.js` | Creates one file with a hash nothing else has, then opens the unified search, verifies the **"File Checksums"** provider appears under **"Places"**, and checks a hit and a miss.                                   |
 | `rules-admin.cy.js`   | Live, no stubs: quiet start and the idle banner, the banded table, creating a rule through the dialog, placeholder rows, the in-dialog error card, the provider-missing badge, and the row action menu.              |
 | `rules-personal.cy.js`| Alice's own page, an enforced rule she may not touch, bob refused a recalculation by *alice's* rule on a file she shares with him, and a hash search returning nothing to someone who cannot reach the file.         |
@@ -85,7 +85,8 @@ tests the same stack in a fraction of the time.
 - **Hashes** are computed through the sidebar's **"Recalc SHA-1"** action (the
   real `recalc` API), not via `occ file-checksum-search:generate`.
 - **`cy.intercept` stubs** are used only where a deterministic state is needed —
-  e.g. the "Only matching" filter needs one verified and one mixed group.
+  e.g. the recalculation rate limit, which honestly reached would cost the test
+  a minute of waiting.
 - **File ids** are resolved from a DAV `PROPFIND` (`oc:fileid`) request with an
   explicit `<d:propfind>` body.
 - **Re-runnable**: fixed directories and a reset, not accumulation. Specs upload
@@ -93,7 +94,7 @@ tests the same stack in a fraction of the time.
   `cy.resetFciasState()` clears the hashes before a spec states its own. This
   paragraph used to claim that repeated runs "simply accumulate files rather
   than collide" — the accumulation was the bug: one hash group reached 145 files
-  and Verify hashes started hitting the per-user recalculation rate limit
+  and verification started hitting the per-user recalculation rate limit
   partway through, failing for a reason that had nothing to do with the page.
 - **Selectors are text-free.** Assert on `data-*` attributes, ids and API
   payload fields, never on the app's own visible strings: the app is not

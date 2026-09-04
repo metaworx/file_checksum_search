@@ -266,11 +266,12 @@ The duplicate browser groups indexed hashes (`GROUP BY algo, hash_value`)
 and joins the filecache to list the files in each group. Only groups meeting
 the configured minimum file count are shown.
 
-Because a hash match is not byte-for-byte proof of identical content, FCIAS
-provides a **Verify hashes** action that recalculates every hash in the
-current result set from file content and flags any group where the
-recalculated hashes do not match. Use the "Only matching" filter to hide
-groups that failed verification.
+Because a hash match is not byte-for-byte proof of identical content — and
+because a file may have changed since it was hashed — FCIAS can recalculate
+from file content and flag what no longer matches. That is asked for per
+group (**Verify all**) or per file (**Verify**), never for the page: reading
+a file's bytes takes time on slow storage and costs money on metered
+storage, so the scope stays with whoever chooses to pay it.
 
 ## How does the public API work?
 
@@ -390,9 +391,10 @@ php occ file-checksum-search:hash --user=alice --path="**"
 
 ### A file's hash does not match its content
 
-Run the duplicate browser's **Verify hashes** action, or recalculate a
-single file via the API or the sidebar. An outdated hash means the file was
-modified after its checksum was last computed.
+Run the duplicate browser's **Verify all** on the group, or **Verify** on
+that one row, or recalculate the file via the API or the sidebar. An
+outdated hash means the file was modified after its checksum was last
+computed.
 
 ### Table prefix issues
 

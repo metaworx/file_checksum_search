@@ -579,8 +579,8 @@ FCIAS provides a global duplicate file browser at **`/apps/file_checksum_search/
 - Filter by algorithm (SHA-1, MD5, SHA-256, SHA-512, SHA3-256, SHA3-512, CRC32)
 - Set minimum duplicate count and result limit
 - Expandable groups showing file paths
-- **Verify hashes** button that recalculates all hashes from file content and flags mismatches
-- "Only matching" checkbox to filter to fully-verified groups
+- Filter by hash, matching at the start of the checksum or anywhere in it
+- **Verify all** on a group and **Verify** on a file row, recalculating from file content and flagging mismatches — asked for per group or per file, since reading files costs time and, on metered storage, money
 
 The files sidebar also includes a **"Find duplicates"** button that shows files sharing hash values with the currently selected file.
 

@@ -7,7 +7,7 @@
  * Builds its own state and depends on no other spec. It used to read
  * whatever checksums.cy.js had left behind, which is how it rotted: each
  * run added two more files with the same content, and by 145 of them
- * Verify hashes was hitting the per-user recalculation rate limit
+ * verification was hitting the per-user recalculation rate limit
  * partway through and failing on a real instance for a reason that had
  * nothing to do with the page.
  *
@@ -46,15 +46,7 @@ const files = [
 // makes "how many groups" a meaningful question.
 const DUP_HASH = '0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33'
 
-// Stub hashes used only by the "Only matching" filter test, which needs
-// one fully-verified and one mixed group to exercise the checkbox.
-const H1 = '0b4e7a0e5fe84ad35fb5f95b9ceeac79'
-const H2 = '7c6a180b36896a0a8c02787eeafb0e4c'
-
-const findAllDuplicatesUrl = '**/ocs/v2.php/apps/file_checksum_search/api/v1/duplicates*'
 const recalcUrl = '**/ocs/v2.php/apps/file_checksum_search/api/v1/file/*/recalc*'
-
-const file = ( fileid, path ) => ( { fileid, path, name: path.split( '/' ).pop() } )
 
 const webdavUrl = ( path ) => `/remote.php/dav/files/${ adminUser }${ path }`
 
@@ -117,11 +109,13 @@ describe( 'FCIAS Duplicates page', () => {
 		ownGroup().find( '.db-count' ).should( 'contain', '2' )
 	} )
 
-	it( 'verifies hashes and the group comes back matching', () => {
+	it( 'verifies a group through its own button and it comes back matching', () => {
 		cy.visit( DUPLICATES_URL )
 
 		ownGroup().should( 'have.length', 1 )
-		cy.get( '.verify-btn' ).click()
+		// Per group, never per page: reading every file costs time and, on
+		// metered storage, money.
+		ownGroup().find( '.db-verify-all' ).click()
 
 		// Identical content and a stated hash that agrees with it, so every
 		// file verifies. The status class is the assertion rather than the
@@ -129,6 +123,20 @@ describe( 'FCIAS Duplicates page', () => {
 		ownGroup().find( '.db-group-header-status.verified', { timeout: FIND_TIMEOUT } )
 			.should( 'exist' )
 		ownGroup().find( '.db-group-header-status.mixed' ).should( 'not.exist' )
+	} )
+
+	it( 'verifies one file on its own', () => {
+		cy.visit( DUPLICATES_URL )
+
+		ownGroup().should( 'have.length', 1 )
+		ownGroup().find( '.db-group-header' ).click()
+		ownGroup().find( '.db-file-item' ).first().find( '.db-verify-file' ).click()
+
+		// That file answers; the group as a whole is not claimed as verified
+		// while its other file has never been read.
+		ownGroup().find( '.db-file-item .db-verified', { timeout: FIND_TIMEOUT } )
+			.should( 'have.length', 1 )
+		ownGroup().find( '.db-group-header-status' ).should( 'not.exist' )
 	} )
 
 	it( 'stops verifying when the rate limit answers, and says so', () => {
@@ -144,7 +152,7 @@ describe( 'FCIAS Duplicates page', () => {
 
 		cy.visit( DUPLICATES_URL )
 		ownGroup().should( 'have.length', 1 )
-		cy.get( '.verify-btn' ).click()
+		ownGroup().find( '.db-verify-all' ).click()
 
 		cy.wait( '@recalcLimited' )
 
@@ -277,58 +285,13 @@ describe( 'FCIAS Duplicates page', () => {
 			cy.fciasMakeAccount( admin, 'nobody' ).then( ( account ) => {
 				cy.login( account.user, account.password )
 				cy.visit( DUPLICATES_URL )
-				cy.get( '[data-testid="fcias-only-matching"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+				// The page is up — its own tab is there — but the cross-account
+				// one is not offered to an account nobody named.
+				cy.get( '.db-tab[data-tab="mine"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 				cy.get( '.db-tab[data-tab="others"]' ).should( 'not.exist' )
 				cy.fciasDeleteAccount( admin, account.user )
 			} )
 		} )
 	} )
 
-	it( 'filters groups with the "Only matching" checkbox', () => {
-		// Stubbed, deliberately: this asserts the frontend's contract with a
-		// response shape — one fully-verified group and one mixed — that the
-		// server would only produce from files whose content had been made to
-		// disagree with their stored hashes. The server side of verification
-		// is the test above.
-		cy.intercept( 'GET', findAllDuplicatesUrl, {
-			duplicates: [
-				{
-					algo: 'sha1',
-					hash_value: H1,
-					file_count: 2,
-					files: [
-						file( 1001, '/folder/one.txt' ),
-						file( 1002, '/folder/two.txt' ),
-					],
-					match_count: 2,
-					mismatch_count: 0,
-				},
-				{
-					algo: 'sha256',
-					hash_value: H2,
-					file_count: 2,
-					files: [
-						file( 2001, '/other/a.txt' ),
-						file( 2002, '/other/b.txt' ),
-					],
-					match_count: 1,
-					mismatch_count: 1,
-				},
-			],
-		} ).as( 'duplicates' )
-
-		cy.visit( DUPLICATES_URL )
-		cy.get( '.db-group', { timeout: FIND_TIMEOUT } ).should( 'have.length', 2 )
-
-		// Only the fully-verified group remains when "Only matching" is set.
-		// NcCheckboxRadioSwitch hides its native input behind a styled label, so
-		// Cypress must be told the click on the hidden input is intended.
-		cy.get( '[data-testid="fcias-only-matching"] input[type="checkbox"]' ).check( { force: true } )
-		cy.get( '.db-group' ).should( 'have.length', 1 )
-		cy.get( '.db-hash' ).should( 'contain', H1 ).and( 'not.contain', H2 )
-
-		// Unchecking restores both groups.
-		cy.get( '[data-testid="fcias-only-matching"] input[type="checkbox"]' ).uncheck( { force: true } )
-		cy.get( '.db-group' ).should( 'have.length', 2 )
-	} )
 } )

@@ -48,18 +48,35 @@ it decides.
 - **Min** — the minimum number of files a group must contain to be listed.
 - **Limit** — how many groups to show per page.
 - **Refresh** — reload the list.
-- **Verify hashes** — recalculate every hash in the list from file content
-  and flag groups whose hashes no longer match. Recalculation is rate limited
-  to 20 files per minute, so a long list stops partway with a message; wait a
-  minute and click again to continue with the rest.
 - **Hash** — show only groups whose checksum this names. Whole values come
   first, then those that *start* with what you typed, so pasting a full hash
   finds its group and typing the first few characters narrows the list.
   Upper case is fine.
-- **Search anywhere** — with **Hash** filled in, match the term anywhere in
+- **Search anywhere** — beside the **Hash** field: match the term anywhere in
   the checksum rather than only at its start. Useful when you have a fragment
   from the middle of a hash; slower to narrow, since far more can match.
-- **Only matching** — show only groups that passed verification.
+
+### Checking that a duplicate is still a duplicate
+
+A group says which files *were* found to share a checksum. To confirm they
+still do, the file has to be read again and its checksum recomputed — so this
+is never done for the whole page at once. Reading files takes time, and on
+storage you pay for by the gigabyte it costs money.
+
+You ask for it where you want it:
+
+- **Verify all** on a group header — re-reads every file in that group.
+- **Verify** on a file row — re-reads that one file. Open a group by clicking
+  its header to see the rows.
+
+A file that still matches gets a tick; one that does not shows a cross and
+the checksum found instead, which means the file changed since it was last
+hashed. Once every file in a group has an answer, the header says whether the
+group as a whole matched.
+
+Recomputation is rate limited to 20 files a minute, so verifying a large
+group stops partway with a message; wait a minute and click again — it picks
+up where it stopped rather than starting over.
 
 ### Looking at other accounts
 
@@ -84,9 +101,8 @@ and leaving the *Others* tab puts you back among your own files.
 
 Click a group header to expand it and see the files in the group; each file
 opens in the Files app **in a new tab**. Long lists are paged with
-**← Previous** and **Next →** at the bottom. An empty page says which of two
-things it means: *No duplicate files found*, or — with **Only matching** on —
-*No matching duplicate files found*.
+**← Previous** and **Next →** at the bottom. An empty page says so:
+*No duplicate files found*.
 
 ## Finding files by hash (global search)
 
