@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Tests\Integration\Http;
 use OCA\FileChecksumSearch\Service\AuthTokenRepository;
 use OCA\FileChecksumSearch\Service\SudoTokens;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
+use OCP\Group\ISubAdmin;
 use OCP\IGroupManager;
 use OCP\IUserManager;
 use OCP\Server;
@@ -42,6 +43,9 @@ class SudoRouteTest
 	private const TEST_USER_PREFIX = 'fcias_sudo_test';
 
 	private const APP_PASSWORD_NAME = 'fcias sudo route test';
+
+	/** A group of the test account's own to lead; created and deleted per case. */
+	private const TEST_GROUP = 'fcias_sudo_test_group';
 
 	private const BASE_URL = 'http://127.0.0.1/ocs/v2.php/apps/file_checksum_search';
 
@@ -181,6 +185,57 @@ class SudoRouteTest
 		$response = $this->get( '/api/v1/lookup?hash=' . self::HASH, $this->appPassword );
 
 		$this->assertSame( 200, $response['status'] );
+	}
+
+
+	// ─── may they cross at all ───────────────────────────────────────
+
+	/**
+	 * The first HTTP case in this repository to run as a sub-admin: every
+	 * other test here is an administrator, which is how the tab stayed
+	 * hidden from group leaders unnoticed. The fixture mints the group and
+	 * the delegation itself rather than borrowing an account whose password
+	 * it does not know.
+	 *
+	 * The listing says a leader may cross, and the picker offers them their
+	 * own group but not "everyone" — the entry question and the ceiling
+	 * question answered differently for the same account.
+	 */
+	public function testAGroupLeaderIsToldTheyMayCrossButNotSeeEveryone(): void
+	{
+
+		self::adminGroup( false );
+		self::leaderOfTestGroup( true );
+
+		try
+		{
+			$listing = $this->get( '/api/v1/duplicates', self::$password );
+
+			$this->assertSame( 200, $listing['status'] );
+			$this->assertTrue( $listing['body']['canSudo'], 'a group leader may cross' );
+
+			$offer = $this->get( '/api/v1/sudo/selectable', self::$password );
+
+			$this->assertSame( 200, $offer['status'] );
+			$this->assertFalse( $offer['body']['all'], 'but may not name everyone' );
+			$this->assertSame( [ self::TEST_GROUP ], array_column( $offer['body']['groups'], 'id' ) );
+		}
+		finally
+		{
+			self::leaderOfTestGroup( false );
+		}
+	}
+
+
+	public function testAnAccountNobodyNamedIsToldTheyMayNotCross(): void
+	{
+
+		self::adminGroup( false );
+
+		$listing = $this->get( '/api/v1/duplicates', self::$password );
+
+		$this->assertSame( 200, $listing['status'] );
+		$this->assertFalse( $listing['body']['canSudo'] );
 	}
 
 
@@ -362,6 +417,47 @@ class SudoRouteTest
 	 * In or out of the admin group — the one thing that decides whether
 	 * the account is a sudoer here.
 	 */
+	/**
+	 * Make the account the leader of a group of its own, or undo that.
+	 * Core's delegation is set through ISubAdmin — no occ command exposes
+	 * it — and the group is created and deleted with it so nothing is left
+	 * behind for the next run to trip on.
+	 */
+	private static function leaderOfTestGroup( bool $leader ): void
+	{
+
+		$user     = Server::get( IUserManager::class )->get( self::$uid );
+		$groups   = Server::get( IGroupManager::class );
+		$subAdmin = Server::get( ISubAdmin::class );
+
+		if ( $user === null )
+		{
+			return;
+		}
+
+		$group = $groups->get( self::TEST_GROUP ) ?? $groups->createGroup( self::TEST_GROUP );
+
+		if ( $group === null )
+		{
+			return;
+		}
+
+		if ( $leader )
+		{
+			$subAdmin->createSubAdmin( $user, $group );
+
+			return;
+		}
+
+		if ( $subAdmin->isSubAdminOfGroup( $user, $group ) )
+		{
+			$subAdmin->deleteSubAdmin( $user, $group );
+		}
+
+		$group->delete();
+	}
+
+
 	private static function adminGroup( bool $member ): void
 	{
 

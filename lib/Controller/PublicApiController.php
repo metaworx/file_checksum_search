@@ -577,13 +577,15 @@ class PublicApiController
 
 		$response = $this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere );
 
-		// Whether the caller may switch to the instance-wide view. Rides on
+		// Whether the caller may cross into other accounts at all. Rides on
 		// the listing the page loads anyway, so the page needs no second
-		// request to know whether to offer the switch — and a script gets
-		// the same fact for free.
+		// request to know whether to offer the tab — and a script gets the
+		// same fact for free. mayCross(), not isSudoer(): the latter asks
+		// whether they may see *everyone*, which a group leader may not, and
+		// asking it here hid the tab from the very people the picker serves.
 		if ( $response->getStatus() === Http::STATUS_OK )
 		{
-			$response->setData( $response->getData() + [ 'canSudo' => $this->sudo->isSudoer( $scope ) ] );
+			$response->setData( $response->getData() + [ 'canSudo' => $this->sudo->mayCross( $scope ) ] );
 		}
 
 		return $response;

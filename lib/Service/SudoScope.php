@@ -47,13 +47,39 @@ class SudoScope
 
 
 	/**
-	 * Whether $uid may look across accounts at all.
+	 * Whether $uid may look at *everyone*: a member of `admin`, or an account
+	 * the instance_view permission names. This is the ceiling question, not
+	 * the entry question — for that, {@see mayCross()}.
 	 */
 	public function isSudoer( string $uid ): bool
 	{
 
 		return $this->groupManager->isAdmin( $uid )
 		       || $this->permissions->isAllowed( PermissionService::PERMISSION_INSTANCE_VIEW, $uid );
+	}
+
+
+	/**
+	 * Whether $uid may cross into other accounts' files at all — a sudoer,
+	 * or a sub-admin of any group.
+	 *
+	 * The one predicate for "offer the cross-account view". The tab used to
+	 * be offered on {@see isSudoer()}, which asks a stricter question — may
+	 * they see *everyone* — and so hid the view from the very group leaders
+	 * the picker was built for. How far they may see once inside is
+	 * {@see resolve()}'s and {@see resolveSet()}'s business.
+	 */
+	public function mayCross( string $uid ): bool
+	{
+
+		if ( $this->isSudoer( $uid ) )
+		{
+			return true;
+		}
+
+		$user = $this->userManager->get( $uid );
+
+		return $user !== null && $this->subAdmin->isSubAdmin( $user );
 	}
 
 

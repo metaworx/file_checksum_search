@@ -516,14 +516,19 @@ class PublicApiControllerTest
 
 	/**
 	 * The listing the Duplicates page loads says whether its viewer may
-	 * switch to the instance-wide view, so the page asks nothing else.
+	 * cross into other accounts, so the page asks nothing else. It asks
+	 * `mayCross()`, the entry question — not `isSudoer()`, the ceiling one,
+	 * which a group leader fails and which therefore hid the tab from them.
 	 */
 	public function testTheListingSaysWhetherTheCallerMaySudo(): void
 	{
 
-		$this->sudo->method( 'isSudoer' )
+		$this->sudo->method( 'mayCross' )
 		           ->with( 'admin' )
 		           ->willReturn( true )
+		;
+		$this->sudo->expects( $this->never() )
+		           ->method( 'isSudoer' )
 		;
 		$this->api->method( 'findDuplicatesFor' )
 		          ->willReturn( [ 'duplicates' => [], 'total_groups' => 0, 'pagination' => [ 'offset' => 0, 'limit' => 50 ] ] )

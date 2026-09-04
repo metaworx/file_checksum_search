@@ -133,6 +133,47 @@ class SudoScopeTest
 	}
 
 
+	// ─── mayCross: may they cross at all ────────────────────────────
+
+	/**
+	 * The entry question is wider than the ceiling question. `isSudoer()`
+	 * asks "may they see everyone", which a group leader may not; `mayCross()`
+	 * asks "may they see anyone but themselves", which a group leader may.
+	 * Offering the tab on the first is how it stayed hidden from them.
+	 */
+	public function testASubAdminMayCrossThoughTheyAreNoSudoer(): void
+	{
+
+		$this->groups->method( 'isAdmin' )
+		             ->willReturn( false )
+		;
+		$this->permissions->method( 'isAllowed' )
+		                  ->willReturn( false )
+		;
+		$this->subAdmin->method( 'isSubAdmin' )
+		               ->willReturnCallback( static fn ( IUser $u ): bool => $u->getUID() === 'lead' )
+		;
+
+		$this->assertFalse( $this->scope->isSudoer( 'lead' ) );
+		$this->assertTrue( $this->scope->mayCross( 'lead' ) );
+		$this->assertFalse( $this->scope->mayCross( 'member' ) );
+		$this->assertFalse( $this->scope->mayCross( 'ghost' ), 'an account that does not exist' );
+	}
+
+
+	public function testASudoerMayCrossWithoutCoreBeingAsked(): void
+	{
+
+		$this->asSudoer();
+
+		$this->subAdmin->expects( $this->never() )
+		               ->method( 'isSubAdmin' )
+		;
+
+		$this->assertTrue( $this->scope->mayCross( 'root' ) );
+	}
+
+
 	// ─── resolveSet: naming several at once ─────────────────────────
 
 	/**
