@@ -160,12 +160,15 @@ class PublicApiController
 	 * confirmed ({@see SudoConfirmation}). Permission first, so that someone
 	 * who may not ask is told so without being made to type a password first.
 	 *
-	 * @param  string|null  $target  One account, or null for every account.
+	 * @param  string|null  $target  One account, or null for the caller's
+	 *                               ceiling: every account for a sudoer, the
+	 *                               members of their groups for a sub-admin.
 	 *
-	 * @return string|null|DataResponse  The scope to pass down — null means
-	 *                                   every account — or the refusal.
+	 * @return string|list<string>|null|DataResponse  The scope to pass down —
+	 *         a uid, a list of them, or null for every account — or the
+	 *         refusal.
 	 */
-	private function sudoScopeOrRefusal( ?string $target = null ): string|null|DataResponse
+	private function sudoScopeOrRefusal( ?string $target = null ): string|array|null|DataResponse
 	{
 
 		$own = $this->scopeOrRefusal();
@@ -616,8 +619,9 @@ class PublicApiController
 	): DataResponse {
 
 		// Two shapes on one route, as on the page's own twin: `user=` names
-		// one account (absent means every account, for a sudoer), and
-		// `users[]`/`groups[]` name a set — what the picker sends.
+		// one account — absent means the caller's ceiling, every account for
+		// a sudoer and their groups' members for a sub-admin — and
+		// `users[]`/`groups[]` name a set, which is what the picker sends.
 		$scope = ( $users !== null || $groups !== null )
 			? $this->sudoSetOrRefusal(
 				array_values( array_filter( (array) $users, 'is_string' ) ),
@@ -872,9 +876,9 @@ class PublicApiController
 
 	/**
 	 * The route's body, for either wrapper: $scope is whose files may be
-	 * read — a uid, or null for every account.
+	 * read — a uid, a list of them, or null for every account.
 	 */
-	private function lookupFor( string $hash, ?string $algo, int $limit, ?string $scope ): DataResponse
+	private function lookupFor( string $hash, ?string $algo, int $limit, string|array|null $scope ): DataResponse
 	{
 
 		$this->logger->debug(

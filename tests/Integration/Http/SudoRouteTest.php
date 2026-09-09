@@ -219,6 +219,20 @@ class SudoRouteTest
 			$this->assertSame( 200, $offer['status'] );
 			$this->assertFalse( $offer['body']['all'], 'but may not name everyone' );
 			$this->assertSame( [ self::TEST_GROUP ], array_column( $offer['body']['groups'], 'id' ) );
+
+			// The two routes that take no target serve a leader their
+			// ceiling — their groups' members — where they answered 403
+			// "Not yours to look at." for as long as no target meant
+			// "everyone".
+			$lookup = $this->get( '/api/v1/sudo/lookup?hash=' . self::HASH, self::$password );
+
+			$this->assertSame( 200, $lookup['status'], 'the lookup serves a leader their ceiling' );
+			$this->assertSame( [], $lookup['body']['results'] );
+
+			$bare = $this->get( '/api/v1/sudo/duplicates', self::$password );
+
+			$this->assertSame( 200, $bare['status'], 'and so does the listing that names nothing' );
+			$this->assertSame( [], $bare['body']['duplicates'] );
 		}
 		finally
 		{

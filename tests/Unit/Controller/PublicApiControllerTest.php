@@ -661,6 +661,52 @@ class PublicApiControllerTest
 
 
 	/**
+	 * A group leader's ceiling is a list of accounts, and the two routes
+	 * that take no target pass it down as one — the lookup and the bare
+	 * listing — rather than refusing because it is not "everyone".
+	 */
+	public function testTheTargetlessRoutesPassALeadersCeilingDown(): void
+	{
+
+		$sudo = $this->createMock( SudoScope::class );
+		$sudo->method( 'resolve' )
+		     ->with( 'admin', null )
+		     ->willReturn( [ 'member', 'mate' ] )
+		;
+		$controller = new PublicApiController(
+			'file_checksum_search',
+			$this->createMock( IRequest::class ),
+			$this->api,
+			$this->userSession,
+			$this->groupManager,
+			$this->logger,
+			$this->createMock( AlgorithmCatalogue::class ),
+			$this->userConfig,
+			$this->lockdown,
+			$sudo,
+			$this->session,
+			$this->permissions,
+			$this->confirmation,
+			$this->appConfig,
+		);
+
+		$this->api->expects( $this->once() )
+		          ->method( 'findByHash' )
+		          ->with( 'abc123', null, 100, [ 'member', 'mate' ] )
+		          ->willReturn( [ 'results' => [] ] )
+		;
+		$this->api->expects( $this->once() )
+		          ->method( 'findDuplicatesFor' )
+		          ->with( [ 'member', 'mate' ] )
+		          ->willReturn( [ 'duplicates' => [], 'total_groups' => 0, 'pagination' => [ 'offset' => 0, 'limit' => 50 ] ] )
+		;
+
+		$this->assertSame( Http::STATUS_OK, $controller->sudoLookup( 'abc123' )->getStatus() );
+		$this->assertSame( Http::STATUS_OK, $controller->sudoFindAllDuplicates()->getStatus() );
+	}
+
+
+	/**
 	 * An app password whose owner switched off "allow filesystem access"
 	 * gets nothing from any route. Core enforces that scope by mounting
 	 * nothing, which already empties every path that resolves a file; the

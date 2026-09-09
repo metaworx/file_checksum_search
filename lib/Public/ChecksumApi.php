@@ -221,12 +221,16 @@ class ChecksumApi
 	 * @param  string       $hash            Hex-encoded hash value
 	 * @param  string|null  $algo            Optional algorithm filter (sha1, md5, sha256, sha512, sha3-256, sha3-512,
 	 *                                       crc32)
-	 * @param  int          $limit           Max results (1–500)
-	 * @param  string|null  $requestingUser  When provided, results are restricted to
-	 *                                       files in this user's own home storage.
-	 *                                       Omit (or pass null) for trusted/admin
-	 *                                       callers that intentionally search
-	 *                                       system-wide.
+	 * @param  int                $limit           Max results (1–500)
+	 * @param  string|list<string>|null  $requestingUser  Whose files to search: one
+	 *                                       account, or several — a group
+	 *                                       leader's ceiling — each resolved
+	 *                                       through its own mounts, so shares
+	 *                                       and group folders count. Null is
+	 *                                       every account: a sudoer, or the
+	 *                                       occ command. A reach, not a
+	 *                                       permission; nothing is checked
+	 *                                       against it.
 	 *
 	 * @return array{results: array<int, array{fileid: int, algo: string, hash: string, path: string, name: string}>}
 	 * @throws \InvalidArgumentException  When $hash is empty once trimmed. The
@@ -236,7 +240,7 @@ class ChecksumApi
 		string  $hash,
 		?string $algo = null,
 		int     $limit = 100,
-		?string $requestingUser = null,
+		string|array|null $requestingUser = null,
 	): array {
 
 		$hash = trim( $hash );
@@ -270,46 +274,78 @@ class ChecksumApi
 			return [ 'results' => $results ];
 		}
 
-		// Scoped to one account. Spend the limit on rows in that account's
-		// mounts — not the query's first N regardless of who owns them, which
-		// hid a user's own file behind foreign copies of the same hash — and
-		// let getById() be the authority, so shares, group folders and
-		// object-store homes count too, not just `home::<uid>`. The same
-		// shape {@see findSameHash()} and the unified-search provider use.
-		$user = $this->userManager->get( $requestingUser );
+		// Scoped to one account, or to several — a caller's own reach, or
+		// the ceiling a group leader is allowed ({@see SudoScope::resolve()}).
+		// Spend the limit on rows in those accounts' mounts — not the query's
+		// first N regardless of who owns them, which hid a user's own file
+		// behind foreign copies of the same hash — and let getById() be the
+		// authority, so shares, group folders and object-store homes count
+		// too, not just `home::<uid>`. The same shape {@see findSameHash()}
+		// and the unified-search provider use.
+		$uids              = is_array( $requestingUser ) ? array_values( $requestingUser ) : [ $requestingUser ];
+		$folders           = [];
+		$visibleStorageIds = [];
 
-		if ( $user === null )
+		foreach ( $uids as $uid )
+		{
+			$uid  = (string) $uid;
+			$user = $this->userManager->get( $uid );
+
+			if ( $user === null )
+			{
+				continue;
+			}
+
+			foreach ( $this->userMountCache->getMountsForUser( $user ) as $mount )
+			{
+				$visibleStorageIds[] = $mount->getStorageId();
+			}
+
+			$folders[ $uid ] = $this->rootFolder->getUserFolder( $uid );
+		}
+
+		if ( $folders === [] )
 		{
 			return [ 'results' => [] ];
 		}
 
-		$visibleStorageIds = array_values( array_map(
-			static fn ( $mount ) => $mount->getStorageId(),
-			$this->userMountCache->getMountsForUser( $user ),
-		) );
+		$visibleStorageIds = array_values( array_unique( $visibleStorageIds ) );
 
 		$rows = $this->metadataService->confirmFullHash(
 			$this->metadataService->queryByHash( $hash, $algo, $limit, $visibleStorageIds ),
 			$hash,
 		);
 
-		$userFolder = $this->rootFolder->getUserFolder( $requestingUser );
-		$results    = [];
+		$results = [];
 
 		foreach ( $rows as $row )
 		{
-			$fileId = (int) $row[ MetadataService::FIELD_FILE_ID ];
-			$nodes  = $userFolder->getById( $fileId );
+			$fileId   = (int) $row[ MetadataService::FIELD_FILE_ID ];
+			$node     = null;
+			$relative = null;
 
-			if ( $nodes === [] )
+			// The first account whose folder can open it names the path. With
+			// several accounts in reach the row does not yet say whose path
+			// that is — the owner column is its own block.
+			foreach ( $folders as $folder )
 			{
-				continue;
+				$nodes = $folder->getById( $fileId );
+
+				if ( $nodes === [] )
+				{
+					continue;
+				}
+
+				$node     = $nodes[0];
+				$relative = $folder->getRelativePath( $node->getPath() );
+
+				if ( $relative !== null )
+				{
+					break;
+				}
 			}
 
-			$node     = $nodes[0];
-			$relative = $userFolder->getRelativePath( $node->getPath() );
-
-			if ( $relative === null )
+			if ( $node === null || $relative === null )
 			{
 				continue;
 			}

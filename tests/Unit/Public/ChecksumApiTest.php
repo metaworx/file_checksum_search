@@ -245,6 +245,90 @@ class ChecksumApiTest
 	}
 
 
+	/**
+	 * A group leader's ceiling is several accounts at once. The lookup
+	 * spends its limit on the union of their mounts and renders each row
+	 * through whichever of them can open it — so a file only one member
+	 * holds is found, and none is asked for twice.
+	 */
+	public function testFindByHashScopedToSeveralAccountsUnionsTheirMountsAndResolvesThroughAnyOfThem(): void
+	{
+
+		$alice = $this->createConfiguredMock( IUser::class, [ 'getUID' => 'alice' ] );
+		$bob   = $this->createConfiguredMock( IUser::class, [ 'getUID' => 'bob' ] );
+
+		$this->userManager->method( 'get' )
+		                  ->willReturnMap( [
+			                  [ 'alice', $alice ],
+			                  [ 'bob', $bob ],
+		                  ] )
+		;
+
+		$mount = fn ( int $storageId ) => $this->createConfiguredMock(
+			\OCP\Files\Config\ICachedMountInfo::class,
+			[ 'getStorageId' => $storageId ],
+		);
+		$this->userMountCache->method( 'getMountsForUser' )
+		                     ->willReturnCallback( static fn ( IUser $u ): array => $u->getUID() === 'alice'
+			                     ? [ $mount( 1 ), $mount( 3 ) ]
+			                     : [ $mount( 2 ), $mount( 3 ) ] )
+		;
+
+		$rows = [
+			[ MetadataService::FIELD_FILE_ID => 7, MetadataService::FIELD_META_KEY => 'file-checksum-sha1' ],
+			[ MetadataService::FIELD_FILE_ID => 8, MetadataService::FIELD_META_KEY => 'file-checksum-sha1' ],
+		];
+
+		// The union, once each: a storage both can see is not asked for twice.
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'queryByHash' )
+		                      ->with( 'abc', null, 100, [ 1, 3, 2 ] )
+		                      ->willReturn( $rows )
+		;
+		$this->metadataService->method( 'confirmFullHash' )
+		                      ->willReturn( $rows )
+		;
+		$this->metadataService->method( 'extractAlgorithm' )
+		                      ->willReturn( [ 'algo' => 'sha1', 'hash' => 'abc' ] )
+		;
+
+		$node = fn ( string $path, string $name ) => $this->createConfiguredMock(
+			\OCP\Files\Node::class,
+			[ 'getPath' => $path, 'getName' => $name ],
+		);
+
+		// File 7 only alice can open, file 8 only bob.
+		$alicesFolder = $this->createMock( Folder::class );
+		$alicesFolder->method( 'getById' )
+		             ->willReturnMap( [
+			             [ 7, [ $node( '/alice/files/a.txt', 'a.txt' ) ] ],
+			             [ 8, [] ],
+		             ] );
+		$alicesFolder->method( 'getRelativePath' )
+		             ->willReturn( '/a.txt' )
+		;
+		$bobsFolder = $this->createMock( Folder::class );
+		$bobsFolder->method( 'getById' )
+		           ->willReturnMap( [
+			           [ 7, [] ],
+			           [ 8, [ $node( '/bob/files/b.txt', 'b.txt' ) ] ],
+		           ] );
+		$bobsFolder->method( 'getRelativePath' )
+		           ->willReturn( '/b.txt' )
+		;
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->willReturnMap( [
+			                 [ 'alice', $alicesFolder ],
+			                 [ 'bob', $bobsFolder ],
+		                 ] );
+
+		$result = $this->api->findByHash( 'abc', null, 100, [ 'alice', 'bob' ] );
+
+		$this->assertSame( [ 7, 8 ], array_column( $result['results'], 'fileid' ) );
+		$this->assertSame( [ '/a.txt', '/b.txt' ], array_column( $result['results'], 'path' ) );
+	}
+
+
 	public function testFindByHashThrowsOnEmptyHash(): void
 	{
 

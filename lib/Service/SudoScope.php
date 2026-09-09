@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Service;
 
 use OCP\Group\ISubAdmin;
 use OCP\IGroupManager;
+use OCP\IUser;
 use OCP\IUserManager;
 
 /**
@@ -87,33 +88,44 @@ class SudoScope
 	 * The scope $uid may read when asking about $target.
 	 *
 	 * @param  string|null  $target  An account to look at, or null for the
-	 *                               whole instance.
+	 *                               most the caller is allowed — their
+	 *                               *ceiling*.
 	 *
-	 * @return string|null|false  The scope to pass down — the target's uid,
-	 *                            or null for everyone — or false when $uid
-	 *                            may not have it: a non-sudoer asking for
-	 *                            everyone, a sub-admin asking outside their
-	 *                            groups, or a target that does not exist.
+	 * @return string|list<string>|null|false  The scope to pass down: the
+	 *         target's uid; for a null target, null (everyone) for a sudoer
+	 *         or the members of the groups a sub-admin leads; or false when
+	 *         $uid may not have it — a plain account, a sub-admin naming
+	 *         someone outside their groups, or a target that does not exist.
 	 */
 	public function resolve(
 		string  $uid,
 		?string $target,
-	): string|null|false {
+	): string|array|null|false {
 
 		if ( $this->isSudoer( $uid ) )
 		{
 			return $target;
 		}
 
-		if ( $target === null )
+		$leader = $this->userManager->get( $uid );
+
+		if ( $leader === null )
 		{
 			return false;
 		}
 
-		$leader = $this->userManager->get( $uid );
+		// No target is not "everyone" — no sub-admin may have that — but the
+		// most this caller may see: every member of every group they lead.
+		// Reading it as "everyone" is what refused group leaders from the
+		// lookup and the bare listing while the picker admitted them.
+		if ( $target === null )
+		{
+			return $this->membersOfLedGroups( $leader );
+		}
+
 		$member = $this->userManager->get( $target );
 
-		if ( $leader === null || $member === null )
+		if ( $member === null )
 		{
 			return false;
 		}
@@ -121,6 +133,36 @@ class SudoScope
 		return $this->subAdmin->isUserAccessible( $leader, $member )
 			? $target
 			: false;
+	}
+
+
+	/**
+	 * Every member of every group $leader administers, or false if they
+	 * administer none — a plain account has no ceiling to speak of.
+	 *
+	 * @return list<string>|false
+	 */
+	private function membersOfLedGroups( IUser $leader ): array|false
+	{
+
+		$groups = $this->subAdmin->getSubAdminsGroups( $leader );
+
+		if ( $groups === [] )
+		{
+			return false;
+		}
+
+		$members = [];
+
+		foreach ( $groups as $group )
+		{
+			foreach ( $group->getUsers() as $member )
+			{
+				$members[] = $member->getUID();
+			}
+		}
+
+		return array_values( array_unique( $members ) );
 	}
 
 

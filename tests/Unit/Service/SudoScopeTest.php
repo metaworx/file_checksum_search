@@ -106,11 +106,19 @@ class SudoScopeTest
 		$this->subAdmin->method( 'isUserAccessible' )
 		               ->willReturnCallback( static fn ( IUser $leader, IUser $member ): bool => $leader->getUID() === 'lead' && $member->getUID() === 'member' )
 		;
+		$this->subAdmin->method( 'getSubAdminsGroups' )
+		               ->willReturnCallback( fn ( IUser $u ): array => $u->getUID() === 'lead'
+			               ? [ $this->group( 'team', [ 'member' ] ), $this->group( 'crew', [ 'member', 'mate' ] ) ]
+			               : [] )
+		;
 
 		$this->assertSame( 'member', $this->scope->resolve( 'lead', 'member' ) );
 		$this->assertFalse( $this->scope->resolve( 'lead', 'stranger' ), 'outside their groups' );
-		$this->assertFalse( $this->scope->resolve( 'lead', null ), 'never everyone' );
 		$this->assertFalse( $this->scope->resolve( 'lead', 'nobody' ), 'a target that does not exist' );
+
+		// No target is their ceiling, not "everyone": every member of every
+		// group they lead, once each. Reading it as "everyone" refused them.
+		$this->assertSame( [ 'member', 'mate' ], $this->scope->resolve( 'lead', null ), 'their ceiling' );
 	}
 
 
