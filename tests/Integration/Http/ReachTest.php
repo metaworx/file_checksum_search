@@ -43,6 +43,11 @@ class ReachTest
 
 	private const BASE_URL = 'http://127.0.0.1/ocs/v2.php/apps/file_checksum_search';
 
+	/** The instance's administrator — a sudoer, whose reach is every account. */
+	private const ADMIN_UID = 'admin';
+
+	private const ADMIN_PASSWORD = 'admin';
+
 	private static string $ownerUid;
 
 	private static string $ownerPassword;
@@ -207,7 +212,70 @@ class ReachTest
 	}
 
 
+	// ─── the per-file duplicates, across accounts ────────────────────
+
+	/**
+	 * The route's twin used to render every duplicate through the session's
+	 * own folder, so it answered nothing across accounts whatever reach it
+	 * had been granted. A leader over alice asks about a file in the shared
+	 * subtree: its duplicate in the same subtree appears, and the pair
+	 * beside it — same owner, same storage — is neither the reference they
+	 * may name nor a duplicate they are shown.
+	 */
+	public function testALeaderSeesADuplicateWithinTheirMembersReachAndNotBesideIt(): void
+	{
+
+		$inside = $this->get( '/api/v1/sudo/file/' . self::$fileId['a'] . '/duplicates', self::$leaderUid, self::$leaderPassword );
+
+		$this->assertSame( 200, $inside['status'] );
+		$this->assertSame( [ self::$fileId['b'] ], $this->duplicateIds( $inside['body'] ), "a's duplicate under the share" );
+
+		$beside = $this->get( '/api/v1/sudo/file/' . self::$fileId['c'] . '/duplicates', self::$leaderUid, self::$leaderPassword );
+
+		$this->assertSame( 403, $beside['status'], 'c is not theirs to ask about' );
+	}
+
+
+	/**
+	 * A sudoer's reach is every account: asking about the owner's file
+	 * beside the share lists its duplicate, which no account of the
+	 * sudoer's own holds — the foreign duplicate the review found missing.
+	 */
+	public function testASudoerSeesAForeignDuplicate(): void
+	{
+
+		$response = $this->get( '/api/v1/sudo/file/' . self::$fileId['c'] . '/duplicates', self::ADMIN_UID, self::ADMIN_PASSWORD );
+
+		$this->assertSame( 200, $response['status'] );
+		$this->assertSame( [ self::$fileId['d'] ], $this->duplicateIds( $response['body'] ) );
+	}
+
+
 	// ─── helpers ─────────────────────────────────────────────────────
+
+	/**
+	 * The file ids a per-file duplicates answer lists, sorted.
+	 *
+	 * @return list<int>
+	 */
+	private function duplicateIds( array $body ): array
+	{
+
+		$ids = [];
+
+		foreach ( $body['duplicates'] ?? [] as $group )
+		{
+			foreach ( $group['files'] as $file )
+			{
+				$ids[] = (int) $file['fileid'];
+			}
+		}
+
+		sort( $ids );
+
+		return $ids;
+	}
+
 
 	/**
 	 * The file ids the listing at $path shows for one hash, sorted.

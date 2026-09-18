@@ -221,7 +221,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'recalcHash' )
-		          ->with( 42, $this->anything(), 'admin', true )
+		          ->with( 42, $this->anything(), 'admin', null )
 		          ->willReturn( [ 'success' => true, 'hash' => 'abc' ] )
 		;
 
@@ -251,7 +251,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'getHashesByFileId' )
-		          ->with( 42, null )
+		          ->with( 42, 'admin', null )
 		          ->willReturn( [ 'fileid' => 42, 'hashes' => [] ] )
 		;
 		$this->api->expects( $this->once() )
@@ -290,7 +290,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'recalcHash' )
-		          ->with( 42, $this->anything(), 'admin', false )
+		          ->with( 42, $this->anything(), 'admin', [ 'admin' ] )
 		          ->willReturn( [ 'success' => true, 'hash' => 'abc' ] )
 		;
 
@@ -384,7 +384,7 @@ class PublicApiControllerTest
 		// The same account over a plain browser session: nothing in the
 		// session, no Authorization header — the app, not the API.
 		$this->api->method( 'getHashesByFileId' )
-		          ->with( 42, 'bob' )
+		          ->with( 42, 'bob', [ 'bob' ] )
 		          ->willReturn( [ 'fileid' => 42, 'hashes' => [] ] )
 		;
 		$viaPage = new PublicApiController(
@@ -426,7 +426,7 @@ class PublicApiControllerTest
 		              ->willReturn( 'a-token' )
 		;
 		$this->api->method( 'getHashesByFileId' )
-		          ->with( 42, 'admin' )
+		          ->with( 42, 'admin', [ 'admin' ] )
 		          ->willReturn( [ 'fileid' => 42, 'hashes' => [] ] )
 		;
 		$controller = new PublicApiController(
@@ -571,7 +571,7 @@ class PublicApiControllerTest
 		);
 		$this->api->expects( $this->once() )
 		          ->method( 'getHashesByFileId' )
-		          ->with( 42, null )
+		          ->with( 42, 'admin', null )
 		          ->willReturn( [ 'fileid' => 42, 'hashes' => [] ] )
 		;
 
@@ -652,7 +652,7 @@ class PublicApiControllerTest
 		           ->method( 'resolve' )
 		;
 		$this->api->method( 'getHashesByFileId' )
-		          ->with( 42, 'admin' )
+		          ->with( 42, 'admin', [ 'admin' ] )
 		          ->willReturn( [ 'fileid' => 42, 'hashes' => [] ] )
 		;
 
@@ -758,7 +758,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'findDuplicatesFor' )
-		          ->with( 'admin', 'sha256', 3, 10, 20 )
+		          ->with( [ 'admin' ], 'sha256', 3, 10, 20 )
 		          ->willReturn( [
 			          'duplicates'   => [],
 			          'total_groups' => 0,
@@ -783,7 +783,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'findDuplicatesFor' )
-		          ->with( 'admin', null, 2, 50, 0 )
+		          ->with( [ 'admin' ], null, 2, 50, 0 )
 		          ->willReturn( [
 			          'duplicates'   => [],
 			          'total_groups' => 0,
@@ -824,7 +824,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'findSameHash' )
-		          ->with( 42 )
+		          ->with( 42, [ 'admin' ] )
 		          ->willReturn( [
 			          'duplicates' => [
 				          [
@@ -874,7 +874,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'getHashesByFileId' )
-		          ->with( 42, 'admin' )
+		          ->with( 42, 'admin', [ 'admin' ] )
 		          ->willReturn( [
 			          'fileid' => 42,
 			          'hashes' => [
@@ -968,7 +968,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'getHashesByFileId' )
-		          ->with( 42, 'alice' )
+		          ->with( 42, 'alice', [ 'alice' ] )
 		          ->willReturn( [
 			          'fileid' => 42,
 			          'hashes' => [],
@@ -1059,7 +1059,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'findByHash' )
-		          ->with( 'abc123', 'md5', 100, 'admin' )
+		          ->with( 'abc123', 'md5', 100, [ 'admin' ] )
 		          ->willReturn( [ 'results' => [] ] )
 		;
 
@@ -1094,7 +1094,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'findByHash' )
-		          ->with( 'abc123', null, 100, 'admin' )
+		          ->with( 'abc123', null, 100, [ 'admin' ] )
 		          ->willReturn( [
 			          'results' => [
 				          [
@@ -1153,7 +1153,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'findByHash' )
-		          ->with( 'abc123', null, 100, 'alice' )
+		          ->with( 'abc123', null, 100, [ 'alice' ] )
 		          ->willReturn( [ 'results' => [] ] )
 		;
 
@@ -1180,7 +1180,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'recalcHash' )
-		          ->with( 99999, null, 'admin' )
+		          ->with( 99999, null, 'admin', [ 'admin' ] )
 		          ->willReturn( [
 			          'success' => false,
 			          'error'   => 'File not found.',
@@ -1239,7 +1239,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'recalcHash' )
-		          ->with( 42, null, 'admin' )
+		          ->with( 42, null, 'admin', [ 'admin' ] )
 		          ->willReturn( [
 			          'success' => true,
 			          'algo'    => 'sha1',
@@ -1292,7 +1292,7 @@ class PublicApiControllerTest
 
 		$this->api->expects( $this->once() )
 		          ->method( 'recalcHash' )
-		          ->with( 42, null, 'alice' )
+		          ->with( 42, null, 'alice', [ 'alice' ] )
 		          ->willReturn( [ 'success' => true ] )
 		;
 

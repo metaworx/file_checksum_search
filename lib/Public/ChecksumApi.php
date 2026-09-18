@@ -84,22 +84,35 @@ class ChecksumApi
 	/**
 	 * Get all checksums for a file by its filecache ID.
 	 *
-	 * @param  int          $fileId          The filecache fileid
-	 * @param  string|null  $requestingUser  When provided, the fileid must resolve
-	 *                                       within this user's own file tree or a
-	 *                                       NotFoundException is thrown. Omit (or
-	 *                                       pass null) for trusted/admin callers
-	 *                                       that intentionally bypass this check.
+	 * Two questions, kept apart. *Who is asking* decides what the answer
+	 * reports about them — whether they may recalculate, and whose stored
+	 * preference it carries. *What they may reach* decides whether the file
+	 * may be asked about at all. One parameter used to carry both, and null
+	 * for "every account" then also read as "an administrator is asking".
 	 *
-	 * @return array{fileid: int, hashes: array<int, array{algo: string, hash: string, updated_at: ?string}>, algos: list<string>, preferred: string, default: string}
-	 * @throws NotFoundException  If $requestingUser is set and cannot access $fileId
+	 * @param  int                $fileId      The filecache fileid
+	 * @param  string|null        $actingUser  Who is asking — the session's
+	 *                                         account. Null is a trusted
+	 *                                         DI/bootstrap caller, for whom
+	 *                                         the answer reports what such a
+	 *                                         caller may do: everything.
+	 * @param  list<string>|null  $reachUids   Whose files may be asked about:
+	 *                                         the caller's own account, a
+	 *                                         group leader's members, or null
+	 *                                         for every account. The file
+	 *                                         must lie within one of their
+	 *                                         mounts ({@see ReachResolver}).
+	 *
+	 * @return array{fileid: int, hashes: array<int, array{algo: string, hash: string, updated_at: ?string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool}
+	 * @throws NotFoundException  If $reachUids is set and the file lies outside it
 	 */
 	public function getHashesByFileId(
 		int     $fileId,
-		?string $requestingUser = null,
+		?string $actingUser = null,
+		?array  $reachUids = null,
 	): array {
 
-		if ( $requestingUser !== null && ! $this->userCanAccessFile( $requestingUser, $fileId ) )
+		if ( ! $this->reach->contains( $this->reach->mountsFor( $reachUids ), $fileId ) )
 		{
 			throw new NotFoundException( "Invalid file ID: $fileId" );
 		}
@@ -125,7 +138,7 @@ class ChecksumApi
 		// maintains), the asking user's stored preference where it is still in
 		// force, and the instance default.
 		$rule      = $this->ruleService->findFirstMatchingRule( $fileId );
-		$uid       = $requestingUser ?? $this->userSession->getUser()?->getUID();
+		$uid       = $actingUser ?? $this->userSession->getUser()?->getUID();
 		$preferred = $uid !== null
 			? $this->userConfig->getValueString( $uid, Application::APP_ID, ConfigLexicon::USER_PREFERRED_ALGORITHM )
 			: '';
@@ -140,7 +153,7 @@ class ChecksumApi
 			'default'   => $this->catalogue->default(),
 			// So the sidebar can hide its Recalculate buttons for an account
 			// that may not, instead of offering them to fail.
-			'canRecalc' => $this->mayRecalc( $requestingUser ),
+			'canRecalc' => $this->mayRecalc( $actingUser ),
 		];
 	}
 
@@ -223,16 +236,16 @@ class ChecksumApi
 	 * @param  string       $hash            Hex-encoded hash value
 	 * @param  string|null  $algo            Optional algorithm filter (sha1, md5, sha256, sha512, sha3-256, sha3-512,
 	 *                                       crc32)
-	 * @param  int                $limit           Max results (1–500)
-	 * @param  string|list<string>|null  $requestingUser  Whose files to search: one
-	 *                                       account, or several — a group
-	 *                                       leader's ceiling — each resolved
-	 *                                       through its own mounts, so shares
-	 *                                       and group folders count. Null is
-	 *                                       every account: a sudoer, or the
-	 *                                       occ command. A reach, not a
-	 *                                       permission; nothing is checked
-	 *                                       against it.
+	 * @param  int                $limit      Max results (1–500)
+	 * @param  list<string>|null  $reachUids  Whose files to search: one account
+	 *                                        or several — a group leader's
+	 *                                        ceiling — each resolved through
+	 *                                        its own mounts, so shares and
+	 *                                        group folders count. Null is every
+	 *                                        account: a sudoer, or the occ
+	 *                                        command. A reach, not a
+	 *                                        permission; nothing is checked
+	 *                                        against it.
 	 *
 	 * @return array{results: array<int, array{fileid: int, algo: string, hash: string, path: string, name: string}>}
 	 * @throws \InvalidArgumentException  When $hash is empty once trimmed. The
@@ -242,7 +255,7 @@ class ChecksumApi
 		string  $hash,
 		?string $algo = null,
 		int     $limit = 100,
-		string|array|null $requestingUser = null,
+		?array  $reachUids = null,
 	): array {
 
 		$hash = trim( $hash );
@@ -254,9 +267,9 @@ class ChecksumApi
 
 		$limit = max( 1, min( $limit, 500 ) );
 
-		// No person to scope to — a sudoer reading every account, or the occ
+		// No reach to scope to — a sudoer reading every account, or the occ
 		// command. Instance-wide, resolved against the filecache as before.
-		if ( $requestingUser === null )
+		if ( $reachUids === null )
 		{
 			$rows = $this->hashIndexService->findByHash( $hash, $algo, $limit, null );
 
@@ -284,7 +297,7 @@ class ChecksumApi
 		// authority, so shares, group folders and object-store homes count
 		// too, not just `home::<uid>`. The same shape {@see findSameHash()}
 		// and the unified-search provider use.
-		$uids    = is_array( $requestingUser ) ? array_values( $requestingUser ) : [ $requestingUser ];
+		$uids    = array_values( $reachUids );
 		$folders = [];
 
 		foreach ( $uids as $uid )
@@ -401,7 +414,7 @@ class ChecksumApi
 			];
 		}
 
-		return $this->findDuplicatesFor( $uid, $algo, $minCount, $limit, $offset, $hash, $anywhere );
+		return $this->findDuplicatesFor( [ $uid ], $algo, $minCount, $limit, $offset, $hash, $anywhere );
 	}
 
 
@@ -414,14 +427,15 @@ class ChecksumApi
 	 * it have already decided the caller may — {@see SudoScope} — and have
 	 * asked for a password on the way.
 	 *
-	 * @param  string|list<string>|null  $scope  The account whose files to
-	 *                              list, several of them, or null for the
-	 *                              whole instance
+	 * @param  list<string>|null  $reachUids  Whose files to list: one account,
+	 *                                        several, or null for the whole
+	 *                                        instance. A reach, resolved to
+	 *                                        mounts one layer down.
 	 *
 	 * @return array{duplicates: array, total_groups: int, pagination: array{offset: int, limit: int}}
 	 */
 	public function findDuplicatesFor(
-		string|array|null $scope,
+		?array  $reachUids,
 		?string $algo = null,
 		int     $minCount = 2,
 		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,
@@ -432,30 +446,31 @@ class ChecksumApi
 
 		$limit = max( 1, min( $limit, 500 ) );
 
-		return $this->hashIndexService->listDuplicatesForUser( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere );
+		return $this->hashIndexService->listDuplicatesForUser( $reachUids, $algo, $minCount, $limit, $offset, $hash, $anywhere );
 	}
 
 
 	/**
 	 * Find other files sharing the same hash values as a given file.
 	 *
-	 * Both ends are scoped: the reference file must be one $requestingUser
-	 * can open, and only duplicates in their own tree are listed.
+	 * Both ends are within the reach: the reference file must lie in it, and
+	 * only duplicates in it are listed — each rendered through a folder that
+	 * can open it, never through the session's. Rendering through the
+	 * session's folder is what made this answer only the caller's own copies
+	 * whatever reach it had been granted, so the cross-account twin of this
+	 * route returned nothing across accounts for as long as it existed.
 	 *
-	 * @param  int          $fileId          The filecache fileid of the reference file
-	 * @param  string|null  $requestingUser  When provided, the reference file
-	 *                                       must resolve within this user's
-	 *                                       own tree. Omit (or pass null) for
-	 *                                       trusted callers that intentionally
-	 *                                       read across the instance.
+	 * @param  int                $fileId     The filecache fileid of the reference file
+	 * @param  list<string>|null  $reachUids  Whose files: one account, several,
+	 *                                        or null for every account.
 	 *
 	 * @return array{duplicates: array<int, array{algo: string, hash_value: string, files: array<int, array{fileid:
 	 *                           int, path: string, name: string}>}>}
-	 * @throws NotFoundException  If $requestingUser is set and cannot access $fileId
+	 * @throws NotFoundException  If $reachUids is set and the reference file lies outside it
 	 */
 	public function findSameHash(
-		int     $fileId,
-		?string $requestingUser = null,
+		int    $fileId,
+		?array $reachUids = null,
 	): array {
 
 		// Before the hashes are read, not after. A hash is a fingerprint of
@@ -463,7 +478,9 @@ class ChecksumApi
 		// into a content-equality oracle over every file on the instance:
 		// sweep the ids, and a non-empty answer says that file holds
 		// something you also hold.
-		if ( $requestingUser !== null && ! $this->userCanAccessFile( $requestingUser, $fileId ) )
+		$mounts = $this->reach->mountsFor( $reachUids );
+
+		if ( ! $this->reach->contains( $mounts, $fileId ) )
 		{
 			throw new NotFoundException( "Invalid file ID: $fileId" );
 		}
@@ -475,10 +492,26 @@ class ChecksumApi
 			return [ 'duplicates' => [] ];
 		}
 
-		$user       = $this->userSession->getUser();
-		$userFolder = $user !== null
-			? $this->rootFolder->getUserFolder( $user->getUID() )
-			: null;
+		// The folders a duplicate may be rendered through: the reach's own
+		// accounts. For every account there is no list to try, and each
+		// file is rendered through whoever holds it instead.
+		$folders = [];
+
+		foreach ( $reachUids ?? [] as $uid )
+		{
+			$uid = (string) $uid;
+
+			if ( $this->userManager->get( $uid ) !== null )
+			{
+				$folders[ $uid ] = $this->rootFolder->getUserFolder( $uid );
+			}
+		}
+
+		// Narrowing only, as in findByHash(): the per-file check below stays
+		// the authority. Null mounts narrow nothing.
+		$visibleStorageIds = $mounts === null
+			? null
+			: array_values( array_unique( array_column( $mounts, 'storage' ) ) );
 
 		$grouped = [];
 
@@ -489,7 +522,7 @@ class ChecksumApi
 			// only shares that prefix. One confirmation, shared with every
 			// other caller ({@see MetadataService::confirmFullHash()}).
 			$rows = $this->metadataService->confirmFullHash(
-				$this->metadataService->queryByHash( $hashValue, $algo ),
+				$this->metadataService->queryByHash( $hashValue, $algo, 100, $visibleStorageIds ),
 				$hashValue,
 			);
 
@@ -502,29 +535,21 @@ class ChecksumApi
 					continue;
 				}
 
-				$resolvedPath = '';
-				$resolvedName = '';
-
-				if ( $userFolder !== null )
+				// Within the reach, by the rule the listing applies — then a
+				// path for it, from a folder that can open it.
+				if ( ! $this->reach->contains( $mounts, $dupFileId ) )
 				{
-					$nodes = $userFolder->getById( $dupFileId );
-
-					if ( empty( $nodes ) )
-					{
-						continue;
-					}
-
-					$node     = $nodes[0];
-					$relative = $userFolder->getRelativePath( $node->getPath() );
-
-					if ( $relative === null )
-					{
-						continue;
-					}
-
-					$resolvedPath = $relative;
-					$resolvedName = $node->getName();
+					continue;
 				}
+
+				$located = $this->pathWithin( $dupFileId, $folders, $reachUids === null );
+
+				if ( $located === null )
+				{
+					continue;
+				}
+
+				[ $resolvedPath, $resolvedName ] = $located;
 
 				$key = $algo . "\0" . $hashValue;
 
@@ -575,13 +600,16 @@ class ChecksumApi
 	 *                                   fileid must resolve within their own
 	 *                                   file tree. Null is a trusted
 	 *                                   DI/bootstrap caller: both are skipped.
-	 * @param  bool         $anyAccount  The caller has established already
-	 *                                   that `$actingUser` may reach this
-	 *                                   file — {@see SudoScope::mayReachFile()}
-	 *                                   — so the own-tree check is waived.
-	 *                                   Waives that and nothing else: the
-	 *                                   permission, and any rule excluding the
-	 *                                   path, are still answered.
+	 * @param  list<string>|null  $reachUids  Whose files may be acted on: the
+	 *                                        caller's own account, a group
+	 *                                        leader's members, or null when the
+	 *                                        reach was settled before this was
+	 *                                        called ({@see SudoScope::mayReachFile()})
+	 *                                        or the caller is trusted. Null
+	 *                                        waives the reach check and nothing
+	 *                                        else: the permission, and any rule
+	 *                                        excluding the path, are still
+	 *                                        answered.
 	 *
 	 * @return array{success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string, forbidden?: bool}
 	 *         `excluded` says a rule refused the file rather than anything
@@ -593,10 +621,10 @@ class ChecksumApi
 		int     $fileId,
 		?string $algo = null,
 		?string $actingUser = null,
-		bool    $anyAccount = false,
+		?array  $reachUids = null,
 	): array {
 
-		if ( ! $anyAccount && $actingUser !== null && ! $this->userCanAccessFile( $actingUser, $fileId ) )
+		if ( ! $this->reach->contains( $this->reach->mountsFor( $reachUids ), $fileId ) )
 		{
 			return [
 				'success' => false,
@@ -633,21 +661,84 @@ class ChecksumApi
 		$algo ??= $this->catalogue->default();
 
 		// Resolving by id alone goes through the root folder, which holds
-		// only what the *session's* account has mounted — so another
-		// account's file is "not found" there however far the permission
-		// checks got. Waiving the reach therefore means resolving the node
-		// somewhere it can actually be seen: inside a folder belonging to an
-		// account that holds it.
-		if ( $anyAccount )
+		// only what the *session's* account has mounted — so a member's file
+		// a group leader may reach, or another account's a sudoer may, is
+		// "not found" there however far the checks above got. A trusted
+		// caller with no session (occ, DI) has the whole filesystem in its
+		// root and resolves as before; everyone else resolves the node where
+		// it can actually be seen — inside a folder of an account that holds
+		// it.
+		if ( $actingUser === null && $reachUids === null )
 		{
-			$file = $this->fileForAnyAccount( $fileId );
-
-			return $file === null
-				? [ 'success' => false, 'error' => 'File not found.' ]
-				: $this->hashIndexService->recalcFileHash( $file, $algo );
+			return $this->hashIndexService->recalcHash( $fileId, $algo );
 		}
 
-		return $this->hashIndexService->recalcHash( $fileId, $algo );
+		$file = $this->fileForAnyAccount( $fileId );
+
+		return $file === null
+			? [ 'success' => false, 'error' => 'File not found.' ]
+			: $this->hashIndexService->recalcFileHash( $file, $algo );
+	}
+
+
+	/**
+	 * A user-relative path and name for $fileId, from the first of $folders
+	 * that can open it — or, when $anyHolder, from whichever account holds
+	 * it. Null when none can.
+	 *
+	 * Whether the file is *within reach* was decided already
+	 * ({@see ReachResolver::contains()}); this only finds words for it. With
+	 * several accounts in reach the path is whichever folder opened it
+	 * first, and nothing here says whose — that is the owner column.
+	 *
+	 * @param  array<string, Folder>  $folders
+	 *
+	 * @return array{0: string, 1: string}|null
+	 */
+	private function pathWithin(
+		int   $fileId,
+		array $folders,
+		bool  $anyHolder,
+	): ?array {
+
+		if ( $anyHolder )
+		{
+			foreach ( $this->userMountCache->getMountsForFileId( $fileId ) as $mount )
+			{
+				$uid = $mount->getUser()->getUID();
+
+				if ( ! isset( $folders[ $uid ] ) )
+				{
+					try
+					{
+						$folders[ $uid ] = $this->rootFolder->getUserFolder( $uid );
+					}
+					catch ( \Throwable )
+					{
+						continue;
+					}
+				}
+			}
+		}
+
+		foreach ( $folders as $folder )
+		{
+			$nodes = $folder->getById( $fileId );
+
+			if ( $nodes === [] )
+			{
+				continue;
+			}
+
+			$relative = $folder->getRelativePath( $nodes[0]->getPath() );
+
+			if ( $relative !== null )
+			{
+				return [ $relative, $nodes[0]->getName() ];
+			}
+		}
+
+		return null;
 	}
 
 
@@ -660,7 +751,8 @@ class ChecksumApi
 	 * they are all the same file, reached by different paths.
 	 *
 	 * Whether the *caller* may do this was settled before we got here
-	 * ({@see SudoScope::mayReachFile()}); this only finds the node.
+	 * ({@see SudoScope::mayReachFile()} or {@see ReachResolver::contains()});
+	 * this only finds the node.
 	 */
 	private function fileForAnyAccount( int $fileId ): ?File
 	{

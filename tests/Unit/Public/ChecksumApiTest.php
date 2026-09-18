@@ -62,6 +62,11 @@ class ChecksumApiTest
 
 	private MockObject|IGroupManager     $groupManager;
 
+	private MockObject|\OCA\FileChecksumSearch\Service\ReachResolver $reach;
+
+	/** File ids the mocked resolver places outside every reach. */
+	private array $outOfReach = [];
+
 	private ChecksumApi                  $api;
 
 
@@ -98,6 +103,7 @@ class ChecksumApiTest
 		$this->groupManager->method( 'groupExists' )
 		                   ->willReturn( true )
 		;
+		$this->reach = $this->reachResolverMock();
 
 		$this->api = new ChecksumApi(
 			$this->hashIndexService,
@@ -113,14 +119,39 @@ class ChecksumApiTest
 			$this->createMock( IUserConfig::class ),
 			$this->userMountCache,
 			$this->userManager,
-			// A real resolver over the same mocks, so the mount and account
-			// expectations the tests below set are what it reads.
-			new \OCA\FileChecksumSearch\Service\ReachResolver(
-				$this->userMountCache,
-				$this->userManager,
-				$this->createMock( \OCP\IDBConnection::class ),
-			),
+			$this->reach,
 		);
+	}
+
+
+	/**
+	 * The resolver, mocked: reach is its business and has its own tests.
+	 * By default every file is within reach except 99999, the id these
+	 * tests have always used for "not there"; a test about the reach itself
+	 * says otherwise.
+	 */
+	private function reachResolverMock(): \OCA\FileChecksumSearch\Service\ReachResolver&MockObject
+	{
+
+		$this->outOfReach = [ 99999 ];
+
+		$reach = $this->createMock( \OCA\FileChecksumSearch\Service\ReachResolver::class );
+		// Accounts in, mounts out: null stays null (every account), a list
+		// becomes one home mount — enough for contains() below to tell the
+		// two apart.
+		$reach->method( 'mountsFor' )
+		      ->willReturnCallback( static fn ( string|array|null $uids ): ?array => $uids === null
+			      ? null
+			      : [ [ 'storage' => 1, 'root' => '' ] ] )
+		;
+		// Null mounts are every account and contain everything, as the real
+		// resolver answers; a list is measured against the ids above.
+		$reach->method( 'contains' )
+		      ->willReturnCallback( fn ( ?array $mounts, int $fileId ): bool => $mounts === null
+			      || ! in_array( $fileId, $this->outOfReach, true ) )
+		;
+
+		return $reach;
 	}
 
 
@@ -244,7 +275,12 @@ class ChecksumApiTest
 		                      ->willReturn( [ 'algo' => 'sha1', 'hash' => 'abc' ] )
 		;
 
-		$result = $this->api->findByHash( 'abc', null, 100, 'bob' );
+		$this->reach->method( 'storageIdsFor' )
+		            ->with( [ 'bob' ] )
+		            ->willReturn( [ 42 ] )
+		;
+
+		$result = $this->api->findByHash( 'abc', null, 100, [ 'bob' ] );
 
 		$this->assertCount( 1, $result['results'] );
 		$this->assertSame( 7, $result['results'][0]['fileid'] );
@@ -329,6 +365,11 @@ class ChecksumApiTest
 			                 [ 'bob', $bobsFolder ],
 		                 ] );
 
+		$this->reach->method( 'storageIdsFor' )
+		            ->with( [ 'alice', 'bob' ] )
+		            ->willReturn( [ 1, 3, 2 ] )
+		;
+
 		$result = $this->api->findByHash( 'abc', null, 100, [ 'alice', 'bob' ] );
 
 		$this->assertSame( [ 7, 8 ], array_column( $result['results'], 'fileid' ) );
@@ -377,7 +418,7 @@ class ChecksumApiTest
 		                       ->method( 'findByHash' )
 		;
 
-		$this->assertSame( [ 'results' => [] ], $this->api->findByHash( 'abc123', null, 100, 'ghost' ) );
+		$this->assertSame( [ 'results' => [] ], $this->api->findByHash( 'abc123', null, 100, [ 'ghost' ] ) );
 	}
 
 
@@ -392,7 +433,7 @@ class ChecksumApiTest
 		// listing is built with — not just what the response reports.
 		$this->hashIndexService->expects( $this->once() )
 		                       ->method( 'listDuplicatesForUser' )
-		                       ->with( 'bob', null, 2, 500, 0 )
+		                       ->with( [ 'bob' ], null, 2, 500, 0 )
 		                       ->willReturn( $this->emptyListing( 500 ) )
 		;
 
@@ -409,7 +450,7 @@ class ChecksumApiTest
 
 		$this->hashIndexService->expects( $this->once() )
 		                       ->method( 'listDuplicatesForUser' )
-		                       ->with( 'bob', 'sha256', 3, 50, 0 )
+		                       ->with( [ 'bob' ], 'sha256', 3, 50, 0 )
 		                       ->willReturn( $this->emptyListing() )
 		;
 
@@ -476,7 +517,7 @@ class ChecksumApiTest
 
 		$this->hashIndexService->expects( $this->once() )
 		                       ->method( 'listDuplicatesForUser' )
-		                       ->with( 'bob', null, 2, 50, 0 )
+		                       ->with( [ 'bob' ], null, 2, 50, 0 )
 		                       ->willReturn( $listing )
 		;
 
@@ -610,20 +651,12 @@ class ChecksumApiTest
 	}
 
 
-	public function testGetHashesByFileIdThrowsWhenRequestingUserCannotAccessFile(): void
+	public function testGetHashesByFileIdThrowsWhenTheFileLiesOutsideTheReach(): void
 	{
 
-		// Regression test for FCIAS Review §6, Finding 1.
-		$userFolder = $this->createMock( Folder::class );
-
-		$this->rootFolder->method( 'getUserFolder' )
-		                 ->with( 'alice' )
-		                 ->willReturn( $userFolder )
-		;
-		$userFolder->method( 'getById' )
-		           ->with( 42 )
-		           ->willReturn( [] )
-		;
+		// Regression test for FCIAS Review §6, Finding 1 — the reach is the
+		// resolver's answer now, the same one the listing filters by.
+		$this->outOfReach[] = 42;
 
 		$this->metadataService->expects( $this->never() )
 		                      ->method( 'getHashes' )
@@ -631,27 +664,15 @@ class ChecksumApiTest
 
 		$this->expectException( NotFoundException::class );
 
-		$this->api->getHashesByFileId( 42, 'alice' );
+		$this->api->getHashesByFileId( 42, 'alice', [ 'alice' ] );
 	}
 
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testGetHashesByFileIdAllowsRequestingUserWithAccess(): void
+	public function testGetHashesByFileIdAllowsAFileWithinTheReach(): void
 	{
-
-		$userFolder = $this->createMock( Folder::class );
-		$node       = $this->createMock( File::class );
-
-		$this->rootFolder->method( 'getUserFolder' )
-		                 ->with( 'alice' )
-		                 ->willReturn( $userFolder )
-		;
-		$userFolder->method( 'getById' )
-		           ->with( 42 )
-		           ->willReturn( [ $node ] )
-		;
 
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'getHashes' )
@@ -662,9 +683,37 @@ class ChecksumApiTest
 		                      ->willReturn( null )
 		;
 
-		$data = $this->api->getHashesByFileId( 42, 'alice' );
+		$data = $this->api->getHashesByFileId( 42, 'alice', [ 'alice' ] );
 
 		$this->assertSame( 42, $data['fileid'] );
+	}
+
+
+	/**
+	 * `canRecalc` is about who is *asking*, never about whose file it is.
+	 * With one parameter carrying both, a cross-account read passed null for
+	 * "every account" and the answer then reported what a trusted caller may
+	 * do — true for everyone. The two are separate parameters now, and the
+	 * reach being everyone says nothing about the asker's permission.
+	 */
+	public function testCanRecalcReportsTheAskerNotTheReach(): void
+	{
+
+		$this->groupManager->method( 'isAdmin' )
+		                   ->with( 'alice' )
+		                   ->willReturn( false )
+		;
+		$this->permissionService->method( 'isAllowed' )
+		                        ->with( PermissionService::PERMISSION_MANUAL_RECALC, 'alice' )
+		                        ->willReturn( false )
+		;
+		$this->metadataService->method( 'getHashes' )
+		                      ->willReturn( [] )
+		;
+
+		$data = $this->api->getHashesByFileId( 42, 'alice', null );
+
+		$this->assertFalse( $data['canRecalc'], 'every account in reach, but alice still may not' );
 	}
 
 
@@ -776,19 +825,10 @@ class ChecksumApiTest
 	 * this, sweeping file ids answers "does that file hold something I also
 	 * hold" for every file on the instance.
 	 */
-	public function testFindSameHashThrowsWhenRequestingUserCannotAccessTheReferenceFile(): void
+	public function testFindSameHashThrowsWhenTheReferenceFileLiesOutsideTheReach(): void
 	{
 
-		$userFolder = $this->createMock( Folder::class );
-
-		$this->rootFolder->method( 'getUserFolder' )
-		                 ->with( 'alice' )
-		                 ->willReturn( $userFolder )
-		;
-		$userFolder->method( 'getById' )
-		           ->with( 42 )
-		           ->willReturn( [] )
-		;
+		$this->outOfReach[] = 42;
 
 		$this->metadataService->expects( $this->never() )
 		                      ->method( 'getHashes' )
@@ -796,7 +836,7 @@ class ChecksumApiTest
 
 		$this->expectException( NotFoundException::class );
 
-		$this->api->findSameHash( 42, 'alice' );
+		$this->api->findSameHash( 42, [ 'alice' ] );
 	}
 
 
@@ -854,17 +894,24 @@ class ChecksumApiTest
 		                      )
 		;
 
-		$user       = $this->createMock( IUser::class );
 		$userFolder = $this->createMock( Folder::class );
 		$dupNode    = $this->createMock( File::class );
 
-		$this->userSession->method( 'getUser' )
-		                  ->willReturn( $user )
+		// Every account in reach (null), so the duplicate is rendered through
+		// whoever holds it — the mount cache says bob does — and never
+		// through the session's folder, which is what used to make this
+		// route answer only the caller's own copies.
+		$this->userSession->expects( $this->never() )
+		                  ->method( 'getUser' )
 		;
-		$user->method( 'getUID' )
-		     ->willReturn( 'bob' )
+		$this->userMountCache->method( 'getMountsForFileId' )
+		                     ->with( 108 )
+		                     ->willReturn( [
+			                     $this->createConfiguredMock( \OCP\Files\Config\ICachedMountFileInfo::class, [
+				                     'getUser' => $this->createConfiguredMock( IUser::class, [ 'getUID' => 'bob' ] ),
+			                     ] ),
+		                     ] )
 		;
-
 		$this->rootFolder->method( 'getUserFolder' )
 		                 ->with( 'bob' )
 		                 ->willReturn( $userFolder )
@@ -1187,20 +1234,15 @@ class ChecksumApiTest
 		// Regression test for FCIAS Review §6, Finding 1.
 		$userFolder = $this->createMock( Folder::class );
 
-		$this->rootFolder->method( 'getUserFolder' )
-		                 ->with( 'alice' )
-		                 ->willReturn( $userFolder )
-		;
-		$userFolder->method( 'getById' )
-		           ->with( 99999 )
-		           ->willReturn( [] )
-		;
-
+		// 99999 is outside every reach the mocked resolver answers for.
 		$this->hashIndexService->expects( $this->never() )
 		                       ->method( 'recalcHash' )
 		;
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'recalcFileHash' )
+		;
 
-		$result = $this->api->recalcHash( 99999, 'sha1', 'alice' );
+		$result = $this->api->recalcHash( 99999, 'sha1', 'alice', [ 'alice' ] );
 
 		$this->assertFalse( $result['success'] );
 		$this->assertSame( 'File not found.', $result['error'] );
@@ -1222,20 +1264,30 @@ class ChecksumApiTest
 		           ->willReturn( [ $node ] )
 		;
 
-		// Owning the file is one gate, the manual-recalculation permission the
-		// other; this test is about the first, so the second says yes.
+		// Reaching the file is one gate, the manual-recalculation permission
+		// the other; this test is about the first, so the second says yes.
 		$this->permissionService->method( 'isAllowed' )
 		                        ->with( PermissionService::PERMISSION_MANUAL_RECALC, 'alice' )
 		                        ->willReturn( true )
 		;
 
+		// The node is resolved where it can be seen — a folder of an account
+		// that holds it — for anyone with a session, own file or not.
+		$this->userMountCache->method( 'getMountsForFileId' )
+		                     ->with( 42 )
+		                     ->willReturn( [
+			                     $this->createConfiguredMock( \OCP\Files\Config\ICachedMountFileInfo::class, [
+				                     'getUser' => $this->createConfiguredMock( IUser::class, [ 'getUID' => 'alice' ] ),
+			                     ] ),
+		                     ] )
+		;
 		$this->hashIndexService->expects( $this->once() )
-		                       ->method( 'recalcHash' )
-		                       ->with( 42, 'sha256' )
+		                       ->method( 'recalcFileHash' )
+		                       ->with( $node, 'sha256' )
 		                       ->willReturn( [ 'success' => true ] )
 		;
 
-		$result = $this->api->recalcHash( 42, 'sha256', 'alice' );
+		$result = $this->api->recalcHash( 42, 'sha256', 'alice', [ 'alice' ] );
 
 		$this->assertTrue( $result['success'] );
 	}
@@ -1289,7 +1341,7 @@ class ChecksumApiTest
 		                       ->willReturn( [ 'success' => true ] )
 		;
 
-		$result = $this->api->recalcHash( 42, 'sha256', 'alice', true );
+		$result = $this->api->recalcHash( 42, 'sha256', 'alice', null );
 
 		$this->assertTrue( $result['success'] );
 	}
@@ -1315,7 +1367,7 @@ class ChecksumApiTest
 		                       ->method( 'recalcFileHash' )
 		;
 
-		$result = $this->api->recalcHash( 42, 'sha256', 'alice', true );
+		$result = $this->api->recalcHash( 42, 'sha256', 'alice', null );
 
 		$this->assertFalse( $result['success'] );
 		$this->assertSame( 'File not found.', $result['error'] );
@@ -1345,7 +1397,7 @@ class ChecksumApiTest
 		                       ->method( 'recalcHash' )
 		;
 
-		$result = $this->api->recalcHash( 42, 'sha256', 'alice', true );
+		$result = $this->api->recalcHash( 42, 'sha256', 'alice', null );
 
 		$this->assertFalse( $result['success'] );
 		$this->assertTrue( $result['forbidden'] );
@@ -1374,7 +1426,7 @@ class ChecksumApiTest
 		                       ->method( 'recalcHash' )
 		;
 
-		$result = $this->api->recalcHash( 42, 'sha256', 'alice', true );
+		$result = $this->api->recalcHash( 42, 'sha256', 'alice', null );
 
 		$this->assertFalse( $result['success'] );
 		$this->assertTrue( $result['excluded'] );

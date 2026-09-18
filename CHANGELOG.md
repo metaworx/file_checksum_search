@@ -132,6 +132,10 @@ the first stable release.
 - Rate limit the expensive public API endpoints per user, using Nextcloud's own `#[UserRateLimit]` attribute: 60 requests/minute on `lookup` and `duplicates`, and 20 requests/minute on `recalc`, which reads file content from storage.
 
 ### Fixed
+- `GET /api/v1/sudo/file/{fileId}/duplicates` lists duplicates across the
+  caller's reach rather than only their own copies, and `canRecalc` on
+  `/sudo/file/{fileId}/hashes` reports the caller: `ChecksumApi` takes
+  `$actingUser` and `$reachUids` as separate parameters.
 - **Verification works on the Duplicates page's *Others* tab, where it never has.** Every file on that tab belongs to somebody else, and the recalculation route resolves the file inside the *caller's* own home — so each row answered *File not found.*, and the page-wide button it replaced had failed the same way for every file at once, silently, since the tab existed. A cross-account twin now stands beside it, `POST /api/v1/sudo/file/{fileId}/recalc`, refusing in the order the other cross-account routes do: who may use the API, then whether the file is theirs to reach, then the password confirmation, so someone who may not ask is told so without being made to type a password first. Two things do not change by crossing accounts, and both are the point: **Who may calculate by hand** is answered against whoever is asking rather than against the file's owner, and an administrator's `exclude` rule still refuses the path — which is what keeps this from reading storage that costs money. Because nothing else records who did it, a cross-account recalculation is logged naming the account that asked. Recalculating your own file is unchanged and still cannot reach anybody else's.
 - `SudoScope::mayReachFile()`: the cross-account per-file routes ask
   about the file rather than about every account, on the same mount

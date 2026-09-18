@@ -249,6 +249,42 @@ class PublicApiController
 
 
 	/**
+	 * The most $own may reach with nothing named: null for a sudoer (every
+	 * account), a group leader's members otherwise. Called only after a
+	 * refusal helper has admitted the caller, so a refusal here would be a
+	 * contradiction; it is answered as an empty reach rather than trusted.
+	 *
+	 * @return list<string>|null
+	 */
+	private function ceilingOf( string $own ): ?array
+	{
+
+		$ceiling = $this->sudo->resolve( $own, null );
+
+		return $ceiling === false ? [] : $ceiling;
+	}
+
+
+	/**
+	 * A scope as the routes carry it — one account, several, or null — in
+	 * the shape the API takes: a list, or null for every account.
+	 *
+	 * @param  string|list<string>|null  $scope
+	 *
+	 * @return list<string>|null
+	 */
+	private function reachOf( string|array|null $scope ): ?array
+	{
+
+		return match ( true ) {
+			$scope === null       => null,
+			is_string( $scope )   => [ $scope ],
+			default               => array_values( $scope ),
+		};
+	}
+
+
+	/**
 	 * The accounts a cross-account route may read when the caller names a
 	 * set, or the response to send instead.
 	 *
@@ -439,11 +475,11 @@ class PublicApiController
 	public function getHashes( int $fileId ): DataResponse
 	{
 
-		$scope = $this->scopeOrRefusal();
+		$own = $this->scopeOrRefusal();
 
-		return $scope instanceof DataResponse
-			? $scope
-			: $this->hashesFor( $fileId, $scope );
+		return $own instanceof DataResponse
+			? $own
+			: $this->hashesFor( $fileId, $own, [ $own ] );
 	}
 
 
@@ -459,22 +495,28 @@ class PublicApiController
 	public function sudoGetHashes( int $fileId ): DataResponse
 	{
 
-		$scope = $this->sudoFileOrRefusal( $fileId );
+		$own = $this->sudoFileOrRefusal( $fileId );
 
-		// As above: the reach is settled against this file, so the body is
-		// told not to ask the own-tree question a second time.
-		return $scope instanceof DataResponse
-			? $scope
-			: $this->hashesFor( $fileId, null );
+		// The caller is who is asking; their ceiling is what may be reached.
+		// The reach was settled for this file already, so the body's own
+		// check is a repeat — cheap, and it keeps one rule for both routes.
+		return $own instanceof DataResponse
+			? $own
+			: $this->hashesFor( $fileId, $own, $this->ceilingOf( $own ) );
 	}
 
 
 	/**
-	 * The route's body, for either wrapper: $scope is whose files may be
-	 * read — a uid, or null for every account.
+	 * The route's body, for either wrapper. $actingUser is who asked — the
+	 * session's account, never anything a client sent — and $reachUids is
+	 * whose files they may ask about: their own, their members', or null for
+	 * every account.
 	 */
-	private function hashesFor( int $fileId, ?string $scope ): DataResponse
-	{
+	private function hashesFor(
+		int    $fileId,
+		string $actingUser,
+		?array $reachUids,
+	): DataResponse {
 
 		$this->logger->debug(
 			'FCIAS PublicApiController: getHashes called',
@@ -486,7 +528,7 @@ class PublicApiController
 
 		try
 		{
-			$result = $this->api->getHashesByFileId( $fileId, $scope );
+			$result = $this->api->getHashesByFileId( $fileId, $actingUser, $reachUids );
 
 			return new DataResponse( $result );
 		}
@@ -649,6 +691,10 @@ class PublicApiController
 		bool    $anywhere = false,
 	): DataResponse {
 
+		// One account, several or every: the API takes a list or null, and
+		// the normalising happens here, once, rather than in each caller.
+		$reachUids = $this->reachOf( $scope );
+
 		$this->logger->debug(
 			'FCIAS PublicApiController: findAllDuplicates called',
 			[
@@ -662,7 +708,7 @@ class PublicApiController
 
 		try
 		{
-			$result = $this->api->findDuplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere );
+			$result = $this->api->findDuplicatesFor( $reachUids, $algo, $minCount, $limit, $offset, $hash, $anywhere );
 
 			return new DataResponse( $result );
 		}
@@ -696,18 +742,19 @@ class PublicApiController
 	public function findDuplicates( int $fileId ): DataResponse
 	{
 
-		$scope = $this->scopeOrRefusal();
+		$own = $this->scopeOrRefusal();
 
-		return $scope instanceof DataResponse
-			? $scope
-			: $this->sameHashFor( $fileId, $scope );
+		return $own instanceof DataResponse
+			? $own
+			: $this->sameHashFor( $fileId, [ $own ] );
 	}
 
 
 	/**
 	 * {@see findDuplicates()} for a file that need not be the caller's own,
-	 * with the duplicates drawn from every account. A password confirmation,
-	 * and only for those who may look across accounts.
+	 * with the duplicates drawn from the caller's whole reach — every
+	 * account for a sudoer, their members' for a group leader. A password
+	 * confirmation, and only for those who may look across accounts.
 	 *
 	 * @noinspection PhpUnused
 	 */
@@ -717,21 +764,22 @@ class PublicApiController
 	public function sudoFindDuplicates( int $fileId ): DataResponse
 	{
 
-		$scope = $this->sudoFileOrRefusal( $fileId );
+		$own = $this->sudoFileOrRefusal( $fileId );
 
-		// The reach was settled against this file; null tells the body not to
-		// re-ask the own-tree question, which is the whole point of being here.
-		return $scope instanceof DataResponse
-			? $scope
-			: $this->sameHashFor( $fileId, null );
+		// The ceiling bounds the *duplicates* as well as the reference file:
+		// a group leader is shown copies their members hold, not copies held
+		// anywhere on the instance.
+		return $own instanceof DataResponse
+			? $own
+			: $this->sameHashFor( $fileId, $this->ceilingOf( $own ) );
 	}
 
 
 	/**
-	 * The route's body, for either wrapper: $scope is whose files may be
-	 * read — a uid, or null for every account.
+	 * The route's body, for either wrapper: $reachUids is whose files may
+	 * be read — the caller's own, their members', or null for every account.
 	 */
-	private function sameHashFor( int $fileId, ?string $scope ): DataResponse
+	private function sameHashFor( int $fileId, ?array $reachUids ): DataResponse
 	{
 
 		$this->logger->debug(
@@ -744,7 +792,7 @@ class PublicApiController
 
 		try
 		{
-			$result = $this->api->findSameHash( $fileId, $scope );
+			$result = $this->api->findSameHash( $fileId, $reachUids );
 
 			return new DataResponse( $result );
 		}
@@ -891,7 +939,7 @@ class PublicApiController
 
 		try
 		{
-			$result = $this->api->findByHash( $hash, $algo, $limit, $scope );
+			$result = $this->api->findByHash( $hash, $algo, $limit, $this->reachOf( $scope ) );
 
 			return new DataResponse( $result );
 		}
@@ -941,7 +989,7 @@ class PublicApiController
 
 		return $scope instanceof DataResponse
 			? $scope
-			: $this->recalcFor( $fileId, $scope, false );
+			: $this->recalcFor( $fileId, $scope, [ $scope ] );
 	}
 
 
@@ -987,19 +1035,20 @@ class PublicApiController
 			],
 		);
 
-		return $this->recalcFor( $fileId, $scope, true );
+		return $this->recalcFor( $fileId, $scope, $this->ceilingOf( $scope ) );
 	}
 
 
 	/**
 	 * The route's body, for either wrapper. $actingUser is who asked —
 	 * always the session's account, never anything a client sent — and
-	 * $anyAccount says the reach was settled before we got here.
+	 * $reachUids is whose files they may act on: their own, their members',
+	 * or null for every account.
 	 */
 	private function recalcFor(
 		int    $fileId,
 		string $actingUser,
-		bool   $anyAccount,
+		?array $reachUids,
 	): DataResponse {
 
 		$body = json_decode( file_get_contents( 'php://input' ), true );
@@ -1025,7 +1074,7 @@ class PublicApiController
 
 		try
 		{
-			$result = $this->api->recalcHash( $fileId, $algo, $actingUser, $anyAccount );
+			$result = $this->api->recalcHash( $fileId, $algo, $actingUser, $reachUids );
 
 			if ( $result['success'] )
 			{
