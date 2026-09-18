@@ -520,7 +520,14 @@ class FilecacheServiceTest
 	}
 
 
-	public function testBatchLookupFilecachePathsFiltersByUserName(): void
+	/**
+	 * Given mounts, the query is narrowed to them — one more predicate,
+	 * whatever their number — and the rows still come back mapped. The
+	 * shape of the predicate (storage, and root or below) is the resolver's
+	 * contract and is exercised end to end in `ReachTest`; a query-builder
+	 * mock cannot see SQL.
+	 */
+	public function testBatchLookupFilecachePathsNarrowsToTheGivenMounts(): void
 	{
 
 		$fileIds  = [ 42 ];
@@ -533,11 +540,8 @@ class FilecacheServiceTest
 			],
 		];
 
-		$this->expr->method( 'eq' )
-		           ->willReturn( 's.id = :dcValue1' )
-		;
 		$this->expr->method( 'in' )
-		           ->willReturn( 'fc.fileid IN (:dcValue2)' )
+		           ->willReturn( 'fc.fileid IN (:dcValue1)' )
 		;
 
 		$resultStmt = $this->createMock( IResult::class );
@@ -548,12 +552,33 @@ class FilecacheServiceTest
 		$this->queryBuilder->method( 'executeQuery' )
 		                   ->willReturn( $resultStmt )
 		;
+		$this->queryBuilder->expects( $this->once() )
+		                   ->method( 'andWhere' )
+		;
 
-		$result = $this->service->batchLookupFilecachePaths( $fileIds, 'admin' );
+		$result = $this->service->batchLookupFilecachePaths( $fileIds, [
+			[ 'storage' => 3, 'root' => '' ],
+			[ 'storage' => 9, 'root' => 'files/Projects/x' ],
+		] );
 
 		$this->assertCount( 1, $result );
 		$this->assertArrayHasKey( 42, $result );
 		$this->assertSame( 'admin', $result[42]['user'] );
+	}
+
+
+	/**
+	 * A reach holding nothing matches nothing — not everything, which is
+	 * what a filter that quietly disappears when its list is empty does.
+	 */
+	public function testBatchLookupFilecachePathsWithNoMountsAsksNothing(): void
+	{
+
+		$this->db->expects( $this->never() )
+		         ->method( 'getQueryBuilder' )
+		;
+
+		$this->assertSame( [], $this->service->batchLookupFilecachePaths( [ 42 ], [] ) );
 	}
 
 

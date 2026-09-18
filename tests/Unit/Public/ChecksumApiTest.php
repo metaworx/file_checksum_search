@@ -113,6 +113,13 @@ class ChecksumApiTest
 			$this->createMock( IUserConfig::class ),
 			$this->userMountCache,
 			$this->userManager,
+			// A real resolver over the same mocks, so the mount and account
+			// expectations the tests below set are what it reads.
+			new \OCA\FileChecksumSearch\Service\ReachResolver(
+				$this->userMountCache,
+				$this->userManager,
+				$this->createMock( \OCP\IDBConnection::class ),
+			),
 		);
 	}
 

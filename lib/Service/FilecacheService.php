@@ -913,14 +913,26 @@ class FilecacheService
 	 * @return array<int, array{path: string, name: string, storage_id: string, user: string}>
 	 */
 	/**
-	 * @param  string|list<string>|null  $userName  One account to filter to,
-	 *                                              several (the cross-account
-	 *                                              picker names a set), or
-	 *                                              null for every file.
+	 * Paths for a set of file ids, kept to those within the given mounts.
+	 *
+	 * This is an *authority*: what it drops, the listing never shows. So
+	 * the filter is the mount — a storage **and** a root — and never the
+	 * storage alone. A share of a subfolder mounts the owner's whole
+	 * storage; filtering on the storage would list everything the owner has
+	 * for whoever received one folder of it. Filtering on the root admits
+	 * the subtree and nothing beside it. `oc_filecache` indexes
+	 * `(storage, path)` for this prefix shape.
+	 *
+	 * @param  int[]                                         $fileIds
+	 * @param  list<array{storage: int, root: string}>|null  $mounts  From
+	 *         {@see ReachResolver::mountsFor()}: null for every file, an
+	 *         empty list for none.
+	 *
+	 * @return array<int, array{path: string, name: string, storage_id: string, user: string}>
 	 */
 	public function batchLookupFilecachePaths(
-		array                    $fileIds,
-		string|array|null        $userName = null,
+		array  $fileIds,
+		?array $mounts = null,
 	): array {
 
 		if ( empty( $fileIds ) )
@@ -928,18 +940,9 @@ class FilecacheService
 			return [];
 		}
 
-		// A set of accounts filters on their home storages together; one
-		// account is the same query with one id, so the two share a path.
-		$homeStorageIds = $userName === null
-			? null
-			: array_values( array_map(
-				static fn ( string $uid ): string => 'home::' . $uid,
-				is_array( $userName ) ? array_values( $userName ) : [ $userName ],
-			) );
-
-		if ( $homeStorageIds === [] )
+		if ( $mounts === [] )
 		{
-			// A set naming nobody matches nothing — not everything.
+			// A reach holding nothing matches nothing — not everything.
 			return [];
 		}
 
@@ -963,15 +966,38 @@ class FilecacheService
 			   ),
 		);
 
-		if ( $homeStorageIds !== null )
+		if ( $mounts !== null )
 		{
-			$qb->andWhere(
-				$qb->expr()
-				   ->in(
-					   's.id',
-					   $qb->createNamedParameter( $homeStorageIds, IQueryBuilder::PARAM_STR_ARRAY ),
-				   ),
-			);
+			$within = $qb->expr()->orX();
+
+			foreach ( $mounts as $mount )
+			{
+				$sameStorage = $qb->expr()->eq(
+					'fc.storage',
+					$qb->createNamedParameter( $mount['storage'], IQueryBuilder::PARAM_INT ),
+				);
+
+				// A home's root is '' — the whole storage, and the common
+				// case, which the index answers on the storage alone.
+				if ( $mount['root'] === '' )
+				{
+					$within->add( $sameStorage );
+
+					continue;
+				}
+
+				$root = $this->db->escapeLikeParameter( $mount['root'] );
+
+				$within->add( $qb->expr()->andX(
+					$sameStorage,
+					$qb->expr()->orX(
+						$qb->expr()->eq( 'fc.path', $qb->createNamedParameter( $mount['root'] ) ),
+						$qb->expr()->like( 'fc.path', $qb->createNamedParameter( $root . '/%' ) ),
+					),
+				) );
+			}
+
+			$qb->andWhere( $within );
 		}
 
 		$result = $qb->executeQuery();

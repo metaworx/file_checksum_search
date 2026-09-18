@@ -47,6 +47,7 @@ class HashIndexService
 		private readonly DuplicateService       $duplicates,
 		private readonly MetadataService        $metadataService,
 		private readonly FilecacheService       $filecacheService,
+		private readonly ReachResolver          $reach,
 	) {
 	}
 
@@ -341,7 +342,13 @@ class HashIndexService
 		string|array|null $userName = null,
 	): array {
 
-		return $this->filecacheService->batchLookupFilecachePaths( $fileIds, $userName );
+		// Accounts in, mounts down: the one place the listing's reach is
+		// resolved, so the listing, the set listing and the occ command all
+		// mean the same thing by "whose files".
+		return $this->filecacheService->batchLookupFilecachePaths(
+			$fileIds,
+			$this->reach->mountsFor( $userName ),
+		);
 	}
 
 

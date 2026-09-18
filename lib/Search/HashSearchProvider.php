@@ -11,7 +11,7 @@ namespace OCA\FileChecksumSearch\Search;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\MetadataService;
-use OCP\Files\Config\IUserMountCache;
+use OCA\FileChecksumSearch\Service\ReachResolver;
 use OCP\Files\IRootFolder;
 use OCP\IURLGenerator;
 use OCP\IUser;
@@ -42,7 +42,7 @@ class HashSearchProvider
 	public function __construct(
 		private readonly MetadataService $metadataService,
 		private readonly IRootFolder     $rootFolder,
-		private readonly IUserMountCache $userMountCache,
+		private readonly ReachResolver   $reach,
 		private readonly IURLGenerator   $urlGenerator,
 		private readonly LoggerInterface $logger,
 	) {
@@ -133,10 +133,7 @@ class HashSearchProvider
 		// copies of a hash — the unified search's default limit — are enough
 		// to hide somebody's own file from them. getById() below remains the
 		// authority; this only decides which rows are worth fetching.
-		$visibleStorageIds = array_map(
-			static fn ( $mount ) => $mount->getStorageId(),
-			$this->userMountCache->getMountsForUser( $user ),
-		);
+		$visibleStorageIds = $this->reach->storageIdsFor( $user->getUID() ) ?? [];
 
 		// Capped regardless of what core hands us: each surviving row costs a
 		// getById() below, and a search for a common hash — the empty file —

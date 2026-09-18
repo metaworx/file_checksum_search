@@ -31,6 +31,7 @@ class DuplicateService
 	public function __construct(
 		private readonly MetadataService  $metadataService,
 		private readonly FilecacheService $filecacheService,
+		private readonly ReachResolver    $reach,
 	) {
 	}
 
@@ -113,7 +114,10 @@ class DuplicateService
 			return (int) $row[ MetadataService::FIELD_FILE_ID ];
 		}, $rows );
 
-		$fcPaths = $this->filecacheService->batchLookupFilecachePaths( $fileIds, $userName );
+		$fcPaths = $this->filecacheService->batchLookupFilecachePaths(
+			$fileIds,
+			$this->reach->mountsFor( $userName ),
+		);
 
 		// queryByHash() compares against the index, which holds at most 63
 		// characters, so a long-hash lookup can return a file that only

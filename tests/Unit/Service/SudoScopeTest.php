@@ -31,6 +31,8 @@ class SudoScopeTest
 
 	private PermissionService&MockObject $permissions;
 
+	private \OCA\FileChecksumSearch\Service\ReachResolver&MockObject $reach;
+
 	private SudoScope                    $scope;
 
 
@@ -43,6 +45,7 @@ class SudoScopeTest
 		$this->subAdmin    = $this->createMock( ISubAdmin::class );
 		$this->users       = $this->createMock( IUserManager::class );
 		$this->permissions = $this->createMock( PermissionService::class );
+		$this->reach       = $this->createMock( \OCA\FileChecksumSearch\Service\ReachResolver::class );
 
 		$this->users->method( 'get' )
 		            ->willReturnCallback( fn ( string $uid ): ?IUser => in_array( $uid, [ 'lead', 'member', 'stranger', 'root' ], true )
@@ -54,6 +57,7 @@ class SudoScopeTest
 			$this->subAdmin,
 			$this->users,
 			$this->permissions,
+			$this->reach,
 		);
 	}
 
@@ -355,50 +359,65 @@ class SudoScopeTest
 	// ─── mayReachFile: asking about a file, not an account ───────────
 
 	/**
-	 * The delegated branch is switched off — see {@see SudoScope::mayReachFile()}
-	 * for why, and `wip/2026-09-04_12-44_ANALYSIS_CrossAccountDesign_v1.0` for
-	 * what replaces it. These cases pin the disabled state so it cannot be
-	 * quietly re-enabled: whatever the rework decides, it will have to say so
-	 * here.
+	 * A sudoer reaches anything, and the resolver is never consulted.
 	 */
 	public function testASudoerReachesAnyFile(): void
 	{
 
 		$this->asSudoer();
 
+		$this->reach->expects( $this->never() )
+		            ->method( 'mountsFor' )
+		;
+
 		$this->assertTrue( $this->scope->mayReachFile( 'root', 42 ) );
 	}
 
 
 	/**
-	 * A sub-admin is refused, as they were before this method existed. The
-	 * branch that served them accepted any mount holding the file, which
-	 * reached files their own listing never shows — including files owned by
-	 * accounts outside their groups.
+	 * A group leader reaches a file within their ceiling's mounts and not
+	 * one beside it — the same predicate the listing filters by, asked of
+	 * the same resolver, so the two cannot disagree. The earlier branch this
+	 * replaces accepted any file whose *storage* a member had mounted, which
+	 * a single shared folder made the sharer's whole storage.
 	 */
-	public function testASubAdminReachesNoFileWhileTheDelegatedAnswerIsOff(): void
+	public function testASubAdminReachesWhatLiesWithinTheirMembersMounts(): void
 	{
 
 		$this->asSubAdminOf( 'team' );
+		$this->subAdmin->method( 'getSubAdminsGroups' )
+		               ->willReturn( [ $this->group( 'team', [ 'member' ] ) ] )
+		;
 
-		$this->assertFalse( $this->scope->mayReachFile( 'lead', 42 ) );
+		$mounts = [ [ 'storage' => 9, 'root' => 'files/Projects/x' ] ];
+
+		$this->reach->method( 'mountsFor' )
+		            ->with( [ 'member' ] )
+		            ->willReturn( $mounts )
+		;
+		$this->reach->method( 'contains' )
+		            ->willReturnCallback( static fn ( ?array $m, int $fileId ): bool => $m === $mounts && $fileId === 42 )
+		;
+
+		$this->assertTrue( $this->scope->mayReachFile( 'lead', 42 ), 'within the shared subtree' );
+		$this->assertFalse( $this->scope->mayReachFile( 'lead', 43 ), 'beside it' );
 	}
 
 
-	public function testAPlainAccountReachesNoFile(): void
+	/**
+	 * No ceiling, no reach: a plain account and an unknown one are refused
+	 * before the resolver is asked anything.
+	 */
+	public function testAnAccountWithNoCeilingReachesNoFile(): void
 	{
 
 		$this->asSubAdminOf( 'team' );
+
+		$this->reach->expects( $this->never() )
+		            ->method( 'mountsFor' )
+		;
 
 		$this->assertFalse( $this->scope->mayReachFile( 'member', 42 ) );
-	}
-
-
-	public function testAnUnknownAccountReachesNoFile(): void
-	{
-
-		$this->asSubAdminOf( 'team' );
-
 		$this->assertFalse( $this->scope->mayReachFile( 'ghost', 42 ) );
 	}
 

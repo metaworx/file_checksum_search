@@ -43,11 +43,22 @@ class HashIndexServiceTest
 		$this->metadataService  = $this->createMock( MetadataService::class );
 		$this->filecacheService = $this->createMock( FilecacheService::class );
 
+		// Accounts in, mounts out: null stays null (everyone), anything
+		// named resolves to one home mount. What the tests assert is that
+		// the *mounts* reach the path lookup, not the account names.
+		$reach = $this->createMock( \OCA\FileChecksumSearch\Service\ReachResolver::class );
+		$reach->method( 'mountsFor' )
+		      ->willReturnCallback( static fn ( string|array|null $uids ): ?array => $uids === null
+			      ? null
+			      : [ [ 'storage' => 1, 'root' => '' ] ] )
+		;
+
 		$this->service = new HashIndexService(
 			$this->hashCalc,
 			$this->duplicates,
 			$this->metadataService,
 			$this->filecacheService,
+			$reach,
 		);
 	}
 
@@ -380,7 +391,8 @@ class HashIndexServiceTest
 		                 ] )
 		;
 
-		// One batched lookup for both groups, not one per group.
+		// One batched lookup for both groups, not one per group — and it is
+		// handed bob's *mounts*, resolved once, not bob's name.
 		$this->filecacheService->expects( $this->once() )
 		                       ->method( 'batchLookupFilecachePaths' )
 		                       ->with(
@@ -390,7 +402,7 @@ class HashIndexServiceTest
 				                       7,
 				                       9,
 			                       ],
-			                       'bob',
+			                       [ [ 'storage' => 1, 'root' => '' ] ],
 		                       )
 		                       ->willReturn(
 			                       $this->paths(

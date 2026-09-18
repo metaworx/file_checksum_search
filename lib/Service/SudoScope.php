@@ -26,10 +26,10 @@ use OCP\IUserManager;
  *
  * Asked about an account, that is {@see resolve()} or {@see resolveSet()}.
  * Asked about one file, it is {@see mayReachFile()} — a separate question,
- * because a per-file route holds a file id and not an account. Its delegated
- * answer is switched off for now, so a sub-admin reaches no file that is not
- * their own; that method says why, and the rework named there decides what
- * replaces it.
+ * because a per-file route holds a file id and not an account. It is
+ * answered with the very predicate the listing filters by, from the one
+ * {@see ReachResolver}, so what a caller is shown and what they may act on
+ * cannot disagree.
  *
  * This decides only *who may be asked*. The asking — a password
  * confirmation on the interactive routes, a granted app password on the
@@ -43,6 +43,7 @@ class SudoScope
 		private readonly ISubAdmin         $subAdmin,
 		private readonly IUserManager      $userManager,
 		private readonly PermissionService $permissions,
+		private readonly ReachResolver     $reach,
 	) {
 	}
 
@@ -251,32 +252,37 @@ class SudoScope
 	 * per-file routes cannot ask that one: `resolve()` wants an account, and
 	 * a file id is what they hold.
 	 *
-	 * A sudoer reaches anything. **Nobody else reaches anything, for now.**
+	 * A sudoer reaches anything. Anyone else reaches a file that lies within
+	 * one of the mounts of their ceiling — the accounts {@see resolve()}
+	 * gives them for no target — and nothing beside it.
 	 *
-	 * The delegated branch that stood here accepted a file when any *mount*
-	 * holding it belonged to an account accessible to $uid. That was justified
-	 * on the claim that such a file is already in the listing the sub-admin is
-	 * looking at — and the claim is false. The listing filters on the home
-	 * storages of the named accounts ({@see FilecacheService::queryDuplicates()}),
-	 * so a file merely *shared into* a member's home was reachable here while
-	 * never appearing there, whoever owned it: someone outside the leader's
-	 * groups, an administrator included. Since block 5 wired recalculation to
-	 * this question, that reach also bought a content read and a hash write on
-	 * such a file.
-	 *
-	 * It is switched off rather than narrowed, deliberately. Narrowing it to
-	 * home storages would match today's listing, and
-	 * `wip/2026-09-04_12-44_ANALYSIS_CrossAccountDesign_v1.0` proposes moving
-	 * the listing to mounts instead — so a narrowing now is as likely to be
-	 * undone as kept. A sub-admin is refused, as they were before this method
-	 * existed; the rework decides what they get, within this release.
+	 * **The same predicate the listing uses**, from the same resolver: the
+	 * listing filters `oc_filecache` to those mounts, and this asks whether
+	 * one file would pass that filter. So what a group leader is shown and
+	 * what they may act on agree by construction. An earlier version of this
+	 * method accepted any file whose *storage* an accessible account had
+	 * mounted, which admitted a sharer's whole storage on the strength of one
+	 * shared folder; that was withdrawn, and a mount is a storage *and a
+	 * root* now ({@see ReachResolver}).
 	 */
 	public function mayReachFile(
 		string $uid,
 		int    $fileId,
 	): bool {
 
-		return $this->isSudoer( $uid );
+		if ( $this->isSudoer( $uid ) )
+		{
+			return true;
+		}
+
+		$ceiling = $this->resolve( $uid, null );
+
+		if ( $ceiling === false )
+		{
+			return false;
+		}
+
+		return $this->reach->contains( $this->reach->mountsFor( $ceiling ), $fileId );
 	}
 
 

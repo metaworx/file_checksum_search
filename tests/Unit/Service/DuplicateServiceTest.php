@@ -41,9 +41,20 @@ class DuplicateServiceTest
 		$this->metadataService  = $this->createMock( MetadataService::class );
 		$this->filecacheService = $this->createMock( FilecacheService::class );
 
+		// Accounts in, mounts out: null stays null (everyone), anything
+		// named resolves to one home mount. What the tests assert is that
+		// the *mounts* reach the path lookup, not the account name.
+		$reach = $this->createMock( \OCA\FileChecksumSearch\Service\ReachResolver::class );
+		$reach->method( 'mountsFor' )
+		      ->willReturnCallback( static fn ( string|array|null $uids ): ?array => $uids === null
+			      ? null
+			      : [ [ 'storage' => 1, 'root' => '' ] ] )
+		;
+
 		$this->service = new DuplicateService(
 			$this->metadataService,
 			$this->filecacheService,
+			$reach,
 		);
 	}
 
@@ -298,13 +309,14 @@ class DuplicateServiceTest
 		                      ->willReturn( $rows )
 		;
 
-		// The requesting user's UID must reach FilecacheService so results
-		// are restricted to that user's own home storage (see FCIAS Review
-		// §6, Finding 1 — public API lookups previously leaked cross-user
-		// file paths because this filter was never threaded through).
+		// The requesting account's *mounts* must reach FilecacheService so
+		// results are restricted to what that account can see (FCIAS Review
+		// §6, Finding 1 was this filter never being threaded through at all;
+		// the cross-account review was it being threaded as a bare uid, and
+		// so resolving to the home storage alone).
 		$this->filecacheService->expects( $this->once() )
 		                       ->method( 'batchLookupFilecachePaths' )
-		                       ->with( [ 42 ], 'alice' )
+		                       ->with( [ 42 ], [ [ 'storage' => 1, 'root' => '' ] ] )
 		                       ->willReturn( $fcPaths )
 		;
 

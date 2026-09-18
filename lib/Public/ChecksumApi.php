@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Public;
 
 use OCA\FileChecksumSearch\Service\DuplicateService;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
+use OCA\FileChecksumSearch\Service\ReachResolver;
 use OCP\Config\IUserConfig;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Config\ConfigLexicon;
@@ -59,6 +60,7 @@ class ChecksumApi
 		private readonly IUserConfig             $userConfig,
 		private readonly IUserMountCache         $userMountCache,
 		private readonly IUserManager            $userManager,
+		private readonly ReachResolver           $reach,
 	) {
 	}
 
@@ -282,23 +284,16 @@ class ChecksumApi
 		// authority, so shares, group folders and object-store homes count
 		// too, not just `home::<uid>`. The same shape {@see findSameHash()}
 		// and the unified-search provider use.
-		$uids              = is_array( $requestingUser ) ? array_values( $requestingUser ) : [ $requestingUser ];
-		$folders           = [];
-		$visibleStorageIds = [];
+		$uids    = is_array( $requestingUser ) ? array_values( $requestingUser ) : [ $requestingUser ];
+		$folders = [];
 
 		foreach ( $uids as $uid )
 		{
-			$uid  = (string) $uid;
-			$user = $this->userManager->get( $uid );
+			$uid = (string) $uid;
 
-			if ( $user === null )
+			if ( $this->userManager->get( $uid ) === null )
 			{
 				continue;
-			}
-
-			foreach ( $this->userMountCache->getMountsForUser( $user ) as $mount )
-			{
-				$visibleStorageIds[] = $mount->getStorageId();
 			}
 
 			$folders[ $uid ] = $this->rootFolder->getUserFolder( $uid );
@@ -309,7 +304,10 @@ class ChecksumApi
 			return [ 'results' => [] ];
 		}
 
-		$visibleStorageIds = array_values( array_unique( $visibleStorageIds ) );
+		// Narrowing only — getById() below stays the authority — so bare
+		// storage ids are enough here, from the one resolver the listing
+		// takes its mounts from.
+		$visibleStorageIds = $this->reach->storageIdsFor( array_keys( $folders ) ) ?? [];
 
 		$rows = $this->metadataService->confirmFullHash(
 			$this->metadataService->queryByHash( $hash, $algo, $limit, $visibleStorageIds ),

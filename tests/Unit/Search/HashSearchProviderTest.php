@@ -36,7 +36,7 @@ class HashSearchProviderTest
 		$this->provider = new HashSearchProvider(
 			$this->createMock( MetadataService::class ),
 			$this->createMock( IRootFolder::class ),
-			$this->createMock( IUserMountCache::class ),
+			$this->createMock( \OCA\FileChecksumSearch\Service\ReachResolver::class ),
 			$this->createMock( IURLGenerator::class ),
 			$this->createMock( LoggerInterface::class ),
 		);
@@ -86,11 +86,19 @@ class HashSearchProviderTest
 
 		$mount = $this->createMock( ICachedMountInfo::class );
 		$mount->method( 'getStorageId' )->willReturn( 1 );
+		$mount->method( 'getRootInternalPath' )->willReturn( '' );
 		$mountCache->method( 'getMountsForUser' )->willReturn( [ $mount ] );
+
+		// The searching account, known to the user manager the resolver
+		// looks it up through.
+		$user = $this->createMock( IUser::class );
+		$user->method( 'getUID' )->willReturn( 'u1' );
+		$users = $this->createMock( \OCP\IUserManager::class );
+		$users->method( 'get' )->with( 'u1' )->willReturn( $user );
 
 		$metadata->expects( $this->once() )
 		         ->method( 'queryByHash' )
-		         ->with( $this->anything(), $this->anything(), 100, $this->anything() )
+		         ->with( $this->anything(), $this->anything(), 100, [ 1 ] )
 		         ->willReturn( [] )
 		;
 		$metadata->method( 'confirmFullHash' )->willReturn( [] );
@@ -98,7 +106,7 @@ class HashSearchProviderTest
 		$provider = new HashSearchProvider(
 			$metadata,
 			$this->createMock( IRootFolder::class ),
-			$mountCache,
+			new \OCA\FileChecksumSearch\Service\ReachResolver( $mountCache, $users, $this->createMock( \OCP\IDBConnection::class ) ),
 			$this->createMock( IURLGenerator::class ),
 			$this->createMock( LoggerInterface::class ),
 		);
@@ -107,7 +115,7 @@ class HashSearchProviderTest
 		$query->method( 'getTerm' )->willReturn( 'abc123abc123abc123abc123abc123abc123abc1' );
 		$query->method( 'getLimit' )->willReturn( 100000 );
 
-		$provider->search( $this->createMock( IUser::class ), $query );
+		$provider->search( $user, $query );
 	}
 
 }
