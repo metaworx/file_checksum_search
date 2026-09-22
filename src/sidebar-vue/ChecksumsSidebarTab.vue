@@ -100,9 +100,10 @@ function onRecalc(algo: string | null): void {
 	recalc(algo === null ? selectedAlgo.value : algo)
 }
 
+// No `dir`: core resolves the id in the viewer's own folder and works the
+// directory out for itself, so one sent along was never read.
 function fileLink(file: DuplicateFile): string {
-	const dirPath = file.path ? (file.path.substring(0, file.path.lastIndexOf('/')) || '/') : '/'
-	return `${generateUrl(FRONTEND.fileLink, { fileid: file.fileid })}?dir=${encodeURIComponent(dirPath)}&opendetails=true`
+	return `${generateUrl(FRONTEND.fileLink, { fileid: file.fileid })}?opendetails=true`
 }
 
 watch(
@@ -213,10 +214,12 @@ watch(
 						</div>
 						<ul class="fcias-dup-list">
 							<li v-for="file in group.files" :key="file.fileid" class="fcias-dup-item">
-								<a class="fcias-dup-item-link"
+								<a v-if="file.openable !== false"
+									class="fcias-dup-item-link"
 									:href="fileLink(file)"
 									target="_blank"
 									rel="noreferrer noopener">{{ fileLabel(file) }}</a>
+								<span v-else class="fcias-dup-item-unopenable" title="Not in your files">{{ fileLabel(file) }}</span>
 							</li>
 						</ul>
 					</div>

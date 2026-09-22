@@ -18,6 +18,8 @@ export interface DuplicateFile {
 	owner?: string | null
 	/** Where the file really lives; shown instead of the path when it is not the viewer's. */
 	location?: string
+	/** Whether the viewer could open it in the Files app; absent on own listings, where they always can. */
+	openable?: boolean
 }
 
 export interface DuplicateGroup {

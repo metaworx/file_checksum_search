@@ -71,7 +71,13 @@ function toggle(): void {
 						<!-- The viewer's own files by the path they know; anyone
 						     else's by where they live, or three accounts' copies
 						     of one template read as the same row three times. -->
-						<a :href="fileUrl(file)" target="_blank" rel="noreferrer noopener">{{ fileLabel(file) }}</a>
+						<a v-if="file.openable !== false"
+							:href="fileUrl(file)"
+							target="_blank"
+							rel="noreferrer noopener">{{ fileLabel(file) }}</a>
+						<!-- A link resolves in the viewer's own folder; a file they do
+						     not hold would only open to "not found". -->
+						<span v-else class="db-file-unopenable" title="Not in your files">{{ fileLabel(file) }}</span>
 						<span v-if="file.verified === true" class="db-verified">✓</span>
 						<span v-else-if="file.verified === false" class="db-mismatch">✗ ({{ file.verify_error || (file.verified_hash ? `now: ${file.verified_hash}` : '?') }})</span>
 					</span>

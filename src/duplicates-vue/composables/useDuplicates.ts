@@ -21,6 +21,8 @@ export interface DuplicateFileItem {
 	owner?: string | null
 	/** Where the file really lives; shown instead of the path when it is not the viewer's. */
 	location?: string
+	/** Whether the viewer could open it in the Files app; absent on own listings, where they always can. */
+	openable?: boolean
 	verified?: boolean
 	verified_hash?: string
 	verify_error?: string
@@ -302,9 +304,10 @@ export function useDuplicates() {
 		}
 	}
 
+	// No `dir`: core resolves the id in the viewer's own folder and works the
+	// directory out for itself, so one sent along was never read.
 	function fileUrl(file: DuplicateFileItem): string {
-		const dirPath = file.path ? (file.path.substring(0, file.path.lastIndexOf('/')) || '/') : '/'
-		return `${generateUrl(FRONTEND.fileLink, { fileid: file.fileid })}?dir=${encodeURIComponent(dirPath)}&opendetails=true`
+		return `${generateUrl(FRONTEND.fileLink, { fileid: file.fileid })}?opendetails=true`
 	}
 
 	function resetOffset(): void {

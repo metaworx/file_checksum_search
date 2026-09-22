@@ -765,6 +765,40 @@ class ChecksumApi
 
 
 	/**
+	 * Which of these files $viewer could open in the Files app.
+	 *
+	 * A file link resolves in the viewer's own folder — core's
+	 * `/apps/files/files/{fileid}` looks the id up there and nowhere else —
+	 * so a row the viewer does not hold cannot be opened by any link, and a
+	 * page should not offer one. The client cannot tell from `owner`: a
+	 * received share is somebody else's and opens fine. One batched lookup
+	 * against the viewer's own mounts answers for the whole page.
+	 *
+	 * @param  list<int>  $fileIds
+	 *
+	 * @return array<int, bool>  keyed by file id; an id the viewer cannot
+	 *                           open is false
+	 */
+	public function openableBy(
+		array  $fileIds,
+		string $viewer,
+	): array {
+
+		if ( $fileIds === [] )
+		{
+			return [];
+		}
+
+		$held = $this->hashIndexService->batchLookupFilecachePaths( $fileIds, [ $viewer ] );
+
+		return array_combine(
+			$fileIds,
+			array_map( static fn ( int $id ): bool => isset( $held[ $id ] ), $fileIds ),
+		);
+	}
+
+
+	/**
 	 * The given file rows, each with whose file it is and where it lives.
 	 *
 	 * `path` on these rows is some viewer's name for the file, and with more

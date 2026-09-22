@@ -1,10 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDuplicates } from './useDuplicates'
 
+// Both substitute placeholders the way the real ones do; a stand-in that
+// returned the template unchanged would pass `{fileid}` through and let a
+// link test assert on nothing.
+const substitute = (url: string, params?: Record<string, unknown>) =>
+	url.replace(/\{(\w+)\}/g, (whole, token) => (params && token in params ? String(params[token]) : whole))
+
 vi.mock('@nextcloud/router', () => ({
-	generateOcsUrl: (url: string, params?: Record<string, unknown>) =>
-		url.replace(/\{(\w+)\}/g, (whole, token) => (params && token in params ? String(params[token]) : whole)),
-	generateUrl: (url: string) => url,
+	generateOcsUrl: (url: string, params?: Record<string, unknown>) => substitute(url, params),
+	generateUrl: (url: string, params?: Record<string, unknown>) => substitute(url, params),
 }))
 
 function jsonResponse(body: unknown): Response {
@@ -345,6 +350,19 @@ describe('useDuplicates', () => {
 			{ algo: 'sha1', hash_value: 'abc', file_count: 3, files: [] },
 		])
 		expect(hasMore.value).toBe(false)
+	})
+})
+
+describe('fileUrl', () => {
+	// Core resolves the id in the viewer's own folder and works the directory
+	// out for itself; a `dir` sent along was never read, so none is sent.
+	it('links by id alone, opening the details pane', () => {
+		const { fileUrl } = useDuplicates()
+		const url = fileUrl({ fileid: 42, path: '/Docs/report.pdf', name: 'report.pdf' })
+
+		expect(url).toContain('/apps/files/files/42')
+		expect(url).toContain('opendetails=true')
+		expect(url).not.toContain('dir=')
 	})
 })
 

@@ -319,6 +319,60 @@ class PublicApiControllerTest
 
 
 	/**
+	 * A cross-account answer says which rows the viewer could open — the
+	 * page links only those. The own listing is not asked: what it lists,
+	 * the viewer holds by construction.
+	 */
+	public function testCrossAccountRowsSayWhetherTheViewerCouldOpenThem(): void
+	{
+
+		$sudo = $this->createMock( SudoScope::class );
+		$sudo->method( 'resolve' )
+		     ->willReturn( null )
+		;
+		$controller = new PublicApiController(
+			'file_checksum_search',
+			$this->createMock( IRequest::class ),
+			$this->api,
+			$this->userSession,
+			$this->groupManager,
+			$this->logger,
+			$this->createMock( AlgorithmCatalogue::class ),
+			$this->userConfig,
+			$this->lockdown,
+			$sudo,
+			$this->session,
+			$this->permissions,
+			$this->confirmation,
+			$this->appConfig,
+		);
+
+		$listing = [
+			'duplicates'   => [ [ 'algo' => 'sha1', 'hash_value' => 'abc', 'file_count' => 2, 'files' => [ [ 'fileid' => 25 ], [ 'fileid' => 360 ] ] ] ],
+			'total_groups' => 1,
+			'pagination'   => [ 'offset' => 0, 'limit' => 50 ],
+		];
+		$this->api->method( 'findDuplicatesFor' )
+		          ->willReturn( $listing )
+		;
+		$this->api->expects( $this->once() )
+		          ->method( 'openableBy' )
+		          ->with( [ 25, 360 ], 'admin' )
+		          ->willReturn( [ 25 => true, 360 => false ] )
+		;
+
+		$files = $controller->sudoFindAllDuplicates()->getData()['duplicates'][0]['files'];
+
+		$this->assertSame( [ true, false ], array_column( $files, 'openable' ) );
+
+		// The own route: same listing, no question asked, no field added.
+		$own = $this->controller->findAllDuplicates()->getData()['duplicates'][0]['files'];
+
+		$this->assertArrayNotHasKey( 'openable', $own[0] );
+	}
+
+
+	/**
 	 * The ordinary route never waives it, whoever is calling.
 	 */
 	public function testRecalcOnOnesOwnFileNeverWaivesTheReach(): void

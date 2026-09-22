@@ -331,16 +331,24 @@ describe( 'FCIAS Duplicates page', () => {
 				const group = () => cy.get( '[data-testid="fcias-others"] .db-group', { timeout: FIND_TIMEOUT } )
 				group().should( 'have.length', 1 )
 				group().find( '.db-group-header' ).click()
-				group().find( '.db-file-label a', { timeout: FIND_TIMEOUT } ).should( 'have.length', 4 )
+				group().find( '.db-file-label', { timeout: FIND_TIMEOUT } ).should( 'have.length', 4 )
 
-				// Two rows are the other account's and say so; the viewer's
-				// own two keep their path and never read as a location.
-				group().find( '.db-file-label a' )
-					.filter( ( _i, el ) => el.textContent.startsWith( `/${ account.user }/files/` ) )
+				// The label is the row's first child, a link or not. Two rows
+				// are the other account's and say so; the viewer's own two keep
+				// their path and never read as a location.
+				const label = ( el ) => el.firstElementChild?.textContent ?? ''
+				group().find( '.db-file-label' )
+					.filter( ( _i, el ) => label( el ).startsWith( `/${ account.user }/files/` ) )
 					.should( 'have.length', 2 )
-				group().find( '.db-file-label a' )
-					.filter( ( _i, el ) => el.textContent.startsWith( `/${ adminUser }/files/` ) )
+				group().find( '.db-file-label' )
+					.filter( ( _i, el ) => label( el ).startsWith( `/${ adminUser }/files/` ) )
 					.should( 'have.length', 0 )
+
+				// And only the viewer's own rows link: a file link resolves in
+				// the viewer's folder, so the other account's rows would open
+				// to nothing and are text instead.
+				group().find( '.db-file-label > a' ).should( 'have.length', 2 )
+				group().find( '.db-file-label > .db-file-unopenable' ).should( 'have.length', 2 )
 
 				cy.fciasDeleteAccount( admin, account.user )
 			} )

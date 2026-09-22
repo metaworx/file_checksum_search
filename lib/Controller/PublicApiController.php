@@ -248,6 +248,68 @@ class PublicApiController
 
 
 	/**
+	 * Say, on a cross-account answer, which rows the viewer could open.
+	 *
+	 * Every file row in `duplicates[].files[]` or `results[]` gains
+	 * `openable`. The own routes never need it — what they list, the viewer
+	 * holds by construction — so only the cross-account wrappers ask, and a
+	 * refusal or an error passes through untouched.
+	 */
+	private function markOpenable( DataResponse $response ): DataResponse
+	{
+
+		$viewer = $this->userSession->getUser()?->getUID();
+		$data   = $response->getData();
+
+		if ( $response->getStatus() !== Http::STATUS_OK || $viewer === null || ! is_array( $data ) )
+		{
+			return $response;
+		}
+
+		if ( isset( $data['results'] ) )
+		{
+			$ids      = array_map( static fn ( array $r ): int => (int) $r['fileid'], $data['results'] );
+			$openable = $this->api->openableBy( $ids, $viewer );
+
+			foreach ( $data['results'] as &$row )
+			{
+				$row['openable'] = $openable[ (int) $row['fileid'] ] ?? false;
+			}
+			unset( $row );
+		}
+
+		if ( isset( $data['duplicates'] ) )
+		{
+			$ids = [];
+
+			foreach ( $data['duplicates'] as $group )
+			{
+				foreach ( $group['files'] ?? [] as $file )
+				{
+					$ids[] = (int) $file['fileid'];
+				}
+			}
+
+			$openable = $this->api->openableBy( array_values( array_unique( $ids ) ), $viewer );
+
+			foreach ( $data['duplicates'] as &$group )
+			{
+				foreach ( $group['files'] as &$file )
+				{
+					$file['openable'] = $openable[ (int) $file['fileid'] ] ?? false;
+				}
+				unset( $file );
+			}
+			unset( $group );
+		}
+
+		$response->setData( $data );
+
+		return $response;
+	}
+
+
+	/**
 	 * The most $own may reach with nothing named: null for a sudoer (every
 	 * account), a group leader's members otherwise. Called only after a
 	 * refusal helper has admitted the caller, so a refusal here would be a
@@ -670,7 +732,7 @@ class PublicApiController
 
 		return $scope instanceof DataResponse
 			? $scope
-			: $this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere );
+			: $this->markOpenable( $this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere ) );
 	}
 
 
@@ -768,7 +830,7 @@ class PublicApiController
 		// anywhere on the instance.
 		return $own instanceof DataResponse
 			? $own
-			: $this->sameHashFor( $fileId, $this->ceilingOf( $own ) );
+			: $this->markOpenable( $this->sameHashFor( $fileId, $this->ceilingOf( $own ) ) );
 	}
 
 
@@ -911,11 +973,11 @@ class PublicApiController
 	): DataResponse
 	{
 
-		$scope = $this->sudoScopeOrRefusal(  );
+		$scope = $this->sudoScopeOrRefusal();
 
 		return $scope instanceof DataResponse
 			? $scope
-			: $this->lookupFor( $hash, $algo, $limit, $scope );
+			: $this->markOpenable( $this->lookupFor( $hash, $algo, $limit, $scope ) );
 	}
 
 

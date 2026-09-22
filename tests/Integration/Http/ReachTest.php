@@ -403,6 +403,33 @@ class ReachTest
 	}
 
 
+	// ─── which rows a link would open ────────────────────────────────
+
+	/**
+	 * A file link resolves in the viewer's folder or not at all. The
+	 * leader holds none of the member's files, so every row they are shown
+	 * says it would not open; the recipient's own rows say nothing, because
+	 * the own listing shows only what its viewer holds.
+	 */
+	public function testACrossAccountRowSaysWhetherItWouldOpenForTheViewer(): void
+	{
+
+		$leaders = $this->get( '/api/v1/sudo/duplicates?algo=sha1&hash=' . self::$hash['in'], self::$leaderUid, self::$leaderPassword );
+
+		$this->assertSame( 200, $leaders['status'] );
+		$this->assertSame(
+			[ false, false ],
+			array_column( $leaders['body']['duplicates'][0]['files'], 'openable' ),
+			'a leader does not hold what their member received',
+		);
+
+		$own = $this->get( '/api/v1/duplicates?algo=sha1&hash=' . self::$hash['in'], self::$recipientUid, self::$recipientPassword );
+
+		$this->assertSame( 200, $own['status'] );
+		$this->assertArrayNotHasKey( 'openable', $own['body']['duplicates'][0]['files'][0] );
+	}
+
+
 	// ─── a plain account, on every cross-account route ───────────────
 
 	/**

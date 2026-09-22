@@ -1418,6 +1418,30 @@ class ChecksumApiTest
 	}
 
 
+	// ─── openableBy: which rows a link would open ───────────────────
+
+	/**
+	 * A link opens in the viewer's own folder or not at all, so the answer
+	 * is whether the viewer's own mounts hold the file — one batched lookup,
+	 * keyed by id, false for what they do not hold.
+	 */
+	public function testOpenableByAsksTheViewersOwnMountsOnce(): void
+	{
+
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'batchLookupFilecachePaths' )
+		                       ->with( [ 7, 8, 9 ], [ 'alice' ] )
+		                       ->willReturn( [ 7 => [ 'path' => 'files/a' ], 9 => [ 'path' => 'files/c' ] ] )
+		;
+
+		$this->assertSame(
+			[ 7 => true, 8 => false, 9 => true ],
+			$this->api->openableBy( [ 7, 8, 9 ], 'alice' ),
+		);
+		$this->assertSame( [], $this->api->openableBy( [], 'alice' ), 'nothing to ask about, nothing asked' );
+	}
+
+
 	// ─── recalcMany: one gesture, one request ───────────────────────
 
 	/**
