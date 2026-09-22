@@ -278,11 +278,13 @@ class ChecksumApi
 			): array {
 
 				return [
-					'fileid' => (int) $row['fileid'],
-					'algo'   => $row['algo'],
-					'hash'   => $row['hash_value'],
-					'path'   => $row['path'],
-					'name'   => $row['name'],
+					'fileid'   => (int) $row['fileid'],
+					'algo'     => $row['algo'],
+					'hash'     => $row['hash_value'],
+					'path'     => $row['path'],
+					'name'     => $row['name'],
+					'owner'    => $row['owner'] ?? null,
+					'location' => $row['location'] ?? '',
 				];
 			}, $rows );
 
@@ -372,7 +374,7 @@ class ChecksumApi
 			];
 		}
 
-		return [ 'results' => $results ];
+		return [ 'results' => $this->withLocations( $results ) ];
 	}
 
 
@@ -567,6 +569,11 @@ class ChecksumApi
 			}
 		}
 
+		foreach ( $grouped as $key => $group )
+		{
+			$grouped[ $key ]['files'] = $this->withLocations( $group['files'] );
+		}
+
 		return [ 'duplicates' => array_values( $grouped ) ];
 	}
 
@@ -678,6 +685,41 @@ class ChecksumApi
 		return $file === null
 			? [ 'success' => false, 'error' => 'File not found.' ]
 			: $this->hashIndexService->recalcFileHash( $file, $algo );
+	}
+
+
+	/**
+	 * The given file rows, each with whose file it is and where it lives.
+	 *
+	 * `path` on these rows is some viewer's name for the file, and with more
+	 * than one account in reach nothing about it says whose. `owner` and
+	 * `location` do — the file's canonical identity from its filecache row
+	 * ({@see FileLocation}), which the listing's rows carry from the start
+	 * and these, rendered from nodes, gain here in one batched lookup.
+	 *
+	 * @param  list<array{fileid: int}>  $rows
+	 *
+	 * @return list<array>  the same rows plus `owner: ?string` and `location: string`
+	 */
+	private function withLocations( array $rows ): array
+	{
+
+		if ( $rows === [] )
+		{
+			return [];
+		}
+
+		// No reach filter: what may be listed was decided row by row already;
+		// this only finds words for it.
+		$located = $this->hashIndexService->batchLookupFilecachePaths( array_column( $rows, 'fileid' ) );
+
+		return array_map(
+			static fn ( array $row ): array => $row + [
+				'owner'    => $located[ $row['fileid'] ]['owner'] ?? null,
+				'location' => $located[ $row['fileid'] ]['location'] ?? '',
+			],
+			$rows,
+		);
 	}
 
 

@@ -928,7 +928,10 @@ class FilecacheService
 	 *         {@see ReachResolver::mountsFor()}: null for every file, an
 	 *         empty list for none.
 	 *
-	 * @return array<int, array{path: string, name: string, storage_id: string, user: string}>
+	 * @return array<int, array{path: string, name: string, storage_id: string, user: string, owner: ?string, location: string}>
+	 *         `owner` is the uid a home file belongs to, null for a group
+	 *         folder or an external storage, which have none; `location` is
+	 *         {@see FileLocation::describe()}.
 	 */
 	public function batchLookupFilecachePaths(
 		array  $fileIds,
@@ -1017,11 +1020,19 @@ class FilecacheService
 				$user = basename( $sid );
 			}
 
+			// Whose file it is and where it really lives — the row's canonical
+			// identity, not any one viewer's path for it. Across accounts two
+			// rows can read `files/Templates/Certificate.odt` and be two
+			// people's files; the location is what tells them apart.
+			$location = FileLocation::fromRow( (int) $row['fileid'], $sid, (string) $row['path'], 0 );
+
 			$paths[ (int) $row['fileid'] ] = [
 				'path'       => (string) $row['path'],
 				'name'       => (string) $row['name'],
 				'storage_id' => $sid,
 				'user'       => $user,
+				'owner'      => $location->owner,
+				'location'   => $location->describe(),
 			];
 		}
 		$result->closeCursor();

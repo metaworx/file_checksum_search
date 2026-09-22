@@ -212,6 +212,37 @@ class ReachTest
 	}
 
 
+	// ─── whose file, and where ───────────────────────────────────────
+
+	/**
+	 * The rows alice is shown for the shared pair are bob's files, and say
+	 * so: an owner that is not her, and a location in his home. Without it
+	 * the listing reads `shared_…/a.txt` — her view of his folder — with
+	 * nothing to tell it from a file of her own by that name.
+	 */
+	public function testARowSaysWhoseFileItIsAndWhereItLives(): void
+	{
+
+		$response = $this->get(
+			'/api/v1/duplicates?algo=sha1&hash=' . self::$hash['in'],
+			self::$recipientUid,
+			self::$recipientPassword,
+		);
+
+		$this->assertSame( 200, $response['status'] );
+
+		$files = $response['body']['duplicates'][0]['files'] ?? [];
+
+		$this->assertCount( 2, $files );
+
+		foreach ( $files as $file )
+		{
+			$this->assertSame( self::$ownerUid, $file['owner'] );
+			$this->assertStringStartsWith( '/' . self::$ownerUid . '/files/shared_', $file['location'] );
+		}
+	}
+
+
 	// ─── the per-file duplicates, across accounts ────────────────────
 
 	/**

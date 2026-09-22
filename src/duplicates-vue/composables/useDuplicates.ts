@@ -17,6 +17,10 @@ export interface DuplicateFileItem {
 	fileid: number
 	path: string
 	name: string
+	/** The uid a home file belongs to; null for a group folder or external storage. */
+	owner?: string | null
+	/** Where the file really lives; shown instead of the path when it is not the viewer's. */
+	location?: string
 	verified?: boolean
 	verified_hash?: string
 	verify_error?: string

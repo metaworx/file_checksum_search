@@ -642,6 +642,28 @@ class HashIndexServiceTest
 	 *
 	 * @return array<int, array{path: string, name: string, storage_id: string, user: string}>
 	 */
+	/**
+	 * Every listed file says whose it is and where it lives. Across accounts
+	 * a path alone cannot: it is one viewer's name for the file, and several
+	 * people's copies of one document all answer to the same one.
+	 */
+	public function testListedFilesCarryTheirOwnerAndLocation(): void
+	{
+
+		$this->duplicates->method( 'findAllDuplicates' )
+		                 ->willReturn( [ $this->group( 'abc', [ 42, 108 ] ) ] )
+		;
+		$this->filecacheService->method( 'batchLookupFilecachePaths' )
+		                       ->willReturn( $this->paths( [ 42, 108 ] ) )
+		;
+
+		$files = $this->service->listDuplicatesForUser( 'bob' )['duplicates'][0]['files'];
+
+		$this->assertSame( [ 'bob', 'bob' ], array_column( $files, 'owner' ) );
+		$this->assertSame( '/bob/files/f42.pdf', $files[0]['location'] );
+	}
+
+
 	private function paths( array $fileIds ): array
 	{
 
@@ -654,6 +676,8 @@ class HashIndexServiceTest
 				'name'       => "f$fileId.pdf",
 				'storage_id' => 'home::bob',
 				'user'       => 'bob',
+				'owner'      => 'bob',
+				'location'   => "/bob/files/f$fileId.pdf",
 			];
 		}
 

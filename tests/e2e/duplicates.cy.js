@@ -279,6 +279,74 @@ describe( 'FCIAS Duplicates page', () => {
 			.should( 'have.length', 1 )
 	} )
 
+	// A row in a cross-account listing says whose file it is. Several
+	// people's copies of one file all answer to the same path, so the page
+	// shows the location — /<uid>/files/… — for a file that is not the
+	// viewer's, and the plain path for the viewer's own. The rule itself has
+	// unit tests; this is the one place a rendered row is looked at with a
+	// foreign file actually in it, which no case above has: every file this
+	// spec plants belongs to the administrator.
+	it( 'labels another account\'s file by where it lives, and its own by its path', () => {
+		cy.env( [ 'NC_ADMIN_USER', 'NC_ADMIN_PASSWORD' ] ).then( ( env ) => {
+			const admin = { user: env.NC_ADMIN_USER || 'admin', password: env.NC_ADMIN_PASSWORD || 'admin' }
+			cy.fciasMakeAccount( admin, 'owner' ).then( ( account ) => {
+				// The same files in the other account's tree, with the same
+				// stated hashes: two more copies of this run's group. Cookies
+				// first — cy.request() shares the browser's jar, and with the
+				// administrator's session in it these writes would be theirs.
+				cy.clearCookies()
+				const theirs = ( path ) => `/remote.php/dav/files/${ account.user }${ path }`
+				const asThem = { user: account.user, pass: account.password }
+				cy.request( { method: 'MKCOL', url: theirs( `/${ dupDir }` ), auth: asThem, failOnStatusCode: false } )
+				for ( const { name, content } of files ) {
+					cy.request( {
+						method: 'PUT',
+						url: theirs( `/${ dupDir }/${ name }` ),
+						auth: asThem,
+						headers: { 'Content-Type': 'text/plain' },
+						body: content,
+					} )
+				}
+				cy.importFciasFixture( occ, 'duplicates', account.user )
+
+				cy.login( adminUser, adminPassword )
+				cy.intercept( 'GET', '**/apps/file_checksum_search/api/v1/sudo/selectable*' ).as( 'selectable' )
+				cy.visit( `${ DUPLICATES_URL }#others` )
+				cy.wait( '@selectable', { timeout: FIND_TIMEOUT } )
+
+				// Name both accounts, so one group holds the viewer's copies
+				// and the other account's side by side. Typed rather than
+				// picked from the opening list: past the prefill threshold the
+				// picker searches as you type, and this instance is past it.
+				for ( const uid of [ adminUser, account.user ] ) {
+					cy.get( '[data-testid="fcias-target-picker"] input', { timeout: FIND_TIMEOUT } )
+						.click( { force: true } )
+						.type( uid, { force: true } )
+					cy.get( '.vs__dropdown-menu li', { timeout: FIND_TIMEOUT } )
+						.contains( new RegExp( `^${ uid }$` ) )
+						.click( { force: true } )
+				}
+				cy.get( '#fcias-others-hash', { timeout: FIND_TIMEOUT } ).type( DUP_HASH.slice( 0, 6 ) )
+
+				const group = () => cy.get( '[data-testid="fcias-others"] .db-group', { timeout: FIND_TIMEOUT } )
+				group().should( 'have.length', 1 )
+				group().find( '.db-group-header' ).click()
+				group().find( '.db-file-label a', { timeout: FIND_TIMEOUT } ).should( 'have.length', 4 )
+
+				// Two rows are the other account's and say so; the viewer's
+				// own two keep their path and never read as a location.
+				group().find( '.db-file-label a' )
+					.filter( ( _i, el ) => el.textContent.startsWith( `/${ account.user }/files/` ) )
+					.should( 'have.length', 2 )
+				group().find( '.db-file-label a' )
+					.filter( ( _i, el ) => el.textContent.startsWith( `/${ adminUser }/files/` ) )
+					.should( 'have.length', 0 )
+
+				cy.fciasDeleteAccount( admin, account.user )
+			} )
+		} )
+	} )
+
 	it( 'does not offer the Others tab to an account nobody named', () => {
 		cy.env( [ 'NC_ADMIN_USER', 'NC_ADMIN_PASSWORD' ] ).then( ( env ) => {
 			const admin = { user: env.NC_ADMIN_USER || 'admin', password: env.NC_ADMIN_PASSWORD || 'admin' }

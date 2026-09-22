@@ -14,6 +14,7 @@ import { translate as t } from '@nextcloud/l10n'
 import { generateUrl } from '@nextcloud/router'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import { FRONTEND } from '../routes'
+import { fileLabel } from '../fileLabel'
 import AlgorithmSelect from '../components/AlgorithmSelect.vue'
 import { type AlgoOption, fetchAlgorithms } from '../algorithms'
 import { useSidebarHashes } from './composables/useSidebarHashes'
@@ -215,7 +216,7 @@ watch(
 								<a class="fcias-dup-item-link"
 									:href="fileLink(file)"
 									target="_blank"
-									rel="noreferrer noopener">{{ file.path }}</a>
+									rel="noreferrer noopener">{{ fileLabel(file) }}</a>
 							</li>
 						</ul>
 					</div>

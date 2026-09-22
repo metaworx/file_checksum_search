@@ -290,9 +290,11 @@ class HashIndexService
 					if ( isset( $fcPaths[ $fileId ] ) )
 					{
 						$files[] = [
-							'fileid' => $fileId,
-							'path'   => $fcPaths[ $fileId ]['path'],
-							'name'   => $fcPaths[ $fileId ]['name'],
+							'fileid'   => $fileId,
+							'path'     => $fcPaths[ $fileId ]['path'],
+							'name'     => $fcPaths[ $fileId ]['name'],
+							'owner'    => $fcPaths[ $fileId ]['owner'] ?? null,
+							'location' => $fcPaths[ $fileId ]['location'] ?? '',
 						];
 					}
 				}

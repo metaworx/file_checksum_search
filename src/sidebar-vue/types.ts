@@ -14,6 +14,10 @@ export interface HashEntry {
 export interface DuplicateFile {
 	fileid: number
 	path: string
+	/** The uid a home file belongs to; null for a group folder or external storage. */
+	owner?: string | null
+	/** Where the file really lives; shown instead of the path when it is not the viewer's. */
+	location?: string
 }
 
 export interface DuplicateGroup {

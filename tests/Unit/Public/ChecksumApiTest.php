@@ -370,10 +370,24 @@ class ChecksumApiTest
 		            ->willReturn( [ 1, 3, 2 ] )
 		;
 
+		// Rendered from nodes, these rows gain whose file each is from one
+		// batched lookup — with two accounts in reach, `/a.txt` and `/b.txt`
+		// say nothing about that on their own.
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'batchLookupFilecachePaths' )
+		                       ->with( [ 7, 8 ] )
+		                       ->willReturn( [
+			                       7 => [ 'owner' => 'alice', 'location' => '/alice/files/a.txt' ],
+			                       8 => [ 'owner' => 'bob', 'location' => '/bob/files/b.txt' ],
+		                       ] )
+		;
+
 		$result = $this->api->findByHash( 'abc', null, 100, [ 'alice', 'bob' ] );
 
 		$this->assertSame( [ 7, 8 ], array_column( $result['results'], 'fileid' ) );
 		$this->assertSame( [ '/a.txt', '/b.txt' ], array_column( $result['results'], 'path' ) );
+		$this->assertSame( [ 'alice', 'bob' ], array_column( $result['results'], 'owner' ) );
+		$this->assertSame( '/bob/files/b.txt', $result['results'][1]['location'] );
 	}
 
 

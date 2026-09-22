@@ -55,7 +55,14 @@ async function fetchOptions(search: string | null = null): Promise<void> {
 			users?: Array<{ id: string, label: string }>
 		}
 
-		prefill.value = data.prefill !== false
+		// `prefill` describes the list the server just sent, and only the
+		// opening list — nobody's search — says anything about the instance.
+		// A search that finds one account also comes back `prefill: true`,
+		// and taking that at face value flipped the control into filtering
+		// its last answer: the second name typed found nothing.
+		if (search === null) {
+			prefill.value = data.prefill !== false
+		}
 		options.value = [
 			...(data.all ? [ALL] : []),
 			// A group and an account can carry the same name — "admin" is both

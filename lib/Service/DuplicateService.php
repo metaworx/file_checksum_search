@@ -145,6 +145,8 @@ class DuplicateService
 				'hash_value' => $extracted['hash'] ?? $hash,
 				'path'       => $fcPaths[ $fileId ]['path'],
 				'name'       => $fcPaths[ $fileId ]['name'],
+				'owner'      => $fcPaths[ $fileId ]['owner'] ?? null,
+				'location'   => $fcPaths[ $fileId ]['location'] ?? '',
 			];
 		}
 

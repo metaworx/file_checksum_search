@@ -515,6 +515,11 @@ class FilecacheServiceTest
 		$this->assertSame( 'report.pdf', $result[42]['name'] );
 		$this->assertSame( 'home::admin', $result[42]['storage_id'] );
 		$this->assertSame( 'admin', $result[42]['user'] );
+
+		// Whose file, and where it really lives — the row's identity rather
+		// than any one viewer's path for it.
+		$this->assertSame( 'admin', $result[42]['owner'] );
+		$this->assertSame( '/admin/files/Documents', $result[42]['location'] );
 		$this->assertSame( 'files/Photos', $result[108]['path'] );
 		$this->assertSame( 'vacation.jpg', $result[108]['name'] );
 	}
@@ -612,6 +617,11 @@ class FilecacheServiceTest
 
 		$this->assertCount( 1, $result );
 		$this->assertSame( 'user1', $result[42]['user'] );
+
+		// An external storage belongs to nobody: no owner, and a location
+		// that names the storage rather than pretending to a home.
+		$this->assertNull( $result[42]['owner'] );
+		$this->assertSame( 'storage:local::/mnt/data/user1/Documents', $result[42]['location'] );
 	}
 
 
