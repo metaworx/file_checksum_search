@@ -11,185 +11,275 @@ the first stable release.
 
 ## [Unreleased]
 
-### Security
-- **The periodic rule sweep no longer scales its cost with the whole instance.** It marked at most 100 files a run, but to find them it walked every file of every swept storage — one freshness query per file, and an in-memory id set of every match that grew to the instance's file count and was carried, doubled, into the next rule. A wide rule on a large server could exhaust cron. The sweep now asks the database for stale rows only (the freshness stamp is joined into the page query and rides on each file), so an already-hashed instance yields nothing instead of a query per file; and exclusion is resolved per file through the governing rule — the same way an explicit re-apply already worked — so no id set is carried between rules. An explicit re-apply sheds its per-file freshness query the same way.
-- **A hash search caps how much work one query can ask for.** The unified-search provider passed the limit core handed it straight to the query, and each surviving row costs a file resolution — so a search for a common hash (the empty file) with a large limit was a cheap way to spend thousands of queries. The limit is capped at 100, well past what a search dropdown shows.
-- **The hash lookup finds the files you actually hold, not just those in your home root.** `GET /api/v1/lookup` filtered matches to `home::<uid>` and applied its limit before that filter — so a file reached through a share or a group folder, or a home on object storage, answered *not found*, and enough foreign copies of a hash sorting ahead of your own could hide it. The lookup now spends its limit on the storages you have mounted and resolves each match through your own file tree, the way the per-file duplicate finder and the unified search already do.
-- **The two mutating POSTs no longer waive CSRF.** `recalc` and `rules/{id}/apply` carried `#[NoCSRFRequired]`, which drops the strict-cookie check along with the token check. The clients already send what the check wants — a browser the request token, an API caller the `OCS-APIRequest` header — so the attribute bought nothing and is gone; the read routes keep it, being GETs called with an app password that carries no token.
-- **Instance status is the administrator's, not every account's.** `/settings/status` dropped `#[NoAdminRequired]` — it is admin-only, and only the admin page ever read it. `/api/v1/status` answers a non-admin (and the anonymous caller) the app version alone; an administrator keeps the full snapshot. The version is a compatibility marker; the rest — database version, index size, hashing backlog, job state — described the instance to anyone with an account.
-- **A failed rule write no longer hands the editor the database's own error text.** `RulesController`'s unexpected-failure branch — reached by create, update, delete and reorder, by anyone with rule-editing permission — returned the exception message, which on a database error carries driver text and SQL fragments. It answers *Internal server error.* now, with the detail in the log; the validation messages the editor needs are unchanged.
-- **The duplicates listing cannot be asked for every hashed file at once, or as fast as a client likes.** `minCount` reached the query unclamped on both the page and the cross-account routes, so `minCount=1` (or 0, or negative) made every hashed file its own group and turned one request into a whole-index scan; the occ command already clamped it, the controllers did not. It is clamped once now, at the one point every path passes through, to two or more — a group is two files by definition. Both browser routes also gain the per-user rate limit their API twins already carry, so neither is an unmetered way to run the aggregate.
-- **Looking across accounts is now a route you choose and a password you confirm.** Four new routes mirror the ordinary ones under `/api/v1/sudo/` — the per-file hashes and duplicates, the lookup, and the duplicate listing — and one on the Duplicates page for naming another account. Each carries Nextcloud's password confirmation, which holds for thirty minutes, and each first asks who may be asked: a member of `admin` or anyone the *instance_view* permission names may look at anyone or at everyone; a sub-admin may look at the members of their own groups, one at a time, which is core's own delegation and needs no setting of ours. Everyone else is refused before the prompt would appear. The ordinary routes are untouched and never cross accounts.
-- **Administrators read their own files, like everyone else.** Every read path — the per-file hashes the sidebar shows, the per-file and instance-wide duplicates, the hash lookup, recalculation, and the Duplicates page's `user` parameter — resolved files without restriction for a member of the `admin` group, silently and with no way to work as oneself. All of them now scope to the caller. **This is a breaking change for scripts calling the API with administrator credentials:** they receive the administrator's own files where they received everybody's. The instance-wide view returns in the following commits as separate, explicitly named routes behind Nextcloud's password confirmation, and as grants on named app passwords for non-interactive callers; until then there is no cross-account read at all.
-- **Checksums adopted from Nextcloud's own column are checked before they are believed.** `oc_filecache.checksum` holds whatever a sync client sent in its `OC-Checksum` header — core stores it verbatim — and this app copied every pair of it into its own store, algorithm name included. That let a client choose a metadata key: `file-checksum-hash-<token>` has 31 characters to fit into, so a token over twelve broke the row, and any hash could be planted on one's own file to poison duplicate groups. Both adoption paths, the recalculation and the repair step, now keep only pairs naming an algorithm this instance computes whose value is hex of that algorithm's own length. The hash is still not recomputed: adopting what is already there is the point.
-- **Asking which files share a file's hash no longer answers for files you cannot open.** `GET /api/v1/file/{fileId}/duplicates` read the reference file's hashes before checking anything, and only filtered the *duplicates* it found to the caller's own tree. Because file ids are sequential, sweeping them turned the endpoint into a content-equality oracle over the whole instance: a non-empty answer said that file holds something you also hold. The reference file is now resolved through the caller's own tree first, as every sibling endpoint already did, and the endpoint is rate limited like the other expensive ones. Administrators are unaffected for now and keep the instance-wide view.
-
-### Changed
-- Cross-account rows: `openable`, and a link only where the file would
-  open for the viewer.
-- API reference, OpenAPI, README, user guide: the batch routes, the reach
-  parameters, `owner`/`location`/`openable`, verification on *Others*.
-- `POST /api/v1/file/many/recalc` and its `/sudo/` twin: one request
-  verifies up to 25 files or 100 MiB; the Duplicates page sends chunks.
-- Every file row: `owner` and `location` (`FileLocation::describe()`),
-  shown in place of the path where the file is not the viewer's own.
-- `ReachResolver`: the own listing and lookup include received shares and
-  group folders — a share only to its subtree — not `home::` alone.
-- **Verification is asked for per group or per file, not for the whole page.** The page-wide *Verify hashes* button is gone, and with it the *Only matching* filter that could only act on its results. A group header now carries **Verify all** and each file row a **Verify** of its own. Recomputing a checksum means reading the file's contents: on slow storage that is time, and on metered storage it is money — a single button committing to a page of it was the wrong shape. What verification reports is unchanged, and the rate limit still stops a long run with a message and resumes where it stopped. The user guide gains a section for it, answering the question the buttons raise — not "which one" but "why is this not simply done for me".
-- **A hash filter on both duplicate listings.** A *Hash* field beside the other filters keeps only the groups whose checksum it names — whole values first, then those beginning with what you typed, so a pasted hash finds its group and a few characters narrow the list. Upper case is fine. *Search anywhere* matches the term in the middle of a hash as well, for when you have a fragment. A term longer than the index column's 63 characters is matched against the metadata document too, so a full SHA-512 still finds exactly its group. Both `/api/v1/duplicates` and its cross-account twin take `hash` and `anywhere`.
-- **The admin page's Status tab is now Advanced**, holding the same diagnostics plus the instance's tunables. The first of those is how many accounts and groups the cross-account picker prefills before it searches as you type instead — 21 by default, and the same for administrators and group leaders alike. Documentation stays the last tab.
-- **Cross-account browsing is a tab of its own, not a switch.** The Duplicates page's tabs become *Mine* and *Others* — the second offered only to those who may look across accounts — on an amber ground, with a picker that names accounts and groups together. Choosing several shows them as one listing. The old *Show all users* switch is gone: it sat inside the ordinary listing, and a view of other people's files is not a state that listing should slip into. Entering the tab costs the password once, as the switch did; the filters and the page you were on are kept per tab. *All accounts* remains, as one option in the picker, for those who may have it. Past the prefill threshold the picker keeps searching as you type for every name, not only the first, and a group leader's search finds a member by name whether or not the group's name matches too.
-- `SudoScope` and every `/api/v1/sudo/` route: group leaders browse their
-  members' accounts. `GET /api/v1/sudo/duplicates` loses `user=`.
-- **The duplicates listing reads about what it returns, not ten thousand groups every time.** It fetched a fixed 10 000 groups — each carrying a whole metadata document — and trimmed to the caller's page after filtering to files the caller can see. It now pages the filter: a round reads 200 groups, keeps the caller's, and stops the moment the page is full, so an ordinary request reads roughly one round. The scan is still bounded for a caller who can see little of what the index holds.
-- **Confirming a truncated duplicate group is one read, not one per file.** Splitting a 63-character group by full hash issued a metadata query per member — thousands for a group on a common hash. The whole group's documents are now fetched in a single batched read.
-- The cross-account routes are exercised over HTTP with the credentials a script has: an app password minted by occ, granted and not, on an account that is a sudoer and one that is not, and the login password itself. The rule was unit-tested; the wiring from core's token to the stored grant was not, and the first run found it dead: the check looked the token up by session id, and a request that authenticates with an app password has no session token — Nextcloud keeps the app password itself in the session instead, which is what the check reads now. Nothing had widened; a granted token was refused like an ungranted one.
-- **The Duplicates page's controls say what they are.** Algorithm, Min and Limit carry a visible label, a help button beside it and a tooltip; Min and Limit are narrow instead of spanning the page, so the controls flow on one row where there is room. *Show all users* turns red — hovered or not — for as long as the view is instance-wide, since it is the one control that changes whose files are shown. The page's error line uses the palette's text red.
-- **A Status tab** on the admin page, before Documentation: the status table — versions, counts, the untrusted total with its reasons, the background jobs' last runs — leaves the top of Settings. Diagnostics and configuration are different pages to different readers; the idle banner stays on Settings, with the rule it points at. Tab order: Settings, Permissions, Sudo tokens, Status, Documentation.
-- **A Permissions tab** on the admin page, between Settings and Sudo tokens, holding the four permission sections; Settings is left with the algorithms and the rules. Every section is now a *Who may …*: calculate by hand, edit rules (formerly *Rule Editing Permission*), look across accounts, use the API.
-- **Who may calculate by hand** is a permission, the fourth in the same shape and the last of the set. It gates triggering a new computation — the sidebar's Recalculate buttons and `POST /api/v1/file/{fileId}/recalc` — for an account's own files, on top of owning them; reading hashes already computed is untouched. An account the permission does not name gets 403 with the reason, and the sidebar hides the buttons rather than offering them to fail: the hashes response now says `canRecalc`. Members of `admin` always may. It ships allowed, like the API permission, so nothing changes for anyone until an administrator narrows it.
-- **Sudo tokens.** A script cannot confirm a password, so an app password can be *granted* the cross-account routes: one switch per app password on the personal settings page, behind a password confirmation, offered only to an account the API permission names; every grant on the instance is listed on a new *Sudo tokens* tab of the admin page, where any can be revoked. Only app passwords, and only ones allowed to access files. A grant replaces the prompt, not the permission — who may look across accounts is still decided by the sudoers. Grants are keyed by the token's id in the user's own config, which core removes with the account; a token deleted on the Security page cannot authenticate at all, so a grant left behind is unreachable and merely shown as such. The cross-account routes now make the confirmation check themselves — a password confirmed within thirty minutes, as before, or a granted token — since Nextcloud's own middleware refuses every app-password session outright.
-- **Who may use the API** is a permission, the third in the same shape. A request that arrives with an app password, or with credentials in an `Authorization` header, is the API; a browser session is the app. For the first kind, an account the *api_access* permission does not name is refused with 403 on every public route, before anything else is looked at. The bundled pages — settings, Duplicates, the file sidebar — keep working for everyone, because they are the app and not the API, and a user denied the API is not offered the token grants of the next commit.
-- **Show all users** on the Duplicates page. A switch, shown only to those who may look across accounts, that asks for the password through Nextcloud's own confirmation dialog and then lists every account's duplicates through the cross-account route; off, or after a reload, the page is back to one's own files. The ordinary listing now says whether its viewer may switch, so the page asks nothing else to know whether to offer it.
-- One permission section for every permission, and a second permission: *who may look across accounts*. The rule-editing section was a component hard-wired to one key; it now takes the key and its words as props, and the settings endpoint carries every permission the app knows under one `permissions` map instead of naming one. `instance_view` names the sudoers — members of `admin` always, plus the groups and users chosen — and decides who may be *asked* to confirm a password for the instance-wide view; the routes that ask arrive in the next commit.
-- The end-to-end suite deletes the browser tokens it mints. Every `cy.login` goes through the login form, which creates a token in `oc_authtoken`, and nothing ever ended those sessions: the administrator had accumulated 918. Each spec now sweeps the accounts it logged in as through `occ user:auth-tokens:delete`, matching tokens by the Cypress user agent in their name — so a person's own browser session is never touched and an account the spec already deleted is simply skipped. The sweep runs at both ends of a spec: a spec's own teardown makes API calls after the shared hook has run, and those mint tokens too, so the next spec's start collects them. A full run now leaves the token table as it found it.
-- Docblocks where the contract is not in the signature, and none where it is. Thirty-odd methods gained one: the by-reference return nobody binds by reference, the save flag that is silently forced, the merge that drops whole hash pairs when the column overflows, the lock whose `false` means "busy" rather than "failed", the recursion whose batch size of zero means no limit. Twelve command docblocks that restated the method name and six that echoed the signature are gone, keeping every annotation they carried.
-- `FilecacheService` declares strict types, like every other service in the app. It was the only one without the declaration or the licence header, which is why its annotations had been free to drift. This changes how PHP treats argument and return types inside that one file, so it is a commit of its own: the full PHP suite and the end-to-end suite pass with it, and it can be reverted alone if something uncovered turns up.
-- The public PHP API's annotations now match what it returns and throws. `recalcHash()` documented a `fileid` key it never returns while omitting the `excluded`/`ruleId` pair the REST layer reads to answer 403 rather than 400; the by-path lookup omitted half its response; `findByHash()` documented no exception though an empty hash throws one. Nine metadata queries that let a database exception through now say so, `FilecacheService` no longer names an exception class that does not exist in Nextcloud's public namespace, and the misspelled `getAlgorithmenFromKey()` is `algorithmFromKey()`, typed string to string as it always was in practice.
-- Comments that contradicted the code are corrected or deleted. Two model generations had been left behind in prose: seven bands where there are eight, a single undeletable catch-all default where the shape is derived per segment and the app ships two, the retired `pinned` flag and "user scope" vocabulary, a seeding step that no longer exists, jobs said to be registered in code that registers nothing, and duplicate lookups described as instance-wide when they are scoped to the person asking. The rule dialog also loses a `lockScope` prop that no caller passed, along with the five template branches behind it.
-
-- The end-to-end suite no longer swallows this app's own exceptions. Its `uncaught:exception` handler ignored everything thrown in the browser, which is how nineteen dead notification calls survived unnoticed for as long as they existed; it now fails the spec when the error comes from this app and keeps ignoring the unrelated noise core's dashboard throws on a fresh install.
-- Save buttons say whether there is anything to save. Both admin settings sections compare what is on screen against what the server last gave them: with no change the Save button is disabled, and as soon as something differs it turns yellow (`NcButton` variant `warning`) until the save goes through. Red was not used, since it is the destructive variant in Nextcloud's palette. The personal page saves on select and has no button to colour.
-- **The test suites pin the algorithm state they depend on.** Three end-to-end specs clicked the checksum sidebar's `sha1` quick button by name and one integration test demanded that recalculating without an algorithm answer `sha1`, all of which hold only while the instance default is SHA-1 and the acting account has no preference of its own — both now settable from the settings pages, and an administrator setting either broke the run on an app that was working. The specs pin what they need through the API and put back exactly what they found; the integration test asks the API what the default is instead of assuming, which is the contract it meant to test. The one spec that only needed *a* recalculation button, rather than a particular algorithm's, now clicks the first one instead of naming it.
-- **Toasts that appear, where they belong.** Every notice the settings pages showed — "Options saved.", "Rule saved.", every error — went through `OC.Notification.showTemporary()`, which Nextcloud 34's core no longer defines, so each was a silent exception after the request had already succeeded. They now go through `@nextcloud/dialogs` via one small `src/toast.ts`: a saved setting says what was saved ("Permissions saved.", "Algorithms saved.", "Preferred algorithm saved." — the last never announced success before) for five seconds once the server has confirmed it, rule actions keep their own words, and failures show as errors. Both settings pages now import the library's stylesheet, without which its toast container has no placement and collapses into the page's top-left corner; it now appears in the top right below the header, where Nextcloud's own notices do, with a green edge on success. Both stylesheets are imported by the toast helper itself, so any page that shows one is styled without knowing it had to ask.
-- Settings-page text sized like Nextcloud's own. Description and hint text on both settings pages was rendered at 0.9em where every other settings section uses normal size in the max-contrast colour; the colour alone now marks it as secondary. On the personal page, "You are not allowed to edit rules" showed in red from first paint until the permission answer arrived and stayed red afterwards; it now appears only once the rules have loaded, as a hint, since it is information rather than a failure. Failed requests report in the page's one message slot above the table, which now also carries a failed load. The empty-state line waits for the first load the same way.
-- **The default algorithm is designated, not positional.** The admin page's *Hash Algorithms* section gains a *Default algorithm* picker offering the allowed ones; the choice is stored as `default_algorithm` and travels with the allowlist through `PUT /settings/global` (`defaultAlgorithm`, applied after the list, 400 outside the allowed set, echoed in the response). Removing the default from the allowlist moves it to the first remaining and clears the designation, so re-allowing the algorithm later does not silently reinstate it. The allowlist's order no longer means anything; the "remove and re-add to reorder" line is gone. Also fixed on the same screens: the help icon beside the preferred-algorithm select on the personal page, and beside both admin pickers, rendered under the select because the row style was scoped to another component; the row class now lives in the shared settings stylesheet.
-- Write the user guide against the screens as they are. It is rendered as the Help tab of the Duplicates page and of personal settings, so a sentence describing a control the reader cannot find is a defect on the same page as the control. The duplicate browser's section now names its Help tab, its paging and its two empty states, and says that a file opens in a new tab; the search section names the result as *File Checksums*, which is what the search bar shows; the sidebar section describes the three sections that are there — Checksums, Recalculate with its composed quick buttons and picker, Duplicates with its Find duplicates button — and quotes the refusal a blocked recalculation actually shows, so it can be searched for; the rules section says that the personal page's Help tab is this guide, and describes the preferred-algorithm control above the rules. The README's account of the admin page stops saying "the eroded count" for a row called *Untrusted Hashes*, gains the *Hash Algorithms* section, and mentions the preference; the FAQ's personal-settings answer explains the preference and what disallowing an algorithm does to one.
-- One algorithm picker. Five places let someone choose an algorithm — the rule dialog, the Duplicates filter, the sidebar, a user's preference, the administrator's allowlist — and after this cycle they were five wirings of the same select, each mapping ids to options for itself. They are now one component, `AlgorithmSelect`, bound over algorithm ids (one, or a list), offering the ids it is given, with an optional first entry for what "none in particular" means on that screen — *All algorithms* on the filter, *Default (SHA1)* on the preference. Same look, same label placement, same announcement everywhere, and one place to fix. The rule dialog's `AlgoMultiselect` was the first of the five and is absorbed into it. On the personal settings page the preference now sits where it belongs, above *Rules applying to your files* rather than between that heading and its table.
-- Let each user say which algorithm the sidebar offers first. The Checksums tab's two quick buttons were SHA-1 and MD5 for everyone, whatever their rules computed, so a user whose rules produce SHA-256 got two buttons for algorithms nothing on the instance used and the one they wanted behind the picker. The first button is now the user's **preferred algorithm** — set on their personal settings page, where the select's first entry reads *Default (<the instance default>)* and shows what is active, a line appearing beneath it only while a stored choice is not in force; the second is the first algorithm the file's governing rule computes that is not already first, so it follows the file. One button when they coincide, or when no rule maintains the file; everything else stays in the picker. The preference is the first tenant of `/api/v1/preferences/{key}`, the namespace the API reserved for per-user settings: `GET` and `PUT /api/v1/preferences/preferred_algorithm` return what is stored, the default, and which of the two applies — a stored choice the administrator has since disallowed is kept but not applied, and the page says so. `GET /api/v1/file/{fileId}/hashes` carries the three inputs the sidebar composes from: the governing rule's algorithms, the asking user's preference, and the default.
-- Give the Duplicates page Nextcloud's own controls. Its algorithm filter was a bare `<select>` with no label at all — the guide called it *Algorithm* because a filter needs a name, and a screen reader announced an unlabelled box — beside two hand-styled number inputs, two hand-styled buttons and a native checkbox. All six are now the same components the rest of the app uses: an `NcSelect` labelled *Algorithm*, `NcTextField`s for *Min* and *Limit* that clamp what is typed to the range the server accepts, `NcButton`s for *Refresh*, *Verify hashes* and the pager, and an `NcCheckboxRadioSwitch` for *Only matching*. Nothing the page does changes; how it looks and what it announces do.
-- Choose the hash algorithms per instance instead of per release. The list was a constant compiled into the backend and mirrored by hand into the frontend, with a canary test on each side to catch them drifting — and the Duplicates page then hard-coded seven of the eight anyway, so a file hashed with `adler32` could not be browsed for duplicates. The list is now what this server's PHP provides, narrowed to what the administrator allows in a new **Hash Algorithms** section of the admin settings; out of the box that is the eight the app always computed plus `sha384` and `sha3-384`, and the other twenty-seven this PHP offers are a click away. `GET /api/v1/algorithms` says what is in force and which is the default, and every picker in the app — the sidebar, the Duplicates filter, the rule dialog — reads it from there, so the hand-kept mirror and both canaries are gone. Names are limited to `[a-z0-9-]` because they double as metadata keys and are parsed back by prefix: PHP's `sha512/256` and `tiger192,3` are never offered. A hash already stored under an algorithm later removed from the list is still the file's hash — reads walk the document rather than the list, and the repair steps that rename old key spellings iterate every algorithm a release ever wrote, not the ones currently allowed. The instance-wide settings endpoint becomes one resource, `GET` and `PUT /settings/global`, where a `PUT` changes only the fields it carries: two sections of the page save to it now, and neither may reset the other.
-- Forget files that no longer exist. Nextcloud removes an app's metadata when a file is deleted, but only from `CacheEntriesRemovedEvent`, and its own bulk teardown paths never dispatch it — deleting a user, removing an external storage or dropping a group folder each delete the filecache rows in a single statement and emit nothing. What they leave is not inert: those rows still answer a hash search, which is how this was found — a user could not find their own file behind copies of it that belonged to accounts no longer on the instance. A new repair step, `occ fcias:repair --step orphaned-metadata`, finds this app's metadata for files absent from the filecache and removes it. It asks both tables, because either can outlive the other and `rebuild-from-metadata` rebuilds index rows out of documents, so purging what only the index knew about would be undone by the next repair; on the instance this was found on that distinction was 2 files against 248. Only this app's keys are ever removed: a document another app still uses is kept and saved with ours gone, and one that held nothing but ours is deleted through Nextcloud's own API — Nextcloud would otherwise store it back as `{}`. The integration test that covers it asserts the premise as well as the outcome, so it fails on purpose the day Nextcloud starts cleaning up after itself. The step also runs on its own, once a day, riding the existing rule sweep with its own clock in app config — `orphan_purge_interval`, seconds, default a day — rather than as a job of its own — one job to register, one heartbeat to watch, shown on the status page as *Orphan purge* — and deleting a user makes it due at once by zeroing that clock, so the next tick collects what the deletion left rather than waiting a day; a run that hits its batch cap leaves the clock alone, so a large backlog is finished on the following ticks. The leak itself is Nextcloud's and affects every app that stores file metadata — 850 of the 1079 orphaned documents on the instance this was found on held nothing of this app's — and is written up for reporting upstream in `GUIDELINES/upstream/`.
-- Let a user find their own file however many copies of the hash they cannot reach. The hash search asked the database for as many rows as it meant to show and only then dropped the ones the caller has no access to — so the limit was spent on rows that were discarded, and a file sorted behind enough unreachable copies was never returned at all. The unified search asks for five: five foreign copies of a hash were enough to hide somebody's own file from them, which an empty file or any document circulated on an instance reaches without trying. The query now narrows to the storages the caller has mounted *before* the limit applies, and the per-file check that follows still decides — storage membership cannot stand in for it, because a share of a subfolder mounts the owner's whole storage, and it cannot wrongly exclude either, because anything a user can see is in one of their mounts. A caller answering for the instance rather than for a person passes nothing and is unaffected. The app's own documentation viewer stops offering `openapi.json`, which was the untouched Nextcloud skeleton — version 0.0.1, one invented endpoint, none of the twelve real ones — and has been removed; the maintained `docs/api-v1-openapi.yaml` was already beside it in the list.
-- Say what the Scope column actually shows, and true up the documentation around it. The column's help text still described the retired model — "All users" for everyone on the instance, "Group: <name>" for a group, or a single user's id — naming a value the column never renders and omitting three of the six selector kinds it does: all home folders, one group folder, one storage. It is rewritten from what the column shows, including the distinction the two catch-alls turn on: *All home folders* reaches every personal folder and nothing else, while *Everything* also reaches group folders and external storage. The Enforced column said enforced rules fill the first three bands; there are four. The API reference loses four claims a client could act on and be wrong: `findDuplicates` was documented as searching "the entire system" when it resolves the session user and answers for them alone; three PHP signatures omitted the `?string $requestingUser` that decides whose permissions the answer is checked against, leaving the trusted-caller semantics — `null` meaning server-side authority — unstated; "all API endpoints use `#[NoCSRFRequired]`" is untrue of the four rule mutations and the two settings POSTs, where it is the `OCS-APIRequest` header that carries a cookie session past CSRF; and "rule management is **not** exposed through the public API" contradicted the same file's own rules endpoints. The error section gains the 401 and 403 it never listed, and stops promising one error shape where there are two: reads answer `{error}`, while the rule mutations and recalc answer `{success: false, error}` — so a consumer cannot read the absence of `error` as success there. The OpenAPI spec is brought to what the controllers actually return, operation by operation: 401 added to file hashes, lookup, recalc and rule apply; the 404 dropped from lookup, file duplicates and recalc, none of which has that path; the 400 dropped from all-duplicates, whose limits are clamped rather than refused. `HashEntry` gains the `updated_at` the code emits, and `RuleInput` stops requiring `path` — an absent one means `/`, while a present but blank one is refused. The Nextcloud skeleton `openapi.json` at the repository root — version 0.0.1, one invented endpoint, none of the twelve real ones — is deleted, and the publish-ignore line that existed only to hide it goes with it; `docs/api-v1-openapi.yaml` is the maintained spec. The FAQ gains the two things an operator opens it for: what each of the four *Status Info* rows means — including that *Untrusted Hashes* separates eroded from reset because they heal differently — and that a rule is its segment's catch-all when its path is `**`, `/` or empty, all three meaning the same thing. CONTRIBUTING's nine references to the retired `.aiassistant/` tree now name `AGENTS.md` and `GUIDELINES/shared/`, and its test section stops describing a ddev wrapper that no longer exists.
-- Stop shipping a password. The Cypress suite authenticated as `alice` and `bob` with `SecretPass123!` written into the repository, and created them under those names wherever they were missing — a predictable account with a published credential on every instance the suite has ever touched, and one teardown could never clean up, because it had no way to tell its own account from the developer's. It now makes `fcias_e2e_alice_<hex>` and `fcias_e2e_bob_<hex>` with a fresh 32-character password each run and deletes them afterwards, which is the treatment the PHPUnit integration suite got in the previous release. The base name rides in the uid so a failing run still says which account was the sharer; a crashed run still leaves one behind, but an inert one, findable by its prefix. The accounts are created over the provisioning API rather than by `occ user:add --password-from-env`, because that flag cannot carry a password everywhere this suite runs: `cy.exec`'s `env` sets a variable for the process it starts, and where `occ` re-enters a container the variable stops at the wrapper and occ reads an empty `OC_PASS`. The old helper tolerated a non-zero exit — the accounts it was asked to create already existed — so it had been quietly creating nothing there for as long as it has been in the tree.
-- Collapse the two settings composables onto the one they already share. `useAdminSettings` and `usePersonalSettings` both wrap `useRules(scope)` — the rule CRUD has lived there since the two pages were unified — but each re-listed a dozen-odd of its keys by hand on the way out, handing every one straight back. Two hand-maintained copies of one list is how they drifted into calling the same rule list `definitions` on one page and `rules` on the other, and renaming the drifted keys does not stop it happening again. First the reason both of them aliased the loader: `useRules` called it `load`, which says nothing at a call site that also has `loadStatus`, so it is `loadRules` now and the aliases have nothing left to do. The admin one then spreads what it wraps and keeps only what is genuinely its own — the status block and the idle banner — so a key added to `useRules` reaches the page by existing rather than by being remembered. The personal one had nothing of its own at all and is gone: its page calls `useRules('own')` directly, and the one alias worth keeping, the `canEditAny` prop the rule table gates its add button on, is now bound from `canCreate` at that single attribute instead of justifying a file. Of the deleted file's three tests, two repeated cases `useRules.spec.ts` already had; the third — the message a failed load leaves behind, which is the whole difference between "there are no rules" and "we could not ask" — was the only coverage of that path anywhere, and moved rather than went.
-- Stop calling the rules page a cron page. `#fcias-cron-list`, `#fcias-cron-form`, `.fcias-cron-table` and seventeen more named a model this app has not had since hashing moved from a schedule to rules — the two things that *are* scheduled, the rule sweep and the queue drain, are background jobs with no markup on this page at all. The collection takes `fcias-rules-` (the table, the list, the message area) and a single rule takes `fcias-rule-` (the form and its fields); the buttons lose "definition" with it, a rule having been a definition before it was a rule. The admin page's section heading and its delete confirmation lose it too — "Rules" and "Delete this rule?", which is what the personal page has said all along, and its composable stops renaming the rule list on the way out: `useAdminSettings` passed every other key of `useRules()` straight through and reworded exactly these three, so `definitions`, `definitionsError` and `loadDefinitions` become the `rules`, `error` and `loadRules` its personal twin already exposes. The scope field catches up with the model it already names in its own script: `#fcias-cron-userscope` and `#fcias-cron-scope-target` become `#fcias-rule-selector` and `#fcias-rule-selector-target`, finishing a rename that reached `selectorChoice`/`selectorTargetValue` and stopped at the template. The comments, the docblocks and the e2e README follow the same words. Ids and classes only, so nothing a user sees changes — and the same words are left alone where they mean something true: `cron` in `occ fcias:queue:drain` and in the FAQ still means cron, and the stored `userScope` and `rule_definitions` keys stay exactly as written, because a rule saved before the selector model and a backup taken before this rename both still have to load after it.
-- Say which option a rule's user, group or group-folder picker has settled on. `NcSelect` keeps its selection in reactive state and renders only the label — its `#selected-option` slot drops the rest of the option — so the page showed *what the choice is called* and never *what it is*. The three pickers now override that slot to carry the option's id alongside the label it already showed, which changes nothing anyone sees and makes the choice legible to anything reading the page rather than watching a person use it. The label itself is unchanged, and still rendered by the same component as before.
-- Give the stored hashes a metadata key of their own: `file-checksum-hash-sha256` rather than `file-checksum-sha256`. Every key this app writes was spelled `file-checksum-…`, the freshness stamp included, so no query could ask for *the hashes* without also excluding the stamp by name — eight of them did, one could not and had to name all seven algorithms instead, and two got it wrong in a way nothing reported: a count that never agreed with itself, and a walk that read half again as many rows as it needed. All eight riders are gone now, and the seven-way `OR` is one `LIKE` on the prefix — on the instance the discrepancy was found on, the two counts that never agreed with each other agree exactly, where the old pattern still counts half again as many. Existing instances are renamed by a repair step, in both the metadata documents and the index rows, and Nextcloud is told to forget the keys this app no longer writes. A file whose index rows were never written — the ones the previous release's index fix exists to rescue — cannot be found that way, since there is no row to find it by; those are renamed by the step that goes looking for them, which is the one place in the app that still recognises the old spelling at all. A file the index has forgotten *entirely* — no rows whatever, not even the stamp — is beyond that too, because every correction path starts from a row it does not have: its hashes are stored and nothing this app can be asked will find them. `occ fcias:repair --step unindexed-hashes` is the one that reads every metadata document to look for it, and puts the stamp row back with the hashes, carrying the timestamp the document itself holds. Nothing about a stored hash changes, and a backup carries algorithm names rather than key names, so one written before the rename restores after it and one written after restores before it. The documentation gains the distinction the whole confusion rested on: the README and the FAQ now name the **metadata document** — the `oc_files_metadata` row holding every app's metadata as JSON — against the **index row** that a query can actually reach, and say plainly that *document* never means the user's file, since a PDF has one too. The FAQ's account of where checksums are stored had gone stale on both counts, naming the old key spelling and the wrong table of the two; a new answer walks an administrator through what their own database is showing them, including the two things that surprise people — that a stored hash may be a prefix, so anything querying the index by hand must truncate and confirm the same way this app does, and that the stamp row's absence is itself a diagnosis. The same sweep runs through the code: every comment that said *document* for one of the three things now says which. Two places had been left building and reading the old spelling inline instead of going through the helpers, and neither showed up in a unit suite whose fixtures encoded the old spelling too: the background job wrote every hash it computed under a name no reader looks for, and the duplicates page reported the algorithm as `hash-sha256`, which made **Verify hashes** fail for every file it checked. Both now go through `getHashKey()` and `getAlgorithmenFromKey()`, and both have a test that fails without them.
-- Replace `occ file-checksum-search:rebuild` with **`occ fcias:repair`**, which can be aimed. The old command did three unrelated things under one name — copy the checksums Nextcloud already holds, rebuild the search index from this app's own records, and work through the queue — and the app's repair ran six more as a single unit that `occ maintenance:repair` reached only alongside every other app's. All ten are now named steps: `--list` says what each one is for, `--step` runs the ones you name, and an unknown name fails the run rather than reporting a repair that did nothing. Each description lives on the method that carries the step out, so it cannot drift from what the step actually does. The expensive steps ask whether there is anything to do before doing it — one asks two counts where it used to walk every metadata document — with `--include-expensive` to override that for the cases counting cannot see. One step cannot ask: finding a file the index has forgotten completely *is* the full scan, and the answer is almost always none — so `unindexed-hashes` is skipped by a plain run and waits to be named or to be let in by `--include-expensive`, which `--list` and `--dry-run` both say out loud. `occ maintenance:repair` still runs the rest, and every step is safe to run again.
-- Split the queue drain out as **`occ fcias:queue:drain`**, with `--batch-size` and `--all`. It is the one piece of this work that reads file content, and every repair step runs on every upgrade — so hashing files belongs in a command an administrator chooses to run, not in a step an upgrade triggers. What a reset *deferred* is still a repair, because clearing a disowned file's hashes reads nothing: that is `--step clear-disowned`. Both take the batch size from the same `pending_batch_limit` setting the background job uses, so tuning it is honoured wherever the work happens. The command count in the README follows both changes: sixteen, not twelve. The install migration's fallback advice follows too: when `files_metadata_index` is not there yet it named `occ file-checksum-search:rebuild`, a command that no longer exists, and now names the step that replaced it.
-- Namespace the states that mean *the stored hashes are not to be trusted*: erosion is recorded as `stale:eroded` rather than the bare `eroded`, joining a family that a coming reset will extend with `stale:reset`. One `LIKE 'stale:%'` now answers "which files have untrusted hashes, and why" whatever the reason, and a reason added later is covered by construction rather than by remembering to add it — the same shape `pending:%` already has, so the two namespaces stay disjoint and the queue never sweeps up a disowned file. The repair step moves existing markers over. A file disowned this way is cleared by the background drain rather than in the foreground — it takes disowned files before its queued ones, since clearing one may put it straight back on the queue when a rule still governs it — so disowning a large instance costs one database write per thousand files rather than one document rewrite each. Only files that actually hold hashes are marked: the marker shares its column with the queue, so marking a file writes over whatever it was waiting for, and a file with no hashes has nothing to disown — sparing them keeps resetting the hashes from quietly resetting the queue as well. Every query that **scans** for hashes — search, lookup, duplicate groups — now excludes files in that namespace, so a disowned hash stops being findable the moment it is marked rather than when the background job clears it; the file's own sidebar still shows what is stored, because telling someone their file has no checksums would be a different untruth. In the documentation and in the code's own comments, the word **stale** now means only that: a hash *older than the file it describes* is called **outdated**, which is what `auto` mode recomputes and what the sweep looks for.
-- Rewrite the documentation for the model the app actually has now. The README gains a **"How hashing happens"** section — the five paths from a file event to a hash, why installing reads nothing, which file a rule is talking about (the owner's, not the editor's), and what erosion is — and its rules chapter is rewritten around selectors, the eight bands, segments and the defaults partition, the two shipped defaults, and the coverage rows. A segment is one selector value *within one band*, so positions count per segment and two segments sharing a band both start at `1`; and a rule is its segment's default when its path is `**`, `/` or empty, not only `**` — both stated precisely in the README, the user guide, the API reference and the band help text in the app. `docs/FAQ.md` says up front that nothing is hashed until a rule is enabled, answers "why did the number of indexed checksums go down?", and describes the drain resolving each file's rule at action time. `docs/user-guide.md` tells a user, in their own terms, that empty checksums usually mean automatic hashing was never switched on, and that Recalculate works anyway. `docs/api-v1.md` and the OpenAPI spec follow: `selector` replaces `userScope`, `isDefault` replaces `pinned`, the reorder body addresses a segment partition, the group-folder and storage picker fields are documented as a soft dependency, and the PHP API's rules surface — undocumented since it shipped — is written down, including that its `applyRule()` is synchronous where REST queues a job.
-- Name group folders in the rules table the way people know them: the Scope column reads "Team Folders: Team Docs (#1)" rather than "Group folder: 1" — the app's own word for the namespace, and the folder's own name, the same spelling the dialog's picker uses. A folder the list no longer contains still shows its bare id, which is exactly what pairs with the "provider missing" badge. This also finishes the naming that shipped half-applied: the prop reached the table but was never used in the row component, and the naming test covered the dialog alone.
-- Make namespaces without a rule of their own visible instead of leaving them to be discovered. The admin rules table now ends with **virtual rows for every namespace that has no catch-all rule** — each addressable storage, each group folder, all home folders, and everything — with a *Create rule* button that opens the dialog seeded with that namespace's `**`. A namespace nothing addresses says "not covered"; one with specific rules but no catch-all says so in its own words, because that gap is real too, just narrower. Nothing is written on page load: the rows are derived from what the server already reports, and configuration appears only when the administrator saves. The server side of the coverage view is a new `listAddressableStorages()`, which leaves out what other selectors already own — home storages (`home:*`), group-folder jails (`groupfolder:<id>`), share wrappers (views of a file that lives elsewhere) and the instance root (appdata and jails, no files area of its own) — and whose failure costs the placeholder rows, not the rule list. Rules naming a provider that is gone — a group folder rule after the app was disabled, or one naming a deleted folder — carry a **"provider missing"** badge, because such a rule is inert by construction and silence about that reads as a bug in the app.
-- Give the status page the operator's two missing answers (D17): **how much has eroded**, and **are the jobs alive**. An *Untrusted Hashes* row gives one total and a breakdown by reason — the same numbers `occ file-checksum-search:status` now prints — because the reasons are opposites in what they leave behind and in what an operator should do about them: **eroded** means the hashes were already dropped on write because no rule maintains them, and heals itself once a rule covers the file again, while **reset** means they are still stored but disowned, already hidden from search and waiting for the background job to clear them or an import to replace them. A *Background Jobs* row shows each job's last-run heartbeat with its counts — the rule sweep's matched/marked, the queue drain's processed/failed/total — rendered as three aligned columns with tabular numerals rather than prose lines. The section header reads *Status Info*, and the *Last Updated* row shares the jobs' grid columns, so every timestamp on the page sits on one axis. A new `JobStatsService` books both at the end of every run (an empty drain run included — the heartbeat is the point) into two lexicon-declared app-config values per job; bookkeeping never throws, because it must not be able to fail the job it books, and a stale timestamp is itself the signal that a job stopped running.
-- Follow the repository reorganisation (`.aiassistant/` → root `AGENTS.md` + `GUIDELINES/`) in the tooling: `composer lint` stops descending into `GUIDELINES/` (it was parsing the groupfolders test stubs again), and the publish ignore list excludes `GUIDELINES/` and `AGENTS.md` from release packages.
-- Put Edit back at one click: a pen icon sits beside each rule row's actions menu as the direct shortcut — editing is the one action frequent enough to skip the menu trip — vertically centred with the menu trigger on a shared flex axis. The menu mirrors Edit with the same pencil (which is what says the two are one action) and every entry gains its icon: play/pause for Enable/Disable, a circular arrow for Re-apply, a bin for Delete. Rendered through a small `MdiIcon` component over inlined MDI paths — still no icon dependency — and `data-action="edit"` rides on both.
-- Fix rule saving from the UI, which 404ed for every existing rule: the id was substituted into the URL *after* `generateOcsUrl()`, whose percent-encoding had already turned the `{id}` braces into `%7Bid%7D` — so the request PUT to the literal placeholder. The router now does the substitution (as the sidebar's calls always did), a regression test asserts the substituted URL, and the test suite's router mock mirrors the real router instead of waving requests through as-is — the fidelity gap that let this pass. Failed saves also stopped hiding: a non-JSON error answer (an OCS XML page, a proxy error) no longer collapses into "Request failed." but reports the HTTP status, and the message renders **inside the dialog** as an error card — the page behind the dialog was the wrong place for an error about the form still on screen.
-- Give the rule dialog real pickers. User, group and — new — group folder targets are chosen through the same searchable select the permission section already uses, sized to the dialog's other controls through the width discipline the algorithm select established (the two-part release of `NcSelect`'s min-width pin and its content-sized inner toggle, now shared as `fcias-rules-dialog-select`), each target row carrying its own help popover like every other row; the storage target keeps its raw-id text input. **Group folders are offered by name** (mount point, with the id alongside), resolved through a new `GroupFolderService` that treats the groupfolders app as a strict soft dependency: the "A group folder" choice disappears entirely when the app is not installed or not enabled, and a schema surprise yields an empty picker, never an error. A target the list no longer contains — a deleted user, a removed folder — still displays as its raw value rather than silently blanking an existing rule; changing *Applies to* clears the picked target, so a user never rides silently into a selector of another kind, while seeding an existing rule keeps its target. The dialog and the table's Scope column speak the groupfolders app's **own name for itself** — "Team Folders" on current releases, read from its app info — and when the app is gone, its slug `app:groupfolders` names the missing provider honestly.
-- Fix the dialog's live band preview, which reacted to the Enforced switch but not to "Applies to": it derived the band from the composed selector string, and an as-yet unpicked target composes to the empty string, which reads as band 8 — so every kind previewed as *Everything* until a target was chosen. The preview now derives from the selector *kind*, which is all the band ever depends on. Its help icon also sits right-aligned on the same line like every other row's, instead of wrapping.
-- Fold each rule row's three buttons into an **actions menu** (`NcActions`): Edit, Enable/Disable, Re-apply and Delete, on both settings pages through the shared row component. **Re-apply is new to the UI** — it queues the same uncapped background pass `occ rules:apply` runs, and appears only where it can succeed: an enabled `include` rule the caller may change (an ignore/exclude marks nothing, and the server refuses a disabled rule at submission). The `data-action` attributes move onto the menu items unchanged, so the deferred e2e selectors migrate mechanically; the actions column narrows to the menu button's width, returning its space to Path, Scope and Algorithms.
-- Fix drag-reorder, which the selector rework had left broken in both settings pages: the shared composable read a route key that does not exist (`API_RULES.reorder` for `order`) and skipped URL generation entirely, so every drop PUT went to `undefined`; the personal page additionally exported the old `reorderBand` name while its page asked for `reorderSegment`. The reorder request test now asserts the URL — the assertion whose absence let both slip through.
-- Tell the administrator that silence is a decision waiting for them: the admin settings page shows an **idle banner** (`NcNoteCard` warning) whenever no enabled `include` rule exists. It says automatic hashing is inactive, that manual recalculation from the sidebar keeps working, and — the second hint — that the home-folders default covers home folders only, so external storage and group folders need the *Everything* default or their own rules. *Close* hides it for the page view; *Acknowledged* persists (`idle_banner_ack`, declared in the config lexicon) via a new admin-only settings endpoint. The acknowledgement expires by itself: `RuleService::saveRules()` — the single write gate for UI, REST, occ and the PHP API alike — clears it the moment the saved set contains an enabled include rule, so a later return to the idle state shows the banner afresh.
-- Resolve every rule verdict from the file's **canonical identity**, never from the path of whoever happens to be acting. A new `FileLocation` value class classifies each filecache row into its namespace — home (owner + owner-relative path), group folder (folder id + folder-relative path, covering both the per-folder jail storage and the legacy root-jail layout), or other storage — and rule matching pairs the selector with that identity and the glob with the namespace-relative path. This fixes the share-edit bug where a recipient's write was evaluated against the *recipient's* view path (a possibly renamed mount) combined with the owner's uid: a mismatched pair that could silently pick the wrong rule. Rows outside a files area (trash bins, versions, appdata) are governed by nothing — no rule, not even the universal default, can reach them. Rule globs are matched leading-slash-optional, and a leading `**/` also matches files at the namespace root, the way every glob dialect users know behaves.
-- Sweep rules by **storage, not by user view**. The periodic evaluation and single-rule apply now page each swept storage's filecache rows directly — a group folder is walked once instead of once per member, share and group-folder mounts inside a home are no longer swept as that user's files, and `groupfolder:<id>`, `storage:<raw id>` and the non-home half of `*` actually sweep their storages for the first time. Home-kind selectors resolve to home storages (`home::<uid>` / `object::user:<uid>`); a sweep failure for one rule is logged and skipped rather than aborting the whole evaluation. File deletion now always clears the app's metadata for the file — by event time the filecache row is gone or moved to trash, so no rule can be said to govern it, and hashes describe content the user removed.
-- Refuse rule paths that lead into a received share, a mounted group folder or any other mounted storage, with the reason. A personal rule is `home:<uid>` and by identity never governs another namespace's files, so accepting such a path would store a rule that structurally can never match anything. The former boolean writability check becomes `ruleTargetRefusal()`, and REST, occ and the PHP API all report its message.
-- Resolve verdict loops in batches. `FilecacheService::locateAll()` fetches many canonical identities per `IN()` query (chunked at 1000, Oracle's placeholder ceiling) and `RuleService::governingRulesForFileIds()` is its verdict-map face; the `occ hash` collector prefetches each directory listing's verdicts in one scan and `--mark` resolves its whole result set up front, replacing one filecache round-trip per file. Single-file callers — the event listener, the recalculation endpoint, the queue drain — keep the single-id path: the drain's ~50 files per run each pay file I/O to hash anyway, so a prefetch there would only move policy into the job for noise-level savings.
-- Memoise the decoded, sorted rule list per process (`loadRules(bool $refresh = false)`). Verdict loops resolve a rule per file, and each resolution re-paid the JSON decode and band sort for nothing — `IAppConfig` already serves the raw string from its own in-memory cache, so the re-read never saw fresher data. Every mutation invalidates the memo through `saveRules()`, the single write path; the repair step reads with `refresh: true`.
-- Replace the rule scope with a **selector** — one field naming which slice of the file universe a rule addresses: `home:<uid>`, `group:<gid>`, `home:*`, `groupfolder:<id>`, `storage:<raw oc_storages id>`, or `*` (everything). Scope and storage proved to be one axis, not two: non-home storages have no user dimension, and home's sub-addressing *is* the user/group dimension, so every cross-combination a second field would permit is meaningless. Parsing splits on the first colon, so raw storage ids containing `:` or `//` (`smb::user@host//share/`) need no escaping. Stored rules migrate automatically (`all` → `home:*`, bare uid → `home:<uid>`) via the repair step and on every save.
-- Re-derive the priority bands from the selector: **eight display bands** — the selector's specificity rank (exact > group & group folder > all-homes > universal), enforced in bands 1–4, unenforced in 5–8. Every selector value is its own orderable *segment* (generalising what the per-owner band-4 segments already were), and within every segment the bare-`**` rules form a derived trailing **defaults partition**: a newly created rule always lands before its segment's default and can never be dragged behind it, so the old priority inversion cannot recur and nobody ever drags a new rule past the catch-all. Group folders rank with groups deliberately — shared things next to groups, not next to individuals; disjoint namespaces make the placement matching-irrelevant.
-- Retire the `pinned` flag and everything that existed to guard it: the at-most-one-pinned normaliser, the deletion refusals on REST, occ and the PHP API, and the locked-fields dialog. A default is an ordinary rule whose shape puts it in the trailing partition; deleting a shipped default is reversible housekeeping — the repair step recreates it, disabled. There are **two** shipped defaults now: `home:*` + `**` (band 7 — every home folder; the safe one to enable) and `*` + `**` (band 8 — every storage there is, external mounts and group folders included; its own deliberate switch). The band-order repair step from the RuleBands cycle is superseded and removed.
-- Rework the pending-queue model so absence means "never considered". `markPending()` becomes an upsert — the old contract refused to insert and relied on a 21-hour seeding job to pre-create one index row per file, which made every mark on an unseeded file a silent no-op (`RuleProcessingJob`'s scanning quietly failed for any file the seed had not reached). The seeding job, the universal `pending:new` rows, and the `'new'` processing branch are gone; a metadata `updated_at` row now exists only for files that were actually queued, hashed, or eroded. The queue drain resolves each file's governing rule at action time: an `include` rule supplies the algorithm list — previously the drain hashed every marked file with **all eight** supported algorithms, ignoring the rule's own list — and an `ignore`/`exclude`/no-rule verdict drops the mark without hashing, so a rule change between mark and drain is honoured. Unknown pending states (e.g. leftover `pending:new`) are cleared with a warning instead of looping through the queue forever.
-- Give rules a seven-band priority model, derived from each rule's scope and flags rather than stored: admin-enforced rules first (user, then group, then global), then users' own rules, then the non-enforced admin defaults in the same order, and the catch-all `**` default last. Enforced beats unenforced; within each half, specific beats general. Bands make it structurally impossible for a user's rule to outrun one an administrator enforced — a reorder permutes rules *within* one band, and changing a rule's band means editing its scope or its enforced flag, not dragging it. Group-scoped rules (`group:<gid>`) are supported throughout, including matching by membership and expansion to members during batch processing. A repair step sorts existing rules into bands on upgrade and marks the previous global rule as the pinned default; it is idempotent and needs no configuration.
-- Document how to run the band repair step without an app upgrade. Repair steps fire only when the installed app version changes, so an instance that received the band model without a version bump — any working copy tracking the repository between releases — never ran it, and its catch-all `**` rule is still an ordinary global rule showing as `6.1` instead of last at `7.1`. `occ maintenance:repair` runs every enabled app's post-migration steps, this one included, and the migration is idempotent. No app-specific command is needed; the README now says so where the bands are explained.
-- Silence the test suite's inspection warnings with targeted `@noinspection` tags, and fix the handful that were real: a `@deprecated` private method nothing called, a private property nothing read, three unused imports and several fully-qualified names the file already imported. The suppressed ones are all cases where the inspection is right about the code but wrong about tests — an unhandled `ReflectionException` or `JsonException` that PHPUnit is meant to catch and report as a failure, an `assertInstanceOf` the analyser can prove always passes (which is the point: it asserts the constructor did not throw), and mock properties assigned in `setUp()`. Tags sit on the method or property they concern rather than being switched off globally, so a genuine instance in new code is still reported.
-- Skip, rather than fail, the one unit test that needs a booted Nextcloud server. `BeforeTemplateRenderedListenerTest` exercises `Util::addInitScript()`, which resolves through the global `OC` container — present in CI's real installation, absent under the source-tree bootstrap fallback used on a development checkout. It errored on every local run, training readers to ignore a red suite; a skip with the reason is the honest report, and the local suite is green for the first time.
-- Split the documentation by audience rather than by name. `docs/FAQ.md` was shown to everyone — on the personal settings page as well as to administrators — while answering questions about `occ` commands, `config.php` and the REST API; meanwhile the only genuinely user-facing document was reachable solely from the Duplicates page. `docs/HELP.md` becomes `docs/user-guide.md` — the old name said nothing about who it was for — and personal settings now renders it under a tab called **Help** (a `#faq` link still opens that tab). It gains an opening that explains what a checksum is and what the app does for someone who has one, before the rules walkthrough that previously started mid-conversation. `docs/FAQ.md` says up front that it is the administrator's reference, and the admin Documentation tab carries the user guide too, so whoever answers a question reads the same words as the person asking it.
-- Extract the duplicate-listing logic that `DuplicatesController` and `ChecksumApi` each carried their own copy of — 47 identical lines apiece, covering group collection, the batched path lookup, per-user filtering and the post-filter limit. It now lives once on `HashIndexService`, which already owned both collaborators, so neither caller needed a new dependency. `RulesController` likewise had its create/reorder authorisation prefix twice; that becomes one `authorizeWrite()`, deliberately not shared with update/destroy, which authorise against the rule being changed rather than the caller alone.
-- Run the linters in CI. Neither workflow checked style, which is why a lint chain that could not parse a single component went unnoticed for the life of the project. `test.yml` gains a `lint` job — ESLint, Stylelint and a PHP syntax pass — kept separate from the integration job so it needs no Nextcloud server and answers in under a minute, and `publish.yml` runs the frontend linters before packaging, since a release is the one build that cannot be taken back. `composer lint` also stops descending into a `nextcloud-v*` source tree checked out beside the app: it was linting 23,800 files instead of 97.
-- Clear the PHP inspection backlog across `lib/` and `tests/`. Two constructor dependencies were dead — `GenerateHashes` injected `HashCalculationService` and `RebuildIndex` injected `HashIndexService`, neither ever read — so both are gone, along with unused imports, unused locals, a redundant `array_values()`, a variable assigned only to be returned, and two `@noinspection` suppressions the inspection no longer fires for. `FilecacheService::getUserFolderPath()` documented a `@return \OCP\Files\Folder` while returning a string. No behaviour changes.
-- Repair the frontend lint chain, which had never run against this codebase. `.eslintrc.cjs` extended the plain-JS/Vue 2 preset, whose Babel parser cannot read a `<script setup lang="ts">` block, so every single-file component came back as a parse error instead of being linted; and `npm run lint` did not even reach that config, because ESLint 8 searches *upward* for a flat config and found an unrelated one outside the repository. Both are pinned now — the Vue 3 + TypeScript preset, `root: true`, and flat-config discovery switched off in the script — and the 149 findings the broken chain had been hiding are fixed, Nextcloud's style adopted as it stands. `@nextcloud/router` becomes an explicit dependency rather than resolving by accident through `@nextcloud/vue`. Also adopted: logical CSS properties in place of `margin-right`/`text-align: left`/`border-left`, which is what makes the settings pages lay out correctly in a right-to-left locale.
-- Rewrite the rule documentation for bands and verdicts. The README gains the `<band>.<position>` notation, what dragging can and cannot do (and that it has no keyboard equivalent yet); `docs/FAQ.md` explains the band order and that a verdict is final; `docs/user-guide.md` gains a walkthrough of the personal rules page — the read-only bands above and below a user's own, what each Type means for the sidebar's Recalculate button, and why a drag is refused outside its band. `docs/api-v1.md` and the OpenAPI spec now document the `403` an `exclude` rule produces on `POST /api/v1/file/{fileId}/recalc`, including the `excluded` and `ruleId` fields, which no client could have known to expect.
-- Explain the rules table in place. Every column heading and every band header row carries a help button: the headings say what the column's values can be and what they do, and each band says which rules it outranks and who is allowed to change one in it. A rule's band, its position and its enforced flag are all derived rather than entered, and none of them are legible from a one-word heading — the dialog already explained the fields someone fills in, but nothing explained the columns they then have to read.
-- Rebuild both settings pages around one banded rules table. The global rule's separate table is gone: every rule the page may show now appears in a single list in the order it is actually evaluated, opened by a labelled header per band and carrying its `<band>.<position>` priority as text — the band tints are a second cue, never the only one. Drag-and-drop reordering returns, constrained to the band it started in and, in the administrator's band-4 view, to the one user's own segment; a drop anywhere else is refused rather than silently re-scoped. The rule dialog gains the verdict selector, drops Algorithms and Mode for a rule that computes nothing, splits User Scope into kind-then-target so a group can be picked, and shows live which band the rule being described will land in. The personal page shows the enforced rules above and the defaults below a user's own, read-only, so what will actually decide a file is visible rather than only the part they may change.
-- Reformat the rule and permission services, the two settings controllers and their tests to the project code style. No behaviour change — layout, alignment and trailing commas only.
-- Extract the allow-all-users/groups/users permission logic out of `RuleService` into a new generic `PermissionService`, keyed by permission. Rule editing is its first key and keeps its existing config keys (`rule_editors_all_users`, `rule_editors_groups`, `rule_editors_users`), so nothing needs migrating and the permission behaves exactly as before. `RuleService` no longer exposes it at all — the admin and personal settings controllers ask `PermissionService` directly — so permissions added later reuse one mechanism through one door, rather than copying the triple a third time.
-
 ### Added
 
-- Lay the foundation for **backing up, resetting and importing** everything the app owns. Which app config keys the app owns is now read from the config lexicon that already declares them, so a key added there is backed up and reset without anyone remembering a second list — and of those, only the ones describing **how the instance is configured** travel. A key recording what it has *done* — when a background job last ran, and later which one-time repair steps have completed — is owned, cleared by a reset, and never exported or imported: another machine's heartbeat is not this one's, and an instance told that a one-time repair has already run would never run it. A backup that carries such a key anyway, from before this distinction, is refused with that reason rather than with "unknown key". Hashes travel as records keyed by **storage and path**, never by file id — an id means nothing outside the instance that issued it — through one format layer that reads and writes the same three shapes: `json`, `csv`, and the `sha1sum`-style listing an instance's own shell can already produce. Only `json` is a *backup*: it alone carries the header — schema version, app version, instance id — that lets a restore refuse a file it cannot honour, and it alone can carry configuration. The other two are hash tables, and say so — asked for the configuration or the queue state, they refuse with that reason. **`occ fcias:backup`** is the first command to use any of it: `--config`, `--status` and `--hashes` choose the slices (naming none takes all three), `--format` and `-o` choose the shape and the destination, and the format is guessed from the filename when you do not say. A slice you did not ask for is absent from the document rather than present and empty, because a restore has to be able to tell "not backed up" from "backed up, and there was nothing". An unwritable destination fails before a single row is read, rather than after an hour of work. Nothing is held in memory on the way out or the way back in: an instance's worth of hashes streams a page at a time in both directions, which is why the record array is the document's last key. Written to standard output the document is the whole output — warnings go to standard error, so `occ fcias:backup --hashes | jq` stays valid JSON. **`occ fcias:reset`** gives the same three slices back, and takes the same care not to: it reports what would happen and changes nothing until it is told twice, once by naming the slices and once by `--force`, because what it removes cannot be recovered by any other means — the hashes took an instance-wide read to compute. `--backup=<path>` writes a backup first and abandons the whole run if that fails, since a safety net that tears is worse than none. Resetting hashes disowns them rather than deleting them there and then, so they leave search and duplicate groups at once while the background job clears them as it goes; `--now` does the clearing in the foreground instead, and finishes whatever any one file does — a file Nextcloud refuses to save, because its filecache row has gone, has its index rows dropped rather than being retried for ever. Every forced run leaves one audit line at warning level naming who ran it and what they reset. **`occ fcias:import`** reads a backup back, or brings in checksums something else computed — a `sha1sum` run, say. It insists on `--merge` or `--replace` rather than picking one: merging keeps what this instance worked out for itself and replacing prefers the file, and guessing wrong is silent either way. The timestamp is the part that can do lasting harm, so it has its own switch: freshness here is `updated_at >= mtime`, which makes a hash stamped later than its file invisible to every correction path the app has, and `--stamp=source` therefore refuses records older than the file they describe unless `--allow-stale` insists — with a warning either way. A path this instance does not have is counted and skipped, never created, and `--strict` stops at the first one. `--status` is refused with its reason: the queue says what the instance is about to do, which is worked out from the rules and the files rather than restored. Naming no slice takes everything the file could hold, which for a checksum listing is the hashes alone — asking for configuration from a format that has nowhere to put it is still refused, because a slice you named and did not get is a different thing from one nobody asked for. `--dry-run` reports the whole thing and writes nothing. Importing acceptable hashes onto a disowned file takes it back out of the untrusted namespace, so a reset undone by an import never waits for the background job at all.
-- Create the catch-all default rule **disabled** on installs and upgrades that have no global rule yet. No app should silently start doing work the administrator has not configured: a disabled band-7 rule makes the decision visible and enabling it one click, instead of an empty rules table with nothing to look at. An existing global rule — enabled or not — is left exactly as it is; upgrades never turn off what an administrator turned on. Manual recalculation from the sidebar keeps working regardless. The same repair step purges leftover `pending:new` rows from the old seeding model and deregisters the deleted seeding job, which Nextcloud would otherwise keep trying to schedule; like the band repair, it runs on upgrade and via `occ maintenance:repair`, and warns rather than aborting the upgrade on failure.
-- Record hash **erosion** as queryable state. When a modified file's hashes are dropped because no rule maintains them, the `updated_at` index row now says `eroded` instead of being silently zeroed: the status surface can count it with one indexed query, the state distinguishes "had hashes, lost them on write" from "never considered", and it heals itself — the next time a rule covers the file, re-hashing overwrites it. `eroded` never matches the queue's `pending:%` filter.
-- Change what installing the app does to existing data: instead of scheduling every file for background processing, the install migration now only **copies checksums the filecache already carries** into the metadata index — searchable immediately, no file content read, nothing computed that was not already there. `occ file-checksum-search:rebuild` does the same backfill (paged, idempotent, never overwriting an existing metadata hash, stamping the file's mtime as the hash's timestamp) before draining the queue. The old behaviour also quietly stamped every seeded file as freshly processed without computing anything, which suppressed later rule-driven marking until the file was next modified.
-- Rename `occ file-checksum-search:generate` to **`file-checksum-search:hash`**, with a short `fcias:hash` alias. "Hash" is the domain word the app uses everywhere else — hash generation rules, hash index — and the command both computes and marks, which "generate" only half-described. No compatibility alias for the old name: the app was never published, so there is nothing to keep compatible with.
-- Add `POST /api/v1/rules/{id}/apply` to the REST API: queue a full apply pass for one rule — every file it currently governs marked for background hashing, uncapped. The request enqueues a one-shot job and returns `{success, queued}` immediately; the scan has no place inside an HTTP request, and its outcome lands in the audit log naming the requesting user. Applying is judged as writing the rule, and a rule that cannot meaningfully be applied — disabled, or `ignore`/`exclude` — is refused at submission time rather than becoming a job that can only fail out of sight (the rule may still change between enqueue and run; the job treats that as a log line, not an error).
-- Give the public PHP API (`ChecksumApi`) the full rules surface REST has had since the consolidation: `listRules`, `createRule`, `updateRule`, `deleteRule`, `applyRule`, all using the class's established trusted-caller pattern — a null requesting user is server-side code acting with full authority (audited as `api`), a named user is enforced exactly as REST enforces them, down to the same validator, the same "your rule, never enforced" clamps, the same pinned-catch-all deletion refusal. `applyRule` here is synchronous by design: a DI caller controls its own execution context and usually wants the result.
-- Add full rule management to occ: `file-checksum-search:rules:list|add|modify|delete|apply` (plus `fcias:` short aliases). `list` shows ids and `band.position` in evaluation order — finally making `hash --ignore-rule` usable from a terminal — and speaks JSON for scripting. All five validate through the same `RuleDefinitionValidator` the REST API now uses, extracted from the controller so no surface can accept what another refuses; occ acts as an administrator throughout. `delete` refuses the pinned catch-all exactly as REST does. `apply` queues every file the rule currently governs — uncapped, unlike the periodic sweep's per-run trickle — honouring band discipline per file (a file claimed by a higher band is reported, never marked), skipping fresh files under `auto`/`missing`, and reporting all four buckets so the arithmetic adds up; `-m` overrides the rule's mode for that run and is logged, at warning level when the rule is admin-enforced.
-- Log every rule mutation, whichever interface asked: create, update, delete, enable/disable, reorder and apply are audit-logged at INFO with the acting surface (user id, `cli`, `repair`), escalated to **WARNING** when the mutation touches an admin-enforced rule — those are the rules someone wrote down as non-negotiable, so changing one leaves a trace another person can find. All four surfaces funnel through the same service methods, so none can mutate silently.
-- Rework `occ file-checksum-search:hash`'s options around the rules. `--algo|-a` is now repeatable and defaults to **`auto`** — each file gets its governing rule's algorithm list; explicit names are exclusive of the rule's list, names plus `auto` form the union, and an unknown name fails the run instead of silently producing nothing. `--mode|-m` (`missing`, the default, or `force`) applies the existing rule-mode vocabulary to a direct run: `missing` now also **refreshes stale hashes** — ones older than the file's mtime — where the old collector checked presence only and, conversely, recomputed a file's *entire* requested set if any one algorithm was absent; `force` recomputes everything requested; `auto`/`lazy` are rejected with an explanation. `--unmatched|-u` (`include`, `skip`, or bare `-u` for `unmatched`) makes files no rule governs addressable: `include` widens a run to them, `unmatched` is the inverse view — only them — for hashing a corner no rule covers; both require an explicit `--algo`, since there is no rule to supply one, and neither combines with `--mark`, whose drain drops unmatched files by design. `--mark|-k` queues `pending:<mode>` rather than a hardcoded `pending:auto`, so a forced background recompute is expressible for the first time.
-- Add three ways for `occ file-checksum-search:hash` to deviate from the rules, each of which says what it is doing. `--with-ignored` also processes files whose rule is `ignore` — that verdict means "not automatically, but when asked", and typing a command is asking — while leaving `exclude` untouched. `--ignore-rule=<id>` (repeatable) evaluates as if one named rule did not exist, so the next matching rule decides; it is not a permit, a file nothing else matches still falls through. An unknown ID fails the run rather than being skipped quietly, and setting aside an admin-enforced rule is allowed but logged at warning level naming the rule. `-v` names the rule that skipped each file and `-vv` also names the rule for each file that proceeds, so "why is this file not being hashed" has an answer other than working the bands out by hand. A blanket `--force` was considered and rejected: the rules state intent about the storage rather than guarding a privilege, and such a flag's main use would be doing the expensive thing the configuration exists to avoid.
-- Add a documented `/api/v1/rules` REST resource — `GET` (list), `POST` (create), `PUT /{id}` (update, which is also how a rule is enabled or disabled), `DELETE /{id}`, and `PUT /order` (reorder one band) — replacing the undocumented `/settings/cron/*` and `/personal/rules/*` endpoints. One resource serves both settings pages: what a caller may do follows from who they are, not from which URL they used, so an administrator is no longer limited by the page they happen to be on. The listing takes `?scope=own` (default) or `?scope=all`, which selects a *view* rather than a permission — an administrator asking for `own` gets the personal view, which is what keeps the personal settings page personal for everyone. Mutations are judged on capability alone, so nothing depends on a client honouring that.
-- Add rule verdicts: a rule is now `include` (the default, and what every existing rule is), `ignore`, or `exclude`. `ignore` stops automatic hashing but still lets someone recalculate a file by hand; `exclude` blocks hashing by every route, including the sidebar button, the API and `occ file-checksum-search:generate` — the right tool for storage that must not be read, such as a metered external mount. The first matching rule decides outright, and which rules a verdict can override comes from its band: an enforced exclude is a mandate nothing below can undo, while a user's own exclude only overrides the defaults beneath it.
-- Rate limit the expensive public API endpoints per user, using Nextcloud's own `#[UserRateLimit]` attribute: 60 requests/minute on `lookup` and `duplicates`, and 20 requests/minute on `recalc`, which reads file content from storage.
+- `occ fcias:backup`, `fcias:reset`, `fcias:import`: configuration, queue
+  state and hashes out as `json`, `csv` or a checksum listing, and back
+  in with `--merge` or `--replace`; a reset reports until `--force`.
 
-### Fixed
-- `GET /api/v1/sudo/file/{fileId}/duplicates`: duplicates across the
-  whole reach, not only the caller's own; `canRecalc` names the caller.
-- **Verification works on the Duplicates page's *Others* tab, where it never has.** Every file on that tab belongs to somebody else, and the recalculation route resolves the file inside the *caller's* own home — so each row answered *File not found.*, and the page-wide button it replaced had failed the same way for every file at once, silently, since the tab existed. A cross-account twin now stands beside it, `POST /api/v1/sudo/file/{fileId}/recalc`, refusing in the order the other cross-account routes do: who may use the API, then whether the file is theirs to reach, then the password confirmation, so someone who may not ask is told so without being made to type a password first. Two things do not change by crossing accounts, and both are the point: **Who may calculate by hand** is answered against whoever is asking rather than against the file's owner, and an administrator's `exclude` rule still refuses the path — which is what keeps this from reading storage that costs money. Because nothing else records who did it, a cross-account recalculation is logged naming the account that asked. Recalculating your own file is unchanged and still cannot reach anybody else's.
-- `SudoScope::mayReachFile()`: the per-file cross-account routes ask
-  about the file, on the mount predicate the listing uses.
-- Error lines and verification verdicts are readable on the dark theme: they used `--color-error`, `--color-success` and `--color-warning` — the palette's *background* fills — where they wanted `--color-error-text`, `--color-success-text` and `--color-warning-text`. On a duplicate group this made the tick confirming a file all but invisible against the row it sat on, so a verification that had answered looked like one that had not. The help icon next to a heading — the personal page's *Sudo tokens* — no longer drops onto a line of its own under the title, with its popover opening in the middle of nothing: the popover's wrapper is a block-level div spanning the heading, and is inline now, so it sits after the text and anchors the popover at the icon.
-- **The sudo-token listings never loaded from the browser.** The personal section's and the admin tab's listings were fetched without a request token, and theirs were the only GET routes in the app without the no-CSRF attribute, so Nextcloud refused every request before it reached the app. The admin tab then blamed the token table, and the personal section told a user with app passwords that they had none. Both fetches now send the request token, like every write in the app; the CSRF check stays. The pages also say what actually happened: a failed request names its status, a failed personal load is a line of its own rather than "no app passwords yet", and only a listing the server marks unavailable says the token table could not be read. A new end-to-end spec exercises both pages, which no browser or HTTP test had.
-- Recalculating every algorithm a file already carries recomputed nothing. The routine read the file's hashes as an algorithm-to-hash map and then passed the *hashes* where algorithm names belong, so each was rejected as an unsupported algorithm and the count of processed algorithms was always zero. Its unit test passed throughout, because the test stubbed that map as a plain list — the mock described a shape the real method never returns.
-- **Searching by a hyphenated algorithm found nothing.** The term parser matched the `<algo>:` prefix with a character class of `a-z`, `A-F` and digits, so `sha3-256:<hash>` and `sha3-512:<hash>` — two of the ten algorithms the app ships enabled — were read as "not a hash" and answered with nothing, in the unified search and in `occ file-checksum-search:search` alike. An uppercase prefix such as `SHA256:` failed the same way. The prefix now matches what an algorithm name may look like, and whether the name means anything on this instance stays the catalogue's business.
-- Make search work for SHA-256, SHA-512 and the SHA3 pair, which found **nothing at all** before. `oc_files_metadata_index.meta_value_string` is `varchar(63)`, Nextcloud writes the value the document holds, and those digests are 64 or 128 characters: the insert failed, Nextcloud swallowed the failure as a logged warning, and the row was simply never written — so a search that truncated its term correctly still matched a row that did not exist. The app now keeps those keys off Nextcloud's index and writes the row itself, truncated to fit, the way the lookup and the duplicate grouping already expected. Nothing about the stored hash changes: the document keeps the whole value, which is what confirms a match whose prefix agrees. Existing instances are put right by the repair step, which also restates the declaration — an instance that had already been told these keys were Nextcloud's to index would otherwise go on failing every write. With rows finally existing, the other half of the design matters again: an index row holds at most 63 characters, so a long-hash lookup returns every file whose hash *starts* that way, and the full value has to be confirmed from the document before a match is reported. That confirmation was written out twice — in the public API and in the duplicate finder — and missing entirely from Nextcloud's unified search, which would have shown the wrong file. It is now one method the three of them share, and the database does the cheap half first: for a hash too long for the index the lookup also asks the document for that hash, so a file that merely shares the first 63 characters is never fetched or decoded at all. The pattern is the bare hash rather than the field it sits in, which is what makes it safe to filter on — a hex digest appears verbatim however the document is serialised, so it cannot hide a file that really holds the hash. Instances that already ran are put right by the repair step, which walks the documents — not the index, whose missing rows are the point — and writes what is absent. It asks two counts before it walks anything, so a repair with nothing to do costs a question rather than a pass over every document; when the counts disagree the full walk runs and repairs whatever it finds, one file or all of them.
+- `occ fcias:repair`: every repair step by name (`--list`, `--step`,
+  `--dry-run`, `--include-expensive`); `file-checksum-search:rebuild` is
+  gone.
 
-- Fix cleared hashes going on answering searches. Removing a file's checksums rewrites its metadata document, but saving a document only upserts the keys it still has — Nextcloud never collects the index rows for keys it lost. Those orphans kept serving the old hashes to search, to `lookup` and to duplicate groups, so a file could be returned for a checksum its own sidebar correctly reported it no longer had. Every route that clears is affected: erosion, `force` and `lazy` mode, the rebuild, and the sidebar's own recalculation. The rows are now collected when the document is saved.
-- Declare `process_pending_interval` and `pending_batch_limit` in the config lexicon. Both are read from app config by the queue-drain job — they are how an administrator retunes its 60-second interval and its 50-file batch — but neither was declared, and the lexicon's strictness is `WARNING`, so every read logged one. A busy instance wrote a warning per drain cycle about its own supported settings. Verified on a running instance: the app's lexicon warnings drop to zero across a cron run.
-- Retire the rule mode `off`, and convert any rule still carrying it into an `ignore` rule. As a mode it suppressed only *event*-driven queueing: the periodic sweep went on matching those files and marking them `pending:off`, and the drain — which has no such case — discarded each one with a warning, so an enabled rule with `mode: off` produced log noise on every sweep and hashed nothing either way. What it was reaching for is the verdict `ignore`, which claims the file and queues nothing by any route, and which the settings dialog and the `occ` help already offered instead. The repair step does the conversion (dropping mode and algorithms, as any ignore rule does), so an existing rule keeps meaning what its author intended; `off` is gone from the accepted modes, the API reference and the OpenAPI enums.
-- Return the stored rule from `POST /api/v1/rules`, including the id the server assigned it. The endpoint echoed the validated payload, which has no id, so a client could create a rule and then have no way to address it — every follow-up call needs an id, and the only way to guess which of the returned rules was yours was to diff two list responses. `PUT /api/v1/rules/{id}` echoes the stored rule too, so a partial update (`{"enabled": false}`) comes back as the whole rule rather than the fragment that was sent.
-- Fix every documented REST URL, which 404s as printed. The API is registered through `#[ApiRoute]`, which places it in Nextcloud's OCS collection, so the real base is `/ocs/v2.php/apps/file_checksum_search/api/v1/` — the README, the FAQ, `docs/api-v1.md` and the OpenAPI `servers` entry all omitted the `/ocs/v2.php` prefix, so no example in the documentation could be pasted into a shell and work. Responses remain plain JSON with no OCS envelope, which the documentation had right. In the same pass: the duplicates endpoint's `min_count` parameter is documented under the name the controller actually binds, `minCount` (the documented spelling was silently ignored and the default of 2 applied); `appinfo/info.xml`'s user-documentation link points at `docs/user-guide.md` rather than the `docs/HELP.md` it was renamed from, so the link shown in app management and the app store resolves again; and two relative links in `docs/api-v1.md` reach `lib/Public/ChecksumApi.php` from inside `docs/`.
-- Fix `occ file-checksum-search:hash` (then `generate`) hashing files its rules said not to touch. Only the `--mark` half of the command ever asked for a verdict; the direct form collected every file missing a checksum and hashed it, so an `exclude` rule — the documented way to keep the app out of storage that is slow or costs money to read — was honoured by the background job, the sidebar, the API and `--mark`, but not by the command's most common invocation. It now consults the rules on both paths, which also means a file no rule matches is left alone rather than hashed by default, matching what `--mark` always did.
-- Fix the file sidebar reporting a refused recalculation as a bare "Error". A file covered by an `exclude` rule is refused a manual recalculation by design — the rule says the storage must not be read — but the sidebar discarded the server's explanation, so a deliberate policy decision looked like a malfunction worth retrying. The reason is now shown under the Recalculate buttons.
-- Fix a modified file keeping a hash that no longer describes it. If no rule maintained a file's hashes — because none matched, or because the matching rule now says not to — writing to that file left the previously stored hash untouched and therefore wrong. A wrong hash is worse than none: it makes a changed file look intact and can pair it with unrelated files as a duplicate. Such hashes are now dropped when the file is written. Merely excluding a file still leaves its hashes alone; they only go once the content actually changes.
-- Fix the rule priority inversion that made every additional rule dead code. The design was always that the global `**` rule is priority 0 — the *last* resort — but it was stored at slot 0 of a list evaluated front-to-first-match, so it matched every file for every user before any other rule was reached. Rules below it could never fire while it was enabled. The catch-all now evaluates last, as intended. **On upgrade, additional rules that have silently never applied will start applying.**
-- Fix a non-administrator being able to edit an instance-wide rule. `canUserMutateRule()` accepted rules scoped to `all`, and the personal save endpoint preserved that scope on edit, so any user permitted to edit rules could change a global rule's path, mode or algorithms for everyone on the instance. A user's writable surface is now exactly their own rules.
-- Fix a reorder being able to move a user's rule across a rule they may not touch. When a user's own rules sat on both sides of a locked rule, a permutation of only their own IDs could still land one of them ahead of the locked rule. Reordering is now confined to a single band, so there is no boundary to cross.
-- Fix `docs/api-v1.md` documenting a rate-limiting scheme that did not exist. It described `occ config:app:set` keys (`rate_limit_enabled`, `rate_limit_max_requests`, `rate_limit_window_seconds`) that were never read by any code, so an administrator following it saw the commands succeed and believed protection was enabled when none was. The section now documents the limits that are actually enforced, the empty-bodied 429 Nextcloud returns, and the `ratelimit_overwrite` system setting that changes them.
-- Fix the duplicate browser's Verify hashes run misreporting a rate limit as hash drift. It POSTs one recalculation per file and never checked the response status, so once the new limit is reached it would parse the empty 429 body, find no `success` field, and mark every remaining file as a mismatch. It now stops at the limit, leaves the unchecked files and the interrupted group's counts untouched, says why, and resumes from that point on the next run.
-- Fix `docs/api-v1-openapi.yaml` declaring a `429` response with a `Retry-After` header and a `retry_after` body field on all six endpoints. No code path could emit that response, so generated clients could carry retry logic for it. The `429` is now declared only on the three rate-limited endpoints, with the empty body Nextcloud actually sends.
+- `occ fcias:queue:drain`: hash what the rules queued, now, with
+  `--batch-size` and `--all`.
+
+- `occ fcias:hash`: `file-checksum-search:generate` renamed, no alias;
+  `--algo` repeatable with `auto`, `--mode`, `--unmatched`, `--mark`,
+  `--with-ignored`, `--ignore-rule`, `-v`/`-vv`.
+
+- `occ file-checksum-search:rules:list|add|modify|delete|apply`: rule
+  management from the shell; `list` speaks JSON.
+
+- `/api/v1/rules`: `GET`, `POST`, `PUT /{id}`, `DELETE /{id}`,
+  `PUT /order`, `POST /{id}/apply`; one resource for both settings pages;
+  `POST` and `PUT` return the stored rule.
+
+- `ChecksumApi`: `listRules`, `createRule`, `updateRule`, `deleteRule`,
+  `applyRule`, `findDuplicatesFor`, `recalcMany`, `openableBy`;
+  `$actingUser` and `$reachUids` in place of `$requestingUser`.
+
+- `GET /api/v1/algorithms`, admin *Hash Algorithms*: the algorithms an
+  instance allows, from what its PHP offers, and a designated default;
+  every picker reads the list, so `adler32` duplicates can be browsed.
+
+- `GET`/`PUT /api/v1/preferences/preferred_algorithm`, personal settings:
+  the algorithm the sidebar offers first, then the file's rule's.
+
+- Rule verdicts `include`, `ignore`, `exclude`: the first matching rule
+  decides; `exclude` refuses hashing by every route, sidebar included.
+
+- Permissions: *Who may calculate by hand* (`manual_recalc`), *look
+  across accounts* (`instance_view`), *use the API* (`api_access`),
+  beside *edit rules*; the first and the last ship allowed. `canRecalc`
+  on the hashes response says whether the sidebar offers Recalculate.
+
+- `/api/v1/sudo/`: twins of the per-file hashes, per-file duplicates,
+  lookup, listing, recalc and batch recalc, plus `/sudo/selectable`;
+  behind a password confirmation or a granted app password. A sudoer
+  reaches every account, a group leader what their members hold;
+  `users[]`/`groups[]` name a set, expanded and authorised server-side.
+
+- Sudo tokens: a grant per app password on the personal page; every grant
+  listed and revocable on the admin *Sudo tokens* tab.
+
+- Duplicates page *Others* tab: other accounts' duplicates, named by
+  account and group, as one listing; *Mine* keeps its own filters.
+
+- `POST /api/v1/file/many/recalc` and its `/sudo/` twin: one request
+  verifies up to 25 files or 100 MiB; the Duplicates page sends chunks.
+
+- Rate limits per user: 60/min on `lookup`, both duplicates routes and
+  `sudo/selectable`; 20/min on every recalc route. The 429 is
+  Nextcloud's, empty; `ratelimit_overwrite` changes the limits.
+
+- `hash` and `anywhere` on `/api/v1/duplicates` and its twin, a *Hash*
+  field and *Search anywhere* on the page: only the groups a hash names.
+
+- `stale:eroded` and `stale:reset`: hashes dropped on write, or disowned
+  by a reset, counted by reason on the Advanced tab and in
+  `occ file-checksum-search:status`, and hidden from search and groups.
+
+- `occ fcias:repair --step orphaned-metadata`, a daily purge
+  (`orphan_purge_interval`): this app's metadata for files the filecache
+  no longer has; due at once when an account is deleted.
+
+- Admin page idle banner: shown while no enabled `include` rule exists;
+  *Acknowledged* persists (`idle_banner_ack`) until one does.
+
+- Rules table coverage rows: *Create rule* for every namespace without a
+  catch-all; a *provider missing* badge on a rule naming a gone one.
+
+- Rule row actions menu: Edit, Enable/Disable, *Re-apply* (new), Delete;
+  user, group and group-folder targets picked by name.
+
+- Audit log: every rule mutation at INFO, WARNING for an admin-enforced
+  rule, naming the surface that asked.
+
+### Changed
+
+- Rules: a **selector** (`home:<uid>`, `group:<gid>`, `home:*`,
+  `groupfolder:<id>`, `storage:<id>`, `*`) replaces the user scope;
+  stored rules migrate. Eight bands, enforced 1–4 and unenforced 5–8,
+  each selector value its own segment with a trailing defaults partition;
+  reordering stays within a segment. Two shipped defaults, `home:*` and
+  `*`, both created disabled; the `pinned` flag is gone and a deleted
+  default is recreated disabled by the repair step.
+
+- Rule matching: by the file's canonical identity (`FileLocation`), never
+  the acting user's path; sweeps run by storage; trash, versions and
+  appdata are governed by nothing; a personal rule path into a share or a
+  mounted storage is refused with the reason.
+
+- Pending queue: a row exists only for a file that was queued, hashed or
+  eroded; the drain resolves each file's rule at action time and honours
+  its algorithm list; the seeding job and `pending:new` are gone.
+
+- Install: copies the checksums the filecache already holds and computes
+  nothing; the shipped defaults are created disabled where absent.
+
+- Metadata keys: hashes under `file-checksum-hash-<algo>`; the repair
+  step renames existing rows, and `--step unindexed-hashes` finds files
+  the index forgot.
+
+- Admin page tabs: *Settings*, *Permissions*, *Sudo tokens*, *Advanced*
+  (diagnostics and the picker prefill threshold, 21 by default),
+  *Documentation*. `GET`/`PUT /settings/global` is one resource.
+
+- Both settings pages: one banded rules table with help on every column
+  and band, `<band>.<position>` as text, the personal page showing the
+  enforced rules above and the defaults below the user's own; a pen
+  icon beside each row's menu; group folders named as the groupfolders
+  app names them.
+
+- Duplicates page: **Verify all** per group and **Verify** per file
+  replace the page-wide button and the *Only matching* filter; a 429
+  stops the run with a message and the next click resumes. Controls are
+  Nextcloud's, labelled, with help buttons.
+
+- Every file row: `owner` and `location` (`FileLocation::describe()`),
+  shown in place of the path where the file is not the viewer's own;
+  cross-account rows carry `openable`, and link only where true.
+
+- `GET /api/v1/status`: a non-administrator gets the version alone.
+
+- Duplicates listing: the filter pages 200 groups at a time and stops
+  when the page is full; a truncated group is confirmed in one read.
+
+- Settings pages: Save disabled with nothing to save, yellow with
+  changes; secondary text at normal size in the max-contrast colour;
+  logical CSS properties, so right-to-left locales lay out correctly;
+  one `AlgorithmSelect` behind every algorithm picker.
+
+- Documentation: `docs/HELP.md` is `docs/user-guide.md`, the Help tab of
+  the Duplicates page and personal settings; `docs/FAQ.md` is the
+  administrator's; README *How hashing happens* and the rules chapter;
+  `docs/api-v1.md` and the OpenAPI document against the shipped routes.
 
 ### Removed
 
-- Remove `PersonalSettingsController` and the rule endpoints on `SettingsController` — `/settings/cron/definitions|save|delete|toggle` and `/personal/rules|/save|/delete|/toggle`. They encoded capability in the URL, which is what let an administrator on the personal page be silently restricted by the route rather than by intent. `/api/v1/rules` replaces all eight. `SettingsController` keeps only status and the rule-editing permission options.
-- Remove the `POST /settings/cron/reorder` and `POST /personal/rules/reorder` endpoints and the drag-and-drop reordering they backed, both added earlier in this same unreleased cycle. Their model — one flat list, reorder anything you may edit — is the one the band model replaces, and the flat-list reorder carried the cross-boundary flaw noted under Fixed. Reordering returns with the banded rules table; in the meantime the rule tables render without drag handles.
-- Remove the dead crontab-snippet generator endpoint (`GET /settings/cron/snippet`). Its UI was already gone: the Vue settings migration dropped the snippet panel, and the README/FAQ claims about it were removed at the same time, leaving a reachable endpoint no code called. It offered nothing the documented `occ file-checksum-search:generate` flags don't — it only assembled the crontab line for you. If the planned cron work revives this, it comes back as part of that feature rather than lingering as a fragment of it.
-- Remove the legacy `/api/1.0/` REST routes and the `LookupController` that served them. The app was never published, so nothing external can be relying on them, and keeping a second, frozen copy of the same four operations meant every API change had to be made and reviewed twice. Everything they did is available on `/api/v1/`: `lookup/{hash}` → `lookup?hash=…`, and `file/{id}/hashes`, `file/{id}/duplicates` and `file/{id}/recalc` under the same names.
+- `PersonalSettingsController`, `/settings/cron/*`, `/personal/rules/*`:
+  gone; `/api/v1/rules` replaces them.
+
+- `GET /settings/cron/snippet`: gone.
+
+- `/api/1.0/` and `LookupController`: gone; `/api/v1/` has every
+  operation.
+
+- Rule mode `off`: gone; a rule carrying it becomes an `ignore` rule.
+
+- `openapi.json` at the repository root: gone; `docs/api-v1-openapi.yaml`
+  is the specification.
+
+### Fixed
+
+- Recalculating every algorithm a file carries: computed nothing.
+
+- Search for `sha3-256:`, `sha3-512:` and upper-case prefixes: found
+  nothing.
+
+- Search for SHA-256, SHA-512 and SHA3 hashes: the index row was never
+  written; it is written truncated now, the repair step adds the missing
+  rows, and a long hash is confirmed from the document.
+
+- Cleared hashes: their index rows are collected on save, so they stop
+  answering searches, lookups and duplicate groups.
+
+- `process_pending_interval`, `pending_batch_limit`: declared, so the
+  drain no longer logs a lexicon warning per run.
+
+- Documented REST URLs: under `/ocs/v2.php/apps/file_checksum_search/`;
+  `minCount`, not `min_count`; the `info.xml` user-documentation link.
+
+- `occ fcias:hash` without `--mark`: consults the rules, so `exclude`
+  holds and unmatched files are left alone.
+
+- Sidebar: a refused recalculation shows the rule's reason, not "Error".
+
+- A modified file no rule maintains: its stored hashes are dropped.
+
+- Rule priority: the catch-all evaluates last. **On upgrade, additional
+  rules that never applied start applying.**
+
+- Rule editing: a non-administrator can no longer change an instance-wide
+  rule.
+
+- Dark theme: error lines and verification verdicts use the palette's
+  text colours, not its background fills.
+
+- Settings pages: notices show again, through `@nextcloud/dialogs`;
+  `OC.Notification` no longer exists in Nextcloud 34.
+
+### Security
+
+- Periodic rule sweep: asks for stale rows only and resolves exclusion
+  per file; its cost no longer scales with the whole instance.
+
+- Unified search: the limit is capped at 100.
+
+- `GET /api/v1/lookup`, the unified search, the own listing: scoped to
+  what the caller holds — home, received shares to their subtree, group
+  folders — before the limit applies, so a file no longer hides behind
+  foreign copies.
+
+- `POST …/recalc`, `POST /rules/{id}/apply`: `#[NoCSRFRequired]` removed.
+
+- `/settings/status`: administrators only.
+
+- `RulesController`: a failed write answers *Internal server error.*, the
+  detail in the log.
+
+- `minCount`: clamped to 2 or more on every route; the browser routes
+  are rate limited like their API twins.
+
+- Administrators: the ordinary routes answer their own files; the
+  instance-wide view is `/api/v1/sudo/`. **Scripts calling the API with
+  administrator credentials receive the administrator's own files.**
+
+- Checksums adopted from `oc_filecache.checksum`: kept only for an
+  allowed algorithm with a hex value of that algorithm's length.
+
+- `GET /api/v1/file/{fileId}/duplicates`: the reference file is resolved
+  within the caller's reach before its hashes are read.
 
 ## [0.19.0] — 2026-08-23
 
 ### Changed
 
 - Move rule creation and editing into an NcDialog popup on both the admin and personal settings pages, instead of a form that expanded inline below the rule list.
+
 - Show the global rule as an ordinary rule row in its own table above the additional rules, replacing the separate always-visible form, so both kinds of rule read and are edited the same way. The global rule shows its fixed User Scope and Path as plain text rather than disabled inputs, keeps them pinned server-side, and has no Delete button — disable it instead.
+
 - Add a help button with a short explanation to every rule and permission setting, reusing the sidebar's popover as a shared component.
+
 - Stretch the rule form's inputs, the algorithm multiselect and the permission group/user selects to the full width of their row, so controls line up on a common right edge instead of stopping at their intrinsic widths.
+
 - Give the rule tables percentage column widths, so the single-row global rule table and the additional-rules table below it share one column grid.
+
 - Show the full value as a tooltip on rule table cells and on the rule form's Path field, for values too long for the space.
+
 - Centre the settings pages' Save and Cancel buttons and give them room to breathe, and match the rule dialog's "Users may not edit this rule" toggle to the switch used elsewhere in the settings.
+
 - Focus the first editable field when the rule dialog opens, instead of the first help button, and close the dialog on Escape as if Cancel had been pressed — an open help popover or select dropdown takes the first Escape for itself. The dialog's own close button is gone as a result: the built-in close had to be turned off for Escape to be handled in the right order, and Cancel already sits next to Save.
+
 - Indent every tab panel, the page heading and the tab buttons on both settings pages, while the tab underline still runs the full width. The indent was previously scoped to the admin page's Settings panel, leaving the personal page flush against the edge.
+
 - Share one server-rendered header partial between the admin and personal settings pages, so the personal page shows the app logo too and the two cannot drift apart.
+
 - Show the Priority column on the personal rules page. Personal rules are an ordered subset evaluated first-match-wins, so their position is a real priority, numbered as on the admin page.
+
 - Rename the rule tables' "Algos" column to "Algorithms", give all three rule tables one shared column grid, and left-align their action buttons.
+
 - Label the rule dialog's admin-enforced switch "Enforced" so it lines up with the other fields, and left-align the Rule Editing Permission page's Save button while the dialog's own buttons stay centred.
+
 - Cap the status table's label column so its values are not pushed across the page.
+
 - Keep the permission group and user selects hidden until the saved options have loaded, instead of rendering and then hiding them on every page load.
 
 ### Fixed
 
 - Fix the admin settings page never showing the global rule's stored algorithms: the algorithm multiselect captured its selection once at setup, when the asynchronously loaded algorithm list was still empty, and stayed blank from then on. It now tracks both the bound value and the option list.
+
 - Fix the admin settings page losing its app-name heading: the Vue migration left the `<h3>` as a sibling of `#fcias-admin-settings`, which the Vue app then overwrote on mount. The heading and a new inner mount point now live inside that container again.
 
 ## [0.18.0] — 2026-08-22
@@ -197,13 +287,17 @@ the first stable release.
 ### Added
 
 - Add Vitest coverage for the vanilla-JS admin and personal settings pages, testing their manual HTML-escaping and DOM rendering black-box to guard against XSS regressions.
+
 - Add useAdminSettings and usePersonalSettings composables that port the settings pages' fetch logic to the existing composable pattern, adding an AbortController stale-response guard neither page had before.
 
 ### Changed
 
 - Document DatabaseService's safeBool/safeInt/safeString/safeArray sentinel-on-failure pattern so callers can tell a genuine empty result from a logged DB failure.
+
 - Extract shared RuleTable, RuleRow, and RuleForm Vue components to replace the duplicated string-concatenated markup in the admin and personal settings pages.
+
 - Migrate the admin settings page to a single Vue app built on the new RuleTable/RuleForm components, consolidating four build entries into one and removing the unreachable dead crontab snippet generator and its inaccurate documentation.
+
 - Migrate the personal settings page to Vue using the personal RuleTable/RuleForm variant and usePersonalSettings composable, removing the now-dead vanilla settings-personal and tabs.ts modules.
 
 ## [0.17.1] — 2026-08-22
@@ -217,8 +311,11 @@ the first stable release.
 ### Changed
 
 - Extract a shared algorithm-whitelist validator to remove the duplicated validation logic between SettingsController and PersonalSettingsController.
+
 - Compute all required checksums for a file in a single read pass instead of one read per algorithm, cutting up to eight reads down to one on remote and local storage alike.
+
 - Extract a shared default-duplicate-limit constant to replace six hardcoded copies of the default duplicate-group page size.
+
 - Document adler32 support in README, FAQ, API docs, and OpenAPI spec, and add canary tests on both the PHP and TypeScript sides so the two supported-algorithm lists can no longer silently drift apart.
 
 ## [0.16.1] — 2026-08-22
@@ -250,12 +347,15 @@ the first stable release.
 ### Fixed
 
 - Fix a race where concurrent hash recalculations for different algorithms on the same file could silently drop metadata by saving before releasing the file lock instead of after.
+
 - Fix truncated-hash comparisons for SHA-256/SHA3-256 and SHA-512/SHA3-512 so full-hash searches match correctly and duplicate groups are verified against the untruncated hash instead of risking false positives.
 
 ### Security
 
 - Scope the public and legacy API hash lookups (lookup, getHashes, recalcHash) to the requesting user's own files so other users' paths and hashes can no longer be read or force-recalculated by hash or fileId.
+
 - Require admin privileges for SettingsController's rule management endpoints so non-admins can no longer install or lock a global force-recalculate rule for the whole instance.
+
 - Enforce userScope ownership checks on personal rule mutation and on real-time file-event rule matching so a user can no longer alter or trigger another user's rule by guessing its ID.
 
 ## [0.14.0] — 2026-08-21
@@ -279,11 +379,17 @@ the first stable release.
 ### Changed
 
 - Give the admin page its own dedicated settings section and add a read-only Documentation tab that renders the bundled docs, including Markdown.
+
 - Let users edit and create hash-generation rules from a personal settings page, with admins able to lock individual rules via a per-rule admin_enforced flag and control access via allowed groups/users.
+
 - Revise README, info.xml, API docs, and the changelog to reflect the current feature set, removing stale references to database triggers, MariaDB-only support, and Webpack.
+
 - Update info.xml for App Store metadata compliance (PHP/database dependencies, documentation links, HTTPS repository URL) and add app store screenshots.
+
 - Migrate the checksums sidebar tab from a hand-rolled HTMLElement to a Vue custom element with a loading spinner during hash load and recalculation.
+
 - Replace the admin and personal settings algorithm checkboxes with a shared NcSelect-based multiselect component.
+
 - Rework the checksums sidebar into sharing-tab-style sections with help popovers, an algorithm selector with a recalc button, and full-hash tooltips on a container-constrained hash table.
 
 ### Removed
@@ -311,7 +417,9 @@ the first stable release.
 ### Fixed
 
 - Register background jobs once via info.xml instead of on every boot, fixing NC 33's JobList::add() resetting last_run and preventing the pending-updates queue from ever draining.
+
 - Mark file-checksum-updated_at as an indexed metadata value when saving, so the pending queue actually drains after successful hash processing under NC 33.
+
 - Register metadata keys during install rather than on every boot, eliminating a recurring debug warning from NC 33's lazy AppConfig loading.
 
 ## [0.11.0] — 2026-08-15
@@ -325,11 +433,17 @@ the first stable release.
 ### Fixed
 
 - Fix the sidebar tab silently failing to register by importing the SVG icon as raw XML instead of a data URL, and add diagnostic logging around tab/action registration.
+
 - Fix recalcHash always defaulting to SHA-1 by also reading the algo parameter from the query string when the request body is empty.
+
 - Fix duplicate search to exclude the updated_at metadata field from grouping, correctly handle hash values stored as JSON arrays, and fall back to the indexed hash when extraction yields an empty value.
+
 - Fix the Vue duplicates template rendering literal unicode escape sequences instead of the check and cross characters.
+
 - Show a total pending count alongside the per-mode breakdown on the settings page to match the CLI output.
+
 - Add a Refresh button and a Last Updated timestamp to the settings page Status section.
+
 - Fix HashSearchProvider search results so clicking a result opens the file details sidebar instead of just navigating to the directory root.
 
 ## [0.10.0] — 2026-08-07
@@ -337,13 +451,17 @@ the first stable release.
 ### Added
 
 - Add SettingsControllerTest with 14 tests covering all six controller methods, and expose a mockable readRequestBody() method on SettingsController.
+
 - Add developer tooling configuration (ESLint, PHP-CS-Fixer, Psalm, Rector, Stylelint, TypeScript, Vite) and remove committed build artifacts.
 
 ### Changed
 
 - Update project metadata (code of conduct, license, app info, and composer info).
+
 - Migrate routing from appinfo/routes.php to PHP 8 attribute-based routing (#[ApiRoute]/#[FrontpageRoute]) across all controllers, per the Nextcloud 31+ standard.
+
 - Convert frontend scripts to TypeScript, extract the duplicates index page into a new PageController, fix the Vite entry point, and switch URL generation to @nextcloud/router with centralized route constants.
+
 - Migrate the frontend build from Webpack to Vite and introduce a Vue 3 SPA for the global duplicate file browser.
 
 ## [0.9.1] — 2026-08-07
@@ -357,6 +475,7 @@ the first stable release.
 ### Added
 
 - Add and improve class-level PHPDoc and @throws documentation across several services and listeners with no behavioral changes.
+
 - Add FciasUnitTestCase base class and unit tests covering MetadataService queryDuplicates/queryByHash and HashCalculationService processFile.
 
 ### Changed
@@ -390,17 +509,25 @@ the first stable release.
 ### Added
 
 - Add cron job definitions to the file-checksum-search:status output in both plain-text and JSON formats.
+
 - Add integration tests covering the full pending-queue drain pipeline and fix a double-prefix bug in PendingQueueService that produced an invalid table name (oc_oc_file_checksum_search_pending).
+
 - Add FileListener integration tests covering all update-hash-on-write/create/delete modes and fix a double-prefix bug in HashCalculationService that caused queries against a doubled table name.
+
 - Add FilecacheService and a centralized HashCalculationService::processFile() to keep filecache checksums and metadata in sync, expand MetadataService, and remove the now-redundant FileOperationService.
+
 - Add a three-job background pipeline (RuleProcessingJob, ProcessPendingUpdates, SeedPendingUpdates) plus a MetadataListener to seed and process the pending-hash queue based on configured rules.
 
 ### Changed
 
 - Introduce MetadataService and a fresh migration to integrate with Nextcloud's oc_files_metadata table, dropping all previous migrations since the app had never been deployed.
+
 - Refactor FileListener to only clear metadata and mark files pending instead of computing hashes directly, deferring actual hash computation to the ProcessPendingUpdates job.
+
 - Rewrite search and duplicate detection to query oc_files_metadata directly, reading hash values from the JSON column to avoid truncation for longer hash algorithms.
+
 - Overhaul CLI commands for the metadata-based architecture, adding deferred processing and metadata-aware status/rebuild/benchmark commands while removing obsolete table- and trigger-management commands.
+
 - Replace the cron/trigger-based configuration with a rule-based system (RuleService) and matching admin UI, removing six now-obsolete classes tied to the old trigger/stored-procedure and queue infrastructure.
 
 ## [0.6.1] — 2026-08-05
@@ -408,6 +535,7 @@ the first stable release.
 ### Fixed
 
 - Fix DatabaseService writing query errors to stdout, which could corrupt JSON output of the status command, by sending them to stderr instead.
+
 - Guard against an undefined array key warning by adding a null-coalesce for the "locked" key in FileListener.
 
 ## [0.6.0] — 2026-08-05
@@ -415,22 +543,35 @@ the first stable release.
 ### Added
 
 - Add a "Files with same hash" feature that finds duplicate files via a self-join on the hash table and lets users browse matches with a new "Find duplicates" sidebar button.
+
 - Add event-driven hash index maintenance for file write, create, delete, and copy operations, backed by a new pending-update queue table, a draining background job, and per-event-type admin configuration.
+
 - Add ILockingProvider-based file locking to hash operations so concurrent cron, CLI, and event-listener processes can no longer hash the same file simultaneously, retrying locked files via the pending queue instead of dropping them.
+
 - Add a global duplicate file locator that finds all groups of files sharing identical hashes across the system, with a REST API, CLI command, standalone UI, and access-controlled, paginated results.
+
 - Add a show-config CLI command to display app configuration and extend the status command with a machine-readable --output=json option.
+
 - Add logging to previously silent controllers, commands, listeners, and migrations, and log errors before returning error responses in SettingsController.
+
 - Add an updated_at column to the hash table so hash recalculation can be skipped when the value is already current, and surface it in the status command and sidebar tooltip.
 
 ### Changed
 
 - Refactor closure-based event listeners into dedicated listener classes that self-register, simplifying Application boot and registration.
+
 - Consolidate duplicated hash lookup and path resolution queries into new HashIndexService methods, removing direct database dependencies from several classes.
+
 - Expand the README to document all CLI commands and features, and add descriptive docblocks to controller and command classes.
+
 - Split the large HashIndexService into focused service classes for hash calculation, pending queue, duplicates, and file operations, keeping HashIndexService as a backward-compatible facade.
+
 - Move the shared escapeHtml helper into a common JS utility module to remove duplicated implementations in the sidebar and duplicates scripts.
+
 - Extract shared safeIntQuery/safeExistsQuery helpers in StatusService to eliminate repeated try/catch/log patterns across its status checks.
+
 - Design a stable public API (ChecksumApi class and /api/v1 HTTP endpoints) covering versioning, authentication, rate limiting, and backward compatibility, while keeping legacy /api/1.0 routes.
+
 - Refactor LookupController to delegate entirely to ChecksumApi and remove the legacy /api/1.0 routes now that all consumers use the /api/v1 endpoints.
 
 ## [0.5.1] — 2026-08-05
@@ -438,6 +579,7 @@ the first stable release.
 ### Fixed
 
 - Fix Unified Search never returning results by programmatically registering HashSearchProvider via IRegistrationContext, since NC v33 no longer processes the info.xml <search> block, and add a fingerprint app icon.
+
 - Use img/app.svg as the single source of truth for the app icon across the sidebar and admin settings instead of duplicating inline SVG markup.
 
 ## [0.5.0] — 2026-08-04
@@ -451,8 +593,11 @@ the first stable release.
 ### Fixed
 
 - Fix the sidebar tab showing stale content when switching files by reloading hashes on node property changes instead of relying only on the one-time connectedCallback.
+
 - Fix duplicate hash entries on recalc by matching the algorithm prefix case-insensitively, since stored checksums use uppercase algorithm names.
+
 - Fix a 500 error in recalcFileHash by coalescing a null filecache checksum to an empty string before calling explode().
+
 - Fix the Checksums tab incorrectly appearing on folder nodes by strictly checking node.type === 'file' instead of falling back to a fileid check.
 
 ## [0.4.0] — 2026-08-04
@@ -486,6 +631,7 @@ the first stable release.
 ### Fixed
 
 - Fix unreadable compatibility-test status indicators on dark themes by switching from colored text to background-color badges.
+
 - Fix admin settings maintenance actions showing dialogs with no OK button by switching to OC.dialogs.message() and including record counts in the result message.
 
 ## [0.2.0] — 2026-08-04
@@ -499,7 +645,9 @@ the first stable release.
 ### Fixed
 
 - Fix every CLI command and admin API endpoint crashing with an unhandled error by replacing the non-existent IDBConnection::getPrefix() with a centralized TableNameService, also correcting the wrong dbtableprefix config key that had been silently ignored.
+
 - Register a config lexicon for the triggers_deployed app config key to stop Nextcloud from logging an info message on every boot request.
+
 - Fix GenerateHashes failing to process the root folder and crashing on the non-existent File::setChecksum(), and add debug logging plus verbosity-based progress output.
 
 ## [0.1.0] — 2026-08-03
@@ -507,12 +655,19 @@ the first stable release.
 ### Added
 
 - Add the MariaDB migration deploying the shadow table, stored procedure, and insert/update/delete triggers that keep file checksum data in sync with the filecache.
+
 - Add the Application bootstrap that registers the Unified Search provider and the sidebar frontend scripts at runtime.
+
 - Add a REST API controller for looking up files by hash and retrieving all hashes for a given file ID.
+
 - Add a Unified Search provider that matches raw hex hashes or algo:hash queries against indexed files the user has access to.
+
 - Add the core CLI commands for rebuilding the hash index, searching by hash, generating checksums, and benchmarking indexed lookup performance.
+
 - Add administrative CLI commands for reporting index status, purging, tearing down triggers, and removing the shadow table.
+
 - Add an admin settings page with a compatibility test and maintenance actions for purging, rebuilding, tearing down, and removing the index.
+
 - Add a Files app sidebar tab that displays a file's checksums as algorithm badges with hash values.
 
 ### Changed
