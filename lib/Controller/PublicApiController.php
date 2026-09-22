@@ -160,15 +160,14 @@ class PublicApiController
 	 * confirmed ({@see SudoConfirmation}). Permission first, so that someone
 	 * who may not ask is told so without being made to type a password first.
 	 *
-	 * @param  string|null  $target  One account, or null for the caller's
-	 *                               ceiling: every account for a sudoer, the
-	 *                               members of their groups for a sub-admin.
+	 * The scope is the caller's ceiling: every account for a sudoer, the
+	 * members of their groups for a sub-admin. A route that names accounts
+	 * goes through {@see sudoSetOrRefusal()} instead.
 	 *
-	 * @return string|list<string>|null|DataResponse  The scope to pass down —
-	 *         a uid, a list of them, or null for every account — or the
-	 *         refusal.
+	 * @return list<string>|null|DataResponse  The scope to pass down — a list
+	 *         of accounts, or null for every account — or the refusal.
 	 */
-	private function sudoScopeOrRefusal( ?string $target = null ): string|array|null|DataResponse
+	private function sudoScopeOrRefusal(): array|null|DataResponse
 	{
 
 		$own = $this->scopeOrRefusal();
@@ -178,7 +177,7 @@ class PublicApiController
 			return $own;
 		}
 
-		$scope = $this->sudo->resolve( $own, $target );
+		$scope = $this->sudo->resolve( $own );
 
 		if ( $scope !== false && ! $this->confirmation->isConfirmed( $own ) )
 		{
@@ -259,7 +258,7 @@ class PublicApiController
 	private function ceilingOf( string $own ): ?array
 	{
 
-		$ceiling = $this->sudo->resolve( $own, null );
+		$ceiling = $this->sudo->resolve( $own );
 
 		return $ceiling === false ? [] : $ceiling;
 	}
@@ -638,10 +637,10 @@ class PublicApiController
 
 
 	/**
-	 * {@see findAllDuplicates()} for one named account, or for every account
-	 * when `user` is omitted. A password confirmation, and only for those who
-	 * may look across accounts — a sub-admin may name a member of their
-	 * groups and nothing wider.
+	 * {@see findAllDuplicates()} across accounts: the ones `users[]` and
+	 * `groups[]` name, or — with nothing named — the caller's ceiling, every
+	 * account for a sudoer and their groups' members for a sub-admin. A
+	 * password confirmation, and only for those who may look across accounts.
 	 *
 	 * @noinspection PhpUnused
 	 */
@@ -649,7 +648,6 @@ class PublicApiController
 	#[NoCSRFRequired]
 	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/duplicates' )]
 	public function sudoFindAllDuplicates(
-		?string $user = null,
 		?string $algo = null,
 		int     $minCount = 2,
 		int     $limit = DuplicateService::DEFAULT_DUPLICATE_LIMIT,
@@ -660,16 +658,15 @@ class PublicApiController
 		?array  $groups = null,
 	): DataResponse {
 
-		// Two shapes on one route, as on the page's own twin: `user=` names
-		// one account — absent means the caller's ceiling, every account for
-		// a sudoer and their groups' members for a sub-admin — and
-		// `users[]`/`groups[]` name a set, which is what the picker sends.
+		// One way to name whom, the one the picker sends. `user=` for a single
+		// account was a third encoding of the same idea and is gone: one
+		// account is a set of one.
 		$scope = ( $users !== null || $groups !== null )
 			? $this->sudoSetOrRefusal(
 				array_values( array_filter( (array) $users, 'is_string' ) ),
 				array_values( array_filter( (array) $groups, 'is_string' ) ),
 			)
-			: $this->sudoScopeOrRefusal( $user );
+			: $this->sudoScopeOrRefusal();
 
 		return $scope instanceof DataResponse
 			? $scope

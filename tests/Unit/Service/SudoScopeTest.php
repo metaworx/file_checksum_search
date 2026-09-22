@@ -74,8 +74,7 @@ class SudoScopeTest
 		;
 
 		$this->assertTrue( $this->scope->isSudoer( 'root' ) );
-		$this->assertNull( $this->scope->resolve( 'root', null ), 'everyone' );
-		$this->assertSame( 'member', $this->scope->resolve( 'root', 'member' ) );
+		$this->assertNull( $this->scope->resolve( 'root' ), 'everyone' );
 	}
 
 
@@ -90,15 +89,16 @@ class SudoScopeTest
 		                  ->willReturn( true )
 		;
 
-		$this->assertNull( $this->scope->resolve( 'lead', null ) );
+		$this->assertNull( $this->scope->resolve( 'lead' ) );
 	}
 
 
 	/**
-	 * Core's own delegation: a sub-admin sees the members of their groups,
-	 * one at a time, and never everyone.
+	 * Core's own delegation: a sub-admin's ceiling is the members of the
+	 * groups they lead, once each, and never everyone. Naming one of them is
+	 * {@see SudoScope::resolveSet()}'s business now — a set of one.
 	 */
-	public function testASubAdminReachesTheirMembersAndNobodyElse(): void
+	public function testASubAdminsCeilingIsTheirMembersAndNobodyElse(): void
 	{
 
 		$this->groups->method( 'isAdmin' )
@@ -107,22 +107,13 @@ class SudoScopeTest
 		$this->permissions->method( 'isAllowed' )
 		                  ->willReturn( false )
 		;
-		$this->subAdmin->method( 'isUserAccessible' )
-		               ->willReturnCallback( static fn ( IUser $leader, IUser $member ): bool => $leader->getUID() === 'lead' && $member->getUID() === 'member' )
-		;
 		$this->subAdmin->method( 'getSubAdminsGroups' )
 		               ->willReturnCallback( fn ( IUser $u ): array => $u->getUID() === 'lead'
 			               ? [ $this->group( 'team', [ 'member' ] ), $this->group( 'crew', [ 'member', 'mate' ] ) ]
 			               : [] )
 		;
 
-		$this->assertSame( 'member', $this->scope->resolve( 'lead', 'member' ) );
-		$this->assertFalse( $this->scope->resolve( 'lead', 'stranger' ), 'outside their groups' );
-		$this->assertFalse( $this->scope->resolve( 'lead', 'nobody' ), 'a target that does not exist' );
-
-		// No target is their ceiling, not "everyone": every member of every
-		// group they lead, once each. Reading it as "everyone" refused them.
-		$this->assertSame( [ 'member', 'mate' ], $this->scope->resolve( 'lead', null ), 'their ceiling' );
+		$this->assertSame( [ 'member', 'mate' ], $this->scope->resolve( 'lead' ), 'their ceiling' );
 	}
 
 
@@ -140,8 +131,7 @@ class SudoScopeTest
 		;
 
 		$this->assertFalse( $this->scope->isSudoer( 'stranger' ) );
-		$this->assertFalse( $this->scope->resolve( 'stranger', null ) );
-		$this->assertFalse( $this->scope->resolve( 'stranger', 'member' ) );
+		$this->assertFalse( $this->scope->resolve( 'stranger' ) );
 	}
 
 

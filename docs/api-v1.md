@@ -310,7 +310,7 @@ Responses are nonetheless plain JSON: these are `ApiController`s, not `OCSContro
 | 15 | `/api/v1/sudo/file/{fileId}/hashes` | GET | — | Any account's file; password confirmation, sudoers only |
 | 16 | `/api/v1/sudo/file/{fileId}/duplicates` | GET | — | Any account's file, duplicates from every account; as 15 |
 | 17 | `/api/v1/sudo/lookup` | GET | — | Every account; as 15 |
-| 18 | `/api/v1/sudo/duplicates` | GET | — | One named account (`user`), a set (`users[]`/`groups[]`, merged), or every account; sudoers, or a sub-admin naming their own members |
+| 18 | `/api/v1/sudo/duplicates` | GET | — | The accounts `users[]`/`groups[]` name, merged, or with nothing named the caller's whole reach; sudoers, or a sub-admin over their own members |
 | 19 | `/api/v1/sudo/selectable` | GET | — | Which groups and accounts the caller may name on the routes above |
 | 20 | `/api/v1/sudo/file/{fileId}/recalc` | POST | 20/min | Recalculate a file that need not be the caller's own; password confirmation, and the file must be within the caller's reach |
 
@@ -848,8 +848,7 @@ for naming another account:
 | `GET /api/v1/file/{fileId}/hashes` | `GET /api/v1/sudo/file/{fileId}/hashes` | any account's file |
 | `GET /api/v1/file/{fileId}/duplicates` | `GET /api/v1/sudo/file/{fileId}/duplicates` | any account's file; duplicates from every account |
 | `GET /api/v1/lookup` | `GET /api/v1/sudo/lookup` | every account |
-| `GET /api/v1/duplicates` | `GET /api/v1/sudo/duplicates?user=` | one named account, or every account when `user` is omitted |
-| — | `GET /api/v1/sudo/duplicates?users[]=&groups[]=` | the named accounts and the members of the named groups, as one merged listing |
+| `GET /api/v1/duplicates` | `GET /api/v1/sudo/duplicates?users[]=&groups[]=` | the named accounts and the members of the named groups, as one merged listing; with nothing named, the caller's whole reach |
 | `POST /api/v1/file/{fileId}/recalc` | `POST /api/v1/sudo/file/{fileId}/recalc` | any file the caller may reach |
 
 The last one is the only twin that *writes*, and two things about it do not
@@ -865,12 +864,12 @@ Two things stand between a caller and a twin, in this order.
 **Who may be asked.** A member of `admin`, or anyone the *instance_view*
 permission names (admin settings → *Who may look across accounts*), may look
 at any account and at every account. A sub-admin — Nextcloud's own delegation,
-set on the Users page — may look at the members of the groups they administer,
-by naming them; asking for everyone, or for someone outside their groups, is
-403. Anyone else is 403 before any password is asked.
+set on the Users page — may look at the members of the groups they administer:
+that is their whole reach when nothing is named, and naming someone outside
+it is 403. Anyone else is 403 before any password is asked.
 
-**Naming several at once.** `users[]` and `groups[]` name a set instead of the
-single `user`. The server expands each group to its members — never the
+**Naming accounts.** `users[]` and `groups[]` name a set; one account is a set
+of one. The server expands each group to its members — never the
 client, since membership is not the caller's to enumerate — authorises every
 resulting account, and answers one merged listing, so a file held by two named
 accounts appears as one duplicate group. One account or group the caller may

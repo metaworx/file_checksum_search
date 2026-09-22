@@ -24,7 +24,8 @@ use OCP\IUserManager;
  * ({@see ISubAdmin::isUserAccessible()}) and needs no configuration of ours.
  * Everyone else is refused.
  *
- * Asked about an account, that is {@see resolve()} or {@see resolveSet()}.
+ * Asked what a caller may reach at most, that is {@see resolve()}; asked
+ * about named accounts and groups, {@see resolveSet()}.
  * Asked about one file, it is {@see mayReachFile()} — a separate question,
  * because a per-file route holds a file id and not an account. It is
  * answered with the very predicate the listing filters by, from the one
@@ -86,26 +87,24 @@ class SudoScope
 
 
 	/**
-	 * The scope $uid may read when asking about $target.
+	 * The most $uid may reach with nothing named — their *ceiling*.
 	 *
-	 * @param  string|null  $target  An account to look at, or null for the
-	 *                               most the caller is allowed — their
-	 *                               *ceiling*.
+	 * Null for a sudoer: everyone. For a sub-admin, every member of every
+	 * group they lead — not "everyone", which no sub-admin may have, and
+	 * reading it as that is what once refused group leaders from the lookup
+	 * and the bare listing while the picker admitted them. False for anyone
+	 * else. Naming particular accounts is {@see resolveSet()}; a single
+	 * account is a set of one, and the separate one-account answer this
+	 * method used to give is gone with the `user=` parameter that asked it.
 	 *
-	 * @return string|list<string>|null|false  The scope to pass down: the
-	 *         target's uid; for a null target, null (everyone) for a sudoer
-	 *         or the members of the groups a sub-admin leads; or false when
-	 *         $uid may not have it — a plain account, a sub-admin naming
-	 *         someone outside their groups, or a target that does not exist.
+	 * @return list<string>|null|false
 	 */
-	public function resolve(
-		string  $uid,
-		?string $target,
-	): string|array|null|false {
+	public function resolve( string $uid ): array|null|false
+	{
 
 		if ( $this->isSudoer( $uid ) )
 		{
-			return $target;
+			return null;
 		}
 
 		$leader = $this->userManager->get( $uid );
@@ -115,25 +114,7 @@ class SudoScope
 			return false;
 		}
 
-		// No target is not "everyone" — no sub-admin may have that — but the
-		// most this caller may see: every member of every group they lead.
-		// Reading it as "everyone" is what refused group leaders from the
-		// lookup and the bare listing while the picker admitted them.
-		if ( $target === null )
-		{
-			return $this->membersOfLedGroups( $leader );
-		}
-
-		$member = $this->userManager->get( $target );
-
-		if ( $member === null )
-		{
-			return false;
-		}
-
-		return $this->subAdmin->isUserAccessible( $leader, $member )
-			? $target
-			: false;
+		return $this->membersOfLedGroups( $leader );
 	}
 
 
@@ -275,7 +256,7 @@ class SudoScope
 			return true;
 		}
 
-		$ceiling = $this->resolve( $uid, null );
+		$ceiling = $this->resolve( $uid );
 
 		if ( $ceiling === false )
 		{

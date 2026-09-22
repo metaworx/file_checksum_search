@@ -637,7 +637,7 @@ class PublicApiControllerTest
 
 		$this->assertSame( Http::STATUS_FORBIDDEN, $this->controller->sudoGetHashes( 42 )->getStatus() );
 		$this->assertSame( Http::STATUS_FORBIDDEN, $this->controller->sudoLookup( 'abc123' )->getStatus() );
-		$this->assertSame( Http::STATUS_FORBIDDEN, $this->controller->sudoFindAllDuplicates( 'alice' )->getStatus() );
+		$this->assertSame( Http::STATUS_FORBIDDEN, $this->controller->sudoFindAllDuplicates()->getStatus() );
 	}
 
 
@@ -670,7 +670,7 @@ class PublicApiControllerTest
 
 		$sudo = $this->createMock( SudoScope::class );
 		$sudo->method( 'resolve' )
-		     ->with( 'admin', null )
+		     ->with( 'admin' )
 		     ->willReturn( [ 'member', 'mate' ] )
 		;
 		$controller = new PublicApiController(
