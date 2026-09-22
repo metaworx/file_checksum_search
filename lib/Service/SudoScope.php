@@ -336,13 +336,11 @@ class SudoScope
 				return false;
 			}
 
-			$groups = array_values( array_filter(
-				$groups,
-				static fn ( $group ): bool => $needle === ''
-				                              || stripos( $group->getGID(), $needle ) !== false
-				                              || stripos( $group->getDisplayName(), $needle ) !== false,
-			) );
-
+			// Members come from every group they lead, and the term is then
+			// applied to groups and to members separately. Filtering the
+			// groups first and collecting members from what survived meant a
+			// leader typing a member's name found nobody unless the group's
+			// name happened to match as well.
 			$users = [];
 
 			foreach ( $groups as $group )
@@ -358,7 +356,13 @@ class SudoScope
 				}
 			}
 
-			$users = array_values( $users );
+			$users  = array_values( $users );
+			$groups = array_values( array_filter(
+				$groups,
+				static fn ( $group ): bool => $needle === ''
+				                              || stripos( $group->getGID(), $needle ) !== false
+				                              || stripos( $group->getDisplayName(), $needle ) !== false,
+			) );
 		}
 
 		$prefill = count( $groups ) <= $threshold && count( $users ) <= $threshold;

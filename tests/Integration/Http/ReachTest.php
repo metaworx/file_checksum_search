@@ -282,7 +282,160 @@ class ReachTest
 	}
 
 
+	// ─── the set path, as the picker sends it ────────────────────────
+
+	/**
+	 * `users[]`/`groups[]` is what the picker actually sends, and until now
+	 * only `resolveSet()`'s unit tests had exercised it. A leader naming
+	 * their own group is served its members' reach; naming a group they do
+	 * not lead refuses the whole request rather than quietly narrowing it.
+	 */
+	public function testALeaderMayNameTheirOwnGroupAndNoOther(): void
+	{
+
+		$own = '/api/v1/sudo/duplicates?groups%5B%5D=' . self::$groupId;
+
+		$inside = $this->listedFileIds( $own, self::$hash['in'], self::$leaderUid, self::$leaderPassword );
+		$beside = $this->listedFileIds( $own, self::$hash['out'], self::$leaderUid, self::$leaderPassword );
+
+		$this->assertSame( [ self::$fileId['a'], self::$fileId['b'] ], $inside );
+		$this->assertSame( [], $beside );
+
+		$other = $this->get( '/api/v1/sudo/duplicates?groups%5B%5D=admin&algo=sha1', self::$leaderUid, self::$leaderPassword );
+
+		$this->assertSame( 403, $other['status'] );
+		$this->assertSame( 'Not yours to look at.', $other['body']['error'] );
+	}
+
+
+	// ─── the write path, as a leader ─────────────────────────────────
+
+	/**
+	 * The route the `[SECURITY]` withdrawal was about, over HTTP as the
+	 * account it was withdrawn from: a leader recalculates a file in a
+	 * member's received subtree and is refused the owner's file beside it,
+	 * same owner, same storage.
+	 */
+	public function testALeaderRecalculatesWithinTheirMembersReachAndNotBesideIt(): void
+	{
+
+		$inside = $this->post( '/api/v1/sudo/file/' . self::$fileId['a'] . '/recalc?algo=sha1', self::$leaderUid, self::$leaderPassword );
+
+		$this->assertSame( 200, $inside['status'], json_encode( $inside['body'] ) );
+		$this->assertTrue( $inside['body']['success'] );
+		$this->assertSame( self::$hash['in'], $inside['body']['hash'] );
+
+		$beside = $this->post( '/api/v1/sudo/file/' . self::$fileId['c'] . '/recalc?algo=sha1', self::$leaderUid, self::$leaderPassword );
+
+		$this->assertSame( 403, $beside['status'] );
+		$this->assertSame( 'Not yours to look at.', $beside['body']['error'] );
+	}
+
+
+	// ─── the picker's search, as a leader ────────────────────────────
+
+	public function testALeadersSearchFindsTheirMembersAndNobodyElse(): void
+	{
+
+		$member = $this->get( '/api/v1/sudo/selectable?search=' . self::$recipientUid, self::$leaderUid, self::$leaderPassword );
+
+		$this->assertSame( 200, $member['status'] );
+		$this->assertSame( [ self::$recipientUid ], array_column( $member['body']['users'], 'id' ) );
+		$this->assertFalse( $member['body']['all'] );
+
+		$stranger = $this->get( '/api/v1/sudo/selectable?search=' . self::$ownerUid, self::$leaderUid, self::$leaderPassword );
+
+		$this->assertSame( 200, $stranger['status'] );
+		$this->assertSame( [], $stranger['body']['users'], 'the owner is in none of the groups they lead' );
+	}
+
+
+	// ─── a plain account, on every cross-account route ───────────────
+
+	/**
+	 * The recipient is neither an administrator nor a leader of anything:
+	 * the account most people have. Every `/sudo/` route refuses them, and
+	 * with the scope's message rather than a password prompt — permission
+	 * is asked before confirmation, so someone who may not cross is told so
+	 * without being made to type a password first. The ordinary listing
+	 * says the same in advance, which is why the page never offers the tab.
+	 */
+	public function testAPlainAccountIsRefusedOnEveryCrossAccountRoute(): void
+	{
+
+		$listing = $this->get( '/api/v1/duplicates?algo=sha1&hash=' . self::$hash['in'], self::$recipientUid, self::$recipientPassword );
+
+		$this->assertSame( 200, $listing['status'] );
+		$this->assertFalse( $listing['body']['canSudo'] );
+
+		$a = self::$fileId['a'];
+
+		$refused = [
+			'GET /api/v1/sudo/duplicates',
+			'GET /api/v1/sudo/duplicates?users%5B%5D=' . self::$ownerUid,
+			'GET /api/v1/sudo/lookup?hash=' . self::$hash['in'],
+			'GET /api/v1/sudo/selectable',
+			"GET /api/v1/sudo/file/$a/hashes",
+			"GET /api/v1/sudo/file/$a/duplicates",
+			"POST /api/v1/sudo/file/$a/recalc?algo=sha1",
+		];
+
+		foreach ( $refused as $request )
+		{
+			[ $verb, $path ] = explode( ' ', $request, 2 );
+
+			$response = $verb === 'POST'
+				? $this->post( $path, self::$recipientUid, self::$recipientPassword )
+				: $this->get( $path, self::$recipientUid, self::$recipientPassword );
+
+			$this->assertSame( 403, $response['status'], $request );
+			$this->assertSame( 'Not yours to look at.', $response['body']['error'] ?? null, $request );
+		}
+	}
+
+
 	// ─── helpers ─────────────────────────────────────────────────────
+
+	/**
+	 * The mutating twin of {@see get()}. The recalc routes keep the CSRF
+	 * check, and a login password over Basic auth carries no request token —
+	 * OCS accepts `OCS-APIRequest` in its place.
+	 *
+	 * @return array{status: int, body: array<string, mixed>}
+	 */
+	private function post(
+		string $path,
+		string $uid,
+		string $password,
+	): array {
+
+		$context = stream_context_create( [
+			'http' => [
+				'method'        => 'POST',
+				'header'        => 'Authorization: Basic ' . base64_encode( $uid . ':' . $password )
+				                   . "\r\nOCS-APIRequest: true"
+				                   . "\r\nAccept: application/json"
+				                   . "\r\nContent-Length: 0",
+				'ignore_errors' => true,
+			],
+		] );
+
+		$body = file_get_contents( self::BASE_URL . $path, false, $context );
+
+		$this->assertNotFalse( $body, "POST $path answered nothing." );
+
+		$statusLine = $http_response_header[0] ?? '';
+		$status     = (int) ( preg_match( '/\s(\d{3})\s/', $statusLine, $m ) ? $m[1] : 0 );
+		$decoded    = json_decode( $body, true );
+
+		$this->assertIsArray( $decoded, "POST $path did not answer JSON: " . substr( $body, 0, 200 ) );
+
+		return [
+			'status' => $status,
+			'body'   => $decoded,
+		];
+	}
+
 
 	/**
 	 * The file ids a per-file duplicates answer lists, sorted.
@@ -320,7 +473,8 @@ class ReachTest
 		string $password,
 	): array {
 
-		$response = $this->get( $path . '?algo=sha1&hash=' . $hash, $uid, $password );
+		$joiner   = str_contains( $path, '?' ) ? '&' : '?';
+		$response = $this->get( $path . $joiner . 'algo=sha1&hash=' . $hash, $uid, $password );
 
 		$this->assertSame( 200, $response['status'], "$path answered " . json_encode( $response['body'] ) );
 

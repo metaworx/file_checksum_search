@@ -196,8 +196,12 @@ class SudoScopeTest
 		array  $memberUids = [],
 	) {
 
+		// A display name too: IUser::getDisplayName() carries no return type
+		// in OCP, so an unconfigured mock answers null where a real account
+		// always answers a string, and a search that reads it would trip on
+		// the mock rather than on anything the code does.
 		$members = array_map(
-			fn ( string $uid ) => $this->createConfiguredMock( IUser::class, [ 'getUID' => $uid ] ),
+			fn ( string $uid ) => $this->createConfiguredMock( IUser::class, [ 'getUID' => $uid, 'getDisplayName' => $uid ] ),
 			$memberUids,
 		);
 
@@ -294,6 +298,33 @@ class SudoScopeTest
 
 
 	// ─── selectableFor: what the picker may offer ───────────────────
+
+	/**
+	 * Typing a member's name finds the member whether or not the name of
+	 * the group they are in matches too. It did not: the groups were
+	 * filtered by the term first, and members were collected from the
+	 * groups that survived — so a search for "member" in a group called
+	 * "team" found nobody. Found by the HTTP case, not by this suite.
+	 */
+	public function testALeadersSearchFindsAMemberByNameAloneAndGroupsByTheirs(): void
+	{
+
+		$this->asSubAdminOf( 'team' );
+		$this->subAdmin->method( 'getSubAdminsGroups' )
+		               ->willReturn( [ $this->group( 'team', [ 'member', 'mate' ] ) ] )
+		;
+
+		$byMember = $this->scope->selectableFor( 'lead', 'memb', 21 );
+
+		$this->assertSame( [ 'member' ], array_column( $byMember['users'], 'id' ) );
+		$this->assertSame( [], $byMember['groups'], 'the group is not called that' );
+
+		$byGroup = $this->scope->selectableFor( 'lead', 'tea', 21 );
+
+		$this->assertSame( [ 'team' ], array_column( $byGroup['groups'], 'id' ) );
+		$this->assertSame( [], $byGroup['users'], 'no member is called that' );
+	}
+
 
 	public function testASubAdminIsOfferedOnlyTheirOwnGroupsAndMembers(): void
 	{
