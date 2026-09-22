@@ -67,7 +67,23 @@ $hashes = $api->getHashesByPath('Documents/report.pdf', 'alice');
 
 ### Method Reference
 
-#### `findByHash(string $hash, ?string $algo = null, int $limit = 100, ?string $requestingUser = null): array`
+Two optional parameters recur, and they answer two different questions:
+
+- **`$actingUser`** — *who is asking.* Permissions are checked against this
+  account (the manual-calculation permission, the stored preferred algorithm).
+  `null` is a trusted server-side caller: the permission is waived.
+- **`$reachUids`** — *whose files may be answered for.* A list of account ids;
+  the answer is confined to the files those accounts hold — their own, the
+  shares they received (a share only to its subtree) and their group folders.
+  `null` is the whole instance. The REST layer passes the caller's own account
+  on the ordinary routes and the caller's reach on the `/sudo/` twins; a
+  PHP caller passes whatever it has established.
+
+To these methods a file outside the reach is *not found*, never *forbidden*:
+a `NotFoundException`, or a `File not found.` result. Whether the caller may
+have the reach at all is decided before the call, by whoever makes it.
+
+#### `findByHash(string $hash, ?string $algo = null, int $limit = 100, ?array $reachUids = null): array`
 
 Search for files matching a given hash value.
 
@@ -76,30 +92,38 @@ Search for files matching a given hash value.
 | `$hash` | `string` | Yes | Hex-encoded hash (8/32/40/64/128 chars depending on algorithm) |
 | `$algo` | `?string` | No | Algorithm filter — any name `GET /api/v1/algorithms` lists for this instance |
 | `$limit` | `int` | No | Max results (1–500, default 100) |
-| `$requestingUser` | `?string` | No | Whose permissions the answer is checked against. `null` means server-side authority — the caller has already established who is asking, or is the server itself. A uid filters the result to what that user could open. |
+| `$reachUids` | `?array` | No | Whose files; `null` for every account |
 
 **Returns:**
 ```php
 [
     'results' => [
-        ['fileid' => 12345, 'algo' => 'sha1', 'hash' => 'da39a3...', 'path' => 'Documents', 'name' => 'report.pdf'],
+        ['fileid' => 12345, 'algo' => 'sha1', 'hash' => 'da39a3...', 'path' => 'Documents', 'name' => 'report.pdf',
+         'owner' => 'alice', 'location' => '/alice/files/Documents/report.pdf'],
         // ...
     ],
 ]
 ```
 
+`path` and `name` are one account's name for the file — with several accounts
+in reach, whichever opened it first. `owner` and `location` are the file's own
+identity from its filecache row: the owning account (`null` for a storage no
+account owns) and `FileLocation::describe()` — `/<owner>/files/…` for a home,
+`groupfolder:<id>/…` for a group folder, `storage:<id>/…` otherwise.
+
 **Throws:** `\InvalidArgumentException` if hash is empty.
 
 ---
 
-#### `getHashesByFileId(int $fileId, ?string $requestingUser = null): array`
+#### `getHashesByFileId(int $fileId, ?string $actingUser = null, ?array $reachUids = null): array`
 
 Get all checksums for a file by its filecache ID.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `$fileId` | `int` | Yes | The filecache `fileid` |
-| `$requestingUser` | `?string` | No | Whose permissions the answer is checked against. `null` means server-side authority — the caller has already established who is asking, or is the server itself. A uid filters the result to what that user could open. |
+| `$actingUser` | `?string` | No | Whose preference `preferred` reports and whose permission `canRecalc` answers; `null` reads the session |
+| `$reachUids` | `?array` | No | Whose files; the file must lie within them. `null` for every account |
 
 **Returns:**
 ```php
@@ -109,8 +133,14 @@ Get all checksums for a file by its filecache ID.
         ['algo' => 'sha1', 'hash' => 'da39a3...', 'updated_at' => '2026-08-18T10:00:00+00:00'],
         ['algo' => 'sha256', 'hash' => 'e3b0c4...', 'updated_at' => '2026-08-18T10:00:00+00:00'],
     ],
+    'algos' => ['sha256', 'sha1'],
+    'preferred' => 'sha256',
+    'default' => 'sha1',
+    'canRecalc' => true,
 ]
 ```
+
+**Throws:** `\OCP\Files\NotFoundException` if the file lies outside `$reachUids`.
 
 ---
 
@@ -183,9 +213,9 @@ administrator sees their own files, not everyone's.
             'hash_value' => 'da39a3...',
             'file_count' => 3,
             'files' => [
-                ['fileid' => 100, 'path' => 'Documents', 'name' => 'a.pdf'],
-                ['fileid' => 200, 'path' => 'Photos', 'name' => 'b.pdf'],
-                ['fileid' => 300, 'path' => 'Backup', 'name' => 'c.pdf'],
+                ['fileid' => 100, 'path' => 'Documents', 'name' => 'a.pdf', 'owner' => 'alice', 'location' => '/alice/files/Documents/a.pdf'],
+                ['fileid' => 200, 'path' => 'Photos', 'name' => 'b.pdf', 'owner' => 'alice', 'location' => '/alice/files/Photos/b.pdf'],
+                ['fileid' => 300, 'path' => 'Backup', 'name' => 'c.pdf', 'owner' => 'alice', 'location' => '/alice/files/Backup/c.pdf'],
             ],
         ],
     ],
@@ -196,13 +226,34 @@ administrator sees their own files, not everyone's.
 
 ---
 
-#### `findSameHash(int $fileId): array`
+#### `findDuplicatesFor(?array $reachUids, ?string $algo = null, int $minCount = 2, int $limit = 50, int $offset = 0, ?string $hash = null, bool $anywhere = false): array`
 
-Find other files sharing hash values with the given file.
+The scoped core behind `findDuplicates()`: duplicate groups among the files
+the named accounts hold, as one merged listing, or among every account's with
+`null`. Not for a session's own use — the caller decides whether whoever is
+asking may see those accounts; the `/sudo/duplicates` route does so through
+`SudoScope` and asks for a password on the way.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `$reachUids` | `?array` | Yes | Whose files; `null` for every account |
+| `$hash` | `?string` | No | Keep only groups whose checksum this names |
+| `$anywhere` | `bool` | No | Match `$hash` anywhere rather than only at the start |
+
+The rest as `findDuplicates()`. **Returns:** the same shape.
+
+---
+
+#### `findSameHash(int $fileId, ?array $reachUids = null): array`
+
+Find other files sharing hash values with the given file. Both ends are within
+the reach: the reference file must lie in it, and only duplicates in it are
+listed.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `$fileId` | `int` | Yes | The filecache `fileid` of the reference file |
+| `$reachUids` | `?array` | No | Whose files; `null` for every account |
 
 **Returns:**
 ```php
@@ -212,16 +263,18 @@ Find other files sharing hash values with the given file.
             'algo' => 'sha1',
             'hash_value' => 'da39a3...',
             'files' => [
-                ['fileid' => 200, 'path' => 'Photos', 'name' => 'copy.jpg'],
+                ['fileid' => 200, 'path' => 'Photos', 'name' => 'copy.jpg', 'owner' => 'bob', 'location' => '/bob/files/Photos/copy.jpg'],
             ],
         ],
     ],
 ]
 ```
 
+**Throws:** `\OCP\Files\NotFoundException` if the reference file lies outside `$reachUids`.
+
 ---
 
-#### `recalcHash(int $fileId, ?string $algo = null, ?string $requestingUser = null): array`
+#### `recalcHash(int $fileId, ?string $algo = null, ?string $actingUser = null, ?array $reachUids = null): array`
 
 Trigger hash recalculation for a file. **This is the only mutating operation** in the public API.
 
@@ -229,7 +282,8 @@ Trigger hash recalculation for a file. **This is the only mutating operation** i
 |-----------|------|----------|-------------|
 | `$fileId` | `int` | Yes | The filecache `fileid` |
 | `$algo` | `?string` | No | Algorithm (default: `sha1`) |
-| `$requestingUser` | `?string` | No | Whose permissions the answer is checked against. `null` means server-side authority — the caller has already established who is asking, or is the server itself. A uid filters the result to what that user could open. |
+| `$actingUser` | `?string` | No | Whose *calculate by hand* permission is checked. `null` is a trusted caller and waives it |
+| `$reachUids` | `?array` | No | Whose files may be acted on. `null` waives the reach check and nothing else: the permission, and any rule excluding the path, are still answered |
 
 **Returns (success):**
 ```php
@@ -239,7 +293,52 @@ Trigger hash recalculation for a file. **This is the only mutating operation** i
 **Returns (failure):**
 ```php
 ['success' => false, 'error' => 'File not found.']
+['success' => false, 'error' => 'Hashing is excluded for this path by an administrator rule.', 'excluded' => true, 'ruleId' => '…']
+['success' => false, 'error' => 'This account may not calculate by hand.', 'forbidden' => true]
 ```
+
+---
+
+#### `recalcMany(array $fileIds, ?string $algo = null, ?string $actingUser = null, ?array $reachUids = null): array`
+
+Recalculate several files in one call. Each file goes through `recalcHash()`
+with the same asker and the same reach, so a file out of reach or refused by
+a rule is its own failed result, not the whole call's. The call stops at
+`ChecksumApi::RECALC_BATCH_FILES` (25) files or `RECALC_BATCH_BYTES` (100 MiB)
+of filecache size, whichever comes first, and names the ids it did not get to;
+the first file is always read, however large.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `$fileIds` | `int[]` | Yes | Filecache ids; duplicates are dropped |
+| `$algo`, `$actingUser`, `$reachUids` | | No | As for `recalcHash()` |
+
+**Returns:**
+```php
+[
+    'results' => [
+        ['fileid' => 100, 'success' => true, 'algo' => 'sha1', 'hash' => 'da39a3...'],
+        ['fileid' => 200, 'success' => false, 'error' => 'File not found.'],
+    ],
+    'remaining' => [300, 400],   // not processed, in the order given; send them again
+]
+```
+
+---
+
+#### `openableBy(array $fileIds, string $viewer): array`
+
+Which of these files `$viewer` could open in the Files app — those the
+viewer's own mounts hold. A file link resolves in the viewer's own folder and
+nowhere else, so a row they do not hold cannot be opened by any link; the
+cross-account routes ask this once per answer and mark each row `openable`.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `$fileIds` | `int[]` | Yes | Filecache ids |
+| `$viewer` | `string` | Yes | The account that would click |
+
+**Returns:** `array<int, bool>` keyed by file id.
 
 ---
 
@@ -312,7 +411,9 @@ Responses are nonetheless plain JSON: these are `ApiController`s, not `OCSContro
 | 17 | `/api/v1/sudo/lookup` | GET | — | Every account; as 15 |
 | 18 | `/api/v1/sudo/duplicates` | GET | — | The accounts `users[]`/`groups[]` name, merged, or with nothing named the caller's whole reach; sudoers, or a sub-admin over their own members |
 | 19 | `/api/v1/sudo/selectable` | GET | — | Which groups and accounts the caller may name on the routes above |
-| 20 | `/api/v1/sudo/file/{fileId}/recalc` | POST | 20/min | Recalculate a file that need not be the caller's own; password confirmation, and the file must be within the caller's reach |
+| 20 | `/api/v1/sudo/file/{fileId}/recalc` | POST | `recalcHash` | Recalculate a file that need not be the caller's own; password confirmation, and the file must be within the caller's reach |
+| 21 | `/api/v1/file/many/recalc` | POST | `recalcMany` | Recalculate up to 25 files or 100 MiB in one request; the rest come back as `remaining` |
+| 22 | `/api/v1/sudo/file/many/recalc` | POST | `recalcMany` | As 21, across the caller's reach; a file out of reach fails on its own row |
 
 > **Note:** `getHashesByFile()` and `getHashesByPath()` are PHP-only convenience methods with no HTTP equivalent. HTTP consumers should use `getHashesByFileId()` after obtaining a `fileId` from NC's WebDAV PROPFIND or other APIs.
 
@@ -403,12 +504,18 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/duplicates
       "algo": "sha1",
       "hash_value": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
       "files": [
-        {"fileid": 200, "path": "Photos", "name": "copy.jpg"}
+        {"fileid": 200, "path": "Photos", "name": "copy.jpg", "owner": "alice", "location": "/alice/files/Photos/copy.jpg"}
       ]
     }
   ]
 }
 ```
+
+Every file row in this API carries `owner` and `location` beside `path` and
+`name`: `path` is one account's name for the file, `location` its own
+(`/<owner>/files/…`, `groupfolder:<id>/…` or `storage:<id>/…`), `owner` the
+owning account or `null`. The cross-account twins add `openable` — see
+[Cross-account routes](#cross-account-routes).
 
 ---
 
@@ -502,16 +609,20 @@ shape `lookup` uses — so a full SHA-512 finds exactly its group.
       "hash_value": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
       "file_count": 3,
       "files": [
-        {"fileid": 100, "path": "Documents", "name": "a.pdf"},
-        {"fileid": 200, "path": "Photos", "name": "b.pdf"},
-        {"fileid": 300, "path": "Backup", "name": "c.pdf"}
+        {"fileid": 100, "path": "Documents", "name": "a.pdf", "owner": "alice", "location": "/alice/files/Documents/a.pdf"},
+        {"fileid": 200, "path": "Photos", "name": "b.pdf", "owner": "alice", "location": "/alice/files/Photos/b.pdf"},
+        {"fileid": 300, "path": "Backup", "name": "c.pdf", "owner": "alice", "location": "/alice/files/Backup/c.pdf"}
       ]
     }
   ],
   "total_groups": 1,
-  "pagination": {"offset": 0, "limit": 50}
+  "pagination": {"offset": 0, "limit": 50},
+  "canSudo": false
 }
 ```
+
+`canSudo` says whether the caller may look across accounts at all — whether
+the Duplicates page shows its *Others* tab.
 
 ---
 
@@ -590,6 +701,54 @@ until the user picks again.
 **PUT body:** `{"value": "sha256"}`. An empty value returns to the default. For
 `preferred_algorithm` the value must be one `GET /api/v1/algorithms` lists;
 anything else is 400. Requires a session (401 without one).
+
+---
+
+#### 9. Recalculate Many Files
+
+```
+POST /ocs/v2.php/apps/file_checksum_search/api/v1/file/many/recalc
+Content-Type: application/json
+
+{"fileIds": [100, 200, 300], "algo": "sha256"}
+```
+
+| Parameter | Type | Required | Default |
+|-----------|------|----------|---------|
+| `fileIds` | int[] (body) | **Yes** | — |
+| `algo` | string (body or query) | No | `sha1` |
+
+One gesture, one request: verifying a group of a hundred files used to be a
+hundred calls against a limit of twenty a minute. The request goes through
+the same checks as `/file/{fileId}/recalc`, once per file, so a file that is
+not the caller's or that a rule excludes fails on its own row and the others
+still go through. The request stops at **25 files or 100 MiB** of filecache
+size, whichever comes first — the first file always goes through, however
+large — and returns the ids it did not get to as `remaining`, in the order
+given; the client sends those again. The Duplicates page sends chunks of 25
+and resumes on a 429.
+
+**Response (200):**
+```json
+{
+  "results": [
+    {"fileid": 100, "success": true, "algo": "sha256", "hash": "e3b0c4..."},
+    {"fileid": 200, "success": false, "error": "File not found."},
+    {"fileid": 300, "success": false, "error": "This account may not calculate by hand.", "forbidden": true}
+  ],
+  "remaining": []
+}
+```
+
+The per-file refusals that are 403 on the single route are plain rows here,
+carrying the same `excluded`/`ruleId`/`forbidden` markers. **Error (400):**
+`fileIds` missing, empty, or not a list of integers.
+
+`POST /api/v1/sudo/file/many/recalc` is the cross-account twin: the same body
+and answer, the reach the caller's whole reach, decided per file — a group on
+the *Others* tab can hold several accounts' copies, and refusing the whole
+batch for one unreachable id would make such a group unverifiable.
+
 ---
 
 ## Rules
@@ -839,34 +998,51 @@ granted for it, described there as well.
 
 ### Cross-account routes
 
-Every ordinary route reads the caller's own files. Five of them have a twin
-under `/api/v1/sudo/` that crosses accounts, and the Duplicates page has one
-for naming another account:
+Every ordinary route reads the caller's own files — what they hold: their
+home, the shares they received (a share only to its subtree) and their group
+folders. Six of them have a twin under `/api/v1/sudo/` that answers for the
+caller's **reach** instead, and the Duplicates page has one for naming
+accounts:
 
 | Ordinary | Cross-account | Scope of the twin |
 |---|---|---|
-| `GET /api/v1/file/{fileId}/hashes` | `GET /api/v1/sudo/file/{fileId}/hashes` | any account's file |
-| `GET /api/v1/file/{fileId}/duplicates` | `GET /api/v1/sudo/file/{fileId}/duplicates` | any account's file; duplicates from every account |
-| `GET /api/v1/lookup` | `GET /api/v1/sudo/lookup` | every account |
-| `GET /api/v1/duplicates` | `GET /api/v1/sudo/duplicates?users[]=&groups[]=` | the named accounts and the members of the named groups, as one merged listing; with nothing named, the caller's whole reach |
-| `POST /api/v1/file/{fileId}/recalc` | `POST /api/v1/sudo/file/{fileId}/recalc` | any file the caller may reach |
+| `GET /api/v1/file/{fileId}/hashes` | `GET /api/v1/sudo/file/{fileId}/hashes` | any file in the caller's reach |
+| `GET /api/v1/file/{fileId}/duplicates` | `GET /api/v1/sudo/file/{fileId}/duplicates` | a reference file in the reach; duplicates from the whole reach |
+| `GET /api/v1/lookup` | `GET /api/v1/sudo/lookup` | the whole reach |
+| `GET /api/v1/duplicates` | `GET /api/v1/sudo/duplicates?users[]=&groups[]=` | the named accounts and the members of the named groups, as one merged listing; with nothing named, the whole reach |
+| `POST /api/v1/file/{fileId}/recalc` | `POST /api/v1/sudo/file/{fileId}/recalc` | any file in the reach |
+| `POST /api/v1/file/many/recalc` | `POST /api/v1/sudo/file/many/recalc` | as above, decided per file |
 
-The last one is the only twin that *writes*, and two things about it do not
-change by crossing accounts: the **Who may calculate by hand** permission is
-answered against whoever is asking, not against the file's owner, and an
+The last two are the only twins that *write*, and two things about them do
+not change by crossing accounts: the **Who may calculate by hand** permission
+is answered against whoever is asking, not against the file's owner, and an
 administrator's `exclude` rule still refuses the path — which is what keeps a
 cross-account recalculation from reading storage that costs money. A
 cross-account recalculation is logged at info level naming the account that
 asked, because nothing else records who did it.
 
+The per-file twins decide the reach before anything is read, and a file
+outside it is **403** `Not yours to look at.`; a file nobody holds is 404 as
+on the ordinary route. The listing twins simply do not show such a file, and
+the batch twin answers `File not found.` on that file's row.
+
+**`openable`.** Every file row a twin returns carries `openable: bool` —
+whether the *caller's own* mounts hold that file. A Files-app link resolves
+in the viewer's own folder and nowhere else, so a row of somebody else's,
+however legitimately listed, cannot be opened by any URL; the bundled pages
+link only where `openable` is true and show plain text otherwise. `owner`
+cannot stand in for it: a received share is somebody else's and opens fine.
+The ordinary routes do not carry the flag, since what they list the caller
+holds by construction.
+
 Two things stand between a caller and a twin, in this order.
 
 **Who may be asked.** A member of `admin`, or anyone the *instance_view*
-permission names (admin settings → *Who may look across accounts*), may look
-at any account and at every account. A sub-admin — Nextcloud's own delegation,
-set on the Users page — may look at the members of the groups they administer:
-that is their whole reach when nothing is named, and naming someone outside
-it is 403. Anyone else is 403 before any password is asked.
+permission names (admin settings → *Who may look across accounts*), reaches
+every account. A sub-admin — Nextcloud's own delegation, set on the Users
+page — reaches what the members of the groups they administer hold: that is
+their whole reach when nothing is named, and naming someone outside it is
+403. Anyone else is 403 before any password is asked.
 
 **Naming accounts.** `users[]` and `groups[]` name a set; one account is a set
 of one. The server expands each group to its members — never the
@@ -971,11 +1147,19 @@ does not affect another user, nor their own access to the other endpoints.
 |----------|-------|
 | `GET /api/v1/lookup` | 60 requests / 60 s |
 | `GET /api/v1/duplicates` | 60 requests / 60 s |
+| `GET /api/v1/file/{fileId}/duplicates` | 60 requests / 60 s |
+| `GET /api/v1/sudo/selectable` | 60 requests / 60 s |
 | `POST /api/v1/file/{fileId}/recalc` | 20 requests / 60 s |
+| `POST /api/v1/sudo/file/{fileId}/recalc` | 20 requests / 60 s |
+| `POST /api/v1/file/many/recalc` | 20 requests / 60 s |
+| `POST /api/v1/sudo/file/many/recalc` | 20 requests / 60 s |
 
-Recalculation is limited more tightly because it reads file content from storage. The
-remaining endpoints (`/status`, `/file/{fileId}/hashes`, `/file/{fileId}/duplicates`)
-are index lookups only and are not rate limited.
+Recalculation is limited more tightly because it reads file content from storage.
+The limit counts requests, not files: one batch request reads up to 25 files or
+100 MiB, so a client verifying many files sends batches rather than single
+recalculations. The remaining endpoints (`/status`, `/file/{fileId}/hashes`,
+the other `/sudo/` reads) are index lookups behind a password confirmation and
+are not rate limited.
 
 Requests are counted only for authenticated users. There is no anonymous limit, because
 every endpoint requires authentication in the first place.

@@ -74,9 +74,11 @@ the checksum found instead, which means the file changed since it was last
 hashed. Once every file in a group has an answer, the header says whether the
 group as a whole matched.
 
-Recomputation is rate limited to 20 files a minute, so verifying a large
-group stops partway with a message; wait a minute and click again — it picks
-up where it stopped rather than starting over.
+A group is sent to the server in batches of 25 files, and one batch reads at
+most 100 MB before handing the rest back to the page, which sends them next.
+The server allows 20 such batches a minute, so a very large group may stop
+partway with a message; wait a minute and click again — it picks up where it
+stopped rather than starting over.
 
 ### Looking at other accounts
 
@@ -96,11 +98,24 @@ administrator* in Nextcloud's terms — you may name your own groups and their
 members, and nothing else. The picker only ever offers what you may have; on
 a large server it searches as you type instead of listing everyone.
 
+Each row on *Others* says whose file it is and where it lives — so three
+accounts' copies of one template read as three rows, not as the same path
+three times. Your own files, if they turn up in the list, show the path you
+know them by.
+
+**Verify all** and **Verify** work here too, under your own permission to
+calculate by hand: looking at somebody's files does not borrow their
+permission, and a file an administrator's rule excludes from hashing stays
+excluded. A group holding several accounts' copies verifies each row on its
+own; a row you may not reach says so rather than stopping the others.
+
 Your own *Mine* tab is unaffected: it keeps its own filters and page,
 and leaving the *Others* tab puts you back among your own files.
 
-Click a group header to expand it and see the files in the group; each file
-opens in the Files app **in a new tab**. Long lists are paged with
+Click a group header to expand it and see the files in the group. A file you
+hold — your own, or one shared with you — is a link and opens in the Files
+app **in a new tab**; a file you do not hold is plain text, because the Files
+app can only open what is in your files. Long lists are paged with
 **← Previous** and **Next →** at the bottom. An empty page says so:
 *No duplicate files found*.
 

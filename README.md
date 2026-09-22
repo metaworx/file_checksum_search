@@ -580,7 +580,8 @@ FCIAS provides a global duplicate file browser at **`/apps/file_checksum_search/
 - Set minimum duplicate count and result limit
 - Expandable groups showing file paths
 - Filter by hash, matching at the start of the checksum or anywhere in it
-- **Verify all** on a group and **Verify** on a file row, recalculating from file content and flagging mismatches — asked for per group or per file, since reading files costs time and, on metered storage, money
+- **Verify all** on a group and **Verify** on a file row, recalculating from file content and flagging mismatches — asked for per group or per file, since reading files costs time and, on metered storage, money; a group is sent in requests of 25 files
+- An **Others** tab for administrators and group leaders: other accounts' duplicates, each row saying whose file it is and where it lives, verifiable in place, and linked only where the viewer could open it
 
 The files sidebar also includes a **"Find duplicates"** button that shows files sharing hash values with the currently selected file.
 
@@ -603,8 +604,16 @@ Basic Auth, or Bearer token.
 | `/api/v1/file/{fileId}/hashes` | GET | Get all checksums for a file |
 | `/api/v1/file/{fileId}/duplicates` | GET | Find files sharing hash values |
 | `/api/v1/file/{fileId}/recalc` | POST | Recalculate hash |
+| `/api/v1/file/many/recalc` | POST | Recalculate up to 25 files or 100 MiB in one request |
 | `/api/v1/duplicates?algo=<algo>&min_count=<n>&limit=<n>&offset=<n>` | GET | Global duplicate groups |
 | `/api/v1/status` | GET | Read-only health/status |
+
+Every file row carries `owner` and `location` beside `path`. The reads and the
+two recalculations have twins under `/api/v1/sudo/` that answer for the caller's
+whole reach — every account for an administrator, their groups' members for a
+group leader — behind a password confirmation; those rows also say whether the
+caller could open them (`openable`). See
+[Cross-account routes](docs/api-v1.md#cross-account-routes).
 
 Quick example:
 

@@ -27,6 +27,8 @@ the first stable release.
 ### Changed
 - Cross-account rows: `openable`, and a link only where the file would
   open for the viewer.
+- API reference, OpenAPI, README, user guide: the batch routes, the reach
+  parameters, `owner`/`location`/`openable`, verification on *Others*.
 - `POST /api/v1/file/many/recalc` and its `/sudo/` twin: one request
   verifies up to 25 files or 100 MiB; the Duplicates page sends chunks.
 - Every file row: `owner` and `location` (`FileLocation::describe()`),

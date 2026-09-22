@@ -120,6 +120,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SameHashResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
         "500":
           $ref: "#/components/responses/ServerError"
 
@@ -165,6 +169,47 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/HashingExcluded"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/v1/file/many/recalc:
+    post:
+      tags: [Lookup]
+      summary: Recalculate several files in one request
+      description: >-
+        One gesture, one request. Each file goes through the same checks as
+        `/api/v1/file/{fileId}/recalc`, so a file that is not the caller's or
+        that a rule excludes fails on its own row and the others still go
+        through; the refusals that are 403 on the single route are plain rows
+        here, with the same `excluded`/`ruleId`/`forbidden` markers. The request
+        stops at 25 files or 100 MiB of filecache size, whichever comes first —
+        the first file always goes through, however large — and returns the ids
+        it did not get to as `remaining`, in the order given; send those again.
+        `many` is a literal where `{fileId}` stands on the route beside it.
+      operationId: recalcMany
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecalcManyInput"
+      responses:
+        "200":
+          description: One result per file processed, and the ids not reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecalcManyResponse"
+        "400":
+          description: "`fileIds` missing, empty, or not a list of integers"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "429":
           $ref: "#/components/responses/RateLimited"
         "500":
@@ -296,16 +341,59 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
+  /api/v1/sudo/file/many/recalc:
+    post:
+      tags: [Sudo]
+      summary: Recalculate several files across the caller's reach
+      description: >-
+        The cross-account twin of `/api/v1/file/many/recalc`: the same body, the
+        same answer, the same caps. The reach is decided per file — a member of
+        `admin` or anyone the `instance_view` permission names reaches every
+        file, a sub-admin the files held by the members of the groups they
+        administer — and a file out of reach is a `File not found.` row of its
+        own rather than a refusal of the whole batch, since a group on the
+        Others tab can hold several accounts' copies. Requires a password
+        confirmed within the last thirty minutes, or a granted app password
+        (403 with "Password confirmation required" otherwise), and is 403 for
+        anyone who may not look across accounts. The *manual_recalc* permission
+        and any `exclude` rule apply as on the single route. Logged at info
+        level naming the acting account.
+      operationId: sudoRecalcMany
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecalcManyInput"
+      responses:
+        "200":
+          description: As the ordinary route
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecalcManyResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
   /api/v1/sudo/file/{fileId}/hashes:
     get:
       tags: [Sudo]
-      summary: Get all checksums for any account's file
+      summary: Get all checksums for any file in the caller's reach
       description: >-
         The cross-account twin of `/api/v1/file/{fileId}/hashes`. Requires a password confirmed within the last thirty minutes, or a granted app password (403 with
         "Password confirmation required" otherwise), and is refused with 403 for
         anyone who may not look across accounts: a member of `admin` or anyone the
-        `instance_view` permission names may; a sub-admin may name a member of
-        their own groups in `user` where the route takes one.
+        `instance_view` permission names reaches every file; a sub-admin reaches
+        the files held by the members of the groups they administer, and a file
+        outside that is 403 "Not yours to look at.".
       operationId: sudoGetHashesByFileId
       parameters:
         - name: fileId
@@ -334,13 +422,12 @@ paths:
   /api/v1/sudo/file/{fileId}/duplicates:
     get:
       tags: [Sudo]
-      summary: Files across every account sharing a file's hash
+      summary: Files across the caller's reach sharing a file's hash
       description: >-
-        The cross-account twin of `/api/v1/file/{fileId}/duplicates`: the reference file may belong to any account, and the duplicates are drawn from every account. Requires a password confirmed within the last thirty minutes, or a granted app password (403 with
+        The cross-account twin of `/api/v1/file/{fileId}/duplicates`: the reference file may be any file in the caller's reach, and the duplicates are drawn from the whole reach — every account for a member of `admin` or anyone the `instance_view` permission names, the files held by their groups' members for a sub-admin. Each row says whose file it is (`owner`, `location`) and whether the caller could open it (`openable`). Requires a password confirmed within the last thirty minutes, or a granted app password (403 with
         "Password confirmation required" otherwise), and is refused with 403 for
-        anyone who may not look across accounts: a member of `admin` or anyone the
-        `instance_view` permission names may; a sub-admin may name a member of
-        their own groups in `user` where the route takes one.
+        anyone who may not look across accounts, or for a reference file outside
+        the reach ("Not yours to look at.").
       operationId: sudoFindDuplicatesForFile
       parameters:
         - name: fileId
@@ -369,13 +456,11 @@ paths:
   /api/v1/sudo/lookup:
     get:
       tags: [Sudo]
-      summary: Search every account's files by hash
+      summary: Search the caller's whole reach by hash
       description: >-
-        The cross-account twin of `/api/v1/lookup`. Requires a password confirmed within the last thirty minutes, or a granted app password (403 with
+        The cross-account twin of `/api/v1/lookup`: every account for a member of `admin` or anyone the `instance_view` permission names, the files held by their groups' members for a sub-admin. Each row says whose file it is (`owner`, `location`) and whether the caller could open it (`openable`). Requires a password confirmed within the last thirty minutes, or a granted app password (403 with
         "Password confirmation required" otherwise), and is refused with 403 for
-        anyone who may not look across accounts: a member of `admin` or anyone the
-        `instance_view` permission names may; a sub-admin may name a member of
-        their own groups in `user` where the route takes one.
+        anyone who may not look across accounts.
       operationId: sudoLookupByHash
       parameters:
         - name: hash
@@ -473,7 +558,8 @@ paths:
         and the members of the named groups as one merged listing; with neither, the caller's whole
         reach — every account for a sudoer, their groups' members for a sub-admin. Groups are expanded
         server-side, never by the client, and one target the caller may not read refuses the whole
-        request rather than narrowing it. Requires a password confirmed within the last thirty
+        request rather than narrowing it. Each row says whose file it is (`owner`, `location`) and
+        whether the caller could open it (`openable`). Requires a password confirmed within the last thirty
         minutes, or a granted app password (403 with "Password confirmation required" otherwise), and
         is refused with 403 for anyone who may not look across accounts: a member of `admin` or anyone
         the `instance_view` permission names may; a sub-admin may name members of their own groups,
@@ -901,10 +987,27 @@ components:
           example: "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         path:
           type: string
+          description: One account's name for the file's folder — with several accounts in reach, whichever opened it first.
           example: "Documents"
         name:
           type: string
           example: "report.pdf"
+        owner:
+          type: string
+          nullable: true
+          description: The owning account; null for a storage no account owns.
+          example: alice
+        location:
+          type: string
+          description: "The file's own place: `/<owner>/files/…` for a home, `groupfolder:<id>/…` for a group folder, `storage:<id>/…` otherwise."
+          example: "/alice/files/Documents/report.pdf"
+        openable:
+          type: boolean
+          description: >-
+            Cross-account routes only: whether the caller's own mounts hold this file, so a
+            Files-app link to it would open. Absent on the ordinary routes, where every row
+            is the caller's to open.
+          example: false
 
     FileHashesResponse:
       type: object
@@ -1007,6 +1110,10 @@ components:
           example: 1
         pagination:
           $ref: "#/components/schemas/Pagination"
+        canSudo:
+          type: boolean
+          description: "On the ordinary listing: whether the caller may look across accounts at all — whether the Duplicates page shows its Others tab."
+          example: false
 
     DuplicateGroup:
       type: object
@@ -1035,10 +1142,27 @@ components:
           example: 100
         path:
           type: string
+          description: One account's name for the file's folder — with several accounts in reach, whichever opened it first.
           example: "Documents"
         name:
           type: string
           example: "a.pdf"
+        owner:
+          type: string
+          nullable: true
+          description: The owning account; null for a storage no account owns.
+          example: alice
+        location:
+          type: string
+          description: "The file's own place: `/<owner>/files/…` for a home, `groupfolder:<id>/…` for a group folder, `storage:<id>/…` otherwise."
+          example: "/alice/files/Documents/a.pdf"
+        openable:
+          type: boolean
+          description: >-
+            Cross-account routes only: whether the caller's own mounts hold this file, so a
+            Files-app link to it would open. Absent on the ordinary routes, where every row
+            is the caller's to open.
+          example: false
 
     Pagination:
       type: object
@@ -1067,6 +1191,61 @@ components:
         fileid:
           type: integer
           example: 12345
+
+    RecalcManyInput:
+      type: object
+      required: [fileIds]
+      properties:
+        fileIds:
+          type: array
+          items:
+            type: integer
+          description: Filecache ids; duplicates are dropped.
+          example: [100, 200, 300]
+        algo:
+          type: string
+          description: "Any name GET /api/v1/algorithms lists for this instance."
+          default: sha1
+          example: sha256
+
+    RecalcManyResponse:
+      type: object
+      required: [results, remaining]
+      properties:
+        results:
+          type: array
+          description: One row per file processed, in the order given.
+          items:
+            allOf:
+              - type: object
+                required: [fileid]
+                properties:
+                  fileid:
+                    type: integer
+                    example: 100
+              - $ref: "#/components/schemas/RecalcResponse"
+              - type: object
+                properties:
+                  error:
+                    type: string
+                    description: Why this file failed, on a row with `success` false.
+                    example: "File not found."
+                  excluded:
+                    type: boolean
+                    description: An `exclude` rule covers the file; `ruleId` names it.
+                  ruleId:
+                    type: string
+                  forbidden:
+                    type: boolean
+                    description: The acting account may not calculate by hand.
+        remaining:
+          type: array
+          items:
+            type: integer
+          description: >-
+            The ids not processed, in the order given, once the request reached 25 files or
+            100 MiB of filecache size. Send them again.
+          example: [400, 500]
 
     StatusResponse:
       type: object
