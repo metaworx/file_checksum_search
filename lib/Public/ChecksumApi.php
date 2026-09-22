@@ -689,6 +689,82 @@ class ChecksumApi
 
 
 	/**
+	 * How many files one {@see recalcMany()} call will read, at most. The
+	 * rate limit counts requests; this is what keeps one request from being
+	 * an unbounded amount of work behind it.
+	 */
+	public const RECALC_BATCH_FILES = 25;
+
+	/**
+	 * How many bytes one {@see recalcMany()} call will read, at most.
+	 * Counting requests alone is a poor proxy for cost — small files answer
+	 * fast and hit a request limit hardest, large files slowly and barely —
+	 * and the filecache knows each file's size before it is read, so the
+	 * budget can be stated in bytes as well as files.
+	 */
+	public const RECALC_BATCH_BYTES = 100 * 1024 * 1024;
+
+	/**
+	 * Recalculate several files in one request — one gesture, one call.
+	 *
+	 * Each file is put through {@see recalcHash()} with the same asker and
+	 * the same reach, so every check that applies to one file applies to
+	 * each of these, and a file out of reach or refused by a rule is its
+	 * own failed result rather than the whole request's. The call stops at
+	 * {@see RECALC_BATCH_FILES} files or {@see RECALC_BATCH_BYTES}, whichever
+	 * comes first, and says which ids it did not get to; a single file
+	 * always goes through, however large, or a large file could never be
+	 * verified at all.
+	 *
+	 * @param  list<int>          $fileIds
+	 * @param  string|null        $algo
+	 * @param  string|null        $actingUser  As for {@see recalcHash()}.
+	 * @param  list<string>|null  $reachUids   As for {@see recalcHash()}.
+	 *
+	 * @return array{results: list<array{fileid: int, success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string, forbidden?: bool}>, remaining: list<int>}
+	 *         `remaining` are the ids not processed, in the order given; the
+	 *         caller sends them again.
+	 */
+	public function recalcMany(
+		array   $fileIds,
+		?string $algo = null,
+		?string $actingUser = null,
+		?array  $reachUids = null,
+	): array {
+
+		$fileIds = array_values( array_unique( array_map( 'intval', $fileIds ) ) );
+		$sizes   = $this->hashIndexService->fileSizes( $fileIds );
+		$results = [];
+		$bytes   = 0;
+
+		foreach ( $fileIds as $index => $fileId )
+		{
+			// The filecache's size, or nothing if it does not know the file —
+			// recalcHash() will say "not found" for that one at no cost.
+			$size = $sizes[ $fileId ] ?? 0;
+
+			// At a cap, unless nothing has been read yet: the first file is
+			// always read, so a file larger than the whole budget still can be.
+			if ( $index > 0 && ( $index >= self::RECALC_BATCH_FILES || $bytes + $size > self::RECALC_BATCH_BYTES ) )
+			{
+				return [
+					'results'   => $results,
+					'remaining' => array_slice( $fileIds, $index ),
+				];
+			}
+
+			$bytes    += $size;
+			$results[] = [ 'fileid' => $fileId ] + $this->recalcHash( $fileId, $algo, $actingUser, $reachUids );
+		}
+
+		return [
+			'results'   => $results,
+			'remaining' => [],
+		];
+	}
+
+
+	/**
 	 * The given file rows, each with whose file it is and where it lives.
 	 *
 	 * `path` on these rows is some viewer's name for the file, and with more
@@ -733,7 +809,7 @@ class ChecksumApi
 	 * several accounts in reach the path is whichever folder opened it
 	 * first, and nothing here says whose — that is the owner column.
 	 *
-	 * @param  array<string, Folder>  $folders
+	 * @param  array<string, \OCP\Files\Folder>  $folders
 	 *
 	 * @return array{0: string, 1: string}|null
 	 */
@@ -1083,31 +1159,5 @@ class ChecksumApi
 			&& $this->ruleService->canUserMutateRule( (string) $requestingUser, $rule );
 	}
 
-
-	/**
-	 * Whether $uid's own file tree contains $fileId.
-	 *
-	 * Used to enforce the ownership boundary on the public-facing
-	 * (HTTP) surface without restricting trusted DI/bootstrap callers
-	 * that intentionally omit $requestingUser.
-	 */
-	private function userCanAccessFile(
-		string $uid,
-		int    $fileId,
-	): bool {
-
-		try
-		{
-			$nodes = $this->rootFolder->getUserFolder( $uid )
-			                          ->getById( $fileId )
-			;
-		}
-		catch ( \Throwable )
-		{
-			return false;
-		}
-
-		return ! empty( $nodes );
-	}
 
 }

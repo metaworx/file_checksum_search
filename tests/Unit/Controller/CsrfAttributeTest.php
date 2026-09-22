@@ -42,6 +42,8 @@ class CsrfAttributeTest
 
 		return [
 			'recalc' => [ PublicApiController::class, 'recalcHash' ],
+			'recalc many' => [ PublicApiController::class, 'recalcMany' ],
+			'sudo recalc many' => [ PublicApiController::class, 'sudoRecalcMany' ],
 			'apply'  => [ RulesController::class, 'apply' ],
 		];
 	}

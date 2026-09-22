@@ -43,6 +43,10 @@ class RateLimitAttributeTest
 			'v1 lookup'         => [ PublicApiController::class, 'lookup', 60, 60 ],
 			'v1 duplicates'     => [ PublicApiController::class, 'findAllDuplicates', 60, 60 ],
 			'v1 recalc'         => [ PublicApiController::class, 'recalcHash', 20, 60 ],
+			// The batch twins count as one request each, which is the point of
+			// them; the work behind one is bounded by ChecksumApi's caps.
+			'v1 recalc many'    => [ PublicApiController::class, 'recalcMany', 20, 60 ],
+			'v1 sudo recalc many' => [ PublicApiController::class, 'sudoRecalcMany', 20, 60 ],
 			// The picker's source: cheap per call, but it searches accounts
 			// and groups, so it is metered like the rest.
 			'v1 sudo selectable' => [ PublicApiController::class, 'sudoSelectable', 60, 60 ],

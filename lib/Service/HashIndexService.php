@@ -67,6 +67,20 @@ class HashIndexService
 
 
 	/**
+	 * {@see FilecacheService::fileSizes()}.
+	 *
+	 * @param  int[]  $fileIds
+	 *
+	 * @return array<int, int>
+	 */
+	public function fileSizes( array $fileIds ): array
+	{
+
+		return $this->filecacheService->fileSizes( $fileIds );
+	}
+
+
+	/**
 	 * {@see HashCalculationService::recalcHash()}.
 	 *
 	 * The delegate also accepts an already-loaded metadata document; this

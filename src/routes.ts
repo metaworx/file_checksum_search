@@ -28,6 +28,10 @@ export const OCS_API_V1 = {
 	recalcHash: `${APP_BASE}/api/v1/file/{fileId}/recalc`,
 	/** POST   /api/v1/sudo/file/{fileId}/recalc — for a file that is not the caller's own */
 	sudoRecalcHash: `${APP_BASE}/api/v1/sudo/file/{fileId}/recalc`,
+	/** POST   /api/v1/file/many/recalc — several files in one request, body `{ fileIds, algo }` */
+	recalcMany: `${APP_BASE}/api/v1/file/many/recalc`,
+	/** POST   /api/v1/sudo/file/many/recalc — the same across the caller's whole reach */
+	sudoRecalcMany: `${APP_BASE}/api/v1/sudo/file/many/recalc`,
 	getAlgorithms: `${APP_BASE}/api/v1/algorithms`,
 	/** GET/PUT /api/v1/preferences/{key} — the caller's own; first key `preferred_algorithm` */
 	preference: `${APP_BASE}/api/v1/preferences/{key}`,

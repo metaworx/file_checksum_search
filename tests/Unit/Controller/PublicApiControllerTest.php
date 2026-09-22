@@ -283,6 +283,42 @@ class PublicApiControllerTest
 
 
 	/**
+	 * The batch route reads its ids from the JSON body, which a unit test
+	 * cannot supply through php://input — so what is pinned here is the
+	 * refusal of a body with none, and that the API is never asked for it.
+	 */
+	public function testRecalcManyRefusesABodyWithNoIds(): void
+	{
+
+		$this->api->expects( $this->never() )
+		          ->method( 'recalcMany' )
+		;
+
+		$response = $this->controller->recalcMany();
+
+		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
+	}
+
+
+	/**
+	 * The cross-account batch is gated like the other targetless routes:
+	 * the resolver's refusal is the answer, before any body is read.
+	 */
+	public function testSudoRecalcManyRefusesWhoeverTheResolverRefuses(): void
+	{
+
+		$this->api->expects( $this->never() )
+		          ->method( 'recalcMany' )
+		;
+
+		$response = $this->controller->sudoRecalcMany();
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $response->getStatus() );
+		$this->assertSame( 'Not yours to look at.', $response->getData()['error'] );
+	}
+
+
+	/**
 	 * The ordinary route never waives it, whoever is calling.
 	 */
 	public function testRecalcOnOnesOwnFileNeverWaivesTheReach(): void

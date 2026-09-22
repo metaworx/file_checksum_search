@@ -350,11 +350,64 @@ class ReachTest
 	}
 
 
+	// ─── several files in one request ────────────────────────────────
+
+	/**
+	 * `many` is a literal where `{fileId}` sits on the route beside it. That
+	 * this answers with `results` and not with a single file's verdict is
+	 * the proof the `\d+` requirement holds over HTTP, where the router
+	 * actually runs.
+	 */
+	public function testTheOwnerRecalculatesSeveralFilesInOneRequest(): void
+	{
+
+		$response = $this->post(
+			'/api/v1/file/many/recalc',
+			self::$ownerUid,
+			self::$ownerPassword,
+			[ 'fileIds' => [ self::$fileId['a'], self::$fileId['c'] ], 'algo' => 'sha1' ],
+		);
+
+		$this->assertSame( 200, $response['status'], json_encode( $response['body'] ) );
+		$this->assertSame( [ self::$fileId['a'], self::$fileId['c'] ], array_column( $response['body']['results'], 'fileid' ) );
+		$this->assertSame( [ true, true ], array_column( $response['body']['results'], 'success' ) );
+		$this->assertSame( [ self::$hash['in'], self::$hash['out'] ], array_column( $response['body']['results'], 'hash' ) );
+		$this->assertSame( [], $response['body']['remaining'] );
+	}
+
+
+	/**
+	 * A leader's batch over a member's shared file and the owner's file
+	 * beside it: one succeeds, one is refused, in the same answer — per
+	 * file, as the AP decided, rather than the whole request failing for
+	 * the one id out of reach.
+	 */
+	public function testALeadersBatchAnswersPerFile(): void
+	{
+
+		$response = $this->post(
+			'/api/v1/sudo/file/many/recalc',
+			self::$leaderUid,
+			self::$leaderPassword,
+			[ 'fileIds' => [ self::$fileId['a'], self::$fileId['c'] ], 'algo' => 'sha1' ],
+		);
+
+		$this->assertSame( 200, $response['status'], json_encode( $response['body'] ) );
+
+		[ $inside, $beside ] = $response['body']['results'];
+
+		$this->assertTrue( $inside['success'] );
+		$this->assertSame( self::$hash['in'], $inside['hash'] );
+		$this->assertFalse( $beside['success'] );
+		$this->assertSame( 'File not found.', $beside['error'] );
+	}
+
+
 	// ─── a plain account, on every cross-account route ───────────────
 
 	/**
 	 * The recipient is neither an administrator nor a leader of anything:
-	 * the account most people have. Every `/sudo/` route refuses them, and
+	 * the account most people have. Every `/sudo/` route — all eight — refuses them, and
 	 * with the scope's message rather than a password prompt — permission
 	 * is asked before confirmation, so someone who may not cross is told so
 	 * without being made to type a password first. The ordinary listing
@@ -378,6 +431,7 @@ class ReachTest
 			"GET /api/v1/sudo/file/$a/hashes",
 			"GET /api/v1/sudo/file/$a/duplicates",
 			"POST /api/v1/sudo/file/$a/recalc?algo=sha1",
+			'POST /api/v1/sudo/file/many/recalc',
 		];
 
 		foreach ( $refused as $request )
@@ -407,7 +461,10 @@ class ReachTest
 		string $path,
 		string $uid,
 		string $password,
+		?array $json = null,
 	): array {
+
+		$content = $json === null ? '' : json_encode( $json, JSON_THROW_ON_ERROR );
 
 		$context = stream_context_create( [
 			'http' => [
@@ -415,7 +472,9 @@ class ReachTest
 				'header'        => 'Authorization: Basic ' . base64_encode( $uid . ':' . $password )
 				                   . "\r\nOCS-APIRequest: true"
 				                   . "\r\nAccept: application/json"
-				                   . "\r\nContent-Length: 0",
+				                   . ( $json === null ? '' : "\r\nContent-Type: application/json" )
+				                   . "\r\nContent-Length: " . strlen( $content ),
+				'content'       => $content,
 				'ignore_errors' => true,
 			],
 		] );

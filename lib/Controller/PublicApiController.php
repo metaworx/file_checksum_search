@@ -470,7 +470,7 @@ class PublicApiController
 
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[ApiRoute( verb: 'GET', url: '/api/v1/file/{fileId}/hashes' )]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/file/{fileId}/hashes', requirements: [ 'fileId' => '\d+' ] )]
 	public function getHashes( int $fileId ): DataResponse
 	{
 
@@ -490,7 +490,7 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/file/{fileId}/hashes' )]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/file/{fileId}/hashes', requirements: [ 'fileId' => '\d+' ] )]
 	public function sudoGetHashes( int $fileId ): DataResponse
 	{
 
@@ -735,7 +735,7 @@ class PublicApiController
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
 	#[UserRateLimit( limit: 60, period: 60 )]
-	#[ApiRoute( verb: 'GET', url: '/api/v1/file/{fileId}/duplicates' )]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/file/{fileId}/duplicates', requirements: [ 'fileId' => '\d+' ] )]
 	public function findDuplicates( int $fileId ): DataResponse
 	{
 
@@ -757,7 +757,7 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
-	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/file/{fileId}/duplicates' )]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/file/{fileId}/duplicates', requirements: [ 'fileId' => '\d+' ] )]
 	public function sudoFindDuplicates( int $fileId ): DataResponse
 	{
 
@@ -978,7 +978,7 @@ class PublicApiController
 	// token.
 	#[NoAdminRequired]
 	#[UserRateLimit( limit: 20, period: 60 )]
-	#[ApiRoute( verb: 'POST', url: '/api/v1/file/{fileId}/recalc' )]
+	#[ApiRoute( verb: 'POST', url: '/api/v1/file/{fileId}/recalc', requirements: [ 'fileId' => '\d+' ] )]
 	public function recalcHash( int $fileId ): DataResponse
 	{
 
@@ -1008,7 +1008,7 @@ class PublicApiController
 	// No #[NoCSRFRequired], for the reason given on the route above.
 	#[NoAdminRequired]
 	#[UserRateLimit( limit: 20, period: 60 )]
-	#[ApiRoute( verb: 'POST', url: '/api/v1/sudo/file/{fileId}/recalc' )]
+	#[ApiRoute( verb: 'POST', url: '/api/v1/sudo/file/{fileId}/recalc', requirements: [ 'fileId' => '\d+' ] )]
 	public function sudoRecalcHash( int $fileId ): DataResponse
 	{
 
@@ -1033,6 +1033,120 @@ class PublicApiController
 		);
 
 		return $this->recalcFor( $fileId, $scope, $this->ceilingOf( $scope ) );
+	}
+
+
+	/**
+	 * Recalculate several files in one request.
+	 *
+	 * One gesture, one call: verifying a group of a hundred files used to be
+	 * a hundred requests against a limit of twenty a minute, so small files
+	 * — which answer fastest — hit it hardest. The body is JSON,
+	 * `{ "fileIds": [ … ], "algo": "sha1" }`; the answer carries one result
+	 * per file and the ids it stopped short of, capped as
+	 * {@see ChecksumApi::recalcMany()} says.
+	 *
+	 * `many` is a literal in the position `{fileId}` takes on the route
+	 * beside it; the `\d+` requirement on that route is what keeps this one
+	 * from being parsed as a file called "many".
+	 *
+	 * @noinspection PhpUnused
+	 */
+	// No #[NoCSRFRequired], for the reason given on recalcHash().
+	#[NoAdminRequired]
+	#[UserRateLimit( limit: 20, period: 60 )]
+	#[ApiRoute( verb: 'POST', url: '/api/v1/file/many/recalc' )]
+	public function recalcMany(): DataResponse
+	{
+
+		$own = $this->scopeOrRefusal();
+
+		return $own instanceof DataResponse
+			? $own
+			: $this->recalcManyFor( $own, [ $own ] );
+	}
+
+
+	/**
+	 * {@see recalcMany()} across the caller's whole reach. The reach is
+	 * decided per file inside the API, so a mixed batch answers per file —
+	 * a group on the Others tab can hold several accounts' copies, and
+	 * refusing the whole batch for one unreachable id would make such a
+	 * group unverifiable.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	// No #[NoCSRFRequired], for the reason given on recalcHash().
+	#[NoAdminRequired]
+	#[UserRateLimit( limit: 20, period: 60 )]
+	#[ApiRoute( verb: 'POST', url: '/api/v1/sudo/file/many/recalc' )]
+	public function sudoRecalcMany(): DataResponse
+	{
+
+		$scope = $this->sudoScopeOrRefusal();
+
+		if ( $scope instanceof DataResponse )
+		{
+			return $scope;
+		}
+
+		$own = $this->userSession->getUser()?->getUID() ?? '';
+
+		$this->logger->info(
+			'FCIAS PublicApiController: cross-account batch recalculation',
+			[
+				'app'        => Application::APP_ID,
+				'actingUser' => $own,
+			],
+		);
+
+		return $this->recalcManyFor( $own, $scope );
+	}
+
+
+	/**
+	 * The batch route's body, for either wrapper.
+	 */
+	private function recalcManyFor(
+		string $actingUser,
+		?array $reachUids,
+	): DataResponse {
+
+		$body    = json_decode( (string) file_get_contents( 'php://input' ), true );
+		$fileIds = is_array( $body ) && is_array( $body['fileIds'] ?? null )
+			? array_values( array_filter( $body['fileIds'], 'is_int' ) )
+			: [];
+		$algo    = is_array( $body ) && is_string( $body['algo'] ?? null )
+			? $body['algo']
+			: $this->request->getParam( 'algo' );
+
+		if ( $fileIds === [] )
+		{
+			return new DataResponse(
+				[ 'success' => false, 'error' => 'fileIds must be a non-empty list of integers.' ],
+				Http::STATUS_BAD_REQUEST,
+			);
+		}
+
+		try
+		{
+			return new DataResponse( $this->api->recalcMany( $fileIds, $algo, $actingUser, $reachUids ) );
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->error(
+				'FCIAS PublicApiController: recalcMany failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
+			return new DataResponse(
+				[ 'success' => false, 'error' => 'Internal server error.' ],
+				Http::STATUS_INTERNAL_SERVER_ERROR,
+			);
+		}
 	}
 
 

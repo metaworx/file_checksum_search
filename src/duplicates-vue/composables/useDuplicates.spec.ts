@@ -94,10 +94,22 @@ describe('useDuplicates', () => {
 			}
 		}
 
+		/** The ids one batch request asked for, read back from its body. */
+		function requestedIds(init: RequestInit | undefined): number[] {
+			return (JSON.parse(String(init?.body)) as { fileIds: number[] }).fileIds
+		}
+
+		/** A server that answers every id it is asked for with the group hash. */
+		function batchOk(hash = 'abc') {
+			return (_url: unknown, init?: RequestInit) =>
+				Promise.resolve(jsonResponse({
+					results: requestedIds(init).map((fileid) => ({ fileid, success: true, hash })),
+					remaining: [],
+				}))
+		}
+
 		it('marks files as verified against the group hash', async () => {
-			vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
-				Promise.resolve(jsonResponse({ success: true, hash: 'abc' })),
-			)
+			vi.spyOn(globalThis, 'fetch').mockImplementation(batchOk())
 
 			const { verifyGroups } = useDuplicates()
 			const g = group('a.txt', 'b.txt')
@@ -108,29 +120,84 @@ describe('useDuplicates', () => {
 			expect(g.mismatch_count).toBe(0)
 		})
 
+		// One gesture, one request per chunk: a group of thirty is two
+		// requests of 25 and 5, not thirty — which is what keeps a group from
+		// exhausting a limit of twenty requests a minute on its own.
+		it('sends one request per chunk of 25, in order', async () => {
+			const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(batchOk())
+
+			const { verifyGroups } = useDuplicates()
+			const g = group(...Array.from({ length: 30 }, (_v, i) => `f${i}.txt`))
+			await verifyGroups([g])
+
+			expect(fetchMock).toHaveBeenCalledTimes(2)
+			expect(requestedIds(fetchMock.mock.calls[0][1])).toHaveLength(25)
+			expect(requestedIds(fetchMock.mock.calls[1][1])).toEqual([26, 27, 28, 29, 30])
+			expect(g.match_count).toBe(30)
+		})
+
+		// The server has its own budget in bytes as well as files; what it
+		// did not get to comes back as `remaining` and is asked for again,
+		// ahead of anything not yet sent.
+		it('re-sends what the server handed back as remaining', async () => {
+			let call = 0
+			const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((_url, init) => {
+				call++
+				const ids = requestedIds(init)
+				// First answer: read the first id only, hand the rest back.
+				const done = call === 1 ? ids.slice(0, 1) : ids
+				return Promise.resolve(jsonResponse({
+					results: done.map((fileid) => ({ fileid, success: true, hash: 'abc' })),
+					remaining: ids.filter((id) => !done.includes(id)),
+				}))
+			})
+
+			const { verifyGroups } = useDuplicates()
+			const g = group('a.txt', 'b.txt', 'c.txt')
+			await verifyGroups([g])
+
+			expect(fetchMock).toHaveBeenCalledTimes(2)
+			expect(requestedIds(fetchMock.mock.calls[1][1])).toEqual([2, 3])
+			expect(g.match_count).toBe(3)
+		})
+
+		// A server that reads nothing and hands everything back would be
+		// asked again forever; that answer is a failure of the chunk instead.
+		it('does not loop on a server that processes nothing', async () => {
+			const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((_url, init) =>
+				Promise.resolve(jsonResponse({ results: [], remaining: requestedIds(init) })),
+			)
+
+			const { verifyGroups } = useDuplicates()
+			const g = group('a.txt', 'b.txt')
+			await verifyGroups([g])
+
+			expect(fetchMock).toHaveBeenCalledTimes(1)
+			expect(g.files.map((f) => f.verify_error)).toEqual(['Not processed', 'Not processed'])
+			expect(g.mismatch_count).toBe(2)
+		})
+
 		it('stops verifying and reports the limit when the recalc endpoint returns 429', async () => {
 			// Regression test: the loop used to parse the 429's empty body,
 			// find no `success` field, and silently mark every remaining
 			// file as a mismatch — indistinguishable from real hash drift.
 			let calls = 0
-			vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
+			vi.spyOn(globalThis, 'fetch').mockImplementation((url, init) => {
 				calls++
-				return Promise.resolve(
-					calls === 1
-						? jsonResponse({ success: true, hash: 'abc' })
-						: new Response('[]', { status: 429 }),
-				)
+				return calls === 1
+					? batchOk()(url, init)
+					: Promise.resolve(new Response('[]', { status: 429 }))
 			})
 
 			const { error, verifyGroups } = useDuplicates()
-			const g = group('a.txt', 'b.txt', 'c.txt')
+			// 26 files: the first chunk of 25 answers, the second hits the limit.
+			const g = group(...Array.from({ length: 26 }, (_v, i) => `f${i}.txt`))
 			await verifyGroups([g])
 
-			expect(g.files[0].verified).toBe(true)
-			// The files past the limit are left untouched, not marked as
+			expect(g.files.slice(0, 25).every((f) => f.verified === true)).toBe(true)
+			// The file past the limit is left untouched, not marked as
 			// mismatching.
-			expect(g.files[1].verified).toBeUndefined()
-			expect(g.files[2].verified).toBeUndefined()
+			expect(g.files[25].verified).toBeUndefined()
 			expect(error.value).toMatch(/too many recalculation requests/i)
 		})
 
@@ -150,29 +217,26 @@ describe('useDuplicates', () => {
 
 		it('resumes where the interrupted run stopped, and only then', async () => {
 			let attempt = 0
-			const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
+			const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((url, init) => {
 				attempt++
-				return Promise.resolve(
-					attempt === 1
-						? jsonResponse({ success: true, hash: 'abc' })
-						: new Response('[]', { status: 429 }),
-				)
+				return attempt === 1
+					? batchOk()(url, init)
+					: Promise.resolve(new Response('[]', { status: 429 }))
 			})
 
 			const { verifyGroups } = useDuplicates()
-			const g = group('a.txt', 'b.txt')
+			const g = group(...Array.from({ length: 30 }, (_v, i) => `f${i}.txt`))
 			await verifyGroups([g])
 			expect(fetchMock).toHaveBeenCalledTimes(2)
 
-			// The limit has cleared: the second run skips the file the first
-			// one already verified and starts at the one it could not reach.
-			fetchMock.mockImplementation(() =>
-				Promise.resolve(jsonResponse({ success: true, hash: 'abc' })),
-			)
+			// The limit has cleared: the second run skips the 25 the first one
+			// already verified and asks only for the five it could not reach.
+			fetchMock.mockImplementation(batchOk())
 			fetchMock.mockClear()
 			await verifyGroups([g])
 			expect(fetchMock).toHaveBeenCalledTimes(1)
-			expect(g.match_count).toBe(2)
+			expect(requestedIds(fetchMock.mock.calls[0][1])).toEqual([26, 27, 28, 29, 30])
+			expect(g.match_count).toBe(30)
 
 			// That run completed, so a further click is an ordinary re-check
 			// of every file, not a resume.
@@ -185,15 +249,14 @@ describe('useDuplicates', () => {
 		// answer without its neighbours being read — that is the whole point
 		// of the change: reading costs money on metered storage.
 		it('verifies one file without touching the rest of its group', async () => {
-			const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
-				Promise.resolve(jsonResponse({ success: true, hash: 'abc' })),
-			)
+			const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(batchOk())
 
 			const { verifyFile } = useDuplicates()
 			const g = group('a.txt', 'b.txt')
 			await verifyFile(g, g.files[0])
 
 			expect(fetchMock).toHaveBeenCalledTimes(1)
+			expect(requestedIds(fetchMock.mock.calls[0][1])).toEqual([1])
 			expect(g.files[0].verified).toBe(true)
 			expect(g.files[1].verified).toBeUndefined()
 		})
@@ -201,9 +264,7 @@ describe('useDuplicates', () => {
 		// The header must not claim a verdict for a group only half of which
 		// has been read.
 		it('leaves the group unjudged until every file has an answer', async () => {
-			vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
-				Promise.resolve(jsonResponse({ success: true, hash: 'abc' })),
-			)
+			vi.spyOn(globalThis, 'fetch').mockImplementation(batchOk())
 
 			const { verifyFile } = useDuplicates()
 			const g = group('a.txt', 'b.txt')
@@ -219,9 +280,7 @@ describe('useDuplicates', () => {
 		// An explicit click re-reads, even where an interrupted run had
 		// already answered for that file.
 		it('re-checks a file that was already verified', async () => {
-			const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
-				Promise.resolve(jsonResponse({ success: true, hash: 'abc' })),
-			)
+			const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(batchOk())
 
 			const { verifyFile } = useDuplicates()
 			const g = group('a.txt')
@@ -249,26 +308,22 @@ describe('useDuplicates', () => {
 		// every row, because the ordinary route resolves the file in the
 		// caller's own home and none of those files are there.
 		it('verifies a scoped listing through the cross-account route', async () => {
-			const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
-				Promise.resolve(jsonResponse({ success: true, hash: 'abc' })),
-			)
+			const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(batchOk())
 
 			const { scope, verifyGroups } = useDuplicates()
 			scope.value = { all: true, users: [], groups: [] }
 			await verifyGroups([group('a.txt')])
 
-			expect(fetchMock.mock.calls[0][0]).toContain('/sudo/file/1/recalc')
+			expect(fetchMock.mock.calls[0][0]).toContain('/sudo/file/many/recalc')
 		})
 
 		it('verifies an unscoped listing through the ordinary route', async () => {
-			const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
-				Promise.resolve(jsonResponse({ success: true, hash: 'abc' })),
-			)
+			const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(batchOk())
 
 			const { verifyGroups } = useDuplicates()
 			await verifyGroups([group('a.txt')])
 
-			expect(fetchMock.mock.calls[0][0]).toContain('/file/1/recalc')
+			expect(fetchMock.mock.calls[0][0]).toContain('/file/many/recalc')
 			expect(fetchMock.mock.calls[0][0]).not.toContain('/sudo/')
 		})
 	})

@@ -25,6 +25,8 @@ the first stable release.
 - **Asking which files share a file's hash no longer answers for files you cannot open.** `GET /api/v1/file/{fileId}/duplicates` read the reference file's hashes before checking anything, and only filtered the *duplicates* it found to the caller's own tree. Because file ids are sequential, sweeping them turned the endpoint into a content-equality oracle over the whole instance: a non-empty answer said that file holds something you also hold. The reference file is now resolved through the caller's own tree first, as every sibling endpoint already did, and the endpoint is rate limited like the other expensive ones. Administrators are unaffected for now and keep the instance-wide view.
 
 ### Changed
+- `POST /api/v1/file/many/recalc` and its `/sudo/` twin: one request
+  verifies up to 25 files or 100 MiB; the Duplicates page sends chunks.
 - Every file row: `owner` and `location` (`FileLocation::describe()`),
   shown in place of the path where the file is not the viewer's own.
 - `ReachResolver`: the own listing and lookup include received shares and

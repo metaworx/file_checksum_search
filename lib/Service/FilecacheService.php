@@ -721,6 +721,52 @@ class FilecacheService
 	 *
 	 * @throws NotFoundException  No file with this id, in any storage.
 	 */
+	/**
+	 * The sizes the filecache records for these files, by id.
+	 *
+	 * Known before anything is read, which is the point: a caller about to
+	 * read several files can tell what that will cost and stop at a budget,
+	 * rather than discover the cost by paying it. Ids the filecache does
+	 * not know are absent from the answer.
+	 *
+	 * @param  int[]  $fileIds
+	 *
+	 * @return array<int, int>
+	 * @throws \OCP\DB\Exception
+	 */
+	public function fileSizes( array $fileIds ): array
+	{
+
+		if ( $fileIds === [] )
+		{
+			return [];
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( 'fileid', 'size' )
+		   ->from( 'filecache' )
+		   ->where(
+			   $qb->expr()
+			      ->in(
+				      'fileid',
+				      $qb->createNamedParameter( array_values( $fileIds ), IQueryBuilder::PARAM_INT_ARRAY ),
+			      ),
+		   )
+		;
+
+		$result = $qb->executeQuery();
+		$sizes  = [];
+
+		while ( ( $row = $result->fetch() ) !== false )
+		{
+			$sizes[ (int) $row['fileid'] ] = max( 0, (int) $row['size'] );
+		}
+		$result->closeCursor();
+
+		return $sizes;
+	}
+
+
 	public function getNodeById( int $fileId ): Node
 	{
 

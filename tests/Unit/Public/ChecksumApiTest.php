@@ -1418,6 +1418,121 @@ class ChecksumApiTest
 	}
 
 
+	// ─── recalcMany: one gesture, one request ───────────────────────
+
+	/**
+	 * Everything a batch needs to reach the hashing step: the permission
+	 * says yes, every id resolves through alice's folder, and the hashing
+	 * service answers success for whatever file it is handed.
+	 */
+	private function readyToRecalcMany(): void
+	{
+
+		$this->permissionService->method( 'isAllowed' )
+		                        ->willReturn( true )
+		;
+		$folder = $this->createMock( Folder::class );
+		$folder->method( 'getById' )
+		       ->willReturnCallback( fn ( int $id ): array => [ $this->createConfiguredMock( File::class, [ 'getId' => $id ] ) ] )
+		;
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->willReturn( $folder )
+		;
+		$this->userMountCache->method( 'getMountsForFileId' )
+		                     ->willReturn( [
+			                     $this->createConfiguredMock( \OCP\Files\Config\ICachedMountFileInfo::class, [
+				                     'getUser' => $this->createConfiguredMock( IUser::class, [ 'getUID' => 'alice' ] ),
+			                     ] ),
+		                     ] )
+		;
+		$this->hashIndexService->method( 'recalcFileHash' )
+		                       ->willReturnCallback( static fn ( File $file, string $algo ): array => [ 'success' => true, 'algo' => $algo, 'hash' => 'h' . $file->getId(), 'existed' => true ] )
+		;
+	}
+
+
+	public function testRecalcManyStopsAtTheFileCapAndSaysWhatIsLeft(): void
+	{
+
+		$this->readyToRecalcMany();
+		$ids = range( 1, ChecksumApi::RECALC_BATCH_FILES + 1 );
+		$this->hashIndexService->method( 'fileSizes' )
+		                       ->willReturn( array_fill_keys( $ids, 10 ) )
+		;
+
+		$result = $this->api->recalcMany( $ids, 'sha1', 'alice', [ 'alice' ] );
+
+		$this->assertCount( ChecksumApi::RECALC_BATCH_FILES, $result['results'] );
+		$this->assertSame( [ ChecksumApi::RECALC_BATCH_FILES + 1 ], $result['remaining'] );
+		$this->assertSame( 'h1', $result['results'][0]['hash'] );
+	}
+
+
+	/**
+	 * Bytes, not only files: three files of 60 MiB are two requests, because
+	 * the third would take the call past 100 MiB, and the filecache knows
+	 * that before anything is read.
+	 */
+	public function testRecalcManyStopsAtTheByteCapBeforeReading(): void
+	{
+
+		$this->readyToRecalcMany();
+		$mib = 1024 * 1024;
+		$this->hashIndexService->method( 'fileSizes' )
+		                       ->willReturn( [ 1 => 60 * $mib, 2 => 30 * $mib, 3 => 60 * $mib ] )
+		;
+
+		$result = $this->api->recalcMany( [ 1, 2, 3 ], 'sha1', 'alice', [ 'alice' ] );
+
+		$this->assertSame( [ 1, 2 ], array_column( $result['results'], 'fileid' ) );
+		$this->assertSame( [ 3 ], $result['remaining'] );
+	}
+
+
+	/**
+	 * A single file always goes through, however large — or a file bigger
+	 * than the whole budget could never be verified at all.
+	 */
+	public function testRecalcManyAlwaysReadsTheFirstFileHoweverLarge(): void
+	{
+
+		$this->readyToRecalcMany();
+		$this->hashIndexService->method( 'fileSizes' )
+		                       ->willReturn( [ 1 => 5 * 1024 * 1024 * 1024, 2 => 10 ] )
+		;
+
+		$result = $this->api->recalcMany( [ 1, 2 ], 'sha1', 'alice', [ 'alice' ] );
+
+		$this->assertSame( [ 1 ], array_column( $result['results'], 'fileid' ) );
+		$this->assertTrue( $result['results'][0]['success'] );
+		$this->assertSame( [ 2 ], $result['remaining'], 'the next one waits for the next call' );
+	}
+
+
+	/**
+	 * A mixed batch answers per file. A group on the Others tab can hold
+	 * several accounts' copies; one out of reach is its own failed result,
+	 * not the whole request's, or such a group could never be verified.
+	 */
+	public function testRecalcManyAnswersPerFileWhenOneIsOutOfReach(): void
+	{
+
+		$this->readyToRecalcMany();
+		$this->hashIndexService->method( 'fileSizes' )
+		                       ->willReturn( [ 1 => 10, 2 => 10 ] )
+		;
+		$this->outOfReach[] = 2;
+
+		$result = $this->api->recalcMany( [ 1, 2 ], 'sha1', 'lead', [ 'member' ] );
+
+		$this->assertSame( [], $result['remaining'] );
+		$this->assertTrue( $result['results'][0]['success'] );
+		$this->assertFalse( $result['results'][1]['success'] );
+		$this->assertSame( 2, $result['results'][1]['fileid'] );
+		$this->assertSame( 'File not found.', $result['results'][1]['error'] );
+	}
+
+
 	/**
 	 * Nor does it waive an administrator's exclude rule, which is about the
 	 * path and not about who is asking — and is the one control an

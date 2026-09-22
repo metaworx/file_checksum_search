@@ -155,14 +155,29 @@ export function useDuplicates() {
 		}
 	}
 
+	/**
+	 * How many files one verification request carries. The server reads at
+	 * most this many per call (and at most 100 MiB), so sending more would
+	 * only come back as `remaining`.
+	 */
+	const VERIFY_CHUNK = 25
+
+	interface BatchResult {
+		fileid: number
+		success?: boolean
+		hash?: string
+		error?: string
+	}
+
 	async function verifyGroups(groups: DuplicateGroup[]): Promise<void> {
 		state.verifying = true
 		state.error = null
 
-		// The recalc endpoint is rate limited per user (see docs/api-v1.md).
-		// Verification issues one request per file, so a large enough run will
-		// hit the limit; stop there and say so rather than marking every
-		// remaining file as a mismatch.
+		// The recalc endpoint is rate limited per user (see docs/api-v1.md),
+		// and it counts requests. One gesture is one request per chunk of
+		// files rather than one per file, so a group of a hundred is four
+		// requests, not a hundred; a run that still hits the limit stops
+		// there and says so rather than marking what it never asked about.
 		let rateLimited = false
 
 		// Only a run that follows an interrupted one resumes; an ordinary
@@ -170,70 +185,80 @@ export function useDuplicates() {
 		const resuming = verifyInterrupted
 
 		// A scoped listing shows files that are not the caller's own, and the
-		// ordinary route resolves the file in the caller's own home — so it
+		// ordinary route resolves files in the caller's own reach — so it
 		// answered "File not found." for every row on the Others tab. The
-		// cross-account route asks whether the caller may reach the file
-		// instead; it needs the same password confirmation the tab already
-		// went through.
-		const route = state.scope !== null ? OCS_API_V1.sudoRecalcHash : OCS_API_V1.recalcHash
+		// cross-account route reaches what the caller may, per file; it needs
+		// the same password confirmation the tab already went through.
+		const route = state.scope !== null ? OCS_API_V1.sudoRecalcMany : OCS_API_V1.recalcMany
 
 		for (const group of groups) {
 			if (rateLimited) {
 				break
 			}
 
-			let matchCount = 0
-			let mismatchCount = 0
+			const byId = new Map(group.files.map((f) => [f.fileid, f]))
 
-			for (const file of group.files) {
-				// Already verified by the run that hit the limit — keep its
-				// result so this one picks up where that one left off.
-				if (resuming && file.verified !== undefined) {
-					if (file.verified) {
-						matchCount++
-					} else {
-						mismatchCount++
-					}
-					continue
-				}
+			// What still needs an answer. A resumed run keeps what the
+			// interrupted one already answered and starts after it.
+			let queue = group.files.filter((f) => !(resuming && f.verified !== undefined))
+
+			while (queue.length > 0 && !rateLimited) {
+				const chunk = queue.slice(0, VERIFY_CHUNK)
+				queue = queue.slice(VERIFY_CHUNK)
 
 				try {
-					const url = `${generateOcsUrl(route, { fileId: file.fileid })}?algo=${group.algo}`
-					const res = await fetch(url, {
+					const res = await fetch(generateOcsUrl(route), {
 						method: 'POST',
-						headers: { requesttoken: OC.requestToken },
+						headers: { requesttoken: OC.requestToken, 'Content-Type': 'application/json' },
+						body: JSON.stringify({ fileIds: chunk.map((f) => f.fileid), algo: group.algo }),
 					})
 					if (res.status === 429) {
 						rateLimited = true
 						break
 					}
-					const result = (await res.json()) as { success?: boolean; hash?: string; error?: string }
-					if (result.success) {
-						file.verified_hash = result.hash
-						if (result.hash === group.hash_value) {
-							file.verified = true
-							matchCount++
+					const data = (await res.json()) as { results?: BatchResult[]; remaining?: number[] }
+					const results = data.results ?? []
+
+					for (const result of results) {
+						const file = byId.get(result.fileid)
+						if (!file) continue
+						if (result.success) {
+							file.verified_hash = result.hash
+							file.verified = result.hash === group.hash_value
 						} else {
 							file.verified = false
-							mismatchCount++
+							file.verify_error = result.error || 'Failed'
+						}
+					}
+
+					// The server stopped at its own budget: what it did not read
+					// goes back to the front of the queue. A server that read
+					// nothing and handed everything back would loop forever, so
+					// that is treated as a failure of the chunk instead.
+					const remaining = (data.remaining ?? [])
+						.map((id) => byId.get(id))
+						.filter((f): f is DuplicateFileItem => f !== undefined)
+					if (results.length === 0 && remaining.length > 0) {
+						for (const file of remaining) {
+							file.verified = false
+							file.verify_error = 'Not processed'
 						}
 					} else {
-						file.verified = false
-						file.verify_error = result.error || 'Failed'
-						mismatchCount++
+						queue = [...remaining, ...queue]
 					}
 				} catch {
-					file.verified = false
-					file.verify_error = 'Network error'
-					mismatchCount++
+					for (const file of chunk) {
+						file.verified = false
+						file.verify_error = 'Network error'
+					}
 				}
 			}
 
 			// Leave an interrupted group's counts alone — partial totals would
 			// read as a completed verification.
 			if (!rateLimited) {
-				group.match_count = matchCount
-				group.mismatch_count = mismatchCount
+				group.match_count = group.files.filter((f) => f.verified === true).length
+				group.mismatch_count = group.files.filter((f) => f.verified === false).length
 			}
 		}
 
