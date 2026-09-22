@@ -82,8 +82,40 @@ const sweepCypressTokens = ( users ) => {
 	} )
 }
 
+// Accounts an earlier run left behind. Every account this suite makes is
+// `fcias_e2e_<base>_<hex>`, and the spec that made it deletes it — in its
+// after() or at the end of the one test that needed it. A run that fails or
+// is interrupted before that point leaves the account standing, and the
+// instance had collected thirty-nine of them before anyone counted. The
+// prefix is the suite's by construction, so nothing a person made is ever in
+// this list; through occ, so no administrator password is needed; and before
+// a spec mints anything, so a run never collects its own.
+const reapE2eAccounts = () => {
+	cy.env( [ 'occ' ] ).then( ( { occ } ) => {
+		if ( ! occ ) {
+			return
+		}
+		cy.exec( `${ occ } user:list --output=json`, { failOnNonZeroExit: false } )
+			.then( ( { stdout } ) => {
+				let users = {}
+				try {
+					users = JSON.parse( stdout )
+				} catch ( e ) {
+					return
+				}
+				for ( const user of Object.keys( users ) ) {
+					if ( user.startsWith( 'fcias_e2e_' ) ) {
+						cy.exec( `${ occ } user:delete ${ user }`, { failOnNonZeroExit: false } )
+					}
+				}
+			} )
+	} )
+}
+
 before( () => {
-	// The previous spec's leftovers, on the account every spec uses.
+	// What an earlier run left: its accounts, and its tokens on the account
+	// every spec uses.
+	reapE2eAccounts()
 	sweepCypressTokens( [ 'admin' ] )
 } )
 
@@ -346,9 +378,9 @@ const strongPassword = ( length = 32 ) => {
  * does not carry is anything an attacker could use: the password is fresh
  * per account and never leaves the run.
  *
- * A run that crashes before its `after()` leaves the account behind. That
- * is the point rather than a gap — what it leaves is inert and identifiable
- * by the prefix, where `alice` with a published password is neither.
+ * A run that crashes before its `after()` leaves the account behind, inert
+ * and identifiable by the prefix, where `alice` with a published password
+ * is neither — and the next run's `before()` collects it.
  *
  * Through the provisioning API rather than `occ user:add`, because the
  * password has to reach the account and `--password-from-env` cannot carry
@@ -372,6 +404,10 @@ Cypress.Commands.add( 'fciasMakeAccount', ( admin, base ) => {
 		user: `fcias_e2e_${ base }_${ suffix[ 0 ].toString( 16 ).padStart( 8, '0' ) }`,
 		password: strongPassword(),
 	}
+
+	// As the administrator named, not as whoever the browser is logged in
+	// as: see fciasDeleteAccount().
+	cy.clearCookies()
 
 	return cy.request( {
 		method: 'POST',
@@ -415,12 +451,26 @@ Cypress.Commands.add( 'fciasDeleteAccount', ( admin, user ) => {
 		return
 	}
 
+	// Without this the request carries the browser's cookies, and a session
+	// outranks the Basic auth header. Called right after a test logged in as
+	// the account itself, the deletion ran *as that account*, was refused
+	// with 403, and the old blanket tolerance swallowed it — which is how
+	// thirty-nine `fcias_e2e_nobody_*` accounts came to exist.
+	cy.clearCookies()
+
 	cy.request( {
 		method: 'DELETE',
 		url: `/ocs/v2.php/cloud/users/${ user }?format=json`,
 		auth: { user: admin.user, pass: admin.password },
 		headers: { 'OCS-APIRequest': 'true' },
 		failOnStatusCode: false,
+	} ).then( ( response ) => {
+		// Gone, or already gone. Anything else — a refusal above all — is a
+		// leftover account, and says so here rather than on the next count.
+		expect(
+			[ 200, 404 ],
+			`deleting the test account ${ user } answered ${ response.status }`,
+		).to.include( response.status )
 	} )
 } )
 
