@@ -138,7 +138,7 @@ there, not here.
 ---
 
 
-# Working with the agent (v1.6.2)
+# Working with the agent (v1.6.3)
 
 This is the human half of the contract.
 The agent's rules live in `/AGENTS.md`;
@@ -153,8 +153,8 @@ in a fixed format called a *gate message*, and waits.
 You reply with one word — usually `EXEC` — and it proceeds.
 
 Two moments always stop:
-before a non-trivial code change (you approve the plan) and before every `git
-commit` (you approve the message).
+before a non-trivial code change (you approve the plan) and before every
+`git commit` (you approve the message).
 Everything else is ordinary work.
 
 ## 2. Gate messages
@@ -171,8 +171,8 @@ It always carries the same fields, so you can skim it:
 - **Proposed commit message** — the exact message,
   wherever a signal would commit
 - **Files to be committed** — what would go into that commit
-- **Important notes** — anything you need in order to decide and would not
-  otherwise see: a bug fixed on the way, something to check before you answer,
+- **Important notes** — anything you need in order to decide and would not otherwise see:
+  a bug fixed on the way, something to check before you answer,
   a step that went differently than planned
 - **Confirmation needed** — which signal it is waiting for,
   and what each one does
@@ -183,8 +183,7 @@ that is a violation of its own contract, and worth saying so.
 
 Read the **Pending action** first.
 If it does not match what you wanted,
-say so in plain words rather than sending a signal — the agent revises and
-re-gates.
+say so in plain words rather than sending a signal — the agent revises and re-gates.
 
 ## 3. Execution signals
 
@@ -204,8 +203,8 @@ If it doesn't, that is a defect in the gate, not something for you to infer.
 
 `EXEC++` and `EXEC+++` are retired — say it in words instead.
 
-You can also just answer in prose. "Yes,
-but rename the second one first" is a perfectly good reply;
+You can also just answer in prose.
+"Yes, but rename the second one first" is a perfectly good reply;
 the signals exist for speed, not ceremony.
 
 ## 4. Action Plans
@@ -236,8 +235,7 @@ The conversation may be gone; the reasoning is still there.
 Send `ERR`.
 The agent stops and replies with a compact recovery block:
 what it believes happened, what state things are in, and what it proposes.
-Send `ERR` twice in a row and it escalates — it stops proposing and asks you to
-direct it.
+Send `ERR` twice in a row and it escalates — it stops proposing and asks you to direct it.
 
 `ROLLBACK` is separate and stronger: it authorises undoing the last edit.
 The agent cannot do this on its own initiative, by design,
@@ -276,5 +274,4 @@ git -C GUIDELINES/shared config core.fileMode false
 
 ## 9. Document Governance
 
-- This document follows the shared governance rules in
-  `GUIDELINES/shared/GOVERNANCE.md`.
+- This document follows the shared governance rules in `GUIDELINES/shared/GOVERNANCE.md`.
