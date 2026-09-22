@@ -242,434 +242,529 @@ the first stable release.
 - `GET /api/v1/file/{fileId}/duplicates`: the reference file is resolved
   within the caller's reach before its hashes are read.
 
-## [0.19.0] — 2026-08-23
+## [0.19.0] - 2026-08-23
 
 ### Changed
 
-- Move rule creation and editing into an NcDialog popup on both the admin and personal settings pages, instead of a form that expanded inline below the rule list.
+- Rule dialog: an `NcDialog` on both settings pages in place of the
+  inline form; the first editable field focused on open, Escape cancels,
+  no close button of its own.
 
-- Show the global rule as an ordinary rule row in its own table above the additional rules, replacing the separate always-visible form, so both kinds of rule read and are edited the same way. The global rule shows its fixed User Scope and Path as plain text rather than disabled inputs, keeps them pinned server-side, and has no Delete button — disable it instead.
+- Global rule: an ordinary row in its own table above the additional
+  rules; scope and path as plain text, no Delete button.
 
-- Add a help button with a short explanation to every rule and permission setting, reusing the sidebar's popover as a shared component.
+- Help button on every rule and permission setting, from the sidebar's
+  popover component.
 
-- Stretch the rule form's inputs, the algorithm multiselect and the permission group/user selects to the full width of their row, so controls line up on a common right edge instead of stopping at their intrinsic widths.
+- Settings forms: inputs, algorithm multiselect and permission selects at
+  full row width; the rule tables on one column grid; full values as
+  tooltips on cells and the Path field.
 
-- Give the rule tables percentage column widths, so the single-row global rule table and the additional-rules table below it share one column grid.
+- Settings pages: Save and Cancel centred; the "Users may not edit this
+  rule" toggle is the settings switch; every tab panel indented on both
+  pages; one shared header partial, so the personal page shows the logo.
 
-- Show the full value as a tooltip on rule table cells and on the rule form's Path field, for values too long for the space.
+- Personal rules page: a Priority column.
 
-- Centre the settings pages' Save and Cancel buttons and give them room to breathe, and match the rule dialog's "Users may not edit this rule" toggle to the switch used elsewhere in the settings.
+- Rule tables: "Algos" is "Algorithms"; action buttons left-aligned; the
+  admin-enforced switch labelled "Enforced".
 
-- Focus the first editable field when the rule dialog opens, instead of the first help button, and close the dialog on Escape as if Cancel had been pressed — an open help popover or select dropdown takes the first Escape for itself. The dialog's own close button is gone as a result: the built-in close had to be turned off for Escape to be handled in the right order, and Cancel already sits next to Save.
+- Status table: the label column capped.
 
-- Indent every tab panel, the page heading and the tab buttons on both settings pages, while the tab underline still runs the full width. The indent was previously scoped to the admin page's Settings panel, leaving the personal page flush against the edge.
-
-- Share one server-rendered header partial between the admin and personal settings pages, so the personal page shows the app logo too and the two cannot drift apart.
-
-- Show the Priority column on the personal rules page. Personal rules are an ordered subset evaluated first-match-wins, so their position is a real priority, numbered as on the admin page.
-
-- Rename the rule tables' "Algos" column to "Algorithms", give all three rule tables one shared column grid, and left-align their action buttons.
-
-- Label the rule dialog's admin-enforced switch "Enforced" so it lines up with the other fields, and left-align the Rule Editing Permission page's Save button while the dialog's own buttons stay centred.
-
-- Cap the status table's label column so its values are not pushed across the page.
-
-- Keep the permission group and user selects hidden until the saved options have loaded, instead of rendering and then hiding them on every page load.
+- Permission selects: hidden until the saved options have loaded.
 
 ### Fixed
 
-- Fix the admin settings page never showing the global rule's stored algorithms: the algorithm multiselect captured its selection once at setup, when the asynchronously loaded algorithm list was still empty, and stayed blank from then on. It now tracks both the bound value and the option list.
+- Admin settings: the global rule's stored algorithms show; the
+  multiselect tracks the option list as well as the value.
 
-- Fix the admin settings page losing its app-name heading: the Vue migration left the `<h3>` as a sibling of `#fcias-admin-settings`, which the Vue app then overwrote on mount. The heading and a new inner mount point now live inside that container again.
+- Admin settings: the app-name heading is back, inside the Vue mount.
 
-## [0.18.0] — 2026-08-22
+## [0.18.0] - 2026-08-22
 
 ### Added
 
-- Add Vitest coverage for the vanilla-JS admin and personal settings pages, testing their manual HTML-escaping and DOM rendering black-box to guard against XSS regressions.
+- Vitest coverage for the settings pages' HTML escaping and rendering.
 
-- Add useAdminSettings and usePersonalSettings composables that port the settings pages' fetch logic to the existing composable pattern, adding an AbortController stale-response guard neither page had before.
-
-### Changed
-
-- Document DatabaseService's safeBool/safeInt/safeString/safeArray sentinel-on-failure pattern so callers can tell a genuine empty result from a logged DB failure.
-
-- Extract shared RuleTable, RuleRow, and RuleForm Vue components to replace the duplicated string-concatenated markup in the admin and personal settings pages.
-
-- Migrate the admin settings page to a single Vue app built on the new RuleTable/RuleForm components, consolidating four build entries into one and removing the unreachable dead crontab snippet generator and its inaccurate documentation.
-
-- Migrate the personal settings page to Vue using the personal RuleTable/RuleForm variant and usePersonalSettings composable, removing the now-dead vanilla settings-personal and tabs.ts modules.
-
-## [0.17.1] — 2026-08-22
-
-### Fixed
-
-- Fix generate --mark to catch Throwable instead of a non-existent OCP UserNotFoundException class, so a vanished user no longer crashes the whole run instead of being skipped.
-
-## [0.17.0] — 2026-08-22
+- `useAdminSettings`, `usePersonalSettings`: the settings pages' fetch
+  logic as composables, with a stale-response guard.
 
 ### Changed
 
-- Extract a shared algorithm-whitelist validator to remove the duplicated validation logic between SettingsController and PersonalSettingsController.
+- `DatabaseService`: `safeBool`/`safeInt`/`safeString`/`safeArray`
+  documented as sentinel-on-failure.
 
-- Compute all required checksums for a file in a single read pass instead of one read per algorithm, cutting up to eight reads down to one on remote and local storage alike.
+- `RuleTable`, `RuleRow`, `RuleForm`: shared Vue components for both
+  settings pages.
 
-- Extract a shared default-duplicate-limit constant to replace six hardcoded copies of the default duplicate-group page size.
+- Admin settings page: one Vue app, four build entries become one; the
+  dead crontab snippet generator and its documentation are gone.
 
-- Document adler32 support in README, FAQ, API docs, and OpenAPI spec, and add canary tests on both the PHP and TypeScript sides so the two supported-algorithm lists can no longer silently drift apart.
+- Personal settings page: Vue, on the same components; the vanilla
+  `settings-personal` and `tabs.ts` modules are gone.
 
-## [0.16.1] — 2026-08-22
+## [0.17.1] - 2026-08-22
 
 ### Fixed
 
-- Guard useDuplicates against stale-response races by cancelling in-flight requests when filters change, matching the pattern already used by useSidebarHashes.
+- `generate --mark`: catches `Throwable`, so a vanished user is skipped
+  rather than crashing the run.
 
-## [0.16.0] — 2026-08-22
+## [0.17.0] - 2026-08-22
+
+### Changed
+
+- Algorithm-whitelist validator: one, shared by `SettingsController` and
+  `PersonalSettingsController`.
+
+- Hashing: every required checksum of a file in one read pass, not one
+  read per algorithm.
+
+- Default duplicate-group page size: one constant in place of six copies.
+
+- `adler32`: documented in README, FAQ, API docs and OpenAPI; canary
+  tests keep the PHP and TypeScript algorithm lists in step.
+
+## [0.16.1] - 2026-08-22
+
+### Fixed
+
+- `useDuplicates`: in-flight requests cancelled when filters change, so a
+  stale response cannot overwrite a newer one.
+
+## [0.16.0] - 2026-08-22
 
 ### Removed
 
-- Remove the unused legacy vanilla-JS duplicates bundle and its loading listener, since the real duplicates page has used the Vue bundle instead.
+- The legacy vanilla-JS duplicates bundle and its loading listener: gone.
 
-## [0.15.1] — 2026-08-22
+## [0.15.1] - 2026-08-22
 
 ### Fixed
 
-- Guard metadata-index seeding against running when its target table doesn't yet exist, warning with the rebuild command instead of silently leaving the index unpopulated.
+- Metadata-index seeding: skipped, with a warning naming the rebuild
+  command, while its target table does not exist yet.
 
-## [0.15.0] — 2026-08-22
+## [0.15.0] - 2026-08-22
 
 ### Changed
 
-- Document why auto mode intentionally does nothing for newly created files, since it only recalculates existing stale hashes rather than generating a first hash.
+- `auto` mode: documented as recalculating existing stale hashes only,
+  never a first hash.
 
-## [0.14.1] — 2026-08-22
+## [0.14.1] - 2026-08-22
 
 ### Fixed
 
-- Fix a race where concurrent hash recalculations for different algorithms on the same file could silently drop metadata by saving before releasing the file lock instead of after.
+- Concurrent recalculations of different algorithms on one file: metadata
+  saved before the lock is released, so none is dropped.
 
-- Fix truncated-hash comparisons for SHA-256/SHA3-256 and SHA-512/SHA3-512 so full-hash searches match correctly and duplicate groups are verified against the untruncated hash instead of risking false positives.
+- Truncated-hash comparisons for SHA-256/SHA3-256 and SHA-512/SHA3-512:
+  full-hash searches match, and a duplicate group is verified against the
+  untruncated hash.
 
 ### Security
 
-- Scope the public and legacy API hash lookups (lookup, getHashes, recalcHash) to the requesting user's own files so other users' paths and hashes can no longer be read or force-recalculated by hash or fileId.
+- `lookup`, `getHashes`, `recalcHash` on the public and legacy API:
+  scoped to the requesting user's own files.
 
-- Require admin privileges for SettingsController's rule management endpoints so non-admins can no longer install or lock a global force-recalculate rule for the whole instance.
+- `SettingsController` rule endpoints: administrators only.
 
-- Enforce userScope ownership checks on personal rule mutation and on real-time file-event rule matching so a user can no longer alter or trigger another user's rule by guessing its ID.
+- Personal rule mutation and file-event rule matching: `userScope`
+  ownership enforced, so a rule cannot be altered or triggered by
+  guessing its id.
 
-## [0.14.0] — 2026-08-21
+## [0.14.0] - 2026-08-21
 
 ### Added
 
-- Add a Vitest-based frontend unit-test scaffold with tests for the algorithm/tab helpers and the useClipboard, useSidebarHashes, and RecalcButton components.
+- Vitest scaffold: tests for the algorithm and tab helpers,
+  `useClipboard`, `useSidebarHashes` and `RecalcButton`.
 
-## [0.13.1] — 2026-08-21
+## [0.13.1] - 2026-08-21
 
 ### Fixed
 
-- Fix the generate command reporting zero files hashed when --batch-size was omitted, since the missing value defaulted to 0 and was treated as "collect nothing" instead of unlimited.
+- `generate` without `--batch-size`: unlimited, not zero files.
 
-## [0.13.0] — 2026-08-21
+## [0.13.0] - 2026-08-21
 
 ### Added
 
-- Add FAQ and user help documentation with in-app help tabs on the personal settings and duplicates pages, plus a public help endpoint.
+- FAQ and user help: in-app Help tabs on the personal settings and
+  Duplicates pages, and a public help endpoint.
 
 ### Changed
 
-- Give the admin page its own dedicated settings section and add a read-only Documentation tab that renders the bundled docs, including Markdown.
+- Admin page: its own settings section, and a read-only Documentation tab
+  rendering the bundled docs.
 
-- Let users edit and create hash-generation rules from a personal settings page, with admins able to lock individual rules via a per-rule admin_enforced flag and control access via allowed groups/users.
+- Personal settings page: users edit and create hash-generation rules; a
+  per-rule `admin_enforced` flag locks one, allowed groups and users gate
+  access.
 
-- Revise README, info.xml, API docs, and the changelog to reflect the current feature set, removing stale references to database triggers, MariaDB-only support, and Webpack.
+- README, `info.xml`, API docs, changelog: the current feature set;
+  database triggers, MariaDB-only support and Webpack no longer named.
 
-- Update info.xml for App Store metadata compliance (PHP/database dependencies, documentation links, HTTPS repository URL) and add app store screenshots.
+- `info.xml`: App Store metadata (PHP and database dependencies,
+  documentation links, HTTPS repository URL), and screenshots.
 
-- Migrate the checksums sidebar tab from a hand-rolled HTMLElement to a Vue custom element with a loading spinner during hash load and recalculation.
+- Checksums sidebar tab: a Vue custom element with a loading spinner;
+  sharing-tab-style sections with help popovers, an algorithm selector
+  with a recalc button, full-hash tooltips.
 
-- Replace the admin and personal settings algorithm checkboxes with a shared NcSelect-based multiselect component.
-
-- Rework the checksums sidebar into sharing-tab-style sections with help popovers, an algorithm selector with a recalc button, and full-hash tooltips on a container-constrained hash table.
+- Algorithm checkboxes on both settings pages: one shared `NcSelect`
+  multiselect.
 
 ### Removed
 
-- Remove redundant .gitkeep placeholder files.
+- Redundant `.gitkeep` files: gone.
 
-## [0.12.1] — 2026-08-16
+## [0.12.1] - 2026-08-16
 
 ### Fixed
 
-- Guard against overflowing the oc_filecache.checksum column by dropping algorithm/hash pairs that don't fit, preventing multi-algo files from failing to save in FilecacheService::setHashes().
+- `FilecacheService::setHashes()`: pairs that would overflow
+  `oc_filecache.checksum` are dropped, so a multi-algorithm file saves.
 
-## [0.12.0] — 2026-08-15
+## [0.12.0] - 2026-08-15
 
 ### Added
 
-- Add a GitHub Actions App Store release pipeline (build, package, optional signing) and refresh README/info.xml to describe the files-metadata-based architecture.
+- GitHub Actions App Store release pipeline: build, package, optional
+  signing.
 
 ### Changed
 
-- Refresh README and info.xml to describe the files-metadata-index architecture, any-DB support, the 7 CLI commands, and rule-based hashing.
+- README, `info.xml`: the files-metadata-index architecture, any-DB
+  support, the 7 CLI commands, rule-based hashing.
 
-## [0.11.1] — 2026-08-15
+## [0.11.1] - 2026-08-15
 
 ### Fixed
 
-- Register background jobs once via info.xml instead of on every boot, fixing NC 33's JobList::add() resetting last_run and preventing the pending-updates queue from ever draining.
+- Background jobs: registered once via `info.xml`, so NC 33's
+  `JobList::add()` no longer resets `last_run` and the pending queue
+  drains.
 
-- Mark file-checksum-updated_at as an indexed metadata value when saving, so the pending queue actually drains after successful hash processing under NC 33.
+- `file-checksum-updated_at`: marked as an indexed metadata value on
+  save, so the pending queue drains under NC 33.
 
-- Register metadata keys during install rather than on every boot, eliminating a recurring debug warning from NC 33's lazy AppConfig loading.
+- Metadata keys: registered at install, not on every boot; no recurring
+  debug warning.
 
-## [0.11.0] — 2026-08-15
+## [0.11.0] - 2026-08-15
 
 ### Changed
 
-- Fix cron.php never processing pending:new entries by resolving the matching rule before dispatch, and break a circular dependency between HashCalculationService and RuleService by relocating responsibilities to their natural owners.
+- `cron.php`: `pending:new` entries are processed, the matching rule
+  resolved before dispatch; the `HashCalculationService`/`RuleService`
+  dependency cycle is gone.
 
-## [0.10.1] — 2026-08-07
+## [0.10.1] - 2026-08-07
 
 ### Fixed
 
-- Fix the sidebar tab silently failing to register by importing the SVG icon as raw XML instead of a data URL, and add diagnostic logging around tab/action registration.
+- Sidebar tab: registers; the SVG icon is imported as raw XML, and
+  registration is logged.
 
-- Fix recalcHash always defaulting to SHA-1 by also reading the algo parameter from the query string when the request body is empty.
+- `recalcHash`: reads `algo` from the query string when the body is
+  empty, instead of defaulting to SHA-1.
 
-- Fix duplicate search to exclude the updated_at metadata field from grouping, correctly handle hash values stored as JSON arrays, and fall back to the indexed hash when extraction yields an empty value.
+- Duplicate search: `updated_at` excluded from grouping, JSON-array hash
+  values handled, the indexed hash as fallback.
 
-- Fix the Vue duplicates template rendering literal unicode escape sequences instead of the check and cross characters.
+- Vue duplicates template: the check and cross characters render.
 
-- Show a total pending count alongside the per-mode breakdown on the settings page to match the CLI output.
+- Settings page Status: a total pending count beside the per-mode
+  breakdown, a Refresh button, a Last Updated timestamp.
 
-- Add a Refresh button and a Last Updated timestamp to the settings page Status section.
+- `HashSearchProvider` results: open the file's details sidebar, not the
+  directory root.
 
-- Fix HashSearchProvider search results so clicking a result opens the file details sidebar instead of just navigating to the directory root.
-
-## [0.10.0] — 2026-08-07
+## [0.10.0] - 2026-08-07
 
 ### Added
 
-- Add SettingsControllerTest with 14 tests covering all six controller methods, and expose a mockable readRequestBody() method on SettingsController.
+- `SettingsControllerTest`: 14 tests over the six controller methods;
+  `readRequestBody()` mockable.
 
-- Add developer tooling configuration (ESLint, PHP-CS-Fixer, Psalm, Rector, Stylelint, TypeScript, Vite) and remove committed build artifacts.
-
-### Changed
-
-- Update project metadata (code of conduct, license, app info, and composer info).
-
-- Migrate routing from appinfo/routes.php to PHP 8 attribute-based routing (#[ApiRoute]/#[FrontpageRoute]) across all controllers, per the Nextcloud 31+ standard.
-
-- Convert frontend scripts to TypeScript, extract the duplicates index page into a new PageController, fix the Vite entry point, and switch URL generation to @nextcloud/router with centralized route constants.
-
-- Migrate the frontend build from Webpack to Vite and introduce a Vue 3 SPA for the global duplicate file browser.
-
-## [0.9.1] — 2026-08-07
-
-### Fixed
-
-- Fix undefined $hash variable in HashSearchProvider::search() by using the correctly parsed $parsed['hash'] value.
-
-## [0.9.0] — 2026-08-07
-
-### Added
-
-- Add and improve class-level PHPDoc and @throws documentation across several services and listeners with no behavioral changes.
-
-- Add FciasUnitTestCase base class and unit tests covering MetadataService queryDuplicates/queryByHash and HashCalculationService processFile.
+- Developer tooling: ESLint, PHP-CS-Fixer, Psalm, Rector, Stylelint,
+  TypeScript, Vite; committed build artifacts removed.
 
 ### Changed
 
-- Clean up code by removing decorative section-header comments, replacing magic pending-mode strings with named MetadataService constants, and extracting glob matching into a shared PathUtil helper.
+- Project metadata: code of conduct, license, app info, composer info.
 
-## [0.8.1] — 2026-08-07
+- Routing: `#[ApiRoute]`/`#[FrontpageRoute]` attributes in place of
+  `appinfo/routes.php`.
+
+- Frontend: TypeScript; the duplicates index page in a new
+  `PageController`; URLs from `@nextcloud/router` with central route
+  constants.
+
+- Frontend build: Vite in place of Webpack; the global duplicate browser
+  is a Vue 3 SPA.
+
+## [0.9.1] - 2026-08-07
 
 ### Fixed
 
-- Fix several medium-severity issues from the post-migration audit, including a hash search regex that excluded ADLER32/CRC32 lengths, auto mode recomputing all algorithms instead of only existing ones, and file copies being marked with the wrong pending mode.
+- `HashSearchProvider::search()`: the parsed hash is used; `$hash` was
+  undefined.
 
-## [0.8.0] — 2026-08-07
+## [0.9.0] - 2026-08-07
 
 ### Added
 
-- Add missing rule-processing features: self-dispatching background jobs when a batch fills up, rule matching in FileListener, path-based rule search with glob pagination, and folder-based hash marking.
+- Class-level PHPDoc and `@throws` across services and listeners.
+
+- `FciasUnitTestCase`; unit tests for `MetadataService`
+  `queryDuplicates`/`queryByHash` and
+  `HashCalculationService::processFile`.
+
+### Changed
+
+- Code: decorative section comments removed, pending-mode strings as
+  `MetadataService` constants, glob matching in `PathUtil`.
+
+## [0.8.1] - 2026-08-07
+
+### Fixed
+
+- Post-migration audit: the hash search regex accepts ADLER32/CRC32
+  lengths; `auto` mode recomputes only existing algorithms; file copies
+  are marked with the right pending mode.
+
+## [0.8.0] - 2026-08-07
+
+### Added
+
+- Rule processing: self-dispatching background jobs when a batch fills,
+  rule matching in `FileListener`, path-based rule search with glob
+  pagination, folder-based hash marking.
 
 ### Removed
 
-- Remove all remaining references to the dropped hash/pending tables and trigger/stored-procedure infrastructure, routing ChecksumApi and StatusService through MetadataService instead.
+- The dropped hash/pending tables and the trigger/stored-procedure
+  infrastructure: every remaining reference gone; `ChecksumApi` and
+  `StatusService` go through `MetadataService`.
 
-## [0.7.1] — 2026-08-07
+## [0.7.1] - 2026-08-07
 
 ### Fixed
 
-- Fix two critical post-migration bugs: an undefined argument that always threw an exception in HashIndexService::generateMissingHashes(), and a wrong column alias in MetadataService::queryDuplicates() that caused duplicate detection to return empty hash values.
+- `HashIndexService::generateMissingHashes()`: an undefined argument no
+  longer throws on every call.
 
-## [0.7.0] — 2026-08-07
+- `MetadataService::queryDuplicates()`: the column alias, so duplicate
+  detection returns hash values.
+
+## [0.7.0] - 2026-08-07
 
 ### Added
 
-- Add cron job definitions to the file-checksum-search:status output in both plain-text and JSON formats.
+- `file-checksum-search:status`: cron job definitions, plain text and
+  JSON.
 
-- Add integration tests covering the full pending-queue drain pipeline and fix a double-prefix bug in PendingQueueService that produced an invalid table name (oc_oc_file_checksum_search_pending).
+- Integration tests for the pending-queue drain and `FileListener`; two
+  doubled table prefixes (`oc_oc_…`) fixed on the way.
 
-- Add FileListener integration tests covering all update-hash-on-write/create/delete modes and fix a double-prefix bug in HashCalculationService that caused queries against a doubled table name.
+- `FilecacheService`, `HashCalculationService::processFile()`: filecache
+  checksums and metadata kept in sync; `FileOperationService` gone.
 
-- Add FilecacheService and a centralized HashCalculationService::processFile() to keep filecache checksums and metadata in sync, expand MetadataService, and remove the now-redundant FileOperationService.
-
-- Add a three-job background pipeline (RuleProcessingJob, ProcessPendingUpdates, SeedPendingUpdates) plus a MetadataListener to seed and process the pending-hash queue based on configured rules.
+- Background pipeline: `RuleProcessingJob`, `ProcessPendingUpdates`,
+  `SeedPendingUpdates`, `MetadataListener`.
 
 ### Changed
 
-- Introduce MetadataService and a fresh migration to integrate with Nextcloud's oc_files_metadata table, dropping all previous migrations since the app had never been deployed.
+- `MetadataService` and a fresh migration onto `oc_files_metadata`; every
+  earlier migration dropped.
 
-- Refactor FileListener to only clear metadata and mark files pending instead of computing hashes directly, deferring actual hash computation to the ProcessPendingUpdates job.
+- `FileListener`: clears metadata and marks files pending; hashing is the
+  job's.
 
-- Rewrite search and duplicate detection to query oc_files_metadata directly, reading hash values from the JSON column to avoid truncation for longer hash algorithms.
+- Search and duplicate detection: query `oc_files_metadata`, reading
+  hashes from the JSON column.
 
-- Overhaul CLI commands for the metadata-based architecture, adding deferred processing and metadata-aware status/rebuild/benchmark commands while removing obsolete table- and trigger-management commands.
+- CLI: deferred processing, metadata-aware status/rebuild/benchmark;
+  table and trigger management commands gone.
 
-- Replace the cron/trigger-based configuration with a rule-based system (RuleService) and matching admin UI, removing six now-obsolete classes tied to the old trigger/stored-procedure and queue infrastructure.
+- Configuration: rules (`RuleService`) and an admin UI in place of the
+  cron/trigger settings; six classes of the old infrastructure gone.
 
-## [0.6.1] — 2026-08-05
+## [0.6.1] - 2026-08-05
 
 ### Fixed
 
-- Fix DatabaseService writing query errors to stdout, which could corrupt JSON output of the status command, by sending them to stderr instead.
+- `DatabaseService`: query errors go to stderr, so the status command's
+  JSON stays valid.
 
-- Guard against an undefined array key warning by adding a null-coalesce for the "locked" key in FileListener.
+- `FileListener`: the `locked` key null-coalesced.
 
-## [0.6.0] — 2026-08-05
+## [0.6.0] - 2026-08-05
 
 ### Added
 
-- Add a "Files with same hash" feature that finds duplicate files via a self-join on the hash table and lets users browse matches with a new "Find duplicates" sidebar button.
+- "Files with same hash": a *Find duplicates* sidebar button over a
+  self-join on the hash table.
 
-- Add event-driven hash index maintenance for file write, create, delete, and copy operations, backed by a new pending-update queue table, a draining background job, and per-event-type admin configuration.
+- Event-driven index maintenance for write, create, delete and copy: a
+  pending-update queue table, a draining job, per-event configuration.
 
-- Add ILockingProvider-based file locking to hash operations so concurrent cron, CLI, and event-listener processes can no longer hash the same file simultaneously, retrying locked files via the pending queue instead of dropping them.
+- `ILockingProvider` file locking on hash operations; a locked file is
+  retried through the queue.
 
-- Add a global duplicate file locator that finds all groups of files sharing identical hashes across the system, with a REST API, CLI command, standalone UI, and access-controlled, paginated results.
+- Global duplicate locator: REST API, CLI command, standalone UI;
+  access-controlled, paginated.
 
-- Add a show-config CLI command to display app configuration and extend the status command with a machine-readable --output=json option.
+- `show-config` CLI command; `status --output=json`.
 
-- Add logging to previously silent controllers, commands, listeners, and migrations, and log errors before returning error responses in SettingsController.
+- Logging in controllers, commands, listeners and migrations.
 
-- Add an updated_at column to the hash table so hash recalculation can be skipped when the value is already current, and surface it in the status command and sidebar tooltip.
+- `updated_at` on the hash table: current hashes skipped on
+  recalculation; shown in status and the sidebar tooltip.
 
 ### Changed
 
-- Refactor closure-based event listeners into dedicated listener classes that self-register, simplifying Application boot and registration.
+- Event listeners: dedicated self-registering classes.
 
-- Consolidate duplicated hash lookup and path resolution queries into new HashIndexService methods, removing direct database dependencies from several classes.
+- Hash lookup and path resolution: `HashIndexService` methods, no direct
+  database dependencies elsewhere.
 
-- Expand the README to document all CLI commands and features, and add descriptive docblocks to controller and command classes.
+- README: every CLI command and feature; docblocks on controllers and
+  commands.
 
-- Split the large HashIndexService into focused service classes for hash calculation, pending queue, duplicates, and file operations, keeping HashIndexService as a backward-compatible facade.
+- `HashIndexService`: split into hash calculation, pending queue,
+  duplicates and file operations; the facade stays.
 
-- Move the shared escapeHtml helper into a common JS utility module to remove duplicated implementations in the sidebar and duplicates scripts.
+- `escapeHtml`: one JS utility module.
 
-- Extract shared safeIntQuery/safeExistsQuery helpers in StatusService to eliminate repeated try/catch/log patterns across its status checks.
+- `StatusService`: `safeIntQuery`/`safeExistsQuery` helpers.
 
-- Design a stable public API (ChecksumApi class and /api/v1 HTTP endpoints) covering versioning, authentication, rate limiting, and backward compatibility, while keeping legacy /api/1.0 routes.
+- Public API: `ChecksumApi` and `/api/v1` (versioning, authentication,
+  rate limiting, compatibility); `LookupController` delegates to it and
+  the legacy `/api/1.0` routes are removed.
 
-- Refactor LookupController to delegate entirely to ChecksumApi and remove the legacy /api/1.0 routes now that all consumers use the /api/v1 endpoints.
-
-## [0.5.1] — 2026-08-05
+## [0.5.1] - 2026-08-05
 
 ### Fixed
 
-- Fix Unified Search never returning results by programmatically registering HashSearchProvider via IRegistrationContext, since NC v33 no longer processes the info.xml <search> block, and add a fingerprint app icon.
+- Unified Search: `HashSearchProvider` registered via
+  `IRegistrationContext`, since NC 33 ignores `info.xml`'s `<search>`;
+  a fingerprint app icon.
 
-- Use img/app.svg as the single source of truth for the app icon across the sidebar and admin settings instead of duplicating inline SVG markup.
+- App icon: `img/app.svg` everywhere, no inline SVG copies.
 
-## [0.5.0] — 2026-08-04
+## [0.5.0] - 2026-08-04
 
 ### Added
 
-- Add scheduled hash generation via NC background jobs with full admin CRUD management and via a generated system crontab snippet, centralizing algorithm support and job management in new CronJobService and SUPPORTED_ALGOS constants.
+- Scheduled hash generation: NC background jobs with admin CRUD, or a
+  generated crontab snippet; `CronJobService`, `SUPPORTED_ALGOS`.
 
-## [0.4.1] — 2026-08-04
+## [0.4.1] - 2026-08-04
 
 ### Fixed
 
-- Fix the sidebar tab showing stale content when switching files by reloading hashes on node property changes instead of relying only on the one-time connectedCallback.
+- Sidebar tab: reloads hashes when the node changes, not only on first
+  connect.
 
-- Fix duplicate hash entries on recalc by matching the algorithm prefix case-insensitively, since stored checksums use uppercase algorithm names.
+- Recalc: the algorithm prefix matched case-insensitively, so no
+  duplicate hash entries.
 
-- Fix a 500 error in recalcFileHash by coalescing a null filecache checksum to an empty string before calling explode().
+- `recalcFileHash`: a null filecache checksum no longer 500s.
 
-- Fix the Checksums tab incorrectly appearing on folder nodes by strictly checking node.type === 'file' instead of falling back to a fileid check.
+- Checksums tab: files only, not folders.
 
-## [0.4.0] — 2026-08-04
+## [0.4.0] - 2026-08-04
 
 ### Added
 
-- Add click-to-copy hash values, server-side SHA-1/MD5 recalculation buttons, and a "Checksums" file menu entry to the sidebar tab, backed by a new centralized recalcFileHash endpoint.
+- Sidebar tab: click-to-copy values, SHA-1/MD5 recalculation buttons, a
+  "Checksums" file menu entry; a `recalcFileHash` endpoint.
 
 ### Changed
 
-- Extract duplicated CLI/controller logic into HashIndexService and TriggerInitializationService to eliminate roughly 130 lines of duplication.
+- `HashIndexService`, `TriggerInitializationService`: the CLI/controller
+  logic, once.
 
-## [0.3.1] — 2026-08-04
+## [0.3.1] - 2026-08-04
 
 ### Fixed
 
-- Migrate the sidebar tab registration to the @nextcloud/files v4 getSidebar().registerTab() API and add a webpack build step, since NC v33 removed OCA.Files.Sidebar.registerTab().
+- Sidebar tab registration: `@nextcloud/files` v4
+  `getSidebar().registerTab()`, with a webpack build; NC 33 removed
+  `OCA.Files.Sidebar.registerTab()`.
 
-## [0.3.0] — 2026-08-04
+## [0.3.0] - 2026-08-04
 
 ### Added
 
-- Add idempotent restore commands (CLI and admin UI buttons) to recreate the hash table and triggers/stored procedures after they were torn down, so users no longer have to disable/re-enable the app or re-run migrations.
+- Restore commands (CLI and admin buttons): recreate the hash table,
+  triggers and stored procedures, idempotently.
 
 ### Changed
 
-- Reformat whitespace in the admin settings JavaScript for consistency.
+- Admin settings JavaScript: whitespace.
 
-## [0.2.1] — 2026-08-04
+## [0.2.1] - 2026-08-04
 
 ### Fixed
 
-- Fix unreadable compatibility-test status indicators on dark themes by switching from colored text to background-color badges.
+- Compatibility-test status indicators: background-colour badges,
+  readable on dark themes.
 
-- Fix admin settings maintenance actions showing dialogs with no OK button by switching to OC.dialogs.message() and including record counts in the result message.
+- Admin maintenance dialogs: `OC.dialogs.message()`, with an OK button
+  and record counts.
 
-## [0.2.0] — 2026-08-04
+## [0.2.0] - 2026-08-04
 
 ### Changed
 
-- Extract duplicated status and index-maintenance logic from the CLI commands and settings controller into shared StatusService and HashIndexService classes.
+- `StatusService`, `HashIndexService`: the status and index-maintenance
+  logic of the CLI and the settings controller, once.
 
-## [0.1.1] — 2026-08-04
+## [0.1.1] - 2026-08-04
 
 ### Fixed
 
-- Fix every CLI command and admin API endpoint crashing with an unhandled error by replacing the non-existent IDBConnection::getPrefix() with a centralized TableNameService, also correcting the wrong dbtableprefix config key that had been silently ignored.
+- `TableNameService` in place of the non-existent
+  `IDBConnection::getPrefix()`, so every CLI command and admin endpoint
+  runs; the `dbtableprefix` config key is read.
 
-- Register a config lexicon for the triggers_deployed app config key to stop Nextcloud from logging an info message on every boot request.
+- `triggers_deployed`: a config lexicon entry, so no info message per
+  boot.
 
-- Fix GenerateHashes failing to process the root folder and crashing on the non-existent File::setChecksum(), and add debug logging plus verbosity-based progress output.
+- `GenerateHashes`: processes the root folder, no `File::setChecksum()`
+  call; debug logging and verbosity-based progress.
 
-## [0.1.0] — 2026-08-03
+## [0.1.0] - 2026-08-03
 
 ### Added
 
-- Add the MariaDB migration deploying the shadow table, stored procedure, and insert/update/delete triggers that keep file checksum data in sync with the filecache.
+- MariaDB migration: shadow table, stored procedure, insert/update/delete
+  triggers in sync with the filecache.
 
-- Add the Application bootstrap that registers the Unified Search provider and the sidebar frontend scripts at runtime.
+- Application bootstrap: Unified Search provider and sidebar scripts
+  registered at runtime.
 
-- Add a REST API controller for looking up files by hash and retrieving all hashes for a given file ID.
+- REST API controller: files by hash, all hashes for a file id.
 
-- Add a Unified Search provider that matches raw hex hashes or algo:hash queries against indexed files the user has access to.
+- Unified Search provider: raw hex hashes or `algo:hash` queries against
+  the indexed files the user can access.
 
-- Add the core CLI commands for rebuilding the hash index, searching by hash, generating checksums, and benchmarking indexed lookup performance.
+- Core CLI commands: rebuild, search, generate, benchmark.
 
-- Add administrative CLI commands for reporting index status, purging, tearing down triggers, and removing the shadow table.
+- Administrative CLI commands: status, purge, tear down triggers, remove
+  the shadow table.
 
-- Add an admin settings page with a compatibility test and maintenance actions for purging, rebuilding, tearing down, and removing the index.
+- Admin settings page: a compatibility test and maintenance actions
+  (purge, rebuild, tear down, remove).
 
-- Add a Files app sidebar tab that displays a file's checksums as algorithm badges with hash values.
+- Files sidebar tab: a file's checksums as algorithm badges with values.
 
 ### Changed
 
-- Rework app lifecycle handling, dependency injection, the API, and assets to address findings from the initial code audit.
+- App lifecycle, dependency injection, the API and assets: reworked after
+  the initial code audit.
