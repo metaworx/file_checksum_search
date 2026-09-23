@@ -151,6 +151,24 @@ describe( 'FCIAS checksums sidebar', () => {
 			} ).then( ( res ) => {
 				fileIdB = extractFileId( res )
 			} )
+
+			// Both hashed here, over the API as the administrator, so no case
+			// depends on an earlier one having clicked Recalculate: the
+			// cross-account case reads file A's hash off the sidebar, and used
+			// to find it there only because the first case had put it there.
+			// Also this app's rows for accounts an earlier run deleted, so a
+			// count of files in a group is a count of files that exist.
+			cy.exec( `${ occ } fcias:repair --step orphaned-metadata`, { failOnNonZeroExit: false } )
+			cy.then( () => {
+				for ( const id of [ fileIdA, fileIdB ] ) {
+					cy.request( {
+						method: 'POST',
+						url: `/ocs/v2.php/apps/file_checksum_search/api/v1/file/${ id }/recalc?algo=sha1`,
+						auth: { user: adminUser, pass: adminPassword },
+						headers: { 'OCS-APIRequest': 'true' },
+					} ).its( 'body.success' ).should( 'eq', true )
+				}
+			} )
 		} )
 	} )
 
@@ -200,12 +218,12 @@ describe( 'FCIAS checksums sidebar', () => {
 	} )
 
 	// The way across accounts is one link, offered to those who may look
-	// across accounts and to nobody else. It lands on the Duplicates page's
-	// Others tab with this file's hash filled in and the whole reach named,
-	// so the group is already there — the administrator's own two copies
-	// as their paths behind a house, and the other account's as a location
-	// behind a person, as text, since a link to it would open to nothing.
-	it( 'offers the administrator the way across accounts, and an account nobody named not', () => {
+	// across accounts. It lands on the Duplicates page's Others tab with
+	// this file's hash filled in and the whole reach named, so the group is
+	// already there — the administrator's own two copies as their paths
+	// behind a house, and the other account's as a location behind a
+	// person, as text, since a link to it would open to nothing.
+	it( 'offers the administrator the way across accounts', () => {
 		expect( fileIdA, 'fileIdA should be resolved' ).to.be.a( 'number' ).and.greaterThan( 0 )
 
 		cy.env( [ 'NC_ADMIN_USER', 'NC_ADMIN_PASSWORD' ] ).then( ( env ) => {
@@ -245,8 +263,8 @@ describe( 'FCIAS checksums sidebar', () => {
 					} ).its( 'body.success' ).should( 'eq', true )
 				} )
 
-				// The administrator's file A, hashed by the first case; the
-				// button beside Find duplicates, and where it points.
+				// The administrator's file A, hashed in before(); the button
+				// beside Find duplicates, and where it points.
 				cy.login( adminUser, adminPassword )
 				cy.visit( fileUrl( fileIdA ) )
 				openChecksumsTab()
@@ -272,8 +290,17 @@ describe( 'FCIAS checksums sidebar', () => {
 
 				cy.fciasDeleteAccount( admin, owner.user )
 			} )
+		} )
+	} )
 
-			// An account nobody named gets the section, and no way across.
+	// An account nobody named gets the section, and no way across. Their
+	// file is hashed first, and the hash row waited for: the link is drawn
+	// beside a hash, so on an unhashed file its absence says nothing about
+	// whether this account may cross — which is what the case is about.
+	it( 'offers an account nobody named no way across', () => {
+		cy.env( [ 'NC_ADMIN_USER', 'NC_ADMIN_PASSWORD' ] ).then( ( env ) => {
+			const admin = { user: env.NC_ADMIN_USER || 'admin', password: env.NC_ADMIN_PASSWORD || 'admin' }
+
 			cy.fciasMakeAccount( admin, 'nobody' ).then( ( nobody ) => {
 				cy.clearCookies()
 				const theirs = ( path ) => `/remote.php/dav/files/${ nobody.user }${ path }`
@@ -293,10 +320,19 @@ describe( 'FCIAS checksums sidebar', () => {
 					body: propfindBody,
 				} ).then( ( res ) => {
 					const theirId = extractFileId( res )
+					expect( theirId, 'the account\'s copy should have an id' ).to.be.a( 'number' ).and.greaterThan( 0 )
+					cy.request( {
+						method: 'POST',
+						url: `/ocs/v2.php/apps/file_checksum_search/api/v1/file/${ theirId }/recalc?algo=sha1`,
+						auth: asThem,
+						headers: { 'OCS-APIRequest': 'true' },
+					} ).its( 'body.success' ).should( 'eq', true )
+
 					cy.login( nobody.user, nobody.password )
 					cy.visit( `/index.php/apps/files/files/${ theirId }?opendetails=true` )
 					openChecksumsTab()
-					cy.get( '.fcias-dup-btn', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+					cy.get( '.fcias-selectable-hash', { timeout: FIND_TIMEOUT } ).should( 'contain', DUP_SHA1 )
+					cy.get( '.fcias-dup-btn' ).should( 'exist' )
 					cy.get( '[data-testid="fcias-dup-across"]' ).should( 'not.exist' )
 				} )
 				cy.fciasDeleteAccount( admin, nobody.user )

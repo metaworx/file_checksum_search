@@ -139,7 +139,9 @@ measures at roughly five files a second against ddev.
 
 ## Running
 
-Set the environment contract above, then run the whole suite:
+Set the environment contract above, then run the whole suite. One run per
+instance at a time: the support file's `before()` deletes every
+`fcias_e2e_` account it finds, a concurrent run's included.
 
 ```bash
 CYPRESS_baseUrl=https://nextcloud-34.ddev.site \

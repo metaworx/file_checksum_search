@@ -386,7 +386,11 @@ describe( 'FCIAS Duplicates page', () => {
 
 		// A shared address should open, not refuse: what a field cannot
 		// take is clamped or dropped, and the address says what was kept.
+		// A visit that changes only the fragment does not load the page —
+		// Cypress, like a browser, raises `hashchange` — so the reload is
+		// what makes this a pasted address read on load.
 		cy.visit( `${ DUPLICATES_URL }#mine?algo=whirlpool&limit=9999` )
+		cy.reload()
 		cy.get( '#fcias-duplicates-limit', { timeout: FIND_TIMEOUT } ).should( 'have.value', '500' )
 		cy.location( 'hash' ).should( 'eq', '#mine?limit=500' )
 	} )

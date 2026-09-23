@@ -95,17 +95,26 @@ const reapE2eAccounts = () => {
 		if ( ! occ ) {
 			return
 		}
-		cy.exec( `${ occ } user:list --output=json`, { failOnNonZeroExit: false } )
+		// --limit 0: every account, not the first 500. A parse failure or a
+		// failed delete is logged rather than swallowed; neither fails the
+		// run, since the accounts are inert and the next run tries again.
+		cy.exec( `${ occ } user:list --output=json --limit 0`, { failOnNonZeroExit: false } )
 			.then( ( { stdout } ) => {
 				let users = {}
 				try {
 					users = JSON.parse( stdout )
 				} catch ( e ) {
+					cy.log( `reaper: could not read the account list: ${ String( stdout ).slice( 0, 200 ) }` )
 					return
 				}
 				for ( const user of Object.keys( users ) ) {
 					if ( user.startsWith( 'fcias_e2e_' ) ) {
-						cy.exec( `${ occ } user:delete ${ user }`, { failOnNonZeroExit: false } )
+						cy.exec( `${ occ } user:delete '${ user }'`, { failOnNonZeroExit: false } )
+							.then( ( { code, stderr } ) => {
+								if ( code !== 0 ) {
+									cy.log( `reaper: could not delete ${ user }: ${ stderr }` )
+								}
+							} )
 					}
 				}
 			} )
