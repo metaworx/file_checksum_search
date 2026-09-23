@@ -351,7 +351,7 @@ class HashIndexService
 	 * @param  string|list<string>|null  $userName  One account, several, or
 	 *                                              null for every file.
 	 *
-	 * @return array<int, array{path: string, name: string, storage_id: string, user: string}>
+	 * @return array<int, array{path: string, name: string, storage_id: string, owner: ?string, location: string}>
 	 */
 	public function batchLookupFilecachePaths(
 		array             $fileIds,

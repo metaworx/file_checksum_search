@@ -226,6 +226,10 @@ the first stable release.
 - Settings pages: notices show again, through `@nextcloud/dialogs`;
   `OC.Notification` no longer exists in Nextcloud 34.
 
+- `occ file-checksum-search:find-duplicates`: `owner` as the API says
+  it — empty for a group folder or an external storage, not the storage
+  id's last segment — and `location` beside it.
+
 ### Security
 
 - Periodic rule sweep: asks for stale rows only and resolves exclusion

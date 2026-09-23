@@ -79,8 +79,8 @@ class FindDuplicatesTest
 		$this->hashIndexService->method( 'batchLookupFilecachePaths' )
 		                       ->with( [ 42, 108 ], null )
 		                       ->willReturn( [
-			                       42  => [ 'path' => 'Docs/a.txt', 'name' => 'a.txt', 'storage_id' => 'home::alice', 'user' => 'alice' ],
-			                       108 => [ 'path' => 'Docs/b.txt', 'name' => 'b.txt', 'storage_id' => 'home::alice', 'user' => 'alice' ],
+			                       42  => [ 'path' => 'Docs/a.txt', 'name' => 'a.txt', 'storage_id' => 'home::alice', 'owner' => 'alice', 'location' => '/alice/files/Docs/a.txt' ],
+			                       108 => [ 'path' => 'Docs/b.txt', 'name' => 'b.txt', 'storage_id' => 'home::alice', 'owner' => 'alice', 'location' => '/alice/files/Docs/b.txt' ],
 		                       ] )
 		;
 
@@ -110,7 +110,7 @@ class FindDuplicatesTest
 		// Only one of the two file IDs resolves to a path.
 		$this->hashIndexService->method( 'batchLookupFilecachePaths' )
 		                       ->willReturn( [
-			                       42 => [ 'path' => 'Docs/a.txt', 'name' => 'a.txt', 'storage_id' => 'home::alice', 'user' => 'alice' ],
+			                       42 => [ 'path' => 'Docs/a.txt', 'name' => 'a.txt', 'storage_id' => 'home::alice', 'owner' => 'alice', 'location' => '/alice/files/Docs/a.txt' ],
 		                       ] )
 		;
 
@@ -176,8 +176,8 @@ class FindDuplicatesTest
 		;
 		$this->hashIndexService->method( 'batchLookupFilecachePaths' )
 		                       ->willReturn( [
-			                       42  => [ 'path' => 'a.txt', 'name' => 'a.txt', 'storage_id' => 'home::alice', 'user' => 'alice' ],
-			                       108 => [ 'path' => 'b.txt', 'name' => 'b.txt', 'storage_id' => 'home::alice', 'user' => 'alice' ],
+			                       42  => [ 'path' => 'a.txt', 'name' => 'a.txt', 'storage_id' => 'home::alice', 'owner' => 'alice', 'location' => '/alice/a.txt' ],
+			                       108 => [ 'path' => 'b.txt', 'name' => 'b.txt', 'storage_id' => 'home::alice', 'owner' => 'alice', 'location' => '/alice/b.txt' ],
 		                       ] )
 		;
 
@@ -204,8 +204,8 @@ class FindDuplicatesTest
 		;
 		$this->hashIndexService->method( 'batchLookupFilecachePaths' )
 		                       ->willReturn( [
-			                       42  => [ 'path' => 'a.txt', 'name' => 'a.txt', 'storage_id' => 'home::alice', 'user' => 'alice' ],
-			                       108 => [ 'path' => 'b.txt', 'name' => 'b.txt', 'storage_id' => 'home::alice', 'user' => 'alice' ],
+			                       42  => [ 'path' => 'a.txt', 'name' => 'a.txt', 'storage_id' => 'home::alice', 'owner' => 'alice', 'location' => '/alice/a.txt' ],
+			                       108 => [ 'path' => 'b.txt', 'name' => 'b.txt', 'storage_id' => 'home::alice', 'owner' => 'alice', 'location' => '/alice/b.txt' ],
 		                       ] )
 		;
 		$this->hashIndexService->method( 'recalcHash' )
@@ -238,8 +238,8 @@ class FindDuplicatesTest
 		;
 		$this->hashIndexService->method( 'batchLookupFilecachePaths' )
 		                       ->willReturn( [
-			                       42  => [ 'path' => 'a.txt', 'name' => 'a.txt', 'storage_id' => 'home::alice', 'user' => 'alice' ],
-			                       108 => [ 'path' => 'b.txt', 'name' => 'b.txt', 'storage_id' => 'home::alice', 'user' => 'alice' ],
+			                       42  => [ 'path' => 'a.txt', 'name' => 'a.txt', 'storage_id' => 'home::alice', 'owner' => 'alice', 'location' => '/alice/a.txt' ],
+			                       108 => [ 'path' => 'b.txt', 'name' => 'b.txt', 'storage_id' => 'home::alice', 'owner' => 'alice', 'location' => '/alice/b.txt' ],
 		                       ] )
 		;
 		$this->hashIndexService->method( 'recalcHash' )

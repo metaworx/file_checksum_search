@@ -947,17 +947,6 @@ class FilecacheService
 
 
 	/**
-	 * Batch-lookup filecache paths for a list of file IDs.
-	 *
-	 * Joins storages to resolve the storage ID for each file.
-	 * When $userName is provided, only files from that user's home
-	 * storage are returned (matched via storages.id = 'home::{uid}').
-	 *
-	 * @param  int[]        $fileIds
-	 * @param  string|null  $userName
-	 *
-	 * @return array<int, array{path: string, name: string, storage_id: string, user: string}>
-	 */
 	/**
 	 * Paths for a set of file ids, kept to those within the given mounts.
 	 *
@@ -974,7 +963,7 @@ class FilecacheService
 	 *         {@see ReachResolver::mountsFor()}: null for every file, an
 	 *         empty list for none.
 	 *
-	 * @return array<int, array{path: string, name: string, storage_id: string, user: string, owner: ?string, location: string}>
+	 * @return array<int, array{path: string, name: string, storage_id: string, owner: ?string, location: string}>
 	 *         `owner` is the uid a home file belongs to, null for a group
 	 *         folder or an external storage, which have none; `location` is
 	 *         {@see FileLocation::describe()}.
@@ -1054,29 +1043,21 @@ class FilecacheService
 
 		while ( ( $row = $result->fetch() ) !== false )
 		{
-			$sid  = (string) $row['id'];
-			$user = $sid;
-
-			if ( str_starts_with( $sid, 'home::' ) )
-			{
-				$user = substr( $sid, 6 );
-			}
-			elseif ( str_starts_with( $sid, 'local::' ) )
-			{
-				$user = basename( $sid );
-			}
+			$sid = (string) $row['id'];
 
 			// Whose file it is and where it really lives — the row's canonical
 			// identity, not any one viewer's path for it. Across accounts two
 			// rows can read `files/Templates/Certificate.odt` and be two
-			// people's files; the location is what tells them apart.
+			// people's files; the location is what tells them apart. One
+			// reading of the storage id, FileLocation's: the hand-rolled one
+			// that used to sit beside it called a group folder's basename and
+			// an object-store home's whole id the "user".
 			$location = FileLocation::fromRow( (int) $row['fileid'], $sid, (string) $row['path'], 0 );
 
 			$paths[ (int) $row['fileid'] ] = [
 				'path'       => (string) $row['path'],
 				'name'       => (string) $row['name'],
 				'storage_id' => $sid,
-				'user'       => $user,
 				'owner'      => $location->owner,
 				'location'   => $location->describe(),
 			];

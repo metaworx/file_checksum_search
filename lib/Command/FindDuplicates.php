@@ -206,11 +206,16 @@ class FindDuplicates
 					continue;
 				}
 
+				// The same identity the API's rows carry: the owner, or nothing
+				// for a group folder or an external storage, and where the
+				// file lives. The text form below prints the owner where
+				// there is one and the location where there is not.
 				$files[] = [
-					'fileid' => $fileId,
-					'path'   => $fcPaths[ $fileId ]['path'],
-					'name'   => $fcPaths[ $fileId ]['name'],
-					'owner'  => $fcPaths[ $fileId ]['user'],
+					'fileid'   => $fileId,
+					'path'     => $fcPaths[ $fileId ]['path'],
+					'name'     => $fcPaths[ $fileId ]['name'],
+					'owner'    => $fcPaths[ $fileId ]['owner'] ?? '',
+					'location' => $fcPaths[ $fileId ]['location'] ?? '',
 				];
 			}
 

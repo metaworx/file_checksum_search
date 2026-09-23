@@ -514,7 +514,7 @@ class FilecacheServiceTest
 		$this->assertSame( 'files/Documents', $result[42]['path'] );
 		$this->assertSame( 'report.pdf', $result[42]['name'] );
 		$this->assertSame( 'home::admin', $result[42]['storage_id'] );
-		$this->assertSame( 'admin', $result[42]['user'] );
+		$this->assertArrayNotHasKey( 'user', $result[42], 'the hand-rolled reading of the storage id is gone; owner is the one' );
 
 		// Whose file, and where it really lives — the row's identity rather
 		// than any one viewer's path for it.
@@ -568,7 +568,7 @@ class FilecacheServiceTest
 
 		$this->assertCount( 1, $result );
 		$this->assertArrayHasKey( 42, $result );
-		$this->assertSame( 'admin', $result[42]['user'] );
+		$this->assertSame( 'admin', $result[42]['owner'] );
 	}
 
 
@@ -587,7 +587,12 @@ class FilecacheServiceTest
 	}
 
 
-	public function testBatchLookupFilecachePathsExtractsUserFromLocalStorage(): void
+	/**
+	 * A local storage used to yield a "user" — the last segment of its id,
+	 * `user1` here — which the occ command then printed as the owner. It is
+	 * nobody's home, and the row says so now.
+	 */
+	public function testBatchLookupFilecachePathsOwnsNoLocalStorageFile(): void
 	{
 
 		$fileIds  = [ 42 ];
@@ -616,7 +621,7 @@ class FilecacheServiceTest
 		$result = $this->service->batchLookupFilecachePaths( $fileIds );
 
 		$this->assertCount( 1, $result );
-		$this->assertSame( 'user1', $result[42]['user'] );
+		$this->assertArrayNotHasKey( 'user', $result[42] );
 
 		// An external storage belongs to nobody: no owner, and a location
 		// that names the storage rather than pretending to a home.
