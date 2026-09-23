@@ -1164,21 +1164,21 @@ does not affect another user, nor their own access to the other endpoints.
 
 | Endpoint | Limit |
 |----------|-------|
-| `GET /api/v1/lookup` | 60 requests / 60 s |
-| `GET /api/v1/duplicates` | 60 requests / 60 s |
-| `GET /api/v1/file/{fileId}/duplicates` | 60 requests / 60 s |
+| `GET /api/v1/lookup` and `/sudo/lookup` | 60 requests / 60 s |
+| `GET /api/v1/duplicates` and `/sudo/duplicates` | 60 requests / 60 s |
+| `GET /api/v1/file/{fileId}/duplicates` and its `/sudo/` twin | 60 requests / 60 s |
 | `GET /api/v1/sudo/selectable` | 60 requests / 60 s |
-| `POST /api/v1/file/{fileId}/recalc` | 20 requests / 60 s |
-| `POST /api/v1/sudo/file/{fileId}/recalc` | 20 requests / 60 s |
-| `POST /api/v1/file/many/recalc` | 20 requests / 60 s |
-| `POST /api/v1/sudo/file/many/recalc` | 20 requests / 60 s |
+| `POST /api/v1/file/{fileId}/recalc` and its `/sudo/` twin | 20 requests / 60 s |
+| `POST /api/v1/file/many/recalc` and its `/sudo/` twin | 20 requests / 60 s |
 
-Recalculation is limited more tightly because it reads file content from storage.
-The limit counts requests, not files: one batch request reads up to 25 files or
+A cross-account twin carries the limit its ordinary route carries: the work
+is the same, and a password confirmation is not a throttle. Recalculation is
+limited more tightly because it reads file content from storage. The limit
+counts requests, not files: one batch request reads up to 25 files or
 100 MiB, so a client verifying many files sends batches rather than single
-recalculations. The remaining endpoints (`/status`, `/file/{fileId}/hashes`,
-the other `/sudo/` reads) are index lookups behind a password confirmation and
-are not rate limited.
+recalculations. The remaining endpoints (`/status`, `/file/{fileId}/hashes`
+and its `/sudo/` twin, the rules, the algorithms, the preferences) are
+single-row reads or writes and are not rate limited.
 
 Requests are counted only for authenticated users. There is no anonymous limit, because
 every endpoint requires authentication in the first place.

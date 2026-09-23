@@ -712,6 +712,7 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[UserRateLimit( limit: 60, period: 60 )]
 	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/duplicates' )]
 	public function sudoFindAllDuplicates(
 		?string $algo = null,
@@ -823,6 +824,7 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[UserRateLimit( limit: 60, period: 60 )]
 	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/file/{fileId}/duplicates', requirements: [ 'fileId' => '\d+' ] )]
 	public function sudoFindDuplicates( int $fileId ): DataResponse
 	{
@@ -973,6 +975,7 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[UserRateLimit( limit: 60, period: 60 )]
 	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/lookup' )]
 	public function sudoLookup(
 		string  $hash,

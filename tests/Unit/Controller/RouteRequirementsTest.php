@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
 use OCA\FileChecksumSearch\Controller\PublicApiController;
 use OCP\AppFramework\Http\Attribute\ApiRoute;
+use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 
@@ -84,6 +85,77 @@ class RouteRequirementsTest
 		self::assertContains( '/api/v1/sudo/file/many/recalc', $urls );
 		self::assertContains( '/api/v1/file/{fileId}/recalc', $urls );
 		self::assertContains( '/api/v1/sudo/file/{fileId}/recalc', $urls );
+	}
+
+
+	/**
+	 * @return array<string, array{int, int}|null>  url => [limit, period], or null for none
+	 */
+	private static function rateLimits(): array
+	{
+
+		$limits = [];
+
+		foreach ( ( new ReflectionClass( PublicApiController::class ) )->getMethods() as $method )
+		{
+			foreach ( $method->getAttributes( ApiRoute::class ) as $attribute )
+			{
+				/** @var ApiRoute $route */
+				$route = $attribute->newInstance();
+				$limit = null;
+
+				foreach ( $method->getAttributes( UserRateLimit::class ) as $rate )
+				{
+					/** @var UserRateLimit $rate */
+					$rate  = $rate->newInstance();
+					$limit = [ $rate->getLimit(), $rate->getPeriod() ];
+				}
+
+				$limits[ $route->getUrl() ] = $limit;
+			}
+		}
+
+		return $limits;
+	}
+
+
+	/**
+	 * A cross-account twin does the work its ordinary route does, and a
+	 * password confirmation is not a throttle. So whatever limit the one
+	 * carries, the other carries too — in both directions, so that a limit
+	 * added to one side is not forgotten on the other.
+	 */
+	public function testEveryCrossAccountTwinCarriesItsOrdinaryRoutesRateLimit(): void
+	{
+
+		$limits = self::rateLimits();
+		$pairs  = 0;
+
+		foreach ( $limits as $url => $limit )
+		{
+			if ( ! str_starts_with( $url, '/api/v1/sudo/' ) )
+			{
+				continue;
+			}
+
+			$twin = '/api/v1/' . substr( $url, strlen( '/api/v1/sudo/' ) );
+
+			if ( ! array_key_exists( $twin, $limits ) )
+			{
+				// /sudo/selectable has no ordinary twin; nothing to keep in step.
+				continue;
+			}
+
+			$pairs++;
+
+			self::assertSame(
+				$limits[ $twin ],
+				$limit,
+				"$url must carry the rate limit of $twin, or none as it has none",
+			);
+		}
+
+		self::assertGreaterThanOrEqual( 6, $pairs, 'the six twins, at least' );
 	}
 
 }

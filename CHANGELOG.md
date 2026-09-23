@@ -77,9 +77,10 @@ the first stable release.
 - `POST /api/v1/file/many/recalc` and its `/sudo/` twin: one request
   verifies up to 25 files or 100 MiB; the Duplicates page sends chunks.
 
-- Rate limits per user: 60/min on `lookup`, both duplicates routes and
-  `sudo/selectable`; 20/min on every recalc route. The 429 is
-  Nextcloud's, empty; `ratelimit_overwrite` changes the limits.
+- Rate limits per user: 60/min on `lookup`, both duplicates routes,
+  their `/sudo/` twins and `sudo/selectable`; 20/min on every recalc
+  route. The 429 is Nextcloud's, empty; `ratelimit_overwrite` changes
+  the limits.
 
 - `hash` and `anywhere` on `/api/v1/duplicates` and its twin, a *Hash*
   field and *Search anywhere* on the page: only the groups a hash names.
