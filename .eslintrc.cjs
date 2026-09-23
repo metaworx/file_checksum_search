@@ -22,4 +22,25 @@ module.exports = {
 		'jsdoc/require-param-description': 'warn',
 		'vue/first-attribute-linebreak': 'off',
 	},
+	overrides: [
+		{
+			// A spec mounts the real Nextcloud components. The runner inlines
+			// the library and defines what it needs (vitest.config.ts,
+			// vitest.setup.ts), and src/test-utils/ drives the controls that
+			// open menus; a stand-in written for a spec tests the author's idea
+			// of the control, which is what forty-eight of them once did. A mock
+			// of the server or of the page — @nextcloud/router, @nextcloud/axios,
+			// @nextcloud/l10n — stays fair game.
+			files: ['src/**/*.spec.ts'],
+			rules: {
+				'no-restricted-syntax': [
+					'error',
+					{
+						selector: 'CallExpression[callee.object.name="vi"][callee.property.name="mock"] > Literal[value=/^@nextcloud\\u002fvue\\u002f/]',
+						message: 'Mount the real Nextcloud component; the runner can load it. See vitest.setup.ts and src/test-utils/.',
+					},
+				],
+			},
+		},
+	],
 }

@@ -33,7 +33,7 @@ refer to linked documents for extended guidance.
   6. Commit Policy (STRICT)
   7. Additional References
   8. Document Governance
-- File Checksum Index & Search — Project Contract (v2.0.0)
+- File Checksum Index & Search — Project Contract (v2.1.0)
   1. Project Facts
   2. Primary References
   3. Project-Specific Conventions
@@ -42,6 +42,7 @@ refer to linked documents for extended guidance.
     - 3.3 CHANGELOG.md is mandatory here
     - 3.4 Roo Code prompts
     - 3.5 The harness that tests this app is a separate repository
+    - 3.6 Frontend specs mount the real Nextcloud components
   4. Document Governance
   5. Version History
 <!-- END GENERATED CONTENTS -->
@@ -270,7 +271,7 @@ Their values come from `GUIDELINES/config.ini`.
 ---
 
 
-# File Checksum Index & Search — Project Contract (v2.0.0)
+# File Checksum Index & Search — Project Contract (v2.1.0)
 
 What binds work in this project, for everyone working on it. Inlined into
 `/AGENTS.md` for agents and into `GUIDELINES/README.md` for people, so
@@ -345,6 +346,18 @@ the change is not project-specific, port it there as well.
 into them. It has its own contract; a change to how instances are built belongs
 there, not here.
 
+### 3.6 Frontend specs mount the real Nextcloud components
+
+A Vitest spec under `src/` mounts `@nextcloud/vue`'s components as they are,
+never a stand-in written for the spec: the runner inlines the library and
+defines what it needs (`vitest.config.ts`, `vitest.setup.ts`), and
+`src/test-utils/` drives the controls that open menus — `NcSelect` and
+`NcActions` — the way a person does. `.eslintrc.cjs` refuses
+`vi.mock('@nextcloud/vue/…')` in a spec. A mock of the server or of the page
+(`@nextcloud/router`, `@nextcloud/axios`, `@nextcloud/l10n`, the app's own
+modules) is the spec's to write, and spreads the original where it names
+only part of a module.
+
 ## 4. Document Governance
 
 - This document follows the shared governance rules in `GUIDELINES/shared/GOVERNANCE.md`.
@@ -353,6 +366,7 @@ there, not here.
 
 | Version | Date       | Changed sections | Change type | Agent impact |
 |---------|------------|------------------|-------------|--------------|
+| v2.1.0  | 2026-09-23 | 3                | minor       | §3.6: a frontend spec mounts the real Nextcloud components; the runner's config and `src/test-utils/` make that possible, and the lint rule keeps it so. Mocks of the server and the page stay the spec's. |
 | v2.0.0  | 2026-08-27 | All              | major       | Becomes the fragment `project/_CONTRACT.md` under `GUIDELINES/`, inlined into the human-facing `GUIDELINES/README.md` as well as `AGENTS.md`. Placeholders move from the v2-era `{{.aiassistant_root}}` / `{{.aiassistant_shared}}`, which this document still carried and the generator had long stopped substituting, to `GUIDELINES` / `GUIDELINES/shared`. The contract is cited as `/AGENTS.md`; the languages row points at `project.languages` and says which of this project's languages have no shared baseline; the version manifest no longer names a version number that had gone stale; §3.5 names the harness repository. |
 | v1.1.0  | 2026-08-25 | 1, 3             | minor       | Removes the absolute repository root; the root is derived and Windows hosts prefix with wsl --cd "$PWD". |
 | v1.0.0  | 2026-08-25 | All              | major       | Replaces this project's own copies of the agent documents with the shared submodule plus these project facts. The documents removed here (AGENTS.md v2.6.0, ENVIRONMENTS.md, the testing and linting baselines) were the newest lineage in the set and are preserved in the shared repository's history. |

@@ -17,10 +17,9 @@ export default defineConfig({
 		// @nextcloud/vue 9 ships its components as ES modules that import
 		// their stylesheets, ninety-odd `import './assets/….css'` across the
 		// dist. Left external, they go through Node's own loader, which has no
-		// idea what a .css file is — every spec in this suite mocked every
-		// Nextcloud component to stay clear of that, and tested a stand-in.
-		// Inlined, they go through Vite, which knows. Measured on the whole
-		// suite: no difference in duration.
+		// idea what a .css file is; inlined, they go through Vite, which knows.
+		// This is what lets a spec mount the real component rather than a
+		// stand-in, and .eslintrc.cjs holds the specs to that.
 		server: { deps: { inline: [/@nextcloud\/vue/] } },
 		// What the runner's DOM must not do for those components; see the file.
 		setupFiles: ['./vitest.setup.ts'],
