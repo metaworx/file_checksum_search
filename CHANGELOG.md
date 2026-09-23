@@ -138,7 +138,8 @@ the first stable release.
   and band, `<band>.<position>` as text, the personal page showing the
   enforced rules above and the defaults below the user's own; a pen
   icon beside each row's menu; group folders named as the groupfolders
-  app names them.
+  app names them, and the Scope column with the same glyph per kind of
+  place the duplicate rows use.
 
 - Duplicates page: **Verify all** per group and **Verify** per file
   replace the page-wide button and the *Only matching* filter; a 429
@@ -146,8 +147,10 @@ the first stable release.
   Nextcloud's, labelled, with help buttons.
 
 - Every file row: `owner` and `location` (`FileLocation::describe()`),
-  shown in place of the path where the file is not the viewer's own;
-  cross-account rows carry `openable`, and link only where true.
+  shown in place of the path where the file is not the viewer's own,
+  with a glyph for the kind of place — the viewer's own, somebody's
+  home, a group folder, a storage; cross-account rows carry `openable`,
+  and link only where true.
 
 - `GET /api/v1/status`: a non-administrator gets the version alone.
 

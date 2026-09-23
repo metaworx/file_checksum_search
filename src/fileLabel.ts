@@ -38,11 +38,38 @@ export function currentUid(): string | null {
  * and shows its location too.
  */
 export function fileLabel(file: LabelledFile, uid: string | null = currentUid()): string {
-	const own = file.owner !== undefined && file.owner !== null && file.owner === uid
-
-	if (!own && file.location) {
-		return file.location
+	if (labelIsLocation(file, uid)) {
+		return file.location as string
 	}
 
 	return file.path || file.name || ''
+}
+
+function labelIsLocation(file: LabelledFile, uid: string | null): boolean {
+	const own = file.owner !== undefined && file.owner !== null && file.owner === uid
+	return !own && !!file.location
+}
+
+/** The kinds of place a label names: the viewer's own file, or a location by its prefix. */
+export type FileLocationKind = 'own' | 'home' | 'groupfolder' | 'storage'
+
+/**
+ * What kind of place the label names, for the glyph before it: `own` for
+ * the viewer's own file, else the location's kind. Null only where the
+ * row says nothing — no owner and no location, an older server's row —
+ * or for a location of a shape this does not know.
+ */
+export function labelKind(file: LabelledFile, uid: string | null = currentUid()): FileLocationKind | null {
+	if (!labelIsLocation(file, uid)) {
+		const own = file.owner !== undefined && file.owner !== null && file.owner === uid
+		return own ? 'own' : null
+	}
+	const location = file.location as string
+	if (location.startsWith('groupfolder:')) {
+		return 'groupfolder'
+	}
+	if (location.startsWith('storage:')) {
+		return 'storage'
+	}
+	return location.startsWith('/') ? 'home' : null
 }

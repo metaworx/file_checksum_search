@@ -106,8 +106,11 @@ permissions and after their own password.
 
 Each row on *Others* says whose file it is and where it lives — so three
 accounts' copies of one template read as three rows, not as the same path
-three times. Your own files, if they turn up in the list, show the path you
-know them by.
+three times — with a small glyph in front saying what kind of place that
+is: a house for your own file, a person for somebody else's home folder, a
+folder with a person for a group folder, a disk for another storage. Hover
+it and it says so in words. Your own files, if they turn up in the list,
+show the path you know them by.
 
 **Verify all** and **Verify** work here too, under your own permission to
 calculate by hand: looking at somebody's files does not borrow their
@@ -200,8 +203,11 @@ that column's values mean.
 
 The **Scope** column says what each rule is about: your own files, everyone's
 home folders, a group you are in, a team folder, or everything on the server.
-A file shared with you is decided by its owner's rules, not by yours — the rule
-follows the file, not the person looking at it.
+The glyph in front is the same one the Duplicates page puts before a file's
+location — a person, a group, houses, a folder with a person, a disk, an
+asterisk — and hovering it says the kind in words. A file shared with you is
+decided by its owner's rules, not by yours — the rule follows the file, not
+the person looking at it.
 
 You will normally see three kinds of row:
 

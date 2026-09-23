@@ -8,7 +8,8 @@
 
 import { ref, computed } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
-import { fileLabel } from '../../fileLabel'
+import LocationIcon from '../../components/LocationIcon.vue'
+import { fileLabel, labelKind } from '../../fileLabel'
 import type { DuplicateGroup as GroupType } from '../composables/useDuplicates'
 
 const props = defineProps<{
@@ -71,13 +72,16 @@ function toggle(): void {
 						<!-- The viewer's own files by the path they know; anyone
 						     else's by where they live, or three accounts' copies
 						     of one template read as the same row three times. -->
+						<!-- The glyph rides inside the label, so the label's text is
+						     still the label: a location gets one for its kind of
+						     place, a plain path none. -->
 						<a v-if="file.openable !== false"
 							:href="fileUrl(file)"
 							target="_blank"
-							rel="noreferrer noopener">{{ fileLabel(file) }}</a>
+							rel="noreferrer noopener"><LocationIcon v-if="labelKind(file)" :kind="labelKind(file)!" :size="14" />{{ fileLabel(file) }}</a>
 						<!-- A link resolves in the viewer's own folder; a file they do
 						     not hold would only open to "not found". -->
-						<span v-else class="db-file-unopenable" title="Not in your files">{{ fileLabel(file) }}</span>
+						<span v-else class="db-file-unopenable" title="Not in your files"><LocationIcon v-if="labelKind(file)" :kind="labelKind(file)!" :size="14" />{{ fileLabel(file) }}</span>
 						<span v-if="file.verified === true" class="db-verified">✓</span>
 						<span v-else-if="file.verified === false" class="db-mismatch">✗ ({{ file.verify_error || (file.verified_hash ? `now: ${file.verified_hash}` : '?') }})</span>
 					</span>

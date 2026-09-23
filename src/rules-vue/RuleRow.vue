@@ -10,9 +10,10 @@
 import { computed } from 'vue'
 import NcActions from '@nextcloud/vue/components/NcActions'
 import NcActionButton from '@nextcloud/vue/components/NcActionButton'
+import LocationIcon from '../components/LocationIcon.vue'
 import MdiIcon from '../components/MdiIcon.vue'
 import { ICON_BIN, ICON_PAUSE, ICON_PENCIL, ICON_PLAY, ICON_REFRESH } from '../components/icons'
-import { priorityLabel, selectorLabel } from './bands'
+import { priorityLabel, selectorKind, selectorLabel } from './bands'
 import type { GroupFolderOption, Rule } from './types'
 
 const props = defineProps<{
@@ -92,6 +93,9 @@ const canReapply = computed(() => props.rule.enabled && computesHashes.value)
 			{{ priorityLabel(rule) }}
 		</td>
 		<td :title="scopeLabel">
+			<!-- The same glyphs the duplicate rows use for where a file lives:
+			     what a rule addresses is the same set of places. -->
+			<LocationIcon :kind="selectorKind(rule.selector || '*')" />
 			{{ scopeLabel }}
 			<span
 				v-if="providerMissing"

@@ -82,6 +82,23 @@ describe('RuleRow', () => {
 		expect(universal.findAll('td')[COL.scope].text()).toBe('Everything')
 	})
 
+	// One glyph per kind of place, before the words, titled with the kind.
+	it.each([
+		['home:alice', 'user'],
+		['group:staff', 'group'],
+		['home:*', 'homeAll'],
+		['groupfolder:3', 'groupfolder'],
+		['storage:7', 'storage'],
+		['*', 'universal'],
+	])('marks the scope %s with the %s glyph', (selector, kind) => {
+		const wrapper = mount(RuleRow, {
+			props: { rule: makeRule({ selector }), variant: 'admin' },
+		})
+		const icon = wrapper.findAll('td')[COL.scope].find('.fcias-location-icon')
+		expect(icon.attributes('data-kind')).toBe(kind)
+		expect(icon.attributes('title')).not.toBe('')
+	})
+
 	it('shows no algorithms or mode for a rule that computes nothing', () => {
 		const wrapper = mount(RuleRow, {
 			props: { rule: makeRule({ type: 'exclude' }), variant: 'admin' },

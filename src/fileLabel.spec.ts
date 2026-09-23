@@ -4,7 +4,7 @@
  */
 
 import { afterEach, describe, expect, it } from 'vitest'
-import { currentUid, fileLabel } from './fileLabel'
+import { currentUid, fileLabel, labelKind } from './fileLabel'
 
 describe('fileLabel', () => {
 	afterEach(() => {
@@ -53,5 +53,26 @@ describe('fileLabel', () => {
 	it('knows no viewer on a page that names none', () => {
 		expect(currentUid()).toBeNull()
 		expect(fileLabel(mine)).toBe('/alice/files/Templates/Certificate.odt')
+	})
+})
+
+// The glyph before a label: a house for the viewer's own file, and for
+// anyone else's the kind of place its location names, by the prefix.
+describe('labelKind', () => {
+	const mine = { path: '/Templates/Certificate.odt', owner: 'alice', location: '/alice/files/Templates/Certificate.odt' }
+
+	it('is a house for the viewer\'s own file, whose label is its path', () => {
+		expect(labelKind(mine, 'alice')).toBe('own')
+	})
+
+	it('reads a home, a group folder and a storage off the location', () => {
+		expect(labelKind(mine, 'bob')).toBe('home')
+		expect(labelKind({ path: '/plan.md', owner: null, location: 'groupfolder:3/plan.md' }, 'bob')).toBe('groupfolder')
+		expect(labelKind({ path: '/x.bin', owner: null, location: 'storage:7/x.bin' }, 'bob')).toBe('storage')
+	})
+
+	it('is nothing for a row that says neither owner nor location, or a location of a shape it does not know', () => {
+		expect(labelKind({ path: '/a.txt' }, 'bob')).toBeNull()
+		expect(labelKind({ path: '/a.txt', owner: null, location: 'elsewhere' }, 'bob')).toBeNull()
 	})
 })

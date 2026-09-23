@@ -14,8 +14,9 @@ import { translate as t } from '@nextcloud/l10n'
 import { generateUrl } from '@nextcloud/router'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import { FRONTEND } from '../routes'
-import { fileLabel } from '../fileLabel'
+import { fileLabel, labelKind } from '../fileLabel'
 import AlgorithmSelect from '../components/AlgorithmSelect.vue'
+import LocationIcon from '../components/LocationIcon.vue'
 import { type AlgoOption, fetchAlgorithms } from '../algorithms'
 import { crossAccountUrl, hashForLink } from './crossAccountLink'
 import { useSidebarHashes } from './composables/useSidebarHashes'
@@ -246,8 +247,8 @@ watch(
 									class="fcias-dup-item-link"
 									:href="fileLink(file)"
 									target="_blank"
-									rel="noreferrer noopener">{{ fileLabel(file) }}</a>
-								<span v-else class="fcias-dup-item-unopenable" title="Not in your files">{{ fileLabel(file) }}</span>
+									rel="noreferrer noopener"><LocationIcon v-if="labelKind(file)" :kind="labelKind(file)!" :size="14" />{{ fileLabel(file) }}</a>
+								<span v-else class="fcias-dup-item-unopenable" title="Not in your files"><LocationIcon v-if="labelKind(file)" :kind="labelKind(file)!" :size="14" />{{ fileLabel(file) }}</span>
 							</li>
 						</ul>
 					</div>
