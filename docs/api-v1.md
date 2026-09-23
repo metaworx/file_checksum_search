@@ -1061,12 +1061,23 @@ not read refuses the whole request with 403 rather than quietly narrowing it:
 a listing that answers for fewer accounts than were asked for hides the
 refusal.
 
-**`GET /api/v1/sudo/selectable`** answers what the caller may name — `groups`, `users`, `all`
-for a sudoer, and `prefill` saying whether those lists are complete. When
-`prefill` is false there are more than the picker holds at once and it must
-pass `?search=` as the user types. The threshold is an instance setting
-(admin settings → *Advanced*), 21 by default. An account that may name nobody
-gets 403.
+**`GET /api/v1/sudo/selectable`** answers what the caller may name — `groups`
+and `users`, with `prefill` saying whether those lists are complete — and
+whether they may ask for their whole reach at once by naming nothing: `all`,
+true for everyone this route answers, and `reach`, which says whose reach
+that is (`everyone` for a sudoer, `groups` for a sub-admin; the picker
+labels the option *All accounts* or *All my groups* from it). When `prefill`
+is false there are more than the picker holds at once and it must pass
+`?search=` as the user types. The threshold is an instance setting (admin
+settings → *Advanced*), 21 by default. An account that may name nobody gets
+403.
+
+The Duplicates page keeps what it shows in the URL fragment —
+`#others?hash=<hash>&algo=<algo>&all=1`, or `users=`/`groups=` repeated in
+place of `all=1`, with `anywhere`, `minCount`, `limit` and `offset` as on the
+routes — so a search can be bookmarked or handed to someone. Every read the
+page then makes is authorised and confirmed as above, so a URL reveals
+nothing on its own.
 
 **Confirmation.** Each twin requires one of two things: a session that
 confirmed its password within the last thirty minutes — Nextcloud's own

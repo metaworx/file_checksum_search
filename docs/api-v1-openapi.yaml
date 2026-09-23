@@ -530,7 +530,17 @@ paths:
                     description: Whether the lists below are complete
                   all:
                     type: boolean
-                    description: Whether the caller may also ask for every account at once
+                    description: >-
+                      Whether the caller may ask for their whole reach at once by naming nothing —
+                      true for everyone this route answers at all.
+                  reach:
+                    type: string
+                    enum: [everyone, groups]
+                    description: >-
+                      Whose reach that is: every account for a member of `admin` or anyone the
+                      `instance_view` permission names, the members of the groups they administer
+                      for a sub-admin. The picker labels the option *All accounts* or *All my
+                      groups* from this.
                   groups:
                     type: array
                     items:

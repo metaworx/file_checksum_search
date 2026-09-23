@@ -341,7 +341,8 @@ class ReachTest
 
 		$this->assertSame( 200, $member['status'] );
 		$this->assertSame( [ self::$recipientUid ], array_column( $member['body']['users'], 'id' ) );
-		$this->assertFalse( $member['body']['all'] );
+		$this->assertTrue( $member['body']['all'], 'the whole reach is always on offer' );
+		$this->assertSame( 'groups', $member['body']['reach'], 'and for a leader it is their groups' );
 
 		$stranger = $this->get( '/api/v1/sudo/selectable?search=' . self::$ownerUid, self::$leaderUid, self::$leaderPassword );
 

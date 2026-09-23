@@ -79,4 +79,58 @@ describe('TargetPicker', () => {
 		await flushPromises()
 		expect(fetchMock).toHaveBeenCalledTimes(1)
 	})
+
+	// "All" is the caller's whole reach, and the server says whose: every
+	// account for a sudoer, their groups' members for a leader. The label
+	// says the same, so a leader is not promised everyone.
+	it('calls the whole reach by what it is', async () => {
+		vi.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(jsonResponse({ prefill: true, all: true, reach: 'groups', groups: [], users: [] }))
+
+		const wrapper = mount(TargetPicker)
+		await flushPromises()
+
+		const options = wrapper.findComponent({ name: 'NcSelect' }).props('options') as Array<{ label: string }>
+		expect(options.map((o) => o.label)).toEqual(['All my groups'])
+	})
+
+	it('calls it All accounts for a sudoer', async () => {
+		vi.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(jsonResponse({ prefill: true, all: true, reach: 'everyone', groups: [], users: [] }))
+
+		const wrapper = mount(TargetPicker)
+		await flushPromises()
+
+		const options = wrapper.findComponent({ name: 'NcSelect' }).props('options') as Array<{ label: string }>
+		expect(options.map((o) => o.label)).toEqual(['All accounts'])
+	})
+
+	// The scope is the page's, and may come from the URL before the list
+	// has answered: the control shows it at once, by id, and takes the
+	// list's own label for it once the list is there.
+	it('shows a scope it is given, and relabels it once the list arrives', async () => {
+		vi.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(jsonResponse({
+				prefill: true,
+				all: true,
+				reach: 'everyone',
+				groups: [{ id: 'team', label: 'Team' }],
+				users: [{ id: 'alice', label: 'Alice A.' }],
+			}))
+
+		const wrapper = mount(TargetPicker, {
+			props: { scope: { all: false, users: ['alice'], groups: ['team'] } },
+		})
+
+		let selected = wrapper.findComponent({ name: 'NcSelect' }).props('modelValue') as Array<{ id: string, label: string }>
+		expect(selected.map((o) => o.label)).toEqual(['team (Group)', 'alice'])
+
+		await flushPromises()
+		selected = wrapper.findComponent({ name: 'NcSelect' }).props('modelValue') as Array<{ id: string, label: string }>
+		expect(selected.map((o) => o.label)).toEqual(['Team (Group)', 'Alice A.'])
+
+		await wrapper.setProps({ scope: { all: true, users: [], groups: [] } })
+		selected = wrapper.findComponent({ name: 'NcSelect' }).props('modelValue') as Array<{ id: string, label: string }>
+		expect(selected.map((o) => o.label)).toEqual(['All accounts'])
+	})
 })

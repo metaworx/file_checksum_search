@@ -217,7 +217,11 @@ class SudoRouteTest
 			$offer = $this->get( '/api/v1/sudo/selectable', self::$password );
 
 			$this->assertSame( 200, $offer['status'] );
-			$this->assertFalse( $offer['body']['all'], 'but may not name everyone' );
+			// "All" is offered to a leader too — as their whole reach, which
+			// the routes below answer when nothing is named — and `reach`
+			// says it is their groups, not everyone.
+			$this->assertTrue( $offer['body']['all'], 'a leader may ask for their whole reach at once' );
+			$this->assertSame( 'groups', $offer['body']['reach'] );
 			$this->assertSame( [ self::TEST_GROUP ], array_column( $offer['body']['groups'], 'id' ) );
 
 			// The two routes that take no target serve a leader their

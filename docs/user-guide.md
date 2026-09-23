@@ -95,8 +95,14 @@ how a copy held by two different people shows up as one group.
 What you may name depends on who you are. An administrator may name anyone,
 and has an **All accounts** option besides. If you lead groups — a *group
 administrator* in Nextcloud's terms — you may name your own groups and their
-members, and nothing else. The picker only ever offers what you may have; on
-a large server it searches as you type instead of listing everyone.
+members, and nothing else; your option for all of them at once reads **All
+my groups**. The picker only ever offers what you may have; on a large
+server it searches as you type instead of listing everyone.
+
+The address bar follows what you are looking at — the tab, the filters, the
+page and, on *Others*, whose files — so a bookmark brings the same view
+back, and a link you copy shows a colleague the same search, under their own
+permissions and after their own password.
 
 Each row on *Others* says whose file it is and where it lives — so three
 accounts' copies of one template read as three rows, not as the same path

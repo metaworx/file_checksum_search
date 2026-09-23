@@ -23,8 +23,14 @@ import { fetchAlgorithms } from '../algorithms'
 import { confirmPassword } from '@nextcloud/password-confirmation'
 import '@nextcloud/password-confirmation/style.css'
 import type { DuplicateScope } from './composables/useDuplicates'
-
-type Tab = 'mine' | 'others' | 'help'
+import {
+	fragmentFor,
+	listingFromParams,
+	parseFragment,
+	scopeFromParams,
+	type ListingParams,
+	type Tab,
+} from './urlState'
 
 // The filter offers what the instance computes, read from the server: a
 // list carried here would be wrong the day an administrator enabled an
@@ -43,13 +49,69 @@ fetchAlgorithms()
 /** Whether the viewer may look across accounts; the ordinary listing says. */
 const canSudo = ref(false)
 
-/** What the picker has named. Never persisted — a reload starts over. */
-const crossScope = ref<DuplicateScope>({ all: false, users: [], groups: [] })
+// The address bar is the page's state: the tab, then its filters, page and
+// — on Others — scope, as `#others?hash=…&all=1`. Read here before the
+// listings mount, so the first load is already the one the URL asks for,
+// and written back on every change, so the address can be shared.
+const initial = parseFragment(window.location.hash)
+
+/** What each listing is told to show; changed only by the URL. */
+const mineParams = ref<ListingParams | null>(initial.tab === 'mine' ? listingFromParams(initial.params) : null)
+const othersParams = ref<ListingParams | null>(initial.tab === 'others' ? listingFromParams(initial.params) : null)
+
+/** What each listing last reported showing; what the address bar says. */
+const mineState = ref<ListingParams | null>(null)
+const othersState = ref<ListingParams | null>(null)
+
+/** What the picker, or the URL, has named. */
+const crossScope = ref<DuplicateScope>(
+	initial.tab === 'others' ? scopeFromParams(initial.params) : { all: false, users: [], groups: [] },
+)
 
 /** Set once the password has been confirmed for this window. */
 const confirmed = ref(false)
 
 const activeTab = ref<Tab>('mine')
+
+function fragmentOf(tab: Tab): string {
+	if (tab === 'mine') {
+		return fragmentFor('mine', mineState.value)
+	}
+	if (tab === 'others') {
+		return fragmentFor('others', othersState.value, crossScope.value)
+	}
+	return fragmentFor('help')
+}
+
+/**
+ * The address bar follows the active tab. Replaced, not pushed: a keystroke
+ * in a filter is not a place to go back to. A tab change is, and pushes.
+ */
+function writeUrl(push = false): void {
+	const next = fragmentOf(activeTab.value)
+	if (next === window.location.hash) {
+		return
+	}
+	if (push) {
+		history.pushState(null, '', next)
+	} else {
+		history.replaceState(null, '', next)
+	}
+}
+
+function onMineParams(params: ListingParams): void {
+	mineState.value = params
+	if (activeTab.value === 'mine') {
+		writeUrl()
+	}
+}
+
+function onOthersParams(params: ListingParams): void {
+	othersState.value = params
+	if (activeTab.value === 'others') {
+		writeUrl()
+	}
+}
 
 const tabs = computed<Array<{ id: Tab, label: string }>>(() => [
 	{ id: 'mine', label: 'Mine' },
@@ -57,73 +119,85 @@ const tabs = computed<Array<{ id: Tab, label: string }>>(() => [
 	{ id: 'help', label: 'Help' },
 ])
 
-function tabFromHash(): Tab {
-	const tab = window.location.hash.replace(/^#/, '').split('/')[0]
-	return tab === 'help' || tab === 'others' ? tab : 'mine'
-}
-
 /**
  * Entering the Others tab costs the password, once per window — the
  * same confirmation the switch used to ask for. A dismissed dialog leaves
- * the viewer where they were, and puts the hash back so the address bar
- * does not claim a tab that is not open.
+ * the viewer where they were, and puts the address back so it does not
+ * claim a tab that is not open.
+ *
+ * A change the viewer clicked pushes, so the tabs walk back; one that came
+ * from the address bar only normalises what is already there.
  */
-async function setTab(tab: Tab): Promise<void> {
+async function setTab(tab: Tab, fromUrl = false): Promise<void> {
 	if (tab === 'others' && !confirmed.value) {
 		try {
 			await confirmPassword()
 			confirmed.value = true
 		} catch (e) {
-			window.location.hash = activeTab.value
+			writeUrl()
 			return
 		}
 	}
 	activeTab.value = tab
-	window.location.hash = tab
+	writeUrl(!fromUrl)
 }
 
 /**
- * Open whatever the hash names, asking for the password if that is the
- * Others tab. The hash is safe to honour: every cross-account read
- * is confirmed server-side, so arriving by URL reveals nothing on its own —
- * it only saves the viewer a click.
+ * Show whatever the address names — the tab, its filters, its scope —
+ * asking for the password if that is the Others tab. The address is safe
+ * to honour: every cross-account read is authorised and confirmed
+ * server-side, so arriving by URL reveals nothing on its own; it only
+ * saves the viewer the clicks, which is what makes it shareable.
  *
  * Others is the one tab whose existence is not known at mount: it
  * appears only once the ordinary listing reports the viewer may look across
- * accounts. A hash naming it is therefore held until that answer arrives.
+ * accounts. An address naming it is therefore held until that answer
+ * arrives — its filters and scope are applied at once, so the tab opens
+ * on them.
  */
 const pendingTab = ref<Tab | null>(null)
 
 function applyHash(): void {
-	const next = tabFromHash()
+	const { tab, params } = parseFragment(window.location.hash)
 
-	if (next === 'others') {
+	if (tab === 'others') {
+		othersParams.value = listingFromParams(params, algorithmIds.value)
+		crossScope.value = scopeFromParams(params)
 		if (canSudo.value) {
-			setTab(next)
+			setTab(tab, true)
 		} else {
 			// Not known yet, or not allowed. Held; the watcher below decides.
-			pendingTab.value = next
+			pendingTab.value = tab
 		}
 		return
 	}
 
 	pendingTab.value = null
-	activeTab.value = next
+	if (tab === 'mine') {
+		mineParams.value = listingFromParams(params, algorithmIds.value)
+	}
+	activeTab.value = tab
+	writeUrl()
 }
 
 watch(canSudo, (allowed) => {
 	if (allowed && pendingTab.value === 'others') {
 		pendingTab.value = null
-		setTab('others')
+		setTab('others', true)
 	}
 })
 
 function onScope(scope: DuplicateScope): void {
 	crossScope.value = scope
+	if (activeTab.value === 'others') {
+		writeUrl()
+	}
 }
 
 onMounted(() => {
 	applyHash()
+	// Back and forward between fragments, and an address typed by hand;
+	// the page's own writes go through history and raise no event.
 	window.addEventListener('hashchange', applyHash)
 })
 </script>
@@ -152,8 +226,10 @@ onMounted(() => {
 				<DuplicateListing
 					v-show="activeTab === 'mine'"
 					:algorithm-ids="algorithmIds"
+					:params="mineParams"
 					id-prefix="fcias-duplicates"
-					@can-sudo="canSudo = $event" />
+					@can-sudo="canSudo = $event"
+					@update:params="onMineParams" />
 
 				<div
 					v-if="activeTab === 'others'"
@@ -163,12 +239,14 @@ onMounted(() => {
 						These are other people's files. Everything below is shown because you
 						asked for it by name — leave this tab to go back to your own.
 					</p>
-					<TargetPicker @update:scope="onScope" />
+					<TargetPicker :scope="crossScope" @update:scope="onScope" />
 					<DuplicateListing
 						:scope="crossScope"
 						:algorithm-ids="algorithmIds"
+						:params="othersParams"
 						id-prefix="fcias-others"
-						empty-scope-text="Choose an account or a group above to see its duplicates." />
+						empty-scope-text="Choose an account or a group above to see its duplicates."
+						@update:params="onOthersParams" />
 				</div>
 
 				<div v-if="activeTab === 'help'" class="db-help">

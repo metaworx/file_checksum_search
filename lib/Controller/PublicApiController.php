@@ -953,9 +953,13 @@ class PublicApiController
 			);
 		}
 
-		// Whether the caller may also ask for every account at once — only a
-		// sudoer is offered that.
-		$offer['all'] = $this->sudo->isSudoer( $own );
+		// Everyone who got this far may cross, and "all" is their whole
+		// reach — what the routes answer when nothing is named: every
+		// account for a sudoer, their groups' members for a leader. `reach`
+		// says which, so a picker can call it All accounts or All my groups,
+		// and a link can name the reach without knowing whose it will be.
+		$offer['all']   = true;
+		$offer['reach'] = $this->sudo->isSudoer( $own ) ? 'everyone' : 'groups';
 
 		return new DataResponse( $offer );
 	}

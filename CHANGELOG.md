@@ -64,7 +64,12 @@ the first stable release.
   listed and revocable on the admin *Sudo tokens* tab.
 
 - Duplicates page *Others* tab: other accounts' duplicates, named by
-  account and group, as one listing; *Mine* keeps its own filters.
+  account and group, as one listing; *Mine* keeps its own filters. *All
+  accounts* for a sudoer, *All my groups* for a group leader
+  (`GET /api/v1/sudo/selectable`: `all` for both, and `reach`).
+
+- Duplicates page: the tab, the filters, the page and the scope in the
+  URL fragment, so a search can be bookmarked or shared.
 
 - `POST /api/v1/file/many/recalc` and its `/sudo/` twin: one request
   verifies up to 25 files or 100 MiB; the Duplicates page sends chunks.

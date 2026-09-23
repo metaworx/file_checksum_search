@@ -20,6 +20,7 @@ import AlgorithmSelect from '../../components/AlgorithmSelect.vue'
 import HelpPopover from '../../components/HelpPopover.vue'
 import DuplicateGroup from './DuplicateGroup.vue'
 import { useDuplicates, type DuplicateScope, type DuplicateGroup as GroupType } from '../composables/useDuplicates'
+import { sameParams, type ListingParams } from '../urlState'
 import { type AlgoOption } from '../../algorithms'
 
 const props = withDefaults(
@@ -36,15 +37,25 @@ const props = withDefaults(
 		 * their own fields through it.
 		 */
 		idPrefix?: string
+		/**
+		 * The filters and the page to show, from the URL. Applied when
+		 * given and whenever it changes; what the controls then do is
+		 * reported back through `update:params`, so the URL can follow.
+		 */
+		params?: ListingParams | null
 	}>(),
 	{
 		scope: null,
 		emptyScopeText: '',
 		idPrefix: 'fcias-duplicates',
+		params: null,
 	},
 )
 
-const emit = defineEmits<{ (e: 'canSudo', value: boolean): void }>()
+const emit = defineEmits<{
+	(e: 'canSudo', value: boolean): void
+	(e: 'update:params', value: ListingParams): void
+}>()
 
 const ALL_ALGORITHMS: AlgoOption = { id: '', label: 'All algorithms' }
 
@@ -136,15 +147,6 @@ watch(() => props.scope, (value) => {
 	}
 }, { deep: true })
 
-watch([algo, minCount, limit], () => {
-	resetOffset()
-	load()
-})
-
-watch(offset, () => {
-	load()
-})
-
 watch(canSudo, (value) => {
 	emit('canSudo', value)
 })
@@ -153,6 +155,87 @@ function refresh(): void {
 	resetOffset()
 	load()
 }
+
+// Every control asks for its own reload, rather than a watcher reloading on
+// any change of the value: a set of values arriving together from the URL
+// is then one load, not one per field.
+function onAlgo(value: string | string[] | null): void {
+	algo.value = typeof value === 'string' ? value : ''
+	refresh()
+}
+
+function onMinCount(value: string | number): void {
+	minCount.value = bounded(value, 2, 100, 2)
+	refresh()
+}
+
+function onLimit(value: string | number): void {
+	limit.value = bounded(value, 1, 500, 50)
+	refresh()
+}
+
+function onPrevPage(): void {
+	prevPage()
+	load()
+}
+
+function onNextPage(): void {
+	nextPage()
+	load()
+}
+
+function currentParams(): ListingParams {
+	return {
+		hash: hash.value,
+		anywhere: anywhere.value,
+		algo: algo.value,
+		minCount: minCount.value,
+		limit: limit.value,
+		offset: offset.value,
+	}
+}
+
+/**
+ * Show what the URL says. Nothing happens when it already says what is
+ * shown, which is what the page's own writes come back as.
+ */
+function applyParams(next: ListingParams, force = false): void {
+	if (!force && sameParams(next, currentParams())) {
+		return
+	}
+	hash.value = next.hash
+	anywhere.value = next.anywhere
+	algo.value = next.algo
+	minCount.value = next.minCount
+	limit.value = next.limit
+	offset.value = next.offset
+	if (!awaitingScope.value) {
+		load()
+	} else {
+		groups.value = []
+	}
+}
+
+watch(() => props.params, (next) => {
+	if (next) {
+		applyParams(next)
+	}
+}, { deep: true })
+
+// The URL follows the controls. Reported on every change, a keystroke in
+// the hash field included; the page replaces the address rather than
+// pushing it, so that costs no history.
+watch([hash, anywhere, algo, minCount, limit, offset], () => {
+	emit('update:params', currentParams())
+})
+
+// A URL may name an algorithm before the list of what the instance computes
+// has arrived. Once it has, one it does not name falls back to all of them.
+watch(() => props.algorithmIds, (ids) => {
+	if (ids.length > 0 && algo.value && !ids.includes(algo.value)) {
+		onAlgo('')
+	}
+})
 
 /**
  * Verification is asked for per group or per file, never for the page:
@@ -164,7 +247,9 @@ async function onVerifyGroup(group: GroupType): Promise<void> {
 
 onMounted(() => {
 	activeScope.value = props.scope
-	if (!awaitingScope.value) {
+	if (props.params) {
+		applyParams(props.params, true)
+	} else if (!awaitingScope.value) {
 		load()
 	}
 })
@@ -183,11 +268,12 @@ onMounted(() => {
 					<HelpPopover :text="HELP.algo" label="Algorithm" />
 				</span>
 				<AlgorithmSelect
-					v-model="algo"
+					:model-value="algo"
 					:algorithms="algorithmIds"
 					:leading="ALL_ALGORITHMS"
 					:input-id="`${props.idPrefix}-algorithm`"
-					label="Algorithm" />
+					label="Algorithm"
+					@update:model-value="onAlgo" />
 			</div>
 			<div class="db-field db-field--narrow">
 				<span class="db-label">
@@ -203,7 +289,7 @@ onMounted(() => {
 					min="2"
 					max="100"
 					title="Smallest group to list: files sharing a checksum, 2 to 100"
-					@update:model-value="minCount = bounded($event, 2, 100, 2)" />
+					@update:model-value="onMinCount" />
 			</div>
 			<div class="db-field db-field--narrow">
 				<span class="db-label">
@@ -219,7 +305,7 @@ onMounted(() => {
 					min="1"
 					max="500"
 					title="Groups per page, 1 to 500"
-					@update:model-value="limit = bounded($event, 1, 500, 50)" />
+					@update:model-value="onLimit" />
 			</div>
 			<div class="db-field db-field--hash">
 				<span class="db-label">
@@ -277,10 +363,10 @@ onMounted(() => {
 		</div>
 
 		<div class="db-pagination">
-			<NcButton v-if="offset > 0" @click="prevPage">
+			<NcButton v-if="offset > 0" @click="onPrevPage">
 				← Previous
 			</NcButton>
-			<NcButton v-if="hasMore" @click="nextPage">
+			<NcButton v-if="hasMore" @click="onNextPage">
 				Next →
 			</NcButton>
 		</div>
