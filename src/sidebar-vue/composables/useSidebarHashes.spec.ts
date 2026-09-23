@@ -57,6 +57,23 @@ describe('useSidebarHashes', () => {
 		expect(canRecalc.value).toBe(false)
 	})
 
+	// The other flag on the same response. The opposite default: nothing is
+	// offered across accounts until the server says the viewer may.
+	it('takes from the server whether the way across accounts may be offered', async () => {
+		vi.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(jsonResponse({ hashes: [], canSudo: true }))
+			.mockResolvedValueOnce(jsonResponse({ hashes: [] }))
+		const { canSudo, loadHashes } = useSidebarHashes(() => fileNode(123))
+
+		expect(canSudo.value).toBe(false)
+		await loadHashes()
+		expect(canSudo.value).toBe(true)
+
+		// An answer that does not say is a no.
+		await loadHashes()
+		expect(canSudo.value).toBe(false)
+	})
+
 	it('recalculates an algorithm and reloads the hashes', async () => {
 		const fetchMock = vi.spyOn(globalThis, 'fetch')
 			.mockResolvedValueOnce(jsonResponse({ success: true }))

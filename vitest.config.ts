@@ -6,6 +6,14 @@ export default defineConfig({
 	test: {
 		globals: true,
 		environment: 'happy-dom',
+		// @nextcloud/vue 9 ships its components as ES modules that import
+		// their stylesheets, ninety-odd `import './assets/….css'` across the
+		// dist. Left external, they go through Node's own loader, which has no
+		// idea what a .css file is — every spec in this suite mocked every
+		// Nextcloud component to stay clear of that, and tested a stand-in.
+		// Inlined, they go through Vite, which knows. Measured on the whole
+		// suite: no difference in duration.
+		server: { deps: { inline: [/@nextcloud\/vue/] } },
 		include: ['src/**/*.spec.ts'],
 		exclude: [
 			'**/node_modules/**',

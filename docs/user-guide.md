@@ -153,7 +153,11 @@ sidebar (the file detail pane). It has three sections:
   if your administrator has not allowed you to calculate by hand; what is
   already computed still shows.
 - **Duplicates** — a **Find duplicates** button that lists, in place, the
-  other files sharing a checksum with this one.
+  other files sharing a checksum with this one — your own files, and the
+  ones shared with you. If you may look across accounts, **Find across
+  accounts** sits beside it and opens the Duplicates page's *Others* tab in
+  a new tab, with this file's checksum filled in and everyone you may see
+  named, after your password.
 
 > **Note:** FCIAS computes checksums according to the rules described below.
 > Some algorithms may be missing until the background job has processed the

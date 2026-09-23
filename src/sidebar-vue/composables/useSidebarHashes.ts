@@ -27,6 +27,13 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 	 * otherwise: the section renders only after the response has landed.
 	 */
 	const canRecalc = ref(true)
+	/**
+	 * Whether this user may look across accounts — carried on the same
+	 * response, so the way to the Duplicates page's Others tab is offered
+	 * to those who may and to nobody else. False until told otherwise: an
+	 * offer that leads to a refusal is worse than none.
+	 */
+	const canSudo = ref(false)
 	const error = ref('')
 	const recalculating = ref<string | null>(null)
 	const recalcError = ref<string | null>(null)
@@ -74,12 +81,14 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 				preferred?: string
 				default?: string
 				canRecalc?: boolean
+				canSudo?: boolean
 			}
 			hashes.value = data.hashes || []
 			ruleAlgos.value = Array.isArray(data.algos) ? data.algos : []
 			preferredAlgo.value = typeof data.preferred === 'string' ? data.preferred : ''
 			defaultAlgo.value = typeof data.default === 'string' ? data.default : ''
 			canRecalc.value = data.canRecalc !== false
+			canSudo.value = data.canSudo === true
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return
 			error.value = 'Failed to load checksums.'
@@ -153,6 +162,7 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 		preferredAlgo,
 		defaultAlgo,
 		canRecalc,
+		canSudo,
 		error,
 		recalculating,
 		recalcError,

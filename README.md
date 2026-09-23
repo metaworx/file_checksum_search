@@ -583,7 +583,7 @@ FCIAS provides a global duplicate file browser at **`/apps/file_checksum_search/
 - **Verify all** on a group and **Verify** on a file row, recalculating from file content and flagging mismatches — asked for per group or per file, since reading files costs time and, on metered storage, money; a group is sent in requests of 25 files
 - An **Others** tab for administrators and group leaders: other accounts' duplicates, each row saying whose file it is and where it lives, verifiable in place, and linked only where the viewer could open it
 
-The files sidebar also includes a **"Find duplicates"** button that shows files sharing hash values with the currently selected file.
+The files sidebar also includes a **"Find duplicates"** button that shows files sharing hash values with the currently selected file, and — for an account that may look across accounts — **"Find across accounts"**, which opens the Duplicates page's *Others* tab on the file's hash.
 
 ## Public API (v1)
 

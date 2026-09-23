@@ -92,4 +92,6 @@ export const OCS_ADMIN = {
 export const FRONTEND = {
 	/** /apps/files/files/{fileid} */
 	fileLink: '/apps/files/files/{fileid}',
+	/** The Duplicates page; its tab, filters and scope ride in the fragment ({@see urlState}). */
+	duplicates: '/apps/file_checksum_search/duplicates',
 } as const

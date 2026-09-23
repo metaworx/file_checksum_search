@@ -71,6 +71,9 @@ the first stable release.
 - Duplicates page: the tab, the filters, the page and the scope in the
   URL fragment, so a search can be bookmarked or shared.
 
+- Sidebar *Find across accounts*, for those who may: the Duplicates
+  page's *Others* tab on the file's hash, over the whole reach.
+
 - `POST /api/v1/file/many/recalc` and its `/sudo/` twin: one request
   verifies up to 25 files or 100 MiB; the Duplicates page sends chunks.
 

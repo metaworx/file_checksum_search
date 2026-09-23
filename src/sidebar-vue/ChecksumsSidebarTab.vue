@@ -17,6 +17,7 @@ import { FRONTEND } from '../routes'
 import { fileLabel } from '../fileLabel'
 import AlgorithmSelect from '../components/AlgorithmSelect.vue'
 import { type AlgoOption, fetchAlgorithms } from '../algorithms'
+import { crossAccountUrl, hashForLink } from './crossAccountLink'
 import { useSidebarHashes } from './composables/useSidebarHashes'
 import { useClipboard } from './composables/useClipboard'
 import RecalcButton from './components/RecalcButton.vue'
@@ -41,6 +42,7 @@ const {
 	preferredAlgo,
 	defaultAlgo,
 	canRecalc,
+	canSudo,
 	error,
 	recalculating,
 	recalcError,
@@ -53,6 +55,21 @@ const {
 	recalc,
 	toggleDuplicates,
 } = useSidebarHashes(() => props.node)
+
+/**
+ * The way to the Duplicates page's Others tab, for a viewer who may look
+ * across accounts and a file that has a hash to look for. One link, not a
+ * switch: the tab has the picker, the amber ground and the row labels, and
+ * a second copy in this pane would be a smaller, worse one. The address
+ * carries the hash and names the whole reach, so it lands on the group.
+ */
+const crossAccountHref = computed<string | null>(() => {
+	if (!canSudo.value) {
+		return null
+	}
+	const entry = hashForLink(hashes.value, preferredAlgo.value || defaultAlgo.value)
+	return entry ? crossAccountUrl(entry) : null
+})
 
 const { copied, copyToClipboard } = useClipboard()
 
@@ -190,9 +207,20 @@ watch(
 			<SectionHeader
 				:title="t('file_checksum_search', 'Duplicates')"
 				:help="t('file_checksum_search', 'Find other files sharing a checksum with this file.')" />
-			<button class="fcias-dup-btn" :disabled="searching" @click="toggleDuplicates">
-				{{ t('file_checksum_search', 'Find duplicates') }}
-			</button>
+			<div class="fcias-dup-actions">
+				<button class="fcias-dup-btn" :disabled="searching" @click="toggleDuplicates">
+					{{ t('file_checksum_search', 'Find duplicates') }}
+				</button>
+				<a v-if="crossAccountHref"
+					class="fcias-dup-across"
+					data-testid="fcias-dup-across"
+					:href="crossAccountHref"
+					target="_blank"
+					rel="noreferrer noopener"
+					:title="t('file_checksum_search', 'Open the Duplicates page on this hash, across every account you may see')">
+					{{ t('file_checksum_search', 'Find across accounts') }}
+				</a>
+			</div>
 			<div v-if="showDuplicates" class="fcias-dup-results">
 				<div v-if="searching" class="fcias-loading">
 					<NcLoadingIcon :size="14" />
@@ -341,6 +369,33 @@ watch(
 .fcias-dup-btn:disabled {
 	opacity: 0.5;
 	cursor: default;
+}
+
+.fcias-dup-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+}
+
+/* A link dressed as the button beside it, so the two read as one pair of
+   choices — its own class, since the spec clicks the button by its — and
+   the amber edge is the Others tab's ground, announced early. */
+.fcias-dup-across {
+	display: inline-block;
+	padding: 4px 12px;
+	font-size: 12px;
+	text-decoration: none;
+	color: var(--color-main-text);
+	border: 1px solid var(--color-warning);
+	border-radius: var(--border-radius);
+	background: var(--color-main-background);
+}
+
+.fcias-dup-across:hover,
+.fcias-dup-across:focus-visible {
+	background: var(--color-warning);
+	color: var(--color-warning-text);
 }
 
 .fcias-dup-results {
