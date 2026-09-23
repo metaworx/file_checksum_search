@@ -189,7 +189,7 @@ Convenience method — get checksums by filesystem path.
 
 ---
 
-#### `findDuplicates(?string $algo = null, int $minCount = 2, int $limit = 50, int $offset = 0): array`
+#### `findDuplicates(?string $algo = null, int $minCount = 2, int $limit = 50, int $offset = 0, ?string $hash = null, bool $anywhere = false): array`
 
 Find duplicate hash groups among the files the calling user can open.
 
@@ -203,6 +203,8 @@ administrator sees their own files, not everyone's.
 | `$minCount` | `int` | No | Minimum files per group (default 2) |
 | `$limit` | `int` | No | Max groups (1–500, default 50) |
 | `$offset` | `int` | No | Pagination offset |
+| `$hash` | `?string` | No | Only the groups whose hash starts with this |
+| `$anywhere` | `bool` | No | With `$hash`: match it anywhere in the hash, not only at the start |
 
 **Returns:**
 ```php
@@ -342,17 +344,21 @@ cross-account routes ask this once per answer and mark each row `openable`.
 
 ---
 
-#### `getStatus(): array`
+#### `getStatus(?string $requestingUser = null): array`
 
-Read-only health/status snapshot.
+Read-only health/status snapshot. The version is for everyone; the rest
+describes the instance and is the administrator's to see. `null` is
+server-side code with full authority and gets everything; a named
+non-administrator gets `version` alone, as `GET /api/v1/status` answers
+them.
 
 **Returns:**
 ```php
 [
     'version' => '1.9.2',
-    'dbVersion' => '10.11.6',
-    'rowCount' => 15423,
-    'pendingRows' => 5,
+    'dbVersion' => '10.11.6',   // administrators and trusted callers only
+    'rowCount' => 15423,        // "
+    'pendingRows' => 5,         // "
 ]
 ```
 
@@ -406,9 +412,9 @@ Responses are nonetheless plain JSON: these are `ApiController`s, not `OCSContro
 | 12 | `/api/v1/rules/{id}/apply` | POST | — | Queue a full apply pass for one rule |
 | 13 | `/api/v1/algorithms` | GET | — | The algorithms this instance computes, and its default |
 | 14 | `/api/v1/preferences/{key}` | GET, PUT | — | One of the caller's own preferences; first key `preferred_algorithm` |
-| 15 | `/api/v1/sudo/file/{fileId}/hashes` | GET | — | Any account's file; password confirmation, sudoers only |
-| 16 | `/api/v1/sudo/file/{fileId}/duplicates` | GET | — | Any account's file, duplicates from every account; as 15 |
-| 17 | `/api/v1/sudo/lookup` | GET | — | Every account; as 15 |
+| 15 | `/api/v1/sudo/file/{fileId}/hashes` | GET | — | A file within the caller's reach: any account's for a sudoer, their groups' members' for a sub-admin; password confirmation |
+| 16 | `/api/v1/sudo/file/{fileId}/duplicates` | GET | — | As 15, its duplicates across the caller's reach |
+| 17 | `/api/v1/sudo/lookup` | GET | — | Across the caller's reach; as 15 |
 | 18 | `/api/v1/sudo/duplicates` | GET | — | The accounts `users[]`/`groups[]` name, merged, or with nothing named the caller's whole reach; sudoers, or a sub-admin over their own members |
 | 19 | `/api/v1/sudo/selectable` | GET | — | Which groups and accounts the caller may name on the routes above |
 | 20 | `/api/v1/sudo/file/{fileId}/recalc` | POST | `recalcHash` | Recalculate a file that need not be the caller's own; password confirmation, and the file must be within the caller's reach |
@@ -642,13 +648,21 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/status
 
 No parameters.
 
-**Response (200):**
+**Response (200), as an administrator:**
 ```json
 {
   "version": "1.9.2",
   "dbVersion": "10.11.6",
   "rowCount": 15423,
   "pendingRows": 5
+}
+```
+
+**Response (200), as anyone else:** the version alone. The other three
+describe the instance and are the administrator's to see.
+```json
+{
+  "version": "1.9.2"
 }
 ```
 
@@ -977,11 +991,12 @@ curl -H "Authorization: Bearer your-app-password" \
 
 ### CSRF
 
-Most read endpoints carry `#[NoCSRFRequired]`, but the four rule mutations and the
-two settings POSTs do not. What lets those through from a cookie session is the
-`OCS-APIRequest: true` header, which Nextcloud accepts in place of a CSRF token.
-Send it on every request and the distinction never arises. With basic auth it is
-optional.
+Every `GET` route carries `#[NoCSRFRequired]`; no `POST`, `PUT` or `DELETE`
+route does — the rule mutations, every recalculation route and its `/sudo/`
+twin, the preferences write, the settings writes. From a cookie session those
+need the request token or the `OCS-APIRequest: true` header, which Nextcloud
+accepts in its place. Send the header on every request and the distinction
+never arises. With basic auth or an app password it is optional.
 
 ### Authorization
 

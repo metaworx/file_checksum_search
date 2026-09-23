@@ -563,6 +563,10 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           description: The caller may name nobody
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
   /api/v1/sudo/duplicates:
     get:
       tags: [Sudo]
@@ -658,7 +662,10 @@ paths:
     get:
       tags: [Maintenance]
       summary: App and database status
-      description: Read-only health snapshot — app version, database version, indexed row count, and pending update count.
+      description: >-
+        Read-only health snapshot — app version, database version, indexed row
+        count, and pending update count. A non-administrator gets the app
+        version alone.
       operationId: getStatus
       responses:
         "200":
@@ -1273,7 +1280,11 @@ components:
 
     StatusResponse:
       type: object
-      required: [version, dbVersion, rowCount, pendingRows]
+      description: >-
+        `version` is for everyone. The other three describe the instance and
+        are answered to administrators only; a non-administrator's answer is
+        `version` alone.
+      required: [version]
       properties:
         version:
           type: string
@@ -1281,15 +1292,15 @@ components:
           example: "1.0.0"
         dbVersion:
           type: string
-          description: Database version string
+          description: Database version string; administrators only
           example: "10.11.6-MariaDB"
         rowCount:
           type: integer
-          description: Number of indexed hash rows
+          description: Number of indexed hash rows; administrators only
           example: 15423
         pendingRows:
           type: integer
-          description: Number of pending hash updates
+          description: Number of pending hash updates; administrators only
           example: 5
 
     SuccessResponse:
