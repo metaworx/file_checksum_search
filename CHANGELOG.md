@@ -219,7 +219,8 @@ the first stable release.
   rule.
 
 - Dark theme: error lines and verification verdicts use the palette's
-  text colours, not its background fills.
+  text colours, not its background fills; the sidebar's algorithm badges
+  the light fill's own text colour.
 
 - Settings pages: notices show again, through `@nextcloud/dialogs`;
   `OC.Notification` no longer exists in Nextcloud 34.

@@ -271,12 +271,14 @@ watch(
 	margin: 12px 0;
 }
 
+/* The -light-text partner of the -light fill: -text is the colour for the
+   full primary fill, and on a dark theme the two lights are both dark. */
 .fcias-algo-badge {
 	display: inline-block;
 	padding: 2px 6px;
 	border-radius: 4px;
 	background-color: var(--color-primary-element-light);
-	color: var(--color-primary-element-text);
+	color: var(--color-primary-element-light-text);
 	font-size: 0.85em;
 	font-weight: 600;
 	font-family: var(--font-face-monospace);
