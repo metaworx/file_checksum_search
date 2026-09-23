@@ -120,12 +120,22 @@ class ReachTest
 		$shareManager->createShare( $share );
 
 		// The leader administers a group the recipient — and not the owner —
-		// is in.
+		// is in. The instance's administrator is in it too, with a third
+		// copy of the shared pair in their own home: core refuses them to a
+		// sub-admin by name, and the group must not be a way around that.
 		self::$groupId = 'fcias_reach_' . $salt;
 		$users         = Server::get( IUserManager::class );
 		$group         = Server::get( IGroupManager::class )->createGroup( self::$groupId );
 		$group->addUser( $users->get( self::$recipientUid ) );
+		$group->addUser( $users->get( self::ADMIN_UID ) );
 		Server::get( ISubAdmin::class )->createSubAdmin( $users->get( self::$leaderUid ), $group );
+
+		$adminFile = Server::get( IRootFolder::class )
+			->getUserFolder( self::ADMIN_UID )
+			->newFile( 'fcias_reach_admin_' . $salt . '.txt', $inside )
+		;
+		self::$fileId['admin'] = $adminFile->getId();
+		$index->recalcFileHash( $adminFile, 'sha1', false );
 	}
 
 
@@ -144,6 +154,12 @@ class ReachTest
 			}
 
 			$group->delete();
+		}
+
+		// The administrator outlives the class; their file does not.
+		foreach ( Server::get( IRootFolder::class )->getUserFolder( self::ADMIN_UID )->getById( self::$fileId['admin'] ) as $node )
+		{
+			$node->delete();
 		}
 
 		// The accounts, and with them the files and the share, go with the
@@ -351,6 +367,49 @@ class ReachTest
 	}
 
 
+	// ─── the administrator in the leader's group ─────────────────────
+
+	/**
+	 * Core's rule for a sub-admin, {@see \OCP\Group\ISubAdmin::isUserAccessible()},
+	 * refuses them an administrator whatever group they share. The app
+	 * applied it to an account named directly and to nothing else: the
+	 * group branch of the set, the bare listing and the picker took the
+	 * members as they came, so an administrator in a led group was
+	 * reachable through `groups[]` and through `all` — their whole home,
+	 * to any leader of any group they were in — while `users[]` refused
+	 * them. Every path is measured here, as the leader.
+	 */
+	public function testAnAdministratorInTheLeadersGroupIsOutOfTheirReach(): void
+	{
+
+		$admin = self::$fileId['admin'];
+
+		$offer = $this->get( '/api/v1/sudo/selectable?search=' . self::ADMIN_UID, self::$leaderUid, self::$leaderPassword );
+
+		$this->assertSame( 200, $offer['status'] );
+		$this->assertSame( [], $offer['body']['users'], 'not on offer' );
+
+		$named = $this->get( '/api/v1/sudo/duplicates?algo=sha1&users%5B%5D=' . self::ADMIN_UID, self::$leaderUid, self::$leaderPassword );
+
+		$this->assertSame( 403, $named['status'], 'named directly' );
+		$this->assertSame( 'Not yours to look at.', $named['body']['error'] );
+
+		$pair = [ self::$fileId['a'], self::$fileId['b'] ];
+
+		$this->assertSame( $pair, $this->listedFileIds( '/api/v1/sudo/duplicates?groups%5B%5D=' . self::$groupId, self::$hash['in'], self::$leaderUid, self::$leaderPassword ), 'through the group' );
+		$this->assertSame( $pair, $this->listedFileIds( '/api/v1/sudo/duplicates', self::$hash['in'], self::$leaderUid, self::$leaderPassword ), 'through the whole reach' );
+
+		$file = $this->get( "/api/v1/sudo/file/$admin/hashes", self::$leaderUid, self::$leaderPassword );
+
+		$this->assertSame( 403, $file['status'], 'by file id' );
+		$this->assertSame( 'Not yours to look at.', $file['body']['error'] );
+
+		$sudoer = $this->listedFileIds( '/api/v1/sudo/duplicates', self::$hash['in'], self::ADMIN_UID, self::ADMIN_PASSWORD );
+
+		$this->assertContains( $admin, $sudoer, 'the file exists and is hashed: a sudoer sees it' );
+	}
+
+
 	// ─── several files in one request ────────────────────────────────
 
 	/**
@@ -454,6 +513,7 @@ class ReachTest
 		$refused = [
 			'GET /api/v1/sudo/duplicates',
 			'GET /api/v1/sudo/duplicates?users%5B%5D=' . self::$ownerUid,
+			'GET /api/v1/sudo/duplicates?users%5B0%5D%5B%5D=x',
 			'GET /api/v1/sudo/lookup?hash=' . self::$hash['in'],
 			'GET /api/v1/sudo/selectable',
 			"GET /api/v1/sudo/file/$a/hashes",

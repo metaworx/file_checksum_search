@@ -262,6 +262,12 @@ the first stable release.
 - `GET /api/v1/file/{fileId}/duplicates`: the reference file is resolved
   within the caller's reach before its hashes are read.
 
+- A group leader's reach: their members minus the administrators among
+  them, on every route and in the picker.
+
+- `/api/v1/sudo/`: an account that may not cross is refused before any
+  password, an empty set included.
+
 ## [0.19.0] - 2026-08-23
 
 ### Changed

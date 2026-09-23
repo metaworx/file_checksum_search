@@ -48,7 +48,7 @@ class SudoScopeTest
 		$this->reach       = $this->createMock( \OCA\FileChecksumSearch\Service\ReachResolver::class );
 
 		$this->users->method( 'get' )
-		            ->willReturnCallback( fn ( string $uid ): ?IUser => in_array( $uid, [ 'lead', 'member', 'stranger', 'root' ], true )
+		            ->willReturnCallback( fn ( string $uid ): ?IUser => in_array( $uid, [ 'lead', 'member', 'mate', 'boss', 'stranger', 'root' ], true )
 			            ? $this->createConfiguredMock( IUser::class, [ 'getUID' => $uid ] )
 			            : null );
 
@@ -97,6 +97,11 @@ class SudoScopeTest
 	 * Core's own delegation: a sub-admin's ceiling is the members of the
 	 * groups they lead, once each, and never everyone. Naming one of them is
 	 * {@see SudoScope::resolveSet()}'s business now — a set of one.
+	 *
+	 * An administrator who happens to be in a led group is not among them:
+	 * core refuses them to a sub-admin by name, and the group is no way
+	 * around that. It was — `boss` was in every leader's ceiling for as
+	 * long as the members were taken as they came.
 	 */
 	public function testASubAdminsCeilingIsTheirMembersAndNobodyElse(): void
 	{
@@ -109,11 +114,14 @@ class SudoScopeTest
 		;
 		$this->subAdmin->method( 'getSubAdminsGroups' )
 		               ->willReturnCallback( fn ( IUser $u ): array => $u->getUID() === 'lead'
-			               ? [ $this->group( 'team', [ 'member' ] ), $this->group( 'crew', [ 'member', 'mate' ] ) ]
+			               ? [ $this->group( 'team', [ 'member', 'boss' ] ), $this->group( 'crew', [ 'member', 'mate' ] ) ]
 			               : [] )
 		;
+		$this->subAdmin->method( 'isUserAccessible' )
+		               ->willReturnCallback( static fn ( IUser $leader, IUser $member ): bool => $member->getUID() !== 'boss' )
+		;
 
-		$this->assertSame( [ 'member', 'mate' ], $this->scope->resolve( 'lead' ), 'their ceiling' );
+		$this->assertSame( [ 'member', 'mate' ], $this->scope->resolve( 'lead' ), 'their ceiling, without the administrator' );
 	}
 
 
@@ -212,8 +220,15 @@ class SudoScopeTest
 	}
 
 
-	private function asSubAdminOf( string $gid ): void
-	{
+	/**
+	 * `lead` administers $gid, whose members are $members. Core's answer to
+	 * "may they reach this account" is modelled as core gives it: a member
+	 * of a led group, unless that member is an administrator — here `boss`.
+	 */
+	private function asSubAdminOf(
+		string $gid,
+		array  $members = [ 'member' ],
+	): void {
 
 		$this->groups->method( 'isAdmin' )
 		             ->willReturn( false )
@@ -221,11 +236,18 @@ class SudoScopeTest
 		$this->permissions->method( 'isAllowed' )
 		                  ->willReturn( false )
 		;
+		$this->subAdmin->method( 'getSubAdminsGroups' )
+		               ->willReturnCallback( fn ( IUser $u ): array => $u->getUID() === 'lead'
+			               ? [ $this->group( $gid, $members ) ]
+			               : [] )
+		;
 		$this->subAdmin->method( 'isSubAdminOfGroup' )
 		               ->willReturnCallback( static fn ( IUser $u, $g ): bool => $u->getUID() === 'lead' && $g->getGID() === $gid )
 		;
 		$this->subAdmin->method( 'isUserAccessible' )
-		               ->willReturnCallback( static fn ( IUser $leader, IUser $member ): bool => $leader->getUID() === 'lead' && $member->getUID() === 'member' )
+		               ->willReturnCallback( static fn ( IUser $leader, IUser $member ): bool => $leader->getUID() === 'lead'
+			               && $member->getUID() !== 'boss'
+			               && in_array( $member->getUID(), $members, true ) )
 		;
 	}
 
@@ -246,17 +268,26 @@ class SudoScopeTest
 	}
 
 
+	/**
+	 * Through the group as by name, the administrator in it is not theirs:
+	 * named, they are refused; named through the group, they are left out.
+	 * The group branch used to take every member as it came, on the
+	 * premise that a led group's members are accessible "by definition" —
+	 * they are not, and `boss` was reachable by `groups[]` and by `all`
+	 * while `users[]` refused them.
+	 */
 	public function testASubAdminMayNameTheirOwnGroupAndItsMembers(): void
 	{
 
-		$this->asSubAdminOf( 'team' );
+		$this->asSubAdminOf( 'team', [ 'member', 'boss' ] );
 		$this->groups->method( 'get' )
 		             ->with( 'team' )
-		             ->willReturn( $this->group( 'team', [ 'member' ] ) )
+		             ->willReturn( $this->group( 'team', [ 'member', 'boss' ] ) )
 		;
 
-		$this->assertSame( [ 'member' ], $this->scope->resolveSet( 'lead', [], [ 'team' ] ) );
+		$this->assertSame( [ 'member' ], $this->scope->resolveSet( 'lead', [], [ 'team' ] ), 'the group, without its administrator' );
 		$this->assertSame( [ 'member' ], $this->scope->resolveSet( 'lead', [ 'member' ], [] ) );
+		$this->assertFalse( $this->scope->resolveSet( 'lead', [ 'boss' ], [] ), 'the administrator by name' );
 	}
 
 
@@ -287,6 +318,23 @@ class SudoScopeTest
 	}
 
 
+	/**
+	 * For an account that may not cross at all, nobody named is still a
+	 * refusal — the same answer every other route gives them. It was an
+	 * empty listing: the per-target checks had nothing to refuse, so a
+	 * plain account was asked for their password and shown a page.
+	 */
+	public function testAnAccountThatMayNotCrossIsRefusedEvenAnEmptySet(): void
+	{
+
+		$this->asSubAdminOf( 'team' );
+
+		$this->assertFalse( $this->scope->resolveSet( 'member', [], [] ), 'a plain account' );
+		$this->assertFalse( $this->scope->resolveSet( 'ghost', [], [] ), 'an unknown one' );
+		$this->assertSame( [], $this->scope->resolveSet( 'lead', [], [] ), 'a leader, who may' );
+	}
+
+
 	// ─── selectableFor: what the picker may offer ───────────────────
 
 	/**
@@ -299,10 +347,7 @@ class SudoScopeTest
 	public function testALeadersSearchFindsAMemberByNameAloneAndGroupsByTheirs(): void
 	{
 
-		$this->asSubAdminOf( 'team' );
-		$this->subAdmin->method( 'getSubAdminsGroups' )
-		               ->willReturn( [ $this->group( 'team', [ 'member', 'mate' ] ) ] )
-		;
+		$this->asSubAdminOf( 'team', [ 'member', 'mate' ] );
 
 		$byMember = $this->scope->selectableFor( 'lead', 'memb', 21 );
 
@@ -316,19 +361,20 @@ class SudoScopeTest
 	}
 
 
+	/**
+	 * The picker offers what {@see SudoScope::resolveSet()} will accept and
+	 * nothing more, so the administrator in the group is not on it either.
+	 */
 	public function testASubAdminIsOfferedOnlyTheirOwnGroupsAndMembers(): void
 	{
 
-		$this->asSubAdminOf( 'team' );
-		$this->subAdmin->method( 'getSubAdminsGroups' )
-		               ->willReturn( [ $this->group( 'team', [ 'member' ] ) ] )
-		;
+		$this->asSubAdminOf( 'team', [ 'member', 'boss' ] );
 
 		$offer = $this->scope->selectableFor( 'lead', null, 21 );
 
 		$this->assertTrue( $offer['prefill'] );
 		$this->assertSame( [ 'team' ], array_column( $offer['groups'], 'id' ) );
-		$this->assertSame( [ 'member' ], array_column( $offer['users'], 'id' ) );
+		$this->assertSame( [ 'member' ], array_column( $offer['users'], 'id' ), 'without the administrator' );
 	}
 
 
@@ -406,9 +452,6 @@ class SudoScopeTest
 	{
 
 		$this->asSubAdminOf( 'team' );
-		$this->subAdmin->method( 'getSubAdminsGroups' )
-		               ->willReturn( [ $this->group( 'team', [ 'member' ] ) ] )
-		;
 
 		$mounts = [ [ 'storage' => 9, 'root' => 'files/Projects/x' ] ];
 

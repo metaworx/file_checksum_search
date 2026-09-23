@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Service;
 
 use OCP\Group\ISubAdmin;
+use OCP\IGroup;
 use OCP\IGroupManager;
 use OCP\IUser;
 use OCP\IUserManager;
@@ -138,13 +139,39 @@ class SudoScope
 
 		foreach ( $groups as $group )
 		{
-			foreach ( $group->getUsers() as $member )
+			foreach ( $this->accessibleMembers( $leader, $group ) as $member )
 			{
 				$members[] = $member->getUID();
 			}
 		}
 
 		return array_values( array_unique( $members ) );
+	}
+
+
+	/**
+	 * The members of $group that $leader may reach.
+	 *
+	 * Every member but the administrators and delegated administrators
+	 * among them: core's own rule for a sub-admin
+	 * ({@see ISubAdmin::isUserAccessible()}), and the one this class already
+	 * applies to an account named directly. A group is not a shortcut
+	 * around it — a leader whose group holds an administrator reached that
+	 * administrator's whole home through `all` and `groups[]` for as long
+	 * as this filter was missing, while naming them was refused.
+	 *
+	 * One core query per member; a led group is small, and the callers
+	 * here run once per request.
+	 *
+	 * @return list<IUser>
+	 */
+	private function accessibleMembers( IUser $leader, IGroup $group ): array
+	{
+
+		return array_values( array_filter(
+			$group->getUsers(),
+			fn ( IUser $member ): bool => $this->subAdmin->isUserAccessible( $leader, $member ),
+		) );
 	}
 
 
@@ -174,7 +201,12 @@ class SudoScope
 		$isSudoer = $this->isSudoer( $uid );
 		$leader   = $this->userManager->get( $uid );
 
-		if ( ! $isSudoer && $leader === null )
+		// Whether they may cross at all is asked first, as on every other
+		// path: a set that names nobody used to reach this point for a plain
+		// account and answer an empty listing, where the same account gets
+		// "Not yours to look at." for anything else — and was asked for a
+		// password on the way.
+		if ( ! $isSudoer && ( $leader === null || $this->subAdmin->getSubAdminsGroups( $leader ) === [] ) )
 		{
 			return false;
 		}
@@ -190,15 +222,19 @@ class SudoScope
 				return false;
 			}
 
-			// A sub-admin may name only a group they administer; every member
-			// of such a group is accessible to them by definition, so the
-			// per-member check below is not repeated here.
+			// A sub-admin may name only a group they administer, and of it
+			// only the members core lets them reach — the administrators in
+			// it are not theirs, named directly or through the group.
 			if ( ! $isSudoer && ( $leader === null || ! $this->subAdmin->isSubAdminOfGroup( $leader, $group ) ) )
 			{
 				return false;
 			}
 
-			foreach ( $group->getUsers() as $member )
+			$members = $isSudoer
+				? $group->getUsers()
+				: $this->accessibleMembers( $leader, $group );
+
+			foreach ( $members as $member )
 			{
 				$allowed[] = $member->getUID();
 			}
@@ -326,7 +362,7 @@ class SudoScope
 
 			foreach ( $groups as $group )
 			{
-				foreach ( $group->getUsers() as $member )
+				foreach ( $this->accessibleMembers( $leader, $group ) as $member )
 				{
 					if ( $needle === ''
 					     || stripos( $member->getUID(), $needle ) !== false
