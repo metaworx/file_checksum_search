@@ -64,13 +64,13 @@ the first stable release.
   listed and revocable on the admin *Sudo tokens* tab.
 
 - Duplicates page *Others* tab: other accounts' duplicates, named by
-  account and group, as one listing; *Mine* keeps its own filters. *All
-  accounts* for a sudoer, *All my groups* for a group leader
-  (`GET /api/v1/sudo/selectable`: `all` for both, and `reach`).
+  account, by group, or as the caller's whole reach.
 
-- Duplicates page: the tab, the filters, the page and the scope in the
-  URL fragment, read on load and on back, so a search can be bookmarked
-  or shared.
+- `GET /api/v1/sudo/selectable`: `all` and `reach`, what the caller's
+  whole reach is.
+
+- Duplicates page: the tab, its filters, the page and the scope in the
+  URL fragment.
 
 - Sidebar *Find across accounts*, for those who may: the Duplicates
   page's *Others* tab on the file's hash, over the whole reach.
@@ -263,11 +263,11 @@ the first stable release.
 - `GET /api/v1/file/{fileId}/duplicates`: the reference file is resolved
   within the caller's reach before its hashes are read.
 
-- A group leader's reach: their members minus the administrators among
-  them, on every route and in the picker.
+- `/api/v1/sudo/`, the *Others* picker: a group leader reaches their
+  members, not the administrators among them.
 
-- `/api/v1/sudo/`: an account that may not cross is refused before any
-  password, an empty set included.
+- `/api/v1/sudo/`: an account that may not cross is refused, an empty
+  set included.
 
 ## [0.19.0] - 2026-08-23
 

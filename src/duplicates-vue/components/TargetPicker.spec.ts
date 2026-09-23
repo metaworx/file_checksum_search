@@ -6,7 +6,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import TargetPicker from './TargetPicker.vue'
-import { openSelect, optionLabels, selectedLabels, typeToSearch } from '../../test-utils/ncSelect'
+import { openSelect, optionLabels, pickOption, selectedLabels, typeToSearch } from '../../test-utils/ncSelect'
 
 function jsonResponse(body: unknown): Response {
 	return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
@@ -118,6 +118,80 @@ describe('TargetPicker', () => {
 
 		await wrapper.setProps({ scope: { all: true, users: [], groups: [] } })
 		expect(selectedLabels(wrapper)).toEqual(['All accounts'])
+	})
+
+	// The defect: vue-select keys an option by its `id`, and a group and an
+	// account can share one — `admin` does on a stock instance. Picking the
+	// group marked the account selected as well, and removing either chip
+	// removed both.
+	it('tells a group and an account of one name apart', async () => {
+		vi.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(jsonResponse({
+				prefill: true,
+				all: true,
+				reach: 'everyone',
+				groups: [{ id: 'admin', label: 'admin' }],
+				users: [{ id: 'admin', label: 'admin' }],
+			}))
+
+		wrapper = mount(TargetPicker)
+		await flushPromises()
+
+		await pickOption(wrapper, 'admin (Group)')
+		expect(selectedLabels(wrapper)).toEqual(['admin (Group)'])
+		expect(wrapper.emitted('update:scope')?.at(-1)?.[0]).toEqual({ all: false, users: [], groups: ['admin'] })
+
+		await pickOption(wrapper, 'admin')
+		expect(selectedLabels(wrapper)).toEqual(['admin (Group)', 'admin'])
+		expect(wrapper.emitted('update:scope')?.at(-1)?.[0]).toEqual({ all: false, users: ['admin'], groups: ['admin'] })
+
+		// Removing the group's chip leaves the account's. The button
+		// deselects on mousedown, not click.
+		await wrapper.find('.vs__selected .vs__deselect').trigger('mousedown')
+		await flushPromises()
+		expect(selectedLabels(wrapper)).toEqual(['admin'])
+		expect(wrapper.emitted('update:scope')?.at(-1)?.[0]).toEqual({ all: false, users: ['admin'], groups: [] })
+	})
+
+	// The defect: past the prefill threshold the list is only ever the last
+	// search's answer. An account picked from one search was not in the
+	// next, and when the page fed the scope back the control, finding no
+	// option for it, made one up — and the name reverted to the uid.
+	it('keeps the name of an account picked from an earlier search', async () => {
+		vi.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(jsonResponse(TOO_MANY))
+			.mockResolvedValueOnce(jsonResponse({ ...ONE('alice'), users: [{ id: 'alice', label: 'Alice A.' }] }))
+			.mockResolvedValueOnce(jsonResponse({ ...ONE('bob'), users: [{ id: 'bob', label: 'Bob B.' }] }))
+
+		wrapper = mount(TargetPicker)
+		await flushPromises()
+
+		await typeToSearch(wrapper, 'ali')
+		await pickOption(wrapper, 'Alice A.')
+		await wrapper.setProps({ scope: { all: false, users: ['alice'], groups: [] } })
+
+		await typeToSearch(wrapper, 'bo')
+		await pickOption(wrapper, 'Bob B.')
+		await wrapper.setProps({ scope: { all: false, users: ['alice', 'bob'], groups: [] } })
+
+		expect(selectedLabels(wrapper)).toEqual(['Alice A.', 'Bob B.'])
+	})
+
+	// Past the threshold the server does the searching, and what it answers
+	// is shown as it is: an account found by uid whose display name does not
+	// contain the letters typed. Filtering in the browser as well would drop
+	// it — which is what `filterable` following `prefill` prevents, and what
+	// a search answer that happens to contain the term cannot tell.
+	it('shows what the server found, whatever it is called', async () => {
+		vi.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(jsonResponse(TOO_MANY))
+			.mockResolvedValueOnce(jsonResponse({ ...ONE('jdoe'), users: [{ id: 'jdoe', label: 'Zed' }] }))
+
+		wrapper = mount(TargetPicker)
+		await flushPromises()
+
+		await typeToSearch(wrapper, 'jdo')
+		expect(await optionLabels(wrapper)).toContain('Zed')
 	})
 
 	// Picking "All" through the menu names the whole reach and nothing else.

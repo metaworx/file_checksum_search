@@ -92,6 +92,5 @@ const selected = computed<AlgoOption | AlgoOption[] | null>({
 		:disabled="disabled"
 		:close-on-select="!multiple"
 		label="label"
-		label-outside
-		track-by="id" />
+		label-outside />
 </template>

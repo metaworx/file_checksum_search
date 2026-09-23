@@ -64,13 +64,31 @@ const noOptionsText = computed(
 )
 
 /**
- * The option for an id, from the list where it is there and made up where
- * it is not — a name from a URL on an instance past the prefill threshold,
- * or one the list has not answered yet. The label is the id until the list
- * says better; {@see relabel}.
+ * What tells two options apart. vue-select keys an option by its `id`
+ * when it has one, and a group and an account may share theirs — `admin`
+ * does on a stock instance — so picking the group marked the account
+ * selected too, and removing either removed both. The kind is part of
+ * the key, as it is of the label.
+ */
+function optionKey(option: Option): string {
+	return `${option.kind}:${option.id}`
+}
+
+/**
+ * The option for an id: the list's own where the list holds it, the one
+ * already selected where it does not, and made up where neither does — a
+ * name from a URL on an instance past the prefill threshold, or one the
+ * list has not answered yet. The label is the id until the list says
+ * better; {@see relabel}.
+ *
+ * Selected before made up, because past the threshold the list is only
+ * ever the last search's answer: an account picked from one search is
+ * not in the next, and was renamed to its uid the moment the page fed
+ * the scope back.
  */
 function optionFor(id: string, kind: 'group' | 'user'): Option {
 	return options.value.find((o) => o.kind === kind && o.id === id)
+		?? selected.value.find((o) => o.kind === kind && o.id === id)
 		?? { id, label: kind === 'group' ? `${id} (Group)` : id, kind }
 }
 
@@ -190,8 +208,9 @@ onMounted(() => fetchOptions())
 			:loading="loading"
 			:filterable="prefill"
 			:no-options="noOptionsText"
+			:get-option-key="optionKey"
 			label="label"
-			track-by="id"
+			label-outside
 			placeholder="Choose accounts or groups"
 			@search="onSearch"
 			@update:model-value="onSelect" />
@@ -200,3 +219,19 @@ onMounted(() => fetchOptions())
 		</p>
 	</div>
 </template>
+
+<style scoped>
+/* The listing's field styles are scoped to it, so the picker carries its
+   own: the label weighted like every other on the page, and the control as
+   wide as the field, because several accounts and groups can be selected at
+   once and the chips need the room. The field's own width is the page's,
+   which sizes it among the other fields. */
+.db-label {
+	font-weight: 600;
+}
+
+.db-field--targets :deep(.v-select.select) {
+	min-width: 0;
+	width: 100%;
+}
+</style>

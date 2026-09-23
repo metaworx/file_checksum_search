@@ -144,8 +144,7 @@ onMounted(load)
 					:options="userOptions"
 					input-label="Users"
 					placeholder="Search users…"
-					label-outside
-					track-by="id" />
+					label-outside />
 				<HelpPopover :text="help.users" label="Users" />
 			</div>
 		</div>

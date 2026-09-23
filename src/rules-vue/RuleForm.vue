@@ -339,7 +339,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 						:input-id="ids.selectorTarget"
 						:options="groupOptions"
 						placeholder="Search groups…"
-						track-by="id">
+						label-outside>
 						<template #selected-option="option">
 							<!--
 								The picked option's id, which NcSelect otherwise
@@ -372,7 +372,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 						:input-id="ids.selectorTarget"
 						:options="userOptions"
 						placeholder="Search users…"
-						track-by="id">
+						label-outside>
 						<template #selected-option="option">
 							<NcEllipsisedOption
 								:name="option.label"
@@ -391,7 +391,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 						:input-id="ids.selectorTarget"
 						:options="groupFolderOptions"
 						:placeholder="`Search ${groupFolderTerm}…`"
-						track-by="id">
+						label-outside>
 						<template #selected-option="option">
 							<NcEllipsisedOption
 								:name="option.label"
