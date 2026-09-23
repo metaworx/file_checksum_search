@@ -69,7 +69,8 @@ the first stable release.
   (`GET /api/v1/sudo/selectable`: `all` for both, and `reach`).
 
 - Duplicates page: the tab, the filters, the page and the scope in the
-  URL fragment, so a search can be bookmarked or shared.
+  URL fragment, read on load and on back, so a search can be bookmarked
+  or shared.
 
 - Sidebar *Find across accounts*, for those who may: the Duplicates
   page's *Others* tab on the file's hash, over the whole reach.

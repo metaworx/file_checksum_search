@@ -12,7 +12,7 @@
  * people's files, and that is not a state an ordinary view should slip into.
  */
 
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
 import NcContent from '@nextcloud/vue/components/NcContent'
 import DuplicateListing from './components/DuplicateListing.vue'
@@ -126,9 +126,22 @@ const tabs = computed<Array<{ id: Tab, label: string }>>(() => [
  * claim a tab that is not open.
  *
  * A change the viewer clicked pushes, so the tabs walk back; one that came
- * from the address bar only normalises what is already there.
+ * from the address bar only normalises what is already there. A click is
+ * also the viewer's answer to whatever the address was still holding for
+ * ({@see pendingTab}): it used to stand, and the viewer who had clicked
+ * away from a held Others address was pulled into Others, and asked for
+ * their password, the moment the listing said they could.
+ *
+ * The Others listing is created on entry and destroyed on leaving, from
+ * `othersParams` — which only the address sets. What it last showed is
+ * `othersState`, and a click back into the tab starts from that, or the
+ * tab reopened on the filters the address had opened it with while the
+ * address itself named the newer ones.
  */
 async function setTab(tab: Tab, fromUrl = false): Promise<void> {
+	if (!fromUrl) {
+		pendingTab.value = null
+	}
 	if (tab === 'others' && !confirmed.value) {
 		try {
 			await confirmPassword()
@@ -137,6 +150,9 @@ async function setTab(tab: Tab, fromUrl = false): Promise<void> {
 			writeUrl()
 			return
 		}
+	}
+	if (tab === 'others' && !fromUrl && othersState.value) {
+		othersParams.value = othersState.value
 	}
 	activeTab.value = tab
 	writeUrl(!fromUrl)
@@ -199,6 +215,10 @@ onMounted(() => {
 	// Back and forward between fragments, and an address typed by hand;
 	// the page's own writes go through history and raise no event.
 	window.addEventListener('hashchange', applyHash)
+})
+
+onUnmounted(() => {
+	window.removeEventListener('hashchange', applyHash)
 })
 </script>
 

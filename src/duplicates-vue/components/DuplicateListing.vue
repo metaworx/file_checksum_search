@@ -238,6 +238,21 @@ watch(() => props.algorithmIds, (ids) => {
 })
 
 /**
+ * $params, less an algorithm the instance's list — when known — does not
+ * name. The watcher above covers a list that arrives after the listing;
+ * this covers one that arrived before it, which is the Others listing's
+ * case on every load from an address: the tab opens once the ordinary
+ * listing has answered, and by then the list is in, so the watcher never
+ * fires and an unknown `algo` in the address was kept for good.
+ */
+function withKnownAlgo(params: ListingParams): ListingParams {
+	const ids = props.algorithmIds
+	return ids.length > 0 && params.algo !== '' && !ids.includes(params.algo)
+		? { ...params, algo: '' }
+		: params
+}
+
+/**
  * Verification is asked for per group or per file, never for the page:
  * reading every file costs time and, on metered storage, money.
  */
@@ -248,7 +263,7 @@ async function onVerifyGroup(group: GroupType): Promise<void> {
 onMounted(() => {
 	activeScope.value = props.scope
 	if (props.params) {
-		applyParams(props.params, true)
+		applyParams(withKnownAlgo(props.params), true)
 	} else if (!awaitingScope.value) {
 		load()
 	}
