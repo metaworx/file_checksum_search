@@ -1,15 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
-import { nextTick } from 'vue'
 import PermissionSection from './PermissionSection.vue'
+import { pickOption, selectedLabels } from '../test-utils/ncSelect'
 
 vi.mock('@nextcloud/router', () => ({
 	generateOcsUrl: (url: string) => url,
 }))
 
-vi.mock('@nextcloud/vue/components/NcSettingsSelectGroup', () => ({
-	default: { name: 'NcSettingsSelectGroup', props: ['modelValue'], emits: ['update:modelValue'], template: '<div />' },
+// The group select is Nextcloud's own, real here; what it asks core for on
+// mount is not. The provisioning API answers two groups, one of them the
+// one the server said is allowed, so the control shows that one selected
+// and offers the other.
+const groupsGet = vi.fn()
+vi.mock('@nextcloud/axios', () => ({
+	default: { get: (...args: unknown[]) => groupsGet(...args) },
 }))
+const GROUPS = [{ id: 'staff', displayname: 'Staff' }, { id: 'admins', displayname: 'Admins' }]
 
 const toastSaved = vi.fn()
 const toastError = vi.fn()
@@ -28,6 +34,10 @@ beforeEach(() => {
 	(window as unknown as { OC: unknown }).OC = { requestToken: 'token' }
 	toastSaved.mockReset()
 	toastError.mockReset()
+	// The control caches the groups it first loaded for the session; a
+	// cache from an earlier test would spare it the request this spec mocks.
+	window.sessionStorage.clear()
+	groupsGet.mockReset().mockResolvedValue({ data: { ocs: { data: { groups: GROUPS } } } })
 	fetchMock.mockReset()
 	fetchMock.mockImplementation((url: string, init?: RequestInit) => {
 		if (init?.method === 'PUT') {
@@ -63,12 +73,14 @@ describe('PermissionSection', () => {
 	it('offers Save only once something differs from what the server gave it', async () => {
 		const { groups, button } = await mounted()
 
+		// The allowed group, named as core names it, once the groups have loaded.
+		expect(selectedLabels(groups)).toEqual(['Staff'])
 		expect(button().props('disabled')).toBe(true)
 		expect(button().props('variant')).toBe('secondary')
 
-		groups.vm.$emit('update:modelValue', ['staff', 'admins'])
-		await nextTick()
+		await pickOption(groups, 'Admins')
 
+		expect(selectedLabels(groups)).toEqual(['Staff', 'Admins'])
 		expect(button().props('disabled')).toBe(false)
 		expect(button().props('variant')).toBe('warning')
 	})
@@ -76,8 +88,7 @@ describe('PermissionSection', () => {
 	it('sends only its own three fields, and goes quiet once saved', async () => {
 		const { wrapper, groups, button } = await mounted()
 
-		groups.vm.$emit('update:modelValue', ['staff', 'admins'])
-		await nextTick()
+		await pickOption(groups, 'Admins')
 		await wrapper.find('#fcias-btn-save-rule_editing').trigger('click')
 		await flushPromises()
 
@@ -100,8 +111,7 @@ describe('PermissionSection', () => {
 			return Promise.resolve(jsonResponse({}))
 		})
 
-		groups.vm.$emit('update:modelValue', ['staff', 'admins'])
-		await nextTick()
+		await pickOption(groups, 'Admins')
 		await wrapper.find('#fcias-btn-save-rule_editing').trigger('click')
 		await flushPromises()
 

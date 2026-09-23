@@ -18,8 +18,10 @@ vi.mock('../toast', () => ({
 	toastError: () => undefined,
 }))
 
-vi.mock('@nextcloud/vue/components/NcSettingsSelectGroup', () => ({
-	default: { name: 'NcSettingsSelectGroup', render: () => null },
+// The permission sections' group select is Nextcloud's own and asks core
+// for the groups on mount; here core has none to offer.
+vi.mock('@nextcloud/axios', () => ({
+	default: { get: () => Promise.resolve({ data: { ocs: { data: { groups: [] } } } }) },
 }))
 
 const confirmMock = vi.fn((_text: string, _title: string, onConfirm: (confirmed: boolean) => void) => onConfirm(true))

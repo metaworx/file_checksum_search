@@ -3,6 +3,14 @@ import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
 	plugins: [vue()],
+	// @nextcloud/vue reads two globals the consuming app's bundler is
+	// expected to define; NcSettingsSelectGroup keys its session cache on
+	// them. Free identifiers otherwise, and a ReferenceError in a mounted
+	// hook.
+	define: {
+		appName: JSON.stringify('file_checksum_search'),
+		appVersion: JSON.stringify('test'),
+	},
 	test: {
 		globals: true,
 		environment: 'happy-dom',
