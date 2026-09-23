@@ -358,7 +358,8 @@ the first stable release.
   no close button of its own.
 
 - Global rule: an ordinary row in its own table above the additional
-  rules; scope and path as plain text, no Delete button.
+  rules; scope and path as plain text, pinned server-side, no Delete
+  button.
 
 - Help button on every rule and permission setting, from the sidebar's
   popover component.
@@ -375,6 +376,8 @@ the first stable release.
 
 - Rule tables: "Algos" is "Algorithms"; action buttons left-aligned; the
   admin-enforced switch labelled "Enforced".
+
+- Rule Editing Permission page: Save left-aligned.
 
 - Status table: the label column capped.
 
@@ -473,7 +476,9 @@ the first stable release.
 ### Security
 
 - `lookup`, `getHashes`, `recalcHash` on the public and legacy API:
-  scoped to the requesting user's own files.
+  scoped to the requesting user's own files. **Before: other users' paths
+  and hashes were readable, and a recalculation could be forced on their
+  files by hash or file id.**
 
 - `SettingsController` rule endpoints: administrators only.
 
