@@ -35,6 +35,8 @@ const dupDir = 'fcias-e2e-sidebar'
 const fileNameA = 'a.txt'
 const fileNameB = 'b.txt'
 const dupContent = 'FCIAS e2e duplicate content'
+/** sha1(dupContent): what the way across accounts carries in its address. */
+const DUP_SHA1 = '5853843c7e93df9018a3cf5df1fda7b85d6ca07b'
 
 const webdavUrl = ( path ) => `/remote.php/dav/files/${ adminUser }${ path }`
 
@@ -195,6 +197,111 @@ describe( 'FCIAS checksums sidebar', () => {
 		openChecksumsTab()
 		cy.get( '.fcias-dup-btn' ).click()
 		cy.get( '.fcias-dup-results', { timeout: FIND_TIMEOUT } ).should( 'contain', fileNameB )
+	} )
+
+	// The way across accounts is one link, offered to those who may look
+	// across accounts and to nobody else. It lands on the Duplicates page's
+	// Others tab with this file's hash filled in and the whole reach named,
+	// so the group is already there — the administrator's own two copies
+	// as their paths behind a house, and the other account's as a location
+	// behind a person, as text, since a link to it would open to nothing.
+	it( 'offers the administrator the way across accounts, and an account nobody named not', () => {
+		expect( fileIdA, 'fileIdA should be resolved' ).to.be.a( 'number' ).and.greaterThan( 0 )
+
+		cy.env( [ 'NC_ADMIN_USER', 'NC_ADMIN_PASSWORD' ] ).then( ( env ) => {
+			const admin = { user: env.NC_ADMIN_USER || 'admin', password: env.NC_ADMIN_PASSWORD || 'admin' }
+
+			cy.fciasMakeAccount( admin, 'owner' ).then( ( owner ) => {
+				// A third copy, in the other account's tree, hashed by that
+				// account over the API — the sidebar computes its own two the
+				// same way. Cookies first: cy.request() shares the browser's
+				// jar, and with the administrator's session in it these
+				// writes would be theirs.
+				cy.clearCookies()
+				const theirs = ( path ) => `/remote.php/dav/files/${ owner.user }${ path }`
+				const asThem = { user: owner.user, pass: owner.password }
+				cy.request( { method: 'MKCOL', url: theirs( `/${ dupDir }` ), auth: asThem, failOnStatusCode: false } )
+				cy.request( {
+					method: 'PUT',
+					url: theirs( `/${ dupDir }/${ fileNameA }` ),
+					auth: asThem,
+					headers: { 'Content-Type': 'text/plain' },
+					body: dupContent,
+				} )
+				cy.request( {
+					method: 'PROPFIND',
+					url: theirs( `/${ dupDir }/${ fileNameA }` ),
+					auth: asThem,
+					headers: { Depth: '0', 'Content-Type': 'application/xml' },
+					body: propfindBody,
+				} ).then( ( res ) => {
+					const theirId = extractFileId( res )
+					expect( theirId, 'the other account\'s copy should have an id' ).to.be.a( 'number' ).and.greaterThan( 0 )
+					cy.request( {
+						method: 'POST',
+						url: `/ocs/v2.php/apps/file_checksum_search/api/v1/file/${ theirId }/recalc?algo=sha1`,
+						auth: asThem,
+						headers: { 'OCS-APIRequest': 'true' },
+					} ).its( 'body.success' ).should( 'eq', true )
+				} )
+
+				// The administrator's file A, hashed by the first case; the
+				// button beside Find duplicates, and where it points.
+				cy.login( adminUser, adminPassword )
+				cy.visit( fileUrl( fileIdA ) )
+				openChecksumsTab()
+				cy.get( '.fcias-dup-btn', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+				cy.get( '[data-testid="fcias-dup-across"]', { timeout: FIND_TIMEOUT } )
+					.should( 'have.attr', 'href' )
+					.and( 'include', `#others?hash=${ DUP_SHA1 }&algo=sha1&all=1` )
+
+				// Follow it by address rather than by click: it opens a new
+				// tab, which a spec cannot look into.
+				cy.get( '[data-testid="fcias-dup-across"]' ).invoke( 'attr', 'href' ).then( ( href ) => {
+					cy.visit( href )
+				} )
+				const group = () => cy.get( '[data-testid="fcias-others"] .db-group', { timeout: FIND_TIMEOUT } )
+				group().should( 'have.length', 1 )
+				group().find( '.db-hash' ).should( 'contain', DUP_SHA1 )
+				group().find( '.db-group-header' ).click()
+				group().find( '.db-file-label', { timeout: FIND_TIMEOUT } ).should( 'have.length', 3 )
+				group().find( '.db-file-label > a .fcias-location-icon[data-kind="own"]' ).should( 'have.length', 2 )
+				group().find( '.db-file-label > .db-file-unopenable .fcias-location-icon[data-kind="home"]' ).should( 'have.length', 1 )
+				group().find( '.db-file-label > .db-file-unopenable' )
+					.should( 'contain', `/${ owner.user }/files/${ dupDir }/${ fileNameA }` )
+
+				cy.fciasDeleteAccount( admin, owner.user )
+			} )
+
+			// An account nobody named gets the section, and no way across.
+			cy.fciasMakeAccount( admin, 'nobody' ).then( ( nobody ) => {
+				cy.clearCookies()
+				const theirs = ( path ) => `/remote.php/dav/files/${ nobody.user }${ path }`
+				const asThem = { user: nobody.user, pass: nobody.password }
+				cy.request( {
+					method: 'PUT',
+					url: theirs( `/${ fileNameA }` ),
+					auth: asThem,
+					headers: { 'Content-Type': 'text/plain' },
+					body: dupContent,
+				} )
+				cy.request( {
+					method: 'PROPFIND',
+					url: theirs( `/${ fileNameA }` ),
+					auth: asThem,
+					headers: { Depth: '0', 'Content-Type': 'application/xml' },
+					body: propfindBody,
+				} ).then( ( res ) => {
+					const theirId = extractFileId( res )
+					cy.login( nobody.user, nobody.password )
+					cy.visit( `/index.php/apps/files/files/${ theirId }?opendetails=true` )
+					openChecksumsTab()
+					cy.get( '.fcias-dup-btn', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+					cy.get( '[data-testid="fcias-dup-across"]' ).should( 'not.exist' )
+				} )
+				cy.fciasDeleteAccount( admin, nobody.user )
+			} )
+		} )
 	} )
 
 	it( 'selects a different algorithm and recalculates it', () => {

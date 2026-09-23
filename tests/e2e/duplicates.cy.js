@@ -355,6 +355,42 @@ describe( 'FCIAS Duplicates page', () => {
 		} )
 	} )
 
+	// The page's state is its address: the tab, the filters, the page and
+	// — on Others — whose files. Read on arrival, so a pasted address opens
+	// on the search it names with no click; written on every change, so
+	// the address bar can be copied as the search.
+	it( 'opens Others from the address with the hash filled in and the whole reach named', () => {
+		cy.visit( `${ DUPLICATES_URL }#others?hash=${ DUP_HASH.slice( 0, 8 ) }&all=1` )
+
+		cy.get( '[data-testid="fcias-others"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.get( '#fcias-others-hash', { timeout: FIND_TIMEOUT } ).should( 'have.value', DUP_HASH.slice( 0, 8 ) )
+		cy.get( '[data-testid="fcias-target-picker"]' ).should( 'contain', 'All accounts' )
+		cy.get( '[data-testid="fcias-awaiting-scope"]' ).should( 'not.exist' )
+		cy.get( '[data-testid="fcias-others"] .db-group .db-hash', { timeout: FIND_TIMEOUT } ).should( 'contain', DUP_HASH )
+	} )
+
+	it( 'writes the filters to the address, and reads them back', () => {
+		cy.visit( DUPLICATES_URL )
+		cy.get( '#fcias-duplicates-hash', { timeout: FIND_TIMEOUT } ).type( 'abc' )
+		cy.location( 'hash' ).should( 'eq', '#mine?hash=abc' )
+		cy.get( '#fcias-duplicates-limit' ).clear().type( '10' )
+		cy.location( 'hash' ).should( 'eq', '#mine?hash=abc&limit=10' )
+
+		// A tab change is a place to go back to; a filter change is not.
+		cy.get( '.db-tab[data-tab="help"]' ).click()
+		cy.location( 'hash' ).should( 'eq', '#help' )
+		cy.go( 'back' )
+		cy.location( 'hash' ).should( 'eq', '#mine?hash=abc&limit=10' )
+		cy.get( '#fcias-duplicates-hash' ).should( 'have.value', 'abc' )
+		cy.get( '#fcias-duplicates-limit' ).should( 'have.value', '10' )
+
+		// A shared address should open, not refuse: what a field cannot
+		// take is clamped or dropped, and the address says what was kept.
+		cy.visit( `${ DUPLICATES_URL }#mine?algo=whirlpool&limit=9999` )
+		cy.get( '#fcias-duplicates-limit', { timeout: FIND_TIMEOUT } ).should( 'have.value', '500' )
+		cy.location( 'hash' ).should( 'eq', '#mine?limit=500' )
+	} )
+
 	it( 'does not offer the Others tab to an account nobody named', () => {
 		cy.env( [ 'NC_ADMIN_USER', 'NC_ADMIN_PASSWORD' ] ).then( ( env ) => {
 			const admin = { user: env.NC_ADMIN_USER || 'admin', password: env.NC_ADMIN_PASSWORD || 'admin' }
