@@ -1,25 +1,7 @@
-import { describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { describe, expect, it } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
 import RuleForm from './RuleForm.vue'
 import { optionLabels, pickOption } from '../test-utils/ncSelect'
-
-vi.mock('@nextcloud/vue/components/NcCheckboxRadioSwitch', () => ({
-	default: {
-		name: 'NcCheckboxRadioSwitch',
-		props: ['modelValue', 'type'],
-		emits: ['update:modelValue'],
-		template: '<span class="nc-switch"><input type="checkbox" :checked="modelValue"'
-			+ ' @change="$emit(\'update:modelValue\', $event.target.checked)"><slot /></span>',
-	},
-}))
-vi.mock('@nextcloud/vue/components/NcDialog', () => ({
-	default: {
-		name: 'NcDialog',
-		props: ['open', 'name', 'size'],
-		emits: ['update:open'],
-		template: '<div><slot /></div>',
-	},
-}))
 
 describe('RuleForm', () => {
 	it('seeds defaults for a new rule and uses the admin element ids', () => {
@@ -70,10 +52,13 @@ describe('RuleForm', () => {
 		const wrapper = mount(RuleForm, {
 			props: { rule: null, variant: 'admin', supportedAlgos: ['sha1'] },
 		})
-		await wrapper.findComponent({ name: 'NcDialog' }).vm.$emit('update:open', false)
+		// Escape, as the real dialog hears it: on the document.
+		document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+		await flushPromises()
 
 		expect(wrapper.emitted('cancel')).toHaveLength(1)
 		expect(wrapper.emitted('save')).toBeUndefined()
+		wrapper.unmount()
 	})
 
 	it('emits cancel', async () => {
@@ -341,11 +326,11 @@ describe('RuleForm', () => {
 			expect(preview()).toContain('All home folders')
 
 			await wrapper.find('#fcias-rule-selector').setValue('user')
-			await wrapper.find('#fcias-rule-selector-target').setValue('alice')
+			await pickOption(wrapper, 'alice', 'fcias-rule-selector-target')
 			expect(preview()).toContain('band 5')
 
-			// The id lands on the switch component's root; the control is its input.
-			await wrapper.find('#fcias-rule-admin-enforced input').setValue(true)
+			// The switch's id lands on its input, which is the control.
+			await wrapper.find('#fcias-rule-admin-enforced').setValue(true)
 			expect(preview()).toContain('band 1')
 			expect(preview()).toContain('Enforced — specific')
 		})
@@ -367,7 +352,7 @@ describe('RuleForm', () => {
 			})
 			expect(wrapper.find('.fcias-band-preview').text()).toContain('band 8')
 
-			await wrapper.find('#fcias-rule-admin-enforced input').setValue(true)
+			await wrapper.find('#fcias-rule-admin-enforced').setValue(true)
 			expect(wrapper.find('.fcias-band-preview').text()).toContain('band 4')
 		})
 	})

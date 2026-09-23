@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import App from './App.vue'
+import { clickAction, hasAction } from '../test-utils/ncActions'
 
 // The rest of the router as it is: the real Nextcloud components read
 // `imagePath` and friends, and a mock that names one export hides the rest.
@@ -17,16 +18,6 @@ vi.mock('../toast', () => ({
 	toastError: () => undefined,
 }))
 
-vi.mock('@nextcloud/vue/components/NcActions', () => ({
-	default: { name: 'NcActions', template: '<div class="nc-actions"><slot /></div>' },
-}))
-vi.mock('@nextcloud/vue/components/NcActionButton', () => ({
-	default: { name: 'NcActionButton', template: '<button><slot /></button>' },
-}))
-
-vi.mock('@nextcloud/vue/components/NcDialog', () => ({
-	default: { name: 'NcDialog', template: '<div><slot /></div>' },
-}))
 vi.mock('@nextcloud/vue/components/NcSettingsSelectGroup', () => ({
 	default: { name: 'NcSettingsSelectGroup', render: () => null },
 }))
@@ -313,9 +304,9 @@ describe('settings-admin App', () => {
 		// pinned is gone: a deleted shipped default is recreated (disabled)
 		// by the repair step, so the full action set applies. What protects
 		// evaluation order is the partition, not button removal.
-		expect(dflt.find('button[data-action="delete"]').exists()).toBe(true)
+		expect(await hasAction(dflt, 'delete')).toBe(true)
 		expect(dflt.find('.fcias-drag-handle').exists()).toBe(true)
-		expect(dflt.find('button[data-action="edit"]').exists()).toBe(true)
+		expect(await hasAction(dflt, 'edit')).toBe(true)
 	})
 
 	it('edits a default through the same dialog as every other rule', async () => {
@@ -362,8 +353,7 @@ describe('settings-admin App', () => {
 		const wrapper = mount(App)
 		await flushPromises()
 
-		await wrapper.find('#fcias-rules-list').findAll('tbody tr[data-id]')[0]
-			.find('button[data-action="delete"]').trigger('click')
+		await clickAction(wrapper.find('#fcias-rules-list').findAll('tbody tr[data-id]')[0], 'delete')
 		await flushPromises()
 
 		expect(confirmMock).toHaveBeenCalled()

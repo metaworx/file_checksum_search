@@ -1,17 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RuleTable from './RuleTable.vue'
 import type { Rule } from './types'
-
-vi.mock('@nextcloud/vue/components/NcActions', () => ({
-	default: { name: 'NcActions', template: '<div class="nc-actions"><slot /></div>' },
-}))
-vi.mock('@nextcloud/vue/components/NcActionButton', () => ({
-	default: { name: 'NcActionButton', template: '<button><slot /></button>' },
-}))
-
-// The real one pulls in a stylesheet Vitest cannot load; only its trigger slot
-// matters here, and that is what the help icon lives in.
+import { clickAction } from '../test-utils/ncActions'
 
 function makeRule(overrides: Partial<Rule> = {}): Rule {
 	return {
@@ -73,7 +64,7 @@ describe('RuleTable', () => {
 
 		expect(ruleRows(wrapper)).toHaveLength(2)
 
-		await ruleRows(wrapper)[1].find('button[data-action="delete"]').trigger('click')
+		await clickAction(ruleRows(wrapper)[1], 'delete')
 		expect(wrapper.emitted('delete')?.[0]).toEqual([rules[1]])
 	})
 

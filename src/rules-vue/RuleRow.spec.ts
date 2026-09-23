@@ -1,14 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RuleRow from './RuleRow.vue'
 import type { Rule } from './types'
-
-vi.mock('@nextcloud/vue/components/NcActions', () => ({
-	default: { name: 'NcActions', template: '<div class="nc-actions"><slot /></div>' },
-}))
-vi.mock('@nextcloud/vue/components/NcActionButton', () => ({
-	default: { name: 'NcActionButton', template: '<button><slot /></button>' },
-}))
+import { clickAction, hasAction, openActions } from '../test-utils/ncActions'
 
 function makeRule(overrides: Partial<Rule> = {}): Rule {
 	return {
@@ -116,24 +110,24 @@ describe('RuleRow', () => {
 		expect(wrapper.findAll('td')[COL.algos].text()).toBe('sha1')
 	})
 
-	it('shows Read-only instead of action buttons when the rule is not editable', () => {
+	it('shows Read-only instead of action buttons when the rule is not editable', async () => {
 		const wrapper = mount(RuleRow, {
 			props: { rule: makeRule({ canEdit: false }), variant: 'personal' },
 		})
-		expect(wrapper.find('button[data-action="edit"]').exists()).toBe(false)
+		expect(await hasAction(wrapper, 'edit')).toBe(false)
 		expect(wrapper.text()).toContain('Read-only')
 	})
 
-	it('offers the full action set for a default rule too', () => {
+	it('offers the full action set for a default rule too', async () => {
 		// pinned is gone: a deleted shipped default is recreated (disabled)
 		// by the repair step, so deleting one is reversible housekeeping.
 		const wrapper = mount(RuleRow, {
 			props: { rule: makeRule({ isDefault: true, band: 7 }), variant: 'admin' },
 		})
 
-		expect(wrapper.find('button[data-action="delete"]').exists()).toBe(true)
-		expect(wrapper.find('button[data-action="edit"]').exists()).toBe(true)
-		expect(wrapper.find('button[data-action="toggle"]').exists()).toBe(true)
+		expect(await hasAction(wrapper, 'delete')).toBe(true)
+		expect(await hasAction(wrapper, 'edit')).toBe(true)
+		expect(await hasAction(wrapper, 'toggle')).toBe(true)
 	})
 
 	it('renders a drag handle only when canDrag is true', () => {
@@ -176,9 +170,11 @@ describe('RuleRow', () => {
 		const rule = makeRule()
 		const wrapper = mount(RuleRow, { props: { rule, variant: 'admin' } })
 
-		await wrapper.find('button[data-action="edit"]').trigger('click')
-		await wrapper.find('button[data-action="toggle"]').trigger('click')
-		await wrapper.find('button[data-action="delete"]').trigger('click')
+		// Edit is the pen beside the menu; the other two are the menu's, which
+		// opens on its toggle and closes again after each choice.
+		await clickAction(wrapper, 'edit')
+		await clickAction(wrapper, 'toggle')
+		await clickAction(wrapper, 'delete')
 
 		expect(wrapper.emitted('edit')?.[0]).toEqual([rule])
 		expect(wrapper.emitted('toggle')?.[0]).toEqual([rule])
@@ -190,45 +186,47 @@ describe('RuleRow', () => {
 	it('offers Re-apply for an enabled include rule and emits apply', async () => {
 		const wrapper = mount(RuleRow, { props: { rule: makeRule(), variant: 'admin' } })
 
-		const apply = wrapper.find('button[data-action="apply"]')
-		expect(apply.exists()).toBe(true)
+		expect(await hasAction(wrapper, 'apply')).toBe(true)
 
-		await apply.trigger('click')
+		await clickAction(wrapper, 'apply')
 		expect(wrapper.emitted('apply')).toHaveLength(1)
 	})
 
-	it('hides Re-apply for a disabled rule', () => {
+	it('hides Re-apply for a disabled rule', async () => {
 		const wrapper = mount(RuleRow, { props: { rule: makeRule({ enabled: false }), variant: 'admin' } })
 
 		// The server refuses a disabled rule at submission; the menu simply
 		// does not offer what cannot succeed.
-		expect(wrapper.find('button[data-action="apply"]').exists()).toBe(false)
-		expect(wrapper.find('button[data-action="toggle"]').exists()).toBe(true)
+		expect(await hasAction(wrapper, 'apply')).toBe(false)
+		expect(await hasAction(wrapper, 'toggle')).toBe(true)
 	})
 
-	it('hides Re-apply for rules that compute nothing', () => {
+	it('hides Re-apply for rules that compute nothing', async () => {
 		for (const type of ['ignore', 'exclude'] as const) {
 			const wrapper = mount(RuleRow, { props: { rule: makeRule({ type }), variant: 'admin' } })
-			expect(wrapper.find('button[data-action="apply"]').exists()).toBe(false)
+			expect(await hasAction(wrapper, 'apply')).toBe(false)
 		}
 	})
 
-	it('offers Edit as a pen beside the menu AND mirrored inside it', () => {
+	it('offers Edit as a pen beside the menu AND mirrored inside it', async () => {
 		const wrapper = mount(RuleRow, { props: { rule: makeRule(), variant: 'admin' } })
 
 		// The pen is the one-click shortcut; the menu carries the same entry
 		// with the same icon, which is what says they are one action.
-		const edits = wrapper.findAll('button[data-action="edit"]')
-		expect(edits).toHaveLength(2)
-		expect(edits[0].classes()).toContain('fcias-icon-btn')
-		expect(edits[0].find('svg').exists()).toBe(true)
-		expect(wrapper.find('.nc-actions button[data-action="edit"]').exists()).toBe(true)
+		const pen = wrapper.find('button[data-action="edit"]')
+		expect(pen.classes()).toContain('fcias-icon-btn')
+		expect(pen.find('svg').exists()).toBe(true)
+
+		const menu = await openActions(wrapper)
+		const entry = menu.querySelector('[data-action="edit"] button')
+		expect(entry).not.toBeNull()
+		expect(entry?.querySelector('svg')).not.toBeNull()
 	})
 
 	it('shows no menu at all on a read-only row', () => {
 		const wrapper = mount(RuleRow, { props: { rule: makeRule({ canEdit: false }), variant: 'personal' } })
 
-		expect(wrapper.find('.nc-actions').exists()).toBe(false)
+		expect(wrapper.find('.action-item__menutoggle').exists()).toBe(false)
 		expect(wrapper.find('td.fcias-rules-actions').text()).toBe('Read-only')
 	})
 })

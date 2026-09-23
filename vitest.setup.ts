@@ -14,6 +14,8 @@
  * observer here observes nothing; the first placement still runs, once,
  * from `autoUpdate`'s own initial call.
  */
+import { config } from '@vue/test-utils'
+
 class QuietResizeObserver {
 	observe(): void {}
 
@@ -27,3 +29,10 @@ Object.defineProperty(globalThis, 'ResizeObserver', {
 	writable: true,
 	value: QuietResizeObserver,
 })
+
+// A dialog's content is teleported to the body, where `wrapper.find()` does
+// not look. Rendered in place instead, it is found where the spec mounted
+// it, and a spec that reads a form inside NcDialog reads it as before. The
+// popovers NcActions and NcPopover open do not go through Teleport and
+// still land in the body; the helpers in src/test-utils/ know where.
+config.global.stubs = { ...config.global.stubs, teleport: true }

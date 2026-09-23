@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import App from './App.vue'
+import { clickAction } from '../test-utils/ncActions'
 
 // The rest of the router as it is: the real Nextcloud components read
 // `imagePath` and friends, and a mock that names one export hides the rest.
@@ -22,26 +23,6 @@ vi.mock('../toast', () => ({
 // dialog, which has no business in a test about the rules page.
 vi.mock('./SudoTokensSection.vue', () => ({
 	default: { name: 'SudoTokensSection', template: '<div class="sudo-tokens-stub" />' },
-}))
-
-vi.mock('@nextcloud/vue/components/NcActions', () => ({
-	default: { name: 'NcActions', template: '<div class="nc-actions"><slot /></div>' },
-}))
-vi.mock('@nextcloud/vue/components/NcActionButton', () => ({
-	default: { name: 'NcActionButton', template: '<button><slot /></button>' },
-}))
-
-vi.mock('@nextcloud/vue/components/NcCheckboxRadioSwitch', () => ({
-	default: {
-		name: 'NcCheckboxRadioSwitch',
-		props: ['modelValue', 'type'],
-		emits: ['update:modelValue'],
-		template: '<span class="nc-switch"><input type="checkbox" :checked="modelValue"'
-			+ ' @change="$emit(\'update:modelValue\', $event.target.checked)"><slot /></span>',
-	},
-}))
-vi.mock('@nextcloud/vue/components/NcDialog', () => ({
-	default: { name: 'NcDialog', template: '<div><slot /></div>' },
 }))
 
 const confirmMock = vi.fn((_text: string, _title: string, onConfirm: (confirmed: boolean) => void) => onConfirm(true))
@@ -171,7 +152,7 @@ describe('settings-personal App', () => {
 		const wrapper = mount(App)
 		await flushPromises()
 
-		await wrapper.find('#fcias-personal-rules').find('button[data-action="delete"]').trigger('click')
+		await clickAction(wrapper.find('#fcias-personal-rules').find('tbody tr[data-id]'), 'delete')
 		await flushPromises()
 
 		expect(confirmMock).toHaveBeenCalled()

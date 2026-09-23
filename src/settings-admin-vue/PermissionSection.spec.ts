@@ -7,14 +7,6 @@ vi.mock('@nextcloud/router', () => ({
 	generateOcsUrl: (url: string) => url,
 }))
 
-vi.mock('@nextcloud/vue/components/NcCheckboxRadioSwitch', () => ({
-	default: {
-		name: 'NcCheckboxRadioSwitch',
-		props: ['modelValue'],
-		emits: ['update:modelValue'],
-		template: '<label><slot /></label>',
-	},
-}))
 vi.mock('@nextcloud/vue/components/NcSettingsSelectGroup', () => ({
 	default: { name: 'NcSettingsSelectGroup', props: ['modelValue'], emits: ['update:modelValue'], template: '<div />' },
 }))

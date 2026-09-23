@@ -7,15 +7,6 @@ vi.mock('@nextcloud/router', () => ({
 		url.replace(/\{(\w+)\}/g, (whole, token) => (params && token in params ? String(params[token]) : whole)),
 }))
 
-vi.mock('@nextcloud/vue/components/NcCheckboxRadioSwitch', () => ({
-	default: {
-		name: 'NcCheckboxRadioSwitch',
-		props: ['modelValue', 'disabled'],
-		emits: ['update:modelValue'],
-		template: '<label><slot /></label>',
-	},
-}))
-
 const confirmPassword = vi.fn()
 vi.mock('@nextcloud/password-confirmation', () => ({
 	confirmPassword: (...args: unknown[]) => confirmPassword(...args),
@@ -84,7 +75,7 @@ describe('SudoTokensSection', () => {
 	it('asks for the password before granting, then sends the grant', async () => {
 		const { toggle } = await mounted()
 
-		toggle().vm.$emit('update:modelValue', true)
+		await toggle().find('input').setValue(true)
 		await flushPromises()
 
 		expect(confirmPassword).toHaveBeenCalledTimes(1)
@@ -99,7 +90,7 @@ describe('SudoTokensSection', () => {
 		confirmPassword.mockRejectedValueOnce(new Error('dismissed'))
 		const { toggle } = await mounted()
 
-		toggle().vm.$emit('update:modelValue', true)
+		await toggle().find('input').setValue(true)
 		await flushPromises()
 
 		expect(fetchMock.mock.calls.some(([, init]) => (init as RequestInit | undefined)?.method === 'PUT')).toBe(false)
@@ -111,7 +102,7 @@ describe('SudoTokensSection', () => {
 		fetchMock.mockResolvedValueOnce(jsonResponse({ canUseApi: true, tokens: [{ ...backup, granted: true }] }))
 		const { toggle } = await mounted()
 
-		toggle().vm.$emit('update:modelValue', false)
+		await toggle().find('input').setValue(false)
 		await flushPromises()
 
 		expect(confirmPassword).not.toHaveBeenCalled()
