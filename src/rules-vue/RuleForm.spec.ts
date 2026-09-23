@@ -1,23 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RuleForm from './RuleForm.vue'
+import { optionLabels, pickOption } from '../test-utils/ncSelect'
 
-vi.mock('@nextcloud/vue/components/NcSelect', () => ({
-	// A native-select stand-in that honours modelValue/options/input-id, so
-	// tests drive the pickers exactly like the plain selects they replaced.
-	default: {
-		name: 'NcSelect',
-		props: ['modelValue', 'options', 'inputId'],
-		emits: ['update:modelValue'],
-		template: '<select :id="inputId"'
-			+ ' @change="$emit(\'update:modelValue\','
-			+ ' (options || []).find((o) => String(o.id) === $event.target.value) ?? null)">'
-			+ '<option value=""></option>'
-			+ '<option v-for="o in options || []" :key="o.id" :value="o.id"'
-			+ ' :selected="!!modelValue && String(modelValue.id) === String(o.id)">{{ o.label }}</option>'
-			+ '</select>',
-	},
-}))
 vi.mock('@nextcloud/vue/components/NcCheckboxRadioSwitch', () => ({
 	default: {
 		name: 'NcCheckboxRadioSwitch',
@@ -147,11 +132,14 @@ describe('RuleForm', () => {
 			expect(wrapper.find('#fcias-rule-selector-target').exists()).toBe(false)
 
 			await wrapper.find('#fcias-rule-selector').setValue('group')
-			await wrapper.find('#fcias-rule-selector-target').setValue('staff')
+			// The real picker: its menu offers the groups, and one is clicked.
+			expect(await optionLabels(wrapper, 'fcias-rule-selector-target')).toEqual(['staff', 'admin'])
+			await pickOption(wrapper, 'staff', 'fcias-rule-selector-target')
 			await wrapper.find('#fcias-btn-save-rule').trigger('click')
 
 			// Two controls in the dialog, one string on the wire.
 			expect((wrapper.emitted('save')?.[0]?.[0] as { selector: string }).selector).toBe('group:staff')
+			wrapper.unmount()
 		})
 
 		it('splits an existing group selector back into its two controls', () => {
@@ -164,7 +152,10 @@ describe('RuleForm', () => {
 				},
 			})
 			expect((wrapper.find('#fcias-rule-selector').element as HTMLSelectElement).value).toBe('group')
-			expect((wrapper.find('#fcias-rule-selector-target').element as HTMLSelectElement).value).toBe('staff')
+			// The picker says which option it holds through its selected-option
+			// slot — the id, not only the label, which is what the slot is for.
+			expect(wrapper.find('.vs__selected [data-selected-id="staff"]').exists()).toBe(true)
+			wrapper.unmount()
 		})
 	})
 
@@ -192,14 +183,13 @@ describe('RuleForm', () => {
 
 			await wrapper.find('#fcias-rule-selector').setValue('groupfolder')
 
-			const picker = wrapper.find('#fcias-rule-selector-target')
-			expect(picker.text()).toContain('Team Docs')
-
-			await picker.setValue('1')
+			expect(await optionLabels(wrapper, 'fcias-rule-selector-target')).toEqual(['Team Docs (#1)'])
+			await pickOption(wrapper, 'Team Docs (#1)', 'fcias-rule-selector-target')
 			await wrapper.find('#fcias-btn-save-rule').trigger('click')
 
 			// The name is display only; the selector stores the id.
 			expect((wrapper.emitted('save')?.[0]?.[0] as { selector: string }).selector).toBe('groupfolder:1')
+			wrapper.unmount()
 		})
 
 		it('keeps the raw text input for storage ids', async () => {
@@ -234,17 +224,21 @@ describe('RuleForm', () => {
 			})
 
 			await wrapper.find('#fcias-rule-selector').setValue('user')
-			await wrapper.find('#fcias-rule-selector-target').setValue('alice')
+			await pickOption(wrapper, 'alice', 'fcias-rule-selector-target')
+			expect(wrapper.find('.vs__selected [data-selected-id="alice"]').exists()).toBe(true)
 
 			// Switching the kind must not carry alice into a group-folder
 			// selector: a stale target composes a rule nobody asked for.
 			await wrapper.find('#fcias-rule-selector').setValue('groupfolder')
 
-			const picker = wrapper.find('#fcias-rule-selector-target')
-			expect((picker.element as HTMLSelectElement).value).toBe('')
+			// The target pickers are the ones that render `data-selected-id`;
+			// the algorithm picker beside them keeps its own selection.
+			expect(wrapper.find('#fcias-rule-selector-target').exists()).toBe(true)
+			expect(wrapper.find('[data-selected-id]').exists()).toBe(false)
 
 			await wrapper.find('#fcias-btn-save-rule').trigger('click')
 			expect((wrapper.emitted('save')?.[0]?.[0] as { selector: string }).selector).toBe('')
+			wrapper.unmount()
 		})
 
 		it('keeps the seeded target when editing an existing rule', () => {
@@ -258,8 +252,9 @@ describe('RuleForm', () => {
 			})
 
 			// Seeding is programmatic, not a user interaction — the target
-			// survives it.
-			expect((wrapper.find('#fcias-rule-selector-target').element as HTMLSelectElement).value).toBe('alice')
+			// survives it, and the picker shows it.
+			expect(wrapper.find('.vs__selected [data-selected-id="alice"]').exists()).toBe(true)
+			wrapper.unmount()
 		})
 	})
 

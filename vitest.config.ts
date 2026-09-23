@@ -14,6 +14,8 @@ export default defineConfig({
 		// Inlined, they go through Vite, which knows. Measured on the whole
 		// suite: no difference in duration.
 		server: { deps: { inline: [/@nextcloud\/vue/] } },
+		// What the runner's DOM must not do for those components; see the file.
+		setupFiles: ['./vitest.setup.ts'],
 		include: ['src/**/*.spec.ts'],
 		exclude: [
 			'**/node_modules/**',

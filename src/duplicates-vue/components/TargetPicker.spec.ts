@@ -4,32 +4,26 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import TargetPicker from './TargetPicker.vue'
-
-// A stand-in that exposes the one prop this spec is about and lets a test
-// type into the control the way NcSelect reports typing: a `search` event.
-vi.mock('@nextcloud/vue/components/NcSelect', () => ({
-	default: {
-		name: 'NcSelect',
-		props: ['modelValue', 'options', 'multiple', 'loading', 'filterable', 'noOptions'],
-		emits: ['update:modelValue', 'search'],
-		template: '<div class="nc-select" :data-filterable="String(filterable)">{{ options.length }}</div>',
-	},
-}))
+import { openSelect, optionLabels, selectedLabels, typeToSearch } from '../../test-utils/ncSelect'
 
 function jsonResponse(body: unknown): Response {
 	return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
 }
 
 /** An account list past the prefill threshold: the server says "search instead". */
-const TOO_MANY = { prefill: false, all: true, groups: [], users: [] }
+const TOO_MANY = { prefill: false, all: true, reach: 'everyone', groups: [], users: [] }
 
 /** One account found by name — and, being one, `prefill: true`. */
-const ONE = (id: string) => ({ prefill: true, all: true, groups: [], users: [{ id, label: id }] })
+const ONE = (id: string) => ({ prefill: true, all: true, reach: 'everyone', groups: [], users: [{ id, label: id }] })
 
 describe('TargetPicker', () => {
+	let wrapper: VueWrapper | null = null
+
 	afterEach(() => {
+		wrapper?.unmount()
+		wrapper = null
 		vi.restoreAllMocks()
 	})
 
@@ -43,41 +37,39 @@ describe('TargetPicker', () => {
 			.mockResolvedValueOnce(jsonResponse(ONE('admin')))
 			.mockResolvedValueOnce(jsonResponse(ONE('fcias_e2e_owner')))
 
-		const wrapper = mount(TargetPicker)
+		wrapper = mount(TargetPicker)
 		await flushPromises()
 
-		const select = wrapper.findComponent({ name: 'NcSelect' })
-		expect(select.attributes('data-filterable')).toBe('false')
-
-		await select.vm.$emit('search', 'admin')
-		await flushPromises()
+		await typeToSearch(wrapper, 'admin')
 		expect(fetchMock).toHaveBeenCalledTimes(2)
 		expect(String(fetchMock.mock.calls[1][0])).toContain('search=admin')
 
-		// Still the server's job, not NcSelect's — the second name is fetched.
-		expect(select.attributes('data-filterable')).toBe('false')
-
-		await select.vm.$emit('search', 'fcias_e2e_owner')
-		await flushPromises()
+		// Still the server's job, not NcSelect's — the second name is fetched,
+		// and offered, though the list held only the first.
+		await typeToSearch(wrapper, 'fcias_e2e_owner')
 		expect(fetchMock).toHaveBeenCalledTimes(3)
 		expect(String(fetchMock.mock.calls[2][0])).toContain('search=fcias_e2e_owner')
+		expect(await optionLabels(wrapper)).toContain('fcias_e2e_owner')
 	})
 
 	// The other mode is unchanged: a list short enough to hold is held, and
 	// typing filters it in the browser without a round trip.
 	it('filters in the browser when the opening list was complete', async () => {
 		const fetchMock = vi.spyOn(globalThis, 'fetch')
-			.mockResolvedValueOnce(jsonResponse({ prefill: true, all: true, groups: [], users: [{ id: 'alice', label: 'alice' }] }))
+			.mockResolvedValueOnce(jsonResponse({
+				prefill: true,
+				all: true,
+				reach: 'everyone',
+				groups: [],
+				users: [{ id: 'alice', label: 'alice' }, { id: 'bob', label: 'bob' }],
+			}))
 
-		const wrapper = mount(TargetPicker)
+		wrapper = mount(TargetPicker)
 		await flushPromises()
 
-		const select = wrapper.findComponent({ name: 'NcSelect' })
-		expect(select.attributes('data-filterable')).toBe('true')
-
-		await select.vm.$emit('search', 'ali')
-		await flushPromises()
+		await typeToSearch(wrapper, 'ali')
 		expect(fetchMock).toHaveBeenCalledTimes(1)
+		expect(await optionLabels(wrapper)).toEqual(['alice'])
 	})
 
 	// "All" is the caller's whole reach, and the server says whose: every
@@ -87,22 +79,20 @@ describe('TargetPicker', () => {
 		vi.spyOn(globalThis, 'fetch')
 			.mockResolvedValueOnce(jsonResponse({ prefill: true, all: true, reach: 'groups', groups: [], users: [] }))
 
-		const wrapper = mount(TargetPicker)
+		wrapper = mount(TargetPicker)
 		await flushPromises()
 
-		const options = wrapper.findComponent({ name: 'NcSelect' }).props('options') as Array<{ label: string }>
-		expect(options.map((o) => o.label)).toEqual(['All my groups'])
+		expect(await optionLabels(wrapper)).toEqual(['All my groups'])
 	})
 
 	it('calls it All accounts for a sudoer', async () => {
 		vi.spyOn(globalThis, 'fetch')
 			.mockResolvedValueOnce(jsonResponse({ prefill: true, all: true, reach: 'everyone', groups: [], users: [] }))
 
-		const wrapper = mount(TargetPicker)
+		wrapper = mount(TargetPicker)
 		await flushPromises()
 
-		const options = wrapper.findComponent({ name: 'NcSelect' }).props('options') as Array<{ label: string }>
-		expect(options.map((o) => o.label)).toEqual(['All accounts'])
+		expect(await optionLabels(wrapper)).toEqual(['All accounts'])
 	})
 
 	// The scope is the page's, and may come from the URL before the list
@@ -118,19 +108,36 @@ describe('TargetPicker', () => {
 				users: [{ id: 'alice', label: 'Alice A.' }],
 			}))
 
-		const wrapper = mount(TargetPicker, {
+		wrapper = mount(TargetPicker, {
 			props: { scope: { all: false, users: ['alice'], groups: ['team'] } },
 		})
-
-		let selected = wrapper.findComponent({ name: 'NcSelect' }).props('modelValue') as Array<{ id: string, label: string }>
-		expect(selected.map((o) => o.label)).toEqual(['team (Group)', 'alice'])
+		expect(selectedLabels(wrapper)).toEqual(['team (Group)', 'alice'])
 
 		await flushPromises()
-		selected = wrapper.findComponent({ name: 'NcSelect' }).props('modelValue') as Array<{ id: string, label: string }>
-		expect(selected.map((o) => o.label)).toEqual(['Team (Group)', 'Alice A.'])
+		expect(selectedLabels(wrapper)).toEqual(['Team (Group)', 'Alice A.'])
 
 		await wrapper.setProps({ scope: { all: true, users: [], groups: [] } })
-		selected = wrapper.findComponent({ name: 'NcSelect' }).props('modelValue') as Array<{ id: string, label: string }>
-		expect(selected.map((o) => o.label)).toEqual(['All accounts'])
+		expect(selectedLabels(wrapper)).toEqual(['All accounts'])
+	})
+
+	// Picking "All" through the menu names the whole reach and nothing else.
+	it('emits the whole reach when All is picked', async () => {
+		vi.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(jsonResponse({
+				prefill: true,
+				all: true,
+				reach: 'everyone',
+				groups: [],
+				users: [{ id: 'alice', label: 'alice' }],
+			}))
+
+		wrapper = mount(TargetPicker)
+		await flushPromises()
+
+		const all = (await openSelect(wrapper)).find((li) => li.textContent?.trim() === 'All accounts')
+		all!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+		await flushPromises()
+
+		expect(wrapper.emitted('update:scope')?.at(-1)?.[0]).toEqual({ all: true, users: [], groups: [] })
 	})
 })
