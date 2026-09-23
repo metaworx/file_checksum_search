@@ -982,6 +982,34 @@ class PublicApiControllerTest
 		$data = $response->getData();
 		$this->assertSame( 42, $data['fileid'] );
 		$this->assertCount( 1, $data['hashes'] );
+		// A plain account: the mock's mayCross() says no.
+		$this->assertFalse( $data['canSudo'] );
+	}
+
+
+	/**
+	 * The hashes response says whether its viewer may look across accounts,
+	 * as the listing does, so the sidebar can offer the way to the Others
+	 * tab without a second request. `mayCross()`, the entry question, not
+	 * `isSudoer()`: a group leader may.
+	 */
+	public function testTheHashesSayWhetherTheCallerMaySudo(): void
+	{
+
+		$this->sudo->method( 'mayCross' )
+		           ->with( 'admin' )
+		           ->willReturn( true )
+		;
+		$this->sudo->expects( $this->never() )
+		           ->method( 'isSudoer' )
+		;
+		$this->api->method( 'getHashesByFileId' )
+		          ->willReturn( [ 'fileid' => 42, 'hashes' => [] ] )
+		;
+
+		$data = $this->controller->getHashes( 42 )->getData();
+
+		$this->assertTrue( $data['canSudo'] );
 	}
 
 

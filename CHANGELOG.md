@@ -143,6 +143,9 @@ the first stable release.
 
 - `GET /api/v1/status`: a non-administrator gets the version alone.
 
+- `GET /api/v1/file/{fileId}/hashes`: `canSudo`, whether the caller may
+  look across accounts.
+
 - Duplicates listing: the filter pages 200 groups at a time and stops
   when the page is full; a truncated group is confirmed in one read.
 

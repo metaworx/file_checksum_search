@@ -473,7 +473,9 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/hashes
   ],
   "algos": ["sha256", "sha1"],
   "preferred": "sha256",
-  "default": "sha1"
+  "default": "sha1",
+  "canRecalc": true,
+  "canSudo": false
 }
 ```
 
@@ -483,6 +485,12 @@ computes (empty when no rule maintains the file), `preferred` is the asking
 user's stored preference where it is still in force (empty otherwise), and
 `default` is the instance's. The first button is `preferred`, else `default`;
 the second is the first of `algos` that differs from it.
+
+The two flags are about the asking account, not the file: `canRecalc` is the
+*Who may calculate by hand* permission, and `canSudo` whether the account may
+look across accounts at all, the same answer the duplicates listing carries.
+The sidebar hides its Recalculate buttons on the first and offers the way to
+the Duplicates page's *Others* tab on the second.
 
 ---
 

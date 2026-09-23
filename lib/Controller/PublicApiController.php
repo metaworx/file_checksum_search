@@ -591,7 +591,11 @@ class PublicApiController
 		{
 			$result = $this->api->getHashesByFileId( $fileId, $actingUser, $reachUids );
 
-			return new DataResponse( $result );
+			// Whether the sidebar may offer the way to the Others tab. The
+			// same fact the listing carries, for the same reason: the page
+			// that shows the button is the one that has to know, and the
+			// hashes are the one request every sidebar makes.
+			return new DataResponse( $result + [ 'canSudo' => $this->sudo->mayCross( $actingUser ) ] );
 		}
 		catch ( NotFoundException )
 		{

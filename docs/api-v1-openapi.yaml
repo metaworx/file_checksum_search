@@ -1034,6 +1034,14 @@ components:
           type: string
           description: "The instance default, used when no algorithm is named."
           example: sha1
+        canRecalc:
+          type: boolean
+          description: "Whether the asking account may calculate by hand (the *manual_recalc* permission); the sidebar hides its Recalculate buttons when false."
+          example: true
+        canSudo:
+          type: boolean
+          description: "Whether the asking account may look across accounts; the sidebar offers the way to the Duplicates page's Others tab when true."
+          example: false
 
     PreferenceResponse:
       type: object
