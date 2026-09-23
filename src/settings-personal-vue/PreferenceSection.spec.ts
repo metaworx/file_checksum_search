@@ -7,10 +7,6 @@ vi.mock('@nextcloud/router', () => ({
 		url.replace(/\{(\w+)\}/g, (whole, token) => (params && token in params ? String(params[token]) : whole)),
 }))
 
-vi.mock('@nextcloud/vue/components/NcPopover', () => ({
-	default: { name: 'NcPopover', template: '<div><slot name="trigger" /><slot /></div>' },
-}))
-
 vi.mock('../components/AlgorithmSelect.vue', () => ({
 	default: {
 		name: 'AlgorithmSelect',

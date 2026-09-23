@@ -12,12 +12,6 @@ vi.mock('@nextcloud/vue/components/NcActionButton', () => ({
 
 // The real one pulls in a stylesheet Vitest cannot load; only its trigger slot
 // matters here, and that is what the help icon lives in.
-vi.mock('@nextcloud/vue/components/NcPopover', () => ({
-	default: {
-		name: 'NcPopover',
-		template: '<div class="nc-popover"><slot name="trigger" /><slot /></div>',
-	},
-}))
 
 function makeRule(overrides: Partial<Rule> = {}): Rule {
 	return {

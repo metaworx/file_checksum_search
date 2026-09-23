@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import HelpPopover from './HelpPopover.vue'
 
+// A driven stand-in, not an untouched one: this spec reads the help text,
+// which the real NcPopover renders only once opened and elsewhere in the
+// document. Opening it for real is AP MockCleanup block 3's.
 vi.mock('@nextcloud/vue/components/NcPopover', () => ({
 	default: {
 		name: 'NcPopover',

@@ -23,10 +23,6 @@ vi.mock('@nextcloud/router', () => ({
 	},
 }))
 
-vi.mock('@nextcloud/vue/components/NcLoadingIcon', () => ({
-	default: { name: 'NcLoadingIcon', render: () => null },
-}))
-
 // The picker's list is another request; not this spec's business.
 vi.mock('../algorithms', async (importOriginal) => ({
 	...await importOriginal<typeof import('../algorithms')>(),

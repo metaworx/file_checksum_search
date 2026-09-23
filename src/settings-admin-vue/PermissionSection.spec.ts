@@ -7,9 +7,6 @@ vi.mock('@nextcloud/router', () => ({
 	generateOcsUrl: (url: string) => url,
 }))
 
-vi.mock('@nextcloud/vue/components/NcPopover', () => ({
-	default: { name: 'NcPopover', template: '<div><slot name="trigger" /><slot /></div>' },
-}))
 vi.mock('@nextcloud/vue/components/NcCheckboxRadioSwitch', () => ({
 	default: {
 		name: 'NcCheckboxRadioSwitch',
@@ -20,16 +17,6 @@ vi.mock('@nextcloud/vue/components/NcCheckboxRadioSwitch', () => ({
 }))
 vi.mock('@nextcloud/vue/components/NcSettingsSelectGroup', () => ({
 	default: { name: 'NcSettingsSelectGroup', props: ['modelValue'], emits: ['update:modelValue'], template: '<div />' },
-}))
-vi.mock('@nextcloud/vue/components/NcSelect', () => ({
-	default: { name: 'NcSelect', props: ['modelValue'], emits: ['update:modelValue'], template: '<div />' },
-}))
-vi.mock('@nextcloud/vue/components/NcButton', () => ({
-	default: {
-		name: 'NcButton',
-		props: ['variant', 'disabled'],
-		template: '<button :disabled="disabled" @click="$emit(\'click\', $event)"><slot /></button>',
-	},
 }))
 
 const toastSaved = vi.fn()

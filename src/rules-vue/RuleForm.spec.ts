@@ -18,22 +18,6 @@ vi.mock('@nextcloud/vue/components/NcSelect', () => ({
 			+ '</select>',
 	},
 }))
-vi.mock('@nextcloud/vue/components/NcEllipsisedOption', () => ({
-	default: {
-		name: 'NcEllipsisedOption',
-		props: ['name'],
-		template: '<span class="name-parts" :title="name">{{ name }}</span>',
-	},
-}))
-vi.mock('@nextcloud/vue/components/NcNoteCard', () => ({
-	default: { name: 'NcNoteCard', template: '<div class="nc-note-card"><slot /></div>' },
-}))
-vi.mock('@nextcloud/vue/components/NcPopover', () => ({
-	default: {
-		name: 'NcPopover',
-		template: '<div class="nc-popover"><slot name="trigger" /><slot /></div>',
-	},
-}))
 vi.mock('@nextcloud/vue/components/NcCheckboxRadioSwitch', () => ({
 	default: {
 		name: 'NcCheckboxRadioSwitch',

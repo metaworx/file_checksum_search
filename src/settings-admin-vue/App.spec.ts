@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import App from './App.vue'
 
-vi.mock('@nextcloud/router', () => ({
+// The rest of the router as it is: the real Nextcloud components read
+// `imagePath` and friends, and a mock that names one export hides the rest.
+vi.mock('@nextcloud/router', async (importOriginal) => ({
+	...await importOriginal<typeof import('@nextcloud/router')>(),
 	generateOcsUrl: (url: string, params?: Record<string, unknown>) =>
 		url.replace(/\{(\w+)\}/g, (whole, token) => (params && token in params ? String(params[token]) : whole)),
 }))
@@ -21,42 +24,11 @@ vi.mock('@nextcloud/vue/components/NcActionButton', () => ({
 	default: { name: 'NcActionButton', template: '<button><slot /></button>' },
 }))
 
-vi.mock('@nextcloud/vue/components/NcEllipsisedOption', () => ({
-	default: {
-		name: 'NcEllipsisedOption',
-		props: ['name'],
-		template: '<span class="name-parts" :title="name">{{ name }}</span>',
-	},
-}))
-vi.mock('@nextcloud/vue/components/NcNoteCard', () => ({
-	default: { name: 'NcNoteCard', template: '<div class="nc-note-card"><slot /></div>' },
-}))
-vi.mock('@nextcloud/vue/components/NcButton', () => ({
-	default: { name: 'NcButton', template: '<button @click="$emit(\'click\', $event)"><slot /></button>' },
-}))
-vi.mock('@nextcloud/vue/components/NcSelect', () => ({
-	default: { name: 'NcSelect', render: () => null },
-}))
-vi.mock('@nextcloud/vue/components/NcPopover', () => ({
-	default: {
-		name: 'NcPopover',
-		template: '<div class="nc-popover"><slot name="trigger" /><slot /></div>',
-	},
-}))
 vi.mock('@nextcloud/vue/components/NcDialog', () => ({
 	default: { name: 'NcDialog', template: '<div><slot /></div>' },
 }))
-vi.mock('@nextcloud/vue/components/NcCheckboxRadioSwitch', () => ({
-	default: { name: 'NcCheckboxRadioSwitch', render: () => null },
-}))
-vi.mock('@nextcloud/vue/components/NcTextField', () => ({
-	default: { name: 'NcTextField', props: ['modelValue'], render: () => null },
-}))
 vi.mock('@nextcloud/vue/components/NcSettingsSelectGroup', () => ({
 	default: { name: 'NcSettingsSelectGroup', render: () => null },
-}))
-vi.mock('@nextcloud/vue/components/NcRichText', () => ({
-	default: { name: 'NcRichText', render: () => null },
 }))
 
 const confirmMock = vi.fn((_text: string, _title: string, onConfirm: (confirmed: boolean) => void) => onConfirm(true))

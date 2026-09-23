@@ -2,12 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RecalcButton from './RecalcButton.vue'
 
-vi.mock('@nextcloud/l10n', () => ({
+vi.mock('@nextcloud/l10n', async (importOriginal) => ({
+	...await importOriginal<typeof import('@nextcloud/l10n')>(),
 	translate: (app: string, text: string) => text,
-}))
-
-vi.mock('@nextcloud/vue/components/NcLoadingIcon', () => ({
-	default: { name: 'NcLoadingIcon', render: () => null },
 }))
 
 describe('RecalcButton', () => {

@@ -6,13 +6,6 @@ vi.mock('@nextcloud/router', () => ({
 	generateOcsUrl: (url: string, params?: Record<string, unknown>) =>
 		url.replace(/\{(\w+)\}/g, (whole, token) => (params && token in params ? String(params[token]) : whole)),
 }))
-vi.mock('@nextcloud/vue/components/NcButton', () => ({
-	default: {
-		name: 'NcButton',
-		props: ['variant', 'disabled'],
-		template: '<button :disabled="disabled" @click="$emit(\'click\', $event)"><slot /></button>',
-	},
-}))
 
 const toastSuccess = vi.fn()
 const toastError = vi.fn()

@@ -7,18 +7,6 @@ vi.mock('@nextcloud/router', () => ({
 	generateOcsUrl: (url: string) => url,
 }))
 
-vi.mock('@nextcloud/vue/components/NcPopover', () => ({
-	default: { name: 'NcPopover', template: '<div><slot name="trigger" /><slot /></div>' },
-}))
-
-vi.mock('@nextcloud/vue/components/NcButton', () => ({
-	default: {
-		name: 'NcButton',
-		props: ['variant', 'disabled'],
-		template: '<button :disabled="disabled" @click="$emit(\'click\', $event)"><slot /></button>',
-	},
-}))
-
 const toastSaved = vi.fn()
 const toastError = vi.fn()
 vi.mock('../toast', () => ({
