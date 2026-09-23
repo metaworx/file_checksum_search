@@ -13,178 +13,264 @@ the first stable release.
 
 ### Added
 
-- `occ fcias:backup`, `fcias:reset`, `fcias:import`: configuration, queue
-  state and hashes out as `json`, `csv` or a checksum listing, and back
-  in with `--merge` or `--replace`; a reset reports until `--force`.
+- `occ fcias:backup`: configuration, queue state and hashes as `json`;
+  hashes alone as `csv` or a checksum listing.
+
+- `occ fcias:import`: configuration and hashes back in, with `--merge`
+  or `--replace`. The queue is not imported.
+
+- `occ fcias:reset`: a report until `--force`.
 
 - `occ fcias:repair`: every repair step by name (`--list`, `--step`,
-  `--dry-run`, `--include-expensive`); `file-checksum-search:rebuild` is
-  gone.
+  `--dry-run`, `--include-expensive`).
 
-- `occ fcias:queue:drain`: hash what the rules queued, now, with
-  `--batch-size` and `--all`.
+- `occ fcias:repair --step unindexed-hashes`: files the index forgot,
+  run only when named or with `--include-expensive`.
 
-- `occ fcias:hash`: `file-checksum-search:generate` renamed, no alias;
-  `--algo` repeatable with `auto`, `--mode`, `--unmatched`, `--mark`,
-  `--with-ignored`, `--ignore-rule`, `-v`/`-vv`.
+- `occ fcias:repair --step orphaned-metadata`, `orphan_purge_interval`:
+  this app's metadata for files the filecache no longer has, purged
+  daily and when an account is deleted.
+
+- `occ fcias:queue:drain`: hash what the rules queued, now
+  (`--batch-size`, `--all`).
+
+- `occ fcias:hash --algo`: repeatable, `auto` (the governing rule's
+  list) by default.
+
+- `occ fcias:hash --mode missing`: outdated hashes refreshed as well.
+
+- `occ fcias:hash --unmatched`, `--mark`, `--with-ignored`,
+  `--ignore-rule`, `-v`/`-vv`: new.
 
 - `occ file-checksum-search:rules:list|add|modify|delete|apply`: rule
-  management from the shell; `list` speaks JSON.
+  management from the shell, `list` in JSON.
 
 - `/api/v1/rules`: `GET`, `POST`, `PUT /{id}`, `DELETE /{id}`,
-  `PUT /order`, `POST /{id}/apply`; one resource for both settings pages;
-  `POST` and `PUT` return the stored rule.
+  `PUT /order`, `POST /{id}/apply`, one resource for both settings pages.
 
-- `ChecksumApi`: `listRules`, `createRule`, `updateRule`, `deleteRule`,
-  `applyRule`, `findDuplicatesFor`, `recalcMany`, `openableBy`;
-  `$actingUser` and `$reachUids` in place of `$requestingUser`.
+- `POST /api/v1/rules`, `PUT /api/v1/rules/{id}`: the stored rule in the
+  answer.
+
+- `ChecksumApi::listRules()`, `createRule()`, `updateRule()`,
+  `deleteRule()`, `applyRule()`, `findDuplicatesFor()`, `recalcMany()`,
+  `openableBy()`: new.
+
+- `ChecksumApi`: `$actingUser` and `?array $reachUids` in place of
+  `?string $requestingUser`. **A positional fourth argument to
+  `findByHash()` must change.**
 
 - `GET /api/v1/algorithms`, admin *Hash Algorithms*: the algorithms an
-  instance allows, from what its PHP offers, and a designated default;
-  every picker reads the list, so `adler32` duplicates can be browsed.
+  instance allows and its default (`default_algorithm`).
 
-- `GET`/`PUT /api/v1/preferences/preferred_algorithm`, personal settings:
-  the algorithm the sidebar offers first, then the file's rule's.
+- `GET`/`PUT /api/v1/preferences/preferred_algorithm`, personal
+  settings: the algorithm the sidebar offers first.
 
 - Rule verdicts `include`, `ignore`, `exclude`: the first matching rule
-  decides; `exclude` refuses hashing by every route, sidebar included.
+  decides.
 
-- Permissions: *Who may calculate by hand* (`manual_recalc`), *look
-  across accounts* (`instance_view`), *use the API* (`api_access`),
-  beside *edit rules*; the first and the last ship allowed. `canRecalc`
-  on the hashes response says whether the sidebar offers Recalculate.
+- Rule verdict `exclude`: hashing refused by every route, the sidebar
+  included.
 
-- `/api/v1/sudo/`: twins of the per-file hashes, per-file duplicates,
-  lookup, listing, recalc and batch recalc, plus `/sudo/selectable`;
-  behind a password confirmation or a granted app password. A sudoer
-  reaches every account, a group leader what their members hold;
-  `users[]`/`groups[]` name a set, expanded and authorised server-side.
+- Permissions *Who may calculate by hand* (`manual_recalc`), *look
+  across accounts* (`instance_view`), *use the API* (`api_access`):
+  beside *edit rules*, the first and the last allowed by default.
 
-- Sudo tokens: a grant per app password on the personal page; every grant
-  listed and revocable on the admin *Sudo tokens* tab.
+- `api_access`: gates a request authenticated as the API, never the
+  bundled pages.
+
+- `canRecalc` on `GET /api/v1/file/{fileId}/hashes`: whether the caller
+  may recalculate.
+
+- `/api/v1/sudo/`: twins of `file/{fileId}/hashes`,
+  `file/{fileId}/duplicates`, `lookup`, `duplicates`,
+  `file/{fileId}/recalc` and `file/many/recalc`, behind a password
+  confirmation or a granted app password.
+
+- `/api/v1/sudo/` reach: every account for a sudoer, their members for a
+  group leader.
+
+- `users[]`, `groups[]` on `GET /api/v1/sudo/duplicates`: a set of
+  accounts, expanded and authorised server-side.
+
+- `GET /api/v1/sudo/selectable`: the groups and accounts the caller may
+  name, with `all` and `reach`.
+
+- Sudo tokens: a grant per app password, on the personal page.
+
+- Admin *Sudo tokens* tab: every grant, revocable.
 
 - Duplicates page *Others* tab: other accounts' duplicates, named by
   account, by group, or as the caller's whole reach.
 
-- `GET /api/v1/sudo/selectable`: `all` and `reach`, what the caller's
-  whole reach is.
-
 - Duplicates page: the tab, its filters, the page and the scope in the
   URL fragment.
 
-- Sidebar *Find across accounts*, for those who may: the Duplicates
-  page's *Others* tab on the file's hash, over the whole reach.
+- Sidebar *Find across accounts*: the *Others* tab on the file's hash,
+  for those who may cross.
 
-- `POST /api/v1/file/many/recalc` and its `/sudo/` twin: one request
-  verifies up to 25 files or 100 MiB; the Duplicates page sends chunks.
+- `POST /api/v1/file/many/recalc` and its `/sudo/` twin: up to 25 files
+  or 100 MiB per request.
 
-- Rate limits per user: 60/min on `lookup`, both duplicates routes,
-  their `/sudo/` twins and `sudo/selectable`; 20/min on every recalc
-  route. The 429 is Nextcloud's, empty; `ratelimit_overwrite` changes
-  the limits.
+- `#[UserRateLimit]` 60/min: `lookup`, `duplicates`,
+  `file/{fileId}/duplicates`, their `/sudo/` twins, `sudo/selectable`.
 
-- `hash` and `anywhere` on `/api/v1/duplicates` and its twin, a *Hash*
-  field and *Search anywhere* on the page: only the groups a hash names.
+- `#[UserRateLimit]` 20/min: every recalc route.
 
-- `stale:eroded` and `stale:reset`: hashes dropped on write, or disowned
-  by a reset, counted by reason on the Advanced tab and in
-  `occ file-checksum-search:status`, and hidden from search and groups.
+- The 429 answer: Nextcloud's own, with an empty body.
 
-- `occ fcias:repair --step orphaned-metadata`, a daily purge
-  (`orphan_purge_interval`): this app's metadata for files the filecache
-  no longer has; due at once when an account is deleted.
+- `ratelimit_overwrite` in `config/config.php`: the limits, per route.
 
-- Admin page idle banner: shown while no enabled `include` rule exists;
-  *Acknowledged* persists (`idle_banner_ack`) until one does.
+- `hash`, `anywhere` on `GET /api/v1/duplicates` and its twin, *Hash*
+  and *Search anywhere* on the page: only the groups a hash names.
 
-- Rules table coverage rows: *Create rule* for every namespace without a
-  catch-all; a *provider missing* badge on a rule naming a gone one.
+- `stale:eroded`, `stale:reset`: hashes dropped on write or disowned by
+  a reset, counted on the Advanced tab and in
+  `occ file-checksum-search:status`.
 
-- Rule row actions menu: Edit, Enable/Disable, *Re-apply* (new), Delete;
-  user, group and group-folder targets picked by name.
+- Stale hashes: out of search, lookup and duplicate groups.
+
+- Admin page idle banner: shown while no enabled `include` rule exists,
+  *Acknowledged* kept in `idle_banner_ack`.
+
+- Advanced tab: the background jobs' last runs.
+
+- Rules table: a *Create rule* row for every namespace without a
+  catch-all.
+
+- Rules table: a *provider missing* badge on a rule naming a gone one.
+
+- Rule row actions menu: Edit, Enable/Disable, *Re-apply*, Delete.
+
+- Rule dialog: user, group and group-folder targets picked by name.
 
 - Audit log: every rule mutation at INFO, WARNING for an admin-enforced
-  rule, naming the surface that asked.
+  rule, with the surface that asked.
+
+- Audit log: every cross-account recalculation, with the acting account.
 
 ### Changed
 
-- Rules: a **selector** (`home:<uid>`, `group:<gid>`, `home:*`,
-  `groupfolder:<id>`, `storage:<id>`, `*`) replaces the user scope;
-  stored rules migrate. Eight bands, enforced 1–4 and unenforced 5–8,
-  each selector value its own segment with a trailing defaults partition;
-  reordering stays within a segment. Two shipped defaults, `home:*` and
-  `*`, both created disabled; the `pinned` flag is gone and a deleted
-  default is recreated disabled by the repair step.
+- Rule **selector** `home:<uid>`, `group:<gid>`, `home:*`,
+  `groupfolder:<id>`, `storage:<id>`, `*`: in place of the user scope.
+  Stored rules migrate.
 
-- Rule matching: by the file's canonical identity (`FileLocation`), never
-  the acting user's path; sweeps run by storage; trash, versions and
-  appdata are governed by nothing; a personal rule path into a share or a
-  mounted storage is refused with the reason.
+- Rule bands: eight, enforced 1–4 and unenforced 5–8, each selector
+  value its own segment with a trailing defaults partition.
 
-- Pending queue: a row exists only for a file that was queued, hashed or
-  eroded; the drain resolves each file's rule at action time and honours
-  its algorithm list; the seeding job and `pending:new` are gone.
+- Shipped default rules `home:*` and `*`: created disabled where absent,
+  recreated disabled by the repair step.
 
-- Install: copies the checksums the filecache already holds and computes
-  nothing; the shipped defaults are created disabled where absent.
+- Rule matching: by the file's canonical identity (`FileLocation`),
+  never the acting user's path.
 
-- Metadata keys: hashes under `file-checksum-hash-<algo>`; the repair
-  step renames existing rows, and `--step unindexed-hashes` finds files
-  the index forgot.
+- Rule sweeps: by storage.
 
-- Admin page tabs: *Settings*, *Permissions*, *Sudo tokens*, *Advanced*
-  (diagnostics and the picker prefill threshold, 21 by default),
-  *Documentation*. `GET`/`PUT /settings/global` is one resource.
+- Trash, versions and appdata: governed by no rule.
 
-- Both settings pages: one banded rules table with help on every column
-  and band, `<band>.<position>` as text, the personal page showing the
-  enforced rules above and the defaults below the user's own; a pen
-  icon beside each row's menu; group folders named as the groupfolders
-  app names them, and the Scope column with the same glyph per kind of
-  place the duplicate rows use.
+- A personal rule path into a share or a mounted storage: refused, with
+  the reason.
 
-- Duplicates page: **Verify all** per group and **Verify** per file
-  replace the page-wide button and the *Only matching* filter; a 429
-  stops the run with a message and the next click resumes. Controls are
-  Nextcloud's, labelled, with help buttons.
+- Pending queue: a row only for a file that was queued, hashed or
+  eroded.
 
-- Every file row: `owner` and `location` (`FileLocation::describe()`),
-  shown in place of the path where the file is not the viewer's own,
-  with a glyph for the kind of place — the viewer's own, somebody's
-  home, a group folder, a storage; cross-account rows carry `openable`,
-  and link only where true.
+- Queue drain: the file's rule resolved at action time, its algorithm
+  list honoured.
 
-- `GET /api/v1/status`: a non-administrator gets the version alone.
+- Install: the checksums the filecache already holds copied, nothing
+  computed.
+
+- `occ file-checksum-search:generate`: renamed `occ fcias:hash`, no
+  alias.
+
+- Metadata keys: `file-checksum-hash-<algo>`, existing rows renamed by
+  the repair step.
+
+- Admin page tabs: *Settings*, *Permissions*, *Sudo tokens*, *Advanced*,
+  *Documentation*.
+
+- Advanced tab: diagnostics and the picker prefill threshold
+  (`cross_account_prefill_limit`, 21).
+
+- `GET`/`PUT /settings/global`: one resource.
+
+- Both settings pages: one banded rules table, help on every column and
+  band, `<band>.<position>` as text.
+
+- Personal rules page: the enforced rules above and the defaults below
+  the user's own.
+
+- Rule rows: a pen icon beside the menu.
+
+- Group folders: named as the groupfolders app names them.
+
+- Rules table Scope column: the same glyph per kind of place as the
+  duplicate rows.
+
+- Duplicates page: **Verify all** per group and **Verify** per file in
+  place of the page-wide button and *Only matching*.
+
+- Verification run: stopped by a 429 with a message, resumed by the next
+  click.
+
+- Duplicates page controls: Nextcloud's, labelled, with help buttons.
+
+- Every file row: `owner` and `location` (`FileLocation::describe()`).
+
+- File rows not the viewer's own: the location in place of the path,
+  with a glyph for the kind of place.
+
+- Cross-account file rows: `openable`, linked only where true.
+
+- `GET /api/v1/status`: a non-administrator gets `version` alone.
 
 - `GET /api/v1/file/{fileId}/hashes`: `canSudo`, whether the caller may
   look across accounts.
 
-- Duplicates listing: the filter pages 200 groups at a time and stops
-  when the page is full; a truncated group is confirmed in one read.
+- Duplicates listing: the filter pages 200 groups at a time.
+
+- Truncated hash groups: confirmed in one read.
 
 - Settings pages: Save disabled with nothing to save, yellow with
-  changes; secondary text at normal size in the max-contrast colour;
-  logical CSS properties, so right-to-left locales lay out correctly;
-  one `AlgorithmSelect` behind every algorithm picker.
+  changes.
 
-- Documentation: `docs/HELP.md` is `docs/user-guide.md`, the Help tab of
-  the Duplicates page and personal settings; `docs/FAQ.md` is the
-  administrator's; README *How hashing happens* and the rules chapter;
-  `docs/api-v1.md` and the OpenAPI document against the shipped routes.
+- Settings pages: secondary text at normal size in the max-contrast
+  colour, logical CSS properties throughout.
+
+- Algorithm pickers: one `AlgorithmSelect`.
+
+- `docs/HELP.md`: now `docs/user-guide.md`, the Help tab of the
+  Duplicates page and of personal settings.
+
+- `docs/FAQ.md`: the administrator's.
+
+- README *How hashing happens*, the rules chapter, `docs/api-v1.md`, the
+  OpenAPI document: against the shipped routes.
 
 ### Removed
 
 - `PersonalSettingsController`, `/settings/cron/*`, `/personal/rules/*`:
-  gone; `/api/v1/rules` replaces them.
+  gone, `/api/v1/rules` in their place.
 
 - `GET /settings/cron/snippet`: gone.
 
-- `/api/1.0/` and `LookupController`: gone; `/api/v1/` has every
+- `GET /duplicates/data`: gone, `GET /api/v1/duplicates` in its place.
+
+- `GET /settings/admin-options`, `POST /settings/admin-options/save`:
+  gone, `/settings/global` in their place.
+
+- `/api/1.0/`, `LookupController`: gone, `/api/v1/` has every
   operation.
 
-- Rule mode `off`: gone; a rule carrying it becomes an `ignore` rule.
+- `occ file-checksum-search:rebuild`: gone, `occ fcias:repair` in its
+  place.
 
-- `openapi.json` at the repository root: gone; `docs/api-v1-openapi.yaml`
+- Queue seeding job, `pending:new`: gone.
+
+- Rule mode `off`: gone, such a rule becomes `ignore`.
+
+- Rule flag `pinned`: gone.
+
+- `openapi.json` at the repository root: gone, `docs/api-v1-openapi.yaml`
   is the specification.
 
 ### Fixed
@@ -194,74 +280,68 @@ the first stable release.
 - Search for `sha3-256:`, `sha3-512:` and upper-case prefixes: found
   nothing.
 
-- Search for SHA-256, SHA-512 and SHA3 hashes: the index row was never
-  written; it is written truncated now, the repair step adds the missing
-  rows, and a long hash is confirmed from the document.
+- Search for SHA-256, SHA-512 and SHA3 hashes: found nothing, the index
+  row never written. The repair step adds the missing rows.
 
-- Cleared hashes: their index rows are collected on save, so they stop
-  answering searches, lookups and duplicate groups.
+- Cleared hashes: kept answering searches, lookups and duplicate groups.
 
-- `process_pending_interval`, `pending_batch_limit`: declared, so the
-  drain no longer logs a lexicon warning per run.
+- `process_pending_interval`, `pending_batch_limit`: undeclared, a
+  lexicon warning per drain run.
 
-- Documented REST URLs: under `/ocs/v2.php/apps/file_checksum_search/`;
-  `minCount`, not `min_count`; the `info.xml` user-documentation link.
+- Documented REST URLs: under `/ocs/v2.php/apps/file_checksum_search/`,
+  `minCount` not `min_count`, the `info.xml` documentation link.
 
-- `occ fcias:hash` without `--mark`: consults the rules, so `exclude`
-  holds and unmatched files are left alone.
+- `occ fcias:hash` without `--mark`: `exclude` rules not honoured,
+  unmatched files hashed.
 
-- Sidebar: a refused recalculation shows the rule's reason, not "Error".
+- Sidebar: a refused recalculation said "Error", not the rule's reason.
 
-- A modified file no rule maintains: its stored hashes are dropped.
+- A modified file no rule maintains: its stale hashes kept.
 
-- Rule priority: the catch-all evaluates last. **On upgrade, additional
+- Rule priority: the catch-all evaluated first. **On upgrade, additional
   rules that never applied start applying.**
 
-- Rule editing: a non-administrator can no longer change an instance-wide
-  rule.
+- Rule editing: a non-administrator could change an instance-wide rule.
 
-- Dark theme: error lines and verification verdicts use the palette's
-  text colours, not its background fills; the sidebar's algorithm badges
-  the light fill's own text colour.
+- Dark theme: error lines, verification verdicts and the sidebar's
+  algorithm badges coloured with the palette's background fills.
 
-- Settings pages: notices show again, through `@nextcloud/dialogs`;
-  `OC.Notification` no longer exists in Nextcloud 34.
+- Settings pages: notices did not show, `OC.Notification` being gone in
+  Nextcloud 34.
 
-- `occ file-checksum-search:find-duplicates`: `owner` as the API says
-  it — empty for a group folder or an external storage, not the storage
-  id's last segment — and `location` beside it.
+- `occ file-checksum-search:find-duplicates`: `owner` was the storage
+  id's last segment, `location` missing.
 
 ### Security
 
-- Periodic rule sweep: asks for stale rows only and resolves exclusion
-  per file; its cost no longer scales with the whole instance.
+- Periodic rule sweep: stale rows only, exclusion resolved per file.
 
-- Unified search: the limit is capped at 100.
+- Unified search: the limit capped at 100.
 
 - `GET /api/v1/lookup`, the unified search, the own listing: scoped to
-  what the caller holds — home, received shares to their subtree, group
-  folders — before the limit applies, so a file no longer hides behind
-  foreign copies.
+  the caller's home, received shares and group folders before the limit
+  applies.
 
-- `POST …/recalc`, `POST /rules/{id}/apply`: `#[NoCSRFRequired]` removed.
+- `POST …/recalc`, `POST /rules/{id}/apply`: `#[NoCSRFRequired]`
+  removed. A cookie session sends the request token or
+  `OCS-APIRequest: true`.
 
 - `/settings/status`: administrators only.
 
-- `RulesController`: a failed write answers *Internal server error.*, the
-  detail in the log.
+- `RulesController`: a failed write answers *Internal server error.*,
+  the detail in the log.
 
-- `minCount`: clamped to 2 or more on every route; the browser routes
-  are rate limited like their API twins.
+- `minCount`: clamped to 2 or more on every route.
 
-- Administrators: the ordinary routes answer their own files; the
-  instance-wide view is `/api/v1/sudo/`. **Scripts calling the API with
-  administrator credentials receive the administrator's own files.**
+- Administrators: the ordinary routes answer their own files. **Scripts
+  calling the API with administrator credentials receive the
+  administrator's own files.**
 
-- Checksums adopted from `oc_filecache.checksum`: kept only for an
-  allowed algorithm with a hex value of that algorithm's length.
+- Checksums adopted from `oc_filecache.checksum`: only an allowed
+  algorithm with a hex value of its length.
 
-- `GET /api/v1/file/{fileId}/duplicates`: the reference file is resolved
-  within the caller's reach before its hashes are read.
+- `GET /api/v1/file/{fileId}/duplicates`: the reference file resolved
+  within the caller's reach.
 
 - `/api/v1/sudo/`, the *Others* picker: a group leader reaches their
   members, not the administrators among them.
