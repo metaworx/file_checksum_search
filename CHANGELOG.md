@@ -323,6 +323,10 @@ the first stable release.
   id's last segment, `location` missing, and an ownerless row printed a
   path that names nowhere.
 
+- `appinfo/info.xml`: four elements out of the app store's order, and
+  two documentation links padded with whitespace, which its schema
+  refuses.
+
 ### Security
 
 - Periodic rule sweep: stale rows only, exclusion resolved per file.
