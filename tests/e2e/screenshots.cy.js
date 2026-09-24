@@ -70,7 +70,20 @@ const ALICE_FILES = [
 	{ path: 'Photos/holiday.txt', content: 'FCIAS screenshot set: a holiday photo, twice.' },
 	{ path: 'Documents/holiday.txt', content: 'FCIAS screenshot set: a holiday photo, twice.' },
 	{ path: 'Documents/notes.txt', content: 'FCIAS screenshot set: notes nobody else has.' },
+	// The administrator's a.txt once more, so the Others tab has a row that
+	// is not the viewer's own.
+	{ path: 'Documents/foo.txt', content: 'foo' },
 ]
+
+/** The app password minted for alice, for the two Sudo tokens shots. */
+const APP_PASSWORD_NAME = 'fcias-screenshots'
+let appPasswordId = null
+
+/** Alice's notes.txt, for the refused-recalculation shot; resolved in before(). */
+let aliceNotesId = null
+
+/** The settings pages scroll inside this element, not the window. */
+const SETTINGS_SCROLLER = '#app-content-vue'
 
 /** The administrator's files; fixtures/duplicates.json states their sha1. */
 const ADMIN_DIR = 'fcias-e2e-duplicates'
@@ -145,6 +158,38 @@ const shot = ( name, subject = null ) => (
 /** The `.fcias-section` an element sits in: one heading, its hint and its control. */
 const sectionOf = ( selector ) => cy.get( selector, { timeout: FIND_TIMEOUT } ).parents( '.fcias-section' ).first()
 
+/** The viewport, cropped to the box around several elements at once, plus a margin. */
+const shotUnion = ( name, selectors, margin = 24 ) => {
+	cy.window().then( ( win ) => {
+		const rects = selectors
+			.map( ( selector ) => win.document.querySelector( selector ) )
+			.filter( ( el ) => el !== null )
+			.map( ( el ) => el.getBoundingClientRect() )
+		expect( rects, `elements for ${ name }` ).to.have.length( selectors.length )
+		const left = Math.max( 0, Math.floor( Math.min( ...rects.map( ( r ) => r.left ) ) ) - margin )
+		const top = Math.max( 0, Math.floor( Math.min( ...rects.map( ( r ) => r.top ) ) ) - margin )
+		const right = Math.min( VIEWPORT.width, Math.ceil( Math.max( ...rects.map( ( r ) => r.right ) ) ) + margin )
+		const bottom = Math.min( VIEWPORT.height, Math.ceil( Math.max( ...rects.map( ( r ) => r.bottom ) ) ) + margin )
+		cy.screenshot( name, { capture: 'viewport', overwrite: true, clip: { x: left, y: top, width: right - left, height: bottom - top } } )
+	} )
+}
+
+/** The id of the rule with this selector (and path, if given), from occ. */
+const ruleId = ( selector, path = null ) => exec( 'fcias:rules:list -o json' ).then( ( { stdout } ) => {
+	const rule = JSON.parse( stdout ).find( ( r ) => r.selector === selector && ( path === null || r.path === path ) )
+	expect( rule, `a rule on ${ selector }` ).to.exist
+	return rule.id
+} )
+
+/** Click one of the admin page's tabs and wait for its panel. */
+const adminTab = ( label, panel ) => {
+	cy.contains( '.fcias-tabs .fcias-tab', label, { timeout: FIND_TIMEOUT } ).click()
+	cy.get( `#fcias-tab-panel-${ panel }`, { timeout: FIND_TIMEOUT } ).should( 'be.visible' )
+	// The click scrolls the tab into view; the shot starts at the page top.
+	cy.get( SETTINGS_SCROLLER ).scrollTo( 'top', { ensureScrollable: false } )
+	cy.wait( 300 )
+}
+
 /**
  * The viewport, cropped to the box around an element with a margin: the
  * modal and the settings content sit on a page whose chrome is not the
@@ -155,10 +200,16 @@ const shotAround = ( name, subject, margin = 24, trim = 0 ) => {
 	const chain = typeof subject === 'string' ? cy.get( subject, { timeout: FIND_TIMEOUT } ) : subject
 	chain.first().then( ( $el ) => {
 		const rect = $el[ 0 ].getBoundingClientRect()
+		// Down to the lowest descendant, not the element's own box: a tab
+		// panel's box can end above the table it holds.
+		const bottom = Math.max( rect.bottom, ...Array.from( $el[ 0 ].querySelectorAll( '*' ) ).map( ( child ) => child.getBoundingClientRect().bottom ) )
 		const x = Math.max( 0, Math.floor( rect.left ) - margin )
 		const y = Math.max( 0, Math.floor( rect.top ) - margin )
+		// The trim takes a scrollbar off an edge the crop reaches; a crop
+		// that ends inside the viewport gets a little room instead.
 		const width = Math.min( VIEWPORT.width - x, Math.ceil( rect.width ) + 2 * margin ) - trim
-		const height = Math.min( VIEWPORT.height - y, Math.ceil( rect.height ) + 2 * margin ) - trim
+		const wanted = Math.ceil( bottom - rect.top ) + 2 * margin
+		const height = y + wanted >= VIEWPORT.height ? VIEWPORT.height - y - trim : wanted + 12
 		cy.screenshot( name, { capture: 'viewport', overwrite: true, clip: { x, y, width, height } } )
 	} )
 }
@@ -216,9 +267,12 @@ describe( 'FCIAS screenshots', () => {
 				defaultAlgorithmWas = previous
 			} )
 
-			// Files an earlier run left in the administrator's trash keep
-			// their hashes and would head every group on the Duplicates page.
+			// Files an earlier run left in the trash keep their hashes and
+			// would sit in every group on the Duplicates page — the
+			// administrator's from other specs, alice's from this one's own
+			// teardown.
 			exec( `trashbin:cleanup ${ adminUser }` )
+			exec( `trashbin:cleanup ${ demo.alice.user }` )
 
 			// One theme for the whole set. The administrator's own choice is
 			// remembered and put back; the demo accounts stay light.
@@ -253,12 +307,33 @@ describe( 'FCIAS screenshots', () => {
 				adminFileId = extractFileId( res )
 				expect( adminFileId, 'the administrator\'s a.txt should have an id' ).to.be.a( 'number' ).and.greaterThan( 0 )
 			} )
+
+			// An app password for alice, minted without her login password
+			// and never shown: the Sudo tokens shots need one to grant. Its
+			// grant goes with it in after().
+			exec( `user:auth-tokens:add ${ demo.alice.user } --name=${ APP_PASSWORD_NAME } -n` )
+			exec( `user:auth-tokens:list ${ demo.alice.user } --output=json` ).then( ( { stdout } ) => {
+				const token = JSON.parse( stdout ).find( ( t ) => t.name === APP_PASSWORD_NAME )
+				expect( token, 'the app password occ minted' ).to.not.eq( undefined )
+				appPasswordId = token.id
+			} )
 			for ( const dir of [ 'Photos', 'Documents' ] ) {
 				dav( demo.alice, 'MKCOL', dir )
 			}
 			for ( const { path, content } of ALICE_FILES ) {
 				dav( demo.alice, 'PUT', path, content ).its( 'status' ).should( 'be.oneOf', [ 201, 204 ] )
 			}
+			cy.clearCookies()
+			cy.request( {
+				method: 'PROPFIND',
+				url: `/remote.php/dav/files/${ demo.alice.user }/Documents/notes.txt`,
+				auth: { user: demo.alice.user, pass: demo.alice.password },
+				headers: { Depth: '0', 'Content-Type': 'application/xml' },
+				body: propfindBody,
+			} ).then( ( res ) => {
+				aliceNotesId = extractFileId( res )
+				expect( aliceNotesId, 'alice\'s notes.txt should have an id' ).to.be.a( 'number' ).and.greaterThan( 0 )
+			} )
 			cy.resetFciasState( occ )
 			cy.importFciasFixture( occ, 'duplicates', adminUser )
 			cy.importFciasFixture( occ, 'screenshots-alice', demo.alice.user )
@@ -287,6 +362,9 @@ describe( 'FCIAS screenshots', () => {
 		}
 		const admin = { user: adminUser, password: adminPassword }
 		cy.fciasResetRules( occ )
+		if ( appPasswordId !== null ) {
+			exec( `user:auth-tokens:delete ${ demo.alice.user } ${ appPasswordId }` )
+		}
 		cy.fciasRuleEditing( admin, ruleEditingWas === true )
 		cy.fciasDefaultAlgorithm( admin, defaultAlgorithmWas ?? '' )
 		exec( `groupfolders:group ${ DESIGN_ASSETS_FOLDER_ID } ${ DESIGNERS } --delete` )
@@ -428,5 +506,138 @@ describe( 'FCIAS screenshots', () => {
 		cy.get( '.unified-search-modal' ).should( 'be.visible' )
 		cy.wait( 600 )
 		shotAround( 'Unified_Search', '.modal-container', 40 )
+	} )
+
+	// ─── step 3: the surfaces no shot showed ────────────────────────
+
+	it( 'Admin-Permissions', () => {
+		cy.visit( ADMIN_URL )
+		adminTab( 'Permissions', 'permissions' )
+		shotAround( 'Admin-Permissions', '#fcias-admin-settings', 0, 16 )
+	} )
+
+	// After a drain and one sweep, so Status Info carries real heartbeats.
+	it( 'Admin-Advanced', () => {
+		exec( 'fcias:queue:drain --all' )
+		exec( 'background-job:list --output=json' ).then( ( { stdout } ) => {
+			const sweep = JSON.parse( stdout ).find( ( job ) => String( job.class ).endsWith( 'RuleProcessingJob' ) )
+			if ( sweep ) {
+				exec( `background-job:execute --force-execute ${ sweep.id }` )
+			}
+		} )
+		cy.visit( ADMIN_URL )
+		adminTab( 'Advanced', 'advanced' )
+		cy.get( '.fcias-status-table', { timeout: FIND_TIMEOUT } ).should( 'contain', 'Background Jobs' )
+		shotAround( 'Admin-Advanced', '#fcias-admin-settings', 0, 16 )
+	} )
+
+	// Alice grants her app password; the admin tab then lists the grant.
+	it( 'User-Sudo-Tokens', () => {
+		cy.login( demo.alice.user, demo.alice.password )
+		cy.visit( PERSONAL_URL )
+		const row = `#fcias-personal-sudo-tokens [data-token-id="${ appPasswordId }"]`
+		cy.get( row, { timeout: FIND_TIMEOUT } ).should( 'contain', APP_PASSWORD_NAME )
+		const toggle = () => cy.get( `${ row } .checkbox-radio-switch input[type="checkbox"]`, { timeout: FIND_TIMEOUT } )
+		toggle().should( 'not.be.checked' )
+		toggle().click( { force: true } )
+		toggle().should( 'be.checked' )
+		cy.get( SETTINGS_SCROLLER ).scrollTo( 'bottom', { ensureScrollable: false } )
+		cy.wait( 300 )
+		shotAround( 'User-Sudo-Tokens', '#fcias-personal-sudo-tokens', 16 )
+	} )
+
+	it( 'Admin-Sudo-Tokens', () => {
+		cy.visit( `${ ADMIN_URL }#tokens` )
+		cy.get( `[data-grant="${ demo.alice.user }/${ appPasswordId }"]`, { timeout: FIND_TIMEOUT } ).should( 'contain', APP_PASSWORD_NAME )
+		shotAround( 'Admin-Sudo-Tokens', '#fcias-admin-settings', 0, 16 )
+	} )
+
+	// One row's menu open: Edit, Disable, Re-apply, Delete, the pen beside.
+	it( 'Rule-Row-Menu', () => {
+		cy.visit( ADMIN_URL )
+		cy.get( '#fcias-rules-list tr[data-band="5"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.get( SETTINGS_SCROLLER ).scrollTo( 'bottom' )
+		cy.wait( 300 )
+		cy.get( '#fcias-rules-list tr[data-band="5"] .action-item__menutoggle' ).first().click()
+		cy.get( '.action-item__popper [data-action="edit"]', { timeout: FIND_TIMEOUT } ).should( 'be.visible' )
+		shotUnion( 'Rule-Row-Menu', [ '#fcias-rules-list tr[data-band="5"]', '.action-item__popper' ], 16 )
+	} )
+
+	// The dialog from the placeholder for the uncovered group folder, with
+	// the folder picker open on the one folder it offers.
+	it( 'Rule-Dialog', () => {
+		cy.visit( ADMIN_URL )
+		cy.get( `#fcias-rules-list tr[data-placeholder="groupfolder:${ DESIGN_ASSETS_FOLDER_ID }"] [data-action="create"]`, { timeout: FIND_TIMEOUT } ).click()
+		cy.get( '#fcias-rule-form', { timeout: FIND_TIMEOUT } ).should( 'be.visible' )
+		cy.get( '#fcias-rule-selector-target', { timeout: FIND_TIMEOUT } ).trigger( 'keydown', { key: 'ArrowDown', keyCode: 40 } )
+		cy.get( '.vs__dropdown-menu', { timeout: FIND_TIMEOUT } ).should( 'be.visible' )
+		cy.wait( 300 )
+		shotUnion( 'Rule-Dialog', [ '.modal-container', '.vs__dropdown-menu' ], 24 )
+	} )
+
+	// A rule on a group folder that does not exist: inert, and badged so.
+	it( 'Provider-Missing', () => {
+		exec( 'fcias:rules:add --selector groupfolder:99 --path \'**\' --type include -a sha1 --enable' )
+		cy.visit( ADMIN_URL )
+		cy.get( '.fcias-provider-missing', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.get( SETTINGS_SCROLLER ).scrollTo( 'bottom' )
+		cy.wait( 300 )
+		shotAround( 'Provider-Missing', sectionOf( '#fcias-rules-list' ), 16 )
+		ruleId( 'groupfolder:99' ).then( ( id ) => exec( `fcias:rules:delete ${ id } -y` ) )
+	} )
+
+	// The Others tab on the administrator's hash over the whole reach: the
+	// two own copies behind a house, alice's behind a person, as text.
+	it( 'Duplicates-Others', () => {
+		cy.visit( `${ DUPLICATES_URL }#others?hash=${ DUP_SHA1 }&all=1` )
+		cy.get( '[data-testid="fcias-others"] .db-group', { timeout: FIND_TIMEOUT } ).should( 'have.length.at.least', 1 )
+		cy.contains( '[data-testid="fcias-others"] .db-group', DUP_SHA1 ).find( '.db-group-header' ).click()
+		cy.get( '[data-testid="fcias-others"] .db-file-unopenable', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.get( '[data-testid="fcias-others"] .db-group' ).last().then( ( $last ) => {
+			cy.get( '.db-wrap' ).then( ( $wrap ) => {
+				const height = Math.ceil( $last[ 0 ].getBoundingClientRect().bottom - $wrap[ 0 ].getBoundingClientRect().top ) + 16
+				cy.get( '.db-wrap' ).screenshot( 'Duplicates-Others', { overwrite: true, clip: { x: 0, y: 0, width: Math.ceil( $wrap[ 0 ].getBoundingClientRect().width ), height } } )
+			} )
+		} )
+	} )
+
+	// A file an exclude rule covers: the sidebar refuses to recalculate it
+	// and says which rule.
+	it( 'Sidebar-Excluded', () => {
+		exec( `fcias:rules:add --selector home:${ demo.alice.user } --path 'Documents/notes.txt' --type exclude --enable` )
+		cy.login( demo.alice.user, demo.alice.password )
+		cy.visit( `/index.php/apps/files/files/${ aliceNotesId }?dir=${ encodeURIComponent( '/Documents' ) }&opendetails=true` )
+		openChecksumsTab()
+		cy.get( '.fcias-recalc-btn', { timeout: FIND_TIMEOUT } ).first().click()
+		cy.get( '.fcias-recalc-error', { timeout: FIND_TIMEOUT } ).should( 'not.be.empty' )
+		// The message fades in.
+		cy.wait( 600 )
+		cy.get( '.app-sidebar' ).then( ( $sidebar ) => {
+			const { width, height } = $sidebar[ 0 ].getBoundingClientRect()
+			const top = 240
+			cy.get( '.app-sidebar' ).screenshot( 'Sidebar-Excluded', { overwrite: true, clip: { x: 0, y: top, width, height: height - top - 8 } } )
+		} )
+		ruleId( `home:${ demo.alice.user }`, 'Documents/notes.txt' ).then( ( id ) => exec( `fcias:rules:delete ${ id } -y` ) )
+	} )
+
+	// No enabled include rule: the banner. Every rule disabled for the
+	// shot and enabled again after.
+	it( 'Admin-Idle-Banner', () => {
+		const enabled = []
+		exec( 'fcias:rules:list -o json' ).then( ( { stdout } ) => {
+			for ( const rule of JSON.parse( stdout ).filter( ( r ) => r.enabled === 'yes' ) ) {
+				enabled.push( rule.id )
+				exec( `fcias:rules:modify ${ rule.id } --disable` )
+			}
+		} )
+		exec( 'config:app:delete file_checksum_search idle_banner_ack' )
+		cy.visit( ADMIN_URL )
+		cy.get( '#fcias-idle-banner', { timeout: FIND_TIMEOUT } ).should( 'be.visible' )
+		shotAround( 'Admin-Idle-Banner', '#fcias-admin-settings', 0, 16 )
+		cy.then( () => {
+			for ( const id of enabled ) {
+				exec( `fcias:rules:modify ${ id } --enable` )
+			}
+		} )
 	} )
 } )

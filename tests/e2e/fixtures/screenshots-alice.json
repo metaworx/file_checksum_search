@@ -1,7 +1,7 @@
 {
 	"schema": 1,
 	"app": "file_checksum_search",
-	"note": "Alice's files for the screenshot set: two copies of one photo, so her sidebar and the Duplicates page show a group, and one file of its own. Imported with --user=alice by tests/e2e/screenshots.cy.js after it has created the files; the hashes are sha1 of the contents the spec writes.",
+	"note": "Alice's files for the screenshot set: two copies of one photo, so her sidebar and the Duplicates page show a group, one file of its own, and a copy of the administrator's a.txt so the Others tab has a row that is not the viewer's. Imported with --user=alice by tests/e2e/screenshots.cy.js after it has created the files; the hashes are sha1 of the contents the spec writes.",
 	"hashes": [
 		{
 			"path": "Photos/holiday.txt",
@@ -17,6 +17,11 @@
 			"path": "Documents/notes.txt",
 			"algo": "sha1",
 			"hash": "0e3c29b9323c91f4cc0cf55929a02d4e64197d85"
+		},
+		{
+			"path": "Documents/foo.txt",
+			"algo": "sha1",
+			"hash": "0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"
 		}
 	]
 }
