@@ -28,6 +28,14 @@ jobs:
       - name: PHP syntax check
         run: composer lint
 
+      # What the app store validates at upload, validated here first; the
+      # schema is fetched so the check follows the store.
+      - name: App manifest against the store's schema
+        run: |
+          sudo apt-get install -y -qq --no-install-recommends libxml2-utils
+          curl -fsSL -o info.xsd https://raw.githubusercontent.com/nextcloud/appstore/master/nextcloudappstore/api/v1/release/info.xsd
+          xmllint --noout --schema info.xsd appinfo/info.xml
+
   phpunit:
     runs-on: ubuntu-latest
     strategy:
