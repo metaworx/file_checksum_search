@@ -4,18 +4,19 @@
  *
  * Driving a real NcSelect from a spec, the way a person does.
  *
- * NcSelect is vue-select underneath. Its menu opens on a keyboard arrow in
- * the search field — the same path a mouse takes, without the mousedown
- * bookkeeping that a synthetic event in the runner does not carry — and is
- * appended to `document.body`, not rendered beside the control, so that is
- * where the options are found. An option selects on click. What is
- * selected renders as `.vs__selected` inside the control.
+ * NcSelect is vue-select underneath. Its menu opens on a mousedown in the
+ * search field or on a keyboard arrow there; the arrow is used here because
+ * it is one event with no pointer state to carry. The menu is appended to
+ * `document.body`, not rendered beside the control, so that is where the
+ * options are found. An option selects on click. What is selected renders
+ * as `.vs__selected` inside the control.
  *
  * Every spec that used to drive a stand-in `NcSelect` drives the control
  * through these instead, so the stand-ins could go.
  */
 import type { DOMWrapper, VueWrapper } from '@vue/test-utils'
 import { flushPromises } from '@vue/test-utils'
+import { settle } from './settle'
 
 type AnyWrapper = VueWrapper | DOMWrapper<Element>
 
@@ -27,10 +28,12 @@ function searchInput(wrapper: AnyWrapper, inputId?: string): DOMWrapper<Element>
 /**
  * Open the menu and return its options, wherever vue-select put them.
  *
- * The arrow opens a closed menu and, on an open one, selects the highlighted
- * option — so it is pressed only while the menu is closed. The menu is found
- * by the id the search field names in `aria-controls`, so two controls on
- * one page, or one left open by an earlier test, cannot answer for another.
+ * The arrow opens a closed menu; on an open one it moves the highlight
+ * (Enter would select), so it is pressed only while the menu is closed. The
+ * menu is found by the id the search field names in `aria-controls`, so two
+ * controls on one page, or one left open by an earlier test, cannot answer
+ * for another. A menu that did not open is an error, not an empty list: a
+ * spec asserting on `[]` would otherwise pass for the wrong reason.
  */
 export async function openSelect(wrapper: AnyWrapper, inputId?: string): Promise<HTMLElement[]> {
 	const input = searchInput(wrapper, inputId)
@@ -42,20 +45,14 @@ export async function openSelect(wrapper: AnyWrapper, inputId?: string): Promise
 		await input.trigger('keydown', { keyCode: 40 })
 		await settle()
 	}
-	return Array.from(document.body.querySelectorAll<HTMLElement>(`#${CSS.escape(listbox)} li.vs__dropdown-option`))
-}
-
-/**
- * Let the menu's positioning land. NcSelect places the menu through
- * floating-ui's `computePosition`, a promise that reads the control's
- * toggle when it resolves; a spec that closes the menu or unmounts before
- * then leaves that promise to reject on a ref that is gone — harmless in a
- * browser, an unhandled rejection in the runner. Two turns of the macrotask
- * queue are what it takes.
- */
-async function settle(): Promise<void> {
-	await flushPromises()
-	await flushPromises()
+	if (input.attributes('aria-expanded') !== 'true') {
+		throw new Error('the NcSelect menu did not open')
+	}
+	const menu = document.getElementById(listbox)
+	if (!menu) {
+		throw new Error('the NcSelect menu is not in the document')
+	}
+	return Array.from(menu.querySelectorAll<HTMLElement>('li.vs__dropdown-option'))
 }
 
 /** The labels the open menu offers. */

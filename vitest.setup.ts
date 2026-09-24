@@ -14,7 +14,8 @@
  * observer here observes nothing; the first placement still runs, once,
  * from `autoUpdate`'s own initial call.
  */
-import { config } from '@vue/test-utils'
+import { afterEach } from 'vitest'
+import { config, enableAutoUnmount } from '@vue/test-utils'
 
 class QuietResizeObserver {
 	observe(): void {}
@@ -36,3 +37,18 @@ Object.defineProperty(globalThis, 'ResizeObserver', {
 // popovers NcActions and NcPopover open do not go through Teleport and
 // still land in the body; the helpers in src/test-utils/ know where.
 config.global.stubs = { ...config.global.stubs, teleport: true }
+
+// Every wrapper a spec mounts is unmounted after its test: the real
+// components register document listeners and append menus to the body, and
+// a page left mounted keeps answering events the next test raises. What a
+// component cached in the session store — NcSettingsSelectGroup keeps the
+// group list there — goes with it.
+enableAutoUnmount(afterEach)
+
+afterEach(() => {
+	try {
+		window.sessionStorage.clear()
+	} catch {
+		// A runner without one; nothing to clear.
+	}
+})

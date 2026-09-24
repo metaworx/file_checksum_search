@@ -48,17 +48,17 @@ describe('RuleForm', () => {
 		expect(payload.mode).toBe('force')
 	})
 
-	it('cancels when the dialog closes itself (Esc, the X button, a click outside)', async () => {
+	// The dialog has no X and no click-outside (`no-close`); Escape is the
+	// form's own document listener, and this is what it tests.
+	it('cancels on an Escape that reaches the document', async () => {
 		const wrapper = mount(RuleForm, {
 			props: { rule: null, variant: 'admin', supportedAlgos: ['sha1'] },
 		})
-		// Escape, as the real dialog hears it: on the document.
 		document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
 		await flushPromises()
 
 		expect(wrapper.emitted('cancel')).toHaveLength(1)
 		expect(wrapper.emitted('save')).toBeUndefined()
-		wrapper.unmount()
 	})
 
 	it('emits cancel', async () => {
@@ -124,7 +124,6 @@ describe('RuleForm', () => {
 
 			// Two controls in the dialog, one string on the wire.
 			expect((wrapper.emitted('save')?.[0]?.[0] as { selector: string }).selector).toBe('group:staff')
-			wrapper.unmount()
 		})
 
 		it('splits an existing group selector back into its two controls', () => {
@@ -140,7 +139,6 @@ describe('RuleForm', () => {
 			// The picker says which option it holds through its selected-option
 			// slot — the id, not only the label, which is what the slot is for.
 			expect(wrapper.find('.vs__selected [data-selected-id="staff"]').exists()).toBe(true)
-			wrapper.unmount()
 		})
 	})
 
@@ -174,7 +172,6 @@ describe('RuleForm', () => {
 
 			// The name is display only; the selector stores the id.
 			expect((wrapper.emitted('save')?.[0]?.[0] as { selector: string }).selector).toBe('groupfolder:1')
-			wrapper.unmount()
 		})
 
 		it('keeps the raw text input for storage ids', async () => {
@@ -223,7 +220,6 @@ describe('RuleForm', () => {
 
 			await wrapper.find('#fcias-btn-save-rule').trigger('click')
 			expect((wrapper.emitted('save')?.[0]?.[0] as { selector: string }).selector).toBe('')
-			wrapper.unmount()
 		})
 
 		it('keeps the seeded target when editing an existing rule', () => {
@@ -239,7 +235,6 @@ describe('RuleForm', () => {
 			// Seeding is programmatic, not a user interaction — the target
 			// survives it, and the picker shows it.
 			expect(wrapper.find('.vs__selected [data-selected-id="alice"]').exists()).toBe(true)
-			wrapper.unmount()
 		})
 	})
 

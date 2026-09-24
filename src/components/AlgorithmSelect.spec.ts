@@ -12,7 +12,6 @@ describe('AlgorithmSelect', () => {
 	let wrapper: VueWrapper | null = null
 
 	afterEach(() => {
-		wrapper?.unmount()
 		wrapper = null
 	})
 

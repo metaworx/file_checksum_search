@@ -23,7 +23,6 @@ describe('HelpPopover', () => {
 	let wrapper: VueWrapper | null = null
 
 	afterEach(() => {
-		wrapper?.unmount()
 		wrapper = null
 	})
 

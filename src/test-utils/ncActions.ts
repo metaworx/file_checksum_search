@@ -17,14 +17,9 @@
  */
 import type { DOMWrapper, VueWrapper } from '@vue/test-utils'
 import { flushPromises } from '@vue/test-utils'
+import { settle } from './settle'
 
 type AnyWrapper = VueWrapper | DOMWrapper<Element>
-
-/** One turn of the macrotask queue: when the popover has placed the menu. */
-async function nextTurn(): Promise<void> {
-	await flushPromises()
-	await new Promise((resolve) => setTimeout(resolve, 0))
-}
 
 /** Open the menu behind this wrapper's toggle and return it. */
 export async function openActions(wrapper: AnyWrapper): Promise<HTMLElement> {
@@ -34,7 +29,7 @@ export async function openActions(wrapper: AnyWrapper): Promise<HTMLElement> {
 	}
 	if (toggle.attributes('aria-expanded') !== 'true') {
 		await toggle.trigger('click')
-		await nextTurn()
+		await settle()
 	}
 	const id = toggle.attributes('aria-controls')
 	const menu = id ? document.getElementById(id) : null

@@ -35,9 +35,20 @@ module.exports = {
 			rules: {
 				'no-restricted-syntax': [
 					'error',
+					// vi.mock('@nextcloud/vue') and vi.mock('@nextcloud/vue/…'), and vi.doMock of either.
 					{
-						selector: 'CallExpression[callee.object.name="vi"][callee.property.name="mock"] > Literal[value=/^@nextcloud\\u002fvue\\u002f/]',
+						selector: 'CallExpression[callee.object.name="vi"][callee.property.name=/^(mock|doMock)$/] > Literal[value=/^@nextcloud\\u002fvue(\\u002f|$)/]',
 						message: 'Mount the real Nextcloud component; the runner can load it. See vitest.setup.ts and src/test-utils/.',
+					},
+					// vi.mock(import('@nextcloud/vue/…')), the typed form.
+					{
+						selector: 'CallExpression[callee.object.name="vi"][callee.property.name=/^(mock|doMock)$/] > ImportExpression > Literal[value=/^@nextcloud\\u002fvue(\\u002f|$)/]',
+						message: 'Mount the real Nextcloud component; the runner can load it. See vitest.setup.ts and src/test-utils/.',
+					},
+					// mount(X, { global: { stubs: { NcSelect: true } } }): a stand-in by another door.
+					{
+						selector: 'Property[key.name="stubs"] > ObjectExpression > Property[key.name=/^Nc[A-Z]/]',
+						message: 'Do not stub a Nextcloud component; mount it. See vitest.setup.ts and src/test-utils/.',
 					},
 				],
 			},

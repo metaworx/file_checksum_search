@@ -101,7 +101,6 @@ describe('duplicates App', () => {
 	})
 
 	afterEach(() => {
-		wrapper?.unmount()
 		wrapper = null
 		window.location.hash = ''
 		confirmPassword.mockClear()

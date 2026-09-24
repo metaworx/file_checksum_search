@@ -34,9 +34,6 @@ beforeEach(() => {
 	(window as unknown as { OC: unknown }).OC = { requestToken: 'token' }
 	toastSaved.mockReset()
 	toastError.mockReset()
-	// The control caches the groups it first loaded for the session; a
-	// cache from an earlier test would spare it the request this spec mocks.
-	window.sessionStorage.clear()
 	groupsGet.mockReset().mockResolvedValue({ data: { ocs: { data: { groups: GROUPS } } } })
 	fetchMock.mockReset()
 	fetchMock.mockImplementation((url: string, init?: RequestInit) => {

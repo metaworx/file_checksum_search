@@ -253,20 +253,14 @@ onMounted(async () => {
 	})
 })
 
-/** The X button and a click outside resolve to the same cancel. */
-function onOpenChange(open: boolean): void {
-	if (!open) {
-		emit('cancel')
-	}
-}
-
 /**
  * Escape cancels the dialog.
  *
- * NcDialog does not emit `update:open` for Escape here, so the key is handled
- * directly. Two things get first refusal on the key:
- * An open select dropdown or help popover takes the key first: both mark it
- * consumed (HelpPopover stops it in the capture phase, vue-select calls
+ * The dialog is mounted with `no-close`: no X button, no click outside, and
+ * NcDialog then never emits `update:open` — Cancel and this key are the
+ * only ways out, so the key is handled here, on the document. An open
+ * select dropdown or help popover takes it first: both mark it consumed
+ * (HelpPopover stops it in the capture phase, vue-select calls
  * preventDefault), so only an unconsumed Escape reaches the dialog.
  */
 function onEscape(event: KeyboardEvent): void {
@@ -284,8 +278,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 		:open="true"
 		:name="dialogName"
 		:no-close="true"
-		size="normal"
-		@update:open="onOpenChange">
+		size="normal">
 		<div :id="ids.form" ref="formEl" class="fcias-rule-form">
 			<div class="fcias-rule-form-row">
 				<label :for="ids.type">Type</label>

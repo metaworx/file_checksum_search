@@ -22,7 +22,6 @@ describe('TargetPicker', () => {
 	let wrapper: VueWrapper | null = null
 
 	afterEach(() => {
-		wrapper?.unmount()
 		wrapper = null
 		vi.restoreAllMocks()
 	})
@@ -32,10 +31,14 @@ describe('TargetPicker', () => {
 	// NcSelect filter the one account it had. On an instance past the
 	// threshold the second name typed then found nothing.
 	it('keeps searching as you type once the opening list said to', async () => {
+		// Reading the menu at the end asks once more, with an empty term;
+		// a request the spec did not answer would go to the network after
+		// the case is over, and surface as an error in the next one. A
+		// fresh Response per call: a body reads once.
 		const fetchMock = vi.spyOn(globalThis, 'fetch')
 			.mockResolvedValueOnce(jsonResponse(TOO_MANY))
 			.mockResolvedValueOnce(jsonResponse(ONE('admin')))
-			.mockResolvedValueOnce(jsonResponse(ONE('fcias_e2e_owner')))
+			.mockImplementation(() => Promise.resolve(jsonResponse(ONE('fcias_e2e_owner'))))
 
 		wrapper = mount(TargetPicker)
 		await flushPromises()
@@ -161,7 +164,7 @@ describe('TargetPicker', () => {
 		vi.spyOn(globalThis, 'fetch')
 			.mockResolvedValueOnce(jsonResponse(TOO_MANY))
 			.mockResolvedValueOnce(jsonResponse({ ...ONE('alice'), users: [{ id: 'alice', label: 'Alice A.' }] }))
-			.mockResolvedValueOnce(jsonResponse({ ...ONE('bob'), users: [{ id: 'bob', label: 'Bob B.' }] }))
+			.mockImplementation(() => Promise.resolve(jsonResponse({ ...ONE('bob'), users: [{ id: 'bob', label: 'Bob B.' }] })))
 
 		wrapper = mount(TargetPicker)
 		await flushPromises()
@@ -183,9 +186,11 @@ describe('TargetPicker', () => {
 	// it — which is what `filterable` following `prefill` prevents, and what
 	// a search answer that happens to contain the term cannot tell.
 	it('shows what the server found, whatever it is called', async () => {
+		// Opening the menu to read it asks the server once more, with an
+		// empty term; that answer, and any after, is the same one.
 		vi.spyOn(globalThis, 'fetch')
 			.mockResolvedValueOnce(jsonResponse(TOO_MANY))
-			.mockResolvedValueOnce(jsonResponse({ ...ONE('jdoe'), users: [{ id: 'jdoe', label: 'Zed' }] }))
+			.mockImplementation(() => Promise.resolve(jsonResponse({ ...ONE('jdoe'), users: [{ id: 'jdoe', label: 'Zed' }] })))
 
 		wrapper = mount(TargetPicker)
 		await flushPromises()
