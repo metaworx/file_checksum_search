@@ -31,10 +31,29 @@ let adminPassword = 'admin'
 const FIND_TIMEOUT = 60000
 const EXEC_TIMEOUT = 300000
 
-/** Every capture: one window, one theme, one locale (the browser's, forced to en-US). */
-const VIEWPORT = { width: 1440, height: 900 }
+/**
+ * Every capture: one window, one theme, one locale (the browser's, forced
+ * to en-US). 1600 wide, the headless window's own width (cypress.config.cjs):
+ * the admin rules table needs the room beside the settings navigation, and
+ * a viewport wider than the window is scaled down with every shot in it.
+ */
+const VIEWPORT = { width: 1600, height: 900 }
 
 const ADMIN_URL = '/index.php/settings/admin/file_checksum_search'
+const PERSONAL_URL = '/index.php/settings/user/file_checksum_search_personal'
+const DUPLICATES_URL = '/index.php/apps/file_checksum_search/duplicates'
+
+const propfindBody = [
+	'<?xml version="1.0"?>',
+	'<d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">',
+	'<d:prop><oc:fileid/></d:prop>',
+	'</d:propfind>',
+].join( '' )
+
+const extractFileId = ( res ) => {
+	const match = String( res.body ).match( /<(?:[a-zA-Z0-9]+:)?fileid>\s*(\d+)\s*<\/(?:[a-zA-Z0-9]+:)?fileid>/ )
+	return match ? Number( match[ 1 ] ) : null
+}
 
 /** The demo accounts; passwords are minted per run in before(). */
 const demo = {
@@ -60,12 +79,21 @@ const ADMIN_FILES = [
 	{ name: 'b.txt', content: 'foo' },
 	{ name: 'c.txt', content: 'bar' },
 ]
+/** sha1('foo'): what a.txt and b.txt share, per fixtures/duplicates.json. */
+const DUP_SHA1 = '0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33'
 
 /** What the administrator's theme was before this run; put back in after(). */
 let adminThemeWas = null
 
+/** The administrator's a.txt, for the sidebar shot; resolved in before(). */
+let adminFileId = null
+
 /** Whether before() set the instance up; a skipped run has nothing to put back. */
 let armed = false
+
+/** Instance settings the captures pin, and what they were; put back in after(). */
+let ruleEditingWas = null
+let defaultAlgorithmWas = null
 
 const strongPassword = () => {
 	const bytes = new Uint8Array( 24 )
@@ -102,6 +130,44 @@ const dav = ( account, method, path, body = undefined ) => cy.clearCookies().the
 
 const exec = ( command ) => cy.exec( `${ occ } ${ command }`, { timeout: EXEC_TIMEOUT, failOnNonZeroExit: false } )
 
+/**
+ * One capture, named after the file it becomes in docs/Screenshots/ (the
+ * config's after:screenshot hook moves it there). An element where the shot
+ * is one part of the page; the viewport where the chrome around it is the
+ * point.
+ */
+const shot = ( name, subject = null ) => (
+	subject
+		? subject.screenshot( name, { overwrite: true } )
+		: cy.screenshot( name, { capture: 'viewport', overwrite: true } )
+)
+
+/** The `.fcias-section` an element sits in: one heading, its hint and its control. */
+const sectionOf = ( selector ) => cy.get( selector, { timeout: FIND_TIMEOUT } ).parents( '.fcias-section' ).first()
+
+/**
+ * The viewport, cropped to the box around an element with a margin: the
+ * modal and the settings content sit on a page whose chrome is not the
+ * point, and an element capture of either would miss its frame or scroll
+ * the wrong container.
+ */
+const shotAround = ( name, subject, margin = 24, trim = 0 ) => {
+	const chain = typeof subject === 'string' ? cy.get( subject, { timeout: FIND_TIMEOUT } ) : subject
+	chain.first().then( ( $el ) => {
+		const rect = $el[ 0 ].getBoundingClientRect()
+		const x = Math.max( 0, Math.floor( rect.left ) - margin )
+		const y = Math.max( 0, Math.floor( rect.top ) - margin )
+		const width = Math.min( VIEWPORT.width - x, Math.ceil( rect.width ) + 2 * margin ) - trim
+		const height = Math.min( VIEWPORT.height - y, Math.ceil( rect.height ) + 2 * margin ) - trim
+		cy.screenshot( name, { capture: 'viewport', overwrite: true, clip: { x, y, width, height } } )
+	} )
+}
+
+const openChecksumsTab = () => {
+	cy.get( '.app-sidebar', { timeout: FIND_TIMEOUT } ).should( 'be.visible' )
+	cy.get( '#tab-button-file_checksum_search-checksums', { timeout: FIND_TIMEOUT } ).click()
+}
+
 /** Set the theme an account sees; `null` puts it back to the instance default. */
 const theme = ( uid, value ) => (
 	value === null
@@ -127,6 +193,7 @@ describe( 'FCIAS screenshots', () => {
 				adminPassword = env.NC_ADMIN_PASSWORD
 			}
 		} ).then( () => {
+			const admin = { user: adminUser, password: adminPassword }
 			exec( `app:enable ${ appId }` )
 
 			// The demo accounts: a password this run knows, and a name a
@@ -137,6 +204,21 @@ describe( 'FCIAS screenshots', () => {
 				provision( account.user, 'password', account.password )
 				provision( account.user, 'displayname', account.name )
 			}
+
+			// Two instance settings the shots depend on: every user may edit
+			// rules, so alice's own rule is hers to edit on her page, and the
+			// default algorithm is the shipped one rather than whatever an
+			// earlier session left. Both remembered and put back.
+			cy.fciasRuleEditing( admin, true ).then( ( previous ) => {
+				ruleEditingWas = previous
+			} )
+			cy.fciasDefaultAlgorithm( admin, 'sha1' ).then( ( previous ) => {
+				defaultAlgorithmWas = previous
+			} )
+
+			// Files an earlier run left in the administrator's trash keep
+			// their hashes and would head every group on the Duplicates page.
+			exec( `trashbin:cleanup ${ adminUser }` )
 
 			// One theme for the whole set. The administrator's own choice is
 			// remembered and put back; the demo accounts stay light.
@@ -156,11 +238,21 @@ describe( 'FCIAS screenshots', () => {
 
 			// Files, then their hashes stated from the fixtures: the reset
 			// first, or it would clear what was just stated.
-			const admin = { user: adminUser, password: adminPassword }
 			dav( admin, 'MKCOL', ADMIN_DIR )
 			for ( const { name, content } of ADMIN_FILES ) {
 				dav( admin, 'PUT', `${ ADMIN_DIR }/${ name }`, content )
 			}
+			cy.clearCookies()
+			cy.request( {
+				method: 'PROPFIND',
+				url: `/remote.php/dav/files/${ adminUser }/${ ADMIN_DIR }/${ ADMIN_FILES[ 0 ].name }`,
+				auth: { user: adminUser, pass: adminPassword },
+				headers: { Depth: '0', 'Content-Type': 'application/xml' },
+				body: propfindBody,
+			} ).then( ( res ) => {
+				adminFileId = extractFileId( res )
+				expect( adminFileId, 'the administrator\'s a.txt should have an id' ).to.be.a( 'number' ).and.greaterThan( 0 )
+			} )
 			for ( const dir of [ 'Photos', 'Documents' ] ) {
 				dav( demo.alice, 'MKCOL', dir )
 			}
@@ -193,7 +285,10 @@ describe( 'FCIAS screenshots', () => {
 		if ( ! armed ) {
 			return
 		}
+		const admin = { user: adminUser, password: adminPassword }
 		cy.fciasResetRules( occ )
+		cy.fciasRuleEditing( admin, ruleEditingWas === true )
+		cy.fciasDefaultAlgorithm( admin, defaultAlgorithmWas ?? '' )
 		exec( `groupfolders:group ${ DESIGN_ASSETS_FOLDER_ID } ${ DESIGNERS } --delete` )
 		exec( `group:delete ${ DESIGNERS }` )
 		theme( adminUser, adminThemeWas )
@@ -235,5 +330,103 @@ describe( 'FCIAS screenshots', () => {
 		cy.login( demo.alice.user, demo.alice.password )
 		cy.visit( '/index.php/apps/files' )
 		cy.get( '[data-cy-files-list]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+	} )
+
+	// ─── step 2: the five names the app store already shows ─────────
+
+	// The admin page as it opens: the heading, the five tabs, the algorithm
+	// allowlist with its default, and the rules below down to the fold,
+	// which falls after the first two bands.
+	it( 'Admin-Settings', () => {
+		cy.visit( ADMIN_URL )
+		cy.get( '#fcias-rules-list tr[data-placeholder]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.window().then( ( win ) => win.scrollTo( 0, 0 ) )
+		// No margin, and the scrollbars at the right and bottom edges trimmed.
+		shotAround( 'Admin-Settings', '#fcias-admin-settings', 0, 16 )
+	} )
+
+	// The rules table on its own: every band with its header, one rule per
+	// band of interest, the pen and menu column, and a placeholder row for
+	// what no rule covers. Step 3's first name; the table is where the model
+	// shows, and the page shot above cuts it at the fold.
+	it( 'Admin-Rules', () => {
+		cy.visit( ADMIN_URL )
+		cy.get( '#fcias-rules-list tr[data-placeholder]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		// The settings page scrolls inside `#app-content-vue`, which Cypress's
+		// element capture and stitching do not move (there is a second, older
+		// `main.app-content` on the page that does not scroll at all).
+		// Scrolled to its end — the section is the last thing on the page and
+		// shorter than the viewport, so that shows all of it — and the
+		// section cut out of the viewport.
+		cy.get( '#app-content-vue', { timeout: FIND_TIMEOUT } ).scrollTo( 'bottom' )
+		cy.wait( 300 )
+		shotAround( 'Admin-Rules', sectionOf( '#fcias-rules-list' ), 16 )
+	} )
+
+	// Alice's personal page: the enforced band she may not touch, her own
+	// rule, the defaults below, and her preferred algorithm.
+	it( 'User-Settings', () => {
+		cy.login( demo.alice.user, demo.alice.password )
+		cy.visit( PERSONAL_URL )
+		cy.get( '#fcias-personal-rules', { timeout: FIND_TIMEOUT } ).should( 'contain', 'Photos' )
+		shot( 'User-Settings', cy.get( '#fcias-personal-settings' ) )
+	} )
+
+	// The Files sidebar on a hashed file, as the administrator: the hashes,
+	// the Recalculate buttons, Find duplicates and Find across accounts.
+	it( 'File-Detail-Pane', () => {
+		cy.visit( `/index.php/apps/files/files/${ adminFileId }?dir=${ encodeURIComponent( '/' + ADMIN_DIR ) }&opendetails=true` )
+		openChecksumsTab()
+		cy.get( '.fcias-selectable-hash', { timeout: FIND_TIMEOUT } ).should( 'have.length.at.least', 1 )
+		cy.get( '[data-testid="fcias-dup-across"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		// From the file's name down: the preview above it is a blank the
+		// text file cannot fill.
+		cy.get( '.app-sidebar' ).then( ( $sidebar ) => {
+			const { width, height } = $sidebar[ 0 ].getBoundingClientRect()
+			const top = 240
+			const bottom = 8 // the rounded corner, and the page showing through it
+			cy.get( '.app-sidebar' ).screenshot( 'File-Detail-Pane', { overwrite: true, clip: { x: 0, y: top, width, height: height - top - bottom } } )
+		} )
+	} )
+
+	// The Duplicates page on Mine, one group opened to its files and their
+	// Verify buttons.
+	it( 'Duplicates-Page', () => {
+		cy.visit( DUPLICATES_URL )
+		cy.get( '.db-group', { timeout: FIND_TIMEOUT } ).should( 'have.length.at.least', 1 )
+		// The group of this spec's own files, opened; the rest of the
+		// administrator's duplicates — whatever the enabled home rule hashed
+		// meanwhile — stay collapsed around it.
+		cy.contains( '.db-group', DUP_SHA1, { timeout: FIND_TIMEOUT } ).find( '.db-group-header' ).click()
+		cy.contains( '.db-group', DUP_SHA1 ).find( '.db-file-label', { timeout: FIND_TIMEOUT } ).should( 'have.length', 2 )
+		// Down to the last group, not the page's full height.
+		cy.get( '.db-group' ).last().then( ( $last ) => {
+			cy.get( '.db-wrap' ).then( ( $wrap ) => {
+				const height = Math.ceil( $last[ 0 ].getBoundingClientRect().bottom - $wrap[ 0 ].getBoundingClientRect().top ) + 16
+				cy.get( '.db-wrap' ).screenshot( 'Duplicates-Page', { overwrite: true, clip: { x: 0, y: 0, width: Math.ceil( $wrap[ 0 ].getBoundingClientRect().width ), height } } )
+			} )
+		} )
+	} )
+
+	// The unified search on a real hash, the File Checksums provider listing
+	// the two files that carry it. The hash is typed the way global-search
+	// does it: through the native setter and one input event, since the
+	// field is debounced and cy.type() races it.
+	it( 'Unified_Search', () => {
+		cy.intercept( 'GET', '**/search/providers/file_checksum_search_provider/search**' ).as( 'hashSearch' )
+		cy.visit( '/index.php/apps/files/' )
+		cy.get( '.unified-search-menu button', { timeout: FIND_TIMEOUT } ).first().click()
+		cy.get( '[data-cy-unified-search-input]', { timeout: FIND_TIMEOUT } ).then( ( $input ) => {
+			const el = $input[ 0 ]
+			const setValue = Object.getOwnPropertyDescriptor( el.ownerDocument.defaultView.HTMLInputElement.prototype, 'value' ).set
+			setValue.call( el, DUP_SHA1 )
+			el.dispatchEvent( new Event( 'input', { bubbles: true } ) )
+		} )
+		cy.wait( '@hashSearch', { timeout: FIND_TIMEOUT } )
+		cy.get( '.unified-search-modal', { timeout: FIND_TIMEOUT } ).should( 'contain', ADMIN_FILES[ 0 ].name )
+		// The modal with its frame, once its entrance has finished.
+		cy.get( '.unified-search-modal' ).should( 'be.visible' )
+		cy.wait( 600 )
+		shotAround( 'Unified_Search', '.modal-container', 40 )
 	} )
 } )
