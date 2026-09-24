@@ -1,0 +1,11 @@
+{
+	"require-dev": {
+		"mwx/coding-standard": "^0.11",
+		"mwx/ecs-fixers": "^0.10"
+	},
+	"config": {
+		"platform": {
+			"php": "8.2"
+		}
+	}
+}
