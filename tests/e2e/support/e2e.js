@@ -38,6 +38,30 @@ Cypress.Commands.add( 'login', ( user = 'admin', password = 'admin' ) => {
 		cy.get( 'input[name="password"]' ).type( `${ password }{enter}` )
 		// Wait until we leave the login page
 		cy.url().should( 'not.include', '/login' )
+	}, {
+		// Restored cookies are asked whether they still hold before a test
+		// trusts them, and asked the way a test uses them: a page navigation.
+		// Nextcloud re-checks a session's auth token against the database
+		// every five minutes and logs the session out when the token is gone
+		// or stale by then; a page then lands on /login, while cy.request()
+		// with the same cookies still answers 200 through the remember-me
+		// cookie. The last checksums case failed exactly so whenever the
+		// spec ran after duplicates. A session the browser cannot use is
+		// logged in again here rather than sent to the login page mid-test.
+		validate() {
+			cy.visit( '/index.php/apps/files/' )
+			cy.url().then( ( url ) => {
+				if ( url.includes( '/login' ) ) {
+					cy.task( 'fciasDiag', {
+						note: 'restored session rejected by a page request, logging in again',
+						user,
+						spec: Cypress.spec.name,
+						test: Cypress.currentTest?.title ?? null,
+					} )
+				}
+			} )
+			cy.url().should( 'not.include', '/login' )
+		},
 	} )
 } )
 
@@ -465,7 +489,18 @@ Cypress.Commands.add( 'fciasDeleteAccount', ( admin, user ) => {
 	// the account itself, the deletion ran *as that account*, was refused
 	// with 403, and the old blanket tolerance swallowed it — which is how
 	// thirty-nine `fcias_e2e_nobody_*` accounts came to exist.
+	// Leave the page first. A page opened as the account keeps sending
+	// requests in the background — the Text editor a file view loads sends
+	// session pushes — and once the account is gone Nextcloud answers one
+	// with a logout, whose response expires the session cookies in the
+	// browser. Landing after the next test has restored another account's
+	// session, it wiped that session: the checksums spec's last case then
+	// found itself on the login page, whenever timing put the push there.
+	// Cookies first, so the login page is what the visit lands on: a page
+	// with no session to push. cy.visit() loads only HTML, which rules out
+	// about:blank and status.php.
 	cy.clearCookies()
+	cy.visit( '/index.php/login' )
 
 	cy.request( {
 		method: 'DELETE',
