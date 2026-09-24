@@ -295,7 +295,7 @@ Trigger hash recalculation for a file. **This is the only mutating operation** i
 **Returns (failure):**
 ```php
 ['success' => false, 'error' => 'File not found.']
-['success' => false, 'error' => 'Hashing is excluded for this path by an administrator rule.', 'excluded' => true, 'ruleId' => '…']
+['success' => false, 'error' => 'Hashing is excluded for this path by a rule.', 'excluded' => true, 'ruleId' => '…', 'ruleOwner' => 'admin']
 ['success' => false, 'error' => 'This account may not calculate by hand.', 'forbidden' => true]
 ```
 
@@ -561,9 +561,10 @@ Content-Type: application/json
 ```json
 {
   "success": false,
-  "error": "Hashing is excluded for this path by an administrator rule.",
+  "error": "Hashing is excluded for this path by a rule.",
   "excluded": true,
-  "ruleId": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
+  "ruleId": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+  "ruleOwner": "admin"
 }
 ```
 

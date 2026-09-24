@@ -7,6 +7,7 @@
 import { computed, ref } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import { OCS_API_V1 } from '../../routes'
+import { currentUid } from '../../fileLabel'
 import type { DuplicateGroup, FileNode, HashEntry } from '../types'
 
 declare const OC: {
@@ -97,6 +98,20 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 		}
 	}
 
+	/** The refusal, with the rule's owner as the server named them. */
+	function refusedBy(owner: string | undefined): string {
+		if (owner === 'admin') {
+			return 'Hashing is excluded for this path by an administrator\'s rule.'
+		}
+		if (owner && owner === currentUid()) {
+			return 'Hashing is excluded for this path by your own rule.'
+		}
+		if (owner) {
+			return `Hashing is excluded for this path by ${owner}'s rule.`
+		}
+		return 'Hashing is excluded for this path by a rule.'
+	}
+
 	async function recalc(algo: string): Promise<void> {
 		const id = fileId.value
 		if (id === null) return
@@ -111,15 +126,20 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 				method: 'POST',
 				headers: { requesttoken: OC.requestToken },
 			})
-			const result = (await response.json()) as { success?: boolean; error?: string }
+			const result = (await response.json()) as { success?: boolean; error?: string; excluded?: boolean; ruleOwner?: string }
 			if (result.success) {
 				await loadHashes()
 			} else {
 				recalcError.value = algo
 				// A refusal is usually policy, not breakage — an exclude rule
 				// blocking the read. "Error" alone leaves that looking like a
-				// malfunction to retry, so say what the server said.
-				recalcErrorMessage.value = result.error || 'Recalculation failed.'
+				// malfunction to retry, so say what the server said — and,
+				// for an exclusion, whose rule it was: the server names the
+				// owner, and "an administrator rule" of one's own rule sent
+				// the reader to the wrong page.
+				recalcErrorMessage.value = result.excluded
+					? refusedBy(result.ruleOwner)
+					: result.error || 'Recalculation failed.'
 			}
 		} catch {
 			recalcError.value = algo

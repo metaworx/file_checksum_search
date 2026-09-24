@@ -181,8 +181,9 @@ It has three sections:
 > **Note:** FCIAS computes checksums according to the rules described below.
 > Some algorithms may be missing until the background job has processed the
 > file. If a recalculation is refused with *Hashing is excluded for this path
-> by an administrator rule.*, a rule blocks hashing the file by every route —
-> see *Your hashing rules*.
+> by your own rule* or *…by an administrator's rule*, a rule blocks hashing
+> the file by every route — see *Your hashing rules* for the first, and ask
+> an administrator about the second.
 
 ## Your hashing rules
 

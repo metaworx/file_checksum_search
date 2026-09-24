@@ -22,6 +22,7 @@ use OCA\FileChecksumSearch\Service\PermissionService;
 use OCP\IGroupManager;
 use InvalidArgumentException;
 use OCA\FileChecksumSearch\Service\RuleService;
+use OCA\FileChecksumSearch\Service\Selector;
 use OCA\FileChecksumSearch\Service\StatusService;
 use OCP\Files\Config\IUserMountCache;
 use OCP\Files\File;
@@ -618,9 +619,10 @@ class ChecksumApi
 	 *                                        excluding the path, are still
 	 *                                        answered.
 	 *
-	 * @return array{success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string, forbidden?: bool}
+	 * @return array{success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string, ruleOwner?: string, forbidden?: bool}
 	 *         `excluded` says a rule refused the file rather than anything
-	 *         going wrong, and names the rule in `ruleId`; `forbidden` says
+	 *         going wrong, and names the rule in `ruleId` and whose it is in
+	 *         `ruleOwner` — `admin`, or a uid; `forbidden` says
 	 *         the account may not calculate by hand. The REST layer
 	 *         answers 403 for either and 400 for every other failure.
 	 */
@@ -657,11 +659,16 @@ class ChecksumApi
 
 		if ( $excludedBy !== null )
 		{
+			// Whose rule, so the reader is sent to the right page: their own
+			// rules live on their personal page, an administrator's do not.
+			// The message used to say "an administrator rule" of every rule,
+			// the reader's own included.
 			return [
-				'success'  => false,
-				'error'    => 'Hashing is excluded for this path by an administrator rule.',
-				'excluded' => true,
-				'ruleId'   => $excludedBy,
+				'success'   => false,
+				'error'     => 'Hashing is excluded for this path by a rule.',
+				'excluded'  => true,
+				'ruleId'    => (string) ( $excludedBy['id'] ?? '' ),
+				'ruleOwner' => self::ruleOwner( $excludedBy ),
 			];
 		}
 
@@ -721,7 +728,7 @@ class ChecksumApi
 	 * @param  string|null        $actingUser  As for {@see recalcHash()}.
 	 * @param  list<string>|null  $reachUids   As for {@see recalcHash()}.
 	 *
-	 * @return array{results: list<array{fileid: int, success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string, forbidden?: bool}>, remaining: list<int>}
+	 * @return array{results: list<array{fileid: int, success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string, ruleOwner?: string, forbidden?: bool}>, remaining: list<int>}
 	 *         `remaining` are the ids not processed, in the order given; the
 	 *         caller sends them again.
 	 */
@@ -945,7 +952,43 @@ class ChecksumApi
 	 * exactly the case it leaves open — and an unmatched file was never
 	 * governed by a rule at all.
 	 */
-	private function excludingRuleFor( int $fileId ): ?string
+	/**
+	 * Whose a rule is, for a message: `admin` for an enforced rule and for
+	 * any rule that is not on one account's home — those only an
+	 * administrator can make — else the uid the `home:<uid>` selector names.
+	 * Not who typed it: a rule on alice's home that an administrator made
+	 * and did not enforce is alice's to edit, and that is what the reader
+	 * needs to know.
+	 */
+	private static function ruleOwner( array $rule ): string
+	{
+
+		if ( ! empty( $rule['admin_enforced'] ) )
+		{
+			return 'admin';
+		}
+
+		try
+		{
+			$selector = Selector::fromStored( (string) ( $rule['selector'] ?? '' ) );
+		}
+		catch ( \Throwable )
+		{
+			return 'admin';
+		}
+
+		return $selector->kind === Selector::KIND_USER
+			? (string) $selector->target
+			: 'admin';
+	}
+
+
+	/**
+	 * The exclude rule governing $fileId, or null where none does.
+	 *
+	 * @return array<string, mixed>|null
+	 */
+	private function excludingRuleFor( int $fileId ): ?array
 	{
 
 		try
@@ -962,7 +1005,7 @@ class ChecksumApi
 
 		return $rule !== null
 		&& RuleService::verdictOf( $rule ) === RuleService::TYPE_EXCLUDE
-			? (string) ( $rule['id'] ?? '' )
+			? $rule
 			: null;
 	}
 

@@ -299,7 +299,8 @@ the first stable release.
 - `occ fcias:hash` without `--mark`: `exclude` rules not honoured,
   unmatched files hashed.
 
-- Sidebar: a refused recalculation said "Error", not the rule's reason.
+- Sidebar: a refused recalculation said "Error", not whose rule refused
+  it, and said it in a colour the light theme cannot show.
 
 - A modified file no rule maintains: its stale hashes kept.
 

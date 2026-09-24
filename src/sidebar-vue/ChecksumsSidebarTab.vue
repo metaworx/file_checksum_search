@@ -333,10 +333,6 @@ watch(
 	margin-top: 8px;
 }
 
-.fcias-error {
-	color: var(--color-error);
-}
-
 .fcias-recalc-row {
 	margin: 8px 0;
 	display: flex;

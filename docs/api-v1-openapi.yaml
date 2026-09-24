@@ -1264,9 +1264,12 @@ components:
                     example: "File not found."
                   excluded:
                     type: boolean
-                    description: An `exclude` rule covers the file; `ruleId` names it.
+                    description: An `exclude` rule covers the file; `ruleId` names it and `ruleOwner` says whose it is.
                   ruleId:
                     type: string
+                  ruleOwner:
+                    type: string
+                    description: "`admin`, or the uid whose home the rule is on."
                   forbidden:
                     type: boolean
                     description: The acting account may not calculate by hand.
@@ -1523,11 +1526,19 @@ components:
                 example: false
               error:
                 type: string
-                example: "Hashing is excluded for this path by an administrator rule."
+                example: "Hashing is excluded for this path by a rule."
               excluded:
                 type: boolean
                 description: Always true; distinguishes a policy refusal from any other 403.
                 example: true
+              ruleOwner:
+                type: string
+                description: >-
+                  Whose the rule is: `admin` for an enforced rule and for any rule not on
+                  one account's home, else that account's uid. A client words the refusal
+                  from this — the reader's own rules are on their personal page, an
+                  administrator's are not.
+                example: admin
               ruleId:
                 type: string
                 description: The rule that decided, as shown in the rules table.

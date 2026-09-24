@@ -105,16 +105,40 @@ describe('useSidebarHashes', () => {
 		// it as a bare "Error" reads as a malfunction worth retrying.
 		vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse({
 			success: false,
-			error: 'Hashing is excluded for this path by an administrator rule.',
+			error: 'Hashing is excluded for this path by a rule.',
 			excluded: true,
 			ruleId: 'abc123',
+			ruleOwner: 'admin',
 		}))
 
 		const { recalcError, recalcErrorMessage, recalc } = useSidebarHashes(() => fileNode(123))
 		await recalc('sha1')
 
 		expect(recalcError.value).toBe('sha1')
-		expect(recalcErrorMessage.value).toContain('excluded for this path')
+		expect(recalcErrorMessage.value).toBe('Hashing is excluded for this path by an administrator\'s rule.')
+	})
+
+	// The defect: every refusal said "an administrator rule", of the
+	// reader's own rule as well, and sent them to the wrong page for it.
+	it('says whose rule refused: the reader\'s own, or an administrator\'s', async () => {
+		document.head.dataset.user = 'alice'
+		vi.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(jsonResponse({ success: false, excluded: true, ruleId: 'r1', ruleOwner: 'alice' }))
+			.mockResolvedValueOnce(jsonResponse({ success: false, excluded: true, ruleId: 'r2', ruleOwner: 'bob' }))
+			.mockResolvedValueOnce(jsonResponse({ success: false, excluded: true, ruleId: 'r3' }))
+
+		const { recalcErrorMessage, recalc } = useSidebarHashes(() => fileNode(123))
+
+		await recalc('sha1')
+		expect(recalcErrorMessage.value).toBe('Hashing is excluded for this path by your own rule.')
+
+		await recalc('sha1')
+		expect(recalcErrorMessage.value).toBe('Hashing is excluded for this path by bob\'s rule.')
+
+		// An older server that names no owner.
+		await recalc('sha1')
+		expect(recalcErrorMessage.value).toBe('Hashing is excluded for this path by a rule.')
+		delete document.head.dataset.user
 	})
 
 	it('clears a previous reason when a recalculation is retried', async () => {

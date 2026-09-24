@@ -1123,8 +1123,9 @@ class ChecksumApiTest
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
 		                  ->willReturn( [
-			                  'id'   => 'archive',
-			                  'type' => 'exclude',
+			                  'id'       => 'archive',
+			                  'type'     => 'exclude',
+			                  'selector' => 'groupfolder:3',
 		                  ] )
 		;
 
@@ -1137,6 +1138,39 @@ class ChecksumApiTest
 		$this->assertFalse( $result['success'] );
 		$this->assertTrue( $result['excluded'] );
 		$this->assertSame( 'archive', $result['ruleId'] );
+		$this->assertSame( 'admin', $result['ruleOwner'], 'a group-folder rule is nobody\'s but an administrator\'s' );
+		$this->assertStringNotContainsString( 'administrator', $result['error'], 'whose rule it is rides in ruleOwner, not in the text' );
+	}
+
+
+	/**
+	 * Whose rule refused the file is the reader's to know: their own rules
+	 * live on their personal page, an administrator's do not. The answer
+	 * used to say "an administrator rule" of every exclusion, the reader's
+	 * own included. A rule on one account's home is that account's unless
+	 * an administrator enforced it.
+	 */
+	public function testARefusalNamesWhoseRuleItIs(): void
+	{
+
+		$node = $this->createMock( File::class );
+		$node->method( 'getPath' )
+		     ->willReturn( '/files/Archive/big.iso' )
+		;
+		$this->rootFolder->method( 'getById' )
+		                 ->willReturn( [ $node ] )
+		;
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturnOnConsecutiveCalls(
+			                  [ 'id' => 'own', 'type' => 'exclude', 'selector' => 'home:alice' ],
+			                  [ 'id' => 'enforced', 'type' => 'exclude', 'selector' => 'home:alice', 'admin_enforced' => true ],
+			                  [ 'id' => 'all', 'type' => 'exclude', 'selector' => 'home:*' ],
+		                  )
+		;
+
+		$this->assertSame( 'alice', $this->api->recalcHash( 42 )['ruleOwner'], 'her own' );
+		$this->assertSame( 'admin', $this->api->recalcHash( 42 )['ruleOwner'], 'on her home, but enforced' );
+		$this->assertSame( 'admin', $this->api->recalcHash( 42 )['ruleOwner'], 'every home is nobody\'s in particular' );
 	}
 
 
