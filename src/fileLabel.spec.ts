@@ -19,6 +19,18 @@ describe('fileLabel', () => {
 
 	// The case the field exists for: three accounts' copies of one template
 	// all read `/Templates/Certificate.odt`, and only the location says whose.
+	// The API's path is the filecache's, `files/Documents/a.txt`; the Files
+	// app never shows that first segment, and this list did.
+	it('drops the filecache\'s files/ segment from the viewer\'s own path', () => {
+		const row = { path: 'files/Documents/a.txt', name: 'a.txt', owner: 'alice', location: '/alice/files/Documents/a.txt' }
+		expect(fileLabel(row, 'alice')).toBe('Documents/a.txt')
+		expect(fileLabel({ ...row, path: 'files/a.txt' }, 'alice')).toBe('a.txt')
+		// Only that segment, and only at the start: a folder called files is a folder.
+		expect(fileLabel({ ...row, path: 'Documents/files/a.txt' }, 'alice')).toBe('Documents/files/a.txt')
+		// Somebody else's row keeps its location, whatever its path says.
+		expect(fileLabel(row, 'bob')).toBe('/alice/files/Documents/a.txt')
+	})
+
 	it('shows where the file lives when it is somebody else\'s', () => {
 		expect(fileLabel(mine, 'bob')).toBe('/alice/files/Templates/Certificate.odt')
 	})

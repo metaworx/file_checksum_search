@@ -220,8 +220,8 @@ the first stable release.
 
 - Every file row: `owner` and `location` (`FileLocation::describe()`).
 
-- File rows not the viewer's own: the location in place of the path,
-  with a glyph for the kind of place.
+- File rows: the viewer's own by the path the Files app shows, the
+  others by their location, each with a glyph for the kind of place.
 
 - Cross-account file rows: `openable`, linked only where true.
 

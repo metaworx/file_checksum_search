@@ -42,7 +42,16 @@ export function fileLabel(file: LabelledFile, uid: string | null = currentUid())
 		return file.location as string
 	}
 
-	return file.path || file.name || ''
+	return ownPath(file.path || '') || file.name || ''
+}
+
+/**
+ * The path as the viewer knows it. The API's `path` is the filecache's,
+ * which puts every home file under `files/`; nobody's Files app shows that
+ * segment, so neither does a list of their own files.
+ */
+function ownPath(path: string): string {
+	return path.startsWith('files/') ? path.slice('files/'.length) : path
 }
 
 function labelIsLocation(file: LabelledFile, uid: string | null): boolean {
