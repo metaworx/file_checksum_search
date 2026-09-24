@@ -37,7 +37,12 @@ ask for it.
 
 Open **Duplicates** from the top navigation (or the URL
 `/apps/file_checksum_search/duplicates`) to browse files that share the
-same checksum. The page has **Mine** and **Help** (this guide), and — if your
+same checksum. The pictures in this guide load from the project's site, so
+they need a connection to it; the words stand without them.
+
+![The Duplicates page on Mine: one group opened to its files, each with a Verify button][shot-duplicates-page]
+
+The page has **Mine** and **Help** (this guide), and — if your
 administrator lets you look across accounts — **Others** as well.
 
 Each control carries its label, and an **i** button beside the label says what
@@ -83,7 +88,11 @@ stopped rather than starting over.
 ### Looking at other accounts
 
 If your administrator lets you look across accounts, an **Others** tab
-appears beside *Mine*. It is a tab of its own, on an amber background,
+appears beside *Mine*.
+
+![The Others tab on one hash over the whole reach: your own copies behind a house, another account's behind a person][shot-duplicates-others]
+
+It is a tab of its own, on an amber background,
 because everything in it is somebody else's files — not a mode your own
 listing slips into.
 
@@ -133,6 +142,8 @@ app can only open what is in your files. Long lists are paged with
 You can search for a file by its checksum directly from Nextcloud's global
 search bar (Unified Search):
 
+![The unified search on a checksum: the File Checksums provider listing the two files that carry it][shot-unified-search]
+
 1. Type a hash value — either the raw hex string or an `algo:hash` pair,
    for example `sha256:e3b0c44298fc1c149afbf4c8996fb924`.
 2. Pick the **File Checksums** result to jump to matching files.
@@ -143,7 +154,11 @@ files (e.g. a known-good ISO image) or finding every copy of a file.
 ## The file detail pane
 
 Select any file in the Files app and open the **Checksums** tab in the
-sidebar (the file detail pane). It has three sections:
+sidebar (the file detail pane).
+
+![The Checksums tab: the hashes, the Recalculate buttons, Find duplicates and Find across accounts][shot-file-detail-pane]
+
+It has three sections:
 
 - **Checksums** — what has been computed for this file, one row per
   algorithm. Click a value to copy it.
@@ -173,6 +188,8 @@ sidebar (the file detail pane). It has three sections:
 
 Open **Personal settings → File Checksum Index & Search**. The page has two
 tabs: **Rules**, and **Help**, which is this guide.
+
+![The personal rules page: your preferred algorithm, an enforced rule you may not touch, your own rule, the defaults below][shot-user-settings]
 
 Above the rules sits **Your preferred algorithm**: the one the sidebar's first
 quick button offers. Its first entry reads *Default (…)* and names the
@@ -255,3 +272,11 @@ to take effect. To move a rule
 somewhere else entirely, change what it *is*: what it applies to, or, for an
 administrator, its enforced flag. Reordering currently needs a pointer; there
 is no keyboard equivalent.
+
+<!-- BEGIN GENERATED RELEASE-PIN - do not edit; run "changelog.sh cut" -->
+[shot-duplicates-page]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/Duplicates-Page.png
+[shot-duplicates-others]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/Duplicates-Others.png
+[shot-unified-search]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/Unified_Search.png
+[shot-file-detail-pane]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/File-Detail-Pane.png
+[shot-user-settings]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/User-Settings.png
+<!-- END GENERATED RELEASE-PIN -->

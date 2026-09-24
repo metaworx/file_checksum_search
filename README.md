@@ -332,6 +332,8 @@ FCIAS reacts to file events (create, write, copy, delete) according to **hash ge
 Rules are evaluated in order — the first matching rule handles a file, and a lower band number is a
 higher priority. A rule's position is not arbitrary: it follows from what the rule *is*.
 
+![The rules table on the admin settings page: four bands, a placeholder row for a folder no rule covers][shot-admin-rules]
+
 ### What a rule addresses: the selector
 
 One field says which slice of the file universe a rule is about. Scope and storage turned out to be
@@ -574,7 +576,11 @@ never waits for the background job at all.
 
 ## Duplicate File Browser
 
-FCIAS provides a global duplicate file browser at **`/apps/file_checksum_search/duplicates`** (accessible via the "Duplicates" entry in the top navigation). Features:
+FCIAS provides a global duplicate file browser at **`/apps/file_checksum_search/duplicates`** (accessible via the "Duplicates" entry in the top navigation).
+
+![The Duplicates page on Mine: one group opened to its files, each with a Verify button][shot-duplicates-page]
+
+Features:
 
 - Filter by algorithm (SHA-1, MD5, SHA-256, SHA-512, SHA3-256, SHA3-512, CRC32)
 - Set minimum duplicate count and result limit
@@ -584,7 +590,11 @@ FCIAS provides a global duplicate file browser at **`/apps/file_checksum_search/
 - An **Others** tab for administrators and group leaders: other accounts' duplicates, each row saying whose file it is and where it lives, verifiable in place, and linked only where the viewer could open it
 - The address bar as the search: the tab, the filters, the page and — on *Others* — whose files ride in the fragment, so a search can be bookmarked or handed to a colleague
 
+![The Others tab on one hash over the whole reach: the viewer's own copies behind a house, another account's behind a person][shot-duplicates-others]
+
 The files sidebar also includes a **"Find duplicates"** button that shows files sharing hash values with the currently selected file, and — for an account that may look across accounts — **"Find across accounts"**, which opens the Duplicates page's *Others* tab on the file's hash.
+
+![The Checksums tab of the file sidebar: the hashes, the Recalculate buttons, Find duplicates and Find across accounts][shot-file-detail-pane]
 
 ## Public API (v1)
 
@@ -660,6 +670,8 @@ Full PHP method reference in [`docs/api-v1.md`](docs/api-v1.md#php-api).
 ## Admin & Personal Settings
 
 Navigate to **Administration settings → Additional settings → File Checksum Index & Search**.
+
+![The admin settings page as it opens: five tabs, the algorithm allowlist with its default, the rules below][shot-admin-settings]
 
 The admin settings page provides:
 
@@ -759,3 +771,11 @@ For hashes that are missing or outdated, table-prefix configuration, and other c
 ## License
 
 AGPL-3.0-or-later. See [LICENSE](LICENSE) for details.
+
+<!-- BEGIN GENERATED RELEASE-PIN - do not edit; run "changelog.sh cut" -->
+[shot-admin-rules]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/Admin-Rules.png
+[shot-duplicates-page]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/Duplicates-Page.png
+[shot-duplicates-others]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/Duplicates-Others.png
+[shot-file-detail-pane]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/File-Detail-Pane.png
+[shot-admin-settings]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/Admin-Settings.png
+<!-- END GENERATED RELEASE-PIN -->

@@ -29,19 +29,22 @@
 	<bugs>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/work_items</bugs>
 	<repository type="git">https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search.git</repository>
 	<screenshot>
-		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/master/docs/Screenshots/Duplicates-Page.png
+		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/File-Detail-Pane.png
 	</screenshot>
 	<screenshot>
-		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/master/docs/Screenshots/File-Detail-Pane.png
+		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/Unified_Search.png
 	</screenshot>
 	<screenshot>
-		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/master/docs/Screenshots/Unified_Search.png
+		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/Duplicates-Page.png
 	</screenshot>
 	<screenshot>
-		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/master/docs/Screenshots/User-Settings.png
+		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/Duplicates-Others.png
 	</screenshot>
 	<screenshot>
-		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/master/docs/Screenshots/Admin-Settings.png
+		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/Admin-Settings.png
+	</screenshot>
+	<screenshot>
+		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/Rule-Dialog.png
 	</screenshot>
 	<dependencies>
 		<php min-version="8.2"/>

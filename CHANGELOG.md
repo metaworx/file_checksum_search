@@ -194,6 +194,9 @@ the first stable release.
 
 - `GET`/`PUT /settings/global`: one resource.
 
+- `appinfo/info.xml` screenshots: six, retaken from the current UI and
+  pinned to the release.
+
 - Both settings pages: one banded rules table, help on every column and
   band, `<band>.<position>` as text.
 

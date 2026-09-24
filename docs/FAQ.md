@@ -361,7 +361,7 @@ marked *expensive* asks whether there is anything to do before doing it —
 First check whether an `include` rule is enabled at all — with none, nothing is
 hashed by design.
 
-The admin settings page's **Status** tab is where the rest shows. Four
+The admin settings page's **Advanced** tab is where the rest shows. Four
 rows answer four different questions, and it is worth knowing which one you are
 reading:
 
@@ -404,4 +404,11 @@ prefix, ensure `dbtableprefix` is correctly configured in `config.php`.
 ### Where do I check compatibility and status?
 
 Run `php occ file-checksum-search:status` for the app version, database
-version, index status, and pending stats.
+version, index status, and pending stats. The admin settings page's
+**Advanced** tab shows the same, with the background jobs' last runs:
+
+![The Advanced tab: Status Info with the index counts and the background jobs' last runs, then the tunables][shot-admin-advanced]
+
+<!-- BEGIN GENERATED RELEASE-PIN - do not edit; run "changelog.sh cut" -->
+[shot-admin-advanced]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/Admin-Advanced.png
+<!-- END GENERATED RELEASE-PIN -->
