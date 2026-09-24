@@ -97,6 +97,9 @@ const canReapply = computed(() => props.rule.enabled && computesHashes.value)
 			     what a rule addresses is the same set of places. -->
 			<LocationIcon :kind="selectorKind(rule.selector || '*')" />
 			{{ scopeLabel }}
+			<!-- On a line of its own beneath the name: the cell ellipsises,
+			     and a badge on the name's line vanished behind any name long
+			     enough to need one. -->
 			<span
 				v-if="providerMissing"
 				class="fcias-provider-missing"
@@ -197,12 +200,21 @@ const canReapply = computed(() => props.rule.enabled && computesHashes.value)
 	background-color: var(--color-background-hover, rgba(127, 127, 127, 0.15));
 }
 
+/* Below a desktop width the actions column has room for one control: the
+   menu, which carries Edit as well. */
+@media (max-width: 1279px) {
+	.fcias-row-actions .fcias-icon-btn {
+		display: none;
+	}
+}
+
 /* A rule whose provider is gone is inert by construction; the badge says
    so rather than leaving the reader to wonder why it never matches. */
 /* noinspection CssUnresolvedCustomProperty */
 .fcias-provider-missing {
-	display: inline-block;
-	margin-inline-start: 6px;
+	display: block;
+	width: fit-content;
+	margin-block-start: 2px;
 	padding: 1px 6px;
 	border-radius: var(--border-radius, 3px);
 	background-color: var(--color-warning, #f0ad4e);

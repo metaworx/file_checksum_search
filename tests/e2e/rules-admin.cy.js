@@ -342,8 +342,10 @@ describe( 'FCIAS admin rules', () => {
 		cy.get( '#fcias-rules-list', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 
 		// Inert by construction: nothing can match a folder that is not
-		// there, and silence about that reads as a bug in the app.
-		cy.get( '.fcias-provider-missing', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		// there, and silence about that reads as a bug in the app. Visible,
+		// not merely present: on the name's line the Scope cell's ellipsis
+		// hid it behind the folder's name.
+		cy.get( '.fcias-provider-missing', { timeout: FIND_TIMEOUT } ).should( 'be.visible' )
 	} )
 
 	it( 'offers Re-apply only where it can succeed', () => {

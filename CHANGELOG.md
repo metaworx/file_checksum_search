@@ -138,7 +138,8 @@ the first stable release.
 - Rules table: a *Create rule* row for every namespace without a
   catch-all.
 
-- Rules table: a *provider missing* badge on a rule naming a gone one.
+- Rules table: a *provider missing* badge beneath the name of a rule
+  naming a gone one.
 
 - Rule row actions menu: Edit, Enable/Disable, *Re-apply*, Delete.
 
@@ -197,8 +198,8 @@ the first stable release.
 - `appinfo/info.xml` screenshots: six, retaken from the current UI and
   pinned to the release.
 
-- Both settings pages: one banded rules table, help on every column and
-  band, `<band>.<position>` as text.
+- Both settings pages: one banded rules table that fits its column, help
+  on every column and band, `<band>.<position>` as text.
 
 - Personal rules page: the enforced rules above and the defaults below
   the user's own.

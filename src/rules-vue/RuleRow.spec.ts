@@ -223,6 +223,23 @@ describe('RuleRow', () => {
 		expect(entry?.querySelector('svg')).not.toBeNull()
 	})
 
+	// The badge is a block beneath the name, not an inline span after it:
+	// the Scope cell ellipsises, and inline it vanished behind any name
+	// long enough to need one. Layout is the e2e's to measure; this holds
+	// the badge to its place and its text.
+	it('badges a rule whose provider is gone, beneath the name', () => {
+		const wrapper = mount(RuleRow, { props: { rule: makeRule({ selector: 'groupfolder:99' }), variant: 'admin', providerMissing: true } })
+		const badge = wrapper.find('.fcias-provider-missing')
+		expect(badge.exists()).toBe(true)
+		expect(badge.text()).toBe('provider missing')
+		expect(badge.attributes('title')).toContain('can never match')
+		// In the Scope cell, after the name, as the cell's last element.
+		const cell = badge.element.parentElement as HTMLElement
+		expect(cell.tagName).toBe('TD')
+		expect(cell.textContent).toContain('99')
+		expect(cell.lastElementChild).toBe(badge.element)
+	})
+
 	it('shows no menu at all on a read-only row', () => {
 		const wrapper = mount(RuleRow, { props: { rule: makeRule({ canEdit: false }), variant: 'personal' } })
 

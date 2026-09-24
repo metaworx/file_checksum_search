@@ -19,6 +19,11 @@ module.exports = defineConfig( {
 		video: false,
 		defaultCommandTimeout: 15000,
 
+		// A desktop width, where the rules table shows the pen beside the
+		// menu; Cypress's 1000x660 default is below that breakpoint.
+		viewportWidth: 1280,
+		viewportHeight: 800,
+
 		setupNodeEvents( on, config ) {
 			// cy.log() never reaches stdout in `cypress run`, so the failure
 			// diagnostic in support/e2e.js hands its payload to Node instead.

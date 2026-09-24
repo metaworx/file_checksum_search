@@ -98,10 +98,13 @@
 	vertical-align: middle;
 }
 
-.fcias-rules-actions {
+.fcias-rules-table td.fcias-rules-actions {
 	white-space: nowrap;
 	text-align: start;
-	/* Buttons must not inherit the value cells' ellipsis clipping. */
+	/* Buttons must not inherit the value cells' ellipsis clipping. Said with
+	   the table's own specificity: as a lone class this lost to
+	   `.fcias-rules-table td` above, and the menu's last pixels became an
+	   ellipsis. */
 	overflow: visible;
 	text-overflow: clip;
 }
