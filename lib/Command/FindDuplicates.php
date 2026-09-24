@@ -206,15 +206,16 @@ class FindDuplicates
 					continue;
 				}
 
-				// The same identity the API's rows carry: the owner, or nothing
-				// for a group folder or an external storage, and where the
-				// file lives. The text form below prints the owner where
-				// there is one and the location where there is not.
+				// The same identity the API's rows carry, as the API carries
+				// it: the owner, or null for a group folder or an external
+				// storage, and where the file lives. The text form below
+				// prints the owner where there is one and the location where
+				// there is not.
 				$files[] = [
 					'fileid'   => $fileId,
 					'path'     => $fcPaths[ $fileId ]['path'],
 					'name'     => $fcPaths[ $fileId ]['name'],
-					'owner'    => $fcPaths[ $fileId ]['owner'] ?? '',
+					'owner'    => $fcPaths[ $fileId ]['owner'] ?? null,
 					'location' => $fcPaths[ $fileId ]['location'] ?? '',
 				];
 			}
@@ -370,10 +371,16 @@ class FindDuplicates
 
 			foreach ( $group['files'] as $file )
 			{
-				$displayPath = $file['path']
-					?: $file['name'];
+				// A file with an owner by its path behind the owner's name;
+				// one without — a group folder's, an external storage's — by
+				// where it lives, since a path alone names nowhere.
+				$hasOwner = ( $file['owner'] ?? '' ) !== '';
 
-				$ownerLabel = $file['owner'] !== ''
+				$displayPath = $hasOwner || $file['location'] === ''
+					? ( $file['path'] ?: $file['name'] )
+					: $file['location'];
+
+				$ownerLabel = $hasOwner
 					? sprintf( '(%s) ', $file['owner'] )
 					: '';
 

@@ -160,7 +160,8 @@ sidebar (the file detail pane). It has three sections:
   ones shared with you. If you may look across accounts, **Find across
   accounts** sits beside it and opens the Duplicates page's *Others* tab in
   a new tab, with this file's checksum filled in and everyone you may see
-  named, after your password.
+  named, after your password. The checksum rides in that tab's address, so
+  it stays in your browser history like any address you open.
 
 > **Note:** FCIAS computes checksums according to the rules described below.
 > Some algorithms may be missing until the background job has processed the

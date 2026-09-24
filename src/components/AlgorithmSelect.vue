@@ -33,7 +33,6 @@ const props = withDefaults(
 		label?: string
 		placeholder?: string
 		inputId?: string
-		clearable?: boolean
 		disabled?: boolean
 	}>(),
 	{
@@ -42,7 +41,6 @@ const props = withDefaults(
 		label: undefined,
 		placeholder: undefined,
 		inputId: undefined,
-		clearable: false,
 		disabled: false,
 	},
 )
@@ -88,7 +86,6 @@ const selected = computed<AlgoOption | AlgoOption[] | null>({
 		:input-label="label"
 		:input-id="inputId"
 		:placeholder="placeholder"
-		:clearable="clearable"
 		:disabled="disabled"
 		:close-on-select="!multiple"
 		label="label"

@@ -189,6 +189,47 @@ class FindDuplicatesTest
 	}
 
 
+	/**
+	 * A row nobody owns — a group folder's, an external storage's — is
+	 * carried as the API carries it, `owner` null, and printed by where it
+	 * lives: its path alone names nowhere. The text form printed the path
+	 * for such a row, and the JSON gave `""` where the API gives `null`.
+	 */
+	public function testAnOwnerlessRowIsPrintedByItsLocationAndCarriedAsTheApiCarriesIt(): void
+	{
+
+		$this->hashIndexService->method( 'findAllDuplicates' )
+		                       ->willReturn( [
+			                       [
+				                       'algo'       => 'sha1',
+				                       'hash_value' => 'abc123',
+				                       'file_count' => 2,
+				                       'fileids'    => [ 42, 108 ],
+			                       ],
+		                       ] )
+		;
+		$this->hashIndexService->method( 'batchLookupFilecachePaths' )
+		                       ->willReturn( [
+			                       42  => [ 'path' => 'a.txt', 'name' => 'a.txt', 'storage_id' => 'home::alice', 'owner' => 'alice', 'location' => '/alice/files/a.txt' ],
+			                       108 => [ 'path' => 'Shared/a.txt', 'name' => 'a.txt', 'storage_id' => 'local::/mnt/x/', 'owner' => null, 'location' => 'groupfolder:7:Shared/a.txt' ],
+		                       ] )
+		;
+
+		$this->tester->execute( [] );
+
+		$display = $this->tester->getDisplay();
+		$this->assertStringContainsString( '(alice) a.txt', $display, 'the owned row by its path, behind the owner' );
+		$this->assertStringContainsString( 'groupfolder:7:Shared/a.txt', $display, 'the ownerless row by where it lives' );
+		$this->assertStringNotContainsString( '() ', $display, 'no empty owner label' );
+
+		$this->tester->execute( [ '--output' => 'json' ] );
+
+		$decoded = json_decode( trim( $this->tester->getDisplay() ), true );
+		$this->assertSame( 'alice', $decoded['duplicates'][0]['files'][0]['owner'] );
+		$this->assertNull( $decoded['duplicates'][0]['files'][1]['owner'] );
+	}
+
+
 	public function testVerifyRecalculatesAndFlagsMismatches(): void
 	{
 

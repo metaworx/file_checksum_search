@@ -675,7 +675,6 @@ class HashIndexServiceTest
 				'path'       => "files/f$fileId.pdf",
 				'name'       => "f$fileId.pdf",
 				'storage_id' => 'home::bob',
-				'user'       => 'bob',
 				'owner'      => 'bob',
 				'location'   => "/bob/files/f$fileId.pdf",
 			];

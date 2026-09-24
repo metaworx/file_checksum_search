@@ -283,7 +283,7 @@ Trigger hash recalculation for a file. **This is the only mutating operation** i
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `$fileId` | `int` | Yes | The filecache `fileid` |
-| `$algo` | `?string` | No | Algorithm (default: `sha1`) |
+| `$algo` | `?string` | No | Algorithm; `null` is the instance's default, as `GET /api/v1/algorithms` names it |
 | `$actingUser` | `?string` | No | Whose *calculate by hand* permission is checked. `null` is a trusted caller and waives it |
 | `$reachUids` | `?array` | No | Whose files may be acted on. `null` waives the reach check and nothing else: the permission, and any rule excluding the path, are still answered |
 

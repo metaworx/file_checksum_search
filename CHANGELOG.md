@@ -311,7 +311,8 @@ the first stable release.
   Nextcloud 34.
 
 - `occ file-checksum-search:find-duplicates`: `owner` was the storage
-  id's last segment, `location` missing.
+  id's last segment, `location` missing, and an ownerless row printed a
+  path that names nowhere.
 
 ### Security
 
