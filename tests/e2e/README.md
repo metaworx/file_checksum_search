@@ -18,6 +18,7 @@ what the specs below spend their `before()` hooks on.
 | `rules-admin.cy.js`   | Live, no stubs: quiet start and the idle banner, the banded table, creating a rule through the dialog, placeholder rows, the in-dialog error card, the provider-missing badge, and the row action menu.              |
 | `rules-personal.cy.js`| Alice's own page, an enforced rule she may not touch, bob refused a recalculation by *alice's* rule on a file she shares with him, and a hash search returning nothing to someone who cannot reach the file.         |
 | `status.cy.js`        | The admin status panel: hash count, versions, an empty queue reported as empty, what a reset disowns and what finishing it leaves, the background-job heartbeat, and Refresh.                                        |
+| `screenshots.cy.js`   | Not a test: the screenshot set for `docs/Screenshots/`, as a spec. Skips itself unless `CYPRESS_capture=1`; see *Capturing the screenshots* below.                                                                 |
 
 `rules-api.cy.js` was removed too, for the opposite reason: it was a browser
 test that used no browser. Every one of its rows is covered by
@@ -142,6 +143,26 @@ measures at roughly five files a second against ddev.
 Set the environment contract above, then run the whole suite. One run per
 instance at a time: the support file's `before()` deletes every
 `fcias_e2e_` account it finds, a concurrent run's included.
+
+### Capturing the screenshots
+
+`screenshots.cy.js` puts the instance into the one state every shot starts
+from — the harness's `alice` and `bob` under readable display names and a
+password minted for the run, a light theme, a group on the second group
+folder, files with hashes, three enabled rules across the bands — takes
+the set, and puts the instance back. It runs only when asked:
+
+```bash
+CYPRESS_capture=1 \
+CYPRESS_baseUrl=https://nextcloud-34.ddev.site \
+CYPRESS_occ='cd ~/projects/nextcloud_testing/instances/34 && ddev exec php occ' \
+npx cypress run --spec tests/e2e/screenshots.cy.js
+```
+
+In an ordinary run it counts as pending. It uses the instance's demo
+accounts rather than minting its own, because a shot of the Others tab
+prints an account's uid in a location, and resets their passwords each
+time; run it on the test instance only.
 
 ```bash
 CYPRESS_baseUrl=https://nextcloud-34.ddev.site \
