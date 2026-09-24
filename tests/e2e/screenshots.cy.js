@@ -267,13 +267,6 @@ describe( 'FCIAS screenshots', () => {
 				defaultAlgorithmWas = previous
 			} )
 
-			// Files an earlier run left in the trash keep their hashes and
-			// would sit in every group on the Duplicates page — the
-			// administrator's from other specs, alice's from this one's own
-			// teardown.
-			exec( `trashbin:cleanup ${ adminUser }` )
-			exec( `trashbin:cleanup ${ demo.alice.user }` )
-
 			// One theme for the whole set. The administrator's own choice is
 			// remembered and put back; the demo accounts stay light.
 			exec( `user:setting ${ adminUser } theming enabled-themes` ).then( ( { code, stdout } ) => {

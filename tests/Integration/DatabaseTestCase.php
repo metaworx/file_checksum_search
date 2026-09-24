@@ -13,6 +13,8 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\RuleService;
+use OCP\Files\Folder;
+use OCP\Files\IRootFolder;
 use OCP\IAppConfig;
 use OCP\IConfig;
 use OCP\IDBConnection;
@@ -204,6 +206,16 @@ abstract class DatabaseTestCase
 
 		$userManager = Server::get( IUserManager::class );
 
+		// The trash first, the administrator's included: a test that deletes
+		// a file it made trashes it, and in this process the trash can keep
+		// what the app's own delete listener would have cleared. Five runs
+		// of this suite once left five hashed copies of one test file in
+		// the administrator's trash, which the Duplicates page then listed.
+		foreach ( array_merge( [ 'admin' ], self::$provisionedUsers ) as $uid )
+		{
+			self::emptyTrashOf( $uid );
+		}
+
 		foreach ( self::$provisionedUsers as $uid )
 		{
 			$userManager->get( $uid )
@@ -214,6 +226,37 @@ abstract class DatabaseTestCase
 		self::$provisionedUsers = [];
 
 		parent::tearDownAfterClass();
+	}
+
+
+	/**
+	 * Every item in $uid's trash removed for good. Not through the trashbin
+	 * app's manager: in this process its backend is not registered, so the
+	 * manager lists nothing while the folder fills. The folder itself, as
+	 * the app's own "empty trash" deletes it once the hooks have run.
+	 */
+	protected static function emptyTrashOf( string $uid ): void
+	{
+
+		if ( Server::get( IUserManager::class )->get( $uid ) === null )
+		{
+			return;
+		}
+
+		try
+		{
+			$home  = Server::get( IRootFolder::class )->getUserFolder( $uid )->getParent();
+			$trash = $home->get( 'files_trashbin' );
+
+			foreach ( $trash instanceof Folder ? $trash->getDirectoryListing() : [] as $area )
+			{
+				$area->delete();
+			}
+		}
+		catch ( Throwable )
+		{
+			// No trash, or one that cannot be read: nothing to empty.
+		}
 	}
 
 

@@ -290,6 +290,10 @@ the first stable release.
 
 - Cleared hashes: kept answering searches, lookups and duplicate groups.
 
+- Duplicate groups, lookups, `occ file-checksum-search:find-duplicates`:
+  a hashed file in the trash, in the versions or in an app's data was
+  offered as a copy.
+
 - `process_pending_interval`, `pending_batch_limit`: undeclared, a
   lexicon warning per drain run.
 

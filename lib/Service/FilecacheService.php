@@ -968,6 +968,13 @@ class FilecacheService
 	 *         folder or an external storage, which have none; `location` is
 	 *         {@see FileLocation::describe()}.
 	 */
+	/**
+	 * Path prefixes of the areas no rule governs and no listing offers:
+	 * the trash, the versions, and every app's own data.
+	 */
+	public const UNGOVERNED_PREFIXES = [ 'files_trashbin/', 'files_versions/', 'appdata_' ];
+
+
 	public function batchLookupFilecachePaths(
 		array  $fileIds,
 		?array $mounts = null,
@@ -1003,6 +1010,20 @@ class FilecacheService
 				   $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
 			   ),
 		);
+
+		// Nothing in the trash, in the versions, or in an app's own data is
+		// a file anyone holds: the contract says those areas are governed by
+		// nothing, the sweep and the sidebar refuse them, and a listing or a
+		// lookup that offered a trashed copy as a duplicate of a live file
+		// contradicted both. A row here is dropped by every caller, and a
+		// group's count follows the rows it keeps.
+		foreach ( self::UNGOVERNED_PREFIXES as $prefix )
+		{
+			$qb->andWhere( $qb->expr()->notLike(
+				'fc.path',
+				$qb->createNamedParameter( $this->db->escapeLikeParameter( $prefix ) . '%' ),
+			) );
+		}
 
 		if ( $mounts !== null )
 		{
