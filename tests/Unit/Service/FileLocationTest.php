@@ -152,4 +152,73 @@ class FileLocationTest
 		);
 	}
 
+
+
+	// ─── localPath ──────────────────────────────────────────────────
+
+	public function testAHomeFileLivesUnderTheAccountsHome(): void
+	{
+
+		$location = FileLocation::fromRow( 1, 'home::alice', 'files/Photos/x.jpg', 100 );
+
+		$this->assertSame( '/srv/data/alice/files/Photos/x.jpg', $location->localPath( '/srv/data/alice' ) );
+		$this->assertSame( '/srv/data/alice/files/Photos/x.jpg', $location->localPath( '/srv/data/alice/' ) );
+	}
+
+
+	public function testAHomeFileWithoutAKnownHomeHasNoLocalPath(): void
+	{
+
+		$this->assertNull( FileLocation::fromRow( 1, 'home::gone', 'files/x.txt', 100 )->localPath( null ) );
+	}
+
+
+	public function testAnObjectStoreHomeHasNoLocalPath(): void
+	{
+
+		$this->assertNull(
+			FileLocation::fromRow( 2, 'object::user:bob', 'files/doc.txt', 100 )->localPath( '/srv/data/bob' ),
+		);
+	}
+
+
+	public function testALocalStorageLivesAtItsRoot(): void
+	{
+
+		// The id carries the root with a trailing slash; a test fixture
+		// elsewhere writes it without, and the path is the same.
+		$this->assertSame(
+			'/mnt/archive/2024/scan.pdf',
+			FileLocation::fromRow( 3, 'local::/mnt/archive/', '2024/scan.pdf', 100 )->localPath( null ),
+		);
+		$this->assertSame(
+			'/mnt/archive/2024/scan.pdf',
+			FileLocation::fromRow( 3, 'local::/mnt/archive', '2024/scan.pdf', 100 )->localPath( null ),
+		);
+	}
+
+
+	public function testAGroupFolderLivesUnderTheDataDirectoryInEitherLayout(): void
+	{
+
+		$this->assertSame(
+			'/srv/data/__groupfolders/5/files/Team/notes.md',
+			FileLocation::fromRow( 4, 'local::/srv/data/__groupfolders/5/', 'files/Team/notes.md', 100 )
+			            ->localPath( null ),
+		);
+		$this->assertSame(
+			'/srv/data/__groupfolders/5/files/Team/notes.md',
+			FileLocation::fromRow( 5, 'local::/srv/data/', '__groupfolders/5/files/Team/notes.md', 100 )
+			            ->localPath( null ),
+		);
+	}
+
+
+	public function testAShareOrARemoteMountHasNoLocalPath(): void
+	{
+
+		$this->assertNull( FileLocation::fromRow( 6, 'shared::/Docs', 'x.txt', 100 )->localPath( null ) );
+		$this->assertNull( FileLocation::fromRow( 7, 'smb::user@host//share/', 'x.txt', 100 )->localPath( null ) );
+	}
+
 }

@@ -88,16 +88,19 @@ class DuplicateService
 	 * Delegates to MetadataService::queryByHash() for the search, then
 	 * batch-looks up filecache paths for each matched file_id.
 	 *
-	 * @param  string|null  $userName  When provided, results are restricted to
-	 *                                 files in that user's home storage.
+	 * @param  string|null  $userName       When provided, results are restricted to
+	 *                                      files in that user's home storage.
+	 * @param  bool         $withLocalPath  Each row gains `local_path`, as
+	 *                                      {@see FilecacheService::batchLookupFilecachePaths()}.
 	 *
-	 * @return array<int, array{fileid: int, algo: string, hash_value: string, path: string, name: string}>
+	 * @return array<int, array{fileid: int, algo: string, hash_value: string, path: string, name: string, owner: ?string, location: string, local_path?: ?string}>
 	 */
 	public function findByHash(
 		string  $hash,
 		?string $algo = null,
 		int     $limit = 100,
 		?string $userName = null,
+		bool    $withLocalPath = false,
 	): array {
 
 		$rows = $this->metadataService->queryByHash( $hash, $algo, $limit );
@@ -117,6 +120,7 @@ class DuplicateService
 		$fcPaths = $this->filecacheService->batchLookupFilecachePaths(
 			$fileIds,
 			$this->reach->mountsFor( $userName ),
+			$withLocalPath,
 		);
 
 		// queryByHash() compares against the index, which holds at most 63
@@ -147,7 +151,7 @@ class DuplicateService
 				'name'       => $fcPaths[ $fileId ]['name'],
 				'owner'      => $fcPaths[ $fileId ]['owner'] ?? null,
 				'location'   => $fcPaths[ $fileId ]['location'] ?? '',
-			];
+			] + ( $withLocalPath ? [ 'local_path' => $fcPaths[ $fileId ]['local_path'] ?? null ] : [] );
 		}
 
 		return $results;

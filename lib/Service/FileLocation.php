@@ -163,6 +163,39 @@ readonly class FileLocation
 
 
 	/**
+	 * Where the file lives on the server's disk, or null when it does not.
+	 *
+	 * Read from the storage id, which says where a local storage is rooted:
+	 * `home::<uid>` at the account's home, which the caller passes in;
+	 * `local::<root>` at `<root>` — an external local mount, a group folder
+	 * in the current layout (`<datadir>/__groupfolders/<id>/`), and the
+	 * root storage that holds the legacy layout. Everything else — an
+	 * object store, a share, a remote mount — has no file on this disk.
+	 *
+	 * Absolute, and unresolved: what the storage would open, symlinks
+	 * included. Whether the bytes there are the file's is the caller's
+	 * question (server-side encryption answers no).
+	 */
+	public function localPath( ?string $homeDir ): ?string
+	{
+
+		if ( str_starts_with( $this->storageId, 'home::' ) )
+		{
+			return $homeDir === null
+				? null
+				: rtrim( $homeDir, '/' ) . '/' . $this->internalPath;
+		}
+
+		if ( str_starts_with( $this->storageId, 'local::' ) )
+		{
+			return rtrim( substr( $this->storageId, strlen( 'local::' ) ), '/' ) . '/' . $this->internalPath;
+		}
+
+		return null;
+	}
+
+
+	/**
 	 * The same location with its freshness stamp filled in — the sweep sets
 	 * it from the page query so the caller need not ask per file.
 	 */

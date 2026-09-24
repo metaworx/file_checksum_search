@@ -119,6 +119,19 @@ class HashIndexServiceTest
 	}
 
 
+	public function testFindByHashPassesTheLocalPathRequestThrough(): void
+	{
+
+		$this->duplicates->expects( $this->once() )
+		                 ->method( 'findByHash' )
+		                 ->with( 'abc123', null, 100, null, true )
+		                 ->willReturn( [] )
+		;
+
+		$this->service->findByHash( 'abc123', null, 100, null, true );
+	}
+
+
 	public function testFindByHashPassesUserNameThrough(): void
 	{
 

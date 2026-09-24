@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\DB\IResult;
+use OCP\Encryption\IManager as IEncryptionManager;
 use OCP\Files\Cache\ICache;
 use OCP\Files\File;
 use OCP\Files\Folder;
@@ -21,6 +22,8 @@ use OCP\Files\NotFoundException;
 use OCP\Files\Storage\IStorage;
 use OCP\IConfig;
 use OCP\IDBConnection;
+use OCP\IUser;
+use OCP\IUserManager;
 use PHPUnit\Framework\MockObject\MockObject;
 
 class FilecacheServiceTest
@@ -31,6 +34,10 @@ class FilecacheServiceTest
 	private IRootFolder&MockObject $rootFolder;
 
 	private IConfig&MockObject     $config;
+
+	private IUserManager&MockObject $userManager;
+
+	private IEncryptionManager&MockObject $encryption;
 
 	private FilecacheService       $service;
 
@@ -44,9 +51,17 @@ class FilecacheServiceTest
 		$this->db         = $this->createMock( IDBConnection::class );
 		$this->setUpQueryBuilderMock();
 
-		$this->config = $this->createMock( IConfig::class );
+		$this->config      = $this->createMock( IConfig::class );
+		$this->userManager = $this->createMock( IUserManager::class );
+		$this->encryption  = $this->createMock( IEncryptionManager::class );
 
-		$this->service = new FilecacheService( $this->rootFolder, $this->db, $this->config );
+		$this->service = new FilecacheService(
+			$this->rootFolder,
+			$this->db,
+			$this->config,
+			$this->userManager,
+			$this->encryption,
+		);
 	}
 
 
@@ -629,6 +644,157 @@ class FilecacheServiceTest
 		// that names the storage rather than pretending to a home.
 		$this->assertNull( $result[42]['owner'] );
 		$this->assertSame( 'storage:local::/mnt/data/user1/Documents', $result[42]['location'] );
+	}
+
+
+	/**
+	 * Asked for, each row says where it lives on disk: a home file under
+	 * the account's home, which is asked once however many rows the
+	 * account has; a local mount at its root; a share nowhere. Not asked
+	 * for, the key is absent and no account is looked up.
+	 */
+	public function testBatchLookupFilecachePathsAddsALocalPathWhenAsked(): void
+	{
+
+		$mockRows = [
+			[ 'fileid' => 1, 'path' => 'files/a.txt', 'name' => 'a.txt', 'id' => 'home::admin' ],
+			[ 'fileid' => 2, 'path' => 'files/b.txt', 'name' => 'b.txt', 'id' => 'home::admin' ],
+			[ 'fileid' => 3, 'path' => 'c.txt', 'name' => 'c.txt', 'id' => 'local::/mnt/archive/' ],
+			[ 'fileid' => 4, 'path' => 'd.txt', 'name' => 'd.txt', 'id' => 'shared::/d.txt' ],
+		];
+
+		$this->expr->method( 'in' )
+		           ->willReturn( 'fc.fileid IN (:dcValue1)' )
+		;
+
+		$resultStmt = $this->createMock( IResult::class );
+		$resultStmt->method( 'fetch' )
+		           ->willReturnOnConsecutiveCalls( ...[ ...$mockRows, false ] )
+		;
+
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $resultStmt )
+		;
+
+		$admin = $this->createConfiguredMock( IUser::class, [ 'getHome' => '/srv/data/admin' ] );
+		$this->userManager->expects( $this->once() )
+		                  ->method( 'get' )
+		                  ->with( 'admin' )
+		                  ->willReturn( $admin )
+		;
+		$this->encryption->method( 'isEnabled' )
+		                 ->willReturn( false )
+		;
+
+		$result = $this->service->batchLookupFilecachePaths( [ 1, 2, 3, 4 ], null, true );
+
+		$this->assertSame( '/srv/data/admin/files/a.txt', $result[1]['local_path'] );
+		$this->assertSame( '/srv/data/admin/files/b.txt', $result[2]['local_path'] );
+		$this->assertSame( '/mnt/archive/c.txt', $result[3]['local_path'] );
+		$this->assertNull( $result[4]['local_path'] );
+	}
+
+
+	public function testBatchLookupFilecachePathsHasNoLocalPathUnlessAsked(): void
+	{
+
+		$this->expr->method( 'in' )
+		           ->willReturn( 'fc.fileid IN (:dcValue1)' )
+		;
+
+		$resultStmt = $this->createMock( IResult::class );
+		$resultStmt->method( 'fetch' )
+		           ->willReturnOnConsecutiveCalls(
+			           [ 'fileid' => 1, 'path' => 'files/a.txt', 'name' => 'a.txt', 'id' => 'home::admin' ],
+			           false,
+		           )
+		;
+
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $resultStmt )
+		;
+
+		$this->userManager->expects( $this->never() )
+		                  ->method( 'get' )
+		;
+		$this->encryption->expects( $this->never() )
+		                 ->method( 'isEnabled' )
+		;
+
+		$result = $this->service->batchLookupFilecachePaths( [ 1 ] );
+
+		$this->assertArrayNotHasKey( 'local_path', $result[1] );
+	}
+
+
+	/**
+	 * With server-side encryption on, what is on disk is not the file, so
+	 * no row names a path — and no account is looked up for one.
+	 */
+	public function testBatchLookupFilecachePathsNamesNoLocalPathUnderEncryption(): void
+	{
+
+		$this->expr->method( 'in' )
+		           ->willReturn( 'fc.fileid IN (:dcValue1)' )
+		;
+
+		$resultStmt = $this->createMock( IResult::class );
+		$resultStmt->method( 'fetch' )
+		           ->willReturnOnConsecutiveCalls(
+			           [ 'fileid' => 1, 'path' => 'files/a.txt', 'name' => 'a.txt', 'id' => 'home::admin' ],
+			           [ 'fileid' => 3, 'path' => 'c.txt', 'name' => 'c.txt', 'id' => 'local::/mnt/archive/' ],
+			           false,
+		           )
+		;
+
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $resultStmt )
+		;
+
+		$this->encryption->method( 'isEnabled' )
+		                 ->willReturn( true )
+		;
+		$this->userManager->expects( $this->never() )
+		                  ->method( 'get' )
+		;
+
+		$result = $this->service->batchLookupFilecachePaths( [ 1, 3 ], null, true );
+
+		$this->assertArrayHasKey( 'local_path', $result[1] );
+		$this->assertNull( $result[1]['local_path'] );
+		$this->assertNull( $result[3]['local_path'] );
+	}
+
+
+	public function testBatchLookupFilecachePathsNamesNoLocalPathForAnAccountThatIsGone(): void
+	{
+
+		$this->expr->method( 'in' )
+		           ->willReturn( 'fc.fileid IN (:dcValue1)' )
+		;
+
+		$resultStmt = $this->createMock( IResult::class );
+		$resultStmt->method( 'fetch' )
+		           ->willReturnOnConsecutiveCalls(
+			           [ 'fileid' => 1, 'path' => 'files/a.txt', 'name' => 'a.txt', 'id' => 'home::gone' ],
+			           false,
+		           )
+		;
+
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $resultStmt )
+		;
+
+		$this->encryption->method( 'isEnabled' )
+		                 ->willReturn( false )
+		;
+		$this->userManager->method( 'get' )
+		                  ->willReturn( null )
+		;
+
+		$result = $this->service->batchLookupFilecachePaths( [ 1 ], null, true );
+
+		$this->assertNull( $result[1]['local_path'] );
 	}
 
 

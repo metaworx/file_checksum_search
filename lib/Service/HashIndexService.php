@@ -348,14 +348,16 @@ class HashIndexService
 
 	/**
 	 * @param  int[]                     $fileIds
-	 * @param  string|list<string>|null  $userName  One account, several, or
-	 *                                              null for every file.
+	 * @param  string|list<string>|null  $userName       One account, several, or
+	 *                                                   null for every file.
+	 * @param  bool                      $withLocalPath  As {@see FilecacheService::batchLookupFilecachePaths()}.
 	 *
-	 * @return array<int, array{path: string, name: string, storage_id: string, owner: ?string, location: string}>
+	 * @return array<int, array{path: string, name: string, storage_id: string, owner: ?string, location: string, local_path?: ?string}>
 	 */
 	public function batchLookupFilecachePaths(
 		array             $fileIds,
 		string|array|null $userName = null,
+		bool              $withLocalPath = false,
 	): array {
 
 		// Accounts in, mounts down: the one place the listing's reach is
@@ -364,24 +366,28 @@ class HashIndexService
 		return $this->filecacheService->batchLookupFilecachePaths(
 			$fileIds,
 			$this->reach->mountsFor( $userName ),
+			$withLocalPath,
 		);
 	}
 
 
 	/**
-	 * @param  string|null  $userName  When provided, results are restricted to
-	 *                                 files in that user's home storage.
+	 * @param  string|null  $userName       When provided, results are restricted to
+	 *                                      files in that user's home storage.
+	 * @param  bool         $withLocalPath  Each row gains `local_path`, as
+	 *                                      {@see FilecacheService::batchLookupFilecachePaths()}.
 	 *
-	 * @return array<int, array{fileid: int, algo: string, hash_value: string, path: string, name: string}>
+	 * @return array<int, array{fileid: int, algo: string, hash_value: string, path: string, name: string, local_path?: ?string}>
 	 */
 	public function findByHash(
 		string  $hash,
 		?string $algo = null,
 		int     $limit = 100,
 		?string $userName = null,
+		bool    $withLocalPath = false,
 	): array {
 
-		return $this->duplicates->findByHash( $hash, $algo, $limit, $userName );
+		return $this->duplicates->findByHash( $hash, $algo, $limit, $userName, $withLocalPath );
 	}
 
 

@@ -334,6 +334,69 @@ class DuplicateServiceTest
 
 
 	/**
+	 * Asked for the local path, the lookup asks the filecache for it and
+	 * each row carries what came back — null included, which is an answer.
+	 */
+	public function testFindByHashPassesTheLocalPathRequestDownAndTheAnswerUp(): void
+	{
+
+		$hash = 'abc';
+		$rows = [
+			[ MetadataService::FIELD_FILE_ID => 42, MetadataService::FIELD_META_KEY => 'file-checksum-sha1' ],
+			[ MetadataService::FIELD_FILE_ID => 43, MetadataService::FIELD_META_KEY => 'file-checksum-sha1' ],
+		];
+
+		$this->givenTheHashIsConfirmed();
+		$this->metadataService->method( 'queryByHash' )
+		                      ->willReturn( $rows )
+		;
+		$this->metadataService->method( 'extractAlgorithm' )
+		                      ->willReturn( [ 'algo' => 'sha1', 'hash' => $hash ] )
+		;
+
+		$this->filecacheService->expects( $this->once() )
+		                       ->method( 'batchLookupFilecachePaths' )
+		                       ->with( [ 42, 43 ], null, true )
+		                       ->willReturn( [
+			                       42 => [ 'path' => 'files/a.txt', 'name' => 'a.txt', 'local_path' => '/srv/data/admin/files/a.txt' ],
+			                       43 => [ 'path' => 'b.txt', 'name' => 'b.txt', 'local_path' => null ],
+		                       ] )
+		;
+
+		$result = $this->service->findByHash( $hash, null, 100, null, true );
+
+		$this->assertSame( '/srv/data/admin/files/a.txt', $result[0]['local_path'] );
+		$this->assertArrayHasKey( 'local_path', $result[1] );
+		$this->assertNull( $result[1]['local_path'] );
+	}
+
+
+	public function testFindByHashCarriesNoLocalPathUnlessAsked(): void
+	{
+
+		$hash = 'abc';
+		$rows = [ [ MetadataService::FIELD_FILE_ID => 42, MetadataService::FIELD_META_KEY => 'file-checksum-sha1' ] ];
+
+		$this->givenTheHashIsConfirmed();
+		$this->metadataService->method( 'queryByHash' )
+		                      ->willReturn( $rows )
+		;
+		$this->metadataService->method( 'extractAlgorithm' )
+		                      ->willReturn( [ 'algo' => 'sha1', 'hash' => $hash ] )
+		;
+		$this->filecacheService->expects( $this->once() )
+		                       ->method( 'batchLookupFilecachePaths' )
+		                       ->with( [ 42 ], null, false )
+		                       ->willReturn( [ 42 => [ 'path' => 'files/a.txt', 'name' => 'a.txt' ] ] )
+		;
+
+		$result = $this->service->findByHash( $hash );
+
+		$this->assertArrayNotHasKey( 'local_path', $result[0] );
+	}
+
+
+	/**
 	 * The confirmation lives in MetadataService; a test that is not about it
 	 * says so by letting every candidate through.
 	 */

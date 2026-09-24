@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Service;
 
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCP\DB\QueryBuilder\IQueryBuilder;
+use OCP\Encryption\IManager as IEncryptionManager;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
@@ -18,6 +19,7 @@ use OCP\Files\Node;
 use OCP\Files\NotFoundException;
 use OCP\IConfig;
 use OCP\IDBConnection;
+use OCP\IUserManager;
 
 /**
  * Filecache checksum read/write bridge.
@@ -45,9 +47,11 @@ class FilecacheService
 
 
 	public function __construct(
-		private readonly IRootFolder   $rootFolder,
-		private readonly IDBConnection $db,
-		private readonly IConfig       $config,
+		private readonly IRootFolder        $rootFolder,
+		private readonly IDBConnection      $db,
+		private readonly IConfig            $config,
+		private readonly IUserManager       $userManager,
+		private readonly IEncryptionManager $encryption,
 	) {
 	}
 
@@ -962,8 +966,15 @@ class FilecacheService
 	 * @param  list<array{storage: int, root: string}>|null  $mounts  From
 	 *         {@see ReachResolver::mountsFor()}: null for every file, an
 	 *         empty list for none.
+	 * @param  bool  $withLocalPath  Add `local_path` to each row: the file's
+	 *         absolute path on this server's disk
+	 *         ({@see FileLocation::localPath()}), null for a storage that
+	 *         has none and for every file while server-side encryption is
+	 *         enabled, since what is on disk is then not the file. Off by
+	 *         default: it costs a user lookup per home storage, and most
+	 *         callers render rows for people.
 	 *
-	 * @return array<int, array{path: string, name: string, storage_id: string, owner: ?string, location: string}>
+	 * @return array<int, array{path: string, name: string, storage_id: string, owner: ?string, location: string, local_path?: ?string}>
 	 *         `owner` is the uid a home file belongs to, null for a group
 	 *         folder or an external storage, which have none; `location` is
 	 *         {@see FileLocation::describe()}.
@@ -978,6 +989,7 @@ class FilecacheService
 	public function batchLookupFilecachePaths(
 		array  $fileIds,
 		?array $mounts = null,
+		bool   $withLocalPath = false,
 	): array {
 
 		if ( empty( $fileIds ) )
@@ -1062,6 +1074,11 @@ class FilecacheService
 		$result = $qb->executeQuery();
 		$paths  = [];
 
+		// One answer per account for where its home is, and one for the
+		// instance on whether the disk holds the files at all.
+		$homes     = [];
+		$encrypted = $withLocalPath && $this->encryption->isEnabled();
+
 		while ( ( $row = $result->fetch() ) !== false )
 		{
 			$sid = (string) $row['id'];
@@ -1082,10 +1099,41 @@ class FilecacheService
 				'owner'      => $location->owner,
 				'location'   => $location->describe(),
 			];
+
+			if ( $withLocalPath )
+			{
+				$paths[ (int) $row['fileid'] ]['local_path'] = $encrypted
+					? null
+					: $location->localPath( $this->homeOf( $location, $homes ) );
+			}
 		}
 		$result->closeCursor();
 
 		return $paths;
+	}
+
+
+	/**
+	 * The home directory of the account a home-storage row belongs to,
+	 * asked once per account; null for a row no account owns, or whose
+	 * account is gone.
+	 *
+	 * @param  array<string, ?string>  $homes  The answers so far, by uid.
+	 */
+	private function homeOf( FileLocation $location, array &$homes ): ?string
+	{
+
+		if ( $location->owner === null )
+		{
+			return null;
+		}
+
+		if ( ! array_key_exists( $location->owner, $homes ) )
+		{
+			$homes[ $location->owner ] = $this->userManager->get( $location->owner )?->getHome();
+		}
+
+		return $homes[ $location->owner ];
 	}
 
 }
