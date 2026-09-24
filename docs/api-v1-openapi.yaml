@@ -1012,8 +1012,8 @@ components:
           example: "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         path:
           type: string
-          description: One account's name for the file's folder — with several accounts in reach, whichever opened it first.
-          example: "Documents"
+          description: "One account's name for the file, name included — with several accounts in reach, whichever opened it first. Below the account's files area with a leading slash on the ordinary routes; the filecache path, starting with `files/`, for a sudoer across accounts."
+          example: "/Documents/report.pdf"
         name:
           type: string
           example: "report.pdf"
@@ -1175,8 +1175,8 @@ components:
           example: 100
         path:
           type: string
-          description: One account's name for the file's folder — with several accounts in reach, whichever opened it first.
-          example: "Documents"
+          description: "One account's name for the file, name included — with several accounts in reach, whichever opened it first. The filecache path, starting with `files/`, in the duplicates listing; below the account's files area with a leading slash for a reference file's duplicates."
+          example: "files/Documents/a.pdf"
         name:
           type: string
           example: "a.pdf"

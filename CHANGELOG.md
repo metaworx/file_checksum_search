@@ -280,6 +280,8 @@ the first stable release.
 
 ### Fixed
 
+- `occ file-checksum-search:search`: printed each file's name twice.
+
 - Recalculating every algorithm a file carries: computed nothing.
 
 - Search for `sha3-256:`, `sha3-512:` and upper-case prefixes: found

@@ -76,7 +76,7 @@ class CommandTest
 			                 [
 				                 'fileid' => 42,
 				                 'algo'   => 'sha1',
-				                 'path'   => '/Docs',
+				                 'path'   => '/Docs/report.pdf',
 				                 'name'   => 'report.pdf',
 			                 ],
 		                 ] )

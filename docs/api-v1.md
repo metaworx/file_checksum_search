@@ -98,7 +98,7 @@ Search for files matching a given hash value.
 ```php
 [
     'results' => [
-        ['fileid' => 12345, 'algo' => 'sha1', 'hash' => 'da39a3...', 'path' => 'Documents', 'name' => 'report.pdf',
+        ['fileid' => 12345, 'algo' => 'sha1', 'hash' => 'da39a3...', 'path' => '/Documents/report.pdf', 'name' => 'report.pdf',
          'owner' => 'alice', 'location' => '/alice/files/Documents/report.pdf'],
         // ...
     ],
@@ -106,7 +106,10 @@ Search for files matching a given hash value.
 ```
 
 `path` and `name` are one account's name for the file — with several accounts
-in reach, whichever opened it first. `owner` and `location` are the file's own
+in reach, whichever opened it first. `path` includes the name: with a reach it
+is the path below that account's files area, with a leading slash; with
+`$reachUids` null it is the filecache path, starting with `files/`. `owner`
+and `location` are the file's own
 identity from its filecache row: the owning account (`null` for a storage no
 account owns) and `FileLocation::describe()` — `/<owner>/files/…` for a home,
 `groupfolder:<id>/…` for a group folder, `storage:<id>/…` otherwise.
@@ -215,9 +218,9 @@ administrator sees their own files, not everyone's.
             'hash_value' => 'da39a3...',
             'file_count' => 3,
             'files' => [
-                ['fileid' => 100, 'path' => 'Documents', 'name' => 'a.pdf', 'owner' => 'alice', 'location' => '/alice/files/Documents/a.pdf'],
-                ['fileid' => 200, 'path' => 'Photos', 'name' => 'b.pdf', 'owner' => 'alice', 'location' => '/alice/files/Photos/b.pdf'],
-                ['fileid' => 300, 'path' => 'Backup', 'name' => 'c.pdf', 'owner' => 'alice', 'location' => '/alice/files/Backup/c.pdf'],
+                ['fileid' => 100, 'path' => 'files/Documents/a.pdf', 'name' => 'a.pdf', 'owner' => 'alice', 'location' => '/alice/files/Documents/a.pdf'],
+                ['fileid' => 200, 'path' => 'files/Photos/b.pdf', 'name' => 'b.pdf', 'owner' => 'alice', 'location' => '/alice/files/Photos/b.pdf'],
+                ['fileid' => 300, 'path' => 'files/Backup/c.pdf', 'name' => 'c.pdf', 'owner' => 'alice', 'location' => '/alice/files/Backup/c.pdf'],
             ],
         ],
     ],
@@ -265,7 +268,7 @@ listed.
             'algo' => 'sha1',
             'hash_value' => 'da39a3...',
             'files' => [
-                ['fileid' => 200, 'path' => 'Photos', 'name' => 'copy.jpg', 'owner' => 'bob', 'location' => '/bob/files/Photos/copy.jpg'],
+                ['fileid' => 200, 'path' => '/Photos/copy.jpg', 'name' => 'copy.jpg', 'owner' => 'bob', 'location' => '/bob/files/Photos/copy.jpg'],
             ],
         ],
     ],
@@ -445,7 +448,7 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/lookup?hash=<hex>&algo=<algo>&l
       "fileid": 12345,
       "algo": "sha1",
       "hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
-      "path": "Documents",
+      "path": "/Documents/report.pdf",
       "name": "report.pdf"
     }
   ]
@@ -518,7 +521,7 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/duplicates
       "algo": "sha1",
       "hash_value": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
       "files": [
-        {"fileid": 200, "path": "Photos", "name": "copy.jpg", "owner": "alice", "location": "/alice/files/Photos/copy.jpg"}
+        {"fileid": 200, "path": "/Photos/copy.jpg", "name": "copy.jpg", "owner": "alice", "location": "/alice/files/Photos/copy.jpg"}
       ]
     }
   ]
@@ -526,7 +529,10 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/duplicates
 ```
 
 Every file row in this API carries `owner` and `location` beside `path` and
-`name`: `path` is one account's name for the file, `location` its own
+`name`: `path` is one account's name for the file, name included — below
+the account's files area with a leading slash on the ordinary routes, the
+filecache path starting with `files/` in the duplicates listing and for a
+sudoer across accounts — `location` its own
 (`/<owner>/files/…`, `groupfolder:<id>/…` or `storage:<id>/…`), `owner` the
 owning account or `null`. The cross-account twins add `openable` — see
 [Cross-account routes](#cross-account-routes).
@@ -624,9 +630,9 @@ shape `lookup` uses — so a full SHA-512 finds exactly its group.
       "hash_value": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
       "file_count": 3,
       "files": [
-        {"fileid": 100, "path": "Documents", "name": "a.pdf", "owner": "alice", "location": "/alice/files/Documents/a.pdf"},
-        {"fileid": 200, "path": "Photos", "name": "b.pdf", "owner": "alice", "location": "/alice/files/Photos/b.pdf"},
-        {"fileid": 300, "path": "Backup", "name": "c.pdf", "owner": "alice", "location": "/alice/files/Backup/c.pdf"}
+        {"fileid": 100, "path": "files/Documents/a.pdf", "name": "a.pdf", "owner": "alice", "location": "/alice/files/Documents/a.pdf"},
+        {"fileid": 200, "path": "files/Photos/b.pdf", "name": "b.pdf", "owner": "alice", "location": "/alice/files/Photos/b.pdf"},
+        {"fileid": 300, "path": "files/Backup/c.pdf", "name": "c.pdf", "owner": "alice", "location": "/alice/files/Backup/c.pdf"}
       ]
     }
   ],

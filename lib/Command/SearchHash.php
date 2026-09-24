@@ -82,11 +82,10 @@ class SearchHash
 		{
 			$output->writeln(
 				sprintf(
-					'[%s] (ID: %d) -> %s/%s',
+					'[%s] (ID: %d) -> %s',
 					$row['algo'],
 					(int) $row['fileid'],
 					trim( (string) $row['path'], '/' ),
-					$row['name'],
 				),
 			);
 		}
