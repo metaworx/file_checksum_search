@@ -158,4 +158,31 @@ class RouteRequirementsTest
 		self::assertGreaterThanOrEqual( 6, $pairs, 'the six twins, at least' );
 	}
 
+
+	/**
+	 * Every cross-account route is rate limited. The hashes pair was the one
+	 * twin pair without a limit, and the pairing test above was content with
+	 * that — "none as it has none" — while the sudo twin cost a group leader
+	 * one mount resolution per member, twice, per request.
+	 */
+	public function testEveryCrossAccountRouteIsRateLimited(): void
+	{
+
+		$sudo = 0;
+
+		foreach ( self::rateLimits() as $url => $limit )
+		{
+			if ( ! str_starts_with( $url, '/api/v1/sudo/' ) )
+			{
+				continue;
+			}
+
+			$sudo++;
+
+			self::assertNotNull( $limit, "$url carries no rate limit" );
+		}
+
+		self::assertGreaterThanOrEqual( 7, $sudo, 'the six twins and selectable, at least' );
+	}
+
 }

@@ -65,25 +65,23 @@ class SudoScope
 
 	/**
 	 * Whether $uid may cross into other accounts' files at all — a sudoer,
-	 * or a sub-admin of any group.
+	 * or an account with a ceiling.
 	 *
 	 * The one predicate for "offer the cross-account view". The tab used to
 	 * be offered on {@see isSudoer()}, which asks a stricter question — may
 	 * they see *everyone* — and so hid the view from the very group leaders
-	 * the picker was built for. How far they may see once inside is
+	 * the picker was built for. It then asked core's `isSubAdmin()`, which
+	 * is wider than the ceiling: true for a delegated administrator and for
+	 * a stale delegation row, for both of whom {@see resolve()} has no
+	 * groups and refuses. The tab and the link were offered, and every
+	 * request behind them was 403. Asking the ceiling itself keeps the two
+	 * from disagreeing. How far they may see once inside is
 	 * {@see resolve()}'s and {@see resolveSet()}'s business.
 	 */
 	public function mayCross( string $uid ): bool
 	{
 
-		if ( $this->isSudoer( $uid ) )
-		{
-			return true;
-		}
-
-		$user = $this->userManager->get( $uid );
-
-		return $user !== null && $this->subAdmin->isSubAdmin( $user );
+		return $this->isSudoer( $uid ) || $this->resolve( $uid ) !== false;
 	}
 
 

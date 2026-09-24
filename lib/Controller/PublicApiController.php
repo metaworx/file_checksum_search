@@ -532,6 +532,7 @@ class PublicApiController
 
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[UserRateLimit( limit: 60, period: 60 )]
 	#[ApiRoute( verb: 'GET', url: '/api/v1/file/{fileId}/hashes', requirements: [ 'fileId' => '\d+' ] )]
 	public function getHashes( int $fileId ): DataResponse
 	{
@@ -552,6 +553,7 @@ class PublicApiController
 	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
+	#[UserRateLimit( limit: 60, period: 60 )]
 	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/file/{fileId}/hashes', requirements: [ 'fileId' => '\d+' ] )]
 	public function sudoGetHashes( int $fileId ): DataResponse
 	{

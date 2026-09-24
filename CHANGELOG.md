@@ -112,7 +112,8 @@ the first stable release.
   or 100 MiB per request.
 
 - `#[UserRateLimit]` 60/min: `lookup`, `duplicates`,
-  `file/{fileId}/duplicates`, their `/sudo/` twins, `sudo/selectable`.
+  `file/{fileId}/duplicates`, `file/{fileId}/hashes`, their `/sudo/`
+  twins, `sudo/selectable`.
 
 - `#[UserRateLimit]` 20/min: every recalc route.
 

@@ -154,6 +154,26 @@ class SudoScopeTest
 	public function testASubAdminMayCrossThoughTheyAreNoSudoer(): void
 	{
 
+		$this->asSubAdminOf( 'team' );
+
+		$this->assertFalse( $this->scope->isSudoer( 'lead' ) );
+		$this->assertTrue( $this->scope->mayCross( 'lead' ) );
+		$this->assertFalse( $this->scope->mayCross( 'member' ) );
+		$this->assertFalse( $this->scope->mayCross( 'ghost' ), 'an account that does not exist' );
+	}
+
+
+	/**
+	 * Core's `isSubAdmin()` is wider than the ceiling: it says yes to a
+	 * delegated administrator and to a stale delegation row, for whom
+	 * `getSubAdminsGroups()` is empty and every cross-account request is
+	 * refused. Asked on that, the entry question offered the tab and the
+	 * link to an account that could then open nothing. It is asked on the
+	 * ceiling now, so the two cannot disagree.
+	 */
+	public function testAnAccountWithNoCeilingMayNotCrossWhateverCoreCallsThem(): void
+	{
+
 		$this->groups->method( 'isAdmin' )
 		             ->willReturn( false )
 		;
@@ -161,13 +181,13 @@ class SudoScopeTest
 		                  ->willReturn( false )
 		;
 		$this->subAdmin->method( 'isSubAdmin' )
-		               ->willReturnCallback( static fn ( IUser $u ): bool => $u->getUID() === 'lead' )
+		               ->willReturn( true )
+		;
+		$this->subAdmin->method( 'getSubAdminsGroups' )
+		               ->willReturn( [] )
 		;
 
-		$this->assertFalse( $this->scope->isSudoer( 'lead' ) );
-		$this->assertTrue( $this->scope->mayCross( 'lead' ) );
-		$this->assertFalse( $this->scope->mayCross( 'member' ) );
-		$this->assertFalse( $this->scope->mayCross( 'ghost' ), 'an account that does not exist' );
+		$this->assertFalse( $this->scope->mayCross( 'lead' ) );
 	}
 
 
@@ -177,7 +197,7 @@ class SudoScopeTest
 		$this->asSudoer();
 
 		$this->subAdmin->expects( $this->never() )
-		               ->method( 'isSubAdmin' )
+		               ->method( 'getSubAdminsGroups' )
 		;
 
 		$this->assertTrue( $this->scope->mayCross( 'root' ) );
