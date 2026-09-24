@@ -80,8 +80,10 @@ function toggle(): void {
 							target="_blank"
 							rel="noreferrer noopener"><LocationIcon v-if="labelKind(file)" :kind="labelKind(file)!" :size="14" />{{ fileLabel(file) }}</a>
 						<!-- A link resolves in the viewer's own folder; a file they do
-						     not hold would only open to "not found". -->
-						<span v-else class="db-file-unopenable" title="Not in your files"><LocationIcon v-if="labelKind(file)" :kind="labelKind(file)!" :size="14" />{{ fileLabel(file) }}</span>
+						     not hold would only open to "not found". The title is
+						     for the pointer; the hidden text is the same fact for
+						     a reader that never hovers. -->
+						<span v-else class="db-file-unopenable" title="Not in your files"><LocationIcon v-if="labelKind(file)" :kind="labelKind(file)!" :size="14" />{{ fileLabel(file) }}<span class="hidden-visually"> (not in your files)</span></span>
 						<span v-if="file.verified === true" class="db-verified">✓</span>
 						<span v-else-if="file.verified === false" class="db-mismatch">✗ ({{ file.verify_error || (file.verified_hash ? `now: ${file.verified_hash}` : '?') }})</span>
 					</span>

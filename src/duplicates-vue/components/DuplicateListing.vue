@@ -12,7 +12,7 @@
  * its own {@see useDuplicates} state so switching tabs does not reset the
  * other's filters.
  */
-import { computed, watch, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
@@ -147,8 +147,14 @@ watch(() => props.scope, (value) => {
 	}
 }, { deep: true })
 
-watch(canSudo, (value) => {
-	emit('canSudo', value)
+// Reported after every load rather than on change: the page holds an
+// Others address until it hears whether the tab may be offered, and a
+// "no" is the answer it never heard while only a change was reported —
+// the value starts at false.
+watch(loading, (now, before) => {
+	if (before && !now) {
+		emit('canSudo', canSudo.value)
+	}
 })
 
 function refresh(): void {
@@ -164,13 +170,23 @@ function onAlgo(value: string | string[] | null): void {
 	refresh()
 }
 
+// Clamped first, and reloaded only when the clamped value is new: "1000"
+// typed over a limit of 500 is still 500, and not a second query.
 function onMinCount(value: string | number): void {
-	minCount.value = bounded(value, 2, 100, 2)
+	const next = bounded(value, 2, 100, 2)
+	if (next === minCount.value) {
+		return
+	}
+	minCount.value = next
 	refresh()
 }
 
 function onLimit(value: string | number): void {
-	limit.value = bounded(value, 1, 500, 50)
+	const next = bounded(value, 1, 500, 50)
+	if (next === limit.value) {
+		return
+	}
+	limit.value = next
 	refresh()
 }
 
@@ -203,6 +219,8 @@ function applyParams(next: ListingParams, force = false): void {
 	if (!force && sameParams(next, currentParams())) {
 		return
 	}
+	// A hash typed a moment ago must not load over what the address says.
+	clearTimeout(hashTimer)
 	hash.value = next.hash
 	anywhere.value = next.anywhere
 	algo.value = next.algo
@@ -267,6 +285,12 @@ onMounted(() => {
 	} else if (!awaitingScope.value) {
 		load()
 	}
+})
+
+onBeforeUnmount(() => {
+	// The Others listing is destroyed on leaving the tab; a pending hash
+	// load would otherwise fire into a component that is gone.
+	clearTimeout(hashTimer)
 })
 </script>
 

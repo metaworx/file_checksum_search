@@ -10,6 +10,7 @@ import {
 	listingFromParams,
 	parseFragment,
 	sameParams,
+	sameScope,
 	scopeFromParams,
 } from './urlState'
 
@@ -38,6 +39,13 @@ describe('parseFragment', () => {
 describe('listingFromParams', () => {
 	it('is the defaults for an empty query', () => {
 		expect(listingFromParams(new URLSearchParams())).toEqual(LISTING_DEFAULTS)
+	})
+
+	// `limit=` with nothing after it was read as 0 and clamped to 1: a
+	// page of one group from an address that named no limit at all.
+	it('reads an empty value as missing, not as zero', () => {
+		const params = new URLSearchParams('limit=&minCount=&offset=%20')
+		expect(listingFromParams(params)).toEqual(LISTING_DEFAULTS)
 	})
 
 	it('reads every field, trimmed and typed', () => {
@@ -120,5 +128,16 @@ describe('sameParams', () => {
 	it('compares every field', () => {
 		expect(sameParams({ ...LISTING_DEFAULTS }, { ...LISTING_DEFAULTS })).toBe(true)
 		expect(sameParams({ ...LISTING_DEFAULTS }, { ...LISTING_DEFAULTS, offset: 1 })).toBe(false)
+	})
+})
+
+describe('sameScope', () => {
+	it('is order-sensitive equality of the three parts', () => {
+		const a = { all: false, users: ['alice', 'bob'], groups: ['team'] }
+		expect(sameScope(a, { all: false, users: ['alice', 'bob'], groups: ['team'] })).toBe(true)
+		expect(sameScope(a, { all: false, users: ['bob', 'alice'], groups: ['team'] })).toBe(false)
+		expect(sameScope(a, { all: false, users: ['alice'], groups: ['team'] })).toBe(false)
+		expect(sameScope(a, { all: true, users: [], groups: [] })).toBe(false)
+		expect(sameScope({ all: true, users: [], groups: [] }, { all: true, users: [], groups: [] })).toBe(true)
 	})
 })

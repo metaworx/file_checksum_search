@@ -44,7 +44,9 @@ export function parseFragment(fragment: string): { tab: Tab, params: URLSearchPa
 }
 
 function bounded(value: string | null, min: number, max: number, fallback: number): number {
-	if (value === null) {
+	// `limit=` with nothing after it is missing, not zero: Number('') is 0,
+	// and clamped that was the minimum — a page of one group.
+	if (value === null || value.trim() === '') {
 		return fallback
 	}
 	const n = Math.trunc(Number(value))
@@ -83,6 +85,11 @@ export function scopeFromParams(params: URLSearchParams): DuplicateScope {
 	}
 	const clean = (values: string[]): string[] => [...new Set(values.map((v) => v.trim()).filter((v) => v !== ''))]
 	return { all: false, users: clean(params.getAll('users')), groups: clean(params.getAll('groups')) }
+}
+
+export function sameScope(a: DuplicateScope, b: DuplicateScope): boolean {
+	const same = (x: string[], y: string[]): boolean => x.length === y.length && x.every((v, i) => v === y[i])
+	return a.all === b.all && same(a.users, b.users) && same(a.groups, b.groups)
 }
 
 export function sameParams(a: ListingParams, b: ListingParams): boolean {

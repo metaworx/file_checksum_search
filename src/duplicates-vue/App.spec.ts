@@ -40,14 +40,21 @@ function jsonResponse(body: unknown): Response {
 /**
  * Every request the page makes, answered. The ordinary listing's answer
  * — the one that says whether Others is offered — can be held back, to
- * put a click before it.
+ * put a click before it, and can say no.
  */
 interface Server {
 	requests: string[]
 	releaseOwnListing: () => void
 }
 
-function serve(holdOwnListing = false): Server {
+interface ServerOptions {
+	holdOwnListing?: boolean
+	canSudo?: boolean
+	/** What the cross-account listing answers. */
+	sudoGroups?: unknown[]
+}
+
+function serve({ holdOwnListing = false, canSudo = true, sudoGroups = [] }: ServerOptions = {}): Server {
 	const requests: string[] = []
 	let release: () => void = () => {}
 	const held = new Promise<void>((resolve) => {
@@ -64,13 +71,13 @@ function serve(holdOwnListing = false): Server {
 			return jsonResponse({ prefill: true, all: true, reach: 'everyone', groups: [], users: [] })
 		}
 		if (url.includes('/api/v1/sudo/duplicates')) {
-			return jsonResponse({ duplicates: [] })
+			return jsonResponse({ duplicates: sudoGroups })
 		}
 		if (url.includes('/api/v1/duplicates')) {
 			if (holdOwnListing) {
 				await held
 			}
-			return jsonResponse({ duplicates: [], canSudo: true })
+			return jsonResponse({ duplicates: [], canSudo })
 		}
 		return jsonResponse({})
 	})
@@ -113,8 +120,8 @@ describe('duplicates App', () => {
 	 * the address with the algorithm list already in — the very order the
 	 * third case is about.
 	 */
-	async function open(hash: string, holdOwnListing = false): Promise<Server> {
-		const server = serve(holdOwnListing)
+	async function open(hash: string, options: ServerOptions = {}): Promise<Server> {
+		const server = serve(options)
 		window.location.hash = hash
 		await tick()
 		wrapper = mount(App)
@@ -162,7 +169,7 @@ describe('duplicates App', () => {
 	// When the answer came, the viewer was pulled into Others and asked for
 	// their password, away from the tab they had chosen.
 	it('lets a click made before the listing answered stand', async () => {
-		const { releaseOwnListing } = await open('#others?hash=abc', true)
+		const { releaseOwnListing } = await open('#others?hash=abc', { holdOwnListing: true })
 
 		await wrapper!.find('[data-tab="help"]').trigger('click')
 
@@ -185,7 +192,7 @@ describe('duplicates App', () => {
 	it('drops an algorithm the instance does not compute from an Others address at load', async () => {
 		// The order that matters, made certain: the list is in before the
 		// listing that says whether Others is offered has answered.
-		const { requests, releaseOwnListing } = await open('#others?hash=abc&algo=bogus&all=1', true)
+		const { requests, releaseOwnListing } = await open('#others?hash=abc&algo=bogus&all=1', { holdOwnListing: true })
 		releaseOwnListing()
 		await flushPromises()
 		await flushPromises()
@@ -206,5 +213,73 @@ describe('duplicates App', () => {
 		expect(wrapper!.find<HTMLInputElement>('#fcias-duplicates-hash').element.value).toBe('abc')
 		expect(wrapper!.find<HTMLInputElement>('#fcias-duplicates-min').element.value).toBe('3')
 		expect(written.filter((w) => w.startsWith('push'))).toEqual([])
+	})
+
+	// The defect: an Others address held for a viewer who may not cross was
+	// held for good — the listing reported `canSudo` only when it changed,
+	// and false is where it starts. The address stayed `#others?…` over the
+	// Mine tab. A "no" now releases it and puts the address back.
+	it('puts the address back to Mine when the viewer may not cross', async () => {
+		await open('#others?hash=abc&all=1', { canSudo: false })
+
+		expect(wrapper!.find('[data-tab="others"]').exists()).toBe(false)
+		expect(wrapper!.find('[data-tab="mine"]').attributes('aria-selected')).toBe('true')
+		expect(confirmPassword).not.toHaveBeenCalled()
+		expect(written.at(-1)).toBe('replace #mine')
+	})
+
+	// The defect: every `hashchange` on Others assigned a new scope object,
+	// equal or not, and the listing reloaded from the first page for it.
+	it('does not reload Others for a navigation to the scope it already shows', async () => {
+		const { requests } = await open('#others?hash=abc&all=1')
+		const listed = () => requests.filter((url) => url.includes('/api/v1/sudo/duplicates')).length
+		const before = listed()
+
+		expect(before).toBeGreaterThan(0)
+
+		await navigate('#others?hash=abc&all=1&offset=0')
+
+		expect(listed()).toBe(before)
+	})
+
+	// The defect: a limit typed over the same limit — or one clamped back
+	// to it — reloaded the listing all the same.
+	it('does not reload for a limit that clamps to what it already is', async () => {
+		const { requests } = await open('#mine?limit=500')
+		const listed = () => requests.filter((url) => url.includes('/api/v1/duplicates')).length
+		const before = listed()
+
+		await wrapper!.find('#fcias-duplicates-limit').setValue('9999')
+		await flushPromises()
+
+		expect(listed()).toBe(before)
+
+		await wrapper!.find('#fcias-duplicates-limit').setValue('10')
+		await flushPromises()
+
+		expect(listed()).toBe(before + 1)
+	})
+
+	// "Not in your files" was a `title` alone: a pointer's fact, and a
+	// keyboard's or a screen reader's never.
+	it('says a file is not the viewer\'s in text, not only in a title', async () => {
+		await open('#others?hash=abc&all=1', {
+			sudoGroups: [{
+				algo: 'sha1',
+				hash_value: 'abc123',
+				file_count: 2,
+				files: [
+					{ fileid: 1, path: 'Docs', name: 'a.pdf', owner: 'me', location: '/me/files/Docs/a.pdf', openable: true },
+					{ fileid: 2, path: 'Docs', name: 'a.pdf', owner: 'bob', location: '/bob/files/Docs/a.pdf', openable: false },
+				],
+			}],
+		})
+
+		await wrapper!.find('[data-testid="fcias-others"] .db-group-header').trigger('click')
+
+		const unopenable = wrapper!.find('.db-file-unopenable')
+
+		expect(unopenable.attributes('title')).toBe('Not in your files')
+		expect(unopenable.find('.hidden-visually').text()).toContain('not in your files')
 	})
 })

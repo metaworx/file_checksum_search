@@ -27,6 +27,7 @@ import {
 	fragmentFor,
 	listingFromParams,
 	parseFragment,
+	sameScope,
 	scopeFromParams,
 	type ListingParams,
 	type Tab,
@@ -48,6 +49,20 @@ fetchAlgorithms()
 
 /** Whether the viewer may look across accounts; the ordinary listing says. */
 const canSudo = ref(false)
+
+/**
+ * The ordinary listing reports after every load, a "no" included. A "no"
+ * releases an Others address the page was holding for the answer, and puts
+ * the address back to the tab that shows: it used to stay `#others?…` over
+ * the Mine tab, held for a "yes" that was never coming.
+ */
+function onCanSudo(value: boolean): void {
+	canSudo.value = value
+	if (!value && pendingTab.value === 'others') {
+		pendingTab.value = null
+		writeUrl()
+	}
+}
 
 // The address bar is the page's state: the tab, then its filters, page and
 // — on Others — scope, as `#others?hash=…&all=1`. Read here before the
@@ -178,7 +193,13 @@ function applyHash(): void {
 
 	if (tab === 'others') {
 		othersParams.value = listingFromParams(params, algorithmIds.value)
-		crossScope.value = scopeFromParams(params)
+		// Assigned only when it differs: the listing watches the scope
+		// deeply and reloads from the first page on any assignment, and an
+		// address that names the same accounts is not a new scope.
+		const scope = scopeFromParams(params)
+		if (!sameScope(scope, crossScope.value)) {
+			crossScope.value = scope
+		}
 		if (canSudo.value) {
 			setTab(tab, true)
 		} else {
@@ -248,7 +269,7 @@ onUnmounted(() => {
 					:algorithm-ids="algorithmIds"
 					:params="mineParams"
 					id-prefix="fcias-duplicates"
-					@can-sudo="canSudo = $event"
+					@can-sudo="onCanSudo"
 					@update:params="onMineParams" />
 
 				<div
