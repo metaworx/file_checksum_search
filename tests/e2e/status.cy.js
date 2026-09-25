@@ -67,6 +67,9 @@ const statusFromApi = () => cy.request( {
 	headers: { 'OCS-APIRequest': 'true' },
 } ).its( 'body' )
 
+// What the panel sums for its Untrusted cell.
+const staleTotal = ( body ) => Object.values( body.staleStats ?? {} ).reduce( ( sum, n ) => sum + n, 0 )
+
 // The same figures read from the command line. Deliberately occ rather
 // than cy.ocs(): this spec drives the page, and cy.ocs() clears cookies
 // to keep an API caller's identity honest — which ends the session, and
@@ -190,10 +193,23 @@ describe( 'FCIAS status panel', () => {
 				.to.contain( 'stale:reset' )
 		} )
 
+		// The route the page reads, asked directly first: a zero here is
+		// the server disagreeing with occ, a zero on the page alone is the
+		// page failing to load it — the cell reads the same either way.
+		statusFromApi().then( ( fromApi ) => {
+			expect( staleTotal( fromApi ), 'the route the panel reads' ).to.eq( 3 )
+		} )
+
 		// The page says the same, refreshed through its own button rather
-		// than by revisiting the URL it is already on.
+		// than by revisiting the URL it is already on. The refresh's own
+		// request is watched, so a failed one is named by its status code
+		// rather than read as an empty count.
+		cy.intercept( 'GET', '**/apps/file_checksum_search/settings/status*' ).as( 'statusLoaded' )
 		cy.visit( STATUS_URL )
+		cy.wait( '@statusLoaded' )
 		cy.get( '#fcias-btn-refresh-status', { timeout: FIND_TIMEOUT } ).click()
+		cy.wait( '@statusLoaded' ).its( 'response.statusCode' ).should( 'eq', 200 )
+		cy.get( '#fcias-status-error' ).should( 'not.exist' )
 		cellText( '#fcias-status-untrusted' ).should( 'contain', 'Total: 3' )
 
 		// Finish what the reset deferred. Clearing a disowned file's hashes
@@ -206,6 +222,7 @@ describe( 'FCIAS status panel', () => {
 		} )
 
 		cy.get( '#fcias-btn-refresh-status' ).click()
+		cy.wait( '@statusLoaded' ).its( 'response.statusCode' ).should( 'eq', 200 )
 		cellText( '#fcias-status-untrusted' ).should( 'contain', 'Total: 0' )
 		cellText( '#fcias-status-rowcount' ).should( 'eq', '0' )
 	} )
