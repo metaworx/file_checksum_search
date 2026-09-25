@@ -1,9 +1,18 @@
 name: Publish to Nextcloud App Store
 
+# Runs once the test workflow has finished for a tag. A release made with
+# GITHUB_TOKEN fires no `release` event, so no workflow can wait for a
+# release the tag's own run creates; this one waits for the tag's test
+# run instead, and publishes the tree those tests passed on.
 on:
-  release:
-    types: [ published ]
+  workflow_run:
+    workflows: [ "Nextcloud App Testing Matrix" ]
+    types: [ completed ]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: The tag to build, release and publish, e.g. v0.21.0
+        required: true
 
 permissions:
   contents: write
@@ -12,9 +21,24 @@ jobs:
   publish:
     name: Build, sign and publish app
     runs-on: ubuntu-latest
+    # A test run that succeeded for a pushed tag; for a tag push the run's
+    # head_branch is the tag's name.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (
+        github.event.workflow_run.conclusion == 'success'
+        && github.event.workflow_run.event == 'push'
+        && startsWith(github.event.workflow_run.head_branch, 'v')
+      )
+    env:
+      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.workflow_run.head_branch }}
     steps:
+      # The tag's tree, and the guidelines submodule for changelog.sh.
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          submodules: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -34,6 +58,10 @@ jobs:
         run: |
           version="$(sed -n 's|.*<version>\([^<]*\)</version>.*|\1|p' appinfo/info.xml | head -n1 | tr -d '[:space:]')"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
+          if [ "v${version}" != "${TAG%%-*}" ]; then
+            echo "The manifest says ${version} and the tag says ${TAG}" >&2
+            exit 1
+          fi
 
       - name: Install frontend dependencies
         run: npm ci
@@ -53,9 +81,7 @@ jobs:
 
       - name: Classify release tag
         id: tagkind
-        if: github.event_name == 'release'
         run: |
-          TAG="${{ github.event.release.tag_name }}"
           # 0.x is pre-release by definition (see CHANGELOG.md) — never stable,
           # with or without a -suffix. Must stay ahead of the strict semver
           # branch below, which would otherwise claim plain v0.Y.Z.
@@ -69,26 +95,33 @@ jobs:
             echo "kind=skip" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Upload release assets
-        if: github.event_name == 'release' && steps.tagkind.outputs.kind != 'skip'
+      # The body a tag carries: the changelog section, nothing else.
+      - name: Release notes
+        if: steps.tagkind.outputs.kind != 'skip'
+        run: bash GUIDELINES/shared/tools/changelog.sh notes "${{ steps.app-meta.outputs.version }}" > build/release-notes.md
+
+      # Created here when the tag has no release yet, updated otherwise;
+      # the assets go up before the store is told, since it fetches the
+      # download URL on being told.
+      - name: Create the GitHub release with its assets
+        if: steps.tagkind.outputs.kind != 'skip'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.TAG }}
+          name: ${{ env.TAG }}
+          body_path: build/release-notes.md
+          prerelease: ${{ steps.tagkind.outputs.kind == 'nightly' }}
           files: |
             build/file_checksum_search.tar.gz
             build/file_checksum_search-${{ steps.app-meta.outputs.version }}.tar.gz
-
-      - name: Upload signature
-        if: github.event_name == 'release' && steps.tagkind.outputs.kind != 'skip' && hashFiles('build/*.signature') != ''
-        uses: softprops/action-gh-release@v2
-        with:
-          files: build/file_checksum_search-${{ steps.app-meta.outputs.version }}.tar.gz.signature
+            build/file_checksum_search-${{ steps.app-meta.outputs.version }}.tar.gz.signature
 
       - name: Publish release to App Store
-        if: github.event_name == 'release' && steps.tagkind.outputs.kind != 'skip' && vars.APPSTORE_PUBLISH == 'true'
+        if: steps.tagkind.outputs.kind != 'skip' && vars.APPSTORE_PUBLISH == 'true'
         env:
           API_TOKEN: ${{ secrets.APPSTORE_TOKEN }}
           APPSTORE_KEY: ${{ secrets.APPSTORE_KEY }}
-          DOWNLOAD_URL: "https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/file_checksum_search-${{ steps.app-meta.outputs.version }}.tar.gz"
+          DOWNLOAD_URL: "https://github.com/${{ github.repository }}/releases/download/${{ env.TAG }}/file_checksum_search-${{ steps.app-meta.outputs.version }}.tar.gz"
         run: |
           NIGHTLY_FLAG=""
           if [ "${{ steps.tagkind.outputs.kind }}" = "nightly" ]; then

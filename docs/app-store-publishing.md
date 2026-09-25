@@ -63,34 +63,48 @@ DOWNLOAD_URL=https://example.com/file_checksum_search.tar.gz \
 
 ## GitHub Actions
 
-On `release: published` (or manual `workflow_dispatch`), one job:
+[`publish.yml`](../.github/workflows/publish.yml) runs when the test workflow
+has finished for a tag, on `workflow_run`, or by hand with
+`workflow_dispatch` and a tag name. It does not run on `release:
+published`: a release made with `GITHUB_TOKEN` fires no `release` event, so
+a workflow waiting for one would wait for a release the tag's own run
+creates. One job, when the test run succeeded for a `v*` tag:
 
-1. Checks out the code and installs Node.js 24 and PHP 8.2.
-2. Runs `npm ci`, then `npm run lint` and `npm run stylelint` — a release is
+1. Checks out the tag's tree with the guidelines submodule, and installs
+   Node.js 24 and PHP 8.2.
+2. Reads the version from `appinfo/info.xml` and refuses a tag that does not
+   name it.
+3. Runs `npm ci`, then `npm run lint` and `npm run stylelint` — a release is
    the one build that cannot be taken back, so it is gated as a push is.
-3. Runs `bash package.sh` with the `APPSTORE_KEY`/`APPSTORE_CERT` secrets in
+4. Runs `bash package.sh` with the `APPSTORE_KEY`/`APPSTORE_CERT` secrets in
    the environment: builds the frontend, packages, and signs the versioned
    archive when both are set (unsigned when neither is).
-4. Classifies the release tag: `v0.Y.Z` and any `-suffix` tag are nightlies,
+5. Classifies the tag: `v0.Y.Z` and any `-suffix` tag are nightlies,
    `vX.Y.Z` with X ≥ 1 is stable, anything else publishes nothing.
-5. Uploads both tarballs and (when signed) the signature as release assets.
-6. If `APPSTORE_PUBLISH=true`, posts the **versioned** tarball's release-asset
+6. Creates the GitHub release for the tag, or updates it, with the changelog
+   section as its body (`changelog.sh notes X.Y.Z`) and both tarballs and
+   the signature as its assets; a nightly is marked as a pre-release.
+7. If `APPSTORE_PUBLISH=true`, posts the **versioned** tarball's release-asset
    URL and its signature to the App Store (`POST /api/v1/apps/releases`).
+   The assets are up before the store is told, since it fetches the URL on
+   being told.
 
 Signing requires:
 
 - Secrets `APPSTORE_CERT` (certificate PEM) and `APPSTORE_KEY` (private key
-  PEM). Both must be the same certificate/key pair registered for the app in
-  the portal — a mismatch causes the store to reject the upload.
+  PEM, as it is — a secret may hold newlines). Both must be the same
+  certificate/key pair registered for the app in the portal — a mismatch
+  causes the store to reject the upload.
 
-Publishing (step 6) additionally requires:
+Publishing (step 7) additionally requires:
 
 - Secret `APPSTORE_TOKEN` (App Store API token).
 - Variable `APPSTORE_PUBLISH` = `true`.
 
-Nothing creates the GitHub release: the tag reaches GitHub through GitLab's
-push mirror, and a release is created by hand (or with `gh release create`)
-from the changelog section, which `changelog.sh notes X.Y.Z` prints.
+The tag reaches GitHub through GitLab's push mirror, so the release procedure
+is `changelog.sh cut`, then `changelog.sh tag X.Y.Z create --push
+--push-commits` against `origin`; the test run starts on the mirrored tag
+within a minute and the publish run after it.
 
 ## GitLab CI
 
