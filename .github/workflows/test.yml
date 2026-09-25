@@ -167,6 +167,10 @@ jobs:
           php occ config:system:set default_language --value=en
           php occ config:system:set force_language --value=en
           php occ app:disable firstrunwizard
+          # A fresh install runs background jobs from every page a logged-in
+          # user opens (AJAX mode); the e2e suite counts state a job would
+          # clear, so jobs run only when a spec runs them.
+          php occ background:cron
         working-directory: nextcloud
 
       - name: Inject app into integration instance
