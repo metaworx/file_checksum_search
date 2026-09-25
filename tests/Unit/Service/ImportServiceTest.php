@@ -32,12 +32,17 @@ use RuntimeException;
  * import that is too willing does damage nothing later notices.
  */
 class ImportServiceTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  constants
 
 	/** The file's mtime in every fixture below. */
 	private const MTIME = 1_000;
+
+
+//  private properties
 
 	private AppConfigService&MockObject $appConfigService;
 
@@ -48,9 +53,10 @@ class ImportServiceTest
 	private ImportService               $service;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->appConfigService = $this->createMock( AppConfigService::class );
@@ -68,6 +74,8 @@ class ImportServiceTest
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * A backup names one file once per algorithm; writing them separately
 	 * would rewrite the same metadata document three times and ask the same
@@ -75,7 +83,6 @@ class ImportServiceTest
 	 */
 	public function testEveryAlgorithmOfOneFileIsWrittenInOneGo(): void
 	{
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'writeHashes' )
 		                      ->with(
@@ -101,7 +108,6 @@ class ImportServiceTest
 		$this->assertSame( 2, $report->written );
 	}
 
-
 	/**
 	 * The one that matters. Freshness is `updated_at >= mtime`, so a hash
 	 * stamped before the file was last written describes something the file
@@ -111,7 +117,6 @@ class ImportServiceTest
 	 */
 	public function testAHashOlderThanItsFileIsRefused(): void
 	{
-
 		$this->metadataService->expects( $this->never() )
 		                      ->method( 'writeHashes' )
 		;
@@ -125,10 +130,8 @@ class ImportServiceTest
 		$this->assertSame( 0, $report->written );
 	}
 
-
 	public function testAHashAsNewAsItsFileIsAccepted(): void
 	{
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'writeHashes' )
 		                      ->with( 7, $this->anything(), self::MTIME, $this->anything() )
@@ -141,13 +144,11 @@ class ImportServiceTest
 		);
 	}
 
-
 	/**
 	 * At the operator's insistence, and only theirs.
 	 */
 	public function testAllowStaleTakesWhatSourceWouldRefuse(): void
 	{
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'writeHashes' )
 		                      ->with( 7, $this->anything(), self::MTIME - 1, $this->anything() )
@@ -162,7 +163,6 @@ class ImportServiceTest
 		$this->assertSame( 0, $report->skippedOutdated );
 	}
 
-
 	/**
 	 * A source that did not say when it hashed has told us nothing to weigh,
 	 * so the file's own mtime is the most the import can honestly claim —
@@ -170,7 +170,6 @@ class ImportServiceTest
 	 */
 	public function testARecordWithNoStampFallsBackToTheFilesOwnMtime(): void
 	{
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'writeHashes' )
 		                      ->with( 7, $this->anything(), self::MTIME, $this->anything() )
@@ -183,7 +182,6 @@ class ImportServiceTest
 		);
 	}
 
-
 	/**
 	 * @dataProvider stampPolicies
 	 */
@@ -191,12 +189,12 @@ class ImportServiceTest
 		string $stamp,
 		?int   $recorded,
 		string $expectation,
-	): void {
-
+	): void
+	{
 		$stored = null;
 		$this->metadataService->method( 'writeHashes' )
 		                      ->willReturnCallback(
-			                      function (
+			                      function(
 				                      int   $fileId,
 				                      array $hashes,
 				                      ?int  $value,
@@ -206,7 +204,6 @@ class ImportServiceTest
 				                      $stored,
 			                      ): array
 			                      {
-
 				                      $stored = $value;
 
 				                      return $this->writeResult( written: 1 );
@@ -222,18 +219,19 @@ class ImportServiceTest
 		match ( $expectation )
 		{
 			'recorded' => $this->assertSame( $recorded, $stored ),
-			'mtime' => $this->assertSame( self::MTIME, $stored ),
-			default => $this->assertGreaterThan( self::MTIME, $stored ),
+			'mtime'    => $this->assertSame( self::MTIME, $stored ),
+			default    => $this->assertGreaterThan( self::MTIME, $stored ),
 		};
 	}
 
+
+//  static methods
 
 	/**
 	 * @return array<string, array{string, int|null, string}>
 	 */
 	public static function stampPolicies(): array
 	{
-
 		return [
 			'source keeps what the record said' => [
 				ImportPolicy::STAMP_SOURCE,
@@ -253,13 +251,11 @@ class ImportServiceTest
 		];
 	}
 
-
 	/**
 	 * An import restores what a file *is*, never that it exists.
 	 */
 	public function testAPathThisInstanceDoesNotHaveIsCountedAndSkipped(): void
 	{
-
 		$this->metadataService->expects( $this->never() )
 		                      ->method( 'writeHashes' )
 		;
@@ -272,10 +268,8 @@ class ImportServiceTest
 		$this->assertSame( 1, $report->unknownPath );
 	}
 
-
 	public function testStrictStopsAtTheFirstUnknownPath(): void
 	{
-
 		$this->expectException( RuntimeException::class );
 		$this->expectExceptionMessageMatches( '/No such file/' );
 
@@ -285,10 +279,8 @@ class ImportServiceTest
 		);
 	}
 
-
 	public function testADryRunWritesNothingAndStillCounts(): void
 	{
-
 		$this->metadataService->expects( $this->never() )
 		                      ->method( 'writeHashes' )
 		;
@@ -306,11 +298,9 @@ class ImportServiceTest
 		$this->assertSame( 1, $report->configWritten );
 	}
 
-
 	/** @noinspection PhpUnhandledExceptionInspection */
 	public function testAMalformedRecordIsCountedNotWritten(): void
 	{
-
 		$stream = $this->streamOf( '{"schema":1,"hashes":[{"storage":"home::alice","path":"files/a.txt"}]}' );
 
 		$report = $this->service->import(
@@ -327,7 +317,6 @@ class ImportServiceTest
 		$this->assertSame( 0, $report->written );
 	}
 
-
 	/**
 	 * A backup document from a future version may mean something different
 	 * by the same field, and half-applying it is worse than refusing it.
@@ -336,7 +325,6 @@ class ImportServiceTest
 	 */
 	public function testABackupFromAFutureSchemaIsRefused(): void
 	{
-
 		$stream = $this->streamOf(
 			'{"schema":' . ( JsonFormat::SCHEMA_VERSION + 1 ) . ',"hashes":[]}',
 		);
@@ -361,14 +349,12 @@ class ImportServiceTest
 		}
 	}
 
-
 	/**
 	 * @dataProvider hashOnlyFormats
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testAHashOnlyFormatCannotCarryConfiguration( string $class ): void
 	{
-
 		$stream = $this->streamOf( '' );
 
 		$this->expectException( RuntimeException::class );
@@ -391,19 +377,16 @@ class ImportServiceTest
 		}
 	}
 
-
 	/**
 	 * @return array<string, array{class-string}>
 	 */
 	public static function hashOnlyFormats(): array
 	{
-
 		return [
 			'csv' => [ CsvFormat::class ],
 			'sum' => [ SumFormat::class ],
 		];
 	}
-
 
 	/**
 	 * `--replace` is what restoring a backup means, and it is the same word
@@ -411,7 +394,6 @@ class ImportServiceTest
 	 */
 	public function testReplacingConfigRemovesWhatTheBackupDoesNotName(): void
 	{
-
 		$this->appConfigService->expects( $this->once() )
 		                       ->method( 'import' )
 		                       ->with( [ 'rule_definitions' => '[]' ], true )
@@ -435,10 +417,8 @@ class ImportServiceTest
 		$this->assertSame( [ 'stats_rule_sweep_last_run' ], $report->configNotPortable );
 	}
 
-
 	public function testWritingHashesClearsAStaleMarker(): void
 	{
-
 		$this->metadataService->method( 'writeHashes' )
 		                      ->willReturn( $this->writeResult( written: 1, markerCleared: true ) )
 		;
@@ -451,7 +431,6 @@ class ImportServiceTest
 		$this->assertSame( 1, $report->markerCleared );
 	}
 
-
 	/**
 	 * @param  array<int, array<string, mixed>>  $records
 	 * @param  array<string, string>             $config
@@ -463,8 +442,8 @@ class ImportServiceTest
 		array        $records,
 		ImportPolicy $policy,
 		array        $config = [],
-	): ImportReport {
-
+	): ImportReport
+	{
 		$document = [
 			'schema' => JsonFormat::SCHEMA_VERSION,
 		];
@@ -491,7 +470,6 @@ class ImportServiceTest
 		return $report;
 	}
 
-
 	/**
 	 * @return array<string, mixed>
 	 */
@@ -500,8 +478,8 @@ class ImportServiceTest
 		string $algo,
 		string $hash,
 		?int   $updatedAt,
-	): array {
-
+	): array
+	{
 		return [
 			'storage'    => 'home::alice',
 			'path'       => $path,
@@ -511,15 +489,14 @@ class ImportServiceTest
 		];
 	}
 
-
 	/**
 	 * @return array{written: int, overwritten: int, skipped: int, markerCleared: bool}
 	 */
 	private function writeResult(
 		int  $written = 0,
 		bool $markerCleared = false,
-	): array {
-
+	): array
+	{
 		return [
 			'written'       => $written,
 			'overwritten'   => 0,
@@ -528,7 +505,6 @@ class ImportServiceTest
 		];
 	}
 
-
 	/**
 	 * @param  array<string, int>  $pathToFileId
 	 *
@@ -536,17 +512,15 @@ class ImportServiceTest
 	 */
 	private function givenTheInstanceHas( array $pathToFileId ): void
 	{
-
 		$this->filecacheService->method( 'locateAllByPath' )
 		                       ->willReturnCallback(
-			                       static function (
+			                       static function(
 				                       array $pathsByStorage,
 			                       ) use
 			                       (
 				                       $pathToFileId,
 			                       ): array
 			                       {
-
 				                       $found = [];
 
 				                       foreach ( $pathsByStorage as $storageId => $paths )
@@ -574,18 +548,15 @@ class ImportServiceTest
 		;
 	}
 
-
 	/**
 	 * @return resource
 	 */
 	private function streamOf( string $text )
 	{
-
 		$stream = fopen( 'php://memory', 'r+' );
 		fwrite( $stream, $text );
 		rewind( $stream );
 
 		return $stream;
 	}
-
 }

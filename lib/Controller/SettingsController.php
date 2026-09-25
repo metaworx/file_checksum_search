@@ -39,9 +39,11 @@ use Throwable;
  * administrator-only unless its method says otherwise.
  */
 class SettingsController
-	extends
-	Controller
+    extends
+    Controller
 {
+
+//  constructor
 
 	public function __construct(
 		string                             $appName,
@@ -54,11 +56,13 @@ class SettingsController
 		private readonly IAppConfig        $appConfig,
 		private readonly JobStatsService   $jobStats,
 		private readonly AlgorithmCatalogue $catalogue,
-	) {
-
+	)
+	{
 		parent::__construct( $appName, $request );
 	}
 
+
+//  getters / setters / is* / has*
 
 	/**
 	 * Display app status including version, row counts, and pending stats by mode.
@@ -72,7 +76,6 @@ class SettingsController
 	#[ApiRoute( verb: 'GET', url: '/settings/status' )]
 	public function getStatus(): DataResponse
 	{
-
 		return new DataResponse( [
 			'version'                => $this->statusService->getAppVersion(),
 			'dbVersion'              => $this->statusService->getDbVersion(),
@@ -88,6 +91,8 @@ class SettingsController
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * Record that the administrator saw the idle banner and chose to leave
 	 * automatic hashing off. The flag expires by itself: enabling an include
@@ -99,7 +104,6 @@ class SettingsController
 	#[ApiRoute( verb: 'POST', url: '/settings/idle-banner/ack' )]
 	public function acknowledgeIdleBanner(): DataResponse
 	{
-
 		$this->appConfig->setValueBool(
 			Application::APP_ID,
 			RuleService::CONFIG_KEY_IDLE_BANNER_ACK,
@@ -108,7 +112,6 @@ class SettingsController
 
 		return new DataResponse( [ 'success' => true ] );
 	}
-
 
 	/**
 	 * Read the rule-editing permission options (admin only).
@@ -119,10 +122,9 @@ class SettingsController
 	#[ApiRoute( verb: 'GET', url: '/settings/global' )]
 	public function getAdminOptions(): DataResponse
 	{
-
 		$users = [];
 		$this->userManager->callForAllUsers(
-			function (
+			function(
 				$user,
 			) use
 			(
@@ -130,7 +132,6 @@ class SettingsController
 				$users,
 			): void
 			{
-
 				$users[] = [
 					'id'          => $user->getUID(),
 					'displayName' => $user->getDisplayName(),
@@ -170,7 +171,6 @@ class SettingsController
 		] );
 	}
 
-
 	/**
 	 * Persist the rule-editing permission options (admin only).
 	 *
@@ -179,7 +179,6 @@ class SettingsController
 	#[ApiRoute( verb: 'PUT', url: '/settings/global' )]
 	public function saveAdminOptions(): DataResponse
 	{
-
 		$body = json_decode( $this->readRequestBody(), true );
 
 		if ( ! is_array( $body ) )
@@ -302,7 +301,6 @@ class SettingsController
 		}
 	}
 
-
 	/**
 	 * Read the raw HTTP request body.
 	 *
@@ -312,10 +310,8 @@ class SettingsController
 	 */
 	protected function readRequestBody(): string
 	{
-
 		return file_get_contents( 'php://input' );
 	}
-
 
 	/**
 	 * A body field as a list, or null when the field is absent. A scalar is
@@ -326,8 +322,8 @@ class SettingsController
 	private function listOrNull(
 		array  $body,
 		string $key,
-	): ?array {
-
+	): ?array
+	{
 		if ( ! array_key_exists( $key, $body ) )
 		{
 			return null;
@@ -337,5 +333,4 @@ class SettingsController
 			? array_values( $body[ $key ] )
 			: [ $body[ $key ] ];
 	}
-
 }

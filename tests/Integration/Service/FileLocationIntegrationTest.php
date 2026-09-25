@@ -39,9 +39,11 @@ use Throwable;
  * an optional app is mandatory.
  */
 class FileLocationIntegrationTest
-	extends
-	DatabaseTestCase
+    extends
+    DatabaseTestCase
 {
+
+//  private properties
 
 	private FilecacheService $filecache;
 
@@ -55,9 +57,10 @@ class FileLocationIntegrationTest
 	private array            $cleanup = [];
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		if ( ! Server::get( IAppManager::class )
@@ -75,13 +78,14 @@ class FileLocationIntegrationTest
 			$this->groupFolderId,
 			$this->groupFolderMount,
 		]
-			= $this->aGroupFolderAdminCanSee();
+			 = $this->aGroupFolderAdminCanSee();
 	}
 
 
+//  other non-static methods
+
 	protected function tearDown(): void
 	{
-
 		foreach ( array_reverse( $this->cleanup ) as $undo )
 		{
 			try
@@ -99,10 +103,8 @@ class FileLocationIntegrationTest
 		parent::tearDown();
 	}
 
-
 	public function testAFileInAGroupFolderIsClassifiedByItsJailRatherThanItsViewer(): void
 	{
-
 		$location = $this->locateAFileInTheGroupFolder();
 
 		$this->assertSame( FileLocation::NS_GROUPFOLDER, $location->namespace );
@@ -119,10 +121,8 @@ class FileLocationIntegrationTest
 		$this->assertStringNotContainsString( '__groupfolders', $location->relativePath );
 	}
 
-
 	public function testAGroupFolderRuleGovernsItAndAHomeRuleDoesNot(): void
 	{
-
 		$location = $this->locateAFileInTheGroupFolder();
 
 		$this->givenRules( [
@@ -161,10 +161,8 @@ class FileLocationIntegrationTest
 		$this->assertNull( $this->ruleService->governingRuleForLocation( $location ) );
 	}
 
-
 	public function testTheUniversalSelectorReachesWhatHomeCannot(): void
 	{
-
 		$location = $this->locateAFileInTheGroupFolder();
 
 		$this->givenRules( [
@@ -188,9 +186,7 @@ class FileLocationIntegrationTest
 		);
 	}
 
-
 	// ─── helpers ─────────────────────────────────────────────────────
-
 	/**
 	 * A group folder the admin account has mounted, with the name it is
 	 * mounted under.
@@ -204,7 +200,6 @@ class FileLocationIntegrationTest
 	 */
 	private function aGroupFolderAdminCanSee(): array
 	{
-
 		$result = $this->getRawConnection()
 		               ->executeQuery(
 			               'SELECT `folder_id`, `mount_point` FROM `*PREFIX*group_folders` ORDER BY `folder_id`',
@@ -240,14 +235,12 @@ class FileLocationIntegrationTest
 		);
 	}
 
-
 	/**
 	 * A real file inside the group folder's jail, located the way the app
 	 * locates one.
 	 */
 	private function locateAFileInTheGroupFolder(): FileLocation
 	{
-
 		$name = 'fcias_gf_' . bin2hex( random_bytes( 4 ) ) . '.txt';
 
 		// Written through a member's view, which is the only way in — and
@@ -269,13 +262,11 @@ class FileLocationIntegrationTest
 		return $location;
 	}
 
-
 	/**
 	 * @param  list<array>  $rules
 	 */
 	private function givenRules( array $rules ): void
 	{
-
 		Server::get( IAppConfig::class )
 		      ->setValueString(
 			      Application::APP_ID,

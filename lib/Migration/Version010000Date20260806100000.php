@@ -30,9 +30,11 @@ use OCP\Server;
  * @noinspection PhpUnused
  */
 class Version010000Date20260806100000
-	extends
-	SimpleMigrationStep
+    extends
+    SimpleMigrationStep
 {
+
+//  constructor
 
 	public function __construct(
 		private readonly TableNameService $tableNameService,
@@ -40,12 +42,14 @@ class Version010000Date20260806100000
 	}
 
 
+//  other non-static methods
+
 	public function changeSchema(
 		IOutput $output,
 		Closure $schemaClosure,
 		array   $options,
-	): ?ISchemaWrapper {
-
+	): ?ISchemaWrapper
+	{
 		/** @var ISchemaWrapper $schema */
 		$schema = $schemaClosure();
 		$prefix = $this->tableNameService->getPrefix();
@@ -84,13 +88,12 @@ class Version010000Date20260806100000
 		return null;
 	}
 
-
 	public function postSchemaChange(
 		IOutput $output,
 		Closure $schemaClosure,
 		array   $options,
-	): void {
-
+	): void
+	{
 		$output->info( 'FCIAS: registering metadata keys ...' );
 
 		Server::get( MetadataService::class )
@@ -134,5 +137,4 @@ class Version010000Date20260806100000
 			),
 		);
 	}
-
 }

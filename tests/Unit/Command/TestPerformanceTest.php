@@ -19,18 +19,21 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
 class TestPerformanceTest
-	extends
-	FciasUnitTestCase
+    extends
+    FciasUnitTestCase
 {
+
+//  private properties
 
 	private MockObject|MetadataService $metadataService;
 
 	private CommandTester              $tester;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->db = $this->createMock( IDBConnection::class );
@@ -58,9 +61,10 @@ class TestPerformanceTest
 	}
 
 
+//  other non-static methods
+
 	public function testRunsBothBenchmarksAndReportsCounts(): void
 	{
-
 		$this->metadataService->expects( $this->exactly( 100 ) )
 		                      ->method( 'queryByHash' )
 		;
@@ -76,5 +80,4 @@ class TestPerformanceTest
 		$this->assertStringContainsString( 'Filecache entries:            12000', $display );
 		$this->assertStringContainsString( 'Metadata updated_at entries:  9500', $display );
 	}
-
 }

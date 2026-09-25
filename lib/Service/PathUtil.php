@@ -19,6 +19,8 @@ namespace OCA\FileChecksumSearch\Service;
 class PathUtil
 {
 
+//  static methods
+
 	/**
 	 * Match a file path against a glob pattern.
 	 *
@@ -30,11 +32,10 @@ class PathUtil
 	public static function matchesGlob(
 		string $pattern,
 		string $path,
-	): bool {
-
+	): bool
+	{
 		return fnmatch( $pattern, $path );
 	}
-
 
 	/**
 	 * Match a namespace-relative path against a rule's glob, leading slash
@@ -50,8 +51,8 @@ class PathUtil
 	public static function matchesRelativeGlob(
 		string $pattern,
 		string $relativePath,
-	): bool {
-
+	): bool
+	{
 		$pattern = ltrim( trim( $pattern ), '/' );
 
 		if ( $pattern === '' )
@@ -73,5 +74,4 @@ class PathUtil
 		return str_starts_with( $pattern, '**/' )
 			&& fnmatch( substr( $pattern, 3 ), $subject );
 	}
-
 }

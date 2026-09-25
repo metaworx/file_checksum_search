@@ -21,9 +21,11 @@ use OCP\Settings\IIconSection;
  * @noinspection PhpClassCanBeReadonlyInspection
  */
 class PersonalSection
-	implements
-	IIconSection
+    implements
+    IIconSection
 {
+
+//  constructor
 
 	public function __construct(
 		private readonly IURLGenerator $urlGenerator,
@@ -32,31 +34,25 @@ class PersonalSection
 	}
 
 
+//  getters / setters / is* / has*
+
 	public function getID(): string
 	{
-
 		return Application::APP_ID . '_personal';
 	}
 
-
 	public function getName(): string
 	{
-
 		return $this->l10n->t( 'File Checksum Index & Search' );
 	}
 
-
 	public function getPriority(): int
 	{
-
 		return 50;
 	}
 
-
 	public function getIcon(): string
 	{
-
 		return $this->urlGenerator->imagePath( Application::APP_ID, 'app.svg' );
 	}
-
 }

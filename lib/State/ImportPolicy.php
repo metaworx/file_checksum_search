@@ -24,6 +24,8 @@ use InvalidArgumentException;
 readonly class ImportPolicy
 {
 
+//  constants
+
 	/** Use the record's own timestamp; refuse records older than the file. */
 	public const STAMP_SOURCE = 'source';
 
@@ -34,12 +36,14 @@ readonly class ImportPolicy
 	public const STAMP_NOW = 'now';
 
 	public const STAMPS
-		= [
+		 = [
 			self::STAMP_SOURCE,
 			self::STAMP_MTIME,
 			self::STAMP_NOW,
 		];
 
+
+//  constructor
 
 	public function __construct(
 		/** Write only what is absent, rather than replacing what is there. */
@@ -51,8 +55,8 @@ readonly class ImportPolicy
 		public bool   $strict = false,
 		/** Report what would happen; write nothing. */
 		public bool   $dryRun = false,
-	) {
-
+	)
+	{
 		if ( ! in_array( $this->stamp, self::STAMPS, true ) )
 		{
 			throw new InvalidArgumentException(
@@ -66,14 +70,14 @@ readonly class ImportPolicy
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * Whether this policy asserts something the data does not support, and
 	 * so deserves saying out loud.
 	 */
 	public function warrantsWarning(): bool
 	{
-
 		return $this->stamp === self::STAMP_NOW || $this->allowOutdated;
 	}
-
 }

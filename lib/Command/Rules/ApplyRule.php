@@ -19,16 +19,17 @@ use Symfony\Component\Console\Output\OutputInterface;
  * @noinspection PhpUnused
  */
 class ApplyRule
-	extends
-	RulesCommandBase
+    extends
+    RulesCommandBase
 {
+
+//  config/init/exe/run methods
 
 	/**
 	 * @noinspection PhpUnused
 	 */
 	protected function configure(): void
 	{
-
 		$this->setName( 'file-checksum-search:rules:apply' )
 		     ->setAliases( [ 'fcias:rules:apply' ] )
 		     ->setDescription(
@@ -46,15 +47,14 @@ class ApplyRule
 		;
 	}
 
-
 	/**
 	 * @noinspection PhpUnused
 	 */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
-	): int {
-
+	): int
+	{
 		$id   = (string) $input->getArgument( 'id' );
 		$rule = $this->resolveRule( $id, $output );
 
@@ -92,5 +92,4 @@ class ApplyRule
 
 		return self::SUCCESS;
 	}
-
 }

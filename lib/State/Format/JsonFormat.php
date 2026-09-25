@@ -45,9 +45,11 @@ use RuntimeException;
  * plainly when a hand-made document does not.
  */
 class JsonFormat
-	implements
-	HashRecordFormat
+    implements
+    HashRecordFormat
 {
+
+//  constants
 
 	/**
 	 * Bumped when the backup document's shape changes in a way an older reader
@@ -66,6 +68,8 @@ class JsonFormat
 	public const STATUS_KEY = 'status';
 
 
+//  other non-static methods
+
 	/**
 	 * @param  resource  $stream
 	 *
@@ -74,11 +78,10 @@ class JsonFormat
 	public function read(
 		$stream,
 		FormatOptions $options,
-	): Generator {
-
+	): Generator
+	{
 		yield from $this->readDocument( $stream, $options )['records'];
 	}
-
 
 	/**
 	 * Read a backup document whole: its header and config eagerly — they
@@ -96,8 +99,8 @@ class JsonFormat
 	public function readDocument(
 		$stream,
 		FormatOptions $options,
-	): array {
-
+	): array
+	{
 		$cursor = new JsonCursor( $stream );
 		$cursor->skipWhitespace();
 		$opener = $cursor->peek();
@@ -189,16 +192,14 @@ class JsonFormat
 		}
 	}
 
-
 	public function write(
 		iterable      $records,
 		              $stream,
 		FormatOptions $options,
-	): int {
-
+	): int
+	{
 		return $this->writeDocument( [], null, null, $records, $stream, $options );
 	}
-
 
 	/**
 	 * Write a full backup document: header, optional config, then the records.
@@ -226,8 +227,8 @@ class JsonFormat
 		?iterable     $records,
 		              $stream,
 		FormatOptions $options,
-	): int {
-
+	): int
+	{
 		$flags = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
 			| ( $options->pretty
 				? JSON_PRETTY_PRINT
@@ -303,7 +304,6 @@ class JsonFormat
 		return $written;
 	}
 
-
 	/**
 	 * Write one array a row at a time, so its size never has to be known.
 	 *
@@ -317,8 +317,8 @@ class JsonFormat
 		iterable      $rows,
 		              $stream,
 		FormatOptions $options,
-	): int {
-
+	): int
+	{
 		$flags = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
 
 		$newline = $options->pretty
@@ -364,7 +364,6 @@ class JsonFormat
 		return $written;
 	}
 
-
 	/**
 	 * Encode one header value at the depth it sits at.
 	 *
@@ -377,8 +376,8 @@ class JsonFormat
 		mixed  $value,
 		int    $flags,
 		string $indent,
-	): string {
-
+	): string
+	{
 		$encoded = json_encode( $value, $flags );
 
 		if ( $indent === '' )
@@ -389,20 +388,15 @@ class JsonFormat
 		return str_replace( "\n", "\n" . $indent, $encoded );
 	}
 
-
 	public function carriesConfig(): bool
 	{
-
 		return true;
 	}
 
-
 	public function losses(): array
 	{
-
 		return [];
 	}
-
 
 	/**
 	 * Pull records out of the array the cursor is standing inside, one at a
@@ -413,8 +407,8 @@ class JsonFormat
 	private function readRecords(
 		JsonCursor    $cursor,
 		FormatOptions $options,
-	): Generator {
-
+	): Generator
+	{
 		$cursor->skipWhitespace();
 
 		if ( $cursor->peek() === ']' )
@@ -463,14 +457,11 @@ class JsonFormat
 		}
 	}
 
-
 	/**
 	 * @return Generator<HashRecord>
 	 */
 	private function emptyRecords(): Generator
 	{
-
 		yield from [];
 	}
-
 }

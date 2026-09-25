@@ -35,12 +35,16 @@ namespace OCA\FileChecksumSearch\Service;
 readonly class FileLocation
 {
 
+//  constants
+
 	public const NS_HOME = 'home';
 
 	public const NS_GROUPFOLDER = 'groupfolder';
 
 	public const NS_OTHER = 'other';
 
+
+//  constructor
 
 	public function __construct(
 		public int     $fileId,
@@ -62,6 +66,8 @@ readonly class FileLocation
 	}
 
 
+//  static methods
+
 	/**
 	 * Classify a filecache row into its namespace.
 	 */
@@ -70,8 +76,8 @@ readonly class FileLocation
 		string $storageId,
 		string $internalPath,
 		int    $mtime,
-	): self {
-
+	): self
+	{
 		// Home storages: home::<uid>, or object::user:<uid> when the primary
 		// storage is an object store.
 		foreach (
@@ -141,6 +147,8 @@ readonly class FileLocation
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * A human-readable address for log and console lines.
 	 *
@@ -150,17 +158,15 @@ readonly class FileLocation
 	 */
 	public function describe(): string
 	{
-
 		return match ( $this->namespace )
 		{
-			self::NS_HOME => '/' . $this->owner . '/' . $this->internalPath,
+			self::NS_HOME        => '/' . $this->owner . '/' . $this->internalPath,
 			self::NS_GROUPFOLDER => 'groupfolder:' . $this->groupFolderId
 				. ( $this->relativePath ?? '/' . $this->internalPath ),
 			default => 'storage:' . $this->storageId
 				. ( $this->relativePath ?? '/' . $this->internalPath ),
 		};
 	}
-
 
 	/**
 	 * Where the file lives on the server's disk, or null when it does not.
@@ -178,7 +184,6 @@ readonly class FileLocation
 	 */
 	public function localPath( ?string $homeDir ): ?string
 	{
-
 		if ( str_starts_with( $this->storageId, 'home::' ) )
 		{
 			return $homeDir === null
@@ -194,14 +199,12 @@ readonly class FileLocation
 		return null;
 	}
 
-
 	/**
 	 * The same location with its freshness stamp filled in — the sweep sets
 	 * it from the page query so the caller need not ask per file.
 	 */
 	public function withUpdatedAt( ?int $updatedAt ): self
 	{
-
 		return new self(
 			$this->fileId,
 			$this->storageId,
@@ -215,13 +218,11 @@ readonly class FileLocation
 		);
 	}
 
-
 	/**
 	 * The '/…' path below the files area, or null for rows outside it.
 	 */
 	private static function filesRelative( string $internalPath ): ?string
 	{
-
 		if ( $internalPath === 'files' )
 		{
 			return '/';
@@ -234,5 +235,4 @@ readonly class FileLocation
 
 		return null;
 	}
-
 }

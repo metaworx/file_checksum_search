@@ -32,9 +32,11 @@ use OCP\IUserSession;
  * listing and revoking are not, because neither widens anything.
  */
 class SudoTokensController
-	extends
-	Controller
+    extends
+    Controller
 {
+
+//  constructor
 
 	public function __construct(
 		string                             $appName,
@@ -43,11 +45,13 @@ class SudoTokensController
 		private readonly IGroupManager     $groupManager,
 		private readonly PermissionService $permissions,
 		private readonly SudoTokens        $sudoTokens,
-	) {
-
+	)
+	{
 		parent::__construct( $appName, $request );
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * The caller's app passwords, each with its grant if it has one.
@@ -63,7 +67,6 @@ class SudoTokensController
 	#[ApiRoute( verb: 'GET', url: '/settings/personal/sudo-tokens' )]
 	public function mine(): DataResponse
 	{
-
 		$uid = $this->userSession->getUser()?->getUID();
 
 		if ( $uid === null )
@@ -86,6 +89,8 @@ class SudoTokensController
 	}
 
 
+//  getters / setters / is* / has*
+
 	/**
 	 * Grant or revoke one of the caller's own app passwords. Body:
 	 * `{"granted": true|false}`.
@@ -97,7 +102,6 @@ class SudoTokensController
 	#[ApiRoute( verb: 'PUT', url: '/settings/personal/sudo-tokens/{id}' )]
 	public function setMine( int $id ): DataResponse
 	{
-
 		$uid = $this->userSession->getUser()?->getUID();
 
 		if ( $uid === null )
@@ -137,7 +141,6 @@ class SudoTokensController
 		] );
 	}
 
-
 	/**
 	 * Every grant on the instance, for the administrator's tab.
 	 *
@@ -146,10 +149,8 @@ class SudoTokensController
 	#[ApiRoute( verb: 'GET', url: '/settings/sudo-tokens' )]
 	public function all(): DataResponse
 	{
-
 		return new DataResponse( $this->allGrants() );
 	}
-
 
 	/**
 	 * Revoke anybody's grant. Revoking is never a widening, so it needs no
@@ -162,13 +163,12 @@ class SudoTokensController
 	public function revoke(
 		string $uid,
 		int    $id,
-	): DataResponse {
-
+	): DataResponse
+	{
 		$this->sudoTokens->revoke( $uid, $id );
 
 		return new DataResponse( $this->allGrants() );
 	}
-
 
 	/**
 	 * The administrator's listing, with whether it is one: `available` is
@@ -179,7 +179,6 @@ class SudoTokensController
 	 */
 	private function allGrants(): array
 	{
-
 		$grants = $this->sudoTokens->allGrants();
 
 		return [
@@ -188,16 +187,13 @@ class SudoTokensController
 		];
 	}
 
-
 	/**
 	 * Whether the account may use the API at all — the administrator always,
 	 * as everywhere else.
 	 */
 	private function mayUseApi( string $uid ): bool
 	{
-
 		return $this->groupManager->isAdmin( $uid )
 		       || $this->permissions->isAllowed( PermissionService::PERMISSION_API_ACCESS, $uid );
 	}
-
 }

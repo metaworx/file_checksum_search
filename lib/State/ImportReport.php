@@ -21,6 +21,8 @@ namespace OCA\FileChecksumSearch\State;
 class ImportReport
 {
 
+//  public properties
+
 	public int $written = 0;
 
 	/** Refused: the record is older than the file it describes. */
@@ -64,12 +66,13 @@ class ImportReport
 	public array $configNotPortable = [];
 
 
+//  other non-static methods
+
 	/**
 	 * @return array<string, int>
 	 */
 	public function toArray(): array
 	{
-
 		return [
 			'written'          => $this->written,
 			'skipped_outdated' => $this->skippedOutdated,
@@ -82,14 +85,11 @@ class ImportReport
 		];
 	}
 
-
 	/**
 	 * Whether anything at all reached storage.
 	 */
 	public function changedAnything(): bool
 	{
-
 		return $this->written > 0 || $this->overwritten > 0 || $this->configWritten > 0;
 	}
-
 }

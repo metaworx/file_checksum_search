@@ -20,9 +20,11 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
 class FindDuplicatesTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private MockObject|HashIndexService $hashIndexService;
 
@@ -34,9 +36,10 @@ class FindDuplicatesTest
 	private CommandTester               $tester;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->hashIndexService = $this->createMock( HashIndexService::class );
@@ -48,9 +51,10 @@ class FindDuplicatesTest
 	}
 
 
+//  other non-static methods
+
 	public function testReportsNoDuplicatesWhenNoneFound(): void
 	{
-
 		$this->hashIndexService->method( 'findAllDuplicates' )
 		                       ->willReturn( [] )
 		;
@@ -61,10 +65,8 @@ class FindDuplicatesTest
 		$this->assertStringContainsString( 'No duplicate files found.', $this->tester->getDisplay() );
 	}
 
-
 	public function testListsGroupsWithFilesAndPaths(): void
 	{
-
 		$this->hashIndexService->method( 'findAllDuplicates' )
 		                       ->with( 'sha1', 2, 100 )
 		                       ->willReturn( [
@@ -93,10 +95,8 @@ class FindDuplicatesTest
 		$this->assertStringContainsString( 'Docs/b.txt', $display );
 	}
 
-
 	public function testDropsGroupsBelowMinCountAfterPathResolution(): void
 	{
-
 		$this->hashIndexService->method( 'findAllDuplicates' )
 		                       ->willReturn( [
 			                       [
@@ -119,10 +119,8 @@ class FindDuplicatesTest
 		$this->assertStringContainsString( 'No duplicate files found.', $this->tester->getDisplay() );
 	}
 
-
 	public function testFailsWhenUserFilterDoesNotResolve(): void
 	{
-
 		$this->userManager->method( 'get' )
 		                  ->with( 'ghost' )
 		                  ->willReturn( null )
@@ -138,10 +136,8 @@ class FindDuplicatesTest
 		$this->assertStringContainsString( 'User "ghost" not found.', $this->tester->getDisplay() );
 	}
 
-
 	public function testUserFilterUsesLargeQueryLimitAndResolvedUid(): void
 	{
-
 		$user = $this->createMock( IUser::class );
 		$user->method( 'getUID' )
 		     ->willReturn( 'alice' )
@@ -160,10 +156,8 @@ class FindDuplicatesTest
 		$this->tester->execute( [ '--user' => 'alice' ] );
 	}
 
-
 	public function testJsonOutputFormat(): void
 	{
-
 		$this->hashIndexService->method( 'findAllDuplicates' )
 		                       ->willReturn( [
 			                       [
@@ -188,7 +182,6 @@ class FindDuplicatesTest
 		$this->assertSame( 'abc123', $decoded['duplicates'][0]['hash_value'] );
 	}
 
-
 	/**
 	 * A row nobody owns — a group folder's, an external storage's — is
 	 * carried as the API carries it, `owner` null, and printed by where it
@@ -197,7 +190,6 @@ class FindDuplicatesTest
 	 */
 	public function testAnOwnerlessRowIsPrintedByItsLocationAndCarriedAsTheApiCarriesIt(): void
 	{
-
 		$this->hashIndexService->method( 'findAllDuplicates' )
 		                       ->willReturn( [
 			                       [
@@ -229,10 +221,8 @@ class FindDuplicatesTest
 		$this->assertNull( $decoded['duplicates'][0]['files'][1]['owner'] );
 	}
 
-
 	public function testVerifyRecalculatesAndFlagsMismatches(): void
 	{
-
 		$this->hashIndexService->method( 'findAllDuplicates' )
 		                       ->willReturn( [
 			                       [
@@ -263,10 +253,8 @@ class FindDuplicatesTest
 		$this->assertStringContainsString( '✓', $display );
 	}
 
-
 	public function testVerifiedOptionFiltersOutMismatchedGroups(): void
 	{
-
 		$this->hashIndexService->method( 'findAllDuplicates' )
 		                       ->willReturn( [
 			                       [
@@ -296,5 +284,4 @@ class FindDuplicatesTest
 		// be filtered out entirely.
 		$this->assertStringContainsString( 'No duplicate files found.', $this->tester->getDisplay() );
 	}
-
 }

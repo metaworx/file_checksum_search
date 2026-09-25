@@ -46,9 +46,11 @@ use Throwable;
  * @noinspection PhpUnused
  */
 class PublicApiController
-	extends
-	ApiController
+    extends
+    ApiController
 {
+
+//  constructor
 
 	public function __construct(
 		string                           $appName,
@@ -65,11 +67,13 @@ class PublicApiController
 		private readonly PermissionService $permissions,
 		private readonly SudoConfirmation $confirmation,
 		private readonly IAppConfig      $appConfig,
-	) {
-
+	)
+	{
 		parent::__construct( $appName, $request );
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * Whose files a request may read: the caller's own, always.
@@ -93,7 +97,6 @@ class PublicApiController
 	 */
 	private function scopeOrRefusal(): string|DataResponse
 	{
-
 		$user = $this->userSession->getUser();
 
 		if ( $user === null )
@@ -132,6 +135,8 @@ class PublicApiController
 	}
 
 
+//  getters / setters / is* / has*
+
 	/**
 	 * Whether this request came from outside the app's own pages.
 	 *
@@ -144,11 +149,9 @@ class PublicApiController
 	 */
 	private function isApiRequest(): bool
 	{
-
 		return $this->session->get( 'app_password' ) !== null
 		       || $this->request->getHeader( 'Authorization' ) !== '';
 	}
-
 
 	/**
 	 * The scope a cross-account route may read, or the response to send
@@ -169,7 +172,6 @@ class PublicApiController
 	 */
 	private function sudoScopeOrRefusal(): array|null|DataResponse
 	{
-
 		$own = $this->scopeOrRefusal();
 
 		if ( $own instanceof DataResponse )
@@ -200,7 +202,6 @@ class PublicApiController
 		return $scope;
 	}
 
-
 	/**
 	 * The caller's own uid when they may act on one file that need not be
 	 * theirs, or the response to send instead.
@@ -217,7 +218,6 @@ class PublicApiController
 	 */
 	private function sudoFileOrRefusal( int $fileId ): string|DataResponse
 	{
-
 		$own = $this->scopeOrRefusal();
 
 		if ( $own instanceof DataResponse )
@@ -246,7 +246,6 @@ class PublicApiController
 		return $own;
 	}
 
-
 	/**
 	 * Say, on a cross-account answer, which rows the viewer could open.
 	 *
@@ -257,7 +256,6 @@ class PublicApiController
 	 */
 	private function markOpenable( DataResponse $response ): DataResponse
 	{
-
 		$viewer = $this->userSession->getUser()?->getUID();
 		$data   = $response->getData();
 
@@ -275,6 +273,7 @@ class PublicApiController
 			{
 				$row['openable'] = $openable[ (int) $row['fileid'] ] ?? false;
 			}
+
 			unset( $row );
 		}
 
@@ -298,8 +297,10 @@ class PublicApiController
 				{
 					$file['openable'] = $openable[ (int) $file['fileid'] ] ?? false;
 				}
+
 				unset( $file );
 			}
+
 			unset( $group );
 		}
 
@@ -307,7 +308,6 @@ class PublicApiController
 
 		return $response;
 	}
-
 
 	/**
 	 * The most $own may reach with nothing named: null for a sudoer (every
@@ -319,12 +319,10 @@ class PublicApiController
 	 */
 	private function ceilingOf( string $own ): ?array
 	{
-
 		$ceiling = $this->sudo->resolve( $own );
 
 		return $ceiling === false ? [] : $ceiling;
 	}
-
 
 	/**
 	 * A scope as the routes carry it — one account, several, or null — in
@@ -336,14 +334,12 @@ class PublicApiController
 	 */
 	private function reachOf( string|array|null $scope ): ?array
 	{
-
 		return match ( true ) {
 			$scope === null       => null,
 			is_string( $scope )   => [ $scope ],
 			default               => array_values( $scope ),
 		};
 	}
-
 
 	/**
 	 * The accounts a cross-account route may read when the caller names a
@@ -362,8 +358,8 @@ class PublicApiController
 	private function sudoSetOrRefusal(
 		array $users,
 		array $groups,
-	): array|DataResponse {
-
+	): array|DataResponse
+	{
 		$own = $this->scopeOrRefusal();
 
 		if ( $own instanceof DataResponse )
@@ -391,7 +387,6 @@ class PublicApiController
 
 		return $scope;
 	}
-
 
 	/**
 	 * Get all checksums for a file by filecache ID.
@@ -425,7 +420,6 @@ class PublicApiController
 	#[ApiRoute( verb: 'GET', url: '/api/v1/preferences/{key}' )]
 	public function getPreference( string $key ): DataResponse
 	{
-
 		$uid = $this->userSession->getUser()?->getUID();
 
 		if ( $uid === null )
@@ -441,7 +435,6 @@ class PublicApiController
 		return new DataResponse( $this->preferredAlgorithm( $uid ) );
 	}
 
-
 	/**
 	 * Set one of the caller's own preferences. The body is `{"value": …}`;
 	 * an empty value returns to the instance default.
@@ -452,7 +445,6 @@ class PublicApiController
 	#[ApiRoute( verb: 'PUT', url: '/api/v1/preferences/{key}' )]
 	public function setPreference( string $key ): DataResponse
 	{
-
 		$uid = $this->userSession->getUser()?->getUID();
 
 		if ( $uid === null )
@@ -495,13 +487,11 @@ class PublicApiController
 		return new DataResponse( $this->preferredAlgorithm( $uid ) );
 	}
 
-
 	/**
 	 * @return array{key: string, value: string, default: string, active: string}
 	 */
 	private function preferredAlgorithm( string $uid ): array
 	{
-
 		$stored  = $this->userConfig->getValueString( $uid, Application::APP_ID, ConfigLexicon::USER_PREFERRED_ALGORITHM );
 		$default = $this->catalogue->default();
 		// A stored preference the administrator has since disallowed is kept
@@ -516,19 +506,16 @@ class PublicApiController
 		];
 	}
 
-
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
 	#[ApiRoute( verb: 'GET', url: '/api/v1/algorithms' )]
 	public function getAlgorithms(): DataResponse
 	{
-
 		return new DataResponse( [
 			'algorithms' => $this->catalogue->algorithms(),
 			'default'    => $this->catalogue->default(),
 		] );
 	}
-
 
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
@@ -536,14 +523,12 @@ class PublicApiController
 	#[ApiRoute( verb: 'GET', url: '/api/v1/file/{fileId}/hashes', requirements: [ 'fileId' => '\d+' ] )]
 	public function getHashes( int $fileId ): DataResponse
 	{
-
 		$own = $this->scopeOrRefusal();
 
 		return $own instanceof DataResponse
 			? $own
 			: $this->hashesFor( $fileId, $own, [ $own ] );
 	}
-
 
 	/**
 	 * {@see getHashes()} for a file that need not be the caller's own. A
@@ -557,7 +542,6 @@ class PublicApiController
 	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/file/{fileId}/hashes', requirements: [ 'fileId' => '\d+' ] )]
 	public function sudoGetHashes( int $fileId ): DataResponse
 	{
-
 		$own = $this->sudoFileOrRefusal( $fileId );
 
 		// The caller is who is asking; their ceiling is what may be reached.
@@ -567,7 +551,6 @@ class PublicApiController
 			? $own
 			: $this->hashesFor( $fileId, $own, $this->ceilingOf( $own ) );
 	}
-
 
 	/**
 	 * The route's body, for either wrapper. $actingUser is who asked — the
@@ -579,8 +562,8 @@ class PublicApiController
 		int    $fileId,
 		string $actingUser,
 		?array $reachUids,
-	): DataResponse {
-
+	): DataResponse
+	{
 		$this->logger->debug(
 			'FCIAS PublicApiController: getHashes called',
 			[
@@ -621,7 +604,6 @@ class PublicApiController
 		}
 	}
 
-
 	/**
 	 * Read-only health/status snapshot.
 	 *
@@ -632,7 +614,6 @@ class PublicApiController
 	#[ApiRoute( verb: 'GET', url: '/api/v1/status' )]
 	public function getStatus(): DataResponse
 	{
-
 		$this->logger->debug(
 			'FCIAS PublicApiController: getStatus called',
 			[ 'app' => Application::APP_ID ],
@@ -661,7 +642,6 @@ class PublicApiController
 		}
 	}
 
-
 	/**
 	 * Find duplicate groups among the files the session user can reach.
 	 *
@@ -678,8 +658,8 @@ class PublicApiController
 		int     $offset = 0,
 		?string $hash = null,
 		bool    $anywhere = false,
-	): DataResponse {
-
+	): DataResponse
+	{
 		$scope = $this->scopeOrRefusal();
 
 		if ( $scope instanceof DataResponse )
@@ -703,7 +683,6 @@ class PublicApiController
 		return $response;
 	}
 
-
 	/**
 	 * {@see findAllDuplicates()} across accounts: the ones `users[]` and
 	 * `groups[]` name, or — with nothing named — the caller's ceiling, every
@@ -725,8 +704,8 @@ class PublicApiController
 		bool    $anywhere = false,
 		?array  $users = null,
 		?array  $groups = null,
-	): DataResponse {
-
+	): DataResponse
+	{
 		// One way to name whom, the one the picker sends. `user=` for a single
 		// account was a third encoding of the same idea and is gone: one
 		// account is a set of one.
@@ -742,7 +721,6 @@ class PublicApiController
 			: $this->markOpenable( $this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere ) );
 	}
 
-
 	/**
 	 * The listing's body, for either wrapper: $scope is whose files — a
 	 * uid, or null for every account.
@@ -755,8 +733,8 @@ class PublicApiController
 		int     $offset,
 		?string $hash = null,
 		bool    $anywhere = false,
-	): DataResponse {
-
+	): DataResponse
+	{
 		// One account, several or every: the API takes a list or null, and
 		// the normalising happens here, once, rather than in each caller.
 		$reachUids = $this->reachOf( $scope );
@@ -795,7 +773,6 @@ class PublicApiController
 		}
 	}
 
-
 	/**
 	 * Find files sharing hash values with a given file.
 	 *
@@ -807,14 +784,12 @@ class PublicApiController
 	#[ApiRoute( verb: 'GET', url: '/api/v1/file/{fileId}/duplicates', requirements: [ 'fileId' => '\d+' ] )]
 	public function findDuplicates( int $fileId ): DataResponse
 	{
-
 		$own = $this->scopeOrRefusal();
 
 		return $own instanceof DataResponse
 			? $own
 			: $this->sameHashFor( $fileId, [ $own ] );
 	}
-
 
 	/**
 	 * {@see findDuplicates()} for a file that need not be the caller's own,
@@ -830,7 +805,6 @@ class PublicApiController
 	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/file/{fileId}/duplicates', requirements: [ 'fileId' => '\d+' ] )]
 	public function sudoFindDuplicates( int $fileId ): DataResponse
 	{
-
 		$own = $this->sudoFileOrRefusal( $fileId );
 
 		// The ceiling bounds the *duplicates* as well as the reference file:
@@ -841,14 +815,12 @@ class PublicApiController
 			: $this->markOpenable( $this->sameHashFor( $fileId, $this->ceilingOf( $own ) ) );
 	}
 
-
 	/**
 	 * The route's body, for either wrapper: $reachUids is whose files may
 	 * be read — the caller's own, their members', or null for every account.
 	 */
 	private function sameHashFor( int $fileId, ?array $reachUids ): DataResponse
 	{
-
 		$this->logger->debug(
 			'FCIAS PublicApiController: findDuplicates (per-file) called',
 			[
@@ -885,7 +857,6 @@ class PublicApiController
 		}
 	}
 
-
 	/**
 	 * Search files by hash value.
 	 *
@@ -901,14 +872,12 @@ class PublicApiController
 		int     $limit = 100,
 	): DataResponse
 	{
-
 		$scope = $this->scopeOrRefusal();
 
 		return $scope instanceof DataResponse
 			? $scope
 			: $this->lookupFor( $hash, $algo, $limit, $scope );
 	}
-
 
 	/**
 	 * The groups and accounts the caller may name on the cross-account
@@ -932,7 +901,6 @@ class PublicApiController
 	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/selectable' )]
 	public function sudoSelectable( ?string $search = null ): DataResponse
 	{
-
 		$own = $this->scopeOrRefusal();
 
 		if ( $own instanceof DataResponse )
@@ -968,7 +936,6 @@ class PublicApiController
 		return new DataResponse( $offer );
 	}
 
-
 	/**
 	 * {@see lookup()} across every account. A password confirmation, and only
 	 * for those who may look across accounts.
@@ -985,7 +952,6 @@ class PublicApiController
 		int     $limit = 100,
 	): DataResponse
 	{
-
 		$scope = $this->sudoScopeOrRefusal();
 
 		return $scope instanceof DataResponse
@@ -993,14 +959,12 @@ class PublicApiController
 			: $this->markOpenable( $this->lookupFor( $hash, $algo, $limit, $scope ) );
 	}
 
-
 	/**
 	 * The route's body, for either wrapper: $scope is whose files may be
 	 * read — a uid, a list of them, or null for every account.
 	 */
 	private function lookupFor( string $hash, ?string $algo, int $limit, string|array|null $scope ): DataResponse
 	{
-
 		$this->logger->debug(
 			'FCIAS PublicApiController: lookup called',
 			[
@@ -1039,7 +1003,6 @@ class PublicApiController
 		}
 	}
 
-
 	/**
 	 * Recalculate hash for a file.
 	 *
@@ -1056,14 +1019,12 @@ class PublicApiController
 	#[ApiRoute( verb: 'POST', url: '/api/v1/file/{fileId}/recalc', requirements: [ 'fileId' => '\d+' ] )]
 	public function recalcHash( int $fileId ): DataResponse
 	{
-
 		$scope = $this->scopeOrRefusal();
 
 		return $scope instanceof DataResponse
 			? $scope
 			: $this->recalcFor( $fileId, $scope, [ $scope ] );
 	}
-
 
 	/**
 	 * {@see recalcHash()} for a file that need not be the caller's own.
@@ -1086,7 +1047,6 @@ class PublicApiController
 	#[ApiRoute( verb: 'POST', url: '/api/v1/sudo/file/{fileId}/recalc', requirements: [ 'fileId' => '\d+' ] )]
 	public function sudoRecalcHash( int $fileId ): DataResponse
 	{
-
 		$scope = $this->sudoFileOrRefusal( $fileId );
 
 		if ( $scope instanceof DataResponse )
@@ -1110,7 +1070,6 @@ class PublicApiController
 		return $this->recalcFor( $fileId, $scope, $this->ceilingOf( $scope ) );
 	}
 
-
 	/**
 	 * Recalculate several files in one request.
 	 *
@@ -1133,14 +1092,12 @@ class PublicApiController
 	#[ApiRoute( verb: 'POST', url: '/api/v1/file/many/recalc' )]
 	public function recalcMany(): DataResponse
 	{
-
 		$own = $this->scopeOrRefusal();
 
 		return $own instanceof DataResponse
 			? $own
 			: $this->recalcManyFor( $own, [ $own ] );
 	}
-
 
 	/**
 	 * {@see recalcMany()} across the caller's whole reach. The reach is
@@ -1157,7 +1114,6 @@ class PublicApiController
 	#[ApiRoute( verb: 'POST', url: '/api/v1/sudo/file/many/recalc' )]
 	public function sudoRecalcMany(): DataResponse
 	{
-
 		$scope = $this->sudoScopeOrRefusal();
 
 		if ( $scope instanceof DataResponse )
@@ -1178,15 +1134,14 @@ class PublicApiController
 		return $this->recalcManyFor( $own, $scope );
 	}
 
-
 	/**
 	 * The batch route's body, for either wrapper.
 	 */
 	private function recalcManyFor(
 		string $actingUser,
 		?array $reachUids,
-	): DataResponse {
-
+	): DataResponse
+	{
 		$body    = json_decode( (string) file_get_contents( 'php://input' ), true );
 		$fileIds = is_array( $body ) && is_array( $body['fileIds'] ?? null )
 			? array_values( array_filter( $body['fileIds'], 'is_int' ) )
@@ -1224,7 +1179,6 @@ class PublicApiController
 		}
 	}
 
-
 	/**
 	 * The route's body, for either wrapper. $actingUser is who asked —
 	 * always the session's account, never anything a client sent — and
@@ -1235,8 +1189,8 @@ class PublicApiController
 		int    $fileId,
 		string $actingUser,
 		?array $reachUids,
-	): DataResponse {
-
+	): DataResponse
+	{
 		$body = json_decode( file_get_contents( 'php://input' ), true );
 		$algo = is_array( $body )
 			? ( $body['algo'] ?? null )
@@ -1297,5 +1251,4 @@ class PublicApiController
 			);
 		}
 	}
-
 }

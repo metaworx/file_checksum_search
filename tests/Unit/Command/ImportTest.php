@@ -29,9 +29,11 @@ use Symfony\Component\Console\Tester\CommandTester;
  * anything — and the two it refuses to make on the operator's behalf.
  */
 class ImportTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private ImportService&MockObject $importService;
 
@@ -40,9 +42,10 @@ class ImportTest
 	private string                   $file;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->importService = $this->createMock( ImportService::class );
@@ -56,14 +59,14 @@ class ImportTest
 	}
 
 
+//  other non-static methods
+
 	protected function tearDown(): void
 	{
-
 		@unlink( $this->file );
 
 		parent::tearDown();
 	}
-
 
 	/**
 	 * There is no safe default: merging keeps what this instance worked out
@@ -72,7 +75,6 @@ class ImportTest
 	 */
 	public function testOneOfMergeOrReplaceIsRequired(): void
 	{
-
 		$this->importService->expects( $this->never() )
 		                    ->method( 'import' )
 		;
@@ -81,10 +83,8 @@ class ImportTest
 		$this->assertStringContainsString( '--merge', $this->tester->getDisplay() );
 	}
 
-
 	public function testBothAtOnceIsAlsoRefused(): void
 	{
-
 		$this->importService->expects( $this->never() )
 		                    ->method( 'import' )
 		;
@@ -101,14 +101,12 @@ class ImportTest
 		);
 	}
 
-
 	/**
 	 * The queue says what this instance is about to do. It is worked out
 	 * from the rules and the files, so there is nothing to restore.
 	 */
 	public function testTheStatusSliceIsRefusedWithItsReason(): void
 	{
-
 		$this->importService->expects( $this->never() )
 		                    ->method( 'import' )
 		;
@@ -126,10 +124,8 @@ class ImportTest
 		$this->assertStringContainsString( 'cannot be imported', $this->tester->getDisplay() );
 	}
 
-
 	public function testASumfileWithoutAnAlgorithmIsRefused(): void
 	{
-
 		$this->importService->expects( $this->never() )
 		                    ->method( 'import' )
 		;
@@ -147,10 +143,8 @@ class ImportTest
 		$this->assertStringContainsString( '--algo', $this->tester->getDisplay() );
 	}
 
-
 	public function testAnchoringToBothAUserAndAStorageIsRefused(): void
 	{
-
 		$this->importService->expects( $this->never() )
 		                    ->method( 'import' )
 		;
@@ -168,10 +162,8 @@ class ImportTest
 		);
 	}
 
-
 	public function testAnUnknownStampPolicyIsRefused(): void
 	{
-
 		$this->importService->expects( $this->never() )
 		                    ->method( 'import' )
 		;
@@ -188,10 +180,8 @@ class ImportTest
 		);
 	}
 
-
 	public function testAnUnreadableInputFails(): void
 	{
-
 		$this->importService->expects( $this->never() )
 		                    ->method( 'import' )
 		;
@@ -208,15 +198,14 @@ class ImportTest
 		$this->assertStringContainsString( 'Cannot read', $this->tester->getDisplay() );
 	}
 
-
 	/**
 	 * @dataProvider guessableNames
 	 */
 	public function testTheFilenameChoosesTheFormat(
 		string $suffix,
 		string $expected,
-	): void {
-
+	): void
+	{
 		$path = $this->file . $suffix;
 		file_put_contents( $path, '' );
 
@@ -237,12 +226,13 @@ class ImportTest
 	}
 
 
+//  static methods
+
 	/**
 	 * @return array<string, array{string, class-string}>
 	 */
 	public static function guessableNames(): array
 	{
-
 		return [
 			'json' => [
 				'',
@@ -259,10 +249,8 @@ class ImportTest
 		];
 	}
 
-
 	public function testThePolicyReachesTheServiceAsWritten(): void
 	{
-
 		$this->expectCall(
 			$this->anything(),
 			$this->callback(
@@ -288,13 +276,11 @@ class ImportTest
 		);
 	}
 
-
 	/**
 	 * Naming neither slice takes both, the way the backup takes all three.
 	 */
 	public function testNamingNoSliceImportsBoth(): void
 	{
-
 		$this->importService = $this->createMock( ImportService::class );
 		$this->importService->expects( $this->once() )
 		                    ->method( 'import' )
@@ -318,7 +304,6 @@ class ImportTest
 		);
 	}
 
-
 	/**
 	 * A hash table has nowhere to put configuration, so "everything the file
 	 * could hold" is the hashes alone. Defaulting to both regardless made a
@@ -327,7 +312,6 @@ class ImportTest
 	 */
 	public function testAHashOnlyFormatDefaultsToHashesAlone(): void
 	{
-
 		$this->importService = $this->createMock( ImportService::class );
 		$this->importService->expects( $this->once() )
 		                    ->method( 'import' )
@@ -353,10 +337,8 @@ class ImportTest
 		);
 	}
 
-
 	public function testNamingOneSliceLeavesTheOtherOut(): void
 	{
-
 		$this->importService = $this->createMock( ImportService::class );
 		$this->importService->expects( $this->once() )
 		                    ->method( 'import' )
@@ -381,7 +363,6 @@ class ImportTest
 		);
 	}
 
-
 	/**
 	 * A policy that asserts more than its data supports should say so, since
 	 * nothing downstream will ever notice if it is wrong.
@@ -391,8 +372,8 @@ class ImportTest
 	public function testAPolicyThatOverstatesItsEvidenceWarns(
 		string $option,
 		string $expected,
-	): void {
-
+	): void
+	{
 		$this->tester->execute(
 			[
 				'--merge' => true,
@@ -406,13 +387,11 @@ class ImportTest
 		$this->assertStringContainsString( $expected, $this->tester->getDisplay() );
 	}
 
-
 	/**
 	 * @return array<string, array{string, string}>
 	 */
 	public static function overstatingPolicies(): array
 	{
-
 		return [
 			'stamp=now'   => [
 				'--stamp',
@@ -425,10 +404,8 @@ class ImportTest
 		];
 	}
 
-
 	public function testADryRunSaysSo(): void
 	{
-
 		$this->tester->execute(
 			[
 				'--merge'   => true,
@@ -440,10 +417,8 @@ class ImportTest
 		$this->assertStringContainsString( 'nothing was written', $this->tester->getDisplay() );
 	}
 
-
 	public function testRefusedConfigKeysAreNamed(): void
 	{
-
 		$report                = new ImportReport();
 		$report->configWritten = 1;
 		$report->configRefused = [ 'from_a_newer_version' ];
@@ -464,12 +439,11 @@ class ImportTest
 		$this->assertStringContainsString( 'from_a_newer_version', $this->tester->getDisplay() );
 	}
 
-
 	private function expectCall(
 		mixed $format,
 		mixed $policy,
-	): void {
-
+	): void
+	{
 		$this->importService = $this->createMock( ImportService::class );
 		$this->importService->expects( $this->once() )
 		                    ->method( 'import' )
@@ -486,10 +460,8 @@ class ImportTest
 		$this->rebuild();
 	}
 
-
 	private function rebuild(): void
 	{
-
 		$this->tester = new CommandTester(
 			new Import(
 				$this->importService,
@@ -498,5 +470,4 @@ class ImportTest
 			),
 		);
 	}
-
 }

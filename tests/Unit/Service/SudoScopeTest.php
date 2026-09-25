@@ -19,9 +19,11 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 class SudoScopeTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private IGroupManager&MockObject     $groups;
 
@@ -36,9 +38,10 @@ class SudoScopeTest
 	private SudoScope                    $scope;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->groups      = $this->createMock( IGroupManager::class );
@@ -62,9 +65,10 @@ class SudoScopeTest
 	}
 
 
+//  other non-static methods
+
 	public function testAMemberOfAdminIsASudoerWhateverThePermissionSays(): void
 	{
-
 		$this->groups->method( 'isAdmin' )
 		             ->with( 'root' )
 		             ->willReturn( true )
@@ -77,10 +81,8 @@ class SudoScopeTest
 		$this->assertNull( $this->scope->resolve( 'root' ), 'everyone' );
 	}
 
-
 	public function testThePermissionMakesASudoerOfAnybodyItNames(): void
 	{
-
 		$this->groups->method( 'isAdmin' )
 		             ->willReturn( false )
 		;
@@ -91,7 +93,6 @@ class SudoScopeTest
 
 		$this->assertNull( $this->scope->resolve( 'lead' ) );
 	}
-
 
 	/**
 	 * Core's own delegation: a sub-admin's ceiling is the members of the
@@ -105,7 +106,6 @@ class SudoScopeTest
 	 */
 	public function testASubAdminsCeilingIsTheirMembersAndNobodyElse(): void
 	{
-
 		$this->groups->method( 'isAdmin' )
 		             ->willReturn( false )
 		;
@@ -124,10 +124,8 @@ class SudoScopeTest
 		$this->assertSame( [ 'member', 'mate' ], $this->scope->resolve( 'lead' ), 'their ceiling, without the administrator' );
 	}
 
-
 	public function testEveryoneElseIsRefused(): void
 	{
-
 		$this->groups->method( 'isAdmin' )
 		             ->willReturn( false )
 		;
@@ -142,9 +140,7 @@ class SudoScopeTest
 		$this->assertFalse( $this->scope->resolve( 'stranger' ) );
 	}
 
-
 	// ─── mayCross: may they cross at all ────────────────────────────
-
 	/**
 	 * The entry question is wider than the ceiling question. `isSudoer()`
 	 * asks "may they see everyone", which a group leader may not; `mayCross()`
@@ -153,7 +149,6 @@ class SudoScopeTest
 	 */
 	public function testASubAdminMayCrossThoughTheyAreNoSudoer(): void
 	{
-
 		$this->asSubAdminOf( 'team' );
 
 		$this->assertFalse( $this->scope->isSudoer( 'lead' ) );
@@ -161,7 +156,6 @@ class SudoScopeTest
 		$this->assertFalse( $this->scope->mayCross( 'member' ) );
 		$this->assertFalse( $this->scope->mayCross( 'ghost' ), 'an account that does not exist' );
 	}
-
 
 	/**
 	 * Core's `isSubAdmin()` is wider than the ceiling: it says yes to a
@@ -173,7 +167,6 @@ class SudoScopeTest
 	 */
 	public function testAnAccountWithNoCeilingMayNotCrossWhateverCoreCallsThem(): void
 	{
-
 		$this->groups->method( 'isAdmin' )
 		             ->willReturn( false )
 		;
@@ -190,10 +183,8 @@ class SudoScopeTest
 		$this->assertFalse( $this->scope->mayCross( 'lead' ) );
 	}
 
-
 	public function testASudoerMayCrossWithoutCoreBeingAsked(): void
 	{
-
 		$this->asSudoer();
 
 		$this->subAdmin->expects( $this->never() )
@@ -203,17 +194,15 @@ class SudoScopeTest
 		$this->assertTrue( $this->scope->mayCross( 'root' ) );
 	}
 
-
 	// ─── resolveSet: naming several at once ─────────────────────────
-
 	/**
 	 * @return \OCP\IGroup&MockObject
 	 */
 	private function group(
 		string $gid,
 		array  $memberUids = [],
-	) {
-
+	)
+	{
 		// A display name too: IUser::getDisplayName() carries no return type
 		// in OCP, so an unconfigured mock answers null where a real account
 		// always answers a string, and a search that reads it would trip on
@@ -230,15 +219,12 @@ class SudoScopeTest
 		] );
 	}
 
-
 	private function asSudoer(): void
 	{
-
 		$this->groups->method( 'isAdmin' )
 		             ->willReturn( true )
 		;
 	}
-
 
 	/**
 	 * `lead` administers $gid, whose members are $members. Core's answer to
@@ -248,8 +234,8 @@ class SudoScopeTest
 	private function asSubAdminOf(
 		string $gid,
 		array  $members = [ 'member' ],
-	): void {
-
+	): void
+	{
 		$this->groups->method( 'isAdmin' )
 		             ->willReturn( false )
 		;
@@ -271,10 +257,8 @@ class SudoScopeTest
 		;
 	}
 
-
 	public function testASudoerMayNameAnyoneAndGroupsAreExpandedServerSide(): void
 	{
-
 		$this->asSudoer();
 		$this->groups->method( 'get' )
 		             ->with( 'team' )
@@ -287,7 +271,6 @@ class SudoScopeTest
 		);
 	}
 
-
 	/**
 	 * Through the group as by name, the administrator in it is not theirs:
 	 * named, they are refused; named through the group, they are left out.
@@ -298,7 +281,6 @@ class SudoScopeTest
 	 */
 	public function testASubAdminMayNameTheirOwnGroupAndItsMembers(): void
 	{
-
 		$this->asSubAdminOf( 'team', [ 'member', 'boss' ] );
 		$this->groups->method( 'get' )
 		             ->with( 'team' )
@@ -310,14 +292,12 @@ class SudoScopeTest
 		$this->assertFalse( $this->scope->resolveSet( 'lead', [ 'boss' ], [] ), 'the administrator by name' );
 	}
 
-
 	/**
 	 * The whole request is refused rather than quietly narrowed: a listing
 	 * that answers for fewer accounts than were asked for hides the refusal.
 	 */
 	public function testOneUnreachableTargetRefusesTheWholeSet(): void
 	{
-
 		$this->asSubAdminOf( 'team' );
 		$this->groups->method( 'get' )
 		             ->willReturnCallback( fn ( string $gid ) => $this->group( $gid, [ 'member' ] ) )
@@ -328,15 +308,12 @@ class SudoScopeTest
 		$this->assertFalse( $this->scope->resolveSet( 'lead', [ 'nobody' ], [] ), 'an account that does not exist' );
 	}
 
-
 	public function testNamingNobodyIsAnEmptySetNotARefusal(): void
 	{
-
 		$this->asSudoer();
 
 		$this->assertSame( [], $this->scope->resolveSet( 'root', [], [] ) );
 	}
-
 
 	/**
 	 * For an account that may not cross at all, nobody named is still a
@@ -346,7 +323,6 @@ class SudoScopeTest
 	 */
 	public function testAnAccountThatMayNotCrossIsRefusedEvenAnEmptySet(): void
 	{
-
 		$this->asSubAdminOf( 'team' );
 
 		$this->assertFalse( $this->scope->resolveSet( 'member', [], [] ), 'a plain account' );
@@ -354,9 +330,7 @@ class SudoScopeTest
 		$this->assertSame( [], $this->scope->resolveSet( 'lead', [], [] ), 'a leader, who may' );
 	}
 
-
 	// ─── selectableFor: what the picker may offer ───────────────────
-
 	/**
 	 * Typing a member's name finds the member whether or not the name of
 	 * the group they are in matches too. It did not: the groups were
@@ -366,7 +340,6 @@ class SudoScopeTest
 	 */
 	public function testALeadersSearchFindsAMemberByNameAloneAndGroupsByTheirs(): void
 	{
-
 		$this->asSubAdminOf( 'team', [ 'member', 'mate' ] );
 
 		$byMember = $this->scope->selectableFor( 'lead', 'memb', 21 );
@@ -380,14 +353,12 @@ class SudoScopeTest
 		$this->assertSame( [], $byGroup['users'], 'no member is called that' );
 	}
 
-
 	/**
 	 * The picker offers what {@see SudoScope::resolveSet()} will accept and
 	 * nothing more, so the administrator in the group is not on it either.
 	 */
 	public function testASubAdminIsOfferedOnlyTheirOwnGroupsAndMembers(): void
 	{
-
 		$this->asSubAdminOf( 'team', [ 'member', 'boss' ] );
 
 		$offer = $this->scope->selectableFor( 'lead', null, 21 );
@@ -397,10 +368,8 @@ class SudoScopeTest
 		$this->assertSame( [ 'member' ], array_column( $offer['users'], 'id' ), 'without the administrator' );
 	}
 
-
 	public function testAnAccountThatAdministersNothingIsOfferedNothing(): void
 	{
-
 		$this->groups->method( 'isAdmin' )
 		             ->willReturn( false )
 		;
@@ -414,14 +383,12 @@ class SudoScopeTest
 		$this->assertFalse( $this->scope->selectableFor( 'stranger', null, 21 ) );
 	}
 
-
 	/**
 	 * One past the threshold is fetched: its presence is what says the list
 	 * is too long to hold, so the client must search instead. No count query.
 	 */
 	public function testMoreThanTheThresholdTurnsPrefillOff(): void
 	{
-
 		$this->asSudoer();
 		$this->groups->method( 'search' )
 		             ->with( '', 3 )
@@ -442,15 +409,12 @@ class SudoScopeTest
 		$this->assertCount( 2, $offer['users'], 'and the overflow row is not handed out' );
 	}
 
-
 	// ─── mayReachFile: asking about a file, not an account ───────────
-
 	/**
 	 * A sudoer reaches anything, and the resolver is never consulted.
 	 */
 	public function testASudoerReachesAnyFile(): void
 	{
-
 		$this->asSudoer();
 
 		$this->reach->expects( $this->never() )
@@ -459,7 +423,6 @@ class SudoScopeTest
 
 		$this->assertTrue( $this->scope->mayReachFile( 'root', 42 ) );
 	}
-
 
 	/**
 	 * A group leader reaches a file within their ceiling's mounts and not
@@ -470,7 +433,6 @@ class SudoScopeTest
 	 */
 	public function testASubAdminReachesWhatLiesWithinTheirMembersMounts(): void
 	{
-
 		$this->asSubAdminOf( 'team' );
 
 		$mounts = [ [ 'storage' => 9, 'root' => 'files/Projects/x' ] ];
@@ -487,14 +449,12 @@ class SudoScopeTest
 		$this->assertFalse( $this->scope->mayReachFile( 'lead', 43 ), 'beside it' );
 	}
 
-
 	/**
 	 * No ceiling, no reach: a plain account and an unknown one are refused
 	 * before the resolver is asked anything.
 	 */
 	public function testAnAccountWithNoCeilingReachesNoFile(): void
 	{
-
 		$this->asSubAdminOf( 'team' );
 
 		$this->reach->expects( $this->never() )
@@ -504,5 +464,4 @@ class SudoScopeTest
 		$this->assertFalse( $this->scope->mayReachFile( 'member', 42 ) );
 		$this->assertFalse( $this->scope->mayReachFile( 'ghost', 42 ) );
 	}
-
 }

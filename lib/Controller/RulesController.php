@@ -52,15 +52,18 @@ use Throwable;
  * @noinspection PhpUnused
  */
 class RulesController
-	extends
-	ApiController
+    extends
+    ApiController
 {
 
-// constants
+//  constants
+
 	private const SCOPE_OWN = 'own';
 
 	private const SCOPE_ALL = 'all';
 
+
+//  constructor
 
 	public function __construct(
 		string                                   $appName,
@@ -76,11 +79,13 @@ class RulesController
 		private readonly FilecacheService        $filecacheService,
 		private readonly LoggerInterface         $logger,
 		private readonly AlgorithmCatalogue      $catalogue,
-	) {
-
+	)
+	{
 		parent::__construct( $appName, $request );
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * List rules, in evaluation order.
@@ -92,7 +97,6 @@ class RulesController
 	#[ApiRoute( verb: 'GET', url: '/api/v1/rules' )]
 	public function index(): DataResponse
 	{
-
 		$userId = $this->currentUserId();
 
 		if ( $userId === null )
@@ -170,7 +174,6 @@ class RulesController
 		return new DataResponse( $payload );
 	}
 
-
 	/**
 	 * Create a rule.
 	 *
@@ -180,7 +183,6 @@ class RulesController
 	#[ApiRoute( verb: 'POST', url: '/api/v1/rules' )]
 	public function create(): DataResponse
 	{
-
 		$context = $this->authorizeWrite();
 
 		if ( $context instanceof DataResponse )
@@ -193,7 +195,7 @@ class RulesController
 			'isAdmin' => $isAdmin,
 			'body'    => $body,
 		]
-			= $context;
+			 = $context;
 
 		try
 		{
@@ -228,7 +230,6 @@ class RulesController
 		}
 	}
 
-
 	/**
 	 * Update a rule. Enabling or disabling one is an update of `enabled`;
 	 * there is no separate toggle endpoint.
@@ -246,7 +247,6 @@ class RulesController
 	)]
 	public function update( string $id ): DataResponse
 	{
-
 		$userId = $this->currentUserId();
 
 		if ( $userId === null )
@@ -306,7 +306,6 @@ class RulesController
 		}
 	}
 
-
 	/**
 	 * Delete a rule.
 	 *
@@ -320,7 +319,6 @@ class RulesController
 	)]
 	public function destroy( string $id ): DataResponse
 	{
-
 		$userId = $this->currentUserId();
 
 		if ( $userId === null )
@@ -353,7 +351,6 @@ class RulesController
 		}
 	}
 
-
 	/**
 	 * Queue a full apply pass for one rule: every file it currently governs
 	 * is marked for background hashing, uncapped.
@@ -376,7 +373,6 @@ class RulesController
 	)]
 	public function apply( string $id ): DataResponse
 	{
-
 		$userId = $this->currentUserId();
 
 		if ( $userId === null )
@@ -424,7 +420,6 @@ class RulesController
 		);
 	}
 
-
 	/**
 	 * Reorder one segment partition.
 	 *
@@ -438,7 +433,6 @@ class RulesController
 	#[ApiRoute( verb: 'PUT', url: '/api/v1/rules/order' )]
 	public function reorder(): DataResponse
 	{
-
 		$context = $this->authorizeWrite();
 
 		if ( $context instanceof DataResponse )
@@ -451,7 +445,7 @@ class RulesController
 			'isAdmin' => $isAdmin,
 			'body'    => $body,
 		]
-			= $context;
+			 = $context;
 
 		$selector   = $body['selector'] ?? null;
 		$defaults   = (bool) ( $body['defaults'] ?? false );
@@ -491,7 +485,6 @@ class RulesController
 		}
 	}
 
-
 	/**
 	 * Whether this caller may change this rule.
 	 */
@@ -499,8 +492,8 @@ class RulesController
 		string $userId,
 		bool   $isAdmin,
 		array  $rule,
-	): bool {
-
+	): bool
+	{
 		if ( $isAdmin )
 		{
 			return true;
@@ -510,17 +503,15 @@ class RulesController
 			&& $this->ruleService->canUserMutateRule( $userId, $rule );
 	}
 
-
 	/**
 	 * @return string[]
 	 */
 	private function allUserIds(): array
 	{
-
 		$users = [];
 
 		$this->userManager->callForAllUsers(
-			static function (
+			static function(
 				$user,
 			) use
 			(
@@ -528,7 +519,6 @@ class RulesController
 				$users,
 			): void
 			{
-
 				$users[] = $user->getUID();
 			},
 		);
@@ -536,13 +526,11 @@ class RulesController
 		return $users;
 	}
 
-
 	/**
 	 * @return string[]
 	 */
 	private function allGroupIds(): array
 	{
-
 		return array_values(
 			array_map(
 				static fn(
@@ -552,7 +540,6 @@ class RulesController
 			),
 		);
 	}
-
 
 	/**
 	 * The checks create() and reorder() both open with: who is asking, may
@@ -568,7 +555,6 @@ class RulesController
 	 */
 	private function authorizeWrite(): array|DataResponse
 	{
-
 		$userId = $this->currentUserId();
 
 		if ( $userId === null )
@@ -597,17 +583,14 @@ class RulesController
 		];
 	}
 
-
 	private function decodeBody(): ?array
 	{
-
 		$body = json_decode( $this->readRequestBody(), true );
 
 		return is_array( $body )
 			? $body
 			: null;
 	}
-
 
 	/**
 	 * Read the raw HTTP request body.
@@ -617,23 +600,18 @@ class RulesController
 	 */
 	protected function readRequestBody(): string
 	{
-
 		return file_get_contents( 'php://input' );
 	}
 
-
 	private function currentUserId(): ?string
 	{
-
 		return $this->userSession->getUser()
 		                         ?->getUID()
 		;
 	}
 
-
 	private function unauthorized(): DataResponse
 	{
-
 		return new DataResponse(
 			[
 				'success' => false,
@@ -643,10 +621,8 @@ class RulesController
 		);
 	}
 
-
 	private function forbidden( string $message = 'You are not allowed to manage this rule.' ): DataResponse
 	{
-
 		return new DataResponse(
 			[
 				'success' => false,
@@ -656,10 +632,8 @@ class RulesController
 		);
 	}
 
-
 	private function notFound(): DataResponse
 	{
-
 		return new DataResponse(
 			[
 				'success' => false,
@@ -669,10 +643,8 @@ class RulesController
 		);
 	}
 
-
 	private function badRequest( string $message ): DataResponse
 	{
-
 		return new DataResponse(
 			[
 				'success' => false,
@@ -682,12 +654,11 @@ class RulesController
 		);
 	}
 
-
 	private function serverError(
 		string    $operation,
 		Throwable $e,
-	): DataResponse {
-
+	): DataResponse
+	{
 		$this->logger->error(
 			'FCIAS RulesController: ' . $operation . ' failed',
 			[
@@ -710,5 +681,4 @@ class RulesController
 			Http::STATUS_INTERNAL_SERVER_ERROR,
 		);
 	}
-
 }

@@ -18,16 +18,17 @@ use Symfony\Component\Console\Output\OutputInterface;
  * @noinspection PhpUnused
  */
 class ModifyRule
-	extends
-	RulesCommandBase
+    extends
+    RulesCommandBase
 {
+
+//  config/init/exe/run methods
 
 	/**
 	 * @noinspection PhpUnused
 	 */
 	protected function configure(): void
 	{
-
 		$this->setName( 'file-checksum-search:rules:modify' )
 		     ->setAliases( [ 'fcias:rules:modify' ] )
 		     ->setDescription( 'Change a hash generation rule; omitted options keep their value' )
@@ -35,7 +36,6 @@ class ModifyRule
 		     ->addRuleFieldOptions()
 		;
 	}
-
 
 	/**
 	 * A JsonException from the rule store bubbles to Symfony's error
@@ -47,8 +47,8 @@ class ModifyRule
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
-	): int {
-
+	): int
+	{
 		$id       = (string) $input->getArgument( 'id' );
 		$existing = $this->resolveRule( $id, $output );
 
@@ -106,5 +106,4 @@ class ModifyRule
 
 		return self::SUCCESS;
 	}
-
 }

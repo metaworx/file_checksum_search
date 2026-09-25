@@ -25,9 +25,11 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
 class FileListenerTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private MockObject|FilecacheService $filecacheService;
 
@@ -41,9 +43,10 @@ class FileListenerTest
 	private FileListener               $listener;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->filecacheService = $this->createMock( FilecacheService::class );
@@ -60,9 +63,10 @@ class FileListenerTest
 	}
 
 
+//  other non-static methods
+
 	public function testOnWriteDropsStaleHashesForAFileTheRulesNoLongerMaintain(): void
 	{
-
 		$node = $this->createMock( File::class );
 		$node->method( 'getId' )
 		     ->willReturn( 7 )
@@ -100,10 +104,8 @@ class FileListenerTest
 		$this->listener->handle( new NodeWrittenEvent( $node ) );
 	}
 
-
 	public function testOnWriteTouchesNothingForAnUnmaintainedFileWithNoHashes(): void
 	{
-
 		$node = $this->createMock( File::class );
 		$node->method( 'getId' )
 		     ->willReturn( 8 )
@@ -131,10 +133,8 @@ class FileListenerTest
 		$this->listener->handle( new NodeWrittenEvent( $node ) );
 	}
 
-
 	public function testOnCreateQueuesNothingForAnExcludedPath(): void
 	{
-
 		$node = $this->createMock( File::class );
 		$node->method( 'getId' )
 		     ->willReturn( 9 )
@@ -157,10 +157,8 @@ class FileListenerTest
 		$this->listener->handle( new NodeCreatedEvent( $node ) );
 	}
 
-
 	public function testOnCopyCarriesNothingIntoAnExcludedDestination(): void
 	{
-
 		$source = $this->createMock( File::class );
 		$target = $this->createMock( File::class );
 
@@ -193,10 +191,8 @@ class FileListenerTest
 		$this->listener->handle( new NodeCopiedEvent( $source, $target ) );
 	}
 
-
 	public function testOnCopyCopiesChecksumAndMarksPending(): void
 	{
-
 		$source = $this->createMock( File::class );
 		$target = $this->createMock( File::class );
 
@@ -236,10 +232,8 @@ class FileListenerTest
 		$this->listener->handle( $event );
 	}
 
-
 	public function testOnCopySkipsNonFileNodes(): void
 	{
-
 		$source = $this->createMock( File::class );
 		$target = $this->createMock( Folder::class );
 
@@ -256,10 +250,8 @@ class FileListenerTest
 		$this->listener->handle( $event );
 	}
 
-
 	public function testOnWriteForceClearsAndMarksPending(): void
 	{
-
 		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
 
 		$event = new NodeWrittenEvent( $file );
@@ -282,10 +274,8 @@ class FileListenerTest
 		$this->listener->handle( $event );
 	}
 
-
 	public function testOnWriteLazyClearsAndMarksPending(): void
 	{
-
 		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
 
 		$event = new NodeWrittenEvent( $file );
@@ -308,10 +298,8 @@ class FileListenerTest
 		$this->listener->handle( $event );
 	}
 
-
 	public function testOnWriteAutoMarksPendingIfHashExists(): void
 	{
-
 		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
 
 		$event = new NodeWrittenEvent( $file );
@@ -334,10 +322,8 @@ class FileListenerTest
 		$this->listener->handle( $event );
 	}
 
-
 	public function testOnWriteAutoSkipsIfNoHash(): void
 	{
-
 		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
 
 		$event = new NodeWrittenEvent( $file );
@@ -359,10 +345,8 @@ class FileListenerTest
 		$this->listener->handle( $event );
 	}
 
-
 	public function testOnWriteQueuesNothingForARetiredMode(): void
 	{
-
 		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
 
 		$event = new NodeWrittenEvent( $file );
@@ -386,10 +370,8 @@ class FileListenerTest
 		$this->listener->handle( $event );
 	}
 
-
 	public function testOnWriteNoMatchingRuleDoesNothing(): void
 	{
-
 		$file = $this->makeFileMock( 42, '/files/user/untracked.txt' );
 
 		$event = new NodeWrittenEvent( $file );
@@ -410,10 +392,8 @@ class FileListenerTest
 		$this->listener->handle( $event );
 	}
 
-
 	public function testOnCreateForceClearsAndMarksPending(): void
 	{
-
 		$file = $this->makeFileMock( 42, '/files/user/new.txt' );
 
 		$event = new NodeCreatedEvent( $file );
@@ -436,10 +416,8 @@ class FileListenerTest
 		$this->listener->handle( $event );
 	}
 
-
 	public function testOnCreateLazyMarksPending(): void
 	{
-
 		$file = $this->makeFileMock( 42, '/files/user/new.txt' );
 
 		$event = new NodeCreatedEvent( $file );
@@ -457,10 +435,8 @@ class FileListenerTest
 		$this->listener->handle( $event );
 	}
 
-
 	public function testOnCreateAutoMarksPendingIfHashExists(): void
 	{
-
 		$file = $this->makeFileMock( 42, '/files/user/new.txt' );
 
 		$event = new NodeCreatedEvent( $file );
@@ -483,10 +459,8 @@ class FileListenerTest
 		$this->listener->handle( $event );
 	}
 
-
 	public function testOnCreateQueuesNothingForARetiredMode(): void
 	{
-
 		$file = $this->makeFileMock( 42, '/files/user/new.txt' );
 
 		$event = new NodeCreatedEvent( $file );
@@ -509,10 +483,8 @@ class FileListenerTest
 		$this->listener->handle( $event );
 	}
 
-
 	public function testOnCreateNoMatchingRuleDoesNothing(): void
 	{
-
 		$file = $this->makeFileMock( 42, '/files/user/untracked.txt' );
 
 		$event = new NodeCreatedEvent( $file );
@@ -532,10 +504,8 @@ class FileListenerTest
 		$this->listener->handle( $event );
 	}
 
-
 	public function testOnDeleteClearsMetadata(): void
 	{
-
 		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
 
 		$event = new NodeDeletedEvent( $file );
@@ -548,10 +518,8 @@ class FileListenerTest
 		$this->listener->handle( $event );
 	}
 
-
 	public function testOnDeleteClearsWithoutConsultingRules(): void
 	{
-
 		// By the time NodeDeletedEvent fires, the filecache row is gone or
 		// moved to a trash area — no rule can be resolved for it, and this
 		// app's metadata rows only exist for files it hashed. Clearing is
@@ -572,7 +540,6 @@ class FileListenerTest
 		$this->listener->handle( $event );
 	}
 
-
 	/**
 	 * Create a File mock with getId(), getPath(), and getOwner()
 	 * configured — the owner UID is always 'owner-uid' in this suite.
@@ -582,8 +549,8 @@ class FileListenerTest
 	private function makeFileMock(
 		int    $id,
 		string $path,
-	): MockObject|File {
-
+	): MockObject|File
+	{
 		$owner = $this->createMock( IUser::class );
 		$owner->method( 'getUID' )
 		      ->willReturn( 'owner-uid' )
@@ -603,10 +570,8 @@ class FileListenerTest
 		return $file;
 	}
 
-
 	public function testOnWriteResolvesRulesByFileIdNotViewPath(): void
 	{
-
 		// The share-edit regression, listener half: this node comes from a
 		// recipient's context — its getPath() is the recipient's renamed
 		// mount, its getOwner() answers for the mount. Neither may reach the
@@ -624,5 +589,4 @@ class FileListenerTest
 
 		$this->listener->handle( $event );
 	}
-
 }

@@ -31,9 +31,11 @@ use Throwable;
  * unknown hashes, and respects user access boundaries.
  */
 class HashSearchProviderTest
-	extends
-	DatabaseTestCase
+    extends
+    DatabaseTestCase
 {
+
+//  private properties
 
 	private HashSearchProvider $provider;
 
@@ -51,12 +53,13 @@ class HashSearchProviderTest
 	private int $inaccessibleFileId;
 
 
+//  getters / setters / is* / has*
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->provider  = Server::get( HashSearchProvider::class );
@@ -73,9 +76,10 @@ class HashSearchProviderTest
 	}
 
 
+//  other non-static methods
+
 	protected function tearDown(): void
 	{
-
 		$this->cleanupLeftovers();
 
 		foreach ( $this->cleanupFiles as $file )
@@ -92,13 +96,11 @@ class HashSearchProviderTest
 		parent::tearDown();
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testSearchReturnsResultsForKnownHash(): void
 	{
-
 		$userFolder           = Server::get( IRootFolder::class )
 		                              ->getUserFolder( 'admin' )
 		;
@@ -131,13 +133,11 @@ class HashSearchProviderTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testSearchReturnsResultsForAlgoColonHashFormat(): void
 	{
-
 		$userFolder           = Server::get( IRootFolder::class )
 		                              ->getUserFolder( 'admin' )
 		;
@@ -164,10 +164,8 @@ class HashSearchProviderTest
 		);
 	}
 
-
 	public function testSearchReturnsEmptyForUnknownHash(): void
 	{
-
 		$query = $this->createSearchQuery( 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef' );
 
 		$result = $this->provider->search( $this->adminUser, $query );
@@ -180,10 +178,8 @@ class HashSearchProviderTest
 		);
 	}
 
-
 	public function testSearchReturnsEmptyForEmptyTerm(): void
 	{
-
 		$query = $this->createSearchQuery( '' );
 
 		$result = $this->provider->search( $this->adminUser, $query );
@@ -196,10 +192,8 @@ class HashSearchProviderTest
 		);
 	}
 
-
 	public function testSearchReturnsEmptyForNonHexTerm(): void
 	{
-
 		$query = $this->createSearchQuery( 'not-a-valid-hex-hash-value!' );
 
 		$result = $this->provider->search( $this->adminUser, $query );
@@ -212,13 +206,11 @@ class HashSearchProviderTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testSearchExcludesInaccessibleFiles(): void
 	{
-
 		$fileId                 = $this->inaccessibleFileId;
 		$this->cleanupFileIds[] = $fileId;
 
@@ -267,7 +259,6 @@ class HashSearchProviderTest
 		);
 	}
 
-
 	/**
 	 * A file the caller owns stays findable however many copies of the same
 	 * hash they cannot reach.
@@ -284,7 +275,6 @@ class HashSearchProviderTest
 	 */
 	public function testOwnFileIsFoundBehindMoreUnreachableCopiesThanTheLimit(): void
 	{
-
 		$testHash = 'facefeedfacefeedfacefeedfacefeedfaceffff';
 		$limit    = 5;
 
@@ -334,7 +324,6 @@ class HashSearchProviderTest
 		);
 	}
 
-
 	/**
 	 * A filecache row on a storage nobody has mounted: present to the
 	 * index, unreachable to every user.
@@ -343,7 +332,6 @@ class HashSearchProviderTest
 	 */
 	private function insertUnreachableFile( int $fileId ): void
 	{
-
 		$now    = time();
 		$insert = $this->db->getQueryBuilder();
 		$insert->insert( 'filecache' )
@@ -368,13 +356,11 @@ class HashSearchProviderTest
 		$insert->executeStatement();
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testSearchFiltersByAlgoInColonFormat(): void
 	{
-
 		$userFolder           = Server::get( IRootFolder::class )
 		                              ->getUserFolder( 'admin' )
 		;
@@ -408,17 +394,15 @@ class HashSearchProviderTest
 		$this->assertStringNotContainsString( 'sha1', $subline, 'Result should not reference sha1 algo.' );
 	}
 
-
 	// ─── helpers ─────────────────────────────────────────────────────
-
 	/**
 	 * @noinspection PhpSameParameterValueInspection
 	 */
 	private function createSearchQuery(
 		string $term,
 		int    $limit = 100,
-	): ISearchQuery {
-
+	): ISearchQuery
+	{
 		$query = $this->createMock( ISearchQuery::class );
 
 		$query->method( 'getTerm' )
@@ -431,7 +415,6 @@ class HashSearchProviderTest
 
 		return $query;
 	}
-
 
 	/**
 	 * Insert hash metadata into oc_files_metadata (JSON) and
@@ -450,8 +433,8 @@ class HashSearchProviderTest
 	private function insertHashMetadata(
 		int   $fileId,
 		array $hashes,
-	): void {
-
+	): void
+	{
 		$json = [];
 
 		foreach ( $hashes as $algo => $hash )
@@ -509,10 +492,8 @@ class HashSearchProviderTest
 		}
 	}
 
-
 	private function cleanupLeftovers(): void
 	{
-
 		$ids = array_merge( $this->cleanupFileIds, [ $this->inaccessibleFileId ] );
 
 		if ( empty( $ids ) )
@@ -561,5 +542,4 @@ class HashSearchProviderTest
 		{
 		}
 	}
-
 }

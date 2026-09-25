@@ -18,13 +18,14 @@ use PHPUnit\Framework\TestCase;
  * Verifies glob-based path matching via matchesGlob().
  */
 class PathUtilTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  other non-static methods
 
 	public function testMatchesGlobWithStarPattern(): void
 	{
-
 		self::assertTrue( PathUtil::matchesGlob( '*.txt', 'readme.txt' ) );
 		self::assertTrue( PathUtil::matchesGlob( 'dir/*.txt', 'dir/readme.txt' ) );
 		self::assertTrue( PathUtil::matchesGlob( '**/*.txt', 'a/b/c/readme.txt' ) );
@@ -32,10 +33,8 @@ class PathUtilTest
 		self::assertFalse( PathUtil::matchesGlob( 'dir/*.txt', 'other/readme.txt' ) );
 	}
 
-
 	public function testMatchesGlobWithQuestionMark(): void
 	{
-
 		self::assertTrue( PathUtil::matchesGlob( 'file?.txt', 'file1.txt' ) );
 		self::assertTrue( PathUtil::matchesGlob( 'file?.txt', 'fileA.txt' ) );
 		self::assertTrue( PathUtil::matchesGlob( '??.txt', 'ab.txt' ) );
@@ -43,10 +42,8 @@ class PathUtilTest
 		self::assertFalse( PathUtil::matchesGlob( 'file?.txt', 'file.txt' ) );
 	}
 
-
 	public function testMatchesGlobWithCharacterClass(): void
 	{
-
 		self::assertTrue( PathUtil::matchesGlob( 'file[abc].txt', 'filea.txt' ) );
 		self::assertTrue( PathUtil::matchesGlob( 'file[abc].txt', 'fileb.txt' ) );
 		self::assertTrue( PathUtil::matchesGlob( 'file[abc].txt', 'filec.txt' ) );
@@ -54,14 +51,11 @@ class PathUtilTest
 		self::assertFalse( PathUtil::matchesGlob( 'file[abc].txt', 'fileab.txt' ) );
 	}
 
-
 	public function testMatchesGlobWithExactMatch(): void
 	{
-
 		self::assertTrue( PathUtil::matchesGlob( 'readme.txt', 'readme.txt' ) );
 		self::assertTrue( PathUtil::matchesGlob( 'path/to/file.txt', 'path/to/file.txt' ) );
 		self::assertFalse( PathUtil::matchesGlob( 'readme.txt', 'readme.md' ) );
 		self::assertFalse( PathUtil::matchesGlob( 'Readme.txt', 'readme.txt' ) );
 	}
-
 }

@@ -23,20 +23,25 @@ use PHPUnit\Framework\TestCase;
  * whatever coreutils writes.
  */
 class SumFormatTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private SumFormat $format;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 		$this->format = new SumFormat();
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * @dataProvider coreutilsLines
@@ -44,8 +49,8 @@ class SumFormatTest
 	public function testTheLineShapesCoreutilsWrites(
 		string $line,
 		string $expectedPath,
-	): void {
-
+	): void
+	{
 		$records = $this->read( $line, new FormatOptions( algo: 'sha1' ) );
 
 		$this->assertCount( 1, $records );
@@ -54,12 +59,13 @@ class SumFormatTest
 	}
 
 
+//  static methods
+
 	/**
 	 * @return array<string, array{string, string}>
 	 */
 	public static function coreutilsLines(): array
 	{
-
 		$hash = str_repeat( 'a', 40 );
 
 		return [
@@ -98,7 +104,6 @@ class SumFormatTest
 		];
 	}
 
-
 	/**
 	 * `\\n` — an escaped backslash followed by the letter n — is not an
 	 * escaped newline, and a two-step string replacement cannot tell them
@@ -106,7 +111,6 @@ class SumFormatTest
 	 */
 	public function testAnEscapedBackslashBeforeAnNIsNotANewline(): void
 	{
-
 		$records = $this->read(
 			'\\' . str_repeat( 'a', 40 ) . "  dir\\\\name.txt\n",
 			new FormatOptions( algo: 'sha1' ),
@@ -115,10 +119,8 @@ class SumFormatTest
 		$this->assertSame( 'dir\\name.txt', $records[0]->path );
 	}
 
-
 	public function testBlankAndUnparseableLinesAreSkipped(): void
 	{
-
 		$records = $this->read(
 			"\n"
 			. str_repeat( 'a', 40 ) . "  a.txt\n"
@@ -139,23 +141,19 @@ class SumFormatTest
 		);
 	}
 
-
 	/**
 	 * The one thing a checksum listing cannot tell you about itself.
 	 */
 	public function testReadingWithoutAnAlgorithmIsRefused(): void
 	{
-
 		$this->expectException( InvalidArgumentException::class );
 		$this->expectExceptionMessageMatches( '/algorithm/' );
 
 		$this->read( str_repeat( 'a', 40 ) . "  a.txt\n", new FormatOptions() );
 	}
 
-
 	public function testWritingEscapesTheSameWayCoreutilsDoes(): void
 	{
-
 		$stream = fopen( 'php://memory', 'r+' );
 		$this->format->write(
 			[
@@ -176,14 +174,11 @@ class SumFormatTest
 		);
 	}
 
-
 	public function testItSaysWhatItCannotCarry(): void
 	{
-
 		$this->assertFalse( $this->format->carriesConfig() );
 		$this->assertNotEmpty( $this->format->losses() );
 	}
-
 
 	/**
 	 * @return list<HashRecord>
@@ -191,8 +186,8 @@ class SumFormatTest
 	private function read(
 		string        $text,
 		FormatOptions $options,
-	): array {
-
+	): array
+	{
 		$stream = fopen( 'php://memory', 'r+' );
 		fwrite( $stream, $text );
 		rewind( $stream );
@@ -201,5 +196,4 @@ class SumFormatTest
 
 		return $records;
 	}
-
 }

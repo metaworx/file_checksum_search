@@ -30,26 +30,29 @@ use Throwable;
  * @noinspection PhpUnused
  */
 class Import
-	extends
-	Command
+    extends
+    Command
 {
+
+//  constructor
 
 	public function __construct(
 		private readonly ImportService   $importService,
 		private readonly FormatRegistry  $formatRegistry,
 		private readonly LoggerInterface $logger,
-	) {
-
+	)
+	{
 		parent::__construct();
 	}
 
+
+//  config/init/exe/run methods
 
 	/**
 	 * @noinspection PhpUnused
 	 */
 	protected function configure(): void
 	{
-
 		$this->setName( 'file-checksum-search:import' )
 		     ->setAliases( [ 'fcias:import' ] )
 		     ->setDescription( 'Read back a backup, or bring in checksums computed elsewhere' )
@@ -172,15 +175,14 @@ HELP,
 		;
 	}
 
-
 	/**
 	 * @noinspection PhpUnused
 	 */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
-	): int {
-
+	): int
+	{
 		$errors = $this->errors( $output );
 
 		if ( $input->getOption( 'status' ) )
@@ -269,7 +271,7 @@ HELP,
 			$wantsConfig,
 			$wantsHashes,
 		]
-			= $this->slices( $input, $implementation->carriesConfig() );
+			 = $this->slices( $input, $implementation->carriesConfig() );
 
 		try
 		{
@@ -309,6 +311,8 @@ HELP,
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * Which slices to take from the backup document.
 	 *
@@ -326,8 +330,8 @@ HELP,
 	private function slices(
 		InputInterface $input,
 		bool           $carriesConfig,
-	): array {
-
+	): array
+	{
 		$config = (bool) $input->getOption( ExportService::SLICE_CONFIG );
 		$hashes = (bool) $input->getOption( ExportService::SLICE_HASHES );
 
@@ -345,15 +349,14 @@ HELP,
 		];
 	}
 
-
 	/**
 	 * Say out loud what a policy asserts that its data does not support.
 	 */
 	private function warn(
 		ImportPolicy    $policy,
 		OutputInterface $errors,
-	): void {
-
+	): void
+	{
 		if ( ! $policy->warrantsWarning() )
 		{
 			return;
@@ -378,15 +381,14 @@ HELP,
 		}
 	}
 
-
 	/**
 	 * @return resource|null
 	 */
 	private function openInput(
 		mixed           $path,
 		OutputInterface $errors,
-	) {
-
+	)
+	{
 		if ( ! is_string( $path ) )
 		{
 			return fopen( 'php://stdin', 'r' );
@@ -404,13 +406,12 @@ HELP,
 		return $stream;
 	}
 
-
 	private function report(
 		ImportReport    $report,
 		ImportPolicy    $policy,
 		OutputInterface $output,
-	): void {
-
+	): void
+	{
 		if ( $policy->dryRun )
 		{
 			$output->writeln( '<comment>Dry run — nothing was written.</comment>' );
@@ -443,17 +444,14 @@ HELP,
 		}
 	}
 
-
 	/**
 	 * Where a diagnostic goes — standard error where the console offers it,
 	 * so a report piped somewhere stays what it says it is.
 	 */
 	private function errors( OutputInterface $output ): OutputInterface
 	{
-
 		return $output instanceof ConsoleOutputInterface
 			? $output->getErrorOutput()
 			: $output;
 	}
-
 }

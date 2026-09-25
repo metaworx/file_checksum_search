@@ -26,9 +26,11 @@ use Psr\Log\LoggerInterface;
  * @template-implements IEventListener<BeforeTemplateRenderedEvent>
  */
 class BeforeTemplateRenderedListener
-	implements
-	IEventListener
+    implements
+    IEventListener
 {
+
+//  constructor
 
 	public function __construct(
 		private readonly LoggerInterface $logger,
@@ -36,17 +38,19 @@ class BeforeTemplateRenderedListener
 	}
 
 
+//  static methods
+
 	public static function register( IRegistrationContext $context ): void
 	{
-
 		$context->registerEventListener( BeforeTemplateRenderedEvent::class, self::class );
 	}
 
 
+//  other non-static methods
+
 	#[\Override]
 	public function handle( Event $event ): void
 	{
-
 		if ( ! $event instanceof BeforeTemplateRenderedEvent )
 		{
 			return;
@@ -60,5 +64,4 @@ class BeforeTemplateRenderedListener
 		Util::addInitScript( Application::APP_ID, Application::APP_ID . '-sidebar' );
 		Util::addStyle( Application::APP_ID, Application::APP_ID . '-sidebar' );
 	}
-
 }

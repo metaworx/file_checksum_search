@@ -24,9 +24,11 @@ use ReflectionMethod;
  * the endpoints that need it, with the intended limit and period.
  */
 class RateLimitAttributeTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  static methods
 
 	/**
 	 * Endpoints that must carry a per-user rate limit.
@@ -38,14 +40,13 @@ class RateLimitAttributeTest
 	 */
 	public static function rateLimitedEndpointProvider(): array
 	{
-
 		return [
 			'v1 lookup'         => [ PublicApiController::class, 'lookup', 60, 60 ],
 			'v1 duplicates'     => [ PublicApiController::class, 'findAllDuplicates', 60, 60 ],
 			'v1 recalc'         => [ PublicApiController::class, 'recalcHash', 20, 60 ],
 			// The batch twins count as one request each, which is the point of
 			// them; the work behind one is bounded by ChecksumApi's caps.
-			'v1 recalc many'    => [ PublicApiController::class, 'recalcMany', 20, 60 ],
+			'v1 recalc many'      => [ PublicApiController::class, 'recalcMany', 20, 60 ],
 			'v1 sudo recalc many' => [ PublicApiController::class, 'sudoRecalcMany', 20, 60 ],
 			// The picker's source: cheap per call, but it searches accounts
 			// and groups, so it is metered like the rest.
@@ -53,6 +54,8 @@ class RateLimitAttributeTest
 		];
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * @dataProvider rateLimitedEndpointProvider
@@ -63,8 +66,8 @@ class RateLimitAttributeTest
 		string $method,
 		int    $limit,
 		int    $period,
-	): void {
-
+	): void
+	{
 		$attributes = ( new ReflectionMethod( $class, $method ) )
 			->getAttributes( UserRateLimit::class )
 		;
@@ -82,7 +85,6 @@ class RateLimitAttributeTest
 		self::assertSame( $period, $rateLimit->getPeriod() );
 	}
 
-
 	/**
 	 * Recalculation must not be looser than the read endpoints — it
 	 * does real file I/O, so a regression that raised its limit to
@@ -91,9 +93,8 @@ class RateLimitAttributeTest
 	 */
 	public function testRecalcIsStricterThanReads(): void
 	{
-
-		$limitOf = static function ( string $class, string $method ): int {
-
+		$limitOf = static function( string $class, string $method ): int
+		{
 			$attributes = ( new ReflectionMethod( $class, $method ) )
 				->getAttributes( UserRateLimit::class )
 			;

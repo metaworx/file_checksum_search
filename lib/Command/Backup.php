@@ -27,26 +27,29 @@ use Throwable;
  * @noinspection PhpUnused
  */
 class Backup
-	extends
-	Command
+    extends
+    Command
 {
+
+//  constructor
 
 	public function __construct(
 		private readonly ExportService   $exportService,
 		private readonly FormatRegistry  $formatRegistry,
 		private readonly LoggerInterface $logger,
-	) {
-
+	)
+	{
 		parent::__construct();
 	}
 
+
+//  config/init/exe/run methods
 
 	/**
 	 * @noinspection PhpUnused
 	 */
 	protected function configure(): void
 	{
-
 		$this->setName( 'file-checksum-search:backup' )
 		     ->setAliases( [ 'fcias:backup' ] )
 		     ->setDescription( 'Write out this app\'s configuration, queue state and stored hashes' )
@@ -120,15 +123,14 @@ HELP,
 		;
 	}
 
-
 	/**
 	 * @noinspection PhpUnused
 	 */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
-	): int {
-
+	): int
+	{
 		$errors = $this->errors( $output );
 		$slices = $this->slices( $input );
 		$path   = $input->getOption( 'output' );
@@ -226,6 +228,8 @@ HELP,
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * Where a diagnostic goes.
 	 *
@@ -235,12 +239,10 @@ HELP,
 	 */
 	private function errors( OutputInterface $output ): OutputInterface
 	{
-
 		return $output instanceof ConsoleOutputInterface
 			? $output->getErrorOutput()
 			: $output;
 	}
-
 
 	/**
 	 * Which slices were asked for — all three when none was named, because a
@@ -250,7 +252,6 @@ HELP,
 	 */
 	private function slices( InputInterface $input ): array
 	{
-
 		$named = array_values(
 			array_filter(
 				ExportService::SLICES,
@@ -265,15 +266,14 @@ HELP,
 			: $named;
 	}
 
-
 	/**
 	 * @return resource|null
 	 */
 	private function openOutput(
 		mixed           $path,
 		OutputInterface $output,
-	) {
-
+	)
+	{
 		if ( ! is_string( $path ) )
 		{
 			return fopen( 'php://stdout', 'w' );
@@ -293,7 +293,6 @@ HELP,
 		return $stream;
 	}
 
-
 	/**
 	 * @param  list<string>        $losses
 	 * @param  array<string, int>  $counts
@@ -303,8 +302,8 @@ HELP,
 		array           $counts,
 		mixed           $path,
 		OutputInterface $output,
-	): void {
-
+	): void
+	{
 		// To standard output the backup document *is* the output; a summary
 		// printed alongside it would land in the same stream and corrupt the
 		// file.
@@ -332,5 +331,4 @@ HELP,
 			$output->writeln( '  - ' . $loss );
 		}
 	}
-
 }

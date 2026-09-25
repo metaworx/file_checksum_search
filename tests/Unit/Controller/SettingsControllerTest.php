@@ -32,9 +32,11 @@ use Psr\Log\LoggerInterface;
 use ReflectionMethod;
 
 class SettingsControllerTest
-	extends
-	FciasUnitTestCase
+    extends
+    FciasUnitTestCase
 {
+
+//  private properties
 
 // ── private properties ───────────────────────────────────────────────
 
@@ -64,11 +66,11 @@ class SettingsControllerTest
 	private SettingsController         $controller;
 
 
-// ── setUp ────────────────────────────────────────────────────────────
+//  getters / setters / is* / has*
 
+	// ── setUp ────────────────────────────────────────────────────────────
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		// StatusService is readonly — cannot be mocked. Create the real
@@ -113,15 +115,14 @@ class SettingsControllerTest
 	}
 
 
-// ── getStatus ────────────────────────────────────────────────────────
+//  other non-static methods
 
-
+	// ── getStatus ────────────────────────────────────────────────────────
 	/**
 	 * @noinspection PhpConditionAlreadyCheckedInspection
 	 */
 	public function testGetStatusReturnsAppVersionAndCounts(): void
 	{
-
 		// StatusService is readonly (real instance), mock its internal dependencies
 		$this->appManager->expects( $this->once() )
 		                 ->method( 'getAppVersion' )
@@ -161,12 +162,9 @@ class SettingsControllerTest
 		], $data['pendingStats'] );
 	}
 
-
-// ── status: untrusted hashes + job heartbeats (D17) ─────────────────
-
+	// ── status: untrusted hashes + job heartbeats (D17) ─────────────────
 	public function testGetStatusReportsUntrustedHashesAndJobHeartbeats(): void
 	{
-
 		// Broken down by reason, not one total: erosion has already thrown
 		// the hashes away and heals itself, a reset has not and is waiting —
 		// different things for an operator to do about them.
@@ -204,12 +202,9 @@ class SettingsControllerTest
 		$this->assertSame( 1700000000, $data['jobs']['rule_sweep']['lastRun'] );
 	}
 
-
-// ── idle banner ──────────────────────────────────────────────────────
-
+	// ── idle banner ──────────────────────────────────────────────────────
 	public function testGetStatusReportsTheIdleBannerAcknowledgement(): void
 	{
-
 		$this->appConfig->method( 'getValueBool' )
 		                ->with(
 			                'file_checksum_search',
@@ -225,10 +220,8 @@ class SettingsControllerTest
 		$this->assertTrue( $data['idleBannerAcknowledged'] );
 	}
 
-
 	public function testAcknowledgeIdleBannerPersistsTheFlag(): void
 	{
-
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'setValueBool' )
 		                ->with(
@@ -245,23 +238,19 @@ class SettingsControllerTest
 		$this->assertTrue( $data['success'] );
 	}
 
-
-// ── getAdminOptions ──────────────────────────────────────────────────
-
-
+	// ── getAdminOptions ──────────────────────────────────────────────────
 	/**
 	 * @noinspection PhpConditionAlreadyCheckedInspection
 	 */
 	public function testGetAdminOptionsReturnsPermissionFields(): void
 	{
-
 		$this->userManager->expects( $this->once() )
 		                  ->method( 'callForAllUsers' )
 		                  ->willReturnCallback(
-			                  function (
+			                  function(
 				                  \Closure $callback,
-			                  ): void {
-
+			                  ): void
+			                  {
 				                  $alice = $this->createConfiguredMock(
 					                  IUser::class,
 					                  [
@@ -311,12 +300,9 @@ class SettingsControllerTest
 		);
 	}
 
-
-// ── saveAdminOptions ─────────────────────────────────────────────────
-
+	// ── saveAdminOptions ─────────────────────────────────────────────────
 	public function testSaveAdminOptionsPersistsFields(): void
 	{
-
 		$this->controller->method( 'readRequestBody' )
 		                 ->willReturn(
 			                 json_encode( [
@@ -351,10 +337,7 @@ class SettingsControllerTest
 		$this->assertTrue( $data['success'] );
 	}
 
-
-// ── admin-only enforcement ───────────────────────────────────────────
-
-
+	// ── admin-only enforcement ───────────────────────────────────────────
 	/**
 	 * Regression test for FCIAS Review §6, Finding 2: these endpoints
 	 * back the *admin* settings page only. Nextcloud's SecurityMiddleware
@@ -369,7 +352,6 @@ class SettingsControllerTest
 	 */
 	public function testAdminOnlyMethodsDoNotCarryNoAdminRequired(): void
 	{
-
 		$adminOnlyMethods = [
 			'getStatus',
 			'getAdminOptions',
@@ -390,7 +372,6 @@ class SettingsControllerTest
 		}
 	}
 
-
 	/**
 	 * Two sections of the admin page save to this one endpoint, each sending
 	 * only its own fields. A field that is not sent must be left exactly as
@@ -398,7 +379,6 @@ class SettingsControllerTest
 	 */
 	public function testAPartialBodyLeavesTheFieldsItDoesNotSendAlone(): void
 	{
-
 		$this->controller->method( 'readRequestBody' )
 		                 ->willReturn( json_encode( [ 'allowedAlgorithms' => [ 'sha256', 'sha1' ] ] ) )
 		;
@@ -422,13 +402,11 @@ class SettingsControllerTest
 		$this->assertNotEmpty( $data['allowedAlgorithms'] );
 	}
 
-
 	/**
 	 * A list that keeps nothing is refused, and the previous list stays.
 	 */
 	public function testAnAllowlistNothingOnThisServerCanHonourIsRefused(): void
 	{
-
 		$this->controller->method( 'readRequestBody' )
 		                 ->willReturn( json_encode( [ 'allowedAlgorithms' => [ 'nonsense', 'sha512/256' ] ] ) )
 		;
@@ -439,14 +417,12 @@ class SettingsControllerTest
 		$this->assertFalse( $response->getData()['success'] );
 	}
 
-
 	/**
 	 * The default is designated in the same request as the allowlist and
 	 * applied after it, so a default from a list being widened is accepted.
 	 */
 	public function testTheDefaultIsAppliedAfterTheAllowlistAndEchoed(): void
 	{
-
 		$this->controller->method( 'readRequestBody' )
 		                 ->willReturn( json_encode( [
 			                 'allowedAlgorithms' => [ 'sha1', 'sha256' ],
@@ -460,10 +436,8 @@ class SettingsControllerTest
 		$this->assertSame( 'sha256', $response->getData()['defaultAlgorithm'] );
 	}
 
-
 	public function testADefaultOutsideTheAllowedSetIsRefused(): void
 	{
-
 		$this->controller->method( 'readRequestBody' )
 		                 ->willReturn( json_encode( [ 'defaultAlgorithm' => 'nonsense' ] ) )
 		;
@@ -473,5 +447,4 @@ class SettingsControllerTest
 		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
 		$this->assertFalse( $response->getData()['success'] );
 	}
-
 }

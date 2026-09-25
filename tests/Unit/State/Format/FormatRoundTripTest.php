@@ -23,9 +23,11 @@ use PHPUnit\Framework\TestCase;
  * *which file* it is talking about.
  */
 class FormatRoundTripTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  other non-static methods
 
 	/**
 	 * json and csv carry every field, so they come back identical.
@@ -34,20 +36,17 @@ class FormatRoundTripTest
 	 */
 	public function testALosslessFormatReturnsWhatItWasGiven( string $format ): void
 	{
-
 		$records = $this->awkwardRecords();
 		$back    = $this->roundTrip( $format, $records, new FormatOptions() );
 
 		$this->assertEquals( $records, $back );
 	}
 
-
 	/**
 	 * @dataProvider losslessFormats
 	 */
 	public function testPrettyPrintingChangesNothingButWhitespace( string $format ): void
 	{
-
 		$records = $this->awkwardRecords();
 
 		$this->assertEquals(
@@ -56,7 +55,6 @@ class FormatRoundTripTest
 		);
 	}
 
-
 	/**
 	 * A sumfile keeps the hash and the path and drops the rest — so what
 	 * comes back is the algorithm the reader was told and the storage it was
@@ -64,7 +62,6 @@ class FormatRoundTripTest
 	 */
 	public function testASumfileKeepsOnlyTheHashAndThePath(): void
 	{
-
 		$options = new FormatOptions( algo: 'sha256', storageId: 'home::alice' );
 
 		$back = $this->roundTrip(
@@ -89,7 +86,6 @@ class FormatRoundTripTest
 		}
 	}
 
-
 	/**
 	 * One listing, one algorithm: the tools that read a sumfile assume it,
 	 * so writing one with `--algo` set drops everything else rather than
@@ -97,7 +93,6 @@ class FormatRoundTripTest
 	 */
 	public function testWritingASumfileKeepsOneAlgorithmOnly(): void
 	{
-
 		$back = $this->roundTrip(
 			FormatRegistry::FORMAT_SUM,
 			[
@@ -119,13 +114,11 @@ class FormatRoundTripTest
 		);
 	}
 
-
 	/**
 	 * @dataProvider allFormats
 	 */
 	public function testAnEmptySetWritesSomethingReadable( string $format ): void
 	{
-
 		$this->assertSame(
 			[],
 			$this->roundTrip( $format, [], new FormatOptions( algo: 'sha256', storageId: 's' ) ),
@@ -133,28 +126,26 @@ class FormatRoundTripTest
 	}
 
 
+//  static methods
+
 	/**
 	 * @return array<string, array{string}>
 	 */
 	public static function losslessFormats(): array
 	{
-
 		return [
 			'json' => [ FormatRegistry::FORMAT_JSON ],
 			'csv'  => [ FormatRegistry::FORMAT_CSV ],
 		];
 	}
 
-
 	/**
 	 * @return array<string, array{string}>
 	 */
 	public static function allFormats(): array
 	{
-
 		return self::losslessFormats() + [ 'sum' => [ FormatRegistry::FORMAT_SUM ] ];
 	}
-
 
 	/**
 	 * Paths that have broken importers before: spaces, a comma, quotes, a
@@ -164,7 +155,6 @@ class FormatRoundTripTest
 	 */
 	private function awkwardRecords(): array
 	{
-
 		return [
 			new HashRecord( 'home::alice', 'files/Photos/a b.jpg', 'sha256', str_repeat( 'a', 64 ), 1756400000 ),
 			new HashRecord( 'home::alice', 'files/comma, "quoted".txt', 'sha1', str_repeat( 'b', 40 ), null ),
@@ -181,7 +171,6 @@ class FormatRoundTripTest
 		];
 	}
 
-
 	/**
 	 * @param  list<HashRecord>  $records
 	 *
@@ -191,8 +180,8 @@ class FormatRoundTripTest
 		string $format,
 		array $records,
 		FormatOptions $options,
-	): array {
-
+	): array
+	{
 		$implementation = ( new FormatRegistry() )->get( $format );
 		$stream         = fopen( 'php://memory', 'r+' );
 
@@ -203,5 +192,4 @@ class FormatRoundTripTest
 
 		return $back;
 	}
-
 }

@@ -30,25 +30,28 @@ use Throwable;
  * @noinspection PhpUnused
  */
 class Repair
-	extends
-	Command
+    extends
+    Command
 {
+
+//  constructor
 
 	public function __construct(
 		private readonly RepairQuietStart $repair,
 		private readonly LoggerInterface  $logger,
-	) {
-
+	)
+	{
 		parent::__construct();
 	}
 
+
+//  config/init/exe/run methods
 
 	/**
 	 * @noinspection PhpUnused
 	 */
 	protected function configure(): void
 	{
-
 		$this->setName( 'file-checksum-search:repair' )
 		     ->setAliases( [ 'fcias:repair' ] )
 		     ->setDescription( 'Run this app\'s repair steps, all of them or by name' )
@@ -102,15 +105,14 @@ HELP,
 		;
 	}
 
-
 	/**
 	 * @noinspection PhpUnused
 	 */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
-	): int {
-
+	): int
+	{
 		$steps = $this->repair->steps();
 
 		if ( $input->getOption( 'list' ) )
@@ -191,14 +193,16 @@ HELP,
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * @param  list<array{step: \OCA\FileChecksumSearch\Migration\RepairStep, method: \ReflectionMethod}>  $steps
 	 */
 	private function listSteps(
 		array           $steps,
 		OutputInterface $output,
-	): void {
-
+	): void
+	{
 		foreach ( $steps as $entry )
 		{
 			$step = $entry['step'];
@@ -235,7 +239,6 @@ HELP,
 		}
 	}
 
-
 	/**
 	 * @param  list<array{step: \OCA\FileChecksumSearch\Migration\RepairStep, method: \ReflectionMethod}>  $steps
 	 * @param  list<string>                                                                                $only
@@ -245,8 +248,8 @@ HELP,
 		array           $only,
 		bool            $includeExpensive,
 		OutputInterface $output,
-	): void {
-
+	): void
+	{
 		$output->writeln( '<comment>Dry run — nothing was changed.</comment>' );
 
 		foreach ( $steps as $entry )
@@ -284,7 +287,6 @@ HELP,
 		}
 	}
 
-
 	/**
 	 * Adapt the console to what a repair step writes to.
 	 *
@@ -293,10 +295,11 @@ HELP,
 	 */
 	private function asRepairOutput( OutputInterface $output ): IOutput
 	{
-
 		return new class( $output )
-			implements
-			IOutput {
+		    implements
+		    IOutput {
+
+//  constructor
 
 			public function __construct(
 				private readonly OutputInterface $output,
@@ -304,12 +307,12 @@ HELP,
 			}
 
 
+//  other non-static methods
+
 			public function debug( string $message ): void
 			{
-
 				$this->output->writeln( '  ' . $message, OutputInterface::VERBOSITY_VERBOSE );
 			}
-
 
 			/**
 			 * Untyped return, because that is how the interface declares it.
@@ -318,23 +321,18 @@ HELP,
 			 */
 			public function info( $message )
 			{
-
 				$this->output->writeln( '  ' . $message );
 			}
-
 
 			/** @noinspection PhpMissingReturnTypeInspection */
 			public function warning( $message )
 			{
-
 				$this->output->writeln( '  <comment>' . $message . '</comment>' );
 			}
-
 
 			public function startProgress( $max = 0 )
 			{
 			}
-
 
 			public function advance(
 				$step = 1,
@@ -342,12 +340,9 @@ HELP,
 			) {
 			}
 
-
 			public function finishProgress()
 			{
 			}
-
 		};
 	}
-
 }

@@ -45,7 +45,8 @@ use Throwable;
 class RuleService
 {
 
-// constants
+//  constants
+
 	private const CONFIG_KEY_RULES = 'rule_definitions';
 
 	/**
@@ -119,7 +120,7 @@ class RuleService
 	 * @var list<string>
 	 */
 	public const MODES
-		= [
+		 = [
 			'auto',
 			'missing',
 			'force',
@@ -128,7 +129,7 @@ class RuleService
 
 	/** @var list<string> */
 	public const TYPES
-		= [
+		 = [
 			self::TYPE_INCLUDE,
 			self::TYPE_IGNORE,
 			self::TYPE_EXCLUDE,
@@ -137,6 +138,8 @@ class RuleService
 	/** Decoded, sorted rules — memoised per process by {@see loadRules()}. */
 	private ?array $rulesCache = null;
 
+
+//  constructor
 
 	public function __construct(
 		private readonly IAppConfig        $appConfig,
@@ -151,6 +154,8 @@ class RuleService
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * The users whose home folders a home-universe selector sweeps.
 	 *
@@ -162,7 +167,6 @@ class RuleService
 	 */
 	public function resolveUsers( string $selectorValue ): array
 	{
-
 		$selector = Selector::fromStored( $selectorValue );
 
 		switch ( $selector->kind )
@@ -172,7 +176,7 @@ class RuleService
 			$allUsers = [];
 
 			$this->userManager->callForAllUsers(
-				function (
+				function(
 					$user,
 				) use
 				(
@@ -180,7 +184,6 @@ class RuleService
 					$allUsers,
 				): void
 				{
-
 					$allUsers[] = $user->getUID();
 				},
 			);
@@ -235,7 +238,6 @@ class RuleService
 		}
 	}
 
-
 	/**
 	 * Evaluate all enabled rules and mark outdated files as pending.
 	 *
@@ -248,7 +250,6 @@ class RuleService
 	 */
 	public function evaluateRules(): array
 	{
-
 		$rules   = $this->loadRules();
 		$marked  = 0;
 		$matched = 0;
@@ -265,7 +266,7 @@ class RuleService
 
 			$result = $this->processRule( $rule );
 
-			$marked  += $result['marked'];
+			$marked += $result['marked'];
 			$matched += $result['matched'];
 		}
 
@@ -284,7 +285,6 @@ class RuleService
 			'matched' => $matched,
 		];
 	}
-
 
 	/**
 	 * Load rule definitions in evaluation order.
@@ -310,7 +310,6 @@ class RuleService
 	 */
 	public function loadRules( bool $refresh = false ): array
 	{
-
 		if ( ! $refresh && $this->rulesCache !== null )
 		{
 			return $this->rulesCache;
@@ -319,7 +318,6 @@ class RuleService
 		return $this->rulesCache = self::sortRules( $this->readStoredRules() );
 	}
 
-
 	/**
 	 * The stored list, exactly as persisted — no derived ordering applied.
 	 *
@@ -327,7 +325,6 @@ class RuleService
 	 */
 	private function readStoredRules(): array
 	{
-
 		$json = $this->appConfig->getValueString(
 			Application::APP_ID,
 			self::CONFIG_KEY_RULES,
@@ -349,6 +346,8 @@ class RuleService
 	}
 
 
+//  static methods
+
 	/**
 	 * The rule's selector, reading the canonical 'selector' key and falling
 	 * back to the pre-selector 'userScope' key so rules written before the
@@ -356,12 +355,10 @@ class RuleService
 	 */
 	public static function ruleSelector( array $rule ): Selector
 	{
-
 		return Selector::fromStored(
 			(string) ( $rule['selector'] ?? $rule['userScope'] ?? '*' ),
 		);
 	}
-
 
 	/**
 	 * Whether a rule is default-shaped: its glob is the bare catch-all.
@@ -373,7 +370,6 @@ class RuleService
 	 */
 	public static function isDefaultShaped( array $rule ): bool
 	{
-
 		return in_array(
 			$rule['path'] ?? '**',
 			[
@@ -385,7 +381,6 @@ class RuleService
 		);
 	}
 
-
 	/**
 	 * The display band a rule occupies — always derived, never stored.
 	 *
@@ -396,12 +391,10 @@ class RuleService
 	 */
 	public static function bandOf( array $rule ): int
 	{
-
 		return self::ruleSelector( $rule )
 		           ->band( ! empty( $rule['admin_enforced'] ) )
 		;
 	}
-
 
 	/**
 	 * A rule's verdict. Absent `type` means include, so every rule written
@@ -411,14 +404,12 @@ class RuleService
 	 */
 	public static function verdictOf( array $rule ): string
 	{
-
 		$type = $rule['type'] ?? self::TYPE_INCLUDE;
 
 		return in_array( $type, self::TYPES, true )
 			? $type
 			: self::TYPE_INCLUDE;
 	}
-
 
 	/**
 	 * Whether a rule causes hashes to be maintained automatically.
@@ -427,30 +418,24 @@ class RuleService
 	 */
 	public static function maintainsHashes( ?array $rule ): bool
 	{
-
 		return $rule !== null && self::verdictOf( $rule ) === self::TYPE_INCLUDE;
 	}
-
 
 	/**
 	 * Whether a value is an accepted rule mode.
 	 */
 	public static function isValidMode( mixed $mode ): bool
 	{
-
 		return is_string( $mode ) && in_array( $mode, self::MODES, true );
 	}
-
 
 	/**
 	 * Whether a value is an accepted rule type.
 	 */
 	public static function isValidType( mixed $type ): bool
 	{
-
 		return is_string( $type ) && in_array( $type, self::TYPES, true );
 	}
-
 
 	/**
 	 * Whether a selector covers this user's own (home) files.
@@ -462,18 +447,17 @@ class RuleService
 	public function selectorAppliesTo(
 		Selector $selector,
 		string   $userId,
-	): bool {
-
+	): bool
+	{
 		return match ( $selector->kind )
 		{
-			Selector::KIND_USER => $selector->target === $userId,
+			Selector::KIND_USER  => $selector->target === $userId,
 			Selector::KIND_GROUP => $this->groupManager->isInGroup( $userId, (string) $selector->target ),
 			Selector::KIND_HOME_ALL,
 			Selector::KIND_UNIVERSAL => true,
-			default => false,
+			default                  => false,
 		};
 	}
-
 
 	/**
 	 * Derive the evaluation order: band, then segment, then the shape
@@ -492,16 +476,15 @@ class RuleService
 	 */
 	public static function sortRules( array $rules ): array
 	{
-
 		$rules = array_values( $rules );
 
 		usort(
 			$rules,
-			static function (
+			static function(
 				array $a,
 				array $b,
-			): int {
-
+			): int
+			{
 				$cmp = self::bandOf( $a ) <=> self::bandOf( $b );
 
 				if ( $cmp !== 0 )
@@ -526,7 +509,6 @@ class RuleService
 		return $rules;
 	}
 
-
 	/**
 	 * Persist the rule list — the single write path for rule storage.
 	 *
@@ -540,7 +522,6 @@ class RuleService
 	 */
 	private function saveRules( array $rules ): void
 	{
-
 		// Canonicalise on every write: the selector key in its canonical
 		// spelling, legacy keys gone. The stored array is always in
 		// evaluation order, so no reader has to remember to sort.
@@ -551,6 +532,7 @@ class RuleService
 			;
 			unset( $rule['userScope'], $rule['pinned'] );
 		}
+
 		unset( $rule );
 
 		$this->appConfig->setValueString(
@@ -581,7 +563,6 @@ class RuleService
 		}
 	}
 
-
 	/**
 	 * Mark one rule's outdated files as pending, up to an internal batch cap.
 	 *
@@ -607,7 +588,6 @@ class RuleService
 	 */
 	public function processRule( array $rule ): array
 	{
-
 		$marked  = 0;
 		$matched = 0;
 
@@ -681,7 +661,6 @@ class RuleService
 		];
 	}
 
-
 	/**
 	 * The numeric storage ids a selector sweeps.
 	 *
@@ -694,7 +673,6 @@ class RuleService
 	 */
 	private function storageIdsForSelector( Selector $selector ): array
 	{
-
 		return match ( $selector->kind )
 		{
 			Selector::KIND_USER,
@@ -704,7 +682,6 @@ class RuleService
 			default => $this->filecacheService->storageNumericIdsFor( $selector ),
 		};
 	}
-
 
 	/**
 	 * Every file location a rule's selector and glob cover, lazily.
@@ -721,8 +698,8 @@ class RuleService
 	private function sweepLocations(
 		array $rule,
 		bool  $staleOnly = false,
-	): \Generator {
-
+	): \Generator
+	{
 		$selector = self::ruleSelector( $rule );
 		$pathGlob = $rule['path'] ?? '**';
 
@@ -765,7 +742,6 @@ class RuleService
 		}
 	}
 
-
 	/**
 	 * Whether a selector's slice of the file universe contains this location.
 	 *
@@ -779,8 +755,8 @@ class RuleService
 	public function selectorMatchesLocation(
 		Selector     $selector,
 		FileLocation $location,
-	): bool {
-
+	): bool
+	{
 		if ( $selector->kind === Selector::KIND_UNIVERSAL )
 		{
 			return true;
@@ -795,18 +771,17 @@ class RuleService
 		{
 			FileLocation::NS_HOME => match ( $selector->kind )
 			{
-				Selector::KIND_USER => $selector->target === $location->owner,
+				Selector::KIND_USER  => $selector->target === $location->owner,
 				Selector::KIND_GROUP => $location->owner !== null
 					&& $this->groupManager->isInGroup( $location->owner, (string) $selector->target ),
 				Selector::KIND_HOME_ALL => true,
-				default => false,
+				default                 => false,
 			},
 			FileLocation::NS_GROUPFOLDER => $selector->kind === Selector::KIND_GROUPFOLDER
 				&& (int) $selector->target === $location->groupFolderId,
 			default => false,
 		};
 	}
-
 
 	/**
 	 * The first enabled rule that governs this location, or null.
@@ -827,8 +802,8 @@ class RuleService
 	public function governingRuleForLocation(
 		FileLocation $location,
 		array        $ignoreRuleIds = [],
-	): ?array {
-
+	): ?array
+	{
 		if ( $location->relativePath === null )
 		{
 			return null;
@@ -862,7 +837,6 @@ class RuleService
 		return null;
 	}
 
-
 	/**
 	 * Clear the files an operator disowned, and re-queue those a rule still
 	 * governs.
@@ -888,7 +862,6 @@ class RuleService
 	 */
 	public function clearDisownedFiles( int $batchLimit ): int
 	{
-
 		$fileIds = $this->metadataService->fetchStaleBatch( $batchLimit );
 		$cleared = 0;
 
@@ -929,7 +902,6 @@ class RuleService
 		return $cleared;
 	}
 
-
 	/**
 	 * The first enabled rule that governs this file, or null.
 	 *
@@ -947,11 +919,10 @@ class RuleService
 	public function findFirstMatchingRule(
 		int   $fileId,
 		array $ignoreRuleIds = [],
-	): ?array {
-
+	): ?array
+	{
 		return $this->governingRulesForFileIds( [ $fileId ], $ignoreRuleIds )[ $fileId ];
 	}
-
 
 	/**
 	 * The governing rules for many files, resolved in one scan.
@@ -972,8 +943,8 @@ class RuleService
 	public function governingRulesForFileIds(
 		array $fileIds,
 		array $ignoreRuleIds = [],
-	): array {
-
+	): array
+	{
 		$locations = $this->filecacheService->locateAll( $fileIds );
 		$rules     = [];
 
@@ -989,7 +960,6 @@ class RuleService
 		return $rules;
 	}
 
-
 	/**
 	 * Append a new rule at the end of the band its scope and flags place it
 	 * in (the stable band sort in {@see saveRules()} does the placing).
@@ -1001,8 +971,8 @@ class RuleService
 	public function ruleAdd(
 		array   $definition,
 		?string $actor = null,
-	): string {
-
+	): string
+	{
 		$rules            = $this->loadRules();
 		$definition['id'] = bin2hex( random_bytes( 16 ) );
 		$rules[]          = $definition;
@@ -1013,22 +983,21 @@ class RuleService
 		return $definition['id'];
 	}
 
-
 	/**
 	 * @throws JsonException
 	 */
 	public function ruleDelete(
 		string  $id,
 		?string $actor = null,
-	): void {
-
+	): void
+	{
 		$rules   = $this->loadRules();
 		$deleted = null;
 
 		$rules = array_values(
 			array_filter(
 				$rules,
-				static function (
+				static function(
 					array $rule,
 				) use
 				(
@@ -1037,7 +1006,6 @@ class RuleService
 					$deleted,
 				): bool
 				{
-
 					if ( ( $rule['id'] ?? '' ) === $id )
 					{
 						$deleted = $rule;
@@ -1058,7 +1026,6 @@ class RuleService
 		}
 	}
 
-
 	/**
 	 * @throws JsonException
 	 */
@@ -1066,8 +1033,8 @@ class RuleService
 		string  $id,
 		bool    $enabled,
 		?string $actor = null,
-	): void {
-
+	): void
+	{
 		$rules   = $this->loadRules();
 		$toggled = null;
 
@@ -1081,6 +1048,7 @@ class RuleService
 				break;
 			}
 		}
+
 		unset( $rule );
 
 		$this->saveRules( $rules );
@@ -1097,7 +1065,6 @@ class RuleService
 		}
 	}
 
-
 	/**
 	 * @throws JsonException
 	 */
@@ -1105,8 +1072,8 @@ class RuleService
 		string  $id,
 		array   $definition,
 		?string $actor = null,
-	): void {
-
+	): void
+	{
 		$rules = $this->loadRules();
 
 		foreach ( $rules as $index => $existing )
@@ -1147,7 +1114,6 @@ class RuleService
 		$this->saveRules( $rules );
 	}
 
-
 	/**
 	 * Audit every rule mutation, whichever surface asked for it.
 	 *
@@ -1162,8 +1128,8 @@ class RuleService
 		array   $rule,
 		?string $actor,
 		?array  $previous = null,
-	): void {
-
+	): void
+	{
 		$enforced = ! empty( $rule['admin_enforced'] ) || ! empty( $previous['admin_enforced'] );
 
 		$context = [
@@ -1189,7 +1155,6 @@ class RuleService
 		$this->logger->info( 'FCIAS rule audit: rule {operation}', $context );
 	}
 
-
 	/**
 	 * Whether a rule can meaningfully be applied at all.
 	 *
@@ -1201,7 +1166,6 @@ class RuleService
 	 */
 	public static function assertApplicable( array $rule ): void
 	{
-
 		if ( empty( $rule['enabled'] ) )
 		{
 			throw new InvalidArgumentException( 'A disabled rule cannot be applied — enable it first.' );
@@ -1214,7 +1178,6 @@ class RuleService
 			);
 		}
 	}
-
 
 	/**
 	 * Apply one rule to the files it currently governs: an uncapped,
@@ -1239,8 +1202,8 @@ class RuleService
 		?string          $modeOverride = null,
 		?OutputInterface $output = null,
 		?string          $actor = null,
-	): array {
-
+	): array
+	{
 		self::assertApplicable( $rule );
 
 		$mode = $modeOverride ?? ( $rule['mode'] ?? 'auto' );
@@ -1344,7 +1307,6 @@ class RuleService
 		];
 	}
 
-
 	/**
 	 * Re-persist the stored rules through the canonical write path.
 	 *
@@ -1357,13 +1319,11 @@ class RuleService
 	 */
 	public function resaveCanonical(): int
 	{
-
 		$rules = $this->loadRules( refresh: true );
 		$this->saveRules( $rules );
 
 		return count( $rules );
 	}
-
 
 	/**
 	 * Find a rule by its ID.
@@ -1374,7 +1334,6 @@ class RuleService
 	 */
 	public function findRuleById( string $id ): ?array
 	{
-
 		foreach ( $this->loadRules() as $rule )
 		{
 			if ( ( $rule['id'] ?? '' ) === $id )
@@ -1385,7 +1344,6 @@ class RuleService
 
 		return null;
 	}
-
 
 	/**
 	 * Reorder the rules inside one segment partition — the single mutation
@@ -1416,8 +1374,8 @@ class RuleService
 		array   $orderedIds,
 		?string $requestingUserId = null,
 		?string $actor = null,
-	): void {
-
+	): void
+	{
 		$selector  = Selector::parse( $selectorValue );
 		$canonical = $selector->canonical();
 
@@ -1491,7 +1449,6 @@ class RuleService
 		);
 	}
 
-
 	/**
 	 * List rules for one caller, in band order, annotated for display.
 	 *
@@ -1514,7 +1471,6 @@ class RuleService
 	 */
 	public function listRulesFor( ?string $userId ): array
 	{
-
 		$canEditAny = $userId === null
 			|| $this->permissionService->canUserEditRules( $userId );
 
@@ -1554,7 +1510,6 @@ class RuleService
 		return $listed;
 	}
 
-
 	/**
 	 * Whether a rule belongs on a page about this user's own files.
 	 *
@@ -1564,8 +1519,8 @@ class RuleService
 	public function ruleConcernsUser(
 		string $userId,
 		array  $rule,
-	): bool {
-
+	): bool
+	{
 		$selector = self::ruleSelector( $rule );
 
 		if ( ! $selector->isHomeKind() && $selector->kind !== Selector::KIND_UNIVERSAL )
@@ -1578,7 +1533,6 @@ class RuleService
 		return $this->selectorAppliesTo( $selector, $userId )
 			&& $this->isPathVisibleToUser( $userId, $rule['path'] ?? '/' );
 	}
-
 
 	/**
 	 * Whether $userId may create/update/delete/toggle/reorder $rule.
@@ -1600,8 +1554,8 @@ class RuleService
 	public function canUserMutateRule(
 		string $userId,
 		array  $rule,
-	): bool {
-
+	): bool
+	{
 		if ( ! empty( $rule['admin_enforced'] ) )
 		{
 			return false;
@@ -1616,6 +1570,8 @@ class RuleService
 		return $this->ruleTargetRefusal( $userId, $rule['path'] ?? '/' ) === null;
 	}
 
+
+//  getters / setters / is* / has*
 
 	/**
 	 * Whether a rule's path can reach anything in this user's own storage.
@@ -1633,8 +1589,8 @@ class RuleService
 	public function isPathVisibleToUser(
 		string $userId,
 		string $path,
-	): bool {
-
+	): bool
+	{
 		$folderPath = $this->pathToFolder( $path );
 
 		if ( $folderPath === '/' )
@@ -1654,7 +1610,6 @@ class RuleService
 		}
 	}
 
-
 	/**
 	 * Why this user may not target a personal rule at this path — null when
 	 * they may.
@@ -1669,8 +1624,8 @@ class RuleService
 	public function ruleTargetRefusal(
 		string $userId,
 		string $path,
-	): ?string {
-
+	): ?string
+	{
 		$folderPath = $this->pathToFolder( $path );
 
 		try
@@ -1702,13 +1657,11 @@ class RuleService
 		}
 	}
 
-
 	/**
 	 * Derive the literal folder portion of a rule path glob.
 	 */
 	private function pathToFolder( string $path ): string
 	{
-
 		$path = trim( $path );
 
 		if ( $path === '' || $path === '/' || $path === '**' )
@@ -1733,7 +1686,6 @@ class RuleService
 		return $folder;
 	}
 
-
 	/**
 	 * Search for files matching a path glob within a user folder.
 	 *
@@ -1745,11 +1697,10 @@ class RuleService
 		Folder $userFolder,
 		string $pathGlob,
 		int    $limit,
-	): array {
-
+	): array
+	{
 		return $this->searchFilesByGlob( $userFolder, $pathGlob, $limit );
 	}
-
 
 	/**
 	 * Search for files matching a path glob within a folder.
@@ -1778,8 +1729,8 @@ class RuleService
 		string $pathGlob,
 		int    $limit,
 		int    $pageSize = 500,
-	): array {
-
+	): array
+	{
 		$likePattern = '%' . ltrim( self::globToLike( $pathGlob ), '/%' );
 		$folderPath  = rtrim( (string) $folder->getPath(), '/' );
 		$unlimited   = $limit <= 0;
@@ -1841,13 +1792,11 @@ class RuleService
 		return $files;
 	}
 
-
 	/**
 	 * Convert a glob pattern to SQL LIKE pattern.
 	 */
 	public static function globToLike( string $glob ): string
 	{
-
 		$like = str_replace(
 			[
 				'%',
@@ -1872,5 +1821,4 @@ class RuleService
 			$like,
 		);
 	}
-
 }

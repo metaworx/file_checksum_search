@@ -15,13 +15,14 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 class TableNameServiceTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  other non-static methods
 
 	private function makeService( string $prefix ): TableNameService
 	{
-
 		/** @var MockObject|IConfig $config */
 		$config = $this->createMock( IConfig::class );
 		$config->method( 'getSystemValueString' )
@@ -32,19 +33,15 @@ class TableNameServiceTest
 		return new TableNameService( $config );
 	}
 
-
 	public function testGetPrefixReturnsConfiguredPrefix(): void
 	{
-
 		$service = $this->makeService( 'oc_' );
 
 		$this->assertSame( 'oc_', $service->getPrefix() );
 	}
 
-
 	public function testGetPrefixReturnsNonDefaultPrefix(): void
 	{
-
 		// Regression-relevant: README explicitly documents that FCIAS
 		// must read a non-default dbtableprefix correctly.
 		$service = $this->makeService( 'nc_custom_' );
@@ -52,28 +49,22 @@ class TableNameServiceTest
 		$this->assertSame( 'nc_custom_', $service->getPrefix() );
 	}
 
-
 	public function testGetFilecacheTableNameUsesConfiguredPrefix(): void
 	{
-
 		$service = $this->makeService( 'oc_' );
 
 		$this->assertSame( 'oc_filecache', $service->getFilecacheTableName() );
 	}
 
-
 	public function testGetFilecacheTableNameWithNonDefaultPrefix(): void
 	{
-
 		$service = $this->makeService( 'nc_custom_' );
 
 		$this->assertSame( 'nc_custom_filecache', $service->getFilecacheTableName() );
 	}
 
-
 	public function testPrefixIsReadOnceAtConstructionTime(): void
 	{
-
 		/** @var MockObject|IConfig $config */
 		$config = $this->createMock( IConfig::class );
 		$config->expects( $this->once() )
@@ -91,5 +82,4 @@ class TableNameServiceTest
 		$this->assertSame( 'oc_', $service->getPrefix() );
 		$this->assertSame( 'oc_filecache', $service->getFilecacheTableName() );
 	}
-
 }

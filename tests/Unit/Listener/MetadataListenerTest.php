@@ -22,9 +22,11 @@ use Psr\Log\LoggerInterface;
 use RuntimeException;
 
 class MetadataListenerTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private MockObject|MetadataService $metadataService;
 
@@ -33,9 +35,10 @@ class MetadataListenerTest
 	private MetadataListener           $listener;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->metadataService = $this->createMock( MetadataService::class );
@@ -48,9 +51,10 @@ class MetadataListenerTest
 	}
 
 
+//  other non-static methods
+
 	public function testHandleSkipsNonMetadataBackgroundEvent(): void
 	{
-
 		$event = $this->createMock( Event::class );
 
 		$this->metadataService->expects( $this->never() )
@@ -60,10 +64,8 @@ class MetadataListenerTest
 		$this->listener->handle( $event );
 	}
 
-
 	public function testHandleSkipsNonFileNode(): void
 	{
-
 		$folder   = $this->createMock( Folder::class );
 		$metadata = $this->createMock( IFilesMetadata::class );
 		$event    = new MetadataBackgroundEvent( $folder, $metadata );
@@ -75,10 +77,8 @@ class MetadataListenerTest
 		$this->listener->handle( $event );
 	}
 
-
 	public function testHandleMarksPendingMissing(): void
 	{
-
 		$file     = $this->createMock( File::class );
 		$metadata = $this->createMock( IFilesMetadata::class );
 		$event    = new MetadataBackgroundEvent( $file, $metadata );
@@ -98,10 +98,8 @@ class MetadataListenerTest
 		$this->listener->handle( $event );
 	}
 
-
 	public function testHandleCatchesThrowable(): void
 	{
-
 		$file     = $this->createMock( File::class );
 		$metadata = $this->createMock( IFilesMetadata::class );
 		$event    = new MetadataBackgroundEvent( $file, $metadata );
@@ -124,5 +122,4 @@ class MetadataListenerTest
 
 		$this->assertTrue( true );
 	}
-
 }

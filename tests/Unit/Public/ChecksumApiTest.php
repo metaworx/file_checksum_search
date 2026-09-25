@@ -36,11 +36,12 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 class ChecksumApiTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
 
-// private properties
+//  private properties
+
 	private MockObject|HashIndexService $hashIndexService;
 
 	private MockObject|MetadataService  $metadataService;
@@ -70,9 +71,10 @@ class ChecksumApiTest
 	private ChecksumApi                  $api;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->hashIndexService = $this->createMock( HashIndexService::class );
@@ -124,6 +126,8 @@ class ChecksumApiTest
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * The resolver, mocked: reach is its business and has its own tests.
 	 * By default every file is within reach except 99999, the id these
@@ -132,7 +136,6 @@ class ChecksumApiTest
 	 */
 	private function reachResolverMock(): \OCA\FileChecksumSearch\Service\ReachResolver&MockObject
 	{
-
 		$this->outOfReach = [ 99999 ];
 
 		$reach = $this->createMock( \OCA\FileChecksumSearch\Service\ReachResolver::class );
@@ -154,12 +157,9 @@ class ChecksumApiTest
 		return $reach;
 	}
 
-
 	// ─── findByHash ─────────────────────────────────────────────────
-
 	public function testFindByHashClampsLimitTo500(): void
 	{
-
 		$this->hashIndexService->expects( $this->once() )
 		                       ->method( 'findByHash' )
 		                       ->with( 'abc', null, 500, null )
@@ -169,10 +169,8 @@ class ChecksumApiTest
 		$this->api->findByHash( 'abc', null, 999 );
 	}
 
-
 	public function testFindByHashPassesAlgoFilter(): void
 	{
-
 		$this->hashIndexService->expects( $this->once() )
 		                       ->method( 'findByHash' )
 		                       ->with( 'abc', 'md5', 100, null )
@@ -184,10 +182,8 @@ class ChecksumApiTest
 		$this->assertEmpty( $result['results'] );
 	}
 
-
 	public function testFindByHashReturnsResults(): void
 	{
-
 		$rows = [
 			[
 				'fileid'     => '42',
@@ -213,7 +209,6 @@ class ChecksumApiTest
 		$this->assertSame( 'abc123', $result['results'][0]['hash'] );
 	}
 
-
 	/**
 	 * A scoped lookup — one account, as every non-sudo call is — spends its
 	 * limit on that account's mounts and lets getById() decide visibility:
@@ -222,7 +217,6 @@ class ChecksumApiTest
 	 */
 	public function testFindByHashScopedResolvesThroughGetByIdAndDropsWhatTheUserCannotOpen(): void
 	{
-
 		$this->userManager->method( 'get' )
 		                  ->with( 'bob' )
 		                  ->willReturn( $this->createMock( IUser::class ) )
@@ -287,7 +281,6 @@ class ChecksumApiTest
 		$this->assertSame( 'Docs/report.pdf', $result['results'][0]['path'] );
 	}
 
-
 	/**
 	 * A group leader's ceiling is several accounts at once. The lookup
 	 * spends its limit on the union of their mounts and renders each row
@@ -296,7 +289,6 @@ class ChecksumApiTest
 	 */
 	public function testFindByHashScopedToSeveralAccountsUnionsTheirMountsAndResolvesThroughAnyOfThem(): void
 	{
-
 		$alice = $this->createConfiguredMock( IUser::class, [ 'getUID' => 'alice' ] );
 		$bob   = $this->createConfiguredMock( IUser::class, [ 'getUID' => 'bob' ] );
 
@@ -390,20 +382,16 @@ class ChecksumApiTest
 		$this->assertSame( '/bob/files/b.txt', $result['results'][1]['location'] );
 	}
 
-
 	public function testFindByHashThrowsOnEmptyHash(): void
 	{
-
 		$this->expectException( InvalidArgumentException::class );
 		$this->expectExceptionMessage( 'Hash parameter is required.' );
 
 		$this->api->findByHash( '' );
 	}
 
-
 	public function testFindByHashTrimsWhitespace(): void
 	{
-
 		$this->hashIndexService->expects( $this->once() )
 		                       ->method( 'findByHash' )
 		                       ->with( 'abc123', null, 100, null )
@@ -415,7 +403,6 @@ class ChecksumApiTest
 		$this->assertEmpty( $result['results'] );
 	}
 
-
 	/**
 	 * A scoped lookup resolves visibility through the account, so an account
 	 * that no longer exists reads nothing — and never falls through to the
@@ -423,7 +410,6 @@ class ChecksumApiTest
 	 */
 	public function testFindByHashScopedToAGoneAccountReadsNothing(): void
 	{
-
 		$this->userManager->method( 'get' )
 		                  ->with( 'ghost' )
 		                  ->willReturn( null )
@@ -435,12 +421,9 @@ class ChecksumApiTest
 		$this->assertSame( [ 'results' => [] ], $this->api->findByHash( 'abc123', null, 100, [ 'ghost' ] ) );
 	}
 
-
 	// ─── findDuplicates ─────────────────────────────────────────────
-
 	public function testFindDuplicatesClampsLimit(): void
 	{
-
 		$this->signedInAs( 'bob' );
 
 		// A caller asking for 999 gets 500, and the clamped value is what the
@@ -456,10 +439,8 @@ class ChecksumApiTest
 		$this->assertSame( 500, $result['pagination']['limit'] );
 	}
 
-
 	public function testFindDuplicatesRespectsAlgoAndMinCount(): void
 	{
-
 		$this->signedInAs( 'bob' );
 
 		$this->hashIndexService->expects( $this->once() )
@@ -473,10 +454,8 @@ class ChecksumApiTest
 		$this->assertEmpty( $result['duplicates'] );
 	}
 
-
 	public function testFindDuplicatesReturnsEmptyWhenNoUser(): void
 	{
-
 		$this->userSession->method( 'getUser' )
 		                  ->willReturn( null )
 		;
@@ -492,14 +471,12 @@ class ChecksumApiTest
 		$this->assertSame( 0, $result['total_groups'] );
 	}
 
-
 	/**
 	 * The grouping itself lives in HashIndexService and is tested there; this
 	 * checks the API hands back what it was given, for the signed-in user.
 	 */
 	public function testFindDuplicatesReturnsTheListingUntouched(): void
 	{
-
 		$this->signedInAs( 'bob' );
 
 		$listing = [
@@ -538,13 +515,11 @@ class ChecksumApiTest
 		$this->assertSame( $listing, $this->api->findDuplicates() );
 	}
 
-
 	/**
 	 * @noinspection PhpSameParameterValueInspection
 	 */
 	private function signedInAs( string $uid ): void
 	{
-
 		$user = $this->createMock( IUser::class );
 		$user->method( 'getUID' )
 		     ->willReturn( $uid )
@@ -554,13 +529,11 @@ class ChecksumApiTest
 		;
 	}
 
-
 	/**
 	 * @return array{duplicates: array, total_groups: int, pagination: array{offset: int, limit: int}}
 	 */
 	private function emptyListing( int $limit = 50 ): array
 	{
-
 		return [
 			'duplicates'   => [],
 			'total_groups' => 0,
@@ -571,12 +544,9 @@ class ChecksumApiTest
 		];
 	}
 
-
 	// ─── getHashesByFile ────────────────────────────────────────────
-
 	public function testGetHashesByFileDelegatesToMetadataService(): void
 	{
-
 		$file = $this->createMock( File::class );
 		$file->expects( $this->once() )
 		     ->method( 'getId' )
@@ -600,16 +570,12 @@ class ChecksumApiTest
 		$this->assertCount( 1, $data['hashes'] );
 	}
 
-
 	// ─── getHashesByFileId ──────────────────────────────────────────
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testGetHashesByFileIdReturnsEmptyForUnknownFile(): void
 	{
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'getHashes' )
 		                      ->with( 99999 )
@@ -627,13 +593,11 @@ class ChecksumApiTest
 		$this->assertEmpty( $data['hashes'] );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testGetHashesByFileIdReturnsHashes(): void
 	{
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'getHashes' )
 		                      ->with( 42 )
@@ -664,10 +628,8 @@ class ChecksumApiTest
 		$this->assertSame( '', $data['preferred'] );
 	}
 
-
 	public function testGetHashesByFileIdThrowsWhenTheFileLiesOutsideTheReach(): void
 	{
-
 		// Regression test for FCIAS Review §6, Finding 1 — the reach is the
 		// resolver's answer now, the same one the listing filters by.
 		$this->outOfReach[] = 42;
@@ -681,13 +643,11 @@ class ChecksumApiTest
 		$this->api->getHashesByFileId( 42, 'alice', [ 'alice' ] );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testGetHashesByFileIdAllowsAFileWithinTheReach(): void
 	{
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'getHashes' )
 		                      ->with( 42 )
@@ -702,7 +662,6 @@ class ChecksumApiTest
 		$this->assertSame( 42, $data['fileid'] );
 	}
 
-
 	/**
 	 * `canRecalc` is about who is *asking*, never about whose file it is.
 	 * With one parameter carrying both, a cross-account read passed null for
@@ -712,7 +671,6 @@ class ChecksumApiTest
 	 */
 	public function testCanRecalcReportsTheAskerNotTheReach(): void
 	{
-
 		$this->groupManager->method( 'isAdmin' )
 		                   ->with( 'alice' )
 		                   ->willReturn( false )
@@ -730,12 +688,9 @@ class ChecksumApiTest
 		$this->assertFalse( $data['canRecalc'], 'every account in reach, but alice still may not' );
 	}
 
-
 	// ─── getHashesByPath ────────────────────────────────────────────
-
 	public function testGetHashesByPathThrowsOnNonFile(): void
 	{
-
 		$folder = $this->createMock( Folder::class );
 
 		$this->rootFolder->method( 'get' )
@@ -748,13 +703,11 @@ class ChecksumApiTest
 		$this->api->getHashesByPath( '/some/folder' );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testGetHashesByPathWithUserResolvesRelativePath(): void
 	{
-
 		$file       = $this->createMock( File::class );
 		$userFolder = $this->createMock( Folder::class );
 
@@ -792,13 +745,11 @@ class ChecksumApiTest
 		$this->assertSame( 'Documents/report.pdf', $data['path'] );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testGetHashesByPathWithoutUserResolvesAbsolutePath(): void
 	{
-
 		$file = $this->createMock( File::class );
 
 		$this->rootFolder->expects( $this->once() )
@@ -831,9 +782,7 @@ class ChecksumApiTest
 		$this->assertSame( '/alice/files/Docs/x.pdf', $data['path'] );
 	}
 
-
 	// ─── findSameHash ───────────────────────────────────────────────
-
 	/**
 	 * The reference file is checked before its hashes are read. Without
 	 * this, sweeping file ids answers "does that file hold something I also
@@ -841,7 +790,6 @@ class ChecksumApiTest
 	 */
 	public function testFindSameHashThrowsWhenTheReferenceFileLiesOutsideTheReach(): void
 	{
-
 		$this->outOfReach[] = 42;
 
 		$this->metadataService->expects( $this->never() )
@@ -853,10 +801,8 @@ class ChecksumApiTest
 		$this->api->findSameHash( 42, [ 'alice' ] );
 	}
 
-
 	public function testFindSameHashReturnsEmptyWhenNoHashes(): void
 	{
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'getHashes' )
 		                      ->with( 42 )
@@ -868,10 +814,8 @@ class ChecksumApiTest
 		$this->assertEmpty( $data['duplicates'] );
 	}
 
-
 	public function testFindSameHashReturnsEmptyWhenNoDuplicates(): void
 	{
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'getHashes' )
 		                      ->with( 42 )
@@ -896,10 +840,8 @@ class ChecksumApiTest
 		$this->assertEmpty( $data['duplicates'] );
 	}
 
-
 	public function testFindSameHashReturnsGroupedDuplicates(): void
 	{
-
 		$this->metadataService->method( 'confirmFullHash' )
 		                      ->willReturnCallback(
 			                      static fn(
@@ -980,10 +922,8 @@ class ChecksumApiTest
 		$this->assertSame( 'Backup/photo.jpg', $data['duplicates'][0]['files'][0]['path'] );
 	}
 
-
 	public function testFindSameHashRejectsTruncatedPrefixFalsePositive(): void
 	{
-
 		// Regression test for FCIAS Review §6, Finding 6: queryByHash()
 		// matches on the truncated index value for long hashes, so a
 		// candidate row may only share the truncated prefix. The full
@@ -1022,12 +962,9 @@ class ChecksumApiTest
 		$this->assertEmpty( $data['duplicates'] );
 	}
 
-
 	// ─── getStatus ──────────────────────────────────────────────────
-
 	public function testGetStatusGivesAnAdminTheWholeSnapshot(): void
 	{
-
 		$this->groupManager->method( 'isAdmin' )
 		                   ->with( 'theadmin' )
 		                   ->willReturn( true )
@@ -1046,7 +983,6 @@ class ChecksumApiTest
 		$this->assertIsInt( $status['pendingRows'] );
 	}
 
-
 	/**
 	 * The version is a compatibility marker and harmless; the rest describes
 	 * the instance and is the administrator's. A non-admin — including the
@@ -1054,7 +990,6 @@ class ChecksumApiTest
 	 */
 	public function testGetStatusGivesANonAdminTheVersionAlone(): void
 	{
-
 		$this->groupManager->method( 'isAdmin' )
 		                   ->willReturn( false )
 		;
@@ -1064,9 +999,7 @@ class ChecksumApiTest
 		$this->assertSame( [ 'version' ], array_keys( $status ) );
 	}
 
-
 	// ─── recalcHash ─────────────────────────────────────────────────
-
 	/**
 	 * The manual-recalculation permission gates triggering work, on top of
 	 * owning the file: an account it does not name is refused before any
@@ -1074,7 +1007,6 @@ class ChecksumApiTest
 	 */
 	public function testRecalcHashRefusesAnAccountThePermissionDoesNotName(): void
 	{
-
 		$node       = $this->createMock( File::class );
 		$userFolder = $this->createMock( Folder::class );
 		$userFolder->method( 'getById' )
@@ -1107,10 +1039,8 @@ class ChecksumApiTest
 		$this->assertArrayNotHasKey( 'excluded', $result );
 	}
 
-
 	public function testRecalcHashRefusesAFileAnExcludeRuleCovers(): void
 	{
-
 		$node = $this->createMock( File::class );
 		$node->method( 'getPath' )
 		     ->willReturn( '/files/Archive/big.iso' )
@@ -1142,7 +1072,6 @@ class ChecksumApiTest
 		$this->assertStringNotContainsString( 'administrator', $result['error'], 'whose rule it is rides in ruleOwner, not in the text' );
 	}
 
-
 	/**
 	 * Whose rule refused the file is the reader's to know: their own rules
 	 * live on their personal page, an administrator's do not. The answer
@@ -1152,7 +1081,6 @@ class ChecksumApiTest
 	 */
 	public function testARefusalNamesWhoseRuleItIs(): void
 	{
-
 		$node = $this->createMock( File::class );
 		$node->method( 'getPath' )
 		     ->willReturn( '/files/Archive/big.iso' )
@@ -1173,10 +1101,8 @@ class ChecksumApiTest
 		$this->assertSame( 'admin', $this->api->recalcHash( 42 )['ruleOwner'], 'every home is nobody\'s in particular' );
 	}
 
-
 	public function testRecalcHashAllowsAFileAnIgnoreRuleCovers(): void
 	{
-
 		$node = $this->createMock( File::class );
 		$node->method( 'getPath' )
 		     ->willReturn( '/files/Photos/a.jpg' )
@@ -1203,10 +1129,8 @@ class ChecksumApiTest
 		$this->assertTrue( $this->api->recalcHash( 42 )['success'] );
 	}
 
-
 	public function testRecalcHashProceedsWhenTheRuleLookupFails(): void
 	{
-
 		$this->rootFolder->method( 'getById' )
 		                 ->willThrowException( new \RuntimeException( 'storage unavailable' ) )
 		;
@@ -1222,10 +1146,8 @@ class ChecksumApiTest
 		$this->assertTrue( $this->api->recalcHash( 42 )['success'] );
 	}
 
-
 	public function testRecalcHashDelegatesToHashIndexService(): void
 	{
-
 		$expected = [
 			'success' => true,
 			'algo'    => 'sha256',
@@ -1244,10 +1166,8 @@ class ChecksumApiTest
 		$this->assertSame( $expected, $result );
 	}
 
-
 	public function testRecalcHashReturnsFailureResult(): void
 	{
-
 		$expected = [
 			'success' => false,
 			'error'   => 'File not found.',
@@ -1262,10 +1182,8 @@ class ChecksumApiTest
 		$this->assertFalse( $result['success'] );
 	}
 
-
 	public function testRecalcHashUsesDefaultAlgoWhenNull(): void
 	{
-
 		$this->hashIndexService->expects( $this->once() )
 		                       ->method( 'recalcHash' )
 		                       ->with( 42, 'sha1' )
@@ -1275,10 +1193,8 @@ class ChecksumApiTest
 		$this->api->recalcHash( 42 );
 	}
 
-
 	public function testRecalcHashReturnsFailureWhenRequestingUserCannotAccessFile(): void
 	{
-
 		// Regression test for FCIAS Review §6, Finding 1.
 		$userFolder = $this->createMock( Folder::class );
 
@@ -1296,10 +1212,8 @@ class ChecksumApiTest
 		$this->assertSame( 'File not found.', $result['error'] );
 	}
 
-
 	public function testRecalcHashProceedsWhenRequestingUserHasAccess(): void
 	{
-
 		$userFolder = $this->createMock( Folder::class );
 		$node       = $this->createMock( File::class );
 
@@ -1340,7 +1254,6 @@ class ChecksumApiTest
 		$this->assertTrue( $result['success'] );
 	}
 
-
 	/**
 	 * The point of the fourth parameter: the caller has established the reach
 	 * elsewhere ({@see SudoScope::mayReachFile()}), so the own-tree check is
@@ -1349,7 +1262,6 @@ class ChecksumApiTest
 	 */
 	public function testRecalcHashReachesAnotherAccountsFileWhenTheReachWasSettled(): void
 	{
-
 		$this->permissionService->method( 'isAllowed' )
 		                        ->with( PermissionService::PERMISSION_MANUAL_RECALC, 'alice' )
 		                        ->willReturn( true )
@@ -1394,14 +1306,12 @@ class ChecksumApiTest
 		$this->assertTrue( $result['success'] );
 	}
 
-
 	/**
 	 * A file no account holds cannot be resolved anywhere, and says so
 	 * rather than reaching the hashing service with nothing.
 	 */
 	public function testRecalcHashAcrossAccountsFailsWhenNoHolderCanResolveTheFile(): void
 	{
-
 		$this->permissionService->method( 'isAllowed' )
 		                        ->with( PermissionService::PERMISSION_MANUAL_RECALC, 'alice' )
 		                        ->willReturn( true )
@@ -1421,7 +1331,6 @@ class ChecksumApiTest
 		$this->assertSame( 'File not found.', $result['error'] );
 	}
 
-
 	/**
 	 * And what it does *not* waive. Reaching a file is not permission to make
 	 * the server work on it: an account without the manual-calculation
@@ -1431,7 +1340,6 @@ class ChecksumApiTest
 	 */
 	public function testReachingAcrossAccountsDoesNotWaiveTheCalculationPermission(): void
 	{
-
 		$this->groupManager->method( 'isAdmin' )
 		                   ->with( 'alice' )
 		                   ->willReturn( false )
@@ -1451,9 +1359,7 @@ class ChecksumApiTest
 		$this->assertTrue( $result['forbidden'] );
 	}
 
-
 	// ─── openableBy: which rows a link would open ───────────────────
-
 	/**
 	 * A link opens in the viewer's own folder or not at all, so the answer
 	 * is whether the viewer's own mounts hold the file — one batched lookup,
@@ -1461,7 +1367,6 @@ class ChecksumApiTest
 	 */
 	public function testOpenableByAsksTheViewersOwnMountsOnce(): void
 	{
-
 		$this->hashIndexService->expects( $this->once() )
 		                       ->method( 'batchLookupFilecachePaths' )
 		                       ->with( [ 7, 8, 9 ], [ 'alice' ] )
@@ -1475,9 +1380,7 @@ class ChecksumApiTest
 		$this->assertSame( [], $this->api->openableBy( [], 'alice' ), 'nothing to ask about, nothing asked' );
 	}
 
-
 	// ─── recalcMany: one gesture, one request ───────────────────────
-
 	/**
 	 * Everything a batch needs to reach the hashing step: the permission
 	 * says yes, every id resolves through alice's folder, and the hashing
@@ -1485,7 +1388,6 @@ class ChecksumApiTest
 	 */
 	private function readyToRecalcMany(): void
 	{
-
 		$this->permissionService->method( 'isAllowed' )
 		                        ->willReturn( true )
 		;
@@ -1508,10 +1410,8 @@ class ChecksumApiTest
 		;
 	}
 
-
 	public function testRecalcManyStopsAtTheFileCapAndSaysWhatIsLeft(): void
 	{
-
 		$this->readyToRecalcMany();
 		$ids = range( 1, ChecksumApi::RECALC_BATCH_FILES + 1 );
 		$this->hashIndexService->method( 'fileSizes' )
@@ -1525,7 +1425,6 @@ class ChecksumApiTest
 		$this->assertSame( 'h1', $result['results'][0]['hash'] );
 	}
 
-
 	/**
 	 * Bytes, not only files: three files of 60 MiB are two requests, because
 	 * the third would take the call past 100 MiB, and the filecache knows
@@ -1533,7 +1432,6 @@ class ChecksumApiTest
 	 */
 	public function testRecalcManyStopsAtTheByteCapBeforeReading(): void
 	{
-
 		$this->readyToRecalcMany();
 		$mib = 1024 * 1024;
 		$this->hashIndexService->method( 'fileSizes' )
@@ -1546,14 +1444,12 @@ class ChecksumApiTest
 		$this->assertSame( [ 3 ], $result['remaining'] );
 	}
 
-
 	/**
 	 * A single file always goes through, however large — or a file bigger
 	 * than the whole budget could never be verified at all.
 	 */
 	public function testRecalcManyAlwaysReadsTheFirstFileHoweverLarge(): void
 	{
-
 		$this->readyToRecalcMany();
 		$this->hashIndexService->method( 'fileSizes' )
 		                       ->willReturn( [ 1 => 5 * 1024 * 1024 * 1024, 2 => 10 ] )
@@ -1566,7 +1462,6 @@ class ChecksumApiTest
 		$this->assertSame( [ 2 ], $result['remaining'], 'the next one waits for the next call' );
 	}
 
-
 	/**
 	 * A mixed batch answers per file. A group on the Others tab can hold
 	 * several accounts' copies; one out of reach is its own failed result,
@@ -1574,7 +1469,6 @@ class ChecksumApiTest
 	 */
 	public function testRecalcManyAnswersPerFileWhenOneIsOutOfReach(): void
 	{
-
 		$this->readyToRecalcMany();
 		$this->hashIndexService->method( 'fileSizes' )
 		                       ->willReturn( [ 1 => 10, 2 => 10 ] )
@@ -1590,7 +1484,6 @@ class ChecksumApiTest
 		$this->assertSame( 'File not found.', $result['results'][1]['error'] );
 	}
 
-
 	/**
 	 * Nor does it waive an administrator's exclude rule, which is about the
 	 * path and not about who is asking — and is the one control an
@@ -1598,7 +1491,6 @@ class ChecksumApiTest
 	 */
 	public function testReachingAcrossAccountsDoesNotWaiveAnExcludeRule(): void
 	{
-
 		$this->permissionService->method( 'isAllowed' )
 		                        ->with( PermissionService::PERMISSION_MANUAL_RECALC, 'alice' )
 		                        ->willReturn( true )
@@ -1620,16 +1512,12 @@ class ChecksumApiTest
 		$this->assertSame( 'r1', $result['ruleId'] );
 	}
 
-
 	// ─── rules surface ──────────────────────────────────────────────
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testTrustedCallerActsAsAdminAndIsAuditedAsApi(): void
 	{
-
 		// null requesting user = server-side code with full authority: the
 		// scope passes through as an administrator's would, and the audit
 		// names the surface.
@@ -1658,13 +1546,11 @@ class ChecksumApiTest
 		$this->assertSame( 'newid', $id );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testANamedNonAdminIsEnforcedExactlyLikeRest(): void
 	{
-
 		$this->groupManager->method( 'isAdmin' )
 		                   ->with( 'bob' )
 		                   ->willReturn( false )
@@ -1702,13 +1588,11 @@ class ChecksumApiTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testANamedUserWithoutThePermissionIsRefused(): void
 	{
-
 		$this->groupManager->method( 'isAdmin' )
 		                   ->willReturn( false )
 		;
@@ -1724,10 +1608,8 @@ class ChecksumApiTest
 		$this->api->createRule( [ 'path' => '/docs/**' ], 'bob' );
 	}
 
-
 	public function testApplyRunsSynchronouslyAndReturnsTheBuckets(): void
 	{
-
 		$rule = [
 			'id'      => 'r1',
 			'enabled' => true,
@@ -1751,5 +1633,4 @@ class ChecksumApiTest
 		// context and usually wants the result.
 		$this->assertSame( 2, $this->api->applyRule( 'r1' )['marked'] );
 	}
-
 }

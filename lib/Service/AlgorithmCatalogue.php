@@ -38,6 +38,8 @@ use OCP\IAppConfig;
 class AlgorithmCatalogue
 {
 
+//  constants
+
 	public const CONFIG_KEY = 'allowed_algorithms';
 
 	/** The algorithm used where none is named; empty means the first allowed. */
@@ -48,7 +50,7 @@ class AlgorithmCatalogue
 	 * 384-bit members of the families it already offered.
 	 */
 	public const DEFAULT_ALLOWLIST
-		= [
+		 = [
 			'sha1',
 			'md5',
 			'adler32',
@@ -67,14 +69,21 @@ class AlgorithmCatalogue
 	/** @var list<string>|null */
 	private ?array $algorithms = null;
 
+
+//  private properties
+
 	private ?string $default = null;
 
+
+//  constructor
 
 	public function __construct(
 		private readonly IAppConfig $appConfig,
 	) {
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * Every algorithm this PHP build offers under a name that can be a key.
@@ -83,7 +92,6 @@ class AlgorithmCatalogue
 	 */
 	public function available(): array
 	{
-
 		$names = array_filter(
 			hash_algos(),
 			static fn( string $name ): bool => preg_match( self::NAME_PATTERN, $name ) === 1,
@@ -91,7 +99,6 @@ class AlgorithmCatalogue
 
 		return array_values( $names );
 	}
-
 
 	/**
 	 * The algorithms in force: the allowlist, less what PHP cannot do and
@@ -103,7 +110,6 @@ class AlgorithmCatalogue
 	 */
 	public function algorithms(): array
 	{
-
 		if ( $this->algorithms !== null )
 		{
 			return $this->algorithms;
@@ -120,7 +126,6 @@ class AlgorithmCatalogue
 		return $this->algorithms = $usable;
 	}
 
-
 	/**
 	 * The algorithm used when none is named: the one the administrator
 	 * designated, as long as it is in force, else the first allowed.
@@ -131,7 +136,6 @@ class AlgorithmCatalogue
 	 */
 	public function default(): string
 	{
-
 		if ( $this->default !== null )
 		{
 			return $this->default;
@@ -143,6 +147,8 @@ class AlgorithmCatalogue
 	}
 
 
+//  getters / setters / is* / has*
+
 	/**
 	 * Designate the default. A name not in force is refused — a default
 	 * nothing computes is no default — and the empty name clears the
@@ -150,7 +156,6 @@ class AlgorithmCatalogue
 	 */
 	public function setDefault( string $name ): bool
 	{
-
 		$name = strtolower( trim( $name ) );
 
 		if ( $name === '' )
@@ -172,16 +177,13 @@ class AlgorithmCatalogue
 		return true;
 	}
 
-
 	/**
 	 * Whether a raw, untrusted value names an algorithm in force.
 	 */
 	public function isValid( mixed $algo ): bool
 	{
-
 		return is_string( $algo ) && in_array( $algo, $this->algorithms(), true );
 	}
-
 
 	/**
 	 * Keep only the algo => hash pairs this instance could itself have
@@ -207,7 +209,6 @@ class AlgorithmCatalogue
 	 */
 	public function keepPlausible( array $pairs ): array
 	{
-
 		$kept = [];
 
 		foreach ( $pairs as $algo => $hash )
@@ -234,7 +235,6 @@ class AlgorithmCatalogue
 		return $kept;
 	}
 
-
 	/**
 	 * Store a new allowlist, keeping only what can be used. Returns what was
 	 * kept, so a caller can tell the administrator what it dropped.
@@ -250,7 +250,6 @@ class AlgorithmCatalogue
 	 */
 	public function setAllowlist( array $names ): array
 	{
-
 		$kept = $this->usable( $names );
 
 		if ( $kept === [] )
@@ -275,7 +274,6 @@ class AlgorithmCatalogue
 		return $kept;
 	}
 
-
 	/**
 	 * @param  list<mixed>  $names
 	 *
@@ -283,7 +281,6 @@ class AlgorithmCatalogue
 	 */
 	private function usable( array $names ): array
 	{
-
 		$available = $this->available();
 		$kept      = [];
 
@@ -304,5 +301,4 @@ class AlgorithmCatalogue
 
 		return $kept;
 	}
-
 }

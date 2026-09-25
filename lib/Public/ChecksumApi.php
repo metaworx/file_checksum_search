@@ -47,6 +47,8 @@ use OCP\IUserSession;
 class ChecksumApi
 {
 
+//  constructor
+
 	public function __construct(
 		private readonly HashIndexService        $hashIndexService,
 		private readonly MetadataService         $metadataService,
@@ -66,6 +68,8 @@ class ChecksumApi
 	}
 
 
+//  getters / setters / is* / has*
+
 	/**
 	 * Get all checksums for a File object.
 	 *
@@ -77,10 +81,8 @@ class ChecksumApi
 	 */
 	public function getHashesByFile( File $file ): array
 	{
-
 		return $this->getHashesByFileId( $file->getId() );
 	}
-
 
 	/**
 	 * Get all checksums for a file by its filecache ID.
@@ -111,8 +113,8 @@ class ChecksumApi
 		int     $fileId,
 		?string $actingUser = null,
 		?array  $reachUids = null,
-	): array {
-
+	): array
+	{
 		if ( ! $this->reach->contains( $this->reach->mountsFor( $reachUids ), $fileId ) )
 		{
 			throw new NotFoundException( "Invalid file ID: $fileId" );
@@ -158,7 +160,6 @@ class ChecksumApi
 		];
 	}
 
-
 	/**
 	 * Get checksums by filesystem path.
 	 *
@@ -176,8 +177,8 @@ class ChecksumApi
 	public function getHashesByPath(
 		string  $path,
 		?string $user = null,
-	): array {
-
+	): array
+	{
 		if ( $user !== null )
 		{
 			$userFolder = $this->rootFolder->getUserFolder( $user );
@@ -202,7 +203,6 @@ class ChecksumApi
 		return $result;
 	}
 
-
 	/**
 	 * Read-only health/status snapshot.
 	 *
@@ -210,7 +210,6 @@ class ChecksumApi
 	 */
 	public function getStatus( ?string $requestingUser = null ): array
 	{
-
 		// The version is harmless — clients check it for compatibility. The
 		// rest describes the instance (its database version, how much it
 		// holds, its backlog) and is the administrator's to see, not every
@@ -230,6 +229,8 @@ class ChecksumApi
 		];
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * Search for files by hash value, with optional algorithm filter.
@@ -257,8 +258,8 @@ class ChecksumApi
 		?string $algo = null,
 		int     $limit = 100,
 		?array  $reachUids = null,
-	): array {
-
+	): array
+	{
 		$hash = trim( $hash );
 
 		if ( $hash === '' )
@@ -274,10 +275,10 @@ class ChecksumApi
 		{
 			$rows = $this->hashIndexService->findByHash( $hash, $algo, $limit, null );
 
-			$results = array_map( static function (
+			$results = array_map( static function(
 				array $row,
-			): array {
-
+			): array
+			{
 				return [
 					'fileid'   => (int) $row['fileid'],
 					'algo'     => $row['algo'],
@@ -378,7 +379,6 @@ class ChecksumApi
 		return [ 'results' => $this->withLocations( $results ) ];
 	}
 
-
 	/**
 	 * Find duplicate hash groups among the files the session user can reach.
 	 *
@@ -400,8 +400,8 @@ class ChecksumApi
 		int     $offset = 0,
 		?string $hash = null,
 		bool    $anywhere = false,
-	): array {
-
+	): array
+	{
 		$user = $this->userSession->getUser();
 		$uid  = $user?->getUID();
 
@@ -419,7 +419,6 @@ class ChecksumApi
 
 		return $this->findDuplicatesFor( [ $uid ], $algo, $minCount, $limit, $offset, $hash, $anywhere );
 	}
-
 
 	/**
 	 * Duplicate groups for one account, or for every account.
@@ -445,13 +444,12 @@ class ChecksumApi
 		int     $offset = 0,
 		?string $hash = null,
 		bool    $anywhere = false,
-	): array {
-
+	): array
+	{
 		$limit = max( 1, min( $limit, 500 ) );
 
 		return $this->hashIndexService->listDuplicatesForUser( $reachUids, $algo, $minCount, $limit, $offset, $hash, $anywhere );
 	}
-
 
 	/**
 	 * Find other files sharing the same hash values as a given file.
@@ -474,8 +472,8 @@ class ChecksumApi
 	public function findSameHash(
 		int    $fileId,
 		?array $reachUids = null,
-	): array {
-
+	): array
+	{
 		// Before the hashes are read, not after. A hash is a fingerprint of
 		// content, so answering for a file the caller cannot open turns this
 		// into a content-equality oracle over every file on the instance:
@@ -578,7 +576,6 @@ class ChecksumApi
 		return [ 'duplicates' => array_values( $grouped ) ];
 	}
 
-
 	/**
 	 * Trigger hash recalculation for a file.
 	 *
@@ -631,8 +628,8 @@ class ChecksumApi
 		?string $algo = null,
 		?string $actingUser = null,
 		?array  $reachUids = null,
-	): array {
-
+	): array
+	{
 		if ( ! $this->reach->contains( $this->reach->mountsFor( $reachUids ), $fileId ) )
 		{
 			return [
@@ -695,6 +692,8 @@ class ChecksumApi
 	}
 
 
+//  constants
+
 	/**
 	 * How many files one {@see recalcMany()} call will read, at most. The
 	 * rate limit counts requests; this is what keeps one request from being
@@ -737,8 +736,8 @@ class ChecksumApi
 		?string $algo = null,
 		?string $actingUser = null,
 		?array  $reachUids = null,
-	): array {
-
+	): array
+	{
 		$fileIds = array_values( array_unique( array_map( 'intval', $fileIds ) ) );
 		$sizes   = $this->hashIndexService->fileSizes( $fileIds );
 		$results = [];
@@ -760,7 +759,7 @@ class ChecksumApi
 				];
 			}
 
-			$bytes    += $size;
+			$bytes += $size;
 			$results[] = [ 'fileid' => $fileId ] + $this->recalcHash( $fileId, $algo, $actingUser, $reachUids );
 		}
 
@@ -769,7 +768,6 @@ class ChecksumApi
 			'remaining' => [],
 		];
 	}
-
 
 	/**
 	 * Which of these files $viewer could open in the Files app.
@@ -789,8 +787,8 @@ class ChecksumApi
 	public function openableBy(
 		array  $fileIds,
 		string $viewer,
-	): array {
-
+	): array
+	{
 		if ( $fileIds === [] )
 		{
 			return [];
@@ -803,7 +801,6 @@ class ChecksumApi
 			array_map( static fn ( int $id ): bool => isset( $held[ $id ] ), $fileIds ),
 		);
 	}
-
 
 	/**
 	 * The given file rows, each with whose file it is and where it lives.
@@ -820,7 +817,6 @@ class ChecksumApi
 	 */
 	private function withLocations( array $rows ): array
 	{
-
 		if ( $rows === [] )
 		{
 			return [];
@@ -838,7 +834,6 @@ class ChecksumApi
 			$rows,
 		);
 	}
-
 
 	/**
 	 * A user-relative path and name for $fileId, from the first of $folders
@@ -858,8 +853,8 @@ class ChecksumApi
 		int   $fileId,
 		array $folders,
 		bool  $anyHolder,
-	): ?array {
-
+	): ?array
+	{
 		if ( $anyHolder )
 		{
 			foreach ( $this->userMountCache->getMountsForFileId( $fileId ) as $mount )
@@ -900,7 +895,6 @@ class ChecksumApi
 		return null;
 	}
 
-
 	/**
 	 * One file, resolved through a folder that can see it.
 	 *
@@ -915,7 +909,6 @@ class ChecksumApi
 	 */
 	private function fileForAnyAccount( int $fileId ): ?File
 	{
-
 		foreach ( $this->userMountCache->getMountsForFileId( $fileId ) as $mount )
 		{
 			try
@@ -944,6 +937,8 @@ class ChecksumApi
 	}
 
 
+//  static methods
+
 	/**
 	 * The ID of the rule that forbids hashing this file, or null if none does.
 	 *
@@ -962,7 +957,6 @@ class ChecksumApi
 	 */
 	private static function ruleOwner( array $rule ): string
 	{
-
 		if ( ! empty( $rule['admin_enforced'] ) )
 		{
 			return 'admin';
@@ -982,7 +976,6 @@ class ChecksumApi
 			: 'admin';
 	}
 
-
 	/**
 	 * The exclude rule governing $fileId, or null where none does.
 	 *
@@ -990,7 +983,6 @@ class ChecksumApi
 	 */
 	private function excludingRuleFor( int $fileId ): ?array
 	{
-
 		try
 		{
 			$rule = $this->ruleService->findFirstMatchingRule( $fileId );
@@ -1009,7 +1001,6 @@ class ChecksumApi
 			: null;
 	}
 
-
 	// ─── rules ──────────────────────────────────────────────────────
 	//
 	// The trusted-caller pattern, same as the rest of this class:
@@ -1018,7 +1009,6 @@ class ChecksumApi
 	// exactly as the REST API enforces that user. All payloads validate
 	// through the same RuleDefinitionValidator as REST and occ, and every
 	// mutation is audit-logged by RuleService with the actor named.
-
 	/**
 	 * List rules, in evaluation order, annotated for display.
 	 *
@@ -1029,14 +1019,12 @@ class ChecksumApi
 	 */
 	public function listRules( ?string $requestingUser = null ): array
 	{
-
 		return [
 			'rules'     => $this->ruleService->listRulesFor( $requestingUser ),
 			'canCreate' => $this->actsAsAdmin( $requestingUser )
 				|| $this->permissionService->canUserEditRules( (string) $requestingUser ),
 		];
 	}
-
 
 	/**
 	 * Create a rule.
@@ -1050,8 +1038,8 @@ class ChecksumApi
 	public function createRule(
 		array   $definition,
 		?string $requestingUser = null,
-	): string {
-
+	): string
+	{
 		$isAdmin = $this->actsAsAdmin( $requestingUser );
 
 		if ( ! $isAdmin && ! $this->permissionService->canUserEditRules( (string) $requestingUser ) )
@@ -1077,7 +1065,6 @@ class ChecksumApi
 		return $this->ruleService->ruleAdd( $validated, $requestingUser ?? self::TRUSTED_ACTOR );
 	}
 
-
 	/**
 	 * Update a rule; omitted fields keep their value.
 	 *
@@ -1090,8 +1077,8 @@ class ChecksumApi
 		string  $id,
 		array   $definition,
 		?string $requestingUser = null,
-	): void {
-
+	): void
+	{
 		$existing = $this->requireRule( $id );
 		$isAdmin  = $this->actsAsAdmin( $requestingUser );
 
@@ -1119,7 +1106,6 @@ class ChecksumApi
 		$this->ruleService->ruleUpdate( $id, $validated, $requestingUser ?? self::TRUSTED_ACTOR );
 	}
 
-
 	/**
 	 * Delete a rule. A deleted shipped default is recreated (disabled) by
 	 * the repair step, so deleting one is reversible housekeeping, not a
@@ -1131,8 +1117,8 @@ class ChecksumApi
 	public function deleteRule(
 		string  $id,
 		?string $requestingUser = null,
-	): void {
-
+	): void
+	{
 		$existing = $this->requireRule( $id );
 
 		if ( ! $this->mayMutate( $requestingUser, $existing ) )
@@ -1142,7 +1128,6 @@ class ChecksumApi
 
 		$this->ruleService->ruleDelete( $id, $requestingUser ?? self::TRUSTED_ACTOR );
 	}
-
 
 	/**
 	 * Apply a rule now: scan and queue every file it currently governs.
@@ -1157,8 +1142,8 @@ class ChecksumApi
 	public function applyRule(
 		string  $id,
 		?string $requestingUser = null,
-	): array {
-
+	): array
+	{
 		$existing = $this->requireRule( $id );
 
 		if ( ! $this->mayMutate( $requestingUser, $existing ) )
@@ -1174,17 +1159,14 @@ class ChecksumApi
 		);
 	}
 
-
 	/** The audit actor named for mutations by trusted (null-user) callers. */
 	private const TRUSTED_ACTOR = 'api';
-
 
 	/**
 	 * @throws InvalidArgumentException
 	 */
 	private function requireRule( string $id ): array
 	{
-
 		$rule = $this->ruleService->findRuleById( $id );
 
 		if ( $rule === null )
@@ -1195,14 +1177,11 @@ class ChecksumApi
 		return $rule;
 	}
 
-
 	private function actsAsAdmin( ?string $requestingUser ): bool
 	{
-
 		return $requestingUser === null
 			|| $this->groupManager->isAdmin( $requestingUser );
 	}
-
 
 	/**
 	 * Whether the caller may trigger a recalculation by hand: a trusted
@@ -1212,11 +1191,9 @@ class ChecksumApi
 	 */
 	private function mayRecalc( ?string $requestingUser ): bool
 	{
-
 		return $this->actsAsAdmin( $requestingUser )
 			|| $this->permissionService->isAllowed( PermissionService::PERMISSION_MANUAL_RECALC, $requestingUser );
 	}
-
 
 	/**
 	 * The same rule as REST: an administrator may change anything; anyone
@@ -1225,8 +1202,8 @@ class ChecksumApi
 	private function mayMutate(
 		?string $requestingUser,
 		array   $rule,
-	): bool {
-
+	): bool
+	{
 		if ( $this->actsAsAdmin( $requestingUser ) )
 		{
 			return true;
@@ -1235,6 +1212,4 @@ class ChecksumApi
 		return $this->permissionService->canUserEditRules( (string) $requestingUser )
 			&& $this->ruleService->canUserMutateRule( (string) $requestingUser, $rule );
 	}
-
-
 }

@@ -26,11 +26,12 @@ use PHPUnit\Framework\TestCase;
  * and the behaviour on inputs the façade never produces.
  */
 class PermissionServiceTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
 
-// private properties
+//  private properties
+
 	private MockObject|IAppConfig    $appConfig;
 
 	private MockObject|IGroupManager $groupManager;
@@ -38,9 +39,10 @@ class PermissionServiceTest
 	private PermissionService        $service;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->appConfig    = $this->createMock( IAppConfig::class );
@@ -50,6 +52,8 @@ class PermissionServiceTest
 	}
 
 
+//  config/init/exe/run methods
+
 	/**
 	 * Deny by default, then allow via each of the three routes in turn.
 	 * @noinspection PhpUnhandledExceptionInspection
@@ -58,8 +62,8 @@ class PermissionServiceTest
 		bool  $allUsers = false,
 		array $users = [],
 		array $groups = [],
-	): void {
-
+	): void
+	{
 		$this->appConfig->method( 'getValueBool' )
 		                ->with( Application::APP_ID, 'rule_editors_all_users', false )
 		                ->willReturn( $allUsers )
@@ -84,14 +88,14 @@ class PermissionServiceTest
 	}
 
 
-	// isAllowed
+//  other non-static methods
 
+	// isAllowed
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testAllUsersFlagAllowsAnyone(): void
 	{
-
 		$this->configure( allUsers: true );
 
 		$this->assertTrue(
@@ -99,13 +103,11 @@ class PermissionServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testListedUserIsAllowed(): void
 	{
-
 		$this->configure( users: [ 'alice' ] );
 
 		$this->assertTrue(
@@ -113,13 +115,11 @@ class PermissionServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testMemberOfListedGroupIsAllowed(): void
 	{
-
 		$this->configure( groups: [ 'staff' ] );
 
 		$this->groupManager->method( 'isInGroup' )
@@ -132,13 +132,11 @@ class PermissionServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testUnlistedUserIsDenied(): void
 	{
-
 		$this->configure( users: [ 'alice' ], groups: [ 'staff' ] );
 
 		$this->groupManager->method( 'isInGroup' )
@@ -150,7 +148,6 @@ class PermissionServiceTest
 		);
 	}
 
-
 	/**
 	 * IGroupManager is optional, so group membership must not be consulted
 	 * when it is absent — and its absence must not deny a user who is
@@ -159,7 +156,6 @@ class PermissionServiceTest
 	 */
 	public function testGroupsAreSkippedWithoutAGroupManager(): void
 	{
-
 		$service = new PermissionService( $this->appConfig );
 		$this->configure( users: [ 'alice' ], groups: [ 'staff' ] );
 
@@ -171,7 +167,6 @@ class PermissionServiceTest
 		);
 	}
 
-
 	/**
 	 * The allow-all flag short-circuits, so a denied lookup never costs a
 	 * group-membership check per configured group.
@@ -179,7 +174,6 @@ class PermissionServiceTest
 	 */
 	public function testAllUsersFlagSkipsTheGroupLookup(): void
 	{
-
 		$this->configure( allUsers: true, groups: [ 'staff' ] );
 
 		$this->groupManager->expects( $this->never() )
@@ -189,12 +183,9 @@ class PermissionServiceTest
 		$this->service->isAllowed( PermissionService::PERMISSION_RULE_EDITING, 'alice' );
 	}
 
-
 	// config key mapping
-
 	public function testWritesTheHistoricalConfigKeys(): void
 	{
-
 		// The keys on disk predate this service; renaming them would strand
 		// every existing installation's configuration.
 		$this->appConfig->expects( $this->once() )
@@ -205,23 +196,21 @@ class PermissionServiceTest
 		$this->service->setAllUsersEnabled( PermissionService::PERMISSION_RULE_EDITING, true );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testStringListsAreFilteredBeforePersisting(): void
 	{
-
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'setValueString' )
 		                ->with(
 			                Application::APP_ID,
 			                'rule_editors_groups',
 			                $this->callback(
-				                static function (
+				                static function(
 					                string $json,
-				                ): bool {
-
+				                ): bool
+				                {
 					                return json_decode( $json, true, 512, JSON_THROW_ON_ERROR )
 						                === [
 							                'staff',
@@ -242,10 +231,8 @@ class PermissionServiceTest
 		);
 	}
 
-
 	public function testMalformedStoredListReadsAsEmpty(): void
 	{
-
 		$this->appConfig->method( 'getValueString' )
 		                ->willReturn( '{invalid' )
 		;
@@ -256,10 +243,8 @@ class PermissionServiceTest
 		);
 	}
 
-
 	public function testNonListStoredValueReadsAsEmpty(): void
 	{
-
 		$this->appConfig->method( 'getValueString' )
 		                ->willReturn( '"a string, not a list"' )
 		;
@@ -270,13 +255,11 @@ class PermissionServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testNonStringEntriesAreDroppedOnRead(): void
 	{
-
 		$this->appConfig->method( 'getValueString' )
 		                ->willReturn(
 			                json_encode(
@@ -301,7 +284,6 @@ class PermissionServiceTest
 		);
 	}
 
-
 	/**
 	 * The read side of the same mapping. RuleService used to own these keys;
 	 * pinning both directions is what makes the move a refactor rather than a
@@ -310,7 +292,6 @@ class PermissionServiceTest
 	 */
 	public function testReadsTheHistoricalConfigKeys(): void
 	{
-
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'getValueBool' )
 		                ->with( Application::APP_ID, 'rule_editors_all_users', false )
@@ -346,10 +327,7 @@ class PermissionServiceTest
 		);
 	}
 
-
 	// canUserEditRules shortcut
-
-
 	/**
 	 * The named shortcut must stay a pure alias — if it ever drifted from
 	 * isAllowed(), the four guard sites calling it would enforce something
@@ -365,8 +343,8 @@ class PermissionServiceTest
 		bool   $inGroup,
 		string $userId,
 		bool   $expected,
-	): void {
-
+	): void
+	{
 		$this->configure( allUsers: $allUsers, users: $users, groups: $groups );
 
 		$this->groupManager->method( 'isInGroup' )
@@ -381,12 +359,13 @@ class PermissionServiceTest
 	}
 
 
+//  static methods
+
 	/**
 	 * @return array<string, array{bool, string[], string[], bool, string, bool}>
 	 */
 	public static function ruleEditingConfigurationProvider(): array
 	{
-
 		return [
 			'all users'    => [
 				true,
@@ -423,10 +402,7 @@ class PermissionServiceTest
 		];
 	}
 
-
 	// unknown permissions
-
-
 	/**
 	 * An unknown permission must fail loudly. Returning false instead would
 	 * read as a legitimate denial, and a typo in a permission key would then
@@ -436,20 +412,17 @@ class PermissionServiceTest
 	 */
 	public function testUnknownPermissionThrows( callable $call ): void
 	{
-
 		$this->expectException( InvalidArgumentException::class );
 		$this->expectExceptionMessage( 'Unknown permission "no_such_permission".' );
 
 		$call( $this->service );
 	}
 
-
 	/**
 	 * @return array<string, array{callable}>
 	 */
 	public static function unknownPermissionCallProvider(): array
 	{
-
 		return [
 			'isAllowed'          => [
 				static fn(
@@ -489,14 +462,12 @@ class PermissionServiceTest
 		];
 	}
 
-
 	/**
 	 * A rejected write must not reach the config at all.
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testUnknownPermissionWriteTouchesNothing(): void
 	{
-
 		$this->appConfig->expects( $this->never() )
 		                ->method( 'setValueString' )
 		;
@@ -508,5 +479,4 @@ class PermissionServiceTest
 
 		$this->service->setUsers( 'no_such_permission', [ 'alice' ] );
 	}
-
 }

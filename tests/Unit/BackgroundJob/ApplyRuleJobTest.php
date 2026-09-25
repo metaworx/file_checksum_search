@@ -19,9 +19,11 @@ use ReflectionMethod;
 use RuntimeException;
 
 class ApplyRuleJobTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private MockObject|RuleService     $ruleService;
 
@@ -30,9 +32,10 @@ class ApplyRuleJobTest
 	private ApplyRuleJob               $job;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->ruleService = $this->createMock( RuleService::class );
@@ -46,19 +49,21 @@ class ApplyRuleJobTest
 	}
 
 
+//  config/init/exe/run methods
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function runJob( array $argument ): void
 	{
-
 		( new ReflectionMethod( ApplyRuleJob::class, 'run' ) )->invoke( $this->job, $argument );
 	}
 
 
+//  other non-static methods
+
 	public function testAppliesTheRuleWithTheEnqueuingActor(): void
 	{
-
 		$rule = [
 			'id'      => 'r1',
 			'enabled' => true,
@@ -88,10 +93,8 @@ class ApplyRuleJobTest
 		);
 	}
 
-
 	public function testARuleDeletedBetweenEnqueueAndRunIsALogLineNotAnError(): void
 	{
-
 		$this->ruleService->method( 'findRuleById' )
 		                  ->willReturn( null )
 		;
@@ -109,10 +112,8 @@ class ApplyRuleJobTest
 		$this->runJob( [ 'ruleId' => 'gone' ] );
 	}
 
-
 	public function testAFailureIsLoggedAndNeverEscapesTheJob(): void
 	{
-
 		// A rule disabled between enqueue and run makes applyRule throw;
 		// the job's contract is "apply it if it still makes sense".
 		$this->ruleService->method( 'findRuleById' )
@@ -135,5 +136,4 @@ class ApplyRuleJobTest
 
 		$this->addToAssertionCount( 1 );
 	}
-
 }

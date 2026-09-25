@@ -17,9 +17,11 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
 class JobStatsServiceTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private MockObject|IAppConfig      $appConfig;
 
@@ -30,9 +32,10 @@ class JobStatsServiceTest
 	private JobStatsService            $service;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->appConfig   = $this->createMock( IAppConfig::class );
@@ -47,9 +50,10 @@ class JobStatsServiceTest
 	}
 
 
+//  other non-static methods
+
 	public function testRecordWritesTimestampAndCounts(): void
 	{
-
 		$this->timeFactory->method( 'getTime' )
 		                  ->willReturn( 1700000000 )
 		;
@@ -83,10 +87,8 @@ class JobStatsServiceTest
 		);
 	}
 
-
 	public function testRecordNeverThrows(): void
 	{
-
 		// Bookkeeping must not be able to fail the job it books.
 		$this->appConfig->method( 'setValueInt' )
 		                ->willThrowException( new \RuntimeException( 'config store down' ) )
@@ -100,10 +102,8 @@ class JobStatsServiceTest
 		$this->addToAssertionCount( 1 );
 	}
 
-
 	public function testLastRunsReportsEveryJobWithNullForNeverRan(): void
 	{
-
 		$this->appConfig->method( 'getValueInt' )
 		                ->willReturnCallback(
 			                static fn(
@@ -135,5 +135,4 @@ class JobStatsServiceTest
 		$this->assertNull( $runs['pending_drain']['lastRun'] );
 		$this->assertSame( [], $runs['pending_drain']['counts'] );
 	}
-
 }

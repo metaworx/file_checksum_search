@@ -18,9 +18,11 @@ use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use PHPUnit\Framework\MockObject\MockObject;
 
 class HashIndexServiceTest
-	extends
-	FciasUnitTestCase
+    extends
+    FciasUnitTestCase
 {
+
+//  private properties
 
 	private MockObject|HashCalculationService $hashCalc;
 
@@ -33,9 +35,10 @@ class HashIndexServiceTest
 	private HashIndexService                  $service;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->hashCalc         = $this->createMock( HashCalculationService::class );
@@ -63,13 +66,12 @@ class HashIndexServiceTest
 	}
 
 
+//  other non-static methods
+
 	// The default algorithm and the list it heads moved to AlgorithmCatalogue,
 	// which has its own tests; nothing about them is HashIndexService's.
-
-
 	public function testRecalcHashDelegatesToHashCalc(): void
 	{
-
 		$this->hashCalc->expects( $this->once() )
 		               ->method( 'recalcHash' )
 		               ->with( 42, 'sha256', true )
@@ -88,10 +90,8 @@ class HashIndexServiceTest
 		$this->assertTrue( $result['success'] );
 	}
 
-
 	public function testFindByHashDelegatesToDuplicates(): void
 	{
-
 		$this->duplicates->expects( $this->once() )
 		                 ->method( 'findByHash' )
 		                 ->with( 'abc123', null, 100, null )
@@ -103,10 +103,8 @@ class HashIndexServiceTest
 		$this->assertIsArray( $result );
 	}
 
-
 	public function testFindByHashWithAlgoPassesFilter(): void
 	{
-
 		$this->duplicates->expects( $this->once() )
 		                 ->method( 'findByHash' )
 		                 ->with( 'abc123', 'sha256', 50, null )
@@ -118,10 +116,8 @@ class HashIndexServiceTest
 		$this->assertIsArray( $result );
 	}
 
-
 	public function testFindByHashPassesTheLocalPathRequestThrough(): void
 	{
-
 		$this->duplicates->expects( $this->once() )
 		                 ->method( 'findByHash' )
 		                 ->with( 'abc123', null, 100, null, true )
@@ -131,10 +127,8 @@ class HashIndexServiceTest
 		$this->service->findByHash( 'abc123', null, 100, null, true );
 	}
 
-
 	public function testFindByHashPassesUserNameThrough(): void
 	{
-
 		$this->duplicates->expects( $this->once() )
 		                 ->method( 'findByHash' )
 		                 ->with( 'abc123', null, 100, 'alice' )
@@ -146,10 +140,8 @@ class HashIndexServiceTest
 		$this->assertIsArray( $result );
 	}
 
-
 	public function testFindAllDuplicatesDelegates(): void
 	{
-
 		$groups = [
 			[
 				'algo'       => 'sha1',
@@ -173,10 +165,8 @@ class HashIndexServiceTest
 		$this->assertCount( 1, $result );
 	}
 
-
 	public function testCountHashesDelegatesToMetadata(): void
 	{
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'countByFileId' )
 		                      ->with( 42 )
@@ -188,10 +178,8 @@ class HashIndexServiceTest
 		$this->assertSame( 5, $result );
 	}
 
-
 	public function testDeleteHashesClearsMetadata(): void
 	{
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'clearMetadata' )
 		                      ->with( 42 )
@@ -202,10 +190,8 @@ class HashIndexServiceTest
 		$this->assertSame( 1, $result );
 	}
 
-
 	public function testGenerateMissingHashesWithPathPattern(): void
 	{
-
 		$this->hashCalc->expects( $this->once() )
 		               ->method( 'generateMissingHashes' )
 		               ->with( 'alice', 'sha256', '**/*.jpg', 200, null )
@@ -235,12 +221,9 @@ class HashIndexServiceTest
 		);
 	}
 
-
 	// ─── backfillFromFilecache ──────────────────────────────────────
-
 	public function testBackfillPagesUntilExhaustedAndSumsTheCounts(): void
 	{
-
 		$this->filecacheService->method( 'pageFileidChecksums' )
 		                       ->willReturnCallback(
 			                       static fn(
@@ -271,7 +254,7 @@ class HashIndexServiceTest
 		$calls = [];
 		$this->metadataService->method( 'backfillHashes' )
 		                      ->willReturnCallback(
-			                      static function (
+			                      static function(
 				                      int   $fileId,
 				                      array $algoToHash,
 				                      int   $mtime,
@@ -281,7 +264,6 @@ class HashIndexServiceTest
 				                      $calls,
 			                      ): int
 			                      {
-
 				                      $calls[ $fileId ] = [
 					                      $algoToHash,
 					                      $mtime,
@@ -321,10 +303,8 @@ class HashIndexServiceTest
 		);
 	}
 
-
 	public function testBackfillCountsOnlyFilesThatGainedSomething(): void
 	{
-
 		$this->filecacheService->method( 'pageFileidChecksums' )
 		                       ->willReturnCallback(
 			                       static fn(
@@ -353,12 +333,9 @@ class HashIndexServiceTest
 		);
 	}
 
-
 	// ─── listDuplicatesForUser ──────────────────────────────────────
-
 	public function testListDuplicatesForUserReturnsAnEmptyListingWhenNoGroupsExist(): void
 	{
-
 		$this->duplicates->method( 'findAllDuplicates' )
 		                 ->willReturn( [] )
 		;
@@ -381,10 +358,8 @@ class HashIndexServiceTest
 		);
 	}
 
-
 	public function testListDuplicatesForUserResolvesEveryGroupsPathsInOneLookup(): void
 	{
-
 		$this->duplicates->method( 'findAllDuplicates' )
 		                 ->willReturn( [
 			                 $this->group(
@@ -435,10 +410,8 @@ class HashIndexServiceTest
 		$this->assertSame( 2, $result['total_groups'] );
 	}
 
-
 	public function testListDuplicatesForUserKeepsOnlyTheFilesThatUserCanSee(): void
 	{
-
 		$this->duplicates->method( 'findAllDuplicates' )
 		                 ->willReturn(
 			                 [
@@ -481,10 +454,8 @@ class HashIndexServiceTest
 		);
 	}
 
-
 	public function testListDuplicatesForUserDropsAGroupThatFallsBelowMinCount(): void
 	{
-
 		$this->duplicates->method( 'findAllDuplicates' )
 		                 ->willReturn(
 			                 [
@@ -512,7 +483,6 @@ class HashIndexServiceTest
 		$this->assertSame( 0, $result['total_groups'] );
 	}
 
-
 	/**
 	 * A group is two files or more; a minCount under 2 makes every hashed
 	 * file its own group and turns the listing into a whole-index scan. The
@@ -521,7 +491,6 @@ class HashIndexServiceTest
 	 */
 	public function testListDuplicatesForUserClampsMinCountToTwo(): void
 	{
-
 		// The page size, not the old fixed 10 000: max(limit 50, 200) = 200.
 		$this->duplicates->expects( $this->once() )
 		                 ->method( 'findAllDuplicates' )
@@ -532,10 +501,8 @@ class HashIndexServiceTest
 		$this->service->listDuplicatesForUser( 'bob', 'sha1', 0, 50, 0 );
 	}
 
-
 	public function testListDuplicatesForUserPagesTheFilterAndAppliesTheCallersLimit(): void
 	{
-
 		// The limit cannot be pushed into the query: how many groups survive
 		// per-user filtering is unknown until after it. So it reads a page
 		// (max(limit 2, 200) = 200) and trims to the caller's limit; a short
@@ -595,7 +562,6 @@ class HashIndexServiceTest
 		);
 	}
 
-
 	/**
 	 * A full page whose groups all survive the filter meets the caller's
 	 * limit in one round: the loop stops there rather than scanning on toward
@@ -604,7 +570,6 @@ class HashIndexServiceTest
 	 */
 	public function testListDuplicatesForUserStopsOnceTheLimitIsMet(): void
 	{
-
 		$page = [];
 
 		for ( $i = 1; $i <= 200; $i ++ )
@@ -630,7 +595,6 @@ class HashIndexServiceTest
 		$this->assertCount( 3, $result['duplicates'] );
 	}
 
-
 	/**
 	 * @param  int[]  $fileIds
 	 *
@@ -639,8 +603,8 @@ class HashIndexServiceTest
 	private function group(
 		string $hash,
 		array  $fileIds,
-	): array {
-
+	): array
+	{
 		return [
 			'algo'       => 'sha1',
 			'hash_value' => $hash,
@@ -648,7 +612,6 @@ class HashIndexServiceTest
 			'fileids'    => $fileIds,
 		];
 	}
-
 
 	/**
 	 * @param  int[]  $fileIds
@@ -662,7 +625,6 @@ class HashIndexServiceTest
 	 */
 	public function testListedFilesCarryTheirOwnerAndLocation(): void
 	{
-
 		$this->duplicates->method( 'findAllDuplicates' )
 		                 ->willReturn( [ $this->group( 'abc', [ 42, 108 ] ) ] )
 		;
@@ -676,10 +638,8 @@ class HashIndexServiceTest
 		$this->assertSame( '/bob/files/f42.pdf', $files[0]['location'] );
 	}
 
-
 	private function paths( array $fileIds ): array
 	{
-
 		$paths = [];
 
 		foreach ( $fileIds as $fileId )
@@ -695,5 +655,4 @@ class HashIndexServiceTest
 
 		return $paths;
 	}
-
 }

@@ -16,16 +16,19 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
 class BeforeTemplateRenderedListenerTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private BeforeTemplateRenderedListener $listener;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$logger = $this->createMock( LoggerInterface::class );
@@ -34,9 +37,10 @@ class BeforeTemplateRenderedListenerTest
 	}
 
 
+//  other non-static methods
+
 	public function testHandleAddsInitScriptAndStyle(): void
 	{
-
 		// Util::addInitScript() resolves through the global \OC container,
 		// which only exists when lib/base.php has booted a server. Under the
 		// source-tree fallback in tests/bootstrap.php only the autoloaders are
@@ -58,10 +62,8 @@ class BeforeTemplateRenderedListenerTest
 		$this->addToAssertionCount( 1 );
 	}
 
-
 	public function testHandleSkipsNonBeforeTemplateRenderedEvent(): void
 	{
-
 		$event = $this->createMock( Event::class );
 
 		// The handler must return early for unrecognised event types
@@ -72,5 +74,4 @@ class BeforeTemplateRenderedListenerTest
 
 		$this->addToAssertionCount( 1 );
 	}
-
 }

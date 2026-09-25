@@ -40,7 +40,8 @@ use Throwable;
 class MetadataService
 {
 
-// constants
+//  constants
+
 	public const FIELD_FILE_ID           = 'file_id';
 	public const FIELD_JSON              = 'json';
 	public const FIELD_JSON_ALIAS        = 'meta_json';
@@ -70,7 +71,7 @@ class MetadataService
 	 * Append-only — nothing here may ever be removed.
 	 */
 	public const LEGACY_ALGOS
-		= [
+		 = [
 			'sha1',
 			'md5',
 			'adler32',
@@ -141,6 +142,8 @@ class MetadataService
 	private const MARK_PAGE_SIZE = 1000;
 
 
+//  constructor
+
 	public function __construct(
 		private readonly IDBConnection         $db,
 		private readonly IFilesMetadataManager $metadataManager,
@@ -150,6 +153,8 @@ class MetadataService
 	) {
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * Every hash stored for a file, as algo => hex.
@@ -167,14 +172,12 @@ class MetadataService
 	 */
 	public function &getHashes( int|File|IFilesMetadata $fileOrMetadata ): array
 	{
-
 		if ( ! $fileOrMetadata instanceof IFilesMetadata )
 		{
 			$fileOrMetadata = $this->getMetadata( $fileOrMetadata );
 		}
 
 		$hashes = [];
-
 
 		foreach ( $fileOrMetadata->getKeys() as $key )
 		{
@@ -195,6 +198,8 @@ class MetadataService
 		return $hashes;
 	}
 
+
+//  getters / setters / is* / has*
 
 	/**
 	 * Get metadata for a file. Creates empty metadata if it does not exist.
@@ -217,8 +222,8 @@ class MetadataService
 	public function getMetadata(
 		int|File          $file,
 		string|array|null $rawMetadata = null,
-	): IFilesMetadata {
-
+	): IFilesMetadata
+	{
 		if ( $rawMetadata !== null )
 		{
 			if ( is_array( $rawMetadata ) && array_key_exists( MetadataService::FIELD_JSON_ALIAS, $rawMetadata ) )
@@ -243,7 +248,6 @@ class MetadataService
 		return $this->metadataManager->getMetadata( FilecacheService::getFileId( $file ), true );
 	}
 
-
 	/**
 	 * Get pending statistics grouped by meta_value_string.
 	 *
@@ -252,7 +256,6 @@ class MetadataService
 	 */
 	public function getPendingStats(): array
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->select( self::FIELD_META_VALUE_STRING )
 		   ->selectAlias(
@@ -280,11 +283,11 @@ class MetadataService
 		{
 			$stats[ (string) $row[ self::FIELD_META_VALUE_STRING ] ] = (int) $row['cnt'];
 		}
+
 		$result->closeCursor();
 
 		return $stats;
 	}
-
 
 	/**
 	 * Get the updated_at timestamp for a file from the metadata index.
@@ -294,7 +297,6 @@ class MetadataService
 	 */
 	public function getUpdatedAt( int|File|IFilesMetadata $fileOrMetadata ): ?int
 	{
-
 		if ( $fileOrMetadata instanceof IFilesMetadata )
 		{
 			try
@@ -334,7 +336,6 @@ class MetadataService
 			: null;
 	}
 
-
 	/**
 	 * Strip this app's keys from a file's metadata and stamp it stale.
 	 *
@@ -350,8 +351,8 @@ class MetadataService
 	public function clearMetadata(
 		int|File|IFilesMetadata $fileOrMetadata,
 		bool                    $save = true,
-	): void {
-
+	): void
+	{
 		if ( $fileOrMetadata instanceof IFilesMetadata )
 		{
 			$metadata = $fileOrMetadata;
@@ -378,7 +379,6 @@ class MetadataService
 		}
 	}
 
-
 	/**
 	 * Remove every trace of this app from a file that no longer exists.
 	 *
@@ -401,7 +401,6 @@ class MetadataService
 	 */
 	public function purgeMetadata( int $fileId ): void
 	{
-
 		$metadata = $this->getMetadata( $fileId );
 
 		$metadata->removeStartsWith( self::KEY_FILE_CHECKSUM_PREFIX );
@@ -418,7 +417,6 @@ class MetadataService
 		$this->pruneAllIndexRows( $fileId );
 	}
 
-
 	/**
 	 * Index rows this app owns for one file, the stamp included.
 	 *
@@ -430,7 +428,6 @@ class MetadataService
 	 */
 	private function pruneAllIndexRows( int $fileId ): void
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->delete( self::TABLE_FILES_METADATA_INDEX )
 		   ->where(
@@ -446,7 +443,6 @@ class MetadataService
 
 		$qb->executeStatement();
 	}
-
 
 	/**
 	 * Files this app still has index rows for, whose file no longer exists.
@@ -470,7 +466,6 @@ class MetadataService
 	 */
 	public function fetchOrphanedFileIds( int $limit = 500 ): array
 	{
-
 		$fileIds = [];
 
 		// Index rows whose file is gone.
@@ -537,7 +532,6 @@ class MetadataService
 		return array_values( array_unique( $fileIds ) );
 	}
 
-
 	/**
 	 * Purge what {@see fetchOrphanedFileIds()} finds, one batch.
 	 *
@@ -545,7 +539,6 @@ class MetadataService
 	 */
 	public function purgeOrphanedMetadata( int $batchLimit = 500 ): int
 	{
-
 		$purged = 0;
 
 		foreach ( $this->fetchOrphanedFileIds( $batchLimit ) as $fileId )
@@ -573,7 +566,6 @@ class MetadataService
 		return $purged;
 	}
 
-
 	/**
 	 * Delete this app's hash rows from the index for one file.
 	 *
@@ -586,7 +578,6 @@ class MetadataService
 	 */
 	private function pruneHashIndexRows( int $fileId ): void
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->delete( self::TABLE_FILES_METADATA_INDEX )
 		   ->where(
@@ -600,7 +591,6 @@ class MetadataService
 		$qb->executeStatement();
 	}
 
-
 	/**
 	 * Count metadata index entries for a given file_id.
 	 *
@@ -608,7 +598,6 @@ class MetadataService
 	 */
 	public function countByFileId( int $fileId ): int
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->select(
 			$qb->func()
@@ -631,7 +620,6 @@ class MetadataService
 		;
 	}
 
-
 	/**
 	 * Ensure a metadata reference is set for a file. If $metadata is null,
 	 * loads or creates it. Returns true if newly created (caller must save).
@@ -644,8 +632,8 @@ class MetadataService
 	public function ensureMetadata(
 		int|File        $file,
 		?IFilesMetadata &$metadata,
-	): bool {
-
+	): bool
+	{
 		if ( $metadata !== null )
 		{
 			return false;
@@ -657,6 +645,8 @@ class MetadataService
 	}
 
 
+//  config/init/exe/run methods
+
 	/**
 	 * The one place this class runs a read query, and so the one place that
 	 * declares what the database can throw. Every public method above
@@ -666,10 +656,8 @@ class MetadataService
 	 */
 	private function executeQuery( IQueryBuilder $qb ): IResult
 	{
-
 		return $qb->executeQuery();
 	}
-
 
 	/**
 	 * As {@see executeQuery()}, for statements that change rows.
@@ -678,10 +666,8 @@ class MetadataService
 	 */
 	private function executeStatement( IQueryBuilder $qb ): int
 	{
-
 		return $qb->executeStatement();
 	}
-
 
 	/**
 	 * Keep only the rows whose *full* hash really is the one searched for.
@@ -707,8 +693,8 @@ class MetadataService
 	public function confirmFullHash(
 		array  $rows,
 		string $hash,
-	): array {
-
+	): array
+	{
 		if ( ! self::isTruncatable( $hash ) )
 		{
 			return $rows;
@@ -735,6 +721,8 @@ class MetadataService
 	}
 
 
+//  static methods
+
 	/**
 	 * Whether a value held **in full** is longer than the index can store,
 	 * and so was shortened on the way in.
@@ -743,10 +731,8 @@ class MetadataService
 	 */
 	public static function isTruncatable( string $value ): bool
 	{
-
 		return strlen( $value ) > self::META_VALUE_STRING_MAX_LENGTH;
 	}
-
 
 	/**
 	 * Whether a value read **from the index** may be a prefix rather than the
@@ -760,10 +746,8 @@ class MetadataService
 	 */
 	public static function isPossiblyTruncated( string $storedValue ): bool
 	{
-
 		return strlen( $storedValue ) >= self::META_VALUE_STRING_MAX_LENGTH;
 	}
-
 
 	/**
 	 * The algorithm and the authoritative hash behind one index row.
@@ -780,8 +764,8 @@ class MetadataService
 	public function extractAlgorithm(
 		int   $fileId,
 		array $row,
-	): array {
-
+	): array
+	{
 		// Read authoritative hash from oc_files_metadata.json
 		$metadata = $this->getMetadata( $fileId, $row );
 		$metaKey  = $row[ MetadataService::FIELD_META_KEY ];
@@ -804,7 +788,6 @@ class MetadataService
 		];
 	}
 
-
 	/**
 	 * Fetch a batch of pending rows ordered by file_id.
 	 *
@@ -813,7 +796,6 @@ class MetadataService
 	 */
 	public function fetchPendingBatch( int $limit = 50 ): array
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->select( self::FIELD_FILE_ID, self::FIELD_META_VALUE_STRING )
 		   ->from( self::TABLE_FILES_METADATA_INDEX )
@@ -840,11 +822,11 @@ class MetadataService
 				self::FIELD_META_VALUE_STRING => (string) $row[ self::FIELD_META_VALUE_STRING ],
 			];
 		}
+
 		$result->closeCursor();
 
 		return $rows;
 	}
-
 
 	/**
 	 * Mark a file as pending for a specific processing mode.
@@ -860,11 +842,10 @@ class MetadataService
 	public function markPending(
 		int    $fileId,
 		string $mode,
-	): void {
-
+	): void
+	{
 		$this->upsertUpdatedAtString( $fileId, $mode );
 	}
-
 
 	/**
 	 * Record that a file's hashes were dropped because nothing maintains them.
@@ -882,7 +863,6 @@ class MetadataService
 	 */
 	public function markEroded( int $fileId ): void
 	{
-
 		$metadata = $this->getMetadata( $fileId );
 		$metadata->removeStartsWith( self::KEY_FILE_CHECKSUM_PREFIX );
 		$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, 0, true );
@@ -899,7 +879,6 @@ class MetadataService
 		// regenerated row exists.
 		$this->upsertUpdatedAtString( $fileId, self::STATE_ERODED );
 	}
-
 
 	/**
 	 * Disown the stored hashes of many files at once.
@@ -925,7 +904,6 @@ class MetadataService
 	 */
 	public function markStale( array $fileIds ): int
 	{
-
 		if ( $fileIds === [] )
 		{
 			return 0;
@@ -963,7 +941,6 @@ class MetadataService
 		return $marked;
 	}
 
-
 	/**
 	 * Disown every file this app has hashed.
 	 *
@@ -982,7 +959,6 @@ class MetadataService
 	 */
 	public function markAllStale(): int
 	{
-
 		$marked = 0;
 		$lastId = 0;
 
@@ -1004,7 +980,6 @@ class MetadataService
 		}
 	}
 
-
 	/**
 	 * The next files awaiting the drain's attention because they were
 	 * disowned rather than queued.
@@ -1018,7 +993,6 @@ class MetadataService
 	 */
 	public function fetchStaleBatch( int $limit = 50 ): array
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->select( self::FIELD_FILE_ID )
 		   ->from( self::TABLE_FILES_METADATA_INDEX )
@@ -1045,11 +1019,11 @@ class MetadataService
 		{
 			$fileIds[] = (int) $row[ self::FIELD_FILE_ID ];
 		}
+
 		$result->closeCursor();
 
 		return $fileIds;
 	}
-
 
 	/**
 	 * Clear this app's hashes from files, now, one metadata document at a
@@ -1073,8 +1047,8 @@ class MetadataService
 	public function clearHashesNow(
 		int       $batchSize = 500,
 		?callable $progress = null,
-	): int {
-
+	): int
+	{
 		$total   = $this->countHashedFiles();
 		$cleared = 0;
 		$lastId  = 0;
@@ -1140,7 +1114,6 @@ class MetadataService
 		return $cleared;
 	}
 
-
 	/**
 	 * Every stored hash, one file at a time.
 	 *
@@ -1161,7 +1134,6 @@ class MetadataService
 	 */
 	public function exportHashes( int $pageSize = 500 ): Generator
 	{
-
 		$lastId = 0;
 
 		while ( true )
@@ -1194,7 +1166,6 @@ class MetadataService
 		}
 	}
 
-
 	/**
 	 * Every queue and `stale:` marker, one file at a time.
 	 *
@@ -1208,7 +1179,6 @@ class MetadataService
 	 */
 	public function exportStates( int $pageSize = 1000 ): Generator
 	{
-
 		$lastId = 0;
 
 		while ( true )
@@ -1258,7 +1228,6 @@ class MetadataService
 		}
 	}
 
-
 	/**
 	 * One page of file ids that carry hashes, after the given id.
 	 *
@@ -1273,8 +1242,8 @@ class MetadataService
 	private function pageHashedFileIdsAfter(
 		int $afterFileId,
 		int $limit,
-	): array {
-
+	): array
+	{
 		$qb = $this->db->getQueryBuilder();
 		$qb->selectDistinct( self::FIELD_FILE_ID )
 		   ->from( self::TABLE_FILES_METADATA_INDEX )
@@ -1298,11 +1267,11 @@ class MetadataService
 		{
 			$fileIds[] = (int) $row[ self::FIELD_FILE_ID ];
 		}
+
 		$result->closeCursor();
 
 		return $fileIds;
 	}
-
 
 	/**
 	 * The raw metadata documents for a page of file ids.
@@ -1314,7 +1283,6 @@ class MetadataService
 	 */
 	private function fetchDocuments( array $fileIds ): array
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->select( self::FIELD_FILE_ID, self::FIELD_JSON )
 		   ->from( self::TABLE_FILES_METADATA )
@@ -1334,11 +1302,11 @@ class MetadataService
 		{
 			$documents[ (int) $row[ self::FIELD_FILE_ID ] ] = (string) $row[ self::FIELD_JSON ];
 		}
+
 		$result->closeCursor();
 
 		return $documents;
 	}
-
 
 	/**
 	 * How many files carry any of this app's hashes.
@@ -1347,7 +1315,6 @@ class MetadataService
 	 */
 	public function countHashedFiles(): int
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->selectAlias(
 			$qb->createFunction( 'COUNT(DISTINCT ' . self::FIELD_FILE_ID . ')' ),
@@ -1367,7 +1334,6 @@ class MetadataService
 		return $count;
 	}
 
-
 	/**
 	 * Forget the queue: every `pending:%` and `stale:%` marker, cleared.
 	 *
@@ -1381,7 +1347,6 @@ class MetadataService
 	 */
 	public function clearQueueState(): int
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->update( self::TABLE_FILES_METADATA_INDEX )
 		   ->set( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( null ) )
@@ -1399,7 +1364,6 @@ class MetadataService
 		return $qb->executeStatement();
 	}
 
-
 	/**
 	 * How many files lost their hashes to erosion and have not been re-hashed.
 	 *
@@ -1407,10 +1371,8 @@ class MetadataService
 	 */
 	public function countEroded(): int
 	{
-
 		return $this->countByState( self::STATE_ERODED );
 	}
-
 
 	/**
 	 * How many files carry one untrusted-hash state, or all of them.
@@ -1424,7 +1386,6 @@ class MetadataService
 	 */
 	public function countByState( string $state ): int
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->selectAlias(
 			$qb->func()
@@ -1450,7 +1411,6 @@ class MetadataService
 		return $count;
 	}
 
-
 	/**
 	 * How many files have untrusted hashes, broken down by why.
 	 *
@@ -1458,7 +1418,6 @@ class MetadataService
 	 */
 	public function getStaleStats(): array
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->select( self::FIELD_META_VALUE_STRING )
 		   ->selectAlias(
@@ -1483,11 +1442,11 @@ class MetadataService
 		{
 			$stats[ (string) $row[ self::FIELD_META_VALUE_STRING ] ] = (int) $row['cnt'];
 		}
+
 		$result->closeCursor();
 
 		return $stats;
 	}
-
 
 	/**
 	 * Set the file-checksum-updated_at index row's string value, creating the
@@ -1500,8 +1459,8 @@ class MetadataService
 	private function upsertUpdatedAtString(
 		int    $fileId,
 		string $value,
-	): void {
-
+	): void
+	{
 		// Not "did the update affect a row?" — an UPDATE that sets a column
 		// to the value it already holds reports zero affected rows on MySQL,
 		// and treating that as "no row exists" inserts a duplicate. Ask
@@ -1536,7 +1495,6 @@ class MetadataService
 		}
 	}
 
-
 	/**
 	 * Whether the file has its `file-checksum-updated_at` index row.
 	 *
@@ -1544,7 +1502,6 @@ class MetadataService
 	 */
 	private function hasUpdatedAtRow( int $fileId ): bool
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->select( self::FIELD_FILE_ID )
 		   ->from( self::TABLE_FILES_METADATA_INDEX )
@@ -1564,12 +1521,11 @@ class MetadataService
 		return $found !== false && $found !== null;
 	}
 
-
 	private function updateUpdatedAtString(
 		int    $fileId,
 		string $value,
-	): void {
-
+	): void
+	{
 		$qb = $this->db->getQueryBuilder();
 		$qb->update( self::TABLE_FILES_METADATA_INDEX )
 		   ->set( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( $value ) )
@@ -1583,7 +1539,6 @@ class MetadataService
 
 		$this->executeStatement( $qb );
 	}
-
 
 	/**
 	 * Write imported hashes onto one file.
@@ -1624,8 +1579,8 @@ class MetadataService
 		array $algoToHash,
 		?int  $stamp,
 		bool  $merge,
-	): array {
-
+	): array
+	{
 		$report = [
 			'written'       => 0,
 			'overwritten'   => 0,
@@ -1693,7 +1648,6 @@ class MetadataService
 		return $report;
 	}
 
-
 	/**
 	 * Match metadata documents that hold an actual hash, not merely a stamp.
 	 *
@@ -1725,8 +1679,8 @@ class MetadataService
 	private function whereDocumentHoldsAHash(
 		IQueryBuilder $qb,
 		bool          $stamped = true,
-	): void {
-
+	): void
+	{
 		// Narrowed to the files this app has considered. Every one of them
 		// has a stamp row, and that row is reliable for a structural reason:
 		// it is an INT in meta_value_int and never met the varchar(63) limit
@@ -1787,7 +1741,6 @@ class MetadataService
 		);
 	}
 
-
 	/**
 	 * Whether every file whose metadata document mentions a hash has an index
 	 * row.
@@ -1817,7 +1770,6 @@ class MetadataService
 	 */
 	public function hashIndexIsComplete(): bool
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->selectAlias(
 			$qb->createFunction( 'COUNT(DISTINCT ' . self::FIELD_FILE_ID . ')' ),
@@ -1852,7 +1804,6 @@ class MetadataService
 		return $indexed >= $holding;
 	}
 
-
 	/**
 	 * Rename every hash key still written the old way.
 	 *
@@ -1882,7 +1833,6 @@ class MetadataService
 	 */
 	public function renameLegacyHashKeys(): array
 	{
-
 		$touched = [];
 		$rows    = 0;
 
@@ -1903,7 +1853,7 @@ class MetadataService
 			// Counted as files, not as statements: a metadata document
 			// holding four algorithms is updated four times and is still one.
 			$touched += array_flip( $fileIds );
-			$rows    += $this->renameIndexRows( $legacy, $current );
+			$rows += $this->renameIndexRows( $legacy, $current );
 		}
 
 		return [
@@ -1911,7 +1861,6 @@ class MetadataService
 			'rows'      => $rows,
 		];
 	}
-
 
 	/**
 	 * Which files have an index row under this key.
@@ -1921,7 +1870,6 @@ class MetadataService
 	 */
 	private function fileIdsWithMetaKey( string $metaKey ): array
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->selectDistinct( self::FIELD_FILE_ID )
 		   ->from( self::TABLE_FILES_METADATA_INDEX )
@@ -1938,11 +1886,11 @@ class MetadataService
 		{
 			$fileIds[] = (int) $row[ self::FIELD_FILE_ID ];
 		}
+
 		$result->closeCursor();
 
 		return $fileIds;
 	}
-
 
 	/**
 	 * Rewrite one key's name inside a chunk of metadata documents.
@@ -1960,8 +1908,8 @@ class MetadataService
 		array  $fileIds,
 		string $legacy,
 		string $current,
-	): int {
-
+	): int
+	{
 		if ( $fileIds === [] )
 		{
 			return 0;
@@ -2000,7 +1948,6 @@ class MetadataService
 		return $this->executeStatement( $qb );
 	}
 
-
 	/**
 	 * @return int  Rows renamed.
 	 * @throws Exception
@@ -2008,8 +1955,8 @@ class MetadataService
 	private function renameIndexRows(
 		string $legacy,
 		string $current,
-	): int {
-
+	): int
+	{
 		$qb = $this->db->getQueryBuilder();
 		$qb->update( self::TABLE_FILES_METADATA_INDEX )
 		   ->set( self::FIELD_META_KEY, $qb->createNamedParameter( $current ) )
@@ -2021,7 +1968,6 @@ class MetadataService
 
 		return $this->executeStatement( $qb );
 	}
-
 
 	/**
 	 * Give every stored hash the index row it should always have had.
@@ -2048,8 +1994,8 @@ class MetadataService
 		int       $pageSize = 500,
 		?callable $progress = null,
 		bool      $force = false,
-	): int {
-
+	): int
+	{
 		// The guard decides whether to walk, never what the walk repairs. If
 		// anything is outstanding the full pass runs and fixes every file it
 		// finds broken — a few or all of them. `$force` skips the asking, for
@@ -2063,12 +2009,12 @@ class MetadataService
 			true,
 			$pageSize,
 			$progress,
-			function (
+			function(
 				int    $fileId,
 				string $json,
 				array  $have,
-			): bool {
-
+			): bool
+			{
 				// Before reading it: a metadata document still in the old
 				// spelling reads as holding no hashes at all, and syncing
 				// from that would delete the very index rows this exists to
@@ -2099,7 +2045,6 @@ class MetadataService
 		);
 	}
 
-
 	/**
 	 * Give back the index rows of a file the index has forgotten entirely.
 	 *
@@ -2129,17 +2074,17 @@ class MetadataService
 	public function reindexUnstampedHashes(
 		int       $pageSize = 500,
 		?callable $progress = null,
-	): int {
-
+	): int
+	{
 		return $this->walkHashDocuments(
 			false,
 			$pageSize,
 			$progress,
-			function (
+			function(
 				int    $fileId,
 				string $json,
-			): bool {
-
+			): bool
+			{
 				$json     = $this->renameLegacyKeysInDocument( $fileId, $json );
 				$metadata = $this->getMetadata( $fileId, $json );
 
@@ -2155,7 +2100,6 @@ class MetadataService
 			},
 		);
 	}
-
 
 	/**
 	 * Walk the metadata documents that hold a hash, a page at a time.
@@ -2180,8 +2124,8 @@ class MetadataService
 		int       $pageSize,
 		?callable $progress,
 		callable  $repair,
-	): int {
-
+	): int
+	{
 		$lastId = 0;
 		$seen   = 0;
 		$fixed  = 0;
@@ -2196,7 +2140,7 @@ class MetadataService
 			}
 
 			$lastId   = array_key_last( $documents );
-			$seen     += count( $documents );
+			$seen += count( $documents );
 			$existing = $this->hashIndexKeysFor( array_keys( $documents ) );
 
 			foreach ( $documents as $fileId => $json )
@@ -2214,7 +2158,6 @@ class MetadataService
 		}
 	}
 
-
 	/**
 	 * Rename any legacy hash key inside one metadata document.
 	 *
@@ -2230,8 +2173,8 @@ class MetadataService
 	private function renameLegacyKeysInDocument(
 		int    $fileId,
 		string $json,
-	): string {
-
+	): string
+	{
 		$renamed = $json;
 
 		foreach ( self::LEGACY_ALGOS as $algo )
@@ -2262,7 +2205,6 @@ class MetadataService
 		return $renamed;
 	}
 
-
 	/**
 	 * One page of metadata documents that mention any of this app's hashes.
 	 *
@@ -2279,8 +2221,8 @@ class MetadataService
 		int  $afterFileId,
 		int  $limit,
 		bool $stamped = true,
-	): array {
-
+	): array
+	{
 		$qb = $this->db->getQueryBuilder();
 		$qb->select( self::FIELD_FILE_ID, self::FIELD_JSON )
 		   ->from( self::TABLE_FILES_METADATA )
@@ -2304,11 +2246,11 @@ class MetadataService
 		{
 			$documents[ (int) $row[ self::FIELD_FILE_ID ] ] = (string) $row[ self::FIELD_JSON ];
 		}
+
 		$result->closeCursor();
 
 		return $documents;
 	}
-
 
 	/**
 	 * Which hash keys each of these files already has a row for.
@@ -2320,7 +2262,6 @@ class MetadataService
 	 */
 	private function hashIndexKeysFor( array $fileIds ): array
 	{
-
 		if ( $fileIds === [] )
 		{
 			return [];
@@ -2347,11 +2288,11 @@ class MetadataService
 		{
 			$keys[ (int) $row[ self::FIELD_FILE_ID ] ][] = (string) $row[ self::FIELD_META_KEY ];
 		}
+
 		$result->closeCursor();
 
 		return $keys;
 	}
-
 
 	/**
 	 * Write this app's own index rows for a file's hashes.
@@ -2388,8 +2329,8 @@ class MetadataService
 	public function syncHashIndex(
 		int   $fileId,
 		array $algoToHash,
-	): int {
-
+	): int
+	{
 		$rows = [];
 
 		foreach ( $algoToHash as $algo => $hash )
@@ -2417,7 +2358,6 @@ class MetadataService
 		return count( $rows );
 	}
 
-
 	/**
 	 * One index row.
 	 *
@@ -2436,8 +2376,8 @@ class MetadataService
 		string $metaKey,
 		string $value,
 		int    $intValue = 0,
-	): void {
-
+	): void
+	{
 		$qb = $this->db->getQueryBuilder();
 		$qb->insert( self::TABLE_FILES_METADATA_INDEX )
 		   ->values(
@@ -2453,7 +2393,6 @@ class MetadataService
 		$this->executeStatement( $qb );
 	}
 
-
 	/**
 	 * Take one file out of the `stale:` namespace, if it is in it.
 	 *
@@ -2462,7 +2401,6 @@ class MetadataService
 	 */
 	public function clearStaleMarker( int $fileId ): bool
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->update( self::TABLE_FILES_METADATA_INDEX )
 		   ->set( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( null ) )
@@ -2478,7 +2416,6 @@ class MetadataService
 
 		return $this->executeStatement( $qb ) > 0;
 	}
-
 
 	/**
 	 * Copy already-known hashes into the metadata index for one file.
@@ -2500,8 +2437,8 @@ class MetadataService
 		int   $fileId,
 		array $algoToHash,
 		int   $mtime,
-	): int {
-
+	): int
+	{
 		// Client-supplied, like every value in the filecache's checksum
 		// column. {@see AlgorithmCatalogue::keepPlausible()}.
 		$algoToHash = $this->catalogue->keepPlausible( $algoToHash );
@@ -2546,7 +2483,6 @@ class MetadataService
 		return $added;
 	}
 
-
 	/**
 	 * Parse a pending mode string by stripping the 'pending:' prefix.
 	 *
@@ -2556,7 +2492,6 @@ class MetadataService
 	 */
 	public static function parseMode( string $status ): string
 	{
-
 		if ( str_starts_with( $status, self::PENDING_PREFIX ) )
 		{
 			return substr( $status, strlen( self::PENDING_PREFIX ) );
@@ -2565,18 +2500,15 @@ class MetadataService
 		return $status;
 	}
 
-
 	/**
 	 * Truncate a value to what the index column actually stores.
 	 */
 	public static function truncateForIndex( string $value ): string
 	{
-
 		return strlen( $value ) > self::META_VALUE_STRING_MAX_LENGTH
 			? substr( $value, 0, self::META_VALUE_STRING_MAX_LENGTH )
 			: $value;
 	}
-
 
 	/**
 	 * Exclude files whose hashes an operator or the app disowned.
@@ -2603,8 +2535,8 @@ class MetadataService
 	private function andWhereNotStale(
 		IQueryBuilder $qb,
 		string        $alias = 'i',
-	): void {
-
+	): void
+	{
 		$qb->leftJoin(
 			$alias,
 			self::TABLE_FILES_METADATA_INDEX,
@@ -2632,7 +2564,6 @@ class MetadataService
 		;
 	}
 
-
 	/**
 	 * Find files matching a given hex hash value.
 	 *
@@ -2659,8 +2590,8 @@ class MetadataService
 		?string    $algo = null,
 		int        $limit = 100,
 		?array     $visibleStorageIds = null,
-	): array {
-
+	): array
+	{
 		// A caller that will drop what its user cannot open has to say so
 		// *here*, because the limit is applied by the database. Filtering
 		// afterwards means the limit is spent on rows that are then thrown
@@ -2779,7 +2710,6 @@ class MetadataService
 		return $rows;
 	}
 
-
 	/**
 	 * Find duplicate hash groups across all files.
 	 *
@@ -2813,8 +2743,8 @@ class MetadataService
 		IQueryBuilder $qb,
 		string        $needle,
 		bool          $anywhere,
-	): void {
-
+	): void
+	{
 		$escaped   = $this->db->escapeLikeParameter( self::truncateForIndex( $needle ) );
 		$indexTerm = $anywhere ? '%' . $escaped . '%' : $escaped . '%';
 
@@ -2840,7 +2770,6 @@ class MetadataService
 		}
 	}
 
-
 	public function queryDuplicates(
 		?string $algo = null,
 		int     $minCount = 2,
@@ -2848,8 +2777,8 @@ class MetadataService
 		int     $offset = 0,
 		?string $hash = null,
 		bool    $anywhere = false,
-	): array {
-
+	): array
+	{
 		// Hashes are stored lower-case, so a digest pasted in upper case
 		// still finds its group.
 		$needle = strtolower( trim( (string) $hash ) );
@@ -2942,10 +2871,10 @@ class MetadataService
 		$rows   = $result->fetchAll();
 		$result->closeCursor();
 
-		$groups = array_map( function (
+		$groups = array_map( function(
 			array $row,
-		): array {
-
+		): array
+		{
 			$fileIdStr = (string) $row['file_ids'];
 			$fileIds   = $fileIdStr !== ''
 				? array_map( 'intval', explode( ',', $fileIdStr ) )
@@ -2976,7 +2905,6 @@ class MetadataService
 		return $this->verifyTruncatedDuplicateGroups( $groups, $minCount );
 	}
 
-
 	/**
 	 * Re-verify duplicate groups whose meta_value_string may have been
 	 * truncated by the index column (see {@see META_VALUE_STRING_MAX_LENGTH}).
@@ -2995,8 +2923,8 @@ class MetadataService
 	private function verifyTruncatedDuplicateGroups(
 		array $groups,
 		int   $minCount,
-	): array {
-
+	): array
+	{
 		$verified = [];
 
 		foreach ( $groups as $group )
@@ -3057,7 +2985,6 @@ class MetadataService
 		return $verified;
 	}
 
-
 	/**
 	 * Register all metadata keys on app boot.
 	 *
@@ -3065,7 +2992,6 @@ class MetadataService
 	 */
 	public function register(): void
 	{
-
 		// Repeated because one pass does not always stick. Nextcloud stores
 		// the declarations in one lazy app-config value and rewrites the
 		// whole of it per key; on an instance that already had these keys
@@ -3118,8 +3044,6 @@ class MetadataService
 		);
 	}
 
-
-
 	/**
 	 * The keys Nextcloud must know about: every algorithm in force plus every
 	 * one a previous release wrote, so a key that still exists in some
@@ -3129,7 +3053,6 @@ class MetadataService
 	 */
 	private function registeredAlgos(): array
 	{
-
 		return array_values( array_unique( array_merge( self::LEGACY_ALGOS, $this->catalogue->algorithms() ) ) );
 	}
 
@@ -3141,7 +3064,6 @@ class MetadataService
 	 */
 	private function hashKeysAreUnindexed(): bool
 	{
-
 		$known = $this->metadataManager->getKnownMetadata();
 
 		foreach ( $this->registeredAlgos() as $algo )
@@ -3155,7 +3077,6 @@ class MetadataService
 		return true;
 	}
 
-
 	/**
 	 * Save metadata via IFilesMetadataManager.
 	 *
@@ -3164,15 +3085,14 @@ class MetadataService
 	public function saveMetadata(
 		IFilesMetadata $metadata,
 		int|File|null  $file = null,
-	): void {
-
+	): void
+	{
 		$this->metadataManager->saveMetadata( $metadata );
 
 		$hashes = $this->getHashes( $metadata );
 		$this->filecacheService->setHashes( $file ?? $metadata->getFileId(), $hashes );
 		$this->syncHashIndex( $metadata->getFileId(), $hashes );
 	}
-
 
 	/**
 	 * Count all hash metadata index entries (file-checksum-* keys excluding updated_at).
@@ -3181,7 +3101,6 @@ class MetadataService
 	 */
 	public function countHashEntries(): int
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->select(
 			$qb->func()
@@ -3202,7 +3121,6 @@ class MetadataService
 		;
 	}
 
-
 	/**
 	 * The algorithm a metadata key names.
 	 *
@@ -3213,7 +3131,6 @@ class MetadataService
 	 */
 	public static function algorithmFromKey( string $metaKey ): string
 	{
-
 		// The hash prefix first: stripping the shorter one from
 		// `file-checksum-hash-sha256` would leave `hash-sha256`. A key still
 		// in the old spelling falls through to the second replacement, which
@@ -3228,13 +3145,10 @@ class MetadataService
 		);
 	}
 
-
 	public static function getHashKey( string $algo ): string
 	{
-
 		return self::KEY_FILE_CHECKSUM_HASH_PREFIX . strtolower( $algo );
 	}
-
 
 	/**
 	 * What a hash key was called before it had a prefix of its own.
@@ -3246,10 +3160,8 @@ class MetadataService
 	 */
 	public static function legacyHashKey( string $algo ): string
 	{
-
 		return self::KEY_FILE_CHECKSUM_PREFIX . strtolower( $algo );
 	}
-
 
 	/**
 	 * Read a search term of the form `<algo>:<hash>`, or a bare hash.
@@ -3271,7 +3183,6 @@ class MetadataService
 	 */
 	public static function parseQueryTerm( string $term ): ?array
 	{
-
 		if ( ! preg_match( '/^(?:([a-zA-Z0-9-]+):)?([a-fA-F0-9]{8,128})$/', $term, $matches ) )
 		{
 			return null;
@@ -3290,5 +3201,4 @@ class MetadataService
 			'hash' => $hash,
 		];
 	}
-
 }

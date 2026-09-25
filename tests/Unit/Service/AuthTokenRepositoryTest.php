@@ -17,16 +17,19 @@ use OCP\IDBConnection;
 use Psr\Log\LoggerInterface;
 
 class AuthTokenRepositoryTest
-	extends
-	FciasUnitTestCase
+    extends
+    FciasUnitTestCase
 {
+
+//  private properties
 
 	private AuthTokenRepository $repository;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->db = $this->createMock( IDBConnection::class );
@@ -36,12 +39,13 @@ class AuthTokenRepositoryTest
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * @param  list<array<string, mixed>>  $rows
 	 */
 	private function answering( array $rows ): void
 	{
-
 		$result = $this->createMock( IResult::class );
 		$result->method( 'fetch' )
 		       ->willReturnOnConsecutiveCalls( ...[ ...$rows, false ] )
@@ -51,10 +55,8 @@ class AuthTokenRepositoryTest
 		;
 	}
 
-
 	public function testRowsAreTypedAndTheScopeIsReadAsCoreReadsIt(): void
 	{
-
 		$this->answering( [
 			[ 'id' => '7', 'uid' => 'alice', 'name' => 'backup', 'type' => '1', 'last_activity' => '1700000000', 'scope' => '{"filesystem":true}' ],
 			[ 'id' => '8', 'uid' => 'alice', 'name' => 'no-files', 'type' => '1', 'last_activity' => '0', 'scope' => '{"filesystem":false}' ],
@@ -72,10 +74,8 @@ class AuthTokenRepositoryTest
 		$this->assertFalse( $this->repository->wasUnavailable(), 'the table answered' );
 	}
 
-
 	public function testByIdsIsKeyedByIdAndAsksNothingForNoIds(): void
 	{
-
 		$this->queryBuilder->expects( $this->never() )
 		                   ->method( 'executeQuery' )
 		;
@@ -83,10 +83,8 @@ class AuthTokenRepositoryTest
 		$this->assertSame( [], $this->repository->byIds( [] ) );
 	}
 
-
 	public function testByIdsKeysTheRows(): void
 	{
-
 		$this->answering( [
 			[ 'id' => '42', 'uid' => 'bob', 'name' => 'ci', 'type' => '1', 'last_activity' => '5', 'scope' => '' ],
 		] );
@@ -97,14 +95,12 @@ class AuthTokenRepositoryTest
 		$this->assertSame( 'bob', $rows[42]['uid'] );
 	}
 
-
 	/**
 	 * The one coupling to a core table is behind this class: a column that
 	 * is gone makes the listing unavailable, not the app broken.
 	 */
 	public function testAnUnreadableTableAnswersWithNothing(): void
 	{
-
 		$this->queryBuilder->method( 'executeQuery' )
 		                   ->willThrowException( new Exception( 'no such column' ) )
 		;
@@ -113,15 +109,12 @@ class AuthTokenRepositoryTest
 		$this->assertTrue( $this->repository->wasUnavailable(), 'an empty list that is not an answer says so' );
 	}
 
-
 	public function testTheScopeReadingMatchesCore(): void
 	{
-
 		$this->assertTrue( AuthTokenRepository::filesystemAllowed( '' ) );
 		$this->assertTrue( AuthTokenRepository::filesystemAllowed( '{}' ) );
 		$this->assertTrue( AuthTokenRepository::filesystemAllowed( '{"filesystem":true}' ) );
 		$this->assertFalse( AuthTokenRepository::filesystemAllowed( '{"filesystem":false}' ) );
 		$this->assertTrue( AuthTokenRepository::filesystemAllowed( 'not json' ), 'unparsable is unrestricted, as core would treat a missing key' );
 	}
-
 }

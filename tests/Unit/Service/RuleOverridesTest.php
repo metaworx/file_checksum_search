@@ -15,20 +15,20 @@ use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class RuleOverridesTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  other non-static methods
 
 	public function testTheDefaultOverridesNothing(): void
 	{
-
 		$overrides = new RuleOverrides();
 
 		$this->assertTrue( $overrides->isEmpty() );
 		$this->assertSame( [], $overrides->ignoreRuleIds );
 		$this->assertFalse( $overrides->withIgnored );
 	}
-
 
 	/**
 	 * With nothing overridden the command must behave exactly as the
@@ -39,15 +39,16 @@ class RuleOverridesTest
 	public function testWithoutOverridesOnlyIncludeIsAllowed(
 		?array $rule,
 		bool   $expected,
-	): void {
-
+	): void
+	{
 		$this->assertSame( $expected, ( new RuleOverrides() )->allows( $rule ) );
 	}
 
 
+//  static methods
+
 	public static function rulesWithoutOverrides(): array
 	{
-
 		return [
 			'include'          => [
 				[ 'type' => 'include' ],
@@ -72,10 +73,8 @@ class RuleOverridesTest
 		];
 	}
 
-
 	public function testWithIgnoredAllowsIgnoreAndNothingElse(): void
 	{
-
 		$overrides = new RuleOverrides( withIgnored: true );
 
 		$this->assertTrue( $overrides->allows( [ 'type' => 'ignore' ] ) );
@@ -89,10 +88,8 @@ class RuleOverridesTest
 		$this->assertFalse( $overrides->allows( null ) );
 	}
 
-
 	public function testIgnoreRuleIdsDoNotThemselvesPermitAnything(): void
 	{
-
 		// Setting a rule aside changes which rule governs — a question for the
 		// lookup. By the time allows() sees the answer, the verdict it carries
 		// is the one that counts.
@@ -109,10 +106,8 @@ class RuleOverridesTest
 		);
 	}
 
-
 	public function testUnmatchedOnlyIsTheInverseView(): void
 	{
-
 		$overrides = new RuleOverrides( unmatched: RuleOverrides::UNMATCHED_ONLY );
 
 		// Only files with no governing rule — a matched file is out of
@@ -123,10 +118,8 @@ class RuleOverridesTest
 		$this->assertFalse( $overrides->isEmpty() );
 	}
 
-
 	public function testUnmatchedIncludeWidensButOverridesNothing(): void
 	{
-
 		$overrides = new RuleOverrides( unmatched: RuleOverrides::UNMATCHED_INCLUDE );
 
 		$this->assertTrue( $overrides->allows( null ) );
@@ -136,10 +129,8 @@ class RuleOverridesTest
 		$this->assertFalse( $overrides->allows( [ 'type' => 'ignore' ] ) );
 	}
 
-
 	public function testReportNamesTheRuleBandAndVerdict(): void
 	{
-
 		$output = new BufferedOutput( OutputInterface::VERBOSITY_VERBOSE );
 
 		( new RuleOverrides() )->report(
@@ -160,10 +151,8 @@ class RuleOverridesTest
 		);
 	}
 
-
 	public function testReportSaysSoWhenNoRuleMatched(): void
 	{
-
 		$output = new BufferedOutput( OutputInterface::VERBOSITY_VERBOSE );
 
 		( new RuleOverrides() )->report( $output, '/files/a.txt', null, false );
@@ -171,10 +160,8 @@ class RuleOverridesTest
 		$this->assertStringContainsString( '[no matching rule]', $output->fetch() );
 	}
 
-
 	public function testAProceedingFileIsReportedOnlyAtVeryVerbose(): void
 	{
-
 		$verbose = new BufferedOutput( OutputInterface::VERBOSITY_VERBOSE );
 		( new RuleOverrides() )->report( $verbose, '/files/a.txt', [ 'id' => 'r1' ], true );
 		$this->assertSame( '', $verbose->fetch() );
@@ -184,10 +171,8 @@ class RuleOverridesTest
 		$this->assertStringContainsString( 'hash /files/a.txt', $veryVerbose->fetch() );
 	}
 
-
 	public function testNothingIsReportedAtNormalVerbosity(): void
 	{
-
 		$output = new BufferedOutput( OutputInterface::VERBOSITY_NORMAL );
 
 		( new RuleOverrides() )->report( $output, '/files/a.txt', [ 'id' => 'r1' ], false );
@@ -195,13 +180,10 @@ class RuleOverridesTest
 		$this->assertSame( '', $output->fetch() );
 	}
 
-
 	public function testReportIsANoOpWithoutAnOutput(): void
 	{
-
 		$this->expectNotToPerformAssertions();
 
 		( new RuleOverrides() )->report( null, '/files/a.txt', null, false );
 	}
-
 }

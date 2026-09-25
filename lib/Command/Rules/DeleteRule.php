@@ -19,16 +19,17 @@ use Symfony\Component\Console\Question\ConfirmationQuestion;
  * @noinspection PhpUnused
  */
 class DeleteRule
-	extends
-	RulesCommandBase
+    extends
+    RulesCommandBase
 {
+
+//  config/init/exe/run methods
 
 	/**
 	 * @noinspection PhpUnused
 	 */
 	protected function configure(): void
 	{
-
 		$this->setName( 'file-checksum-search:rules:delete' )
 		     ->setAliases( [ 'fcias:rules:delete' ] )
 		     ->setDescription( 'Delete a hash generation rule' )
@@ -36,7 +37,6 @@ class DeleteRule
 		     ->addOption( 'yes', 'y', InputOption::VALUE_NONE, 'Skip the confirmation prompt' )
 		;
 	}
-
 
 	/**
 	 * A JsonException from the rule store bubbles to Symfony's error
@@ -48,8 +48,8 @@ class DeleteRule
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
-	): int {
-
+	): int
+	{
 		$id   = (string) $input->getArgument( 'id' );
 		$rule = $this->resolveRule( $id, $output );
 
@@ -94,5 +94,4 @@ class DeleteRule
 
 		return self::SUCCESS;
 	}
-
 }

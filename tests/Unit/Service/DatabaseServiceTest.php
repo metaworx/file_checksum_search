@@ -21,9 +21,11 @@ use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
 
 class DatabaseServiceTest
-	extends
-	FciasUnitTestCase
+    extends
+    FciasUnitTestCase
 {
+
+//  private properties
 
 	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 	private LoggerInterface&MockObject       $logger;
@@ -36,9 +38,10 @@ class DatabaseServiceTest
 	private AbstractSchemaManager&MockObject $schemaManager;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->db     = $this->createMock( IDBConnection::class );
@@ -74,9 +77,10 @@ class DatabaseServiceTest
 	}
 
 
+//  other non-static methods
+
 	public function testCountRowsReturnsInt(): void
 	{
-
 		$queryFunction = $this->createMock( IQueryFunction::class );
 
 		$this->func->method( 'count' )
@@ -98,10 +102,8 @@ class DatabaseServiceTest
 		$this->assertSame( 42, $count );
 	}
 
-
 	public function testColumnExistsReturnsTrueForExisting(): void
 	{
-
 		$column = $this->createMock( Column::class );
 
 		$column->method( 'getName' )
@@ -118,10 +120,8 @@ class DatabaseServiceTest
 		$this->assertTrue( $result );
 	}
 
-
 	public function testColumnExistsReturnsFalseForMissing(): void
 	{
-
 		$column = $this->createMock( Column::class );
 
 		$column->method( 'getName' )
@@ -138,10 +138,8 @@ class DatabaseServiceTest
 		$this->assertFalse( $result );
 	}
 
-
 	public function testTableExistReturnsBool(): void
 	{
-
 		$this->schemaManager->method( 'tablesExist' )
 		                    ->with( [ 'existing_table' ] )
 		                    ->willReturn( true )
@@ -152,10 +150,8 @@ class DatabaseServiceTest
 		$this->assertTrue( $result );
 	}
 
-
 	public function testGetInstalledMigrationsReturnsArray(): void
 	{
-
 		$result = $this->createMock( IResult::class );
 
 		$result->method( 'fetchAll' )
@@ -176,5 +172,4 @@ class DatabaseServiceTest
 		$this->assertContains( '1000Date20260806100000', $migrations );
 		$this->assertContains( '1001Date20260807100000', $migrations );
 	}
-
 }

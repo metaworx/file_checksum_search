@@ -16,25 +16,29 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 class AlgorithmCatalogueTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private IAppConfig&MockObject $appConfig;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->appConfig = $this->createMock( IAppConfig::class );
 	}
 
 
+//  other non-static methods
+
 	private function withAllowlist( array $stored, string $default = '' ): AlgorithmCatalogue
 	{
-
 		$this->appConfig->method( 'getValueArray' )
 		                ->with( Application::APP_ID, AlgorithmCatalogue::CONFIG_KEY, [] )
 		                ->willReturn( $stored )
@@ -47,24 +51,19 @@ class AlgorithmCatalogueTest
 		return new AlgorithmCatalogue( $this->appConfig );
 	}
 
-
 	public function testAnUntouchedInstanceComputesTheShippedDefault(): void
 	{
-
 		$catalogue = $this->withAllowlist( [] );
 
 		$this->assertSame( AlgorithmCatalogue::DEFAULT_ALLOWLIST, $catalogue->algorithms() );
 		$this->assertSame( 'sha1', $catalogue->default() );
 	}
 
-
 	public function testTheShippedDefaultIncludesTheTwo384BitMembers(): void
 	{
-
 		$this->assertContains( 'sha384', AlgorithmCatalogue::DEFAULT_ALLOWLIST );
 		$this->assertContains( 'sha3-384', AlgorithmCatalogue::DEFAULT_ALLOWLIST );
 	}
-
 
 	/**
 	 * Names become metadata keys and are parsed back by stripping a prefix,
@@ -73,7 +72,6 @@ class AlgorithmCatalogueTest
 	 */
 	public function testNamesThatCannotBeKeysAreNeverAvailable(): void
 	{
-
 		$catalogue = $this->withAllowlist( [] );
 
 		foreach ( $catalogue->available() as $name )
@@ -87,10 +85,8 @@ class AlgorithmCatalogueTest
 		$this->assertContains( 'sha384', $catalogue->available() );
 	}
 
-
 	public function testTheAllowlistIsHonouredInItsOwnOrder(): void
 	{
-
 		$catalogue = $this->withAllowlist( [ 'sha256', 'sha1' ] );
 
 		$this->assertSame( [ 'sha256', 'sha1' ], $catalogue->algorithms() );
@@ -100,28 +96,22 @@ class AlgorithmCatalogueTest
 		$this->assertFalse( $catalogue->isValid( 42 ) );
 	}
 
-
 	public function testUnusableAllowlistEntriesAreDroppedNotFatal(): void
 	{
-
 		$catalogue = $this->withAllowlist( [ 'SHA256', ' md5 ', 'sha512/256', 'nonsense', 7, 'md5' ] );
 
 		$this->assertSame( [ 'sha256', 'md5' ], $catalogue->algorithms(), 'lower-cased, trimmed, filtered, de-duplicated' );
 	}
 
-
 	public function testAnAllowlistThatKeepsNothingFallsBackToTheDefault(): void
 	{
-
 		$catalogue = $this->withAllowlist( [ 'nonsense', 'sha512/256' ] );
 
 		$this->assertSame( AlgorithmCatalogue::DEFAULT_ALLOWLIST, $catalogue->algorithms() );
 	}
 
-
 	public function testSettingTheAllowlistStoresOnlyWhatIsUsable(): void
 	{
-
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'setValueArray' )
 		                ->with( Application::APP_ID, AlgorithmCatalogue::CONFIG_KEY, [ 'sha384', 'sha1' ] )
@@ -132,7 +122,6 @@ class AlgorithmCatalogueTest
 		$this->assertSame( [ 'sha384', 'sha1' ], $catalogue->setAllowlist( [ 'sha384', 'bogus', 'sha1' ] ) );
 	}
 
-
 	/**
 	 * A list that keeps nothing is refused rather than stored: storing it
 	 * would silently fall back to the default, which is not what someone
@@ -140,7 +129,6 @@ class AlgorithmCatalogueTest
 	 */
 	public function testSettingAnUnusableAllowlistStoresNothing(): void
 	{
-
 		$this->appConfig->expects( $this->never() )
 		                ->method( 'setValueArray' )
 		;
@@ -150,15 +138,12 @@ class AlgorithmCatalogueTest
 		$this->assertSame( [], $catalogue->setAllowlist( [ 'bogus', 'sha512/256' ] ) );
 	}
 
-
 	public function testADesignatedDefaultIsHonoured(): void
 	{
-
 		$catalogue = $this->withAllowlist( [ 'sha1', 'sha256' ], 'sha256' );
 
 		$this->assertSame( 'sha256', $catalogue->default() );
 	}
-
 
 	/**
 	 * A designation that is not in force — reached the config past
@@ -167,16 +152,13 @@ class AlgorithmCatalogueTest
 	 */
 	public function testADesignationNotInForceFallsBackToTheFirstAllowed(): void
 	{
-
 		$catalogue = $this->withAllowlist( [ 'sha1', 'sha256' ], 'md5' );
 
 		$this->assertSame( 'sha1', $catalogue->default() );
 	}
 
-
 	public function testDesignatingTheDefaultStoresItAndAppliesAtOnce(): void
 	{
-
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'setValueString' )
 		                ->with( Application::APP_ID, AlgorithmCatalogue::DEFAULT_KEY, 'sha256' )
@@ -188,10 +170,8 @@ class AlgorithmCatalogueTest
 		$this->assertSame( 'sha256', $catalogue->default() );
 	}
 
-
 	public function testDesignatingAnAlgorithmNotInForceIsRefused(): void
 	{
-
 		$this->appConfig->expects( $this->never() )
 		                ->method( 'setValueString' )
 		;
@@ -202,10 +182,8 @@ class AlgorithmCatalogueTest
 		$this->assertSame( 'sha1', $catalogue->default() );
 	}
 
-
 	public function testTheEmptyNameClearsTheDesignation(): void
 	{
-
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'deleteKey' )
 		                ->with( Application::APP_ID, AlgorithmCatalogue::DEFAULT_KEY )
@@ -219,7 +197,6 @@ class AlgorithmCatalogueTest
 		$this->assertTrue( $catalogue->setDefault( '' ) );
 	}
 
-
 	/**
 	 * Dropping the default from the allowlist clears the designation rather
 	 * than leaving it dormant, so re-allowing the algorithm later does not
@@ -227,7 +204,6 @@ class AlgorithmCatalogueTest
 	 */
 	public function testAnAllowlistThatDropsTheDefaultClearsIt(): void
 	{
-
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'deleteKey' )
 		                ->with( Application::APP_ID, AlgorithmCatalogue::DEFAULT_KEY )
@@ -239,10 +215,8 @@ class AlgorithmCatalogueTest
 		$this->assertSame( 'sha1', $catalogue->default() );
 	}
 
-
 	public function testAnAllowlistThatKeepsTheDefaultLeavesItAlone(): void
 	{
-
 		$this->appConfig->expects( $this->never() )
 		                ->method( 'deleteKey' )
 		;
@@ -254,7 +228,6 @@ class AlgorithmCatalogueTest
 		$this->assertSame( 'sha256', $catalogue->default() );
 	}
 
-
 	/**
 	 * The filecache checksum column holds whatever a sync client put in its
 	 * OC-Checksum header, so a pair is adopted only when it could be one of
@@ -262,7 +235,6 @@ class AlgorithmCatalogueTest
 	 */
 	public function testOnlyPlausiblePairsAreKept(): void
 	{
-
 		$catalogue = $this->withAllowlist( [ 'sha1', 'sha256' ] );
 
 		$sha1   = str_repeat( 'a', 40 );
@@ -291,10 +263,8 @@ class AlgorithmCatalogueTest
 		);
 	}
 
-
 	public function testAHashOfTheWrongLengthIsNotThatAlgorithmsHash(): void
 	{
-
 		$catalogue = $this->withAllowlist( [ 'sha256' ] );
 
 		$this->assertSame( [], $catalogue->keepPlausible( [ 'sha256' => str_repeat( 'a', 40 ) ] ) );
@@ -302,13 +272,10 @@ class AlgorithmCatalogueTest
 		$this->assertSame( [], $catalogue->keepPlausible( [ 'sha256' => '' ] ) );
 	}
 
-
 	public function testNonHexIsNeverKept(): void
 	{
-
 		$catalogue = $this->withAllowlist( [ 'sha1' ] );
 
 		$this->assertSame( [], $catalogue->keepPlausible( [ 'sha1' => str_repeat( 'z', 40 ) ] ) );
 	}
-
 }

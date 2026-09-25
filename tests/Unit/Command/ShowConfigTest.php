@@ -19,9 +19,11 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
 class ShowConfigTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private MockObject|IAppConfig      $appConfig;
 
@@ -31,12 +33,13 @@ class ShowConfigTest
 	private CommandTester              $tester;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
-		$this->appConfig = $this->createMock( IAppConfig::class );
+		$this->appConfig  = $this->createMock( IAppConfig::class );
 		$this->logger     = $this->createMock( LoggerInterface::class );
 
 		$command      = new ShowConfig( $this->appConfig, $this->logger );
@@ -44,13 +47,14 @@ class ShowConfigTest
 	}
 
 
+//  other non-static methods
+
 	public function testPlainOutputListsKeyValuePairs(): void
 	{
-
 		$this->appConfig->method( 'getAllValues' )
 		                ->with( Application::APP_ID )
 		                ->willReturn( [
-			                'installed_version' => '1.9.2',
+			                'installed_version'  => '1.9.2',
 			                'rule_definitions'   => [ 'a', 'b' ],
 		                ] )
 		;
@@ -64,10 +68,8 @@ class ShowConfigTest
 		$this->assertStringContainsString( 'rule_definitions', $display );
 	}
 
-
 	public function testPlainOutputFormatsBooleansAsWords(): void
 	{
-
 		$this->appConfig->method( 'getAllValues' )
 		                ->willReturn( [ 'lazy_enabled' => true, 'strict_mode' => false ] )
 		;
@@ -79,10 +81,8 @@ class ShowConfigTest
 		$this->assertStringContainsString( 'false', $display );
 	}
 
-
 	public function testPlainOutputReportsNoConfigValues(): void
 	{
-
 		$this->appConfig->method( 'getAllValues' )
 		                ->willReturn( [] )
 		;
@@ -93,10 +93,8 @@ class ShowConfigTest
 		$this->assertStringContainsString( 'No config values found.', $this->tester->getDisplay() );
 	}
 
-
 	public function testJsonOutputFormat(): void
 	{
-
 		$this->appConfig->method( 'getAllValues' )
 		                ->willReturn( [ 'installed_version' => '1.9.2' ] )
 		;
@@ -108,10 +106,8 @@ class ShowConfigTest
 		$this->assertSame( [ 'installed_version' => '1.9.2' ], $decoded );
 	}
 
-
 	public function testJsonPrettyOutputIsIndented(): void
 	{
-
 		$this->appConfig->method( 'getAllValues' )
 		                ->willReturn( [ 'installed_version' => '1.9.2' ] )
 		;
@@ -120,5 +116,4 @@ class ShowConfigTest
 
 		$this->assertStringContainsString( "\n", trim( $this->tester->getDisplay() ) );
 	}
-
 }

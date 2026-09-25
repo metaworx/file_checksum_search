@@ -19,13 +19,14 @@ use PHPUnit\Framework\TestCase;
  * reach again.
  */
 class ImportPolicyTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  other non-static methods
 
 	public function testTheDefaultsAreTheConservativeOnes(): void
 	{
-
 		$policy = new ImportPolicy();
 
 		$this->assertTrue( $policy->merge, 'an import adds; replacing is asked for' );
@@ -36,7 +37,6 @@ class ImportPolicyTest
 		$this->assertFalse( $policy->warrantsWarning() );
 	}
 
-
 	/**
 	 * Two ways to end up with a stored hash that says more than the data
 	 * supports; both are worth saying out loud.
@@ -45,27 +45,25 @@ class ImportPolicyTest
 	 */
 	public function testAPolicyThatOverstatesItsEvidenceWarns( ImportPolicy $policy ): void
 	{
-
 		$this->assertTrue( $policy->warrantsWarning() );
 	}
 
+
+//  static methods
 
 	/**
 	 * @return array<string, array{ImportPolicy}>
 	 */
 	public static function warningCases(): array
 	{
-
 		return [
 			'stamping now'      => [ new ImportPolicy( stamp: ImportPolicy::STAMP_NOW ) ],
 			'allowing outdated' => [ new ImportPolicy( allowOutdated: true ) ],
 		];
 	}
 
-
 	public function testMtimeStampingDoesNotWarn(): void
 	{
-
 		// Claiming the hash matches the file as it stands is what a sumfile
 		// run a moment ago means; it is the reason the option exists.
 		$this->assertFalse(
@@ -73,14 +71,11 @@ class ImportPolicyTest
 		);
 	}
 
-
 	public function testAnUnknownStampIsRefusedWhereItIsWritten(): void
 	{
-
 		$this->expectException( InvalidArgumentException::class );
 		$this->expectExceptionMessageMatches( '/source, mtime, now/' );
 
 		new ImportPolicy( stamp: 'yesterday' );
 	}
-
 }

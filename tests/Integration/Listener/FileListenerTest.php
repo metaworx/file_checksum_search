@@ -39,9 +39,11 @@ use Throwable;
  * delegate calls.  These integration tests verify end-to-end metadata mutations.
  */
 class FileListenerTest
-	extends
-	DatabaseTestCase
+    extends
+    DatabaseTestCase
 {
+
+//  private properties
 
 	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 	private FilecacheService $filecacheService;
@@ -62,12 +64,13 @@ class FileListenerTest
 	private array $cleanup = [];
 
 
+//  getters / setters / is* / has*
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->filecacheService = Server::get( FilecacheService::class );
@@ -88,9 +91,10 @@ class FileListenerTest
 	}
 
 
+//  other non-static methods
+
 	protected function tearDown(): void
 	{
-
 		$this->cleanupLeftovers();
 
 		foreach ( $this->cleanupFiles as $file )
@@ -123,16 +127,12 @@ class FileListenerTest
 		parent::tearDown();
 	}
 
-
 	// ─── File Create ──────────────────────────────────────────────────
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFileCreateUnderAnIgnoreRuleDoesNothing(): void
 	{
-
 		$this->setCatchAllIgnoreRule();
 
 		$file  = $this->createTestFile( 'fcias_listener_crt_off_' . time() . '.dat' );
@@ -153,13 +153,11 @@ class FileListenerTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFileCreateLazyMarksPending(): void
 	{
-
 		$this->setCatchAllRule( 'lazy' );
 
 		$file   = $this->createTestFile( 'fcias_listener_crt_lazy_' . time() . '.dat' );
@@ -182,13 +180,11 @@ class FileListenerTest
 		$this->assertSame( 0, $this->metadataService->countByFileId( $fileId ) );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFileCreateForceClearsAndMarksPending(): void
 	{
-
 		$this->setCatchAllRule( 'force' );
 
 		$file   = $this->createTestFile( 'fcias_listener_crt_force_' . time() . '.dat' );
@@ -208,16 +204,12 @@ class FileListenerTest
 		$this->assertSame( 0, $this->metadataService->countByFileId( $fileId ) );
 	}
 
-
 	// ─── File Write ───────────────────────────────────────────────────
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFileWriteUnderAnIgnoreRuleDoesNothing(): void
 	{
-
 		$this->setCatchAllIgnoreRule();
 
 		$file   = $this->createTestFile( 'fcias_listener_wrt_off_' . time() . '.dat' );
@@ -233,13 +225,11 @@ class FileListenerTest
 		$this->assertSame( 0, $this->metadataService->countByFileId( $fileId ) );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFileWriteForceClearsAndMarksPending(): void
 	{
-
 		$this->setCatchAllRule( 'force' );
 
 		$file   = $this->createTestFile( 'fcias_listener_wrt_force_' . time() . '.dat' );
@@ -256,13 +246,11 @@ class FileListenerTest
 		$this->assertSame( 0, $this->metadataService->countByFileId( $fileId ) );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFileWriteLazyClearsAndMarksPending(): void
 	{
-
 		$this->setCatchAllRule( 'lazy' );
 
 		$file   = $this->createTestFile( 'fcias_listener_wrt_lazy_' . time() . '.dat' );
@@ -279,13 +267,11 @@ class FileListenerTest
 		$this->assertSame( 0, $this->metadataService->countByFileId( $fileId ) );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFileWriteAutoMarksPendingWhenHashExists(): void
 	{
-
 		$this->setCatchAllRule( 'auto' );
 
 		$file   = $this->createTestFile( 'fcias_listener_wrt_auto_h_' . time() . '.dat' );
@@ -321,13 +307,11 @@ class FileListenerTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFileWriteAutoSkipsWhenNoHash(): void
 	{
-
 		$this->setCatchAllRule( 'auto' );
 
 		$file   = $this->createTestFile( 'fcias_listener_wrt_auto_n_' . time() . '.dat' );
@@ -347,10 +331,7 @@ class FileListenerTest
 		$this->assertSame( 0, $this->metadataService->countByFileId( $fileId ) );
 	}
 
-
 	// ─── A file somebody else owns ────────────────────────────────────
-
-
 	/**
 	 * The property the whole FileLocation rework exists for.
 	 *
@@ -367,18 +348,17 @@ class FileListenerTest
 	 */
 	public function testARecipientsWriteIsJudgedByTheOwnersRule(): void
 	{
-
 		[
 			$ownerUid,
 			$ownerPassword,
 		]
-			= self::makeAccount( 'fcias_listener_owner' );
+			 = self::makeAccount( 'fcias_listener_owner' );
 
 		[
 			$recipientUid,
 			$recipientPassword,
 		]
-			= self::makeAccount( 'fcias_listener_recipient' );
+			 = self::makeAccount( 'fcias_listener_recipient' );
 
 		$rootFolder    = Server::get( IRootFolder::class );
 		$ownerFolder   = $rootFolder->getUserFolder( $ownerUid );
@@ -438,16 +418,12 @@ class FileListenerTest
 		$this->cleanup[] = static fn (): mixed => $sharedDir->delete();
 	}
 
-
 	// ─── File Delete ──────────────────────────────────────────────────
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFileDeleteClearsMetadataEvenUnderAnIgnoreRule(): void
 	{
-
 		$this->setCatchAllIgnoreRule();
 
 		$file   = $this->createTestFile( 'fcias_listener_del_off_' . time() . '.dat' );
@@ -473,13 +449,11 @@ class FileListenerTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFileDeleteClearsTheHashesAndQueuesNothing(): void
 	{
-
 		$this->setCatchAllRule( 'auto' );
 
 		$file   = $this->createTestFile( 'fcias_listener_del_on_' . time() . '.dat' );
@@ -516,12 +490,9 @@ class FileListenerTest
 		);
 	}
 
-
 	// ─── Common: FileListener handles non-File events gracefully ──────
-
 	public function testHandleIgnoresNonFileEventsGracefully(): void
 	{
-
 		$folder = $this->createMock( Folder::class );
 		$event  = new NodeDeletedEvent( $folder );
 
@@ -532,10 +503,7 @@ class FileListenerTest
 		$this->assertTrue( true );
 	}
 
-
 	// ─── helpers ──────────────────────────────────────────────────────
-
-
 	/**
 	 * Seed metadata index entries via raw SQL to avoid triggering
 	 * the old filecache hash-table trigger (pre-existing issue).
@@ -556,7 +524,6 @@ class FileListenerTest
 	 */
 	private function stateOf( int $fileId ): ?string
 	{
-
 		$result = $this->getRawConnection()
 		               ->executeQuery(
 			               'SELECT `meta_value_string` FROM `*PREFIX*files_metadata_index` '
@@ -578,10 +545,8 @@ class FileListenerTest
 				: (string) $value );
 	}
 
-
 	private function seedMetadataIndex( int $fileId ): void
 	{
-
 		$this->getRawConnection()
 		     ->executeStatement(
 			     'INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`) VALUES (?, ?, ?, ?)',
@@ -606,7 +571,6 @@ class FileListenerTest
 		;
 	}
 
-
 	/**
 	 * Set a catch-all rule with the given mode for the current test.
 	 *
@@ -617,8 +581,8 @@ class FileListenerTest
 	private function setCatchAllRule(
 		string $mode,
 		string $type = 'include',
-	): void {
-
+	): void
+	{
 		$this->ruleService->ruleAdd(
 			[
 				'enabled'  => true,
@@ -630,14 +594,11 @@ class FileListenerTest
 		);
 	}
 
-
 	/** The verdict that replaced the retired mode `off`: claim, queue nothing. */
 	private function setCatchAllIgnoreRule(): void
 	{
-
 		$this->setCatchAllRule( 'auto', 'ignore' );
 	}
-
 
 	/**
 	 * Create a real test file in the admin user's storage.
@@ -648,7 +609,6 @@ class FileListenerTest
 	 */
 	private function createTestFile( string $name ): File
 	{
-
 		$userFolder = Server::get( IRootFolder::class )
 		                    ->getUserFolder( 'admin' )
 		;
@@ -661,10 +621,8 @@ class FileListenerTest
 		return $file;
 	}
 
-
 	private function cleanupLeftovers(): void
 	{
-
 		if ( empty( $this->cleanupFileIds ) )
 		{
 			return;
@@ -699,7 +657,6 @@ class FileListenerTest
 		}
 	}
 
-
 	/**
 	 * Remove all rules to ensure clean state between tests.
 	 *
@@ -707,7 +664,6 @@ class FileListenerTest
 	 */
 	private function resetRules(): void
 	{
-
 		$rules = $this->ruleService->loadRules();
 
 		foreach ( $rules as $rule )
@@ -720,5 +676,4 @@ class FileListenerTest
 			}
 		}
 	}
-
 }

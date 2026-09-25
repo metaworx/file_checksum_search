@@ -23,9 +23,11 @@ use PHPUnit\Framework\TestCase;
  * REST door; these cover the contract points every surface shares.
  */
 class RuleDefinitionValidatorTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private MockObject|IGroupManager $groupManager;
 
@@ -34,9 +36,10 @@ class RuleDefinitionValidatorTest
 	private RuleDefinitionValidator  $validator;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->groupManager = $this->createMock( IGroupManager::class );
@@ -45,9 +48,10 @@ class RuleDefinitionValidatorTest
 	}
 
 
+//  other non-static methods
+
 	public function testANonAdminsRuleIsAlwaysTheirOwnAndNeverEnforced(): void
 	{
-
 		// Whatever the payload claims: scope, enforcement and pinning are
 		// trust, and trust is the caller's property, not the payload's.
 		$definition = $this->validator->definitionFrom(
@@ -65,10 +69,8 @@ class RuleDefinitionValidatorTest
 		$this->assertArrayNotHasKey( 'pinned', $definition );
 	}
 
-
 	public function testAnAdminScopeNamingAMissingGroupIsRejected(): void
 	{
-
 		$this->groupManager->method( 'groupExists' )
 		                   ->willReturn( false )
 		;
@@ -87,10 +89,8 @@ class RuleDefinitionValidatorTest
 		);
 	}
 
-
 	public function testANonIncludeRuleStoresNothingAboutHowToCompute(): void
 	{
-
 		$definition = $this->validator->definitionFrom(
 			[
 				'path'  => '/metered/**',
@@ -106,10 +106,8 @@ class RuleDefinitionValidatorTest
 		$this->assertArrayNotHasKey( 'mode', $definition );
 	}
 
-
 	public function testOmittedFieldsFallBackToTheExistingRule(): void
 	{
-
 		$this->userManager->method( 'userExists' )
 		                  ->willReturn( true )
 		;
@@ -135,10 +133,8 @@ class RuleDefinitionValidatorTest
 		$this->assertSame( 'force', $definition['mode'] );
 	}
 
-
 	public function testAnIncludeRuleWithNoValidAlgorithmIsRejected(): void
 	{
-
 		$this->expectException( InvalidArgumentException::class );
 
 		$this->validator->definitionFrom(
@@ -150,5 +146,4 @@ class RuleDefinitionValidatorTest
 			false,
 		);
 	}
-
 }

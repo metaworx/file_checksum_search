@@ -36,9 +36,11 @@ use OCP\Server;
  * own repository, never the secret.
  */
 class SudoRouteTest
-	extends
-	DatabaseTestCase
+    extends
+    DatabaseTestCase
 {
+
+//  constants
 
 	private const TEST_USER_PREFIX = 'fcias_sudo_test';
 
@@ -52,6 +54,9 @@ class SudoRouteTest
 	/** Any well-formed hash nobody stored: the route's answer is the point, not its contents. */
 	private const HASH = 'abc123abc123abc123abc123abc123abc123abc1';
 
+
+//  private properties
+
 	private static string $uid;
 
 	private static string $password;
@@ -61,24 +66,23 @@ class SudoRouteTest
 	private int    $tokenId;
 
 
+//  static methods
+
 	public static function setUpBeforeClass(): void
 	{
-
 		parent::setUpBeforeClass();
 
 		[
 			self::$uid,
 			self::$password,
 		]
-			= self::makeAccount( self::TEST_USER_PREFIX );
+			 = self::makeAccount( self::TEST_USER_PREFIX );
 
 		self::adminGroup( true );
 	}
 
-
 	public static function tearDownAfterClass(): void
 	{
-
 		// Deleting the account drops the membership too; done here as well
 		// so a deletion that fails does not leave a dead admin behind.
 		self::adminGroup( false );
@@ -87,9 +91,10 @@ class SudoRouteTest
 	}
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->appPassword = $this->mintAppPassword();
@@ -97,9 +102,10 @@ class SudoRouteTest
 	}
 
 
+//  other non-static methods
+
 	protected function tearDown(): void
 	{
-
 		Server::get( SudoTokens::class )->revoke( self::$uid, $this->tokenId );
 		$this->occ( 'user:auth-tokens:delete', self::$uid, (string) $this->tokenId );
 		self::adminGroup( true );
@@ -107,34 +113,28 @@ class SudoRouteTest
 		parent::tearDown();
 	}
 
-
 	/**
 	 * The login password over Basic auth is a login, and a login is a
 	 * confirmation — the same thirty-minute rule core applies.
 	 */
 	public function testTheAccountPasswordCountsAsAConfirmation(): void
 	{
-
 		$response = $this->get( '/api/v1/sudo/lookup?hash=' . self::HASH, self::$password );
 
 		$this->assertSame( 200, $response['status'] );
 		$this->assertSame( [], $response['body']['results'] );
 	}
 
-
 	public function testAnAppPasswordWithoutAGrantIsRefusedWithTheMessageTheDialogKnows(): void
 	{
-
 		$response = $this->get( '/api/v1/sudo/lookup?hash=' . self::HASH, $this->appPassword );
 
 		$this->assertSame( 403, $response['status'] );
 		$this->assertSame( 'Password confirmation required', $response['body']['message'] );
 	}
 
-
 	public function testAGrantedAppPasswordPasses(): void
 	{
-
 		Server::get( SudoTokens::class )->grant( self::$uid, $this->tokenId, self::$uid );
 
 		$response = $this->get( '/api/v1/sudo/lookup?hash=' . self::HASH, $this->appPassword );
@@ -143,10 +143,8 @@ class SudoRouteTest
 		$this->assertSame( [], $response['body']['results'] );
 	}
 
-
 	public function testAGrantRevokedIsAGrantGone(): void
 	{
-
 		$sudoTokens = Server::get( SudoTokens::class );
 		$sudoTokens->grant( self::$uid, $this->tokenId, self::$uid );
 		$sudoTokens->revoke( self::$uid, $this->tokenId );
@@ -156,7 +154,6 @@ class SudoRouteTest
 		$this->assertSame( 403, $response['status'] );
 	}
 
-
 	/**
 	 * A grant replaces the prompt, not the permission: an account nobody
 	 * named as a sudoer is refused with the grant in place, and by the
@@ -164,7 +161,6 @@ class SudoRouteTest
 	 */
 	public function testAGrantDoesNotMakeASudoer(): void
 	{
-
 		Server::get( SudoTokens::class )->grant( self::$uid, $this->tokenId, self::$uid );
 		self::adminGroup( false );
 
@@ -174,22 +170,18 @@ class SudoRouteTest
 		$this->assertSame( 'Not yours to look at.', $response['body']['error'] );
 	}
 
-
 	/**
 	 * The ordinary routes never ask: an ungranted app password reads its
 	 * own account as before.
 	 */
 	public function testTheOrdinaryRouteAsksForNoGrant(): void
 	{
-
 		$response = $this->get( '/api/v1/lookup?hash=' . self::HASH, $this->appPassword );
 
 		$this->assertSame( 200, $response['status'] );
 	}
 
-
 	// ─── may they cross at all ───────────────────────────────────────
-
 	/**
 	 * The first HTTP case in this repository to run as a sub-admin: every
 	 * other test here is an administrator, which is how the tab stayed
@@ -203,7 +195,6 @@ class SudoRouteTest
 	 */
 	public function testAGroupLeaderIsToldTheyMayCrossButNotSeeEveryone(): void
 	{
-
 		self::adminGroup( false );
 		self::leaderOfTestGroup( true );
 
@@ -244,10 +235,8 @@ class SudoRouteTest
 		}
 	}
 
-
 	public function testAnAccountNobodyNamedIsToldTheyMayNotCross(): void
 	{
-
 		self::adminGroup( false );
 
 		$listing = $this->get( '/api/v1/duplicates', self::$password );
@@ -256,9 +245,7 @@ class SudoRouteTest
 		$this->assertFalse( $listing['body']['canSudo'] );
 	}
 
-
 	// ─── recalculating a file that is not one's own ──────────────────
-
 	/**
 	 * A file id nothing knows about is the point: it proves the request got
 	 * *past* the gate, since only the body can answer "File not found." A
@@ -267,7 +254,6 @@ class SudoRouteTest
 	 */
 	public function testASudoerReachesTheRecalcBodyForAFileThatIsNotTheirs(): void
 	{
-
 		Server::get( SudoTokens::class )->grant( self::$uid, $this->tokenId, self::$uid );
 
 		$response = $this->post( '/api/v1/sudo/file/999999999/recalc?algo=sha1', $this->appPassword );
@@ -276,16 +262,13 @@ class SudoRouteTest
 		$this->assertSame( 'File not found.', $response['body']['error'] );
 	}
 
-
 	public function testTheRecalcRouteAsksForTheSameConfirmationTheOthersDo(): void
 	{
-
 		$response = $this->post( '/api/v1/sudo/file/999999999/recalc?algo=sha1', $this->appPassword );
 
 		$this->assertSame( 403, $response['status'] );
 		$this->assertSame( 'Password confirmation required', $response['body']['message'] );
 	}
-
 
 	/**
 	 * And a grant is still not a permission: an account that reaches no
@@ -293,7 +276,6 @@ class SudoRouteTest
 	 */
 	public function testAGrantDoesNotLetOneRecalculateAnotherAccountsFile(): void
 	{
-
 		Server::get( SudoTokens::class )->grant( self::$uid, $this->tokenId, self::$uid );
 		self::adminGroup( false );
 
@@ -303,9 +285,7 @@ class SudoRouteTest
 		$this->assertSame( 'Not yours to look at.', $response['body']['error'] );
 	}
 
-
 	// ─── helpers ─────────────────────────────────────────────────────
-
 	/**
 	 * The mutating twin of {@see get()}. The route deliberately keeps the
 	 * CSRF check, and an app password carries no request token — OCS accepts
@@ -316,8 +296,8 @@ class SudoRouteTest
 	private function post(
 		string $path,
 		string $secret,
-	): array {
-
+	): array
+	{
 		$context = stream_context_create( [
 			'http' => [
 				'method'        => 'POST',
@@ -346,15 +326,14 @@ class SudoRouteTest
 		];
 	}
 
-
 	/**
 	 * @return array{status: int, body: array<string, mixed>}
 	 */
 	private function get(
 		string $path,
 		string $secret,
-	): array {
-
+	): array
+	{
 		$context = stream_context_create( [
 			'http' => [
 				'header'        => 'Authorization: Basic ' . base64_encode( self::$uid . ':' . $secret )
@@ -381,7 +360,6 @@ class SudoRouteTest
 		];
 	}
 
-
 	/**
 	 * An app password the way a user gets one: from occ, non-interactively,
 	 * which mints one without the login password — all a listing or a
@@ -389,7 +367,6 @@ class SudoRouteTest
 	 */
 	private function mintAppPassword(): string
 	{
-
 		$lines = $this->occ( 'user:auth-tokens:add', self::$uid, '--name=' . self::APP_PASSWORD_NAME, '-n' );
 		$last  = trim( (string) end( $lines ) );
 
@@ -398,10 +375,8 @@ class SudoRouteTest
 		return $last;
 	}
 
-
 	private function tokenIdByName( string $name ): int
 	{
-
 		foreach ( Server::get( AuthTokenRepository::class )->listForUser( self::$uid ) as $token )
 		{
 			if ( $token['name'] === $name )
@@ -413,13 +388,11 @@ class SudoRouteTest
 		$this->fail( "No token named \"$name\" on " . self::$uid );
 	}
 
-
 	/**
 	 * @return list<string>  What occ printed.
 	 */
 	private function occ( string ...$args ): array
 	{
-
 		$command = PHP_BINARY . ' ' . escapeshellarg( \OC::$SERVERROOT . '/occ' )
 		           . ' ' . implode( ' ', array_map( 'escapeshellarg', $args ) ) . ' 2>&1';
 
@@ -429,7 +402,6 @@ class SudoRouteTest
 
 		return $lines;
 	}
-
 
 	/**
 	 * In or out of the admin group — the one thing that decides whether
@@ -443,7 +415,6 @@ class SudoRouteTest
 	 */
 	private static function leaderOfTestGroup( bool $leader ): void
 	{
-
 		$user     = Server::get( IUserManager::class )->get( self::$uid );
 		$groups   = Server::get( IGroupManager::class );
 		$subAdmin = Server::get( ISubAdmin::class );
@@ -475,10 +446,8 @@ class SudoRouteTest
 		$group->delete();
 	}
 
-
 	private static function adminGroup( bool $member ): void
 	{
-
 		$user  = Server::get( IUserManager::class )->get( self::$uid );
 		$group = Server::get( IGroupManager::class )->get( 'admin' );
 
@@ -496,5 +465,4 @@ class SudoRouteTest
 			$group->removeUser( $user );
 		}
 	}
-
 }

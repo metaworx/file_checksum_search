@@ -34,27 +34,30 @@ use Throwable;
  * @noinspection PhpUnused
  */
 class Reset
-	extends
-	Command
+    extends
+    Command
 {
+
+//  constructor
 
 	public function __construct(
 		private readonly AppConfigService $appConfigService,
 		private readonly MetadataService  $metadataService,
 		private readonly ExportService    $exportService,
 		private readonly LoggerInterface  $logger,
-	) {
-
+	)
+	{
 		parent::__construct();
 	}
 
+
+//  config/init/exe/run methods
 
 	/**
 	 * @noinspection PhpUnused
 	 */
 	protected function configure(): void
 	{
-
 		$this->setName( 'file-checksum-search:reset' )
 		     ->setAliases( [ 'fcias:reset' ] )
 		     ->setDescription( 'Give back this app\'s configuration, queue state and stored hashes' )
@@ -124,15 +127,14 @@ HELP,
 		;
 	}
 
-
 	/**
 	 * @noinspection PhpUnused
 	 */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
-	): int {
-
+	): int
+	{
 		$slices = $this->slices( $input );
 
 		try
@@ -186,6 +188,8 @@ HELP,
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * What is there to lose, before anything is done about it.
 	 *
@@ -196,8 +200,8 @@ HELP,
 	private function reportPlan(
 		array           $slices,
 		OutputInterface $output,
-	): void {
-
+	): void
+	{
 		foreach ( $slices as $slice )
 		{
 			match ( $slice )
@@ -226,7 +230,6 @@ HELP,
 		}
 	}
 
-
 	/**
 	 * @param  list<string>  $slices
 	 */
@@ -234,8 +237,8 @@ HELP,
 		array           $slices,
 		bool            $now,
 		OutputInterface $output,
-	): int {
-
+	): int
+	{
 		$output->writeln( '' );
 
 		try
@@ -251,7 +254,7 @@ HELP,
 						sprintf( '  status   %d markers cleared', $this->metadataService->clearQueueState() ),
 					),
 					ExportService::SLICE_HASHES => $output->writeln( $this->resetHashes( $now ) ),
-					default => null,
+					default                     => null,
 				};
 			}
 		}
@@ -272,7 +275,6 @@ HELP,
 		return Command::SUCCESS;
 	}
 
-
 	/**
 	 * Disown the hashes, or clear them outright.
 	 *
@@ -280,7 +282,6 @@ HELP,
 	 */
 	private function resetHashes( bool $now ): string
 	{
-
 		if ( $now )
 		{
 			return sprintf(
@@ -295,7 +296,6 @@ HELP,
 		);
 	}
 
-
 	/**
 	 * @param  list<string>  $slices
 	 */
@@ -303,8 +303,8 @@ HELP,
 		string          $path,
 		array           $slices,
 		OutputInterface $output,
-	): bool {
-
+	): bool
+	{
 		$stream = @fopen( $path, 'w' );
 
 		if ( $stream === false )
@@ -348,7 +348,6 @@ HELP,
 		return true;
 	}
 
-
 	/**
 	 * Which slices were asked for — all three when none was named.
 	 *
@@ -356,7 +355,6 @@ HELP,
 	 */
 	private function slices( InputInterface $input ): array
 	{
-
 		$named = array_values(
 			array_filter(
 				ExportService::SLICES,
@@ -371,7 +369,6 @@ HELP,
 			: $named;
 	}
 
-
 	/**
 	 * Who to name in the audit line.
 	 *
@@ -381,7 +378,6 @@ HELP,
 	 */
 	private function actor(): string
 	{
-
 		$sudo = getenv( 'SUDO_USER' );
 
 		if ( is_string( $sudo ) && $sudo !== '' )
@@ -402,5 +398,4 @@ HELP,
 		return get_current_user()
 			?: 'unknown';
 	}
-
 }

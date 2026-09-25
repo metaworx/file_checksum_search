@@ -30,9 +30,11 @@ use Psr\Log\LoggerInterface;
  * Composing the three slices into one backup document.
  */
 class ExportServiceTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private AppConfigService&MockObject $appConfigService;
 
@@ -43,9 +45,10 @@ class ExportServiceTest
 	private ExportService               $service;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->appConfigService = $this->createMock( AppConfigService::class );
@@ -73,9 +76,10 @@ class ExportServiceTest
 	}
 
 
+//  other non-static methods
+
 	public function testTheHeaderSaysWhatARestoreNeedsToCheck(): void
 	{
-
 		$header = $this->service->header( [ ExportService::SLICE_HASHES ] );
 
 		$this->assertSame( '0.19.0', $header['app_version'] );
@@ -83,7 +87,6 @@ class ExportServiceTest
 		$this->assertSame( [ ExportService::SLICE_HASHES ], $header['slices'] );
 		$this->assertIsInt( $header['created_at'] );
 	}
-
 
 	/**
 	 * One record per algorithm, each addressed by the storage and path the
@@ -93,7 +96,6 @@ class ExportServiceTest
 	 */
 	public function testEachStoredAlgorithmBecomesItsOwnRecord(): void
 	{
-
 		$this->givenHashes(
 			[
 				[
@@ -126,7 +128,6 @@ class ExportServiceTest
 		);
 	}
 
-
 	/**
 	 * A stored zero is this app's "never stamped": freshness is
 	 * `updated_at >= mtime`, which zero can never satisfy. Exporting it as a
@@ -135,7 +136,6 @@ class ExportServiceTest
 	 */
 	public function testAnUnstampedHashExportsWithNoTimestampAtAll(): void
 	{
-
 		$this->givenHashes(
 			[
 				[
@@ -159,7 +159,6 @@ class ExportServiceTest
 		$this->assertNull( $records[0]->updatedAt );
 	}
 
-
 	/**
 	 * Hashes describing a file that is no longer in the filecache describe
 	 * nothing, and a record with no path is not importable anywhere.
@@ -167,7 +166,6 @@ class ExportServiceTest
 	 */
 	public function testAFileWithNoFilecacheRowIsSkipped(): void
 	{
-
 		$this->givenHashes(
 			[
 				[
@@ -197,7 +195,6 @@ class ExportServiceTest
 		$this->assertSame( 'files/b.txt', $records[0]->path );
 	}
 
-
 	/**
 	 * Identities are resolved a page at a time — one query per file would
 	 * make an export of a large instance a few hundred thousand round trips.
@@ -205,7 +202,6 @@ class ExportServiceTest
 	 */
 	public function testIdentitiesAreResolvedInBatchesNotOneByOne(): void
 	{
-
 		$entries   = [];
 		$locations = [];
 
@@ -227,7 +223,7 @@ class ExportServiceTest
 		$calls = 0;
 		$this->filecacheService->method( 'locateAll' )
 		                       ->willReturnCallback(
-			                       function (
+			                       function(
 				                       array $fileIds,
 			                       ) use
 			                       (
@@ -236,7 +232,6 @@ class ExportServiceTest
 				                       $calls,
 			                       ): array
 			                       {
-
 				                       $calls ++;
 
 				                       return $this->locationsFor( $fileIds, $locations );
@@ -248,16 +243,13 @@ class ExportServiceTest
 		$this->assertSame( 3, $calls, '1200 files at 500 per page' );
 	}
 
-
 	/** @noinspection PhpUnhandledExceptionInspection */
 	public function testStatusRowsCarryTheIdentityAndTheReason(): void
 	{
-
 		$this->metadataService->method( 'exportStates' )
 		                      ->willReturnCallback(
-			                      static function (): \Generator
+			                      static function(): \Generator
 			                      {
-
 				                      yield [
 					                      'file_id' => 7,
 					                      'state'   => 'pending:auto',
@@ -303,7 +295,6 @@ class ExportServiceTest
 		$this->assertSame( 2, $count );
 	}
 
-
 	/**
 	 * A hash table has nowhere to put configuration or queue state, and
 	 * writing one that silently dropped a slice the caller asked for would
@@ -314,7 +305,6 @@ class ExportServiceTest
 	 */
 	public function testAHashOnlyFormatRefusesTheOtherSlices( string $class ): void
 	{
-
 		$this->expectException( InvalidArgumentException::class );
 		$this->expectExceptionMessageMatches( '/hashes only/' );
 
@@ -339,23 +329,22 @@ class ExportServiceTest
 	}
 
 
+//  static methods
+
 	/**
 	 * @return array<string, array{class-string}>
 	 */
 	public static function hashOnlyFormats(): array
 	{
-
 		return [
 			'csv' => [ CsvFormat::class ],
 			'sum' => [ SumFormat::class ],
 		];
 	}
 
-
 	/** @noinspection PhpUnhandledExceptionInspection */
 	public function testAHashOnlyFormatWritesTheHashesItWasAskedFor(): void
 	{
-
 		$this->givenHashes(
 			[
 				[
@@ -389,14 +378,12 @@ class ExportServiceTest
 		$this->assertStringContainsString( 'home::alice,files/a.txt,sha256,aaa,5', $text );
 	}
 
-
 	/**
 	 * The whole backup document, and the counts an operator reads afterwards.
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testAFullBackupCarriesEverySliceAndCountsIt(): void
 	{
-
 		$this->appConfigService->method( 'export' )
 		                       ->willReturn(
 			                       [
@@ -419,9 +406,8 @@ class ExportServiceTest
 		);
 		$this->metadataService->method( 'exportStates' )
 		                      ->willReturnCallback(
-			                      static function (): \Generator
+			                      static function(): \Generator
 			                      {
-
 				                      yield [
 					                      'file_id' => 1,
 					                      'state'   => 'pending:auto',
@@ -464,11 +450,9 @@ class ExportServiceTest
 		$this->assertCount( 2, $decoded['hashes'] );
 	}
 
-
 	/** @noinspection PhpUnhandledExceptionInspection */
 	public function testASliceLeftOutIsAbsentRatherThanEmpty(): void
 	{
-
 		$this->givenHashes( [] );
 
 		$stream = fopen( 'php://memory', 'r+' );
@@ -491,34 +475,29 @@ class ExportServiceTest
 		$this->assertSame( [ ExportService::SLICE_HASHES => 0 ], $counts );
 	}
 
-
 	/**
 	 * @param  list<array{file_id: int, hashes: array<string, string>, updated_at: ?int}>  $entries
 	 */
 	private function givenHashes( array $entries ): void
 	{
-
 		$this->metadataService->method( 'exportHashes' )
 		                      ->willReturnCallback(
-			                      static function () use
+			                      static function() use
 			                      (
 				                      $entries,
 			                      ): \Generator
 			                      {
-
 				                      yield from $entries;
 			                      },
 		                      )
 		;
 	}
 
-
 	/**
 	 * @param  array<int, array{0: string, 1: string}>  $locations
 	 */
 	private function givenLocations( array $locations ): void
 	{
-
 		$this->filecacheService->method( 'locateAll' )
 		                       ->willReturnCallback(
 			                       fn(
@@ -527,7 +506,6 @@ class ExportServiceTest
 		                       )
 		;
 	}
-
 
 	/**
 	 * @param  list<int>                                $fileIds
@@ -538,8 +516,8 @@ class ExportServiceTest
 	private function locationsFor(
 		array $fileIds,
 		array $locations,
-	): array {
-
+	): array
+	{
 		$found = [];
 
 		foreach ( $fileIds as $fileId )
@@ -559,5 +537,4 @@ class ExportServiceTest
 
 		return $found;
 	}
-
 }

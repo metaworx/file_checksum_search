@@ -21,16 +21,19 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
 class HashSearchProviderTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private HashSearchProvider $provider;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->provider = new HashSearchProvider(
@@ -43,35 +46,31 @@ class HashSearchProviderTest
 	}
 
 
+//  other non-static methods
+
 	public function testGetIdReturnsProviderId(): void
 	{
-
 		$this->assertSame(
 			'file_checksum_search_provider',
 			$this->provider->getId(),
 		);
 	}
 
-
 	public function testGetNameReturnsProviderName(): void
 	{
-
 		$this->assertSame(
 			'File Checksums',
 			$this->provider->getName(),
 		);
 	}
 
-
 	public function testGetOrderReturnsInt(): void
 	{
-
 		$this->assertSame(
 			20,
 			$this->provider->getOrder( '', [] ),
 		);
 	}
-
 
 	/**
 	 * Each surviving row costs a getById(), so the search caps the limit
@@ -80,8 +79,7 @@ class HashSearchProviderTest
 	 */
 	public function testSearchCapsTheLimitCoreAsksFor(): void
 	{
-
-		$metadata = $this->createMock( MetadataService::class );
+		$metadata   = $this->createMock( MetadataService::class );
 		$mountCache = $this->createMock( IUserMountCache::class );
 
 		$mount = $this->createMock( ICachedMountInfo::class );
@@ -117,5 +115,4 @@ class HashSearchProviderTest
 
 		$provider->search( $user, $query );
 	}
-
 }

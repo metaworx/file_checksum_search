@@ -20,9 +20,11 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 class SudoTokensTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private IUserConfig&MockObject         $userConfig;
 
@@ -34,22 +36,25 @@ class SudoTokensTest
 	private array $stored = [];
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->userConfig = $this->createMock( IUserConfig::class );
 		$this->userConfig->method( 'getValueArray' )
 		                 ->willReturnCallback( fn ( string $uid ): array => $this->stored[ $uid ] ?? [] );
 		$this->userConfig->method( 'setValueArray' )
-		                 ->willReturnCallback( function ( string $uid, string $app, string $key, array $value ): bool {
+		                 ->willReturnCallback( function( string $uid, string $app, string $key, array $value ): bool
+		                 {
 			                 $this->stored[ $uid ] = $value;
 
 			                 return true;
 		                 } );
 		$this->userConfig->method( 'deleteUserConfig' )
-		                 ->willReturnCallback( function ( string $uid ): void {
+		                 ->willReturnCallback( function( string $uid ): void
+		                 {
 			                 unset( $this->stored[ $uid ] );
 		                 } );
 
@@ -64,13 +69,15 @@ class SudoTokensTest
 	}
 
 
+//  other non-static methods
+
 	private function token(
 		int    $id,
 		int    $type = AuthTokenRepository::TYPE_APP_PASSWORD,
 		bool   $filesystem = true,
 		string $uid = 'alice',
-	): array {
-
+	): array
+	{
 		return [
 			'id'            => $id,
 			'uid'           => $uid,
@@ -81,10 +88,8 @@ class SudoTokensTest
 		];
 	}
 
-
 	public function testGrantingStoresWhoAndWhenUnderTheTokenId(): void
 	{
-
 		$this->tokens->method( 'listForUser' )
 		             ->willReturn( [ $this->token( 7 ) ] )
 		;
@@ -99,14 +104,12 @@ class SudoTokensTest
 		$this->assertFalse( $this->sudoTokens->isGranted( 'alice', 8 ) );
 	}
 
-
 	/**
 	 * A browser session is made and discarded by a login: granting one
 	 * would grant the next stranger who logs in from that browser.
 	 */
 	public function testABrowserSessionCannotBeGranted(): void
 	{
-
 		$this->tokens->method( 'listForUser' )
 		             ->willReturn( [ $this->token( 7, AuthTokenRepository::TYPE_BROWSER ) ] )
 		;
@@ -116,14 +119,12 @@ class SudoTokensTest
 		$this->sudoTokens->grant( 'alice', 7, 'root' );
 	}
 
-
 	/**
 	 * Core keeps such a token out of every mount; the grant must not hand it
 	 * the SQL-only routes that never touch one.
 	 */
 	public function testATokenKeptOutOfTheFilesystemCannotBeGranted(): void
 	{
-
 		$this->tokens->method( 'listForUser' )
 		             ->willReturn( [ $this->token( 7, filesystem: false ) ] )
 		;
@@ -133,10 +134,8 @@ class SudoTokensTest
 		$this->sudoTokens->grant( 'alice', 7, 'root' );
 	}
 
-
 	public function testATokenOfAnotherAccountCannotBeGranted(): void
 	{
-
 		$this->tokens->method( 'listForUser' )
 		             ->with( 'alice' )
 		             ->willReturn( [] )
@@ -147,10 +146,8 @@ class SudoTokensTest
 		$this->sudoTokens->grant( 'alice', 7, 'root' );
 	}
 
-
 	public function testRevokingTheLastGrantRemovesTheKeyEntirely(): void
 	{
-
 		$this->stored['alice'] = [ 7 => [ 'granted_by' => 'root', 'granted_at' => 1 ] ];
 
 		$this->sudoTokens->revoke( 'alice', 7 );
@@ -160,14 +157,12 @@ class SudoTokensTest
 		$this->sudoTokens->revoke( 'alice', 7 );
 	}
 
-
 	/**
 	 * The personal list: app passwords only, with their grant, and a grant
 	 * whose token is gone is dropped and the store tidied.
 	 */
 	public function testTheListingShowsAppPasswordsWithTheirGrantsAndTidiesLeftovers(): void
 	{
-
 		$this->stored['alice'] = [
 			7  => [ 'granted_by' => 'root', 'granted_at' => 1 ],
 			99 => [ 'granted_by' => 'root', 'granted_at' => 2 ],
@@ -189,14 +184,12 @@ class SudoTokensTest
 		$this->assertSame( [ 7 ], array_keys( $this->stored['alice'] ), 'the grant on the deleted token 99 is gone' );
 	}
 
-
 	/**
 	 * When the table cannot be read, every token looks gone; tidying then
 	 * would wipe every grant, so nothing is tidied.
 	 */
 	public function testAnUnreadableTableDoesNotWipeTheGrants(): void
 	{
-
 		$this->stored['alice'] = [ 7 => [ 'granted_by' => 'root', 'granted_at' => 1 ] ];
 		$this->tokens->method( 'listForUser' )
 		             ->willReturn( [] )
@@ -210,14 +203,12 @@ class SudoTokensTest
 		$this->assertFalse( $this->sudoTokens->listingAvailable(), 'and the pages are told it was no answer' );
 	}
 
-
 	/**
 	 * The other empty list: a table that answered "nothing". That one is an
 	 * answer, and a leftover grant is tidied on its strength.
 	 */
 	public function testAnEmptyAnswerIsAnAnswer(): void
 	{
-
 		$this->stored['alice'] = [ 7 => [ 'granted_by' => 'root', 'granted_at' => 1 ] ];
 		$this->tokens->method( 'listForUser' )
 		             ->willReturn( [] )
@@ -231,10 +222,8 @@ class SudoTokensTest
 		$this->assertTrue( $this->sudoTokens->listingAvailable() );
 	}
 
-
 	public function testTheAdministratorSeesEveryGrantAgainstTheLiveTable(): void
 	{
-
 		$this->userConfig->method( 'getValuesByUsers' )
 		                 ->with( Application::APP_ID, ConfigLexicon::USER_SUDO_TOKENS )
 		                 ->willReturn( [
@@ -253,5 +242,4 @@ class SudoTokensTest
 		$this->assertSame( [ 'alice', true, 'token 7' ], [ $rows[0]['uid'], $rows[0]['exists'], $rows[0]['name'] ] );
 		$this->assertSame( [ 'bob', false, '' ], [ $rows[1]['uid'], $rows[1]['exists'], $rows[1]['name'] ], 'a leftover is shown, not hidden' );
 	}
-
 }

@@ -36,20 +36,26 @@ use OCP\Server;
  * like this can tell you they are still read.
  */
 class RepairQuietStartIntegrationTest
-	extends
-	DatabaseTestCase
+    extends
+    DatabaseTestCase
 {
 
+//  constants
+
 	private const CONFIG_KEY = 'rule_definitions';
+
+
+//  private properties
 
 	private RuleService   $ruleService;
 
 	private IAppConfig    $appConfig;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->appConfig   = Server::get( IAppConfig::class );
@@ -58,6 +64,8 @@ class RepairQuietStartIntegrationTest
 		$this->preserveStoredRules();
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * With both defaults already present and canonical, and no `mode: off`
@@ -71,7 +79,6 @@ class RepairQuietStartIntegrationTest
 	 */
 	public function testALegacyRuleIsCanonicalisedWithNothingElseToDo(): void
 	{
-
 		$this->givenStoredRules( [
 			[
 				'id'        => 'legacy_only',
@@ -94,10 +101,8 @@ class RepairQuietStartIntegrationTest
 		$this->assertArrayNotHasKey( 'userScope', $rule );
 	}
 
-
 	public function testALegacyScopeBecomesASelector(): void
 	{
-
 		$this->givenStoredRules( [
 			[
 				'id'        => 'legacy_all',
@@ -143,10 +148,8 @@ class RepairQuietStartIntegrationTest
 		}
 	}
 
-
 	public function testTheRetiredPinnedFlagIsDropped(): void
 	{
-
 		$this->givenStoredRules( [
 			[
 				'id'        => 'legacy_pinned',
@@ -172,10 +175,8 @@ class RepairQuietStartIntegrationTest
 		$this->assertTrue( RuleService::isDefaultShaped( $rule ) );
 	}
 
-
 	public function testTheRetiredOffModeBecomesAnIgnoreRule(): void
 	{
-
 		$this->givenStoredRules( [
 			[
 				'id'        => 'legacy_off',
@@ -200,10 +201,8 @@ class RepairQuietStartIntegrationTest
 		$this->assertArrayNotHasKey( 'algos', $rule );
 	}
 
-
 	public function testBothShippedDefaultsComeBackDisabled(): void
 	{
-
 		$this->givenStoredRules( [] );
 
 		$this->runSelectorModel();
@@ -216,7 +215,7 @@ class RepairQuietStartIntegrationTest
 			{
 				$defaults[ RuleService::ruleSelector( $rule )
 				                      ->canonical() ]
-					= $rule;
+					 = $rule;
 			}
 		}
 
@@ -231,10 +230,8 @@ class RepairQuietStartIntegrationTest
 		}
 	}
 
-
 	public function testAConfiguredRuleIsNotEnabledOrDisabledByTheRepair(): void
 	{
-
 		$this->givenStoredRules( [
 			[
 				'id'        => 'operator_disabled',
@@ -255,10 +252,8 @@ class RepairQuietStartIntegrationTest
 		$this->assertFalse( $this->ruleById( 'operator_disabled' )['enabled'] );
 	}
 
-
 	public function testRunningItTwiceChangesNothingTheSecondTime(): void
 	{
-
 		$this->givenStoredRules( [
 			[
 				'id'        => 'legacy_all',
@@ -286,9 +281,7 @@ class RepairQuietStartIntegrationTest
 		);
 	}
 
-
 	// ─── helpers ─────────────────────────────────────────────────────
-
 	/**
 	 * Put rules into storage the way an older version would have, going
 	 * around the write path so nothing canonicalises them on the way in.
@@ -310,7 +303,6 @@ class RepairQuietStartIntegrationTest
 	 */
 	public function testMetadataOfADeletedUserIsSweptUp(): void
 	{
-
 		[ $uid, $password ] = self::makeAccount( 'fcias_sweep' );
 
 		$file = Server::get( IRootFolder::class )
@@ -359,13 +351,11 @@ class RepairQuietStartIntegrationTest
 		);
 	}
 
-
 	/**
 	 * Rows in either metadata table for one file id.
 	 */
 	private function countMetadataRowsFor( int $fileId ): int
 	{
-
 		$total = 0;
 
 		foreach ( [ 'files_metadata', 'files_metadata_index' ] as $table )
@@ -384,10 +374,8 @@ class RepairQuietStartIntegrationTest
 		return $total;
 	}
 
-
 	private function givenStoredRules( array $rules ): void
 	{
-
 		$this->appConfig->setValueString(
 			Application::APP_ID,
 			self::CONFIG_KEY,
@@ -399,7 +387,6 @@ class RepairQuietStartIntegrationTest
 		$this->ruleService->loadRules( refresh: true );
 	}
 
-
 	/**
 	 * A shipped default as the current model writes it, so seeding it
 	 * leaves the step with no default to recreate.
@@ -408,7 +395,6 @@ class RepairQuietStartIntegrationTest
 	 */
 	private function canonicalDefault( string $selector ): array
 	{
-
 		return [
 			'id'             => 'canonical_' . md5( $selector ),
 			'enabled'        => false,
@@ -425,18 +411,17 @@ class RepairQuietStartIntegrationTest
 	}
 
 
+//  config/init/exe/run methods
+
 	private function runSelectorModel(): void
 	{
-
 		Server::get( RepairQuietStart::class )
 		      ->runSteps( $this->createMock( IOutput::class ), [ 'selector-model' ] )
 		;
 	}
 
-
 	private function ruleById( string $id ): array
 	{
-
 		foreach ( $this->ruleService->loadRules( refresh: true ) as $rule )
 		{
 			if ( ( $rule['id'] ?? '' ) === $id )

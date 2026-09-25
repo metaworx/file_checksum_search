@@ -22,21 +22,24 @@ use OCP\Server;
  * algorithms and that HashCalculationService validates algo input.
  */
 class HashCalculationServiceTest
-	extends
-	DatabaseTestCase
+    extends
+    DatabaseTestCase
 {
+
+//  private properties
 
 	private string                 $tempFile = '';
 
 	private HashCalculationService $service;
 
 
+//  getters / setters / is* / has*
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->service = Server::get( HashCalculationService::class );
@@ -47,9 +50,10 @@ class HashCalculationServiceTest
 	}
 
 
+//  other non-static methods
+
 	protected function tearDown(): void
 	{
-
 		if ( $this->tempFile !== '' && file_exists( $this->tempFile ) )
 		{
 			unlink( $this->tempFile );
@@ -58,15 +62,12 @@ class HashCalculationServiceTest
 		parent::tearDown();
 	}
 
-
 	// ─── HashCalculationService validation ───────────────────────────
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRecalcFileHashReturnsErrorForUnsupportedAlgo(): void
 	{
-
 		$rootFolder = Server::get( IRootFolder::class );
 		$userFolder = $rootFolder->getUserFolder( 'admin' );
 
@@ -85,10 +86,8 @@ class HashCalculationServiceTest
 		}
 	}
 
-
 	public function testRecalcHashReturnsErrorForNonexistentFile(): void
 	{
-
 		// Use a file ID that almost certainly doesn't exist.
 		$result = $this->service->recalcHash( - 99999999, 'sha1' );
 
@@ -96,17 +95,11 @@ class HashCalculationServiceTest
 		$this->assertSame( 'File not found.', $result['error'] ?? '' );
 	}
 
-
-
-
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRecalcHashesMultiAlgoMatchesHashFile(): void
 	{
-
 		$rootFolder = Server::get( IRootFolder::class );
 		$userFolder = $rootFolder->getUserFolder( 'admin' );
 
@@ -134,5 +127,4 @@ class HashCalculationServiceTest
 			$file->delete();
 		}
 	}
-
 }

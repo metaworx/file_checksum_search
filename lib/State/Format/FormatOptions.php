@@ -24,6 +24,8 @@ use OCA\FileChecksumSearch\State\HashRecord;
 readonly class FormatOptions
 {
 
+//  constructor
+
 	public function __construct(
 		/** The algorithm a format cannot name for itself. */
 		public ?string $algo = null,
@@ -33,8 +35,8 @@ readonly class FormatOptions
 		public ?string $storageId = null,
 		/** Pretty-print, where the format has an opinion about whitespace. */
 		public bool    $pretty = false,
-	) {
-
+	)
+	{
 		if ( $this->userId !== null && $this->storageId !== null )
 		{
 			throw new InvalidArgumentException(
@@ -44,6 +46,8 @@ readonly class FormatOptions
 	}
 
 
+//  getters / setters / is* / has*
+
 	/**
 	 * Whether paths in this stream are anchored to anything at all. An
 	 * unanchored relative path is only usable where the record names its own
@@ -51,10 +55,11 @@ readonly class FormatOptions
 	 */
 	public function isAnchored(): bool
 	{
-
 		return $this->userId !== null || $this->storageId !== null;
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * Give a record the storage and internal path the filecache would know it
@@ -74,7 +79,6 @@ readonly class FormatOptions
 	 */
 	public function anchor( HashRecord $record ): HashRecord
 	{
-
 		if ( $record->storageId !== '' )
 		{
 			return $record;
@@ -113,5 +117,4 @@ readonly class FormatOptions
 
 		return $record;
 	}
-
 }

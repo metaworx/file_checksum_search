@@ -29,9 +29,11 @@ use Symfony\Component\Console\Tester\CommandTester;
  * written at all.
  */
 class BackupTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private ExportService&MockObject $exportService;
 
@@ -40,9 +42,10 @@ class BackupTest
 	private string                   $tempDir;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->exportService = $this->createMock( ExportService::class );
@@ -69,9 +72,10 @@ class BackupTest
 	}
 
 
+//  other non-static methods
+
 	protected function tearDown(): void
 	{
-
 		foreach (
 			glob( $this->tempDir . '/*' )
 				?: [] as $file
@@ -79,18 +83,17 @@ class BackupTest
 		{
 			@unlink( $file );
 		}
+
 		@rmdir( $this->tempDir );
 
 		parent::tearDown();
 	}
-
 
 	/**
 	 * A backup that quietly held something back would not be one.
 	 */
 	public function testNamingNoSliceBacksUpAllOfThem(): void
 	{
-
 		$this->expectSlices( ExportService::SLICES );
 
 		$this->assertSame(
@@ -99,10 +102,8 @@ class BackupTest
 		);
 	}
 
-
 	public function testNamingSlicesRestrictsTheBackupToThem(): void
 	{
-
 		$this->expectSlices(
 			[
 				ExportService::SLICE_CONFIG,
@@ -119,15 +120,14 @@ class BackupTest
 		);
 	}
 
-
 	/**
 	 * @dataProvider guessableNames
 	 */
 	public function testTheOutputFilenameChoosesTheFormat(
 		string $filename,
 		string $expected,
-	): void {
-
+	): void
+	{
 		$this->expectFormat( $expected );
 
 		$this->tester->execute(
@@ -139,12 +139,13 @@ class BackupTest
 	}
 
 
+//  static methods
+
 	/**
 	 * @return array<string, array{string, class-string}>
 	 */
 	public static function guessableNames(): array
 	{
-
 		return [
 			'json' => [
 				'backup.json',
@@ -161,10 +162,8 @@ class BackupTest
 		];
 	}
 
-
 	public function testAnExplicitFormatBeatsTheFilename(): void
 	{
-
 		$this->expectFormat( CsvFormat::class );
 
 		$this->tester->execute(
@@ -175,19 +174,15 @@ class BackupTest
 		);
 	}
 
-
 	public function testAnUnnamedDestinationDefaultsToJson(): void
 	{
-
 		$this->expectFormat( JsonFormat::class );
 
 		$this->tester->execute( [] );
 	}
 
-
 	public function testAnUnknownFormatIsRefusedWithTheListOfRealOnes(): void
 	{
-
 		$this->exportService->expects( $this->never() )
 		                    ->method( 'export' )
 		;
@@ -196,13 +191,11 @@ class BackupTest
 		$this->assertStringContainsString( 'json, csv, sum', $this->tester->getDisplay() );
 	}
 
-
 	/**
 	 * The one thing a checksum listing cannot say about itself.
 	 */
 	public function testASumfileWithoutAnAlgorithmIsRefused(): void
 	{
-
 		$this->exportService->expects( $this->never() )
 		                    ->method( 'export' )
 		;
@@ -211,14 +204,12 @@ class BackupTest
 		$this->assertStringContainsString( '--algo', $this->tester->getDisplay() );
 	}
 
-
 	/**
 	 * Checked before a single row is read: finding out afterwards would waste
 	 * the whole run, and on a large instance that is not a short wait.
 	 */
 	public function testAnUnwritableDestinationFailsBeforeAnythingIsExported(): void
 	{
-
 		$this->exportService->expects( $this->never() )
 		                    ->method( 'export' )
 		;
@@ -230,14 +221,12 @@ class BackupTest
 		$this->assertStringContainsString( 'Cannot write', $this->tester->getDisplay() );
 	}
 
-
 	/**
 	 * A refusal from the service — a hash-only format asked for the config
 	 * slice — reaches the operator with its reason, not as a stack trace.
 	 */
 	public function testARefusalFromTheServiceIsReportedAsAFailure(): void
 	{
-
 		$this->exportService = $this->createMock( ExportService::class );
 		$this->exportService->method( 'export' )
 		                    ->willThrowException(
@@ -265,7 +254,6 @@ class BackupTest
 		$this->assertStringContainsString( 'hashes only', $this->tester->getDisplay() );
 	}
 
-
 	/**
 	 * To standard output the backup document *is* the output: a summary
 	 * printed alongside it would land in the same stream and corrupt the
@@ -273,16 +261,13 @@ class BackupTest
 	 */
 	public function testNoSummaryIsPrintedWhenTheDocumentGoesToStandardOutput(): void
 	{
-
 		$this->tester->execute( [] );
 
 		$this->assertSame( '', $this->tester->getDisplay() );
 	}
 
-
 	public function testWritingToAFileReportsTheCountsAndWhatTheFormatCannotCarry(): void
 	{
-
 		$this->tester->execute(
 			[
 				'--format' => 'csv',
@@ -298,7 +283,6 @@ class BackupTest
 		$this->assertStringContainsString( 'does not carry', $display );
 	}
 
-
 	/**
 	 * `--algo` narrows a checksum listing to one algorithm; every other
 	 * format names the algorithm on each record, so it has nothing to do
@@ -307,7 +291,6 @@ class BackupTest
 	 */
 	public function testAPointlessAlgoIsCalledOut(): void
 	{
-
 		$this->tester->execute(
 			[
 				'--format' => 'csv',
@@ -319,13 +302,11 @@ class BackupTest
 		$this->assertStringContainsString( '--algo only narrows', $this->tester->getDisplay() );
 	}
 
-
 	/**
 	 * @param  list<string>  $expected
 	 */
 	private function expectSlices( array $expected ): void
 	{
-
 		$this->exportService = $this->createMock( ExportService::class );
 		$this->exportService->expects( $this->once() )
 		                    ->method( 'export' )
@@ -340,13 +321,11 @@ class BackupTest
 		$this->rebuild();
 	}
 
-
 	/**
 	 * @param  class-string  $expected
 	 */
 	private function expectFormat( string $expected ): void
 	{
-
 		$this->exportService = $this->createMock( ExportService::class );
 		$this->exportService->expects( $this->once() )
 		                    ->method( 'export' )
@@ -361,10 +340,8 @@ class BackupTest
 		$this->rebuild();
 	}
 
-
 	private function rebuild(): void
 	{
-
 		$this->tester = new CommandTester(
 			new Backup(
 				$this->exportService,
@@ -373,5 +350,4 @@ class BackupTest
 			),
 		);
 	}
-
 }

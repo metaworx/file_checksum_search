@@ -25,18 +25,23 @@ use OCP\IConfig;
 class TableNameService
 {
 
+//  private properties
+
 	private string $prefix;
 
 	private string $filecacheTable;
 
 
+//  constructor
+
 	public function __construct( IConfig $config )
 	{
-
 		$this->prefix         = $config->getSystemValueString( 'dbtableprefix', 'oc_' );
 		$this->filecacheTable = $this->prefix . 'filecache';
 	}
 
+
+//  getters / setters / is* / has*
 
 	/**
 	 * Raw DB table prefix (e.g. "oc_").
@@ -46,16 +51,12 @@ class TableNameService
 	 */
 	public function getPrefix(): string
 	{
-
 		return $this->prefix;
 	}
-
 
 	/** Fully-qualified `*PREFIX*filecache` table name. */
 	public function getFilecacheTableName(): string
 	{
-
 		return $this->filecacheTable;
 	}
-
 }

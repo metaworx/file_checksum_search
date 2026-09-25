@@ -19,16 +19,17 @@ use Symfony\Component\Console\Output\OutputInterface;
  * @noinspection PhpUnused
  */
 class ListRules
-	extends
-	RulesCommandBase
+    extends
+    RulesCommandBase
 {
+
+//  config/init/exe/run methods
 
 	/**
 	 * @noinspection PhpUnused
 	 */
 	protected function configure(): void
 	{
-
 		$this->setName( 'file-checksum-search:rules:list' )
 		     ->setAliases( [ 'fcias:rules:list' ] )
 		     ->setDescription( 'List the hash generation rules in evaluation order' )
@@ -42,15 +43,14 @@ class ListRules
 		;
 	}
 
-
 	/**
 	 * @noinspection PhpUnused
 	 */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
-	): int {
-
+	): int
+	{
 		$rows      = [];
 		$positions = [];
 
@@ -99,5 +99,4 @@ class ListRules
 
 		return self::SUCCESS;
 	}
-
 }

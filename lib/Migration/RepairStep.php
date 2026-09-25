@@ -29,6 +29,8 @@ use Attribute;
 readonly class RepairStep
 {
 
+//  constructor
+
 	public function __construct(
 		/** How `--step` names it: lower case, dashes, no spaces. */
 		public string $name,
@@ -51,5 +53,4 @@ readonly class RepairStep
 		public bool   $manualOnly = false,
 	) {
 	}
-
 }

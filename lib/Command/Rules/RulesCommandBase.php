@@ -30,29 +30,34 @@ use Symfony\Component\Console\Output\OutputInterface;
  * ($isAdmin = true wherever validation asks).
  */
 abstract class RulesCommandBase
-	extends
-	Command
+    extends
+    Command
 {
+
+//  constants
 
 	/** The audit-log actor for every mutation made through occ. */
 	protected const ACTOR = 'cli';
 
 
+//  constructor
+
 	public function __construct(
 		protected readonly RuleService             $ruleService,
 		protected readonly RuleDefinitionValidator $definitionValidator,
-	) {
-
+	)
+	{
 		parent::__construct();
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * Register the options shared by rules:add and rules:modify.
 	 */
 	protected function addRuleFieldOptions(): static
 	{
-
 		return $this
 			->addOption(
 				'path',
@@ -85,7 +90,6 @@ abstract class RulesCommandBase
 		;
 	}
 
-
 	/**
 	 * Translate the rule-field options into a validator payload, mentioning
 	 * only what the operator actually said — omitted fields fall back to the
@@ -95,7 +99,6 @@ abstract class RulesCommandBase
 	 */
 	protected function payloadFrom( InputInterface $input ): array
 	{
-
 		$payload = [];
 
 		if ( $input->getOption( 'path' ) !== null )
@@ -153,15 +156,14 @@ abstract class RulesCommandBase
 		return $payload;
 	}
 
-
 	/**
 	 * Resolve a rule id argument, failing with one consistent message.
 	 */
 	protected function resolveRule(
 		string          $id,
 		OutputInterface $output,
-	): ?array {
-
+	): ?array
+	{
 		$rule = $this->ruleService->findRuleById( $id );
 
 		if ( $rule === null )
@@ -174,7 +176,6 @@ abstract class RulesCommandBase
 		return $rule;
 	}
 
-
 	/**
 	 * Render one rule as the fixed-order row every command prints.
 	 *
@@ -182,7 +183,6 @@ abstract class RulesCommandBase
 	 */
 	protected function ruleRow( array $rule ): array
 	{
-
 		$computes = RuleService::verdictOf( $rule ) === RuleService::TYPE_INCLUDE;
 
 		return [
@@ -209,5 +209,4 @@ abstract class RulesCommandBase
 				: 'no',
 		];
 	}
-
 }

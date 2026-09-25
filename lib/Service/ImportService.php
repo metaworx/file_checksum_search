@@ -40,6 +40,8 @@ use Throwable;
 class ImportService
 {
 
+//  constants
+
 	/**
 	 * How many files are resolved and written per pass.
 	 *
@@ -50,6 +52,8 @@ class ImportService
 	private const PAGE_SIZE = 500;
 
 
+//  constructor
+
 	public function __construct(
 		private readonly AppConfigService $appConfigService,
 		private readonly MetadataService  $metadataService,
@@ -58,6 +62,8 @@ class ImportService
 	) {
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * Read a backup document and apply what it holds.
@@ -73,8 +79,8 @@ class ImportService
 		ImportPolicy     $policy,
 		bool             $wantsConfig,
 		bool             $wantsHashes,
-	): ImportReport {
-
+	): ImportReport
+	{
 		$report = new ImportReport();
 
 		if ( $wantsConfig && ! $format instanceof JsonFormat )
@@ -113,7 +119,6 @@ class ImportService
 		return $report;
 	}
 
-
 	/**
 	 * Refuse a backup document this version cannot honour.
 	 *
@@ -124,8 +129,8 @@ class ImportService
 	private function checkHeader(
 		array        $header,
 		ImportPolicy $policy,
-	): void {
-
+	): void
+	{
 		$schema = isset( $header['schema'] )
 			? (int) $header['schema']
 			: JsonFormat::SCHEMA_VERSION;
@@ -156,7 +161,6 @@ class ImportService
 		);
 	}
 
-
 	/**
 	 * @param  array<string, string>  $config
 	 */
@@ -164,8 +168,8 @@ class ImportService
 		array        $config,
 		ImportPolicy $policy,
 		ImportReport $report,
-	): void {
-
+	): void
+	{
 		if ( $config === [] )
 		{
 			return;
@@ -184,7 +188,6 @@ class ImportService
 		$report->configNotPortable = $result['not_portable'] ?? [];
 	}
 
-
 	/**
 	 * @param  iterable<HashRecord>  $records
 	 *
@@ -194,8 +197,8 @@ class ImportService
 		iterable     $records,
 		ImportPolicy $policy,
 		ImportReport $report,
-	): void {
-
+	): void
+	{
 		$page = [];
 
 		foreach ( $records as $record )
@@ -226,7 +229,6 @@ class ImportService
 		}
 	}
 
-
 	/**
 	 * Resolve one page of identities, then write each file once.
 	 *
@@ -238,8 +240,8 @@ class ImportService
 		array        $page,
 		ImportPolicy $policy,
 		ImportReport $report,
-	): void {
-
+	): void
+	{
 		$pathsByStorage = [];
 
 		foreach ( $page as $byAlgo )
@@ -274,7 +276,6 @@ class ImportService
 		}
 	}
 
-
 	/**
 	 * @param  array<string, HashRecord>  $byAlgo
 	 */
@@ -283,8 +284,8 @@ class ImportService
 		array        $byAlgo,
 		ImportPolicy $policy,
 		ImportReport $report,
-	): void {
-
+	): void
+	{
 		// The whole reason --stamp exists. A hash stamped at or after the
 		// file's mtime claims to describe the content as it stands; one
 		// stamped before it describes something the file no longer is, and
@@ -338,8 +339,8 @@ class ImportService
 			return;
 		}
 
-		$report->written         += $result['written'];
-		$report->overwritten     += $result['overwritten'];
+		$report->written += $result['written'];
+		$report->overwritten += $result['overwritten'];
 		$report->skippedExisting += $result['skipped'];
 
 		if ( $result['markerCleared'] )
@@ -347,7 +348,6 @@ class ImportService
 			$report->markerCleared ++;
 		}
 	}
-
 
 	/**
 	 * What timestamp to store, or null for "do not store this at all".
@@ -365,23 +365,22 @@ class ImportService
 		HashRecord   $record,
 		FileLocation $location,
 		ImportPolicy $policy,
-	): ?int {
-
+	): ?int
+	{
 		return match ( $policy->stamp )
 		{
 			ImportPolicy::STAMP_MTIME => $location->mtime,
-			ImportPolicy::STAMP_NOW => time(),
-			default => $this->sourceStamp( $record, $location, $policy ),
+			ImportPolicy::STAMP_NOW   => time(),
+			default                   => $this->sourceStamp( $record, $location, $policy ),
 		};
 	}
-
 
 	private function sourceStamp(
 		HashRecord   $record,
 		FileLocation $location,
 		ImportPolicy $policy,
-	): ?int {
-
+	): ?int
+	{
 		// A source that did not say when it hashed has told us nothing to
 		// weigh, so the file's own mtime is the most this can honestly claim.
 		$stamp = $record->updatedAt ?? $location->mtime;
@@ -393,5 +392,4 @@ class ImportService
 
 		return null;
 	}
-
 }

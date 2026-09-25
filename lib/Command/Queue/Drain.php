@@ -31,27 +31,30 @@ use Throwable;
  * @noinspection PhpUnused
  */
 class Drain
-	extends
-	Command
+    extends
+    Command
 {
+
+//  constructor
 
 	public function __construct(
 		private readonly MetadataService        $metadataService,
 		private readonly HashCalculationService $hashCalc,
 		private readonly IAppConfig             $appConfig,
 		private readonly LoggerInterface        $logger,
-	) {
-
+	)
+	{
 		parent::__construct();
 	}
 
+
+//  config/init/exe/run methods
 
 	/**
 	 * @noinspection PhpUnused
 	 */
 	protected function configure(): void
 	{
-
 		$this->setName( 'file-checksum-search:queue:drain' )
 		     ->setAliases( [ 'fcias:queue:drain' ] )
 		     ->setDescription( 'Compute the hashes the rules have asked for, without waiting for cron' )
@@ -84,15 +87,14 @@ HELP,
 		;
 	}
 
-
 	/**
 	 * @noinspection PhpUnused
 	 */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
-	): int {
-
+	): int
+	{
 		$given     = $input->getOption( 'batch-size' );
 		$batchSize = $given === null
 			? max( 1, $this->appConfig->getValueInt( Application::APP_ID, 'pending_batch_limit', 50 ) )
@@ -191,5 +193,4 @@ HELP,
 
 		return Command::SUCCESS;
 	}
-
 }

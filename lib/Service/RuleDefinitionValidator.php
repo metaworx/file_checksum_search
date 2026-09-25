@@ -30,6 +30,8 @@ use OCP\IUserManager;
 readonly class RuleDefinitionValidator
 {
 
+//  constructor
+
 	public function __construct(
 		private IGroupManager      $groupManager,
 		private IUserManager       $userManager,
@@ -37,6 +39,8 @@ readonly class RuleDefinitionValidator
 	) {
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * Build a stored rule definition from a request payload.
@@ -57,8 +61,8 @@ readonly class RuleDefinitionValidator
 		string $userId,
 		bool   $isAdmin,
 		?array $existing = null,
-	): array {
-
+	): array
+	{
 		$type = $body['type'] ?? RuleService::TYPE_INCLUDE;
 
 		if ( ! RuleService::isValidType( $type ) )
@@ -124,7 +128,6 @@ readonly class RuleDefinitionValidator
 		return $definition;
 	}
 
-
 	/**
 	 * Validate an administrator-supplied selector, rejecting one whose
 	 * target does not exist — otherwise the rule would sit in the list
@@ -135,8 +138,8 @@ readonly class RuleDefinitionValidator
 	private function validatedSelector(
 		array  $body,
 		?array $existing,
-	): string {
-
+	): string
+	{
 		$value = $body['selector']
 			?? ( $existing !== null
 				? RuleService::ruleSelector( $existing )
@@ -179,5 +182,4 @@ readonly class RuleDefinitionValidator
 
 		return $selector->canonical();
 	}
-
 }

@@ -31,11 +31,12 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
 class PublicApiControllerTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
 
-// private properties
+//  private properties
+
 	private MockObject|ChecksumApi     $api;
 
 	private MockObject|IUserSession    $userSession;
@@ -61,16 +62,17 @@ class PublicApiControllerTest
 	private PublicApiController        $controller;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->api          = $this->createMock( ChecksumApi::class );
 		$this->userSession  = $this->createMock( IUserSession::class );
 		$this->groupManager = $this->createMock( IGroupManager::class );
 		$this->logger       = $this->createMock( LoggerInterface::class );
-		$this->userConfig = $this->createMock( IUserConfig::class );
+		$this->userConfig   = $this->createMock( IUserConfig::class );
 		$request            = $this->createMock( IRequest::class );
 
 		// The default caller is a member of the admin group, which grants
@@ -82,7 +84,7 @@ class PublicApiControllerTest
 		               ->willReturn( true )
 		;
 		// A browser session, and an account allowed the API, unless a test says so.
-		$this->session = $this->createMock( ISession::class );
+		$this->session     = $this->createMock( ISession::class );
 		$this->permissions = $this->createMock( PermissionService::class );
 		$this->permissions->method( 'isAllowed' )
 		                  ->willReturn( true )
@@ -134,8 +136,9 @@ class PublicApiControllerTest
 	}
 
 
-	// ─── scope ──────────────────────────────────────────────────────
+//  other non-static methods
 
+	// ─── scope ──────────────────────────────────────────────────────
 	/**
 	 * A controller wired to a specific reach answer and confirmation state,
 	 * for the per-file cross-account route. Everything else is the default
@@ -144,8 +147,8 @@ class PublicApiControllerTest
 	private function withReach(
 		bool $mayReach,
 		bool $confirmed = true,
-	): PublicApiController {
-
+	): PublicApiController
+	{
 		$sudo = $this->createMock( SudoScope::class );
 		$sudo->method( 'mayReachFile' )
 		     ->willReturn( $mayReach )
@@ -174,14 +177,12 @@ class PublicApiControllerTest
 		);
 	}
 
-
 	/**
 	 * Permission before password here too: someone who may not reach the file
 	 * is told so rather than being made to confirm first and refused after.
 	 */
 	public function testRecalcAcrossAccountsRefusesAFileOutOfReach(): void
 	{
-
 		$this->api->expects( $this->never() )
 		          ->method( 'recalcHash' )
 		;
@@ -194,10 +195,8 @@ class PublicApiControllerTest
 		$this->assertSame( 'Not yours to look at.', $response->getData()['error'] );
 	}
 
-
 	public function testRecalcAcrossAccountsAsksAnUnconfirmedCallerToConfirm(): void
 	{
-
 		$this->api->expects( $this->never() )
 		          ->method( 'recalcHash' )
 		;
@@ -210,7 +209,6 @@ class PublicApiControllerTest
 		$this->assertSame( 'Password confirmation required', $response->getData()['message'] );
 	}
 
-
 	/**
 	 * The reach settled, the API is asked to waive the own-tree check — and
 	 * told who is acting, so the permission it still checks is checked
@@ -218,7 +216,6 @@ class PublicApiControllerTest
 	 */
 	public function testRecalcAcrossAccountsPassesTheActingUserAndWaivesOnlyTheReach(): void
 	{
-
 		$this->api->expects( $this->once() )
 		          ->method( 'recalcHash' )
 		          ->with( 42, $this->anything(), 'admin', null )
@@ -231,7 +228,6 @@ class PublicApiControllerTest
 
 		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
 	}
-
 
 	/**
 	 * What block 6 is for. These two routes asked
@@ -246,7 +242,6 @@ class PublicApiControllerTest
 	 */
 	public function testTheSudoPerFileRoutesActOnAGrantedReach(): void
 	{
-
 		$controller = $this->withReach( true );
 
 		$this->api->expects( $this->once() )
@@ -264,10 +259,8 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_OK, $controller->sudoFindDuplicates( 42 )->getStatus() );
 	}
 
-
 	public function testTheSudoPerFileRoutesStillRefuseAFileOutOfReach(): void
 	{
-
 		$controller = $this->withReach( false );
 
 		$this->api->expects( $this->never() )
@@ -281,7 +274,6 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_FORBIDDEN, $controller->sudoFindDuplicates( 42 )->getStatus() );
 	}
 
-
 	/**
 	 * The batch route reads its ids from the JSON body, which a unit test
 	 * cannot supply through php://input — so what is pinned here is the
@@ -289,7 +281,6 @@ class PublicApiControllerTest
 	 */
 	public function testRecalcManyRefusesABodyWithNoIds(): void
 	{
-
 		$this->api->expects( $this->never() )
 		          ->method( 'recalcMany' )
 		;
@@ -299,14 +290,12 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
 	}
 
-
 	/**
 	 * The cross-account batch is gated like the other targetless routes:
 	 * the resolver's refusal is the answer, before any body is read.
 	 */
 	public function testSudoRecalcManyRefusesWhoeverTheResolverRefuses(): void
 	{
-
 		$this->api->expects( $this->never() )
 		          ->method( 'recalcMany' )
 		;
@@ -317,7 +306,6 @@ class PublicApiControllerTest
 		$this->assertSame( 'Not yours to look at.', $response->getData()['error'] );
 	}
 
-
 	/**
 	 * A cross-account answer says which rows the viewer could open — the
 	 * page links only those. The own listing is not asked: what it lists,
@@ -325,7 +313,6 @@ class PublicApiControllerTest
 	 */
 	public function testCrossAccountRowsSayWhetherTheViewerCouldOpenThem(): void
 	{
-
 		$sudo = $this->createMock( SudoScope::class );
 		$sudo->method( 'resolve' )
 		     ->willReturn( null )
@@ -371,13 +358,11 @@ class PublicApiControllerTest
 		$this->assertArrayNotHasKey( 'openable', $own[0] );
 	}
 
-
 	/**
 	 * The ordinary route never waives it, whoever is calling.
 	 */
 	public function testRecalcOnOnesOwnFileNeverWaivesTheReach(): void
 	{
-
 		$this->api->expects( $this->once() )
 		          ->method( 'recalcHash' )
 		          ->with( 42, $this->anything(), 'admin', [ 'admin' ] )
@@ -394,7 +379,6 @@ class PublicApiControllerTest
 	 */
 	public function testAnUnconfirmedSudoerIsAskedToConfirm(): void
 	{
-
 		$this->sudo = $this->createMock( SudoScope::class );
 		$this->sudo->method( 'mayReachFile' )
 		           ->willReturn( true )
@@ -430,7 +414,6 @@ class PublicApiControllerTest
 		$this->assertSame( 'Password confirmation required', $response->getData()['message'] );
 	}
 
-
 	/**
 	 * The API permission gates requests that arrive with an app password —
 	 * core leaves `app_password` in such a session — and not the browser
@@ -438,11 +421,10 @@ class PublicApiControllerTest
 	 */
 	public function testAnAccountDeniedTheApiIsRefusedWithAnAppPasswordButNotFromThePages(): void
 	{
-
 		// An ordinary account: the administrator is never locked out, so the
 		// refusal can only be seen on somebody who is not one.
 		[ $session, $groups ] = $this->signedInAs( 'bob' );
-		$this->permissions = $this->createMock( PermissionService::class );
+		$this->permissions    = $this->createMock( PermissionService::class );
 		$this->permissions->method( 'isAllowed' )
 		                  ->with( PermissionService::PERMISSION_API_ACCESS, 'bob' )
 		                  ->willReturn( false )
@@ -497,7 +479,6 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_OK, $viaPage->getHashes( 42 )->getStatus() );
 	}
 
-
 	/**
 	 * The permission is the administrator's to set, and a setting that could
 	 * cut off the account that fixes settings is a trap: an administrator is
@@ -505,7 +486,6 @@ class PublicApiControllerTest
 	 */
 	public function testAnAdministratorIsNeverLockedOutOfTheApi(): void
 	{
-
 		$this->permissions = $this->createMock( PermissionService::class );
 		$this->permissions->expects( $this->never() )
 		                  ->method( 'isAllowed' )
@@ -539,7 +519,6 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_OK, $controller->getHashes( 42 )->getStatus() );
 	}
 
-
 	/**
 	 * A session and a group manager for an ordinary account, for the tests
 	 * whose point is that the caller is not an administrator.
@@ -548,7 +527,6 @@ class PublicApiControllerTest
 	 */
 	private function signedInAs( string $uid ): array
 	{
-
 		$user = $this->createMock( IUser::class );
 		$user->method( 'getUID' )
 		     ->willReturn( $uid )
@@ -565,16 +543,14 @@ class PublicApiControllerTest
 		return [ $session, $groups ];
 	}
 
-
 	/**
 	 * A script with the account password over Basic auth is the API too:
 	 * core does not mark that session, so the header is the tell.
 	 */
 	public function testCredentialsInTheAuthorizationHeaderCountAsTheApi(): void
 	{
-
 		[ $session, $groups ] = $this->signedInAs( 'bob' );
-		$this->permissions = $this->createMock( PermissionService::class );
+		$this->permissions    = $this->createMock( PermissionService::class );
 		$this->permissions->method( 'isAllowed' )
 		                  ->willReturn( false )
 		;
@@ -603,7 +579,6 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_FORBIDDEN, $controller->lookup( 'abc123' )->getStatus() );
 	}
 
-
 	/**
 	 * The listing the Duplicates page loads says whether its viewer may
 	 * cross into other accounts, so the page asks nothing else. It asks
@@ -612,7 +587,6 @@ class PublicApiControllerTest
 	 */
 	public function testTheListingSaysWhetherTheCallerMaySudo(): void
 	{
-
 		$this->sudo->method( 'mayCross' )
 		           ->with( 'admin' )
 		           ->willReturn( true )
@@ -629,7 +603,6 @@ class PublicApiControllerTest
 		$this->assertTrue( $data['canSudo'] );
 	}
 
-
 	/**
 	 * The sudo twin resolves the caller through SudoScope and passes what it
 	 * answers — null for every account — straight down. The password
@@ -637,7 +610,6 @@ class PublicApiControllerTest
 	 */
 	public function testTheSudoTwinReadsWhateverScopeTheResolverGrants(): void
 	{
-
 		$this->sudo = $this->createMock( SudoScope::class );
 		$this->sudo->method( 'mayReachFile' )
 		           ->with( 'admin', 42 )
@@ -668,7 +640,6 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_OK, $controller->sudoGetHashes( 42 )->getStatus() );
 	}
 
-
 	/**
 	 * The picker names a set, and this is the route the page actually calls —
 	 * so the set has to reach the listing here, not only on the page's own
@@ -677,7 +648,6 @@ class PublicApiControllerTest
 	 */
 	public function testTheSudoTwinListsTheAccountsTheSetResolvesTo(): void
 	{
-
 		$this->sudo->expects( $this->once() )
 		           ->method( 'resolveSet' )
 		           ->with( 'admin', [ 'alice' ], [ 'team' ] )
@@ -697,10 +667,8 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
 	}
 
-
 	public function testTheSudoTwinRefusesASetTheResolverRefuses(): void
 	{
-
 		$this->sudo->method( 'resolveSet' )
 		           ->willReturn( false )
 		;
@@ -714,10 +682,8 @@ class PublicApiControllerTest
 		);
 	}
 
-
 	public function testTheSudoTwinRefusesWhoeverTheResolverRefuses(): void
 	{
-
 		$this->api->expects( $this->never() )
 		          ->method( 'getHashesByFileId' )
 		;
@@ -730,14 +696,12 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_FORBIDDEN, $this->controller->sudoFindAllDuplicates()->getStatus() );
 	}
 
-
 	/**
 	 * The ordinary route never crosses accounts, whatever the resolver would
 	 * grant: it does not ask.
 	 */
 	public function testTheOrdinaryRouteNeverAsksTheResolver(): void
 	{
-
 		$this->sudo->expects( $this->never() )
 		           ->method( 'resolve' )
 		;
@@ -749,7 +713,6 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_OK, $this->controller->getHashes( 42 )->getStatus() );
 	}
 
-
 	/**
 	 * A group leader's ceiling is a list of accounts, and the two routes
 	 * that take no target pass it down as one — the lookup and the bare
@@ -757,7 +720,6 @@ class PublicApiControllerTest
 	 */
 	public function testTheTargetlessRoutesPassALeadersCeilingDown(): void
 	{
-
 		$sudo = $this->createMock( SudoScope::class );
 		$sudo->method( 'resolve' )
 		     ->with( 'admin' )
@@ -795,7 +757,6 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_OK, $controller->sudoFindAllDuplicates()->getStatus() );
 	}
 
-
 	/**
 	 * An app password whose owner switched off "allow filesystem access"
 	 * gets nothing from any route. Core enforces that scope by mounting
@@ -805,7 +766,6 @@ class PublicApiControllerTest
 	 */
 	public function testATokenKeptOutOfTheFilesystemIsRefusedOnEveryRoute(): void
 	{
-
 		$this->lockdown = $this->createMock( ILockdownManager::class );
 		$this->lockdown->method( 'canAccessFilesystem' )
 		               ->willReturn( false )
@@ -837,15 +797,12 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_FORBIDDEN, $controller->lookup( 'abc123' )->getStatus() );
 	}
 
-
 	// ─── lookup ─────────────────────────────────────────────────────
-
 	/**
 	 * @noinspection PhpConditionAlreadyCheckedInspection
 	 */
 	public function testFindAllDuplicatesPassesAllParams(): void
 	{
-
 		$this->api->expects( $this->once() )
 		          ->method( 'findDuplicatesFor' )
 		          ->with( [ 'admin' ], 'sha256', 3, 10, 20 )
@@ -864,13 +821,11 @@ class PublicApiControllerTest
 		$this->assertInstanceOf( DataResponse::class, $response );
 	}
 
-
 	/**
 	 * @noinspection PhpConditionAlreadyCheckedInspection
 	 */
 	public function testFindAllDuplicatesReturnsGroups(): void
 	{
-
 		$this->api->expects( $this->once() )
 		          ->method( 'findDuplicatesFor' )
 		          ->with( [ 'admin' ], null, 2, 50, 0 )
@@ -891,10 +846,8 @@ class PublicApiControllerTest
 		$this->assertSame( 0, $data['total_groups'] );
 	}
 
-
 	public function testFindAllDuplicatesReturnsServerErrorOnException(): void
 	{
-
 		$this->api->expects( $this->once() )
 		          ->method( 'findDuplicatesFor' )
 		          ->willThrowException( new \RuntimeException( 'DB error' ) )
@@ -905,13 +858,11 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus() );
 	}
 
-
 	/**
 	 * @noinspection PhpConditionAlreadyCheckedInspection
 	 */
 	public function testFindDuplicatesReturnsGroups(): void
 	{
-
 		$this->api->expects( $this->once() )
 		          ->method( 'findSameHash' )
 		          ->with( 42, [ 'admin' ] )
@@ -939,12 +890,9 @@ class PublicApiControllerTest
 		$this->assertCount( 1, $data['duplicates'] );
 	}
 
-
 	// ─── getHashes ──────────────────────────────────────────────────
-
 	public function testFindDuplicatesReturnsServerErrorOnException(): void
 	{
-
 		$this->api->expects( $this->once() )
 		          ->method( 'findSameHash' )
 		          ->willThrowException( new \RuntimeException( 'DB error' ) )
@@ -955,13 +903,11 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus() );
 	}
 
-
 	/**
 	 * @noinspection PhpConditionAlreadyCheckedInspection
 	 */
 	public function testGetHashesReturnsFileHashes(): void
 	{
-
 		$this->api->expects( $this->once() )
 		          ->method( 'getHashesByFileId' )
 		          ->with( 42, 'admin', [ 'admin' ] )
@@ -986,7 +932,6 @@ class PublicApiControllerTest
 		$this->assertFalse( $data['canSudo'] );
 	}
 
-
 	/**
 	 * The hashes response says whether its viewer may look across accounts,
 	 * as the listing does, so the sidebar can offer the way to the Others
@@ -995,7 +940,6 @@ class PublicApiControllerTest
 	 */
 	public function testTheHashesSayWhetherTheCallerMaySudo(): void
 	{
-
 		$this->sudo->method( 'mayCross' )
 		           ->with( 'admin' )
 		           ->willReturn( true )
@@ -1012,10 +956,8 @@ class PublicApiControllerTest
 		$this->assertTrue( $data['canSudo'] );
 	}
 
-
 	public function testGetHashesReturnsUnauthorizedWhenNoUser(): void
 	{
-
 		// Regression test for FCIAS Review §6, Finding 1.
 		$this->userSession = $this->createMock( IUserSession::class );
 		$this->userSession->method( 'getUser' )
@@ -1047,10 +989,8 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_UNAUTHORIZED, $response->getStatus() );
 	}
 
-
 	public function testGetHashesScopesNonAdminCallerToOwnFiles(): void
 	{
-
 		// Regression test for FCIAS Review §6, Finding 1: a non-admin
 		// caller must be scoped to their own UID, not passed through
 		// unrestricted.
@@ -1096,10 +1036,8 @@ class PublicApiControllerTest
 		$this->controller->getHashes( 42 );
 	}
 
-
 	public function testGetHashesReturnsNotFoundWhenFileInaccessibleToCaller(): void
 	{
-
 		// Regression test for FCIAS Review §6, Finding 1.
 		$this->api->method( 'getHashesByFileId' )
 		          ->willThrowException( new NotFoundException( 'Invalid file ID: 42' ) )
@@ -1110,12 +1048,9 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_NOT_FOUND, $response->getStatus() );
 	}
 
-
 	// ─── findDuplicates (per-file) ──────────────────────────────────
-
 	public function testGetHashesReturnsServerErrorOnException(): void
 	{
-
 		$this->api->expects( $this->once() )
 		          ->method( 'getHashesByFileId' )
 		          ->willThrowException( new \RuntimeException( 'DB error' ) )
@@ -1126,13 +1061,11 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus() );
 	}
 
-
 	/**
 	 * @noinspection PhpConditionAlreadyCheckedInspection
 	 */
 	public function testGetStatusReturnsHealthInfo(): void
 	{
-
 		$this->api->expects( $this->once() )
 		          ->method( 'getStatus' )
 		          ->willReturn( [
@@ -1152,12 +1085,9 @@ class PublicApiControllerTest
 		$this->assertSame( 3, $data['pendingRows'] );
 	}
 
-
 	// ─── recalcHash ─────────────────────────────────────────────────
-
 	public function testGetStatusReturnsServerErrorOnException(): void
 	{
-
 		$this->api->expects( $this->once() )
 		          ->method( 'getStatus' )
 		          ->willThrowException( new \RuntimeException( 'DB error' ) )
@@ -1168,13 +1098,11 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus() );
 	}
 
-
 	/**
 	 * @noinspection PhpConditionAlreadyCheckedInspection
 	 */
 	public function testLookupPassesAlgoParameter(): void
 	{
-
 		$this->api->expects( $this->once() )
 		          ->method( 'findByHash' )
 		          ->with( 'abc123', 'md5', 100, [ 'admin' ] )
@@ -1186,10 +1114,8 @@ class PublicApiControllerTest
 		$this->assertInstanceOf( DataResponse::class, $response );
 	}
 
-
 	public function testLookupReturnsBadRequestOnInvalidArgument(): void
 	{
-
 		$this->api->expects( $this->once() )
 		          ->method( 'findByHash' )
 		          ->willThrowException( new \InvalidArgumentException( 'Hash parameter is required.' ) )
@@ -1201,15 +1127,12 @@ class PublicApiControllerTest
 		$this->assertArrayHasKey( 'error', $response->getData() );
 	}
 
-
 	// ─── findAllDuplicates ──────────────────────────────────────────
-
 	/**
 	 * @noinspection PhpConditionAlreadyCheckedInspection
 	 */
 	public function testLookupReturnsResults(): void
 	{
-
 		$this->api->expects( $this->once() )
 		          ->method( 'findByHash' )
 		          ->with( 'abc123', null, 100, [ 'admin' ] )
@@ -1234,10 +1157,8 @@ class PublicApiControllerTest
 		$this->assertCount( 1, $data['results'] );
 	}
 
-
 	public function testLookupScopesNonAdminCallerToOwnFiles(): void
 	{
-
 		// Regression test for FCIAS Review §6, Finding 1.
 		$user = $this->createMock( IUser::class );
 		$user->method( 'getUID' )
@@ -1278,10 +1199,8 @@ class PublicApiControllerTest
 		$this->controller->lookup( 'abc123' );
 	}
 
-
 	public function testLookupReturnsServerErrorOnRuntimeException(): void
 	{
-
 		$this->api->expects( $this->once() )
 		          ->method( 'findByHash' )
 		          ->willThrowException( new \RuntimeException( 'DB failure' ) )
@@ -1292,10 +1211,8 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus() );
 	}
 
-
 	public function testRecalcHashReturnsBadRequestOnFailure(): void
 	{
-
 		$this->api->expects( $this->once() )
 		          ->method( 'recalcHash' )
 		          ->with( 99999, null, 'admin', [ 'admin' ] )
@@ -1310,14 +1227,12 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
 	}
 
-
 	/**
 	 * A permission refusal is policy, like an exclude rule: 403, so a client
 	 * knows retrying will not help, and the reason travels with it.
 	 */
 	public function testRecalcHashAnswers403WhenThePermissionRefuses(): void
 	{
-
 		$this->api->method( 'recalcHash' )
 		          ->willReturn( [
 			          'success'   => false,
@@ -1332,12 +1247,9 @@ class PublicApiControllerTest
 		$this->assertTrue( $response->getData()['forbidden'] );
 	}
 
-
 	// ─── getStatus ──────────────────────────────────────────────────
-
 	public function testRecalcHashReturnsServerErrorOnException(): void
 	{
-
 		$this->api->expects( $this->once() )
 		          ->method( 'recalcHash' )
 		          ->willThrowException( new \RuntimeException( 'IO error' ) )
@@ -1348,13 +1260,11 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus() );
 	}
 
-
 	/**
 	 * @noinspection PhpConditionAlreadyCheckedInspection
 	 */
 	public function testRecalcHashReturnsSuccess(): void
 	{
-
 		$this->api->expects( $this->once() )
 		          ->method( 'recalcHash' )
 		          ->with( 42, null, 'admin', [ 'admin' ] )
@@ -1373,10 +1283,8 @@ class PublicApiControllerTest
 		$this->assertTrue( $data['success'] );
 	}
 
-
 	public function testRecalcHashScopesNonAdminCallerToOwnFiles(): void
 	{
-
 		// Regression test for FCIAS Review §6, Finding 1.
 		$user = $this->createMock( IUser::class );
 		$user->method( 'getUID' )
@@ -1417,9 +1325,7 @@ class PublicApiControllerTest
 		$this->controller->recalcHash( 42 );
 	}
 
-
 	// ── preferences ─────────────────────────────────────────────────────
-
 	/**
 	 * A controller of its own for these: setUp() pins the session to an
 	 * administrator and PHPUnit keeps the first stub it is given, so the
@@ -1428,7 +1334,6 @@ class PublicApiControllerTest
 	 */
 	private function preferenceController( ?string $uid, mixed $value = '' ): PublicApiController
 	{
-
 		$session = $this->createMock( IUserSession::class );
 		if ( $uid !== null )
 		{
@@ -1464,26 +1369,21 @@ class PublicApiControllerTest
 		);
 	}
 
-
 	public function testAPreferenceNeedsASession(): void
 	{
-
 		$controller = $this->preferenceController( null );
 
 		$this->assertSame( Http::STATUS_UNAUTHORIZED, $controller->getPreference( 'preferred_algorithm' )->getStatus() );
 		$this->assertSame( Http::STATUS_UNAUTHORIZED, $controller->setPreference( 'preferred_algorithm' )->getStatus() );
 	}
 
-
 	public function testAnUnknownPreferenceIsNotFound(): void
 	{
-
 		$this->assertSame(
 			Http::STATUS_NOT_FOUND,
 			$this->preferenceController( 'alice' )->getPreference( 'favourite_colour' )->getStatus(),
 		);
 	}
-
 
 	/**
 	 * `value` is what was stored, `default` the instance's, `active` which of
@@ -1491,7 +1391,6 @@ class PublicApiControllerTest
 	 */
 	public function testReadingThePreferenceSaysWhichOneIsActive(): void
 	{
-
 		$this->userConfig->method( 'getValueString' )
 		                 ->willReturn( 'sha256' )
 		;
@@ -1504,14 +1403,12 @@ class PublicApiControllerTest
 		$this->assertSame( 'sha256', $data['active'] );
 	}
 
-
 	/**
 	 * A stored preference the administrator has since disallowed is kept but
 	 * not applied: the default is active until the user picks again.
 	 */
 	public function testAStoredPreferenceNoLongerInForceYieldsToTheDefault(): void
 	{
-
 		$this->userConfig->method( 'getValueString' )
 		                 ->willReturn( 'whirlpool' )
 		;
@@ -1522,10 +1419,8 @@ class PublicApiControllerTest
 		$this->assertSame( 'sha1', $data['active'] );
 	}
 
-
 	public function testAnEmptyValueReturnsToTheDefault(): void
 	{
-
 		$this->userConfig->expects( $this->once() )
 		                 ->method( 'deleteUserConfig' )
 		                 ->with( 'alice', 'file_checksum_search', 'preferred_algorithm' )
@@ -1541,10 +1436,8 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
 	}
 
-
 	public function testAnAlgorithmNotInForceIsRefused(): void
 	{
-
 		$this->userConfig->expects( $this->never() )
 		                 ->method( 'setValueString' )
 		;
@@ -1556,10 +1449,8 @@ class PublicApiControllerTest
 		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
 	}
 
-
 	public function testAnAlgorithmInForceIsStoredLowerCased(): void
 	{
-
 		$this->userConfig->expects( $this->once() )
 		                 ->method( 'setValueString' )
 		                 ->with( 'alice', 'file_checksum_search', 'preferred_algorithm', 'sha256' )
@@ -1571,5 +1462,4 @@ class PublicApiControllerTest
 
 		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
 	}
-
 }

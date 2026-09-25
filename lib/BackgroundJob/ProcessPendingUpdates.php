@@ -30,9 +30,11 @@ use Throwable;
  * it in the job list; the app's boot() registers nothing.
  */
 class ProcessPendingUpdates
-	extends
-	TimedJob
+    extends
+    TimedJob
 {
+
+//  constructor
 
 	public function __construct(
 		ITimeFactory                            $time,
@@ -43,8 +45,8 @@ class ProcessPendingUpdates
 		private readonly IJobList               $jobList,
 		private readonly JobStatsService        $jobStats,
 		private readonly LoggerInterface        $logger,
-	) {
-
+	)
+	{
 		parent::__construct( $time );
 
 		$interval = $this->appConfig->getValueInt(
@@ -66,9 +68,10 @@ class ProcessPendingUpdates
 	}
 
 
+//  config/init/exe/run methods
+
 	protected function run( $argument ): void
 	{
-
 		$this->logger->info(
 			'FCIAS ProcessPendingUpdates: run() called.',
 			[
@@ -194,5 +197,4 @@ class ProcessPendingUpdates
 			);
 		}
 	}
-
 }

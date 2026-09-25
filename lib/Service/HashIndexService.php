@@ -26,6 +26,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 class HashIndexService
 {
 
+//  constants
+
 	/**
 	 * The most raw groups {@see listDuplicatesForUser()} will scan across all
 	 * its pages before giving up — the safety bound for a caller who can see
@@ -42,6 +44,8 @@ class HashIndexService
 	private const DUPLICATE_PAGE_SIZE = 200;
 
 
+//  constructor
+
 	public function __construct(
 		private readonly HashCalculationService $hashCalc,
 		private readonly DuplicateService       $duplicates,
@@ -52,6 +56,8 @@ class HashIndexService
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * {@see HashCalculationService::recalcFileHash()}, which is where the
 	 * behaviour and the return shape are described.
@@ -60,11 +66,10 @@ class HashIndexService
 		File   $file,
 		string $algo,
 		bool   $skipExisting = true,
-	): array {
-
+	): array
+	{
 		return $this->hashCalc->recalcFileHash( $file, $algo, $skipExisting );
 	}
-
 
 	/**
 	 * {@see FilecacheService::fileSizes()}.
@@ -75,10 +80,8 @@ class HashIndexService
 	 */
 	public function fileSizes( array $fileIds ): array
 	{
-
 		return $this->filecacheService->fileSizes( $fileIds );
 	}
-
 
 	/**
 	 * {@see HashCalculationService::recalcHash()}.
@@ -91,21 +94,18 @@ class HashIndexService
 		int    $fileId,
 		string $algo,
 		bool   $skipExisting = true,
-	): array {
-
+	): array
+	{
 		return $this->hashCalc->recalcHash( $fileId, $algo, $skipExisting );
 	}
-
 
 	/**
 	 * {@see HashCalculationService::recalcAllExistingAlgos()}.
 	 */
 	public function recalcAllExistingAlgos( int $fileId ): array
 	{
-
 		return $this->hashCalc->recalcAllExistingAlgos( $fileId );
 	}
-
 
 	/**
 	 * {@see HashCalculationService::generateMissingHashes()}.
@@ -121,8 +121,8 @@ class HashIndexService
 		?OutputInterface $output = null,
 		?RuleOverrides   $overrides = null,
 		string           $mode = MetadataService::PENDING_MODE_MISSING,
-	): array {
-
+	): array
+	{
 		return $this->hashCalc->generateMissingHashes(
 			$userId,
 			$algo,
@@ -134,7 +134,6 @@ class HashIndexService
 		);
 	}
 
-
 	/**
 	 * @return array{algo: string, hash_value: string, file_count: int, fileids: int[]}[]
 	 */
@@ -145,11 +144,10 @@ class HashIndexService
 		int     $offset = 0,
 		?string $hash = null,
 		bool    $anywhere = false,
-	): array {
-
+	): array
+	{
 		return $this->duplicates->findAllDuplicates( $algo, $minCount, $limit, $offset, $hash, $anywhere );
 	}
-
 
 	/**
 	 * Copy every checksum the filecache already knows into the metadata
@@ -169,8 +167,8 @@ class HashIndexService
 	public function backfillFromFilecache(
 		?OutputInterface $output = null,
 		int              $pageSize = 1000,
-	): array {
-
+	): array
+	{
 		$lastFileId = 0;
 		$files      = 0;
 		$hashes     = 0;
@@ -215,7 +213,6 @@ class HashIndexService
 		];
 	}
 
-
 	/**
 	 * The duplicate-group listing for one user, ready to be returned as-is.
 	 *
@@ -245,8 +242,8 @@ class HashIndexService
 		int     $offset = 0,
 		?string $hash = null,
 		bool    $anywhere = false,
-	): array {
-
+	): array
+	{
 		// The one chokepoint both controllers and the public API reach — so
 		// the clamp lives here, not in each caller. A group is two files or
 		// more by definition; minCount below 2 makes every hashed file its
@@ -281,7 +278,7 @@ class HashIndexService
 			}
 
 			$rawOffset += count( $groups );
-			$scanned   += count( $groups );
+			$scanned += count( $groups );
 
 			$pageFileIds = [];
 
@@ -345,7 +342,6 @@ class HashIndexService
 		];
 	}
 
-
 	/**
 	 * @param  int[]                     $fileIds
 	 * @param  string|list<string>|null  $userName       One account, several, or
@@ -358,8 +354,8 @@ class HashIndexService
 		array             $fileIds,
 		string|array|null $userName = null,
 		bool              $withLocalPath = false,
-	): array {
-
+	): array
+	{
 		// Accounts in, mounts down: the one place the listing's reach is
 		// resolved, so the listing, the set listing and the occ command all
 		// mean the same thing by "whose files".
@@ -369,7 +365,6 @@ class HashIndexService
 			$withLocalPath,
 		);
 	}
-
 
 	/**
 	 * @param  string|null  $userName       When provided, results are restricted to
@@ -385,21 +380,18 @@ class HashIndexService
 		int     $limit = 100,
 		?string $userName = null,
 		bool    $withLocalPath = false,
-	): array {
-
+	): array
+	{
 		return $this->duplicates->findByHash( $hash, $algo, $limit, $userName, $withLocalPath );
 	}
-
 
 	/**
 	 * Count metadata index entries for a given file_id.
 	 */
 	public function countHashes( int $fileId ): int
 	{
-
 		return $this->metadataService->countByFileId( $fileId );
 	}
-
 
 	/**
 	 * Invalidate hashes for a file by clearing its metadata.
@@ -410,10 +402,8 @@ class HashIndexService
 	 */
 	public function deleteHashes( int $fileId ): int
 	{
-
 		$this->metadataService->clearMetadata( $fileId );
 
 		return 1;
 	}
-
 }

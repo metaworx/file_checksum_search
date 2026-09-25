@@ -44,6 +44,8 @@ use Psr\Log\LoggerInterface;
 class ExportService
 {
 
+//  constants
+
 	public const SLICE_CONFIG = 'config';
 
 	public const SLICE_STATUS = 'status';
@@ -51,7 +53,7 @@ class ExportService
 	public const SLICE_HASHES = 'hashes';
 
 	public const SLICES
-		= [
+		 = [
 			self::SLICE_CONFIG,
 			self::SLICE_STATUS,
 			self::SLICE_HASHES,
@@ -67,6 +69,8 @@ class ExportService
 	private const RESOLVE_BATCH = 500;
 
 
+//  constructor
+
 	public function __construct(
 		private readonly AppConfigService $appConfigService,
 		private readonly MetadataService  $metadataService,
@@ -77,6 +81,8 @@ class ExportService
 	) {
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * Write a backup.
@@ -92,8 +98,8 @@ class ExportService
 		array            $slices,
 		                 $stream,
 		FormatOptions    $options,
-	): array {
-
+	): array
+	{
 		$wantsConfig = in_array( self::SLICE_CONFIG, $slices, true );
 		$wantsStatus = in_array( self::SLICE_STATUS, $slices, true );
 		$wantsHashes = in_array( self::SLICE_HASHES, $slices, true );
@@ -165,7 +171,6 @@ class ExportService
 		return $counts;
 	}
 
-
 	/**
 	 * What a restore checks itself against before it writes anything.
 	 *
@@ -175,7 +180,6 @@ class ExportService
 	 */
 	public function header( array $slices ): array
 	{
-
 		return [
 			'app_version' => $this->appManager->getAppVersion( Application::APP_ID ),
 			'instance_id' => $this->config->getSystemValueString( 'instanceid' ),
@@ -183,7 +187,6 @@ class ExportService
 			'slices'      => array_values( $slices ),
 		];
 	}
-
 
 	/**
 	 * Every stored hash as a portable record.
@@ -199,7 +202,6 @@ class ExportService
 	 */
 	public function hashRecords(): Generator
 	{
-
 		$page = [];
 
 		foreach ( $this->metadataService->exportHashes() as $entry )
@@ -221,7 +223,6 @@ class ExportService
 		}
 	}
 
-
 	/**
 	 * What each file is waiting for, or why its hashes are not to be trusted.
 	 *
@@ -232,7 +233,6 @@ class ExportService
 	 */
 	public function statusRows( int &$count = 0 ): Generator
 	{
-
 		$page = [];
 
 		foreach ( $this->metadataService->exportStates() as $entry )
@@ -254,7 +254,6 @@ class ExportService
 		}
 	}
 
-
 	/**
 	 * Turn a page of hash entries into records, resolving their identities in
 	 * one query rather than one per file.
@@ -266,7 +265,6 @@ class ExportService
 	 */
 	private function resolve( array $page ): Generator
 	{
-
 		$locations = $this->filecacheService->locateAll(
 			array_map( static fn(
 				array $entry,
@@ -311,7 +309,6 @@ class ExportService
 		}
 	}
 
-
 	/**
 	 * @param  array<int, string>  $page  file id => state
 	 *
@@ -321,8 +318,8 @@ class ExportService
 	private function resolveStates(
 		array $page,
 		int   &$count,
-	): Generator {
-
+	): Generator
+	{
 		$locations = $this->filecacheService->locateAll( array_keys( $page ) );
 
 		foreach ( $page as $fileId => $state )
@@ -343,5 +340,4 @@ class ExportService
 			];
 		}
 	}
-
 }

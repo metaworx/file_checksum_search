@@ -30,9 +30,11 @@ use OCA\FileChecksumSearch\State\HashRecord;
  * through {@see FormatOptions::$algo} and the anchor through the others.
  */
 class SumFormat
-	implements
-	HashRecordFormat
+    implements
+    HashRecordFormat
 {
+
+//  other non-static methods
 
 	/**
 	 * @param  resource  $stream
@@ -42,8 +44,8 @@ class SumFormat
 	public function read(
 		$stream,
 		FormatOptions $options,
-	): Generator {
-
+	): Generator
+	{
 		if ( $options->algo === null || $options->algo === '' )
 		{
 			throw new InvalidArgumentException(
@@ -79,7 +81,7 @@ class SumFormat
 				$hash,
 				$path,
 			]
-				= $parts;
+				 = $parts;
 
 			if ( $escaped )
 			{
@@ -97,13 +99,12 @@ class SumFormat
 		}
 	}
 
-
 	public function write(
 		iterable      $records,
 		              $stream,
 		FormatOptions $options,
-	): int {
-
+	): int
+	{
 		$written = 0;
 
 		foreach ( $records as $record )
@@ -140,7 +141,6 @@ class SumFormat
 		return $written;
 	}
 
-
 	/**
 	 * Undo the escaping coreutils applies to a path containing a newline or a
 	 * backslash. One pass, left to right: a two-character replacement done
@@ -149,7 +149,6 @@ class SumFormat
 	 */
 	private function unescapePath( string $path ): string
 	{
-
 		$out    = '';
 		$length = strlen( $path );
 
@@ -165,11 +164,11 @@ class SumFormat
 			}
 
 			$next = $path[ ++ $index ];
-			$out  .= match ( $next )
+			$out .= match ( $next )
 			{
-				'n' => "\n",
-				'r' => "\r",
-				'\\' => '\\',
+				'n'     => "\n",
+				'r'     => "\r",
+				'\\'    => '\\',
 				default => '\\' . $next,
 			};
 		}
@@ -177,17 +176,13 @@ class SumFormat
 		return $out;
 	}
 
-
 	public function carriesConfig(): bool
 	{
-
 		return false;
 	}
 
-
 	public function losses(): array
 	{
-
 		return [
 			'the algorithm, which the reader must be told',
 			'the time each hash was computed',
@@ -195,5 +190,4 @@ class SumFormat
 			'the app\'s configuration',
 		];
 	}
-
 }

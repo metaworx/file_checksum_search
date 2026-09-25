@@ -37,9 +37,11 @@ use Throwable;
  * neither the account nor the remedy.
  */
 class PublicApiTest
-	extends
-	DatabaseTestCase
+    extends
+    DatabaseTestCase
 {
+
+//  constants
 
 	/** The account's name is this plus a per-run random suffix. */
 	private const TEST_USER_PREFIX = 'fcias_http_test';
@@ -48,6 +50,9 @@ class PublicApiTest
 	private const FILE_1_CONTENT = 'HTTP integration test content A';
 
 	private const FILE_2_CONTENT = 'HTTP integration test content B';
+
+
+//  private properties
 
 	private static string $testUser;
 
@@ -69,23 +74,25 @@ class PublicApiTest
 	private string $sha256Hash     = 'def456def456def456def456def456def456def456def4';
 
 
+//  static methods
+
 	public static function setUpBeforeClass(): void
 	{
-
 		parent::setUpBeforeClass();
 
 		[
 			self::$testUser,
 			self::$testPassword,
 		]
-			= self::makeAccount( self::TEST_USER_PREFIX );
+			 = self::makeAccount( self::TEST_USER_PREFIX );
 	}
 
+
+//  getters / setters / is* / has*
 
 	/** @noinspection PhpUnhandledExceptionInspection */
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		// Clean leftovers from previous aborted runs first.
@@ -122,21 +129,19 @@ class PublicApiTest
 		$this->insertHashMetadata( $this->testFileId2, [
 			'sha1' => $this->sharedSha1Hash,
 		] );
-
 	}
 
 
+//  other non-static methods
+
 	protected function tearDown(): void
 	{
-
 		$this->cleanupLeftovers();
 
 		parent::tearDown();
 	}
 
-
 	// ─── GET /api/v1/status ──────────────────────────────────────────
-
 	/**
 	 * The test account is a non-admin (made for the run, in no group), so
 	 * the status it gets is the version and nothing that describes the
@@ -145,7 +150,6 @@ class PublicApiTest
 	 */
 	public function testStatusEndpointGivesANonAdminTheVersionAlone(): void
 	{
-
 		$response = $this->httpGet( '/api/v1/status' );
 
 		$this->assertIsArray( $response );
@@ -156,12 +160,9 @@ class PublicApiTest
 		$this->assertArrayNotHasKey( 'pendingRows', $response, 'A non-admin must not see the backlog.' );
 	}
 
-
 	// ─── GET /api/v1/lookup?hash=... ─────────────────────────────────
-
 	public function testLookupEndpointFindsInsertedHash(): void
 	{
-
 		$response = $this->httpGet( '/api/v1/lookup?hash=' . urlencode( $this->sharedSha1Hash ) );
 
 		$this->assertIsArray( $response );
@@ -174,10 +175,8 @@ class PublicApiTest
 		$this->assertContains( $this->testFileId2, $fileIds, 'Results should include test file 2.' );
 	}
 
-
 	public function testLookupEndpointWithAlgoFilter(): void
 	{
-
 		$response = $this->httpGet(
 			'/api/v1/lookup?hash=' . urlencode( $this->sha256Hash ) . '&algo=sha256',
 		);
@@ -191,10 +190,8 @@ class PublicApiTest
 		}
 	}
 
-
 	public function testLookupEndpointReturnsEmptyForUnknownHash(): void
 	{
-
 		$response = $this->httpGet( '/api/v1/lookup?hash=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef' );
 
 		$this->assertIsArray( $response );
@@ -202,12 +199,9 @@ class PublicApiTest
 		$this->assertEmpty( $response['results'], 'Unknown hash should return empty results.' );
 	}
 
-
 	// ─── GET /api/v1/file/{fileId}/hashes ────────────────────────────
-
 	public function testGetHashesEndpoint(): void
 	{
-
 		$response = $this->httpGet( "/api/v1/file/$this->testFileId1/hashes" );
 
 		$this->assertIsArray( $response );
@@ -222,12 +216,9 @@ class PublicApiTest
 		$this->assertContains( 'sha256', $algos, 'Hashes should include sha256.' );
 	}
 
-
 	// ─── GET /api/v1/file/{fileId}/duplicates ────────────────────────
-
 	public function testFindDuplicatesByFileEndpoint(): void
 	{
-
 		$response = $this->httpGet( "/api/v1/file/$this->testFileId1/duplicates" );
 
 		$this->assertIsArray( $response );
@@ -246,12 +237,9 @@ class PublicApiTest
 		}
 	}
 
-
 	// ─── GET /api/v1/duplicates (global) ─────────────────────────────
-
 	public function testFindAllDuplicatesEndpoint(): void
 	{
-
 		$response = $this->httpGet( '/api/v1/duplicates' );
 
 		$this->assertIsArray( $response );
@@ -263,12 +251,9 @@ class PublicApiTest
 		$this->assertArrayHasKey( 'limit', $response['pagination'] );
 	}
 
-
 	// ─── POST /api/v1/file/{fileId}/recalc ───────────────────────────
-
 	public function testRecalcHashEndpoint(): void
 	{
-
 		$response = $this->httpPost(
 			"/api/v1/file/$this->testFileId1/recalc",
 			[ 'algo' => 'sha256' ],
@@ -292,7 +277,6 @@ class PublicApiTest
 		);
 	}
 
-
 	/**
 	 * Naming no algorithm means the instance default — whichever that is.
 	 *
@@ -302,7 +286,6 @@ class PublicApiTest
 	 */
 	public function testRecalcHashEndpointWithDefaultAlgo(): void
 	{
-
 		$catalogue = $this->httpGet( '/api/v1/algorithms' );
 		$default   = $catalogue['default'] ?? null;
 
@@ -327,10 +310,8 @@ class PublicApiTest
 		);
 	}
 
-
 	public function testRecalcHashEndpointWithNonexistentFile(): void
 	{
-
 		$response = $this->httpPost( '/api/v1/file/99999999/recalc', [ 'algo' => 'sha1' ] );
 
 		$this->assertIsArray( $response );
@@ -338,12 +319,9 @@ class PublicApiTest
 		$this->assertFalse( $response['success'], 'Nonexistent file should return success=false.' );
 	}
 
-
 	// ─── helpers ─────────────────────────────────────────────────────
-
 	private function httpGet( string $path ): array
 	{
-
 		$context = stream_context_create( [
 			'http' => [
 				'header'        => $this->authHeader . "\r\nAccept: application/json\r\nOCS-APIRequest: true",
@@ -365,14 +343,13 @@ class PublicApiTest
 		return $decoded;
 	}
 
-
 	/**
 	 */
 	private function httpPost(
 		string $path,
 		array  $data,
-	): array {
-
+	): array
+	{
 		$jsonPayload = json_encode( $data );
 
 		$context = stream_context_create( [
@@ -403,7 +380,6 @@ class PublicApiTest
 		return $decoded;
 	}
 
-
 	/**
 	 * Insert hash metadata into oc_files_metadata (JSON) and
 	 * oc_files_metadata_index (index row).
@@ -417,8 +393,8 @@ class PublicApiTest
 	private function insertHashMetadata(
 		int   $fileId,
 		array $hashes,
-	): void {
-
+	): void
+	{
 		$json = [];
 
 		foreach ( $hashes as $algo => $hash )
@@ -477,10 +453,8 @@ class PublicApiTest
 		}
 	}
 
-
 	private function cleanupLeftovers(): void
 	{
-
 		if ( empty( $this->cleanupFileIds ) )
 		{
 			return;
@@ -514,5 +488,4 @@ class PublicApiTest
 		{
 		}
 	}
-
 }

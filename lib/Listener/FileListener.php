@@ -33,9 +33,11 @@ use Throwable;
  * @noinspection PhpClassCanBeReadonlyInspection
  */
 class FileListener
-	implements
-	IEventListener
+    implements
+    IEventListener
 {
+
+//  constructor
 
 	public function __construct(
 		private readonly FilecacheService $filecacheService,
@@ -46,9 +48,10 @@ class FileListener
 	}
 
 
+//  static methods
+
 	public static function register( IRegistrationContext $context ): void
 	{
-
 		$context->registerEventListener( NodeCopiedEvent::class, self::class );
 		$context->registerEventListener( NodeWrittenEvent::class, self::class );
 		$context->registerEventListener( NodeCreatedEvent::class, self::class );
@@ -56,18 +59,19 @@ class FileListener
 	}
 
 
+//  other non-static methods
+
 	public function handle( Event $event ): void
 	{
-
 		try
 		{
 			match ( true )
 			{
-				$event instanceof NodeCopiedEvent => $this->onCopy( $event ),
+				$event instanceof NodeCopiedEvent  => $this->onCopy( $event ),
 				$event instanceof NodeWrittenEvent => $this->onWrite( $event ),
 				$event instanceof NodeCreatedEvent => $this->onCreate( $event ),
 				$event instanceof NodeDeletedEvent => $this->onDelete( $event ),
-				default => null,
+				default                            => null,
 			};
 		}
 		catch ( Throwable $e )
@@ -83,10 +87,8 @@ class FileListener
 		}
 	}
 
-
 	private function onCopy( NodeCopiedEvent $event ): void
 	{
-
 		$source = $event->getSource();
 		$target = $event->getTarget();
 
@@ -121,10 +123,8 @@ class FileListener
 		);
 	}
 
-
 	private function onWrite( NodeWrittenEvent $event ): void
 	{
-
 		$node = $event->getNode();
 
 		if ( ! $node instanceof File )
@@ -218,10 +218,8 @@ class FileListener
 		}
 	}
 
-
 	private function onCreate( NodeCreatedEvent $event ): void
 	{
-
 		$node = $event->getNode();
 
 		if ( ! $node instanceof File )
@@ -298,10 +296,8 @@ class FileListener
 		}
 	}
 
-
 	private function onDelete( NodeDeletedEvent $event ): void
 	{
-
 		$node = $event->getNode();
 
 		if ( ! $node instanceof File )
@@ -326,5 +322,4 @@ class FileListener
 			],
 		);
 	}
-
 }

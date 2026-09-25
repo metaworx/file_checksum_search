@@ -23,9 +23,11 @@ use Psr\Log\LoggerInterface;
  * @noinspection PhpClassCanBeReadonlyInspection
  */
 class AppDisableListener
-	implements
-	IEventListener
+    implements
+    IEventListener
 {
+
+//  constructor
 
 	public function __construct(
 		private readonly LoggerInterface $logger,
@@ -33,17 +35,19 @@ class AppDisableListener
 	}
 
 
+//  static methods
+
 	public static function register( IRegistrationContext $context ): void
 	{
-
 		$context->registerEventListener( AppDisableEvent::class, self::class );
 	}
 
 
+//  other non-static methods
+
 	#[\Override]
 	public function handle( Event $event ): void
 	{
-
 		if ( ! $event instanceof AppDisableEvent )
 		{
 			return;
@@ -59,5 +63,4 @@ class AppDisableListener
 			[ 'app' => Application::APP_ID ],
 		);
 	}
-
 }

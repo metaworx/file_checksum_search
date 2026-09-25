@@ -40,9 +40,11 @@ use Throwable;
  * ruleAdd, ruleDelete, ruleToggle, ruleUpdate.
  */
 class RuleServiceTest
-	extends
-	FciasUnitTestCase
+    extends
+    FciasUnitTestCase
 {
+
+//  private properties
 
 	private MockObject|IAppConfig        $appConfig;
 
@@ -63,9 +65,10 @@ class RuleServiceTest
 	private RuleService                  $service;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->appConfig         = $this->createMock( IAppConfig::class );
@@ -90,9 +93,10 @@ class RuleServiceTest
 	}
 
 
+//  other non-static methods
+
 	private function mockResolveAllUsers( array $uids ): void
 	{
-
 		$users = array_map(
 			fn(
 				string $uid,
@@ -102,14 +106,13 @@ class RuleServiceTest
 
 		$this->userManager->method( 'callForAllUsers' )
 		                  ->willReturnCallback(
-			                  function (
+			                  function(
 				                  callable $callback,
 			                  ) use
 			                  (
 				                  $users,
 			                  ): void
 			                  {
-
 				                  foreach ( $users as $user )
 				                  {
 					                  $callback( $user );
@@ -119,11 +122,10 @@ class RuleServiceTest
 		;
 	}
 
-
 	private function createRuleServicePartial(
 		array $methods,
-	): RuleService&MockObject {
-
+	): RuleService&MockObject
+	{
 		return $this->getMockBuilder( RuleService::class )
 		            ->setConstructorArgs( [
 			            $this->appConfig,
@@ -140,13 +142,12 @@ class RuleServiceTest
 		;
 	}
 
-
 	private function createFileMock(
 		int    $id,
 		int    $mtime = 1000,
 		string $path = '/files/test.txt',
-	): File&MockObject {
-
+	): File&MockObject
+	{
 		$file = $this->createMock( File::class );
 		$file->method( 'getId' )
 		     ->willReturn( $id )
@@ -162,12 +163,11 @@ class RuleServiceTest
 		return $file;
 	}
 
-
 	private function createFolderMock(
 		array $searchResults = [],
 		bool  $homeStorage = true,
-	): Folder&MockObject {
-
+	): Folder&MockObject
+	{
 		$folder = $this->createMock( Folder::class );
 		$folder->method( 'search' )
 		       ->willReturn( $searchResults )
@@ -184,23 +184,20 @@ class RuleServiceTest
 		return $folder;
 	}
 
-
 	private function homeLocation(
 		int    $fileId,
 		string $owner,
 		string $relative,
 		int    $mtime = 1000,
 		?int   $updatedAt = null,
-	): FileLocation {
-
+	): FileLocation
+	{
 		return FileLocation::fromRow( $fileId, 'home::' . $owner, 'files' . $relative, $mtime )
 		                   ->withUpdatedAt( $updatedAt );
 	}
 
-
 	private function stubLocate( FileLocation ...$locations ): void
 	{
-
 		$byId = [];
 
 		foreach ( $locations as $location )
@@ -217,13 +214,11 @@ class RuleServiceTest
 		;
 	}
 
-
 	/**
 	 * Feed the storage-paged sweep one synthetic storage holding these rows.
 	 */
 	private function stubSweep( FileLocation ...$locations ): void
 	{
-
 		$this->filecacheService->method( 'storageNumericIdsFor' )
 		                       ->willReturn( [ 7 ] )
 		;
@@ -247,13 +242,11 @@ class RuleServiceTest
 		;
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function setupRulesConfig( array $rules ): void
 	{
-
 		$this->appConfig->expects( $this->atLeastOnce() )
 		                ->method( 'getValueString' )
 		                ->with(
@@ -265,10 +258,8 @@ class RuleServiceTest
 		;
 	}
 
-
 	private function defaultRule( array $overrides = [] ): array
 	{
-
 		return array_merge(
 			[
 				'id'        => 'test-rule-1',
@@ -281,16 +272,12 @@ class RuleServiceTest
 		);
 	}
 
-
 	// evaluateRules
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testEvaluateRulesProcessesEnabledRules(): void
 	{
-
 		$rule = $this->defaultRule();
 
 		$this->setupRulesConfig( [ $rule ] );
@@ -309,13 +296,11 @@ class RuleServiceTest
 		$this->assertSame( 1, $result['matched'] );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testEvaluateRulesSkipsDisabledRules(): void
 	{
-
 		$rule = $this->defaultRule( [ 'enabled' => false ] );
 
 		$this->setupRulesConfig( [ $rule ] );
@@ -331,13 +316,11 @@ class RuleServiceTest
 		$this->assertSame( 0, $result['matched'] );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testEvaluateRulesLetsTheFirstMatchingRuleWin(): void
 	{
-
 		$rule1 = $this->defaultRule( [ 'id' => 'r1' ] );
 		$rule2 = $this->defaultRule( [ 'id' => 'r2' ] );
 
@@ -363,13 +346,11 @@ class RuleServiceTest
 		$this->assertSame( 1, $result['matched'] );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testEvaluateRulesSurvivesASweepFailure(): void
 	{
-
 		$rule = $this->defaultRule();
 
 		$this->setupRulesConfig( [ $rule ] );
@@ -379,11 +360,10 @@ class RuleServiceTest
 		$this->filecacheService->method( 'storageNumericIdsFor' )
 		                       ->willThrowException(
 			                       new class( 'db gone' )
-				                       extends
-				                       \Exception
-				                       implements
-				                       Throwable {
-
+			                           extends
+			                           \Exception
+			                           implements
+			                           Throwable {
 			                       },
 		                       )
 		;
@@ -398,12 +378,9 @@ class RuleServiceTest
 		$this->assertSame( 0, $result['matched'] );
 	}
 
-
 	// processRule
-
 	public function testProcessRuleMarksStaleFiles(): void
 	{
-
 		// The rule must be loadable so the per-candidate governance check
 		// resolves this file to it — that is what replaced the exclusion set.
 		$this->setupRulesConfig( [ $this->defaultRule() ] );
@@ -423,10 +400,8 @@ class RuleServiceTest
 		$this->assertSame( 1, $result['matched'] );
 	}
 
-
 	public function testProcessRuleSkipsFreshFiles(): void
 	{
-
 		$this->setupRulesConfig( [ $this->defaultRule() ] );
 
 		// updatedAt (2000) >= mtime (1000) → fresh, skip.
@@ -442,10 +417,8 @@ class RuleServiceTest
 		$this->assertSame( 1, $result['matched'] );
 	}
 
-
 	public function testProcessRuleRespectsBatchLimit(): void
 	{
-
 		$this->setupRulesConfig( [ $this->defaultRule() ] );
 
 		$locations = [];
@@ -468,7 +441,6 @@ class RuleServiceTest
 		$this->assertSame( 100, $result['matched'] );
 	}
 
-
 	/**
 	 * Exclusion is per candidate now: a maintaining rule sweeping a file that
 	 * a higher-priority rule governs skips it, because governance names the
@@ -476,7 +448,6 @@ class RuleServiceTest
 	 */
 	public function testProcessRuleSkipsAFileAHigherPriorityRuleGoverns(): void
 	{
-
 		$exclude = [
 			'id'       => 'admin-exclude',
 			'enabled'  => true,
@@ -502,7 +473,6 @@ class RuleServiceTest
 		$this->assertSame( 0, $result['matched'], 'the file is not this rule\'s to claim' );
 	}
 
-
 	/**
 	 * A rule that maintains no hashes queues nothing and needs no sweep of its
 	 * own: its files are claimed by governing them, which every maintaining
@@ -510,7 +480,6 @@ class RuleServiceTest
 	 */
 	public function testProcessRuleQueuesNothingForANonIncludeRule(): void
 	{
-
 		$this->filecacheService->expects( $this->never() )
 		                       ->method( 'pageStorageFiles' )
 		;
@@ -530,16 +499,12 @@ class RuleServiceTest
 		$this->assertSame( 0, $result['matched'] );
 	}
 
-
 	// searchFilesByGlob
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testSearchFilesByGlobReturnsMatchingFiles(): void
 	{
-
 		$file1 = $this->createFileMock( 1, 1000, '/files/photos/img1.jpg' );
 		$file2 = $this->createFileMock( 2, 1000, '/files/docs/report.pdf' );
 
@@ -558,13 +523,11 @@ class RuleServiceTest
 		$this->assertSame( 1, $results[0]->getId() );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testSearchFilesByGlobHandlesOffsetPagination(): void
 	{
-
 		// First page: 3 results, second page: 2 results, limit 4
 		$folder = $this->createMock( Folder::class );
 
@@ -593,10 +556,8 @@ class RuleServiceTest
 		$this->assertSame( 4, $results[3]->getId() );
 	}
 
-
 	public function testSearchFilesByGlobStopsAtMaxScan(): void
 	{
-
 		// maxScan = max(limit * 5, pageSize) = max(2 * 5, 3) = 10
 		// offset starts at 0, increments by pageSize (3): 0, 3, 6, 9 → 4 iterations total
 		// Each call always returns 3 files, but none match (return empty files to minimize fnmatch overhead)
@@ -610,10 +571,8 @@ class RuleServiceTest
 		$this->assertCount( 0, $results );
 	}
 
-
 	public function testSearchFilesByGlobUnlimitedWhenLimitIsZero(): void
 	{
-
 		$file1 = $this->createFileMock( 1, 1000, '/files/a.txt' );
 		$file2 = $this->createFileMock( 2, 1000, '/files/b.txt' );
 
@@ -634,28 +593,21 @@ class RuleServiceTest
 		$this->assertCount( 2, $results );
 	}
 
-
 	// globToLike
-
 	public function testGlobToLikeConvertsGlobToSqlLike(): void
 	{
-
 		$this->assertSame( '%\\_test%.jpg', RuleService::globToLike( '*_test*.jpg' ) );
 		$this->assertSame( '\\%literal\\_', RuleService::globToLike( '%literal_' ) );
 		$this->assertSame( 'prefix%', RuleService::globToLike( 'prefix*' ) );
 		$this->assertSame( 'file_', RuleService::globToLike( 'file?' ) );
 	}
 
-
 	// ruleAdd
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRuleAddGeneratesIdAndPersists(): void
 	{
-
 		$existing = [
 			[
 				'id'      => 'existing-id',
@@ -672,10 +624,10 @@ class RuleServiceTest
 			                Application::APP_ID,
 			                'rule_definitions',
 			                $this->callback(
-				                function (
+				                function(
 					                string $json,
-				                ): bool {
-
+				                ): bool
+				                {
 					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
 
 					                // The new regular rule lands before the
@@ -694,16 +646,12 @@ class RuleServiceTest
 		$this->service->ruleAdd( [ 'path' => 'Docs/*.pdf' ] );
 	}
 
-
 	// ruleDelete
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRuleDeleteRemovesCorrectRule(): void
 	{
-
 		$rules = [
 			[
 				'id'      => 'r1',
@@ -727,10 +675,10 @@ class RuleServiceTest
 			                Application::APP_ID,
 			                'rule_definitions',
 			                $this->callback(
-				                function (
+				                function(
 					                string $json,
-				                ): bool {
-
+				                ): bool
+				                {
 					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
 
 					                return count( $rules ) === 2
@@ -744,13 +692,11 @@ class RuleServiceTest
 		$this->service->ruleDelete( 'r2' );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRuleDeleteHandlesNonexistentId(): void
 	{
-
 		$rules = [
 			[
 				'id'      => 'r1',
@@ -766,10 +712,10 @@ class RuleServiceTest
 			                Application::APP_ID,
 			                'rule_definitions',
 			                $this->callback(
-				                function (
+				                function(
 					                string $json,
-				                ): bool {
-
+				                ): bool
+				                {
 					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
 
 					                return count( $rules ) === 1
@@ -782,16 +728,12 @@ class RuleServiceTest
 		$this->service->ruleDelete( 'nonexistent' );
 	}
 
-
 	// ruleToggle
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRuleToggleFlipsEnabled(): void
 	{
-
 		$rules = [
 			[
 				'id'      => 'r1',
@@ -811,10 +753,10 @@ class RuleServiceTest
 			                Application::APP_ID,
 			                'rule_definitions',
 			                $this->callback(
-				                function (
+				                function(
 					                string $json,
-				                ): bool {
-
+				                ): bool
+				                {
 					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
 
 					                return $rules[1]['enabled'] === true;
@@ -826,16 +768,12 @@ class RuleServiceTest
 		$this->service->ruleToggle( 'r2', true );
 	}
 
-
 	// ruleUpdate
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRuleUpdateReplacesFields(): void
 	{
-
 		$rules = [
 			[
 				'id'      => 'r1',
@@ -852,10 +790,10 @@ class RuleServiceTest
 			                Application::APP_ID,
 			                'rule_definitions',
 			                $this->callback(
-				                function (
+				                function(
 					                string $json,
-				                ): bool {
-
+				                ): bool
+				                {
 					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
 
 					                return $rules[0]['path'] === 'Docs/**'
@@ -872,12 +810,9 @@ class RuleServiceTest
 		] );
 	}
 
-
 	// loadRules
-
 	public function testLoadRulesMemoisesTheDecodedList(): void
 	{
-
 		// Verdict loops resolve a rule per file; the decode + sort must be
 		// paid once per process, not once per file.
 		$this->appConfig->expects( $this->once() )
@@ -889,10 +824,8 @@ class RuleServiceTest
 		$this->service->loadRules();
 	}
 
-
 	public function testLoadRulesRefreshRereadsStorage(): void
 	{
-
 		$this->appConfig->expects( $this->exactly( 2 ) )
 		                ->method( 'getValueString' )
 		                ->willReturn( '[]' )
@@ -902,13 +835,11 @@ class RuleServiceTest
 		$this->service->loadRules( refresh: true );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testAMutationInvalidatesTheLoadRulesMemo(): void
 	{
-
 		// ruleAdd() serves its own read from the memo, then saveRules() —
 		// the single write path — drops it, so the next read re-derives
 		// from what was actually persisted.
@@ -929,10 +860,8 @@ class RuleServiceTest
 		$this->service->loadRules();
 	}
 
-
 	public function testLoadRulesHandlesInvalidJson(): void
 	{
-
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'getValueString' )
 		                ->with(
@@ -948,10 +877,8 @@ class RuleServiceTest
 		$this->assertSame( [], $rules );
 	}
 
-
 	public function testLoadRulesHandlesCorruptedData(): void
 	{
-
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'getValueString' )
 		                ->with(
@@ -967,16 +894,12 @@ class RuleServiceTest
 		$this->assertSame( [], $rules );
 	}
 
-
 	// findFirstMatchingRule
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFindFirstMatchingRuleReturnsFirstEnabledMatch(): void
 	{
-
 		$rules = [
 			[
 				'id'      => 'r1',
@@ -1004,13 +927,11 @@ class RuleServiceTest
 		$this->assertSame( 'r2', $result['id'] );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFindFirstMatchingRuleReturnsNullWhenNoMatch(): void
 	{
-
 		$rules = [
 			[
 				'id'      => 'r1',
@@ -1027,13 +948,11 @@ class RuleServiceTest
 		$this->assertNull( $result );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFindFirstMatchingRuleSkipsRuleScopedToAnotherUser(): void
 	{
-
 		// Regression test for FCIAS Review §6, Finding 4: a rule scoped
 		// to a specific user must not match a different user's file.
 		$rules = [
@@ -1053,13 +972,11 @@ class RuleServiceTest
 		$this->assertNull( $result );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFindFirstMatchingRuleMatchesRuleScopedToRequestingUser(): void
 	{
-
 		$rules = [
 			[
 				'id'        => 'r1',
@@ -1078,13 +995,11 @@ class RuleServiceTest
 		$this->assertSame( 'r1', $result['id'] );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFindFirstMatchingRuleMatchesAllScopedRuleForAnyOwner(): void
 	{
-
 		$rules = [
 			[
 				'id'        => 'r1',
@@ -1103,12 +1018,9 @@ class RuleServiceTest
 		$this->assertSame( 'r1', $result['id'] );
 	}
 
-
 	// resolveUsers
-
 	public function testResolveUsersReturnsAllUsers(): void
 	{
-
 		$mockUsers = [
 			$this->createMock( IUser::class ),
 			$this->createMock( IUser::class ),
@@ -1128,14 +1040,13 @@ class RuleServiceTest
 		$this->userManager->expects( $this->once() )
 		                  ->method( 'callForAllUsers' )
 		                  ->willReturnCallback(
-			                  function (
+			                  function(
 				                  callable $callback,
 			                  ) use
 			                  (
 				                  $mockUsers,
 			                  ): void
 			                  {
-
 				                  foreach ( $mockUsers as $user )
 				                  {
 					                  $callback( $user );
@@ -1153,10 +1064,8 @@ class RuleServiceTest
 		], $result );
 	}
 
-
 	public function testResolveUsersReturnsSpecificUser(): void
 	{
-
 		$user = $this->createMock( IUser::class );
 
 		$user->method( 'getUID' )
@@ -1174,10 +1083,8 @@ class RuleServiceTest
 		$this->assertSame( [ 'alice' ], $result );
 	}
 
-
 	public function testResolveUsersReturnsEmptyForUnknownUser(): void
 	{
-
 		$this->userManager->expects( $this->once() )
 		                  ->method( 'get' )
 		                  ->with( 'nonexistent' )
@@ -1193,16 +1100,12 @@ class RuleServiceTest
 		$this->assertSame( [], $result );
 	}
 
-
 	// findRuleById
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFindRuleByIdReturnsMatchingRule(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'   => 'r1',
@@ -1223,13 +1126,11 @@ class RuleServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFindRuleByIdReturnsNullWhenNotFound(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'   => 'r1',
@@ -1240,28 +1141,26 @@ class RuleServiceTest
 		$this->assertNull( $this->service->findRuleById( 'nope' ) );
 	}
 
-
 	// bandOf / scope helpers
-
-
 	/**
 	 * @dataProvider bandProvider
 	 */
 	public function testBandOfDerivesTheBandFromScopeAndFlags(
 		array $rule,
 		int   $expected,
-	): void {
-
+	): void
+	{
 		$this->assertSame( $expected, RuleService::bandOf( $rule ) );
 	}
 
+
+//  static methods
 
 	/**
 	 * @return array<string, array{array, int}>
 	 */
 	public static function bandProvider(): array
 	{
-
 		return [
 			'user enforced'        => [
 				[
@@ -1337,10 +1236,8 @@ class RuleServiceTest
 		];
 	}
 
-
 	public function testSelectorParsingAndCanonicalForms(): void
 	{
-
 		$this->assertSame(
 			'home:*',
 			Selector::fromStored( 'all' )
@@ -1378,10 +1275,8 @@ class RuleServiceTest
 		Selector::parse( 'group:*' );
 	}
 
-
 	public function testSortRulesOrdersByBandSegmentAndPartition(): void
 	{
-
 		$rules = [
 			// home:* default first in storage — the partition must push it
 			// after the segment's specific rule regardless of stored order.
@@ -1446,16 +1341,12 @@ class RuleServiceTest
 		);
 	}
 
-
 	// matching order
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFindFirstMatchingRuleFollowsBandOrderNotArrayOrder(): void
 	{
-
 		// Regression test for the priority inversion: the `**` catch-all used
 		// to sit at slot 0 and shadow every rule below it, so no additional
 		// rule could ever match. It is now the pinned last band.
@@ -1483,13 +1374,11 @@ class RuleServiceTest
 		$this->assertSame( 'docs', $match['id'] );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFindFirstMatchingRulePrefersTheSpecificEnforcedRule(): void
 	{
-
 		// Within the enforced half, specific beats general — so an admin can
 		// enforce something instance-wide and still carve out one user.
 		$this->setupRulesConfig( [
@@ -1517,13 +1406,11 @@ class RuleServiceTest
 		$this->assertSame( 'alice-enforced', $match['id'] );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFindFirstMatchingRuleMatchesGroupScopeByMembership(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'        => 'staff',
@@ -1554,16 +1441,12 @@ class RuleServiceTest
 		$this->assertNull( $this->service->findFirstMatchingRule( 43 ) );
 	}
 
-
 	// idle banner acknowledgement (D5)
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testSavingAnEnabledIncludeRuleClearsTheIdleBannerAck(): void
 	{
-
 		$this->setupRulesConfig( [] );
 
 		$this->appConfig->expects( $this->once() )
@@ -1585,13 +1468,11 @@ class RuleServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testSavingOnlyDisabledOrNonIncludeRulesKeepsTheAck(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'       => 'off',
@@ -1619,16 +1500,12 @@ class RuleServiceTest
 		);
 	}
 
-
 	// canonical identity (Block G)
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testGoverningRulesForFileIdsResolvesTheBatchInOneScan(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'       => 'alice-all',
@@ -1670,13 +1547,11 @@ class RuleServiceTest
 		], array_keys( $rules ) );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testGoverningRuleIsResolvedByOwnerIdentityNotActingView(): void
 	{
-
 		// The share-edit regression, service half: whoever's view the event
 		// came through, the file id resolves to the OWNER's identity, so the
 		// owner's rules — written against the owner's paths — govern.
@@ -1704,13 +1579,11 @@ class RuleServiceTest
 		$this->assertNull( $this->service->findFirstMatchingRule( 43 ) );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testAGroupfolderSelectorGovernsOnlyItsFolder(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'       => 'team',
@@ -1731,13 +1604,11 @@ class RuleServiceTest
 		$this->assertNull( $this->service->findFirstMatchingRule( 52 ) );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testAStorageSelectorMatchesItsRawIdWhateverTheNamespace(): void
 	{
-
 		// storage:<raw id> is exact identity — including a home storage:
 		// storage:home::alice and home:alice describe the same files.
 		$this->setupRulesConfig( [
@@ -1758,13 +1629,11 @@ class RuleServiceTest
 		$this->assertNull( $this->service->findFirstMatchingRule( 61 ) );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testTheUniversalSelectorGovernsEveryNamespace(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'       => 'everything',
@@ -1795,13 +1664,11 @@ class RuleServiceTest
 		}
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testLocationsOutsideAFilesAreaAreGovernedByNothing(): void
 	{
-
 		// Trash and versions rows exist in the filecache, but no rule — not
 		// even a universal catch-all — may reach them. The rules are not
 		// even loaded: the classification decides before any rule is read.
@@ -1812,13 +1679,11 @@ class RuleServiceTest
 		$this->assertNull( $this->service->findFirstMatchingRule( 80 ) );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRuleGlobsMatchWithOrWithoutALeadingSlash(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'       => 'slashed',
@@ -1836,10 +1701,8 @@ class RuleServiceTest
 		);
 	}
 
-
 	public function testAGroupfolderSweepSkipsLegacyRowsOfOtherFolders(): void
 	{
-
 		// The legacy root-jail layout stores many folders on one storage, so
 		// the sweep must tell rows apart by their per-row folder id.
 		$rule = [
@@ -1889,28 +1752,23 @@ class RuleServiceTest
 		$this->assertSame( 1, $result['matched'] );
 	}
 
-
 	// verdicts
-
-
 	/**
 	 * @dataProvider verdictProvider
 	 */
 	public function testVerdictOfDefaultsToIncludeForAnythingUnrecognised(
 		array  $rule,
 		string $expected,
-	): void {
-
+	): void
+	{
 		$this->assertSame( $expected, RuleService::verdictOf( $rule ) );
 	}
-
 
 	/**
 	 * @return array<string, array{array, string}>
 	 */
 	public static function verdictProvider(): array
 	{
-
 		return [
 			'include'      => [
 				[ 'type' => 'include' ],
@@ -1937,10 +1795,8 @@ class RuleServiceTest
 		];
 	}
 
-
 	public function testMaintainsHashesOnlyForIncludeRules(): void
 	{
-
 		$this->assertTrue( RuleService::maintainsHashes( [ 'type' => 'include' ] ) );
 		$this->assertTrue( RuleService::maintainsHashes( [] ) );
 		$this->assertFalse( RuleService::maintainsHashes( [ 'type' => 'ignore' ] ) );
@@ -1949,13 +1805,11 @@ class RuleServiceTest
 		$this->assertFalse( RuleService::maintainsHashes( null ) );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testAnEnforcedExcludeBeatsAUserIncludeBelowIt(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'        => 'user-include',
@@ -1983,13 +1837,11 @@ class RuleServiceTest
 		$this->assertFalse( RuleService::maintainsHashes( $match ) );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testAUserExcludeSuppressesTheDefaultsBelowIt(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'        => 'default',
@@ -2016,13 +1868,11 @@ class RuleServiceTest
 		$this->assertFalse( RuleService::maintainsHashes( $match ) );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testADefaultExcludeIsBeatenByAUserInclude(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'        => 'suggestion',
@@ -2049,17 +1899,12 @@ class RuleServiceTest
 		$this->assertTrue( RuleService::maintainsHashes( $match ) );
 	}
 
-
 	// (A non-include rule now queues nothing and does not sweep — see
 	// testProcessRuleQueuesNothingForANonIncludeRule; exclusion of lower
 	// rules is by governance — see testProcessRuleSkipsAFileAHigherPriorityRuleGoverns.)
-
-
 	// resolveUsers — group scope
-
 	public function testResolveUsersExpandsGroupMembership(): void
 	{
-
 		$group = $this->createMock( IGroup::class );
 		$group->method( 'getUsers' )
 		      ->willReturn( [
@@ -2082,10 +1927,8 @@ class RuleServiceTest
 		);
 	}
 
-
 	public function testResolveUsersReturnsEmptyForUnknownGroup(): void
 	{
-
 		$this->groupManager->method( 'get' )
 		                   ->willReturn( null )
 		;
@@ -2093,16 +1936,12 @@ class RuleServiceTest
 		$this->assertSame( [], $this->service->resolveUsers( 'group:nope' ) );
 	}
 
-
 	// band placement on write
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRuleAddLandsAtTheEndOfItsOwnBand(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'        => 'u1',
@@ -2120,10 +1959,10 @@ class RuleServiceTest
 			                Application::APP_ID,
 			                'rule_definitions',
 			                $this->callback(
-				                static function (
+				                static function(
 					                string $json,
-				                ): bool {
-
+				                ): bool
+				                {
 					                $ids = array_column(
 						                json_decode( $json, true, 512, JSON_THROW_ON_ERROR ),
 						                'id',
@@ -2147,13 +1986,11 @@ class RuleServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRuleUpdateMovesToTheEndOfItsNewBandWhenEnforcedChanges(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'             => 'e1',
@@ -2172,10 +2009,10 @@ class RuleServiceTest
 			                Application::APP_ID,
 			                'rule_definitions',
 			                $this->callback(
-				                static function (
+				                static function(
 					                string $json,
-				                ): bool {
-
+				                ): bool
+				                {
 					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
 
 					                // Promoted into band 1, and placed after the
@@ -2198,13 +2035,11 @@ class RuleServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testSavingCanonicalisesLegacyKeysAndDropsPinned(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'        => 'legacy',
@@ -2220,10 +2055,10 @@ class RuleServiceTest
 			                Application::APP_ID,
 			                'rule_definitions',
 			                $this->callback(
-				                static function (
+				                static function(
 					                string $json,
-				                ): bool {
-
+				                ): bool
+				                {
 					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
 
 					                // Every write migrates: canonical
@@ -2239,13 +2074,11 @@ class RuleServiceTest
 		$this->service->resaveCanonical();
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testANewRuleLandsBeforeItsSegmentsDefault(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'       => 'default',
@@ -2260,10 +2093,10 @@ class RuleServiceTest
 			                Application::APP_ID,
 			                'rule_definitions',
 			                $this->callback(
-				                static function (
+				                static function(
 					                string $json,
-				                ): bool {
-
+				                ): bool
+				                {
 					                $rules = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
 
 					                // The usability property the partition
@@ -2285,17 +2118,13 @@ class RuleServiceTest
 		);
 	}
 
-
 	// migrateToBands
-
 	// reorderBand
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testReorderSegmentPermutesOnePartitionAndLeavesTheRestUntouched(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'             => 'e1',
@@ -2331,10 +2160,10 @@ class RuleServiceTest
 			                Application::APP_ID,
 			                'rule_definitions',
 			                $this->callback(
-				                static function (
+				                static function(
 					                string $json,
-				                ): bool {
-
+				                ): bool
+				                {
 					                $ids = array_column(
 						                json_decode( $json, true, 512, JSON_THROW_ON_ERROR ),
 						                'id',
@@ -2366,7 +2195,6 @@ class RuleServiceTest
 		);
 	}
 
-
 	/**
 	 * A default-shaped rule belongs to the defaults partition: submitting it
 	 * as part of the regular partition's order is a non-permutation, which
@@ -2376,7 +2204,6 @@ class RuleServiceTest
 	 */
 	public function testReorderSegmentKeepsThePartitionsApart(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'       => 'g1',
@@ -2402,15 +2229,14 @@ class RuleServiceTest
 		);
 	}
 
-
 	/**
 	 * @dataProvider badPermutationProvider
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testReorderSegmentRejectsAnythingThatIsNotAnExactPermutation(
 		array $orderedIds,
-	): void {
-
+	): void
+	{
 		$this->setupRulesConfig( [
 			[
 				'id'       => 'g1',
@@ -2438,13 +2264,11 @@ class RuleServiceTest
 		$this->service->reorderSegment( 'home:*', false, $orderedIds );
 	}
 
-
 	/**
 	 * @return array<string, array{array}>
 	 */
 	public static function badPermutationProvider(): array
 	{
-
 		return [
 			'incomplete'            => [ [ 'g1' ] ],
 			'unknown id'            => [
@@ -2473,13 +2297,11 @@ class RuleServiceTest
 		];
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testReorderSegmentRestrictsANonAdminToTheirOwnRules(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'       => 'bob1',
@@ -2504,10 +2326,10 @@ class RuleServiceTest
 			                Application::APP_ID,
 			                'rule_definitions',
 			                $this->callback(
-				                static function (
+				                static function(
 					                string $json,
-				                ): bool {
-
+				                ): bool
+				                {
 					                $ids = array_column(
 						                json_decode( $json, true, 512, JSON_THROW_ON_ERROR ),
 						                'id',
@@ -2538,13 +2360,11 @@ class RuleServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testReorderSegmentRejectsAnotherUsersRuleForANonAdmin(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'       => 'bob1',
@@ -2576,13 +2396,11 @@ class RuleServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testReorderSegmentRejectsANonAdminTouchingAnyOtherSegment(): void
 	{
-
 		$this->appConfig->expects( $this->never() )
 		                ->method( 'setValueString' )
 		;
@@ -2598,16 +2416,12 @@ class RuleServiceTest
 		);
 	}
 
-
 	// listRulesFor
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testListRulesForAdminReturnsEverythingBandedAndNumbered(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'        => 'default',
@@ -2673,13 +2487,11 @@ class RuleServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testListRulesForUserHidesRulesTargetingFoldersTheyCannotSee(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'        => 'mine',
@@ -2718,13 +2530,11 @@ class RuleServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testListRulesForAnAdminOnTheirOwnPersonalPageCannotEditGlobalRules(): void
 	{
-
 		// Surface, not permission: an administrator asking as themselves —
 		// which is what the personal settings page does — gets the same
 		// read-only view of instance-wide rules as anyone else. Editing those
@@ -2775,13 +2585,11 @@ class RuleServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testListRulesForUserHidesOtherUsersRulesAndNumbersWhatRemains(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'        => 'default',
@@ -2859,12 +2667,9 @@ class RuleServiceTest
 		);
 	}
 
-
 	// canUserMutateRule
-
 	public function testCanUserMutateRuleRejectsAnInstanceWideRule(): void
 	{
-
 		// Regression test: a non-admin used to be able to mutate a rule
 		// scoped to 'all' — changing its path, mode or algorithms for every
 		// user on the instance. A user's writable surface is now their own
@@ -2888,10 +2693,8 @@ class RuleServiceTest
 		);
 	}
 
-
 	public function testCanUserMutateRuleAcceptsOnlyTheUsersOwnSegment(): void
 	{
-
 		$folder = $this->createFolderMock();
 		$folder->method( 'isCreatable' )
 		       ->willReturn( true )
@@ -2934,10 +2737,8 @@ class RuleServiceTest
 		}
 	}
 
-
 	public function testCanUserMutateRuleRejectsAGroupRule(): void
 	{
-
 		$folder = $this->createFolderMock();
 		$folder->method( 'isCreatable' )
 		       ->willReturn( true )
@@ -2959,10 +2760,8 @@ class RuleServiceTest
 		);
 	}
 
-
 	public function testCanUserMutateRuleRejectsAdminEnforcedRule(): void
 	{
-
 		$rule = [
 			'userScope'      => 'alice',
 			'path'           => '/',
@@ -2972,10 +2771,8 @@ class RuleServiceTest
 		$this->assertFalse( $this->service->canUserMutateRule( 'alice', $rule ) );
 	}
 
-
 	public function testCanUserMutateRuleRejectsDifferentUsersRule(): void
 	{
-
 		// Regression test for FCIAS Review §6, Finding 3: a user must
 		// not be able to mutate another specific user's rule.
 		$rule = [
@@ -2986,10 +2783,8 @@ class RuleServiceTest
 		$this->assertFalse( $this->service->canUserMutateRule( 'alice', $rule ) );
 	}
 
-
 	public function testCanUserMutateRuleAllowsOwnRuleWhenPathWritable(): void
 	{
-
 		$folder = $this->createFolderMock();
 		$folder->method( 'isCreatable' )
 		       ->willReturn( true )
@@ -3007,10 +2802,8 @@ class RuleServiceTest
 		$this->assertTrue( $this->service->canUserMutateRule( 'alice', $rule ) );
 	}
 
-
 	public function testCanUserMutateRuleRejectsUnwritablePath(): void
 	{
-
 		$folder = $this->createFolderMock();
 		$folder->method( 'isCreatable' )
 		       ->willReturn( false )
@@ -3028,12 +2821,9 @@ class RuleServiceTest
 		$this->assertFalse( $this->service->canUserMutateRule( 'alice', $rule ) );
 	}
 
-
 	// isPathWritableByUser
-
 	public function testRuleTargetRefusalAcceptsAWritableOwnHomeRoot(): void
 	{
-
 		$folder = $this->createFolderMock();
 		$folder->method( 'isCreatable' )
 		       ->willReturn( true )
@@ -3047,10 +2837,8 @@ class RuleServiceTest
 		$this->assertNull( $this->service->ruleTargetRefusal( 'alice', '/' ) );
 	}
 
-
 	public function testRuleTargetRefusalRefusesANonWritableRoot(): void
 	{
-
 		$folder = $this->createFolderMock();
 		$folder->method( 'isCreatable' )
 		       ->willReturn( false )
@@ -3067,19 +2855,16 @@ class RuleServiceTest
 		);
 	}
 
-
 	public function testRuleTargetRefusalRefusesOnException(): void
 	{
-
 		$this->rootFolder->method( 'getUserFolder' )
 		                 ->with( 'alice' )
 		                 ->willThrowException(
 			                 new class( 'nope' )
-				                 extends
-				                 \Exception
-				                 implements
-				                 Throwable {
-
+			                     extends
+			                     \Exception
+			                     implements
+			                     Throwable {
 			                 },
 		                 )
 		;
@@ -3087,10 +2872,8 @@ class RuleServiceTest
 		$this->assertNotNull( $this->service->ruleTargetRefusal( 'alice', '/' ) );
 	}
 
-
 	public function testRuleTargetRefusalNamesAMountedPath(): void
 	{
-
 		// G9: a received share or a mounted group folder is writable — but a
 		// personal rule is home:<uid> and by identity never governs another
 		// namespace's files, so the path is refused with the reason.
@@ -3116,16 +2899,12 @@ class RuleServiceTest
 		);
 	}
 
-
 	// ─── applyRule ──────────────────────────────────────────────────
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testApplyRuleQueuesGovernedStaleFilesUncapped(): void
 	{
-
 		$rule = [
 			'id'        => 'r1',
 			'enabled'   => true,
@@ -3163,13 +2942,11 @@ class RuleServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testApplyRuleNeverMarksAFileAHigherBandClaims(): void
 	{
-
 		$mine   = [
 			'id'        => 'mine',
 			'enabled'   => true,
@@ -3208,10 +2985,8 @@ class RuleServiceTest
 		$this->assertSame( 1, $result['skipped'] );
 	}
 
-
 	public function testApplyRuleRefusesADisabledRule(): void
 	{
-
 		$this->expectException( InvalidArgumentException::class );
 		$this->expectExceptionMessage( 'disabled' );
 
@@ -3224,10 +2999,8 @@ class RuleServiceTest
 		);
 	}
 
-
 	public function testApplyRuleRefusesANonIncludeRule(): void
 	{
-
 		// An ignore/exclude rule computes nothing, so applying it could only
 		// queue work the drain is designed to drop.
 		$this->expectException( InvalidArgumentException::class );
@@ -3241,13 +3014,11 @@ class RuleServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testApplyRuleWithModeOverrideOnAnEnforcedRuleWarns(): void
 	{
-
 		$rule = [
 			'id'             => 'mandate',
 			'enabled'        => true,
@@ -3275,16 +3046,12 @@ class RuleServiceTest
 		$this->service->applyRule( $rule, 'force', null, 'cli' );
 	}
 
-
 	// ─── audit logging ──────────────────────────────────────────────
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testMutationsAreAuditLoggedWithTheActor(): void
 	{
-
 		$this->setupRulesConfig( [] );
 
 		$this->logger->expects( $this->once() )
@@ -3310,13 +3077,11 @@ class RuleServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testMutatingAnEnforcedRuleEscalatesToWarning(): void
 	{
-
 		$this->setupRulesConfig( [
 			[
 				'id'             => 'mandate',
@@ -3335,10 +3100,7 @@ class RuleServiceTest
 		$this->service->ruleDelete( 'mandate', 'cli' );
 	}
 
-
 	// ─── clearing what a reset disowned ──────────────────────────────
-
-
 	/**
 	 * The operator disowned the stored hashes, not the intent to have them:
 	 * a file its rule still covers goes straight back on the queue.
@@ -3351,7 +3113,6 @@ class RuleServiceTest
 	 */
 	public function testADisownedFileIsClearedAndRequeuedWhenARuleStillGoverns(): void
 	{
-
 		$this->metadataService->method( 'fetchStaleBatch' )
 		                      ->willReturn( [ 42 ] )
 		;
@@ -3376,7 +3137,6 @@ class RuleServiceTest
 		$this->assertSame( 1, $this->service->clearDisownedFiles( 50 ) );
 	}
 
-
 	/**
 	 * And a file no rule covers is simply left without hashes.
 	 *
@@ -3384,7 +3144,6 @@ class RuleServiceTest
 	 */
 	public function testADisownedFileNoRuleGovernsIsLeftWithoutHashes(): void
 	{
-
 		$this->metadataService->method( 'fetchStaleBatch' )
 		                      ->willReturn( [ 42 ] )
 		;
@@ -3400,7 +3159,6 @@ class RuleServiceTest
 		$this->assertSame( 1, $this->service->clearDisownedFiles( 50 ) );
 	}
 
-
 	/**
 	 * One file that will not clear must not strand the rest: its marker
 	 * stays, so the next run tries it again.
@@ -3409,7 +3167,6 @@ class RuleServiceTest
 	 */
 	public function testOneUnclearableDisownedFileDoesNotStrandTheRest(): void
 	{
-
 		$this->metadataService->method( 'fetchStaleBatch' )
 		                      ->willReturn( [
 			                      1,
@@ -3421,7 +3178,7 @@ class RuleServiceTest
 		$cleared = [];
 		$this->metadataService->method( 'clearMetadata' )
 		                      ->willReturnCallback(
-			                      static function (
+			                      static function(
 				                      int $fileId,
 			                      ) use
 			                      (
@@ -3429,7 +3186,6 @@ class RuleServiceTest
 				                      $cleared,
 			                      ): void
 			                      {
-
 				                      if ( $fileId === 1 )
 				                      {
 					                      throw new RuntimeException( 'unreadable' );
@@ -3444,21 +3200,19 @@ class RuleServiceTest
 		$this->assertSame( [ 2 ], $cleared );
 	}
 
-
 	/**
 	 * @param  array<string, mixed>|null  $rule
 	 */
 	private function givenTheGoverningRuleIs( ?array $rule ): void
 	{
-
 		// A verdict needs the file's canonical identity before it needs a
 		// rule: no filecache row, no match, whatever the rules say.
 		$this->filecacheService->method( 'locateAll' )
 		                       ->willReturnCallback(
-			                       static function (
+			                       static function(
 				                       array $fileIds,
-			                       ): array {
-
+			                       ): array
+			                       {
 				                       $located = [];
 
 				                       foreach ( $fileIds as $fileId )
@@ -3491,5 +3245,4 @@ class RuleServiceTest
 		                )
 		;
 	}
-
 }

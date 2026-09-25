@@ -27,9 +27,11 @@ use OCA\FileChecksumSearch\State\HashRecord;
  * instead, the second when the source does not know when it hashed.
  */
 class CsvFormat
-	implements
-	HashRecordFormat
+    implements
+    HashRecordFormat
 {
+
+//  constants
 
 	/**
 	 * No backslash escaping, in either direction.
@@ -42,7 +44,7 @@ class CsvFormat
 	private const ESCAPE = '';
 
 	private const COLUMNS
-		= [
+		 = [
 			'storage',
 			'path',
 			'algo',
@@ -50,6 +52,8 @@ class CsvFormat
 			'updated_at',
 		];
 
+
+//  other non-static methods
 
 	/**
 	 * @param  resource  $stream
@@ -59,8 +63,8 @@ class CsvFormat
 	public function read(
 		$stream,
 		FormatOptions $options,
-	): Generator {
-
+	): Generator
+	{
 		$header = fgetcsv( $stream, escape: self::ESCAPE );
 
 		if ( $header === false )
@@ -95,13 +99,12 @@ class CsvFormat
 		}
 	}
 
-
 	public function write(
 		iterable      $records,
 		              $stream,
 		FormatOptions $options,
-	): int {
-
+	): int
+	{
 		fputcsv( $stream, self::COLUMNS, escape: self::ESCAPE );
 		$written = 0;
 
@@ -124,21 +127,16 @@ class CsvFormat
 		return $written;
 	}
 
-
 	public function carriesConfig(): bool
 	{
-
 		return false;
 	}
 
-
 	public function losses(): array
 	{
-
 		return [
 			'the app\'s configuration',
 			'the header a restore checks itself against — which instance, which version',
 		];
 	}
-
 }

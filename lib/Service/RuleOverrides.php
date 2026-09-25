@@ -27,6 +27,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 readonly class RuleOverrides
 {
 
+//  constants
+
 	public const UNMATCHED_SKIP = 'skip';
 
 	public const UNMATCHED_INCLUDE = 'include';
@@ -34,12 +36,14 @@ readonly class RuleOverrides
 	public const UNMATCHED_ONLY = 'unmatched';
 
 	public const UNMATCHED_CHOICES
-		= [
+		 = [
 			self::UNMATCHED_SKIP,
 			self::UNMATCHED_INCLUDE,
 			self::UNMATCHED_ONLY,
 		];
 
+
+//  constructor
 
 	/**
 	 * @param  bool          $withIgnored    Process files whose governing rule
@@ -72,6 +76,8 @@ readonly class RuleOverrides
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * Whether this run should process a file governed by $rule.
 	 *
@@ -81,7 +87,6 @@ readonly class RuleOverrides
 	 */
 	public function allows( ?array $rule ): bool
 	{
-
 		// The inverse view: only files with no governing rule at all. A
 		// matched file is out of scope here whatever its verdict says —
 		// including `include`.
@@ -104,7 +109,6 @@ readonly class RuleOverrides
 			&& RuleService::verdictOf( $rule ) === RuleService::TYPE_IGNORE;
 	}
 
-
 	/**
 	 * Report which rule decided a file, when the caller asked to be told.
 	 *
@@ -123,8 +127,8 @@ readonly class RuleOverrides
 		string           $path,
 		?array           $rule,
 		bool             $proceeding,
-	): void {
-
+	): void
+	{
 		if ( $output === null )
 		{
 			return;
@@ -159,15 +163,15 @@ readonly class RuleOverrides
 	}
 
 
+//  getters / setters / is* / has*
+
 	/**
 	 * True when nothing is overridden, i.e. the rules decide on their own.
 	 */
 	public function isEmpty(): bool
 	{
-
 		return ! $this->withIgnored
 			&& $this->ignoreRuleIds === []
 			&& $this->unmatched === self::UNMATCHED_SKIP;
 	}
-
 }

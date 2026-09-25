@@ -30,9 +30,11 @@ use Throwable;
  * @noinspection PhpClassCanBeReadonlyInspection
  */
 class MetadataListener
-	implements
-	IEventListener
+    implements
+    IEventListener
 {
+
+//  constructor
 
 	public function __construct(
 		private readonly MetadataService $metadataService,
@@ -41,16 +43,18 @@ class MetadataListener
 	}
 
 
+//  static methods
+
 	public static function register( IRegistrationContext $context ): void
 	{
-
 		$context->registerEventListener( MetadataBackgroundEvent::class, self::class );
 	}
 
 
+//  other non-static methods
+
 	public function handle( Event $event ): void
 	{
-
 		if ( ! $event instanceof MetadataBackgroundEvent )
 		{
 			return;
@@ -95,5 +99,4 @@ class MetadataListener
 			);
 		}
 	}
-
 }

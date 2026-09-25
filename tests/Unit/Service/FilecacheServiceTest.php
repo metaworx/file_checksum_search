@@ -27,9 +27,11 @@ use OCP\IUserManager;
 use PHPUnit\Framework\MockObject\MockObject;
 
 class FilecacheServiceTest
-	extends
-	FciasUnitTestCase
+    extends
+    FciasUnitTestCase
 {
+
+//  private properties
 
 	private IRootFolder&MockObject $rootFolder;
 
@@ -42,9 +44,10 @@ class FilecacheServiceTest
 	private FilecacheService       $service;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->rootFolder = $this->createMock( IRootFolder::class );
@@ -65,12 +68,13 @@ class FilecacheServiceTest
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testGetFileReturnsFileWhenFilePassed(): void
 	{
-
 		$file = $this->createMock( File::class );
 
 		$result = $this->service->getFile( $file );
@@ -78,13 +82,11 @@ class FilecacheServiceTest
 		$this->assertSame( $file, $result );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testGetFileResolvesById(): void
 	{
-
 		$file   = $this->createMock( File::class );
 		$fileId = 42;
 
@@ -99,10 +101,8 @@ class FilecacheServiceTest
 		$this->assertSame( $file, $result );
 	}
 
-
 	public function testGetFileThrowsWhenNotFound(): void
 	{
-
 		$fileId = 42;
 
 		$this->rootFolder->expects( $this->once() )
@@ -116,10 +116,8 @@ class FilecacheServiceTest
 		$this->service->getFile( $fileId );
 	}
 
-
 	public function testGetFileThrowsWhenNodeIsNotFile(): void
 	{
-
 		$fileId = 42;
 		$folder = $this->createMock( Folder::class );
 
@@ -134,10 +132,8 @@ class FilecacheServiceTest
 		$this->service->getFile( $fileId );
 	}
 
-
 	public function testGetHashesParsesChecksumField(): void
 	{
-
 		$file = $this->createMock( File::class );
 		$file->method( 'getChecksum' )
 		     ->willReturn( 'SHA1:abc123 MD5:def456' )
@@ -154,10 +150,8 @@ class FilecacheServiceTest
 		);
 	}
 
-
 	public function testGetHashesFiltersByAlgo(): void
 	{
-
 		$file = $this->createMock( File::class );
 		$file->method( 'getChecksum' )
 		     ->willReturn( 'SHA1:abc123 MD5:def456 SHA256:ghi789' )
@@ -180,10 +174,8 @@ class FilecacheServiceTest
 		);
 	}
 
-
 	public function testGetHashesReturnsEmptyForNullChecksum(): void
 	{
-
 		$file = $this->createMock( File::class );
 		$file->method( 'getChecksum' )
 		     ->willReturn( null )
@@ -194,10 +186,8 @@ class FilecacheServiceTest
 		$this->assertSame( [], $hashes );
 	}
 
-
 	public function testGetHashesReturnsEmptyForEmptyChecksum(): void
 	{
-
 		$file = $this->createMock( File::class );
 		$file->method( 'getChecksum' )
 		     ->willReturn( '' )
@@ -208,10 +198,8 @@ class FilecacheServiceTest
 		$this->assertSame( [], $hashes );
 	}
 
-
 	public function testSetHashesWritesToCache(): void
 	{
-
 		$file    = $this->createMock( File::class );
 		$storage = $this->createMock( IStorage::class );
 		$cache   = $this->createMock( ICache::class );
@@ -240,10 +228,8 @@ class FilecacheServiceTest
 		);
 	}
 
-
 	public function testSetHashesKeepsAdditionalWhenFlagSet(): void
 	{
-
 		$file    = $this->createMock( File::class );
 		$storage = $this->createMock( IStorage::class );
 		$cache   = $this->createMock( ICache::class );
@@ -265,10 +251,10 @@ class FilecacheServiceTest
 		      ->method( 'update' )
 		      ->with(
 			      42,
-			      $this->callback( function (
+			      $this->callback( function(
 				      $data,
-			      ) {
-
+			      )
+			      {
 				      $parts = explode( ' ', $data['checksum'] );
 
 				      return count( $parts ) === 3
@@ -289,10 +275,8 @@ class FilecacheServiceTest
 		);
 	}
 
-
 	public function testGetFileIdReturnsIdFromFile(): void
 	{
-
 		$file = $this->createMock( File::class );
 		$file->method( 'getId' )
 		     ->willReturn( 42 )
@@ -303,22 +287,18 @@ class FilecacheServiceTest
 		$this->assertSame( 42, $id );
 	}
 
-
 	public function testGetFileIdReturnsInt(): void
 	{
-
 		$id = FilecacheService::getFileId( 42 );
 
 		$this->assertSame( 42, $id );
 	}
-
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testGetNodeByIdReturnsNode(): void
 	{
-
 		$node = $this->createMock( Node::class );
 
 		$this->rootFolder->expects( $this->once() )
@@ -332,10 +312,8 @@ class FilecacheServiceTest
 		$this->assertSame( $node, $result );
 	}
 
-
 	public function testGetNodeByIdThrowsWhenEmpty(): void
 	{
-
 		$this->rootFolder->expects( $this->once() )
 		                 ->method( 'getById' )
 		                 ->with( 42 )
@@ -347,13 +325,11 @@ class FilecacheServiceTest
 		$this->service->getNodeById( 42 );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testGetUserFolderDelegates(): void
 	{
-
 		$folder = $this->createMock( Folder::class );
 
 		$this->rootFolder->expects( $this->once() )
@@ -367,13 +343,11 @@ class FilecacheServiceTest
 		$this->assertSame( $folder, $result );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testGetUserFolderPathReturnsPath(): void
 	{
-
 		$folder = $this->createMock( Folder::class );
 		$folder->method( 'getPath' )
 		       ->willReturn( '/admin/files' )
@@ -390,10 +364,8 @@ class FilecacheServiceTest
 		$this->assertSame( '/admin/files', $path );
 	}
 
-
 	public function testCopyFilecacheChecksumDoesNotThrow(): void
 	{
-
 		$source = $this->createMock( File::class );
 		$target = $this->createMock( File::class );
 
@@ -406,10 +378,8 @@ class FilecacheServiceTest
 		$this->addToAssertionCount( 1 );
 	}
 
-
 	public function testCopyFilecacheChecksumCopiesToTarget(): void
 	{
-
 		$source = $this->createMock( File::class );
 		$target = $this->createMock( File::class );
 
@@ -438,19 +408,15 @@ class FilecacheServiceTest
 		$this->service->copyFilecacheChecksum( $source, $target );
 	}
 
-
 	public function testBatchLookupFilecachePathsReturnsEmptyForEmptyInput(): void
 	{
-
 		$result = $this->service->batchLookupFilecachePaths( [] );
 
 		$this->assertSame( [], $result );
 	}
 
-
 	public function testBatchLookupFilecachePath(): void
 	{
-
 		$fileIds  = [ 42 ];
 		$mockRows = [
 			[
@@ -485,10 +451,8 @@ class FilecacheServiceTest
 		$this->assertArrayHasKey( 42, $result );
 	}
 
-
 	public function testBatchLookupFilecachePathsBuildsQueryAndReturnsRows(): void
 	{
-
 		$fileIds  = [
 			42,
 			108,
@@ -539,7 +503,6 @@ class FilecacheServiceTest
 		$this->assertSame( 'vacation.jpg', $result[108]['name'] );
 	}
 
-
 	/**
 	 * Given mounts, the query is narrowed to them — one more predicate,
 	 * whatever their number — and the rows still come back mapped. The
@@ -549,7 +512,6 @@ class FilecacheServiceTest
 	 */
 	public function testBatchLookupFilecachePathsNarrowsToTheGivenMounts(): void
 	{
-
 		$fileIds  = [ 42 ];
 		$mockRows = [
 			[
@@ -588,21 +550,18 @@ class FilecacheServiceTest
 		$this->assertSame( 'admin', $result[42]['owner'] );
 	}
 
-
 	/**
 	 * A reach holding nothing matches nothing — not everything, which is
 	 * what a filter that quietly disappears when its list is empty does.
 	 */
 	public function testBatchLookupFilecachePathsWithNoMountsAsksNothing(): void
 	{
-
 		$this->db->expects( $this->never() )
 		         ->method( 'getQueryBuilder' )
 		;
 
 		$this->assertSame( [], $this->service->batchLookupFilecachePaths( [ 42 ], [] ) );
 	}
-
 
 	/**
 	 * A local storage used to yield a "user" — the last segment of its id,
@@ -611,7 +570,6 @@ class FilecacheServiceTest
 	 */
 	public function testBatchLookupFilecachePathsOwnsNoLocalStorageFile(): void
 	{
-
 		$fileIds  = [ 42 ];
 		$mockRows = [
 			[
@@ -646,7 +604,6 @@ class FilecacheServiceTest
 		$this->assertSame( 'storage:local::/mnt/data/user1/Documents', $result[42]['location'] );
 	}
 
-
 	/**
 	 * Asked for, each row says where it lives on disk: a home file under
 	 * the account's home, which is asked once however many rows the
@@ -655,7 +612,6 @@ class FilecacheServiceTest
 	 */
 	public function testBatchLookupFilecachePathsAddsALocalPathWhenAsked(): void
 	{
-
 		$mockRows = [
 			[ 'fileid' => 1, 'path' => 'files/a.txt', 'name' => 'a.txt', 'id' => 'home::admin' ],
 			[ 'fileid' => 2, 'path' => 'files/b.txt', 'name' => 'b.txt', 'id' => 'home::admin' ],
@@ -694,10 +650,8 @@ class FilecacheServiceTest
 		$this->assertNull( $result[4]['local_path'] );
 	}
 
-
 	public function testBatchLookupFilecachePathsHasNoLocalPathUnlessAsked(): void
 	{
-
 		$this->expr->method( 'in' )
 		           ->willReturn( 'fc.fileid IN (:dcValue1)' )
 		;
@@ -726,14 +680,12 @@ class FilecacheServiceTest
 		$this->assertArrayNotHasKey( 'local_path', $result[1] );
 	}
 
-
 	/**
 	 * With server-side encryption on, what is on disk is not the file, so
 	 * no row names a path — and no account is looked up for one.
 	 */
 	public function testBatchLookupFilecachePathsNamesNoLocalPathUnderEncryption(): void
 	{
-
 		$this->expr->method( 'in' )
 		           ->willReturn( 'fc.fileid IN (:dcValue1)' )
 		;
@@ -765,10 +717,8 @@ class FilecacheServiceTest
 		$this->assertNull( $result[3]['local_path'] );
 	}
 
-
 	public function testBatchLookupFilecachePathsNamesNoLocalPathForAnAccountThatIsGone(): void
 	{
-
 		$this->expr->method( 'in' )
 		           ->willReturn( 'fc.fileid IN (:dcValue1)' )
 		;
@@ -797,17 +747,13 @@ class FilecacheServiceTest
 		$this->assertNull( $result[1]['local_path'] );
 	}
 
-
 	public function testFitChecksumPairsReturnsEmptyForEmptyInput(): void
 	{
-
 		$this->assertSame( '', FilecacheService::fitChecksumPairs( [] ) );
 	}
 
-
 	public function testFitChecksumPairsKeepsAllPairsWhenUnderLimit(): void
 	{
-
 		$pairs = [
 			'SHA1:aaa',
 			'MD5:bbb',
@@ -819,10 +765,8 @@ class FilecacheServiceTest
 		);
 	}
 
-
 	public function testFitChecksumPairsDropsPairsExceedingColumnLimit(): void
 	{
-
 		$pairs = [
 			'SHA1:' . str_repeat( 'a', 40 ),
 			'MD5:' . str_repeat( 'b', 32 ),
@@ -847,10 +791,8 @@ class FilecacheServiceTest
 		$this->assertStringNotContainsString( 'SHA3-512:', $result );
 	}
 
-
 	public function testSetHashesWritesTruncatedChecksumToCache(): void
 	{
-
 		$file    = $this->createMock( File::class );
 		$storage = $this->createMock( IStorage::class );
 		$cache   = $this->createMock( ICache::class );
@@ -869,10 +811,10 @@ class FilecacheServiceTest
 		      ->method( 'update' )
 		      ->with(
 			      42,
-			      $this->callback( function (
+			      $this->callback( function(
 				      array $data,
-			      ) {
-
+			      )
+			      {
 				      $checksum = $data['checksum'] ?? '';
 
 				      return is_string( $checksum )
@@ -898,12 +840,9 @@ class FilecacheServiceTest
 		);
 	}
 
-
 	// ─── parseChecksumString ────────────────────────────────────────
-
 	public function testParseChecksumStringLowercasesAlgosAndKeepsHashes(): void
 	{
-
 		$this->assertSame(
 			[
 				'sha1' => 'dead',
@@ -913,10 +852,8 @@ class FilecacheServiceTest
 		);
 	}
 
-
 	public function testParseChecksumStringSkipsMalformedFragments(): void
 	{
-
 		// The column is free text as far as the database cares; a broken
 		// fragment must not take the parseable ones down with it.
 		$this->assertSame(
@@ -926,13 +863,11 @@ class FilecacheServiceTest
 		$this->assertSame( [], FilecacheService::parseChecksumString( '' ) );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testListAddressableStoragesLeavesOutWhatOtherSelectorsOwn(): void
 	{
-
 		$this->config->method( 'getSystemValue' )
 		             ->with( 'datadirectory', '' )
 		             ->willReturn( '/var/www/html/data' )
@@ -966,5 +901,4 @@ class FilecacheServiceTest
 			$this->service->listAddressableStorages(),
 		);
 	}
-
 }

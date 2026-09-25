@@ -33,6 +33,8 @@ use Throwable;
 class JobStatsService
 {
 
+//  constants
+
 	/** The periodic rule sweep (RuleProcessingJob). */
 	public const JOB_RULE_SWEEP = 'rule_sweep';
 
@@ -43,12 +45,14 @@ class JobStatsService
 	public const JOB_ORPHAN_PURGE = 'orphan_purge';
 
 	public const JOBS
-		= [
+		 = [
 			self::JOB_RULE_SWEEP,
 			self::JOB_PENDING_DRAIN,
 			self::JOB_ORPHAN_PURGE,
 		];
 
+
+//  constructor
 
 	public function __construct(
 		private readonly IAppConfig      $appConfig,
@@ -57,6 +61,8 @@ class JobStatsService
 	) {
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * Record one completed run. Never throws: bookkeeping must not be able
@@ -67,8 +73,8 @@ class JobStatsService
 	public function record(
 		string $job,
 		array  $counts,
-	): void {
-
+	): void
+	{
 		try
 		{
 			$this->appConfig->setValueInt(
@@ -95,7 +101,6 @@ class JobStatsService
 		}
 	}
 
-
 	/**
 	 * Every job's last run, for the status surface.
 	 *
@@ -103,7 +108,6 @@ class JobStatsService
 	 */
 	public function lastRuns(): array
 	{
-
 		$runs = [];
 
 		foreach ( self::JOBS as $job )
@@ -142,5 +146,4 @@ class JobStatsService
 
 		return $runs;
 	}
-
 }

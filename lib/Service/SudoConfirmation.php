@@ -35,9 +35,13 @@ use Throwable;
 class SudoConfirmation
 {
 
+//  constants
+
 	/** Core's window, `PasswordConfirmationMiddleware`: thirty minutes. */
 	public const WINDOW = 30 * 60;
 
+
+//  constructor
 
 	public function __construct(
 		private readonly ISession       $session,
@@ -48,9 +52,10 @@ class SudoConfirmation
 	}
 
 
+//  getters / setters / is* / has*
+
 	public function isConfirmed( string $uid ): bool
 	{
-
 		$confirmedAt = (int) $this->session->get( 'last-password-confirm' );
 
 		if ( $confirmedAt > $this->time->getTime() - self::WINDOW )
@@ -81,5 +86,4 @@ class SudoConfirmation
 
 		return $this->sudoTokens->isGranted( $uid, $tokenId );
 	}
-
 }

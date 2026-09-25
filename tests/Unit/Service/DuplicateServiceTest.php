@@ -22,9 +22,11 @@ use PHPUnit\Framework\TestCase;
  * MetadataService and FilecacheService dependencies.
  */
 class DuplicateServiceTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private MetadataService&MockObject  $metadataService;
 
@@ -33,9 +35,10 @@ class DuplicateServiceTest
 	private DuplicateService            $service;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->metadataService  = $this->createMock( MetadataService::class );
@@ -59,12 +62,13 @@ class DuplicateServiceTest
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * @noinspection PhpRedundantOptionalArgumentInspection
 	 */
 	public function testFindAllDuplicatesDelegatesToMetadataService(): void
 	{
-
 		$rows = [
 			[
 				MetadataService::FIELD_META_KEY          => MetadataService::getHashKey( 'sha1' ),
@@ -119,10 +123,8 @@ class DuplicateServiceTest
 		);
 	}
 
-
 	public function testFindByHashResolvesFilecachePaths(): void
 	{
-
 		$this->givenTheHashIsConfirmed();
 
 		$hash = 'abc123';
@@ -174,10 +176,8 @@ class DuplicateServiceTest
 		$this->assertSame( 'report.pdf', $result[0]['name'] );
 	}
 
-
 	public function testFindByHashSkipsUnresolvablePaths(): void
 	{
-
 		$this->givenTheHashIsConfirmed();
 
 		$hash = 'deadbeef';
@@ -237,10 +237,8 @@ class DuplicateServiceTest
 		$this->assertSame( 10, $result[0]['fileid'] );
 	}
 
-
 	public function testFindByHashRejectsTruncatedPrefixFalsePositive(): void
 	{
-
 		// Regression test for FCIAS Review §6, Finding 6: queryByHash()
 		// matches on the truncated index value for long hashes, so a
 		// candidate row may only share the truncated prefix. The full
@@ -283,10 +281,8 @@ class DuplicateServiceTest
 		$this->assertCount( 0, $result );
 	}
 
-
 	public function testFindByHashScopesLookupToGivenUser(): void
 	{
-
 		$this->givenTheHashIsConfirmed();
 
 		$hash = 'abc123';
@@ -332,14 +328,12 @@ class DuplicateServiceTest
 		$this->assertCount( 1, $result );
 	}
 
-
 	/**
 	 * Asked for the local path, the lookup asks the filecache for it and
 	 * each row carries what came back — null included, which is an answer.
 	 */
 	public function testFindByHashPassesTheLocalPathRequestDownAndTheAnswerUp(): void
 	{
-
 		$hash = 'abc';
 		$rows = [
 			[ MetadataService::FIELD_FILE_ID => 42, MetadataService::FIELD_META_KEY => 'file-checksum-sha1' ],
@@ -370,10 +364,8 @@ class DuplicateServiceTest
 		$this->assertNull( $result[1]['local_path'] );
 	}
 
-
 	public function testFindByHashCarriesNoLocalPathUnlessAsked(): void
 	{
-
 		$hash = 'abc';
 		$rows = [ [ MetadataService::FIELD_FILE_ID => 42, MetadataService::FIELD_META_KEY => 'file-checksum-sha1' ] ];
 
@@ -395,14 +387,12 @@ class DuplicateServiceTest
 		$this->assertArrayNotHasKey( 'local_path', $result[0] );
 	}
 
-
 	/**
 	 * The confirmation lives in MetadataService; a test that is not about it
 	 * says so by letting every candidate through.
 	 */
 	private function givenTheHashIsConfirmed(): void
 	{
-
 		$this->metadataService->method( 'confirmFullHash' )
 		                      ->willReturnCallback(
 			                      static fn(
@@ -411,5 +401,4 @@ class DuplicateServiceTest
 		                      )
 		;
 	}
-
 }

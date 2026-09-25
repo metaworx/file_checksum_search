@@ -35,9 +35,11 @@ use Psr\Log\LoggerInterface;
  * @noinspection PhpClassCanBeReadonlyInspection
  */
 class HashSearchProvider
-	implements
-	IProvider
+    implements
+    IProvider
 {
+
+//  constructor
 
 	public function __construct(
 		private readonly MetadataService $metadataService,
@@ -46,9 +48,10 @@ class HashSearchProvider
 		private readonly IURLGenerator   $urlGenerator,
 		private readonly LoggerInterface $logger,
 	) {
-
 	}
 
+
+//  getters / setters / is* / has*
 
 	/**
 	 * The provider id, which is also the OCS route clients search through:
@@ -56,10 +59,8 @@ class HashSearchProvider
 	 */
 	public function getId(): string
 	{
-
 		return 'file_checksum_search_provider';
 	}
-
 
 	/**
 	 * The heading the results appear under, kept short because the search
@@ -67,10 +68,8 @@ class HashSearchProvider
 	 */
 	public function getName(): string
 	{
-
 		return 'File Checksums';
 	}
-
 
 	/**
 	 * Below the providers that answer what most searches are for — files by
@@ -80,11 +79,13 @@ class HashSearchProvider
 	public function getOrder(
 		string $route,
 		array  $routeParameters,
-	): int {
-
+	): int
+	{
 		return 20;
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * Answer with the files this user can open whose hash is the term.
@@ -96,8 +97,8 @@ class HashSearchProvider
 	public function search(
 		IUser        $user,
 		ISearchQuery $query,
-	): SearchResult {
-
+	): SearchResult
+	{
 		$term = trim( $query->getTerm() );
 
 		$this->logger->debug(
@@ -192,5 +193,4 @@ class HashSearchProvider
 
 		return SearchResult::complete( $this->getName(), $entries );
 	}
-
 }

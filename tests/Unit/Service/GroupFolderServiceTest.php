@@ -21,9 +21,11 @@ use Psr\Log\LoggerInterface;
  * database — when the groupfolders app is absent.
  */
 class GroupFolderServiceTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private MockObject|IAppManager     $appManager;
 
@@ -34,9 +36,10 @@ class GroupFolderServiceTest
 	private GroupFolderService         $service;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->appManager = $this->createMock( IAppManager::class );
@@ -51,9 +54,10 @@ class GroupFolderServiceTest
 	}
 
 
+//  other non-static methods
+
 	public function testUnavailableWhenTheAppIsDisabled(): void
 	{
-
 		$this->appManager->method( 'isEnabledForUser' )
 		                 ->with( 'groupfolders' )
 		                 ->willReturn( false )
@@ -68,10 +72,8 @@ class GroupFolderServiceTest
 		$this->assertSame( [], $this->service->listFolders() );
 	}
 
-
 	public function testUnavailableWhenTheAppManagerItselfFails(): void
 	{
-
 		$this->appManager->method( 'isEnabledForUser' )
 		                 ->willThrowException( new \RuntimeException( 'no app manager today' ) )
 		;
@@ -79,10 +81,8 @@ class GroupFolderServiceTest
 		$this->assertFalse( $this->service->isAvailable() );
 	}
 
-
 	public function testAppNameComesFromTheAppItself(): void
 	{
-
 		$this->appManager->method( 'isEnabledForUser' )
 		                 ->willReturn( true )
 		;
@@ -94,10 +94,8 @@ class GroupFolderServiceTest
 		$this->assertSame( 'Team Folders', $this->service->appName() );
 	}
 
-
 	public function testAppNameIsNullWhenTheAppIsAbsent(): void
 	{
-
 		$this->appManager->method( 'isEnabledForUser' )
 		                 ->willReturn( false )
 		;
@@ -107,10 +105,8 @@ class GroupFolderServiceTest
 		$this->assertNull( $this->service->appName() );
 	}
 
-
 	public function testASchemaSurpriseYieldsAnEmptyListNotAnError(): void
 	{
-
 		$this->appManager->method( 'isEnabledForUser' )
 		                 ->willReturn( true )
 		;
@@ -127,5 +123,4 @@ class GroupFolderServiceTest
 
 		$this->assertSame( [], $this->service->listFolders() );
 	}
-
 }

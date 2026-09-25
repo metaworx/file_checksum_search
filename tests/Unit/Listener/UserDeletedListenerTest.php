@@ -21,9 +21,11 @@ use Psr\Log\LoggerInterface;
 use RuntimeException;
 
 class UserDeletedListenerTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private IAppConfig&MockObject      $appConfig;
 
@@ -32,9 +34,10 @@ class UserDeletedListenerTest
 	private UserDeletedListener        $listener;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->appConfig = $this->createMock( IAppConfig::class );
@@ -43,9 +46,10 @@ class UserDeletedListenerTest
 	}
 
 
+//  other non-static methods
+
 	public function testADeletedUserMakesThePurgeDueNow(): void
 	{
-
 		$event = $this->createMock( UserDeletedEvent::class );
 		$event->method( 'getUid' )
 		      ->willReturn( 'alice' )
@@ -61,10 +65,8 @@ class UserDeletedListenerTest
 		$this->listener->handle( $event );
 	}
 
-
 	public function testOtherEventsAreIgnored(): void
 	{
-
 		$this->appConfig->expects( $this->never() )
 		                ->method( 'setValueInt' )
 		;
@@ -72,14 +74,12 @@ class UserDeletedListenerTest
 		$this->listener->handle( $this->createMock( AppDisableEvent::class ) );
 	}
 
-
 	/**
 	 * The deletion has already happened when this runs; nothing here may
 	 * turn a successful deletion into an error the caller sees.
 	 */
 	public function testAFailureIsLoggedAndNotThrown(): void
 	{
-
 		$this->appConfig->method( 'setValueInt' )
 		                ->willThrowException( new RuntimeException( 'config store is read-only' ) )
 		;
@@ -92,5 +92,4 @@ class UserDeletedListenerTest
 
 		$this->addToAssertionCount( 1 );
 	}
-
 }

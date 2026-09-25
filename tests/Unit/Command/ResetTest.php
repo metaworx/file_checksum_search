@@ -29,9 +29,11 @@ use Symfony\Component\Console\Tester\CommandTester;
  * none either.
  */
 class ResetTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private AppConfigService&MockObject $appConfigService;
 
@@ -44,9 +46,10 @@ class ResetTest
 	private string                      $tempDir;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->appConfigService = $this->createMock( AppConfigService::class );
@@ -72,9 +75,10 @@ class ResetTest
 	}
 
 
+//  other non-static methods
+
 	protected function tearDown(): void
 	{
-
 		foreach (
 			glob( $this->tempDir . '/*' )
 				?: [] as $file
@@ -82,27 +86,24 @@ class ResetTest
 		{
 			@unlink( $file );
 		}
+
 		@rmdir( $this->tempDir );
 
 		parent::tearDown();
 	}
-
 
 	/**
 	 * The central assertion of the whole command.
 	 */
 	public function testWithoutForceItChangesNothingAtAll(): void
 	{
-
 		$this->expectNoMutation();
 
 		$this->assertSame( Command::SUCCESS, $this->tester->execute( [] ) );
 	}
 
-
 	public function testWithoutForceItSaysWhatWouldHappenAndHow(): void
 	{
-
 		$this->tester->execute( [] );
 		$display = $this->tester->getDisplay();
 
@@ -112,10 +113,8 @@ class ResetTest
 		$this->assertStringContainsString( '--force', $display );
 	}
 
-
 	public function testNamingNoSliceResetsAllOfThem(): void
 	{
-
 		$this->appConfigService->expects( $this->once() )
 		                       ->method( 'clear' )
 		;
@@ -129,10 +128,8 @@ class ResetTest
 		$this->assertSame( Command::SUCCESS, $this->tester->execute( [ '--force' => true ] ) );
 	}
 
-
 	public function testNamingSlicesLeavesTheOthersAlone(): void
 	{
-
 		$this->appConfigService->expects( $this->never() )
 		                       ->method( 'clear' )
 		;
@@ -151,14 +148,12 @@ class ResetTest
 		);
 	}
 
-
 	/**
 	 * Disowning is one write per thousand files; clearing is one metadata
 	 * document rewrite each. The default defers, and says so.
 	 */
 	public function testHashesAreDisownedRatherThanCleared(): void
 	{
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'markAllStale' )
 		                      ->willReturn( 1140 )
@@ -177,10 +172,8 @@ class ResetTest
 		$this->assertStringContainsString( '1140 files disowned', $this->tester->getDisplay() );
 	}
 
-
 	public function testNowClearsInTheForegroundInstead(): void
 	{
-
 		$this->metadataService->expects( $this->never() )
 		                      ->method( 'markAllStale' )
 		;
@@ -200,21 +193,18 @@ class ResetTest
 		$this->assertStringContainsString( '1140 files cleared', $this->tester->getDisplay() );
 	}
 
-
 	public function testTheBackupIsWrittenBeforeAnythingIsReset(): void
 	{
-
 		$order = [];
 
 		$this->exportService->method( 'export' )
 		                    ->willReturnCallback(
-			                    static function () use
+			                    static function() use
 			                    (
 				                    &
 				                    $order,
 			                    ): array
 			                    {
-
 				                    $order[] = 'backup';
 
 				                    return [];
@@ -223,13 +213,12 @@ class ResetTest
 		;
 		$this->metadataService->method( 'markAllStale' )
 		                      ->willReturnCallback(
-			                      static function () use
+			                      static function() use
 			                      (
 				                      &
 				                      $order,
 			                      ): int
 			                      {
-
 				                      $order[] = 'reset';
 
 				                      return 1;
@@ -254,14 +243,12 @@ class ResetTest
 		);
 	}
 
-
 	/**
 	 * A safety net that tears is worse than none, because the operator went
 	 * ahead believing they had one.
 	 */
 	public function testAFailedBackupResetsNothing(): void
 	{
-
 		$this->exportService->method( 'export' )
 		                    ->willThrowException( new RuntimeException( 'disk full' ) )
 		;
@@ -279,10 +266,8 @@ class ResetTest
 		$this->assertStringContainsString( 'Nothing was reset', $this->tester->getDisplay() );
 	}
 
-
 	public function testAnUnwritableBackupPathResetsNothing(): void
 	{
-
 		$this->exportService->expects( $this->never() )
 		                    ->method( 'export' )
 		;
@@ -299,13 +284,11 @@ class ResetTest
 		);
 	}
 
-
 	/**
 	 * Somebody has to be able to find out afterwards who did this.
 	 */
 	public function testForcingLogsOneAuditLineNamingTheActorAndTheSlices(): void
 	{
-
 		$logger = $this->createMock( LoggerInterface::class );
 		$logger->expects( $this->once() )
 		       ->method( 'warning' )
@@ -329,10 +312,8 @@ class ResetTest
 		);
 	}
 
-
 	public function testAPlanIsNotAudited(): void
 	{
-
 		$logger = $this->createMock( LoggerInterface::class );
 		$logger->expects( $this->never() )
 		       ->method( 'warning' )
@@ -341,13 +322,11 @@ class ResetTest
 		( new CommandTester( $this->command( $logger ) ) )->execute( [] );
 	}
 
-
 	/**
 	 * Every way this command can change something, forbidden at once.
 	 */
 	private function expectNoMutation(): void
 	{
-
 		$this->appConfigService->expects( $this->never() )
 		                       ->method( 'clear' )
 		;
@@ -368,10 +347,8 @@ class ResetTest
 		;
 	}
 
-
 	private function command( ?LoggerInterface $logger = null ): Reset
 	{
-
 		return new Reset(
 			$this->appConfigService,
 			$this->metadataService,
@@ -379,5 +356,4 @@ class ResetTest
 			$logger ?? $this->createMock( LoggerInterface::class ),
 		);
 	}
-
 }

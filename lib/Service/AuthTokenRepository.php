@@ -34,6 +34,8 @@ use Psr\Log\LoggerInterface;
 class AuthTokenRepository
 {
 
+//  constants
+
 	public const TABLE = 'authtoken';
 
 	/** A session opened by logging in; made and discarded by the login itself. */
@@ -42,9 +44,14 @@ class AuthTokenRepository
 	/** An app password: created on the Security page, long-lived, the only kind worth granting. */
 	public const TYPE_APP_PASSWORD = 1;
 
+
+//  private properties
+
 	/** Whether the most recent read failed — an empty list that is not an answer. */
 	private bool $unavailable = false;
 
+
+//  constructor
 
 	public function __construct(
 		private readonly IDBConnection   $db,
@@ -53,6 +60,8 @@ class AuthTokenRepository
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * Every token of one account.
 	 *
@@ -60,7 +69,6 @@ class AuthTokenRepository
 	 */
 	public function listForUser( string $uid ): array
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->select( 'id', 'uid', 'name', 'type', 'last_activity', 'scope' )
 		   ->from( self::TABLE )
@@ -70,7 +78,6 @@ class AuthTokenRepository
 
 		return $this->rows( $qb );
 	}
-
 
 	/**
 	 * The tokens behind a set of ids, whoever owns them — for the
@@ -82,7 +89,6 @@ class AuthTokenRepository
 	 */
 	public function byIds( array $ids ): array
 	{
-
 		if ( $ids === [] )
 		{
 			return [];
@@ -104,7 +110,6 @@ class AuthTokenRepository
 		return $byId;
 	}
 
-
 	/**
 	 * Whether the last listing came back empty because the table could not be
 	 * read rather than because there was nothing in it. The pages ask this to
@@ -113,17 +118,14 @@ class AuthTokenRepository
 	 */
 	public function wasUnavailable(): bool
 	{
-
 		return $this->unavailable;
 	}
-
 
 	/**
 	 * @return list<array{id: int, uid: string, name: string, type: int, last_activity: int, filesystem: bool}>
 	 */
 	private function rows( IQueryBuilder $qb ): array
 	{
-
 		$this->unavailable = false;
 
 		try
@@ -165,6 +167,8 @@ class AuthTokenRepository
 	}
 
 
+//  static methods
+
 	/**
 	 * Whether a token's stored scope lets it reach files, by core's own
 	 * reading: no scope at all is unrestricted, and a scope without the
@@ -172,7 +176,6 @@ class AuthTokenRepository
 	 */
 	public static function filesystemAllowed( string $scopeJson ): bool
 	{
-
 		if ( $scopeJson === '' )
 		{
 			return true;
@@ -187,5 +190,4 @@ class AuthTokenRepository
 
 		return (bool) $scope['filesystem'];
 	}
-
 }

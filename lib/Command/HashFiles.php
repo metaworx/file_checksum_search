@@ -30,9 +30,11 @@ use Symfony\Component\Console\Output\OutputInterface;
  * @noinspection PhpUnused
  */
 class HashFiles
-	extends
-	Command
+    extends
+    Command
 {
+
+//  constants
 
 	/**
 	 * Sentinel default for --unmatched, distinguishing "option absent"
@@ -41,6 +43,8 @@ class HashFiles
 	private const UNMATCHED_ABSENT = "\0absent";
 
 
+//  constructor
+
 	public function __construct(
 		private readonly HashIndexService $hashIndexService,
 		private readonly MetadataService  $metadataService,
@@ -48,16 +52,17 @@ class HashFiles
 		private readonly RuleService      $ruleService,
 		private readonly LoggerInterface  $logger,
 		private readonly AlgorithmCatalogue $catalogue,
-	) {
-
+	)
+	{
 		parent::__construct();
 	}
 
 
+//  config/init/exe/run methods
+
 	/** @noinspection PhpUnused */
 	protected function configure(): void
 	{
-
 		$this->setName( 'file-checksum-search:hash' )
 		     ->setAliases( [ 'fcias:hash' ] )
 		     ->setDescription( 'Compute checksums for user files, or mark them for background processing' )
@@ -128,13 +133,12 @@ class HashFiles
 		;
 	}
 
-
 	/** @noinspection PhpUnused */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
-	): int {
-
+	): int
+	{
 		$userScope   = $input->getOption( 'user' );
 		$pathPattern = $input->getOption( 'path' );
 		$algos       = $this->normalizeAlgoList( $input->getOption( 'algo' ) );
@@ -309,7 +313,7 @@ class HashFiles
 			);
 
 			$totalProcessed += $result['processed'];
-			$totalSkipped   += $result['skipped'];
+			$totalSkipped += $result['skipped'];
 
 			if ( $remaining !== null )
 			{
@@ -334,6 +338,8 @@ class HashFiles
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * Build the run's rule overrides, or null when the input is not usable.
 	 *
@@ -350,8 +356,8 @@ class HashFiles
 	private function overridesFrom(
 		InputInterface  $input,
 		OutputInterface $output,
-	): ?RuleOverrides {
-
+	): ?RuleOverrides
+	{
 		/** @var list<string> $ignoreRuleIds */
 		$ignoreRuleIds = $input->getOption( 'ignore-rule' );
 		$withIgnored   = (bool) $input->getOption( 'with-ignored' );
@@ -361,8 +367,8 @@ class HashFiles
 		$unmatched = match ( $unmatchedRaw )
 		{
 			self::UNMATCHED_ABSENT => RuleOverrides::UNMATCHED_SKIP,
-			null => RuleOverrides::UNMATCHED_ONLY,
-			default => strtolower( (string) $unmatchedRaw ),
+			null                   => RuleOverrides::UNMATCHED_ONLY,
+			default                => strtolower( (string) $unmatchedRaw ),
 		};
 
 		if ( ! in_array( $unmatched, RuleOverrides::UNMATCHED_CHOICES, true ) )
@@ -435,7 +441,6 @@ class HashFiles
 		return new RuleOverrides( $withIgnored, $ignoreRuleIds, $unmatched );
 	}
 
-
 	/**
 	 * Normalize the repeatable --algo option into a lowercase, unique token
 	 * list. Each value may itself be comma-separated; "all" expands to every
@@ -448,7 +453,6 @@ class HashFiles
 	 */
 	private function normalizeAlgoList( array $values ): array
 	{
-
 		$tokens = [];
 
 		foreach ( $values as $value )
@@ -476,7 +480,6 @@ class HashFiles
 		return array_values( array_unique( $tokens ) );
 	}
 
-
 	/**
 	 * Mark-only mode: walk user folders and mark matching files as pending:<mode>.
 	 *
@@ -496,8 +499,8 @@ class HashFiles
 		RuleOverrides   $overrides,
 		string          $mode,
 		OutputInterface $output,
-	): int {
-
+	): int
+	{
 		$output->writeln(
 			sprintf(
 				'Marking files as pending:%s for %d user(s) …',
@@ -546,7 +549,7 @@ class HashFiles
 				$skipped,
 			);
 
-			$totalMarked  += $marked;
+			$totalMarked += $marked;
 			$totalSkipped += $skipped;
 
 			if ( $remaining !== null )
@@ -580,7 +583,6 @@ class HashFiles
 		return Command::SUCCESS;
 	}
 
-
 	/**
 	 * Mark files matching a path glob as pending:<mode>.
 	 *
@@ -602,8 +604,8 @@ class HashFiles
 		OutputInterface $output,
 		?int            &$remaining,
 		int             &$skipped = 0,
-	): int {
-
+	): int
+	{
 		$files = $this->ruleService->searchFilesByGlob(
 			$folder,
 			$pathPattern ?? '**',
@@ -658,5 +660,4 @@ class HashFiles
 
 		return $marked;
 	}
-
 }

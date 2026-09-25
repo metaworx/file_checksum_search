@@ -22,26 +22,30 @@ use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 
 class Application
-	extends
-	App
-	implements
-	IBootstrap
+    extends
+    App
+    implements
+    IBootstrap
 {
+
+//  constants
 
 	public const APP_ID = 'file_checksum_search';
 
 
+//  constructor
+
 	/** @psalm-suppress PossiblyUnusedMethod */
 	public function __construct()
 	{
-
 		parent::__construct( self::APP_ID );
 	}
 
 
+//  other non-static methods
+
 	public function register( IRegistrationContext $context ): void
 	{
-
 		$context->registerConfigLexicon( ConfigLexicon::class );
 		$context->registerSearchProvider( HashSearchProvider::class );
 
@@ -52,9 +56,7 @@ class Application
 		UserDeletedListener::register( $context );
 	}
 
-
 	public function boot( IBootContext $context ): void
 	{
 	}
-
 }

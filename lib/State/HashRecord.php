@@ -25,6 +25,8 @@ namespace OCA\FileChecksumSearch\State;
 readonly class HashRecord
 {
 
+//  constructor
+
 	public function __construct(
 		public string $storageId,
 		public string $path,
@@ -35,12 +37,13 @@ readonly class HashRecord
 	}
 
 
+//  static methods
+
 	/**
 	 * @param  array<string, mixed>  $row
 	 */
 	public static function fromArray( array $row ): self
 	{
-
 		return new self(
 			(string) ( $row['storage'] ?? '' ),
 			(string) ( $row['path'] ?? '' ),
@@ -53,12 +56,13 @@ readonly class HashRecord
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * @return array<string, string|int|null>
 	 */
 	public function toArray(): array
 	{
-
 		return [
 			'storage'    => $this->storageId,
 			'path'       => $this->path,
@@ -68,26 +72,24 @@ readonly class HashRecord
 		];
 	}
 
-
 	/**
 	 * What this record names, for a message a person has to act on.
 	 */
 	public function describe(): string
 	{
-
 		return $this->storageId === ''
 			? $this->path
 			: $this->storageId . '/' . ltrim( $this->path, '/' );
 	}
 
 
+//  getters / setters / is* / has*
+
 	/**
 	 * Whether this record says enough to be written anywhere.
 	 */
 	public function isComplete(): bool
 	{
-
 		return $this->path !== '' && $this->algo !== '' && $this->hash !== '';
 	}
-
 }

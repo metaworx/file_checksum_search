@@ -18,6 +18,8 @@ namespace OCA\FileChecksumSearch\Service;
 class DuplicateService
 {
 
+//  constants
+
 	/**
 	 * Default page size for duplicate-group listings (findAllDuplicates()
 	 * and the callers that route through it). Unrelated to
@@ -28,6 +30,8 @@ class DuplicateService
 	public const DEFAULT_DUPLICATE_LIMIT = 50;
 
 
+//  constructor
+
 	public function __construct(
 		private readonly MetadataService  $metadataService,
 		private readonly FilecacheService $filecacheService,
@@ -35,6 +39,8 @@ class DuplicateService
 	) {
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * Find all duplicate hash groups across the entire system.
@@ -56,14 +62,14 @@ class DuplicateService
 		int     $offset = 0,
 		?string $hash = null,
 		bool    $anywhere = false,
-	): array {
-
+	): array
+	{
 		$rows = $this->metadataService->queryDuplicates( $algo, $minCount, $limit, $offset, $hash, $anywhere );
 
-		return array_map( function (
+		return array_map( function(
 			array $row,
-		): array {
-
+		): array
+		{
 			// Through algorithmFromKey(), never stripped inline: taking
 			// only `file-checksum-` off `file-checksum-hash-sha1` leaves
 			// `hash-sha1`, which is not an algorithm anyone can recalculate —
@@ -80,7 +86,6 @@ class DuplicateService
 			];
 		}, $rows );
 	}
-
 
 	/**
 	 * Find hash rows matching a given hash value, with optional algo filter.
@@ -101,8 +106,8 @@ class DuplicateService
 		int     $limit = 100,
 		?string $userName = null,
 		bool    $withLocalPath = false,
-	): array {
-
+	): array
+	{
 		$rows = $this->metadataService->queryByHash( $hash, $algo, $limit );
 
 		if ( empty( $rows ) )
@@ -110,10 +115,10 @@ class DuplicateService
 			return [];
 		}
 
-		$fileIds = array_map( function (
+		$fileIds = array_map( function(
 			array $row,
-		): int {
-
+		): int
+		{
 			return (int) $row[ MetadataService::FIELD_FILE_ID ];
 		}, $rows );
 
@@ -156,5 +161,4 @@ class DuplicateService
 
 		return $results;
 	}
-
 }

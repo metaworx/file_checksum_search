@@ -25,18 +25,21 @@ use Symfony\Component\Console\Tester\CommandTester;
  * told before anything happens.
  */
 class RepairTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private RepairQuietStart&MockObject $repair;
 
 	private CommandTester               $tester;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->repair = $this->createMock( RepairQuietStart::class );
@@ -54,9 +57,10 @@ class RepairTest
 	}
 
 
+//  other non-static methods
+
 	public function testListShowsEveryStepAndRunsNothing(): void
 	{
-
 		$this->repair->expects( $this->never() )
 		             ->method( 'runSteps' )
 		;
@@ -70,10 +74,8 @@ class RepairTest
 		$this->assertStringContainsString( 'what the cheap one does', $display );
 	}
 
-
 	public function testNamingNoStepRunsThemAll(): void
 	{
-
 		$this->repair = $this->createMock( RepairQuietStart::class );
 		$this->repair->method( 'steps' )
 		             ->willReturn( $this->twoSteps() )
@@ -98,10 +100,8 @@ class RepairTest
 		$this->assertStringContainsString( 'Ran 2 step(s)', $this->tester->getDisplay() );
 	}
 
-
 	public function testNamingStepsRunsOnlyThose(): void
 	{
-
 		$this->repair = $this->createMock( RepairQuietStart::class );
 		$this->repair->method( 'steps' )
 		             ->willReturn( $this->twoSteps() )
@@ -119,13 +119,11 @@ class RepairTest
 		$this->tester->execute( [ '--step' => [ 'cheap-step' ] ] );
 	}
 
-
 	/**
 	 * A typo must not report a successful repair that did nothing.
 	 */
 	public function testAnUnknownStepFailsRatherThanBeingIgnored(): void
 	{
-
 		$this->repair->expects( $this->never() )
 		             ->method( 'runSteps' )
 		;
@@ -137,10 +135,8 @@ class RepairTest
 		$this->assertStringContainsString( 'No such step: cheep-step', $this->tester->getDisplay() );
 	}
 
-
 	public function testADryRunChangesNothingAndSaysWhatWould(): void
 	{
-
 		$this->repair->expects( $this->never() )
 		             ->method( 'runSteps' )
 		;
@@ -154,10 +150,8 @@ class RepairTest
 		$this->assertStringContainsString( 'asking first', $display );
 	}
 
-
 	public function testADryRunOfOneStepSaysTheOthersAreNotNamed(): void
 	{
-
 		$this->tester->execute(
 			[
 				'--dry-run' => true,
@@ -171,13 +165,11 @@ class RepairTest
 		);
 	}
 
-
 	/**
 	 * The flag exists to reach what a guard cannot see, so it has to arrive.
 	 */
 	public function testIncludeExpensiveReachesTheRepair(): void
 	{
-
 		$this->repair = $this->createMock( RepairQuietStart::class );
 		$this->repair->method( 'steps' )
 		             ->willReturn( $this->twoSteps() )
@@ -195,10 +187,8 @@ class RepairTest
 		$this->tester->execute( [ '--include-expensive' => true ] );
 	}
 
-
 	public function testADryRunOfAnExpensiveStepSaysSoWhenForced(): void
 	{
-
 		$this->tester->execute(
 			[
 				'--dry-run'           => true,
@@ -209,10 +199,8 @@ class RepairTest
 		$this->assertStringNotContainsString( 'asking first', $this->tester->getDisplay() );
 	}
 
-
 	public function testAFailureIsReportedRatherThanThrown(): void
 	{
-
 		$this->repair = $this->createMock( RepairQuietStart::class );
 		$this->repair->method( 'steps' )
 		             ->willReturn( $this->twoSteps() )
@@ -229,7 +217,6 @@ class RepairTest
 		$this->assertStringContainsString( 'the database went away', $this->tester->getDisplay() );
 	}
 
-
 	/**
 	 * @return list<array{step: RepairStep, method: ReflectionMethod}>
 	 * @noinspection PhpDocMissingThrowsInspection
@@ -237,7 +224,6 @@ class RepairTest
 	 */
 	private function twoSteps(): array
 	{
-
 		$method = new ReflectionMethod( $this, 'twoSteps' );
 
 		return [
@@ -261,13 +247,10 @@ class RepairTest
 		];
 	}
 
-
 	private function rebuild(): void
 	{
-
 		$this->tester = new CommandTester(
 			new Repair( $this->repair, $this->createMock( LoggerInterface::class ) ),
 		);
 	}
-
 }

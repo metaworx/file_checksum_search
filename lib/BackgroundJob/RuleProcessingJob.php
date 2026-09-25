@@ -31,9 +31,11 @@ use Throwable;
  * it in the job list; the app's boot() registers nothing.
  */
 class RuleProcessingJob
-	extends
-	TimedJob
+    extends
+    TimedJob
 {
+
+//  constants
 
 	/** App-config key: when the orphan purge last ran, in epoch seconds. Zero means "due now". */
 	public const ORPHAN_PURGE_LAST_RUN = 'orphan_purge_last_run';
@@ -46,6 +48,9 @@ class RuleProcessingJob
 	/** Batches per run, so one run stays bounded whatever the backlog. */
 	public const ORPHAN_PURGE_MAX_BATCHES = 20;
 
+
+//  constructor
+
 	public function __construct(
 		ITimeFactory                     $time,
 		private readonly RuleService     $ruleService,
@@ -54,8 +59,8 @@ class RuleProcessingJob
 		private readonly IJobList        $jobList,
 		private readonly JobStatsService $jobStats,
 		private readonly LoggerInterface $logger,
-	) {
-
+	)
+	{
 		parent::__construct( $time );
 
 		$interval = $this->appConfig->getValueInt(
@@ -77,9 +82,10 @@ class RuleProcessingJob
 	}
 
 
+//  config/init/exe/run methods
+
 	protected function run( $argument ): void
 	{
-
 		$this->logger->info(
 			'FCIAS RuleProcessingJob: run() called.',
 			[
@@ -120,6 +126,8 @@ class RuleProcessingJob
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * Forget files that no longer exist — once a day, riding this job.
 	 *
@@ -137,7 +145,6 @@ class RuleProcessingJob
 	 */
 	private function purgeOrphansIfDue(): void
 	{
-
 		$now      = $this->time->getTime();
 		$interval = $this->appConfig->getValueInt(
 			Application::APP_ID,
@@ -194,5 +201,4 @@ class RuleProcessingJob
 			],
 		);
 	}
-
 }

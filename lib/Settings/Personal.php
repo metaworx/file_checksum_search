@@ -22,34 +22,30 @@ use OCP\Settings\ISettings;
  * with the id returned here.
  */
 class Personal
-	implements
-	ISettings
+    implements
+    ISettings
 {
+
+//  getters / setters / is* / has*
 
 	public function getForm(): TemplateResponse
 	{
-
 		return new TemplateResponse( Application::APP_ID, 'settings-personal', [], '' );
 	}
-
 
 	/**
 	 * The section this page appears under, matching {@see PersonalSection}.
 	 */
 	public function getSection(): string
 	{
-
 		return Application::APP_ID . '_personal';
 	}
-
 
 	/**
 	 * Mid-list, where an app with no claim to be first belongs.
 	 */
 	public function getPriority(): int
 	{
-
 		return 50;
 	}
-
 }

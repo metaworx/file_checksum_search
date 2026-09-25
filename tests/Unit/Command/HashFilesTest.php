@@ -28,9 +28,11 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Tester\CommandTester;
 
 class HashFilesTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private MockObject|HashIndexService $hashIndexService;
 
@@ -47,9 +49,10 @@ class HashFilesTest
 	private CommandTester               $tester;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->hashIndexService = $this->createMock( HashIndexService::class );
@@ -57,7 +60,7 @@ class HashFilesTest
 		$this->filecacheService = $this->createMock( FilecacheService::class );
 		$this->ruleService      = $this->createMock( RuleService::class );
 		$this->logger           = $this->createMock( LoggerInterface::class );
-		$this->catalogue = new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) );
+		$this->catalogue        = new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) );
 
 		$command      = new HashFiles(
 			$this->hashIndexService,
@@ -71,9 +74,10 @@ class HashFilesTest
 	}
 
 
+//  other non-static methods
+
 	public function testFailsWhenNoUsersMatchScope(): void
 	{
-
 		$this->ruleService->method( 'resolveUsers' )
 		                  ->with( 'ghost' )
 		                  ->willReturn( [] )
@@ -85,10 +89,8 @@ class HashFilesTest
 		$this->assertStringContainsString( 'No users found for scope "ghost".', $this->tester->getDisplay() );
 	}
 
-
 	public function testGeneratesForSingleUserWithDefaultAlgo(): void
 	{
-
 		$this->ruleService->method( 'resolveUsers' )
 		                  ->with( 'alice' )
 		                  ->willReturn( [ 'alice' ] )
@@ -119,10 +121,8 @@ class HashFilesTest
 		$this->assertStringContainsString( 'Done. 5 files hashed, 1 skipped.', $this->tester->getDisplay() );
 	}
 
-
 	public function testCommaSeparatedAlgoListIsNormalized(): void
 	{
-
 		$this->ruleService->method( 'resolveUsers' )
 		                  ->willReturn( [ 'alice' ] )
 		;
@@ -158,10 +158,8 @@ class HashFilesTest
 		);
 	}
 
-
 	public function testAlgoAllExpandsToEverySupportedAlgorithm(): void
 	{
-
 		$this->ruleService->method( 'resolveUsers' )
 		                  ->willReturn( [ 'alice' ] )
 		;
@@ -191,10 +189,8 @@ class HashFilesTest
 		);
 	}
 
-
 	public function testPathOptionIsPassedThrough(): void
 	{
-
 		$this->ruleService->method( 'resolveUsers' )
 		                  ->willReturn( [ 'alice' ] )
 		;
@@ -218,10 +214,8 @@ class HashFilesTest
 		);
 	}
 
-
 	public function testAggregatesResultsAcrossMultipleUsers(): void
 	{
-
 		$this->ruleService->method( 'resolveUsers' )
 		                  ->with( 'all' )
 		                  ->willReturn(
@@ -251,10 +245,8 @@ class HashFilesTest
 		$this->assertStringContainsString( 'Done. 5 files hashed, 1 skipped.', $this->tester->getDisplay() );
 	}
 
-
 	public function testBatchSizeIsConsumedAcrossUsersAndStopsWhenExhausted(): void
 	{
-
 		$this->ruleService->method( 'resolveUsers' )
 		                  ->willReturn(
 			                  [
@@ -284,10 +276,8 @@ class HashFilesTest
 		);
 	}
 
-
 	public function testInvalidBatchSizeSilentlyBehavesAsZeroAndProcessesNoUsers(): void
 	{
-
 		// Known gap (FCIAS Review §6, Finding 3, not yet fixed): an
 		// unparseable --batch-size coerces to 0 via (int) with no
 		// validation, which this command's remaining>0 pre-check then
@@ -311,12 +301,9 @@ class HashFilesTest
 		);
 	}
 
-
 	// --mark
-
 	public function testMarkSkipsAndReportsFilesTheRulesExclude(): void
 	{
-
 		$this->ruleService->method( 'resolveUsers' )
 		                  ->willReturn( [ 'alice' ] )
 		;
@@ -397,10 +384,8 @@ class HashFilesTest
 		);
 	}
 
-
 	public function testMarkOnlyMarksMatchingFilesAsPendingMode(): void
 	{
-
 		$this->ruleService->method( 'resolveUsers' )
 		                  ->willReturn( [ 'alice' ] )
 		;
@@ -455,11 +440,11 @@ class HashFilesTest
 		$this->metadataService->expects( $this->exactly( 2 ) )
 		                      ->method( 'markPending' )
 		                      ->willReturnCallback(
-			                      function (
+			                      function(
 				                      int    $fileId,
 				                      string $mode,
-			                      ): void {
-
+			                      ): void
+			                      {
 				                      // pending:<--mode> — the default mode is missing.
 				                      $this->assertSame( 'pending:missing', $mode );
 			                      },
@@ -478,10 +463,8 @@ class HashFilesTest
 		$this->assertStringContainsString( 'Done. 2 files marked as pending:missing.', $this->tester->getDisplay() );
 	}
 
-
 	public function testMarkOnlySkipsUserWithoutFolder(): void
 	{
-
 		// Regression-relevant: getUserFolder() actually throws the
 		// internal \OC\User\NoUserException when the user vanished
 		// between resolveUsers() and this loop (a race), not an
@@ -510,12 +493,9 @@ class HashFilesTest
 		$this->assertStringContainsString( 'User folder not found, skipping.', $this->tester->getDisplay() );
 	}
 
-
 	// ─── rule overrides ─────────────────────────────────────────────
-
 	public function testWithIgnoredProcessesIgnoredFilesButStillSkipsExcluded(): void
 	{
-
 		$this->markSetup(
 			[
 				'/files/a.txt'         => [
@@ -539,7 +519,7 @@ class HashFilesTest
 		$marked = [];
 		$this->metadataService->method( 'markPending' )
 		                      ->willReturnCallback(
-			                      static function (
+			                      static function(
 				                      int $fileId,
 			                      ) use
 			                      (
@@ -547,7 +527,6 @@ class HashFilesTest
 				                      $marked,
 			                      ): void
 			                      {
-
 				                      $marked[] = $fileId;
 			                      },
 		                      )
@@ -574,10 +553,8 @@ class HashFilesTest
 		);
 	}
 
-
 	public function testIgnoreRuleIsPassedToTheLookupSoTheNextRuleDecides(): void
 	{
-
 		$this->ruleService->method( 'resolveUsers' )
 		                  ->willReturn( [ 'alice' ] )
 		;
@@ -627,10 +604,8 @@ class HashFilesTest
 		$this->assertSame( Command::SUCCESS, $exit );
 	}
 
-
 	public function testIgnoreRuleIsRepeatable(): void
 	{
-
 		$this->ruleService->method( 'resolveUsers' )
 		                  ->willReturn( [ 'alice' ] )
 		;
@@ -683,10 +658,8 @@ class HashFilesTest
 		);
 	}
 
-
 	public function testUnknownIgnoreRuleIdFailsRatherThanBeingSkipped(): void
 	{
-
 		$this->ruleService->method( 'findRuleById' )
 		                  ->willReturn( null )
 		;
@@ -708,10 +681,8 @@ class HashFilesTest
 		$this->assertStringContainsString( 'No rule with ID "nosuchrule".', $this->tester->getDisplay() );
 	}
 
-
 	public function testSettingAsideAnEnforcedRuleIsAllowedButLoggedAndAnnounced(): void
 	{
-
 		$this->ruleService->method( 'resolveUsers' )
 		                  ->willReturn( [ 'alice' ] )
 		;
@@ -764,10 +735,8 @@ class HashFilesTest
 		);
 	}
 
-
 	public function testVerboseNamesTheRuleThatSkippedEachFile(): void
 	{
-
 		$this->markSetup(
 			[
 				'/files/a.txt'         => [
@@ -798,10 +767,8 @@ class HashFilesTest
 		$this->assertStringNotContainsString( 'hash /files/a.txt', $display );
 	}
 
-
 	public function testVeryVerboseAlsoNamesTheRuleForFilesThatProceeded(): void
 	{
-
 		$this->markSetup(
 			[
 				'/files/a.txt' => [
@@ -822,10 +789,8 @@ class HashFilesTest
 		$this->assertStringContainsString( 'hash /files/a.txt [r1: band', $this->tester->getDisplay() );
 	}
 
-
 	public function testAFileNoRuleMatchesIsReportedAsSuch(): void
 	{
-
 		$this->markSetup( [ '/files/a.txt' => null ] );
 
 		$this->tester->execute(
@@ -841,12 +806,9 @@ class HashFilesTest
 		$this->assertStringContainsString( 'skip /files/a.txt [no matching rule]', $this->tester->getDisplay() );
 	}
 
-
 	// ─── option validation & new semantics ──────────────────────────
-
 	public function testUnknownAlgorithmFailsInsteadOfUnderdelivering(): void
 	{
-
 		$this->hashIndexService->expects( $this->never() )
 		                       ->method( 'generateMissingHashes' )
 		;
@@ -865,10 +827,8 @@ class HashFilesTest
 		$this->assertStringContainsString( 'Unsupported algorithm(s): shafive.', $this->tester->getDisplay() );
 	}
 
-
 	public function testAutoAndLazyModesAreRejectedWithAnExplanation(): void
 	{
-
 		foreach (
 			[
 				'auto',
@@ -890,10 +850,8 @@ class HashFilesTest
 		$this->assertStringContainsString( 'deferring is --mark', $this->tester->getDisplay() );
 	}
 
-
 	public function testModeForceIsPassedThroughToTheService(): void
 	{
-
 		$this->ruleService->method( 'resolveUsers' )
 		                  ->willReturn( [ 'alice' ] )
 		;
@@ -927,10 +885,8 @@ class HashFilesTest
 		);
 	}
 
-
 	public function testBareUnmatchedMeansUnmatchedOnly(): void
 	{
-
 		$this->ruleService->method( 'resolveUsers' )
 		                  ->willReturn( [ 'alice' ] )
 		;
@@ -969,10 +925,8 @@ class HashFilesTest
 		$this->assertStringContainsString( 'only files no rule governs', $this->tester->getDisplay() );
 	}
 
-
 	public function testUnmatchedWithPureAutoFailsFast(): void
 	{
-
 		// Unmatched files have no rule to supply algorithms; a run that
 		// could only skip every file it was asked to process must not look
 		// like a normal run.
@@ -991,10 +945,8 @@ class HashFilesTest
 		$this->assertStringContainsString( 'pass at least one explicit --algo', $this->tester->getDisplay() );
 	}
 
-
 	public function testMarkRefusesUnmatchedFiles(): void
 	{
-
 		// The drain honours rules at action time and would drop these marks;
 		// queueing work designed to be refused is not an option.
 		$exit = $this->tester->execute(
@@ -1010,10 +962,8 @@ class HashFilesTest
 		$this->assertStringContainsString( 'dropped at drain time', $this->tester->getDisplay() );
 	}
 
-
 	public function testMarkWithExplicitAlgosSaysTheyAreIgnored(): void
 	{
-
 		$this->markSetup(
 			[
 				'/files/a.txt' => [
@@ -1034,10 +984,8 @@ class HashFilesTest
 		$this->assertStringContainsString( '--algo is ignored with --mark', $this->tester->getDisplay() );
 	}
 
-
 	public function testMarkWithForceQueuesPendingForce(): void
 	{
-
 		$this->markSetup(
 			[
 				'/files/a.txt' => [
@@ -1063,10 +1011,8 @@ class HashFilesTest
 		);
 	}
 
-
 	public function testShorthandsResolveToTheirOptions(): void
 	{
-
 		$definition = ( new HashFiles(
 			$this->hashIndexService,
 			$this->metadataService,
@@ -1098,7 +1044,6 @@ class HashFilesTest
 		);
 	}
 
-
 	/**
 	 * Wire up a --mark run over $rulesByPath, one file per path, ids from 1.
 	 * The rule lookup is identity-based, so the stub maps the generated file
@@ -1108,7 +1053,6 @@ class HashFilesTest
 	 */
 	private function markSetup( array $rulesByPath ): void
 	{
-
 		$this->ruleService->method( 'resolveUsers' )
 		                  ->willReturn( [ 'alice' ] )
 		;
@@ -1150,5 +1094,4 @@ class HashFilesTest
 		                  )
 		;
 	}
-
 }

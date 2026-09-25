@@ -21,9 +21,11 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
 class ShowStatusTest
-	extends
-	FciasUnitTestCase
+    extends
+    FciasUnitTestCase
 {
+
+//  private properties
 
 	private MockObject|MetadataService $metadataService;
 
@@ -35,9 +37,10 @@ class ShowStatusTest
 	private CommandTester              $tester;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->db = $this->createMock( IDBConnection::class );
@@ -65,9 +68,10 @@ class ShowStatusTest
 	}
 
 
+//  other non-static methods
+
 	public function testPlainOutputShowsCountsAndVersion(): void
 	{
-
 		$this->appConfig->method( 'getValueString' )
 		                ->with( 'file_checksum_search', 'installed_version', 'unknown' )
 		                ->willReturn( '1.9.2' )
@@ -92,10 +96,8 @@ class ShowStatusTest
 		$this->assertStringContainsString( 'pending:auto', $display );
 	}
 
-
 	public function testPlainOutputOmitsPendingByModeWhenEmpty(): void
 	{
-
 		$this->appConfig->method( 'getValueString' )
 		                ->willReturn( 'unknown' )
 		;
@@ -108,10 +110,8 @@ class ShowStatusTest
 		$this->assertStringNotContainsString( 'Pending by mode:', $this->tester->getDisplay() );
 	}
 
-
 	public function testJsonOutputFormat(): void
 	{
-
 		$this->appConfig->method( 'getValueString' )
 		                ->willReturn( '1.9.2' )
 		;
@@ -129,7 +129,6 @@ class ShowStatusTest
 		$this->assertSame( [ 'pending:auto' => 2 ], $decoded['pending_by_mode'] );
 	}
 
-
 	/**
 	 * One total and a breakdown, because the reasons are opposites in what
 	 * they leave behind: erosion has already thrown the hashes away and
@@ -137,7 +136,6 @@ class ShowStatusTest
 	 */
 	public function testUntrustedHashesAreReportedByReason(): void
 	{
-
 		$this->appConfig->method( 'getValueString' )
 		                ->willReturn( '1.9.2' )
 		;
@@ -160,10 +158,8 @@ class ShowStatusTest
 		$this->assertStringContainsString( 'disowned by a reset', $display );
 	}
 
-
 	public function testUntrustedHashesAreInTheJsonToo(): void
 	{
-
 		$this->appConfig->method( 'getValueString' )
 		                ->willReturn( '1.9.2' )
 		;
@@ -178,10 +174,8 @@ class ShowStatusTest
 		$this->assertSame( [ MetadataService::STATE_RESET => 9 ], $decoded['untrusted_by_reason'] );
 	}
 
-
 	public function testNothingUntrustedOmitsTheBreakdown(): void
 	{
-
 		$this->appConfig->method( 'getValueString' )
 		                ->willReturn( 'unknown' )
 		;
@@ -195,5 +189,4 @@ class ShowStatusTest
 		$this->assertStringContainsString( 'Untrusted total:        0', $display );
 		$this->assertStringNotContainsString( 'Untrusted by reason:', $display );
 	}
-
 }

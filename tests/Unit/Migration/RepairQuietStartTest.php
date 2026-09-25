@@ -24,9 +24,11 @@ use ReflectionClass;
 use RuntimeException;
 
 class RepairQuietStartTest
-	extends
-	FciasUnitTestCase
+    extends
+    FciasUnitTestCase
 {
+
+//  private properties
 
 	private MockObject|RuleService     $ruleService;
 
@@ -43,9 +45,10 @@ class RepairQuietStartTest
 	private RepairQuietStart           $step;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->db              = $this->createMock( IDBConnection::class );
@@ -71,12 +74,13 @@ class RepairQuietStartTest
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testCreatesBothShippedDefaultsDisabledWhenAbsent(): void
 	{
-
 		$this->ruleService->method( 'loadRules' )
 		                  ->willReturn( [
 			                  [
@@ -90,7 +94,7 @@ class RepairQuietStartTest
 		$created = [];
 		$this->ruleService->method( 'ruleAdd' )
 		                  ->willReturnCallback(
-			                  static function (
+			                  static function(
 				                  array   $rule,
 				                  ?string $actor,
 			                  ) use
@@ -99,7 +103,6 @@ class RepairQuietStartTest
 				                  $created,
 			                  ): string
 			                  {
-
 				                  $created[] = [
 					                  $rule['selector'],
 					                  $rule['enabled'],
@@ -133,13 +136,11 @@ class RepairQuietStartTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testLeavesExistingDefaultsExactlyAsTheyAre(): void
 	{
-
 		// An enabled default stays enabled: upgrades never turn off what an
 		// administrator turned on, and never duplicate what exists.
 		$this->ruleService->method( 'loadRules' )
@@ -166,13 +167,11 @@ class RepairQuietStartTest
 		$this->step->run( $this->output );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testConvertsRetiredOffModeRulesToIgnore(): void
 	{
-
 		$this->ruleService->method( 'loadRules' )
 		                  ->willReturn( [
 			                  [
@@ -217,10 +216,8 @@ class RepairQuietStartTest
 		$this->step->run( $this->output );
 	}
 
-
 	public function testPurgesLegacyPendingNewRows(): void
 	{
-
 		$this->ruleService->method( 'loadRules' )
 		                  ->willReturn( [ [ 'userScope' => 'all' ] ] )
 		;
@@ -241,13 +238,11 @@ class RepairQuietStartTest
 		$this->step->run( $this->output );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRemovesTheLegacySeedJobOnlyWhenScheduled(): void
 	{
-
 		$this->ruleService->method( 'loadRules' )
 		                  ->willReturn( [ [ 'userScope' => 'all' ] ] )
 		;
@@ -267,13 +262,11 @@ class RepairQuietStartTest
 		$this->step->run( $this->output );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testWarnsInsteadOfThrowingSoTheUpgradeFinishes(): void
 	{
-
 		// A throwing repair step aborts the whole Nextcloud upgrade;
 		// everything here is recoverable by hand, so it must not.
 		$this->ruleService->method( 'loadRules' )
@@ -290,7 +283,6 @@ class RepairQuietStartTest
 		$this->step->run( $this->output );
 	}
 
-
 	/**
 	 * The declaration stops it happening again; this fixes what already
 	 * happened — every hash sitting in a metadata document with no index
@@ -301,7 +293,6 @@ class RepairQuietStartTest
 	 */
 	public function testItIndexesHashesThatWereNeverIndexed(): void
 	{
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'reindexHashes' )
 		                      ->willReturn( 127 )
@@ -313,7 +304,6 @@ class RepairQuietStartTest
 		$this->step->run( $this->output );
 	}
 
-
 	/**
 	 * Repair steps run on upgrade, and one that throws stops the rest.
 	 *
@@ -321,7 +311,6 @@ class RepairQuietStartTest
 	 */
 	public function testAFailedBackfillDoesNotStopTheRepair(): void
 	{
-
 		$this->metadataService->method( 'reindexHashes' )
 		                      ->willThrowException( new RuntimeException( 'no' ) )
 		;
@@ -330,7 +319,6 @@ class RepairQuietStartTest
 
 		$this->addToAssertionCount( 1 );
 	}
-
 
 	/**
 	 * The declaration is stored once, by the install migration. An instance
@@ -342,14 +330,12 @@ class RepairQuietStartTest
 	 */
 	public function testItRefreshesTheMetadataKeyDeclarations(): void
 	{
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'register' )
 		;
 
 		$this->step->run( $this->output );
 	}
-
 
 	/**
 	 * Repair steps run on upgrade, and one that throws stops the rest.
@@ -358,7 +344,6 @@ class RepairQuietStartTest
 	 */
 	public function testARefusedRefreshDoesNotStopTheRepair(): void
 	{
-
 		$this->metadataService->method( 'register' )
 		                      ->willThrowException( new RuntimeException( 'no' ) )
 		;
@@ -367,7 +352,6 @@ class RepairQuietStartTest
 
 		$this->addToAssertionCount( 1 );
 	}
-
 
 	/**
 	 * The registry cannot rot.
@@ -378,7 +362,6 @@ class RepairQuietStartTest
 	 */
 	public function testEveryStepIsDeclaredAndDistinct(): void
 	{
-
 		$names = [];
 
 		foreach ( $this->step->steps() as $entry )
@@ -404,14 +387,12 @@ class RepairQuietStartTest
 		$this->assertGreaterThanOrEqual( 9, count( $names ) );
 	}
 
-
 	/**
 	 * A private method that looks like a step but carries no attribute is
 	 * dead code at best and a step nobody runs at worst.
 	 */
 	public function testNoStepMethodIsLeftUndeclared(): void
 	{
-
 		$declared = array_map(
 			static fn(
 				array $entry,
@@ -462,7 +443,6 @@ class RepairQuietStartTest
 		);
 	}
 
-
 	/**
 	 * Declaration order is the running order, so a method moved in the file
 	 * moves in the repair. This pins the order that matters: the key
@@ -471,7 +451,6 @@ class RepairQuietStartTest
 	 */
 	public function testTheStepsRunInAnOrderThatWorks(): void
 	{
-
 		$names = array_map(
 			static fn(
 				array $entry,
@@ -505,7 +484,6 @@ class RepairQuietStartTest
 	 */
 	public function testTheScanForForgottenHashesDoesNotRunOnItsOwn(): void
 	{
-
 		$this->metadataService->expects( $this->never() )
 		                      ->method( 'reindexUnstampedHashes' )
 		;
@@ -515,7 +493,6 @@ class RepairQuietStartTest
 		$this->assertNotContains( 'unindexed-hashes', $ran );
 	}
 
-
 	/**
 	 * Naming it counts as asking.
 	 *
@@ -523,7 +500,6 @@ class RepairQuietStartTest
 	 */
 	public function testNamingTheScanRunsIt(): void
 	{
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'reindexUnstampedHashes' )
 		                      ->willReturn( 3 )
@@ -534,7 +510,6 @@ class RepairQuietStartTest
 		$this->assertSame( [ 'unindexed-hashes' ], $ran );
 	}
 
-
 	/**
 	 * So does the flag that already means "do not ask me first".
 	 *
@@ -542,7 +517,6 @@ class RepairQuietStartTest
 	 */
 	public function testIncludeExpensiveRunsTheScanToo(): void
 	{
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'reindexUnstampedHashes' )
 		                      ->willReturn( 0 )
@@ -555,7 +529,6 @@ class RepairQuietStartTest
 		$this->assertContains( 'unindexed-hashes', $ran );
 	}
 
-
 	/**
 	 * It runs on upgrade like the rest, so a throw would stop the steps
 	 * after it — and this one only ever runs when an administrator has
@@ -565,7 +538,6 @@ class RepairQuietStartTest
 	 */
 	public function testAFailedScanDoesNotStopTheRepair(): void
 	{
-
 		$this->metadataService->method( 'reindexUnstampedHashes' )
 		                      ->willThrowException( new RuntimeException( 'no' ) )
 		;
@@ -576,5 +548,4 @@ class RepairQuietStartTest
 
 		$this->assertContains( 'legacy-seed-job', $ran );
 	}
-
 }

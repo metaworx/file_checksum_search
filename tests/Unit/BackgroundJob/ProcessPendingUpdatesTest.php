@@ -25,9 +25,11 @@ use ReflectionMethod;
 use RuntimeException;
 
 class ProcessPendingUpdatesTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private MockObject|ITimeFactory           $time;
 
@@ -48,9 +50,10 @@ class ProcessPendingUpdatesTest
 	private ProcessPendingUpdates             $job;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->time            = $this->createMock( ITimeFactory::class );
@@ -94,6 +97,8 @@ class ProcessPendingUpdatesTest
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * @noinspection PhpConditionAlreadyCheckedInspection
 	 */
@@ -105,7 +110,6 @@ class ProcessPendingUpdatesTest
 	 */
 	public function testTheJobDelegatesDisownedClearingToTheRules(): void
 	{
-
 		$this->metadataService->method( 'fetchPendingBatch' )
 		                      ->willReturn( [] )
 		;
@@ -118,10 +122,8 @@ class ProcessPendingUpdatesTest
 		$reflection->invoke( $this->job, null );
 	}
 
-
 	public function testJobConstructsWithDefaultInterval(): void
 	{
-
 		$job = new ProcessPendingUpdates(
 			$this->time,
 			$this->hashCalc,
@@ -136,13 +138,11 @@ class ProcessPendingUpdatesTest
 		$this->assertInstanceOf( ProcessPendingUpdates::class, $job );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRunWithEmptyPendingBatchLogsAndReturns(): void
 	{
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'fetchPendingBatch' )
 		                      ->with( 50 )
@@ -165,13 +165,11 @@ class ProcessPendingUpdatesTest
 		$reflection->invoke( $this->job, null );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRunProcessesPendingBatch(): void
 	{
-
 		$pendingRows = [
 			[
 				MetadataService::FIELD_FILE_ID           => 42,
@@ -200,13 +198,11 @@ class ProcessPendingUpdatesTest
 		$reflection->invoke( $this->job, null );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRunDispatchesFollowUpWhenBatchFull(): void
 	{
-
 // Return exactly batchSize rows → batch is full
 		$pendingRows = array_fill(
 			0,
@@ -236,13 +232,11 @@ class ProcessPendingUpdatesTest
 		$reflection->invoke( $this->job, null );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRunDoesNotDispatchWhenBatchNotFull(): void
 	{
-
 		$pendingRows = [
 			[
 				MetadataService::FIELD_FILE_ID           => 42,
@@ -268,13 +262,11 @@ class ProcessPendingUpdatesTest
 		$reflection->invoke( $this->job, null );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRunParsesPendingPrefixFromStatus(): void
 	{
-
 		$pendingRows = [
 			[
 				MetadataService::FIELD_FILE_ID           => 10,
@@ -296,7 +288,6 @@ class ProcessPendingUpdatesTest
 		$reflection->invoke( $this->job, null );
 	}
 
-
 	/**
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
@@ -304,7 +295,6 @@ class ProcessPendingUpdatesTest
 	 */
 	public function testRunContinuesAfterProcessFailure(): void
 	{
-
 		$pendingRows = [
 			[
 				MetadataService::FIELD_FILE_ID           => 42,
@@ -325,11 +315,11 @@ class ProcessPendingUpdatesTest
 		$this->hashCalc->expects( $this->exactly( 2 ) )
 		               ->method( 'processFile' )
 		               ->willReturnCallback(
-			               function (
+			               function(
 				               int    $fileId,
 				               string $_mode,
-			               ): void {
-
+			               ): void
+			               {
 				               if ( $fileId === 42 )
 				               {
 					               throw new RuntimeException( 'File not found' );
@@ -346,13 +336,11 @@ class ProcessPendingUpdatesTest
 		$reflection->invoke( $this->job, null );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRunCatchesTopLevelThrowable(): void
 	{
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'fetchPendingBatch' )
 		                      ->willThrowException( new RuntimeException( 'DB down' ) )
@@ -368,13 +356,11 @@ class ProcessPendingUpdatesTest
 		$this->assertTrue( true );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRunRecordsItsStatsEvenForAnEmptyBatch(): void
 	{
-
 		$this->metadataService->method( 'fetchPendingBatch' )
 		                      ->willReturn( [] )
 		;
@@ -396,5 +382,4 @@ class ProcessPendingUpdatesTest
 		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
 		$reflection->invoke( $this->job, null );
 	}
-
 }

@@ -17,23 +17,23 @@ use Symfony\Component\Console\Output\OutputInterface;
  * @noinspection PhpUnused
  */
 class AddRule
-	extends
-	RulesCommandBase
+    extends
+    RulesCommandBase
 {
+
+//  config/init/exe/run methods
 
 	/**
 	 * @noinspection PhpUnused
 	 */
 	protected function configure(): void
 	{
-
 		$this->setName( 'file-checksum-search:rules:add' )
 		     ->setAliases( [ 'fcias:rules:add' ] )
 		     ->setDescription( 'Create a hash generation rule' )
 		     ->addRuleFieldOptions()
 		;
 	}
-
 
 	/**
 	 * A JsonException from the rule store bubbles to Symfony's error
@@ -45,8 +45,8 @@ class AddRule
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
-	): int {
-
+	): int
+	{
 		try
 		{
 			$definition = $this->definitionValidator->definitionFrom(
@@ -78,5 +78,4 @@ class AddRule
 
 		return self::SUCCESS;
 	}
-
 }

@@ -22,9 +22,11 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 class SudoTokensControllerTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private IRequest&MockObject          $request;
 
@@ -37,9 +39,10 @@ class SudoTokensControllerTest
 	private SudoTokensController         $controller;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$user = $this->createMock( IUser::class );
@@ -67,9 +70,10 @@ class SudoTokensControllerTest
 	}
 
 
+//  other non-static methods
+
 	private function apiAllowed( bool $allowed ): void
 	{
-
 		$this->groups->method( 'isAdmin' )
 		             ->willReturn( false )
 		;
@@ -79,7 +83,6 @@ class SudoTokensControllerTest
 		;
 	}
 
-
 	/**
 	 * A grant buys an account denied the API nothing, so the page has
 	 * nothing to offer — and is told so rather than refused, so it can say
@@ -87,7 +90,6 @@ class SudoTokensControllerTest
 	 */
 	public function testAnAccountDeniedTheApiIsOfferedNothing(): void
 	{
-
 		$this->apiAllowed( false );
 		$this->sudoTokens->expects( $this->never() )
 		                 ->method( 'listForUser' )
@@ -99,10 +101,8 @@ class SudoTokensControllerTest
 		$this->assertSame( [], $data['tokens'] );
 	}
 
-
 	public function testTheListingIsTheCallersOwn(): void
 	{
-
 		$this->apiAllowed( true );
 		$this->sudoTokens->method( 'listForUser' )
 		                 ->with( 'alice' )
@@ -115,10 +115,8 @@ class SudoTokensControllerTest
 		$this->assertSame( 7, $data['tokens'][0]['id'] );
 	}
 
-
 	public function testGrantingRecordsWhoGrantedAndAnswersTheListing(): void
 	{
-
 		$this->apiAllowed( true );
 		$this->request->method( 'getParam' )
 		              ->with( 'granted' )
@@ -138,10 +136,8 @@ class SudoTokensControllerTest
 		$this->assertTrue( $response->getData()['success'] );
 	}
 
-
 	public function testRevokingOnesOwnGrant(): void
 	{
-
 		$this->apiAllowed( true );
 		$this->request->method( 'getParam' )
 		              ->willReturn( false )
@@ -157,10 +153,8 @@ class SudoTokensControllerTest
 		$this->assertSame( Http::STATUS_OK, $this->controller->setMine( 7 )->getStatus() );
 	}
 
-
 	public function testAGrantTheServiceRefusesIsA400WithItsReason(): void
 	{
-
 		$this->apiAllowed( true );
 		$this->request->method( 'getParam' )
 		              ->willReturn( true )
@@ -175,10 +169,8 @@ class SudoTokensControllerTest
 		$this->assertSame( 'Only an app password can be granted.', $response->getData()['error'] );
 	}
 
-
 	public function testAnAccountDeniedTheApiCannotGrant(): void
 	{
-
 		$this->apiAllowed( false );
 		$this->sudoTokens->expects( $this->never() )
 		                 ->method( 'grant' )
@@ -187,10 +179,8 @@ class SudoTokensControllerTest
 		$this->assertSame( Http::STATUS_FORBIDDEN, $this->controller->setMine( 7 )->getStatus() );
 	}
 
-
 	public function testTheAdministratorRevokesAnybodysGrant(): void
 	{
-
 		$this->sudoTokens->expects( $this->once() )
 		                 ->method( 'revoke' )
 		                 ->with( 'bob', 42 )
@@ -205,14 +195,12 @@ class SudoTokensControllerTest
 		$this->assertSame( [ 'grants' => [], 'available' => true ], $this->controller->revoke( 'bob', 42 )->getData() );
 	}
 
-
 	/**
 	 * An empty list from a table that could not be read is not "no grants",
 	 * and the page must be able to tell the two apart.
 	 */
 	public function testTheListingSaysWhenItIsNoAnswer(): void
 	{
-
 		$this->sudoTokens->method( 'allGrants' )
 		                 ->willReturn( [] )
 		;
@@ -226,10 +214,8 @@ class SudoTokensControllerTest
 		$this->assertFalse( $data['available'] );
 	}
 
-
 	public function testTheCallersListingSaysWhenItIsNoAnswer(): void
 	{
-
 		$this->apiAllowed( true );
 		$this->sudoTokens->method( 'listForUser' )
 		                 ->willReturn( [] )
@@ -240,5 +226,4 @@ class SudoTokensControllerTest
 
 		$this->assertFalse( $this->controller->mine()->getData()['available'] );
 	}
-
 }

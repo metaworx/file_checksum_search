@@ -16,22 +16,21 @@ use PHPUnit\Framework\TestCase;
  * The record every format reads into and writes out of.
  */
 class HashRecordTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  other non-static methods
 
 	public function testItSurvivesTheArrayFormAndBack(): void
 	{
-
 		$record = new HashRecord( 'home::alice', 'files/a.txt', 'sha256', 'abc', 5 );
 
 		$this->assertEquals( $record, HashRecord::fromArray( $record->toArray() ) );
 	}
 
-
 	public function testAlgorithmsAndHashesAreLowercased(): void
 	{
-
 		// A hash read from a sumfile written on another system is the same
 		// hash whatever case it arrived in; comparing them must not depend
 		// on which tool wrote it.
@@ -47,10 +46,8 @@ class HashRecordTest
 		$this->assertSame( 'abcdef', $record->hash );
 	}
 
-
 	public function testAnAbsentTimestampStaysAbsent(): void
 	{
-
 		// Not zero: the epoch is a claim, and one that would make the file
 		// look hopelessly outdated rather than unstamped.
 		foreach (
@@ -67,13 +64,11 @@ class HashRecordTest
 		$this->assertSame( 0, HashRecord::fromArray( [ 'updated_at' => '0' ] )->updatedAt );
 	}
 
-
 	/**
 	 * @dataProvider incompleteRows
 	 */
 	public function testARecordMissingAnyOfPathAlgoOrHashSaysSo( array $row ): void
 	{
-
 		$this->assertFalse(
 			HashRecord::fromArray( $row )
 			          ->isComplete(),
@@ -81,12 +76,13 @@ class HashRecordTest
 	}
 
 
+//  static methods
+
 	/**
 	 * @return array<string, array{array<string, mixed>}>
 	 */
 	public static function incompleteRows(): array
 	{
-
 		return [
 			'no path' => [
 				[
@@ -110,10 +106,8 @@ class HashRecordTest
 		];
 	}
 
-
 	public function testARecordWithoutAStorageIsStillComplete(): void
 	{
-
 		// The storage comes from the anchor for a sumfile, and the record is
 		// complete before it is anchored.
 		$this->assertTrue(
@@ -127,5 +121,4 @@ class HashRecordTest
 			          ->isComplete(),
 		);
 	}
-
 }

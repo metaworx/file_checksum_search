@@ -23,18 +23,21 @@ use RuntimeException;
  * with them.
  */
 class AppConfigServiceTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private IAppConfig&MockObject $appConfig;
 
 	private AppConfigService      $service;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->appConfig = $this->createMock( IAppConfig::class );
@@ -46,13 +49,14 @@ class AppConfigServiceTest
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * The lexicon is the list, not a copy of it: a key declared there is
 	 * backed up and reset without anyone remembering a second place.
 	 */
 	public function testTheOwnedKeysAreTheOnesTheLexiconDeclares(): void
 	{
-
 		$this->assertSame(
 			array_map(
 				static fn(
@@ -65,10 +69,8 @@ class AppConfigServiceTest
 		$this->assertContains( 'rule_definitions', $this->service->ownedKeys() );
 	}
 
-
 	public function testExportSkipsKeysThatWereNeverSet(): void
 	{
-
 		$set = [
 			'rule_definitions'         => '[{"id":1}]',
 			'rule_processing_interval' => '300',
@@ -81,7 +83,6 @@ class AppConfigServiceTest
 		$this->assertSame( $set, $this->service->export() );
 	}
 
-
 	/**
 	 * Nextcloud refuses a read that disagrees with the lexicon — asking for
 	 * an `INT` key as a string is an error, not a coercion — so every key is
@@ -90,7 +91,6 @@ class AppConfigServiceTest
 	 */
 	public function testEveryKeyIsReadThroughItsDeclaredType(): void
 	{
-
 		$this->givenSet(
 			[
 				'rule_definitions'         => '[]',
@@ -105,14 +105,12 @@ class AppConfigServiceTest
 		$this->assertSame( '1', $exported['idle_banner_ack'] );
 	}
 
-
 	/**
 	 * And back the same way: an integer written as a string would be refused
 	 * on the way in for the same reason.
 	 */
 	public function testEveryKeyIsWrittenThroughItsDeclaredType(): void
 	{
-
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'setValueInt' )
 		                ->with( Application::APP_ID, 'rule_processing_interval', 300 )
@@ -137,15 +135,14 @@ class AppConfigServiceTest
 		$this->assertSame( 3, $report['written'] );
 	}
 
-
 	/**
 	 * @dataProvider truthyStrings
 	 */
 	public function testABooleanIsRecognisedHoweverTheBackupSpeltIt(
 		string $written,
 		bool   $expected,
-	): void {
-
+	): void
+	{
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'setValueBool' )
 		                ->with( Application::APP_ID, 'idle_banner_ack', $expected )
@@ -155,12 +152,13 @@ class AppConfigServiceTest
 	}
 
 
+//  static methods
+
 	/**
 	 * @return array<string, array{string, bool}>
 	 */
 	public static function truthyStrings(): array
 	{
-
 		return [
 			'one'   => [
 				'1',
@@ -189,10 +187,8 @@ class AppConfigServiceTest
 		];
 	}
 
-
 	public function testImportWritesDeclaredKeys(): void
 	{
-
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'setValueString' )
 		                ->with( Application::APP_ID, 'rule_definitions', '[]' )
@@ -204,7 +200,6 @@ class AppConfigServiceTest
 		$this->assertSame( [], $report['skipped'] );
 	}
 
-
 	/**
 	 * A backup from a newer version may name keys this one has never heard
 	 * of. Half-applying it silently is the failure mode worth avoiding: the
@@ -212,7 +207,6 @@ class AppConfigServiceTest
 	 */
 	public function testImportRefusesUndeclaredKeys(): void
 	{
-
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'setValueString' )
 		                ->with( Application::APP_ID, 'rule_definitions', '[]' )
@@ -236,14 +230,12 @@ class AppConfigServiceTest
 		);
 	}
 
-
 	/**
 	 * `--replace` means the result is exactly the input, so owned keys the
 	 * import does not mention are removed rather than left standing.
 	 */
 	public function testReplaceDeletesOwnedKeysTheImportDoesNotMention(): void
 	{
-
 		$this->appConfig->method( 'hasKey' )
 		                ->willReturn( true )
 		;
@@ -251,7 +243,7 @@ class AppConfigServiceTest
 		$deleted = [];
 		$this->appConfig->method( 'deleteKey' )
 		                ->willReturnCallback(
-			                static function (
+			                static function(
 				                string $app,
 				                string $key,
 			                ) use
@@ -260,7 +252,6 @@ class AppConfigServiceTest
 				                $deleted,
 			                ): void
 			                {
-
 				                $deleted[] = $key;
 			                },
 		                )
@@ -277,17 +268,14 @@ class AppConfigServiceTest
 		$this->assertCount( count( $this->service->portableKeys() ) - 1, $deleted );
 	}
 
-
 	public function testAMergingImportLeavesUnmentionedKeysAlone(): void
 	{
-
 		$this->appConfig->expects( $this->never() )
 		                ->method( 'deleteKey' )
 		;
 
 		$this->service->import( [ 'rule_definitions' => '[]' ] );
 	}
-
 
 	/**
 	 * Configuration travels; history does not.
@@ -299,7 +287,6 @@ class AppConfigServiceTest
 	 */
 	public function testHistoryIsOwnedButNotPortable(): void
 	{
-
 		$owned    = $this->service->ownedKeys();
 		$portable = $this->service->portableKeys();
 
@@ -311,10 +298,8 @@ class AppConfigServiceTest
 		$this->assertTrue( AppConfigService::isPortable( 'rule_definitions' ) );
 	}
 
-
 	public function testAHistoryKeyIsNeverExported(): void
 	{
-
 		$this->givenSet(
 			[
 				'rule_definitions'          => '[]',
@@ -325,7 +310,6 @@ class AppConfigServiceTest
 		$this->assertSame( [ 'rule_definitions' => '[]' ], $this->service->export() );
 	}
 
-
 	/**
 	 * A backup from before the distinction existed still carries them, and
 	 * refusing is reported apart from an unknown key: the two need different
@@ -333,7 +317,6 @@ class AppConfigServiceTest
 	 */
 	public function testAHistoryKeyInAFileIsRefusedNotWritten(): void
 	{
-
 		$this->appConfig->expects( $this->never() )
 		                ->method( 'setValueInt' )
 		;
@@ -351,14 +334,12 @@ class AppConfigServiceTest
 		$this->assertSame( [ 'from_a_newer_version' ], $report['skipped'] );
 	}
 
-
 	/**
 	 * Deletion, not writing defaults: the lexicon is where a default lives,
 	 * and writing today's values out would freeze them into the instance.
 	 */
 	public function testClearDeletesEveryKeyThatIsSet(): void
 	{
-
 		$this->appConfig->method( 'hasKey' )
 		                ->willReturn( true )
 		;
@@ -372,10 +353,8 @@ class AppConfigServiceTest
 		$this->assertSame( count( $this->service->ownedKeys() ), $this->service->clear() );
 	}
 
-
 	public function testClearSkipsKeysThatAreNotSet(): void
 	{
-
 		$this->appConfig->method( 'hasKey' )
 		                ->willReturn( false )
 		;
@@ -386,7 +365,6 @@ class AppConfigServiceTest
 		$this->assertSame( 0, $this->service->clear() );
 	}
 
-
 	/**
 	 * One key that refuses to go must not abandon the rest of the reset
 	 * half-done — a partial clear the administrator was not told about is
@@ -394,17 +372,16 @@ class AppConfigServiceTest
 	 */
 	public function testOneFailedDeletionDoesNotAbortTheRest(): void
 	{
-
 		$this->appConfig->method( 'hasKey' )
 		                ->willReturn( true )
 		;
 		$this->appConfig->method( 'deleteKey' )
 		                ->willReturnCallback(
-			                static function (
+			                static function(
 				                string $app,
 				                string $key,
-			                ): void {
-
+			                ): void
+			                {
 				                if ( $key === 'rule_definitions' )
 				                {
 					                throw new RuntimeException( 'locked' );
@@ -416,7 +393,6 @@ class AppConfigServiceTest
 		$this->assertSame( count( $this->service->ownedKeys() ) - 1, $this->service->clear() );
 	}
 
-
 	/**
 	 * Stand in for an instance where exactly these keys are set, answering
 	 * each typed getter from the same stored strings.
@@ -425,7 +401,6 @@ class AppConfigServiceTest
 	 */
 	private function givenSet( array $set ): void
 	{
-
 		$this->appConfig->method( 'hasKey' )
 		                ->willReturnCallback(
 			                static fn(
@@ -459,5 +434,4 @@ class AppConfigServiceTest
 		                )
 		;
 	}
-
 }

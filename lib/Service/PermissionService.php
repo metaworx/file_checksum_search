@@ -35,7 +35,7 @@ use OCP\IGroupManager;
 class PermissionService
 {
 
-// constants
+//  constants
 
 	/** Who may create and edit hash-generation rules. */
 	public const PERMISSION_RULE_EDITING = 'rule_editing';
@@ -55,7 +55,7 @@ class PermissionService
 	 * @var array<string, array{allUsers: string, groups: string, users: string}>
 	 */
 	private const CONFIG_KEYS
-		= [
+		 = [
 			self::PERMISSION_RULE_EDITING => [
 				'allUsers' => 'rule_editors_all_users',
 				'groups'   => 'rule_editors_groups',
@@ -92,11 +92,13 @@ class PermissionService
 	 * @var array<string, bool>
 	 */
 	private const DEFAULT_ALL_USERS
-		= [
+		 = [
 			self::PERMISSION_API_ACCESS    => true,
 			self::PERMISSION_MANUAL_RECALC => true,
 		];
 
+
+//  static methods
 
 	/**
 	 * Every permission this service knows, for callers that treat them
@@ -107,10 +109,11 @@ class PermissionService
 	 */
 	public static function keys(): array
 	{
-
 		return array_keys( self::CONFIG_KEYS );
 	}
 
+
+//  constructor
 
 	public function __construct(
 		private readonly IAppConfig     $appConfig,
@@ -118,6 +121,8 @@ class PermissionService
 	) {
 	}
 
+
+//  getters / setters / is* / has*
 
 	/**
 	 * Whether the given user holds the permission.
@@ -127,8 +132,8 @@ class PermissionService
 	public function isAllowed(
 		string $permission,
 		string $userId,
-	): bool {
-
+	): bool
+	{
 		if ( $this->isAllUsersEnabled( $permission ) )
 		{
 			return true;
@@ -154,6 +159,8 @@ class PermissionService
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * Whether the given user may create and edit hash-generation rules.
 	 *
@@ -164,10 +171,8 @@ class PermissionService
 	 */
 	public function canUserEditRules( string $userId ): bool
 	{
-
 		return $this->isAllowed( self::PERMISSION_RULE_EDITING, $userId );
 	}
-
 
 	/**
 	 * Whether the permission is granted to every user.
@@ -176,14 +181,12 @@ class PermissionService
 	 */
 	public function isAllUsersEnabled( string $permission ): bool
 	{
-
 		return $this->appConfig->getValueBool(
 			Application::APP_ID,
 			$this->configKey( $permission, 'allUsers' ),
 			self::DEFAULT_ALL_USERS[ $permission ] ?? false,
 		);
 	}
-
 
 	/**
 	 * Grant or revoke the permission for every user.
@@ -193,15 +196,14 @@ class PermissionService
 	public function setAllUsersEnabled(
 		string $permission,
 		bool   $enabled,
-	): void {
-
+	): void
+	{
 		$this->appConfig->setValueBool(
 			Application::APP_ID,
 			$this->configKey( $permission, 'allUsers' ),
 			$enabled,
 		);
 	}
-
 
 	/**
 	 * Load the group IDs holding the permission.
@@ -211,10 +213,8 @@ class PermissionService
 	 */
 	public function getGroups( string $permission ): array
 	{
-
 		return $this->loadStringList( $this->configKey( $permission, 'groups' ) );
 	}
-
 
 	/**
 	 * Persist the group IDs holding the permission.
@@ -227,11 +227,10 @@ class PermissionService
 	public function setGroups(
 		string $permission,
 		array  $groups,
-	): void {
-
+	): void
+	{
 		$this->saveStringList( $this->configKey( $permission, 'groups' ), $groups );
 	}
-
 
 	/**
 	 * Load the user IDs holding the permission.
@@ -241,10 +240,8 @@ class PermissionService
 	 */
 	public function getUsers( string $permission ): array
 	{
-
 		return $this->loadStringList( $this->configKey( $permission, 'users' ) );
 	}
-
 
 	/**
 	 * Persist the user IDs holding the permission.
@@ -257,11 +254,13 @@ class PermissionService
 	public function setUsers(
 		string $permission,
 		array  $users,
-	): void {
-
+	): void
+	{
 		$this->saveStringList( $this->configKey( $permission, 'users' ), $users );
 	}
 
+
+//  config/init/exe/run methods
 
 	/**
 	 * Resolve one of a permission's three config keys.
@@ -278,8 +277,8 @@ class PermissionService
 	private function configKey(
 		string $permission,
 		string $which,
-	): string {
-
+	): string
+	{
 		if ( ! isset( self::CONFIG_KEYS[ $permission ] ) )
 		{
 			throw new InvalidArgumentException(
@@ -290,7 +289,6 @@ class PermissionService
 		return self::CONFIG_KEYS[ $permission ][ $which ];
 	}
 
-
 	/**
 	 * Load a JSON string-list config value.
 	 *
@@ -298,7 +296,6 @@ class PermissionService
 	 */
 	private function loadStringList( string $key ): array
 	{
-
 		$json = $this->appConfig->getValueString(
 			Application::APP_ID,
 			$key,
@@ -329,7 +326,6 @@ class PermissionService
 		);
 	}
 
-
 	/**
 	 * Persist a JSON string-list config value.
 	 *
@@ -340,8 +336,8 @@ class PermissionService
 	private function saveStringList(
 		string $key,
 		array  $list,
-	): void {
-
+	): void
+	{
 		$list = array_values(
 			array_filter(
 				$list,
@@ -357,5 +353,4 @@ class PermissionService
 			json_encode( $list, JSON_THROW_ON_ERROR ),
 		);
 	}
-
 }

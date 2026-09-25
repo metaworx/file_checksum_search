@@ -37,6 +37,8 @@ use OCP\IUserManager;
 class ReachResolver
 {
 
+//  constructor
+
 	public function __construct(
 		private readonly IUserMountCache $mountCache,
 		private readonly IUserManager    $userManager,
@@ -44,6 +46,8 @@ class ReachResolver
 	) {
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * Every mount of every named account, once each.
@@ -59,7 +63,6 @@ class ReachResolver
 	 */
 	public function mountsFor( string|array|null $uids ): ?array
 	{
-
 		if ( $uids === null )
 		{
 			return null;
@@ -91,7 +94,6 @@ class ReachResolver
 		return array_values( $mounts );
 	}
 
-
 	/**
 	 * The storage ids behind {@see mountsFor()}, for a caller that only
 	 * narrows a query and keeps its own per-file authority.
@@ -102,7 +104,6 @@ class ReachResolver
 	 */
 	public function storageIdsFor( string|array|null $uids ): ?array
 	{
-
 		$mounts = $this->mountsFor( $uids );
 
 		if ( $mounts === null )
@@ -112,7 +113,6 @@ class ReachResolver
 
 		return array_values( array_unique( array_column( $mounts, 'storage' ) ) );
 	}
-
 
 	/**
 	 * Whether $fileId lies within one of $mounts.
@@ -126,8 +126,8 @@ class ReachResolver
 	public function contains(
 		?array $mounts,
 		int    $fileId,
-	): bool {
-
+	): bool
+	{
 		if ( $mounts === null )
 		{
 			return true;
@@ -171,5 +171,4 @@ class ReachResolver
 
 		return false;
 	}
-
 }

@@ -44,12 +44,16 @@ use Throwable;
 class DatabaseService
 {
 
+//  constructor
+
 	public function __construct(
 		private readonly IDBConnection   $db,
 		private readonly LoggerInterface $logger,
 	) {
 	}
 
+
+//  getters / setters / is* / has*
 
 	/**
 	 * The database server's version string (e.g. "10.11.6-MariaDB").
@@ -58,7 +62,6 @@ class DatabaseService
 	 */
 	public function getDatabaseVersion( ?OutputInterface $output = null ): string
 	{
-
 		return $this->safeString(
 			fn() => $this->getRawConnection()
 			             ->executeQuery( 'SELECT VERSION() AS version' )
@@ -67,24 +70,22 @@ class DatabaseService
 		);
 	}
 
-
 	/** The underlying Doctrine DBAL connection, for calls IDBConnection doesn't expose. */
 	public function getRawConnection(): Connection
 	{
-
 		return $this->db->getInner();
 	}
-
 
 	/** Doctrine's schema introspection manager (tablesExist(), listTableColumns(), etc.). */
 	public function getSchemaManager(): AbstractSchemaManager
 	{
-
 		return $this->getRawConnection()
 		            ->createSchemaManager()
 		;
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * Whether $tableName has a column named $columnName.
@@ -96,16 +97,15 @@ class DatabaseService
 		string           $tableName,
 		string           $columnName,
 		?OutputInterface $output = null,
-	): bool {
-
+	): bool
+	{
 		return $this->safeBool(
-			function () use
+			function() use
 			(
 				$tableName,
 				$columnName,
 			): bool
 			{
-
 				foreach (
 					$this->getSchemaManager()
 					     ->listTableColumns( $tableName ) as $column
@@ -123,7 +123,6 @@ class DatabaseService
 		);
 	}
 
-
 	/**
 	 * Row count for $tableName.
 	 *
@@ -133,15 +132,14 @@ class DatabaseService
 	public function countRows(
 		string           $tableName,
 		?OutputInterface $output = null,
-	): int {
-
+	): int
+	{
 		return $this->safeInt(
-			function () use
+			function() use
 			(
 				$tableName,
 			): int
 			{
-
 				$qb = $this->db->getQueryBuilder();
 
 				$qb->select(
@@ -159,15 +157,14 @@ class DatabaseService
 		);
 	}
 
-
 	/**
 	 * @return array<int, array<string, mixed>>
 	 */
 	private function safeArray(
 		callable         $fn,
 		?OutputInterface $output,
-	): array {
-
+	): array
+	{
 		try
 		{
 			return $fn();
@@ -188,12 +185,11 @@ class DatabaseService
 		}
 	}
 
-
 	private function safeBool(
 		callable         $fn,
 		?OutputInterface $output,
-	): bool {
-
+	): bool
+	{
 		try
 		{
 			return $fn();
@@ -214,12 +210,11 @@ class DatabaseService
 		}
 	}
 
-
 	private function safeInt(
 		callable         $fn,
 		?OutputInterface $output,
-	): int {
-
+	): int
+	{
 		try
 		{
 			return $fn();
@@ -240,12 +235,11 @@ class DatabaseService
 		}
 	}
 
-
 	private function safeString(
 		callable         $fn,
 		?OutputInterface $output,
-	): string {
-
+	): string
+	{
 		try
 		{
 			return $fn();
@@ -268,7 +262,6 @@ class DatabaseService
 		}
 	}
 
-
 	/**
 	 * @return string[]  Installed migration version strings for $appId, or
 	 *                   [] both for "none installed" and "the query
@@ -277,15 +270,14 @@ class DatabaseService
 	public function getInstalledMigrations(
 		string           $appId,
 		?OutputInterface $output = null,
-	): array {
-
+	): array
+	{
 		return $this->safeArray(
-			function () use
+			function() use
 			(
 				$appId,
 			): array
 			{
-
 				$qb = $this->db->getQueryBuilder();
 
 				$qb->select( 'version' )
@@ -312,7 +304,6 @@ class DatabaseService
 		);
 	}
 
-
 	/**
 	 * Whether $tableName exists.
 	 *
@@ -322,13 +313,12 @@ class DatabaseService
 	public function tableExist(
 		string           $tableName,
 		?OutputInterface $output = null,
-	): bool {
-
+	): bool
+	{
 		return $this->safeBool(
 			fn() => $this->getSchemaManager()
 			             ->tablesExist( [ $tableName ] ),
 			$output,
 		);
 	}
-
 }

@@ -36,11 +36,16 @@ use Throwable;
  * background jobs on every request (which reset last_run).
  */
 class ProcessPendingUpdatesIntegrationTest
-	extends
-	DatabaseTestCase
+    extends
+    DatabaseTestCase
 {
 
+//  constants
+
 	private const RULE_CONFIG_KEY = 'rule_definitions';
+
+
+//  private properties
 
 	private MetadataService $metadataService;
 
@@ -59,12 +64,13 @@ class ProcessPendingUpdatesIntegrationTest
 	private array $cleanupFileIds = [];
 
 
+//  getters / setters / is* / has*
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->metadataService = Server::get( MetadataService::class );
@@ -80,9 +86,10 @@ class ProcessPendingUpdatesIntegrationTest
 	}
 
 
+//  other non-static methods
+
 	protected function tearDown(): void
 	{
-
 		// Roll back any open transaction before touching committed state.
 		parent::tearDown();
 
@@ -148,7 +155,6 @@ class ProcessPendingUpdatesIntegrationTest
 		}
 	}
 
-
 	/**
 	 * Cron drains pending entries and computes hashes for both the
 	 * pending:auto and pending:missing markers; the algorithms come from
@@ -158,7 +164,6 @@ class ProcessPendingUpdatesIntegrationTest
 	 */
 	public function testCronDrainsPendingEntriesAndComputesHashes(): void
 	{
-
 		// Create files first so NodeCreatedEvent sees no rules.
 		$newFile     = $this->createTestFile( 'fcias_cron_new_' . time() . '.dat' );
 		$missingFile = $this->createTestFile( 'fcias_cron_missing_' . time() . '.dat' );
@@ -214,13 +219,11 @@ class ProcessPendingUpdatesIntegrationTest
 		}
 	}
 
-
 	/**
 	 * Running Application::boot() twice must not reset the job's last_run.
 	 */
 	public function testBootTwiceDoesNotResetJobLastRun(): void
 	{
-
 		$jobClass = ProcessPendingUpdates::class;
 
 		$originalRow = $this->fetchJobRow( $jobClass );
@@ -266,16 +269,12 @@ class ProcessPendingUpdatesIntegrationTest
 		}
 	}
 
-
 	// ─── helpers ──────────────────────────────────────────────────────
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function buildJob(): ProcessPendingUpdates
 	{
-
 		return new ProcessPendingUpdates(
 			Server::get( ITimeFactory::class ),
 			Server::get( HashCalculationService::class ),
@@ -288,7 +287,6 @@ class ProcessPendingUpdatesIntegrationTest
 		);
 	}
 
-
 	/**
 	 * Add a catch-all rule with mode=force whose algorithms the drain uses.
 	 *
@@ -296,7 +294,6 @@ class ProcessPendingUpdatesIntegrationTest
 	 */
 	private function addCatchAllForceRule(): void
 	{
-
 		// Prepend so it takes precedence over any pre-existing rules: the
 		// first match decides, and there is no fall-through to a later one.
 		//
@@ -338,7 +335,6 @@ class ProcessPendingUpdatesIntegrationTest
 		$this->ruleService->loadRules( refresh: true );
 	}
 
-
 	/**
 	 * Create a real test file in the admin user's storage.
 	 *
@@ -346,7 +342,6 @@ class ProcessPendingUpdatesIntegrationTest
 	 */
 	private function createTestFile( string $name ): File
 	{
-
 		$userFolder = Server::get( IRootFolder::class )
 		                    ->getUserFolder( 'admin' )
 		;
@@ -359,15 +354,14 @@ class ProcessPendingUpdatesIntegrationTest
 		return $file;
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function insertPendingMarker(
 		int    $fileId,
 		string $marker,
-	): void {
-
+	): void
+	{
 		$this->getRawConnection()
 		     ->executeStatement(
 			     'INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`) VALUES (?, ?, ?, 0)',
@@ -380,7 +374,6 @@ class ProcessPendingUpdatesIntegrationTest
 		;
 	}
 
-
 	/**
 	 * Remove every pending row except those belonging to $keepFileIds.
 	 *
@@ -388,7 +381,6 @@ class ProcessPendingUpdatesIntegrationTest
 	 */
 	private function deleteOtherPendingRows( array $keepFileIds ): void
 	{
-
 		$placeholders = implode( ',', array_fill( 0, count( $keepFileIds ), '?' ) );
 
 		$this->getRawConnection()
@@ -399,13 +391,11 @@ class ProcessPendingUpdatesIntegrationTest
 		;
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function countPendingRows( array $fileIds ): int
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->select(
 			$qb->func()
@@ -436,7 +426,6 @@ class ProcessPendingUpdatesIntegrationTest
 		;
 	}
 
-
 	/**
 	 * @return array{id: int, class: string, last_run: int}|null
 	 * @noinspection PhpUnhandledExceptionInspection
@@ -444,7 +433,6 @@ class ProcessPendingUpdatesIntegrationTest
 	 */
 	private function fetchJobRow( string $class ): ?array
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->select( 'id', 'class', 'last_run' )
 		   ->from( 'jobs' )
@@ -467,15 +455,14 @@ class ProcessPendingUpdatesIntegrationTest
 			];
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function setJobLastRun(
 		string $class,
 		int    $lastRun,
-	): void {
-
+	): void
+	{
 		$qb = $this->db->getQueryBuilder();
 		$qb->update( 'jobs' )
 		   ->set( 'last_run', $qb->createNamedParameter( $lastRun, IQueryBuilder::PARAM_INT ) )
@@ -487,5 +474,4 @@ class ProcessPendingUpdatesIntegrationTest
 
 		$qb->executeStatement();
 	}
-
 }

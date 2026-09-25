@@ -40,6 +40,8 @@ use OCP\IUserManager;
 class SudoScope
 {
 
+//  constructor
+
 	public function __construct(
 		private readonly IGroupManager     $groupManager,
 		private readonly ISubAdmin         $subAdmin,
@@ -50,6 +52,8 @@ class SudoScope
 	}
 
 
+//  getters / setters / is* / has*
+
 	/**
 	 * Whether $uid may look at *everyone*: a member of `admin`, or an account
 	 * the instance_view permission names. This is the ceiling question, not
@@ -57,11 +61,12 @@ class SudoScope
 	 */
 	public function isSudoer( string $uid ): bool
 	{
-
 		return $this->groupManager->isAdmin( $uid )
 		       || $this->permissions->isAllowed( PermissionService::PERMISSION_INSTANCE_VIEW, $uid );
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * Whether $uid may cross into other accounts' files at all — a sudoer,
@@ -80,10 +85,8 @@ class SudoScope
 	 */
 	public function mayCross( string $uid ): bool
 	{
-
 		return $this->isSudoer( $uid ) || $this->resolve( $uid ) !== false;
 	}
-
 
 	/**
 	 * The most $uid may reach with nothing named — their *ceiling*.
@@ -100,7 +103,6 @@ class SudoScope
 	 */
 	public function resolve( string $uid ): array|null|false
 	{
-
 		if ( $this->isSudoer( $uid ) )
 		{
 			return null;
@@ -116,7 +118,6 @@ class SudoScope
 		return $this->membersOfLedGroups( $leader );
 	}
 
-
 	/**
 	 * Every member of every group $leader administers, or false if they
 	 * administer none — a plain account has no ceiling to speak of.
@@ -125,7 +126,6 @@ class SudoScope
 	 */
 	private function membersOfLedGroups( IUser $leader ): array|false
 	{
-
 		$groups = $this->subAdmin->getSubAdminsGroups( $leader );
 
 		if ( $groups === [] )
@@ -146,7 +146,6 @@ class SudoScope
 		return array_values( array_unique( $members ) );
 	}
 
-
 	/**
 	 * The members of $group that $leader may reach.
 	 *
@@ -165,13 +164,11 @@ class SudoScope
 	 */
 	private function accessibleMembers( IUser $leader, IGroup $group ): array
 	{
-
 		return array_values( array_filter(
 			$group->getUsers(),
 			fn ( IUser $member ): bool => $this->subAdmin->isUserAccessible( $leader, $member ),
 		) );
 	}
-
 
 	/**
 	 * The accounts $uid may read when naming several of them at once.
@@ -194,8 +191,8 @@ class SudoScope
 		string $uid,
 		array  $uids,
 		array  $groupIds,
-	): array|false {
-
+	): array|false
+	{
 		$isSudoer = $this->isSudoer( $uid );
 		$leader   = $this->userManager->get( $uid );
 
@@ -259,7 +256,6 @@ class SudoScope
 		return array_values( array_unique( $allowed ) );
 	}
 
-
 	/**
 	 * Whether $uid may act on one file that need not be their own.
 	 *
@@ -283,8 +279,8 @@ class SudoScope
 	public function mayReachFile(
 		string $uid,
 		int    $fileId,
-	): bool {
-
+	): bool
+	{
 		if ( $this->isSudoer( $uid ) )
 		{
 			return true;
@@ -299,7 +295,6 @@ class SudoScope
 
 		return $this->reach->contains( $this->reach->mountsFor( $ceiling ), $fileId );
 	}
-
 
 	/**
 	 * The groups and accounts $uid may name, for the picker.
@@ -324,8 +319,8 @@ class SudoScope
 		string  $uid,
 		?string $search,
 		int     $threshold,
-	): array|false {
-
+	): array|false
+	{
 		$needle   = trim( (string) $search );
 		$probe    = $threshold + 1;
 		$isSudoer = $this->isSudoer( $uid );
@@ -400,5 +395,4 @@ class SudoScope
 			),
 		];
 	}
-
 }

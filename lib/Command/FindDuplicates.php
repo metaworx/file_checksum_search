@@ -22,24 +22,27 @@ use Symfony\Component\Console\Output\OutputInterface;
  * @noinspection PhpUnused
  */
 class FindDuplicates
-	extends
-	Command
+    extends
+    Command
 {
+
+//  constructor
 
 	public function __construct(
 		private readonly HashIndexService $hashIndexService,
 		private readonly IUserManager     $userManager,
 		private readonly LoggerInterface  $logger,
-	) {
-
+	)
+	{
 		parent::__construct();
 	}
 
 
+//  config/init/exe/run methods
+
 	/** @noinspection PhpUnused */
 	protected function configure(): void
 	{
-
 		$this->setName( 'file-checksum-search:find-duplicates' )
 		     ->setDescription( 'Find all files with duplicate hash values across the system' )
 		     ->addOption(
@@ -90,13 +93,12 @@ class FindDuplicates
 		;
 	}
 
-
 	/** @noinspection PhpUnused */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
-	): int {
-
+	): int
+	{
 		$algo = $input->getOption( 'algo' );
 
 		$this->logger->info(
@@ -280,11 +282,13 @@ class FindDuplicates
 						$mismatchCount ++;
 					}
 				}
+
 				unset( $file );
 
 				$group['match_count']    = $matchCount;
 				$group['mismatch_count'] = $mismatchCount;
 			}
+
 			unset( $group );
 		}
 
@@ -305,6 +309,8 @@ class FindDuplicates
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * @param  array{algo: string, hash_value: string, file_count: int, files: array}[]  $groups
 	 */
@@ -313,8 +319,8 @@ class FindDuplicates
 		string          $format,
 		array           $groups,
 		bool            $verified = false,
-	): void {
-
+	): void
+	{
 		if ( $format === 'json' || $format === 'json_pretty' )
 		{
 			$output->writeln(
@@ -416,5 +422,4 @@ class FindDuplicates
 			$output->writeln( '' );
 		}
 	}
-
 }

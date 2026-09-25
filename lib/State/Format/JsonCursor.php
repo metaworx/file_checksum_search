@@ -29,8 +29,13 @@ use RuntimeException;
 class JsonCursor
 {
 
+//  constants
+
 	/** How much to pull from the stream at a time. */
 	private const CHUNK = 65536;
+
+
+//  private properties
 
 	private string $buffer = '';
 
@@ -43,6 +48,8 @@ class JsonCursor
 	private bool $pinned = false;
 
 
+//  constructor
+
 	/**
 	 * @param  resource  $stream
 	 */
@@ -52,12 +59,13 @@ class JsonCursor
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * The next character without consuming it, or null at end of input.
 	 */
 	public function peek(): ?string
 	{
-
 		if ( ! $this->ensure() )
 		{
 			return null;
@@ -66,13 +74,11 @@ class JsonCursor
 		return $this->buffer[ $this->offset ];
 	}
 
-
 	/**
 	 * Consume and return the next character.
 	 */
 	public function next(): string
 	{
-
 		if ( ! $this->ensure() )
 		{
 			throw new RuntimeException( 'Unexpected end of JSON input.' );
@@ -81,28 +87,24 @@ class JsonCursor
 		return $this->buffer[ $this->offset ++ ];
 	}
 
-
 	/**
 	 * Consume whitespace; leaves the cursor on the next meaningful character.
 	 */
 	public function skipWhitespace(): void
 	{
-
 		while ( ( $char
-				= $this->peek() ) !== null
+				 = $this->peek() ) !== null
 			&& ( $char === ' ' || $char === "\t" || $char === "\n" || $char === "\r" ) )
 		{
 			$this->offset ++;
 		}
 	}
 
-
 	/**
 	 * Consume the given character, or say what was there instead.
 	 */
 	public function expect( string $expected ): void
 	{
-
 		$this->skipWhitespace();
 		$char = $this->peek();
 
@@ -122,7 +124,6 @@ class JsonCursor
 		$this->offset ++;
 	}
 
-
 	/**
 	 * Read one complete JSON value and return its raw text, whatever its
 	 * shape. Nesting is tracked by depth; quoting by an escape flag, so a
@@ -130,7 +131,6 @@ class JsonCursor
 	 */
 	public function readRawValue(): string
 	{
-
 		$this->skipWhitespace();
 		$this->pinned = true;
 
@@ -144,7 +144,6 @@ class JsonCursor
 		}
 	}
 
-
 	/**
 	 * Step over one complete value without keeping any of it.
 	 *
@@ -154,24 +153,20 @@ class JsonCursor
 	 */
 	public function skipValue(): void
 	{
-
 		$this->skipWhitespace();
 		$this->walkValue();
 	}
-
 
 	/**
 	 * The scan itself, split out so that the pin is released on every exit.
 	 */
 	private function scanRawValue(): string
 	{
-
 		$start = $this->offset;
 		$this->walkValue();
 
 		return substr( $this->buffer, $start, $this->offset - $start );
 	}
-
 
 	/**
 	 * Advance the cursor past one complete value, whatever its shape.
@@ -180,7 +175,6 @@ class JsonCursor
 	 */
 	private function walkValue(): void
 	{
-
 		$depth   = 0;
 		$inQuote = false;
 		$escaped = false;
@@ -269,13 +263,11 @@ class JsonCursor
 		}
 	}
 
-
 	/**
 	 * Read one value and decode it.
 	 */
 	public function readValue(): mixed
 	{
-
 		$raw     = $this->readRawValue();
 		$decoded = json_decode( $raw, true );
 
@@ -287,13 +279,11 @@ class JsonCursor
 		return $decoded;
 	}
 
-
 	/**
 	 * Read a string literal — the cursor must be on its opening quote.
 	 */
 	public function readString(): string
 	{
-
 		$this->skipWhitespace();
 
 		if ( $this->peek() !== '"' )
@@ -311,14 +301,12 @@ class JsonCursor
 		return $value;
 	}
 
-
 	/**
 	 * Make sure one more byte is available from the current offset, refilling
 	 * from the stream and discarding what has already been read.
 	 */
 	private function ensure(): bool
 	{
-
 		// Everything before the cursor has been consumed and can go, but only
 		// while no scan holds a position in it.
 		if ( ! $this->pinned && $this->offset >= self::CHUNK )
@@ -341,5 +329,4 @@ class JsonCursor
 
 		return true;
 	}
-
 }

@@ -34,6 +34,8 @@ use Throwable;
 class AppConfigService
 {
 
+//  constants
+
 	/**
 	 * Key prefixes that record what this instance has done.
 	 *
@@ -45,11 +47,13 @@ class AppConfigService
 	 * it never ran.
 	 */
 	private const HISTORY_PREFIXES
-		= [
+		 = [
 			'stats_',
 			'repair_done_',
 		];
 
+
+//  constructor
 
 	public function __construct(
 		private readonly IAppConfig      $appConfig,
@@ -59,6 +63,8 @@ class AppConfigService
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * The keys this app owns, in the order the lexicon declares them.
 	 *
@@ -66,7 +72,6 @@ class AppConfigService
 	 */
 	public function ownedKeys(): array
 	{
-
 		return array_map(
 			static fn(
 				$entry,
@@ -74,7 +79,6 @@ class AppConfigService
 			$this->lexicon->getAppConfigs(),
 		);
 	}
-
 
 	/**
 	 * The owned keys that may travel to another instance.
@@ -94,17 +98,17 @@ class AppConfigService
 	 */
 	public function portableKeys(): array
 	{
-
 		return array_values( array_filter( $this->ownedKeys(), self::isPortable( ... ) ) );
 	}
 
+
+//  static methods
 
 	/**
 	 * Whether a key describes configuration rather than history.
 	 */
 	public static function isPortable( string $key ): bool
 	{
-
 		foreach ( self::HISTORY_PREFIXES as $prefix )
 		{
 			if ( str_starts_with( $key, $prefix ) )
@@ -116,7 +120,6 @@ class AppConfigService
 		return true;
 	}
 
-
 	/**
 	 * The lexicon\'s entries, by key.
 	 *
@@ -124,7 +127,6 @@ class AppConfigService
 	 */
 	public function entries(): array
 	{
-
 		$entries = [];
 
 		foreach ( $this->lexicon->getAppConfigs() as $entry )
@@ -134,7 +136,6 @@ class AppConfigService
 
 		return $entries;
 	}
-
 
 	/**
 	 * Every owned key that is actually set, as strings.
@@ -151,7 +152,6 @@ class AppConfigService
 	 */
 	public function export(): array
 	{
-
 		$config = [];
 
 		foreach ( $this->entries() as $key => $entry )
@@ -167,20 +167,19 @@ class AppConfigService
 		return $config;
 	}
 
-
 	/**
 	 * One key, read as the lexicon says it is stored.
 	 */
 	private function read(
 		string    $key,
 		ValueType $type,
-	): string {
-
+	): string
+	{
 		return match ( $type )
 		{
-			ValueType::INT => (string) $this->appConfig->getValueInt( Application::APP_ID, $key ),
+			ValueType::INT   => (string) $this->appConfig->getValueInt( Application::APP_ID, $key ),
 			ValueType::FLOAT => (string) $this->appConfig->getValueFloat( Application::APP_ID, $key ),
-			ValueType::BOOL => $this->appConfig->getValueBool( Application::APP_ID, $key )
+			ValueType::BOOL  => $this->appConfig->getValueBool( Application::APP_ID, $key )
 				? '1'
 				: '0',
 			ValueType::ARRAY => json_encode(
@@ -191,7 +190,6 @@ class AppConfigService
 		};
 	}
 
-
 	/**
 	 * One key, written as the lexicon says it is stored.
 	 */
@@ -199,11 +197,11 @@ class AppConfigService
 		string    $key,
 		ValueType $type,
 		string    $value,
-	): void {
-
+	): void
+	{
 		match ( $type )
 		{
-			ValueType::INT => $this->appConfig->setValueInt( Application::APP_ID, $key, (int) $value ),
+			ValueType::INT   => $this->appConfig->setValueInt( Application::APP_ID, $key, (int) $value ),
 			ValueType::FLOAT => $this->appConfig->setValueFloat( Application::APP_ID, $key, (float) $value ),
 			// Whatever a backup or a hand-edit spells "true" with.
 			ValueType::BOOL => $this->appConfig->setValueBool(
@@ -229,7 +227,6 @@ class AppConfigService
 		};
 	}
 
-
 	/**
 	 * Write configuration back.
 	 *
@@ -253,8 +250,8 @@ class AppConfigService
 	public function import(
 		array $config,
 		bool  $replace = false,
-	): array {
-
+	): array
+	{
 		$owned       = $this->entries();
 		$written     = 0;
 		$skipped     = [];
@@ -303,7 +300,6 @@ class AppConfigService
 		];
 	}
 
-
 	/**
 	 * Forget every owned key, returning the app to its declared defaults.
 	 *
@@ -316,7 +312,6 @@ class AppConfigService
 	 */
 	public function clear(): int
 	{
-
 		$deleted = 0;
 
 		foreach ( $this->ownedKeys() as $key )
@@ -335,14 +330,12 @@ class AppConfigService
 		return $deleted;
 	}
 
-
 	/**
 	 * One deletion, contained: a key that refuses to go must not abandon the
 	 * rest of the reset half-done.
 	 */
 	private function deleteKey( string $key ): bool
 	{
-
 		try
 		{
 			$this->appConfig->deleteKey( Application::APP_ID, $key );
@@ -363,5 +356,4 @@ class AppConfigService
 			return false;
 		}
 	}
-
 }

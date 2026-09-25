@@ -22,9 +22,11 @@ use OCP\IAppConfig;
  * Registered via IRegistrationContext::registerConfigLexicon() in Application::register().
  */
 class ConfigLexicon
-	implements
-	ILexicon
+    implements
+    ILexicon
 {
+
+//  constants
 
 	/** Per-user: the algorithm the sidebar offers first. Empty means the instance default. */
 	public const USER_PREFERRED_ALGORITHM = 'preferred_algorithm';
@@ -43,19 +45,18 @@ class ConfigLexicon
 	public const CROSS_ACCOUNT_PREFILL_LIMIT = 'cross_account_prefill_limit';
 
 
+//  getters / setters / is* / has*
+
 	public function getStrictness(): Strictness
 	{
-
 		return Strictness::WARNING;
 	}
-
 
 	/**
 	 * @return Entry[]
 	 */
 	public function getAppConfigs(): array
 	{
-
 		return [
 			new Entry(
 				key: 'rule_definitions',
@@ -291,13 +292,11 @@ class ConfigLexicon
 		];
 	}
 
-
 	/**
 	 * @return array
 	 */
 	public function getUserConfigs(): array
 	{
-
 		return [
 			new Entry(
 				key: self::USER_PREFERRED_ALGORITHM,
@@ -317,5 +316,4 @@ class ConfigLexicon
 			),
 		];
 	}
-
 }

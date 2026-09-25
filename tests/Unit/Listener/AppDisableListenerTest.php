@@ -18,18 +18,21 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
 class AppDisableListenerTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private MockObject|LoggerInterface $logger;
 
 	private AppDisableListener         $listener;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->logger   = $this->createMock( LoggerInterface::class );
@@ -37,9 +40,10 @@ class AppDisableListenerTest
 	}
 
 
+//  other non-static methods
+
 	public function testHandleDispatchesOnMatchingAppDisableEvent(): void
 	{
-
 		$event = $this->createMock( AppDisableEvent::class );
 		$event->method( 'getAppId' )
 		      ->willReturn( Application::APP_ID )
@@ -56,10 +60,8 @@ class AppDisableListenerTest
 		$this->listener->handle( $event );
 	}
 
-
 	public function testHandleIgnoresOtherAppEvents(): void
 	{
-
 		$event = $this->createMock( Event::class );
 
 		$this->logger->expects( $this->never() )
@@ -68,5 +70,4 @@ class AppDisableListenerTest
 
 		$this->listener->handle( $event );
 	}
-
 }

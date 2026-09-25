@@ -21,23 +21,26 @@ use Symfony\Component\Console\Output\OutputInterface;
  * @noinspection PhpUnused
  */
 class ShowConfig
-	extends
-	Command
+    extends
+    Command
 {
+
+//  constructor
 
 	public function __construct(
 		private readonly IAppConfig      $appConfig,
 		private readonly LoggerInterface $logger,
-	) {
-
+	)
+	{
 		parent::__construct();
 	}
 
 
+//  config/init/exe/run methods
+
 	/** @noinspection PhpUnused */
 	protected function configure(): void
 	{
-
 		$this->setName( 'file-checksum-search:show-config' )
 		     ->setDescription( 'Display all app config key/value pairs' )
 		     ->addOption(
@@ -50,13 +53,12 @@ class ShowConfig
 		;
 	}
 
-
 	/** @noinspection PhpUnused */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
-	): int {
-
+	): int
+	{
 		$outFmt = $input->getOption( 'output' );
 
 		$this->logger->info(
@@ -94,7 +96,7 @@ class ShowConfig
 					? 'true'
 					: 'false',
 				is_array( $value ) => json_encode( $value ),
-				default => (string) $value,
+				default            => (string) $value,
 			};
 
 			$output->writeln(
@@ -108,5 +110,4 @@ class ShowConfig
 
 		return Command::SUCCESS;
 	}
-
 }

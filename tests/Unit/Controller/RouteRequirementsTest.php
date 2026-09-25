@@ -24,16 +24,17 @@ use ReflectionClass;
  * true when the next route is added.
  */
 class RouteRequirementsTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  static methods
 
 	/**
 	 * @return array<string, array{string, ?array}>  method => [url, requirements]
 	 */
 	private static function apiRoutes(): array
 	{
-
 		$routes = [];
 
 		foreach ( ( new ReflectionClass( PublicApiController::class ) )->getMethods() as $method )
@@ -51,9 +52,10 @@ class RouteRequirementsTest
 	}
 
 
+//  other non-static methods
+
 	public function testEveryFileIdRouteTakesDigitsOnly(): void
 	{
-
 		$seen = 0;
 
 		foreach ( self::apiRoutes() as $method => [ $url, $requirements ] )
@@ -75,10 +77,8 @@ class RouteRequirementsTest
 		self::assertGreaterThanOrEqual( 6, $seen, 'the six per-file routes, at least' );
 	}
 
-
 	public function testTheBatchRoutesSitBesideTheirSingleFileTwins(): void
 	{
-
 		$urls = array_column( self::apiRoutes(), 0 );
 
 		self::assertContains( '/api/v1/file/many/recalc', $urls );
@@ -87,13 +87,11 @@ class RouteRequirementsTest
 		self::assertContains( '/api/v1/sudo/file/{fileId}/recalc', $urls );
 	}
 
-
 	/**
 	 * @return array<string, array{int, int}|null>  url => [limit, period], or null for none
 	 */
 	private static function rateLimits(): array
 	{
-
 		$limits = [];
 
 		foreach ( ( new ReflectionClass( PublicApiController::class ) )->getMethods() as $method )
@@ -118,7 +116,6 @@ class RouteRequirementsTest
 		return $limits;
 	}
 
-
 	/**
 	 * A cross-account twin does the work its ordinary route does, and a
 	 * password confirmation is not a throttle. So whatever limit the one
@@ -127,7 +124,6 @@ class RouteRequirementsTest
 	 */
 	public function testEveryCrossAccountTwinCarriesItsOrdinaryRoutesRateLimit(): void
 	{
-
 		$limits = self::rateLimits();
 		$pairs  = 0;
 
@@ -158,7 +154,6 @@ class RouteRequirementsTest
 		self::assertGreaterThanOrEqual( 6, $pairs, 'the six twins, at least' );
 	}
 
-
 	/**
 	 * Every cross-account route is rate limited. The hashes pair was the one
 	 * twin pair without a limit, and the pairing test above was content with
@@ -167,7 +162,6 @@ class RouteRequirementsTest
 	 */
 	public function testEveryCrossAccountRouteIsRateLimited(): void
 	{
-
 		$sudo = 0;
 
 		foreach ( self::rateLimits() as $url => $limit )
@@ -184,5 +178,4 @@ class RouteRequirementsTest
 
 		self::assertGreaterThanOrEqual( 7, $sudo, 'the six twins and selectable, at least' );
 	}
-
 }

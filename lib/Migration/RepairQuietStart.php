@@ -51,14 +51,18 @@ use Throwable;
  * whole Nextcloud upgrade, and everything here is recoverable by hand.
  */
 class RepairQuietStart
-	implements
-	IRepairStep
+    implements
+    IRepairStep
 {
+
+//  constants
 
 	private const LEGACY_SEED_JOB = 'OCA\\FileChecksumSearch\\BackgroundJob\\SeedPendingUpdates';
 
 	private const LEGACY_PENDING_NEW = 'pending:new';
 
+
+//  constructor
 
 	public function __construct(
 		private readonly RuleService      $ruleService,
@@ -72,6 +76,8 @@ class RepairQuietStart
 	}
 
 
+//  private properties
+
 	/**
 	 * Whether an expensive step should do its full work rather than the
 	 * cheapest thing that is correct.
@@ -84,28 +90,30 @@ class RepairQuietStart
 	private bool $includeExpensive = false;
 
 
+//  other non-static methods
+
 	public function withExpensive( bool $includeExpensive = true ): self
 	{
-
 		$this->includeExpensive = $includeExpensive;
 
 		return $this;
 	}
 
 
+//  getters / setters / is* / has*
+
 	public function getName(): string
 	{
-
 		return 'File Checksum Index & Search: quiet-start defaults and cleanup';
 	}
 
 
+//  config/init/exe/run methods
+
 	public function run( IOutput $output ): void
 	{
-
 		$this->runSteps( $output );
 	}
-
 
 	/**
 	 * Run some or all of the steps, and say which ran.
@@ -117,8 +125,8 @@ class RepairQuietStart
 	public function runSteps(
 		IOutput $output,
 		?array  $only = null,
-	): array {
-
+	): array
+	{
 		$ran = [];
 
 		foreach ( $this->steps() as $entry )
@@ -142,7 +150,6 @@ class RepairQuietStart
 		return $ran;
 	}
 
-
 	/**
 	 * The steps this class carries, in the order they are declared.
 	 *
@@ -155,7 +162,6 @@ class RepairQuietStart
 	 */
 	public function steps(): array
 	{
-
 		$steps = [];
 
 		foreach ( ( new ReflectionClass( $this ) )->getMethods() as $method )
@@ -176,7 +182,6 @@ class RepairQuietStart
 		return $steps;
 	}
 
-
 	/**
 	 * Run one step, and let the rest carry on if it will not.
 	 *
@@ -188,8 +193,8 @@ class RepairQuietStart
 		RepairStep       $step,
 		ReflectionMethod $method,
 		IOutput          $output,
-	): void {
-
+	): void
+	{
 		try
 		{
 			$method->invoke( $this, $output );
@@ -199,7 +204,6 @@ class RepairQuietStart
 			$this->warn( $output, sprintf( 'step %s did not finish', $step->name ), $e );
 		}
 	}
-
 
 	/**
 	 * Canonicalise stored rules to the selector model, then make sure both
@@ -223,7 +227,6 @@ class RepairQuietStart
 	)]
 	private function ensureSelectorModel( IOutput $output ): void
 	{
-
 		try
 		{
 			$this->ruleService->resaveCanonical();
@@ -237,7 +240,7 @@ class RepairQuietStart
 				{
 					$existing[ RuleService::ruleSelector( $rule )
 					                      ->canonical() ]
-						= true;
+						 = true;
 				}
 			}
 
@@ -284,7 +287,6 @@ class RepairQuietStart
 		}
 	}
 
-
 	/**
 	 * Convert rules still carrying the retired mode `off` into `ignore`
 	 * rules — the verdict that says the same thing and says it properly.
@@ -302,7 +304,6 @@ class RepairQuietStart
 	 */
 	private function retireOffMode( IOutput $output ): void
 	{
-
 		$converted = 0;
 
 		foreach ( $this->ruleService->loadRules() as $rule )
@@ -339,7 +340,6 @@ class RepairQuietStart
 		}
 	}
 
-
 	/**
 	 * Re-declare the metadata keys, so an existing instance learns that the
 	 * hash keys are no longer Nextcloud's to index.
@@ -366,7 +366,6 @@ class RepairQuietStart
 	)]
 	private function reregisterMetadataKeys( IOutput $output ): void
 	{
-
 		try
 		{
 			$this->metadataService->register();
@@ -377,7 +376,6 @@ class RepairQuietStart
 			$this->warn( $output, 'could not refresh the metadata key declarations', $e );
 		}
 	}
-
 
 	/**
 	 * Copy the checksums Nextcloud already holds into this app's own store.
@@ -407,7 +405,6 @@ class RepairQuietStart
 	)]
 	private function rebuildFromFilecache( IOutput $output ): void
 	{
-
 		$copied = $this->hashIndexService->backfillFromFilecache();
 		$hashes = (int) ( $copied['hashes'] ?? 0 );
 		$files  = (int) ( $copied['files'] ?? 0 );
@@ -422,7 +419,6 @@ class RepairQuietStart
 			),
 		);
 	}
-
 
 	/**
 	 * Give the hash keys their own prefix, wherever they are still without
@@ -451,7 +447,6 @@ class RepairQuietStart
 	)]
 	private function renameHashKeys( IOutput $output ): void
 	{
-
 		$renamed   = $this->metadataService->renameLegacyHashKeys();
 		$rows      = (int) ( $renamed['rows'] ?? 0 );
 		$documents = (int) ( $renamed['documents'] ?? 0 );
@@ -469,7 +464,6 @@ class RepairQuietStart
 		$this->withdrawLegacyDeclarations( $output );
 	}
 
-
 	/**
 	 * Tell Nextcloud to forget the keys this app no longer writes.
 	 *
@@ -483,7 +477,6 @@ class RepairQuietStart
 	 */
 	private function withdrawLegacyDeclarations( IOutput $output ): void
 	{
-
 		$declared  = $this->appConfig->getValueArray( 'core', FilesMetadataManager::CONFIG_KEY, lazy: true );
 		$withdrawn = 0;
 
@@ -509,7 +502,6 @@ class RepairQuietStart
 		$output->info( sprintf( 'FCIAS: withdrew %d superseded metadata key declarations.', $withdrawn ) );
 	}
 
-
 	/**
 	 * Write the index rows that were never written.
 	 *
@@ -533,7 +525,6 @@ class RepairQuietStart
 	)]
 	private function backfillHashIndex( IOutput $output ): void
 	{
-
 		try
 		{
 			$fixed = $this->metadataService->reindexHashes( force: $this->includeExpensive );
@@ -549,7 +540,6 @@ class RepairQuietStart
 			$this->warn( $output, 'could not index the stored hashes', $e );
 		}
 	}
-
 
 	/**
 	 * Find the files the index has forgotten entirely.
@@ -585,7 +575,6 @@ class RepairQuietStart
 	)]
 	private function reindexForgottenHashes( IOutput $output ): void
 	{
-
 		try
 		{
 			$fixed = $this->metadataService->reindexUnstampedHashes();
@@ -601,7 +590,6 @@ class RepairQuietStart
 			$this->warn( $output, 'could not scan for forgotten hashes', $e );
 		}
 	}
-
 
 	/**
 	 * Finish what a reset deferred.
@@ -629,7 +617,6 @@ class RepairQuietStart
 	)]
 	private function clearDisowned( IOutput $output ): void
 	{
-
 		$cleared = $this->ruleService->clearDisownedFiles( $this->batchLimit() );
 
 		$output->info(
@@ -638,7 +625,6 @@ class RepairQuietStart
 				: sprintf( 'FCIAS: cleared %d disowned files.', $cleared ),
 		);
 	}
-
 
 	/**
 	 * How many files one pass takes.
@@ -649,13 +635,11 @@ class RepairQuietStart
 	 */
 	private function batchLimit(): int
 	{
-
 		return max(
 			1,
 			$this->appConfig->getValueInt( Application::APP_ID, 'pending_batch_limit', 50 ),
 		);
 	}
-
 
 	/**
 	 * Move erosion markers into the `stale:` namespace.
@@ -676,7 +660,6 @@ class RepairQuietStart
 	)]
 	private function namespaceStaleStates( IOutput $output ): void
 	{
-
 		try
 		{
 			$qb = $this->db->getQueryBuilder();
@@ -718,7 +701,6 @@ class RepairQuietStart
 		}
 	}
 
-
 	/**
 	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
 	 */
@@ -730,7 +712,6 @@ class RepairQuietStart
 	)]
 	private function purgeLegacyPendingNew( IOutput $output ): void
 	{
-
 		try
 		{
 			$qb = $this->db->getQueryBuilder();
@@ -764,7 +745,6 @@ class RepairQuietStart
 		}
 	}
 
-
 	/**
 	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
 	 */
@@ -776,7 +756,6 @@ class RepairQuietStart
 	)]
 	private function removeLegacySeedJob( IOutput $output ): void
 	{
-
 		try
 		{
 			if ( ! $this->jobList->has( self::LEGACY_SEED_JOB, null ) )
@@ -792,7 +771,6 @@ class RepairQuietStart
 			$this->warn( $output, 'could not remove the legacy seeding job', $e );
 		}
 	}
-
 
 	/**
 	 * Metadata for files that no longer exist.
@@ -825,7 +803,6 @@ class RepairQuietStart
 	)]
 	private function purgeOrphanedMetadata( IOutput $output ): void
 	{
-
 		try
 		{
 			$purged = $this->metadataService->purgeOrphanedMetadata( $this->batchLimit() );
@@ -842,13 +819,12 @@ class RepairQuietStart
 		}
 	}
 
-
 	private function warn(
 		IOutput   $output,
 		string    $what,
 		Throwable $e,
-	): void {
-
+	): void
+	{
 		$this->logger->error(
 			'FCIAS RepairQuietStart: ' . $what,
 			[
@@ -861,5 +837,4 @@ class RepairQuietStart
 			sprintf( 'FCIAS: %s: %s', $what, $e->getMessage() ),
 		);
 	}
-
 }

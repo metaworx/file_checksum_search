@@ -32,9 +32,11 @@ use Psr\Log\LoggerInterface;
  * plus failure handling.
  */
 class HashCalculationServiceTest
-	extends
-	FciasUnitTestCase
+    extends
+    FciasUnitTestCase
 {
+
+//  private properties
 
 	private FilecacheService&MockObject $filecacheService;
 
@@ -52,9 +54,10 @@ class HashCalculationServiceTest
 	private HashCalculationService $service;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->filecacheService = $this->createMock( FilecacheService::class );
@@ -83,38 +86,29 @@ class HashCalculationServiceTest
 	}
 
 
-	// isValidAlgo
+//  other non-static methods
 
+	// isValidAlgo
 	public function testIsValidAlgoAcceptsSupportedAlgo(): void
 	{
-
 		$this->assertTrue( $this->service->isValidAlgo( 'sha256' ) );
 	}
 
-
 	public function testIsValidAlgoRejectsUnsupportedString(): void
 	{
-
 		$this->assertFalse( $this->service->isValidAlgo( 'bogus' ) );
 	}
 
-
 	public function testIsValidAlgoRejectsNonString(): void
 	{
-
 		$this->assertFalse( $this->service->isValidAlgo( 42 ) );
 		$this->assertFalse( $this->service->isValidAlgo( null ) );
 		$this->assertFalse( $this->service->isValidAlgo( [ 'sha256' ] ) );
 	}
 
-
-
-
 	// recalcFileHash
-
 	public function testRecalcFileHashSavesMetadataBeforeReleasingLock(): void
 	{
-
 		// Regression test for FCIAS Review §6, Finding 5: the finally
 		// block used to release the lock before saving metadata, so a
 		// concurrent recalcFileHash() for a different algo on the same
@@ -155,7 +149,7 @@ class HashCalculationServiceTest
 
 		$this->metadataService->method( 'ensureMetadata' )
 		                      ->willReturnCallback(
-			                      function (
+			                      function(
 				                      $fileOrId,
 				                      &$metadataRef,
 			                      ) use
@@ -163,7 +157,6 @@ class HashCalculationServiceTest
 				                      $metadata,
 			                      ): bool
 			                      {
-
 				                      $metadataRef = $metadata;
 
 				                      return true;
@@ -177,26 +170,24 @@ class HashCalculationServiceTest
 		$order = [];
 		$this->metadataService->method( 'saveMetadata' )
 		                      ->willReturnCallback(
-			                      function () use
+			                      function() use
 			                      (
 				                      &
 				                      $order,
 			                      ): void
 			                      {
-
 				                      $order[] = 'save';
 			                      },
 		                      )
 		;
 		$this->lockingProvider->method( 'releaseLock' )
 		                      ->willReturnCallback(
-			                      function () use
+			                      function() use
 			                      (
 				                      &
 				                      $order,
 			                      ): void
 			                      {
-
 				                      $order[] = 'release';
 			                      },
 		                      )
@@ -223,13 +214,11 @@ class HashCalculationServiceTest
 		}
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testProcessFileWithoutAlgosTakesThemFromTheGoverningRule(): void
 	{
-
 		$metadata = $this->createMock( IFilesMetadata::class );
 		$this->metadataService->method( 'getMetadata' )
 		                      ->willReturn( $metadata )
@@ -275,13 +264,11 @@ class HashCalculationServiceTest
 		$service->processFile( 42, 'missing' );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testProcessFileDropsTheMarkWhenNoIncludeRuleGoverns(): void
 	{
-
 		$metadata = $this->createMock( IFilesMetadata::class );
 		$this->metadataService->method( 'getMetadata' )
 		                      ->willReturn( $metadata )
@@ -319,13 +306,11 @@ class HashCalculationServiceTest
 		$service->processFile( 42, 'missing' );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testProcessFileDropsTheMarkWhenNoRuleMatchesAtAll(): void
 	{
-
 		$metadata = $this->createMock( IFilesMetadata::class );
 		$this->metadataService->method( 'getMetadata' )
 		                      ->willReturn( $metadata )
@@ -357,13 +342,11 @@ class HashCalculationServiceTest
 		$service->processFile( 42, 'auto' );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testProcessFileDropsAnUnknownModeInsteadOfLoopingIt(): void
 	{
-
 		$metadata = $this->createMock( IFilesMetadata::class );
 		$this->metadataService->method( 'getMetadata' )
 		                      ->willReturn( $metadata )
@@ -382,10 +365,8 @@ class HashCalculationServiceTest
 		$this->service->processFile( 42, 'new', [ 'sha1' ] );
 	}
 
-
 	public function testProcessFileLazyMode(): void
 	{
-
 		$metadata = $this->createMock( IFilesMetadata::class );
 
 		$this->metadataService->expects( $this->once() )
@@ -418,13 +399,11 @@ class HashCalculationServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testProcessFileForceMode(): void
 	{
-
 		$metadata = $this->createMock( IFilesMetadata::class );
 
 		$this->metadataService->expects( $this->once() )
@@ -478,15 +457,15 @@ class HashCalculationServiceTest
 
 		$metadata->expects( $this->exactly( 2 ) )
 		         ->method( 'setString' )
-		         ->willReturnCallback( function (
+		         ->willReturnCallback( function(
 			         string $key,
 		         ) use
 		         (
 			         &
 			         $written,
 			         $metadata,
-		         ) {
-
+		         )
+		         {
 			         $written[] = $key;
 
 			         return $metadata;
@@ -523,13 +502,11 @@ class HashCalculationServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testProcessFileAutoModeSkipsMissingKeys(): void
 	{
-
 		$metadata = $this->createMock( IFilesMetadata::class );
 
 		$this->metadataService->expects( $this->once() )
@@ -599,13 +576,11 @@ class HashCalculationServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testProcessFileMissingMode(): void
 	{
-
 		$metadata = $this->createMock( IFilesMetadata::class );
 
 		$this->metadataService->expects( $this->once() )
@@ -675,13 +650,11 @@ class HashCalculationServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testProcessFileAutoModeAllKeysMissing(): void
 	{
-
 		$metadata = $this->createMock( IFilesMetadata::class );
 
 		$this->metadataService->expects( $this->once() )
@@ -722,13 +695,11 @@ class HashCalculationServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testProcessFileFailureMarksPending(): void
 	{
-
 		$metadata = $this->createMock( IFilesMetadata::class );
 
 		$this->metadataService->expects( $this->once() )
@@ -805,7 +776,6 @@ class HashCalculationServiceTest
 		);
 	}
 
-
 	/**
 	 * The mock here is the point. `getHashes()` answers `algo => hash`, and
 	 * this test used to stub it with a plain list — so the assertion below
@@ -814,7 +784,6 @@ class HashCalculationServiceTest
 	 */
 	public function testRecalcAllExistingAlgosOnlyRecalculatesExisting(): void
 	{
-
 		$fileId = 99;
 		$file   = $this->createMock( File::class );
 		$file->method( 'getId' )
@@ -900,10 +869,8 @@ class HashCalculationServiceTest
 		$this->assertFalse( $result['locked'] );
 	}
 
-
 	public function testGenerateMissingHashesCollectsAndGenerates(): void
 	{
-
 		$userId         = 'testuser';
 		$algo           = 'sha1';
 		$userFolderPath = '/testuser/files';
@@ -935,10 +902,8 @@ class HashCalculationServiceTest
 		$this->assertSame( 0, $result['skipped'] );
 	}
 
-
 	private function createCollectingServiceMock(): HashCalculationService&MockObject
 	{
-
 		return $this->getMockBuilder( HashCalculationService::class )
 		            ->onlyMethods( [ 'recalcHashes' ] )
 		            ->setConstructorArgs(
@@ -955,10 +920,8 @@ class HashCalculationServiceTest
 		;
 	}
 
-
 	public function testGenerateMissingHashesProcessesFilesWithZeroBatchSize(): void
 	{
-
 		// The direct path now honours rule verdicts, so a file needs a rule
 		// that says to hash it — as it always did under --mark.
 		$this->ruleService->method( 'governingRulesForFileIds' )
@@ -1034,10 +997,8 @@ class HashCalculationServiceTest
 		$this->assertSame( 0, $result['skipped'] );
 	}
 
-
 	public function testGenerateMissingHashesSkipsAlreadyHashedFiles(): void
 	{
-
 		$userId         = 'testuser';
 		$algo           = 'sha1';
 		$userFolderPath = '/testuser/files';
@@ -1083,10 +1044,8 @@ class HashCalculationServiceTest
 		$this->assertSame( 0, $result['skipped'] );
 	}
 
-
 	public function testGenerateMissingHashesAppliesPathGlob(): void
 	{
-
 		// The direct path now honours rule verdicts, so a file needs a rule
 		// that says to hash it — as it always did under --mark.
 		$this->ruleService->method( 'governingRulesForFileIds' )
@@ -1177,10 +1136,8 @@ class HashCalculationServiceTest
 		$this->assertSame( 0, $result['skipped'] );
 	}
 
-
 	private function createRealService(): HashCalculationService
 	{
-
 		return new HashCalculationService(
 			$this->filecacheService,
 			$this->lockingProvider,
@@ -1191,10 +1148,8 @@ class HashCalculationServiceTest
 		);
 	}
 
-
 	public function testRecalcFileHashRejectsUnsupportedAlgo(): void
 	{
-
 		$file = $this->createMock( File::class );
 		$file->method( 'getId' )
 		     ->willReturn( 42 )
@@ -1204,7 +1159,7 @@ class HashCalculationServiceTest
 
 		$this->metadataService->method( 'ensureMetadata' )
 		                      ->willReturnCallback(
-			                      function (
+			                      function(
 				                      $fileOrId,
 				                      &$metadataRef,
 			                      ) use
@@ -1212,7 +1167,6 @@ class HashCalculationServiceTest
 				                      $metadata,
 			                      ): bool
 			                      {
-
 				                      $metadataRef = $metadata;
 
 				                      return false;
@@ -1231,10 +1185,8 @@ class HashCalculationServiceTest
 		$this->assertStringContainsString( 'Unsupported algorithm', $result['error'] ?? '' );
 	}
 
-
 	public function testRecalcHashesSkipsUpToDateAlgosWithoutLocking(): void
 	{
-
 		$file = $this->createMock( File::class );
 		$file->method( 'getId' )
 		     ->willReturn( 42 )
@@ -1270,13 +1222,11 @@ class HashCalculationServiceTest
 		$this->assertTrue( $result['results']['sha1']['existed'] );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testGenerateMissingHashesSkipsFilesTheirRuleExcludes(): void
 	{
-
 		// Regression: the direct path used to hash every collected file
 		// without ever asking for a verdict, so `occ generate` read storage an
 		// exclude rule existed to keep it out of — while --mark, the same
@@ -1296,13 +1246,11 @@ class HashCalculationServiceTest
 		$this->assertSame( 0, $result['processed'] );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testGenerateMissingHashesSkipsAFileNoRuleMatches(): void
 	{
-
 		$service = $this->collectingServiceOverOneFile( null );
 		$service->expects( $this->never() )
 		        ->method( 'recalcHashes' )
@@ -1311,13 +1259,11 @@ class HashCalculationServiceTest
 		$this->assertSame( 0, $service->generateMissingHashes( 'testuser', [ 'sha1' ], null, 0 )['processed'] );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testGenerateMissingHashesProcessesAnIgnoredFileWhenAskedTo(): void
 	{
-
 		$service = $this->collectingServiceOverOneFile(
 			[
 				'id'   => 'quiet',
@@ -1352,16 +1298,12 @@ class HashCalculationServiceTest
 		$this->assertSame( 1, $result['processed'] );
 	}
 
-
 	// ─── effective algorithm set / --mode semantics ─────────────────
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testAutoTakesTheAlgorithmsFromTheGoverningRule(): void
 	{
-
 		$service = $this->collectingServiceOverOneFile(
 			[
 				'id'    => 'r1',
@@ -1380,13 +1322,11 @@ class HashCalculationServiceTest
 		$this->assertSame( 1, $result['processed'] );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testExplicitAlgorithmsAreExclusiveOfTheRulesList(): void
 	{
-
 		// The rule says sha256; the operator said md5. Explicit means
 		// exactly that — the rule's list is not consulted.
 		$service = $this->collectingServiceOverOneFile(
@@ -1405,13 +1345,11 @@ class HashCalculationServiceTest
 		$service->generateMissingHashes( 'testuser', [ 'md5' ], null, 0 );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testAutoPlusExplicitFormsTheUnion(): void
 	{
-
 		$service = $this->collectingServiceOverOneFile(
 			[
 				'id'    => 'r1',
@@ -1443,13 +1381,11 @@ class HashCalculationServiceTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testMissingModeRefreshesAStaleFileThatHasEveryAlgorithm(): void
 	{
-
 		// The file carries the hash, but its content changed after it was
 		// computed (updated_at < mtime). "Missing and outdated" is what the
 		// missing mode means — presence alone is not done-ness.
@@ -1471,13 +1407,11 @@ class HashCalculationServiceTest
 		$service->generateMissingHashes( 'testuser', [ 'auto' ], null, 0 );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testMissingModeSkipsAFreshFullyHashedFile(): void
 	{
-
 		$service = $this->collectingServiceOverOneFile(
 			[
 				'id'    => 'r1',
@@ -1496,13 +1430,11 @@ class HashCalculationServiceTest
 		$this->assertSame( 0, $result['processed'] );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testForceModeRecomputesAFreshFullyHashedFile(): void
 	{
-
 		$service = $this->collectingServiceOverOneFile(
 			[
 				'id'    => 'r1',
@@ -1522,13 +1454,11 @@ class HashCalculationServiceTest
 		$service->generateMissingHashes( 'testuser', [ 'auto' ], null, 0, null, null, 'force' );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testUnmatchedOnlySkipsAMatchedIncludeFile(): void
 	{
-
 		// The inverse view: a file an include rule governs is out of scope.
 		$service = $this->collectingServiceOverOneFile(
 			[
@@ -1553,13 +1483,11 @@ class HashCalculationServiceTest
 		$this->assertSame( 0, $result['processed'] );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testUnmatchedOnlyProcessesAFileNoRuleGoverns(): void
 	{
-
 		$service = $this->collectingServiceOverOneFile( null );
 		$service->expects( $this->once() )
 		        ->method( 'recalcHashes' )
@@ -1579,13 +1507,11 @@ class HashCalculationServiceTest
 		$this->assertSame( 1, $result['processed'] );
 	}
 
-
 	/**
 	 * @return array{results: array<string, array{success: bool, hash: string, existed: bool}>, locked: bool}
 	 */
 	private function oneSuccess( string $algo ): array
 	{
-
 		return [
 			'results' => [
 				$algo => [
@@ -1597,7 +1523,6 @@ class HashCalculationServiceTest
 			'locked'  => false,
 		];
 	}
-
 
 	/**
 	 * A collecting service over a single file governed by $rule.
@@ -1611,8 +1536,8 @@ class HashCalculationServiceTest
 		string $checksum = '',
 		int    $mtime = 1000,
 		?int   $updatedAt = null,
-	): HashCalculationService&MockObject {
-
+	): HashCalculationService&MockObject
+	{
 		$userFolderPath = '/testuser/files';
 
 		$this->filecacheService->method( 'getUserFolderPath' )
@@ -1658,10 +1583,8 @@ class HashCalculationServiceTest
 		return $this->createCollectingServiceMock();
 	}
 
-
 	public function testGenerateMissingHashesCollectsFileMissingAnyAlgo(): void
 	{
-
 		// The direct path now honours rule verdicts, so a file needs a rule
 		// that says to hash it — as it always did under --mark.
 		$this->ruleService->method( 'governingRulesForFileIds' )
@@ -1767,7 +1690,6 @@ class HashCalculationServiceTest
 	 */
 	public function testTheSupportedAlgorithmsIncludeTheOnesRulesRelyOn(): void
 	{
-
 		foreach (
 			[
 				'sha1',
@@ -1781,11 +1703,8 @@ class HashCalculationServiceTest
 		}
 	}
 
-
 	public function testTheDefaultAlgorithmIsSha1(): void
 	{
-
 		$this->assertSame( 'sha1', $this->service->getDefaultAlgo() );
 	}
-
 }

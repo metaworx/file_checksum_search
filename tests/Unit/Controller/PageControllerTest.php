@@ -14,16 +14,19 @@ use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\IRequest;
 
 class PageControllerTest
-	extends
-	FciasUnitTestCase
+    extends
+    FciasUnitTestCase
 {
+
+//  private properties
 
 	private PageController $controller;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->controller = new PageController(
@@ -33,9 +36,10 @@ class PageControllerTest
 	}
 
 
+//  other non-static methods
+
 	public function testGetDocsReturnsBundledDocumentation(): void
 	{
-
 		$response = $this->controller->getDocs();
 
 		$data = $response->getData();
@@ -70,10 +74,8 @@ class PageControllerTest
 		}
 	}
 
-
 	public function testGetHelpReturnsPublicDocumentation(): void
 	{
-
 		$response = $this->controller->getHelp();
 
 		$data = $response->getData();
@@ -103,5 +105,4 @@ class PageControllerTest
 			$this->assertNotSame( '', $doc['content'] );
 		}
 	}
-
 }

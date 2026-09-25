@@ -21,6 +21,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 readonly class StatusService
 {
 
+//  constructor
+
 	public function __construct(
 		private DatabaseService  $databaseService,
 		private TableNameService $tables,
@@ -30,34 +32,28 @@ readonly class StatusService
 	}
 
 
+//  getters / setters / is* / has*
+
 	/** @noinspection PhpUnused */
 	public function getAppVersion(): string
 	{
-
 		return $this->appManager->getAppVersion( 'file_checksum_search' );
 	}
 
-
 	public function getDbVersion( ?OutputInterface $output = null ): string
 	{
-
 		return $this->databaseService->getDatabaseVersion( $output );
 	}
 
-
 	public function getHashRowCount(): int
 	{
-
 		return $this->metadataService->countHashEntries();
 	}
 
-
 	public function getPendingRowCount(): int
 	{
-
 		return array_sum( $this->metadataService->getPendingStats() );
 	}
-
 
 	/**
 	 * Compare source migration files against installed migrations.
@@ -69,7 +65,6 @@ readonly class StatusService
 	 */
 	public function getMigrationStatus( ?OutputInterface $output = null ): array
 	{
-
 		$installed = $this->databaseService->getInstalledMigrations(
 			'file_checksum_search',
 			$output,
@@ -94,11 +89,8 @@ readonly class StatusService
 		return $results;
 	}
 
-
 	public function hasChecksumColumn( ?OutputInterface $output = null ): bool
 	{
-
 		return $this->databaseService->columnExists( $this->tables->getFilecacheTableName(), 'checksum', $output );
 	}
-
 }

@@ -41,9 +41,11 @@ use OCP\Server;
  * having particular users, and no password is written down.
  */
 class RulesApiTest
-	extends
-	DatabaseTestCase
+    extends
+    DatabaseTestCase
 {
+
+//  private properties
 
 	private static string $adminUid;
 
@@ -71,29 +73,29 @@ class RulesApiTest
 	private ?string       $universalRuleId = null;
 
 
+//  static methods
 
 	public static function setUpBeforeClass(): void
 	{
-
 		parent::setUpBeforeClass();
 
 		[
 			self::$adminUid,
 			self::$adminPassword,
 		]
-			= self::makeAccount( 'fcias_rules_admin' );
+			 = self::makeAccount( 'fcias_rules_admin' );
 
 		[
 			self::$aliceUid,
 			self::$alicePassword,
 		]
-			= self::makeAccount( 'fcias_rules_alice' );
+			 = self::makeAccount( 'fcias_rules_alice' );
 
 		[
 			self::$bobUid,
 			self::$bobPassword,
 		]
-			= self::makeAccount( 'fcias_rules_bob' );
+			 = self::makeAccount( 'fcias_rules_bob' );
 
 		$groupManager = Server::get( IGroupManager::class );
 		$adminGroup   = $groupManager->get( 'admin' );
@@ -120,10 +122,8 @@ class RulesApiTest
 		$permissions->setAllUsersEnabled( PermissionService::PERMISSION_RULE_EDITING, true );
 	}
 
-
 	public static function tearDownAfterClass(): void
 	{
-
 		Server::get( PermissionService::class )
 		      ->setAllUsersEnabled(
 			      PermissionService::PERMISSION_RULE_EDITING,
@@ -135,9 +135,10 @@ class RulesApiTest
 	}
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->preserveStoredRules();
@@ -222,20 +223,16 @@ class RulesApiTest
 	}
 
 
-
+//  other non-static methods
 
 	// ─── reading ─────────────────────────────────────────────────────
-
 	public function testAnonymousIsRefused(): void
 	{
-
 		$this->assertSame( 401, $this->request( 'GET', '/api/v1/rules', null, null )['status'] );
 	}
 
-
 	public function testAUserSeesOnlyTheRulesThatConcernThem(): void
 	{
-
 		$response = $this->request( 'GET', '/api/v1/rules', null, 'alice' );
 
 		$this->assertSame( 200, $response['status'] );
@@ -260,10 +257,8 @@ class RulesApiTest
 		$this->assertContains( 'home:' . self::$bobUid, $everything, 'and an administrator does see it' );
 	}
 
-
 	public function testTheEveryoneViewIsForAdministrators(): void
 	{
-
 		$this->assertSame(
 			403,
 			$this->request( 'GET', '/api/v1/rules?scope=all', null, 'alice' )['status'],
@@ -274,22 +269,17 @@ class RulesApiTest
 		);
 	}
 
-
 	public function testAnUnknownScopeIsRefused(): void
 	{
-
 		$this->assertSame(
 			400,
 			$this->request( 'GET', '/api/v1/rules?scope=everything', null, 'admin' )['status'],
 		);
 	}
 
-
 	// ─── creating ────────────────────────────────────────────────────
-
 	public function testAPathThatCannotReachTheCallersFilesIsRefused(): void
 	{
-
 		// Scope answers "does this rule cover me"; this answers "could it
 		// ever touch a file I can see". A rule on a folder that is not in
 		// her tree can never match anything.
@@ -309,7 +299,6 @@ class RulesApiTest
 		$this->assertSame( 403, $response['status'] );
 	}
 
-
 	/**
 	 * A non-administrator's selector is not validated and refused — it is
 	 * *replaced* with their own home, whatever they asked for. So the
@@ -319,23 +308,17 @@ class RulesApiTest
 	 */
 	public function testAUserCannotAimARuleAtSomebodyElse(): void
 	{
-
 		$this->assertNeutralisedToOwnHome( 'home:' . self::$bobUid );
 	}
 
-
 	public function testAUserCannotWidenARuleToEveryStorage(): void
 	{
-
 		$this->assertNeutralisedToOwnHome( '*' );
 	}
 
-
 	// ─── somebody else's rule ────────────────────────────────────────
-
 	public function testAStrangerMayNotUpdateIt(): void
 	{
-
 		$this->assertSame(
 			403,
 			$this->request(
@@ -347,30 +330,24 @@ class RulesApiTest
 		);
 	}
 
-
 	public function testAStrangerMayNotDeleteIt(): void
 	{
-
 		$this->assertSame(
 			403,
 			$this->request( 'DELETE', '/api/v1/rules/' . $this->aliceRuleId, null, 'bob' )['status'],
 		);
 	}
 
-
 	public function testAUserMayNotReapplyAnAdministratorsRule(): void
 	{
-
 		$this->assertSame(
 			403,
 			$this->request( 'POST', '/api/v1/rules/' . $this->homeAllRuleId . '/apply', null, 'alice' )['status'],
 		);
 	}
 
-
 	public function testTheOwnerMayDoWhatTheStrangerMayNot(): void
 	{
-
 		$this->assertSame(
 			200,
 			$this->request(
@@ -382,12 +359,9 @@ class RulesApiTest
 		);
 	}
 
-
 	// ─── rules that are not there ────────────────────────────────────
-
 	public function testAMissingRuleIsNotFoundRatherThanForbidden(): void
 	{
-
 		foreach (
 			[
 				[
@@ -414,12 +388,9 @@ class RulesApiTest
 		);
 	}
 
-
 	// ─── reordering and re-applying ──────────────────────────────────
-
 	public function testAReorderMustNameItsSegment(): void
 	{
-
 		$this->assertSame(
 			400,
 			$this->request( 'PUT', '/api/v1/rules/order', [], 'admin' )['status'],
@@ -432,10 +403,8 @@ class RulesApiTest
 		);
 	}
 
-
 	public function testASegmentGivenInFullIsReordered(): void
 	{
-
 		// Two rules, or there is no order to assert. Reordering a segment of
 		// one returns 200 whether the ids are honoured or ignored, which is
 		// what this test used to check.
@@ -521,10 +490,8 @@ class RulesApiTest
 		);
 	}
 
-
 	public function testADisabledRuleCannotBeReapplied(): void
 	{
-
 		// Re-applying queues an uncapped pass over everything the rule
 		// governs. A disabled rule governs nothing, so saying so beats
 		// queueing a pass with nothing in it.
@@ -539,12 +506,9 @@ class RulesApiTest
 		);
 	}
 
-
 	// ─── helpers ─────────────────────────────────────────────────────
-
 	private function assertNeutralisedToOwnHome( string $asked ): void
 	{
-
 		$path = '/Neutralised' . substr( md5( $asked ), 0, 6 ) . '/**';
 
 		// The folder has to exist, or the refusal above fires first and this
@@ -587,7 +551,6 @@ class RulesApiTest
 		);
 	}
 
-
 	/**
 	 * One request, with its status code.
 	 *
@@ -603,8 +566,8 @@ class RulesApiTest
 		string  $path,
 		?array  $body,
 		?string $as,
-	): array {
-
+	): array
+	{
 		// OCS-APIRequest on every call. A plain GET on this app's routes is
 		// answered without it, which is what the browser-side probing found
 		// — but anything that changes something is refused with 412

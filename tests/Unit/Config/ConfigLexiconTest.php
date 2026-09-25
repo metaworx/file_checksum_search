@@ -15,32 +15,34 @@ use OCP\Config\Lexicon\Strictness;
 use PHPUnit\Framework\TestCase;
 
 class ConfigLexiconTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private ConfigLexicon $lexicon;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->lexicon = new ConfigLexicon();
 	}
 
 
+//  other non-static methods
+
 	public function testGetStrictnessReturnsWarning(): void
 	{
-
 		$this->assertSame( Strictness::WARNING, $this->lexicon->getStrictness() );
 	}
 
-
 	public function testGetAppConfigsReturnsExpectedKeys(): void
 	{
-
 		$configs = $this->lexicon->getAppConfigs();
 
 		$this->assertIsArray( $configs );
@@ -81,14 +83,11 @@ class ConfigLexiconTest
 		$this->assertContains( 'api_access_users', $keys );
 	}
 
-
 	public function testGetUserConfigsDeclaresThePerUserKeys(): void
 	{
-
 		$userConfigs = $this->lexicon->getUserConfigs();
 		$this->assertCount( 2, $userConfigs );
 		$this->assertSame( 'preferred_algorithm', $userConfigs[0]->getKey() );
 		$this->assertSame( 'sudo_tokens', $userConfigs[1]->getKey() );
 	}
-
 }

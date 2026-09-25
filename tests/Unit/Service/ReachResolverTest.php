@@ -19,9 +19,11 @@ use OCP\IUserManager;
 use PHPUnit\Framework\MockObject\MockObject;
 
 class ReachResolverTest
-	extends
-	FciasUnitTestCase
+    extends
+    FciasUnitTestCase
 {
+
+//  private properties
 
 	private IUserMountCache&MockObject $mounts;
 
@@ -30,9 +32,10 @@ class ReachResolverTest
 	private ReachResolver              $reach;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->mounts = $this->createMock( IUserMountCache::class );
@@ -49,12 +52,13 @@ class ReachResolverTest
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * @param  array<string, list<array{0: int, 1: string}>>  $byUid  storage id and root internal path, per account
 	 */
 	private function mountsByUid( array $byUid ): void
 	{
-
 		$this->mounts->method( 'getMountsForUser' )
 		             ->willReturnCallback( fn ( IUser $u ): array => array_map(
 			             fn ( array $m ) => $this->createConfiguredMock( ICachedMountInfo::class, [
@@ -66,16 +70,13 @@ class ReachResolverTest
 		;
 	}
 
-
 	public function testNullIsEverythingAndAnUnknownAccountIsNothing(): void
 	{
-
 		$this->assertNull( $this->reach->mountsFor( null ) );
 		$this->assertNull( $this->reach->storageIdsFor( null ) );
 		$this->assertSame( [], $this->reach->mountsFor( 'ghost' ) );
 		$this->assertSame( [], $this->reach->mountsFor( [] ) );
 	}
-
 
 	/**
 	 * A mount is a storage and a root. Two accounts sharing a storage
@@ -83,7 +84,6 @@ class ReachResolverTest
 	 */
 	public function testMountsAreStorageAndRootOnceEach(): void
 	{
-
 		$this->mountsByUid( [
 			'alice' => [ [ 1, '' ], [ 9, 'files/Projects/x' ] ],
 			'bob'   => [ [ 2, '/' ], [ 9, 'files/Projects/x' ], [ 9, 'files/Other' ] ],
@@ -103,7 +103,6 @@ class ReachResolverTest
 		$this->assertSame( [ 1, 9, 2 ], $this->reach->storageIdsFor( [ 'alice', 'bob' ] ) );
 	}
 
-
 	/**
 	 * The subtree rule, per file: a home mount contains its whole storage;
 	 * a share contains the shared folder and what is below it, and nothing
@@ -112,7 +111,6 @@ class ReachResolverTest
 	 */
 	public function testContainsFollowsTheMountsRoot(): void
 	{
-
 		$mounts = [
 			[ 'storage' => 1, 'root' => '' ],
 			[ 'storage' => 9, 'root' => 'files/Projects/x' ],
@@ -129,10 +127,8 @@ class ReachResolverTest
 		$this->assertFalse( $this->contains( $mounts, 7, 'files/Projects/x/f.txt' ), 'right path, wrong storage' );
 	}
 
-
 	public function testAFileTheFilecacheDoesNotKnowLiesNowhere(): void
 	{
-
 		$result = $this->createMock( IResult::class );
 		$result->method( 'fetch' )
 		       ->willReturn( false )
@@ -144,7 +140,6 @@ class ReachResolverTest
 		$this->assertFalse( $this->reach->contains( [ [ 'storage' => 1, 'root' => '' ] ], 404 ) );
 	}
 
-
 	/**
 	 * Runs contains() against a filecache row of the given storage and path.
 	 */
@@ -152,8 +147,8 @@ class ReachResolverTest
 		array  $mounts,
 		int    $storage,
 		string $path,
-	): bool {
-
+	): bool
+	{
 		$result = $this->createMock( IResult::class );
 		$result->method( 'fetch' )
 		       ->willReturn( [ 'storage' => $storage, 'path' => $path ] )
@@ -172,5 +167,4 @@ class ReachResolverTest
 
 		return ( new ReachResolver( $this->mounts, $this->users, $db ) )->contains( $mounts, 1 );
 	}
-
 }

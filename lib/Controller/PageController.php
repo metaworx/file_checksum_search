@@ -22,18 +22,22 @@ use OCP\IRequest;
  * Page controller for the global duplicate file browser.
  */
 class PageController
-	extends
-	Controller
+    extends
+    Controller
 {
+
+//  constructor
 
 	public function __construct(
 		string   $appName,
 		IRequest $request,
-	) {
-
+	)
+	{
 		parent::__construct( $appName, $request );
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * Render the global duplicate browser page.
@@ -45,7 +49,6 @@ class PageController
 	#[FrontpageRoute( verb: 'GET', url: '/duplicates' )]
 	public function index(): TemplateResponse
 	{
-
 		return new TemplateResponse(
 			'file_checksum_search',
 			'duplicates',
@@ -54,6 +57,8 @@ class PageController
 		);
 	}
 
+
+//  getters / setters / is* / has*
 
 	/**
 	 * Serve bundled documentation files for the Documentation tab.
@@ -66,7 +71,6 @@ class PageController
 	#[ApiRoute( verb: 'GET', url: '/admin/docs' )]
 	public function getDocs(): DataResponse
 	{
-
 		return new DataResponse( [
 			'docs' => $this->readDocs(
 				[
@@ -108,7 +112,6 @@ class PageController
 		] );
 	}
 
-
 	/**
 	 * Serve public-facing help documentation to all authenticated users.
 	 *
@@ -123,7 +126,6 @@ class PageController
 	#[ApiRoute( verb: 'GET', url: '/help' )]
 	public function getHelp(): DataResponse
 	{
-
 		return new DataResponse( [
 			'docs' => $this->readDocs(
 				[
@@ -142,7 +144,6 @@ class PageController
 		] );
 	}
 
-
 	/**
 	 * Read the given bundled doc files and return label/name/path/content entries.
 	 *
@@ -152,7 +153,6 @@ class PageController
 	 */
 	private function readDocs( array $files ): array
 	{
-
 		$appRoot = dirname( __DIR__, 2 );
 
 		$docs = [];
@@ -179,5 +179,4 @@ class PageController
 
 		return $docs;
 	}
-
 }

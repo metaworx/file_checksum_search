@@ -28,9 +28,11 @@ use ReflectionMethod;
  * this pins.
  */
 class CsrfAttributeTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  static methods
 
 	/**
 	 * The mutating POSTs, which must NOT waive CSRF.
@@ -39,15 +41,16 @@ class CsrfAttributeTest
 	 */
 	public static function mutatingProvider(): array
 	{
-
 		return [
-			'recalc' => [ PublicApiController::class, 'recalcHash' ],
-			'recalc many' => [ PublicApiController::class, 'recalcMany' ],
+			'recalc'           => [ PublicApiController::class, 'recalcHash' ],
+			'recalc many'      => [ PublicApiController::class, 'recalcMany' ],
 			'sudo recalc many' => [ PublicApiController::class, 'sudoRecalcMany' ],
-			'apply'  => [ RulesController::class, 'apply' ],
+			'apply'            => [ RulesController::class, 'apply' ],
 		];
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * @dataProvider mutatingProvider
@@ -56,8 +59,8 @@ class CsrfAttributeTest
 	public function testAMutatingRouteDoesNotWaiveCsrf(
 		string $class,
 		string $method,
-	): void {
-
+	): void
+	{
 		$attributes = ( new ReflectionMethod( $class, $method ) )
 			->getAttributes( NoCSRFRequired::class )
 		;
@@ -69,7 +72,6 @@ class CsrfAttributeTest
 		);
 	}
 
-
 	/**
 	 * A read route keeps the waiver: it is called with an app password that
 	 * carries no CSRF token, and a GET is not the CSRF concern.
@@ -77,12 +79,10 @@ class CsrfAttributeTest
 	 */
 	public function testAReadRouteKeepsTheWaiver(): void
 	{
-
 		$attributes = ( new ReflectionMethod( PublicApiController::class, 'lookup' ) )
 			->getAttributes( NoCSRFRequired::class )
 		;
 
 		self::assertCount( 1, $attributes, 'lookup is a GET called with an app password and keeps #[NoCSRFRequired].' );
 	}
-
 }

@@ -25,22 +25,26 @@ use Symfony\Component\Console\Output\OutputInterface;
  * @noinspection PhpUnused
  */
 class TestPerformance
-	extends
-	Command
+    extends
+    Command
 {
+
+//  constructor
 
 	public function __construct(
 		private readonly IDBConnection   $db,
 		private readonly MetadataService $metadataService,
-	) {
-
+	)
+	{
 		parent::__construct();
 	}
+
+
+//  config/init/exe/run methods
 
 	/** @noinspection PhpUnused */
 	protected function configure(): void
 	{
-
 		$this->setName( 'file-checksum-search:test-perf' )
 		     ->setDescription( 'Benchmark metadata index hash lookup vs filecache LIKE scan' )
 		;
@@ -50,8 +54,8 @@ class TestPerformance
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
-	): int {
-
+	): int
+	{
 		$testHash = 'deadbeef0123456789abcdef0123456789abcdef';
 
 		$output->writeln( '=== FCIAS Performance Benchmark ===' );
@@ -66,6 +70,7 @@ class TestPerformance
 		{
 			$this->metadataService->queryByHash( $testHash, null, 1 );
 		}
+
 		$indexedTime = ( microtime( true ) - $startIndexed ) * 1000;
 
 		// 2. Benchmark unindexed LIKE scan on filecache
@@ -89,6 +94,7 @@ class TestPerformance
 			   ->fetchAll()
 			;
 		}
+
 		$unindexedTime = ( microtime( true ) - $startUnindexed ) * 1000;
 
 		$output->writeln(
@@ -148,5 +154,4 @@ class TestPerformance
 
 		return Command::SUCCESS;
 	}
-
 }

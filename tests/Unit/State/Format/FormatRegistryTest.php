@@ -20,33 +20,35 @@ use PHPUnit\Framework\TestCase;
  * One list, so `--format` means the same thing on both commands.
  */
 class FormatRegistryTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private FormatRegistry $registry;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 		$this->registry = new FormatRegistry();
 	}
 
 
+//  other non-static methods
+
 	public function testEachNameResolvesToItsFormat(): void
 	{
-
 		$this->assertInstanceOf( JsonFormat::class, $this->registry->get( 'json' ) );
 		$this->assertInstanceOf( CsvFormat::class, $this->registry->get( 'CSV' ) );
 		$this->assertInstanceOf( SumFormat::class, $this->registry->get( ' sum ' ) );
 	}
 
-
 	public function testEveryAdvertisedNameResolves(): void
 	{
-
 		foreach ( FormatRegistry::names() as $name )
 		{
 			$this->registry->get( $name );
@@ -62,16 +64,13 @@ class FormatRegistryTest
 		);
 	}
 
-
 	public function testAnUnknownNameSaysWhatIsAvailable(): void
 	{
-
 		$this->expectException( InvalidArgumentException::class );
 		$this->expectExceptionMessageMatches( '/json, csv, sum/' );
 
 		$this->registry->get( 'yaml' );
 	}
-
 
 	/**
 	 * @dataProvider filenames
@@ -79,18 +78,19 @@ class FormatRegistryTest
 	public function testAFilenameCanSuggestItsFormat(
 		string  $path,
 		?string $expected,
-	): void {
-
+	): void
+	{
 		$this->assertSame( $expected, $this->registry->guessFromPath( $path ) );
 	}
 
+
+//  static methods
 
 	/**
 	 * @return array<string, array{string, string|null}>
 	 */
 	public static function filenames(): array
 	{
-
 		return [
 			'json'           => [
 				'/backups/fcias.json',
@@ -122,5 +122,4 @@ class FormatRegistryTest
 			],
 		];
 	}
-
 }

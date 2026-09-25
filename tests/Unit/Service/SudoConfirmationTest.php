@@ -19,11 +19,16 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 class SudoConfirmationTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
 
+//  constants
+
 	private const NOW = 1_700_000_000;
+
+
+//  private properties
 
 	private ISession&MockObject       $session;
 
@@ -34,9 +39,10 @@ class SudoConfirmationTest
 	private SudoConfirmation          $confirmation;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->session = $this->createMock( ISession::class );
@@ -52,12 +58,13 @@ class SudoConfirmationTest
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * @param  array<string, mixed>  $values
 	 */
 	private function sessionHolding( array $values ): void
 	{
-
 		$this->session->method( 'get' )
 		              ->willReturnCallback( static fn ( string $key ): mixed => $values[ $key ] ?? null );
 		// No getId() stub, on purpose: an app-password request has no
@@ -65,28 +72,22 @@ class SudoConfirmationTest
 		// The check once did, and every granted token was refused for it.
 	}
 
-
 	public function testAPasswordConfirmedWithinTheWindowCounts(): void
 	{
-
 		$this->sessionHolding( [ 'last-password-confirm' => self::NOW - SudoConfirmation::WINDOW + 60 ] );
 
 		$this->assertTrue( $this->confirmation->isConfirmed( 'alice' ) );
 	}
 
-
 	public function testAConfirmationOlderThanTheWindowDoesNot(): void
 	{
-
 		$this->sessionHolding( [ 'last-password-confirm' => self::NOW - SudoConfirmation::WINDOW - 1 ] );
 
 		$this->assertFalse( $this->confirmation->isConfirmed( 'alice' ) );
 	}
 
-
 	public function testABrowserSessionWithNoConfirmationIsNot(): void
 	{
-
 		$this->sessionHolding( [] );
 		$this->grants->expects( $this->never() )
 		             ->method( 'isGranted' )
@@ -95,14 +96,12 @@ class SudoConfirmationTest
 		$this->assertFalse( $this->confirmation->isConfirmed( 'alice' ) );
 	}
 
-
 	/**
 	 * The non-interactive half: the token behind the request carries a
 	 * grant, and that stands in for the prompt.
 	 */
 	public function testAGrantedAppPasswordCountsWithoutAnyConfirmation(): void
 	{
-
 		$this->sessionHolding( [ 'app_password' => 'secret' ] );
 		$token = $this->createMock( IToken::class );
 		$token->method( 'getId' )
@@ -120,10 +119,8 @@ class SudoConfirmationTest
 		$this->assertTrue( $this->confirmation->isConfirmed( 'alice' ) );
 	}
 
-
 	public function testAnUngrantedAppPasswordIsNot(): void
 	{
-
 		$this->sessionHolding( [ 'app_password' => 'secret' ] );
 		$token = $this->createMock( IToken::class );
 		$token->method( 'getId' )
@@ -139,10 +136,8 @@ class SudoConfirmationTest
 		$this->assertFalse( $this->confirmation->isConfirmed( 'alice' ) );
 	}
 
-
 	public function testATokenCoreCannotFindHoldsNoGrant(): void
 	{
-
 		$this->sessionHolding( [ 'app_password' => 'secret' ] );
 		$this->tokens->method( 'getToken' )
 		             ->willThrowException( new \RuntimeException( 'invalid token' ) )
@@ -153,5 +148,4 @@ class SudoConfirmationTest
 
 		$this->assertFalse( $this->confirmation->isConfirmed( 'alice' ) );
 	}
-
 }

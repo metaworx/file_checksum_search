@@ -24,9 +24,11 @@ use Symfony\Component\Console\Output\OutputInterface;
  * Covers all 6 public methods with mocked dependencies.
  */
 class StatusServiceTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private DatabaseService&MockObject  $databaseService;
 
@@ -40,9 +42,10 @@ class StatusServiceTest
 	private StatusService               $service;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->databaseService = $this->createMock( DatabaseService::class );
@@ -59,9 +62,10 @@ class StatusServiceTest
 	}
 
 
+//  other non-static methods
+
 	public function testGetHashRowCountReturnsCount(): void
 	{
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'countHashEntries' )
 		                      ->willReturn( 42 )
@@ -72,10 +76,8 @@ class StatusServiceTest
 		$this->assertSame( 42, $result );
 	}
 
-
 	public function testGetPendingRowCountSumsStats(): void
 	{
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'getPendingStats' )
 		                      ->willReturn( [ 'lazy' => 5, 'missing' => 3, 'force' => 2 ] )
@@ -86,10 +88,8 @@ class StatusServiceTest
 		$this->assertSame( 10, $result );
 	}
 
-
 	public function testGetMigrationStatusComparesAgainstInstalled(): void
 	{
-
 		$output = $this->createMock( OutputInterface::class );
 
 		$this->databaseService->expects( $this->once() )
@@ -115,10 +115,8 @@ class StatusServiceTest
 		}
 	}
 
-
 	public function testHasChecksumColumnReturnsBool(): void
 	{
-
 		$output = $this->createMock( OutputInterface::class );
 
 		$this->tables->expects( $this->once() )
@@ -136,5 +134,4 @@ class StatusServiceTest
 
 		$this->assertTrue( $result );
 	}
-
 }

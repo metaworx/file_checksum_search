@@ -41,11 +41,16 @@ use Throwable;
  * the Nextcloud ddev container.
  */
 abstract class DatabaseTestCase
-	extends
-	TestCase
+    extends
+    TestCase
 {
 
+//  protected properties
+
 	protected IDBConnection $db;
+
+
+//  private properties
 
 	private bool            $inTransaction = false;
 
@@ -60,6 +65,9 @@ abstract class DatabaseTestCase
 	 */
 	private static array $provisionedUsers = [];
 
+
+//  constants
+
 	/** Where the rules live, for {@see preserveStoredRules()}. */
 	private const RULES_CONFIG_KEY = 'rule_definitions';
 
@@ -67,17 +75,20 @@ abstract class DatabaseTestCase
 	private ?string $rulesBefore = null;
 
 
+//  getters / setters / is* / has*
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->db = Server::get( IDBConnection::class );
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * Begin a transaction that will be rolled back in tearDown().
@@ -88,7 +99,6 @@ abstract class DatabaseTestCase
 	 */
 	protected function beginTransaction(): void
 	{
-
 		if ( $this->inTransaction )
 		{
 			return;
@@ -99,8 +109,9 @@ abstract class DatabaseTestCase
 	}
 
 
-	// ─── accounts a test needs ───────────────────────────────────────
+//  static methods
 
+	// ─── accounts a test needs ───────────────────────────────────────
 	/**
 	 * Make an account for this run, and hand back how to authenticate as it.
 	 *
@@ -137,7 +148,6 @@ abstract class DatabaseTestCase
 	 */
 	protected static function makeAccount( string $base ): array
 	{
-
 		$random   = Server::get( ISecureRandom::class );
 		$uid      = $base . '_' . $random->generate( 8, ISecureRandom::CHAR_LOWER . ISecureRandom::CHAR_DIGITS );
 		$password = self::strongPassword( $random );
@@ -176,7 +186,6 @@ abstract class DatabaseTestCase
 		];
 	}
 
-
 	/**
 	 * A password no policy will refuse and nobody will guess.
 	 *
@@ -186,7 +195,6 @@ abstract class DatabaseTestCase
 	 */
 	private static function strongPassword( ISecureRandom $random ): string
 	{
-
 		$password = $random->generate( 1, ISecureRandom::CHAR_UPPER )
 		            . $random->generate( 1, ISecureRandom::CHAR_LOWER )
 		            . $random->generate( 1, ISecureRandom::CHAR_DIGITS )
@@ -200,10 +208,8 @@ abstract class DatabaseTestCase
 		return $password;
 	}
 
-
 	public static function tearDownAfterClass(): void
 	{
-
 		$userManager = Server::get( IUserManager::class );
 
 		// The trash first, the administrator's included: a test that deletes
@@ -228,7 +234,6 @@ abstract class DatabaseTestCase
 		parent::tearDownAfterClass();
 	}
 
-
 	/**
 	 * Every item in $uid's trash removed for good. Not through the trashbin
 	 * app's manager: in this process its backend is not registered, so the
@@ -237,7 +242,6 @@ abstract class DatabaseTestCase
 	 */
 	protected static function emptyTrashOf( string $uid ): void
 	{
-
 		if ( Server::get( IUserManager::class )->get( $uid ) === null )
 		{
 			return;
@@ -259,9 +263,7 @@ abstract class DatabaseTestCase
 		}
 	}
 
-
 	// ─── the instance's own rules ────────────────────────────────────
-
 	/**
 	 * Remember the stored rules, and put them back when the test ends.
 	 *
@@ -275,16 +277,13 @@ abstract class DatabaseTestCase
 	 */
 	protected function preserveStoredRules(): void
 	{
-
 		$this->rulesBefore = Server::get( IAppConfig::class )
 		                           ->getValueString( Application::APP_ID, self::RULES_CONFIG_KEY )
 		;
 	}
 
-
 	private function restoreStoredRules(): void
 	{
-
 		if ( $this->rulesBefore === null )
 		{
 			return;
@@ -303,10 +302,8 @@ abstract class DatabaseTestCase
 		$this->rulesBefore = null;
 	}
 
-
 	protected function tearDown(): void
 	{
-
 		$this->restoreStoredRules();
 
 		if ( $this->inTransaction )
@@ -326,36 +323,28 @@ abstract class DatabaseTestCase
 		parent::tearDown();
 	}
 
-
 	// ─── connection helpers (typed, matching DatabaseService pattern) ─
-
 	protected function getRawConnection(): Connection
 	{
-
 		return $this->db->getInner();
 	}
-
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	protected function getSchemaManager(): AbstractSchemaManager
 	{
-
 		return $this->getRawConnection()
 		            ->createSchemaManager()
 		;
 	}
 
-
 	// ─── naming helpers ──────────────────────────────────────────────
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	protected function getTablePrefix(): string
 	{
-
 		if ( $this->tablePrefix === null )
 		{
 			/** @var \OCP\IConfig $config */
@@ -366,20 +355,16 @@ abstract class DatabaseTestCase
 		return $this->tablePrefix;
 	}
 
-
 	protected function getFilecacheTableName(): string
 	{
-
 		return $this->getTablePrefix() . 'filecache';
 	}
-
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	protected function assertTableExists( string $tableName ): void
 	{
-
 		$this->assertTrue(
 			$this->getSchemaManager()
 			     ->tablesExist( [ $tableName ] ),
@@ -387,13 +372,11 @@ abstract class DatabaseTestCase
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	protected function assertTableNotExists( string $tableName ): void
 	{
-
 		$this->assertFalse(
 			$this->getSchemaManager()
 			     ->tablesExist( [ $tableName ] ),
@@ -401,15 +384,14 @@ abstract class DatabaseTestCase
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	protected function assertColumnExists(
 		string $tableName,
 		string $columnName,
-	): void {
-
+	): void
+	{
 		$columns = $this->getSchemaManager()
 		                ->listTableColumns( $tableName )
 		;
@@ -427,15 +409,14 @@ abstract class DatabaseTestCase
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	protected function assertColumnNotExists(
 		string $tableName,
 		string $columnName,
-	): void {
-
+	): void
+	{
 		$columns = $this->getSchemaManager()
 		                ->listTableColumns( $tableName )
 		;
@@ -454,6 +435,8 @@ abstract class DatabaseTestCase
 	}
 
 
+//  config/init/exe/run methods
+
 	/**
 	 * Execute raw SQL via the Doctrine connection.
 	 *
@@ -463,12 +446,10 @@ abstract class DatabaseTestCase
 	 */
 	protected function executeRawSql( string $sql ): void
 	{
-
 		$this->getRawConnection()
 		     ->executeStatement( $sql )
 		;
 	}
-
 
 	/**
 	 * Count rows in a table (simple convenience wrapper).
@@ -476,7 +457,6 @@ abstract class DatabaseTestCase
 	 */
 	protected function countRows( string $tableName ): int
 	{
-
 		$qb = $this->db->getQueryBuilder();
 
 		$qb->select(
@@ -490,5 +470,4 @@ abstract class DatabaseTestCase
 		                ->fetchOne()
 		;
 	}
-
 }

@@ -17,9 +17,11 @@ use OCP\IURLGenerator;
 use PHPUnit\Framework\MockObject\MockObject;
 
 class PersonalSectionTest
-	extends
-	FciasUnitTestCase
+    extends
+    FciasUnitTestCase
 {
+
+//  private properties
 
 	private MockObject|IL10N         $l10n;
 
@@ -28,9 +30,10 @@ class PersonalSectionTest
 	private PersonalSection          $section;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->l10n         = $this->createMock( IL10N::class );
@@ -39,26 +42,23 @@ class PersonalSectionTest
 	}
 
 
+//  other non-static methods
+
 	public function testGetIdReturnsAppIdWithPersonalSuffix(): void
 	{
-
 		$this->assertSame( 'file_checksum_search_personal', $this->section->getID() );
 	}
 
-
 	public function testGetPriorityIsWithinValidRange(): void
 	{
-
 		$priority = $this->section->getPriority();
 
 		$this->assertGreaterThanOrEqual( 0, $priority );
 		$this->assertLessThanOrEqual( 99, $priority );
 	}
 
-
 	public function testGetNameUsesL10n(): void
 	{
-
 		$this->l10n->expects( $this->once() )
 		           ->method( 't' )
 		           ->with( 'File Checksum Index & Search' )
@@ -68,10 +68,8 @@ class PersonalSectionTest
 		$this->assertSame( 'Translated name', $this->section->getName() );
 	}
 
-
 	public function testGetIconUsesAppSvg(): void
 	{
-
 		$this->urlGenerator->expects( $this->once() )
 		                   ->method( 'imagePath' )
 		                   ->with( 'file_checksum_search', 'app.svg' )
@@ -81,13 +79,10 @@ class PersonalSectionTest
 		$this->assertSame( '/apps/file_checksum_search/img/app.svg', $this->section->getIcon() );
 	}
 
-
 	public function testPersonalSettingsUseSameSectionId(): void
 	{
-
 		$personal = new Personal();
 
 		$this->assertSame( $this->section->getID(), $personal->getSection() );
 	}
-
 }

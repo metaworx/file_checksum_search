@@ -30,19 +30,22 @@ use PHPUnit\Framework\MockObject\MockObject;
  * table.
  */
 class Version010000Date20260806100000Test
-	extends
-	DatabaseTestCase
+    extends
+    DatabaseTestCase
 {
+
+//  private properties
 
 	private Version010000Date20260806100000 $migration;
 
+
+//  getters / setters / is* / has*
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->migration = new Version010000Date20260806100000(
@@ -51,9 +54,10 @@ class Version010000Date20260806100000Test
 	}
 
 
+//  other non-static methods
+
 	public function testPostSchemaChangeSkipsTheBackfillWhenTableMissing(): void
 	{
-
 		$schema = $this->createMock( ISchemaWrapper::class );
 		$schema->method( 'hasTable' )
 		       ->with( 'files_metadata_index' )
@@ -65,9 +69,8 @@ class Version010000Date20260806100000Test
 		$output = $this->createMock( IOutput::class );
 		$output->method( 'info' )
 		       ->willReturnCallback(
-			       function ( $message ) use ( &$infoMessages ): void
+			       function( $message ) use ( &$infoMessages ): void
 			       {
-
 				       $infoMessages[] = $message;
 			       },
 		       )
@@ -92,10 +95,8 @@ class Version010000Date20260806100000Test
 		);
 	}
 
-
 	public function testPostSchemaChangeBackfillsWhenTableExists(): void
 	{
-
 		/** @var MockObject|IOutput $output */
 		$output = $this->createMock( IOutput::class );
 		$output->expects( $this->never() )
@@ -105,9 +106,8 @@ class Version010000Date20260806100000Test
 		$infoMessages = [];
 		$output->method( 'info' )
 		       ->willReturnCallback(
-			       function ( $message ) use ( &$infoMessages ): void
+			       function( $message ) use ( &$infoMessages ): void
 			       {
-
 				       $infoMessages[] = $message;
 			       },
 		       )
@@ -141,5 +141,4 @@ class Version010000Date20260806100000Test
 			'Expected a "...backfilling..." info message when the table exists.',
 		);
 	}
-
 }

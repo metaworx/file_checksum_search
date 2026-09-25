@@ -33,9 +33,11 @@ use OCP\Server;
  * there.
  */
 class UngovernedAreasTest
-	extends
-	DatabaseTestCase
+    extends
+    DatabaseTestCase
 {
+
+//  private properties
 
 	private static string $uid;
 
@@ -45,9 +47,10 @@ class UngovernedAreasTest
 	private static array $fileIds = [];
 
 
+//  static methods
+
 	public static function setUpBeforeClass(): void
 	{
-
 		parent::setUpBeforeClass();
 
 		[ self::$uid ] = self::makeAccount( 'fcias_ungoverned' );
@@ -80,10 +83,8 @@ class UngovernedAreasTest
 		}
 	}
 
-
 	private static function folderAt( Folder $home, string $path ): Folder
 	{
-
 		try
 		{
 			$node = $home->get( $path );
@@ -119,9 +120,10 @@ class UngovernedAreasTest
 	}
 
 
+//  other non-static methods
+
 	public function testTheLookupAnswersTheLiveCopiesOnly(): void
 	{
-
 		$found = Server::get( ChecksumApi::class )->findByHash( self::$hash, 'sha1', 100, [ self::$uid ] );
 		$ids   = array_map( static fn ( array $row ): int => (int) $row['fileid'], $found['results'] ?? [] );
 		sort( $ids );
@@ -129,10 +131,8 @@ class UngovernedAreasTest
 		$this->assertSame( [ self::$fileIds['live-a'], self::$fileIds['live-b'] ], $ids );
 	}
 
-
 	public function testADuplicateGroupCountsTheLiveCopiesOnly(): void
 	{
-
 		$listing = Server::get( ChecksumApi::class )->findDuplicatesFor( [ self::$uid ], 'sha1', 2, 50, 0, self::$hash );
 		$groups  = array_values( array_filter(
 			$listing['duplicates'] ?? [],
@@ -147,5 +147,4 @@ class UngovernedAreasTest
 		$this->assertSame( [ self::$fileIds['live-a'], self::$fileIds['live-b'] ], $ids );
 		$this->assertSame( 2, (int) $groups[0]['file_count'], 'the count follows the rows kept' );
 	}
-
 }

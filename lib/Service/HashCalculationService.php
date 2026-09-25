@@ -31,9 +31,12 @@ use Throwable;
 class HashCalculationService
 {
 
+//  constants
 
 	public const CHUNK_SIZE = 8192;
 
+
+//  constructor
 
 	public function __construct(
 		private readonly FilecacheService $filecacheService,
@@ -45,10 +48,11 @@ class HashCalculationService
 	) {
 	}
 
-
 	/** The --algo token that delegates to the governing rule's algorithm list. */
 	public const ALGO_AUTO = 'auto';
 
+
+//  getters / setters / is* / has*
 
 	/**
 	 * The algorithm to use when a caller names none and no rule decides.
@@ -57,10 +61,8 @@ class HashCalculationService
 	 */
 	public function getDefaultAlgo(): string
 	{
-
 		return $this->catalogue->default();
 	}
-
 
 	/**
 	 * Whether $algo names an algorithm the catalogue has in force.
@@ -70,10 +72,8 @@ class HashCalculationService
 	 */
 	public function isValidAlgo( mixed $algo ): bool
 	{
-
 		return $this->catalogue->isValid( $algo );
 	}
-
 
 	/**
 	 * Whether the file's hashes are at least as new as the file.
@@ -85,13 +85,15 @@ class HashCalculationService
 	private function isHashUpToDate(
 		int|File|IFilesMetadata $fileOrMetadata,
 		int                     $mtime,
-	): bool {
-
+	): bool
+	{
 		$updatedAt = $this->metadataService->getUpdatedAt( $fileOrMetadata );
 
 		return $updatedAt !== null && $updatedAt >= $mtime;
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * Take an exclusive lock on a file, or report that somebody else has it.
@@ -103,7 +105,6 @@ class HashCalculationService
 	 */
 	private function acquireLock( int $fileId ): bool
 	{
-
 		try
 		{
 			$this->lockingProvider->acquireLock(
@@ -118,7 +119,6 @@ class HashCalculationService
 			return false;
 		}
 	}
-
 
 	/**
 	 * Walk one user's folders, collecting the files that need hashing.
@@ -147,8 +147,8 @@ class HashCalculationService
 		RuleOverrides    $overrides,
 		?OutputInterface $output = null,
 		?array           &$stats = null,
-	): void {
-
+	): void
+	{
 		// A non-positive batch size means "no limit" (the generate
 		// command passes 0 when --batch-size is omitted).
 		$unlimited = $batchSize <= 0;
@@ -328,7 +328,6 @@ class HashCalculationService
 		}
 	}
 
-
 	/**
 	 * Whether $file already carries every algorithm of $algos, fresh.
 	 *
@@ -342,8 +341,8 @@ class HashCalculationService
 	private function hasAllAndFresh(
 		File  $file,
 		array $algos,
-	): bool {
-
+	): bool
+	{
 		$existing = FilecacheService::parseChecksumString( $file->getChecksum() ?? '' );
 
 		foreach ( $algos as $algo )
@@ -358,7 +357,6 @@ class HashCalculationService
 
 		return $updatedAt !== null && $updatedAt >= $file->getMTime();
 	}
-
 
 	/**
 	 * Two-phase hash generation: collect files needing hashes,
@@ -388,8 +386,8 @@ class HashCalculationService
 		?OutputInterface $output = null,
 		?RuleOverrides   $overrides = null,
 		string           $mode = MetadataService::PENDING_MODE_MISSING,
-	): array {
-
+	): array
+	{
 		$overrides ??= new RuleOverrides();
 
 		$tokens        = array_values( array_unique( array_map( 'strtolower', (array) $algo ) ) );
@@ -562,7 +560,6 @@ class HashCalculationService
 		];
 	}
 
-
 	/**
 	 * Centralized processing logic for a single file drained from the queue.
 	 *
@@ -589,8 +586,8 @@ class HashCalculationService
 		int    $fileId,
 		string $mode,
 		?array $algos = null,
-	): void {
-
+	): void
+	{
 		$metadata = $this->metadataService->getMetadata( $fileId );
 		$file     = null;
 
@@ -726,7 +723,6 @@ class HashCalculationService
 		);
 	}
 
-
 	/**
 	 * Persist a recalcHashes() result set for one mode, marking the file
 	 * pending and returning false on the first failing algorithm.
@@ -742,8 +738,8 @@ class HashCalculationService
 		int            $fileId,
 		string         $mode,
 		IFilesMetadata $metadata,
-	): bool {
-
+	): bool
+	{
 		foreach ( $algos as $algo )
 		{
 			$result = $batch['results'][ $algo ] ?? null;
@@ -782,7 +778,6 @@ class HashCalculationService
 		return true;
 	}
 
-
 	/**
 	 * Recalculate all currently-indexed algos for a file.
 	 *
@@ -792,7 +787,6 @@ class HashCalculationService
 	 */
 	public function recalcAllExistingAlgos( int|File $file ): array
 	{
-
 		$file     = $this->filecacheService->getFile( $file );
 		$metadata = $this->metadataService->getMetadata( $file );
 
@@ -835,7 +829,6 @@ class HashCalculationService
 		];
 	}
 
-
 	/**
 	 * Compute hashes for one or more algorithms in a single pass.
 	 *
@@ -855,8 +848,8 @@ class HashCalculationService
 		array           $algos,
 		bool            $skipExisting = true,
 		?IFilesMetadata $metadata = null,
-	): array {
-
+	): array
+	{
 		$algos = array_values( array_unique( array_map( 'strtolower', $algos ) ) );
 
 		// Validate first; invalid algos fail without touching the file.
@@ -1046,7 +1039,6 @@ class HashCalculationService
 		];
 	}
 
-
 	/**
 	 * Compute a single algorithm's hash using the pre-batch fast paths.
 	 */
@@ -1054,8 +1046,8 @@ class HashCalculationService
 		File     $file,
 		IStorage $storage,
 		string   $algo,
-	): string {
-
+	): string
+	{
 		if ( $storage->isLocal() )
 		{
 			$absolutePath = $storage->getLocalFile( $file->getInternalPath() );
@@ -1083,7 +1075,6 @@ class HashCalculationService
 		}
 	}
 
-
 	/**
 	 * Stream a file once and feed each chunk into one hash context per
 	 * algorithm.
@@ -1095,8 +1086,8 @@ class HashCalculationService
 	private function computeMultiHash(
 		File  $file,
 		array $algos,
-	): array {
-
+	): array
+	{
 		$handle = $file->fopen( 'rb' );
 
 		if ( $handle === false )
@@ -1141,7 +1132,6 @@ class HashCalculationService
 		}
 	}
 
-
 	/**
 	 * Compute a hash for a File node if it does not already exist
 	 * in the filecache, then write it back.
@@ -1159,8 +1149,8 @@ class HashCalculationService
 		string          $algo,
 		bool            $skipExisting = true,
 		?IFilesMetadata $metadata = null,
-	): array {
-
+	): array
+	{
 		$algo   = strtolower( $algo );
 		$result = $this->recalcHashes( $file, [ $algo ], $skipExisting, $metadata );
 		$single = $result['results'][ $algo ];
@@ -1184,7 +1174,6 @@ class HashCalculationService
 		return $out;
 	}
 
-
 	/**
 	 * Recalculate one algorithm's hash for a file, resolving a fileId
 	 * through the root folder first.
@@ -1201,8 +1190,8 @@ class HashCalculationService
 		string          $algo,
 		bool            $skipExisting = true,
 		?IFilesMetadata $metadata = null,
-	): array {
-
+	): array
+	{
 		$algo = strtolower( $algo );
 
 		if ( ! $file instanceof File )
@@ -1237,7 +1226,6 @@ class HashCalculationService
 		return $this->recalcFileHash( $file, $algo, $skipExisting, $metadata );
 	}
 
-
 	/**
 	 * A path expressed relative to a base, for display and pattern matching.
 	 *
@@ -1250,8 +1238,8 @@ class HashCalculationService
 	private function relativeHashPath(
 		string $path,
 		string $basePath,
-	): string {
-
+	): string
+	{
 		$basePath = rtrim( $basePath, '/' );
 
 		if ( $path === $basePath )
@@ -1269,7 +1257,6 @@ class HashCalculationService
 		return ltrim( $path, '/' );
 	}
 
-
 	/**
 	 * Release the lock {@see acquireLock()} took. Only call it when that
 	 * returned true: this does not check, and Nextcloud's locking provider
@@ -1277,11 +1264,9 @@ class HashCalculationService
 	 */
 	private function releaseLock( int $fileId ): void
 	{
-
 		$this->lockingProvider->releaseLock(
 			'files/' . $fileId,
 			ILockingProvider::LOCK_EXCLUSIVE,
 		);
 	}
-
 }

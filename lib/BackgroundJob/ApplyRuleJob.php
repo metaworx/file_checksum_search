@@ -30,26 +30,29 @@ use Throwable;
  * makes sense".
  */
 class ApplyRuleJob
-	extends
-	QueuedJob
+    extends
+    QueuedJob
 {
+
+//  constructor
 
 	public function __construct(
 		ITimeFactory                     $time,
 		private readonly RuleService     $ruleService,
 		private readonly LoggerInterface $logger,
-	) {
-
+	)
+	{
 		parent::__construct( $time );
 	}
 
+
+//  config/init/exe/run methods
 
 	/**
 	 * @param  array{ruleId?: string, actor?: string}  $argument
 	 */
 	protected function run( $argument ): void
 	{
-
 		$ruleId = (string) ( $argument['ruleId'] ?? '' );
 		$actor  = (string) ( $argument['actor'] ?? 'unknown' );
 
@@ -86,5 +89,4 @@ class ApplyRuleJob
 			);
 		}
 	}
-
 }

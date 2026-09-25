@@ -33,18 +33,21 @@ use Symfony\Component\Console\Tester\CommandTester;
  * semantics, which live in the services' own tests.
  */
 class RulesCommandsTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private MockObject|RuleService  $ruleService;
 
 	private RuleDefinitionValidator $validator;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->ruleService = $this->createMock( RuleService::class );
@@ -62,19 +65,18 @@ class RulesCommandsTest
 	}
 
 
+//  other non-static methods
+
 	private function tester( Command $command ): CommandTester
 	{
-
 		// The question helper (delete's confirm) needs an application.
 		( new Application() )->add( $command );
 
 		return new CommandTester( $command );
 	}
 
-
 	public function testListRendersEvaluationOrderWithPositions(): void
 	{
-
 		$this->ruleService->method( 'loadRules' )
 		                  ->willReturn( [
 			                  [
@@ -123,10 +125,8 @@ class RulesCommandsTest
 		);
 	}
 
-
 	public function testAddDelegatesThroughTheSharedValidator(): void
 	{
-
 		// occ is trusted: scope and enforcement pass through as an admin's
 		// would, and the definition reaching ruleAdd is the validator's
 		// output, not the raw options.
@@ -170,10 +170,8 @@ class RulesCommandsTest
 		$this->assertStringContainsString( 'The rule is disabled', $tester->getDisplay() );
 	}
 
-
 	public function testAddRejectsAnInvalidPayloadBeforeTouchingTheRules(): void
 	{
-
 		$this->ruleService->expects( $this->never() )
 		                  ->method( 'ruleAdd' )
 		;
@@ -185,10 +183,8 @@ class RulesCommandsTest
 		$this->assertStringContainsString( 'Unknown rule type.', $tester->getDisplay() );
 	}
 
-
 	public function testModifyRoutesABareToggleThroughRuleToggle(): void
 	{
-
 		$this->ruleService->method( 'findRuleById' )
 		                  ->willReturn(
 			                  [
@@ -218,10 +214,8 @@ class RulesCommandsTest
 		$this->assertStringContainsString( 'Rule r1 enabled.', $tester->getDisplay() );
 	}
 
-
 	public function testModifyMergesOntoTheExistingRule(): void
 	{
-
 		$this->ruleService->method( 'findRuleById' )
 		                  ->willReturn( [
 			                  'id'        => 'r1',
@@ -257,10 +251,8 @@ class RulesCommandsTest
 		);
 	}
 
-
 	public function testUnknownIdFailsWithTheOneConsistentMessage(): void
 	{
-
 		$this->ruleService->method( 'findRuleById' )
 		                  ->willReturn( null )
 		;
@@ -290,10 +282,8 @@ class RulesCommandsTest
 		}
 	}
 
-
 	public function testApplyReportsAllFourBuckets(): void
 	{
-
 		$rule = [
 			'id'      => 'r1',
 			'enabled' => true,
@@ -327,5 +317,4 @@ class RulesCommandsTest
 			$tester->getDisplay(),
 		);
 	}
-
 }

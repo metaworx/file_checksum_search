@@ -37,9 +37,11 @@ use OCP\Share\IShare;
  * not depend on how many groups the instance already holds.
  */
 class ReachTest
-	extends
-	DatabaseTestCase
+    extends
+    DatabaseTestCase
 {
+
+//  constants
 
 	private const BASE_URL = 'http://127.0.0.1/ocs/v2.php/apps/file_checksum_search';
 
@@ -47,6 +49,9 @@ class ReachTest
 	private const ADMIN_UID = 'admin';
 
 	private const ADMIN_PASSWORD = 'admin';
+
+
+//  private properties
 
 	private static string $ownerUid;
 
@@ -69,9 +74,10 @@ class ReachTest
 	private static array $fileId;
 
 
+//  static methods
+
 	public static function setUpBeforeClass(): void
 	{
-
 		parent::setUpBeforeClass();
 
 		[ self::$ownerUid, self::$ownerPassword ]         = self::makeAccount( 'fcias_reach_owner' );
@@ -138,10 +144,8 @@ class ReachTest
 		$index->recalcFileHash( $adminFile, 'sha1', false );
 	}
 
-
 	public static function tearDownAfterClass(): void
 	{
-
 		$users  = Server::get( IUserManager::class );
 		$group  = Server::get( IGroupManager::class )->get( self::$groupId );
 		$leader = $users->get( self::$leaderUid );
@@ -168,16 +172,15 @@ class ReachTest
 	}
 
 
-	// ─── the recipient's own listing ─────────────────────────────────
+//  other non-static methods
 
+	// ─── the recipient's own listing ─────────────────────────────────
 	public function testAReceivedShareAppearsInTheOwnListing(): void
 	{
-
 		$ids = $this->listedFileIds( '/api/v1/duplicates', self::$hash['in'], self::$recipientUid, self::$recipientPassword );
 
 		$this->assertSame( [ self::$fileId['a'], self::$fileId['b'] ], $ids, 'the pair under the shared folder' );
 	}
-
 
 	/**
 	 * The half that matters. c and d share a *storage* with the shared
@@ -185,7 +188,6 @@ class ReachTest
 	 */
 	public function testTheSharersOtherFilesDoNotAppearInTheOwnListing(): void
 	{
-
 		$ids = $this->listedFileIds( '/api/v1/duplicates', self::$hash['out'], self::$recipientUid, self::$recipientPassword );
 
 		$this->assertSame( [], $ids, 'the pair beside the shared folder, same storage' );
@@ -196,19 +198,15 @@ class ReachTest
 		$this->assertSame( [ self::$fileId['c'], self::$fileId['d'] ], $owners );
 	}
 
-
 	// ─── a group leader over the recipient ───────────────────────────
-
 	public function testALeadersCeilingListsWhatTheirMemberCanSeeAndNoMore(): void
 	{
-
 		$inside = $this->listedFileIds( '/api/v1/sudo/duplicates', self::$hash['in'], self::$leaderUid, self::$leaderPassword );
 		$beside = $this->listedFileIds( '/api/v1/sudo/duplicates', self::$hash['out'], self::$leaderUid, self::$leaderPassword );
 
 		$this->assertSame( [ self::$fileId['a'], self::$fileId['b'] ], $inside, 'what the member received' );
 		$this->assertSame( [], $beside, 'not what the sharer kept to themself' );
 	}
-
 
 	/**
 	 * The per-file reach is the listing's predicate asked of one file: a
@@ -217,7 +215,6 @@ class ReachTest
 	 */
 	public function testALeaderReachesAFileInTheSubtreeAndNotOneBesideIt(): void
 	{
-
 		$in  = $this->get( '/api/v1/sudo/file/' . self::$fileId['a'] . '/hashes', self::$leaderUid, self::$leaderPassword );
 		$out = $this->get( '/api/v1/sudo/file/' . self::$fileId['c'] . '/hashes', self::$leaderUid, self::$leaderPassword );
 
@@ -227,9 +224,7 @@ class ReachTest
 		$this->assertSame( 'Not yours to look at.', $out['body']['error'] );
 	}
 
-
 	// ─── whose file, and where ───────────────────────────────────────
-
 	/**
 	 * The rows alice is shown for the shared pair are bob's files, and say
 	 * so: an owner that is not her, and a location in his home. Without it
@@ -238,7 +233,6 @@ class ReachTest
 	 */
 	public function testARowSaysWhoseFileItIsAndWhereItLives(): void
 	{
-
 		$response = $this->get(
 			'/api/v1/duplicates?algo=sha1&hash=' . self::$hash['in'],
 			self::$recipientUid,
@@ -258,9 +252,7 @@ class ReachTest
 		}
 	}
 
-
 	// ─── the per-file duplicates, across accounts ────────────────────
-
 	/**
 	 * The route's twin used to render every duplicate through the session's
 	 * own folder, so it answered nothing across accounts whatever reach it
@@ -271,7 +263,6 @@ class ReachTest
 	 */
 	public function testALeaderSeesADuplicateWithinTheirMembersReachAndNotBesideIt(): void
 	{
-
 		$inside = $this->get( '/api/v1/sudo/file/' . self::$fileId['a'] . '/duplicates', self::$leaderUid, self::$leaderPassword );
 
 		$this->assertSame( 200, $inside['status'] );
@@ -282,7 +273,6 @@ class ReachTest
 		$this->assertSame( 403, $beside['status'], 'c is not theirs to ask about' );
 	}
 
-
 	/**
 	 * A sudoer's reach is every account: asking about the owner's file
 	 * beside the share lists its duplicate, which no account of the
@@ -290,16 +280,13 @@ class ReachTest
 	 */
 	public function testASudoerSeesAForeignDuplicate(): void
 	{
-
 		$response = $this->get( '/api/v1/sudo/file/' . self::$fileId['c'] . '/duplicates', self::ADMIN_UID, self::ADMIN_PASSWORD );
 
 		$this->assertSame( 200, $response['status'] );
 		$this->assertSame( [ self::$fileId['d'] ], $this->duplicateIds( $response['body'] ) );
 	}
 
-
 	// ─── the set path, as the picker sends it ────────────────────────
-
 	/**
 	 * `users[]`/`groups[]` is what the picker actually sends, and until now
 	 * only `resolveSet()`'s unit tests had exercised it. A leader naming
@@ -308,7 +295,6 @@ class ReachTest
 	 */
 	public function testALeaderMayNameTheirOwnGroupAndNoOther(): void
 	{
-
 		$own = '/api/v1/sudo/duplicates?groups%5B%5D=' . self::$groupId;
 
 		$inside = $this->listedFileIds( $own, self::$hash['in'], self::$leaderUid, self::$leaderPassword );
@@ -323,9 +309,7 @@ class ReachTest
 		$this->assertSame( 'Not yours to look at.', $other['body']['error'] );
 	}
 
-
 	// ─── the write path, as a leader ─────────────────────────────────
-
 	/**
 	 * The route the `[SECURITY]` withdrawal was about, over HTTP as the
 	 * account it was withdrawn from: a leader recalculates a file in a
@@ -334,7 +318,6 @@ class ReachTest
 	 */
 	public function testALeaderRecalculatesWithinTheirMembersReachAndNotBesideIt(): void
 	{
-
 		$inside = $this->post( '/api/v1/sudo/file/' . self::$fileId['a'] . '/recalc?algo=sha1', self::$leaderUid, self::$leaderPassword );
 
 		$this->assertSame( 200, $inside['status'], json_encode( $inside['body'] ) );
@@ -347,12 +330,9 @@ class ReachTest
 		$this->assertSame( 'Not yours to look at.', $beside['body']['error'] );
 	}
 
-
 	// ─── the picker's search, as a leader ────────────────────────────
-
 	public function testALeadersSearchFindsTheirMembersAndNobodyElse(): void
 	{
-
 		$member = $this->get( '/api/v1/sudo/selectable?search=' . self::$recipientUid, self::$leaderUid, self::$leaderPassword );
 
 		$this->assertSame( 200, $member['status'] );
@@ -366,9 +346,7 @@ class ReachTest
 		$this->assertSame( [], $stranger['body']['users'], 'the owner is in none of the groups they lead' );
 	}
 
-
 	// ─── the administrator in the leader's group ─────────────────────
-
 	/**
 	 * Core's rule for a sub-admin, {@see \OCP\Group\ISubAdmin::isUserAccessible()},
 	 * refuses them an administrator whatever group they share. The app
@@ -381,7 +359,6 @@ class ReachTest
 	 */
 	public function testAnAdministratorInTheLeadersGroupIsOutOfTheirReach(): void
 	{
-
 		$admin = self::$fileId['admin'];
 
 		$offer = $this->get( '/api/v1/sudo/selectable?search=' . self::ADMIN_UID, self::$leaderUid, self::$leaderPassword );
@@ -409,9 +386,7 @@ class ReachTest
 		$this->assertContains( $admin, $sudoer, 'the file exists and is hashed: a sudoer sees it' );
 	}
 
-
 	// ─── several files in one request ────────────────────────────────
-
 	/**
 	 * `many` is a literal where `{fileId}` sits on the route beside it. That
 	 * this answers with `results` and not with a single file's verdict is
@@ -420,7 +395,6 @@ class ReachTest
 	 */
 	public function testTheOwnerRecalculatesSeveralFilesInOneRequest(): void
 	{
-
 		$response = $this->post(
 			'/api/v1/file/many/recalc',
 			self::$ownerUid,
@@ -435,7 +409,6 @@ class ReachTest
 		$this->assertSame( [], $response['body']['remaining'] );
 	}
 
-
 	/**
 	 * A leader's batch over a member's shared file and the owner's file
 	 * beside it: one succeeds, one is refused, in the same answer — per
@@ -444,7 +417,6 @@ class ReachTest
 	 */
 	public function testALeadersBatchAnswersPerFile(): void
 	{
-
 		$response = $this->post(
 			'/api/v1/sudo/file/many/recalc',
 			self::$leaderUid,
@@ -462,9 +434,7 @@ class ReachTest
 		$this->assertSame( 'File not found.', $beside['error'] );
 	}
 
-
 	// ─── which rows a link would open ────────────────────────────────
-
 	/**
 	 * A file link resolves in the viewer's folder or not at all. The
 	 * leader holds none of the member's files, so every row they are shown
@@ -473,7 +443,6 @@ class ReachTest
 	 */
 	public function testACrossAccountRowSaysWhetherItWouldOpenForTheViewer(): void
 	{
-
 		$leaders = $this->get( '/api/v1/sudo/duplicates?algo=sha1&hash=' . self::$hash['in'], self::$leaderUid, self::$leaderPassword );
 
 		$this->assertSame( 200, $leaders['status'] );
@@ -489,9 +458,7 @@ class ReachTest
 		$this->assertArrayNotHasKey( 'openable', $own['body']['duplicates'][0]['files'][0] );
 	}
 
-
 	// ─── a plain account, on every cross-account route ───────────────
-
 	/**
 	 * The recipient is neither an administrator nor a leader of anything:
 	 * the account most people have. Every `/sudo/` route — all eight — refuses them, and
@@ -502,7 +469,6 @@ class ReachTest
 	 */
 	public function testAPlainAccountIsRefusedOnEveryCrossAccountRoute(): void
 	{
-
 		$listing = $this->get( '/api/v1/duplicates?algo=sha1&hash=' . self::$hash['in'], self::$recipientUid, self::$recipientPassword );
 
 		$this->assertSame( 200, $listing['status'] );
@@ -535,9 +501,7 @@ class ReachTest
 		}
 	}
 
-
 	// ─── helpers ─────────────────────────────────────────────────────
-
 	/**
 	 * The mutating twin of {@see get()}. The recalc routes keep the CSRF
 	 * check, and a login password over Basic auth carries no request token —
@@ -550,8 +514,8 @@ class ReachTest
 		string $uid,
 		string $password,
 		?array $json = null,
-	): array {
-
+	): array
+	{
 		$content = $json === null ? '' : json_encode( $json, JSON_THROW_ON_ERROR );
 
 		$context = stream_context_create( [
@@ -583,7 +547,6 @@ class ReachTest
 		];
 	}
 
-
 	/**
 	 * The file ids a per-file duplicates answer lists, sorted.
 	 *
@@ -591,7 +554,6 @@ class ReachTest
 	 */
 	private function duplicateIds( array $body ): array
 	{
-
 		$ids = [];
 
 		foreach ( $body['duplicates'] ?? [] as $group )
@@ -607,7 +569,6 @@ class ReachTest
 		return $ids;
 	}
 
-
 	/**
 	 * The file ids the listing at $path shows for one hash, sorted.
 	 *
@@ -618,8 +579,8 @@ class ReachTest
 		string $hash,
 		string $uid,
 		string $password,
-	): array {
-
+	): array
+	{
 		$joiner   = str_contains( $path, '?' ) ? '&' : '?';
 		$response = $this->get( $path . $joiner . 'algo=sha1&hash=' . $hash, $uid, $password );
 
@@ -640,7 +601,6 @@ class ReachTest
 		return $ids;
 	}
 
-
 	/**
 	 * @return array{status: int, body: array<string, mixed>}
 	 */
@@ -648,8 +608,8 @@ class ReachTest
 		string $path,
 		string $uid,
 		string $password,
-	): array {
-
+	): array
+	{
 		$context = stream_context_create( [
 			'http' => [
 				'header'        => 'Authorization: Basic ' . base64_encode( $uid . ':' . $password )
@@ -674,5 +634,4 @@ class ReachTest
 			'body'   => $decoded,
 		];
 	}
-
 }

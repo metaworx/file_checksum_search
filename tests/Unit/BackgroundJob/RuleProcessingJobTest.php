@@ -25,9 +25,11 @@ use ReflectionMethod;
 use RuntimeException;
 
 class RuleProcessingJobTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private MockObject|ITimeFactory    $time;
 
@@ -46,18 +48,19 @@ class RuleProcessingJobTest
 	private RuleProcessingJob          $job;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
-		$this->time        = $this->createMock( ITimeFactory::class );
-		$this->ruleService = $this->createMock( RuleService::class );
+		$this->time            = $this->createMock( ITimeFactory::class );
+		$this->ruleService     = $this->createMock( RuleService::class );
 		$this->metadataService = $this->createMock( MetadataService::class );
-		$this->appConfig   = $this->createMock( IAppConfig::class );
-		$this->jobList     = $this->createMock( IJobList::class );
-		$this->jobStats    = $this->createMock( JobStatsService::class );
-		$this->logger      = $this->createMock( LoggerInterface::class );
+		$this->appConfig       = $this->createMock( IAppConfig::class );
+		$this->jobList         = $this->createMock( IJobList::class );
+		$this->jobStats        = $this->createMock( JobStatsService::class );
+		$this->logger          = $this->createMock( LoggerInterface::class );
 
 		// Answered by key rather than pinned with with(): the purge gate in
 		// run() reads its own clock and interval through the same method, and
@@ -81,12 +84,13 @@ class RuleProcessingJobTest
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * @noinspection PhpConditionAlreadyCheckedInspection
 	 */
 	public function testJobConstructsWithDefaultInterval(): void
 	{
-
 		$this->appConfig->expects( $this->once() )
 		                ->method( 'getValueInt' )
 		                ->with( Application::APP_ID, 'rule_processing_interval', 300 )
@@ -105,13 +109,11 @@ class RuleProcessingJobTest
 		$this->assertInstanceOf( RuleProcessingJob::class, $job );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRunDelegatesToRuleService(): void
 	{
-
 		$this->ruleService->expects( $this->once() )
 		                  ->method( 'evaluateRules' )
 		                  ->willReturn( [
@@ -129,13 +131,11 @@ class RuleProcessingJobTest
 		$reflection->invoke( $this->job, null );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRunDispatchesWhenMarked(): void
 	{
-
 		$this->ruleService->expects( $this->once() )
 		                  ->method( 'evaluateRules' )
 		                  ->willReturn( [
@@ -153,13 +153,11 @@ class RuleProcessingJobTest
 		$reflection->invoke( $this->job, null );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRunCatchesThrowableAndLogsError(): void
 	{
-
 		$this->ruleService->expects( $this->once() )
 		                  ->method( 'evaluateRules' )
 		                  ->willThrowException( new RuntimeException( 'DB down' ) )
@@ -175,13 +173,11 @@ class RuleProcessingJobTest
 		$this->assertTrue( true );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRunRecordsItsStats(): void
 	{
-
 		$this->ruleService->method( 'evaluateRules' )
 		                  ->willReturn( [
 			                  'marked'  => 3,
@@ -204,10 +200,8 @@ class RuleProcessingJobTest
 		$reflection->invoke( $this->job, null );
 	}
 
-
 	public function testThePurgeIsNotRunBeforeItsIntervalHasPassed(): void
 	{
-
 		$this->ruleService->method( 'evaluateRules' )
 		                  ->willReturn( [ 'marked' => 0, 'matched' => 0 ] )
 		;
@@ -227,14 +221,12 @@ class RuleProcessingJobTest
 		( new ReflectionMethod( RuleProcessingJob::class, 'run' ) )->invoke( $this->job, null );
 	}
 
-
 	/**
 	 * Due, with a backlog that takes two batches: both are run, the clock is
 	 * booked, and the heartbeat carries the totals.
 	 */
 	public function testADuePurgeRunsInBatchesAndBooksTheDay(): void
 	{
-
 		$this->ruleService->method( 'evaluateRules' )
 		                  ->willReturn( [ 'marked' => 0, 'matched' => 0 ] )
 		;
@@ -258,7 +250,8 @@ class RuleProcessingJobTest
 		$recorded = [];
 		$this->jobStats->method( 'record' )
 		               ->willReturnCallback(
-			               static function ( string $job, array $counts ) use ( &$recorded ): void {
+			               static function( string $job, array $counts ) use ( &$recorded ): void
+			               {
 				               $recorded[ $job ] = $counts;
 			               },
 		               )
@@ -272,14 +265,12 @@ class RuleProcessingJobTest
 		);
 	}
 
-
 	/**
 	 * A run that hits its batch cap has not emptied the backlog, so it leaves
 	 * the clock alone: the next tick carries on instead of waiting a day.
 	 */
 	public function testAPurgeThatHitsItsCapDoesNotBookTheDay(): void
 	{
-
 		$this->ruleService->method( 'evaluateRules' )
 		                  ->willReturn( [ 'marked' => 0, 'matched' => 0 ] )
 		;
@@ -298,5 +289,4 @@ class RuleProcessingJobTest
 
 		( new ReflectionMethod( RuleProcessingJob::class, 'run' ) )->invoke( $this->job, null );
 	}
-
 }

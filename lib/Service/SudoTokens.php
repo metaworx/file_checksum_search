@@ -37,6 +37,8 @@ use OCP\Config\IUserConfig;
 class SudoTokens
 {
 
+//  constructor
+
 	// Not a readonly class: the controllers' tests mock it, and PHPUnit
 	// cannot extend a readonly class. The properties are readonly instead.
 	public function __construct(
@@ -47,6 +49,8 @@ class SudoTokens
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * This account's grants, as stored.
 	 *
@@ -54,7 +58,6 @@ class SudoTokens
 	 */
 	public function grantsFor( string $uid ): array
 	{
-
 		$stored = $this->userConfig->getValueArray( $uid, Application::APP_ID, ConfigLexicon::USER_SUDO_TOKENS );
 		$grants = [];
 
@@ -75,17 +78,18 @@ class SudoTokens
 	}
 
 
+//  getters / setters / is* / has*
+
 	/**
 	 * Whether the token behind a request carries a grant.
 	 */
 	public function isGranted(
 		string $uid,
 		int    $tokenId,
-	): bool {
-
+	): bool
+	{
 		return array_key_exists( $tokenId, $this->grantsFor( $uid ) );
 	}
-
 
 	/**
 	 * This account's app passwords, each with its grant if it has one.
@@ -98,7 +102,6 @@ class SudoTokens
 	 */
 	public function listForUser( string $uid ): array
 	{
-
 		$grants = $this->grantsFor( $uid );
 		$rows   = [];
 		$seen   = [];
@@ -136,17 +139,14 @@ class SudoTokens
 		return $rows;
 	}
 
-
 	/**
 	 * Whether the last listing was an answer at all. False means the token
 	 * table could not be read, and an empty list is not "none".
 	 */
 	public function listingAvailable(): bool
 	{
-
 		return ! $this->tokens->wasUnavailable();
 	}
-
 
 	/**
 	 * Grant one of $uid's app passwords.
@@ -160,8 +160,8 @@ class SudoTokens
 		string $uid,
 		int    $tokenId,
 		string $grantedBy,
-	): void {
-
+	): void
+	{
 		$token = null;
 
 		foreach ( $this->tokens->listForUser( $uid ) as $candidate )
@@ -189,14 +189,13 @@ class SudoTokens
 		}
 
 		$grants              = $this->grantsFor( $uid );
-		$grants[ $tokenId ] = [
+		$grants[ $tokenId ]  = [
 			'granted_by' => $grantedBy,
 			'granted_at' => $this->time->getTime(),
 		];
 
 		$this->store( $uid, $grants );
 	}
-
 
 	/**
 	 * Revoke a grant. Revoking one that does not exist is not an error: the
@@ -205,8 +204,8 @@ class SudoTokens
 	public function revoke(
 		string $uid,
 		int    $tokenId,
-	): void {
-
+	): void
+	{
 		$grants = $this->grantsFor( $uid );
 
 		if ( ! array_key_exists( $tokenId, $grants ) )
@@ -218,7 +217,6 @@ class SudoTokens
 		$this->store( $uid, $grants );
 	}
 
-
 	/**
 	 * Every grant on the instance, joined against the live token table — the
 	 * administrator's tab. A grant whose token is gone is reported as such
@@ -228,7 +226,6 @@ class SudoTokens
 	 */
 	public function allGrants(): array
 	{
-
 		$byUser = $this->userConfig->getValuesByUsers( Application::APP_ID, ConfigLexicon::USER_SUDO_TOKENS );
 		$ids    = [];
 		$rows   = [];
@@ -275,15 +272,14 @@ class SudoTokens
 		return $rows;
 	}
 
-
 	/**
 	 * @param  array<int, array{granted_by: string, granted_at: int}>  $grants
 	 */
 	private function store(
 		string $uid,
 		array  $grants,
-	): void {
-
+	): void
+	{
 		if ( $grants === [] )
 		{
 			$this->userConfig->deleteUserConfig( $uid, Application::APP_ID, ConfigLexicon::USER_SUDO_TOKENS );
@@ -293,5 +289,4 @@ class SudoTokens
 
 		$this->userConfig->setValueArray( $uid, Application::APP_ID, ConfigLexicon::USER_SUDO_TOKENS, $grants );
 	}
-
 }

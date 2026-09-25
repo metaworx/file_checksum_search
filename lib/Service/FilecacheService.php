@@ -32,6 +32,8 @@ use OCP\IUserManager;
 class FilecacheService
 {
 
+//  constants
+
 	public const CHECKSUM_MAX_LENGTH = 255;
 
 	/**
@@ -46,6 +48,8 @@ class FilecacheService
 	private array $storageNumericIds = [];
 
 
+//  constructor
+
 	public function __construct(
 		private readonly IRootFolder        $rootFolder,
 		private readonly IDBConnection      $db,
@@ -56,13 +60,14 @@ class FilecacheService
 	}
 
 
+//  getters / setters / is* / has*
+
 	/**
 	 * @noinspection PhpDocMissingThrowsInspection
 	 * @throws \OCP\Files\NotFoundException
 	 */
 	public function getFile( int|File $file ): File
 	{
-
 		/** @noinspection PhpUnhandledExceptionInspection */
 		if ( $file instanceof File )
 		{
@@ -79,7 +84,6 @@ class FilecacheService
 		throw  new NotFoundException( "Invalid Filecache ID: $file" );
 	}
 
-
 	/**
 	 * The checksums Nextcloud itself holds for a file, as algo => hex.
 	 *
@@ -91,8 +95,8 @@ class FilecacheService
 	public function getChecksums(
 		int|File $file,
 		?array   $hashFilter = null,
-	): array {
-
+	): array
+	{
 		$file   = $this->getFile( $file );
 		$hashes = self::parseChecksumString( $file->getChecksum() ?? '' );
 
@@ -105,6 +109,8 @@ class FilecacheService
 	}
 
 
+//  static methods
+
 	/**
 	 * Parse a filecache checksum column value ("ALGO:hex ALGO:hex ...") into
 	 * lowercase algo => hex pairs. Malformed fragments are skipped rather
@@ -114,7 +120,6 @@ class FilecacheService
 	 */
 	public static function parseChecksumString( string $checksum ): array
 	{
-
 		$hashes = [];
 
 		foreach ( explode( ' ', $checksum ) as $pair )
@@ -128,7 +133,7 @@ class FilecacheService
 				$algoUpper,
 				$hash,
 			]
-				= explode( ':', $pair, 2 );
+				 = explode( ':', $pair, 2 );
 
 			if ( $algoUpper === '' || $hash === '' )
 			{
@@ -142,9 +147,13 @@ class FilecacheService
 	}
 
 
+//  private properties
+
 	/** Cache for {@see directoryMimetypeId()}. */
 	private ?int $directoryMimetypeId = null;
 
+
+//  other non-static methods
 
 	/**
 	 * The mimetype id of httpd/unix-directory — per-instance, so looked up
@@ -154,7 +163,6 @@ class FilecacheService
 	 */
 	private function directoryMimetypeId(): int
 	{
-
 		if ( $this->directoryMimetypeId !== null )
 		{
 			return $this->directoryMimetypeId;
@@ -180,7 +188,6 @@ class FilecacheService
 			: (int) $id;
 	}
 
-
 	/**
 	 * A file's canonical identity — its actual filecache row, classified.
 	 *
@@ -193,10 +200,8 @@ class FilecacheService
 	 */
 	public function locate( int $fileId ): ?FileLocation
 	{
-
 		return $this->locateAll( [ $fileId ] )[ $fileId ] ?? null;
 	}
-
 
 	/**
 	 * The canonical identities of many files in one scan.
@@ -212,7 +217,6 @@ class FilecacheService
 	 */
 	public function locateAll( array $fileIds ): array
 	{
-
 		$locations = [];
 
 		// 1000 per IN(): Oracle's placeholder ceiling, and the chunk size
@@ -250,12 +254,12 @@ class FilecacheService
 
 				$locations[ $location->fileId ] = $location;
 			}
+
 			$result->closeCursor();
 		}
 
 		return $locations;
 	}
-
 
 	/**
 	 * Resolve portable identities back to this instance's file ids.
@@ -278,7 +282,6 @@ class FilecacheService
 	 */
 	public function locateAllByPath( array $pathsByStorage ): array
 	{
-
 		$located = [];
 
 		foreach ( $pathsByStorage as $storageId => $paths )
@@ -318,13 +321,13 @@ class FilecacheService
 
 					$located[ self::identityKey( $storageId, $location->internalPath ) ] = $location;
 				}
+
 				$result->closeCursor();
 			}
 		}
 
 		return $located;
 	}
-
 
 	/**
 	 * The key both directions of an import agree on.
@@ -335,11 +338,10 @@ class FilecacheService
 	public static function identityKey(
 		string $storageId,
 		string $path,
-	): string {
-
+	): string
+	{
 		return $storageId . "\0" . $path;
 	}
-
 
 	/**
 	 * A storage's numeric id, or null where this instance has no such
@@ -349,7 +351,6 @@ class FilecacheService
 	 */
 	public function storageNumericId( string $storageId ): ?int
 	{
-
 		if ( array_key_exists( $storageId, $this->storageNumericIds ) )
 		{
 			return $this->storageNumericIds[ $storageId ];
@@ -374,7 +375,6 @@ class FilecacheService
 			: (int) $found;
 	}
 
-
 	/**
 	 * The storages a rule could sensibly address by raw id.
 	 *
@@ -393,7 +393,6 @@ class FilecacheService
 	 */
 	public function listAddressableStorages(): array
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->select( 'id' )
 		   ->from( 'storages' )
@@ -435,11 +434,11 @@ class FilecacheService
 
 			$storages[] = $storageId;
 		}
+
 		$result->closeCursor();
 
 		return $storages;
 	}
-
 
 	/**
 	 * The numeric ids of the given users' home storages.
@@ -457,7 +456,6 @@ class FilecacheService
 	 */
 	public function homeStorageNumericIds( array $uids ): array
 	{
-
 		if ( $uids === [] )
 		{
 			return [];
@@ -490,11 +488,11 @@ class FilecacheService
 		{
 			$ids[] = (int) $row['numeric_id'];
 		}
+
 		$result->closeCursor();
 
 		return $ids;
 	}
-
 
 	/**
 	 * The numeric storage ids a non-group selector sweeps.
@@ -513,7 +511,6 @@ class FilecacheService
 	 */
 	public function storageNumericIdsFor( Selector $selector ): array
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->select( 'numeric_id', 'id' )
 		   ->from( 'storages' )
@@ -569,11 +566,11 @@ class FilecacheService
 
 			$ids[] = (int) $row['numeric_id'];
 		}
+
 		$result->closeCursor();
 
 		return $ids;
 	}
-
 
 	/**
 	 * One page of a storage's filecache rows, classified — for non-home
@@ -599,8 +596,8 @@ class FilecacheService
 		int  $lastFileId,
 		int  $limit,
 		bool $staleOnly = false,
-	): array {
-
+	): array
+	{
 		$qb = $this->db->getQueryBuilder();
 		$qb->select( 'fc.fileid', 'fc.path', 'fc.mtime', 'st.id', 'mu.' . MetadataService::FIELD_META_VALUE_INT . ' AS updated_at' )
 		   ->from( 'filecache', 'fc' )
@@ -659,11 +656,11 @@ class FilecacheService
 				(int) $row['mtime'],
 			)->withUpdatedAt( $row['updated_at'] !== null ? (int) $row['updated_at'] : null );
 		}
+
 		$result->closeCursor();
 
 		return $locations;
 	}
-
 
 	/**
 	 * One page of filecache rows that carry a checksum, for backfilling.
@@ -678,8 +675,8 @@ class FilecacheService
 	public function pageFileidChecksums(
 		int $lastFileId,
 		int $limit,
-	): array {
-
+	): array
+	{
 		$qb = $this->db->getQueryBuilder();
 		$qb->select( 'fileid', 'checksum', 'mtime' )
 		   ->from( 'filecache' )
@@ -705,11 +702,11 @@ class FilecacheService
 				'mtime'    => (int) $row['mtime'],
 			];
 		}
+
 		$result->closeCursor();
 
 		return $rows;
 	}
-
 
 	/**
 	 * Resolve a fileid to a node, searching every storage.
@@ -740,7 +737,6 @@ class FilecacheService
 	 */
 	public function fileSizes( array $fileIds ): array
 	{
-
 		if ( $fileIds === [] )
 		{
 			return [];
@@ -765,15 +761,14 @@ class FilecacheService
 		{
 			$sizes[ (int) $row['fileid'] ] = max( 0, (int) $row['size'] );
 		}
+
 		$result->closeCursor();
 
 		return $sizes;
 	}
 
-
 	public function getNodeById( int $fileId ): Node
 	{
-
 		$nodes = $this->rootFolder->getById( $fileId );
 
 		if ( empty( $nodes ) )
@@ -782,9 +777,7 @@ class FilecacheService
 		}
 
 		return $nodes[0];
-
 	}
-
 
 	/**
 	 * @param  string  $userId
@@ -801,10 +794,8 @@ class FilecacheService
 	 */
 	public function getUserFolder( string $userId ): Folder
 	{
-
 		return $this->rootFolder->getUserFolder( $userId );
 	}
-
 
 	/**
 	 * @param  string  $userId
@@ -816,12 +807,10 @@ class FilecacheService
 	 */
 	public function getUserFolderPath( string $userId ): string
 	{
-
 		$userFolder = $this->getUserFolder( $userId );
 
 		return $userFolder->getPath();
 	}
-
 
 	/**
 	 * Write hashes into the filecache's checksum column.
@@ -841,8 +830,8 @@ class FilecacheService
 		int|File $file,
 		?array   $hashes = null,
 		bool     $keepAdditional = false,
-	): void {
-
+	): void
+	{
 		$file = $this->getFile( $file );
 
 		$existingHashes = $keepAdditional
@@ -850,7 +839,7 @@ class FilecacheService
 			: [];
 
 		$newHashes = [];
-		$hashes    ??= [];
+		$hashes ??= [];
 
 		foreach ( $hashes as $algo => $hash )
 		{
@@ -877,7 +866,6 @@ class FilecacheService
 		;
 	}
 
-
 	/**
 	 * Build a checksum string from "ALGO:hash" pairs, keeping pairs in the
 	 * given order and dropping any that would exceed the filecache.checksum
@@ -890,7 +878,6 @@ class FilecacheService
 	 */
 	public static function fitChecksumPairs( array $pairs ): string
 	{
-
 		$checksum = '';
 
 		foreach ( $pairs as $pair )
@@ -910,7 +897,6 @@ class FilecacheService
 		return $checksum;
 	}
 
-
 	/**
 	 * Copy the filecache checksum from source to target file.
 	 *
@@ -920,8 +906,8 @@ class FilecacheService
 	public function copyFilecacheChecksum(
 		File $source,
 		File $target,
-	): void {
-
+	): void
+	{
 		/** @noinspection PhpUnhandledExceptionInspection */
 		$checksum = $source->getChecksum();
 
@@ -938,17 +924,14 @@ class FilecacheService
 		$targetCache->update( $target->getId(), [ 'checksum' => $checksum ] );
 	}
 
-
 	/** @noinspection PhpDocMissingThrowsInspection */
 	public static function getFileId( int|File $file ): int
 	{
-
 		/** @noinspection PhpUnhandledExceptionInspection */
 		return $file instanceof File
 			? $file->getId()
 			: $file;
 	}
-
 
 	/**
 	/**
@@ -985,13 +968,12 @@ class FilecacheService
 	 */
 	public const UNGOVERNED_PREFIXES = [ 'files_trashbin/', 'files_versions/', 'appdata_' ];
 
-
 	public function batchLookupFilecachePaths(
 		array  $fileIds,
 		?array $mounts = null,
 		bool   $withLocalPath = false,
-	): array {
-
+	): array
+	{
 		if ( empty( $fileIds ) )
 		{
 			return [];
@@ -1107,11 +1089,11 @@ class FilecacheService
 					: $location->localPath( $this->homeOf( $location, $homes ) );
 			}
 		}
+
 		$result->closeCursor();
 
 		return $paths;
 	}
-
 
 	/**
 	 * The home directory of the account a home-storage row belongs to,
@@ -1122,7 +1104,6 @@ class FilecacheService
 	 */
 	private function homeOf( FileLocation $location, array &$homes ): ?string
 	{
-
 		if ( $location->owner === null )
 		{
 			return null;
@@ -1135,5 +1116,4 @@ class FilecacheService
 
 		return $homes[ $location->owner ];
 	}
-
 }

@@ -23,25 +23,28 @@ use Symfony\Component\Console\Output\OutputInterface;
  * @noinspection PhpUnused
  */
 class ShowStatus
-	extends
-	Command
+    extends
+    Command
 {
+
+//  constructor
 
 	public function __construct(
 		private readonly IDBConnection   $db,
 		private readonly MetadataService $metadataService,
 		private readonly IAppConfig      $appConfig,
 		private readonly LoggerInterface $logger,
-	) {
-
+	)
+	{
 		parent::__construct();
 	}
 
 
+//  config/init/exe/run methods
+
 	/** @noinspection PhpUnused */
 	protected function configure(): void
 	{
-
 		$this->setName( 'file-checksum-search:status' )
 		     ->setDescription( 'Display FCIAS app status and metadata index statistics' )
 		     ->addOption(
@@ -54,13 +57,12 @@ class ShowStatus
 		;
 	}
 
-
 	/** @noinspection PhpUnused */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
-	): int {
-
+	): int
+	{
 		$outFmt = $input->getOption( 'output' );
 
 		$this->logger->info(
@@ -137,6 +139,8 @@ class ShowStatus
 	}
 
 
+//  static methods
+
 	/**
 	 * What a reason means, in the terms an operator has to act on.
 	 *
@@ -146,7 +150,6 @@ class ShowStatus
 	 */
 	private static function reasonFor( string $state ): string
 	{
-
 		return match ( $state )
 		{
 			MetadataService::STATE_ERODED => 'hashes dropped on write, no rule maintains them; '
@@ -158,9 +161,10 @@ class ShowStatus
 	}
 
 
+//  getters / setters / is* / has*
+
 	private function getAppVersion(): string
 	{
-
 		return $this->appConfig->getValueString(
 			Application::APP_ID,
 			'installed_version',
@@ -168,10 +172,8 @@ class ShowStatus
 		);
 	}
 
-
 	private function getFilecacheCount(): int
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->select(
 			$qb->func()
@@ -185,10 +187,8 @@ class ShowStatus
 		;
 	}
 
-
 	private function getMetadataCount(): int
 	{
-
 		$qb = $this->db->getQueryBuilder();
 		$qb->select(
 			$qb->func()
@@ -208,5 +208,4 @@ class ShowStatus
 		                ->fetchOne()
 		;
 	}
-
 }

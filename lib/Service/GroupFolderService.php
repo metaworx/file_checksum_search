@@ -32,8 +32,12 @@ use Throwable;
 class GroupFolderService
 {
 
+//  constants
+
 	private const GROUPFOLDERS_APP_ID = 'groupfolders';
 
+
+//  constructor
 
 	public function __construct(
 		private readonly IAppManager     $appManager,
@@ -43,13 +47,14 @@ class GroupFolderService
 	}
 
 
+//  getters / setters / is* / has*
+
 	/**
 	 * Whether the groupfolders app is installed and enabled — the gate for
 	 * offering groupfolder: selectors anywhere in the UI.
 	 */
 	public function isAvailable(): bool
 	{
-
 		try
 		{
 			return $this->appManager->isEnabledForUser( self::GROUPFOLDERS_APP_ID );
@@ -61,6 +66,8 @@ class GroupFolderService
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * What the groupfolders app calls itself — "Team Folders" on current
 	 * releases — so this app speaks the same language the rest of the
@@ -69,7 +76,6 @@ class GroupFolderService
 	 */
 	public function appName(): ?string
 	{
-
 		if ( ! $this->isAvailable() )
 		{
 			return null;
@@ -89,7 +95,6 @@ class GroupFolderService
 		}
 	}
 
-
 	/**
 	 * The folders that exist, as id => mount point name, sorted by name.
 	 *
@@ -100,7 +105,6 @@ class GroupFolderService
 	 */
 	public function listFolders(): array
 	{
-
 		if ( ! $this->isAvailable() )
 		{
 			return [];
@@ -124,6 +128,7 @@ class GroupFolderService
 					'name' => (string) $row['mount_point'],
 				];
 			}
+
 			$result->closeCursor();
 
 			return $folders;
@@ -141,5 +146,4 @@ class GroupFolderService
 			return [];
 		}
 	}
-
 }

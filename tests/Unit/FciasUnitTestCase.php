@@ -34,9 +34,11 @@ use PHPUnit\Framework\TestCase;
  *   }
  */
 abstract class FciasUnitTestCase
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  protected properties
 
 	protected IDBConnection&MockObject      $db;
 
@@ -71,6 +73,8 @@ abstract class FciasUnitTestCase
 	];
 
 
+//  getters / setters / is* / has*
+
 	/**
 	 * Wire the shared QueryBuilder mock chain and set default stubs
 	 * on every commonly-used chainable method.
@@ -81,7 +85,6 @@ abstract class FciasUnitTestCase
 	 */
 	protected function setUpQueryBuilderMock(): void
 	{
-
 		$this->queryBuilder = $this->createMock( IQueryBuilder::class );
 		$this->expr         = $this->createMock( IExpressionBuilder::class );
 		$this->func         = $this->createMock( IFunctionBuilder::class );
@@ -247,11 +250,11 @@ abstract class FciasUnitTestCase
 
 		$this->expr->method( 'like' )
 		           ->willReturnCallback(
-			           function (
+			           function(
 				           $column,
 				           $value,
-			           ): string {
-
+			           ): string
+			           {
 				           $this->capturedLikes[] = (string) $value;
 
 				           return '1=1';
@@ -261,10 +264,10 @@ abstract class FciasUnitTestCase
 
 		$this->expr->method( 'in' )
 		           ->willReturnCallback(
-			           function (
+			           function(
 				           $column,
-			           ): string {
-
+			           ): string
+			           {
 				           $this->capturedSetTests['in'][] = (string) $column;
 
 				           return '1=1';
@@ -274,10 +277,10 @@ abstract class FciasUnitTestCase
 
 		$this->expr->method( 'notIn' )
 		           ->willReturnCallback(
-			           function (
+			           function(
 				           $column,
-			           ): string {
-
+			           ): string
+			           {
 				           $this->capturedSetTests['notIn'][] = (string) $column;
 
 				           return '1=1';
@@ -296,5 +299,4 @@ abstract class FciasUnitTestCase
 		           ->willReturn( $composite )
 		;
 	}
-
 }

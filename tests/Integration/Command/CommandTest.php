@@ -29,27 +29,30 @@ use Symfony\Component\Console\Tester\CommandTester;
  * Integration tests for CLI commands via CommandTester.
  */
 class CommandTest
-	extends
-	DatabaseTestCase
+    extends
+    DatabaseTestCase
 {
+
+//  private properties
 
 	private MockObject|LoggerInterface $logger;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->logger = $this->createMock( LoggerInterface::class );
 	}
 
 
-	// ─── SearchHash ──────────────────────────────────────────────────
+//  other non-static methods
 
+	// ─── SearchHash ──────────────────────────────────────────────────
 	public function testSearchHashWithUnknownHashReturnsFailure(): void
 	{
-
 		$hashIndexService = $this->createMock( HashIndexService::class );
 		$hashIndexService->method( 'findByHash' )
 		                 ->willReturn( [] )
@@ -64,10 +67,8 @@ class CommandTest
 		$this->assertStringContainsString( 'No files found.', $tester->getDisplay() );
 	}
 
-
 	public function testSearchHashWithAlgoColonFormat(): void
 	{
-
 		$hashIndexService = $this->createMock( HashIndexService::class );
 		$hashIndexService->expects( $this->once() )
 		                 ->method( 'findByHash' )
@@ -91,16 +92,12 @@ class CommandTest
 		$this->assertStringContainsString( 'report.pdf', $tester->getDisplay() );
 	}
 
-
 	// ─── ShowStatus ──────────────────────────────────────────────────
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testShowStatusJsonOutputIsValid(): void
 	{
-
 		$command = Server::get( ShowStatus::class );
 		$tester  = new CommandTester( $command );
 
@@ -118,13 +115,11 @@ class CommandTest
 		$this->assertIsArray( $data['pending_by_mode'] );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testShowStatusPlainOutputContainsExpectedSections(): void
 	{
-
 		$command = Server::get( ShowStatus::class );
 		$tester  = new CommandTester( $command );
 
@@ -139,16 +134,12 @@ class CommandTest
 		$this->assertStringContainsString( 'Pending total:', $display );
 	}
 
-
 	// ─── FindDuplicates ──────────────────────────────────────────────
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testFindDuplicatesRunsWithoutError(): void
 	{
-
 		$command = Server::get( FindDuplicates::class );
 		$tester  = new CommandTester( $command );
 
@@ -157,16 +148,12 @@ class CommandTest
 		$this->assertSame( Command::SUCCESS, $exitCode );
 	}
 
-
 	// ─── HashFiles ───────────────────────────────────────────────────
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testHashFilesWithNonexistentUserReturnsFailure(): void
 	{
-
 		$command = Server::get( HashFiles::class );
 		$tester  = new CommandTester( $command );
 
@@ -178,13 +165,11 @@ class CommandTest
 		$this->assertSame( Command::FAILURE, $exitCode );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testHashFilesVerboseReportsZeroCollection(): void
 	{
-
 		$command = Server::get( HashFiles::class );
 		$tester  = new CommandTester( $command );
 
@@ -201,10 +186,7 @@ class CommandTest
 		$this->assertStringContainsString( 'No files collected', $tester->getDisplay() );
 	}
 
-
 	// ─── Repair ──────────────────────────────────────────────────────
-
-
 	/**
 	 * The successor to the retired `rebuild`, whose three phases are now
 	 * three of this command's steps.
@@ -213,7 +195,6 @@ class CommandTest
 	 */
 	public function testRepairListsItsStepsWithoutRunningThem(): void
 	{
-
 		$tester = new CommandTester( Server::get( Repair::class ) );
 
 		$this->assertSame( Command::SUCCESS, $tester->execute( [ '--list' => true ] ) );
@@ -244,7 +225,6 @@ class CommandTest
 		$this->assertStringContainsString( 'only when asked for', $display );
 	}
 
-
 	/**
 	 * The steps run against a real container, which is what this suite is
 	 * for: the anonymous IOutput the command hands them only meets the real
@@ -254,7 +234,6 @@ class CommandTest
 	 */
 	public function testRepairRunsOneStepAgainstARealInstance(): void
 	{
-
 		$tester = new CommandTester( Server::get( Repair::class ) );
 
 		$this->assertSame(
@@ -264,16 +243,12 @@ class CommandTest
 		$this->assertStringContainsString( 'Ran 1 step(s)', $tester->getDisplay() );
 	}
 
-
 	// ─── ShowConfig ──────────────────────────────────────────────────
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testShowConfigJsonOutputIsValid(): void
 	{
-
 		$command = Server::get( ShowConfig::class );
 		$tester  = new CommandTester( $command );
 
@@ -285,13 +260,11 @@ class CommandTest
 		$this->assertIsArray( $data, 'JSON output should be valid.' );
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testShowConfigPlainOutput(): void
 	{
-
 		$command = Server::get( ShowConfig::class );
 		$tester  = new CommandTester( $command );
 
@@ -310,16 +283,12 @@ class CommandTest
 		);
 	}
 
-
 	// ─── TestPerformance ─────────────────────────────────────────────
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testTestPerformanceRunsWithoutError(): void
 	{
-
 		$command = Server::get( TestPerformance::class );
 		$tester  = new CommandTester( $command );
 
@@ -328,5 +297,4 @@ class CommandTest
 		$this->assertSame( Command::SUCCESS, $exitCode );
 		$this->assertStringContainsString( 'FCIAS Performance Benchmark', $tester->getDisplay() );
 	}
-
 }

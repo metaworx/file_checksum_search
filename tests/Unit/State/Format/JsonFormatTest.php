@@ -19,20 +19,25 @@ use RuntimeException;
  * The one format that is a backup, and the constraint that buys it.
  */
 class JsonFormatTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private JsonFormat $format;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 		$this->format = new JsonFormat();
 	}
 
+
+//  other non-static methods
 
 	/**
 	 * A backup document must be readable by anything that reads JSON, not
@@ -41,7 +46,6 @@ class JsonFormatTest
 	 */
 	public function testWhatItWritesIsOrdinaryJson(): void
 	{
-
 		$text = $this->writeDocument( pretty: true );
 
 		$decoded = json_decode( $text, true );
@@ -55,10 +59,8 @@ class JsonFormatTest
 		$this->assertCount( 2, $decoded['hashes'] );
 	}
 
-
 	public function testTheHeaderIsReadableBeforeASingleRecordIs(): void
 	{
-
 		$stream = $this->streamOf( $this->writeDocument() );
 		$read   = $this->format->readDocument( $stream, new FormatOptions() );
 
@@ -72,10 +74,8 @@ class JsonFormatTest
 		fclose( $stream );
 	}
 
-
 	public function testTheFormatAlwaysStampsItsOwnSchemaAndApp(): void
 	{
-
 		$stream = fopen( 'php://memory', 'r+' );
 		// A caller that supplies no header at all still gets a backup document
 		// that says what it is.
@@ -89,7 +89,6 @@ class JsonFormatTest
 		$this->assertSame( [], $decoded['hashes'] );
 	}
 
-
 	/**
 	 * The records array is streamed in both directions, so nothing can be
 	 * read past it — the writer puts it last and the reader says so when a
@@ -97,7 +96,6 @@ class JsonFormatTest
 	 */
 	public function testTheRecordsKeyMustBeLast(): void
 	{
-
 		$stream = $this->streamOf(
 			'{"schema":1,"hashes":[{"storage":"s","path":"p","algo":"md5","hash":"x"}],"config":{"a":"b"}}',
 		);
@@ -109,10 +107,8 @@ class JsonFormatTest
 		iterator_to_array( $read['records'], false );
 	}
 
-
 	public function testTheWriterPutsTheRecordsLast(): void
 	{
-
 		$text = $this->writeDocument();
 
 		// The key, not the word: the header's own `slices` list names
@@ -123,14 +119,12 @@ class JsonFormatTest
 		);
 	}
 
-
 	/**
 	 * A backup of configuration alone has no records key at all, which is
 	 * not the same thing as an empty one but reads the same way.
 	 */
 	public function testAConfigOnlyDocumentReadsAsNoRecords(): void
 	{
-
 		$stream = $this->streamOf( '{"schema":1,"config":{"a":"b"}}' );
 		$read   = $this->format->readDocument( $stream, new FormatOptions() );
 
@@ -139,14 +133,12 @@ class JsonFormatTest
 		fclose( $stream );
 	}
 
-
 	/**
 	 * Accepted on the way in, never produced on the way out: a bare array is
 	 * what someone writes by hand, and refusing it would help nobody.
 	 */
 	public function testABareArrayIsAHashesOnlyDocument(): void
 	{
-
 		$stream  = $this->streamOf( '[{"storage":"s","path":"p","algo":"md5","hash":"x"}]' );
 		$records = iterator_to_array( $this->format->read( $stream, new FormatOptions() ), false );
 		fclose( $stream );
@@ -155,17 +147,14 @@ class JsonFormatTest
 		$this->assertSame( 'p', $records[0]->path );
 	}
 
-
 	public function testATruncatedDocumentIsAnError(): void
 	{
-
 		$stream = $this->streamOf( '{"schema":1,"hashes":[{"storage":"s","path":"p",' );
 
 		$this->expectException( RuntimeException::class );
 
 		iterator_to_array( $this->format->read( $stream, new FormatOptions() ), false );
 	}
-
 
 	/**
 	 * Records are decoded one at a time, so a backup document larger than
@@ -175,7 +164,6 @@ class JsonFormatTest
 	 */
 	public function testManyRecordsReadWithoutAssemblingThemAll(): void
 	{
-
 		$records = [];
 
 		for ( $index = 0; $index < 5000; $index ++ )
@@ -208,7 +196,6 @@ class JsonFormatTest
 		$this->assertSame( 'files/f4999.txt', $last->path );
 	}
 
-
 	/**
 	 * The status slice is written for the operator's record and stepped over
 	 * on the way back in — an import may not hand-set what a file is waiting
@@ -217,7 +204,6 @@ class JsonFormatTest
 	 */
 	public function testTheStatusSliceIsWrittenButNeverReadBack(): void
 	{
-
 		$stream = $this->streamOf( $this->writeDocument() );
 		$read   = $this->format->readDocument( $stream, new FormatOptions() );
 
@@ -227,20 +213,16 @@ class JsonFormatTest
 		fclose( $stream );
 	}
 
-
 	public function testTheStatusSliceComesBeforeTheHashes(): void
 	{
-
 		$text = $this->writeDocument();
 
 		$this->assertGreaterThan( strpos( $text, '"config":' ), strpos( $text, '"status":' ) );
 		$this->assertGreaterThan( strpos( $text, '"status":' ), strpos( $text, '"hashes":' ) );
 	}
 
-
 	public function testADocumentWithNoStatusSliceHasNoStatusKey(): void
 	{
-
 		$stream = fopen( 'php://memory', 'r+' );
 		$this->format->writeDocument( [], null, null, [], $stream, new FormatOptions() );
 		rewind( $stream );
@@ -250,14 +232,12 @@ class JsonFormatTest
 		$this->assertStringNotContainsString( '"status"', $text );
 	}
 
-
 	/**
 	 * A slice that was not asked for is absent, never present and empty: the
 	 * two say different things to a restore.
 	 */
 	public function testAnUnrequestedSliceIsAbsentNotEmpty(): void
 	{
-
 		$stream = fopen( 'php://memory', 'r+' );
 		$this->format->writeDocument(
 			[],
@@ -276,14 +256,12 @@ class JsonFormatTest
 		$this->assertStringNotContainsString( '"status"', $text );
 	}
 
-
 	/**
 	 * Empty is still a result: a hashes slice that was asked for and found
 	 * nothing is written as an empty array.
 	 */
 	public function testARequestedSliceThatFoundNothingIsAnEmptyArray(): void
 	{
-
 		$stream = fopen( 'php://memory', 'r+' );
 		$this->format->writeDocument( [], null, null, [], $stream, new FormatOptions() );
 		rewind( $stream );
@@ -293,18 +271,14 @@ class JsonFormatTest
 		$this->assertSame( [], $decoded['hashes'] );
 	}
 
-
 	public function testItCarriesConfigAndLosesNothing(): void
 	{
-
 		$this->assertTrue( $this->format->carriesConfig() );
 		$this->assertSame( [], $this->format->losses() );
 	}
 
-
 	private function writeDocument( bool $pretty = false ): string
 	{
-
 		$stream = fopen( 'php://memory', 'r+' );
 
 		$this->format->writeDocument(
@@ -340,18 +314,15 @@ class JsonFormatTest
 		return $text;
 	}
 
-
 	/**
 	 * @return resource
 	 */
 	private function streamOf( string $text )
 	{
-
 		$stream = fopen( 'php://memory', 'r+' );
 		fwrite( $stream, $text );
 		rewind( $stream );
 
 		return $stream;
 	}
-
 }

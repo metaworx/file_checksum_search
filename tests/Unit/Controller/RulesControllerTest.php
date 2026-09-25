@@ -32,9 +32,11 @@ use Psr\Log\LoggerInterface;
 use RuntimeException;
 
 class RulesControllerTest
-	extends
-	FciasUnitTestCase
+    extends
+    FciasUnitTestCase
 {
+
+//  private properties
 
 	private MockObject|RuleService        $ruleService;
 
@@ -59,9 +61,10 @@ class RulesControllerTest
 	private RulesController               $controller;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->ruleService        = $this->createMock( RuleService::class );
@@ -102,11 +105,13 @@ class RulesControllerTest
 	}
 
 
+//  other non-static methods
+
 	private function signIn(
 		?string $uid,
 		bool    $isAdmin = false,
-	): void {
-
+	): void
+	{
 		if ( $uid === null )
 		{
 			$this->userSession->method( 'getUser' )
@@ -125,22 +130,18 @@ class RulesControllerTest
 		;
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function body( array $payload ): void
 	{
-
 		$this->controller->method( 'readRequestBody' )
 		                 ->willReturn( json_encode( $payload, JSON_THROW_ON_ERROR ) )
 		;
 	}
 
-
 	private function scope( string $scope ): void
 	{
-
 		$this->request->method( 'getParam' )
 		              ->willReturnCallback(
 			              static fn(
@@ -153,12 +154,9 @@ class RulesControllerTest
 		;
 	}
 
-
 	// authentication
-
 	public function testEveryEndpointRequiresLogin(): void
 	{
-
 		$this->signIn( null );
 
 		foreach (
@@ -189,12 +187,9 @@ class RulesControllerTest
 		);
 	}
 
-
 	// index — the view selector
-
 	public function testIndexDefaultsToTheCallersOwnView(): void
 	{
-
 		$this->signIn( 'alice' );
 		$this->scope( 'own' );
 		$this->permissionService->method( 'canUserEditRules' )
@@ -218,10 +213,8 @@ class RulesControllerTest
 		$this->assertArrayNotHasKey( 'availableGroups', $data );
 	}
 
-
 	public function testAnAdminAskingForTheirOwnViewGetsThePersonalOne(): void
 	{
-
 		// The point of the view selector: an administrator on the personal
 		// page is still on the personal page. Capability exists but is not
 		// exercised unless asked for.
@@ -245,10 +238,8 @@ class RulesControllerTest
 		$this->assertArrayNotHasKey( 'availableGroups', $data );
 	}
 
-
 	public function testAnAdminCanAskForTheWholeInstance(): void
 	{
-
 		$this->signIn( 'theadmin', isAdmin: true );
 		$this->scope( 'all' );
 		$this->userManager->method( 'callForAllUsers' );
@@ -270,7 +261,6 @@ class RulesControllerTest
 		$this->assertArrayHasKey( 'availableGroups', $data );
 	}
 
-
 	/**
 	 * An unexpected failure answers generically and logs the detail: a DB
 	 * exception's message carries driver text and SQL fragments, and create
@@ -278,7 +268,6 @@ class RulesControllerTest
 	 */
 	public function testCreateHidesAnUnexpectedFailureBehindAGenericMessage(): void
 	{
-
 		$this->signIn( 'theadmin', isAdmin: true );
 		$this->body( [
 			'path'  => '/Documents',
@@ -300,10 +289,8 @@ class RulesControllerTest
 		$this->assertSame( 'Internal server error.', $response->getData()['error'] );
 	}
 
-
 	public function testCreateReturnsTheStoredRuleIncludingItsId(): void
 	{
-
 		// Without the id a caller cannot address the rule it just created —
 		// there is no other way to learn it.
 		$this->signIn( 'theadmin', isAdmin: true );
@@ -333,10 +320,8 @@ class RulesControllerTest
 		$this->assertSame( 'home:theadmin', $data['rule']['selector'] );
 	}
 
-
 	public function testTheAdminViewOffersGroupFoldersOnlyWhenTheAppIsThere(): void
 	{
-
 		$this->signIn( 'theadmin', isAdmin: true );
 		$this->scope( 'all' );
 		$this->userManager->method( 'callForAllUsers' );
@@ -372,10 +357,8 @@ class RulesControllerTest
 		$this->assertSame( 'Team Docs', $data['availableGroupFolders'][0]['name'] );
 	}
 
-
 	public function testAFailingStorageListingStillReturnsTheRules(): void
 	{
-
 		$this->signIn( 'theadmin', isAdmin: true );
 		$this->scope( 'all' );
 		$this->userManager->method( 'callForAllUsers' );
@@ -403,10 +386,8 @@ class RulesControllerTest
 		$this->assertSame( [], $data['availableStorages'] );
 	}
 
-
 	public function testANonAdminCannotAskForTheWholeInstance(): void
 	{
-
 		$this->signIn( 'alice' );
 		$this->scope( 'all' );
 
@@ -421,10 +402,8 @@ class RulesControllerTest
 		);
 	}
 
-
 	public function testIndexRejectsAnUnknownScope(): void
 	{
-
 		$this->signIn( 'alice' );
 		$this->scope( 'everything' );
 
@@ -435,16 +414,12 @@ class RulesControllerTest
 		);
 	}
 
-
 	// create
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testCreateForcesANonAdminsScopeAndEnforcedFlag(): void
 	{
-
 		$this->signIn( 'alice' );
 		$this->permissionService->method( 'canUserEditRules' )
 		                        ->willReturn( true )
@@ -464,10 +439,10 @@ class RulesControllerTest
 		                  ->method( 'ruleAdd' )
 		                  ->with(
 			                  $this->callback(
-				                  static function (
+				                  static function(
 					                  array $definition,
-				                  ): bool {
-
+				                  ): bool
+				                  {
 					                  return $definition['selector'] === 'home:alice'
 						                  && $definition['admin_enforced'] === false
 						                  && ! array_key_exists( 'pinned', $definition );
@@ -483,10 +458,8 @@ class RulesControllerTest
 		);
 	}
 
-
 	public function testCreateRefusesAUserWithoutTheRuleEditingPermission(): void
 	{
-
 		$this->signIn( 'alice' );
 		$this->permissionService->method( 'canUserEditRules' )
 		                        ->willReturn( false )
@@ -503,13 +476,11 @@ class RulesControllerTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testCreateRefusesAPathTheUserCannotWriteTo(): void
 	{
-
 		$this->signIn( 'alice' );
 		$this->permissionService->method( 'canUserEditRules' )
 		                        ->willReturn( true )
@@ -529,13 +500,11 @@ class RulesControllerTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testCreateLetsAnAdminSetScopeAndEnforcement(): void
 	{
-
 		$this->signIn( 'theadmin', isAdmin: true );
 		$this->groupManager->method( 'groupExists' )
 		                   ->with( 'staff' )
@@ -567,13 +536,11 @@ class RulesControllerTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testCreateRejectsAScopeNamingAGroupThatDoesNotExist(): void
 	{
-
 		// Otherwise the rule sits in the list matching nothing, with no
 		// indication why.
 		$this->signIn( 'theadmin', isAdmin: true );
@@ -597,14 +564,12 @@ class RulesControllerTest
 		);
 	}
 
-
 	/**
 	 * @dataProvider invalidPayloadProvider
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testCreateRejectsAnInvalidPayload( array $payload ): void
 	{
-
 		$this->signIn( 'theadmin', isAdmin: true );
 		$this->body( $payload );
 
@@ -620,12 +585,13 @@ class RulesControllerTest
 	}
 
 
+//  static methods
+
 	/**
 	 * @return array<string, array{array}>
 	 */
 	public static function invalidPayloadProvider(): array
 	{
-
 		return [
 			'unknown type'   => [
 				[
@@ -655,13 +621,11 @@ class RulesControllerTest
 		];
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testCreateStoresNoAlgorithmsForANonIncludeRule(): void
 	{
-
 		$this->signIn( 'theadmin', isAdmin: true );
 		$this->body( [
 			'path' => '/Archive',
@@ -688,12 +652,9 @@ class RulesControllerTest
 		);
 	}
 
-
 	// update
-
 	public function testUpdateRefusesARuleTheUserMayNotMutate(): void
 	{
-
 		$this->signIn( 'alice' );
 		$this->permissionService->method( 'canUserEditRules' )
 		                        ->willReturn( true )
@@ -721,10 +682,8 @@ class RulesControllerTest
 		);
 	}
 
-
 	public function testUpdateReturns404ForAnUnknownRule(): void
 	{
-
 		$this->signIn( 'theadmin', isAdmin: true );
 		$this->ruleService->method( 'findRuleById' )
 		                  ->willReturn( null )
@@ -737,13 +696,11 @@ class RulesControllerTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testUpdateCarriesUnchangedFieldsFromTheStoredRule(): void
 	{
-
 		$this->signIn( 'theadmin', isAdmin: true );
 		$this->ruleService->method( 'findRuleById' )
 		                  ->willReturn( [
@@ -781,12 +738,9 @@ class RulesControllerTest
 		);
 	}
 
-
 	// destroy
-
 	public function testDestroyRemovesARuleTheCallerMayMutate(): void
 	{
-
 		$this->signIn( 'theadmin', isAdmin: true );
 		$this->ruleService->method( 'findRuleById' )
 		                  ->willReturn( [ 'id' => 'r1' ] )
@@ -804,16 +758,12 @@ class RulesControllerTest
 		);
 	}
 
-
 	// reorder
-
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testReorderPassesTheCallersIdForANonAdmin(): void
 	{
-
 		$this->signIn( 'alice' );
 		$this->permissionService->method( 'canUserEditRules' )
 		                        ->willReturn( true )
@@ -849,13 +799,11 @@ class RulesControllerTest
 		);
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testReorderPassesNoCallerForAnAdmin(): void
 	{
-
 		$this->signIn( 'theadmin', isAdmin: true );
 		$this->body( [
 			'selector'   => 'home:alice',
@@ -882,13 +830,11 @@ class RulesControllerTest
 		$this->controller->reorder();
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testReorderMapsAnInvalidPermutationToBadRequest(): void
 	{
-
 		$this->signIn( 'theadmin', isAdmin: true );
 		$this->body( [
 			'selector'   => 'home:*',
@@ -905,14 +851,12 @@ class RulesControllerTest
 		$this->assertSame( 'not a permutation', $response->getData()['error'] );
 	}
 
-
 	/**
 	 * @dataProvider invalidReorderProvider
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testReorderRejectsAMalformedPayload( array $payload ): void
 	{
-
 		$this->signIn( 'theadmin', isAdmin: true );
 		$this->body( $payload );
 
@@ -927,13 +871,11 @@ class RulesControllerTest
 		);
 	}
 
-
 	/**
 	 * @return array<string, array{array}>
 	 */
 	public static function invalidReorderProvider(): array
 	{
-
 		return [
 			'no selector'           => [ [ 'orderedIds' => [ 'a' ] ] ],
 			'selector not a string' => [
@@ -952,13 +894,11 @@ class RulesControllerTest
 		];
 	}
 
-
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testAFailureIsLoggedAndReportedAsAServerError(): void
 	{
-
 		$this->signIn( 'theadmin', isAdmin: true );
 		$this->body( [
 			'selector'   => 'home:*',
@@ -982,12 +922,9 @@ class RulesControllerTest
 		$this->assertSame( 'Internal server error.', $response->getData()['error'] );
 	}
 
-
 	// ─── apply ──────────────────────────────────────────────────────
-
 	public function testApplyEnqueuesTheJobWithRuleAndActor(): void
 	{
-
 		$this->signIn( 'admin', true );
 		$this->ruleService->method( 'findRuleById' )
 		                  ->willReturn( [
@@ -1021,10 +958,8 @@ class RulesControllerTest
 		);
 	}
 
-
 	public function testApplyRefusesADisabledRuleAtSubmissionTime(): void
 	{
-
 		$this->signIn( 'admin', true );
 		$this->ruleService->method( 'findRuleById' )
 		                  ->willReturn( [
@@ -1043,10 +978,8 @@ class RulesControllerTest
 		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
 	}
 
-
 	public function testApplyIsJudgedAsWriting(): void
 	{
-
 		// A non-admin without mutation rights on the rule spends no
 		// authority over the files it governs.
 		$this->signIn( 'bob' );
@@ -1066,10 +999,8 @@ class RulesControllerTest
 		$this->assertSame( Http::STATUS_FORBIDDEN, $response->getStatus() );
 	}
 
-
 	public function testApplyOnAnUnknownRuleIs404(): void
 	{
-
 		$this->signIn( 'admin', true );
 		$this->ruleService->method( 'findRuleById' )
 		                  ->willReturn( null )
@@ -1081,5 +1012,4 @@ class RulesControllerTest
 			                 ->getStatus(),
 		);
 	}
-
 }

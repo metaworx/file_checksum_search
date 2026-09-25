@@ -22,36 +22,38 @@ use Symfony\Component\Console\Output\OutputInterface;
  * @noinspection PhpUnused
  */
 class SearchHash
-	extends
-	Command
+    extends
+    Command
 {
+
+//  constructor
 
 	public function __construct(
 		private readonly HashIndexService $hashIndexService,
 		private readonly LoggerInterface  $logger,
-	) {
-
+	)
+	{
 		parent::__construct();
 	}
 
 
+//  config/init/exe/run methods
+
 	/** @noinspection PhpUnused */
 	protected function configure(): void
 	{
-
 		$this->setName( 'file-checksum-search:search' )
 		     ->setDescription( 'Search files by hash value or algo:hash pair' )
 		     ->addArgument( 'query', InputArgument::REQUIRED, 'Hash value (hex) or algo:hash (e.g. sha1:abc123)' )
 		;
 	}
 
-
 	/** @noinspection PhpUnused */
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
-	): int {
-
+	): int
+	{
 		$term = trim( $input->getArgument( 'query' ) );
 
 		$this->logger->info(
@@ -92,5 +94,4 @@ class SearchHash
 
 		return Command::SUCCESS;
 	}
-
 }

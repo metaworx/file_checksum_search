@@ -41,9 +41,11 @@ use Throwable;
  * @template-implements IEventListener<UserDeletedEvent>
  */
 class UserDeletedListener
-	implements
-	IEventListener
+    implements
+    IEventListener
 {
+
+//  constructor
 
 	public function __construct(
 		private readonly IAppConfig      $appConfig,
@@ -52,17 +54,19 @@ class UserDeletedListener
 	}
 
 
+//  static methods
+
 	public static function register( IRegistrationContext $context ): void
 	{
-
 		$context->registerEventListener( UserDeletedEvent::class, self::class );
 	}
 
 
+//  other non-static methods
+
 	#[\Override]
 	public function handle( Event $event ): void
 	{
-
 		if ( ! $event instanceof UserDeletedEvent )
 		{
 			return;
@@ -97,5 +101,4 @@ class UserDeletedListener
 			);
 		}
 	}
-
 }

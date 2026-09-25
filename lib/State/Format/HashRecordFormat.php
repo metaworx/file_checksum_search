@@ -34,6 +34,8 @@ use OCA\FileChecksumSearch\State\HashRecord;
 interface HashRecordFormat
 {
 
+//  other non-static methods
+
 	/**
 	 * Read records from an open stream.
 	 *
@@ -49,7 +51,6 @@ interface HashRecordFormat
 		FormatOptions $options,
 	): Generator;
 
-
 	/**
 	 * Write records to an open stream.
 	 *
@@ -64,13 +65,11 @@ interface HashRecordFormat
 		FormatOptions $options,
 	): int;
 
-
 	/**
 	 * Whether this format can carry the app's configuration as well as its
 	 * hashes. Only the backup format can; the others are hash tables.
 	 */
 	public function carriesConfig(): bool;
-
 
 	/**
 	 * What this format cannot express, for a caller to warn about before
@@ -79,5 +78,4 @@ interface HashRecordFormat
 	 * @return list<string>
 	 */
 	public function losses(): array;
-
 }

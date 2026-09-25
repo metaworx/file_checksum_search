@@ -22,9 +22,11 @@ use Symfony\Component\Console\Tester\CommandTester;
  * How much of the queue one run takes, and what it says about the rest.
  */
 class QueueDrainTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  private properties
 
 	private MetadataService&MockObject $metadataService;
 
@@ -33,9 +35,10 @@ class QueueDrainTest
 	private CommandTester              $tester;
 
 
+//  getters / setters / is* / has*
+
 	protected function setUp(): void
 	{
-
 		parent::setUp();
 
 		$this->metadataService = $this->createMock( MetadataService::class );
@@ -52,13 +55,14 @@ class QueueDrainTest
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * With neither flag, the batch is the one the background job uses — an
 	 * administrator who tuned that setting gets it honoured here too.
 	 */
 	public function testTheConfiguredLimitIsUsedWhenNoFlagIsGiven(): void
 	{
-
 		$this->appConfig->method( 'getValueInt' )
 		                ->willReturn( 7 )
 		;
@@ -82,10 +86,8 @@ class QueueDrainTest
 		$this->assertStringContainsString( '--all', $display );
 	}
 
-
 	public function testAnExplicitBatchSizeNamesItself(): void
 	{
-
 		$this->metadataService->method( 'fetchPendingBatch' )
 		                      ->with( 2 )
 		                      ->willReturn( $this->pending( 2 ) )
@@ -99,13 +101,11 @@ class QueueDrainTest
 		$this->assertStringContainsString( '--batch-size (2)', $this->tester->getDisplay() );
 	}
 
-
 	/**
 	 * Nothing left, nothing to explain.
 	 */
 	public function testAFinishedQueueSaysNothingAboutLimits(): void
 	{
-
 		$this->appConfig->method( 'getValueInt' )
 		                ->willReturn( 50 )
 		;
@@ -121,13 +121,11 @@ class QueueDrainTest
 		$this->assertStringNotContainsString( 'still waiting', $this->tester->getDisplay() );
 	}
 
-
 	/**
 	 * A run that already took everything must not be told to add `--all`.
 	 */
 	public function testAllDoesNotSuggestAll(): void
 	{
-
 		$this->appConfig->method( 'getValueInt' )
 		                ->willReturn( 50 )
 		;
@@ -145,10 +143,8 @@ class QueueDrainTest
 		$this->assertStringNotContainsString( 'or --all', $display );
 	}
 
-
 	public function testAnEmptyQueueSaysSo(): void
 	{
-
 		$this->appConfig->method( 'getValueInt' )
 		                ->willReturn( 50 )
 		;
@@ -161,13 +157,11 @@ class QueueDrainTest
 		$this->assertStringContainsString( 'Nothing was waiting', $this->tester->getDisplay() );
 	}
 
-
 	/**
 	 * @return list<array<string, mixed>>
 	 */
 	private function pending( int $count ): array
 	{
-
 		$rows = [];
 
 		for ( $i = 1; $i <= $count; $i ++ )
@@ -180,5 +174,4 @@ class QueueDrainTest
 
 		return $rows;
 	}
-
 }

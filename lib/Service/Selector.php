@@ -46,6 +46,8 @@ use InvalidArgumentException;
 readonly class Selector
 {
 
+//  constants
+
 	public const KIND_USER = 'user';
 
 	public const KIND_GROUP = 'group';
@@ -70,12 +72,16 @@ readonly class Selector
 	public const BAND_COUNT = 8;
 
 
+//  constructor
+
 	private function __construct(
 		public string  $kind,
 		public ?string $target,
 	) {
 	}
 
+
+//  static methods
 
 	/**
 	 * Parse a canonical selector string.
@@ -84,7 +90,6 @@ readonly class Selector
 	 */
 	public static function parse( string $value ): self
 	{
-
 		if ( $value === '*' )
 		{
 			return new self( self::KIND_UNIVERSAL, null );
@@ -120,13 +125,12 @@ readonly class Selector
 				)
 				: new self( self::KIND_GROUP, $target ),
 			'groupfolder' => new self( self::KIND_GROUPFOLDER, $target ),
-			'storage' => new self( self::KIND_STORAGE, $target ),
-			default => throw new InvalidArgumentException(
+			'storage'     => new self( self::KIND_STORAGE, $target ),
+			default       => throw new InvalidArgumentException(
 				sprintf( 'Unknown selector kind "%s".', $kind ),
 			),
 		};
 	}
-
 
 	/**
 	 * Parse a stored value, accepting the two pre-selector legacy forms —
@@ -135,7 +139,6 @@ readonly class Selector
 	 */
 	public static function fromStored( string $value ): self
 	{
-
 		if ( $value === 'all' )
 		{
 			return new self( self::KIND_HOME_ALL, null );
@@ -153,6 +156,8 @@ readonly class Selector
 	}
 
 
+//  other non-static methods
+
 	/**
 	 * The stored spelling of this selector.
 	 *
@@ -164,18 +169,16 @@ readonly class Selector
 	 */
 	public function canonical(): string
 	{
-
 		return match ( $this->kind )
 		{
-			self::KIND_USER => 'home:' . $this->target,
-			self::KIND_GROUP => 'group:' . $this->target,
-			self::KIND_HOME_ALL => 'home:*',
+			self::KIND_USER        => 'home:' . $this->target,
+			self::KIND_GROUP       => 'group:' . $this->target,
+			self::KIND_HOME_ALL    => 'home:*',
 			self::KIND_GROUPFOLDER => 'groupfolder:' . $this->target,
-			self::KIND_STORAGE => 'storage:' . $this->target,
-			default => '*',
+			self::KIND_STORAGE     => 'storage:' . $this->target,
+			default                => '*',
 		};
 	}
-
 
 	/**
 	 * How specific this selector is, lower being more specific.
@@ -188,31 +191,29 @@ readonly class Selector
 	 */
 	public function rank(): int
 	{
-
 		return match ( $this->kind )
 		{
-			self::KIND_USER, self::KIND_STORAGE => self::RANK_EXACT,
+			self::KIND_USER, self::KIND_STORAGE      => self::RANK_EXACT,
 			self::KIND_GROUP, self::KIND_GROUPFOLDER => self::RANK_GROUP,
-			self::KIND_HOME_ALL => self::RANK_NAMESPACE,
-			default => self::RANK_UNIVERSAL,
+			self::KIND_HOME_ALL                      => self::RANK_NAMESPACE,
+			default                                  => self::RANK_UNIVERSAL,
 		};
 	}
-
 
 	/** The display band: enforced rules occupy 1–4, unenforced 5–8. */
 	public function band( bool $enforced ): int
 	{
-
 		return $enforced
 			? $this->rank()
 			: $this->rank() + 4;
 	}
 
 
+//  getters / setters / is* / has*
+
 	/** Whether this selector addresses the home namespace at all. */
 	public function isHomeKind(): bool
 	{
-
 		return in_array(
 			$this->kind,
 			[
@@ -223,5 +224,4 @@ readonly class Selector
 			true,
 		);
 	}
-
 }

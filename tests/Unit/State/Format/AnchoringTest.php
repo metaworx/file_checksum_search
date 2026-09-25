@@ -24,13 +24,14 @@ use PHPUnit\Framework\TestCase;
  * nothing about the result looks wrong afterwards.
  */
 class AnchoringTest
-	extends
-	TestCase
+    extends
+    TestCase
 {
+
+//  other non-static methods
 
 	public function testAUserAnchorMeasuresFromTheirFilesDirectory(): void
 	{
-
 		$anchored = ( new FormatOptions( userId: 'alice' ) )
 			->anchor( new HashRecord( '', 'Photos/a.jpg', 'sha256', 'abc' ) )
 		;
@@ -39,10 +40,8 @@ class AnchoringTest
 		$this->assertSame( 'files/Photos/a.jpg', $anchored->path );
 	}
 
-
 	public function testAStorageAnchorMeasuresFromTheStorageRoot(): void
 	{
-
 		// An internal path already starts at the storage root, so nothing is
 		// prepended — `files/` here is the storage's own files directory.
 		$anchored = ( new FormatOptions( storageId: 'local::/data/__groupfolders/5/' ) )
@@ -53,7 +52,6 @@ class AnchoringTest
 		$this->assertSame( 'files/Team/notes.md', $anchored->path );
 	}
 
-
 	/**
 	 * The rule that makes a backup safe to re-import with an anchor set: a
 	 * record that names its own storage is already anchored. Without this,
@@ -61,7 +59,6 @@ class AnchoringTest
 	 */
 	public function testARecordThatNamesItsStorageIsNeverReAnchored(): void
 	{
-
 		$record = new HashRecord( 'home::alice', 'files/Photos/a.jpg', 'sha256', 'abc', 5 );
 
 		$this->assertEquals(
@@ -74,7 +71,6 @@ class AnchoringTest
 		);
 	}
 
-
 	/**
 	 * `find . | xargs sha1sum` writes `./Photos/a.jpg`, and a listing made
 	 * with an absolute-looking path is still relative to where it was run.
@@ -83,7 +79,6 @@ class AnchoringTest
 	 */
 	public function testTheCommonPrefixesFromShellToolsAreNormalised( string $written ): void
 	{
-
 		$this->assertSame(
 			'files/Photos/a.jpg',
 			( new FormatOptions( userId: 'alice' ) )
@@ -93,12 +88,13 @@ class AnchoringTest
 	}
 
 
+//  static methods
+
 	/**
 	 * @return array<string, array{string}>
 	 */
 	public static function messyPrefixes(): array
 	{
-
 		return [
 			'plain relative' => [ 'Photos/a.jpg' ],
 			'dot slash'      => [ './Photos/a.jpg' ],
@@ -108,16 +104,13 @@ class AnchoringTest
 		];
 	}
 
-
 	public function testWithoutAnAnchorAPathlessRecordKeepsItsOwnPath(): void
 	{
-
 		$record = new HashRecord( '', 'Photos/a.jpg', 'sha256', 'abc' );
 
 		$this->assertEquals( $record, ( new FormatOptions() )->anchor( $record ) );
 		$this->assertFalse( ( new FormatOptions() )->isAnchored() );
 	}
-
 
 	/**
 	 * Two anchors would disagree about the same path, so the combination is
@@ -125,12 +118,10 @@ class AnchoringTest
 	 */
 	public function testTwoAnchorsAreRefused(): void
 	{
-
 		$this->expectException( InvalidArgumentException::class );
 
 		new FormatOptions( userId: 'alice', storageId: 'home::alice' );
 	}
-
 
 	/**
 	 * The readers apply it, not the callers — which is the point of putting
@@ -141,8 +132,8 @@ class AnchoringTest
 	public function testEveryReaderAnchorsWhatItReads(
 		string $format,
 		string $text,
-	): void {
-
+	): void
+	{
 		$stream = fopen( 'php://memory', 'r+' );
 		fwrite( $stream, $text );
 		rewind( $stream );
@@ -159,13 +150,11 @@ class AnchoringTest
 		$this->assertSame( 'files/Photos/a.jpg', $records[0]->path );
 	}
 
-
 	/**
 	 * @return array<string, array{string, string}>
 	 */
 	public static function unanchoredInputs(): array
 	{
-
 		return [
 			'sum'  => [
 				FormatRegistry::FORMAT_SUM,
@@ -182,5 +171,4 @@ class AnchoringTest
 			],
 		];
 	}
-
 }
