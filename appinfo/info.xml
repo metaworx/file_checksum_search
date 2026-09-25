@@ -16,7 +16,7 @@ What you get:
 - **occ commands** for hashing, searching, duplicates, rules, backup, import and export.
 - Storage in Nextcloud's own files metadata index: no custom tables, nothing to migrate.
 </description>
-	<version>0.20.1</version>
+	<version>0.20.2</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author mail="apps@metaworx.ch"
 			homepage="https://github.com/metaworx/">metaworx resonare rüegg
@@ -33,13 +33,13 @@ What you get:
 	<bugs>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/work_items</bugs>
 	<repository type="git">https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search.git</repository>
 <!-- BEGIN GENERATED RELEASE-PIN - do not edit; run "changelog.sh cut" -->
-	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Slideshow.gif</screenshot>
-	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/File-Detail-Pane.png</screenshot>
-	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Unified_Search.png</screenshot>
-	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Duplicates-Page.png</screenshot>
-	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Duplicates-Others.png</screenshot>
-	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Admin-Settings.png</screenshot>
-	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Rule-Dialog.png</screenshot>
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.2/docs/Screenshots/Slideshow.gif</screenshot>
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.2/docs/Screenshots/File-Detail-Pane.png</screenshot>
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.2/docs/Screenshots/Unified_Search.png</screenshot>
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.2/docs/Screenshots/Duplicates-Page.png</screenshot>
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.2/docs/Screenshots/Duplicates-Others.png</screenshot>
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.2/docs/Screenshots/Admin-Settings.png</screenshot>
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.2/docs/Screenshots/Rule-Dialog.png</screenshot>
 <!-- END GENERATED RELEASE-PIN -->
 	<dependencies>
 		<php min-version="8.2"/>

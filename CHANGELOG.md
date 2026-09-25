@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.20.2] - 2026-09-25
+
 ### Added
 
 - App store listing: a slideshow of the six screenshots as its first

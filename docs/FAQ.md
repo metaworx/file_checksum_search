@@ -410,5 +410,5 @@ version, index status, and pending stats. The admin settings page's
 ![The Advanced tab: Status Info with the index counts and the background jobs' last runs, then the tunables][shot-admin-advanced]
 
 <!-- BEGIN GENERATED RELEASE-PIN - do not edit; run "changelog.sh cut" -->
-[shot-admin-advanced]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Admin-Advanced.png
+[shot-admin-advanced]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.2/docs/Screenshots/Admin-Advanced.png
 <!-- END GENERATED RELEASE-PIN -->
