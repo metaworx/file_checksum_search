@@ -4,6 +4,9 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    # One run per release: a [RELEASE] commit arrives on master and on its
+    # tag at once, and the tag's run is the one kept — same rule as GitLab.
+    if: github.event_name != 'push' || github.ref_type == 'tag' || !startsWith(github.event.head_commit.message, '[RELEASE] ')
     steps:
       - name: Checkout app code
         uses: actions/checkout@v4
@@ -39,6 +42,9 @@ jobs:
 
   phpunit:
     runs-on: ubuntu-latest
+    # One run per release: a [RELEASE] commit arrives on master and on its
+    # tag at once, and the tag's run is the one kept — same rule as GitLab.
+    if: github.event_name != 'push' || github.ref_type == 'tag' || !startsWith(github.event.head_commit.message, '[RELEASE] ')
     strategy:
       fail-fast: false
       matrix:
@@ -126,6 +132,9 @@ jobs:
 
   integration-chrome:
     runs-on: ubuntu-latest
+    # One run per release: a [RELEASE] commit arrives on master and on its
+    # tag at once, and the tag's run is the one kept — same rule as GitLab.
+    if: github.event_name != 'push' || github.ref_type == 'tag' || !startsWith(github.event.head_commit.message, '[RELEASE] ')
     strategy:
       fail-fast: false
       matrix:
