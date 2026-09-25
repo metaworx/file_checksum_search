@@ -773,9 +773,9 @@ For hashes that are missing or outdated, table-prefix configuration, and other c
 AGPL-3.0-or-later. See [LICENSE](LICENSE) for details.
 
 <!-- BEGIN GENERATED RELEASE-PIN - do not edit; run "changelog.sh cut" -->
-[shot-admin-rules]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.0/docs/Screenshots/Admin-Rules.png
-[shot-duplicates-page]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.0/docs/Screenshots/Duplicates-Page.png
-[shot-duplicates-others]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.0/docs/Screenshots/Duplicates-Others.png
-[shot-file-detail-pane]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.0/docs/Screenshots/File-Detail-Pane.png
-[shot-admin-settings]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.0/docs/Screenshots/Admin-Settings.png
+[shot-admin-rules]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Admin-Rules.png
+[shot-duplicates-page]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Duplicates-Page.png
+[shot-duplicates-others]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Duplicates-Others.png
+[shot-file-detail-pane]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/File-Detail-Pane.png
+[shot-admin-settings]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Admin-Settings.png
 <!-- END GENERATED RELEASE-PIN -->

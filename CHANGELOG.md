@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.20.1] - 2026-09-25
+
 ### Fixed
 
 - Admin status panel: a failed status request read as `Total: 0`.
