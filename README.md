@@ -107,7 +107,7 @@ three for the state the app owns, one for repair, and one for the queue. Run the
 
 | Command | Description |
 |---------|-------------|
-| `file-checksum-search:search <query>` | Search files by hash value or `algo:hash` pair |
+| `file-checksum-search:search <query> [--local-path]` | Search files by hash value or `algo:hash` pair; `--local-path` adds where each lives on the server's disk |
 | `file-checksum-search:hash [options]` | Compute checksums for user files, or mark them for background processing |
 | `file-checksum-search:find-duplicates [options]` | Find files with duplicate hash values |
 | `file-checksum-search:test-perf` | Benchmark indexed lookup vs unindexed LIKE scan |

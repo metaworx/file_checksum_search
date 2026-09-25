@@ -940,6 +940,12 @@ class PublicApiController
 	 * {@see lookup()} across every account. A password confirmation, and only
 	 * for those who may look across accounts.
 	 *
+	 * `?localPath=1` adds each file's absolute path on the server's disk —
+	 * for a sudoer only. A group leader's reach is a list of accounts, not
+	 * the server, and the path says how the server is laid out; asking for
+	 * it is refused rather than answered without the field, so a caller is
+	 * not left guessing why it is missing.
+	 *
 	 * @noinspection PhpUnused
 	 */
 	#[NoAdminRequired]
@@ -950,20 +956,40 @@ class PublicApiController
 		string  $hash,
 		?string $algo = null,
 		int     $limit = 100,
+		bool    $localPath = false,
 	): DataResponse
 	{
 		$scope = $this->sudoScopeOrRefusal();
 
-		return $scope instanceof DataResponse
-			? $scope
-			: $this->markOpenable( $this->lookupFor( $hash, $algo, $limit, $scope ) );
+		if ( $scope instanceof DataResponse )
+		{
+			return $scope;
+		}
+
+		// Null is every account, which only a sudoer has
+		// ({@see SudoScope::resolve()}); a leader's ceiling is a list.
+		if ( $localPath && $scope !== null )
+		{
+			return new DataResponse(
+				[ 'success' => false, 'error' => 'Not yours to look at.' ],
+				Http::STATUS_FORBIDDEN,
+			);
+		}
+
+		return $this->markOpenable( $this->lookupFor( $hash, $algo, $limit, $scope, $localPath ) );
 	}
 
 	/**
 	 * The route's body, for either wrapper: $scope is whose files may be
 	 * read — a uid, a list of them, or null for every account.
 	 */
-	private function lookupFor( string $hash, ?string $algo, int $limit, string|array|null $scope ): DataResponse
+	private function lookupFor(
+		string            $hash,
+		?string           $algo,
+		int               $limit,
+		string|array|null $scope,
+		bool              $withLocalPath = false,
+	): DataResponse
 	{
 		$this->logger->debug(
 			'FCIAS PublicApiController: lookup called',
@@ -975,7 +1001,7 @@ class PublicApiController
 
 		try
 		{
-			$result = $this->api->findByHash( $hash, $algo, $limit, $this->reachOf( $scope ) );
+			$result = $this->api->findByHash( $hash, $algo, $limit, $this->reachOf( $scope ), $withLocalPath );
 
 			return new DataResponse( $result );
 		}

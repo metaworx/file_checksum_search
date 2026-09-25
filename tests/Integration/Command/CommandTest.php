@@ -92,6 +92,25 @@ class CommandTest
 		$this->assertStringContainsString( 'report.pdf', $tester->getDisplay() );
 	}
 
+	public function testSearchHashPrintsTheLocalPathOnRequest(): void
+	{
+		$hashIndexService = $this->createMock( HashIndexService::class );
+		$hashIndexService->expects( $this->once() )
+		                 ->method( 'findByHash' )
+		                 ->with( 'abc123abc123abc123abc123abc123ab', null, 100, null, true )
+		                 ->willReturn( [
+			                 [ 'fileid' => 42, 'algo' => 'sha1', 'path' => 'files/Docs/report.pdf', 'name' => 'report.pdf', 'local_path' => '/srv/data/admin/files/Docs/report.pdf' ],
+			                 [ 'fileid' => 43, 'algo' => 'sha1', 'path' => 'Docs/copy.pdf', 'name' => 'copy.pdf', 'local_path' => null ],
+		                 ] )
+		;
+
+		$tester = new CommandTester( new SearchHash( $hashIndexService, $this->logger ) );
+		$tester->execute( [ 'query' => 'abc123abc123abc123abc123abc123ab', '--local-path' => true ] );
+
+		$this->assertStringContainsString( 'files/Docs/report.pdf => /srv/data/admin/files/Docs/report.pdf', $tester->getDisplay() );
+		$this->assertStringContainsString( 'Docs/copy.pdf => (none)', $tester->getDisplay() );
+	}
+
 	// ─── ShowStatus ──────────────────────────────────────────────────
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection

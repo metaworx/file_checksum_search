@@ -697,6 +697,86 @@ class PublicApiControllerTest
 	}
 
 	/**
+	 * The local path is a sudoer's to ask for: their scope is every account,
+	 * which the resolver says as null. A leader, whose scope is a list, is
+	 * refused for asking rather than answered without the field.
+	 */
+	public function testTheSudoLookupGivesASudoerTheLocalPathOnRequest(): void
+	{
+		$sudo = $this->createMock( SudoScope::class );
+		$sudo->method( 'resolve' )
+		     ->with( 'admin' )
+		     ->willReturn( null )
+		;
+		$controller = $this->controllerWith( $sudo );
+
+		$this->api->expects( $this->once() )
+		          ->method( 'findByHash' )
+		          ->with( 'abc123', null, 100, null, true )
+		          ->willReturn( [ 'results' => [] ] )
+		;
+
+		$this->assertSame( Http::STATUS_OK, $controller->sudoLookup( 'abc123', localPath: true )->getStatus() );
+	}
+
+	public function testTheSudoLookupRefusesALeaderTheLocalPath(): void
+	{
+		$sudo = $this->createMock( SudoScope::class );
+		$sudo->method( 'resolve' )
+		     ->with( 'admin' )
+		     ->willReturn( [ 'member', 'mate' ] )
+		;
+		$controller = $this->controllerWith( $sudo );
+
+		$this->api->expects( $this->never() )
+		          ->method( 'findByHash' )
+		;
+
+		$response = $controller->sudoLookup( 'abc123', localPath: true );
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $response->getStatus() );
+		$this->assertSame( 'Not yours to look at.', $response->getData()['error'] );
+	}
+
+	public function testTheSudoLookupAsksForNoLocalPathUnlessTold(): void
+	{
+		$sudo = $this->createMock( SudoScope::class );
+		$sudo->method( 'resolve' )
+		     ->willReturn( null )
+		;
+		$controller = $this->controllerWith( $sudo );
+
+		$this->api->expects( $this->once() )
+		          ->method( 'findByHash' )
+		          ->with( 'abc123', null, 100, null, false )
+		          ->willReturn( [ 'results' => [] ] )
+		;
+
+		$this->assertSame( Http::STATUS_OK, $controller->sudoLookup( 'abc123' )->getStatus() );
+	}
+
+	/** The controller with one collaborator swapped: whose reach the resolver grants. */
+	private function controllerWith( SudoScope $sudo ): PublicApiController
+	{
+		return new PublicApiController(
+			'file_checksum_search',
+			$this->createMock( IRequest::class ),
+			$this->api,
+			$this->userSession,
+			$this->groupManager,
+			$this->logger,
+			$this->createMock( AlgorithmCatalogue::class ),
+			$this->userConfig,
+			$this->lockdown,
+			$sudo,
+			$this->session,
+			$this->permissions,
+			$this->confirmation,
+			$this->appConfig,
+		);
+	}
+
+	/**
 	 * The ordinary route never crosses accounts, whatever the resolver would
 	 * grant: it does not ask.
 	 */

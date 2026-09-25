@@ -248,8 +248,18 @@ class ChecksumApi
 	 *                                        command. A reach, not a
 	 *                                        permission; nothing is checked
 	 *                                        against it.
+	 * @param  bool               $withLocalPath  Each row gains `localPath`:
+	 *                                        the file's absolute path on this
+	 *                                        server's disk, null for a storage
+	 *                                        that has none (an object store, a
+	 *                                        share, a remote mount) and for
+	 *                                        every file while server-side
+	 *                                        encryption is enabled. It reveals
+	 *                                        the server's layout, so a route
+	 *                                        offers it to sudoers only; a
+	 *                                        native caller is trusted with it.
 	 *
-	 * @return array{results: array<int, array{fileid: int, algo: string, hash: string, path: string, name: string}>}
+	 * @return array{results: array<int, array{fileid: int, algo: string, hash: string, path: string, name: string, owner: ?string, location: string, localPath?: ?string}>}
 	 * @throws \InvalidArgumentException  When $hash is empty once trimmed. The
 	 *                                    REST layer turns this into a 400.
 	 */
@@ -258,6 +268,7 @@ class ChecksumApi
 		?string $algo = null,
 		int     $limit = 100,
 		?array  $reachUids = null,
+		bool    $withLocalPath = false,
 	): array
 	{
 		$hash = trim( $hash );
@@ -273,11 +284,11 @@ class ChecksumApi
 		// command. Instance-wide, resolved against the filecache as before.
 		if ( $reachUids === null )
 		{
-			$rows = $this->hashIndexService->findByHash( $hash, $algo, $limit, null );
+			$rows = $this->hashIndexService->findByHash( $hash, $algo, $limit, null, $withLocalPath );
 
 			$results = array_map( static function(
 				array $row,
-			): array
+			) use ( $withLocalPath ): array
 			{
 				return [
 					'fileid'   => (int) $row['fileid'],
@@ -287,7 +298,7 @@ class ChecksumApi
 					'name'     => $row['name'],
 					'owner'    => $row['owner'] ?? null,
 					'location' => $row['location'] ?? '',
-				];
+				] + ( $withLocalPath ? [ 'localPath' => $row['local_path'] ?? null ] : [] );
 			}, $rows );
 
 			return [ 'results' => $results ];
@@ -376,7 +387,7 @@ class ChecksumApi
 			];
 		}
 
-		return [ 'results' => $this->withLocations( $results ) ];
+		return [ 'results' => $this->withLocations( $results, $withLocalPath ) ];
 	}
 
 	/**
@@ -813,9 +824,9 @@ class ChecksumApi
 	 *
 	 * @param  list<array{fileid: int}>  $rows
 	 *
-	 * @return list<array>  the same rows plus `owner: ?string` and `location: string`
+	 * @return list<array>  the same rows plus `owner: ?string` and `location: string`, and `localPath: ?string` when asked
 	 */
-	private function withLocations( array $rows ): array
+	private function withLocations( array $rows, bool $withLocalPath = false ): array
 	{
 		if ( $rows === [] )
 		{
@@ -824,13 +835,13 @@ class ChecksumApi
 
 		// No reach filter: what may be listed was decided row by row already;
 		// this only finds words for it.
-		$located = $this->hashIndexService->batchLookupFilecachePaths( array_column( $rows, 'fileid' ) );
+		$located = $this->hashIndexService->batchLookupFilecachePaths( array_column( $rows, 'fileid' ), null, $withLocalPath );
 
 		return array_map(
 			static fn ( array $row ): array => $row + [
 				'owner'    => $located[ $row['fileid'] ]['owner'] ?? null,
 				'location' => $located[ $row['fileid'] ]['location'] ?? '',
-			],
+			] + ( $withLocalPath ? [ 'localPath' => $located[ $row['fileid'] ]['local_path'] ?? null ] : [] ),
 			$rows,
 		);
 	}

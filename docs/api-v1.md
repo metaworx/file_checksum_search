@@ -83,7 +83,7 @@ To these methods a file outside the reach is *not found*, never *forbidden*:
 a `NotFoundException`, or a `File not found.` result. Whether the caller may
 have the reach at all is decided before the call, by whoever makes it.
 
-#### `findByHash(string $hash, ?string $algo = null, int $limit = 100, ?array $reachUids = null): array`
+#### `findByHash(string $hash, ?string $algo = null, int $limit = 100, ?array $reachUids = null, bool $withLocalPath = false): array`
 
 Search for files matching a given hash value.
 
@@ -93,6 +93,7 @@ Search for files matching a given hash value.
 | `$algo` | `?string` | No | Algorithm filter — any name `GET /api/v1/algorithms` lists for this instance |
 | `$limit` | `int` | No | Max results (1–500, default 100) |
 | `$reachUids` | `?array` | No | Whose files; `null` for every account |
+| `$withLocalPath` | `bool` | No | Add `localPath` to each row: the file's absolute path on the server's disk, `null` for a storage without local files (an object store, a share, a remote mount) and for every file while server-side encryption is enabled. It reveals the server's layout; the REST route offers it to sudoers only |
 
 **Returns:**
 ```php
@@ -108,7 +109,11 @@ Search for files matching a given hash value.
 `path` and `name` are one account's name for the file — with several accounts
 in reach, whichever opened it first. `path` includes the name: with a reach it
 is the path below that account's files area, with a leading slash; with
-`$reachUids` null it is the filecache path, starting with `files/`. `owner`
+`$reachUids` null it is the filecache path, starting with `files/`. With
+`$withLocalPath`, `localPath` is where the file lives on the server:
+`/srv/nextcloud/data/alice/files/Documents/report.pdf` for a home file,
+`<datadir>/__groupfolders/<id>/files/…` for a group folder, the mount's own
+root for an external local storage. `owner`
 and `location` are the file's own
 identity from its filecache row: the owning account (`null` for a storage no
 account owns) and `FileLocation::describe()` — `/<owner>/files/…` for a home,
@@ -417,7 +422,7 @@ Responses are nonetheless plain JSON: these are `ApiController`s, not `OCSContro
 | 14 | `/api/v1/preferences/{key}` | GET, PUT | — | One of the caller's own preferences; first key `preferred_algorithm` |
 | 15 | `/api/v1/sudo/file/{fileId}/hashes` | GET | — | A file within the caller's reach: any account's for a sudoer, their groups' members' for a sub-admin; password confirmation |
 | 16 | `/api/v1/sudo/file/{fileId}/duplicates` | GET | — | As 15, its duplicates across the caller's reach |
-| 17 | `/api/v1/sudo/lookup` | GET | — | Across the caller's reach; as 15 |
+| 17 | `/api/v1/sudo/lookup` | GET | — | Across the caller's reach; as 15. `?localPath=1` adds each file's absolute path on the server, for a sudoer only |
 | 18 | `/api/v1/sudo/duplicates` | GET | — | The accounts `users[]`/`groups[]` name, merged, or with nothing named the caller's whole reach; sudoers, or a sub-admin over their own members |
 | 19 | `/api/v1/sudo/selectable` | GET | — | Which groups and accounts the caller may name on the routes above |
 | 20 | `/api/v1/sudo/file/{fileId}/recalc` | POST | `recalcHash` | Recalculate a file that need not be the caller's own; password confirmation, and the file must be within the caller's reach |
@@ -1038,7 +1043,7 @@ accounts:
 |---|---|---|
 | `GET /api/v1/file/{fileId}/hashes` | `GET /api/v1/sudo/file/{fileId}/hashes` | any file in the caller's reach |
 | `GET /api/v1/file/{fileId}/duplicates` | `GET /api/v1/sudo/file/{fileId}/duplicates` | a reference file in the reach; duplicates from the whole reach |
-| `GET /api/v1/lookup` | `GET /api/v1/sudo/lookup` | the whole reach |
+| `GET /api/v1/lookup` | `GET /api/v1/sudo/lookup` | the whole reach; with `?localPath=1`, each row's `localPath` is the file's absolute path on the server — a sudoer's to ask for, a leader asking is refused with 403 |
 | `GET /api/v1/duplicates` | `GET /api/v1/sudo/duplicates?users[]=&groups[]=` | the named accounts and the members of the named groups, as one merged listing; with nothing named, the whole reach |
 | `POST /api/v1/file/{fileId}/recalc` | `POST /api/v1/sudo/file/{fileId}/recalc` | any file in the reach |
 | `POST /api/v1/file/many/recalc` | `POST /api/v1/sudo/file/many/recalc` | as above, decided per file |

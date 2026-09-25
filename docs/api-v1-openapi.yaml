@@ -486,6 +486,16 @@ paths:
           schema:
             type: integer
             default: 100
+        - name: localPath
+          in: query
+          required: false
+          description: >-
+            `1` adds `localPath` to each row: the file's absolute path on the server's disk,
+            null for a storage without local files and for every file while server-side
+            encryption is enabled. A sudoer's to ask for; a sub-admin asking is refused with 403.
+          schema:
+            type: boolean
+            default: false
       responses:
         "200":
           description: As the ordinary route
@@ -1033,6 +1043,14 @@ components:
             Files-app link to it would open. Absent on the ordinary routes, where every row
             is the caller's to open.
           example: false
+        localPath:
+          type: string
+          nullable: true
+          description: >-
+            `/api/v1/sudo/lookup?localPath=1` only: the file's absolute path on the server's
+            disk. Null for a storage without local files (an object store, a share, a remote
+            mount) and for every file while server-side encryption is enabled.
+          example: "/srv/nextcloud/data/alice/files/Documents/report.pdf"
 
     FileHashesResponse:
       type: object

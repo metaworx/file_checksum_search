@@ -382,6 +382,83 @@ class ChecksumApiTest
 		$this->assertSame( '/bob/files/b.txt', $result['results'][1]['location'] );
 	}
 
+	/**
+	 * Asked for the local path, both branches ask the filecache for it and
+	 * each row carries `localPath` — null included, which is an answer;
+	 * not asked, the key is absent, so the shape nobody asked to change
+	 * does not.
+	 */
+	public function testFindByHashUnscopedCarriesTheLocalPathWhenAsked(): void
+	{
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'findByHash' )
+		                       ->with( 'abc', null, 100, null, true )
+		                       ->willReturn( [
+			                       [ 'fileid' => '1', 'algo' => 'sha1', 'hash_value' => 'abc', 'path' => 'files/a.txt', 'name' => 'a.txt', 'local_path' => '/srv/data/admin/files/a.txt' ],
+			                       [ 'fileid' => '2', 'algo' => 'sha1', 'hash_value' => 'abc', 'path' => 'b.txt', 'name' => 'b.txt', 'local_path' => null ],
+		                       ] )
+		;
+
+		$result = $this->api->findByHash( 'abc', null, 100, null, true );
+
+		$this->assertSame( '/srv/data/admin/files/a.txt', $result['results'][0]['localPath'] );
+		$this->assertArrayHasKey( 'localPath', $result['results'][1] );
+		$this->assertNull( $result['results'][1]['localPath'] );
+	}
+
+	public function testFindByHashUnscopedHasNoLocalPathUnlessAsked(): void
+	{
+		$this->hashIndexService->method( 'findByHash' )
+		                       ->with( 'abc', null, 100, null, false )
+		                       ->willReturn( [
+			                       [ 'fileid' => '1', 'algo' => 'sha1', 'hash_value' => 'abc', 'path' => 'files/a.txt', 'name' => 'a.txt' ],
+		                       ] )
+		;
+
+		$this->assertArrayNotHasKey( 'localPath', $this->api->findByHash( 'abc' )['results'][0] );
+	}
+
+	public function testFindByHashScopedCarriesTheLocalPathWhenAsked(): void
+	{
+		$this->userManager->method( 'get' )
+		                  ->willReturn( $this->createMock( IUser::class ) )
+		;
+		$this->reach->method( 'storageIdsFor' )
+		            ->willReturn( [ 42 ] )
+		;
+
+		$rows = [ [ MetadataService::FIELD_FILE_ID => 7, MetadataService::FIELD_META_KEY => 'file-checksum-sha1' ] ];
+		$this->metadataService->method( 'queryByHash' )
+		                      ->willReturn( $rows )
+		;
+		$this->metadataService->method( 'confirmFullHash' )
+		                      ->willReturn( $rows )
+		;
+		$this->metadataService->method( 'extractAlgorithm' )
+		                      ->willReturn( [ 'algo' => 'sha1', 'hash' => 'abc' ] )
+		;
+
+		$node = $this->createMock( \OCP\Files\Node::class );
+		$node->method( 'getPath' )->willReturn( '/bob/files/a.txt' );
+		$node->method( 'getName' )->willReturn( 'a.txt' );
+		$folder = $this->createMock( Folder::class );
+		$folder->method( 'getById' )->willReturn( [ $node ] );
+		$folder->method( 'getRelativePath' )->willReturn( '/a.txt' );
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->willReturn( $folder )
+		;
+
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'batchLookupFilecachePaths' )
+		                       ->with( [ 7 ], null, true )
+		                       ->willReturn( [ 7 => [ 'owner' => 'bob', 'location' => '/bob/files/a.txt', 'local_path' => '/srv/data/bob/files/a.txt' ] ] )
+		;
+
+		$result = $this->api->findByHash( 'abc', null, 100, [ 'bob' ], true );
+
+		$this->assertSame( '/srv/data/bob/files/a.txt', $result['results'][0]['localPath'] );
+	}
+
 	public function testFindByHashThrowsOnEmptyHash(): void
 	{
 		$this->expectException( InvalidArgumentException::class );

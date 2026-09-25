@@ -16,6 +16,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -45,6 +46,12 @@ class SearchHash
 		$this->setName( 'file-checksum-search:search' )
 		     ->setDescription( 'Search files by hash value or algo:hash pair' )
 		     ->addArgument( 'query', InputArgument::REQUIRED, 'Hash value (hex) or algo:hash (e.g. sha1:abc123)' )
+		     ->addOption(
+			     'local-path',
+			     null,
+			     InputOption::VALUE_NONE,
+			     "Also print each file's absolute path on this server's disk; (none) for a storage without local files, and for every file while server-side encryption is enabled",
+		     )
 		;
 	}
 
@@ -71,7 +78,8 @@ class SearchHash
 			return Command::FAILURE;
 		}
 
-		$rows = $this->hashIndexService->findByHash( $parsed['hash'], $parsed['algo'] );
+		$withLocalPath = (bool) $input->getOption( 'local-path' );
+		$rows          = $this->hashIndexService->findByHash( $parsed['hash'], $parsed['algo'], 100, null, $withLocalPath );
 
 		if ( empty( $rows ) )
 		{
@@ -84,10 +92,11 @@ class SearchHash
 		{
 			$output->writeln(
 				sprintf(
-					'[%s] (ID: %d) -> %s',
+					'[%s] (ID: %d) -> %s%s',
 					$row['algo'],
 					(int) $row['fileid'],
 					trim( (string) $row['path'], '/' ),
+					$withLocalPath ? ' => ' . ( $row['local_path'] ?? '(none)' ) : '',
 				),
 			);
 		}

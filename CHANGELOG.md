@@ -13,6 +13,10 @@ the first stable release.
 
 ### Added
 
+- `findByHash()` with `$withLocalPath`, `/api/v1/sudo/lookup?localPath=1`
+  and `occ file-checksum-search:search --local-path`: each file's
+  absolute path on the server's disk.
+
 - `occ fcias:backup`: configuration, queue state and hashes as `json`;
   hashes alone as `csv` or a checksum listing.
 
