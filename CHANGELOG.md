@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-09-25
+
 ### Added
 
 - `findByHash()` with `$withLocalPath`, `/api/v1/sudo/lookup?localPath=1`

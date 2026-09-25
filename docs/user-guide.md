@@ -275,9 +275,9 @@ administrator, its enforced flag. Reordering currently needs a pointer; there
 is no keyboard equivalent.
 
 <!-- BEGIN GENERATED RELEASE-PIN - do not edit; run "changelog.sh cut" -->
-[shot-duplicates-page]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/Duplicates-Page.png
-[shot-duplicates-others]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/Duplicates-Others.png
-[shot-unified-search]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/Unified_Search.png
-[shot-file-detail-pane]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/File-Detail-Pane.png
-[shot-user-settings]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.19.0/docs/Screenshots/User-Settings.png
+[shot-duplicates-page]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.0/docs/Screenshots/Duplicates-Page.png
+[shot-duplicates-others]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.0/docs/Screenshots/Duplicates-Others.png
+[shot-unified-search]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.0/docs/Screenshots/Unified_Search.png
+[shot-file-detail-pane]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.0/docs/Screenshots/File-Detail-Pane.png
+[shot-user-settings]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.0/docs/Screenshots/User-Settings.png
 <!-- END GENERATED RELEASE-PIN -->
