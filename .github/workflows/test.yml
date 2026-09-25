@@ -212,3 +212,13 @@ jobs:
           wait-on-timeout: 120
         env:
           CYPRESS_baseUrl: http://localhost:8081
+
+      # What GitLab keeps of a failed run, kept here too: the screenshot
+      # Cypress takes at the failing step is most of a diagnosis.
+      - name: Keep Cypress screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-${{ matrix.nextcloud-version }}
+          path: cypress/screenshots
+          if-no-files-found: ignore

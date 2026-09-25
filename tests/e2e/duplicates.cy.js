@@ -297,7 +297,10 @@ describe( 'FCIAS Duplicates page', () => {
 				cy.clearCookies()
 				const theirs = ( path ) => `/remote.php/dav/files/${ account.user }${ path }`
 				const asThem = { user: account.user, pass: account.password }
-				cy.request( { method: 'MKCOL', url: theirs( `/${ dupDir }` ), auth: asThem, failOnStatusCode: false } )
+				// A fresh account: the folder cannot exist yet, so a refusal
+				// here is a defect and not a rerun, and it fails loudly rather
+				// than as a 404 on the PUT that follows.
+				cy.request( { method: 'MKCOL', url: theirs( `/${ dupDir }` ), auth: asThem } )
 				for ( const { name, content } of files ) {
 					cy.request( {
 						method: 'PUT',

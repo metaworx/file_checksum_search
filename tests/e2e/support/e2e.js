@@ -3,6 +3,15 @@
 const APP_ID = 'file_checksum_search'
 
 Cypress.on( 'uncaught:exception', ( err ) => {
+	// Chrome reports an observer that could not deliver every notification
+	// within one frame as an error; it is a notice, not a fault, and it
+	// carries the page URL as its only frame — which names this app's
+	// pages, so the ownership check below would claim it.
+	if ( err.message.includes( 'ResizeObserver loop' ) )
+	{
+		return false
+	}
+
 	// Nextcloud core apps (Photos, Recommendations, User Status, …) throw
 	// benign unhandled rejections while the dashboard loads on a fresh
 	// install (missing upload folder, 404s on their OCS endpoints). Those
@@ -464,9 +473,47 @@ Cypress.Commands.add( 'fciasMakeAccount', ( admin, base ) => {
 			`creating the test account ${ account.user }`,
 		).to.eq( 200 )
 
-		return account
+		// The account exists; its home does not until the server first
+		// serves it, and a PUT that arrives before then is answered 404 or
+		// 412 on a slow instance. One PROPFIND on its WebDAV root, as the
+		// account, is that first request — asked again until it answers.
+		cy.clearCookies()
+
+		return warmHomeOf( account, 1 )
 	} )
 } )
+
+/**
+ * A PROPFIND on the account's WebDAV root, repeated until it answers 207,
+ * so that a spec's first write lands in a home that exists. Yields the
+ * account, with the browser's cookie jar cleared of its session.
+ *
+ * @param {{user: string, password: string}} account
+ * @param {number} attempt
+ * @returns {Cypress.Chainable<{user: string, password: string}>}
+ */
+function warmHomeOf( account, attempt )
+{
+	return cy.request( {
+		method: 'PROPFIND',
+		url: `/remote.php/dav/files/${ account.user }/`,
+		auth: { user: account.user, pass: account.password },
+		headers: { Depth: '0' },
+		failOnStatusCode: false,
+	} ).then( ( response ) => {
+		if ( response.status === 207 )
+		{
+			cy.clearCookies()
+
+			return cy.wrap( account, { log: false } )
+		}
+
+		expect( attempt, `waiting for the home of ${ account.user } (last answer ${ response.status })` ).to.be.lessThan( 10 )
+		cy.wait( 500, { log: false } )
+
+		return warmHomeOf( account, attempt + 1 )
+	} )
+}
 
 /**
  * Delete an account this suite made.
