@@ -7,6 +7,27 @@ stages:
 variables:
   APP_ID: file_checksum_search
 
+# One pipeline per release. A release is pushed to a branch and to a tag,
+# which is two pipelines over one commit and one tree - the unit suite, two
+# e2e runs and a build, billed twice. Nothing in a branch pipeline says its
+# commit is also tagged, so the only lever is the commit itself, and
+# [RELEASE] is the title changelog.sh gives the commit it tags.
+#
+# The tag pipeline is the one kept: it is the one that signs, releases and
+# publishes, and it checks out a detached HEAD, which is how a consumer
+# receives the code. The cost is that a release commit whose tag is never
+# pushed is built nowhere, which is why changelog.sh says so when it makes
+# one without a tag. Same rule as the shared guidelines' own pipeline.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH && $CI_COMMIT_TITLE =~ /^\[RELEASE\] /
+      when: never
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
 # ---------------------------------------------------------------------------
 # Reusable script fragments (hidden jobs, pulled in via `!reference`)
 # ---------------------------------------------------------------------------
