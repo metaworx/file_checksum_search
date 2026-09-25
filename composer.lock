@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c72b1b6df6f4bc219806cd6f2a76267d",
+    "content-hash": "2e25173c76e3118a989823c7e31f7cd7",
     "packages": [
         {
             "name": "bamarni/composer-bin-plugin",
@@ -241,16 +241,16 @@
         },
         {
             "name": "mwx/tools",
-            "version": "0.3.1",
+            "version": "0.4.0",
             "source": {
                 "type": "git",
                 "url": "https://gitlab.com/metaworx/open-source/php-library/tools.git",
-                "reference": "26b2f1f63f1d9e55ea603ce7c54d8d0fae5fe5f8"
+                "reference": "0eece7779424d4091fdc01d24e3341cfafa08e38"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://gitlab.com/api/v4/projects/metaworx%2Fopen-source%2Fphp-library%2Ftools/repository/archive.zip?sha=26b2f1f63f1d9e55ea603ce7c54d8d0fae5fe5f8",
-                "reference": "26b2f1f63f1d9e55ea603ce7c54d8d0fae5fe5f8",
+                "url": "https://gitlab.com/api/v4/projects/metaworx%2Fopen-source%2Fphp-library%2Ftools/repository/archive.zip?sha=0eece7779424d4091fdc01d24e3341cfafa08e38",
+                "reference": "0eece7779424d4091fdc01d24e3341cfafa08e38",
                 "shasum": ""
             },
             "require": {
@@ -264,6 +264,9 @@
                 "symfony/stopwatch": "^7.3",
                 "symfony/yaml": "^7.3"
             },
+            "bin": [
+                "bin/phpunit-mwx"
+            ],
             "type": "library",
             "autoload": {
                 "psr-4": {
@@ -283,9 +286,9 @@
             "description": "CLI application plumbing, configuration, process orchestration and external-tool wrappers, the PHPUnit wrapper among them",
             "support": {
                 "issues": "https://gitlab.com/metaworx/open-source/php-library/tools/-/issues",
-                "source": "https://gitlab.com/metaworx/open-source/php-library/tools/-/tree/v0.3.1"
+                "source": "https://gitlab.com/metaworx/open-source/php-library/tools/-/tree/v0.4.0"
             },
-            "time": "2026-09-24T23:33:22+00:00"
+            "time": "2026-09-25T11:06:32+00:00"
         },
         {
             "name": "nextcloud/ocp",
