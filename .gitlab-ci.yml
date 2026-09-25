@@ -191,6 +191,8 @@ release:
     name: 'FCIAS ${CI_COMMIT_TAG}'
     tag_name: '${CI_COMMIT_TAG}'
     ref: '${CI_COMMIT_SHA}'
+    # No backticks here: release-cli hands the description to a shell, which
+    # runs a backticked word as a command and drops it from the text.
     description: |
       Release ${CI_COMMIT_TAG}.
 
