@@ -15,10 +15,11 @@ use OCA\FileChecksumSearch\Service\FileLocation;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
 use OCP\App\IAppManager;
+use OCP\Files\File;
 use OCP\Files\IRootFolder;
+use OCP\Files\NotFoundException;
 use OCP\IAppConfig;
 use OCP\Server;
-use Throwable;
 
 /**
  * Where a real file says it lives, and which rule therefore governs it.
@@ -92,9 +93,11 @@ class FileLocationIntegrationTest
 			{
 				$undo();
 			}
-			catch ( Throwable )
+			catch ( NotFoundException )
 			{
 				// A fixture that is already gone is the outcome we wanted.
+				// Anything else propagates: a cleanup that fails quietly
+				// left three files per run in the group folder.
 			}
 		}
 
@@ -253,13 +256,39 @@ class FileLocationIntegrationTest
 		;
 		$file   = $folder->newFile( $name, 'FCIAS group folder integration content' );
 
-		$this->cleanup[] = static fn (): mixed => $file->delete();
+		$this->cleanup[] = static fn (): mixed => self::removeThroughTheStorage( $file );
 
 		$location = $this->filecache->locate( $file->getId() );
 
 		$this->assertNotNull( $location, 'the file this test just wrote can be located' );
 
 		return $location;
+	}
+
+
+//  static methods
+
+	/**
+	 * Remove a file the test wrote, past the mount's permission mask.
+	 *
+	 * `$file->delete()` goes through the member's view, and the harness
+	 * grants the administrator's group no delete on the folder (7: read,
+	 * update, create) — which is a fine thing to test against and a bad
+	 * way to clean up. The storage has no mask: the file goes from disk
+	 * and its row from the cache, as a scan would do.
+	 */
+	private static function removeThroughTheStorage( File $file ): void
+	{
+		$storage  = $file->getStorage();
+		$internal = $file->getInternalPath();
+		$onDisk   = $storage->getLocalFile( $internal );
+
+		if ( is_string( $onDisk ) && file_exists( $onDisk ) )
+		{
+			unlink( $onDisk );
+		}
+
+		$storage->getCache()->remove( $internal );
 	}
 
 	/**
