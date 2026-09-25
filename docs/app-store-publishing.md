@@ -11,7 +11,7 @@ Publishing is driven by:
   archive when a certificate is available.
 - [`.github/workflows/publish.yml`](../.github/workflows/publish.yml) — GitHub
   Actions release pipeline.
-- [`.gitlab-ci.yml`](../.gitlab-ci.yml) — GitLab CI build/release pipeline.
+- [`.gitlab/gitlab-ci.yml`](../.gitlab/gitlab-ci.yml) — the GitLab CI pipeline, parked (see below).
 
 Both CI platforms produce the same artifacts:
 
@@ -108,32 +108,12 @@ within a minute and the publish run after it.
 
 ## GitLab CI
 
-The [`phpunit`](../.gitlab-ci.yml) job installs a Nextcloud server, injects the
-app, and runs the PHPUnit unit suite; `e2e` runs the Cypress suite and
-`manifest` validates `appinfo/info.xml` against the store's schema. The
-[`build`](../.gitlab-ci.yml) job builds, packages, and signs the app (using the
-`APPSTORE_KEY_B64`/`APPSTORE_CERT` CI variables when defined) and exposes the
-artifacts. The `release` job runs on Git tags and publishes a GitLab Release
-with links to the artifacts.
-
-The `publish_appstore` job runs on tags when `APPSTORE_PUBLISH=true`: it uploads
-the **versioned** tarball to the GitLab generic package registry, signs it, and
-posts the release to the App Store (`POST /api/v1/apps/releases`). A refused
-upload fails the job with the store's answer in the log.
-
-The signing and token variables are **protected**, so they reach only pipelines
-of protected refs: `master`, and tags matching the protected `v*` pattern. A
-tag pushed while that pattern is unprotected builds unsigned and fails to
-publish with "no signing key". A protected tag cannot be moved or deleted over
-git; delete it in the GitLab UI first, then push it again.
-
-Add the CI variable `APPSTORE_KEY_B64` (Base64-encoded private key, masked —
-GitLab masked variables cannot contain whitespace, so the PEM must be
-Base64-encoded; the job accepts both value-type and file-type) and
-`APPSTORE_CERT` (FILE-type variable pointing at the public certificate — it is
-public data and does not need masking) to enable signing. Publishing requires
-the additional CI variables `APPSTORE_TOKEN` (API token) and `APPSTORE_PUBLISH`
-(`true`).
+Parked since 2026-09-25: the pipeline file sits in
+[`.gitlab/`](../.gitlab/README.md), where GitLab does not read it, because
+its minutes are billed and GitHub runs the wider matrix for free. GitLab
+stays the code host and the source of the push mirror that carries every
+commit and tag to GitHub, where the workflows above run. The README beside
+the file says how to run it again.
 
 ## Manual upload (Option B fallback)
 
