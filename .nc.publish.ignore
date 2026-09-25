@@ -10,6 +10,7 @@
 .git
 .gitignore
 .gitattributes
+.gitmodules
 .github
 # Placeholder files
 *.gitkeep
@@ -30,7 +31,6 @@
 /.roo
 /.junie
 /.appstore
-/AGENTS.md
 
 # Node / frontend tooling
 /node_modules
@@ -47,7 +47,7 @@
 # PHP tooling
 /vendor
 /vendor-bin
-/.php-cs-fixer.dist.php
+/ecs.php
 /psalm.xml
 /rector.php
 
@@ -79,3 +79,4 @@
 
 # Test tooling not covered above
 /vitest.config.ts
+/vitest.setup.ts
