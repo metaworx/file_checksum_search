@@ -56,6 +56,19 @@ describe('useAdminSettings', () => {
 		expect(statusError.value).toBeNull()
 	})
 
+	it('treats a non-OK status response as an error, not as a status', async () => {
+		const { pending } = mockAbortableFetch()
+		const { status, statusError, statusLoading, loadStatus } = useAdminSettings()
+
+		const p = loadStatus()
+		pending[0](new Response(JSON.stringify({ message: 'Password confirmation required' }), { status: 403 }))
+		await p
+
+		expect(statusError.value).toBe('Failed to load status (HTTP 403).')
+		expect(status.value).toEqual({})
+		expect(statusLoading.value).toBe(false)
+	})
+
 	it('loads status on success', async () => {
 		const { pending } = mockAbortableFetch()
 		const { status, statusLoading, loadStatus } = useAdminSettings()

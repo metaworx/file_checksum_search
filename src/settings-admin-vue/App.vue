@@ -62,6 +62,7 @@ declare const OC: {
 
 const {
 	status,
+	statusError,
 	lastUpdated,
 	supportedAlgos,
 	availableUsers,
@@ -516,6 +517,9 @@ loadRules().then(() => {
 						Refresh
 					</button>
 				</h4>
+				<p v-if="statusError" id="fcias-status-error" class="fcias-error">
+					{{ statusError }}
+				</p>
 				<table class="grid fcias-status-table">
 					<tbody>
 						<tr>

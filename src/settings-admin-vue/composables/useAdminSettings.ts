@@ -60,6 +60,15 @@ export function useAdminSettings() {
 
 		try {
 			const response = await fetch(generateOcsUrl(OCS_SETTINGS.getStatus), { signal })
+
+			// A refused or failed request answers with JSON too, and read as
+			// a status it renders every count as zero — which is what a
+			// healthy empty instance shows. An error is an error.
+			if (!response.ok) {
+				state.statusError = `Failed to load status (HTTP ${response.status}).`
+				return
+			}
+
 			state.status = (await response.json()) as StatusData
 			state.lastUpdated = new Date().toLocaleString()
 		} catch (err) {
