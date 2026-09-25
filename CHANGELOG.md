@@ -11,6 +11,11 @@ the first stable release.
 
 ## [Unreleased]
 
+### Fixed
+
+- App store listing: the screenshots did not show, and the description
+  rendered as code.
+
 ## [0.20.1] - 2026-09-25
 
 ### Fixed

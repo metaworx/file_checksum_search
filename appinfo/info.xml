@@ -3,13 +3,19 @@
 	  xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
 	<id>file_checksum_search</id>
 	<name>File Checksum Index &amp; Search</name>
-	<summary>Index file checksums for fast reverse hash lookups and duplicate detection</summary>
-	<description>Indexes file checksums in Nextcloud's built-in files metadata index for fast reverse hash lookups and
-		duplicate detection without custom tables.
+	<summary>Index file checksums for fast reverse hash lookups and duplicate detection, including REST, CLI and PHP APIs</summary>
+	<description>Indexes file checksums, so a hash can be looked up in reverse and duplicates found at once.
 
-		Provides a Unified Search provider, a duplicate file browser, rule-based hash generation (admin and personal
-		settings), a stable REST API (v1), CLI commands, and a user-facing FAQ and help.
-	</description>
+What you get:
+
+- **Unified Search** by hash: paste a checksum, find the file.
+- A **Checksums** tab in the file details: every algorithm the file carries, recalculated on demand, with its duplicates listed inline.
+- A **Duplicates** page: every group of identical files you hold, and for administrators across every account.
+- **Rules** decide what is hashed and when: instance-wide or per account, by path pattern, computed in the background.
+- A stable **REST API (v1)** and a stable **PHP API** for other apps and integrations.
+- **occ commands** for hashing, searching, duplicates, rules, backup, import and export.
+- Storage in Nextcloud's own files metadata index: no custom tables, nothing to migrate.
+</description>
 	<version>0.20.1</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author mail="apps@metaworx.ch"
@@ -27,24 +33,12 @@
 	<bugs>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/work_items</bugs>
 	<repository type="git">https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search.git</repository>
 <!-- BEGIN GENERATED RELEASE-PIN - do not edit; run "changelog.sh cut" -->
-	<screenshot>
-		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/File-Detail-Pane.png
-	</screenshot>
-	<screenshot>
-		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Unified_Search.png
-	</screenshot>
-	<screenshot>
-		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Duplicates-Page.png
-	</screenshot>
-	<screenshot>
-		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Duplicates-Others.png
-	</screenshot>
-	<screenshot>
-		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Admin-Settings.png
-	</screenshot>
-	<screenshot>
-		https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Rule-Dialog.png
-	</screenshot>
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/File-Detail-Pane.png</screenshot>
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Unified_Search.png</screenshot>
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Duplicates-Page.png</screenshot>
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Duplicates-Others.png</screenshot>
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Admin-Settings.png</screenshot>
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Rule-Dialog.png</screenshot>
 <!-- END GENERATED RELEASE-PIN -->
 	<dependencies>
 		<php min-version="8.2"/>
