@@ -35,13 +35,13 @@ jobs:
     steps:
       # The tag's tree, and the guidelines submodule for changelog.sh.
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ env.TAG }}
           submodules: true
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: npm
@@ -105,7 +105,7 @@ jobs:
       # download URL on being told.
       - name: Create the GitHub release with its assets
         if: steps.tagkind.outputs.kind != 'skip'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.TAG }}
           name: ${{ env.TAG }}

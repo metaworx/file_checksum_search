@@ -9,10 +9,10 @@ jobs:
     if: github.event_name != 'push' || github.ref_type == 'tag' || !startsWith(github.event.head_commit.message, '[RELEASE] ')
     steps:
       - name: Checkout app code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
 
@@ -70,7 +70,7 @@ jobs:
 
     steps:
       - name: Checkout app code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Nextcloud environment
         uses: nextcloud/setup-server-action@v0.5.0
@@ -159,7 +159,7 @@ jobs:
 
     steps:
       - name: Checkout app code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Nextcloud Server Instance
         uses: nextcloud/setup-server-action@v0.5.0
@@ -216,7 +216,7 @@ jobs:
           curl -fsS -o /dev/null http://localhost:8081/index.php/login || true
 
       - name: Run Integration Tests (Headless Chrome)
-        uses: cypress-io/github-action@v6
+        uses: cypress-io/github-action@v7
         with:
           browser: chrome
           spec: tests/e2e/**/*.cy.js
@@ -230,7 +230,7 @@ jobs:
       # Cypress takes at the failing step is most of a diagnosis.
       - name: Keep Cypress screenshots
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: cypress-${{ matrix.nextcloud-version }}
           path: cypress/screenshots
