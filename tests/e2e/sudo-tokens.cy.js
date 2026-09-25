@@ -64,10 +64,20 @@ describe( 'FCIAS sudo tokens', () => {
 				holder = account
 			} )
 		} ).then( () => {
-			// Non-interactive: occ then mints an app password without the
-			// login password, which is all a listing needs. The token's
-			// secret is printed and ignored; the page never sees secrets.
-			cy.exec( `${ occ } user:auth-tokens:add ${ holder.user } --name=${ APP_PASSWORD_NAME } -n` )
+			// Minted over OCS as the holder, the way a client does: the
+			// token takes its name from the User-Agent, and the listing
+			// below finds it by that name. Not `occ user:auth-tokens:add`:
+			// Nextcloud 33.0.9 ships it reading an option it never
+			// defined, so it fails for everyone. The secret comes back in
+			// the response and is ignored; the page never sees secrets.
+			cy.clearCookies()
+			cy.request( {
+				method: 'GET',
+				url: '/ocs/v2.php/core/getapppassword?format=json',
+				auth: { user: holder.user, pass: holder.password },
+				headers: { 'OCS-APIRequest': 'true', 'User-Agent': APP_PASSWORD_NAME },
+			} ).its( 'status' ).should( 'eq', 200 )
+			cy.clearCookies()
 			cy.exec( `${ occ } user:auth-tokens:list ${ holder.user } --output=json` ).then( ( { stdout } ) => {
 				const token = JSON.parse( stdout ).find( ( t ) => t.name === APP_PASSWORD_NAME )
 				expect( token, 'the app password occ minted' ).to.not.eq( undefined )
