@@ -11,6 +11,11 @@ the first stable release.
 
 ## [Unreleased]
 
+### Added
+
+- App store listing: a slideshow of the six screenshots as its first
+  image.
+
 ### Fixed
 
 - App store listing: the screenshots did not show, and the description

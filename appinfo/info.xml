@@ -33,6 +33,7 @@ What you get:
 	<bugs>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/work_items</bugs>
 	<repository type="git">https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search.git</repository>
 <!-- BEGIN GENERATED RELEASE-PIN - do not edit; run "changelog.sh cut" -->
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Slideshow.gif</screenshot>
 	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/File-Detail-Pane.png</screenshot>
 	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Unified_Search.png</screenshot>
 	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.1/docs/Screenshots/Duplicates-Page.png</screenshot>
