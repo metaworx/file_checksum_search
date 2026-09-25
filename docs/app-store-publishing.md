@@ -63,41 +63,55 @@ DOWNLOAD_URL=https://example.com/file_checksum_search.tar.gz \
 
 ## GitHub Actions
 
-On `release: published` (or manual `workflow_dispatch`):
+On `release: published` (or manual `workflow_dispatch`), one job:
 
 1. Checks out the code and installs Node.js 24 and PHP 8.2.
-2. Runs `npm ci` and `bash package.sh` (produces the unsigned tarballs).
-3. If `APPSTORE_SIGNING_ENABLED=true`, runs `bash package.sh --sign-only` with
-   the `APPSTORE_KEY`/`APPSTORE_CERT` secrets (signs the versioned archive).
-4. Uploads the tarballs and (when signed) the signature as release assets.
-5. If `APPSTORE_PUBLISH=true`, signs the unversioned tarball and posts the
-   release to the App Store (`POST /api/v1/apps/releases`) using the GitHub
-   release download URL.
+2. Runs `npm ci`, then `npm run lint` and `npm run stylelint` — a release is
+   the one build that cannot be taken back, so it is gated as a push is.
+3. Runs `bash package.sh` with the `APPSTORE_KEY`/`APPSTORE_CERT` secrets in
+   the environment: builds the frontend, packages, and signs the versioned
+   archive when both are set (unsigned when neither is).
+4. Classifies the release tag: `v0.Y.Z` and any `-suffix` tag are nightlies,
+   `vX.Y.Z` with X ≥ 1 is stable, anything else publishes nothing.
+5. Uploads both tarballs and (when signed) the signature as release assets.
+6. If `APPSTORE_PUBLISH=true`, posts the **versioned** tarball's release-asset
+   URL and its signature to the App Store (`POST /api/v1/apps/releases`).
 
-Option A (signing) requires:
+Signing requires:
 
 - Secrets `APPSTORE_CERT` (certificate PEM) and `APPSTORE_KEY` (private key
   PEM). Both must be the same certificate/key pair registered for the app in
   the portal — a mismatch causes the store to reject the upload.
-- Variable `APPSTORE_SIGNING_ENABLED` = `true`.
 
-Publishing (step 5) additionally requires:
+Publishing (step 6) additionally requires:
 
 - Secret `APPSTORE_TOKEN` (App Store API token).
 - Variable `APPSTORE_PUBLISH` = `true`.
 
+Nothing creates the GitHub release: the tag reaches GitHub through GitLab's
+push mirror, and a release is created by hand (or with `gh release create`)
+from the changelog section, which `changelog.sh notes X.Y.Z` prints.
+
 ## GitLab CI
 
-The [`test`](../.gitlab-ci.yml) job installs a Nextcloud server, injects the
-app, and runs the PHPUnit unit suite. The [`build`](../.gitlab-ci.yml) job
-builds, packages, and signs the app (using the `APPSTORE_KEY_B64`/
-`APPSTORE_CERT` CI variables when defined) and exposes the artifacts. The
-`release` job runs on Git tags and publishes a GitLab Release with links to the
-artifacts.
+The [`phpunit`](../.gitlab-ci.yml) job installs a Nextcloud server, injects the
+app, and runs the PHPUnit unit suite; `e2e` runs the Cypress suite and
+`manifest` validates `appinfo/info.xml` against the store's schema. The
+[`build`](../.gitlab-ci.yml) job builds, packages, and signs the app (using the
+`APPSTORE_KEY_B64`/`APPSTORE_CERT` CI variables when defined) and exposes the
+artifacts. The `release` job runs on Git tags and publishes a GitLab Release
+with links to the artifacts.
 
 The `publish_appstore` job runs on tags when `APPSTORE_PUBLISH=true`: it uploads
-the unversioned tarball to the GitLab generic package registry, signs it, and
-posts the release to the App Store (`POST /api/v1/apps/releases`).
+the **versioned** tarball to the GitLab generic package registry, signs it, and
+posts the release to the App Store (`POST /api/v1/apps/releases`). A refused
+upload fails the job with the store's answer in the log.
+
+The signing and token variables are **protected**, so they reach only pipelines
+of protected refs: `master`, and tags matching the protected `v*` pattern. A
+tag pushed while that pattern is unprotected builds unsigned and fails to
+publish with "no signing key". A protected tag cannot be moved or deleted over
+git; delete it in the GitLab UI first, then push it again.
 
 Add the CI variable `APPSTORE_KEY_B64` (Base64-encoded private key, masked —
 GitLab masked variables cannot contain whitespace, so the PEM must be

@@ -262,13 +262,27 @@ publish_appstore() {
 	sig="$(openssl dgst -sha512 -sign "$key_file" "$archive" | openssl base64 -A)"
 
 	echo "==> Publishing release '${APP_ID}' v${VERSION} on the App Store (nightly=${NIGHTLY})"
-	curl -sS -X POST "https://apps.nextcloud.com/api/v1/apps/releases" \
+
+	# The status is read rather than curl -f used, so that the store's answer
+	# - which says *why* it refused - is printed before the job fails.
+	response="$(curl -sS -X POST "https://apps.nextcloud.com/api/v1/apps/releases" \
 		-H "Authorization: Token ${TOKEN}" \
 		-H "Content-Type: application/json" \
 		-d "{\"download\":\"${DOWNLOAD_URL}\",\"signature\":\"${sig}\",\"nightly\":${NIGHTLY}}" \
-		-w "\nHTTP %{http_code}\n"
+		-w "\n%{http_code}")" || { echo "ERROR: could not reach the App Store." >&2; rm -rf "$tmp"; return 1; }
+
+	status="${response##*$'\n'}"
+	body="${response%$'\n'*}"
+
+	[ -n "$body" ] && echo "$body"
+	echo "HTTP ${status}"
 
 	rm -rf "$tmp"
+
+	case "$status" in
+		2*) return 0 ;;
+		*)  echo "ERROR: the App Store refused the release (HTTP ${status})." >&2; return 1 ;;
+	esac
 }
 
 if [ "$APPSTORE" = true ]; then
