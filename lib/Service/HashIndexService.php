@@ -160,18 +160,30 @@ class HashIndexService
 	 * overwritten, and a re-run adds only what is still absent.
 	 *
 	 * Keyset-paged, so it holds one page of rows at a time regardless of
-	 * instance size.
+	 * instance size, and resumable: $after starts past a file id a previous
+	 * pass reached, and $keepGoing, asked after every page, ends the pass
+	 * early — which is how {@see \OCA\FileChecksumSearch\BackgroundJob\FilecacheBackfill}
+	 * spreads an instance's worth of rows over several cron runs instead of
+	 * one request.
 	 *
-	 * @return array{files: int, hashes: int}  Files touched / hash keys added
+	 * @param  int                    $after      Start past this file id.
+	 * @param  (\Closure(): bool)|null  $keepGoing  Asked after each page; false stops.
+	 *
+	 * @return array{files: int, hashes: int, last: int, done: bool}  Files
+	 *         touched, hash keys added, the last file id read, and whether
+	 *         the filecache ran out (true) or $keepGoing stopped it.
 	 */
 	public function backfillFromFilecache(
 		?OutputInterface $output = null,
 		int              $pageSize = 1000,
+		int              $after = 0,
+		?\Closure        $keepGoing = null,
 	): array
 	{
-		$lastFileId = 0;
+		$lastFileId = $after;
 		$files      = 0;
 		$hashes     = 0;
+		$done       = false;
 
 		while ( true )
 		{
@@ -179,6 +191,8 @@ class HashIndexService
 
 			if ( $page === [] )
 			{
+				$done = true;
+
 				break;
 			}
 
@@ -205,11 +219,18 @@ class HashIndexService
 				sprintf( '  … %d files backfilled (%d hashes) so far.', $files, $hashes ),
 				OutputInterface::VERBOSITY_VERBOSE,
 			);
+
+			if ( $keepGoing !== null && ! $keepGoing() )
+			{
+				break;
+			}
 		}
 
 		return [
 			'files'  => $files,
 			'hashes' => $hashes,
+			'last'   => $lastFileId,
+			'done'   => $done,
 		];
 	}
 

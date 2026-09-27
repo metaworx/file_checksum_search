@@ -10,10 +10,12 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Migration;
 
 use Closure;
-use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\BackgroundJob\FilecacheBackfill;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\TableNameService;
+use OCP\BackgroundJob\IJobList;
 use OCP\DB\ISchemaWrapper;
+use OCP\IAppConfig;
 use OCP\Migration\IOutput;
 use OCP\Migration\SimpleMigrationStep;
 use OCP\Server;
@@ -88,6 +90,7 @@ class Version010000Date20260806100000
 		return null;
 	}
 
+
 	public function postSchemaChange(
 		IOutput $output,
 		Closure $schemaClosure,
@@ -120,21 +123,13 @@ class Version010000Date20260806100000
 		}
 
 		// Quiet start: the only work installing does to existing data is
-		// copying checksums the filecache already carries — searchable
-		// immediately, no content read, nothing computed. Hashing begins
-		// when an administrator enables a rule, not before.
-		$output->info( 'FCIAS: backfilling checksums from the filecache ...' );
+		// copying checksums the filecache already carries — no content read,
+		// nothing computed. Hashing begins when an administrator enables a
+		// rule, not before. Queued rather than run here: this runs inside
+		// the request that installed or enabled the app, and the copy reads
+		// every filecache row with a checksum ({@see FilecacheBackfill}).
+		FilecacheBackfill::queue( Server::get( IJobList::class ), Server::get( IAppConfig::class ) );
 
-		$backfilled = Server::get( HashIndexService::class )
-		                    ->backfillFromFilecache()
-		;
-
-		$output->info(
-			sprintf(
-				'FCIAS: backfilled %d hashes for %d files.',
-				$backfilled['hashes'],
-				$backfilled['files'],
-			),
-		);
+		$output->info( 'FCIAS: queued the copy of the filecache\'s checksums for the background jobs.' );
 	}
 }

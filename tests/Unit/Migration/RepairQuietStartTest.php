@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\Migration;
 
+use OCA\FileChecksumSearch\BackgroundJob\FilecacheBackfill;
 use OCA\FileChecksumSearch\Migration\RepairQuietStart;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
@@ -36,6 +37,8 @@ class RepairQuietStartTest
 
 	private MockObject|MetadataService $metadataService;
 
+	private MockObject|HashIndexService $hashIndexService;
+
 	private MockObject|IJobList        $jobList;
 
 	private MockObject|LoggerInterface $logger;
@@ -51,21 +54,21 @@ class RepairQuietStartTest
 	{
 		parent::setUp();
 
-		$this->db              = $this->createMock( IDBConnection::class );
-		$this->ruleService     = $this->createMock( RuleService::class );
-		$this->appConfig       = $this->createMock( IAppConfig::class );
-		$this->metadataService = $this->createMock( MetadataService::class );
-		$hashIndexService      = $this->createMock( HashIndexService::class );
-		$this->jobList         = $this->createMock( IJobList::class );
-		$this->logger          = $this->createMock( LoggerInterface::class );
-		$this->output          = $this->createMock( IOutput::class );
+		$this->db               = $this->createMock( IDBConnection::class );
+		$this->ruleService      = $this->createMock( RuleService::class );
+		$this->appConfig        = $this->createMock( IAppConfig::class );
+		$this->metadataService  = $this->createMock( MetadataService::class );
+		$this->hashIndexService = $this->createMock( HashIndexService::class );
+		$this->jobList          = $this->createMock( IJobList::class );
+		$this->logger           = $this->createMock( LoggerInterface::class );
+		$this->output           = $this->createMock( IOutput::class );
 
 		$this->setUpQueryBuilderMock();
 
 		$this->step = new RepairQuietStart(
 			$this->ruleService,
 			$this->metadataService,
-			$hashIndexService,
+			$this->hashIndexService,
 			$this->appConfig,
 			$this->db,
 			$this->jobList,
@@ -251,8 +254,9 @@ class RepairQuietStartTest
 		// string — Nextcloud does not clean up scheduled instances of a
 		// class that no longer exists.
 		$this->jobList->method( 'has' )
-		              ->with( 'OCA\\FileChecksumSearch\\BackgroundJob\\SeedPendingUpdates', null )
-		              ->willReturn( true )
+		              ->willReturnCallback(
+			              static fn ( string $class ): bool => $class === 'OCA\\FileChecksumSearch\\BackgroundJob\\SeedPendingUpdates',
+		              )
 		;
 		$this->jobList->expects( $this->once() )
 		              ->method( 'remove' )
@@ -260,6 +264,65 @@ class RepairQuietStartTest
 		;
 
 		$this->step->run( $this->output );
+	}
+
+	/**
+	 * A whole repair runs inside the request that installed or enabled the
+	 * app, so the filecache copy is only queued there — on an instance with
+	 * 300,000 client checksums it held the Apps page for sixteen minutes.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAWholeRepairQueuesTheFilecacheCopyInsteadOfRunningIt(): void
+	{
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'backfillFromFilecache' )
+		;
+		$this->jobList->expects( $this->once() )
+		              ->method( 'add' )
+		              ->with( FilecacheBackfill::class )
+		;
+
+		$this->step->run( $this->output );
+	}
+
+	/**
+	 * Named at the console, the step does its work there and then.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testNamingTheFilecacheCopyRunsItAtOnce(): void
+	{
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'backfillFromFilecache' )
+		                       ->willReturn( [ 'files' => 1, 'hashes' => 2, 'last' => 7, 'done' => true ] )
+		;
+		$this->jobList->expects( $this->never() )
+		              ->method( 'add' )
+		;
+
+		$ran = $this->step->runSteps( $this->output, [ 'rebuild-from-filecache' ] );
+
+		$this->assertSame( [ 'rebuild-from-filecache' ], $ran );
+	}
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAskingForTheExpensiveStepsRunsTheFilecacheCopyAtOnce(): void
+	{
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'backfillFromFilecache' )
+		                       ->willReturn( [ 'files' => 0, 'hashes' => 0, 'last' => 0, 'done' => true ] )
+		;
+		$this->jobList->expects( $this->never() )
+		              ->method( 'add' )
+		              ->with( FilecacheBackfill::class )
+		;
+
+		$this->step->withExpensive()
+		           ->run( $this->output )
+		;
 	}
 
 	/**

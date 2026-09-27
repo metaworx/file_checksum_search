@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Migration;
 
 use OC\FilesMetadata\FilesMetadataManager;
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\BackgroundJob\FilecacheBackfill;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
@@ -89,6 +90,15 @@ class RepairQuietStart
 	 */
 	private bool $includeExpensive = false;
 
+	/**
+	 * The steps named for the run under way, or null for a whole repair —
+	 * which is what install, enable and upgrade run, inside whatever
+	 * request asked for them.
+	 *
+	 * @var list<string>|null
+	 */
+	private ?array $only = null;
+
 
 //  other non-static methods
 
@@ -127,7 +137,8 @@ class RepairQuietStart
 		?array  $only = null,
 	): array
 	{
-		$ran = [];
+		$ran        = [];
+		$this->only = $only;
 
 		foreach ( $this->steps() as $entry )
 		{
@@ -392,6 +403,14 @@ class RepairQuietStart
 	 *
 	 * Was the first phase of the retired `fcias:rebuild`.
 	 *
+	 * The copy reads every filecache row that carries a checksum, and a whole
+	 * repair runs inside the request that asked for it: enabling the app on
+	 * the Apps page ran it for sixteen minutes on an instance with 300,000
+	 * such rows. So a whole repair only queues it
+	 * ({@see FilecacheBackfill}); named, or with the expensive steps asked
+	 * for, it runs here and now, which is what an operator at a console
+	 * means.
+	 *
 	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
 	 */
 	#[RepairStep(
@@ -399,12 +418,26 @@ class RepairQuietStart
 		title: 'Copy the checksums Nextcloud already holds',
 		description: 'Copies checksums out of Nextcloud\'s own filecache column — the ones sync clients '
 		. 'sent on upload and WebDAV serves back — into this app, where they become searchable. Reads no '
-		. 'file content and never overwrites a hash this app already has. Run this when clients show a '
-		. 'checksum for a file that this app does not know.',
+		. 'file content and never overwrites a hash this app already has. A whole repair, as installing '
+		. 'or enabling the app runs, queues the copy for the background jobs; named here, it runs at '
+		. 'once. Run it when clients show a checksum for a file that this app does not know.',
 		expensive: true,
 	)]
 	private function rebuildFromFilecache( IOutput $output ): void
 	{
+		$named = $this->only !== null && in_array( 'rebuild-from-filecache', $this->only, true );
+
+		if ( ! $named && ! $this->includeExpensive )
+		{
+			$output->info(
+				FilecacheBackfill::queue( $this->jobList, $this->appConfig )
+					? 'FCIAS: queued the copy of the filecache\'s checksums for the background jobs.'
+					: 'FCIAS: the copy of the filecache\'s checksums is already queued.',
+			);
+
+			return;
+		}
+
 		$copied = $this->hashIndexService->backfillFromFilecache();
 		$hashes = (int) ( $copied['hashes'] ?? 0 );
 		$files  = (int) ( $copied['files'] ?? 0 );

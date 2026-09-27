@@ -9,9 +9,11 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Integration\Migration;
 
+use OCA\FileChecksumSearch\BackgroundJob\FilecacheBackfill;
 use OCA\FileChecksumSearch\Migration\Version010000Date20260806100000;
 use OCA\FileChecksumSearch\Service\TableNameService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
+use OCP\BackgroundJob\IJobList;
 use OCP\DB\ISchemaWrapper;
 use OCP\Migration\IOutput;
 use OCP\Server;
@@ -95,8 +97,15 @@ class Version010000Date20260806100000Test
 		);
 	}
 
-	public function testPostSchemaChangeBackfillsWhenTableExists(): void
+	public function testPostSchemaChangeQueuesTheBackfillWhenTableExists(): void
 	{
+		// Queued, not run: the migration runs inside the request that
+		// installed or enabled the app, and the copy reads every filecache
+		// row that carries a checksum. Start from an empty queue so the
+		// assertion below is about this call.
+		$jobList = Server::get( IJobList::class );
+		$jobList->remove( FilecacheBackfill::class );
+
 		/** @var MockObject|IOutput $output */
 		$output = $this->createMock( IOutput::class );
 		$output->expects( $this->never() )
@@ -129,16 +138,16 @@ class Version010000Date20260806100000Test
 			[],
 		);
 
-		// "Backfilling", not "seeding". Installing copies the checksums the
-		// filecache already carries and computes nothing; the seeding job
-		// that this once looked for was retired with the pending model it
-		// belonged to.
+		// Installing copies the checksums the filecache already carries and
+		// computes nothing; since the copy moved to a background job, the
+		// migration only queues it and says so.
 		$this->assertNotEmpty(
 			array_filter(
 				$infoMessages,
-				static fn ( $m ): bool => str_contains( (string) $m, 'backfilling' ),
+				static fn ( $m ): bool => str_contains( (string) $m, 'queued the copy' ),
 			),
-			'Expected a "...backfilling..." info message when the table exists.',
+			'Expected a "queued the copy" info message when the table exists.',
 		);
+		$this->assertTrue( $jobList->has( FilecacheBackfill::class, null ), 'the copy is queued' );
 	}
 }

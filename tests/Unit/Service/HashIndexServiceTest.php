@@ -298,6 +298,47 @@ class HashIndexServiceTest
 			[
 				'files'  => 2,
 				'hashes' => 3,
+				'last'   => 12,
+				'done'   => true,
+			],
+			$result,
+		);
+	}
+
+	/**
+	 * Resumable: it starts past the file id it is given, and stops after a
+	 * page when asked to, saying where it got to and that it is not done.
+	 */
+	public function testBackfillResumesPastAFileIdAndStopsWhenAsked(): void
+	{
+		$asked = [];
+		$this->filecacheService->method( 'pageFileidChecksums' )
+		                       ->willReturnCallback(
+			                       static function( int $lastFileId ) use ( &$asked ): array
+			                       {
+				                       $asked[] = $lastFileId;
+
+				                       return [ $lastFileId + 1 => [ 'checksum' => 'SHA1:dead', 'mtime' => 100 ] ];
+			                       },
+		                       )
+		;
+		$this->metadataService->method( 'backfillHashes' )
+		                      ->willReturn( 1 )
+		;
+
+		$pages  = 0;
+		$result = $this->service->backfillFromFilecache( null, 1000, 40, static function() use ( &$pages ): bool
+		{
+			return ++$pages < 2;
+		} );
+
+		$this->assertSame( [ 40, 41 ], $asked );
+		$this->assertSame(
+			[
+				'files'  => 2,
+				'hashes' => 2,
+				'last'   => 42,
+				'done'   => false,
 			],
 			$result,
 		);
@@ -328,6 +369,8 @@ class HashIndexServiceTest
 			[
 				'files'  => 0,
 				'hashes' => 0,
+				'last'   => 5,
+				'done'   => true,
 			],
 			$this->service->backfillFromFilecache(),
 		);

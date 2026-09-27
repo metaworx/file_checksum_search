@@ -99,6 +99,14 @@ class ConfigLexicon
 				flags: IAppConfig::FLAG_INTERNAL,
 			),
 			new Entry(
+				key: 'filecache_backfill_after',
+				type: ValueType::INT,
+				defaultRaw: 0,
+				definition: 'Where the queued filecache backfill resumes: the last file id it read. Zero is the start; the job clears it when it has read everything.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
 				key: 'orphan_purge_interval',
 				type: ValueType::INT,
 				defaultRaw: 86400,

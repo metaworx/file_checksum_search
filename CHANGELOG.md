@@ -11,6 +11,11 @@ the first stable release.
 
 ## [Unreleased]
 
+### Fixed
+
+- Enabling the app from the Apps page: hung on an instance whose sync
+  clients had stored checksums.
+
 ## [0.20.2] - 2026-09-25
 
 ### Added

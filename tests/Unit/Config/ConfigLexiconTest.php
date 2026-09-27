@@ -46,7 +46,7 @@ class ConfigLexiconTest
 		$configs = $this->lexicon->getAppConfigs();
 
 		$this->assertIsArray( $configs );
-		$this->assertCount( 28, $configs );
+		$this->assertCount( 29, $configs );
 
 		$keys = array_map(
 			static fn(
@@ -65,6 +65,7 @@ class ConfigLexiconTest
 		$this->assertContains( 'process_pending_interval', $keys );
 		$this->assertContains( 'pending_batch_limit', $keys );
 		$this->assertContains( 'allowed_algorithms', $keys );
+		$this->assertContains( 'filecache_backfill_after', $keys );
 		$this->assertContains( 'orphan_purge_interval', $keys );
 		$this->assertContains( 'orphan_purge_last_run', $keys );
 		$this->assertContains( 'stats_orphan_purge_last_run', $keys );

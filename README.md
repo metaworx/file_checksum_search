@@ -297,9 +297,11 @@ removing a storage leaves behind because Nextcloud's own cleanup does not run on
 user makes that due at once. The status page shows when it last ran, as *Orphan purge*, beside the other
 two jobs; `occ fcias:repair --step orphaned-metadata` runs it by hand.
 
-Installing the app reads no file content at all. It copies the checksums Nextcloud's own filecache
-already carries into the searchable index; `occ fcias:repair --step rebuild-from-filecache` does the same on
-demand, and neither overwrites a hash the app already stored.
+Installing the app reads no file content at all. It queues a background job that copies the checksums
+Nextcloud's own filecache already carries into the searchable index, a slice per cron run, so that
+enabling the app returns at once however many files there are; `occ fcias:repair --step
+rebuild-from-filecache` does the same copy on demand, at once, and neither overwrites a hash the app
+already stored.
 
 ### Which file a rule is talking about
 
