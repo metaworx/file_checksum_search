@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.20.3] - 2026-09-27
+
 ### Fixed
 
 - Enabling the app from the Apps page: hung on an instance whose sync
