@@ -112,8 +112,9 @@ The secrets:
 - `APPSTORE_KEY` (private key PEM, as it is — a secret may hold newlines) in
   the `signing` environment.
 - `APPSTORE_TOKEN` (App Store API token) in the `appstore` environment.
-- `APPSTORE_CERT` (certificate PEM) as a repository secret; it is public, and
-  both jobs use it to verify.
+- `APPSTORE_CERT` (certificate PEM) as a repository variable, since it is
+  public; both jobs use it to verify. A repository secret of that name is
+  read when no variable is set.
 
 The key and the certificate must be the pair registered for the app in the
 portal — a mismatch causes the store to reject the upload.
