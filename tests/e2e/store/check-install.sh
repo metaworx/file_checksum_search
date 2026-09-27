@@ -57,11 +57,31 @@ no_upgrade_pending() {
 	printf '%s' "$status" | python3 -c "import sys, json; sys.exit(0 if json.load(sys.stdin)['needsDbUpgrade'] is False else 1)"
 }
 
+# Every migration the app ships, recorded as run. Read from the migrations
+# table: `occ migrations:status` exists only on a server in debug mode.
 migrations_executed() {
-	local status
-	status="$(occ migrations:status "$APP" 2>&1)"
-	echo "$status"
-	printf '%s' "$status" | grep -Eq 'Pending Migrations:[[:space:]]+None'
+	( cd "$NC" && php -r '
+		require "lib/base.php";
+		$app  = "file_checksum_search";
+		$dir  = \OCP\Server::get( \OCP\App\IAppManager::class )->getAppPath( $app ) . "/lib/Migration";
+		$want = array_map(
+			static fn ( string $file ): string => substr( basename( $file, ".php" ), strlen( "Version" ) ),
+			glob( $dir . "/Version*.php" ) ?: [],
+		);
+		$db = \OCP\Server::get( \OCP\IDBConnection::class );
+		$qb = $db->getQueryBuilder();
+		$qb->select( "version" )
+		   ->from( "migrations" )
+		   ->where( $qb->expr()->eq( "app", $qb->createNamedParameter( $app ) ) );
+		$result = $qb->executeQuery();
+		$have   = [];
+		while ( ( $row = $result->fetch() ) !== false ) {
+			$have[] = (string) $row["version"];
+		}
+		$result->closeCursor();
+		echo "shipped: ", implode( ", ", $want ), "\n", "recorded: ", implode( ", ", $have ), "\n";
+		exit( $want !== [] && array_diff( $want, $have ) === [] ? 0 : 1 );
+	' )
 }
 
 # Read through Doctrine rather than a database client, so the check holds
