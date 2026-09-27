@@ -100,6 +100,19 @@ hand with `gh workflow run publish.yml --ref <tag>`.
    `--nightly` for a nightly. A refusal by the store fails the job, with the
    store's answer in the log.
 
+Between signing and the store, **Install before publishing** runs the install
+check ([`install-check.yml`](../.github/workflows/install-check.yml)) against a
+fake store: the real store's full listing, served locally with this release
+added from its GitHub release (`tests/e2e/store/fake-store.py`). Fresh
+Nextcloud 33 and 34 servers install it with `occ app:install` and through the
+Apps page — the Files category's list, the app's row, Download and enable —
+then `tests/e2e/store/check-install.sh` checks every install step and a smoke
+run of the e2e suite drives the installed copy. The store job waits for it, so
+a release that does not install never reaches the store. After the upload,
+**Install from the store** runs the same check against the real store. For a
+nightly, `occ` gets `--allow-unstable` and the Apps page's server moves to the
+`daily` channel; a stable release installs on servers left as they are.
+
 Each environment waits for whatever its protection rules ask: a required
 reviewer approves the job on the run's page, a wait timer counts down, a tag
 rule refuses other refs. The rules are Ruby `File.fnmatch` globs, not regular

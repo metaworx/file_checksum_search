@@ -1,16 +1,18 @@
 /**
  * Installs the app from the app store through the Apps page, the way an
- * administrator does: the app's page, Download and enable, the password
- * confirmation, and the wait while the server downloads, verifies and
- * installs it — which is where the app's own install steps run, inside
- * that one request.
+ * administrator does: the Files category's list, this app's row, Download
+ * and enable in its sidebar, the password confirmation, and the wait while
+ * the server downloads, verifies and installs it — which is where the app's
+ * own install steps run, inside that one request.
  *
- * Not part of the suite: it runs only in the post-publish workflow, with
- * `CYPRESS_storeInstall` set to the version the store published, on a
- * server that may reach the store. Without it, it skips itself.
+ * Not part of the suite: it runs only in the install check, with
+ * `CYPRESS_storeInstall` set to the version under test, on a server pointed
+ * at a store that lists it — the fake one before the upload, the real one
+ * after. Without it, it skips itself.
  */
 
 const APP_ID = 'file_checksum_search'
+const APP_NAME = 'File Checksum Index & Search'
 
 // Nextcloud 33 and 34 both label the action so for an app from the store.
 const INSTALL = 'Download and enable'
@@ -67,7 +69,18 @@ describe( 'FCIAS from the app store', () => {
 		cy.on( 'uncaught:exception', ( err ) => /\/apps\/file_checksum_search\/|file_checksum_search-/.test( err.stack || '' ) )
 
 		cy.login( 'admin', 'admin' )
-		cy.visit( `/index.php/settings/apps/files/${ APP_ID }` )
+
+		// The way an administrator goes: the Files category, the long list
+		// every server shows, scrolled to this app's row, which opens the
+		// app's sidebar.
+		cy.visit( '/index.php/settings/apps/files' )
+		cy.contains( APP_NAME, { timeout: 60000 } )
+			.scrollIntoView()
+			.click()
+		cy.location( 'pathname', { timeout: 30000 } ).should( 'include', `/settings/apps/files/${ APP_ID }` )
+
+		// The sidebar offers the release under test, not an older one.
+		cy.get( '.app-sidebar', { timeout: 60000 } ).should( 'contain', `Version ${ version }` )
 
 		// In the app's sidebar: the list beside it carries the same action for
 		// every app. Nextcloud 33 renders it as an input button with the

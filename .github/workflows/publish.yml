@@ -104,9 +104,22 @@ jobs:
             build/file_checksum_search-${{ needs.build.outputs.version }}.tar.gz.signature
           fail_on_unmatched_files: true
 
+  # The release installed from a fake store that lists it — the real
+  # listing with this release added — by occ and through the Apps page,
+  # before the real store hears of it.
+  precheck:
+    name: Install before publishing
+    needs: [ build, sign ]
+    uses: ./.github/workflows/install-check.yml
+    with:
+      version: ${{ needs.build.outputs.version }}
+      kind: ${{ needs.build.outputs.kind }}
+      tag: ${{ needs.build.outputs.tag }}
+      store: fake
+
   store:
     name: Publish to the App Store
-    needs: [ build, sign ]
+    needs: [ build, sign, precheck ]
     runs-on: ubuntu-latest
     environment: appstore
     env:
@@ -142,8 +155,9 @@ jobs:
   verify:
     name: Install from the store
     needs: [ build, store ]
-    uses: ./.github/workflows/post-publish.yml
+    uses: ./.github/workflows/install-check.yml
     with:
       version: ${{ needs.build.outputs.version }}
       kind: ${{ needs.build.outputs.kind }}
       tag: ${{ needs.build.outputs.tag }}
+      store: real

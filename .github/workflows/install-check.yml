@@ -1,17 +1,20 @@
-name: Post-publish verification
+name: Install check
 
-# Installs the release the store has just published on fresh servers, the
-# two ways an administrator can — `occ app:install`, and the Apps page's
-# Download and enable — then checks that every install step happened and
-# runs a smoke test of the e2e suite against the installed copy: the
-# shipped tarball, built frontend, no dev packages, verified by the server
-# against the app's certificate. publish.yml calls it once the store has
-# accepted a release; it can be run by hand for a version already listed.
+# Installs a release on fresh servers the two ways an administrator can —
+# `occ app:install`, and the Apps page's Download and enable — then checks
+# that every install step happened and runs a smoke test of the e2e suite
+# against the installed copy: the shipped tarball, built frontend, no dev
+# packages, verified by the server against the app's certificate.
+#
+# Against the fake store, before the upload: the real listing with the
+# release added from its GitHub release, so a release that does not install
+# never reaches the store. Against the real store, after the upload.
+# publish.yml calls it both ways; it can also be run by hand.
 on:
   workflow_call:
     inputs:
       version:
-        description: The version the store published, e.g. 0.20.3
+        description: The version under test, e.g. 0.20.3
         type: string
         required: true
       kind:
@@ -19,31 +22,40 @@ on:
         type: string
         required: true
       tag:
-        description: The tag whose tests to run; v<version> when empty
+        description: The tag whose tests to run and whose release holds the tarball; v<version> when empty
         type: string
         default: ''
+      store:
+        description: fake or real
+        type: string
+        default: real
   workflow_dispatch:
     inputs:
       version:
-        description: The version the store lists, e.g. 0.20.2
+        description: The version under test, e.g. 0.20.3
         type: string
         required: true
       kind:
-        description: How the store lists it
+        description: How the release is listed
         type: choice
         options: [ nightly, stable ]
         default: nightly
       tag:
-        description: The tag whose tests to run; v<version> when empty
+        description: The tag whose tests to run and whose release holds the tarball; v<version> when empty
         type: string
         default: ''
+      store:
+        description: The store to install from
+        type: choice
+        options: [ fake, real ]
+        default: fake
 
 permissions:
   contents: read
 
 jobs:
   install:
-    name: ${{ matrix.mode }} / NC ${{ matrix.nextcloud-version }}
+    name: ${{ inputs.store }} store / ${{ matrix.mode }} / NC ${{ matrix.nextcloud-version }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
@@ -70,7 +82,6 @@ jobs:
 
     env:
       VERSION: ${{ inputs.version }}
-      NIGHTLY: ${{ inputs.kind == 'nightly' }}
 
     steps:
       - name: Checkout the release's tests
@@ -90,43 +101,14 @@ jobs:
           app-store: 'true'
           channel: ${{ (inputs.kind == 'nightly' && matrix.mode == 'web') && 'daily' || 'stable' }}
 
-      # The store's listings are cached for a while after an upload, and the
-      # server keeps what it fetched for an hour: wait until the listing for
-      # this server's version names the release, then drop the server's copy.
-      - name: Wait until the store lists the release for this server
-        working-directory: nextcloud
-        run: |
-          server="$(php occ config:system:get version | cut -d. -f1-3)"
-          url="https://apps.nextcloud.com/api/v1/platform/${server}/apps.json"
-          echo "waiting for ${VERSION} (nightly: ${NIGHTLY}) in ${url}"
-          for i in $(seq 1 30); do
-            if curl -fsSL "$url" | python3 -c "
-          import json, os, sys
-          for app in json.load(sys.stdin):
-              if app['id'] == 'file_checksum_search':
-                  for release in app['releases']:
-                      if release['version'] == os.environ['VERSION'] and release['isNightly'] == (os.environ['NIGHTLY'] == 'true'):
-                          sys.exit(0)
-          sys.exit(1)
-          "; then
-              echo "listed after ${i} tries"
-              rm -f data/appdata_*/appstore/apps.json
-              exit 0
-            fi
-            sleep 60
-          done
-          echo "::error::The store does not list ${VERSION} for Nextcloud ${server} after 30 minutes."
-          exit 1
-
-      - name: Install with occ
-        if: matrix.mode == 'occ'
-        working-directory: nextcloud
-        run: |
-          if [ "$NIGHTLY" = true ]; then
-            php occ app:install --allow-unstable file_checksum_search
-          else
-            php occ app:install file_checksum_search
-          fi
+      - name: App store
+        uses: ./.github/actions/app-store
+        with:
+          store: ${{ inputs.store }}
+          version: ${{ inputs.version }}
+          kind: ${{ inputs.kind }}
+          tag: ${{ inputs.tag != '' && inputs.tag || format('v{0}', inputs.version) }}
+          occ-install: ${{ matrix.mode == 'occ' }}
 
       - name: Node dependencies
         uses: ./.github/actions/node-deps
@@ -139,7 +121,7 @@ jobs:
         uses: ./.github/actions/cypress-run
         with:
           spec: tests/e2e/store/install-from-apps-page.cy.js
-          artifact-name: post-publish-install-${{ matrix.nextcloud-version }}
+          artifact-name: install-${{ inputs.store }}-${{ matrix.nextcloud-version }}
         env:
           CYPRESS_baseUrl: http://localhost:8081
           CYPRESS_storeInstall: ${{ inputs.version }}
@@ -155,6 +137,6 @@ jobs:
         uses: ./.github/actions/cypress-run
         with:
           spec: tests/e2e/checksums.cy.js,tests/e2e/global-search.cy.js
-          artifact-name: post-publish-smoke-${{ matrix.mode }}-${{ matrix.nextcloud-version }}
+          artifact-name: smoke-${{ inputs.store }}-${{ matrix.mode }}-${{ matrix.nextcloud-version }}
         env:
           CYPRESS_baseUrl: http://localhost:8081

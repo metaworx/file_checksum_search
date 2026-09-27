@@ -1,0 +1,108 @@
+name: App store for the install check
+description: >-
+  Points the server at a store that lists the release: the fake store,
+  which serves the real listing with the release under test added from its
+  GitHub release, or the real store, once its listing names the release.
+  Drops whatever listing the server had fetched, and with `occ-install`
+  installs the app from it the way an administrator does at the console.
+
+inputs:
+  store:
+    description: fake (before the upload) or real (after it)
+    required: true
+  version:
+    description: The version under test, e.g. 0.20.3
+    required: true
+  kind:
+    description: nightly or stable
+    required: true
+  tag:
+    description: The tag whose GitHub release holds the tarball and its signature
+    required: true
+  occ-install:
+    description: Install the app with occ once the store lists it (true or false)
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    # Nextcloud refuses addresses on the local machine by default; the
+    # tarball itself still comes from GitHub.
+    - name: Start the fake store
+      if: inputs.store == 'fake'
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        TAG: ${{ inputs.tag }}
+        NIGHTLY: ${{ inputs.kind == 'nightly' }}
+      run: |
+        download="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/file_checksum_search-${VERSION}.tar.gz"
+        curl -fsSL -o /tmp/release.signature "${download}.signature"
+        flag=""
+        if [ "$NIGHTLY" = true ]; then
+          flag="--nightly"
+        fi
+        nohup python3 tests/e2e/store/fake-store.py --version "$VERSION" --download "$download" \
+          --signature /tmp/release.signature $flag --port 8090 > /tmp/fake-store.log 2>&1 &
+        pid=$!
+        for i in $(seq 1 90); do
+          grep -q 'serving on' /tmp/fake-store.log && break
+          kill -0 "$pid" 2> /dev/null || break
+          sleep 2
+        done
+        if ! grep -q 'serving on' /tmp/fake-store.log; then
+          cat /tmp/fake-store.log
+          echo "::error::The fake store did not start."
+          exit 1
+        fi
+        head -n 1 /tmp/fake-store.log
+        php nextcloud/occ config:system:set appstoreurl --value=http://127.0.0.1:8090/api/v1
+        php nextcloud/occ config:system:set allow_local_remote_servers --value=true --type=boolean
+
+    # The store's listings are cached for a while after an upload: wait
+    # until the listing for this server's version names the release.
+    - name: Wait until the real store lists the release
+      if: inputs.store == 'real'
+      shell: bash
+      working-directory: nextcloud
+      env:
+        VERSION: ${{ inputs.version }}
+        NIGHTLY: ${{ inputs.kind == 'nightly' }}
+      run: |
+        server="$(php occ config:system:get version | cut -d. -f1-3)"
+        url="https://apps.nextcloud.com/api/v1/platform/${server}/apps.json"
+        echo "waiting for ${VERSION} (nightly: ${NIGHTLY}) in ${url}"
+        for i in $(seq 1 30); do
+          if curl -fsSL "$url" | python3 -c "
+        import json, os, sys
+        for app in json.load(sys.stdin):
+            if app['id'] == 'file_checksum_search':
+                for release in app['releases']:
+                    if release['version'] == os.environ['VERSION'] and release['isNightly'] == (os.environ['NIGHTLY'] == 'true'):
+                        sys.exit(0)
+        sys.exit(1)
+        "; then
+            echo "listed after ${i} tries"
+            exit 0
+          fi
+          sleep 60
+        done
+        echo "::error::The store does not list ${VERSION} for Nextcloud ${server} after 30 minutes."
+        exit 1
+
+    # The server keeps what it fetched for an hour.
+    - name: Drop the server's cached listing
+      shell: bash
+      working-directory: nextcloud
+      run: rm -f data/appdata_*/appstore/apps.json
+
+    - name: Install with occ
+      if: inputs.occ-install == 'true'
+      shell: bash
+      working-directory: nextcloud
+      run: |
+        if [ "${{ inputs.kind }}" = nightly ]; then
+          php occ app:install --allow-unstable file_checksum_search
+        else
+          php occ app:install file_checksum_search
+        fi
