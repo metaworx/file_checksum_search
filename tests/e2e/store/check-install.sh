@@ -22,28 +22,46 @@ failed=0
 check() {
 	local what="$1"
 	shift
-	if "$@" > /dev/null 2>&1; then
+	local out
+	if out="$( "$@" 2>&1 )"; then
 		echo "ok      ${what}"
 	else
 		echo "FAILED  ${what}"
+		# What the check read, so a failure on a runner can be read too.
+		printf '%s\n' "$out" | sed 's/^/        | /' | head -40
 		failed=1
 	fi
 }
 
+# Each check prints what it read before judging it, so the lines above have
+# something to show.
+
 enabled_version() {
-	[ "$(occ app:list --output=json | python3 -c "import sys, json; print(json.load(sys.stdin)['enabled'].get('${APP}', ''))")" = "$VERSION" ]
+	local got
+	got="$(occ app:list --output=json | python3 -c "import sys, json; print(json.load(sys.stdin)['enabled'].get('${APP}', ''))")"
+	echo "enabled: ${got}"
+	[ "$got" = "$VERSION" ]
 }
 
 recorded_version() {
-	[ "$(occ config:app:get "$APP" installed_version)" = "$VERSION" ]
+	local got
+	got="$(occ config:app:get "$APP" installed_version)"
+	echo "installed_version: ${got}"
+	[ "$got" = "$VERSION" ]
 }
 
 no_upgrade_pending() {
-	occ status --output=json | python3 -c "import sys, json; sys.exit(0 if json.load(sys.stdin)['needsDbUpgrade'] is False else 1)"
+	local status
+	status="$(occ status --output=json)"
+	echo "$status"
+	printf '%s' "$status" | python3 -c "import sys, json; sys.exit(0 if json.load(sys.stdin)['needsDbUpgrade'] is False else 1)"
 }
 
 migrations_executed() {
-	occ migrations:status "$APP" | grep -Eq 'Pending Migrations:[[:space:]]+None'
+	local status
+	status="$(occ migrations:status "$APP" 2>&1)"
+	echo "$status"
+	printf '%s' "$status" | grep -Eq 'Pending Migrations:[[:space:]]+None'
 }
 
 # Read through Doctrine rather than a database client, so the check holds
@@ -66,7 +84,10 @@ indices_present() {
 }
 
 default_rules() {
-	occ fcias:rules:list --output=json | python3 -c "
+	local rules
+	rules="$(occ fcias:rules:list --output=json 2>&1)"
+	echo "$rules"
+	printf '%s' "$rules" | python3 -c "
 import sys, json
 rules = json.load(sys.stdin)
 defaults = {r['selector'] for r in rules if r.get('default') == 'yes'}
@@ -75,7 +96,10 @@ sys.exit(0 if {'home:*', '*'} <= defaults else 1)
 }
 
 job_listed() {
-	occ background-job:list --class "${NS}\\$1" --output=json | python3 -c "import sys, json; sys.exit(0 if json.load(sys.stdin) else 1)"
+	local jobs
+	jobs="$(occ background-job:list --class "${NS}\\$1" --output=json 2>&1)"
+	echo "$jobs"
+	printf '%s' "$jobs" | python3 -c "import sys, json; sys.exit(0 if json.load(sys.stdin) else 1)"
 }
 
 check "the server runs ${VERSION}"                   enabled_version

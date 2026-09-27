@@ -23,6 +23,13 @@ const ENABLE_WAIT_MS = 5000
 let occ = 'php nextcloud/occ'
 let version = null
 
+/** An app action by its label, in any of the forms the two versions render. */
+const action = ( label ) => [
+	`input[type="button"][value="${ label }"]`,
+	`button[aria-label="${ label }"]`,
+	`button:contains("${ label }")`,
+].join( ', ' )
+
 /**
  * Ask the server, not the page, until the app runs at the version the store
  * published: the page's spinner says nothing about why it stops.
@@ -62,8 +69,12 @@ describe( 'FCIAS from the app store', () => {
 		cy.login( 'admin', 'admin' )
 		cy.visit( `/index.php/settings/apps/files/${ APP_ID }` )
 
-		// Nextcloud 33 renders the action as an input button, 34 as a button.
-		cy.get( `input[type="button"][value="${ INSTALL }"], button:contains("${ INSTALL }")`, { timeout: 60000 } )
+		// In the app's sidebar: the list beside it carries the same action for
+		// every app. Nextcloud 33 renders it as an input button with the
+		// label as its value, 34 as an icon button labelled for assistive
+		// technology, or as a button with the label as text.
+		cy.get( '.app-sidebar', { timeout: 60000 } )
+			.find( action( INSTALL ), { timeout: 60000 } )
 			.first()
 			.click()
 
@@ -71,7 +82,7 @@ describe( 'FCIAS from the app store', () => {
 		// enough; either the dialog or the finished install comes next.
 		cy.get( 'body', { timeout: 60000 } ).should( ( $body ) => {
 			const dialog = $body.find( '[role="dialog"] input[type="password"]' ).length
-			const done = $body.find( 'input[type="button"][value="Disable"], button:contains("Disable")' ).length
+			const done = $body.find( '.app-sidebar' ).find( action( 'Disable' ) ).length
 			expect( dialog + done, 'the password dialog or the finished install' ).to.be.greaterThan( 0 )
 		} ).then( ( $body ) => {
 			if ( $body.find( '[role="dialog"] input[type="password"]' ).length ) {
