@@ -1,6 +1,33 @@
 name: Nextcloud App Testing Matrix
 on: [ push, pull_request ]
 jobs:
+  # The jobs below pin nextcloud/setup-server-action to a commit on its main
+  # branch, because its newest release, v0.5.0, still pins actions that run
+  # on Node 20. This fails once a newer release is out, so the pin goes back
+  # to a release tag and whatever else the release changed gets a look. It
+  # fails visibly without failing the run: publish.yml waits for this
+  # workflow's success, and an upstream release is no reason to hold ours.
+  upstream:
+    name: Upstream releases
+    runs-on: ubuntu-latest
+    if: github.event_name != 'push' || github.ref_type == 'tag' || !startsWith(github.event.head_commit.message, '[RELEASE] ')
+    continue-on-error: true
+    permissions: {}
+    env:
+      # The newest release reviewed. Set it to the new tag in the commit that
+      # moves the pin.
+      REVIEWED: v0.5.0
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: nextcloud/setup-server-action
+        run: |
+          latest="$(gh api repos/nextcloud/setup-server-action/releases/latest --jq .tag_name)"
+          echo "newest release: ${latest}, reviewed: ${REVIEWED}"
+          if [ "$latest" != "$REVIEWED" ]; then
+            echo "::error title=nextcloud/setup-server-action ${latest}::A release newer than ${REVIEWED} is out. Review it, pin the setup steps to it, and set REVIEWED."
+            exit 1
+          fi
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -73,7 +100,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Set up Nextcloud environment
-        uses: nextcloud/setup-server-action@v0.5.0
+        uses: nextcloud/setup-server-action@8c97e01874d7cb9e1afb0e18cd4685d31518c848 # main after v0.5.0: Node 24 pins; see the upstream job
         with:
           nextcloud-version: ${{ matrix.nextcloud-version }}
           php-version: ${{ matrix.php-version }}
@@ -162,7 +189,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Set up Nextcloud Server Instance
-        uses: nextcloud/setup-server-action@v0.5.0
+        uses: nextcloud/setup-server-action@8c97e01874d7cb9e1afb0e18cd4685d31518c848 # main after v0.5.0: Node 24 pins; see the upstream job
         with:
           nextcloud-version: ${{ matrix.nextcloud-version }}
           install: true
