@@ -103,15 +103,26 @@ hand with `gh workflow run publish.yml --ref <tag>`.
 Between signing and the store, **Install before publishing** runs the install
 check ([`install-check.yml`](../.github/workflows/install-check.yml)) against a
 fake store: the real store's full listing, served locally with this release
-added from its GitHub release (`tests/e2e/store/fake-store.py`). Fresh
+added from its GitHub release (`tests/e2e/store/appstore.py fake`). Fresh
 Nextcloud 33 and 34 servers install it with `occ app:install` and through the
 Apps page — the Files category's list, the app's row, Download and enable —
 then `tests/e2e/store/check-install.sh` checks every install step and a smoke
 run of the e2e suite drives the installed copy. The store job waits for it, so
-a release that does not install never reaches the store. After the upload,
-**Install from the store** runs the same check against the real store. For a
-nightly, `occ` gets `--allow-unstable` and the Apps page's server moves to the
-`daily` channel; a stable release installs on servers left as they are.
+a release that does not install never reaches the store. For a nightly, `occ`
+gets `--allow-unstable` and the Apps page's server moves to the `daily`
+channel; a stable release installs on servers left as they are.
+
+After the upload nothing is installed again. **Listed by the store**
+(`tests/e2e/store/appstore.py watch`) waits until a host of the store's listing
+names the release and compares the store's entry with the one the installs
+tested — version, channel, download, signature, platform and PHP ranges, and
+the certificate; any difference fails it. The store publishes no list of
+mirrors: it answers `api/v1/apps.json` itself or redirects to a mirror
+(`garm2`, `garm3` when this was written), so the job follows the redirects,
+asks every host it has seen, waits until all of them list the release, and
+writes into the run's summary how long each took. Then it comments on the
+release commit, mentioning `vars.RELEASE_NOTIFY` (or whoever pushed the tag),
+which is how GitHub e-mails the maintainers.
 
 Each environment waits for whatever its protection rules ask: a required
 reviewer approves the job on the run's page, a wait timer counts down, a tag
@@ -136,6 +147,47 @@ The tag reaches GitHub through GitLab's push mirror, so the release procedure
 is `changelog.sh cut`, then one push of the branch and the tag to `origin`;
 the test run starts on the mirrored tag within a minute, and publishing
 follows its tests.
+
+### The jobs at a glance
+
+```mermaid
+flowchart TD
+    trigger(["push to any branch · pull request · version tag v1.2.3 or v1.2.3-rc1"])
+
+    subgraph test ["test.yml — Nextcloud App Testing Matrix"]
+        upstream["Upstream releases<br/><i>reports only, never blocks</i>"]
+        lint["Lint<br/>ESLint · Stylelint · PHP syntax · manifest schema"]
+        phpunit["PHPUnit<br/>NC 33 · 34 × PHP 8.2 · 8.3 · 8.4"]
+        cypress["Cypress E2E<br/>NC 33 · 34"]
+        publishcall{{"Publish<br/><i>version tags only</i>"}}
+    end
+
+    subgraph publish ["publish.yml — called by the tag's own run"]
+        build["Build<br/><i>no secrets · npm, Composer · package.sh</i>"]
+        sign["Sign and release<br/><i>environment signing · APPSTORE_KEY</i><br/>GitHub release with tarballs + signature"]
+        subgraph precheck ["Install before publishing — install-check.yml against the fake store"]
+            occ33["occ · NC 33"]
+            occ34["occ · NC 34"]
+            web33["Apps page · NC 33"]
+            web34["Apps page · NC 34"]
+        end
+        store["Publish to the App Store<br/><i>environment appstore · APPSTORE_TOKEN</i><br/>verify signature, post to the store"]
+        listed["Listed by the store<br/>compare the store's entry · wait for every mirror<br/>comment on the release commit"]
+    end
+
+    trigger --> upstream & lint & phpunit & cypress
+    lint & phpunit & cypress --> publishcall
+    publishcall --> build --> sign
+    sign --> occ33 & occ34 & web33 & web34
+    occ33 & occ34 & web33 & web34 --> store
+    store --> listed
+```
+
+Each install job ends with `check-install.sh` and a smoke run of the e2e suite.
+The release metadata step in **Build** refuses a tag that does not name the
+manifest's version or whose commit is not on `master`; the environments'
+reviewers and tag rules can hold **Sign and release** and **Publish to the App
+Store** as well.
 
 ## GitLab CI
 

@@ -6,10 +6,11 @@ name: Install check
 # against the installed copy: the shipped tarball, built frontend, no dev
 # packages, verified by the server against the app's certificate.
 #
-# Against the fake store, before the upload: the real listing with the
-# release added from its GitHub release, so a release that does not install
-# never reaches the store. Against the real store, after the upload.
-# publish.yml calls it both ways; it can also be run by hand.
+# Against the fake store: the real store's full listing with the release
+# added from its GitHub release. publish.yml runs it before the upload, so a
+# release that does not install never reaches the store; after the upload
+# it only compares the store's entry with the one tested here
+# (tests/e2e/store/appstore.py watch). It can also be run by hand.
 on:
   workflow_call:
     inputs:
@@ -25,10 +26,6 @@ on:
         description: The tag whose tests to run and whose release holds the tarball; v<version> when empty
         type: string
         default: ''
-      store:
-        description: fake or real
-        type: string
-        default: real
   workflow_dispatch:
     inputs:
       version:
@@ -44,18 +41,13 @@ on:
         description: The tag whose tests to run and whose release holds the tarball; v<version> when empty
         type: string
         default: ''
-      store:
-        description: The store to install from
-        type: choice
-        options: [ fake, real ]
-        default: fake
 
 permissions:
   contents: read
 
 jobs:
   install:
-    name: ${{ inputs.store }} store / ${{ matrix.mode }} / NC ${{ matrix.nextcloud-version }}
+    name: ${{ matrix.mode }} / NC ${{ matrix.nextcloud-version }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
@@ -104,7 +96,6 @@ jobs:
       - name: App store
         uses: ./.github/actions/app-store
         with:
-          store: ${{ inputs.store }}
           version: ${{ inputs.version }}
           kind: ${{ inputs.kind }}
           tag: ${{ inputs.tag != '' && inputs.tag || format('v{0}', inputs.version) }}
@@ -121,7 +112,7 @@ jobs:
         uses: ./.github/actions/cypress-run
         with:
           spec: tests/e2e/store/install-from-apps-page.cy.js
-          artifact-name: install-${{ inputs.store }}-${{ matrix.nextcloud-version }}
+          artifact-name: install-${{ matrix.nextcloud-version }}
         env:
           CYPRESS_baseUrl: http://localhost:8081
           CYPRESS_storeInstall: ${{ inputs.version }}
@@ -137,6 +128,6 @@ jobs:
         uses: ./.github/actions/cypress-run
         with:
           spec: tests/e2e/checksums.cy.js,tests/e2e/global-search.cy.js
-          artifact-name: smoke-${{ inputs.store }}-${{ matrix.mode }}-${{ matrix.nextcloud-version }}
+          artifact-name: smoke-${{ matrix.mode }}-${{ matrix.nextcloud-version }}
         env:
           CYPRESS_baseUrl: http://localhost:8081

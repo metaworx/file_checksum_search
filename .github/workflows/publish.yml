@@ -115,7 +115,6 @@ jobs:
       version: ${{ needs.build.outputs.version }}
       kind: ${{ needs.build.outputs.kind }}
       tag: ${{ needs.build.outputs.tag }}
-      store: fake
 
   store:
     name: Publish to the App Store
@@ -149,15 +148,71 @@ jobs:
           fi
           bash package.sh --appstore $NIGHTLY_FLAG
 
-  # The release as the store hands it out, installed by occ and through the
-  # Apps page on fresh servers, its install steps checked, and a smoke run
-  # of the e2e suite against it.
-  verify:
-    name: Install from the store
+  # After the upload nothing is installed again: the store's own entry is
+  # compared with the one the installs before the upload tested, on the first
+  # host of its listing that names the release; then the job waits for every
+  # host the store's redirects lead to, reports how long each took, and
+  # tells the maintainers on the release commit.
+  listed:
+    name: Listed by the store
     needs: [ build, store ]
-    uses: ./.github/workflows/install-check.yml
-    with:
-      version: ${{ needs.build.outputs.version }}
-      kind: ${{ needs.build.outputs.kind }}
-      tag: ${{ needs.build.outputs.tag }}
-      store: real
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ needs.build.outputs.tag }}
+      VERSION: ${{ needs.build.outputs.version }}
+      DOWNLOAD_URL: "https://github.com/${{ github.repository }}/releases/download/${{ needs.build.outputs.tag }}/file_checksum_search-${{ needs.build.outputs.version }}.tar.gz"
+    steps:
+      - name: Checkout the tag
+        uses: actions/checkout@v5
+
+      - name: Wait for the listing, compare, wait for every host
+        id: watch
+        env:
+          APPSTORE_CERT: ${{ vars.APPSTORE_CERT || secrets.APPSTORE_CERT }}
+        run: |
+          curl -fsSL -o /tmp/release.signature "${DOWNLOAD_URL}.signature"
+          printf '%s\n' "$APPSTORE_CERT" > /tmp/app.crt
+          flag=""
+          if [ "${{ needs.build.outputs.kind }}" = nightly ]; then
+            flag="--nightly"
+          fi
+          python3 tests/e2e/store/appstore.py watch --version "$VERSION" --download "$DOWNLOAD_URL" \
+            --signature /tmp/release.signature --certificate /tmp/app.crt $flag \
+            --first-timeout 180 --all-timeout 300 \
+            --summary "$GITHUB_STEP_SUMMARY" --result /tmp/listing.json
+
+      # A comment mentioning them is how GitHub e-mails the maintainers:
+      # issues and discussions are switched off here.
+      - name: Tell the maintainers on the release commit
+        if: ${{ !cancelled() && steps.watch.outcome != 'skipped' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NOTIFY: ${{ vars.RELEASE_NOTIFY || format('@{0}', github.actor) }}
+          OUTCOME: ${{ steps.watch.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          body="$(python3 - <<'PY'
+          import json, os
+          try:
+              result = json.load(open('/tmp/listing.json'))
+          except OSError:
+              result = None
+          notify, tag, run = os.environ['NOTIFY'], os.environ['TAG'], os.environ['RUN_URL']
+          if result is None:
+              print(f"{notify} {tag}: the store's listing could not be watched. [The run]({run}) says why.")
+          elif result['mismatches']:
+              print(f"{notify} {tag}: the store lists the release, but its entry differs from what the installs before the upload tested:\n")
+              print(''.join(f"- {line}\n" for line in result['mismatches']))
+              print(f"[The run]({run})")
+          else:
+              hosts = ', '.join(f"`{h}` after {m} min" if m is not None else f"`{h}` not yet" for h, m in result['hosts'].items())
+              state = 'is listed by every host the store sent requests to' if result['converged'] else 'is not yet listed everywhere'
+              channel = 'nightly' if result['nightly'] else 'stable'
+              print(f"{notify} {tag} ({channel}) {state}: {hosts}. [The run]({run})")
+          PY
+          )"
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" -f body="$body" > /dev/null
+          echo "$body"
