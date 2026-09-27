@@ -1,11 +1,13 @@
 name: Nextcloud App Testing Matrix
-# Pushes to master, and version tags: GitHub's filter patterns, unlike an
-# `if:` expression, know `+`, so only a tag shaped like a version — with or
-# without a -suffix — starts a run, and the publish job below needs to ask
-# only whether this is a tag.
+# Every branch, every pull request, and tags shaped like a version: the
+# lists under `push` are alternatives, not conditions that must all hold.
+# GitHub's filter patterns, unlike an `if:` expression, know `+`, so only a
+# tag like v1.2.3 or v1.2.3-rc1 starts a run, and the publish job below needs
+# to ask only whether this is a tag; release-meta then refuses a tag whose
+# commit is not on master.
 on:
   push:
-    branches: [ master ]
+    branches: [ '**' ]
     tags: [ 'v[0-9]+.[0-9]+.[0-9]+', 'v[0-9]+.[0-9]+.[0-9]+-*' ]
   pull_request:
 jobs:
