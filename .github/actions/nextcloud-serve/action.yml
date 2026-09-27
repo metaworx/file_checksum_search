@@ -1,5 +1,20 @@
 name: Serve Nextcloud
-description: Starts the PHP web server on port 8081 over ./nextcloud and waits until it answers.
+description: >-
+  PHP's web server over ./nextcloud, waited for until it answers. A port
+  below 1024 is bound through a capability on the PHP binary rather than
+  with sudo: a server running as root creates every account's home as
+  root, and the tests running as the runner then cannot write inside it.
+
+inputs:
+  port:
+    description: The port to serve on
+    default: '8081'
+  host:
+    description: The address to bind
+    default: '0.0.0.0'
+  workers:
+    description: PHP_CLI_SERVER_WORKERS
+    default: '3'
 
 runs:
   using: composite
@@ -8,15 +23,25 @@ runs:
       shell: bash
       working-directory: nextcloud
       env:
-        PHP_CLI_SERVER_WORKERS: '3'
+        PHP_CLI_SERVER_WORKERS: ${{ inputs.workers }}
       run: |
-        nohup php -S 0.0.0.0:8081 -t . > /tmp/nc-http.log 2>&1 &
+        PHP_BIN="$(readlink -f "$(command -v php)")"
+        if [ "${{ inputs.port }}" -lt 1024 ]; then
+          sudo setcap cap_net_bind_service=+ep "$PHP_BIN"
+        fi
+        nohup "$PHP_BIN" -S "${{ inputs.host }}:${{ inputs.port }}" -t . > /tmp/nc-http.log 2>&1 &
 
-    - name: Warm up Nextcloud HTTP server
+    - name: Wait until it answers
       shell: bash
       run: |
         for i in $(seq 1 30); do
-          curl -fsS -o /dev/null http://localhost:8081/status.php && break
+          if curl -fsS -o /dev/null "http://127.0.0.1:${{ inputs.port }}/status.php"; then
+            # The first page render compiles and caches; do it before a test does.
+            curl -fsS -o /dev/null "http://127.0.0.1:${{ inputs.port }}/index.php/login" || true
+            exit 0
+          fi
           sleep 1
         done
-        curl -fsS -o /dev/null http://localhost:8081/index.php/login || true
+        echo "::error::Nextcloud did not answer on port ${{ inputs.port }} within 30 seconds."
+        cat /tmp/nc-http.log || true
+        exit 1

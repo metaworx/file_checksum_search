@@ -1,0 +1,42 @@
+name: App into the server
+description: >-
+  The checkout copied into nextcloud/apps/file_checksum_search and enabled,
+  optionally with its development dependencies (for PHPUnit) or its built
+  frontend (for Cypress; the node dependencies must be installed first).
+
+inputs:
+  dev-dependencies:
+    description: Install the Composer dependencies with dev and PHPUnit's bin (true or false)
+    default: 'false'
+  frontend:
+    description: Build the frontend and copy js/ and css/ into the app (true or false)
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Copy the app into the server
+      shell: bash
+      run: |
+        mkdir -p nextcloud/apps/file_checksum_search
+        rsync -a --exclude='.git' --exclude='nextcloud' ./ nextcloud/apps/file_checksum_search/
+
+    - name: Install Composer dependencies
+      if: inputs.dev-dependencies == 'true'
+      shell: bash
+      working-directory: nextcloud/apps/file_checksum_search
+      run: |
+        composer install --no-interaction --no-scripts
+        composer bin phpunit install --no-interaction
+
+    - name: Build the frontend into the app
+      if: inputs.frontend == 'true'
+      shell: bash
+      run: |
+        npm run build
+        rsync -a css js nextcloud/apps/file_checksum_search/
+
+    - name: Enable the app
+      shell: bash
+      working-directory: nextcloud
+      run: php occ app:enable file_checksum_search

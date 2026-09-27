@@ -1,0 +1,35 @@
+name: Cypress run
+description: >-
+  The given specs in headless Chrome against the server on port 8081, and
+  the screenshots Cypress took kept as an artifact when a spec fails.
+  CYPRESS_* variables set on the calling step reach the run.
+
+inputs:
+  spec:
+    description: The spec or specs, comma-separated
+    required: true
+  artifact-name:
+    description: The name of the screenshots artifact
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Run the specs
+      uses: cypress-io/github-action@v7
+      with:
+        browser: chrome
+        spec: ${{ inputs.spec }}
+        install: false
+        wait-on: 'http://localhost:8081/index.php'
+        wait-on-timeout: 120
+
+    # What a failed run leaves: the screenshot Cypress takes at the failing
+    # step is most of a diagnosis.
+    - name: Keep Cypress screenshots
+      if: failure()
+      uses: actions/upload-artifact@v6
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: cypress/screenshots
+        if-no-files-found: ignore

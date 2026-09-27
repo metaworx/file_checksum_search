@@ -1,35 +1,45 @@
-name: Nextcloud for the e2e suite
+name: Nextcloud server
 description: >-
-  The Nextcloud server the Cypress jobs drive: installed on MariaDB at the
-  given branch, in English, jobs on cron. The job declares the database
-  service; the app is not installed here.
+  A Nextcloud server checked out at the given branch and installed on
+  MariaDB, the database the job declares as a service. With `e2e`, set up
+  the way the Cypress jobs drive it: English, no first-run wizard, jobs on
+  cron, the app store on or off. The app is not installed here.
 
 inputs:
   nextcloud-version:
     description: The server branch, e.g. stable34
     required: true
+  php-version:
+    description: The PHP version to run it on
+    default: '8.3'
+  e2e:
+    description: Whether to apply the e2e settings (true or false)
+    default: 'true'
   app-store:
-    description: Whether the server may reach the app store (true or false)
+    description: With e2e, whether the server may reach the app store (true or false)
     default: 'false'
   channel:
     description: >-
-      The update channel, when the server should be on one other than the
-      one its version file names; a git checkout is on `git`, which shows
-      nightlies. Empty leaves it.
+      With e2e, the update channel, when the server should be on one other
+      than the one its version file names; a git checkout is on `git`,
+      which shows nightlies. Empty leaves it.
     default: ''
 
 runs:
   using: composite
   steps:
+    # Pinned to a commit on its main branch: see test.yml's upstream job.
     - name: Set up Nextcloud Server Instance
       uses: nextcloud/setup-server-action@8c97e01874d7cb9e1afb0e18cd4685d31518c848 # main after v0.5.0: Node 24 pins; see test.yml's upstream job
       with:
         nextcloud-version: ${{ inputs.nextcloud-version }}
+        php-version: ${{ inputs.php-version }}
+        node-version: 'false'
         install: true
-        node-version: '24'
         database: mysql
 
     - name: Configure Nextcloud for E2E
+      if: inputs.e2e == 'true'
       shell: bash
       working-directory: nextcloud
       run: |
@@ -37,7 +47,7 @@ runs:
         php occ config:system:set appstoreenabled --value=${{ inputs.app-store }} --type=boolean
         php occ config:system:set default_language --value=en
         php occ config:system:set force_language --value=en
-        php occ app:disable firstrunwizard
+        php occ app:disable firstrunwizard || true
         # A fresh install runs background jobs from every page a logged-in
         # user opens (AJAX mode); the e2e suite counts state a job would
         # clear, so jobs run only when a spec runs them.

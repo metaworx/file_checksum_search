@@ -84,7 +84,7 @@ jobs:
       # the one channel on which the Apps page lists nightlies (`beta`
       # lists pre-releases, not nightlies).
       - name: Nextcloud with the app store
-        uses: ./.github/actions/nextcloud-e2e
+        uses: ./.github/actions/nextcloud-server
         with:
           nextcloud-version: ${{ matrix.nextcloud-version }}
           app-store: 'true'
@@ -128,21 +128,18 @@ jobs:
             php occ app:install file_checksum_search
           fi
 
-      - name: Install frontend dependencies
-        run: npm ci
+      - name: Node dependencies
+        uses: ./.github/actions/node-deps
 
       - name: Serve Nextcloud
         uses: ./.github/actions/nextcloud-serve
 
       - name: Install through the Apps page
         if: matrix.mode == 'web'
-        uses: cypress-io/github-action@v7
+        uses: ./.github/actions/cypress-run
         with:
-          browser: chrome
           spec: tests/e2e/store/install-from-apps-page.cy.js
-          install: false
-          wait-on: 'http://localhost:8081/index.php'
-          wait-on-timeout: 120
+          artifact-name: post-publish-install-${{ matrix.nextcloud-version }}
         env:
           CYPRESS_baseUrl: http://localhost:8081
           CYPRESS_storeInstall: ${{ inputs.version }}
@@ -155,20 +152,9 @@ jobs:
       # broken app are two findings, and one should not hide the other.
       - name: Smoke test
         if: ${{ !cancelled() && steps.check.outcome != 'skipped' }}
-        uses: cypress-io/github-action@v7
+        uses: ./.github/actions/cypress-run
         with:
-          browser: chrome
           spec: tests/e2e/checksums.cy.js,tests/e2e/global-search.cy.js
-          install: false
-          wait-on: 'http://localhost:8081/index.php'
-          wait-on-timeout: 120
+          artifact-name: post-publish-smoke-${{ matrix.mode }}-${{ matrix.nextcloud-version }}
         env:
           CYPRESS_baseUrl: http://localhost:8081
-
-      - name: Keep Cypress screenshots
-        if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: post-publish-${{ matrix.mode }}-${{ matrix.nextcloud-version }}
-          path: cypress/screenshots
-          if-no-files-found: ignore

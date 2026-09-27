@@ -1,7 +1,7 @@
 name: Nextcloud App Testing Matrix
 on: [ push, pull_request ]
 jobs:
-  # The jobs below, and .github/actions/nextcloud-e2e, pin
+  # .github/actions/nextcloud-server pins
   # nextcloud/setup-server-action to a commit on its main
   # branch, because its newest release, v0.5.0, still pins actions that run
   # on Node 20. This fails once a newer release is out, so the pin goes back
@@ -11,7 +11,9 @@ jobs:
   upstream:
     name: Upstream releases
     runs-on: ubuntu-latest
-    if: github.event_name != 'push' || github.ref_type == 'tag' || !startsWith(github.event.head_commit.message, '[RELEASE] ')
+    # One run per release: a [RELEASE] commit arrives on master and on its
+    # tag at once, and the tag's run is the one kept — same rule as GitLab.
+    if: &one-run-per-release github.event_name != 'push' || github.ref_type == 'tag' || !startsWith(github.event.head_commit.message, '[RELEASE] ')
     continue-on-error: true
     permissions: {}
     env:
@@ -29,23 +31,17 @@ jobs:
             exit 1
           fi
 
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
-    # One run per release: a [RELEASE] commit arrives on master and on its
-    # tag at once, and the tag's run is the one kept — same rule as GitLab.
-    if: github.event_name != 'push' || github.ref_type == 'tag' || !startsWith(github.event.head_commit.message, '[RELEASE] ')
+    if: *one-run-per-release
     steps:
       - name: Checkout app code
         uses: actions/checkout@v5
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: '24'
-
-      - name: Install frontend dependencies
-        run: npm ci
+      - name: Node dependencies
+        uses: ./.github/actions/node-deps
 
       # Deliberately its own job rather than a step on the integration job:
       # it needs no Nextcloud server, so it answers in under a minute, and a
@@ -70,9 +66,7 @@ jobs:
 
   phpunit:
     runs-on: ubuntu-latest
-    # One run per release: a [RELEASE] commit arrives on master and on its
-    # tag at once, and the tag's run is the one kept — same rule as GitLab.
-    if: github.event_name != 'push' || github.ref_type == 'tag' || !startsWith(github.event.head_commit.message, '[RELEASE] ')
+    if: *one-run-per-release
     strategy:
       fail-fast: false
       matrix:
@@ -80,8 +74,10 @@ jobs:
         php-version: [ '8.2', '8.3', '8.4' ]
     name: NC ${{ matrix.nextcloud-version }} / PHP ${{ matrix.php-version }}
 
+    # A service cannot live in a composite action; the anchor keeps the one
+    # definition for both jobs of this file.
     services:
-      mariadb:
+      mariadb: &mariadb
         image: mariadb:10.11
         env:
           MYSQL_ROOT_PASSWORD: root
@@ -100,59 +96,30 @@ jobs:
       - name: Checkout app code
         uses: actions/checkout@v5
 
-      - name: Set up Nextcloud environment
-        uses: nextcloud/setup-server-action@8c97e01874d7cb9e1afb0e18cd4685d31518c848 # main after v0.5.0: Node 24 pins; see the upstream job
+      - name: Nextcloud server
+        uses: ./.github/actions/nextcloud-server
         with:
           nextcloud-version: ${{ matrix.nextcloud-version }}
           php-version: ${{ matrix.php-version }}
-          install: true
-          database: mysql
+          e2e: 'false'
 
-      - name: Inject app into Nextcloud
-        run: |
-          mkdir -p nextcloud/apps/file_checksum_search
-          rsync -a --exclude='.git' --exclude='nextcloud' ./ nextcloud/apps/file_checksum_search/
-
-      - name: Install Composer dependencies
-        run: composer install --no-interaction --no-scripts
-        working-directory: nextcloud/apps/file_checksum_search
-
-      - name: Install PHPUnit (bamarni bin)
-        run: composer bin phpunit install --no-interaction
-        working-directory: nextcloud/apps/file_checksum_search
-
-      - name: Enable the app
-        run: php occ app:enable file_checksum_search
-        working-directory: nextcloud
+      - name: App into the server
+        uses: ./.github/actions/app-into-server
+        with:
+          dev-dependencies: 'true'
 
       - name: Create HTTP test user
         run: |
           NC_PASS='Str0ng!T3st#P4ss!' php occ user:add --password-from-env fcias_http_test
         working-directory: nextcloud
 
-      # The tests hard-code http://127.0.0.1, so the server needs port 80,
-      # and it must run as the runner: a server started with sudo creates
-      # every test account's home as root, and the PHPUnit process then
-      # cannot write inside it. The capability lets an unprivileged process
-      # bind the port.
-      - name: Start Nextcloud HTTP server
-        run: |
-          PHP_BIN="$(readlink -f "$(command -v php)")"
-          sudo setcap cap_net_bind_service=+ep "$PHP_BIN"
-          "$PHP_BIN" -S 127.0.0.1:80 -t . > /tmp/nc-http.log 2>&1 &
-        working-directory: nextcloud
-
-      - name: Wait for HTTP server
-        run: |
-          for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1/status.php > /dev/null 2>&1; then
-              echo "HTTP server is ready"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "HTTP server did not become ready in 30s" >&2
-          exit 1
+      # The tests hard-code http://127.0.0.1, so the server needs port 80.
+      - name: Serve Nextcloud
+        uses: ./.github/actions/nextcloud-serve
+        with:
+          port: '80'
+          host: '127.0.0.1'
+          workers: '1'
 
       - name: Run PHPUnit tests
         run: php -d error_reporting='E_ALL & ~E_DEPRECATED' ./vendor/bin/phpunit -c tests/phpunit.xml --display-warnings
@@ -160,9 +127,7 @@ jobs:
 
   integration-chrome:
     runs-on: ubuntu-latest
-    # One run per release: a [RELEASE] commit arrives on master and on its
-    # tag at once, and the tag's run is the one kept — same rule as GitLab.
-    if: github.event_name != 'push' || github.ref_type == 'tag' || !startsWith(github.event.head_commit.message, '[RELEASE] ')
+    if: *one-run-per-release
     strategy:
       fail-fast: false
       matrix:
@@ -170,68 +135,32 @@ jobs:
     name: Cypress E2E / NC ${{ matrix.nextcloud-version }}
 
     services:
-      mariadb:
-        image: mariadb:10.11
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: nextcloud
-          MYSQL_USER: nextcloud
-          MYSQL_PASSWORD: nextcloud
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mariadb-admin ping -h localhost"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
+      mariadb: *mariadb
 
     steps:
       - name: Checkout app code
         uses: actions/checkout@v5
 
-      - name: Nextcloud for the e2e suite
-        uses: ./.github/actions/nextcloud-e2e
+      - name: Nextcloud server
+        uses: ./.github/actions/nextcloud-server
         with:
           nextcloud-version: ${{ matrix.nextcloud-version }}
 
-      - name: Inject app into integration instance
-        run: |
-          mkdir -p nextcloud/apps/file_checksum_search
-          rsync -a --exclude='.git' --exclude='nextcloud' ./ nextcloud/apps/file_checksum_search/
+      - name: Node dependencies
+        uses: ./.github/actions/node-deps
 
-      - name: Enable the app
-        run: php occ app:enable file_checksum_search
-        working-directory: nextcloud
-
-      - name: Install Frontend Node Dependencies
-        run: npm ci
-
-      - name: Build frontend assets
-        run: npm run build
-
-      - name: Copy built frontend assets into the app
-        run: rsync -a css js nextcloud/apps/file_checksum_search/
+      - name: App into the server
+        uses: ./.github/actions/app-into-server
+        with:
+          frontend: 'true'
 
       - name: Serve Nextcloud
         uses: ./.github/actions/nextcloud-serve
 
-      - name: Run Integration Tests (Headless Chrome)
-        uses: cypress-io/github-action@v7
+      - name: Cypress
+        uses: ./.github/actions/cypress-run
         with:
-          browser: chrome
           spec: tests/e2e/**/*.cy.js
-          install: false
-          wait-on: 'http://localhost:8081/index.php'
-          wait-on-timeout: 120
+          artifact-name: cypress-${{ matrix.nextcloud-version }}
         env:
           CYPRESS_baseUrl: http://localhost:8081
-
-      # What GitLab keeps of a failed run, kept here too: the screenshot
-      # Cypress takes at the failing step is most of a diagnosis.
-      - name: Keep Cypress screenshots
-        if: failure()
-        uses: actions/upload-artifact@v6
-        with:
-          name: cypress-${{ matrix.nextcloud-version }}
-          path: cypress/screenshots
-          if-no-files-found: ignore
