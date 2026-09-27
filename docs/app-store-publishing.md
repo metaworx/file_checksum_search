@@ -68,7 +68,8 @@ has finished for a tag, on `workflow_run`, or by hand with
 `workflow_dispatch` and a tag name. It does not run on `release:
 published`: a release made with `GITHUB_TOKEN` fires no `release` event, so
 a workflow waiting for one would wait for a release the tag's own run
-creates. One job, when the test run succeeded for a `v*` tag:
+creates. When the test run succeeded for a `v*` tag, two jobs run. The
+first, **Build, sign and release**:
 
 1. Checks out the tag's tree with the guidelines submodule, and installs
    Node.js 24 and PHP 8.2.
@@ -84,10 +85,18 @@ creates. One job, when the test run succeeded for a `v*` tag:
 6. Creates the GitHub release for the tag, or updates it, with the changelog
    section as its body (`changelog.sh notes X.Y.Z`) and both tarballs and
    the signature as its assets; a nightly is marked as a pre-release.
-7. If `APPSTORE_PUBLISH=true`, posts the **versioned** tarball's release-asset
-   URL and its signature to the App Store (`POST /api/v1/apps/releases`).
-   The assets are up before the store is told, since it fetches the URL on
-   being told.
+
+The second, **Publish to the App Store**, runs after it in the `appstore`
+environment, and waits there for whatever the environment's protection
+rules ask — a required reviewer approves it on the run's page, a wait timer
+counts down, a tag rule refuses anything but `v*`. With no rules it runs at
+once. It:
+
+1. Downloads the **versioned** tarball from the release anonymously, the way
+   the store will fetch it, so a broken asset fails here.
+2. Signs it and posts its URL and the signature to the App Store
+   (`POST /api/v1/apps/releases`), with `--nightly` for a nightly. A refusal
+   by the store fails the job, with the store's answer in the log.
 
 Signing requires:
 
@@ -96,10 +105,13 @@ Signing requires:
   certificate/key pair registered for the app in the portal — a mismatch
   causes the store to reject the upload.
 
-Publishing (step 7) additionally requires:
+Publishing additionally requires:
 
 - Secret `APPSTORE_TOKEN` (App Store API token).
-- Variable `APPSTORE_PUBLISH` = `true`.
+- The `appstore` environment (Settings → Environments). GitHub creates it
+  without rules the first time a job names it, so create it beforehand with
+  the rules wanted. `APPSTORE_KEY` and `APPSTORE_TOKEN` can live in it as
+  environment secrets, where only this job reads them.
 
 The tag reaches GitHub through GitLab's push mirror, so the release procedure
 is `changelog.sh cut`, then `changelog.sh tag X.Y.Z create --push

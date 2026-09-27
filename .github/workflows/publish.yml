@@ -18,8 +18,8 @@ permissions:
   contents: write
 
 jobs:
-  publish:
-    name: Build, sign and publish app
+  release:
+    name: Build, sign and release
     runs-on: ubuntu-latest
     # A test run that succeeded for a pushed tag; for a tag push the run's
     # head_branch is the tag's name.
@@ -32,6 +32,10 @@ jobs:
       )
     env:
       TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.workflow_run.head_branch }}
+    outputs:
+      tag: ${{ env.TAG }}
+      version: ${{ steps.app-meta.outputs.version }}
+      kind: ${{ steps.tagkind.outputs.kind }}
     steps:
       # The tag's tree, and the guidelines submodule for changelog.sh.
       - name: Checkout
@@ -116,15 +120,45 @@ jobs:
             build/file_checksum_search-${{ steps.app-meta.outputs.version }}.tar.gz
             build/file_checksum_search-${{ steps.app-meta.outputs.version }}.tar.gz.signature
 
-      - name: Publish release to App Store
-        if: steps.tagkind.outputs.kind != 'skip' && vars.APPSTORE_PUBLISH == 'true'
+  # The store upload, on its own so that it shows as a job of its own: it
+  # waits in the `appstore` environment for whatever protection rules the
+  # environment carries — a required reviewer, a wait timer, the tags it
+  # may run for — and a refusal by the store fails it. The environment also
+  # holds the store's secrets, so no other job can read them.
+  store:
+    name: Publish to the App Store
+    needs: release
+    if: needs.release.outputs.kind != 'skip'
+    runs-on: ubuntu-latest
+    environment: appstore
+    permissions:
+      contents: read
+    env:
+      TAG: ${{ needs.release.outputs.tag }}
+      VERSION: ${{ needs.release.outputs.version }}
+      DOWNLOAD_URL: "https://github.com/${{ github.repository }}/releases/download/${{ needs.release.outputs.tag }}/file_checksum_search-${{ needs.release.outputs.version }}.tar.gz"
+    steps:
+      # package.sh and the manifest it reads the version from.
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TAG }}
+
+      # The asset the store will fetch, fetched the way the store fetches it:
+      # anonymously, from the release. A broken asset fails here, before the
+      # store is told about it.
+      - name: Download the release asset
+        run: |
+          mkdir -p build
+          curl -fsSL -o "build/file_checksum_search-${VERSION}.tar.gz" "$DOWNLOAD_URL"
+
+      - name: Sign and post the release to the App Store
         env:
           API_TOKEN: ${{ secrets.APPSTORE_TOKEN }}
           APPSTORE_KEY: ${{ secrets.APPSTORE_KEY }}
-          DOWNLOAD_URL: "https://github.com/${{ github.repository }}/releases/download/${{ env.TAG }}/file_checksum_search-${{ steps.app-meta.outputs.version }}.tar.gz"
         run: |
           NIGHTLY_FLAG=""
-          if [ "${{ steps.tagkind.outputs.kind }}" = "nightly" ]; then
+          if [ "${{ needs.release.outputs.kind }}" = "nightly" ]; then
             NIGHTLY_FLAG="--nightly"
           fi
           bash package.sh --appstore $NIGHTLY_FLAG
