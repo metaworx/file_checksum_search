@@ -27,10 +27,16 @@
 # The signature is written next to the archive as <archive>.signature and is
 # also printed to stdout for pasting into the App Store upload form.
 #
+# Publishing never signs: --appstore posts the <archive>.signature that is
+# already there, after verifying it against the certificate (APPSTORE_CERT,
+# or ~/.nextcloud/certificates/<app_id>.crt). The key stays with whoever
+# signs; whoever publishes needs only the certificate and the token.
+#
 # Usage:
 #   bash package.sh              # build, package, and sign (if key available)
 #   bash package.sh --sign-only  # only sign the existing versioned archive
-#   DOWNLOAD_URL=... bash package.sh --appstore           # publish a release
+#   bash package.sh --verify     # only verify its signature against the certificate
+#   DOWNLOAD_URL=... bash package.sh --appstore           # verify, then publish
 #   DOWNLOAD_URL=... bash package.sh --appstore --nightly
 #   PHP=php8.2 bash package.sh   # use a specific PHP binary for Composer
 #
@@ -53,11 +59,13 @@ echo "    Script Path:    $SCRIPT_DIR"
 cd "$SCRIPT_DIR"
 
 SIGN_ONLY=false
+VERIFY_ONLY=false
 APPSTORE=false
 NIGHTLY=false
 for arg in "$@"; do
 	case "$arg" in
 		--sign-only) SIGN_ONLY=true ;;
+		--verify) VERIFY_ONLY=true ;;
 		--appstore) APPSTORE=true ;;
 		--nightly) NIGHTLY=true ;;
 		*) echo "ERROR: unknown argument: $arg" >&2; exit 2 ;;
@@ -66,10 +74,11 @@ done
 
 echo "==> Looking for required binaries ..."
 
-# Full builds need the whole toolchain; --sign-only/--appstore only touch an
-# already-built archive and don't need PHP, rsync, tar, npm, or composer.
+# Full builds need the whole toolchain; --sign-only/--verify/--appstore only
+# touch an already-built archive and don't need PHP, rsync, tar, npm, or
+# composer.
 NEED_FULL_BUILD=true
-if [ "$SIGN_ONLY" = true ] || [ "$APPSTORE" = true ]; then
+if [ "$SIGN_ONLY" = true ] || [ "$VERIFY_ONLY" = true ] || [ "$APPSTORE" = true ]; then
 	NEED_FULL_BUILD=false
 fi
 
@@ -179,6 +188,49 @@ resolve_signing_material() {
 	fi
 }
 
+# Resolve the certificate alone into the global CERT_FILE: APPSTORE_CERT when
+# set, else the local certificate. Verifying needs nothing else.
+resolve_certificate() {
+	local tmp="$1"
+	CERT_FILE=""
+
+	if [ -n "${APPSTORE_CERT:-}" ]; then
+		CERT_FILE="$(materialize_pem "$APPSTORE_CERT" "$tmp/cert.crt" "APPSTORE_CERT")" || return 1
+	else
+		CERT_FILE="${NEXTCLOUD_CERT_DIR:-${HOME}/.nextcloud/certificates}/${APP_ID}.crt"
+	fi
+}
+
+# Verify <archive>.signature against a certificate: the SHA-512 signature of
+# the archive, made with the key the certificate belongs to.
+verify_signature() {
+	local archive="$1" cert_file="$2"
+	local signature_file="${archive}.signature" tmp
+	tmp="$(mktemp -d)"
+
+	if [ ! -f "$signature_file" ]; then
+		echo "ERROR: no signature (${signature_file})." >&2
+		rm -rf "$tmp"
+		return 1
+	fi
+	if [ ! -f "${cert_file:-}" ]; then
+		echo "ERROR: no certificate found (${cert_file:-<unset>}) — cannot verify ${signature_file}." >&2
+		rm -rf "$tmp"
+		return 1
+	fi
+	if ! openssl x509 -in "$cert_file" -pubkey -noout > "$tmp/pubkey.pem" \
+		|| ! openssl base64 -d -A < "$signature_file" > "$tmp/sig.bin" \
+		|| ! openssl dgst -sha512 -verify "$tmp/pubkey.pem" -signature "$tmp/sig.bin" "$archive" > /dev/null 2>&1; then
+		echo "ERROR: signature verification failed: ${signature_file} is not ${archive} signed with the key of ${cert_file}." >&2
+		rm -rf "$tmp"
+		return 1
+	fi
+
+	echo "    Signature verified against ${cert_file}."
+	rm -rf "$tmp"
+	return 0
+}
+
 # openssl SHA-512 signature of an archive (detached, base64) — what the App
 # Store upload form expects.
 sign_archive() {
@@ -211,14 +263,7 @@ sign_archive() {
 		return 1
 	fi
 
-	if ! openssl x509 -in "$cert_file" -pubkey -noout > "$tmp/pubkey.pem" \
-		|| ! openssl base64 -d -A < "$signature_file" > "$tmp/sig.bin" \
-		|| ! openssl dgst -sha512 -verify "$tmp/pubkey.pem" -signature "$tmp/sig.bin" "$archive" > /dev/null 2>&1; then
-		echo "ERROR: signature verification failed." >&2
-		rm -rf "$tmp"
-		return 1
-	fi
-	echo "    Signature verified against ${cert_file}."
+	verify_signature "$archive" "$cert_file" || { rm -rf "$tmp"; return 1; }
 
 	echo "    Signature file: ${signature_file}"
 	echo ""
@@ -243,23 +288,24 @@ resolve_token() {
 	fi
 }
 
-# Publish a release on the App Store (download URL + signature + nightly flag).
+# Publish a release on the App Store (download URL + signature + nightly
+# flag). Posts the signature that is there, once it verifies; never signs.
 publish_appstore() {
 	local archive="$1"
-	local tmp key_file sig
+	local tmp sig
 	tmp="$(mktemp -d)"
 
 	command -v curl > /dev/null 2>&1 || { echo "ERROR: curl is required for --appstore." >&2; rm -rf "$tmp"; return 1; }
 
-	resolve_signing_material "$tmp"
-	key_file="$KEY_FILE"
+	resolve_certificate "$tmp" || { rm -rf "$tmp"; return 1; }
+	echo "==> Verifying ${archive}.signature before publishing"
+	verify_signature "$archive" "$CERT_FILE" || { rm -rf "$tmp"; return 1; }
 
-	[ -f "$key_file" ] || { echo "ERROR: no signing key (${key_file})." >&2; rm -rf "$tmp"; return 1; }
 	[ -n "${DOWNLOAD_URL:-}" ] || { echo "ERROR: DOWNLOAD_URL env var is required (public HTTPS link to the archive)." >&2; rm -rf "$tmp"; return 1; }
 
 	resolve_token || { rm -rf "$tmp"; return 1; }
 
-	sig="$(openssl dgst -sha512 -sign "$key_file" "$archive" | openssl base64 -A)"
+	sig="$(tr -d '[:space:]' < "${archive}.signature")"
 
 	echo "==> Publishing release '${APP_ID}' v${VERSION} on the App Store (nightly=${NIGHTLY})"
 
@@ -284,6 +330,20 @@ publish_appstore() {
 		*)  echo "ERROR: the App Store refused the release (HTTP ${status})." >&2; return 1 ;;
 	esac
 }
+
+if [ "$VERIFY_ONLY" = true ]; then
+	if [ ! -f "$VERSIONED_ARTIFACT" ]; then
+		echo "ERROR: ${VERSIONED_ARTIFACT} not found — run package.sh first." >&2
+		exit 1
+	fi
+	verify_tmp="$(mktemp -d)"
+	resolve_certificate "$verify_tmp" || { rm -rf "$verify_tmp"; exit 1; }
+	echo "==> Verifying ${VERSIONED_ARTIFACT}.signature"
+	verify_status=0
+	verify_signature "$VERSIONED_ARTIFACT" "$CERT_FILE" || verify_status=$?
+	rm -rf "$verify_tmp"
+	exit "$verify_status"
+fi
 
 if [ "$APPSTORE" = true ]; then
 	if [ ! -f "$VERSIONED_ARTIFACT" ]; then

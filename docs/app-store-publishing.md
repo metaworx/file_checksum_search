@@ -45,11 +45,16 @@ either provide both, or provide neither to fall back to an unsigned build
 ## Publishing to the App Store (REST API)
 
 `package.sh --appstore` publishes the built release via the App Store REST API
-(`POST /api/v1/apps/releases`). It requires:
+(`POST /api/v1/apps/releases`). It never signs: it posts the archive's
+existing `.signature`, after verifying it against the certificate, and
+refuses before any request when that fails. It requires:
 
 - The archive hosted at a public HTTPS URL (`DOWNLOAD_URL` env var).
-- A signing key (resolved as described above).
+- The archive's signature next to it (`--sign-only` makes it where the key is).
+- The certificate: `APPSTORE_CERT`, or `~/.nextcloud/certificates/<app_id>.crt`.
 - An App Store API token: `API_TOKEN` env var or `~/.nextcloud/API_TOKEN.txt`.
+
+`package.sh --verify` runs the same check on its own.
 
 Add `--nightly` to publish the release as a nightly:
 
@@ -150,8 +155,9 @@ to have `package.sh` sign the archive locally. The signature is written to
 `build/file_checksum_search-<version>.tar.gz.signature`.
 
 To publish a release directly from the command line (archive must already be
-hosted at a public HTTPS URL):
+hosted at a public HTTPS URL, and signed):
 
 ```bash
+bash package.sh --sign-only
 DOWNLOAD_URL=https://example.com/file_checksum_search.tar.gz bash package.sh --appstore
 ```

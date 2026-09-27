@@ -152,10 +152,18 @@ jobs:
           mkdir -p build
           curl -fsSL -o "build/file_checksum_search-${VERSION}.tar.gz" "$DOWNLOAD_URL"
 
-      - name: Sign and post the release to the App Store
+      # package.sh --appstore posts a signature it verifies and no longer
+      # signs; until signing moves to a job of its own, this one signs first.
+      - name: Sign
+        env:
+          APPSTORE_KEY: ${{ secrets.APPSTORE_KEY }}
+          APPSTORE_CERT: ${{ secrets.APPSTORE_CERT }}
+        run: bash package.sh --sign-only
+
+      - name: Verify and post the release to the App Store
         env:
           API_TOKEN: ${{ secrets.APPSTORE_TOKEN }}
-          APPSTORE_KEY: ${{ secrets.APPSTORE_KEY }}
+          APPSTORE_CERT: ${{ secrets.APPSTORE_CERT }}
         run: |
           NIGHTLY_FLAG=""
           if [ "${{ needs.release.outputs.kind }}" = "nightly" ]; then
