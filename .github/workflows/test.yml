@@ -164,3 +164,16 @@ jobs:
           artifact-name: cypress-${{ matrix.nextcloud-version }}
         env:
           CYPRESS_baseUrl: http://localhost:8081
+
+  # A v* tag whose tests all passed is released from this same run, so the
+  # publishing jobs carry the tag as their ref — what the environments'
+  # tag rules are matched against. A run started by workflow_run would
+  # carry the default branch instead.
+  publish:
+    name: Publish
+    needs: [ lint, phpunit, integration-chrome ]
+    if: github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+    permissions:
+      contents: write
+    uses: ./.github/workflows/publish.yml
+    secrets: inherit

@@ -1,54 +1,39 @@
 name: Publish to Nextcloud App Store
 
-# Runs once the test workflow has finished for a tag. A release made with
-# GITHUB_TOKEN fires no `release` event, so no workflow can wait for a
-# release the tag's own run creates; this one waits for the tag's test
-# run instead, and publishes the tree those tests passed on.
+# Called by the test workflow's last job, for a v* tag whose tests passed,
+# so every job here runs with the tag as its ref — which is what the
+# `signing` and `appstore` environments' tag rules are matched against. A
+# release is run again by hand with `gh workflow run publish.yml --ref <tag>`.
+#
+# Three jobs, one secret each at most: `build` runs the third-party code
+# (npm, Composer) and holds nothing; `sign` holds the key and runs none of
+# it; `store` holds the store token and can verify the signature but not
+# make one.
 on:
-  workflow_run:
-    workflows: [ "Nextcloud App Testing Matrix" ]
-    types: [ completed ]
+  workflow_call:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: The tag to build, release and publish, e.g. v0.21.0
-        required: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  release:
-    name: Build, sign and release
+  build:
+    name: Build
     runs-on: ubuntu-latest
-    # A test run that succeeded for a pushed tag; for a tag push the run's
-    # head_branch is the tag's name.
-    if: >-
-      github.event_name == 'workflow_dispatch'
-      || (
-        github.event.workflow_run.conclusion == 'success'
-        && github.event.workflow_run.event == 'push'
-        && startsWith(github.event.workflow_run.head_branch, 'v')
-      )
-    env:
-      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.workflow_run.head_branch }}
     outputs:
-      tag: ${{ env.TAG }}
-      version: ${{ steps.app-meta.outputs.version }}
-      kind: ${{ steps.tagkind.outputs.kind }}
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+      kind: ${{ steps.meta.outputs.kind }}
     steps:
-      # The tag's tree, and the guidelines submodule for changelog.sh.
-      - name: Checkout
+      - name: Checkout the tag
         uses: actions/checkout@v5
-        with:
-          ref: ${{ env.TAG }}
-          submodules: true
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: '24'
-          cache: npm
+      - name: Release metadata
+        id: meta
+        uses: ./.github/actions/release-meta
+
+      - name: Node dependencies
+        uses: ./.github/actions/node-deps
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
@@ -57,116 +42,96 @@ jobs:
           coverage: none
           tools: composer:v2
 
-      - name: Read app version
-        id: app-meta
-        run: |
-          version="$(sed -n 's|.*<version>\([^<]*\)</version>.*|\1|p' appinfo/info.xml | head -n1 | tr -d '[:space:]')"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          if [ "v${version}" != "${TAG%%-*}" ]; then
-            echo "The manifest says ${version} and the tag says ${TAG}" >&2
-            exit 1
-          fi
-
-      - name: Install frontend dependencies
-        run: npm ci
-
-      # Publishing is the one place an unlinted build cannot be taken back,
-      # so the same checks that gate a push gate a release.
-      - name: Lint frontend
-        run: |
-          npm run lint
-          npm run stylelint
-
-      - name: Build, package, and sign app
-        env:
-          APPSTORE_KEY: ${{ secrets.APPSTORE_KEY }}
-          APPSTORE_CERT: ${{ secrets.APPSTORE_CERT }}
+      # No key here: package.sh builds and packages, and leaves the signing
+      # to the job that holds the key.
+      - name: Build and package
         run: bash package.sh
 
-      - name: Classify release tag
-        id: tagkind
-        run: |
-          # 0.x is pre-release by definition (see CHANGELOG.md) — never stable,
-          # with or without a -suffix. Must stay ahead of the strict semver
-          # branch below, which would otherwise claim plain v0.Y.Z.
-          if [[ "$TAG" =~ ^v0\.[0-9]+\.[0-9]+(-.+)?$ ]]; then
-            echo "kind=nightly" >> "$GITHUB_OUTPUT"
-          elif [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "kind=stable" >> "$GITHUB_OUTPUT"
-          elif [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-.+$ ]]; then
-            echo "kind=nightly" >> "$GITHUB_OUTPUT"
-          else
-            echo "kind=skip" >> "$GITHUB_OUTPUT"
-          fi
-
-      # The body a tag carries: the changelog section, nothing else.
-      - name: Release notes
-        if: steps.tagkind.outputs.kind != 'skip'
-        run: bash GUIDELINES/shared/tools/changelog.sh notes "${{ steps.app-meta.outputs.version }}" > build/release-notes.md
-
-      # Created here when the tag has no release yet, updated otherwise;
-      # the assets go up before the store is told, since it fetches the
-      # download URL on being told.
-      - name: Create the GitHub release with its assets
-        if: steps.tagkind.outputs.kind != 'skip'
-        uses: softprops/action-gh-release@v3
+      - name: Hand the tarballs to the next job
+        uses: actions/upload-artifact@v6
         with:
-          tag_name: ${{ env.TAG }}
-          name: ${{ env.TAG }}
-          body_path: build/release-notes.md
-          prerelease: ${{ steps.tagkind.outputs.kind == 'nightly' }}
-          files: |
+          name: tarballs
+          path: |
             build/file_checksum_search.tar.gz
-            build/file_checksum_search-${{ steps.app-meta.outputs.version }}.tar.gz
-            build/file_checksum_search-${{ steps.app-meta.outputs.version }}.tar.gz.signature
+            build/file_checksum_search-${{ steps.meta.outputs.version }}.tar.gz
+          if-no-files-found: error
 
-  # The store upload, on its own so that it shows as a job of its own: it
-  # waits in the `appstore` environment for whatever protection rules the
-  # environment carries — a required reviewer, a wait timer, the tags it
-  # may run for — and a refusal by the store fails it. The environment also
-  # holds the store's secrets, so no other job can read them.
-  store:
-    name: Publish to the App Store
-    needs: release
-    if: needs.release.outputs.kind != 'skip'
+  sign:
+    name: Sign and release
+    needs: build
+    if: needs.build.outputs.kind != 'skip'
     runs-on: ubuntu-latest
-    environment: appstore
+    environment: signing
     permissions:
-      contents: read
+      contents: write
     env:
-      TAG: ${{ needs.release.outputs.tag }}
-      VERSION: ${{ needs.release.outputs.version }}
-      DOWNLOAD_URL: "https://github.com/${{ github.repository }}/releases/download/${{ needs.release.outputs.tag }}/file_checksum_search-${{ needs.release.outputs.version }}.tar.gz"
+      VERSION: ${{ needs.build.outputs.version }}
     steps:
-      # package.sh and the manifest it reads the version from.
-      - name: Checkout
+      # package.sh, the manifest it reads the version from, and the
+      # guidelines submodule for changelog.sh: this repository's code only.
+      - name: Checkout the tag
         uses: actions/checkout@v5
         with:
-          ref: ${{ env.TAG }}
+          submodules: true
 
-      # The asset the store will fetch, fetched the way the store fetches it:
-      # anonymously, from the release. A broken asset fails here, before the
-      # store is told about it.
-      - name: Download the release asset
-        run: |
-          mkdir -p build
-          curl -fsSL -o "build/file_checksum_search-${VERSION}.tar.gz" "$DOWNLOAD_URL"
+      - name: The tarballs the build made
+        uses: actions/download-artifact@v7
+        with:
+          name: tarballs
+          path: build
 
-      # package.sh --appstore posts a signature it verifies and no longer
-      # signs; until signing moves to a job of its own, this one signs first.
       - name: Sign
         env:
           APPSTORE_KEY: ${{ secrets.APPSTORE_KEY }}
           APPSTORE_CERT: ${{ secrets.APPSTORE_CERT }}
         run: bash package.sh --sign-only
 
+      # The body a tag carries: the changelog section, nothing else.
+      - name: Release notes
+        run: bash GUIDELINES/shared/tools/changelog.sh notes "$VERSION" > build/release-notes.md
+
+      # What is published is what was signed.
+      - name: Create the GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.build.outputs.tag }}
+          name: ${{ needs.build.outputs.tag }}
+          body_path: build/release-notes.md
+          prerelease: ${{ needs.build.outputs.kind == 'nightly' }}
+          files: |
+            build/file_checksum_search.tar.gz
+            build/file_checksum_search-${{ needs.build.outputs.version }}.tar.gz
+            build/file_checksum_search-${{ needs.build.outputs.version }}.tar.gz.signature
+          fail_on_unmatched_files: true
+
+  store:
+    name: Publish to the App Store
+    needs: [ build, sign ]
+    runs-on: ubuntu-latest
+    environment: appstore
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+      DOWNLOAD_URL: "https://github.com/${{ github.repository }}/releases/download/${{ needs.build.outputs.tag }}/file_checksum_search-${{ needs.build.outputs.version }}.tar.gz"
+    steps:
+      - name: Checkout the tag
+        uses: actions/checkout@v5
+
+      # Fetched the way the store fetches it: anonymously, from the release.
+      - name: Download the release's tarball and signature
+        run: |
+          mkdir -p build
+          curl -fsSL -o "build/file_checksum_search-${VERSION}.tar.gz" "$DOWNLOAD_URL"
+          curl -fsSL -o "build/file_checksum_search-${VERSION}.tar.gz.signature" "${DOWNLOAD_URL}.signature"
+
+      # --appstore verifies the signature against the certificate before it
+      # posts, and cannot sign: this job has no key.
       - name: Verify and post the release to the App Store
         env:
           API_TOKEN: ${{ secrets.APPSTORE_TOKEN }}
           APPSTORE_CERT: ${{ secrets.APPSTORE_CERT }}
         run: |
           NIGHTLY_FLAG=""
-          if [ "${{ needs.release.outputs.kind }}" = "nightly" ]; then
+          if [ "${{ needs.build.outputs.kind }}" = "nightly" ]; then
             NIGHTLY_FLAG="--nightly"
           fi
           bash package.sh --appstore $NIGHTLY_FLAG
@@ -176,9 +141,9 @@ jobs:
   # of the e2e suite against it.
   verify:
     name: Install from the store
-    needs: [ release, store ]
+    needs: [ build, store ]
     uses: ./.github/workflows/post-publish.yml
     with:
-      version: ${{ needs.release.outputs.version }}
-      kind: ${{ needs.release.outputs.kind }}
-      tag: ${{ needs.release.outputs.tag }}
+      version: ${{ needs.build.outputs.version }}
+      kind: ${{ needs.build.outputs.kind }}
+      tag: ${{ needs.build.outputs.tag }}

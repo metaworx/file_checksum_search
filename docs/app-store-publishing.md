@@ -7,13 +7,13 @@ published to the Nextcloud App Store.
 
 Publishing is driven by:
 
-- [`package.sh`](../package.sh) — builds and packages the app, and signs the
-  archive when a certificate is available.
+- [`package.sh`](../package.sh) — builds and packages the app, signs the
+  archive when a key is available, and verifies and posts a signed archive.
 - [`.github/workflows/publish.yml`](../.github/workflows/publish.yml) — GitHub
-  Actions release pipeline.
+  Actions release pipeline, called by the tag's test run.
 - [`.gitlab/gitlab-ci.yml`](../.gitlab/gitlab-ci.yml) — the GitLab CI pipeline, parked (see below).
 
-Both CI platforms produce the same artifacts:
+A release produces:
 
 - `build/file_checksum_search.tar.gz` — unversioned archive.
 - `build/file_checksum_search-<version>.tar.gz` — versioned archive.
@@ -68,60 +68,60 @@ DOWNLOAD_URL=https://example.com/file_checksum_search.tar.gz \
 
 ## GitHub Actions
 
-[`publish.yml`](../.github/workflows/publish.yml) runs when the test workflow
-has finished for a tag, on `workflow_run`, or by hand with
-`workflow_dispatch` and a tag name. It does not run on `release:
-published`: a release made with `GITHUB_TOKEN` fires no `release` event, so
-a workflow waiting for one would wait for a release the tag's own run
-creates. When the test run succeeded for a `v*` tag, two jobs run. The
-first, **Build, sign and release**:
+A release is published from the tag's own test run. The last job of
+[`test.yml`](../.github/workflows/test.yml), **Publish**, runs only for a `v*`
+tag whose lint, PHPUnit and Cypress jobs passed, and calls
+[`publish.yml`](../.github/workflows/publish.yml) as a reusable workflow. Every
+publishing job therefore runs with the tag as its ref, which is what an
+environment's deployment rules are matched against; a workflow started by
+`workflow_run` would carry the default branch there. A release is run again by
+hand with `gh workflow run publish.yml --ref <tag>`.
 
-1. Checks out the tag's tree with the guidelines submodule, and installs
-   Node.js 24 and PHP 8.2.
-2. Reads the version from `appinfo/info.xml` and refuses a tag that does not
-   name it.
-3. Runs `npm ci`, then `npm run lint` and `npm run stylelint` — a release is
-   the one build that cannot be taken back, so it is gated as a push is.
-4. Runs `bash package.sh` with the `APPSTORE_KEY`/`APPSTORE_CERT` secrets in
-   the environment: builds the frontend, packages, and signs the versioned
-   archive when both are set (unsigned when neither is).
-5. Classifies the tag: `v0.Y.Z` and any `-suffix` tag are nightlies,
-   `vX.Y.Z` with X ≥ 1 is stable, anything else publishes nothing.
-6. Creates the GitHub release for the tag, or updates it, with the changelog
-   section as its body (`changelog.sh notes X.Y.Z`) and both tarballs and
-   the signature as its assets; a nightly is marked as a pre-release.
+`publish.yml` has three jobs, and each holds at most one secret:
 
-The second, **Publish to the App Store**, runs after it in the `appstore`
-environment, and waits there for whatever the environment's protection
-rules ask — a required reviewer approves it on the run's page, a wait timer
-counts down, a tag rule refuses anything but `v*`. With no rules it runs at
-once. It:
+1. **Build** holds none, and is the only job that runs third-party code
+   (npm and Composer). It reads the version from `appinfo/info.xml`, refuses a
+   tag that does not name it, and classifies the tag: `v0.Y.Z` and any
+   `-suffix` tag are nightlies, `vX.Y.Z` with X ≥ 1 is stable, anything else
+   publishes nothing. Then it builds and packages with `package.sh` and hands
+   the tarballs on as an artifact of the run. It does not lint: the tag's run
+   has linted it already.
+2. **Sign and release** runs in the `signing` environment, with the key, and
+   runs none of the build's code. It signs the tarballs it was handed
+   (`package.sh --sign-only`), and creates the GitHub release with the
+   changelog section as its body (`changelog.sh notes X.Y.Z`) and both
+   tarballs and the signature as its assets; a nightly is marked as a
+   pre-release. What is published is what was signed.
+3. **Publish to the App Store** runs in the `appstore` environment, with the
+   store token and no key. It downloads the versioned tarball and its
+   signature from the release anonymously, the way the store will fetch them,
+   verifies the signature against the certificate, and posts the tarball's
+   URL and the signature to the App Store (`POST /api/v1/apps/releases`), with
+   `--nightly` for a nightly. A refusal by the store fails the job, with the
+   store's answer in the log.
 
-1. Downloads the **versioned** tarball from the release anonymously, the way
-   the store will fetch it, so a broken asset fails here.
-2. Signs it and posts its URL and the signature to the App Store
-   (`POST /api/v1/apps/releases`), with `--nightly` for a nightly. A refusal
-   by the store fails the job, with the store's answer in the log.
+Each environment waits for whatever its protection rules ask: a required
+reviewer approves the job on the run's page, a wait timer counts down, a tag
+rule refuses other refs. The rules are Ruby `File.fnmatch` globs, not regular
+expressions; `v[0-9]*.[0-9]*.[0-9]*` is the closest they get to a version tag,
+and it admits the `-rc` tags a dry run uses. GitHub creates an environment
+without rules the first time a job names it, so create both beforehand.
 
-Signing requires:
+The secrets:
 
-- Secrets `APPSTORE_CERT` (certificate PEM) and `APPSTORE_KEY` (private key
-  PEM, as it is — a secret may hold newlines). Both must be the same
-  certificate/key pair registered for the app in the portal — a mismatch
-  causes the store to reject the upload.
+- `APPSTORE_KEY` (private key PEM, as it is — a secret may hold newlines) in
+  the `signing` environment.
+- `APPSTORE_TOKEN` (App Store API token) in the `appstore` environment.
+- `APPSTORE_CERT` (certificate PEM) as a repository secret; it is public, and
+  both jobs use it to verify.
 
-Publishing additionally requires:
-
-- Secret `APPSTORE_TOKEN` (App Store API token).
-- The `appstore` environment (Settings → Environments). GitHub creates it
-  without rules the first time a job names it, so create it beforehand with
-  the rules wanted. `APPSTORE_KEY` and `APPSTORE_TOKEN` can live in it as
-  environment secrets, where only this job reads them.
+The key and the certificate must be the pair registered for the app in the
+portal — a mismatch causes the store to reject the upload.
 
 The tag reaches GitHub through GitLab's push mirror, so the release procedure
-is `changelog.sh cut`, then `changelog.sh tag X.Y.Z create --push
---push-commits` against `origin`; the test run starts on the mirrored tag
-within a minute and the publish run after it.
+is `changelog.sh cut`, then one push of the branch and the tag to `origin`;
+the test run starts on the mirrored tag within a minute, and publishing
+follows its tests.
 
 ## GitLab CI
 
