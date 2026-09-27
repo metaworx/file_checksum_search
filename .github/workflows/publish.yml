@@ -162,3 +162,15 @@ jobs:
             NIGHTLY_FLAG="--nightly"
           fi
           bash package.sh --appstore $NIGHTLY_FLAG
+
+  # The release as the store hands it out, installed by occ and through the
+  # Apps page on fresh servers, its install steps checked, and a smoke run
+  # of the e2e suite against it.
+  verify:
+    name: Install from the store
+    needs: [ release, store ]
+    uses: ./.github/workflows/post-publish.yml
+    with:
+      version: ${{ needs.release.outputs.version }}
+      kind: ${{ needs.release.outputs.kind }}
+      tag: ${{ needs.release.outputs.tag }}

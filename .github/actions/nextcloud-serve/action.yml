@@ -1,0 +1,22 @@
+name: Serve Nextcloud
+description: Starts the PHP web server on port 8081 over ./nextcloud and waits until it answers.
+
+runs:
+  using: composite
+  steps:
+    - name: Start Nextcloud
+      shell: bash
+      working-directory: nextcloud
+      env:
+        PHP_CLI_SERVER_WORKERS: '3'
+      run: |
+        nohup php -S 0.0.0.0:8081 -t . > /tmp/nc-http.log 2>&1 &
+
+    - name: Warm up Nextcloud HTTP server
+      shell: bash
+      run: |
+        for i in $(seq 1 30); do
+          curl -fsS -o /dev/null http://localhost:8081/status.php && break
+          sleep 1
+        done
+        curl -fsS -o /dev/null http://localhost:8081/index.php/login || true

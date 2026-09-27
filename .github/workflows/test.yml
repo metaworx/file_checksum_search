@@ -1,7 +1,8 @@
 name: Nextcloud App Testing Matrix
 on: [ push, pull_request ]
 jobs:
-  # The jobs below pin nextcloud/setup-server-action to a commit on its main
+  # The jobs below, and .github/actions/nextcloud-e2e, pin
+  # nextcloud/setup-server-action to a commit on its main
   # branch, because its newest release, v0.5.0, still pins actions that run
   # on Node 20. This fails once a newer release is out, so the pin goes back
   # to a release tag and whatever else the release changed gets a look. It
@@ -188,26 +189,10 @@ jobs:
       - name: Checkout app code
         uses: actions/checkout@v5
 
-      - name: Set up Nextcloud Server Instance
-        uses: nextcloud/setup-server-action@8c97e01874d7cb9e1afb0e18cd4685d31518c848 # main after v0.5.0: Node 24 pins; see the upstream job
+      - name: Nextcloud for the e2e suite
+        uses: ./.github/actions/nextcloud-e2e
         with:
           nextcloud-version: ${{ matrix.nextcloud-version }}
-          install: true
-          node-version: '24'
-          database: mysql
-
-      - name: Configure Nextcloud for E2E (disable app store, force English)
-        run: |
-          php occ config:system:set upgrade.disable-web --value=true
-          php occ config:system:set appstoreenabled --value=false --type=boolean
-          php occ config:system:set default_language --value=en
-          php occ config:system:set force_language --value=en
-          php occ app:disable firstrunwizard
-          # A fresh install runs background jobs from every page a logged-in
-          # user opens (AJAX mode); the e2e suite counts state a job would
-          # clear, so jobs run only when a spec runs them.
-          php occ background:cron
-        working-directory: nextcloud
 
       - name: Inject app into integration instance
         run: |
@@ -227,20 +212,8 @@ jobs:
       - name: Copy built frontend assets into the app
         run: rsync -a css js nextcloud/apps/file_checksum_search/
 
-      - name: Start Nextcloud
-        run: |
-          php -S 0.0.0.0:8081 -t . &
-        working-directory: nextcloud
-        env:
-          PHP_CLI_SERVER_WORKERS: 3
-
-      - name: Warm up Nextcloud HTTP server
-        run: |
-          for i in $(seq 1 30); do
-            curl -fsS -o /dev/null http://localhost:8081/status.php && break
-            sleep 1
-          done
-          curl -fsS -o /dev/null http://localhost:8081/index.php/login || true
+      - name: Serve Nextcloud
+        uses: ./.github/actions/nextcloud-serve
 
       - name: Run Integration Tests (Headless Chrome)
         uses: cypress-io/github-action@v7
