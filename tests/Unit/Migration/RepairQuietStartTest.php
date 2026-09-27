@@ -267,6 +267,32 @@ class RepairQuietStartTest
 	}
 
 	/**
+	 * Nextcloud runs an app's pre- and post-migration steps only when an
+	 * earlier version is installed; a first install gets its migrations and
+	 * its `install` steps. Registered as post-migration alone, the repair
+	 * never ran on a fresh server, which kept it without the two default
+	 * rules until the first upgrade — what the post-publish suite found on
+	 * every install from the store.
+	 */
+	public function testTheManifestRunsTheRepairOnFirstInstallsAndOnUpgrades(): void
+	{
+		// Read as a string: Nextcloud's bootstrap switches off libxml's
+		// loader for files, which simplexml_load_file() goes through.
+		$manifest = simplexml_load_string( (string) file_get_contents( dirname( __DIR__, 3 ) . '/appinfo/info.xml' ) );
+
+		$this->assertNotFalse( $manifest );
+
+		foreach ( [ 'post-migration', 'install' ] as $phase )
+		{
+			$this->assertContains(
+				RepairQuietStart::class,
+				array_map( 'strval', $manifest->xpath( "repair-steps/{$phase}/step" ) ?: [] ),
+				"registered for {$phase}",
+			);
+		}
+	}
+
+	/**
 	 * A whole repair runs inside the request that installed or enabled the
 	 * app, so the filecache copy is only queued there — on an instance with
 	 * 300,000 client checksums it held the Apps page for sixteen minutes.

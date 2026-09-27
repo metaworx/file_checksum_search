@@ -57,6 +57,9 @@ What you get:
 		<post-migration>
 			<step>OCA\FileChecksumSearch\Migration\RepairQuietStart</step>
 		</post-migration>
+		<install>
+			<step>OCA\FileChecksumSearch\Migration\RepairQuietStart</step>
+		</install>
 	</repair-steps>
 	<commands>
 		<command>OCA\FileChecksumSearch\Command\SearchHash</command>

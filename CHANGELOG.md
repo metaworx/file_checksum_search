@@ -16,6 +16,9 @@ the first stable release.
 - Enabling the app from the Apps page: hung on an instance whose sync
   clients had stored checksums.
 
+- A fresh install: the default rules were missing until the first
+  upgrade.
+
 ## [0.20.2] - 2026-09-25
 
 ### Added
