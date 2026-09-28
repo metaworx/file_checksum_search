@@ -113,38 +113,40 @@ gets `--allow-unstable` and the Apps page's server moves to the `daily`
 channel; a stable release installs on servers left as they are.
 
 After the upload nothing is installed again. **Listed by the store**
-(`tests/e2e/store/appstore.py watch`) compares the store's entry with the one
-the installs tested — version, channel, download, signature, platform and PHP
-ranges, and the certificate; any difference fails it. It does so in two steps,
-one fact each:
+(`tests/e2e/store/appstore.py watch`) compares the store's entry in
+`api/v1/apps.json` with the one the installs tested — version, channel,
+download, signature, certificate, Nextcloud and PHP ranges, and the app's name,
+summary and description; any difference fails it. It does so in two steps, one
+fact each:
 
-- **The store has the upload** (publishing is done): the store's releases
-  page, which is rendered from its database and shows an upload at once, for
-  every Nextcloud version the manifest allows; up to 10 minutes. The page is
-  HTML, read by its section anchors, release titles and labelled rows: a change
-  to it fails this step rather than passing it.
+- **The store lists the upload** (publishing is done): the store's own listing,
+  on `apps.nextcloud.com`; up to 30 minutes.
 - **Every host lists it** (clients can update, wherever the store sends them;
-  `watch --mirrors`): `api/v1/apps.json` on the store and on every host its
-  redirects lead to, each compared, name, summary and description included;
-  up to five hours. It runs whatever the first step found. On success it
-  comments on the release commit, mentioning `vars.RELEASE_NOTIFY` (or whoever
-  pushed the tag), which is how GitHub e-mails the maintainers. A failed step
-  needs no comment: GitHub mails about a failed run.
+  `watch --mirrors`): the store's listing and that of every host its redirects
+  lead to; up to five hours. It runs whatever the first step found. On success
+  it comments on the release commit, mentioning `vars.RELEASE_NOTIFY` (or
+  whoever pushed the tag), which is how GitHub e-mails the maintainers. A
+  failed step needs no comment: GitHub mails about a failed run.
 
-The JSON listings are cached, each on its own schedule. For the 07:50 upload of
-0.20.3 on 2026-09-28, `apps.json` took 10.8 minutes on the store and 40.5 on
-`garm2` and `garm3`; `platform/34.0.0/apps.json` still carried the previous
-upload after 35 minutes. The store publishes no list of mirrors: it answers
-`api/v1/apps.json` itself or redirects to a mirror (`garm2`, `garm3` when this
-was written), so the watch follows the redirects and asks every host it has
-seen. An entry of the version from before the upload is an earlier upload of
-the same version, still served from a cache or a mirror: the watch asks again
-rather than comparing it.
+Nothing the store serves shows an upload at once. On 2026-09-28, for two
+uploads of 0.20.3:
 
-Every round prints what each host or Nextcloud version still to check shows,
-with the UTC time and the minutes since the upload; one that matched drops out.
-Each step ends with its outcome as one line of JSON, for `grep 'watch-result'`:
-every host or version, its last state, and when the upload landed there.
+| Upload (UTC) | Store's `apps.json` | `garm2`, `garm3` | Other views |
+|---|---|---|---|
+| 07:50 | 10.8 min | 40.5 min | `platform/34.0.0/apps.json` still the previous upload after 35 min |
+| 09:13 | within 10.5 min | 17.1 min | the releases page (`/apps/<id>/releases`) still the previous upload after 10.3 min, this one by 36 min |
+
+The store publishes no list of mirrors: it answers `api/v1/apps.json` itself,
+about one request in three, or redirects to a mirror (`garm2`, `garm3` when
+this was written), so the watch follows the redirects and asks every host it
+has seen. An entry of the version from before the upload is an earlier upload
+of the same version, still served from a cache or a mirror: the watch asks
+again rather than comparing it.
+
+Every round prints what each host still to check shows, with the UTC time and
+the minutes since the upload; one that matched drops out. Each step ends with
+its outcome as one line of JSON, for `grep 'watch-result'`: every host, its
+last state, and when the upload landed there.
 
 Each environment waits for whatever its protection rules ask: a required
 reviewer approves the job on the run's page, a wait timer counts down, a tag
@@ -194,7 +196,7 @@ flowchart TD
             web34["Apps page · NC 34"]
         end
         store["Publish to the App Store<br/><i>environment appstore · APPSTORE_TOKEN</i><br/>verify signature, post to the store"]
-        listed["Listed by the store<br/>the store has the upload · every host lists it<br/>comment on the release commit"]
+        listed["Listed by the store<br/>the store lists the upload · every host lists it<br/>comment on the release commit"]
     end
 
     trigger --> upstream & lint & phpunit & cypress

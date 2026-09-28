@@ -157,13 +157,12 @@ jobs:
           bash package.sh --appstore $NIGHTLY_FLAG
 
   # After the upload nothing is installed again. Two steps, one fact each,
-  # each comparing the store's entry with the upload: the store's releases
-  # page, rendered from its database, shows it for every Nextcloud version
-  # the manifest allows (published); apps.json on the store and on every
-  # host its redirects lead to lists it (clients can update). The second
-  # runs whatever the first found, so a change to the page cannot hide it,
-  # and only it, on success, comments on the release commit: GitHub e-mails
-  # the mentioned maintainers, and mails about a failed run on its own.
+  # each comparing the store's entry in apps.json with the upload: the
+  # store's own listing has it (published); the store's and that of every
+  # host its redirects lead to have it (clients can update). The second runs
+  # whatever the first found, and only it, on success, comments on the
+  # release commit: GitHub e-mails the mentioned maintainers, and mails about
+  # a failed run on its own.
   listed:
     name: Listed by the store
     needs: [ build, store ]
@@ -188,11 +187,11 @@ jobs:
           curl -fsSL -o /tmp/release.signature "${DOWNLOAD_URL}.signature"
           printf '%s\n' "$APPSTORE_CERT" > /tmp/app.crt
 
-      - name: The store has the upload
+      - name: The store lists the upload
         run: |
           python3 tests/e2e/store/appstore.py watch --version "$VERSION" --download "$DOWNLOAD_URL" \
             --signature /tmp/release.signature --certificate /tmp/app.crt $NIGHTLY --since "$UPLOADED" \
-            --timeout 10 --summary "$GITHUB_STEP_SUMMARY"
+            --timeout 30 --summary "$GITHUB_STEP_SUMMARY"
 
       - name: Every host lists it
         if: ${{ !cancelled() && steps.material.outcome == 'success' }}

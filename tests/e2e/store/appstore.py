@@ -10,16 +10,16 @@ after it through the real store's listing.
       server pointed here with `appstoreurl` sees the store as it is, with
       one release more, and runs its real install path against it.
 
-  appstore.py watch — after the upload, compares the store's entry with the
-      one the fake store serves, wherever the store shows it:
-      - by default, the store's releases page, rendered from its database,
-        for every Nextcloud version the manifest allows: the release is
-        published. The JSON listings are cached, and lag;
-      - with --mirrors, api/v1/apps.json on the store and on every host its
-        redirects lead to, name, summary and description included: clients
-        can update, wherever the store sends them. The store publishes no
-        list of mirrors.
-      Every round prints what each host or version still to check shows; the
+  appstore.py watch — after the upload, compares the store's entry in
+      api/v1/apps.json with the one the fake store serves, name, summary and
+      description included:
+      - by default, the store's own listing: the release is published;
+      - with --mirrors, the store's and that of every host its redirects lead
+        to: clients can update, wherever the store sends them. The store
+        publishes no list of mirrors.
+      Every listing is cached, the store's own too, and so is its releases
+      page: each has shown an upload only after ten minutes or more.
+      Every round prints what each host still to check shows; the
       last line, `watch-result {...}`, is the outcome as JSON. With --since,
       the upload's time, an entry of the version from before it is an
       earlier upload of the same version, still served from a cache or a
@@ -42,7 +42,6 @@ Usage:
 import argparse
 import datetime
 import gzip
-import html
 import http.client
 import http.server
 import json
@@ -59,7 +58,6 @@ import xml.etree.ElementTree as ET
 APP_ID = 'file_checksum_search'
 STORE = 'apps.nextcloud.com'
 LISTING = '/api/v1/apps.json'
-RELEASES_PAGE = f'/apps/{APP_ID}/releases'
 REDIRECTS = (301, 302, 303, 307, 308)
 
 
@@ -75,10 +73,9 @@ def _range(value) -> str:
 	return ' '.join(str(value).replace(',', ' ').split())
 
 
-# The fields compared after the upload, each normalised as its source may
-# write it: the releases page separates a range's bounds with a comma and
-# breaks the certificate into lines, and the store trims the texts. A source
-# compares the fields it shows; the releases page shows no texts.
+# The fields compared after the upload, each normalised so that what the
+# store only reformats does not count: it trims the texts, and a range or a
+# certificate may be spaced or wrapped differently.
 COMPARED = {
 	'version': str,
 	'isNightly': bool,
@@ -100,15 +97,6 @@ LABELS = {
 	'certificate': 'certificate', 'platformVersionSpec': 'Nextcloud range', 'rawPlatformVersionSpec': 'Nextcloud range',
 	'phpVersionSpec': 'PHP range', 'rawPhpVersionSpec': 'PHP range',
 	'name': 'name', 'summary': 'summary', 'description': 'description',
-}
-
-# The fields the releases page shows.
-PAGE_FIELDS = ('version', 'isNightly', 'download', 'signature', 'certificate', 'platformVersionSpec', 'phpVersionSpec')
-
-# The releases page's months, as Django writes them: 'Sept. 28, 2026, 7:50 a.m.'
-AP_MONTHS = {
-	'Jan.': 1, 'Feb.': 2, 'March': 3, 'April': 4, 'May': 5, 'June': 6,
-	'July': 7, 'Aug.': 8, 'Sept.': 9, 'Oct.': 10, 'Nov.': 11, 'Dec.': 12,
 }
 
 # How far the store's clock and the uploader's may differ before a new entry
@@ -165,14 +153,6 @@ def manifest_texts(manifest_path: str) -> dict:
 		if element is not None:
 			texts[field] = element.text or ''
 	return texts
-
-
-def platforms(manifest_path: str) -> list[int]:
-	"""The Nextcloud major versions the manifest allows; only the minimum where it names no maximum."""
-	nextcloud = ET.parse(manifest_path).getroot().find('dependencies/nextcloud')
-	low = int(nextcloud.get('min-version').split('.')[0])
-	high = int((nextcloud.get('max-version') or str(low)).split('.')[0])
-	return list(range(low, high + 1))
 
 
 def listed_release(apps: list, version: str, nightly: bool) -> tuple[dict | None, dict | None]:
@@ -308,7 +288,8 @@ def this_upload(host: str, etags: dict[str, str], seen: dict[str, str], args) ->
 		return None, f'no answer: {e}', None
 	if status in REDIRECTS:
 		target = urllib.parse.urlparse(headers.get('location', '')).hostname
-		return None, f'redirected to {target or "?"}, its own copy not seen this round', target
+		last = f'; last seen: {seen[host]}' if host in seen else ''
+		return None, f'redirected to {target or "?"}, its own copy not seen this round{last}', target
 	if status == 304:
 		return None, f'{seen.get(host, "?")}, unchanged', None
 	if status != 200:
@@ -324,79 +305,6 @@ def this_upload(host: str, etags: dict[str, str], seen: dict[str, str], args) ->
 	# The release's fields, with the app's certificate and English texts.
 	fields = {**release, 'certificate': entry.get('certificate', ''), **entry.get('translations', {}).get('en', {})}
 	return fields, f'lists this upload, modified {release["lastModified"]}', None
-
-
-def page_time(text: str) -> datetime.datetime:
-	"""The releases page's time, 'Sept. 28, 2026, 7:50 a.m.', in UTC and to the minute."""
-	date = re.fullmatch(r'(\S+) (\d+), (\d{4}), (.+)', text)
-	if not date or date[1] not in AP_MONTHS:
-		raise ValueError(text)
-	if date[4] in ('midnight', 'noon'):
-		hour, minute = (0 if date[4] == 'midnight' else 12), 0
-	else:
-		clock = re.fullmatch(r'(\d+)(?::(\d+))? ([ap])\.m\.', date[4])
-		if not clock:
-			raise ValueError(text)
-		hour, minute = int(clock[1]) % 12 + (12 if clock[3] == 'p' else 0), int(clock[2] or 0)
-	return datetime.datetime(int(date[3]), AP_MONTHS[date[1]], int(date[2]), hour, minute, tzinfo=datetime.timezone.utc)
-
-
-def releases_page() -> tuple[dict[int, list[dict]] | None, str]:
-	"""This app's releases on the store's releases page, per Nextcloud version.
-
-	The page is rendered from the store's database, not from a cached
-	listing, so it shows an upload at once. It is HTML, read by what it
-	shows: an anchor per Nextcloud version, a title per release, its details
-	as labelled table rows, and the download link. A field the page no
-	longer shows reads as None, and fails the comparison.
-	"""
-	request_ = urllib.request.Request(
-		f'https://{STORE}{RELEASES_PAGE}',
-		headers={'User-Agent': 'fcias-release-watch', 'Accept-Language': 'en'},
-	)
-	try:
-		with urllib.request.urlopen(request_, timeout=120) as response:
-			page = response.read().decode('utf-8')
-	except OSError as e:
-		return None, f'no answer: {e}'
-
-	sections: dict[int, list[dict]] = {}
-	for platform, section in re.findall(r'<a name="(\d+)"></a>(.*?)(?=<a name="\d+"></a>|<footer)', page, re.S):
-		releases = sections.setdefault(int(platform), [])
-		for title, body in re.findall(r'<h5>(.*?)</h5>(.*?)(?=<h5>|\Z)', section, re.S):
-			heading = re.search(r'(\S+)(?: \((nightly)\))?$', html.unescape(title).strip())
-			rows = {
-				html.unescape(label).strip(): ' '.join(html.unescape(re.sub(r'<[^>]+>', ' ', value)).split())
-				for label, value in re.findall(r'<tr>\s*<td>([^<]*)</td>\s*<td[^>]*>(.*?)</td>\s*</tr>', body, re.S)
-			}
-			link = re.search(r'<a href="([^"]+)"[^>]*class="release-download"', body)
-			releases.append({
-				'version': heading[1] if heading else None,
-				'isNightly': bool(heading and heading[2]),
-				'download': html.unescape(link[1]) if link else None,
-				'signature': rows.get('Signature'),
-				'certificate': rows.get('Certificate'),
-				'platformVersionSpec': rows.get('Required Nextcloud versions'),
-				'phpVersionSpec': rows.get('PHP'),
-				'updated': rows.get('Updated'),
-			})
-	return sections, 'read'
-
-
-def page_upload(sections: dict[int, list[dict]], platform: int, args) -> tuple[dict | None, str]:
-	"""The page's entry for this upload under one Nextcloud version, and what the page shows there."""
-	if platform not in sections:
-		return None, 'the page has no section for this Nextcloud version'
-	release = next((r for r in sections[platform] if r['version'] == args.version and r['isNightly'] == args.nightly), None)
-	if release is None:
-		return None, f'{args.version} not listed'
-	try:
-		updated = page_time(release['updated'] or '')
-	except ValueError:
-		return None, f'the update time {release["updated"]!r} cannot be read'
-	if args.since and updated < args.since - CLOCK_MARGIN:
-		return None, f'still the upload of {args.version} from {updated:%Y-%m-%d %H:%M}Z'
-	return {k: v for k, v in release.items() if k != 'updated'}, f'lists this upload, updated {updated:%H:%M}Z'
 
 
 def described(fields) -> str:
@@ -462,10 +370,9 @@ def watch(args) -> int:
 	def log(message: str) -> None:
 		print(f'[{now():%H:%M:%S}Z {minutes():6.1f} min] {message}', flush=True)
 
-	# Without --mirrors, the Nextcloud versions on the store's releases page;
-	# with it, the store and every host it redirects to.
-	targets: set[str] = {STORE} if args.mirrors else {f'Nextcloud {p}' for p in platforms(args.manifest)}
-	compared = described(f for f in COMPARED if f in expected and (args.mirrors or f in PAGE_FIELDS))
+	# The store itself; with --mirrors, every host it redirects to as well.
+	targets: set[str] = {STORE}
+	compared = described(f for f in COMPARED if f in expected)
 	etags: dict[str, str] = {}
 	seen: dict[str, str] = {}
 	states: dict[str, str] = {}
@@ -474,7 +381,7 @@ def watch(args) -> int:
 	mismatches: list[str] = []
 
 	def settle(name: str, found: dict | None, state: str) -> bool:
-		"""Logs what a host or version shows, and compares it; False on a difference."""
+		"""Logs what a host shows, and compares it; False on a difference."""
 		states[name] = state
 		log(f'{name}: {state}')
 		if found is None:
@@ -492,32 +399,27 @@ def watch(args) -> int:
 
 	first = True
 	while True:
-		# Every host or version still to check, every round: what each one
-		# shows is the progress. One that matched is done and drops out.
-		if args.mirrors:
-			new = discover(targets, log, 20 if first else 6)
-			if first:
+		# Every host still to check, every round: what each one shows is the
+		# progress. One that matched is done and drops out. The store answers
+		# a request itself about one time in three and redirects the others,
+		# so its own copy is not seen every round.
+		new = discover(targets, log, 20 if first else 6) if args.mirrors else set()
+		if first:
+			if args.mirrors:
 				log(f'minutes count from {counted_from}; the store and the hosts it redirects to: {", ".join(sorted(targets))}')
-				log(f'compared with the upload: {compared}')
 			else:
-				for host in sorted(new):
-					log(f'the store now also redirects to {host}')
-			for host in sorted(targets - set(listed)):
-				found, state, target = this_upload(host, etags, seen, args)
-				if not settle(host, found, state):
-					break
-				if target and target not in targets:
-					targets.add(target)
-					log(f'the store now also redirects to {target}')
+				log(f'minutes count from {counted_from}; the store\'s own listing, {STORE}')
+			log(f'compared with the upload: {compared}')
 		else:
-			if first:
-				log(f'minutes count from {counted_from}; the store\'s releases page, for {", ".join(sorted(targets))}')
-				log(f'compared with the upload: {compared}')
-			sections, answer = releases_page()
-			for name in sorted(targets - set(listed)):
-				found, state = page_upload(sections, int(name.split()[-1]), args) if sections is not None else (None, answer)
-				if not settle(name, found, state):
-					break
+			for host in sorted(new):
+				log(f'the store now also redirects to {host}')
+		for host in sorted(targets - set(listed)):
+			found, state, target = this_upload(host, etags, seen, args)
+			if not settle(host, found, state):
+				break
+			if args.mirrors and target and target not in targets:
+				targets.add(target)
+				log(f'the store now also redirects to {target}')
 		first = False
 
 		done = set(listed) >= targets and not mismatches
@@ -526,13 +428,12 @@ def watch(args) -> int:
 		time.sleep(args.interval)
 
 	channel = 'nightly' if args.nightly else 'stable'
-	scope = 'every host of the store' if args.mirrors else 'the store\'s releases page'
-	kind = 'Host' if args.mirrors else 'Nextcloud'
+	scope = 'every host of the store' if args.mirrors else 'the store'
 
 	if args.summary:
 		with open(args.summary, 'a', encoding='utf-8') as f:
 			f.write(f'### {APP_ID} {args.version} ({channel}): {scope}\n\n')
-			f.write(f'| {kind} | Lists this upload after | Landed |\n|---|---|---|\n')
+			f.write('| Host | Lists this upload after | Landed |\n|---|---|---|\n')
 			for name in sorted(targets):
 				after = f'{listed[name]} min' if name in listed else '—'
 				f.write(f'| `{name}` | {after} | {zulu(landed[name]) if name in landed else states.get(name, "not asked")} |\n')
@@ -541,14 +442,15 @@ def watch(args) -> int:
 				f.write('\n**An entry differs from the upload:**\n\n')
 				f.write(''.join(f'- {line}\n' for line in mismatches))
 			elif done:
-				f.write(f'\nEverywhere, the entry matches the upload: {compared}.\n')
+				f.write(f'\n{"Everywhere, the" if args.mirrors else "The"} entry matches the upload: {compared}.\n')
 
 	if mismatches:
 		code = 2
 	elif not done:
 		code = 1
-		missing = ', '.join(sorted(targets - set(listed)))
-		print(f'::error::After {args.timeout:g} minutes, {missing} still do not show this upload of {args.version}.', flush=True)
+		missing = sorted(targets - set(listed))
+		verb = 'does' if len(missing) == 1 else 'do'
+		print(f'::error::After {args.timeout:g} minutes, {", ".join(missing)} still {verb} not show this upload of {args.version}.', flush=True)
 	else:
 		code = 0
 
@@ -556,11 +458,11 @@ def watch(args) -> int:
 		tag = os.environ.get('GITHUB_REF_NAME', args.version)
 		repository = f'{os.environ.get("GITHUB_SERVER_URL", "https://github.com")}/{os.environ.get("GITHUB_REPOSITORY", "")}'
 		run = f'{repository}/actions/runs/{os.environ.get("GITHUB_RUN_ID", "")}'
-		where = 'every host the store sent requests to' if args.mirrors else 'the store\'s releases page'
+		where = 'every host the store sent requests to' if args.mirrors else 'the store'
 		times = ''.join(f'- `{name}` after {listed[name]} min\n' for name in sorted(listed))
 		text = (
 			f'**{tag} ({channel})** is listed by {where}:\n\n{times}\n'
-			f'[The run]({run})  \n[The release]({repository}/releases/tag/{tag})  \n{args.comment}'
+			f'[The run]({run})  \n[The release]({repository}/releases/tag/{tag})  \n\nNotify: {args.comment}'
 		)
 		try:
 			post_comment(text)
@@ -570,7 +472,7 @@ def watch(args) -> int:
 
 	# The outcome in one line, for grep: `grep -o 'watch-result .*'`.
 	result = {
-		'watch': 'mirrors' if args.mirrors else 'releases-page',
+		'watch': 'mirrors' if args.mirrors else 'store',
 		'version': args.version,
 		'channel': channel,
 		'since': zulu(args.since) if args.since else None,
@@ -608,7 +510,7 @@ def main() -> None:
 	watcher = commands.choices['watch']
 	watcher.add_argument('--certificate', required=True)
 	watcher.add_argument('--since', type=utc, metavar='TIME', help='the upload\'s time, ISO 8601; UTC where it names no zone')
-	watcher.add_argument('--mirrors', action='store_true', help='read apps.json on the store and every host it redirects to, instead of the store\'s releases page')
+	watcher.add_argument('--mirrors', action='store_true', help='also every host the store redirects to, not only the store itself')
 	watcher.add_argument('--timeout', type=float, default=30, metavar='MIN', help='minutes to wait (default: %(default)s)')
 	watcher.add_argument('--interval', type=float, default=60, metavar='SEC', help='seconds between rounds (default: %(default)s)')
 	watcher.add_argument('--summary', metavar='FILE', help='a Markdown file to append the outcome to, e.g. $GITHUB_STEP_SUMMARY')
