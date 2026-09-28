@@ -33,7 +33,7 @@ refer to linked documents for extended guidance.
   6. Commit Policy (STRICT)
   7. Additional References
   8. Document Governance
-- File Checksum Index & Search — Project Contract (v2.8.0)
+- File Checksum Index & Search — Project Contract (v2.9.0)
   1. Project Facts
   2. Primary References
   3. Project-Specific Conventions
@@ -272,7 +272,7 @@ Their values come from `GUIDELINES/config.ini`.
 ---
 
 
-# File Checksum Index & Search — Project Contract (v2.8.0)
+# File Checksum Index & Search — Project Contract (v2.9.0)
 
 What binds work in this project, for everyone working on it. Inlined into
 `/AGENTS.md` for agents and into `GUIDELINES/README.md` for people, so
@@ -400,6 +400,11 @@ A change to a wrapped text runs
 `scripts/l10n.sh update`; every language kept in `translationfiles/<lang>/` stays
 complete, and `l10n/` is built from them, never edited by hand.
 
+Two checks hold this: `.eslintrc.cjs` fails a bare text in a template
+(`vue/no-bare-strings-in-template`, the components' text attributes included)
+and a literal handed straight to a toast, and CI's lint job runs
+`scripts/l10n.sh check`.
+
 ## 4. Document Governance
 
 - This document follows the shared governance rules in `GUIDELINES/shared/GOVERNANCE.md`.
@@ -408,6 +413,7 @@ complete, and `l10n/` is built from them, never edited by hand.
 
 | Version | Date       | Changed sections | Change type | Agent impact |
 |---------|------------|------------------|-------------|--------------|
+| v2.9.0  | 2026-09-28 | 3                | minor       | §3.7 names the checks that hold it: the lint fails a bare text in a template and a literal handed to a toast, and CI runs `scripts/l10n.sh check`. |
 | v2.8.0  | 2026-09-28 | 3                | minor       | §3.7: a server message is translated where it is made, as Nextcloud core does, so the command line shows a service's message in the server's default language; a command's own output and every log stay English, the log of a message that is also shown getting the English. |
 | v2.7.0  | 2026-09-28 | 3                | minor       | §3.7: in a Vue template, one `t()` to a line with no quoted text among its values, which is what the tool's pattern can read; the frontend's `t`/`n` come from `src/l10n.ts`, which leaves escaping to Vue, so no translated text goes into `v-html` and a sentence carries no markup. |
 | v2.6.0  | 2026-09-28 | 1, 3             | minor       | `l10n/` is shipped code; the translation command is `scripts/l10n.sh`, running Nextcloud's own tool, pinned; Python, the tooling's language, is declared. §3.7: every user-facing text goes through `t()`/`n()` or `IL10N` in the form the tool can read, and every language kept here stays complete. |

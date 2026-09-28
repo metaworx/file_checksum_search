@@ -21,6 +21,34 @@ module.exports = {
 		// worth keeping: it catches the empty tag rather than mandating it.
 		'jsdoc/require-param-description': 'warn',
 		'vue/first-attribute-linebreak': 'off',
+		// Every text a person reads goes through t() (AGENTS.md §3.7). The
+		// allowlist is the rule's own punctuation plus the glyphs the app
+		// shows as they are; the attributes are the ones a text arrives in,
+		// the components' own included. NcSelect's `label` names the options'
+		// key field, not a text, and is left alone.
+		'vue/no-bare-strings-in-template': ['error', {
+			allowlist: [
+				'(', ')', ',', '.', '&', '+', '-', '=', '*', '/', '#', '%', '!', '?', ':', '[', ']', '{', '}', '<', '>',
+				'·', '•', '‐', '–', '—', '−', '|',
+				'…', '✓', '✗', '←', '→', '⠿',
+			],
+			attributes: {
+				'/.+/': [
+					'title', 'aria-label', 'aria-placeholder', 'aria-roledescription', 'aria-valuetext',
+					'placeholder', 'switch-label', 'empty-text', 'empty-scope-text', 'input-label', 'text',
+				],
+				'/^(?!NcSelect$).+/': ['label'],
+				img: ['alt'],
+			},
+		}],
+		'no-restricted-syntax': [
+			'error',
+			// toastSaved('Saved.'): the same bare text by another door.
+			{
+				selector: 'CallExpression[callee.name=/^toast(Saved|Success|Error)$/][arguments.0.type=/^(Literal|TemplateLiteral)$/]',
+				message: 'Pass the toast a translated text: t(\'file_checksum_search\', \'…\'). See AGENTS.md §3.7.',
+			},
+		],
 	},
 	overrides: [
 		{

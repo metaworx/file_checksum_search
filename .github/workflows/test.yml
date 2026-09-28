@@ -74,6 +74,15 @@ jobs:
           curl -fsSL -o info.xsd https://raw.githubusercontent.com/nextcloud/appstore/master/nextcloudappstore/api/v1/release/info.xsd
           xmllint --noout --schema info.xsd appinfo/info.xml
 
+      # The translation template, every .po file and l10n/ say what the
+      # source says, and every language kept here is complete (AGENTS.md
+      # §3.7). Nextcloud's tool runs on the runner's PHP and needs gettext.
+      - name: Translations are current
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends gettext
+          scripts/l10n.sh check
+
   phpunit:
     runs-on: ubuntu-latest
     if: *one-run-per-release
