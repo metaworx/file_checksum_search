@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 24 24"
+     width="20"
+     height="20"
+>
+	<!--
+		The Duplicates entry in Nextcloud's top bar: the app icon's shield,
+		three times over, with a check beside the stack.
+
+		White on transparent, as the other top-bar icons are: Nextcloud draws
+		them through its background-image-invert-if-bright filter, so on a
+		bright header everything here is inverted. The white turns black and
+		the grey lines stay grey; the red check turns cyan there, the one
+		colour that does not keep its meaning.
+
+		Every shield is the app icon's, 18 by 21, scaled by 0.8095 and moved
+		into place. Each is cut back, through a mask, where the shields in
+		front of it and the check stand: that gap is what keeps the stack
+		readable at 20 px. The clearances are the same outlines, drawn black
+		in the mask and wider by the gap.
+	-->
+
+	<!-- Back shield: an outline, cleared around the middle and front shields and the check. -->
+	<mask id="fcias-dup-m0" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
+		<rect width="24" height="24" fill="#fff"/>
+		<path transform="translate(4.3 3.5) scale(0.8095)"
+		      d="M9 0L0 3v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V3z"
+		      fill="#000" stroke="#000" stroke-width="5.188" stroke-linejoin="round"/>
+		<path transform="translate(0.9 6.1) scale(0.8095)"
+		      d="M9 0L0 3v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V3z"
+		      fill="#000" stroke="#000" stroke-width="5.188" stroke-linejoin="round"/>
+		<path d="M15 19.9l2.6 2.6 4.9-4.9"
+		      fill="none" stroke="#000" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+	</mask>
+	<g mask="url(#fcias-dup-m0)">
+		<path transform="translate(7.7 0.9) scale(0.8095)"
+		      d="M9 0L0 3v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V3z"
+		      fill="none" stroke="#fff" stroke-width="2.224" stroke-linejoin="round"/>
+	</g>
+
+	<!-- Middle shield: an outline, cleared around the front shield and the check. -->
+	<mask id="fcias-dup-m1" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
+		<rect width="24" height="24" fill="#fff"/>
+		<path transform="translate(0.9 6.1) scale(0.8095)"
+		      d="M9 0L0 3v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V3z"
+		      fill="#000" stroke="#000" stroke-width="5.188" stroke-linejoin="round"/>
+		<path d="M15 19.9l2.6 2.6 4.9-4.9"
+		      fill="none" stroke="#000" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+	</mask>
+	<g mask="url(#fcias-dup-m1)">
+		<path transform="translate(4.3 3.5) scale(0.8095)"
+		      d="M9 0L0 3v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V3z"
+		      fill="none" stroke="#fff" stroke-width="2.224" stroke-linejoin="round"/>
+	</g>
+
+	<!-- Front shield: solid, with the app icon's data lines, cleared around the check. -->
+	<mask id="fcias-dup-m2" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
+		<rect width="24" height="24" fill="#fff"/>
+		<path d="M15 19.9l2.6 2.6 4.9-4.9"
+		      fill="none" stroke="#000" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+	</mask>
+	<g mask="url(#fcias-dup-m2)">
+		<path transform="translate(0.9 6.1) scale(0.8095)"
+		      d="M9 0L0 3v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V3z"
+		      fill="#fff" stroke="#fff" stroke-width="2.224" stroke-linejoin="round"/>
+		<path d="M3.65 11.28h5.26M3.65 14.11h8.5M3.65 16.95h6.88"
+		      fill="none" stroke="#64748B" stroke-width="1.7" stroke-linecap="round"/>
+	</g>
+
+	<!-- The check: outside the stack, its pivot on the front shield's bottom line. -->
+	<path d="M15 19.9l2.6 2.6 4.9-4.9"
+	      fill="none" stroke="#E9322D" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

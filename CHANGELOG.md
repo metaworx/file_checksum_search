@@ -30,6 +30,9 @@ the first stable release.
 - Enabling or upgrading on a large instance: the repair's hash-index
   check and orphan purge held the request for a minute.
 
+- Duplicates in the top bar: its icon was nearly invisible on the
+  header's blue.
+
 ## [0.20.3] - 2026-09-27
 
 ### Fixed

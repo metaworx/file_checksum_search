@@ -103,6 +103,7 @@ Was du bekommst:
 			<id>file_checksum_search</id>
 			<name>Duplicates</name>
 			<route>file_checksum_search.page.index</route>
+			<icon>duplicates.svg</icon>
 			<order>5</order>
 		</navigation>
 	</navigations>
