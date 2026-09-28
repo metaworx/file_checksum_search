@@ -1,0 +1,24 @@
+# Paths Nextcloud's translation tool does not read for texts: a line is a
+# prefix of a path relative to the app's root. Read by the tool itself, both
+# through scripts/l10n.py and, should the app join Nextcloud's Transifex,
+# its sync.
+
+# Tests, their helpers and their configuration
+tests
+src/test-utils
+vitest.config.ts
+vitest.setup.ts
+
+# Dependencies, build output and tooling
+vendor
+vendor-bin
+node_modules
+js
+build
+vite.config.ts
+ecs.php
+rector.php
+scripts
+
+# Agent and project documents
+GUIDELINES

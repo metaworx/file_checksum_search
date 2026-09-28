@@ -1,0 +1,85 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the Nextcloud package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Nextcloud 3.14159\n"
+"Report-Msgid-Bugs-To: translations\\@example.com\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Checksums"
+msgstr ""
+
+msgid "Checksums indexed for this file. Click a hash to copy it."
+msgstr ""
+
+msgid "Compute a checksum for the selected algorithm."
+msgstr ""
+
+msgid "Copied!"
+msgstr ""
+
+msgid "Duplicates"
+msgstr ""
+
+msgid "Error"
+msgstr ""
+
+msgid "File Checksum Index & Search"
+msgstr ""
+
+msgid "Find across accounts"
+msgstr ""
+
+msgid "Find duplicates"
+msgstr ""
+
+msgid "Find other files sharing a checksum with this file."
+msgstr ""
+
+msgid "Index file checksums for fast reverse hash lookups and duplicate detection, including REST, CLI and PHP APIs"
+msgstr ""
+
+msgid ""
+"Indexes file checksums, so a hash can be looked up in reverse and duplicates found at once.\n"
+"\n"
+"What you get:\n"
+"\n"
+"- **Unified Search** by hash: paste a checksum, find the file.\n"
+"- A **Checksums** tab in the file details: every algorithm the file carries, recalculated on demand, with its duplicates listed inline.\n"
+"- A **Duplicates** page: every group of identical files you hold, and for administrators across every account.\n"
+"- **Rules** decide what is hashed and when: instance-wide or per account, by path pattern, computed in the background.\n"
+"- A stable **REST API (v1)** and a stable **PHP API** for other apps and integrations.\n"
+"- **occ commands** for hashing, searching, duplicates, rules, backup, import and export.\n"
+"- Storage in Nextcloud's own files metadata index: no custom tables, nothing to migrate."
+msgstr ""
+
+msgid "Loading checksums …"
+msgstr ""
+
+msgid "No checksums available for this file."
+msgstr ""
+
+msgid "No other files share checksums with this file."
+msgstr ""
+
+msgid "Open the Duplicates page on this hash, across every account you may see"
+msgstr ""
+
+msgid "Recalc"
+msgstr ""
+
+msgid "Recalculate"
+msgstr ""
+
+msgid "Searching …"
+msgstr ""

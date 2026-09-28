@@ -20,6 +20,11 @@
 /package.sh
 /.gitlab/
 
+# Translation tooling and sources: l10n/ ships, what it is made from does not
+/scripts/
+/.l10nignore
+/translationfiles/
+
 # IDE / editor
 .idea
 .editorconfig

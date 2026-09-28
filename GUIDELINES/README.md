@@ -48,7 +48,7 @@ fragment and re-run `GUIDELINES/shared/tools/sync.sh`.
 ---
 
 
-# File Checksum Index & Search — Project Contract (v2.5.0)
+# File Checksum Index & Search — Project Contract (v2.6.0)
 
 What binds work in this project, for everyone working on it. Inlined into
 `/AGENTS.md` for agents and into `GUIDELINES/README.md` for people, so
@@ -67,12 +67,13 @@ A Nextcloud app that indexes file checksums and makes them searchable.
 | Fact                  | Value |
 |-----------------------|-------|
 | Project name          | `metaworx/file_checksum_search`, Nextcloud app id `file_checksum_search` |
-| Language(s)           | declared as `project.languages` in `GUIDELINES/config.ini`, kept honest by `GUIDELINES/shared/tools/detect-languages.sh --check`. PHP backend, TypeScript and Vue frontend, SCSS/CSS, YAML for CI — of which Vue and YAML have no shared baseline, so they are not declared. |
+| Language(s)           | declared as `project.languages` in `GUIDELINES/config.ini`, kept honest by `GUIDELINES/shared/tools/detect-languages.sh --check`. PHP backend, TypeScript and Vue frontend, SCSS/CSS, YAML for CI, Python for tooling (`scripts/l10n.py`, `tests/e2e/store/appstore.py`) — of which Vue and YAML have no shared baseline, so they are not declared. |
 | Source directories    | `lib/` (PSR-4 `OCA\FileChecksumSearch\`), `src/` (frontend), `tests/` (PSR-4 `OCA\FileChecksumSearch\Tests\`), `appinfo/`, `templates/` |
-| Shipped-code paths    | `lib/`, `src/`, `css/`, `js/`, `templates/`, `img/`, `appinfo/routes.php`, `appinfo/info.xml` |
+| Shipped-code paths    | `lib/`, `src/`, `css/`, `js/`, `l10n/`, `templates/`, `img/`, `appinfo/routes.php`, `appinfo/info.xml` |
 | Version manifest      | `appinfo/info.xml`: the `manifest` of `CHANGELOG.md` in `GUIDELINES/config.ini`, so `changelog.sh cut` sets its `<version>` and `check` holds it to the newest section; its `<screenshot>` URLs sit in a `RELEASE-PIN` block the same cut moves |
 | Test gate command     | `GUIDELINES/shared/lang/php/tools/phpunit` (the shipped wrapper; `composer test` inside the container or CI); this checkout has no `.ddev/`, so the wrapper needs `MWX_PHPUNIT_DDEV_DIR` set to the harness instance's directory (§3.5) and `MWX_PHPUNIT_MOUNT=/var/www/html/apps/file_checksum_search`, whose values this machine keeps in `GUIDELINES/config.local.ini` under `[phpunit]`; `--testsuite unit` or `integration` for one of them; frontend `npm test` (Vitest) |
 | Lint command          | `composer cs:check` / `composer cs:fix` (ECS with `mwx/coding-standard`, configured in `ecs.php` over `lib/`, `tests/`, `appinfo/` and `templates/`), `composer psalm`, `composer rector`; frontend `npm run lint` and `npm run stylelint`; the manifest `xmllint --noout --schema info.xsd appinfo/info.xml`, with `info.xsd` fetched from `https://raw.githubusercontent.com/nextcloud/appstore/master/nextcloudappstore/api/v1/release/info.xsd`, which is what the app store runs at upload and CI runs first |
+| Translation command   | `scripts/l10n.sh` (the door to `scripts/l10n.py`; needs PHP and gettext): `update` after a wrapped text changes, `add <lang>` to start a language, `build` after a `.po` file changes; `check` fails when the template, a `.po` file or `l10n/` is out of date, or a language kept here misses a translation. The work is done by Nextcloud's own `translationtool.phar`, pinned by commit and SHA-256 in `scripts/l10n.py` (§3.7) |
 
 ## 2. Primary References
 
@@ -135,6 +136,29 @@ defines what it needs (`vitest.config.ts`, `vitest.setup.ts`), and
 modules) is the spec's to write, and spreads the original where it names
 only part of a module.
 
+### 3.7 Every user-facing text is translatable
+
+A text a person reads in the app — in a template, a toast, a label, a server
+message the interface shows — goes through
+`t('file_checksum_search', '…')` or `n('file_checksum_search', '…', '…', count)`,
+and in PHP through `IL10N`. Nextcloud's translation tool finds only what these
+calls spell out:
+
+- the text is a literal; in a Vue template, on one line or as a template
+  literal without `${}`;
+- a value is a placeholder (`t('file_checksum_search', 'Band {band}', { band })`),
+  never a concatenation of translated pieces;
+- a count takes `n()`, and in a template reaches it through a computed value,
+  since the tool does not read `n()` there;
+- a text kept in a constant is translated where it is read, not when the
+  module loads;
+- a short or ambiguous text gets a `TRANSLATORS` comment, which the tool
+  hands to translators.
+
+Logs and `occ` output stay English. A change to a wrapped text runs
+`scripts/l10n.sh update`; every language kept in `translationfiles/<lang>/` stays
+complete, and `l10n/` is built from them, never edited by hand.
+
 ## 4. Document Governance
 
 - This document follows the shared governance rules in `GUIDELINES/shared/GOVERNANCE.md`.
@@ -143,6 +167,7 @@ only part of a module.
 
 | Version | Date       | Changed sections | Change type | Agent impact |
 |---------|------------|------------------|-------------|--------------|
+| v2.6.0  | 2026-09-28 | 1, 3             | minor       | `l10n/` is shipped code; the translation command is `scripts/l10n.sh`, running Nextcloud's own tool, pinned; Python, the tooling's language, is declared. §3.7: every user-facing text goes through `t()`/`n()` or `IL10N` in the form the tool can read, and every language kept here stays complete. |
 | v2.5.0  | 2026-09-25 | 1                | minor       | The PHP style is the project's own: ECS with `mwx/coding-standard` replaces the Nextcloud php-cs-fixer config, which had never been installed and would have reformatted the tree to a style it does not use. The test gate is the shipped phpunit wrapper, with the two variables that point it at the harness instance. |
 | v2.4.0  | 2026-09-24 | 1                | minor       | The lint row names the manifest check: `xmllint` against the app store's published `info.xsd`, the validation the store runs at upload, run in both pipelines' test stage. |
 | v2.3.0  | 2026-09-24 | 1                | minor       | The version manifest row: `appinfo/info.xml` is the changelog's `manifest` and its `<screenshot>` URLs a `RELEASE-PIN` block, both moved by `changelog.sh cut` (shared v4.23.0); the by-hand step of v2.2.0 is gone. |
