@@ -7,11 +7,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import ChecksumsSidebarTab from './ChecksumsSidebarTab.vue'
 
-vi.mock('@nextcloud/l10n', async (importOriginal) => ({
-	...await importOriginal<typeof import('@nextcloud/l10n')>(),
-	translate: (app: string, text: string) => text,
-}))
-
 vi.mock('@nextcloud/router', () => ({
 	generateUrl: (url: string) => `/index.php${url}`,
 	generateOcsUrl: (url: string, params?: Record<string, unknown>) => {

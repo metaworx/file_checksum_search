@@ -1,11 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RecalcButton from './RecalcButton.vue'
-
-vi.mock('@nextcloud/l10n', async (importOriginal) => ({
-	...await importOriginal<typeof import('@nextcloud/l10n')>(),
-	translate: (app: string, text: string) => text,
-}))
 
 describe('RecalcButton', () => {
 	it('renders the label when idle', () => {
