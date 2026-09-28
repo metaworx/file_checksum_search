@@ -11,6 +11,7 @@ import NcButton from '@nextcloud/vue/components/NcButton'
 import LocationIcon from '../../components/LocationIcon.vue'
 import { fileLabel, labelKind } from '../../fileLabel'
 import type { DuplicateGroup as GroupType } from '../composables/useDuplicates'
+import { n, t } from '../../l10n'
 
 const props = defineProps<{
 	group: GroupType
@@ -34,9 +35,26 @@ const statusClass = computed(() => {
 
 const statusText = computed(() => {
 	if (props.group.match_count === undefined || props.group.mismatch_count === undefined) return ''
-	if (props.group.mismatch_count === 0) return '\u2713 Verified'
+	if (props.group.mismatch_count === 0) return `\u2713 ${t('file_checksum_search', 'Verified')}`
 	return `${props.group.match_count}\u2713 ${props.group.mismatch_count}\u2717`
 })
+
+const fileCount = computed(() => n('file_checksum_search', '%n file', '%n files', props.group.file_count))
+
+const TITLES = {
+	verifyAll: t('file_checksum_search', 'Recompute every file in this group from its contents'),
+	verify: t('file_checksum_search', 'Recompute this file from its contents'),
+	notYours: t('file_checksum_search', 'Not in your files'),
+	// The same fact for a reader that never hovers, read after the label.
+	notYoursSpoken: t('file_checksum_search', '(not in your files)'),
+}
+
+/** Why a file's verification failed: the error, or the hash it has now. */
+function mismatchText(file: GroupType['files'][number]): string {
+	if (file.verify_error) return file.verify_error
+	// TRANSLATORS: the checksum a file has now, after verification found it changed
+	return file.verified_hash ? t('file_checksum_search', 'now: {hash}', { hash: file.verified_hash }) : '?'
+}
 
 function toggle(): void {
 	open.value = !open.value
@@ -51,7 +69,7 @@ function toggle(): void {
 				<span class="db-hash">{{ group.hash_value }}</span>
 			</div>
 			<span class="db-count">
-				<span>{{ group.file_count }} files</span>
+				<span>{{ fileCount }}</span>
 				<span v-if="statusClass" class="db-group-header-status" :class="statusClass">{{ statusText }}</span>
 				<!-- Reading every file in the group costs time and, on metered
 				     storage, money — so it is asked for here, per group, and
@@ -59,9 +77,9 @@ function toggle(): void {
 				<NcButton
 					class="db-verify-all"
 					:disabled="verifying"
-					title="Recompute every file in this group from its contents"
+					:title="TITLES.verifyAll"
 					@click.stop="emit('verifyGroup', group)">
-					Verify all
+					{{ t('file_checksum_search', 'Verify all') }}
 				</NcButton>
 			</span>
 		</div>
@@ -83,16 +101,16 @@ function toggle(): void {
 						     not hold would only open to "not found". The title is
 						     for the pointer; the hidden text is the same fact for
 						     a reader that never hovers. -->
-						<span v-else class="db-file-unopenable" title="Not in your files"><LocationIcon v-if="labelKind(file)" :kind="labelKind(file)!" :size="14" />{{ fileLabel(file) }}<span class="hidden-visually"> (not in your files)</span></span>
+						<span v-else class="db-file-unopenable" :title="TITLES.notYours"><LocationIcon v-if="labelKind(file)" :kind="labelKind(file)!" :size="14" />{{ fileLabel(file) }}<span class="hidden-visually"> {{ TITLES.notYoursSpoken }}</span></span>
 						<span v-if="file.verified === true" class="db-verified">✓</span>
-						<span v-else-if="file.verified === false" class="db-mismatch">✗ ({{ file.verify_error || (file.verified_hash ? `now: ${file.verified_hash}` : '?') }})</span>
+						<span v-else-if="file.verified === false" class="db-mismatch">✗ ({{ mismatchText(file) }})</span>
 					</span>
 					<NcButton
 						class="db-verify-file"
 						:disabled="verifying"
-						title="Recompute this file from its contents"
+						:title="TITLES.verify"
 						@click="emit('verifyFile', group, file)">
-						Verify
+						{{ t('file_checksum_search', 'Verify') }}
 					</NcButton>
 				</li>
 			</ul>

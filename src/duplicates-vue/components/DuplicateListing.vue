@@ -22,6 +22,7 @@ import DuplicateGroup from './DuplicateGroup.vue'
 import { useDuplicates, type DuplicateScope, type DuplicateGroup as GroupType } from '../composables/useDuplicates'
 import { sameParams, type ListingParams } from '../urlState'
 import { type AlgoOption } from '../../algorithms'
+import { t } from '../../l10n'
 
 const props = withDefaults(
 	defineProps<{
@@ -57,19 +58,24 @@ const emit = defineEmits<{
 	(e: 'update:params', value: ListingParams): void
 }>()
 
-const ALL_ALGORITHMS: AlgoOption = { id: '', label: 'All algorithms' }
+const ALL_ALGORITHMS: AlgoOption = { id: '', label: t('file_checksum_search', 'All algorithms') }
 
 /** What each control decides, for the help button beside its label. */
 const HELP = {
-	algo: 'Only groups of this algorithm, or every algorithm at once. The list is what this '
-		+ 'server computes; an algorithm nobody has enabled is not offered.',
-	min: 'The smallest group to list: how many files must share a checksum before they count '
-		+ 'as duplicates. Two is every duplicate; a higher number finds the widely copied ones.',
-	limit: 'How many groups one page shows. Nothing here is read from disk until you ask a group '
-		+ 'or a file to verify, so a larger page costs a longer query, not longer reads.',
-	hash: 'Show only groups whose checksum this names. Whole values come first, then those that '
-		+ 'start with what you typed. Tick Search anywhere to match it in the middle of a hash too. '
-		+ 'Upper case is fine.',
+	algo: t('file_checksum_search', 'Only groups of this algorithm, or every algorithm at once. The list is what this server computes; an algorithm nobody has enabled is not offered.'),
+	min: t('file_checksum_search', 'The smallest group to list: how many files must share a checksum before they count as duplicates. Two is every duplicate; a higher number finds the widely copied ones.'),
+	limit: t('file_checksum_search', 'How many groups one page shows. Nothing here is read from disk until you ask a group or a file to verify, so a larger page costs a longer query, not longer reads.'),
+	// TRANSLATORS: "Search anywhere" is the switch beside the field; translate it as that switch does
+	hash: t('file_checksum_search', 'Show only groups whose checksum this names. Whole values come first, then those that start with what you typed. Tick “Search anywhere” to match it in the middle of a hash too. Upper case is fine.'),
+}
+
+/** The fields' tooltips, too long for the template's one line. */
+const TITLES = {
+	min: t('file_checksum_search', 'Smallest group to list: files sharing a checksum, 2 to 100'),
+	limit: t('file_checksum_search', 'Groups per page, 1 to 500'),
+	anywhere: t('file_checksum_search', 'Match the term anywhere in the hash, not only at its start'),
+	hash: t('file_checksum_search', 'Show only groups whose checksum starts with this'),
+	hashPlaceholder: t('file_checksum_search', 'Whole or start of a checksum'),
 }
 
 const {
@@ -303,77 +309,79 @@ onBeforeUnmount(() => {
 		<div class="db-controls">
 			<div class="db-field db-field--algo">
 				<span class="db-label">
-					<label :for="`${props.idPrefix}-algorithm`">Algorithm</label>
-					<HelpPopover :text="HELP.algo" label="Algorithm" />
+					<label :for="`${props.idPrefix}-algorithm`">{{ t('file_checksum_search', 'Algorithm') }}</label>
+					<HelpPopover :text="HELP.algo" :label="t('file_checksum_search', 'Algorithm')" />
 				</span>
 				<AlgorithmSelect
 					:model-value="algo"
 					:algorithms="algorithmIds"
 					:leading="ALL_ALGORITHMS"
 					:input-id="`${props.idPrefix}-algorithm`"
-					label="Algorithm"
+					:label="t('file_checksum_search', 'Algorithm')"
 					@update:model-value="onAlgo" />
 			</div>
 			<div class="db-field db-field--narrow">
 				<span class="db-label">
-					<label :for="`${props.idPrefix}-min`">Min</label>
-					<HelpPopover :text="HELP.min" label="Min" />
+					<!-- TRANSLATORS: short for the smallest number of files a listed group has -->
+					<label :for="`${props.idPrefix}-min`">{{ t('file_checksum_search', 'Min') }}</label>
+					<HelpPopover :text="HELP.min" :label="t('file_checksum_search', 'Min')" />
 				</span>
 				<NcTextField
 					:id="`${props.idPrefix}-min`"
 					:model-value="minCount"
 					type="number"
-					label="Min"
+					:label="t('file_checksum_search', 'Min')"
 					label-outside
 					min="2"
 					max="100"
-					title="Smallest group to list: files sharing a checksum, 2 to 100"
+					:title="TITLES.min"
 					@update:model-value="onMinCount" />
 			</div>
 			<div class="db-field db-field--narrow">
 				<span class="db-label">
-					<label :for="`${props.idPrefix}-limit`">Limit</label>
-					<HelpPopover :text="HELP.limit" label="Limit" />
+					<!-- TRANSLATORS: how many groups one page lists -->
+					<label :for="`${props.idPrefix}-limit`">{{ t('file_checksum_search', 'Limit') }}</label>
+					<HelpPopover :text="HELP.limit" :label="t('file_checksum_search', 'Limit')" />
 				</span>
 				<NcTextField
 					:id="`${props.idPrefix}-limit`"
 					:model-value="limit"
 					type="number"
-					label="Limit"
+					:label="t('file_checksum_search', 'Limit')"
 					label-outside
 					min="1"
 					max="500"
-					title="Groups per page, 1 to 500"
+					:title="TITLES.limit"
 					@update:model-value="onLimit" />
 			</div>
 			<div class="db-field db-field--hash">
 				<span class="db-label">
-					<label :for="`${props.idPrefix}-hash`">Hash</label>
-					<HelpPopover :text="HELP.hash" label="Hash" />
+					<label :for="`${props.idPrefix}-hash`">{{ t('file_checksum_search', 'Hash') }}</label>
+					<HelpPopover :text="HELP.hash" :label="t('file_checksum_search', 'Hash')" />
 					<!-- Beside the field it governs: it changes how the hash is
 					     matched and does nothing on its own. -->
 					<span :data-testid="`${props.idPrefix}-anywhere`" class="db-anywhere">
 						<NcCheckboxRadioSwitch
 							:model-value="anywhere"
 							type="switch"
-							title="Match the term anywhere in the hash, not only at its start"
+							:title="TITLES.anywhere"
 							@update:model-value="onAnywhere">
-							Search anywhere
+							{{ t('file_checksum_search', 'Search anywhere') }}
 						</NcCheckboxRadioSwitch>
 					</span>
 				</span>
 				<NcTextField
 					:id="`${props.idPrefix}-hash`"
 					:model-value="hash"
-					label="Hash"
+					:label="t('file_checksum_search', 'Hash')"
 					label-outside
-					placeholder="Whole or start of a checksum"
-					title="Show only groups whose checksum starts with this"
+					:placeholder="TITLES.hashPlaceholder"
+					:title="TITLES.hash"
 					@update:model-value="onHashInput" />
 			</div>
 			<div class="db-actions">
 				<NcButton variant="primary" @click="refresh">
-					Refresh
+					{{ t('file_checksum_search', 'Refresh') }}
 				</NcButton>
 			</div>
 		</div>
@@ -383,13 +391,13 @@ onBeforeUnmount(() => {
 				{{ emptyScopeText }}
 			</div>
 			<div v-else-if="loading" class="db-loading">
-				Searching …
+				{{ t('file_checksum_search', 'Searching …') }}
 			</div>
 			<div v-else-if="error" class="db-error">
 				{{ error }}
 			</div>
 			<div v-else-if="groups.length === 0" class="db-empty">
-				No duplicate files found.
+				{{ t('file_checksum_search', 'No duplicate files found.') }}
 			</div>
 			<DuplicateGroup
 				v-for="(group, idx) in groups"
@@ -403,10 +411,10 @@ onBeforeUnmount(() => {
 
 		<div class="db-pagination">
 			<NcButton v-if="offset > 0" @click="onPrevPage">
-				← Previous
+				← {{ t('file_checksum_search', 'Previous') }}
 			</NcButton>
 			<NcButton v-if="hasMore" @click="onNextPage">
-				Next →
+				{{ t('file_checksum_search', 'Next') }} →
 			</NcButton>
 		</div>
 	</div>

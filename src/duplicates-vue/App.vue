@@ -23,6 +23,7 @@ import { fetchAlgorithms } from '../algorithms'
 import { confirmPassword } from '@nextcloud/password-confirmation'
 import '@nextcloud/password-confirmation/style.css'
 import type { DuplicateScope } from './composables/useDuplicates'
+import { t } from '../l10n'
 import {
 	fragmentFor,
 	listingFromParams,
@@ -129,10 +130,14 @@ function onOthersParams(params: ListingParams): void {
 }
 
 const tabs = computed<Array<{ id: Tab, label: string }>>(() => [
-	{ id: 'mine', label: 'Mine' },
-	...(canSudo.value ? [{ id: 'others' as Tab, label: 'Others' }] : []),
-	{ id: 'help', label: 'Help' },
+	// TRANSLATORS: the tab listing the duplicates among one's own files
+	{ id: 'mine', label: t('file_checksum_search', 'Mine') },
+	// TRANSLATORS: the tab listing the duplicates among other accounts' files
+	...(canSudo.value ? [{ id: 'others' as Tab, label: t('file_checksum_search', 'Others') }] : []),
+	{ id: 'help', label: t('file_checksum_search', 'Help') },
 ])
+
+const OTHERS_NOTE = t('file_checksum_search', 'These are other people\'s files. Everything below is shown because you asked for it by name — leave this tab to go back to your own.')
 
 /**
  * Entering the Others tab costs the password, once per window — the
@@ -277,8 +282,7 @@ onUnmounted(() => {
 					class="db-others"
 					data-testid="fcias-others">
 					<p class="db-others-note">
-						These are other people's files. Everything below is shown because you
-						asked for it by name — leave this tab to go back to your own.
+						{{ OTHERS_NOTE }}
 					</p>
 					<TargetPicker :scope="crossScope" @update:scope="onScope" />
 					<DuplicateListing
@@ -286,7 +290,7 @@ onUnmounted(() => {
 						:algorithm-ids="algorithmIds"
 						:params="othersParams"
 						id-prefix="fcias-others"
-						empty-scope-text="Choose an account or a group above to see its duplicates."
+						:empty-scope-text="t('file_checksum_search', 'Choose an account or a group above to see its duplicates.')"
 						@update:params="onOthersParams" />
 				</div>
 

@@ -15,8 +15,17 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
 msgid "\"Yes\" means an administrator set this rule and users cannot override or disable it from their personal settings. Enforced rules fill the first four bands, so no rule of a user's own can outrun one."
+msgstr ""
+
+msgid "%n file"
+msgid_plural "%n files"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "(not in your files)"
 msgstr ""
 
 msgid "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password — a standing authorisation, listed for every administrator to see. Create the app password on Security first; only one allowed to access files can be granted. Who may look across accounts is still decided by the sudoers permission; a grant replaces the prompt, not the permission."
@@ -58,13 +67,25 @@ msgstr ""
 msgid "Advanced"
 msgstr ""
 
+msgid "Algorithm"
+msgstr ""
+
 msgid "Algorithms"
 msgstr ""
 
 msgid "Algorithms saved."
 msgstr ""
 
+msgid "All accounts"
+msgstr ""
+
+msgid "All algorithms"
+msgstr ""
+
 msgid "All home folders"
+msgstr ""
+
+msgid "All my groups"
 msgstr ""
 
 msgid "Allow all users to calculate by hand"
@@ -128,6 +149,12 @@ msgid "Checksums"
 msgstr ""
 
 msgid "Checksums indexed for this file. Click a hash to copy it."
+msgstr ""
+
+msgid "Choose accounts or groups"
+msgstr ""
+
+msgid "Choose an account or a group above to see its duplicates."
 msgstr ""
 
 msgid "Close"
@@ -197,6 +224,12 @@ msgstr ""
 msgid "Documentation"
 msgstr ""
 
+msgid "Documentation files"
+msgstr ""
+
+msgid "Download {file}"
+msgstr ""
+
 msgid "Drag to reorder within this band"
 msgstr ""
 
@@ -256,6 +289,16 @@ msgid "Everything — every storage"
 msgstr ""
 
 msgid "Exclude (never hash these files)"
+msgstr ""
+
+#. TRANSLATORS: a file's verification failed, for no reason the server gave
+msgid "Failed"
+msgstr ""
+
+msgid "Failed to load documentation."
+msgstr ""
+
+msgid "Failed to load duplicates."
 msgstr ""
 
 msgid "Failed to load permission options."
@@ -320,10 +363,19 @@ msgstr ""
 msgid "Groups & group folders"
 msgstr ""
 
+msgid "Groups per page, 1 to 500"
+msgstr ""
+
+msgid "Hash"
+msgstr ""
+
 msgid "Hash Algorithms"
 msgstr ""
 
 msgid "Help"
+msgstr ""
+
+msgid "How many groups one page shows. Nothing here is read from disk until you ask a group or a file to verify, so a larger page costs a longer query, not longer reads."
 msgstr ""
 
 msgid "Ignore (no automatic hashing; still allowed on request)"
@@ -373,7 +425,14 @@ msgstr ""
 msgid "Lazy (delete hashes, recalc later)"
 msgstr ""
 
+#. TRANSLATORS how many groups one page lists
+msgid "Limit"
+msgstr ""
+
 msgid "Loading checksums …"
+msgstr ""
+
+msgid "Match the term anywhere in the hash, not only at its start"
 msgstr ""
 
 msgid "Members of these groups may call the public API with an app password. Selected groups and selected users are combined — being in either is enough."
@@ -388,6 +447,14 @@ msgstr ""
 msgid "Members of these groups may trigger a computation of their own files by hand. Selected groups and selected users are combined — being in either is enough."
 msgstr ""
 
+#. TRANSLATORS short for the smallest number of files a listed group has
+msgid "Min"
+msgstr ""
+
+#. TRANSLATORS: the tab listing the duplicates among one's own files
+msgid "Mine"
+msgstr ""
+
 msgid "Missing (recalc existing + missing)"
 msgstr ""
 
@@ -397,7 +464,13 @@ msgstr ""
 msgid "More actions for the rule on {path}"
 msgstr ""
 
+msgid "Network error"
+msgstr ""
+
 msgid "New rule"
+msgstr ""
+
+msgid "Next"
 msgstr ""
 
 msgid "No"
@@ -407,6 +480,12 @@ msgid "No app passwords yet. Create one under “Security”, then grant it here
 msgstr ""
 
 msgid "No checksums available for this file."
+msgstr ""
+
+msgid "No documentation available."
+msgstr ""
+
+msgid "No duplicate files found."
 msgstr ""
 
 msgid "No enabled include rule exists, so no file is hashed until one says so — enable the “All home folders” default in the table below, or create a rule. Manual recalculation from the file sidebar keeps working either way."
@@ -424,16 +503,28 @@ msgstr ""
 msgid "No rules yet."
 msgstr ""
 
+msgid "Nobody to show"
+msgstr ""
+
 msgid "None"
 msgstr ""
 
 msgid "Not granted"
 msgstr ""
 
+msgid "Not in your files"
+msgstr ""
+
+msgid "Not processed"
+msgstr ""
+
 msgid "Noted — the banner stays away until a rule is enabled and disabled again."
 msgstr ""
 
 msgid "Numbers that shape how the interface behaves. The defaults suit most instances."
+msgstr ""
+
+msgid "Only groups of this algorithm, or every algorithm at once. The list is what this server computes; an algorithm nobody has enabled is not offered."
 msgstr ""
 
 msgid "Open the Duplicates page on this hash, across every account you may see"
@@ -443,6 +534,10 @@ msgid "Options saved."
 msgstr ""
 
 msgid "Orphan purge"
+msgstr ""
+
+#. TRANSLATORS: the tab listing the duplicates among other accounts' files
+msgid "Others"
 msgstr ""
 
 msgid "Path"
@@ -472,6 +567,9 @@ msgstr ""
 msgid "Prefill up to"
 msgstr ""
 
+msgid "Previous"
+msgstr ""
+
 msgid "Priority"
 msgstr ""
 
@@ -497,6 +595,12 @@ msgid "Recalc"
 msgstr ""
 
 msgid "Recalculate"
+msgstr ""
+
+msgid "Recompute every file in this group from its contents"
+msgstr ""
+
+msgid "Recompute this file from its contents"
 msgstr ""
 
 msgid "Refresh"
@@ -566,6 +670,9 @@ msgstr ""
 msgid "Scripts and other apps calling this app's public API with an app password. The bundled pages — this one, the Duplicates page, the file sidebar — keep working for everyone; this decides who may reach the same routes from outside them."
 msgstr ""
 
+msgid "Search anywhere"
+msgstr ""
+
 msgid "Search groups…"
 msgstr ""
 
@@ -582,6 +689,16 @@ msgid "Select groups…"
 msgstr ""
 
 msgid "Settings"
+msgstr ""
+
+msgid "Show only groups whose checksum starts with this"
+msgstr ""
+
+#. TRANSLATORS: "Search anywhere" is the switch beside the field; translate it as that switch does
+msgid "Show only groups whose checksum this names. Whole values come first, then those that start with what you typed. Tick “Search anywhere” to match it in the middle of a hash too. Upper case is fine."
+msgstr ""
+
+msgid "Smallest group to list: files sharing a checksum, 2 to 100"
 msgstr ""
 
 msgid "Specific rules"
@@ -603,6 +720,9 @@ msgid "Sudo tokens"
 msgstr ""
 
 msgid "Team folders"
+msgstr ""
+
+msgid "That view needs your password confirmed again, or is not yours to look at."
 msgstr ""
 
 msgid "The algorithm the Checksums tab in the file sidebar offers as its first button. Leave it on the default to follow the server; pick one to have it first for every file, with the file's own rule providing the second button."
@@ -629,6 +749,9 @@ msgstr ""
 msgid "The last resort, covering every storage — external mounts and group folders included. Enable deliberately: it can reach storage that is slow or costs money to read."
 msgstr ""
 
+msgid "The list of accounts could not be loaded."
+msgstr ""
+
 msgid "The one user whose home folder this rule addresses."
 msgstr ""
 
@@ -648,10 +771,16 @@ msgstr ""
 msgid "The server sent an answer this page could not read."
 msgstr ""
 
+msgid "The smallest group to list: how many files must share a checksum before they count as duplicates. Two is every duplicate; a higher number finds the widely copied ones."
+msgstr ""
+
 msgid "The sudoers: members of the admin group always, plus the groups and users selected here. Looking across accounts still costs a password confirmation each time; this only says who may be asked."
 msgstr ""
 
 msgid "The team folder this rule addresses. Every member sees the same files, and the rule follows the folder — not whoever happens to look at it."
+msgstr ""
+
+msgid "These are other people's files. Everything below is shown because you asked for it by name — leave this tab to go back to your own."
 msgstr ""
 
 msgid "These namespaces exist on this instance but have no catch-all rule of their own, so what happens to their files is decided by whatever more general rule covers them — or by nothing at all. Creating a rule from here starts one for that namespace; until then, nothing is stored."
@@ -678,6 +807,9 @@ msgstr ""
 msgid "Type"
 msgstr ""
 
+msgid "Type to search"
+msgstr ""
+
 msgid "Untrusted Hashes"
 msgstr ""
 
@@ -688,6 +820,18 @@ msgid "Users"
 msgstr ""
 
 msgid "Users may not edit this rule"
+msgstr ""
+
+msgid "Verification stopped: too many recalculation requests. Wait a minute and verify the remaining files."
+msgstr ""
+
+msgid "Verified"
+msgstr ""
+
+msgid "Verify"
+msgstr ""
+
+msgid "Verify all"
 msgstr ""
 
 #. TRANSLATORS: "Auto", "Missing", "Force" and "Lazy" name the choices of the Mode field; translate them as that field does
@@ -752,6 +896,12 @@ msgstr ""
 msgid "Who may use the API"
 msgstr ""
 
+msgid "Whole or start of a checksum"
+msgstr ""
+
+msgid "Whose files"
+msgstr ""
+
 msgid "Without a rule of their own"
 msgstr ""
 
@@ -794,6 +944,10 @@ msgstr ""
 msgid "not covered — no rule addresses it, so nothing is hashed there"
 msgstr ""
 
+#. TRANSLATORS: the checksum a file has now, after verification found it changed
+msgid "now: {hash}"
+msgstr ""
+
 msgid "provider missing"
 msgstr ""
 
@@ -802,6 +956,9 @@ msgstr ""
 
 #. TRANSLATORS: {folders} is what the group folders app calls itself, e.g. "Team folders"
 msgid "{folders} — one folder"
+msgstr ""
+
+msgid "{group} (Group)"
 msgstr ""
 
 msgid "{stored} is not available on this server at the moment, so the default ({active}) applies."

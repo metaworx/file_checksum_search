@@ -20,6 +20,7 @@ import { generateOcsUrl } from '@nextcloud/router'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 import { OCS_API_V1 } from '../../routes'
 import type { DuplicateScope } from '../composables/useDuplicates'
+import { t } from '../../l10n'
 
 interface Option {
 	id: string
@@ -48,9 +49,14 @@ const reach = ref<'everyone' | 'groups'>('everyone')
 
 const allOption = computed<Option>(() => ({
 	id: ALL_ID,
-	label: reach.value === 'groups' ? 'All my groups' : 'All accounts',
+	label: reach.value === 'groups' ? t('file_checksum_search', 'All my groups') : t('file_checksum_search', 'All accounts'),
 	kind: 'all',
 }))
+
+/** A group's name, marked as a group: an account can carry the same name. */
+function groupLabel(name: string): string {
+	return t('file_checksum_search', '{group} (Group)', { group: name })
+}
 
 const options = ref<Option[]>([])
 const selected = ref<Option[]>([])
@@ -60,7 +66,7 @@ const failed = ref(false)
 
 /** With no prefilled list the control is useless until something is typed. */
 const noOptionsText = computed(
-	() => prefill.value ? 'Nobody to show' : 'Type to search',
+	() => prefill.value ? t('file_checksum_search', 'Nobody to show') : t('file_checksum_search', 'Type to search'),
 )
 
 /**
@@ -89,7 +95,7 @@ function optionKey(option: Option): string {
 function optionFor(id: string, kind: 'group' | 'user'): Option {
 	return options.value.find((o) => o.kind === kind && o.id === id)
 		?? selected.value.find((o) => o.kind === kind && o.id === id)
-		?? { id, label: kind === 'group' ? `${id} (Group)` : id, kind }
+		?? { id, label: kind === 'group' ? groupLabel(id) : id, kind }
 }
 
 /** Swap a made-up option for the list's own once the list holds it. */
@@ -133,7 +139,7 @@ async function fetchOptions(search: string | null = null): Promise<void> {
 			...(data.all ? [allOption.value] : []),
 			// A group and an account can carry the same name — "admin" is both
 			// on a stock instance — so the kind is said, not implied.
-			...(data.groups ?? []).map((g) => ({ id: g.id, label: `${g.label} (Group)`, kind: 'group' as const })),
+			...(data.groups ?? []).map((g) => ({ id: g.id, label: groupLabel(g.label), kind: 'group' as const })),
 			...(data.users ?? []).map((u) => ({ id: u.id, label: u.label, kind: 'user' as const })),
 		]
 		relabel()
@@ -198,7 +204,7 @@ onMounted(() => fetchOptions())
 <template>
 	<div class="db-field db-field--targets" data-testid="fcias-target-picker">
 		<span class="db-label">
-			<label for="fcias-others-targets">Whose files</label>
+			<label for="fcias-others-targets">{{ t('file_checksum_search', 'Whose files') }}</label>
 		</span>
 		<NcSelect
 			v-model="selected"
@@ -211,11 +217,11 @@ onMounted(() => fetchOptions())
 			:get-option-key="optionKey"
 			label="label"
 			label-outside
-			placeholder="Choose accounts or groups"
+			:placeholder="t('file_checksum_search', 'Choose accounts or groups')"
 			@search="onSearch"
 			@update:model-value="onSelect" />
 		<p v-if="failed" class="fcias-error" data-testid="fcias-target-picker-error">
-			The list of accounts could not be loaded.
+			{{ t('file_checksum_search', 'The list of accounts could not be loaded.') }}
 		</p>
 	</div>
 </template>

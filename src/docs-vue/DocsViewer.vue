@@ -12,6 +12,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import NcRichText from '@nextcloud/vue/components/NcRichText'
 import { OCS_ADMIN } from '../routes'
+import { t } from '../l10n'
 
 interface DocEntry {
 	label?: string
@@ -44,6 +45,11 @@ const activeDoc = computed<DocEntry | null>(() => docs.value[activeIndex.value] 
 function isMarkdown(doc: DocEntry | null): boolean {
 	const name = doc?.name ?? doc?.path ?? ''
 	return name.toLowerCase().endsWith('.md')
+}
+
+/** The download button's name for a reader that cannot see its arrow. */
+function downloadLabel(doc: DocEntry): string {
+	return t('file_checksum_search', 'Download {file}', { file: doc.name ?? doc.label ?? '' })
 }
 
 function downloadDoc(doc: DocEntry): void {
@@ -96,7 +102,7 @@ onMounted(async () => {
 		await nextTick()
 		restoreFromHash()
 	} catch (e) {
-		error.value = 'Failed to load documentation.'
+		error.value = t('file_checksum_search', 'Failed to load documentation.')
 	}
 })
 
@@ -107,7 +113,7 @@ onBeforeUnmount(() => {
 
 <template>
 	<div class="fcias-docs-layout">
-		<nav v-if="!only" class="fcias-docs-nav" aria-label="Documentation files">
+		<nav v-if="!only" class="fcias-docs-nav" :aria-label="t('file_checksum_search', 'Documentation files')">
 			<div
 				v-for="(doc, index) in docs"
 				:key="doc.path ?? doc.name"
@@ -123,7 +129,7 @@ onBeforeUnmount(() => {
 					type="button"
 					class="fcias-docs-download button-vue"
 					:title="doc.name ?? doc.label"
-					:aria-label="`Download ${doc.name ?? doc.label}`"
+					:aria-label="downloadLabel(doc)"
 					@click="downloadDoc(doc)">
 					<svg viewBox="0 0 24 24"
 						width="16"
@@ -148,7 +154,7 @@ onBeforeUnmount(() => {
 				:autolink="true" />
 			<pre v-else-if="activeDoc" class="fcias-docs-raw">{{ activeDoc.content }}</pre>
 			<p v-else class="fcias-muted">
-				No documentation available.
+				{{ t('file_checksum_search', 'No documentation available.') }}
 			</p>
 		</div>
 	</div>

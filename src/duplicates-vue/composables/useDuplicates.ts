@@ -8,6 +8,7 @@
 import { reactive, toRefs } from 'vue'
 import { generateOcsUrl, generateUrl } from '@nextcloud/router'
 import { OCS_API_V1, FRONTEND } from '../../routes'
+import { t } from '../../l10n'
 
 declare const OC: {
 	requestToken: string
@@ -135,7 +136,7 @@ export function useDuplicates() {
 			const response = await fetch(url, { signal })
 			if (response.status === 403 && scoped) {
 				state.groups = []
-				state.error = 'That view needs your password confirmed again, or is not yours to look at.'
+				state.error = t('file_checksum_search', 'That view needs your password confirmed again, or is not yours to look at.')
 				return
 			}
 			if (!response.ok) throw new Error(`HTTP ${response.status}`)
@@ -148,7 +149,7 @@ export function useDuplicates() {
 			state.hasMore = state.groups.length >= state.limit
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return
-			state.error = 'Failed to load duplicates.'
+			state.error = t('file_checksum_search', 'Failed to load duplicates.')
 			state.groups = []
 		} finally {
 			if (!signal.aborted) {
@@ -229,7 +230,8 @@ export function useDuplicates() {
 							file.verified = result.hash === group.hash_value
 						} else {
 							file.verified = false
-							file.verify_error = result.error || 'Failed'
+							// TRANSLATORS: a file's verification failed, for no reason the server gave
+							file.verify_error = result.error || t('file_checksum_search', 'Failed')
 						}
 					}
 
@@ -243,7 +245,7 @@ export function useDuplicates() {
 					if (results.length === 0 && remaining.length > 0) {
 						for (const file of remaining) {
 							file.verified = false
-							file.verify_error = 'Not processed'
+							file.verify_error = t('file_checksum_search', 'Not processed')
 						}
 					} else {
 						queue = [...remaining, ...queue]
@@ -251,7 +253,7 @@ export function useDuplicates() {
 				} catch {
 					for (const file of chunk) {
 						file.verified = false
-						file.verify_error = 'Network error'
+						file.verify_error = t('file_checksum_search', 'Network error')
 					}
 				}
 			}
@@ -267,7 +269,7 @@ export function useDuplicates() {
 		verifyInterrupted = rateLimited
 
 		if (rateLimited) {
-			state.error = 'Verification stopped: too many recalculation requests. Wait a minute and verify the remaining files.'
+			state.error = t('file_checksum_search', 'Verification stopped: too many recalculation requests. Wait a minute and verify the remaining files.')
 		}
 
 		state.verifying = false

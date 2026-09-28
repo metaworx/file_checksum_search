@@ -13,8 +13,9 @@ the first stable release.
 
 ### Fixed
 
-- The admin and personal settings, the rule table and its dialog: every
-  text can be translated.
+- The admin and personal settings, the rule table and its dialog, the
+  Duplicates page and the documentation viewer: every text can be
+  translated.
 
 ## [0.20.3] - 2026-09-27
 
