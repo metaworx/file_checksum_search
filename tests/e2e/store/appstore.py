@@ -26,7 +26,8 @@ Usage:
   appstore.py fake  --version V --download URL --signature FILE [--nightly] [--port 8090]
   appstore.py watch --version V --download URL --signature FILE [--nightly]
                     --certificate FILE [--since TIME] [--first-timeout MIN]
-                    [--all-timeout MIN] [--summary FILE] [--result FILE]
+                    [--all-timeout MIN] [--interval SEC] [--summary FILE]
+                    [--result FILE]
 """
 
 import argparse
@@ -334,10 +335,10 @@ def main() -> None:
 
 	watcher = commands.choices['watch']
 	watcher.add_argument('--certificate', required=True)
-	watcher.add_argument('--since', type=utc)
-	watcher.add_argument('--first-timeout', type=float, default=180)
-	watcher.add_argument('--all-timeout', type=float, default=300)
-	watcher.add_argument('--interval', type=float, default=60)
+	watcher.add_argument('--since', type=utc, metavar='TIME', help='the upload\'s time, ISO 8601; UTC where it names no zone')
+	watcher.add_argument('--first-timeout', type=float, default=30, metavar='MIN', help='minutes until a host must list the upload (default: %(default)s)')
+	watcher.add_argument('--all-timeout', type=float, default=300, metavar='MIN', help='minutes until every host should list it (default: %(default)s)')
+	watcher.add_argument('--interval', type=float, default=60, metavar='SEC', help='seconds between rounds (default: %(default)s)')
 	watcher.add_argument('--summary')
 	watcher.add_argument('--result')
 

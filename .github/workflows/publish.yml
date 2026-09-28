@@ -190,7 +190,7 @@ jobs:
           fi
           python3 tests/e2e/store/appstore.py watch --version "$VERSION" --download "$DOWNLOAD_URL" \
             --signature /tmp/release.signature --certificate /tmp/app.crt $flag --since "$UPLOADED" \
-            --first-timeout 180 --all-timeout 300 \
+            --first-timeout 30 --all-timeout 300 \
             --summary "$GITHUB_STEP_SUMMARY" --result /tmp/listing.json
 
       # A comment mentioning them is how GitHub e-mails the maintainers:
