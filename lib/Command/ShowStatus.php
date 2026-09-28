@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Command;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCP\IAppConfig;
 use OCP\IDBConnection;
@@ -33,6 +34,7 @@ class ShowStatus
 		private readonly IDBConnection   $db,
 		private readonly MetadataService $metadataService,
 		private readonly IAppConfig      $appConfig,
+		private readonly JobStatsService $jobStats,
 		private readonly LoggerInterface $logger,
 	)
 	{
@@ -46,7 +48,8 @@ class ShowStatus
 	protected function configure(): void
 	{
 		$this->setName( 'file-checksum-search:status' )
-		     ->setDescription( 'Display FCIAS app status and metadata index statistics' )
+		     ->setAliases( [ 'fcias:status' ] )
+		     ->setDescription( 'Display FCIAS app status, metadata index statistics and the background jobs\' last runs' )
 		     ->addOption(
 			     'output',
 			     'o',
@@ -77,6 +80,7 @@ class ShowStatus
 		$totalPending   = array_sum( $pendingStats );
 		$staleStats     = $this->metadataService->getStaleStats();
 		$totalStale     = array_sum( $staleStats );
+		$jobs           = $this->jobStats->lastRuns();
 
 		if ( $outFmt === 'json' || $outFmt === 'json_pretty' )
 		{
@@ -90,6 +94,7 @@ class ShowStatus
 						'pending_by_mode'     => $pendingStats,
 						'untrusted_total'     => $totalStale,
 						'untrusted_by_reason' => $staleStats,
+						'jobs'                => $jobs,
 					],
 					$outFmt === 'json_pretty'
 						? JSON_PRETTY_PRINT
@@ -133,6 +138,35 @@ class ShowStatus
 					sprintf( '  %-25s %d   %s', $state, $count, self::reasonFor( $state ) ),
 				);
 			}
+		}
+
+		$output->writeln( '' );
+		$output->writeln( 'Background jobs:' );
+
+		foreach ( $jobs as $job => $run )
+		{
+			$output->writeln(
+				rtrim(
+					sprintf(
+						'  %-25s %-25s %s',
+						JobStatsService::LABELS[ $job ] ?? $job,
+						$run['lastRun'] === null
+							? 'never ran yet'
+							: date( 'Y-m-d H:i:s T', $run['lastRun'] ),
+						implode(
+							', ',
+							array_map(
+								static fn (
+									string     $name,
+									int|string $value,
+								): string => $name . ' ' . $value,
+								array_keys( $run['counts'] ),
+								$run['counts'],
+							),
+						),
+					),
+				),
+			);
 		}
 
 		return Command::SUCCESS;

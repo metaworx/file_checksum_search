@@ -50,7 +50,7 @@ files at once.
 | pending | ausstehend | |
 | untrusted / eroded / reset | nicht vertrauenswürdig / verfallen / zurückgesetzt | the states of stale hashes |
 | background job | Hintergrundaufgabe (`de`), Hintergrund-Aufgabe (`de_DE`) | |
-| rule sweep / queue drain / orphan purge | Regeldurchlauf / Abarbeitung der Warteschlange / Bereinigung verwaister Einträge | |
+| rule sweep / queue drain / orphan purge / checksum copy / hash index check | Regeldurchlauf / Abarbeitung der Warteschlange / Bereinigung verwaister Einträge / Übernahme vorhandener Prüfsummen / Prüfung des Hash-Index | |
 | tunables | Feineinstellungen | |
 | prefill | vorausfüllen | |
 | glob pattern | Glob-Muster | |

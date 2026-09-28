@@ -196,6 +196,22 @@ class ConfigLexicon
 				flags: IAppConfig::FLAG_INTERNAL,
 			),
 			new Entry(
+				key: 'stats_filecache_backfill_last_run',
+				type: ValueType::INT,
+				defaultRaw: 0,
+				definition: 'Unix timestamp of the checksum copy\'s last run.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
+				key: 'stats_filecache_backfill_last_counts',
+				type: ValueType::STRING,
+				defaultRaw: '[]',
+				definition: 'JSON counts of the checksum copy\'s last run (copied/files/done).',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
 				key: 'stats_hash_index_check_last_run',
 				type: ValueType::INT,
 				defaultRaw: 0,

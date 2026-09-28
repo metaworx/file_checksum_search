@@ -44,6 +44,9 @@ class JobStatsService
 	/** The daily purge of metadata for files that no longer exist (rides RuleProcessingJob). */
 	public const JOB_ORPHAN_PURGE = 'orphan_purge';
 
+	/** The queued copy of the filecache's checksums (FilecacheBackfill). */
+	public const JOB_FILECACHE_BACKFILL = 'filecache_backfill';
+
 	/** The queued check that every stored hash has its index row (HashIndexCheck). */
 	public const JOB_HASH_INDEX_CHECK = 'hash_index_check';
 
@@ -52,6 +55,21 @@ class JobStatsService
 			self::JOB_RULE_SWEEP,
 			self::JOB_PENDING_DRAIN,
 			self::JOB_ORPHAN_PURGE,
+			self::JOB_FILECACHE_BACKFILL,
+			self::JOB_HASH_INDEX_CHECK,
+		];
+
+	/**
+	 * What `occ …:status` calls each job. English, as every console line is;
+	 * the admin page names them through its own translations.
+	 */
+	public const LABELS
+		 = [
+			self::JOB_RULE_SWEEP         => 'Rule sweep',
+			self::JOB_PENDING_DRAIN      => 'Queue drain',
+			self::JOB_ORPHAN_PURGE       => 'Orphan purge',
+			self::JOB_FILECACHE_BACKFILL => 'Checksum copy',
+			self::JOB_HASH_INDEX_CHECK   => 'Hash index check',
 		];
 
 

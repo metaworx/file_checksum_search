@@ -168,6 +168,10 @@ msgstr ""
 msgid "Checksum algorithms computed for matching files. Each one is indexed separately, so more algorithms means more work per file. Shown as \"—\" for a rule that computes nothing."
 msgstr ""
 
+#. TRANSLATORS: a background job's name: it copies the checksums Nextcloud already holds into this app's index.
+msgid "Checksum copy"
+msgstr ""
+
 msgid "Checksums"
 msgstr ""
 
@@ -405,6 +409,10 @@ msgid "Hash"
 msgstr ""
 
 msgid "Hash Algorithms"
+msgstr ""
+
+#. TRANSLATORS: a background job's name: it checks that every stored hash can be found by a search, and fixes what cannot.
+msgid "Hash index check"
 msgstr ""
 
 msgid "Hash parameter is required."

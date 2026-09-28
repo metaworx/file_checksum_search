@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\BackgroundJob;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJobList;
 use OCP\BackgroundJob\QueuedJob;
@@ -58,6 +59,7 @@ class FilecacheBackfill
 		private readonly HashIndexService $hashIndexService,
 		private readonly IAppConfig       $appConfig,
 		private readonly IJobList         $jobList,
+		private readonly JobStatsService  $jobStats,
 		private readonly LoggerInterface  $logger,
 	)
 	{
@@ -134,6 +136,17 @@ class FilecacheBackfill
 			$this->appConfig->setValueInt( Application::APP_ID, self::CURSOR, $result['last'] );
 			$this->jobList->add( self::class );
 		}
+
+		$this->jobStats->record(
+			JobStatsService::JOB_FILECACHE_BACKFILL,
+			[
+				'copied' => (int) $result['hashes'],
+				'files'  => (int) $result['files'],
+				'done'   => $result['done']
+					? 1
+					: 0,
+			],
+		);
 
 		$this->logger->info(
 			'FCIAS FilecacheBackfill: copied {hashes} checksums for {files} files, up to file {last}{rest}',

@@ -16,6 +16,12 @@ the first stable release.
 - German, informal (`de`) and formal (`de_DE`):
   translationfiles/de/GLOSSARY.md.
 
+- `occ file-checksum-search:status`, also `fcias:status`: the background
+  jobs and their last runs.
+
+- Admin status panel: the checksum copy and the hash-index check among
+  the background jobs.
+
 ### Fixed
 
 - The web interface, the Files sidebar included, and the messages the

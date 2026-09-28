@@ -48,6 +48,8 @@ function mockFetch(options: { rules?: unknown[], idleBannerAcknowledged?: boolea
 				jobs: {
 					rule_sweep: { lastRun: 1700000000, counts: { matched: 12, marked: 3 } },
 					pending_drain: { lastRun: null, counts: {} },
+					filecache_backfill: { lastRun: 1700000100, counts: { copied: 1200, files: 900, done: 0 } },
+					hash_index_check: { lastRun: null, counts: {} },
 				},
 				idleBannerAcknowledged: options.idleBannerAcknowledged ?? false,
 			}))
@@ -194,6 +196,9 @@ describe('settings-admin App', () => {
 		expect(jobs).toContain('Rule sweep')
 		expect(jobs).toContain('matched 12, marked 3')
 		expect(jobs).toContain('Queue drain')
+		expect(jobs).toContain('Checksum copy')
+		expect(jobs).toContain('copied 1200, files 900, done 0')
+		expect(jobs).toContain('Hash index check')
 		expect(jobs).toContain('never ran yet')
 	})
 

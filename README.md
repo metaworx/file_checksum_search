@@ -156,7 +156,7 @@ warning level.
 
 | Command | Description |
 |---------|-------------|
-| `file-checksum-search:status [--output=<fmt>]` | Display app version, row counts, and pending stats |
+| `file-checksum-search:status [--output=<fmt>]` | Display app version, row counts, pending stats and the background jobs' last runs; also `fcias:status` |
 | `file-checksum-search:show-config [--output=<fmt>]` | Display all app config key/value pairs |
 
 `--output` accepts `plain` (default), `json`, or `json_pretty`.
@@ -295,8 +295,8 @@ The periodic sweep also carries the app's one piece of housekeeping: once a day 
 in seconds, default 86400 — it forgets files that no longer exist, the metadata that deleting a user or
 removing a storage leaves behind because Nextcloud's own cleanup does not run on those paths. Deleting a
 user makes that due at once, and so does every repair that installing, enabling or upgrading the app runs.
-The status page shows when it last ran, as *Orphan purge*, beside the other two jobs; `occ fcias:repair
---step orphaned-metadata` runs it by hand.
+The status page and `occ fcias:status` show when it last ran, as *Orphan purge*, beside the other
+background jobs; `occ fcias:repair --step orphaned-metadata` runs it by hand.
 
 Installing the app reads no file content at all. It queues a background job that copies the checksums
 Nextcloud's own filecache already carries into the searchable index, a slice per cron run, so that
@@ -304,7 +304,8 @@ enabling the app returns at once however many files there are; `occ fcias:repair
 rebuild-from-filecache` does the same copy on demand, at once, and neither overwrites a hash the app
 already stored. Installing, enabling and upgrading also queue the check that every stored hash is in the
 index, which on a large instance takes longer than a request should: `occ fcias:repair --step
-rebuild-from-metadata` runs it at once.
+rebuild-from-metadata` runs it at once. Both show their progress on the status page, as *Checksum copy* and
+*Hash index check*, and in `occ fcias:status`.
 
 ### Which file a rule is talking about
 

@@ -60,6 +60,13 @@ class RepairQuietStart
 
 //  constants
 
+	/**
+	 * Where a queued job's progress can be read, for the line that says it
+	 * was queued.
+	 */
+	private const WHERE_TO_WATCH = '; its progress shows under Administration settings → '
+		. 'File Checksum Index & Search → Advanced → Status Info, and in occ fcias:status.';
+
 	private const LEGACY_SEED_JOB = 'OCA\\FileChecksumSearch\\BackgroundJob\\SeedPendingUpdates';
 
 	private const LEGACY_PENDING_NEW = 'pending:new';
@@ -432,9 +439,10 @@ class RepairQuietStart
 		if ( ! $named && ! $this->includeExpensive )
 		{
 			$output->info(
-				FilecacheBackfill::queue( $this->jobList, $this->appConfig )
-					? 'FCIAS: queued the copy of the filecache\'s checksums for the background jobs.'
-					: 'FCIAS: the copy of the filecache\'s checksums is already queued.',
+				( FilecacheBackfill::queue( $this->jobList, $this->appConfig )
+					? 'FCIAS: queued the copy of the filecache\'s checksums for the background jobs'
+					: 'FCIAS: the copy of the filecache\'s checksums is already queued' )
+				. self::WHERE_TO_WATCH,
 			);
 
 			return;
@@ -570,9 +578,10 @@ class RepairQuietStart
 		if ( ! $named && ! $this->includeExpensive )
 		{
 			$output->info(
-				HashIndexCheck::queue( $this->jobList, $this->appConfig )
-					? 'FCIAS: queued the check of the hash index for the background jobs.'
-					: 'FCIAS: the check of the hash index is already queued.',
+				( HashIndexCheck::queue( $this->jobList, $this->appConfig )
+					? 'FCIAS: queued the check of the hash index for the background jobs'
+					: 'FCIAS: the check of the hash index is already queued' )
+				. self::WHERE_TO_WATCH,
 			);
 
 			return;

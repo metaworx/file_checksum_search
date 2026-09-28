@@ -167,6 +167,10 @@ msgstr "Prüfsummen-Algorithmen, die für passende Dateien berechnet werden. Jed
 msgid "Checksum algorithms computed for matching files. Each one is indexed separately, so more algorithms means more work per file. Shown as \"—\" for a rule that computes nothing."
 msgstr "Prüfsummen-Algorithmen, die für passende Dateien berechnet werden. Jeder wird separat indexiert – mehr Algorithmen bedeuten also mehr Arbeit pro Datei. Wird als \"—\" angezeigt, wenn eine Regel nichts berechnet."
 
+#. TRANSLATORS: a background job's name: it copies the checksums Nextcloud already holds into this app's index.
+msgid "Checksum copy"
+msgstr "Übernahme vorhandener Prüfsummen"
+
 msgid "Checksums"
 msgstr "Prüfsummen"
 
@@ -405,6 +409,10 @@ msgstr "Hash"
 
 msgid "Hash Algorithms"
 msgstr "Hash-Algorithmen"
+
+#. TRANSLATORS: a background job's name: it checks that every stored hash can be found by a search, and fixes what cannot.
+msgid "Hash index check"
+msgstr "Prüfung des Hash-Index"
 
 msgid "Hash parameter is required."
 msgstr "Der Hash-Parameter ist erforderlich."

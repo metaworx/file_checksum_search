@@ -431,6 +431,37 @@ class RepairQuietStartTest
 	}
 
 	/**
+	 * A line that says a job was queued says where to follow it: both views
+	 * list the two queued jobs.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheQueuedLinesSayWhereToFollowTheJobs(): void
+	{
+		$lines = [];
+		$this->output->method( 'info' )
+		             ->willReturnCallback(
+			             static function( string $line ) use ( &$lines ): void
+			             {
+				             $lines[] = $line;
+			             },
+		             )
+		;
+
+		$this->step->run( $this->output );
+
+		$queued = array_values( array_filter( $lines, static fn ( string $l ): bool => str_contains( $l, 'queued' ) ) );
+
+		$this->assertCount( 2, $queued, 'the copy and the check' );
+
+		foreach ( $queued as $line )
+		{
+			$this->assertStringContainsString( 'Status Info', $line );
+			$this->assertStringContainsString( 'occ fcias:status', $line );
+		}
+	}
+
+	/**
 	 * Named, the step asks and walks at once, as it always did, and queues
 	 * nothing.
 	 *

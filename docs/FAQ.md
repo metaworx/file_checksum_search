@@ -403,9 +403,9 @@ prefix, ensure `dbtableprefix` is correctly configured in `config.php`.
 
 ### Where do I check compatibility and status?
 
-Run `php occ file-checksum-search:status` for the app version, database
-version, index status, and pending stats. The admin settings page's
-**Advanced** tab shows the same, with the background jobs' last runs:
+Run `php occ fcias:status` for the app version, database version, index
+status, pending stats and the background jobs' last runs. The admin
+settings page's **Advanced** tab shows the same:
 
 ![The Advanced tab: Status Info with the index counts and the background jobs' last runs, then the tunables][shot-admin-advanced]
 

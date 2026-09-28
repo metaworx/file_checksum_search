@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\BackgroundJob;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\FilecacheBackfill;
 use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJobList;
 use OCP\IAppConfig;
@@ -41,6 +42,8 @@ class FilecacheBackfillTest
 
 	private MockObject|ITimeFactory     $time;
 
+	private MockObject|JobStatsService  $jobStats;
+
 	private FilecacheBackfill           $job;
 
 
@@ -54,12 +57,14 @@ class FilecacheBackfillTest
 		$this->appConfig        = $this->createMock( IAppConfig::class );
 		$this->jobList          = $this->createMock( IJobList::class );
 		$this->time             = $this->createMock( ITimeFactory::class );
+		$this->jobStats         = $this->createMock( JobStatsService::class );
 
 		$this->job = new FilecacheBackfill(
 			$this->time,
 			$this->hashIndexService,
 			$this->appConfig,
 			$this->jobList,
+			$this->jobStats,
 			$this->createMock( LoggerInterface::class ),
 		);
 	}
@@ -104,6 +109,26 @@ class FilecacheBackfillTest
 		;
 		$this->jobList->expects( $this->never() )
 		              ->method( 'add' )
+		;
+
+		$this->runJob();
+	}
+
+	/**
+	 * Every run is booked for the status views: what it copied, and whether
+	 * the copy is through.
+	 */
+	public function testEachRunIsBookedForTheStatusViews(): void
+	{
+		$this->hashIndexService->method( 'backfillFromFilecache' )
+		                       ->willReturn( [ 'files' => 900, 'hashes' => 1200, 'last' => 9000, 'done' => false ] )
+		;
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'record' )
+		               ->with(
+			               JobStatsService::JOB_FILECACHE_BACKFILL,
+			               [ 'copied' => 1200, 'files' => 900, 'done' => 0 ],
+		               )
 		;
 
 		$this->runJob();

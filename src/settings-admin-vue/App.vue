@@ -169,6 +169,10 @@ const JOB_LABELS: Record<string, string> = {
 	rule_sweep: t('file_checksum_search', 'Rule sweep'),
 	pending_drain: t('file_checksum_search', 'Queue drain'),
 	orphan_purge: t('file_checksum_search', 'Orphan purge'),
+	// TRANSLATORS: a background job's name: it copies the checksums Nextcloud already holds into this app's index.
+	filecache_backfill: t('file_checksum_search', 'Checksum copy'),
+	// TRANSLATORS: a background job's name: it checks that every stored hash can be found by a search, and fixes what cannot.
+	hash_index_check: t('file_checksum_search', 'Hash index check'),
 }
 
 const jobRows = computed(() => Object.entries(status.value.jobs ?? {}).map(([key, run]) => ({

@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Command;
 
 use OCA\FileChecksumSearch\Command\ShowStatus;
+use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\DB\IResult;
@@ -31,6 +32,10 @@ class ShowStatusTest
 
 	private MockObject|IAppConfig      $appConfig;
 
+	private MockObject|JobStatsService $jobStats;
+
+	private ShowStatus                 $command;
+
 	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 	private MockObject|LoggerInterface $logger;
 
@@ -49,6 +54,16 @@ class ShowStatusTest
 		$this->metadataService = $this->createMock( MetadataService::class );
 		$this->appConfig       = $this->createMock( IAppConfig::class );
 		$this->logger          = $this->createMock( LoggerInterface::class );
+		$this->jobStats        = $this->createMock( JobStatsService::class );
+		$this->jobStats->method( 'lastRuns' )
+		               ->willReturn(
+			               [
+				               'rule_sweep'         => [ 'lastRun' => 1700000000, 'counts' => [ 'matched' => 12, 'marked' => 3 ] ],
+				               'filecache_backfill' => [ 'lastRun' => 1700000100, 'counts' => [ 'copied' => 1200, 'files' => 900, 'done' => 0 ] ],
+				               'hash_index_check'   => [ 'lastRun' => null, 'counts' => [] ],
+			               ],
+		               )
+		;
 
 		$result = $this->createMock( IResult::class );
 		$result->method( 'fetchOne' )
@@ -58,13 +73,14 @@ class ShowStatusTest
 		                   ->willReturn( $result )
 		;
 
-		$command      = new ShowStatus(
+		$this->command = new ShowStatus(
 			$this->db,
 			$this->metadataService,
 			$this->appConfig,
+			$this->jobStats,
 			$this->logger,
 		);
-		$this->tester = new CommandTester( $command );
+		$this->tester  = new CommandTester( $this->command );
 	}
 
 
@@ -94,6 +110,50 @@ class ShowStatusTest
 		$this->assertStringContainsString( '4200', $display );
 		$this->assertStringContainsString( 'Pending total:          4', $display );
 		$this->assertStringContainsString( 'pending:auto', $display );
+	}
+
+	/**
+	 * The background jobs, each with its last run or "never ran yet" and its
+	 * counts: where a queued copy or check can be followed from the console.
+	 */
+	public function testPlainOutputListsTheBackgroundJobs(): void
+	{
+		$this->appConfig->method( 'getValueString' )
+		                ->willReturn( 'unknown' )
+		;
+		$this->metadataService->method( 'getPendingStats' )
+		                      ->willReturn( [] )
+		;
+
+		$this->tester->execute( [] );
+
+		$display = $this->tester->getDisplay();
+		$this->assertStringContainsString( 'Background jobs:', $display );
+		$this->assertMatchesRegularExpression( '/Rule sweep\s+\d{4}-\d{2}-\d{2} [\d:]+ \S+\s+matched 12, marked 3/', $display );
+		$this->assertStringContainsString( 'copied 1200, files 900, done 0', $display );
+		$this->assertMatchesRegularExpression( '/Hash index check\s+never ran yet/', $display );
+	}
+
+	public function testJsonOutputCarriesTheJobsInThePagesShape(): void
+	{
+		$this->appConfig->method( 'getValueString' )
+		                ->willReturn( 'unknown' )
+		;
+		$this->metadataService->method( 'getPendingStats' )
+		                      ->willReturn( [] )
+		;
+
+		$this->tester->execute( [ '--output' => 'json' ] );
+
+		$decoded = json_decode( trim( $this->tester->getDisplay() ), true );
+		$this->assertSame( 1700000100, $decoded['jobs']['filecache_backfill']['lastRun'] );
+		$this->assertSame( [ 'copied' => 1200, 'files' => 900, 'done' => 0 ], $decoded['jobs']['filecache_backfill']['counts'] );
+		$this->assertNull( $decoded['jobs']['hash_index_check']['lastRun'] );
+	}
+
+	public function testItAnswersToTheShortName(): void
+	{
+		$this->assertContains( 'fcias:status', $this->command->getAliases() );
 	}
 
 	public function testPlainOutputOmitsPendingByModeWhenEmpty(): void
