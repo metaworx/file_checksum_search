@@ -22,7 +22,7 @@ the first stable release.
   server sends it: every text can be translated.
 
 - Enabling or upgrading on a large instance: the repair's hash-index
-  check held the request for a minute.
+  check and orphan purge held the request for a minute.
 
 ## [0.20.3] - 2026-09-27
 

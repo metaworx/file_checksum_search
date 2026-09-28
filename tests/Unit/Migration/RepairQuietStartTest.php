@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Migration;
 
 use OCA\FileChecksumSearch\BackgroundJob\FilecacheBackfill;
 use OCA\FileChecksumSearch\BackgroundJob\HashIndexCheck;
+use OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob;
 use OCA\FileChecksumSearch\Migration\RepairQuietStart;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
@@ -446,6 +447,54 @@ class RepairQuietStartTest
 		$this->step->runSteps( $this->output, [ 'rebuild-from-metadata' ] );
 
 		$this->assertNotContains( HashIndexCheck::class, $this->queued );
+	}
+
+	/**
+	 * The rule sweep already purges once a day and books it for the status
+	 * views, so a whole repair only makes that purge due, as deleting a user
+	 * does, instead of reading every hash row in the request.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAWholeRepairLeavesTheOrphanPurgeToTheRuleSweep(): void
+	{
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'purgeOrphanedMetadata' )
+		;
+
+		$set = [];
+		$this->appConfig->method( 'setValueInt' )
+		                ->willReturnCallback(
+			                static function( string $app, string $key, int $value ) use ( &$set ): bool
+			                {
+				                $set[ $key ] = $value;
+
+				                return true;
+			                },
+		                )
+		;
+
+		$this->step->run( $this->output );
+
+		$this->assertSame( 0, $set[ RuleProcessingJob::ORPHAN_PURGE_LAST_RUN ] ?? null, 'the daily purge is made due' );
+	}
+
+	/**
+	 * Named, the step purges at once, and leaves the sweep's clock alone.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testNamingTheOrphanPurgeRunsItAtOnce(): void
+	{
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'purgeOrphanedMetadata' )
+		                      ->willReturn( 2 )
+		;
+		$this->appConfig->expects( $this->never() )
+		                ->method( 'setValueInt' )
+		;
+
+		$this->step->runSteps( $this->output, [ 'orphaned-metadata' ] );
 	}
 
 	/**

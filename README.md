@@ -294,8 +294,9 @@ Once a rule is enabled, five paths lead to a hash:
 The periodic sweep also carries the app's one piece of housekeeping: once a day — `orphan_purge_interval`,
 in seconds, default 86400 — it forgets files that no longer exist, the metadata that deleting a user or
 removing a storage leaves behind because Nextcloud's own cleanup does not run on those paths. Deleting a
-user makes that due at once. The status page shows when it last ran, as *Orphan purge*, beside the other
-two jobs; `occ fcias:repair --step orphaned-metadata` runs it by hand.
+user makes that due at once, and so does every repair that installing, enabling or upgrading the app runs.
+The status page shows when it last ran, as *Orphan purge*, beside the other two jobs; `occ fcias:repair
+--step orphaned-metadata` runs it by hand.
 
 Installing the app reads no file content at all. It queues a background job that copies the checksums
 Nextcloud's own filecache already carries into the searchable index, a slice per cron run, so that

@@ -13,6 +13,7 @@ use OC\FilesMetadata\FilesMetadataManager;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\FilecacheBackfill;
 use OCA\FileChecksumSearch\BackgroundJob\HashIndexCheck;
+use OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
@@ -843,6 +844,13 @@ class RepairQuietStart
 	 *
 	 * Reads no file content.
 	 *
+	 * A whole repair leaves the purge to the rule sweep, which already runs
+	 * it once a day, batch after batch until nothing is left, and books it
+	 * for the status views: it makes that purge due, as deleting a user
+	 * does. Even an empty purge reads every hash row to find no orphan —
+	 * four seconds on an instance with 450,000 index rows, paid twice when
+	 * an installed app is enabled from the Apps page.
+	 *
 	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
 	 */
 	#[RepairStep(
@@ -851,11 +859,30 @@ class RepairQuietStart
 		description: 'Removes this app\'s metadata and index rows for files that are gone from the '
 		. 'filecache — what deleting a user or removing a storage leaves behind, because Nextcloud\'s '
 		. 'own cleanup does not run on those paths. Keeps a metadata document that another app still '
-		. 'uses, and deletes one only when nothing but this app\'s keys was in it. Reads no file content.',
+		. 'uses, and deletes one only when nothing but this app\'s keys was in it. Reads no file content. '
+		. 'A whole repair, as installing, enabling or upgrading the app runs, makes the daily purge due '
+		. 'on the next rule sweep; named here, it purges at once.',
 		expensive: true,
 	)]
 	private function purgeOrphanedMetadata( IOutput $output ): void
 	{
+		$named = $this->only !== null && in_array( 'orphaned-metadata', $this->only, true );
+
+		if ( ! $named && ! $this->includeExpensive )
+		{
+			try
+			{
+				$this->appConfig->setValueInt( Application::APP_ID, RuleProcessingJob::ORPHAN_PURGE_LAST_RUN, 0 );
+				$output->info( 'FCIAS: the purge of files that no longer exist runs with the next rule sweep.' );
+			}
+			catch ( Throwable $e )
+			{
+				$this->warn( $output, 'could not make the orphan purge due', $e );
+			}
+
+			return;
+		}
+
 		try
 		{
 			$purged = $this->metadataService->purgeOrphanedMetadata( $this->batchLimit() );
