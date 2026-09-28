@@ -16,6 +16,7 @@ import SudoTokensSection from './SudoTokensSection.vue'
 import { OCS_ADMIN } from '../routes'
 import { useRules } from '../rules-vue/composables/useRules'
 import { toastSuccess } from '../toast'
+import { t } from '../l10n'
 
 declare const OC: {
 	dialogs: { confirm: (text: string, title: string, callback: (confirmed: boolean) => void, modal?: boolean) => void }
@@ -52,6 +53,8 @@ function setTab(tab: 'rules' | 'help'): void {
 window.addEventListener('hashchange', () => {
 	activeTab.value = tabFromHash()
 })
+
+const RULES_HINT = t('file_checksum_search', 'Every rule that can affect your files, in the order they are evaluated — the first match decides. Rules an administrator enforced come first and are read-only; your own rules come next and are yours to edit and reorder; the defaults below them apply only where none of your rules matched. You can create rules only if you have been given permission and the path is in a folder you can write to.')
 
 const ruleMsg = ref('')
 const showRuleForm = ref(false)
@@ -90,23 +93,23 @@ async function handleSaveRule(draft: RuleDraft): Promise<void> {
 	const result = await saveRule(draft)
 	if (result.success) {
 		closeRuleForm()
-		toastSuccess('Rule saved.')
+		toastSuccess(t('file_checksum_search', 'Rule saved.'))
 	} else {
-		saveError.value = result.error || 'Saving failed.'
+		saveError.value = result.error || t('file_checksum_search', 'Saving failed.')
 	}
 }
 
 function handleDeleteRule(rule: Rule): void {
 	OC.dialogs.confirm(
-		'Delete this rule?',
-		'Confirm Delete',
+		t('file_checksum_search', 'Delete this rule?'),
+		t('file_checksum_search', 'Confirm Delete'),
 		(confirmed: boolean) => {
 			if (!confirmed) return
 			deleteRule(rule.id).then((result) => {
 				if (result.success) {
-					toastSuccess('Rule deleted.')
+					toastSuccess(t('file_checksum_search', 'Rule deleted.'))
 				} else {
-					ruleMsg.value = result.error || 'Delete failed.'
+					ruleMsg.value = result.error || t('file_checksum_search', 'Delete failed.')
 				}
 			})
 		},
@@ -117,25 +120,25 @@ function handleDeleteRule(rule: Rule): void {
 async function handleReorder(payload: { selector: string; defaults: boolean; orderedIds: Array<Rule['id']> }): Promise<void> {
 	const result = await reorderSegment(payload.selector, payload.defaults, payload.orderedIds)
 	if (!result.success) {
-		ruleMsg.value = result.error || 'Reorder failed.'
+		ruleMsg.value = result.error || t('file_checksum_search', 'Reorder failed.')
 	}
 }
 
 async function handleApplyRule(rule: Rule): Promise<void> {
 	const result = await applyRule(rule.id)
 	if (result.success) {
-		toastSuccess('Re-apply queued — the background job takes it from here.')
+		toastSuccess(t('file_checksum_search', 'Re-apply queued — the background job takes it from here.'))
 	} else {
-		ruleMsg.value = result.error || 'Re-apply failed.'
+		ruleMsg.value = result.error || t('file_checksum_search', 'Re-apply failed.')
 	}
 }
 
 async function handleToggleRule(rule: Rule): Promise<void> {
 	const result = await toggleRule(rule.id, !rule.enabled)
 	if (result.success) {
-		toastSuccess(rule.enabled ? 'Rule disabled.' : 'Rule enabled.')
+		toastSuccess(rule.enabled ? t('file_checksum_search', 'Rule disabled.') : t('file_checksum_search', 'Rule enabled.'))
 	} else {
-		ruleMsg.value = result.error || 'Toggle failed.'
+		ruleMsg.value = result.error || t('file_checksum_search', 'Toggle failed.')
 	}
 }
 
@@ -153,7 +156,7 @@ loadRules()
 				:aria-selected="activeTab === 'rules'"
 				aria-controls="fcias-tab-panel-rules"
 				@click="setTab('rules')">
-				Rules
+				{{ t('file_checksum_search', 'Rules') }}
 			</button>
 			<button
 				type="button"
@@ -163,7 +166,7 @@ loadRules()
 				:aria-selected="activeTab === 'help'"
 				aria-controls="fcias-tab-panel-help"
 				@click="setTab('help')">
-				Help
+				{{ t('file_checksum_search', 'Help') }}
 			</button>
 		</div>
 
@@ -174,14 +177,10 @@ loadRules()
 			role="tabpanel">
 			<PreferenceSection :algorithms="supportedAlgos" />
 
-			<h4>Rules applying to your files</h4>
+			<h4>{{ t('file_checksum_search', 'Rules applying to your files') }}</h4>
 
 			<p class="fcias-hint">
-				Every rule that can affect your files, in the order they are evaluated — the first match
-				decides. Rules an administrator enforced come first and are read-only; your own rules come
-				next and are yours to edit and reorder; the defaults below them apply only where none of
-				your rules matched. You can create rules only if you have been given permission and the
-				path is in a folder you can write to.
+				{{ RULES_HINT }}
 			</p>
 
 			<!-- The one place a failed request reports: a load that never
@@ -210,7 +209,7 @@ loadRules()
 				id="fcias-personal-add"
 				class="fcias-btn"
 				@click="openAddRule">
-				Add Rule
+				{{ t('file_checksum_search', 'Add Rule') }}
 			</button>
 
 			<RuleForm

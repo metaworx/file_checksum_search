@@ -14,6 +14,7 @@ import { reactive, toRefs } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import { OCS_SETTINGS } from '../../routes'
 import { useRules } from '../../rules-vue/composables/useRules'
+import { t } from '../../l10n'
 
 interface JobRun {
 	lastRun: number | null
@@ -65,7 +66,7 @@ export function useAdminSettings() {
 			// a status it renders every count as zero — which is what a
 			// healthy empty instance shows. An error is an error.
 			if (!response.ok) {
-				state.statusError = `Failed to load status (HTTP ${response.status}).`
+				state.statusError = t('file_checksum_search', 'Failed to load status (HTTP {status}).', { status: response.status })
 				return
 			}
 
@@ -73,7 +74,7 @@ export function useAdminSettings() {
 			state.lastUpdated = new Date().toLocaleString()
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return
-			state.statusError = 'Failed to load status.'
+			state.statusError = t('file_checksum_search', 'Failed to load status.')
 		} finally {
 			if (!signal.aborted) {
 				state.statusLoading = false

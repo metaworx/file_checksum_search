@@ -17,6 +17,7 @@ import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwit
 import HelpPopover from '../components/HelpPopover.vue'
 import { OCS_SETTINGS } from '../routes'
 import { toastError, toastSaved } from '../toast'
+import { t } from '../l10n'
 
 interface TokenRow {
 	id: number
@@ -44,11 +45,7 @@ const loaded = ref(false)
 const failure = ref<string | null>(null)
 const busy = ref<number | null>(null)
 
-const HELP = 'A granted app password may read across accounts through the /api/v1/sudo/ routes without '
-	+ 'anyone typing a password — a standing authorisation, listed for every administrator to see. '
-	+ 'Create the app password on Security first; only one allowed to access files can be granted. '
-	+ 'Who may look across accounts is still decided by the sudoers permission; a grant replaces the '
-	+ 'prompt, not the permission.'
+const HELP = t('file_checksum_search', 'A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password — a standing authorisation, listed for every administrator to see. Create the app password on Security first; only one allowed to access files can be granted. Who may look across accounts is still decided by the sudoers permission; a grant replaces the prompt, not the permission.')
 
 function take(data: Listing): void {
 	tokens.value = data.tokens ?? []
@@ -56,8 +53,20 @@ function take(data: Listing): void {
 		canUseApi.value = data.canUseApi
 	}
 	failure.value = data.available === false
-		? 'Your app passwords could not be listed: the token table could not be read.'
+		? t('file_checksum_search', 'Your app passwords could not be listed: the token table could not be read.')
 		: null
+}
+
+/** The switch's caption: whether, and since when, the password is granted. */
+function switchLabel(token: TokenRow): string {
+	return token.granted
+		? t('file_checksum_search', 'Granted {time}', { time: when(token.granted_at) })
+		: t('file_checksum_search', 'Not granted')
+}
+
+/** Why a switch is disabled, on hover; nothing while it is not. */
+function switchTitle(token: TokenRow): string {
+	return token.filesystem ? '' : t('file_checksum_search', 'This app password is kept out of the filesystem and cannot be granted file reads.')
 }
 
 async function load(): Promise<void> {
@@ -71,7 +80,7 @@ async function load(): Promise<void> {
 		take((await response.json()) as Listing)
 	} catch (e) {
 		// Not "no app passwords yet": that would be an answer, and this is not.
-		failure.value = `Your app passwords could not be listed (${(e as Error).message}).`
+		failure.value = t('file_checksum_search', 'Your app passwords could not be listed ({error}).', { error: (e as Error).message })
 	} finally {
 		loaded.value = true
 	}
@@ -102,19 +111,20 @@ async function toggle(token: TokenRow, granted: boolean): Promise<void> {
 		const data = (await response.json()) as Listing & { error?: string }
 		if (response.ok) {
 			take(data)
-			toastSaved(granted ? 'App password granted.' : 'Grant revoked.')
+			toastSaved(granted ? t('file_checksum_search', 'App password granted.') : t('file_checksum_search', 'Grant revoked.'))
 		} else {
-			toastError(data.error || 'Could not change the grant.')
+			toastError(data.error || t('file_checksum_search', 'Could not change the grant.'))
 		}
 	} catch (e) {
-		toastError('Request failed.')
+		toastError(t('file_checksum_search', 'Request failed.'))
 	} finally {
 		busy.value = null
 	}
 }
 
 function when(seconds: number): string {
-	return seconds > 0 ? new Date(seconds * 1000).toLocaleString() : 'never'
+	// TRANSLATORS: when an app password was last used, or granted: not at all
+	return seconds > 0 ? new Date(seconds * 1000).toLocaleString() : t('file_checksum_search', 'never')
 }
 
 onMounted(load)
@@ -123,21 +133,21 @@ onMounted(load)
 <template>
 	<div v-if="loaded && canUseApi" id="fcias-personal-sudo-tokens" class="fcias-section">
 		<h4>
-			Sudo tokens
-			<HelpPopover :text="HELP" label="Sudo tokens" />
+			{{ t('file_checksum_search', 'Sudo tokens') }}
+			<HelpPopover :text="HELP" :label="t('file_checksum_search', 'Sudo tokens')" />
 		</h4>
 		<p v-if="failure" class="fcias-error" data-testid="fcias-sudo-tokens-error">
 			{{ failure }}
 		</p>
 		<p v-else-if="tokens.length === 0" class="fcias-hint" data-testid="fcias-sudo-tokens-empty">
-			No app passwords yet. Create one under <em>Security</em>, then grant it here.
+			{{ t('file_checksum_search', 'No app passwords yet. Create one under “Security”, then grant it here.') }}
 		</p>
 		<table v-else class="grid fcias-rules-table" data-testid="fcias-sudo-tokens">
 			<thead>
 				<tr>
-					<th>App password</th>
-					<th>Last used</th>
-					<th>Cross-account reads</th>
+					<th>{{ t('file_checksum_search', 'App password') }}</th>
+					<th>{{ t('file_checksum_search', 'Last used') }}</th>
+					<th>{{ t('file_checksum_search', 'Cross-account reads') }}</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -151,9 +161,9 @@ onMounted(load)
 							:model-value="token.granted"
 							type="switch"
 							:disabled="busy === token.id || !token.filesystem"
-							:title="token.filesystem ? '' : 'This app password is kept out of the filesystem and cannot be granted file reads.'"
+							:title="switchTitle(token)"
 							@update:model-value="toggle(token, $event as boolean)">
-							{{ token.granted ? `Granted ${ when(token.granted_at) }` : 'Not granted' }}
+							{{ switchLabel(token) }}
 						</NcCheckboxRadioSwitch>
 					</td>
 				</tr>

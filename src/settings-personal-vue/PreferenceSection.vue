@@ -17,6 +17,7 @@ import HelpPopover from '../components/HelpPopover.vue'
 import { OCS_API_V1 } from '../routes'
 import { toastError, toastSaved } from '../toast'
 import type { AlgoOption } from '../algorithms'
+import { t } from '../l10n'
 
 defineProps<{
 	/** The algorithms in force on this instance, from the rules payload. */
@@ -32,15 +33,17 @@ const active = ref('')
 const loaded = ref(false)
 const saving = ref(false)
 
-const HELP = 'The algorithm the Checksums tab in the file sidebar offers as its first button. '
-	+ 'Leave it on the default to follow the server; pick one to have it first for every file, '
-	+ 'with the file\'s own rule providing the second button.'
+const HELP = t('file_checksum_search', 'The algorithm the Checksums tab in the file sidebar offers as its first button. Leave it on the default to follow the server; pick one to have it first for every file, with the file\'s own rule providing the second button.')
 
 /** The first entry: what an empty choice means, spelled out. */
 const defaultEntry = computed<AlgoOption>(() => ({
 	id: '',
-	label: `Default (${defaultAlgo.value.toUpperCase() || '…'})`,
+	// TRANSLATORS: the entry that follows the server's default algorithm, named in brackets
+	label: t('file_checksum_search', 'Default ({algorithm})', { algorithm: defaultAlgo.value.toUpperCase() || '…' }),
 }))
+
+/** Shown only while the stored choice is not in force. */
+const staleText = computed(() => t('file_checksum_search', '{stored} is not available on this server at the moment, so the default ({active}) applies.', { stored: stored.value.toUpperCase(), active: active.value.toUpperCase() }))
 
 function endpoint(): string {
 	return generateOcsUrl(OCS_API_V1.preference, { key: KEY })
@@ -79,12 +82,12 @@ async function save(value: string): Promise<void> {
 		const data = (await response.json()) as { error?: string, value?: string, default?: string, active?: string }
 		if (response.ok) {
 			take(data)
-			toastSaved('Preferred algorithm saved.')
+			toastSaved(t('file_checksum_search', 'Preferred algorithm saved.'))
 		} else {
-			toastError(data.error || 'Could not save the preference.')
+			toastError(data.error || t('file_checksum_search', 'Could not save the preference.'))
 		}
 	} catch (e) {
-		toastError('Request failed.')
+		toastError(t('file_checksum_search', 'Request failed.'))
 	} finally {
 		saving.value = false
 	}
@@ -95,7 +98,7 @@ onMounted(load)
 
 <template>
 	<div id="fcias-personal-preference" class="fcias-section">
-		<h4>Your preferred algorithm</h4>
+		<h4>{{ t('file_checksum_search', 'Your preferred algorithm') }}</h4>
 		<div class="fcias-field-row">
 			<AlgorithmSelect
 				v-if="loaded"
@@ -104,13 +107,12 @@ onMounted(load)
 				:leading="defaultEntry"
 				:disabled="saving"
 				input-id="fcias-preferred-algorithm"
-				label="Preferred algorithm"
+				:label="t('file_checksum_search', 'Preferred algorithm')"
 				@update:model-value="save(String($event))" />
-			<HelpPopover :text="HELP" label="Preferred algorithm" />
+			<HelpPopover :text="HELP" :label="t('file_checksum_search', 'Preferred algorithm')" />
 		</div>
 		<p v-if="stored && stored !== active" class="fcias-hint" data-testid="fcias-preference-stale">
-			{{ stored.toUpperCase() }} is not available on this server at the moment, so the default
-			({{ active.toUpperCase() }}) applies.
+			{{ staleText }}
 		</p>
 	</div>
 </template>

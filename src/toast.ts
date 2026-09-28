@@ -15,12 +15,13 @@
 import { showError, showSuccess } from '@nextcloud/dialogs'
 import '@nextcloud/dialogs/style.css'
 import './toast.css'
+import { t } from './l10n'
 
 /** Long enough to read, short enough not to need dismissing. */
 const SUCCESS_TIMEOUT = 5000
 
 /** A setting was saved: fired once the server has confirmed it, never before. */
-export function toastSaved(text = 'Saved.'): void {
+export function toastSaved(text = t('file_checksum_search', 'Saved.')): void {
 	showSuccess(text, { timeout: SUCCESS_TIMEOUT })
 }
 

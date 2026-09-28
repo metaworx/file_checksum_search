@@ -13,6 +13,7 @@ import { generateOcsUrl } from '@nextcloud/router'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import { OCS_SETTINGS } from '../routes'
 import { toastError, toastSuccess } from '../toast'
+import { t } from '../l10n'
 
 interface GrantRow {
 	uid: string
@@ -40,10 +41,12 @@ const busy = ref<string | null>(null)
 
 const key = (g: GrantRow) => `${g.uid}/${g.id}`
 
+const HINT = t('file_checksum_search', 'App passwords granted the cross-account routes without a password prompt. Each is a standing authorisation: this is where every one of them is visible, and where any can be taken back. Who may look across accounts at all is decided under “Who may look across accounts”; a grant replaces the prompt, not the permission.')
+
 function take(data: Listing): void {
 	grants.value = data.grants ?? []
 	failure.value = data.available === false
-		? 'The grant listing is unavailable: the token table could not be read.'
+		? t('file_checksum_search', 'The grant listing is unavailable: the token table could not be read.')
 		: null
 }
 
@@ -57,7 +60,7 @@ async function load(): Promise<void> {
 		if (!response.ok) throw new Error(`HTTP ${response.status}`)
 		take((await response.json()) as Listing)
 	} catch (e) {
-		failure.value = `The grant listing could not be loaded (${(e as Error).message}).`
+		failure.value = t('file_checksum_search', 'The grant listing could not be loaded ({error}).', { error: (e as Error).message })
 	} finally {
 		loaded.value = true
 	}
@@ -72,16 +75,17 @@ async function revoke(grant: GrantRow): Promise<void> {
 		})
 		if (!response.ok) throw new Error(`HTTP ${response.status}`)
 		take((await response.json()) as Listing)
-		toastSuccess('Grant revoked.')
+		toastSuccess(t('file_checksum_search', 'Grant revoked.'))
 	} catch (e) {
-		toastError('Could not revoke the grant.')
+		toastError(t('file_checksum_search', 'Could not revoke the grant.'))
 	} finally {
 		busy.value = null
 	}
 }
 
 function when(seconds: number): string {
-	return seconds > 0 ? new Date(seconds * 1000).toLocaleString() : 'never'
+	// TRANSLATORS: when an app password was last used, or granted: not at all
+	return seconds > 0 ? new Date(seconds * 1000).toLocaleString() : t('file_checksum_search', 'never')
 }
 
 onMounted(load)
@@ -90,24 +94,21 @@ onMounted(load)
 <template>
 	<div>
 		<p class="fcias-hint">
-			App passwords granted the cross-account routes without a password prompt. Each is a standing
-			authorisation: this is where every one of them is visible, and where any can be taken back. Who may
-			look across accounts at all is decided under <em>Who may look across accounts</em>; a grant replaces
-			the prompt, not the permission.
+			{{ HINT }}
 		</p>
 		<p v-if="loaded && failure" class="fcias-error" data-testid="fcias-sudo-grants-error">
 			{{ failure }}
 		</p>
 		<p v-else-if="loaded && grants.length === 0" class="fcias-hint" data-testid="fcias-sudo-grants-empty">
-			No grants.
+			{{ t('file_checksum_search', 'No grants.') }}
 		</p>
 		<table v-else-if="loaded" class="grid fcias-rules-table" data-testid="fcias-sudo-grants">
 			<thead>
 				<tr>
-					<th>Account</th>
-					<th>App password</th>
-					<th>Last used</th>
-					<th>Granted</th>
+					<th>{{ t('file_checksum_search', 'Account') }}</th>
+					<th>{{ t('file_checksum_search', 'App password') }}</th>
+					<th>{{ t('file_checksum_search', 'Last used') }}</th>
+					<th>{{ t('file_checksum_search', 'Granted') }}</th>
 					<th />
 				</tr>
 			</thead>
@@ -118,13 +119,14 @@ onMounted(load)
 						<template v-if="grant.exists">
 							{{ grant.name }}
 						</template>
-						<span v-else class="fcias-muted">token deleted — grant left behind</span>
+						<span v-else class="fcias-muted">{{ t('file_checksum_search', 'token deleted — grant left behind') }}</span>
 					</td>
 					<td>{{ when(grant.last_activity) }}</td>
-					<td>{{ when(grant.granted_at) }} by {{ grant.granted_by }}</td>
+					<!-- TRANSLATORS: when a grant was made, and by which account -->
+					<td>{{ t('file_checksum_search', '{time} by {account}', { time: when(grant.granted_at), account: grant.granted_by }) }}</td>
 					<td class="fcias-rules-actions">
 						<NcButton variant="error" :disabled="busy === key(grant)" @click="revoke(grant)">
-							Revoke
+							{{ t('file_checksum_search', 'Revoke') }}
 						</NcButton>
 					</td>
 				</tr>

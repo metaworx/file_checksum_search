@@ -18,6 +18,7 @@ import NcButton from '@nextcloud/vue/components/NcButton'
 import HelpPopover from '../components/HelpPopover.vue'
 import { OCS_SETTINGS } from '../routes'
 import { toastError, toastSaved } from '../toast'
+import { t } from '../l10n'
 
 interface UserOption {
 	id: string
@@ -67,6 +68,8 @@ function payload(): string {
 
 const dirty = computed(() => loaded.value && payload() !== baseline.value)
 
+const saveLabel = computed(() => saving.value ? t('file_checksum_search', 'Saving…') : t('file_checksum_search', 'Save'))
+
 async function load(): Promise<void> {
 	try {
 		const response = await fetch(generateOcsUrl(OCS_SETTINGS.getGlobal))
@@ -81,7 +84,7 @@ async function load(): Promise<void> {
 		const selectedIds = mine.users || []
 		selectedUsers.value = userOptions.value.filter((u) => selectedIds.includes(u.id))
 	} catch (e) {
-		toastError('Failed to load permission options.')
+		toastError(t('file_checksum_search', 'Failed to load permission options.'))
 	} finally {
 		loaded.value = true
 		baseline.value = payload()
@@ -105,12 +108,12 @@ async function save(): Promise<void> {
 		const data = (await response.json()) as { success?: boolean; error?: string }
 		if (data.success) {
 			baseline.value = sent
-			toastSaved('Permissions saved.')
+			toastSaved(t('file_checksum_search', 'Permissions saved.'))
 		} else {
-			toastError(data.error || 'Save failed.')
+			toastError(data.error || t('file_checksum_search', 'Save failed.'))
 		}
 	} catch (e) {
-		toastError('Request failed.')
+		toastError(t('file_checksum_search', 'Request failed.'))
 	} finally {
 		saving.value = false
 	}
@@ -132,9 +135,9 @@ onMounted(load)
 			<div class="fcias-field-row">
 				<NcSettingsSelectGroup
 					v-model="allowedGroups"
-					label="Groups"
-					placeholder="Select groups…" />
-				<HelpPopover :text="help.groups" label="Groups" />
+					:label="t('file_checksum_search', 'Groups')"
+					:placeholder="t('file_checksum_search', 'Select groups…')" />
+				<HelpPopover :text="help.groups" :label="t('file_checksum_search', 'Groups')" />
 			</div>
 
 			<div class="fcias-field-row">
@@ -142,10 +145,10 @@ onMounted(load)
 					v-model="selectedUsers"
 					:multiple="true"
 					:options="userOptions"
-					input-label="Users"
-					placeholder="Search users…"
+					:input-label="t('file_checksum_search', 'Users')"
+					:placeholder="t('file_checksum_search', 'Search users…')"
 					label-outside />
-				<HelpPopover :text="help.users" label="Users" />
+				<HelpPopover :text="help.users" :label="t('file_checksum_search', 'Users')" />
 			</div>
 		</div>
 
@@ -156,7 +159,7 @@ onMounted(load)
 				:variant="dirty ? 'warning' : 'secondary'"
 				:disabled="saving || !dirty"
 				@click="save">
-				{{ saving ? 'Saving…' : 'Save' }}
+				{{ saveLabel }}
 			</NcButton>
 		</div>
 	</div>

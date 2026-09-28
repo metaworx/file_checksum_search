@@ -1,6 +1,6 @@
 > **Fragment** — inlined by `tools/sync.sh`; not a standalone document.
 
-# {{project_name}} — Project Contract (v2.6.0)
+# {{project_name}} — Project Contract (v2.7.0)
 
 What binds work in this project, for everyone working on it. Inlined into
 `/AGENTS.md` for agents and into `{{guidelines_root}}/README.md` for people, so
@@ -97,7 +97,10 @@ and in PHP through `IL10N`. Nextcloud's translation tool finds only what these
 calls spell out:
 
 - the text is a literal; in a Vue template, on one line or as a template
-  literal without `${}`;
+  literal without `${}`, one call to a line, and no quoted text among its
+  values: the tool reads a template with a pattern that runs to the line's
+  last quote, so a longer text, a choice between texts or a value with
+  quotes goes into the script;
 - a value is a placeholder (`t('file_checksum_search', 'Band {band}', { band })`),
   never a concatenation of translated pieces;
 - a count takes `n()`, and in a template reaches it through a computed value,
@@ -106,6 +109,12 @@ calls spell out:
   module loads;
 - a short or ambiguous text gets a `TRANSLATORS` comment, which the tool
   hands to translators.
+
+In the frontend, `t` and `n` come from `src/l10n.ts`: the same signatures as
+`@nextcloud/l10n`'s, but they leave escaping to Vue, since the library's
+would show in a text as `&amp;`. A translated text therefore never goes into
+`v-html`, and a sentence carries no markup: emphasis wraps a whole sentence,
+and a name inside one is quoted.
 
 Logs and `occ` output stay English. A change to a wrapped text runs
 `scripts/l10n.sh update`; every language kept in `translationfiles/<lang>/` stays
@@ -119,6 +128,7 @@ complete, and `l10n/` is built from them, never edited by hand.
 
 | Version | Date       | Changed sections | Change type | Agent impact |
 |---------|------------|------------------|-------------|--------------|
+| v2.7.0  | 2026-09-28 | 3                | minor       | §3.7: in a Vue template, one `t()` to a line with no quoted text among its values, which is what the tool's pattern can read; the frontend's `t`/`n` come from `src/l10n.ts`, which leaves escaping to Vue, so no translated text goes into `v-html` and a sentence carries no markup. |
 | v2.6.0  | 2026-09-28 | 1, 3             | minor       | `l10n/` is shipped code; the translation command is `scripts/l10n.sh`, running Nextcloud's own tool, pinned; Python, the tooling's language, is declared. §3.7: every user-facing text goes through `t()`/`n()` or `IL10N` in the form the tool can read, and every language kept here stays complete. |
 | v2.5.0  | 2026-09-25 | 1                | minor       | The PHP style is the project's own: ECS with `mwx/coding-standard` replaces the Nextcloud php-cs-fixer config, which had never been installed and would have reformatted the tree to a style it does not use. The test gate is the shipped phpunit wrapper, with the two variables that point it at the harness instance. |
 | v2.4.0  | 2026-09-24 | 1                | minor       | The lint row names the manifest check: `xmllint` against the app store's published `info.xsd`, the validation the store runs at upload, run in both pipelines' test stage. |

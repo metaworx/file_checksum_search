@@ -18,12 +18,11 @@ import NcTextField from '@nextcloud/vue/components/NcTextField'
 import HelpPopover from '../components/HelpPopover.vue'
 import { OCS_SETTINGS } from '../routes'
 import { toastError, toastSaved } from '../toast'
+import { t } from '../l10n'
 
 const OC = window.OC as unknown as { requestToken: string }
 
-const HELP = 'Below this many, the picker opens with every account and group it may offer already in '
-	+ 'the list. Above it, the list would be unwieldy, so the picker asks the server as you type. '
-	+ 'Applies to administrators and group leaders alike.'
+const HELP = t('file_checksum_search', 'Below this many, the picker opens with every account and group it may offer already in the list. Above it, the list would be unwieldy, so the picker asks the server as you type. Applies to administrators and group leaders alike.')
 
 const prefillLimit = ref(21)
 const saved = ref(21)
@@ -62,9 +61,9 @@ async function save(): Promise<void> {
 		})
 		if (!response.ok) throw new Error(`HTTP ${response.status}`)
 		saved.value = prefillLimit.value
-		toastSaved('Options saved.')
+		toastSaved(t('file_checksum_search', 'Options saved.'))
 	} catch (e) {
-		toastError('Could not save the options.')
+		toastError(t('file_checksum_search', 'Could not save the options.'))
 	} finally {
 		saving.value = false
 	}
@@ -80,14 +79,14 @@ onMounted(load)
 
 <template>
 	<div v-if="loaded" id="fcias-tunables" class="fcias-section">
-		<h4>Tunables</h4>
+		<h4>{{ t('file_checksum_search', 'Tunables') }}</h4>
 		<p class="fcias-hint">
-			Numbers that shape how the interface behaves. The defaults suit most instances.
+			{{ t('file_checksum_search', 'Numbers that shape how the interface behaves. The defaults suit most instances.') }}
 		</p>
 		<div class="fcias-field-row">
 			<span class="fcias-label">
-				<label for="fcias-prefill-limit">Cross-account picker: prefill up to</label>
-				<HelpPopover :text="HELP" label="Prefill limit" />
+				<label for="fcias-prefill-limit">{{ t('file_checksum_search', 'Cross-account picker: prefill up to') }}</label>
+				<HelpPopover :text="HELP" :label="t('file_checksum_search', 'Prefill limit')" />
 			</span>
 		</div>
 		<div class="fcias-field-row">
@@ -95,7 +94,7 @@ onMounted(load)
 				id="fcias-prefill-limit"
 				:model-value="prefillLimit"
 				type="number"
-				label="Prefill up to"
+				:label="t('file_checksum_search', 'Prefill up to')"
 				label-outside
 				min="5"
 				max="500"
@@ -106,7 +105,7 @@ onMounted(load)
 				:variant="dirty() ? 'warning' : 'secondary'"
 				:disabled="saving || !dirty()"
 				@click="save">
-				Save
+				{{ t('file_checksum_search', 'Save') }}
 			</NcButton>
 		</div>
 	</div>

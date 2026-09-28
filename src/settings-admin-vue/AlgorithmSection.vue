@@ -17,6 +17,7 @@ import AlgorithmSelect from '../components/AlgorithmSelect.vue'
 import HelpPopover from '../components/HelpPopover.vue'
 import { OCS_SETTINGS } from '../routes'
 import { toastError, toastSaved } from '../toast'
+import { t } from '../l10n'
 
 const OC = window.OC as unknown as { requestToken: string }
 
@@ -38,14 +39,11 @@ function payload(): string {
 
 const dirty = computed(() => loaded.value && payload() !== baseline.value)
 
+const saveLabel = computed(() => saving.value ? t('file_checksum_search', 'Saving…') : t('file_checksum_search', 'Save'))
+
 const HELP = {
-	allowed: 'The algorithms rules may compute and pickers may offer, chosen from what this server\'s '
-		+ 'PHP provides. Removing one does not delete hashes already stored under it — they stay '
-		+ 'searchable — it only stops new ones being computed.',
-	default: 'The algorithm used wherever none is named: new rules, the command line, the API, and the '
-		+ 'sidebar\'s first button for users who have not chosen one of their own. Only an allowed '
-		+ 'algorithm can be the default; removing the default from the list above moves it to the '
-		+ 'first remaining.',
+	allowed: t('file_checksum_search', 'The algorithms rules may compute and pickers may offer, chosen from what this server\'s PHP provides. Removing one does not delete hashes already stored under it — they stay searchable — it only stops new ones being computed.'),
+	default: t('file_checksum_search', 'The algorithm used wherever none is named: new rules, the command line, the API, and the sidebar\'s first button for users who have not chosen one of their own. Only an allowed algorithm can be the default; removing the default from the list above moves it to the first remaining.'),
 }
 
 /** The default follows the allowlist: dropped from it, it moves to the first remaining. */
@@ -71,7 +69,7 @@ async function load(): Promise<void> {
 		selectedIds.value = (data.allowedAlgorithms ?? []).filter((id) => availableIds.value.includes(id))
 		takeDefault(data.defaultAlgorithm)
 	} catch (e) {
-		toastError('Failed to load the algorithm list.')
+		toastError(t('file_checksum_search', 'Failed to load the algorithm list.'))
 	} finally {
 		loaded.value = true
 		baseline.value = payload()
@@ -97,17 +95,17 @@ async function save(): Promise<void> {
 			defaultAlgorithm?: string
 		}
 		if (data.success) {
-			toastSaved('Algorithms saved.')
+			toastSaved(t('file_checksum_search', 'Algorithms saved.'))
 			if (data.allowedAlgorithms) {
 				selectedIds.value = data.allowedAlgorithms
 			}
 			takeDefault(data.defaultAlgorithm)
 			baseline.value = payload()
 		} else {
-			toastError(data.error || 'Save failed.')
+			toastError(data.error || t('file_checksum_search', 'Save failed.'))
 		}
 	} catch (e) {
-		toastError('Request failed.')
+		toastError(t('file_checksum_search', 'Request failed.'))
 	} finally {
 		saving.value = false
 	}
@@ -124,17 +122,17 @@ onMounted(load)
 				:algorithms="availableIds"
 				multiple
 				input-id="fcias-allowed-algorithms"
-				label="Allowed algorithms"
-				placeholder="Add an algorithm…" />
-			<HelpPopover :text="HELP.allowed" label="Allowed algorithms" />
+				:label="t('file_checksum_search', 'Allowed algorithms')"
+				:placeholder="t('file_checksum_search', 'Add an algorithm…')" />
+			<HelpPopover :text="HELP.allowed" :label="t('file_checksum_search', 'Allowed algorithms')" />
 		</div>
 		<div v-if="loaded" class="fcias-field-row">
 			<AlgorithmSelect
 				v-model="defaultId"
 				:algorithms="selectedIds"
 				input-id="fcias-default-algorithm"
-				label="Default algorithm" />
-			<HelpPopover :text="HELP.default" label="Default algorithm" />
+				:label="t('file_checksum_search', 'Default algorithm')" />
+			<HelpPopover :text="HELP.default" :label="t('file_checksum_search', 'Default algorithm')" />
 		</div>
 		<div class="fcias-rule-form-actions fcias-rule-form-actions--start">
 			<!-- Yellow while there is something to save, and nothing to press
@@ -143,7 +141,7 @@ onMounted(load)
 				:variant="dirty ? 'warning' : 'secondary'"
 				:disabled="saving || !dirty || selectedIds.length === 0 || !defaultId"
 				@click="save">
-				{{ saving ? 'Saving…' : 'Save' }}
+				{{ saveLabel }}
 			</NcButton>
 		</div>
 	</div>

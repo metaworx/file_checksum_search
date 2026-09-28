@@ -11,6 +11,10 @@ the first stable release.
 
 ## [Unreleased]
 
+### Fixed
+
+- The admin and personal settings: every text can be translated.
+
 ## [0.20.3] - 2026-09-27
 
 ### Fixed

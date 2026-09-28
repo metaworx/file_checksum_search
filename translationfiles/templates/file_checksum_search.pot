@@ -16,22 +16,147 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
+msgid "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password — a standing authorisation, listed for every administrator to see. Create the app password on Security first; only one allowed to access files can be granted. Who may look across accounts is still decided by the sudoers permission; a grant replaces the prompt, not the permission."
+msgstr ""
+
+msgid "Account"
+msgstr ""
+
+msgid "Acknowledged"
+msgstr ""
+
+msgid "Add Rule"
+msgstr ""
+
+msgid "Add an algorithm…"
+msgstr ""
+
+msgid "Advanced"
+msgstr ""
+
+msgid "Algorithms saved."
+msgstr ""
+
+msgid "Allow all users to calculate by hand"
+msgstr ""
+
+msgid "Allow all users to edit rules"
+msgstr ""
+
+msgid "Allow all users to look across accounts"
+msgstr ""
+
+msgid "Allow all users to use the API"
+msgstr ""
+
+msgid "Allowed algorithms"
+msgstr ""
+
+msgid "App Version"
+msgstr ""
+
+msgid "App password"
+msgstr ""
+
+msgid "App password granted."
+msgstr ""
+
+msgid "App passwords granted the cross-account routes without a password prompt. Each is a standing authorisation: this is where every one of them is visible, and where any can be taken back. Who may look across accounts at all is decided under “Who may look across accounts”; a grant replaces the prompt, not the permission."
+msgstr ""
+
+msgid "Automatic hashing is inactive."
+msgstr ""
+
+msgid "Background Jobs"
+msgstr ""
+
+msgid "Below this many, the picker opens with every account and group it may offer already in the list. Above it, the list would be unwieldy, so the picker asks the server as you type. Applies to administrators and group leaders alike."
+msgstr ""
+
 msgid "Checksums"
 msgstr ""
 
 msgid "Checksums indexed for this file. Click a hash to copy it."
 msgstr ""
 
+msgid "Close"
+msgstr ""
+
 msgid "Compute a checksum for the selected algorithm."
+msgstr ""
+
+msgid "Confirm Delete"
 msgstr ""
 
 msgid "Copied!"
 msgstr ""
 
+msgid "Could not change the grant."
+msgstr ""
+
+msgid "Could not revoke the grant."
+msgstr ""
+
+msgid "Could not save the options."
+msgstr ""
+
+msgid "Could not save the preference."
+msgstr ""
+
+msgid "Creating and editing rules for folders one can write to. An administrator always may; a rule an administrator has enforced is read-only for everyone else regardless."
+msgstr ""
+
+msgid "Cross-account picker: prefill up to"
+msgstr ""
+
+msgid "Cross-account reads"
+msgstr ""
+
+msgid "Database Version"
+msgstr ""
+
+#. TRANSLATORS: the entry that follows the server's default algorithm, named in brackets
+msgid "Default ({algorithm})"
+msgstr ""
+
+msgid "Default algorithm"
+msgstr ""
+
+msgid "Delete failed."
+msgstr ""
+
+msgid "Delete this rule?"
+msgstr ""
+
+msgid "Documentation"
+msgstr ""
+
 msgid "Duplicates"
 msgstr ""
 
+#. TRANSLATORS: the state of hashes dropped because no rule maintains them any more
+msgid "Eroded"
+msgstr ""
+
 msgid "Error"
+msgstr ""
+
+msgid "Evaluated top to bottom — the first matching rule decides the file. A rule's band follows from its scope and whether it is enforced, so enforced rules always precede users' own rules, and the catch-all default is last. Drag a rule by its handle to reorder it within its band; to move it between bands, change its scope or its Enforced flag."
+msgstr ""
+
+msgid "Every rule that can affect your files, in the order they are evaluated — the first match decides. Rules an administrator enforced come first and are read-only; your own rules come next and are yours to edit and reorder; the defaults below them apply only where none of your rules matched. You can create rules only if you have been given permission and the path is in a folder you can write to."
+msgstr ""
+
+msgid "Failed to load permission options."
+msgstr ""
+
+msgid "Failed to load status (HTTP {status})."
+msgstr ""
+
+msgid "Failed to load status."
+msgstr ""
+
+msgid "Failed to load the algorithm list."
 msgstr ""
 
 msgid "File Checksum Index & Search"
@@ -46,7 +171,28 @@ msgstr ""
 msgid "Find other files sharing a checksum with this file."
 msgstr ""
 
+msgid "Grant revoked."
+msgstr ""
+
+msgid "Granted"
+msgstr ""
+
+msgid "Granted {time}"
+msgstr ""
+
+msgid "Groups"
+msgstr ""
+
+msgid "Hash Algorithms"
+msgstr ""
+
+msgid "Help"
+msgstr ""
+
 msgid "Index file checksums for fast reverse hash lookups and duplicate detection, including REST, CLI and PHP APIs"
+msgstr ""
+
+msgid "Indexed Hashes"
 msgstr ""
 
 msgid ""
@@ -63,16 +209,106 @@ msgid ""
 "- Storage in Nextcloud's own files metadata index: no custom tables, nothing to migrate."
 msgstr ""
 
+msgid "Individual users who may call the public API with an app password, in addition to the members of any selected groups."
+msgstr ""
+
+msgid "Individual users who may create and edit rules for folders they can write to, in addition to the members of any selected groups."
+msgstr ""
+
+msgid "Individual users who may look across accounts once they have confirmed their password, in addition to the members of any selected groups and of the admin group."
+msgstr ""
+
+msgid "Individual users who may trigger a computation of their own files by hand, in addition to the members of any selected groups."
+msgstr ""
+
+msgid "Last Updated"
+msgstr ""
+
+msgid "Last used"
+msgstr ""
+
 msgid "Loading checksums …"
+msgstr ""
+
+msgid "Members of these groups may call the public API with an app password. Selected groups and selected users are combined — being in either is enough."
+msgstr ""
+
+msgid "Members of these groups may create and edit rules for folders they can write to. Selected groups and selected users are combined — being in either is enough."
+msgstr ""
+
+msgid "Members of these groups may look across accounts once they have confirmed their password. Selected groups and selected users are combined — being in either is enough."
+msgstr ""
+
+msgid "Members of these groups may trigger a computation of their own files by hand. Selected groups and selected users are combined — being in either is enough."
+msgstr ""
+
+msgid "No app passwords yet. Create one under “Security”, then grant it here."
 msgstr ""
 
 msgid "No checksums available for this file."
 msgstr ""
 
+msgid "No enabled include rule exists, so no file is hashed until one says so — enable the “All home folders” default in the table below, or create a rule. Manual recalculation from the file sidebar keeps working either way."
+msgstr ""
+
+msgid "No grants."
+msgstr ""
+
 msgid "No other files share checksums with this file."
 msgstr ""
 
+msgid "No rules yet."
+msgstr ""
+
+msgid "None"
+msgstr ""
+
+msgid "Not granted"
+msgstr ""
+
+msgid "Noted — the banner stays away until a rule is enabled and disabled again."
+msgstr ""
+
+msgid "Numbers that shape how the interface behaves. The defaults suit most instances."
+msgstr ""
+
 msgid "Open the Duplicates page on this hash, across every account you may see"
+msgstr ""
+
+msgid "Options saved."
+msgstr ""
+
+msgid "Orphan purge"
+msgstr ""
+
+msgid "Pending Updates"
+msgstr ""
+
+msgid "Permissions"
+msgstr ""
+
+msgid "Permissions saved."
+msgstr ""
+
+msgid "Preferred algorithm"
+msgstr ""
+
+msgid "Preferred algorithm saved."
+msgstr ""
+
+msgid "Prefill limit"
+msgstr ""
+
+msgid "Prefill up to"
+msgstr ""
+
+msgid "Queue drain"
+msgstr ""
+
+msgid "Re-apply failed."
+msgstr ""
+
+msgid "Re-apply queued — the background job takes it from here."
 msgstr ""
 
 msgid "Recalc"
@@ -81,5 +317,179 @@ msgstr ""
 msgid "Recalculate"
 msgstr ""
 
+msgid "Refresh"
+msgstr ""
+
+msgid "Reorder failed."
+msgstr ""
+
+msgid "Request failed."
+msgstr ""
+
+#. TRANSLATORS: the state of hashes disowned by a reset of the index
+msgid "Reset"
+msgstr ""
+
+msgid "Revoke"
+msgstr ""
+
+msgid "Rule deleted."
+msgstr ""
+
+msgid "Rule disabled."
+msgstr ""
+
+msgid "Rule enabled."
+msgstr ""
+
+msgid "Rule saved."
+msgstr ""
+
+msgid "Rule sweep"
+msgstr ""
+
+msgid "Rules"
+msgstr ""
+
+msgid "Rules applying to your files"
+msgstr ""
+
+msgid "Save"
+msgstr ""
+
+msgid "Save failed."
+msgstr ""
+
+msgid "Saved."
+msgstr ""
+
+msgid "Saving failed."
+msgstr ""
+
+msgid "Saving…"
+msgstr ""
+
+msgid "Scripts and other apps calling this app's public API with an app password. The bundled pages — this one, the Duplicates page, the file sidebar — keep working for everyone; this decides who may reach the same routes from outside them."
+msgstr ""
+
+msgid "Search users…"
+msgstr ""
+
 msgid "Searching …"
+msgstr ""
+
+msgid "Select groups…"
+msgstr ""
+
+msgid "Settings"
+msgstr ""
+
+msgid "Status Info"
+msgstr ""
+
+msgid "Sudo tokens"
+msgstr ""
+
+msgid "The algorithm the Checksums tab in the file sidebar offers as its first button. Leave it on the default to follow the server; pick one to have it first for every file, with the file's own rule providing the second button."
+msgstr ""
+
+msgid "The algorithm used wherever none is named: new rules, the command line, the API, and the sidebar's first button for users who have not chosen one of their own. Only an allowed algorithm can be the default; removing the default from the list above moves it to the first remaining."
+msgstr ""
+
+msgid "The algorithms rules may compute and pickers may offer, chosen from what this server's PHP provides. Removing one does not delete hashes already stored under it — they stay searchable — it only stops new ones being computed."
+msgstr ""
+
+msgid "The grant listing could not be loaded ({error})."
+msgstr ""
+
+msgid "The grant listing is unavailable: the token table could not be read."
+msgstr ""
+
+msgid "The home-folders default covers home folders only: files on external storage and in group folders are reached only by the “Everything” default or by their own group-folder or storage rules."
+msgstr ""
+
+msgid "The sudoers: members of the admin group always, plus the groups and users selected here. Looking across accounts still costs a password confirmation each time; this only says who may be asked."
+msgstr ""
+
+msgid "This app password is kept out of the filesystem and cannot be granted file reads."
+msgstr ""
+
+msgid "Toggle failed."
+msgstr ""
+
+msgid "Total: {count}"
+msgstr ""
+
+msgid "Triggering a computation of one's own files — the sidebar's Recalculate buttons and the API's recalc route — on top of owning them. Reading what is already computed is untouched; an account not named here simply does not see the buttons."
+msgstr ""
+
+msgid "Tunables"
+msgstr ""
+
+msgid "Untrusted Hashes"
+msgstr ""
+
+msgid "Users"
+msgstr ""
+
+msgid "When on, every user may call the public API with an app password. When off, only the groups and individual users selected here may; the app's own pages keep working for everyone."
+msgstr ""
+
+msgid "When on, every user may switch to the instance-wide view after confirming their password. When off, only members of the admin group and the groups and users selected here may."
+msgstr ""
+
+msgid "When on, every user may trigger a computation of their own files by hand. When off, only the groups and individual users selected here may; everyone still sees the hashes already computed."
+msgstr ""
+
+msgid "When on, every user of this instance may create and edit rules for folders they can write to. When off, that permission is limited to the groups and individual users you select."
+msgstr ""
+
+msgid "Which algorithms are computed for which files, on real-time file events."
+msgstr ""
+
+msgid "Which algorithms this server computes, from what its PHP provides, and which of them is the default. Rules may only use these, and every picker in the app offers exactly these."
+msgstr ""
+
+msgid "Who may calculate by hand"
+msgstr ""
+
+msgid "Who may edit rules"
+msgstr ""
+
+msgid "Who may look across accounts"
+msgstr ""
+
+msgid "Who may use the API"
+msgstr ""
+
+msgid "Your app passwords could not be listed ({error})."
+msgstr ""
+
+msgid "Your app passwords could not be listed: the token table could not be read."
+msgstr ""
+
+msgid "Your preferred algorithm"
+msgstr ""
+
+msgid "disowned by a reset — already hidden from search, and the background job clears them as it goes"
+msgstr ""
+
+msgid "hashes were dropped on write because no rule maintains them; heals itself once a rule covers them again"
+msgstr ""
+
+#. TRANSLATORS: when an app password was last used, or granted: not at all
+msgid "never"
+msgstr ""
+
+msgid "never ran yet"
+msgstr ""
+
+msgid "token deleted — grant left behind"
+msgstr ""
+
+msgid "{stored} is not available on this server at the moment, so the default ({active}) applies."
+msgstr ""
+
+#. TRANSLATORS when a grant was made, and by which account
+msgid "{time} by {account}"
 msgstr ""
