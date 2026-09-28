@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Service;
 
 use InvalidArgumentException;
 use OCP\IGroupManager;
+use OCP\IL10N;
 use OCP\IUserManager;
 
 /**
@@ -26,6 +27,9 @@ use OCP\IUserManager;
  * session; DI callers decide via their requesting-user parameter).
  * A non-administrator's rule is always their own and never enforced,
  * whatever the payload claims.
+ *
+ * Its refusals are translated here, where they are made: the user's language
+ * on the web, the server's default on the command line (AGENTS.md §3.7).
  */
 readonly class RuleDefinitionValidator
 {
@@ -36,6 +40,7 @@ readonly class RuleDefinitionValidator
 		private IGroupManager      $groupManager,
 		private IUserManager       $userManager,
 		private AlgorithmCatalogue $catalogue,
+		private IL10N              $l10n,
 	) {
 	}
 
@@ -67,14 +72,14 @@ readonly class RuleDefinitionValidator
 
 		if ( ! RuleService::isValidType( $type ) )
 		{
-			throw new InvalidArgumentException( 'Unknown rule type.' );
+			throw new InvalidArgumentException( $this->l10n->t( 'Unknown rule type.' ) );
 		}
 
 		$path = $body['path'] ?? ( $existing['path'] ?? '/' );
 
 		if ( ! is_string( $path ) || trim( $path ) === '' )
 		{
-			throw new InvalidArgumentException( 'A path is required.' );
+			throw new InvalidArgumentException( $this->l10n->t( 'A path is required.' ) );
 		}
 
 		$definition = [
@@ -98,7 +103,7 @@ readonly class RuleDefinitionValidator
 
 		if ( ! RuleService::isValidMode( $mode ) )
 		{
-			throw new InvalidArgumentException( 'Unknown rule mode.' );
+			throw new InvalidArgumentException( $this->l10n->t( 'Unknown rule mode.' ) );
 		}
 
 		$algos = $body['algos'] ?? ( $existing['algos'] ?? [ $this->catalogue->default() ] );
@@ -119,7 +124,7 @@ readonly class RuleDefinitionValidator
 
 		if ( $algos === [] )
 		{
-			throw new InvalidArgumentException( 'At least one supported algorithm is required.' );
+			throw new InvalidArgumentException( $this->l10n->t( 'At least one supported algorithm is required.' ) );
 		}
 
 		$definition['mode']  = $mode;
@@ -148,7 +153,7 @@ readonly class RuleDefinitionValidator
 
 		if ( ! is_string( $value ) || $value === '' )
 		{
-			throw new InvalidArgumentException( 'selector must be a non-empty string.' );
+			throw new InvalidArgumentException( $this->l10n->t( 'selector must be a non-empty string.' ) );
 		}
 
 		$selector = Selector::parse( $value );
@@ -158,7 +163,7 @@ readonly class RuleDefinitionValidator
 		case Selector::KIND_GROUP:
 			if ( ! $this->groupManager->groupExists( (string) $selector->target ) )
 			{
-				throw new InvalidArgumentException( 'Unknown group.' );
+				throw new InvalidArgumentException( $this->l10n->t( 'Unknown group.' ) );
 			}
 
 			break;
@@ -166,7 +171,7 @@ readonly class RuleDefinitionValidator
 		case Selector::KIND_USER:
 			if ( ! $this->userManager->userExists( (string) $selector->target ) )
 			{
-				throw new InvalidArgumentException( 'Unknown user.' );
+				throw new InvalidArgumentException( $this->l10n->t( 'Unknown user.' ) );
 			}
 
 			break;
@@ -174,7 +179,8 @@ readonly class RuleDefinitionValidator
 		case Selector::KIND_GROUPFOLDER:
 			if ( ! ctype_digit( (string) $selector->target ) )
 			{
-				throw new InvalidArgumentException( 'groupfolder: takes the numeric folder id.' );
+				// TRANSLATORS: "groupfolder:" is the selector's prefix as it is typed; keep it
+				throw new InvalidArgumentException( $this->l10n->t( 'groupfolder: takes the numeric folder id.' ) );
 			}
 
 			break;

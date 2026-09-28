@@ -13,6 +13,7 @@ use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\ReachResolver;
 use OCP\Files\IRootFolder;
+use OCP\IL10N;
 use OCP\IURLGenerator;
 use OCP\IUser;
 use OCP\Search\IProvider;
@@ -47,6 +48,7 @@ class HashSearchProvider
 		private readonly ReachResolver   $reach,
 		private readonly IURLGenerator   $urlGenerator,
 		private readonly LoggerInterface $logger,
+		private readonly IL10N $l10n,
 	) {
 	}
 
@@ -68,7 +70,7 @@ class HashSearchProvider
 	 */
 	public function getName(): string
 	{
-		return 'File Checksums';
+		return $this->l10n->t( 'File Checksums' );
 	}
 
 	/**

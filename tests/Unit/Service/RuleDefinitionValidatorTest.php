@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 use InvalidArgumentException;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
+use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
 use OCP\IGroupManager;
 use OCP\IAppConfig;
 use OCP\IUserManager;
@@ -26,6 +27,8 @@ class RuleDefinitionValidatorTest
     extends
     TestCase
 {
+	use EnglishL10n;
+
 
 //  private properties
 
@@ -44,7 +47,7 @@ class RuleDefinitionValidatorTest
 
 		$this->groupManager = $this->createMock( IGroupManager::class );
 		$this->userManager  = $this->createMock( IUserManager::class );
-		$this->validator    = new RuleDefinitionValidator( $this->groupManager, $this->userManager, new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ) );
+		$this->validator    = new RuleDefinitionValidator( $this->groupManager, $this->userManager, new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ), $this->englishL10n() );
 	}
 
 

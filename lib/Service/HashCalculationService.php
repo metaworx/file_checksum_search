@@ -15,6 +15,8 @@ use OCP\Files\Folder;
 use OCP\Files\NotFoundException;
 use OCP\Files\Storage\IStorage;
 use OCP\FilesMetadata\Model\IFilesMetadata;
+use OCP\HintException;
+use OCP\IL10N;
 use OCP\Lock\ILockingProvider;
 use OCP\Lock\LockedException;
 use Psr\Log\LoggerInterface;
@@ -45,6 +47,7 @@ class HashCalculationService
 		private readonly RuleService      $ruleService,
 		private readonly LoggerInterface  $logger,
 		private readonly AlgorithmCatalogue $catalogue,
+		private readonly IL10N $l10n,
 	) {
 	}
 
@@ -752,7 +755,7 @@ class HashCalculationService
 						'app'    => Application::APP_ID,
 						'fileId' => $fileId,
 						'algo'   => $algo,
-						'error'  => $result['error'] ?? 'unknown',
+						'error'  => $result['reason'] ?? $result['error'] ?? 'unknown',
 					],
 				);
 
@@ -868,7 +871,9 @@ class HashCalculationService
 				'success' => false,
 				'hash'    => '',
 				'existed' => false,
-				'error'   => 'Unsupported algorithm: ' . $algo,
+				'error'   => $this->l10n->t( 'Unsupported algorithm: %s', [ $algo ] ),
+				// English for the log, as the error is the reader's language.
+				'reason'  => 'Unsupported algorithm: ' . $algo,
 			];
 		}
 
@@ -886,7 +891,8 @@ class HashCalculationService
 						'success' => false,
 						'hash'    => '',
 						'existed' => false,
-						'error'   => 'File not found.',
+						'error'   => $this->l10n->t( 'File not found.' ),
+						'reason'  => 'File not found.',
 					];
 				}
 
@@ -904,7 +910,8 @@ class HashCalculationService
 						'success' => false,
 						'hash'    => '',
 						'existed' => false,
-						'error'   => 'Node is not a file.',
+						'error'   => $this->l10n->t( 'Node is not a file.' ),
+						'reason'  => 'Node is not a file.',
 					];
 				}
 
@@ -1016,7 +1023,8 @@ class HashCalculationService
 					'success' => false,
 					'hash'    => '',
 					'existed' => false,
-					'error'   => $e->getMessage(),
+					'error'   => $e instanceof HintException ? $e->getHint() : $e->getMessage(),
+					'reason'  => $e->getMessage(),
 				];
 			}
 
@@ -1059,7 +1067,7 @@ class HashCalculationService
 
 		if ( $handle === false )
 		{
-			throw new \RuntimeException( 'Unable to open file for reading.' );
+			throw new HintException( 'Unable to open file for reading.', $this->l10n->t( 'Unable to open file for reading.' ) );
 		}
 
 		try
@@ -1092,7 +1100,7 @@ class HashCalculationService
 
 		if ( $handle === false )
 		{
-			throw new \RuntimeException( 'Unable to open file for reading.' );
+			throw new HintException( 'Unable to open file for reading.', $this->l10n->t( 'Unable to open file for reading.' ) );
 		}
 
 		try
@@ -1207,7 +1215,7 @@ class HashCalculationService
 					'algo'    => $algo,
 					'hash'    => '',
 					'existed' => false,
-					'error'   => 'File not found.',
+					'error'   => $this->l10n->t( 'File not found.' ),
 				];
 			}
 
@@ -1218,7 +1226,7 @@ class HashCalculationService
 					'algo'    => $algo,
 					'hash'    => '',
 					'existed' => false,
-					'error'   => 'Node is not a file.',
+					'error'   => $this->l10n->t( 'Node is not a file.' ),
 				];
 			}
 		}

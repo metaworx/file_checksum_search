@@ -19,6 +19,7 @@ use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\PasswordConfirmationRequired;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\IGroupManager;
+use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserSession;
 
@@ -45,6 +46,7 @@ class SudoTokensController
 		private readonly IGroupManager     $groupManager,
 		private readonly PermissionService $permissions,
 		private readonly SudoTokens        $sudoTokens,
+		private readonly IL10N $l10n,
 	)
 	{
 		parent::__construct( $appName, $request );
@@ -71,7 +73,7 @@ class SudoTokensController
 
 		if ( $uid === null )
 		{
-			return new DataResponse( [ 'error' => 'Not authenticated.' ], Http::STATUS_UNAUTHORIZED );
+			return new DataResponse( [ 'error' => $this->l10n->t( 'Not authenticated.' ) ], Http::STATUS_UNAUTHORIZED );
 		}
 
 		if ( ! $this->mayUseApi( $uid ) )
@@ -106,12 +108,12 @@ class SudoTokensController
 
 		if ( $uid === null )
 		{
-			return new DataResponse( [ 'error' => 'Not authenticated.' ], Http::STATUS_UNAUTHORIZED );
+			return new DataResponse( [ 'error' => $this->l10n->t( 'Not authenticated.' ) ], Http::STATUS_UNAUTHORIZED );
 		}
 
 		if ( ! $this->mayUseApi( $uid ) )
 		{
-			return new DataResponse( [ 'error' => 'This account may not use the API.' ], Http::STATUS_FORBIDDEN );
+			return new DataResponse( [ 'error' => $this->l10n->t( 'This account may not use the API.' ) ], Http::STATUS_FORBIDDEN );
 		}
 
 		$granted = $this->request->getParam( 'granted' );

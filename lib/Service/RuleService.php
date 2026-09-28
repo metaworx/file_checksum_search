@@ -21,6 +21,7 @@ use OCP\Files\IRootFolder;
 use OCP\Files\Search\ISearchComparison;
 use OCP\IAppConfig;
 use OCP\IGroupManager;
+use OCP\IL10N;
 use OCP\IUser;
 use OCP\IUserManager;
 use Psr\Log\LoggerInterface;
@@ -150,6 +151,7 @@ class RuleService
 		private readonly PermissionService $permissionService,
 		private readonly IGroupManager     $groupManager,
 		private readonly FilecacheService  $filecacheService,
+		private readonly IL10N $l10n,
 	) {
 	}
 
@@ -1162,19 +1164,23 @@ class RuleService
 	 * so an impossible request is refused at submission time instead of
 	 * becoming a background job that can only fail out of sight.
 	 *
+	 * Static, so a surface can refuse before it has loaded anything else; the
+	 * caller hands over its IL10N for the refusal's words.
+	 *
 	 * @throws InvalidArgumentException for a disabled or non-include rule
 	 */
-	public static function assertApplicable( array $rule ): void
+	public static function assertApplicable( array $rule, IL10N $l10n ): void
 	{
 		if ( empty( $rule['enabled'] ) )
 		{
-			throw new InvalidArgumentException( 'A disabled rule cannot be applied — enable it first.' );
+			throw new InvalidArgumentException( $l10n->t( 'A disabled rule cannot be applied — enable it first.' ) );
 		}
 
 		if ( self::verdictOf( $rule ) !== self::TYPE_INCLUDE )
 		{
 			throw new InvalidArgumentException(
-				sprintf( 'An %s rule computes nothing, so there is nothing to apply.', self::verdictOf( $rule ) ),
+				// TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
+				$l10n->t( 'An %s rule computes nothing, so there is nothing to apply.', [ self::verdictOf( $rule ) ] ),
 			);
 		}
 	}
@@ -1204,7 +1210,7 @@ class RuleService
 		?string          $actor = null,
 	): array
 	{
-		self::assertApplicable( $rule );
+		self::assertApplicable( $rule, $this->l10n );
 
 		$mode = $modeOverride ?? ( $rule['mode'] ?? 'auto' );
 
@@ -1381,7 +1387,7 @@ class RuleService
 
 		if ( $requestingUserId !== null && $canonical !== 'home:' . $requestingUserId )
 		{
-			throw new InvalidArgumentException( 'You may only reorder your own rules.' );
+			throw new InvalidArgumentException( $this->l10n->t( 'You may only reorder your own rules.' ) );
 		}
 
 		$rules = $this->loadRules();

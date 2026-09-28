@@ -28,6 +28,9 @@ msgstr[1] ""
 msgid "(not in your files)"
 msgstr ""
 
+msgid "A disabled rule cannot be applied — enable it first."
+msgstr ""
+
 msgid "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password — a standing authorisation, listed for every administrator to see. Create the app password on Security first; only one allowed to access files can be granted. Who may look across accounts is still decided by the sudoers permission; a grant replaces the prompt, not the permission."
 msgstr ""
 
@@ -38,6 +41,9 @@ msgid "A group folder"
 msgstr ""
 
 msgid "A home folder"
+msgstr ""
+
+msgid "A path is required."
 msgstr ""
 
 msgid "A single user"
@@ -112,6 +118,11 @@ msgstr ""
 msgid "Allowed algorithms"
 msgstr ""
 
+#. TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
+#, php-format
+msgid "An %s rule computes nothing, so there is nothing to apply."
+msgstr ""
+
 msgid "App Version"
 msgstr ""
 
@@ -125,6 +136,9 @@ msgid "App passwords granted the cross-account routes without a password prompt.
 msgstr ""
 
 msgid "Applies to"
+msgstr ""
+
+msgid "At least one supported algorithm is required."
 msgstr ""
 
 msgid "Auto (recalc existing only if outdated)"
@@ -300,6 +314,9 @@ msgstr ""
 msgid "Exclude (never hash these files)"
 msgstr ""
 
+msgid "FAQ"
+msgstr ""
+
 #. TRANSLATORS: a file's verification failed, for no reason the server gave
 msgid "Failed"
 msgstr ""
@@ -329,6 +346,12 @@ msgid "Failed to load the algorithm list."
 msgstr ""
 
 msgid "File Checksum Index & Search"
+msgstr ""
+
+msgid "File Checksums"
+msgstr ""
+
+msgid "File not found."
 msgstr ""
 
 msgid "Find across accounts"
@@ -382,6 +405,9 @@ msgid "Hash"
 msgstr ""
 
 msgid "Hash Algorithms"
+msgstr ""
+
+msgid "Hash parameter is required."
 msgstr ""
 
 msgid "Hashing is excluded for this path by a rule."
@@ -442,6 +468,12 @@ msgid "Individual users who may look across accounts once they have confirmed th
 msgstr ""
 
 msgid "Individual users who may trigger a computation of their own files by hand, in addition to the members of any selected groups."
+msgstr ""
+
+msgid "Internal server error."
+msgstr ""
+
+msgid "Invalid request body."
 msgstr ""
 
 msgid "Last Updated"
@@ -531,10 +563,26 @@ msgstr ""
 msgid "No rules yet."
 msgstr ""
 
+msgid "No such app password on this account."
+msgstr ""
+
 msgid "Nobody to show"
 msgstr ""
 
+msgid "Node is not a file."
+msgstr ""
+
 msgid "None"
+msgstr ""
+
+msgid "None of the requested algorithms is available on this server; the previous list is kept."
+msgstr ""
+
+#, php-format
+msgid "Not an algorithm this instance computes: %s"
+msgstr ""
+
+msgid "Not authenticated."
 msgstr ""
 
 msgid "Not granted"
@@ -543,7 +591,13 @@ msgstr ""
 msgid "Not in your files"
 msgstr ""
 
+msgid "Not logged in."
+msgstr ""
+
 msgid "Not processed"
+msgstr ""
+
+msgid "Not yours to look at."
 msgstr ""
 
 msgid "Noted — the banner stays away until a rule is enabled and disabled again."
@@ -553,6 +607,9 @@ msgid "Numbers that shape how the interface behaves. The defaults suit most inst
 msgstr ""
 
 msgid "One account's home folder"
+msgstr ""
+
+msgid "Only an app password can be granted; a browser session is discarded by the next login."
 msgstr ""
 
 msgid "Only groups of this algorithm, or every algorithm at once. The list is what this server computes; an algorithm nobody has enabled is not offered."
@@ -575,6 +632,10 @@ msgid "Path"
 msgstr ""
 
 msgid "Path (glob)"
+msgstr ""
+
+#, php-format
+msgid "Path does not resolve to a file: %s"
 msgstr ""
 
 msgid "Pending Updates"
@@ -660,6 +721,9 @@ msgid "Rule disabled."
 msgstr ""
 
 msgid "Rule enabled."
+msgstr ""
+
+msgid "Rule not found."
 msgstr ""
 
 msgid "Rule saved."
@@ -771,6 +835,9 @@ msgstr ""
 msgid "The app or storage this rule names is not available, so the rule can never match."
 msgstr ""
 
+msgid "The default must be one of the allowed algorithms."
+msgstr ""
+
 msgid "The grant listing could not be loaded ({error})."
 msgstr ""
 
@@ -823,10 +890,31 @@ msgstr ""
 msgid "These namespaces exist on this instance but have no catch-all rule of their own, so what happens to their files is decided by whatever more general rule covers them — or by nothing at all. Creating a rule from here starts one for that namespace; until then, nothing is stored."
 msgstr ""
 
+msgid "This account may not calculate by hand."
+msgstr ""
+
+msgid "This account may not use the API."
+msgstr ""
+
 msgid "This app password is kept out of the filesystem and cannot be granted file reads."
 msgstr ""
 
+msgid "This app password is kept out of the filesystem, so it cannot be granted file reads."
+msgstr ""
+
+msgid "This app password may not access files."
+msgstr ""
+
 msgid "This is your own rule. It applies only to your files and is evaluated after any rule an administrator has enforced."
+msgstr ""
+
+msgid "This user may not apply this rule."
+msgstr ""
+
+msgid "This user may not change this rule."
+msgstr ""
+
+msgid "This user may not edit rules."
 msgstr ""
 
 msgid "Toggle failed."
@@ -847,10 +935,35 @@ msgstr ""
 msgid "Type to search"
 msgstr ""
 
+msgid "Unable to open file for reading."
+msgstr ""
+
+msgid "Unknown group."
+msgstr ""
+
+msgid "Unknown preference."
+msgstr ""
+
+msgid "Unknown rule mode."
+msgstr ""
+
+msgid "Unknown rule type."
+msgstr ""
+
+msgid "Unknown user."
+msgstr ""
+
+#, php-format
+msgid "Unsupported algorithm: %s"
+msgstr ""
+
 msgid "Untrusted Hashes"
 msgstr ""
 
 msgid "User"
+msgstr ""
+
+msgid "User Guide"
 msgstr ""
 
 msgid "Users"
@@ -949,6 +1062,9 @@ msgstr ""
 msgid "You are not allowed to edit rules. Contact an administrator."
 msgstr ""
 
+msgid "You may only reorder your own rules."
+msgstr ""
+
 msgid "Your app passwords could not be listed ({error})."
 msgstr ""
 
@@ -962,6 +1078,13 @@ msgid "Your preferred algorithm"
 msgstr ""
 
 msgid "disowned by a reset — already hidden from search, and the background job clears them as it goes"
+msgstr ""
+
+msgid "fileIds must be a non-empty list of integers."
+msgstr ""
+
+#. TRANSLATORS: "groupfolder:" is the selector's prefix as it is typed; keep it
+msgid "groupfolder: takes the numeric folder id."
 msgstr ""
 
 msgid "hashes were dropped on write because no rule maintains them; heals itself once a rule covers them again"
@@ -991,7 +1114,13 @@ msgstr ""
 msgid "provider missing"
 msgstr ""
 
+msgid "selector must be a non-empty string."
+msgstr ""
+
 msgid "token deleted — grant left behind"
+msgstr ""
+
+msgid "value must be a string."
 msgstr ""
 
 #. TRANSLATORS: {folders} is what the group folders app calls itself, e.g. "Team folders"

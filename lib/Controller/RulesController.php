@@ -26,6 +26,7 @@ use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\BackgroundJob\IJobList;
 use OCP\IGroupManager;
+use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserManager;
 use OCP\IUserSession;
@@ -79,6 +80,7 @@ class RulesController
 		private readonly FilecacheService        $filecacheService,
 		private readonly LoggerInterface         $logger,
 		private readonly AlgorithmCatalogue      $catalogue,
+		private readonly IL10N $l10n,
 	)
 	{
 		parent::__construct( $appName, $request );
@@ -397,7 +399,7 @@ class RulesController
 		{
 			// Refuse at submission time what the job could only fail on out
 			// of sight: a disabled or non-include rule.
-			RuleService::assertApplicable( $existing );
+			RuleService::assertApplicable( $existing, $this->l10n );
 		}
 		catch ( InvalidArgumentException $e )
 		{
@@ -615,7 +617,7 @@ class RulesController
 		return new DataResponse(
 			[
 				'success' => false,
-				'error'   => 'Not logged in.',
+				'error'   => $this->l10n->t( 'Not logged in.' ),
 			],
 			Http::STATUS_UNAUTHORIZED,
 		);
@@ -637,7 +639,7 @@ class RulesController
 		return new DataResponse(
 			[
 				'success' => false,
-				'error'   => 'Rule not found.',
+				'error'   => $this->l10n->t( 'Rule not found.' ),
 			],
 			Http::STATUS_NOT_FOUND,
 		);
@@ -676,7 +678,7 @@ class RulesController
 		return new DataResponse(
 			[
 				'success' => false,
-				'error'   => 'Internal server error.',
+				'error'   => $this->l10n->t( 'Internal server error.' ),
 			],
 			Http::STATUS_INTERNAL_SERVER_ERROR,
 		);

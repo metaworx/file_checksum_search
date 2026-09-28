@@ -24,6 +24,7 @@ use OCP\IUserManager;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\StatusService;
 use OCA\FileChecksumSearch\Service\TableNameService;
+use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
 use OCP\App\IAppManager;
 use OCP\Files\File;
 use OCP\Files\Folder;
@@ -39,6 +40,8 @@ class ChecksumApiTest
     extends
     TestCase
 {
+	use EnglishL10n;
+
 
 //  private properties
 
@@ -114,7 +117,7 @@ class ChecksumApiTest
 			$this->rootFolder,
 			$this->userSession,
 			$this->ruleService,
-			new RuleDefinitionValidator( $this->groupManager, $userManager, new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ) ),
+			new RuleDefinitionValidator( $this->groupManager, $userManager, new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ), $this->englishL10n() ),
 			$this->permissionService,
 			$this->groupManager,
 			new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ),
@@ -122,6 +125,7 @@ class ChecksumApiTest
 			$this->userMountCache,
 			$this->userManager,
 			$this->reach,
+			$this->englishL10n(),
 		);
 	}
 

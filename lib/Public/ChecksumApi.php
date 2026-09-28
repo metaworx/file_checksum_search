@@ -28,6 +28,7 @@ use OCP\Files\Config\IUserMountCache;
 use OCP\Files\File;
 use OCP\Files\IRootFolder;
 use OCP\Files\NotFoundException;
+use OCP\IL10N;
 use OCP\IUserManager;
 use OCP\IUserSession;
 
@@ -64,6 +65,7 @@ class ChecksumApi
 		private readonly IUserMountCache         $userMountCache,
 		private readonly IUserManager            $userManager,
 		private readonly ReachResolver           $reach,
+		private readonly IL10N $l10n,
 	) {
 	}
 
@@ -193,7 +195,7 @@ class ChecksumApi
 
 		if ( ! $node instanceof File )
 		{
-			throw new NotFoundException( 'Path does not resolve to a file: ' . $path );
+			throw new NotFoundException( $this->l10n->t( 'Path does not resolve to a file: %s', [ $path ] ) );
 		}
 
 		$fileId         = $node->getId();
@@ -275,7 +277,7 @@ class ChecksumApi
 
 		if ( $hash === '' )
 		{
-			throw new \InvalidArgumentException( 'Hash parameter is required.' );
+			throw new \InvalidArgumentException( $this->l10n->t( 'Hash parameter is required.' ) );
 		}
 
 		$limit = max( 1, min( $limit, 500 ) );
@@ -645,7 +647,7 @@ class ChecksumApi
 		{
 			return [
 				'success' => false,
-				'error'   => 'File not found.',
+				'error'   => $this->l10n->t( 'File not found.' ),
 			];
 		}
 
@@ -658,7 +660,7 @@ class ChecksumApi
 		{
 			return [
 				'success'   => false,
-				'error'     => 'This account may not calculate by hand.',
+				'error'     => $this->l10n->t( 'This account may not calculate by hand.' ),
 				'forbidden' => true,
 			];
 		}
@@ -673,7 +675,7 @@ class ChecksumApi
 			// the reader's own included.
 			return [
 				'success'   => false,
-				'error'     => 'Hashing is excluded for this path by a rule.',
+				'error'     => $this->l10n->t( 'Hashing is excluded for this path by a rule.' ),
 				'excluded'  => true,
 				'ruleId'    => (string) ( $excludedBy['id'] ?? '' ),
 				'ruleOwner' => self::ruleOwner( $excludedBy ),
@@ -698,7 +700,7 @@ class ChecksumApi
 		$file = $this->fileForAnyAccount( $fileId );
 
 		return $file === null
-			? [ 'success' => false, 'error' => 'File not found.' ]
+			? [ 'success' => false, 'error' => $this->l10n->t( 'File not found.' ) ]
 			: $this->hashIndexService->recalcFileHash( $file, $algo );
 	}
 
@@ -1055,7 +1057,7 @@ class ChecksumApi
 
 		if ( ! $isAdmin && ! $this->permissionService->canUserEditRules( (string) $requestingUser ) )
 		{
-			throw new InvalidArgumentException( 'This user may not edit rules.' );
+			throw new InvalidArgumentException( $this->l10n->t( 'This user may not edit rules.' ) );
 		}
 
 		$validated = $this->definitionValidator->definitionFrom(
@@ -1095,7 +1097,7 @@ class ChecksumApi
 
 		if ( ! $this->mayMutate( $requestingUser, $existing ) )
 		{
-			throw new InvalidArgumentException( 'This user may not change this rule.' );
+			throw new InvalidArgumentException( $this->l10n->t( 'This user may not change this rule.' ) );
 		}
 
 		$validated = $this->definitionValidator->definitionFrom(
@@ -1134,7 +1136,7 @@ class ChecksumApi
 
 		if ( ! $this->mayMutate( $requestingUser, $existing ) )
 		{
-			throw new InvalidArgumentException( 'This user may not change this rule.' );
+			throw new InvalidArgumentException( $this->l10n->t( 'This user may not change this rule.' ) );
 		}
 
 		$this->ruleService->ruleDelete( $id, $requestingUser ?? self::TRUSTED_ACTOR );
@@ -1159,7 +1161,7 @@ class ChecksumApi
 
 		if ( ! $this->mayMutate( $requestingUser, $existing ) )
 		{
-			throw new InvalidArgumentException( 'This user may not apply this rule.' );
+			throw new InvalidArgumentException( $this->l10n->t( 'This user may not apply this rule.' ) );
 		}
 
 		return $this->ruleService->applyRule(

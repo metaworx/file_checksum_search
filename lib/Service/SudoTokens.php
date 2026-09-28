@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\Config\IUserConfig;
+use OCP\IL10N;
 
 /**
  * App passwords that may use the cross-account routes without a password
@@ -45,6 +46,7 @@ class SudoTokens
 		private readonly IUserConfig         $userConfig,
 		private readonly AuthTokenRepository $tokens,
 		private readonly ITimeFactory        $time,
+		private readonly IL10N $l10n,
 	) {
 	}
 
@@ -175,17 +177,17 @@ class SudoTokens
 
 		if ( $token === null )
 		{
-			throw new InvalidArgumentException( 'No such app password on this account.' );
+			throw new InvalidArgumentException( $this->l10n->t( 'No such app password on this account.' ) );
 		}
 
 		if ( $token['type'] !== AuthTokenRepository::TYPE_APP_PASSWORD )
 		{
-			throw new InvalidArgumentException( 'Only an app password can be granted; a browser session is discarded by the next login.' );
+			throw new InvalidArgumentException( $this->l10n->t( 'Only an app password can be granted; a browser session is discarded by the next login.' ) );
 		}
 
 		if ( ! $token['filesystem'] )
 		{
-			throw new InvalidArgumentException( 'This app password is kept out of the filesystem, so it cannot be granted file reads.' );
+			throw new InvalidArgumentException( $this->l10n->t( 'This app password is kept out of the filesystem, so it cannot be granted file reads.' ) );
 		}
 
 		$grants              = $this->grantsFor( $uid );

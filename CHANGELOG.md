@@ -13,8 +13,8 @@ the first stable release.
 
 ### Fixed
 
-- The web interface, the Files sidebar included: every text can be
-  translated.
+- The web interface, the Files sidebar included, and the messages the
+  server sends it: every text can be translated.
 
 ## [0.20.3] - 2026-09-27
 

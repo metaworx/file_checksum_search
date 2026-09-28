@@ -32,6 +32,7 @@ use OCP\ISession;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\SudoScope;
 use OCA\FileChecksumSearch\Service\SudoConfirmation;
+use OCP\IL10N;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -67,6 +68,7 @@ class PublicApiController
 		private readonly PermissionService $permissions,
 		private readonly SudoConfirmation $confirmation,
 		private readonly IAppConfig      $appConfig,
+		private readonly IL10N $l10n,
 	)
 	{
 		parent::__construct( $appName, $request );
@@ -102,7 +104,7 @@ class PublicApiController
 		if ( $user === null )
 		{
 			return new DataResponse(
-				[ 'success' => false, 'error' => 'Not authenticated.' ],
+				[ 'success' => false, 'error' => $this->l10n->t( 'Not authenticated.' ) ],
 				Http::STATUS_UNAUTHORIZED,
 			);
 		}
@@ -110,7 +112,7 @@ class PublicApiController
 		if ( ! $this->lockdown->canAccessFilesystem() )
 		{
 			return new DataResponse(
-				[ 'success' => false, 'error' => 'This app password may not access files.' ],
+				[ 'success' => false, 'error' => $this->l10n->t( 'This app password may not access files.' ) ],
 				Http::STATUS_FORBIDDEN,
 			);
 		}
@@ -126,7 +128,7 @@ class PublicApiController
 		     && ! $this->permissions->isAllowed( PermissionService::PERMISSION_API_ACCESS, $user->getUID() ) )
 		{
 			return new DataResponse(
-				[ 'success' => false, 'error' => 'This account may not use the API.' ],
+				[ 'success' => false, 'error' => $this->l10n->t( 'This account may not use the API.' ) ],
 				Http::STATUS_FORBIDDEN,
 			);
 		}
@@ -194,7 +196,7 @@ class PublicApiController
 		if ( $scope === false )
 		{
 			return new DataResponse(
-				[ 'success' => false, 'error' => 'Not yours to look at.' ],
+				[ 'success' => false, 'error' => $this->l10n->t( 'Not yours to look at.' ) ],
 				Http::STATUS_FORBIDDEN,
 			);
 		}
@@ -238,7 +240,7 @@ class PublicApiController
 		if ( ! $mayReach )
 		{
 			return new DataResponse(
-				[ 'success' => false, 'error' => 'Not yours to look at.' ],
+				[ 'success' => false, 'error' => $this->l10n->t( 'Not yours to look at.' ) ],
 				Http::STATUS_FORBIDDEN,
 			);
 		}
@@ -380,7 +382,7 @@ class PublicApiController
 		if ( $scope === false )
 		{
 			return new DataResponse(
-				[ 'success' => false, 'error' => 'Not yours to look at.' ],
+				[ 'success' => false, 'error' => $this->l10n->t( 'Not yours to look at.' ) ],
 				Http::STATUS_FORBIDDEN,
 			);
 		}
@@ -424,12 +426,12 @@ class PublicApiController
 
 		if ( $uid === null )
 		{
-			return new DataResponse( [ 'error' => 'Not authenticated.' ], Http::STATUS_UNAUTHORIZED );
+			return new DataResponse( [ 'error' => $this->l10n->t( 'Not authenticated.' ) ], Http::STATUS_UNAUTHORIZED );
 		}
 
 		if ( $key !== ConfigLexicon::USER_PREFERRED_ALGORITHM )
 		{
-			return new DataResponse( [ 'error' => 'Unknown preference.' ], Http::STATUS_NOT_FOUND );
+			return new DataResponse( [ 'error' => $this->l10n->t( 'Unknown preference.' ) ], Http::STATUS_NOT_FOUND );
 		}
 
 		return new DataResponse( $this->preferredAlgorithm( $uid ) );
@@ -449,12 +451,12 @@ class PublicApiController
 
 		if ( $uid === null )
 		{
-			return new DataResponse( [ 'error' => 'Not authenticated.' ], Http::STATUS_UNAUTHORIZED );
+			return new DataResponse( [ 'error' => $this->l10n->t( 'Not authenticated.' ) ], Http::STATUS_UNAUTHORIZED );
 		}
 
 		if ( $key !== ConfigLexicon::USER_PREFERRED_ALGORITHM )
 		{
-			return new DataResponse( [ 'error' => 'Unknown preference.' ], Http::STATUS_NOT_FOUND );
+			return new DataResponse( [ 'error' => $this->l10n->t( 'Unknown preference.' ) ], Http::STATUS_NOT_FOUND );
 		}
 
 		// Nextcloud decodes an application/json body into the request's
@@ -463,7 +465,7 @@ class PublicApiController
 
 		if ( ! is_string( $value ) )
 		{
-			return new DataResponse( [ 'error' => 'value must be a string.' ], Http::STATUS_BAD_REQUEST );
+			return new DataResponse( [ 'error' => $this->l10n->t( 'value must be a string.' ) ], Http::STATUS_BAD_REQUEST );
 		}
 
 		$value = strtolower( trim( $value ) );
@@ -479,7 +481,7 @@ class PublicApiController
 		else
 		{
 			return new DataResponse(
-				[ 'error' => 'Not an algorithm this instance computes: ' . $value ],
+				[ 'error' => $this->l10n->t( 'Not an algorithm this instance computes: %s', [ $value ] ) ],
 				Http::STATUS_BAD_REQUEST,
 			);
 		}
@@ -584,7 +586,7 @@ class PublicApiController
 		}
 		catch ( NotFoundException )
 		{
-			return new DataResponse( [ 'error' => 'File not found.' ], Http::STATUS_NOT_FOUND );
+			return new DataResponse( [ 'error' => $this->l10n->t( 'File not found.' ) ], Http::STATUS_NOT_FOUND );
 		}
 		catch ( Throwable $e )
 		{
@@ -598,7 +600,7 @@ class PublicApiController
 			);
 
 			return new DataResponse(
-				[ 'error' => 'Internal server error.' ],
+				[ 'error' => $this->l10n->t( 'Internal server error.' ) ],
 				Http::STATUS_INTERNAL_SERVER_ERROR,
 			);
 		}
@@ -636,7 +638,7 @@ class PublicApiController
 			);
 
 			return new DataResponse(
-				[ 'error' => 'Internal server error.' ],
+				[ 'error' => $this->l10n->t( 'Internal server error.' ) ],
 				Http::STATUS_INTERNAL_SERVER_ERROR,
 			);
 		}
@@ -767,7 +769,7 @@ class PublicApiController
 			);
 
 			return new DataResponse(
-				[ 'error' => 'Internal server error.' ],
+				[ 'error' => $this->l10n->t( 'Internal server error.' ) ],
 				Http::STATUS_INTERNAL_SERVER_ERROR,
 			);
 		}
@@ -837,7 +839,7 @@ class PublicApiController
 		}
 		catch ( NotFoundException )
 		{
-			return new DataResponse( [ 'error' => 'File not found.' ], Http::STATUS_NOT_FOUND );
+			return new DataResponse( [ 'error' => $this->l10n->t( 'File not found.' ) ], Http::STATUS_NOT_FOUND );
 		}
 		catch ( Throwable $e )
 		{
@@ -851,7 +853,7 @@ class PublicApiController
 			);
 
 			return new DataResponse(
-				[ 'error' => 'Internal server error.' ],
+				[ 'error' => $this->l10n->t( 'Internal server error.' ) ],
 				Http::STATUS_INTERNAL_SERVER_ERROR,
 			);
 		}
@@ -920,7 +922,7 @@ class PublicApiController
 		if ( $offer === false )
 		{
 			return new DataResponse(
-				[ 'success' => false, 'error' => 'Not yours to look at.' ],
+				[ 'success' => false, 'error' => $this->l10n->t( 'Not yours to look at.' ) ],
 				Http::STATUS_FORBIDDEN,
 			);
 		}
@@ -971,7 +973,7 @@ class PublicApiController
 		if ( $localPath && $scope !== null )
 		{
 			return new DataResponse(
-				[ 'success' => false, 'error' => 'Not yours to look at.' ],
+				[ 'success' => false, 'error' => $this->l10n->t( 'Not yours to look at.' ) ],
 				Http::STATUS_FORBIDDEN,
 			);
 		}
@@ -1023,7 +1025,7 @@ class PublicApiController
 			);
 
 			return new DataResponse(
-				[ 'error' => 'Internal server error.' ],
+				[ 'error' => $this->l10n->t( 'Internal server error.' ) ],
 				Http::STATUS_INTERNAL_SERVER_ERROR,
 			);
 		}
@@ -1179,7 +1181,7 @@ class PublicApiController
 		if ( $fileIds === [] )
 		{
 			return new DataResponse(
-				[ 'success' => false, 'error' => 'fileIds must be a non-empty list of integers.' ],
+				[ 'success' => false, 'error' => $this->l10n->t( 'fileIds must be a non-empty list of integers.' ) ],
 				Http::STATUS_BAD_REQUEST,
 			);
 		}
@@ -1199,7 +1201,7 @@ class PublicApiController
 			);
 
 			return new DataResponse(
-				[ 'success' => false, 'error' => 'Internal server error.' ],
+				[ 'success' => false, 'error' => $this->l10n->t( 'Internal server error.' ) ],
 				Http::STATUS_INTERNAL_SERVER_ERROR,
 			);
 		}
@@ -1271,7 +1273,7 @@ class PublicApiController
 			return new DataResponse(
 				[
 					'success' => false,
-					'error'   => 'Internal server error.',
+					'error'   => $this->l10n->t( 'Internal server error.' ),
 				],
 				Http::STATUS_INTERNAL_SERVER_ERROR,
 			);

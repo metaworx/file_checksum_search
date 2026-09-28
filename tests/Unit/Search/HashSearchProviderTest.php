@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Search;
 
 use OCA\FileChecksumSearch\Search\HashSearchProvider;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
 use OCP\Files\Config\ICachedMountInfo;
 use OCP\Files\Config\IUserMountCache;
 use OCP\Files\IRootFolder;
@@ -24,6 +25,8 @@ class HashSearchProviderTest
     extends
     TestCase
 {
+	use EnglishL10n;
+
 
 //  private properties
 
@@ -42,6 +45,7 @@ class HashSearchProviderTest
 			$this->createMock( \OCA\FileChecksumSearch\Service\ReachResolver::class ),
 			$this->createMock( IURLGenerator::class ),
 			$this->createMock( LoggerInterface::class ),
+			$this->englishL10n(),
 		);
 	}
 
@@ -107,6 +111,7 @@ class HashSearchProviderTest
 			new \OCA\FileChecksumSearch\Service\ReachResolver( $mountCache, $users, $this->createMock( \OCP\IDBConnection::class ) ),
 			$this->createMock( IURLGenerator::class ),
 			$this->createMock( LoggerInterface::class ),
+			$this->englishL10n(),
 		);
 
 		$query = $this->createMock( ISearchQuery::class );

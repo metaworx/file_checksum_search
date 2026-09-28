@@ -23,6 +23,7 @@ use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\DataResponse;
 use OCA\FileChecksumSearch\Service\RuleService;
+use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
 use OCP\IAppConfig;
 use OCP\IRequest;
 use OCP\IUser;
@@ -35,6 +36,8 @@ class SettingsControllerTest
     extends
     FciasUnitTestCase
 {
+	use EnglishL10n;
+
 
 //  private properties
 
@@ -109,6 +112,7 @@ class SettingsControllerTest
 			                         $this->appConfig,
 			                         $this->jobStats,
 				new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ),
+				$this->englishL10n(),
 			] )
 		                         ->getMock()
 		;

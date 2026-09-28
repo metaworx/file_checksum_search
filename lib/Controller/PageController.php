@@ -16,6 +16,7 @@ use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\TemplateResponse;
+use OCP\IL10N;
 use OCP\IRequest;
 
 /**
@@ -31,6 +32,7 @@ class PageController
 	public function __construct(
 		string   $appName,
 		IRequest $request,
+		private readonly IL10N $l10n,
 	)
 	{
 		parent::__construct( $appName, $request );
@@ -75,7 +77,7 @@ class PageController
 			'docs' => $this->readDocs(
 				[
 					[
-						'label' => 'FAQ',
+						'label' => $this->l10n->t( 'FAQ' ),
 						'name'  => 'docs/FAQ.md',
 						'path'  => 'docs/FAQ.md',
 					],
@@ -83,7 +85,7 @@ class PageController
 						// The guide users are shown on their own settings
 						// page. An administrator answering a question about it
 						// should be reading the same words they are.
-						'label' => 'User Guide',
+						'label' => $this->l10n->t( 'User Guide' ),
 						'name'  => 'docs/user-guide.md',
 						'path'  => 'docs/user-guide.md',
 					],
@@ -130,12 +132,12 @@ class PageController
 			'docs' => $this->readDocs(
 				[
 					[
-						'label' => 'FAQ',
+						'label' => $this->l10n->t( 'FAQ' ),
 						'name'  => 'docs/FAQ.md',
 						'path'  => 'docs/FAQ.md',
 					],
 					[
-						'label' => 'User Guide',
+						'label' => $this->l10n->t( 'User Guide' ),
 						'name'  => 'docs/user-guide.md',
 						'path'  => 'docs/user-guide.md',
 					],

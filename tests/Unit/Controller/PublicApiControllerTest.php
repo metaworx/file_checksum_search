@@ -25,6 +25,7 @@ use OCP\Lockdown\ILockdownManager;
 use OCA\FileChecksumSearch\Service\SudoScope;
 use OCA\FileChecksumSearch\Service\SudoConfirmation;
 use OCA\FileChecksumSearch\Service\PermissionService;
+use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
 use OCP\ISession;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -34,6 +35,8 @@ class PublicApiControllerTest
     extends
     TestCase
 {
+	use EnglishL10n;
+
 
 //  private properties
 
@@ -132,6 +135,7 @@ class PublicApiControllerTest
 			$this->permissions,
 			$this->confirmation,
 			$this->appConfig,
+			$this->englishL10n(),
 		);
 	}
 
@@ -174,6 +178,7 @@ class PublicApiControllerTest
 			$this->permissions,
 			$confirmation,
 			$this->appConfig,
+			$this->englishL10n(),
 		);
 	}
 
@@ -332,6 +337,7 @@ class PublicApiControllerTest
 			$this->permissions,
 			$this->confirmation,
 			$this->appConfig,
+			$this->englishL10n(),
 		);
 
 		$listing = [
@@ -403,6 +409,7 @@ class PublicApiControllerTest
 			$this->permissions,
 			$this->confirmation,
 			$this->appConfig,
+			$this->englishL10n(),
 		);
 		$this->api->expects( $this->never() )
 		          ->method( 'getHashesByFileId' )
@@ -449,6 +456,7 @@ class PublicApiControllerTest
 			$this->permissions,
 			$this->confirmation,
 			$this->appConfig,
+			$this->englishL10n(),
 		);
 
 		$this->assertSame( Http::STATUS_FORBIDDEN, $viaToken->getHashes( 42 )->getStatus() );
@@ -474,6 +482,7 @@ class PublicApiControllerTest
 			$this->permissions,
 			$this->confirmation,
 			$this->appConfig,
+			$this->englishL10n(),
 		);
 
 		$this->assertSame( Http::STATUS_OK, $viaPage->getHashes( 42 )->getStatus() );
@@ -514,6 +523,7 @@ class PublicApiControllerTest
 			$this->permissions,
 			$this->confirmation,
 			$this->appConfig,
+			$this->englishL10n(),
 		);
 
 		$this->assertSame( Http::STATUS_OK, $controller->getHashes( 42 )->getStatus() );
@@ -574,6 +584,7 @@ class PublicApiControllerTest
 			$this->permissions,
 			$this->confirmation,
 			$this->appConfig,
+			$this->englishL10n(),
 		);
 
 		$this->assertSame( Http::STATUS_FORBIDDEN, $controller->lookup( 'abc123' )->getStatus() );
@@ -630,6 +641,7 @@ class PublicApiControllerTest
 			$this->permissions,
 			$this->confirmation,
 			$this->appConfig,
+			$this->englishL10n(),
 		);
 		$this->api->expects( $this->once() )
 		          ->method( 'getHashesByFileId' )
@@ -773,6 +785,7 @@ class PublicApiControllerTest
 			$this->permissions,
 			$this->confirmation,
 			$this->appConfig,
+			$this->englishL10n(),
 		);
 	}
 
@@ -820,6 +833,7 @@ class PublicApiControllerTest
 			$this->permissions,
 			$this->confirmation,
 			$this->appConfig,
+			$this->englishL10n(),
 		);
 
 		$this->api->expects( $this->once() )
@@ -865,6 +879,7 @@ class PublicApiControllerTest
 			$this->permissions,
 			$this->confirmation,
 			$this->appConfig,
+			$this->englishL10n(),
 		);
 		$this->api->expects( $this->never() )
 		          ->method( 'getHashesByFileId' )
@@ -1058,6 +1073,7 @@ class PublicApiControllerTest
 			$this->permissions,
 			$this->confirmation,
 			$this->appConfig,
+			$this->englishL10n(),
 		);
 
 		$this->api->expects( $this->never() )
@@ -1102,6 +1118,7 @@ class PublicApiControllerTest
 			$this->permissions,
 			$this->confirmation,
 			$this->appConfig,
+			$this->englishL10n(),
 		);
 
 		$this->api->expects( $this->once() )
@@ -1268,6 +1285,7 @@ class PublicApiControllerTest
 			$this->permissions,
 			$this->confirmation,
 			$this->appConfig,
+			$this->englishL10n(),
 		);
 
 		$this->api->expects( $this->once() )
@@ -1394,6 +1412,7 @@ class PublicApiControllerTest
 			$this->permissions,
 			$this->confirmation,
 			$this->appConfig,
+			$this->englishL10n(),
 		);
 
 		$this->api->expects( $this->once() )
@@ -1446,6 +1465,7 @@ class PublicApiControllerTest
 			$this->permissions,
 			$this->confirmation,
 			$this->appConfig,
+			$this->englishL10n(),
 		);
 	}
 

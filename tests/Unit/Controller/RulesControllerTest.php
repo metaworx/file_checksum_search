@@ -18,6 +18,7 @@ use OCA\FileChecksumSearch\Service\GroupFolderService;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCA\FileChecksumSearch\Service\RuleService;
+use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\AppFramework\Http;
 use OCP\IAppConfig;
@@ -35,6 +36,8 @@ class RulesControllerTest
     extends
     FciasUnitTestCase
 {
+	use EnglishL10n;
+
 
 //  private properties
 
@@ -92,13 +95,14 @@ class RulesControllerTest
 			                         // Real validator over the same mocks: the
 			                         // existing payload tests keep exercising
 			                         // validation through the controller door.
-			                         new RuleDefinitionValidator( $this->groupManager, $this->userManager, new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ) ),
+			                         new RuleDefinitionValidator( $this->groupManager, $this->userManager, new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ), $this->englishL10n() ),
 			                         $this->userManager,
 			                         $this->jobList,
 			                         $this->groupFolderService,
 			                         $this->filecacheService,
 			                         $this->logger,
 					new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ),
+				$this->englishL10n(),
 			] )
 		                         ->getMock()
 		;

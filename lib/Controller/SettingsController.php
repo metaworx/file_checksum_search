@@ -24,6 +24,7 @@ use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
 use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCP\IAppConfig;
+use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserManager;
 use Psr\Log\LoggerInterface;
@@ -56,6 +57,7 @@ class SettingsController
 		private readonly IAppConfig        $appConfig,
 		private readonly JobStatsService   $jobStats,
 		private readonly AlgorithmCatalogue $catalogue,
+		private readonly IL10N $l10n,
 	)
 	{
 		parent::__construct( $appName, $request );
@@ -186,7 +188,7 @@ class SettingsController
 			return new DataResponse(
 				[
 					'success' => false,
-					'error'   => 'Invalid request body.',
+					'error'   => $this->l10n->t( 'Invalid request body.' ),
 				],
 				Http::STATUS_BAD_REQUEST,
 			);
@@ -247,7 +249,7 @@ class SettingsController
 					return new DataResponse(
 						[
 							'success' => false,
-							'error'   => 'None of the requested algorithms is available on this server; the previous list is kept.',
+							'error'   => $this->l10n->t( 'None of the requested algorithms is available on this server; the previous list is kept.' ),
 						],
 						Http::STATUS_BAD_REQUEST,
 					);
@@ -259,7 +261,7 @@ class SettingsController
 				return new DataResponse(
 					[
 						'success' => false,
-						'error'   => 'The default must be one of the allowed algorithms.',
+						'error'   => $this->l10n->t( 'The default must be one of the allowed algorithms.' ),
 					],
 					Http::STATUS_BAD_REQUEST,
 				);

@@ -17,6 +17,7 @@ use OCA\FileChecksumSearch\Command\Rules\ListRules;
 use OCA\FileChecksumSearch\Command\Rules\ModifyRule;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCA\FileChecksumSearch\Service\RuleService;
+use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
 use OCP\IGroupManager;
 use OCP\IAppConfig;
 use OCP\IUserManager;
@@ -36,6 +37,8 @@ class RulesCommandsTest
     extends
     TestCase
 {
+	use EnglishL10n;
+
 
 //  private properties
 
@@ -61,7 +64,7 @@ class RulesCommandsTest
 		            ->willReturn( true )
 		;
 
-		$this->validator = new RuleDefinitionValidator( $groupManager, $userManager, new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ) );
+		$this->validator = new RuleDefinitionValidator( $groupManager, $userManager, new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ), $this->englishL10n() );
 	}
 
 
