@@ -14,8 +14,9 @@
 import { computed, ref } from 'vue'
 import RuleRow from './RuleRow.vue'
 import HelpPopover from '../components/HelpPopover.vue'
-import { BAND_HELP, BAND_LABELS, selectorKind, selectorTarget } from './bands'
+import { bandHelp, bandLabel, selectorKind, selectorTarget } from './bands'
 import type { GroupFolderOption, Rule } from './types'
+import { t } from '../l10n'
 
 const props = defineProps<{
 	rules: Rule[]
@@ -65,47 +66,67 @@ function startsBand(index: number): boolean {
 	return index === 0 || props.rules[index - 1].band !== props.rules[index].band
 }
 
-function bandLabel(rule: Rule): string {
-	return BAND_LABELS[rule.band ?? 0] ?? `Band ${rule.band}`
-}
-
-function bandHelp(rule: Rule): string {
-	return BAND_HELP[rule.band ?? 0] ?? ''
-}
-
 /**
- * What each column means and what its values can be.
+ * The columns, each with what it means and what its values can be.
  *
  * The table is the only place a rule's derived properties — its band, its
  * position, whether it is enforced — are ever shown, and none of them are
  * self-explanatory from a one-word heading. The dialog explains the fields
  * someone fills in; this explains the columns they then have to read.
+ *
+ * The quoted words are the values the table shows as they are — rule types,
+ * modes, paths — and stay as they are in a translation.
  */
-const COLUMN_HELP: Record<string, string> = {
-	priority: 'Where the rule sits in evaluation order, written "<band>.<position>". The first rule that '
-		+ 'matches a file decides it outright, so a lower number is stronger. The band follows from the '
-		+ 'rule\'s scope and whether it is enforced — it is never chosen directly — and the position is the '
-		+ 'rule\'s place inside that band, which is what dragging changes.',
-	scope: 'Which slice of files the rule addresses: one user\'s home folder, the members of one group, '
-		+ '"All home folders", one group folder, one storage by its id, or "Everything". A rule only ever '
-		+ 'meets files inside its slice — "All home folders" reaches every personal folder and nothing else, '
-		+ 'while "Everything" also reaches group folders and external storage.',
-	path: 'Glob pattern the file path must match. "**" matches every file, "**/*.txt" matches by extension, '
-		+ 'and "/Documents/**" matches everything below one folder.',
-	type: 'What happens when this rule matches. "include" computes the checksums in this row. "ignore" stops '
-		+ 'automatic hashing but still allows a manual recalculation. "exclude" blocks hashing by every '
-		+ 'route, including the sidebar button, the API and the occ command.',
-	algos: 'Checksum algorithms computed for matching files. Each one is indexed separately, so more '
-		+ 'algorithms means more work per file. Shown as "—" for a rule that computes nothing.',
-	mode: 'What happens to a file that already has a hash. "auto" recomputes only an outdated one, "missing" '
-		+ 'also fills gaps, "force" discards and recomputes everything, and "lazy" clears the hashes now and '
-		+ 'lets a later run recompute them. Shown as "—" for a rule that computes nothing.',
-	status: 'Whether the rule takes part in evaluation at all. A disabled rule is skipped as though it were '
-		+ 'not there, so the next matching rule decides instead.',
-	enforced: '"Yes" means an administrator set this rule and users cannot override or disable it from their '
-		+ 'personal settings. Enforced rules fill the first four bands, so no rule of a user\'s own can '
-		+ 'outrun one.',
-}
+const COLUMNS: Array<{ key: string, label: string, help: string }> = [
+	{
+		key: 'priority',
+		label: t('file_checksum_search', 'Priority'),
+		// TRANSLATORS: keep "<band>.<position>" as it is; it is how the column writes a priority
+		help: t('file_checksum_search', 'Where the rule sits in evaluation order, written "<band>.<position>". The first rule that matches a file decides it outright, so a lower number is stronger. The band follows from the rule\'s scope and whether it is enforced — it is never chosen directly — and the position is the rule\'s place inside that band, which is what dragging changes.'),
+	},
+	{
+		key: 'scope',
+		label: t('file_checksum_search', 'Scope'),
+		help: t('file_checksum_search', 'Which slice of files the rule addresses: one user\'s home folder, the members of one group, "All home folders", one group folder, one storage by its id, or "Everything". A rule only ever meets files inside its slice — "All home folders" reaches every personal folder and nothing else, while "Everything" also reaches group folders and external storage.'),
+	},
+	{
+		key: 'path',
+		label: t('file_checksum_search', 'Path'),
+		// TRANSLATORS: the quoted patterns are examples to type as they are
+		help: t('file_checksum_search', 'Glob pattern the file path must match. "**" matches every file, "**/*.txt" matches by extension, and "/Documents/**" matches everything below one folder.'),
+	},
+	{
+		key: 'type',
+		label: t('file_checksum_search', 'Type'),
+		// TRANSLATORS: "include", "ignore" and "exclude" are the rule types as the table shows them; keep them
+		help: t('file_checksum_search', 'What happens when this rule matches. "include" computes the checksums in this row. "ignore" stops automatic hashing but still allows a manual recalculation. "exclude" blocks hashing by every route, including the sidebar button, the API and the occ command.'),
+	},
+	{
+		key: 'algos',
+		label: t('file_checksum_search', 'Algorithms'),
+		help: t('file_checksum_search', 'Checksum algorithms computed for matching files. Each one is indexed separately, so more algorithms means more work per file. Shown as "—" for a rule that computes nothing.'),
+	},
+	{
+		key: 'mode',
+		label: t('file_checksum_search', 'Mode'),
+		// TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them; keep them
+		help: t('file_checksum_search', 'What happens to a file that already has a hash. "auto" recomputes only an outdated one, "missing" also fills gaps, "force" discards and recomputes everything, and "lazy" clears the hashes now and lets a later run recompute them. Shown as "—" for a rule that computes nothing.'),
+	},
+	{
+		key: 'status',
+		label: t('file_checksum_search', 'Status'),
+		help: t('file_checksum_search', 'Whether the rule takes part in evaluation at all. A disabled rule is skipped as though it were not there, so the next matching rule decides instead.'),
+	},
+	{
+		key: 'enforced',
+		label: t('file_checksum_search', 'Enforced'),
+		help: t('file_checksum_search', '"Yes" means an administrator set this rule and users cannot override or disable it from their personal settings. Enforced rules fill the first four bands, so no rule of a user\'s own can outrun one.'),
+	},
+]
+
+const PLACEHOLDERS_TITLE = t('file_checksum_search', 'Without a rule of their own')
+
+const PLACEHOLDERS_HELP = t('file_checksum_search', 'These namespaces exist on this instance but have no catch-all rule of their own, so what happens to their files is decided by whatever more general rule covers them — or by nothing at all. Creating a rule from here starts one for that namespace; until then, nothing is stored.')
 
 function ruleById(id: Rule['id']): Rule | undefined {
 	return props.rules.find((rule) => rule.id === id)
@@ -215,12 +236,12 @@ const selectorsWithAnyRule = computed(
 const namespaces = computed(() => {
 	if (props.variant !== 'admin') return []
 
-	const folderTerm = props.groupFoldersLabel ?? 'Group folder'
+	const folderTerm = props.groupFoldersLabel ?? t('file_checksum_search', 'Group folder')
 
 	return [
 		...(props.availableStorages ?? []).map((id) => ({
 			selector: `storage:${id}`,
-			label: `Storage: ${id}`,
+			label: t('file_checksum_search', 'Storage: {storage}', { storage: id }),
 		})),
 		...(props.groupFoldersAvailable === true
 			? (props.availableGroupFolders ?? []).map((folder) => ({
@@ -228,8 +249,8 @@ const namespaces = computed(() => {
 				label: `${folderTerm}: ${folder.name} (#${folder.id})`,
 			}))
 			: []),
-		{ selector: 'home:*', label: 'All home folders' },
-		{ selector: '*', label: 'Everything — every storage' },
+		{ selector: 'home:*', label: t('file_checksum_search', 'All home folders') },
+		{ selector: '*', label: t('file_checksum_search', 'Everything — every storage') },
 	]
 })
 
@@ -250,8 +271,8 @@ const placeholders = computed(
 			selector: namespace.selector,
 			label: namespace.label,
 			note: selectorsWithAnyRule.value.has(namespace.selector)
-				? 'no catch-all rule — only the specific rules above apply here'
-				: 'not covered — no rule addresses it, so nothing is hashed there',
+				? t('file_checksum_search', 'no catch-all rule — only the specific rules above apply here')
+				: t('file_checksum_search', 'not covered — no rule addresses it, so nothing is hashed there'),
 		})),
 )
 
@@ -273,7 +294,7 @@ function providerMissing(rule: Rule): boolean {
 }
 
 const emptyMessage = computed(
-	() => props.emptyText ?? (props.variant === 'admin' ? 'No rules yet.' : 'No rules apply to your files.'),
+	() => props.emptyText ?? (props.variant === 'admin' ? t('file_checksum_search', 'No rules yet.') : t('file_checksum_search', 'No rules apply to your files.')),
 )
 </script>
 
@@ -283,7 +304,7 @@ const emptyMessage = computed(
 		     it is styled as a hint. Failed requests report in the page's own
 		     message slot above this table. -->
 		<p v-if="variant === 'personal' && !loading && canEditAny === false" class="fcias-hint">
-			You are not allowed to edit rules. Contact an administrator.
+			{{ t('file_checksum_search', 'You are not allowed to edit rules. Contact an administrator.') }}
 		</p>
 
 		<p v-if="!loading && rules.length === 0">
@@ -313,21 +334,12 @@ const emptyMessage = computed(
 				<tr>
 					<th />
 					<th
-						v-for="column in [
-							{ key: 'priority', label: 'Priority' },
-							{ key: 'scope', label: 'Scope' },
-							{ key: 'path', label: 'Path' },
-							{ key: 'type', label: 'Type' },
-							{ key: 'algos', label: 'Algorithms' },
-							{ key: 'mode', label: 'Mode' },
-							{ key: 'status', label: 'Status' },
-							{ key: 'enforced', label: 'Enforced' },
-						]"
+						v-for="column in COLUMNS"
 						:key="column.key"
 						:data-column="column.key">
 						<span class="fcias-th-inner">
 							<span class="fcias-th-label">{{ column.label }}</span>
-							<HelpPopover :text="COLUMN_HELP[column.key]" :label="column.label" />
+							<HelpPopover :text="column.help" :label="column.label" />
 						</span>
 					</th>
 					<th />
@@ -340,8 +352,8 @@ const emptyMessage = computed(
 					<tr v-if="startsBand(index)" :class="`fcias-band-header fcias-band-${rule.band ?? 0}`">
 						<th colspan="10" scope="colgroup">
 							<span class="fcias-th-inner">
-								<span>{{ rule.band }} · {{ bandLabel(rule) }}</span>
-								<HelpPopover :text="bandHelp(rule)" :label="`Band ${rule.band}`" />
+								<span>{{ rule.band }} · {{ bandLabel(rule.band ?? 0) }}</span>
+								<HelpPopover :text="bandHelp(rule.band ?? 0)" :label="t('file_checksum_search', 'Band {band}', { band: rule.band ?? 0 })" />
 							</span>
 						</th>
 					</tr>
@@ -373,13 +385,8 @@ const emptyMessage = computed(
 					<tr class="fcias-placeholder-header">
 						<th colspan="10" scope="colgroup">
 							<span class="fcias-th-inner">
-								<span>Without a rule of their own</span>
-								<HelpPopover
-									text="These namespaces exist on this instance but have no catch-all rule of
-										their own, so what happens to their files is decided by whatever more
-										general rule covers them — or by nothing at all. Creating a rule from
-										here starts one for that namespace; until then, nothing is stored."
-									label="Without a rule of their own" />
+								<span>{{ PLACEHOLDERS_TITLE }}</span>
+								<HelpPopover :text="PLACEHOLDERS_HELP" :label="PLACEHOLDERS_TITLE" />
 							</span>
 						</th>
 					</tr>
@@ -404,7 +411,7 @@ const emptyMessage = computed(
 								type="button"
 								data-action="create"
 								@click="emit('create', { selector: placeholder.selector, label: placeholder.label })">
-								Create rule
+								{{ t('file_checksum_search', 'Create rule') }}
 							</button>
 						</td>
 					</tr>

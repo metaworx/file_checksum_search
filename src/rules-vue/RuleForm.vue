@@ -20,8 +20,9 @@ import NcEllipsisedOption from '@nextcloud/vue/components/NcEllipsisedOption'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import HelpPopover from '../components/HelpPopover.vue'
 import AlgorithmSelect from '../components/AlgorithmSelect.vue'
-import { BAND_LABELS, bandOfKind, selectorKind, selectorTarget } from './bands'
+import { bandLabel, bandOfKind, selectorKind, selectorTarget } from './bands'
 import type { GroupFolderOption, RuleDraft } from './types'
+import { t } from '../l10n'
 
 const props = defineProps<{
 	rule: RuleDraft | null
@@ -146,6 +147,8 @@ const computesHashes = computed(() => draft.type === 'include')
  */
 const previewBand = computed(() => bandOfKind(selectorChoice.value, draft.admin_enforced === true))
 
+const previewText = computed(() => t('file_checksum_search', 'Evaluates in band {band} — {label}', { band: previewBand.value, label: bandLabel(previewBand.value) }))
+
 /** One option shape for every searchable picker below. */
 interface PickerOption {
 	id: string
@@ -191,7 +194,7 @@ const groupFolderOptions = computed<PickerOption[]>(
  * provider honestly.
  */
 const groupFolderTerm = computed(
-	() => props.groupFoldersLabel ?? (props.groupFoldersAvailable ? 'Team folders' : 'app:groupfolders'),
+	() => props.groupFoldersLabel ?? (props.groupFoldersAvailable ? t('file_checksum_search', 'Team folders') : 'app:groupfolders'),
 )
 
 const selectedUser = pickerProxy(() => userOptions.value)
@@ -199,35 +202,36 @@ const selectedGroup = pickerProxy(() => groupOptions.value)
 const selectedGroupFolder = pickerProxy(() => groupFolderOptions.value)
 
 const dialogName = computed(
-	() => props.title ?? (props.rule?.id !== undefined ? 'Edit rule' : 'New rule'),
+	() => props.title ?? (props.rule?.id !== undefined ? t('file_checksum_search', 'Edit rule') : t('file_checksum_search', 'New rule')),
 )
 
+/** The group-folder choice and its picker, named after what the app calls itself. */
+const groupFolderTexts = computed(() => ({
+	// TRANSLATORS: {folders} is what the group folders app calls itself, e.g. "Team folders"
+	option: t('file_checksum_search', '{folders} — one folder', { folders: groupFolderTerm.value }),
+	search: t('file_checksum_search', 'Search {folders}…', { folders: groupFolderTerm.value }),
+}))
+
+const PERSONAL_HINT = t('file_checksum_search', 'This is your own rule. It applies only to your files and is evaluated after any rule an administrator has enforced.')
+
+// TRANSLATORS: an example of what to type; keep the storage ids as they are
+const STORAGE_EXAMPLE = t('file_checksum_search', 'local::/path/ or smb::…')
+
 const HELP = {
-	selector: 'Which slice of the file universe this rule addresses: all home folders, one '
-		+ 'group\'s members, a single user, one group folder, one storage by its raw id, or '
-		+ 'everything — every storage there is, external mounts and group folders included.',
-	path: 'Glob pattern the file path must match. "**" matches every file; "/Documents/**" matches '
-		+ 'everything below that folder. Rules are checked in order and the first match wins.',
-	algos: 'Checksum algorithms computed for matching files. Each algorithm you add is indexed '
-		+ 'separately, so more algorithms means more work per file.',
-	mode: 'What happens to a file that already has a hash. "Auto" only recomputes an outdated one, '
-		+ '"Missing" also fills gaps, "Force" discards and recomputes everything, and "Lazy" '
-		+ 'clears the hashes now and lets a later run recompute them.',
-	adminEnforced: 'When set, users cannot override or disable this rule from their personal settings. '
-		+ 'Enforced rules are evaluated before every user rule, so they cannot be outrun.',
-	type: 'What happens when this rule matches. "Include" computes the checksums below. '
-		+ '"Ignore" stops automatic hashing but still lets someone recalculate a file by hand. '
-		+ '"Exclude" blocks hashing entirely — use it for storage that must not be read, such as '
-		+ 'a metered external mount.',
-	user: 'The one user whose home folder this rule addresses.',
-	group: 'The rule addresses the home folder of every member of this group.',
-	groupfolder: 'The team folder this rule addresses. Every member sees the same files, and the '
-		+ 'rule follows the folder — not whoever happens to look at it.',
-	storage: 'The raw id from the storages table, matched exactly — whatever kind of storage it '
-		+ 'names. Use this for external mounts, or anything the other choices cannot say.',
-	band: 'Rules are evaluated in band order and the first match decides the file. A rule\'s band '
-		+ 'follows from its scope and whether it is enforced — it is not chosen directly, and '
-		+ 'reordering only moves a rule within its own band.',
+	selector: t('file_checksum_search', 'Which slice of the file universe this rule addresses: all home folders, one group\'s members, a single user, one group folder, one storage by its raw id, or everything — every storage there is, external mounts and group folders included.'),
+	// TRANSLATORS: the quoted patterns are examples to type as they are
+	path: t('file_checksum_search', 'Glob pattern the file path must match. "**" matches every file; "/Documents/**" matches everything below that folder. Rules are checked in order and the first match wins.'),
+	algos: t('file_checksum_search', 'Checksum algorithms computed for matching files. Each algorithm you add is indexed separately, so more algorithms means more work per file.'),
+	// TRANSLATORS: "Auto", "Missing", "Force" and "Lazy" name the choices of the Mode field; translate them as that field does
+	mode: t('file_checksum_search', 'What happens to a file that already has a hash. "Auto" only recomputes an outdated one, "Missing" also fills gaps, "Force" discards and recomputes everything, and "Lazy" clears the hashes now and lets a later run recompute them.'),
+	adminEnforced: t('file_checksum_search', 'When set, users cannot override or disable this rule from their personal settings. Enforced rules are evaluated before every user rule, so they cannot be outrun.'),
+	// TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
+	type: t('file_checksum_search', 'What happens when this rule matches. "Include" computes the checksums below. "Ignore" stops automatic hashing but still lets someone recalculate a file by hand. "Exclude" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount.'),
+	user: t('file_checksum_search', 'The one user whose home folder this rule addresses.'),
+	group: t('file_checksum_search', 'The rule addresses the home folder of every member of this group.'),
+	groupfolder: t('file_checksum_search', 'The team folder this rule addresses. Every member sees the same files, and the rule follows the folder — not whoever happens to look at it.'),
+	storage: t('file_checksum_search', 'The raw id from the storages table, matched exactly — whatever kind of storage it names. Use this for external mounts, or anything the other choices cannot say.'),
+	band: t('file_checksum_search', 'Rules are evaluated in band order and the first match decides the file. A rule\'s band follows from its scope and whether it is enforced — it is not chosen directly, and reordering only moves a rule within its own band.'),
 }
 
 function submit(): void {
@@ -281,57 +285,57 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 		size="normal">
 		<div :id="ids.form" ref="formEl" class="fcias-rule-form">
 			<div class="fcias-rule-form-row">
-				<label :for="ids.type">Type</label>
+				<label :for="ids.type">{{ t('file_checksum_search', 'Type') }}</label>
 				<select :id="ids.type" v-model="draft.type">
 					<option value="include">
-						Include (compute checksums)
+						{{ t('file_checksum_search', 'Include (compute checksums)') }}
 					</option>
 					<option value="ignore">
-						Ignore (no automatic hashing; still allowed on request)
+						{{ t('file_checksum_search', 'Ignore (no automatic hashing; still allowed on request)') }}
 					</option>
 					<option value="exclude">
-						Exclude (never hash these files)
+						{{ t('file_checksum_search', 'Exclude (never hash these files)') }}
 					</option>
 				</select>
-				<HelpPopover :text="HELP.type" label="Type" />
+				<HelpPopover :text="HELP.type" :label="t('file_checksum_search', 'Type')" />
 			</div>
 
 			<div v-if="variant === 'admin'" class="fcias-rule-form-row">
-				<label :for="ids.selector">Applies to</label>
+				<label :for="ids.selector">{{ t('file_checksum_search', 'Applies to') }}</label>
 				<select
 					:id="ids.selector"
 					v-model="selectorChoice"
 					@change="selectorTargetValue = ''">
 					<option value="homeAll">
-						All home folders
+						{{ t('file_checksum_search', 'All home folders') }}
 					</option>
 					<option value="group">
-						A group
+						{{ t('file_checksum_search', 'A group') }}
 					</option>
 					<option value="user">
-						A single user
+						{{ t('file_checksum_search', 'A single user') }}
 					</option>
 					<option v-if="groupFoldersAvailable" value="groupfolder">
-						{{ groupFolderTerm }} — one folder
+						{{ groupFolderTexts.option }}
 					</option>
 					<option value="storage">
-						A storage (raw id)
+						{{ t('file_checksum_search', 'A storage (raw id)') }}
 					</option>
 					<option value="universal">
-						Everything — every storage
+						{{ t('file_checksum_search', 'Everything — every storage') }}
 					</option>
 				</select>
-				<HelpPopover :text="HELP.selector" label="Applies to" />
+				<HelpPopover :text="HELP.selector" :label="t('file_checksum_search', 'Applies to')" />
 			</div>
 
 			<div v-if="variant === 'admin' && selectorChoice === 'group'" class="fcias-rule-form-row">
-				<label :for="ids.selectorTarget">Group</label>
+				<label :for="ids.selectorTarget">{{ t('file_checksum_search', 'Group') }}</label>
 				<div class="fcias-rules-dialog-select">
 					<NcSelect
 						v-model="selectedGroup"
 						:input-id="ids.selectorTarget"
 						:options="groupOptions"
-						placeholder="Search groups…"
+						:placeholder="t('file_checksum_search', 'Search groups…')"
 						label-outside>
 						<template #selected-option="option">
 							<!--
@@ -354,17 +358,17 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 						</template>
 					</NcSelect>
 				</div>
-				<HelpPopover :text="HELP.group" label="Group" />
+				<HelpPopover :text="HELP.group" :label="t('file_checksum_search', 'Group')" />
 			</div>
 
 			<div v-if="variant === 'admin' && selectorChoice === 'user'" class="fcias-rule-form-row">
-				<label :for="ids.selectorTarget">User</label>
+				<label :for="ids.selectorTarget">{{ t('file_checksum_search', 'User') }}</label>
 				<div class="fcias-rules-dialog-select">
 					<NcSelect
 						v-model="selectedUser"
 						:input-id="ids.selectorTarget"
 						:options="userOptions"
-						placeholder="Search users…"
+						:placeholder="t('file_checksum_search', 'Search users…')"
 						label-outside>
 						<template #selected-option="option">
 							<NcEllipsisedOption
@@ -373,7 +377,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 						</template>
 					</NcSelect>
 				</div>
-				<HelpPopover :text="HELP.user" label="User" />
+				<HelpPopover :text="HELP.user" :label="t('file_checksum_search', 'User')" />
 			</div>
 
 			<div v-if="variant === 'admin' && selectorChoice === 'groupfolder'" class="fcias-rule-form-row">
@@ -383,7 +387,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 						v-model="selectedGroupFolder"
 						:input-id="ids.selectorTarget"
 						:options="groupFolderOptions"
-						:placeholder="`Search ${groupFolderTerm}…`"
+						:placeholder="groupFolderTexts.search"
 						label-outside>
 						<template #selected-option="option">
 							<NcEllipsisedOption
@@ -398,79 +402,78 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 			<div
 				v-if="variant === 'admin' && selectorChoice === 'storage'"
 				class="fcias-rule-form-row">
-				<label :for="ids.selectorTarget">Storage id</label>
+				<label :for="ids.selectorTarget">{{ t('file_checksum_search', 'Storage id') }}</label>
 				<input
 					:id="ids.selectorTarget"
 					v-model="selectorTargetValue"
 					type="text"
-					placeholder="local::/path/ or smb::…">
-				<HelpPopover :text="HELP.storage" label="Storage id" />
+					:placeholder="STORAGE_EXAMPLE">
+				<HelpPopover :text="HELP.storage" :label="t('file_checksum_search', 'Storage id')" />
 			</div>
 
 			<p v-if="variant === 'personal'" class="fcias-hint fcias-rule-form-static">
-				This is your own rule. It applies only to your files and is evaluated after any rule
-				an administrator has enforced.
+				{{ PERSONAL_HINT }}
 			</p>
 
 			<div class="fcias-rule-form-row">
-				<label :for="ids.path">Path (glob)</label>
+				<label :for="ids.path">{{ t('file_checksum_search', 'Path (glob)') }}</label>
 				<input
 					:id="ids.path"
 					v-model="draft.path"
 					type="text"
 					placeholder="/"
 					:title="draft.path">
-				<HelpPopover :text="HELP.path" label="Path (glob)" />
+				<HelpPopover :text="HELP.path" :label="t('file_checksum_search', 'Path (glob)')" />
 			</div>
 
 			<div v-if="computesHashes" class="fcias-rule-form-row">
-				<label>Algorithms</label>
+				<label>{{ t('file_checksum_search', 'Algorithms') }}</label>
 				<div :id="ids.algos" class="fcias-rules-dialog-select">
 					<AlgorithmSelect
 						v-model="draft.algos"
 						:algorithms="supportedAlgos"
 						multiple />
 				</div>
-				<HelpPopover :text="HELP.algos" label="Algorithms" />
+				<HelpPopover :text="HELP.algos" :label="t('file_checksum_search', 'Algorithms')" />
 			</div>
 
 			<div v-if="computesHashes" class="fcias-rule-form-row">
-				<label :for="ids.mode">Mode</label>
+				<label :for="ids.mode">{{ t('file_checksum_search', 'Mode') }}</label>
 				<select :id="ids.mode" v-model="draft.mode">
 					<option value="auto">
-						Auto (recalc existing only if outdated)
+						{{ t('file_checksum_search', 'Auto (recalc existing only if outdated)') }}
 					</option>
 					<option value="missing">
-						Missing (recalc existing + missing)
+						{{ t('file_checksum_search', 'Missing (recalc existing + missing)') }}
 					</option>
 					<option value="force">
-						Force (delete all, recalc all)
+						{{ t('file_checksum_search', 'Force (delete all, recalc all)') }}
 					</option>
 					<option value="lazy">
-						Lazy (delete hashes, recalc later)
+						{{ t('file_checksum_search', 'Lazy (delete hashes, recalc later)') }}
 					</option>
 				</select>
-				<HelpPopover :text="HELP.mode" label="Mode" />
+				<HelpPopover :text="HELP.mode" :label="t('file_checksum_search', 'Mode')" />
 			</div>
 
 			<div v-if="variant === 'admin'" class="fcias-rule-form-row">
-				<label :for="ids.adminEnforced">Enforced</label>
+				<label :for="ids.adminEnforced">{{ t('file_checksum_search', 'Enforced') }}</label>
 				<span class="fcias-rule-form-fill">
 					<NcCheckboxRadioSwitch
 						:id="ids.adminEnforced"
 						v-model="draft.admin_enforced"
 						type="switch">
-						Users may not edit this rule
+						{{ t('file_checksum_search', 'Users may not edit this rule') }}
 					</NcCheckboxRadioSwitch>
 				</span>
-				<HelpPopover :text="HELP.adminEnforced" label="Enforced" />
+				<HelpPopover :text="HELP.adminEnforced" :label="t('file_checksum_search', 'Enforced')" />
 			</div>
 
 			<p class="fcias-hint fcias-band-preview">
 				<span class="fcias-band-preview-text">
-					Evaluates in band <strong>{{ previewBand }}</strong> — {{ BAND_LABELS[previewBand] }}
+					{{ previewText }}
 				</span>
-				<HelpPopover :text="HELP.band" label="Priority band" />
+				<HelpPopover :text="HELP.band" :label="t('file_checksum_search', 'Priority band')" />
 			</p>
 
 			<NcNoteCard
@@ -482,10 +485,10 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 
 			<div class="fcias-rule-form-actions">
 				<button :id="ids.save" class="fcias-btn" @click="submit">
-					Save
+					{{ t('file_checksum_search', 'Save') }}
 				</button>
 				<button :id="ids.cancel" class="fcias-btn" @click="emit('cancel')">
-					Cancel
+					{{ t('file_checksum_search', 'Cancel') }}
 				</button>
 			</div>
 		</div>

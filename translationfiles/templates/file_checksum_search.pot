@@ -16,7 +16,19 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
+msgid "\"Yes\" means an administrator set this rule and users cannot override or disable it from their personal settings. Enforced rules fill the first four bands, so no rule of a user's own can outrun one."
+msgstr ""
+
 msgid "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password — a standing authorisation, listed for every administrator to see. Create the app password on Security first; only one allowed to access files can be granted. Who may look across accounts is still decided by the sudoers permission; a grant replaces the prompt, not the permission."
+msgstr ""
+
+msgid "A group"
+msgstr ""
+
+msgid "A single user"
+msgstr ""
+
+msgid "A storage (raw id)"
 msgstr ""
 
 msgid "Account"
@@ -31,10 +43,28 @@ msgstr ""
 msgid "Add an algorithm…"
 msgstr ""
 
+msgid "Administrator-enforced rules aimed at one specific slice — a single user's home or one storage. Nothing can outrun them there, and their subjects cannot edit or disable them."
+msgstr ""
+
+msgid "Administrator-enforced rules covering every home folder."
+msgstr ""
+
+msgid "Administrator-enforced rules covering every storage there is."
+msgstr ""
+
+msgid "Administrator-enforced rules for the members of a group, or for one group folder. Only an enforced rule aimed at something more specific comes before them."
+msgstr ""
+
 msgid "Advanced"
 msgstr ""
 
+msgid "Algorithms"
+msgstr ""
+
 msgid "Algorithms saved."
+msgstr ""
+
+msgid "All home folders"
 msgstr ""
 
 msgid "Allow all users to calculate by hand"
@@ -64,13 +94,34 @@ msgstr ""
 msgid "App passwords granted the cross-account routes without a password prompt. Each is a standing authorisation: this is where every one of them is visible, and where any can be taken back. Who may look across accounts at all is decided under “Who may look across accounts”; a grant replaces the prompt, not the permission."
 msgstr ""
 
+msgid "Applies to"
+msgstr ""
+
+msgid "Auto (recalc existing only if outdated)"
+msgstr ""
+
 msgid "Automatic hashing is inactive."
 msgstr ""
 
 msgid "Background Jobs"
 msgstr ""
 
+msgid "Band {band}"
+msgstr ""
+
+msgid "Band {band}, position {position}"
+msgstr ""
+
 msgid "Below this many, the picker opens with every account and group it may offer already in the list. Above it, the list would be unwieldy, so the picker asks the server as you type. Applies to administrators and group leaders alike."
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Checksum algorithms computed for matching files. Each algorithm you add is indexed separately, so more algorithms means more work per file."
+msgstr ""
+
+msgid "Checksum algorithms computed for matching files. Each one is indexed separately, so more algorithms means more work per file. Shown as \"—\" for a rule that computes nothing."
 msgstr ""
 
 msgid "Checksums"
@@ -103,6 +154,9 @@ msgstr ""
 msgid "Could not save the preference."
 msgstr ""
 
+msgid "Create rule"
+msgstr ""
+
 msgid "Creating and editing rules for folders one can write to. An administrator always may; a rule an administrator has enforced is read-only for everyone else regardless."
 msgstr ""
 
@@ -122,16 +176,61 @@ msgstr ""
 msgid "Default algorithm"
 msgstr ""
 
+msgid "Defaults for all home folders. Within this segment a catch-all default — path **, / or empty — always evaluates last, after any more specific rules here."
+msgstr ""
+
+msgid "Delete"
+msgstr ""
+
 msgid "Delete failed."
 msgstr ""
 
 msgid "Delete this rule?"
 msgstr ""
 
+msgid "Disable"
+msgstr ""
+
+msgid "Disabled"
+msgstr ""
+
 msgid "Documentation"
 msgstr ""
 
+msgid "Drag to reorder within this band"
+msgstr ""
+
 msgid "Duplicates"
+msgstr ""
+
+msgid "Edit"
+msgstr ""
+
+msgid "Edit rule"
+msgstr ""
+
+msgid "Edit the rule on {path}"
+msgstr ""
+
+msgid "Enable"
+msgstr ""
+
+msgid "Enabled"
+msgstr ""
+
+msgid "Enforced"
+msgstr ""
+
+msgid "Enforced — all home folders"
+msgstr ""
+
+msgid "Enforced — everything"
+msgstr ""
+
+msgid "Enforced — groups & group folders"
+msgstr ""
+
+msgid "Enforced — specific"
 msgstr ""
 
 #. TRANSLATORS: the state of hashes dropped because no rule maintains them any more
@@ -144,10 +243,25 @@ msgstr ""
 msgid "Evaluated top to bottom — the first matching rule decides the file. A rule's band follows from its scope and whether it is enforced, so enforced rules always precede users' own rules, and the catch-all default is last. Drag a rule by its handle to reorder it within its band; to move it between bands, change its scope or its Enforced flag."
 msgstr ""
 
+msgid "Evaluates in band {band} — {label}"
+msgstr ""
+
 msgid "Every rule that can affect your files, in the order they are evaluated — the first match decides. Rules an administrator enforced come first and are read-only; your own rules come next and are yours to edit and reorder; the defaults below them apply only where none of your rules matched. You can create rules only if you have been given permission and the path is in a folder you can write to."
 msgstr ""
 
+msgid "Everything"
+msgstr ""
+
+msgid "Everything — every storage"
+msgstr ""
+
+msgid "Exclude (never hash these files)"
+msgstr ""
+
 msgid "Failed to load permission options."
+msgstr ""
+
+msgid "Failed to load rules."
 msgstr ""
 
 msgid "Failed to load status (HTTP {status})."
@@ -171,6 +285,17 @@ msgstr ""
 msgid "Find other files sharing a checksum with this file."
 msgstr ""
 
+msgid "Force (delete all, recalc all)"
+msgstr ""
+
+#. TRANSLATORS: the quoted patterns are examples to type as they are
+msgid "Glob pattern the file path must match. \"**\" matches every file, \"**/*.txt\" matches by extension, and \"/Documents/**\" matches everything below one folder."
+msgstr ""
+
+#. TRANSLATORS: the quoted patterns are examples to type as they are
+msgid "Glob pattern the file path must match. \"**\" matches every file; \"/Documents/**\" matches everything below that folder. Rules are checked in order and the first match wins."
+msgstr ""
+
 msgid "Grant revoked."
 msgstr ""
 
@@ -180,13 +305,31 @@ msgstr ""
 msgid "Granted {time}"
 msgstr ""
 
+msgid "Group"
+msgstr ""
+
+msgid "Group folder"
+msgstr ""
+
+msgid "Group: {group}"
+msgstr ""
+
 msgid "Groups"
+msgstr ""
+
+msgid "Groups & group folders"
 msgstr ""
 
 msgid "Hash Algorithms"
 msgstr ""
 
 msgid "Help"
+msgstr ""
+
+msgid "Ignore (no automatic hashing; still allowed on request)"
+msgstr ""
+
+msgid "Include (compute checksums)"
 msgstr ""
 
 msgid "Index file checksums for fast reverse hash lookups and duplicate detection, including REST, CLI and PHP APIs"
@@ -227,6 +370,9 @@ msgstr ""
 msgid "Last used"
 msgstr ""
 
+msgid "Lazy (delete hashes, recalc later)"
+msgstr ""
+
 msgid "Loading checksums …"
 msgstr ""
 
@@ -242,6 +388,21 @@ msgstr ""
 msgid "Members of these groups may trigger a computation of their own files by hand. Selected groups and selected users are combined — being in either is enough."
 msgstr ""
 
+msgid "Missing (recalc existing + missing)"
+msgstr ""
+
+msgid "Mode"
+msgstr ""
+
+msgid "More actions for the rule on {path}"
+msgstr ""
+
+msgid "New rule"
+msgstr ""
+
+msgid "No"
+msgstr ""
+
 msgid "No app passwords yet. Create one under “Security”, then grant it here."
 msgstr ""
 
@@ -255,6 +416,9 @@ msgid "No grants."
 msgstr ""
 
 msgid "No other files share checksums with this file."
+msgstr ""
+
+msgid "No rules apply to your files."
 msgstr ""
 
 msgid "No rules yet."
@@ -281,6 +445,12 @@ msgstr ""
 msgid "Orphan purge"
 msgstr ""
 
+msgid "Path"
+msgstr ""
+
+msgid "Path (glob)"
+msgstr ""
+
 msgid "Pending Updates"
 msgstr ""
 
@@ -302,13 +472,25 @@ msgstr ""
 msgid "Prefill up to"
 msgstr ""
 
+msgid "Priority"
+msgstr ""
+
+msgid "Priority band"
+msgstr ""
+
 msgid "Queue drain"
+msgstr ""
+
+msgid "Re-apply"
 msgstr ""
 
 msgid "Re-apply failed."
 msgstr ""
 
 msgid "Re-apply queued — the background job takes it from here."
+msgstr ""
+
+msgid "Read-only"
 msgstr ""
 
 msgid "Recalc"
@@ -354,6 +536,15 @@ msgstr ""
 msgid "Rules applying to your files"
 msgstr ""
 
+msgid "Rules are evaluated in band order and the first match decides the file. A rule's band follows from its scope and whether it is enforced — it is not chosen directly, and reordering only moves a rule within its own band."
+msgstr ""
+
+msgid "Rules for a group's members, or for one group folder. Not enforced: a user's own rule overrides them for their files."
+msgstr ""
+
+msgid "Rules for one specific slice — users' own rules for their homes, or a rule for one storage. They decide a file only where no enforced rule matched it first."
+msgstr ""
+
 msgid "Save"
 msgstr ""
 
@@ -369,10 +560,19 @@ msgstr ""
 msgid "Saving…"
 msgstr ""
 
+msgid "Scope"
+msgstr ""
+
 msgid "Scripts and other apps calling this app's public API with an app password. The bundled pages — this one, the Duplicates page, the file sidebar — keep working for everyone; this decides who may reach the same routes from outside them."
 msgstr ""
 
+msgid "Search groups…"
+msgstr ""
+
 msgid "Search users…"
+msgstr ""
+
+msgid "Search {folders}…"
 msgstr ""
 
 msgid "Searching …"
@@ -384,10 +584,25 @@ msgstr ""
 msgid "Settings"
 msgstr ""
 
+msgid "Specific rules"
+msgstr ""
+
+msgid "Status"
+msgstr ""
+
 msgid "Status Info"
 msgstr ""
 
+msgid "Storage id"
+msgstr ""
+
+msgid "Storage: {storage}"
+msgstr ""
+
 msgid "Sudo tokens"
+msgstr ""
+
+msgid "Team folders"
 msgstr ""
 
 msgid "The algorithm the Checksums tab in the file sidebar offers as its first button. Leave it on the default to follow the server; pick one to have it first for every file, with the file's own rule providing the second button."
@@ -399,6 +614,9 @@ msgstr ""
 msgid "The algorithms rules may compute and pickers may offer, chosen from what this server's PHP provides. Removing one does not delete hashes already stored under it — they stay searchable — it only stops new ones being computed."
 msgstr ""
 
+msgid "The app or storage this rule names is not available, so the rule can never match."
+msgstr ""
+
 msgid "The grant listing could not be loaded ({error})."
 msgstr ""
 
@@ -408,10 +626,41 @@ msgstr ""
 msgid "The home-folders default covers home folders only: files on external storage and in group folders are reached only by the “Everything” default or by their own group-folder or storage rules."
 msgstr ""
 
+msgid "The last resort, covering every storage — external mounts and group folders included. Enable deliberately: it can reach storage that is slow or costs money to read."
+msgstr ""
+
+msgid "The one user whose home folder this rule addresses."
+msgstr ""
+
+msgid "The raw id from the storages table, matched exactly — whatever kind of storage it names. Use this for external mounts, or anything the other choices cannot say."
+msgstr ""
+
+msgid "The request never reached the server."
+msgstr ""
+
+msgid "The rule addresses the home folder of every member of this group."
+msgstr ""
+
+#. TRANSLATORS: {status} is an HTTP status, such as "404 Not Found"
+msgid "The server answered {status}."
+msgstr ""
+
+msgid "The server sent an answer this page could not read."
+msgstr ""
+
 msgid "The sudoers: members of the admin group always, plus the groups and users selected here. Looking across accounts still costs a password confirmation each time; this only says who may be asked."
 msgstr ""
 
+msgid "The team folder this rule addresses. Every member sees the same files, and the rule follows the folder — not whoever happens to look at it."
+msgstr ""
+
+msgid "These namespaces exist on this instance but have no catch-all rule of their own, so what happens to their files is decided by whatever more general rule covers them — or by nothing at all. Creating a rule from here starts one for that namespace; until then, nothing is stored."
+msgstr ""
+
 msgid "This app password is kept out of the filesystem and cannot be granted file reads."
+msgstr ""
+
+msgid "This is your own rule. It applies only to your files and is evaluated after any rule an administrator has enforced."
 msgstr ""
 
 msgid "Toggle failed."
@@ -426,10 +675,35 @@ msgstr ""
 msgid "Tunables"
 msgstr ""
 
+msgid "Type"
+msgstr ""
+
 msgid "Untrusted Hashes"
 msgstr ""
 
+msgid "User"
+msgstr ""
+
 msgid "Users"
+msgstr ""
+
+msgid "Users may not edit this rule"
+msgstr ""
+
+#. TRANSLATORS: "Auto", "Missing", "Force" and "Lazy" name the choices of the Mode field; translate them as that field does
+msgid "What happens to a file that already has a hash. \"Auto\" only recomputes an outdated one, \"Missing\" also fills gaps, \"Force\" discards and recomputes everything, and \"Lazy\" clears the hashes now and lets a later run recompute them."
+msgstr ""
+
+#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them; keep them
+msgid "What happens to a file that already has a hash. \"auto\" recomputes only an outdated one, \"missing\" also fills gaps, \"force\" discards and recomputes everything, and \"lazy\" clears the hashes now and lets a later run recompute them. Shown as \"—\" for a rule that computes nothing."
+msgstr ""
+
+#. TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
+msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."
+msgstr ""
+
+#. TRANSLATORS: "include", "ignore" and "exclude" are the rule types as the table shows them; keep them
+msgid "What happens when this rule matches. \"include\" computes the checksums in this row. \"ignore\" stops automatic hashing but still allows a manual recalculation. \"exclude\" blocks hashing by every route, including the sidebar button, the API and the occ command."
 msgstr ""
 
 msgid "When on, every user may call the public API with an app password. When off, only the groups and individual users selected here may; the app's own pages keep working for everyone."
@@ -444,10 +718,26 @@ msgstr ""
 msgid "When on, every user of this instance may create and edit rules for folders they can write to. When off, that permission is limited to the groups and individual users you select."
 msgstr ""
 
+msgid "When set, users cannot override or disable this rule from their personal settings. Enforced rules are evaluated before every user rule, so they cannot be outrun."
+msgstr ""
+
+#. TRANSLATORS: keep "<band>.<position>" as it is; it is how the column writes a priority
+msgid "Where the rule sits in evaluation order, written \"<band>.<position>\". The first rule that matches a file decides it outright, so a lower number is stronger. The band follows from the rule's scope and whether it is enforced — it is never chosen directly — and the position is the rule's place inside that band, which is what dragging changes."
+msgstr ""
+
+msgid "Whether the rule takes part in evaluation at all. A disabled rule is skipped as though it were not there, so the next matching rule decides instead."
+msgstr ""
+
 msgid "Which algorithms are computed for which files, on real-time file events."
 msgstr ""
 
 msgid "Which algorithms this server computes, from what its PHP provides, and which of them is the default. Rules may only use these, and every picker in the app offers exactly these."
+msgstr ""
+
+msgid "Which slice of files the rule addresses: one user's home folder, the members of one group, \"All home folders\", one group folder, one storage by its id, or \"Everything\". A rule only ever meets files inside its slice — \"All home folders\" reaches every personal folder and nothing else, while \"Everything\" also reaches group folders and external storage."
+msgstr ""
+
+msgid "Which slice of the file universe this rule addresses: all home folders, one group's members, a single user, one group folder, one storage by its raw id, or everything — every storage there is, external mounts and group folders included."
 msgstr ""
 
 msgid "Who may calculate by hand"
@@ -460,6 +750,16 @@ msgid "Who may look across accounts"
 msgstr ""
 
 msgid "Who may use the API"
+msgstr ""
+
+msgid "Without a rule of their own"
+msgstr ""
+
+#. TRANSLATORS: whether an administrator enforced the rule
+msgid "Yes"
+msgstr ""
+
+msgid "You are not allowed to edit rules. Contact an administrator."
 msgstr ""
 
 msgid "Your app passwords could not be listed ({error})."
@@ -477,6 +777,10 @@ msgstr ""
 msgid "hashes were dropped on write because no rule maintains them; heals itself once a rule covers them again"
 msgstr ""
 
+#. TRANSLATORS: an example of what to type; keep the storage ids as they are
+msgid "local::/path/ or smb::…"
+msgstr ""
+
 #. TRANSLATORS: when an app password was last used, or granted: not at all
 msgid "never"
 msgstr ""
@@ -484,7 +788,20 @@ msgstr ""
 msgid "never ran yet"
 msgstr ""
 
+msgid "no catch-all rule — only the specific rules above apply here"
+msgstr ""
+
+msgid "not covered — no rule addresses it, so nothing is hashed there"
+msgstr ""
+
+msgid "provider missing"
+msgstr ""
+
 msgid "token deleted — grant left behind"
+msgstr ""
+
+#. TRANSLATORS: {folders} is what the group folders app calls itself, e.g. "Team folders"
+msgid "{folders} — one folder"
 msgstr ""
 
 msgid "{stored} is not available on this server at the moment, so the default ({active}) applies."

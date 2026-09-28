@@ -13,6 +13,7 @@
  */
 
 import type { GroupFolderOption, Rule } from './types'
+import { t } from '../l10n'
 
 /** Display bands: the selector's specificity rank, enforced 1–4, unenforced 5–8. */
 export const BAND = {
@@ -26,16 +27,22 @@ export const BAND = {
 	UNIVERSAL: 8,
 } as const
 
-/** Shown beside the band number so the colour is never the only cue. */
-export const BAND_LABELS: Record<number, string> = {
-	[BAND.EXACT_ENFORCED]: 'Enforced — specific',
-	[BAND.GROUP_ENFORCED]: 'Enforced — groups & group folders',
-	[BAND.NAMESPACE_ENFORCED]: 'Enforced — all home folders',
-	[BAND.UNIVERSAL_ENFORCED]: 'Enforced — everything',
-	[BAND.EXACT]: 'Specific rules',
-	[BAND.GROUP]: 'Groups & group folders',
-	[BAND.NAMESPACE]: 'All home folders',
-	[BAND.UNIVERSAL]: 'Everything',
+/**
+ * Shown beside the band number so the colour is never the only cue; "Band 9"
+ * for a band this list does not know. Translated when read, not on import.
+ */
+export function bandLabel(band: number): string {
+	switch (band) {
+	case BAND.EXACT_ENFORCED: return t('file_checksum_search', 'Enforced — specific')
+	case BAND.GROUP_ENFORCED: return t('file_checksum_search', 'Enforced — groups & group folders')
+	case BAND.NAMESPACE_ENFORCED: return t('file_checksum_search', 'Enforced — all home folders')
+	case BAND.UNIVERSAL_ENFORCED: return t('file_checksum_search', 'Enforced — everything')
+	case BAND.EXACT: return t('file_checksum_search', 'Specific rules')
+	case BAND.GROUP: return t('file_checksum_search', 'Groups & group folders')
+	case BAND.NAMESPACE: return t('file_checksum_search', 'All home folders')
+	case BAND.UNIVERSAL: return t('file_checksum_search', 'Everything')
+	default: return t('file_checksum_search', 'Band {band}', { band })
+	}
 }
 
 export type SelectorKind = 'user' | 'group' | 'homeAll' | 'groupfolder' | 'storage' | 'universal'
@@ -111,39 +118,38 @@ export function selectorLabel(
 	const groupFolderTerm = options?.groupFolderTerm
 	switch (selectorKind(selector || '*')) {
 	case 'universal':
-		return 'Everything'
+		return t('file_checksum_search', 'Everything')
 	case 'homeAll':
-		return 'All home folders'
+		return t('file_checksum_search', 'All home folders')
 	case 'group':
-		return `Group: ${selectorTarget(selector)}`
+		return t('file_checksum_search', 'Group: {group}', { group: selectorTarget(selector) ?? '' })
 	case 'groupfolder':
 		// The groupfolders app calls itself "Team Folders" these days; when
 		// it is there we use its own name, and when it is gone we name the
-		// missing provider by its slug rather than pretending.
+		// missing provider by its slug rather than pretending. Either is a
+		// name, not a word of this app's to translate.
 		return `${groupFolderTerm ?? 'app:groupfolders'}: ${groupFolderName(selectorTarget(selector), options?.groupFolders)}`
 	case 'storage':
-		return `Storage: ${selectorTarget(selector)}`
+		return t('file_checksum_search', 'Storage: {storage}', { storage: selectorTarget(selector) ?? '' })
 	default:
 		return selectorTarget(selector) ?? selector
 	}
 }
 
 /**
- * What each band means, for the help popover on its header row.
+ * What each band means, for the help popover on its header row; empty for a
+ * band this list does not know. Translated when read, not on import.
  */
-export const BAND_HELP: Record<number, string> = {
-	[BAND.EXACT_ENFORCED]: 'Administrator-enforced rules aimed at one specific slice — a single user\'s home or '
-		+ 'one storage. Nothing can outrun them there, and their subjects cannot edit or disable them.',
-	[BAND.GROUP_ENFORCED]: 'Administrator-enforced rules for the members of a group, or for one group folder. '
-		+ 'Only an enforced rule aimed at something more specific comes before them.',
-	[BAND.NAMESPACE_ENFORCED]: 'Administrator-enforced rules covering every home folder.',
-	[BAND.UNIVERSAL_ENFORCED]: 'Administrator-enforced rules covering every storage there is.',
-	[BAND.EXACT]: 'Rules for one specific slice — users\' own rules for their homes, or a rule for one '
-		+ 'storage. They decide a file only where no enforced rule matched it first.',
-	[BAND.GROUP]: 'Rules for a group\'s members, or for one group folder. Not enforced: a user\'s own rule '
-		+ 'overrides them for their files.',
-	[BAND.NAMESPACE]: 'Defaults for all home folders. Within this segment a catch-all default — path '
-		+ '**, / or empty — always evaluates last, after any more specific rules here.',
-	[BAND.UNIVERSAL]: 'The last resort, covering every storage — external mounts and group folders '
-		+ 'included. Enable deliberately: it can reach storage that is slow or costs money to read.',
+export function bandHelp(band: number): string {
+	switch (band) {
+	case BAND.EXACT_ENFORCED: return t('file_checksum_search', 'Administrator-enforced rules aimed at one specific slice — a single user\'s home or one storage. Nothing can outrun them there, and their subjects cannot edit or disable them.')
+	case BAND.GROUP_ENFORCED: return t('file_checksum_search', 'Administrator-enforced rules for the members of a group, or for one group folder. Only an enforced rule aimed at something more specific comes before them.')
+	case BAND.NAMESPACE_ENFORCED: return t('file_checksum_search', 'Administrator-enforced rules covering every home folder.')
+	case BAND.UNIVERSAL_ENFORCED: return t('file_checksum_search', 'Administrator-enforced rules covering every storage there is.')
+	case BAND.EXACT: return t('file_checksum_search', 'Rules for one specific slice — users\' own rules for their homes, or a rule for one storage. They decide a file only where no enforced rule matched it first.')
+	case BAND.GROUP: return t('file_checksum_search', 'Rules for a group\'s members, or for one group folder. Not enforced: a user\'s own rule overrides them for their files.')
+	case BAND.NAMESPACE: return t('file_checksum_search', 'Defaults for all home folders. Within this segment a catch-all default — path **, / or empty — always evaluates last, after any more specific rules here.')
+	case BAND.UNIVERSAL: return t('file_checksum_search', 'The last resort, covering every storage — external mounts and group folders included. Enable deliberately: it can reach storage that is slow or costs money to read.')
+	default: return ''
+	}
 }

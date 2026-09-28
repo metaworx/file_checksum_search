@@ -15,6 +15,7 @@ import { reactive, toRefs } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import { API_RULES } from '../../routes'
 import type { GroupFolderOption, Rule, RuleDraft } from '../types'
+import { t } from '../../l10n'
 
 declare const OC: {
 	requestToken: string
@@ -107,7 +108,7 @@ export function useRules(scope: 'own' | 'all') {
 			state.availableStorages = data.availableStorages || []
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return
-			state.error = 'Failed to load rules.'
+			state.error = t('file_checksum_search', 'Failed to load rules.')
 		} finally {
 			if (!signal.aborted) {
 				state.loading = false
@@ -143,13 +144,14 @@ export function useRules(scope: 'own' | 'all') {
 			if (!response.ok) {
 				return {
 					success: false,
-					error: `The server answered ${response.status} ${response.statusText || ''}`.trim() + '.',
+					// TRANSLATORS: {status} is an HTTP status, such as "404 Not Found"
+					error: t('file_checksum_search', 'The server answered {status}.', { status: `${response.status} ${response.statusText || ''}`.trim() }),
 				}
 			}
 
-			return data ?? { success: false, error: 'The server sent an answer this page could not read.' }
+			return data ?? { success: false, error: t('file_checksum_search', 'The server sent an answer this page could not read.') }
 		} catch {
-			return { success: false, error: 'The request never reached the server.' }
+			return { success: false, error: t('file_checksum_search', 'The request never reached the server.') }
 		}
 	}
 

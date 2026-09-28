@@ -15,6 +15,7 @@ import MdiIcon from '../components/MdiIcon.vue'
 import { ICON_BIN, ICON_PAUSE, ICON_PENCIL, ICON_PLAY, ICON_REFRESH } from '../components/icons'
 import { priorityLabel, selectorKind, selectorLabel } from './bands'
 import type { GroupFolderOption, Rule } from './types'
+import { t } from '../l10n'
 
 const props = defineProps<{
 	rule: Rule
@@ -61,6 +62,22 @@ const computesHashes = computed(() => (props.rule.type ?? 'include') === 'includ
  * marks nothing, and the server refuses a disabled rule at submission.
  */
 const canReapply = computed(() => props.rule.enabled && computesHashes.value)
+
+/** The row's words that depend on the rule, worked out here rather than in the template. */
+const texts = computed(() => {
+	const path = props.rule.path || '/'
+	return {
+		priority: t('file_checksum_search', 'Band {band}, position {position}', { band: props.rule.band ?? 0, position: props.rule.position ?? 1 }),
+		status: props.rule.enabled ? t('file_checksum_search', 'Enabled') : t('file_checksum_search', 'Disabled'),
+		// TRANSLATORS: whether an administrator enforced the rule
+		enforced: props.rule.admin_enforced ? t('file_checksum_search', 'Yes') : t('file_checksum_search', 'No'),
+		toggle: props.rule.enabled ? t('file_checksum_search', 'Disable') : t('file_checksum_search', 'Enable'),
+		edit: t('file_checksum_search', 'Edit the rule on {path}', { path }),
+		more: t('file_checksum_search', 'More actions for the rule on {path}', { path }),
+	}
+})
+
+const PROVIDER_MISSING_HINT = t('file_checksum_search', 'The app or storage this rule names is not available, so the rule can never match.')
 </script>
 
 <template>
@@ -85,11 +102,11 @@ const canReapply = computed(() => props.rule.enabled && computesHashes.value)
 				class="fcias-drag-handle"
 				draggable="true"
 				aria-hidden="true"
-				title="Drag to reorder within this band"
+				:title="t('file_checksum_search', 'Drag to reorder within this band')"
 				@dragstart="emit('rowDragstart', rule, $event)"
 				@dragend="emit('rowDragend')">⠿</span>
 		</td>
-		<td class="fcias-priority-cell" :title="`Band ${rule.band}, position ${rule.position}`">
+		<td class="fcias-priority-cell" :title="texts.priority">
 			{{ priorityLabel(rule) }}
 		</td>
 		<td :title="scopeLabel">
@@ -103,8 +120,8 @@ const canReapply = computed(() => props.rule.enabled && computesHashes.value)
 			<span
 				v-if="providerMissing"
 				class="fcias-provider-missing"
-				title="The app or storage this rule names is not available, so the rule can never match.">
-				provider missing
+				:title="PROVIDER_MISSING_HINT">
+				{{ t('file_checksum_search', 'provider missing') }}
 			</span>
 		</td>
 		<td :title="rule.path || '/'">
@@ -125,49 +142,49 @@ const canReapply = computed(() => props.rule.enabled && computesHashes.value)
 		</td>
 		<td>
 			<span :class="rule.enabled ? 'fcias-compat-pass' : 'fcias-compat-fail'">
-				{{ rule.enabled ? 'Enabled' : 'Disabled' }}
+				{{ texts.status }}
 			</span>
 		</td>
-		<td>{{ rule.admin_enforced ? 'Yes' : 'No' }}</td>
+		<td>{{ texts.enforced }}</td>
 		<td class="fcias-rules-actions">
 			<span v-if="rule.canEdit" class="fcias-row-actions">
 				<button
 					class="fcias-icon-btn"
 					data-action="edit"
 					type="button"
-					title="Edit rule"
-					:aria-label="`Edit the rule on ${rule.path || '/'}`"
+					:title="t('file_checksum_search', 'Edit rule')"
+					:aria-label="texts.edit"
 					@click="emit('edit', rule)">
 					<MdiIcon :path="ICON_PENCIL" :size="16" />
 				</button>
-				<NcActions :aria-label="`More actions for the rule on ${rule.path || '/'}`">
+				<NcActions :aria-label="texts.more">
 					<NcActionButton data-action="edit" @click="emit('edit', rule)">
 						<template #icon>
 							<MdiIcon :path="ICON_PENCIL" />
 						</template>
-						Edit
+						{{ t('file_checksum_search', 'Edit') }}
 					</NcActionButton>
 					<NcActionButton data-action="toggle" @click="emit('toggle', rule)">
 						<template #icon>
 							<MdiIcon :path="rule.enabled ? ICON_PAUSE : ICON_PLAY" />
 						</template>
-						{{ rule.enabled ? 'Disable' : 'Enable' }}
+						{{ texts.toggle }}
 					</NcActionButton>
 					<NcActionButton v-if="canReapply" data-action="apply" @click="emit('apply', rule)">
 						<template #icon>
 							<MdiIcon :path="ICON_REFRESH" />
 						</template>
-						Re-apply
+						{{ t('file_checksum_search', 'Re-apply') }}
 					</NcActionButton>
 					<NcActionButton data-action="delete" @click="emit('delete', rule)">
 						<template #icon>
 							<MdiIcon :path="ICON_BIN" />
 						</template>
-						Delete
+						{{ t('file_checksum_search', 'Delete') }}
 					</NcActionButton>
 				</NcActions>
 			</span>
-			<span v-else class="fcias-muted">Read-only</span>
+			<span v-else class="fcias-muted">{{ t('file_checksum_search', 'Read-only') }}</span>
 		</td>
 	</tr>
 </template>
