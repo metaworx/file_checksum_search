@@ -14,7 +14,10 @@ after it through the real store's listing.
       listing names the release, compares the store's entry with the one the
       fake store serves, then waits until every host seen names it and
       reports how long each took. The store publishes no list of mirrors;
-      the hosts are the ones its redirects lead to, plus itself.
+      the hosts are the ones its redirects lead to, plus itself. With
+      --since, the upload's time, an entry of the version last modified
+      before it is an earlier upload of the same version, still served
+      from a cache or a mirror: the host is asked again, not compared.
 
 Both build the release entry from the same arguments with the same code, so
 "the store says the same" means the store says what the installs tested.
@@ -22,8 +25,8 @@ Both build the release entry from the same arguments with the same code, so
 Usage:
   appstore.py fake  --version V --download URL --signature FILE [--nightly] [--port 8090]
   appstore.py watch --version V --download URL --signature FILE [--nightly]
-                    --certificate FILE [--first-timeout MIN] [--all-timeout MIN]
-                    [--summary FILE] [--result FILE]
+                    --certificate FILE [--since TIME] [--first-timeout MIN]
+                    [--all-timeout MIN] [--summary FILE] [--result FILE]
 """
 
 import argparse
@@ -51,6 +54,10 @@ COMPARED = (
 	'version', 'isNightly', 'download', 'signature',
 	'platformVersionSpec', 'rawPlatformVersionSpec', 'phpVersionSpec', 'rawPhpVersionSpec',
 )
+
+# How far the store's clock and the uploader's may differ before a new entry
+# looks older than its upload.
+CLOCK_MARGIN = datetime.timedelta(minutes=2)
 
 
 # ---------------------------------------------------------------------------
@@ -100,6 +107,12 @@ def listed_release(apps: list, version: str, nightly: bool) -> tuple[dict | None
 		return None, None
 	release = next((r for r in entry['releases'] if r['version'] == version and r['isNightly'] == nightly), None)
 	return entry, release
+
+
+def utc(stamp: str) -> datetime.datetime:
+	"""An ISO 8601 time; UTC where it names no zone."""
+	moment = datetime.datetime.fromisoformat(stamp)
+	return moment if moment.tzinfo else moment.replace(tzinfo=datetime.timezone.utc)
 
 
 # ---------------------------------------------------------------------------
@@ -236,6 +249,9 @@ def watch(args) -> int:
 			if release is None:
 				log(f'{host}: listing changed ({headers.get("last-modified", "?")}), {args.version} not in it yet')
 				continue
+			if args.since and utc(release['lastModified']) < args.since - CLOCK_MARGIN:
+				log(f'{host}: still lists the upload of {args.version} from {release["lastModified"]}')
+				continue
 
 			listed[host] = minutes(start)
 			log(f'{host}: lists {args.version}')
@@ -318,6 +334,7 @@ def main() -> None:
 
 	watcher = commands.choices['watch']
 	watcher.add_argument('--certificate', required=True)
+	watcher.add_argument('--since', type=utc)
 	watcher.add_argument('--first-timeout', type=float, default=180)
 	watcher.add_argument('--all-timeout', type=float, default=300)
 	watcher.add_argument('--interval', type=float, default=60)

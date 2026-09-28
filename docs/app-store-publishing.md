@@ -116,7 +116,10 @@ After the upload nothing is installed again. **Listed by the store**
 (`tests/e2e/store/appstore.py watch`) waits until a host of the store's listing
 names the release and compares the store's entry with the one the installs
 tested — version, channel, download, signature, platform and PHP ranges, and
-the certificate; any difference fails it. The store publishes no list of
+the certificate; any difference fails it. An entry of the version last
+modified before the upload is an earlier upload of the same version, still
+served from a cache or a mirror: the job asks that host again rather than
+comparing it. The store publishes no list of
 mirrors: it answers `api/v1/apps.json` itself or redirects to a mirror
 (`garm2`, `garm3` when this was written), so the job follows the redirects,
 asks every host it has seen, waits until all of them list the release, and

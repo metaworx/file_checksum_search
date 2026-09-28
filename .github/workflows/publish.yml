@@ -121,12 +121,20 @@ jobs:
     needs: [ build, sign, precheck ]
     runs-on: ubuntu-latest
     environment: appstore
+    outputs:
+      uploaded: ${{ steps.upload.outputs.at }}
     env:
       VERSION: ${{ needs.build.outputs.version }}
       DOWNLOAD_URL: "https://github.com/${{ github.repository }}/releases/download/${{ needs.build.outputs.tag }}/file_checksum_search-${{ needs.build.outputs.version }}.tar.gz"
     steps:
       - name: Checkout the tag
         uses: actions/checkout@v5
+
+      # The watch after the upload takes an entry of this version last
+      # modified before this time for an earlier upload of the same version.
+      - name: The upload's time
+        id: upload
+        run: echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       # Fetched the way the store fetches it: anonymously, from the release.
       - name: Download the release's tarball and signature
@@ -150,7 +158,7 @@ jobs:
 
   # After the upload nothing is installed again: the store's own entry is
   # compared with the one the installs before the upload tested, on the first
-  # host of its listing that names the release; then the job waits for every
+  # host of its listing that names this upload; then the job waits for every
   # host the store's redirects lead to, reports how long each took, and
   # tells the maintainers on the release commit.
   listed:
@@ -172,6 +180,7 @@ jobs:
         id: watch
         env:
           APPSTORE_CERT: ${{ vars.APPSTORE_CERT || secrets.APPSTORE_CERT }}
+          UPLOADED: ${{ needs.store.outputs.uploaded }}
         run: |
           curl -fsSL -o /tmp/release.signature "${DOWNLOAD_URL}.signature"
           printf '%s\n' "$APPSTORE_CERT" > /tmp/app.crt
@@ -180,7 +189,7 @@ jobs:
             flag="--nightly"
           fi
           python3 tests/e2e/store/appstore.py watch --version "$VERSION" --download "$DOWNLOAD_URL" \
-            --signature /tmp/release.signature --certificate /tmp/app.crt $flag \
+            --signature /tmp/release.signature --certificate /tmp/app.crt $flag --since "$UPLOADED" \
             --first-timeout 180 --all-timeout 300 \
             --summary "$GITHUB_STEP_SUMMARY" --result /tmp/listing.json
 
