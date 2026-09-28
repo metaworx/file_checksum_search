@@ -1827,6 +1827,105 @@ class MetadataServiceTest
 	}
 
 	/**
+	 * The queued check walks a slice at a time: it starts past the file its
+	 * cursor names and stops after the page on which it was told to, saying
+	 * how far it got.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheResumableWalkStartsPastItsCursorAndStopsWhenTold(): void
+	{
+		$document = json_encode(
+			[
+				MetadataService::getHashKey( 'sha1' ) => [
+					'value'          => str_repeat( 'b', 40 ),
+					'type'           => 'string',
+					'etag'           => '',
+					'indexed'        => false,
+					'editPermission' => 0,
+				],
+			],
+		);
+
+		// One page of one document, then its index keys. A second page of
+		// documents would be a third fetch sequence; the walk must not ask
+		// for it.
+		$pages = [
+			[
+				[
+					MetadataService::FIELD_FILE_ID => 4001,
+					MetadataService::FIELD_JSON    => $document,
+				],
+			],
+			[
+				[
+					MetadataService::FIELD_FILE_ID  => 4001,
+					MetadataService::FIELD_META_KEY => MetadataService::getHashKey( 'sha1' ),
+				],
+			],
+		];
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetch' )
+		       ->willReturnCallback(
+			       static function() use ( &$pages ): array|false
+			       {
+				       if ( $pages === [] )
+				       {
+					       return false;
+				       }
+
+				       $row = array_shift( $pages[0] );
+
+				       if ( $row === null )
+				       {
+					       array_shift( $pages );
+
+					       return false;
+				       }
+
+				       return $row;
+			       },
+		       )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$integers = [];
+		$this->queryBuilder->method( 'createNamedParameter' )
+		                   ->willReturnCallback(
+			                   static function( $value ) use ( &$integers ): string
+			                   {
+				                   if ( is_int( $value ) )
+				                   {
+					                   $integers[] = $value;
+				                   }
+
+				                   return ':p';
+			                   },
+		                   )
+		;
+
+		$asked  = 0;
+		$result = $this->service->reindexHashesAfter(
+			4000,
+			500,
+			static function() use ( &$asked ): bool
+			{
+				$asked ++;
+
+				return false;
+			},
+		);
+
+		$this->assertSame( [ 'fixed' => 0, 'last' => 4001, 'done' => false ], $result );
+		$this->assertContains( 4000, $integers, 'the first page starts past the cursor' );
+		$this->assertSame( 1, $asked, 'asked once, after the first page' );
+		$this->assertSame( [], $pages, 'no second page of documents was read' );
+	}
+
+	/**
 	 * Two paths by length. A long hash matched on its first 63 characters
 	 * only, so the metadata document is asked too — before the row is sent,
 	 * so a file that merely shares the prefix is never fetched or decoded.

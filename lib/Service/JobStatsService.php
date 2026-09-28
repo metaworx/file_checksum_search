@@ -44,6 +44,9 @@ class JobStatsService
 	/** The daily purge of metadata for files that no longer exist (rides RuleProcessingJob). */
 	public const JOB_ORPHAN_PURGE = 'orphan_purge';
 
+	/** The queued check that every stored hash has its index row (HashIndexCheck). */
+	public const JOB_HASH_INDEX_CHECK = 'hash_index_check';
+
 	public const JOBS
 		 = [
 			self::JOB_RULE_SWEEP,

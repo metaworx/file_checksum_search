@@ -1745,14 +1745,18 @@ class MetadataService
 	 * Whether every file whose metadata document mentions a hash has an index
 	 * row.
 	 *
-	 * Two counts, to answer in a millisecond a question that otherwise costs
-	 * a walk over every metadata document:
+	 * Two counts, instead of a walk over every metadata document:
 	 *
 	 * - files the index knows a hash for;
 	 * - metadata documents that mention one.
 	 *
 	 * Equal is the state after a completed pass. Fewer on the index side
 	 * means work is outstanding.
+	 *
+	 * **Cheaper than the walk, not cheap.** The second count reads the JSON
+	 * of every metadata document this app has stamped: on an instance with
+	 * 450,000 index rows it took a minute. So no request asks it; a whole
+	 * repair queues {@see \OCA\FileChecksumSearch\BackgroundJob\HashIndexCheck}.
 	 *
 	 * **It can only err towards doing the work.** A file with no index rows
 	 * at all counts on one side and not the other, and that is the whole
@@ -2009,40 +2013,78 @@ class MetadataService
 			true,
 			$pageSize,
 			$progress,
-			function(
-				int    $fileId,
-				string $json,
-				array  $have,
-			): bool
-			{
-				// Before reading it: a metadata document still in the old
-				// spelling reads as holding no hashes at all, and syncing
-				// from that would delete the very index rows this exists to
-				// write.
-				$json   = $this->renameLegacyKeysInDocument( $fileId, $json );
-				$hashes = $this->getHashes( $this->getMetadata( $fileId, $json ) );
-				$wanted = array_map(
-					static fn(
-						string $algo,
-					): string => self::getHashKey( $algo ),
-					array_keys( array_filter( $hashes, static fn(
-						string $hash,
-					): bool => $hash !== '' ) ),
-				);
+			$this->syncIndexToDocument( ... ),
+		)['fixed'];
+	}
 
-				sort( $wanted );
-				sort( $have );
-
-				if ( $wanted === $have )
-				{
-					return false;
-				}
-
-				$this->syncHashIndex( $fileId, $hashes );
-
-				return true;
-			},
+	/**
+	 * The same pass as {@see reindexHashes()}, a slice at a time: from the
+	 * file after $after, until $continue answers false after a page.
+	 *
+	 * Asks nothing first. The caller that resumes has asked already, or
+	 * means to walk regardless.
+	 *
+	 * @param  callable|null  $continue  `fn(): bool`, asked after each page.
+	 *
+	 * @return array{fixed: int, last: int, done: bool}  Files rewritten, the
+	 *         last file id read, and whether the walk reached the end.
+	 * @throws Exception
+	 */
+	public function reindexHashesAfter(
+		int       $after,
+		int       $pageSize = 500,
+		?callable $continue = null,
+	): array
+	{
+		return $this->walkHashDocuments(
+			true,
+			$pageSize,
+			null,
+			$this->syncIndexToDocument( ... ),
+			$after,
+			$continue,
 		);
+	}
+
+	/**
+	 * Bring one file's index rows in line with its metadata document.
+	 *
+	 * @param  list<string>  $have  The hash keys the index holds for the file.
+	 *
+	 * @return bool  Whether anything was rewritten.
+	 * @throws Exception
+	 */
+	private function syncIndexToDocument(
+		int    $fileId,
+		string $json,
+		array  $have,
+	): bool
+	{
+		// Before reading it: a metadata document still in the old spelling
+		// reads as holding no hashes at all, and syncing from that would
+		// delete the very index rows this exists to write.
+		$json   = $this->renameLegacyKeysInDocument( $fileId, $json );
+		$hashes = $this->getHashes( $this->getMetadata( $fileId, $json ) );
+		$wanted = array_map(
+			static fn(
+				string $algo,
+			): string => self::getHashKey( $algo ),
+			array_keys( array_filter( $hashes, static fn(
+				string $hash,
+			): bool => $hash !== '' ) ),
+		);
+
+		sort( $wanted );
+		sort( $have );
+
+		if ( $wanted === $have )
+		{
+			return false;
+		}
+
+		$this->syncHashIndex( $fileId, $hashes );
+
+		return true;
 	}
 
 	/**
@@ -2098,7 +2140,7 @@ class MetadataService
 
 				return true;
 			},
-		);
+		)['fixed'];
 	}
 
 	/**
@@ -2115,8 +2157,13 @@ class MetadataService
 	 *                                   given the hash keys the index already
 	 *                                   holds for the file, returning whether
 	 *                                   it changed anything.
+	 * @param  int            $after     Start past this file id.
+	 * @param  callable|null  $continue  `fn(): bool`, asked after each page;
+	 *                                   false stops the walk there.
 	 *
-	 * @return int  Files the repair reported as changed.
+	 * @return array{fixed: int, last: int, done: bool}  Files the repair
+	 *         reported as changed, the last file id read, and whether the
+	 *         walk reached the end.
 	 * @throws Exception
 	 */
 	private function walkHashDocuments(
@@ -2124,9 +2171,11 @@ class MetadataService
 		int       $pageSize,
 		?callable $progress,
 		callable  $repair,
-	): int
+		int       $after = 0,
+		?callable $continue = null,
+	): array
 	{
-		$lastId = 0;
+		$lastId = $after;
 		$seen   = 0;
 		$fixed  = 0;
 
@@ -2136,7 +2185,11 @@ class MetadataService
 
 			if ( $documents === [] )
 			{
-				return $fixed;
+				return [
+					'fixed' => $fixed,
+					'last'  => $lastId,
+					'done'  => true,
+				];
 			}
 
 			$lastId   = array_key_last( $documents );
@@ -2154,6 +2207,15 @@ class MetadataService
 			if ( $progress !== null )
 			{
 				$progress( $seen, $fixed );
+			}
+
+			if ( $continue !== null && ! $continue() )
+			{
+				return [
+					'fixed' => $fixed,
+					'last'  => $lastId,
+					'done'  => false,
+				];
 			}
 		}
 	}

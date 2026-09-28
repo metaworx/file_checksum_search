@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Migration;
 use OC\FilesMetadata\FilesMetadataManager;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\FilecacheBackfill;
+use OCA\FileChecksumSearch\BackgroundJob\HashIndexCheck;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
@@ -548,16 +549,34 @@ class RepairQuietStart
 	 * Files whose rows already match are skipped, so the run after the first
 	 * costs a query per page and no writes.
 	 *
+	 * A whole repair only queues {@see HashIndexCheck}: even the question
+	 * whether anything is missing reads every stamped metadata document, a
+	 * minute on an instance with 450,000 index rows, and a whole repair runs
+	 * in the request that enables or upgrades the app.
+	 *
 	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
 	 */
 	#[RepairStep(
 		name: 'rebuild-from-metadata',
 		title: 'Index the hashes this app has already computed',
-		description: 'Writes index rows for hashes the metadata documents hold and the index does not. Reads no file content and changes no stored hash. Run this when a file\'s details show a hash but searching for that hash finds nothing.',
+		description: 'Writes index rows for hashes the metadata documents hold and the index does not. Reads no file content and changes no stored hash. A whole repair, as installing, enabling or upgrading the app runs, queues the check for the background jobs; named here, it runs at once. Run this when a file\'s details show a hash but searching for that hash finds nothing.',
 		expensive: true,
 	)]
 	private function backfillHashIndex( IOutput $output ): void
 	{
+		$named = $this->only !== null && in_array( 'rebuild-from-metadata', $this->only, true );
+
+		if ( ! $named && ! $this->includeExpensive )
+		{
+			$output->info(
+				HashIndexCheck::queue( $this->jobList, $this->appConfig )
+					? 'FCIAS: queued the check of the hash index for the background jobs.'
+					: 'FCIAS: the check of the hash index is already queued.',
+			);
+
+			return;
+		}
+
 		try
 		{
 			$fixed = $this->metadataService->reindexHashes( force: $this->includeExpensive );
@@ -584,9 +603,10 @@ class RepairQuietStart
 	 * This is the one that does, and the only way to find it is to read every
 	 * metadata document the instance holds.
 	 *
-	 * That is why it is `manualOnly`. Every other expensive step can ask
-	 * first — two counts, an empty page — and skip itself in a millisecond
-	 * when there is nothing to do. Here the asking *is* the work, and the
+	 * That is why it is `manualOnly`. The other expensive steps ask first —
+	 * two counts, an empty page — and skip themselves when there is nothing
+	 * to do, or queue the asking for the background jobs where even that
+	 * costs too much for a request. Here the asking *is* the work, and the
 	 * answer is almost always none, so a repair that ran it automatically
 	 * would scan the whole table on every upgrade to find nothing. An
 	 * administrator who has restored a database, or who has a file showing a

@@ -21,6 +21,9 @@ the first stable release.
 - The web interface, the Files sidebar included, and the messages the
   server sends it: every text can be translated.
 
+- Enabling or upgrading on a large instance: the repair's hash-index
+  check held the request for a minute.
+
 ## [0.20.3] - 2026-09-27
 
 ### Fixed

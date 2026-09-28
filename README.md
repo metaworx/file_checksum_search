@@ -301,7 +301,9 @@ Installing the app reads no file content at all. It queues a background job that
 Nextcloud's own filecache already carries into the searchable index, a slice per cron run, so that
 enabling the app returns at once however many files there are; `occ fcias:repair --step
 rebuild-from-filecache` does the same copy on demand, at once, and neither overwrites a hash the app
-already stored.
+already stored. Installing, enabling and upgrading also queue the check that every stored hash is in the
+index, which on a large instance takes longer than a request should: `occ fcias:repair --step
+rebuild-from-metadata` runs it at once.
 
 ### Which file a rule is talking about
 

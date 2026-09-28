@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Migration;
 
 use OCA\FileChecksumSearch\BackgroundJob\FilecacheBackfill;
+use OCA\FileChecksumSearch\BackgroundJob\HashIndexCheck;
 use OCA\FileChecksumSearch\Migration\RepairQuietStart;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
@@ -47,6 +48,9 @@ class RepairQuietStartTest
 
 	private RepairQuietStart           $step;
 
+	/** @var list<string>  The job classes the step added to the job list, in order. */
+	private array                      $queued = [];
+
 
 //  getters / setters / is* / has*
 
@@ -62,6 +66,18 @@ class RepairQuietStartTest
 		$this->jobList          = $this->createMock( IJobList::class );
 		$this->logger           = $this->createMock( LoggerInterface::class );
 		$this->output           = $this->createMock( IOutput::class );
+
+		$this->queued = [];
+		$this->jobList->method( 'add' )
+		              ->willReturnCallback(
+			              function( $job ): void
+			              {
+				              $this->queued[] = is_string( $job )
+					              ? $job
+					              : $job::class;
+			              },
+		              )
+		;
 
 		$this->setUpQueryBuilderMock();
 
@@ -304,12 +320,10 @@ class RepairQuietStartTest
 		$this->hashIndexService->expects( $this->never() )
 		                       ->method( 'backfillFromFilecache' )
 		;
-		$this->jobList->expects( $this->once() )
-		              ->method( 'add' )
-		              ->with( FilecacheBackfill::class )
-		;
 
 		$this->step->run( $this->output );
+
+		$this->assertContains( FilecacheBackfill::class, $this->queued );
 	}
 
 	/**
@@ -390,7 +404,66 @@ class RepairQuietStartTest
 		             ->method( 'info' )
 		;
 
+		$this->step->runSteps( $this->output, [ 'rebuild-from-metadata' ] );
+	}
+
+	/**
+	 * A whole repair runs in the request that enables or upgrades the app,
+	 * and even the question whether any row is missing reads every stamped
+	 * metadata document — a minute on an instance with 450,000 index rows.
+	 * So a whole repair only queues it.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAWholeRepairQueuesTheHashIndexCheckInsteadOfAskingIt(): void
+	{
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'reindexHashes' )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'hashIndexIsComplete' )
+		;
+
 		$this->step->run( $this->output );
+
+		$this->assertContains( HashIndexCheck::class, $this->queued );
+	}
+
+	/**
+	 * Named, the step asks and walks at once, as it always did, and queues
+	 * nothing.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testNamingTheHashIndexCheckRunsItAtOnce(): void
+	{
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'reindexHashes' )
+		                      ->with( $this->anything(), $this->anything(), false )
+		                      ->willReturn( 0 )
+		;
+
+		$this->step->runSteps( $this->output, [ 'rebuild-from-metadata' ] );
+
+		$this->assertNotContains( HashIndexCheck::class, $this->queued );
+	}
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAskingForTheExpensiveStepsRunsTheHashIndexCheckAtOnce(): void
+	{
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'reindexHashes' )
+		                      ->with( $this->anything(), $this->anything(), true )
+		                      ->willReturn( 0 )
+		;
+
+		$this->step->withExpensive()
+		           ->run( $this->output )
+		;
+
+		$this->assertNotContains( HashIndexCheck::class, $this->queued );
 	}
 
 	/**
@@ -404,7 +477,9 @@ class RepairQuietStartTest
 		                      ->willThrowException( new RuntimeException( 'no' ) )
 		;
 
-		$this->step->run( $this->output );
+		$this->step->withExpensive()
+		           ->run( $this->output )
+		;
 
 		$this->addToAssertionCount( 1 );
 	}
