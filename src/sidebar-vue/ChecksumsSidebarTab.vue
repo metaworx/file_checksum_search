@@ -10,8 +10,8 @@
  * everything the instance computes. Duplicate lookup is inline.
  */
 import { computed, ref, watch } from 'vue'
-import { translate as t } from '@nextcloud/l10n'
 import { generateUrl } from '@nextcloud/router'
+import { t } from '../l10n'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import { FRONTEND } from '../routes'
 import { fileLabel, labelKind } from '../fileLabel'
@@ -190,7 +190,7 @@ watch(
 						<AlgorithmSelect
 							v-model="selectedAlgo"
 							:algorithms="algorithmIds"
-							label="Algorithm" />
+							:label="t('file_checksum_search', 'Algorithm')" />
 					</div>
 					<RecalcButton
 						:label="t('file_checksum_search', 'Recalc')"
@@ -248,7 +248,7 @@ watch(
 									:href="fileLink(file)"
 									target="_blank"
 									rel="noreferrer noopener"><LocationIcon v-if="labelKind(file)" :kind="labelKind(file)!" :size="14" />{{ fileLabel(file) }}</a>
-								<span v-else class="fcias-dup-item-unopenable" title="Not in your files"><LocationIcon v-if="labelKind(file)" :kind="labelKind(file)!" :size="14" />{{ fileLabel(file) }}</span>
+								<span v-else class="fcias-dup-item-unopenable" :title="t('file_checksum_search', 'Not in your files')"><LocationIcon v-if="labelKind(file)" :kind="labelKind(file)!" :size="14" />{{ fileLabel(file) }}</span>
 							</li>
 						</ul>
 					</div>

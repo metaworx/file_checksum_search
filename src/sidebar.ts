@@ -6,8 +6,8 @@
  * element) and the corresponding file action.
  */
 import { getSidebar, registerFileAction } from '@nextcloud/files'
-import { t } from '@nextcloud/l10n'
 import { defineCustomElement } from 'vue'
+import { t } from './l10n'
 import ChecksumsSidebarTab from './sidebar-vue/ChecksumsSidebarTab.vue'
 import appIconSvg from '../img/app.svg?raw'
 import type { FileNode } from './sidebar-vue/types'
@@ -42,13 +42,13 @@ try {
 }
 
 const checksumIcon = APP_ICON
-const checksumName = t('file_checksum_search', 'Checksums')
 
 try {
 	registerFileAction({
 		id: 'file_checksum_search-checksums',
+		// Translated when the Files app asks, not when this module loads.
 		displayName() {
-			return checksumName
+			return t('file_checksum_search', 'Checksums')
 		},
 		iconSvgInline() {
 			return checksumIcon

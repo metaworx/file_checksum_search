@@ -10,6 +10,7 @@
  */
 import { onMounted, onUnmounted, ref } from 'vue'
 import NcPopover from '@nextcloud/vue/components/NcPopover'
+import { t } from '../l10n'
 
 defineProps<{
 	/** The help text itself. Nothing renders when this is empty. */
@@ -72,7 +73,7 @@ onUnmounted(() => {
 			<button
 				class="fcias-help-icon"
 				type="button"
-				:aria-label="`Help: ${ label }`"
+				:aria-label="t('file_checksum_search', 'Help: {label}', { label })"
 				@click.prevent>
 				<svg
 					fill="currentColor"

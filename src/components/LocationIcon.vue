@@ -22,6 +22,7 @@ import {
 	ICON_HOME,
 	ICON_HOME_GROUP,
 } from './icons'
+import { t } from '../l10n'
 
 /**
  * The kinds a location or a selector can be. `home` and `user` are the
@@ -42,14 +43,14 @@ const props = withDefaults(
 )
 
 const GLYPHS: Record<LocationKind, { path: string, title: string }> = {
-	own: { path: ICON_HOME, title: 'Your own file' },
-	home: { path: ICON_ACCOUNT, title: 'A home folder' },
-	user: { path: ICON_ACCOUNT, title: 'One account\'s home folder' },
-	group: { path: ICON_ACCOUNT_GROUP, title: 'The home folders of a group\'s members' },
-	homeAll: { path: ICON_HOME_GROUP, title: 'All home folders' },
-	groupfolder: { path: ICON_FOLDER_ACCOUNT, title: 'A group folder' },
-	storage: { path: ICON_HARDDISK, title: 'A storage' },
-	universal: { path: ICON_ASTERISK, title: 'Everything' },
+	own: { path: ICON_HOME, title: t('file_checksum_search', 'Your own file') },
+	home: { path: ICON_ACCOUNT, title: t('file_checksum_search', 'A home folder') },
+	user: { path: ICON_ACCOUNT, title: t('file_checksum_search', 'One account\'s home folder') },
+	group: { path: ICON_ACCOUNT_GROUP, title: t('file_checksum_search', 'The home folders of a group\'s members') },
+	homeAll: { path: ICON_HOME_GROUP, title: t('file_checksum_search', 'All home folders') },
+	groupfolder: { path: ICON_FOLDER_ACCOUNT, title: t('file_checksum_search', 'A group folder') },
+	storage: { path: ICON_HARDDISK, title: t('file_checksum_search', 'A storage') },
+	universal: { path: ICON_ASTERISK, title: t('file_checksum_search', 'Everything') },
 }
 
 const glyph = computed(() => GLYPHS[props.kind])

@@ -9,6 +9,7 @@ import { generateOcsUrl } from '@nextcloud/router'
 import { OCS_API_V1 } from '../../routes'
 import { currentUid } from '../../fileLabel'
 import type { DuplicateGroup, FileNode, HashEntry } from '../types'
+import { t } from '../../l10n'
 
 declare const OC: {
 	requestToken: string
@@ -92,7 +93,7 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 			canSudo.value = data.canSudo === true
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return
-			error.value = 'Failed to load checksums.'
+			error.value = t('file_checksum_search', 'Failed to load checksums.')
 		} finally {
 			loading.value = false
 		}
@@ -101,15 +102,16 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 	/** The refusal, with the rule's owner as the server named them. */
 	function refusedBy(owner: string | undefined): string {
 		if (owner === 'admin') {
-			return 'Hashing is excluded for this path by an administrator\'s rule.'
+			return t('file_checksum_search', 'Hashing is excluded for this path by an administrator\'s rule.')
 		}
 		if (owner && owner === currentUid()) {
-			return 'Hashing is excluded for this path by your own rule.'
+			return t('file_checksum_search', 'Hashing is excluded for this path by your own rule.')
 		}
 		if (owner) {
-			return `Hashing is excluded for this path by ${owner}'s rule.`
+			// TRANSLATORS: {owner} is the account whose rule excludes the path
+			return t('file_checksum_search', 'Hashing is excluded for this path by {owner}\'s rule.', { owner })
 		}
-		return 'Hashing is excluded for this path by a rule.'
+		return t('file_checksum_search', 'Hashing is excluded for this path by a rule.')
 	}
 
 	async function recalc(algo: string): Promise<void> {
@@ -139,11 +141,11 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 				// the reader to the wrong page.
 				recalcErrorMessage.value = result.excluded
 					? refusedBy(result.ruleOwner)
-					: result.error || 'Recalculation failed.'
+					: result.error || t('file_checksum_search', 'Recalculation failed.')
 			}
 		} catch {
 			recalcError.value = algo
-			recalcErrorMessage.value = 'Recalculation failed.'
+			recalcErrorMessage.value = t('file_checksum_search', 'Recalculation failed.')
 		} finally {
 			recalculating.value = null
 		}
@@ -168,7 +170,7 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 			const data = (await response.json()) as { duplicates?: DuplicateGroup[] }
 			duplicates.value = data.duplicates || []
 		} catch {
-			dupError.value = 'Failed to load duplicates.'
+			dupError.value = t('file_checksum_search', 'Failed to load duplicates.')
 			duplicates.value = []
 		} finally {
 			searching.value = false

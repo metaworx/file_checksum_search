@@ -9,8 +9,8 @@
  * when `algo` is null the button reflects any in-flight/errored recalc.
  */
 import { computed } from 'vue'
-import { translate as t } from '@nextcloud/l10n'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
+import { t } from '../../l10n'
 
 const props = withDefaults(
 	defineProps<{
