@@ -11,6 +11,11 @@ the first stable release.
 
 ## [Unreleased]
 
+### Added
+
+- German, informal (`de`) and formal (`de_DE`):
+  translationfiles/de/GLOSSARY.md.
+
 ### Fixed
 
 - The web interface, the Files sidebar included, and the messages the
