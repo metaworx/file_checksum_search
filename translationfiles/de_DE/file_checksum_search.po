@@ -1117,6 +1117,10 @@ msgstr "value muss eine Zeichenkette sein."
 msgid "{folders} — one folder"
 msgstr "{folders} – ein Ordner"
 
+#. TRANSLATORS: a rule's scope: {folders} is what the team folders app calls itself, {folder} one team folder's name
+msgid "{folders}: {folder}"
+msgstr "{folders}: {folder}"
+
 msgid "{group} (Group)"
 msgstr "{group} (Gruppe)"
 

@@ -33,6 +33,9 @@ the first stable release.
 - The web interface, the Files sidebar included, and the messages the
   server sends it: every text can be translated.
 
+- The team folders' name and scope label, in every language:
+  src/rules-vue/bands.ts, GroupFolderService.
+
 - Enabling or upgrading on a large instance: the repair's hash-index
   check and orphan purge held the request for a minute.
 

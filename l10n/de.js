@@ -357,6 +357,7 @@ OC.L10N.register(
     "token deleted — grant left behind" : "Token gelöscht – Freischaltung übrig geblieben",
     "value must be a string." : "value muss eine Zeichenkette sein.",
     "{folders} — one folder" : "{folders} – ein Ordner",
+    "{folders}: {folder}" : "{folders}: {folder}",
     "{group} (Group)" : "{group} (Gruppe)",
     "{stored} is not available on this server at the moment, so the default ({active}) applies." : "{stored} ist auf diesem Server derzeit nicht verfügbar, daher gilt der Standard ({active}).",
     "{time} by {account}" : "{time} von {account}"

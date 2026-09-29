@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Service;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\App\IAppManager;
 use OCP\IDBConnection;
+use OCP\L10N\IFactory;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -43,6 +44,7 @@ class GroupFolderService
 		private readonly IAppManager     $appManager,
 		private readonly IDBConnection   $db,
 		private readonly LoggerInterface $logger,
+		private readonly IFactory        $l10nFactory,
 	) {
 	}
 
@@ -73,6 +75,10 @@ class GroupFolderService
 	 * releases — so this app speaks the same language the rest of the
 	 * settings UI does. Null when the app is unavailable: there is no app
 	 * to ask, and the caller decides how to name what is missing.
+	 *
+	 * In the reader's language, from that app's own manifest and catalogue,
+	 * the way core's navigation names an app: the name is that app's to
+	 * translate, not this one's.
 	 */
 	public function appName(): ?string
 	{
@@ -83,11 +89,14 @@ class GroupFolderService
 
 		try
 		{
-			$name = (string) ( $this->appManager->getAppInfo( self::GROUPFOLDERS_APP_ID )['name'] ?? '' );
+			$l10n = $this->l10nFactory->get( self::GROUPFOLDERS_APP_ID );
+			$name = (string) ( $this->appManager->getAppInfo( self::GROUPFOLDERS_APP_ID, false, $l10n->getLanguageCode() )['name'] ?? '' );
 
-			return $name !== ''
-				? $name
-				: 'Team folders';
+			return $l10n->t(
+				$name !== ''
+					? $name
+					: 'Team folders',
+			);
 		}
 		catch ( Throwable )
 		{

@@ -1118,6 +1118,10 @@ msgstr ""
 msgid "{folders} — one folder"
 msgstr ""
 
+#. TRANSLATORS: a rule's scope: {folders} is what the team folders app calls itself, {folder} one team folder's name
+msgid "{folders}: {folder}"
+msgstr ""
+
 msgid "{group} (Group)"
 msgstr ""
 

@@ -125,10 +125,12 @@ export function selectorLabel(
 		return t('file_checksum_search', 'Group: {group}', { group: selectorTarget(selector) ?? '' })
 	case 'groupfolder':
 		// The groupfolders app calls itself "Team Folders" these days; when
-		// it is there we use its own name, and when it is gone we name the
-		// missing provider by its slug rather than pretending. Either is a
-		// name, not a word of this app's to translate.
-		return `${groupFolderTerm ?? 'app:groupfolders'}: ${groupFolderName(selectorTarget(selector), options?.groupFolders)}`
+		// it is there we use its own name, which that app translates, and
+		// when it is gone we name the missing provider by its slug rather
+		// than pretending. The name is not this app's to translate; how it
+		// joins the folder's is.
+		// TRANSLATORS: a rule's scope: {folders} is what the team folders app calls itself, {folder} one team folder's name
+		return t('file_checksum_search', '{folders}: {folder}', { folders: groupFolderTerm ?? 'app:groupfolders', folder: groupFolderName(selectorTarget(selector), options?.groupFolders) })
 	case 'storage':
 		return t('file_checksum_search', 'Storage: {storage}', { storage: selectorTarget(selector) ?? '' })
 	default:
