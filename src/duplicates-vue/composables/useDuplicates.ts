@@ -65,6 +65,8 @@ interface State {
 	error: string | null
 	/** Whether the viewer may look across accounts at all; the ordinary listing says. */
 	canSudo: boolean
+	/** Whether the viewer may recalculate by hand, which is what Verify does; every listing says. */
+	canRecalc: boolean
 	/** Whose files to show, or null for one's own. Never persisted. */
 	scope: DuplicateScope | null
 }
@@ -83,6 +85,7 @@ export function useDuplicates() {
 		verifying: false,
 		error: null,
 		canSudo: false,
+		canRecalc: true,
 		scope: null,
 	})
 
@@ -140,9 +143,10 @@ export function useDuplicates() {
 				return
 			}
 			if (!response.ok) throw new Error(`HTTP ${response.status}`)
-			const data = (await response.json()) as { duplicates?: DuplicateGroup[], canSudo?: boolean }
+			const data = (await response.json()) as { duplicates?: DuplicateGroup[], canSudo?: boolean, canRecalc?: boolean }
 
 			state.groups = data.duplicates || []
+			state.canRecalc = data.canRecalc !== false
 			if (!scoped) {
 				state.canSudo = data.canSudo === true
 			}

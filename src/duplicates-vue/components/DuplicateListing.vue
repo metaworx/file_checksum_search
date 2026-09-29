@@ -80,6 +80,7 @@ const TITLES = {
 
 const {
 	canSudo,
+	canRecalc,
 	hash,
 	anywhere,
 	// Renamed: the prop is the caller's wish, this ref is what the composable
@@ -406,6 +407,7 @@ onBeforeUnmount(() => {
 				:group="group"
 				:file-url="fileUrl"
 				:verifying="verifying"
+				:can-verify="canRecalc"
 				@verify-group="onVerifyGroup"
 				@verify-file="verifyFile" />
 		</div>

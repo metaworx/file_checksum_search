@@ -13,12 +13,15 @@ import { fileLabel, labelKind } from '../../fileLabel'
 import type { DuplicateGroup as GroupType } from '../composables/useDuplicates'
 import { n, t } from '../../l10n'
 
-const props = defineProps<{
+// canVerify defaults to true: Vue reads an absent boolean prop as false.
+const props = withDefaults(defineProps<{
 	group: GroupType
 	fileUrl: (file: GroupType['files'][number]) => string
 	/** True while any verification is running; both buttons wait for it. */
 	verifying?: boolean
-}>()
+	/** False for an account that may not recalculate by hand: both buttons are hidden. */
+	canVerify?: boolean
+}>(), { verifying: false, canVerify: true })
 
 const emit = defineEmits<{
 	(e: 'verifyGroup', group: GroupType): void
@@ -73,8 +76,11 @@ function toggle(): void {
 				<span v-if="statusClass" class="db-group-header-status" :class="statusClass">{{ statusText }}</span>
 				<!-- Reading every file in the group costs time and, on metered
 				     storage, money — so it is asked for here, per group, and
-				     never for the whole page at once. -->
+				     never for the whole page at once. Hidden, not disabled, for an
+				     account the recalculation permission does not name: a
+				     button that can only fail is not an offer. -->
 				<NcButton
+					v-if="canVerify"
 					class="db-verify-all"
 					:disabled="verifying"
 					:title="TITLES.verifyAll"
@@ -106,6 +112,7 @@ function toggle(): void {
 						<span v-else-if="file.verified === false" class="db-mismatch">✗ ({{ mismatchText(file) }})</span>
 					</span>
 					<NcButton
+						v-if="canVerify"
 						class="db-verify-file"
 						:disabled="verifying"
 						:title="TITLES.verify"

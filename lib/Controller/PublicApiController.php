@@ -327,6 +327,20 @@ class PublicApiController
 	}
 
 	/**
+	 * Whether the session user may recalculate by hand: an administrator
+	 * always, anyone else if the permission names them — the rule
+	 * {@see ChecksumApi} applies when a recalculation is asked for.
+	 */
+	private function mayRecalc(): bool
+	{
+		$uid = $this->userSession->getUser()?->getUID();
+
+		return $uid !== null
+			&& ( $this->groupManager->isAdmin( $uid )
+				|| $this->permissions->isAllowed( PermissionService::PERMISSION_MANUAL_RECALC, $uid ) );
+	}
+
+	/**
 	 * A scope as the routes carry it — one account, several, or null — in
 	 * the shape the API takes: a list, or null for every account.
 	 *
@@ -756,7 +770,12 @@ class PublicApiController
 		{
 			$result = $this->api->findDuplicatesFor( $reachUids, $algo, $minCount, $limit, $offset, $hash, $anywhere );
 
-			return new DataResponse( $result );
+			// Whether the viewer may recalculate by hand, which is what
+			// "Verify" does. Rides on every listing, own or cross-account, so
+			// the page can hide the buttons from an account the permission
+			// does not name, as the sidebar hides its own: a button that can
+			// only fail is not an offer.
+			return new DataResponse( $result + [ 'canRecalc' => $this->mayRecalc() ] );
 		}
 		catch ( Throwable $e )
 		{

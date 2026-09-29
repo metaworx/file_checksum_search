@@ -50,11 +50,15 @@ interface Server {
 interface ServerOptions {
 	holdOwnListing?: boolean
 	canSudo?: boolean
+	/** Whether the listings say the viewer may recalculate; left out, they do not say. */
+	canRecalc?: boolean
 	/** What the cross-account listing answers. */
 	sudoGroups?: unknown[]
+	/** What the ordinary listing answers. */
+	ownGroups?: unknown[]
 }
 
-function serve({ holdOwnListing = false, canSudo = true, sudoGroups = [] }: ServerOptions = {}): Server {
+function serve({ holdOwnListing = false, canSudo = true, canRecalc, sudoGroups = [], ownGroups = [] }: ServerOptions = {}): Server {
 	const requests: string[] = []
 	let release: () => void = () => {}
 	const held = new Promise<void>((resolve) => {
@@ -77,7 +81,7 @@ function serve({ holdOwnListing = false, canSudo = true, sudoGroups = [] }: Serv
 			if (holdOwnListing) {
 				await held
 			}
-			return jsonResponse({ duplicates: [], canSudo })
+			return jsonResponse({ duplicates: ownGroups, canSudo, canRecalc })
 		}
 		return jsonResponse({})
 	})
@@ -280,5 +284,33 @@ describe('duplicates App', () => {
 
 		expect(unopenable.attributes('title')).toBe('Not in your files')
 		expect(unopenable.find('.hidden-visually').text()).toContain('not in your files')
+	})
+
+	// The defect: the sidebar hid its Recalculate buttons from an account
+	// the recalculation permission does not name, and this page kept
+	// "Verify" and "Verify all", which then failed. The listing says.
+	it('offers Verify only to an account that may recalculate', async () => {
+		const group = {
+			algo: 'sha1',
+			hash_value: 'abc123',
+			file_count: 2,
+			files: [
+				{ fileid: 1, path: 'Docs', name: 'a.pdf' },
+				{ fileid: 2, path: 'Docs', name: 'b.pdf' },
+			],
+		}
+
+		await open('#mine', { ownGroups: [group], canRecalc: false })
+
+		expect(wrapper!.find('.db-group').exists()).toBe(true)
+		expect(wrapper!.find('.db-verify-all').exists()).toBe(false)
+		expect(wrapper!.find('.db-verify-file').exists()).toBe(false)
+
+		wrapper!.unmount()
+		vi.restoreAllMocks()
+		await open('#mine', { ownGroups: [group], canRecalc: true })
+
+		expect(wrapper!.find('.db-verify-all').exists()).toBe(true)
+		expect(wrapper!.findAll('.db-verify-file')).toHaveLength(2)
 	})
 })

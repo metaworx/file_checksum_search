@@ -40,6 +40,9 @@ the first stable release.
 - The team folders' name and scope label, in every language:
   src/rules-vue/bands.ts, GroupFolderService.
 
+- The Duplicates page: "Verify" and "Verify all" are offered only to an
+  account that may recalculate checksums.
+
 - Enabling or upgrading on a large instance: the repair's hash-index
   check and orphan purge held the request for a minute.
 

@@ -615,6 +615,46 @@ class PublicApiControllerTest
 	}
 
 	/**
+	 * The listing also says whether its viewer may recalculate by hand,
+	 * which is what "Verify" does, so the page hides the buttons from an
+	 * account the permission does not name. An administrator always may.
+	 */
+	public function testTheListingSaysWhetherTheCallerMayRecalculate(): void
+	{
+		$this->api->method( 'findDuplicatesFor' )
+		          ->willReturn( [ 'duplicates' => [], 'total_groups' => 0, 'pagination' => [ 'offset' => 0, 'limit' => 50 ] ] )
+		;
+		// Every permission but the recalculation one.
+		$refused = $this->createMock( PermissionService::class );
+		$refused->method( 'isAllowed' )
+		        ->willReturnCallback( static fn ( string $permission ): bool => $permission !== PermissionService::PERMISSION_MANUAL_RECALC )
+		;
+		$controllerFor = fn ( IUserSession $session, IGroupManager $groups ): PublicApiController => new PublicApiController(
+			'file_checksum_search',
+			$this->createMock( IRequest::class ),
+			$this->api,
+			$session,
+			$groups,
+			$this->logger,
+			$this->createMock( AlgorithmCatalogue::class ),
+			$this->userConfig,
+			$this->lockdown,
+			$this->sudo,
+			$this->session,
+			$refused,
+			$this->confirmation,
+			$this->appConfig,
+			$this->englishL10n(),
+		);
+
+		[ $session, $groups ] = $this->signedInAs( 'alice' );
+
+		$this->assertFalse( $controllerFor( $session, $groups )->findAllDuplicates()->getData()['canRecalc'], 'alice is not named' );
+		$this->assertTrue( $controllerFor( $this->userSession, $this->groupManager )->findAllDuplicates()->getData()['canRecalc'], 'an administrator always may' );
+		$this->assertTrue( $this->controller->findAllDuplicates()->getData()['canRecalc'], 'a named account may' );
+	}
+
+	/**
 	 * The sudo twin resolves the caller through SudoScope and passes what it
 	 * answers — null for every account — straight down. The password
 	 * confirmation the route carries is core's middleware and is not here.
