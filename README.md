@@ -650,7 +650,8 @@ use OCA\FileChecksumSearch\Public\ChecksumApi;
 class MyService {
     public function __construct(private ChecksumApi $api) {}
     public function search(string $hash): array {
-        return $this->api->findByHash($hash);
+        // Whose files: here alice's; null would search every account.
+        return $this->api->findByHash($hash, ['alice']);
     }
 }
 ```
@@ -660,8 +661,8 @@ class MyService {
 require_once '/var/www/nextcloud/lib/base.php';
 $api = \OC::$server->get(\OCA\FileChecksumSearch\Public\ChecksumApi::class);
 
-// Search by hash
-$result = $api->findByHash('da39a3ee5e6b4b0d3255bfef95601890afd80709');
+// Search by hash, in alice's files; null would search every account
+$result = $api->findByHash('da39a3ee5e6b4b0d3255bfef95601890afd80709', ['alice']);
 
 // Get hashes by path (relative to user root)
 $hashes = $api->getHashesByPath('Documents/report.pdf', 'alice');

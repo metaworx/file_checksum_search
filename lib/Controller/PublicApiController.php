@@ -576,7 +576,7 @@ class PublicApiController
 
 		try
 		{
-			$result = $this->api->getHashesByFileId( $fileId, $actingUser, $reachUids );
+			$result = $this->api->getHashesByFileId( $fileId, $reachUids, actingUser: $actingUser );
 
 			// Whether the sidebar may offer the way to the Others tab. The
 			// same fact the listing carries, for the same reason: the page
@@ -1003,7 +1003,7 @@ class PublicApiController
 
 		try
 		{
-			$result = $this->api->findByHash( $hash, $algo, $limit, $this->reachOf( $scope ), $withLocalPath );
+			$result = $this->api->findByHash( $hash, $this->reachOf( $scope ), algo: $algo, limit: $limit, withLocalPath: $withLocalPath );
 
 			return new DataResponse( $result );
 		}
@@ -1188,7 +1188,7 @@ class PublicApiController
 
 		try
 		{
-			return new DataResponse( $this->api->recalcMany( $fileIds, $algo, $actingUser, $reachUids ) );
+			return new DataResponse( $this->api->recalcMany( $fileIds, $reachUids, algo: $algo, actingUser: $actingUser ) );
 		}
 		catch ( Throwable $e )
 		{
@@ -1242,7 +1242,7 @@ class PublicApiController
 
 		try
 		{
-			$result = $this->api->recalcHash( $fileId, $algo, $actingUser, $reachUids );
+			$result = $this->api->recalcHash( $fileId, $reachUids, algo: $algo, actingUser: $actingUser );
 
 			if ( $result['success'] )
 			{

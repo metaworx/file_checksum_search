@@ -33,6 +33,7 @@ use OCP\Files\IRootFolder;
 use OCP\Files\NotFoundException;
 use OCP\IUser;
 use OCP\IUserSession;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -170,7 +171,7 @@ class ChecksumApiTest
 		                       ->willReturn( [] )
 		;
 
-		$this->api->findByHash( 'abc', null, 999 );
+		$this->api->findByHash( 'abc', null, limit: 999 );
 	}
 
 	public function testFindByHashPassesAlgoFilter(): void
@@ -181,7 +182,7 @@ class ChecksumApiTest
 		                       ->willReturn( [] )
 		;
 
-		$result = $this->api->findByHash( 'abc', 'md5' );
+		$result = $this->api->findByHash( 'abc', null, algo: 'md5' );
 
 		$this->assertEmpty( $result['results'] );
 	}
@@ -204,7 +205,7 @@ class ChecksumApiTest
 		                       ->willReturn( $rows )
 		;
 
-		$result = $this->api->findByHash( 'abc123' );
+		$result = $this->api->findByHash( 'abc123', null );
 
 		$this->assertArrayHasKey( 'results', $result );
 		$this->assertCount( 1, $result['results'] );
@@ -278,7 +279,7 @@ class ChecksumApiTest
 		            ->willReturn( [ 42 ] )
 		;
 
-		$result = $this->api->findByHash( 'abc', null, 100, [ 'bob' ] );
+		$result = $this->api->findByHash( 'abc', [ 'bob' ] );
 
 		$this->assertCount( 1, $result['results'] );
 		$this->assertSame( 7, $result['results'][0]['fileid'] );
@@ -378,7 +379,7 @@ class ChecksumApiTest
 		                       ] )
 		;
 
-		$result = $this->api->findByHash( 'abc', null, 100, [ 'alice', 'bob' ] );
+		$result = $this->api->findByHash( 'abc', [ 'alice', 'bob' ] );
 
 		$this->assertSame( [ 7, 8 ], array_column( $result['results'], 'fileid' ) );
 		$this->assertSame( [ '/a.txt', '/b.txt' ], array_column( $result['results'], 'path' ) );
@@ -403,7 +404,7 @@ class ChecksumApiTest
 		                       ] )
 		;
 
-		$result = $this->api->findByHash( 'abc', null, 100, null, true );
+		$result = $this->api->findByHash( 'abc', null, withLocalPath: true );
 
 		$this->assertSame( '/srv/data/admin/files/a.txt', $result['results'][0]['localPath'] );
 		$this->assertArrayHasKey( 'localPath', $result['results'][1] );
@@ -419,7 +420,7 @@ class ChecksumApiTest
 		                       ] )
 		;
 
-		$this->assertArrayNotHasKey( 'localPath', $this->api->findByHash( 'abc' )['results'][0] );
+		$this->assertArrayNotHasKey( 'localPath', $this->api->findByHash( 'abc', null )['results'][0] );
 	}
 
 	public function testFindByHashScopedCarriesTheLocalPathWhenAsked(): void
@@ -458,9 +459,45 @@ class ChecksumApiTest
 		                       ->willReturn( [ 7 => [ 'owner' => 'bob', 'location' => '/bob/files/a.txt', 'local_path' => '/srv/data/bob/files/a.txt' ] ] )
 		;
 
-		$result = $this->api->findByHash( 'abc', null, 100, [ 'bob' ], true );
+		$result = $this->api->findByHash( 'abc', [ 'bob' ], withLocalPath: true );
 
 		$this->assertSame( '/srv/data/bob/files/a.txt', $result['results'][0]['localPath'] );
+	}
+
+
+//  static methods
+
+	/**
+	 * Whose files is never left out: a method that takes a reach takes it
+	 * right after its subject and without a default, so a caller that means
+	 * every account says so with an explicit null. Omitted, it is PHP's
+	 * error, not the whole instance.
+	 *
+	 * @return iterable<string, array{string, list<mixed>}>
+	 */
+	public static function reachTakingMethods(): iterable
+	{
+		yield 'findByHash' => [ 'findByHash', [ 'abc' ] ];
+		yield 'getHashesByFileId' => [ 'getHashesByFileId', [ 42 ] ];
+		yield 'findSameHash' => [ 'findSameHash', [ 42 ] ];
+		yield 'recalcHash' => [ 'recalcHash', [ 42 ] ];
+		yield 'recalcMany' => [ 'recalcMany', [ [ 42 ] ] ];
+	}
+
+	#[DataProvider( 'reachTakingMethods' )]
+	public function testTheReachIsRequired(
+		string $method,
+		array  $subject,
+	): void
+	{
+		$parameters = ( new \ReflectionMethod( ChecksumApi::class, $method ) )->getParameters();
+
+		$this->assertSame( 'reachUids', $parameters[1]->getName(), 'the reach comes right after the subject' );
+		$this->assertFalse( $parameters[1]->isOptional(), 'and has no default' );
+		$this->assertTrue( $parameters[1]->allowsNull(), 'null still names every account' );
+
+		$this->expectException( \ArgumentCountError::class );
+		$this->api->{$method}( ...$subject );
 	}
 
 	public function testFindByHashThrowsOnEmptyHash(): void
@@ -468,7 +505,7 @@ class ChecksumApiTest
 		$this->expectException( InvalidArgumentException::class );
 		$this->expectExceptionMessage( 'Hash parameter is required.' );
 
-		$this->api->findByHash( '' );
+		$this->api->findByHash( '', null );
 	}
 
 	public function testFindByHashTrimsWhitespace(): void
@@ -479,7 +516,7 @@ class ChecksumApiTest
 		                       ->willReturn( [] )
 		;
 
-		$result = $this->api->findByHash( '  abc123  ' );
+		$result = $this->api->findByHash( '  abc123  ', null );
 
 		$this->assertEmpty( $result['results'] );
 	}
@@ -499,7 +536,7 @@ class ChecksumApiTest
 		                       ->method( 'findByHash' )
 		;
 
-		$this->assertSame( [ 'results' => [] ], $this->api->findByHash( 'abc123', null, 100, [ 'ghost' ] ) );
+		$this->assertSame( [ 'results' => [] ], $this->api->findByHash( 'abc123', [ 'ghost' ] ) );
 	}
 
 	// ─── findDuplicates ─────────────────────────────────────────────
@@ -668,7 +705,7 @@ class ChecksumApiTest
 		                      ->willReturn( null )
 		;
 
-		$data = $this->api->getHashesByFileId( 99999 );
+		$data = $this->api->getHashesByFileId( 99999, null );
 
 		$this->assertSame( 99999, $data['fileid'] );
 		$this->assertEmpty( $data['hashes'] );
@@ -693,7 +730,7 @@ class ChecksumApiTest
 		                      ->willReturn( 1234567890 )
 		;
 
-		$data = $this->api->getHashesByFileId( 42 );
+		$data = $this->api->getHashesByFileId( 42, null );
 
 		$this->assertSame( 42, $data['fileid'] );
 		$this->assertCount( 2, $data['hashes'] );
@@ -721,7 +758,7 @@ class ChecksumApiTest
 
 		$this->expectException( NotFoundException::class );
 
-		$this->api->getHashesByFileId( 42, 'alice', [ 'alice' ] );
+		$this->api->getHashesByFileId( 42, [ 'alice' ], actingUser: 'alice' );
 	}
 
 	/**
@@ -738,7 +775,7 @@ class ChecksumApiTest
 		                      ->willReturn( null )
 		;
 
-		$data = $this->api->getHashesByFileId( 42, 'alice', [ 'alice' ] );
+		$data = $this->api->getHashesByFileId( 42, [ 'alice' ], actingUser: 'alice' );
 
 		$this->assertSame( 42, $data['fileid'] );
 	}
@@ -764,7 +801,7 @@ class ChecksumApiTest
 		                      ->willReturn( [] )
 		;
 
-		$data = $this->api->getHashesByFileId( 42, 'alice', null );
+		$data = $this->api->getHashesByFileId( 42, null, actingUser: 'alice' );
 
 		$this->assertFalse( $data['canRecalc'], 'every account in reach, but alice still may not' );
 	}
@@ -890,7 +927,7 @@ class ChecksumApiTest
 		                      ->willReturn( [] )
 		;
 
-		$data = $this->api->findSameHash( 42 );
+		$data = $this->api->findSameHash( 42, null );
 
 		$this->assertEmpty( $data['duplicates'] );
 	}
@@ -916,7 +953,7 @@ class ChecksumApiTest
 		;
 
 		// Only the reference file itself was found (filtered out), so empty result
-		$data = $this->api->findSameHash( 42 );
+		$data = $this->api->findSameHash( 42, null );
 
 		$this->assertEmpty( $data['duplicates'] );
 	}
@@ -993,7 +1030,7 @@ class ChecksumApiTest
 		                      ] )
 		;
 
-		$data = $this->api->findSameHash( 42 );
+		$data = $this->api->findSameHash( 42, null );
 
 		$this->assertCount( 1, $data['duplicates'] );
 		$this->assertSame( 'sha1', $data['duplicates'][0]['algo'] );
@@ -1038,7 +1075,7 @@ class ChecksumApiTest
 		                      ->willReturn( [] )
 		;
 
-		$data = $this->api->findSameHash( 42 );
+		$data = $this->api->findSameHash( 42, null );
 
 		$this->assertEmpty( $data['duplicates'] );
 	}
@@ -1113,7 +1150,7 @@ class ChecksumApiTest
 		                       ->method( 'recalcHash' )
 		;
 
-		$result = $this->api->recalcHash( 42, null, 'alice' );
+		$result = $this->api->recalcHash( 42, null, actingUser: 'alice' );
 
 		$this->assertFalse( $result['success'] );
 		$this->assertTrue( $result['forbidden'] );
@@ -1144,7 +1181,7 @@ class ChecksumApiTest
 		                       ->method( 'recalcHash' )
 		;
 
-		$result = $this->api->recalcHash( 42 );
+		$result = $this->api->recalcHash( 42, null );
 
 		$this->assertFalse( $result['success'] );
 		$this->assertTrue( $result['excluded'] );
@@ -1177,9 +1214,9 @@ class ChecksumApiTest
 		                  )
 		;
 
-		$this->assertSame( 'alice', $this->api->recalcHash( 42 )['ruleOwner'], 'her own' );
-		$this->assertSame( 'admin', $this->api->recalcHash( 42 )['ruleOwner'], 'on her home, but enforced' );
-		$this->assertSame( 'admin', $this->api->recalcHash( 42 )['ruleOwner'], 'every home is nobody\'s in particular' );
+		$this->assertSame( 'alice', $this->api->recalcHash( 42, null )['ruleOwner'], 'her own' );
+		$this->assertSame( 'admin', $this->api->recalcHash( 42, null )['ruleOwner'], 'on her home, but enforced' );
+		$this->assertSame( 'admin', $this->api->recalcHash( 42, null )['ruleOwner'], 'every home is nobody\'s in particular' );
 	}
 
 	public function testRecalcHashAllowsAFileAnIgnoreRuleCovers(): void
@@ -1207,7 +1244,7 @@ class ChecksumApiTest
 		                       ->willReturn( [ 'success' => true ] )
 		;
 
-		$this->assertTrue( $this->api->recalcHash( 42 )['success'] );
+		$this->assertTrue( $this->api->recalcHash( 42, null )['success'] );
 	}
 
 	public function testRecalcHashProceedsWhenTheRuleLookupFails(): void
@@ -1224,7 +1261,7 @@ class ChecksumApiTest
 		                       ->willReturn( [ 'success' => true ] )
 		;
 
-		$this->assertTrue( $this->api->recalcHash( 42 )['success'] );
+		$this->assertTrue( $this->api->recalcHash( 42, null )['success'] );
 	}
 
 	public function testRecalcHashDelegatesToHashIndexService(): void
@@ -1242,7 +1279,7 @@ class ChecksumApiTest
 		                       ->willReturn( $expected )
 		;
 
-		$result = $this->api->recalcHash( 42, 'sha256' );
+		$result = $this->api->recalcHash( 42, null, algo: 'sha256' );
 
 		$this->assertSame( $expected, $result );
 	}
@@ -1258,7 +1295,7 @@ class ChecksumApiTest
 		                       ->willReturn( $expected )
 		;
 
-		$result = $this->api->recalcHash( 99999 );
+		$result = $this->api->recalcHash( 99999, null );
 
 		$this->assertFalse( $result['success'] );
 	}
@@ -1271,7 +1308,7 @@ class ChecksumApiTest
 		                       ->willReturn( [ 'success' => true ] )
 		;
 
-		$this->api->recalcHash( 42 );
+		$this->api->recalcHash( 42, null );
 	}
 
 	public function testRecalcHashReturnsFailureWhenRequestingUserCannotAccessFile(): void
@@ -1287,7 +1324,7 @@ class ChecksumApiTest
 		                       ->method( 'recalcFileHash' )
 		;
 
-		$result = $this->api->recalcHash( 99999, 'sha1', 'alice', [ 'alice' ] );
+		$result = $this->api->recalcHash( 99999, [ 'alice' ], algo: 'sha1', actingUser: 'alice' );
 
 		$this->assertFalse( $result['success'] );
 		$this->assertSame( 'File not found.', $result['error'] );
@@ -1330,7 +1367,7 @@ class ChecksumApiTest
 		                       ->willReturn( [ 'success' => true ] )
 		;
 
-		$result = $this->api->recalcHash( 42, 'sha256', 'alice', [ 'alice' ] );
+		$result = $this->api->recalcHash( 42, [ 'alice' ], algo: 'sha256', actingUser: 'alice' );
 
 		$this->assertTrue( $result['success'] );
 	}
@@ -1382,7 +1419,7 @@ class ChecksumApiTest
 		                       ->willReturn( [ 'success' => true ] )
 		;
 
-		$result = $this->api->recalcHash( 42, 'sha256', 'alice', null );
+		$result = $this->api->recalcHash( 42, null, algo: 'sha256', actingUser: 'alice' );
 
 		$this->assertTrue( $result['success'] );
 	}
@@ -1406,7 +1443,7 @@ class ChecksumApiTest
 		                       ->method( 'recalcFileHash' )
 		;
 
-		$result = $this->api->recalcHash( 42, 'sha256', 'alice', null );
+		$result = $this->api->recalcHash( 42, null, algo: 'sha256', actingUser: 'alice' );
 
 		$this->assertFalse( $result['success'] );
 		$this->assertSame( 'File not found.', $result['error'] );
@@ -1434,7 +1471,7 @@ class ChecksumApiTest
 		                       ->method( 'recalcHash' )
 		;
 
-		$result = $this->api->recalcHash( 42, 'sha256', 'alice', null );
+		$result = $this->api->recalcHash( 42, null, algo: 'sha256', actingUser: 'alice' );
 
 		$this->assertFalse( $result['success'] );
 		$this->assertTrue( $result['forbidden'] );
@@ -1499,7 +1536,7 @@ class ChecksumApiTest
 		                       ->willReturn( array_fill_keys( $ids, 10 ) )
 		;
 
-		$result = $this->api->recalcMany( $ids, 'sha1', 'alice', [ 'alice' ] );
+		$result = $this->api->recalcMany( $ids, [ 'alice' ], algo: 'sha1', actingUser: 'alice' );
 
 		$this->assertCount( ChecksumApi::RECALC_BATCH_FILES, $result['results'] );
 		$this->assertSame( [ ChecksumApi::RECALC_BATCH_FILES + 1 ], $result['remaining'] );
@@ -1519,7 +1556,7 @@ class ChecksumApiTest
 		                       ->willReturn( [ 1 => 60 * $mib, 2 => 30 * $mib, 3 => 60 * $mib ] )
 		;
 
-		$result = $this->api->recalcMany( [ 1, 2, 3 ], 'sha1', 'alice', [ 'alice' ] );
+		$result = $this->api->recalcMany( [ 1, 2, 3 ], [ 'alice' ], algo: 'sha1', actingUser: 'alice' );
 
 		$this->assertSame( [ 1, 2 ], array_column( $result['results'], 'fileid' ) );
 		$this->assertSame( [ 3 ], $result['remaining'] );
@@ -1536,7 +1573,7 @@ class ChecksumApiTest
 		                       ->willReturn( [ 1 => 5 * 1024 * 1024 * 1024, 2 => 10 ] )
 		;
 
-		$result = $this->api->recalcMany( [ 1, 2 ], 'sha1', 'alice', [ 'alice' ] );
+		$result = $this->api->recalcMany( [ 1, 2 ], [ 'alice' ], algo: 'sha1', actingUser: 'alice' );
 
 		$this->assertSame( [ 1 ], array_column( $result['results'], 'fileid' ) );
 		$this->assertTrue( $result['results'][0]['success'] );
@@ -1556,7 +1593,7 @@ class ChecksumApiTest
 		;
 		$this->outOfReach[] = 2;
 
-		$result = $this->api->recalcMany( [ 1, 2 ], 'sha1', 'lead', [ 'member' ] );
+		$result = $this->api->recalcMany( [ 1, 2 ], [ 'member' ], algo: 'sha1', actingUser: 'lead' );
 
 		$this->assertSame( [], $result['remaining'] );
 		$this->assertTrue( $result['results'][0]['success'] );
@@ -1586,7 +1623,7 @@ class ChecksumApiTest
 		                       ->method( 'recalcHash' )
 		;
 
-		$result = $this->api->recalcHash( 42, 'sha256', 'alice', null );
+		$result = $this->api->recalcHash( 42, null, algo: 'sha256', actingUser: 'alice' );
 
 		$this->assertFalse( $result['success'] );
 		$this->assertTrue( $result['excluded'] );

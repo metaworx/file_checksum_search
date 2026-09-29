@@ -22,6 +22,12 @@ the first stable release.
 - Admin status panel: the checksum copy and the hash-index check among
   the background jobs.
 
+### Changed
+
+- `ChecksumApi`: `$reachUids` is required and follows the subject in
+  `findByHash()`, `getHashesByFileId()`, `findSameHash()`,
+  `recalcHash()` and `recalcMany()`; a positional call breaks.
+
 ### Fixed
 
 - The web interface, the Files sidebar included, and the messages the

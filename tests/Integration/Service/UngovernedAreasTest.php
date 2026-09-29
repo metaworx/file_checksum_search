@@ -124,7 +124,7 @@ class UngovernedAreasTest
 
 	public function testTheLookupAnswersTheLiveCopiesOnly(): void
 	{
-		$found = Server::get( ChecksumApi::class )->findByHash( self::$hash, 'sha1', 100, [ self::$uid ] );
+		$found = Server::get( ChecksumApi::class )->findByHash( self::$hash, [ self::$uid ], algo: 'sha1' );
 		$ids   = array_map( static fn ( array $row ): int => (int) $row['fileid'], $found['results'] ?? [] );
 		sort( $ids );
 

@@ -83,7 +83,7 @@ class ChecksumApi
 	 */
 	public function getHashesByFile( File $file ): array
 	{
-		return $this->getHashesByFileId( $file->getId() );
+		return $this->getHashesByFileId( $file->getId(), null );
 	}
 
 	/**
@@ -96,25 +96,25 @@ class ChecksumApi
 	 * for "every account" then also read as "an administrator is asking".
 	 *
 	 * @param  int                $fileId      The filecache fileid
-	 * @param  string|null        $actingUser  Who is asking — the session's
-	 *                                         account. Null is a trusted
-	 *                                         DI/bootstrap caller, for whom
-	 *                                         the answer reports what such a
-	 *                                         caller may do: everything.
 	 * @param  list<string>|null  $reachUids   Whose files may be asked about:
 	 *                                         the caller's own account, a
 	 *                                         group leader's members, or null
 	 *                                         for every account. The file
 	 *                                         must lie within one of their
 	 *                                         mounts ({@see ReachResolver}).
+	 * @param  string|null        $actingUser  Who is asking — the session's
+	 *                                         account. Null is a trusted
+	 *                                         DI/bootstrap caller, for whom
+	 *                                         the answer reports what such a
+	 *                                         caller may do: everything.
 	 *
 	 * @return array{fileid: int, hashes: array<int, array{algo: string, hash: string, updated_at: ?string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool}
 	 * @throws NotFoundException  If $reachUids is set and the file lies outside it
 	 */
 	public function getHashesByFileId(
 		int     $fileId,
+		?array  $reachUids,
 		?string $actingUser = null,
-		?array  $reachUids = null,
 	): array
 	{
 		if ( ! $this->reach->contains( $this->reach->mountsFor( $reachUids ), $fileId ) )
@@ -199,7 +199,7 @@ class ChecksumApi
 		}
 
 		$fileId         = $node->getId();
-		$result         = $this->getHashesByFileId( $fileId );
+		$result         = $this->getHashesByFileId( $fileId, null );
 		$result['path'] = $relative;
 
 		return $result;
@@ -238,9 +238,6 @@ class ChecksumApi
 	 * Search for files by hash value, with optional algorithm filter.
 	 *
 	 * @param  string       $hash            Hex-encoded hash value
-	 * @param  string|null  $algo            Optional algorithm filter (sha1, md5, sha256, sha512, sha3-256, sha3-512,
-	 *                                       crc32)
-	 * @param  int                $limit      Max results (1–500)
 	 * @param  list<string>|null  $reachUids  Whose files to search: one account
 	 *                                        or several — a group leader's
 	 *                                        ceiling — each resolved through
@@ -250,6 +247,9 @@ class ChecksumApi
 	 *                                        command. A reach, not a
 	 *                                        permission; nothing is checked
 	 *                                        against it.
+	 * @param  string|null  $algo            Optional algorithm filter (sha1, md5, sha256, sha512, sha3-256, sha3-512,
+	 *                                       crc32)
+	 * @param  int                $limit      Max results (1–500)
 	 * @param  bool               $withLocalPath  Each row gains `localPath`:
 	 *                                        the file's absolute path on this
 	 *                                        server's disk, null for a storage
@@ -267,9 +267,9 @@ class ChecksumApi
 	 */
 	public function findByHash(
 		string  $hash,
+		?array  $reachUids,
 		?string $algo = null,
 		int     $limit = 100,
-		?array  $reachUids = null,
 		bool    $withLocalPath = false,
 	): array
 	{
@@ -484,7 +484,7 @@ class ChecksumApi
 	 */
 	public function findSameHash(
 		int    $fileId,
-		?array $reachUids = null,
+		?array $reachUids,
 	): array
 	{
 		// Before the hashes are read, not after. A hash is a fingerprint of
@@ -611,13 +611,6 @@ class ChecksumApi
 	 * chosen by a client.
 	 *
 	 * @param  int          $fileId      The filecache fileid
-	 * @param  string|null  $algo        Algorithm (default: sha1)
-	 * @param  string|null  $actingUser  Who is asking. The manual-calculation
-	 *                                   permission is checked against this
-	 *                                   always, and unless `$anyAccount` the
-	 *                                   fileid must resolve within their own
-	 *                                   file tree. Null is a trusted
-	 *                                   DI/bootstrap caller: both are skipped.
 	 * @param  list<string>|null  $reachUids  Whose files may be acted on: the
 	 *                                        caller's own account, a group
 	 *                                        leader's members, or null when the
@@ -628,6 +621,13 @@ class ChecksumApi
 	 *                                        else: the permission, and any rule
 	 *                                        excluding the path, are still
 	 *                                        answered.
+	 * @param  string|null  $algo        Algorithm (default: sha1)
+	 * @param  string|null  $actingUser  Who is asking. The manual-calculation
+	 *                                   permission is checked against this
+	 *                                   always, and unless `$anyAccount` the
+	 *                                   fileid must resolve within their own
+	 *                                   file tree. Null is a trusted
+	 *                                   DI/bootstrap caller: both are skipped.
 	 *
 	 * @return array{success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string, ruleOwner?: string, forbidden?: bool}
 	 *         `excluded` says a rule refused the file rather than anything
@@ -638,9 +638,9 @@ class ChecksumApi
 	 */
 	public function recalcHash(
 		int     $fileId,
+		?array  $reachUids,
 		?string $algo = null,
 		?string $actingUser = null,
-		?array  $reachUids = null,
 	): array
 	{
 		if ( ! $this->reach->contains( $this->reach->mountsFor( $reachUids ), $fileId ) )
@@ -736,9 +736,9 @@ class ChecksumApi
 	 * verified at all.
 	 *
 	 * @param  list<int>          $fileIds
+	 * @param  list<string>|null  $reachUids   As for {@see recalcHash()}.
 	 * @param  string|null        $algo
 	 * @param  string|null        $actingUser  As for {@see recalcHash()}.
-	 * @param  list<string>|null  $reachUids   As for {@see recalcHash()}.
 	 *
 	 * @return array{results: list<array{fileid: int, success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string, ruleOwner?: string, forbidden?: bool}>, remaining: list<int>}
 	 *         `remaining` are the ids not processed, in the order given; the
@@ -746,9 +746,9 @@ class ChecksumApi
 	 */
 	public function recalcMany(
 		array   $fileIds,
+		?array  $reachUids,
 		?string $algo = null,
 		?string $actingUser = null,
-		?array  $reachUids = null,
 	): array
 	{
 		$fileIds = array_values( array_unique( array_map( 'intval', $fileIds ) ) );
@@ -773,7 +773,7 @@ class ChecksumApi
 			}
 
 			$bytes += $size;
-			$results[] = [ 'fileid' => $fileId ] + $this->recalcHash( $fileId, $algo, $actingUser, $reachUids );
+			$results[] = [ 'fileid' => $fileId ] + $this->recalcHash( $fileId, $reachUids, algo: $algo, actingUser: $actingUser );
 		}
 
 		return [

@@ -39,7 +39,8 @@ class MyService {
     ) {}
     
     public function doSomething(): void {
-        $result = $this->checksumApi->findByHash('da39a3ee5e6b4b0d3255bfef95601890afd80709');
+        // Whose files: here the account this service acts for.
+        $result = $this->checksumApi->findByHash('da39a3ee5e6b4b0d3255bfef95601890afd80709', ['alice']);
     }
 }
 ```
@@ -54,8 +55,8 @@ require_once "$ncRoot/lib/base.php";
 /** @var \OCA\FileChecksumSearch\Public\ChecksumApi $api */
 $api = \OC::$server->get(\OCA\FileChecksumSearch\Public\ChecksumApi::class);
 
-// Search by hash
-$result = $api->findByHash('da39a3ee5e6b4b0d3255bfef95601890afd80709');
+// Search by hash, in alice's files; null would search every account
+$result = $api->findByHash('da39a3ee5e6b4b0d3255bfef95601890afd80709', ['alice']);
 
 // Get hashes for a file object
 $file = \OC::$server->getRootFolder()->getUserFolder('alice')->get('Documents/report.pdf');
@@ -67,7 +68,7 @@ $hashes = $api->getHashesByPath('Documents/report.pdf', 'alice');
 
 ### Method Reference
 
-Two optional parameters recur, and they answer two different questions:
+Two parameters recur, and they answer two different questions:
 
 - **`$actingUser`** — *who is asking.* Permissions are checked against this
   account (the manual-calculation permission, the stored preferred algorithm).
@@ -75,7 +76,9 @@ Two optional parameters recur, and they answer two different questions:
 - **`$reachUids`** — *whose files may be answered for.* A list of account ids;
   the answer is confined to the files those accounts hold — their own, the
   shares they received (a share only to its subtree) and their group folders.
-  `null` is the whole instance. The REST layer passes the caller's own account
+  `null` is the whole instance. It is required, and comes right after the
+  method's subject, so the whole instance is never what a caller gets by
+  leaving an argument out. The REST layer passes the caller's own account
   on the ordinary routes and the caller's reach on the `/sudo/` twins; a
   PHP caller passes whatever it has established.
 
@@ -83,16 +86,16 @@ To these methods a file outside the reach is *not found*, never *forbidden*:
 a `NotFoundException`, or a `File not found.` result. Whether the caller may
 have the reach at all is decided before the call, by whoever makes it.
 
-#### `findByHash(string $hash, ?string $algo = null, int $limit = 100, ?array $reachUids = null, bool $withLocalPath = false): array`
+#### `findByHash(string $hash, ?array $reachUids, ?string $algo = null, int $limit = 100, bool $withLocalPath = false): array`
 
 Search for files matching a given hash value.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `$hash` | `string` | Yes | Hex-encoded hash (8/32/40/64/128 chars depending on algorithm) |
+| `$reachUids` | `?array` | Yes | Whose files; `null` for every account |
 | `$algo` | `?string` | No | Algorithm filter — any name `GET /api/v1/algorithms` lists for this instance |
 | `$limit` | `int` | No | Max results (1–500, default 100) |
-| `$reachUids` | `?array` | No | Whose files; `null` for every account |
 | `$withLocalPath` | `bool` | No | Add `localPath` to each row: the file's absolute path on the server's disk, `null` for a storage without local files (an object store, a share, a remote mount) and for every file while server-side encryption is enabled. It reveals the server's layout; the REST route offers it to sudoers only |
 
 **Returns:**
@@ -123,15 +126,15 @@ account owns) and `FileLocation::describe()` — `/<owner>/files/…` for a home
 
 ---
 
-#### `getHashesByFileId(int $fileId, ?string $actingUser = null, ?array $reachUids = null): array`
+#### `getHashesByFileId(int $fileId, ?array $reachUids, ?string $actingUser = null): array`
 
 Get all checksums for a file by its filecache ID.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `$fileId` | `int` | Yes | The filecache `fileid` |
+| `$reachUids` | `?array` | Yes | Whose files; the file must lie within them. `null` for every account |
 | `$actingUser` | `?string` | No | Whose preference `preferred` reports and whose permission `canRecalc` answers; `null` reads the session |
-| `$reachUids` | `?array` | No | Whose files; the file must lie within them. `null` for every account |
 
 **Returns:**
 ```php
@@ -254,7 +257,7 @@ The rest as `findDuplicates()`. **Returns:** the same shape.
 
 ---
 
-#### `findSameHash(int $fileId, ?array $reachUids = null): array`
+#### `findSameHash(int $fileId, ?array $reachUids): array`
 
 Find other files sharing hash values with the given file. Both ends are within
 the reach: the reference file must lie in it, and only duplicates in it are
@@ -263,7 +266,7 @@ listed.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `$fileId` | `int` | Yes | The filecache `fileid` of the reference file |
-| `$reachUids` | `?array` | No | Whose files; `null` for every account |
+| `$reachUids` | `?array` | Yes | Whose files; `null` for every account |
 
 **Returns:**
 ```php
@@ -284,16 +287,16 @@ listed.
 
 ---
 
-#### `recalcHash(int $fileId, ?string $algo = null, ?string $actingUser = null, ?array $reachUids = null): array`
+#### `recalcHash(int $fileId, ?array $reachUids, ?string $algo = null, ?string $actingUser = null): array`
 
 Trigger hash recalculation for a file. **This is the only mutating operation** in the public API.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `$fileId` | `int` | Yes | The filecache `fileid` |
+| `$reachUids` | `?array` | Yes | Whose files may be acted on. `null` waives the reach check and nothing else: the permission, and any rule excluding the path, are still answered |
 | `$algo` | `?string` | No | Algorithm; `null` is the instance's default, as `GET /api/v1/algorithms` names it |
 | `$actingUser` | `?string` | No | Whose *calculate by hand* permission is checked. `null` is a trusted caller and waives it |
-| `$reachUids` | `?array` | No | Whose files may be acted on. `null` waives the reach check and nothing else: the permission, and any rule excluding the path, are still answered |
 
 **Returns (success):**
 ```php
@@ -309,7 +312,7 @@ Trigger hash recalculation for a file. **This is the only mutating operation** i
 
 ---
 
-#### `recalcMany(array $fileIds, ?string $algo = null, ?string $actingUser = null, ?array $reachUids = null): array`
+#### `recalcMany(array $fileIds, ?array $reachUids, ?string $algo = null, ?string $actingUser = null): array`
 
 Recalculate several files in one call. Each file goes through `recalcHash()`
 with the same asker and the same reach, so a file out of reach or refused by
@@ -321,7 +324,8 @@ the first file is always read, however large.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `$fileIds` | `int[]` | Yes | Filecache ids; duplicates are dropped |
-| `$algo`, `$actingUser`, `$reachUids` | | No | As for `recalcHash()` |
+| `$reachUids` | `?array` | Yes | As for `recalcHash()` |
+| `$algo`, `$actingUser` | | No | As for `recalcHash()` |
 
 **Returns:**
 ```php
