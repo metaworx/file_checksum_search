@@ -65,8 +65,8 @@ const HELP = {
 	algo: t('file_checksum_search', 'Only groups of this algorithm, or every algorithm at once. The list is what this server computes; an algorithm nobody has enabled is not offered.'),
 	min: t('file_checksum_search', 'The smallest group to list: how many files must share a checksum before they count as duplicates. Two is every duplicate; a higher number finds the widely copied ones.'),
 	limit: t('file_checksum_search', 'How many groups one page shows. Nothing here is read from disk until you ask a group or a file to verify, so a larger page costs a longer query, not longer reads.'),
-	// TRANSLATORS: "Search anywhere" is the switch beside the field; translate it as that switch does
-	hash: t('file_checksum_search', 'Show only groups whose checksum this names. Whole values come first, then those that start with what you typed. Tick “Search anywhere” to match it in the middle of a hash too. Upper case is fine.'),
+	// TRANSLATORS: "Match anywhere in the hash" is the switch beside the field; translate it as that switch does
+	hash: t('file_checksum_search', 'Show only groups whose checksum this names. Whole values come first, then those that start with what you typed. Turn on “Match anywhere in the hash” to match it in the middle of a hash too. Upper case is fine.'),
 }
 
 /** The fields' tooltips, too long for the template's one line. */
@@ -322,15 +322,15 @@ onBeforeUnmount(() => {
 			</div>
 			<div class="db-field db-field--narrow">
 				<span class="db-label">
-					<!-- TRANSLATORS: short for the smallest number of files a listed group has -->
-					<label :for="`${props.idPrefix}-min`">{{ t('file_checksum_search', 'Min') }}</label>
-					<HelpPopover :text="HELP.min" :label="t('file_checksum_search', 'Min')" />
+					<!-- TRANSLATORS: a number field's label: the smallest number of files a listed group has, 2 to 100 -->
+					<label :for="`${props.idPrefix}-min`">{{ t('file_checksum_search', 'Min. files') }}</label>
+					<HelpPopover :text="HELP.min" :label="t('file_checksum_search', 'Min. files')" />
 				</span>
 				<NcTextField
 					:id="`${props.idPrefix}-min`"
 					:model-value="minCount"
 					type="number"
-					:label="t('file_checksum_search', 'Min')"
+					:label="t('file_checksum_search', 'Min. files')"
 					label-outside
 					min="2"
 					max="100"
@@ -339,15 +339,15 @@ onBeforeUnmount(() => {
 			</div>
 			<div class="db-field db-field--narrow">
 				<span class="db-label">
-					<!-- TRANSLATORS: how many groups one page lists -->
-					<label :for="`${props.idPrefix}-limit`">{{ t('file_checksum_search', 'Limit') }}</label>
-					<HelpPopover :text="HELP.limit" :label="t('file_checksum_search', 'Limit')" />
+					<!-- TRANSLATORS: a number field's label: how many groups one page lists, 1 to 500 -->
+					<label :for="`${props.idPrefix}-limit`">{{ t('file_checksum_search', 'Per page') }}</label>
+					<HelpPopover :text="HELP.limit" :label="t('file_checksum_search', 'Per page')" />
 				</span>
 				<NcTextField
 					:id="`${props.idPrefix}-limit`"
 					:model-value="limit"
 					type="number"
-					:label="t('file_checksum_search', 'Limit')"
+					:label="t('file_checksum_search', 'Per page')"
 					label-outside
 					min="1"
 					max="500"
@@ -366,7 +366,8 @@ onBeforeUnmount(() => {
 							type="switch"
 							:title="TITLES.anywhere"
 							@update:model-value="onAnywhere">
-							{{ t('file_checksum_search', 'Search anywhere') }}
+							<!-- TRANSLATORS: a switch beside the hash filter: the typed text may match anywhere inside a checksum, not only at its start -->
+							{{ t('file_checksum_search', 'Match anywhere in the hash') }}
 						</NcCheckboxRadioSwitch>
 					</span>
 				</span>

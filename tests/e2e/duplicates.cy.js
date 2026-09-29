@@ -208,7 +208,7 @@ describe( 'FCIAS Duplicates page', () => {
 	} )
 
 	// The filter narrows to a group this run planted, by the start of its
-	// hash; a fragment from the middle finds nothing until Search anywhere
+	// hash; a fragment from the middle finds nothing until Match anywhere in the hash
 	// says to look there too.
 	it( 'filters the listing by hash, and by fragment when asked', () => {
 		cy.visit( DUPLICATES_URL )

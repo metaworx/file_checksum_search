@@ -3,30 +3,30 @@
 	  xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
 	<id>file_checksum_search</id>
 	<name>File Checksum Index &amp; Search</name>
-	<summary>Index file checksums for fast reverse hash lookups and duplicate detection, including REST, CLI and PHP APIs</summary>
-	<summary lang="de">Indexiert Prüfsummen von Dateien für schnelle Hash-Rückwärtssuche und Duplikaterkennung, mit REST-, CLI- und PHP-Schnittstellen</summary>
-	<description>Indexes file checksums, so a hash can be looked up in reverse and duplicates found at once.
+	<summary>Index file checksums to find files by hash and detect duplicates, with REST, CLI and PHP APIs</summary>
+	<summary lang="de">Indiziert Datei-Prüfsummen, um Dateien per Hash zu finden und Duplikate zu erkennen, mit REST-, CLI- und PHP-Schnittstellen</summary>
+	<description>Indexes file checksums, so a file can be found by its checksum and duplicates at once.
 
 What you get:
 
 - **Unified Search** by hash: paste a checksum, find the file.
-- A **Checksums** tab in the file details: every algorithm the file carries, recalculated on demand, with its duplicates listed inline.
+- A **Checksums** tab in the file details: lists every checksum stored for the file, recalculated on demand, with its duplicates listed inline.
 - A **Duplicates** page: every group of identical files you hold, and for administrators across every account.
 - **Rules** decide what is hashed and when: instance-wide or per account, by path pattern, computed in the background.
 - A stable **REST API (v1)** and a stable **PHP API** for other apps and integrations.
 - **occ commands** for hashing, searching, duplicates, rules, backup, import and export.
 - Storage in Nextcloud's own files metadata index: no custom tables, nothing to migrate.
 </description>
-	<description lang="de">Indexiert die Prüfsummen von Dateien, sodass sich ein Hash rückwärts nachschlagen lässt und Duplikate sofort gefunden sind.
+	<description lang="de">Indiziert die Prüfsummen von Dateien, sodass sich Dateien per Hash finden lassen und Duplikate sofort gefunden werden.
 
 Was du bekommst:
 
 - **Einheitliche Suche** nach Hash: Prüfsumme einfügen, Datei finden.
-- Ein Reiter **Prüfsummen** in den Dateidetails: jeder Algorithmus, den die Datei trägt, auf Wunsch neu berechnet, mit ihren Duplikaten gleich darunter.
+- Ein Reiter **Prüfsummen** in den Dateidetails: zeigt jede Prüfsumme, die für die Datei vorliegt, auf Wunsch neu berechnet, mit ihren Duplikaten gleich darunter.
 - Eine Seite **Duplikate**: jede Gruppe identischer Dateien, die du besitzt, und für die Administration über alle Konten hinweg.
 - **Regeln** entscheiden, was wann berechnet wird: instanzweit oder pro Konto, nach Pfadmuster, im Hintergrund.
 - Eine stabile **REST-API (v1)** und eine stabile **PHP-API** für andere Apps und Integrationen.
-- **occ-Befehle** zum Berechnen, Suchen, für Duplikate, Regeln, Sicherung, Import und Export.
+- **occ-Befehle** für Berechnung, Suche, Duplikate, Regeln, Sicherung, Import und Export.
 - Gespeichert im Metadaten-Index, den Nextcloud selbst für Dateien führt: keine eigenen Tabellen, nichts zu migrieren.
 </description>
 	<version>0.20.3</version>

@@ -17,7 +17,7 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 msgid "\"Yes\" means an administrator set this rule and users cannot override or disable it from their personal settings. Enforced rules fill the first four bands, so no rule of a user's own can outrun one."
-msgstr "„Ja“ bedeutet, dass die Administration diese Regel festgelegt hat und Konten sie in ihren persönlichen Einstellungen weder übersteuern noch deaktivieren können. Erzwungene Regeln belegen die ersten vier Ebenen, sodass ihnen keine eigene Regel eines Kontos zuvorkommt."
+msgstr "„Ja“ bedeutet, dass die Administration diese Regel festgelegt hat und Konten sie in ihren persönlichen Einstellungen weder außer Kraft setzen noch deaktivieren können. Erzwungene Regeln belegen die ersten vier Ebenen, sodass ihnen keine eigene Regel eines Kontos zuvorkommt."
 
 msgid "%n file"
 msgid_plural "%n files"
@@ -31,7 +31,7 @@ msgid "A disabled rule cannot be applied — enable it first."
 msgstr "Eine deaktivierte Regel kann nicht angewendet werden – aktiviere sie zuerst."
 
 msgid "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password — a standing authorisation, listed for every administrator to see. Create the app password on Security first; only one allowed to access files can be granted. Who may look across accounts is still decided by the sudoers permission; a grant replaces the prompt, not the permission."
-msgstr "Ein freigeschaltetes App-Passwort darf über die Routen /api/v1/sudo/ kontoübergreifend lesen, ohne dass jemand ein Passwort eingibt – eine dauerhafte Berechtigung, die für die gesamte Administration sichtbar aufgelistet ist. Erstelle das App-Passwort zuerst unter „Sicherheit“; freischalten lässt sich nur eines, das auf Dateien zugreifen darf. Wer kontoübergreifend sehen darf, entscheidet weiterhin die Sudoers-Berechtigung; eine Freischaltung ersetzt die Passwortabfrage, nicht die Berechtigung."
+msgstr "Ein freigeschaltetes App-Passwort darf über die Routen /api/v1/sudo/ kontoübergreifend lesen, ohne dass jemand ein Passwort eingibt – eine dauerhafte Freischaltung, die für die gesamte Administration sichtbar aufgelistet ist. Erstelle das App-Passwort zuerst unter „Sicherheit“; freischalten lässt sich nur eines, das auf Dateien zugreifen darf. Wer kontoübergreifend Einsicht nehmen darf, entscheidet weiterhin die Sudoers-Berechtigung; eine Freischaltung ersetzt die Passwortabfrage, nicht die Berechtigung."
 
 msgid "A group"
 msgstr "Eine Gruppe"
@@ -57,8 +57,9 @@ msgstr "Ein Speicher (interne ID)"
 msgid "Account"
 msgstr "Konto"
 
-msgid "Acknowledged"
-msgstr "Zur Kenntnis genommen"
+#. TRANSLATORS a button: hides the banner until a rule is enabled and disabled again
+msgid "Acknowledge"
+msgstr "Zur Kenntnis nehmen"
 
 msgid "Add Rule"
 msgstr "Regel hinzufügen"
@@ -109,7 +110,7 @@ msgid "Allow all users to edit rules"
 msgstr "Allen Konten das Bearbeiten von Regeln erlauben"
 
 msgid "Allow all users to look across accounts"
-msgstr "Allen Konten das kontoübergreifende Sehen erlauben"
+msgstr "Allen Konten die kontoübergreifende Einsicht erlauben"
 
 msgid "Allow all users to use the API"
 msgstr "Allen Konten die Nutzung der API erlauben"
@@ -120,7 +121,7 @@ msgstr "Erlaubte Algorithmen"
 #. TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
 #, php-format
 msgid "An %s rule computes nothing, so there is nothing to apply."
-msgstr "Eine %s-Regel berechnet nichts, es gibt also nichts anzuwenden."
+msgstr "Eine Regel vom Typ \"%s\" berechnet nichts, es gibt also nichts anzuwenden."
 
 msgid "App Version"
 msgstr "App-Version"
@@ -132,7 +133,7 @@ msgid "App password granted."
 msgstr "App-Passwort freigeschaltet."
 
 msgid "App passwords granted the cross-account routes without a password prompt. Each is a standing authorisation: this is where every one of them is visible, and where any can be taken back. Who may look across accounts at all is decided under “Who may look across accounts”; a grant replaces the prompt, not the permission."
-msgstr "App-Passwörter, die für die kontoübergreifenden Routen ohne Passwortabfrage freigeschaltet sind. Jede Freischaltung ist eine dauerhafte Berechtigung: Hier ist jede sichtbar, und hier lässt sich jede widerrufen. Wer überhaupt kontoübergreifend sehen darf, wird unter „Wer kontoübergreifend sehen darf“ festgelegt; eine Freischaltung ersetzt die Passwortabfrage, nicht die Berechtigung."
+msgstr "App-Passwörter, die die kontoübergreifenden Routen ohne Passwortabfrage nutzen dürfen. Jede Freischaltung gilt dauerhaft: Hier ist jede sichtbar, und hier lässt sich jede widerrufen. Wer überhaupt kontoübergreifend Einsicht nehmen darf, wird unter „Wer kontoübergreifend Einsicht nehmen darf“ festgelegt; eine Freischaltung ersetzt die Passwortabfrage, nicht die Berechtigung."
 
 msgid "Applies to"
 msgstr "Gilt für"
@@ -156,16 +157,16 @@ msgid "Band {band}, position {position}"
 msgstr "Ebene {band}, Position {position}"
 
 msgid "Below this many, the picker opens with every account and group it may offer already in the list. Above it, the list would be unwieldy, so the picker asks the server as you type. Applies to administrators and group leaders alike."
-msgstr "Unterhalb dieser Anzahl öffnet sich die Auswahl mit allen Konten und Gruppen, die sie anbieten darf, bereits in der Liste. Darüber würde die Liste unhandlich, daher fragt die Auswahl während der Eingabe beim Server nach. Gilt für die Administration und für Gruppenleitungen gleichermaßen."
+msgstr "Unterhalb dieser Anzahl öffnet sich die Auswahl mit allen Konten und Gruppen, die sie anbieten darf, bereits in der Liste. Darüber würde die Liste unhandlich, daher fragt die Auswahl während der Eingabe beim Server nach. Gilt für die Administration und die Gruppenadministration gleichermaßen."
 
 msgid "Cancel"
 msgstr "Abbrechen"
 
 msgid "Checksum algorithms computed for matching files. Each algorithm you add is indexed separately, so more algorithms means more work per file."
-msgstr "Prüfsummen-Algorithmen, die für passende Dateien berechnet werden. Jeder Algorithmus, den du hinzufügst, wird separat indexiert – mehr Algorithmen bedeuten also mehr Arbeit pro Datei."
+msgstr "Prüfsummen-Algorithmen, die für passende Dateien berechnet werden. Jeder Algorithmus, den du hinzufügst, wird separat indiziert – mehr Algorithmen bedeuten also mehr Arbeit pro Datei."
 
 msgid "Checksum algorithms computed for matching files. Each one is indexed separately, so more algorithms means more work per file. Shown as \"—\" for a rule that computes nothing."
-msgstr "Prüfsummen-Algorithmen, die für passende Dateien berechnet werden. Jeder wird separat indexiert – mehr Algorithmen bedeuten also mehr Arbeit pro Datei. Wird als \"—\" angezeigt, wenn eine Regel nichts berechnet."
+msgstr "Prüfsummen-Algorithmen, die für passende Dateien berechnet werden. Jeder wird separat indiziert – mehr Algorithmen bedeuten also mehr Arbeit pro Datei. Wird als \"—\" angezeigt, wenn eine Regel nichts berechnet."
 
 #. TRANSLATORS: a background job's name: it copies the checksums Nextcloud already holds into this app's index.
 msgid "Checksum copy"
@@ -175,7 +176,7 @@ msgid "Checksums"
 msgstr "Prüfsummen"
 
 msgid "Checksums indexed for this file. Click a hash to copy it."
-msgstr "Für diese Datei indexierte Prüfsummen. Klicke auf einen Hash, um ihn zu kopieren."
+msgstr "Für diese Datei indizierte Prüfsummen. Klicke auf einen Hash, um ihn zu kopieren."
 
 msgid "Choose accounts or groups"
 msgstr "Konten oder Gruppen auswählen"
@@ -230,7 +231,7 @@ msgid "Default algorithm"
 msgstr "Standard-Algorithmus"
 
 msgid "Defaults for all home folders. Within this segment a catch-all default — path **, / or empty — always evaluates last, after any more specific rules here."
-msgstr "Standardregeln für alle Home-Ordner. Innerhalb dieses Abschnitts wird eine Auffangregel – Pfad **, / oder leer – immer zuletzt ausgewertet, nach allen spezifischeren Regeln hier."
+msgstr "Standardregeln für alle Home-Ordner. Innerhalb dieser Ebene wird eine Auffangregel – Pfad **, / oder leer – immer zuletzt ausgewertet, nach allen spezifischeren Regeln hier."
 
 msgid "Delete"
 msgstr "Löschen"
@@ -440,13 +441,13 @@ msgid "How many groups one page shows. Nothing here is read from disk until you 
 msgstr "Wie viele Gruppen eine Seite zeigt. Hier wird nichts vom Datenträger gelesen, bis du eine Gruppe oder Datei prüfen lässt – eine größere Seite kostet also eine längere Abfrage, keine längeren Lesevorgänge."
 
 msgid "Ignore (no automatic hashing; still allowed on request)"
-msgstr "Ignorieren (keine automatische Berechnung; auf Anfrage weiterhin möglich)"
+msgstr "Ignorieren (keine automatische Berechnung; von Hand weiterhin möglich)"
 
 msgid "Include (compute checksums)"
 msgstr "Einschließen (Prüfsummen berechnen)"
 
 msgid "Indexed Hashes"
-msgstr "Indexierte Hashes"
+msgstr "Indizierte Hashes"
 
 msgid "Individual users who may call the public API with an app password, in addition to the members of any selected groups."
 msgstr "Einzelne Konten, die die öffentliche API mit einem App-Passwort aufrufen dürfen, zusätzlich zu den Mitgliedern der ausgewählten Gruppen."
@@ -455,7 +456,7 @@ msgid "Individual users who may create and edit rules for folders they can write
 msgstr "Einzelne Konten, die Regeln für Ordner erstellen und bearbeiten dürfen, in die sie schreiben können, zusätzlich zu den Mitgliedern der ausgewählten Gruppen."
 
 msgid "Individual users who may look across accounts once they have confirmed their password, in addition to the members of any selected groups and of the admin group."
-msgstr "Einzelne Konten, die nach Bestätigung ihres Passworts kontoübergreifend sehen dürfen, zusätzlich zu den Mitgliedern der ausgewählten Gruppen und der Administrationsgruppe."
+msgstr "Einzelne Konten, die nach Bestätigung ihres Passworts kontoübergreifend Einsicht nehmen dürfen, zusätzlich zu den Mitgliedern der ausgewählten Gruppen und der Administrationsgruppe."
 
 msgid "Individual users who may trigger a computation of their own files by hand, in addition to the members of any selected groups."
 msgstr "Einzelne Konten, die für ihre eigenen Dateien von Hand eine Berechnung auslösen dürfen, zusätzlich zu den Mitgliedern der ausgewählten Gruppen."
@@ -475,15 +476,15 @@ msgstr "Zuletzt verwendet"
 msgid "Lazy (delete hashes, recalc later)"
 msgstr "Später (Hashes löschen, später neu berechnen)"
 
-#. TRANSLATORS how many groups one page lists
-msgid "Limit"
-msgstr "Limit"
-
 msgid "Loading checksums …"
 msgstr "Prüfsummen werden geladen …"
 
+#. TRANSLATORS a switch beside the hash filter: the typed text may match anywhere inside a checksum, not only at its start
+msgid "Match anywhere in the hash"
+msgstr "An beliebiger Stelle im Hash suchen"
+
 msgid "Match the term anywhere in the hash, not only at its start"
-msgstr "Den Begriff überall im Hash suchen, nicht nur am Anfang"
+msgstr "Die Eingabe an beliebiger Stelle im Hash finden, nicht nur am Anfang"
 
 msgid "Members of these groups may call the public API with an app password. Selected groups and selected users are combined — being in either is enough."
 msgstr "Mitglieder dieser Gruppen dürfen die öffentliche API mit einem App-Passwort aufrufen. Ausgewählte Gruppen und ausgewählte Konten werden zusammengefasst – eines von beiden genügt."
@@ -492,14 +493,14 @@ msgid "Members of these groups may create and edit rules for folders they can wr
 msgstr "Mitglieder dieser Gruppen dürfen Regeln für Ordner erstellen und bearbeiten, in die sie schreiben können. Ausgewählte Gruppen und ausgewählte Konten werden zusammengefasst – eines von beiden genügt."
 
 msgid "Members of these groups may look across accounts once they have confirmed their password. Selected groups and selected users are combined — being in either is enough."
-msgstr "Mitglieder dieser Gruppen dürfen nach Bestätigung ihres Passworts kontoübergreifend sehen. Ausgewählte Gruppen und ausgewählte Konten werden zusammengefasst – eines von beiden genügt."
+msgstr "Mitglieder dieser Gruppen dürfen nach Bestätigung ihres Passworts kontoübergreifend Einsicht nehmen. Ausgewählte Gruppen und ausgewählte Konten werden zusammengefasst – eines von beiden genügt."
 
 msgid "Members of these groups may trigger a computation of their own files by hand. Selected groups and selected users are combined — being in either is enough."
 msgstr "Mitglieder dieser Gruppen dürfen für ihre eigenen Dateien von Hand eine Berechnung auslösen. Ausgewählte Gruppen und ausgewählte Konten werden zusammengefasst – eines von beiden genügt."
 
-#. TRANSLATORS short for the smallest number of files a listed group has
-msgid "Min"
-msgstr "Min."
+#. TRANSLATORS a number field's label: the smallest number of files a listed group has, 2 to 100
+msgid "Min. files"
+msgstr "Min. Dateien"
 
 #. TRANSLATORS: the tab listing the duplicates among one's own files
 msgid "Mine"
@@ -539,7 +540,7 @@ msgid "No duplicate files found."
 msgstr "Keine doppelten Dateien gefunden."
 
 msgid "No enabled include rule exists, so no file is hashed until one says so — enable the “All home folders” default in the table below, or create a rule. Manual recalculation from the file sidebar keeps working either way."
-msgstr "Es gibt keine aktivierte Regel mit dem Modus \"include\", daher wird keine Datei berechnet, bis eine Regel es vorsieht – aktiviere die Standardregel „Alle Home-Ordner“ in der Tabelle unten oder erstelle eine Regel. Die manuelle Neuberechnung in der Seitenleiste der Dateien funktioniert in jedem Fall weiter."
+msgstr "Es gibt keine aktivierte Regel vom Typ \"include\", daher wird keine Datei berechnet, bis eine Regel es vorsieht – aktiviere die Standardregel „Alle Home-Ordner“ in der Tabelle unten oder erstelle eine Regel. Die manuelle Neuberechnung in der Datei-Seitenleiste funktioniert in jedem Fall weiter."
 
 msgid "No grants."
 msgstr "Keine Freischaltungen."
@@ -631,6 +632,10 @@ msgstr "Der Pfad führt zu keiner Datei: %s"
 msgid "Pending Updates"
 msgstr "Ausstehende Aktualisierungen"
 
+#. TRANSLATORS a number field's label: how many groups one page lists, 1 to 500
+msgid "Per page"
+msgstr "Pro Seite"
+
 msgid "Permissions"
 msgstr "Berechtigungen"
 
@@ -674,7 +679,7 @@ msgid "Read-only"
 msgstr "Schreibgeschützt"
 
 msgid "Recalc"
-msgstr "Berechnen"
+msgstr "Neu berechnen"
 
 msgid "Recalculate"
 msgstr "Neu berechnen"
@@ -683,10 +688,10 @@ msgid "Recalculation failed."
 msgstr "Neuberechnung fehlgeschlagen."
 
 msgid "Recompute every file in this group from its contents"
-msgstr "Jede Datei dieser Gruppe aus ihrem Inhalt neu berechnen"
+msgstr "Die Prüfsummen aller Dateien dieser Gruppe aus ihrem Inhalt neu berechnen"
 
 msgid "Recompute this file from its contents"
-msgstr "Diese Datei aus ihrem Inhalt neu berechnen"
+msgstr "Die Prüfsumme dieser Datei aus ihrem Inhalt neu berechnen"
 
 msgid "Refresh"
 msgstr "Aktualisieren"
@@ -697,7 +702,7 @@ msgstr "Neuordnung fehlgeschlagen."
 msgid "Request failed."
 msgstr "Anfrage fehlgeschlagen."
 
-#. TRANSLATORS: the state of hashes disowned by a reset of the index
+#. TRANSLATORS: the state of hashes a reset has made invalid; a past participle, not the action
 msgid "Reset"
 msgstr "Zurückgesetzt"
 
@@ -732,7 +737,7 @@ msgid "Rules are evaluated in band order and the first match decides the file. A
 msgstr "Regeln werden in der Reihenfolge der Ebenen ausgewertet, und der erste Treffer entscheidet über die Datei. Die Ebene einer Regel ergibt sich aus ihrem Geltungsbereich und daraus, ob sie erzwungen ist – sie wird nicht direkt gewählt, und das Neuordnen verschiebt eine Regel nur innerhalb ihrer eigenen Ebene."
 
 msgid "Rules for a group's members, or for one group folder. Not enforced: a user's own rule overrides them for their files."
-msgstr "Regeln für die Mitglieder einer Gruppe oder für einen Team-Ordner. Nicht erzwungen: Die eigene Regel eines Kontos übersteuert sie für dessen Dateien."
+msgstr "Regeln für die Mitglieder einer Gruppe oder für einen Team-Ordner. Nicht erzwungen: Für die Dateien eines Kontos hat dessen eigene Regel Vorrang."
 
 msgid "Rules for one specific slice — users' own rules for their homes, or a rule for one storage. They decide a file only where no enforced rule matched it first."
 msgstr "Regeln für einen bestimmten Ausschnitt – die eigenen Regeln der Konten für ihre Home-Ordner oder eine Regel für einen Speicher. Sie entscheiden über eine Datei nur, wo zuvor keine erzwungene Regel gepasst hat."
@@ -750,16 +755,13 @@ msgid "Saving failed."
 msgstr "Speichern fehlgeschlagen."
 
 msgid "Saving…"
-msgstr "Speichern …"
+msgstr "Wird gespeichert …"
 
 msgid "Scope"
 msgstr "Geltungsbereich"
 
 msgid "Scripts and other apps calling this app's public API with an app password. The bundled pages — this one, the Duplicates page, the file sidebar — keep working for everyone; this decides who may reach the same routes from outside them."
-msgstr "Skripte und andere Apps, die die öffentliche API dieser App mit einem App-Passwort aufrufen. Die mitgelieferten Seiten – diese hier, die Seite „Duplikate“, die Seitenleiste der Dateien – funktionieren für alle weiter; dies legt fest, wer dieselben Routen von außerhalb erreichen darf."
-
-msgid "Search anywhere"
-msgstr "Überall suchen"
+msgstr "Skripte und andere Apps, die die öffentliche API dieser App mit einem App-Passwort aufrufen. Die mitgelieferten Seiten – diese hier, die Seite „Duplikate“, die Datei-Seitenleiste – funktionieren für alle weiter; dies legt fest, wer dieselben Routen von außerhalb erreichen darf."
 
 msgid "Search groups…"
 msgstr "Gruppen suchen …"
@@ -767,11 +769,12 @@ msgstr "Gruppen suchen …"
 msgid "Search users…"
 msgstr "Konten suchen …"
 
-msgid "Search {folders}…"
-msgstr "{folders} durchsuchen …"
-
 msgid "Searching …"
 msgstr "Suche läuft …"
+
+#. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
+msgid "Select folder…"
+msgstr "Ordner auswählen …"
 
 msgid "Select groups…"
 msgstr "Gruppen auswählen …"
@@ -782,9 +785,9 @@ msgstr "Einstellungen"
 msgid "Show only groups whose checksum starts with this"
 msgstr "Nur Gruppen zeigen, deren Prüfsumme damit beginnt"
 
-#. TRANSLATORS: "Search anywhere" is the switch beside the field; translate it as that switch does
-msgid "Show only groups whose checksum this names. Whole values come first, then those that start with what you typed. Tick “Search anywhere” to match it in the middle of a hash too. Upper case is fine."
-msgstr "Nur Gruppen zeigen, deren Prüfsumme dies nennt. Vollständige Werte kommen zuerst, dann solche, die mit deiner Eingabe beginnen. Aktiviere „Überall suchen“, damit auch die Mitte eines Hashs passt. Großbuchstaben sind kein Problem."
+#. TRANSLATORS: "Match anywhere in the hash" is the switch beside the field; translate it as that switch does
+msgid "Show only groups whose checksum this names. Whole values come first, then those that start with what you typed. Turn on “Match anywhere in the hash” to match it in the middle of a hash too. Upper case is fine."
+msgstr "Nur Gruppen mit der hier eingegebenen Prüfsumme zeigen. Vollständige Treffer kommen zuerst, dann Prüfsummen, die mit deiner Eingabe beginnen. Aktiviere „An beliebiger Stelle im Hash suchen“, damit die Eingabe auch mitten in einem Hash gefunden wird. Groß- und Kleinschreibung spielt keine Rolle."
 
 msgid "Smallest group to list: files sharing a checksum, 2 to 100"
 msgstr "Kleinste aufzulistende Gruppe: Dateien mit gleicher Prüfsumme, 2 bis 100"
@@ -814,13 +817,13 @@ msgid "That view needs your password confirmed again, or is not yours to look at
 msgstr "Für diese Ansicht musst du dein Passwort erneut bestätigen, oder du darfst sie nicht sehen."
 
 msgid "The algorithm the Checksums tab in the file sidebar offers as its first button. Leave it on the default to follow the server; pick one to have it first for every file, with the file's own rule providing the second button."
-msgstr "Der Algorithmus, den der Reiter „Prüfsummen“ in der Seitenleiste der Dateien als erste Schaltfläche anbietet. Belasse ihn beim Standard, um dem Server zu folgen; wähle einen, damit er bei jeder Datei zuerst steht – die zweite Schaltfläche liefert die Regel der Datei."
+msgstr "Der Algorithmus, den der Reiter „Prüfsummen“ in der Datei-Seitenleiste als erste Schaltfläche anbietet. Belasse ihn beim Standard, um dem Server zu folgen; wähle einen, damit er bei jeder Datei zuerst steht – die zweite Schaltfläche liefert die Regel der Datei."
 
 msgid "The algorithm used wherever none is named: new rules, the command line, the API, and the sidebar's first button for users who have not chosen one of their own. Only an allowed algorithm can be the default; removing the default from the list above moves it to the first remaining."
 msgstr "Der Algorithmus, der überall dort verwendet wird, wo keiner genannt ist: neue Regeln, die Kommandozeile, die API und die erste Schaltfläche der Seitenleiste für Konten, die keinen eigenen gewählt haben. Nur ein erlaubter Algorithmus kann Standard sein; wird der Standard aus der Liste oben entfernt, geht er auf den ersten verbleibenden über."
 
 msgid "The algorithms rules may compute and pickers may offer, chosen from what this server's PHP provides. Removing one does not delete hashes already stored under it — they stay searchable — it only stops new ones being computed."
-msgstr "Die Algorithmen, die Regeln berechnen und Auswahlen anbieten dürfen, gewählt aus dem, was das PHP dieses Servers bereitstellt. Einen davon zu entfernen löscht keine bereits damit gespeicherten Hashes – sie bleiben durchsuchbar –, es werden nur keine neuen mehr berechnet."
+msgstr "Die Algorithmen, die Regeln berechnen und Auswahlen anbieten dürfen, gewählt aus dem, was das PHP dieses Servers bereitstellt. Wird einer entfernt, bleiben die damit bereits gespeicherten Hashes erhalten und durchsuchbar; es werden nur keine neuen mehr berechnet."
 
 msgid "The app or storage this rule names is not available, so the rule can never match."
 msgstr "Die App oder der Speicher, die diese Regel nennt, ist nicht verfügbar, daher kann die Regel nie zutreffen."
@@ -841,13 +844,13 @@ msgid "The home-folders default covers home folders only: files on external stor
 msgstr "Die Standardregel für Home-Ordner deckt nur Home-Ordner ab: Dateien auf externem Speicher und in Team-Ordnern erreicht nur die Standardregel „Alles“ oder eine eigene Team-Ordner- oder Speicherregel."
 
 msgid "The last resort, covering every storage — external mounts and group folders included. Enable deliberately: it can reach storage that is slow or costs money to read."
-msgstr "Das letzte Mittel, für jeden Speicher – externe Speicher und Team-Ordner eingeschlossen. Mit Bedacht aktivieren: So werden auch Speicher erreicht, die langsam sind oder deren Lesen Geld kostet."
+msgstr "Das letzte Mittel: Regeln für jeden Speicher, externe Speicher und Team-Ordner eingeschlossen. Mit Bedacht aktivieren: Dabei können auch Speicher erfasst werden, die langsam sind oder deren Lesen Geld kostet."
 
 msgid "The list of accounts could not be loaded."
 msgstr "Die Liste der Konten konnte nicht geladen werden."
 
 msgid "The one user whose home folder this rule addresses."
-msgstr "Das eine Konto, dessen Home-Ordner diese Regel anspricht."
+msgstr "Das Konto, dessen Home-Ordner diese Regel erfasst."
 
 msgid "The raw id from the storages table, matched exactly — whatever kind of storage it names. Use this for external mounts, or anything the other choices cannot say."
 msgstr "Die interne ID aus der Speichertabelle, exakt abgeglichen – gleich welche Art von Speicher sie bezeichnet. Verwende sie für externe Speicher oder für alles, was die anderen Auswahlmöglichkeiten nicht ausdrücken können."
@@ -856,7 +859,7 @@ msgid "The request never reached the server."
 msgstr "Die Anfrage hat den Server nie erreicht."
 
 msgid "The rule addresses the home folder of every member of this group."
-msgstr "Die Regel spricht den Home-Ordner jedes Mitglieds dieser Gruppe an."
+msgstr "Die Regel erfasst den Home-Ordner jedes Mitglieds dieser Gruppe."
 
 #. TRANSLATORS: {status} is an HTTP status, such as "404 Not Found"
 msgid "The server answered {status}."
@@ -866,19 +869,19 @@ msgid "The server sent an answer this page could not read."
 msgstr "Der Server hat eine Antwort gesendet, die diese Seite nicht lesen konnte."
 
 msgid "The smallest group to list: how many files must share a checksum before they count as duplicates. Two is every duplicate; a higher number finds the widely copied ones."
-msgstr "Die kleinste aufzulistende Gruppe: wie viele Dateien dieselbe Prüfsumme haben müssen, damit sie als Duplikate zählen. Zwei ergibt jedes Duplikat; eine höhere Zahl findet die vielfach kopierten."
+msgstr "Die kleinste aufzulistende Gruppe: wie viele Dateien dieselbe Prüfsumme haben müssen, damit sie als Duplikate zählen. Bei zwei erscheint jedes Duplikat; eine höhere Zahl findet die vielfach kopierten Dateien."
 
 msgid "The sudoers: members of the admin group always, plus the groups and users selected here. Looking across accounts still costs a password confirmation each time; this only says who may be asked."
-msgstr "Die Sudoers: immer die Mitglieder der Administrationsgruppe, dazu die hier ausgewählten Gruppen und Konten. Kontoübergreifendes Sehen erfordert weiterhin jedes Mal eine Passwortbestätigung; dies legt nur fest, wer danach gefragt werden darf."
+msgstr "Die Sudoers: immer die Mitglieder der Administrationsgruppe, dazu die hier ausgewählten Gruppen und Konten. Kontoübergreifende Einsicht erfordert weiterhin jedes Mal eine Passwortbestätigung; dies legt nur fest, wer danach gefragt werden darf."
 
 msgid "The team folder this rule addresses. Every member sees the same files, and the rule follows the folder — not whoever happens to look at it."
-msgstr "Der Team-Ordner, den diese Regel anspricht. Alle Mitglieder sehen dieselben Dateien, und die Regel folgt dem Ordner – nicht dem, der gerade hineinschaut."
+msgstr "Der Team-Ordner, den diese Regel erfasst. Alle Mitglieder sehen dieselben Dateien, und die Regel folgt dem Ordner – nicht dem, der gerade hineinschaut."
 
 msgid "These are other people's files. Everything below is shown because you asked for it by name — leave this tab to go back to your own."
 msgstr "Dies sind Dateien anderer Personen. Alles unten wird angezeigt, weil du es namentlich angefordert hast – verlasse diesen Reiter, um zu deinen eigenen zurückzukehren."
 
 msgid "These namespaces exist on this instance but have no catch-all rule of their own, so what happens to their files is decided by whatever more general rule covers them — or by nothing at all. Creating a rule from here starts one for that namespace; until then, nothing is stored."
-msgstr "Diese Namensräume gibt es auf dieser Instanz, aber sie haben keine eigene Auffangregel. Was mit ihren Dateien geschieht, entscheidet daher die allgemeinere Regel, die sie abdeckt – oder gar keine. Eine hier erstellte Regel beginnt eine für diesen Namensraum; bis dahin wird nichts gespeichert."
+msgstr "Diese Namensräume gibt es auf dieser Instanz, aber sie haben keine eigene Auffangregel. Was mit ihren Dateien geschieht, entscheidet daher die allgemeinere Regel, die sie abdeckt – oder gar keine. Über „Regel erstellen“ lässt sich hier eine Regel für diesen Namensraum anlegen; bis dahin wird nichts gespeichert."
 
 msgid "This account may not calculate by hand."
 msgstr "Dieses Konto darf nicht von Hand berechnen."
@@ -914,7 +917,7 @@ msgid "Total: {count}"
 msgstr "Gesamt: {count}"
 
 msgid "Triggering a computation of one's own files — the sidebar's Recalculate buttons and the API's recalc route — on top of owning them. Reading what is already computed is untouched; an account not named here simply does not see the buttons."
-msgstr "Eine Berechnung der eigenen Dateien auslösen – mit den Schaltflächen „Neu berechnen“ der Seitenleiste und der Route recalc der API –, zusätzlich zum Besitz der Dateien. Das Lesen bereits berechneter Werte bleibt unberührt; ein hier nicht genanntes Konto sieht die Schaltflächen einfach nicht."
+msgstr "Eine Berechnung der eigenen Dateien auslösen – mit den Schaltflächen „Neu berechnen“ der Seitenleiste und der Route recalc der API –, über den bloßen Besitz der Dateien hinaus. Das Lesen bereits berechneter Werte bleibt unberührt; ein hier nicht genanntes Konto sieht die Schaltflächen einfach nicht."
 
 msgid "Tunables"
 msgstr "Feineinstellungen"
@@ -1003,11 +1006,11 @@ msgid "When on, every user of this instance may create and edit rules for folder
 msgstr "Wenn aktiv, darf jedes Konto dieser Instanz Regeln für Ordner erstellen und bearbeiten, in die es schreiben kann. Wenn inaktiv, ist diese Berechtigung auf die Gruppen und einzelnen Konten beschränkt, die du auswählst."
 
 msgid "When set, users cannot override or disable this rule from their personal settings. Enforced rules are evaluated before every user rule, so they cannot be outrun."
-msgstr "Wenn gesetzt, können Konten diese Regel in ihren persönlichen Einstellungen weder übersteuern noch deaktivieren. Erzwungene Regeln werden vor jeder Regel eines Kontos ausgewertet, ihnen kann also keine zuvorkommen."
+msgstr "Wenn gesetzt, können Konten diese Regel in ihren persönlichen Einstellungen weder außer Kraft setzen noch deaktivieren. Erzwungene Regeln werden vor jeder Regel eines Kontos ausgewertet, ihnen kann also keine zuvorkommen."
 
-#. TRANSLATORS: keep "<band>.<position>" as it is; it is how the column writes a priority
-msgid "Where the rule sits in evaluation order, written \"<band>.<position>\". The first rule that matches a file decides it outright, so a lower number is stronger. The band follows from the rule's scope and whether it is enforced — it is never chosen directly — and the position is the rule's place inside that band, which is what dragging changes."
-msgstr "Wo die Regel in der Auswertungsreihenfolge steht, geschrieben als \"<Ebene>.<Position>\". Die erste Regel, die zu einer Datei passt, entscheidet endgültig über sie, eine niedrigere Zahl ist also stärker. Die Ebene ergibt sich aus dem Geltungsbereich der Regel und daraus, ob sie erzwungen ist – sie wird nie direkt gewählt –, und die Position ist der Platz der Regel innerhalb dieser Ebene; genau den ändert das Ziehen."
+#. TRANSLATORS: the help text of the Priority column, explaining the number format its cells use; keep 7.1 and 7 as numbers
+msgid "Where the rule sits in evaluation order: its band and its position in that band, joined by a dot, so 7.1 is the first rule of band 7. The first rule that matches a file decides it outright, so a lower number is stronger. The band follows from the rule's scope and whether it is enforced — it is never chosen directly — and the position is the rule's place inside that band, which is what dragging changes."
+msgstr "Wo die Regel in der Auswertungsreihenfolge steht: ihre Ebene und ihre Position innerhalb dieser Ebene, durch einen Punkt getrennt – 7.1 ist zum Beispiel die erste Regel der Ebene 7. Die erste Regel, die zu einer Datei passt, entscheidet endgültig über sie; eine niedrigere Zahl hat also Vorrang. Die Ebene ergibt sich aus dem Geltungsbereich der Regel und daraus, ob sie erzwungen ist – sie wird nie direkt gewählt –, und die Position ist der Platz der Regel innerhalb dieser Ebene; genau den ändert das Ziehen."
 
 msgid "Whether the rule takes part in evaluation at all. A disabled rule is skipped as though it were not there, so the next matching rule decides instead."
 msgstr "Ob die Regel überhaupt an der Auswertung teilnimmt. Eine deaktivierte Regel wird übersprungen, als gäbe es sie nicht, sodass stattdessen die nächste passende Regel entscheidet."
@@ -1019,10 +1022,10 @@ msgid "Which algorithms this server computes, from what its PHP provides, and wh
 msgstr "Welche Algorithmen dieser Server berechnet, aus dem, was sein PHP bereitstellt, und welcher davon der Standard ist. Regeln dürfen nur diese verwenden, und jede Auswahl in der App bietet genau diese an."
 
 msgid "Which slice of files the rule addresses: one user's home folder, the members of one group, \"All home folders\", one group folder, one storage by its id, or \"Everything\". A rule only ever meets files inside its slice — \"All home folders\" reaches every personal folder and nothing else, while \"Everything\" also reaches group folders and external storage."
-msgstr "Welchen Ausschnitt der Dateien die Regel anspricht: den Home-Ordner eines Kontos, die Mitglieder einer Gruppe, „Alle Home-Ordner“, einen Team-Ordner, einen Speicher über seine ID oder „Alles“. Eine Regel trifft nur Dateien innerhalb ihres Ausschnitts – „Alle Home-Ordner“ erreicht jeden persönlichen Ordner und sonst nichts, während „Alles“ auch Team-Ordner und externen Speicher erreicht."
+msgstr "Welchen Ausschnitt der Dateien die Regel erfasst: den Home-Ordner eines Kontos, die Mitglieder einer Gruppe, „Alle Home-Ordner“, einen Team-Ordner, einen Speicher über seine ID oder „Alles“. Eine Regel trifft nur Dateien innerhalb ihres Ausschnitts – „Alle Home-Ordner“ erreicht jeden persönlichen Ordner und sonst nichts, während „Alles“ auch Team-Ordner und externen Speicher erreicht."
 
 msgid "Which slice of the file universe this rule addresses: all home folders, one group's members, a single user, one group folder, one storage by its raw id, or everything — every storage there is, external mounts and group folders included."
-msgstr "Welchen Ausschnitt aller Dateien diese Regel anspricht: alle Home-Ordner, die Mitglieder einer Gruppe, ein einzelnes Konto, einen Team-Ordner, einen Speicher über seine interne ID oder alles – jeden vorhandenen Speicher, externe Speicher und Team-Ordner eingeschlossen."
+msgstr "Welchen Ausschnitt aller Dateien diese Regel erfasst: alle Home-Ordner, die Mitglieder einer Gruppe, ein einzelnes Konto, einen Team-Ordner, einen Speicher über seine interne ID oder alles – jeden vorhandenen Speicher, externe Speicher und Team-Ordner eingeschlossen."
 
 msgid "Who may calculate by hand"
 msgstr "Wer von Hand berechnen darf"
@@ -1031,7 +1034,7 @@ msgid "Who may edit rules"
 msgstr "Wer Regeln bearbeiten darf"
 
 msgid "Who may look across accounts"
-msgstr "Wer kontoübergreifend sehen darf"
+msgstr "Wer kontoübergreifend Einsicht nehmen darf"
 
 msgid "Who may use the API"
 msgstr "Wer die API verwenden darf"
@@ -1067,9 +1070,6 @@ msgstr "Deine eigene Datei"
 msgid "Your preferred algorithm"
 msgstr "Dein bevorzugter Algorithmus"
 
-msgid "disowned by a reset — already hidden from search, and the background job clears them as it goes"
-msgstr "durch ein Zurücksetzen verwaist – bereits aus der Suche ausgeblendet, und die Hintergrundaufgabe räumt sie nach und nach weg"
-
 msgid "fileIds must be a non-empty list of integers."
 msgstr "fileIds muss eine nicht leere Liste ganzer Zahlen sein."
 
@@ -1078,7 +1078,10 @@ msgid "groupfolder: takes the numeric folder id."
 msgstr "groupfolder: erwartet die numerische Ordner-ID."
 
 msgid "hashes were dropped on write because no rule maintains them; heals itself once a rule covers them again"
-msgstr "Hashes wurden beim Schreiben verworfen, weil keine Regel sie pflegt; das behebt sich von selbst, sobald eine Regel sie wieder abdeckt"
+msgstr "Hashes wurden beim Ändern der Datei verworfen, weil keine Regel sie pflegt; das behebt sich von selbst, sobald eine Regel sie wieder abdeckt"
+
+msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
+msgstr "durch ein Zurücksetzen ungültig: bereits aus der Suche ausgeblendet und zur Löschung durch die Hintergrundaufgabe vorgemerkt"
 
 #. TRANSLATORS: an example of what to type; keep the storage ids as they are
 msgid "local::/path/ or smb::…"
@@ -1095,7 +1098,7 @@ msgid "no catch-all rule — only the specific rules above apply here"
 msgstr "keine Auffangregel – hier gelten nur die spezifischen Regeln oben"
 
 msgid "not covered — no rule addresses it, so nothing is hashed there"
-msgstr "nicht abgedeckt – keine Regel spricht ihn an, daher wird dort nichts berechnet"
+msgstr "nicht abgedeckt – keine Regel gilt hier, daher wird dort nichts berechnet"
 
 #. TRANSLATORS: the checksum a file has now, after verification found it changed
 msgid "now: {hash}"

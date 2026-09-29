@@ -8,8 +8,9 @@ files at once.
 
 - `de` is Nextcloud's informal German: *du*, *dein*.
 - `de_DE` is its formal German: *Sie*, *Ihr*. It differs from `de` only
-  where a text addresses the reader, and in *Hintergrund-Aufgabe*, which
-  Nextcloud's `de_DE` hyphenates.
+  where a text addresses the reader.
+- A label or button names its action in the infinitive, the same in both:
+  „An beliebiger Stelle im Hash suchen“, „Zur Kenntnis nehmen“.
 
 ## Terms
 
@@ -27,7 +28,7 @@ files at once.
 | slice (of files) | Ausschnitt | |
 | enforced | erzwungen | |
 | catch-all rule / default | Auffangregel / Standardregel | |
-| Include / Ignore / Exclude | Einschließen / Ignorieren / Ausschließen | a mode's name in the form |
+| Include / Ignore / Exclude | Einschließen / Ignorieren / Ausschließen | a type's name in the form; the rule's type, not its mode |
 | Auto / Missing / Force / Lazy | Automatisch / Fehlende / Erzwingen / Später | a mode's name in the form |
 | home folder | Home-Ordner | |
 | group folder, team folder | Team-Ordner | Nextcloud's own term |
@@ -36,26 +37,31 @@ files at once.
 | external mount | externer Speicher | |
 | account, user | Konto, Konten | Nextcloud's own term for both |
 | administrator | Administration | gender-neutral, as Nextcloud has it |
-| group leader | Gruppenleitung | |
+| group leader | Gruppenadministration | Nextcloud's word for a sub-admin |
 | app password | App-Passwort | |
 | sudo token | Sudo-Token | |
-| grant (noun / verb) | Freischaltung / freischalten | |
+| grant (noun / verb) | Freischaltung / freischalten | also for "standing authorisation"; *Berechtigung* is only a permission |
 | revoke | widerrufen | |
 | cross-account | kontoübergreifend | |
+| look across accounts | kontoübergreifend Einsicht nehmen, kontoübergreifende Einsicht | |
+| override | außer Kraft setzen, Vorrang haben | not *übersteuern*, which is Swiss usage |
 | sudoers | Sudoers | |
 | Mine / Others | Eigene / Andere | the tabs |
 | recalculate | neu berechnen | |
 | verify | prüfen | |
-| indexed | indexiert | |
+| index (verb), indexed | indizieren, indiziert | not *indexieren* |
 | pending | ausstehend | |
 | untrusted / eroded / reset | nicht vertrauenswürdig / verfallen / zurückgesetzt | the states of stale hashes |
-| background job | Hintergrundaufgabe (`de`), Hintergrund-Aufgabe (`de_DE`) | |
+| invalidated (by a reset) | ungültig | not *verwaist*, the orphan purge's word |
+| background job | Hintergrundaufgabe | both registers, as Nextcloud's own admin heading |
 | rule sweep / queue drain / orphan purge / checksum copy / hash index check | Regeldurchlauf / Abarbeitung der Warteschlange / Bereinigung verwaister Einträge / Übernahme vorhandener Prüfsummen / Prüfung des Hash-Index | |
 | tunables | Feineinstellungen | |
 | prefill | vorausfüllen | |
 | glob pattern | Glob-Muster | |
 | path | Pfad | |
 | sidebar | Seitenleiste | |
+| file sidebar | Datei-Seitenleiste | Nextcloud's own term |
+| segment (of the rule table) | Ebene | the band itself |
 | tab | Reiter | |
 
 ## Style

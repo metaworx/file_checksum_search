@@ -156,9 +156,9 @@ const STALE_REASONS: Record<string, { label: string, hint: string }> = {
 		hint: t('file_checksum_search', 'hashes were dropped on write because no rule maintains them; heals itself once a rule covers them again'),
 	},
 	'stale:reset': {
-		// TRANSLATORS: the state of hashes disowned by a reset of the index
+		// TRANSLATORS: the state of hashes a reset has made invalid; a past participle, not the action
 		label: t('file_checksum_search', 'Reset'),
-		hint: t('file_checksum_search', 'disowned by a reset — already hidden from search, and the background job clears them as it goes'),
+		hint: t('file_checksum_search', 'invalidated by a reset: already hidden from search, and pending deletion by the background job'),
 	},
 }
 
@@ -378,7 +378,8 @@ loadRules().then(() => {
 				</p>
 				<div class="fcias-idle-banner-actions">
 					<NcButton data-action="banner-ack" @click="handleAcknowledgeBanner">
-						{{ t('file_checksum_search', 'Acknowledged') }}
+						<!-- TRANSLATORS: a button: hides the banner until a rule is enabled and disabled again -->
+						{{ t('file_checksum_search', 'Acknowledge') }}
 					</NcButton>
 					<NcButton data-action="banner-close" variant="tertiary" @click="bannerClosed = true">
 						{{ t('file_checksum_search', 'Close') }}

@@ -209,7 +209,8 @@ const dialogName = computed(
 const groupFolderTexts = computed(() => ({
 	// TRANSLATORS: {folders} is what the group folders app calls itself, e.g. "Team folders"
 	option: t('file_checksum_search', '{folders} — one folder', { folders: groupFolderTerm.value }),
-	search: t('file_checksum_search', 'Search {folders}…', { folders: groupFolderTerm.value }),
+	// TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
+	search: t('file_checksum_search', 'Select folder…'),
 }))
 
 const PERSONAL_HINT = t('file_checksum_search', 'This is your own rule. It applies only to your files and is evaluated after any rule an administrator has enforced.')

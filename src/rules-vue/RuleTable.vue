@@ -81,8 +81,8 @@ const COLUMNS: Array<{ key: string, label: string, help: string }> = [
 	{
 		key: 'priority',
 		label: t('file_checksum_search', 'Priority'),
-		// TRANSLATORS: keep "<band>.<position>" as it is; it is how the column writes a priority
-		help: t('file_checksum_search', 'Where the rule sits in evaluation order, written "<band>.<position>". The first rule that matches a file decides it outright, so a lower number is stronger. The band follows from the rule\'s scope and whether it is enforced — it is never chosen directly — and the position is the rule\'s place inside that band, which is what dragging changes.'),
+		// TRANSLATORS: the help text of the Priority column, explaining the number format its cells use; keep 7.1 and 7 as numbers
+		help: t('file_checksum_search', 'Where the rule sits in evaluation order: its band and its position in that band, joined by a dot, so 7.1 is the first rule of band 7. The first rule that matches a file decides it outright, so a lower number is stronger. The band follows from the rule\'s scope and whether it is enforced — it is never chosen directly — and the position is the rule\'s place inside that band, which is what dragging changes.'),
 	},
 	{
 		key: 'scope',
@@ -246,7 +246,7 @@ const namespaces = computed(() => {
 		...(props.groupFoldersAvailable === true
 			? (props.availableGroupFolders ?? []).map((folder) => ({
 				selector: `groupfolder:${folder.id}`,
-				label: `${folderTerm}: ${folder.name} (#${folder.id})`,
+				label: t('file_checksum_search', '{folders}: {folder}', { folders: folderTerm, folder: `${folder.name} (#${folder.id})` }),
 			}))
 			: []),
 		{ selector: 'home:*', label: t('file_checksum_search', 'All home folders') },

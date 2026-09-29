@@ -28,6 +28,10 @@ the first stable release.
   `findByHash()`, `getHashesByFileId()`, `findSameHash()`,
   `recalcHash()` and `recalcMany()`; a positional call breaks.
 
+- Wording that misled: the reset state's hint, the team-folder picker,
+  the duplicates filter's switch and fields, the Priority help, the
+  app's summary and description.
+
 ### Fixed
 
 - The web interface, the Files sidebar included, and the messages the

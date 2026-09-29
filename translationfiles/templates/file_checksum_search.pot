@@ -58,7 +58,8 @@ msgstr ""
 msgid "Account"
 msgstr ""
 
-msgid "Acknowledged"
+#. TRANSLATORS a button: hides the banner until a rule is enabled and disabled again
+msgid "Acknowledge"
 msgstr ""
 
 msgid "Add Rule"
@@ -476,11 +477,11 @@ msgstr ""
 msgid "Lazy (delete hashes, recalc later)"
 msgstr ""
 
-#. TRANSLATORS how many groups one page lists
-msgid "Limit"
+msgid "Loading checksums …"
 msgstr ""
 
-msgid "Loading checksums …"
+#. TRANSLATORS a switch beside the hash filter: the typed text may match anywhere inside a checksum, not only at its start
+msgid "Match anywhere in the hash"
 msgstr ""
 
 msgid "Match the term anywhere in the hash, not only at its start"
@@ -498,8 +499,8 @@ msgstr ""
 msgid "Members of these groups may trigger a computation of their own files by hand. Selected groups and selected users are combined — being in either is enough."
 msgstr ""
 
-#. TRANSLATORS short for the smallest number of files a listed group has
-msgid "Min"
+#. TRANSLATORS a number field's label: the smallest number of files a listed group has, 2 to 100
+msgid "Min. files"
 msgstr ""
 
 #. TRANSLATORS: the tab listing the duplicates among one's own files
@@ -632,6 +633,10 @@ msgstr ""
 msgid "Pending Updates"
 msgstr ""
 
+#. TRANSLATORS a number field's label: how many groups one page lists, 1 to 500
+msgid "Per page"
+msgstr ""
+
 msgid "Permissions"
 msgstr ""
 
@@ -698,7 +703,7 @@ msgstr ""
 msgid "Request failed."
 msgstr ""
 
-#. TRANSLATORS: the state of hashes disowned by a reset of the index
+#. TRANSLATORS: the state of hashes a reset has made invalid; a past participle, not the action
 msgid "Reset"
 msgstr ""
 
@@ -759,19 +764,17 @@ msgstr ""
 msgid "Scripts and other apps calling this app's public API with an app password. The bundled pages — this one, the Duplicates page, the file sidebar — keep working for everyone; this decides who may reach the same routes from outside them."
 msgstr ""
 
-msgid "Search anywhere"
-msgstr ""
-
 msgid "Search groups…"
 msgstr ""
 
 msgid "Search users…"
 msgstr ""
 
-msgid "Search {folders}…"
+msgid "Searching …"
 msgstr ""
 
-msgid "Searching …"
+#. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
+msgid "Select folder…"
 msgstr ""
 
 msgid "Select groups…"
@@ -783,8 +786,8 @@ msgstr ""
 msgid "Show only groups whose checksum starts with this"
 msgstr ""
 
-#. TRANSLATORS: "Search anywhere" is the switch beside the field; translate it as that switch does
-msgid "Show only groups whose checksum this names. Whole values come first, then those that start with what you typed. Tick “Search anywhere” to match it in the middle of a hash too. Upper case is fine."
+#. TRANSLATORS: "Match anywhere in the hash" is the switch beside the field; translate it as that switch does
+msgid "Show only groups whose checksum this names. Whole values come first, then those that start with what you typed. Turn on “Match anywhere in the hash” to match it in the middle of a hash too. Upper case is fine."
 msgstr ""
 
 msgid "Smallest group to list: files sharing a checksum, 2 to 100"
@@ -1006,8 +1009,8 @@ msgstr ""
 msgid "When set, users cannot override or disable this rule from their personal settings. Enforced rules are evaluated before every user rule, so they cannot be outrun."
 msgstr ""
 
-#. TRANSLATORS: keep "<band>.<position>" as it is; it is how the column writes a priority
-msgid "Where the rule sits in evaluation order, written \"<band>.<position>\". The first rule that matches a file decides it outright, so a lower number is stronger. The band follows from the rule's scope and whether it is enforced — it is never chosen directly — and the position is the rule's place inside that band, which is what dragging changes."
+#. TRANSLATORS: the help text of the Priority column, explaining the number format its cells use; keep 7.1 and 7 as numbers
+msgid "Where the rule sits in evaluation order: its band and its position in that band, joined by a dot, so 7.1 is the first rule of band 7. The first rule that matches a file decides it outright, so a lower number is stronger. The band follows from the rule's scope and whether it is enforced — it is never chosen directly — and the position is the rule's place inside that band, which is what dragging changes."
 msgstr ""
 
 msgid "Whether the rule takes part in evaluation at all. A disabled rule is skipped as though it were not there, so the next matching rule decides instead."
@@ -1068,9 +1071,6 @@ msgstr ""
 msgid "Your preferred algorithm"
 msgstr ""
 
-msgid "disowned by a reset — already hidden from search, and the background job clears them as it goes"
-msgstr ""
-
 msgid "fileIds must be a non-empty list of integers."
 msgstr ""
 
@@ -1079,6 +1079,9 @@ msgid "groupfolder: takes the numeric folder id."
 msgstr ""
 
 msgid "hashes were dropped on write because no rule maintains them; heals itself once a rule covers them again"
+msgstr ""
+
+msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
 msgstr ""
 
 #. TRANSLATORS: an example of what to type; keep the storage ids as they are
