@@ -1167,6 +1167,7 @@ URL-path versioning: `/api/v1/`, `/api/v2/`, etc.
 | Change field type | **No** | New major version |
 | Remove field | **No** | Deprecate → one major → remove |
 | Rename field / endpoint | **No** | New major version |
+| Rename a PHP method parameter | **No** | New major version: since PHP 8 a caller may pass any argument by name, so a parameter's name is part of the contract |
 | Change HTTP method | **No** | New major version |
 | Change error response shape | **No** | New major version |
 
