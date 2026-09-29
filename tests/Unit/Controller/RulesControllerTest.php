@@ -61,6 +61,9 @@ class RulesControllerTest
 
 	private MockObject|LoggerInterface    $logger;
 
+	/** The configuration the controller's algorithm catalogue reads. */
+	private MockObject|IAppConfig         $catalogueConfig;
+
 	private RulesController               $controller;
 
 
@@ -101,7 +104,7 @@ class RulesControllerTest
 			                         $this->groupFolderService,
 			                         $this->filecacheService,
 			                         $this->logger,
-					new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ),
+					new AlgorithmCatalogue( $this->catalogueConfig = $this->createMock( IAppConfig::class ) ),
 				$this->englishL10n(),
 			] )
 		                         ->getMock()
@@ -388,6 +391,30 @@ class RulesControllerTest
 		$this->assertTrue( $data['success'] );
 		$this->assertCount( 1, $data['rules'] );
 		$this->assertSame( [], $data['availableStorages'] );
+	}
+
+	/**
+	 * The listing names the default algorithm, so the New rule dialog starts
+	 * from it instead of from SHA-1, as a rule created through the API
+	 * without algorithms does.
+	 */
+	public function testTheListingNamesTheDefaultAlgorithm(): void
+	{
+		$this->signIn( 'alice' );
+		$this->scope( 'own' );
+		$this->catalogueConfig->method( 'getValueString' )
+		                      ->willReturn( 'sha256' )
+		;
+		$this->ruleService->method( 'listRulesFor' )
+		                  ->willReturn( [] )
+		;
+
+		$data = $this->controller->index()
+		                         ->getData()
+		;
+
+		$this->assertSame( 'sha256', $data['defaultAlgo'] );
+		$this->assertContains( 'sha256', $data['supportedAlgos'] );
 	}
 
 	public function testANonAdminCannotAskForTheWholeInstance(): void

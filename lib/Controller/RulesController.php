@@ -131,6 +131,9 @@ class RulesController
 			// What the personal page needs to know before offering token grants.
 			'canUseApi'      => $isAdmin || $this->permissionService->isAllowed( PermissionService::PERMISSION_API_ACCESS, $userId ),
 			'supportedAlgos' => $this->catalogue->algorithms(),
+			// What a new rule starts from, as a rule created through the API
+			// without algorithms gets it.
+			'defaultAlgo'    => $this->catalogue->default(),
 			'modes'          => RuleService::MODES,
 			'types'          => RuleService::TYPES,
 		];

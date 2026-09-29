@@ -13,6 +13,30 @@ describe('RuleForm', () => {
 		expect(wrapper.find('#fcias-rule-admin-enforced').exists()).toBe(true)
 	})
 
+	// The defect: the dialog always started a new rule from SHA-1, whatever
+	// the administrator had made the default, while a rule created through
+	// the API without algorithms got the default.
+	it('starts a new rule from the default algorithm, and an existing one from its own', async () => {
+		const fresh = mount(RuleForm, {
+			props: { rule: null, variant: 'admin', supportedAlgos: ['sha1', 'sha256'], defaultAlgo: 'sha256' },
+		})
+		await fresh.find('#fcias-btn-save-rule').trigger('click')
+		expect((fresh.emitted('save')?.[0]?.[0] as { algos: string[] }).algos).toEqual(['sha256'])
+
+		// "Create rule" on a placeholder row passes a rule without algorithms.
+		const placeholder = mount(RuleForm, {
+			props: { rule: { path: '**', mode: 'auto', algos: [], selector: 'storage:x', admin_enforced: false }, variant: 'admin', supportedAlgos: ['sha1', 'sha256'], defaultAlgo: 'sha256' },
+		})
+		await placeholder.find('#fcias-btn-save-rule').trigger('click')
+		expect((placeholder.emitted('save')?.[0]?.[0] as { algos: string[] }).algos).toEqual(['sha256'])
+
+		const existing = mount(RuleForm, {
+			props: { rule: { id: 5, path: '/a', mode: 'auto', algos: ['md5'], selector: 'home:*', admin_enforced: false }, variant: 'admin', supportedAlgos: ['sha1', 'md5', 'sha256'], defaultAlgo: 'sha256' },
+		})
+		await existing.find('#fcias-btn-save-rule').trigger('click')
+		expect((existing.emitted('save')?.[0]?.[0] as { algos: string[] }).algos).toEqual(['md5'])
+	})
+
 	it('seeds fields from an existing rule', () => {
 		const wrapper = mount(RuleForm, {
 			props: {

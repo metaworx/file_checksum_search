@@ -72,6 +72,7 @@ const {
 	statusError,
 	lastUpdated,
 	supportedAlgos,
+	defaultAlgo,
 	availableUsers,
 	availableGroups,
 	groupFoldersAvailable,
@@ -220,7 +221,8 @@ function handleCreateForNamespace(payload: { selector: string; label: string }):
 		id: undefined,
 		type: 'include',
 		mode: 'auto',
-		algos: ['sha1', 'md5'],
+		// None: the form starts a new rule from the instance's default.
+		algos: [],
 		path: '**',
 		selector: payload.selector,
 		admin_enforced: false,
@@ -432,6 +434,7 @@ loadRules().then(() => {
 					variant="admin"
 					:error-message="saveError"
 					:supported-algos="supportedAlgos"
+					:default-algo="defaultAlgo"
 					:available-users="availableUsers"
 					:available-groups="availableGroups"
 					:group-folders-available="groupFoldersAvailable"

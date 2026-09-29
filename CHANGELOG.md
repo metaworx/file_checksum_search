@@ -43,6 +43,9 @@ the first stable release.
 - The Duplicates page: "Verify" and "Verify all" are offered only to an
   account that may recalculate checksums.
 
+- A new rule, in the dialog and from "Create rule": it starts from the
+  default algorithm instead of SHA-1.
+
 - Enabling or upgrading on a large instance: the repair's hash-index
   check and orphan purge held the request for a minute.
 

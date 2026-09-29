@@ -28,6 +28,8 @@ const props = defineProps<{
 	rule: RuleDraft | null
 	variant: 'admin' | 'personal'
 	supportedAlgos: string[]
+	/** The algorithm a new rule starts from; the first supported one while unknown. */
+	defaultAlgo?: string
 	/** Admin variant only: user ids offered when "Applies to" is one user. */
 	availableUsers?: string[]
 	/** Admin variant only: group ids offered when "Applies to" is a group. */
@@ -83,10 +85,15 @@ const draft = reactive<RuleDraft>({
 	type: 'include',
 	path: '/',
 	mode: 'auto',
-	algos: ['sha1'],
+	algos: [],
 	selector: 'home:*',
 	admin_enforced: false,
 })
+
+/** What a new rule starts from: the instance's default, as a rule created through the API gets it. */
+function startingAlgos(): string[] {
+	return [props.defaultAlgo || props.supportedAlgos[0] || 'sha1']
+}
 
 /**
  * The selector is edited as two controls — kind, then the target — because
@@ -101,7 +108,7 @@ function seed(rule: RuleDraft | null): void {
 	draft.type = rule?.type || 'include'
 	draft.path = rule?.path || '/'
 	draft.mode = rule?.mode || 'auto'
-	draft.algos = rule?.algos?.length ? rule.algos.slice() : ['sha1']
+	draft.algos = rule?.algos?.length ? rule.algos.slice() : startingAlgos()
 	draft.selector = rule?.selector || 'home:*'
 	draft.admin_enforced = rule?.admin_enforced === true
 

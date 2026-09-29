@@ -31,6 +31,7 @@ interface RulesResponse extends ApiResponse {
 	canCreate?: boolean
 	canUseApi?: boolean
 	supportedAlgos?: string[]
+	defaultAlgo?: string
 	modes?: string[]
 	types?: string[]
 	availableUsers?: string[]
@@ -47,6 +48,8 @@ interface State {
 	/** Whether this user may call the public API with an app password — and so be offered token grants. */
 	canUseApi: boolean
 	supportedAlgos: string[]
+	/** The algorithm a new rule starts from: the instance's default. */
+	defaultAlgo: string
 	modes: string[]
 	types: string[]
 	availableUsers: string[]
@@ -67,6 +70,7 @@ export function useRules(scope: 'own' | 'all') {
 		canCreate: false,
 		canUseApi: false,
 		supportedAlgos: [],
+		defaultAlgo: '',
 		modes: [],
 		types: [],
 		availableUsers: [],
@@ -98,6 +102,7 @@ export function useRules(scope: 'own' | 'all') {
 			state.canCreate = data.canCreate === true
 			state.canUseApi = data.canUseApi === true
 			state.supportedAlgos = data.supportedAlgos || []
+			state.defaultAlgo = data.defaultAlgo || ''
 			state.modes = data.modes || []
 			state.types = data.types || []
 			state.availableUsers = data.availableUsers || []

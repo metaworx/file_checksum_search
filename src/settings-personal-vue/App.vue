@@ -26,6 +26,7 @@ const {
 	rules,
 	canCreate,
 	supportedAlgos,
+	defaultAlgo,
 	loaded,
 	error,
 	loadRules,
@@ -218,6 +219,7 @@ loadRules()
 				variant="personal"
 				:error-message="saveError"
 				:supported-algos="supportedAlgos"
+				:default-algo="defaultAlgo"
 				@save="handleSaveRule"
 				@cancel="closeRuleForm" />
 
