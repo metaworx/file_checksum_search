@@ -1,10 +1,10 @@
 <!-- GENERATED FILE - DO NOT EDIT.
      Source: shared/_AGENTS.md + project/_CONTRACT.md
      Regenerate: GUIDELINES/shared/tools/sync-docs.sh
-     Contract version: v3.11.6 -->
+     Contract version: v3.14.0 -->
 
 
-# AI Agent Guidelines (v3.11.6)
+# AI Agent Guidelines (v3.14.0)
 
 Core behavioral rules for AI agents working on this codebase.  
 All agents MUST comply.
@@ -14,7 +14,7 @@ refer to linked documents for extended guidance.
 ## Contents
 
 <!-- BEGIN GENERATED CONTENTS - do not edit; run "GUIDELINES/shared/tools/sync-docs.sh" -->
-- AI Agent Guidelines (v3.11.6)
+- AI Agent Guidelines (v3.14.0)
   1. Critical Behavioral Rules (STRICT)
     - 1.1 Gate Message Mechanism
     - 1.2 Action Plan (AP) Requirement
@@ -30,6 +30,7 @@ refer to linked documents for extended guidance.
     - 5.1 Format & Versioning
     - 5.2 Required Sections
     - 5.3 Persistence (UAMF)
+    - 5.4 Notes
   6. Commit Policy (STRICT)
   7. Additional References
   8. Document Governance
@@ -60,14 +61,14 @@ refer to linked documents for extended guidance.
 - The gate message MUST follow the **Universal Gate Template**
   (`GUIDELINES/shared/GATE_WORKFLOW.md` §4), which owns its fields.
 - The gate MUST state, in the user's terms,
-  **what `EXEC` will do** and **what `EXEC+` will continue to** afterwards.
+  **what each signal it offers will do**.
   A signal the user cannot predict the effect of is not consent.
-- Where the runtime offers a structured question tool (see
-  `GUIDELINES/shared/tools/RUNTIME_TOOLS.md`),
-  the gate SHOULD present the available signals through it as selectable options,
-  with the recommended one first.
-  The text template still applies: the tool carries the choice,
-  not the reasoning.
+  Which signals a gate offers, `EXEC+` and variants of the gate's own included,
+  is `GUIDELINES/shared/GATE_WORKFLOW.md` §6.
+- The signals are listed as text, at the end of the gate message itself.
+  A runtime that can end a turn only through a tool call, as Roo's can,
+  carries a short label there and nothing more:
+  the gate is the text, and the tool is not where the choice is explained.
 - A gate message is the **only** valid way to request user confirmation.
   Echoing "waiting for input" via shell commands is a **violation** of this rule.
 - A visual workflow diagram is available in `GUIDELINES/shared/GATE_WORKFLOW.md`.
@@ -174,6 +175,11 @@ that follows strict rules:
 - It is **never overwritten**.
   A revision is a new file carrying a new version in its name;
   the previous one stays where it is.
+- Within the agent turn that writes it, the agent MAY still edit it:
+  to fill in a copy of the previous revision it started from,
+  or to correct a mistake it notices after writing.
+  That ends once work based on it has started,
+  or it has been presented to the user.
 
 Where a file is written depends on what it is and how long it needs to live:
 
@@ -207,7 +213,8 @@ Citation rules follow from that, and they are absolute:
       and `ERR` are user-facing keywords from §3, not AP title components.
 - Examples: `AP Bild v1.0: Extract decision functions`,
   `AP FilterFix v1.0: Fix type validation`.
-- Increment version on every update.
+- Increment the version on every revision.
+  A NOTE (§5.4) is not a revision, and leaves the version as it is.
 - Retain cumulative `Change History` within the AP document (append‑only).
 
 ### 5.2 Required Sections
@@ -223,12 +230,33 @@ Citation rules follow from that, and they are absolute:
 
 - Write each AP revision as a [UAMF](#4-user-accessible-message-files-uamf) in
   `GUIDELINES/wip/` before modifying any project files,
-  and commit it with the work it drives.
+  and commit it before any commit names a block of it.
   A plan that exists only in one working copy cannot be reviewed,
   and a commit that cites it would be citing nothing.
-- Retiring an AP - by which commit, what stays reachable afterwards,
+- Registering, noting and retiring an AP - which commit carries each,
+  when a plan may retire, what stays reachable afterwards,
   and the MUST NOT retire on the agent's own judgement -
   is `GUIDELINES/shared/COMMIT.md` §6.
+
+### 5.4 Notes
+
+A NOTE records a small change or a decision beside its plan,
+without a new revision.
+
+- Its **name** is `YYYY-MM-DD_HH-NN_NOTE_<Name>_v<X.Y>_<slug>.md`,
+  in `GUIDELINES/wip/` beside the plan,
+  where `<Name>` and `<X.Y>` are those of the plan revision it amends.
+- Its **title** is `NOTE <Name> v<X.Y>: <slug words>`.
+- It is **for** a decision, a measured fact,
+  or a change to a step while the plan's blocks stand.
+  Where the blocks change, it SHOULD be a new revision instead.
+- It is a **UAMF** like any other, never overwritten,
+  so a correction is another NOTE.
+- Its **record** is a `File-revision-v1` trailer in the commit that adds it,
+  carrying the version of the plan revision it amends, which its title names.
+- It **stays** until its plan retires,
+  which takes every revision and every NOTE of the plan together.
+  A later revision neither replaces it nor folds it in.
 
 ## 6. Commit Policy (STRICT)
 
