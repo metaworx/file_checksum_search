@@ -26,6 +26,7 @@ use OCP\Files\Storage\IStorage;
 use OCP\IAppConfig;
 use OCP\IGroup;
 use OCP\IGroupManager;
+use OCP\IL10N;
 use OCP\IUser;
 use OCP\IUserManager;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -2901,6 +2902,46 @@ class RuleServiceTest
 			'received share',
 			(string) $this->service->ruleTargetRefusal( 'bob', '/RenamedShare/**' ),
 		);
+	}
+
+	/**
+	 * The refusal reaches the person creating the rule on the web, so it goes
+	 * through IL10N like every message the interface shows, and names the
+	 * team folder as the rest of the app does.
+	 */
+	public function testRuleTargetRefusalIsTranslated(): void
+	{
+		$translated = $this->createMock( IL10N::class );
+		$translated->method( 't' )
+		           ->willReturnCallback( static fn ( string $text ): string => 'translated: ' . $text )
+		;
+		$service = new RuleService(
+			$this->appConfig,
+			$this->rootFolder,
+			$this->userManager,
+			$this->metadataService,
+			$this->logger,
+			$this->permissionService,
+			$this->groupManager,
+			$this->filecacheService,
+			$translated,
+		);
+
+		$mounted = $this->createFolderMock( homeStorage: false );
+		$home    = $this->createFolderMock();
+		$home->method( 'get' )
+		     ->with( '/RenamedShare' )
+		     ->willReturn( $mounted )
+		;
+		$this->rootFolder->method( 'getUserFolder' )
+		                 ->with( 'bob' )
+		                 ->willReturn( $home )
+		;
+
+		$refusal = (string) $service->ruleTargetRefusal( 'bob', '/RenamedShare/**' );
+
+		$this->assertStringStartsWith( 'translated: ', $refusal );
+		$this->assertStringContainsString( 'a team folder', $refusal );
 	}
 
 	// ─── applyRule ──────────────────────────────────────────────────

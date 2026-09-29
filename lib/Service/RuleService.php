@@ -1642,24 +1642,24 @@ class RuleService
 				? $userFolder
 				: $userFolder->get( $folderPath );
 
+			// The reason reaches the person creating the rule, so it is
+			// theirs to read, in their language.
 			if ( ! $node->getStorage()
 			            ->instanceOfStorage( IHomeStorage::class ) )
 			{
-				return 'The path leads into a received share, a group folder or another mounted storage. '
-					. 'A personal rule only governs your own files; those files are governed by their '
-					. 'owner\'s or the folder\'s own rules.';
+				return $this->l10n->t( 'The path leads into a received share, a team folder or another mounted storage. A personal rule only governs your own files; those files are governed by their owner\'s or the folder\'s own rules.' );
 			}
 
 			if ( ! ( $node instanceof Folder ) || ! $node->isCreatable() )
 			{
-				return 'The path is not in a folder you can write to.';
+				return $this->l10n->t( 'The path is not in a folder you can write to.' );
 			}
 
 			return null;
 		}
 		catch ( Throwable )
 		{
-			return 'The path is not in a folder you can write to.';
+			return $this->l10n->t( 'The path is not in a folder you can write to.' );
 		}
 	}
 

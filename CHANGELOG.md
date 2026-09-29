@@ -46,6 +46,9 @@ the first stable release.
 - A new rule, in the dialog and from "Create rule": it starts from the
   default algorithm instead of SHA-1.
 
+- The refusal of a personal rule on a share or a team folder: in the
+  reader's language.
+
 - Enabling or upgrading on a large instance: the repair's hash-index
   check and orphan purge held the request for a minute.
 
