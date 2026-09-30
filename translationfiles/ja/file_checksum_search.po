@@ -1,0 +1,1139 @@
+# Japanese translations for Nextcloud package.
+# Copyright (C) 2026 THE Nextcloud'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the Nextcloud package.
+# Automatically generated, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Nextcloud 3.14159\n"
+"Report-Msgid-Bugs-To: translations\\@example.com\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: Claude (AI draft, not reviewed by a native speaker)\n"
+"Language-Team: none\n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#. TRANSLATORS: "Yes" is the value this column shows; translate it as that does
+msgid "\"Yes\" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it."
+msgstr "「はい」は、管理者がこのルールを強制したことを意味します。他の誰もこのルールを編集したり無効にしたりできません。また、強制ルールは最初の4つの階層を占めるため、個人ルールがこのルールより前に来ることはありません。"
+
+msgid "%n file"
+msgid_plural "%n files"
+msgstr[0] "%n個のファイル"
+
+msgid "(not in your files)"
+msgstr "（あなたのファイルにはありません）"
+
+msgid "A disabled rule cannot be applied — enable it first."
+msgstr "無効なルールは適用できません。先に有効にしてください。"
+
+#. TRANSLATORS: "Security" and "Allow filesystem access" are Nextcloud's own names; use Nextcloud's translations. Keep /api/v1/sudo/ as it is
+msgid "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password. A grant stays in force until it is revoked, and every administrator can see it. Create the app password under \"Security\" first, with \"Allow filesystem access\" on. Whether you may look across accounts at all is still up to your administrator; a grant replaces the password prompt, not the permission."
+msgstr "承認されたアプリパスワードは、誰もパスワードを入力することなく、/api/v1/sudo/ のルートを通じてアカウントを横断して読み取ることができます。承認は取り消されるまで有効であり、すべての管理者が確認できます。まず「セキュリティ」で、「ファイルシステムへのアクセスを許可」をオンにしてアプリパスワードを作成してください。そもそもアカウントを横断して閲覧できるかどうかは、引き続き管理者が決めます。承認が置き換えるのはパスワードの入力要求であり、権限ではありません。"
+
+msgid "A home folder"
+msgstr "ホームフォルダー"
+
+msgid "A path is required."
+msgstr "パスが必要です。"
+
+msgid "A single account"
+msgstr "1つのアカウント"
+
+msgid "A storage"
+msgstr "ストレージ"
+
+msgid "A team folder"
+msgstr "チームフォルダー"
+
+msgid "Account"
+msgstr "アカウント"
+
+msgid "Accounts"
+msgstr "アカウント"
+
+#. TRANSLATORS a button: hides the banner until an include rule is enabled and then disabled again
+msgid "Acknowledge"
+msgstr "了解"
+
+msgid "Add an algorithm …"
+msgstr "アルゴリズムを追加…"
+
+msgid "Add rule"
+msgstr "ルールを追加"
+
+msgid "Administrator-enforced rules covering every home folder."
+msgstr "すべてのホームフォルダーを対象とする、管理者が強制したルールです。"
+
+msgid "Administrator-enforced rules covering every storage there is."
+msgstr "存在するすべてのストレージを対象とする、管理者が強制したルールです。"
+
+msgid "Administrator-enforced rules for one account's home folder or one storage. No other rule comes before them there, and the account cannot edit or disable them."
+msgstr "1つのアカウントのホームフォルダー、または1つのストレージを対象とする、管理者が強制したルールです。そこではこれらより前に来るルールはなく、そのアカウントはこれらを編集することも無効にすることもできません。"
+
+msgid "Administrator-enforced rules for the members of a group, or for one team folder. Only an enforced rule aimed at something more specific comes before them."
+msgstr "グループのメンバー、または1つのチームフォルダーを対象とする、管理者が強制したルールです。これらより前に来るのは、より限定的な対象に向けた強制ルールのみです。"
+
+msgid "Advanced"
+msgstr "詳細設定"
+
+msgid "Algorithm"
+msgstr "アルゴリズム"
+
+#, php-format
+msgid "Algorithm not allowed on this server: %s"
+msgstr "このサーバーでは許可されていないアルゴリズムです：%s"
+
+msgid "Algorithms"
+msgstr "アルゴリズム"
+
+msgid "Algorithms saved."
+msgstr "アルゴリズムを保存しました。"
+
+msgid "All accounts"
+msgstr "すべてのアカウント"
+
+msgid "All algorithms"
+msgstr "すべてのアルゴリズム"
+
+msgid "All home folders"
+msgstr "すべてのホームフォルダー"
+
+msgid "All my groups"
+msgstr "自分のすべてのグループ"
+
+msgid "Allow all accounts to edit rules"
+msgstr "すべてのアカウントにルールの編集を許可する"
+
+msgid "Allow all accounts to look across accounts"
+msgstr "すべてのアカウントにアカウントを横断した閲覧を許可する"
+
+msgid "Allow all accounts to recalculate checksums"
+msgstr "すべてのアカウントにチェックサムの再計算を許可する"
+
+msgid "Allow all accounts to use the API"
+msgstr "すべてのアカウントにAPIの使用を許可する"
+
+msgid "Allowed algorithms"
+msgstr "許可されたアルゴリズム"
+
+#. TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
+#, php-format
+msgid "An %s rule computes nothing, so there is nothing to apply."
+msgstr "%s ルールは何も計算しないため、適用するものはありません。"
+
+msgid "App password"
+msgstr "アプリパスワード"
+
+msgid "App password granted."
+msgstr "アプリパスワードを承認しました。"
+
+#. TRANSLATORS: "Who may look across accounts" is a heading on the Permissions tab; translate it as that heading does
+msgid "App passwords that may use the cross-account routes without a password prompt. A grant stays in force until it is revoked, so every one is listed here, and any can be revoked here. Who may look across accounts at all is decided under \"Who may look across accounts\"; a grant replaces the password prompt, not the permission."
+msgstr "パスワードの入力要求なしでアカウント横断のルートを使用できるアプリパスワードです。承認は取り消されるまで有効であるため、ここにすべてが一覧表示され、どれでもここで取り消すことができます。そもそも誰がアカウントを横断して閲覧できるかは、「アカウントを横断して閲覧できるユーザー」で決まります。承認が置き換えるのはパスワードの入力要求であり、権限ではありません。"
+
+msgid "App version"
+msgstr "アプリのバージョン"
+
+msgid "At least one allowed algorithm is required."
+msgstr "許可されたアルゴリズムが少なくとも1つ必要です。"
+
+msgid "Auto (recalculate existing checksums when outdated)"
+msgstr "自動（既存のチェックサムが古い場合は再計算）"
+
+msgid "Automatic hashing is inactive."
+msgstr "自動ハッシュ計算は停止しています。"
+
+msgid "Background jobs"
+msgstr "バックグラウンドジョブ"
+
+msgid "Band {band}"
+msgstr "第{band}階層"
+
+msgid "Band {band}, position {position}"
+msgstr "第{band}階層、位置{position}"
+
+msgid "Cancel"
+msgstr "キャンセル"
+
+msgid "Checksum algorithms"
+msgstr "チェックサムアルゴリズム"
+
+msgid "Checksum algorithms computed for matching files. Each algorithm you add is indexed separately, so more algorithms mean more work per file."
+msgstr "一致したファイルに対して計算するチェックサムアルゴリズムです。追加したアルゴリズムはそれぞれ別々にインデックス化されるため、アルゴリズムが多いほどファイルごとの処理が増えます。"
+
+#. TRANSLATORS: "—" is what the table shows for a rule that computes nothing; keep it
+msgid "Checksum algorithms computed for matching files. Each one is indexed separately, so more algorithms mean more work per file. Shown as \"—\" for a rule that computes nothing."
+msgstr "一致したファイルに対して計算するチェックサムアルゴリズムです。それぞれ別々にインデックス化されるため、アルゴリズムが多いほどファイルごとの処理が増えます。何も計算しないルールでは\"—\"と表示されます。"
+
+#. TRANSLATORS: a background job's name: it copies the checksums Nextcloud already holds into this app's index.
+msgid "Checksum copy"
+msgstr "既存チェックサムの取り込み"
+
+#. TRANSLATORS: a background job's name: it checks that every stored checksum can be found by a search, and fixes what cannot.
+msgid "Checksum index check"
+msgstr "チェックサムインデックスの検査"
+
+msgid "Checksums"
+msgstr "チェックサム"
+
+msgid "Checksums indexed for this file. Click one to copy it."
+msgstr "このファイルのインデックス済みチェックサムです。クリックするとコピーできます。"
+
+msgid "Choose accounts or groups"
+msgstr "アカウントまたはグループを選択"
+
+msgid "Choose an account or a group above to see its duplicates."
+msgstr "上でアカウントまたはグループを選択すると、その重複ファイルが表示されます。"
+
+msgid "Close"
+msgstr "閉じる"
+
+msgid "Copied!"
+msgstr "コピーしました！"
+
+msgid "Could not change the grant."
+msgstr "承認を変更できませんでした。"
+
+msgid "Could not complete the request."
+msgstr "リクエストを完了できませんでした。"
+
+msgid "Could not delete the rule."
+msgstr "ルールを削除できませんでした。"
+
+msgid "Could not enable or disable the rule."
+msgstr "ルールの有効・無効を切り替えられませんでした。"
+
+msgid "Could not list the grants: the app passwords could not be read."
+msgstr "アプリパスワードを読み取れなかったため、承認を一覧表示できませんでした。"
+
+msgid "Could not list your app passwords ({error})."
+msgstr "アプリパスワードの一覧を取得できませんでした（{error}）。"
+
+msgid "Could not list your app passwords: they could not be read."
+msgstr "アプリパスワードを読み取れなかったため、一覧を取得できませんでした。"
+
+msgid "Could not load the accounts and groups."
+msgstr "アカウントとグループを読み込めませんでした。"
+
+msgid "Could not load the algorithms."
+msgstr "アルゴリズムを読み込めませんでした。"
+
+msgid "Could not load the checksums."
+msgstr "チェックサムを読み込めませんでした。"
+
+msgid "Could not load the documentation."
+msgstr "ドキュメントを読み込めませんでした。"
+
+msgid "Could not load the duplicates."
+msgstr "重複ファイルを読み込めませんでした。"
+
+msgid "Could not load the grants ({error})."
+msgstr "承認を読み込めませんでした（{error}）。"
+
+msgid "Could not load the permissions."
+msgstr "権限を読み込めませんでした。"
+
+msgid "Could not load the rules."
+msgstr "ルールを読み込めませんでした。"
+
+msgid "Could not load the status (HTTP {status})."
+msgstr "ステータスを読み込めませんでした（HTTP {status}）。"
+
+msgid "Could not load the status."
+msgstr "ステータスを読み込めませんでした。"
+
+msgid "Could not open the file for reading."
+msgstr "ファイルを読み取り用に開けませんでした。"
+
+msgid "Could not reapply the rule."
+msgstr "ルールを再適用できませんでした。"
+
+msgid "Could not recalculate the checksum."
+msgstr "チェックサムを再計算できませんでした。"
+
+msgid "Could not reorder the rules."
+msgstr "ルールを並べ替えられませんでした。"
+
+msgid "Could not revoke the grant."
+msgstr "承認を取り消せませんでした。"
+
+msgid "Could not save the options."
+msgstr "オプションを保存できませんでした。"
+
+msgid "Could not save the preference."
+msgstr "設定を保存できませんでした。"
+
+msgid "Could not save the rule."
+msgstr "ルールを保存できませんでした。"
+
+msgid "Creating and editing rules for folders in one's own files that one can write to. An administrator always may; a rule an administrator has enforced is read-only for everyone else regardless."
+msgstr "自分のファイル内の、書き込み可能なフォルダーに対するルールの作成と編集です。管理者は常に可能です。管理者が強制したルールは、この設定にかかわらず、他の全員にとって読み取り専用です。"
+
+#. TRANSLATORS prefill: fill the list of the picker before anything is typed
+msgid "Cross-account picker: prefill up to"
+msgstr "アカウント横断の選択リスト：事前表示する最大数"
+
+msgid "Cross-account reads"
+msgstr "アカウント横断の読み取り"
+
+msgid "Database version"
+msgstr "データベースのバージョン"
+
+#. TRANSLATORS: the entry that follows the server's default algorithm, named in brackets
+msgid "Default ({algorithm})"
+msgstr "デフォルト（{algorithm}）"
+
+msgid "Default algorithm"
+msgstr "デフォルトのアルゴリズム"
+
+#. TRANSLATORS: "**" and "/" are paths as they are typed; keep them
+msgid "Defaults for all home folders. Within this band a catch-all default — path \"**\", \"/\" or empty — always evaluates last, after the more specific rules here."
+msgstr "すべてのホームフォルダーのデフォルトです。この階層では、包括的なデフォルト（パスが\"**\"、\"/\"または空のもの）は、ここにあるより限定的なルールの後、常に最後に評価されます。"
+
+msgid "Delete"
+msgstr "削除"
+
+msgid "Delete rule"
+msgstr "ルールを削除"
+
+msgid "Delete this rule?"
+msgstr "このルールを削除しますか？"
+
+msgid "Disable"
+msgstr "無効にする"
+
+msgid "Disabled"
+msgstr "無効"
+
+msgid "Documentation"
+msgstr "ドキュメント"
+
+msgid "Documentation files"
+msgstr "ドキュメントファイル"
+
+msgid "Download {file}"
+msgstr "{file} をダウンロード"
+
+msgid "Drag to reorder among the rules of the same scope"
+msgstr "ドラッグして、同じ適用範囲のルールの間で並べ替え"
+
+msgid "Duplicates"
+msgstr "重複ファイル"
+
+msgid "Edit"
+msgstr "編集"
+
+msgid "Edit rule"
+msgstr "ルールを編集"
+
+msgid "Edit the rule on {path}"
+msgstr "{path} のルールを編集"
+
+msgid "Enable"
+msgstr "有効にする"
+
+msgid "Enabled"
+msgstr "有効"
+
+msgid "Enforced"
+msgstr "強制"
+
+msgid "Enforced — all home folders"
+msgstr "強制：すべてのホームフォルダー"
+
+msgid "Enforced — everything"
+msgstr "強制：すべて"
+
+msgid "Enforced — groups & team folders"
+msgstr "強制：グループとチームフォルダー"
+
+msgid "Enforced — specific"
+msgstr "強制：個別"
+
+#. TRANSLATORS: the state of checksums deleted because no rule maintains them any more
+msgid "Eroded"
+msgstr "失効"
+
+msgid "Error"
+msgstr "エラー"
+
+#. TRANSLATORS: "Enforced" is a field of the rule dialog and a column of the rule table; translate it as those do
+msgid "Evaluated top to bottom — the first matching rule decides the file. A rule's band follows from its scope and whether it is enforced, so enforced rules always precede personal rules, and the catch-all default is last. Drag a rule by its handle to reorder it among the rules of the same scope; to move it to another band, change its scope or its \"Enforced\" setting."
+msgstr "上から順に評価され、最初に一致したルールがファイルの扱いを決定します。ルールの階層は適用範囲と強制かどうかで決まるため、強制ルールは常に個人ルールより前にあり、包括的なデフォルトは最後になります。ルールをハンドルでドラッグすると、同じ適用範囲のルールの間で並べ替えられます。別の階層に移動するには、適用範囲または「強制」の設定を変更してください。"
+
+msgid "Evaluates in band {band} — {label}"
+msgstr "第{band}階層（{label}）で評価"
+
+msgid "Every rule that can affect your files, in the order they are evaluated — the first match decides. Rules an administrator enforced come first and are read-only; your own rules come next and are yours to edit and reorder; the defaults below them apply only where none of your rules matched. You can create rules only if you have been given permission and the path is a folder in your own files that you can write to."
+msgstr "あなたのファイルに影響しうるすべてのルールを、評価される順に表示しています。最初に一致したルールが決定します。管理者が強制したルールが最初に来て、読み取り専用です。次にあなた自身のルールが来て、自由に編集や並べ替えができます。その下のデフォルトは、あなたのルールがどれも一致しなかった場合にのみ適用されます。ルールを作成できるのは、権限が与えられていて、かつパスがあなた自身のファイル内の書き込み可能なフォルダーである場合のみです。"
+
+msgid "Everything"
+msgstr "すべて"
+
+msgid "Everything — every storage"
+msgstr "すべて：あらゆるストレージ"
+
+msgid "Exclude (never hash these files)"
+msgstr "除外する（これらのファイルは一切ハッシュ計算しない）"
+
+msgid "FAQ"
+msgstr "よくある質問"
+
+#. TRANSLATORS: a file's verification failed, for no reason the server gave
+msgid "Failed"
+msgstr "失敗"
+
+msgid "File Checksum Index & Search"
+msgstr "File Checksum Index & Search"
+
+msgid "File checksums"
+msgstr "ファイルのチェックサム"
+
+msgid "File not found."
+msgstr "ファイルが見つかりません。"
+
+msgid "Find across accounts"
+msgstr "アカウントを横断して検索"
+
+msgid "Find duplicates"
+msgstr "重複ファイルを検索"
+
+msgid "Find other files sharing a checksum with this file."
+msgstr "このファイルと同じチェックサムを持つ他のファイルを検索します。"
+
+msgid "Force (delete and recalculate all checksums)"
+msgstr "全件（すべてのチェックサムを削除して再計算）"
+
+#. TRANSLATORS: the quoted patterns are examples to type as they are
+msgid "Glob pattern the file path must match. \"**\" matches every file, \"**/*.txt\" matches by extension, and \"/Documents/**\" matches everything below one folder."
+msgstr "ファイルパスが一致する必要のあるglobパターンです。\"**\"はすべてのファイルに、\"**/*.txt\"は拡張子で、\"/Documents/**\"は1つのフォルダー以下のすべてに一致します。"
+
+#. TRANSLATORS: the quoted patterns are examples to type as they are
+msgid "Glob pattern the file path must match. \"**\" matches every file; \"/Documents/**\" matches everything below that folder. Rules are checked in order and the first match wins."
+msgstr "ファイルパスが一致する必要のあるglobパターンです。\"**\"はすべてのファイルに一致し、\"/Documents/**\"はそのフォルダー以下のすべてに一致します。ルールは順番に確認され、最初に一致したものが優先されます。"
+
+msgid "Grant revoked."
+msgstr "承認を取り消しました。"
+
+#. TRANSLATORS a column heading: when the app password was granted, and by whom
+msgid "Granted"
+msgstr "承認"
+
+#. TRANSLATORS: {time} is the date and time the app password was granted
+msgid "Granted {time}"
+msgstr "承認済み（{time}）"
+
+msgid "Group"
+msgstr "グループ"
+
+msgid "Group: {group}"
+msgstr "グループ：{group}"
+
+msgid "Groups"
+msgstr "グループ"
+
+msgid "Groups & team folders"
+msgstr "グループとチームフォルダー"
+
+msgid "Groups per page, 1 to 500"
+msgstr "1ページあたりの重複グループ数（1～500）"
+
+msgid "Hash"
+msgstr "ハッシュ"
+
+msgid "Hashing is excluded for this path by a rule."
+msgstr "このパスはルールによりハッシュ計算から除外されています。"
+
+msgid "Hashing is excluded for this path by an administrator's rule."
+msgstr "このパスは管理者のルールによりハッシュ計算から除外されています。"
+
+msgid "Hashing is excluded for this path by your own rule."
+msgstr "このパスはあなた自身のルールによりハッシュ計算から除外されています。"
+
+#. TRANSLATORS: {owner} is the account whose rule excludes the path
+msgid "Hashing is excluded for this path by {owner}'s rule."
+msgstr "このパスは {owner} のルールによりハッシュ計算から除外されています。"
+
+msgid "Help"
+msgstr "ヘルプ"
+
+msgid "Help: {label}"
+msgstr "ヘルプ：{label}"
+
+msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
+msgstr "1ページに表示する重複グループの数です。重複グループまたはファイルを検証するまで、ディスクからは何も読み取られません。そのため、ページを大きくしても、長くなるのはクエリの時間だけで、読み取りの時間ではありません。"
+
+msgid "Ignore (no automatic hashing; still allowed on request)"
+msgstr "無視する（自動ハッシュ計算なし、要求があれば計算可）"
+
+msgid "Include (compute checksums)"
+msgstr "含める（チェックサムを計算）"
+
+msgid "Indexed checksums"
+msgstr "インデックス済みチェックサム"
+
+msgid "Individual accounts that may call the public API with an app password, in addition to the members of any selected groups."
+msgstr "選択したグループのメンバーに加えて、アプリパスワードで公開APIを呼び出せる個々のアカウントです。"
+
+msgid "Individual accounts that may create and edit rules for folders in their own files that they can write to, in addition to the members of any selected groups."
+msgstr "選択したグループのメンバーに加えて、自分のファイル内の書き込み可能なフォルダーに対するルールを作成・編集できる個々のアカウントです。"
+
+msgid "Individual accounts that may look at other accounts' files once they have confirmed their password, in addition to the members of any selected groups and of the admin group."
+msgstr "選択したグループおよび管理者グループのメンバーに加えて、パスワードを確認した後に他のアカウントのファイルを閲覧できる個々のアカウントです。"
+
+msgid "Individual accounts that may recalculate checksums by hand, in addition to the members of any selected groups."
+msgstr "選択したグループのメンバーに加えて、チェックサムを手動で再計算できる個々のアカウントです。"
+
+msgid "Internal server error."
+msgstr "内部サーバーエラーが発生しました。"
+
+msgid "Invalid request body."
+msgstr "リクエストの本文が無効です。"
+
+msgid "Last updated"
+msgstr "最終更新"
+
+msgid "Last used"
+msgstr "最終使用"
+
+msgid "Lazy (delete checksums now, recalculate later)"
+msgstr "遅延（チェックサムを今すぐ削除し、後で再計算）"
+
+msgid "Loading checksums …"
+msgstr "チェックサムを読み込み中…"
+
+#. TRANSLATORS a switch beside the hash filter: the typed text may match anywhere inside a checksum, not only at its start
+msgid "Match anywhere in the hash"
+msgstr "ハッシュ内で部分一致"
+
+msgid "Match the term anywhere in the hash, not only at its start"
+msgstr "先頭だけでなく、ハッシュ内の任意の位置で一致させる"
+
+msgid "Members of a group"
+msgstr "グループのメンバー"
+
+msgid "Members of these groups may call the public API with an app password. Selected groups and selected accounts are combined — being in either is enough."
+msgstr "これらのグループのメンバーは、アプリパスワードで公開APIを呼び出せます。選択したグループと選択したアカウントは合わせて適用され、いずれかに含まれていれば十分です。"
+
+msgid "Members of these groups may create and edit rules for folders in their own files that they can write to. Selected groups and selected accounts are combined — being in either is enough."
+msgstr "これらのグループのメンバーは、自分のファイル内の書き込み可能なフォルダーに対するルールを作成・編集できます。選択したグループと選択したアカウントは合わせて適用され、いずれかに含まれていれば十分です。"
+
+msgid "Members of these groups may look across accounts once they have confirmed their password. Selected groups and selected accounts are combined — being in either is enough."
+msgstr "これらのグループのメンバーは、パスワードを確認した後にアカウントを横断して閲覧できます。選択したグループと選択したアカウントは合わせて適用され、いずれかに含まれていれば十分です。"
+
+msgid "Members of these groups may recalculate checksums by hand. Selected groups and selected accounts are combined — being in either is enough."
+msgstr "これらのグループのメンバーは、チェックサムを手動で再計算できます。選択したグループと選択したアカウントは合わせて適用され、いずれかに含まれていれば十分です。"
+
+#. TRANSLATORS a number field's label: the smallest number of files a listed group has, 2 to 100
+msgid "Min. files"
+msgstr "最小ファイル数"
+
+#. TRANSLATORS: the tab listing the duplicates among one's own files
+msgid "Mine"
+msgstr "自分のファイル"
+
+msgid "Missing (like Auto, and add missing checksums)"
+msgstr "欠落分（「自動」の処理に加えて、欠けているチェックサムを追加）"
+
+msgid "Mode"
+msgstr "モード"
+
+msgid "More actions for the rule on {path}"
+msgstr "{path} のルールのその他のアクション"
+
+msgid "Network error"
+msgstr "ネットワークエラー"
+
+msgid "New rule"
+msgstr "新しいルール"
+
+msgid "Next"
+msgstr "次へ"
+
+msgid "No"
+msgstr "いいえ"
+
+#. TRANSLATORS: "All home folders" is a scope as the rule table shows it, "Include" a rule type as the dialog shows it; translate them as those do
+msgid "No \"Include\" rule is enabled, so no file is hashed automatically. Enable the \"All home folders\" default in the table below, or add a rule. Recalculating by hand from the file sidebar still works."
+msgstr "有効な「含める」ルールがないため、どのファイルも自動ではハッシュ計算されません。下の表で「すべてのホームフォルダー」のデフォルトを有効にするか、ルールを追加してください。ファイルサイドバーからの手動での再計算は引き続き使用できます。"
+
+msgid "No accounts or groups to show"
+msgstr "表示するアカウントまたはグループはありません"
+
+#. TRANSLATORS "Security" is Nextcloud's personal settings section; use Nextcloud's own translation
+msgid "No app passwords yet. Create one under \"Security\", then grant it here."
+msgstr "アプリパスワードはまだありません。「セキュリティ」で作成してから、ここで承認してください。"
+
+msgid "No checksums available for this file."
+msgstr "このファイルのチェックサムはありません。"
+
+msgid "No documentation available."
+msgstr "利用できるドキュメントはありません。"
+
+msgid "No duplicate files found."
+msgstr "重複ファイルは見つかりませんでした。"
+
+msgid "No grants."
+msgstr "承認はありません。"
+
+msgid "No other files share checksums with this file."
+msgstr "このファイルと同じチェックサムを持つ他のファイルはありません。"
+
+msgid "No rules apply to your files."
+msgstr "あなたのファイルに適用されるルールはありません。"
+
+msgid "No rules yet."
+msgstr "ルールはまだありません。"
+
+msgid "No such app password on this account."
+msgstr "このアカウントにそのアプリパスワードはありません。"
+
+msgid "None"
+msgstr "なし"
+
+msgid "None of the requested algorithms is available on this server; the previous list is kept."
+msgstr "要求されたアルゴリズムはどれもこのサーバーで利用できないため、以前の一覧が維持されます。"
+
+msgid "Not granted"
+msgstr "未承認"
+
+msgid "Not in your files"
+msgstr "あなたのファイルにはありません"
+
+msgid "Not logged in."
+msgstr "ログインしていません。"
+
+#. TRANSLATORS: a file's verification result: the server did not get to this file
+msgid "Not processed"
+msgstr "未処理"
+
+#. TRANSLATORS: when a background job last ran: not at all
+msgid "Not run yet"
+msgstr "未実行"
+
+msgid "Not yours to look at."
+msgstr "閲覧する権限がありません。"
+
+#. TRANSLATORS: "Include" is a rule type as the rule dialog shows it; translate it as that does
+msgid "Noted — the banner stays hidden until an \"Include\" rule is enabled and then disabled again."
+msgstr "承知しました。「含める」ルールが有効にされ、その後再び無効にされるまで、このバナーは表示されません。"
+
+msgid "Numbers that shape how the interface behaves. The defaults suit most servers."
+msgstr "インターフェースの動作を決める数値です。ほとんどのサーバーにはデフォルトが適しています。"
+
+msgid "One account's home folder"
+msgstr "1つのアカウントのホームフォルダー"
+
+msgid "One storage (raw ID)"
+msgstr "1つのストレージ（内部ID）"
+
+msgid "Only administrators can edit or disable this rule"
+msgstr "このルールの編集と無効化を管理者のみに許可する"
+
+msgid "Only an app password can be granted; a browser session is discarded by the next login."
+msgstr "承認できるのはアプリパスワードのみです。ブラウザーのセッションは次回のログインで破棄されます。"
+
+msgid "Only groups of this algorithm, or every algorithm at once. The list holds the algorithms this server computes; one the administrator has not allowed is not offered."
+msgstr "このアルゴリズムの重複グループのみ、またはすべてのアルゴリズムの重複グループをまとめて表示します。一覧にはこのサーバーが計算するアルゴリズムが含まれます。管理者が許可していないアルゴリズムは表示されません。"
+
+msgid "Open the Duplicates page on this checksum, across every account you may see"
+msgstr "閲覧できるすべてのアカウントを対象に、このチェックサムで「重複ファイル」ページを開く"
+
+msgid "Options saved."
+msgstr "オプションを保存しました。"
+
+#. TRANSLATORS: a background job's name: it removes the checksums of files that no longer exist
+msgid "Orphan purge"
+msgstr "孤立エントリーの削除"
+
+#. TRANSLATORS: the tab listing the duplicates among other accounts' files
+msgid "Others"
+msgstr "他のアカウント"
+
+msgid "Path"
+msgstr "パス"
+
+msgid "Path (glob)"
+msgstr "パス（glob）"
+
+#, php-format
+msgid "Path does not resolve to a file: %s"
+msgstr "パスがファイルを指していません：%s"
+
+#. TRANSLATORS a number field's label: how many groups one page lists, 1 to 500
+msgid "Per page"
+msgstr "表示件数"
+
+msgid "Permissions"
+msgstr "権限"
+
+msgid "Permissions saved."
+msgstr "権限を保存しました。"
+
+msgid "Preferred algorithm"
+msgstr "優先するアルゴリズム"
+
+msgid "Preferred algorithm saved."
+msgstr "優先するアルゴリズムを保存しました。"
+
+msgid "Prefill up to"
+msgstr "事前表示する最大数"
+
+msgid "Previous"
+msgstr "前へ"
+
+msgid "Priority"
+msgstr "優先度"
+
+msgid "Priority band"
+msgstr "優先度の階層"
+
+#. TRANSLATORS: a background job's name: it computes the checksums of the queued files
+msgid "Queue drain"
+msgstr "キューの処理"
+
+#. TRANSLATORS files waiting for the background job to compute their checksums, counted by mode
+msgid "Queued files"
+msgstr "キュー内のファイル"
+
+msgid "Read every file in this group again, recalculate its checksum and compare"
+msgstr "この重複グループのすべてのファイルを読み直し、チェックサムを再計算して比較"
+
+msgid "Read the file again and recalculate its checksum with the chosen algorithm."
+msgstr "ファイルを読み直し、選択したアルゴリズムでチェックサムを再計算します。"
+
+msgid "Read this file again, recalculate its checksum and compare"
+msgstr "このファイルを読み直し、チェックサムを再計算して比較"
+
+msgid "Read-only"
+msgstr "読み取り専用"
+
+msgid "Reapply"
+msgstr "再適用"
+
+msgid "Reapply queued — a background job will go through the rule's files."
+msgstr "再適用をキューに追加しました。バックグラウンドジョブがこのルールのファイルを順に処理します。"
+
+msgid "Recalculate"
+msgstr "再計算"
+
+#. TRANSLATORS: "Recalculate" is a button of the file sidebar, "Verify" and "Verify all" buttons of the Duplicates page; translate them as those buttons do
+msgid "Recalculating checksums by hand: the sidebar's \"Recalculate\" buttons, \"Verify\" and \"Verify all\" on the Duplicates page, and the API's recalculation routes, for any file the account can reach. Reading checksums already computed is not affected. Without this permission neither the sidebar nor the Duplicates page shows the buttons, and the API refuses the request."
+msgstr "チェックサムの手動での再計算です。サイドバーの「再計算」ボタン、「重複ファイル」ページの「検証」と「すべて検証」、APIの再計算ルートが該当し、そのアカウントがアクセスできるすべてのファイルが対象です。計算済みのチェックサムの読み取りには影響しません。この権限がない場合、サイドバーにも「重複ファイル」ページにもこれらのボタンは表示されず、APIはリクエストを拒否します。"
+
+msgid "Refresh"
+msgstr "更新"
+
+#. TRANSLATORS: the state of checksums a reset has made invalid; a past participle, not the action
+msgid "Reset"
+msgstr "リセット済み"
+
+msgid "Revoke"
+msgstr "取り消す"
+
+msgid "Rule deleted."
+msgstr "ルールを削除しました。"
+
+msgid "Rule disabled."
+msgstr "ルールを無効にしました。"
+
+msgid "Rule enabled."
+msgstr "ルールを有効にしました。"
+
+msgid "Rule not found."
+msgstr "ルールが見つかりません。"
+
+msgid "Rule saved."
+msgstr "ルールを保存しました。"
+
+#. TRANSLATORS: a background job's name: every few minutes it applies the rules to the files and queues those that need checksums
+msgid "Rule sweep"
+msgstr "ルールの走査"
+
+msgid "Rules"
+msgstr "ルール"
+
+msgid "Rules applying to your files"
+msgstr "あなたのファイルに適用されるルール"
+
+msgid "Rules are evaluated in band order and the first match decides the file. A rule's band follows from its scope and whether it is enforced — it is not chosen directly, and reordering only moves a rule among the rules of the same scope."
+msgstr "ルールは階層の順に評価され、最初に一致したルールがファイルの扱いを決定します。ルールの階層は適用範囲と強制かどうかで決まり、直接選択するものではありません。並べ替えで移動できるのは、同じ適用範囲のルールの間だけです。"
+
+msgid "Rules for a group's members, or for one team folder. Not enforced: for a member's home folder, their personal rule comes first."
+msgstr "グループのメンバー、または1つのチームフォルダーに対するルールです。強制ではないため、メンバーのホームフォルダーについては、そのメンバーの個人ルールが先に来ます。"
+
+msgid "Rules for one account's home folder — personal rules — or for one storage. They decide a file only where no enforced rule matched it first."
+msgstr "1つのアカウントのホームフォルダーに対するルール（個人ルール）、または1つのストレージに対するルールです。先に一致した強制ルールがない場合にのみ、ファイルの扱いを決定します。"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Saved."
+msgstr "保存しました。"
+
+msgid "Saving failed."
+msgstr "保存に失敗しました。"
+
+msgid "Saving …"
+msgstr "保存中…"
+
+msgid "Scope"
+msgstr "適用範囲"
+
+msgid "Scripts and other apps calling this app's public API with an app password. The bundled pages — this one, the Duplicates page, the file sidebar — keep working for everyone; this decides who may reach the same routes from outside them."
+msgstr "アプリパスワードでこのアプリの公開APIを呼び出すスクリプトや他のアプリが対象です。同梱のページ（このページ、「重複ファイル」ページ、ファイルサイドバー）は引き続き全員が使用できます。この設定は、それらのページの外から同じルートにアクセスできるユーザーを決めます。"
+
+msgid "Search accounts …"
+msgstr "アカウントを検索…"
+
+msgid "Search groups …"
+msgstr "グループを検索…"
+
+msgid "Searching …"
+msgstr "検索しています…"
+
+#. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
+msgid "Select folder …"
+msgstr "フォルダーを選択…"
+
+msgid "Select groups …"
+msgstr "グループを選択…"
+
+msgid "Settings"
+msgstr "設定"
+
+msgid "Show only groups whose hash matches this"
+msgstr "ハッシュがこれに一致する重複グループのみ表示"
+
+#. TRANSLATORS: "Match anywhere in the hash" is the switch beside the field; translate it as that switch does
+msgid "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine."
+msgstr "入力した内容にハッシュが一致する重複グループのみを表示します。完全一致が先に、続いて入力した文字列で始まるものが表示されます。ハッシュの途中にも一致させるには、「ハッシュ内で部分一致」をオンにしてください。大文字でも構いません。"
+
+msgid "Smallest group to list: files sharing a checksum, 2 to 100"
+msgstr "表示する最小の重複グループ：同じチェックサムを持つファイル数（2～100）"
+
+msgid "Specific rules"
+msgstr "個別ルール"
+
+msgid "Status"
+msgstr "ステータス"
+
+msgid "Storage ID"
+msgstr "ストレージID"
+
+msgid "Storage: {storage}"
+msgstr "ストレージ：{storage}"
+
+msgid "Sudo tokens"
+msgstr "sudoトークン"
+
+msgid "Team folder"
+msgstr "チームフォルダー"
+
+msgid "Team folders"
+msgstr "チームフォルダー"
+
+msgid "That view needs your password confirmed again, or is not yours to look at."
+msgstr "この表示にはパスワードの再確認が必要か、閲覧する権限がありません。"
+
+#. TRANSLATORS: "All home folders" and "Everything" are scopes as the rule table shows them; translate them as those do
+msgid "The \"All home folders\" default covers home folders only: files on external storage and in team folders are reached only by the \"Everything\" default or by their own team-folder or storage rules."
+msgstr "「すべてのホームフォルダー」のデフォルトが対象とするのはホームフォルダーのみです。外部ストレージやチームフォルダー内のファイルが対象になるのは、「すべて」のデフォルト、またはそれぞれのチームフォルダーやストレージのルールによる場合のみです。"
+
+#. TRANSLATORS: "hash" is a parameter name; keep it
+msgid "The \"hash\" parameter is required."
+msgstr "\"hash\" パラメーターが必要です。"
+
+msgid "The algorithm the Checksums tab in the file sidebar offers as its first button. Leave it on the default to follow the server; pick one to have it first for every file, with the file's own rule providing the second button."
+msgstr "ファイルサイドバーの「チェックサム」タブが最初のボタンとして表示するアルゴリズムです。デフォルトのままにするとサーバーの設定に従います。1つ選ぶと、すべてのファイルでそれが最初に表示され、2番目のボタンにはそのファイル自身のルールのアルゴリズムが表示されます。"
+
+msgid "The algorithm used wherever none is named: new rules, the command line, the API, and the sidebar's first button for anyone who has not chosen one. Only an allowed algorithm can be the default; removing the default from the list above makes the first remaining one the default."
+msgstr "アルゴリズムが指定されていないときに使われるアルゴリズムです。新しいルール、コマンドライン、API、そして自分で選んでいない人のサイドバーの最初のボタンが該当します。デフォルトにできるのは許可されたアルゴリズムのみです。上の一覧からデフォルトを削除すると、残っている最初のアルゴリズムがデフォルトになります。"
+
+msgid "The algorithms rules may compute and pickers may offer, chosen from what this server's PHP provides. Removing one does not delete checksums already stored under it — they stay searchable — it only stops new ones being computed."
+msgstr "ルールが計算でき、選択リストが提示できるアルゴリズムです。このサーバーのPHPが提供するものから選びます。1つを削除しても、そのアルゴリズムで保存済みのチェックサムは削除されず、引き続き検索できます。新しいチェックサムが計算されなくなるだけです。"
+
+msgid "The default must be one of the allowed algorithms."
+msgstr "デフォルトは許可されたアルゴリズムのいずれかである必要があります。"
+
+msgid "The home folders of a group's members"
+msgstr "グループのメンバーのホームフォルダー"
+
+msgid "The last resort, covering every storage — external storage and team folders included. Enable deliberately: it can reach storage that is slow or costs money to read."
+msgstr "最後の手段として、外部ストレージやチームフォルダーを含むすべてのストレージを対象とします。有効にする際は慎重に判断してください。読み取りが遅いストレージや、読み取りに費用がかかるストレージにも及ぶ可能性があります。"
+
+msgid "The one account whose home folder this rule addresses."
+msgstr "このルールが対象とするホームフォルダーの持ち主である、1つのアカウントです。"
+
+msgid "The path is not in a folder you can write to."
+msgstr "このパスは書き込み可能なフォルダー内にありません。"
+
+msgid "The path leads into a received share, a team folder or another mounted storage. A personal rule only governs your own files; those files are governed by their owner's or the folder's own rules."
+msgstr "このパスは、受け取った共有、チームフォルダー、または他のマウントされたストレージの中を指しています。個人ルールが適用されるのはあなた自身のファイルのみです。それらのファイルには、所有者のルールまたはそのフォルダー自身のルールが適用されます。"
+
+msgid "The raw ID from the storages table, matched exactly, whatever kind of storage it names. Use this for external storage, or for any storage the other choices cannot address."
+msgstr "storages テーブルの内部IDで、完全一致で照合されます。どの種類のストレージでも指定できます。外部ストレージや、他の選択肢では指定できないストレージに使用してください。"
+
+msgid "The request never reached the server."
+msgstr "リクエストがサーバーに届きませんでした。"
+
+msgid "The rule addresses the home folder of every member of this group."
+msgstr "このルールは、このグループのすべてのメンバーのホームフォルダーを対象とします。"
+
+#. TRANSLATORS: {status} is an HTTP status, such as "404 Not Found"
+msgid "The server answered {status}."
+msgstr "サーバーが {status} を返しました。"
+
+msgid "The server sent an answer this page could not read."
+msgstr "サーバーから、このページで読み取れない応答が返されました。"
+
+msgid "The smallest group to list: how many files must share a checksum before they count as duplicates. Two lists every duplicate; a higher number lists only the widely copied ones."
+msgstr "表示する最小の重複グループです。重複とみなすために同じチェックサムを持つ必要があるファイルの数を指定します。2ではすべての重複が表示され、より大きな数では多くコピーされているものだけが表示されます。"
+
+msgid "The sudoers: members of the admin group always, plus the groups and accounts selected here. A group admin may also look at the members of the groups they administer without being selected. Looking across accounts still needs a password confirmation, which holds for 30 minutes, or a granted app password; this only says who may be asked."
+msgstr "sudoersです。管理者グループのメンバーは常に含まれ、加えてここで選択したグループとアカウントが含まれます。グループ管理者は、ここで選択されていなくても、自分が管理するグループのメンバーのファイルを閲覧できます。アカウントを横断して閲覧するには、引き続きパスワードの確認（30分間有効）または承認されたアプリパスワードが必要です。この設定は、誰にその確認を求めてよいかを決めるだけです。"
+
+msgid "The team folder this rule addresses. Every member sees the same files, and the rule follows the folder — not whoever happens to look at it."
+msgstr "このルールが対象とするチームフォルダーです。すべてのメンバーに同じファイルが表示され、ルールは閲覧している人ではなくフォルダーに従います。"
+
+msgid "The team folder this rule names, or the app that provides it, is not available, so the rule can never match."
+msgstr "このルールが指定するチームフォルダー、またはそれを提供するアプリが利用できないため、このルールが一致することはありません。"
+
+#. TRANSLATORS: "Add rule" is the button on each of these rows, "Save" the dialog's button; translate them as those buttons do
+msgid "These places exist on this server but have no catch-all rule of their own, so their files are decided by a more general rule, or by none at all. \"Add rule\" opens the dialog with a catch-all rule for the place; it is only stored once you click \"Save\" there."
+msgstr "これらの場所はこのサーバー上に存在しますが、独自の包括ルールがありません。そのため、そのファイルの扱いは、より一般的なルールによって決まるか、どのルールによっても決まりません。「ルールを追加」をクリックすると、その場所の包括ルールが入力された状態でダイアログが開きます。ルールが保存されるのは、ダイアログで「保存」をクリックしたときです。"
+
+msgid "This account may not apply this rule."
+msgstr "このアカウントはこのルールを適用できません。"
+
+msgid "This account may not change this rule."
+msgstr "このアカウントはこのルールを変更できません。"
+
+msgid "This account may not edit rules."
+msgstr "このアカウントはルールを編集できません。"
+
+msgid "This account may not recalculate checksums."
+msgstr "このアカウントはチェックサムを再計算できません。"
+
+msgid "This account may not use the API."
+msgstr "このアカウントはAPIを使用できません。"
+
+msgid "This app password has no filesystem access, so it cannot be granted."
+msgstr "このアプリパスワードにはファイルシステムへのアクセス権がないため、承認できません。"
+
+msgid "This app password has no filesystem access."
+msgstr "このアプリパスワードにはファイルシステムへのアクセス権がありません。"
+
+msgid "This is not a file."
+msgstr "これはファイルではありません。"
+
+msgid "This is your own rule. It applies only to your files and is evaluated after any rule an administrator has enforced."
+msgstr "これはあなた自身のルールです。あなたのファイルにのみ適用され、管理者が強制したルールの後に評価されます。"
+
+msgid "This tab shows other people's files: those of the accounts and groups chosen above. Leave this tab to go back to your own."
+msgstr "このタブには他の人のファイル、つまり上で選択したアカウントとグループのファイルが表示されます。自分のファイルに戻るには、このタブを離れてください。"
+
+msgid "Total: {count}"
+msgstr "合計：{count}"
+
+msgid "Tunables"
+msgstr "調整項目"
+
+msgid "Type"
+msgstr "タイプ"
+
+msgid "Type to search"
+msgstr "入力して検索"
+
+msgid "Unknown account."
+msgstr "不明なアカウントです。"
+
+msgid "Unknown group."
+msgstr "不明なグループです。"
+
+msgid "Unknown preference."
+msgstr "不明な設定です。"
+
+msgid "Unknown rule mode."
+msgstr "不明なルールモードです。"
+
+msgid "Unknown rule type."
+msgstr "不明なルールタイプです。"
+
+msgid "Untrusted checksums"
+msgstr "信頼できないチェックサム"
+
+msgid "Up to this many, the picker opens with every account and group it may offer already in the list. Above it, the picker asks the server as you type instead. Applies to administrators and group admins alike."
+msgstr "この数以下なら、選択リストは提示できるすべてのアカウントとグループをあらかじめ一覧に入れた状態で開きます。これを超えると、選択リストは代わりに入力に応じてサーバーに問い合わせます。管理者とグループ管理者の両方に適用されます。"
+
+msgid "User guide"
+msgstr "ユーザーガイド"
+
+msgid "Verification stopped: too many recalculation requests. Wait a minute and verify the remaining files."
+msgstr "再計算のリクエストが多すぎるため、検証を中止しました。1分待ってから残りのファイルを検証してください。"
+
+msgid "Verified"
+msgstr "検証済み"
+
+msgid "Verify"
+msgstr "検証"
+
+msgid "Verify all"
+msgstr "すべて検証"
+
+#. TRANSLATORS: "Auto", "Missing", "Force" and "Lazy" name the choices of the Mode field; translate them as that field does
+msgid "What happens to a file that already has checksums. \"Auto\" recalculates only outdated ones, \"Missing\" also adds missing ones, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
+msgstr "すでにチェックサムがあるファイルの扱いです。「自動」は古くなったものだけを再計算し、「欠落分」は欠けているものも追加し、「全件」はすべてを削除して再計算し、「遅延」は今すぐ削除して後の実行で再計算させます。"
+
+#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, and "—" what it shows for a rule that computes nothing; keep them
+msgid "What happens to a file that already has checksums. \"auto\" recalculates only outdated ones, \"missing\" also adds missing ones, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. Shown as \"—\" for a rule that computes nothing."
+msgstr "すでにチェックサムがあるファイルの扱いです。\"auto\"は古くなったものだけを再計算し、\"missing\"は欠けているものも追加し、\"force\"はすべてを削除して再計算し、\"lazy\"は今すぐ削除して後の実行で再計算させます。何も計算しないルールでは\"—\"と表示されます。"
+
+#. TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
+msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."
+msgstr "このルールに一致したときの動作です。「含める」は下のチェックサムを計算します。「無視する」は自動ハッシュ計算を止めますが、ファイルを手動で再計算することはできます。「除外する」はハッシュ計算を完全に禁止します。従量課金の外部ストレージなど、読み取ってはならないストレージに使用してください。"
+
+#. TRANSLATORS: "include", "ignore" and "exclude" are the rule types as the table shows them; keep them
+msgid "What happens when this rule matches. \"include\" computes the checksums in this row. \"ignore\" stops automatic hashing but still allows a manual recalculation. \"exclude\" blocks hashing by every route, including the sidebar button, the API and the occ command."
+msgstr "このルールに一致したときの動作です。\"include\"はこの行のチェックサムを計算します。\"ignore\"は自動ハッシュ計算を止めますが、手動での再計算は可能です。\"exclude\"は、サイドバーのボタン、API、occコマンドを含むあらゆる経路でハッシュ計算を禁止します。"
+
+msgid "When on, every account may call the public API with an app password. When off, only the groups and individual accounts selected here may; the app's own pages keep working for everyone."
+msgstr "オンの場合、すべてのアカウントがアプリパスワードで公開APIを呼び出せます。オフの場合、呼び出せるのはここで選択したグループと個々のアカウントのみです。アプリ自身のページは引き続き全員が使用できます。"
+
+msgid "When on, every account may create and edit rules for folders in their own files that they can write to. When off, only the groups and individual accounts you select may."
+msgstr "オンの場合、すべてのアカウントが、自分のファイル内の書き込み可能なフォルダーに対するルールを作成・編集できます。オフの場合、それができるのは選択したグループと個々のアカウントのみです。"
+
+msgid "When on, every account may look across all accounts after confirming their password. When off, only members of the admin group and the groups and accounts selected here may."
+msgstr "オンの場合、すべてのアカウントがパスワードを確認した後にすべてのアカウントを横断して閲覧できます。オフの場合、それができるのは管理者グループのメンバーと、ここで選択したグループとアカウントのみです。"
+
+msgid "When on, every account may recalculate checksums by hand. When off, only the groups and individual accounts selected here may; everyone still sees the checksums already computed."
+msgstr "オンの場合、すべてのアカウントがチェックサムを手動で再計算できます。オフの場合、それができるのはここで選択したグループと個々のアカウントのみです。計算済みのチェックサムは引き続き全員に表示されます。"
+
+msgid "When set, nobody else can edit or disable this rule. Enforced rules are evaluated before every personal rule, so none can come before them."
+msgstr "設定すると、他の誰もこのルールを編集したり無効にしたりできなくなります。強制ルールはすべての個人ルールより先に評価されるため、個人ルールがこれらより前に来ることはありません。"
+
+#. TRANSLATORS: the help text of the Priority column, explaining the number format its cells use; keep 7.1 and 7 as numbers
+msgid "Where the rule sits in evaluation order: its band, and its position among the rules of the same scope in that band, joined by a dot, so 7.1 is the first rule of band 7. The first rule that matches a file decides it outright, so a lower number is stronger. The band follows from the rule's scope and whether it is enforced — it is never chosen directly — and the position is what dragging changes."
+msgstr "ルールが評価順のどこにあるかを示します。階層と、その階層内で同じ適用範囲のルールの中での位置をドットでつないだもので、7.1は第7階層の最初のルールです。ファイルに最初に一致したルールがそのファイルの扱いを確定するため、数値が小さいほど強くなります。階層はルールの適用範囲と強制かどうかで決まり、直接選択することはありません。ドラッグで変わるのは位置です。"
+
+msgid "Whether the rule takes part in evaluation at all. A disabled rule is skipped as though it were not there, so the next matching rule decides instead."
+msgstr "ルールを評価の対象にするかどうかです。無効なルールは存在しないものとして飛ばされ、代わりに次に一致するルールが決定します。"
+
+msgid "Which algorithms this server computes, from what its PHP provides, and which of them is the default. Rules may only use these, and every picker in the app offers exactly these."
+msgstr "このサーバーがPHPの提供するものの中から計算するアルゴリズムと、そのうちどれをデフォルトにするかを決めます。ルールはこれらのみを使用でき、アプリ内のすべての選択リストはこれらだけを提示します。"
+
+msgid "Which files get checksums, with which algorithms, and which are left alone. Rules act when a file is created or changed, and a background job applies them to existing files after a few minutes."
+msgstr "どのファイルのチェックサムをどのアルゴリズムで計算し、どのファイルには手を付けないかを決めます。ルールはファイルの作成時や変更時に働き、既存のファイルには数分後にバックグラウンドジョブが適用します。"
+
+#. TRANSLATORS: "All home folders" and "Everything" are scopes as the table shows them; translate them as those do
+msgid "Which files the rule addresses: one account's home folder, the home folders of one group's members, \"All home folders\", one team folder, one storage by its ID, or \"Everything\". A rule only ever meets files inside its scope — \"All home folders\" reaches every home folder and nothing else, while \"Everything\" also reaches team folders and external storage."
+msgstr "ルールが対象とするファイルです。1つのアカウントのホームフォルダー、1つのグループのメンバーのホームフォルダー、「すべてのホームフォルダー」、1つのチームフォルダー、IDで指定する1つのストレージ、または「すべて」のいずれかです。ルールが扱うのは、その適用範囲内のファイルだけです。「すべてのホームフォルダー」はすべてのホームフォルダーを対象とし、それ以外は対象としません。一方「すべて」は、チームフォルダーや外部ストレージも対象とします。"
+
+msgid "Which files this rule addresses: all home folders, the home folders of one group's members, a single account's home folder, one team folder, one storage by its raw ID, or everything — every storage, external storage and team folders included."
+msgstr "このルールが対象とするファイルです。すべてのホームフォルダー、1つのグループのメンバーのホームフォルダー、1つのアカウントのホームフォルダー、1つのチームフォルダー、内部IDで指定する1つのストレージ、またはすべて（外部ストレージやチームフォルダーを含む、すべてのストレージ）のいずれかです。"
+
+msgid "Who may edit rules"
+msgstr "ルールを編集できるユーザー"
+
+msgid "Who may look across accounts"
+msgstr "アカウントを横断して閲覧できるユーザー"
+
+msgid "Who may recalculate checksums"
+msgstr "チェックサムを再計算できるユーザー"
+
+msgid "Who may use the API"
+msgstr "APIを使用できるユーザー"
+
+msgid "Whole hash or part of one"
+msgstr "ハッシュの全体または一部"
+
+msgid "Whose files"
+msgstr "ファイルの所有者"
+
+msgid "Without a rule of their own"
+msgstr "独自のルールなし"
+
+#. TRANSLATORS: whether an administrator enforced the rule
+msgid "Yes"
+msgstr "はい"
+
+msgid "You are not allowed to edit rules. Contact an administrator."
+msgstr "ルールを編集する権限がありません。管理者にお問い合わせください。"
+
+msgid "You may only reorder your own rules."
+msgstr "並べ替えられるのは自分のルールのみです。"
+
+msgid "Your own file"
+msgstr "あなた自身のファイル"
+
+msgid "Your preferred algorithm"
+msgstr "あなたが優先するアルゴリズム"
+
+msgid "app password deleted — the grant remains"
+msgstr "アプリパスワードは削除済み（承認は残っています）"
+
+#. TRANSLATORS: fileIds is a parameter name; keep it
+msgid "fileIds must be a non-empty list of integers."
+msgstr "fileIds は空でない整数のリストである必要があります。"
+
+#. TRANSLATORS a badge on a rule whose team folder is not available
+msgid "folder missing"
+msgstr "フォルダー利用不可"
+
+#. TRANSLATORS: "groupfolder:" is the selector's prefix as it is typed; keep it
+msgid "groupfolder: takes the numeric folder ID."
+msgstr "groupfolder: には数値のフォルダーIDを指定します。"
+
+msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
+msgstr "リセットにより無効化：すでに検索には表示されず、バックグラウンドジョブによる削除を待っています"
+
+#. TRANSLATORS: an example of what to type; keep the storage IDs as they are
+msgid "local::/path/ or smb::…"
+msgstr "local::/path/ または smb::…"
+
+#. TRANSLATORS: when an app password was last used, or granted: not at all
+msgid "never"
+msgstr "なし"
+
+msgid "no catch-all rule — files the rules above do not match are left to a more general rule, if one is enabled"
+msgstr "包括ルールなし：上のルールに一致しないファイルは、より一般的なルールが有効であればそのルールに委ねられます"
+
+msgid "no rule of its own — its files are left to a more general rule, if one is enabled"
+msgstr "独自のルールなし：そのファイルは、より一般的なルールが有効であればそのルールに委ねられます"
+
+#. TRANSLATORS: the checksum a file has now, after verification found it changed
+msgid "now: {hash}"
+msgstr "現在：{hash}"
+
+#. TRANSLATORS: selector is a parameter name; keep it
+msgid "selector must be a non-empty string."
+msgstr "selector は空でない文字列である必要があります。"
+
+msgid "the file changed while no rule maintained its checksums, so they were deleted; it gets them back once a rule covers it again"
+msgstr "どのルールもチェックサムを維持していない間にファイルが変更されたため、チェックサムは削除されました。再びルールの対象になると、チェックサムは再計算されます"
+
+#. TRANSLATORS: value is a parameter name; keep it
+msgid "value must be a string."
+msgstr "value は文字列である必要があります。"
+
+#. TRANSLATORS: {folders} is what the team folders app calls itself, e.g. "Team folders"
+msgid "{folders} — one folder"
+msgstr "{folders}：1つのフォルダー"
+
+#. TRANSLATORS: a rule's scope: {folders} is what the team folders app calls itself, {folder} one team folder's name
+msgid "{folders}: {folder}"
+msgstr "{folders}：{folder}"
+
+msgid "{group} (group)"
+msgstr "{group}（グループ）"
+
+msgid "{stored} is not available on this server at the moment, so the default ({active}) applies."
+msgstr "{stored} は現在このサーバーで利用できないため、デフォルト（{active}）が適用されます。"
+
+#. TRANSLATORS when a grant was made, and by which account
+msgid "{time} by {account}"
+msgstr "{time}（{account} による）"

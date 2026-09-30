@@ -8,6 +8,7 @@
 	<summary lang="es">Indexa las sumas de verificación de archivos para encontrarlos por hash y detectar duplicados, con API REST, CLI y PHP</summary>
 	<summary lang="fr">Indexe les sommes de contrôle pour retrouver les fichiers par empreinte et détecter les doublons, avec des API REST, CLI et PHP</summary>
 	<summary lang="it">Indicizza i checksum dei file per trovare i file tramite hash e rilevare i duplicati, con API REST, CLI e PHP</summary>
+	<summary lang="ja">ファイルのチェックサムをインデックス化し、ハッシュによるファイル検索と重複の検出を可能にします。REST・CLI・PHPのAPIを備えています。</summary>
 	<summary lang="nl">Indexeert controlesommen van bestanden om bestanden op hash te vinden en duplicaten te herkennen, met REST-, CLI- en PHP-API's</summary>
 	<description>Indexes file checksums, so a file can be found by its checksum, and its duplicates at once.
 
@@ -78,6 +79,22 @@ Cosa ottieni:
 - Memorizzazione nell'indice dei metadati dei file di Nextcloud stesso: nessuna tabella propria, nulla da migrare.
 
 *Traduzione automatica: i testi dell'app in questa lingua non sono ancora stati revisionati da un madrelingua.*
+
+*Machine-translated: the app's texts in this language have not yet been reviewed by a native speaker.*
+</description>
+	<description lang="ja">ファイルのチェックサムをインデックス化し、ファイルをそのチェックサムから、その重複ファイルもあわせてすぐに見つけられるようにします。
+
+主な機能：
+
+- ハッシュによる**統合検索**：チェックサムを貼り付けるだけで、ファイルが見つかります。
+- ファイルの詳細の**チェックサム**タブ：ファイルに保存されているすべてのチェックサムを一覧表示し、必要に応じて再計算します。重複ファイルもその場に表示されます。
+- **重複ファイル**ページ：あなたが持つ同一ファイルのグループをすべて表示します。アカウントを横断して閲覧できるユーザーには、他のアカウントのファイルも表示されます。
+- **ルール**が、何をいつハッシュ計算するかを決めます。サーバー全体またはアカウントごとに、パスパターンで指定でき、計算はバックグラウンドで行われます。
+- 他のアプリや連携のための、安定した **REST API (v1)** と安定した **PHP API**。
+- ハッシュ計算、検索、重複ファイル、ルール、バックアップ、インポートのための**occコマンド**。
+- 保存先はNextcloud自身のファイルメタデータインデックス：独自のテーブルはなく、移行作業も不要です。
+
+*機械翻訳：この言語のアプリのテキストは、まだネイティブスピーカーによるレビューを受けていません。*
 
 *Machine-translated: the app's texts in this language have not yet been reviewed by a native speaker.*
 </description>
