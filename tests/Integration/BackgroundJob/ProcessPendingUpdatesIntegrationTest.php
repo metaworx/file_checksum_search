@@ -99,6 +99,11 @@ class ProcessPendingUpdatesIntegrationTest
 			$this->originalRulesJson,
 		);
 
+		// Written past saveRules() like the test's own rule, so the memoised
+		// list is dropped here too: the files deleted below, and whatever
+		// runs next in this process, see the instance's rules again.
+		$this->ruleService->loadRules( refresh: true );
+
 		foreach ( $this->cleanupFiles as $file )
 		{
 			try
@@ -294,8 +299,12 @@ class ProcessPendingUpdatesIntegrationTest
 	 */
 	private function addCatchAllForceRule(): void
 	{
-		// Prepend so it takes precedence over any pre-existing rules: the
-		// first match decides, and there is no fall-through to a later one.
+		// The only rule while the test runs; tearDown() puts the instance's
+		// own back. Placed before them it would not be enough: the first
+		// match decides, but in band order, and an unenforced `*` rule is the
+		// last band — any enabled rule of the instance's for home folders,
+		// a group or the account itself would govern the file instead, with
+		// its own algorithms.
 		//
 		// Written in the selector model, which is what the drain reads. This
 		// used to carry `userScope: all` and neither a type nor an algorithm
@@ -303,9 +312,7 @@ class ProcessPendingUpdatesIntegrationTest
 		// every supported algorithm regardless of what the rule asked for.
 		// It now resolves the governing rule at action time and takes its
 		// list, so a rule naming none is a rule that computes nothing.
-		$rules = $this->ruleService->loadRules();
-		array_unshift(
-			$rules,
+		$rules = [
 			[
 				'id'       => 'fcias_inttest_catchall',
 				'enabled'  => true,
@@ -318,7 +325,7 @@ class ProcessPendingUpdatesIntegrationTest
 					'sha256',
 				],
 			],
-		);
+		];
 
 		$this->appConfig->setValueString(
 			Application::APP_ID,
