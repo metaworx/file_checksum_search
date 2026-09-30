@@ -63,6 +63,9 @@ the first stable release.
 - Dates in the settings, a grant's last use, a job's last run and "Last
   updated": in the user's Nextcloud locale, not the browser's.
 
+- Status labels, Enabled and Disabled in the rules tables and "Copied!"
+  in the sidebar: readable on a light background.
+
 ## [0.20.3] - 2026-09-27
 
 ### Fixed

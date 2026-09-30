@@ -453,7 +453,7 @@ watch(
 	inset-inline-start: 50%;
 	transform: translateX(-50%);
 	background: var(--color-success);
-	color: #ffffff;
+	color: var(--color-success-text);
 	padding: 8px 16px;
 	border-radius: 4px;
 	font-size: 13px;
