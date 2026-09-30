@@ -5,6 +5,7 @@
 	<name>File Checksum Index &amp; Search</name>
 	<summary>Index file checksums to find files by hash and detect duplicates, with REST, CLI and PHP APIs</summary>
 	<summary lang="de">Indiziert Datei-Prüfsummen, um Dateien per Hash zu finden und Duplikate zu erkennen, mit REST-, CLI- und PHP-Schnittstellen</summary>
+	<summary lang="fr">Indexe les sommes de contrôle pour retrouver les fichiers par empreinte et détecter les doublons, avec des API REST, CLI et PHP</summary>
 	<description>Indexes file checksums, so a file can be found by its checksum, and its duplicates at once.
 
 What you get:
@@ -28,6 +29,22 @@ Was du bekommst:
 - Eine stabile **REST-API (v1)** und eine stabile **PHP-API** für andere Apps und Integrationen.
 - **occ-Befehle** für Berechnung, Suche, Duplikate, Regeln, Sicherung und Import.
 - Gespeichert im Metadaten-Index, den Nextcloud selbst für Dateien führt: keine eigenen Tabellen, nichts zu migrieren.
+</description>
+	<description lang="fr">Indexe les sommes de contrôle des fichiers&#160;: un fichier peut ainsi être retrouvé par sa somme de contrôle, et ses doublons du même coup.
+
+Ce que vous obtenez&#160;:
+
+- **Recherche unifiée** par empreinte&#160;: collez une somme de contrôle, trouvez le fichier.
+- Un onglet **Sommes de contrôle** dans les détails du fichier&#160;: il liste chaque somme de contrôle enregistrée pour le fichier, recalculée à la demande, avec ses doublons listés directement dans l'onglet.
+- Une page **Doublons**&#160;: chaque groupe de fichiers identiques que vous possédez et, pour qui est autorisé à consulter d'autres comptes, aussi les fichiers des autres comptes.
+- Des **règles** décident de ce qui est calculé, et quand&#160;: pour tout le serveur ou par compte, selon un motif de chemin, avec un calcul en arrière-plan.
+- Une **API REST (v1)** stable et une **API PHP** stable pour d'autres applications et intégrations.
+- Des **commandes occ** pour le calcul des empreintes, la recherche, les doublons, les règles, la sauvegarde et l'import.
+- Stockage dans l'index des métadonnées de fichiers propre à Nextcloud&#160;: aucune table spécifique, rien à migrer.
+
+*Traduction automatique&#160;: les textes de l'application dans cette langue n'ont pas encore été relus par un locuteur natif.*
+
+*Machine-translated: the app's texts in this language have not yet been reviewed by a native speaker.*
 </description>
 	<version>0.20.3</version>
 	<licence>AGPL-3.0-or-later</licence>

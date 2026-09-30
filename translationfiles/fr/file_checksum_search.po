@@ -1,0 +1,1141 @@
+# French translations for Nextcloud package.
+# Copyright (C) 2026 THE Nextcloud'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the Nextcloud package.
+# Automatically generated, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Nextcloud 3.14159\n"
+"Report-Msgid-Bugs-To: translations\\@example.com\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: Claude (AI draft, not reviewed by a native speaker)\n"
+"Language-Team: none\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
+
+#. TRANSLATORS: "Yes" is the value this column shows; translate it as that does
+msgid "\"Yes\" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it."
+msgstr "« Oui » signifie qu'un administrateur a imposé cette règle : personne d'autre ne peut la modifier ni la désactiver, et comme les règles imposées occupent les quatre premiers niveaux, aucune règle personnelle ne peut passer avant elle."
+
+msgid "%n file"
+msgid_plural "%n files"
+msgstr[0] "%n fichier"
+msgstr[1] "%n fichiers"
+msgstr[2] "%n fichiers"
+
+msgid "(not in your files)"
+msgstr "(pas dans vos fichiers)"
+
+msgid "A disabled rule cannot be applied — enable it first."
+msgstr "Une règle désactivée ne peut pas être appliquée – activez-la d'abord."
+
+#. TRANSLATORS: "Security" and "Allow filesystem access" are Nextcloud's own names; use Nextcloud's translations. Keep /api/v1/sudo/ as it is
+msgid "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password. A grant stays in force until it is revoked, and every administrator can see it. Create the app password under \"Security\" first, with \"Allow filesystem access\" on. Whether you may look across accounts at all is still up to your administrator; a grant replaces the password prompt, not the permission."
+msgstr "Un mot de passe d'application habilité peut lire dans d'autres comptes via les routes /api/v1/sudo/ sans que personne ne saisisse de mot de passe. Une habilitation reste en vigueur jusqu'à ce qu'elle soit révoquée, et tous les administrateurs peuvent la voir. Créez d'abord le mot de passe d'application dans « Sécurité », avec l'option « Autoriser l'accès au gestionnaire de fichiers » activée. C'est toujours votre administrateur qui décide si vous pouvez consulter d'autres comptes ; une habilitation remplace la demande de mot de passe, pas l'autorisation."
+
+msgid "A home folder"
+msgstr "Un dossier personnel"
+
+msgid "A path is required."
+msgstr "Un chemin est requis."
+
+msgid "A single account"
+msgstr "Un seul compte"
+
+msgid "A storage"
+msgstr "Un stockage"
+
+msgid "A team folder"
+msgstr "Un dossier d'équipe"
+
+msgid "Account"
+msgstr "Compte"
+
+msgid "Accounts"
+msgstr "Comptes"
+
+#. TRANSLATORS a button: hides the banner until an include rule is enabled and then disabled again
+msgid "Acknowledge"
+msgstr "Prendre acte"
+
+msgid "Add an algorithm …"
+msgstr "Ajouter un algorithme…"
+
+msgid "Add rule"
+msgstr "Ajouter une règle"
+
+msgid "Administrator-enforced rules covering every home folder."
+msgstr "Règles imposées par un administrateur et couvrant chaque dossier personnel."
+
+msgid "Administrator-enforced rules covering every storage there is."
+msgstr "Règles imposées par un administrateur et couvrant tous les stockages existants."
+
+msgid "Administrator-enforced rules for one account's home folder or one storage. No other rule comes before them there, and the account cannot edit or disable them."
+msgstr "Règles imposées par un administrateur pour le dossier personnel d'un compte ou pour un stockage. Aucune autre règle n'y passe avant elles, et le compte ne peut ni les modifier ni les désactiver."
+
+msgid "Administrator-enforced rules for the members of a group, or for one team folder. Only an enforced rule aimed at something more specific comes before them."
+msgstr "Règles imposées par un administrateur pour les membres d'un groupe ou pour un dossier d'équipe. Seule une règle imposée visant quelque chose de plus spécifique passe avant elles."
+
+msgid "Advanced"
+msgstr "Avancé"
+
+msgid "Algorithm"
+msgstr "Algorithme"
+
+#, php-format
+msgid "Algorithm not allowed on this server: %s"
+msgstr "Algorithme non autorisé sur ce serveur : %s"
+
+msgid "Algorithms"
+msgstr "Algorithmes"
+
+msgid "Algorithms saved."
+msgstr "Algorithmes enregistrés."
+
+msgid "All accounts"
+msgstr "Tous les comptes"
+
+msgid "All algorithms"
+msgstr "Tous les algorithmes"
+
+msgid "All home folders"
+msgstr "Tous les dossiers personnels"
+
+msgid "All my groups"
+msgstr "Tous mes groupes"
+
+msgid "Allow all accounts to edit rules"
+msgstr "Autoriser tous les comptes à modifier les règles"
+
+msgid "Allow all accounts to look across accounts"
+msgstr "Autoriser tous les comptes à consulter d'autres comptes"
+
+msgid "Allow all accounts to recalculate checksums"
+msgstr "Autoriser tous les comptes à recalculer les sommes de contrôle"
+
+msgid "Allow all accounts to use the API"
+msgstr "Autoriser tous les comptes à utiliser l'API"
+
+msgid "Allowed algorithms"
+msgstr "Algorithmes autorisés"
+
+#. TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
+#, php-format
+msgid "An %s rule computes nothing, so there is nothing to apply."
+msgstr "Une règle de type %s ne calcule rien, il n'y a donc rien à appliquer."
+
+msgid "App password"
+msgstr "Mot de passe d'application"
+
+msgid "App password granted."
+msgstr "Mot de passe d'application habilité."
+
+#. TRANSLATORS: "Who may look across accounts" is a heading on the Permissions tab; translate it as that heading does
+msgid "App passwords that may use the cross-account routes without a password prompt. A grant stays in force until it is revoked, so every one is listed here, and any can be revoked here. Who may look across accounts at all is decided under \"Who may look across accounts\"; a grant replaces the password prompt, not the permission."
+msgstr "Les mots de passe d'application qui peuvent utiliser les routes inter-comptes sans demande de mot de passe. Une habilitation reste en vigueur jusqu'à ce qu'elle soit révoquée : c'est pourquoi chacune est listée ici, et chacune peut être révoquée ici. Qui peut, de manière générale, consulter d'autres comptes se décide dans « Qui peut consulter d'autres comptes » ; une habilitation remplace la demande de mot de passe, pas l'autorisation."
+
+msgid "App version"
+msgstr "Version de l'application"
+
+msgid "At least one allowed algorithm is required."
+msgstr "Au moins un algorithme autorisé est requis."
+
+msgid "Auto (recalculate existing checksums when outdated)"
+msgstr "Automatique (recalculer les sommes de contrôle existantes si elles sont périmées)"
+
+msgid "Automatic hashing is inactive."
+msgstr "Le calcul automatique des empreintes est inactif."
+
+msgid "Background jobs"
+msgstr "Tâches d'arrière-plan"
+
+msgid "Band {band}"
+msgstr "Niveau {band}"
+
+msgid "Band {band}, position {position}"
+msgstr "Niveau {band}, position {position}"
+
+msgid "Cancel"
+msgstr "Annuler"
+
+msgid "Checksum algorithms"
+msgstr "Algorithmes de somme de contrôle"
+
+msgid "Checksum algorithms computed for matching files. Each algorithm you add is indexed separately, so more algorithms mean more work per file."
+msgstr "Algorithmes de somme de contrôle calculés pour les fichiers correspondants. Chaque algorithme que vous ajoutez est indexé séparément : plus d'algorithmes signifie donc plus de travail par fichier."
+
+#. TRANSLATORS: "—" is what the table shows for a rule that computes nothing; keep it
+msgid "Checksum algorithms computed for matching files. Each one is indexed separately, so more algorithms mean more work per file. Shown as \"—\" for a rule that computes nothing."
+msgstr "Algorithmes de somme de contrôle calculés pour les fichiers correspondants. Chacun est indexé séparément : plus d'algorithmes signifie donc plus de travail par fichier. Affiché sous la forme \"—\" pour une règle qui ne calcule rien."
+
+#. TRANSLATORS: a background job's name: it copies the checksums Nextcloud already holds into this app's index.
+msgid "Checksum copy"
+msgstr "Reprise des sommes de contrôle existantes"
+
+#. TRANSLATORS: a background job's name: it checks that every stored checksum can be found by a search, and fixes what cannot.
+msgid "Checksum index check"
+msgstr "Vérification de l'index des sommes de contrôle"
+
+msgid "Checksums"
+msgstr "Sommes de contrôle"
+
+msgid "Checksums indexed for this file. Click one to copy it."
+msgstr "Sommes de contrôle indexées pour ce fichier. Cliquez sur l'une d'elles pour la copier."
+
+msgid "Choose accounts or groups"
+msgstr "Choisir des comptes ou des groupes"
+
+msgid "Choose an account or a group above to see its duplicates."
+msgstr "Choisissez un compte ou un groupe ci-dessus pour voir ses doublons."
+
+msgid "Close"
+msgstr "Fermer"
+
+msgid "Copied!"
+msgstr "Copié !"
+
+msgid "Could not change the grant."
+msgstr "Impossible de modifier l'habilitation."
+
+msgid "Could not complete the request."
+msgstr "La requête n'a pas pu aboutir."
+
+msgid "Could not delete the rule."
+msgstr "Impossible de supprimer la règle."
+
+msgid "Could not enable or disable the rule."
+msgstr "Impossible d'activer ou de désactiver la règle."
+
+msgid "Could not list the grants: the app passwords could not be read."
+msgstr "Impossible de lister les habilitations : les mots de passe d'application n'ont pas pu être lus."
+
+msgid "Could not list your app passwords ({error})."
+msgstr "Impossible de lister vos mots de passe d'application ({error})."
+
+msgid "Could not list your app passwords: they could not be read."
+msgstr "Impossible de lister vos mots de passe d'application : ils n'ont pas pu être lus."
+
+msgid "Could not load the accounts and groups."
+msgstr "Impossible de charger les comptes et les groupes."
+
+msgid "Could not load the algorithms."
+msgstr "Impossible de charger les algorithmes."
+
+msgid "Could not load the checksums."
+msgstr "Impossible de charger les sommes de contrôle."
+
+msgid "Could not load the documentation."
+msgstr "Impossible de charger la documentation."
+
+msgid "Could not load the duplicates."
+msgstr "Impossible de charger les doublons."
+
+msgid "Could not load the grants ({error})."
+msgstr "Impossible de charger les habilitations ({error})."
+
+msgid "Could not load the permissions."
+msgstr "Impossible de charger les autorisations."
+
+msgid "Could not load the rules."
+msgstr "Impossible de charger les règles."
+
+msgid "Could not load the status (HTTP {status})."
+msgstr "Impossible de charger le statut (HTTP {status})."
+
+msgid "Could not load the status."
+msgstr "Impossible de charger le statut."
+
+msgid "Could not open the file for reading."
+msgstr "Impossible d'ouvrir le fichier en lecture."
+
+msgid "Could not reapply the rule."
+msgstr "Impossible de réappliquer la règle."
+
+msgid "Could not recalculate the checksum."
+msgstr "Impossible de recalculer la somme de contrôle."
+
+msgid "Could not reorder the rules."
+msgstr "Impossible de réordonner les règles."
+
+msgid "Could not revoke the grant."
+msgstr "Impossible de révoquer l'habilitation."
+
+msgid "Could not save the options."
+msgstr "Impossible d'enregistrer les options."
+
+msgid "Could not save the preference."
+msgstr "Impossible d'enregistrer la préférence."
+
+msgid "Could not save the rule."
+msgstr "Impossible d'enregistrer la règle."
+
+msgid "Creating and editing rules for folders in one's own files that one can write to. An administrator always may; a rule an administrator has enforced is read-only for everyone else regardless."
+msgstr "Créer et modifier des règles pour les dossiers de ses propres fichiers dans lesquels on peut écrire. Un administrateur le peut toujours ; une règle imposée par un administrateur reste en lecture seule pour tous les autres, quoi qu'il arrive."
+
+#. TRANSLATORS prefill: fill the list of the picker before anything is typed
+msgid "Cross-account picker: prefill up to"
+msgstr "Sélecteur inter-comptes : préremplir jusqu'à"
+
+msgid "Cross-account reads"
+msgstr "Lectures inter-comptes"
+
+msgid "Database version"
+msgstr "Version de la base de données"
+
+#. TRANSLATORS: the entry that follows the server's default algorithm, named in brackets
+msgid "Default ({algorithm})"
+msgstr "Par défaut ({algorithm})"
+
+msgid "Default algorithm"
+msgstr "Algorithme par défaut"
+
+#. TRANSLATORS: "**" and "/" are paths as they are typed; keep them
+msgid "Defaults for all home folders. Within this band a catch-all default — path \"**\", \"/\" or empty — always evaluates last, after the more specific rules here."
+msgstr "Règles par défaut pour tous les dossiers personnels. Dans ce niveau, une règle de repli – chemin \"**\", \"/\" ou vide – est toujours évaluée en dernier, après les règles plus spécifiques de ce niveau."
+
+msgid "Delete"
+msgstr "Supprimer"
+
+msgid "Delete rule"
+msgstr "Supprimer la règle"
+
+msgid "Delete this rule?"
+msgstr "Supprimer cette règle ?"
+
+msgid "Disable"
+msgstr "Désactiver"
+
+msgid "Disabled"
+msgstr "Désactivée"
+
+msgid "Documentation"
+msgstr "Documentation"
+
+msgid "Documentation files"
+msgstr "Fichiers de documentation"
+
+msgid "Download {file}"
+msgstr "Télécharger {file}"
+
+msgid "Drag to reorder among the rules of the same scope"
+msgstr "Faire glisser pour réordonner parmi les règles de même portée"
+
+msgid "Duplicates"
+msgstr "Doublons"
+
+msgid "Edit"
+msgstr "Modifier"
+
+msgid "Edit rule"
+msgstr "Modifier la règle"
+
+msgid "Edit the rule on {path}"
+msgstr "Modifier la règle portant sur {path}"
+
+msgid "Enable"
+msgstr "Activer"
+
+msgid "Enabled"
+msgstr "Activée"
+
+msgid "Enforced"
+msgstr "Imposée"
+
+msgid "Enforced — all home folders"
+msgstr "Imposées – tous les dossiers personnels"
+
+msgid "Enforced — everything"
+msgstr "Imposées – tout"
+
+msgid "Enforced — groups & team folders"
+msgstr "Imposées – groupes & dossiers d'équipe"
+
+msgid "Enforced — specific"
+msgstr "Imposées – spécifiques"
+
+#. TRANSLATORS: the state of checksums deleted because no rule maintains them any more
+msgid "Eroded"
+msgstr "Caduques"
+
+msgid "Error"
+msgstr "Erreur"
+
+#. TRANSLATORS: "Enforced" is a field of the rule dialog and a column of the rule table; translate it as those do
+msgid "Evaluated top to bottom — the first matching rule decides the file. A rule's band follows from its scope and whether it is enforced, so enforced rules always precede personal rules, and the catch-all default is last. Drag a rule by its handle to reorder it among the rules of the same scope; to move it to another band, change its scope or its \"Enforced\" setting."
+msgstr "Les règles sont évaluées de haut en bas – la première règle correspondante décide du sort du fichier. Le niveau d'une règle découle de sa portée et du fait qu'elle soit imposée ou non : les règles imposées précèdent donc toujours les règles personnelles, et la règle de repli vient en dernier. Faites glisser une règle par sa poignée pour la réordonner parmi les règles de même portée ; pour la déplacer vers un autre niveau, modifiez sa portée ou son option « Imposée »."
+
+msgid "Evaluates in band {band} — {label}"
+msgstr "Évaluée au niveau {band} – {label}"
+
+msgid "Every rule that can affect your files, in the order they are evaluated — the first match decides. Rules an administrator enforced come first and are read-only; your own rules come next and are yours to edit and reorder; the defaults below them apply only where none of your rules matched. You can create rules only if you have been given permission and the path is a folder in your own files that you can write to."
+msgstr "Toutes les règles pouvant concerner vos fichiers, dans l'ordre de leur évaluation – la première correspondance décide. Les règles imposées par un administrateur viennent en premier et sont en lecture seule ; vos propres règles suivent, et vous pouvez les modifier et les réordonner ; les règles par défaut en dessous ne s'appliquent que là où aucune de vos règles ne correspond. Vous ne pouvez créer des règles que si vous en avez reçu l'autorisation et que le chemin est un dossier de vos propres fichiers dans lequel vous pouvez écrire."
+
+msgid "Everything"
+msgstr "Tout"
+
+msgid "Everything — every storage"
+msgstr "Tout – tous les stockages"
+
+msgid "Exclude (never hash these files)"
+msgstr "Exclure (ne jamais calculer d'empreinte pour ces fichiers)"
+
+msgid "FAQ"
+msgstr "FAQ"
+
+#. TRANSLATORS: a file's verification failed, for no reason the server gave
+msgid "Failed"
+msgstr "Échec"
+
+msgid "File Checksum Index & Search"
+msgstr "File Checksum Index & Search"
+
+msgid "File checksums"
+msgstr "Sommes de contrôle des fichiers"
+
+msgid "File not found."
+msgstr "Fichier non trouvé."
+
+msgid "Find across accounts"
+msgstr "Rechercher dans d'autres comptes"
+
+msgid "Find duplicates"
+msgstr "Rechercher les doublons"
+
+msgid "Find other files sharing a checksum with this file."
+msgstr "Rechercher d'autres fichiers ayant la même somme de contrôle que ce fichier."
+
+msgid "Force (delete and recalculate all checksums)"
+msgstr "Forcer (supprimer et recalculer toutes les sommes de contrôle)"
+
+#. TRANSLATORS: the quoted patterns are examples to type as they are
+msgid "Glob pattern the file path must match. \"**\" matches every file, \"**/*.txt\" matches by extension, and \"/Documents/**\" matches everything below one folder."
+msgstr "Motif glob auquel le chemin du fichier doit correspondre. \"**\" correspond à tous les fichiers, \"**/*.txt\" aux fichiers d'une extension donnée, et \"/Documents/**\" à tout ce qui se trouve sous un dossier."
+
+#. TRANSLATORS: the quoted patterns are examples to type as they are
+msgid "Glob pattern the file path must match. \"**\" matches every file; \"/Documents/**\" matches everything below that folder. Rules are checked in order and the first match wins."
+msgstr "Motif glob auquel le chemin du fichier doit correspondre. \"**\" correspond à tous les fichiers ; \"/Documents/**\" à tout ce qui se trouve sous ce dossier. Les règles sont vérifiées dans l'ordre, et la première correspondance l'emporte."
+
+msgid "Grant revoked."
+msgstr "Habilitation révoquée."
+
+#. TRANSLATORS a column heading: when the app password was granted, and by whom
+msgid "Granted"
+msgstr "Habilitation"
+
+#. TRANSLATORS: {time} is the date and time the app password was granted
+msgid "Granted {time}"
+msgstr "Habilité le {time}"
+
+msgid "Group"
+msgstr "Groupe"
+
+msgid "Group: {group}"
+msgstr "Groupe : {group}"
+
+msgid "Groups"
+msgstr "Groupes"
+
+msgid "Groups & team folders"
+msgstr "Groupes & dossiers d'équipe"
+
+msgid "Groups per page, 1 to 500"
+msgstr "Groupes par page, de 1 à 500"
+
+msgid "Hash"
+msgstr "Empreinte"
+
+msgid "Hashing is excluded for this path by a rule."
+msgstr "Le calcul des empreintes est exclu pour ce chemin par une règle."
+
+msgid "Hashing is excluded for this path by an administrator's rule."
+msgstr "Le calcul des empreintes est exclu pour ce chemin par une règle d'un administrateur."
+
+msgid "Hashing is excluded for this path by your own rule."
+msgstr "Le calcul des empreintes est exclu pour ce chemin par votre propre règle."
+
+#. TRANSLATORS: {owner} is the account whose rule excludes the path
+msgid "Hashing is excluded for this path by {owner}'s rule."
+msgstr "Le calcul des empreintes est exclu pour ce chemin par une règle de {owner}."
+
+msgid "Help"
+msgstr "Aide"
+
+msgid "Help: {label}"
+msgstr "Aide : {label}"
+
+msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
+msgstr "Nombre de groupes affichés par page. Rien n'est lu sur le disque tant que vous ne vérifiez pas un groupe ou un fichier : une page plus grande coûte donc une requête plus longue, pas des lectures plus longues."
+
+msgid "Ignore (no automatic hashing; still allowed on request)"
+msgstr "Ignorer (pas de calcul automatique ; toujours possible sur demande)"
+
+msgid "Include (compute checksums)"
+msgstr "Inclure (calculer les sommes de contrôle)"
+
+msgid "Indexed checksums"
+msgstr "Sommes de contrôle indexées"
+
+msgid "Individual accounts that may call the public API with an app password, in addition to the members of any selected groups."
+msgstr "Comptes individuels qui peuvent appeler l'API publique avec un mot de passe d'application, en plus des membres des groupes sélectionnés."
+
+msgid "Individual accounts that may create and edit rules for folders in their own files that they can write to, in addition to the members of any selected groups."
+msgstr "Comptes individuels qui peuvent créer et modifier des règles pour les dossiers de leurs propres fichiers dans lesquels ils peuvent écrire, en plus des membres des groupes sélectionnés."
+
+msgid "Individual accounts that may look at other accounts' files once they have confirmed their password, in addition to the members of any selected groups and of the admin group."
+msgstr "Comptes individuels qui peuvent consulter les fichiers d'autres comptes après avoir confirmé leur mot de passe, en plus des membres des groupes sélectionnés et du groupe admin."
+
+msgid "Individual accounts that may recalculate checksums by hand, in addition to the members of any selected groups."
+msgstr "Comptes individuels qui peuvent recalculer manuellement les sommes de contrôle, en plus des membres des groupes sélectionnés."
+
+msgid "Internal server error."
+msgstr "Erreur interne du serveur."
+
+msgid "Invalid request body."
+msgstr "Corps de requête non valide."
+
+msgid "Last updated"
+msgstr "Dernière mise à jour"
+
+msgid "Last used"
+msgstr "Dernière utilisation"
+
+msgid "Lazy (delete checksums now, recalculate later)"
+msgstr "Différé (supprimer les sommes de contrôle maintenant, recalculer plus tard)"
+
+msgid "Loading checksums …"
+msgstr "Chargement des sommes de contrôle…"
+
+#. TRANSLATORS a switch beside the hash filter: the typed text may match anywhere inside a checksum, not only at its start
+msgid "Match anywhere in the hash"
+msgstr "Rechercher n'importe où dans l'empreinte"
+
+msgid "Match the term anywhere in the hash, not only at its start"
+msgstr "Rechercher le terme n'importe où dans l'empreinte, pas seulement au début"
+
+msgid "Members of a group"
+msgstr "Membres d'un groupe"
+
+msgid "Members of these groups may call the public API with an app password. Selected groups and selected accounts are combined — being in either is enough."
+msgstr "Les membres de ces groupes peuvent appeler l'API publique avec un mot de passe d'application. Les groupes et les comptes sélectionnés se cumulent – figurer dans l'un ou l'autre suffit."
+
+msgid "Members of these groups may create and edit rules for folders in their own files that they can write to. Selected groups and selected accounts are combined — being in either is enough."
+msgstr "Les membres de ces groupes peuvent créer et modifier des règles pour les dossiers de leurs propres fichiers dans lesquels ils peuvent écrire. Les groupes et les comptes sélectionnés se cumulent – figurer dans l'un ou l'autre suffit."
+
+msgid "Members of these groups may look across accounts once they have confirmed their password. Selected groups and selected accounts are combined — being in either is enough."
+msgstr "Les membres de ces groupes peuvent consulter d'autres comptes après avoir confirmé leur mot de passe. Les groupes et les comptes sélectionnés se cumulent – figurer dans l'un ou l'autre suffit."
+
+msgid "Members of these groups may recalculate checksums by hand. Selected groups and selected accounts are combined — being in either is enough."
+msgstr "Les membres de ces groupes peuvent recalculer manuellement les sommes de contrôle. Les groupes et les comptes sélectionnés se cumulent – figurer dans l'un ou l'autre suffit."
+
+#. TRANSLATORS a number field's label: the smallest number of files a listed group has, 2 to 100
+msgid "Min. files"
+msgstr "Fichiers min."
+
+#. TRANSLATORS: the tab listing the duplicates among one's own files
+msgid "Mine"
+msgstr "Mes fichiers"
+
+msgid "Missing (like Auto, and add missing checksums)"
+msgstr "Manquantes (comme « Automatique », et ajouter les sommes de contrôle manquantes)"
+
+msgid "Mode"
+msgstr "Mode"
+
+msgid "More actions for the rule on {path}"
+msgstr "Plus d'actions pour la règle portant sur {path}"
+
+msgid "Network error"
+msgstr "Erreur réseau"
+
+msgid "New rule"
+msgstr "Nouvelle règle"
+
+msgid "Next"
+msgstr "Suivant"
+
+msgid "No"
+msgstr "Non"
+
+#. TRANSLATORS: "All home folders" is a scope as the rule table shows it, "Include" a rule type as the dialog shows it; translate them as those do
+msgid "No \"Include\" rule is enabled, so no file is hashed automatically. Enable the \"All home folders\" default in the table below, or add a rule. Recalculating by hand from the file sidebar still works."
+msgstr "Aucune règle de type « Inclure » n'est activée : aucune empreinte n'est donc calculée automatiquement. Activez la règle par défaut « Tous les dossiers personnels » dans le tableau ci-dessous, ou ajoutez une règle. Le recalcul manuel depuis le panneau latéral du fichier fonctionne toujours."
+
+msgid "No accounts or groups to show"
+msgstr "Aucun compte ni groupe à afficher"
+
+#. TRANSLATORS "Security" is Nextcloud's personal settings section; use Nextcloud's own translation
+msgid "No app passwords yet. Create one under \"Security\", then grant it here."
+msgstr "Aucun mot de passe d'application pour l'instant. Créez-en un dans « Sécurité », puis habilitez-le ici."
+
+msgid "No checksums available for this file."
+msgstr "Aucune somme de contrôle disponible pour ce fichier."
+
+msgid "No documentation available."
+msgstr "Aucune documentation disponible."
+
+msgid "No duplicate files found."
+msgstr "Aucun fichier en double trouvé."
+
+msgid "No grants."
+msgstr "Aucune habilitation."
+
+msgid "No other files share checksums with this file."
+msgstr "Aucun autre fichier n'a la même somme de contrôle que ce fichier."
+
+msgid "No rules apply to your files."
+msgstr "Aucune règle ne s'applique à vos fichiers."
+
+msgid "No rules yet."
+msgstr "Aucune règle pour l'instant."
+
+msgid "No such app password on this account."
+msgstr "Ce mot de passe d'application n'existe pas dans ce compte."
+
+msgid "None"
+msgstr "Néant"
+
+msgid "None of the requested algorithms is available on this server; the previous list is kept."
+msgstr "Aucun des algorithmes demandés n'est disponible sur ce serveur ; la liste précédente est conservée."
+
+msgid "Not granted"
+msgstr "Non habilité"
+
+msgid "Not in your files"
+msgstr "Pas dans vos fichiers"
+
+msgid "Not logged in."
+msgstr "Non connecté."
+
+#. TRANSLATORS: a file's verification result: the server did not get to this file
+msgid "Not processed"
+msgstr "Non traité"
+
+#. TRANSLATORS: when a background job last ran: not at all
+msgid "Not run yet"
+msgstr "Pas encore d'exécution"
+
+msgid "Not yours to look at."
+msgstr "Vous n'êtes pas autorisé à consulter ceci."
+
+#. TRANSLATORS: "Include" is a rule type as the rule dialog shows it; translate it as that does
+msgid "Noted — the banner stays hidden until an \"Include\" rule is enabled and then disabled again."
+msgstr "C'est noté – la bannière reste masquée jusqu'à ce qu'une règle de type « Inclure » soit activée puis de nouveau désactivée."
+
+msgid "Numbers that shape how the interface behaves. The defaults suit most servers."
+msgstr "Valeurs qui déterminent le comportement de l'interface. Les valeurs par défaut conviennent à la plupart des serveurs."
+
+msgid "One account's home folder"
+msgstr "Le dossier personnel d'un compte"
+
+msgid "One storage (raw ID)"
+msgstr "Un stockage (identifiant interne)"
+
+msgid "Only administrators can edit or disable this rule"
+msgstr "Seuls les administrateurs peuvent modifier ou désactiver cette règle"
+
+msgid "Only an app password can be granted; a browser session is discarded by the next login."
+msgstr "Seul un mot de passe d'application peut être habilité ; une session de navigateur est supprimée à la connexion suivante."
+
+msgid "Only groups of this algorithm, or every algorithm at once. The list holds the algorithms this server computes; one the administrator has not allowed is not offered."
+msgstr "Uniquement les groupes de cet algorithme, ou de tous les algorithmes à la fois. La liste contient les algorithmes que calcule ce serveur ; un algorithme que l'administrateur n'a pas autorisé n'est pas proposé."
+
+msgid "Open the Duplicates page on this checksum, across every account you may see"
+msgstr "Ouvrir la page « Doublons » sur cette somme de contrôle, dans tous les comptes que vous pouvez voir"
+
+msgid "Options saved."
+msgstr "Options enregistrées."
+
+#. TRANSLATORS: a background job's name: it removes the checksums of files that no longer exist
+msgid "Orphan purge"
+msgstr "Purge des entrées orphelines"
+
+#. TRANSLATORS: the tab listing the duplicates among other accounts' files
+msgid "Others"
+msgstr "Autres comptes"
+
+msgid "Path"
+msgstr "Chemin"
+
+msgid "Path (glob)"
+msgstr "Chemin (glob)"
+
+#, php-format
+msgid "Path does not resolve to a file: %s"
+msgstr "Le chemin ne mène à aucun fichier : %s"
+
+#. TRANSLATORS a number field's label: how many groups one page lists, 1 to 500
+msgid "Per page"
+msgstr "Par page"
+
+msgid "Permissions"
+msgstr "Autorisations"
+
+msgid "Permissions saved."
+msgstr "Autorisations enregistrées."
+
+msgid "Preferred algorithm"
+msgstr "Algorithme préféré"
+
+msgid "Preferred algorithm saved."
+msgstr "Algorithme préféré enregistré."
+
+msgid "Prefill up to"
+msgstr "Préremplir jusqu'à"
+
+msgid "Previous"
+msgstr "Précédent"
+
+msgid "Priority"
+msgstr "Priorité"
+
+msgid "Priority band"
+msgstr "Niveau de priorité"
+
+#. TRANSLATORS: a background job's name: it computes the checksums of the queued files
+msgid "Queue drain"
+msgstr "Traitement de la file d'attente"
+
+#. TRANSLATORS files waiting for the background job to compute their checksums, counted by mode
+msgid "Queued files"
+msgstr "Fichiers en file d'attente"
+
+msgid "Read every file in this group again, recalculate its checksum and compare"
+msgstr "Relire chaque fichier de ce groupe, recalculer sa somme de contrôle et comparer"
+
+msgid "Read the file again and recalculate its checksum with the chosen algorithm."
+msgstr "Relire le fichier et recalculer sa somme de contrôle avec l'algorithme choisi."
+
+msgid "Read this file again, recalculate its checksum and compare"
+msgstr "Relire ce fichier, recalculer sa somme de contrôle et comparer"
+
+msgid "Read-only"
+msgstr "Lecture seule"
+
+msgid "Reapply"
+msgstr "Réappliquer"
+
+msgid "Reapply queued — a background job will go through the rule's files."
+msgstr "Réapplication mise en file d'attente – une tâche d'arrière-plan va parcourir les fichiers de la règle."
+
+msgid "Recalculate"
+msgstr "Recalculer"
+
+#. TRANSLATORS: "Recalculate" is a button of the file sidebar, "Verify" and "Verify all" buttons of the Duplicates page; translate them as those buttons do
+msgid "Recalculating checksums by hand: the sidebar's \"Recalculate\" buttons, \"Verify\" and \"Verify all\" on the Duplicates page, and the API's recalculation routes, for any file the account can reach. Reading checksums already computed is not affected. Without this permission neither the sidebar nor the Duplicates page shows the buttons, and the API refuses the request."
+msgstr "Recalculer manuellement les sommes de contrôle : avec les boutons « Recalculer » du panneau latéral, « Vérifier » et « Tout vérifier » sur la page « Doublons », et avec les routes de recalcul de l'API, pour tout fichier auquel le compte peut accéder. La lecture des sommes de contrôle déjà calculées n'est pas concernée. Sans cette autorisation, ni le panneau latéral ni la page « Doublons » n'affichent les boutons, et l'API refuse la requête."
+
+msgid "Refresh"
+msgstr "Actualiser"
+
+#. TRANSLATORS: the state of checksums a reset has made invalid; a past participle, not the action
+msgid "Reset"
+msgstr "Réinitialisées"
+
+msgid "Revoke"
+msgstr "Révoquer"
+
+msgid "Rule deleted."
+msgstr "Règle supprimée."
+
+msgid "Rule disabled."
+msgstr "Règle désactivée."
+
+msgid "Rule enabled."
+msgstr "Règle activée."
+
+msgid "Rule not found."
+msgstr "Règle non trouvée."
+
+msgid "Rule saved."
+msgstr "Règle enregistrée."
+
+#. TRANSLATORS: a background job's name: every few minutes it applies the rules to the files and queues those that need checksums
+msgid "Rule sweep"
+msgstr "Balayage des règles"
+
+msgid "Rules"
+msgstr "Règles"
+
+msgid "Rules applying to your files"
+msgstr "Règles s'appliquant à vos fichiers"
+
+msgid "Rules are evaluated in band order and the first match decides the file. A rule's band follows from its scope and whether it is enforced — it is not chosen directly, and reordering only moves a rule among the rules of the same scope."
+msgstr "Les règles sont évaluées dans l'ordre des niveaux, et la première correspondance décide du sort du fichier. Le niveau d'une règle découle de sa portée et du fait qu'elle soit imposée ou non – il n'est pas choisi directement, et réordonner ne déplace une règle que parmi les règles de même portée."
+
+msgid "Rules for a group's members, or for one team folder. Not enforced: for a member's home folder, their personal rule comes first."
+msgstr "Règles pour les membres d'un groupe ou pour un dossier d'équipe. Non imposées : pour le dossier personnel d'un membre, sa règle personnelle passe en premier."
+
+msgid "Rules for one account's home folder — personal rules — or for one storage. They decide a file only where no enforced rule matched it first."
+msgstr "Règles pour le dossier personnel d'un compte – les règles personnelles – ou pour un stockage. Elles ne décident du sort d'un fichier que si aucune règle imposée ne lui a correspondu avant."
+
+msgid "Save"
+msgstr "Enregistrer"
+
+msgid "Saved."
+msgstr "Enregistré."
+
+msgid "Saving failed."
+msgstr "Échec de l'enregistrement."
+
+msgid "Saving …"
+msgstr "Enregistrement…"
+
+msgid "Scope"
+msgstr "Portée"
+
+msgid "Scripts and other apps calling this app's public API with an app password. The bundled pages — this one, the Duplicates page, the file sidebar — keep working for everyone; this decides who may reach the same routes from outside them."
+msgstr "Scripts et autres applications appelant l'API publique de cette application avec un mot de passe d'application. Les pages fournies – celle-ci, la page « Doublons », le panneau latéral du fichier – continuent de fonctionner pour tous ; ce réglage décide qui peut atteindre les mêmes routes depuis l'extérieur de ces pages."
+
+msgid "Search accounts …"
+msgstr "Rechercher des comptes…"
+
+msgid "Search groups …"
+msgstr "Rechercher des groupes…"
+
+msgid "Searching …"
+msgstr "Recherche…"
+
+#. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
+msgid "Select folder …"
+msgstr "Sélectionner un dossier…"
+
+msgid "Select groups …"
+msgstr "Sélectionner des groupes…"
+
+msgid "Settings"
+msgstr "Paramètres"
+
+msgid "Show only groups whose hash matches this"
+msgstr "N'afficher que les groupes dont l'empreinte correspond à cette saisie"
+
+#. TRANSLATORS: "Match anywhere in the hash" is the switch beside the field; translate it as that switch does
+msgid "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine."
+msgstr "N'afficher que les groupes dont l'empreinte correspond à votre saisie. Les valeurs complètes viennent en premier, puis celles qui commencent par ce que vous avez saisi. Activez « Rechercher n'importe où dans l'empreinte » pour la trouver aussi au milieu d'une empreinte. Les majuscules sont acceptées."
+
+msgid "Smallest group to list: files sharing a checksum, 2 to 100"
+msgstr "Plus petit groupe à afficher : fichiers ayant la même somme de contrôle, de 2 à 100"
+
+msgid "Specific rules"
+msgstr "Règles spécifiques"
+
+msgid "Status"
+msgstr "Statut"
+
+msgid "Storage ID"
+msgstr "Identifiant du stockage"
+
+msgid "Storage: {storage}"
+msgstr "Stockage : {storage}"
+
+msgid "Sudo tokens"
+msgstr "Jetons sudo"
+
+msgid "Team folder"
+msgstr "Dossier d'équipe"
+
+msgid "Team folders"
+msgstr "Dossiers d'équipe"
+
+msgid "That view needs your password confirmed again, or is not yours to look at."
+msgstr "Cette vue nécessite de confirmer à nouveau votre mot de passe, ou vous n'êtes pas autorisé à la consulter."
+
+#. TRANSLATORS: "All home folders" and "Everything" are scopes as the rule table shows them; translate them as those do
+msgid "The \"All home folders\" default covers home folders only: files on external storage and in team folders are reached only by the \"Everything\" default or by their own team-folder or storage rules."
+msgstr "La règle par défaut « Tous les dossiers personnels » ne couvre que les dossiers personnels : les fichiers sur un stockage externe et dans les dossiers d'équipe ne sont atteints que par la règle par défaut « Tout » ou par leurs propres règles de dossier d'équipe ou de stockage."
+
+#. TRANSLATORS: "hash" is a parameter name; keep it
+msgid "The \"hash\" parameter is required."
+msgstr "Le paramètre \"hash\" est requis."
+
+msgid "The algorithm the Checksums tab in the file sidebar offers as its first button. Leave it on the default to follow the server; pick one to have it first for every file, with the file's own rule providing the second button."
+msgstr "L'algorithme que l'onglet « Sommes de contrôle » du panneau latéral du fichier propose comme premier bouton. Laissez la valeur par défaut pour suivre le serveur ; choisissez-en un pour qu'il vienne en premier pour chaque fichier, le deuxième bouton étant fourni par la règle du fichier."
+
+msgid "The algorithm used wherever none is named: new rules, the command line, the API, and the sidebar's first button for anyone who has not chosen one. Only an allowed algorithm can be the default; removing the default from the list above makes the first remaining one the default."
+msgstr "L'algorithme utilisé partout où aucun n'est indiqué : nouvelles règles, ligne de commande, API, et premier bouton du panneau latéral pour quiconque n'en a pas choisi. Seul un algorithme autorisé peut être l'algorithme par défaut ; retirer l'algorithme par défaut de la liste ci-dessus fait du premier algorithme restant l'algorithme par défaut."
+
+msgid "The algorithms rules may compute and pickers may offer, chosen from what this server's PHP provides. Removing one does not delete checksums already stored under it — they stay searchable — it only stops new ones being computed."
+msgstr "Les algorithmes que les règles peuvent calculer et que les sélecteurs peuvent proposer, choisis parmi ceux que fournit le PHP de ce serveur. En retirer un ne supprime pas les sommes de contrôle déjà enregistrées avec lui – elles restent disponibles pour la recherche – cela empêche seulement d'en calculer de nouvelles."
+
+msgid "The default must be one of the allowed algorithms."
+msgstr "L'algorithme par défaut doit faire partie des algorithmes autorisés."
+
+msgid "The home folders of a group's members"
+msgstr "Les dossiers personnels des membres d'un groupe"
+
+msgid "The last resort, covering every storage — external storage and team folders included. Enable deliberately: it can reach storage that is slow or costs money to read."
+msgstr "Le dernier recours, qui couvre tous les stockages – stockages externes et dossiers d'équipe compris. À activer en connaissance de cause : cette règle peut atteindre des stockages lents ou dont la lecture est payante."
+
+msgid "The one account whose home folder this rule addresses."
+msgstr "Le compte dont cette règle vise le dossier personnel."
+
+msgid "The path is not in a folder you can write to."
+msgstr "Le chemin ne se trouve dans aucun dossier dans lequel vous pouvez écrire."
+
+msgid "The path leads into a received share, a team folder or another mounted storage. A personal rule only governs your own files; those files are governed by their owner's or the folder's own rules."
+msgstr "Le chemin se trouve dans un partage reçu, un dossier d'équipe ou un autre stockage monté. Une règle personnelle ne régit que vos propres fichiers ; ces fichiers-là sont régis par les règles de leur propriétaire ou par celles du dossier lui-même."
+
+msgid "The raw ID from the storages table, matched exactly, whatever kind of storage it names. Use this for external storage, or for any storage the other choices cannot address."
+msgstr "L'identifiant interne issu de la table des stockages, comparé à l'identique, quelle que soit la nature du stockage qu'il désigne. Utilisez-le pour les stockages externes, ou pour tout stockage que les autres choix ne permettent pas de viser."
+
+msgid "The request never reached the server."
+msgstr "La requête n'a jamais atteint le serveur."
+
+msgid "The rule addresses the home folder of every member of this group."
+msgstr "La règle vise le dossier personnel de chaque membre de ce groupe."
+
+#. TRANSLATORS: {status} is an HTTP status, such as "404 Not Found"
+msgid "The server answered {status}."
+msgstr "Le serveur a répondu {status}."
+
+msgid "The server sent an answer this page could not read."
+msgstr "Le serveur a envoyé une réponse que cette page n'a pas pu lire."
+
+msgid "The smallest group to list: how many files must share a checksum before they count as duplicates. Two lists every duplicate; a higher number lists only the widely copied ones."
+msgstr "Le plus petit groupe à afficher : combien de fichiers doivent avoir la même somme de contrôle pour compter comme doublons. Avec deux, tous les doublons sont listés ; un nombre plus élevé ne liste que les fichiers les plus copiés."
+
+msgid "The sudoers: members of the admin group always, plus the groups and accounts selected here. A group admin may also look at the members of the groups they administer without being selected. Looking across accounts still needs a password confirmation, which holds for 30 minutes, or a granted app password; this only says who may be asked."
+msgstr "Les sudoers : toujours les membres du groupe admin, plus les groupes et comptes sélectionnés ici. Un administrateur de groupe peut en outre consulter les fichiers des membres des groupes qu'il administre sans être sélectionné. Consulter d'autres comptes exige malgré tout une confirmation du mot de passe, valable 30 minutes, ou un mot de passe d'application habilité ; ce réglage indique seulement à qui la demander."
+
+msgid "The team folder this rule addresses. Every member sees the same files, and the rule follows the folder — not whoever happens to look at it."
+msgstr "Le dossier d'équipe que vise cette règle. Tous les membres voient les mêmes fichiers, et la règle suit le dossier – pas la personne qui le consulte."
+
+msgid "The team folder this rule names, or the app that provides it, is not available, so the rule can never match."
+msgstr "Le dossier d'équipe que désigne cette règle, ou l'application qui le fournit, n'est pas disponible : la règle ne peut donc jamais correspondre."
+
+#. TRANSLATORS: "Add rule" is the button on each of these rows, "Save" the dialog's button; translate them as those buttons do
+msgid "These places exist on this server but have no catch-all rule of their own, so their files are decided by a more general rule, or by none at all. \"Add rule\" opens the dialog with a catch-all rule for the place; it is only stored once you click \"Save\" there."
+msgstr "Ces emplacements existent sur ce serveur mais n'ont pas de règle de repli propre : le sort de leurs fichiers est donc décidé par une règle plus générale, ou par aucune. « Ajouter une règle » ouvre la boîte de dialogue avec une règle de repli pour cet emplacement ; elle n'est enregistrée qu'une fois que vous y avez cliqué sur « Enregistrer »."
+
+msgid "This account may not apply this rule."
+msgstr "Ce compte n'est pas autorisé à appliquer cette règle."
+
+msgid "This account may not change this rule."
+msgstr "Ce compte n'est pas autorisé à modifier cette règle."
+
+msgid "This account may not edit rules."
+msgstr "Ce compte n'est pas autorisé à modifier des règles."
+
+msgid "This account may not recalculate checksums."
+msgstr "Ce compte n'est pas autorisé à recalculer les sommes de contrôle."
+
+msgid "This account may not use the API."
+msgstr "Ce compte n'est pas autorisé à utiliser l'API."
+
+msgid "This app password has no filesystem access, so it cannot be granted."
+msgstr "Ce mot de passe d'application n'a pas accès au gestionnaire de fichiers : il ne peut donc pas être habilité."
+
+msgid "This app password has no filesystem access."
+msgstr "Ce mot de passe d'application n'a pas accès au gestionnaire de fichiers."
+
+msgid "This is not a file."
+msgstr "Ce n'est pas un fichier."
+
+msgid "This is your own rule. It applies only to your files and is evaluated after any rule an administrator has enforced."
+msgstr "C'est votre propre règle. Elle ne s'applique qu'à vos fichiers et est évaluée après toutes les règles imposées par un administrateur."
+
+msgid "This tab shows other people's files: those of the accounts and groups chosen above. Leave this tab to go back to your own."
+msgstr "Cet onglet affiche les fichiers d'autres personnes : ceux des comptes et groupes choisis ci-dessus. Quittez cet onglet pour revenir aux vôtres."
+
+msgid "Total: {count}"
+msgstr "Total : {count}"
+
+msgid "Tunables"
+msgstr "Réglages fins"
+
+msgid "Type"
+msgstr "Type"
+
+msgid "Type to search"
+msgstr "Saisissez pour rechercher"
+
+msgid "Unknown account."
+msgstr "Compte inconnu."
+
+msgid "Unknown group."
+msgstr "Groupe inconnu."
+
+msgid "Unknown preference."
+msgstr "Préférence inconnue."
+
+msgid "Unknown rule mode."
+msgstr "Mode de règle inconnu."
+
+msgid "Unknown rule type."
+msgstr "Type de règle inconnu."
+
+msgid "Untrusted checksums"
+msgstr "Sommes de contrôle non fiables"
+
+msgid "Up to this many, the picker opens with every account and group it may offer already in the list. Above it, the picker asks the server as you type instead. Applies to administrators and group admins alike."
+msgstr "Jusqu'à ce nombre, le sélecteur s'ouvre avec tous les comptes et groupes qu'il peut proposer déjà dans la liste. Au-delà, le sélecteur interroge plutôt le serveur au fil de la saisie. S'applique aussi bien aux administrateurs qu'aux administrateurs de groupe."
+
+msgid "User guide"
+msgstr "Guide utilisateur"
+
+msgid "Verification stopped: too many recalculation requests. Wait a minute and verify the remaining files."
+msgstr "Vérification interrompue : trop de demandes de recalcul. Patientez une minute, puis vérifiez les fichiers restants."
+
+msgid "Verified"
+msgstr "Vérifié"
+
+msgid "Verify"
+msgstr "Vérifier"
+
+msgid "Verify all"
+msgstr "Tout vérifier"
+
+#. TRANSLATORS: "Auto", "Missing", "Force" and "Lazy" name the choices of the Mode field; translate them as that field does
+msgid "What happens to a file that already has checksums. \"Auto\" recalculates only outdated ones, \"Missing\" also adds missing ones, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
+msgstr "Ce qui arrive à un fichier qui a déjà des sommes de contrôle. « Automatique » ne recalcule que celles qui sont périmées, « Manquantes » ajoute aussi celles qui manquent, « Forcer » les supprime toutes et les recalcule, et « Différé » les supprime maintenant et laisse un passage ultérieur les recalculer."
+
+#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, and "—" what it shows for a rule that computes nothing; keep them
+msgid "What happens to a file that already has checksums. \"auto\" recalculates only outdated ones, \"missing\" also adds missing ones, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. Shown as \"—\" for a rule that computes nothing."
+msgstr "Ce qui arrive à un fichier qui a déjà des sommes de contrôle. \"auto\" ne recalcule que celles qui sont périmées, \"missing\" ajoute aussi celles qui manquent, \"force\" les supprime toutes et les recalcule, et \"lazy\" les supprime maintenant et laisse un passage ultérieur les recalculer. Affiché sous la forme \"—\" pour une règle qui ne calcule rien."
+
+#. TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
+msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."
+msgstr "Ce qui se passe lorsque cette règle correspond. « Inclure » calcule les sommes de contrôle ci-dessous. « Ignorer » arrête le calcul automatique des empreintes, mais permet toujours de recalculer un fichier manuellement. « Exclure » bloque entièrement le calcul des empreintes – à utiliser pour un stockage qui ne doit pas être lu, comme un stockage externe facturé à l'usage."
+
+#. TRANSLATORS: "include", "ignore" and "exclude" are the rule types as the table shows them; keep them
+msgid "What happens when this rule matches. \"include\" computes the checksums in this row. \"ignore\" stops automatic hashing but still allows a manual recalculation. \"exclude\" blocks hashing by every route, including the sidebar button, the API and the occ command."
+msgstr "Ce qui se passe lorsque cette règle correspond. \"include\" calcule les sommes de contrôle de cette ligne. \"ignore\" arrête le calcul automatique des empreintes, mais permet toujours un recalcul manuel. \"exclude\" bloque le calcul des empreintes par toutes les voies, y compris le bouton du panneau latéral, l'API et la commande occ."
+
+msgid "When on, every account may call the public API with an app password. When off, only the groups and individual accounts selected here may; the app's own pages keep working for everyone."
+msgstr "Si activé, chaque compte peut appeler l'API publique avec un mot de passe d'application. Si désactivé, seuls les groupes et comptes individuels sélectionnés ici le peuvent ; les pages propres à l'application continuent de fonctionner pour tous."
+
+msgid "When on, every account may create and edit rules for folders in their own files that they can write to. When off, only the groups and individual accounts you select may."
+msgstr "Si activé, chaque compte peut créer et modifier des règles pour les dossiers de ses propres fichiers dans lesquels il peut écrire. Si désactivé, seuls les groupes et comptes individuels que vous sélectionnez le peuvent."
+
+msgid "When on, every account may look across all accounts after confirming their password. When off, only members of the admin group and the groups and accounts selected here may."
+msgstr "Si activé, chaque compte peut consulter tous les comptes après avoir confirmé son mot de passe. Si désactivé, seuls les membres du groupe admin et les groupes et comptes sélectionnés ici le peuvent."
+
+msgid "When on, every account may recalculate checksums by hand. When off, only the groups and individual accounts selected here may; everyone still sees the checksums already computed."
+msgstr "Si activé, chaque compte peut recalculer manuellement les sommes de contrôle. Si désactivé, seuls les groupes et comptes individuels sélectionnés ici le peuvent ; tous voient toujours les sommes de contrôle déjà calculées."
+
+msgid "When set, nobody else can edit or disable this rule. Enforced rules are evaluated before every personal rule, so none can come before them."
+msgstr "Si cette option est activée, personne d'autre ne peut modifier ni désactiver cette règle. Les règles imposées sont évaluées avant toute règle personnelle : aucune ne peut donc passer avant elles."
+
+#. TRANSLATORS: the help text of the Priority column, explaining the number format its cells use; keep 7.1 and 7 as numbers
+msgid "Where the rule sits in evaluation order: its band, and its position among the rules of the same scope in that band, joined by a dot, so 7.1 is the first rule of band 7. The first rule that matches a file decides it outright, so a lower number is stronger. The band follows from the rule's scope and whether it is enforced — it is never chosen directly — and the position is what dragging changes."
+msgstr "La place de la règle dans l'ordre d'évaluation : son niveau et sa position parmi les règles de même portée dans ce niveau, séparés par un point ; 7.1 est ainsi la première règle du niveau 7. La première règle qui correspond à un fichier décide définitivement de son sort : un nombre plus petit l'emporte donc. Le niveau découle de la portée de la règle et du fait qu'elle soit imposée ou non – il n'est jamais choisi directement – et c'est la position que l'on modifie en faisant glisser la règle."
+
+msgid "Whether the rule takes part in evaluation at all. A disabled rule is skipped as though it were not there, so the next matching rule decides instead."
+msgstr "Indique si la règle participe à l'évaluation. Une règle désactivée est sautée comme si elle n'existait pas : c'est alors la règle correspondante suivante qui décide."
+
+msgid "Which algorithms this server computes, from what its PHP provides, and which of them is the default. Rules may only use these, and every picker in the app offers exactly these."
+msgstr "Les algorithmes que ce serveur calcule, parmi ceux que fournit son PHP, et celui qui est utilisé par défaut. Les règles ne peuvent utiliser que ceux-ci, et chaque sélecteur de l'application propose exactement ceux-ci."
+
+msgid "Which files get checksums, with which algorithms, and which are left alone. Rules act when a file is created or changed, and a background job applies them to existing files after a few minutes."
+msgstr "Quels fichiers reçoivent des sommes de contrôle, avec quels algorithmes, et lesquels sont laissés de côté. Les règles agissent lorsqu'un fichier est créé ou modifié, et une tâche d'arrière-plan les applique aux fichiers existants au bout de quelques minutes."
+
+#. TRANSLATORS: "All home folders" and "Everything" are scopes as the table shows them; translate them as those do
+msgid "Which files the rule addresses: one account's home folder, the home folders of one group's members, \"All home folders\", one team folder, one storage by its ID, or \"Everything\". A rule only ever meets files inside its scope — \"All home folders\" reaches every home folder and nothing else, while \"Everything\" also reaches team folders and external storage."
+msgstr "Les fichiers que vise la règle : le dossier personnel d'un compte, les dossiers personnels des membres d'un groupe, « Tous les dossiers personnels », un dossier d'équipe, un stockage par son identifiant, ou « Tout ». Une règle ne rencontre jamais que les fichiers de sa portée – « Tous les dossiers personnels » atteint chaque dossier personnel et rien d'autre, tandis que « Tout » atteint aussi les dossiers d'équipe et les stockages externes."
+
+msgid "Which files this rule addresses: all home folders, the home folders of one group's members, a single account's home folder, one team folder, one storage by its raw ID, or everything — every storage, external storage and team folders included."
+msgstr "Les fichiers que vise cette règle : tous les dossiers personnels, les dossiers personnels des membres d'un groupe, le dossier personnel d'un seul compte, un dossier d'équipe, un stockage par son identifiant interne, ou tout – tous les stockages, stockages externes et dossiers d'équipe compris."
+
+msgid "Who may edit rules"
+msgstr "Qui peut modifier les règles"
+
+msgid "Who may look across accounts"
+msgstr "Qui peut consulter d'autres comptes"
+
+msgid "Who may recalculate checksums"
+msgstr "Qui peut recalculer les sommes de contrôle"
+
+msgid "Who may use the API"
+msgstr "Qui peut utiliser l'API"
+
+msgid "Whole hash or part of one"
+msgstr "Empreinte entière ou partielle"
+
+msgid "Whose files"
+msgstr "Propriétaires des fichiers"
+
+msgid "Without a rule of their own"
+msgstr "Sans règle propre"
+
+#. TRANSLATORS: whether an administrator enforced the rule
+msgid "Yes"
+msgstr "Oui"
+
+msgid "You are not allowed to edit rules. Contact an administrator."
+msgstr "Vous n'êtes pas autorisé à modifier les règles. Contactez un administrateur."
+
+msgid "You may only reorder your own rules."
+msgstr "Vous ne pouvez réordonner que vos propres règles."
+
+msgid "Your own file"
+msgstr "Votre propre fichier"
+
+msgid "Your preferred algorithm"
+msgstr "Votre algorithme préféré"
+
+msgid "app password deleted — the grant remains"
+msgstr "mot de passe d'application supprimé – l'habilitation demeure"
+
+#. TRANSLATORS: fileIds is a parameter name; keep it
+msgid "fileIds must be a non-empty list of integers."
+msgstr "fileIds doit être une liste non vide d'entiers."
+
+#. TRANSLATORS a badge on a rule whose team folder is not available
+msgid "folder missing"
+msgstr "dossier manquant"
+
+#. TRANSLATORS: "groupfolder:" is the selector's prefix as it is typed; keep it
+msgid "groupfolder: takes the numeric folder ID."
+msgstr "groupfolder: attend l'identifiant numérique du dossier."
+
+msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
+msgstr "invalidées par une réinitialisation : déjà masquées dans la recherche, et en attente de suppression par la tâche d'arrière-plan"
+
+#. TRANSLATORS: an example of what to type; keep the storage IDs as they are
+msgid "local::/path/ or smb::…"
+msgstr "local::/path/ ou smb::…"
+
+#. TRANSLATORS: when an app password was last used, or granted: not at all
+msgid "never"
+msgstr "jamais"
+
+msgid "no catch-all rule — files the rules above do not match are left to a more general rule, if one is enabled"
+msgstr "aucune règle de repli – les fichiers auxquels les règles ci-dessus ne correspondent pas sont laissés à une règle plus générale, si une telle règle est activée"
+
+msgid "no rule of its own — its files are left to a more general rule, if one is enabled"
+msgstr "aucune règle propre – ses fichiers sont laissés à une règle plus générale, si une telle règle est activée"
+
+#. TRANSLATORS: the checksum a file has now, after verification found it changed
+msgid "now: {hash}"
+msgstr "actuellement : {hash}"
+
+#. TRANSLATORS: selector is a parameter name; keep it
+msgid "selector must be a non-empty string."
+msgstr "selector doit être une chaîne non vide."
+
+msgid "the file changed while no rule maintained its checksums, so they were deleted; it gets them back once a rule covers it again"
+msgstr "le fichier a été modifié alors qu'aucune règle n'entretenait ses sommes de contrôle, qui ont donc été supprimées ; il les retrouve dès qu'une règle le couvre à nouveau"
+
+#. TRANSLATORS: value is a parameter name; keep it
+msgid "value must be a string."
+msgstr "value doit être une chaîne."
+
+#. TRANSLATORS: {folders} is what the team folders app calls itself, e.g. "Team folders"
+msgid "{folders} — one folder"
+msgstr "{folders} – un dossier"
+
+#. TRANSLATORS: a rule's scope: {folders} is what the team folders app calls itself, {folder} one team folder's name
+msgid "{folders}: {folder}"
+msgstr "{folders} : {folder}"
+
+msgid "{group} (group)"
+msgstr "{group} (groupe)"
+
+msgid "{stored} is not available on this server at the moment, so the default ({active}) applies."
+msgstr "{stored} n'est pas disponible sur ce serveur pour le moment : l'algorithme par défaut ({active}) s'applique donc."
+
+#. TRANSLATORS when a grant was made, and by which account
+msgid "{time} by {account}"
+msgstr "{time} par {account}"
