@@ -75,7 +75,7 @@ Two parameters recur, and they answer two different questions:
   `null` is a trusted server-side caller: the permission is waived.
 - **`$reachUids`** — *whose files may be answered for.* A list of account ids;
   the answer is confined to the files those accounts hold — their own, the
-  shares they received (a share only to its subtree) and their group folders.
+  shares they received (a share only to its subtree) and their team folders.
   `null` is the whole instance. It is required, and comes right after the
   method's subject, so the whole instance is never what a caller gets by
   leaving an argument out. The REST layer passes the caller's own account
@@ -115,12 +115,12 @@ is the path below that account's files area, with a leading slash; with
 `$reachUids` null it is the filecache path, starting with `files/`. With
 `$withLocalPath`, `localPath` is where the file lives on the server:
 `/srv/nextcloud/data/alice/files/Documents/report.pdf` for a home file,
-`<datadir>/__groupfolders/<id>/files/…` for a group folder, the mount's own
+`<datadir>/__groupfolders/<id>/files/…` for a team folder, the mount's own
 root for an external local storage. `owner`
 and `location` are the file's own
 identity from its filecache row: the owning account (`null` for a storage no
 account owns) and `FileLocation::describe()` — `/<owner>/files/…` for a home,
-`groupfolder:<id>/…` for a group folder, `storage:<id>/…` otherwise.
+`groupfolder:<id>/…` for a team folder, `storage:<id>/…` otherwise.
 
 **Throws:** `\InvalidArgumentException` if hash is empty.
 
@@ -734,7 +734,7 @@ No parameters.
 ```
 
 The set is not fixed. It is what this server's PHP offers, narrowed to what the
-administrator has allowed (admin settings → *Hash Algorithms*); the example above
+administrator has allowed (admin settings → *Checksum algorithms*); the example above
 is the shipped default. Every `algo` parameter in this API accepts exactly the
 names this endpoint lists, and `default` — the administrator's designation,
 else the first allowed — is what is used when none is given. A
@@ -840,17 +840,17 @@ not free-form: it is derived from what the rule *is*.
 
 | Band | Selector addresses | `admin_enforced` |
 |------|--------------------|------------------|
-| 1 | one user's home (`home:<uid>`) or one storage (`storage:<id>`) | true |
-| 2 | one group (`group:<gid>`) or one group folder (`groupfolder:<id>`) | true |
+| 1 | one account's home folder (`home:<uid>`) or one storage (`storage:<id>`) | true |
+| 2 | one group's members (`group:<gid>`) or one team folder (`groupfolder:<id>`) | true |
 | 3 | every home folder (`home:*`) | true |
 | 4 | everything (`*`) | true |
-| 5 | one user's home or one storage | false |
-| 6 | one group or one group folder | false |
+| 5 | one account's home folder or one storage | false |
+| 6 | one group's members or one team folder | false |
 | 7 | every home folder | false |
 | 8 | everything | false |
 
-Enforced beats unenforced; within each half, specific beats general. So a user's rule can override
-the non-enforced defaults below it, but can never outrun an enforced one. A rule changes band by
+Enforced beats unenforced; within each half, specific beats general. So an account's rule can override
+the non-enforced defaults below it, but can never come before an enforced one. A rule changes band by
 changing its `selector` or `admin_enforced` — never by reordering, which only permutes rules
 *inside* one segment.
 
@@ -936,7 +936,7 @@ no other view can assign those selectors:
 | `groupFoldersAvailable` | whether the groupfolders app is installed and enabled; `false` means `groupfolder:` selectors cannot be offered at all |
 | `groupFoldersLabel` | what that app calls itself ("Team Folders"); `null` when it is absent |
 | `availableGroupFolders` | the folders that exist, as `{id, name}` |
-| `availableStorages` | raw ids of storages only `storage:<id>` or `*` reaches — home storages, group folder jails, share wrappers and the instance root are excluded, since other selectors own them or no rule could match in them |
+| `availableStorages` | raw ids of storages only `storage:<id>` or `*` reaches — home storages, team folder jails, share wrappers and the instance root are excluded, since other selectors own them or no rule could match in them |
 
 The last four are a soft dependency on another app: when it is missing, the fields degrade to
 `false`/`null`/`[]` rather than failing the request. Together with each rule's `isDefault`, they are
@@ -1087,7 +1087,7 @@ accounts:
 |---|---|---|
 | `GET /api/v1/file/{fileId}/hashes` | `GET /api/v1/sudo/file/{fileId}/hashes` | any file in the caller's reach |
 | `GET /api/v1/file/{fileId}/duplicates` | `GET /api/v1/sudo/file/{fileId}/duplicates` | a reference file in the reach; duplicates from the whole reach |
-| `GET /api/v1/lookup` | `GET /api/v1/sudo/lookup` | the whole reach; with `?localPath=1`, each row's `localPath` is the file's absolute path on the server — a sudoer's to ask for, a leader asking is refused with 403 |
+| `GET /api/v1/lookup` | `GET /api/v1/sudo/lookup` | the whole reach; with `?localPath=1`, each row's `localPath` is the file's absolute path on the server — a sudoer's to ask for, a group admin asking is refused with 403 |
 | `GET /api/v1/duplicates` | `GET /api/v1/sudo/duplicates?users[]=&groups[]=` | the named accounts and the members of the named groups, as one merged listing; with nothing named, the whole reach |
 | `POST /api/v1/file/{fileId}/recalc` | `POST /api/v1/sudo/file/{fileId}/recalc` | any file in the reach |
 | `POST /api/v1/file/many/recalc` | `POST /api/v1/sudo/file/many/recalc` | as above, decided per file |
@@ -1213,8 +1213,15 @@ URL-path versioning: `/api/v1/`, `/api/v2/`, etc.
 | Remove field | **No** | Deprecate → one major → remove |
 | Rename field / endpoint | **No** | New major version |
 | Rename a PHP method parameter | **No** | New major version: since PHP 8 a caller may pass any argument by name, so a parameter's name is part of the contract |
+| Reorder a PHP method's parameters, or remove a parameter's default | **No** | New major version: a call that passed arguments by position, or left the parameter out, breaks |
 | Change HTTP method | **No** | New major version |
 | Change error response shape | **No** | New major version |
+| Change an `error` text | Yes | Any release: the text is for display (see [Error Handling](#error-handling)) |
+
+The table binds from the app's 1.0.0 on. Before it, a break may ship in a
+minor release of the app, within v1, and is listed under `### Changed` in
+the changelog with what a caller has to change. `ChecksumApi`'s required
+`$reachUids` in 0.21.0 is one.
 
 ### Deprecation
 
@@ -1313,6 +1320,13 @@ ignored and a warning is logged.
 | 404 | Resource not found | `{"error": "message"}` |
 | 429 | Rate limited (see [Rate Limiting](#rate-limiting)) | Empty body |
 | 500 | Internal server error | `{"error": "message"}` |
+
+`error` is for display. It is written for a person, in the caller's
+language (the server's default where there is no user), and its wording may
+change in any release. A client decides on the status code, and on the
+fields a response defines for it, such as a recalculation's `excluded` or
+`forbidden` — never on the text. A PHP caller decides on the exception's
+class; the message is `error`'s counterpart.
 
 ### PHP Exceptions
 

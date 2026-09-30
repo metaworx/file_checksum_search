@@ -274,6 +274,15 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: includeEmpty
+          in: query
+          required: false
+          description: >-
+            List the groups of empty files too. Left out by default: every empty file has the same
+            checksum, and deleting a copy frees nothing.
+          schema:
+            type: boolean
+            default: false
       responses:
         "200":
           description: Duplicate groups
@@ -649,6 +658,13 @@ paths:
           in: query
           required: false
           description: Match the term anywhere in the hash rather than only at its start
+          schema:
+            type: boolean
+            default: false
+        - name: includeEmpty
+          in: query
+          required: false
+          description: As on the ordinary route — list the groups of empty files too
           schema:
             type: boolean
             default: false
@@ -1172,14 +1188,18 @@ components:
 
     DuplicateGroup:
       type: object
-      required: [algo, hash_value, file_count, files]
+      required: [algo, hash_value, empty, file_count, files]
       properties:
         algo:
           type: string
           example: sha1
         hash_value:
           type: string
-          example: "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+          example: "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d"
+        empty:
+          type: boolean
+          description: "Whether `hash_value` is the checksum of an empty file: the group's files hold no data, and deleting a copy frees nothing."
+          example: false
         file_count:
           type: integer
           example: 3

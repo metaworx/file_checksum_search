@@ -139,9 +139,10 @@ Your own *Mine* tab is unaffected: it keeps its own filters and page,
 and leaving the *Others* tab puts you back among your own files.
 
 Click a group header to expand it and see the files in the group. A file you
-hold — your own, or one shared with you — is a link and opens in the Files
-app **in a new tab**; a file you do not hold is plain text, because the Files
-app can only open what is in your files. Long lists are paged with
+hold — your own, or one shared with you — is a link: it opens the file's
+folder in the Files app **in a new tab**, with the file's details beside it,
+rather than the file itself; a file you do not hold is plain text, because
+the Files app can only open what is in your files. Long lists are paged with
 **← Previous** and **Next →** at the bottom. An empty page says so:
 *No duplicate files found*.
 
@@ -180,7 +181,8 @@ It has three sections:
   already computed still shows.
 - **Duplicates** — a **Find duplicates** button that lists, in place, the
   other files sharing a checksum with this one — your own files, and the
-  ones shared with you. For an empty file the list would be every other empty
+  ones shared with you, each a link to its folder as on the Duplicates
+  page. For an empty file the list would be every other empty
   file, so it says so in one line instead, with **Show in Duplicates**, which
   opens that group on the Duplicates page in a new tab. If you may look across
   accounts, **Find across

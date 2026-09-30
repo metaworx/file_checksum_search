@@ -109,7 +109,7 @@ three for the state the app owns, one for repair, and one for the queue. Run the
 |---------|-------------|
 | `file-checksum-search:search <query> [--local-path]` | Search files by hash value or `algo:hash` pair; `--local-path` adds where each lives on the server's disk |
 | `file-checksum-search:hash [options]` | Compute checksums for user files, or mark them for background processing |
-| `file-checksum-search:find-duplicates [options]` | Find files with duplicate hash values |
+| `file-checksum-search:find-duplicates [options]` | Find files with duplicate hash values; empty files only with `--include-empty` |
 | `file-checksum-search:test-perf` | Benchmark indexed lookup vs unindexed LIKE scan |
 
 #### `hash` and the rules
@@ -594,6 +594,7 @@ Features:
 - Set minimum duplicate count and result limit
 - Expandable groups showing file paths
 - Filter by hash, matching at its start or — with **Match anywhere in the hash** — anywhere in it
+- Empty files left out, since every one of them shares one checksum and deleting a copy frees nothing; **Show empty files** lists them too
 - **Verify all** on a group and **Verify** on a file row, recalculating from file content and flagging mismatches — asked for per group or per file, since reading files costs time and, on metered storage, money; a group is sent in requests of 25 files; shown only to an account that may recalculate checksums
 - An **Others** tab for those allowed to look across accounts, and for group admins: other accounts' duplicates, each row saying whose file it is and where it lives, verifiable in place, and linked only where the viewer could open it
 - The address bar as the search: the tab, the filters, the page and — on *Others* — whose files ride in the fragment, so a search can be bookmarked or handed to a colleague
@@ -624,7 +625,7 @@ Basic Auth, or Bearer token.
 | `/api/v1/file/{fileId}/duplicates` | GET | Find files sharing hash values |
 | `/api/v1/file/{fileId}/recalc` | POST | Recalculate hash |
 | `/api/v1/file/many/recalc` | POST | Recalculate up to 25 files or 100 MiB in one request |
-| `/api/v1/duplicates?algo=<algo>&min_count=<n>&limit=<n>&offset=<n>` | GET | Global duplicate groups |
+| `/api/v1/duplicates?algo=<algo>&minCount=<n>&limit=<n>&offset=<n>&hash=<hex>&anywhere=<0\|1>&includeEmpty=<0\|1>` | GET | Duplicate groups among the caller's files; empty files only with `includeEmpty` |
 | `/api/v1/status` | GET | Read-only health/status |
 
 Every file row carries `owner` and `location` beside `path`. The reads and the

@@ -270,6 +270,11 @@ The duplicate browser groups indexed hashes (`GROUP BY algo, hash_value`)
 and joins the filecache to list the files in each group. Only groups meeting
 the configured minimum file count are shown.
 
+Empty files are left out unless asked for — **Show empty files** on the page,
+`includeEmpty` in the API, `--include-empty` on the command line. Every empty
+file has the same checksum, so they form one large group, and deleting a copy
+frees nothing. See [Empty files](api-v1.md#empty-files).
+
 Because a hash match is not byte-for-byte proof of identical content — and
 because a file may have changed since it was hashed — FCIAS can recalculate
 from file content and flag what no longer matches. That is asked for per
@@ -378,10 +383,15 @@ reading:
   covers it again. *Reset* means they are still stored but disowned, already
   hidden from search, waiting for the background job or an import.
 - **Background jobs** — each job's last run and its counts: the *Rule sweep*,
-  the *Queue drain*, and the *Orphan purge*, which rides the sweep once a day
+  the *Queue drain*, the *Orphan purge*, which rides the sweep once a day
   (`orphan_purge_interval`, seconds) to forget files that no longer exist and
-  runs at once after an account is deleted. The timestamp is the point: a job that
-  stopped running is invisible until someone notices its clock has not moved.
+  runs at once after an account is deleted, and the two that installing,
+  enabling and upgrading queue: the *Checksum copy*, which takes the checksums
+  Nextcloud's filecache already holds into the index, and the *Checksum index
+  check*, which makes every stored checksum findable. Those two work a slice
+  per cron run and say whether they are finished. The timestamp is the point:
+  a job that stopped running is invisible until someone notices its clock has
+  not moved.
 - **Last updated** — when the page itself last asked, not when anything was
   hashed.
 
