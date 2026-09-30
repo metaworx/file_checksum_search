@@ -221,6 +221,52 @@ class HashCalculationServiceTest
 	}
 
 	/**
+	 * Regression: on local storage, a file hash_file() could not read made
+	 * it return false, which met the string return type as a TypeError that
+	 * named neither the file nor the reason. It is now the refusal an
+	 * unreadable stream gets, and the algorithm's result says it failed.
+	 */
+	public function testAnUnreadableLocalFileFailsItsAlgorithmRatherThanTheCall(): void
+	{
+		$storage = $this->createMock( IStorage::class );
+		$storage->method( 'isLocal' )
+		        ->willReturn( true )
+		;
+		$storage->method( 'getLocalFile' )
+		        ->willReturn( false )
+		;
+
+		$file = $this->createMock( File::class );
+		$file->method( 'getId' )
+		     ->willReturn( 42 )
+		;
+		$file->method( 'getMTime' )
+		     ->willReturn( 1000 )
+		;
+		$file->method( 'getStorage' )
+		     ->willReturn( $storage )
+		;
+		$file->method( 'getInternalPath' )
+		     ->willReturn( 'files/gone.txt' )
+		;
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'hasKey' )
+		         ->willReturn( false )
+		;
+
+		$this->filecacheService->method( 'getChecksums' )
+		                       ->willReturn( [] )
+		;
+
+		$result = $this->createRealService()
+		               ->recalcHashes( $file, [ 'sha1' ], true, $metadata )
+		;
+
+		$this->assertFalse( $result['results']['sha1']['success'] );
+	}
+
+	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testProcessFileWithoutAlgosTakesThemFromTheGoverningRule(): void

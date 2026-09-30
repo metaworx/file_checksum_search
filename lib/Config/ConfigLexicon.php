@@ -343,7 +343,7 @@ class ConfigLexicon
 	}
 
 	/**
-	 * @return array
+	 * @return Entry[]
 	 */
 	#[\Override]
 	public function getUserConfigs(): array

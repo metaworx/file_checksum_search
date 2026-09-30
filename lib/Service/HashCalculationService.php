@@ -736,8 +736,9 @@ class HashCalculationService
 	 * Persist a recalcHashes() result set for one mode, marking the file
 	 * pending and returning false on the first failing algorithm.
 	 *
-	 * @param  array<string, array{success: bool, hash: string, existed: bool, error?: string}>  $batch
-	 * @param  string[]                                                                          $algos
+	 * @param  array{results: array<string, array{success: bool, hash: string, existed: bool, error?: string, reason?: string}>, locked: bool}  $batch
+	 *                                                                                                                                         What recalcHashes() returned.
+	 * @param  string[]                                                                                                                        $algos
 	 *
 	 * @return bool  True when every algorithm was applied successfully
 	 */
@@ -848,7 +849,7 @@ class HashCalculationService
 	 * or external storage is read only once instead of once per algorithm.
 	 *
 	 * @return array{
-	 *   results: array<string, array{success: bool, hash: string, existed: bool, error?: string}>,
+	 *   results: array<string, array{success: bool, hash: string, existed: bool, error?: string, reason?: string}>,
 	 *   locked: bool
 	 * }
 	 */
@@ -1064,9 +1065,18 @@ class HashCalculationService
 	{
 		if ( $storage->isLocal() )
 		{
+			// Both calls say failure with false. Returned, it met the string
+			// return type as a TypeError; thrown, it is the same refusal the
+			// stream path below gives an unreadable file.
 			$absolutePath = $storage->getLocalFile( $file->getInternalPath() );
+			$hash         = $absolutePath === false ? false : hash_file( $algo, $absolutePath );
 
-			return hash_file( $algo, $absolutePath );
+			if ( $hash === false )
+			{
+				throw new HintException( 'Unable to open file for reading.', $this->l10n->t( 'Could not open the file for reading.' ) );
+			}
+
+			return $hash;
 		}
 
 		$handle = $file->fopen( 'rb' );

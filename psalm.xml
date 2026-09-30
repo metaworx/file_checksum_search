@@ -67,5 +67,15 @@
 				<referencedMethod name="OCP\IDBConnection::getInner" />
 			</errorLevel>
 		</UndefinedInterfaceMethod>
+
+		<!--
+			Not a finding about Nextcloud's API, but one this code disagrees with.
+			Every call it reported is array_values() over an array a docblock
+			calls a list; PHP does not hold a caller to its docblock, and the
+			call is what makes the list one - for a JSON array rather than an
+			object, or for the IN list a query binds. The issue can only be
+			turned off whole, and a redundant call costs nothing but a line.
+		-->
+		<RedundantFunctionCall errorLevel="suppress" />
 	</issueHandlers>
 </psalm>

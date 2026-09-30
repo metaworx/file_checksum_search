@@ -393,7 +393,7 @@ HELP,
 
 			if ( is_array( $user ) && isset( $user['name'] ) )
 			{
-				return (string) $user['name'];
+				return $user['name'];
 			}
 		}
 

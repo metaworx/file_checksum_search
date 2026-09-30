@@ -19,6 +19,8 @@ use OCP\DB\QueryBuilder\IQueryFunction;
 use OCP\IDBConnection;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
+use RuntimeException;
+use Symfony\Component\Console\Output\BufferedOutput;
 
 class DatabaseServiceTest
     extends
@@ -171,5 +173,22 @@ class DatabaseServiceTest
 		$this->assertCount( 2, $migrations );
 		$this->assertContains( '1000Date20260806100000', $migrations );
 		$this->assertContains( '1001Date20260807100000', $migrations );
+	}
+
+	/**
+	 * Regression: a failed query was reported through getErrorOutput(),
+	 * which only a console output has, so any other output — a buffered
+	 * one, as here — turned the "unknown" this method promises into a fatal
+	 * error. The error line lands on the one stream such an output has.
+	 */
+	public function testAFailedQueryIsReportedOnAnOutputWithoutAnErrorStream(): void
+	{
+		$this->doctrineConn->method( 'executeQuery' )
+		                   ->willThrowException( new RuntimeException( 'gone away' ) )
+		;
+		$output = new BufferedOutput();
+
+		$this->assertSame( 'unknown', $this->service->getDatabaseVersion( $output ) );
+		$this->assertStringContainsString( 'gone away', $output->fetch() );
 	}
 }

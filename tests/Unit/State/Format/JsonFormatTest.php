@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\State\Format;
 
+use JsonException;
 use OCA\FileChecksumSearch\State\Format\FormatOptions;
 use OCA\FileChecksumSearch\State\Format\JsonFormat;
 use OCA\FileChecksumSearch\State\HashRecord;
@@ -57,6 +58,25 @@ class JsonFormatTest
 		$this->assertSame( [ 'rule_definitions' => '[]' ], $decoded['config'] );
 		$this->assertCount( 1, $decoded['status'] );
 		$this->assertCount( 2, $decoded['hashes'] );
+	}
+
+	/**
+	 * Regression: a record json_encode() could not encode — here a path that
+	 * is not UTF-8, which a Linux file system allows — made it return false,
+	 * the record was written as nothing, and the backup stopped being JSON
+	 * without a word said. It is now the encoder's own error.
+	 */
+	public function testAValueThatCannotBeEncodedIsAJsonError(): void
+	{
+		$stream = fopen( 'php://memory', 'r+' );
+
+		$this->expectException( JsonException::class );
+
+		$this->format->write(
+			[ new HashRecord( 'home::alice', "files/\xB1.txt", 'sha1', str_repeat( 'a', 40 ), null ) ],
+			$stream,
+			new FormatOptions(),
+		);
 	}
 
 	public function testTheHeaderIsReadableBeforeASingleRecordIs(): void

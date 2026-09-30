@@ -993,7 +993,13 @@ class RuleService
 		?string $actor = null,
 	): void
 	{
-		$rules   = $this->loadRules();
+		$rules = $this->loadRules();
+
+		/**
+		 * Set by the filter below, through its reference.
+		 *
+		 * @var array<string, mixed>|null $deleted
+		 */
 		$deleted = null;
 
 		$rules = array_values(
@@ -1769,6 +1775,7 @@ class RuleService
 				[],
 			);
 
+			/** @psalm-suppress InvalidArgument SearchQuery is the server's ISearchQuery (psalm.xml, the non-public classes). */
 			$results = $folder->search( $query );
 
 			if ( empty( $results ) )

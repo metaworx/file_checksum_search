@@ -80,7 +80,7 @@ class ChecksumApi
 	 *
 	 * @param  File  $file  A Nextcloud File node
 	 *
-	 * @return array{fileid: int, hashes: array<int, array{algo: string, hash: string, updated_at: ?string}>, algos: list<string>, preferred: string, default: string}
+	 * @return array{fileid: int, hashes: array<int, array{algo: string, hash: string, updated_at: ?string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool}
 	 */
 	public function getHashesByFile( File $file ): array
 	{
@@ -174,7 +174,7 @@ class ChecksumApi
 	 * @param  string       $path  Filesystem path
 	 * @param  string|null  $user  If provided, path is relative to this user's home
 	 *
-	 * @return array{fileid: int, path: string, hashes: array<int, array{algo: string, hash: string, updated_at: ?string}>, algos: list<string>, preferred: string, default: string}
+	 * @return array{fileid: int, path: string, hashes: array<int, array{algo: string, hash: string, updated_at: ?string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool}
 	 * @throws NotFoundException  If the path cannot be resolved to a file
 	 */
 	public function getHashesByPath(
@@ -207,9 +207,10 @@ class ChecksumApi
 	}
 
 	/**
-	 * Read-only health/status snapshot.
+	 * Read-only health/status snapshot: the version for anyone, the rest for
+	 * an administrator only.
 	 *
-	 * @return array{version: string, dbVersion: string, rowCount: int, pendingRows: int}
+	 * @return array{version: string, dbVersion?: string, rowCount?: int, pendingRows?: int}
 	 */
 	public function getStatus( ?string $requestingUser = null ): array
 	{
@@ -847,7 +848,7 @@ class ChecksumApi
 	 * ({@see FileLocation}), which the listing's rows carry from the start
 	 * and these, rendered from nodes, gain here in one batched lookup.
 	 *
-	 * @param  list<array{fileid: int}>  $rows
+	 * @param  list<array{fileid: int, ...}>  $rows
 	 *
 	 * @return list<array>  the same rows plus `owner: ?string` and `location: string`, and `localPath: ?string` when asked
 	 */

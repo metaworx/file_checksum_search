@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Command\Rules;
 
+use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -62,26 +63,27 @@ class DeleteRule
 
 		if ( ! $input->getOption( 'yes' ) )
 		{
-			$row       = $this->ruleRow( $rule );
-			$confirmed = $this->getHelper( 'question' )
-			                  ->ask(
-				                  $input,
-				                  $output,
-				                  new ConfirmationQuestion(
-					                  sprintf(
-						                  'Delete rule %s (%s %s on %s for %s)? [y/N] ',
-						                  $id,
-						                  $row['enforced'] === 'yes'
-							                  ? 'enforced'
-							                  : 'plain',
-						                  $row['type'],
-						                  $row['path'],
-						                  $row['selector'],
-					                  ),
-					                  false,
-				                  ),
-			                  )
-			;
+			$row = $this->ruleRow( $rule );
+
+			/** @var QuestionHelper $question Symfony registers it under this name. */
+			$question  = $this->getHelper( 'question' );
+			$confirmed = $question->ask(
+				$input,
+				$output,
+				new ConfirmationQuestion(
+					sprintf(
+						'Delete rule %s (%s %s on %s for %s)? [y/N] ',
+						$id,
+						$row['enforced'] === 'yes'
+							? 'enforced'
+							: 'plain',
+						$row['type'],
+						$row['path'],
+						$row['selector'],
+					),
+					false,
+				),
+			);
 
 			if ( ! $confirmed )
 			{

@@ -255,8 +255,8 @@ class HashIndexService
 	 *                                                  empty files too.
 	 *
 	 * @return array{duplicates: array<int, array{algo: string, hash_value: string, file_count: int, empty: bool,
-	 *                            files: array<int, array{fileid: int, path: string, name: string}>}>,
-	 *                            total_groups: int, pagination: array{offset: int, limit: int}}
+	 *                            files: array<int, array{fileid: int, path: string, name: string, owner: ?string,
+	 *                            location: string}>}>, total_groups: int, pagination: array{offset: int, limit: int}}
 	 */
 	public function listDuplicatesForUser(
 		string|array|null $userId,
@@ -398,7 +398,7 @@ class HashIndexService
 	 * @param  bool         $withLocalPath  Each row gains `local_path`, as
 	 *                                      {@see FilecacheService::batchLookupFilecachePaths()}.
 	 *
-	 * @return array<int, array{fileid: int, algo: string, hash_value: string, path: string, name: string, local_path?: ?string}>
+	 * @return array<int, array{fileid: int, algo: string, hash_value: string, path: string, name: string, owner: ?string, location: string, local_path?: ?string}>
 	 */
 	public function findByHash(
 		string  $hash,

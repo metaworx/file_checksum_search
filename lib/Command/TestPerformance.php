@@ -73,7 +73,7 @@ class TestPerformance
 			$this->metadataService->queryByHash( $testHash, null, 1 );
 		}
 
-		$indexedTime = ( microtime( true ) - $startIndexed ) * 1000;
+		$indexedTime = ( microtime( true ) - $startIndexed ) * 1000.0;
 
 		// 2. Benchmark unindexed LIKE scan on filecache
 		$startUnindexed = microtime( true );
@@ -97,20 +97,20 @@ class TestPerformance
 			;
 		}
 
-		$unindexedTime = ( microtime( true ) - $startUnindexed ) * 1000;
+		$unindexedTime = ( microtime( true ) - $startUnindexed ) * 1000.0;
 
 		$output->writeln(
 			sprintf(
 				'Metadata index lookup x100:  %.2f ms (%.2f ms/query)',
 				$indexedTime,
-				$indexedTime / 100,
+				$indexedTime / 100.0,
 			),
 		);
 		$output->writeln(
 			sprintf(
 				'Filecache LIKE scan x100:     %.2f ms (%.2f ms/query)',
 				$unindexedTime,
-				$unindexedTime / 100,
+				$unindexedTime / 100.0,
 			),
 		);
 		$output->writeln(

@@ -27,6 +27,7 @@ use Throwable;
  *
  * Registered via IRegistrationContext::registerEventListener() in Application::register().
  *
+ * @template-implements IEventListener<Event>
  * @noinspection PhpClassCanBeReadonlyInspection
  */
 class MetadataListener

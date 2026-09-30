@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\State\Format;
 
 use Generator;
+use JsonException;
 use OCA\FileChecksumSearch\State\HashRecord;
 use RuntimeException;
 
@@ -346,11 +347,15 @@ class JsonFormat
 				( $written > 0
 					? ','
 					: '' ) . $newline . $indent . $indent
-				. json_encode(
+				// Through encode(), which throws: a bare json_encode() that
+				// failed — a path that is not UTF-8 — wrote nothing here, and
+				// the document stopped being JSON without a word said.
+				. $this->encode(
 					$row instanceof HashRecord
 						? $row->toArray()
 						: $row,
 					$flags,
+					'',
 				),
 			);
 			$written ++;
@@ -380,7 +385,14 @@ class JsonFormat
 		string $indent,
 	): string
 	{
+		// Thrown rather than returned as false, which met the string return
+		// type as a TypeError that named neither the value nor the reason.
 		$encoded = json_encode( $value, $flags );
+
+		if ( $encoded === false )
+		{
+			throw new JsonException( json_last_error_msg(), json_last_error() );
+		}
 
 		if ( $indent === '' )
 		{

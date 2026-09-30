@@ -218,6 +218,10 @@ class MetadataService
 	 * @param  int|File           $file         File ID or File node
 	 * @param  string|array|null  $rawMetadata  Raw metadata (see above) or
 	 *                                          null to load from manager
+	 *
+	 * @psalm-suppress InvalidReturnType, InvalidReturnStatement FilesMetadata
+	 *                 is the server's IFilesMetadata, which Psalm cannot see
+	 *                 without the server (psalm.xml, the non-public classes).
 	 */
 	public function getMetadata(
 		int|File          $file,
@@ -2973,7 +2977,7 @@ class MetadataService
 			$qb->orderBy(
 				$qb->createFunction(
 					'CASE WHEN i.' . self::FIELD_META_VALUE_STRING . ' = '
-					. $qb->createNamedParameter( self::truncateForIndex( $needle ) )
+					. (string) $qb->createNamedParameter( self::truncateForIndex( $needle ) )
 					. ' THEN 0 ELSE 1 END',
 				),
 				'ASC',
@@ -3306,13 +3310,10 @@ class MetadataService
 			return null;
 		}
 
+		// An unmatched group before a matched one is '', never absent, so a
+		// bare hash has the empty algorithm the docblock promises.
 		$hash = strtolower( $matches[2] );
-		$algo = $matches[1] ?? null;
-
-		if ( is_string( $algo ) )
-		{
-			$algo = strtolower( $algo );
-		}
+		$algo = strtolower( $matches[1] ?? '' );
 
 		return [
 			'algo' => $algo,

@@ -219,8 +219,10 @@ class SudoScope
 
 			// A sub-admin may name only a group they administer, and of it
 			// only the members core lets them reach — the administrators in
-			// it are not theirs, named directly or through the group.
-			if ( ! $isSudoer && ( $leader === null || ! $this->subAdmin->isSubAdminOfGroup( $leader, $group ) ) )
+			// it are not theirs, named directly or through the group. Not a
+			// sudoer means $leader is an account: the first check returned
+			// otherwise.
+			if ( ! $isSudoer && ! $this->subAdmin->isSubAdminOfGroup( $leader, $group ) )
 			{
 				return false;
 			}
@@ -245,7 +247,7 @@ class SudoScope
 				return false;
 			}
 
-			if ( ! $isSudoer && ( $leader === null || ! $this->subAdmin->isUserAccessible( $leader, $member ) ) )
+			if ( ! $isSudoer && ! $this->subAdmin->isUserAccessible( $leader, $member ) )
 			{
 				return false;
 			}

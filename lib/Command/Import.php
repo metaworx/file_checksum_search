@@ -393,7 +393,9 @@ HELP,
 	{
 		if ( ! is_string( $path ) )
 		{
-			return fopen( 'php://stdin', 'r' );
+			// False is what a closed stdin gives; null is this method's
+			// "cannot read", which the caller already handles.
+			return fopen( 'php://stdin', 'r' ) ?: null;
 		}
 
 		$stream = @fopen( $path, 'r' );

@@ -278,7 +278,9 @@ HELP,
 	{
 		if ( ! is_string( $path ) )
 		{
-			return fopen( 'php://stdout', 'w' );
+			// False is what a closed stdout gives; null is this method's
+			// "cannot write", which the caller already handles.
+			return fopen( 'php://stdout', 'w' ) ?: null;
 		}
 
 		$stream = @fopen( $path, 'w' );

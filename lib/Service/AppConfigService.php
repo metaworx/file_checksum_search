@@ -182,9 +182,11 @@ class AppConfigService
 			ValueType::BOOL  => $this->appConfig->getValueBool( Application::APP_ID, $key )
 				? '1'
 				: '0',
+			// Thrown rather than returned as false: a value that cannot be
+			// encoded is an error to report, not an empty string to export.
 			ValueType::ARRAY => json_encode(
 				$this->appConfig->getValueArray( Application::APP_ID, $key ),
-				JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
+				JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,
 			),
 			default => $this->appConfig->getValueString( Application::APP_ID, $key ),
 		};
@@ -245,7 +247,7 @@ class AppConfigService
 	 *                                             does not mention, so the
 	 *                                             result is exactly the input.
 	 *
-	 * @return array{written: int, skipped: list<string>}
+	 * @return array{written: int, skipped: list<string>, not_portable: list<string>}
 	 */
 	public function import(
 		array $config,

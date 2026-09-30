@@ -312,7 +312,9 @@ class SettingsController
 	 */
 	protected function readRequestBody(): string
 	{
-		return file_get_contents( 'php://input' );
+		// An unreadable body is an empty one, which the caller refuses as it
+		// refuses any body that is not JSON.
+		return file_get_contents( 'php://input' ) ?: '';
 	}
 
 	/**

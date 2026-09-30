@@ -161,7 +161,8 @@ readonly class FileLocation
 		return match ( $this->namespace )
 		{
 			self::NS_HOME        => '/' . $this->owner . '/' . $this->internalPath,
-			self::NS_GROUPFOLDER => 'groupfolder:' . $this->groupFolderId
+			// The namespace is groupfolder only where an id was found.
+			self::NS_GROUPFOLDER => 'groupfolder:' . (string) $this->groupFolderId
 				. ( $this->relativePath ?? '/' . $this->internalPath ),
 			default => 'storage:' . $this->storageId
 				. ( $this->relativePath ?? '/' . $this->internalPath ),

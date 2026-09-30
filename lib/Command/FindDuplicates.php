@@ -204,7 +204,8 @@ class FindDuplicates
 		// Batch-lookup filecache paths, optionally filtered by user
 		$fcPaths = $this->hashIndexService->batchLookupFilecachePaths( $allFileIds, $userName );
 
-		// Build resolved groups with paths
+		// Build resolved groups with paths; --verify adds the two counts.
+		/** @var list<array{algo: string, hash_value: string, file_count: int, empty: bool, files: list<array<string, mixed>>, match_count?: int, mismatch_count?: int}> $resolved */
 		$resolved = [];
 
 		foreach ( $groups as $group )
@@ -323,7 +324,7 @@ class FindDuplicates
 //  other non-static methods
 
 	/**
-	 * @param  array{algo: string, hash_value: string, file_count: int, empty: bool, files: array}[]  $groups
+	 * @param  array{algo: string, hash_value: string, file_count: int, empty: bool, files: array, match_count?: int, mismatch_count?: int}[]  $groups
 	 */
 	private function writeOutput(
 		OutputInterface $output,

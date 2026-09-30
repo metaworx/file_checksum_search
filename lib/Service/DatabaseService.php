@@ -16,6 +16,7 @@ use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\IDBConnection;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Console\Output\ConsoleOutputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Throwable;
 
@@ -158,7 +159,11 @@ class DatabaseService
 	}
 
 	/**
-	 * @return array<int, array<string, mixed>>
+	 * @template T of array
+	 *
+	 * @param  callable(): T  $fn
+	 *
+	 * @return T|array{}
 	 */
 	private function safeArray(
 		callable         $fn,
@@ -246,9 +251,10 @@ class DatabaseService
 		}
 		catch ( Throwable $e )
 		{
-			$output?->getErrorOutput()
-			       ->writeln( sprintf( '<error>%s</error>', $e->getMessage() ) )
-			;
+			// The error stream where the console has one; a buffered or null
+			// output has only the one stream, and no getErrorOutput().
+			$errors = $output instanceof ConsoleOutputInterface ? $output->getErrorOutput() : $output;
+			$errors?->writeln( sprintf( '<error>%s</error>', $e->getMessage() ) );
 
 			$this->logger->warning(
 				'FCIAS: database query failed',

@@ -96,6 +96,12 @@ the first stable release.
 - `occ file-checksum-search:hash-files`: one file that fails to hash
   no longer ends the run.
 
+- `occ file-checksum-search:backup`: a file whose path is not UTF-8 left
+  the JSON backup unreadable; the backup now stops with the error.
+
+- Recalculating a local file that cannot be read: "Could not open the
+  file for reading" rather than an internal type error.
+
 ## [0.20.3] - 2026-09-27
 
 ### Fixed
