@@ -1,4 +1,4 @@
-# AP SuggestedFeatures v1.0: Design new features
+# AP SuggestedFeatures v1.5: Design new features
 
 **Source report:** [`.aiassistant/messages/2026-08-22_01-22_MSG_FCIASReview_v1.0_consistency_and_quality_review.md`](.aiassistant/messages/2026-08-22_01-22_MSG_FCIASReview_v1.0_consistency_and_quality_review.md), §8 (Potential Missing Features)
 
