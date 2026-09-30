@@ -70,6 +70,22 @@ jobs:
       - name: PHP syntax check
         run: composer lint
 
+      # The runner's PHP, as for the syntax check. --no-scripts: the root's
+      # post-install hook would install every tool under vendor-bin/, and
+      # this job needs two of them.
+      - name: PHP tools
+        run: |
+          composer install --no-interaction --no-scripts
+          composer bin ecs install --no-interaction
+          composer bin psalm install --no-interaction
+
+      - name: PHP coding style
+        run: composer cs:check
+
+      # Level 4, no baseline (psalm.xml): a finding fails the job.
+      - name: Psalm
+        run: composer psalm -- --no-progress --output-format=github
+
       # What the app store validates at upload, validated here first; the
       # schema is fetched so the check follows the store.
       - name: App manifest against the store's schema
