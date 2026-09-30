@@ -31,11 +31,15 @@ the first stable release.
 - Files sidebar: an empty file's duplicates are one line, with a link
   to the Duplicates page.
 
+- `GET /api/v1/duplicates` and `GET /api/v1/sudo/duplicates`:
+  `canRecalc`, whether the caller may recalculate checksums.
+
 ### Changed
 
 - `ChecksumApi`: `$reachUids` is required and follows the subject in
   `findByHash()`, `getHashesByFileId()`, `findSameHash()`,
-  `recalcHash()` and `recalcMany()`; a positional call breaks.
+  `recalcHash()` and `recalcMany()`; a call that left it out, or passed
+  later arguments by position, breaks.
 
 - The REST API's `error` texts and `ChecksumApi`'s refusals: reworded,
   and in the caller's language; match on the status, never the text.
@@ -44,9 +48,12 @@ the first stable release.
   help texts that say what the app does, and the app's summary and
   description to match.
 
-- `GET /api/v1/duplicates`, `findDuplicates()`, `findDuplicatesFor()`:
-  empty files are left out unless `includeEmpty` is set, and each
-  group carries `empty`; a caller that wants them sets it.
+- `GET /api/v1/duplicates`, `GET /api/v1/sudo/duplicates`,
+  `findDuplicates()`, `findDuplicatesFor()` and
+  `occ file-checksum-search:find-duplicates`: empty files are left out
+  unless `includeEmpty` or `--include-empty` is set, so a caller or a
+  script that wants them sets it. Each group carries `empty`, on
+  `GET /api/v1/file/{fileId}/duplicates` and `findSameHash()` too.
 
 - The frontend's types: checked by `npm run typecheck` (vue-tsc).
 
@@ -66,9 +73,9 @@ the first stable release.
 - The Duplicates page: "Verify" and "Verify all" are offered only to an
   account that may recalculate checksums.
 
-- A new rule, in the dialog and from "Create rule": it starts from the
-  default algorithm instead of SHA-1; `GET /api/v1/rules` carries it as
-  `defaultAlgo`.
+- A new rule, in the dialog and from a placeholder row's "Add rule": it
+  starts from the default algorithm instead of SHA-1;
+  `GET /api/v1/rules` carries it as `defaultAlgo`.
 
 - Enabling or upgrading on a large instance: the repair's checksum
   index check and orphan purge held the request for a minute.
