@@ -1,21 +1,71 @@
 <?xml version="1.0"?>
+<!--
+	Level 4, no baseline: the level lib/ passes as it stands, so every finding
+	is either fixed or suppressed below with its reason, and none is hidden.
+	Tightened a level at a time from here.
+
+	No unused-code check: Nextcloud reaches commands and settings through
+	appinfo/info.xml, controllers through their routes, and the repair steps
+	through a method table, none of which Psalm can see, so it reports every
+	one of them as unused.
+-->
 <psalm
-    errorLevel="1"
-    resolveFromConfigFile="true"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xmlns="https://getpsalm.org/schema/config"
-    xsi:schemaLocation="https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd"
-    findUnusedBaselineEntry="true"
-    findUnusedCode="true"
-	phpVersion="8.1"
+	errorLevel="4"
+	resolveFromConfigFile="true"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns="https://getpsalm.org/schema/config"
+	xsi:schemaLocation="https://getpsalm.org/schema/config vendor-bin/psalm/vendor/vimeo/psalm/config.xsd"
+	findUnusedCode="false"
+	phpVersion="8.2"
 >
-    <projectFiles>
-        <directory name="lib" />
-        <ignoreFiles>
-            <directory name="vendor" />
-        </ignoreFiles>
-    </projectFiles>
+	<projectFiles>
+		<directory name="lib" />
+		<ignoreFiles>
+			<directory name="vendor" />
+		</ignoreFiles>
+	</projectFiles>
 	<extraFiles>
-		<directory name="vendor"/>
+		<directory name="vendor" />
 	</extraFiles>
+
+	<!--
+		What the app uses from outside Nextcloud's public API. The server has
+		these classes; the nextcloud/ocp package it is analysed against does
+		not. Each use is deliberate, and each is a question for the next
+		Nextcloud version (AP Nc35): this list is that inventory.
+	-->
+	<stubs>
+		<!-- OCP\Files\IRootFolder extends it, and the OCP package does not ship it. -->
+		<file name="tests/stubs/OC/Hooks/Emitter.php" />
+	</stubs>
+
+	<issueHandlers>
+		<UndefinedClass>
+			<errorLevel type="suppress">
+				<!-- RuleService: a paged path search; OCP offers no constructor for a query. -->
+				<referencedClass name="OC\Files\Search\SearchQuery" />
+				<referencedClass name="OC\Files\Search\SearchComparison" />
+				<!-- MetadataService, RepairQuietStart: the metadata document and its manager, for the repair. -->
+				<referencedClass name="OC\FilesMetadata\Model\FilesMetadata" />
+				<referencedClass name="OC\FilesMetadata\FilesMetadataManager" />
+				<!-- DatabaseService: the schema read behind IDBConnection::getInner(). -->
+				<referencedClass name="Doctrine\DBAL\Connection" />
+				<referencedClass name="Doctrine\DBAL\Schema\AbstractSchemaManager" />
+			</errorLevel>
+		</UndefinedClass>
+		<UndefinedDocblockClass>
+			<errorLevel type="suppress">
+				<!-- FilecacheService: what IRootFolder::getUserFolder() throws. -->
+				<referencedClass name="OC\User\NoUserException" />
+				<!-- The migrations: what ISchemaWrapper hands back. -->
+				<referencedClass name="Doctrine\DBAL\Schema\Table" />
+			</errorLevel>
+		</UndefinedDocblockClass>
+		<UndefinedInterfaceMethod>
+			<errorLevel type="suppress">
+				<!-- DatabaseService: the Doctrine connection under Nextcloud's. -->
+				<referencedMethod name="OCP\IDBConnection::getInner" />
+			</errorLevel>
+		</UndefinedInterfaceMethod>
+	</issueHandlers>
 </psalm>
