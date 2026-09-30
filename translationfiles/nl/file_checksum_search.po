@@ -1,0 +1,1140 @@
+# Dutch translations for Nextcloud package.
+# Copyright (C) 2026 THE Nextcloud'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the Nextcloud package.
+# Automatically generated, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Nextcloud 3.14159\n"
+"Report-Msgid-Bugs-To: translations\\@example.com\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: Claude (AI draft, not reviewed by a native speaker)\n"
+"Language-Team: none\n"
+"Language: nl\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. TRANSLATORS: "Yes" is the value this column shows; translate it as that does
+msgid "\"Yes\" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it."
+msgstr "“Ja” betekent dat een beheerder deze regel heeft afgedwongen: niemand anders kan hem bewerken of uitschakelen, en omdat afgedwongen regels de eerste vier lagen vullen, kan geen persoonlijke regel eerder aan de beurt komen dan deze regel."
+
+msgid "%n file"
+msgid_plural "%n files"
+msgstr[0] "%n bestand"
+msgstr[1] "%n bestanden"
+
+msgid "(not in your files)"
+msgstr "(niet in je bestanden)"
+
+msgid "A disabled rule cannot be applied — enable it first."
+msgstr "Een uitgeschakelde regel kan niet worden toegepast – schakel hem eerst in."
+
+#. TRANSLATORS: "Security" and "Allow filesystem access" are Nextcloud's own names; use Nextcloud's translations. Keep /api/v1/sudo/ as it is
+msgid "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password. A grant stays in force until it is revoked, and every administrator can see it. Create the app password under \"Security\" first, with \"Allow filesystem access\" on. Whether you may look across accounts at all is still up to your administrator; a grant replaces the password prompt, not the permission."
+msgstr "Een vrijgegeven appwachtwoord mag via de routes /api/v1/sudo/ accountoverschrijdend lezen zonder dat iemand een wachtwoord invoert. Een vrijgave blijft van kracht totdat ze wordt ingetrokken en is zichtbaar voor elke beheerder. Maak het appwachtwoord eerst aan onder “Beveiliging”, met “Toestaan toegang bestandssysteem” ingeschakeld. Of je überhaupt accountoverschrijdend mag kijken, wordt nog steeds bepaald door je beheerder; een vrijgave vervangt de wachtwoordvraag, niet de machtiging."
+
+msgid "A home folder"
+msgstr "Een thuismap"
+
+msgid "A path is required."
+msgstr "Een pad is vereist."
+
+msgid "A single account"
+msgstr "Eén account"
+
+msgid "A storage"
+msgstr "Een opslag"
+
+msgid "A team folder"
+msgstr "Een teammap"
+
+msgid "Account"
+msgstr "Account"
+
+msgid "Accounts"
+msgstr "Accounts"
+
+#. TRANSLATORS a button: hides the banner until an include rule is enabled and then disabled again
+msgid "Acknowledge"
+msgstr "Voor kennisgeving aannemen"
+
+msgid "Add an algorithm …"
+msgstr "Algoritme toevoegen …"
+
+msgid "Add rule"
+msgstr "Regel toevoegen"
+
+msgid "Administrator-enforced rules covering every home folder."
+msgstr "Door een beheerder afgedwongen regels voor elke thuismap."
+
+msgid "Administrator-enforced rules covering every storage there is."
+msgstr "Door een beheerder afgedwongen regels voor elke opslag die er is."
+
+msgid "Administrator-enforced rules for one account's home folder or one storage. No other rule comes before them there, and the account cannot edit or disable them."
+msgstr "Door een beheerder afgedwongen regels voor de thuismap van één account of voor één opslag. Daar komt geen andere regel eerder aan de beurt dan zij, en het account kan ze niet bewerken of uitschakelen."
+
+msgid "Administrator-enforced rules for the members of a group, or for one team folder. Only an enforced rule aimed at something more specific comes before them."
+msgstr "Door een beheerder afgedwongen regels voor de leden van een groep, of voor één teammap. Alleen een afgedwongen regel voor iets specifiekers komt eerder aan de beurt dan zij."
+
+msgid "Advanced"
+msgstr "Geavanceerd"
+
+msgid "Algorithm"
+msgstr "Algoritme"
+
+#, php-format
+msgid "Algorithm not allowed on this server: %s"
+msgstr "Algoritme niet toegestaan op deze server: %s"
+
+msgid "Algorithms"
+msgstr "Algoritmen"
+
+msgid "Algorithms saved."
+msgstr "Algoritmen opgeslagen."
+
+msgid "All accounts"
+msgstr "Alle accounts"
+
+msgid "All algorithms"
+msgstr "Alle algoritmen"
+
+msgid "All home folders"
+msgstr "Alle thuismappen"
+
+msgid "All my groups"
+msgstr "Al mijn groepen"
+
+msgid "Allow all accounts to edit rules"
+msgstr "Alle accounts toestaan regels te bewerken"
+
+msgid "Allow all accounts to look across accounts"
+msgstr "Alle accounts toestaan accountoverschrijdend te kijken"
+
+msgid "Allow all accounts to recalculate checksums"
+msgstr "Alle accounts toestaan controlesommen opnieuw te berekenen"
+
+msgid "Allow all accounts to use the API"
+msgstr "Alle accounts toestaan de API te gebruiken"
+
+msgid "Allowed algorithms"
+msgstr "Toegestane algoritmen"
+
+#. TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
+#, php-format
+msgid "An %s rule computes nothing, so there is nothing to apply."
+msgstr "Een regel van het type \"%s\" berekent niets, dus valt er niets toe te passen."
+
+msgid "App password"
+msgstr "Appwachtwoord"
+
+msgid "App password granted."
+msgstr "Appwachtwoord vrijgegeven."
+
+#. TRANSLATORS: "Who may look across accounts" is a heading on the Permissions tab; translate it as that heading does
+msgid "App passwords that may use the cross-account routes without a password prompt. A grant stays in force until it is revoked, so every one is listed here, and any can be revoked here. Who may look across accounts at all is decided under \"Who may look across accounts\"; a grant replaces the password prompt, not the permission."
+msgstr "Appwachtwoorden die de accountoverschrijdende routes zonder wachtwoordvraag mogen gebruiken. Een vrijgave blijft van kracht totdat ze wordt ingetrokken; daarom staan ze hier allemaal vermeld, en kan hier elk ervan worden ingetrokken. Wie er überhaupt accountoverschrijdend mag kijken, wordt bepaald onder “Wie accountoverschrijdend mag kijken”; een vrijgave vervangt de wachtwoordvraag, niet de machtiging."
+
+msgid "App version"
+msgstr "Appversie"
+
+msgid "At least one allowed algorithm is required."
+msgstr "Er is minstens één toegestaan algoritme vereist."
+
+msgid "Auto (recalculate existing checksums when outdated)"
+msgstr "Automatisch (bestaande controlesommen opnieuw berekenen als ze verouderd zijn)"
+
+msgid "Automatic hashing is inactive."
+msgstr "Het automatisch berekenen van controlesommen is inactief."
+
+msgid "Background jobs"
+msgstr "Achtergrondtaken"
+
+msgid "Band {band}"
+msgstr "Laag {band}"
+
+msgid "Band {band}, position {position}"
+msgstr "Laag {band}, positie {position}"
+
+msgid "Cancel"
+msgstr "Annuleren"
+
+msgid "Checksum algorithms"
+msgstr "Controlesomalgoritmen"
+
+msgid "Checksum algorithms computed for matching files. Each algorithm you add is indexed separately, so more algorithms mean more work per file."
+msgstr "Controlesomalgoritmen die voor overeenkomende bestanden worden berekend. Elk algoritme dat je toevoegt, wordt apart geïndexeerd, dus betekenen meer algoritmen meer werk per bestand."
+
+#. TRANSLATORS: "—" is what the table shows for a rule that computes nothing; keep it
+msgid "Checksum algorithms computed for matching files. Each one is indexed separately, so more algorithms mean more work per file. Shown as \"—\" for a rule that computes nothing."
+msgstr "Controlesomalgoritmen die voor overeenkomende bestanden worden berekend. Elk ervan wordt apart geïndexeerd, dus betekenen meer algoritmen meer werk per bestand. Wordt als \"—\" getoond bij een regel die niets berekent."
+
+#. TRANSLATORS: a background job's name: it copies the checksums Nextcloud already holds into this app's index.
+msgid "Checksum copy"
+msgstr "Overname van bestaande controlesommen"
+
+#. TRANSLATORS: a background job's name: it checks that every stored checksum can be found by a search, and fixes what cannot.
+msgid "Checksum index check"
+msgstr "Controle van de controlesomindex"
+
+msgid "Checksums"
+msgstr "Controlesommen"
+
+msgid "Checksums indexed for this file. Click one to copy it."
+msgstr "Voor dit bestand geïndexeerde controlesommen. Klik op een controlesom om die te kopiëren."
+
+msgid "Choose accounts or groups"
+msgstr "Accounts of groepen kiezen"
+
+msgid "Choose an account or a group above to see its duplicates."
+msgstr "Kies hierboven een account of groep om de duplicaten ervan te zien."
+
+msgid "Close"
+msgstr "Sluiten"
+
+msgid "Copied!"
+msgstr "Gekopieerd!"
+
+msgid "Could not change the grant."
+msgstr "Kon de vrijgave niet wijzigen."
+
+msgid "Could not complete the request."
+msgstr "Kon het verzoek niet voltooien."
+
+msgid "Could not delete the rule."
+msgstr "Kon de regel niet verwijderen."
+
+msgid "Could not enable or disable the rule."
+msgstr "Kon de regel niet in- of uitschakelen."
+
+msgid "Could not list the grants: the app passwords could not be read."
+msgstr "Kon de vrijgaven niet weergeven: de appwachtwoorden konden niet worden gelezen."
+
+msgid "Could not list your app passwords ({error})."
+msgstr "Kon je appwachtwoorden niet weergeven ({error})."
+
+msgid "Could not list your app passwords: they could not be read."
+msgstr "Kon je appwachtwoorden niet weergeven: ze konden niet worden gelezen."
+
+msgid "Could not load the accounts and groups."
+msgstr "Kon de accounts en groepen niet laden."
+
+msgid "Could not load the algorithms."
+msgstr "Kon de algoritmen niet laden."
+
+msgid "Could not load the checksums."
+msgstr "Kon de controlesommen niet laden."
+
+msgid "Could not load the documentation."
+msgstr "Kon de documentatie niet laden."
+
+msgid "Could not load the duplicates."
+msgstr "Kon de duplicaten niet laden."
+
+msgid "Could not load the grants ({error})."
+msgstr "Kon de vrijgaven niet laden ({error})."
+
+msgid "Could not load the permissions."
+msgstr "Kon de machtigingen niet laden."
+
+msgid "Could not load the rules."
+msgstr "Kon de regels niet laden."
+
+msgid "Could not load the status (HTTP {status})."
+msgstr "Kon de status niet laden (HTTP {status})."
+
+msgid "Could not load the status."
+msgstr "Kon de status niet laden."
+
+msgid "Could not open the file for reading."
+msgstr "Kon het bestand niet openen om te lezen."
+
+msgid "Could not reapply the rule."
+msgstr "Kon de regel niet opnieuw toepassen."
+
+msgid "Could not recalculate the checksum."
+msgstr "Kon de controlesom niet opnieuw berekenen."
+
+msgid "Could not reorder the rules."
+msgstr "Kon de regels niet herschikken."
+
+msgid "Could not revoke the grant."
+msgstr "Kon de vrijgave niet intrekken."
+
+msgid "Could not save the options."
+msgstr "Kon de opties niet opslaan."
+
+msgid "Could not save the preference."
+msgstr "Kon de voorkeur niet opslaan."
+
+msgid "Could not save the rule."
+msgstr "Kon de regel niet opslaan."
+
+msgid "Creating and editing rules for folders in one's own files that one can write to. An administrator always may; a rule an administrator has enforced is read-only for everyone else regardless."
+msgstr "Regels aanmaken en bewerken voor mappen die in de eigen bestanden liggen en waarin iemand mag schrijven. Een beheerder mag dat altijd; een regel die een beheerder heeft afgedwongen, is voor alle anderen hoe dan ook alleen-lezen."
+
+#. TRANSLATORS prefill: fill the list of the picker before anything is typed
+msgid "Cross-account picker: prefill up to"
+msgstr "Accountoverschrijdende keuzelijst: vooraf vullen tot"
+
+msgid "Cross-account reads"
+msgstr "Accountoverschrijdend lezen"
+
+msgid "Database version"
+msgstr "Databaseversie"
+
+#. TRANSLATORS: the entry that follows the server's default algorithm, named in brackets
+msgid "Default ({algorithm})"
+msgstr "Standaard ({algorithm})"
+
+msgid "Default algorithm"
+msgstr "Standaardalgoritme"
+
+#. TRANSLATORS: "**" and "/" are paths as they are typed; keep them
+msgid "Defaults for all home folders. Within this band a catch-all default — path \"**\", \"/\" or empty — always evaluates last, after the more specific rules here."
+msgstr "Standaardregels voor alle thuismappen. Binnen deze laag wordt een vangnetregel – pad \"**\", \"/\" of leeg – altijd als laatste geëvalueerd, na de specifiekere regels hier."
+
+msgid "Delete"
+msgstr "Verwijderen"
+
+msgid "Delete rule"
+msgstr "Regel verwijderen"
+
+msgid "Delete this rule?"
+msgstr "Deze regel verwijderen?"
+
+msgid "Disable"
+msgstr "Uitschakelen"
+
+msgid "Disabled"
+msgstr "Uitgeschakeld"
+
+msgid "Documentation"
+msgstr "Documentatie"
+
+msgid "Documentation files"
+msgstr "Documentatiebestanden"
+
+msgid "Download {file}"
+msgstr "{file} downloaden"
+
+msgid "Drag to reorder among the rules of the same scope"
+msgstr "Sleep om te herschikken tussen de regels met hetzelfde toepassingsgebied"
+
+msgid "Duplicates"
+msgstr "Duplicaten"
+
+msgid "Edit"
+msgstr "Bewerken"
+
+msgid "Edit rule"
+msgstr "Regel bewerken"
+
+msgid "Edit the rule on {path}"
+msgstr "De regel voor {path} bewerken"
+
+msgid "Enable"
+msgstr "Inschakelen"
+
+msgid "Enabled"
+msgstr "Ingeschakeld"
+
+msgid "Enforced"
+msgstr "Afgedwongen"
+
+msgid "Enforced — all home folders"
+msgstr "Afgedwongen – alle thuismappen"
+
+msgid "Enforced — everything"
+msgstr "Afgedwongen – alles"
+
+msgid "Enforced — groups & team folders"
+msgstr "Afgedwongen – groepen & teammappen"
+
+msgid "Enforced — specific"
+msgstr "Afgedwongen – specifiek"
+
+#. TRANSLATORS: the state of checksums deleted because no rule maintains them any more
+msgid "Eroded"
+msgstr "Vervallen"
+
+msgid "Error"
+msgstr "Fout"
+
+#. TRANSLATORS: "Enforced" is a field of the rule dialog and a column of the rule table; translate it as those do
+msgid "Evaluated top to bottom — the first matching rule decides the file. A rule's band follows from its scope and whether it is enforced, so enforced rules always precede personal rules, and the catch-all default is last. Drag a rule by its handle to reorder it among the rules of the same scope; to move it to another band, change its scope or its \"Enforced\" setting."
+msgstr "Van boven naar beneden geëvalueerd – de eerste overeenkomende regel beslist over het bestand. De laag van een regel volgt uit zijn toepassingsgebied en uit de vraag of hij is afgedwongen, dus gaan afgedwongen regels altijd vóór persoonlijke regels, en de vangnetregel komt als laatste. Sleep een regel aan zijn greep om hem te herschikken tussen de regels met hetzelfde toepassingsgebied; om hem naar een andere laag te verplaatsen, wijzig je zijn toepassingsgebied of zijn instelling “Afgedwongen”."
+
+msgid "Evaluates in band {band} — {label}"
+msgstr "Wordt geëvalueerd in laag {band} – {label}"
+
+msgid "Every rule that can affect your files, in the order they are evaluated — the first match decides. Rules an administrator enforced come first and are read-only; your own rules come next and are yours to edit and reorder; the defaults below them apply only where none of your rules matched. You can create rules only if you have been given permission and the path is a folder in your own files that you can write to."
+msgstr "Elke regel die je bestanden kan beïnvloeden, in de volgorde waarin ze worden geëvalueerd – de eerste overeenkomst beslist. Regels die een beheerder heeft afgedwongen, komen eerst en zijn alleen-lezen; je eigen regels volgen, en die kun je bewerken en herschikken; de standaardregels daaronder gelden alleen waar geen van je regels overeenkwam. Je kunt alleen regels aanmaken als je daarvoor de machtiging hebt gekregen en het pad een map in je eigen bestanden is waarin je mag schrijven."
+
+msgid "Everything"
+msgstr "Alles"
+
+msgid "Everything — every storage"
+msgstr "Alles – elke opslag"
+
+msgid "Exclude (never hash these files)"
+msgstr "Uitsluiten (voor deze bestanden nooit controlesommen berekenen)"
+
+msgid "FAQ"
+msgstr "Veelgestelde vragen"
+
+#. TRANSLATORS: a file's verification failed, for no reason the server gave
+msgid "Failed"
+msgstr "Mislukt"
+
+msgid "File Checksum Index & Search"
+msgstr "File Checksum Index & Search"
+
+msgid "File checksums"
+msgstr "Bestandscontrolesommen"
+
+msgid "File not found."
+msgstr "Bestand niet gevonden."
+
+msgid "Find across accounts"
+msgstr "Accountoverschrijdend zoeken"
+
+msgid "Find duplicates"
+msgstr "Duplicaten zoeken"
+
+msgid "Find other files sharing a checksum with this file."
+msgstr "Andere bestanden zoeken met dezelfde controlesom als dit bestand."
+
+msgid "Force (delete and recalculate all checksums)"
+msgstr "Forceren (alle controlesommen verwijderen en opnieuw berekenen)"
+
+#. TRANSLATORS: the quoted patterns are examples to type as they are
+msgid "Glob pattern the file path must match. \"**\" matches every file, \"**/*.txt\" matches by extension, and \"/Documents/**\" matches everything below one folder."
+msgstr "Globpatroon waarmee het bestandspad moet overeenkomen. \"**\" komt overeen met elk bestand, \"**/*.txt\" met alle bestanden met die extensie en \"/Documents/**\" met alles onder één map."
+
+#. TRANSLATORS: the quoted patterns are examples to type as they are
+msgid "Glob pattern the file path must match. \"**\" matches every file; \"/Documents/**\" matches everything below that folder. Rules are checked in order and the first match wins."
+msgstr "Globpatroon waarmee het bestandspad moet overeenkomen. \"**\" komt overeen met elk bestand; \"/Documents/**\" met alles onder die map. Regels worden op volgorde doorlopen, en de eerste overeenkomst wint."
+
+msgid "Grant revoked."
+msgstr "Vrijgave ingetrokken."
+
+#. TRANSLATORS a column heading: when the app password was granted, and by whom
+msgid "Granted"
+msgstr "Vrijgegeven"
+
+#. TRANSLATORS: {time} is the date and time the app password was granted
+msgid "Granted {time}"
+msgstr "Vrijgegeven op {time}"
+
+msgid "Group"
+msgstr "Groep"
+
+msgid "Group: {group}"
+msgstr "Groep: {group}"
+
+msgid "Groups"
+msgstr "Groepen"
+
+msgid "Groups & team folders"
+msgstr "Groepen & teammappen"
+
+msgid "Groups per page, 1 to 500"
+msgstr "Groepen per pagina, 1 tot en met 500"
+
+msgid "Hash"
+msgstr "Hash"
+
+msgid "Hashing is excluded for this path by a rule."
+msgstr "Het berekenen van controlesommen is voor dit pad uitgesloten door een regel."
+
+msgid "Hashing is excluded for this path by an administrator's rule."
+msgstr "Het berekenen van controlesommen is voor dit pad uitgesloten door een regel van een beheerder."
+
+msgid "Hashing is excluded for this path by your own rule."
+msgstr "Het berekenen van controlesommen is voor dit pad uitgesloten door je eigen regel."
+
+#. TRANSLATORS: {owner} is the account whose rule excludes the path
+msgid "Hashing is excluded for this path by {owner}'s rule."
+msgstr "Het berekenen van controlesommen is voor dit pad uitgesloten door een regel van {owner}."
+
+msgid "Help"
+msgstr "Hulp"
+
+msgid "Help: {label}"
+msgstr "Hulp: {label}"
+
+msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
+msgstr "Hoeveel groepen één pagina toont. Hier wordt niets van schijf gelezen totdat je een groep of bestand controleert, dus kost een grotere pagina een langere databasequery, geen langere leesbewerkingen."
+
+msgid "Ignore (no automatic hashing; still allowed on request)"
+msgstr "Negeren (geen automatische berekening; op verzoek nog wel mogelijk)"
+
+msgid "Include (compute checksums)"
+msgstr "Opnemen (controlesommen berekenen)"
+
+msgid "Indexed checksums"
+msgstr "Geïndexeerde controlesommen"
+
+msgid "Individual accounts that may call the public API with an app password, in addition to the members of any selected groups."
+msgstr "Afzonderlijke accounts die de openbare API met een appwachtwoord mogen aanroepen, naast de leden van de geselecteerde groepen."
+
+msgid "Individual accounts that may create and edit rules for folders in their own files that they can write to, in addition to the members of any selected groups."
+msgstr "Afzonderlijke accounts die regels mogen aanmaken en bewerken voor mappen die in hun eigen bestanden liggen en waarin ze mogen schrijven, naast de leden van de geselecteerde groepen."
+
+msgid "Individual accounts that may look at other accounts' files once they have confirmed their password, in addition to the members of any selected groups and of the admin group."
+msgstr "Afzonderlijke accounts die de bestanden van andere accounts mogen bekijken zodra ze hun wachtwoord hebben bevestigd, naast de leden van de geselecteerde groepen en van de beheerdersgroep."
+
+msgid "Individual accounts that may recalculate checksums by hand, in addition to the members of any selected groups."
+msgstr "Afzonderlijke accounts die handmatig controlesommen opnieuw mogen berekenen, naast de leden van de geselecteerde groepen."
+
+msgid "Internal server error."
+msgstr "Interne serverfout."
+
+msgid "Invalid request body."
+msgstr "Ongeldige inhoud van het verzoek."
+
+msgid "Last updated"
+msgstr "Laatst bijgewerkt"
+
+msgid "Last used"
+msgstr "Laatst gebruikt"
+
+msgid "Lazy (delete checksums now, recalculate later)"
+msgstr "Later (controlesommen nu verwijderen, later opnieuw berekenen)"
+
+msgid "Loading checksums …"
+msgstr "Controlesommen laden …"
+
+#. TRANSLATORS a switch beside the hash filter: the typed text may match anywhere inside a checksum, not only at its start
+msgid "Match anywhere in the hash"
+msgstr "Overal in de hash zoeken"
+
+msgid "Match the term anywhere in the hash, not only at its start"
+msgstr "De zoekterm overal in de hash zoeken, niet alleen aan het begin"
+
+msgid "Members of a group"
+msgstr "Leden van een groep"
+
+msgid "Members of these groups may call the public API with an app password. Selected groups and selected accounts are combined — being in either is enough."
+msgstr "Leden van deze groepen mogen de openbare API met een appwachtwoord aanroepen. Geselecteerde groepen en geselecteerde accounts worden samengevoegd – in een van beide staan is genoeg."
+
+msgid "Members of these groups may create and edit rules for folders in their own files that they can write to. Selected groups and selected accounts are combined — being in either is enough."
+msgstr "Leden van deze groepen mogen regels aanmaken en bewerken voor mappen die in hun eigen bestanden liggen en waarin ze mogen schrijven. Geselecteerde groepen en geselecteerde accounts worden samengevoegd – in een van beide staan is genoeg."
+
+msgid "Members of these groups may look across accounts once they have confirmed their password. Selected groups and selected accounts are combined — being in either is enough."
+msgstr "Leden van deze groepen mogen accountoverschrijdend kijken zodra ze hun wachtwoord hebben bevestigd. Geselecteerde groepen en geselecteerde accounts worden samengevoegd – in een van beide staan is genoeg."
+
+msgid "Members of these groups may recalculate checksums by hand. Selected groups and selected accounts are combined — being in either is enough."
+msgstr "Leden van deze groepen mogen handmatig controlesommen opnieuw berekenen. Geselecteerde groepen en geselecteerde accounts worden samengevoegd – in een van beide staan is genoeg."
+
+#. TRANSLATORS a number field's label: the smallest number of files a listed group has, 2 to 100
+msgid "Min. files"
+msgstr "Min. aantal bestanden"
+
+#. TRANSLATORS: the tab listing the duplicates among one's own files
+msgid "Mine"
+msgstr "Van mij"
+
+msgid "Missing (like Auto, and add missing checksums)"
+msgstr "Ontbrekende (zoals “Automatisch”, en ontbrekende controlesommen toevoegen)"
+
+msgid "Mode"
+msgstr "Modus"
+
+msgid "More actions for the rule on {path}"
+msgstr "Meer acties bij de regel voor {path}"
+
+msgid "Network error"
+msgstr "Netwerkfout"
+
+msgid "New rule"
+msgstr "Nieuwe regel"
+
+msgid "Next"
+msgstr "Volgende"
+
+msgid "No"
+msgstr "Nee"
+
+#. TRANSLATORS: "All home folders" is a scope as the rule table shows it, "Include" a rule type as the dialog shows it; translate them as those do
+msgid "No \"Include\" rule is enabled, so no file is hashed automatically. Enable the \"All home folders\" default in the table below, or add a rule. Recalculating by hand from the file sidebar still works."
+msgstr "Er is geen regel van het type “Opnemen” ingeschakeld, dus worden voor geen enkel bestand automatisch controlesommen berekend. Schakel de standaardregel “Alle thuismappen” in de tabel hieronder in, of voeg een regel toe. Handmatig opnieuw berekenen vanuit de bestandszijbalk werkt nog steeds."
+
+msgid "No accounts or groups to show"
+msgstr "Geen accounts of groepen om te tonen"
+
+#. TRANSLATORS "Security" is Nextcloud's personal settings section; use Nextcloud's own translation
+msgid "No app passwords yet. Create one under \"Security\", then grant it here."
+msgstr "Nog geen appwachtwoorden. Maak er een aan onder “Beveiliging” en geef het hier vrij."
+
+msgid "No checksums available for this file."
+msgstr "Geen controlesommen beschikbaar voor dit bestand."
+
+msgid "No documentation available."
+msgstr "Geen documentatie beschikbaar."
+
+msgid "No duplicate files found."
+msgstr "Geen dubbele bestanden gevonden."
+
+msgid "No grants."
+msgstr "Geen vrijgaven."
+
+msgid "No other files share checksums with this file."
+msgstr "Geen andere bestanden hebben dezelfde controlesommen als dit bestand."
+
+msgid "No rules apply to your files."
+msgstr "Er gelden geen regels voor je bestanden."
+
+msgid "No rules yet."
+msgstr "Nog geen regels."
+
+msgid "No such app password on this account."
+msgstr "Dit appwachtwoord bestaat niet bij dit account."
+
+msgid "None"
+msgstr "Geen"
+
+msgid "None of the requested algorithms is available on this server; the previous list is kept."
+msgstr "Geen van de gevraagde algoritmen is beschikbaar op deze server; de vorige lijst blijft behouden."
+
+msgid "Not granted"
+msgstr "Niet vrijgegeven"
+
+msgid "Not in your files"
+msgstr "Niet in je bestanden"
+
+msgid "Not logged in."
+msgstr "Niet ingelogd."
+
+#. TRANSLATORS: a file's verification result: the server did not get to this file
+msgid "Not processed"
+msgstr "Niet verwerkt"
+
+#. TRANSLATORS: when a background job last ran: not at all
+msgid "Not run yet"
+msgstr "Nog niet uitgevoerd"
+
+msgid "Not yours to look at."
+msgstr "Dit mag je niet bekijken."
+
+#. TRANSLATORS: "Include" is a rule type as the rule dialog shows it; translate it as that does
+msgid "Noted — the banner stays hidden until an \"Include\" rule is enabled and then disabled again."
+msgstr "Genoteerd – de melding blijft verborgen totdat een regel van het type “Opnemen” wordt ingeschakeld en daarna weer uitgeschakeld."
+
+msgid "Numbers that shape how the interface behaves. The defaults suit most servers."
+msgstr "Waarden die bepalen hoe de interface zich gedraagt. De standaardwaarden passen bij de meeste servers."
+
+msgid "One account's home folder"
+msgstr "De thuismap van één account"
+
+msgid "One storage (raw ID)"
+msgstr "Eén opslag (interne ID)"
+
+msgid "Only administrators can edit or disable this rule"
+msgstr "Alleen beheerders kunnen deze regel bewerken of uitschakelen"
+
+msgid "Only an app password can be granted; a browser session is discarded by the next login."
+msgstr "Alleen een appwachtwoord kan worden vrijgegeven; een browsersessie vervalt de volgende keer dat je inlogt."
+
+msgid "Only groups of this algorithm, or every algorithm at once. The list holds the algorithms this server computes; one the administrator has not allowed is not offered."
+msgstr "Alleen groepen van dit algoritme, of van alle algoritmen tegelijk. De lijst bevat de algoritmen die deze server berekent; een algoritme dat de beheerder niet heeft toegestaan, wordt niet aangeboden."
+
+msgid "Open the Duplicates page on this checksum, across every account you may see"
+msgstr "De pagina “Duplicaten” voor deze controlesom openen, over alle accounts die je mag zien"
+
+msgid "Options saved."
+msgstr "Opties opgeslagen."
+
+#. TRANSLATORS: a background job's name: it removes the checksums of files that no longer exist
+msgid "Orphan purge"
+msgstr "Opruimen van verweesde vermeldingen"
+
+#. TRANSLATORS: the tab listing the duplicates among other accounts' files
+msgid "Others"
+msgstr "Van anderen"
+
+msgid "Path"
+msgstr "Pad"
+
+msgid "Path (glob)"
+msgstr "Pad (glob)"
+
+#, php-format
+msgid "Path does not resolve to a file: %s"
+msgstr "Pad verwijst niet naar een bestand: %s"
+
+#. TRANSLATORS a number field's label: how many groups one page lists, 1 to 500
+msgid "Per page"
+msgstr "Per pagina"
+
+msgid "Permissions"
+msgstr "Machtigingen"
+
+msgid "Permissions saved."
+msgstr "Machtigingen opgeslagen."
+
+msgid "Preferred algorithm"
+msgstr "Voorkeursalgoritme"
+
+msgid "Preferred algorithm saved."
+msgstr "Voorkeursalgoritme opgeslagen."
+
+msgid "Prefill up to"
+msgstr "Vooraf vullen tot"
+
+msgid "Previous"
+msgstr "Vorige"
+
+msgid "Priority"
+msgstr "Prioriteit"
+
+msgid "Priority band"
+msgstr "Prioriteitslaag"
+
+#. TRANSLATORS: a background job's name: it computes the checksums of the queued files
+msgid "Queue drain"
+msgstr "Wachtrijverwerking"
+
+#. TRANSLATORS files waiting for the background job to compute their checksums, counted by mode
+msgid "Queued files"
+msgstr "Bestanden in de wachtrij"
+
+msgid "Read every file in this group again, recalculate its checksum and compare"
+msgstr "Elk bestand in deze groep nogmaals lezen, de controlesom ervan opnieuw berekenen en vergelijken"
+
+msgid "Read the file again and recalculate its checksum with the chosen algorithm."
+msgstr "Het bestand nogmaals lezen en de controlesom ervan opnieuw berekenen met het gekozen algoritme."
+
+msgid "Read this file again, recalculate its checksum and compare"
+msgstr "Dit bestand nogmaals lezen, de controlesom ervan opnieuw berekenen en vergelijken"
+
+msgid "Read-only"
+msgstr "Alleen-lezen"
+
+msgid "Reapply"
+msgstr "Opnieuw toepassen"
+
+msgid "Reapply queued — a background job will go through the rule's files."
+msgstr "Opnieuw toepassen ingepland – een achtergrondtaak loopt de bestanden van de regel door."
+
+msgid "Recalculate"
+msgstr "Opnieuw berekenen"
+
+#. TRANSLATORS: "Recalculate" is a button of the file sidebar, "Verify" and "Verify all" buttons of the Duplicates page; translate them as those buttons do
+msgid "Recalculating checksums by hand: the sidebar's \"Recalculate\" buttons, \"Verify\" and \"Verify all\" on the Duplicates page, and the API's recalculation routes, for any file the account can reach. Reading checksums already computed is not affected. Without this permission neither the sidebar nor the Duplicates page shows the buttons, and the API refuses the request."
+msgstr "Handmatig controlesommen opnieuw berekenen: met de knoppen “Opnieuw berekenen” in de zijbalk, “Controleren” en “Alles controleren” op de pagina “Duplicaten”, en de routes van de API voor herberekening, voor elk bestand dat het account kan bereiken. Het lezen van al berekende controlesommen wordt hierdoor niet beïnvloed. Zonder deze machtiging tonen noch de zijbalk noch de pagina “Duplicaten” de knoppen, en weigert de API het verzoek."
+
+msgid "Refresh"
+msgstr "Verversen"
+
+#. TRANSLATORS: the state of checksums a reset has made invalid; a past participle, not the action
+msgid "Reset"
+msgstr "Gereset"
+
+msgid "Revoke"
+msgstr "Intrekken"
+
+msgid "Rule deleted."
+msgstr "Regel verwijderd."
+
+msgid "Rule disabled."
+msgstr "Regel uitgeschakeld."
+
+msgid "Rule enabled."
+msgstr "Regel ingeschakeld."
+
+msgid "Rule not found."
+msgstr "Regel niet gevonden."
+
+msgid "Rule saved."
+msgstr "Regel opgeslagen."
+
+#. TRANSLATORS: a background job's name: every few minutes it applies the rules to the files and queues those that need checksums
+msgid "Rule sweep"
+msgstr "Regeldoorloop"
+
+msgid "Rules"
+msgstr "Regels"
+
+msgid "Rules applying to your files"
+msgstr "Regels voor je bestanden"
+
+msgid "Rules are evaluated in band order and the first match decides the file. A rule's band follows from its scope and whether it is enforced — it is not chosen directly, and reordering only moves a rule among the rules of the same scope."
+msgstr "Regels worden in de volgorde van de lagen geëvalueerd, en de eerste overeenkomst beslist over het bestand. De laag van een regel volgt uit zijn toepassingsgebied en uit de vraag of hij is afgedwongen – de laag wordt niet rechtstreeks gekozen, en herschikken verplaatst een regel alleen tussen de regels met hetzelfde toepassingsgebied."
+
+msgid "Rules for a group's members, or for one team folder. Not enforced: for a member's home folder, their personal rule comes first."
+msgstr "Regels voor de leden van een groep, of voor één teammap. Niet afgedwongen: voor de thuismap van een lid komt de persoonlijke regel van dat lid eerst."
+
+msgid "Rules for one account's home folder — personal rules — or for one storage. They decide a file only where no enforced rule matched it first."
+msgstr "Regels voor de thuismap van één account – persoonlijke regels – of voor één opslag. Ze beslissen alleen over een bestand waar geen afgedwongen regel er eerder mee overeenkwam."
+
+msgid "Save"
+msgstr "Opslaan"
+
+msgid "Saved."
+msgstr "Opgeslagen."
+
+msgid "Saving failed."
+msgstr "Opslaan mislukt."
+
+msgid "Saving …"
+msgstr "Opslaan …"
+
+msgid "Scope"
+msgstr "Toepassingsgebied"
+
+msgid "Scripts and other apps calling this app's public API with an app password. The bundled pages — this one, the Duplicates page, the file sidebar — keep working for everyone; this decides who may reach the same routes from outside them."
+msgstr "Scripts en andere apps die de openbare API van deze app met een appwachtwoord aanroepen. De meegeleverde pagina's – deze, de pagina “Duplicaten”, de bestandszijbalk – blijven voor iedereen werken; dit bepaalt wie dezelfde routes van buitenaf mag bereiken."
+
+msgid "Search accounts …"
+msgstr "Accounts zoeken …"
+
+msgid "Search groups …"
+msgstr "Groepen zoeken …"
+
+msgid "Searching …"
+msgstr "Zoeken …"
+
+#. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
+msgid "Select folder …"
+msgstr "Map selecteren …"
+
+msgid "Select groups …"
+msgstr "Groepen selecteren …"
+
+msgid "Settings"
+msgstr "Instellingen"
+
+msgid "Show only groups whose hash matches this"
+msgstr "Alleen groepen tonen waarvan de hash hiermee overeenkomt"
+
+#. TRANSLATORS: "Match anywhere in the hash" is the switch beside the field; translate it as that switch does
+msgid "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine."
+msgstr "Alleen groepen tonen waarvan de hash overeenkomt met wat je typt. Volledige waarden komen eerst, daarna de waarden die beginnen met wat je hebt getypt. Schakel “Overal in de hash zoeken” in om het ook midden in een hash te vinden. Hoofdletters zijn geen probleem."
+
+msgid "Smallest group to list: files sharing a checksum, 2 to 100"
+msgstr "Kleinste groep om te tonen: bestanden met dezelfde controlesom, 2 tot en met 100"
+
+msgid "Specific rules"
+msgstr "Specifieke regels"
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Storage ID"
+msgstr "Opslag-ID"
+
+msgid "Storage: {storage}"
+msgstr "Opslag: {storage}"
+
+msgid "Sudo tokens"
+msgstr "Sudo-tokens"
+
+msgid "Team folder"
+msgstr "Teammap"
+
+msgid "Team folders"
+msgstr "Teammappen"
+
+msgid "That view needs your password confirmed again, or is not yours to look at."
+msgstr "Voor deze weergave moet je je wachtwoord opnieuw bevestigen, of je mag deze niet bekijken."
+
+#. TRANSLATORS: "All home folders" and "Everything" are scopes as the rule table shows them; translate them as those do
+msgid "The \"All home folders\" default covers home folders only: files on external storage and in team folders are reached only by the \"Everything\" default or by their own team-folder or storage rules."
+msgstr "De standaardregel “Alle thuismappen” dekt alleen thuismappen: bestanden op externe opslag en in teammappen worden alleen bereikt door de standaardregel “Alles” of door hun eigen teammap- of opslagregels."
+
+#. TRANSLATORS: "hash" is a parameter name; keep it
+msgid "The \"hash\" parameter is required."
+msgstr "De parameter \"hash\" is vereist."
+
+msgid "The algorithm the Checksums tab in the file sidebar offers as its first button. Leave it on the default to follow the server; pick one to have it first for every file, with the file's own rule providing the second button."
+msgstr "Het algoritme dat het tabblad “Controlesommen” in de bestandszijbalk als eerste knop aanbiedt. Laat het op de standaard staan om de server te volgen; kies er een om het bij elk bestand als eerste te hebben, terwijl de regel van het bestand de tweede knop levert."
+
+msgid "The algorithm used wherever none is named: new rules, the command line, the API, and the sidebar's first button for anyone who has not chosen one. Only an allowed algorithm can be the default; removing the default from the list above makes the first remaining one the default."
+msgstr "Het algoritme dat overal wordt gebruikt waar er geen wordt genoemd: nieuwe regels, de commandoregel, de API en de eerste knop van de zijbalk voor iedereen die er zelf geen heeft gekozen. Alleen een toegestaan algoritme kan de standaard zijn; wordt de standaard uit de lijst hierboven verwijderd, dan wordt het eerste dat overblijft de standaard."
+
+msgid "The algorithms rules may compute and pickers may offer, chosen from what this server's PHP provides. Removing one does not delete checksums already stored under it — they stay searchable — it only stops new ones being computed."
+msgstr "De algoritmen die regels mogen berekenen en keuzelijsten mogen aanbieden, gekozen uit wat de PHP van deze server biedt. Eén ervan verwijderen wist geen controlesommen die er al mee zijn opgeslagen – die blijven doorzoekbaar – maar zorgt er alleen voor dat er geen nieuwe meer worden berekend."
+
+msgid "The default must be one of the allowed algorithms."
+msgstr "De standaard moet een van de toegestane algoritmen zijn."
+
+msgid "The home folders of a group's members"
+msgstr "De thuismappen van de leden van een groep"
+
+msgid "The last resort, covering every storage — external storage and team folders included. Enable deliberately: it can reach storage that is slow or costs money to read."
+msgstr "Het laatste redmiddel, voor elke opslag – externe opslag en teammappen inbegrepen. Bewust inschakelen: de regel kan ook opslag bereiken die traag is of waarvan het lezen geld kost."
+
+msgid "The one account whose home folder this rule addresses."
+msgstr "Het ene account waarvan deze regel de thuismap betreft."
+
+msgid "The path is not in a folder you can write to."
+msgstr "Het pad ligt niet in een map waarin je mag schrijven."
+
+msgid "The path leads into a received share, a team folder or another mounted storage. A personal rule only governs your own files; those files are governed by their owner's or the folder's own rules."
+msgstr "Het pad leidt naar een inkomende share, een teammap of een andere aangekoppelde opslag. Een persoonlijke regel geldt alleen voor je eigen bestanden; voor die bestanden gelden de regels van hun eigenaar of de eigen regels van de map."
+
+msgid "The raw ID from the storages table, matched exactly, whatever kind of storage it names. Use this for external storage, or for any storage the other choices cannot address."
+msgstr "De interne ID uit de opslagtabel, exact vergeleken, welk soort opslag die ook aanduidt. Gebruik deze voor externe opslag, of voor elke opslag die de andere keuzes niet kunnen aanduiden."
+
+msgid "The request never reached the server."
+msgstr "Het verzoek heeft de server nooit bereikt."
+
+msgid "The rule addresses the home folder of every member of this group."
+msgstr "De regel betreft de thuismap van elk lid van deze groep."
+
+#. TRANSLATORS: {status} is an HTTP status, such as "404 Not Found"
+msgid "The server answered {status}."
+msgstr "De server antwoordde met {status}."
+
+msgid "The server sent an answer this page could not read."
+msgstr "De server stuurde een antwoord dat deze pagina niet kon lezen."
+
+msgid "The smallest group to list: how many files must share a checksum before they count as duplicates. Two lists every duplicate; a higher number lists only the widely copied ones."
+msgstr "De kleinste groep om te tonen: hoeveel bestanden dezelfde controlesom moeten hebben voordat ze als duplicaten tellen. Bij twee wordt elk duplicaat getoond; een hoger getal toont alleen de vaak gekopieerde bestanden."
+
+msgid "The sudoers: members of the admin group always, plus the groups and accounts selected here. A group admin may also look at the members of the groups they administer without being selected. Looking across accounts still needs a password confirmation, which holds for 30 minutes, or a granted app password; this only says who may be asked."
+msgstr "De sudoers: altijd de leden van de beheerdersgroep, plus de hier geselecteerde groepen en accounts. Groepsbeheerders mogen bovendien, ook zonder geselecteerd te zijn, de bestanden bekijken van de leden van de groepen die ze beheren. Accountoverschrijdend kijken vereist nog steeds een wachtwoordbevestiging, die 30 minuten geldig blijft, of een vrijgegeven appwachtwoord; dit bepaalt alleen wie erom gevraagd mag worden."
+
+msgid "The team folder this rule addresses. Every member sees the same files, and the rule follows the folder — not whoever happens to look at it."
+msgstr "De teammap die deze regel betreft. Alle leden zien dezelfde bestanden, en de regel volgt de map – niet wie er toevallig in kijkt."
+
+msgid "The team folder this rule names, or the app that provides it, is not available, so the rule can never match."
+msgstr "De teammap die deze regel noemt, of de app die hem levert, is niet beschikbaar, dus kan de regel nooit overeenkomen."
+
+#. TRANSLATORS: "Add rule" is the button on each of these rows, "Save" the dialog's button; translate them as those buttons do
+msgid "These places exist on this server but have no catch-all rule of their own, so their files are decided by a more general rule, or by none at all. \"Add rule\" opens the dialog with a catch-all rule for the place; it is only stored once you click \"Save\" there."
+msgstr "Deze locaties bestaan op deze server, maar hebben geen eigen vangnetregel; over hun bestanden beslist dus een algemenere regel, of helemaal geen. “Regel toevoegen” opent het dialoogvenster met een vangnetregel voor de locatie; die wordt pas opgeslagen als je daar op “Opslaan” klikt."
+
+msgid "This account may not apply this rule."
+msgstr "Dit account mag deze regel niet toepassen."
+
+msgid "This account may not change this rule."
+msgstr "Dit account mag deze regel niet wijzigen."
+
+msgid "This account may not edit rules."
+msgstr "Dit account mag geen regels bewerken."
+
+msgid "This account may not recalculate checksums."
+msgstr "Dit account mag geen controlesommen opnieuw berekenen."
+
+msgid "This account may not use the API."
+msgstr "Dit account mag de API niet gebruiken."
+
+msgid "This app password has no filesystem access, so it cannot be granted."
+msgstr "Dit appwachtwoord heeft geen toegang tot het bestandssysteem, dus kan het niet worden vrijgegeven."
+
+msgid "This app password has no filesystem access."
+msgstr "Dit appwachtwoord heeft geen toegang tot het bestandssysteem."
+
+msgid "This is not a file."
+msgstr "Dit is geen bestand."
+
+msgid "This is your own rule. It applies only to your files and is evaluated after any rule an administrator has enforced."
+msgstr "Dit is je eigen regel. Hij geldt alleen voor je bestanden en wordt geëvalueerd na alle regels die een beheerder heeft afgedwongen."
+
+msgid "This tab shows other people's files: those of the accounts and groups chosen above. Leave this tab to go back to your own."
+msgstr "Dit tabblad toont bestanden van anderen: die van de hierboven gekozen accounts en groepen. Verlaat dit tabblad om terug te gaan naar je eigen bestanden."
+
+msgid "Total: {count}"
+msgstr "Totaal: {count}"
+
+msgid "Tunables"
+msgstr "Fijnafstelling"
+
+msgid "Type"
+msgstr "Type"
+
+msgid "Type to search"
+msgstr "Typ om te zoeken"
+
+msgid "Unknown account."
+msgstr "Onbekend account."
+
+msgid "Unknown group."
+msgstr "Onbekende groep."
+
+msgid "Unknown preference."
+msgstr "Onbekende voorkeur."
+
+msgid "Unknown rule mode."
+msgstr "Onbekende regelmodus."
+
+msgid "Unknown rule type."
+msgstr "Onbekend regeltype."
+
+msgid "Untrusted checksums"
+msgstr "Niet-vertrouwde controlesommen"
+
+msgid "Up to this many, the picker opens with every account and group it may offer already in the list. Above it, the picker asks the server as you type instead. Applies to administrators and group admins alike."
+msgstr "Tot en met dit aantal opent de keuzelijst met alle accounts en groepen die ze mag aanbieden al in de lijst. Daarboven raadpleegt de keuzelijst in plaats daarvan de server terwijl je typt. Geldt zowel voor beheerders als voor groepsbeheerders."
+
+msgid "User guide"
+msgstr "Gebruikershandleiding"
+
+msgid "Verification stopped: too many recalculation requests. Wait a minute and verify the remaining files."
+msgstr "Controle gestopt: te veel verzoeken om herberekening. Wacht een minuut en controleer dan de overige bestanden."
+
+msgid "Verified"
+msgstr "Gecontroleerd"
+
+msgid "Verify"
+msgstr "Controleren"
+
+msgid "Verify all"
+msgstr "Alles controleren"
+
+#. TRANSLATORS: "Auto", "Missing", "Force" and "Lazy" name the choices of the Mode field; translate them as that field does
+msgid "What happens to a file that already has checksums. \"Auto\" recalculates only outdated ones, \"Missing\" also adds missing ones, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
+msgstr "Wat er gebeurt met een bestand dat al controlesommen heeft. “Automatisch” berekent alleen verouderde opnieuw, “Ontbrekende” voegt ook ontbrekende toe, “Forceren” verwijdert ze allemaal en berekent ze opnieuw, en “Later” verwijdert ze nu en laat een latere uitvoering ze opnieuw berekenen."
+
+#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, and "—" what it shows for a rule that computes nothing; keep them
+msgid "What happens to a file that already has checksums. \"auto\" recalculates only outdated ones, \"missing\" also adds missing ones, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. Shown as \"—\" for a rule that computes nothing."
+msgstr "Wat er gebeurt met een bestand dat al controlesommen heeft. \"auto\" berekent alleen verouderde opnieuw, \"missing\" voegt ook ontbrekende toe, \"force\" verwijdert ze allemaal en berekent ze opnieuw, en \"lazy\" verwijdert ze nu en laat een latere uitvoering ze opnieuw berekenen. Wordt als \"—\" getoond bij een regel die niets berekent."
+
+#. TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
+msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."
+msgstr "Wat er gebeurt als deze regel overeenkomt. “Opnemen” berekent de controlesommen hieronder. “Negeren” stopt de automatische berekening, maar laat nog steeds toe dat iemand de controlesom van een bestand handmatig opnieuw berekent. “Uitsluiten” blokkeert de berekening volledig – gebruik dit voor opslag die niet gelezen mag worden, zoals externe opslag waarvoor per gebruik wordt betaald."
+
+#. TRANSLATORS: "include", "ignore" and "exclude" are the rule types as the table shows them; keep them
+msgid "What happens when this rule matches. \"include\" computes the checksums in this row. \"ignore\" stops automatic hashing but still allows a manual recalculation. \"exclude\" blocks hashing by every route, including the sidebar button, the API and the occ command."
+msgstr "Wat er gebeurt als deze regel overeenkomt. \"include\" berekent de controlesommen in deze rij. \"ignore\" stopt de automatische berekening, maar staat een handmatige herberekening nog steeds toe. \"exclude\" blokkeert de berekening langs elke weg, ook via de knop in de zijbalk, de API en het occ-commando."
+
+msgid "When on, every account may call the public API with an app password. When off, only the groups and individual accounts selected here may; the app's own pages keep working for everyone."
+msgstr "Indien ingeschakeld, mag elk account de openbare API met een appwachtwoord aanroepen. Indien uitgeschakeld, mogen alleen de hier geselecteerde groepen en afzonderlijke accounts dat; de eigen pagina's van de app blijven voor iedereen werken."
+
+msgid "When on, every account may create and edit rules for folders in their own files that they can write to. When off, only the groups and individual accounts you select may."
+msgstr "Indien ingeschakeld, mag elk account regels aanmaken en bewerken voor mappen die in zijn eigen bestanden liggen en waarin het mag schrijven. Indien uitgeschakeld, mogen alleen de groepen en afzonderlijke accounts die je selecteert dat."
+
+msgid "When on, every account may look across all accounts after confirming their password. When off, only members of the admin group and the groups and accounts selected here may."
+msgstr "Indien ingeschakeld, mag elk account na bevestiging van zijn wachtwoord de bestanden van alle accounts bekijken. Indien uitgeschakeld, mogen alleen de leden van de beheerdersgroep en de hier geselecteerde groepen en accounts dat."
+
+msgid "When on, every account may recalculate checksums by hand. When off, only the groups and individual accounts selected here may; everyone still sees the checksums already computed."
+msgstr "Indien ingeschakeld, mag elk account handmatig controlesommen opnieuw berekenen. Indien uitgeschakeld, mogen alleen de hier geselecteerde groepen en afzonderlijke accounts dat; iedereen blijft de al berekende controlesommen zien."
+
+msgid "When set, nobody else can edit or disable this rule. Enforced rules are evaluated before every personal rule, so none can come before them."
+msgstr "Indien ingesteld, kan niemand anders deze regel bewerken of uitschakelen. Afgedwongen regels worden vóór elke persoonlijke regel geëvalueerd, dus kan geen persoonlijke regel eerder aan de beurt komen dan zij."
+
+#. TRANSLATORS: the help text of the Priority column, explaining the number format its cells use; keep 7.1 and 7 as numbers
+msgid "Where the rule sits in evaluation order: its band, and its position among the rules of the same scope in that band, joined by a dot, so 7.1 is the first rule of band 7. The first rule that matches a file decides it outright, so a lower number is stronger. The band follows from the rule's scope and whether it is enforced — it is never chosen directly — and the position is what dragging changes."
+msgstr "Waar de regel in de evaluatievolgorde staat: zijn laag en zijn positie tussen de regels met hetzelfde toepassingsgebied in die laag, verbonden door een punt – 7.1 is dus de eerste regel van laag 7. De eerste regel die met een bestand overeenkomt, beslist er definitief over, dus is een lager getal sterker. De laag volgt uit het toepassingsgebied van de regel en uit de vraag of hij is afgedwongen – de laag wordt nooit rechtstreeks gekozen – en de positie is wat door slepen verandert."
+
+msgid "Whether the rule takes part in evaluation at all. A disabled rule is skipped as though it were not there, so the next matching rule decides instead."
+msgstr "Of de regel al dan niet aan de evaluatie deelneemt. Een uitgeschakelde regel wordt overgeslagen alsof hij er niet is, zodat in plaats daarvan de volgende overeenkomende regel beslist."
+
+msgid "Which algorithms this server computes, from what its PHP provides, and which of them is the default. Rules may only use these, and every picker in the app offers exactly these."
+msgstr "Welke algoritmen deze server berekent, uit wat zijn PHP biedt, en welk daarvan de standaard is. Regels mogen alleen deze gebruiken, en elke keuzelijst in de app biedt precies deze aan."
+
+msgid "Which files get checksums, with which algorithms, and which are left alone. Rules act when a file is created or changed, and a background job applies them to existing files after a few minutes."
+msgstr "Welke bestanden controlesommen krijgen, met welke algoritmen, en welke met rust worden gelaten. Regels treden in werking wanneer een bestand wordt aangemaakt of gewijzigd, en een achtergrondtaak past ze na enkele minuten toe op bestaande bestanden."
+
+#. TRANSLATORS: "All home folders" and "Everything" are scopes as the table shows them; translate them as those do
+msgid "Which files the rule addresses: one account's home folder, the home folders of one group's members, \"All home folders\", one team folder, one storage by its ID, or \"Everything\". A rule only ever meets files inside its scope — \"All home folders\" reaches every home folder and nothing else, while \"Everything\" also reaches team folders and external storage."
+msgstr "Welke bestanden de regel betreft: de thuismap van één account, de thuismappen van de leden van één groep, “Alle thuismappen”, één teammap, één opslag via zijn ID, of “Alles”. Een regel raakt alleen bestanden binnen zijn toepassingsgebied – “Alle thuismappen” bereikt elke thuismap en verder niets, terwijl “Alles” ook teammappen en externe opslag bereikt."
+
+msgid "Which files this rule addresses: all home folders, the home folders of one group's members, a single account's home folder, one team folder, one storage by its raw ID, or everything — every storage, external storage and team folders included."
+msgstr "Welke bestanden deze regel betreft: alle thuismappen, de thuismappen van de leden van één groep, de thuismap van één account, één teammap, één opslag via zijn interne ID, of alles – elke opslag, externe opslag en teammappen inbegrepen."
+
+msgid "Who may edit rules"
+msgstr "Wie regels mag bewerken"
+
+msgid "Who may look across accounts"
+msgstr "Wie accountoverschrijdend mag kijken"
+
+msgid "Who may recalculate checksums"
+msgstr "Wie controlesommen opnieuw mag berekenen"
+
+msgid "Who may use the API"
+msgstr "Wie de API mag gebruiken"
+
+msgid "Whole hash or part of one"
+msgstr "Hele hash of een deel ervan"
+
+msgid "Whose files"
+msgstr "Bestanden van"
+
+msgid "Without a rule of their own"
+msgstr "Zonder eigen regel"
+
+#. TRANSLATORS: whether an administrator enforced the rule
+msgid "Yes"
+msgstr "Ja"
+
+msgid "You are not allowed to edit rules. Contact an administrator."
+msgstr "Je mag geen regels bewerken. Neem contact op met een beheerder."
+
+msgid "You may only reorder your own rules."
+msgstr "Je mag alleen je eigen regels herschikken."
+
+msgid "Your own file"
+msgstr "Je eigen bestand"
+
+msgid "Your preferred algorithm"
+msgstr "Je voorkeursalgoritme"
+
+msgid "app password deleted — the grant remains"
+msgstr "appwachtwoord verwijderd – de vrijgave blijft bestaan"
+
+#. TRANSLATORS: fileIds is a parameter name; keep it
+msgid "fileIds must be a non-empty list of integers."
+msgstr "fileIds moet een niet-lege lijst van gehele getallen zijn."
+
+#. TRANSLATORS a badge on a rule whose team folder is not available
+msgid "folder missing"
+msgstr "map ontbreekt"
+
+#. TRANSLATORS: "groupfolder:" is the selector's prefix as it is typed; keep it
+msgid "groupfolder: takes the numeric folder ID."
+msgstr "groupfolder: verwacht de numerieke map-ID."
+
+msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
+msgstr "ongeldig gemaakt door een reset: al verborgen voor de zoekfunctie en in afwachting van verwijdering door de achtergrondtaak"
+
+#. TRANSLATORS: an example of what to type; keep the storage IDs as they are
+msgid "local::/path/ or smb::…"
+msgstr "local::/path/ of smb::…"
+
+#. TRANSLATORS: when an app password was last used, or granted: not at all
+msgid "never"
+msgstr "nooit"
+
+msgid "no catch-all rule — files the rules above do not match are left to a more general rule, if one is enabled"
+msgstr "geen vangnetregel – bestanden waarmee de regels hierboven niet overeenkomen, worden overgelaten aan een algemenere regel, als er een is ingeschakeld"
+
+msgid "no rule of its own — its files are left to a more general rule, if one is enabled"
+msgstr "geen eigen regel – de bestanden ervan worden overgelaten aan een algemenere regel, als er een is ingeschakeld"
+
+#. TRANSLATORS: the checksum a file has now, after verification found it changed
+msgid "now: {hash}"
+msgstr "nu: {hash}"
+
+#. TRANSLATORS: selector is a parameter name; keep it
+msgid "selector must be a non-empty string."
+msgstr "selector moet een niet-lege tekenreeks zijn."
+
+msgid "the file changed while no rule maintained its checksums, so they were deleted; it gets them back once a rule covers it again"
+msgstr "het bestand is gewijzigd terwijl geen regel de controlesommen ervan bijhield, dus zijn ze verwijderd; het krijgt ze terug zodra een regel het weer dekt"
+
+#. TRANSLATORS: value is a parameter name; keep it
+msgid "value must be a string."
+msgstr "value moet een tekenreeks zijn."
+
+#. TRANSLATORS: {folders} is what the team folders app calls itself, e.g. "Team folders"
+msgid "{folders} — one folder"
+msgstr "{folders} – één map"
+
+#. TRANSLATORS: a rule's scope: {folders} is what the team folders app calls itself, {folder} one team folder's name
+msgid "{folders}: {folder}"
+msgstr "{folders}: {folder}"
+
+msgid "{group} (group)"
+msgstr "{group} (groep)"
+
+msgid "{stored} is not available on this server at the moment, so the default ({active}) applies."
+msgstr "{stored} is momenteel niet beschikbaar op deze server, dus geldt de standaard ({active})."
+
+#. TRANSLATORS when a grant was made, and by which account
+msgid "{time} by {account}"
+msgstr "{time} door {account}"
