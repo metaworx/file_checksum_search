@@ -14,7 +14,8 @@ the first stable release.
 ### Added
 
 - Translations: German (reviewed), informal (`de`) and formal (`de_DE`);
-  French, machine-translated: translationfiles/<lang>/GLOSSARY.md.
+  French and Spanish, machine-translated:
+  translationfiles/<lang>/GLOSSARY.md.
 
 - `occ file-checksum-search:status`, also `fcias:status`: the background
   jobs and their last runs.
