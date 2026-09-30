@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-01
+
 ### Added
 
 - Translations: German (reviewed), informal (`de`) and formal (`de_DE`);

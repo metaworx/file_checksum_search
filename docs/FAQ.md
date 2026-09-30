@@ -425,5 +425,5 @@ settings page's **Advanced** tab shows the same:
 ![The Advanced tab: Status with the index counts and the background jobs' last runs, then the tunables][shot-admin-advanced]
 
 <!-- BEGIN GENERATED RELEASE-PIN - do not edit; run "changelog.sh cut" -->
-[shot-admin-advanced]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.3/docs/Screenshots/Admin-Advanced.png
+[shot-admin-advanced]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.21.0/docs/Screenshots/Admin-Advanced.png
 <!-- END GENERATED RELEASE-PIN -->
