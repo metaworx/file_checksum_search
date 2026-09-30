@@ -996,7 +996,7 @@ msgid "What happens to a file that already has checksums. \"auto\" recalculates 
 msgstr ""
 
 #. TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
-msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."
+msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."
 msgstr ""
 
 #. TRANSLATORS: "include", "ignore" and "exclude" are the rule types as the table shows them; keep them

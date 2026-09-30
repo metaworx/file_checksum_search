@@ -997,7 +997,7 @@ msgid "What happens to a file that already has checksums. \"auto\" recalculates 
 msgstr "Co się dzieje z plikiem, który ma już sumy kontrolne. \"auto\" przelicza tylko nieaktualne, \"missing\" dodaje też brakujące, \"force\" usuwa i przelicza wszystkie, a \"lazy\" usuwa je teraz i zostawia ich przeliczenie późniejszemu przebiegowi. Dla reguły, która niczego nie oblicza, wyświetlane jest \"—\"."
 
 #. TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
-msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."
+msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."
 msgstr "Co się dzieje, gdy ta reguła pasuje. „Uwzględnij” oblicza sumy kontrolne podane poniżej. „Ignoruj” wstrzymuje automatyczne obliczanie, ale nadal pozwala ręcznie przeliczyć sumy kontrolne pliku. „Wyklucz” całkowicie blokuje obliczanie – użyj go dla magazynu, którego nie wolno odczytywać, np. magazynu zewnętrznego z płatnym transferem."
 
 #. TRANSLATORS: "include", "ignore" and "exclude" are the rule types as the table shows them; keep them

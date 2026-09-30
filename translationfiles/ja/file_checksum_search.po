@@ -994,8 +994,8 @@ msgid "What happens to a file that already has checksums. \"auto\" recalculates 
 msgstr "すでにチェックサムがあるファイルの扱いです。\"auto\"は古くなったものだけを再計算し、\"missing\"は欠けているものも追加し、\"force\"はすべてを削除して再計算し、\"lazy\"は今すぐ削除して後の実行で再計算させます。何も計算しないルールでは\"—\"と表示されます。"
 
 #. TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
-msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."
-msgstr "このルールに一致したときの動作です。「含める」は下のチェックサムを計算します。「無視する」は自動ハッシュ計算を止めますが、ファイルを手動で再計算することはできます。「除外する」はハッシュ計算を完全に禁止します。従量課金の外部ストレージなど、読み取ってはならないストレージに使用してください。"
+msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."
+msgstr "このルールに一致したときの動作です。「含める」は下のチェックサムを計算します。「無視する」は自動ハッシュ計算を止めますが、ファイルのチェックサムを手動で再計算することはできます。「除外する」はハッシュ計算を完全に禁止します。従量課金の外部ストレージなど、読み取ってはならないストレージに使用してください。"
 
 #. TRANSLATORS: "include", "ignore" and "exclude" are the rule types as the table shows them; keep them
 msgid "What happens when this rule matches. \"include\" computes the checksums in this row. \"ignore\" stops automatic hashing but still allows a manual recalculation. \"exclude\" blocks hashing by every route, including the sidebar button, the API and the occ command."

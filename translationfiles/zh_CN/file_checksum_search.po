@@ -994,8 +994,8 @@ msgid "What happens to a file that already has checksums. \"auto\" recalculates 
 msgstr "对已有校验和的文件如何处理。\"auto\" 只重新计算过期的校验和，\"missing\" 还会补上缺失的校验和，\"force\" 会删除并重新计算全部校验和，\"lazy\" 则立即删除它们，留待之后的运行重新计算。不计算任何内容的规则显示为 \"—\"。"
 
 #. TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
-msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."
-msgstr "此规则匹配时如何处理。“包含”会计算下方的校验和。“忽略”会停止自动哈希计算，但仍允许手动重新计算文件。“排除”会完全阻止哈希计算，适用于不得读取的存储，例如按流量计费的外部存储。"
+msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."
+msgstr "此规则匹配时如何处理。“包含”会计算下方的校验和。“忽略”会停止自动哈希计算，但仍允许手动重新计算文件的校验和。“排除”会完全阻止哈希计算，适用于不得读取的存储，例如按流量计费的外部存储。"
 
 #. TRANSLATORS: "include", "ignore" and "exclude" are the rule types as the table shows them; keep them
 msgid "What happens when this rule matches. \"include\" computes the checksums in this row. \"ignore\" stops automatic hashing but still allows a manual recalculation. \"exclude\" blocks hashing by every route, including the sidebar button, the API and the occ command."

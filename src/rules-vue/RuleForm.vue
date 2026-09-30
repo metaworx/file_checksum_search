@@ -243,7 +243,7 @@ const HELP = {
 	mode: t('file_checksum_search', 'What happens to a file that already has checksums. "Auto" recalculates only outdated ones, "Missing" also adds missing ones, "Force" deletes and recalculates all of them, and "Lazy" deletes them now and lets a later run recalculate them.'),
 	adminEnforced: t('file_checksum_search', 'When set, nobody else can edit or disable this rule. Enforced rules are evaluated before every personal rule, so none can come before them.'),
 	// TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
-	type: t('file_checksum_search', 'What happens when this rule matches. "Include" computes the checksums below. "Ignore" stops automatic hashing but still lets someone recalculate a file by hand. "Exclude" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount.'),
+	type: t('file_checksum_search', 'What happens when this rule matches. "Include" computes the checksums below. "Ignore" stops automatic hashing but still lets someone recalculate a file\'s checksums by hand. "Exclude" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount.'),
 	user: t('file_checksum_search', 'The one account whose home folder this rule addresses.'),
 	group: t('file_checksum_search', 'The rule addresses the home folder of every member of this group.'),
 	groupfolder: t('file_checksum_search', 'The team folder this rule addresses. Every member sees the same files, and the rule follows the folder — not whoever happens to look at it.'),
