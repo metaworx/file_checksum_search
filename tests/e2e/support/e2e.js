@@ -425,14 +425,15 @@ const strongPassword = ( length = 32 ) => {
  * is neither — and the next run's `before()` collects it.
  *
  * Through the provisioning API rather than `occ user:add`, because the
- * password has to reach the account and `--password-from-env` cannot carry
- * it everywhere this suite runs. `cy.exec`'s `env` sets a variable for the
- * process it starts, and where `occ` is a wrapper that re-enters a
- * container — the ddev form — the variable stops at the wrapper and occ
- * reads an empty `OC_PASS`. It works where `occ` is a plain binary, which
- * is why the old helper's `failOnNonZeroExit: false` hid it: the accounts
- * it was asked to create already existed. HTTP carries the password to the
- * server the same way in both.
+ * password has to reach the account and `--password-from-env` depends on
+ * how `occ` is invoked. `cy.exec`'s `env` sets a variable for the process
+ * it starts, and where `occ` is a wrapper that re-enters a container, the
+ * variable reaches occ only if the wrapper forwards it: the harness's
+ * `nc-test <version> --env OC_PASS occ` does, a bare `ddev exec php occ`
+ * does not, and occ then reads an empty `OC_PASS`. The old helper's
+ * `failOnNonZeroExit: false` hid that: the accounts it was asked to create
+ * already existed. HTTP carries the password to the server the same way
+ * whatever the prefix.
  *
  * @param {{user: string, password: string}} admin  An administrator.
  * @param {string} base  What this account is for, e.g. 'alice'.
