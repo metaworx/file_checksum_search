@@ -11,6 +11,7 @@
 	<summary lang="ja">ファイルのチェックサムをインデックス化し、ハッシュによるファイル検索と重複の検出を可能にします。REST・CLI・PHPのAPIを備えています。</summary>
 	<summary lang="nl">Indexeert controlesommen van bestanden om bestanden op hash te vinden en duplicaten te herkennen, met REST-, CLI- en PHP-API's</summary>
 	<summary lang="pl">Indeksuje sumy kontrolne plików, aby znajdować pliki po hashu i wykrywać duplikaty, z interfejsami REST, CLI i PHP</summary>
+	<summary lang="pt-br">Indexa somas de verificação de arquivos para encontrá-los por hash e detectar duplicatas, com APIs REST, CLI e PHP</summary>
 	<description>Indexes file checksums, so a file can be found by its checksum, and its duplicates at once.
 
 What you get:
@@ -128,6 +129,22 @@ Co otrzymujesz:
 - Dane przechowywane w indeksie metadanych plików, który prowadzi sam Nextcloud: bez dodatkowych tabel, bez migracji.
 
 *Tłumaczenie maszynowe: teksty aplikacji w tym języku nie zostały jeszcze sprawdzone przez rodzimego użytkownika języka.*
+
+*Machine-translated: the app's texts in this language have not yet been reviewed by a native speaker.*
+</description>
+	<description lang="pt-br">Indexa as somas de verificação dos arquivos, para que um arquivo possa ser encontrado pela sua soma de verificação, e as duplicatas dele de uma só vez.
+
+O que você recebe:
+
+- **Pesquisa unificada** por hash: cole uma soma de verificação e encontre o arquivo.
+- Uma aba **Somas de verificação** nos detalhes do arquivo: lista todas as somas de verificação armazenadas para o arquivo, recalculadas sob demanda, com as duplicatas dele listadas logo abaixo.
+- Uma página **Duplicatas**: todos os grupos de arquivos idênticos que você tem e, para quem pode consultar outras contas, também os arquivos de outras contas.
+- **Regras** decidem o que é calculado e quando: em todo o servidor ou por conta, por padrão de caminho, com o cálculo em segundo plano.
+- Uma **API REST (v1)** estável e uma **API PHP** estável para outros aplicativos e integrações.
+- **Comandos occ** para cálculo de somas de verificação, pesquisa, duplicatas, regras, backup e importação.
+- Armazenamento no próprio índice de metadados de arquivos do Nextcloud: sem tabelas personalizadas, nada a migrar.
+
+*Tradução automática: os textos do aplicativo neste idioma ainda não foram revisados por um falante nativo.*
 
 *Machine-translated: the app's texts in this language have not yet been reviewed by a native speaker.*
 </description>
