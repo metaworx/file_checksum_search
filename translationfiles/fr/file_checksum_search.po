@@ -125,7 +125,7 @@ msgstr "Algorithmes autorisés"
 #. TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
 #, php-format
 msgid "An %s rule computes nothing, so there is nothing to apply."
-msgstr "Une règle de type %s ne calcule rien, il n'y a donc rien à appliquer."
+msgstr "Une règle de type \"%s\" ne calcule rien, il n'y a donc rien à appliquer."
 
 msgid "App password"
 msgstr "Mot de passe d'application"
@@ -294,7 +294,7 @@ msgstr "Algorithme par défaut"
 
 #. TRANSLATORS: "**" and "/" are paths as they are typed; keep them
 msgid "Defaults for all home folders. Within this band a catch-all default — path \"**\", \"/\" or empty — always evaluates last, after the more specific rules here."
-msgstr "Règles par défaut pour tous les dossiers personnels. Dans ce niveau, une règle de repli – chemin \"**\", \"/\" ou vide – est toujours évaluée en dernier, après les règles plus spécifiques de ce niveau."
+msgstr "Règles par défaut pour tous les dossiers personnels. Dans ce niveau, une règle de repli par défaut – chemin \"**\", \"/\" ou vide – est toujours évaluée en dernier, après les règles plus spécifiques de ce niveau."
 
 msgid "Delete"
 msgstr "Supprimer"
@@ -355,7 +355,7 @@ msgid "Enforced — everything"
 msgstr "Imposées – tout"
 
 msgid "Enforced — groups & team folders"
-msgstr "Imposées – groupes & dossiers d'équipe"
+msgstr "Imposées – groupes et dossiers d'équipe"
 
 msgid "Enforced — specific"
 msgstr "Imposées – spécifiques"
@@ -369,7 +369,7 @@ msgstr "Erreur"
 
 #. TRANSLATORS: "Enforced" is a field of the rule dialog and a column of the rule table; translate it as those do
 msgid "Evaluated top to bottom — the first matching rule decides the file. A rule's band follows from its scope and whether it is enforced, so enforced rules always precede personal rules, and the catch-all default is last. Drag a rule by its handle to reorder it among the rules of the same scope; to move it to another band, change its scope or its \"Enforced\" setting."
-msgstr "Les règles sont évaluées de haut en bas – la première règle correspondante décide du sort du fichier. Le niveau d'une règle découle de sa portée et du fait qu'elle soit imposée ou non : les règles imposées précèdent donc toujours les règles personnelles, et la règle de repli vient en dernier. Faites glisser une règle par sa poignée pour la réordonner parmi les règles de même portée ; pour la déplacer vers un autre niveau, modifiez sa portée ou son option « Imposée »."
+msgstr "Les règles sont évaluées de haut en bas – la première règle correspondante décide du sort du fichier. Le niveau d'une règle découle de sa portée et du fait qu'elle soit imposée ou non : les règles imposées précèdent donc toujours les règles personnelles, et la règle de repli par défaut vient en dernier. Faites glisser une règle par sa poignée pour la réordonner parmi les règles de même portée ; pour la déplacer vers un autre niveau, modifiez sa portée ou son option « Imposée »."
 
 msgid "Evaluates in band {band} — {label}"
 msgstr "Évaluée au niveau {band} – {label}"
@@ -409,7 +409,7 @@ msgid "File not found."
 msgstr "Fichier non trouvé."
 
 msgid "Find across accounts"
-msgstr "Rechercher dans d'autres comptes"
+msgstr "Rechercher dans tous les comptes"
 
 msgid "Find duplicates"
 msgstr "Rechercher les doublons"
@@ -449,7 +449,7 @@ msgid "Groups"
 msgstr "Groupes"
 
 msgid "Groups & team folders"
-msgstr "Groupes & dossiers d'équipe"
+msgstr "Groupes et dossiers d'équipe"
 
 msgid "Groups per page, 1 to 500"
 msgstr "Groupes par page, de 1 à 500"

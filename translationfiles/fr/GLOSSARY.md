@@ -36,7 +36,7 @@ here; a term that changes, changes here and in the `.po` file at once.
 | place (a storage, a team folder, all home folders) | emplacement | what has, or lacks, a catch-all rule of its own |
 | enforced | imposée, imposées | Nextcloud's *imposer* (*Imposer la protection par mot de passe*); agrees with *règle* |
 | come before (a rule) | passer avant | an enforced rule comes before a personal one; *précéder* where the English says *precede* |
-| catch-all rule | règle de repli | |
+| catch-all rule | règle de repli | the default one is *règle de repli par défaut* |
 | default (rule) | règle par défaut | *Default algorithm* is *Algorithme par défaut* |
 | Add rule | Ajouter une règle | the button, and the text that names it: « Ajouter une règle » |
 | specific | spécifique | *Specific rules* is *Règles spécifiques* |
@@ -63,6 +63,7 @@ here; a term that changes, changes here and in the `.po` file at once.
 | revoke | révoquer | Nextcloud's term |
 | cross-account | inter-comptes | |
 | look across accounts | consulter d'autres comptes | |
+| find across accounts | rechercher dans tous les comptes | the link: *Rechercher dans tous les comptes*, the viewer's own included, as its tooltip says |
 | sudoers | sudoers | |
 | Mine / Others | Mes fichiers / Autres comptes | the tabs |
 | picker | sélecteur | Nextcloud's term |

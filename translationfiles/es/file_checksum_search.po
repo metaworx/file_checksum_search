@@ -495,7 +495,7 @@ msgid "Individual accounts that may create and edit rules for folders in their o
 msgstr "Cuentas individuales que pueden crear y editar reglas para carpetas de sus propios archivos en las que pueden escribir, además de los miembros de los grupos seleccionados."
 
 msgid "Individual accounts that may look at other accounts' files once they have confirmed their password, in addition to the members of any selected groups and of the admin group."
-msgstr "Cuentas individuales que pueden ver los archivos de otras cuentas tras confirmar su contraseña, además de los miembros de los grupos seleccionados y del grupo de administradores."
+msgstr "Cuentas individuales que pueden consultar los archivos de otras cuentas tras confirmar su contraseña, además de los miembros de los grupos seleccionados y del grupo de administradores."
 
 msgid "Individual accounts that may recalculate checksums by hand, in addition to the members of any selected groups."
 msgstr "Cuentas individuales que pueden recalcular sumas de verificación manualmente, además de los miembros de los grupos seleccionados."

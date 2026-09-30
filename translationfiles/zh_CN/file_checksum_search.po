@@ -373,7 +373,7 @@ msgid "Evaluates in band {band} — {label}"
 msgstr "在层级 {band} 中评估（{label}）"
 
 msgid "Every empty file has the same checksum, so all of them form one large group per algorithm, and deleting one frees no space. They are left out unless this is on."
-msgstr "所有空文件的校验和都相同，因此每种算法下它们会组成一个大组，删除其中一个也不会释放空间。除非开启此项，否则不会列出它们。"
+msgstr "所有空文件的校验和都相同，因此每种算法下它们会组成一个很大的文件组，删除其中一个也不会释放空间。除非开启此项，否则不会列出它们。"
 
 msgid "Every empty file has this checksum."
 msgstr "所有空文件都具有此校验和。"

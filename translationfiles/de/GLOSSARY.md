@@ -58,7 +58,8 @@ files at once.
 | verify | prüfen | |
 | reapply | erneut anwenden | |
 | index (verb), indexed | indizieren, indiziert | not *indexieren* |
-| pending | ausstehend | |
+| pending | ausstehend | a calculation still to come |
+| pending deletion | zur Löschung vorgemerkt | the reset state's hint: „zur Löschung durch die Hintergrundaufgabe vorgemerkt“ |
 | queued files | Dateien in der Warteschlange | |
 | untrusted / eroded / reset | nicht vertrauenswürdig / verfallen / zurückgesetzt | the states of stale checksums |
 | invalidated (by a reset) | ungültig | not *verwaist*, the orphan purge's word |

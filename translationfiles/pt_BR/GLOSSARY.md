@@ -59,6 +59,8 @@ term that changes, changes here and in the `.po` file at once.
 | revoke | revogar | Nextcloud's term |
 | cross-account | entre contas | the nouns: *Leituras entre contas*, *Seletor entre contas*, *rotas entre contas* |
 | look across accounts | consultar outras contas | the permission: *Quem pode consultar outras contas*; other accounts' files: *consultar os arquivos de outras contas* |
+| read across accounts | ler dados de outras contas | not *ler entre contas*, which reads as "between accounts" |
+| find across accounts | encontrar em todas as contas | the link: *Encontrar em todas as contas*, the viewer's own included, as its tooltip says |
 | sudoers | sudoers | |
 | picker | seletor | |
 | Mine / Others | Meus / De outros | the tabs |

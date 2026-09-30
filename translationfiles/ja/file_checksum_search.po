@@ -123,7 +123,7 @@ msgstr "許可されたアルゴリズム"
 #. TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
 #, php-format
 msgid "An %s rule computes nothing, so there is nothing to apply."
-msgstr "%s ルールは何も計算しないため、適用するものはありません。"
+msgstr "タイプ\"%s\"のルールは何も計算しないため、適用するものはありません。"
 
 msgid "App password"
 msgstr "アプリパスワード"
@@ -373,7 +373,7 @@ msgid "Evaluates in band {band} — {label}"
 msgstr "第{band}階層（{label}）で評価"
 
 msgid "Every empty file has the same checksum, so all of them form one large group per algorithm, and deleting one frees no space. They are left out unless this is on."
-msgstr "空のファイルはすべて同じチェックサムを持つため、アルゴリズムごとに1つの大きなグループになり、削除しても空き容量は増えません。これをオンにしない限り表示されません。"
+msgstr "空のファイルはすべて同じチェックサムを持つため、アルゴリズムごとに1つの大きな重複グループになり、削除しても空き容量は増えません。これをオンにしない限り表示されません。"
 
 msgid "Every empty file has this checksum."
 msgstr "空のファイルはすべてこのチェックサムを持ちます。"
@@ -1148,7 +1148,7 @@ msgid "groupfolder: takes the numeric folder ID."
 msgstr "groupfolder: には数値のフォルダーIDを指定します。"
 
 msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
-msgstr "リセットにより無効化：すでに検索には表示されず、バックグラウンドジョブによる削除を待っています"
+msgstr "リセットにより無効化：すでに検索には表示されず、バックグラウンドジョブによる削除待ちです"
 
 #. TRANSLATORS: an example of what to type; keep the storage IDs as they are
 msgid "local::/path/ or smb::…"

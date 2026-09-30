@@ -31,7 +31,7 @@ Was du bekommst:
 
 - **Einheitliche Suche** nach Hash: Prüfsumme einfügen, Datei finden.
 - Ein Reiter **Prüfsummen** in den Dateidetails: zeigt jede Prüfsumme, die für die Datei vorliegt, auf Wunsch neu berechnet, mit ihren Duplikaten gleich darunter.
-- Eine Seite **Duplikate**: jede Gruppe identischer Dateien, die du besitzt, und für alle, die kontoübergreifend Einsicht nehmen dürfen, auch die Dateien anderer Konten.
+- Eine Seite **Duplikate**: jede Gruppe identischer Dateien, auf die du Zugriff hast, und für alle, die kontoübergreifend Einsicht nehmen dürfen, auch die Dateien anderer Konten.
 - **Regeln** entscheiden, was wann berechnet wird: instanzweit oder pro Konto, nach Pfadmuster, im Hintergrund.
 - Eine stabile **REST-API (v1)** und eine stabile **PHP-API** für andere Apps und Integrationen.
 - **occ-Befehle** für Berechnung, Suche, Duplikate, Regeln, Sicherung und Import.
@@ -59,7 +59,7 @@ Ce que vous obtenez&#160;:
 
 - **Recherche unifiée** par empreinte&#160;: collez une somme de contrôle, trouvez le fichier.
 - Un onglet **Sommes de contrôle** dans les détails du fichier&#160;: il liste chaque somme de contrôle enregistrée pour le fichier, recalculée à la demande, avec ses doublons listés directement dans l'onglet.
-- Une page **Doublons**&#160;: chaque groupe de fichiers identiques que vous possédez et, pour qui est autorisé à consulter d'autres comptes, aussi les fichiers des autres comptes.
+- Une page **Doublons**&#160;: chaque groupe de fichiers identiques auxquels vous avez accès et, pour qui est autorisé à consulter d'autres comptes, aussi les fichiers des autres comptes.
 - Des **règles** décident de ce qui est calculé, et quand&#160;: pour tout le serveur ou par compte, selon un motif de chemin, avec un calcul en arrière-plan.
 - Une **API REST (v1)** stable et une **API PHP** stable pour d'autres applications et intégrations.
 - Des **commandes occ** pour le calcul des empreintes, la recherche, les doublons, les règles, la sauvegarde et l'import.
@@ -75,7 +75,7 @@ Cosa ottieni:
 
 - **Ricerca unificata** per hash: incolla un checksum, trova il file.
 - Una scheda **Checksum** nei dettagli del file: elenca ogni checksum memorizzato per il file, ricalcolato su richiesta, con i suoi duplicati elencati subito sotto.
-- Una pagina **Duplicati**: ogni gruppo di file identici che possiedi e, per chi può consultare altri account, anche i file di altri account.
+- Una pagina **Duplicati**: ogni gruppo di file identici a cui hai accesso e, per chi può consultare altri account, anche i file di altri account.
 - Le **regole** decidono di quali file si calcolano gli hash e quando: per l'intero server o per account, in base a un modello di percorso, con calcolo in background.
 - Un'**API REST (v1)** stabile e un'**API PHP** stabile per altre app e integrazioni.
 - **Comandi occ** per calcolo degli hash, ricerca, duplicati, regole, backup e importazione.
@@ -107,7 +107,7 @@ Wat je krijgt:
 
 - **Geünificeerd zoeken** op hash: plak een controlesom, vind het bestand.
 - Een tabblad **Controlesommen** in de bestandsdetails: toont elke controlesom die voor het bestand is opgeslagen, op verzoek opnieuw berekend, met de duplicaten ervan direct eronder.
-- Een pagina **Duplicaten**: elke groep identieke bestanden die je bezit, en voor wie accountoverschrijdend mag kijken ook de bestanden van andere accounts.
+- Een pagina **Duplicaten**: elke groep identieke bestanden waar je toegang toe hebt, en voor wie accountoverschrijdend mag kijken ook de bestanden van andere accounts.
 - **Regels** bepalen wat wanneer wordt berekend: voor de hele server of per account, op basis van een padpatroon, op de achtergrond.
 - Een stabiele **REST-API (v1)** en een stabiele **PHP-API** voor andere apps en integraties.
 - **occ-commando's** voor berekenen, zoeken, duplicaten, regels, back-up en import.
@@ -123,7 +123,7 @@ Co otrzymujesz:
 
 - **Ujednolicone wyszukiwanie** po hashu: wklej sumę kontrolną, znajdź plik.
 - Karta **Sumy kontrolne** w szczegółach pliku: pokazuje każdą sumę kontrolną zapisaną dla pliku, przeliczaną na żądanie, a na tej samej karcie także duplikaty pliku.
-- Strona **Duplikaty**: każda grupa identycznych plików, które posiadasz, a dla osób, które mogą mieć wgląd w inne konta, także pliki innych kont.
+- Strona **Duplikaty**: każda grupa identycznych plików, do których masz dostęp, a dla osób, które mogą mieć wgląd w inne konta, także pliki innych kont.
 - **Reguły** decydują, co i kiedy jest obliczane: dla całego serwera lub dla poszczególnych kont, według wzorca ścieżki, w tle.
 - Stabilne **REST API (v1)** i stabilne **PHP API** dla innych aplikacji i integracji.
 - **Polecenia occ** do obliczania sum kontrolnych, wyszukiwania, duplikatów, reguł, kopii zapasowych i importu.
@@ -155,7 +155,7 @@ O que você recebe:
 
 - 按哈希值的**统一搜索**：粘贴校验和，即可找到文件。
 - 文件详情中的**校验和**选项卡：列出为该文件存储的每个校验和，可按需重新计算，并直接列出其重复文件。
-- **重复文件**页面：您拥有的每一组相同文件；对于有权跨账号查看的人，还包括其他账号的文件。
+- **重复文件**页面：您可以访问的每一组相同文件；对于有权跨账号查看的人，还包括其他账号的文件。
 - **规则**决定对什么进行哈希计算以及何时计算：可针对整个服务器或单个账号，按路径表达式设定，在后台计算。
 - 稳定的 **REST API (v1)** 和稳定的 **PHP API**，供其他应用和集成使用。
 - 用于哈希计算、搜索、重复文件、规则、备份和导入的 **occ 命令**。

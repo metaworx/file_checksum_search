@@ -838,7 +838,7 @@ msgstr "Pokaż puste pliki"
 
 #. TRANSLATORS a link that opens the Duplicates page (the page's name, as in the top navigation) on this group, in a new tab
 msgid "Show in Duplicates"
-msgstr "Pokaż w Duplikatach"
+msgstr "Pokaż na stronie „Duplikaty”"
 
 msgid "Show only groups whose hash matches this"
 msgstr "Pokaż tylko grupy, których hash pasuje do wpisanego tekstu"
@@ -1173,7 +1173,7 @@ msgstr "brak własnej reguły – o plikach decyduje ogólniejsza reguła, o ile
 
 #. TRANSLATORS: the checksum a file has now, after verification found it changed
 msgid "now: {hash}"
-msgstr "teraz: {hash}"
+msgstr "obecnie: {hash}"
 
 #. TRANSLATORS: orderedIds is a parameter name; keep it
 msgid "orderedIds is required and must be an array."

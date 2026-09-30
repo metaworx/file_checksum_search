@@ -72,6 +72,7 @@ here; a term that changes, changes here and in the `.po` file at once.
 | reapply | 再適用 | |
 | indexed | インデックス済み | the verb is インデックス化 |
 | pending | 保留中 | |
+| pending deletion | 削除待ち | the reset state's hint: 「バックグラウンドジョブによる削除待ちです」; 保留中 would read as "on hold" |
 | queued files | キュー内のファイル | |
 | untrusted / eroded / reset | 信頼できない / 失効 / リセット済み | the states of stale checksums; *Reset* is the state of checksums a reset has made invalid, a past participle, never the action リセットする |
 | disable | 無効にする (noun 無効化) | 「無効にする」, 「このルールの編集と無効化…」 |

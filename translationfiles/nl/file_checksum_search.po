@@ -836,7 +836,7 @@ msgstr "Lege bestanden tonen"
 
 #. TRANSLATORS a link that opens the Duplicates page (the page's name, as in the top navigation) on this group, in a new tab
 msgid "Show in Duplicates"
-msgstr "Tonen in Duplicaten"
+msgstr "In “Duplicaten” tonen"
 
 msgid "Show only groups whose hash matches this"
 msgstr "Alleen groepen tonen waarvan de hash hiermee overeenkomt"
@@ -1053,7 +1053,7 @@ msgid "When on, every account may create and edit rules for folders in their own
 msgstr "Indien ingeschakeld, mag elk account regels aanmaken en bewerken voor mappen die in zijn eigen bestanden liggen en waarin het mag schrijven. Indien uitgeschakeld, mogen alleen de groepen en afzonderlijke accounts die je selecteert dat."
 
 msgid "When on, every account may look across all accounts after confirming their password. When off, only members of the admin group and the groups and accounts selected here may."
-msgstr "Indien ingeschakeld, mag elk account na bevestiging van zijn wachtwoord de bestanden van alle accounts bekijken. Indien uitgeschakeld, mogen alleen de leden van de beheerdersgroep en de hier geselecteerde groepen en accounts dat."
+msgstr "Indien ingeschakeld, mag elk account na bevestiging van zijn wachtwoord accountoverschrijdend kijken. Indien uitgeschakeld, mogen alleen de leden van de beheerdersgroep en de hier geselecteerde groepen en accounts dat."
 
 msgid "When on, every account may recalculate checksums by hand. When off, only the groups and individual accounts selected here may; everyone still sees the checksums already computed."
 msgstr "Indien ingeschakeld, mag elk account handmatig controlesommen opnieuw berekenen. Indien uitgeschakeld, mogen alleen de hier geselecteerde groepen en afzonderlijke accounts dat; iedereen blijft de al berekende controlesommen zien."

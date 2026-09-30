@@ -34,7 +34,7 @@ msgstr "Uma regra desativada não pode ser aplicada — ative-a primeiro."
 
 #. TRANSLATORS: "Security" and "Allow filesystem access" are Nextcloud's own names; use Nextcloud's translations. Keep /api/v1/sudo/ as it is
 msgid "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password. A grant stays in force until it is revoked, and every administrator can see it. Create the app password under \"Security\" first, with \"Allow filesystem access\" on. Whether you may look across accounts at all is still up to your administrator; a grant replaces the password prompt, not the permission."
-msgstr "Uma senha de aplicativo com acesso concedido pode ler entre contas pelas rotas /api/v1/sudo/ sem que ninguém digite uma senha. Uma concessão vale até ser revogada, e todos os administradores podem vê-la. Crie primeiro a senha de aplicativo em “Segurança”, com a opção “Permitir acesso ao sistema de arquivos” ativada. Se você pode ou não consultar outras contas continua sendo decisão do seu administrador; uma concessão substitui a solicitação de senha, não a permissão."
+msgstr "Uma senha de aplicativo com acesso concedido pode ler dados de outras contas pelas rotas /api/v1/sudo/ sem que ninguém digite uma senha. Uma concessão vale até ser revogada, e todos os administradores podem vê-la. Crie primeiro a senha de aplicativo em “Segurança”, com a opção “Permitir acesso ao sistema de arquivos” ativada. Se você pode ou não consultar outras contas continua sendo decisão do seu administrador; uma concessão substitui a solicitação de senha, não a permissão."
 
 msgid "A home folder"
 msgstr "Uma pasta pessoal"
@@ -125,7 +125,7 @@ msgstr "Algoritmos permitidos"
 #. TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
 #, php-format
 msgid "An %s rule computes nothing, so there is nothing to apply."
-msgstr "Uma regra do tipo %s não calcula nada, então não há nada a aplicar."
+msgstr "Uma regra do tipo \"%s\" não calcula nada, então não há nada a aplicar."
 
 msgid "App password"
 msgstr "Senha de aplicativo"
@@ -409,7 +409,7 @@ msgid "File not found."
 msgstr "Arquivo não encontrado."
 
 msgid "Find across accounts"
-msgstr "Encontrar entre contas"
+msgstr "Encontrar em todas as contas"
 
 msgid "Find duplicates"
 msgstr "Encontrar duplicatas"

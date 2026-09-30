@@ -125,7 +125,7 @@ msgstr "Algoritmi consentiti"
 #. TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
 #, php-format
 msgid "An %s rule computes nothing, so there is nothing to apply."
-msgstr "Una regola %s non calcola nulla, quindi non c'è nulla da applicare."
+msgstr "Una regola di tipo \"%s\" non calcola nulla, quindi non c'è nulla da applicare."
 
 msgid "App password"
 msgstr "Password dell'applicazione"
@@ -294,7 +294,7 @@ msgstr "Algoritmo predefinito"
 
 #. TRANSLATORS: "**" and "/" are paths as they are typed; keep them
 msgid "Defaults for all home folders. Within this band a catch-all default — path \"**\", \"/\" or empty — always evaluates last, after the more specific rules here."
-msgstr "Regole predefinite per tutte le cartelle home. All'interno di questa fascia, una regola di ripiego – percorso \"**\", \"/\" o vuoto – viene sempre valutata per ultima, dopo le regole più specifiche presenti qui."
+msgstr "Regole predefinite per tutte le cartelle home. All'interno di questa fascia, una regola predefinita di ripiego – percorso \"**\", \"/\" o vuoto – viene sempre valutata per ultima, dopo le regole più specifiche presenti qui."
 
 msgid "Delete"
 msgstr "Elimina"
@@ -369,7 +369,7 @@ msgstr "Errore"
 
 #. TRANSLATORS: "Enforced" is a field of the rule dialog and a column of the rule table; translate it as those do
 msgid "Evaluated top to bottom — the first matching rule decides the file. A rule's band follows from its scope and whether it is enforced, so enforced rules always precede personal rules, and the catch-all default is last. Drag a rule by its handle to reorder it among the rules of the same scope; to move it to another band, change its scope or its \"Enforced\" setting."
-msgstr "Valutate dall'alto verso il basso – la prima regola corrispondente decide sul file. La fascia di una regola deriva dal suo ambito e dal fatto che sia obbligatoria, quindi le regole obbligatorie precedono sempre le regole personali, e la regola di ripiego viene per ultima. Trascina una regola dalla sua maniglia per riordinarla tra le regole dello stesso ambito; per spostarla in un'altra fascia, cambia il suo ambito o l'impostazione “Obbligatoria”."
+msgstr "Valutate dall'alto verso il basso – la prima regola corrispondente decide sul file. La fascia di una regola deriva dal suo ambito e dal fatto che sia obbligatoria, quindi le regole obbligatorie precedono sempre le regole personali, e la regola predefinita di ripiego viene per ultima. Trascina una regola dalla sua maniglia per riordinarla tra le regole dello stesso ambito; per spostarla in un'altra fascia, cambia il suo ambito o l'impostazione “Obbligatoria”."
 
 msgid "Evaluates in band {band} — {label}"
 msgstr "Valutata nella fascia {band} – {label}"
