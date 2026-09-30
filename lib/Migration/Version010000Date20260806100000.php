@@ -90,7 +90,6 @@ class Version010000Date20260806100000
 		return null;
 	}
 
-
 	public function postSchemaChange(
 		IOutput $output,
 		Closure $schemaClosure,
