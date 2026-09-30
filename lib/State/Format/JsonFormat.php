@@ -75,6 +75,7 @@ class JsonFormat
 	 *
 	 * @return Generator<HashRecord>
 	 */
+	#[\Override]
 	public function read(
 		$stream,
 		FormatOptions $options,
@@ -192,6 +193,7 @@ class JsonFormat
 		}
 	}
 
+	#[\Override]
 	public function write(
 		iterable      $records,
 		              $stream,
@@ -388,11 +390,13 @@ class JsonFormat
 		return str_replace( "\n", "\n" . $indent, $encoded );
 	}
 
+	#[\Override]
 	public function carriesConfig(): bool
 	{
 		return true;
 	}
 
+	#[\Override]
 	public function losses(): array
 	{
 		return [];

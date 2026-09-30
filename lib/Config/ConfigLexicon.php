@@ -47,6 +47,7 @@ class ConfigLexicon
 
 //  getters / setters / is* / has*
 
+	#[\Override]
 	public function getStrictness(): Strictness
 	{
 		return Strictness::WARNING;
@@ -55,6 +56,7 @@ class ConfigLexicon
 	/**
 	 * @return Entry[]
 	 */
+	#[\Override]
 	public function getAppConfigs(): array
 	{
 		return [
@@ -343,6 +345,7 @@ class ConfigLexicon
 	/**
 	 * @return array
 	 */
+	#[\Override]
 	public function getUserConfigs(): array
 	{
 		return [

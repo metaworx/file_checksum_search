@@ -60,6 +60,7 @@ class CsvFormat
 	 *
 	 * @return Generator<HashRecord>
 	 */
+	#[\Override]
 	public function read(
 		$stream,
 		FormatOptions $options,
@@ -99,6 +100,7 @@ class CsvFormat
 		}
 	}
 
+	#[\Override]
 	public function write(
 		iterable      $records,
 		              $stream,
@@ -127,11 +129,13 @@ class CsvFormat
 		return $written;
 	}
 
+	#[\Override]
 	public function carriesConfig(): bool
 	{
 		return false;
 	}
 
+	#[\Override]
 	public function losses(): array
 	{
 		return [

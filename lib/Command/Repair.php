@@ -50,6 +50,7 @@ class Repair
 	/**
 	 * @noinspection PhpUnused
 	 */
+	#[\Override]
 	protected function configure(): void
 	{
 		$this->setName( 'file-checksum-search:repair' )
@@ -108,6 +109,7 @@ HELP,
 	/**
 	 * @noinspection PhpUnused
 	 */
+	#[\Override]
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
@@ -309,6 +311,7 @@ HELP,
 
 //  other non-static methods
 
+			#[\Override]
 			public function debug( string $message ): void
 			{
 				$this->output->writeln( '  ' . $message, OutputInterface::VERBOSITY_VERBOSE );
@@ -319,27 +322,32 @@ HELP,
 			 *
 			 * @noinspection PhpMissingReturnTypeInspection
 			 */
+			#[\Override]
 			public function info( $message )
 			{
 				$this->output->writeln( '  ' . $message );
 			}
 
 			/** @noinspection PhpMissingReturnTypeInspection */
+			#[\Override]
 			public function warning( $message )
 			{
 				$this->output->writeln( '  <comment>' . $message . '</comment>' );
 			}
 
+			#[\Override]
 			public function startProgress( $max = 0 )
 			{
 			}
 
+			#[\Override]
 			public function advance(
 				$step = 1,
 				$description = '',
 			) {
 			}
 
+			#[\Override]
 			public function finishProgress()
 			{
 			}

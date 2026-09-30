@@ -56,6 +56,7 @@ class Reset
 	/**
 	 * @noinspection PhpUnused
 	 */
+	#[\Override]
 	protected function configure(): void
 	{
 		$this->setName( 'file-checksum-search:reset' )
@@ -130,6 +131,7 @@ HELP,
 	/**
 	 * @noinspection PhpUnused
 	 */
+	#[\Override]
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,

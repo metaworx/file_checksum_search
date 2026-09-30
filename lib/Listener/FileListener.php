@@ -61,6 +61,7 @@ class FileListener
 
 //  other non-static methods
 
+	#[\Override]
 	public function handle( Event $event ): void
 	{
 		try

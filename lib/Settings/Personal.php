@@ -28,6 +28,7 @@ class Personal
 
 //  getters / setters / is* / has*
 
+	#[\Override]
 	public function getForm(): TemplateResponse
 	{
 		return new TemplateResponse( Application::APP_ID, 'settings-personal', [], '' );
@@ -36,6 +37,7 @@ class Personal
 	/**
 	 * The section this page appears under, matching {@see PersonalSection}.
 	 */
+	#[\Override]
 	public function getSection(): string
 	{
 		return Application::APP_ID . '_personal';
@@ -44,6 +46,7 @@ class Personal
 	/**
 	 * Mid-list, where an app with no claim to be first belongs.
 	 */
+	#[\Override]
 	public function getPriority(): int
 	{
 		return 50;

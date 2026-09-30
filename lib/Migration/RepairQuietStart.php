@@ -121,6 +121,7 @@ class RepairQuietStart
 
 //  getters / setters / is* / has*
 
+	#[\Override]
 	public function getName(): string
 	{
 		return 'File Checksum Index & Search: quiet-start defaults and cleanup';
@@ -129,6 +130,7 @@ class RepairQuietStart
 
 //  config/init/exe/run methods
 
+	#[\Override]
 	public function run( IOutput $output ): void
 	{
 		$this->runSteps( $output );

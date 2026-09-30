@@ -27,6 +27,7 @@ class ModifyRule
 	/**
 	 * @noinspection PhpUnused
 	 */
+	#[\Override]
 	protected function configure(): void
 	{
 		$this->setName( 'file-checksum-search:rules:modify' )
@@ -44,6 +45,7 @@ class ModifyRule
 	 * @noinspection PhpUnused
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
+	#[\Override]
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,

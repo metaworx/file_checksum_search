@@ -28,6 +28,7 @@ class ListRules
 	/**
 	 * @noinspection PhpUnused
 	 */
+	#[\Override]
 	protected function configure(): void
 	{
 		$this->setName( 'file-checksum-search:rules:list' )
@@ -46,6 +47,7 @@ class ListRules
 	/**
 	 * @noinspection PhpUnused
 	 */
+	#[\Override]
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,

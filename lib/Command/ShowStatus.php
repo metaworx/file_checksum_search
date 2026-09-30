@@ -45,6 +45,7 @@ class ShowStatus
 //  config/init/exe/run methods
 
 	/** @noinspection PhpUnused */
+	#[\Override]
 	protected function configure(): void
 	{
 		$this->setName( 'file-checksum-search:status' )
@@ -61,6 +62,7 @@ class ShowStatus
 	}
 
 	/** @noinspection PhpUnused */
+	#[\Override]
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,

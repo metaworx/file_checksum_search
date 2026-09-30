@@ -51,6 +51,7 @@ class Import
 	/**
 	 * @noinspection PhpUnused
 	 */
+	#[\Override]
 	protected function configure(): void
 	{
 		$this->setName( 'file-checksum-search:import' )
@@ -178,6 +179,7 @@ HELP,
 	/**
 	 * @noinspection PhpUnused
 	 */
+	#[\Override]
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,

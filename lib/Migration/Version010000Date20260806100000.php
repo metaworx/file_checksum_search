@@ -46,6 +46,7 @@ class Version010000Date20260806100000
 
 //  other non-static methods
 
+	#[\Override]
 	public function changeSchema(
 		IOutput $output,
 		Closure $schemaClosure,
@@ -90,6 +91,7 @@ class Version010000Date20260806100000
 		return null;
 	}
 
+	#[\Override]
 	public function postSchemaChange(
 		IOutput $output,
 		Closure $schemaClosure,

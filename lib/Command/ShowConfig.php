@@ -39,6 +39,7 @@ class ShowConfig
 //  config/init/exe/run methods
 
 	/** @noinspection PhpUnused */
+	#[\Override]
 	protected function configure(): void
 	{
 		$this->setName( 'file-checksum-search:show-config' )
@@ -54,6 +55,7 @@ class ShowConfig
 	}
 
 	/** @noinspection PhpUnused */
+	#[\Override]
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,

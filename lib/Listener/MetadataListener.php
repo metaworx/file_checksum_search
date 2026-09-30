@@ -53,6 +53,7 @@ class MetadataListener
 
 //  other non-static methods
 
+	#[\Override]
 	public function handle( Event $event ): void
 	{
 		if ( ! $event instanceof MetadataBackgroundEvent )

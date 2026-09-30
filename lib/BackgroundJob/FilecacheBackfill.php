@@ -97,6 +97,7 @@ class FilecacheBackfill
 	/**
 	 * @param  mixed  $argument  Unused; the place is kept in app config.
 	 */
+	#[\Override]
 	protected function run( $argument ): void
 	{
 		$after    = $this->appConfig->getValueInt( Application::APP_ID, self::CURSOR, 0 );

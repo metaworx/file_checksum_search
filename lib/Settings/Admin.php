@@ -26,6 +26,7 @@ class Admin
 
 //  getters / setters / is* / has*
 
+	#[\Override]
 	public function getForm(): TemplateResponse
 	{
 		// Rendered bare: the settings framework supplies the page chrome, and
@@ -36,6 +37,7 @@ class Admin
 	/**
 	 * The section this page appears under, matching {@see AdminSection}.
 	 */
+	#[\Override]
 	public function getSection(): string
 	{
 		return Application::APP_ID;
@@ -44,6 +46,7 @@ class Admin
 	/**
 	 * Mid-list, where an app with no claim to be first belongs.
 	 */
+	#[\Override]
 	public function getPriority(): int
 	{
 		return 50;

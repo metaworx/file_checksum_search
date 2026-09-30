@@ -36,21 +36,25 @@ class AdminSection
 
 //  getters / setters / is* / has*
 
+	#[\Override]
 	public function getID(): string
 	{
 		return Application::APP_ID;
 	}
 
+	#[\Override]
 	public function getName(): string
 	{
 		return $this->l10n->t( 'File Checksum Index & Search' );
 	}
 
+	#[\Override]
 	public function getPriority(): int
 	{
 		return 70;
 	}
 
+	#[\Override]
 	public function getIcon(): string
 	{
 		return $this->urlGenerator->imagePath( Application::APP_ID, 'app.svg' );

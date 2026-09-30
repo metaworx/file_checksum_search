@@ -84,6 +84,7 @@ class RuleProcessingJob
 
 //  config/init/exe/run methods
 
+	#[\Override]
 	protected function run( $argument ): void
 	{
 		$this->logger->info(

@@ -44,6 +44,7 @@ class Application
 
 //  other non-static methods
 
+	#[\Override]
 	public function register( IRegistrationContext $context ): void
 	{
 		$context->registerConfigLexicon( ConfigLexicon::class );
@@ -56,6 +57,7 @@ class Application
 		UserDeletedListener::register( $context );
 	}
 
+	#[\Override]
 	public function boot( IBootContext $context ): void
 	{
 	}

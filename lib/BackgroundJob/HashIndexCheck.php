@@ -100,6 +100,7 @@ class HashIndexCheck
 	/**
 	 * @param  mixed  $argument  Unused; the place is kept in app config.
 	 */
+	#[\Override]
 	protected function run( $argument ): void
 	{
 		$walking = $this->appConfig->hasKey( Application::APP_ID, self::CURSOR );

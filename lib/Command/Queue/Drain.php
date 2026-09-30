@@ -53,6 +53,7 @@ class Drain
 	/**
 	 * @noinspection PhpUnused
 	 */
+	#[\Override]
 	protected function configure(): void
 	{
 		$this->setName( 'file-checksum-search:queue:drain' )
@@ -90,6 +91,7 @@ HELP,
 	/**
 	 * @noinspection PhpUnused
 	 */
+	#[\Override]
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,

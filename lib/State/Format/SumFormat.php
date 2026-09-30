@@ -41,6 +41,7 @@ class SumFormat
 	 *
 	 * @return Generator<HashRecord>
 	 */
+	#[\Override]
 	public function read(
 		$stream,
 		FormatOptions $options,
@@ -99,6 +100,7 @@ class SumFormat
 		}
 	}
 
+	#[\Override]
 	public function write(
 		iterable      $records,
 		              $stream,
@@ -176,11 +178,13 @@ class SumFormat
 		return $out;
 	}
 
+	#[\Override]
 	public function carriesConfig(): bool
 	{
 		return false;
 	}
 
+	#[\Override]
 	public function losses(): array
 	{
 		return [

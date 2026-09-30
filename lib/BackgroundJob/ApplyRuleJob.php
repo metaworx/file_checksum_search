@@ -51,6 +51,7 @@ class ApplyRuleJob
 	/**
 	 * @param  array{ruleId?: string, actor?: string}  $argument
 	 */
+	#[\Override]
 	protected function run( $argument ): void
 	{
 		$ruleId = (string) ( $argument['ruleId'] ?? '' );

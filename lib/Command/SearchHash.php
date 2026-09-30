@@ -41,6 +41,7 @@ class SearchHash
 //  config/init/exe/run methods
 
 	/** @noinspection PhpUnused */
+	#[\Override]
 	protected function configure(): void
 	{
 		$this->setName( 'file-checksum-search:search' )
@@ -56,6 +57,7 @@ class SearchHash
 	}
 
 	/** @noinspection PhpUnused */
+	#[\Override]
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,

@@ -43,6 +43,7 @@ class TestPerformance
 //  config/init/exe/run methods
 
 	/** @noinspection PhpUnused */
+	#[\Override]
 	protected function configure(): void
 	{
 		$this->setName( 'file-checksum-search:test-perf' )
@@ -51,6 +52,7 @@ class TestPerformance
 	}
 
 	/** @noinspection PhpUnused */
+	#[\Override]
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,

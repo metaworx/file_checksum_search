@@ -59,6 +59,7 @@ class HashSearchProvider
 	 * The provider id, which is also the OCS route clients search through:
 	 * `/ocs/v2.php/search/providers/<id>/search`. Changing it breaks them.
 	 */
+	#[\Override]
 	public function getId(): string
 	{
 		return 'file_checksum_search_provider';
@@ -68,6 +69,7 @@ class HashSearchProvider
 	 * The heading the results appear under, kept short because the search
 	 * modal gives it one line beside every other provider's.
 	 */
+	#[\Override]
 	public function getName(): string
 	{
 		return $this->l10n->t( 'File checksums' );
@@ -78,6 +80,7 @@ class HashSearchProvider
 	 * name, people, apps — since a hash is only ever searched deliberately.
 	 * The same order everywhere: no route makes checksums more relevant.
 	 */
+	#[\Override]
 	public function getOrder(
 		string $route,
 		array  $routeParameters,
@@ -96,6 +99,7 @@ class HashSearchProvider
 	 * for something else, and the answer is an empty complete result rather
 	 * than a reason.
 	 */
+	#[\Override]
 	public function search(
 		IUser        $user,
 		ISearchQuery $query,

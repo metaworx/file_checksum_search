@@ -28,6 +28,7 @@ class DeleteRule
 	/**
 	 * @noinspection PhpUnused
 	 */
+	#[\Override]
 	protected function configure(): void
 	{
 		$this->setName( 'file-checksum-search:rules:delete' )
@@ -45,6 +46,7 @@ class DeleteRule
 	 * @noinspection PhpUnused
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
+	#[\Override]
 	protected function execute(
 		InputInterface  $input,
 		OutputInterface $output,
