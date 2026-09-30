@@ -37,6 +37,8 @@ the first stable release.
 - The texts: one word for each thing (account, team folder, checksum),
   and help texts that say what the app does.
 
+- The frontend's types: checked by `npm run typecheck` (vue-tsc).
+
 ### Removed
 
 - Unused styles `.fcias-btn-danger`, `-toggle`, `-delete`, `-edit` and

@@ -34,7 +34,7 @@ const props = defineProps<{
 	help: { allowAll: string, groups: string, users: string }
 }>()
 
-const OC = window.OC as unknown as { requestToken: string }
+declare const OC: { requestToken: string }
 
 const allowAll = ref(false)
 const allowedGroups = ref<string[]>([])

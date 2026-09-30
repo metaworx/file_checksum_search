@@ -25,7 +25,7 @@ interface GrantRow {
 	granted_at: number
 }
 
-const OC = window.OC as unknown as { requestToken: string }
+declare const OC: { requestToken: string }
 
 interface Listing {
 	grants?: GrantRow[]

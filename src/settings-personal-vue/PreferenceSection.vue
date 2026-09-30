@@ -24,7 +24,7 @@ defineProps<{
 	algorithms: string[]
 }>()
 
-const OC = window.OC as unknown as { requestToken: string }
+declare const OC: { requestToken: string }
 
 const KEY = 'preferred_algorithm'
 const stored = ref('')

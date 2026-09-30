@@ -88,7 +88,7 @@ describe('RuleTable', () => {
 		})
 
 		it('explains each band on its header row', () => {
-			const rules = [makeRule({ id: 'd1', band: 7, pinned: true })]
+			const rules = [makeRule({ id: 'd1', band: 7 })]
 			const wrapper = mount(RuleTable, { props: { rules, variant: 'admin' } })
 
 			const help = wrapper.find('tbody tr.fcias-band-header .fcias-help-icon')

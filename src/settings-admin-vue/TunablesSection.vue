@@ -20,7 +20,7 @@ import { OCS_SETTINGS } from '../routes'
 import { toastError, toastSaved } from '../toast'
 import { t } from '../l10n'
 
-const OC = window.OC as unknown as { requestToken: string }
+declare const OC: { requestToken: string }
 
 const HELP = t('file_checksum_search', 'Up to this many, the picker opens with every account and group it may offer already in the list. Above it, the picker asks the server as you type instead. Applies to administrators and group admins alike.')
 

@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useDuplicates } from './useDuplicates'
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest'
+import { type DuplicateGroup, useDuplicates } from './useDuplicates'
 
 // Both substitute placeholders the way the real ones do; a stand-in that
 // returned the template unchanged would pass `{fileid}` through and let a
@@ -21,7 +21,7 @@ function jsonResponse(body: unknown): Response {
  * soon as the request's signal is aborted — mirroring real fetch()
  * behavior, unlike a plain resolved/rejected mock.
  */
-function mockAbortableFetch(): { fetchMock: ReturnType<typeof vi.spyOn>; pending: Array<(response: Response) => void> } {
+function mockAbortableFetch(): { fetchMock: MockInstance<typeof fetch>; pending: Array<(response: Response) => void> } {
 	const pending: Array<(response: Response) => void> = []
 
 	const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((_url, options) => {
@@ -90,7 +90,7 @@ describe('useDuplicates', () => {
 			vi.unstubAllGlobals()
 		})
 
-		function group(...names: string[]) {
+		function group(...names: string[]): DuplicateGroup {
 			return {
 				algo: 'sha256',
 				hash_value: 'abc',

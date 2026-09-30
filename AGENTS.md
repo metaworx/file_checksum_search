@@ -34,7 +34,7 @@ refer to linked documents for extended guidance.
   6. Commit Policy (STRICT)
   7. Additional References
   8. Document Governance
-- File Checksum Index & Search — Project Contract (v2.10.0)
+- File Checksum Index & Search — Project Contract (v2.11.0)
   1. Project Facts
   2. Primary References
   3. Project-Specific Conventions
@@ -300,7 +300,7 @@ Their values come from `GUIDELINES/config.ini`.
 ---
 
 
-# File Checksum Index & Search — Project Contract (v2.10.0)
+# File Checksum Index & Search — Project Contract (v2.11.0)
 
 What binds work in this project, for everyone working on it. Inlined into
 `/AGENTS.md` for agents and into `GUIDELINES/README.md` for people, so
@@ -324,7 +324,7 @@ A Nextcloud app that indexes file checksums and makes them searchable.
 | Shipped-code paths    | `lib/`, `src/`, `css/`, `js/`, `l10n/`, `templates/`, `img/`, `appinfo/routes.php`, `appinfo/info.xml` |
 | Version manifest      | `appinfo/info.xml`: the `manifest` of `CHANGELOG.md` in `GUIDELINES/config.ini`, so `changelog.sh cut` sets its `<version>` and `check` holds it to the newest section; its `<screenshot>` URLs sit in a `RELEASE-PIN` block the same cut moves |
 | Test gate command     | `GUIDELINES/shared/lang/php/tools/phpunit` (the shipped wrapper; `composer test` inside the container or CI); this checkout has no `.ddev/`, so the wrapper needs `MWX_PHPUNIT_DDEV_DIR` set to the harness instance's directory (§3.5) and `MWX_PHPUNIT_MOUNT=/var/www/html/apps/file_checksum_search`, whose values this machine keeps in `GUIDELINES/config.local.ini` under `[phpunit]`; `--testsuite unit` or `integration` for one of them; frontend `npm test` (Vitest) |
-| Lint command          | `composer cs:check` / `composer cs:fix` (ECS with `mwx/coding-standard`, configured in `ecs.php` over `lib/`, `tests/`, `appinfo/` and `templates/`), `composer psalm`, `composer rector`; frontend `npm run lint` and `npm run stylelint`; the manifest `xmllint --noout --schema info.xsd appinfo/info.xml`, with `info.xsd` fetched from `https://raw.githubusercontent.com/nextcloud/appstore/master/nextcloudappstore/api/v1/release/info.xsd`, which is what the app store runs at upload and CI runs first |
+| Lint command          | `composer cs:check` / `composer cs:fix` (ECS with `mwx/coding-standard`, configured in `ecs.php` over `lib/`, `tests/`, `appinfo/` and `templates/`), `composer psalm`, `composer rector`; frontend `npm run lint`, `npm run stylelint` and `npm run typecheck` (`vue-tsc`, which checks `.vue` files as well as `.ts`; the build strips types without checking them); the manifest `xmllint --noout --schema info.xsd appinfo/info.xml`, with `info.xsd` fetched from `https://raw.githubusercontent.com/nextcloud/appstore/master/nextcloudappstore/api/v1/release/info.xsd`, which is what the app store runs at upload and CI runs first |
 | Translation command   | `scripts/l10n.sh` (the door to `scripts/l10n.py`; needs PHP and gettext): `update` after a wrapped text changes, `add <lang>` to start a language, `build` after a `.po` file changes; `check` fails when the template, a `.po` file or `l10n/` is out of date, or a language kept here misses a translation. The work is done by Nextcloud's own `translationtool.phar`, pinned by commit and SHA-256 in `scripts/l10n.py` (§3.7) |
 
 ## 2. Primary References
@@ -448,6 +448,7 @@ and a literal handed straight to a toast, and CI's lint job runs
 
 | Version | Date       | Changed sections | Change type | Agent impact |
 |---------|------------|------------------|-------------|--------------|
+| v2.11.0 | 2026-09-30 | 1                | minor       | The lint row names `npm run typecheck`: `vue-tsc` checks the frontend's types, `.vue` files included, which nothing did before. |
 | v2.10.0 | 2026-09-28 | 3                | minor       | §3.7: a language's terms are in its `GLOSSARY.md`; `info.xml`'s summary and description are translated in the manifest itself, outside what `check` sees, so they change together. |
 | v2.9.0  | 2026-09-28 | 3                | minor       | §3.7 names the checks that hold it: the lint fails a bare text in a template and a literal handed to a toast, and CI runs `scripts/l10n.sh check`. |
 | v2.8.0  | 2026-09-28 | 3                | minor       | §3.7: a server message is translated where it is made, as Nextcloud core does, so the command line shows a service's message in the server's default language; a command's own output and every log stay English, the log of a message that is also shown getting the English. |

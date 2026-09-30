@@ -65,12 +65,12 @@ describe('useRules', () => {
 		vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ success: true, rules: [] }))
 		const { saveRule } = useRules('all')
 
-		await saveRule({ path: '/a', mode: 'auto', algos: ['sha1'], userScope: 'all', admin_enforced: false })
+		await saveRule({ path: '/a', mode: 'auto', algos: ['sha1'], selector: 'home:*', admin_enforced: false })
 		expect(call(0).method).toBe('POST')
 		expect(call(0).url).toBe('/apps/file_checksum_search/api/v1/rules')
 
 		vi.mocked(globalThis.fetch).mockClear()
-		await saveRule({ id: 'abc', path: '/a', mode: 'auto', algos: ['sha1'], userScope: 'all', admin_enforced: false })
+		await saveRule({ id: 'abc', path: '/a', mode: 'auto', algos: ['sha1'], selector: 'home:*', admin_enforced: false })
 		expect(call(0).method).toBe('PUT')
 		expect(call(0).url).toBe('/apps/file_checksum_search/api/v1/rules/abc')
 	})

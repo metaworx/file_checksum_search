@@ -119,7 +119,7 @@ describe('RuleForm', () => {
 
 			const seeded = mount(RuleForm, {
 				props: {
-					rule: { id: 7, path: '/a', mode: 'auto', algos: ['sha1'], userScope: 'all', admin_enforced: false },
+					rule: { id: 7, path: '/a', mode: 'auto', algos: ['sha1'], selector: 'home:*', admin_enforced: false },
 					variant: 'personal',
 					supportedAlgos: ['sha1'],
 				},

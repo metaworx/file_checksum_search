@@ -19,7 +19,7 @@ import { OCS_SETTINGS } from '../routes'
 import { toastError, toastSaved } from '../toast'
 import { t } from '../l10n'
 
-const OC = window.OC as unknown as { requestToken: string }
+declare const OC: { requestToken: string }
 
 const availableIds = ref<string[]>([])
 const selectedIds = ref<string[]>([])
