@@ -14,22 +14,8 @@
 	padding-bottom: 4px;
 }
 
-.fcias-section-muted {
-	opacity: 0.5;
-}
-
 .fcias-btn {
 	margin-inline-end: 8px;
-}
-
-.fcias-btn-danger {
-	background-color: var(--color-error);
-	color: var(--color-primary-text);
-	border-color: var(--color-error);
-}
-
-.fcias-btn-danger:hover {
-	background-color: var(--color-error-hover, #cc0000);
 }
 
 /* Sized like Nextcloud's own section descriptions (.settings-section__desc):
@@ -291,21 +277,6 @@
 
 #fcias-rules-msg {
 	margin-top: 8px;
-}
-
-.fcias-btn-edit {
-	background-color: var(--color-primary);
-	color: var(--color-primary-text);
-}
-
-.fcias-btn-toggle {
-	background-color: var(--color-warning, #f0ad4e);
-	color: var(--color-primary-text);
-}
-
-.fcias-btn-delete {
-	background-color: var(--color-error);
-	color: var(--color-primary-text);
 }
 
 .fcias-section h5 {

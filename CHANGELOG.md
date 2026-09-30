@@ -37,6 +37,12 @@ the first stable release.
 - The texts: one word for each thing (account, team folder, checksum),
   and help texts that say what the app does.
 
+### Removed
+
+- Unused styles `.fcias-btn-danger`, `-toggle`, `-delete`, `-edit` and
+  `.fcias-section-muted`: src/settings-admin.css; `.fcias-dup-section`:
+  src/sidebar.css.
+
 ### Fixed
 
 - The web interface, the Files sidebar included, and the messages the
