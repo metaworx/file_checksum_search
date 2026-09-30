@@ -21,8 +21,8 @@ the first stable release.
 - `occ file-checksum-search:status`, also `fcias:status`: the background
   jobs and their last runs.
 
-- Admin status panel: the checksum copy and the hash-index check among
-  the background jobs.
+- Admin status panel: the checksum copy and the checksum index check
+  among the background jobs.
 
 - Duplicates page: a "Show empty files" switch.
 
@@ -37,12 +37,9 @@ the first stable release.
   `findByHash()`, `getHashesByFileId()`, `findSameHash()`,
   `recalcHash()` and `recalcMany()`; a positional call breaks.
 
-- Wording that misled: the reset state's hint, the team-folder picker,
-  the duplicates filter's switch and fields, the Priority help, the
-  app's summary and description.
-
 - The texts: one word for each thing (account, team folder, checksum),
-  and help texts that say what the app does.
+  help texts that say what the app does, and the app's summary and
+  description to match.
 
 - `GET /api/v1/duplicates`, `findDuplicates()`, `findDuplicatesFor()`:
   empty files are left out unless `includeEmpty` is set, and each
@@ -59,22 +56,19 @@ the first stable release.
 ### Fixed
 
 - The web interface, the Files sidebar included, and the messages the
-  server sends it: every text can be translated.
-
-- The team folders' name and scope label, in every language:
-  src/rules-vue/bands.ts, GroupFolderService.
+  server sends it: every text can be translated, the team folders'
+  name and scope label and the refusal of a personal rule on a share
+  or a team folder among them.
 
 - The Duplicates page: "Verify" and "Verify all" are offered only to an
   account that may recalculate checksums.
 
 - A new rule, in the dialog and from "Create rule": it starts from the
-  default algorithm instead of SHA-1.
+  default algorithm instead of SHA-1; `GET /api/v1/rules` carries it as
+  `defaultAlgo`.
 
-- The refusal of a personal rule on a share or a team folder: in the
-  reader's language.
-
-- Enabling or upgrading on a large instance: the repair's hash-index
-  check and orphan purge held the request for a minute.
+- Enabling or upgrading on a large instance: the repair's checksum
+  index check and orphan purge held the request for a minute.
 
 - Duplicates in the top bar: its icon was nearly invisible on the
   header's blue.
