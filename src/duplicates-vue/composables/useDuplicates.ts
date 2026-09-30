@@ -6,8 +6,9 @@
  */
 
 import { reactive, toRefs } from 'vue'
-import { generateOcsUrl, generateUrl } from '@nextcloud/router'
-import { OCS_API_V1, FRONTEND } from '../../routes'
+import { generateOcsUrl } from '@nextcloud/router'
+import { OCS_API_V1 } from '../../routes'
+import { fileLink } from '../../fileLink'
 import { t } from '../../l10n'
 
 declare const OC: {
@@ -311,10 +312,8 @@ export function useDuplicates() {
 		}
 	}
 
-	// No `dir`: core resolves the id in the viewer's own folder and works the
-	// directory out for itself, so one sent along was never read.
 	function fileUrl(file: DuplicateFileItem): string {
-		return `${generateUrl(FRONTEND.fileLink, { fileid: file.fileid })}?opendetails=true`
+		return fileLink(file.fileid)
 	}
 
 	function resetOffset(): void {

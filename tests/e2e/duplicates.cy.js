@@ -139,6 +139,26 @@ describe( 'FCIAS Duplicates page', () => {
 		ownGroup().find( '.db-group-header-status' ).should( 'not.exist' )
 	} )
 
+	it( 'links a file to its folder, details pane open and file not opened', () => {
+		cy.visit( DUPLICATES_URL )
+
+		ownGroup().should( 'have.length', 1 )
+		ownGroup().find( '.db-group-header' ).click()
+
+		// Core's /f/{fileid} answers with a redirect to the file's folder.
+		// /apps/files/files/{fileid} without a `dir` listed the root folder,
+		// where a file in any other folder could not be found.
+		ownGroup().find( '.db-file-item a[href]' ).first().invoke( 'attr', 'href' ).then( ( href ) => {
+			cy.request( { url: href, followRedirect: false } ).then( ( response ) => {
+				expect( response.status ).to.eq( 303 )
+				const target = new URL( response.headers.location, Cypress.config( 'baseUrl' ) )
+				expect( target.searchParams.get( 'dir' ) ).to.eq( `/${ dupDir }` )
+				expect( target.searchParams.get( 'opendetails' ) ).to.eq( 'true' )
+				expect( target.searchParams.get( 'openfile' ) ).to.eq( 'false' )
+			} )
+		} )
+	} )
+
 	it( 'stops verifying when the rate limit answers, and says so', () => {
 		// Stubbed, because the real limit is 20 recalculations a minute and
 		// a test that reached it honestly would take a minute to do it. The

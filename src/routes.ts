@@ -90,8 +90,8 @@ export const OCS_ADMIN = {
 
 /** Frontend routes (Files app) */
 export const FRONTEND = {
-	/** /apps/files/files/{fileid} */
-	fileLink: '/apps/files/files/{fileid}',
+	/** /f/{fileid} — core's link by id, which redirects to the file's folder ({@see fileLink}) */
+	fileLink: '/f/{fileid}',
 	/** The Duplicates page; its tab, filters and scope ride in the fragment ({@see urlState}). */
 	duplicates: '/apps/file_checksum_search/duplicates',
 } as const

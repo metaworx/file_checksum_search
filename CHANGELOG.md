@@ -72,6 +72,9 @@ the first stable release.
 - Status labels, Enabled and Disabled in the rules tables and "Copied!"
   in the sidebar: readable on a light background.
 
+- Opening a file from the Duplicates page or the sidebar's duplicate
+  list: "The file could not be found" for a file outside the root folder.
+
 ## [0.20.3] - 2026-09-27
 
 ### Fixed

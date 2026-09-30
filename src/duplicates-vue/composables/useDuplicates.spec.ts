@@ -354,14 +354,15 @@ describe('useDuplicates', () => {
 })
 
 describe('fileUrl', () => {
-	// Core resolves the id in the viewer's own folder and works the directory
-	// out for itself; a `dir` sent along was never read, so none is sent.
-	it('links by id alone, opening the details pane', () => {
+	// Core's /f/{fileid} finds the file in the viewer's own folder and
+	// redirects to the folder it is in; the link sends no `dir` of its own.
+	it('links through core\'s link by id, opening the details pane', () => {
 		const { fileUrl } = useDuplicates()
 		const url = fileUrl({ fileid: 42, path: '/Docs/report.pdf', name: 'report.pdf' })
 
-		expect(url).toContain('/apps/files/files/42')
+		expect(url).toContain('/f/42')
 		expect(url).toContain('opendetails=true')
+		expect(url).toContain('openfile=false')
 		expect(url).not.toContain('dir=')
 	})
 })

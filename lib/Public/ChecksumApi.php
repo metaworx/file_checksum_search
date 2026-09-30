@@ -786,8 +786,8 @@ class ChecksumApi
 	/**
 	 * Which of these files $viewer could open in the Files app.
 	 *
-	 * A file link resolves in the viewer's own folder — core's
-	 * `/apps/files/files/{fileid}` looks the id up there and nowhere else —
+	 * A file link resolves in the viewer's own folder — core's `/f/{fileid}`
+	 * looks the id up there and nowhere else —
 	 * so a row the viewer does not hold cannot be opened by any link, and a
 	 * page should not offer one. The client cannot tell from `owner`: a
 	 * received share is somebody else's and opens fine. One batched lookup

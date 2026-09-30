@@ -10,10 +10,9 @@
  * everything the instance computes. Duplicate lookup is inline.
  */
 import { computed, ref, watch } from 'vue'
-import { generateUrl } from '@nextcloud/router'
 import { t } from '../l10n'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
-import { FRONTEND } from '../routes'
+import { fileLink } from '../fileLink'
 import { fileLabel, labelKind } from '../fileLabel'
 import AlgorithmSelect from '../components/AlgorithmSelect.vue'
 import LocationIcon from '../components/LocationIcon.vue'
@@ -23,7 +22,7 @@ import { useSidebarHashes } from './composables/useSidebarHashes'
 import { useClipboard } from './composables/useClipboard'
 import RecalcButton from './components/RecalcButton.vue'
 import SectionHeader from './components/SectionHeader.vue'
-import type { DuplicateFile, FileNode } from './types'
+import type { FileNode } from './types'
 
 const props = withDefaults(
 	defineProps<{
@@ -124,12 +123,6 @@ function onRecalc(algo: string | null): void {
 const progress = {
 	loading: t('file_checksum_search', 'Loading checksums …'),
 	searching: t('file_checksum_search', 'Searching …'),
-}
-
-// No `dir`: core resolves the id in the viewer's own folder and works the
-// directory out for itself, so one sent along was never read.
-function fileLink(file: DuplicateFile): string {
-	return `${generateUrl(FRONTEND.fileLink, { fileid: file.fileid })}?opendetails=true`
 }
 
 watch(
@@ -253,7 +246,7 @@ watch(
 							<li v-for="file in group.files" :key="file.fileid" class="fcias-dup-item">
 								<a v-if="file.openable !== false"
 									class="fcias-dup-item-link"
-									:href="fileLink(file)"
+									:href="fileLink(file.fileid)"
 									target="_blank"
 									rel="noreferrer noopener"><LocationIcon v-if="labelKind(file)" :kind="labelKind(file)!" :size="14" />{{ fileLabel(file) }}</a>
 								<span v-else class="fcias-dup-item-unopenable" :title="t('file_checksum_search', 'Not in your files')"><LocationIcon v-if="labelKind(file)" :kind="labelKind(file)!" :size="14" />{{ fileLabel(file) }}</span>
