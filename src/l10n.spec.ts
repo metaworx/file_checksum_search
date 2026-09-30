@@ -4,15 +4,16 @@
  *
  * The German `scripts/l10n.sh build` writes to l10n/, read as a page reads
  * it: Nextcloud registers the app's bundle before the app's script runs,
- * and t() and n() look each text up there.
+ * and t() and n() look each text up there. A date follows the locale
+ * Nextcloud writes to the page, not the browser's.
  */
-import { register, setLanguage, unregister } from '@nextcloud/l10n'
+import { getLocale, register, setLanguage, setLocale, unregister } from '@nextcloud/l10n'
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 import de from '../l10n/de.json'
 import deDE from '../l10n/de_DE.json'
 import DuplicateGroup from './duplicates-vue/components/DuplicateGroup.vue'
-import { n, t } from './l10n'
+import { formatDateTime, n, t } from './l10n'
 
 const APP = 'file_checksum_search'
 
@@ -76,5 +77,22 @@ describe('the German translation', () => {
 		unregister(APP)
 		load('de_DE')
 		expect(t(APP, 'Rules applying to your files')).toBe('Regeln für Ihre Dateien')
+	})
+})
+
+describe('a date', () => {
+	const WHEN = new Date(2026, 8, 30, 14, 5)
+	const pageLocale = getLocale()
+
+	afterEach(() => {
+		setLocale(pageLocale)
+	})
+
+	// The locale is the one chosen in Nextcloud's personal settings, whatever the browser's.
+	it('is written as the Nextcloud locale writes it', () => {
+		setLocale('de_CH')
+		expect(formatDateTime(WHEN)).toContain('30.9.2026')
+		setLocale('en_US')
+		expect(formatDateTime(WHEN)).toContain('9/30/2026')
 	})
 })

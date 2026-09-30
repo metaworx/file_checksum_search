@@ -17,7 +17,7 @@ import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwit
 import HelpPopover from '../components/HelpPopover.vue'
 import { OCS_SETTINGS } from '../routes'
 import { toastError, toastSaved } from '../toast'
-import { t } from '../l10n'
+import { formatDateTime, t } from '../l10n'
 
 interface TokenRow {
 	id: number
@@ -126,7 +126,7 @@ async function toggle(token: TokenRow, granted: boolean): Promise<void> {
 
 function when(seconds: number): string {
 	// TRANSLATORS: when an app password was last used, or granted: not at all
-	return seconds > 0 ? new Date(seconds * 1000).toLocaleString() : t('file_checksum_search', 'never')
+	return seconds > 0 ? formatDateTime(new Date(seconds * 1000)) : t('file_checksum_search', 'never')
 }
 
 onMounted(load)

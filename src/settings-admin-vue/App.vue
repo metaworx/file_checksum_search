@@ -19,7 +19,7 @@ import TunablesSection from './TunablesSection.vue'
 import DocsViewer from '../docs-vue/DocsViewer.vue'
 import { useAdminSettings } from './composables/useAdminSettings'
 import { toastSuccess } from '../toast'
-import { t } from '../l10n'
+import { formatDateTime, t } from '../l10n'
 
 /** The words each permission section shows; the component is the same. */
 const PERMISSION_HELP = {
@@ -188,7 +188,7 @@ const jobRows = computed(() => Object.entries(status.value.jobs ?? {}).map(([key
 	key,
 	label: JOB_LABELS[key] ?? key,
 	// TRANSLATORS: when a background job last ran: not at all
-	time: run.lastRun === null ? t('file_checksum_search', 'Not run yet') : new Date(run.lastRun * 1000).toLocaleString(),
+	time: run.lastRun === null ? t('file_checksum_search', 'Not run yet') : formatDateTime(new Date(run.lastRun * 1000)),
 	countsText: run.lastRun === null
 		? ''
 		: Object.entries(run.counts).map(([name, value]) => `${name} ${value}`).join(', '),

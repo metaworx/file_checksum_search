@@ -14,7 +14,7 @@ import { reactive, toRefs } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import { OCS_SETTINGS } from '../../routes'
 import { useRules } from '../../rules-vue/composables/useRules'
-import { t } from '../../l10n'
+import { formatDateTime, t } from '../../l10n'
 
 interface JobRun {
 	lastRun: number | null
@@ -71,7 +71,7 @@ export function useAdminSettings() {
 			}
 
 			state.status = (await response.json()) as StatusData
-			state.lastUpdated = new Date().toLocaleString()
+			state.lastUpdated = formatDateTime(new Date())
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return
 			state.statusError = t('file_checksum_search', 'Could not load the status.')

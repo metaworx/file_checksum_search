@@ -60,6 +60,9 @@ the first stable release.
 - Duplicates in the top bar: its icon was nearly invisible on the
   header's blue.
 
+- Dates in the settings, a grant's last use, a job's last run and "Last
+  updated": in the user's Nextcloud locale, not the browser's.
+
 ## [0.20.3] - 2026-09-27
 
 ### Fixed

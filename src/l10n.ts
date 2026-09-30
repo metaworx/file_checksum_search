@@ -13,7 +13,7 @@
  * translation tool finds a text as t()'s second argument and n()'s second and
  * third, and only in calls spelled out this way.
  */
-import { translate, translatePlural } from '@nextcloud/l10n'
+import { getCanonicalLocale, translate, translatePlural } from '@nextcloud/l10n'
 
 type Values = Record<string, string | number>
 
@@ -25,4 +25,13 @@ export function t(app: string, text: string, values?: Values): string {
 /** The singular or plural text for `count`, which fills `%n`; `{name}` placeholders as in t(). */
 export function n(app: string, singular: string, plural: string, count: number, values?: Values): string {
 	return translatePlural(app, singular, plural, count, values, { escape: false, sanitize: false })
+}
+
+/**
+ * A date and its time as the user's Nextcloud locale writes them. Without a
+ * locale, toLocaleString() would take the browser's, whatever the person
+ * chose in Nextcloud's personal settings.
+ */
+export function formatDateTime(date: Date): string {
+	return date.toLocaleString(getCanonicalLocale())
 }

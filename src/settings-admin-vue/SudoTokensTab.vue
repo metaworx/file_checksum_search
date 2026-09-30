@@ -13,7 +13,7 @@ import { generateOcsUrl } from '@nextcloud/router'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import { OCS_SETTINGS } from '../routes'
 import { toastError, toastSuccess } from '../toast'
-import { t } from '../l10n'
+import { formatDateTime, t } from '../l10n'
 
 interface GrantRow {
 	uid: string
@@ -86,7 +86,7 @@ async function revoke(grant: GrantRow): Promise<void> {
 
 function when(seconds: number): string {
 	// TRANSLATORS: when an app password was last used, or granted: not at all
-	return seconds > 0 ? new Date(seconds * 1000).toLocaleString() : t('file_checksum_search', 'never')
+	return seconds > 0 ? formatDateTime(new Date(seconds * 1000)) : t('file_checksum_search', 'never')
 }
 
 onMounted(load)
