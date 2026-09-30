@@ -132,8 +132,13 @@ measures at roughly five files a second against ddev.
 ## Environment contract
 
 - `CYPRESS_baseUrl` — Nextcloud base URL (e.g. `https://nextcloud-34.ddev.site`).
-- `CYPRESS_occ` — shell prefix used to invoke `occ`
-  (e.g. `cd ~/projects/nextcloud_testing/instances/34 && ddev exec php occ`).
+- `CYPRESS_occ` — shell prefix used to invoke `occ`; against the harness,
+  `$HOME/projects/nextcloud_testing/scripts/nc-test 34 occ`, for any
+  installed version. Not `cd …/instances/34 && ddev exec php occ`: `ddev exec`
+  re-quotes the arguments itself, so a glob such as `**`, a quote or a `$`
+  arrives changed, and `ddev exec --raw`, which keeps them, forwards no
+  stdin, which the fixture import needs. `nc-test` quotes each word and
+  forwards stdin (the harness README, *Running an App's Cypress Specs*).
 - `CYPRESS_NC_ADMIN_USER` / `CYPRESS_NC_ADMIN_PASSWORD` — admin credentials
   (default `admin`/`admin`).
 - Specs read these via `cy.env()` — the Cypress config sets
@@ -156,7 +161,7 @@ the set, and puts the instance back. It runs only when asked:
 ```bash
 CYPRESS_capture=1 \
 CYPRESS_baseUrl=https://nextcloud-34.ddev.site \
-CYPRESS_occ='cd ~/projects/nextcloud_testing/instances/34 && ddev exec php occ' \
+CYPRESS_occ="$HOME/projects/nextcloud_testing/scripts/nc-test 34 occ" \
 npx cypress run --spec tests/e2e/screenshots.cy.js
 ```
 
@@ -167,6 +172,6 @@ time; run it on the test instance only.
 
 ```bash
 CYPRESS_baseUrl=https://nextcloud-34.ddev.site \
-CYPRESS_occ='cd ~/projects/nextcloud_testing/instances/34 && ddev exec php occ' \
+CYPRESS_occ="$HOME/projects/nextcloud_testing/scripts/nc-test 34 occ" \
 npx cypress run
 ```
