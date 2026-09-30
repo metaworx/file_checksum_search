@@ -101,7 +101,7 @@ describe('settings-personal App', () => {
 		expect(wrapper.findAll('#fcias-personal-rules .fcias-drag-handle')).toHaveLength(1)
 	})
 
-	it('hides the Add Rule button and shows the banner when the user cannot edit any rule', async () => {
+	it('hides the Add rule button and shows the banner when the user cannot edit any rule', async () => {
 		mockFetch(false)
 		const wrapper = mount(App)
 		await flushPromises()

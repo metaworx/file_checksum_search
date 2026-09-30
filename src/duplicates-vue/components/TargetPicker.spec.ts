@@ -114,10 +114,10 @@ describe('TargetPicker', () => {
 		wrapper = mount(TargetPicker, {
 			props: { scope: { all: false, users: ['alice'], groups: ['team'] } },
 		})
-		expect(selectedLabels(wrapper)).toEqual(['team (Group)', 'alice'])
+		expect(selectedLabels(wrapper)).toEqual(['team (group)', 'alice'])
 
 		await flushPromises()
-		expect(selectedLabels(wrapper)).toEqual(['Team (Group)', 'Alice A.'])
+		expect(selectedLabels(wrapper)).toEqual(['Team (group)', 'Alice A.'])
 
 		await wrapper.setProps({ scope: { all: true, users: [], groups: [] } })
 		expect(selectedLabels(wrapper)).toEqual(['All accounts'])
@@ -140,12 +140,12 @@ describe('TargetPicker', () => {
 		wrapper = mount(TargetPicker)
 		await flushPromises()
 
-		await pickOption(wrapper, 'admin (Group)')
-		expect(selectedLabels(wrapper)).toEqual(['admin (Group)'])
+		await pickOption(wrapper, 'admin (group)')
+		expect(selectedLabels(wrapper)).toEqual(['admin (group)'])
 		expect(wrapper.emitted('update:scope')?.at(-1)?.[0]).toEqual({ all: false, users: [], groups: ['admin'] })
 
 		await pickOption(wrapper, 'admin')
-		expect(selectedLabels(wrapper)).toEqual(['admin (Group)', 'admin'])
+		expect(selectedLabels(wrapper)).toEqual(['admin (group)', 'admin'])
 		expect(wrapper.emitted('update:scope')?.at(-1)?.[0]).toEqual({ all: false, users: ['admin'], groups: ['admin'] })
 
 		// Removing the group's chip leaves the account's. The button

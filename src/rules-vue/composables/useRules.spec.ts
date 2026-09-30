@@ -191,7 +191,7 @@ describe('useRules', () => {
 		expect(loaded.value).toBe(false)
 		await loadRules()
 
-		expect(error.value).toBe('Failed to load rules.')
+		expect(error.value).toBe('Could not load the rules.')
 		expect(rules.value).toEqual([])
 		// Answered badly is still answered: the page may now show its state.
 		expect(loaded.value).toBe(true)

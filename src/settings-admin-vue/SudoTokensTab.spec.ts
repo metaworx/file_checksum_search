@@ -51,7 +51,7 @@ describe('SudoTokensTab', () => {
 		const rows = wrapper.findAll('[data-testid="fcias-sudo-grants"] tbody tr')
 		expect(rows).toHaveLength(2)
 		expect(rows[0].text()).toContain('backup')
-		expect(rows[1].text()).toContain('token deleted')
+		expect(rows[1].text()).toContain('app password deleted')
 	})
 
 	it('revokes through the admin route and takes the new list', async () => {
@@ -84,9 +84,9 @@ describe('SudoTokensTab', () => {
 		await flushPromises()
 
 		const line = wrapper.find('[data-testid="fcias-sudo-grants-error"]')
-		expect(line.text()).toContain('could not be loaded')
+		expect(line.text()).toContain('Could not load the grants')
 		expect(line.text()).toContain('HTTP 500')
-		expect(line.text()).not.toContain('token table')
+		expect(line.text()).not.toContain('could not be read')
 	})
 
 	it('says so when the server could not read the token table', async () => {
@@ -94,7 +94,7 @@ describe('SudoTokensTab', () => {
 		const wrapper = mount(SudoTokensTab)
 		await flushPromises()
 
-		expect(wrapper.find('[data-testid="fcias-sudo-grants-error"]').text()).toContain('token table could not be read')
+		expect(wrapper.find('[data-testid="fcias-sudo-grants-error"]').text()).toContain('the app passwords could not be read')
 		expect(wrapper.find('[data-testid="fcias-sudo-grants-empty"]').exists()).toBe(false)
 	})
 

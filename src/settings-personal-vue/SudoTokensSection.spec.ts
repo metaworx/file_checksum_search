@@ -132,7 +132,7 @@ describe('SudoTokensSection', () => {
 		const { wrapper } = await mounted()
 
 		const line = wrapper.find('[data-testid="fcias-sudo-tokens-error"]')
-		expect(line.text()).toContain('could not be listed')
+		expect(line.text()).toContain('Could not list your app passwords')
 		expect(line.text()).toContain('HTTP 412')
 		expect(wrapper.find('[data-testid="fcias-sudo-tokens-empty"]').exists()).toBe(false)
 	})
@@ -141,7 +141,7 @@ describe('SudoTokensSection', () => {
 		fetchMock.mockResolvedValueOnce(jsonResponse({ canUseApi: true, tokens: [], available: false }))
 		const { wrapper } = await mounted()
 
-		expect(wrapper.find('[data-testid="fcias-sudo-tokens-error"]').text()).toContain('token table could not be read')
+		expect(wrapper.find('[data-testid="fcias-sudo-tokens-error"]').text()).toContain('they could not be read')
 		expect(wrapper.find('[data-testid="fcias-sudo-tokens-empty"]').exists()).toBe(false)
 	})
 })

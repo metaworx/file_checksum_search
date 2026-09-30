@@ -66,7 +66,7 @@ export function useAdminSettings() {
 			// a status it renders every count as zero — which is what a
 			// healthy empty instance shows. An error is an error.
 			if (!response.ok) {
-				state.statusError = t('file_checksum_search', 'Failed to load status (HTTP {status}).', { status: response.status })
+				state.statusError = t('file_checksum_search', 'Could not load the status (HTTP {status}).', { status: response.status })
 				return
 			}
 
@@ -74,7 +74,7 @@ export function useAdminSettings() {
 			state.lastUpdated = new Date().toLocaleString()
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return
-			state.statusError = t('file_checksum_search', 'Failed to load status.')
+			state.statusError = t('file_checksum_search', 'Could not load the status.')
 		} finally {
 			if (!signal.aborted) {
 				state.statusLoading = false

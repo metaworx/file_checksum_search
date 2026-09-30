@@ -871,7 +871,7 @@ class HashCalculationService
 				'success' => false,
 				'hash'    => '',
 				'existed' => false,
-				'error'   => $this->l10n->t( 'Unsupported algorithm: %s', [ $algo ] ),
+				'error'   => $this->l10n->t( 'Algorithm not allowed on this server: %s', [ $algo ] ),
 				// English for the log, as the error is the reader's language.
 				'reason'  => 'Unsupported algorithm: ' . $algo,
 			];
@@ -910,7 +910,7 @@ class HashCalculationService
 						'success' => false,
 						'hash'    => '',
 						'existed' => false,
-						'error'   => $this->l10n->t( 'Node is not a file.' ),
+						'error'   => $this->l10n->t( 'This is not a file.' ),
 						'reason'  => 'Node is not a file.',
 					];
 				}
@@ -1067,7 +1067,7 @@ class HashCalculationService
 
 		if ( $handle === false )
 		{
-			throw new HintException( 'Unable to open file for reading.', $this->l10n->t( 'Unable to open file for reading.' ) );
+			throw new HintException( 'Unable to open file for reading.', $this->l10n->t( 'Could not open the file for reading.' ) );
 		}
 
 		try
@@ -1100,7 +1100,7 @@ class HashCalculationService
 
 		if ( $handle === false )
 		{
-			throw new HintException( 'Unable to open file for reading.', $this->l10n->t( 'Unable to open file for reading.' ) );
+			throw new HintException( 'Unable to open file for reading.', $this->l10n->t( 'Could not open the file for reading.' ) );
 		}
 
 		try
@@ -1226,7 +1226,7 @@ class HashCalculationService
 					'algo'    => $algo,
 					'hash'    => '',
 					'existed' => false,
-					'error'   => $this->l10n->t( 'Node is not a file.' ),
+					'error'   => $this->l10n->t( 'This is not a file.' ),
 				];
 			}
 		}

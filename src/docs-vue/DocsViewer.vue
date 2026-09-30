@@ -102,7 +102,7 @@ onMounted(async () => {
 		await nextTick()
 		restoreFromHash()
 	} catch (e) {
-		error.value = t('file_checksum_search', 'Failed to load documentation.')
+		error.value = t('file_checksum_search', 'Could not load the documentation.')
 	}
 })
 

@@ -137,7 +137,7 @@ const tabs = computed<Array<{ id: Tab, label: string }>>(() => [
 	{ id: 'help', label: t('file_checksum_search', 'Help') },
 ])
 
-const OTHERS_NOTE = t('file_checksum_search', 'These are other people\'s files. Everything below is shown because you asked for it by name — leave this tab to go back to your own.')
+const OTHERS_NOTE = t('file_checksum_search', 'This tab shows other people\'s files: those of the accounts and groups chosen above. Leave this tab to go back to your own.')
 
 /**
  * Entering the Others tab costs the password, once per window — the

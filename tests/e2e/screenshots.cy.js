@@ -479,7 +479,7 @@ describe( 'FCIAS screenshots', () => {
 		} )
 	} )
 
-	// The unified search on a real hash, the File Checksums provider listing
+	// The unified search on a real hash, the File checksums provider listing
 	// the two files that carry it. The hash is typed the way global-search
 	// does it: through the native setter and one input event, since the
 	// field is debounced and cy.type() races it.
@@ -509,7 +509,7 @@ describe( 'FCIAS screenshots', () => {
 		shotAround( 'Admin-Permissions', '#fcias-admin-settings', 0, 16 )
 	} )
 
-	// After a drain and one sweep, so Status Info carries real heartbeats.
+	// After a drain and one sweep, so Status carries real heartbeats.
 	it( 'Admin-Advanced', () => {
 		exec( 'fcias:queue:drain --all' )
 		exec( 'background-job:list --output=json' ).then( ( { stdout } ) => {
@@ -520,7 +520,7 @@ describe( 'FCIAS screenshots', () => {
 		} )
 		cy.visit( ADMIN_URL )
 		adminTab( 'Advanced', 'advanced' )
-		cy.get( '.fcias-status-table', { timeout: FIND_TIMEOUT } ).should( 'contain', 'Background Jobs' )
+		cy.get( '.fcias-status-table', { timeout: FIND_TIMEOUT } ).should( 'contain', 'Background jobs' )
 		shotAround( 'Admin-Advanced', '#fcias-admin-settings', 0, 16 )
 	} )
 
@@ -545,7 +545,7 @@ describe( 'FCIAS screenshots', () => {
 		shotAround( 'Admin-Sudo-Tokens', '#fcias-admin-settings', 0, 16 )
 	} )
 
-	// One row's menu open: Edit, Disable, Re-apply, Delete, the pen beside.
+	// One row's menu open: Edit, Disable, Reapply, Delete, the pen beside.
 	it( 'Rule-Row-Menu', () => {
 		cy.visit( ADMIN_URL )
 		cy.get( '#fcias-rules-list tr[data-band="5"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )

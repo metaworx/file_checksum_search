@@ -1188,7 +1188,7 @@ class HashCalculationServiceTest
 		;
 
 		$this->assertFalse( $result['success'] );
-		$this->assertStringContainsString( 'Unsupported algorithm', $result['error'] ?? '' );
+		$this->assertStringContainsString( 'Algorithm not allowed on this server', $result['error'] ?? '' );
 	}
 
 	public function testRecalcHashesSkipsUpToDateAlgosWithoutLocking(): void

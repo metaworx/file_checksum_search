@@ -55,7 +55,7 @@ window.addEventListener('hashchange', () => {
 	activeTab.value = tabFromHash()
 })
 
-const RULES_HINT = t('file_checksum_search', 'Every rule that can affect your files, in the order they are evaluated — the first match decides. Rules an administrator enforced come first and are read-only; your own rules come next and are yours to edit and reorder; the defaults below them apply only where none of your rules matched. You can create rules only if you have been given permission and the path is in a folder you can write to.')
+const RULES_HINT = t('file_checksum_search', 'Every rule that can affect your files, in the order they are evaluated — the first match decides. Rules an administrator enforced come first and are read-only; your own rules come next and are yours to edit and reorder; the defaults below them apply only where none of your rules matched. You can create rules only if you have been given permission and the path is a folder in your own files that you can write to.')
 
 const ruleMsg = ref('')
 const showRuleForm = ref(false)
@@ -96,21 +96,21 @@ async function handleSaveRule(draft: RuleDraft): Promise<void> {
 		closeRuleForm()
 		toastSuccess(t('file_checksum_search', 'Rule saved.'))
 	} else {
-		saveError.value = result.error || t('file_checksum_search', 'Saving failed.')
+		saveError.value = result.error || t('file_checksum_search', 'Could not save the rule.')
 	}
 }
 
 function handleDeleteRule(rule: Rule): void {
 	OC.dialogs.confirm(
 		t('file_checksum_search', 'Delete this rule?'),
-		t('file_checksum_search', 'Confirm Delete'),
+		t('file_checksum_search', 'Delete rule'),
 		(confirmed: boolean) => {
 			if (!confirmed) return
 			deleteRule(rule.id).then((result) => {
 				if (result.success) {
 					toastSuccess(t('file_checksum_search', 'Rule deleted.'))
 				} else {
-					ruleMsg.value = result.error || t('file_checksum_search', 'Delete failed.')
+					ruleMsg.value = result.error || t('file_checksum_search', 'Could not delete the rule.')
 				}
 			})
 		},
@@ -121,16 +121,16 @@ function handleDeleteRule(rule: Rule): void {
 async function handleReorder(payload: { selector: string; defaults: boolean; orderedIds: Array<Rule['id']> }): Promise<void> {
 	const result = await reorderSegment(payload.selector, payload.defaults, payload.orderedIds)
 	if (!result.success) {
-		ruleMsg.value = result.error || t('file_checksum_search', 'Reorder failed.')
+		ruleMsg.value = result.error || t('file_checksum_search', 'Could not reorder the rules.')
 	}
 }
 
 async function handleApplyRule(rule: Rule): Promise<void> {
 	const result = await applyRule(rule.id)
 	if (result.success) {
-		toastSuccess(t('file_checksum_search', 'Re-apply queued — the background job takes it from here.'))
+		toastSuccess(t('file_checksum_search', 'Reapply queued — a background job will go through the rule\'s files.'))
 	} else {
-		ruleMsg.value = result.error || t('file_checksum_search', 'Re-apply failed.')
+		ruleMsg.value = result.error || t('file_checksum_search', 'Could not reapply the rule.')
 	}
 }
 
@@ -139,7 +139,7 @@ async function handleToggleRule(rule: Rule): Promise<void> {
 	if (result.success) {
 		toastSuccess(rule.enabled ? t('file_checksum_search', 'Rule disabled.') : t('file_checksum_search', 'Rule enabled.'))
 	} else {
-		ruleMsg.value = result.error || t('file_checksum_search', 'Toggle failed.')
+		ruleMsg.value = result.error || t('file_checksum_search', 'Could not enable or disable the rule.')
 	}
 }
 
@@ -210,7 +210,7 @@ loadRules()
 				id="fcias-personal-add"
 				class="fcias-btn"
 				@click="openAddRule">
-				{{ t('file_checksum_search', 'Add Rule') }}
+				{{ t('file_checksum_search', 'Add rule') }}
 			</button>
 
 			<RuleForm

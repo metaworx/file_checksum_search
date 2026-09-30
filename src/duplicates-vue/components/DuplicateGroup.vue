@@ -45,8 +45,8 @@ const statusText = computed(() => {
 const fileCount = computed(() => n('file_checksum_search', '%n file', '%n files', props.group.file_count))
 
 const TITLES = {
-	verifyAll: t('file_checksum_search', 'Recompute every file in this group from its contents'),
-	verify: t('file_checksum_search', 'Recompute this file from its contents'),
+	verifyAll: t('file_checksum_search', 'Read every file in this group again, recalculate its checksum and compare'),
+	verify: t('file_checksum_search', 'Read this file again, recalculate its checksum and compare'),
 	notYours: t('file_checksum_search', 'Not in your files'),
 	// The same fact for a reader that never hovers, read after the label.
 	notYoursSpoken: t('file_checksum_search', '(not in your files)'),

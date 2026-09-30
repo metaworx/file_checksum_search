@@ -87,7 +87,7 @@ async function save(value: string): Promise<void> {
 			toastError(data.error || t('file_checksum_search', 'Could not save the preference.'))
 		}
 	} catch (e) {
-		toastError(t('file_checksum_search', 'Request failed.'))
+		toastError(t('file_checksum_search', 'Could not complete the request.'))
 	} finally {
 		saving.value = false
 	}

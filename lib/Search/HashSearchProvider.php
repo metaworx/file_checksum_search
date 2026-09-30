@@ -70,7 +70,7 @@ class HashSearchProvider
 	 */
 	public function getName(): string
 	{
-		return $this->l10n->t( 'File Checksums' );
+		return $this->l10n->t( 'File checksums' );
 	}
 
 	/**

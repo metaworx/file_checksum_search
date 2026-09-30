@@ -296,7 +296,7 @@ Trigger hash recalculation for a file. **This is the only mutating operation** i
 | `$fileId` | `int` | Yes | The filecache `fileid` |
 | `$reachUids` | `?array` | Yes | Whose files may be acted on. `null` waives the reach check and nothing else: the permission, and any rule excluding the path, are still answered |
 | `$algo` | `?string` | No | Algorithm; `null` is the instance's default, as `GET /api/v1/algorithms` names it |
-| `$actingUser` | `?string` | No | Whose *calculate by hand* permission is checked. `null` is a trusted caller and waives it |
+| `$actingUser` | `?string` | No | Whose *Who may recalculate checksums* permission is checked. `null` is a trusted caller and waives it |
 
 **Returns (success):**
 ```php
@@ -307,7 +307,7 @@ Trigger hash recalculation for a file. **This is the only mutating operation** i
 ```php
 ['success' => false, 'error' => 'File not found.']
 ['success' => false, 'error' => 'Hashing is excluded for this path by a rule.', 'excluded' => true, 'ruleId' => '…', 'ruleOwner' => 'admin']
-['success' => false, 'error' => 'This account may not calculate by hand.', 'forbidden' => true]
+['success' => false, 'error' => 'This account may not recalculate checksums.', 'forbidden' => true]
 ```
 
 ---
@@ -466,7 +466,7 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/lookup?hash=<hex>&algo=<algo>&l
 
 **Error (400):**
 ```json
-{"error": "Hash parameter is required."}
+{"error": "The \"hash\" parameter is required."}
 ```
 
 ---
@@ -505,7 +505,7 @@ user's stored preference where it is still in force (empty otherwise), and
 the second is the first of `algos` that differs from it.
 
 The two flags are about the asking account, not the file: `canRecalc` is the
-*Who may calculate by hand* permission, and `canSudo` whether the account may
+*Who may recalculate checksums* permission, and `canSudo` whether the account may
 look across accounts at all, the same answer the duplicates listing carries.
 The sidebar hides its Recalculate buttons on the first and offers the way to
 the Duplicates page's *Others* tab on the second.
@@ -569,7 +569,7 @@ Content-Type: application/json
 
 **Error (400):**
 ```json
-{"success": false, "error": "Unsupported algorithm: sha999"}
+{"success": false, "error": "Algorithm not allowed on this server: sha999"}
 ```
 
 **Refused (403)** — an `exclude` rule covers the file:
@@ -583,21 +583,21 @@ Content-Type: application/json
 }
 ```
 
-**Refused (403)** — the account may not calculate by hand:
+**Refused (403)** — the account may not recalculate checksums:
 ```json
 {
   "success": false,
-  "error": "This account may not calculate by hand.",
+  "error": "This account may not recalculate checksums.",
   "forbidden": true
 }
 ```
 
 `exclude` means the file must not be read at all, so a manual recalculation is
 refused along with every automatic route. The second refusal is the *Who may
-calculate by hand* permission (admin settings, *Permissions* tab), which gates triggering a
-computation on top of owning the file; reading what is already computed is
-untouched, and the sidebar hides its Recalculate buttons for such an account
-rather than offering them to fail. Members of `admin` always may. Both
+recalculate checksums* permission (admin settings, *Permissions* tab), which gates
+recalculating by hand for any file the account can reach; reading what is already
+computed is not affected, and the sidebar and the Duplicates page hide their
+buttons from such an account rather than offering them to fail. Members of `admin` always may. Both
 statuses are 403 rather than 400 because the request is well-formed and
 retrying it will not help — a client should surface the reason instead of
 treating it as a transient failure.
@@ -647,12 +647,17 @@ shape `lookup` uses — so a full SHA-512 finds exactly its group.
   ],
   "total_groups": 1,
   "pagination": {"offset": 0, "limit": 50},
+  "canRecalc": true,
   "canSudo": false
 }
 ```
 
-`canSudo` says whether the caller may look across accounts at all — whether
-the Duplicates page shows its *Others* tab.
+`canRecalc` says whether the caller may recalculate checksums by hand — the
+*Who may recalculate checksums* permission, which an administrator always has —
+and so whether the Duplicates page offers *Verify* and *Verify all*; the
+cross-account twin, `/api/v1/sudo/duplicates`, carries it too. `canSudo`
+says whether the caller may look across accounts at all — whether the
+Duplicates page shows its *Others* tab.
 
 ---
 
@@ -772,7 +777,7 @@ and resumes on a 429.
   "results": [
     {"fileid": 100, "success": true, "algo": "sha256", "hash": "e3b0c4..."},
     {"fileid": 200, "success": false, "error": "File not found."},
-    {"fileid": 300, "success": false, "error": "This account may not calculate by hand.", "forbidden": true}
+    {"fileid": 300, "success": false, "error": "This account may not recalculate checksums.", "forbidden": true}
   ],
   "remaining": []
 }
@@ -876,6 +881,7 @@ alone, so nothing depends on a client honouring it.
   ],
   "canCreate": true,
   "supportedAlgos": ["sha1", "md5", "sha256"],
+  "defaultAlgo": "sha1",
   "modes": ["auto", "missing", "force", "lazy"],
   "types": ["include", "ignore", "exclude"],
   "availableUsers": ["alice"],
@@ -886,6 +892,10 @@ alone, so nothing depends on a client honouring it.
   "availableStorages": ["smb::user@host//share/"]
 }
 ```
+
+`supportedAlgos` are the algorithms a rule may use, and `defaultAlgo` the instance's default among
+them — what a new rule starts from, as a rule created without `algos` gets it. Both are present in
+every view.
 
 The picker fields are present only for `scope=all` — they exist to populate selector pickers, and
 no other view can assign those selectors:
@@ -911,7 +921,7 @@ annotations of the list endpoint and are not part of this response.
 From a non-administrator, `selector` is forced to `home:<caller>` and
 `admin_enforced` to `false`, whatever the payload says. A non-administrator must also have write
 access to the rule's path **on their own home storage**: a path leading into a received share, a
-group folder or another mounted storage is refused with that reason (403), because such a rule
+team folder or another mounted storage is refused with that reason (403), because such a rule
 could never match — those files answer to their owner's rules or to the folder's own.
 
 ### `PUT /api/v1/rules/{id}` — update
@@ -1053,7 +1063,7 @@ accounts:
 | `POST /api/v1/file/many/recalc` | `POST /api/v1/sudo/file/many/recalc` | as above, decided per file |
 
 The last two are the only twins that *write*, and two things about them do
-not change by crossing accounts: the **Who may calculate by hand** permission
+not change by crossing accounts: the **Who may recalculate checksums** permission
 is answered against whoever is asking, not against the file's owner, and an
 administrator's `exclude` rule still refuses the path — which is what keeps a
 cross-account recalculation from reading storage that costs money. A

@@ -153,7 +153,7 @@ export function useDuplicates() {
 			state.hasMore = state.groups.length >= state.limit
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return
-			state.error = t('file_checksum_search', 'Failed to load duplicates.')
+			state.error = t('file_checksum_search', 'Could not load the duplicates.')
 			state.groups = []
 		} finally {
 			if (!signal.aborted) {
@@ -249,6 +249,7 @@ export function useDuplicates() {
 					if (results.length === 0 && remaining.length > 0) {
 						for (const file of remaining) {
 							file.verified = false
+							// TRANSLATORS: a file's verification result: the server did not get to this file
 							file.verify_error = t('file_checksum_search', 'Not processed')
 						}
 					} else {

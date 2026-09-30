@@ -191,15 +191,15 @@ describe('settings-admin App', () => {
 		expect(untrusted).toContain('Total: 13')
 		expect(untrusted).toContain('Eroded: 4')
 		expect(untrusted).toContain('Reset: 9')
-		expect(untrusted).toContain('heals itself')
+		expect(untrusted).toContain('it gets them back once a rule covers it again')
 		const jobs = wrapper.find('#fcias-status-jobs').text()
 		expect(jobs).toContain('Rule sweep')
 		expect(jobs).toContain('matched 12, marked 3')
 		expect(jobs).toContain('Queue drain')
 		expect(jobs).toContain('Checksum copy')
 		expect(jobs).toContain('copied 1200, files 900, done 0')
-		expect(jobs).toContain('Hash index check')
-		expect(jobs).toContain('never ran yet')
+		expect(jobs).toContain('Checksum index check')
+		expect(jobs).toContain('Not run yet')
 	})
 
 	it('switches to the Documentation tab', async () => {

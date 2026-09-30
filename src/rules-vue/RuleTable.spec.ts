@@ -295,7 +295,7 @@ describe('RuleTable', () => {
 
 		const folderRow = wrapper.find('tr[data-placeholder="groupfolder:1"]')
 		expect(folderRow.text()).toContain('no catch-all rule')
-		expect(wrapper.find('tr[data-placeholder="groupfolder:2"]').text()).toContain('not covered')
+		expect(wrapper.find('tr[data-placeholder="groupfolder:2"]').text()).toContain('no rule of its own')
 	})
 
 	it('offers no group-folder namespaces when the app is unavailable', () => {

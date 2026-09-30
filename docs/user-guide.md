@@ -1,4 +1,4 @@
-# FCIAS — User Guide
+# FCIAS — User guide
 
 This page explains the day-to-day features of File Checksum Index & Search.
 It is written for anyone using Nextcloud; your administrator's reference is
@@ -16,11 +16,11 @@ FCIAS keeps those checksums for your files and lets you use them:
 - **Find copies of a file.** The duplicate browser groups files that share a
   checksum, so you can see what you are storing more than once before you go
   looking through folders.
-- **Search by checksum.** If you know a file's hash — from a download page,
+- **Search by checksum.** If you know a file's checksum — from a download page,
   a colleague, a receipt — paste it into Nextcloud's search bar to find every
   copy of that exact file in your account.
 - **Check a file is intact.** The Checksums tab in the file sidebar shows
-  what was computed and lets you recompute it from the current contents. If
+  what was computed and lets you recalculate it from the current contents. If
   the two differ, the file changed since it was last checked.
 
 Which files get checksums, and which algorithms are used, is decided by
@@ -48,23 +48,24 @@ administrator lets you look across accounts — **Others** as well.
 Each control carries its label, and an **i** button beside the label says what
 it decides.
 
-- **Algorithm** — filter to one hash algorithm, or *All algorithms*. The list
-  offers whatever your administrator has enabled on this server.
-- **Min** — the minimum number of files a group must contain to be listed.
-- **Limit** — how many groups to show per page.
+- **Algorithm** — filter to one algorithm, or *All algorithms*. The list
+  offers the algorithms your administrator has allowed on this server.
+- **Min. files** — the minimum number of files a group must contain to be listed.
+- **Per page** — how many groups to show per page.
 - **Refresh** — reload the list.
-- **Hash** — show only groups whose checksum this names. Whole values come
-  first, then those that *start* with what you typed, so pasting a full hash
-  finds its group and typing the first few characters narrows the list.
+- **Hash** — show only groups whose hash matches what you type. Whole values
+  come first, then those that *start* with what you typed, so pasting a full
+  hash finds its group and typing the first few characters narrows the list.
   Upper case is fine.
-- **Search anywhere** — beside the **Hash** field: match the term anywhere in
-  the checksum rather than only at its start. Useful when you have a fragment
-  from the middle of a hash; slower to narrow, since far more can match.
+- **Match anywhere in the hash** — beside the **Hash** field: match the term
+  anywhere in the hash rather than only at its start. Useful when you have a
+  fragment from the middle of a hash; slower to narrow, since far more can
+  match.
 
 ### Checking that a duplicate is still a duplicate
 
 A group says which files *were* found to share a checksum. To confirm they
-still do, the file has to be read again and its checksum recomputed — so this
+still do, the file has to be read again and its checksum recalculated — so this
 is never done for the whole page at once. Reading files takes time, and on
 storage you pay for by the gigabyte it costs money.
 
@@ -73,6 +74,9 @@ You ask for it where you want it:
 - **Verify all** on a group header — re-reads every file in that group.
 - **Verify** on a file row — re-reads that one file. Open a group by clicking
   its header to see the rows.
+
+Both buttons appear only if your administrator allows you to recalculate
+checksums.
 
 A file that still matches gets a tick; one that does not shows a cross and
 the checksum found instead, which means the file changed since it was last
@@ -102,8 +106,8 @@ or both at once, shown together as one list of duplicate groups — which is
 how a copy held by two different people shows up as one group.
 
 What you may name depends on who you are. An administrator may name anyone,
-and has an **All accounts** option besides. If you lead groups — a *group
-administrator* in Nextcloud's terms — you may name your own groups and their
+and has an **All accounts** option besides. If you administer groups — a *group
+admin* in Nextcloud's terms — you may name your own groups and their
 members, and nothing else; your option for all of them at once reads **All
 my groups**. The picker only ever offers what you may have; on a large
 server it searches as you type instead of listing everyone.
@@ -117,12 +121,12 @@ Each row on *Others* says whose file it is and where it lives — so three
 accounts' copies of one template read as three rows, not as the same path
 three times — with a small glyph in front saying what kind of place that
 is: a house for your own file, a person for somebody else's home folder, a
-folder with a person for a group folder, a disk for another storage. Hover
+folder with a person for a team folder, a disk for another storage. Hover
 it and it says so in words. Your own files, if they turn up in the list,
 show the path you know them by.
 
 **Verify all** and **Verify** work here too, under your own permission to
-calculate by hand: looking at somebody's files does not borrow their
+recalculate checksums: looking at somebody's files does not borrow their
 permission, and a file an administrator's rule excludes from hashing stays
 excluded. A group holding several accounts' copies verifies each row on its
 own; a row you may not reach says so rather than stopping the others.
@@ -142,11 +146,11 @@ app can only open what is in your files. Long lists are paged with
 You can search for a file by its checksum directly from Nextcloud's global
 search bar (Unified Search):
 
-![The unified search on a checksum: the File Checksums provider listing the two files that carry it][shot-unified-search]
+![The unified search on a checksum: the File checksums provider listing the two files that carry it][shot-unified-search]
 
 1. Type a hash value — either the raw hex string or an `algo:hash` pair,
    for example `sha256:e3b0c44298fc1c149afbf4c8996fb924`.
-2. Pick the **File Checksums** result to jump to matching files.
+2. Pick the **File checksums** result to jump to matching files.
 
 This works without browsing folders and is useful for identifying known
 files (e.g. a known-good ISO image) or finding every copy of a file.
@@ -156,7 +160,7 @@ files (e.g. a known-good ISO image) or finding every copy of a file.
 Select any file in the Files app and open the **Checksums** tab in the
 sidebar (the file detail pane).
 
-![The Checksums tab: the hashes, the Recalculate buttons, Find duplicates and Find across accounts][shot-file-detail-pane]
+![The Checksums tab: the checksums, the Recalculate buttons, Find duplicates and Find across accounts][shot-file-detail-pane]
 
 It has three sections:
 
@@ -168,7 +172,7 @@ It has three sections:
   server's default if you have not chosen one; the second is the first
   algorithm the rule governing this file computes, when that is a different
   one. So the buttons follow both you and the file. The whole section is absent
-  if your administrator has not allowed you to calculate by hand; what is
+  if your administrator has not allowed you to recalculate checksums; what is
   already computed still shows.
 - **Duplicates** — a **Find duplicates** button that lists, in place, the
   other files sharing a checksum with this one — your own files, and the
@@ -204,9 +208,9 @@ If your account may use the API, **Sudo tokens** follows: your app passwords,
 each with a switch. A granted app password may read across accounts through
 the `/api/v1/sudo/` routes without anyone typing a password — for a script,
 which cannot. Granting asks for your password, since it is a standing
-authorisation; every grant is visible to your administrators, who can revoke
-it. Only an app password can be granted, and only one allowed to access
-files; create it under *Security* first. Whether you may look across accounts
+authorization; every grant is visible to your administrators, who can revoke
+it. Only an app password can be granted, and only one with *Allow filesystem
+access* on; create it under *Security* first. Whether you may look across accounts
 at all is decided by your administrator, not by the grant.
 
 The **Rules** tab shows which rules decide your files. Every file is handled
@@ -231,7 +235,7 @@ the person looking at it.
 You will normally see three kinds of row:
 
 - **Above yours** — rules your administrator enforced. They come first, you
-  cannot change or disable them, and nothing of yours can outrun them.
+  cannot change or disable them, and nothing of yours can come before them.
 - **Your own rules** — the ones you may edit, delete and reorder among
   themselves. They decide a file only where no enforced rule matched it first.
 - **Below yours** — the administrator's defaults, including the catch-all.
@@ -246,7 +250,7 @@ with you, or a team folder, is refused with an explanation, because a rule of
 yours could not decide those files anyway.
 
 Each row you may change carries a pen for editing and a **⋯** menu with the
-rest: enable or disable the rule, delete it, and **Re-apply** — which asks the
+rest: enable or disable the rule, delete it, and **Reapply** — which asks the
 server to go through every file that rule currently governs, rather than
 waiting for the files to be touched.
 
@@ -270,8 +274,8 @@ among the rules addressing the same thing it does — elsewhere the cursor shows
 catch-all rule — one whose path is `**`, `/`, or left empty — always stays at
 the end of its group, so a new rule of yours never has to be dragged past it
 to take effect. To move a rule
-somewhere else entirely, change what it *is*: what it applies to, or, for an
-administrator, its enforced flag. Reordering currently needs a pointer; there
+somewhere else entirely, change what it *is*: its **Scope**, or, for an
+administrator, its **Enforced** setting. Reordering currently needs a pointer; there
 is no keyboard equivalent.
 
 <!-- BEGIN GENERATED RELEASE-PIN - do not edit; run "changelog.sh cut" -->

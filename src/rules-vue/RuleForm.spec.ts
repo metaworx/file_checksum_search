@@ -23,7 +23,7 @@ describe('RuleForm', () => {
 		await fresh.find('#fcias-btn-save-rule').trigger('click')
 		expect((fresh.emitted('save')?.[0]?.[0] as { algos: string[] }).algos).toEqual(['sha256'])
 
-		// "Create rule" on a placeholder row passes a rule without algorithms.
+		// "Add rule" on a placeholder row passes a rule without algorithms.
 		const placeholder = mount(RuleForm, {
 			props: { rule: { path: '**', mode: 'auto', algos: [], selector: 'storage:x', admin_enforced: false }, variant: 'admin', supportedAlgos: ['sha1', 'sha256'], defaultAlgo: 'sha256' },
 		})
@@ -217,7 +217,7 @@ describe('RuleForm', () => {
 	})
 
 	describe('kind changes', () => {
-		it('clears the picked target when "Applies to" changes', async () => {
+		it('clears the picked target when "Scope" changes', async () => {
 			const wrapper = mount(RuleForm, {
 				props: {
 					rule: null,

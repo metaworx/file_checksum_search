@@ -64,7 +64,7 @@ describe('useAdminSettings', () => {
 		pending[0](new Response(JSON.stringify({ message: 'Password confirmation required' }), { status: 403 }))
 		await p
 
-		expect(statusError.value).toBe('Failed to load status (HTTP 403).')
+		expect(statusError.value).toBe('Could not load the status (HTTP 403).')
 		expect(status.value).toEqual({})
 		expect(statusLoading.value).toBe(false)
 	})

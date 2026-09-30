@@ -62,20 +62,25 @@ const ALL_ALGORITHMS: AlgoOption = { id: '', label: t('file_checksum_search', 'A
 
 /** What each control decides, for the help button beside its label. */
 const HELP = {
-	algo: t('file_checksum_search', 'Only groups of this algorithm, or every algorithm at once. The list is what this server computes; an algorithm nobody has enabled is not offered.'),
-	min: t('file_checksum_search', 'The smallest group to list: how many files must share a checksum before they count as duplicates. Two is every duplicate; a higher number finds the widely copied ones.'),
-	limit: t('file_checksum_search', 'How many groups one page shows. Nothing here is read from disk until you ask a group or a file to verify, so a larger page costs a longer query, not longer reads.'),
+	algo: t('file_checksum_search', 'Only groups of this algorithm, or every algorithm at once. The list holds the algorithms this server computes; one the administrator has not allowed is not offered.'),
+	min: t('file_checksum_search', 'The smallest group to list: how many files must share a checksum before they count as duplicates. Two lists every duplicate; a higher number lists only the widely copied ones.'),
+	limit: t('file_checksum_search', 'How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads.'),
 	// TRANSLATORS: "Match anywhere in the hash" is the switch beside the field; translate it as that switch does
-	hash: t('file_checksum_search', 'Show only groups whose checksum this names. Whole values come first, then those that start with what you typed. Turn on “Match anywhere in the hash” to match it in the middle of a hash too. Upper case is fine.'),
+	hash: t('file_checksum_search', 'Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on "Match anywhere in the hash" to match it in the middle of a hash too. Upper case is fine.'),
 }
+
+// The space before "…" is a no-break space (U+00A0), as Nextcloud writes it.
+// It is the character itself: the translation tool would keep an escape as
+// text, and the text would no longer match its translation.
+const SEARCHING = t('file_checksum_search', 'Searching …')
 
 /** The fields' tooltips, too long for the template's one line. */
 const TITLES = {
 	min: t('file_checksum_search', 'Smallest group to list: files sharing a checksum, 2 to 100'),
 	limit: t('file_checksum_search', 'Groups per page, 1 to 500'),
 	anywhere: t('file_checksum_search', 'Match the term anywhere in the hash, not only at its start'),
-	hash: t('file_checksum_search', 'Show only groups whose checksum starts with this'),
-	hashPlaceholder: t('file_checksum_search', 'Whole or start of a checksum'),
+	hash: t('file_checksum_search', 'Show only groups whose hash matches this'),
+	hashPlaceholder: t('file_checksum_search', 'Whole hash or part of one'),
 }
 
 const {
@@ -393,7 +398,7 @@ onBeforeUnmount(() => {
 				{{ emptyScopeText }}
 			</div>
 			<div v-else-if="loading" class="db-loading">
-				{{ t('file_checksum_search', 'Searching …') }}
+				{{ SEARCHING }}
 			</div>
 			<div v-else-if="error" class="db-error">
 				{{ error }}

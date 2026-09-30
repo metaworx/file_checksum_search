@@ -97,7 +97,7 @@ describe('useSidebarHashes', () => {
 		await recalc('sha256')
 
 		expect(recalcError.value).toBe('sha256')
-		expect(recalcErrorMessage.value).toBe('Recalculation failed.')
+		expect(recalcErrorMessage.value).toBe('Could not recalculate the checksum.')
 	})
 
 	it('keeps the server\'s reason for a refused recalculation', async () => {

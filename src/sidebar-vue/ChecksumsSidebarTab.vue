@@ -118,6 +118,14 @@ function onRecalc(algo: string | null): void {
 	recalc(algo === null ? selectedAlgo.value : algo)
 }
 
+// The space before "…" is a no-break space (U+00A0), as Nextcloud writes it.
+// It is the character itself: the translation tool would keep an escape as
+// text, and the text would no longer match its translation.
+const progress = {
+	loading: t('file_checksum_search', 'Loading checksums …'),
+	searching: t('file_checksum_search', 'Searching …'),
+}
+
 // No `dir`: core resolves the id in the viewer's own folder and works the
 // directory out for itself, so one sent along was never read.
 function fileLink(file: DuplicateFile): string {
@@ -140,10 +148,10 @@ watch(
 		<section class="fcias-section">
 			<SectionHeader
 				:title="t('file_checksum_search', 'Checksums')"
-				:help="t('file_checksum_search', 'Checksums indexed for this file. Click a hash to copy it.')" />
+				:help="t('file_checksum_search', 'Checksums indexed for this file. Click one to copy it.')" />
 			<div v-if="loading" class="fcias-loading">
 				<NcLoadingIcon :size="20" />
-				<span>{{ t('file_checksum_search', 'Loading checksums …') }}</span>
+				<span>{{ progress.loading }}</span>
 			</div>
 			<div v-else-if="error" class="fcias-error">
 				{{ error }}
@@ -174,7 +182,7 @@ watch(
 		<section v-if="!loading && !error && canRecalc" class="fcias-section">
 			<SectionHeader
 				:title="t('file_checksum_search', 'Recalculate')"
-				:help="t('file_checksum_search', 'Compute a checksum for the selected algorithm.')" />
+				:help="t('file_checksum_search', 'Read the file again and recalculate its checksum with the chosen algorithm.')" />
 			<div class="fcias-recalc-row">
 				<RecalcButton
 					v-for="quick in quickAlgos"
@@ -193,7 +201,7 @@ watch(
 							:label="t('file_checksum_search', 'Algorithm')" />
 					</div>
 					<RecalcButton
-						:label="t('file_checksum_search', 'Recalc')"
+						:label="t('file_checksum_search', 'Recalculate')"
 						:recalculating="recalculating"
 						:recalc-error="recalcError"
 						@recalc="onRecalc" />
@@ -218,14 +226,14 @@ watch(
 					:href="crossAccountHref"
 					target="_blank"
 					rel="noreferrer noopener"
-					:title="t('file_checksum_search', 'Open the Duplicates page on this hash, across every account you may see')">
+					:title="t('file_checksum_search', 'Open the Duplicates page on this checksum, across every account you may see')">
 					{{ t('file_checksum_search', 'Find across accounts') }}
 				</a>
 			</div>
 			<div v-if="showDuplicates" class="fcias-dup-results">
 				<div v-if="searching" class="fcias-loading">
 					<NcLoadingIcon :size="14" />
-					<span>{{ t('file_checksum_search', 'Searching …') }}</span>
+					<span>{{ progress.searching }}</span>
 				</div>
 				<div v-else-if="dupError" class="fcias-error">
 					{{ dupError }}

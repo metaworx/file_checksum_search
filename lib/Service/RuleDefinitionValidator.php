@@ -124,7 +124,7 @@ readonly class RuleDefinitionValidator
 
 		if ( $algos === [] )
 		{
-			throw new InvalidArgumentException( $this->l10n->t( 'At least one supported algorithm is required.' ) );
+			throw new InvalidArgumentException( $this->l10n->t( 'At least one allowed algorithm is required.' ) );
 		}
 
 		$definition['mode']  = $mode;
@@ -153,6 +153,7 @@ readonly class RuleDefinitionValidator
 
 		if ( ! is_string( $value ) || $value === '' )
 		{
+			// TRANSLATORS: selector is a parameter name; keep it
 			throw new InvalidArgumentException( $this->l10n->t( 'selector must be a non-empty string.' ) );
 		}
 
@@ -171,7 +172,7 @@ readonly class RuleDefinitionValidator
 		case Selector::KIND_USER:
 			if ( ! $this->userManager->userExists( (string) $selector->target ) )
 			{
-				throw new InvalidArgumentException( $this->l10n->t( 'Unknown user.' ) );
+				throw new InvalidArgumentException( $this->l10n->t( 'Unknown account.' ) );
 			}
 
 			break;
@@ -180,7 +181,7 @@ readonly class RuleDefinitionValidator
 			if ( ! ctype_digit( (string) $selector->target ) )
 			{
 				// TRANSLATORS: "groupfolder:" is the selector's prefix as it is typed; keep it
-				throw new InvalidArgumentException( $this->l10n->t( 'groupfolder: takes the numeric folder id.' ) );
+				throw new InvalidArgumentException( $this->l10n->t( 'groupfolder: takes the numeric folder ID.' ) );
 			}
 
 			break;

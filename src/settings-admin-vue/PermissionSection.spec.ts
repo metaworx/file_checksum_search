@@ -56,7 +56,7 @@ async function mounted() {
 	const wrapper = mount(PermissionSection, {
 		props: {
 			permission: 'rule_editing',
-			switchLabel: 'Allow all users to edit rules',
+			switchLabel: 'Allow all accounts to edit rules',
 			help: { allowAll: 'a', groups: 'g', users: 'u' },
 		},
 	})

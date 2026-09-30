@@ -17,7 +17,8 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-msgid "\"Yes\" means an administrator set this rule and users cannot override or disable it from their personal settings. Enforced rules fill the first four bands, so no rule of a user's own can outrun one."
+#. TRANSLATORS: "Yes" is the value this column shows; translate it as that does
+msgid "\"Yes\" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it."
 msgstr ""
 
 msgid "%n file"
@@ -31,13 +32,8 @@ msgstr ""
 msgid "A disabled rule cannot be applied — enable it first."
 msgstr ""
 
-msgid "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password — a standing authorisation, listed for every administrator to see. Create the app password on Security first; only one allowed to access files can be granted. Who may look across accounts is still decided by the sudoers permission; a grant replaces the prompt, not the permission."
-msgstr ""
-
-msgid "A group"
-msgstr ""
-
-msgid "A group folder"
+#. TRANSLATORS: "Security" and "Allow filesystem access" are Nextcloud's own names; use Nextcloud's translations. Keep /api/v1/sudo/ as it is
+msgid "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password. A grant stays in force until it is revoked, and every administrator can see it. Create the app password under \"Security\" first, with \"Allow filesystem access\" on. Whether you may look across accounts at all is still up to your administrator; a grant replaces the password prompt, not the permission."
 msgstr ""
 
 msgid "A home folder"
@@ -46,29 +42,29 @@ msgstr ""
 msgid "A path is required."
 msgstr ""
 
-msgid "A single user"
+msgid "A single account"
 msgstr ""
 
 msgid "A storage"
 msgstr ""
 
-msgid "A storage (raw id)"
+msgid "A team folder"
 msgstr ""
 
 msgid "Account"
 msgstr ""
 
-#. TRANSLATORS a button: hides the banner until a rule is enabled and disabled again
+msgid "Accounts"
+msgstr ""
+
+#. TRANSLATORS a button: hides the banner until an include rule is enabled and then disabled again
 msgid "Acknowledge"
 msgstr ""
 
-msgid "Add Rule"
+msgid "Add an algorithm …"
 msgstr ""
 
-msgid "Add an algorithm…"
-msgstr ""
-
-msgid "Administrator-enforced rules aimed at one specific slice — a single user's home or one storage. Nothing can outrun them there, and their subjects cannot edit or disable them."
+msgid "Add rule"
 msgstr ""
 
 msgid "Administrator-enforced rules covering every home folder."
@@ -77,13 +73,20 @@ msgstr ""
 msgid "Administrator-enforced rules covering every storage there is."
 msgstr ""
 
-msgid "Administrator-enforced rules for the members of a group, or for one group folder. Only an enforced rule aimed at something more specific comes before them."
+msgid "Administrator-enforced rules for one account's home folder or one storage. No other rule comes before them there, and the account cannot edit or disable them."
+msgstr ""
+
+msgid "Administrator-enforced rules for the members of a group, or for one team folder. Only an enforced rule aimed at something more specific comes before them."
 msgstr ""
 
 msgid "Advanced"
 msgstr ""
 
 msgid "Algorithm"
+msgstr ""
+
+#, php-format
+msgid "Algorithm not allowed on this server: %s"
 msgstr ""
 
 msgid "Algorithms"
@@ -104,16 +107,16 @@ msgstr ""
 msgid "All my groups"
 msgstr ""
 
-msgid "Allow all users to calculate by hand"
+msgid "Allow all accounts to edit rules"
 msgstr ""
 
-msgid "Allow all users to edit rules"
+msgid "Allow all accounts to look across accounts"
 msgstr ""
 
-msgid "Allow all users to look across accounts"
+msgid "Allow all accounts to recalculate checksums"
 msgstr ""
 
-msgid "Allow all users to use the API"
+msgid "Allow all accounts to use the API"
 msgstr ""
 
 msgid "Allowed algorithms"
@@ -124,31 +127,29 @@ msgstr ""
 msgid "An %s rule computes nothing, so there is nothing to apply."
 msgstr ""
 
-msgid "App Version"
-msgstr ""
-
 msgid "App password"
 msgstr ""
 
 msgid "App password granted."
 msgstr ""
 
-msgid "App passwords granted the cross-account routes without a password prompt. Each is a standing authorisation: this is where every one of them is visible, and where any can be taken back. Who may look across accounts at all is decided under “Who may look across accounts”; a grant replaces the prompt, not the permission."
+#. TRANSLATORS: "Who may look across accounts" is a heading on the Permissions tab; translate it as that heading does
+msgid "App passwords that may use the cross-account routes without a password prompt. A grant stays in force until it is revoked, so every one is listed here, and any can be revoked here. Who may look across accounts at all is decided under \"Who may look across accounts\"; a grant replaces the password prompt, not the permission."
 msgstr ""
 
-msgid "Applies to"
+msgid "App version"
 msgstr ""
 
-msgid "At least one supported algorithm is required."
+msgid "At least one allowed algorithm is required."
 msgstr ""
 
-msgid "Auto (recalc existing only if outdated)"
+msgid "Auto (recalculate existing checksums when outdated)"
 msgstr ""
 
 msgid "Automatic hashing is inactive."
 msgstr ""
 
-msgid "Background Jobs"
+msgid "Background jobs"
 msgstr ""
 
 msgid "Band {band}"
@@ -157,26 +158,31 @@ msgstr ""
 msgid "Band {band}, position {position}"
 msgstr ""
 
-msgid "Below this many, the picker opens with every account and group it may offer already in the list. Above it, the list would be unwieldy, so the picker asks the server as you type. Applies to administrators and group leaders alike."
-msgstr ""
-
 msgid "Cancel"
 msgstr ""
 
-msgid "Checksum algorithms computed for matching files. Each algorithm you add is indexed separately, so more algorithms means more work per file."
+msgid "Checksum algorithms"
 msgstr ""
 
-msgid "Checksum algorithms computed for matching files. Each one is indexed separately, so more algorithms means more work per file. Shown as \"—\" for a rule that computes nothing."
+msgid "Checksum algorithms computed for matching files. Each algorithm you add is indexed separately, so more algorithms mean more work per file."
+msgstr ""
+
+#. TRANSLATORS: "—" is what the table shows for a rule that computes nothing; keep it
+msgid "Checksum algorithms computed for matching files. Each one is indexed separately, so more algorithms mean more work per file. Shown as \"—\" for a rule that computes nothing."
 msgstr ""
 
 #. TRANSLATORS: a background job's name: it copies the checksums Nextcloud already holds into this app's index.
 msgid "Checksum copy"
 msgstr ""
 
+#. TRANSLATORS: a background job's name: it checks that every stored checksum can be found by a search, and fixes what cannot.
+msgid "Checksum index check"
+msgstr ""
+
 msgid "Checksums"
 msgstr ""
 
-msgid "Checksums indexed for this file. Click a hash to copy it."
+msgid "Checksums indexed for this file. Click one to copy it."
 msgstr ""
 
 msgid "Choose accounts or groups"
@@ -188,16 +194,70 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-msgid "Compute a checksum for the selected algorithm."
-msgstr ""
-
-msgid "Confirm Delete"
-msgstr ""
-
 msgid "Copied!"
 msgstr ""
 
 msgid "Could not change the grant."
+msgstr ""
+
+msgid "Could not complete the request."
+msgstr ""
+
+msgid "Could not delete the rule."
+msgstr ""
+
+msgid "Could not enable or disable the rule."
+msgstr ""
+
+msgid "Could not list the grants: the app passwords could not be read."
+msgstr ""
+
+msgid "Could not list your app passwords ({error})."
+msgstr ""
+
+msgid "Could not list your app passwords: they could not be read."
+msgstr ""
+
+msgid "Could not load the accounts and groups."
+msgstr ""
+
+msgid "Could not load the algorithms."
+msgstr ""
+
+msgid "Could not load the checksums."
+msgstr ""
+
+msgid "Could not load the documentation."
+msgstr ""
+
+msgid "Could not load the duplicates."
+msgstr ""
+
+msgid "Could not load the grants ({error})."
+msgstr ""
+
+msgid "Could not load the permissions."
+msgstr ""
+
+msgid "Could not load the rules."
+msgstr ""
+
+msgid "Could not load the status (HTTP {status})."
+msgstr ""
+
+msgid "Could not load the status."
+msgstr ""
+
+msgid "Could not open the file for reading."
+msgstr ""
+
+msgid "Could not reapply the rule."
+msgstr ""
+
+msgid "Could not recalculate the checksum."
+msgstr ""
+
+msgid "Could not reorder the rules."
 msgstr ""
 
 msgid "Could not revoke the grant."
@@ -209,19 +269,20 @@ msgstr ""
 msgid "Could not save the preference."
 msgstr ""
 
-msgid "Create rule"
+msgid "Could not save the rule."
 msgstr ""
 
-msgid "Creating and editing rules for folders one can write to. An administrator always may; a rule an administrator has enforced is read-only for everyone else regardless."
+msgid "Creating and editing rules for folders in one's own files that one can write to. An administrator always may; a rule an administrator has enforced is read-only for everyone else regardless."
 msgstr ""
 
+#. TRANSLATORS prefill: fill the list of the picker before anything is typed
 msgid "Cross-account picker: prefill up to"
 msgstr ""
 
 msgid "Cross-account reads"
 msgstr ""
 
-msgid "Database Version"
+msgid "Database version"
 msgstr ""
 
 #. TRANSLATORS: the entry that follows the server's default algorithm, named in brackets
@@ -231,13 +292,14 @@ msgstr ""
 msgid "Default algorithm"
 msgstr ""
 
-msgid "Defaults for all home folders. Within this segment a catch-all default — path **, / or empty — always evaluates last, after any more specific rules here."
+#. TRANSLATORS: "**" and "/" are paths as they are typed; keep them
+msgid "Defaults for all home folders. Within this band a catch-all default — path \"**\", \"/\" or empty — always evaluates last, after the more specific rules here."
 msgstr ""
 
 msgid "Delete"
 msgstr ""
 
-msgid "Delete failed."
+msgid "Delete rule"
 msgstr ""
 
 msgid "Delete this rule?"
@@ -258,7 +320,7 @@ msgstr ""
 msgid "Download {file}"
 msgstr ""
 
-msgid "Drag to reorder within this band"
+msgid "Drag to reorder among the rules of the same scope"
 msgstr ""
 
 msgid "Duplicates"
@@ -288,26 +350,27 @@ msgstr ""
 msgid "Enforced — everything"
 msgstr ""
 
-msgid "Enforced — groups & group folders"
+msgid "Enforced — groups & team folders"
 msgstr ""
 
 msgid "Enforced — specific"
 msgstr ""
 
-#. TRANSLATORS: the state of hashes dropped because no rule maintains them any more
+#. TRANSLATORS: the state of checksums deleted because no rule maintains them any more
 msgid "Eroded"
 msgstr ""
 
 msgid "Error"
 msgstr ""
 
-msgid "Evaluated top to bottom — the first matching rule decides the file. A rule's band follows from its scope and whether it is enforced, so enforced rules always precede users' own rules, and the catch-all default is last. Drag a rule by its handle to reorder it within its band; to move it between bands, change its scope or its Enforced flag."
+#. TRANSLATORS: "Enforced" is a field of the rule dialog and a column of the rule table; translate it as those do
+msgid "Evaluated top to bottom — the first matching rule decides the file. A rule's band follows from its scope and whether it is enforced, so enforced rules always precede personal rules, and the catch-all default is last. Drag a rule by its handle to reorder it among the rules of the same scope; to move it to another band, change its scope or its \"Enforced\" setting."
 msgstr ""
 
 msgid "Evaluates in band {band} — {label}"
 msgstr ""
 
-msgid "Every rule that can affect your files, in the order they are evaluated — the first match decides. Rules an administrator enforced come first and are read-only; your own rules come next and are yours to edit and reorder; the defaults below them apply only where none of your rules matched. You can create rules only if you have been given permission and the path is in a folder you can write to."
+msgid "Every rule that can affect your files, in the order they are evaluated — the first match decides. Rules an administrator enforced come first and are read-only; your own rules come next and are yours to edit and reorder; the defaults below them apply only where none of your rules matched. You can create rules only if you have been given permission and the path is a folder in your own files that you can write to."
 msgstr ""
 
 msgid "Everything"
@@ -326,34 +389,10 @@ msgstr ""
 msgid "Failed"
 msgstr ""
 
-msgid "Failed to load checksums."
-msgstr ""
-
-msgid "Failed to load documentation."
-msgstr ""
-
-msgid "Failed to load duplicates."
-msgstr ""
-
-msgid "Failed to load permission options."
-msgstr ""
-
-msgid "Failed to load rules."
-msgstr ""
-
-msgid "Failed to load status (HTTP {status})."
-msgstr ""
-
-msgid "Failed to load status."
-msgstr ""
-
-msgid "Failed to load the algorithm list."
-msgstr ""
-
 msgid "File Checksum Index & Search"
 msgstr ""
 
-msgid "File Checksums"
+msgid "File checksums"
 msgstr ""
 
 msgid "File not found."
@@ -368,7 +407,7 @@ msgstr ""
 msgid "Find other files sharing a checksum with this file."
 msgstr ""
 
-msgid "Force (delete all, recalc all)"
+msgid "Force (delete and recalculate all checksums)"
 msgstr ""
 
 #. TRANSLATORS: the quoted patterns are examples to type as they are
@@ -382,16 +421,15 @@ msgstr ""
 msgid "Grant revoked."
 msgstr ""
 
+#. TRANSLATORS a column heading: when the app password was granted, and by whom
 msgid "Granted"
 msgstr ""
 
+#. TRANSLATORS: {time} is the date and time the app password was granted
 msgid "Granted {time}"
 msgstr ""
 
 msgid "Group"
-msgstr ""
-
-msgid "Group folder"
 msgstr ""
 
 msgid "Group: {group}"
@@ -400,23 +438,13 @@ msgstr ""
 msgid "Groups"
 msgstr ""
 
-msgid "Groups & group folders"
+msgid "Groups & team folders"
 msgstr ""
 
 msgid "Groups per page, 1 to 500"
 msgstr ""
 
 msgid "Hash"
-msgstr ""
-
-msgid "Hash Algorithms"
-msgstr ""
-
-#. TRANSLATORS: a background job's name: it checks that every stored hash can be found by a search, and fixes what cannot.
-msgid "Hash index check"
-msgstr ""
-
-msgid "Hash parameter is required."
 msgstr ""
 
 msgid "Hashing is excluded for this path by a rule."
@@ -438,7 +466,7 @@ msgstr ""
 msgid "Help: {label}"
 msgstr ""
 
-msgid "How many groups one page shows. Nothing here is read from disk until you ask a group or a file to verify, so a larger page costs a longer query, not longer reads."
+msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr ""
 
 msgid "Ignore (no automatic hashing; still allowed on request)"
@@ -447,19 +475,19 @@ msgstr ""
 msgid "Include (compute checksums)"
 msgstr ""
 
-msgid "Indexed Hashes"
+msgid "Indexed checksums"
 msgstr ""
 
-msgid "Individual users who may call the public API with an app password, in addition to the members of any selected groups."
+msgid "Individual accounts that may call the public API with an app password, in addition to the members of any selected groups."
 msgstr ""
 
-msgid "Individual users who may create and edit rules for folders they can write to, in addition to the members of any selected groups."
+msgid "Individual accounts that may create and edit rules for folders in their own files that they can write to, in addition to the members of any selected groups."
 msgstr ""
 
-msgid "Individual users who may look across accounts once they have confirmed their password, in addition to the members of any selected groups and of the admin group."
+msgid "Individual accounts that may look at other accounts' files once they have confirmed their password, in addition to the members of any selected groups and of the admin group."
 msgstr ""
 
-msgid "Individual users who may trigger a computation of their own files by hand, in addition to the members of any selected groups."
+msgid "Individual accounts that may recalculate checksums by hand, in addition to the members of any selected groups."
 msgstr ""
 
 msgid "Internal server error."
@@ -468,16 +496,16 @@ msgstr ""
 msgid "Invalid request body."
 msgstr ""
 
-msgid "Last Updated"
+msgid "Last updated"
 msgstr ""
 
 msgid "Last used"
 msgstr ""
 
-msgid "Lazy (delete hashes, recalc later)"
+msgid "Lazy (delete checksums now, recalculate later)"
 msgstr ""
 
-msgid "Loading checksums …"
+msgid "Loading checksums …"
 msgstr ""
 
 #. TRANSLATORS a switch beside the hash filter: the typed text may match anywhere inside a checksum, not only at its start
@@ -487,16 +515,19 @@ msgstr ""
 msgid "Match the term anywhere in the hash, not only at its start"
 msgstr ""
 
-msgid "Members of these groups may call the public API with an app password. Selected groups and selected users are combined — being in either is enough."
+msgid "Members of a group"
 msgstr ""
 
-msgid "Members of these groups may create and edit rules for folders they can write to. Selected groups and selected users are combined — being in either is enough."
+msgid "Members of these groups may call the public API with an app password. Selected groups and selected accounts are combined — being in either is enough."
 msgstr ""
 
-msgid "Members of these groups may look across accounts once they have confirmed their password. Selected groups and selected users are combined — being in either is enough."
+msgid "Members of these groups may create and edit rules for folders in their own files that they can write to. Selected groups and selected accounts are combined — being in either is enough."
 msgstr ""
 
-msgid "Members of these groups may trigger a computation of their own files by hand. Selected groups and selected users are combined — being in either is enough."
+msgid "Members of these groups may look across accounts once they have confirmed their password. Selected groups and selected accounts are combined — being in either is enough."
+msgstr ""
+
+msgid "Members of these groups may recalculate checksums by hand. Selected groups and selected accounts are combined — being in either is enough."
 msgstr ""
 
 #. TRANSLATORS a number field's label: the smallest number of files a listed group has, 2 to 100
@@ -507,7 +538,7 @@ msgstr ""
 msgid "Mine"
 msgstr ""
 
-msgid "Missing (recalc existing + missing)"
+msgid "Missing (like Auto, and add missing checksums)"
 msgstr ""
 
 msgid "Mode"
@@ -528,7 +559,15 @@ msgstr ""
 msgid "No"
 msgstr ""
 
-msgid "No app passwords yet. Create one under “Security”, then grant it here."
+#. TRANSLATORS: "All home folders" is a scope as the rule table shows it, "Include" a rule type as the dialog shows it; translate them as those do
+msgid "No \"Include\" rule is enabled, so no file is hashed automatically. Enable the \"All home folders\" default in the table below, or add a rule. Recalculating by hand from the file sidebar still works."
+msgstr ""
+
+msgid "No accounts or groups to show"
+msgstr ""
+
+#. TRANSLATORS "Security" is Nextcloud's personal settings section; use Nextcloud's own translation
+msgid "No app passwords yet. Create one under \"Security\", then grant it here."
 msgstr ""
 
 msgid "No checksums available for this file."
@@ -538,9 +577,6 @@ msgid "No documentation available."
 msgstr ""
 
 msgid "No duplicate files found."
-msgstr ""
-
-msgid "No enabled include rule exists, so no file is hashed until one says so — enable the “All home folders” default in the table below, or create a rule. Manual recalculation from the file sidebar keeps working either way."
 msgstr ""
 
 msgid "No grants."
@@ -558,23 +594,10 @@ msgstr ""
 msgid "No such app password on this account."
 msgstr ""
 
-msgid "Nobody to show"
-msgstr ""
-
-msgid "Node is not a file."
-msgstr ""
-
 msgid "None"
 msgstr ""
 
 msgid "None of the requested algorithms is available on this server; the previous list is kept."
-msgstr ""
-
-#, php-format
-msgid "Not an algorithm this instance computes: %s"
-msgstr ""
-
-msgid "Not authenticated."
 msgstr ""
 
 msgid "Not granted"
@@ -586,33 +609,46 @@ msgstr ""
 msgid "Not logged in."
 msgstr ""
 
+#. TRANSLATORS: a file's verification result: the server did not get to this file
 msgid "Not processed"
+msgstr ""
+
+#. TRANSLATORS: when a background job last ran: not at all
+msgid "Not run yet"
 msgstr ""
 
 msgid "Not yours to look at."
 msgstr ""
 
-msgid "Noted — the banner stays away until a rule is enabled and disabled again."
+#. TRANSLATORS: "Include" is a rule type as the rule dialog shows it; translate it as that does
+msgid "Noted — the banner stays hidden until an \"Include\" rule is enabled and then disabled again."
 msgstr ""
 
-msgid "Numbers that shape how the interface behaves. The defaults suit most instances."
+msgid "Numbers that shape how the interface behaves. The defaults suit most servers."
 msgstr ""
 
 msgid "One account's home folder"
 msgstr ""
 
+msgid "One storage (raw ID)"
+msgstr ""
+
+msgid "Only administrators can edit or disable this rule"
+msgstr ""
+
 msgid "Only an app password can be granted; a browser session is discarded by the next login."
 msgstr ""
 
-msgid "Only groups of this algorithm, or every algorithm at once. The list is what this server computes; an algorithm nobody has enabled is not offered."
+msgid "Only groups of this algorithm, or every algorithm at once. The list holds the algorithms this server computes; one the administrator has not allowed is not offered."
 msgstr ""
 
-msgid "Open the Duplicates page on this hash, across every account you may see"
+msgid "Open the Duplicates page on this checksum, across every account you may see"
 msgstr ""
 
 msgid "Options saved."
 msgstr ""
 
+#. TRANSLATORS: a background job's name: it removes the checksums of files that no longer exist
 msgid "Orphan purge"
 msgstr ""
 
@@ -628,9 +664,6 @@ msgstr ""
 
 #, php-format
 msgid "Path does not resolve to a file: %s"
-msgstr ""
-
-msgid "Pending Updates"
 msgstr ""
 
 #. TRANSLATORS a number field's label: how many groups one page lists, 1 to 500
@@ -649,9 +682,6 @@ msgstr ""
 msgid "Preferred algorithm saved."
 msgstr ""
 
-msgid "Prefill limit"
-msgstr ""
-
 msgid "Prefill up to"
 msgstr ""
 
@@ -664,46 +694,43 @@ msgstr ""
 msgid "Priority band"
 msgstr ""
 
+#. TRANSLATORS: a background job's name: it computes the checksums of the queued files
 msgid "Queue drain"
 msgstr ""
 
-msgid "Re-apply"
+#. TRANSLATORS files waiting for the background job to compute their checksums, counted by mode
+msgid "Queued files"
 msgstr ""
 
-msgid "Re-apply failed."
+msgid "Read every file in this group again, recalculate its checksum and compare"
 msgstr ""
 
-msgid "Re-apply queued — the background job takes it from here."
+msgid "Read the file again and recalculate its checksum with the chosen algorithm."
+msgstr ""
+
+msgid "Read this file again, recalculate its checksum and compare"
 msgstr ""
 
 msgid "Read-only"
 msgstr ""
 
-msgid "Recalc"
+msgid "Reapply"
+msgstr ""
+
+msgid "Reapply queued — a background job will go through the rule's files."
 msgstr ""
 
 msgid "Recalculate"
 msgstr ""
 
-msgid "Recalculation failed."
-msgstr ""
-
-msgid "Recompute every file in this group from its contents"
-msgstr ""
-
-msgid "Recompute this file from its contents"
+#. TRANSLATORS: "Recalculate" is a button of the file sidebar, "Verify" and "Verify all" buttons of the Duplicates page; translate them as those buttons do
+msgid "Recalculating checksums by hand: the sidebar's \"Recalculate\" buttons, \"Verify\" and \"Verify all\" on the Duplicates page, and the API's recalculation routes, for any file the account can reach. Reading checksums already computed is not affected. Without this permission neither the sidebar nor the Duplicates page shows the buttons, and the API refuses the request."
 msgstr ""
 
 msgid "Refresh"
 msgstr ""
 
-msgid "Reorder failed."
-msgstr ""
-
-msgid "Request failed."
-msgstr ""
-
-#. TRANSLATORS: the state of hashes a reset has made invalid; a past participle, not the action
+#. TRANSLATORS: the state of checksums a reset has made invalid; a past participle, not the action
 msgid "Reset"
 msgstr ""
 
@@ -725,6 +752,7 @@ msgstr ""
 msgid "Rule saved."
 msgstr ""
 
+#. TRANSLATORS: a background job's name: every few minutes it applies the rules to the files and queues those that need checksums
 msgid "Rule sweep"
 msgstr ""
 
@@ -734,19 +762,16 @@ msgstr ""
 msgid "Rules applying to your files"
 msgstr ""
 
-msgid "Rules are evaluated in band order and the first match decides the file. A rule's band follows from its scope and whether it is enforced — it is not chosen directly, and reordering only moves a rule within its own band."
+msgid "Rules are evaluated in band order and the first match decides the file. A rule's band follows from its scope and whether it is enforced — it is not chosen directly, and reordering only moves a rule among the rules of the same scope."
 msgstr ""
 
-msgid "Rules for a group's members, or for one group folder. Not enforced: a user's own rule overrides them for their files."
+msgid "Rules for a group's members, or for one team folder. Not enforced: for a member's home folder, their personal rule comes first."
 msgstr ""
 
-msgid "Rules for one specific slice — users' own rules for their homes, or a rule for one storage. They decide a file only where no enforced rule matched it first."
+msgid "Rules for one account's home folder — personal rules — or for one storage. They decide a file only where no enforced rule matched it first."
 msgstr ""
 
 msgid "Save"
-msgstr ""
-
-msgid "Save failed."
 msgstr ""
 
 msgid "Saved."
@@ -755,7 +780,7 @@ msgstr ""
 msgid "Saving failed."
 msgstr ""
 
-msgid "Saving…"
+msgid "Saving …"
 msgstr ""
 
 msgid "Scope"
@@ -764,30 +789,30 @@ msgstr ""
 msgid "Scripts and other apps calling this app's public API with an app password. The bundled pages — this one, the Duplicates page, the file sidebar — keep working for everyone; this decides who may reach the same routes from outside them."
 msgstr ""
 
-msgid "Search groups…"
+msgid "Search accounts …"
 msgstr ""
 
-msgid "Search users…"
+msgid "Search groups …"
 msgstr ""
 
-msgid "Searching …"
+msgid "Searching …"
 msgstr ""
 
 #. TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
-msgid "Select folder…"
+msgid "Select folder …"
 msgstr ""
 
-msgid "Select groups…"
+msgid "Select groups …"
 msgstr ""
 
 msgid "Settings"
 msgstr ""
 
-msgid "Show only groups whose checksum starts with this"
+msgid "Show only groups whose hash matches this"
 msgstr ""
 
 #. TRANSLATORS: "Match anywhere in the hash" is the switch beside the field; translate it as that switch does
-msgid "Show only groups whose checksum this names. Whole values come first, then those that start with what you typed. Turn on “Match anywhere in the hash” to match it in the middle of a hash too. Upper case is fine."
+msgid "Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on \"Match anywhere in the hash\" to match it in the middle of a hash too. Upper case is fine."
 msgstr ""
 
 msgid "Smallest group to list: files sharing a checksum, 2 to 100"
@@ -799,10 +824,7 @@ msgstr ""
 msgid "Status"
 msgstr ""
 
-msgid "Status Info"
-msgstr ""
-
-msgid "Storage id"
+msgid "Storage ID"
 msgstr ""
 
 msgid "Storage: {storage}"
@@ -811,46 +833,42 @@ msgstr ""
 msgid "Sudo tokens"
 msgstr ""
 
+msgid "Team folder"
+msgstr ""
+
 msgid "Team folders"
 msgstr ""
 
 msgid "That view needs your password confirmed again, or is not yours to look at."
 msgstr ""
 
+#. TRANSLATORS: "All home folders" and "Everything" are scopes as the rule table shows them; translate them as those do
+msgid "The \"All home folders\" default covers home folders only: files on external storage and in team folders are reached only by the \"Everything\" default or by their own team-folder or storage rules."
+msgstr ""
+
+#. TRANSLATORS: "hash" is a parameter name; keep it
+msgid "The \"hash\" parameter is required."
+msgstr ""
+
 msgid "The algorithm the Checksums tab in the file sidebar offers as its first button. Leave it on the default to follow the server; pick one to have it first for every file, with the file's own rule providing the second button."
 msgstr ""
 
-msgid "The algorithm used wherever none is named: new rules, the command line, the API, and the sidebar's first button for users who have not chosen one of their own. Only an allowed algorithm can be the default; removing the default from the list above moves it to the first remaining."
+msgid "The algorithm used wherever none is named: new rules, the command line, the API, and the sidebar's first button for anyone who has not chosen one. Only an allowed algorithm can be the default; removing the default from the list above makes the first remaining one the default."
 msgstr ""
 
-msgid "The algorithms rules may compute and pickers may offer, chosen from what this server's PHP provides. Removing one does not delete hashes already stored under it — they stay searchable — it only stops new ones being computed."
-msgstr ""
-
-msgid "The app or storage this rule names is not available, so the rule can never match."
+msgid "The algorithms rules may compute and pickers may offer, chosen from what this server's PHP provides. Removing one does not delete checksums already stored under it — they stay searchable — it only stops new ones being computed."
 msgstr ""
 
 msgid "The default must be one of the allowed algorithms."
 msgstr ""
 
-msgid "The grant listing could not be loaded ({error})."
-msgstr ""
-
-msgid "The grant listing is unavailable: the token table could not be read."
-msgstr ""
-
 msgid "The home folders of a group's members"
 msgstr ""
 
-msgid "The home-folders default covers home folders only: files on external storage and in group folders are reached only by the “Everything” default or by their own group-folder or storage rules."
+msgid "The last resort, covering every storage — external storage and team folders included. Enable deliberately: it can reach storage that is slow or costs money to read."
 msgstr ""
 
-msgid "The last resort, covering every storage — external mounts and group folders included. Enable deliberately: it can reach storage that is slow or costs money to read."
-msgstr ""
-
-msgid "The list of accounts could not be loaded."
-msgstr ""
-
-msgid "The one user whose home folder this rule addresses."
+msgid "The one account whose home folder this rule addresses."
 msgstr ""
 
 msgid "The path is not in a folder you can write to."
@@ -859,7 +877,7 @@ msgstr ""
 msgid "The path leads into a received share, a team folder or another mounted storage. A personal rule only governs your own files; those files are governed by their owner's or the folder's own rules."
 msgstr ""
 
-msgid "The raw id from the storages table, matched exactly — whatever kind of storage it names. Use this for external mounts, or anything the other choices cannot say."
+msgid "The raw ID from the storages table, matched exactly, whatever kind of storage it names. Use this for external storage, or for any storage the other choices cannot address."
 msgstr ""
 
 msgid "The request never reached the server."
@@ -875,55 +893,53 @@ msgstr ""
 msgid "The server sent an answer this page could not read."
 msgstr ""
 
-msgid "The smallest group to list: how many files must share a checksum before they count as duplicates. Two is every duplicate; a higher number finds the widely copied ones."
+msgid "The smallest group to list: how many files must share a checksum before they count as duplicates. Two lists every duplicate; a higher number lists only the widely copied ones."
 msgstr ""
 
-msgid "The sudoers: members of the admin group always, plus the groups and users selected here. Looking across accounts still costs a password confirmation each time; this only says who may be asked."
+msgid "The sudoers: members of the admin group always, plus the groups and accounts selected here. A group admin may also look at the members of the groups they administer without being selected. Looking across accounts still needs a password confirmation, which holds for 30 minutes, or a granted app password; this only says who may be asked."
 msgstr ""
 
 msgid "The team folder this rule addresses. Every member sees the same files, and the rule follows the folder — not whoever happens to look at it."
 msgstr ""
 
-msgid "These are other people's files. Everything below is shown because you asked for it by name — leave this tab to go back to your own."
+msgid "The team folder this rule names, or the app that provides it, is not available, so the rule can never match."
 msgstr ""
 
-msgid "These namespaces exist on this instance but have no catch-all rule of their own, so what happens to their files is decided by whatever more general rule covers them — or by nothing at all. Creating a rule from here starts one for that namespace; until then, nothing is stored."
+#. TRANSLATORS: "Add rule" is the button on each of these rows, "Save" the dialog's button; translate them as those buttons do
+msgid "These places exist on this server but have no catch-all rule of their own, so their files are decided by a more general rule, or by none at all. \"Add rule\" opens the dialog with a catch-all rule for the place; it is only stored once you click \"Save\" there."
 msgstr ""
 
-msgid "This account may not calculate by hand."
+msgid "This account may not apply this rule."
+msgstr ""
+
+msgid "This account may not change this rule."
+msgstr ""
+
+msgid "This account may not edit rules."
+msgstr ""
+
+msgid "This account may not recalculate checksums."
 msgstr ""
 
 msgid "This account may not use the API."
 msgstr ""
 
-msgid "This app password is kept out of the filesystem and cannot be granted file reads."
+msgid "This app password has no filesystem access, so it cannot be granted."
 msgstr ""
 
-msgid "This app password is kept out of the filesystem, so it cannot be granted file reads."
+msgid "This app password has no filesystem access."
 msgstr ""
 
-msgid "This app password may not access files."
+msgid "This is not a file."
 msgstr ""
 
 msgid "This is your own rule. It applies only to your files and is evaluated after any rule an administrator has enforced."
 msgstr ""
 
-msgid "This user may not apply this rule."
-msgstr ""
-
-msgid "This user may not change this rule."
-msgstr ""
-
-msgid "This user may not edit rules."
-msgstr ""
-
-msgid "Toggle failed."
+msgid "This tab shows other people's files: those of the accounts and groups chosen above. Leave this tab to go back to your own."
 msgstr ""
 
 msgid "Total: {count}"
-msgstr ""
-
-msgid "Triggering a computation of one's own files — the sidebar's Recalculate buttons and the API's recalc route — on top of owning them. Reading what is already computed is untouched; an account not named here simply does not see the buttons."
 msgstr ""
 
 msgid "Tunables"
@@ -935,7 +951,7 @@ msgstr ""
 msgid "Type to search"
 msgstr ""
 
-msgid "Unable to open file for reading."
+msgid "Unknown account."
 msgstr ""
 
 msgid "Unknown group."
@@ -950,26 +966,13 @@ msgstr ""
 msgid "Unknown rule type."
 msgstr ""
 
-msgid "Unknown user."
+msgid "Untrusted checksums"
 msgstr ""
 
-#, php-format
-msgid "Unsupported algorithm: %s"
+msgid "Up to this many, the picker opens with every account and group it may offer already in the list. Above it, the picker asks the server as you type instead. Applies to administrators and group admins alike."
 msgstr ""
 
-msgid "Untrusted Hashes"
-msgstr ""
-
-msgid "User"
-msgstr ""
-
-msgid "User Guide"
-msgstr ""
-
-msgid "Users"
-msgstr ""
-
-msgid "Users may not edit this rule"
+msgid "User guide"
 msgstr ""
 
 msgid "Verification stopped: too many recalculation requests. Wait a minute and verify the remaining files."
@@ -985,11 +988,11 @@ msgid "Verify all"
 msgstr ""
 
 #. TRANSLATORS: "Auto", "Missing", "Force" and "Lazy" name the choices of the Mode field; translate them as that field does
-msgid "What happens to a file that already has a hash. \"Auto\" only recomputes an outdated one, \"Missing\" also fills gaps, \"Force\" discards and recomputes everything, and \"Lazy\" clears the hashes now and lets a later run recompute them."
+msgid "What happens to a file that already has checksums. \"Auto\" recalculates only outdated ones, \"Missing\" also adds missing ones, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
 msgstr ""
 
-#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them; keep them
-msgid "What happens to a file that already has a hash. \"auto\" recomputes only an outdated one, \"missing\" also fills gaps, \"force\" discards and recomputes everything, and \"lazy\" clears the hashes now and lets a later run recompute them. Shown as \"—\" for a rule that computes nothing."
+#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, and "—" what it shows for a rule that computes nothing; keep them
+msgid "What happens to a file that already has checksums. \"auto\" recalculates only outdated ones, \"missing\" also adds missing ones, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. Shown as \"—\" for a rule that computes nothing."
 msgstr ""
 
 #. TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
@@ -1000,41 +1003,39 @@ msgstr ""
 msgid "What happens when this rule matches. \"include\" computes the checksums in this row. \"ignore\" stops automatic hashing but still allows a manual recalculation. \"exclude\" blocks hashing by every route, including the sidebar button, the API and the occ command."
 msgstr ""
 
-msgid "When on, every user may call the public API with an app password. When off, only the groups and individual users selected here may; the app's own pages keep working for everyone."
+msgid "When on, every account may call the public API with an app password. When off, only the groups and individual accounts selected here may; the app's own pages keep working for everyone."
 msgstr ""
 
-msgid "When on, every user may switch to the instance-wide view after confirming their password. When off, only members of the admin group and the groups and users selected here may."
+msgid "When on, every account may create and edit rules for folders in their own files that they can write to. When off, only the groups and individual accounts you select may."
 msgstr ""
 
-msgid "When on, every user may trigger a computation of their own files by hand. When off, only the groups and individual users selected here may; everyone still sees the hashes already computed."
+msgid "When on, every account may look across all accounts after confirming their password. When off, only members of the admin group and the groups and accounts selected here may."
 msgstr ""
 
-msgid "When on, every user of this instance may create and edit rules for folders they can write to. When off, that permission is limited to the groups and individual users you select."
+msgid "When on, every account may recalculate checksums by hand. When off, only the groups and individual accounts selected here may; everyone still sees the checksums already computed."
 msgstr ""
 
-msgid "When set, users cannot override or disable this rule from their personal settings. Enforced rules are evaluated before every user rule, so they cannot be outrun."
+msgid "When set, nobody else can edit or disable this rule. Enforced rules are evaluated before every personal rule, so none can come before them."
 msgstr ""
 
 #. TRANSLATORS: the help text of the Priority column, explaining the number format its cells use; keep 7.1 and 7 as numbers
-msgid "Where the rule sits in evaluation order: its band and its position in that band, joined by a dot, so 7.1 is the first rule of band 7. The first rule that matches a file decides it outright, so a lower number is stronger. The band follows from the rule's scope and whether it is enforced — it is never chosen directly — and the position is the rule's place inside that band, which is what dragging changes."
+msgid "Where the rule sits in evaluation order: its band, and its position among the rules of the same scope in that band, joined by a dot, so 7.1 is the first rule of band 7. The first rule that matches a file decides it outright, so a lower number is stronger. The band follows from the rule's scope and whether it is enforced — it is never chosen directly — and the position is what dragging changes."
 msgstr ""
 
 msgid "Whether the rule takes part in evaluation at all. A disabled rule is skipped as though it were not there, so the next matching rule decides instead."
 msgstr ""
 
-msgid "Which algorithms are computed for which files, on real-time file events."
-msgstr ""
-
 msgid "Which algorithms this server computes, from what its PHP provides, and which of them is the default. Rules may only use these, and every picker in the app offers exactly these."
 msgstr ""
 
-msgid "Which slice of files the rule addresses: one user's home folder, the members of one group, \"All home folders\", one group folder, one storage by its id, or \"Everything\". A rule only ever meets files inside its slice — \"All home folders\" reaches every personal folder and nothing else, while \"Everything\" also reaches group folders and external storage."
+msgid "Which files get checksums, with which algorithms, and which are left alone. Rules act when a file is created or changed, and a background job applies them to existing files after a few minutes."
 msgstr ""
 
-msgid "Which slice of the file universe this rule addresses: all home folders, one group's members, a single user, one group folder, one storage by its raw id, or everything — every storage there is, external mounts and group folders included."
+#. TRANSLATORS: "All home folders" and "Everything" are scopes as the table shows them; translate them as those do
+msgid "Which files the rule addresses: one account's home folder, the home folders of one group's members, \"All home folders\", one team folder, one storage by its ID, or \"Everything\". A rule only ever meets files inside its scope — \"All home folders\" reaches every home folder and nothing else, while \"Everything\" also reaches team folders and external storage."
 msgstr ""
 
-msgid "Who may calculate by hand"
+msgid "Which files this rule addresses: all home folders, the home folders of one group's members, a single account's home folder, one team folder, one storage by its raw ID, or everything — every storage, external storage and team folders included."
 msgstr ""
 
 msgid "Who may edit rules"
@@ -1043,10 +1044,13 @@ msgstr ""
 msgid "Who may look across accounts"
 msgstr ""
 
+msgid "Who may recalculate checksums"
+msgstr ""
+
 msgid "Who may use the API"
 msgstr ""
 
-msgid "Whole or start of a checksum"
+msgid "Whole hash or part of one"
 msgstr ""
 
 msgid "Whose files"
@@ -1065,32 +1069,31 @@ msgstr ""
 msgid "You may only reorder your own rules."
 msgstr ""
 
-msgid "Your app passwords could not be listed ({error})."
-msgstr ""
-
-msgid "Your app passwords could not be listed: the token table could not be read."
-msgstr ""
-
 msgid "Your own file"
 msgstr ""
 
 msgid "Your preferred algorithm"
 msgstr ""
 
+msgid "app password deleted — the grant remains"
+msgstr ""
+
+#. TRANSLATORS: fileIds is a parameter name; keep it
 msgid "fileIds must be a non-empty list of integers."
 msgstr ""
 
-#. TRANSLATORS: "groupfolder:" is the selector's prefix as it is typed; keep it
-msgid "groupfolder: takes the numeric folder id."
+#. TRANSLATORS a badge on a rule whose team folder is not available
+msgid "folder missing"
 msgstr ""
 
-msgid "hashes were dropped on write because no rule maintains them; heals itself once a rule covers them again"
+#. TRANSLATORS: "groupfolder:" is the selector's prefix as it is typed; keep it
+msgid "groupfolder: takes the numeric folder ID."
 msgstr ""
 
 msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
 msgstr ""
 
-#. TRANSLATORS: an example of what to type; keep the storage ids as they are
+#. TRANSLATORS: an example of what to type; keep the storage IDs as they are
 msgid "local::/path/ or smb::…"
 msgstr ""
 
@@ -1098,32 +1101,28 @@ msgstr ""
 msgid "never"
 msgstr ""
 
-msgid "never ran yet"
+msgid "no catch-all rule — files the rules above do not match are left to a more general rule, if one is enabled"
 msgstr ""
 
-msgid "no catch-all rule — only the specific rules above apply here"
-msgstr ""
-
-msgid "not covered — no rule addresses it, so nothing is hashed there"
+msgid "no rule of its own — its files are left to a more general rule, if one is enabled"
 msgstr ""
 
 #. TRANSLATORS: the checksum a file has now, after verification found it changed
 msgid "now: {hash}"
 msgstr ""
 
-msgid "provider missing"
-msgstr ""
-
+#. TRANSLATORS: selector is a parameter name; keep it
 msgid "selector must be a non-empty string."
 msgstr ""
 
-msgid "token deleted — grant left behind"
+msgid "the file changed while no rule maintained its checksums, so they were deleted; it gets them back once a rule covers it again"
 msgstr ""
 
+#. TRANSLATORS: value is a parameter name; keep it
 msgid "value must be a string."
 msgstr ""
 
-#. TRANSLATORS: {folders} is what the group folders app calls itself, e.g. "Team folders"
+#. TRANSLATORS: {folders} is what the team folders app calls itself, e.g. "Team folders"
 msgid "{folders} — one folder"
 msgstr ""
 
@@ -1131,7 +1130,7 @@ msgstr ""
 msgid "{folders}: {folder}"
 msgstr ""
 
-msgid "{group} (Group)"
+msgid "{group} (group)"
 msgstr ""
 
 msgid "{stored} is not available on this server at the moment, so the default ({active}) applies."

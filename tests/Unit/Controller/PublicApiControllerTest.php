@@ -1255,7 +1255,7 @@ class PublicApiControllerTest
 	{
 		$this->api->expects( $this->once() )
 		          ->method( 'findByHash' )
-		          ->willThrowException( new \InvalidArgumentException( 'Hash parameter is required.' ) )
+		          ->willThrowException( new \InvalidArgumentException( 'The "hash" parameter is required.' ) )
 		;
 
 		$response = $this->controller->lookup( '' );
@@ -1374,7 +1374,7 @@ class PublicApiControllerTest
 		$this->api->method( 'recalcHash' )
 		          ->willReturn( [
 			          'success'   => false,
-			          'error'     => 'This account may not calculate by hand.',
+			          'error'     => 'This account may not recalculate checksums.',
 			          'forbidden' => true,
 		          ] )
 		;

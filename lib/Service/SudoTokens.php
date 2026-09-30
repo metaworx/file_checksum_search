@@ -187,7 +187,7 @@ class SudoTokens
 
 		if ( ! $token['filesystem'] )
 		{
-			throw new InvalidArgumentException( $this->l10n->t( 'This app password is kept out of the filesystem, so it cannot be granted file reads.' ) );
+			throw new InvalidArgumentException( $this->l10n->t( 'This app password has no filesystem access, so it cannot be granted.' ) );
 		}
 
 		$grants              = $this->grantsFor( $uid );

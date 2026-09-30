@@ -99,7 +99,7 @@ describe( 'FCIAS global search', () => {
 		cy.get( SEARCH_INPUT ).should( 'have.value', value )
 	}
 
-	it( 'lists the File Checksums provider and finds files by hash', () => {
+	it( 'lists the File checksums provider and finds files by hash', () => {
 		// The provider request is the only reliable signal that a query has
 		// actually been answered: the input is debounced, so asserting straight
 		// after typing races the search.

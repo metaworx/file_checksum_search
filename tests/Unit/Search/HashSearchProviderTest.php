@@ -63,7 +63,7 @@ class HashSearchProviderTest
 	public function testGetNameReturnsProviderName(): void
 	{
 		$this->assertSame(
-			'File Checksums',
+			'File checksums',
 			$this->provider->getName(),
 		);
 	}

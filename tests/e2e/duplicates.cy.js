@@ -249,7 +249,7 @@ describe( 'FCIAS Duplicates page', () => {
 		cy.get( '[data-testid="fcias-target-picker"] input', { timeout: FIND_TIMEOUT } )
 			.click( { force: true } )
 		cy.get( '.vs__dropdown-menu', { timeout: FIND_TIMEOUT } )
-			.should( 'contain', '(Group)' )
+			.should( 'contain', '(group)' )
 	} )
 
 	// The picker must actually scope the listing. It once did not: the page

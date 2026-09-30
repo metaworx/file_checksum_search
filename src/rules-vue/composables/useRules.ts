@@ -113,7 +113,7 @@ export function useRules(scope: 'own' | 'all') {
 			state.availableStorages = data.availableStorages || []
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return
-			state.error = t('file_checksum_search', 'Failed to load rules.')
+			state.error = t('file_checksum_search', 'Could not load the rules.')
 		} finally {
 			if (!signal.aborted) {
 				state.loading = false

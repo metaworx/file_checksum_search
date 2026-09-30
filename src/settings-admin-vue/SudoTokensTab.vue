@@ -41,12 +41,13 @@ const busy = ref<string | null>(null)
 
 const key = (g: GrantRow) => `${g.uid}/${g.id}`
 
-const HINT = t('file_checksum_search', 'App passwords granted the cross-account routes without a password prompt. Each is a standing authorisation: this is where every one of them is visible, and where any can be taken back. Who may look across accounts at all is decided under “Who may look across accounts”; a grant replaces the prompt, not the permission.')
+// TRANSLATORS: "Who may look across accounts" is a heading on the Permissions tab; translate it as that heading does
+const HINT = t('file_checksum_search', 'App passwords that may use the cross-account routes without a password prompt. A grant stays in force until it is revoked, so every one is listed here, and any can be revoked here. Who may look across accounts at all is decided under "Who may look across accounts"; a grant replaces the password prompt, not the permission.')
 
 function take(data: Listing): void {
 	grants.value = data.grants ?? []
 	failure.value = data.available === false
-		? t('file_checksum_search', 'The grant listing is unavailable: the token table could not be read.')
+		? t('file_checksum_search', 'Could not list the grants: the app passwords could not be read.')
 		: null
 }
 
@@ -60,7 +61,7 @@ async function load(): Promise<void> {
 		if (!response.ok) throw new Error(`HTTP ${response.status}`)
 		take((await response.json()) as Listing)
 	} catch (e) {
-		failure.value = t('file_checksum_search', 'The grant listing could not be loaded ({error}).', { error: (e as Error).message })
+		failure.value = t('file_checksum_search', 'Could not load the grants ({error}).', { error: (e as Error).message })
 	} finally {
 		loaded.value = true
 	}
@@ -108,6 +109,7 @@ onMounted(load)
 					<th>{{ t('file_checksum_search', 'Account') }}</th>
 					<th>{{ t('file_checksum_search', 'App password') }}</th>
 					<th>{{ t('file_checksum_search', 'Last used') }}</th>
+					<!-- TRANSLATORS: a column heading: when the app password was granted, and by whom -->
 					<th>{{ t('file_checksum_search', 'Granted') }}</th>
 					<th />
 				</tr>
@@ -119,7 +121,7 @@ onMounted(load)
 						<template v-if="grant.exists">
 							{{ grant.name }}
 						</template>
-						<span v-else class="fcias-muted">{{ t('file_checksum_search', 'token deleted — grant left behind') }}</span>
+						<span v-else class="fcias-muted">{{ t('file_checksum_search', 'app password deleted — the grant remains') }}</span>
 					</td>
 					<td>{{ when(grant.last_activity) }}</td>
 					<!-- TRANSLATORS: when a grant was made, and by which account -->

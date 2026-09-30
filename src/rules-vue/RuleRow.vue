@@ -77,7 +77,7 @@ const texts = computed(() => {
 	}
 })
 
-const PROVIDER_MISSING_HINT = t('file_checksum_search', 'The app or storage this rule names is not available, so the rule can never match.')
+const PROVIDER_MISSING_HINT = t('file_checksum_search', 'The team folder this rule names, or the app that provides it, is not available, so the rule can never match.')
 </script>
 
 <template>
@@ -102,7 +102,7 @@ const PROVIDER_MISSING_HINT = t('file_checksum_search', 'The app or storage this
 				class="fcias-drag-handle"
 				draggable="true"
 				aria-hidden="true"
-				:title="t('file_checksum_search', 'Drag to reorder within this band')"
+				:title="t('file_checksum_search', 'Drag to reorder among the rules of the same scope')"
 				@dragstart="emit('rowDragstart', rule, $event)"
 				@dragend="emit('rowDragend')">⠿</span>
 		</td>
@@ -121,7 +121,8 @@ const PROVIDER_MISSING_HINT = t('file_checksum_search', 'The app or storage this
 				v-if="providerMissing"
 				class="fcias-provider-missing"
 				:title="PROVIDER_MISSING_HINT">
-				{{ t('file_checksum_search', 'provider missing') }}
+				<!-- TRANSLATORS: a badge on a rule whose team folder is not available -->
+				{{ t('file_checksum_search', 'folder missing') }}
 			</span>
 		</td>
 		<td :title="rule.path || '/'">
@@ -174,7 +175,7 @@ const PROVIDER_MISSING_HINT = t('file_checksum_search', 'The app or storage this
 						<template #icon>
 							<MdiIcon :path="ICON_REFRESH" />
 						</template>
-						{{ t('file_checksum_search', 'Re-apply') }}
+						{{ t('file_checksum_search', 'Reapply') }}
 					</NcActionButton>
 					<NcActionButton data-action="delete" @click="emit('delete', rule)">
 						<template #icon>

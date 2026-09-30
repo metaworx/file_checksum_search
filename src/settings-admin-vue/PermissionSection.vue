@@ -68,7 +68,15 @@ function payload(): string {
 
 const dirty = computed(() => loaded.value && payload() !== baseline.value)
 
-const saveLabel = computed(() => saving.value ? t('file_checksum_search', 'Saving…') : t('file_checksum_search', 'Save'))
+// The space before "…" is a no-break space (U+00A0), as Nextcloud writes it.
+// It is the character itself: the translation tool would keep an escape as
+// text, and the text would no longer match its translation.
+const saveLabel = computed(() => saving.value ? t('file_checksum_search', 'Saving …') : t('file_checksum_search', 'Save'))
+
+const placeholders = {
+	groups: t('file_checksum_search', 'Select groups …'),
+	accounts: t('file_checksum_search', 'Search accounts …'),
+}
 
 async function load(): Promise<void> {
 	try {
@@ -84,7 +92,7 @@ async function load(): Promise<void> {
 		const selectedIds = mine.users || []
 		selectedUsers.value = userOptions.value.filter((u) => selectedIds.includes(u.id))
 	} catch (e) {
-		toastError(t('file_checksum_search', 'Failed to load permission options.'))
+		toastError(t('file_checksum_search', 'Could not load the permissions.'))
 	} finally {
 		loaded.value = true
 		baseline.value = payload()
@@ -110,10 +118,10 @@ async function save(): Promise<void> {
 			baseline.value = sent
 			toastSaved(t('file_checksum_search', 'Permissions saved.'))
 		} else {
-			toastError(data.error || t('file_checksum_search', 'Save failed.'))
+			toastError(data.error || t('file_checksum_search', 'Saving failed.'))
 		}
 	} catch (e) {
-		toastError(t('file_checksum_search', 'Request failed.'))
+		toastError(t('file_checksum_search', 'Could not complete the request.'))
 	} finally {
 		saving.value = false
 	}
@@ -136,7 +144,7 @@ onMounted(load)
 				<NcSettingsSelectGroup
 					v-model="allowedGroups"
 					:label="t('file_checksum_search', 'Groups')"
-					:placeholder="t('file_checksum_search', 'Select groups…')" />
+					:placeholder="placeholders.groups" />
 				<HelpPopover :text="help.groups" :label="t('file_checksum_search', 'Groups')" />
 			</div>
 
@@ -145,10 +153,10 @@ onMounted(load)
 					v-model="selectedUsers"
 					:multiple="true"
 					:options="userOptions"
-					:input-label="t('file_checksum_search', 'Users')"
-					:placeholder="t('file_checksum_search', 'Search users…')"
+					:input-label="t('file_checksum_search', 'Accounts')"
+					:placeholder="placeholders.accounts"
 					label-outside />
-				<HelpPopover :text="help.users" :label="t('file_checksum_search', 'Users')" />
+				<HelpPopover :text="help.users" :label="t('file_checksum_search', 'Accounts')" />
 			</div>
 		</div>
 

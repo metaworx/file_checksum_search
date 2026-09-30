@@ -73,7 +73,7 @@ class SudoTokensController
 
 		if ( $uid === null )
 		{
-			return new DataResponse( [ 'error' => $this->l10n->t( 'Not authenticated.' ) ], Http::STATUS_UNAUTHORIZED );
+			return new DataResponse( [ 'error' => $this->l10n->t( 'Not logged in.' ) ], Http::STATUS_UNAUTHORIZED );
 		}
 
 		if ( ! $this->mayUseApi( $uid ) )
@@ -108,7 +108,7 @@ class SudoTokensController
 
 		if ( $uid === null )
 		{
-			return new DataResponse( [ 'error' => $this->l10n->t( 'Not authenticated.' ) ], Http::STATUS_UNAUTHORIZED );
+			return new DataResponse( [ 'error' => $this->l10n->t( 'Not logged in.' ) ], Http::STATUS_UNAUTHORIZED );
 		}
 
 		if ( ! $this->mayUseApi( $uid ) )

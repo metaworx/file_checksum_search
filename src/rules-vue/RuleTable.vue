@@ -82,12 +82,13 @@ const COLUMNS: Array<{ key: string, label: string, help: string }> = [
 		key: 'priority',
 		label: t('file_checksum_search', 'Priority'),
 		// TRANSLATORS: the help text of the Priority column, explaining the number format its cells use; keep 7.1 and 7 as numbers
-		help: t('file_checksum_search', 'Where the rule sits in evaluation order: its band and its position in that band, joined by a dot, so 7.1 is the first rule of band 7. The first rule that matches a file decides it outright, so a lower number is stronger. The band follows from the rule\'s scope and whether it is enforced — it is never chosen directly — and the position is the rule\'s place inside that band, which is what dragging changes.'),
+		help: t('file_checksum_search', 'Where the rule sits in evaluation order: its band, and its position among the rules of the same scope in that band, joined by a dot, so 7.1 is the first rule of band 7. The first rule that matches a file decides it outright, so a lower number is stronger. The band follows from the rule\'s scope and whether it is enforced — it is never chosen directly — and the position is what dragging changes.'),
 	},
 	{
 		key: 'scope',
 		label: t('file_checksum_search', 'Scope'),
-		help: t('file_checksum_search', 'Which slice of files the rule addresses: one user\'s home folder, the members of one group, "All home folders", one group folder, one storage by its id, or "Everything". A rule only ever meets files inside its slice — "All home folders" reaches every personal folder and nothing else, while "Everything" also reaches group folders and external storage.'),
+		// TRANSLATORS: "All home folders" and "Everything" are scopes as the table shows them; translate them as those do
+		help: t('file_checksum_search', 'Which files the rule addresses: one account\'s home folder, the home folders of one group\'s members, "All home folders", one team folder, one storage by its ID, or "Everything". A rule only ever meets files inside its scope — "All home folders" reaches every home folder and nothing else, while "Everything" also reaches team folders and external storage.'),
 	},
 	{
 		key: 'path',
@@ -104,13 +105,14 @@ const COLUMNS: Array<{ key: string, label: string, help: string }> = [
 	{
 		key: 'algos',
 		label: t('file_checksum_search', 'Algorithms'),
-		help: t('file_checksum_search', 'Checksum algorithms computed for matching files. Each one is indexed separately, so more algorithms means more work per file. Shown as "—" for a rule that computes nothing.'),
+		// TRANSLATORS: "—" is what the table shows for a rule that computes nothing; keep it
+		help: t('file_checksum_search', 'Checksum algorithms computed for matching files. Each one is indexed separately, so more algorithms mean more work per file. Shown as "—" for a rule that computes nothing.'),
 	},
 	{
 		key: 'mode',
 		label: t('file_checksum_search', 'Mode'),
-		// TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them; keep them
-		help: t('file_checksum_search', 'What happens to a file that already has a hash. "auto" recomputes only an outdated one, "missing" also fills gaps, "force" discards and recomputes everything, and "lazy" clears the hashes now and lets a later run recompute them. Shown as "—" for a rule that computes nothing.'),
+		// TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, and "—" what it shows for a rule that computes nothing; keep them
+		help: t('file_checksum_search', 'What happens to a file that already has checksums. "auto" recalculates only outdated ones, "missing" also adds missing ones, "force" deletes and recalculates all of them, and "lazy" deletes them now and lets a later run recalculate them. Shown as "—" for a rule that computes nothing.'),
 	},
 	{
 		key: 'status',
@@ -120,13 +122,15 @@ const COLUMNS: Array<{ key: string, label: string, help: string }> = [
 	{
 		key: 'enforced',
 		label: t('file_checksum_search', 'Enforced'),
-		help: t('file_checksum_search', '"Yes" means an administrator set this rule and users cannot override or disable it from their personal settings. Enforced rules fill the first four bands, so no rule of a user\'s own can outrun one.'),
+		// TRANSLATORS: "Yes" is the value this column shows; translate it as that does
+		help: t('file_checksum_search', '"Yes" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it.'),
 	},
 ]
 
 const PLACEHOLDERS_TITLE = t('file_checksum_search', 'Without a rule of their own')
 
-const PLACEHOLDERS_HELP = t('file_checksum_search', 'These namespaces exist on this instance but have no catch-all rule of their own, so what happens to their files is decided by whatever more general rule covers them — or by nothing at all. Creating a rule from here starts one for that namespace; until then, nothing is stored.')
+// TRANSLATORS: "Add rule" is the button on each of these rows, "Save" the dialog's button; translate them as those buttons do
+const PLACEHOLDERS_HELP = t('file_checksum_search', 'These places exist on this server but have no catch-all rule of their own, so their files are decided by a more general rule, or by none at all. "Add rule" opens the dialog with a catch-all rule for the place; it is only stored once you click "Save" there.')
 
 function ruleById(id: Rule['id']): Rule | undefined {
 	return props.rules.find((rule) => rule.id === id)
@@ -236,7 +240,7 @@ const selectorsWithAnyRule = computed(
 const namespaces = computed(() => {
 	if (props.variant !== 'admin') return []
 
-	const folderTerm = props.groupFoldersLabel ?? t('file_checksum_search', 'Group folder')
+	const folderTerm = props.groupFoldersLabel ?? t('file_checksum_search', 'Team folder')
 
 	return [
 		...(props.availableStorages ?? []).map((id) => ({
@@ -271,8 +275,8 @@ const placeholders = computed(
 			selector: namespace.selector,
 			label: namespace.label,
 			note: selectorsWithAnyRule.value.has(namespace.selector)
-				? t('file_checksum_search', 'no catch-all rule — only the specific rules above apply here')
-				: t('file_checksum_search', 'not covered — no rule addresses it, so nothing is hashed there'),
+				? t('file_checksum_search', 'no catch-all rule — files the rules above do not match are left to a more general rule, if one is enabled')
+				: t('file_checksum_search', 'no rule of its own — its files are left to a more general rule, if one is enabled'),
 		})),
 )
 
@@ -411,7 +415,7 @@ const emptyMessage = computed(
 								type="button"
 								data-action="create"
 								@click="emit('create', { selector: placeholder.selector, label: placeholder.label })">
-								{{ t('file_checksum_search', 'Create rule') }}
+								{{ t('file_checksum_search', 'Add rule') }}
 							</button>
 						</td>
 					</tr>

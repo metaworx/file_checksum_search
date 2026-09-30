@@ -32,6 +32,9 @@ the first stable release.
   the duplicates filter's switch and fields, the Priority help, the
   app's summary and description.
 
+- The texts: one word for each thing (account, team folder, checksum),
+  and help texts that say what the app does.
+
 ### Fixed
 
 - The web interface, the Files sidebar included, and the messages the

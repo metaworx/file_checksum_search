@@ -39,11 +39,16 @@ function payload(): string {
 
 const dirty = computed(() => loaded.value && payload() !== baseline.value)
 
-const saveLabel = computed(() => saving.value ? t('file_checksum_search', 'Saving…') : t('file_checksum_search', 'Save'))
+// The space before "…" is a no-break space (U+00A0), as Nextcloud writes it.
+// It is the character itself: the translation tool would keep an escape as
+// text, and the text would no longer match its translation.
+const saveLabel = computed(() => saving.value ? t('file_checksum_search', 'Saving …') : t('file_checksum_search', 'Save'))
+
+const addPlaceholder = t('file_checksum_search', 'Add an algorithm …')
 
 const HELP = {
-	allowed: t('file_checksum_search', 'The algorithms rules may compute and pickers may offer, chosen from what this server\'s PHP provides. Removing one does not delete hashes already stored under it — they stay searchable — it only stops new ones being computed.'),
-	default: t('file_checksum_search', 'The algorithm used wherever none is named: new rules, the command line, the API, and the sidebar\'s first button for users who have not chosen one of their own. Only an allowed algorithm can be the default; removing the default from the list above moves it to the first remaining.'),
+	allowed: t('file_checksum_search', 'The algorithms rules may compute and pickers may offer, chosen from what this server\'s PHP provides. Removing one does not delete checksums already stored under it — they stay searchable — it only stops new ones being computed.'),
+	default: t('file_checksum_search', 'The algorithm used wherever none is named: new rules, the command line, the API, and the sidebar\'s first button for anyone who has not chosen one. Only an allowed algorithm can be the default; removing the default from the list above makes the first remaining one the default.'),
 }
 
 /** The default follows the allowlist: dropped from it, it moves to the first remaining. */
@@ -69,7 +74,7 @@ async function load(): Promise<void> {
 		selectedIds.value = (data.allowedAlgorithms ?? []).filter((id) => availableIds.value.includes(id))
 		takeDefault(data.defaultAlgorithm)
 	} catch (e) {
-		toastError(t('file_checksum_search', 'Failed to load the algorithm list.'))
+		toastError(t('file_checksum_search', 'Could not load the algorithms.'))
 	} finally {
 		loaded.value = true
 		baseline.value = payload()
@@ -102,10 +107,10 @@ async function save(): Promise<void> {
 			takeDefault(data.defaultAlgorithm)
 			baseline.value = payload()
 		} else {
-			toastError(data.error || t('file_checksum_search', 'Save failed.'))
+			toastError(data.error || t('file_checksum_search', 'Saving failed.'))
 		}
 	} catch (e) {
-		toastError(t('file_checksum_search', 'Request failed.'))
+		toastError(t('file_checksum_search', 'Could not complete the request.'))
 	} finally {
 		saving.value = false
 	}
@@ -123,7 +128,7 @@ onMounted(load)
 				multiple
 				input-id="fcias-allowed-algorithms"
 				:label="t('file_checksum_search', 'Allowed algorithms')"
-				:placeholder="t('file_checksum_search', 'Add an algorithm…')" />
+				:placeholder="addPlaceholder" />
 			<HelpPopover :text="HELP.allowed" :label="t('file_checksum_search', 'Allowed algorithms')" />
 		</div>
 		<div v-if="loaded" class="fcias-field-row">

@@ -55,7 +55,7 @@ const allOption = computed<Option>(() => ({
 
 /** A group's name, marked as a group: an account can carry the same name. */
 function groupLabel(name: string): string {
-	return t('file_checksum_search', '{group} (Group)', { group: name })
+	return t('file_checksum_search', '{group} (group)', { group: name })
 }
 
 const options = ref<Option[]>([])
@@ -66,7 +66,7 @@ const failed = ref(false)
 
 /** With no prefilled list the control is useless until something is typed. */
 const noOptionsText = computed(
-	() => prefill.value ? t('file_checksum_search', 'Nobody to show') : t('file_checksum_search', 'Type to search'),
+	() => prefill.value ? t('file_checksum_search', 'No accounts or groups to show') : t('file_checksum_search', 'Type to search'),
 )
 
 /**
@@ -221,7 +221,7 @@ onMounted(() => fetchOptions())
 			@search="onSearch"
 			@update:model-value="onSelect" />
 		<p v-if="failed" class="fcias-error" data-testid="fcias-target-picker-error">
-			{{ t('file_checksum_search', 'The list of accounts could not be loaded.') }}
+			{{ t('file_checksum_search', 'Could not load the accounts and groups.') }}
 		</p>
 	</div>
 </template>

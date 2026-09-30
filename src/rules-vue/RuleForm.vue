@@ -214,32 +214,41 @@ const dialogName = computed(
 
 /** The group-folder choice and its picker, named after what the app calls itself. */
 const groupFolderTexts = computed(() => ({
-	// TRANSLATORS: {folders} is what the group folders app calls itself, e.g. "Team folders"
+	// TRANSLATORS: {folders} is what the team folders app calls itself, e.g. "Team folders"
 	option: t('file_checksum_search', '{folders} — one folder', { folders: groupFolderTerm.value }),
 	// TRANSLATORS: placeholder of the picker that selects the one team folder a rule addresses
-	search: t('file_checksum_search', 'Select folder…'),
+	search: t('file_checksum_search', 'Select folder …'),
 }))
+
+// The space before "…" in these and in "Select folder …" is a no-break space
+// (U+00A0), as Nextcloud writes it. It is the character itself: the
+// translation tool would keep an escape as text, and the text would no longer
+// match its translation.
+const placeholders = {
+	groups: t('file_checksum_search', 'Search groups …'),
+	accounts: t('file_checksum_search', 'Search accounts …'),
+}
 
 const PERSONAL_HINT = t('file_checksum_search', 'This is your own rule. It applies only to your files and is evaluated after any rule an administrator has enforced.')
 
-// TRANSLATORS: an example of what to type; keep the storage ids as they are
+// TRANSLATORS: an example of what to type; keep the storage IDs as they are
 const STORAGE_EXAMPLE = t('file_checksum_search', 'local::/path/ or smb::…')
 
 const HELP = {
-	selector: t('file_checksum_search', 'Which slice of the file universe this rule addresses: all home folders, one group\'s members, a single user, one group folder, one storage by its raw id, or everything — every storage there is, external mounts and group folders included.'),
+	selector: t('file_checksum_search', 'Which files this rule addresses: all home folders, the home folders of one group\'s members, a single account\'s home folder, one team folder, one storage by its raw ID, or everything — every storage, external storage and team folders included.'),
 	// TRANSLATORS: the quoted patterns are examples to type as they are
 	path: t('file_checksum_search', 'Glob pattern the file path must match. "**" matches every file; "/Documents/**" matches everything below that folder. Rules are checked in order and the first match wins.'),
-	algos: t('file_checksum_search', 'Checksum algorithms computed for matching files. Each algorithm you add is indexed separately, so more algorithms means more work per file.'),
+	algos: t('file_checksum_search', 'Checksum algorithms computed for matching files. Each algorithm you add is indexed separately, so more algorithms mean more work per file.'),
 	// TRANSLATORS: "Auto", "Missing", "Force" and "Lazy" name the choices of the Mode field; translate them as that field does
-	mode: t('file_checksum_search', 'What happens to a file that already has a hash. "Auto" only recomputes an outdated one, "Missing" also fills gaps, "Force" discards and recomputes everything, and "Lazy" clears the hashes now and lets a later run recompute them.'),
-	adminEnforced: t('file_checksum_search', 'When set, users cannot override or disable this rule from their personal settings. Enforced rules are evaluated before every user rule, so they cannot be outrun.'),
+	mode: t('file_checksum_search', 'What happens to a file that already has checksums. "Auto" recalculates only outdated ones, "Missing" also adds missing ones, "Force" deletes and recalculates all of them, and "Lazy" deletes them now and lets a later run recalculate them.'),
+	adminEnforced: t('file_checksum_search', 'When set, nobody else can edit or disable this rule. Enforced rules are evaluated before every personal rule, so none can come before them.'),
 	// TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
 	type: t('file_checksum_search', 'What happens when this rule matches. "Include" computes the checksums below. "Ignore" stops automatic hashing but still lets someone recalculate a file by hand. "Exclude" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount.'),
-	user: t('file_checksum_search', 'The one user whose home folder this rule addresses.'),
+	user: t('file_checksum_search', 'The one account whose home folder this rule addresses.'),
 	group: t('file_checksum_search', 'The rule addresses the home folder of every member of this group.'),
 	groupfolder: t('file_checksum_search', 'The team folder this rule addresses. Every member sees the same files, and the rule follows the folder — not whoever happens to look at it.'),
-	storage: t('file_checksum_search', 'The raw id from the storages table, matched exactly — whatever kind of storage it names. Use this for external mounts, or anything the other choices cannot say.'),
-	band: t('file_checksum_search', 'Rules are evaluated in band order and the first match decides the file. A rule\'s band follows from its scope and whether it is enforced — it is not chosen directly, and reordering only moves a rule within its own band.'),
+	storage: t('file_checksum_search', 'The raw ID from the storages table, matched exactly, whatever kind of storage it names. Use this for external storage, or for any storage the other choices cannot address.'),
+	band: t('file_checksum_search', 'Rules are evaluated in band order and the first match decides the file. A rule\'s band follows from its scope and whether it is enforced — it is not chosen directly, and reordering only moves a rule among the rules of the same scope.'),
 }
 
 function submit(): void {
@@ -252,8 +261,8 @@ const formEl = ref<HTMLElement | null>(null)
  * Put the caret on the first field the admin actually edits.
  *
  * The dialog otherwise focuses the first focusable descendant, which is the
- * "Applies to" help button. Buttons are excluded here so focus lands on the
- * first real control — the "Applies to" select, or the Path input on the
+ * "Scope" help button. Buttons are excluded here so focus lands on the
+ * first real control — the "Scope" select, or the Path input on the
  * personal variant, which has no selector to choose.
  */
 onMounted(async () => {
@@ -309,7 +318,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 			</div>
 
 			<div v-if="variant === 'admin'" class="fcias-rule-form-row">
-				<label :for="ids.selector">{{ t('file_checksum_search', 'Applies to') }}</label>
+				<label :for="ids.selector">{{ t('file_checksum_search', 'Scope') }}</label>
 				<select
 					:id="ids.selector"
 					v-model="selectorChoice"
@@ -318,22 +327,22 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 						{{ t('file_checksum_search', 'All home folders') }}
 					</option>
 					<option value="group">
-						{{ t('file_checksum_search', 'A group') }}
+						{{ t('file_checksum_search', 'Members of a group') }}
 					</option>
 					<option value="user">
-						{{ t('file_checksum_search', 'A single user') }}
+						{{ t('file_checksum_search', 'A single account') }}
 					</option>
 					<option v-if="groupFoldersAvailable" value="groupfolder">
 						{{ groupFolderTexts.option }}
 					</option>
 					<option value="storage">
-						{{ t('file_checksum_search', 'A storage (raw id)') }}
+						{{ t('file_checksum_search', 'One storage (raw ID)') }}
 					</option>
 					<option value="universal">
 						{{ t('file_checksum_search', 'Everything — every storage') }}
 					</option>
 				</select>
-				<HelpPopover :text="HELP.selector" :label="t('file_checksum_search', 'Applies to')" />
+				<HelpPopover :text="HELP.selector" :label="t('file_checksum_search', 'Scope')" />
 			</div>
 
 			<div v-if="variant === 'admin' && selectorChoice === 'group'" class="fcias-rule-form-row">
@@ -343,7 +352,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 						v-model="selectedGroup"
 						:input-id="ids.selectorTarget"
 						:options="groupOptions"
-						:placeholder="t('file_checksum_search', 'Search groups…')"
+						:placeholder="placeholders.groups"
 						label-outside>
 						<template #selected-option="option">
 							<!--
@@ -370,13 +379,13 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 			</div>
 
 			<div v-if="variant === 'admin' && selectorChoice === 'user'" class="fcias-rule-form-row">
-				<label :for="ids.selectorTarget">{{ t('file_checksum_search', 'User') }}</label>
+				<label :for="ids.selectorTarget">{{ t('file_checksum_search', 'Account') }}</label>
 				<div class="fcias-rules-dialog-select">
 					<NcSelect
 						v-model="selectedUser"
 						:input-id="ids.selectorTarget"
 						:options="userOptions"
-						:placeholder="t('file_checksum_search', 'Search users…')"
+						:placeholder="placeholders.accounts"
 						label-outside>
 						<template #selected-option="option">
 							<NcEllipsisedOption
@@ -385,7 +394,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 						</template>
 					</NcSelect>
 				</div>
-				<HelpPopover :text="HELP.user" :label="t('file_checksum_search', 'User')" />
+				<HelpPopover :text="HELP.user" :label="t('file_checksum_search', 'Account')" />
 			</div>
 
 			<div v-if="variant === 'admin' && selectorChoice === 'groupfolder'" class="fcias-rule-form-row">
@@ -410,13 +419,13 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 			<div
 				v-if="variant === 'admin' && selectorChoice === 'storage'"
 				class="fcias-rule-form-row">
-				<label :for="ids.selectorTarget">{{ t('file_checksum_search', 'Storage id') }}</label>
+				<label :for="ids.selectorTarget">{{ t('file_checksum_search', 'Storage ID') }}</label>
 				<input
 					:id="ids.selectorTarget"
 					v-model="selectorTargetValue"
 					type="text"
 					:placeholder="STORAGE_EXAMPLE">
-				<HelpPopover :text="HELP.storage" :label="t('file_checksum_search', 'Storage id')" />
+				<HelpPopover :text="HELP.storage" :label="t('file_checksum_search', 'Storage ID')" />
 			</div>
 
 			<p v-if="variant === 'personal'" class="fcias-hint fcias-rule-form-static">
@@ -449,16 +458,16 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 				<label :for="ids.mode">{{ t('file_checksum_search', 'Mode') }}</label>
 				<select :id="ids.mode" v-model="draft.mode">
 					<option value="auto">
-						{{ t('file_checksum_search', 'Auto (recalc existing only if outdated)') }}
+						{{ t('file_checksum_search', 'Auto (recalculate existing checksums when outdated)') }}
 					</option>
 					<option value="missing">
-						{{ t('file_checksum_search', 'Missing (recalc existing + missing)') }}
+						{{ t('file_checksum_search', 'Missing (like Auto, and add missing checksums)') }}
 					</option>
 					<option value="force">
-						{{ t('file_checksum_search', 'Force (delete all, recalc all)') }}
+						{{ t('file_checksum_search', 'Force (delete and recalculate all checksums)') }}
 					</option>
 					<option value="lazy">
-						{{ t('file_checksum_search', 'Lazy (delete hashes, recalc later)') }}
+						{{ t('file_checksum_search', 'Lazy (delete checksums now, recalculate later)') }}
 					</option>
 				</select>
 				<HelpPopover :text="HELP.mode" :label="t('file_checksum_search', 'Mode')" />
@@ -471,7 +480,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 						:id="ids.adminEnforced"
 						v-model="draft.admin_enforced"
 						type="switch">
-						{{ t('file_checksum_search', 'Users may not edit this rule') }}
+						{{ t('file_checksum_search', 'Only administrators can edit or disable this rule') }}
 					</NcCheckboxRadioSwitch>
 				</span>
 				<HelpPopover :text="HELP.adminEnforced" :label="t('file_checksum_search', 'Enforced')" />

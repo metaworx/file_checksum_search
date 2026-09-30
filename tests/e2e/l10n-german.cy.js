@@ -111,7 +111,7 @@ describe( 'FCIAS in German', () => {
 			// folders' default sits first in band 7.
 			cy.get( '#fcias-personal-rules tr[data-band="7"] .fcias-priority-cell' )
 				.first()
-				.should( 'have.attr', 'title', 'Ebene 7, Position 1' )
+				.should( 'have.attr', 'title', 'Segment 7, Position 1' )
 		} )
 	}
 } )

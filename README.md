@@ -57,7 +57,7 @@ For what the two tables look like from a database client, see
 - **Duplicate file browser** — a standalone page (`/duplicates`) and files sidebar integration for finding files with identical hashes
 - **Files sidebar "Checksums" tab** — shows the selected file's checksums with recalculate and find-duplicates actions
 - **Unified Search provider** — type a hash directly into Nextcloud's search bar
-- **Rule-based hash generation** — nothing runs until a rule is enabled; `auto`, `missing`, `force`, and `lazy` modes, addressed at home folders, groups, group folders or storages
+- **Rule-based hash generation** — nothing runs until a rule is enabled; `auto`, `missing`, `force`, and `lazy` modes, addressed at home folders, groups, team folders or storages
 - **Admin settings page** — rule management, the four permissions, sudo tokens, status, and the docs, one tab each
 - **Personal settings page** — users can view, create, and edit rules subject to permissions; per-rule `admin_enforced` locks
 - **Automatic index maintenance** — Nextcloud file event listeners and background jobs
@@ -227,7 +227,7 @@ php occ file-checksum-search:hash --user=alice --ignore-rule=a1b2c3d4 -v
 # List the rules in evaluation order, with their band.position and ids
 php occ file-checksum-search:rules:list
 
-# Address one group folder, computing SHA-256 for everything in it
+# Address one team folder, computing SHA-256 for everything in it
 php occ fcias:rules:add --selector='groupfolder:1' --path='**' --type=include -a sha256 --enable
 
 # Queue every file that rule currently governs, uncapped
@@ -285,7 +285,7 @@ Once a rule is enabled, five paths lead to a hash:
 3. **The periodic sweep.** `RuleProcessingJob` walks the storages each enabled rule addresses and
    queues what is outdated or unhashed. This is the net beneath the events: a file changed while the
    app was disabled, a rule enabled after the fact, an event that never fired.
-4. **An explicit pass.** `occ file-checksum-search:rules:apply <id>`, or **Re-apply** in the rules
+4. **An explicit pass.** `occ file-checksum-search:rules:apply <id>`, or **Reapply** in the rules
    table, queues every file that rule currently governs — uncapped, where the periodic sweep
    trickles.
 5. **By hand.** The **Checksums** tab in the files sidebar recalculates one file on request. Only an
@@ -305,18 +305,18 @@ rebuild-from-filecache` does the same copy on demand, at once, and neither overw
 already stored. Installing, enabling and upgrading also queue the check that every stored hash is in the
 index, which on a large instance takes longer than a request should: `occ fcias:repair --step
 rebuild-from-metadata` runs it at once. Both show their progress on the status page, as *Checksum copy* and
-*Hash index check*, and in `occ fcias:status`.
+*Checksum index check*, and in `occ fcias:status`, which calls the second *Hash index check*.
 
 ### Which file a rule is talking about
 
 A rule is matched against where a file **really lives**, never against the path of whoever happens
 to be touching it. Every file has exactly one row in the filecache, and that row is the subject: a
 file in a home folder is judged by its owner and by the path its owner knows it under, and a file
-in a group folder or on any other storage is judged by that storage and the path inside it.
+in a team folder or on any other storage is judged by that storage and the path inside it.
 
 This is what makes shared files behave. When someone edits a file shared with them — through a
 mount they may have renamed — the rules that decide it are the **owner's**, applied to the owner's
-path, not the editor's. The same holds for a group folder: one rule decides the folder, and it
+path, not the editor's. The same holds for a team folder: one rule decides the folder, and it
 decides it identically for every member.
 
 Files outside a user-visible area — trash bins, versions, application data — are governed by
@@ -342,20 +342,21 @@ higher priority. A rule's position is not arbitrary: it follows from what the ru
 
 ### What a rule addresses: the selector
 
-One field says which slice of the file universe a rule is about. Scope and storage turned out to be
-one question, not two — a group folder has no user dimension, and a home folder's user *is* its
-sub-address — so there is one field, not a pair that could contradict each other:
+One field says which files a rule is about — the **Scope** in the rule dialog. Scope and storage
+turned out to be one question, not two — a team folder has no account dimension, and a home
+folder's account *is* its sub-address — so there is one field, not a pair that could contradict
+each other:
 
 | Selector | Addresses |
 |----------|-----------|
-| `home:<uid>` | one user's home folder |
+| `home:<uid>` | one account's home folder |
 | `group:<gid>` | the home folders of that group's members |
 | `home:*` | every home folder on the instance |
-| `groupfolder:<id>` | one group folder — the same files for every member (Team Folders app) |
-| `storage:<raw id>` | one storage by its raw id, exactly as `oc_storages` spells it: an external mount, or anything the forms above cannot say |
-| `*` | everything: every storage there is, external mounts and group folders included |
+| `groupfolder:<id>` | one team folder — the same files for every member (Team Folders app) |
+| `storage:<raw id>` | one storage by its raw ID, exactly as `oc_storages` spells it: external storage, or anything the forms above cannot say |
+| `*` | everything: every storage there is, external storage and team folders included |
 
-The value is split at its **first** colon, so a raw storage id containing further colons or slashes
+The value is split at its **first** colon, so a raw storage ID containing further colons or slashes
 (`smb::user@host//share/`) needs no escaping. `home:*` and `*` are deliberately spelled out rather
 than abbreviated: what a rule reaches should be readable without knowing a convention.
 
@@ -367,19 +368,19 @@ order of specificity:
 
 | Band | Selector addresses | Enforced |
 |------|--------------------|----------|
-| 1 | one user's home, or one storage | yes |
-| 2 | one group's members, or one group folder | yes |
+| 1 | one account's home folder, or one storage | yes |
+| 2 | one group's members, or one team folder | yes |
 | 3 | every home folder | yes |
 | 4 | everything | yes |
-| 5 | one user's home, or one storage | no |
-| 6 | one group's members, or one group folder | no |
+| 5 | one account's home folder, or one storage | no |
+| 6 | one group's members, or one team folder | no |
 | 7 | every home folder | no |
 | 8 | everything | no |
 
-Enforced beats unenforced; within each half, specific beats general. So no user rule can outrun one
-an administrator enforced, while a user rule *can* override the non-enforced defaults below it —
-which is what leaving a rule unenforced offers. Group folders rank with groups rather than with
-individuals: a shared thing sits next to shared things, and since a group folder's files are never
+Enforced beats unenforced; within each half, specific beats general. So no personal rule can come
+before one an administrator enforced, while a personal rule *can* override the non-enforced defaults
+below it — which is what leaving a rule unenforced offers. Team folders rank with groups rather than
+with individuals: a shared thing sits next to shared things, and since a team folder's files are never
 anybody's home folder, the placement costs nothing in matching. A rule changes band by changing its
 selector or its enforced flag, not by being moved.
 
@@ -392,9 +393,9 @@ selector and its enforced flag, and the position is the rule's index **within it
 
 A **segment** is one selector value *inside one band* — so the same selector's enforced and
 unenforced rules are different segments and number independently — and rules only ever compete
-inside one. Two users' own rules never race for a file, so the list never asks you to rank them
-against each other; the same holds for two group folders, or two storages. Two segments that share
-a band both start at position 1, which is why `6.1` can appear twice: once per group folder.
+inside one. Two accounts' personal rules never race for a file, so the list never asks you to rank
+them against each other; the same holds for two team folders, or two storages. Two segments that
+share a band both start at position 1, which is why `6.1` can appear twice: once per team folder.
 
 Within every segment, rules whose path is a bare catch-all form a **defaults partition** at the end.
 Three spellings count as bare: `**`, `/`, and the empty string — they all mean "everything this
@@ -408,12 +409,12 @@ than accepting a move that would change a rule's standing behind your back. To m
 different band, change its selector or its enforced flag.
 
 There is no keyboard equivalent to the drag yet. Everything else on the rules page — creating,
-editing, enabling, deleting, re-applying — is reachable without a pointer; only reordering is not.
+editing, enabling, deleting, reapplying — is reachable without a pointer; only reordering is not.
 
 ### Defaults, and what is not covered
 
 Two rules ship with the app, both **disabled**: `home:*` with path `**` (every home folder — the
-safe one to enable), and `*` with path `**` (every storage there is, external mounts and group
+safe one to enable), and `*` with path `**` (every storage there is, external storage and team
 folders included — its own deliberate decision). They are ordinary rules: editable, and deletable.
 A repair step recreates a missing one, still disabled, so deleting one is reversible housekeeping
 rather than a decision you cannot take back:
@@ -429,20 +430,21 @@ without the app version changing — any working copy tracking the repository be
 where Nextcloud never enters the upgrade path and the step has therefore not run.
 
 The rules table ends with a row for every namespace that has **no catch-all of its own**: each
-group folder, each addressable storage, all home folders, and everything. Each such row offers to
-create that namespace's rule. Nothing is written by looking at the page — the rows are a view, and
-configuration appears only when you save one. A rule naming a provider that is gone (a group folder
-rule after the app was disabled, or one naming a deleted folder) is badged *provider missing*: it
-is inert by construction, and saying so beats leaving you to wonder why it never matches.
+team folder, each addressable storage, all home folders, and everything. Each such row's **Add
+rule** opens the dialog with that namespace's catch-all. Nothing is written by looking at the page —
+the rows are a view, and configuration appears only when you save one. A rule naming a team folder
+that is gone (after the app was disabled, or when the folder was deleted) is badged *folder
+missing*: it is inert by construction, and saying so beats leaving you to wonder why it never
+matches.
 
 Each rule combines:
 
 | Field | Description |
 |-------|-------------|
 | `enabled` | Whether the rule is active |
-| `selector` | Which slice of the file universe the rule addresses (see above) |
+| `selector` | Which files the rule addresses — its scope (see above) |
 | `path` | A path glob (Symfony Finder `**` syntax), e.g. `**/*.pdf`. A bare `**`, `/` or empty value makes the rule its segment's default |
-| `algos` | One or more of the algorithms this instance allows — `GET /api/v1/algorithms`, or admin settings → *Hash Algorithms*. Shipped default: `sha1`, `md5`, `adler32`, `crc32`, `sha256`, `sha384`, `sha512`, `sha3-256`, `sha3-384`, `sha3-512` |
+| `algos` | One or more of the algorithms this instance allows — `GET /api/v1/algorithms`, or admin settings → *Checksum algorithms*. Shipped default: `sha1`, `md5`, `adler32`, `crc32`, `sha256`, `sha384`, `sha512`, `sha3-256`, `sha3-384`, `sha3-512` |
 | `mode` | How outdated hashes are handled (see below) |
 | `admin_enforced` | Whether users may edit the rule (admin-only lock) |
 | `type` | `include` (default), `ignore`, or `exclude` — see below |
@@ -462,7 +464,7 @@ reads the file eventually — even `lazy` mode only defers the read to the backg
 
 An `ignore` or `exclude` rule computes nothing, so it stores no algorithms and no mode. What a
 verdict can override depends on where its rule sits: an admin-enforced exclude is a mandate no
-user rule can undo, while a user's own exclude only overrides the defaults below it.
+personal rule can undo, while a personal exclude only overrides the defaults below it.
 
 ### Modes
 
@@ -481,13 +483,13 @@ A rule may carry any of the four. The `hash` command's `--mode` accepts only `mi
 
 There is a single global list of rules. Administrators edit all rules and can lock individual rules with the **admin-enforced** flag. Rule-editing permission is configured in admin settings via three options:
 
-- **Allow all users to edit rules**
+- **Allow all accounts to edit rules**
 - **Groups** — group IDs allowed to edit rules
-- **Users** — user IDs allowed to edit rules
+- **Accounts** — account IDs allowed to edit rules
 
-Users may create and edit rules when they are in an enabled group/user list (or editing is enabled
-for everyone) **and** the rule's path is in a folder they can write to *on their own home storage*.
-A path leading into a received share, a group folder or any other mounted storage is refused with
+Accounts may create and edit rules when they are in an enabled group/account list (or editing is
+enabled for everyone) **and** the rule's path is in a folder they can write to *on their own home
+storage*. A path leading into a received share, a team folder or any other mounted storage is refused with
 the reason: a personal rule is `home:<uid>`, and by the identity rules above it could never match
 those files — those answer to their owner's rules, or to the folder's own. Rules marked
 `admin_enforced` are shown to users as read-only, and the `admin_enforced` and `selector` fields are
@@ -591,16 +593,16 @@ Features:
 - Filter by algorithm (SHA-1, MD5, SHA-256, SHA-512, SHA3-256, SHA3-512, CRC32)
 - Set minimum duplicate count and result limit
 - Expandable groups showing file paths
-- Filter by hash, matching at the start of the checksum or anywhere in it
-- **Verify all** on a group and **Verify** on a file row, recalculating from file content and flagging mismatches — asked for per group or per file, since reading files costs time and, on metered storage, money; a group is sent in requests of 25 files
-- An **Others** tab for administrators and group leaders: other accounts' duplicates, each row saying whose file it is and where it lives, verifiable in place, and linked only where the viewer could open it
+- Filter by hash, matching at its start or — with **Match anywhere in the hash** — anywhere in it
+- **Verify all** on a group and **Verify** on a file row, recalculating from file content and flagging mismatches — asked for per group or per file, since reading files costs time and, on metered storage, money; a group is sent in requests of 25 files; shown only to an account that may recalculate checksums
+- An **Others** tab for those allowed to look across accounts, and for group admins: other accounts' duplicates, each row saying whose file it is and where it lives, verifiable in place, and linked only where the viewer could open it
 - The address bar as the search: the tab, the filters, the page and — on *Others* — whose files ride in the fragment, so a search can be bookmarked or handed to a colleague
 
 ![The Others tab on one hash over the whole reach: the viewer's own copies behind a house, another account's behind a person][shot-duplicates-others]
 
 The files sidebar also includes a **"Find duplicates"** button that shows files sharing hash values with the currently selected file, and — for an account that may look across accounts — **"Find across accounts"**, which opens the Duplicates page's *Others* tab on the file's hash.
 
-![The Checksums tab of the file sidebar: the hashes, the Recalculate buttons, Find duplicates and Find across accounts][shot-file-detail-pane]
+![The Checksums tab of the file sidebar: the checksums, the Recalculate buttons, Find duplicates and Find across accounts][shot-file-detail-pane]
 
 ## Public API (v1)
 
@@ -628,7 +630,7 @@ Basic Auth, or Bearer token.
 Every file row carries `owner` and `location` beside `path`. The reads and the
 two recalculations have twins under `/api/v1/sudo/` that answer for the caller's
 whole reach — every account for an administrator, their groups' members for a
-group leader — behind a password confirmation; those rows also say whether the
+group admin — behind a password confirmation; those rows also say whether the
 caller could open them (`openable`). See
 [Cross-account routes](docs/api-v1.md#cross-account-routes).
 
@@ -683,26 +685,31 @@ Navigate to **Administration settings → Additional settings → File Checksum 
 The admin settings page provides:
 
 - **An idle banner** — shown while no enabled `include` rule exists, saying that automatic hashing
-  is off, that sidebar recalculation still works, and that the home-folders default covers home
-  folders only. *Acknowledged* silences it until hashing is switched on and off again
+  is off, that sidebar recalculation still works, and that the *All home folders* default covers
+  home folders only. **Acknowledge** hides it until an `include` rule is enabled and then disabled
+  again
 - **Hash generation rules** — one banded table in evaluation order: create, edit (the pen, or the
-  row menu), enable/disable, re-apply, and delete; drag to reorder within a segment; rows for
-  namespaces without a rule of their own
-- **Hash Algorithms** — which algorithms this server computes, chosen from what its PHP provides,
+  row menu), enable/disable, reapply, and delete; drag to reorder among the rules of the same scope;
+  rows, each with **Add rule**, for namespaces without a rule of their own
+- **Checksum algorithms** — which algorithms this server computes, chosen from what its PHP provides,
   and which of them is the default. Every picker in the app offers exactly these
 - **Permissions** — a tab of its own, four sections in one shape (allow everyone, or the groups and
-  users chosen; members of `admin` always may):
-  - **Who may calculate by hand** — who may trigger a computation of their own files, from the
-    sidebar or the API, on top of owning them; reading what is already computed is untouched
-  - **Who may edit rules** — who may create and edit rules for folders they can write to
-  - **Who may look across accounts** — the sudoers; a password confirmation is asked each time, this
-    only says who may be asked
+  accounts chosen; members of `admin` always may):
+  - **Who may recalculate checksums** — who may recalculate checksums by hand, from the sidebar,
+    the Duplicates page's **Verify** buttons or the API, for any file they can reach; without it
+    neither the sidebar nor the Duplicates page shows the buttons. Reading what is already
+    computed is not affected
+  - **Who may edit rules** — who may create and edit rules for folders in their own files that they
+    can write to
+  - **Who may look across accounts** — the sudoers; a group admin may also look at the members of
+    the groups they administer. Looking still needs a password confirmation, which holds for 30
+    minutes, or a granted app password; this only says who may be asked
   - **Who may use the API** — who may call the public routes with an app password or other
     credentials; the bundled pages keep working for everyone
 - **Sudo tokens** — a tab: every app password on the instance granted the cross-account routes
   without a password prompt, against the live token table, with revoke
-- **Advanced** — a tab: app version, indexed hash count, pending updates by mode, the *Untrusted
-  Hashes* total with its reasons (eroded, reset), and each background job's last run with its counts;
+- **Advanced** — a tab: app version, indexed checksum count, queued files by mode, the *Untrusted
+  checksums* total with its reasons (eroded, reset), and each background job's last run with its counts;
   plus the instance's tunables, the first being how many accounts and groups the cross-account
   picker prefills (21) before it searches server-side instead
 - **Documentation** — the last tab: in-app access to the FAQ, the user guide, README, API specs, and
@@ -740,8 +747,8 @@ their outdated hashes were dropped (see [When hashes go away](#when-hashes-go-aw
 counts them, and coverage heals them.
 
 **A rule never matches.** Check its band and its selector: a higher band may be claiming the files
-first, and a rule addressing a group folder whose app is disabled is badged *provider missing*
-because it cannot match at all. `file-checksum-search:hash --user=<uid> -vv` names the rule that
+first, and a rule addressing a team folder that is gone, or whose app is disabled, is badged
+*folder missing* because it cannot match at all. `file-checksum-search:hash --user=<uid> -vv` names the rule that
 decided each file.
 
 **I want to start over, or move an instance.** `occ fcias:backup` writes out everything the app

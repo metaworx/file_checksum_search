@@ -93,7 +93,7 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 			canSudo.value = data.canSudo === true
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') return
-			error.value = t('file_checksum_search', 'Failed to load checksums.')
+			error.value = t('file_checksum_search', 'Could not load the checksums.')
 		} finally {
 			loading.value = false
 		}
@@ -141,11 +141,11 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 				// the reader to the wrong page.
 				recalcErrorMessage.value = result.excluded
 					? refusedBy(result.ruleOwner)
-					: result.error || t('file_checksum_search', 'Recalculation failed.')
+					: result.error || t('file_checksum_search', 'Could not recalculate the checksum.')
 			}
 		} catch {
 			recalcError.value = algo
-			recalcErrorMessage.value = t('file_checksum_search', 'Recalculation failed.')
+			recalcErrorMessage.value = t('file_checksum_search', 'Could not recalculate the checksum.')
 		} finally {
 			recalculating.value = null
 		}
@@ -170,7 +170,7 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 			const data = (await response.json()) as { duplicates?: DuplicateGroup[] }
 			duplicates.value = data.duplicates || []
 		} catch {
-			dupError.value = t('file_checksum_search', 'Failed to load duplicates.')
+			dupError.value = t('file_checksum_search', 'Could not load the duplicates.')
 			duplicates.value = []
 		} finally {
 			searching.value = false

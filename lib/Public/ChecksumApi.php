@@ -277,7 +277,8 @@ class ChecksumApi
 
 		if ( $hash === '' )
 		{
-			throw new \InvalidArgumentException( $this->l10n->t( 'Hash parameter is required.' ) );
+			// TRANSLATORS: "hash" is a parameter name; keep it
+			throw new \InvalidArgumentException( $this->l10n->t( 'The "hash" parameter is required.' ) );
 		}
 
 		$limit = max( 1, min( $limit, 500 ) );
@@ -633,7 +634,7 @@ class ChecksumApi
 	 *         `excluded` says a rule refused the file rather than anything
 	 *         going wrong, and names the rule in `ruleId` and whose it is in
 	 *         `ruleOwner` — `admin`, or a uid; `forbidden` says
-	 *         the account may not calculate by hand. The REST layer
+	 *         the account may not recalculate checksums. The REST layer
 	 *         answers 403 for either and 400 for every other failure.
 	 */
 	public function recalcHash(
@@ -660,7 +661,7 @@ class ChecksumApi
 		{
 			return [
 				'success'   => false,
-				'error'     => $this->l10n->t( 'This account may not calculate by hand.' ),
+				'error'     => $this->l10n->t( 'This account may not recalculate checksums.' ),
 				'forbidden' => true,
 			];
 		}
@@ -1057,7 +1058,7 @@ class ChecksumApi
 
 		if ( ! $isAdmin && ! $this->permissionService->canUserEditRules( (string) $requestingUser ) )
 		{
-			throw new InvalidArgumentException( $this->l10n->t( 'This user may not edit rules.' ) );
+			throw new InvalidArgumentException( $this->l10n->t( 'This account may not edit rules.' ) );
 		}
 
 		$validated = $this->definitionValidator->definitionFrom(
@@ -1097,7 +1098,7 @@ class ChecksumApi
 
 		if ( ! $this->mayMutate( $requestingUser, $existing ) )
 		{
-			throw new InvalidArgumentException( $this->l10n->t( 'This user may not change this rule.' ) );
+			throw new InvalidArgumentException( $this->l10n->t( 'This account may not change this rule.' ) );
 		}
 
 		$validated = $this->definitionValidator->definitionFrom(
@@ -1136,7 +1137,7 @@ class ChecksumApi
 
 		if ( ! $this->mayMutate( $requestingUser, $existing ) )
 		{
-			throw new InvalidArgumentException( $this->l10n->t( 'This user may not change this rule.' ) );
+			throw new InvalidArgumentException( $this->l10n->t( 'This account may not change this rule.' ) );
 		}
 
 		$this->ruleService->ruleDelete( $id, $requestingUser ?? self::TRUSTED_ACTOR );
@@ -1161,7 +1162,7 @@ class ChecksumApi
 
 		if ( ! $this->mayMutate( $requestingUser, $existing ) )
 		{
-			throw new InvalidArgumentException( $this->l10n->t( 'This user may not apply this rule.' ) );
+			throw new InvalidArgumentException( $this->l10n->t( 'This account may not apply this rule.' ) );
 		}
 
 		return $this->ruleService->applyRule(

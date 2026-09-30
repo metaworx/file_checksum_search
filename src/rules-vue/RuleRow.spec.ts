@@ -183,7 +183,7 @@ describe('RuleRow', () => {
 
 	// --- actions menu ---
 
-	it('offers Re-apply for an enabled include rule and emits apply', async () => {
+	it('offers Reapply for an enabled include rule and emits apply', async () => {
 		const wrapper = mount(RuleRow, { props: { rule: makeRule(), variant: 'admin' } })
 
 		expect(await hasAction(wrapper, 'apply')).toBe(true)
@@ -192,7 +192,7 @@ describe('RuleRow', () => {
 		expect(wrapper.emitted('apply')).toHaveLength(1)
 	})
 
-	it('hides Re-apply for a disabled rule', async () => {
+	it('hides Reapply for a disabled rule', async () => {
 		const wrapper = mount(RuleRow, { props: { rule: makeRule({ enabled: false }), variant: 'admin' } })
 
 		// The server refuses a disabled rule at submission; the menu simply
@@ -201,7 +201,7 @@ describe('RuleRow', () => {
 		expect(await hasAction(wrapper, 'toggle')).toBe(true)
 	})
 
-	it('hides Re-apply for rules that compute nothing', async () => {
+	it('hides Reapply for rules that compute nothing', async () => {
 		for (const type of ['ignore', 'exclude'] as const) {
 			const wrapper = mount(RuleRow, { props: { rule: makeRule({ type }), variant: 'admin' } })
 			expect(await hasAction(wrapper, 'apply')).toBe(false)
@@ -231,7 +231,7 @@ describe('RuleRow', () => {
 		const wrapper = mount(RuleRow, { props: { rule: makeRule({ selector: 'groupfolder:99' }), variant: 'admin', providerMissing: true } })
 		const badge = wrapper.find('.fcias-provider-missing')
 		expect(badge.exists()).toBe(true)
-		expect(badge.text()).toBe('provider missing')
+		expect(badge.text()).toBe('folder missing')
 		expect(badge.attributes('title')).toContain('can never match')
 		// In the Scope cell, after the name, as the cell's last element.
 		const cell = badge.element.parentElement as HTMLElement

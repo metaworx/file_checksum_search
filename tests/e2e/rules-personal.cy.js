@@ -281,7 +281,7 @@ describe( 'FCIAS for a user who is not an administrator', () => {
 				.should( 'exist' )
 		} )
 
-		it( 'offers Add Rule only while she is permitted to write one', () => {
+		it( 'offers Add rule only while she is permitted to write one', () => {
 			cy.visit( PERSONAL_URL )
 			cy.get( '#fcias-personal-add', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 

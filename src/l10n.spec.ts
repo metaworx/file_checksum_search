@@ -31,7 +31,7 @@ describe('the German translation', () => {
 
 	it('fills a placeholder', () => {
 		load('de')
-		expect(t(APP, 'Band {band}', { band: 3 })).toBe('Ebene 3')
+		expect(t(APP, 'Band {band}', { band: 3 })).toBe('Segment 3')
 	})
 
 	it('takes the plural form the count asks for', () => {
@@ -66,7 +66,7 @@ describe('the German translation', () => {
 
 	it('shows an ampersand as it is', () => {
 		load('de')
-		expect(t(APP, 'Groups & group folders')).toBe('Gruppen & Team-Ordner')
+		expect(t(APP, 'Groups & team folders')).toBe('Gruppen & Team-Ordner')
 	})
 
 	// de is Nextcloud's informal German and de_DE its formal one.

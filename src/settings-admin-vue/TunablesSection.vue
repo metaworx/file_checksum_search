@@ -22,7 +22,7 @@ import { t } from '../l10n'
 
 const OC = window.OC as unknown as { requestToken: string }
 
-const HELP = t('file_checksum_search', 'Below this many, the picker opens with every account and group it may offer already in the list. Above it, the list would be unwieldy, so the picker asks the server as you type. Applies to administrators and group leaders alike.')
+const HELP = t('file_checksum_search', 'Up to this many, the picker opens with every account and group it may offer already in the list. Above it, the picker asks the server as you type instead. Applies to administrators and group admins alike.')
 
 const prefillLimit = ref(21)
 const saved = ref(21)
@@ -81,12 +81,13 @@ onMounted(load)
 	<div v-if="loaded" id="fcias-tunables" class="fcias-section">
 		<h4>{{ t('file_checksum_search', 'Tunables') }}</h4>
 		<p class="fcias-hint">
-			{{ t('file_checksum_search', 'Numbers that shape how the interface behaves. The defaults suit most instances.') }}
+			{{ t('file_checksum_search', 'Numbers that shape how the interface behaves. The defaults suit most servers.') }}
 		</p>
 		<div class="fcias-field-row">
 			<span class="fcias-label">
+				<!-- TRANSLATORS: prefill: fill the list of the picker before anything is typed -->
 				<label for="fcias-prefill-limit">{{ t('file_checksum_search', 'Cross-account picker: prefill up to') }}</label>
-				<HelpPopover :text="HELP" :label="t('file_checksum_search', 'Prefill limit')" />
+				<HelpPopover :text="HELP" :label="t('file_checksum_search', 'Cross-account picker: prefill up to')" />
 			</span>
 		</div>
 		<div class="fcias-field-row">

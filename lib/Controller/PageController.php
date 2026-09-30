@@ -85,7 +85,7 @@ class PageController
 						// The guide users are shown on their own settings
 						// page. An administrator answering a question about it
 						// should be reading the same words they are.
-						'label' => $this->l10n->t( 'User Guide' ),
+						'label' => $this->l10n->t( 'User guide' ),
 						'name'  => 'docs/user-guide.md',
 						'path'  => 'docs/user-guide.md',
 					],
@@ -137,7 +137,7 @@ class PageController
 						'path'  => 'docs/FAQ.md',
 					],
 					[
-						'label' => $this->l10n->t( 'User Guide' ),
+						'label' => $this->l10n->t( 'User guide' ),
 						'name'  => 'docs/user-guide.md',
 						'path'  => 'docs/user-guide.md',
 					],

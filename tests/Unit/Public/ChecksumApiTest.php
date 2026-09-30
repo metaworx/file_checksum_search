@@ -503,7 +503,7 @@ class ChecksumApiTest
 	public function testFindByHashThrowsOnEmptyHash(): void
 	{
 		$this->expectException( InvalidArgumentException::class );
-		$this->expectExceptionMessage( 'Hash parameter is required.' );
+		$this->expectExceptionMessage( 'The "hash" parameter is required.' );
 
 		$this->api->findByHash( '', null );
 	}

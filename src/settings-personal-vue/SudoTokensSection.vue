@@ -45,7 +45,8 @@ const loaded = ref(false)
 const failure = ref<string | null>(null)
 const busy = ref<number | null>(null)
 
-const HELP = t('file_checksum_search', 'A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password — a standing authorisation, listed for every administrator to see. Create the app password on Security first; only one allowed to access files can be granted. Who may look across accounts is still decided by the sudoers permission; a grant replaces the prompt, not the permission.')
+// TRANSLATORS: "Security" and "Allow filesystem access" are Nextcloud's own names; use Nextcloud's translations. Keep /api/v1/sudo/ as it is
+const HELP = t('file_checksum_search', 'A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password. A grant stays in force until it is revoked, and every administrator can see it. Create the app password under "Security" first, with "Allow filesystem access" on. Whether you may look across accounts at all is still up to your administrator; a grant replaces the password prompt, not the permission.')
 
 function take(data: Listing): void {
 	tokens.value = data.tokens ?? []
@@ -53,20 +54,21 @@ function take(data: Listing): void {
 		canUseApi.value = data.canUseApi
 	}
 	failure.value = data.available === false
-		? t('file_checksum_search', 'Your app passwords could not be listed: the token table could not be read.')
+		? t('file_checksum_search', 'Could not list your app passwords: they could not be read.')
 		: null
 }
 
 /** The switch's caption: whether, and since when, the password is granted. */
 function switchLabel(token: TokenRow): string {
 	return token.granted
+		// TRANSLATORS: {time} is the date and time the app password was granted
 		? t('file_checksum_search', 'Granted {time}', { time: when(token.granted_at) })
 		: t('file_checksum_search', 'Not granted')
 }
 
 /** Why a switch is disabled, on hover; nothing while it is not. */
 function switchTitle(token: TokenRow): string {
-	return token.filesystem ? '' : t('file_checksum_search', 'This app password is kept out of the filesystem and cannot be granted file reads.')
+	return token.filesystem ? '' : t('file_checksum_search', 'This app password has no filesystem access, so it cannot be granted.')
 }
 
 async function load(): Promise<void> {
@@ -80,7 +82,7 @@ async function load(): Promise<void> {
 		take((await response.json()) as Listing)
 	} catch (e) {
 		// Not "no app passwords yet": that would be an answer, and this is not.
-		failure.value = t('file_checksum_search', 'Your app passwords could not be listed ({error}).', { error: (e as Error).message })
+		failure.value = t('file_checksum_search', 'Could not list your app passwords ({error}).', { error: (e as Error).message })
 	} finally {
 		loaded.value = true
 	}
@@ -116,7 +118,7 @@ async function toggle(token: TokenRow, granted: boolean): Promise<void> {
 			toastError(data.error || t('file_checksum_search', 'Could not change the grant.'))
 		}
 	} catch (e) {
-		toastError(t('file_checksum_search', 'Request failed.'))
+		toastError(t('file_checksum_search', 'Could not complete the request.'))
 	} finally {
 		busy.value = null
 	}
@@ -140,7 +142,8 @@ onMounted(load)
 			{{ failure }}
 		</p>
 		<p v-else-if="tokens.length === 0" class="fcias-hint" data-testid="fcias-sudo-tokens-empty">
-			{{ t('file_checksum_search', 'No app passwords yet. Create one under “Security”, then grant it here.') }}
+			<!-- TRANSLATORS: "Security" is Nextcloud's personal settings section; use Nextcloud's own translation -->
+			{{ t('file_checksum_search', 'No app passwords yet. Create one under "Security", then grant it here.') }}
 		</p>
 		<table v-else class="grid fcias-rules-table" data-testid="fcias-sudo-tokens">
 			<thead>

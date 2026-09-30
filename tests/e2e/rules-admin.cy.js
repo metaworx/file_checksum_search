@@ -30,7 +30,7 @@ const FIND_TIMEOUT = 60000
 const ADMIN_URL = '/index.php/settings/admin/file_checksum_search'
 
 // A group folder id nothing owns, so the rule naming it is inert by
-// construction — which is what the "provider missing" badge is for.
+// construction — which is what the "folder missing" badge is for.
 const GONE_GROUP_FOLDER = 99
 
 // The rules the admin page sees. `scope=all` rather than the default
@@ -348,7 +348,7 @@ describe( 'FCIAS admin rules', () => {
 		cy.get( '.fcias-provider-missing', { timeout: FIND_TIMEOUT } ).should( 'be.visible' )
 	} )
 
-	it( 'offers Re-apply only where it can succeed', () => {
+	it( 'offers Reapply only where it can succeed', () => {
 		visitAdmin()
 		cy.get( '#fcias-rules-list tr[data-band="7"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 
@@ -359,7 +359,7 @@ describe( 'FCIAS admin rules', () => {
 
 		// A reload rather than dismissing the popover: NcActions leaves the
 		// popper it opened in the DOM, so asserting that the *next* menu has
-		// no Re-apply would keep finding the previous one's.
+		// no Reapply would keep finding the previous one's.
 		cy.reload()
 		cy.get( '#fcias-rules-list tr[data-band="8"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 

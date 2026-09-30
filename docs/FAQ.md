@@ -30,10 +30,10 @@ Key features:
 ## How are checksums computed and stored?
 
 FCIAS computes whichever algorithms the administrator allows, chosen from what the
-server's PHP provides (admin settings → *Hash Algorithms*). Out of the box that is
+server's PHP provides (admin settings → *Checksum algorithms*). Out of the box that is
 `sha1`, `md5`, `adler32`, `crc32`, `sha256`, `sha384`, `sha512`, `sha3-256`, `sha3-384`
 and `sha3-512`; `GET /api/v1/algorithms` lists what is in force. Removing an
-algorithm stops new hashes being computed under it — hashes already stored stay
+algorithm stops new checksums being computed under it — checksums already stored stay
 searchable. Names are limited to `[a-z0-9-]`, because they double as metadata keys.
 
 For each file, the configured algorithm(s) produce a hex digest of the file
@@ -112,28 +112,29 @@ rules and leaves both disabled: one addressing every home folder, one
 addressing every storage there is. Until one of them — or a rule you write —
 is enabled, the app computes nothing on its own; the admin settings page says
 so in a banner, and manual recalculation from the files sidebar keeps working
-regardless. Enabling the home-folders rule is the safe first step; the
-universal one also reaches external storage and group folders, which is why it
-is a separate, deliberate switch.
+regardless. Enabling the *All home folders* rule is the safe first step; the
+universal one, *Everything*, also reaches external storage and team folders,
+which is why it is a separate, deliberate switch.
 
 Rules control which files get hashes, with which algorithms, and when — each
 file is handled by the first matching rule, evaluated in order, and that
 decision is final: there is no fall-through to a later rule.
 
-Every rule names what it addresses in one field, its **selector**: one user's
-home (`home:<uid>`), a group's members (`group:<gid>`), every home folder
-(`home:*`), one group folder (`groupfolder:<id>`), one storage by its raw id
-(`storage:<id>`), or everything (`*`). Which file a rule is talking about is
+Every rule names what it addresses in one field, its **selector** — the
+**Scope** in the rule dialog: one account's home folder (`home:<uid>`), a
+group's members (`group:<gid>`), every home folder (`home:*`), one team folder
+(`groupfolder:<id>`), one storage by its raw ID (`storage:<id>`), or
+everything (`*`). Which file a rule is talking about is
 decided by where the file really lives, not by who is touching it: editing a
 file shared with you is governed by its **owner's** rules, under the owner's
 path.
 
 The order follows from what each rule *is*, not from where anyone put it.
 Rules fall into eight **bands**: the four degrees of specificity above —
-one user or one storage, one group or one group folder, all home folders,
+one account or one storage, one group or one team folder, all home folders,
 everything — first as administrator-enforced rules (bands 1–4), then as
 unenforced ones (bands 5–8). Enforced beats unenforced; within each half,
-specific beats general. So no rule of a user's own can outrun one an
+specific beats general. So no personal rule can come before one an
 administrator enforced, while it *can* override a default — which is what
 leaving a rule unenforced offers.
 
@@ -146,16 +147,19 @@ catch-all.
 
 A rule *is* that catch-all when its path is a bare `**`, a `/`, or left
 empty — all three mean the same "everything this selector reaches", and all
-three sink to the end of their segment. That is why a rule you write for a
+three sink to the end of the rules sharing their selector in that band. That
+is why a rule you write for a
 scope you already have a catch-all on lands above it without dragging.
 
 A rule can also say *not* to hash — `ignore` stops automatic hashing while
 still allowing it on request, and `exclude` blocks it entirely, including the
 sidebar's Recalculate button and the `occ` command. Whether a person may ask
-by hand at all is a permission of its own, *Who may calculate by hand* on
-the admin page's *Permissions* tab: it gates triggering a computation on top of owning the file,
-ships allowed, and hides the sidebar's buttons for an account it does not
-name rather than offering them to fail. See
+by hand at all is a permission of its own, *Who may recalculate checksums* on
+the admin page's *Permissions* tab: it gates recalculating by hand — the
+sidebar's *Recalculate* buttons, the Duplicates page's *Verify* and *Verify
+all*, and the API's recalculation routes — for any file the account can reach,
+ships allowed, and hides the sidebar's and the Duplicates page's buttons for an
+account it does not name rather than offering them to fail. See
 [README.md § Hash Generation Rules](../README.md#hash-generation-rules) for
 the full field and band reference, the rule types, and the mode table
 (`auto`, `missing`, `force`, `lazy`), and
@@ -286,9 +290,10 @@ examples, versioning policy, and error handling.
 
 There is a single global list of rules. Administrators edit all rules and
 can lock individual rules with the **admin-enforced** flag; a locked rule is
-shown to users as read-only. Whether a given user can create/edit rules at
-all is configured in admin settings (allow-all toggle, groups, users), and
-is further limited to rules whose path they can write to.
+shown to everyone else as read-only. Whether a given account can create/edit
+rules at all is configured in admin settings (allow-all switch, groups,
+accounts), and is further limited to folders in their own files that they can
+write to.
 
 Personal settings shows a user every rule that can decide one of their files,
 not only the ones they may change: the enforced rules above their own and the
@@ -306,16 +311,16 @@ again, and the page says so beneath the select while that is the case.
 For an account the *Who may use the API* permission names, the page also
 lists their app passwords under *Sudo tokens*, each with a switch granting it
 the `/api/v1/sudo/` routes without a password prompt — for a script, which
-cannot confirm one. A grant is a standing authorisation: it costs the user's
-password to make, it is only offered on an app password allowed to access
-files, and every grant on the instance is on your admin page's *Sudo tokens*
+cannot confirm one. A grant is a standing authorization: it costs the account's
+password to make, it is only offered on an app password with *Allow filesystem
+access* on, and every grant on the instance is on your admin page's *Sudo tokens*
 tab, where you can revoke any of them. It replaces the prompt, not the
 permission: whether that account may look across accounts at all is still
 *Who may look across accounts*.
 
 `admin_enforced` and `selector` are never trusted from a user's own request —
 the server always decides them, and a personal rule is always `home:<uid>`. A
-path leading into a received share or a group folder is refused outright: such
+path leading into a received share or a team folder is refused outright: such
 a rule could never match, since those files answer to their owner's rules or to
 the folder's own. See
 [README.md § Rule-editing permissions](../README.md#rule-editing-permissions-admin_enforced)
@@ -365,23 +370,23 @@ The admin settings page's **Advanced** tab is where the rest shows. Four
 rows answer four different questions, and it is worth knowing which one you are
 reading:
 
-- **Indexed Hashes** — how many the index holds. Zero with rules enabled means
+- **Indexed checksums** — how many the index holds. Zero with rules enabled means
   the work has not happened yet, not that it failed.
-- **Untrusted Hashes** — files whose stored hashes are not to be believed, with
-  a breakdown by reason. *Eroded* means they were dropped on write because no
-  rule maintains the file any more, and heals itself once a rule covers it
-  again. *Reset* means they are still stored but disowned, already hidden from
-  search, waiting for the background job or an import.
-- **Background Jobs** — each job's last run and its counts: the *Rule sweep*,
+- **Untrusted checksums** — files whose stored checksums are not to be believed,
+  with a breakdown by reason. *Eroded* means the file changed while no rule
+  maintained its checksums, so they were deleted; it gets them back once a rule
+  covers it again. *Reset* means they are still stored but disowned, already
+  hidden from search, waiting for the background job or an import.
+- **Background jobs** — each job's last run and its counts: the *Rule sweep*,
   the *Queue drain*, and the *Orphan purge*, which rides the sweep once a day
   (`orphan_purge_interval`, seconds) to forget files that no longer exist and
-  runs at once after a user is deleted. The timestamp is the point: a job that
+  runs at once after an account is deleted. The timestamp is the point: a job that
   stopped running is invisible until someone notices its clock has not moved.
-- **Last Updated** — when the page itself last asked, not when anything was
+- **Last updated** — when the page itself last asked, not when anything was
   hashed.
 
 If pending entries accumulate, ensure Nextcloud's background jobs (cron) are
-running — that is what the Background Jobs clock tells you — and
+running — that is what the Background jobs clock tells you — and
 `ProcessPendingUpdates` drains the queue every 60 seconds. You can also hash on
 demand:
 
@@ -407,7 +412,7 @@ Run `php occ fcias:status` for the app version, database version, index
 status, pending stats and the background jobs' last runs. The admin
 settings page's **Advanced** tab shows the same:
 
-![The Advanced tab: Status Info with the index counts and the background jobs' last runs, then the tunables][shot-admin-advanced]
+![The Advanced tab: Status with the index counts and the background jobs' last runs, then the tunables][shot-admin-advanced]
 
 <!-- BEGIN GENERATED RELEASE-PIN - do not edit; run "changelog.sh cut" -->
 [shot-admin-advanced]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.20.3/docs/Screenshots/Admin-Advanced.png

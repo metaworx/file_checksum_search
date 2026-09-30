@@ -136,7 +136,7 @@ paths:
       description: >-
         Trigger checksum recalculation for a file. Reads the file content and recomputes the hash.
         Refused with 403 when an `exclude` rule covers the file, or when the account may not
-        calculate by hand (the *manual_recalc* permission; members of `admin` always may).
+        recalculate checksums (the *manual_recalc* permission; members of `admin` always may).
       operationId: recalcHash
       parameters:
         - name: fileId
@@ -803,7 +803,7 @@ paths:
         From a non-administrator, `selector` is forced to `home:<caller>` and
         `admin_enforced` to false whatever the payload says. A
         non-administrator must also have write access to the path on their own
-        home storage: a path leading into a received share, a group folder or
+        home storage: a path leading into a received share, a team folder or
         another mounted storage is refused, since such a rule could never
         match.
       tags: [rules]
@@ -996,7 +996,7 @@ components:
         error:
           type: string
           description: Human-readable error message
-          example: "Hash parameter is required."
+          example: "The \"hash\" parameter is required."
 
     HashLookupResponse:
       type: object
@@ -1079,7 +1079,7 @@ components:
           example: sha1
         canRecalc:
           type: boolean
-          description: "Whether the asking account may calculate by hand (the *manual_recalc* permission); the sidebar hides its Recalculate buttons when false."
+          description: "Whether the asking account may recalculate checksums by hand (the *manual_recalc* permission); the sidebar hides its Recalculate buttons when false."
           example: true
         canSudo:
           type: boolean
@@ -1161,6 +1161,10 @@ components:
           example: 1
         pagination:
           $ref: "#/components/schemas/Pagination"
+        canRecalc:
+          type: boolean
+          description: "On the ordinary and the cross-account listing: whether the caller may recalculate checksums by hand (the *manual_recalc* permission; members of `admin` always may) — whether the Duplicates page offers Verify and Verify all."
+          example: true
         canSudo:
           type: boolean
           description: "On the ordinary listing: whether the caller may look across accounts at all — whether the Duplicates page shows its Others tab."
@@ -1290,7 +1294,7 @@ components:
                     description: "`admin`, or the uid whose home the rule is on."
                   forbidden:
                     type: boolean
-                    description: The acting account may not calculate by hand.
+                    description: The acting account may not recalculate checksums.
         remaining:
           type: array
           items:
@@ -1452,6 +1456,10 @@ components:
           type: array
           items:
             type: string
+        defaultAlgo:
+          type: string
+          description: The instance's default algorithm, one of `supportedAlgos` — what a new rule starts from, as a rule created without `algos` gets it.
+          example: sha1
         modes:
           type: array
           items:
@@ -1529,7 +1537,7 @@ components:
         A policy refusal, one of two: an `exclude` rule covers this file, so it
         must not be read at all and a manual recalculation is refused along with
         every automatic route (`excluded: true`, with the rule in `ruleId`); or
-        the account may not calculate by hand — the *manual_recalc*
+        the account may not recalculate checksums — the *manual_recalc*
         permission, which members of `admin` always hold (`forbidden: true`).
         The request is well-formed and retrying will not help, which is why this
         is 403 rather than 400. An `ignore` rule does not produce this response —
@@ -1569,7 +1577,7 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
           example:
-            error: "Hash parameter is required."
+            error: "The \"hash\" parameter is required."
 
     NotFound:
       description: Resource not found

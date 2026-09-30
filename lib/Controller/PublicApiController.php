@@ -104,7 +104,7 @@ class PublicApiController
 		if ( $user === null )
 		{
 			return new DataResponse(
-				[ 'success' => false, 'error' => $this->l10n->t( 'Not authenticated.' ) ],
+				[ 'success' => false, 'error' => $this->l10n->t( 'Not logged in.' ) ],
 				Http::STATUS_UNAUTHORIZED,
 			);
 		}
@@ -112,7 +112,7 @@ class PublicApiController
 		if ( ! $this->lockdown->canAccessFilesystem() )
 		{
 			return new DataResponse(
-				[ 'success' => false, 'error' => $this->l10n->t( 'This app password may not access files.' ) ],
+				[ 'success' => false, 'error' => $this->l10n->t( 'This app password has no filesystem access.' ) ],
 				Http::STATUS_FORBIDDEN,
 			);
 		}
@@ -440,7 +440,7 @@ class PublicApiController
 
 		if ( $uid === null )
 		{
-			return new DataResponse( [ 'error' => $this->l10n->t( 'Not authenticated.' ) ], Http::STATUS_UNAUTHORIZED );
+			return new DataResponse( [ 'error' => $this->l10n->t( 'Not logged in.' ) ], Http::STATUS_UNAUTHORIZED );
 		}
 
 		if ( $key !== ConfigLexicon::USER_PREFERRED_ALGORITHM )
@@ -465,7 +465,7 @@ class PublicApiController
 
 		if ( $uid === null )
 		{
-			return new DataResponse( [ 'error' => $this->l10n->t( 'Not authenticated.' ) ], Http::STATUS_UNAUTHORIZED );
+			return new DataResponse( [ 'error' => $this->l10n->t( 'Not logged in.' ) ], Http::STATUS_UNAUTHORIZED );
 		}
 
 		if ( $key !== ConfigLexicon::USER_PREFERRED_ALGORITHM )
@@ -479,6 +479,7 @@ class PublicApiController
 
 		if ( ! is_string( $value ) )
 		{
+			// TRANSLATORS: value is a parameter name; keep it
 			return new DataResponse( [ 'error' => $this->l10n->t( 'value must be a string.' ) ], Http::STATUS_BAD_REQUEST );
 		}
 
@@ -495,7 +496,7 @@ class PublicApiController
 		else
 		{
 			return new DataResponse(
-				[ 'error' => $this->l10n->t( 'Not an algorithm this instance computes: %s', [ $value ] ) ],
+				[ 'error' => $this->l10n->t( 'Algorithm not allowed on this server: %s', [ $value ] ) ],
 				Http::STATUS_BAD_REQUEST,
 			);
 		}
@@ -1200,6 +1201,7 @@ class PublicApiController
 		if ( $fileIds === [] )
 		{
 			return new DataResponse(
+				// TRANSLATORS: fileIds is a parameter name; keep it
 				[ 'success' => false, 'error' => $this->l10n->t( 'fileIds must be a non-empty list of integers.' ) ],
 				Http::STATUS_BAD_REQUEST,
 			);

@@ -22,7 +22,7 @@ const EXPECTED: Array<[LocationKind, string, string]> = [
 	['user', ICON_ACCOUNT, 'One account\'s home folder'],
 	['group', ICON_ACCOUNT_GROUP, 'The home folders of a group\'s members'],
 	['homeAll', ICON_HOME_GROUP, 'All home folders'],
-	['groupfolder', ICON_FOLDER_ACCOUNT, 'A group folder'],
+	['groupfolder', ICON_FOLDER_ACCOUNT, 'A team folder'],
 	['storage', ICON_HARDDISK, 'A storage'],
 	['universal', ICON_ASTERISK, 'Everything'],
 ]

@@ -24,42 +24,46 @@ import { t } from '../l10n'
 /** The words each permission section shows; the component is the same. */
 const PERMISSION_HELP = {
 	rule_editing: {
-		allowAll: t('file_checksum_search', 'When on, every user of this instance may create and edit rules for folders they can write to. When off, that permission is limited to the groups and individual users you select.'),
-		groups: t('file_checksum_search', 'Members of these groups may create and edit rules for folders they can write to. Selected groups and selected users are combined — being in either is enough.'),
-		users: t('file_checksum_search', 'Individual users who may create and edit rules for folders they can write to, in addition to the members of any selected groups.'),
+		allowAll: t('file_checksum_search', 'When on, every account may create and edit rules for folders in their own files that they can write to. When off, only the groups and individual accounts you select may.'),
+		groups: t('file_checksum_search', 'Members of these groups may create and edit rules for folders in their own files that they can write to. Selected groups and selected accounts are combined — being in either is enough.'),
+		users: t('file_checksum_search', 'Individual accounts that may create and edit rules for folders in their own files that they can write to, in addition to the members of any selected groups.'),
 	},
 	manual_recalc: {
-		allowAll: t('file_checksum_search', 'When on, every user may trigger a computation of their own files by hand. When off, only the groups and individual users selected here may; everyone still sees the hashes already computed.'),
-		groups: t('file_checksum_search', 'Members of these groups may trigger a computation of their own files by hand. Selected groups and selected users are combined — being in either is enough.'),
-		users: t('file_checksum_search', 'Individual users who may trigger a computation of their own files by hand, in addition to the members of any selected groups.'),
+		allowAll: t('file_checksum_search', 'When on, every account may recalculate checksums by hand. When off, only the groups and individual accounts selected here may; everyone still sees the checksums already computed.'),
+		groups: t('file_checksum_search', 'Members of these groups may recalculate checksums by hand. Selected groups and selected accounts are combined — being in either is enough.'),
+		users: t('file_checksum_search', 'Individual accounts that may recalculate checksums by hand, in addition to the members of any selected groups.'),
 	},
 	api_access: {
-		allowAll: t('file_checksum_search', 'When on, every user may call the public API with an app password. When off, only the groups and individual users selected here may; the app\'s own pages keep working for everyone.'),
-		groups: t('file_checksum_search', 'Members of these groups may call the public API with an app password. Selected groups and selected users are combined — being in either is enough.'),
-		users: t('file_checksum_search', 'Individual users who may call the public API with an app password, in addition to the members of any selected groups.'),
+		allowAll: t('file_checksum_search', 'When on, every account may call the public API with an app password. When off, only the groups and individual accounts selected here may; the app\'s own pages keep working for everyone.'),
+		groups: t('file_checksum_search', 'Members of these groups may call the public API with an app password. Selected groups and selected accounts are combined — being in either is enough.'),
+		users: t('file_checksum_search', 'Individual accounts that may call the public API with an app password, in addition to the members of any selected groups.'),
 	},
 	instance_view: {
-		allowAll: t('file_checksum_search', 'When on, every user may switch to the instance-wide view after confirming their password. When off, only members of the admin group and the groups and users selected here may.'),
-		groups: t('file_checksum_search', 'Members of these groups may look across accounts once they have confirmed their password. Selected groups and selected users are combined — being in either is enough.'),
-		users: t('file_checksum_search', 'Individual users who may look across accounts once they have confirmed their password, in addition to the members of any selected groups and of the admin group.'),
+		allowAll: t('file_checksum_search', 'When on, every account may look across all accounts after confirming their password. When off, only members of the admin group and the groups and accounts selected here may.'),
+		groups: t('file_checksum_search', 'Members of these groups may look across accounts once they have confirmed their password. Selected groups and selected accounts are combined — being in either is enough.'),
+		users: t('file_checksum_search', 'Individual accounts that may look at other accounts\' files once they have confirmed their password, in addition to the members of any selected groups and of the admin group.'),
 	},
 }
 
 /** The idle banner's text, whole sentences so a translation can reorder them. */
 const IDLE_BANNER = {
 	lead: t('file_checksum_search', 'Automatic hashing is inactive.'),
-	body: t('file_checksum_search', 'No enabled include rule exists, so no file is hashed until one says so — enable the “All home folders” default in the table below, or create a rule. Manual recalculation from the file sidebar keeps working either way.'),
-	scope: t('file_checksum_search', 'The home-folders default covers home folders only: files on external storage and in group folders are reached only by the “Everything” default or by their own group-folder or storage rules.'),
+	// TRANSLATORS: "All home folders" is a scope as the rule table shows it, "Include" a rule type as the dialog shows it; translate them as those do
+	body: t('file_checksum_search', 'No "Include" rule is enabled, so no file is hashed automatically. Enable the "All home folders" default in the table below, or add a rule. Recalculating by hand from the file sidebar still works.'),
+	// TRANSLATORS: "All home folders" and "Everything" are scopes as the rule table shows them; translate them as those do
+	scope: t('file_checksum_search', 'The "All home folders" default covers home folders only: files on external storage and in team folders are reached only by the "Everything" default or by their own team-folder or storage rules.'),
 }
 
 /** The sections' explanations, too long to sit in the template. */
 const HINTS = {
 	algorithms: t('file_checksum_search', 'Which algorithms this server computes, from what its PHP provides, and which of them is the default. Rules may only use these, and every picker in the app offers exactly these.'),
-	rules: t('file_checksum_search', 'Which algorithms are computed for which files, on real-time file events.'),
-	order: t('file_checksum_search', 'Evaluated top to bottom — the first matching rule decides the file. A rule\'s band follows from its scope and whether it is enforced, so enforced rules always precede users\' own rules, and the catch-all default is last. Drag a rule by its handle to reorder it within its band; to move it between bands, change its scope or its Enforced flag.'),
-	manualRecalc: t('file_checksum_search', 'Triggering a computation of one\'s own files — the sidebar\'s Recalculate buttons and the API\'s recalc route — on top of owning them. Reading what is already computed is untouched; an account not named here simply does not see the buttons.'),
-	ruleEditing: t('file_checksum_search', 'Creating and editing rules for folders one can write to. An administrator always may; a rule an administrator has enforced is read-only for everyone else regardless.'),
-	instanceView: t('file_checksum_search', 'The sudoers: members of the admin group always, plus the groups and users selected here. Looking across accounts still costs a password confirmation each time; this only says who may be asked.'),
+	rules: t('file_checksum_search', 'Which files get checksums, with which algorithms, and which are left alone. Rules act when a file is created or changed, and a background job applies them to existing files after a few minutes.'),
+	// TRANSLATORS: "Enforced" is a field of the rule dialog and a column of the rule table; translate it as those do
+	order: t('file_checksum_search', 'Evaluated top to bottom — the first matching rule decides the file. A rule\'s band follows from its scope and whether it is enforced, so enforced rules always precede personal rules, and the catch-all default is last. Drag a rule by its handle to reorder it among the rules of the same scope; to move it to another band, change its scope or its "Enforced" setting.'),
+	// TRANSLATORS: "Recalculate" is a button of the file sidebar, "Verify" and "Verify all" buttons of the Duplicates page; translate them as those buttons do
+	manualRecalc: t('file_checksum_search', 'Recalculating checksums by hand: the sidebar\'s "Recalculate" buttons, "Verify" and "Verify all" on the Duplicates page, and the API\'s recalculation routes, for any file the account can reach. Reading checksums already computed is not affected. Without this permission neither the sidebar nor the Duplicates page shows the buttons, and the API refuses the request.'),
+	ruleEditing: t('file_checksum_search', 'Creating and editing rules for folders in one\'s own files that one can write to. An administrator always may; a rule an administrator has enforced is read-only for everyone else regardless.'),
+	instanceView: t('file_checksum_search', 'The sudoers: members of the admin group always, plus the groups and accounts selected here. A group admin may also look at the members of the groups they administer without being selected. Looking across accounts still needs a password confirmation, which holds for 30 minutes, or a granted app password; this only says who may be asked.'),
 	apiAccess: t('file_checksum_search', 'Scripts and other apps calling this app\'s public API with an app password. The bundled pages — this one, the Duplicates page, the file sidebar — keep working for everyone; this decides who may reach the same routes from outside them.'),
 }
 
@@ -115,7 +119,8 @@ const showIdleBanner = computed(
 
 async function handleAcknowledgeBanner(): Promise<void> {
 	if (await acknowledgeIdleBanner()) {
-		toastSuccess(t('file_checksum_search', 'Noted — the banner stays away until a rule is enabled and disabled again.'))
+		// TRANSLATORS: "Include" is a rule type as the rule dialog shows it; translate it as that does
+		toastSuccess(t('file_checksum_search', 'Noted — the banner stays hidden until an "Include" rule is enabled and then disabled again.'))
 	}
 }
 
@@ -152,12 +157,12 @@ const pendingTotal = (stats: Record<string, number> = {}) => Object.values(stats
  */
 const STALE_REASONS: Record<string, { label: string, hint: string }> = {
 	'stale:eroded': {
-		// TRANSLATORS: the state of hashes dropped because no rule maintains them any more
+		// TRANSLATORS: the state of checksums deleted because no rule maintains them any more
 		label: t('file_checksum_search', 'Eroded'),
-		hint: t('file_checksum_search', 'hashes were dropped on write because no rule maintains them; heals itself once a rule covers them again'),
+		hint: t('file_checksum_search', 'the file changed while no rule maintained its checksums, so they were deleted; it gets them back once a rule covers it again'),
 	},
 	'stale:reset': {
-		// TRANSLATORS: the state of hashes a reset has made invalid; a past participle, not the action
+		// TRANSLATORS: the state of checksums a reset has made invalid; a past participle, not the action
 		label: t('file_checksum_search', 'Reset'),
 		hint: t('file_checksum_search', 'invalidated by a reset: already hidden from search, and pending deletion by the background job'),
 	},
@@ -167,19 +172,23 @@ const staleReason = (state: string) => STALE_REASONS[state] ?? { label: state, h
 
 /** Display names for the background jobs' heartbeat lines (D17). */
 const JOB_LABELS: Record<string, string> = {
+	// TRANSLATORS: a background job's name: every few minutes it applies the rules to the files and queues those that need checksums
 	rule_sweep: t('file_checksum_search', 'Rule sweep'),
+	// TRANSLATORS: a background job's name: it computes the checksums of the queued files
 	pending_drain: t('file_checksum_search', 'Queue drain'),
+	// TRANSLATORS: a background job's name: it removes the checksums of files that no longer exist
 	orphan_purge: t('file_checksum_search', 'Orphan purge'),
 	// TRANSLATORS: a background job's name: it copies the checksums Nextcloud already holds into this app's index.
 	filecache_backfill: t('file_checksum_search', 'Checksum copy'),
-	// TRANSLATORS: a background job's name: it checks that every stored hash can be found by a search, and fixes what cannot.
-	hash_index_check: t('file_checksum_search', 'Hash index check'),
+	// TRANSLATORS: a background job's name: it checks that every stored checksum can be found by a search, and fixes what cannot.
+	hash_index_check: t('file_checksum_search', 'Checksum index check'),
 }
 
 const jobRows = computed(() => Object.entries(status.value.jobs ?? {}).map(([key, run]) => ({
 	key,
 	label: JOB_LABELS[key] ?? key,
-	time: run.lastRun === null ? t('file_checksum_search', 'never ran yet') : new Date(run.lastRun * 1000).toLocaleString(),
+	// TRANSLATORS: when a background job last ran: not at all
+	time: run.lastRun === null ? t('file_checksum_search', 'Not run yet') : new Date(run.lastRun * 1000).toLocaleString(),
 	countsText: run.lastRun === null
 		? ''
 		: Object.entries(run.counts).map(([name, value]) => `${name} ${value}`).join(', '),
@@ -252,21 +261,21 @@ async function handleSaveRule(draft: RuleDraft): Promise<void> {
 		closeRuleForm()
 		toastSuccess(t('file_checksum_search', 'Rule saved.'))
 	} else {
-		saveError.value = result.error || t('file_checksum_search', 'Saving failed.')
+		saveError.value = result.error || t('file_checksum_search', 'Could not save the rule.')
 	}
 }
 
 function handleDeleteRule(rule: Rule): void {
 	OC.dialogs.confirm(
 		t('file_checksum_search', 'Delete this rule?'),
-		t('file_checksum_search', 'Confirm Delete'),
+		t('file_checksum_search', 'Delete rule'),
 		(confirmed: boolean) => {
 			if (!confirmed) return
 			deleteRule(rule.id).then((result) => {
 				if (result.success) {
 					toastSuccess(t('file_checksum_search', 'Rule deleted.'))
 				} else {
-					ruleMsg.value = result.error || t('file_checksum_search', 'Delete failed.')
+					ruleMsg.value = result.error || t('file_checksum_search', 'Could not delete the rule.')
 				}
 			})
 		},
@@ -277,16 +286,16 @@ function handleDeleteRule(rule: Rule): void {
 async function handleReorder(payload: { selector: string; defaults: boolean; orderedIds: Array<Rule['id']> }): Promise<void> {
 	const result = await reorderSegment(payload.selector, payload.defaults, payload.orderedIds)
 	if (!result.success) {
-		ruleMsg.value = result.error || t('file_checksum_search', 'Reorder failed.')
+		ruleMsg.value = result.error || t('file_checksum_search', 'Could not reorder the rules.')
 	}
 }
 
 async function handleApplyRule(rule: Rule): Promise<void> {
 	const result = await applyRule(rule.id)
 	if (result.success) {
-		toastSuccess(t('file_checksum_search', 'Re-apply queued — the background job takes it from here.'))
+		toastSuccess(t('file_checksum_search', 'Reapply queued — a background job will go through the rule\'s files.'))
 	} else {
-		ruleMsg.value = result.error || t('file_checksum_search', 'Re-apply failed.')
+		ruleMsg.value = result.error || t('file_checksum_search', 'Could not reapply the rule.')
 	}
 }
 
@@ -295,7 +304,7 @@ async function handleToggleRule(rule: Rule): Promise<void> {
 	if (result.success) {
 		toastSuccess(rule.enabled ? t('file_checksum_search', 'Rule disabled.') : t('file_checksum_search', 'Rule enabled.'))
 	} else {
-		ruleMsg.value = result.error || t('file_checksum_search', 'Toggle failed.')
+		ruleMsg.value = result.error || t('file_checksum_search', 'Could not enable or disable the rule.')
 	}
 }
 
@@ -380,7 +389,7 @@ loadRules().then(() => {
 				</p>
 				<div class="fcias-idle-banner-actions">
 					<NcButton data-action="banner-ack" @click="handleAcknowledgeBanner">
-						<!-- TRANSLATORS: a button: hides the banner until a rule is enabled and disabled again -->
+						<!-- TRANSLATORS: a button: hides the banner until an include rule is enabled and then disabled again -->
 						{{ t('file_checksum_search', 'Acknowledge') }}
 					</NcButton>
 					<NcButton data-action="banner-close" variant="tertiary" @click="bannerClosed = true">
@@ -390,7 +399,7 @@ loadRules().then(() => {
 			</NcNoteCard>
 
 			<div class="fcias-section">
-				<h4>{{ t('file_checksum_search', 'Hash Algorithms') }}</h4>
+				<h4>{{ t('file_checksum_search', 'Checksum algorithms') }}</h4>
 				<p class="fcias-hint">
 					{{ HINTS.algorithms }}
 				</p>
@@ -426,7 +435,7 @@ loadRules().then(() => {
 				</div>
 
 				<button id="fcias-btn-add-rule" class="fcias-btn" @click="openAddRule">
-					{{ t('file_checksum_search', 'Add Rule') }}
+					{{ t('file_checksum_search', 'Add rule') }}
 				</button>
 				<RuleForm
 					v-if="showRuleForm"
@@ -459,13 +468,13 @@ loadRules().then(() => {
 			class="fcias-tab-panel"
 			role="tabpanel">
 			<div class="fcias-section">
-				<h4>{{ t('file_checksum_search', 'Who may calculate by hand') }}</h4>
+				<h4>{{ t('file_checksum_search', 'Who may recalculate checksums') }}</h4>
 				<p class="fcias-hint">
 					{{ HINTS.manualRecalc }}
 				</p>
 				<PermissionSection
 					permission="manual_recalc"
-					:switch-label="t('file_checksum_search', 'Allow all users to calculate by hand')"
+					:switch-label="t('file_checksum_search', 'Allow all accounts to recalculate checksums')"
 					:help="PERMISSION_HELP.manual_recalc" />
 			</div>
 
@@ -476,7 +485,7 @@ loadRules().then(() => {
 				</p>
 				<PermissionSection
 					permission="rule_editing"
-					:switch-label="t('file_checksum_search', 'Allow all users to edit rules')"
+					:switch-label="t('file_checksum_search', 'Allow all accounts to edit rules')"
 					:help="PERMISSION_HELP.rule_editing" />
 			</div>
 
@@ -487,7 +496,7 @@ loadRules().then(() => {
 				</p>
 				<PermissionSection
 					permission="instance_view"
-					:switch-label="t('file_checksum_search', 'Allow all users to look across accounts')"
+					:switch-label="t('file_checksum_search', 'Allow all accounts to look across accounts')"
 					:help="PERMISSION_HELP.instance_view" />
 			</div>
 
@@ -498,7 +507,7 @@ loadRules().then(() => {
 				</p>
 				<PermissionSection
 					permission="api_access"
-					:switch-label="t('file_checksum_search', 'Allow all users to use the API')"
+					:switch-label="t('file_checksum_search', 'Allow all accounts to use the API')"
 					:help="PERMISSION_HELP.api_access" />
 			</div>
 		</div>
@@ -513,7 +522,7 @@ loadRules().then(() => {
 			role="tabpanel">
 			<div class="fcias-section">
 				<h4 class="fcias-status-header">
-					<span>{{ t('file_checksum_search', 'Status Info') }}</span>
+					<span>{{ t('file_checksum_search', 'Status') }}</span>
 					<button id="fcias-btn-refresh-status"
 						class="fcias-btn"
 						@click="loadStatus">
@@ -526,25 +535,26 @@ loadRules().then(() => {
 				<table class="grid fcias-status-table">
 					<tbody>
 						<tr>
-							<td>{{ t('file_checksum_search', 'App Version') }}</td>
+							<td>{{ t('file_checksum_search', 'App version') }}</td>
 							<td id="fcias-status-version">
 								{{ status.version || '—' }}
 							</td>
 						</tr>
 						<tr>
-							<td>{{ t('file_checksum_search', 'Database Version') }}</td>
+							<td>{{ t('file_checksum_search', 'Database version') }}</td>
 							<td id="fcias-status-dbversion">
 								{{ status.dbVersion || '—' }}
 							</td>
 						</tr>
 						<tr>
-							<td>{{ t('file_checksum_search', 'Indexed Hashes') }}</td>
+							<td>{{ t('file_checksum_search', 'Indexed checksums') }}</td>
 							<td id="fcias-status-rowcount">
 								{{ status.rowCount || 0 }}
 							</td>
 						</tr>
 						<tr>
-							<td>{{ t('file_checksum_search', 'Pending Updates') }}</td>
+							<!-- TRANSLATORS: files waiting for the background job to compute their checksums, counted by mode -->
+							<td>{{ t('file_checksum_search', 'Queued files') }}</td>
 							<td id="fcias-status-pending">
 								<template v-if="pendingTotal(status.pendingStats) === 0">
 									{{ t('file_checksum_search', 'Total: {count}', { count: 0 }) }}<br>
@@ -559,7 +569,7 @@ loadRules().then(() => {
 							</td>
 						</tr>
 						<tr>
-							<td>{{ t('file_checksum_search', 'Untrusted Hashes') }}</td>
+							<td>{{ t('file_checksum_search', 'Untrusted checksums') }}</td>
 							<td id="fcias-status-untrusted">
 								<template v-if="pendingTotal(status.staleStats) === 0">
 									{{ t('file_checksum_search', 'Total: {count}', { count: 0 }) }}<br>
@@ -575,7 +585,7 @@ loadRules().then(() => {
 							</td>
 						</tr>
 						<tr>
-							<td>{{ t('file_checksum_search', 'Background Jobs') }}</td>
+							<td>{{ t('file_checksum_search', 'Background jobs') }}</td>
 							<td id="fcias-status-jobs">
 								<div v-if="jobRows.length" class="fcias-job-grid">
 									<template v-for="job in jobRows" :key="job.key">
@@ -590,7 +600,7 @@ loadRules().then(() => {
 							</td>
 						</tr>
 						<tr>
-							<td>{{ t('file_checksum_search', 'Last Updated') }}</td>
+							<td>{{ t('file_checksum_search', 'Last updated') }}</td>
 							<td id="fcias-status-lastupdated">
 								<div class="fcias-job-grid">
 									<span />
