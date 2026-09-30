@@ -12,6 +12,7 @@
 	<summary lang="nl">Indexeert controlesommen van bestanden om bestanden op hash te vinden en duplicaten te herkennen, met REST-, CLI- en PHP-API's</summary>
 	<summary lang="pl">Indeksuje sumy kontrolne plików, aby znajdować pliki po hashu i wykrywać duplikaty, z interfejsami REST, CLI i PHP</summary>
 	<summary lang="pt-br">Indexa somas de verificação de arquivos para encontrá-los por hash e detectar duplicatas, com APIs REST, CLI e PHP</summary>
+	<summary lang="zh-hans">为文件校验和建立索引，以便按哈希值查找文件并检测重复文件，提供 REST、CLI 和 PHP API</summary>
 	<description>Indexes file checksums, so a file can be found by its checksum, and its duplicates at once.
 
 What you get:
@@ -145,6 +146,22 @@ O que você recebe:
 - Armazenamento no próprio índice de metadados de arquivos do Nextcloud: sem tabelas personalizadas, nada a migrar.
 
 *Tradução automática: os textos do aplicativo neste idioma ainda não foram revisados por um falante nativo.*
+
+*Machine-translated: the app's texts in this language have not yet been reviewed by a native speaker.*
+</description>
+	<description lang="zh-hans">为文件校验和建立索引，这样就能按校验和找到文件，并同时找到它的重复文件。
+
+功能一览：
+
+- 按哈希值的**统一搜索**：粘贴校验和，即可找到文件。
+- 文件详情中的**校验和**选项卡：列出为该文件存储的每个校验和，可按需重新计算，并直接列出其重复文件。
+- **重复文件**页面：您拥有的每一组相同文件；对于有权跨账号查看的人，还包括其他账号的文件。
+- **规则**决定对什么进行哈希计算以及何时计算：可针对整个服务器或单个账号，按路径表达式设定，在后台计算。
+- 稳定的 **REST API (v1)** 和稳定的 **PHP API**，供其他应用和集成使用。
+- 用于哈希计算、搜索、重复文件、规则、备份和导入的 **occ 命令**。
+- 存储于 Nextcloud 自身的文件元数据索引中：无需自定义数据表，无需迁移。
+
+*机器翻译：此应用在本语言中的文本尚未经过母语人士审校。*
 
 *Machine-translated: the app's texts in this language have not yet been reviewed by a native speaker.*
 </description>
