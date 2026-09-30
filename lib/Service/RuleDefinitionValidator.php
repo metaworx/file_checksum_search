@@ -157,7 +157,7 @@ readonly class RuleDefinitionValidator
 			throw new InvalidArgumentException( $this->l10n->t( 'selector must be a non-empty string.' ) );
 		}
 
-		$selector = Selector::parse( $value );
+		$selector = Selector::parseInput( $value, $this->l10n );
 
 		switch ( $selector->kind )
 		{

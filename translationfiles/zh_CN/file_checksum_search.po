@@ -513,6 +513,9 @@ msgstr "上次使用"
 msgid "Lazy (delete checksums now, recalculate later)"
 msgstr "延后（立即删除校验和，稍后重新计算）"
 
+msgid "Listing every rule requires administrator rights."
+msgstr "列出所有规则需要管理员权限。"
+
 msgid "Loading checksums …"
 msgstr "正在加载校验和…"
 
@@ -592,6 +595,11 @@ msgstr "没有授权。"
 
 msgid "No other files share checksums with this file."
 msgstr "没有其他文件与此文件的校验和相同。"
+
+#. TRANSLATORS: %s is the rule's ID, 32 hexadecimal characters
+#, php-format
+msgid "No rule with ID \"%s\"."
+msgstr "没有 ID 为 \"%s\" 的规则。"
 
 msgid "No rules apply to your files."
 msgstr "没有适用于您文件的规则。"
@@ -813,6 +821,11 @@ msgstr "选择文件夹…"
 msgid "Select groups …"
 msgstr "选择群组…"
 
+#. TRANSLATORS: %s is the selector as it was sent, such as home:alice
+#, php-format
+msgid "Selector \"%s\" is missing its target."
+msgstr "选择器 \"%s\" 缺少目标。"
+
 msgid "Settings"
 msgstr "设置"
 
@@ -902,6 +915,9 @@ msgstr "请求未能到达服务器。"
 msgid "The rule addresses the home folder of every member of this group."
 msgstr "此规则针对该群组中每个成员的主目录。"
 
+msgid "The rules to reorder do not match the rules here. Reload them and try again."
+msgstr "要重新排序的规则与此处的规则不一致。请重新加载后再试一次。"
+
 #. TRANSLATORS: {status} is an HTTP status, such as "404 Not Found"
 msgid "The server answered {status}."
 msgstr "服务器返回了 {status}。"
@@ -981,6 +997,16 @@ msgstr "未知的规则模式。"
 
 msgid "Unknown rule type."
 msgstr "未知的规则类型。"
+
+#. TRANSLATORS: %s is the selector as it was sent
+#, php-format
+msgid "Unknown selector \"%s\"."
+msgstr "未知的选择器 \"%s\"。"
+
+#. TRANSLATORS: %s is the part of a selector before its colon, such as "home" in home:alice
+#, php-format
+msgid "Unknown selector kind \"%s\"."
+msgstr "未知的选择器类型 \"%s\"。"
 
 msgid "Untrusted checksums"
 msgstr "不可信的校验和"
@@ -1082,6 +1108,9 @@ msgstr "是"
 msgid "You are not allowed to edit rules. Contact an administrator."
 msgstr "您无权编辑规则。请联系管理员。"
 
+msgid "You are not allowed to manage this rule."
+msgstr "您无权管理此规则。"
+
 msgid "You may only reorder your own rules."
 msgstr "您只能对自己的规则重新排序。"
 
@@ -1101,6 +1130,10 @@ msgstr "fileIds 必须是非空的整数列表。"
 #. TRANSLATORS a badge on a rule whose team folder is not available
 msgid "folder missing"
 msgstr "文件夹缺失"
+
+#. TRANSLATORS: group:* and home:* are selectors as they are typed; keep them
+msgid "group:* is not a selector. Name one group, or use home:* for every account."
+msgstr "group:* 不是选择器。请指定一个群组，或使用 home:* 表示所有账号。"
 
 #. TRANSLATORS: "groupfolder:" is the selector's prefix as it is typed; keep it
 msgid "groupfolder: takes the numeric folder ID."
@@ -1126,6 +1159,18 @@ msgstr "没有自己的规则：其文件交由更通用的规则处理（如果
 #. TRANSLATORS: the checksum a file has now, after verification found it changed
 msgid "now: {hash}"
 msgstr "当前：{hash}"
+
+#. TRANSLATORS: orderedIds is a parameter name; keep it
+msgid "orderedIds is required and must be an array."
+msgstr "orderedIds 为必填项，且必须是数组。"
+
+#. TRANSLATORS: scope is a parameter name, and "own" and "all" are its values; keep them
+msgid "scope must be \"own\" or \"all\"."
+msgstr "scope 必须是 \"own\" 或 \"all\"。"
+
+#. TRANSLATORS: selector is a parameter name; keep it
+msgid "selector is required."
+msgstr "selector 为必填项。"
 
 #. TRANSLATORS: selector is a parameter name; keep it
 msgid "selector must be a non-empty string."

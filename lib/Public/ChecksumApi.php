@@ -16,6 +16,7 @@ use OCP\Config\IUserConfig;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\HintedInvalidArgumentException;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCA\FileChecksumSearch\Service\PermissionService;
@@ -1186,12 +1187,21 @@ class ChecksumApi
 			throw new InvalidArgumentException( $this->l10n->t( 'This account may not apply this rule.' ) );
 		}
 
-		return $this->ruleService->applyRule(
-			$existing,
-			null,
-			null,
-			$requestingUser ?? self::TRUSTED_ACTOR,
-		);
+		try
+		{
+			return $this->ruleService->applyRule(
+				$existing,
+				null,
+				null,
+				$requestingUser ?? self::TRUSTED_ACTOR,
+			);
+		}
+		catch ( HintedInvalidArgumentException $e )
+		{
+			// This API's refusals are in the caller's language, as the
+			// others above are; the English stays with the previous.
+			throw new InvalidArgumentException( $e->hint, $e->getCode(), $e );
+		}
 	}
 
 	/** The audit actor named for mutations by trusted (null-user) callers. */
@@ -1206,7 +1216,8 @@ class ChecksumApi
 
 		if ( $rule === null )
 		{
-			throw new InvalidArgumentException( sprintf( 'No rule with ID "%s".', $id ) );
+			// TRANSLATORS: %s is the rule's ID, 32 hexadecimal characters
+			throw new InvalidArgumentException( $this->l10n->t( 'No rule with ID "%s".', [ $id ] ) );
 		}
 
 		return $rule;

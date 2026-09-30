@@ -65,7 +65,7 @@ class RepairQuietStart
 	 * was queued.
 	 */
 	private const WHERE_TO_WATCH = '; its progress shows under Administration settings → '
-		. 'File Checksum Index & Search → Advanced → Status Info, and in occ fcias:status.';
+		. 'File Checksum Index & Search → Advanced → Status, and in occ fcias:status.';
 
 	private const LEGACY_SEED_JOB = 'OCA\\FileChecksumSearch\\BackgroundJob\\SeedPendingUpdates';
 

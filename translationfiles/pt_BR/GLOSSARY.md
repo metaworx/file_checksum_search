@@ -31,6 +31,7 @@ term that changes, changes here and in the `.po` file at once.
 | position | posição | a rule's place among the rules of the same scope in its band |
 | priority | prioridade | |
 | scope | escopo | Nextcloud's settings term; *entre as regras do mesmo escopo* |
+| selector | seletor | a scope as the API writes it, `home:alice`; the parameter name `selector` is typed as it is |
 | place (a storage, a team folder, all home folders) | local, locais | what has, or lacks, a catch-all rule of its own |
 | enforced | imposta, impostas | a rule; the field in the form is “Imposta” |
 | catch-all rule | regra abrangente | kept apart from *regra mais geral* (a more general rule); the default one is *regra padrão abrangente* |

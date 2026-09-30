@@ -37,6 +37,9 @@ the first stable release.
   `findByHash()`, `getHashesByFileId()`, `findSameHash()`,
   `recalcHash()` and `recalcMany()`; a positional call breaks.
 
+- The REST API's `error` texts and `ChecksumApi`'s refusals: reworded,
+  and in the caller's language; match on the status, never the text.
+
 - The texts: one word for each thing (account, team folder, checksum),
   help texts that say what the app does, and the app's summary and
   description to match.

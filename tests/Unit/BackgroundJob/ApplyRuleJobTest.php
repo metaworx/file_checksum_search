@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\BackgroundJob;
 
 use OCA\FileChecksumSearch\BackgroundJob\ApplyRuleJob;
+use OCA\FileChecksumSearch\Service\HintedInvalidArgumentException;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -135,5 +136,34 @@ class ApplyRuleJobTest
 		$this->runJob( [ 'ruleId' => 'r1' ] );
 
 		$this->addToAssertionCount( 1 );
+	}
+
+	/**
+	 * The log reads English whatever language the refusal was translated
+	 * into: RuleService's message, not its hint.
+	 */
+	public function testARefusalIsLoggedInEnglish(): void
+	{
+		$this->ruleService->method( 'findRuleById' )
+		                  ->willReturn( [ 'id' => 'r1' ] )
+		;
+		$this->ruleService->method( 'applyRule' )
+		                  ->willThrowException(
+			                  new HintedInvalidArgumentException( 'A disabled rule cannot be applied — enable it first.', '«translated»' ),
+		                  )
+		;
+
+		$this->logger->expects( $this->once() )
+		             ->method( 'error' )
+		             ->with(
+			             $this->anything(),
+			             $this->callback(
+				             static fn( array $context ): bool => $context['exception']->getMessage()
+					             === 'A disabled rule cannot be applied — enable it first.',
+			             ),
+		             )
+		;
+
+		$this->runJob( [ 'ruleId' => 'r1' ] );
 	}
 }

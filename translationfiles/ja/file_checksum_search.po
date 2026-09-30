@@ -513,6 +513,9 @@ msgstr "最終使用"
 msgid "Lazy (delete checksums now, recalculate later)"
 msgstr "遅延（チェックサムを今すぐ削除し、後で再計算）"
 
+msgid "Listing every rule requires administrator rights."
+msgstr "すべてのルールを一覧表示するには管理者権限が必要です。"
+
 msgid "Loading checksums …"
 msgstr "チェックサムを読み込み中…"
 
@@ -592,6 +595,11 @@ msgstr "承認はありません。"
 
 msgid "No other files share checksums with this file."
 msgstr "このファイルと同じチェックサムを持つ他のファイルはありません。"
+
+#. TRANSLATORS: %s is the rule's ID, 32 hexadecimal characters
+#, php-format
+msgid "No rule with ID \"%s\"."
+msgstr "ID \"%s\"のルールはありません。"
 
 msgid "No rules apply to your files."
 msgstr "あなたのファイルに適用されるルールはありません。"
@@ -813,6 +821,11 @@ msgstr "フォルダーを選択…"
 msgid "Select groups …"
 msgstr "グループを選択…"
 
+#. TRANSLATORS: %s is the selector as it was sent, such as home:alice
+#, php-format
+msgid "Selector \"%s\" is missing its target."
+msgstr "セレクター\"%s\"には対象が指定されていません。"
+
 msgid "Settings"
 msgstr "設定"
 
@@ -902,6 +915,9 @@ msgstr "リクエストがサーバーに届きませんでした。"
 msgid "The rule addresses the home folder of every member of this group."
 msgstr "このルールは、このグループのすべてのメンバーのホームフォルダーを対象とします。"
 
+msgid "The rules to reorder do not match the rules here. Reload them and try again."
+msgstr "並べ替えるルールがここにあるルールと一致しません。再読み込みしてから、もう一度お試しください。"
+
 #. TRANSLATORS: {status} is an HTTP status, such as "404 Not Found"
 msgid "The server answered {status}."
 msgstr "サーバーが {status} を返しました。"
@@ -981,6 +997,16 @@ msgstr "不明なルールモードです。"
 
 msgid "Unknown rule type."
 msgstr "不明なルールタイプです。"
+
+#. TRANSLATORS: %s is the selector as it was sent
+#, php-format
+msgid "Unknown selector \"%s\"."
+msgstr "セレクター\"%s\"は不明です。"
+
+#. TRANSLATORS: %s is the part of a selector before its colon, such as "home" in home:alice
+#, php-format
+msgid "Unknown selector kind \"%s\"."
+msgstr "セレクターの種類\"%s\"は不明です。"
 
 msgid "Untrusted checksums"
 msgstr "信頼できないチェックサム"
@@ -1082,6 +1108,9 @@ msgstr "はい"
 msgid "You are not allowed to edit rules. Contact an administrator."
 msgstr "ルールを編集する権限がありません。管理者にお問い合わせください。"
 
+msgid "You are not allowed to manage this rule."
+msgstr "このルールを管理する権限がありません。"
+
 msgid "You may only reorder your own rules."
 msgstr "並べ替えられるのは自分のルールのみです。"
 
@@ -1101,6 +1130,10 @@ msgstr "fileIds は空でない整数のリストである必要があります�
 #. TRANSLATORS a badge on a rule whose team folder is not available
 msgid "folder missing"
 msgstr "フォルダー利用不可"
+
+#. TRANSLATORS: group:* and home:* are selectors as they are typed; keep them
+msgid "group:* is not a selector. Name one group, or use home:* for every account."
+msgstr "group:* はセレクターではありません。グループを1つ指定するか、すべてのアカウントを対象にするには home:* を使用してください。"
 
 #. TRANSLATORS: "groupfolder:" is the selector's prefix as it is typed; keep it
 msgid "groupfolder: takes the numeric folder ID."
@@ -1126,6 +1159,18 @@ msgstr "独自のルールなし：そのファイルは、より一般的なル
 #. TRANSLATORS: the checksum a file has now, after verification found it changed
 msgid "now: {hash}"
 msgstr "現在：{hash}"
+
+#. TRANSLATORS: orderedIds is a parameter name; keep it
+msgid "orderedIds is required and must be an array."
+msgstr "orderedIds は必須で、配列である必要があります。"
+
+#. TRANSLATORS: scope is a parameter name, and "own" and "all" are its values; keep them
+msgid "scope must be \"own\" or \"all\"."
+msgstr "scope は\"own\"または\"all\"である必要があります。"
+
+#. TRANSLATORS: selector is a parameter name; keep it
+msgid "selector is required."
+msgstr "selector は必須です。"
 
 #. TRANSLATORS: selector is a parameter name; keep it
 msgid "selector must be a non-empty string."

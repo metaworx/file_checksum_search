@@ -31,6 +31,7 @@ term that changes, changes here and in the `.po` file at once.
 | position | 位置 | a rule's place among the rules of the same scope in its band |
 | priority | 优先级 | “优先级层级” |
 | scope | 适用范围 | Nextcloud's `files_external` term for the same field; “同一适用范围的规则” |
+| selector | 选择器 | a scope as the API writes it, `home:alice`; the parameter name `selector` is typed as it is |
 | place (a storage, a team folder, all home folders) | 区域 | what has, or lacks, a catch-all rule of its own; not 位置, which is *position* |
 | evaluate | 评估 | |
 | enforced | 强制 | Nextcloud's term (强制群组, 强制执行); the field and column are “强制” |

@@ -514,6 +514,9 @@ msgstr "Laatst gebruikt"
 msgid "Lazy (delete checksums now, recalculate later)"
 msgstr "Later (controlesommen nu verwijderen, later opnieuw berekenen)"
 
+msgid "Listing every rule requires administrator rights."
+msgstr "Voor het weergeven van alle regels zijn beheerdersrechten nodig."
+
 msgid "Loading checksums …"
 msgstr "Controlesommen laden …"
 
@@ -593,6 +596,11 @@ msgstr "Geen vrijgaven."
 
 msgid "No other files share checksums with this file."
 msgstr "Geen andere bestanden hebben dezelfde controlesommen als dit bestand."
+
+#. TRANSLATORS: %s is the rule's ID, 32 hexadecimal characters
+#, php-format
+msgid "No rule with ID \"%s\"."
+msgstr "Geen regel met ID \"%s\"."
 
 msgid "No rules apply to your files."
 msgstr "Er gelden geen regels voor je bestanden."
@@ -814,6 +822,11 @@ msgstr "Map selecteren …"
 msgid "Select groups …"
 msgstr "Groepen selecteren …"
 
+#. TRANSLATORS: %s is the selector as it was sent, such as home:alice
+#, php-format
+msgid "Selector \"%s\" is missing its target."
+msgstr "Bij selector \"%s\" ontbreekt het doel."
+
 msgid "Settings"
 msgstr "Instellingen"
 
@@ -903,6 +916,9 @@ msgstr "Het verzoek heeft de server nooit bereikt."
 msgid "The rule addresses the home folder of every member of this group."
 msgstr "De regel betreft de thuismap van elk lid van deze groep."
 
+msgid "The rules to reorder do not match the rules here. Reload them and try again."
+msgstr "De te herschikken regels komen niet overeen met de regels hier. Laad ze opnieuw en probeer het nog eens."
+
 #. TRANSLATORS: {status} is an HTTP status, such as "404 Not Found"
 msgid "The server answered {status}."
 msgstr "De server antwoordde met {status}."
@@ -982,6 +998,16 @@ msgstr "Onbekende regelmodus."
 
 msgid "Unknown rule type."
 msgstr "Onbekend regeltype."
+
+#. TRANSLATORS: %s is the selector as it was sent
+#, php-format
+msgid "Unknown selector \"%s\"."
+msgstr "Onbekende selector \"%s\"."
+
+#. TRANSLATORS: %s is the part of a selector before its colon, such as "home" in home:alice
+#, php-format
+msgid "Unknown selector kind \"%s\"."
+msgstr "Onbekend selectortype \"%s\"."
 
 msgid "Untrusted checksums"
 msgstr "Niet-vertrouwde controlesommen"
@@ -1083,6 +1109,9 @@ msgstr "Ja"
 msgid "You are not allowed to edit rules. Contact an administrator."
 msgstr "Je mag geen regels bewerken. Neem contact op met een beheerder."
 
+msgid "You are not allowed to manage this rule."
+msgstr "Je mag deze regel niet beheren."
+
 msgid "You may only reorder your own rules."
 msgstr "Je mag alleen je eigen regels herschikken."
 
@@ -1102,6 +1131,10 @@ msgstr "fileIds moet een niet-lege lijst van gehele getallen zijn."
 #. TRANSLATORS a badge on a rule whose team folder is not available
 msgid "folder missing"
 msgstr "map ontbreekt"
+
+#. TRANSLATORS: group:* and home:* are selectors as they are typed; keep them
+msgid "group:* is not a selector. Name one group, or use home:* for every account."
+msgstr "group:* is geen selector. Geef één groep op of gebruik home:* voor alle accounts."
 
 #. TRANSLATORS: "groupfolder:" is the selector's prefix as it is typed; keep it
 msgid "groupfolder: takes the numeric folder ID."
@@ -1127,6 +1160,18 @@ msgstr "geen eigen regel – de bestanden ervan worden overgelaten aan een algem
 #. TRANSLATORS: the checksum a file has now, after verification found it changed
 msgid "now: {hash}"
 msgstr "nu: {hash}"
+
+#. TRANSLATORS: orderedIds is a parameter name; keep it
+msgid "orderedIds is required and must be an array."
+msgstr "orderedIds is verplicht en moet een array zijn."
+
+#. TRANSLATORS: scope is a parameter name, and "own" and "all" are its values; keep them
+msgid "scope must be \"own\" or \"all\"."
+msgstr "scope moet \"own\" of \"all\" zijn."
+
+#. TRANSLATORS: selector is a parameter name; keep it
+msgid "selector is required."
+msgstr "selector is verplicht."
 
 #. TRANSLATORS: selector is a parameter name; keep it
 msgid "selector must be a non-empty string."

@@ -34,6 +34,7 @@ a term that changes, changes here and in the `.po` file at once.
 | among the rules of the same scope | tussen de regels met hetzelfde toepassingsgebied | where dragging moves a rule |
 | priority | prioriteit | |
 | scope | toepassingsgebied | Nextcloud's term (external storage) |
+| selector | selector | a scope as the API writes it, `home:alice`; the parameter name `selector` is typed as it is |
 | place (a storage, a team folder, all home folders) | locatie, locaties | what has, or lacks, a catch-all rule of its own |
 | evaluate | evalueren | evaluation order: *evaluatievolgorde* |
 | match | overeenkomen, overeenkomst | |

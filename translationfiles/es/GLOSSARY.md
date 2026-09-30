@@ -35,6 +35,7 @@ here; a term that changes, changes here and in the `.po` file at once.
 | position | posición | a rule's place among the rules of the same scope in its band |
 | priority | prioridad | |
 | scope | ámbito | Nextcloud's `files_external`: «Ámbito»; «entre las reglas del mismo ámbito» |
+| selector | selector | a scope as the API writes it, `home:alice`; the parameter name `selector` is typed as it is |
 | place (a storage, a team folder, all home folders) | ubicación | what has, or lacks, a catch-all rule of its own |
 | enforced | impuesta (regla impuesta; un administrador *impuso* la regla); the setting «Impuesta», the band labels «Impuestas — …» | Nextcloud's `files_sharing`: «Protección con contraseña (impuesta)» |
 | specific | concreto, concreta | |

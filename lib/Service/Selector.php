@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Service;
 
 use InvalidArgumentException;
+use OCP\IL10N;
 
 /**
  * A rule's selector: which slice of the file universe it addresses.
@@ -71,6 +72,15 @@ readonly class Selector
 	/** Display bands span two tiers of four ranks: enforced 1–4, unenforced 5–8. */
 	public const BAND_COUNT = 8;
 
+	/** What {@see parse()} refused, as its exception's code. */
+	public const ERROR_UNKNOWN = 1;
+
+	public const ERROR_NO_TARGET = 2;
+
+	public const ERROR_GROUP_ALL = 3;
+
+	public const ERROR_UNKNOWN_KIND = 4;
+
 
 //  constructor
 
@@ -85,6 +95,9 @@ readonly class Selector
 
 	/**
 	 * Parse a canonical selector string.
+	 *
+	 * Its refusals are English, with an ERROR_* code; {@see parseInput()}
+	 * is the one to use on what a person sent.
 	 *
 	 * @throws InvalidArgumentException on anything but the six documented forms
 	 */
@@ -101,6 +114,7 @@ readonly class Selector
 		{
 			throw new InvalidArgumentException(
 				sprintf( 'Unknown selector "%s".', $value ),
+				self::ERROR_UNKNOWN,
 			);
 		}
 
@@ -111,6 +125,7 @@ readonly class Selector
 		{
 			throw new InvalidArgumentException(
 				sprintf( 'Selector "%s" is missing its target.', $value ),
+				self::ERROR_NO_TARGET,
 			);
 		}
 
@@ -122,14 +137,50 @@ readonly class Selector
 			'group' => $target === '*'
 				? throw new InvalidArgumentException(
 					'group:* is not a selector — conceptually it slots into the ladder, practically it has no use case.',
+					self::ERROR_GROUP_ALL,
 				)
 				: new self( self::KIND_GROUP, $target ),
 			'groupfolder' => new self( self::KIND_GROUPFOLDER, $target ),
 			'storage'     => new self( self::KIND_STORAGE, $target ),
 			default       => throw new InvalidArgumentException(
 				sprintf( 'Unknown selector kind "%s".', $kind ),
+				self::ERROR_UNKNOWN_KIND,
 			),
 		};
+	}
+
+	/**
+	 * Parse a selector a person sent, refusing in their language.
+	 *
+	 * The refusal's message is translated, as every rule refusal a surface
+	 * shows is; {@see parse()}'s English one is kept as its previous.
+	 *
+	 * @throws InvalidArgumentException on anything but the six documented forms
+	 */
+	public static function parseInput( string $value, IL10N $l10n ): self
+	{
+		try
+		{
+			return self::parse( $value );
+		}
+		catch ( InvalidArgumentException $e )
+		{
+			$kind = (string) strstr( $value, ':', true );
+
+			$message = match ( $e->getCode() )
+			{
+				// TRANSLATORS: %s is the selector as it was sent, such as home:alice
+				self::ERROR_NO_TARGET => $l10n->t( 'Selector "%s" is missing its target.', [ $value ] ),
+				// TRANSLATORS: group:* and home:* are selectors as they are typed; keep them
+				self::ERROR_GROUP_ALL => $l10n->t( 'group:* is not a selector. Name one group, or use home:* for every account.' ),
+				// TRANSLATORS: %s is the part of a selector before its colon, such as "home" in home:alice
+				self::ERROR_UNKNOWN_KIND => $l10n->t( 'Unknown selector kind "%s".', [ $kind ] ),
+				// TRANSLATORS: %s is the selector as it was sent
+				default => $l10n->t( 'Unknown selector "%s".', [ $value ] ),
+			};
+
+			throw new InvalidArgumentException( $message, $e->getCode(), $e );
+		}
 	}
 
 	/**

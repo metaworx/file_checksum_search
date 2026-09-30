@@ -516,6 +516,9 @@ msgstr "Ostatnie użycie"
 msgid "Lazy (delete checksums now, recalculate later)"
 msgstr "Później (usuń sumy kontrolne teraz, przelicz później)"
 
+msgid "Listing every rule requires administrator rights."
+msgstr "Wyświetlenie wszystkich reguł wymaga uprawnień administratora."
+
 msgid "Loading checksums …"
 msgstr "Wczytywanie sum kontrolnych…"
 
@@ -595,6 +598,11 @@ msgstr "Brak upoważnień."
 
 msgid "No other files share checksums with this file."
 msgstr "Żadne inne pliki nie mają tych samych sum kontrolnych co ten plik."
+
+#. TRANSLATORS: %s is the rule's ID, 32 hexadecimal characters
+#, php-format
+msgid "No rule with ID \"%s\"."
+msgstr "Brak reguły o ID \"%s\"."
 
 msgid "No rules apply to your files."
 msgstr "Żadne reguły nie dotyczą Twoich plików."
@@ -816,6 +824,11 @@ msgstr "Wybierz folder…"
 msgid "Select groups …"
 msgstr "Wybierz grupy…"
 
+#. TRANSLATORS: %s is the selector as it was sent, such as home:alice
+#, php-format
+msgid "Selector \"%s\" is missing its target."
+msgstr "W selektorze \"%s\" brakuje celu."
+
 msgid "Settings"
 msgstr "Ustawienia"
 
@@ -905,6 +918,9 @@ msgstr "Żądanie nie dotarło do serwera."
 msgid "The rule addresses the home folder of every member of this group."
 msgstr "Reguła dotyczy folderu domowego każdego członka tej grupy."
 
+msgid "The rules to reorder do not match the rules here. Reload them and try again."
+msgstr "Reguły do zmiany kolejności nie zgadzają się z regułami tutaj. Wczytaj je ponownie i spróbuj jeszcze raz."
+
 #. TRANSLATORS: {status} is an HTTP status, such as "404 Not Found"
 msgid "The server answered {status}."
 msgstr "Serwer odpowiedział: {status}."
@@ -984,6 +1000,16 @@ msgstr "Nieznany tryb reguły."
 
 msgid "Unknown rule type."
 msgstr "Nieznany rodzaj reguły."
+
+#. TRANSLATORS: %s is the selector as it was sent
+#, php-format
+msgid "Unknown selector \"%s\"."
+msgstr "Nieznany selektor \"%s\"."
+
+#. TRANSLATORS: %s is the part of a selector before its colon, such as "home" in home:alice
+#, php-format
+msgid "Unknown selector kind \"%s\"."
+msgstr "Nieznany rodzaj selektora \"%s\"."
 
 msgid "Untrusted checksums"
 msgstr "Niezaufane sumy kontrolne"
@@ -1085,6 +1111,9 @@ msgstr "Tak"
 msgid "You are not allowed to edit rules. Contact an administrator."
 msgstr "Nie możesz edytować reguł. Skontaktuj się z administratorem."
 
+msgid "You are not allowed to manage this rule."
+msgstr "Nie możesz zarządzać tą regułą."
+
 msgid "You may only reorder your own rules."
 msgstr "Możesz zmieniać kolejność tylko własnych reguł."
 
@@ -1104,6 +1133,10 @@ msgstr "fileIds musi być niepustą listą liczb całkowitych."
 #. TRANSLATORS a badge on a rule whose team folder is not available
 msgid "folder missing"
 msgstr "brak folderu"
+
+#. TRANSLATORS: group:* and home:* are selectors as they are typed; keep them
+msgid "group:* is not a selector. Name one group, or use home:* for every account."
+msgstr "group:* nie jest selektorem. Podaj jedną grupę albo użyj home:* dla wszystkich kont."
 
 #. TRANSLATORS: "groupfolder:" is the selector's prefix as it is typed; keep it
 msgid "groupfolder: takes the numeric folder ID."
@@ -1129,6 +1162,18 @@ msgstr "brak własnej reguły – o plikach decyduje ogólniejsza reguła, o ile
 #. TRANSLATORS: the checksum a file has now, after verification found it changed
 msgid "now: {hash}"
 msgstr "teraz: {hash}"
+
+#. TRANSLATORS: orderedIds is a parameter name; keep it
+msgid "orderedIds is required and must be an array."
+msgstr "orderedIds jest wymagany i musi być tablicą."
+
+#. TRANSLATORS: scope is a parameter name, and "own" and "all" are its values; keep them
+msgid "scope must be \"own\" or \"all\"."
+msgstr "scope musi mieć wartość \"own\" lub \"all\"."
+
+#. TRANSLATORS: selector is a parameter name; keep it
+msgid "selector is required."
+msgstr "selector jest wymagany."
 
 #. TRANSLATORS: selector is a parameter name; keep it
 msgid "selector must be a non-empty string."

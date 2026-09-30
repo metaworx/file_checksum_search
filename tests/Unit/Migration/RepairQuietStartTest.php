@@ -456,7 +456,7 @@ class RepairQuietStartTest
 
 		foreach ( $queued as $line )
 		{
-			$this->assertStringContainsString( 'Status Info', $line );
+			$this->assertStringContainsString( 'Advanced → Status,', $line );
 			$this->assertStringContainsString( 'occ fcias:status', $line );
 		}
 	}

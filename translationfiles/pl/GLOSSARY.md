@@ -39,6 +39,7 @@ here; a term that changes, changes here and in the `.po` file at once.
 | position | pozycja | a rule's place among the rules of the same scope in its band |
 | priority | priorytet | *Poziom priorytetu* for "Priority band" |
 | scope | zakres | Nextcloud's external storage uses *Zakres*; "the rules of the same scope": *reguły o tym samym zakresie* |
+| selector | selektor | a scope as the API writes it, `home:alice`; the parameter name `selector` is typed as it is, and takes the masculine: *selector jest wymagany* |
 | place (a storage, a team folder, all home folders) | miejsce, miejsca | what has, or lacks, a catch-all rule of its own |
 | specific | szczegółowy | the band labels, "more specific rules" |
 | enforced | wymuszona (reguła), wymuszone (reguły) | Nextcloud: *(wymuszona)* |

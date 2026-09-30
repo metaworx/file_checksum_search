@@ -38,6 +38,7 @@ here; a term that changes, changes here and in the `.po` file at once.
 | position | 位置 | a rule's place among the rules of the same scope in its band |
 | priority | 優先度 | band and position joined by a dot: 7.1 is the first rule of 第7階層 |
 | scope | 適用範囲 | also the field's name, 「適用範囲」 |
+| selector | セレクター | a scope as the API writes it, `home:alice`; the parameter name `selector` is typed as it is |
 | place (a storage, a team folder, all home folders) | 場所 | what has, or lacks, a catch-all rule of its own; not used for anything else, so a rule's standing in the order is 「評価順のどこにあるか」 |
 | specific (band, rules) | 個別 | only the band's name: 「強制：個別」, 「個別ルール」; *more specific* is より限定的 (「より限定的なルール」) |
 | enforced | 強制 | as Nextcloud's 「二要素認証を強制する」 |

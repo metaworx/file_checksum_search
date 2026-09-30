@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Command\Rules;
 
 use InvalidArgumentException;
+use OCA\FileChecksumSearch\Service\HintedInvalidArgumentException;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -73,7 +74,7 @@ class ApplyRule
 		}
 		catch ( InvalidArgumentException $e )
 		{
-			$output->writeln( sprintf( '<error>%s</error>', $e->getMessage() ) );
+			$output->writeln( sprintf( '<error>%s</error>', HintedInvalidArgumentException::textFor( $e ) ) );
 
 			return self::FAILURE;
 		}

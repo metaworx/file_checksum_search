@@ -32,6 +32,7 @@ here; a term that changes, changes here and in the `.po` file at once.
 | position | position | a rule's place among the rules of the same scope in its band |
 | priority | priorité | |
 | scope | portée | Nextcloud's term (`files_external`); the files a rule addresses |
+| selector | sélecteur | a scope as the API writes it, `home:alice`; the parameter name `selector` is typed as it is |
 | place (a storage, a team folder, all home folders) | emplacement | what has, or lacks, a catch-all rule of its own |
 | enforced | imposée, imposées | Nextcloud's *imposer* (*Imposer la protection par mot de passe*); agrees with *règle* |
 | come before (a rule) | passer avant | an enforced rule comes before a personal one; *précéder* where the English says *precede* |

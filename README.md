@@ -305,7 +305,7 @@ rebuild-from-filecache` does the same copy on demand, at once, and neither overw
 already stored. Installing, enabling and upgrading also queue the check that every stored hash is in the
 index, which on a large instance takes longer than a request should: `occ fcias:repair --step
 rebuild-from-metadata` runs it at once. Both show their progress on the status page, as *Checksum copy* and
-*Checksum index check*, and in `occ fcias:status`, which calls the second *Hash index check*.
+*Checksum index check*, and in `occ fcias:status`.
 
 ### Which file a rule is talking about
 

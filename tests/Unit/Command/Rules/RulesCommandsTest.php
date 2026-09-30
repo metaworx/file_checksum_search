@@ -15,6 +15,7 @@ use OCA\FileChecksumSearch\Command\Rules\ApplyRule;
 use OCA\FileChecksumSearch\Command\Rules\DeleteRule;
 use OCA\FileChecksumSearch\Command\Rules\ListRules;
 use OCA\FileChecksumSearch\Command\Rules\ModifyRule;
+use OCA\FileChecksumSearch\Service\HintedInvalidArgumentException;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
@@ -319,5 +320,27 @@ class RulesCommandsTest
 			'9 files matched — 3 queued, 4 already fresh, 2 claimed by other rules.',
 			$tester->getDisplay(),
 		);
+	}
+
+	/**
+	 * A refusal reads in the server's language, as the command's other
+	 * refusals do: the hint, not the English kept for a log.
+	 */
+	public function testApplyPrintsARefusalsHint(): void
+	{
+		$this->ruleService->method( 'findRuleById' )
+		                  ->willReturn( [ 'id' => 'r1' ] )
+		;
+		$this->ruleService->method( 'applyRule' )
+		                  ->willThrowException(
+			                  new HintedInvalidArgumentException( 'A disabled rule cannot be applied — enable it first.', '«translated»' ),
+		                  )
+		;
+
+		$tester = $this->tester( new ApplyRule( $this->ruleService, $this->validator ) );
+
+		$this->assertSame( Command::FAILURE, $tester->execute( [ 'id' => 'r1' ] ) );
+		$this->assertStringContainsString( '«translated»', $tester->getDisplay() );
+		$this->assertStringNotContainsString( 'enable it first', $tester->getDisplay() );
 	}
 }

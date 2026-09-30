@@ -29,6 +29,7 @@ term that changes, changes here and in the `.po` file at once.
 | position | posizione | a rule's place among the rules of the same scope in its band |
 | priority | priorità | |
 | scope | ambito | Nextcloud's `files_external` term for *Scope*; *tra le regole dello stesso ambito* |
+| selector | selettore | a scope as the API writes it, `home:alice`; the parameter name `selector` is typed as it is |
 | place (a storage, a team folder, all home folders) | area, aree | what has, or lacks, a catch-all rule of its own; not *posizione*, which is the rule's position |
 | enforced | obbligatoria, obbligatorie | Nextcloud's settings say *obbligatoria* of enforced two-factor authentication; to enforce: *rendere obbligatoria*. Not *forzata*, which is the mode *Force* |
 | catch-all rule | regola di ripiego | |

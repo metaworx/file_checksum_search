@@ -13,6 +13,7 @@ use InvalidArgumentException;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\FileLocation;
+use OCA\FileChecksumSearch\Service\HintedInvalidArgumentException;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleService;
@@ -93,7 +94,9 @@ class RuleServiceTest
 			$this->permissionService,
 			$this->groupManager,
 			$this->filecacheService,
-			$this->englishL10n(),
+			// Marking, so a test can tell a refusal a person reads from
+			// the English a log keeps.
+			$this->markingL10n(),
 		);
 	}
 
@@ -1280,6 +1283,54 @@ class RuleServiceTest
 		Selector::parse( 'group:*' );
 	}
 
+	/**
+	 * What a person sent is refused in their language, one text for each
+	 * way it can be wrong; parse()'s English stays with the previous.
+	 *
+	 * @dataProvider refusedSelectorProvider
+	 */
+	public function testASentSelectorIsRefusedTranslated(
+		string $value,
+		string $message,
+	): void
+	{
+		try
+		{
+			Selector::parseInput( $value, $this->markingL10n() );
+			$this->fail( 'accepted ' . $value );
+		}
+		catch ( InvalidArgumentException $e )
+		{
+			$this->assertSame( $message, $e->getMessage() );
+			$this->assertInstanceOf( InvalidArgumentException::class, $e->getPrevious() );
+		}
+	}
+
+	/**
+	 * @return array<string, array{string, string}>
+	 */
+	public static function refusedSelectorProvider(): array
+	{
+		return [
+			'no colon'     => [
+				'alice',
+				'«Unknown selector "alice".»',
+			],
+			'no target'    => [
+				'home:',
+				'«Selector "home:" is missing its target.»',
+			],
+			'group:*'      => [
+				'group:*',
+				'«group:* is not a selector. Name one group, or use home:* for every account.»',
+			],
+			'unknown kind' => [
+				'user:alice',
+				'«Unknown selector kind "user".»',
+			],
+		];
+	}
+
 	public function testSortRulesOrdersByBandSegmentAndPartition(): void
 	{
 		$rules = [
@@ -2265,8 +2316,17 @@ class RuleServiceTest
 		;
 
 		$this->expectException( InvalidArgumentException::class );
+		$this->expectExceptionMessage( '«The rules to reorder do not match the rules here. Reload them and try again.»' );
 
 		$this->service->reorderSegment( 'home:*', false, $orderedIds );
+	}
+
+	public function testReorderSegmentRefusesASelectorTranslated(): void
+	{
+		$this->expectException( InvalidArgumentException::class );
+		$this->expectExceptionMessage( '«Unknown selector kind "user".»' );
+
+		$this->service->reorderSegment( 'user:alice', false, [] );
 	}
 
 	/**
@@ -3030,33 +3090,71 @@ class RuleServiceTest
 		$this->assertSame( 1, $result['skipped'] );
 	}
 
-	public function testApplyRuleRefusesADisabledRule(): void
+	/**
+	 * Each refusal is English for ApplyRuleJob's log, and says the same in
+	 * the reader's language as its hint.
+	 *
+	 * @dataProvider unapplicableRuleProvider
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testApplyRuleRefusesInEnglishWithATranslatedHint(
+		array   $rule,
+		?string $mode,
+		string  $message,
+		string  $hint,
+	): void
 	{
-		$this->expectException( InvalidArgumentException::class );
-		$this->expectExceptionMessage( 'disabled' );
-
-		$this->service->applyRule(
-			[
-				'id'      => 'r1',
-				'enabled' => false,
-				'type'    => 'include',
-			],
-		);
+		try
+		{
+			$this->service->applyRule( $rule, $mode );
+			$this->fail( 'applied' );
+		}
+		catch ( HintedInvalidArgumentException $e )
+		{
+			$this->assertSame( $message, $e->getMessage() );
+			$this->assertSame( $hint, $e->hint );
+		}
 	}
 
-	public function testApplyRuleRefusesANonIncludeRule(): void
+	/**
+	 * @return array<string, array{array, ?string, string, string}>
+	 */
+	public static function unapplicableRuleProvider(): array
 	{
-		// An ignore/exclude rule computes nothing, so applying it could only
-		// queue work the drain is designed to drop.
-		$this->expectException( InvalidArgumentException::class );
-
-		$this->service->applyRule(
-			[
-				'id'      => 'r1',
-				'enabled' => true,
-				'type'    => 'exclude',
+		return [
+			'disabled'     => [
+				[
+					'id'      => 'r1',
+					'enabled' => false,
+					'type'    => 'include',
+				],
+				null,
+				'A disabled rule cannot be applied — enable it first.',
+				'«A disabled rule cannot be applied — enable it first.»',
 			],
-		);
+			// An ignore/exclude rule computes nothing, so applying it could
+			// only queue work the drain is designed to drop.
+			'non-include'  => [
+				[
+					'id'      => 'r1',
+					'enabled' => true,
+					'type'    => 'exclude',
+				],
+				null,
+				'An exclude rule computes nothing, so there is nothing to apply.',
+				'«An exclude rule computes nothing, so there is nothing to apply.»',
+			],
+			'unknown mode' => [
+				[
+					'id'      => 'r1',
+					'enabled' => true,
+					'type'    => 'include',
+				],
+				'someday',
+				'Unknown mode "someday".',
+				'«Unknown rule mode.»',
+			],
+		];
 	}
 
 	/**

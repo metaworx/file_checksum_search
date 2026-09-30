@@ -27,6 +27,7 @@ files at once.
 | position | Position | a rule's place among the rules of the same scope in its band |
 | priority | Priorität | |
 | scope | Geltungsbereich | |
+| selector | Selektor | a scope as the API writes it, `home:alice`; the parameter name `selector` is typed as it is |
 | place (a storage, a team folder, all home folders) | Ort | what has, or lacks, a catch-all rule of its own |
 | enforced | erzwungen | |
 | catch-all rule / default | Auffangregel / Standardregel | |

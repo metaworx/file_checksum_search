@@ -515,6 +515,9 @@ msgstr "Dernière utilisation"
 msgid "Lazy (delete checksums now, recalculate later)"
 msgstr "Différé (supprimer les sommes de contrôle maintenant, recalculer plus tard)"
 
+msgid "Listing every rule requires administrator rights."
+msgstr "Lister toutes les règles nécessite les droits d'administrateur."
+
 msgid "Loading checksums …"
 msgstr "Chargement des sommes de contrôle…"
 
@@ -594,6 +597,11 @@ msgstr "Aucune habilitation."
 
 msgid "No other files share checksums with this file."
 msgstr "Aucun autre fichier n'a la même somme de contrôle que ce fichier."
+
+#. TRANSLATORS: %s is the rule's ID, 32 hexadecimal characters
+#, php-format
+msgid "No rule with ID \"%s\"."
+msgstr "Aucune règle avec l'identifiant \"%s\"."
 
 msgid "No rules apply to your files."
 msgstr "Aucune règle ne s'applique à vos fichiers."
@@ -815,6 +823,11 @@ msgstr "Sélectionner un dossier…"
 msgid "Select groups …"
 msgstr "Sélectionner des groupes…"
 
+#. TRANSLATORS: %s is the selector as it was sent, such as home:alice
+#, php-format
+msgid "Selector \"%s\" is missing its target."
+msgstr "Le sélecteur \"%s\" n'a pas de cible."
+
 msgid "Settings"
 msgstr "Paramètres"
 
@@ -904,6 +917,9 @@ msgstr "La requête n'a jamais atteint le serveur."
 msgid "The rule addresses the home folder of every member of this group."
 msgstr "La règle vise le dossier personnel de chaque membre de ce groupe."
 
+msgid "The rules to reorder do not match the rules here. Reload them and try again."
+msgstr "Les règles à réordonner ne correspondent pas à celles présentes ici. Rechargez-les et réessayez."
+
 #. TRANSLATORS: {status} is an HTTP status, such as "404 Not Found"
 msgid "The server answered {status}."
 msgstr "Le serveur a répondu {status}."
@@ -983,6 +999,16 @@ msgstr "Mode de règle inconnu."
 
 msgid "Unknown rule type."
 msgstr "Type de règle inconnu."
+
+#. TRANSLATORS: %s is the selector as it was sent
+#, php-format
+msgid "Unknown selector \"%s\"."
+msgstr "Sélecteur \"%s\" inconnu."
+
+#. TRANSLATORS: %s is the part of a selector before its colon, such as "home" in home:alice
+#, php-format
+msgid "Unknown selector kind \"%s\"."
+msgstr "Type de sélecteur \"%s\" inconnu."
 
 msgid "Untrusted checksums"
 msgstr "Sommes de contrôle non fiables"
@@ -1084,6 +1110,9 @@ msgstr "Oui"
 msgid "You are not allowed to edit rules. Contact an administrator."
 msgstr "Vous n'êtes pas autorisé à modifier les règles. Contactez un administrateur."
 
+msgid "You are not allowed to manage this rule."
+msgstr "Vous n'êtes pas autorisé à gérer cette règle."
+
 msgid "You may only reorder your own rules."
 msgstr "Vous ne pouvez réordonner que vos propres règles."
 
@@ -1103,6 +1132,10 @@ msgstr "fileIds doit être une liste non vide d'entiers."
 #. TRANSLATORS a badge on a rule whose team folder is not available
 msgid "folder missing"
 msgstr "dossier manquant"
+
+#. TRANSLATORS: group:* and home:* are selectors as they are typed; keep them
+msgid "group:* is not a selector. Name one group, or use home:* for every account."
+msgstr "group:* n'est pas un sélecteur. Indiquez un seul groupe, ou utilisez home:* pour tous les comptes."
 
 #. TRANSLATORS: "groupfolder:" is the selector's prefix as it is typed; keep it
 msgid "groupfolder: takes the numeric folder ID."
@@ -1128,6 +1161,18 @@ msgstr "aucune règle propre – ses fichiers sont laissés à une règle plus g
 #. TRANSLATORS: the checksum a file has now, after verification found it changed
 msgid "now: {hash}"
 msgstr "actuellement : {hash}"
+
+#. TRANSLATORS: orderedIds is a parameter name; keep it
+msgid "orderedIds is required and must be an array."
+msgstr "orderedIds est obligatoire et doit être un tableau."
+
+#. TRANSLATORS: scope is a parameter name, and "own" and "all" are its values; keep them
+msgid "scope must be \"own\" or \"all\"."
+msgstr "scope doit valoir \"own\" ou \"all\"."
+
+#. TRANSLATORS: selector is a parameter name; keep it
+msgid "selector is required."
+msgstr "selector est obligatoire."
 
 #. TRANSLATORS: selector is a parameter name; keep it
 msgid "selector must be a non-empty string."

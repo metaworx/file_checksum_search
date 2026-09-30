@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\Public\ChecksumApi;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\DatabaseService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\HintedInvalidArgumentException;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
@@ -126,7 +127,8 @@ class ChecksumApiTest
 			$this->userMountCache,
 			$this->userManager,
 			$this->reach,
-			$this->englishL10n(),
+			// Marking, so a test can see a refusal went through IL10N.
+			$this->markingL10n(),
 		);
 	}
 
@@ -1327,7 +1329,7 @@ class ChecksumApiTest
 		$result = $this->api->recalcHash( 99999, [ 'alice' ], algo: 'sha1', actingUser: 'alice' );
 
 		$this->assertFalse( $result['success'] );
-		$this->assertSame( 'File not found.', $result['error'] );
+		$this->assertSame( '«File not found.»', $result['error'] );
 	}
 
 	public function testRecalcHashProceedsWhenRequestingUserHasAccess(): void
@@ -1446,7 +1448,7 @@ class ChecksumApiTest
 		$result = $this->api->recalcHash( 42, null, algo: 'sha256', actingUser: 'alice' );
 
 		$this->assertFalse( $result['success'] );
-		$this->assertSame( 'File not found.', $result['error'] );
+		$this->assertSame( '«File not found.»', $result['error'] );
 	}
 
 	/**
@@ -1599,7 +1601,7 @@ class ChecksumApiTest
 		$this->assertTrue( $result['results'][0]['success'] );
 		$this->assertFalse( $result['results'][1]['success'] );
 		$this->assertSame( 2, $result['results'][1]['fileid'] );
-		$this->assertSame( 'File not found.', $result['results'][1]['error'] );
+		$this->assertSame( '«File not found.»', $result['results'][1]['error'] );
 	}
 
 	/**
@@ -1750,5 +1752,44 @@ class ChecksumApiTest
 		// Synchronous by design: a DI caller controls its own execution
 		// context and usually wants the result.
 		$this->assertSame( 2, $this->api->applyRule( 'r1' )['marked'] );
+	}
+
+	/**
+	 * A refusal reaches the caller in their language, as this API's others
+	 * do: the hint, not the English message RuleService keeps for a log.
+	 */
+	public function testApplyRefusesInTheCallersLanguage(): void
+	{
+		$this->ruleService->method( 'findRuleById' )
+		                  ->willReturn( [ 'id' => 'r1' ] )
+		;
+		$this->ruleService->method( 'applyRule' )
+		                  ->willThrowException(
+			                  new HintedInvalidArgumentException( 'A disabled rule cannot be applied — enable it first.', '«translated»' ),
+		                  )
+		;
+
+		try
+		{
+			$this->api->applyRule( 'r1' );
+			$this->fail( 'applied' );
+		}
+		catch ( InvalidArgumentException $e )
+		{
+			$this->assertNotInstanceOf( HintedInvalidArgumentException::class, $e );
+			$this->assertSame( '«translated»', $e->getMessage() );
+		}
+	}
+
+	public function testAnUnknownRuleIsRefusedTranslated(): void
+	{
+		$this->ruleService->method( 'findRuleById' )
+		                  ->willReturn( null )
+		;
+
+		$this->expectException( InvalidArgumentException::class );
+		$this->expectExceptionMessage( '«No rule with ID "nope".»' );
+
+		$this->api->applyRule( 'nope' );
 	}
 }

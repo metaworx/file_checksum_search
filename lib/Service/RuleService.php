@@ -1165,20 +1165,25 @@ class RuleService
 	 * becoming a background job that can only fail out of sight.
 	 *
 	 * Static, so a surface can refuse before it has loaded anything else; the
-	 * caller hands over its IL10N for the refusal's words.
+	 * caller hands over its IL10N for the refusal's words. The message stays
+	 * English for ApplyRuleJob's log; the hint is for a person.
 	 *
-	 * @throws InvalidArgumentException for a disabled or non-include rule
+	 * @throws HintedInvalidArgumentException for a disabled or non-include rule
 	 */
 	public static function assertApplicable( array $rule, IL10N $l10n ): void
 	{
 		if ( empty( $rule['enabled'] ) )
 		{
-			throw new InvalidArgumentException( $l10n->t( 'A disabled rule cannot be applied — enable it first.' ) );
+			throw new HintedInvalidArgumentException(
+				'A disabled rule cannot be applied — enable it first.',
+				$l10n->t( 'A disabled rule cannot be applied — enable it first.' ),
+			);
 		}
 
 		if ( self::verdictOf( $rule ) !== self::TYPE_INCLUDE )
 		{
-			throw new InvalidArgumentException(
+			throw new HintedInvalidArgumentException(
+				sprintf( 'An %s rule computes nothing, so there is nothing to apply.', self::verdictOf( $rule ) ),
 				// TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
 				$l10n->t( 'An %s rule computes nothing, so there is nothing to apply.', [ self::verdictOf( $rule ) ] ),
 			);
@@ -1216,7 +1221,10 @@ class RuleService
 
 		if ( ! self::isValidMode( $mode ) )
 		{
-			throw new InvalidArgumentException( sprintf( 'Unknown mode "%s".', $mode ) );
+			throw new HintedInvalidArgumentException(
+				sprintf( 'Unknown mode "%s".', $mode ),
+				$this->l10n->t( 'Unknown rule mode.' ),
+			);
 		}
 
 		$ruleId = (string) ( $rule['id'] ?? '' );
@@ -1382,7 +1390,7 @@ class RuleService
 		?string $actor = null,
 	): void
 	{
-		$selector  = Selector::parse( $selectorValue );
+		$selector  = Selector::parseInput( $selectorValue, $this->l10n );
 		$canonical = $selector->canonical();
 
 		if ( $requestingUserId !== null && $canonical !== 'home:' . $requestingUserId )
@@ -1424,8 +1432,10 @@ class RuleService
 		if ( $sortedCurrent !== $sortedSubmitted
 			|| count( $submittedIds ) !== count( array_unique( $submittedIds ) ) )
 		{
+			// Most often the page's list is stale: someone added, removed or
+			// moved a rule here since it loaded.
 			throw new InvalidArgumentException(
-				'orderedIds must be exactly a permutation of the rule IDs in this segment partition.',
+				$this->l10n->t( 'The rules to reorder do not match the rules here. Reload them and try again.' ),
 			);
 		}
 

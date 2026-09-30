@@ -131,7 +131,7 @@ class ShowStatusTest
 		$this->assertStringContainsString( 'Background jobs:', $display );
 		$this->assertMatchesRegularExpression( '/Rule sweep\s+\d{4}-\d{2}-\d{2} [\d:]+ \S+\s+matched 12, marked 3/', $display );
 		$this->assertStringContainsString( 'copied 1200, files 900, done 0', $display );
-		$this->assertMatchesRegularExpression( '/Hash index check\s+never ran yet/', $display );
+		$this->assertMatchesRegularExpression( '/Checksum index check\s+never ran yet/', $display );
 	}
 
 	public function testJsonOutputCarriesTheJobsInThePagesShape(): void

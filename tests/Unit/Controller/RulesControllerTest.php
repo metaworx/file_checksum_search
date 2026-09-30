@@ -98,14 +98,16 @@ class RulesControllerTest
 			                         // Real validator over the same mocks: the
 			                         // existing payload tests keep exercising
 			                         // validation through the controller door.
-			                         new RuleDefinitionValidator( $this->groupManager, $this->userManager, new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ), $this->englishL10n() ),
+			                         // Both translate marking, so a test can
+			                         // see a refusal went through IL10N.
+			                         new RuleDefinitionValidator( $this->groupManager, $this->userManager, new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ), $this->markingL10n() ),
 			                         $this->userManager,
 			                         $this->jobList,
 			                         $this->groupFolderService,
 			                         $this->filecacheService,
 			                         $this->logger,
 					new AlgorithmCatalogue( $this->catalogueConfig = $this->createMock( IAppConfig::class ) ),
-				$this->englishL10n(),
+				$this->markingL10n(),
 			] )
 		                         ->getMock()
 		;
@@ -293,7 +295,7 @@ class RulesControllerTest
 		$response = $this->controller->create();
 
 		$this->assertSame( Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus() );
-		$this->assertSame( 'Internal server error.', $response->getData()['error'] );
+		$this->assertSame( '«Internal server error.»', $response->getData()['error'] );
 	}
 
 	public function testCreateReturnsTheStoredRuleIncludingItsId(): void
@@ -426,11 +428,10 @@ class RulesControllerTest
 		                  ->method( 'listRulesFor' )
 		;
 
-		$this->assertSame(
-			Http::STATUS_FORBIDDEN,
-			$this->controller->index()
-			                 ->getStatus(),
-		);
+		$response = $this->controller->index();
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $response->getStatus() );
+		$this->assertSame( '«Listing every rule requires administrator rights.»', $response->getData()['error'] );
 	}
 
 	public function testIndexRejectsAnUnknownScope(): void
@@ -438,11 +439,10 @@ class RulesControllerTest
 		$this->signIn( 'alice' );
 		$this->scope( 'everything' );
 
-		$this->assertSame(
-			Http::STATUS_BAD_REQUEST,
-			$this->controller->index()
-			                 ->getStatus(),
-		);
+		$response = $this->controller->index();
+
+		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
+		$this->assertSame( '«scope must be "own" or "all".»', $response->getData()['error'] );
 	}
 
 	// create
@@ -608,11 +608,10 @@ class RulesControllerTest
 		                  ->method( 'ruleAdd' )
 		;
 
-		$this->assertSame(
-			Http::STATUS_BAD_REQUEST,
-			$this->controller->create()
-			                 ->getStatus(),
-		);
+		$response = $this->controller->create();
+
+		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
+		$this->assertMatchesRegularExpression( '/^«.+»$/su', $response->getData()['error'], 'translated' );
 	}
 
 
@@ -647,6 +646,13 @@ class RulesControllerTest
 				[
 					'path'  => '/x',
 					'algos' => [ 'rot13' ],
+				],
+			],
+			'group:*'        => [
+				[
+					'path'     => '/x',
+					'algos'    => [ 'sha1' ],
+					'selector' => 'group:*',
 				],
 			],
 		];
@@ -706,11 +712,34 @@ class RulesControllerTest
 		                  ->method( 'ruleUpdate' )
 		;
 
-		$this->assertSame(
-			Http::STATUS_FORBIDDEN,
-			$this->controller->update( 'r1' )
-			                 ->getStatus(),
-		);
+		$response = $this->controller->update( 'r1' );
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $response->getStatus() );
+		$this->assertSame( '«You are not allowed to manage this rule.»', $response->getData()['error'] );
+	}
+
+	/**
+	 * A body that is no JSON object is refused in the caller's language,
+	 * on the create path and on the update path alike.
+	 */
+	public function testAnUnreadableBodyIsRefusedTranslated(): void
+	{
+		$this->signIn( 'theadmin', isAdmin: true );
+		$this->controller->method( 'readRequestBody' )
+		                 ->willReturn( 'not json' )
+		;
+		$this->ruleService->method( 'findRuleById' )
+		                  ->willReturn( [ 'id' => 'r1' ] )
+		;
+		$this->ruleService->method( 'canUserMutateRule' )
+		                  ->willReturn( true )
+		;
+
+		foreach ( [ $this->controller->create(), $this->controller->update( 'r1' ) ] as $response )
+		{
+			$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
+			$this->assertSame( '«Invalid request body.»', $response->getData()['error'] );
+		}
 	}
 
 	public function testUpdateReturns404ForAnUnknownRule(): void
@@ -886,7 +915,10 @@ class RulesControllerTest
 	 * @dataProvider invalidReorderProvider
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testReorderRejectsAMalformedPayload( array $payload ): void
+	public function testReorderRejectsAMalformedPayload(
+		array  $payload,
+		string $error,
+	): void
 	{
 		$this->signIn( 'theadmin', isAdmin: true );
 		$this->body( $payload );
@@ -895,32 +927,39 @@ class RulesControllerTest
 		                  ->method( 'reorderSegment' )
 		;
 
-		$this->assertSame(
-			Http::STATUS_BAD_REQUEST,
-			$this->controller->reorder()
-			                 ->getStatus(),
-		);
+		$response = $this->controller->reorder();
+
+		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
+		$this->assertSame( $error, $response->getData()['error'] );
 	}
 
 	/**
-	 * @return array<string, array{array}>
+	 * @return array<string, array{array, string}>
 	 */
 	public static function invalidReorderProvider(): array
 	{
 		return [
-			'no selector'           => [ [ 'orderedIds' => [ 'a' ] ] ],
+			'no selector'           => [
+				[ 'orderedIds' => [ 'a' ] ],
+				'«selector is required.»',
+			],
 			'selector not a string' => [
 				[
 					'selector'   => 4,
 					'orderedIds' => [ 'a' ],
 				],
+				'«selector is required.»',
 			],
-			'no orderedIds'         => [ [ 'selector' => 'home:*' ] ],
+			'no orderedIds'         => [
+				[ 'selector' => 'home:*' ],
+				'«orderedIds is required and must be an array.»',
+			],
 			'orderedIds scalar'     => [
 				[
 					'selector'   => 'home:*',
 					'orderedIds' => 'a',
 				],
+				'«orderedIds is required and must be an array.»',
 			],
 		];
 	}
@@ -950,7 +989,7 @@ class RulesControllerTest
 		$response = $this->controller->reorder();
 
 		$this->assertSame( Http::STATUS_INTERNAL_SERVER_ERROR, $response->getStatus() );
-		$this->assertSame( 'Internal server error.', $response->getData()['error'] );
+		$this->assertSame( '«Internal server error.»', $response->getData()['error'] );
 	}
 
 	// ─── apply ──────────────────────────────────────────────────────
@@ -1007,6 +1046,8 @@ class RulesControllerTest
 		$response = $this->controller->apply( str_repeat( 'a', 32 ) );
 
 		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
+		// The hint, not the English message kept for the job's log.
+		$this->assertSame( '«A disabled rule cannot be applied — enable it first.»', $response->getData()['error'] );
 	}
 
 	public function testApplyIsJudgedAsWriting(): void

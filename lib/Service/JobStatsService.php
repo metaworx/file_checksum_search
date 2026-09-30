@@ -69,7 +69,7 @@ class JobStatsService
 			self::JOB_PENDING_DRAIN      => 'Queue drain',
 			self::JOB_ORPHAN_PURGE       => 'Orphan purge',
 			self::JOB_FILECACHE_BACKFILL => 'Checksum copy',
-			self::JOB_HASH_INDEX_CHECK   => 'Hash index check',
+			self::JOB_HASH_INDEX_CHECK   => 'Checksum index check',
 		];
 
 

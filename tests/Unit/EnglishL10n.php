@@ -54,4 +54,42 @@ trait EnglishL10n
 
 		return $l10n;
 	}
+
+	/**
+	 * An `IL10N` that marks what it translates: «text», values filled as
+	 * {@see englishL10n()} fills them.
+	 *
+	 * For a test that must tell a translated text from one left in English:
+	 * a message that reaches a person marked went through `IL10N`, one that
+	 * reaches a log unmarked did not.
+	 */
+	protected function markingL10n(): IL10N&MockObject
+	{
+		$l10n = $this->createMock( IL10N::class );
+
+		$l10n->method( 't' )
+		     ->willReturnCallback(
+			     static fn(
+				     string       $text,
+				     array|string $parameters = [],
+			     ): string => '«' . vsprintf( $text, (array) $parameters ) . '»',
+		     )
+		;
+
+		$l10n->method( 'n' )
+		     ->willReturnCallback(
+			     static fn(
+				     string $singular,
+				     string $plural,
+				     int    $count,
+				     array  $parameters = [],
+			     ): string => '«' . vsprintf(
+					     str_replace( '%n', (string) $count, $count === 1 ? $singular : $plural ),
+					     $parameters,
+				     ) . '»',
+		     )
+		;
+
+		return $l10n;
+	}
 }

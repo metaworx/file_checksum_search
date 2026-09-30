@@ -15,6 +15,7 @@ use OCA\FileChecksumSearch\BackgroundJob\ApplyRuleJob;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\GroupFolderService;
+use OCA\FileChecksumSearch\Service\HintedInvalidArgumentException;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCA\FileChecksumSearch\Service\RuleService;
@@ -112,12 +113,13 @@ class RulesController
 
 		if ( $wantsAll && ! $isAdmin )
 		{
-			return $this->forbidden( 'Listing every rule requires administrator rights.' );
+			return $this->forbidden( $this->l10n->t( 'Listing every rule requires administrator rights.' ) );
 		}
 
 		if ( ! $wantsAll && $scope !== self::SCOPE_OWN )
 		{
-			return $this->badRequest( 'scope must be "own" or "all".' );
+			// TRANSLATORS: scope is a parameter name, and "own" and "all" are its values; keep them
+			return $this->badRequest( $this->l10n->t( 'scope must be "own" or "all".' ) );
 		}
 
 		$payload = [
@@ -276,7 +278,7 @@ class RulesController
 
 		if ( $body === null )
 		{
-			return $this->badRequest( 'Invalid request body.' );
+			return $this->badRequest( $this->l10n->t( 'Invalid request body.' ) );
 		}
 
 		try
@@ -406,7 +408,7 @@ class RulesController
 		}
 		catch ( InvalidArgumentException $e )
 		{
-			return $this->badRequest( $e->getMessage() );
+			return $this->badRequest( HintedInvalidArgumentException::textFor( $e ) );
 		}
 
 		$this->jobList->add(
@@ -458,12 +460,14 @@ class RulesController
 
 		if ( ! is_string( $selector ) || $selector === '' )
 		{
-			return $this->badRequest( 'selector is required.' );
+			// TRANSLATORS: selector is a parameter name; keep it
+			return $this->badRequest( $this->l10n->t( 'selector is required.' ) );
 		}
 
 		if ( ! is_array( $orderedIds ) )
 		{
-			return $this->badRequest( 'orderedIds is required and must be an array.' );
+			// TRANSLATORS: orderedIds is a parameter name; keep it
+			return $this->badRequest( $this->l10n->t( 'orderedIds is required and must be an array.' ) );
 		}
 
 		try
@@ -578,7 +582,7 @@ class RulesController
 
 		if ( $body === null )
 		{
-			return $this->badRequest( 'Invalid request body.' );
+			return $this->badRequest( $this->l10n->t( 'Invalid request body.' ) );
 		}
 
 		return [
@@ -626,12 +630,12 @@ class RulesController
 		);
 	}
 
-	private function forbidden( string $message = 'You are not allowed to manage this rule.' ): DataResponse
+	private function forbidden( ?string $message = null ): DataResponse
 	{
 		return new DataResponse(
 			[
 				'success' => false,
-				'error'   => $message,
+				'error'   => $message ?? $this->l10n->t( 'You are not allowed to manage this rule.' ),
 			],
 			Http::STATUS_FORBIDDEN,
 		);
