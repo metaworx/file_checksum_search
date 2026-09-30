@@ -67,12 +67,22 @@ jobs:
       - name: Stylelint
         run: npm run stylelint
 
+      # The app's lowest PHP, as the publish workflow builds with: the syntax
+      # check then proves the code runs there, and Psalm, which refuses a PHP
+      # older than its own floor for that series (8.2.27, 8.3.16, …), gets the
+      # latest 8.2 rather than whatever patch release the runner ships.
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+          tools: composer:v2
+
       - name: PHP syntax check
         run: composer lint
 
-      # The runner's PHP, as for the syntax check. --no-scripts: the root's
-      # post-install hook would install every tool under vendor-bin/, and
-      # this job needs two of them.
+      # --no-scripts: the root's post-install hook would install every tool
+      # under vendor-bin/, and this job needs two of them.
       - name: PHP tools
         run: |
           composer install --no-interaction --no-scripts
@@ -97,7 +107,7 @@ jobs:
 
       # The translation template, every .po file and l10n/ say what the
       # source says, and every language kept here is complete (AGENTS.md
-      # §3.7). Nextcloud's tool runs on the runner's PHP and needs gettext.
+      # §3.7). Nextcloud's tool runs on the job's PHP and needs gettext.
       - name: Translations are current
         run: |
           sudo apt-get update -qq
