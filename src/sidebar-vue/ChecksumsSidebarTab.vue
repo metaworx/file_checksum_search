@@ -17,7 +17,7 @@ import { fileLabel, labelKind } from '../fileLabel'
 import AlgorithmSelect from '../components/AlgorithmSelect.vue'
 import LocationIcon from '../components/LocationIcon.vue'
 import { type AlgoOption, fetchAlgorithms } from '../algorithms'
-import { crossAccountUrl, hashForLink } from './crossAccountLink'
+import { crossAccountUrl, emptyGroupUrl, hashForLink } from './crossAccountLink'
 import { useSidebarHashes } from './composables/useSidebarHashes'
 import { useClipboard } from './composables/useClipboard'
 import RecalcButton from './components/RecalcButton.vue'
@@ -68,7 +68,7 @@ const crossAccountHref = computed<string | null>(() => {
 		return null
 	}
 	const entry = hashForLink(hashes.value, preferredAlgo.value || defaultAlgo.value)
-	return entry ? crossAccountUrl(entry) : null
+	return entry ? crossAccountUrl(entry, props.node?.size === 0) : null
 })
 
 const { copied, copyToClipboard } = useClipboard()
@@ -242,7 +242,21 @@ watch(
 							<span class="fcias-algo-badge">{{ group.algo }}</span>
 							<span class="fcias-dup-hash-label">{{ group.hash_value }}</span>
 						</div>
-						<ul class="fcias-dup-list">
+						<!-- The empty files' group would list every empty file the
+						     viewer holds — and the lookup stops at a hundred, so
+						     neither the list nor its length would be the whole of
+						     it. The Duplicates page is where it is complete. -->
+						<p v-if="group.empty" class="fcias-dup-empty" data-testid="fcias-dup-empty">
+							<span>{{ t('file_checksum_search', 'Every empty file has this checksum.') }}</span>
+							<a class="fcias-dup-empty-link"
+								:href="emptyGroupUrl(group.algo, group.hash_value)"
+								target="_blank"
+								rel="noreferrer noopener">
+								<!-- TRANSLATORS: a link that opens the Duplicates page (the page's name, as in the top navigation) on this group, in a new tab -->
+								{{ t('file_checksum_search', 'Show in Duplicates') }}
+							</a>
+						</p>
+						<ul v-else class="fcias-dup-list">
 							<li v-for="file in group.files" :key="file.fileid" class="fcias-dup-item">
 								<a v-if="file.openable !== false"
 									class="fcias-dup-item-link"
@@ -437,6 +451,26 @@ watch(
 }
 
 .fcias-dup-item-link:hover {
+	color: var(--color-primary-element);
+}
+
+.fcias-dup-empty {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 8px;
+	margin: 4px 0 0 0;
+	padding-inline-start: 8px;
+	border-inline-start: 2px solid var(--color-border);
+	font-size: 12px;
+	color: var(--color-text-maxcontrast);
+}
+
+.fcias-dup-empty-link {
+	color: var(--color-main-text);
+	text-decoration: underline;
+}
+
+.fcias-dup-empty-link:hover {
 	color: var(--color-primary-element);
 }
 

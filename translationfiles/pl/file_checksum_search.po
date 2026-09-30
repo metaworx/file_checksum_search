@@ -336,6 +336,10 @@ msgstr "Edytuj regułę"
 msgid "Edit the rule on {path}"
 msgstr "Edytuj regułę dla {path}"
 
+#. TRANSLATORS a label on a group of duplicates whose files are all empty (zero bytes)
+msgid "Empty files"
+msgstr "Puste pliki"
+
 msgid "Enable"
 msgstr "Włącz"
 
@@ -370,6 +374,12 @@ msgstr "Sprawdzane od góry do dołu – o pliku decyduje pierwsza pasująca reg
 
 msgid "Evaluates in band {band} — {label}"
 msgstr "Sprawdzana na poziomie {band} – {label}"
+
+msgid "Every empty file has the same checksum, so all of them form one large group per algorithm, and deleting one frees no space. They are left out unless this is on."
+msgstr "Wszystkie puste pliki mają tę samą sumę kontrolną, więc tworzą jedną dużą grupę dla każdego algorytmu, a usunięcie jednego nie zwalnia miejsca. Są pomijane, chyba że ta opcja jest włączona."
+
+msgid "Every empty file has this checksum."
+msgstr "Każdy pusty plik ma tę sumę kontrolną."
 
 msgid "Every rule that can affect your files, in the order they are evaluated — the first match decides. Rules an administrator enforced come first and are read-only; your own rules come next and are yours to edit and reorder; the defaults below them apply only where none of your rules matched. You can create rules only if you have been given permission and the path is a folder in your own files that you can write to."
 msgstr "Każda reguła, która może wpływać na Twoje pliki, w kolejności sprawdzania – decyduje pierwsze dopasowanie. Reguły wymuszone przez administratora są pierwsze i są tylko do odczytu; Twoje własne reguły są następne i możesz je edytować oraz zmieniać ich kolejność; reguły domyślne pod nimi obowiązują tylko tam, gdzie nie pasuje żadna z Twoich reguł. Reguły możesz tworzyć tylko wtedy, gdy masz do tego uprawnienie, a ścieżka wskazuje folder w Twoich własnych plikach, do którego możesz zapisywać."
@@ -808,6 +818,14 @@ msgstr "Wybierz grupy…"
 
 msgid "Settings"
 msgstr "Ustawienia"
+
+#. TRANSLATORS a switch among the Duplicates page's filters: also list the groups of empty (zero-byte) files
+msgid "Show empty files"
+msgstr "Pokaż puste pliki"
+
+#. TRANSLATORS a link that opens the Duplicates page (the page's name, as in the top navigation) on this group, in a new tab
+msgid "Show in Duplicates"
+msgstr "Pokaż w Duplikatach"
 
 msgid "Show only groups whose hash matches this"
 msgstr "Pokaż tylko grupy, których hash pasuje do wpisanego tekstu"

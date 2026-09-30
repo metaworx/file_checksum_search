@@ -165,6 +165,62 @@ class HashIndexServiceTest
 		$this->assertCount( 1, $result );
 	}
 
+	public function testListDuplicatesForUserAsksForEmptyFilesOnlyWhenTold(): void
+	{
+		$asked = [];
+
+		$this->duplicates->method( 'findAllDuplicates' )
+		                 ->willReturnCallback(
+			                 function(
+				                 ?string $algo,
+				                 int     $minCount,
+				                 int     $limit,
+				                 int     $offset,
+				                 ?string $hash,
+				                 bool    $anywhere,
+				                 bool    $includeEmpty,
+			                 ) use ( &$asked ): array
+			                 {
+				                 $asked[] = $includeEmpty;
+
+				                 return [
+					                 $this->group(
+						                 'da39a3ee5e6b4b0d3255bfef95601890afd80709',
+						                 [
+							                 42,
+							                 108,
+						                 ],
+						                 true,
+					                 ),
+				                 ];
+			                 },
+		                 )
+		;
+		$this->filecacheService->method( 'batchLookupFilecachePaths' )
+		                       ->willReturn(
+			                       $this->paths(
+				                       [
+					                       42,
+					                       108,
+				                       ],
+			                       ),
+		                       )
+		;
+
+		$this->service->listDuplicatesForUser( 'bob' );
+		$result = $this->service->listDuplicatesForUser( 'bob', includeEmpty: true );
+
+		$this->assertSame(
+			[
+				false,
+				true,
+			],
+			$asked,
+		);
+		// The group says whose it is, so the page can label it.
+		$this->assertTrue( $result['duplicates'][0]['empty'] );
+	}
+
 	public function testCountHashesDelegatesToMetadata(): void
 	{
 		$this->metadataService->expects( $this->once() )
@@ -641,11 +697,12 @@ class HashIndexServiceTest
 	/**
 	 * @param  int[]  $fileIds
 	 *
-	 * @return array{algo: string, hash_value: string, file_count: int, fileids: int[]}
+	 * @return array{algo: string, hash_value: string, file_count: int, fileids: int[], empty: bool}
 	 */
 	private function group(
 		string $hash,
 		array  $fileIds,
+		bool   $empty = false,
 	): array
 	{
 		return [
@@ -653,6 +710,7 @@ class HashIndexServiceTest
 			'hash_value' => $hash,
 			'file_count' => count( $fileIds ),
 			'fileids'    => $fileIds,
+			'empty'      => $empty,
 		];
 	}
 

@@ -278,4 +278,30 @@ class AlgorithmCatalogueTest
 
 		$this->assertSame( [], $catalogue->keepPlausible( [ 'sha1' => str_repeat( 'z', 40 ) ] ) );
 	}
+
+	public function testEveryKeyableAlgorithmHasItsEmptyDigest(): void
+	{
+		$digests = AlgorithmCatalogue::emptyDigests();
+
+		$this->assertSame( 'da39a3ee5e6b4b0d3255bfef95601890afd80709', $digests['sha1'] );
+		$this->assertSame( '00000001', $digests['adler32'] );
+		$this->assertSame( '00000000', $digests['crc32'] );
+
+		// Allowed or not: a disallowed algorithm's rows still form groups.
+		$this->assertArrayHasKey( 'whirlpool', $digests );
+
+		foreach ( array_keys( $digests ) as $name )
+		{
+			$this->assertMatchesRegularExpression( AlgorithmCatalogue::NAME_PATTERN, $name );
+		}
+	}
+
+	public function testAnEmptyDigestIsRecognisedPerAlgorithm(): void
+	{
+		$this->assertTrue( AlgorithmCatalogue::isEmptyDigest( 'SHA1', 'DA39A3EE5E6B4B0D3255BFEF95601890AFD80709' ) );
+		$this->assertTrue( AlgorithmCatalogue::isEmptyDigest( 'crc32', '00000000' ) );
+		// crc32's empty digest is an ordinary adler32 value.
+		$this->assertFalse( AlgorithmCatalogue::isEmptyDigest( 'adler32', '00000000' ) );
+		$this->assertFalse( AlgorithmCatalogue::isEmptyDigest( 'no-such-algo', '00000000' ) );
+	}
 }

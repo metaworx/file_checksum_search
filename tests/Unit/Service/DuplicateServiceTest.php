@@ -121,6 +121,44 @@ class DuplicateServiceTest
 			],
 			$result[1]['fileids'],
 		);
+		$this->assertFalse( $result[0]['empty'] );
+	}
+
+	public function testFindAllDuplicatesMarksTheEmptyFilesGroupAndPassesIncludeEmptyOn(): void
+	{
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'queryDuplicates' )
+		                      ->with( null, 2, 50, 0, null, false, true )
+		                      ->willReturn(
+			                      [
+				                      [
+					                      MetadataService::FIELD_META_KEY          => MetadataService::getHashKey( 'md5' ),
+					                      MetadataService::FIELD_META_VALUE_STRING => 'd41d8cd98f00b204e9800998ecf8427e',
+					                      'file_count'                             => 2,
+					                      'file_ids'                               => [
+						                      1,
+						                      2,
+					                      ],
+				                      ],
+				                      [
+					                      // Another algorithm's empty digest is an
+					                      // ordinary value of this one's.
+					                      MetadataService::FIELD_META_KEY          => MetadataService::getHashKey( 'adler32' ),
+					                      MetadataService::FIELD_META_VALUE_STRING => '00000000',
+					                      'file_count'                             => 2,
+					                      'file_ids'                               => [
+						                      3,
+						                      4,
+					                      ],
+				                      ],
+			                      ],
+		                      )
+		;
+
+		$result = $this->service->findAllDuplicates( includeEmpty: true );
+
+		$this->assertTrue( $result[0]['empty'] );
+		$this->assertFalse( $result[1]['empty'] );
 	}
 
 	public function testFindByHashResolvesFilecachePaths(): void

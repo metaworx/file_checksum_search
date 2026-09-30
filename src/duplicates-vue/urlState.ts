@@ -20,6 +20,8 @@ export interface ListingParams {
 	hash: string
 	anywhere: boolean
 	algo: string
+	/** List the empty files' groups too; the server leaves them out by default. */
+	includeEmpty: boolean
 	minCount: number
 	limit: number
 	offset: number
@@ -29,6 +31,7 @@ export const LISTING_DEFAULTS: Readonly<ListingParams> = Object.freeze({
 	hash: '',
 	anywhere: false,
 	algo: '',
+	includeEmpty: false,
 	minCount: 2,
 	limit: 50,
 	offset: 0,
@@ -69,6 +72,7 @@ export function listingFromParams(params: URLSearchParams, algorithmIds: readonl
 		// Meaningless without a term, and written only with one.
 		anywhere: hash !== '' && params.get('anywhere') === '1',
 		algo: known ? algo : '',
+		includeEmpty: params.get('includeEmpty') === '1',
 		minCount: bounded(params.get('minCount'), 2, 100, LISTING_DEFAULTS.minCount),
 		limit: bounded(params.get('limit'), 1, 500, LISTING_DEFAULTS.limit),
 		offset: bounded(params.get('offset'), 0, Number.MAX_SAFE_INTEGER, 0),
@@ -96,6 +100,7 @@ export function sameParams(a: ListingParams, b: ListingParams): boolean {
 	return a.hash === b.hash
 		&& a.anywhere === b.anywhere
 		&& a.algo === b.algo
+		&& a.includeEmpty === b.includeEmpty
 		&& a.minCount === b.minCount
 		&& a.limit === b.limit
 		&& a.offset === b.offset
@@ -115,6 +120,9 @@ export function fragmentFor(tab: Tab, listing: ListingParams | null = null, scop
 		}
 		if (listing.algo) {
 			params.set('algo', listing.algo)
+		}
+		if (listing.includeEmpty) {
+			params.set('includeEmpty', '1')
 		}
 		if (listing.minCount !== LISTING_DEFAULTS.minCount) {
 			params.set('minCount', String(listing.minCount))

@@ -418,6 +418,25 @@ describe('the hash filter', () => {
 	})
 })
 
+describe('the empty files', () => {
+	afterEach(() => {
+		vi.restoreAllMocks()
+	})
+
+	// The server leaves them out unless asked; the default asks nothing.
+	it('are asked for only when the switch is on', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ duplicates: [] }))
+		const { includeEmpty, load } = useDuplicates()
+
+		await load()
+		expect(String(fetchMock.mock.calls[0][0])).not.toContain('includeEmpty')
+
+		includeEmpty.value = true
+		await load()
+		expect(String(fetchMock.mock.calls[1][0])).toContain('includeEmpty=1')
+	})
+})
+
 describe('the instance-wide view', () => {
 	const statusResponse = (status: number, body: unknown = {}): Response =>
 		({ ok: status < 400, status, json: () => Promise.resolve(body) } as unknown as Response)

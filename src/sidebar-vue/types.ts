@@ -25,6 +25,8 @@ export interface DuplicateFile {
 export interface DuplicateGroup {
 	algo: string
 	hash_value: string
+	/** The empty files' group: its hash is its algorithm's checksum of no input. */
+	empty?: boolean
 	files: DuplicateFile[]
 }
 
@@ -34,4 +36,6 @@ export interface FileNode {
 	type?: string
 	source?: string
 	path?: string
+	/** In bytes, as the Files app's Node carries it; absent counts as not empty. */
+	size?: number
 }

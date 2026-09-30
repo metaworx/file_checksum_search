@@ -662,6 +662,9 @@ class PublicApiController
 	/**
 	 * Find duplicate groups among the files the session user can reach.
 	 *
+	 * Empty files are left out unless `includeEmpty` asks for them: they all
+	 * share one checksum per algorithm, and deleting a copy frees nothing.
+	 *
 	 * @noinspection PhpUnused
 	 */
 	#[NoAdminRequired]
@@ -675,6 +678,7 @@ class PublicApiController
 		int     $offset = 0,
 		?string $hash = null,
 		bool    $anywhere = false,
+		bool    $includeEmpty = false,
 	): DataResponse
 	{
 		$scope = $this->scopeOrRefusal();
@@ -684,7 +688,7 @@ class PublicApiController
 			return $scope;
 		}
 
-		$response = $this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere );
+		$response = $this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty );
 
 		// Whether the caller may cross into other accounts at all. Rides on
 		// the listing the page loads anyway, so the page needs no second
@@ -721,6 +725,7 @@ class PublicApiController
 		bool    $anywhere = false,
 		?array  $users = null,
 		?array  $groups = null,
+		bool    $includeEmpty = false,
 	): DataResponse
 	{
 		// One way to name whom, the one the picker sends. `user=` for a single
@@ -735,7 +740,9 @@ class PublicApiController
 
 		return $scope instanceof DataResponse
 			? $scope
-			: $this->markOpenable( $this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere ) );
+			: $this->markOpenable(
+				$this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty ),
+			);
 	}
 
 	/**
@@ -750,6 +757,7 @@ class PublicApiController
 		int     $offset,
 		?string $hash = null,
 		bool    $anywhere = false,
+		bool    $includeEmpty = false,
 	): DataResponse
 	{
 		// One account, several or every: the API takes a list or null, and
@@ -759,17 +767,27 @@ class PublicApiController
 		$this->logger->debug(
 			'FCIAS PublicApiController: findAllDuplicates called',
 			[
-				'app'      => Application::APP_ID,
-				'algo'     => $algo,
-				'minCount' => $minCount,
-				'limit'    => $limit,
-				'offset'   => $offset,
+				'app'          => Application::APP_ID,
+				'algo'         => $algo,
+				'minCount'     => $minCount,
+				'limit'        => $limit,
+				'offset'       => $offset,
+				'includeEmpty' => $includeEmpty,
 			],
 		);
 
 		try
 		{
-			$result = $this->api->findDuplicatesFor( $reachUids, $algo, $minCount, $limit, $offset, $hash, $anywhere );
+			$result = $this->api->findDuplicatesFor(
+				$reachUids,
+				$algo,
+				$minCount,
+				$limit,
+				$offset,
+				$hash,
+				$anywhere,
+				includeEmpty: $includeEmpty,
+			);
 
 			// Whether the viewer may recalculate by hand, which is what
 			// "Verify" does. Rides on every listing, own or cross-account, so

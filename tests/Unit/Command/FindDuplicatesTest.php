@@ -95,6 +95,47 @@ class FindDuplicatesTest
 		$this->assertStringContainsString( 'Docs/b.txt', $display );
 	}
 
+	public function testIncludeEmptyAsksForTheEmptyFilesAndMarksTheirGroup(): void
+	{
+		$this->hashIndexService->expects( $this->exactly( 2 ) )
+		                       ->method( 'findAllDuplicates' )
+		                       ->with( null, 2, 100, 0, null, false, true )
+		                       ->willReturn( [
+			                       [
+				                       'algo'       => 'sha1',
+				                       'hash_value' => 'da39a3ee5e6b4b0d3255bfef95601890afd80709',
+				                       'file_count' => 2,
+				                       'fileids'    => [ 42, 108 ],
+				                       'empty'      => true,
+			                       ],
+		                       ] )
+		;
+		$this->hashIndexService->method( 'batchLookupFilecachePaths' )
+		                       ->willReturn( [
+			                       42  => [ 'path' => 'a.txt', 'name' => 'a.txt', 'owner' => 'alice', 'location' => '/alice/files/a.txt' ],
+			                       108 => [ 'path' => 'b.txt', 'name' => 'b.txt', 'owner' => 'alice', 'location' => '/alice/files/b.txt' ],
+		                       ] )
+		;
+
+		$this->tester->execute( [ '--include-empty' => true ] );
+		$this->assertStringContainsString( '(2 empty files)', $this->tester->getDisplay() );
+
+		$this->tester->execute( [ '--include-empty' => true, '--output' => 'json' ] );
+		$json = json_decode( $this->tester->getDisplay(), true );
+		$this->assertTrue( $json['duplicates'][0]['empty'] );
+	}
+
+	public function testLeavesOutEmptyFilesByDefault(): void
+	{
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'findAllDuplicates' )
+		                       ->with( null, 2, 100, 0, null, false, false )
+		                       ->willReturn( [] )
+		;
+
+		$this->tester->execute( [] );
+	}
+
 	public function testDropsGroupsBelowMinCountAfterPathResolution(): void
 	{
 		$this->hashIndexService->method( 'findAllDuplicates' )

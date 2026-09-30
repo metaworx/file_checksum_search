@@ -51,6 +51,10 @@ it decides.
 - **Algorithm** — filter to one algorithm, or *All algorithms*. The list
   offers the algorithms your administrator has allowed on this server.
 - **Min. files** — the minimum number of files a group must contain to be listed.
+- **Show empty files** — off by default. Every empty file has the same
+  checksum, so they would form one large group per algorithm, and deleting
+  one frees no space. Turned on, their groups are listed too, labelled
+  *Empty files*.
 - **Per page** — how many groups to show per page.
 - **Refresh** — reload the list.
 - **Hash** — show only groups whose hash matches what you type. Whole values
@@ -176,7 +180,10 @@ It has three sections:
   already computed still shows.
 - **Duplicates** — a **Find duplicates** button that lists, in place, the
   other files sharing a checksum with this one — your own files, and the
-  ones shared with you. If you may look across accounts, **Find across
+  ones shared with you. For an empty file the list would be every other empty
+  file, so it says so in one line instead, with **Show in Duplicates**, which
+  opens that group on the Duplicates page in a new tab. If you may look across
+  accounts, **Find across
   accounts** sits beside it and opens the Duplicates page's *Others* tab in
   a new tab, with this file's checksum filled in and everyone you may see
   named, after your password. The checksum rides in that tab's address, so

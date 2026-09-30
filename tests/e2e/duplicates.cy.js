@@ -46,6 +46,12 @@ const files = [
 // makes "how many groups" a meaningful question.
 const DUP_HASH = '0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33'
 
+// Two empty files, as tests/e2e/fixtures/empty-files.json states them, and
+// the sha1 of no input they share.
+const emptyDir = 'fcias-e2e-empty'
+const emptyFiles = [ 'empty-1.txt', 'empty-2.txt' ]
+const EMPTY_SHA1 = 'da39a3ee5e6b4b0d3255bfef95601890afd80709'
+
 const recalcUrl = '**/ocs/v2.php/apps/file_checksum_search/api/v1/file/*/recalc*'
 
 const webdavUrl = ( path ) => `/remote.php/dav/files/${ adminUser }${ path }`
@@ -91,8 +97,29 @@ describe( 'FCIAS Duplicates page', () => {
 			// Reset first, then state the hashes: the files have to exist
 			// before the import can resolve their paths, and the reset has to
 			// come before the import or it would clear what was just stated.
+			// Two empty files, in a folder of their own: the listing leaves
+			// their group out by default, which one case asserts, and the
+			// screenshots show fcias-e2e-duplicates, which they would change.
+			cy.request( {
+				method: 'MKCOL',
+				url: webdavUrl( `/${ emptyDir }` ),
+				auth: { user: adminUser, pass: adminPassword },
+				failOnStatusCode: false,
+			} )
+
+			for ( const name of emptyFiles ) {
+				cy.request( {
+					method: 'PUT',
+					url: webdavUrl( `/${ emptyDir }/${ name }` ),
+					auth: { user: adminUser, pass: adminPassword },
+					headers: { 'Content-Type': 'text/plain' },
+					body: '',
+				} )
+			}
+
 			cy.resetFciasState( occ )
 			cy.importFciasFixture( occ, 'duplicates', adminUser )
+			cy.importFciasFixture( occ, 'empty-files', adminUser )
 		} )
 	} )
 
@@ -246,6 +273,20 @@ describe( 'FCIAS Duplicates page', () => {
 		cy.get( '[data-testid="fcias-duplicates-anywhere"] input[type="checkbox"]' )
 			.click( { force: true } )
 		ownGroup().should( 'have.length', 1 )
+	} )
+
+	// Empty files all share one checksum per algorithm; the listing leaves
+	// their group out until the switch asks for it, and the address keeps
+	// the answer. The two made in `before()`.
+	it( 'leaves the empty files out until the switch asks for them', () => {
+		cy.visit( `${ DUPLICATES_URL }#mine?hash=${ EMPTY_SHA1 }` )
+		cy.get( '.db-empty', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.get( '[data-testid="fcias-empty-group"]' ).should( 'not.exist' )
+
+		cy.get( '[data-testid="fcias-duplicates-include-empty"] input[type="checkbox"]' )
+			.click( { force: true } )
+		cy.get( '[data-testid="fcias-empty-group"]', { timeout: FIND_TIMEOUT } ).should( 'have.length', 1 )
+		cy.location( 'hash' ).should( 'contain', 'includeEmpty=1' )
 	} )
 
 	// A bookmarked #others opens the tab, the way #help does. The hash

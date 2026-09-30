@@ -251,6 +251,50 @@ class PublicApiTest
 		$this->assertArrayHasKey( 'limit', $response['pagination'] );
 	}
 
+	/**
+	 * Two empty files beside the seeded pair: the listing leaves their group
+	 * out until asked, and marks it when it lists it. The per-file lookup,
+	 * which names the file, answers with the group and its mark. Against a
+	 * real database, since the exclusion is SQL.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testEmptyFilesAreLeftOutOfTheListingUnlessAsked(): void
+	{
+		$userFolder = Server::get( IRootFolder::class )
+		                    ->getUserFolder( self::$testUser )
+		;
+		$run         = bin2hex( random_bytes( 4 ) );
+		$emptyDigest = sha1( '' );
+
+		$emptyIds = [];
+
+		foreach ( [ 'a', 'b' ] as $suffix )
+		{
+			$id                     = $userFolder->newFile( "fcias_http_empty_{$suffix}_$run.dat", '' )
+			                                     ->getId();
+			$emptyIds[]             = $id;
+			$this->cleanupFileIds[] = $id;
+			$this->insertHashMetadata( $id, [ 'sha1' => $emptyDigest ] );
+		}
+
+		$hashesOf = static fn( array $response ): array => array_column( $response['duplicates'], 'hash_value' );
+
+		$default = $this->httpGet( '/api/v1/duplicates?algo=sha1' );
+		$this->assertContains( $this->sharedSha1Hash, $hashesOf( $default ) );
+		$this->assertNotContains( $emptyDigest, $hashesOf( $default ) );
+
+		$asked  = $this->httpGet( '/api/v1/duplicates?algo=sha1&includeEmpty=1' );
+		$groups = array_column( $asked['duplicates'], null, 'hash_value' );
+		$this->assertTrue( $groups[ $emptyDigest ]['empty'] ?? null );
+		$this->assertFalse( $groups[ $this->sharedSha1Hash ]['empty'] ?? null );
+
+		$lookup = $this->httpGet( "/api/v1/file/$emptyIds[0]/duplicates" );
+		$byHash = array_column( $lookup['duplicates'], null, 'hash_value' );
+		$this->assertTrue( $byHash[ $emptyDigest ]['empty'] ?? null );
+		$this->assertSame( [ $emptyIds[1] ], array_column( $byHash[ $emptyDigest ]['files'], 'fileid' ) );
+	}
+
 	// ─── POST /api/v1/file/{fileId}/recalc ───────────────────────────
 	public function testRecalcHashEndpoint(): void
 	{

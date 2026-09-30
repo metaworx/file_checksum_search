@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest'
-import { crossAccountUrl, hashForLink } from './crossAccountLink'
+import { crossAccountUrl, emptyGroupUrl, hashForLink } from './crossAccountLink'
 
 vi.mock('@nextcloud/router', () => ({
 	generateUrl: (url: string) => `/index.php${url}`,
@@ -32,6 +32,21 @@ describe('crossAccountUrl', () => {
 	it('opens the Others tab on the hash, over the whole reach', () => {
 		expect(crossAccountUrl(SHA1)).toBe(
 			`/index.php/apps/file_checksum_search/duplicates#others?hash=${SHA1.hash}&algo=sha1&all=1`,
+		)
+	})
+
+	it('asks for the empty files for an empty file, whose group they are', () => {
+		expect(crossAccountUrl(SHA1, true)).toBe(
+			`/index.php/apps/file_checksum_search/duplicates#others?hash=${SHA1.hash}&algo=sha1&includeEmpty=1&all=1`,
+		)
+	})
+})
+
+describe('emptyGroupUrl', () => {
+	it('opens the viewer\'s own listing on that group, empty files included', () => {
+		const empty = 'da39a3ee5e6b4b0d3255bfef95601890afd80709'
+		expect(emptyGroupUrl('sha1', empty)).toBe(
+			`/index.php/apps/file_checksum_search/duplicates#mine?hash=${empty}&algo=sha1&includeEmpty=1`,
 		)
 	})
 })

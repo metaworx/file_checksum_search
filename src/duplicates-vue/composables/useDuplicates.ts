@@ -34,6 +34,8 @@ export interface DuplicateGroup {
 	algo: string
 	hash_value: string
 	file_count: number
+	/** The empty files' group: its hash is its algorithm's checksum of no input. */
+	empty?: boolean
 	files: DuplicateFileItem[]
 	match_count?: number
 	mismatch_count?: number
@@ -56,6 +58,8 @@ interface State {
 	hash: string
 	/** Match the term anywhere in the hash rather than at its start. */
 	anywhere: boolean
+	/** List the empty files' groups too, which the server leaves out by default. */
+	includeEmpty: boolean
 	minCount: number
 	limit: number
 	offset: number
@@ -77,6 +81,7 @@ export function useDuplicates() {
 		algo: '',
 		hash: '',
 		anywhere: false,
+		includeEmpty: false,
 		minCount: 2,
 		limit: 50,
 		offset: 0,
@@ -118,6 +123,9 @@ export function useDuplicates() {
 				if (state.anywhere) {
 					params.set('anywhere', '1')
 				}
+			}
+			if (state.includeEmpty) {
+				params.set('includeEmpty', '1')
 			}
 
 			// A scope means the cross-account route. It carries the password

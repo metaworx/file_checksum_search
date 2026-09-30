@@ -200,7 +200,7 @@ Convenience method — get checksums by filesystem path.
 
 ---
 
-#### `findDuplicates(?string $algo = null, int $minCount = 2, int $limit = 50, int $offset = 0, ?string $hash = null, bool $anywhere = false): array`
+#### `findDuplicates(?string $algo = null, int $minCount = 2, int $limit = 50, int $offset = 0, ?string $hash = null, bool $anywhere = false, bool $includeEmpty = false): array`
 
 Find duplicate hash groups among the files the calling user can open.
 
@@ -216,6 +216,7 @@ administrator sees their own files, not everyone's.
 | `$offset` | `int` | No | Pagination offset |
 | `$hash` | `?string` | No | Only the groups whose hash starts with this |
 | `$anywhere` | `bool` | No | With `$hash`: match it anywhere in the hash, not only at the start |
+| `$includeEmpty` | `bool` | No | List the empty files' groups too (default `false`); see [Empty files](#empty-files) |
 
 **Returns:**
 ```php
@@ -223,8 +224,9 @@ administrator sees their own files, not everyone's.
     'duplicates' => [
         [
             'algo' => 'sha1',
-            'hash_value' => 'da39a3...',
+            'hash_value' => 'aaf4c6...',
             'file_count' => 3,
+            'empty' => false,
             'files' => [
                 ['fileid' => 100, 'path' => 'files/Documents/a.pdf', 'name' => 'a.pdf', 'owner' => 'alice', 'location' => '/alice/files/Documents/a.pdf'],
                 ['fileid' => 200, 'path' => 'files/Photos/b.pdf', 'name' => 'b.pdf', 'owner' => 'alice', 'location' => '/alice/files/Photos/b.pdf'],
@@ -239,7 +241,7 @@ administrator sees their own files, not everyone's.
 
 ---
 
-#### `findDuplicatesFor(?array $reachUids, ?string $algo = null, int $minCount = 2, int $limit = 50, int $offset = 0, ?string $hash = null, bool $anywhere = false): array`
+#### `findDuplicatesFor(?array $reachUids, ?string $algo = null, int $minCount = 2, int $limit = 50, int $offset = 0, ?string $hash = null, bool $anywhere = false, bool $includeEmpty = false): array`
 
 The scoped core behind `findDuplicates()`: duplicate groups among the files
 the named accounts hold, as one merged listing, or among every account's with
@@ -261,7 +263,8 @@ The rest as `findDuplicates()`. **Returns:** the same shape.
 
 Find other files sharing hash values with the given file. Both ends are within
 the reach: the reference file must lie in it, and only duplicates in it are
-listed.
+listed. Unlike the listing it leaves no empty file out, since the caller named
+the file; `empty` says which group is the empty files'.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -274,7 +277,8 @@ listed.
     'duplicates' => [
         [
             'algo' => 'sha1',
-            'hash_value' => 'da39a3...',
+            'hash_value' => 'aaf4c6...',
+            'empty' => false,
             'files' => [
                 ['fileid' => 200, 'path' => '/Photos/copy.jpg', 'name' => 'copy.jpg', 'owner' => 'bob', 'location' => '/bob/files/Photos/copy.jpg'],
             ],
@@ -528,7 +532,8 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/duplicates
   "duplicates": [
     {
       "algo": "sha1",
-      "hash_value": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+      "hash_value": "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d",
+      "empty": false,
       "files": [
         {"fileid": 200, "path": "/Photos/copy.jpg", "name": "copy.jpg", "owner": "alice", "location": "/alice/files/Photos/copy.jpg"}
       ]
@@ -536,6 +541,10 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/duplicates
   ]
 }
 ```
+
+Empty files are not left out here, as they are from the listing (route 5):
+the caller named the file. `empty` says which group is theirs — see
+[Empty files](#empty-files).
 
 Every file row in this API carries `owner` and `location` beside `path` and
 `name`: `path` is one account's name for the file, name included — below
@@ -610,7 +619,7 @@ exactly what `ignore` still allows.
 #### 5. Find All Duplicates
 
 ```
-GET /ocs/v2.php/apps/file_checksum_search/api/v1/duplicates?algo=<algo>&minCount=<n>&limit=<n>&offset=<n>&hash=<hash>&anywhere=<0|1>
+GET /ocs/v2.php/apps/file_checksum_search/api/v1/duplicates?algo=<algo>&minCount=<n>&limit=<n>&offset=<n>&hash=<hash>&anywhere=<0|1>&includeEmpty=<0|1>
 ```
 
 | Parameter | Type | Required | Default | Max |
@@ -621,6 +630,7 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/duplicates?algo=<algo>&minCount
 | `offset` | int | No | 0 | — |
 | `hash` | string | No | — | — |
 | `anywhere` | bool | No | false | — |
+| `includeEmpty` | bool | No | false | — |
 
 `hash` keeps only the groups whose checksum it names: whole values first, then
 those beginning with it. Case is ignored. With `anywhere=1` the term matches
@@ -630,14 +640,18 @@ A term longer than the index column's 63 characters is compared there on its
 first 63 and matched against the metadata document as well — the same two-part
 shape `lookup` uses — so a full SHA-512 finds exactly its group.
 
+`includeEmpty=1` lists the empty files' groups as well, which are left out by
+default — see [Empty files](#empty-files).
+
 **Response (200):**
 ```json
 {
   "duplicates": [
     {
       "algo": "sha1",
-      "hash_value": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+      "hash_value": "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d",
       "file_count": 3,
+      "empty": false,
       "files": [
         {"fileid": 100, "path": "files/Documents/a.pdf", "name": "a.pdf", "owner": "alice", "location": "/alice/files/Documents/a.pdf"},
         {"fileid": 200, "path": "files/Photos/b.pdf", "name": "b.pdf", "owner": "alice", "location": "/alice/files/Photos/b.pdf"},
@@ -658,6 +672,22 @@ and so whether the Duplicates page offers *Verify* and *Verify all*; the
 cross-account twin, `/api/v1/sudo/duplicates`, carries it too. `canSudo`
 says whether the caller may look across accounts at all — whether the
 Duplicates page shows its *Others* tab.
+
+##### Empty files
+
+Every empty file carries its algorithm's checksum of no input — SHA-1
+`da39a3ee5e6b4b0d3255bfef95601890afd80709`, MD5
+`d41d8cd98f00b204e9800998ecf8427e` — so an instance's empty files form one
+group per algorithm, usually the largest, and deleting a copy frees nothing.
+The listing leaves those groups out unless `includeEmpty` asks for them; the
+per-file lookup (route 3) never does. Every group carries `empty`, `true` for
+such a group.
+
+A group is recognised by its value, not by the files' size, which the index
+does not hold: each algorithm is compared with its own empty digest. A checksum
+as weak as a 32-bit one can give non-empty content the same value — 65,521 zero
+bytes have the Adler-32 of no input — and such a file is left out, or marked, with
+the empty files. *Verify* tells them apart.
 
 ---
 
@@ -1115,8 +1145,8 @@ settings → *Advanced*), 21 by default. An account that may name nobody gets
 
 The Duplicates page keeps what it shows in the URL fragment —
 `#others?hash=<hash>&algo=<algo>&all=1`, or `users=`/`groups=` repeated in
-place of `all=1`, with `anywhere`, `minCount`, `limit` and `offset` as on the
-routes — so a search can be bookmarked or handed to someone. Every read the
+place of `all=1`, with `anywhere`, `includeEmpty`, `minCount`, `limit` and
+`offset` as on the routes — so a search can be bookmarked or handed to someone. Every read the
 page then makes is authorised and confirmed as above, so a URL reveals
 nothing on its own.
 
@@ -1178,6 +1208,7 @@ URL-path versioning: `/api/v1/`, `/api/v2/`, etc.
 | Add optional field to response | Yes | Minor release |
 | Add optional query parameter | Yes | Minor release |
 | Add optional method parameter (with default) | Yes | Minor release |
+| Narrow what a listing returns by default | Yes | Minor release, under `### Changed`, with a parameter that restores the previous answer |
 | Change field type | **No** | New major version |
 | Remove field | **No** | Deprecate → one major → remove |
 | Rename field / endpoint | **No** | New major version |

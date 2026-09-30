@@ -2773,15 +2773,6 @@ class MetadataService
 	}
 
 	/**
-	 * Find duplicate hash groups across all files.
-	 *
-	 * INNER JOINs oc_files_metadata to access full JSON for verification
-	 * of long hashes (SHA-512/SHA3-512 truncated in index).
-	 *
-	 * @return array<int, array{meta_key: string, meta_value_string: string, file_count: int, file_ids: int[]}>
-	 * @throws \OCP\DB\Exception
-	 */
-	/**
 	 * Narrow a duplicates query to the hashes a term names.
 	 *
 	 * The same two-part shape {@see queryByHash()} uses, for the same reason.
@@ -2832,6 +2823,65 @@ class MetadataService
 		}
 	}
 
+	/**
+	 * Leave out the rows holding an algorithm's checksum of no input: every
+	 * empty file's, one group per algorithm, and on an instance with many
+	 * empty files the largest group there is.
+	 *
+	 * By value, not by size: the index has no size, and one would take a
+	 * join to `oc_filecache` in a query that already groups the index. Each
+	 * algorithm is compared with its own digest — `key <> k OR value <> d` —
+	 * because several 32-bit checksums share one (`00000000`), and a value
+	 * that is one algorithm's empty digest is an ordinary value of another's.
+	 *
+	 * @param  string|null  $algo  The listing's algorithm filter; with one,
+	 *                             only its digest is excluded.
+	 */
+	private function andWhereNotEmpty(
+		IQueryBuilder $qb,
+		?string       $algo,
+	): void
+	{
+		$digests = AlgorithmCatalogue::emptyDigests();
+
+		if ( $algo !== null && $algo !== '' )
+		{
+			$algo    = strtolower( $algo );
+			$digests = isset( $digests[ $algo ] ) ? [ $algo => $digests[ $algo ] ] : [];
+		}
+
+		foreach ( $digests as $name => $digest )
+		{
+			$qb->andWhere(
+				$qb->expr()
+				   ->orX(
+					   $qb->expr()
+					      ->neq(
+						      'i.' . self::FIELD_META_KEY,
+						      $qb->createNamedParameter( self::getHashKey( $name ) ),
+					      ),
+					   $qb->expr()
+					      ->neq(
+						      'i.' . self::FIELD_META_VALUE_STRING,
+						      $qb->createNamedParameter( self::truncateForIndex( $digest ) ),
+					      ),
+				   ),
+			);
+		}
+	}
+
+	/**
+	 * Find duplicate hash groups across all files.
+	 *
+	 * INNER JOINs oc_files_metadata to access full JSON for verification
+	 * of long hashes (SHA-512/SHA3-512 truncated in index).
+	 *
+	 * @param  bool  $includeEmpty  List the groups of empty files too
+	 *                              ({@see andWhereNotEmpty()}).
+	 *
+	 * @return array<int, array{meta_key: string, meta_value_string: string, file_count: int, file_ids: int[]}>
+	 * @throws \OCP\DB\Exception
+	 */
 	public function queryDuplicates(
 		?string $algo = null,
 		int     $minCount = 2,
@@ -2839,6 +2889,7 @@ class MetadataService
 		int     $offset = 0,
 		?string $hash = null,
 		bool    $anywhere = false,
+		bool    $includeEmpty = false,
 	): array
 	{
 		// Hashes are stored lower-case, so a digest pasted in upper case
@@ -2900,6 +2951,11 @@ class MetadataService
 		if ( $needle !== '' )
 		{
 			$this->andWhereHashMatches( $qb, $needle, $anywhere );
+		}
+
+		if ( ! $includeEmpty )
+		{
+			$this->andWhereNotEmpty( $qb, $algo );
 		}
 
 		$qb->having(

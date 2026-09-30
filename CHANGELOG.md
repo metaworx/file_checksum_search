@@ -24,6 +24,13 @@ the first stable release.
 - Admin status panel: the checksum copy and the hash-index check among
   the background jobs.
 
+- Duplicates page: a "Show empty files" switch.
+
+- `occ file-checksum-search:find-duplicates`: `--include-empty`.
+
+- Files sidebar: an empty file's duplicates are one line, with a link
+  to the Duplicates page.
+
 ### Changed
 
 - `ChecksumApi`: `$reachUids` is required and follows the subject in
@@ -36,6 +43,10 @@ the first stable release.
 
 - The texts: one word for each thing (account, team folder, checksum),
   and help texts that say what the app does.
+
+- `GET /api/v1/duplicates`, `findDuplicates()`, `findDuplicatesFor()`:
+  empty files are left out unless `includeEmpty` is set, and each
+  group carries `empty`; a caller that wants them sets it.
 
 - The frontend's types: checked by `npm run typecheck` (vue-tsc).
 

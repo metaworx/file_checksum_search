@@ -51,9 +51,10 @@ class DuplicateService
 	 * @param  string|null  $algo      Optional algorithm filter
 	 * @param  int          $minCount  Minimum files per group (default 2)
 	 * @param  int          $limit     Max groups to return
-	 * @param  int          $offset    Pagination offset
+	 * @param  int          $offset        Pagination offset
+	 * @param  bool         $includeEmpty  List the groups of empty files too
 	 *
-	 * @return array{algo: string, hash_value: string, file_count: int, fileids: int[]}[]
+	 * @return array{algo: string, hash_value: string, file_count: int, fileids: int[], empty: bool}[]
 	 */
 	public function findAllDuplicates(
 		?string $algo = null,
@@ -62,9 +63,10 @@ class DuplicateService
 		int     $offset = 0,
 		?string $hash = null,
 		bool    $anywhere = false,
+		bool    $includeEmpty = false,
 	): array
 	{
-		$rows = $this->metadataService->queryDuplicates( $algo, $minCount, $limit, $offset, $hash, $anywhere );
+		$rows = $this->metadataService->queryDuplicates( $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty );
 
 		return array_map( function(
 			array $row,
@@ -78,11 +80,14 @@ class DuplicateService
 				$row[ MetadataService::FIELD_META_KEY ],
 			);
 
+			$hashValue = $row[ MetadataService::FIELD_META_VALUE_STRING ];
+
 			return [
 				'algo'       => $algo,
-				'hash_value' => $row[ MetadataService::FIELD_META_VALUE_STRING ],
+				'hash_value' => $hashValue,
 				'file_count' => (int) $row['file_count'],
 				'fileids'    => $row['file_ids'],
+				'empty'      => AlgorithmCatalogue::isEmptyDigest( $algo, $hashValue ),
 			];
 		}, $rows );
 	}

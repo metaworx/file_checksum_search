@@ -135,7 +135,7 @@ class HashIndexService
 	}
 
 	/**
-	 * @return array{algo: string, hash_value: string, file_count: int, fileids: int[]}[]
+	 * @return array{algo: string, hash_value: string, file_count: int, fileids: int[], empty: bool}[]
 	 */
 	public function findAllDuplicates(
 		?string $algo = null,
@@ -144,9 +144,10 @@ class HashIndexService
 		int     $offset = 0,
 		?string $hash = null,
 		bool    $anywhere = false,
+		bool    $includeEmpty = false,
 	): array
 	{
-		return $this->duplicates->findAllDuplicates( $algo, $minCount, $limit, $offset, $hash, $anywhere );
+		return $this->duplicates->findAllDuplicates( $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty );
 	}
 
 	/**
@@ -250,10 +251,12 @@ class HashIndexService
 	 *                                            several (the cross-account
 	 *                                            picker names a set), or null
 	 *                                            for the whole instance.
+	 * @param  bool                      $includeEmpty  List the groups of
+	 *                                                  empty files too.
 	 *
-	 * @return array{duplicates: array<int, array{algo: string, hash_value: string, file_count: int, files:
-	 *                            array<int, array{fileid: int, path: string, name: string}>}>, total_groups: int,
-	 *                            pagination: array{offset: int, limit: int}}
+	 * @return array{duplicates: array<int, array{algo: string, hash_value: string, file_count: int, empty: bool,
+	 *                            files: array<int, array{fileid: int, path: string, name: string}>}>,
+	 *                            total_groups: int, pagination: array{offset: int, limit: int}}
 	 */
 	public function listDuplicatesForUser(
 		string|array|null $userId,
@@ -263,6 +266,7 @@ class HashIndexService
 		int     $offset = 0,
 		?string $hash = null,
 		bool    $anywhere = false,
+		bool    $includeEmpty = false,
 	): array
 	{
 		// The one chokepoint both controllers and the public API reach — so
@@ -291,7 +295,7 @@ class HashIndexService
 
 		while ( count( $result ) < $limit && $scanned < self::UNFILTERED_GROUP_FETCH_LIMIT )
 		{
-			$groups = $this->findAllDuplicates( $algo, $minCount, $pageSize, $rawOffset, $hash, $anywhere );
+			$groups = $this->findAllDuplicates( $algo, $minCount, $pageSize, $rawOffset, $hash, $anywhere, $includeEmpty );
 
 			if ( $groups === [] )
 			{
@@ -340,6 +344,7 @@ class HashIndexService
 					'algo'       => $group['algo'],
 					'hash_value' => $group['hash_value'],
 					'file_count' => count( $files ),
+					'empty'      => $group['empty'],
 					'files'      => $files,
 				];
 			}

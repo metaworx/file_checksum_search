@@ -1096,6 +1096,103 @@ class MetadataServiceTest
 	}
 
 	/**
+	 * Empty files are left out by default, each algorithm by its own digest:
+	 * a pair of `<>` per algorithm, never the digests alone, since crc32's is
+	 * an ordinary adler32 value. One pair with an algorithm filter, none when
+	 * asked to include them.
+	 *
+	 * @dataProvider emptyExclusionProvider
+	 *
+	 * @param  array<string, string>  $expected  Key => digest the pairs name.
+	 */
+	public function testQueryDuplicatesLeavesOutEmptyFilesUnlessAsked(
+		?string $algo,
+		bool    $includeEmpty,
+		array   $expected,
+	): void
+	{
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchAll' )
+		       ->willReturn( [] )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+		$this->queryBuilder->method( 'createNamedParameter' )
+		                   ->willReturnCallback( static fn( $value ): string => (string) $value )
+		;
+
+		$named = [];
+		$this->expr->method( 'neq' )
+		           ->willReturnCallback(
+			           static function(
+				           $left,
+				           $right,
+			           ) use ( &$named ): string
+			           {
+				           $named[ (string) $left ][] = (string) $right;
+
+				           return '1=1';
+			           },
+		           )
+		;
+
+		$this->service->queryDuplicates( $algo, includeEmpty: $includeEmpty );
+
+		$keys    = $named['i.' . MetadataService::FIELD_META_KEY] ?? [];
+		$digests = $named['i.' . MetadataService::FIELD_META_VALUE_STRING] ?? [];
+
+		$this->assertCount( count( $keys ), $digests, 'every key is paired with a digest' );
+
+		$pairs = array_combine( $keys, $digests );
+
+		if ( $expected === [] )
+		{
+			$this->assertSame( [], $pairs );
+
+			return;
+		}
+
+		foreach ( $expected as $key => $digest )
+		{
+			$this->assertSame( $digest, $pairs[ $key ] ?? null, $key );
+		}
+
+		if ( $algo !== null )
+		{
+			$this->assertCount( 1, $pairs );
+		}
+	}
+
+	/**
+	 * @return array<string, array{?string, bool, array<string, string>}>
+	 */
+	public static function emptyExclusionProvider(): array
+	{
+		$sha512 = hash( 'sha512', '' );
+
+		return [
+			'every algorithm by default' => [
+				null,
+				false,
+				[
+					MetadataService::getHashKey( 'sha1' )    => 'da39a3ee5e6b4b0d3255bfef95601890afd80709',
+					MetadataService::getHashKey( 'adler32' ) => '00000001',
+					MetadataService::getHashKey( 'crc32' )   => '00000000',
+					// As the index holds it.
+					MetadataService::getHashKey( 'sha512' )  => substr( $sha512, 0, MetadataService::META_VALUE_STRING_MAX_LENGTH ),
+				],
+			],
+			'one with an algorithm filter' => [
+				'MD5',
+				false,
+				[ MetadataService::getHashKey( 'md5' ) => 'd41d8cd98f00b204e9800998ecf8427e' ],
+			],
+			'none when asked for them' => [ null, true, [] ],
+		];
+	}
+
+	/**
 	 * @noinspection PhpRedundantOptionalArgumentInspection
 	 */
 	public function testQueryDuplicatesSplitsFalsePositiveTruncatedGroup(): void

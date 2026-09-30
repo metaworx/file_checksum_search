@@ -83,6 +83,53 @@ class AlgorithmCatalogue
 	}
 
 
+//  static methods
+
+	/**
+	 * Each algorithm's checksum of no input, which every empty file carries.
+	 *
+	 * Over every name {@see available()} would offer, not only the allowed
+	 * ones: an algorithm the administrator has since disallowed still has
+	 * rows, and the duplicates listing still groups them.
+	 *
+	 * @return array<string, string>  Algorithm => lower-case hex digest.
+	 */
+	public static function emptyDigests(): array
+	{
+		static $digests = null;
+
+		if ( $digests === null )
+		{
+			$digests = [];
+
+			foreach ( hash_algos() as $name )
+			{
+				if ( preg_match( self::NAME_PATTERN, $name ) === 1 )
+				{
+					$digests[ $name ] = hash( $name, '' );
+				}
+			}
+		}
+
+		return $digests;
+	}
+
+	/**
+	 * Whether a hash is its algorithm's checksum of no input — that of an
+	 * empty file, or, for a checksum as weak as a 32-bit one, of content that
+	 * happens to share it.
+	 */
+	public static function isEmptyDigest(
+		string $algo,
+		string $hash,
+	): bool
+	{
+		$digest = self::emptyDigests()[ strtolower( $algo ) ] ?? null;
+
+		return $digest !== null && strtolower( $hash ) === $digest;
+	}
+
+
 //  other non-static methods
 
 	/**

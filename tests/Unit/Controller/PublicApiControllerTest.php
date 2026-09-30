@@ -957,6 +957,44 @@ class PublicApiControllerTest
 	}
 
 	/**
+	 * Left out unless the request asks: the route's default changed, and a
+	 * caller who wants the empty files' groups names them.
+	 */
+	public function testFindAllDuplicatesLeavesOutEmptyFilesUnlessAsked(): void
+	{
+		$asked = [];
+
+		$this->api->method( 'findDuplicatesFor' )
+		          ->willReturnCallback(
+			          static function( ...$args ) use ( &$asked ): array
+			          {
+				          $asked[] = $args[7] ?? null;
+
+				          return [
+					          'duplicates'   => [],
+					          'total_groups' => 0,
+					          'pagination'   => [
+						          'offset' => 0,
+						          'limit'  => 50,
+					          ],
+				          ];
+			          },
+		          )
+		;
+
+		$this->controller->findAllDuplicates();
+		$this->controller->findAllDuplicates( includeEmpty: true );
+
+		$this->assertSame(
+			[
+				false,
+				true,
+			],
+			$asked,
+		);
+	}
+
+	/**
 	 * @noinspection PhpConditionAlreadyCheckedInspection
 	 */
 	public function testFindAllDuplicatesReturnsGroups(): void

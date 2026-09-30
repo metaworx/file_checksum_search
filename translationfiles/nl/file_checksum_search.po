@@ -334,6 +334,10 @@ msgstr "Regel bewerken"
 msgid "Edit the rule on {path}"
 msgstr "De regel voor {path} bewerken"
 
+#. TRANSLATORS a label on a group of duplicates whose files are all empty (zero bytes)
+msgid "Empty files"
+msgstr "Lege bestanden"
+
 msgid "Enable"
 msgstr "Inschakelen"
 
@@ -368,6 +372,12 @@ msgstr "Van boven naar beneden geëvalueerd – de eerste overeenkomende regel b
 
 msgid "Evaluates in band {band} — {label}"
 msgstr "Wordt geëvalueerd in laag {band} – {label}"
+
+msgid "Every empty file has the same checksum, so all of them form one large group per algorithm, and deleting one frees no space. They are left out unless this is on."
+msgstr "Alle lege bestanden hebben dezelfde controlesom en vormen daardoor per algoritme één grote groep; er een verwijderen maakt geen ruimte vrij. Ze worden weggelaten, tenzij dit aan staat."
+
+msgid "Every empty file has this checksum."
+msgstr "Elk leeg bestand heeft deze controlesom."
 
 msgid "Every rule that can affect your files, in the order they are evaluated — the first match decides. Rules an administrator enforced come first and are read-only; your own rules come next and are yours to edit and reorder; the defaults below them apply only where none of your rules matched. You can create rules only if you have been given permission and the path is a folder in your own files that you can write to."
 msgstr "Elke regel die je bestanden kan beïnvloeden, in de volgorde waarin ze worden geëvalueerd – de eerste overeenkomst beslist. Regels die een beheerder heeft afgedwongen, komen eerst en zijn alleen-lezen; je eigen regels volgen, en die kun je bewerken en herschikken; de standaardregels daaronder gelden alleen waar geen van je regels overeenkwam. Je kunt alleen regels aanmaken als je daarvoor de machtiging hebt gekregen en het pad een map in je eigen bestanden is waarin je mag schrijven."
@@ -806,6 +816,14 @@ msgstr "Groepen selecteren …"
 
 msgid "Settings"
 msgstr "Instellingen"
+
+#. TRANSLATORS a switch among the Duplicates page's filters: also list the groups of empty (zero-byte) files
+msgid "Show empty files"
+msgstr "Lege bestanden tonen"
+
+#. TRANSLATORS a link that opens the Duplicates page (the page's name, as in the top navigation) on this group, in a new tab
+msgid "Show in Duplicates"
+msgstr "Tonen in Duplicaten"
 
 msgid "Show only groups whose hash matches this"
 msgstr "Alleen groepen tonen waarvan de hash hiermee overeenkomt"

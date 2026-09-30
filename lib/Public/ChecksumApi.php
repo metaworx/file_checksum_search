@@ -403,7 +403,11 @@ class ChecksumApi
 	 * @param  string|null  $algo      Optional algorithm filter
 	 * @param  int          $minCount  Minimum files per group (default 2)
 	 * @param  int          $limit     Max groups (1–500, default 50)
-	 * @param  int          $offset    Pagination offset (default 0)
+	 * @param  int          $offset        Pagination offset (default 0)
+	 * @param  bool         $includeEmpty  List the groups of empty files
+	 *                                     too; left out by default, since
+	 *                                     every empty file shares one
+	 *                                     checksum per algorithm
 	 *
 	 * @return array{duplicates: array, total_groups: int, pagination: array{offset: int, limit: int}}
 	 */
@@ -414,6 +418,7 @@ class ChecksumApi
 		int     $offset = 0,
 		?string $hash = null,
 		bool    $anywhere = false,
+		bool    $includeEmpty = false,
 	): array
 	{
 		$user = $this->userSession->getUser();
@@ -431,7 +436,7 @@ class ChecksumApi
 			];
 		}
 
-		return $this->findDuplicatesFor( [ $uid ], $algo, $minCount, $limit, $offset, $hash, $anywhere );
+		return $this->findDuplicatesFor( [ $uid ], $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty );
 	}
 
 	/**
@@ -447,6 +452,7 @@ class ChecksumApi
 	 *                                        several, or null for the whole
 	 *                                        instance. A reach, resolved to
 	 *                                        mounts one layer down.
+	 * @param  bool               $includeEmpty  As {@see findDuplicates()}.
 	 *
 	 * @return array{duplicates: array, total_groups: int, pagination: array{offset: int, limit: int}}
 	 */
@@ -458,11 +464,21 @@ class ChecksumApi
 		int     $offset = 0,
 		?string $hash = null,
 		bool    $anywhere = false,
+		bool    $includeEmpty = false,
 	): array
 	{
 		$limit = max( 1, min( $limit, 500 ) );
 
-		return $this->hashIndexService->listDuplicatesForUser( $reachUids, $algo, $minCount, $limit, $offset, $hash, $anywhere );
+		return $this->hashIndexService->listDuplicatesForUser(
+			$reachUids,
+			$algo,
+			$minCount,
+			$limit,
+			$offset,
+			$hash,
+			$anywhere,
+			$includeEmpty,
+		);
 	}
 
 	/**
@@ -479,8 +495,12 @@ class ChecksumApi
 	 * @param  list<string>|null  $reachUids  Whose files: one account, several,
 	 *                                        or null for every account.
 	 *
-	 * @return array{duplicates: array<int, array{algo: string, hash_value: string, files: array<int, array{fileid:
-	 *                           int, path: string, name: string}>}>}
+	 * Unlike the listing, this leaves no empty file out: the caller named the
+	 * file. Each group says whether it is the empty files' (`empty`), and the
+	 * caller decides how to show it.
+	 *
+	 * @return array{duplicates: array<int, array{algo: string, hash_value: string, empty: bool, files:
+	 *                           array<int, array{fileid: int, path: string, name: string}>}>}
 	 * @throws NotFoundException  If $reachUids is set and the reference file lies outside it
 	 */
 	public function findSameHash(
@@ -571,6 +591,7 @@ class ChecksumApi
 				$grouped[ $key ] ??= [
 					'algo'       => $algo,
 					'hash_value' => $hashValue,
+					'empty'      => AlgorithmCatalogue::isEmptyDigest( $algo, $hashValue ),
 					'files'      => [],
 				];
 

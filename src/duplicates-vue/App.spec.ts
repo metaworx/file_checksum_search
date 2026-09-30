@@ -313,4 +313,31 @@ describe('duplicates App', () => {
 		expect(wrapper!.find('.db-verify-all').exists()).toBe(true)
 		expect(wrapper!.findAll('.db-verify-file')).toHaveLength(2)
 	})
+
+	// Empty files are left out by the server unless asked for; the switch
+	// asks, the address says so, and their group says what it is.
+	it('asks for the empty files only once the switch is on, and labels their group', async () => {
+		const { requests } = await open('#mine', {
+			ownGroups: [{
+				algo: 'sha1',
+				hash_value: 'da39a3ee5e6b4b0d3255bfef95601890afd80709',
+				file_count: 2,
+				empty: true,
+				files: [
+					{ fileid: 1, path: 'Docs', name: 'a.txt' },
+					{ fileid: 2, path: 'Docs', name: 'b.txt' },
+				],
+			}],
+		})
+		const listed = () => requests.filter((url) => url.includes('/api/v1/duplicates'))
+
+		expect(listed().at(-1)).not.toContain('includeEmpty')
+		expect(wrapper!.find('[data-testid="fcias-empty-group"]').text()).toBe('Empty files')
+
+		await wrapper!.find('[data-testid="fcias-duplicates-include-empty"] input').setValue(true)
+		await flushPromises()
+
+		expect(listed().at(-1)).toContain('includeEmpty=1')
+		expect(written.at(-1)).toBe('replace #mine?includeEmpty=1')
+	})
 })

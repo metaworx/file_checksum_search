@@ -1,0 +1,17 @@
+{
+	"schema": 1,
+	"app": "file_checksum_search",
+	"note": "Two empty files, and so the SHA-1 of no input for both. A folder of their own, not fcias-e2e-duplicates: the specs and screenshots that import duplicates.json show that folder, and two more files in it would change what they show. Import with --user, as duplicates.json.",
+	"hashes": [
+		{
+			"path": "fcias-e2e-empty/empty-1.txt",
+			"algo": "sha1",
+			"hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+		},
+		{
+			"path": "fcias-e2e-empty/empty-2.txt",
+			"algo": "sha1",
+			"hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+		}
+	]
+}

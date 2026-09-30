@@ -90,6 +90,12 @@ class FindDuplicates
 			     InputOption::VALUE_NONE,
 			     'Only show groups where all files were verified as matching',
 		     )
+		     ->addOption(
+			     'include-empty',
+			     null,
+			     InputOption::VALUE_NONE,
+			     'Also list empty files, which all share one hash per algorithm',
+		     )
 		;
 	}
 
@@ -116,6 +122,7 @@ class FindDuplicates
 		$limit    = (int) $input->getOption( 'limit' );
 		$verify   = (bool) $input->getOption( 'verify' );
 		$verified = (bool) $input->getOption( 'verified' );
+		$empty    = (bool) $input->getOption( 'include-empty' );
 
 		// --verified implies --verify
 		if ( $verified )
@@ -171,6 +178,7 @@ class FindDuplicates
 			$algo,
 			$minCount,
 			$queryLimit,
+			includeEmpty: $empty,
 		);
 
 		if ( empty( $groups ) )
@@ -231,6 +239,7 @@ class FindDuplicates
 				'algo'       => $group['algo'],
 				'hash_value' => $group['hash_value'],
 				'file_count' => $group['file_count'],
+				'empty'      => $group['empty'] ?? false,
 				'files'      => $files,
 			];
 		}
@@ -312,7 +321,7 @@ class FindDuplicates
 //  other non-static methods
 
 	/**
-	 * @param  array{algo: string, hash_value: string, file_count: int, files: array}[]  $groups
+	 * @param  array{algo: string, hash_value: string, file_count: int, empty: bool, files: array}[]  $groups
 	 */
 	private function writeOutput(
 		OutputInterface $output,
@@ -366,11 +375,12 @@ class FindDuplicates
 
 			$output->writeln(
 				sprintf(
-					'<info>Group %d: %s / %s (%d files)%s</info>',
+					'<info>Group %d: %s / %s (%d %s)%s</info>',
 					$idx,
 					strtoupper( $group['algo'] ),
 					$group['hash_value'],
 					$group['file_count'],
+					( $group['empty'] ?? false ) ? 'empty files' : 'files',
 					$status,
 				),
 			);

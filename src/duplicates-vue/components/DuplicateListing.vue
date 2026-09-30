@@ -67,6 +67,7 @@ const HELP = {
 	limit: t('file_checksum_search', 'How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads.'),
 	// TRANSLATORS: "Match anywhere in the hash" is the switch beside the field; translate it as that switch does
 	hash: t('file_checksum_search', 'Show only groups whose hash matches what you type. Whole values come first, then those that start with what you typed. Turn on "Match anywhere in the hash" to match it in the middle of a hash too. Upper case is fine.'),
+	empty: t('file_checksum_search', 'Every empty file has the same checksum, so all of them form one large group per algorithm, and deleting one frees no space. They are left out unless this is on.'),
 }
 
 // The space before "…" is a no-break space (U+00A0), as Nextcloud writes it.
@@ -88,6 +89,7 @@ const {
 	canRecalc,
 	hash,
 	anywhere,
+	includeEmpty,
 	// Renamed: the prop is the caller's wish, this ref is what the composable
 	// currently asks the server for. The watcher below copies one to the other.
 	scope: activeScope,
@@ -182,6 +184,11 @@ function onAlgo(value: string | string[] | null): void {
 	refresh()
 }
 
+function onIncludeEmpty(value: boolean): void {
+	includeEmpty.value = value
+	refresh()
+}
+
 // Clamped first, and reloaded only when the clamped value is new: "1000"
 // typed over a limit of 500 is still 500, and not a second query.
 function onMinCount(value: string | number): void {
@@ -217,6 +224,7 @@ function currentParams(): ListingParams {
 		hash: hash.value,
 		anywhere: anywhere.value,
 		algo: algo.value,
+		includeEmpty: includeEmpty.value,
 		minCount: minCount.value,
 		limit: limit.value,
 		offset: offset.value,
@@ -236,6 +244,7 @@ function applyParams(next: ListingParams, force = false): void {
 	hash.value = next.hash
 	anywhere.value = next.anywhere
 	algo.value = next.algo
+	includeEmpty.value = next.includeEmpty
 	minCount.value = next.minCount
 	limit.value = next.limit
 	offset.value = next.offset
@@ -255,7 +264,7 @@ watch(() => props.params, (next) => {
 // The URL follows the controls. Reported on every change, a keystroke in
 // the hash field included; the page replaces the address rather than
 // pushing it, so that costs no history.
-watch([hash, anywhere, algo, minCount, limit, offset], () => {
+watch([hash, anywhere, algo, includeEmpty, minCount, limit, offset], () => {
 	emit('update:params', currentParams())
 })
 
@@ -386,6 +395,18 @@ onBeforeUnmount(() => {
 					:title="TITLES.hash"
 					@update:model-value="onHashInput" />
 			</div>
+			<!-- A filter with no field below it: on the fields' bottom edge,
+			     beside the button, with its help where every label has it. -->
+			<div class="db-empty-files" :data-testid="`${props.idPrefix}-include-empty`">
+				<NcCheckboxRadioSwitch
+					:model-value="includeEmpty"
+					type="switch"
+					@update:model-value="onIncludeEmpty">
+					<!-- TRANSLATORS: a switch among the Duplicates page's filters: also list the groups of empty (zero-byte) files -->
+					{{ t('file_checksum_search', 'Show empty files') }}
+				</NcCheckboxRadioSwitch>
+				<HelpPopover :text="HELP.empty" :label="t('file_checksum_search', 'Show empty files')" />
+			</div>
 			<div class="db-actions">
 				<NcButton variant="primary" @click="refresh">
 					{{ t('file_checksum_search', 'Refresh') }}
@@ -484,6 +505,13 @@ onBeforeUnmount(() => {
 	height: 24px;
 	min-width: 24px;
 	min-height: 24px;
+}
+
+.db-empty-files {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	align-self: flex-end;
 }
 
 .db-actions {

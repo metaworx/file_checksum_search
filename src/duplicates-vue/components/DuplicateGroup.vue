@@ -69,6 +69,8 @@ function toggle(): void {
 		<div class="db-group-header" @click="toggle">
 			<div>
 				<span class="db-algo-badge">{{ group.algo.toUpperCase() }}</span>
+				<!-- TRANSLATORS: a label on a group of duplicates whose files are all empty (zero bytes) -->
+				<span v-if="group.empty" class="db-empty-badge" data-testid="fcias-empty-group">{{ t('file_checksum_search', 'Empty files') }}</span>
 				<span class="db-hash">{{ group.hash_value }}</span>
 			</div>
 			<span class="db-count">
@@ -164,6 +166,18 @@ function toggle(): void {
 	background: var(--color-background-darker);
 	font-weight: 600;
 	font-size: 12px;
+	margin-inline-end: 8px;
+}
+
+/* Beside the algorithm, in outline rather than fill: it describes the group,
+   it is not a second algorithm. */
+.db-empty-badge {
+	display: inline-block;
+	padding: 1px 8px;
+	border: 1px solid var(--color-border-maxcontrast);
+	border-radius: var(--border-radius);
+	font-size: 12px;
+	color: var(--color-text-maxcontrast);
 	margin-inline-end: 8px;
 }
 
