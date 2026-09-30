@@ -10,6 +10,7 @@
 	<summary lang="it">Indicizza i checksum dei file per trovare i file tramite hash e rilevare i duplicati, con API REST, CLI e PHP</summary>
 	<summary lang="ja">ファイルのチェックサムをインデックス化し、ハッシュによるファイル検索と重複の検出を可能にします。REST・CLI・PHPのAPIを備えています。</summary>
 	<summary lang="nl">Indexeert controlesommen van bestanden om bestanden op hash te vinden en duplicaten te herkennen, met REST-, CLI- en PHP-API's</summary>
+	<summary lang="pl">Indeksuje sumy kontrolne plików, aby znajdować pliki po hashu i wykrywać duplikaty, z interfejsami REST, CLI i PHP</summary>
 	<description>Indexes file checksums, so a file can be found by its checksum, and its duplicates at once.
 
 What you get:
@@ -111,6 +112,22 @@ Wat je krijgt:
 - Opgeslagen in de metadata-index die Nextcloud zelf voor bestanden bijhoudt: geen eigen tabellen, niets te migreren.
 
 *Machinevertaling: de teksten van de app in deze taal zijn nog niet door een moedertaalspreker nagekeken.*
+
+*Machine-translated: the app's texts in this language have not yet been reviewed by a native speaker.*
+</description>
+	<description lang="pl">Indeksuje sumy kontrolne plików, dzięki czemu plik można znaleźć po jego sumie kontrolnej, a od razu także jego duplikaty.
+
+Co otrzymujesz:
+
+- **Ujednolicone wyszukiwanie** po hashu: wklej sumę kontrolną, znajdź plik.
+- Karta **Sumy kontrolne** w szczegółach pliku: pokazuje każdą sumę kontrolną zapisaną dla pliku, przeliczaną na żądanie, a na tej samej karcie także duplikaty pliku.
+- Strona **Duplikaty**: każda grupa identycznych plików, które posiadasz, a dla osób, które mogą mieć wgląd w inne konta, także pliki innych kont.
+- **Reguły** decydują, co i kiedy jest obliczane: dla całego serwera lub dla poszczególnych kont, według wzorca ścieżki, w tle.
+- Stabilne **REST API (v1)** i stabilne **PHP API** dla innych aplikacji i integracji.
+- **Polecenia occ** do obliczania sum kontrolnych, wyszukiwania, duplikatów, reguł, kopii zapasowych i importu.
+- Dane przechowywane w indeksie metadanych plików, który prowadzi sam Nextcloud: bez dodatkowych tabel, bez migracji.
+
+*Tłumaczenie maszynowe: teksty aplikacji w tym języku nie zostały jeszcze sprawdzone przez rodzimego użytkownika języka.*
 
 *Machine-translated: the app's texts in this language have not yet been reviewed by a native speaker.*
 </description>
