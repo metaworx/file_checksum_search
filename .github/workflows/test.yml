@@ -59,6 +59,11 @@ jobs:
       - name: ESLint
         run: npm run lint
 
+      # vue-tsc reads the .vue files as well as the .ts. The build strips the
+      # types without checking them, so this is the one place they are.
+      - name: Type check
+        run: npm run typecheck
+
       - name: Stylelint
         run: npm run stylelint
 
