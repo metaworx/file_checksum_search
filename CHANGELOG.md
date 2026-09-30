@@ -79,8 +79,9 @@ the first stable release.
 - Dates in the settings, a grant's last use, a job's last run and "Last
   updated": in the user's Nextcloud locale, not the browser's.
 
-- Status labels, Enabled and Disabled in the rules tables and "Copied!"
-  in the sidebar: readable on a light background.
+- Status labels, Enabled and Disabled in the rules tables, a rule's
+  "folder missing" badge and "Copied!" in the sidebar: readable on a
+  light background.
 
 - Opening a file from the Duplicates page or the sidebar's duplicate
   list: "The file could not be found" for a file outside the root folder.

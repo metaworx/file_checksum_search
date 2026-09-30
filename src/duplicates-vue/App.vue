@@ -361,6 +361,13 @@ onUnmounted(() => {
 	color: var(--color-warning-text);
 }
 
+/* The switches' texts too: Nextcloud's switch sets the main text colour and
+   the listing greys "Match anywhere", and neither reads on this background. */
+.db-others :deep(.db-empty-files .checkbox-radio-switch),
+.db-others :deep(.db-anywhere .checkbox-radio-switch__text) {
+	color: var(--color-warning-text);
+}
+
 /* The picker spans the row: it can hold several accounts and groups at
    once, and each is a name long enough to be worth the width. It renders
    only in this tab, so the Mine tab's own controls keep their sizes. */

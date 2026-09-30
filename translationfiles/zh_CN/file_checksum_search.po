@@ -1123,6 +1123,14 @@ msgstr "您的首选算法"
 msgid "app password deleted — the grant remains"
 msgstr "应用密码已删除，授权仍保留"
 
+#. TRANSLATORS: a background job's last run: the checksums it copied, the files they belong to, and that the whole copy is finished
+msgid "copied {copied}, files {files}, finished"
+msgstr "已复制：{copied}，文件：{files}，已完成"
+
+#. TRANSLATORS: a background job's last run: the checksums it copied, the files they belong to, and that the next runs go on copying
+msgid "copied {copied}, files {files}, not finished yet"
+msgstr "已复制：{copied}，文件：{files}，尚未完成"
+
 #. TRANSLATORS: fileIds is a parameter name; keep it
 msgid "fileIds must be a non-empty list of integers."
 msgstr "fileIds 必须是非空的整数列表。"
@@ -1146,6 +1154,10 @@ msgstr "因重置而作废：已从搜索中隐藏，等待后台任务删除"
 msgid "local::/path/ or smb::…"
 msgstr "local::/path/ 或 smb::…"
 
+#. TRANSLATORS: a background job's last run: the files its rules matched, and of those the ones it queued for checksums
+msgid "matched {matched}, queued {queued}"
+msgstr "匹配：{matched}，已加入队列：{queued}"
+
 #. TRANSLATORS: when an app password was last used, or granted: not at all
 msgid "never"
 msgstr "从未"
@@ -1163,6 +1175,22 @@ msgstr "当前：{hash}"
 #. TRANSLATORS: orderedIds is a parameter name; keep it
 msgid "orderedIds is required and must be an array."
 msgstr "orderedIds 为必填项，且必须是数组。"
+
+#. TRANSLATORS: a background job's last run: of the queued files it took, how many it processed and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
+msgid "processed {processed} of {total}, failed {failed}, cleared after a reset {cleared}"
+msgstr "已处理：{processed}/{total}，失败：{failed}，重置后已清理：{cleared}"
+
+#. TRANSLATORS: a background job's last run: the checksums of deleted files it removed, and in how many batches
+msgid "removed {purged}, batches {batches}"
+msgstr "已删除：{purged}，批次：{batches}"
+
+#. TRANSLATORS: a background job's last run: the checksums it made findable again, and that the whole check is finished
+msgid "repaired {repaired}, finished"
+msgstr "已修复：{repaired}，已完成"
+
+#. TRANSLATORS: a background job's last run: the checksums it made findable again, and that the next runs go on checking
+msgid "repaired {repaired}, not finished yet"
+msgstr "已修复：{repaired}，尚未完成"
 
 #. TRANSLATORS: scope is a parameter name, and "own" and "all" are its values; keep them
 msgid "scope must be \"own\" or \"all\"."

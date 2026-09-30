@@ -236,7 +236,7 @@ const PROVIDER_MISSING_HINT = t('file_checksum_search', 'The team folder this ru
 	padding: 1px 6px;
 	border-radius: var(--border-radius, 3px);
 	background-color: var(--color-warning, #f0ad4e);
-	color: var(--color-primary-text, #fff);
+	color: var(--color-warning-text, var(--color-main-text));
 	font-size: 0.8em;
 	white-space: nowrap;
 }

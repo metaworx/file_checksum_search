@@ -184,14 +184,49 @@ const JOB_LABELS: Record<string, string> = {
 	hash_index_check: t('file_checksum_search', 'Checksum index check'),
 }
 
+/**
+ * What a background job's last run did, in the reader's language: each
+ * counter under a word of its own, the server's key never shown. A job this
+ * page does not know, from a newer server, keeps the server's keys.
+ */
+function jobCountsText(key: string, counts: Record<string, number>): string {
+	const count = (name: string) => counts[name] ?? 0
+
+	switch (key) {
+	case 'rule_sweep':
+		// TRANSLATORS: a background job's last run: the files its rules matched, and of those the ones it queued for checksums
+		return t('file_checksum_search', 'matched {matched}, queued {queued}', { matched: count('matched'), queued: count('marked') })
+	case 'pending_drain':
+		// TRANSLATORS: a background job's last run: of the queued files it took, how many it processed and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
+		return t('file_checksum_search', 'processed {processed} of {total}, failed {failed}, cleared after a reset {cleared}', { processed: count('processed'), total: count('total'), failed: count('failed'), cleared: count('disowned') })
+	case 'orphan_purge':
+		// TRANSLATORS: a background job's last run: the checksums of deleted files it removed, and in how many batches
+		return t('file_checksum_search', 'removed {purged}, batches {batches}', { purged: count('purged'), batches: count('batches') })
+	case 'filecache_backfill':
+		if (count('done')) {
+			// TRANSLATORS: a background job's last run: the checksums it copied, the files they belong to, and that the whole copy is finished
+			return t('file_checksum_search', 'copied {copied}, files {files}, finished', { copied: count('copied'), files: count('files') })
+		}
+		// TRANSLATORS: a background job's last run: the checksums it copied, the files they belong to, and that the next runs go on copying
+		return t('file_checksum_search', 'copied {copied}, files {files}, not finished yet', { copied: count('copied'), files: count('files') })
+	case 'hash_index_check':
+		if (count('done')) {
+			// TRANSLATORS: a background job's last run: the checksums it made findable again, and that the whole check is finished
+			return t('file_checksum_search', 'repaired {repaired}, finished', { repaired: count('repaired') })
+		}
+		// TRANSLATORS: a background job's last run: the checksums it made findable again, and that the next runs go on checking
+		return t('file_checksum_search', 'repaired {repaired}, not finished yet', { repaired: count('repaired') })
+	default:
+		return Object.entries(counts).map(([name, value]) => `${name} ${value}`).join(', ')
+	}
+}
+
 const jobRows = computed(() => Object.entries(status.value.jobs ?? {}).map(([key, run]) => ({
 	key,
 	label: JOB_LABELS[key] ?? key,
 	// TRANSLATORS: when a background job last ran: not at all
 	time: run.lastRun === null ? t('file_checksum_search', 'Not run yet') : formatDateTime(new Date(run.lastRun * 1000)),
-	countsText: run.lastRun === null
-		? ''
-		: Object.entries(run.counts).map(([name, value]) => `${name} ${value}`).join(', '),
+	countsText: run.lastRun === null ? '' : jobCountsText(key, run.counts),
 })))
 
 // --- Rule editing (global + additional rules share one dialog) ---

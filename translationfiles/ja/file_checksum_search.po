@@ -1123,6 +1123,14 @@ msgstr "あなたが優先するアルゴリズム"
 msgid "app password deleted — the grant remains"
 msgstr "アプリパスワードは削除済み（承認は残っています）"
 
+#. TRANSLATORS: a background job's last run: the checksums it copied, the files they belong to, and that the whole copy is finished
+msgid "copied {copied}, files {files}, finished"
+msgstr "コピー：{copied}、ファイル：{files}、完了"
+
+#. TRANSLATORS: a background job's last run: the checksums it copied, the files they belong to, and that the next runs go on copying
+msgid "copied {copied}, files {files}, not finished yet"
+msgstr "コピー：{copied}、ファイル：{files}、未完了"
+
 #. TRANSLATORS: fileIds is a parameter name; keep it
 msgid "fileIds must be a non-empty list of integers."
 msgstr "fileIds は空でない整数のリストである必要があります。"
@@ -1146,6 +1154,10 @@ msgstr "リセットにより無効化：すでに検索には表示されず、
 msgid "local::/path/ or smb::…"
 msgstr "local::/path/ または smb::…"
 
+#. TRANSLATORS: a background job's last run: the files its rules matched, and of those the ones it queued for checksums
+msgid "matched {matched}, queued {queued}"
+msgstr "一致：{matched}、キュー追加：{queued}"
+
 #. TRANSLATORS: when an app password was last used, or granted: not at all
 msgid "never"
 msgstr "なし"
@@ -1163,6 +1175,22 @@ msgstr "現在：{hash}"
 #. TRANSLATORS: orderedIds is a parameter name; keep it
 msgid "orderedIds is required and must be an array."
 msgstr "orderedIds は必須で、配列である必要があります。"
+
+#. TRANSLATORS: a background job's last run: of the queued files it took, how many it processed and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
+msgid "processed {processed} of {total}, failed {failed}, cleared after a reset {cleared}"
+msgstr "処理済み：{processed}/{total}、失敗：{failed}、リセット後に消去：{cleared}"
+
+#. TRANSLATORS: a background job's last run: the checksums of deleted files it removed, and in how many batches
+msgid "removed {purged}, batches {batches}"
+msgstr "削除：{purged}、バッチ：{batches}"
+
+#. TRANSLATORS: a background job's last run: the checksums it made findable again, and that the whole check is finished
+msgid "repaired {repaired}, finished"
+msgstr "修復：{repaired}、完了"
+
+#. TRANSLATORS: a background job's last run: the checksums it made findable again, and that the next runs go on checking
+msgid "repaired {repaired}, not finished yet"
+msgstr "修復：{repaired}、未完了"
 
 #. TRANSLATORS: scope is a parameter name, and "own" and "all" are its values; keep them
 msgid "scope must be \"own\" or \"all\"."

@@ -1125,6 +1125,14 @@ msgstr "Votre algorithme préféré"
 msgid "app password deleted — the grant remains"
 msgstr "mot de passe d'application supprimé – l'habilitation demeure"
 
+#. TRANSLATORS: a background job's last run: the checksums it copied, the files they belong to, and that the whole copy is finished
+msgid "copied {copied}, files {files}, finished"
+msgstr "copiées {copied}, fichiers {files}, terminé"
+
+#. TRANSLATORS: a background job's last run: the checksums it copied, the files they belong to, and that the next runs go on copying
+msgid "copied {copied}, files {files}, not finished yet"
+msgstr "copiées {copied}, fichiers {files}, pas encore terminé"
+
 #. TRANSLATORS: fileIds is a parameter name; keep it
 msgid "fileIds must be a non-empty list of integers."
 msgstr "fileIds doit être une liste non vide d'entiers."
@@ -1148,6 +1156,10 @@ msgstr "invalidées par une réinitialisation : déjà masquées dans la recher
 msgid "local::/path/ or smb::…"
 msgstr "local::/path/ ou smb::…"
 
+#. TRANSLATORS: a background job's last run: the files its rules matched, and of those the ones it queued for checksums
+msgid "matched {matched}, queued {queued}"
+msgstr "correspondants {matched}, en file d'attente {queued}"
+
 #. TRANSLATORS: when an app password was last used, or granted: not at all
 msgid "never"
 msgstr "jamais"
@@ -1165,6 +1177,22 @@ msgstr "actuellement : {hash}"
 #. TRANSLATORS: orderedIds is a parameter name; keep it
 msgid "orderedIds is required and must be an array."
 msgstr "orderedIds est obligatoire et doit être un tableau."
+
+#. TRANSLATORS: a background job's last run: of the queued files it took, how many it processed and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
+msgid "processed {processed} of {total}, failed {failed}, cleared after a reset {cleared}"
+msgstr "traités {processed} sur {total}, en échec {failed}, nettoyés après une réinitialisation {cleared}"
+
+#. TRANSLATORS: a background job's last run: the checksums of deleted files it removed, and in how many batches
+msgid "removed {purged}, batches {batches}"
+msgstr "supprimées {purged}, lots {batches}"
+
+#. TRANSLATORS: a background job's last run: the checksums it made findable again, and that the whole check is finished
+msgid "repaired {repaired}, finished"
+msgstr "réparées {repaired}, terminé"
+
+#. TRANSLATORS: a background job's last run: the checksums it made findable again, and that the next runs go on checking
+msgid "repaired {repaired}, not finished yet"
+msgstr "réparées {repaired}, pas encore terminé"
 
 #. TRANSLATORS: scope is a parameter name, and "own" and "all" are its values; keep them
 msgid "scope must be \"own\" or \"all\"."

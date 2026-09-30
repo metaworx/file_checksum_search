@@ -48,8 +48,11 @@ function mockFetch(options: { rules?: unknown[], idleBannerAcknowledged?: boolea
 				jobs: {
 					rule_sweep: { lastRun: 1700000000, counts: { matched: 12, marked: 3 } },
 					pending_drain: { lastRun: null, counts: {} },
+					orphan_purge: { lastRun: 1700000050, counts: { purged: 5, batches: 1 } },
 					filecache_backfill: { lastRun: 1700000100, counts: { copied: 1200, files: 900, done: 0 } },
-					hash_index_check: { lastRun: null, counts: {} },
+					hash_index_check: { lastRun: 1700000200, counts: { repaired: 2, done: 1 } },
+					// A job a newer server runs and this page does not know.
+					future_job: { lastRun: 1700000300, counts: { widgets: 7 } },
 				},
 				idleBannerAcknowledged: options.idleBannerAcknowledged ?? false,
 			}))
@@ -192,14 +195,23 @@ describe('settings-admin App', () => {
 		expect(untrusted).toContain('Eroded: 4')
 		expect(untrusted).toContain('Reset: 9')
 		expect(untrusted).toContain('it gets them back once a rule covers it again')
+		// Each counter is a translated text; the server's keys (marked, done)
+		// never reach the page, except for a job the page does not know.
 		const jobs = wrapper.find('#fcias-status-jobs').text()
 		expect(jobs).toContain('Rule sweep')
-		expect(jobs).toContain('matched 12, marked 3')
+		expect(jobs).toContain('matched 12, queued 3')
 		expect(jobs).toContain('Queue drain')
-		expect(jobs).toContain('Checksum copy')
-		expect(jobs).toContain('copied 1200, files 900, done 0')
-		expect(jobs).toContain('Checksum index check')
 		expect(jobs).toContain('Not run yet')
+		expect(jobs).toContain('Orphan purge')
+		expect(jobs).toContain('removed 5, batches 1')
+		expect(jobs).toContain('Checksum copy')
+		expect(jobs).toContain('copied 1200, files 900, not finished yet')
+		expect(jobs).toContain('Checksum index check')
+		expect(jobs).toContain('repaired 2, finished')
+		expect(jobs).not.toContain('marked')
+		expect(jobs).not.toContain('done')
+		expect(jobs).toContain('future_job')
+		expect(jobs).toContain('widgets 7')
 	})
 
 	it('switches to the Documentation tab', async () => {
