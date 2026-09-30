@@ -86,6 +86,9 @@ the first stable release.
 - Opening a file from the Duplicates page or the sidebar's duplicate
   list: "The file could not be found" for a file outside the root folder.
 
+- `occ file-checksum-search:hash-files`: one file that fails to hash
+  no longer ends the run.
+
 ## [0.20.3] - 2026-09-27
 
 ### Fixed

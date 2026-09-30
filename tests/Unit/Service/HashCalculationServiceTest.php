@@ -25,6 +25,8 @@ use OCP\Lock\ILockingProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use OCP\IAppConfig;
 use Psr\Log\LoggerInterface;
+use RuntimeException;
+use Symfony\Component\Console\Output\BufferedOutput;
 
 /**
  * Unit tests for HashCalculationService::processFile().
@@ -1250,6 +1252,38 @@ class HashCalculationServiceTest
 		$result = $service->generateMissingHashes( 'testuser', [ 'sha1' ], null, 0 );
 
 		$this->assertSame( 0, $result['processed'] );
+	}
+
+	/**
+	 * Regression: a file whose hashing threw was reported through
+	 * `$output->warning()`, which the plain console output `occ hash-files`
+	 * hands over does not have — so one failing file ended the whole run
+	 * with "Call to undefined method", and its own error was never shown.
+	 * A real BufferedOutput, not a mock: a mock of OutputInterface would
+	 * have accepted the call.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testGenerateMissingHashesReportsAFailingFileAndCarriesOn(): void
+	{
+		$service = $this->collectingServiceOverOneFile(
+			[
+				'id'   => 'all',
+				'type' => 'include',
+			],
+		);
+		$service->method( 'recalcHashes' )
+		        ->willThrowException( new RuntimeException( 'storage <gone>' ) )
+		;
+		$output = new BufferedOutput();
+
+		$result = $service->generateMissingHashes( 'testuser', [ 'sha1' ], null, 0, $output );
+
+		$this->assertSame( 0, $result['processed'] );
+		$this->assertStringContainsString(
+			'WARNING: recalcHashes failed for fileId 42: storage <gone>',
+			$output->fetch(),
+		);
 	}
 
 	/**

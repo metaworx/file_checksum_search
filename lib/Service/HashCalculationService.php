@@ -20,6 +20,7 @@ use OCP\IL10N;
 use OCP\Lock\ILockingProvider;
 use OCP\Lock\LockedException;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Output\OutputInterface;
 use Throwable;
 
@@ -545,11 +546,16 @@ class HashCalculationService
 					],
 				);
 
-				$output?->warning(
+				// writeln(), not warning(): the command hands over its plain
+				// console output, which has no warning(), and calling it here
+				// turned one file's failure into the end of the whole run. The
+				// message is escaped, since an exception's text may hold what
+				// the console would read as a style tag.
+				$output?->writeln(
 					sprintf(
-						'  WARNING: recalcHashes failed for fileId %d: %s',
+						'<comment>  WARNING: recalcHashes failed for fileId %d: %s</comment>',
 						$file->getId(),
-						$e->getMessage(),
+						OutputFormatter::escape( $e->getMessage() ),
 					),
 				);
 
