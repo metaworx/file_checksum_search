@@ -232,13 +232,26 @@ describe( 'FCIAS admin rules', () => {
 	} )
 
 	it( 'a placeholder row seeds the dialog with that namespace', () => {
+		// A placeholder stands for a namespace with no catch-all rule. External
+		// storages and team folders are such namespaces only where the
+		// instance has them, and a fresh server need not; `*` is on every
+		// instance, so the case uncovers it itself by removing the shipped
+		// `*` default, and the repair at its end puts that default back.
+		cy.exec( `${ occ } fcias:rules:list -o json` ).then( ( { stdout } ) => {
+			const shipped = JSON.parse( stdout ).find( ( r ) => r.selector === '*' && r.path === '**' )
+
+			if ( shipped )
+			{
+				cy.exec( `${ occ } fcias:rules:delete ${ shipped.id } -y` )
+			}
+		} )
+
 		visitAdmin()
 
 		// Which namespaces appear as placeholders is derived from which of
 		// them already have a catch-all rule, so the set is only meaningful
 		// once the rules have rendered.
 		cy.get( '#fcias-rules-list tr[data-band="7"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
-		cy.get( '#fcias-rules-list tr[data-band="8"]' ).should( 'exist' )
 
 		cy.get( '#fcias-rules-list tr[data-placeholder]', { timeout: FIND_TIMEOUT } )
 			.should( 'have.length.at.least', 1 )
@@ -313,6 +326,11 @@ describe( 'FCIAS admin rules', () => {
 					`${ groupFolderNames[ target ] } (#${ target })`,
 				)
 			} )
+
+		// The shipped `*` default back, and nothing else touched: the repair
+		// recreates a missing shipped default and leaves configured rules be.
+		// Should the case fail before this, after() resets the rules anyway.
+		cy.exec( `${ occ } fcias:repair` )
 	} )
 
 	it( 'refuses a bad rule inside the dialog rather than behind it', () => {
