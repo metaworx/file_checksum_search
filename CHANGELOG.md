@@ -22,6 +22,14 @@ the first stable release.
   not `IResult`'s `fetch()` and `fetchAll()`, as Nextcloud's upgrade
   rules for 33 ask.
 
+- Dates and times: every part two digits, in the locale's own order
+  (01.10.2026, 07:05:09).
+
+### Fixed
+
+- Admin status panel: long translated labels and job names no longer
+  run into their values, and a job's counts wrap within the panel.
+
 ## [0.21.0] - 2026-10-01
 
 ### Added

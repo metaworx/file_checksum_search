@@ -31,7 +31,18 @@ export function n(app: string, singular: string, plural: string, count: number, 
  * A date and its time as the user's Nextcloud locale writes them. Without a
  * locale, toLocaleString() would take the browser's, whatever the person
  * chose in Nextcloud's personal settings.
+ *
+ * Every part two digits: the locale keeps its order and separators, but
+ * 1.10.2026 becomes 01.10.2026, so every timestamp has the same width and
+ * timestamps stacked in a column line up.
  */
 export function formatDateTime(date: Date): string {
-	return date.toLocaleString(getCanonicalLocale())
+	return date.toLocaleString(getCanonicalLocale(), {
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+		hour: '2-digit',
+		minute: '2-digit',
+		second: '2-digit',
+	})
 }

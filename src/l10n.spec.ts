@@ -82,6 +82,7 @@ describe('the German translation', () => {
 
 describe('a date', () => {
 	const WHEN = new Date(2026, 8, 30, 14, 5)
+	const EARLY = new Date(2026, 9, 1, 7, 5, 9)
 	const pageLocale = getLocale()
 
 	afterEach(() => {
@@ -91,8 +92,19 @@ describe('a date', () => {
 	// The locale is the one chosen in Nextcloud's personal settings, whatever the browser's.
 	it('is written as the Nextcloud locale writes it', () => {
 		setLocale('de_CH')
-		expect(formatDateTime(WHEN)).toContain('30.9.2026')
+		expect(formatDateTime(WHEN)).toContain('30.09.2026')
 		setLocale('en_US')
-		expect(formatDateTime(WHEN)).toContain('9/30/2026')
+		expect(formatDateTime(WHEN)).toContain('09/30/2026')
+	})
+
+	// Two digits for every part, in the locale's own order: timestamps
+	// stacked in a column then line up whatever the day or the hour.
+	it('pads every part to two digits, keeping the locale\'s order', () => {
+		setLocale('de_CH')
+		expect(formatDateTime(EARLY)).toBe('01.10.2026, 07:05:09')
+		setLocale('en_GB')
+		expect(formatDateTime(EARLY)).toBe('01/10/2026, 07:05:09')
+		setLocale('en_US')
+		expect(formatDateTime(EARLY)).toMatch(/^10\/01\/2026, 07:05:09\sAM$/)
 	})
 })

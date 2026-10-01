@@ -637,8 +637,14 @@ loadRules().then(() => {
 						<tr>
 							<td>{{ t('file_checksum_search', 'Last updated') }}</td>
 							<td id="fcias-status-lastupdated">
+								<!-- The jobs' names again, invisible and stacked in one
+								     cell, so this grid's first column is as wide as the
+								     jobs grid's in any language, and this time lines up
+								     with theirs to be compared at a glance. -->
 								<div class="fcias-job-grid">
-									<span />
+									<span class="fcias-job-spacer" aria-hidden="true">
+										<span v-for="job in jobRows" :key="job.key">{{ job.label }}</span>
+									</span>
 									<span class="fcias-job-time">{{ lastUpdated || '—' }}</span>
 									<span />
 								</div>
