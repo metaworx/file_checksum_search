@@ -1,6 +1,6 @@
 > **Fragment** — inlined by `tools/sync.sh`; not a standalone document.
 
-# {{project_name}} — Project Contract (v2.14.0)
+# {{project_name}} — Project Contract (v2.15.0)
 
 What binds work in this project, for everyone working on it. Inlined into
 `/AGENTS.md` for agents and into `{{guidelines_root}}/README.md` for people, so
@@ -21,11 +21,40 @@ A Nextcloud app that indexes file checksums and makes them searchable.
 | Project name          | `metaworx/file_checksum_search`, Nextcloud app id `file_checksum_search` |
 | Language(s)           | declared as `project.languages` in `{{guidelines_root}}/config.ini`, kept honest by `{{shared_root}}/tools/detect-languages.sh --check`. PHP backend, TypeScript and Vue frontend, SCSS/CSS, YAML for CI, Python for tooling (`scripts/l10n.py`, `tests/e2e/store/appstore.py`) — of which Vue and YAML have no shared baseline, so they are not declared. |
 | Source directories    | `lib/` (PSR-4 `OCA\FileChecksumSearch\`), `src/` (frontend), `tests/` (PSR-4 `OCA\FileChecksumSearch\Tests\`), `appinfo/`, `templates/` |
-| Shipped-code paths    | `lib/`, `src/`, `css/`, `js/`, `l10n/`, `templates/`, `img/`, `appinfo/routes.php`, `appinfo/info.xml` |
+| Shipped-code paths    | declared as `project.shipped` in `{{guidelines_root}}/config.ini` and listed below; kept honest by `{{shared_root}}/tools/changelog.sh check` (rule: `{{shared_root}}/COMMIT.md` §5) |
 | Version manifest      | `appinfo/info.xml`: the `manifest` of `CHANGELOG.md` in `{{guidelines_root}}/config.ini`, so `changelog.sh cut` sets its `<version>` and `check` holds it to the newest section; its `<screenshot>` URLs sit in a `RELEASE-PIN` block the same cut moves |
 | Test gate command     | `GUIDELINES/shared/lang/php/tools/phpunit` (the shipped wrapper; `composer test` inside the container or CI); this checkout has no `.ddev/`, so the wrapper needs `MWX_PHPUNIT_DDEV_DIR` set to the harness instance's directory (§3.5) and `MWX_PHPUNIT_MOUNT=/var/www/html/apps/file_checksum_search`, whose values this machine keeps in `GUIDELINES/config.local.ini` under `[phpunit]`; `--testsuite unit` or `integration` for one of them; frontend `npm test` (Vitest) |
 | Lint command          | `composer cs:check` / `composer cs:fix` (ECS with `mwx/coding-standard`, configured in `ecs.php` over `lib/`, `tests/`, `appinfo/` and `templates/`), `composer psalm` (Psalm in `vendor-bin/psalm`, over `lib/` at level 4 with no baseline: `psalm.xml` suppresses by name only the non-public server classes the app uses, with its reasons); CI's Lint job runs ECS and Psalm. Rector is not a lint command but the upgrade tool: `composer rector:check` shows and `composer rector` applies Nextcloud's own rules for the oldest supported version (`rector.php`), in the harness container, where the server's classes are; frontend `npm run lint`, `npm run stylelint` and `npm run typecheck` (`vue-tsc`, which checks `.vue` files as well as `.ts`; the build strips types without checking them); the manifest `xmllint --noout --schema info.xsd appinfo/info.xml`, with `info.xsd` fetched from `https://raw.githubusercontent.com/nextcloud/appstore/master/nextcloudappstore/api/v1/release/info.xsd`, which is what the app store runs at upload and CI runs first |
 | Translation command   | `scripts/l10n.sh` (the door to `scripts/l10n.py`; needs PHP and gettext): `update` after a wrapped text changes, `add <lang>` to start a language, `build` after a `.po` file changes; `check` fails when the template, a `.po` file or `l10n/` is out of date, or a language kept here misses a translation. The work is done by Nextcloud's own `translationtool.phar`, pinned by commit and SHA-256 in `scripts/l10n.py` (§3.7) |
+
+A commit touching a path the list below selects must carry a `CHANGELOG.md`
+bullet. The list is generated from `project.shipped`, so it cannot drift from
+what the check enforces - edit the config, not this block. Its `:!` and
+`:(exclude…)` entries are the exempt paths, named so that a path neither side
+covers is reported as unclassified:
+
+<!-- BEGIN GENERATED SHIPPED-PATHS - do not edit; run "{{shared_root}}/tools/changelog.sh update-contract" -->
+- `lib/`
+- `src/`
+- `css/`
+- `js/`
+- `l10n/`
+- `templates/`
+- `img/`
+- `appinfo/routes.php`
+- `appinfo/info.xml`
+- `:(exclude,glob)*`
+- `:!tests/`
+- `:!docs/`
+- `:!scripts/`
+- `:!translationfiles/`
+- `:!vendor-bin/`
+- `:!GUIDELINES/`
+- `:!.github/`
+- `:!.gitlab/`
+- `:!.idea/`
+- `:!.roo/`
+<!-- END GENERATED SHIPPED-PATHS -->
 
 ## 2. Primary References
 
@@ -148,6 +177,7 @@ and a literal handed straight to a toast, and CI's lint job runs
 
 | Version | Date       | Changed sections | Change type | Agent impact |
 |---------|------------|------------------|-------------|--------------|
+| v2.15.0 | 2026-10-01 | 1                | minor       | The shipped paths come from `project.shipped` in `config.ini`, rendered below the facts table, with the exempt paths beside them; `changelog.sh check --staged` now says which staged change owes a bullet. |
 | v2.14.0 | 2026-10-01 | 1                | minor       | The lint row: Rector runs, as the upgrade tool rather than a lint command — `composer rector:check` and `composer rector`, with Nextcloud's rules for the oldest supported version, in the harness container. |
 | v2.13.0 | 2026-10-01 | 1                | minor       | The lint row no longer names `composer rector`, which has never run: `rector.php` does not load on Rector 2. |
 | v2.12.0 | 2026-10-01 | 1                | minor       | The lint row: `composer psalm` runs, at level 4 with no baseline, and CI's Lint job runs it and ECS. A Psalm finding is fixed or, for a non-public server class, suppressed by name in `psalm.xml`. |
