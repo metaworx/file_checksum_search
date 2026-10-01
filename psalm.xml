@@ -31,8 +31,8 @@
 	<!--
 		What the app uses from outside Nextcloud's public API. The server has
 		these classes; the nextcloud/ocp package it is analysed against does
-		not. Each use is deliberate, and each is a question for the next
-		Nextcloud version (AP Nc35): this list is that inventory.
+		not. Each use is deliberate, and each is a question for every new
+		Nextcloud version: this list is that inventory.
 	-->
 	<stubs>
 		<!-- OCP\Files\IRootFolder extends it, and the OCP package does not ship it. -->
