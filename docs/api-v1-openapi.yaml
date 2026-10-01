@@ -1343,8 +1343,9 @@ components:
         rowCount:
           type: integer
           description: >-
-            Number of indexed hash rows, as kept by the app and retaken hourly
-            in the background, as of rowCountAt; administrators only
+            Number of indexed hash rows, as kept by the app, as of rowCountAt,
+            and taken again once older than the interval the admin settings'
+            Tunables set (an hour by default); administrators only
           example: 15423
         rowCountAt:
           type: integer

@@ -275,12 +275,19 @@ msgstr "Could not save the preference."
 msgid "Could not save the rule."
 msgstr "Could not save the rule."
 
+#. TRANSLATORS a switch under the heading "Checksum count": count the indexed checksums in a background job
+msgid "Count in the background"
+msgstr "Count in the background"
+
+msgid "Counting the indexed checksums reads every one of them, which takes seconds on a large server. Switched on, a background job counts them once per interval, so the status never waits for it. Switched off, the status counts them when it is opened and the last count is older than the interval."
+msgstr "Counting the indexed checksums reads every one of them, which takes seconds on a large server. Switched on, a background job counts them once per interval, so the status never waits for it. Switched off, the status counts them when it is opened and the last count is older than the interval."
+
 msgid "Creating and editing rules for folders in one's own files that one can write to. An administrator always may; a rule an administrator has enforced is read-only for everyone else regardless."
 msgstr "Creating and editing rules for folders in one's own files that one can write to. An administrator always may; a rule an administrator has enforced is read-only for everyone else regardless."
 
-#. TRANSLATORS prefill: fill the list of the picker before anything is typed
-msgid "Cross-account picker: prefill up to"
-msgstr "Cross-account picker: prefill up to"
+#. TRANSLATORS a heading: the list for picking other accounts and groups, whose settings follow
+msgid "Cross-account picker"
+msgstr "Cross-account picker"
 
 msgid "Cross-account reads"
 msgstr "Cross-account reads"
@@ -482,6 +489,9 @@ msgstr "Help: {label}"
 msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 
+msgid "How old the count of indexed checksums may get before it is counted again: by the background job where it is switched on, otherwise when the status is opened."
+msgstr "How old the count of indexed checksums may get before it is counted again: by the background job where it is switched on, otherwise when the status is opened."
+
 msgid "Ignore (no automatic hashing; still allowed on request)"
 msgstr "Ignore (no automatic hashing; still allowed on request)"
 
@@ -553,6 +563,9 @@ msgstr "Min. files"
 #. TRANSLATORS: the tab listing the duplicates among one's own files
 msgid "Mine"
 msgstr "Mine"
+
+msgid "Minutes"
+msgstr "Minutes"
 
 msgid "Missing (like Auto, and add missing checksums)"
 msgstr "Missing (like Auto, and add missing checksums)"
@@ -645,9 +658,6 @@ msgstr "Not yours to look at."
 msgid "Noted — the banner stays hidden until an \"Include\" rule is enabled and then disabled again."
 msgstr "Noted — the banner stays hidden until an \"Include\" rule is enabled and then disabled again."
 
-msgid "Numbers that shape how the interface behaves. The defaults suit most servers."
-msgstr "Numbers that shape how the interface behaves. The defaults suit most servers."
-
 msgid "One account's home folder"
 msgstr "One account's home folder"
 
@@ -703,6 +713,7 @@ msgstr "Preferred algorithm"
 msgid "Preferred algorithm saved."
 msgstr "Preferred algorithm saved."
 
+#. TRANSLATORS prefill: fill the list of the picker before anything is typed
 msgid "Prefill up to"
 msgstr "Prefill up to"
 
@@ -750,6 +761,10 @@ msgstr "Recalculating checksums by hand: the sidebar's \"Recalculate\" buttons, 
 
 msgid "Refresh"
 msgstr "Refresh"
+
+#. TRANSLATORS under the heading "Checksum count": how many minutes the count may age before it is counted again
+msgid "Renew after (minutes)"
+msgstr "Renew after (minutes)"
 
 #. TRANSLATORS: the state of checksums a reset has made invalid; a past participle, not the action
 msgid "Reset"
@@ -833,6 +848,9 @@ msgstr "Selector \"%s\" is missing its target."
 
 msgid "Settings"
 msgstr "Settings"
+
+msgid "Settings that shape how the app behaves. The defaults suit most servers."
+msgstr "Settings that shape how the app behaves. The defaults suit most servers."
 
 #. TRANSLATORS a switch among the Duplicates page's filters: also list the groups of empty (zero-byte) files
 msgid "Show empty files"

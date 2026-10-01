@@ -96,6 +96,7 @@ class ChecksumApiTest
 			$this->createMock( MetadataService::class ),
 			$this->createMock( JobStatsService::class ),
 			$this->createMock( ITimeFactory::class ),
+			$this->createMock( IAppConfig::class ),
 		);
 
 		$this->rootFolder     = $this->createMock( IRootFolder::class );

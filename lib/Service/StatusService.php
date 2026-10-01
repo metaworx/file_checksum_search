@@ -9,8 +9,11 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Service;
 
+use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Utility\ITimeFactory;
+use OCP\IAppConfig;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -22,6 +25,12 @@ use Symfony\Component\Console\Output\OutputInterface;
 readonly class StatusService
 {
 
+//  constants
+
+	/** Seconds the checksum count may age, where the config holds none. */
+	public const CHECKSUM_COUNT_DEFAULT_INTERVAL = 3600;
+
+
 //  constructor
 
 	public function __construct(
@@ -31,6 +40,7 @@ readonly class StatusService
 		private MetadataService  $metadataService,
 		private JobStatsService  $jobStats,
 		private ITimeFactory     $time,
+		private IAppConfig       $appConfig,
 	) {
 	}
 
@@ -51,30 +61,60 @@ readonly class StatusService
 	/**
 	 * How many checksums are indexed, as of when they were last counted.
 	 *
-	 * The stored count, not a fresh one: counting reads every hash row of the
-	 * index, which on a large instance whose cache has gone cold takes
-	 * seconds (8.4 s for 406,419 rows on one), and the status is opened after
-	 * exactly the quiet hour that lets it go cold. RuleProcessingJob recounts
-	 * hourly ({@see recountHashRows()}). Only where nothing was ever counted
-	 * does this count, once, so a fresh install shows a number rather than
-	 * none.
+	 * The stored count while it is younger than the interval: counting reads
+	 * every hash row of the index, which on a large instance whose cache has
+	 * gone cold takes seconds (8.4 s for 406,419 rows on one). An older one,
+	 * or none, is counted now and stored ({@see recountHashRows()}). With the
+	 * background count on, RuleProcessingJob keeps it younger than that, and
+	 * this never counts.
+	 *
+	 * @param bool $recount Count now whatever the stored count's age: the
+	 *                      panel's Refresh.
 	 *
 	 * @return array{rows: int, at: int}  The count, and when it was taken
 	 *                                    (Unix time).
 	 */
-	public function getHashRowCount(): array
+	public function getHashRowCount( bool $recount = false ): array
 	{
 		$run = $this->jobStats->lastRuns()[ JobStatsService::JOB_CHECKSUM_COUNT ] ?? null;
+		$at  = $run['lastRun'] ?? null;
 
-		if ( $run !== null && $run['lastRun'] !== null && isset( $run['counts']['rows'] ) )
+		if ( ! $recount && $at !== null && isset( $run['counts']['rows'] ) && $this->isYoung( $at ) )
 		{
 			return [
 				'rows' => (int) $run['counts']['rows'],
-				'at'   => $run['lastRun'],
+				'at'   => $at,
 			];
 		}
 
 		return $this->recountHashRows();
+	}
+
+	/** Seconds the stored checksum count may age before it is taken again. */
+	public function getHashRowCountInterval(): int
+	{
+		return $this->appConfig->getValueInt(
+			Application::APP_ID,
+			ConfigLexicon::CHECKSUM_COUNT_INTERVAL,
+			self::CHECKSUM_COUNT_DEFAULT_INTERVAL,
+		);
+	}
+
+	/** Whether RuleProcessingJob takes the checksum count when it is due. */
+	public function isHashRowCountInBackground(): bool
+	{
+		return $this->appConfig->getValueBool(
+			Application::APP_ID,
+			ConfigLexicon::CHECKSUM_COUNT_BACKGROUND,
+		);
+	}
+
+	/** Whether the stored checksum count is missing or older than the interval. */
+	public function isHashRowCountDue(): bool
+	{
+		$lastRun = $this->jobStats->lastRuns()[ JobStatsService::JOB_CHECKSUM_COUNT ]['lastRun'] ?? null;
+
+		return $lastRun === null || ! $this->isYoung( $lastRun );
 	}
 
 
@@ -140,5 +180,11 @@ readonly class StatusService
 	public function hasChecksumColumn( ?OutputInterface $output = null ): bool
 	{
 		return $this->databaseService->columnExists( $this->tables->getFilecacheTableName(), 'checksum', $output );
+	}
+
+	/** Whether a count taken at $at (Unix time) is younger than the interval. */
+	private function isYoung( int $at ): bool
+	{
+		return $this->time->getTime() - $at < $this->getHashRowCountInterval();
 	}
 }

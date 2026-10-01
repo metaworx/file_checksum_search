@@ -380,9 +380,10 @@ them.
 ```
 
 `rowCount` is the number of indexed checksums as of `rowCountAt` (Unix
-time): a count the app keeps, retaken hourly in the background, because
-counting on request reads every hash row and a cold cache makes that take
-seconds.
+time): a count the app keeps, because counting reads every hash row and a
+cold cache makes that take seconds. A kept count older than the interval
+the admin settings' Tunables set (an hour by default) is taken again on
+request, or in the background where Tunables switch that on.
 
 ### Rules
 
@@ -717,7 +718,7 @@ No parameters.
 ```
 
 `rowCount` is the kept count of indexed checksums, as of `rowCountAt` (Unix
-time), retaken hourly in the background; see `getStatus()` above.
+time), at most the interval the Tunables set old; see `getStatus()` above.
 
 **Response (200), as anyone else:** the version alone. The others
 describe the instance and are the administrator's to see.

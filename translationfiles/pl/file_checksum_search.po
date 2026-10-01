@@ -277,12 +277,19 @@ msgstr "Nie udało się zapisać preferencji."
 msgid "Could not save the rule."
 msgstr "Nie udało się zapisać reguły."
 
+#. TRANSLATORS a switch under the heading "Checksum count": count the indexed checksums in a background job
+msgid "Count in the background"
+msgstr "Licz w tle"
+
+msgid "Counting the indexed checksums reads every one of them, which takes seconds on a large server. Switched on, a background job counts them once per interval, so the status never waits for it. Switched off, the status counts them when it is opened and the last count is older than the interval."
+msgstr "Liczenie zaindeksowanych sum kontrolnych wymaga odczytania każdej z nich, co na dużym serwerze trwa kilka sekund. Po włączeniu zadanie w tle liczy je raz na interwał, więc status nigdy na to nie czeka. Po wyłączeniu status liczy je przy otwarciu, jeśli ostatnie liczenie jest starsze niż interwał."
+
 msgid "Creating and editing rules for folders in one's own files that one can write to. An administrator always may; a rule an administrator has enforced is read-only for everyone else regardless."
 msgstr "Tworzenie i edycja reguł dla folderów we własnych plikach, do których można zapisywać. Administrator może to zawsze; reguła wymuszona przez administratora i tak pozostaje dla wszystkich innych tylko do odczytu."
 
-#. TRANSLATORS prefill: fill the list of the picker before anything is typed
-msgid "Cross-account picker: prefill up to"
-msgstr "Lista wyboru innych kont: wypełniaj wstępnie do"
+#. TRANSLATORS a heading: the list for picking other accounts and groups, whose settings follow
+msgid "Cross-account picker"
+msgstr "Lista wyboru innych kont"
 
 msgid "Cross-account reads"
 msgstr "Odczyt innych kont"
@@ -484,6 +491,9 @@ msgstr "Pomoc: {label}"
 msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr "Ile grup pokazuje jedna strona. Nic nie jest tu odczytywane z dysku, dopóki nie zweryfikujesz grupy lub pliku, więc większa strona oznacza dłuższe zapytanie, a nie dłuższe odczyty."
 
+msgid "How old the count of indexed checksums may get before it is counted again: by the background job where it is switched on, otherwise when the status is opened."
+msgstr "Jak stare może być liczenie zaindeksowanych sum kontrolnych, zanim zostaną policzone ponownie: przez zadanie w tle, jeśli jest włączone, a w przeciwnym razie przy otwarciu statusu."
+
 msgid "Ignore (no automatic hashing; still allowed on request)"
 msgstr "Ignoruj (bez automatycznego obliczania; nadal możliwe na żądanie)"
 
@@ -555,6 +565,9 @@ msgstr "Min. plików"
 #. TRANSLATORS: the tab listing the duplicates among one's own files
 msgid "Mine"
 msgstr "Moje"
+
+msgid "Minutes"
+msgstr "Minuty"
 
 msgid "Missing (like Auto, and add missing checksums)"
 msgstr "Brakujące (jak „Automatycznie”, a także dodaj brakujące sumy kontrolne)"
@@ -647,9 +660,6 @@ msgstr "Nie masz uprawnień, by to oglądać."
 msgid "Noted — the banner stays hidden until an \"Include\" rule is enabled and then disabled again."
 msgstr "Przyjęto do wiadomości – komunikat pozostanie ukryty, dopóki jakaś reguła rodzaju „Uwzględnij” nie zostanie włączona, a potem znów wyłączona."
 
-msgid "Numbers that shape how the interface behaves. The defaults suit most servers."
-msgstr "Liczby, które kształtują zachowanie interfejsu. Wartości domyślne pasują do większości serwerów."
-
 msgid "One account's home folder"
 msgstr "Folder domowy jednego konta"
 
@@ -705,6 +715,7 @@ msgstr "Preferowany algorytm"
 msgid "Preferred algorithm saved."
 msgstr "Zapisano preferowany algorytm."
 
+#. TRANSLATORS prefill: fill the list of the picker before anything is typed
 msgid "Prefill up to"
 msgstr "Wypełniaj wstępnie do"
 
@@ -752,6 +763,10 @@ msgstr "Ręczne przeliczanie sum kontrolnych: przyciski „Przelicz” w panelu 
 
 msgid "Refresh"
 msgstr "Odśwież"
+
+#. TRANSLATORS under the heading "Checksum count": how many minutes the count may age before it is counted again
+msgid "Renew after (minutes)"
+msgstr "Odnawiaj po (minutach)"
 
 #. TRANSLATORS: the state of checksums a reset has made invalid; a past participle, not the action
 msgid "Reset"
@@ -835,6 +850,9 @@ msgstr "W selektorze \"%s\" brakuje celu."
 
 msgid "Settings"
 msgstr "Ustawienia"
+
+msgid "Settings that shape how the app behaves. The defaults suit most servers."
+msgstr "Ustawienia, które kształtują zachowanie aplikacji. Wartości domyślne pasują do większości serwerów."
 
 #. TRANSLATORS a switch among the Duplicates page's filters: also list the groups of empty (zero-byte) files
 msgid "Show empty files"

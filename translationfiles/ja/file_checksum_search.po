@@ -274,12 +274,19 @@ msgstr "設定を保存できませんでした。"
 msgid "Could not save the rule."
 msgstr "ルールを保存できませんでした。"
 
+#. TRANSLATORS a switch under the heading "Checksum count": count the indexed checksums in a background job
+msgid "Count in the background"
+msgstr "バックグラウンドで集計する"
+
+msgid "Counting the indexed checksums reads every one of them, which takes seconds on a large server. Switched on, a background job counts them once per interval, so the status never waits for it. Switched off, the status counts them when it is opened and the last count is older than the interval."
+msgstr "インデックス済みチェックサムの集計ではすべてを読み込むため、大規模なサーバーでは数秒かかります。オンにすると、バックグラウンドジョブが間隔ごとに 1 回集計するため、ステータスが待たされることはありません。オフにすると、ステータスを開いたときに前回の集計が間隔より古ければ、その場で集計します。"
+
 msgid "Creating and editing rules for folders in one's own files that one can write to. An administrator always may; a rule an administrator has enforced is read-only for everyone else regardless."
 msgstr "自分のファイル内の、書き込み可能なフォルダーに対するルールの作成と編集です。管理者は常に可能です。管理者が強制したルールは、この設定にかかわらず、他の全員にとって読み取り専用です。"
 
-#. TRANSLATORS prefill: fill the list of the picker before anything is typed
-msgid "Cross-account picker: prefill up to"
-msgstr "アカウント横断の選択リスト：事前表示する最大数"
+#. TRANSLATORS a heading: the list for picking other accounts and groups, whose settings follow
+msgid "Cross-account picker"
+msgstr "アカウント横断の選択リスト"
 
 msgid "Cross-account reads"
 msgstr "アカウント横断の読み取り"
@@ -481,6 +488,9 @@ msgstr "ヘルプ：{label}"
 msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr "1ページに表示する重複グループの数です。重複グループまたはファイルを検証するまで、ディスクからは何も読み取られません。そのため、ページを大きくしても、長くなるのはクエリの時間だけで、読み取りの時間ではありません。"
 
+msgid "How old the count of indexed checksums may get before it is counted again: by the background job where it is switched on, otherwise when the status is opened."
+msgstr "インデックス済みチェックサムの集計結果を再集計するまでに許容する経過時間です。バックグラウンドでの集計がオンならバックグラウンドジョブが、オフならステータスを開いたときに再集計します。"
+
 msgid "Ignore (no automatic hashing; still allowed on request)"
 msgstr "無視する（自動ハッシュ計算なし、要求があれば計算可）"
 
@@ -552,6 +562,9 @@ msgstr "最小ファイル数"
 #. TRANSLATORS: the tab listing the duplicates among one's own files
 msgid "Mine"
 msgstr "自分のファイル"
+
+msgid "Minutes"
+msgstr "分"
 
 msgid "Missing (like Auto, and add missing checksums)"
 msgstr "欠落分（「自動」の処理に加えて、欠けているチェックサムを追加）"
@@ -644,9 +657,6 @@ msgstr "閲覧する権限がありません。"
 msgid "Noted — the banner stays hidden until an \"Include\" rule is enabled and then disabled again."
 msgstr "承知しました。「含める」ルールが有効にされ、その後再び無効にされるまで、このバナーは表示されません。"
 
-msgid "Numbers that shape how the interface behaves. The defaults suit most servers."
-msgstr "インターフェースの動作を決める数値です。ほとんどのサーバーにはデフォルトが適しています。"
-
 msgid "One account's home folder"
 msgstr "1つのアカウントのホームフォルダー"
 
@@ -702,6 +712,7 @@ msgstr "優先するアルゴリズム"
 msgid "Preferred algorithm saved."
 msgstr "優先するアルゴリズムを保存しました。"
 
+#. TRANSLATORS prefill: fill the list of the picker before anything is typed
 msgid "Prefill up to"
 msgstr "事前表示する最大数"
 
@@ -749,6 +760,10 @@ msgstr "チェックサムの手動での再計算です。サイドバーの「
 
 msgid "Refresh"
 msgstr "更新"
+
+#. TRANSLATORS under the heading "Checksum count": how many minutes the count may age before it is counted again
+msgid "Renew after (minutes)"
+msgstr "再集計までの時間（分）"
 
 #. TRANSLATORS: the state of checksums a reset has made invalid; a past participle, not the action
 msgid "Reset"
@@ -832,6 +847,9 @@ msgstr "セレクター\"%s\"には対象が指定されていません。"
 
 msgid "Settings"
 msgstr "設定"
+
+msgid "Settings that shape how the app behaves. The defaults suit most servers."
+msgstr "アプリの動作を決める設定です。ほとんどのサーバーにはデフォルトが適しています。"
 
 #. TRANSLATORS a switch among the Duplicates page's filters: also list the groups of empty (zero-byte) files
 msgid "Show empty files"

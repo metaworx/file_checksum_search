@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\Controller;
 
+use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Controller\SettingsController;
@@ -84,6 +85,7 @@ class SettingsControllerTest
 		$tableNameService      = $this->createMock( TableNameService::class );
 		$this->metadataService = $this->createMock( MetadataService::class );
 		$this->jobStats        = $this->createMock( JobStatsService::class );
+		$this->appConfig       = $this->createMock( IAppConfig::class );
 
 		$this->statusService = new StatusService(
 			$this->databaseService,
@@ -92,11 +94,11 @@ class SettingsControllerTest
 			$this->metadataService,
 			$this->jobStats,
 			$this->createMock( ITimeFactory::class ),
+			$this->appConfig,
 		);
 
 		$this->userManager       = $this->createMock( IUserManager::class );
 		$this->permissionService = $this->createMock( PermissionService::class );
-		$this->appConfig         = $this->createMock( IAppConfig::class );
 		$this->request           = $this->createMock( IRequest::class );
 		$this->logger            = $this->createMock( LoggerInterface::class );
 
@@ -215,11 +217,9 @@ class SettingsControllerTest
 	public function testGetStatusReportsTheIdleBannerAcknowledgement(): void
 	{
 		$this->appConfig->method( 'getValueBool' )
-		                ->with(
-			                'file_checksum_search',
-			                RuleService::CONFIG_KEY_IDLE_BANNER_ACK,
+		                ->willReturnCallback(
+			                static fn( string $app, string $key ): bool => $key === RuleService::CONFIG_KEY_IDLE_BANNER_ACK,
 		                )
-		                ->willReturn( true )
 		;
 
 		$data = $this->controller->getStatus()
@@ -227,6 +227,48 @@ class SettingsControllerTest
 		;
 
 		$this->assertTrue( $data['idleBannerAcknowledged'] );
+	}
+
+	// ── the checksum count's job row ─────────────────────────────────────
+	/**
+	 * The count's record is there however the count was taken; it is listed
+	 * as a background job only while the background count is switched on.
+	 */
+	public function testGetStatusListsTheChecksumCountJobOnlyWhileItIsSwitchedOn(): void
+	{
+		$on = false;
+		$this->appConfig->method( 'getValueBool' )
+		                ->willReturnCallback(
+			                static function( string $app, string $key ) use ( &$on ): bool
+			                {
+				                return $key === ConfigLexicon::CHECKSUM_COUNT_BACKGROUND && $on;
+			                },
+		                )
+		;
+		$this->jobStats->method( 'lastRuns' )
+		               ->willReturn( [
+			               JobStatsService::JOB_RULE_SWEEP     => [
+				               'lastRun' => 1700000000,
+				               'counts'  => [],
+			               ],
+			               JobStatsService::JOB_CHECKSUM_COUNT => [
+				               'lastRun' => 1700000000,
+				               'counts'  => [ 'rows' => 7 ],
+			               ],
+		               ] )
+		;
+
+		$this->assertSame(
+			[ JobStatsService::JOB_RULE_SWEEP ],
+			array_keys( $this->controller->getStatus()->getData()['jobs'] ),
+		);
+
+		$on = true;
+
+		$this->assertArrayHasKey(
+			JobStatsService::JOB_CHECKSUM_COUNT,
+			$this->controller->getStatus()->getData()['jobs'],
+		);
 	}
 
 	public function testAcknowledgeIdleBannerPersistsTheFlag(): void
@@ -344,6 +386,59 @@ class SettingsControllerTest
 		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
 		$data = $response->getData();
 		$this->assertTrue( $data['success'] );
+	}
+
+	// ── the checksum count's tunables ────────────────────────────────────
+	public function testGetAdminOptionsGivesTheChecksumCountSettings(): void
+	{
+		$this->appConfig->method( 'getValueBool' )
+		                ->willReturnCallback(
+			                static fn( string $app, string $key ): bool => $key === ConfigLexicon::CHECKSUM_COUNT_BACKGROUND,
+		                )
+		;
+		$this->appConfig->method( 'getValueInt' )
+		                ->willReturnCallback(
+			                static fn( string $app, string $key, int $default = 0 ): int => $key === ConfigLexicon::CHECKSUM_COUNT_INTERVAL
+				                ? 7200
+				                : $default,
+		                )
+		;
+
+		$data = $this->controller->getAdminOptions()
+		                         ->getData()
+		;
+
+		$this->assertTrue( $data['checksumCountBackground'] );
+		$this->assertSame( 7200, $data['checksumCountInterval'] );
+	}
+
+	/**
+	 * The switch is saved as sent; the interval within five minutes and a
+	 * week, the control's bounds, whatever the caller sends.
+	 */
+	public function testTheChecksumCountSettingsAreSavedTheIntervalBounded(): void
+	{
+		$this->controller->method( 'readRequestBody' )
+		                 ->willReturn(
+			                 json_encode( [
+				                 'checksumCountBackground' => true,
+				                 'checksumCountInterval'   => 60,
+			                 ] ),
+		                 )
+		;
+
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'setValueBool' )
+		                ->with( 'file_checksum_search', ConfigLexicon::CHECKSUM_COUNT_BACKGROUND, true )
+		;
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'setValueInt' )
+		                ->with( 'file_checksum_search', ConfigLexicon::CHECKSUM_COUNT_INTERVAL, 300 )
+		;
+
+		$response = $this->controller->saveAdminOptions();
+
+		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
 	}
 
 	// ── admin-only enforcement ───────────────────────────────────────────

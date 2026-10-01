@@ -274,12 +274,19 @@ msgstr "无法保存偏好设置。"
 msgid "Could not save the rule."
 msgstr "无法保存规则。"
 
+#. TRANSLATORS a switch under the heading "Checksum count": count the indexed checksums in a background job
+msgid "Count in the background"
+msgstr "在后台计数"
+
+msgid "Counting the indexed checksums reads every one of them, which takes seconds on a large server. Switched on, a background job counts them once per interval, so the status never waits for it. Switched off, the status counts them when it is opened and the last count is older than the interval."
+msgstr "统计已索引的校验和需要逐一读取，在大型服务器上需要数秒。开启后，后台任务每个间隔计数一次，状态无需等待。关闭后，打开状态时若上次计数早于间隔，则当场计数。"
+
 msgid "Creating and editing rules for folders in one's own files that one can write to. An administrator always may; a rule an administrator has enforced is read-only for everyone else regardless."
 msgstr "为自己文件中可写入的文件夹创建和编辑规则。管理员始终可以这样做；而管理员强制的规则，无论如何对其他所有人都是只读的。"
 
-#. TRANSLATORS prefill: fill the list of the picker before anything is typed
-msgid "Cross-account picker: prefill up to"
-msgstr "跨账号选择器：预填充上限"
+#. TRANSLATORS a heading: the list for picking other accounts and groups, whose settings follow
+msgid "Cross-account picker"
+msgstr "跨账号选择器"
 
 msgid "Cross-account reads"
 msgstr "跨账号读取"
@@ -481,6 +488,9 @@ msgstr "帮助：{label}"
 msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr "每页显示多少个文件组。在您验证某个文件组或文件之前，这里不会从磁盘读取任何内容，因此页面越大，只会让查询更久，而不会让读取更久。"
 
+msgid "How old the count of indexed checksums may get before it is counted again: by the background job where it is switched on, otherwise when the status is opened."
+msgstr "已索引校验和的计数在重新计数前可保留的最长时间：开启时由后台任务重新计数，否则在打开状态时重新计数。"
+
 msgid "Ignore (no automatic hashing; still allowed on request)"
 msgstr "忽略（不自动进行哈希计算；仍可按需计算）"
 
@@ -552,6 +562,9 @@ msgstr "最少文件数"
 #. TRANSLATORS: the tab listing the duplicates among one's own files
 msgid "Mine"
 msgstr "我的"
+
+msgid "Minutes"
+msgstr "分钟"
 
 msgid "Missing (like Auto, and add missing checksums)"
 msgstr "补缺（同“自动”，并补上缺失的校验和）"
@@ -644,9 +657,6 @@ msgstr "您无权查看此内容。"
 msgid "Noted — the banner stays hidden until an \"Include\" rule is enabled and then disabled again."
 msgstr "已知悉。在某条“包含”规则被启用后又被禁用之前，此提示将保持隐藏。"
 
-msgid "Numbers that shape how the interface behaves. The defaults suit most servers."
-msgstr "决定界面行为的数值。默认值适合大多数服务器。"
-
 msgid "One account's home folder"
 msgstr "某个账号的主目录"
 
@@ -702,6 +712,7 @@ msgstr "首选算法"
 msgid "Preferred algorithm saved."
 msgstr "首选算法已保存。"
 
+#. TRANSLATORS prefill: fill the list of the picker before anything is typed
 msgid "Prefill up to"
 msgstr "预填充上限"
 
@@ -749,6 +760,10 @@ msgstr "手动重新计算校验和：侧边栏中的“重新计算”按钮、
 
 msgid "Refresh"
 msgstr "刷新"
+
+#. TRANSLATORS under the heading "Checksum count": how many minutes the count may age before it is counted again
+msgid "Renew after (minutes)"
+msgstr "多久后重新计数（分钟）"
 
 #. TRANSLATORS: the state of checksums a reset has made invalid; a past participle, not the action
 msgid "Reset"
@@ -832,6 +847,9 @@ msgstr "选择器 \"%s\" 缺少目标。"
 
 msgid "Settings"
 msgstr "设置"
+
+msgid "Settings that shape how the app behaves. The defaults suit most servers."
+msgstr "决定应用行为的设置。默认值适合大多数服务器。"
 
 #. TRANSLATORS a switch among the Duplicates page's filters: also list the groups of empty (zero-byte) files
 msgid "Show empty files"

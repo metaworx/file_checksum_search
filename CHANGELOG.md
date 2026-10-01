@@ -16,6 +16,9 @@ the first stable release.
 - Nextcloud 35 (`appinfo/info.xml`); CI tests it on PHP 8.3 and 8.4,
   which is all Nextcloud 35 runs on.
 
+- Tunables: the checksum count's interval, and a switch to take it in
+  the background.
+
 ### Changed
 
 - Database reads use `fetchAssociative()` and `fetchAllAssociative()`,
@@ -25,8 +28,8 @@ the first stable release.
 - Dates and times: every part two digits, in the locale's own order
   (01.10.2026, 07:05:09).
 
-- `GET /api/v1/status` and the admin status: the checksum count is
-  taken hourly in the background, with its time (`rowCountAt`).
+- `GET /api/v1/status`: `rowCount` is a kept count, as of the new
+  `rowCountAt`.
 
 ### Fixed
 

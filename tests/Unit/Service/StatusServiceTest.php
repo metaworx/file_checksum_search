@@ -16,6 +16,7 @@ use OCA\FileChecksumSearch\Service\StatusService;
 use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Utility\ITimeFactory;
+use OCP\IAppConfig;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -23,7 +24,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 /**
  * Unit tests for StatusService.
  *
- * Covers all 6 public methods with mocked dependencies.
+ * Covers its public methods with mocked dependencies.
  */
 class StatusServiceTest
     extends
@@ -45,6 +46,8 @@ class StatusServiceTest
 
 	private ITimeFactory&MockObject     $time;
 
+	private IAppConfig&MockObject       $appConfig;
+
 	private StatusService               $service;
 
 
@@ -65,6 +68,12 @@ class StatusServiceTest
 		           ->willReturn( 1_759_300_000 )
 		;
 
+		// The interval's default: an hour.
+		$this->appConfig = $this->createMock( IAppConfig::class );
+		$this->appConfig->method( 'getValueInt' )
+		                ->willReturnArgument( 2 )
+		;
+
 		$this->service = new StatusService(
 			$this->databaseService,
 			$this->tables,
@@ -72,6 +81,7 @@ class StatusServiceTest
 			$this->metadataService,
 			$this->jobStats,
 			$this->time,
+			$this->appConfig,
 		);
 	}
 
@@ -79,20 +89,12 @@ class StatusServiceTest
 //  other non-static methods
 
 	/**
-	 * The stored count, never a fresh one: counting reads every hash row,
-	 * which a cold cache makes take seconds, and the status must not wait
-	 * for it.
+	 * A stored count younger than the interval is given as it is: counting
+	 * reads every hash row, which a cold cache makes take seconds.
 	 */
-	public function testTheHashRowCountIsTheStoredOneWhenThereIsOne(): void
+	public function testAStoredHashRowCountWithinTheIntervalIsGivenAsItIs(): void
 	{
-		$this->jobStats->method( 'lastRuns' )
-		               ->willReturn( [
-			               JobStatsService::JOB_CHECKSUM_COUNT => [
-				               'lastRun' => 1_759_290_000,
-				               'counts'  => [ 'rows' => 406_419 ],
-			               ],
-		               ] )
-		;
+		$this->storedCount( 1_759_300_000 - 3_599 );
 		$this->metadataService->expects( $this->never() )
 		                      ->method( 'countHashEntries' )
 		;
@@ -100,10 +102,61 @@ class StatusServiceTest
 		$this->assertSame(
 			[
 				'rows' => 406_419,
-				'at'   => 1_759_290_000,
+				'at'   => 1_759_300_000 - 3_599,
 			],
 			$this->service->getHashRowCount(),
 		);
+		$this->assertFalse( $this->service->isHashRowCountDue() );
+	}
+
+	/**
+	 * Older than the interval, as with the background count off after a
+	 * quiet hour: counted now, and stored.
+	 */
+	public function testAStoredHashRowCountOlderThanTheIntervalIsTakenAgain(): void
+	{
+		$this->storedCount( 1_759_300_000 - 3_600 );
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'countHashEntries' )
+		                      ->willReturn( 406_500 )
+		;
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'record' )
+		               ->with( JobStatsService::JOB_CHECKSUM_COUNT, [ 'rows' => 406_500 ] )
+		;
+
+		$this->assertTrue( $this->service->isHashRowCountDue() );
+		$this->assertSame(
+			[
+				'rows' => 406_500,
+				'at'   => 1_759_300_000,
+			],
+			$this->service->getHashRowCount(),
+		);
+	}
+
+	/** The panel's Refresh counts whatever the stored count's age. */
+	public function testARecountIsTakenHoweverYoungTheStoredCount(): void
+	{
+		$this->storedCount( 1_759_300_000 - 1 );
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'countHashEntries' )
+		                      ->willReturn( 406_420 )
+		;
+
+		$this->assertSame( 406_420, $this->service->getHashRowCount( true )['rows'] );
+	}
+
+	/** Off unless switched on: the status then counts when it is asked. */
+	public function testTheBackgroundCountIsReadFromItsSwitch(): void
+	{
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'getValueBool' )
+		                ->with( 'file_checksum_search', 'checksum_count_background' )
+		                ->willReturn( true )
+		;
+
+		$this->assertTrue( $this->service->isHashRowCountInBackground() );
 	}
 
 	/**
@@ -195,5 +248,18 @@ class StatusServiceTest
 		$result = $this->service->hasChecksumColumn( $output );
 
 		$this->assertTrue( $result );
+	}
+
+	/** A stored count of 406,419, taken at $at. */
+	private function storedCount( int $at ): void
+	{
+		$this->jobStats->method( 'lastRuns' )
+		               ->willReturn( [
+			               JobStatsService::JOB_CHECKSUM_COUNT => [
+				               'lastRun' => $at,
+				               'counts'  => [ 'rows' => 406_419 ],
+			               ],
+		               ] )
+		;
 	}
 }

@@ -79,6 +79,14 @@ class SettingsController
 	public function getStatus(): DataResponse
 	{
 		$rows = $this->statusService->getHashRowCount();
+		$jobs = $this->jobStats->lastRuns();
+
+		// The count's record is kept however the count was taken, but it is
+		// a background job only while the background count is switched on.
+		if ( ! $this->statusService->isHashRowCountInBackground() )
+		{
+			unset( $jobs[ JobStatsService::JOB_CHECKSUM_COUNT ] );
+		}
 
 		return new DataResponse( [
 			'version'                => $this->statusService->getAppVersion(),
@@ -87,7 +95,7 @@ class SettingsController
 			'rowCountAt'             => $rows['at'],
 			'pendingStats'           => $this->metadataService->getPendingStats(),
 			'staleStats'             => $this->metadataService->getStaleStats(),
-			'jobs'                   => $this->jobStats->lastRuns(),
+			'jobs'                   => $jobs,
 			'idleBannerAcknowledged' => $this->appConfig->getValueBool(
 				Application::APP_ID,
 				RuleService::CONFIG_KEY_IDLE_BANNER_ACK,
@@ -173,6 +181,8 @@ class SettingsController
 				Application::APP_ID,
 				ConfigLexicon::CROSS_ACCOUNT_PREFILL_LIMIT,
 			),
+			'checksumCountBackground' => $this->statusService->isHashRowCountInBackground(),
+			'checksumCountInterval'   => $this->statusService->getHashRowCountInterval(),
 		] );
 	}
 
@@ -278,6 +288,26 @@ class SettingsController
 					Application::APP_ID,
 					ConfigLexicon::CROSS_ACCOUNT_PREFILL_LIMIT,
 					max( 5, min( 500, (int) $body['crossAccountPrefillLimit'] ) ),
+				);
+			}
+
+			if ( array_key_exists( 'checksumCountBackground', $body ) )
+			{
+				$this->appConfig->setValueBool(
+					Application::APP_ID,
+					ConfigLexicon::CHECKSUM_COUNT_BACKGROUND,
+					(bool) $body['checksumCountBackground'],
+				);
+			}
+
+			if ( array_key_exists( 'checksumCountInterval', $body ) )
+			{
+				// Seconds, from five minutes, the rule job's own period, to a
+				// week; the control's bounds, as with the prefill limit.
+				$this->appConfig->setValueInt(
+					Application::APP_ID,
+					ConfigLexicon::CHECKSUM_COUNT_INTERVAL,
+					max( 300, min( 604_800, (int) $body['checksumCountInterval'] ) ),
 				);
 			}
 

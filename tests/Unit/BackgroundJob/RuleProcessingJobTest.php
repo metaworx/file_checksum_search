@@ -58,6 +58,9 @@ class RuleProcessingJobTest
 	 */
 	private ?int                       $countLastRun = 0;
 
+	/** The background count's switch, as the config mock reports it. */
+	private bool                       $countInBackground = false;
+
 
 //  getters / setters / is* / has*
 
@@ -80,6 +83,12 @@ class RuleProcessingJobTest
 		$this->appConfig->method( 'getValueInt' )
 		                ->willReturnCallback(
 			                static fn( string $app, string $key, int $default ): int => $default,
+		                )
+		;
+		$this->appConfig->method( 'getValueBool' )
+		                ->willReturnCallback(
+			                fn( string $app, string $key ): bool => $key === 'checksum_count_background'
+				                && $this->countInBackground,
 		                )
 		;
 
@@ -125,6 +134,7 @@ class RuleProcessingJobTest
 			$this->metadataService,
 			$this->jobStats,
 			$this->time,
+			$this->appConfig,
 		);
 	}
 
@@ -334,13 +344,14 @@ class RuleProcessingJobTest
 	}
 
 	/**
-	 * Never counted, so due: the job counts the indexed checksums and keeps
-	 * the count as the checksum count's stats, which is where the status
-	 * reads it.
+	 * Switched on and never counted, so due: the job counts the indexed
+	 * checksums and keeps the count as the checksum count's stats, which is
+	 * where the status reads it.
 	 */
 	public function testADueChecksumCountIsTakenAndKept(): void
 	{
-		$this->countLastRun = null;
+		$this->countInBackground = true;
+		$this->countLastRun      = null;
 		$this->ruleService->method( 'evaluateRules' )
 		                  ->willReturn( [ 'marked' => 0, 'matched' => 0 ] )
 		;
@@ -365,12 +376,30 @@ class RuleProcessingJobTest
 	}
 
 	/**
-	 * Counted within the hour: the next tick leaves it be, so the count's
-	 * cost is paid once an hour, not every five minutes.
+	 * Due but switched off, the default: the job leaves the count to the
+	 * status, which takes it when it is asked.
+	 */
+	public function testAChecksumCountIsNotTakenWithTheBackgroundCountOff(): void
+	{
+		$this->countLastRun = null;
+		$this->ruleService->method( 'evaluateRules' )
+		                  ->willReturn( [ 'marked' => 0, 'matched' => 0 ] )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'countHashEntries' )
+		;
+
+		( new ReflectionMethod( RuleProcessingJob::class, 'run' ) )->invoke( $this->job, null );
+	}
+
+	/**
+	 * Switched on and counted within the hour: the next tick leaves it be,
+	 * so the count's cost is paid once an hour, not every five minutes.
 	 */
 	public function testAChecksumCountWithinItsIntervalIsNotTakenAgain(): void
 	{
-		$this->countLastRun = 1_700_100_000 - 60;
+		$this->countInBackground = true;
+		$this->countLastRun      = 1_700_100_000 - 60;
 		$this->time->method( 'getTime' )
 		           ->willReturn( 1_700_100_000 )
 		;

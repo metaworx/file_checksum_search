@@ -44,6 +44,16 @@ class ConfigLexicon
 	 */
 	public const CROSS_ACCOUNT_PREFILL_LIMIT = 'cross_account_prefill_limit';
 
+	/**
+	 * Seconds the stored count of indexed checksums may age before it is
+	 * taken again: by the background job while the switch below is on, and
+	 * by the status that asks for it while it is off.
+	 */
+	public const CHECKSUM_COUNT_INTERVAL = 'checksum_count_interval';
+
+	/** Whether RuleProcessingJob retakes the checksum count once it is due. */
+	public const CHECKSUM_COUNT_BACKGROUND = 'checksum_count_background';
+
 
 //  getters / setters / is* / has*
 
@@ -125,10 +135,20 @@ class ConfigLexicon
 				flags: IAppConfig::FLAG_INTERNAL,
 			),
 			new Entry(
-				key: 'checksum_count_interval',
+				key: self::CHECKSUM_COUNT_INTERVAL,
 				type: ValueType::INT,
 				defaultRaw: 3600,
-				definition: 'Seconds between counts of the indexed checksums the status shows. The count rides RuleProcessingJob, keeps its own clock, and is stored as that job\'s stats.',
+				definition: 'Seconds the stored count of indexed checksums may age before it is taken again: by RuleProcessingJob while checksum_count_background is on, otherwise by the status that asks for it. Stored as the checksum count job\'s stats.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
+				key: self::CHECKSUM_COUNT_BACKGROUND,
+				type: ValueType::BOOL,
+				// Off: the status is opened rarely, to diagnose, and a count
+				// every hour would cost the database around the clock for it.
+				defaultRaw: false,
+				definition: 'Whether RuleProcessingJob retakes the count of indexed checksums every checksum_count_interval. Off, the status counts when it is asked and the stored count is older.',
 				lazy: false,
 				flags: IAppConfig::FLAG_INTERNAL,
 			),

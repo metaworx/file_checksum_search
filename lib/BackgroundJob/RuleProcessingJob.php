@@ -49,11 +49,6 @@ class RuleProcessingJob
 	/** Batches per run, so one run stays bounded whatever the backlog. */
 	public const ORPHAN_PURGE_MAX_BATCHES = 20;
 
-	/** App-config key: seconds between counts of the indexed checksums. */
-	public const CHECKSUM_COUNT_INTERVAL = 'checksum_count_interval';
-
-	public const CHECKSUM_COUNT_DEFAULT_INTERVAL = 3600;
-
 
 //  constructor
 
@@ -212,34 +207,28 @@ class RuleProcessingJob
 	}
 
 	/**
-	 * Count the indexed checksums for the status, once an hour, riding this
-	 * job as the orphan purge does.
+	 * Count the indexed checksums for the status once the stored count is
+	 * older than its interval, riding this job as the orphan purge does, and
+	 * only where the background count is switched on.
 	 *
-	 * The status shows the stored count rather than counting when opened:
-	 * the count reads every hash row of the index, which a cold cache makes
-	 * take seconds, and here it is the background that waits for it. The
-	 * clock is the count's own record ({@see StatusService::recountHashRows()}).
+	 * The count reads every hash row of the index, which a cold cache makes
+	 * take seconds; switched on, it is the background that waits for it
+	 * rather than whoever opens the status. The clock is the count's own
+	 * record ({@see StatusService::recountHashRows()}).
 	 *
 	 * Never throws: this rides a job whose own work must not be lost to a
 	 * housekeeping failure.
 	 */
 	private function countChecksumsIfDue(): void
 	{
-		$now      = $this->time->getTime();
-		$interval = $this->appConfig->getValueInt(
-			Application::APP_ID,
-			self::CHECKSUM_COUNT_INTERVAL,
-			self::CHECKSUM_COUNT_DEFAULT_INTERVAL,
-		);
-		$lastRun  = $this->jobStats->lastRuns()[ JobStatsService::JOB_CHECKSUM_COUNT ]['lastRun'] ?? null;
-
-		if ( $lastRun !== null && $now - $lastRun < $interval )
-		{
-			return;
-		}
-
 		try
 		{
+			// Off by default: the status then counts when it is asked.
+			if ( ! $this->status->isHashRowCountInBackground() || ! $this->status->isHashRowCountDue() )
+			{
+				return;
+			}
+
 			$this->status->recountHashRows();
 		}
 		catch ( Throwable $e )
