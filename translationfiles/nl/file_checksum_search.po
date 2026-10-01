@@ -230,6 +230,12 @@ msgstr "Kon de algoritmen niet laden."
 msgid "Could not load the checksums."
 msgstr "Kon de controlesommen niet laden."
 
+msgid "Could not load the counts (HTTP {status})."
+msgstr "Kon de tellingen niet laden (HTTP {status})."
+
+msgid "Could not load the counts."
+msgstr "Kon de tellingen niet laden."
+
 msgid "Could not load the documentation."
 msgstr "Kon de documentatie niet laden."
 

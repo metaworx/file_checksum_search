@@ -66,6 +66,8 @@
     "Could not load the accounts and groups." : "アカウントとグループを読み込めませんでした。",
     "Could not load the algorithms." : "アルゴリズムを読み込めませんでした。",
     "Could not load the checksums." : "チェックサムを読み込めませんでした。",
+    "Could not load the counts (HTTP {status})." : "件数を読み込めませんでした（HTTP {status}）。",
+    "Could not load the counts." : "件数を読み込めませんでした。",
     "Could not load the documentation." : "ドキュメントを読み込めませんでした。",
     "Could not load the duplicates." : "重複ファイルを読み込めませんでした。",
     "Could not load the grants ({error})." : "承認を読み込めませんでした（{error}）。",

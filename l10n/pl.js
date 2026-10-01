@@ -68,6 +68,8 @@ OC.L10N.register(
     "Could not load the accounts and groups." : "Nie udało się wczytać kont i grup.",
     "Could not load the algorithms." : "Nie udało się wczytać algorytmów.",
     "Could not load the checksums." : "Nie udało się wczytać sum kontrolnych.",
+    "Could not load the counts (HTTP {status})." : "Nie udało się wczytać liczników (HTTP {status}).",
+    "Could not load the counts." : "Nie udało się wczytać liczników.",
     "Could not load the documentation." : "Nie udało się wczytać dokumentacji.",
     "Could not load the duplicates." : "Nie udało się wczytać duplikatów.",
     "Could not load the grants ({error})." : "Nie udało się wczytać upoważnień ({error}).",

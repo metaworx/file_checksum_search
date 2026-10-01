@@ -67,7 +67,11 @@ class SettingsController
 //  getters / setters / is* / has*
 
 	/**
-	 * Display app status including version, row counts, and pending stats by mode.
+	 * The status that reads nothing but app config and the database's
+	 * version: the app and database versions, the background jobs' last
+	 * runs, the idle banner's flag. The panel shows it at once and only then
+	 * asks for the counts ({@see getStatusCounts()}), whose reads a cold
+	 * cache can make take seconds.
 	 *
 	 * @noinspection PhpUnused
 	 */
@@ -78,7 +82,6 @@ class SettingsController
 	#[ApiRoute( verb: 'GET', url: '/settings/status' )]
 	public function getStatus(): DataResponse
 	{
-		$rows = $this->statusService->getHashRowCount();
 		$jobs = $this->jobStats->lastRuns();
 
 		// The count's record is kept however the count was taken, but it is
@@ -91,15 +94,38 @@ class SettingsController
 		return new DataResponse( [
 			'version'                => $this->statusService->getAppVersion(),
 			'dbVersion'              => $this->statusService->getDbVersion(),
-			'rowCount'               => $rows['rows'],
-			'rowCountAt'             => $rows['at'],
-			'pendingStats'           => $this->metadataService->getPendingStats(),
-			'staleStats'             => $this->metadataService->getStaleStats(),
 			'jobs'                   => $jobs,
 			'idleBannerAcknowledged' => $this->appConfig->getValueBool(
 				Application::APP_ID,
 				RuleService::CONFIG_KEY_IDLE_BANNER_ACK,
 			),
+		] );
+	}
+
+	/**
+	 * The status's counts: the indexed checksums, as kept and with when they
+	 * were counted, and the queue and the untrusted hashes, by mode and by
+	 * reason, counted now.
+	 *
+	 * The queue counts read only their own rows, so they stay cheap while the
+	 * backlog is small; the checksum count reads every hash row, so it is
+	 * kept and retaken once older than its interval — or now, with
+	 * `recount`, which is the panel's Refresh.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	// Admin-only, as getStatus() is.
+	#[NoCSRFRequired]
+	#[ApiRoute( verb: 'GET', url: '/settings/status/counts' )]
+	public function getStatusCounts( bool $recount = false ): DataResponse
+	{
+		$rows = $this->statusService->getHashRowCount( $recount );
+
+		return new DataResponse( [
+			'rowCount'     => $rows['rows'],
+			'rowCountAt'   => $rows['at'],
+			'pendingStats' => $this->metadataService->getPendingStats(),
+			'staleStats'   => $this->metadataService->getStaleStats(),
 		] );
 	}
 

@@ -66,6 +66,8 @@
     "Could not load the accounts and groups." : "Die Konten und Gruppen konnten nicht geladen werden.",
     "Could not load the algorithms." : "Die Algorithmen konnten nicht geladen werden.",
     "Could not load the checksums." : "Die Prüfsummen konnten nicht geladen werden.",
+    "Could not load the counts (HTTP {status})." : "Die Zählungen konnten nicht geladen werden (HTTP {status}).",
+    "Could not load the counts." : "Die Zählungen konnten nicht geladen werden.",
     "Could not load the documentation." : "Die Dokumentation konnte nicht geladen werden.",
     "Could not load the duplicates." : "Die Duplikate konnten nicht geladen werden.",
     "Could not load the grants ({error})." : "Die Freischaltungen konnten nicht geladen werden ({error}).",

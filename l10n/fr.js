@@ -68,6 +68,8 @@ OC.L10N.register(
     "Could not load the accounts and groups." : "Impossible de charger les comptes et les groupes.",
     "Could not load the algorithms." : "Impossible de charger les algorithmes.",
     "Could not load the checksums." : "Impossible de charger les sommes de contrôle.",
+    "Could not load the counts (HTTP {status})." : "Impossible de charger les décomptes (HTTP {status}).",
+    "Could not load the counts." : "Impossible de charger les décomptes.",
     "Could not load the documentation." : "Impossible de charger la documentation.",
     "Could not load the duplicates." : "Impossible de charger les doublons.",
     "Could not load the grants ({error})." : "Impossible de charger les habilitations ({error}).",

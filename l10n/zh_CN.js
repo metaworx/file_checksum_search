@@ -68,6 +68,8 @@ OC.L10N.register(
     "Could not load the accounts and groups." : "无法加载账号和群组。",
     "Could not load the algorithms." : "无法加载算法。",
     "Could not load the checksums." : "无法加载校验和。",
+    "Could not load the counts (HTTP {status})." : "无法加载计数（HTTP {status}）。",
+    "Could not load the counts." : "无法加载计数。",
     "Could not load the documentation." : "无法加载文档。",
     "Could not load the duplicates." : "无法加载重复文件。",
     "Could not load the grants ({error})." : "无法加载授权（{error}）。",

@@ -397,6 +397,12 @@
 	white-space: nowrap;
 }
 
+/* A value in the names' column, with the names stacked invisibly under it:
+   the column is as wide as the wider of the two. */
+.fcias-job-first {
+	display: grid;
+}
+
 /* Title and Refresh sit on one line with a plain gap. */
 .fcias-status-header {
 	display: flex;

@@ -229,6 +229,12 @@ msgstr "无法加载算法。"
 msgid "Could not load the checksums."
 msgstr "无法加载校验和。"
 
+msgid "Could not load the counts (HTTP {status})."
+msgstr "无法加载计数（HTTP {status}）。"
+
+msgid "Could not load the counts."
+msgstr "无法加载计数。"
+
 msgid "Could not load the documentation."
 msgstr "无法加载文档。"
 

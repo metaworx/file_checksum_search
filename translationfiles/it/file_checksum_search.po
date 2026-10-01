@@ -231,6 +231,12 @@ msgstr "Impossibile caricare gli algoritmi."
 msgid "Could not load the checksums."
 msgstr "Impossibile caricare i checksum."
 
+msgid "Could not load the counts (HTTP {status})."
+msgstr "Impossibile caricare i conteggi (HTTP {status})."
+
+msgid "Could not load the counts."
+msgstr "Impossibile caricare i conteggi."
+
 msgid "Could not load the documentation."
 msgstr "Impossibile caricare la documentazione."
 

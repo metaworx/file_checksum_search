@@ -229,6 +229,12 @@ msgstr "アルゴリズムを読み込めませんでした。"
 msgid "Could not load the checksums."
 msgstr "チェックサムを読み込めませんでした。"
 
+msgid "Could not load the counts (HTTP {status})."
+msgstr "件数を読み込めませんでした（HTTP {status}）。"
+
+msgid "Could not load the counts."
+msgstr "件数を読み込めませんでした。"
+
 msgid "Could not load the documentation."
 msgstr "ドキュメントを読み込めませんでした。"
 

@@ -62,8 +62,10 @@ export const API_RULES = {
 
 /** OCS settings endpoints (SettingsController) */
 export const OCS_SETTINGS = {
-	/** GET    /settings/status */
+	/** GET    /settings/status — versions, jobs, banner flag: no counting */
 	getStatus: `${APP_BASE}/settings/status`,
+	/** GET    /settings/status/counts?recount=1 — the indexed checksums (kept), the queue and the untrusted hashes */
+	getStatusCounts: `${APP_BASE}/settings/status/counts`,
 	/** GET    /settings/global — every instance-wide option, one resource */
 	getGlobal: `${APP_BASE}/settings/global`,
 	/** PUT    /settings/global — only the fields sent are changed */

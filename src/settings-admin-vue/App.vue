@@ -9,6 +9,7 @@
 import { computed, ref } from 'vue'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import NcButton from '@nextcloud/vue/components/NcButton'
+import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import RuleTable from '../rules-vue/RuleTable.vue'
 import RuleForm from '../rules-vue/RuleForm.vue'
 import type { Rule, RuleDraft } from '../rules-vue/types'
@@ -73,7 +74,10 @@ declare const OC: {
 
 const {
 	status,
+	statusLoading,
 	statusError,
+	countsLoading,
+	countsError,
 	lastUpdated,
 	supportedAlgos,
 	defaultAlgo,
@@ -234,6 +238,9 @@ const jobRows = computed(() => Object.entries(status.value.jobs ?? {}).map(([key
 	// Each number held to its words, so a narrow cell breaks between counts.
 	countsText: run.lastRun === null ? '' : keepNumbersWithWords(jobCountsText(key, run.counts)),
 })))
+
+/** When the kept count of indexed checksums was taken, as the jobs' times are written. */
+const rowCountTime = computed(() => status.value.rowCountAt === undefined ? '—' : formatDateTime(new Date(status.value.rowCountAt * 1000)))
 
 // --- Rule editing (global + additional rules share one dialog) ---
 
@@ -564,14 +571,21 @@ loadRules().then(() => {
 			<div class="fcias-section">
 				<h4 class="fcias-status-header">
 					<span>{{ t('file_checksum_search', 'Status') }}</span>
+					<!-- Refresh counts the indexed checksums whatever the kept count's
+					     age, and is off while it runs: an abandoned request does not
+					     stop the count on the server, so clicks would stack counts. -->
 					<button id="fcias-btn-refresh-status"
 						class="fcias-btn"
-						@click="loadStatus">
+						:disabled="statusLoading || countsLoading"
+						@click="loadStatus(true)">
 						{{ t('file_checksum_search', 'Refresh') }}
 					</button>
 				</h4>
 				<p v-if="statusError" id="fcias-status-error" class="fcias-error">
 					{{ statusError }}
+				</p>
+				<p v-if="countsError" id="fcias-status-counts-error" class="fcias-error">
+					{{ countsError }}
 				</p>
 				<table class="grid fcias-status-table">
 					<tbody>
@@ -589,15 +603,31 @@ loadRules().then(() => {
 						</tr>
 						<tr>
 							<td>{{ t('file_checksum_search', 'Indexed checksums') }}</td>
-							<td id="fcias-status-rowcount">
-								{{ status.rowCount || 0 }}
+							<td>
+								<!-- The count, then when it was taken, on the jobs' time
+								     axis: the job names again, invisible under the count,
+								     make its column as wide as theirs. -->
+								<div class="fcias-job-grid">
+									<span class="fcias-job-first">
+										<span id="fcias-status-rowcount">
+											<NcLoadingIcon v-if="countsLoading" :size="16" />
+											<template v-else>{{ status.rowCount ?? '—' }}</template>
+										</span>
+										<span class="fcias-job-spacer" aria-hidden="true">
+											<span v-for="job in jobRows" :key="job.key">{{ job.label }}</span>
+										</span>
+									</span>
+									<span id="fcias-status-rowcount-at" class="fcias-job-time">{{ countsLoading ? '' : rowCountTime }}</span>
+									<span />
+								</div>
 							</td>
 						</tr>
 						<tr>
 							<!-- TRANSLATORS: files waiting for the background job to compute their checksums, counted by mode -->
 							<td>{{ t('file_checksum_search', 'Queued files') }}</td>
 							<td id="fcias-status-pending">
-								<template v-if="pendingTotal(status.pendingStats) === 0">
+								<NcLoadingIcon v-if="countsLoading" :size="16" />
+								<template v-else-if="pendingTotal(status.pendingStats) === 0">
 									{{ t('file_checksum_search', 'Total: {count}', { count: 0 }) }}<br>
 									{{ t('file_checksum_search', 'None') }}
 								</template>
@@ -612,7 +642,8 @@ loadRules().then(() => {
 						<tr>
 							<td>{{ t('file_checksum_search', 'Untrusted checksums') }}</td>
 							<td id="fcias-status-untrusted">
-								<template v-if="pendingTotal(status.staleStats) === 0">
+								<NcLoadingIcon v-if="countsLoading" :size="16" />
+								<template v-else-if="pendingTotal(status.staleStats) === 0">
 									{{ t('file_checksum_search', 'Total: {count}', { count: 0 }) }}<br>
 									{{ t('file_checksum_search', 'None') }}
 								</template>

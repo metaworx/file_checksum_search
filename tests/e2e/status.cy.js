@@ -61,11 +61,18 @@ const givenThreeHashes = () => {
 // plain cy.request rather than cy.ocs(): everything in this spec is the
 // administrator, so there is no identity to keep honest, and cy.ocs()
 // clears the cookies the next cy.visit() needs.
-const statusFromApi = () => cy.request( {
-	url: '/ocs/v2.php/apps/file_checksum_search/settings/status',
+//
+// Both halves the panel reads, the counts with a recount: the kept count of
+// indexed checksums is otherwise up to an hour old, and this spec changes it
+// on purpose. The recount is kept, so the page opened next shows it too.
+const ocsGet = ( path ) => cy.request( {
+	url: `/ocs/v2.php/apps/file_checksum_search${ path }`,
 	auth: { user: adminUser, pass: adminPassword },
 	headers: { 'OCS-APIRequest': 'true' },
 } ).its( 'body' )
+
+const statusFromApi = () => ocsGet( '/settings/status' ).then( ( info ) =>
+	ocsGet( '/settings/status/counts?recount=1' ).then( ( counts ) => ( { ...info, ...counts } ) ) )
 
 // What the panel sums for its Untrusted cell.
 const staleTotal = ( body ) => Object.values( body.staleStats ?? {} ).reduce( ( sum, n ) => sum + n, 0 )
@@ -202,14 +209,15 @@ describe( 'FCIAS status panel', () => {
 
 		// The page says the same, refreshed through its own button rather
 		// than by revisiting the URL it is already on. The refresh's own
-		// request is watched, so a failed one is named by its status code
-		// rather than read as an empty count.
-		cy.intercept( 'GET', '**/apps/file_checksum_search/settings/status*' ).as( 'statusLoaded' )
+		// request for the counts is watched, so a failed one is named by its
+		// status code rather than read as an empty count.
+		cy.intercept( 'GET', '**/apps/file_checksum_search/settings/status/counts*' ).as( 'countsLoaded' )
 		cy.visit( STATUS_URL )
-		cy.wait( '@statusLoaded' )
-		cy.get( '#fcias-btn-refresh-status', { timeout: FIND_TIMEOUT } ).click()
-		cy.wait( '@statusLoaded' ).its( 'response.statusCode' ).should( 'eq', 200 )
+		cy.wait( '@countsLoaded' )
+		cy.get( '#fcias-btn-refresh-status', { timeout: FIND_TIMEOUT } ).should( 'not.be.disabled' ).click()
+		cy.wait( '@countsLoaded' ).its( 'response.statusCode' ).should( 'eq', 200 )
 		cy.get( '#fcias-status-error' ).should( 'not.exist' )
+		cy.get( '#fcias-status-counts-error' ).should( 'not.exist' )
 		cellText( '#fcias-status-untrusted' ).should( 'contain', 'Total: 3' )
 
 		// Finish what the reset deferred. Clearing a disowned file's hashes
@@ -221,8 +229,8 @@ describe( 'FCIAS status panel', () => {
 			expect( fromOcc.untrusted_total, 'nothing left disowned' ).to.eq( 0 )
 		} )
 
-		cy.get( '#fcias-btn-refresh-status' ).click()
-		cy.wait( '@statusLoaded' ).its( 'response.statusCode' ).should( 'eq', 200 )
+		cy.get( '#fcias-btn-refresh-status' ).should( 'not.be.disabled' ).click()
+		cy.wait( '@countsLoaded' ).its( 'response.statusCode' ).should( 'eq', 200 )
 		cellText( '#fcias-status-untrusted' ).should( 'contain', 'Total: 0' )
 		cellText( '#fcias-status-rowcount' ).should( 'eq', '0' )
 	} )
@@ -279,7 +287,35 @@ describe( 'FCIAS status panel', () => {
 		// nothing passed.
 		cy.exec( `${ occ } fcias:reset --hashes --status --force --now`, { timeout: 300000 } )
 
-		cy.get( '#fcias-btn-refresh-status' ).click()
+		// Refresh counts again, whatever the kept count's age: the reset
+		// happened a moment after the page counted.
+		cy.get( '#fcias-btn-refresh-status' ).should( 'not.be.disabled' ).click()
 		cellText( '#fcias-status-rowcount' ).should( 'eq', '0' )
+	} )
+
+	it( 'shows the version before the counts have answered', () => {
+		// The counts held back until the test lets them through: the page
+		// must already show what does not depend on them, and wait for them
+		// visibly rather than with zeros.
+		let release
+		const held = new Promise( ( resolve ) => {
+			release = resolve
+		} )
+		cy.intercept( 'GET', '**/apps/file_checksum_search/settings/status/counts*', ( req ) => held.then( () => req.continue() ) )
+			.as( 'countsLoaded' )
+
+		cy.visit( STATUS_URL )
+
+		statusFromOcc().then( ( fromOcc ) => {
+			cellText( '#fcias-status-version' ).should( 'eq', fromOcc.app_version )
+		} )
+		cy.get( '#fcias-status-pending .loading-icon', { timeout: FIND_TIMEOUT } ).should( 'exist' )
+		cy.get( '#fcias-btn-refresh-status' ).should( 'be.disabled' )
+
+		cy.then( () => release() )
+		cy.wait( '@countsLoaded' ).its( 'response.statusCode' ).should( 'eq', 200 )
+		cellText( '#fcias-status-pending' ).should( 'contain', 'Total:' )
+		cellText( '#fcias-status-rowcount-at' ).should( 'not.be.empty' )
+		cy.get( '#fcias-btn-refresh-status' ).should( 'not.be.disabled' )
 	} )
 } )

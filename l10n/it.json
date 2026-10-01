@@ -66,6 +66,8 @@
     "Could not load the accounts and groups." : "Impossibile caricare gli account e i gruppi.",
     "Could not load the algorithms." : "Impossibile caricare gli algoritmi.",
     "Could not load the checksums." : "Impossibile caricare i checksum.",
+    "Could not load the counts (HTTP {status})." : "Impossibile caricare i conteggi (HTTP {status}).",
+    "Could not load the counts." : "Impossibile caricare i conteggi.",
     "Could not load the documentation." : "Impossibile caricare la documentazione.",
     "Could not load the duplicates." : "Impossibile caricare i duplicati.",
     "Could not load the grants ({error})." : "Impossibile caricare le autorizzazioni ({error}).",

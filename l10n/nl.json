@@ -66,6 +66,8 @@
     "Could not load the accounts and groups." : "Kon de accounts en groepen niet laden.",
     "Could not load the algorithms." : "Kon de algoritmen niet laden.",
     "Could not load the checksums." : "Kon de controlesommen niet laden.",
+    "Could not load the counts (HTTP {status})." : "Kon de tellingen niet laden (HTTP {status}).",
+    "Could not load the counts." : "Kon de tellingen niet laden.",
     "Could not load the documentation." : "Kon de documentatie niet laden.",
     "Could not load the duplicates." : "Kon de duplicaten niet laden.",
     "Could not load the grants ({error})." : "Kon de vrijgaven niet laden ({error}).",

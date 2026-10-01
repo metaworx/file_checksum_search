@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import App from './App.vue'
 import { clickAction, hasAction } from '../test-utils/ncActions'
+import { formatDateTime } from '../l10n'
 
 // The rest of the router as it is: the real Nextcloud components read
 // `imagePath` and friends, and a mock that names one export hides the rest.
@@ -217,6 +218,38 @@ describe('settings-admin App', () => {
 		expect(jobs).not.toContain('done')
 		expect(jobs).toContain('future_job')
 		expect(jobs).toContain('widgets 7')
+	})
+
+	// Refresh counts the indexed checksums whatever the kept count's age, and
+	// stays off until that count is in: an abandoned request would not stop
+	// the count on the server. The count shows when it was taken.
+	it('recounts on Refresh, and keeps Refresh off until the counts are in', async () => {
+		mockFetch()
+		const wrapper = mount(App)
+		await flushPromises()
+		await wrapper.find('[aria-controls="fcias-tab-panel-advanced"]').trigger('click')
+
+		const fetchSpy = vi.mocked(globalThis.fetch)
+		const answer = fetchSpy.getMockImplementation()!
+		let release!: () => void
+		fetchSpy.mockImplementation((input, init) => String(input).includes('/settings/status/counts')
+			? new Promise((resolve) => {
+				release = () => resolve(jsonResponse({ rowCount: 4, rowCountAt: 1700000400 }))
+			})
+			: answer(input, init))
+
+		await wrapper.find('#fcias-btn-refresh-status').trigger('click')
+		await flushPromises()
+
+		expect(fetchSpy.mock.calls.some(([url]) => String(url).endsWith('/settings/status/counts?recount=1'))).toBe(true)
+		expect(wrapper.find('#fcias-btn-refresh-status').attributes('disabled')).toBeDefined()
+
+		release()
+		await flushPromises()
+
+		expect(wrapper.find('#fcias-btn-refresh-status').attributes('disabled')).toBeUndefined()
+		expect(wrapper.find('#fcias-status-rowcount').text()).toBe('4')
+		expect(wrapper.find('#fcias-status-rowcount-at').text()).toBe(formatDateTime(new Date(1700000400 * 1000)))
 	})
 
 	it('switches to the Documentation tab', async () => {

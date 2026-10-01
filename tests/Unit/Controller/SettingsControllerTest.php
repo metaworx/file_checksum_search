@@ -144,19 +144,13 @@ class SettingsControllerTest
 		                      ->willReturn( '10.11.6-MariaDB' )
 		;
 
-		// No count stored yet (the job-stats mock has no runs), so
-		// getHashRowCount() counts once, through countHashEntries().
-		$this->metadataService->expects( $this->once() )
+		// The information alone: nothing in it counts, so a cold cache cannot
+		// hold up the version.
+		$this->metadataService->expects( $this->never() )
 		                      ->method( 'countHashEntries' )
-		                      ->willReturn( 5000 )
 		;
-
-		$this->metadataService->expects( $this->once() )
+		$this->metadataService->expects( $this->never() )
 		                      ->method( 'getPendingStats' )
-		                      ->willReturn( [
-			                      'pending:auto'    => 12,
-			                      'pending:preview' => 3,
-		                      ] )
 		;
 
 		$response = $this->controller->getStatus();
@@ -165,12 +159,64 @@ class SettingsControllerTest
 		$data = $response->getData();
 		$this->assertSame( '1.2.3', $data['version'] );
 		$this->assertSame( '10.11.6-MariaDB', $data['dbVersion'] );
+		$this->assertArrayNotHasKey( 'rowCount', $data );
+		$this->assertArrayNotHasKey( 'pendingStats', $data );
+	}
+
+	// ── getStatusCounts ──────────────────────────────────────────────────
+	public function testGetStatusCountsGivesTheCountsAndWhenTheChecksumsWereCounted(): void
+	{
+		// No count stored yet (the job-stats mock has no runs), so
+		// getHashRowCount() counts once, through countHashEntries().
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'countHashEntries' )
+		                      ->willReturn( 5000 )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'getPendingStats' )
+		                      ->willReturn( [
+			                      'pending:auto'    => 12,
+			                      'pending:preview' => 3,
+		                      ] )
+		;
+
+		$data = $this->controller->getStatusCounts()
+		                         ->getData()
+		;
+
 		$this->assertSame( 5000, $data['rowCount'] );
 		$this->assertArrayHasKey( 'rowCountAt', $data );
 		$this->assertSame( [
 			'pending:auto'    => 12,
 			'pending:preview' => 3,
 		], $data['pendingStats'] );
+	}
+
+	/**
+	 * Refresh counts whatever the kept count's age; opening the panel takes
+	 * the kept one while it is within the interval.
+	 */
+	public function testGetStatusCountsRecountsOnlyWhenAsked(): void
+	{
+		$this->appConfig->method( 'getValueInt' )
+		                ->willReturnArgument( 2 )
+		;
+		$this->jobStats->method( 'lastRuns' )
+		               ->willReturn( [
+			               JobStatsService::JOB_CHECKSUM_COUNT => [
+				               // Counted just now: the mocked clock stands at zero.
+				               'lastRun' => 0,
+				               'counts'  => [ 'rows' => 7 ],
+			               ],
+		               ] )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'countHashEntries' )
+		                      ->willReturn( 8 )
+		;
+
+		$this->assertSame( 7, $this->controller->getStatusCounts()->getData()['rowCount'] );
+		$this->assertSame( 8, $this->controller->getStatusCounts( true )->getData()['rowCount'] );
 	}
 
 	// ── status: untrusted hashes + job heartbeats (D17) ─────────────────
@@ -199,18 +245,17 @@ class SettingsControllerTest
 		               ] )
 		;
 
-		$data = $this->controller->getStatus()
-		                         ->getData()
-		;
-
 		$this->assertSame(
 			[
 				MetadataService::STATE_ERODED => 4,
 				MetadataService::STATE_RESET  => 9,
 			],
-			$data['staleStats'],
+			$this->controller->getStatusCounts()->getData()['staleStats'],
 		);
-		$this->assertSame( 1700000000, $data['jobs']['rule_sweep']['lastRun'] );
+		$this->assertSame(
+			1700000000,
+			$this->controller->getStatus()->getData()['jobs']['rule_sweep']['lastRun'],
+		);
 	}
 
 	// ── idle banner ──────────────────────────────────────────────────────
@@ -458,6 +503,7 @@ class SettingsControllerTest
 	{
 		$adminOnlyMethods = [
 			'getStatus',
+			'getStatusCounts',
 			'getAdminOptions',
 			'saveAdminOptions',
 			'acknowledgeIdleBanner',

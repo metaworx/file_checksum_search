@@ -232,6 +232,12 @@ msgstr "Nie udało się wczytać algorytmów."
 msgid "Could not load the checksums."
 msgstr "Nie udało się wczytać sum kontrolnych."
 
+msgid "Could not load the counts (HTTP {status})."
+msgstr "Nie udało się wczytać liczników (HTTP {status})."
+
+msgid "Could not load the counts."
+msgstr "Nie udało się wczytać liczników."
+
 msgid "Could not load the documentation."
 msgstr "Nie udało się wczytać dokumentacji."
 

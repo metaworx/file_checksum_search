@@ -231,6 +231,12 @@ msgstr ""
 msgid "Could not load the checksums."
 msgstr ""
 
+msgid "Could not load the counts (HTTP {status})."
+msgstr ""
+
+msgid "Could not load the counts."
+msgstr ""
+
 msgid "Could not load the documentation."
 msgstr ""
 

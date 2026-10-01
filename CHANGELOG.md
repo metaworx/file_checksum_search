@@ -31,6 +31,9 @@ the first stable release.
 - `GET /api/v1/status`: `rowCount` is a kept count, as of the new
   `rowCountAt`.
 
+- Admin status panel: the versions and jobs show before the counts,
+  which Refresh takes anew.
+
 ### Fixed
 
 - Admin status panel: the layout fits translated text.

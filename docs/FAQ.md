@@ -424,10 +424,11 @@ settings page's **Advanced** tab shows the same:
 
 ![The Advanced tab: Status with the index counts and the background jobs' last runs, then the tunables][shot-admin-advanced]
 
-The number of indexed checksums is a kept count: counting reads every
-hash row, which takes seconds on a large instance. It is taken again when the status is opened and the count is
-older than the interval set under **Tunables** (an hour by default), or by
-a background job every interval, where **Tunables** switch that on.
+The number of indexed checksums is a kept count, shown with the time it
+was taken: counting reads every hash row, which takes seconds on a large
+instance. **Refresh** counts again. Opening the status counts again when
+the kept count is older than the interval set under **Tunables** (an hour
+by default), unless **Tunables** have a background job keep it that fresh.
 
 <!-- BEGIN GENERATED RELEASE-PIN - do not edit; run "changelog.sh cut" -->
 [shot-admin-advanced]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.21.0/docs/Screenshots/Admin-Advanced.png
