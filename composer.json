@@ -40,7 +40,8 @@
 		"test:unit": "phpunit -c tests/phpunit.xml --testsuite unit",
 		"test:integration": "phpunit -c tests/phpunit.xml --testsuite integration",
 		"openapi": "generate-spec",
-		"rector": "rector && composer cs:fix"
+		"rector": "rector process",
+		"rector:check": "rector process --dry-run"
 	},
 	"extra": {
 		"bamarni-bin": {
