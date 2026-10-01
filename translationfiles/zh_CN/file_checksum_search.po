@@ -173,6 +173,10 @@ msgstr "为匹配的文件计算的校验和算法。每种算法都会单独索
 msgid "Checksum copy"
 msgstr "复制已有校验和"
 
+#. TRANSLATORS: a background job's name: once an hour it counts the indexed checksums, the number this status shows
+msgid "Checksum count"
+msgstr "校验和计数"
+
 #. TRANSLATORS: a background job's name: it checks that every stored checksum can be found by a search, and fixes what cannot.
 msgid "Checksum index check"
 msgstr "校验和索引检查"
@@ -1130,6 +1134,11 @@ msgstr "已复制：{copied}，文件：{files}，已完成"
 #. TRANSLATORS: a background job's last run: the checksums it copied, the files they belong to, and that the next runs go on copying
 msgid "copied {copied}, files {files}, not finished yet"
 msgstr "已复制：{copied}，文件：{files}，尚未完成"
+
+#. TRANSLATORS: a background job's last run: how many indexed checksums it counted
+msgid "counted %n checksum"
+msgid_plural "counted %n checksums"
+msgstr[0] "已计数 %n 个校验和"
 
 #. TRANSLATORS: fileIds is a parameter name; keep it
 msgid "fileIds must be a non-empty list of integers."

@@ -25,6 +25,9 @@ the first stable release.
 - Dates and times: every part two digits, in the locale's own order
   (01.10.2026, 07:05:09).
 
+- `GET /api/v1/status` and the admin status: the checksum count is
+  taken hourly in the background, with its time (`rowCountAt`).
+
 ### Fixed
 
 - Admin status panel: long translated labels and job names no longer

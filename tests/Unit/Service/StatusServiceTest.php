@@ -10,10 +10,12 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use OCA\FileChecksumSearch\Service\DatabaseService;
+use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\StatusService;
 use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\App\IAppManager;
+use OCP\AppFramework\Utility\ITimeFactory;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -39,6 +41,10 @@ class StatusServiceTest
 
 	private MetadataService&MockObject  $metadataService;
 
+	private JobStatsService&MockObject  $jobStats;
+
+	private ITimeFactory&MockObject     $time;
+
 	private StatusService               $service;
 
 
@@ -52,28 +58,84 @@ class StatusServiceTest
 		$this->tables          = $this->createMock( TableNameService::class );
 		$this->appManager      = $this->createMock( IAppManager::class );
 		$this->metadataService = $this->createMock( MetadataService::class );
+		$this->jobStats        = $this->createMock( JobStatsService::class );
+		$this->time            = $this->createMock( ITimeFactory::class );
+
+		$this->time->method( 'getTime' )
+		           ->willReturn( 1_759_300_000 )
+		;
 
 		$this->service = new StatusService(
 			$this->databaseService,
 			$this->tables,
 			$this->appManager,
 			$this->metadataService,
+			$this->jobStats,
+			$this->time,
 		);
 	}
 
 
 //  other non-static methods
 
-	public function testGetHashRowCountReturnsCount(): void
+	/**
+	 * The stored count, never a fresh one: counting reads every hash row,
+	 * which a cold cache makes take seconds, and the status must not wait
+	 * for it.
+	 */
+	public function testTheHashRowCountIsTheStoredOneWhenThereIsOne(): void
 	{
+		$this->jobStats->method( 'lastRuns' )
+		               ->willReturn( [
+			               JobStatsService::JOB_CHECKSUM_COUNT => [
+				               'lastRun' => 1_759_290_000,
+				               'counts'  => [ 'rows' => 406_419 ],
+			               ],
+		               ] )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'countHashEntries' )
+		;
+
+		$this->assertSame(
+			[
+				'rows' => 406_419,
+				'at'   => 1_759_290_000,
+			],
+			$this->service->getHashRowCount(),
+		);
+	}
+
+	/**
+	 * Nothing counted yet, as on a fresh install: counted once, and stored,
+	 * so the status shows a number and the next read finds it.
+	 */
+	public function testWithNothingStoredTheHashRowsAreCountedOnceAndStored(): void
+	{
+		$this->jobStats->method( 'lastRuns' )
+		               ->willReturn( [
+			               JobStatsService::JOB_CHECKSUM_COUNT => [
+				               'lastRun' => null,
+				               'counts'  => [],
+			               ],
+		               ] )
+		;
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'countHashEntries' )
 		                      ->willReturn( 42 )
 		;
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'record' )
+		               ->with( JobStatsService::JOB_CHECKSUM_COUNT, [ 'rows' => 42 ] )
+		;
 
-		$result = $this->service->getHashRowCount();
-
-		$this->assertSame( 42, $result );
+		$this->assertSame(
+			[
+				'rows' => 42,
+				'at'   => 1_759_300_000,
+			],
+			$this->service->getHashRowCount(),
+		);
 	}
 
 	public function testGetPendingRowCountSumsStats(): void

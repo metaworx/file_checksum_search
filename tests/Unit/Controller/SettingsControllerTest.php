@@ -19,6 +19,7 @@ use OCA\FileChecksumSearch\Service\StatusService;
 use OCA\FileChecksumSearch\Service\TableNameService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\App\IAppManager;
+use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\DataResponse;
@@ -82,18 +83,20 @@ class SettingsControllerTest
 		$this->databaseService = $this->createMock( DatabaseService::class );
 		$tableNameService      = $this->createMock( TableNameService::class );
 		$this->metadataService = $this->createMock( MetadataService::class );
+		$this->jobStats        = $this->createMock( JobStatsService::class );
 
 		$this->statusService = new StatusService(
 			$this->databaseService,
 			$tableNameService,
 			$this->appManager,
 			$this->metadataService,
+			$this->jobStats,
+			$this->createMock( ITimeFactory::class ),
 		);
 
 		$this->userManager       = $this->createMock( IUserManager::class );
 		$this->permissionService = $this->createMock( PermissionService::class );
 		$this->appConfig         = $this->createMock( IAppConfig::class );
-		$this->jobStats          = $this->createMock( JobStatsService::class );
 		$this->request           = $this->createMock( IRequest::class );
 		$this->logger            = $this->createMock( LoggerInterface::class );
 
@@ -139,7 +142,8 @@ class SettingsControllerTest
 		                      ->willReturn( '10.11.6-MariaDB' )
 		;
 
-		// getHashRowCount() delegates to MetadataService::countHashEntries()
+		// No count stored yet (the job-stats mock has no runs), so
+		// getHashRowCount() counts once, through countHashEntries().
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'countHashEntries' )
 		                      ->willReturn( 5000 )
@@ -160,6 +164,7 @@ class SettingsControllerTest
 		$this->assertSame( '1.2.3', $data['version'] );
 		$this->assertSame( '10.11.6-MariaDB', $data['dbVersion'] );
 		$this->assertSame( 5000, $data['rowCount'] );
+		$this->assertArrayHasKey( 'rowCountAt', $data );
 		$this->assertSame( [
 			'pending:auto'    => 12,
 			'pending:preview' => 3,

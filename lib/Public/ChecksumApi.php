@@ -210,7 +210,10 @@ class ChecksumApi
 	 * Read-only health/status snapshot: the version for anyone, the rest for
 	 * an administrator only.
 	 *
-	 * @return array{version: string, dbVersion?: string, rowCount?: int, pendingRows?: int}
+	 * `rowCount` is the stored count of indexed checksums, `rowCountAt` when
+	 * it was taken ({@see StatusService::getHashRowCount()}).
+	 *
+	 * @return array{version: string, dbVersion?: string, rowCount?: int, rowCountAt?: int, pendingRows?: int}
 	 */
 	public function getStatus( ?string $requestingUser = null ): array
 	{
@@ -225,10 +228,13 @@ class ChecksumApi
 			];
 		}
 
+		$rows = $this->statusService->getHashRowCount();
+
 		return [
 			'version'     => $this->statusService->getAppVersion(),
 			'dbVersion'   => $this->statusService->getDbVersion(),
-			'rowCount'    => $this->statusService->getHashRowCount(),
+			'rowCount'    => $rows['rows'],
+			'rowCountAt'  => $rows['at'],
 			'pendingRows' => $this->statusService->getPendingRowCount(),
 		];
 	}

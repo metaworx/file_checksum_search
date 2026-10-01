@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
+use OCA\FileChecksumSearch\Service\StatusService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJobList;
 use OCP\BackgroundJob\TimedJob;
@@ -48,6 +49,11 @@ class RuleProcessingJob
 	/** Batches per run, so one run stays bounded whatever the backlog. */
 	public const ORPHAN_PURGE_MAX_BATCHES = 20;
 
+	/** App-config key: seconds between counts of the indexed checksums. */
+	public const CHECKSUM_COUNT_INTERVAL = 'checksum_count_interval';
+
+	public const CHECKSUM_COUNT_DEFAULT_INTERVAL = 3600;
+
 
 //  constructor
 
@@ -59,6 +65,7 @@ class RuleProcessingJob
 		private readonly IJobList        $jobList,
 		private readonly JobStatsService $jobStats,
 		private readonly LoggerInterface $logger,
+		private readonly StatusService   $status,
 	)
 	{
 		parent::__construct( $time );
@@ -124,6 +131,7 @@ class RuleProcessingJob
 		}
 
 		$this->purgeOrphansIfDue();
+		$this->countChecksumsIfDue();
 	}
 
 
@@ -201,5 +209,48 @@ class RuleProcessingJob
 				'batches' => $batches,
 			],
 		);
+	}
+
+	/**
+	 * Count the indexed checksums for the status, once an hour, riding this
+	 * job as the orphan purge does.
+	 *
+	 * The status shows the stored count rather than counting when opened:
+	 * the count reads every hash row of the index, which a cold cache makes
+	 * take seconds, and here it is the background that waits for it. The
+	 * clock is the count's own record ({@see StatusService::recountHashRows()}).
+	 *
+	 * Never throws: this rides a job whose own work must not be lost to a
+	 * housekeeping failure.
+	 */
+	private function countChecksumsIfDue(): void
+	{
+		$now      = $this->time->getTime();
+		$interval = $this->appConfig->getValueInt(
+			Application::APP_ID,
+			self::CHECKSUM_COUNT_INTERVAL,
+			self::CHECKSUM_COUNT_DEFAULT_INTERVAL,
+		);
+		$lastRun  = $this->jobStats->lastRuns()[ JobStatsService::JOB_CHECKSUM_COUNT ]['lastRun'] ?? null;
+
+		if ( $lastRun !== null && $now - $lastRun < $interval )
+		{
+			return;
+		}
+
+		try
+		{
+			$this->status->recountHashRows();
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->warning(
+				'FCIAS RuleProcessingJob: the checksum count failed; it will be retried on the next run.',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+		}
 	}
 }

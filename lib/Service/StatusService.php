@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Service;
 
 use OCP\App\IAppManager;
+use OCP\AppFramework\Utility\ITimeFactory;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -28,6 +29,8 @@ readonly class StatusService
 		private TableNameService $tables,
 		private IAppManager      $appManager,
 		private MetadataService  $metadataService,
+		private JobStatsService  $jobStats,
+		private ITimeFactory     $time,
 	) {
 	}
 
@@ -45,9 +48,54 @@ readonly class StatusService
 		return $this->databaseService->getDatabaseVersion( $output );
 	}
 
-	public function getHashRowCount(): int
+	/**
+	 * How many checksums are indexed, as of when they were last counted.
+	 *
+	 * The stored count, not a fresh one: counting reads every hash row of the
+	 * index, which on a large instance whose cache has gone cold takes
+	 * seconds (8.4 s for 406,419 rows on one), and the status is opened after
+	 * exactly the quiet hour that lets it go cold. RuleProcessingJob recounts
+	 * hourly ({@see recountHashRows()}). Only where nothing was ever counted
+	 * does this count, once, so a fresh install shows a number rather than
+	 * none.
+	 *
+	 * @return array{rows: int, at: int}  The count, and when it was taken
+	 *                                    (Unix time).
+	 */
+	public function getHashRowCount(): array
 	{
-		return $this->metadataService->countHashEntries();
+		$run = $this->jobStats->lastRuns()[ JobStatsService::JOB_CHECKSUM_COUNT ] ?? null;
+
+		if ( $run !== null && $run['lastRun'] !== null && isset( $run['counts']['rows'] ) )
+		{
+			return [
+				'rows' => (int) $run['counts']['rows'],
+				'at'   => $run['lastRun'],
+			];
+		}
+
+		return $this->recountHashRows();
+	}
+
+
+//  other non-static methods
+
+	/**
+	 * Count the indexed checksums now, and keep the count as the checksum
+	 * count's job stats, which is where {@see getHashRowCount()} reads it.
+	 *
+	 * @return array{rows: int, at: int}
+	 */
+	public function recountHashRows(): array
+	{
+		$rows = $this->metadataService->countHashEntries();
+
+		$this->jobStats->record( JobStatsService::JOB_CHECKSUM_COUNT, [ 'rows' => $rows ] );
+
+		return [
+			'rows' => $rows,
+			'at'   => $this->time->getTime(),
+		];
 	}
 
 	public function getPendingRowCount(): int

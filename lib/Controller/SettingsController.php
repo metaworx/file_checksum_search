@@ -78,10 +78,13 @@ class SettingsController
 	#[ApiRoute( verb: 'GET', url: '/settings/status' )]
 	public function getStatus(): DataResponse
 	{
+		$rows = $this->statusService->getHashRowCount();
+
 		return new DataResponse( [
 			'version'                => $this->statusService->getAppVersion(),
 			'dbVersion'              => $this->statusService->getDbVersion(),
-			'rowCount'               => $this->statusService->getHashRowCount(),
+			'rowCount'               => $rows['rows'],
+			'rowCountAt'             => $rows['at'],
 			'pendingStats'           => $this->metadataService->getPendingStats(),
 			'staleStats'             => $this->metadataService->getStaleStats(),
 			'jobs'                   => $this->jobStats->lastRuns(),

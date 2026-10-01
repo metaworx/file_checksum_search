@@ -50,6 +50,13 @@ class JobStatsService
 	/** The queued check that every stored hash has its index row (HashIndexCheck). */
 	public const JOB_HASH_INDEX_CHECK = 'hash_index_check';
 
+	/**
+	 * The hourly count of indexed checksums (rides RuleProcessingJob). Its
+	 * record is also where the count is kept: `counts.rows`, as of its last
+	 * run ({@see StatusService::getHashRowCount()}).
+	 */
+	public const JOB_CHECKSUM_COUNT = 'checksum_count';
+
 	public const JOBS
 		 = [
 			self::JOB_RULE_SWEEP,
@@ -57,6 +64,7 @@ class JobStatsService
 			self::JOB_ORPHAN_PURGE,
 			self::JOB_FILECACHE_BACKFILL,
 			self::JOB_HASH_INDEX_CHECK,
+			self::JOB_CHECKSUM_COUNT,
 		];
 
 	/**
@@ -70,6 +78,7 @@ class JobStatsService
 			self::JOB_ORPHAN_PURGE       => 'Orphan purge',
 			self::JOB_FILECACHE_BACKFILL => 'Checksum copy',
 			self::JOB_HASH_INDEX_CHECK   => 'Checksum index check',
+			self::JOB_CHECKSUM_COUNT     => 'Checksum count',
 		];
 
 

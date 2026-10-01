@@ -15,6 +15,7 @@ use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\DatabaseService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\HintedInvalidArgumentException;
+use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
@@ -27,6 +28,7 @@ use OCA\FileChecksumSearch\Service\StatusService;
 use OCA\FileChecksumSearch\Service\TableNameService;
 use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
 use OCP\App\IAppManager;
+use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\Config\IUserMountCache;
@@ -92,6 +94,8 @@ class ChecksumApiTest
 			$this->createMock( TableNameService::class ),
 			$this->createMock( IAppManager::class ),
 			$this->createMock( MetadataService::class ),
+			$this->createMock( JobStatsService::class ),
+			$this->createMock( ITimeFactory::class ),
 		);
 
 		$this->rootFolder     = $this->createMock( IRootFolder::class );
@@ -1098,8 +1102,10 @@ class ChecksumApiTest
 		$this->assertArrayHasKey( 'version', $status );
 		$this->assertArrayHasKey( 'dbVersion', $status );
 		$this->assertArrayHasKey( 'rowCount', $status );
+		$this->assertArrayHasKey( 'rowCountAt', $status );
 		$this->assertArrayHasKey( 'pendingRows', $status );
 		$this->assertIsInt( $status['rowCount'] );
+		$this->assertIsInt( $status['rowCountAt'] );
 		$this->assertIsInt( $status['pendingRows'] );
 	}
 

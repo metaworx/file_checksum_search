@@ -173,6 +173,10 @@ msgstr "一致したファイルに対して計算するチェックサムアル
 msgid "Checksum copy"
 msgstr "既存チェックサムの取り込み"
 
+#. TRANSLATORS: a background job's name: once an hour it counts the indexed checksums, the number this status shows
+msgid "Checksum count"
+msgstr "チェックサムの集計"
+
 #. TRANSLATORS: a background job's name: it checks that every stored checksum can be found by a search, and fixes what cannot.
 msgid "Checksum index check"
 msgstr "チェックサムインデックスの検査"
@@ -1130,6 +1134,11 @@ msgstr "コピー：{copied}、ファイル：{files}、完了"
 #. TRANSLATORS: a background job's last run: the checksums it copied, the files they belong to, and that the next runs go on copying
 msgid "copied {copied}, files {files}, not finished yet"
 msgstr "コピー：{copied}、ファイル：{files}、未完了"
+
+#. TRANSLATORS: a background job's last run: how many indexed checksums it counted
+msgid "counted %n checksum"
+msgid_plural "counted %n checksums"
+msgstr[0] "%n 件のチェックサムを集計"
 
 #. TRANSLATORS: fileIds is a parameter name; keep it
 msgid "fileIds must be a non-empty list of integers."

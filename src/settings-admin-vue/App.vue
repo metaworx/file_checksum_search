@@ -19,7 +19,7 @@ import TunablesSection from './TunablesSection.vue'
 import DocsViewer from '../docs-vue/DocsViewer.vue'
 import { useAdminSettings } from './composables/useAdminSettings'
 import { toastSuccess } from '../toast'
-import { formatDateTime, t } from '../l10n'
+import { formatDateTime, n, t } from '../l10n'
 
 /** The words each permission section shows; the component is the same. */
 const PERMISSION_HELP = {
@@ -182,6 +182,8 @@ const JOB_LABELS: Record<string, string> = {
 	filecache_backfill: t('file_checksum_search', 'Checksum copy'),
 	// TRANSLATORS: a background job's name: it checks that every stored checksum can be found by a search, and fixes what cannot.
 	hash_index_check: t('file_checksum_search', 'Checksum index check'),
+	// TRANSLATORS: a background job's name: once an hour it counts the indexed checksums, the number this status shows
+	checksum_count: t('file_checksum_search', 'Checksum count'),
 }
 
 /**
@@ -216,6 +218,9 @@ function jobCountsText(key: string, counts: Record<string, number>): string {
 		}
 		// TRANSLATORS: a background job's last run: the checksums it made findable again, and that the next runs go on checking
 		return t('file_checksum_search', 'repaired {repaired}, not finished yet', { repaired: count('repaired') })
+	case 'checksum_count':
+		// TRANSLATORS: a background job's last run: how many indexed checksums it counted
+		return n('file_checksum_search', 'counted %n checksum', 'counted %n checksums', count('rows'))
 	default:
 		return Object.entries(counts).map(([name, value]) => `${name} ${value}`).join(', ')
 	}

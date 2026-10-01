@@ -175,6 +175,10 @@ msgstr "Algoritmos de soma de verificação calculados para os arquivos correspo
 msgid "Checksum copy"
 msgstr "Cópia de somas de verificação existentes"
 
+#. TRANSLATORS: a background job's name: once an hour it counts the indexed checksums, the number this status shows
+msgid "Checksum count"
+msgstr "Contagem das somas de verificação"
+
 #. TRANSLATORS: a background job's name: it checks that every stored checksum can be found by a search, and fixes what cannot.
 msgid "Checksum index check"
 msgstr "Conferência do índice de somas de verificação"
@@ -1132,6 +1136,13 @@ msgstr "copiadas {copied}, arquivos {files}, concluída"
 #. TRANSLATORS: a background job's last run: the checksums it copied, the files they belong to, and that the next runs go on copying
 msgid "copied {copied}, files {files}, not finished yet"
 msgstr "copiadas {copied}, arquivos {files}, ainda não concluída"
+
+#. TRANSLATORS: a background job's last run: how many indexed checksums it counted
+msgid "counted %n checksum"
+msgid_plural "counted %n checksums"
+msgstr[0] "%n soma de verificação contada"
+msgstr[1] "%n de somas de verificação contadas"
+msgstr[2] "%n somas de verificação contadas"
 
 #. TRANSLATORS: fileIds is a parameter name; keep it
 msgid "fileIds must be a non-empty list of integers."

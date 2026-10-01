@@ -175,6 +175,10 @@ msgstr ""
 msgid "Checksum copy"
 msgstr ""
 
+#. TRANSLATORS: a background job's name: once an hour it counts the indexed checksums, the number this status shows
+msgid "Checksum count"
+msgstr ""
+
 #. TRANSLATORS: a background job's name: it checks that every stored checksum can be found by a search, and fixes what cannot.
 msgid "Checksum index check"
 msgstr ""
@@ -1132,6 +1136,12 @@ msgstr ""
 #. TRANSLATORS: a background job's last run: the checksums it copied, the files they belong to, and that the next runs go on copying
 msgid "copied {copied}, files {files}, not finished yet"
 msgstr ""
+
+#. TRANSLATORS: a background job's last run: how many indexed checksums it counted
+msgid "counted %n checksum"
+msgid_plural "counted %n checksums"
+msgstr[0] ""
+msgstr[1] ""
 
 #. TRANSLATORS: fileIds is a parameter name; keep it
 msgid "fileIds must be a non-empty list of integers."

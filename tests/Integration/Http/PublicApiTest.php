@@ -157,6 +157,7 @@ class PublicApiTest
 		$this->assertIsString( $response['version'] );
 		$this->assertArrayNotHasKey( 'dbVersion', $response, 'A non-admin must not see the database version.' );
 		$this->assertArrayNotHasKey( 'rowCount', $response, 'A non-admin must not see the index size.' );
+		$this->assertArrayNotHasKey( 'rowCountAt', $response, 'A non-admin must not see when the index was counted.' );
 		$this->assertArrayNotHasKey( 'pendingRows', $response, 'A non-admin must not see the backlog.' );
 	}
 

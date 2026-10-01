@@ -176,6 +176,10 @@ msgstr "Algorytmy sum kontrolnych obliczanych dla pasujących plików. Każdy z 
 msgid "Checksum copy"
 msgstr "Kopiowanie istniejących sum kontrolnych"
 
+#. TRANSLATORS: a background job's name: once an hour it counts the indexed checksums, the number this status shows
+msgid "Checksum count"
+msgstr "Liczenie sum kontrolnych"
+
 #. TRANSLATORS: a background job's name: it checks that every stored checksum can be found by a search, and fixes what cannot.
 msgid "Checksum index check"
 msgstr "Sprawdzanie indeksu sum kontrolnych"
@@ -1133,6 +1137,14 @@ msgstr "skopiowane {copied}, pliki {files}, zakończone"
 #. TRANSLATORS: a background job's last run: the checksums it copied, the files they belong to, and that the next runs go on copying
 msgid "copied {copied}, files {files}, not finished yet"
 msgstr "skopiowane {copied}, pliki {files}, jeszcze niezakończone"
+
+#. TRANSLATORS: a background job's last run: how many indexed checksums it counted
+msgid "counted %n checksum"
+msgid_plural "counted %n checksums"
+msgstr[0] "policzono %n sumę kontrolną"
+msgstr[1] "policzono %n sumy kontrolne"
+msgstr[2] "policzono %n sum kontrolnych"
+msgstr[3] "policzono %n sumy kontrolnej"
 
 #. TRANSLATORS: fileIds is a parameter name; keep it
 msgid "fileIds must be a non-empty list of integers."

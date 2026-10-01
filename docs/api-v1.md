@@ -374,9 +374,15 @@ them.
     'version' => '1.9.2',
     'dbVersion' => '10.11.6',   // administrators and trusted callers only
     'rowCount' => 15423,        // "
+    'rowCountAt' => 1759302000, // "
     'pendingRows' => 5,         // "
 ]
 ```
+
+`rowCount` is the number of indexed checksums as of `rowCountAt` (Unix
+time): a count the app keeps, retaken hourly in the background, because
+counting on request reads every hash row and a cold cache makes that take
+seconds.
 
 ### Rules
 
@@ -705,11 +711,15 @@ No parameters.
   "version": "1.9.2",
   "dbVersion": "10.11.6",
   "rowCount": 15423,
+  "rowCountAt": 1759302000,
   "pendingRows": 5
 }
 ```
 
-**Response (200), as anyone else:** the version alone. The other three
+`rowCount` is the kept count of indexed checksums, as of `rowCountAt` (Unix
+time), retaken hourly in the background; see `getStatus()` above.
+
+**Response (200), as anyone else:** the version alone. The others
 describe the instance and are the administrator's to see.
 ```json
 {

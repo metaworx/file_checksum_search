@@ -135,10 +135,10 @@ class JobStatsServiceTest
 		$this->assertNull( $runs['pending_drain']['lastRun'] );
 		$this->assertSame( [], $runs['pending_drain']['counts'] );
 
-		// The two queued jobs are listed beside the three timed ones, and
+		// The two queued jobs are listed beside the four timed ones, and
 		// every one has a name for the console.
 		$this->assertSame(
-			[ 'rule_sweep', 'pending_drain', 'orphan_purge', 'filecache_backfill', 'hash_index_check' ],
+			[ 'rule_sweep', 'pending_drain', 'orphan_purge', 'filecache_backfill', 'hash_index_check', 'checksum_count' ],
 			array_keys( $runs ),
 		);
 		$this->assertSame( array_keys( $runs ), array_keys( JobStatsService::LABELS ) );

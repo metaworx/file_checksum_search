@@ -1327,7 +1327,7 @@ components:
     StatusResponse:
       type: object
       description: >-
-        `version` is for everyone. The other three describe the instance and
+        `version` is for everyone. The others describe the instance and
         are answered to administrators only; a non-administrator's answer is
         `version` alone.
       required: [version]
@@ -1342,8 +1342,14 @@ components:
           example: "10.11.6-MariaDB"
         rowCount:
           type: integer
-          description: Number of indexed hash rows; administrators only
+          description: >-
+            Number of indexed hash rows, as kept by the app and retaken hourly
+            in the background, as of rowCountAt; administrators only
           example: 15423
+        rowCountAt:
+          type: integer
+          description: When rowCount was counted, Unix time; administrators only
+          example: 1759302000
         pendingRows:
           type: integer
           description: Number of pending hash updates; administrators only

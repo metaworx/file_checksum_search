@@ -9,8 +9,12 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\BackgroundJob;
 
+use OCA\FileChecksumSearch\Service\DatabaseService;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\StatusService;
+use OCA\FileChecksumSearch\Service\TableNameService;
+use OCP\App\IAppManager;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\ProcessPendingUpdates;
 use OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob;
@@ -47,6 +51,13 @@ class RuleProcessingJobTest
 
 	private RuleProcessingJob          $job;
 
+	/**
+	 * When the checksum count last ran, as the job-stats mock reports it.
+	 * The mocked clock stands at zero, so zero means "just counted" and the
+	 * count is not due; null means never counted, and it is.
+	 */
+	private ?int                       $countLastRun = 0;
+
 
 //  getters / setters / is* / has*
 
@@ -72,6 +83,19 @@ class RuleProcessingJobTest
 		                )
 		;
 
+		// The same for the checksum count: not due unless a test says so,
+		// so the tests above it see only the stats they always did.
+		$this->jobStats->method( 'lastRuns' )
+		               ->willReturnCallback(
+			               fn(): array => [
+				               JobStatsService::JOB_CHECKSUM_COUNT => [
+					               'lastRun' => $this->countLastRun,
+					               'counts'  => [ 'rows' => 1 ],
+				               ],
+			               ],
+		               )
+		;
+
 		$this->job = new RuleProcessingJob(
 			$this->time,
 			$this->ruleService,
@@ -80,11 +104,29 @@ class RuleProcessingJobTest
 			$this->jobList,
 			$this->jobStats,
 			$this->logger,
+			$this->statusService(),
 		);
 	}
 
 
 //  other non-static methods
+
+	/**
+	 * StatusService is readonly, so not a mock: a real one over this test's
+	 * own metadata and job-stats mocks, which is where the count is read and
+	 * recorded.
+	 */
+	private function statusService(): StatusService
+	{
+		return new StatusService(
+			$this->createMock( DatabaseService::class ),
+			$this->createMock( TableNameService::class ),
+			$this->createMock( IAppManager::class ),
+			$this->metadataService,
+			$this->jobStats,
+			$this->time,
+		);
+	}
 
 	/**
 	 * @noinspection PhpConditionAlreadyCheckedInspection
@@ -104,6 +146,7 @@ class RuleProcessingJobTest
 			$this->jobList,
 			$this->jobStats,
 			$this->logger,
+			$this->statusService(),
 		);
 
 		$this->assertInstanceOf( RuleProcessingJob::class, $job );
@@ -285,6 +328,57 @@ class RuleProcessingJobTest
 
 		$this->appConfig->expects( $this->never() )
 		                ->method( 'setValueInt' )
+		;
+
+		( new ReflectionMethod( RuleProcessingJob::class, 'run' ) )->invoke( $this->job, null );
+	}
+
+	/**
+	 * Never counted, so due: the job counts the indexed checksums and keeps
+	 * the count as the checksum count's stats, which is where the status
+	 * reads it.
+	 */
+	public function testADueChecksumCountIsTakenAndKept(): void
+	{
+		$this->countLastRun = null;
+		$this->ruleService->method( 'evaluateRules' )
+		                  ->willReturn( [ 'marked' => 0, 'matched' => 0 ] )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'countHashEntries' )
+		                      ->willReturn( 406_419 )
+		;
+
+		$recorded = [];
+		$this->jobStats->method( 'record' )
+		               ->willReturnCallback(
+			               static function( string $job, array $counts ) use ( &$recorded ): void
+			               {
+				               $recorded[ $job ] = $counts;
+			               },
+		               )
+		;
+
+		( new ReflectionMethod( RuleProcessingJob::class, 'run' ) )->invoke( $this->job, null );
+
+		$this->assertSame( [ 'rows' => 406_419 ], $recorded[ JobStatsService::JOB_CHECKSUM_COUNT ] ?? null );
+	}
+
+	/**
+	 * Counted within the hour: the next tick leaves it be, so the count's
+	 * cost is paid once an hour, not every five minutes.
+	 */
+	public function testAChecksumCountWithinItsIntervalIsNotTakenAgain(): void
+	{
+		$this->countLastRun = 1_700_100_000 - 60;
+		$this->time->method( 'getTime' )
+		           ->willReturn( 1_700_100_000 )
+		;
+		$this->ruleService->method( 'evaluateRules' )
+		                  ->willReturn( [ 'marked' => 0, 'matched' => 0 ] )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'countHashEntries' )
 		;
 
 		( new ReflectionMethod( RuleProcessingJob::class, 'run' ) )->invoke( $this->job, null );
