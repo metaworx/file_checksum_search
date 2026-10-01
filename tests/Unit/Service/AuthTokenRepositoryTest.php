@@ -47,7 +47,7 @@ class AuthTokenRepositoryTest
 	private function answering( array $rows ): void
 	{
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetch' )
+		$result->method( 'fetchAssociative' )
 		       ->willReturnOnConsecutiveCalls( ...[ ...$rows, false ] )
 		;
 		$this->queryBuilder->method( 'executeQuery' )

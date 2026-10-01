@@ -296,7 +296,7 @@ class DatabaseService
 				;
 
 				$rows = $qb->executeQuery()
-				           ->fetchAll()
+				           ->fetchAllAssociative()
 				;
 
 				return array_map(

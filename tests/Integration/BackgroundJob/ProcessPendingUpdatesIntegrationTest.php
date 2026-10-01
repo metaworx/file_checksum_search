@@ -450,7 +450,7 @@ class ProcessPendingUpdatesIntegrationTest
 		;
 
 		$result = $qb->executeQuery();
-		$row    = $result->fetch();
+		$row    = $result->fetchAssociative();
 		$result->closeCursor();
 
 		return $row === false

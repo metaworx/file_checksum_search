@@ -133,7 +133,7 @@ class AuthTokenRepository
 			$result = $qb->executeQuery();
 			$rows   = [];
 
-			while ( ( $row = $result->fetch() ) !== false )
+			while ( ( $row = $result->fetchAssociative() ) !== false )
 			{
 				$rows[] = [
 					'id'            => (int) $row['id'],

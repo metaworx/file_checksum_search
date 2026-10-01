@@ -567,7 +567,7 @@ class MetadataServiceTest
 	public function testFetchPendingBatchReturnsRows(): void
 	{
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetch' )
+		$result->method( 'fetchAssociative' )
 		       ->willReturnOnConsecutiveCalls(
 			       [
 				       'file_id'           => '1',
@@ -597,7 +597,7 @@ class MetadataServiceTest
 	public function testFetchPendingBatchReturnsEmpty(): void
 	{
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetch' )
+		$result->method( 'fetchAssociative' )
 		       ->willReturn( false )
 		;
 
@@ -747,7 +747,7 @@ class MetadataServiceTest
 		;
 
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetch' )
+		$result->method( 'fetchAssociative' )
 		       ->willReturn( false )
 		;
 
@@ -777,7 +777,7 @@ class MetadataServiceTest
 
 		$result = $this->createMock( IResult::class );
 		$result->expects( $this->once() )
-		       ->method( 'fetchAll' )
+		       ->method( 'fetchAllAssociative' )
 		       ->willReturn( $mockRows )
 		;
 
@@ -804,7 +804,7 @@ class MetadataServiceTest
 
 		$result = $this->createMock( IResult::class );
 		$result->expects( $this->once() )
-		       ->method( 'fetchAll' )
+		       ->method( 'fetchAllAssociative' )
 		       ->willReturn( $mockRows )
 		;
 
@@ -846,7 +846,7 @@ class MetadataServiceTest
 	{
 		$result = $this->createMock( IResult::class );
 		$result->expects( $this->once() )
-		       ->method( 'fetchAll' )
+		       ->method( 'fetchAllAssociative' )
 		       ->willReturn( [] )
 		;
 
@@ -869,7 +869,7 @@ class MetadataServiceTest
 		$truncated = substr( $longHash, 0, MetadataService::META_VALUE_STRING_MAX_LENGTH );
 
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetchAll' )
+		$result->method( 'fetchAllAssociative' )
 		       ->willReturn( [] )
 		;
 
@@ -917,7 +917,7 @@ class MetadataServiceTest
 
 		$result = $this->createMock( IResult::class );
 		$result->expects( $this->once() )
-		       ->method( 'fetchAll' )
+		       ->method( 'fetchAllAssociative' )
 		       ->willReturn( $mockRows )
 		;
 
@@ -958,7 +958,7 @@ class MetadataServiceTest
 	): void
 	{
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetchAll' )
+		$result->method( 'fetchAllAssociative' )
 		       ->willReturn( [] )
 		;
 		$this->queryBuilder->method( 'executeQuery' )
@@ -1027,7 +1027,7 @@ class MetadataServiceTest
 
 		$result = $this->createMock( IResult::class );
 		$result->expects( $this->once() )
-		       ->method( 'fetchAll' )
+		       ->method( 'fetchAllAssociative' )
 		       ->willReturn( $mockRows )
 		;
 
@@ -1076,7 +1076,7 @@ class MetadataServiceTest
 
 		$result = $this->createMock( IResult::class );
 		$result->expects( $this->once() )
-		       ->method( 'fetchAll' )
+		       ->method( 'fetchAllAssociative' )
 		       ->willReturn( $mockRows )
 		;
 
@@ -1112,7 +1112,7 @@ class MetadataServiceTest
 	): void
 	{
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetchAll' )
+		$result->method( 'fetchAllAssociative' )
 		       ->willReturn( [] )
 		;
 		$this->queryBuilder->method( 'executeQuery' )
@@ -1217,7 +1217,7 @@ class MetadataServiceTest
 		];
 
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetchAll' )
+		$result->method( 'fetchAllAssociative' )
 		       ->willReturn( $mockRows )
 		;
 
@@ -1277,7 +1277,7 @@ class MetadataServiceTest
 		];
 
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetchAll' )
+		$result->method( 'fetchAllAssociative' )
 		       ->willReturn( $mockRows )
 		;
 
@@ -1518,10 +1518,10 @@ class MetadataServiceTest
 		;
 
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetchAll' )
+		$result->method( 'fetchAllAssociative' )
 		       ->willReturn( [] )
 		;
-		$result->method( 'fetch' )
+		$result->method( 'fetchAssociative' )
 		       ->willReturn( false )
 		;
 		$this->queryBuilder->method( 'executeQuery' )
@@ -1608,7 +1608,7 @@ class MetadataServiceTest
 		];
 
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetch' )
+		$result->method( 'fetchAssociative' )
 		       ->willReturnCallback(
 			       static function() use
 			       (
@@ -1695,7 +1695,7 @@ class MetadataServiceTest
 		;
 
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetch' )
+		$result->method( 'fetchAssociative' )
 		       ->willReturnOnConsecutiveCalls(
 			       [ MetadataService::FIELD_FILE_ID => 42 ],
 			       false,
@@ -1884,7 +1884,7 @@ class MetadataServiceTest
 		];
 
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetch' )
+		$result->method( 'fetchAssociative' )
 		       ->willReturnCallback(
 			       static function() use
 			       (
@@ -1963,7 +1963,7 @@ class MetadataServiceTest
 		];
 
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetch' )
+		$result->method( 'fetchAssociative' )
 		       ->willReturnCallback(
 			       static function() use ( &$pages ): array|false
 			       {
@@ -2116,7 +2116,7 @@ class MetadataServiceTest
 			       },
 		       )
 		;
-		$result->method( 'fetch' )
+		$result->method( 'fetchAssociative' )
 		       ->willReturn( false )
 		;
 		$this->queryBuilder->method( 'executeQuery' )
@@ -2244,7 +2244,7 @@ class MetadataServiceTest
 		];
 
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetch' )
+		$result->method( 'fetchAssociative' )
 		       ->willReturnCallback(
 			       static function() use
 			       (
@@ -2319,7 +2319,7 @@ class MetadataServiceTest
 	public function testTheForgottenWalkTakesTheOtherSideOfTheStampRow(): void
 	{
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetch' )
+		$result->method( 'fetchAssociative' )
 		       ->willReturn( false )
 		;
 		$this->queryBuilder->method( 'executeQuery' )
@@ -2381,7 +2381,7 @@ class MetadataServiceTest
 		];
 
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetch' )
+		$result->method( 'fetchAssociative' )
 		       ->willReturnCallback(
 			       static function() use
 			       (
@@ -2481,7 +2481,7 @@ class MetadataServiceTest
 		;
 
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetch' )
+		$result->method( 'fetchAssociative' )
 		       ->willReturnOnConsecutiveCalls(
 			       [ MetadataService::FIELD_FILE_ID => '42' ],
 			       false,
@@ -2699,7 +2699,7 @@ class MetadataServiceTest
 	private function givenTheQueryReturnsNothing(): void
 	{
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetchAll' )
+		$result->method( 'fetchAllAssociative' )
 		       ->willReturn( [] )
 		;
 		$this->queryBuilder->method( 'executeQuery' )
@@ -2738,7 +2738,7 @@ class MetadataServiceTest
 			       },
 		       )
 		;
-		$result->method( 'fetch' )
+		$result->method( 'fetchAssociative' )
 		       ->willReturn( false )
 		;
 		$this->queryBuilder->method( 'executeQuery' )

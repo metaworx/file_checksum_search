@@ -11,6 +11,12 @@ the first stable release.
 
 ## [Unreleased]
 
+### Changed
+
+- Database reads use `fetchAssociative()` and `fetchAllAssociative()`,
+  not `IResult`'s `fetch()` and `fetchAll()`, as Nextcloud's upgrade
+  rules for 33 ask.
+
 ## [0.21.0] - 2026-10-01
 
 ### Added

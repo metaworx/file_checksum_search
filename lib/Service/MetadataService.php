@@ -283,7 +283,7 @@ class MetadataService
 		$result = $this->executeQuery( $qb );
 		$stats  = [];
 
-		while ( ( $row = $result->fetch() ) !== false )
+		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
 			$stats[ (string) $row[ self::FIELD_META_VALUE_STRING ] ] = (int) $row['cnt'];
 		}
@@ -490,7 +490,7 @@ class MetadataService
 
 		$result = $this->executeQuery( $qb );
 
-		while ( ( $row = $result->fetch() ) !== false )
+		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
 			$fileIds[] = (int) $row[ self::FIELD_FILE_ID ];
 		}
@@ -526,7 +526,7 @@ class MetadataService
 
 		$result2 = $this->executeQuery( $qb2 );
 
-		while ( ( $row = $result2->fetch() ) !== false )
+		while ( ( $row = $result2->fetchAssociative() ) !== false )
 		{
 			$fileIds[] = (int) $row[ self::FIELD_FILE_ID ];
 		}
@@ -819,7 +819,7 @@ class MetadataService
 		$result = $this->executeQuery( $qb );
 		$rows   = [];
 
-		while ( ( $row = $result->fetch() ) !== false )
+		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
 			$rows[] = [
 				self::FIELD_FILE_ID           => (int) $row[ self::FIELD_FILE_ID ],
@@ -1019,7 +1019,7 @@ class MetadataService
 		$result  = $this->executeQuery( $qb );
 		$fileIds = [];
 
-		while ( ( $row = $result->fetch() ) !== false )
+		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
 			$fileIds[] = (int) $row[ self::FIELD_FILE_ID ];
 		}
@@ -1212,7 +1212,7 @@ class MetadataService
 			;
 
 			$result = $this->executeQuery( $qb );
-			$rows   = $result->fetchAll();
+			$rows   = $result->fetchAllAssociative();
 			$result->closeCursor();
 
 			if ( $rows === [] )
@@ -1267,7 +1267,7 @@ class MetadataService
 		$result  = $this->executeQuery( $qb );
 		$fileIds = [];
 
-		while ( ( $row = $result->fetch() ) !== false )
+		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
 			$fileIds[] = (int) $row[ self::FIELD_FILE_ID ];
 		}
@@ -1302,7 +1302,7 @@ class MetadataService
 		$result    = $this->executeQuery( $qb );
 		$documents = [];
 
-		while ( ( $row = $result->fetch() ) !== false )
+		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
 			$documents[ (int) $row[ self::FIELD_FILE_ID ] ] = (string) $row[ self::FIELD_JSON ];
 		}
@@ -1442,7 +1442,7 @@ class MetadataService
 		$result = $this->executeQuery( $qb );
 		$stats  = [];
 
-		while ( ( $row = $result->fetch() ) !== false )
+		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
 			$stats[ (string) $row[ self::FIELD_META_VALUE_STRING ] ] = (int) $row['cnt'];
 		}
@@ -1890,7 +1890,7 @@ class MetadataService
 		$result  = $this->executeQuery( $qb );
 		$fileIds = [];
 
-		while ( ( $row = $result->fetch() ) !== false )
+		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
 			$fileIds[] = (int) $row[ self::FIELD_FILE_ID ];
 		}
@@ -2308,7 +2308,7 @@ class MetadataService
 		$result    = $this->executeQuery( $qb );
 		$documents = [];
 
-		while ( ( $row = $result->fetch() ) !== false )
+		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
 			$documents[ (int) $row[ self::FIELD_FILE_ID ] ] = (string) $row[ self::FIELD_JSON ];
 		}
@@ -2350,7 +2350,7 @@ class MetadataService
 		$result = $this->executeQuery( $qb );
 		$keys   = [];
 
-		while ( ( $row = $result->fetch() ) !== false )
+		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
 			$keys[ (int) $row[ self::FIELD_FILE_ID ] ][] = (string) $row[ self::FIELD_META_KEY ];
 		}
@@ -2770,7 +2770,7 @@ class MetadataService
 		}
 
 		$result = $this->executeQuery( $qb );
-		$rows   = $result->fetchAll();
+		$rows   = $result->fetchAllAssociative();
 		$result->closeCursor();
 
 		return $rows;
@@ -2990,7 +2990,7 @@ class MetadataService
 		;
 
 		$result = $this->executeQuery( $qb );
-		$rows   = $result->fetchAll();
+		$rows   = $result->fetchAllAssociative();
 		$result->closeCursor();
 
 		$groups = array_map( function(

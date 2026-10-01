@@ -432,7 +432,7 @@ class FilecacheServiceTest
 		;
 
 		$resultStmt = $this->createMock( IResult::class );
-		$resultStmt->method( 'fetch' )
+		$resultStmt->method( 'fetchAssociative' )
 		           ->willReturnOnConsecutiveCalls( $mockRows[0], false )
 		;
 
@@ -477,7 +477,7 @@ class FilecacheServiceTest
 		;
 
 		$resultStmt = $this->createMock( IResult::class );
-		$resultStmt->method( 'fetch' )
+		$resultStmt->method( 'fetchAssociative' )
 		           ->willReturnOnConsecutiveCalls( $mockRows[0], $mockRows[1], false )
 		;
 
@@ -527,7 +527,7 @@ class FilecacheServiceTest
 		;
 
 		$resultStmt = $this->createMock( IResult::class );
-		$resultStmt->method( 'fetch' )
+		$resultStmt->method( 'fetchAssociative' )
 		           ->willReturnOnConsecutiveCalls( $mockRows[0], false )
 		;
 
@@ -585,7 +585,7 @@ class FilecacheServiceTest
 		;
 
 		$resultStmt = $this->createMock( IResult::class );
-		$resultStmt->method( 'fetch' )
+		$resultStmt->method( 'fetchAssociative' )
 		           ->willReturnOnConsecutiveCalls( $mockRows[0], false )
 		;
 
@@ -624,7 +624,7 @@ class FilecacheServiceTest
 		;
 
 		$resultStmt = $this->createMock( IResult::class );
-		$resultStmt->method( 'fetch' )
+		$resultStmt->method( 'fetchAssociative' )
 		           ->willReturnOnConsecutiveCalls( ...[ ...$mockRows, false ] )
 		;
 
@@ -657,7 +657,7 @@ class FilecacheServiceTest
 		;
 
 		$resultStmt = $this->createMock( IResult::class );
-		$resultStmt->method( 'fetch' )
+		$resultStmt->method( 'fetchAssociative' )
 		           ->willReturnOnConsecutiveCalls(
 			           [ 'fileid' => 1, 'path' => 'files/a.txt', 'name' => 'a.txt', 'id' => 'home::admin' ],
 			           false,
@@ -691,7 +691,7 @@ class FilecacheServiceTest
 		;
 
 		$resultStmt = $this->createMock( IResult::class );
-		$resultStmt->method( 'fetch' )
+		$resultStmt->method( 'fetchAssociative' )
 		           ->willReturnOnConsecutiveCalls(
 			           [ 'fileid' => 1, 'path' => 'files/a.txt', 'name' => 'a.txt', 'id' => 'home::admin' ],
 			           [ 'fileid' => 3, 'path' => 'c.txt', 'name' => 'c.txt', 'id' => 'local::/mnt/archive/' ],
@@ -724,7 +724,7 @@ class FilecacheServiceTest
 		;
 
 		$resultStmt = $this->createMock( IResult::class );
-		$resultStmt->method( 'fetch' )
+		$resultStmt->method( 'fetchAssociative' )
 		           ->willReturnOnConsecutiveCalls(
 			           [ 'fileid' => 1, 'path' => 'files/a.txt', 'name' => 'a.txt', 'id' => 'home::gone' ],
 			           false,
@@ -886,7 +886,7 @@ class FilecacheServiceTest
 		];
 
 		$resultStmt = $this->createMock( IResult::class );
-		$resultStmt->method( 'fetch' )
+		$resultStmt->method( 'fetchAssociative' )
 		           ->willReturnOnConsecutiveCalls( ...$rows )
 		;
 		$this->queryBuilder->method( 'executeQuery' )

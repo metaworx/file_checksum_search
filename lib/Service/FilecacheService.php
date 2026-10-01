@@ -243,7 +243,7 @@ class FilecacheService
 
 			$result = $qb->executeQuery();
 
-			while ( ( $row = $result->fetch() ) !== false )
+			while ( ( $row = $result->fetchAssociative() ) !== false )
 			{
 				$location = FileLocation::fromRow(
 					(int) $row['fileid'],
@@ -310,7 +310,7 @@ class FilecacheService
 
 				$result = $qb->executeQuery();
 
-				while ( ( $row = $result->fetch() ) !== false )
+				while ( ( $row = $result->fetchAssociative() ) !== false )
 				{
 					$location = FileLocation::fromRow(
 						(int) $row['fileid'],
@@ -415,7 +415,7 @@ class FilecacheService
 		$result   = $qb->executeQuery();
 		$storages = [];
 
-		while ( ( $row = $result->fetch() ) !== false )
+		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
 			$storageId = (string) $row['id'];
 
@@ -484,7 +484,7 @@ class FilecacheService
 		$result = $qb->executeQuery();
 		$ids    = [];
 
-		while ( ( $row = $result->fetch() ) !== false )
+		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
 			$ids[] = (int) $row['numeric_id'];
 		}
@@ -543,7 +543,7 @@ class FilecacheService
 		$result = $qb->executeQuery();
 		$ids    = [];
 
-		while ( ( $row = $result->fetch() ) !== false )
+		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
 			$storageId = (string) $row['id'];
 
@@ -647,7 +647,7 @@ class FilecacheService
 		$result    = $qb->executeQuery();
 		$locations = [];
 
-		while ( ( $row = $result->fetch() ) !== false )
+		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
 			$locations[] = FileLocation::fromRow(
 				(int) $row['fileid'],
@@ -695,7 +695,7 @@ class FilecacheService
 		$result = $qb->executeQuery();
 		$rows   = [];
 
-		while ( ( $row = $result->fetch() ) !== false )
+		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
 			$rows[ (int) $row['fileid'] ] = [
 				'checksum' => (string) $row['checksum'],
@@ -757,7 +757,7 @@ class FilecacheService
 		$result = $qb->executeQuery();
 		$sizes  = [];
 
-		while ( ( $row = $result->fetch() ) !== false )
+		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
 			$sizes[ (int) $row['fileid'] ] = max( 0, (int) $row['size'] );
 		}
@@ -1061,7 +1061,7 @@ class FilecacheService
 		$homes     = [];
 		$encrypted = $withLocalPath && $this->encryption->isEnabled();
 
-		while ( ( $row = $result->fetch() ) !== false )
+		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
 			$sid = (string) $row['id'];
 

@@ -46,7 +46,7 @@ class TestPerformanceTest
 		;
 
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetchAll' )
+		$result->method( 'fetchAllAssociative' )
 		       ->willReturn( [] )
 		;
 		$result->method( 'fetchOne' )

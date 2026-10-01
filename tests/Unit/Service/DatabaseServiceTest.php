@@ -156,7 +156,7 @@ class DatabaseServiceTest
 	{
 		$result = $this->createMock( IResult::class );
 
-		$result->method( 'fetchAll' )
+		$result->method( 'fetchAllAssociative' )
 		       ->willReturn( [
 			       [ 'version' => '1000Date20260806100000' ],
 			       [ 'version' => '1001Date20260807100000' ],

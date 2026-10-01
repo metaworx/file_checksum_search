@@ -130,7 +130,7 @@ class ReachResolverTest
 	public function testAFileTheFilecacheDoesNotKnowLiesNowhere(): void
 	{
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetch' )
+		$result->method( 'fetchAssociative' )
 		       ->willReturn( false )
 		;
 		$this->queryBuilder->method( 'executeQuery' )
@@ -150,7 +150,7 @@ class ReachResolverTest
 	): bool
 	{
 		$result = $this->createMock( IResult::class );
-		$result->method( 'fetch' )
+		$result->method( 'fetchAssociative' )
 		       ->willReturn( [ 'storage' => $storage, 'path' => $path ] )
 		;
 

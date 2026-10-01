@@ -93,7 +93,7 @@ class TestPerformance
 			   ->setMaxResults( 1 )
 			;
 			$qb->executeQuery()
-			   ->fetchAll()
+			   ->fetchAllAssociative()
 			;
 		}
 

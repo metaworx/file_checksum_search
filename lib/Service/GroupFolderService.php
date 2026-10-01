@@ -130,7 +130,7 @@ class GroupFolderService
 			$result  = $qb->executeQuery();
 			$folders = [];
 
-			while ( ( $row = $result->fetch() ) !== false )
+			while ( ( $row = $result->fetchAssociative() ) !== false )
 			{
 				$folders[] = [
 					'id'   => (int) $row['folder_id'],

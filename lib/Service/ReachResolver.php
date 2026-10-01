@@ -145,7 +145,7 @@ class ReachResolver
 		;
 
 		$result = $qb->executeQuery();
-		$row    = $result->fetch();
+		$row    = $result->fetchAssociative();
 		$result->closeCursor();
 
 		if ( $row === false )
