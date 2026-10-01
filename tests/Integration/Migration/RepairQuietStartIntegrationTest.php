@@ -16,7 +16,6 @@ use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
 use OCP\Files\IRootFolder;
 use OCP\IAppConfig;
-use OCP\IUserManager;
 use OCP\Migration\IOutput;
 use OCP\Server;
 
@@ -281,29 +280,27 @@ class RepairQuietStartIntegrationTest
 		);
 	}
 
-	// ─── helpers ─────────────────────────────────────────────────────
 	/**
-	 * Put rules into storage the way an older version would have, going
-	 * around the write path so nothing canonicalises them on the way in.
+	 * Metadata whose file is gone is swept up: the document and the index
+	 * rows both.
 	 *
-	 * @param  list<array>  $rules
+	 * Such rows come from Nextcloud's bulk teardown of a storage, deleting a
+	 * user among them, which until nextcloud/server#63998 removed the
+	 * filecache rows without announcing them, so the metadata keyed on those
+	 * ids stayed. It stayed *findable* too: those rows still answer a hash
+	 * search, which is how this was found. Nextcloud 35 cleans up after
+	 * itself, and 34 and 33 have the fix asked for as backports, but every
+	 * instance that ran an earlier version keeps what it left, and that is
+	 * what this sweep is for.
+	 *
+	 * So the orphan is made here as those versions made it, by removing the
+	 * file's filecache row and nothing else, rather than by deleting a user:
+	 * what deletion leaves now depends on the server's patch level, and the
+	 * sweep's job does not.
 	 */
-	/**
-	 * Deleting a user leaves this app's metadata behind, and the sweep is
-	 * what notices.
-	 *
-	 * Nextcloud's own cleanup runs from `CacheEntriesRemovedEvent`, which the
-	 * bulk teardown paths never dispatch — a deleted user's filecache rows go
-	 * in one statement, and the metadata keyed on those file ids simply
-	 * stays. It stays *findable*, too: those rows still answer a hash search,
-	 * which is how this was found in the first place.
-	 *
-	 * The account is made and destroyed here rather than borrowed, because
-	 * the whole assertion is about what its destruction leaves.
-	 */
-	public function testMetadataOfADeletedUserIsSweptUp(): void
+	public function testMetadataWhoseFileIsGoneIsSweptUp(): void
 	{
-		[ $uid, $password ] = self::makeAccount( 'fcias_sweep' );
+		[ $uid ] = self::makeAccount( 'fcias_sweep' );
 
 		$file = Server::get( IRootFolder::class )
 		              ->getUserFolder( $uid )
@@ -324,20 +321,19 @@ class RepairQuietStartIntegrationTest
 		$this->assertGreaterThan(
 			0,
 			$this->countMetadataRowsFor( $fileId ),
-			'the file must carry this app\'s metadata before its owner is deleted',
+			'the file must carry this app\'s metadata before it goes',
 		);
 
-		Server::get( IUserManager::class )
-		      ->get( $uid )
-		      ?->delete()
+		// The file goes the way a bulk teardown took it before the fix: its
+		// filecache row, and nothing that would have announced it.
+		$this->getRawConnection()
+		     ->executeStatement( 'DELETE FROM `*PREFIX*filecache` WHERE `fileid` = ?', [ $fileId ] )
 		;
 
-		// The premise: deletion took the file and left the metadata.
 		$this->assertGreaterThan(
 			0,
 			$this->countMetadataRowsFor( $fileId ),
-			'deleting the user is expected to leave the metadata behind — if this fails, '
-			. 'Nextcloud has started cleaning up and this sweep may no longer be needed',
+			'removing the filecache row alone must leave the metadata behind',
 		);
 
 		Server::get( RepairQuietStart::class )
@@ -351,6 +347,7 @@ class RepairQuietStartIntegrationTest
 		);
 	}
 
+	// ─── helpers ─────────────────────────────────────────────────────
 	/**
 	 * Rows in either metadata table for one file id.
 	 */
@@ -374,6 +371,12 @@ class RepairQuietStartIntegrationTest
 		return $total;
 	}
 
+	/**
+	 * Put rules into storage the way an older version would have, going
+	 * around the write path so nothing canonicalises them on the way in.
+	 *
+	 * @param  list<array>  $rules
+	 */
 	private function givenStoredRules( array $rules ): void
 	{
 		$this->appConfig->setValueString(
