@@ -216,7 +216,7 @@ and a literal handed straight to a toast, and CI's lint job runs
 ---
 
 
-# Working with the agent (v1.6.3)
+# Working with the agent (v1.7.0)
 
 This is the human half of the contract.
 The agent's rules live in `/AGENTS.md`;
@@ -343,6 +343,11 @@ git submodule update --init GUIDELINES/shared
 ```
 
 Cloning with `--recurse-submodules` does it up front.
+In an overlay - a `GUIDELINES` that is a repository of its own,
+in a project that does not carry the guidelines -
+this document and the submodule are the overlay's,
+and the command is run there:
+`git -C GUIDELINES submodule update --init`.
 If the same checkout is used from both Windows and WSL,
 this saves a recurring annoyance:
 

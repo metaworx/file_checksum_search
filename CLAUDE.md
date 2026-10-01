@@ -1,13 +1,13 @@
 <!-- GENERATED FILE - DO NOT EDIT.
      Source: shared/assistants/claude/_CLAUDE.md
      Regenerate: GUIDELINES/shared/tools/sync-docs.sh
-     Contract version: v1.1.0 -->
+     Contract version: v1.2.0 -->
 
 
-# File Checksum Index & Search — Claude Code (v1.1.0)
+# File Checksum Index & Search — Claude Code (v1.2.0)
 
 Claude Code loads this file into its system prompt automatically.
-So does `/AGENTS.md`, which is where the contract lives.
+The contract lives in `/AGENTS.md`.
 
 **The contract is `/AGENTS.md`.
 Read it.**
@@ -46,7 +46,8 @@ two prompt-resident documents saying the same thing is how they come to disagree
   Bash runs commands and looks at files;
   it does not rewrite them with `sed`, a heredoc or a Python script.
   An edit script that failed half-way once left a commit half-empty,
-  and the edit tools keep the IDE's local history, as `/AGENTS.md` §1.5 asks.
+  and the edit tools keep the IDE's local history,
+  as `/AGENTS.md` §1.5 asks.
 - **The guidelines are read again before the next commit
   whenever what is known of them may be out of date:**
   - after a context compaction, or on resuming a session,

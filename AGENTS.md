@@ -1,10 +1,10 @@
 <!-- GENERATED FILE - DO NOT EDIT.
      Source: shared/_AGENTS.md + project/_CONTRACT.md
      Regenerate: GUIDELINES/shared/tools/sync-docs.sh
-     Contract version: v3.14.0 -->
+     Contract version: v3.15.0 -->
 
 
-# AI Agent Guidelines (v3.14.0)
+# AI Agent Guidelines (v3.15.0)
 
 Core behavioral rules for AI agents working on this codebase.  
 All agents MUST comply.
@@ -14,7 +14,7 @@ refer to linked documents for extended guidance.
 ## Contents
 
 <!-- BEGIN GENERATED CONTENTS - do not edit; run "GUIDELINES/shared/tools/sync-docs.sh" -->
-- AI Agent Guidelines (v3.14.0)
+- AI Agent Guidelines (v3.15.0)
   1. Critical Behavioral Rules (STRICT)
     - 1.1 Gate Message Mechanism
     - 1.2 Action Plan (AP) Requirement
@@ -188,6 +188,11 @@ Where a file is written depends on what it is and how long it needs to live:
 | `GUIDELINES/messages/` | no  | the default: analyses, findings and records written for the user |
 | `GUIDELINES/wip/`      | yes | the Action Plan driving the change in progress, and any analysis that change depends on |
 | `GUIDELINES/temp/`     | no  | scratch that is not a UAMF at all |
+
+In an overlay - a guidelines root that is a repository of its own,
+in a project that does not carry the guidelines -
+tracked means tracked by the overlay,
+and a plan is committed there (`GUIDELINES/shared/COMMIT.md` §7.3).
 
 Citation rules follow from that, and they are absolute:
 
