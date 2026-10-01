@@ -35,7 +35,13 @@ let adminPassword = 'admin'
 // request can be slow on a cold PHP worker.
 const FIND_TIMEOUT = 60000
 
-const SEARCH_INPUT = '[data-cy-unified-search-input]'
+// The search field, and where its results land. Nextcloud 33 and 34 open the
+// search from a header button into a modal whose field carries a data-cy
+// hook, and render a results list only when there are results; 35 makes the
+// header's own field the search, drops the hook, and keeps a results panel
+// open whatever it holds.
+const SEARCH_INPUT = '[data-cy-unified-search-input], .unified-search-input__input'
+const RESULTS = '.unified-search-modal, .unified-search-modal__results'
 
 describe( 'FCIAS global search', () => {
 	before( () => {
@@ -99,6 +105,16 @@ describe( 'FCIAS global search', () => {
 		cy.get( SEARCH_INPUT ).should( 'have.value', value )
 	}
 
+	// Into the search: the header's own field where there is one (35), else
+	// the header button that opens it (33, 34).
+	const openSearch = () => {
+		cy.get( '.unified-search-menu', { timeout: FIND_TIMEOUT } ).first().then( ( $menu ) => {
+			const $field = $menu.find( '.unified-search-input__input' )
+
+			cy.wrap( $field.length ? $field.first() : $menu.find( 'button' ).first() ).click()
+		} )
+	}
+
 	it( 'lists the File checksums provider and finds files by hash', () => {
 		// The provider request is the only reliable signal that a query has
 		// actually been answered: the input is debounced, so asserting straight
@@ -110,8 +126,7 @@ describe( 'FCIAS global search', () => {
 
 		cy.visit( '/index.php/apps/files/' )
 
-		// Open the global search (trigger markup differs slightly across NC 33/34).
-		cy.get( '.unified-search-menu button', { timeout: FIND_TIMEOUT } ).first().click()
+		openSearch()
 
 		// Registered, asserted by provider id rather than by the name it
 		// shows: the name is this app's own string and will be translated,
@@ -126,30 +141,32 @@ describe( 'FCIAS global search', () => {
 			expect( ids ).to.include( `${ appId }_provider` )
 		} )
 
-		// And offered where a user would look for it, under "Places".
-		cy.get( '[data-cy-unified-search-filter="places"] button' ).click()
-
-		// Dismiss the popover by focusing the search input.
-		cy.get( SEARCH_INPUT ).click()
-
 		// A valid but non-existent hash yields no file results.
 		enterQuery( MISSING )
 		cy.wait( '@hashSearch', { timeout: FIND_TIMEOUT } )
-		cy.get( '.unified-search-modal', { timeout: FIND_TIMEOUT } )
+		cy.get( RESULTS, { timeout: FIND_TIMEOUT } )
 			.should( 'not.contain', searchFile )
+
+		// And offered where a user would look for it, under "Places". After a
+		// query, not before: 35 shows the filters only once its panel has
+		// something to filter.
+		cy.get( '[data-cy-unified-search-filter="places"] button', { timeout: FIND_TIMEOUT } ).click()
+
+		// Dismiss the popover by focusing the search input.
+		cy.get( SEARCH_INPUT ).click()
 
 		// The real hash lists the indexed files.
 		enterQuery( SHA1 )
 		cy.wait( '@hashSearch', { timeout: FIND_TIMEOUT } )
 
-		// Scoped to the modal: an unscoped cy.contains() also matches the Files
-		// list rendered behind the overlay, which passes even when the search
+		// Scoped to the results: an unscoped cy.contains() also matches the
+		// Files list rendered behind them, which passes even when the search
 		// returned nothing.
-		cy.get( '.unified-search-modal', { timeout: FIND_TIMEOUT } )
+		cy.get( RESULTS, { timeout: FIND_TIMEOUT } )
 			.should( 'contain', searchFile )
 
 		// Results link to the file details view (opendetails=true), not the file itself.
-		cy.get( '.unified-search-modal a[href*="opendetails=true"][href*="openfile=false"]', { timeout: FIND_TIMEOUT } )
+		cy.get( `${ RESULTS } a[href*="opendetails=true"][href*="openfile=false"]`, { timeout: FIND_TIMEOUT } )
 			.should( 'exist' )
 	} )
 } )
