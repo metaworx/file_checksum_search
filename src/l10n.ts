@@ -17,6 +17,12 @@ import { getCanonicalLocale, translate, translatePlural } from '@nextcloud/l10n'
 
 type Values = Record<string, string | number>
 
+/**
+ * The no-break space, made from its code point: written as itself it is
+ * invisible in the source, and editors and tools turn it into a plain space.
+ */
+export const NBSP = String.fromCharCode(0xA0)
+
 /** The text in the user's language, with `{name}` placeholders filled from `values`. */
 export function t(app: string, text: string, values?: Values): string {
 	return translate(app, text, values, undefined, { escape: false, sanitize: false })
@@ -45,4 +51,18 @@ export function formatDateTime(date: Date): string {
 		minute: '2-digit',
 		second: '2-digit',
 	})
+}
+
+/**
+ * A translated text with every number held to the words beside it: the
+ * spaces next to a number become no-break spaces, so a line may break
+ * between "failed 0," and "cleared 0" but never between "failed" and its 0.
+ * Done here rather than in the translations, where a no-break space is
+ * invisible, easily lost, and would have to be remembered in every language
+ * and every new text.
+ */
+export function keepNumbersWithWords(text: string): string {
+	return text
+		.replace(/(\d) /g, `$1${NBSP}`)
+		.replace(/ (\d)/g, `${NBSP}$1`)
 }

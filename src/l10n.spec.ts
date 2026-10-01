@@ -13,7 +13,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import de from '../l10n/de.json'
 import deDE from '../l10n/de_DE.json'
 import DuplicateGroup from './duplicates-vue/components/DuplicateGroup.vue'
-import { formatDateTime, n, t } from './l10n'
+import { formatDateTime, keepNumbersWithWords, n, t } from './l10n'
 
 const APP = 'file_checksum_search'
 
@@ -106,5 +106,22 @@ describe('a date', () => {
 		expect(formatDateTime(EARLY)).toBe('01/10/2026, 07:05:09')
 		setLocale('en_US')
 		expect(formatDateTime(EARLY)).toMatch(/^10\/01\/2026, 07:05:09\sAM$/)
+	})
+})
+
+describe('a number in a text', () => {
+	// From its code point, not the imported constant, so the test does not
+	// compare the code with itself.
+	const NBSP = String.fromCharCode(0xA0)
+
+	// A line may break between counts, never between a count and its word.
+	it('is held to the words on either side of it', () => {
+		expect(keepNumbersWithWords('verarbeitet 0 von 0, fehlgeschlagen 0, nach dem Zurücksetzen bereinigt 0'))
+			.toBe(`verarbeitet${NBSP}0${NBSP}von${NBSP}0, fehlgeschlagen${NBSP}0, nach dem Zurücksetzen bereinigt${NBSP}0`)
+	})
+
+	it('leaves a text without numbers, and one without spaces, as it is', () => {
+		expect(keepNumbersWithWords('Not run yet')).toBe('Not run yet')
+		expect(keepNumbersWithWords('%n件のチェックサムを集計')).toBe('%n件のチェックサムを集計')
 	})
 })

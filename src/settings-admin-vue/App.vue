@@ -19,7 +19,7 @@ import TunablesSection from './TunablesSection.vue'
 import DocsViewer from '../docs-vue/DocsViewer.vue'
 import { useAdminSettings } from './composables/useAdminSettings'
 import { toastSuccess } from '../toast'
-import { formatDateTime, n, t } from '../l10n'
+import { formatDateTime, keepNumbersWithWords, n, t } from '../l10n'
 
 /** The words each permission section shows; the component is the same. */
 const PERMISSION_HELP = {
@@ -231,7 +231,8 @@ const jobRows = computed(() => Object.entries(status.value.jobs ?? {}).map(([key
 	label: JOB_LABELS[key] ?? key,
 	// TRANSLATORS: when a background job last ran: not at all
 	time: run.lastRun === null ? t('file_checksum_search', 'Not run yet') : formatDateTime(new Date(run.lastRun * 1000)),
-	countsText: run.lastRun === null ? '' : jobCountsText(key, run.counts),
+	// Each number held to its words, so a narrow cell breaks between counts.
+	countsText: run.lastRun === null ? '' : keepNumbersWithWords(jobCountsText(key, run.counts)),
 })))
 
 // --- Rule editing (global + additional rules share one dialog) ---

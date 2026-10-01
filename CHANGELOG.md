@@ -30,8 +30,7 @@ the first stable release.
 
 ### Fixed
 
-- Admin status panel: long translated labels and job names no longer
-  run into their values, and a job's counts wrap within the panel.
+- Admin status panel: the layout fits translated text.
 
 ## [0.21.0] - 2026-10-01
 

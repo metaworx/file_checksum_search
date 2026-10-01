@@ -197,7 +197,12 @@ describe('settings-admin App', () => {
 		expect(untrusted).toContain('it gets them back once a rule covers it again')
 		// Each counter is a translated text; the server's keys (marked, done)
 		// never reach the page, except for a job the page does not know.
-		const jobs = wrapper.find('#fcias-status-jobs').text()
+		// Each number is held to its words by a no-break space, so a narrow
+		// cell breaks between counts; read with plain spaces below.
+		const nbsp = String.fromCharCode(0xA0)
+		const jobsAsShown = wrapper.find('#fcias-status-jobs').text()
+		expect(jobsAsShown).toContain(`matched${nbsp}12, queued${nbsp}3`)
+		const jobs = jobsAsShown.split(nbsp).join(' ')
 		expect(jobs).toContain('Rule sweep')
 		expect(jobs).toContain('matched 12, queued 3')
 		expect(jobs).toContain('Queue drain')
