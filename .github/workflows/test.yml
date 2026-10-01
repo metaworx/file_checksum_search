@@ -120,8 +120,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        nextcloud-version: [ 'stable33', 'stable34' ]
+        nextcloud-version: [ 'stable33', 'stable34', 'stable35' ]
         php-version: [ '8.2', '8.3', '8.4' ]
+        # Nextcloud 35 refuses to start on PHP 8.2 (lib/versioncheck.php).
+        exclude:
+          - nextcloud-version: 'stable35'
+            php-version: '8.2'
     name: NC ${{ matrix.nextcloud-version }} / PHP ${{ matrix.php-version }}
 
     # A service cannot live in a composite action; the anchor keeps the one
@@ -181,7 +185,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        nextcloud-version: [ 'stable33', 'stable34' ]
+        nextcloud-version: [ 'stable33', 'stable34', 'stable35' ]
     name: Cypress E2E / NC ${{ matrix.nextcloud-version }}
 
     services:

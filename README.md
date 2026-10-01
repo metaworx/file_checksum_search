@@ -70,7 +70,7 @@ For what the two tables look like from a database client, see
 
 | Component | Minimum Version |
 |-----------|----------------|
-| Nextcloud | 33 (up to 34) |
+| Nextcloud | 33 (up to 35) |
 | PHP | 8.2 |
 | Database | Any database supported by Nextcloud |
 | Node.js | 24 (build only, not needed at runtime) |

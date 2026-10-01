@@ -53,7 +53,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        nextcloud-version: [ 'stable33', 'stable34' ]
+        nextcloud-version: [ 'stable33', 'stable34', 'stable35' ]
         mode: [ 'occ', 'web' ]
 
     services:

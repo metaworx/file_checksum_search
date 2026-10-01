@@ -104,7 +104,7 @@ Between signing and the store, **Install before publishing** runs the install
 check ([`install-check.yml`](../.github/workflows/install-check.yml)) against a
 fake store: the real store's full listing, served locally with this release
 added from its GitHub release (`tests/e2e/store/appstore.py fake`). Fresh
-Nextcloud 33 and 34 servers install it with `occ app:install` and through the
+Nextcloud 33, 34 and 35 servers install it with `occ app:install` and through the
 Apps page — the Files category's list, the app's row, Download and enable —
 then `tests/e2e/store/check-install.sh` checks every install step and a smoke
 run of the e2e suite drives the installed copy. The store job waits for it, so
@@ -180,9 +180,9 @@ flowchart TD
 
     subgraph test ["test.yml — Nextcloud App Testing Matrix"]
         upstream["Upstream releases<br/><i>reports only, never blocks</i>"]
-        lint["Lint<br/>ESLint · Stylelint · PHP syntax · manifest schema"]
-        phpunit["PHPUnit<br/>NC 33 · 34 × PHP 8.2 · 8.3 · 8.4"]
-        cypress["Cypress E2E<br/>NC 33 · 34"]
+        lint["Lint<br/>ESLint · type check · Stylelint · PHP syntax · ECS · Psalm · manifest schema · translations"]
+        phpunit["PHPUnit<br/>NC 33 · 34 × PHP 8.2 · 8.3 · 8.4<br/>NC 35 × PHP 8.3 · 8.4"]
+        cypress["Cypress E2E<br/>NC 33 · 34 · 35"]
         publishcall{{"Publish<br/><i>version tags only</i>"}}
     end
 
@@ -192,8 +192,10 @@ flowchart TD
         subgraph precheck ["Install before publishing — install-check.yml against the fake store"]
             occ33["occ · NC 33"]
             occ34["occ · NC 34"]
+            occ35["occ · NC 35"]
             web33["Apps page · NC 33"]
             web34["Apps page · NC 34"]
+            web35["Apps page · NC 35"]
         end
         store["Publish to the App Store<br/><i>environment appstore · APPSTORE_TOKEN</i><br/>verify signature, post to the store"]
         listed["Listed by the store<br/>the store lists the upload · every host lists it<br/>comment on the release commit"]
@@ -202,8 +204,8 @@ flowchart TD
     trigger --> upstream & lint & phpunit & cypress
     lint & phpunit & cypress --> publishcall
     publishcall --> build --> sign
-    sign --> occ33 & occ34 & web33 & web34
-    occ33 & occ34 & web33 & web34 --> store
+    sign --> occ33 & occ34 & occ35 & web33 & web34 & web35
+    occ33 & occ34 & occ35 & web33 & web34 & web35 --> store
     store --> listed
 ```
 

@@ -11,6 +11,11 @@ the first stable release.
 
 ## [Unreleased]
 
+### Added
+
+- Nextcloud 35 (`appinfo/info.xml`); CI tests it on PHP 8.3 and 8.4,
+  which is all Nextcloud 35 runs on.
+
 ### Changed
 
 - Database reads use `fetchAssociative()` and `fetchAllAssociative()`,

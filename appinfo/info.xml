@@ -196,7 +196,7 @@ O que você recebe:
 		<database>mysql</database>
 		<database>pgsql</database>
 		<nextcloud min-version="33"
-				   max-version="34"/>
+				   max-version="35"/>
 	</dependencies>
 	<background-jobs>
 		<job>OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob</job>
