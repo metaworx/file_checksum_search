@@ -127,11 +127,19 @@ class CommandTest
 		$data = json_decode( $tester->getDisplay(), true );
 		$this->assertIsArray( $data, 'JSON output should be valid.' );
 		$this->assertArrayHasKey( 'app_version', $data );
-		$this->assertArrayHasKey( 'filecache_rows', $data );
-		$this->assertArrayHasKey( 'metadata_rows', $data );
+		$this->assertArrayHasKey( 'checksum_rows', $data );
+		$this->assertArrayHasKey( 'checksum_rows_at', $data );
+		// The whole-table counts only with --full.
+		$this->assertArrayNotHasKey( 'filecache_rows', $data );
+		$this->assertArrayNotHasKey( 'metadata_rows', $data );
 		$this->assertArrayHasKey( 'pending_total', $data );
 		$this->assertArrayHasKey( 'pending_by_mode', $data );
 		$this->assertIsArray( $data['pending_by_mode'] );
+
+		$tester->execute( [ '--output' => 'json', '--full' => true ] );
+		$full = json_decode( $tester->getDisplay(), true );
+		$this->assertIsInt( $full['filecache_rows'] );
+		$this->assertIsInt( $full['metadata_rows'] );
 	}
 
 	/**
@@ -148,6 +156,7 @@ class CommandTest
 
 		$display = $tester->getDisplay();
 		$this->assertStringContainsString( 'FCIAS Status', $display );
+		$this->assertStringContainsString( 'Indexed checksums:', $display );
 		$this->assertStringContainsString( 'Filecache entries:', $display );
 		$this->assertStringContainsString( 'Metadata updated_at:', $display );
 		$this->assertStringContainsString( 'Pending total:', $display );

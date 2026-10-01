@@ -10,9 +10,14 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Command;
 
 use OCA\FileChecksumSearch\Command\ShowStatus;
+use OCA\FileChecksumSearch\Service\DatabaseService;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\StatusService;
+use OCA\FileChecksumSearch\Service\TableNameService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
+use OCP\App\IAppManager;
+use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\DB\IResult;
 use OCP\IAppConfig;
 use OCP\IDBConnection;
@@ -61,8 +66,14 @@ class ShowStatusTest
 				               'rule_sweep'         => [ 'lastRun' => 1700000000, 'counts' => [ 'matched' => 12, 'marked' => 3 ] ],
 				               'filecache_backfill' => [ 'lastRun' => 1700000100, 'counts' => [ 'copied' => 1200, 'files' => 900, 'done' => 0 ] ],
 				               'hash_index_check'   => [ 'lastRun' => null, 'counts' => [] ],
+				               // Counted a second before the mocked clock, so kept.
+				               JobStatsService::JOB_CHECKSUM_COUNT => [ 'lastRun' => 1700000499, 'counts' => [ 'rows' => 406419 ] ],
 			               ],
 		               )
+		;
+		// The interval's default, an hour; the background count off.
+		$this->appConfig->method( 'getValueInt' )
+		                ->willReturnArgument( 2 )
 		;
 
 		$result = $this->createMock( IResult::class );
@@ -73,11 +84,26 @@ class ShowStatusTest
 		                   ->willReturn( $result )
 		;
 
+		$time = $this->createMock( ITimeFactory::class );
+		$time->method( 'getTime' )
+		     ->willReturn( 1700000500 )
+		;
+
+		// StatusService is readonly, so not a mock: a real one over this
+		// test's own metadata, job-stats and config mocks.
 		$this->command = new ShowStatus(
 			$this->db,
 			$this->metadataService,
 			$this->appConfig,
-			$this->jobStats,
+			new StatusService(
+				$this->createMock( DatabaseService::class ),
+				$this->createMock( TableNameService::class ),
+				$this->createMock( IAppManager::class ),
+				$this->metadataService,
+				$this->jobStats,
+				$time,
+				$this->appConfig,
+			),
 			$this->logger,
 		);
 		$this->tester  = new CommandTester( $this->command );
@@ -101,15 +127,87 @@ class ShowStatusTest
 		                      )
 		;
 
-		$exitCode = $this->tester->execute( [] );
+		$exitCode = $this->tester->execute( [ '--full' => true ] );
 
 		$this->assertSame( Command::SUCCESS, $exitCode );
 		$display = $this->tester->getDisplay();
 		$this->assertStringContainsString( '1.9.2', $display );
-		$this->assertStringContainsString( '5000', $display );
-		$this->assertStringContainsString( '4200', $display );
+		$this->assertStringContainsString( 'Filecache entries:      5000', $display );
+		$this->assertStringContainsString( 'Metadata updated_at:    4200', $display );
 		$this->assertStringContainsString( 'Pending total:          4', $display );
 		$this->assertStringContainsString( 'pending:auto', $display );
+	}
+
+	/**
+	 * Without --full, nothing that reads a whole table: the filecache and the
+	 * stamp rows go uncounted and say how to have them, and the checksum
+	 * count is the kept one, with when it was taken.
+	 */
+	public function testWithoutFullTheWholeTableCountsAreLeftOut(): void
+	{
+		$this->appConfig->method( 'getValueString' )
+		                ->willReturn( '1.9.2' )
+		;
+		$this->metadataService->method( 'getPendingStats' )
+		                      ->willReturn( [] )
+		;
+		$this->queryBuilder->expects( $this->never() )
+		                   ->method( 'executeQuery' )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'countHashEntries' )
+		;
+
+		$this->tester->execute( [] );
+		$display = $this->tester->getDisplay();
+
+		$this->assertMatchesRegularExpression( '/Indexed checksums:\s+406419\s+\(counted \d{4}-\d{2}-\d{2} [\d:]+ \S+\)/', $display );
+		$this->assertStringContainsString( 'Filecache entries:      (with --full)', $display );
+		$this->assertStringContainsString( 'Metadata updated_at:    (with --full)', $display );
+
+		$this->tester->execute( [ '--output' => 'json' ] );
+		$decoded = json_decode( trim( $this->tester->getDisplay() ), true );
+
+		$this->assertSame( 406419, $decoded['checksum_rows'] );
+		$this->assertSame( 1700000499, $decoded['checksum_rows_at'] );
+		$this->assertArrayNotHasKey( 'filecache_rows', $decoded );
+		$this->assertArrayNotHasKey( 'metadata_rows', $decoded );
+	}
+
+	/** --full counts the indexed checksums anew, whatever the kept count's age. */
+	public function testFullCountsTheChecksumsAnew(): void
+	{
+		$this->appConfig->method( 'getValueString' )
+		                ->willReturn( '1.9.2' )
+		;
+		$this->metadataService->method( 'getPendingStats' )
+		                      ->willReturn( [] )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'countHashEntries' )
+		                      ->willReturn( 406500 )
+		;
+
+		$this->tester->execute( [ '--output' => 'json', '--full' => true ] );
+		$decoded = json_decode( trim( $this->tester->getDisplay() ), true );
+
+		$this->assertSame( 406500, $decoded['checksum_rows'] );
+		$this->assertSame( 1700000500, $decoded['checksum_rows_at'] );
+	}
+
+	/** The checksum count is a background job only while switched on, as on the page. */
+	public function testTheChecksumCountIsListedAsAJobOnlyWhileSwitchedOn(): void
+	{
+		$this->appConfig->method( 'getValueString' )
+		                ->willReturn( '1.9.2' )
+		;
+		$this->metadataService->method( 'getPendingStats' )
+		                      ->willReturn( [] )
+		;
+
+		$this->tester->execute( [] );
+
+		$this->assertStringNotContainsString( 'Checksum count', $this->tester->getDisplay() );
 	}
 
 	/**
@@ -179,7 +277,7 @@ class ShowStatusTest
 		                      ->willReturn( [ 'pending:auto' => 2 ] )
 		;
 
-		$this->tester->execute( [ '--output' => 'json' ] );
+		$this->tester->execute( [ '--output' => 'json', '--full' => true ] );
 
 		$decoded = json_decode( trim( $this->tester->getDisplay() ), true );
 		$this->assertSame( '1.9.2', $decoded['app_version'] );

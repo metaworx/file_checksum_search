@@ -115,7 +115,6 @@ class SettingsControllerTest
 			                         $this->metadataService,
 			                         $this->permissionService,
 			                         $this->appConfig,
-			                         $this->jobStats,
 				new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ),
 				$this->englishL10n(),
 			] )

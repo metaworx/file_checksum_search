@@ -90,6 +90,25 @@ readonly class StatusService
 		return $this->recountHashRows();
 	}
 
+	/**
+	 * The background jobs' last runs, as the status lists them. The checksum
+	 * count's record is kept however the count was taken, but it is a
+	 * background job only while the background count is switched on.
+	 *
+	 * @return array<string, array{lastRun: int|null, counts: array<string, int>}>
+	 */
+	public function getListedJobs(): array
+	{
+		$jobs = $this->jobStats->lastRuns();
+
+		if ( ! $this->isHashRowCountInBackground() )
+		{
+			unset( $jobs[ JobStatsService::JOB_CHECKSUM_COUNT ] );
+		}
+
+		return $jobs;
+	}
+
 	/** Seconds the stored checksum count may age before it is taken again. */
 	public function getHashRowCountInterval(): int
 	{

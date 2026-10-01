@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Command;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\StatusService;
 use OCP\IAppConfig;
 use OCP\IDBConnection;
 use Psr\Log\LoggerInterface;
@@ -34,7 +35,7 @@ class ShowStatus
 		private readonly IDBConnection   $db,
 		private readonly MetadataService $metadataService,
 		private readonly IAppConfig      $appConfig,
-		private readonly JobStatsService $jobStats,
+		private readonly StatusService   $status,
 		private readonly LoggerInterface $logger,
 	)
 	{
@@ -58,6 +59,13 @@ class ShowStatus
 			     'Output format: plain, json, json_pretty (default: plain)',
 			     'plain',
 		     )
+		     ->addOption(
+			     'full',
+			     null,
+			     InputOption::VALUE_NONE,
+			     'Also count the filecache entries and the stamp rows, and count the indexed checksums anew. '
+			     . 'Each reads a whole table or index, which takes up to a minute on a large instance whose cache has gone cold.',
+		     )
 		;
 	}
 
@@ -75,23 +83,36 @@ class ShowStatus
 			[ 'app' => Application::APP_ID ],
 		);
 
+		// The filecache and stamp counts read a whole table or index each: 52 s
+		// and 7 s cold on one large instance, for figures an operator rarely
+		// needs. Only when asked; the checksum count is the kept one unless so.
+		$full           = (bool) $input->getOption( 'full' );
 		$appVersion     = $this->getAppVersion();
-		$filecacheCount = $this->getFilecacheCount();
-		$metadataCount  = $this->getMetadataCount();
+		$checksums      = $this->status->getHashRowCount( $full );
+		$filecacheCount = $full ? $this->getFilecacheCount() : null;
+		$metadataCount  = $full ? $this->getMetadataCount() : null;
 		$pendingStats   = $this->metadataService->getPendingStats();
 		$totalPending   = array_sum( $pendingStats );
 		$staleStats     = $this->metadataService->getStaleStats();
 		$totalStale     = array_sum( $staleStats );
-		$jobs           = $this->jobStats->lastRuns();
+		$jobs           = $this->status->getListedJobs();
 
 		if ( $outFmt === 'json' || $outFmt === 'json_pretty' )
 		{
 			$output->writeln(
 				json_encode(
 					[
-						'app_version'         => $appVersion,
-						'filecache_rows'      => $filecacheCount,
-						'metadata_rows'       => $metadataCount,
+						'app_version'      => $appVersion,
+						'checksum_rows'    => $checksums['rows'],
+						'checksum_rows_at' => $checksums['at'],
+					]
+					+ ( $full
+						? [
+							'filecache_rows' => $filecacheCount,
+							'metadata_rows'  => $metadataCount,
+						]
+						: [] )
+					+ [
 						'pending_total'       => $totalPending,
 						'pending_by_mode'     => $pendingStats,
 						'untrusted_total'     => $totalStale,
@@ -111,8 +132,23 @@ class ShowStatus
 		$output->writeln( '' );
 
 		$output->writeln( sprintf( 'App version:            %s', $appVersion ) );
-		$output->writeln( sprintf( 'Filecache entries:      %d', $filecacheCount ) );
-		$output->writeln( sprintf( 'Metadata updated_at:    %d', $metadataCount ) );
+		$output->writeln(
+			sprintf(
+				'Indexed checksums:      %d   (counted %s)',
+				$checksums['rows'],
+				date( 'Y-m-d H:i:s T', $checksums['at'] ),
+			),
+		);
+		$output->writeln(
+			$filecacheCount === null
+				? 'Filecache entries:      (with --full)'
+				: sprintf( 'Filecache entries:      %d', $filecacheCount ),
+		);
+		$output->writeln(
+			$metadataCount === null
+				? 'Metadata updated_at:    (with --full)'
+				: sprintf( 'Metadata updated_at:    %d', $metadataCount ),
+		);
 		$output->writeln( sprintf( 'Pending total:          %d', $totalPending ) );
 		$output->writeln( sprintf( 'Untrusted total:        %d', $totalStale ) );
 

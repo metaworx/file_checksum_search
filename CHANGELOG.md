@@ -34,6 +34,9 @@ the first stable release.
 - Admin status panel: the versions and jobs show before the counts,
   which Refresh takes anew.
 
+- `occ fcias:status`: the filecache and stamp-row counts, in the JSON
+  as well, only with `--full`.
+
 ### Fixed
 
 - Admin status panel: the layout fits translated text.

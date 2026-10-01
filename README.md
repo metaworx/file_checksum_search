@@ -156,7 +156,7 @@ warning level.
 
 | Command | Description |
 |---------|-------------|
-| `file-checksum-search:status [--output=<fmt>]` | Display app version, row counts, pending stats and the background jobs' last runs; also `fcias:status` |
+| `file-checksum-search:status [--output=<fmt>] [--full]` | Display app version, the indexed checksums as last counted, pending stats and the background jobs' last runs; `--full` counts the checksums anew and adds the filecache and stamp-row counts, which take up to a minute on a large instance; also `fcias:status` |
 | `file-checksum-search:show-config [--output=<fmt>]` | Display all app config key/value pairs |
 
 `--output` accepts `plain` (default), `json`, or `json_pretty`.

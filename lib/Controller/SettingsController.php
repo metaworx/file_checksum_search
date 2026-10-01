@@ -11,7 +11,6 @@ namespace OCA\FileChecksumSearch\Controller;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
-use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\PermissionService;
@@ -55,7 +54,6 @@ class SettingsController
 		private readonly MetadataService   $metadataService,
 		private readonly PermissionService $permissionService,
 		private readonly IAppConfig        $appConfig,
-		private readonly JobStatsService   $jobStats,
 		private readonly AlgorithmCatalogue $catalogue,
 		private readonly IL10N $l10n,
 	)
@@ -82,19 +80,10 @@ class SettingsController
 	#[ApiRoute( verb: 'GET', url: '/settings/status' )]
 	public function getStatus(): DataResponse
 	{
-		$jobs = $this->jobStats->lastRuns();
-
-		// The count's record is kept however the count was taken, but it is
-		// a background job only while the background count is switched on.
-		if ( ! $this->statusService->isHashRowCountInBackground() )
-		{
-			unset( $jobs[ JobStatsService::JOB_CHECKSUM_COUNT ] );
-		}
-
 		return new DataResponse( [
 			'version'                => $this->statusService->getAppVersion(),
 			'dbVersion'              => $this->statusService->getDbVersion(),
-			'jobs'                   => $jobs,
+			'jobs'                   => $this->statusService->getListedJobs(),
 			'idleBannerAcknowledged' => $this->appConfig->getValueBool(
 				Application::APP_ID,
 				RuleService::CONFIG_KEY_IDLE_BANNER_ACK,
