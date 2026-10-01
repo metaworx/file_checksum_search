@@ -1,0 +1,425 @@
+#!/usr/bin/env bash
+#
+# fcias - File Checksum Index & Search, from a Nextcloud server's shell
+#
+# Self-contained on purpose: it runs on a server, where there is no checkout
+# of this repository and so no GUIDELINES/shared/lang/shell/tools/cli-v1.sh
+# to source. It keeps that library's interface by hand
+# (GUIDELINES/shared/lang/shell/CLI.md): --help, --version, the verbosity
+# options, a header on stderr, exit codes 0, 1 and 2.
+
+SCRIPT_NAME="${SCRIPT_NAME:-$(basename -- "$0")}"
+SCRIPT_VERSION='1.0.0'
+SCRIPT_LONG='File Checksum Index & Search, from the shell'
+SCRIPT_DESC='Brings the app up to the newest release the Nextcloud app store has for
+the server it runs on.
+
+"update" asks the store first, and stops there when it has nothing newer
+than what is installed. Otherwise, since releases below 1.0.0 reach the
+store as nightly releases, which Nextcloud offers only on its daily update
+channel, and Nextcloud keeps a copy of the store list for up to an hour, it
+deletes that copy, so the list is fetched again, and asks for nightly
+releases explicitly; the channel stays as it is. Without --force it only
+reports what it found.'
+
+set -euo pipefail
+
+readonly APP_ID='file_checksum_search'
+readonly EXIT_OK=0
+readonly EXIT_FOUND=1
+readonly EXIT_USAGE=2
+
+declare -rA LEVELS=( [quiet]=1 [error]=1 [warn]=2 [info]=3 [debug]=4 [trace]=5 )
+
+
+# ---------- Usage ----------
+
+usage() { # usage [<exit code>] [<1: the whole manual | 0: synopsis and options>]
+	local -ri exit_code="${1:-$EXIT_USAGE}"
+	local -ri everything="${2:-1}"
+	local -i fd=2
+
+	# Asked for, it is output; provoked by a bad invocation, a diagnostic.
+	(( exit_code == EXIT_OK )) && fd=1
+
+	{
+		(( everything )) && printf '%s\n\n' "$SCRIPT_DESC"
+
+		cat <<-EOF
+			SYNOPSIS:
+			  $SCRIPT_NAME update [<path>] [<web-user>] [--force] [--php <binary>]
+			  $SCRIPT_NAME --help | --version
+
+			OPTIONS:
+			  --force               update the app; with nothing newer in the store, refresh
+			                        Nextcloud's store list and ask it anyway. Without it,
+			                        only report what is available
+			  --php <binary>        the PHP CLI to run occ with (default: \$PHP, else php)
+			  -q, --quiet           errors only
+			      --debug           also the script's own reasoning
+			      --trace           also every command as it runs
+			      --verbosity <level>
+			                        quiet, error, warn, info (the default), debug or trace
+			  -h, --help            this help
+			  -V, --version         the version line
+		EOF
+
+		if (( everything )); then
+			cat <<-EOF
+
+			COMMANDS:
+			  update      fetch the store list again and update $APP_ID from it,
+			              nightly releases included
+
+			POSITIONAL:
+			  <path>      where to start looking for Nextcloud: the first directory,
+			              walking up from here, that holds both occ and version.php
+			              (default: the current directory)
+			  <web-user>  the account occ runs as (default: the owner of
+			              config/config.php, which occ itself insists on)
+
+			EXAMPLES:
+			  $SCRIPT_NAME update
+			  $SCRIPT_NAME update /var/www/nextcloud --force
+			  PHP=php8.4 $SCRIPT_NAME update /var/www/nextcloud www-data --force
+
+			ENVIRONMENT:
+			  PHP         the PHP CLI to run occ with; --php overrides it
+
+			FILES:
+			  <appstoreurl>/platform/<version>/apps.json
+			              the store's list for this Nextcloud version, read first;
+			              the store is the default unless config.php names another
+			  <datadirectory>/appdata_<instanceid>/appstore/apps.json
+			              Nextcloud's copy of the store list, deleted when the store
+			              has something newer, or with --force; Nextcloud fetches it
+			              again when next asked
+
+			REQUIREMENTS:
+			  bash 4 or later, the PHP CLI the server runs on, curl (else PHP reads
+			  the store), and sudo or runuser when run as root. Run as root or as
+			  the web user.
+			EOF
+		fi
+	} >&"$fd"
+
+	exit "$exit_code"
+}
+
+
+# ---------- Output ----------
+
+log() { # log <level> <message>
+	local -r level="$1"
+	shift
+
+	(( LEVELS[$level] <= verbosity )) || return 0
+
+	case "$level" in
+	error) printf '%s: error: %s\n' "$SCRIPT_NAME" "$*" >&2 ;;
+	warn)  printf '%s: warning: %s\n' "$SCRIPT_NAME" "$*" >&2 ;;
+	*)     printf '%s: %s\n' "$SCRIPT_NAME" "$*" >&2 ;;
+	esac
+}
+
+# The tool could not run: a missing requirement, a Nextcloud it cannot reach.
+die() { # die <message>
+	log error "$*"
+	exit "$EXIT_USAGE"
+}
+
+# A wrong invocation: what the shell passed, then synopsis and options.
+bad_invocation() { # bad_invocation <message>
+	printf '%s: error: %s\n' "$SCRIPT_NAME" "$1" >&2
+	printf '  %s@%s:%s$ %s' "$(id -un)" "$(hostname)" "$PWD" "$SCRIPT_NAME" >&2
+	(( ${#ARGV[@]} )) && printf ' %q' "${ARGV[@]}" >&2
+	printf '\n\n' >&2
+	usage "$EXIT_USAGE" 0
+}
+
+
+# ---------- Nextcloud ----------
+
+# The first directory at or above <start> that holds occ and version.php.
+find_root() { # find_root <start>
+	local dir="$1"
+
+	[[ -d "$dir" ]] || dir="$(dirname -- "$dir")"
+	dir="$(cd -- "$dir" 2>/dev/null && pwd -P)" || die "no such directory: $1"
+
+	while :; do
+		if [[ -f "$dir/occ" && -f "$dir/version.php" ]]; then
+			printf '%s\n' "$dir"
+			return 0
+		fi
+		[[ "$dir" == / ]] && break
+		dir="$(dirname -- "$dir")"
+	done
+
+	die "no Nextcloud at or above $1: no directory there holds both occ and version.php"
+}
+
+owner_of() { # owner_of <file>
+	stat -c %U -- "$1" 2>/dev/null || stat -f %Su -- "$1"
+}
+
+# Run a command as the web user: directly when that is who we are, through
+# sudo or runuser when we are root.
+as_web_user() { # as_web_user <command> [<argument>...]
+	if [[ "$(id -un)" == "$WEB_USER" ]]; then
+		"$@"
+	elif (( EUID != 0 )); then
+		die "run this as root or as $WEB_USER"
+	elif command -v sudo >/dev/null; then
+		sudo -u "$WEB_USER" -- "$@"
+	elif command -v runuser >/dev/null; then
+		runuser -u "$WEB_USER" -- "$@"
+	else
+		die "running as root needs sudo or runuser to act as $WEB_USER"
+	fi
+}
+
+occ() { # occ <command> [<argument>...]
+	log debug "occ $*"
+	as_web_user "$PHP_BIN" "$NC_ROOT/occ" --no-interaction "$@"
+}
+
+# A value out of JSON read from stdin, by a PHP expression over $d.
+json_value() { # json_value <expression>
+	"$PHP_BIN" -r '$d = json_decode(stream_get_contents(STDIN), true); echo '"$1"';'
+}
+
+installed_version() {
+	occ app:list --output=json \
+		| json_value '$d["enabled"]["'"$APP_ID"'"] ?? $d["disabled"]["'"$APP_ID"'"] ?? ""'
+}
+
+# -1, 0 or 1, as PHP's version_compare(), which is what Nextcloud compares by.
+version_cmp() { # version_cmp <a> <b>
+	"$PHP_BIN" -r 'echo version_compare($argv[1], $argv[2]);' "$1" "$2"
+}
+
+# The URL's content on stdout: curl where there is one, the server's PHP
+# otherwise.
+fetch() { # fetch <url>
+	if command -v curl >/dev/null; then
+		curl -fsSL --max-time 120 -- "$1"
+	else
+		"$PHP_BIN" -r 'readfile($argv[1]) !== false or exit(1);' "$1"
+	fi
+}
+
+# The newest release the store lists for this Nextcloud version, as
+# "<version>|<nightly or stable>|<PHP range>|<Nextcloud range>"; nothing
+# when the store does not list the app. Asked of the store itself, so that
+# nothing on the server changes before it is known whether anything should.
+store_release() { # store_release <nextcloud version>
+	local url
+
+	url="$(occ config:system:get appstoreurl 2>/dev/null || true)"
+	url="${url:-https://apps.nextcloud.com/api/v1}/platform/$1/apps.json"
+	log debug "the store's list: $url"
+
+	# The list runs to some ten megabytes, more than a default memory limit
+	# holds once decoded.
+	fetch "$url" | "$PHP_BIN" -d memory_limit=-1 -r '
+		foreach (json_decode(stream_get_contents(STDIN), true) ?: [] as $app) {
+			if (($app["id"] ?? "") !== $argv[1]) {
+				continue;
+			}
+			$newest = null;
+			foreach ($app["releases"] ?? [] as $release) {
+				if ($newest === null || version_compare($release["version"], $newest["version"], ">")) {
+					$newest = $release;
+				}
+			}
+			if ($newest !== null) {
+				printf("%s|%s|%s|%s\n",
+					$newest["version"],
+					empty($newest["isNightly"]) ? "stable" : "nightly",
+					$newest["rawPhpVersionSpec"] ?? "*",
+					$newest["rawPlatformVersionSpec"] ?? "*");
+			}
+		}' "$APP_ID"
+}
+
+# Delete Nextcloud's copy of the store list, so the next look fetches it
+# again: Nextcloud filters it before keeping it, and would otherwise answer
+# from a copy that left nightly releases out.
+refresh_store_list() {
+	local datadir instanceid cache
+
+	if occ config:system:get objectstore >/dev/null 2>&1; then
+		log warn "the primary storage is an object store, so the store list is not a file to delete; Nextcloud fetches it again within the hour"
+		return 0
+	fi
+
+	datadir="$(occ config:system:get datadirectory)"
+	instanceid="$(occ config:system:get instanceid)"
+	cache="$datadir/appdata_$instanceid/appstore/apps.json"
+
+	if as_web_user test -f "$cache"; then
+		as_web_user rm -f -- "$cache"
+		occ files:scan-app-data appstore >/dev/null
+		log info "deleted Nextcloud's copy of the store list: $cache"
+	else
+		log info "no copy of the store list to delete; Nextcloud fetches it when asked"
+	fi
+
+	# A failed fetch holds the next one back for five minutes.
+	occ config:app:delete settings appstore-fetcher-lastFailure >/dev/null 2>&1 || true
+}
+
+
+# ---------- Commands ----------
+
+cmd_update() { # cmd_update [<path>] [<web-user>]
+	local nc_version installed app_path offer available now
+	local store='' store_version='' store_kind='' store_php='' store_nc=''
+
+	NC_ROOT="$(find_root "${1:-$PWD}")"
+	WEB_USER="${2:-$(owner_of "$NC_ROOT/config/config.php")}" \
+		|| die "cannot tell who owns $NC_ROOT/config/config.php; name the web user"
+	log info "Nextcloud at $NC_ROOT, occ as $WEB_USER, $PHP_BIN"
+
+	nc_version="$(occ status --output=json | json_value '$d["versionstring"] ?? ""')"
+	installed="$(installed_version)"
+
+	if [[ -z "$installed" ]]; then
+		log error "$APP_ID is not installed on Nextcloud $nc_version; install it with: occ app:install --allow-unstable $APP_ID"
+		exit "$EXIT_FOUND"
+	fi
+	log info "$APP_ID $installed on Nextcloud $nc_version"
+
+	# What the store has, asked of the store: nothing on the server changes
+	# until it is known whether anything should. An unreadable store leaves
+	# the question to Nextcloud, whose answer decides in any case.
+	if ! store="$(store_release "$nc_version")"; then
+		log warn "could not read the store's list; asking Nextcloud instead"
+	elif [[ -z "$store" ]]; then
+		log warn "the store lists no release of $APP_ID for Nextcloud $nc_version; asking Nextcloud instead"
+	else
+		IFS='|' read -r store_version store_kind store_php store_nc <<< "$store"
+		log info "the store has $store_version for Nextcloud $nc_version: $store_kind, for PHP $store_php and Nextcloud $store_nc"
+
+		case "$(version_cmp "$installed" "$store_version")" in
+		1)
+			log info "$installed is newer than anything the store has; nothing to update"
+			return 0
+			;;
+		0)
+			if (( ! force )); then
+				log info "$installed is the newest release the store has; --force refreshes Nextcloud's store list and asks it anyway"
+				return 0
+			fi
+			log info "--force: refreshing Nextcloud's store list and asking it anyway"
+			;;
+		esac
+	fi
+
+	if [[ "$(occ config:system:get appstoreenabled 2>/dev/null || true)" == 'false' ]]; then
+		die "the app store is switched off on this server ('appstoreenabled' => false in config.php)"
+	fi
+
+	refresh_store_list
+
+	# Nextcloud never updates an app it takes for a git checkout.
+	app_path="$(occ app:getpath "$APP_ID")"
+	if [[ -e "$app_path/.git" ]]; then
+		log error "$app_path is a git checkout, which Nextcloud does not update; pull it instead"
+		exit "$EXIT_FOUND"
+	fi
+
+	offer="$(occ app:update --allow-unstable --showonly "$APP_ID")"
+	log debug "app:update --showonly: $offer"
+	available="$(sed -n "s/^$APP_ID new version available: //p" <<< "$offer")"
+
+	if [[ -z "$available" ]]; then
+		# The store has something newer and Nextcloud still will not offer it:
+		# the release's requirements are the likely reason, so name them.
+		if [[ -n "$store_version" && "$(version_cmp "$store_version" "$installed")" == 1 ]]; then
+			log error "the store has $store_version, but Nextcloud does not offer it: the release wants PHP $store_php and Nextcloud $store_nc, and occ runs PHP $("$PHP_BIN" -r 'echo PHP_VERSION;') on Nextcloud $nc_version"
+			exit "$EXIT_FOUND"
+		fi
+		log info "$installed is the newest release Nextcloud offers this server"
+		return 0
+	fi
+
+	if (( ! force )); then
+		log info "$available is available (installed: $installed); add --force to update"
+		exit "$EXIT_FOUND"
+	fi
+
+	# occ's own account of the update is about the run, not data: stderr.
+	occ app:update --allow-unstable "$APP_ID" >&2
+	now="$(installed_version)"
+
+	if [[ "$now" != "$available" ]]; then
+		log error "$APP_ID is at ${now:-nothing} after the update, not $available"
+		exit "$EXIT_FOUND"
+	fi
+	log info "updated $APP_ID: $installed → $now"
+}
+
+
+# ---------- Run ----------
+
+ARGV=("$@")
+verbosity="${LEVELS[info]}"
+force=0
+asked=''
+positional=()
+PHP_BIN="${PHP:-php}"
+NC_ROOT=''
+WEB_USER=''
+
+while (( $# )); do
+	case "$1" in
+	-h|--help)     asked='help' ;;
+	-V|--version)  asked='version' ;;
+	--force)       force=1 ;;
+	--php)         (( $# > 1 )) || bad_invocation "--php needs a binary"
+	               PHP_BIN="$2"
+	               shift ;;
+	--php=*)       PHP_BIN="${1#*=}" ;;
+	-q|--quiet)    verbosity="${LEVELS[quiet]}" ;;
+	--debug)       verbosity="${LEVELS[debug]}" ;;
+	--trace)       verbosity="${LEVELS[trace]}" ;;
+	--verbosity)   if (( $# < 2 )) || [[ -z "${LEVELS[$2]:-}" ]]; then
+	                   bad_invocation "--verbosity needs one of: quiet error warn info debug trace"
+	               fi
+	               verbosity="${LEVELS[$2]}"
+	               shift ;;
+	--verbosity=*) [[ -n "${LEVELS[${1#*=}]:-}" ]] || bad_invocation "--verbosity needs one of: quiet error warn info debug trace"
+	               verbosity="${LEVELS[${1#*=}]}" ;;
+	--)            shift
+	               positional+=("$@")
+	               break ;;
+	-*)            bad_invocation "unknown option: $1" ;;
+	*)             positional+=("$1") ;;
+	esac
+	shift
+done
+
+(( verbosity >= LEVELS[info] )) && printf '%s v%s - %s\n' "$SCRIPT_NAME" "$SCRIPT_VERSION" "$SCRIPT_LONG" >&2
+(( verbosity >= LEVELS[trace] )) && set -x
+
+case "$asked" in
+help)    usage "$EXIT_OK" 1 ;;
+version) printf '%s v%s\n' "$SCRIPT_NAME" "$SCRIPT_VERSION"
+         exit "$EXIT_OK" ;;
+esac
+
+(( ${#positional[@]} )) || usage
+
+PHP_BIN="$(command -v -- "$PHP_BIN")" || die "no PHP CLI found as ${PHP:-php}; set PHP or pass --php"
+
+case "${positional[0]}" in
+update)
+	(( ${#positional[@]} <= 3 )) || bad_invocation "update takes at most <path> and <web-user>"
+	cmd_update "${positional[@]:1}"
+	;;
+*)
+	bad_invocation "unknown command: ${positional[0]}"
+	;;
+esac
