@@ -611,6 +611,42 @@ class MetadataService
 	 *
 	 * @throws \OCP\DB\Exception
 	 */
+	/**
+	 * Whether a file carries anything of this app's: one of its keys in the
+	 * metadata document, or a row of its in the index — a queue mark is a
+	 * row alone, and a hash's row is written apart from the document.
+	 *
+	 * @throws Exception
+	 */
+	public function holdsAppData( IFilesMetadata $metadata ): bool
+	{
+		foreach ( $metadata->getKeys() as $key )
+		{
+			if ( str_starts_with( $key, self::KEY_FILE_CHECKSUM_PREFIX ) )
+			{
+				return true;
+			}
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( self::FIELD_FILE_ID )
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $metadata->getFileId(), IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->like( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_PREFIX . '%' ) ),
+		   )
+		   ->setMaxResults( 1 )
+		;
+
+		$result = $this->executeQuery( $qb );
+		$held   = $result->fetchOne() !== false;
+		$result->closeCursor();
+
+		return $held;
+	}
+
 	public function countByFileId( int $fileId ): int
 	{
 		$qb = $this->db->getQueryBuilder();

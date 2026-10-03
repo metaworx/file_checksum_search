@@ -307,14 +307,32 @@ class FileListener
 			return;
 		}
 
-		// Unconditional: by the time this event fires the filecache row is
-		// gone or moved into a trash area, so no rule can be said to govern
-		// the file any more — and this app's metadata rows only ever exist
-		// for files it hashed, so clearing is a no-op for everything else.
-		// Hashes describe content; content the user removed keeps none.
 		$fileId = $node->getId();
 
-		$this->metadataService->clearMetadata( $fileId );
+		// Deleted for good: the filecache row is gone, and Nextcloud takes
+		// the file's metadata with it (`MetadataDelete`; for a deleted
+		// user's or storage's files from nextcloud/server#63998 on). A save
+		// here would come after that: refused, where Nextcloud looks the
+		// gone file's storage up, or, where it goes through, a fresh
+		// document for a file that no longer exists. What Nextcloud does
+		// leave, the orphan purge collects.
+		if ( $this->filecacheService->locate( $fileId ) === null )
+		{
+			return;
+		}
+
+		// Moved into the trash. No rule governs it there, whatever governed
+		// it before, and hashes describe content; content the user removed
+		// keeps none. A file this app holds nothing for is left as it is:
+		// clearing would write it a document of this app's.
+		$metadata = $this->metadataService->getMetadata( $fileId );
+
+		if ( ! $this->metadataService->holdsAppData( $metadata ) )
+		{
+			return;
+		}
+
+		$this->metadataService->clearMetadata( $metadata );
 
 		$this->logger->debug(
 			'FCIAS FileListener: cleared metadata on file delete',

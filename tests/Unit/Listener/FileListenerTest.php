@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Listener;
 
 use OCA\FileChecksumSearch\Listener\FileListener;
 use OCA\FileChecksumSearch\Service\FilecacheService;
+use OCA\FileChecksumSearch\Service\FileLocation;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\Files\Events\Node\NodeCopiedEvent;
@@ -19,6 +20,7 @@ use OCP\Files\Events\Node\NodeDeletedEvent;
 use OCP\Files\Events\Node\NodeWrittenEvent;
 use OCP\Files\File;
 use OCP\Files\Folder;
+use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\IUser;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -504,40 +506,89 @@ class FileListenerTest
 		$this->listener->handle( $event );
 	}
 
-	public function testOnDeleteClearsMetadata(): void
+	/**
+	 * Moved into the trash with hashes of this app's: they are cleared,
+	 * whatever rule governed the file before — no rule governs the trash,
+	 * so none is consulted.
+	 */
+	public function testOnDeleteClearsATrashedFilesHashes(): void
 	{
-		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
-
-		$event = new NodeDeletedEvent( $file );
-
-		$this->metadataService->expects( $this->once() )
-		                      ->method( 'clearMetadata' )
-		                      ->with( 42 )
-		;
-
-		$this->listener->handle( $event );
-	}
-
-	public function testOnDeleteClearsWithoutConsultingRules(): void
-	{
-		// By the time NodeDeletedEvent fires, the filecache row is gone or
-		// moved to a trash area — no rule can be resolved for it, and this
-		// app's metadata rows only exist for files it hashed. Clearing is
-		// therefore unconditional, and no rule lookup happens at all.
-		$file = $this->makeFileMock( 42, '/files/user/untracked.txt' );
-
-		$event = new NodeDeletedEvent( $file );
+		$metadata = $this->trashedFile( 42, true );
 
 		$this->ruleService->expects( $this->never() )
 		                  ->method( 'findFirstMatchingRule' )
 		;
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'clearMetadata' )
-		                      ->with( 42 )
+		                      ->with( $metadata )
 		;
 
-		$this->listener->handle( $event );
+		$this->listener->handle( new NodeDeletedEvent( $this->makeFileMock( 42, '/files/user/foo.txt' ) ) );
+	}
+
+	/**
+	 * A trashed file this app holds nothing for is left alone: clearing
+	 * would write it a document of this app's, a stamp and all.
+	 */
+	public function testOnDeleteLeavesATrashedFileWithoutHashesAlone(): void
+	{
+		$this->trashedFile( 42, false );
+
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'clearMetadata' )
+		;
+
+		$this->listener->handle( new NodeDeletedEvent( $this->makeFileMock( 42, '/files/user/untracked.txt' ) ) );
+	}
+
+	/**
+	 * Deleted for good, the filecache row is gone and Nextcloud takes the
+	 * metadata with it. Saving after that is refused, or, where Nextcloud
+	 * lets it through, writes a document for a file that no longer exists:
+	 * nothing is read or written.
+	 */
+	public function testOnDeleteLeavesAFileDeletedForGoodToNextcloud(): void
+	{
+		$this->filecacheService->method( 'locate' )
+		                       ->with( 42 )
+		                       ->willReturn( null )
+		;
+
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'getMetadata' )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'clearMetadata' )
+		;
+
+		$this->listener->handle( new NodeDeletedEvent( $this->makeFileMock( 42, '/files/user/foo.txt' ) ) );
+	}
+
+	/**
+	 * A file the filecache still has — moved into the trash — whose
+	 * metadata holds this app's data or not.
+	 */
+	private function trashedFile(
+		int  $fileId,
+		bool $holdsAppData,
+	): IFilesMetadata&MockObject
+	{
+		$metadata = $this->createMock( IFilesMetadata::class );
+
+		$this->filecacheService->method( 'locate' )
+		                       ->with( $fileId )
+		                       ->willReturn( FileLocation::fromRow( $fileId, 'home::user', 'files_trashbin/files/foo.txt.d1', 0 ) )
+		;
+		$this->metadataService->method( 'getMetadata' )
+		                      ->with( $fileId )
+		                      ->willReturn( $metadata )
+		;
+		$this->metadataService->method( 'holdsAppData' )
+		                      ->with( $metadata )
+		                      ->willReturn( $holdsAppData )
+		;
+
+		return $metadata;
 	}
 
 	/**

@@ -15,6 +15,8 @@ use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
+use OCA\Files_Trashbin\Trash\ITrashManager;
+use OCP\App\IAppManager;
 use OCP\Files\Events\Node\NodeCreatedEvent;
 use OCP\Files\Events\Node\NodeDeletedEvent;
 use OCP\Files\Events\Node\NodeWrittenEvent;
@@ -490,6 +492,59 @@ class FileListenerTest
 		);
 	}
 
+	/**
+	 * A real deletion into the trash, through the listener the app
+	 * registers: a hashed file's hashes go, and a file this app never
+	 * touched is given no document of this app's — clearing used to write
+	 * one, a zero stamp and its index row, for every file deleted.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testATrashedFileLosesItsHashesAndAnUntouchedOneGetsNoDocument(): void
+	{
+		$hashed = $this->createTestFile( 'fcias_listener_trash_hashed_' . time() . '.dat' );
+		$plain  = $this->createTestFile( 'fcias_listener_trash_plain_' . time() . '.dat' );
+		$ids    = [ 'hashed' => $hashed->getId(), 'plain' => $plain->getId() ];
+
+		$this->metadataService->writeHashes( $ids['hashed'], [ 'sha1' => sha1( 'hashed' ) ], time(), false );
+
+		$hashed->delete();
+		$plain->delete();
+
+		$this->assertSame( 0, $this->metadataService->countByFileId( $ids['hashed'] ), 'the trashed file\'s hashes are gone' );
+		$this->assertSame( 0, $this->metadataRowsOf( $ids['plain'] ), 'the untouched file has no document of this app\'s' );
+	}
+
+	/**
+	 * Deleted for good, a file is Nextcloud's to clean up, and this app
+	 * writes nothing after it. On a server whose cleanup runs first, a
+	 * save from here wrote a fresh document for the gone file.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAFileDeletedForGoodGetsNoDocumentOfThisAppsAfterwards(): void
+	{
+		$plain  = $this->createTestFile( 'fcias_listener_gone_plain_' . time() . '.dat' );
+		$fileId = $plain->getId();
+		$trash  = Server::get( IAppManager::class )->isEnabledForAnyone( 'files_trashbin' )
+			? Server::get( ITrashManager::class )
+			: null;
+
+		$trash?->pauseTrash();
+
+		try
+		{
+			$plain->delete();
+		}
+		finally
+		{
+			$trash?->resumeTrash();
+		}
+
+		$this->assertNull( $this->filecacheService->locate( $fileId ), 'the file is gone for good' );
+		$this->assertSame( 0, $this->metadataRowsOf( $fileId ), 'and has no document of this app\'s' );
+	}
+
 	// ─── Common: FileListener handles non-File events gracefully ──────
 	public function testHandleIgnoresNonFileEventsGracefully(): void
 	{
@@ -607,6 +662,26 @@ class FileListenerTest
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
+	/**
+	 * Rows in either metadata table for one file id.
+	 */
+	private function metadataRowsOf( int $fileId ): int
+	{
+		$total = 0;
+
+		foreach ( [ 'files_metadata', 'files_metadata_index' ] as $table )
+		{
+			$result = $this->getRawConnection()
+			               ->executeQuery( "SELECT COUNT(*) FROM `*PREFIX*$table` WHERE `file_id` = ?", [ $fileId ] )
+			;
+
+			$total += (int) $result->fetchOne();
+			$result->free();
+		}
+
+		return $total;
+	}
+
 	private function createTestFile( string $name ): File
 	{
 		$userFolder = Server::get( IRootFolder::class )

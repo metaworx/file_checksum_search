@@ -55,6 +55,10 @@ the first stable release.
   deletes it, instead of failing on every run and, a batch of them
   together, stopping the purge.
 
+- Deleting a file: nothing of this app's is written for it afterwards,
+  neither for a file deleted for good nor for a trashed file without
+  hashes; each deletion for good no longer logs an error.
+
 ### Security
 
 - Reach: a received share is its subtree also in the request that

@@ -627,6 +627,53 @@ class MetadataServiceTest
 		$this->assertSame( 3, $count );
 	}
 
+	/**
+	 * A key of this app's in the document answers without asking the index.
+	 */
+	public function testAKeyInTheDocumentIsAppData(): void
+	{
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'getKeys' )
+		         ->willReturn( [ 'photos-exif', MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ] )
+		;
+
+		$this->queryBuilder->expects( $this->never() )
+		                   ->method( 'executeQuery' )
+		;
+
+		$this->assertTrue( $this->service->holdsAppData( $metadata ) );
+	}
+
+	/**
+	 * Without one, a row in the index decides: a queue mark is a row alone.
+	 */
+	public function testARowInTheIndexIsAppDataTooAndNothingIsNone(): void
+	{
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'getKeys' )
+		         ->willReturn( [ 'photos-exif' ] )
+		;
+		$metadata->method( 'getFileId' )
+		         ->willReturn( 42 )
+		;
+
+		$row  = $this->createMock( IResult::class );
+		$row->method( 'fetchOne' )
+		    ->willReturn( '42' )
+		;
+		$none = $this->createMock( IResult::class );
+		$none->method( 'fetchOne' )
+		     ->willReturn( false )
+		;
+
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturnOnConsecutiveCalls( $row, $none )
+		;
+
+		$this->assertTrue( $this->service->holdsAppData( $metadata ) );
+		$this->assertFalse( $this->service->holdsAppData( $metadata ) );
+	}
+
 	public function testGetUpdatedAtReturnsTimestamp(): void
 	{
 		$result = $this->createMock( IResult::class );
