@@ -56,6 +56,9 @@ const {
 	toggleDuplicates,
 } = useSidebarHashes(() => props.node)
 
+/** The table's rows, in the order the server keyed them. */
+const hashRows = computed(() => Object.values(hashes.value))
+
 /**
  * The way to the Duplicates page's Others tab, for a viewer who may look
  * across accounts and a file that has a hash to look for. One link, not a
@@ -149,13 +152,13 @@ watch(
 			<div v-else-if="error" class="fcias-error">
 				{{ error }}
 			</div>
-			<div v-else-if="hashes.length === 0" class="fcias-empty">
+			<div v-else-if="hashRows.length === 0" class="fcias-empty">
 				{{ t('file_checksum_search', 'No checksums available for this file.') }}
 			</div>
 			<div v-else class="fcias-hash-table-wrap">
 				<table class="fcias-hash-table">
 					<tbody>
-						<tr v-for="entry in hashes" :key="entry.algo">
+						<tr v-for="entry in hashRows" :key="entry.algo">
 							<td><span class="fcias-algo-badge">{{ entry.algo }}</span></td>
 							<td class="fcias-hash-value">
 								<span

@@ -14,18 +14,18 @@
 import { generateUrl } from '@nextcloud/router'
 import { FRONTEND } from '../routes'
 import { LISTING_DEFAULTS, fragmentFor } from '../duplicates-vue/urlState'
-import type { HashEntry } from './types'
+import type { HashEntry, HashMap } from './types'
 
 /**
  * Which of a file's hashes the link carries: the preferred algorithm's
- * where the file has one, else the first row's. Null with no hashes, which
- * is when there is nothing to look for.
+ * where the file has one, else the first. Null with no hashes, which is
+ * when there is nothing to look for.
  */
-export function hashForLink(hashes: readonly HashEntry[], preferred: string): HashEntry | null {
-	if (hashes.length === 0) {
-		return null
+export function hashForLink(hashes: Readonly<HashMap>, preferred: string): HashEntry | null {
+	if (Object.hasOwn(hashes, preferred)) {
+		return hashes[preferred]
 	}
-	return hashes.find((entry) => entry.algo === preferred) ?? hashes[0]
+	return Object.values(hashes)[0] ?? null
 }
 
 /**

@@ -1070,15 +1070,15 @@ components:
 
     FileHashesResponse:
       type: object
-      required: [fileid, hashes, algos, preferred, default]
+      required: [fileid, updated_at, hashes, algos, preferred, default]
       properties:
         fileid:
           type: integer
           example: 12345
+        updated_at:
+          $ref: "#/components/schemas/HashesUpdatedAt"
         hashes:
-          type: array
-          items:
-            $ref: "#/components/schemas/HashEntry"
+          $ref: "#/components/schemas/HashMap"
         algos:
           type: array
           items:
@@ -1144,16 +1144,27 @@ components:
         hash:
           type: string
           example: "da39a3ee5e6b4b0d3255bfef95601890afd80709"
-        updated_at:
-          type: string
-          format: date-time
-          nullable: true
-          description: >-
-            When the stored hashes were last written, from the freshness
-            stamp. Null where the file carries hashes but no stamp — the
-            state `occ fcias:repair --step unindexed-hashes` exists to
-            correct.
-          example: "2026-09-02T15:17:00+00:00"
+    HashMap:
+      type: object
+      description: >-
+        A file's hashes, keyed by algorithm; `{}` for a file with none.
+        Before 0.22.0 this was a list of HashEntry, each carrying the
+        file's `updated_at`.
+      additionalProperties:
+        $ref: "#/components/schemas/HashEntry"
+      example:
+        sha1: {algo: sha1, hash: "da39a3ee5e6b4b0d3255bfef95601890afd80709"}
+        sha256: {algo: sha256, hash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}
+    HashesUpdatedAt:
+      type: string
+      format: date-time
+      nullable: true
+      description: >-
+        When the file's hashes were last written, from its freshness
+        stamp: one per file, not one per algorithm. Null where the file
+        carries hashes but no stamp — the state
+        `occ fcias:repair --step unindexed-hashes` exists to correct.
+      example: "2026-09-02T15:17:00+00:00"
 
     SameHashResponse:
       type: object

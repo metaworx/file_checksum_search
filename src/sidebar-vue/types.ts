@@ -8,8 +8,10 @@
 export interface HashEntry {
 	algo: string
 	hash: string
-	updated_at?: string
 }
+
+/** A file's hashes, keyed by algorithm, as the hashes route answers them. */
+export type HashMap = Record<string, HashEntry>
 
 export interface DuplicateFile {
 	fileid: number

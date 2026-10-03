@@ -80,7 +80,7 @@ class ChecksumApi
 	 *
 	 * @param  File  $file  A Nextcloud File node
 	 *
-	 * @return array{fileid: int, hashes: array<int, array{algo: string, hash: string, updated_at: ?string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool}
+	 * @return array{fileid: int, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool}
 	 */
 	public function getHashesByFile( File $file ): array
 	{
@@ -109,7 +109,11 @@ class ChecksumApi
 	 *                                         the answer reports what such a
 	 *                                         caller may do: everything.
 	 *
-	 * @return array{fileid: int, hashes: array<int, array{algo: string, hash: string, updated_at: ?string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool}
+	 * `hashes` is keyed by algorithm. `updated_at` is the file's, when its
+	 * hashes were last written, ISO 8601: the app keeps one stamp per file,
+	 * not one per algorithm.
+	 *
+	 * @return array{fileid: int, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool}
 	 * @throws NotFoundException  If $reachUids is set and the file lies outside it
 	 */
 	public function getHashesByFileId(
@@ -123,19 +127,15 @@ class ChecksumApi
 			throw new NotFoundException( "Invalid file ID: $fileId" );
 		}
 
-		$hashes    = $this->metadataService->getHashes( $fileId );
 		$updatedAt = $this->metadataService->getUpdatedAt( $fileId );
 
 		$result = [];
 
-		foreach ( $hashes as $algo => $hash )
+		foreach ( $this->metadataService->getHashes( $fileId ) as $algo => $hash )
 		{
-			$result[] = [
-				'algo'       => $algo,
-				'hash'       => $hash,
-				'updated_at' => $updatedAt !== null
-					? date( 'c', $updatedAt )
-					: null,
+			$result[ $algo ] = [
+				'algo' => $algo,
+				'hash' => $hash,
 			];
 		}
 
@@ -150,16 +150,19 @@ class ChecksumApi
 			: '';
 
 		return [
-			'hashes'    => $result,
-			'fileid'    => $fileId,
-			'algos'     => RuleService::maintainsHashes( $rule )
+			'fileid'     => $fileId,
+			'updated_at' => $updatedAt !== null
+				? date( 'c', $updatedAt )
+				: null,
+			'hashes'     => $result,
+			'algos'      => RuleService::maintainsHashes( $rule )
 				? array_values( array_filter( (array) ( $rule['algos'] ?? [] ), 'is_string' ) )
 				: [],
-			'preferred' => $this->catalogue->isValid( $preferred ) ? $preferred : '',
-			'default'   => $this->catalogue->default(),
+			'preferred'  => $this->catalogue->isValid( $preferred ) ? $preferred : '',
+			'default'    => $this->catalogue->default(),
 			// So the sidebar can hide its Recalculate buttons for an account
 			// that may not, instead of offering them to fail.
-			'canRecalc' => $this->mayRecalc( $actingUser ),
+			'canRecalc'  => $this->mayRecalc( $actingUser ),
 		];
 	}
 
@@ -174,7 +177,7 @@ class ChecksumApi
 	 * @param  string       $path  Filesystem path
 	 * @param  string|null  $user  If provided, path is relative to this user's home
 	 *
-	 * @return array{fileid: int, path: string, hashes: array<int, array{algo: string, hash: string, updated_at: ?string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool}
+	 * @return array{fileid: int, path: string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool}
 	 * @throws NotFoundException  If the path cannot be resolved to a file
 	 */
 	public function getHashesByPath(

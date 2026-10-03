@@ -8,7 +8,7 @@ import { computed, ref } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import { OCS_API_V1 } from '../../routes'
 import { currentUid } from '../../fileLabel'
-import type { DuplicateGroup, FileNode, HashEntry } from '../types'
+import type { DuplicateGroup, FileNode, HashMap } from '../types'
 import { t } from '../../l10n'
 
 declare const OC: {
@@ -17,7 +17,7 @@ declare const OC: {
 
 export function useSidebarHashes(getNode: () => FileNode | null) {
 	const loading = ref(false)
-	const hashes = ref<HashEntry[]>([])
+	const hashes = ref<HashMap>({})
 	// What the quick buttons are composed from; see ChecksumsSidebarTab.
 	const ruleAlgos = ref<string[]>([])
 	const preferredAlgo = ref('')
@@ -62,7 +62,7 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 
 		const id = fileId.value
 		if (id === null) {
-			hashes.value = []
+			hashes.value = {}
 			ruleAlgos.value = []
 			preferredAlgo.value = ''
 			defaultAlgo.value = ''
@@ -71,21 +71,23 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 
 		loading.value = true
 		error.value = ''
-		hashes.value = []
+		hashes.value = {}
 
 		try {
 			const url = generateOcsUrl(OCS_API_V1.getHashes, { fileId: id })
 			const response = await fetch(url, { signal: abortController.signal })
 			if (!response.ok) throw new Error(`HTTP ${response.status}`)
 			const data = (await response.json()) as {
-				hashes?: HashEntry[]
+				hashes?: HashMap
 				algos?: string[]
 				preferred?: string
 				default?: string
 				canRecalc?: boolean
 				canSudo?: boolean
 			}
-			hashes.value = data.hashes || []
+			// Keyed by algorithm. A list, PHP's empty map among them, reads as
+			// no hashes rather than as entries keyed 0, 1, 2.
+			hashes.value = data.hashes && !Array.isArray(data.hashes) ? data.hashes : {}
 			ruleAlgos.value = Array.isArray(data.algos) ? data.algos : []
 			preferredAlgo.value = typeof data.preferred === 'string' ? data.preferred : ''
 			defaultAlgo.value = typeof data.default === 'string' ? data.default : ''

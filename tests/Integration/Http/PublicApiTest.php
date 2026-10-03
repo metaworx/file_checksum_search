@@ -209,12 +209,11 @@ class PublicApiTest
 		$this->assertArrayHasKey( 'fileid', $response );
 		$this->assertArrayHasKey( 'hashes', $response );
 		$this->assertSame( $this->testFileId1, $response['fileid'] );
-		$this->assertNotEmpty( $response['hashes'] );
+		$this->assertArrayHasKey( 'updated_at', $response, 'The stamp belongs to the file.' );
 
-		$algos = array_column( $response['hashes'], 'algo' );
-
-		$this->assertContains( 'sha1', $algos, 'Hashes should include sha1.' );
-		$this->assertContains( 'sha256', $algos, 'Hashes should include sha256.' );
+		// Keyed by algorithm, each entry naming its own.
+		$this->assertSame( [ 'algo' => 'sha1', 'hash' => $this->sharedSha1Hash ], $response['hashes']['sha1'] ?? null );
+		$this->assertSame( [ 'algo' => 'sha256', 'hash' => $this->sha256Hash ], $response['hashes']['sha256'] ?? null );
 	}
 
 	// ─── GET /api/v1/file/{fileId}/duplicates ────────────────────────

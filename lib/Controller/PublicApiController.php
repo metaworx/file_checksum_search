@@ -75,6 +75,22 @@ class PublicApiController
 	}
 
 
+//  static methods
+
+	/**
+	 * A map the JSON answer carries as an object: `{}` when empty, which PHP
+	 * would encode as `[]`. A client reading it by key should never meet a
+	 * list. Only the empty map is converted, since the OCS XML writer reads
+	 * a stdClass as having no members.
+	 *
+	 * @param  array<string, mixed>  $map
+	 */
+	private static function jsonObject( array $map ): array|\stdClass
+	{
+		return $map === [] ? new \stdClass() : $map;
+	}
+
+
 //  other non-static methods
 
 	/**
@@ -591,7 +607,8 @@ class PublicApiController
 
 		try
 		{
-			$result = $this->api->getHashesByFileId( $fileId, $reachUids, actingUser: $actingUser );
+			$result           = $this->api->getHashesByFileId( $fileId, $reachUids, actingUser: $actingUser );
+			$result['hashes'] = self::jsonObject( $result['hashes'] );
 
 			// Whether the sidebar may offer the way to the Others tab. The
 			// same fact the listing carries, for the same reason: the page

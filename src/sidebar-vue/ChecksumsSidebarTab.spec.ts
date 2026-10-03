@@ -45,23 +45,42 @@ async function mountWith(hashesResponse: unknown, size?: number, duplicatesRespo
 	return wrapper
 }
 
+describe('ChecksumsSidebarTab, the hashes', () => {
+	afterEach(() => {
+		vi.restoreAllMocks()
+	})
+
+	it('shows one row per algorithm the file has', async () => {
+		const wrapper = await mountWith({ hashes: { sha1: SHA1, sha256: SHA256 } })
+		expect(wrapper.findAll('.fcias-hash-table tr').map((row) => row.find('.fcias-algo-badge').text()))
+			.toEqual(['sha1', 'sha256'])
+		expect(wrapper.find('.fcias-selectable-hash').attributes('data-hash')).toBe(SHA1.hash)
+	})
+
+	it('says so for a file with none', async () => {
+		const wrapper = await mountWith({ hashes: {} })
+		expect(wrapper.find('.fcias-hash-table').exists()).toBe(false)
+		expect(wrapper.find('.fcias-empty').exists()).toBe(true)
+	})
+})
+
 describe('ChecksumsSidebarTab, the way across accounts', () => {
 	afterEach(() => {
 		vi.restoreAllMocks()
 	})
 
 	it('is not offered to a viewer who may not look across accounts', async () => {
-		const wrapper = await mountWith({ hashes: [SHA1], canSudo: false })
+		const wrapper = await mountWith({ hashes: { sha1: SHA1 }, canSudo: false })
 		expect(wrapper.find('[data-testid="fcias-dup-across"]').exists()).toBe(false)
 	})
 
 	it('is not offered for a file with nothing to look for', async () => {
-		const wrapper = await mountWith({ hashes: [], canSudo: true })
+		const wrapper = await mountWith({ hashes: {}, canSudo: true })
 		expect(wrapper.find('[data-testid="fcias-dup-across"]').exists()).toBe(false)
 	})
 
 	it('opens the Others tab on the preferred algorithm\'s hash, over the whole reach', async () => {
-		const wrapper = await mountWith({ hashes: [SHA1, SHA256], preferred: 'sha256', default: 'sha1', canSudo: true })
+		const wrapper = await mountWith({ hashes: { sha1: SHA1, sha256: SHA256 }, preferred: 'sha256', default: 'sha1', canSudo: true })
 		const link = wrapper.find('[data-testid="fcias-dup-across"]')
 		expect(link.attributes('href')).toBe(
 			`/index.php/apps/file_checksum_search/duplicates#others?hash=${SHA256.hash}&algo=sha256&all=1`,
@@ -70,16 +89,16 @@ describe('ChecksumsSidebarTab, the way across accounts', () => {
 	})
 
 	it('falls back to the first hash the file has', async () => {
-		const wrapper = await mountWith({ hashes: [SHA1, SHA256], preferred: 'md5', default: 'md5', canSudo: true })
+		const wrapper = await mountWith({ hashes: { sha1: SHA1, sha256: SHA256 }, preferred: 'md5', default: 'md5', canSudo: true })
 		expect(wrapper.find('[data-testid="fcias-dup-across"]').attributes('href')).toContain(`hash=${SHA1.hash}&algo=sha1`)
 	})
 
 	it('asks for the empty files when the file is empty, and only then', async () => {
-		const empty = await mountWith({ hashes: [SHA1], canSudo: true }, 0)
+		const empty = await mountWith({ hashes: { sha1: SHA1 }, canSudo: true }, 0)
 		expect(empty.find('[data-testid="fcias-dup-across"]').attributes('href')).toContain('includeEmpty=1')
 
 		vi.restoreAllMocks()
-		const full = await mountWith({ hashes: [SHA1], canSudo: true }, 12)
+		const full = await mountWith({ hashes: { sha1: SHA1 }, canSudo: true }, 12)
 		expect(full.find('[data-testid="fcias-dup-across"]').attributes('href')).not.toContain('includeEmpty')
 	})
 })
@@ -93,7 +112,7 @@ describe('ChecksumsSidebarTab, the duplicates in place', () => {
 	})
 
 	async function findDuplicates(duplicates: unknown[]) {
-		const wrapper = await mountWith({ hashes: [SHA1] }, undefined, { duplicates })
+		const wrapper = await mountWith({ hashes: { sha1: SHA1 } }, undefined, { duplicates })
 		await wrapper.find('.fcias-dup-btn').trigger('click')
 		await flushPromises()
 		return wrapper

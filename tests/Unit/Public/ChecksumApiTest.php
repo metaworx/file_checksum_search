@@ -715,7 +715,8 @@ class ChecksumApiTest
 		$data = $this->api->getHashesByFileId( 99999, null );
 
 		$this->assertSame( 99999, $data['fileid'] );
-		$this->assertEmpty( $data['hashes'] );
+		$this->assertSame( [], $data['hashes'] );
+		$this->assertNull( $data['updated_at'] );
 	}
 
 	/**
@@ -739,11 +740,17 @@ class ChecksumApiTest
 
 		$data = $this->api->getHashesByFileId( 42, null );
 
+		// Keyed by algorithm, the stamp once for the file: the app keeps one
+		// per file, and a list repeated it on every entry.
 		$this->assertSame( 42, $data['fileid'] );
-		$this->assertCount( 2, $data['hashes'] );
-		$this->assertSame( 'sha1', $data['hashes'][0]['algo'] );
-		$this->assertSame( 'abc', $data['hashes'][0]['hash'] );
-		$this->assertNotNull( $data['hashes'][0]['updated_at'] );
+		$this->assertSame(
+			[
+				'sha1'   => [ 'algo' => 'sha1', 'hash' => 'abc' ],
+				'sha256' => [ 'algo' => 'sha256', 'hash' => 'def' ],
+			],
+			$data['hashes'],
+		);
+		$this->assertSame( date( 'c', 1234567890 ), $data['updated_at'] );
 
 		// What the sidebar composes its quick buttons from. No rule governs the
 		// mocked file and no preference is stored, so: nothing from a rule, the

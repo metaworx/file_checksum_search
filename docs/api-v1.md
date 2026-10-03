@@ -140,9 +140,10 @@ Get all checksums for a file by its filecache ID.
 ```php
 [
     'fileid' => 12345,
+    'updated_at' => '2026-08-18T10:00:00+00:00',
     'hashes' => [
-        ['algo' => 'sha1', 'hash' => 'da39a3...', 'updated_at' => '2026-08-18T10:00:00+00:00'],
-        ['algo' => 'sha256', 'hash' => 'e3b0c4...', 'updated_at' => '2026-08-18T10:00:00+00:00'],
+        'sha1' => ['algo' => 'sha1', 'hash' => 'da39a3...'],
+        'sha256' => ['algo' => 'sha256', 'hash' => 'e3b0c4...'],
     ],
     'algos' => ['sha256', 'sha1'],
     'preferred' => 'sha256',
@@ -150,6 +151,11 @@ Get all checksums for a file by its filecache ID.
     'canRecalc' => true,
 ]
 ```
+
+`hashes` is keyed by algorithm, `[]` for a file with none; the REST answer
+carries that as `{}`. `updated_at` is the file's: when its hashes were last
+written, ISO 8601, `null` when they carry no stamp. The app keeps one stamp
+per file, not one per algorithm.
 
 **Throws:** `\OCP\Files\NotFoundException` if the file lies outside `$reachUids`.
 
@@ -185,14 +191,16 @@ Convenience method — get checksums by filesystem path.
 | `null` | Absolute filesystem path OR relative to NC data root | `$api->getHashesByPath('/alice/files/Photos/img.jpg')` |
 | `'alice'` | Relative to Alice's home folder | `$api->getHashesByPath('Photos/img.jpg', 'alice')` |
 
-**Returns:**
+**Returns:** Same shape as `getHashesByFileId()`, with `path` added:
 ```php
 [
     'fileid' => 12345,
     'path' => 'Photos/img.jpg',
+    'updated_at' => '2026-08-18T10:00:00+00:00',
     'hashes' => [
-        ['algo' => 'sha1', 'hash' => 'da39a3...'],
+        'sha1' => ['algo' => 'sha1', 'hash' => 'da39a3...'],
     ],
+    // algos, preferred, default, canRecalc as above
 ]
 ```
 
@@ -496,10 +504,11 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/hashes
 ```json
 {
   "fileid": 12345,
-  "hashes": [
-    {"algo": "sha1", "hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709", "updated_at": "2026-08-18T10:00:00+00:00"},
-    {"algo": "sha256", "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "updated_at": "2026-08-18T10:00:00+00:00"}
-  ],
+  "updated_at": "2026-08-18T10:00:00+00:00",
+  "hashes": {
+    "sha1": {"algo": "sha1", "hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709"},
+    "sha256": {"algo": "sha256", "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}
+  },
   "algos": ["sha256", "sha1"],
   "preferred": "sha256",
   "default": "sha1",
@@ -507,6 +516,12 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/hashes
   "canSudo": false
 }
 ```
+
+`hashes` is an object keyed by algorithm, `{}` for a file with none.
+`updated_at` is the file's, when its hashes were last written, `null` when
+they carry no stamp: the app keeps one per file, not one per algorithm.
+Before 0.22.0, `hashes` was a list and each entry carried the file's
+`updated_at`.
 
 The three fields after `hashes` are what the files sidebar composes its quick
 buttons from: `algos` are the algorithms the file's governing `include` rule

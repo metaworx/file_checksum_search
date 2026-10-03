@@ -15,16 +15,20 @@ const SHA256 = { algo: 'sha256', hash: '2c26b46b68ffc68ff99b453c1d30413413422d70
 
 describe('hashForLink', () => {
 	it('is nothing for a file with no hashes', () => {
-		expect(hashForLink([], 'sha1')).toBeNull()
+		expect(hashForLink({}, 'sha1')).toBeNull()
 	})
 
 	it('takes the preferred algorithm where the file has it', () => {
-		expect(hashForLink([SHA1, SHA256], 'sha256')).toBe(SHA256)
+		expect(hashForLink({ sha1: SHA1, sha256: SHA256 }, 'sha256')).toBe(SHA256)
 	})
 
-	it('falls back to the first row', () => {
-		expect(hashForLink([SHA1, SHA256], 'md5')).toBe(SHA1)
-		expect(hashForLink([SHA1, SHA256], '')).toBe(SHA1)
+	it('falls back to the first', () => {
+		expect(hashForLink({ sha1: SHA1, sha256: SHA256 }, 'md5')).toBe(SHA1)
+		expect(hashForLink({ sha1: SHA1, sha256: SHA256 }, '')).toBe(SHA1)
+	})
+
+	it('reads only the file\'s own keys, not an object\'s inherited ones', () => {
+		expect(hashForLink({ sha1: SHA1 }, 'constructor')).toBe(SHA1)
 	})
 })
 

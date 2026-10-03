@@ -31,24 +31,37 @@ describe('useSidebarHashes', () => {
 
 	it('loads hashes for the selected file', async () => {
 		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-			jsonResponse({ hashes: [{ algo: 'sha1', hash: 'abc' }] }),
+			jsonResponse({ hashes: { sha1: { algo: 'sha1', hash: 'abc' } } }),
 		)
 
 		const { loading, hashes, loadHashes } = useSidebarHashes(() => fileNode(123))
 		await loadHashes()
 
 		expect(loading.value).toBe(false)
-		expect(hashes.value).toEqual([{ algo: 'sha1', hash: 'abc' }])
+		expect(hashes.value).toEqual({ sha1: { algo: 'sha1', hash: 'abc' } })
 		expect(fetchMock).toHaveBeenCalledWith(
 			'/apps/file_checksum_search/api/v1/file/123/hashes',
 			expect.anything(),
 		)
 	})
 
+	// The hashes are keyed by algorithm; a list, which is how PHP encodes an
+	// empty map, is read as none rather than as entries keyed 0, 1, 2.
+	it('reads a list as no hashes', async () => {
+		vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+			jsonResponse({ hashes: [{ algo: 'sha1', hash: 'abc' }] }),
+		)
+
+		const { hashes, loadHashes } = useSidebarHashes(() => fileNode(123))
+		await loadHashes()
+
+		expect(hashes.value).toEqual({})
+	})
+
 	// The permission rides on the hashes response; only an explicit "no"
 	// hides the buttons, so an answer that does not mention it changes nothing.
 	it('takes from the server whether recalculation may be offered', async () => {
-		vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse({ hashes: [], canRecalc: false }))
+		vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse({ hashes: {}, canRecalc: false }))
 		const { canRecalc, loadHashes } = useSidebarHashes(() => fileNode(123))
 
 		expect(canRecalc.value).toBe(true)
@@ -61,8 +74,8 @@ describe('useSidebarHashes', () => {
 	// offered across accounts until the server says the viewer may.
 	it('takes from the server whether the way across accounts may be offered', async () => {
 		vi.spyOn(globalThis, 'fetch')
-			.mockResolvedValueOnce(jsonResponse({ hashes: [], canSudo: true }))
-			.mockResolvedValueOnce(jsonResponse({ hashes: [] }))
+			.mockResolvedValueOnce(jsonResponse({ hashes: {}, canSudo: true }))
+			.mockResolvedValueOnce(jsonResponse({ hashes: {} }))
 		const { canSudo, loadHashes } = useSidebarHashes(() => fileNode(123))
 
 		expect(canSudo.value).toBe(false)
@@ -77,12 +90,12 @@ describe('useSidebarHashes', () => {
 	it('recalculates an algorithm and reloads the hashes', async () => {
 		const fetchMock = vi.spyOn(globalThis, 'fetch')
 			.mockResolvedValueOnce(jsonResponse({ success: true }))
-			.mockResolvedValueOnce(jsonResponse({ hashes: [{ algo: 'md5', hash: 'def' }] }))
+			.mockResolvedValueOnce(jsonResponse({ hashes: { md5: { algo: 'md5', hash: 'def' } } }))
 
 		const { hashes, recalc } = useSidebarHashes(() => fileNode(123))
 		await recalc('md5')
 
-		expect(hashes.value).toEqual([{ algo: 'md5', hash: 'def' }])
+		expect(hashes.value).toEqual({ md5: { algo: 'md5', hash: 'def' } })
 		expect(fetchMock).toHaveBeenNthCalledWith(
 			1,
 			'/apps/file_checksum_search/api/v1/file/123/recalc?algo=md5',
@@ -145,7 +158,7 @@ describe('useSidebarHashes', () => {
 		vi.spyOn(globalThis, 'fetch')
 			.mockResolvedValueOnce(jsonResponse({ success: false, error: 'Nope.' }))
 			.mockResolvedValueOnce(jsonResponse({ success: true }))
-			.mockResolvedValueOnce(jsonResponse({ hashes: [] }))
+			.mockResolvedValueOnce(jsonResponse({ hashes: {} }))
 
 		const { recalcErrorMessage, recalc } = useSidebarHashes(() => fileNode(123))
 		await recalc('sha1')
@@ -171,8 +184,8 @@ describe('useSidebarHashes', () => {
 	// composable must not invent them.
 	it('carries the composition inputs from the response, or nothing', async () => {
 		vi.spyOn(globalThis, 'fetch')
-			.mockResolvedValueOnce(jsonResponse({ hashes: [], algos: ['sha256', 'sha1'], preferred: 'md5', default: 'sha1' }))
-			.mockResolvedValueOnce(jsonResponse({ hashes: [] }))
+			.mockResolvedValueOnce(jsonResponse({ hashes: {}, algos: ['sha256', 'sha1'], preferred: 'md5', default: 'sha1' }))
+			.mockResolvedValueOnce(jsonResponse({ hashes: {} }))
 
 		const { ruleAlgos, preferredAlgo, defaultAlgo, loadHashes } = useSidebarHashes(() => fileNode(123))
 

@@ -37,6 +37,10 @@ the first stable release.
 - `occ fcias:status`: the filecache and stamp-row counts, in the JSON
   as well, only with `--full`.
 
+- `GET /api/v1/file/{fileId}/hashes`, its `/sudo/` twin and
+  `ChecksumApi::getHashesBy*()`: `hashes` is keyed by algorithm and
+  `updated_at` is the file's; a caller reading a list breaks.
+
 ### Fixed
 
 - Admin status panel: the layout fits translated text.

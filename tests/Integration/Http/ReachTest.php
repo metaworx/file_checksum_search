@@ -220,6 +220,7 @@ class ReachTest
 
 		$this->assertSame( 200, $in['status'] );
 		$this->assertSame( self::$fileId['a'], $in['body']['fileid'] );
+		$this->assertSame( self::$hash['in'], $in['body']['hashes']['sha1']['hash'] ?? null, 'keyed by algorithm' );
 		$this->assertSame( 403, $out['status'] );
 		$this->assertSame( 'Not yours to look at.', $out['body']['error'] );
 	}

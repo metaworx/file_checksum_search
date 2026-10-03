@@ -1087,7 +1087,7 @@ class PublicApiControllerTest
 		          ->willReturn( [
 			          'fileid' => 42,
 			          'hashes' => [
-				          [
+				          'sha1' => [
 					          'algo' => 'sha1',
 					          'hash' => 'abc',
 				          ],
@@ -1100,9 +1100,24 @@ class PublicApiControllerTest
 		$this->assertInstanceOf( DataResponse::class, $response );
 		$data = $response->getData();
 		$this->assertSame( 42, $data['fileid'] );
-		$this->assertCount( 1, $data['hashes'] );
+		$this->assertSame( '{"sha1":{"algo":"sha1","hash":"abc"}}', json_encode( $data['hashes'] ) );
 		// A plain account: the mock's mayCross() says no.
 		$this->assertFalse( $data['canSudo'] );
+	}
+
+	/**
+	 * A file with no hashes answers `{}`, not `[]`: a client reads the map by
+	 * algorithm, and PHP would encode the empty one as a list.
+	 */
+	public function testAFileWithNoHashesAnswersAnEmptyObject(): void
+	{
+		$this->api->method( 'getHashesByFileId' )
+		          ->willReturn( [ 'fileid' => 42, 'hashes' => [] ] )
+		;
+
+		$data = $this->controller->getHashes( 42 )->getData();
+
+		$this->assertSame( '{}', json_encode( $data['hashes'] ) );
 	}
 
 	/**
