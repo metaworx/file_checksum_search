@@ -934,16 +934,17 @@ class FilecacheService
 	}
 
 	/**
+	 * Path prefixes of the areas no rule governs and no listing offers:
+	 * the trash, the versions, and every app's own data.
+	 */
+	public const UNGOVERNED_PREFIXES = [ 'files_trashbin/', 'files_versions/', 'appdata_' ];
+
 	/**
 	 * Paths for a set of file ids, kept to those within the given mounts.
 	 *
 	 * This is an *authority*: what it drops, the listing never shows. So
 	 * the filter is the mount — a storage **and** a root — and never the
-	 * storage alone. A share of a subfolder mounts the owner's whole
-	 * storage; filtering on the storage would list everything the owner has
-	 * for whoever received one folder of it. Filtering on the root admits
-	 * the subtree and nothing beside it. `oc_filecache` indexes
-	 * `(storage, path)` for this prefix shape.
+	 * storage alone ({@see andWhereWithin()}).
 	 *
 	 * @param  int[]                                         $fileIds
 	 * @param  list<array{storage: int, root: string}>|null  $mounts  From
@@ -962,12 +963,6 @@ class FilecacheService
 	 *         folder or an external storage, which have none; `location` is
 	 *         {@see FileLocation::describe()}.
 	 */
-	/**
-	 * Path prefixes of the areas no rule governs and no listing offers:
-	 * the trash, the versions, and every app's own data.
-	 */
-	public const UNGOVERNED_PREFIXES = [ 'files_trashbin/', 'files_versions/', 'appdata_' ];
-
 	public function batchLookupFilecachePaths(
 		array  $fileIds,
 		?array $mounts = null,
@@ -1005,52 +1000,13 @@ class FilecacheService
 			   ),
 		);
 
-		// Nothing in the trash, in the versions, or in an app's own data is
-		// a file anyone holds: the contract says those areas are governed by
-		// nothing, the sweep and the sidebar refuse them, and a listing or a
-		// lookup that offered a trashed copy as a duplicate of a live file
-		// contradicted both. A row here is dropped by every caller, and a
-		// group's count follows the rows it keeps.
-		foreach ( self::UNGOVERNED_PREFIXES as $prefix )
-		{
-			$qb->andWhere( $qb->expr()->notLike(
-				'fc.path',
-				$qb->createNamedParameter( $this->db->escapeLikeParameter( $prefix ) . '%' ),
-			) );
-		}
+		// A row here is dropped by every caller, and a group's count follows
+		// the rows it keeps.
+		$this->andWhereGoverned( $qb, 'fc' );
 
 		if ( $mounts !== null )
 		{
-			$within = $qb->expr()->orX();
-
-			foreach ( $mounts as $mount )
-			{
-				$sameStorage = $qb->expr()->eq(
-					'fc.storage',
-					$qb->createNamedParameter( $mount['storage'], IQueryBuilder::PARAM_INT ),
-				);
-
-				// A home's root is '' — the whole storage, and the common
-				// case, which the index answers on the storage alone.
-				if ( $mount['root'] === '' )
-				{
-					$within->add( $sameStorage );
-
-					continue;
-				}
-
-				$root = $this->db->escapeLikeParameter( $mount['root'] );
-
-				$within->add( $qb->expr()->andX(
-					$sameStorage,
-					$qb->expr()->orX(
-						$qb->expr()->eq( 'fc.path', $qb->createNamedParameter( $mount['root'] ) ),
-						$qb->expr()->like( 'fc.path', $qb->createNamedParameter( $root . '/%' ) ),
-					),
-				) );
-			}
-
-			$qb->andWhere( $within );
+			$this->andWhereWithin( $qb, 'fc', $mounts );
 		}
 
 		$result = $qb->executeQuery();
@@ -1093,6 +1049,115 @@ class FilecacheService
 		$result->closeCursor();
 
 		return $paths;
+	}
+
+	/**
+	 * Where each of these files lives on this server's disk, as
+	 * {@see batchLookupFilecachePaths()} gives it with `$withLocalPath`:
+	 * null for a storage without local files, and for every file while
+	 * server-side encryption is enabled.
+	 *
+	 * @param  list<FileLocation>  $locations
+	 *
+	 * @return array<int, ?string>  keyed by file id
+	 */
+	public function localPaths( array $locations ): array
+	{
+		$encrypted = $this->encryption->isEnabled();
+		$homes     = [];
+		$paths     = [];
+
+		foreach ( $locations as $location )
+		{
+			$paths[ $location->fileId ] = $encrypted
+				? null
+				: $location->localPath( $this->homeOf( $location, $homes ) );
+		}
+
+		return $paths;
+	}
+
+	/**
+	 * Keep the query to the areas a rule may govern.
+	 *
+	 * Nothing in the trash, in the versions, or in an app's own data is a
+	 * file anyone holds: the contract says those areas are governed by
+	 * nothing, the sweep and the sidebar refuse them, and a listing or a
+	 * lookup that offered a trashed copy as a duplicate of a live file
+	 * contradicted both.
+	 *
+	 * @param  string  $alias  Alias of the filecache table in $qb.
+	 */
+	public function andWhereGoverned(
+		IQueryBuilder $qb,
+		string        $alias,
+	): void
+	{
+		foreach ( self::UNGOVERNED_PREFIXES as $prefix )
+		{
+			$qb->andWhere( $qb->expr()->notLike(
+				$alias . '.path',
+				$qb->createNamedParameter( $this->db->escapeLikeParameter( $prefix ) . '%' ),
+			) );
+		}
+	}
+
+	/**
+	 * Keep the query to the files within one of $mounts.
+	 *
+	 * A mount is a storage **and** a root, never the storage alone. A share
+	 * of a subfolder mounts the owner's whole storage; filtering on the
+	 * storage would list everything the owner has for whoever received one
+	 * folder of it. Filtering on the root admits the subtree and nothing
+	 * beside it. `oc_filecache` indexes `(storage, path)` for this prefix
+	 * shape. An empty list admits nothing.
+	 *
+	 * @param  string                                   $alias   Alias of the filecache table in $qb.
+	 * @param  list<array{storage: int, root: string}>  $mounts
+	 */
+	public function andWhereWithin(
+		IQueryBuilder $qb,
+		string        $alias,
+		array         $mounts,
+	): void
+	{
+		if ( $mounts === [] )
+		{
+			$qb->andWhere( '1 = 0' );
+
+			return;
+		}
+
+		$within = $qb->expr()->orX();
+
+		foreach ( $mounts as $mount )
+		{
+			$sameStorage = $qb->expr()->eq(
+				$alias . '.storage',
+				$qb->createNamedParameter( $mount['storage'], IQueryBuilder::PARAM_INT ),
+			);
+
+			// A home's root is '' — the whole storage, and the common case,
+			// which the index answers on the storage alone.
+			if ( $mount['root'] === '' )
+			{
+				$within->add( $sameStorage );
+
+				continue;
+			}
+
+			$root = $this->db->escapeLikeParameter( $mount['root'] );
+
+			$within->add( $qb->expr()->andX(
+				$sameStorage,
+				$qb->expr()->orX(
+					$qb->expr()->eq( $alias . '.path', $qb->createNamedParameter( $mount['root'] ) ),
+					$qb->expr()->like( $alias . '.path', $qb->createNamedParameter( $root . '/%' ) ),
+				),
+			) );
+		}
+
+		$qb->andWhere( $within );
 	}
 
 	/**

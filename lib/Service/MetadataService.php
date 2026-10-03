@@ -1119,6 +1119,208 @@ class MetadataService
 	}
 
 	/**
+	 * One page of the files a hash listing shows, by file id.
+	 *
+	 * A file is listed when the index holds a hash row for it — for $algo,
+	 * when one is named — and its hashes are not disowned: the selection
+	 * {@see queryByHash()} searches, so the listing shows what a lookup
+	 * would find. Keyset paging on the file id: a file deleted between two
+	 * pages moves nothing.
+	 *
+	 * @param  list<array{storage: int, root: string}>|null  $mounts  The areas to list,
+	 *                                                               null for every file.
+	 * @param  int|null                                      $since   Only files whose
+	 *                                                               hashes were stamped
+	 *                                                               at or after it, in
+	 *                                                               unix seconds.
+	 *
+	 * @return list<array{fileid: int, storage: int, storage_id: string, path: string, updated_at: ?int}>
+	 * @throws Exception
+	 */
+	public function pageListedFiles(
+		?array  $mounts,
+		?string $algo,
+		int     $after,
+		?int    $since,
+		int     $limit,
+	): array
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->selectDistinct( [ 'fc.fileid', 'fc.storage', 'fc.path', 's.id' ] )
+		   ->selectAlias( 'u.' . self::FIELD_META_VALUE_INT, 'updated_at' )
+		;
+
+		$this->whereListed( $qb, $mounts, $algo, $since );
+
+		$qb->andWhere(
+			$qb->expr()
+			   ->gt( 'i.' . self::FIELD_FILE_ID, $qb->createNamedParameter( $after, IQueryBuilder::PARAM_INT ) ),
+		)
+		   ->orderBy( 'fc.fileid', 'ASC' )
+		   ->setMaxResults( $limit )
+		;
+
+		$result = $this->executeQuery( $qb );
+		$rows   = [];
+
+		while ( ( $row = $result->fetchAssociative() ) !== false )
+		{
+			$rows[] = [
+				'fileid'     => (int) $row['fileid'],
+				'storage'    => (int) $row['storage'],
+				'storage_id' => (string) $row['id'],
+				'path'       => (string) $row['path'],
+				'updated_at' => $row['updated_at'] !== null ? (int) $row['updated_at'] : null,
+			];
+		}
+
+		$result->closeCursor();
+
+		return $rows;
+	}
+
+	/**
+	 * How many files {@see pageListedFiles()} would list from the start.
+	 *
+	 * @param  list<array{storage: int, root: string}>|null  $mounts
+	 *
+	 * @throws Exception
+	 */
+	public function countListedFiles(
+		?array  $mounts,
+		?string $algo,
+		?int    $since,
+	): int
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->selectAlias(
+			$qb->createFunction( 'COUNT(DISTINCT ' . $qb->getColumnName( self::FIELD_FILE_ID, 'i' ) . ')' ),
+			'cnt',
+		);
+
+		$this->whereListed( $qb, $mounts, $algo, $since );
+
+		$result = $this->executeQuery( $qb );
+		$count  = (int) $result->fetchOne();
+		$result->closeCursor();
+
+		return $count;
+	}
+
+	/**
+	 * The listed hashes of a page of files: the values from the metadata
+	 * documents, for the algorithms the index holds a row for.
+	 *
+	 * The index truncates a value at {@see META_VALUE_STRING_MAX_LENGTH}
+	 * characters, shorter than a SHA-256 hash, so it says which hashes and
+	 * the documents say what they are. A value the document holds without
+	 * an index row is one a lookup cannot find, and is not listed either.
+	 *
+	 * @param  list<int>  $fileIds  One page, at most a thousand.
+	 *
+	 * @return array<int, array<string, string>>  file id => algorithm => hash
+	 * @throws Exception
+	 */
+	public function listedHashes(
+		array   $fileIds,
+		?string $algo,
+	): array
+	{
+		if ( $fileIds === [] )
+		{
+			return [];
+		}
+
+		$documents = $this->fetchDocuments( $fileIds );
+		$hashes    = [];
+
+		foreach ( $this->hashIndexKeysFor( $fileIds ) as $fileId => $keys )
+		{
+			if ( ! isset( $documents[ $fileId ] ) )
+			{
+				continue;
+			}
+
+			$stored = $this->getHashes( $this->getMetadata( $fileId, $documents[ $fileId ] ) );
+
+			foreach ( $keys as $key )
+			{
+				$name = self::algorithmFromKey( $key );
+
+				if ( isset( $stored[ $name ] ) && ( $algo === null || $name === $algo ) )
+				{
+					$hashes[ $fileId ][ $name ] = $stored[ $name ];
+				}
+			}
+
+			if ( isset( $hashes[ $fileId ] ) )
+			{
+				ksort( $hashes[ $fileId ] );
+			}
+		}
+
+		return $hashes;
+	}
+
+	/**
+	 * What {@see pageListedFiles()} and {@see countListedFiles()} share:
+	 * the hash rows (`i`), their files (`fc`, `s`), the stamp (`u`), and the
+	 * filters.
+	 *
+	 * @param  list<array{storage: int, root: string}>|null  $mounts
+	 */
+	private function whereListed(
+		IQueryBuilder $qb,
+		?array        $mounts,
+		?string       $algo,
+		?int          $since,
+	): void
+	{
+		$qb->from( self::TABLE_FILES_METADATA_INDEX, 'i' )
+		   ->innerJoin( 'i', 'filecache', 'fc', 'fc.fileid = i.' . self::FIELD_FILE_ID )
+		   ->innerJoin( 'fc', 'storages', 's', 'fc.storage = s.numeric_id' )
+		   ->leftJoin(
+			   'i',
+			   self::TABLE_FILES_METADATA_INDEX,
+			   'u',
+			   $qb->expr()
+			      ->andX(
+				      $qb->expr()
+				         ->eq( 'u.' . self::FIELD_FILE_ID, 'i.' . self::FIELD_FILE_ID ),
+				      $qb->expr()
+				         ->eq(
+					         'u.' . self::FIELD_META_KEY,
+					         $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+				         ),
+			      ),
+		   )
+		   ->where(
+			   $algo !== null
+				   ? $qb->expr()
+				        ->eq( 'i.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::getHashKey( $algo ) ) )
+				   : $qb->expr()
+				        ->like( 'i.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
+		   )
+		;
+
+		$this->andWhereNotStale( $qb );
+		$this->filecacheService->andWhereGoverned( $qb, 'fc' );
+
+		if ( $mounts !== null )
+		{
+			$this->filecacheService->andWhereWithin( $qb, 'fc', $mounts );
+		}
+
+		if ( $since !== null )
+		{
+			$qb->andWhere(
+				$qb->expr()
+				   ->gte( 'u.' . self::FIELD_META_VALUE_INT, $qb->createNamedParameter( $since, IQueryBuilder::PARAM_INT ) ),
+			);
+		}
+	}
+
+	/**
 	 * Every stored hash, one file at a time.
 	 *
 	 * Read from the **metadata document**, never from the index: the index

@@ -16,6 +16,7 @@ use OCP\Config\IUserConfig;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\HashListingService;
 use OCA\FileChecksumSearch\Service\HintedInvalidArgumentException;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
@@ -67,6 +68,7 @@ class ChecksumApi
 		private readonly IUserManager            $userManager,
 		private readonly ReachResolver           $reach,
 		private readonly IL10N $l10n,
+		private readonly HashListingService      $listing,
 	) {
 	}
 
@@ -402,6 +404,47 @@ class ChecksumApi
 		}
 
 		return [ 'results' => $this->withLocations( $results, $withLocalPath ) ];
+	}
+
+	/**
+	 * Every hash in reach, page by page: one entry per file, its hashes
+	 * keyed by algorithm, in file id order.
+	 *
+	 * For a caller that keeps a copy and would otherwise ask hash by hash.
+	 * Pass `next` back as `$after` until it is null. The files listed are
+	 * those {@see findByHash()} could find; `path` is the first account in
+	 * reach that holds the file's name for it, with a leading slash — with
+	 * $reachUids null, the owner's, or for a file no account owns, its path
+	 * in the area `location` names.
+	 *
+	 * @param  list<string>|null  $reachUids      Whose files: as {@see findByHash()}.
+	 * @param  string|null        $algo           Only files with a hash in this
+	 *                                            algorithm, and only that hash.
+	 * @param  int                $limit          Files per page, 0 to 1000; 0
+	 *                                            asks for the count alone.
+	 * @param  int                $after          The last file id received; 0
+	 *                                            starts the listing.
+	 * @param  int|null           $since          Only files whose hashes were
+	 *                                            written at or after it, unix
+	 *                                            seconds.
+	 * @param  bool               $withLocalPath  Each entry gains `localPath`,
+	 *                                            as {@see findByHash()}.
+	 *
+	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>}>, next: ?int, estimated_total?: int}
+	 *         `next` is null when no file follows, and echoes $after for a
+	 *         count. Starting from 0, `estimated_total` counts the whole
+	 *         listing: an estimate, as files come and go while it is read.
+	 */
+	public function listHashes(
+		?array  $reachUids,
+		?string $algo = null,
+		int     $limit = HashListingService::DEFAULT_LIMIT,
+		int     $after = 0,
+		?int    $since = null,
+		bool    $withLocalPath = false,
+	): array
+	{
+		return $this->listing->page( $reachUids, $algo, $limit, $after, $since, $withLocalPath );
 	}
 
 	/**

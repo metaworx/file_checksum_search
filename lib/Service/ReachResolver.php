@@ -47,6 +47,49 @@ class ReachResolver
 	}
 
 
+//  static methods
+
+	/**
+	 * The path the first of $views that holds a file gives it, with a
+	 * leading slash; null when none holds it.
+	 *
+	 * @param  list<array{uid: string, storage: int, root: string, prefix: string}>  $views  From {@see filesViewsFor()}.
+	 * @param  string                                                                  $path   The file's internal path in its storage.
+	 */
+	public static function pathInViews(
+		array  $views,
+		int    $storage,
+		string $path,
+	): ?string
+	{
+		foreach ( $views as $view )
+		{
+			if ( $view['storage'] !== $storage )
+			{
+				continue;
+			}
+
+			if ( $view['root'] === '' )
+			{
+				return $view['prefix'] . $path;
+			}
+
+			if ( $path === $view['root'] )
+			{
+				// A shared file is mounted as itself.
+				return rtrim( $view['prefix'], '/' );
+			}
+
+			if ( str_starts_with( $path, $view['root'] . '/' ) )
+			{
+				return $view['prefix'] . substr( $path, strlen( $view['root'] ) + 1 );
+			}
+		}
+
+		return null;
+	}
+
+
 //  other non-static methods
 
 	/**
@@ -92,6 +135,140 @@ class ReachResolver
 		}
 
 		return array_values( $mounts );
+	}
+
+	/**
+	 * Where each named account sees its files: per mount, the part of the
+	 * storage that lies in the account's files area, and the path it has
+	 * there.
+	 *
+	 * Narrower than {@see mountsFor()}, which hands a home over whole, the
+	 * trash and the versions included: here a home is its `files/` subtree.
+	 * What a view holds has a path the account would know it by, so a
+	 * listing can name a file without asking the filesystem for its node —
+	 * file by file, the cost of a large page.
+	 *
+	 * In the order the accounts are named, so "the first account that holds
+	 * it" means the same on every page.
+	 *
+	 * @param  list<string>  $uids
+	 *
+	 * @return list<array{uid: string, storage: int, root: string, prefix: string}>
+	 *         `root` is the subtree's internal path in the storage, `''` for
+	 *         the whole storage; a file at `root/x/y` is `prefix . 'x/y'` to
+	 *         the account, `prefix` beginning and ending with a slash. An
+	 *         unknown account sees nothing.
+	 */
+	public function filesViewsFor( array $uids ): array
+	{
+		$mounts = [];
+
+		foreach ( $uids as $uid )
+		{
+			$uid  = (string) $uid;
+			$user = $this->userManager->get( $uid );
+
+			if ( $user !== null )
+			{
+				$mounts[ $uid ] = $this->mountCache->getMountsForUser( $user );
+			}
+		}
+
+		$roots = $this->rootsOf( array_merge( ...array_values( $mounts ) ) );
+		$views = [];
+
+		foreach ( $mounts as $uid => $userMounts )
+		{
+			$home  = '/' . $uid . '/';
+			$files = $home . 'files/';
+
+			foreach ( $userMounts as $mount )
+			{
+				if ( ! isset( $roots[ $mount->getRootId() ] ) )
+				{
+					// A storage not yet scanned: nothing in it to list.
+					continue;
+				}
+
+				$point   = $mount->getMountPoint();
+				$storage = $roots[ $mount->getRootId() ]['storage'];
+				$root    = $roots[ $mount->getRootId() ]['path'];
+
+				if ( $point === $home )
+				{
+					// The home: its files area, not the trash or the versions
+					// beside it.
+					$root   = $root === '' ? 'files' : $root . '/files';
+					$prefix = '/';
+				}
+				elseif ( str_starts_with( $point, $files ) )
+				{
+					// A share, a team folder, an external storage: mounted
+					// whole, somewhere in the files.
+					$prefix = '/' . substr( $point, strlen( $files ) );
+				}
+				else
+				{
+					continue;
+				}
+
+				$views[] = [
+					'uid'     => (string) $uid,
+					'storage' => $storage,
+					'root'    => $root,
+					'prefix'  => $prefix,
+				];
+			}
+		}
+
+		return $views;
+	}
+
+	/**
+	 * Where each mount's root really is: its storage and internal path, from
+	 * the filecache row its root id names.
+	 *
+	 * Not from the mount itself. A mount recorded in this same request —
+	 * the first time an account's files are set up after a share reached
+	 * them — answers `getRootInternalPath()` within its own storage, `''`
+	 * for a share, while its storage id is the sharer's: the sharer's whole
+	 * storage. The root id is the shared node's either way.
+	 *
+	 * @param  list<\OCP\Files\Config\ICachedMountInfo>  $mounts
+	 *
+	 * @return array<int, array{storage: int, path: string}>  keyed by root id
+	 */
+	private function rootsOf( array $mounts ): array
+	{
+		$rootIds = array_values( array_unique( array_map(
+			static fn ( \OCP\Files\Config\ICachedMountInfo $mount ): int => $mount->getRootId(),
+			$mounts,
+		) ) );
+		$roots   = [];
+
+		// 1000 per IN(): Oracle's placeholder ceiling.
+		foreach ( array_chunk( $rootIds, 1000 ) as $chunk )
+		{
+			$qb = $this->db->getQueryBuilder();
+			$qb->select( 'fileid', 'storage', 'path' )
+			   ->from( 'filecache' )
+			   ->where( $qb->expr()->in( 'fileid', $qb->createNamedParameter( $chunk, IQueryBuilder::PARAM_INT_ARRAY ) ) )
+			;
+
+			$result = $qb->executeQuery();
+
+			while ( ( $row = $result->fetchAssociative() ) !== false )
+			{
+				$roots[ (int) $row['fileid'] ] = [
+					'storage' => (int) $row['storage'],
+					'path'    => trim( (string) $row['path'], '/' ),
+				];
+			}
+
+			$result->closeCursor();
+		}
+
+		return $roots;
 	}
 
 	/**

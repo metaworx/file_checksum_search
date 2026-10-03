@@ -19,6 +19,9 @@ the first stable release.
 - Tunables: the checksum count's interval, and a switch to take it in
   the background.
 
+- `ChecksumApi::listHashes()`: every hash in reach, paged by file id,
+  with `since` (`docs/api-v1.md`).
+
 ### Changed
 
 - Database reads use `fetchAssociative()` and `fetchAllAssociative()`,

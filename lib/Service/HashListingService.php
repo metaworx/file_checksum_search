@@ -1,0 +1,214 @@
+<?php
+
+declare( strict_types=1 );
+
+/**
+ * @copyright Copyright (c) 2026 metaworx
+ * @license   AGPL-3.0-or-later
+ */
+
+namespace OCA\FileChecksumSearch\Service;
+
+use OCP\DB\Exception;
+
+/**
+ * Every hash in reach, page by page.
+ *
+ * For a caller that keeps a copy — an archive syncing its own database
+ * with the checksums here — and would otherwise ask hash by hash. One entry
+ * per file, paged by file id: `after` names the last file received, `next`
+ * the one to pass on, and null when the listing is done.
+ *
+ * Which files: those the index holds a hash row for, within the reach, not
+ * disowned — the files a lookup would find ({@see MetadataService::pageListedFiles()}).
+ * Their values: from the metadata documents, since the index holds a
+ * truncated SHA-256 ({@see MetadataService::listedHashes()}). Their paths:
+ * from the reach's own mounts, in one pass per page, never from a node per
+ * file ({@see ReachResolver::filesViewsFor()}).
+ */
+class HashListingService
+{
+
+//  constants
+
+	public const DEFAULT_LIMIT = 500;
+	public const MAX_LIMIT     = 1000;
+
+
+//  constructor
+
+	public function __construct(
+		private readonly MetadataService  $metadataService,
+		private readonly FilecacheService $filecacheService,
+		private readonly ReachResolver    $reach,
+	) {
+	}
+
+
+//  static methods
+
+	/**
+	 * The views' areas, once each, as {@see FilecacheService::andWhereWithin()} takes them.
+	 *
+	 * @param  list<array{uid: string, storage: int, root: string, prefix: string}>  $views
+	 *
+	 * @return list<array{storage: int, root: string}>
+	 */
+	private static function areasOf( array $views ): array
+	{
+		$areas = [];
+
+		foreach ( $views as $view )
+		{
+			$areas[ $view['storage'] . "\0" . $view['root'] ] = [
+				'storage' => $view['storage'],
+				'root'    => $view['root'],
+			];
+		}
+
+		return array_values( $areas );
+	}
+
+
+//  other non-static methods
+
+	/**
+	 * One page of the listing.
+	 *
+	 * @param  list<string>|null  $reachUids      Whose files: their own, the
+	 *                                            shares they received (to the
+	 *                                            shared subtree) and their team
+	 *                                            folders. Null is every file.
+	 * @param  string|null        $algo           Only files with a hash in this
+	 *                                            algorithm, and only that hash.
+	 * @param  int                $limit          Files on the page, 0 to 1000; 0
+	 *                                            asks for the count alone.
+	 * @param  int                $after          The last file id received; 0
+	 *                                            starts the listing.
+	 * @param  int|null           $since          Only files whose hashes were
+	 *                                            written at or after it, unix
+	 *                                            seconds.
+	 * @param  bool               $withLocalPath  Each entry gains `localPath`,
+	 *                                            as {@see FilecacheService::localPaths()}.
+	 *
+	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>}>, next: ?int, estimated_total?: int}
+	 *         `next` is the file id to pass as `after` while files remain,
+	 *         null when none do, and `after` itself for a count. With no
+	 *         `after`, `estimated_total` counts the whole listing: an
+	 *         estimate, as files come and go while it is read.
+	 * @throws Exception
+	 */
+	public function page(
+		?array  $reachUids,
+		?string $algo = null,
+		int     $limit = self::DEFAULT_LIMIT,
+		int     $after = 0,
+		?int    $since = null,
+		bool    $withLocalPath = false,
+	): array
+	{
+		$limit = max( 0, min( $limit, self::MAX_LIMIT ) );
+		$after = max( 0, $after );
+		$algo  = $algo === '' ? null : $algo;
+		$views = $reachUids === null
+			? null
+			: $this->reach->filesViewsFor( array_values( $reachUids ) );
+		$areas = $views === null ? null : self::areasOf( $views );
+
+		$answer = [
+			'files' => [],
+			'next'  => $after,
+		];
+
+		if ( $limit > 0 )
+		{
+			// One past the page, to know whether another follows.
+			$rows = $this->metadataService->pageListedFiles( $areas, $algo, $after, $since, $limit + 1 );
+			$more = count( $rows ) > $limit;
+			$rows = array_slice( $rows, 0, $limit );
+
+			$answer['files'] = $this->entries( $rows, $views, $algo, $withLocalPath );
+			$answer['next']  = $more ? $rows[ $limit - 1 ]['fileid'] : null;
+		}
+
+		if ( $after === 0 )
+		{
+			$answer['estimated_total'] = $this->metadataService->countListedFiles( $areas, $algo, $since );
+		}
+
+		return $answer;
+	}
+
+	/**
+	 * A page's rows, as the listing gives them.
+	 *
+	 * @param  list<array{fileid: int, storage: int, storage_id: string, path: string, updated_at: ?int}>  $rows
+	 * @param  list<array{uid: string, storage: int, root: string, prefix: string}>|null                     $views
+	 *
+	 * @return list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>}>
+	 * @throws Exception
+	 */
+	private function entries(
+		array   $rows,
+		?array  $views,
+		?string $algo,
+		bool    $withLocalPath,
+	): array
+	{
+		if ( $rows === [] )
+		{
+			return [];
+		}
+
+		$hashes    = $this->metadataService->listedHashes( array_column( $rows, 'fileid' ), $algo );
+		$locations = [];
+
+		foreach ( $rows as $row )
+		{
+			$locations[ $row['fileid'] ] = FileLocation::fromRow( $row['fileid'], $row['storage_id'], $row['path'], 0 );
+		}
+
+		$localPaths = $withLocalPath
+			? $this->filecacheService->localPaths( array_values( $locations ) )
+			: [];
+
+		$entries = [];
+
+		foreach ( $rows as $row )
+		{
+			$fileId   = $row['fileid'];
+			$location = $locations[ $fileId ];
+
+			// The first account in reach that holds the file names it. With
+			// no account named, the owner's view; a file nobody owns, its
+			// path in the area `location` names.
+			$path = $views === null
+				? null
+				: ReachResolver::pathInViews( $views, $row['storage'], $row['path'] );
+			$path ??= $location->relativePath ?? '/' . $row['path'];
+
+			$byAlgo = [];
+
+			foreach ( $hashes[ $fileId ] ?? [] as $name => $hash )
+			{
+				$byAlgo[ $name ] = [
+					'algo' => $name,
+					'hash' => $hash,
+				];
+			}
+
+			$entries[] = [
+				'fileid'   => $fileId,
+				'path'     => $path,
+				'name'     => substr( $path, (int) strrpos( $path, '/' ) + 1 ),
+				'owner'    => $location->owner,
+				'location' => $location->describe(),
+			] + ( $withLocalPath ? [ 'localPath' => $localPaths[ $fileId ] ?? null ] : [] ) + [
+				'updated_at' => $row['updated_at'] !== null ? date( 'c', $row['updated_at'] ) : null,
+				'hashes'     => $byAlgo,
+			];
+		}
+
+		return $entries;
+	}
+}

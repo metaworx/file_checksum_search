@@ -126,6 +126,57 @@ account owns) and `FileLocation::describe()` — `/<owner>/files/…` for a home
 
 ---
 
+#### `listHashes(?array $reachUids, ?string $algo = null, int $limit = 500, int $after = 0, ?int $since = null, bool $withLocalPath = false): array`
+
+Every hash in reach, page by page: one entry per file, in file id order.
+For a caller that keeps a copy of the checksums and would otherwise ask
+hash by hash.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `$reachUids` | `?array` | Yes | Whose files; `null` for every account |
+| `$algo` | `?string` | No | Only files with a hash in this algorithm, and only that hash |
+| `$limit` | `int` | No | Files per page, 0–1000, default 500; 0 asks for the count alone |
+| `$after` | `int` | No | The last file id received; 0, the default, starts the listing |
+| `$since` | `?int` | No | Only files whose hashes were written at or after it, in unix seconds |
+| `$withLocalPath` | `bool` | No | Add `localPath` to each entry, as `findByHash()` does |
+
+**Returns:**
+```php
+[
+    'files' => [
+        ['fileid' => 185323, 'path' => '/Fotos/GPZ B 0001.01.001.jpg', 'name' => 'GPZ B 0001.01.001.jpg',
+         'owner' => 'kunstarchiv', 'location' => '/kunstarchiv/files/Fotos/GPZ B 0001.01.001.jpg',
+         'updated_at' => '2026-09-02T15:17:00+00:00',
+         'hashes' => ['sha256' => ['algo' => 'sha256', 'hash' => 'd3e1c5...']]],
+        // ...
+    ],
+    'next' => 185323,
+    'estimated_total' => 57459,
+]
+```
+
+- **Paging.** Pass `next` back as `$after` until it is `null`. With
+  `$limit` 0, `next` is `$after` itself, so a count is never read as the
+  end. The cursor is a file id, so a file deleted between two pages moves
+  nothing.
+- **`estimated_total`**, when `$after` is 0: the files the whole listing
+  holds under the same filters. An estimate: files come and go while a
+  listing is read.
+- **Which files:** those `findByHash()` could find: an indexed hash, within
+  the reach, not disowned by a reset. A received share counts for the
+  shared folder and what is below it.
+- **`path`** is the first account in reach that holds the file's name for
+  it, with a leading slash. With `$reachUids` null it is the owner's, or,
+  for a file no account owns, its path in the area `location` names.
+  `owner`, `location` and `localPath` are as `findByHash()` gives them.
+- **`hashes`** is keyed by algorithm, as `getHashesByFileId()` gives it,
+  the values whole from the metadata document; `updated_at` is the file's
+  stamp, `null` when its hashes carry none, and `$since` leaves such a file
+  out.
+
+---
+
 #### `getHashesByFileId(int $fileId, ?array $reachUids, ?string $actingUser = null): array`
 
 Get all checksums for a file by its filecache ID.

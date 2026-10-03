@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\Public\ChecksumApi;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\DatabaseService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\HashListingService;
 use OCA\FileChecksumSearch\Service\HintedInvalidArgumentException;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
@@ -71,6 +72,8 @@ class ChecksumApiTest
 	private MockObject|IGroupManager     $groupManager;
 
 	private MockObject|\OCA\FileChecksumSearch\Service\ReachResolver $reach;
+
+	private MockObject|HashListingService $listing;
 
 	/** File ids the mocked resolver places outside every reach. */
 	private array $outOfReach = [];
@@ -134,6 +137,7 @@ class ChecksumApiTest
 			$this->reach,
 			// Marking, so a test can see a refusal went through IL10N.
 			$this->markingL10n(),
+			$this->listing = $this->createMock( HashListingService::class ),
 		);
 	}
 
@@ -693,6 +697,20 @@ class ChecksumApiTest
 
 		$this->assertSame( 42, $data['fileid'] );
 		$this->assertCount( 1, $data['hashes'] );
+	}
+
+	// ─── listHashes ─────────────────────────────────────────────────
+	public function testListHashesHandsItsArgumentsToTheListing(): void
+	{
+		$page = [ 'files' => [], 'next' => null ];
+
+		$this->listing->expects( $this->once() )
+		              ->method( 'page' )
+		              ->with( [ 'alice' ], 'sha256', 200, 42, 1700000000, true )
+		              ->willReturn( $page )
+		;
+
+		$this->assertSame( $page, $this->api->listHashes( [ 'alice' ], 'sha256', 200, 42, 1700000000, true ) );
 	}
 
 	// ─── getHashesByFileId ──────────────────────────────────────────
