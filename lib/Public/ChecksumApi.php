@@ -153,9 +153,7 @@ class ChecksumApi
 
 		return [
 			'fileid'     => $fileId,
-			'updated_at' => $updatedAt !== null
-				? date( 'c', $updatedAt )
-				: null,
+			'updated_at' => HashListingService::stamp( $updatedAt ),
 			'hashes'     => $result,
 			'algos'      => RuleService::maintainsHashes( $rule )
 				? array_values( array_filter( (array) ( $rule['algos'] ?? [] ), 'is_string' ) )

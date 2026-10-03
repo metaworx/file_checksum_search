@@ -910,6 +910,10 @@ msgstr "Reguła domyślna „Wszystkie foldery domowe” obejmuje tylko foldery 
 msgid "The \"hash\" parameter is required."
 msgstr "Parametr \"hash\" jest wymagany."
 
+#. TRANSLATORS: "since" is a parameter name and "ISO 8601" a standard; keep both
+msgid "The \"since\" parameter must be a date, as ISO 8601 or Unix seconds."
+msgstr "Parametr \"since\" musi być datą w formacie ISO 8601 lub w sekundach Unix."
+
 msgid "The algorithm the Checksums tab in the file sidebar offers as its first button. Leave it on the default to follow the server; pick one to have it first for every file, with the file's own rule providing the second button."
 msgstr "Algorytm, który karta „Sumy kontrolne” w panelu bocznym pliku proponuje jako pierwszy przycisk. Pozostaw wartość domyślną, aby stosować ustawienie serwera; wybierz algorytm, aby był pierwszy dla każdego pliku – drugi przycisk wynika wtedy z reguły danego pliku."
 

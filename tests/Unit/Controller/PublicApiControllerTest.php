@@ -27,6 +27,7 @@ use OCA\FileChecksumSearch\Service\SudoConfirmation;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
 use OCP\ISession;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -805,6 +806,169 @@ class PublicApiControllerTest
 		;
 
 		$this->assertSame( Http::STATUS_OK, $controller->sudoLookup( 'abc123' )->getStatus() );
+	}
+
+	// ─── GET /api/v1/hashes ──────────────────────────────────────────
+	/**
+	 * The caller's own files, and each file's hashes an object on the wire:
+	 * `{}` for none, which PHP would send as `[]`.
+	 */
+	public function testTheListingIsTheCallersOwnWithHashesAsObjects(): void
+	{
+		$this->api->expects( $this->once() )
+		          ->method( 'listHashes' )
+		          ->with( [ 'admin' ], 'sha256', 200, 42, null, false )
+		          ->willReturn( [
+			          'files' => [
+				          [ 'fileid' => 43, 'hashes' => [ 'sha256' => [ 'algo' => 'sha256', 'hash' => 'abc' ] ] ],
+				          [ 'fileid' => 44, 'hashes' => [] ],
+			          ],
+			          'next'  => null,
+		          ] )
+		;
+
+		$response = $this->controller->listHashes( 'sha256', 200, 42 );
+
+		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
+		$this->assertSame(
+			'{"files":[{"fileid":43,"hashes":{"sha256":{"algo":"sha256","hash":"abc"}}},{"fileid":44,"hashes":{}}],"next":null}',
+			json_encode( $response->getData() ),
+		);
+	}
+
+
+//  static methods
+
+	/**
+	 * @return array<string, array{string, int}>
+	 */
+	public static function sinceProvider(): array
+	{
+		return [
+			'unix seconds'               => [ '1756800000', 1756800000 ],
+			'a UTC time'                 => [ '2025-09-02T08:00:00Z', 1756800000 ],
+			'an offset'                  => [ '2025-09-02T10:00:00+02:00', 1756800000 ],
+			'an offset whose + was lost' => [ '2025-09-02T10:00:00 02:00', 1756800000 ],
+			'a date, at midnight UTC'    => [ '2025-09-02', 1756771200 ],
+			'a time without an offset'   => [ '2025-09-02 08:00', 1756800000 ],
+		];
+	}
+
+	#[DataProvider( 'sinceProvider' )]
+	public function testSinceIsReadAsUnixSecondsOrAnIsoDate(
+		string $since,
+		int    $expected,
+	): void
+	{
+		$this->api->expects( $this->once() )
+		          ->method( 'listHashes' )
+		          ->with( [ 'admin' ], null, 500, 0, $expected, false )
+		          ->willReturn( [ 'files' => [], 'next' => null ] )
+		;
+
+		$this->assertSame( Http::STATUS_OK, $this->controller->listHashes( since: $since )->getStatus() );
+	}
+
+	/**
+	 * Not a date is a bad request, never a listing of everything: a client
+	 * syncing changes would otherwise take every file for a change.
+	 */
+	public function testAnUnreadableSinceIsABadRequest(): void
+	{
+		$this->api->expects( $this->never() )
+		          ->method( 'listHashes' )
+		;
+
+		foreach ( [ 'yesterday', 'a', '2025-13', '-5' ] as $since )
+		{
+			$response = $this->controller->listHashes( since: $since );
+
+			$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus(), $since );
+			$this->assertSame(
+				'The "since" parameter must be a date, as ISO 8601 or Unix seconds.',
+				$response->getData()['error'],
+			);
+		}
+	}
+
+	/**
+	 * The twin lists the set the resolver grants, and gives a sudoer the
+	 * local path also for a narrowed set: who asks decides, not how wide.
+	 */
+	public function testTheSudoListingGivesASudoerTheLocalPathForANarrowedSet(): void
+	{
+		$sudo = $this->createMock( SudoScope::class );
+		$sudo->method( 'resolveSet' )
+		     ->with( 'admin', [ 'alice' ], [] )
+		     ->willReturn( [ 'alice' ] )
+		;
+		$sudo->method( 'isSudoer' )
+		     ->with( 'admin' )
+		     ->willReturn( true )
+		;
+
+		$this->api->expects( $this->once() )
+		          ->method( 'listHashes' )
+		          ->with( [ 'alice' ], null, 500, 0, null, true )
+		          ->willReturn( [ 'files' => [ [ 'fileid' => 7, 'hashes' => [] ] ], 'next' => null ] )
+		;
+		// A twin's rows say whether the caller could open them, as every
+		// twin's do.
+		$this->api->method( 'openableBy' )
+		          ->with( [ 7 ], 'admin' )
+		          ->willReturn( [ 7 => false ] )
+		;
+
+		$response = $this->controllerWith( $sudo )->sudoListHashes( users: [ 'alice' ], localPath: true );
+
+		$this->assertSame( Http::STATUS_OK, $response->getStatus() );
+		$this->assertFalse( $response->getData()['files'][0]['openable'] );
+	}
+
+	public function testTheSudoListingRefusesALeaderTheLocalPath(): void
+	{
+		$sudo = $this->createMock( SudoScope::class );
+		$sudo->method( 'resolve' )
+		     ->willReturn( [ 'member', 'mate' ] )
+		;
+		$sudo->method( 'isSudoer' )
+		     ->willReturn( false )
+		;
+
+		$this->api->expects( $this->never() )
+		          ->method( 'listHashes' )
+		;
+
+		$response = $this->controllerWith( $sudo )->sudoListHashes( localPath: true );
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $response->getStatus() );
+		$this->assertSame( 'Not yours to look at.', $response->getData()['error'] );
+	}
+
+	public function testTheSudoListingWithNothingNamedIsTheCallersCeiling(): void
+	{
+		$sudo = $this->createMock( SudoScope::class );
+		$sudo->method( 'resolve' )
+		     ->with( 'admin' )
+		     ->willReturn( [ 'member', 'mate' ] )
+		;
+
+		$this->api->expects( $this->once() )
+		          ->method( 'listHashes' )
+		          ->with( [ 'member', 'mate' ], null, 500, 0, null, false )
+		          ->willReturn( [ 'files' => [], 'next' => null ] )
+		;
+
+		$this->assertSame( Http::STATUS_OK, $this->controllerWith( $sudo )->sudoListHashes()->getStatus() );
+	}
+
+	public function testTheSudoListingRefusesWhoeverTheResolverRefuses(): void
+	{
+		$this->api->expects( $this->never() )
+		          ->method( 'listHashes' )
+		;
+
+		$this->assertSame( Http::STATUS_FORBIDDEN, $this->controller->sudoListHashes()->getStatus() );
 	}
 
 	/** The controller with one collaborator swapped: whose reach the resolver grants. */

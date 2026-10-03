@@ -502,6 +502,8 @@ Responses are nonetheless plain JSON: these are `ApiController`s, not `OCSContro
 | 20 | `/api/v1/sudo/file/{fileId}/recalc` | POST | `recalcHash` | Recalculate a file that need not be the caller's own; password confirmation, and the file must be within the caller's reach |
 | 21 | `/api/v1/file/many/recalc` | POST | `recalcMany` | Recalculate up to 25 files or 100 MiB in one request; the rest come back as `remaining` |
 | 22 | `/api/v1/sudo/file/many/recalc` | POST | `recalcMany` | As 21, across the caller's reach; a file out of reach fails on its own row |
+| 23 | `/api/v1/hashes` | GET | `listHashes` | Every hash the caller holds, one entry per file, page by page |
+| 24 | `/api/v1/sudo/hashes` | GET | `listHashes` | As 23, across the accounts `users[]`/`groups[]` name or the caller's whole reach; `?localPath=1` for a sudoer, also with a set named |
 
 > **Note:** `getHashesByFile()` and `getHashesByPath()` are PHP-only convenience methods with no HTTP equivalent. HTTP consumers should use `getHashesByFileId()` after obtaining a `fileId` from NC's WebDAV PROPFIND or other APIs.
 
@@ -901,6 +903,86 @@ batch for one unreachable id would make such a group unverifiable.
 
 ---
 
+#### 10. List Hashes
+
+```
+GET /ocs/v2.php/apps/file_checksum_search/api/v1/hashes?limit=500&after=0
+```
+
+| Parameter | Type | Required | Default |
+|-----------|------|----------|---------|
+| `algo` | string (query) | No | every algorithm |
+| `limit` | int (query) | No | 500; 0 to 1000 |
+| `after` | int (query) | No | 0 |
+| `since` | string (query) | No | — |
+
+Every hash the caller holds, one entry per file, in file id order: for a
+client that keeps a copy of the checksums — an archive syncing its own
+database — and would otherwise ask hash by hash. The files are those
+`lookup` could find.
+
+**Response (200):**
+```json
+{
+  "files": [
+    {
+      "fileid": 185323,
+      "path": "/Fotos/GPZ B 0001.01.001.jpg",
+      "name": "GPZ B 0001.01.001.jpg",
+      "owner": "kunstarchiv",
+      "location": "/kunstarchiv/files/Fotos/GPZ B 0001.01.001.jpg",
+      "updated_at": "2026-09-02T15:17:00+00:00",
+      "hashes": {
+        "sha256": {"algo": "sha256", "hash": "d3e1c5..."}
+      }
+    }
+  ],
+  "next": 185323,
+  "estimated_total": 57459
+}
+```
+
+- **Paging.** Pass `next` as `after` until `next` is `null`. The cursor is a
+  file id, so a file deleted between two pages moves nothing.
+- **`limit=0`** is the count: no files, `estimated_total`, and a `next` that
+  is `after` itself, never `null`, so a count is not read as the end. A
+  `limit` beyond 0–1000 Nextcloud refuses before the app sees it (500, OCS
+  status 996).
+- **`estimated_total`** comes with the first page, the one without `after`:
+  the files the whole listing holds under the same filters. An estimate:
+  files come and go while a listing is read.
+- **`algo`** keeps the files with a hash in that algorithm, and only that
+  hash in `hashes`.
+- **`since`** keeps the files whose hashes were written at or after it:
+  unix seconds, or an ISO 8601 date or time, UTC without an offset
+  (`2026-09-02`, `2026-09-02T15:17:00+02:00`). A `+` the client did not
+  encode arrives as a space and is read as the `+` it was. Anything else is
+  **400**. A file whose hashes carry no stamp (`updated_at` null) is left
+  out. A file renamed or moved keeps its stamp, so `since` does not report
+  it; nor a file deleted. A copy kept in sync reads the full listing now
+  and then.
+- **`path`** is the caller's name for the file, with a leading slash: a
+  received share's files by the path the share has in the caller's files.
+  `owner`, `location` and `hashes` are as in the lookup and the file's
+  hashes (2); `hashes` is `{}` for a file whose document holds none of
+  the hashes the index names.
+
+`GET /api/v1/sudo/hashes` is the cross-account twin: the accounts `users[]`
+and `groups[]` name, or with nothing named the caller's whole reach. `path`
+is then the first account in reach that holds the file's name for it; with
+every account in reach, the owner's, and for a file no account owns, its
+path in the area `location` names. `?localPath=1` adds each file's absolute
+path on the server's disk, as on `/sudo/lookup` — for a sudoer, also when
+`users[]` or `groups[]` narrow the set; a group admin asking is refused with
+403.
+
+```bash
+curl -u kunstarchiv:<app-password> -H 'OCS-APIRequest: true' -H 'Accept: application/json' \
+  'https://cloud.example.com/ocs/v2.php/apps/file_checksum_search/api/v1/hashes?algo=sha256&after=185323'
+```
+
+---
+
 ## Rules
 
 Hash-generation rules, as configured on the admin and personal settings pages.
@@ -1156,7 +1238,7 @@ granted for it, described there as well.
 
 Every ordinary route reads the caller's own files — what they hold: their
 home, the shares they received (a share only to its subtree) and their group
-folders. Six of them have a twin under `/api/v1/sudo/` that answers for the
+folders. Seven of them have a twin under `/api/v1/sudo/` that answers for the
 caller's **reach** instead, and the Duplicates page has one for naming
 accounts:
 
@@ -1166,6 +1248,7 @@ accounts:
 | `GET /api/v1/file/{fileId}/duplicates` | `GET /api/v1/sudo/file/{fileId}/duplicates` | a reference file in the reach; duplicates from the whole reach |
 | `GET /api/v1/lookup` | `GET /api/v1/sudo/lookup` | the whole reach; with `?localPath=1`, each row's `localPath` is the file's absolute path on the server — a sudoer's to ask for, a group admin asking is refused with 403 |
 | `GET /api/v1/duplicates` | `GET /api/v1/sudo/duplicates?users[]=&groups[]=` | the named accounts and the members of the named groups, as one merged listing; with nothing named, the whole reach |
+| `GET /api/v1/hashes` | `GET /api/v1/sudo/hashes?users[]=&groups[]=` | as the duplicates; with `?localPath=1`, each file's absolute path on the server — a sudoer's to ask for, also with a set named, a group admin asking is refused with 403 |
 | `POST /api/v1/file/{fileId}/recalc` | `POST /api/v1/sudo/file/{fileId}/recalc` | any file in the reach |
 | `POST /api/v1/file/many/recalc` | `POST /api/v1/sudo/file/many/recalc` | as above, decided per file |
 
@@ -1325,13 +1408,16 @@ does not affect another user, nor their own access to the other endpoints.
 | `GET /api/v1/duplicates` and `/sudo/duplicates` | 60 requests / 60 s |
 | `GET /api/v1/file/{fileId}/duplicates` and its `/sudo/` twin | 60 requests / 60 s |
 | `GET /api/v1/file/{fileId}/hashes` and its `/sudo/` twin | 60 requests / 60 s |
+| `GET /api/v1/hashes` and `/sudo/hashes` | 300 requests / 60 s |
 | `GET /api/v1/sudo/selectable` | 60 requests / 60 s |
 | `POST /api/v1/file/{fileId}/recalc` and its `/sudo/` twin | 20 requests / 60 s |
 | `POST /api/v1/file/many/recalc` and its `/sudo/` twin | 20 requests / 60 s |
 
 A cross-account twin carries the limit its ordinary route carries: the work
 is the same, and a password confirmation is not a throttle. Recalculation is
-limited more tightly because it reads file content from storage. The limit
+limited more tightly because it reads file content from storage; the hash
+listing more loosely, because a client keeping a copy reads every page, and
+a page answers for up to a thousand files. The limit
 counts requests, not files: one batch request reads up to 25 files or
 100 MiB, so a client verifying many files sends batches rather than single
 recalculations. The remaining endpoints (`/status`, the rules, the
@@ -1371,11 +1457,26 @@ Nextcloud's `ratelimit_overwrite` system setting in `config/config.php`. The key
     'file_checksum_search.publicapi.recalchash' => [
         'user' => ['limit' => 60, 'period' => 60],
     ],
+    'file_checksum_search.publicapi.listhashes' => [
+        'user' => ['limit' => 1200, 'period' => 60],
+    ],
 ],
 ```
 
 Both `limit` and `period` must be present and greater than zero, or the override is
-ignored and a warning is logged.
+ignored and a warning is logged. A cross-account twin is keyed by its own method,
+`sudolisthashes` for `/sudo/hashes`.
+
+### Lifting the limits for an address
+
+A client on a known address — a sync job on the server itself, or on the
+archive's own host — can be let through every user rate limit by Nextcloud's
+brute-force allowlist: list the address under *Administration settings →
+Security → Brute-force allow list*, and switch on *Bypass rate limiting for
+allowed IPs* there (`bruteforcesettings`' `apply_allowlist_to_ratelimit`).
+That lifts every app's rate limits for the
+address, not this app's alone. `'ratelimit.protection.enabled' => false` in
+`config/config.php` switches rate limiting off for the whole server.
 
 > **Note:** earlier revisions of this document described `occ config:app:set` keys
 > (`rate_limit_enabled`, `rate_limit_max_requests`, `rate_limit_window_seconds`) and a

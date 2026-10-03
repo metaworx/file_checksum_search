@@ -909,6 +909,10 @@ msgstr "A regra padrão “Todas as pastas pessoais” cobre apenas pastas pesso
 msgid "The \"hash\" parameter is required."
 msgstr "O parâmetro \"hash\" é obrigatório."
 
+#. TRANSLATORS: "since" is a parameter name and "ISO 8601" a standard; keep both
+msgid "The \"since\" parameter must be a date, as ISO 8601 or Unix seconds."
+msgstr "O parâmetro \"since\" deve ser uma data, no formato ISO 8601 ou em segundos Unix."
+
 msgid "The algorithm the Checksums tab in the file sidebar offers as its first button. Leave it on the default to follow the server; pick one to have it first for every file, with the file's own rule providing the second button."
 msgstr "O algoritmo que a aba “Somas de verificação” da barra lateral de arquivo oferece como primeiro botão. Deixe no padrão para seguir o servidor; escolha um para tê-lo primeiro em todos os arquivos, com a regra do próprio arquivo fornecendo o segundo botão."
 

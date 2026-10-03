@@ -69,6 +69,18 @@ class HashListingService
 		return array_values( $areas );
 	}
 
+	/**
+	 * A file's stamp as the API gives it: ISO 8601, null for none. Zero is
+	 * none: it is what a file's hashes carry when they were written without
+	 * a time, or cleared, so that the next sweep recomputes them.
+	 */
+	public static function stamp( ?int $updatedAt ): ?string
+	{
+		return $updatedAt !== null && $updatedAt > 0
+			? date( 'c', $updatedAt )
+			: null;
+	}
+
 
 //  other non-static methods
 
@@ -204,7 +216,7 @@ class HashListingService
 				'owner'    => $location->owner,
 				'location' => $location->describe(),
 			] + ( $withLocalPath ? [ 'localPath' => $localPaths[ $fileId ] ?? null ] : [] ) + [
-				'updated_at' => $row['updated_at'] !== null ? date( 'c', $row['updated_at'] ) : null,
+				'updated_at' => self::stamp( $row['updated_at'] ),
 				'hashes'     => $byAlgo,
 			];
 		}

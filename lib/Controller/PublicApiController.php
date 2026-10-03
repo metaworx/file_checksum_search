@@ -15,6 +15,7 @@ use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCP\Config\IUserConfig;
 use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Service\DuplicateService;
+use OCA\FileChecksumSearch\Service\HashListingService;
 use OCP\AppFramework\ApiController;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\ApiRoute;
@@ -88,6 +89,45 @@ class PublicApiController
 	private static function jsonObject( array $map ): array|\stdClass
 	{
 		return $map === [] ? new \stdClass() : $map;
+	}
+
+	/**
+	 * `since` as unix seconds: given so, or as an ISO 8601 date or time,
+	 * which without an offset is UTC. Null when not given, false when it is
+	 * neither.
+	 *
+	 * A `+` in a query string arrives as a space unless the client encoded
+	 * it, so a space before a trailing offset is read as the `+` it was.
+	 */
+	private static function sinceFrom( ?string $since ): int|false|null
+	{
+		$since = trim( (string) $since );
+
+		if ( $since === '' )
+		{
+			return null;
+		}
+
+		if ( ctype_digit( $since ) )
+		{
+			return (int) $since;
+		}
+
+		$since = (string) preg_replace( '/(\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?) (\d{2}:?\d{2})$/', '$1+$2', $since );
+
+		if ( preg_match( '/^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/', $since ) !== 1 )
+		{
+			return false;
+		}
+
+		try
+		{
+			return ( new \DateTimeImmutable( $since, new \DateTimeZone( 'UTC' ) ) )->getTimestamp();
+		}
+		catch ( \Exception )
+		{
+			return false;
+		}
 	}
 
 
@@ -267,7 +307,7 @@ class PublicApiController
 	/**
 	 * Say, on a cross-account answer, which rows the viewer could open.
 	 *
-	 * Every file row in `duplicates[].files[]` or `results[]` gains
+	 * Every file row in `duplicates[].files[]`, `results[]` or `files[]` gains
 	 * `openable`. The own routes never need it — what they list, the viewer
 	 * holds by construction — so only the cross-account wrappers ask, and a
 	 * refusal or an error passes through untouched.
@@ -282,12 +322,17 @@ class PublicApiController
 			return $response;
 		}
 
-		if ( isset( $data['results'] ) )
+		foreach ( [ 'results', 'files' ] as $rows )
 		{
-			$ids      = array_map( static fn ( array $r ): int => (int) $r['fileid'], $data['results'] );
+			if ( ! isset( $data[ $rows ] ) )
+			{
+				continue;
+			}
+
+			$ids      = array_map( static fn ( array $r ): int => (int) $r['fileid'], $data[ $rows ] );
 			$openable = $this->api->openableBy( $ids, $viewer );
 
-			foreach ( $data['results'] as &$row )
+			foreach ( $data[ $rows ] as &$row )
 			{
 				$row['openable'] = $openable[ (int) $row['fileid'] ] ?? false;
 			}
@@ -1073,6 +1118,148 @@ class PublicApiController
 		{
 			$this->logger->error(
 				'FCIAS PublicApiController: lookup failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
+			return new DataResponse(
+				[ 'error' => $this->l10n->t( 'Internal server error.' ) ],
+				Http::STATUS_INTERNAL_SERVER_ERROR,
+			);
+		}
+	}
+
+	/**
+	 * Every hash the caller holds, page by page
+	 * ({@see ChecksumApi::listHashes()}): their own files, the shares they
+	 * received and their team folders.
+	 *
+	 * Limited more loosely than a lookup: a page answers for up to a
+	 * thousand files, and a client keeping a copy reads every page.
+	 *
+	 * @param  int<0, 1000>  $limit  Declared, because Nextcloud's dispatcher
+	 *                               holds any `limit` to 1–500 otherwise, and
+	 *                               0 is the count.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	#[UserRateLimit( limit: 300, period: 60 )]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/hashes' )]
+	public function listHashes(
+		?string $algo = null,
+		int     $limit = HashListingService::DEFAULT_LIMIT,
+		int     $after = 0,
+		?string $since = null,
+	): DataResponse
+	{
+		$scope = $this->scopeOrRefusal();
+
+		return $scope instanceof DataResponse
+			? $scope
+			: $this->hashListFor( $scope, $algo, $limit, $after, $since );
+	}
+
+	/**
+	 * {@see listHashes()} across accounts: the ones `users[]` and `groups[]`
+	 * name, or — with nothing named — the caller's ceiling. A password
+	 * confirmation, and only for those who may look across accounts.
+	 *
+	 * `?localPath=1` adds each file's absolute path on the server's disk,
+	 * for a sudoer only, as on {@see sudoLookup()} — but here also when
+	 * `users[]` or `groups[]` narrow the set: what decides it is who asks,
+	 * not how wide they ask. A group leader asking for it is refused.
+	 *
+	 * @param  int<0, 1000>  $limit  As {@see listHashes()}.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	#[UserRateLimit( limit: 300, period: 60 )]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/hashes' )]
+	public function sudoListHashes(
+		?string $algo = null,
+		int     $limit = HashListingService::DEFAULT_LIMIT,
+		int     $after = 0,
+		?string $since = null,
+		?array  $users = null,
+		?array  $groups = null,
+		bool    $localPath = false,
+	): DataResponse
+	{
+		$scope = ( $users !== null || $groups !== null )
+			? $this->sudoSetOrRefusal(
+				array_values( array_filter( (array) $users, 'is_string' ) ),
+				array_values( array_filter( (array) $groups, 'is_string' ) ),
+			)
+			: $this->sudoScopeOrRefusal();
+
+		if ( $scope instanceof DataResponse )
+		{
+			return $scope;
+		}
+
+		if ( $localPath && ! $this->sudo->isSudoer( (string) $this->userSession->getUser()?->getUID() ) )
+		{
+			return new DataResponse(
+				[ 'success' => false, 'error' => $this->l10n->t( 'Not yours to look at.' ) ],
+				Http::STATUS_FORBIDDEN,
+			);
+		}
+
+		return $this->markOpenable( $this->hashListFor( $scope, $algo, $limit, $after, $since, $localPath ) );
+	}
+
+	/**
+	 * The listing's body, for either wrapper: $scope is whose files — a
+	 * uid, a list of them, or null for every account.
+	 */
+	private function hashListFor(
+		string|array|null $scope,
+		?string           $algo,
+		int               $limit,
+		int               $after,
+		?string           $since,
+		bool              $withLocalPath = false,
+	): DataResponse
+	{
+		$from = self::sinceFrom( $since );
+
+		if ( $from === false )
+		{
+			return new DataResponse(
+				// TRANSLATORS: "since" is a parameter name and "ISO 8601" a standard; keep both
+				[ 'error' => $this->l10n->t( 'The "since" parameter must be a date, as ISO 8601 or Unix seconds.' ) ],
+				Http::STATUS_BAD_REQUEST,
+			);
+		}
+
+		try
+		{
+			$page = $this->api->listHashes(
+				$this->reachOf( $scope ),
+				$algo,
+				$limit,
+				$after,
+				$from,
+				$withLocalPath,
+			);
+
+			foreach ( $page['files'] as $n => $file )
+			{
+				$page['files'][ $n ]['hashes'] = self::jsonObject( $file['hashes'] );
+			}
+
+			return new DataResponse( $page );
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->error(
+				'FCIAS PublicApiController: listHashes failed',
 				[
 					'app'       => Application::APP_ID,
 					'exception' => $e,

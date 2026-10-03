@@ -19,8 +19,9 @@ the first stable release.
 - Tunables: the checksum count's interval, and a switch to take it in
   the background.
 
-- `ChecksumApi::listHashes()`: every hash in reach, paged by file id,
-  with `since` (`docs/api-v1.md`).
+- `GET /api/v1/hashes`, its `/sudo/` twin and
+  `ChecksumApi::listHashes()`: every hash in reach, paged by file id,
+  with `since`, 300 requests a minute (`docs/api-v1.md`).
 
 ### Changed
 
@@ -42,7 +43,8 @@ the first stable release.
 
 - `GET /api/v1/file/{fileId}/hashes`, its `/sudo/` twin and
   `ChecksumApi::getHashesBy*()`: `hashes` is keyed by algorithm and
-  `updated_at` is the file's; a caller reading a list breaks.
+  `updated_at` is the file's, null without a stamp; a caller reading a
+  list breaks.
 
 ### Fixed
 

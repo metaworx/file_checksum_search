@@ -908,6 +908,10 @@ msgstr "The \"All home folders\" default covers home folders only: files on exte
 msgid "The \"hash\" parameter is required."
 msgstr "The \"hash\" parameter is required."
 
+#. TRANSLATORS: "since" is a parameter name and "ISO 8601" a standard; keep both
+msgid "The \"since\" parameter must be a date, as ISO 8601 or Unix seconds."
+msgstr "The \"since\" parameter must be a date, as ISO 8601 or Unix seconds."
+
 msgid "The algorithm the Checksums tab in the file sidebar offers as its first button. Leave it on the default to follow the server; pick one to have it first for every file, with the file's own rule providing the second button."
 msgstr "The algorithm the Checksums tab in the file sidebar offers as its first button. Leave it on the default to follow the server; pick one to have it first for every file, with the file's own rule providing the second button."
 

@@ -51,6 +51,10 @@ class RateLimitAttributeTest
 			// The picker's source: cheap per call, but it searches accounts
 			// and groups, so it is metered like the rest.
 			'v1 sudo selectable' => [ PublicApiController::class, 'sudoSelectable', 60, 60 ],
+			// A page answers for up to a thousand files, and a client keeping
+			// a copy reads every page: looser than a lookup, still metered.
+			'v1 hashes'          => [ PublicApiController::class, 'listHashes', 300, 60 ],
+			'v1 sudo hashes'     => [ PublicApiController::class, 'sudoListHashes', 300, 60 ],
 		];
 	}
 

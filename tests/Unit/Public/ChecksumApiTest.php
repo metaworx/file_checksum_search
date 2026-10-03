@@ -740,6 +740,21 @@ class ChecksumApiTest
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
+	public function testAZeroStampIsNoStamp(): void
+	{
+		$this->metadataService->method( 'getHashes' )
+		                      ->willReturn( [ 'sha1' => 'abc' ] )
+		;
+		$this->metadataService->method( 'getUpdatedAt' )
+		                      ->willReturn( 0 )
+		;
+
+		$this->assertNull( $this->api->getHashesByFileId( 42, null )['updated_at'] );
+	}
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testGetHashesByFileIdReturnsHashes(): void
 	{
 		$this->metadataService->expects( $this->once() )

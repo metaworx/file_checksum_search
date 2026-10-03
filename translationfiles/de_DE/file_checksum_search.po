@@ -908,6 +908,10 @@ msgstr "Die Standardregel „Alle Home-Ordner“ deckt nur Home-Ordner ab: Datei
 msgid "The \"hash\" parameter is required."
 msgstr "Der Parameter \"hash\" ist erforderlich."
 
+#. TRANSLATORS: "since" is a parameter name and "ISO 8601" a standard; keep both
+msgid "The \"since\" parameter must be a date, as ISO 8601 or Unix seconds."
+msgstr "Der Parameter \"since\" muss ein Datum sein, im Format ISO 8601 oder in Unix-Sekunden."
+
 msgid "The algorithm the Checksums tab in the file sidebar offers as its first button. Leave it on the default to follow the server; pick one to have it first for every file, with the file's own rule providing the second button."
 msgstr "Der Algorithmus, den der Reiter „Prüfsummen“ in der Datei-Seitenleiste als erste Schaltfläche anbietet. Belassen Sie ihn beim Standard, um dem Server zu folgen; wählen Sie einen, damit er bei jeder Datei zuerst steht – die zweite Schaltfläche liefert die Regel der Datei."
 

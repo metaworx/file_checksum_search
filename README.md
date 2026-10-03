@@ -626,6 +626,7 @@ Basic Auth, or Bearer token.
 | `/api/v1/file/{fileId}/recalc` | POST | Recalculate hash |
 | `/api/v1/file/many/recalc` | POST | Recalculate up to 25 files or 100 MiB in one request |
 | `/api/v1/duplicates?algo=<algo>&minCount=<n>&limit=<n>&offset=<n>&hash=<hex>&anywhere=<0\|1>&includeEmpty=<0\|1>` | GET | Duplicate groups among the caller's files; empty files only with `includeEmpty` |
+| `/api/v1/hashes?algo=<algo>&limit=<n>&after=<fileid>&since=<date>` | GET | Every hash the caller holds, one entry per file, paged by file id |
 | `/api/v1/status` | GET | Read-only health/status |
 
 Every file row carries `owner` and `location` beside `path`. The reads and the

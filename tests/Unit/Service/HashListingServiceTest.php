@@ -234,6 +234,17 @@ class HashListingServiceTest
 		$this->assertSame( [ 'alice', null, null ], array_column( $page['files'], 'owner' ) );
 	}
 
+	/**
+	 * A stamp of zero is none — hashes written without a time, or cleared
+	 * for the next sweep — and is not 1970.
+	 */
+	public function testAZeroStampIsNone(): void
+	{
+		$this->assertNull( HashListingService::stamp( 0 ) );
+		$this->assertNull( HashListingService::stamp( null ) );
+		$this->assertSame( date( 'c', 1756800000 ), HashListingService::stamp( 1756800000 ) );
+	}
+
 	public function testALocalPathIsGivenWhenAsked(): void
 	{
 		$this->metadata->method( 'pageListedFiles' )

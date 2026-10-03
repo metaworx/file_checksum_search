@@ -225,6 +225,56 @@ class ReachTest
 		$this->assertSame( 'Not yours to look at.', $out['body']['error'] );
 	}
 
+	// ─── the hash listing ────────────────────────────────────────────
+	/**
+	 * The listing is the reach too: the recipient lists the shared pair, by
+	 * their names for it, and nothing of the sharer's beside it.
+	 */
+	public function testTheHashListingIsTheRecipientsReach(): void
+	{
+		$response = $this->get( '/api/v1/hashes?algo=sha1', self::$recipientUid, self::$recipientPassword );
+
+		$this->assertSame( 200, $response['status'] );
+		$this->assertSame( [ self::$fileId['a'], self::$fileId['b'] ], array_column( $response['body']['files'], 'fileid' ) );
+		$this->assertNull( $response['body']['next'] );
+		$this->assertSame( 2, $response['body']['estimated_total'] );
+
+		$first = $response['body']['files'][0];
+
+		$this->assertMatchesRegularExpression( '#^/shared_[0-9a-f]+/a\.txt$#', $first['path'] );
+		$this->assertSame( self::$ownerUid, $first['owner'] );
+		$this->assertSame( [ 'sha1' => [ 'algo' => 'sha1', 'hash' => self::$hash['in'] ] ], $first['hashes'] );
+		$this->assertArrayNotHasKey( 'localPath', $first );
+	}
+
+	/**
+	 * The local path says how the server is laid out: a leader asking for
+	 * it is refused, a sudoer is given it — also for one account named.
+	 */
+	public function testTheHashListingsLocalPathIsASudoersOnly(): void
+	{
+		$leader = $this->get( '/api/v1/sudo/hashes?algo=sha1&localPath=1', self::$leaderUid, self::$leaderPassword );
+
+		$this->assertSame( 403, $leader['status'] );
+
+		$sudoer = $this->get(
+			'/api/v1/sudo/hashes?algo=sha1&localPath=1&users%5B%5D=' . self::$ownerUid,
+			self::ADMIN_UID,
+			self::ADMIN_PASSWORD,
+		);
+
+		$this->assertSame( 200, $sudoer['status'] );
+		$this->assertSame(
+			[ self::$fileId['a'], self::$fileId['b'], self::$fileId['c'], self::$fileId['d'] ],
+			array_column( $sudoer['body']['files'], 'fileid' ),
+		);
+
+		foreach ( $sudoer['body']['files'] as $file )
+		{
+			$this->assertArrayHasKey( 'localPath', $file );
+		}
+	}
+
 	// ─── whose file, and where ───────────────────────────────────────
 	/**
 	 * The rows alice is shown for the shared pair are bob's files, and say

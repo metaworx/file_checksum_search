@@ -71,6 +71,36 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
+  /api/v1/hashes:
+    get:
+      tags: [Lookup]
+      summary: Every hash the caller holds, page by page
+      description: >-
+        One entry per file, in file id order, its hashes keyed by algorithm: the caller's own
+        files, the shares they received (a share only to its subtree) and their team folders —
+        the files a lookup could find. Pass `next` back as `after` until it is null.
+      operationId: listHashes
+      parameters:
+        - $ref: "#/components/parameters/HashListAlgo"
+        - $ref: "#/components/parameters/HashListLimit"
+        - $ref: "#/components/parameters/HashListAfter"
+        - $ref: "#/components/parameters/HashListSince"
+      responses:
+        "200":
+          description: One page of the listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HashListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
   /api/v1/file/{fileId}/hashes:
     get:
       tags: [Lookup]
@@ -686,6 +716,70 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
+  /api/v1/sudo/hashes:
+    get:
+      tags: [Sudo]
+      summary: Every hash across accounts, page by page
+      description: >-
+        The cross-account twin of `/api/v1/hashes`. With `users[]`/`groups[]`, the named accounts
+        and the members of the named groups; with neither, the caller's whole reach — every account
+        for a sudoer, their groups' members for a sub-admin. `path` is the first account in reach
+        that holds the file's name for it; with every account in reach, the owner's, and for a file
+        no account owns, its path in the area `location` names. Each entry says whether the caller
+        could open it (`openable`). Requires a password confirmed within the last thirty minutes, or
+        a granted app password (403 with "Password confirmation required" otherwise), and is refused
+        with 403 for anyone who may not look across accounts.
+      operationId: sudoListHashes
+      parameters:
+        - name: users[]
+          in: query
+          required: false
+          description: Accounts to list together
+          schema:
+            type: array
+            items:
+              type: string
+        - name: groups[]
+          in: query
+          required: false
+          description: Groups whose members to list, expanded and authorised server-side
+          schema:
+            type: array
+            items:
+              type: string
+        - $ref: "#/components/parameters/HashListAlgo"
+        - $ref: "#/components/parameters/HashListLimit"
+        - $ref: "#/components/parameters/HashListAfter"
+        - $ref: "#/components/parameters/HashListSince"
+        - name: localPath
+          in: query
+          required: false
+          description: >-
+            `1` adds `localPath` to each entry: the file's absolute path on the server's disk,
+            null for a storage without local files and for every file while server-side
+            encryption is enabled. A sudoer's to ask for, also with `users[]` or `groups[]`
+            naming a set; a sub-admin asking is refused with 403.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: As the ordinary route
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HashListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
   /api/v1/status:
     get:
       tags: [Maintenance]
@@ -1004,6 +1098,46 @@ components:
       name: nc_session_id
       description: Nextcloud session cookie (for browser-based access)
 
+  parameters:
+    HashListAlgo:
+      name: algo
+      in: query
+      required: false
+      description: Only files with a hash in this algorithm, and only that hash in `hashes`
+      schema:
+        type: string
+        example: sha256
+    HashListLimit:
+      name: limit
+      in: query
+      required: false
+      description: Files per page; 0 asks for the count alone
+      schema:
+        type: integer
+        minimum: 0
+        maximum: 1000
+        default: 500
+    HashListAfter:
+      name: after
+      in: query
+      required: false
+      description: The last file id received, as the previous page's `next`; 0 starts the listing
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    HashListSince:
+      name: since
+      in: query
+      required: false
+      description: >-
+        Only files whose hashes were written at or after it: unix seconds, or an ISO 8601 date
+        or time, UTC without an offset. A file whose hashes carry no stamp is left out; a file
+        moved, renamed or deleted is not reported by it. Anything else is 400.
+      schema:
+        type: string
+        example: "2026-09-02T15:17:00+02:00"
+
   schemas:
     ErrorResponse:
       type: object
@@ -1155,6 +1289,71 @@ components:
       example:
         sha1: {algo: sha1, hash: "da39a3ee5e6b4b0d3255bfef95601890afd80709"}
         sha256: {algo: sha256, hash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}
+    HashListResponse:
+      type: object
+      required: [files, next]
+      properties:
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/HashListFile"
+        next:
+          type: integer
+          nullable: true
+          description: >-
+            The file id to pass as `after` for the next page; null when no file follows. With
+            `limit=0` it is `after` itself, so a count is never read as the end.
+          example: 185323
+        estimated_total:
+          type: integer
+          description: >-
+            With no `after`: the files the whole listing holds under the same filters. An
+            estimate — files come and go while a listing is read.
+          example: 57459
+    HashListFile:
+      type: object
+      required: [fileid, path, name, owner, location, updated_at, hashes]
+      properties:
+        fileid:
+          type: integer
+          example: 185323
+        path:
+          type: string
+          description: >-
+            The caller's name for the file, with a leading slash. On the twin, the first account
+            in reach that holds it; with every account in reach, the owner's, or for a file no
+            account owns, its path in the area `location` names.
+          example: "/Fotos/GPZ B 0001.01.001.jpg"
+        name:
+          type: string
+          example: "GPZ B 0001.01.001.jpg"
+        owner:
+          type: string
+          nullable: true
+          description: The owning account; null for a storage no account owns.
+          example: kunstarchiv
+        location:
+          type: string
+          description: "The file's own place: `/<owner>/files/…` for a home, `groupfolder:<id>/…` for a group folder, `storage:<id>/…` otherwise."
+          example: "/kunstarchiv/files/Fotos/GPZ B 0001.01.001.jpg"
+        localPath:
+          type: string
+          nullable: true
+          description: >-
+            `/api/v1/sudo/hashes?localPath=1` only: the file's absolute path on the server's
+            disk. Null for a storage without local files and for every file while server-side
+            encryption is enabled.
+          example: "/srv/nextcloud/data/kunstarchiv/files/Fotos/GPZ B 0001.01.001.jpg"
+        updated_at:
+          $ref: "#/components/schemas/HashesUpdatedAt"
+        hashes:
+          $ref: "#/components/schemas/HashMap"
+        openable:
+          type: boolean
+          description: >-
+            Cross-account route only: whether the caller's own mounts hold this file, so a
+            Files-app link to it would open.
+          example: false
     HashesUpdatedAt:
       type: string
       format: date-time

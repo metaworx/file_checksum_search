@@ -908,6 +908,10 @@ msgstr "De standaardregel “Alle thuismappen” dekt alleen thuismappen: bestan
 msgid "The \"hash\" parameter is required."
 msgstr "De parameter \"hash\" is vereist."
 
+#. TRANSLATORS: "since" is a parameter name and "ISO 8601" a standard; keep both
+msgid "The \"since\" parameter must be a date, as ISO 8601 or Unix seconds."
+msgstr "De parameter \"since\" moet een datum zijn, in ISO 8601 of in Unix-seconden."
+
 msgid "The algorithm the Checksums tab in the file sidebar offers as its first button. Leave it on the default to follow the server; pick one to have it first for every file, with the file's own rule providing the second button."
 msgstr "Het algoritme dat het tabblad “Controlesommen” in de bestandszijbalk als eerste knop aanbiedt. Laat het op de standaard staan om de server te volgen; kies er een om het bij elk bestand als eerste te hebben, terwijl de regel van het bestand de tweede knop levert."
 
