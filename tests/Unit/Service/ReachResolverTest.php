@@ -54,22 +54,6 @@ class ReachResolverTest
 
 //  other non-static methods
 
-	/**
-	 * @param  array<string, list<array{0: int, 1: string}>>  $byUid  storage id and root internal path, per account
-	 */
-	private function mountsByUid( array $byUid ): void
-	{
-		$this->mounts->method( 'getMountsForUser' )
-		             ->willReturnCallback( fn ( IUser $u ): array => array_map(
-			             fn ( array $m ) => $this->createConfiguredMock( ICachedMountInfo::class, [
-				             'getStorageId'        => $m[0],
-				             'getRootInternalPath' => $m[1],
-			             ] ),
-			             $byUid[ $u->getUID() ] ?? [],
-		             ) )
-		;
-	}
-
 	public function testNullIsEverythingAndAnUnknownAccountIsNothing(): void
 	{
 		$this->assertNull( $this->reach->mountsFor( null ) );
@@ -81,12 +65,20 @@ class ReachResolverTest
 	/**
 	 * A mount is a storage and a root. Two accounts sharing a storage
 	 * through different roots are two mounts; the same mount twice is one.
+	 * Where the root is comes from the filecache row of the mount's root
+	 * id; a mount on a storage not yet scanned reaches nothing.
 	 */
 	public function testMountsAreStorageAndRootOnceEach(): void
 	{
-		$this->mountsByUid( [
-			'alice' => [ [ 1, '' ], [ 9, 'files/Projects/x' ] ],
-			'bob'   => [ [ 2, '/' ], [ 9, 'files/Projects/x' ], [ 9, 'files/Other' ] ],
+		$this->viewsByUid( [
+			'alice' => [ [ 100, '/alice/' ], [ 900, '/alice/files/x/' ] ],
+			'bob'   => [ [ 200, '/bob/' ], [ 900, '/bob/files/x/' ], [ 910, '/bob/files/Other/' ], [ 800, '/bob/files/Unscanned/' ] ],
+		] );
+		$this->filecacheRows( [
+			[ 'fileid' => 100, 'storage' => 1, 'path' => '' ],
+			[ 'fileid' => 900, 'storage' => 9, 'path' => 'files/Projects/x' ],
+			[ 'fileid' => 200, 'storage' => 2, 'path' => '/' ],
+			[ 'fileid' => 910, 'storage' => 9, 'path' => 'files/Other' ],
 		] );
 
 		$this->assertSame(
@@ -221,12 +213,17 @@ class ReachResolverTest
 	 */
 	private function filecacheRows( array $rows ): void
 	{
-		$result = $this->createMock( IResult::class );
-		$result->method( 'fetchAssociative' )
-		       ->willReturnOnConsecutiveCalls( ...[ ...$rows, false ] )
-		;
+		// A fresh result per query: a caller may ask more than once.
 		$this->queryBuilder->method( 'executeQuery' )
-		                   ->willReturn( $result )
+		                   ->willReturnCallback( function() use ( $rows ): IResult
+		                   {
+			                   $result = $this->createMock( IResult::class );
+			                   $result->method( 'fetchAssociative' )
+			                          ->willReturnOnConsecutiveCalls( ...[ ...$rows, false ] )
+			                   ;
+
+			                   return $result;
+		                   } )
 		;
 		$this->queryBuilder->method( 'expr' )
 		                   ->willReturn( $this->expr )

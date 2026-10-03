@@ -12,8 +12,6 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Search;
 use OCA\FileChecksumSearch\Search\HashSearchProvider;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
-use OCP\Files\Config\ICachedMountInfo;
-use OCP\Files\Config\IUserMountCache;
 use OCP\Files\IRootFolder;
 use OCP\IURLGenerator;
 use OCP\IUser;
@@ -83,20 +81,13 @@ class HashSearchProviderTest
 	 */
 	public function testSearchCapsTheLimitCoreAsksFor(): void
 	{
-		$metadata   = $this->createMock( MetadataService::class );
-		$mountCache = $this->createMock( IUserMountCache::class );
+		$metadata = $this->createMock( MetadataService::class );
 
-		$mount = $this->createMock( ICachedMountInfo::class );
-		$mount->method( 'getStorageId' )->willReturn( 1 );
-		$mount->method( 'getRootInternalPath' )->willReturn( '' );
-		$mountCache->method( 'getMountsForUser' )->willReturn( [ $mount ] );
-
-		// The searching account, known to the user manager the resolver
-		// looks it up through.
+		// The searching account, whose mounts are one storage.
 		$user = $this->createMock( IUser::class );
 		$user->method( 'getUID' )->willReturn( 'u1' );
-		$users = $this->createMock( \OCP\IUserManager::class );
-		$users->method( 'get' )->with( 'u1' )->willReturn( $user );
+		$reach = $this->createMock( \OCA\FileChecksumSearch\Service\ReachResolver::class );
+		$reach->method( 'storageIdsFor' )->with( 'u1' )->willReturn( [ 1 ] );
 
 		$metadata->expects( $this->once() )
 		         ->method( 'queryByHash' )
@@ -108,7 +99,7 @@ class HashSearchProviderTest
 		$provider = new HashSearchProvider(
 			$metadata,
 			$this->createMock( IRootFolder::class ),
-			new \OCA\FileChecksumSearch\Service\ReachResolver( $mountCache, $users, $this->createMock( \OCP\IDBConnection::class ) ),
+			$reach,
 			$this->createMock( IURLGenerator::class ),
 			$this->createMock( LoggerInterface::class ),
 			$this->englishL10n(),

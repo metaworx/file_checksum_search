@@ -111,27 +111,38 @@ class ReachResolver
 			return null;
 		}
 
-		$mounts = [];
+		$userMounts = [];
 
 		foreach ( is_array( $uids ) ? $uids : [ $uids ] as $uid )
 		{
 			$user = $this->userManager->get( (string) $uid );
 
-			if ( $user === null )
+			if ( $user !== null )
 			{
+				array_push( $userMounts, ...array_values( $this->mountCache->getMountsForUser( $user ) ) );
+			}
+		}
+
+		// Where each root is, from the filecache: not from the mount, which
+		// says the sharer's whole storage for a share recorded in this same
+		// request ({@see rootsOf()}).
+		$roots  = $this->rootsOf( $userMounts );
+		$mounts = [];
+
+		foreach ( $userMounts as $mount )
+		{
+			$root = $roots[ $mount->getRootId() ] ?? null;
+
+			if ( $root === null )
+			{
+				// A storage not yet scanned: nothing in it to reach.
 				continue;
 			}
 
-			foreach ( $this->mountCache->getMountsForUser( $user ) as $mount )
-			{
-				$storage = $mount->getStorageId();
-				$root    = trim( $mount->getRootInternalPath(), '/' );
-
-				$mounts[ $storage . "\0" . $root ] = [
-					'storage' => $storage,
-					'root'    => $root,
-				];
-			}
+			$mounts[ $root['storage'] . "\0" . $root['path'] ] = [
+				'storage' => $root['storage'],
+				'root'    => $root['path'],
+			];
 		}
 
 		return array_values( $mounts );

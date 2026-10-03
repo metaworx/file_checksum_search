@@ -50,6 +50,11 @@ the first stable release.
 
 - Admin status panel: the layout fits translated text.
 
+### Security
+
+- Reach: a received share is its subtree also in the request that
+  first records it, not the sharer's whole storage (Nextcloud 34).
+
 ## [0.21.0] - 2026-10-01
 
 ### Added
