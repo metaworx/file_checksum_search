@@ -50,6 +50,11 @@ the first stable release.
 
 - Admin status panel: the layout fits translated text.
 
+- Orphaned metadata purge: a gone file's document that another app
+  wrote to as well, such as a photo's, is deleted whole, as Nextcloud
+  deletes it, instead of failing on every run and, a batch of them
+  together, stopping the purge.
+
 ### Security
 
 - Reach: a received share is its subtree also in the request that

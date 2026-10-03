@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\FilecacheService;
+use OCA\FileChecksumSearch\Service\FileLocation;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
@@ -2616,7 +2617,8 @@ class MetadataServiceTest
 	}
 
 	/**
-	 * A document another app still uses is kept, and only our keys leave it.
+	 * A live file's document another app still uses is kept, and only our
+	 * keys leave it.
 	 */
 	public function testPurgingADocumentAnotherAppSharesKeepsTheRecord(): void
 	{
@@ -2635,6 +2637,10 @@ class MetadataServiceTest
 		$this->metadataManager->method( 'getMetadata' )
 		                      ->willReturn( $metadata )
 		;
+		$this->filecacheService->method( 'locate' )
+		                       ->with( 42 )
+		                       ->willReturn( FileLocation::fromRow( 42, 'home::alice', 'files/a.jpg', 0 ) )
+		;
 
 		$this->metadataManager->expects( $this->never() )
 		                      ->method( 'deleteMetadata' )
@@ -2642,6 +2648,42 @@ class MetadataServiceTest
 		$this->metadataManager->expects( $this->once() )
 		                      ->method( 'saveMetadata' )
 		                      ->with( $metadata )
+		;
+
+		$this->service->purgeMetadata( 42 );
+	}
+
+	/**
+	 * A file that is gone loses its whole document, another app's keys
+	 * with it, as Nextcloud's own deletion does. Saving it is what failed:
+	 * Nextcloud's save looks the gone file's storage up and refuses, so the
+	 * file stayed behind on every run and, a batch of them together, held
+	 * the purge up for good.
+	 */
+	public function testPurgingAGoneFilesDocumentAnotherAppSharesDeletesIt(): void
+	{
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'getFileId' )
+		         ->willReturn( 42 )
+		;
+		$metadata->method( 'getKeys' )
+		         ->willReturn( [ 'photos-original_date_time' ] )
+		;
+
+		$this->metadataManager->method( 'getMetadata' )
+		                      ->willReturn( $metadata )
+		;
+		$this->filecacheService->method( 'locate' )
+		                       ->with( 42 )
+		                       ->willReturn( null )
+		;
+
+		$this->metadataManager->expects( $this->once() )
+		                      ->method( 'deleteMetadata' )
+		                      ->with( 42 )
+		;
+		$this->metadataManager->expects( $this->never() )
+		                      ->method( 'saveMetadata' )
 		;
 
 		$this->service->purgeMetadata( 42 );

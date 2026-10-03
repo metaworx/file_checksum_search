@@ -869,8 +869,8 @@ class RepairQuietStart
 		title: 'Forget files that no longer exist',
 		description: 'Removes this app\'s metadata and index rows for files that are gone from the '
 		. 'filecache — what deleting a user or removing a storage leaves behind, because Nextcloud\'s '
-		. 'own cleanup does not run on those paths. Keeps a metadata document that another app still '
-		. 'uses, and deletes one only when nothing but this app\'s keys was in it. Reads no file content. '
+		. 'own cleanup does not run on those paths. Deletes such a file\'s whole metadata document, '
+		. 'other apps\' keys included, as Nextcloud does when a file is deleted. Reads no file content. '
 		. 'A whole repair, as installing, enabling or upgrading the app runs, makes the daily purge due '
 		. 'on the next rule sweep; named here, it purges at once.',
 		expensive: true,

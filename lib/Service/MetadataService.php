@@ -392,14 +392,25 @@ class MetadataService
 	 * keys and one index row behind, and a sweep looking for exactly those
 	 * would never finish.
 	 *
-	 * Only our own keys are removed. If the document holds nothing else
-	 * afterwards it is deleted outright, through Nextcloud's own API, which
-	 * drops the document and its index rows together — safe precisely
-	 * because the set is empty, so nothing of another app's goes with it.
-	 * A document that still holds another app's keys is kept and saved:
-	 * Nextcloud does not delete an emptied document by itself
-	 * ({@see IFilesMetadataManager::saveMetadata()} stores `{}`), and it is
-	 * not ours to delete when it is not empty.
+	 * The document is deleted outright, through Nextcloud's own API, which
+	 * drops it and its index rows together, when nothing is left in it once
+	 * our keys are gone, or when the filecache no longer has the file. The
+	 * second is what Nextcloud does itself when a file's cache entry goes
+	 * (`MetadataDelete`): every app's keys go with it. Only on the paths
+	 * that skip that event — a user deleted, a storage removed — is the
+	 * document left for this purge, and nobody uses it any more.
+	 *
+	 * Saving it instead, without our keys, is what this did for a document
+	 * holding another app's keys, and it cannot work for a file that is
+	 * gone: Nextcloud's save looks the file's storage up and refuses. Each
+	 * such file failed on every run, and once a batch's worth of them had
+	 * gathered — an account deleted with its photos is enough — the purge
+	 * never reached anything else.
+	 *
+	 * A live file's document that holds another app's keys is kept and
+	 * saved without ours: Nextcloud does not delete an emptied document by
+	 * itself ({@see IFilesMetadataManager::saveMetadata()} stores `{}`), and
+	 * another app's keys are not ours to delete.
 	 *
 	 * @throws Exception
 	 */
@@ -409,7 +420,7 @@ class MetadataService
 
 		$metadata->removeStartsWith( self::KEY_FILE_CHECKSUM_PREFIX );
 
-		if ( $metadata->getKeys() === [] )
+		if ( $metadata->getKeys() === [] || $this->filecacheService->locate( $fileId ) === null )
 		{
 			$this->metadataManager->deleteMetadata( $fileId );
 

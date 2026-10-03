@@ -15,6 +15,7 @@ use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
 use OCP\Files\IRootFolder;
+use OCP\FilesMetadata\IFilesMetadataManager;
 use OCP\IAppConfig;
 use OCP\Migration\IOutput;
 use OCP\Server;
@@ -289,7 +290,8 @@ class RepairQuietStartIntegrationTest
 	 * filecache rows without announcing them, so the metadata keyed on those
 	 * ids stayed. It stayed *findable* too: those rows still answer a hash
 	 * search, which is how this was found. Nextcloud 35 cleans up after
-	 * itself, and 34 and 33 have the fix asked for as backports, but every
+	 * itself; the backport to 34 is asked for (nextcloud/server#64497), and
+	 * 33 has none, the fix needing an event 33 does not have. Every
 	 * instance that ran an earlier version keeps what it left, and that is
 	 * what this sweep is for.
 	 *
@@ -344,6 +346,49 @@ class RepairQuietStartIntegrationTest
 			0,
 			$this->countMetadataRowsFor( $fileId ),
 			'the sweep must remove both the document and the index rows of a file that is gone',
+		);
+	}
+
+	/**
+	 * The same, for a file whose document another app wrote to as well, as
+	 * the photos app does for every image. Its document goes whole, as
+	 * Nextcloud's own deletion takes it. Saving it without this app's keys
+	 * cannot work once the file is gone — Nextcloud's save looks its
+	 * storage up and refuses — so such a file stayed on every run, and a
+	 * batch of them, one deleted account's photos, held the sweep up for
+	 * everything else.
+	 */
+	public function testAGoneFileAnotherAppWroteToIsSweptUpWhole(): void
+	{
+		[ $uid ] = self::makeAccount( 'fcias_sweep_shared' );
+
+		$fileId = Server::get( IRootFolder::class )
+		                ->getUserFolder( $uid )
+		                ->newFile( 'photo.jpg', 'FCIAS shared-document sweep content' )
+		                ->getId()
+		;
+
+		Server::get( MetadataService::class )
+		      ->writeHashes( $fileId, [ 'sha1' => sha1( 'FCIAS shared-document sweep content' ) ], time(), false )
+		;
+
+		$manager  = Server::get( IFilesMetadataManager::class );
+		$metadata = $manager->getMetadata( $fileId, true );
+		$metadata->setString( 'fcias-integration-foreign', 'another app\'s value' );
+		$manager->saveMetadata( $metadata );
+
+		$this->getRawConnection()
+		     ->executeStatement( 'DELETE FROM `*PREFIX*filecache` WHERE `fileid` = ?', [ $fileId ] )
+		;
+
+		Server::get( RepairQuietStart::class )
+		      ->runSteps( $this->createMock( IOutput::class ), [ 'orphaned-metadata' ] )
+		;
+
+		$this->assertSame(
+			0,
+			$this->countMetadataRowsFor( $fileId ),
+			'a gone file\'s document must go whole, another app\'s keys with it',
 		);
 	}
 
