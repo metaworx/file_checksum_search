@@ -274,6 +274,41 @@ class HashListingTest
 		);
 	}
 
+	/**
+	 * The walk is the pages put together, file for file, and the caller may
+	 * query between two files: each batch is a query of its own, not a
+	 * result left open. Cut short, it resumes after the last file received.
+	 */
+	public function testTheWalkIsThePagesPutTogether(): void
+	{
+		$pages = [];
+		$after = 0;
+
+		do
+		{
+			$page  = $this->api->listHashes( [ self::$recipientUid ], null, 1, $after );
+			$pages = array_merge( $pages, $page['files'] );
+			$after = (int) $page['next'];
+		}
+		while ( $page['next'] !== null );
+
+		$walk = [];
+
+		foreach ( $this->api->iterateHashes( [ self::$recipientUid ] ) as $fileId => $entry )
+		{
+			// The caller's own query, between two files.
+			$this->api->listHashes( [ self::$recipientUid ], null, 0 );
+			$walk[ $fileId ] = $entry;
+		}
+
+		$this->assertSame( array_column( $pages, 'fileid' ), array_keys( $walk ) );
+		$this->assertSame( $pages, array_values( $walk ) );
+
+		$rest = iterator_to_array( $this->api->iterateHashes( [ self::$recipientUid ], null, null, false, self::$fileId['a'] ) );
+
+		$this->assertSame( [ self::$fileId['b'], self::$fileId['r'] ], array_keys( $rest ) );
+	}
+
 	public function testSinceKeepsTheFilesStampedAtOrAfterIt(): void
 	{
 		$stamp = Server::get( MetadataService::class )->getUpdatedAt( self::$fileId['a'] );

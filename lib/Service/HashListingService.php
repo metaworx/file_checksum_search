@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Service;
 
+use Generator;
 use OCP\DB\Exception;
 
 /**
@@ -36,6 +37,9 @@ class HashListingService
 
 	public const DEFAULT_LIMIT = 500;
 	public const MAX_LIMIT     = 1000;
+
+	/** Files {@see iterate()} reads at once, and holds at once. */
+	public const ITERATE_BATCH = 500;
 
 
 //  constructor
@@ -70,6 +74,16 @@ class HashListingService
 		}
 
 		return array_values( $areas );
+	}
+
+	/**
+	 * An algorithm as the hash keys spell it, null for none: the selection
+	 * lowercases through the key, and the values have to be read under the
+	 * same name.
+	 */
+	private static function algoOf( ?string $algo ): ?string
+	{
+		return $algo === null || $algo === '' ? null : strtolower( $algo );
 	}
 
 	/**
@@ -132,12 +146,8 @@ class HashListingService
 	{
 		$limit = max( 0, min( $limit, self::MAX_LIMIT ) );
 		$after = max( 0, $after );
-		// Lowercased, as the hash keys are: the selection lowercases through
-		// the key, and the values have to be read under the same name.
-		$algo  = $algo === null || $algo === '' ? null : strtolower( $algo );
-		$views = $reachUids === null
-			? null
-			: $this->reach->filesViewsFor( array_values( $reachUids ) );
+		$algo  = self::algoOf( $algo );
+		$views = $this->viewsOf( $reachUids );
 		$areas = $views === null ? null : self::areasOf( $views );
 
 		$answer = [
@@ -162,6 +172,70 @@ class HashListingService
 		}
 
 		return $answer;
+	}
+
+	/**
+	 * The whole listing, file by file, for a caller in this process.
+	 *
+	 * The pages of {@see page()}, read {@see ITERATE_BATCH} files at a time
+	 * and handed on one by one; a batch is let go when the next is read, so
+	 * one is held at a time however large the listing. Each batch is a query
+	 * of its own, not one result read row by row: on MySQL and PostgreSQL the
+	 * whole result would reach PHP when the query ran, and a result left
+	 * open would forbid the caller's own queries between two files. No
+	 * count: {@see page()} with a limit of 0 gives one.
+	 *
+	 * @param  list<string>|null  $reachUids      As {@see page()}.
+	 * @param  string|null        $algo           As {@see page()}.
+	 * @param  int|null           $since          As {@see page()}.
+	 * @param  bool               $withLocalPath  As {@see page()}.
+	 * @param  int                $after          The last file id a walk that
+	 *                                            was cut short received; 0
+	 *                                            starts at the beginning.
+	 *
+	 * @return Generator<int, array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>}>
+	 *         keyed by file id, in file id order
+	 * @throws Exception
+	 */
+	public function iterate(
+		?array  $reachUids,
+		?string $algo = null,
+		?int    $since = null,
+		bool    $withLocalPath = false,
+		int     $after = 0,
+	): Generator
+	{
+		$after = max( 0, $after );
+		$algo  = self::algoOf( $algo );
+		$views = $this->viewsOf( $reachUids );
+		$areas = $views === null ? null : self::areasOf( $views );
+
+		do
+		{
+			$rows = $this->metadataService->pageListedFiles( $areas, $algo, $after, $since, self::ITERATE_BATCH );
+
+			foreach ( $this->entries( $rows, $views, $algo, $withLocalPath ) as $entry )
+			{
+				yield $entry['fileid'] => $entry;
+			}
+
+			$after = $rows === [] ? $after : $rows[ array_key_last( $rows ) ]['fileid'];
+		}
+		while ( count( $rows ) === self::ITERATE_BATCH );
+	}
+
+	/**
+	 * The reach's views, resolved once per call: null for every file.
+	 *
+	 * @param  list<string>|null  $reachUids
+	 *
+	 * @return list<array{uid: string, storage: int, root: string, prefix: string}>|null
+	 */
+	private function viewsOf( ?array $reachUids ): ?array
+	{
+		return $reachUids === null
+			? null
+			: $this->reach->filesViewsFor( array_values( $reachUids ) );
 	}
 
 	/**

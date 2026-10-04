@@ -263,6 +263,69 @@ class HashListingServiceTest
 	}
 
 	/**
+	 * The walk reads batch after batch, from where the last one ended, and
+	 * stops at the first batch that comes back short. The reach is resolved
+	 * once, no count is taken, and each file comes keyed by its id.
+	 */
+	public function testTheWalkReadsBatchAfterBatchUntilOneIsShort(): void
+	{
+		$batch = HashListingService::ITERATE_BATCH;
+
+		$this->reach->expects( $this->once() )
+		            ->method( 'filesViewsFor' )
+		            ->with( [ 'alice' ] )
+		            ->willReturn( [ [ 'uid' => 'alice', 'storage' => 1, 'root' => 'files', 'prefix' => '/' ] ] )
+		;
+		$this->metadata->expects( $this->exactly( 2 ) )
+		               ->method( 'pageListedFiles' )
+		               ->willReturnCallback( fn ( ?array $areas, ?string $algo, int $after, ?int $since, int $limit ): array => match ( $after )
+		               {
+			               0      => $this->rows( 1, $batch ),
+			               $batch => $this->rows( $batch + 1, $batch + 2 ),
+		               } )
+		;
+		$this->metadata->expects( $this->never() )
+		               ->method( 'countListedFiles' )
+		;
+
+		$walk = iterator_to_array( $this->listing->iterate( [ 'alice' ] ) );
+
+		$this->assertSame( range( 1, $batch + 2 ), array_keys( $walk ) );
+		$this->assertSame( '/f' . ( $batch + 2 ), $walk[ $batch + 2 ]['path'] );
+	}
+
+	/**
+	 * A full last batch is followed by one more query, which comes back
+	 * empty and ends the walk.
+	 */
+	public function testAFullLastBatchEndsOnAnEmptyOne(): void
+	{
+		$batch = HashListingService::ITERATE_BATCH;
+
+		$this->metadata->expects( $this->exactly( 2 ) )
+		               ->method( 'pageListedFiles' )
+		               ->willReturnOnConsecutiveCalls( $this->rows( 1, $batch ), [] )
+		;
+
+		$this->assertCount( $batch, iterator_to_array( $this->listing->iterate( null ) ) );
+	}
+
+	/**
+	 * A walk cut short resumes after the last file it received; the
+	 * algorithm is read in lower case, as on the pages.
+	 */
+	public function testAWalkResumesAfterAFileAndReadsTheAlgorithmInLowerCase(): void
+	{
+		$this->metadata->expects( $this->once() )
+		               ->method( 'pageListedFiles' )
+		               ->with( null, 'sha1', 42, 1700000000, HashListingService::ITERATE_BATCH )
+		               ->willReturn( [] )
+		;
+
+		$this->assertSame( [], iterator_to_array( $this->listing->iterate( null, 'SHA1', 1700000000, false, 42 ) ) );
+	}
+
+	/**
 	 * A stamp of zero is none — hashes written without a time, or cleared
 	 * for the next sweep — and is not 1970.
 	 */
@@ -292,6 +355,22 @@ class HashListingServiceTest
 		$this->assertSame(
 			[ 'fileid', 'path', 'name', 'owner', 'location', 'localPath', 'updated_at', 'hashes' ],
 			array_keys( $entry ),
+		);
+	}
+
+	/**
+	 * Rows for the file ids $from to $to, each a home file named after its id.
+	 *
+	 * @return list<array{fileid: int, storage: int, storage_id: string, path: string, updated_at: ?int}>
+	 */
+	private function rows(
+		int $from,
+		int $to,
+	): array
+	{
+		return array_map(
+			fn ( int $id ): array => $this->row( $id, 1, 'home::alice', 'files/f' . $id, 1 ),
+			range( $from, $to ),
 		);
 	}
 

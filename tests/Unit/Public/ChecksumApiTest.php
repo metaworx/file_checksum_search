@@ -713,6 +713,19 @@ class ChecksumApiTest
 		$this->assertSame( $page, $this->api->listHashes( [ 'alice' ], 'sha256', 200, 42, 1700000000, true ) );
 	}
 
+	public function testIterateHashesHandsItsArgumentsToTheListing(): void
+	{
+		$walk = ( static fn () => yield from [] )();
+
+		$this->listing->expects( $this->once() )
+		              ->method( 'iterate' )
+		              ->with( [ 'alice' ], 'sha256', 1700000000, true, 42 )
+		              ->willReturn( $walk )
+		;
+
+		$this->assertSame( $walk, $this->api->iterateHashes( [ 'alice' ], 'sha256', 1700000000, true, 42 ) );
+	}
+
 	// ─── getHashesByFileId ──────────────────────────────────────────
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection

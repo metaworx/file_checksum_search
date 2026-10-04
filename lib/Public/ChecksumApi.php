@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Public;
 
+use Generator;
 use OCA\FileChecksumSearch\Service\DuplicateService;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\ReachResolver;
@@ -457,6 +458,38 @@ class ChecksumApi
 	): array
 	{
 		return $this->listing->page( $reachUids, $algo, $limit, $after, $since, $withLocalPath );
+	}
+
+	/**
+	 * Every hash in reach, file by file: {@see listHashes()} without the
+	 * paging, for a caller in this process.
+	 *
+	 * Read in batches of {@see HashListingService::ITERATE_BATCH} files,
+	 * one held at a time, each a query of its own, so the caller may run
+	 * its own queries between two files. The entries are `listHashes()`'s
+	 * `files`, keyed by file id. No count: `listHashes()` with a limit of 0
+	 * gives one.
+	 *
+	 * @param  list<string>|null  $reachUids      Whose files: as {@see findByHash()}.
+	 * @param  string|null        $algo           As {@see listHashes()}.
+	 * @param  int|null           $since          As {@see listHashes()}.
+	 * @param  bool               $withLocalPath  As {@see listHashes()}.
+	 * @param  int                $after          The last file id a walk that
+	 *                                            was cut short received; 0
+	 *                                            starts at the beginning.
+	 *
+	 * @return Generator<int, array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>}>
+	 * @throws \OCP\DB\Exception  While the walk is read, not when it is asked for.
+	 */
+	public function iterateHashes(
+		?array  $reachUids,
+		?string $algo = null,
+		?int    $since = null,
+		bool    $withLocalPath = false,
+		int     $after = 0,
+	): Generator
+	{
+		return $this->listing->iterate( $reachUids, $algo, $since, $withLocalPath, $after );
 	}
 
 	/**

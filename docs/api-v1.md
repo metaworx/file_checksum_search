@@ -190,6 +190,40 @@ hash by hash.
 
 ---
 
+#### `iterateHashes(?array $reachUids, ?string $algo = null, ?int $since = null, bool $withLocalPath = false, int $after = 0): Generator`
+
+The whole of `listHashes()`'s listing, file by file, for a caller in the same
+process: no paging to drive, and one batch of 500 files in memory at a time,
+however large the listing.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `$reachUids` | `?array` | Yes | Whose files; `null` for every account |
+| `$algo` | `?string` | No | As `listHashes()` |
+| `$since` | `?int` | No | As `listHashes()` |
+| `$withLocalPath` | `bool` | No | As `listHashes()` |
+| `$after` | `int` | No | The last file id a walk that was cut short received; 0, the default, starts at the beginning |
+
+**Yields:** `listHashes()`'s `files` entries, keyed by file id, in file id
+order.
+
+```php
+foreach ($api->iterateHashes(['alice'], 'sha256') as $fileId => $entry) {
+    $archive->upsert($entry['path'], $entry['hashes']['sha256']['hash'] ?? null);
+}
+```
+
+- **Batches.** Each batch is a query of its own, so the caller may run its
+  own queries between two files. The next batch is read when the current one
+  is used up; nothing is read ahead.
+- **No count.** `listHashes()` with `$limit` 0 gives one.
+- **What `listHashes()` says** of which files, `path`, `hashes`, the stamp
+  and `$since` holds here too.
+
+**Throws:** `\OCP\DB\Exception` on a database error, while the walk is read.
+
+---
+
 #### `getHashesByFileId(int $fileId, ?array $reachUids, ?string $actingUser = null): array`
 
 Get all checksums for a file by its filecache ID.
