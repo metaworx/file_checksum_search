@@ -135,18 +135,18 @@ hash by hash.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `$reachUids` | `?array` | Yes | Whose files; `null` for every account |
-| `$algo` | `?string` | No | Only files with a hash in this algorithm, and only that hash |
-| `$limit` | `int` | No | Files per page, 0–1000, default 500; 0 asks for the count alone |
-| `$after` | `int` | No | The last file id received; 0, the default, starts the listing |
-| `$since` | `?int` | No | Only files whose hashes were written at or after it, in unix seconds |
+| `$algo` | `?string` | No | Only files with a hash in this algorithm, in any case, and only that hash |
+| `$limit` | `int` | No | Files per page, clamped to 0–1000, default 500; 0 lists none |
+| `$after` | `int` | No | The last file id received; 0, the default, starts the listing; a negative one is 0 |
+| `$since` | `?int` | No | Only files whose stamp is at or after it, in Unix seconds |
 | `$withLocalPath` | `bool` | No | Add `localPath` to each entry, as `findByHash()` does |
 
 **Returns:**
 ```php
 [
     'files' => [
-        ['fileid' => 185323, 'path' => '/Fotos/GPZ B 0001.01.001.jpg', 'name' => 'GPZ B 0001.01.001.jpg',
-         'owner' => 'kunstarchiv', 'location' => '/kunstarchiv/files/Fotos/GPZ B 0001.01.001.jpg',
+        ['fileid' => 185323, 'path' => '/Photos/2026/beach.jpg', 'name' => 'beach.jpg',
+         'owner' => 'alice', 'location' => '/alice/files/Photos/2026/beach.jpg',
          'updated_at' => '2026-09-02T15:17:00+00:00',
          'hashes' => ['sha256' => ['algo' => 'sha256', 'hash' => 'd3e1c5...']]],
         // ...
@@ -156,24 +156,37 @@ hash by hash.
 ]
 ```
 
-- **Paging.** Pass `next` back as `$after` until it is `null`. With
-  `$limit` 0, `next` is `$after` itself, so a count is never read as the
-  end. The cursor is a file id, so a file deleted between two pages moves
-  nothing.
-- **`estimated_total`**, when `$after` is 0: the files the whole listing
-  holds under the same filters. An estimate: files come and go while a
-  listing is read.
-- **Which files:** those `findByHash()` could find: an indexed hash, within
-  the reach, not disowned by a reset. A received share counts for the
-  shared folder and what is below it.
-- **`path`** is the first account in reach that holds the file's name for
-  it, with a leading slash. With `$reachUids` null it is the owner's, or,
-  for a file no account owns, its path in the area `location` names.
+- **Paging.** Pass `next` back as `$after` until it is `null`. The cursor
+  is a file id, so a file deleted between two pages moves nothing.
+- **The count.** From the start, `$after` 0, the answer carries
+  `estimated_total`: the files the whole listing holds under the same
+  filters. An estimate: files come and go while a listing is read. With
+  `$limit` 0 that is all it carries, and `next` is `$after` itself, so a
+  count is never read as the end.
+- **Which files:** the rows `findByHash()` selects: an indexed hash, within
+  the reach's mounts, not disowned by a reset. A received share counts for
+  the shared folder and what is below it. An algorithm the instance holds
+  no hashes in lists nothing; it is not an error.
+- **`path`** is the file's path as the first account in reach that holds it
+  names it, with a leading slash. With `$reachUids` null it is the owner's,
+  or, for a file no account owns, its path in the area `location` names.
   `owner`, `location` and `localPath` are as `findByHash()` gives them.
 - **`hashes`** is keyed by algorithm, as `getHashesByFileId()` gives it,
-  the values whole from the metadata document; `updated_at` is the file's
-  stamp, `null` when its hashes carry none, and `$since` leaves such a file
-  out.
+  in the order the file's document holds them, the values whole from the
+  document.
+- **`updated_at`** is the file's stamp: not when its hashes were written,
+  but until when the app holds them current, which is what it compares
+  with the file's mtime. Hashes the app computed carry the time of the
+  computation; checksums taken over from Nextcloud's filecache, the file's
+  mtime; an import, the stamp it brought. A recalculation by hand leaves
+  the stamp as it was. `null` is no stamp, and `$since` leaves such a file
+  out whatever its value.
+- **`$since` is not a change feed.** Hashes taken over or imported after a
+  client's last run can carry an older stamp, and a file moved, renamed or
+  deleted changes none. A copy kept in sync with it reads the whole listing
+  now and then.
+
+**Throws:** `\OCP\DB\Exception` on a database error.
 
 ---
 
@@ -203,10 +216,11 @@ Get all checksums for a file by its filecache ID.
 ]
 ```
 
-`hashes` is keyed by algorithm, `[]` for a file with none; the REST answer
-carries that as `{}`. `updated_at` is the file's: when its hashes were last
-written, ISO 8601, `null` when they carry no stamp. The app keeps one stamp
-per file, not one per algorithm.
+`hashes` is keyed by algorithm, in the order the file's document holds
+them, `[]` for a file with none; the REST answer carries that as `{}`.
+`updated_at` is the file's stamp, ISO 8601, `null` for none: one per file,
+not one per algorithm, saying until when the hashes are held current
+rather than when they were written (see `listHashes()`).
 
 **Throws:** `\OCP\Files\NotFoundException` if the file lies outside `$reachUids`.
 
@@ -571,10 +585,10 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/hashes
 ```
 
 `hashes` is an object keyed by algorithm, `{}` for a file with none.
-`updated_at` is the file's, when its hashes were last written, `null` when
-they carry no stamp: the app keeps one per file, not one per algorithm.
-Before 0.22.0, `hashes` was a list and each entry carried the file's
-`updated_at`.
+`updated_at` is the file's stamp, `null` for none: one per file, not one
+per algorithm, saying until when the hashes are held current rather than
+when they were written (see List Hashes). Before 0.22.0, `hashes` was a
+list and each entry carried the file's `updated_at`.
 
 The three fields after `hashes` are what the files sidebar composes its quick
 buttons from: `algos` are the algorithms the file's governing `include` rule
@@ -918,8 +932,8 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/hashes?limit=500&after=0
 
 Every hash the caller holds, one entry per file, in file id order: for a
 client that keeps a copy of the checksums — an archive syncing its own
-database — and would otherwise ask hash by hash. The files are those
-`lookup` could find.
+database — and would otherwise ask hash by hash. The files are the ones
+`lookup` selects, within the caller's mounts.
 
 **Response (200):**
 ```json
@@ -927,10 +941,10 @@ database — and would otherwise ask hash by hash. The files are those
   "files": [
     {
       "fileid": 185323,
-      "path": "/Fotos/GPZ B 0001.01.001.jpg",
-      "name": "GPZ B 0001.01.001.jpg",
-      "owner": "kunstarchiv",
-      "location": "/kunstarchiv/files/Fotos/GPZ B 0001.01.001.jpg",
+      "path": "/Photos/2026/beach.jpg",
+      "name": "beach.jpg",
+      "owner": "alice",
+      "location": "/alice/files/Photos/2026/beach.jpg",
       "updated_at": "2026-09-02T15:17:00+00:00",
       "hashes": {
         "sha256": {"algo": "sha256", "hash": "d3e1c5..."}
@@ -944,41 +958,51 @@ database — and would otherwise ask hash by hash. The files are those
 
 - **Paging.** Pass `next` as `after` until `next` is `null`. The cursor is a
   file id, so a file deleted between two pages moves nothing.
-- **`limit=0`** is the count: no files, `estimated_total`, and a `next` that
-  is `after` itself, never `null`, so a count is not read as the end. A
-  `limit` beyond 0–1000 Nextcloud refuses before the app sees it (500, OCS
-  status 996).
-- **`estimated_total`** comes with the first page, the one without `after`:
-  the files the whole listing holds under the same filters. An estimate:
-  files come and go while a listing is read.
-- **`algo`** keeps the files with a hash in that algorithm, and only that
-  hash in `hashes`.
-- **`since`** keeps the files whose hashes were written at or after it:
-  unix seconds, or an ISO 8601 date or time, UTC without an offset
-  (`2026-09-02`, `2026-09-02T15:17:00+02:00`). A `+` the client did not
-  encode arrives as a space and is read as the `+` it was. Anything else is
-  **400**. A file whose hashes carry no stamp (`updated_at` null) is left
-  out. A file renamed or moved keeps its stamp, so `since` does not report
-  it; nor a file deleted. A copy kept in sync reads the full listing now
-  and then.
-- **`path`** is the caller's name for the file, with a leading slash: a
+- **The count.** The first page, `after` 0 or absent, carries
+  `estimated_total`: the files the whole listing holds under the same
+  filters. An estimate: files come and go while a listing is read.
+  `limit=0` from the start is the count alone: no files, the total, and a
+  `next` that is `after` itself, never `null`, so a count is not read as
+  the end.
+- **`limit`** beyond 0–1000, or not a number, is refused by Nextcloud
+  before the app sees it: a 500 in Nextcloud's own OCS envelope (status
+  996), not this API's `{"error": …}`.
+- **`algo`**, in any case, keeps the files with a hash in that algorithm,
+  and only that hash in `hashes`. An algorithm the instance holds no
+  hashes in lists nothing; unlike `lookup`, it is not an error.
+- **`since`** keeps the files whose stamp, `updated_at`, is at or after
+  it: Unix seconds, or an ISO 8601 date, optionally with a time and an
+  offset, read as UTC where it has none (`2026-09-02`,
+  `2026-09-02T15:17:00+02:00`). A `+` the client did not encode arrives as
+  a space and is read as the `+` it was; `t` and `z` may be lower case.
+  Anything else, a date that does not exist included, is **400**. A file
+  without a stamp is left out by any `since`.
+- **`since` is not a change feed.** The stamp is not when the hashes were
+  written but until when the app holds them current: the time of the
+  computation for hashes the app computed, the file's mtime for checksums
+  taken over from Nextcloud's filecache, the stamp an import brought. A
+  recalculation by hand leaves it as it was. So hashes taken over or
+  imported after a client's last run can carry an older stamp, and a file
+  moved, renamed or deleted changes none. A copy kept in sync with `since`
+  reads the whole listing now and then.
+- **`path`** is the caller's own path for the file, with a leading slash: a
   received share's files by the path the share has in the caller's files.
-  `owner`, `location` and `hashes` are as in the lookup and the file's
-  hashes (2); `hashes` is `{}` for a file whose document holds none of
-  the hashes the index names.
+  `owner` and `location` are as in the lookup. `hashes` is as in the file's
+  hashes (2), in the order the file's document holds them, and `{}` for a
+  file whose document holds none of the hashes the index names.
 
 `GET /api/v1/sudo/hashes` is the cross-account twin: the accounts `users[]`
 and `groups[]` name, or with nothing named the caller's whole reach. `path`
-is then the first account in reach that holds the file's name for it; with
-every account in reach, the owner's, and for a file no account owns, its
-path in the area `location` names. `?localPath=1` adds each file's absolute
-path on the server's disk, as on `/sudo/lookup` — for a sudoer, also when
-`users[]` or `groups[]` narrow the set; a group admin asking is refused with
-403.
+is then the file's path as the first account in reach that holds it names
+it; with every account in reach, the owner's, and for a file no account
+owns, its path in the area `location` names. `?localPath=1` adds each
+file's absolute path on the server's disk, as on `/sudo/lookup` — for a
+sudoer, also when `users[]` or `groups[]` narrow the set; a group admin
+asking is refused with 403.
 
 ```bash
-curl -u kunstarchiv:<app-password> -H 'OCS-APIRequest: true' -H 'Accept: application/json' \
-  'https://cloud.example.com/ocs/v2.php/apps/file_checksum_search/api/v1/hashes?algo=sha256&after=185323'
+curl -u alice:<app-password> -H 'OCS-APIRequest: true' -H 'Accept: application/json' \
+  'https://nc.example.com/ocs/v2.php/apps/file_checksum_search/api/v1/hashes?algo=sha256&after=185323'
 ```
 
 ---
@@ -1224,13 +1248,13 @@ ones that stay out, in the admin settings page and the CLI.
 
 **Reads are the caller's own.** Every endpoint that names a file — the hashes,
 the per-file duplicates, recalculation — resolves it through the caller's own
-folder and answers 404 when it does not resolve, and the lookup and the
-duplicate listing return only files the caller can open. That holds for
-administrators too: membership in `admin` grants nothing here. Looking across
-accounts is a separate set of routes, named for it and behind Nextcloud's
-password confirmation, described under *Cross-account routes* below; a script
-that cannot confirm a password uses an app password that an administrator has
-granted for it, described there as well.
+folder and answers 404 when it does not resolve, and the lookup, the
+duplicate listing and the hash listing return only files the caller holds.
+That holds for administrators too: membership in `admin` grants nothing here.
+Looking across accounts is a separate set of routes, named for it and behind
+Nextcloud's password confirmation, described under *Cross-account routes*
+below; a script that cannot confirm a password uses an app password that an
+administrator has granted for it, described there as well.
 
 ---
 
@@ -1417,10 +1441,9 @@ A cross-account twin carries the limit its ordinary route carries: the work
 is the same, and a password confirmation is not a throttle. Recalculation is
 limited more tightly because it reads file content from storage; the hash
 listing more loosely, because a client keeping a copy reads every page, and
-a page answers for up to a thousand files. The limit
-counts requests, not files: one batch request reads up to 25 files or
-100 MiB, so a client verifying many files sends batches rather than single
-recalculations. The remaining endpoints (`/status`, the rules, the
+a page answers for up to a thousand files. The limit counts requests, not
+files: one batch request reads up to 25 files or 100 MiB, so a client
+verifying many files sends batches rather than single recalculations. The remaining endpoints (`/status`, the rules, the
 algorithms, the preferences) are single-row reads or writes and are not rate
 limited.
 
@@ -1470,13 +1493,13 @@ ignored and a warning is logged. A cross-account twin is keyed by its own method
 ### Lifting the limits for an address
 
 A client on a known address — a sync job on the server itself, or on the
-archive's own host — can be let through every user rate limit by Nextcloud's
+client's own host — can be let through every user rate limit by Nextcloud's
 brute-force allowlist: list the address under *Administration settings →
 Security → Brute-force allow list*, and switch on *Bypass rate limiting for
 allowed IPs* there (`bruteforcesettings`' `apply_allowlist_to_ratelimit`).
-That lifts every app's rate limits for the
-address, not this app's alone. `'ratelimit.protection.enabled' => false` in
-`config/config.php` switches rate limiting off for the whole server.
+That lifts every app's rate limits for the address, not this app's alone.
+`'ratelimit.protection.enabled' => false` in `config/config.php` switches
+rate limiting off for the whole server.
 
 > **Note:** earlier revisions of this document described `occ config:app:set` keys
 > (`rate_limit_enabled`, `rate_limit_max_requests`, `rate_limit_window_seconds`) and a

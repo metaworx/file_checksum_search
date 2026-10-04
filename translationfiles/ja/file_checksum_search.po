@@ -909,7 +909,7 @@ msgstr "\"hash\" パラメーターが必要です。"
 
 #. TRANSLATORS: "since" is a parameter name and "ISO 8601" a standard; keep both
 msgid "The \"since\" parameter must be a date, as ISO 8601 or Unix seconds."
-msgstr "\"since\" パラメーターは、ISO 8601 形式または Unix 秒の日付で指定してください。"
+msgstr "\"since\" パラメーターには、ISO 8601形式の日付またはUnix秒を指定してください。"
 
 msgid "The algorithm the Checksums tab in the file sidebar offers as its first button. Leave it on the default to follow the server; pick one to have it first for every file, with the file's own rule providing the second button."
 msgstr "ファイルサイドバーの「チェックサム」タブが最初のボタンとして表示するアルゴリズムです。デフォルトのままにするとサーバーの設定に従います。1つ選ぶと、すべてのファイルでそれが最初に表示され、2番目のボタンにはそのファイル自身のルールのアルゴリズムが表示されます。"

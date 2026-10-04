@@ -723,9 +723,9 @@ paths:
       description: >-
         The cross-account twin of `/api/v1/hashes`. With `users[]`/`groups[]`, the named accounts
         and the members of the named groups; with neither, the caller's whole reach — every account
-        for a sudoer, their groups' members for a sub-admin. `path` is the first account in reach
-        that holds the file's name for it; with every account in reach, the owner's, and for a file
-        no account owns, its path in the area `location` names. Each entry says whether the caller
+        for a sudoer, their groups' members for a sub-admin. `path` is the file's path as the first
+        account in reach that holds it names it; with every account in reach, the owner's, and for a
+        file no account owns, its path in the area `location` names. Each entry says whether the caller
         could open it (`openable`). Requires a password confirmed within the last thirty minutes, or
         a granted app password (403 with "Password confirmation required" otherwise), and is refused
         with 403 for anyone who may not look across accounts.
@@ -1103,7 +1103,9 @@ components:
       name: algo
       in: query
       required: false
-      description: Only files with a hash in this algorithm, and only that hash in `hashes`
+      description: >-
+        Only files with a hash in this algorithm, in any case, and only that hash in `hashes`.
+        An algorithm the instance holds no hashes in lists nothing; it is not an error.
       schema:
         type: string
         example: sha256
@@ -1111,7 +1113,10 @@ components:
       name: limit
       in: query
       required: false
-      description: Files per page; 0 asks for the count alone
+      description: >-
+        Files per page; 0 lists none, and from the start is the count alone. Beyond 0–1000, or
+        not a number, Nextcloud refuses the request before the app sees it: a 500 in its own OCS
+        envelope (status 996).
       schema:
         type: integer
         minimum: 0
@@ -1131,9 +1136,12 @@ components:
       in: query
       required: false
       description: >-
-        Only files whose hashes were written at or after it: unix seconds, or an ISO 8601 date
-        or time, UTC without an offset. A file whose hashes carry no stamp is left out; a file
-        moved, renamed or deleted is not reported by it. Anything else is 400.
+        Only files whose stamp (`updated_at`) is at or after it: Unix seconds, or an ISO 8601
+        date, optionally with a time and an offset, read as UTC where it has none. A file without
+        a stamp is left out. Anything else, a date that does not exist included, is 400. Not a
+        change feed: the stamp says until when the hashes are held current, not when they were
+        written, so hashes taken over or imported later can carry an older one, and a file
+        moved, renamed or deleted changes none.
       schema:
         type: string
         example: "2026-09-02T15:17:00+02:00"
@@ -1281,9 +1289,10 @@ components:
     HashMap:
       type: object
       description: >-
-        A file's hashes, keyed by algorithm; `{}` for a file with none.
-        Before 0.22.0 this was a list of HashEntry, each carrying the
-        file's `updated_at`.
+        A file's hashes, keyed by algorithm, in the order the file's
+        metadata document holds them; `{}` for a file with none. Before
+        0.22.0 this was a list of HashEntry, each carrying the file's
+        `updated_at`.
       additionalProperties:
         $ref: "#/components/schemas/HashEntry"
       example:
@@ -1307,8 +1316,8 @@ components:
         estimated_total:
           type: integer
           description: >-
-            With no `after`: the files the whole listing holds under the same filters. An
-            estimate — files come and go while a listing is read.
+            On the first page, `after` 0 or absent, and only there: the files the whole listing
+            holds under the same filters. An estimate — files come and go while a listing is read.
           example: 57459
     HashListFile:
       type: object
@@ -1320,22 +1329,22 @@ components:
         path:
           type: string
           description: >-
-            The caller's name for the file, with a leading slash. On the twin, the first account
-            in reach that holds it; with every account in reach, the owner's, or for a file no
-            account owns, its path in the area `location` names.
-          example: "/Fotos/GPZ B 0001.01.001.jpg"
+            The caller's own path for the file, with a leading slash. On the twin, the file's path
+            as the first account in reach that holds it names it; with every account in reach, the
+            owner's, or for a file no account owns, its path in the area `location` names.
+          example: "/Photos/2026/beach.jpg"
         name:
           type: string
-          example: "GPZ B 0001.01.001.jpg"
+          example: "beach.jpg"
         owner:
           type: string
           nullable: true
           description: The owning account; null for a storage no account owns.
-          example: kunstarchiv
+          example: alice
         location:
           type: string
           description: "The file's own place: `/<owner>/files/…` for a home, `groupfolder:<id>/…` for a group folder, `storage:<id>/…` otherwise."
-          example: "/kunstarchiv/files/Fotos/GPZ B 0001.01.001.jpg"
+          example: "/alice/files/Photos/2026/beach.jpg"
         localPath:
           type: string
           nullable: true
@@ -1343,7 +1352,7 @@ components:
             `/api/v1/sudo/hashes?localPath=1` only: the file's absolute path on the server's
             disk. Null for a storage without local files and for every file while server-side
             encryption is enabled.
-          example: "/srv/nextcloud/data/kunstarchiv/files/Fotos/GPZ B 0001.01.001.jpg"
+          example: "/srv/nextcloud/data/alice/files/Photos/2026/beach.jpg"
         updated_at:
           $ref: "#/components/schemas/HashesUpdatedAt"
         hashes:
@@ -1359,10 +1368,14 @@ components:
       format: date-time
       nullable: true
       description: >-
-        When the file's hashes were last written, from its freshness
-        stamp: one per file, not one per algorithm. Null where the file
-        carries hashes but no stamp — the state
-        `occ fcias:repair --step unindexed-hashes` exists to correct.
+        The file's stamp, one per file, not one per algorithm: not when its
+        hashes were written, but until when the app holds them current,
+        which is what it compares with the file's mtime. The time of the
+        computation for hashes the app computed, the file's mtime for
+        checksums taken over from Nextcloud's filecache, the stamp an import
+        brought; a recalculation by hand leaves it. Null for none, and for a
+        stamp of zero: hashes written without a time, or cleared for the
+        next sweep.
       example: "2026-09-02T15:17:00+00:00"
 
     SameHashResponse:

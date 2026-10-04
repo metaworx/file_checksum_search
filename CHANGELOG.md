@@ -42,27 +42,27 @@ the first stable release.
   as well, only with `--full`.
 
 - `GET /api/v1/file/{fileId}/hashes`, its `/sudo/` twin and
-  `ChecksumApi::getHashesBy*()`: `hashes` is keyed by algorithm and
-  `updated_at` is the file's, null without a stamp; a caller reading a
-  list breaks.
+  `ChecksumApi::getHashesBy*()`: `hashes` is keyed by algorithm, and
+  `updated_at` is the file's, null without a stamp; read `hashes` by
+  algorithm and `updated_at` from the file (`docs/api-v1.md`).
 
 ### Fixed
 
 - Admin status panel: the layout fits translated text.
 
 - Orphaned metadata purge: a gone file's document that another app
-  wrote to as well, such as a photo's, is deleted whole, as Nextcloud
-  deletes it, instead of failing on every run and, a batch of them
-  together, stopping the purge.
+  also wrote to is deleted whole, and no longer stalls the purge
+  (`occ fcias:repair --step orphaned-metadata`).
 
 - Deleting a file: nothing of this app's is written for it afterwards,
-  neither for a file deleted for good nor for a trashed file without
-  hashes; each deletion for good no longer logs an error.
+  neither for a file deleted for good nor for a trashed file this app
+  holds nothing for; a deletion for good no longer logs an error.
 
 ### Security
 
-- Reach: a received share is its subtree also in the request that
-  first records it, not the sharer's whole storage (Nextcloud 34).
+- Reach: in the request that first records a received share, the
+  lookup, the duplicate listings and the per-file routes no longer
+  answer for the sharer's whole storage (Nextcloud 34).
 
 ## [0.21.0] - 2026-10-01
 
