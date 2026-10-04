@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use OCA\FileChecksumSearch\Service\FilecacheService;
+use OCA\FileChecksumSearch\Service\FileLocation;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\DB\IResult;
 use OCP\DB\QueryBuilder\ICompositeExpression;
@@ -767,6 +768,45 @@ class FilecacheServiceTest
 		$this->assertArrayHasKey( 'local_path', $result[1] );
 		$this->assertNull( $result[1]['local_path'] );
 		$this->assertNull( $result[3]['local_path'] );
+	}
+
+	/**
+	 * What the listing asks for a page: each account's home asked once,
+	 * however many of its files the page holds, a local storage named
+	 * from its id, and nothing at all under encryption.
+	 */
+	public function testLocalPathsAskEachHomeOnceAndNoneUnderEncryption(): void
+	{
+		$locations = [
+			FileLocation::fromRow( 1, 'home::alice', 'files/a.txt', 0 ),
+			FileLocation::fromRow( 2, 'home::alice', 'files/b.txt', 0 ),
+			FileLocation::fromRow( 3, 'local::/mnt/archive/', 'c.txt', 0 ),
+			FileLocation::fromRow( 4, 'object::store:amazon::bucket', 'urn:oid:4', 0 ),
+		];
+
+		$alice = $this->createMock( IUser::class );
+		$alice->method( 'getHome' )
+		      ->willReturn( '/srv/data/alice' )
+		;
+		$this->userManager->expects( $this->once() )
+		                  ->method( 'get' )
+		                  ->with( 'alice' )
+		                  ->willReturn( $alice )
+		;
+		$this->encryption->method( 'isEnabled' )
+		                 ->willReturnOnConsecutiveCalls( false, true )
+		;
+
+		$this->assertSame(
+			[
+				1 => '/srv/data/alice/files/a.txt',
+				2 => '/srv/data/alice/files/b.txt',
+				3 => '/mnt/archive/c.txt',
+				4 => null,
+			],
+			$this->service->localPaths( $locations ),
+		);
+		$this->assertSame( [ 1 => null, 2 => null, 3 => null, 4 => null ], $this->service->localPaths( $locations ) );
 	}
 
 	public function testBatchLookupFilecachePathsNamesNoLocalPathForAnAccountThatIsGone(): void

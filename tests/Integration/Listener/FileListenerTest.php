@@ -502,6 +502,11 @@ class FileListenerTest
 	 */
 	public function testATrashedFileLosesItsHashesAndAnUntouchedOneGetsNoDocument(): void
 	{
+		if ( ! Server::get( IAppManager::class )->isEnabledForAnyone( 'files_trashbin' ) )
+		{
+			$this->markTestSkipped( 'Needs the trash: without it a deletion is for good, which the next test covers.' );
+		}
+
 		$hashed = $this->createTestFile( 'fcias_listener_trash_hashed_' . time() . '.dat' );
 		$plain  = $this->createTestFile( 'fcias_listener_trash_plain_' . time() . '.dat' );
 		$ids    = [ 'hashed' => $hashed->getId(), 'plain' => $plain->getId() ];
@@ -511,6 +516,7 @@ class FileListenerTest
 		$hashed->delete();
 		$plain->delete();
 
+		$this->assertNotNull( $this->filecacheService->locate( $ids['plain'] ), 'the file is in the trash, not gone' );
 		$this->assertSame( 0, $this->metadataService->countByFileId( $ids['hashed'] ), 'the trashed file\'s hashes are gone' );
 		$this->assertSame( 0, $this->metadataRowsOf( $ids['plain'] ), 'the untouched file has no document of this app\'s' );
 	}
@@ -560,12 +566,6 @@ class FileListenerTest
 
 	// ─── helpers ──────────────────────────────────────────────────────
 	/**
-	 * Seed metadata index entries via raw SQL to avoid triggering
-	 * the old filecache hash-table trigger (pre-existing issue).
-	 *
-	 * @noinspection PhpUnhandledExceptionInspection
-	 */
-	/**
 	 * What the file is waiting for, read from the row that records it.
 	 *
 	 * `countByFileId()` cannot answer this and never could since the hash
@@ -600,6 +600,12 @@ class FileListenerTest
 				: (string) $value );
 	}
 
+	/**
+	 * Seed metadata index entries via raw SQL to avoid triggering
+	 * the old filecache hash-table trigger (pre-existing issue).
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	private function seedMetadataIndex( int $fileId ): void
 	{
 		$this->getRawConnection()
@@ -656,13 +662,6 @@ class FileListenerTest
 	}
 
 	/**
-	 * Create a real test file in the admin user's storage.
-	 *
-	 * Registers the file and its fileId for automatic cleanup in tearDown().
-	 *
-	 * @noinspection PhpUnhandledExceptionInspection
-	 */
-	/**
 	 * Rows in either metadata table for one file id.
 	 */
 	private function metadataRowsOf( int $fileId ): int
@@ -682,6 +681,13 @@ class FileListenerTest
 		return $total;
 	}
 
+	/**
+	 * Create a real test file in the admin user's storage.
+	 *
+	 * Registers the file and its fileId for automatic cleanup in tearDown().
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	private function createTestFile( string $name ): File
 	{
 		$userFolder = Server::get( IRootFolder::class )

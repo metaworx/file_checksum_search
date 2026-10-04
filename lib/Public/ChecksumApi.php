@@ -98,6 +98,12 @@ class ChecksumApi
 	 * may be asked about at all. One parameter used to carry both, and null
 	 * for "every account" then also read as "an administrator is asking".
 	 *
+	 * `hashes` is keyed by algorithm, in the order the file's document holds
+	 * them. `updated_at` is the file's stamp, ISO 8601, null for none: the
+	 * app keeps one per file, not one per algorithm, and it says until when
+	 * the hashes are held current, not when they were written
+	 * ({@see HashListingService::stamp()}).
+	 *
 	 * @param  int                $fileId      The filecache fileid
 	 * @param  list<string>|null  $reachUids   Whose files may be asked about:
 	 *                                         the caller's own account, a
@@ -110,10 +116,6 @@ class ChecksumApi
 	 *                                         DI/bootstrap caller, for whom
 	 *                                         the answer reports what such a
 	 *                                         caller may do: everything.
-	 *
-	 * `hashes` is keyed by algorithm. `updated_at` is the file's, when its
-	 * hashes were last written, ISO 8601: the app keeps one stamp per file,
-	 * not one per algorithm.
 	 *
 	 * @return array{fileid: int, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool}
 	 * @throws NotFoundException  If $reachUids is set and the file lies outside it
@@ -410,21 +412,32 @@ class ChecksumApi
 	 *
 	 * For a caller that keeps a copy and would otherwise ask hash by hash.
 	 * Pass `next` back as `$after` until it is null. The files listed are
-	 * those {@see findByHash()} could find; `path` is the first account in
-	 * reach that holds the file's name for it, with a leading slash — with
-	 * $reachUids null, the owner's, or for a file no account owns, its path
-	 * in the area `location` names.
+	 * the rows {@see findByHash()} selects, within the reach's mounts; the
+	 * listing does not yet apply a team folder's access rules, which a
+	 * lookup does by opening each file. `path` is the file's path as the
+	 * first account in reach that holds it names it, with a leading slash —
+	 * with $reachUids null, the owner's, or for a file no account owns, its
+	 * path in the area `location` names.
+	 *
+	 * `since` is not a change feed: it compares the file's stamp, which
+	 * says until when the hashes are held current, not when they were
+	 * written ({@see HashListingService::stamp()}), and a file moved,
+	 * renamed or deleted changes no stamp. A copy kept with it reads the
+	 * whole listing now and then.
 	 *
 	 * @param  list<string>|null  $reachUids      Whose files: as {@see findByHash()}.
 	 * @param  string|null        $algo           Only files with a hash in this
-	 *                                            algorithm, and only that hash.
-	 * @param  int                $limit          Files per page, 0 to 1000; 0
-	 *                                            asks for the count alone.
+	 *                                            algorithm, in any case, and
+	 *                                            only that hash.
+	 * @param  int                $limit          Files per page, clamped to 0
+	 *                                            to 1000; 0 lists none, and
+	 *                                            from the start is the count
+	 *                                            alone.
 	 * @param  int                $after          The last file id received; 0
 	 *                                            starts the listing.
-	 * @param  int|null           $since          Only files whose hashes were
-	 *                                            written at or after it, unix
-	 *                                            seconds.
+	 * @param  int|null           $since          Only files whose stamp is at
+	 *                                            or after it, unix seconds; a
+	 *                                            file without one never.
 	 * @param  bool               $withLocalPath  Each entry gains `localPath`,
 	 *                                            as {@see findByHash()}.
 	 *
@@ -432,6 +445,7 @@ class ChecksumApi
 	 *         `next` is null when no file follows, and echoes $after for a
 	 *         count. Starting from 0, `estimated_total` counts the whole
 	 *         listing: an estimate, as files come and go while it is read.
+	 * @throws \OCP\DB\Exception
 	 */
 	public function listHashes(
 		?array  $reachUids,

@@ -37,6 +37,12 @@ class FilecacheService
 	public const CHECKSUM_MAX_LENGTH = 255;
 
 	/**
+	 * Path prefixes of the areas no rule governs and no listing offers:
+	 * the trash, the versions, and every app's own data.
+	 */
+	public const UNGOVERNED_PREFIXES = [ 'files_trashbin/', 'files_versions/', 'appdata_' ];
+
+	/**
 	 * Storage id => numeric id, for the length of one request.
 	 *
 	 * A backup of a home folder names the same storage on every one of its
@@ -934,12 +940,6 @@ class FilecacheService
 	}
 
 	/**
-	 * Path prefixes of the areas no rule governs and no listing offers:
-	 * the trash, the versions, and every app's own data.
-	 */
-	public const UNGOVERNED_PREFIXES = [ 'files_trashbin/', 'files_versions/', 'appdata_' ];
-
-	/**
 	 * Paths for a set of file ids, kept to those within the given mounts.
 	 *
 	 * This is an *authority*: what it drops, the listing never shows. So
@@ -1012,10 +1012,7 @@ class FilecacheService
 		$result = $qb->executeQuery();
 		$paths  = [];
 
-		// One answer per account for where its home is, and one for the
-		// instance on whether the disk holds the files at all.
-		$homes     = [];
-		$encrypted = $withLocalPath && $this->encryption->isEnabled();
+		$locations = [];
 
 		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
@@ -1038,15 +1035,18 @@ class FilecacheService
 				'location'   => $location->describe(),
 			];
 
-			if ( $withLocalPath )
-			{
-				$paths[ (int) $row['fileid'] ]['local_path'] = $encrypted
-					? null
-					: $location->localPath( $this->homeOf( $location, $homes ) );
-			}
+			$locations[] = $location;
 		}
 
 		$result->closeCursor();
+
+		if ( $withLocalPath )
+		{
+			foreach ( $this->localPaths( $locations ) as $fileId => $localPath )
+			{
+				$paths[ $fileId ]['local_path'] = $localPath;
+			}
+		}
 
 		return $paths;
 	}
@@ -1063,6 +1063,8 @@ class FilecacheService
 	 */
 	public function localPaths( array $locations ): array
 	{
+		// One answer per account for where its home is, and one for the
+		// instance on whether the disk holds the files at all.
 		$encrypted = $this->encryption->isEnabled();
 		$homes     = [];
 		$paths     = [];

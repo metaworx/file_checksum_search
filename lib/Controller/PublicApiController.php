@@ -430,6 +430,34 @@ class PublicApiController
 	}
 
 	/**
+	 * Whose files a cross-account listing reads: the set `users[]` and
+	 * `groups[]` name, or with neither the caller's whole reach — or the
+	 * response to send instead.
+	 *
+	 * One way to name whom, the one the picker sends. `user=` for a single
+	 * account was a third encoding of the same idea and is gone: one account
+	 * is a set of one.
+	 *
+	 * @param  mixed[]|null  $users   As the request carries them; anything
+	 *                                but a string is dropped.
+	 * @param  mixed[]|null  $groups  The same.
+	 *
+	 * @return list<string>|null|DataResponse
+	 */
+	private function sudoNamedOrRefusal(
+		?array $users,
+		?array $groups,
+	): array|null|DataResponse
+	{
+		return ( $users !== null || $groups !== null )
+			? $this->sudoSetOrRefusal(
+				array_values( array_filter( $users ?? [], 'is_string' ) ),
+				array_values( array_filter( $groups ?? [], 'is_string' ) ),
+			)
+			: $this->sudoScopeOrRefusal();
+	}
+
+	/**
 	 * The accounts a cross-account route may read when the caller names a
 	 * set, or the response to send instead.
 	 *
@@ -801,15 +829,7 @@ class PublicApiController
 		bool    $includeEmpty = false,
 	): DataResponse
 	{
-		// One way to name whom, the one the picker sends. `user=` for a single
-		// account was a third encoding of the same idea and is gone: one
-		// account is a set of one.
-		$scope = ( $users !== null || $groups !== null )
-			? $this->sudoSetOrRefusal(
-				array_values( array_filter( (array) $users, 'is_string' ) ),
-				array_values( array_filter( (array) $groups, 'is_string' ) ),
-			)
-			: $this->sudoScopeOrRefusal();
+		$scope = $this->sudoNamedOrRefusal( $users, $groups );
 
 		return $scope instanceof DataResponse
 			? $scope
@@ -1202,12 +1222,7 @@ class PublicApiController
 		bool    $localPath = false,
 	): DataResponse
 	{
-		$scope = ( $users !== null || $groups !== null )
-			? $this->sudoSetOrRefusal(
-				array_values( array_filter( (array) $users, 'is_string' ) ),
-				array_values( array_filter( (array) $groups, 'is_string' ) ),
-			)
-			: $this->sudoScopeOrRefusal();
+		$scope = $this->sudoNamedOrRefusal( $users, $groups );
 
 		if ( $scope instanceof DataResponse )
 		{

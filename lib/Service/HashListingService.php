@@ -19,8 +19,11 @@ use OCP\DB\Exception;
  * per file, paged by file id: `after` names the last file received, `next`
  * the one to pass on, and null when the listing is done.
  *
- * Which files: those the index holds a hash row for, within the reach, not
- * disowned — the files a lookup would find ({@see MetadataService::pageListedFiles()}).
+ * Which files: those the index holds a hash row for, within the reach's
+ * mounts, not disowned ({@see MetadataService::pageListedFiles()}). The
+ * same rows a lookup selects, with one difference: a lookup then opens each
+ * file through the account's folder, which applies a team folder's access
+ * rules, and this listing does not yet.
  * Their values: from the metadata documents, since the index holds a
  * truncated SHA-256 ({@see MetadataService::listedHashes()}). Their paths:
  * from the reach's own mounts, in one pass per page, never from a node per
@@ -73,6 +76,12 @@ class HashListingService
 	 * A file's stamp as the API gives it: ISO 8601, null for none. Zero is
 	 * none: it is what a file's hashes carry when they were written without
 	 * a time, or cleared, so that the next sweep recomputes them.
+	 *
+	 * The stamp is not when the hashes were written. It says until when the
+	 * app holds them current, and is what freshness compares with a file's
+	 * mtime: the time of the computation for hashes this app computed, the
+	 * file's mtime for checksums taken over from Nextcloud's filecache, an
+	 * import's own value for an import. A recalculation by hand leaves it.
 	 */
 	public static function stamp( ?int $updatedAt ): ?string
 	{
@@ -93,13 +102,15 @@ class HashListingService
 	 *                                            folders. Null is every file.
 	 * @param  string|null        $algo           Only files with a hash in this
 	 *                                            algorithm, and only that hash.
-	 * @param  int                $limit          Files on the page, 0 to 1000; 0
-	 *                                            asks for the count alone.
+	 * @param  int                $limit          Files on the page, 0 to 1000;
+	 *                                            0 lists none, and from the
+	 *                                            start is the count alone.
 	 * @param  int                $after          The last file id received; 0
 	 *                                            starts the listing.
-	 * @param  int|null           $since          Only files whose hashes were
-	 *                                            written at or after it, unix
-	 *                                            seconds.
+	 * @param  int|null           $since          Only files whose stamp is at
+	 *                                            or after it, unix seconds; a
+	 *                                            file without one never
+	 *                                            ({@see stamp()}).
 	 * @param  bool               $withLocalPath  Each entry gains `localPath`,
 	 *                                            as {@see FilecacheService::localPaths()}.
 	 *

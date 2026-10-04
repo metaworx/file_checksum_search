@@ -255,7 +255,10 @@ class ReachTest
 	{
 		$leader = $this->get( '/api/v1/sudo/hashes?algo=sha1&localPath=1', self::$leaderUid, self::$leaderPassword );
 
+		// Refused for asking, not for an unconfirmed password: that would be
+		// a 403 too.
 		$this->assertSame( 403, $leader['status'] );
+		$this->assertSame( 'Not yours to look at.', $leader['body']['error'] ?? null );
 
 		$sudoer = $this->get(
 			'/api/v1/sudo/hashes?algo=sha1&localPath=1&users%5B%5D=' . self::$ownerUid,

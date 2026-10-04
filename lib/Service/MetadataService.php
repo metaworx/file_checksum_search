@@ -412,10 +412,25 @@ class MetadataService
 	 * itself ({@see IFilesMetadataManager::saveMetadata()} stores `{}`), and
 	 * another app's keys are not ours to delete.
 	 *
+	 * @param  bool  $knownGone  The caller found the file absent from the
+	 *                           filecache already, as the orphan purge's
+	 *                           query does: the document goes whole, with
+	 *                           neither it nor the filecache read again.
+	 *
 	 * @throws Exception
 	 */
-	public function purgeMetadata( int $fileId ): void
+	public function purgeMetadata(
+		int  $fileId,
+		bool $knownGone = false,
+	): void
 	{
+		if ( $knownGone )
+		{
+			$this->metadataManager->deleteMetadata( $fileId );
+
+			return;
+		}
+
 		$metadata = $this->getMetadata( $fileId );
 
 		$metadata->removeStartsWith( self::KEY_FILE_CHECKSUM_PREFIX );
@@ -516,8 +531,9 @@ class MetadataService
 		// Documents whose file is gone. The pattern is the key prefix as it
 		// appears in the serialised document, the same technique
 		// {@see queryByHash()} uses on the same column: it can over-match,
-		// and {@see purgeMetadata()} is unharmed by that — it removes our
-		// keys, and a document holding none is left exactly as it was.
+		// and that is harmless here — a document it matches belongs to a
+		// file that is gone, and {@see purgeMetadata()} deletes it whole, as
+		// Nextcloud's own deletion would have.
 		$qb2 = $this->db->getQueryBuilder();
 		$qb2->selectDistinct( 'm.' . self::FIELD_FILE_ID )
 		    ->from( self::TABLE_FILES_METADATA, 'm' )
@@ -560,7 +576,7 @@ class MetadataService
 		{
 			try
 			{
-				$this->purgeMetadata( $fileId );
+				$this->purgeMetadata( $fileId, knownGone: true );
 				$purged ++;
 			}
 			catch ( Throwable $e )
@@ -607,11 +623,6 @@ class MetadataService
 	}
 
 	/**
-	 * Count metadata index entries for a given file_id.
-	 *
-	 * @throws \OCP\DB\Exception
-	 */
-	/**
 	 * Whether a file carries anything of this app's: one of its keys in the
 	 * metadata document, or a row of its in the index — a queue mark is a
 	 * row alone, and a hash's row is written apart from the document.
@@ -647,6 +658,11 @@ class MetadataService
 		return $held;
 	}
 
+	/**
+	 * Count metadata index entries for a given file_id.
+	 *
+	 * @throws \OCP\DB\Exception
+	 */
 	public function countByFileId( int $fileId ): int
 	{
 		$qb = $this->db->getQueryBuilder();

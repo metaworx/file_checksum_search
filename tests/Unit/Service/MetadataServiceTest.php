@@ -2736,6 +2736,26 @@ class MetadataServiceTest
 		$this->service->purgeMetadata( 42 );
 	}
 
+	/**
+	 * The orphan purge found the file gone in its own query: the document
+	 * goes whole, and neither it nor the filecache is read again.
+	 */
+	public function testPurgingAFileKnownGoneReadsNothing(): void
+	{
+		$this->metadataManager->expects( $this->never() )
+		                      ->method( 'getMetadata' )
+		;
+		$this->filecacheService->expects( $this->never() )
+		                       ->method( 'locate' )
+		;
+		$this->metadataManager->expects( $this->once() )
+		                      ->method( 'deleteMetadata' )
+		                      ->with( 42 )
+		;
+
+		$this->service->purgeMetadata( 42, knownGone: true );
+	}
+
 	public function testClearingWithoutSavingTouchesNoIndexRows(): void
 	{
 		// The caller keeps the metadata document to save later; pruning now

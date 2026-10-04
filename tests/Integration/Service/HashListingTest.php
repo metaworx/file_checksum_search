@@ -231,6 +231,49 @@ class HashListingTest
 		$this->assertSame( [], $this->api->listHashes( [ $uid ], null, 500, 0, 0 )['files'] );
 	}
 
+	/**
+	 * The index says which hashes, the document what they are: an index
+	 * row whose value the document does not hold selects the file and
+	 * lists no value for it.
+	 */
+	public function testAnIndexRowWithoutADocumentValueListsNoValue(): void
+	{
+		[ $uid ] = self::makeAccount( 'fcias_list_indexonly' );
+		$file    = Server::get( IRootFolder::class )->getUserFolder( $uid )->newFile( 'i.txt', 'index only ' . $uid );
+
+		self::stateHashes( $file->getId(), [ 'sha256' => hash( 'sha256', 'index only ' . $uid ) ] );
+
+		$this->getRawConnection()
+		     ->executeStatement(
+			     'INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`) VALUES (?, ?, ?, ?)',
+			     [ $file->getId(), MetadataService::getHashKey( 'md5' ), 'not in the document', 0 ],
+		     )
+		;
+
+		$this->assertSame(
+			[ 'sha256' ],
+			array_keys( $this->api->listHashes( [ $uid ] )['files'][0]['hashes'] ),
+			'the document\'s values only',
+		);
+
+		$md5 = $this->api->listHashes( [ $uid ], 'md5' );
+
+		$this->assertSame( [ $file->getId() ], array_column( $md5['files'], 'fileid' ), 'selected by its index row' );
+		$this->assertSame( [], $md5['files'][0]['hashes'], 'with no value to list' );
+	}
+
+	/**
+	 * A reach that holds nothing lists nothing, rather than everything a
+	 * filter that disappeared would list.
+	 */
+	public function testAReachHoldingNothingListsNothing(): void
+	{
+		$this->assertSame(
+			[ 'files' => [], 'next' => null, 'estimated_total' => 0 ],
+			$this->api->listHashes( [ 'fcias_list_nobody_' . bin2hex( random_bytes( 4 ) ) ] ),
+		);
+	}
+
 	public function testSinceKeepsTheFilesStampedAtOrAfterIt(): void
 	{
 		$stamp = Server::get( MetadataService::class )->getUpdatedAt( self::$fileId['a'] );
