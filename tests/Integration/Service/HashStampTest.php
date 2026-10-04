@@ -200,6 +200,57 @@ class HashStampTest
 		$this->assertNull( $this->metadataService->getMarker( $file->getId() ), 'The file has left the queue.' );
 	}
 
+	/**
+	 * Hashes a recalculation saved without a stamp, which the filecache
+	 * still holds: they describe the content as of the file's mtime.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testHashesSavedWithoutAStampAreStampedWithTheMtimeWhereTheFilecacheHoldsThem(): void
+	{
+		$file = $this->savedWithoutAStamp( 'fcias_stamp_repair', 'stamped by the repair' );
+
+		$this->stampOnly( $file );
+
+		$mtime = $this->fresh( $file )
+		              ->getMTime()
+		;
+
+		$this->assertSame( $mtime, $this->stampOf( $file->getId() ) );
+		$this->assertSame( [ MetadataService::getHashKey( 'sha1' ) ], $this->hashRowsOf( $file->getId() ) );
+		$this->assertNull( $this->metadataService->getMarker( $file->getId() ) );
+		$this->assertNotContains( $file->getId(), $this->metadataService->fetchUnstampedFileIds( $file->getId() - 1, 1 ) );
+	}
+
+	/**
+	 * Where the filecache holds something else, nobody vouches for the
+	 * hashes: stamped 0, out of the index, and queued to be computed again.
+	 * The document keeps them, so the queue knows which the file had.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testHashesTheFilecacheDoesNotHoldAreHiddenAndQueued(): void
+	{
+		$file = $this->savedWithoutAStamp( 'fcias_stamp_hidden', 'hidden by the repair' );
+
+		$this->getRawConnection()
+		     ->executeStatement(
+			     'UPDATE `*PREFIX*filecache` SET `checksum` = ? WHERE `fileid` = ?',
+			     [
+				     'SHA1:' . str_repeat( '0', 40 ),
+				     $file->getId(),
+			     ],
+		     )
+		;
+
+		$this->stampOnly( $file );
+
+		$this->assertSame( 0, $this->stampOf( $file->getId() ) );
+		$this->assertSame( [], $this->hashRowsOf( $file->getId() ) );
+		$this->assertSame( MetadataService::PENDING_AUTO, $this->metadataService->getMarker( $file->getId() ) );
+		$this->assertSame( [ 'sha1' => sha1( 'hidden by the repair' ) ], $this->hashesOf( $file->getId() ) );
+	}
+
 	//  private methods
 	/**
 	 * The only rule while the test runs, for every file.
@@ -273,6 +324,77 @@ class HashStampTest
 		$file->putContent( $content );
 
 		return $file;
+	}
+
+	/**
+	 * A file whose sha1 was saved the way a recalculation saved it before
+	 * every calculation stamped: in the document, the filecache's column and
+	 * the index, with no stamp anywhere.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function savedWithoutAStamp(
+		string $base,
+		string $content,
+	): File
+	{
+		$file = $this->createTestFile( $base, $content );
+
+		$metadata = $this->metadataService->getMetadata( $file->getId() );
+		$metadata->setString( MetadataService::getHashKey( 'sha1' ), sha1( $content ), false );
+		$this->metadataService->saveMetadata( $metadata );
+
+		$this->assertContains( $file->getId(), $this->metadataService->fetchUnstampedFileIds( $file->getId() - 1, 1 ) );
+
+		return $file;
+	}
+
+	/**
+	 * Stamp this file and no other: one page of one, from just before it.
+	 * The instance this runs against may hold other unstamped files, and
+	 * they are not the test's to stamp.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function stampOnly( File $file ): void
+	{
+		$result = $this->metadataService->stampUnstampedAfter(
+			$file->getId() - 1,
+			1,
+			static fn (): bool => false,
+		);
+
+		$this->assertSame( 1, $result['stamped'] );
+	}
+
+	/**
+	 * The stamp in the document, after checking that its index row carries
+	 * the same.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function stampOf( int $fileId ): int
+	{
+		$document = $this->metadataService->getMetadata( $fileId )
+		                                  ->getInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT )
+		;
+
+		$result = $this->getRawConnection()
+		               ->executeQuery(
+			               'SELECT `meta_value_int` FROM `*PREFIX*files_metadata_index` WHERE `file_id` = ? AND `meta_key` = ?',
+			               [
+				               $fileId,
+				               MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT,
+			               ],
+		               )
+		;
+
+		$row = $result->fetchOne();
+		$result->free();
+
+		$this->assertSame( $document, (int) $row, 'The index row carries the document\'s stamp.' );
+
+		return $document;
 	}
 
 	/**

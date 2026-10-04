@@ -803,6 +803,32 @@ class FilecacheService
 			: (string) $etag;
 	}
 
+	/**
+	 * The filecache's checksum column for one file, parsed into lowercase
+	 * algorithm => hash pairs; empty for none, or for a file it does not
+	 * have. Read by id, without resolving a node.
+	 *
+	 * @return array<string, string>
+	 * @throws \OCP\DB\Exception
+	 */
+	public function checksumsOf( int $fileId ): array
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( 'checksum' )
+		   ->from( 'filecache' )
+		   ->where(
+			   $qb->expr()
+			      ->eq( 'fileid', $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+		   )
+		;
+
+		$result   = $qb->executeQuery();
+		$checksum = $result->fetchOne();
+		$result->closeCursor();
+
+		return self::parseChecksumString( is_string( $checksum ) ? $checksum : '' );
+	}
+
 	public function getNodeById( int $fileId ): Node
 	{
 		$nodes = $this->rootFolder->getById( $fileId );

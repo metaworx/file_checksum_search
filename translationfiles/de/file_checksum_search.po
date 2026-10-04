@@ -182,6 +182,10 @@ msgstr "Zählung der Prüfsummen"
 msgid "Checksum index check"
 msgstr "Prüfung des Prüfsummen-Index"
 
+#. TRANSLATORS: a background job's name: it gives a freshness stamp to the stored checksums that have none, and queues for recomputing those it cannot vouch for.
+msgid "Checksum stamp check"
+msgstr "Prüfung der Prüfsummen-Zeitstempel"
+
 msgid "Checksums"
 msgstr "Prüfsummen"
 
@@ -1242,6 +1246,14 @@ msgstr "selector ist erforderlich."
 #. TRANSLATORS: selector is a parameter name; keep it
 msgid "selector must be a non-empty string."
 msgstr "selector muss eine nicht leere Zeichenkette sein."
+
+#. TRANSLATORS: a background job's last run: the files whose checksums it stamped, of those the ones queued to have their checksums computed again, and that the whole check is finished
+msgid "stamped {stamped}, queued again {queued}, finished"
+msgstr "mit Zeitstempel versehen {stamped}, erneut in der Warteschlange {queued}, abgeschlossen"
+
+#. TRANSLATORS: a background job's last run: the files whose checksums it stamped, of those the ones queued to have their checksums computed again, and that the next runs go on stamping
+msgid "stamped {stamped}, queued again {queued}, not finished yet"
+msgstr "mit Zeitstempel versehen {stamped}, erneut in der Warteschlange {queued}, noch nicht abgeschlossen"
 
 msgid "the file changed while no rule maintained its checksums, so they were deleted; it gets them back once a rule covers it again"
 msgstr "die Datei wurde geändert, während keine Regel ihre Prüfsummen pflegte, daher wurden diese gelöscht; sobald eine Regel die Datei wieder abdeckt, erhält sie wieder Prüfsummen"

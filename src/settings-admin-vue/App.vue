@@ -186,6 +186,8 @@ const JOB_LABELS: Record<string, string> = {
 	filecache_backfill: t('file_checksum_search', 'Checksum copy'),
 	// TRANSLATORS: a background job's name: it checks that every stored checksum can be found by a search, and fixes what cannot.
 	hash_index_check: t('file_checksum_search', 'Checksum index check'),
+	// TRANSLATORS: a background job's name: it gives a freshness stamp to the stored checksums that have none, and queues for recomputing those it cannot vouch for.
+	stamp_check: t('file_checksum_search', 'Checksum stamp check'),
 	// TRANSLATORS: a background job's name: once an hour it counts the indexed checksums, the number this status shows
 	checksum_count: t('file_checksum_search', 'Checksum count'),
 }
@@ -222,6 +224,13 @@ function jobCountsText(key: string, counts: Record<string, number>): string {
 		}
 		// TRANSLATORS: a background job's last run: the checksums it made findable again, and that the next runs go on checking
 		return t('file_checksum_search', 'repaired {repaired}, not finished yet', { repaired: count('repaired') })
+	case 'stamp_check':
+		if (count('done')) {
+			// TRANSLATORS: a background job's last run: the files whose checksums it stamped, of those the ones queued to have their checksums computed again, and that the whole check is finished
+			return t('file_checksum_search', 'stamped {stamped}, queued again {queued}, finished', { stamped: count('stamped'), queued: count('queued') })
+		}
+		// TRANSLATORS: a background job's last run: the files whose checksums it stamped, of those the ones queued to have their checksums computed again, and that the next runs go on stamping
+		return t('file_checksum_search', 'stamped {stamped}, queued again {queued}, not finished yet', { stamped: count('stamped'), queued: count('queued') })
 	case 'checksum_count':
 		// TRANSLATORS: a background job's last run: how many indexed checksums it counted
 		return n('file_checksum_search', 'counted %n checksum', 'counted %n checksums', count('rows'))

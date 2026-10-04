@@ -304,8 +304,10 @@ enabling the app returns at once however many files there are; `occ fcias:repair
 rebuild-from-filecache` does the same copy on demand, at once, and neither overwrites a hash the app
 already stored. Installing, enabling and upgrading also queue the check that every stored hash is in the
 index, which on a large instance takes longer than a request should: `occ fcias:repair --step
-rebuild-from-metadata` runs it at once. Both show their progress on the status page, as *Checksum copy* and
-*Checksum index check*, and in `occ fcias:status`.
+rebuild-from-metadata` runs it at once. They queue as well the stamping of hashes saved without a freshness
+stamp, which a recalculation did before every calculation stamped: `occ fcias:repair --step missing-stamps`
+runs it at once. All three show their progress on the status page, as *Checksum copy*, *Checksum index
+check* and *Checksum stamp check*, and in `occ fcias:status`.
 
 ### Which file a rule is talking about
 
@@ -762,6 +764,7 @@ reads it in again. See [Backing up, resetting and importing](#backing-up-resetti
 ```bash
 php occ fcias:repair --list                          # what each step does
 php occ fcias:repair --step rebuild-from-filecache   # clients show a checksum this app lacks
+php occ fcias:repair --step missing-stamps           # hashes carry no stamp, and every run hashes them again
 php occ fcias:repair --step rebuild-from-metadata    # the file's details show a hash search cannot find
 php occ fcias:repair --step unindexed-hashes         # after a restore: the index has no record of the file at all
 php occ fcias:repair --step clear-disowned            # a reset left hashes for the job to clear

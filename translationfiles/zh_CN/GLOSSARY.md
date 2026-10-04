@@ -74,7 +74,7 @@ term that changes, changes here and in the `.po` file at once.
 | untrusted / eroded / reset | 不可信 / 已丢弃 / 已重置 | the states of stale checksums. *Eroded* checksums are already deleted (已丢弃). *Reset* is a state, not the action: checksums a reset has made invalid (已重置), still stored until the background job deletes them |
 | invalidated (by a reset) | 作废 | “因重置而作废”; not 弃用, which is *deprecated* |
 | background job | 后台任务 | Nextcloud's term |
-| rule sweep / queue drain / orphan purge / checksum copy / checksum index check | 规则扫描 / 队列处理 / 孤立条目清理 / 复制已有校验和 / 校验和索引检查 | the background jobs' names |
+| rule sweep / queue drain / orphan purge / checksum copy / checksum index check / checksum stamp check | 规则扫描 / 队列处理 / 孤立条目清理 / 复制已有校验和 / 校验和索引检查 / 校验和时间戳检查 | the background jobs' names |
 | import | 导入 | the `occ fcias:import` command only; the *checksum copy* job copies (复制), it does not import |
 | current (value) | 当前 | “当前：{hash}”; not 现在, which is adverbial |
 | Acknowledge (a button) | 知道了 | the idle banner's dismiss button; the toast that follows it says 已知悉 |

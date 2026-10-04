@@ -182,6 +182,10 @@ msgstr "Telling van controlesommen"
 msgid "Checksum index check"
 msgstr "Controle van de controlesomindex"
 
+#. TRANSLATORS: a background job's name: it gives a freshness stamp to the stored checksums that have none, and queues for recomputing those it cannot vouch for.
+msgid "Checksum stamp check"
+msgstr "Controle van de tijdstempels van controlesommen"
+
 msgid "Checksums"
 msgstr "Controlesommen"
 
@@ -1242,6 +1246,14 @@ msgstr "selector is verplicht."
 #. TRANSLATORS: selector is a parameter name; keep it
 msgid "selector must be a non-empty string."
 msgstr "selector moet een niet-lege tekenreeks zijn."
+
+#. TRANSLATORS: a background job's last run: the files whose checksums it stamped, of those the ones queued to have their checksums computed again, and that the whole check is finished
+msgid "stamped {stamped}, queued again {queued}, finished"
+msgstr "voorzien van tijdstempel {stamped}, opnieuw in de wachtrij {queued}, voltooid"
+
+#. TRANSLATORS: a background job's last run: the files whose checksums it stamped, of those the ones queued to have their checksums computed again, and that the next runs go on stamping
+msgid "stamped {stamped}, queued again {queued}, not finished yet"
+msgstr "voorzien van tijdstempel {stamped}, opnieuw in de wachtrij {queued}, nog niet voltooid"
 
 msgid "the file changed while no rule maintained its checksums, so they were deleted; it gets them back once a rule covers it again"
 msgstr "het bestand is gewijzigd terwijl geen regel de controlesommen ervan bijhield, dus zijn ze verwijderd; het krijgt ze terug zodra een regel het weer dekt"

@@ -71,7 +71,7 @@ term that changes, changes here and in the `.po` file at once.
 | untrusted / eroded / reset | non attendibili / decaduti / azzerati | the states of stale checksums, past participles: *Azzerati* are the checksums a reset has made invalid, not the action; a reset of the index: *azzeramento* (not *ripristino*, which reads as a restore); invalidated by it: *invalidati da un azzeramento* |
 | hidden from search | esclusi dalla ricerca | not *nascosti dalla ricerca*, which reads as "hidden by the search" |
 | background job | operazione in background | Nextcloud's *Background jobs* → *Operazioni in background*; not run yet: *Non ancora eseguita*, as Nextcloud's own |
-| rule sweep / queue drain / orphan purge / checksum copy / checksum index check | Scansione delle regole / Svuotamento della coda / Pulizia delle voci orfane / Copia dei checksum esistenti / Controllo dell'indice dei checksum | |
+| rule sweep / queue drain / orphan purge / checksum copy / checksum index check / checksum stamp check | Scansione delle regole / Svuotamento della coda / Pulizia delle voci orfane / Copia dei checksum esistenti / Controllo dell'indice dei checksum / Controllo delle marche temporali dei checksum | |
 | tunables | parametri regolabili | |
 | prefill | precompilare | |
 | picker | selettore | Nextcloud's *profile picker* → *selettore del profilo* |

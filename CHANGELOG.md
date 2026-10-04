@@ -63,6 +63,10 @@ the first stable release.
   stamp; after a change, a hash the file's rule does not name is
   dropped, not vouched for (`docs/api-v1.md`, `updated_at`).
 
+- Hashes saved without a stamp get one in the background after the
+  upgrade, shown as *Checksum stamp check* on the status page
+  (`occ fcias:repair --step missing-stamps`).
+
 ### Security
 
 - Reach: in the request that first records a received share, the

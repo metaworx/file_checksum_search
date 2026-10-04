@@ -78,7 +78,7 @@ here; a term that changes, changes here and in the `.po` file at once.
 | disable | 無効にする (noun 無効化) | 「無効にする」, 「このルールの編集と無効化…」 |
 | invalidated (by a reset) | 無効化 | 「リセットにより無効化」; not 孤立, the orphan purge's word |
 | background job | バックグラウンドジョブ | Nextcloud's own term |
-| rule sweep / queue drain / orphan purge / checksum copy / checksum index check | ルールの走査 / キューの処理 / 孤立エントリーの削除 / 既存チェックサムの取り込み / チェックサムインデックスの検査 | |
+| rule sweep / queue drain / orphan purge / checksum copy / checksum index check / checksum stamp check | ルールの走査 / キューの処理 / 孤立エントリーの削除 / 既存チェックサムの取り込み / チェックサムインデックスの検査 / チェックサムのタイムスタンプの検査 | |
 | tunables | 調整項目 | |
 | picker | 選択リスト | |
 | prefill | 事前表示 | |

@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\FilecacheBackfill;
 use OCA\FileChecksumSearch\BackgroundJob\HashIndexCheck;
 use OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob;
+use OCA\FileChecksumSearch\BackgroundJob\StampCheck;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
@@ -40,7 +41,8 @@ use Throwable;
  * What they cover, in the order they run: the selector model and the two
  * shipped defaults, metadata key registration, the two rebuild paths
  * (from the filecache, and from documents written before the key rename),
- * index rows that lost their document or their file, and the leftovers of
+ * the stamp of hashes saved without one, index rows that lost their
+ * document or their file, and the leftovers of
  * models this app has since abandoned — 'pending:new' rows, the deleted
  * seed job's schedule.
  *
@@ -545,6 +547,63 @@ class RepairQuietStart
 
 		$this->appConfig->setValueArray( 'core', FilesMetadataManager::CONFIG_KEY, $declared, lazy: true );
 		$output->info( sprintf( 'FCIAS: withdrew %d superseded metadata key declarations.', $withdrawn ) );
+	}
+
+	/**
+	 * Give the hashes saved without a stamp one.
+	 *
+	 * A recalculation — `occ fcias:hash`, the sidebar, the API — used to save
+	 * hashes without `file-checksum-updated_at`; only the queue stamped. Such
+	 * a file counts as never hashed: every `missing` run hashed it again, and
+	 * a reset or the index check passed it by. Before the index check, so
+	 * that a named run finds them stamped.
+	 *
+	 * The files are found through the index, cheaply, but stamping one
+	 * rewrites its metadata document, and one run could leave tens of
+	 * thousands. So a whole repair only queues {@see StampCheck}.
+	 *
+	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
+	 */
+	#[RepairStep(
+		name: 'missing-stamps',
+		title: 'Stamp the hashes saved without a stamp',
+		description: 'Gives every file whose hashes carry no freshness stamp one: the file\'s modification time where Nextcloud\'s filecache still holds the same hashes; otherwise none, which hides the hashes until the queue has computed them again. Reads no file content. A whole repair, as installing, enabling or upgrading the app runs, queues the work for the background jobs; named here, it runs at once.',
+		expensive: true,
+	)]
+	private function stampUnstampedHashes( IOutput $output ): void
+	{
+		$named = $this->only !== null && in_array( 'missing-stamps', $this->only, true );
+
+		if ( ! $named && ! $this->includeExpensive )
+		{
+			$output->info(
+				( StampCheck::queue( $this->jobList, $this->appConfig )
+					? 'FCIAS: queued the stamping of hashes saved without a stamp for the background jobs'
+					: 'FCIAS: the stamping of hashes saved without a stamp is already queued' )
+				. self::WHERE_TO_WATCH,
+			);
+
+			return;
+		}
+
+		try
+		{
+			$result = $this->metadataService->stampUnstampedAfter();
+
+			$output->info(
+				$result['stamped'] === 0
+					? 'FCIAS: every stored hash carries a stamp.'
+					: sprintf(
+					'FCIAS: stamped the hashes of %d files; %d of them went back on the queue to be computed again.',
+					$result['stamped'],
+					$result['queued'],
+				),
+			);
+		}
+		catch ( Throwable $e )
+		{
+			$this->warn( $output, 'could not stamp the hashes saved without a stamp', $e );
+		}
 	}
 
 	/**

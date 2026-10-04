@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Migration;
 
 use OCA\FileChecksumSearch\BackgroundJob\FilecacheBackfill;
 use OCA\FileChecksumSearch\BackgroundJob\HashIndexCheck;
+use OCA\FileChecksumSearch\BackgroundJob\StampCheck;
 use OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob;
 use OCA\FileChecksumSearch\Migration\RepairQuietStart;
 use OCA\FileChecksumSearch\Service\HashIndexService;
@@ -81,6 +82,11 @@ class RepairQuietStartTest
 		;
 
 		$this->setUpQueryBuilderMock();
+
+		// Nothing to stamp, unless a test says otherwise.
+		$this->metadataService->method( 'stampUnstampedAfter' )
+		                      ->willReturn( [ 'stamped' => 0, 'queued' => 0, 'last' => 0, 'done' => true ] )
+		;
 
 		$this->step = new RepairQuietStart(
 			$this->ruleService,
@@ -452,13 +458,47 @@ class RepairQuietStartTest
 
 		$queued = array_values( array_filter( $lines, static fn ( string $l ): bool => str_contains( $l, 'queued' ) ) );
 
-		$this->assertCount( 2, $queued, 'the copy and the check' );
+		$this->assertCount( 3, $queued, 'the copy, the stamping and the check' );
 
 		foreach ( $queued as $line )
 		{
 			$this->assertStringContainsString( 'Advanced → Status,', $line );
 			$this->assertStringContainsString( 'occ fcias:status', $line );
 		}
+	}
+
+	/**
+	 * Stamping one file rewrites its metadata document, and one `occ` run
+	 * left tens of thousands without a stamp: a whole repair only queues it.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAWholeRepairQueuesTheStampingInsteadOfDoingIt(): void
+	{
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'stampUnstampedAfter' )
+		;
+
+		$this->step->run( $this->output );
+
+		$this->assertContains( StampCheck::class, $this->queued );
+	}
+
+	/**
+	 * Named, or with the expensive steps asked for, it stamps at once and
+	 * queues nothing.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testNamingTheStampingRunsItAtOnce(): void
+	{
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'stampUnstampedAfter' )
+		;
+
+		$this->step->runSteps( $this->output, [ 'missing-stamps' ] );
+
+		$this->assertNotContains( StampCheck::class, $this->queued );
 	}
 
 	/**
@@ -708,6 +748,7 @@ class RepairQuietStartTest
 				'metadata-keys',
 				'rebuild-from-filecache',
 				'key-namespace',
+				'missing-stamps',
 				'rebuild-from-metadata',
 				'unindexed-hashes',
 				'clear-disowned',

@@ -181,6 +181,10 @@ msgstr "チェックサムの集計"
 msgid "Checksum index check"
 msgstr "チェックサムインデックスの検査"
 
+#. TRANSLATORS: a background job's name: it gives a freshness stamp to the stored checksums that have none, and queues for recomputing those it cannot vouch for.
+msgid "Checksum stamp check"
+msgstr "チェックサムのタイムスタンプの検査"
+
 msgid "Checksums"
 msgstr "チェックサム"
 
@@ -1240,6 +1244,14 @@ msgstr "selector は必須です。"
 #. TRANSLATORS: selector is a parameter name; keep it
 msgid "selector must be a non-empty string."
 msgstr "selector は空でない文字列である必要があります。"
+
+#. TRANSLATORS: a background job's last run: the files whose checksums it stamped, of those the ones queued to have their checksums computed again, and that the whole check is finished
+msgid "stamped {stamped}, queued again {queued}, finished"
+msgstr "タイムスタンプ付与：{stamped}、キュー再追加：{queued}、完了"
+
+#. TRANSLATORS: a background job's last run: the files whose checksums it stamped, of those the ones queued to have their checksums computed again, and that the next runs go on stamping
+msgid "stamped {stamped}, queued again {queued}, not finished yet"
+msgstr "タイムスタンプ付与：{stamped}、キュー再追加：{queued}、未完了"
 
 msgid "the file changed while no rule maintained its checksums, so they were deleted; it gets them back once a rule covers it again"
 msgstr "どのルールもチェックサムを維持していない間にファイルが変更されたため、チェックサムは削除されました。再びルールの対象になると、チェックサムは再計算されます"

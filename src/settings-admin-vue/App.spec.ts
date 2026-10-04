@@ -52,6 +52,7 @@ function mockFetch(options: { rules?: unknown[], idleBannerAcknowledged?: boolea
 					orphan_purge: { lastRun: 1700000050, counts: { purged: 5, batches: 1 } },
 					filecache_backfill: { lastRun: 1700000100, counts: { copied: 1200, files: 900, done: 0 } },
 					hash_index_check: { lastRun: 1700000200, counts: { repaired: 2, done: 1 } },
+					stamp_check: { lastRun: 1700000250, counts: { stamped: 25906, queued: 4, done: 0 } },
 					// A job a newer server runs and this page does not know.
 					future_job: { lastRun: 1700000300, counts: { widgets: 7 } },
 				},
@@ -214,6 +215,8 @@ describe('settings-admin App', () => {
 		expect(jobs).toContain('copied 1200, files 900, not finished yet')
 		expect(jobs).toContain('Checksum index check')
 		expect(jobs).toContain('repaired 2, finished')
+		expect(jobs).toContain('Checksum stamp check')
+		expect(jobs).toContain('stamped 25906, queued again 4, not finished yet')
 		expect(jobs).not.toContain('marked')
 		expect(jobs).not.toContain('done')
 		expect(jobs).toContain('future_job')

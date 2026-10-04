@@ -2405,16 +2405,18 @@ class MetadataService
 	 * because every one of them starts from a row it does not have — its
 	 * hashes are stored, and nothing this app can be asked will find them.
 	 *
-	 * How a file gets there is not a bug this app still has. A restore that
-	 * brought back `oc_files_metadata` without `oc_files_metadata_index`, an
-	 * index truncated by hand, an interrupted migration: the causes are all
-	 * outside, which is why there is no cheap question to ask about them.
-	 * Finding out costs the scan, so the step that calls this never runs on
-	 * its own — it is `manualOnly`, and an administrator asks for it.
+	 * How a file gets there: a restore that brought back `oc_files_metadata`
+	 * without `oc_files_metadata_index`, an index truncated by hand, an
+	 * interrupted migration — causes outside the app, which is why there is
+	 * no cheap question to ask about them. Finding out costs the scan, so the
+	 * step that calls this never runs on its own — it is `manualOnly`, and an
+	 * administrator asks for it.
 	 *
-	 * The stamp row goes back with the hash rows, from the value the
-	 * metadata document itself carries. Without it the file would be
-	 * repaired and still invisible to the next run of everything else.
+	 * The stamp goes back with the hash rows, by {@see stampFromFilecache()}:
+	 * the one the metadata document carries, or, for hashes a recalculation
+	 * saved without one, the file's mtime where the filecache still holds
+	 * them. Without it the file would be repaired and still invisible to the
+	 * next run of everything else.
 	 *
 	 * @param  callable|null  $progress  Called per page with (files seen, files fixed).
 	 *
@@ -2435,20 +2437,230 @@ class MetadataService
 				string $json,
 			): bool
 			{
-				$json     = $this->renameLegacyKeysInDocument( $fileId, $json );
-				$metadata = $this->getMetadata( $fileId, $json );
+				// In place: the document the stamping reads is the renamed one.
+				$this->renameLegacyKeysInDocument( $fileId, $json );
 
-				$this->syncHashIndex( $fileId, $this->getHashes( $metadata ) );
-				$this->insertIndexRow(
-					$fileId,
-					self::KEY_FILE_CHECKSUM_UPDATED_AT,
-					'',
-					$this->getUpdatedAt( $metadata ) ?? 0,
-				);
-
-				return true;
+				return $this->stampFromFilecache( $fileId ) !== null;
 			},
 		)['fixed'];
+	}
+
+	/**
+	 * Files whose index holds a hash row and no stamp row, by file id.
+	 *
+	 * Hashes a recalculation saved before every calculation stamped, and
+	 * stamp rows lost on their own. Found through the index alone, which is
+	 * what makes it cheap enough to run on every upgrade; a file whose hash
+	 * rows went too is the `unindexed-hashes` scan's.
+	 *
+	 * Rows, not `DISTINCT` files: made distinct, the database reads and sorts
+	 * every remaining hash row before it returns the first file — 700 ms a
+	 * page on an instance with a million index rows, against 5 to 60 for the
+	 * rows in file-id order. A file holds at most one row per algorithm, so
+	 * that many rows a file always cover $limit files.
+	 *
+	 * @return list<int>
+	 * @throws Exception
+	 */
+	public function fetchUnstampedFileIds(
+		int $afterFileId,
+		int $limit = 500,
+	): array
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( 'h.' . self::FIELD_FILE_ID )
+		   ->from( self::TABLE_FILES_METADATA_INDEX, 'h' )
+		   ->leftJoin(
+			   'h',
+			   self::TABLE_FILES_METADATA_INDEX,
+			   'u',
+			   $qb->expr()
+			      ->andX(
+				      $qb->expr()
+				         ->eq( 'u.' . self::FIELD_FILE_ID, 'h.' . self::FIELD_FILE_ID ),
+				      $qb->expr()
+				         ->eq( 'u.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			      ),
+		   )
+		   ->where(
+			   $qb->expr()
+			      ->like( 'h.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
+			   $qb->expr()
+			      ->isNull( 'u.' . self::FIELD_FILE_ID ),
+			   $qb->expr()
+			      ->gt( 'h.' . self::FIELD_FILE_ID, $qb->createNamedParameter( $afterFileId, IQueryBuilder::PARAM_INT ) ),
+		   )
+		   ->orderBy( 'h.' . self::FIELD_FILE_ID, 'ASC' )
+		   ->setMaxResults( $limit * count( self::LEGACY_ALGOS ) )
+		;
+
+		$result  = $this->executeQuery( $qb );
+		$fileIds = array_values( array_unique( array_map( intval( ... ), $result->fetchFirstColumn() ) ) );
+		$result->closeCursor();
+
+		return array_slice( $fileIds, 0, $limit );
+	}
+
+	/**
+	 * Stamp the files whose hashes carry no stamp, a page at a time, from
+	 * the file after $after until $continue answers false after a page.
+	 *
+	 * Keyset paging: a file that cannot be stamped is passed by rather than
+	 * met again on every page, and stamping one takes it out of the set.
+	 *
+	 * @param  callable|null  $continue  `fn(): bool`, asked after each page.
+	 *
+	 * @return array{stamped: int, queued: int, last: int, done: bool}  Files
+	 *         stamped, of those the ones whose hashes nobody vouches for and
+	 *         that went back on the queue, the last file id read, and whether
+	 *         the walk reached the end.
+	 * @throws Exception
+	 */
+	public function stampUnstampedAfter(
+		int       $after = 0,
+		int       $pageSize = 500,
+		?callable $continue = null,
+	): array
+	{
+		$lastId  = $after;
+		$stamped = 0;
+		$queued  = 0;
+
+		while ( true )
+		{
+			$fileIds = $this->fetchUnstampedFileIds( $lastId, $pageSize );
+
+			if ( $fileIds === [] )
+			{
+				return [
+					'stamped' => $stamped,
+					'queued'  => $queued,
+					'last'    => $lastId,
+					'done'    => true,
+				];
+			}
+
+			$lastId = $fileIds[ array_key_last( $fileIds ) ];
+
+			foreach ( $fileIds as $fileId )
+			{
+				try
+				{
+					$current = $this->stampFromFilecache( $fileId );
+				}
+				catch ( Throwable $e )
+				{
+					$this->logger->warning(
+						'FCIAS: could not stamp the hashes of fileId {fileId}; continuing.',
+						[
+							'app'       => Application::APP_ID,
+							'fileId'    => $fileId,
+							'exception' => $e,
+						],
+					);
+
+					continue;
+				}
+
+				if ( $current === null )
+				{
+					continue;
+				}
+
+				$stamped ++;
+
+				if ( ! $current )
+				{
+					$queued ++;
+				}
+			}
+
+			if ( $continue !== null && ! $continue() )
+			{
+				return [
+					'stamped' => $stamped,
+					'queued'  => $queued,
+					'last'    => $lastId,
+					'done'    => false,
+				];
+			}
+		}
+	}
+
+	/**
+	 * Give a file whose hashes have no stamp row its stamp back.
+	 *
+	 * The stamp the metadata document carries, where it has one: only its
+	 * row was lost. Otherwise the hashes were saved without one, and the
+	 * filecache decides: where its checksum column still holds every one of
+	 * them, they describe the content as of the file's mtime — Nextcloud
+	 * empties the column when the content changes — and that is the stamp,
+	 * as {@see backfillHashes()} gives it. Where it does not, nobody vouches
+	 * for them: the stamp is 0.
+	 *
+	 * The hash rows follow: written where the stamp covers the file's mtime,
+	 * removed where it does not, and the file then queued for the hashes its
+	 * rule keeps, so that it is listed again once they are computed.
+	 *
+	 * @return bool|null  Whether the hashes came out current; null for a file
+	 *                    this leaves alone — gone from the filecache, which is
+	 *                    the orphan purge's, or holding no hash.
+	 * @throws Exception
+	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
+	 */
+	private function stampFromFilecache( int $fileId ): ?bool
+	{
+		$location = $this->filecacheService->locate( $fileId );
+
+		if ( $location === null )
+		{
+			return null;
+		}
+
+		$metadata = $this->getMetadata( $fileId );
+		$hashes   = $this->getHashes( $metadata );
+
+		if ( $hashes === [] )
+		{
+			return null;
+		}
+
+		try
+		{
+			$stamp = $metadata->getInt( self::KEY_FILE_CHECKSUM_UPDATED_AT );
+
+			$this->insertIndexRow( $fileId, self::KEY_FILE_CHECKSUM_UPDATED_AT, '', $stamp );
+		}
+		catch ( FilesMetadataNotFoundException|FilesMetadataTypeException )
+		{
+			$held  = $this->filecacheService->checksumsOf( $fileId );
+			$stamp = $location->mtime;
+
+			foreach ( $hashes as $algo => $hash )
+			{
+				if ( strtolower( $held[ $algo ] ?? '' ) !== strtolower( $hash ) )
+				{
+					$stamp = 0;
+
+					break;
+				}
+			}
+
+			// Nextcloud writes the stamp row from the document.
+			$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, $stamp, true );
+			$this->metadataManager->saveMetadata( $metadata );
+		}
+
+		$current = $stamp > 0 && $stamp >= $location->mtime;
+
+		$this->syncHashIndex( $fileId, $current ? $hashes : [] );
+
+		if ( ! $current )
+		{
+			$this->upsertUpdatedAtString( $fileId, self::PENDING_AUTO );
+		}
+
+		return $current;
 	}
 
 	/**

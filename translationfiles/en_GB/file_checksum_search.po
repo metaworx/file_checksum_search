@@ -182,6 +182,10 @@ msgstr "Checksum count"
 msgid "Checksum index check"
 msgstr "Checksum index check"
 
+#. TRANSLATORS: a background job's name: it gives a freshness stamp to the stored checksums that have none, and queues for recomputing those it cannot vouch for.
+msgid "Checksum stamp check"
+msgstr "Checksum stamp check"
+
 msgid "Checksums"
 msgstr "Checksums"
 
@@ -1242,6 +1246,14 @@ msgstr "selector is required."
 #. TRANSLATORS: selector is a parameter name; keep it
 msgid "selector must be a non-empty string."
 msgstr "selector must be a non-empty string."
+
+#. TRANSLATORS: a background job's last run: the files whose checksums it stamped, of those the ones queued to have their checksums computed again, and that the whole check is finished
+msgid "stamped {stamped}, queued again {queued}, finished"
+msgstr "stamped {stamped}, queued again {queued}, finished"
+
+#. TRANSLATORS: a background job's last run: the files whose checksums it stamped, of those the ones queued to have their checksums computed again, and that the next runs go on stamping
+msgid "stamped {stamped}, queued again {queued}, not finished yet"
+msgstr "stamped {stamped}, queued again {queued}, not finished yet"
 
 msgid "the file changed while no rule maintained its checksums, so they were deleted; it gets them back once a rule covers it again"
 msgstr "the file changed while no rule maintained its checksums, so they were deleted; it gets them back once a rule covers it again"

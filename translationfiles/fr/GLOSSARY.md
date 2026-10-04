@@ -81,7 +81,7 @@ here; a term that changes, changes here and in the `.po` file at once.
 | delete (checksums) / discard (a session) | supprimer | the thing is deleted, not left behind: never *abandonner* |
 | enable or disable (a rule) | activer ou désactiver | the rule's *Activer* / *Désactiver* entries; not *basculer*, which Nextcloud keeps for switching a view |
 | background job | tâche d'arrière-plan | Nextcloud's *Tâches d'arrière-plan* |
-| rule sweep / queue drain / orphan purge / checksum copy / checksum index check | Balayage des règles / Traitement de la file d'attente / Purge des entrées orphelines / Reprise des sommes de contrôle existantes / Vérification de l'index des sommes de contrôle | |
+| rule sweep / queue drain / orphan purge / checksum copy / checksum index check / checksum stamp check | Balayage des règles / Traitement de la file d'attente / Purge des entrées orphelines / Reprise des sommes de contrôle existantes / Vérification de l'index des sommes de contrôle / Vérification de l'horodatage des sommes de contrôle | |
 | tunables | réglages fins | |
 | prefill | préremplir, préremplissage | |
 | glob pattern | motif glob | |

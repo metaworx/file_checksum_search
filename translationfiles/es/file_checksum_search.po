@@ -183,6 +183,10 @@ msgstr "Recuento de sumas de verificación"
 msgid "Checksum index check"
 msgstr "Comprobación del índice de sumas de verificación"
 
+#. TRANSLATORS: a background job's name: it gives a freshness stamp to the stored checksums that have none, and queues for recomputing those it cannot vouch for.
+msgid "Checksum stamp check"
+msgstr "Comprobación de las marcas de tiempo de las sumas de verificación"
+
 msgid "Checksums"
 msgstr "Sumas de verificación"
 
@@ -1244,6 +1248,14 @@ msgstr "selector es obligatorio."
 #. TRANSLATORS: selector is a parameter name; keep it
 msgid "selector must be a non-empty string."
 msgstr "selector debe ser una cadena no vacía."
+
+#. TRANSLATORS: a background job's last run: the files whose checksums it stamped, of those the ones queued to have their checksums computed again, and that the whole check is finished
+msgid "stamped {stamped}, queued again {queued}, finished"
+msgstr "con marca de tiempo {stamped}, de nuevo en cola {queued}, finalizado"
+
+#. TRANSLATORS: a background job's last run: the files whose checksums it stamped, of those the ones queued to have their checksums computed again, and that the next runs go on stamping
+msgid "stamped {stamped}, queued again {queued}, not finished yet"
+msgstr "con marca de tiempo {stamped}, de nuevo en cola {queued}, aún sin finalizar"
 
 msgid "the file changed while no rule maintained its checksums, so they were deleted; it gets them back once a rule covers it again"
 msgstr "el archivo cambió mientras ninguna regla mantenía sus sumas de verificación, así que se eliminaron; las recupera en cuanto una regla vuelva a abarcarlo"

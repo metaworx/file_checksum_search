@@ -95,11 +95,14 @@ are even-length, so no whole digest is ever exactly 63 characters, and
 
 **The `updated_at` row does double duty.** Its integer half is the freshness
 stamp; its string half is what the file is waiting for or why its hashes are
-not to be trusted. Its absence means something too: a file whose metadata
-document holds hashes but which has no `updated_at` row at all is one the index
-has lost track of entirely, and no ordinary repair can reach it, because every
-one of them starts from a row it does not have. `occ fcias:repair --step
-unindexed-hashes` is the one that finds those.
+not to be trusted. Its absence means something too: every file holding a hash
+has one. Where the index holds the hash rows and not this one, the hashes were
+saved without a stamp, and `occ fcias:repair --step missing-stamps` gives them
+one, as every upgrade does in the background. A file whose metadata document
+holds hashes but which has no index rows at all is one the index has lost track
+of entirely, and no ordinary repair can reach it, because every one of them
+starts from a row it does not have. `occ fcias:repair --step unindexed-hashes`
+is the one that finds those.
 
 If you want to read the hashes rather than search them, read the metadata
 document: it holds them whole. `occ fcias:backup --format=sum` writes them out
@@ -336,11 +339,15 @@ for the full permission model.
 ### The index is out of sync with filecache
 
 Which repair you want depends on where the truth is. `occ fcias:repair --list`
-describes each step; the four that rebuild something are:
+describes each step; the five that rebuild something are:
 
 ```bash
 # clients show a checksum this app does not know
 php occ fcias:repair --step rebuild-from-filecache
+
+# hashes carry no stamp, so every run hashes them again and the listing
+# shows them without one
+php occ fcias:repair --step missing-stamps
 
 # a file's details show a hash, but searching for it finds nothing
 php occ fcias:repair --step rebuild-from-metadata

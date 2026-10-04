@@ -232,6 +232,7 @@ class CommandTest
 		foreach (
 			[
 				'rebuild-from-filecache',
+				'missing-stamps',
 				'rebuild-from-metadata',
 				'unindexed-hashes',
 				'clear-disowned',

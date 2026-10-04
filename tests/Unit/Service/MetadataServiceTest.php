@@ -2480,6 +2480,29 @@ class MetadataServiceTest
 		                   )
 		;
 
+		// The file as the filecache holds it, changed before the stamp; and
+		// its document as Nextcloud loads it for the stamping.
+		$this->filecacheService->method( 'locate' )
+		                       ->with( 7 )
+		                       ->willReturn( new FileLocation( 7, 'home::alice', 'files/a.txt', 1_600_000_000, 'home', 'alice', null, 'a.txt' ) )
+		;
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'getKeys' )
+		         ->willReturn( [ MetadataService::getHashKey( 'sha256' ), MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ] )
+		;
+		$metadata->method( 'getString' )
+		         ->willReturn( str_repeat( 'a', 64 ) )
+		;
+		$metadata->method( 'getInt' )
+		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT )
+		         ->willReturn( 1_700_000_000 )
+		;
+		$this->metadataManager->method( 'getMetadata' )
+		                      ->with( 7, true )
+		                      ->willReturn( $metadata )
+		;
+
 		$this->assertSame( 1, $this->service->reindexUnstampedHashes() );
 
 		$keys = array_column( $inserted, MetadataService::FIELD_META_KEY );
