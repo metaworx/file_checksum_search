@@ -93,9 +93,9 @@ class HashListingService
 	 *
 	 * The stamp is not when the hashes were written. It says until when the
 	 * app holds them current, and is what freshness compares with a file's
-	 * mtime: the time of the computation for hashes this app computed, the
-	 * file's mtime for checksums taken over from Nextcloud's filecache, an
-	 * import's own value for an import. A recalculation by hand leaves it.
+	 * mtime: when the read began for hashes this app computed, by hand or
+	 * not, the file's mtime for checksums taken over from Nextcloud's
+	 * filecache, an import's own value for an import.
 	 */
 	public static function stamp( ?int $updatedAt ): ?string
 	{

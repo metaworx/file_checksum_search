@@ -395,6 +395,156 @@ class HashCalculationServiceTest
 	}
 
 	/**
+	 * The md5 case: a hash computed once by hand, outside the rule's list,
+	 * is dropped when the content changed, not kept and vouched for by the
+	 * new stamp.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testProcessFileAutoDropsOutdatedHashesItsRuleDoesNotName(): void
+	{
+		$metadata = $this->documentStamped(
+			[
+				'sha256' => 'old',
+				'md5'    => 'old',
+			],
+			0,
+		);
+
+		$dropped = [];
+		$metadata->method( 'unset' )
+		         ->willReturnCallback(
+			         function(
+				         string $key,
+			         ) use
+			         (
+				         &
+				         $dropped,
+				         $metadata,
+			         ): IFilesMetadata
+			         {
+				         $dropped[] = $key;
+
+				         return $metadata;
+			         },
+		         )
+		;
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn(
+			                  [
+				                  'id'    => 'r1',
+				                  'type'  => 'include',
+				                  'mode'  => 'auto',
+				                  'algos' => [ 'sha256' ],
+			                  ],
+		                  )
+		;
+
+		$service = $this->createCollectingServiceMock();
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->with( $this->anything(), [ 'sha256' ], true, $metadata )
+		        ->willReturn(
+			        [
+				        'results' => [
+					        'sha256' => [
+						        'success' => true,
+						        'hash'    => 'new',
+						        'existed' => false,
+					        ],
+				        ],
+				        'locked'  => false,
+			        ],
+		        )
+		;
+
+		$service->processFile( 42, 'auto' );
+
+		$this->assertSame( [ MetadataService::getHashKey( 'md5' ) ], $dropped );
+	}
+
+	/**
+	 * A hash computed by hand on a file that has not changed stays: the
+	 * drop is for content the stamp no longer covers.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testProcessFileKeepsACurrentHashItsRuleDoesNotName(): void
+	{
+		$metadata = $this->documentStamped(
+			[
+				'sha256' => 'current',
+				'md5'    => 'current',
+			],
+			2000,
+		);
+		$metadata->expects( $this->never() )
+		         ->method( 'unset' )
+		;
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn(
+			                  [
+				                  'id'    => 'r1',
+				                  'type'  => 'include',
+				                  'mode'  => 'auto',
+				                  'algos' => [ 'sha256' ],
+			                  ],
+		                  )
+		;
+
+		$service = $this->createCollectingServiceMock();
+		$service->method( 'recalcHashes' )
+		        ->willReturn(
+			        [
+				        'results' => [
+					        'sha256' => [
+						        'success' => true,
+						        'hash'    => 'current',
+						        'existed' => true,
+					        ],
+				        ],
+				        'locked'  => false,
+			        ],
+		        )
+		;
+
+		$service->processFile( 42, 'auto' );
+	}
+
+	/**
+	 * Outdated hashes with nothing left to recompute them are eroded, as a
+	 * write to a file no rule maintains erodes them — not left behind with
+	 * the mark dropped.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testProcessFileErodesOutdatedHashesWhenNoIncludeRuleGoverns(): void
+	{
+		$this->documentStamped( [ 'sha1' => 'old' ], 0 );
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn( null )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markEroded' )
+		                      ->with( 42 )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'markPending' )
+		;
+
+		$service = $this->createCollectingServiceMock();
+		$service->expects( $this->never() )
+		        ->method( 'recalcHashes' )
+		;
+
+		$service->processFile( 42, 'auto' );
+	}
+
+	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testProcessFileDropsAnUnknownModeInsteadOfLoopingIt(): void
@@ -1202,6 +1352,137 @@ class HashCalculationServiceTest
 		);
 	}
 
+	/**
+	 * File 42, mtime 1000, on local storage, holding $content in a temporary
+	 * file that both read paths reach: `hash_file()` for one algorithm, the
+	 * stream for several. The caller unlinks the path.
+	 *
+	 * @return array{0: File&MockObject, 1: string}
+	 */
+	private function streamedFile(
+		string $content,
+		string $etag = 'etag',
+	): array
+	{
+		$path = (string) tempnam( sys_get_temp_dir(), 'fcias_test_' );
+		file_put_contents( $path, $content );
+
+		$storage = $this->createMock( IStorage::class );
+		$storage->method( 'isLocal' )
+		        ->willReturn( true )
+		;
+		$storage->method( 'getLocalFile' )
+		        ->willReturn( $path )
+		;
+
+		$file = $this->createMock( File::class );
+		$file->method( 'getId' )
+		     ->willReturn( 42 )
+		;
+		$file->method( 'getMTime' )
+		     ->willReturn( 1000 )
+		;
+		$file->method( 'getEtag' )
+		     ->willReturn( $etag )
+		;
+		$file->method( 'getStorage' )
+		     ->willReturn( $storage )
+		;
+		$file->method( 'getInternalPath' )
+		     ->willReturn( 'files/test.txt' )
+		;
+		$file->method( 'fopen' )
+		     ->willReturnCallback(
+			     static fn() => fopen( $path, 'rb' ),
+		     )
+		;
+
+		return [
+			$file,
+			$path,
+		];
+	}
+
+	/**
+	 * File 42, mtime 1000, whose metadata document holds $hashes under
+	 * $stamp: outdated below 1000, current from it on.
+	 *
+	 * @param  array<string, string>  $hashes
+	 *
+	 * @return IFilesMetadata&MockObject
+	 */
+	private function documentStamped(
+		array $hashes,
+		int   $stamp,
+	): IFilesMetadata
+	{
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'hasKey' )
+		         ->willReturnCallback(
+			         static fn(
+				         string $key,
+			         ): bool => in_array(
+				         $key,
+				         array_map( MetadataService::getHashKey( ... ), array_keys( $hashes ) ),
+				         true,
+			         ),
+		         )
+		;
+		$metadata->method( 'setString' )
+		         ->willReturnSelf()
+		;
+		$metadata->method( 'setInt' )
+		         ->willReturnSelf()
+		;
+
+		$file = $this->createMock( File::class );
+		$file->method( 'getId' )
+		     ->willReturn( 42 )
+		;
+		$file->method( 'getMTime' )
+		     ->willReturn( 1000 )
+		;
+
+		$this->metadataService->method( 'getMetadata' )
+		                      ->willReturn( $metadata )
+		;
+		$this->metadataService->method( 'getHashes' )
+		                      ->willReturn( $hashes )
+		;
+		$this->metadataService->method( 'getUpdatedAt' )
+		                      ->willReturn( $stamp )
+		;
+		$this->filecacheService->method( 'getFile' )
+		                       ->willReturn( $file )
+		;
+
+		return $metadata;
+	}
+
+	/**
+	 * The call loads the document itself — an on-demand caller's — and is
+	 * handed $metadata.
+	 */
+	private function ownTheDocument( IFilesMetadata $metadata ): void
+	{
+		$this->metadataService->method( 'ensureMetadata' )
+		                      ->willReturnCallback(
+			                      function(
+				                      $fileOrId,
+				                      &$metadataRef,
+			                      ) use
+			                      (
+				                      $metadata,
+			                      ): bool
+			                      {
+				                      $metadataRef = $metadata;
+
+				                      return true;
+			                      },
+		                      )
+		;
+	}
+
 	public function testRecalcFileHashRejectsUnsupportedAlgo(): void
 	{
 		$file = $this->createMock( File::class );
@@ -1274,6 +1555,284 @@ class HashCalculationServiceTest
 		$this->assertFalse( $result['locked'] );
 		$this->assertTrue( $result['results']['sha1']['success'] );
 		$this->assertTrue( $result['results']['sha1']['existed'] );
+	}
+
+	/**
+	 * Regression: only the queue stamped. A file hashed by `occ fcias:hash`,
+	 * the sidebar or the API carried hashes and no stamp, counted as never
+	 * hashed, and was hashed again by every `missing` run.
+	 */
+	public function testRecalcHashesStampsTheTimeTheReadBegan(): void
+	{
+		[ $file, $path ] = $this->streamedFile( 'hello world' );
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'hasKey' )
+		         ->willReturn( false )
+		;
+		$metadata->method( 'setString' )
+		         ->willReturnSelf()
+		;
+
+		$stamps = [];
+		$metadata->method( 'setInt' )
+		         ->willReturnCallback(
+			         function(
+				         string $key,
+				         int    $value,
+			         ) use
+			         (
+				         &
+				         $stamps,
+				         $metadata,
+			         ): IFilesMetadata
+			         {
+				         $stamps[ $key ] = $value;
+
+				         return $metadata;
+			         },
+		         )
+		;
+
+		$this->filecacheService->method( 'getChecksums' )
+		                       ->willReturn( [] )
+		;
+
+		$before = time();
+
+		try
+		{
+			$result = $this->createRealService()
+			               ->recalcHashes( $file, [ 'sha1' ], true, $metadata )
+			;
+		}
+		finally
+		{
+			@unlink( $path );
+		}
+
+		$this->assertTrue( $result['results']['sha1']['success'] );
+		$this->assertArrayHasKey( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $stamps );
+		$this->assertGreaterThanOrEqual( $before, $stamps[ MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ] );
+		$this->assertLessThanOrEqual( time(), $stamps[ MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ] );
+	}
+
+	/**
+	 * The app's lock keeps out only the app: a write takes Nextcloud's own.
+	 * A file whose etag moved while it was read gets nothing written, stamp
+	 * included, and is reported busy, as a locked one is.
+	 */
+	public function testAResultIsDiscardedWhenTheFileIsWrittenToDuringTheRead(): void
+	{
+		[ $file, $path ] = $this->streamedFile( 'hello world', 'before' );
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'hasKey' )
+		         ->willReturn( false )
+		;
+		$metadata->expects( $this->never() )
+		         ->method( 'setString' )
+		;
+		$metadata->expects( $this->never() )
+		         ->method( 'setInt' )
+		;
+
+		$this->ownTheDocument( $metadata );
+		$this->filecacheService->method( 'getChecksums' )
+		                       ->willReturn( [] )
+		;
+		$this->filecacheService->method( 'etagOf' )
+		                       ->with( 42 )
+		                       ->willReturn( 'after' )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'saveMetadata' )
+		;
+
+		try
+		{
+			$result = $this->createRealService()
+			               ->recalcHashes( $file, [ 'sha1' ] )
+			;
+		}
+		finally
+		{
+			@unlink( $path );
+		}
+
+		$this->assertTrue( $result['locked'] );
+		$this->assertFalse( $result['results']['sha1']['success'] );
+	}
+
+	/**
+	 * The sidebar asking for sha1 on a file queued after a change: the
+	 * rule's sha256 is recomputed in the same read, and the md5 computed
+	 * once by hand is dropped rather than vouched for by the new stamp.
+	 */
+	public function testAnOnDemandCalculationOfAQueuedFileDoesWhatTheQueueWouldBesides(): void
+	{
+		[ $file, $path ] = $this->streamedFile( 'new content' );
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'hasKey' )
+		         ->willReturnCallback(
+			         static fn(
+				         string $key,
+			         ): bool => in_array(
+				         $key,
+				         [
+					         MetadataService::getHashKey( 'sha256' ),
+					         MetadataService::getHashKey( 'md5' ),
+				         ],
+				         true,
+			         ),
+		         )
+		;
+		$metadata->method( 'setString' )
+		         ->willReturnSelf()
+		;
+		$metadata->method( 'setInt' )
+		         ->willReturnSelf()
+		;
+
+		$dropped = [];
+		$metadata->method( 'unset' )
+		         ->willReturnCallback(
+			         function(
+				         string $key,
+			         ) use
+			         (
+				         &
+				         $dropped,
+				         $metadata,
+			         ): IFilesMetadata
+			         {
+				         $dropped[] = $key;
+
+				         return $metadata;
+			         },
+		         )
+		;
+
+		$this->ownTheDocument( $metadata );
+		$this->metadataService->method( 'getHashes' )
+		                      ->willReturn(
+			                      [
+				                      'sha256' => 'old',
+				                      'md5'    => 'old',
+			                      ],
+		                      )
+		;
+		$this->metadataService->method( 'getUpdatedAt' )
+		                      ->willReturn( 0 )
+		;
+		$this->metadataService->method( 'getMarker' )
+		                      ->with( 42 )
+		                      ->willReturn( MetadataService::PENDING_AUTO )
+		;
+		$this->filecacheService->method( 'getChecksums' )
+		                       ->willReturn( [] )
+		;
+		$this->filecacheService->method( 'getFile' )
+		                       ->willReturn( $file )
+		;
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->with( 42 )
+		                  ->willReturn(
+			                  [
+				                  'id'    => 'r1',
+				                  'type'  => 'include',
+				                  'mode'  => 'auto',
+				                  'algos' => [ 'sha256' ],
+			                  ],
+		                  )
+		;
+
+		try
+		{
+			$result = $this->createRealService()
+			               ->recalcHashes( $file, [ 'sha1' ] )
+			;
+		}
+		finally
+		{
+			@unlink( $path );
+		}
+
+		$this->assertSame( [ MetadataService::getHashKey( 'md5' ) ], $dropped );
+		$this->assertTrue( $result['results']['sha1']['success'] );
+		$this->assertSame( sha1( 'new content' ), $result['results']['sha1']['hash'] );
+		$this->assertTrue( $result['results']['sha256']['success'] );
+		$this->assertSame( hash( 'sha256', 'new content' ), $result['results']['sha256']['hash'] );
+	}
+
+	/**
+	 * A file merely queued, its hashes current, keeps them: nothing is
+	 * dropped, and the queue's algorithms are added to the one asked.
+	 */
+	public function testAnOnDemandCalculationOfAQueuedButCurrentFileDropsNothing(): void
+	{
+		[ $file, $path ] = $this->streamedFile( 'same content' );
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'hasKey' )
+		         ->willReturn( false )
+		;
+		$metadata->method( 'setString' )
+		         ->willReturnSelf()
+		;
+		$metadata->method( 'setInt' )
+		         ->willReturnSelf()
+		;
+		$metadata->expects( $this->never() )
+		         ->method( 'unset' )
+		;
+
+		$this->ownTheDocument( $metadata );
+		$this->metadataService->method( 'getHashes' )
+		                      ->willReturn( [ 'md5' => 'current' ] )
+		;
+		$this->metadataService->method( 'getUpdatedAt' )
+		                      ->willReturn( 2000 )
+		;
+		$this->metadataService->method( 'getMarker' )
+		                      ->willReturn( MetadataService::PENDING_PREFIX . MetadataService::PENDING_MODE_MISSING )
+		;
+		$this->filecacheService->method( 'getChecksums' )
+		                       ->willReturn( [] )
+		;
+		$this->filecacheService->method( 'getFile' )
+		                       ->willReturn( $file )
+		;
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn(
+			                  [
+				                  'id'    => 'r1',
+				                  'type'  => 'include',
+				                  'mode'  => 'missing',
+				                  'algos' => [ 'sha256' ],
+			                  ],
+		                  )
+		;
+
+		try
+		{
+			$result = $this->createRealService()
+			               ->recalcHashes( $file, [ 'sha1' ] )
+			;
+		}
+		finally
+		{
+			@unlink( $path );
+		}
+
+		$this->assertSame(
+			[
+				'sha1',
+				'sha256',
+			],
+			array_keys( $result['results'] ),
+		);
 	}
 
 	/**

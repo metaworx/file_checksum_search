@@ -341,6 +341,40 @@ class MetadataService
 	}
 
 	/**
+	 * The string half of a file's `file-checksum-updated_at` row: what it is
+	 * queued for (`pending:<mode>`) or why its hashes are not trusted
+	 * (`stale:…`). Null where there is none.
+	 *
+	 * A hint, not a proof: Nextcloud rewrites the row from the metadata
+	 * document whenever any app saves it, and the document does not hold
+	 * this half, so a marker can be lost. The stamp is what a write sets.
+	 *
+	 * @throws \OCP\DB\Exception
+	 */
+	public function getMarker( int $fileId ): ?string
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( self::FIELD_META_VALUE_STRING )
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+		   )
+		   ->setMaxResults( 1 )
+		;
+
+		$result = $this->executeQuery( $qb );
+		$marker = $result->fetchOne();
+		$result->closeCursor();
+
+		return is_string( $marker ) && $marker !== ''
+			? $marker
+			: null;
+	}
+
+	/**
 	 * Strip this app's keys from a file's metadata and stamp it stale.
 	 *
 	 * The stamp is set to zero rather than removed: a file with no stamp has

@@ -1370,12 +1370,11 @@ components:
       description: >-
         The file's stamp, one per file, not one per algorithm: not when its
         hashes were written, but until when the app holds them current,
-        which is what it compares with the file's mtime. The time of the
-        computation for hashes the app computed, the file's mtime for
+        which is what it compares with the file's mtime. When the read began
+        for hashes the app computed, by hand or not, the file's mtime for
         checksums taken over from Nextcloud's filecache, the stamp an import
-        brought; a recalculation by hand leaves it. Null for none, and for a
-        stamp of zero: hashes written without a time, or cleared for the
-        next sweep.
+        brought. Null for none, and for a stamp of zero: hashes written
+        without a time, or cleared for the next sweep.
       example: "2026-09-02T15:17:00+00:00"
 
     SameHashResponse:

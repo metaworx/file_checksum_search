@@ -176,11 +176,10 @@ hash by hash.
   document.
 - **`updated_at`** is the file's stamp: not when its hashes were written,
   but until when the app holds them current, which is what it compares
-  with the file's mtime. Hashes the app computed carry the time of the
-  computation; checksums taken over from Nextcloud's filecache, the file's
-  mtime; an import, the stamp it brought. A recalculation by hand leaves
-  the stamp as it was. `null` is no stamp, and `$since` leaves such a file
-  out whatever its value.
+  with the file's mtime. Hashes the app computed, by hand or not, carry the
+  time the read began; checksums taken over from Nextcloud's filecache, the
+  file's mtime; an import, the stamp it brought. `null` is no stamp, and
+  `$since` leaves such a file out whatever its value.
 - **`$since` is not a change feed.** Hashes taken over or imported after a
   client's last run can carry an older stamp, and a file moved, renamed or
   deleted changes none. A copy kept in sync with it reads the whole listing
@@ -1012,13 +1011,12 @@ database — and would otherwise ask hash by hash. The files are the ones
   Anything else, a date that does not exist included, is **400**. A file
   without a stamp is left out by any `since`.
 - **`since` is not a change feed.** The stamp is not when the hashes were
-  written but until when the app holds them current: the time of the
-  computation for hashes the app computed, the file's mtime for checksums
-  taken over from Nextcloud's filecache, the stamp an import brought. A
-  recalculation by hand leaves it as it was. So hashes taken over or
-  imported after a client's last run can carry an older stamp, and a file
-  moved, renamed or deleted changes none. A copy kept in sync with `since`
-  reads the whole listing now and then.
+  written but until when the app holds them current: when the read began
+  for hashes the app computed, by hand or not, the file's mtime for
+  checksums taken over from Nextcloud's filecache, the stamp an import
+  brought. So hashes taken over or imported after a client's last run can
+  carry an older stamp, and a file moved, renamed or deleted changes none.
+  A copy kept in sync with `since` reads the whole listing now and then.
 - **`path`** is the caller's own path for the file, with a leading slash: a
   received share's files by the path the share has in the caller's files.
   `owner` and `location` are as in the lookup. `hashes` is as in the file's

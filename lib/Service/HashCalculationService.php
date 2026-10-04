@@ -96,6 +96,35 @@ class HashCalculationService
 		return $updatedAt !== null && $updatedAt >= $mtime;
 	}
 
+	/**
+	 * Whether a metadata document holds hashes its stamp no longer covers.
+	 *
+	 * A document holding none is not outdated, whatever its stamp says:
+	 * there is nothing in it to drop. A file that cannot be resolved is not
+	 * judged — the caller's own resolution reports it.
+	 */
+	private function isOutdated(
+		IFilesMetadata $metadata,
+		int|File       $file,
+	): bool
+	{
+		if ( $this->metadataService->getHashes( $metadata ) === [] )
+		{
+			return false;
+		}
+
+		try
+		{
+			$file = $this->filecacheService->getFile( $file );
+		}
+		catch ( Throwable )
+		{
+			return false;
+		}
+
+		return ! $this->isHashUpToDate( $metadata, $file->getMTime() );
+	}
+
 
 //  other non-static methods
 
@@ -585,6 +614,13 @@ class HashCalculationService
 	 * already made the decision (the CLI's direct path resolves verdicts,
 	 * overrides included, before ever queueing or calling this).
 	 *
+	 * Where the file's hashes are outdated, it keeps only the ones its mode
+	 * recomputes and drops the rest: under `auto` the rule's algorithms the
+	 * file had, under `missing` the rule's. A hash computed once by hand is
+	 * not recomputed on every change, and an outdated one is worse than
+	 * none. With no include rule to recompute anything, outdated hashes are
+	 * eroded, as a write to a file no rule maintains erodes them.
+	 *
 	 * @param  string[]|null  $algos  Algorithms to process, or null to take
 	 *                                them from the governing rule
 	 *
@@ -599,6 +635,7 @@ class HashCalculationService
 	{
 		$metadata = $this->metadataService->getMetadata( $fileId );
 		$file     = null;
+		$started  = time();
 
 		if ( $algos === null )
 		{
@@ -625,6 +662,21 @@ class HashCalculationService
 
 			if ( ! RuleService::maintainsHashes( $rule ) )
 			{
+				if ( $this->isOutdated( $metadata, $file ) )
+				{
+					$this->logger->debug(
+						'FCIAS: processFile — no include rule governs fileId {fileId}, eroding its outdated hashes.',
+						[
+							'app'    => Application::APP_ID,
+							'fileId' => $fileId,
+						],
+					);
+
+					$this->metadataService->markEroded( $fileId );
+
+					return;
+				}
+
 				$this->logger->debug(
 					'FCIAS: processFile — no include rule governs fileId {fileId}, dropping the mark.',
 					[
@@ -640,6 +692,8 @@ class HashCalculationService
 
 			$algos = $rule['algos'] ?? [ $this->getDefaultAlgo() ];
 		}
+
+		$outdated = $this->isOutdated( $metadata, $file ?? $fileId );
 
 		switch ( $mode )
 		{
@@ -657,6 +711,11 @@ class HashCalculationService
 			$this->metadataService->clearMetadata( $metadata, false );
 
 		case 'missing':
+			if ( $outdated )
+			{
+				$this->keepOnly( $metadata, $algos );
+			}
+
 			if ( ! $this->applyBatchResults(
 				$this->recalcHashes( $file ?? $fileId, $algos, true, $metadata ),
 				$algos,
@@ -668,18 +727,16 @@ class HashCalculationService
 				return;
 			}
 
-			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, time(), true );
+			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $started, true );
 
 			break;
 
 		case 'auto':
-			$algosToRecalc = [];
-			foreach ( $algos as $algo )
+			$algosToRecalc = $this->algosFor( $mode, $algos, $metadata );
+
+			if ( $outdated )
 			{
-				if ( $metadata->hasKey( MetadataService::getHashKey( $algo ) ) )
-				{
-					$algosToRecalc[] = $algo;
-				}
+				$this->keepOnly( $metadata, $algosToRecalc );
 			}
 
 			if ( $algosToRecalc !== [] )
@@ -696,7 +753,7 @@ class HashCalculationService
 				}
 			}
 
-			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, time(), true );
+			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $started, true );
 
 			break;
 
@@ -848,6 +905,20 @@ class HashCalculationService
 	 * chunk is fanned out into one hash context per algorithm, so remote
 	 * or external storage is read only once instead of once per algorithm.
 	 *
+	 * Whatever it computes, it stamps: `file-checksum-updated_at` takes the
+	 * time the read began. Only `processFile()` used to, so a file hashed by
+	 * `occ fcias:hash`, the sidebar or the API carried hashes and no stamp.
+	 *
+	 * Without $metadata the call is an on-demand one, and saves what it
+	 * computed itself. On a file that is queued, or whose hashes are
+	 * outdated, it then does what the queue would besides what was asked
+	 * ({@see asTheQueueWould()}). With $metadata, the caller has decided what
+	 * to compute, and saves.
+	 *
+	 * `locked` is true when the file was busy: held by another of this app's
+	 * workers, or written to while it was being read. Nothing is computed or
+	 * kept then.
+	 *
 	 * @return array{
 	 *   results: array<string, array{success: bool, hash: string, existed: bool, error?: string, reason?: string}>,
 	 *   locked: bool
@@ -931,6 +1002,13 @@ class HashCalculationService
 
 		$fileId    = $file->getId();
 		$needsSave = $this->metadataService->ensureMetadata( $fileId, $metadata );
+
+		// A document this call loaded itself is an on-demand caller's.
+		if ( $needsSave )
+		{
+			$valid = $this->asTheQueueWould( $file, $metadata, $valid );
+		}
+
 		// Only the pairs this instance could have produced: the column is
 		// client-supplied. {@see AlgorithmCatalogue::keepPlausible()}.
 		$checksums = $this->catalogue->keepPlausible(
@@ -995,21 +1073,39 @@ class HashCalculationService
 			];
 		}
 
+		// Taken before the read, so that a write landing during it leaves
+		// the stamp older than the file rather than vouching for content the
+		// read never saw.
+		$started = time();
+		$etag    = $file->getEtag();
+		$changed = false;
+
 		try
 		{
 			$storage = $file->getStorage();
-
-			foreach ( $needed as $algo )
-			{
-				$metadata->unset( MetadataService::getHashKey( $algo ) );
-			}
 
 			$hashes = count( $needed ) === 1
 				? [ $needed[0] => $this->computeSingleHash( $file, $storage, $needed[0] ) ]
 				: $this->computeMultiHash( $file, $needed );
 
+			// The lock is this app's, and keeps out only this app: a write
+			// takes Nextcloud's own locks. Its etag says whether one landed.
+			$now     = $this->filecacheService->etagOf( $fileId );
+			$changed = $now !== null && $now !== $etag;
+
 			foreach ( $hashes as $algo => $hash )
 			{
+				if ( $changed )
+				{
+					$results[ $algo ] = [
+						'success' => false,
+						'hash'    => '',
+						'existed' => false,
+					];
+
+					continue;
+				}
+
 				// Not indexed by Nextcloud: it would write the full value
 				// into a varchar(63) column and fail for every hash longer
 				// than that. {@see MetadataService::syncHashIndex()} writes
@@ -1020,6 +1116,15 @@ class HashCalculationService
 					'hash'    => $hash,
 					'existed' => false,
 				];
+			}
+
+			if ( $changed )
+			{
+				$needsSave = false;
+			}
+			else
+			{
+				$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $started, true );
 			}
 		}
 		catch ( Throwable $e )
@@ -1035,7 +1140,6 @@ class HashCalculationService
 				];
 			}
 
-			// Do not persist unset keys when hashing failed.
 			$needsSave = false;
 		}
 		finally
@@ -1048,10 +1152,126 @@ class HashCalculationService
 			$this->releaseLock( $fileId );
 		}
 
+		// A file written to during the read is busy, as a locked one is: the
+		// result is discarded, and whoever asked comes back to it.
 		return [
 			'results' => $results,
-			'locked'  => false,
+			'locked'  => $changed,
 		];
+	}
+
+	/**
+	 * Widen an on-demand calculation to what the queue would compute, where
+	 * the file is queued or its hashes are outdated.
+	 *
+	 * The stamp a calculation writes covers the whole metadata document, so
+	 * it may only be written over hashes that describe the content as it is.
+	 * Where the document is outdated, the algorithms the file's governing
+	 * rule computes in its mode are computed in the same read as the ones
+	 * asked for, and every other hash is dropped: a hash computed once by
+	 * hand is not kept alive past a change of the content, which is what a
+	 * rule is for. Where the file is merely queued, its hashes still
+	 * current, nothing is dropped and the queue's algorithms are added.
+	 *
+	 * @param  list<string>  $asked  Valid algorithms the caller asked for.
+	 *
+	 * @return list<string>  The algorithms to compute.
+	 * @throws \OCP\DB\Exception
+	 */
+	private function asTheQueueWould(
+		File           $file,
+		IFilesMetadata $metadata,
+		array          $asked,
+	): array
+	{
+		$fileId   = $file->getId();
+		$marker   = $this->metadataService->getMarker( $fileId );
+		$queued   = $marker !== null && str_starts_with( $marker, MetadataService::PENDING_PREFIX );
+		$outdated = $this->isOutdated( $metadata, $file );
+
+		if ( ! $queued && ! $outdated )
+		{
+			return $asked;
+		}
+
+		$rule  = $this->ruleService->findFirstMatchingRule( $fileId );
+		$algos = [];
+
+		if ( RuleService::maintainsHashes( $rule ) )
+		{
+			$algos = $this->algosFor(
+				$queued
+					? MetadataService::parseMode( $marker )
+					: (string) ( $rule['mode'] ?? MetadataService::PENDING_MODE_AUTO ),
+				(array) ( $rule['algos'] ?? [ $this->getDefaultAlgo() ] ),
+				$metadata,
+			);
+		}
+
+		$compute = array_values(
+			array_unique(
+				[
+					...$asked,
+					...array_filter( $algos, $this->catalogue->isValid( ... ) ),
+				],
+			),
+		);
+
+		if ( $outdated )
+		{
+			$this->keepOnly( $metadata, $compute );
+		}
+
+		return $compute;
+	}
+
+	/**
+	 * The algorithms the queue computes for a file in $mode, given its rule's
+	 * list: under `auto` only those the file already has, under `missing`
+	 * and `force` all of them, under `lazy` none.
+	 *
+	 * @param  list<string>  $ruleAlgos
+	 *
+	 * @return list<string>
+	 */
+	private function algosFor(
+		string         $mode,
+		array          $ruleAlgos,
+		IFilesMetadata $metadata,
+	): array
+	{
+		return match ( $mode )
+		{
+			MetadataService::PENDING_MODE_AUTO => array_values(
+				array_filter(
+					$ruleAlgos,
+					static fn(
+						string $algo,
+					): bool => $metadata->hasKey( MetadataService::getHashKey( $algo ) ),
+				),
+			),
+			MetadataService::PENDING_MODE_LAZY => [],
+			default                            => array_values( $ruleAlgos ),
+		};
+	}
+
+	/**
+	 * Drop every hash from a metadata document but those of $algos.
+	 *
+	 * @param  list<string>  $algos
+	 */
+	private function keepOnly(
+		IFilesMetadata $metadata,
+		array          $algos,
+	): void
+	{
+		foreach ( array_keys( $this->metadataService->getHashes( $metadata ) ) as $algo )
+		{
+			if ( ! in_array( $algo, $algos, true ) )
+			{
+				$metadata->unset( MetadataService::getHashKey( $algo ) );
+			}
+		}
 	}
 
 	/**

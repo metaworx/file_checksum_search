@@ -773,6 +773,36 @@ class FilecacheService
 		return $sizes;
 	}
 
+	/**
+	 * A file's etag as the filecache holds it now, or null for a file it no
+	 * longer has.
+	 *
+	 * Read from the table, not from a node: a node keeps the etag it was
+	 * resolved with, and the point of asking is to see a write that landed
+	 * since.
+	 *
+	 * @throws \OCP\DB\Exception
+	 */
+	public function etagOf( int $fileId ): ?string
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( 'etag' )
+		   ->from( 'filecache' )
+		   ->where(
+			   $qb->expr()
+			      ->eq( 'fileid', $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+		   )
+		;
+
+		$result = $qb->executeQuery();
+		$etag   = $result->fetchOne();
+		$result->closeCursor();
+
+		return $etag === false || $etag === null
+			? null
+			: (string) $etag;
+	}
+
 	public function getNodeById( int $fileId ): Node
 	{
 		$nodes = $this->rootFolder->getById( $fileId );

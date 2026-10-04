@@ -59,6 +59,10 @@ the first stable release.
   neither for a file deleted for good nor for a trashed file this app
   holds nothing for; a deletion for good no longer logs an error.
 
+- Hashes computed by `occ fcias:hash`, the sidebar or the API carry a
+  stamp; after a change, a hash the file's rule does not name is
+  dropped, not vouched for (`docs/api-v1.md`, `updated_at`).
+
 ### Security
 
 - Reach: in the request that first records a received share, the
