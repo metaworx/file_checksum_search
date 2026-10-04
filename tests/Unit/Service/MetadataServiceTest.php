@@ -1388,9 +1388,62 @@ class MetadataServiceTest
 		                      ->with( $metadata )
 		;
 
+		// Stamped after the file's last change: current.
+		$metadata->method( 'getInt' )
+		         ->willReturn( 2000 )
+		;
+		$this->filecacheService->method( 'locate' )
+		                       ->with( 42 )
+		                       ->willReturn( new FileLocation( 42, 'home::alice', 'files/a.txt', 1000, 'home', 'alice', null, 'a.txt' ) )
+		;
+
 		$this->filecacheService->expects( $this->once() )
 		                       ->method( 'setHashes' )
 		                       ->with( 42, $this->isType( 'array' ) )
+		;
+
+		$this->service->saveMetadata( $metadata );
+	}
+
+	/**
+	 * A document whose stamp does not cover the file is saved, and nothing
+	 * of its hashes is published: not to the filecache's column, and its
+	 * index rows are removed rather than written.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testSaveMetadataPublishesNothingOfAnOutdatedDocument(): void
+	{
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'getFileId' )
+		         ->willReturn( 42 )
+		;
+		$metadata->method( 'getKeys' )
+		         ->willReturn( [ MetadataService::getHashKey( 'sha1' ) ] )
+		;
+		$metadata->method( 'getString' )
+		         ->willReturn( str_repeat( 'a', 40 ) )
+		;
+		$metadata->method( 'getInt' )
+		         ->willReturn( 0 )
+		;
+
+		$this->filecacheService->method( 'locate' )
+		                       ->willReturn( new FileLocation( 42, 'home::alice', 'files/a.txt', 1000, 'home', 'alice', null, 'a.txt' ) )
+		;
+
+		$this->metadataManager->expects( $this->once() )
+		                      ->method( 'saveMetadata' )
+		;
+		$this->filecacheService->expects( $this->never() )
+		                       ->method( 'setHashes' )
+		;
+		$this->queryBuilder->expects( $this->once() )
+		                   ->method( 'delete' )
+		                   ->willReturnSelf()
+		;
+		$this->queryBuilder->expects( $this->never() )
+		                   ->method( 'insert' )
 		;
 
 		$this->service->saveMetadata( $metadata );
@@ -1980,17 +2033,29 @@ class MetadataServiceTest
 	 */
 	public function testTheResumableWalkStartsPastItsCursorAndStopsWhenTold(): void
 	{
+		// Current — stamped after the file's mtime — and already indexed, so
+		// the walk has nothing to rewrite.
 		$document = json_encode(
 			[
-				MetadataService::getHashKey( 'sha1' ) => [
+				MetadataService::getHashKey( 'sha1' )         => [
 					'value'          => str_repeat( 'b', 40 ),
 					'type'           => 'string',
 					'etag'           => '',
 					'indexed'        => false,
 					'editPermission' => 0,
 				],
+				MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT => [
+					'value'          => 2000,
+					'type'           => 'int',
+					'etag'           => '',
+					'indexed'        => true,
+					'editPermission' => 0,
+				],
 			],
 		);
+		$this->filecacheService->method( 'locateAll' )
+		                       ->willReturn( [ 4001 => new FileLocation( 4001, 'home::alice', 'files/b.txt', 1000, 'home', 'alice', null, 'b.txt' ) ] )
+		;
 
 		// One page of one document, then its index keys. A second page of
 		// documents would be a third fetch sequence; the walk must not ask

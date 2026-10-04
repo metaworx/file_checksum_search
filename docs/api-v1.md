@@ -177,9 +177,14 @@ hash by hash.
 - **`updated_at`** is the file's stamp: not when its hashes were written,
   but until when the app holds them current, which is what it compares
   with the file's mtime. Hashes the app computed, by hand or not, carry the
-  time the read began; checksums taken over from Nextcloud's filecache, the
-  file's mtime; an import, the stamp it brought. `null` is no stamp, and
-  `$since` leaves such a file out whatever its value.
+  time the read began, or the file's mtime where that is later; checksums
+  taken over from Nextcloud's filecache, the file's mtime; an import, the
+  stamp it brought.
+- **Only current hashes are listed.** A file whose content changed leaves
+  the listing at once and comes back when its hashes are computed again;
+  hashes nobody vouches for — imported older than the file, or written
+  without a stamp — are not listed at all. The lookup and
+  `getHashesByFileId()` answer the same.
 - **`$since` is not a change feed.** Hashes taken over or imported after a
   client's last run can carry an older stamp, and a file moved, renamed or
   deleted changes none. A copy kept in sync with it reads the whole listing
@@ -251,9 +256,11 @@ Get all checksums for a file by its filecache ID.
 
 `hashes` is keyed by algorithm, in the order the file's document holds
 them, `[]` for a file with none; the REST answer carries that as `{}`.
-`updated_at` is the file's stamp, ISO 8601, `null` for none: one per file,
-not one per algorithm, saying until when the hashes are held current
-rather than when they were written (see `listHashes()`).
+They are the hashes a lookup finds the file by: none between a change of
+its content and their recomputation. `updated_at` is the file's stamp, ISO
+8601, `null` for none: one per file, not one per algorithm, saying until
+when the hashes are held current rather than when they were written (see
+`listHashes()`).
 
 **Throws:** `\OCP\Files\NotFoundException` if the file lies outside `$reachUids`.
 
@@ -617,7 +624,8 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/hashes
 }
 ```
 
-`hashes` is an object keyed by algorithm, `{}` for a file with none.
+`hashes` is an object keyed by algorithm, `{}` for a file with none — and
+for a file whose content changed, until its hashes are computed again.
 `updated_at` is the file's stamp, `null` for none: one per file, not one
 per algorithm, saying until when the hashes are held current rather than
 when they were written (see List Hashes). Before 0.22.0, `hashes` was a
@@ -1012,11 +1020,15 @@ database — and would otherwise ask hash by hash. The files are the ones
   without a stamp is left out by any `since`.
 - **`since` is not a change feed.** The stamp is not when the hashes were
   written but until when the app holds them current: when the read began
-  for hashes the app computed, by hand or not, the file's mtime for
-  checksums taken over from Nextcloud's filecache, the stamp an import
-  brought. So hashes taken over or imported after a client's last run can
-  carry an older stamp, and a file moved, renamed or deleted changes none.
-  A copy kept in sync with `since` reads the whole listing now and then.
+  for hashes the app computed, by hand or not, or the file's mtime where
+  that is later, the file's mtime for checksums taken over from Nextcloud's
+  filecache, the stamp an import brought. So hashes taken over or imported
+  after a client's last run can carry an older stamp, and a file moved,
+  renamed or deleted changes none. A copy kept in sync with `since` reads
+  the whole listing now and then.
+- **Only current hashes are listed.** A file whose content changed leaves
+  the listing at once and comes back when its hashes are computed again;
+  hashes nobody vouches for are not listed at all.
 - **`path`** is the caller's own path for the file, with a leading slash: a
   received share's files by the path the share has in the caller's files.
   `owner` and `location` are as in the lookup. `hashes` is as in the file's

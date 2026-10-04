@@ -202,16 +202,20 @@ class FileListener
 
 			break;
 
+		// The hashes now describe content the file no longer has, and an
+		// outdated hash is worse than none: out of every search until the
+		// queue has computed them again. The document keeps them, so that
+		// `auto` knows which algorithms the file had.
 		case MetadataService::PENDING_MODE_AUTO:
-			if ( $this->metadataService->countByFileId( $fileId ) > 0 )
+		case MetadataService::PENDING_MODE_MISSING:
+			if ( $this->metadataService->markOutdated( $fileId, $mode ) )
 			{
-				$this->metadataService->markPending( $fileId, MetadataService::PENDING_AUTO );
-
 				$this->logger->debug(
-					'FCIAS FileListener: auto-queued on write',
+					'FCIAS FileListener: hashes hidden and queued on write',
 					[
 						'app'    => Application::APP_ID,
 						'fileId' => $fileId,
+						'mode'   => $mode,
 					],
 				);
 			}

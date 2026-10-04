@@ -1870,11 +1870,20 @@ class MetadataService
 	 * nothing was there at all, so a file never ends up claiming a freshness
 	 * nobody asserted.
 	 *
+	 * Hashes the file holds whose stamp no longer covers it are no claim to
+	 * weigh an import against: they describe content the file no longer
+	 * has, and are dropped before the import writes. The stamp the import
+	 * brings would otherwise vouch for them too.
+	 *
+	 * What was written is listed — in the index and the filecache's column —
+	 * only where the stamp covers the file's mtime. `--allow-stale` stores
+	 * hashes older than the file; they stay out of every search.
+	 *
 	 * Any `stale:` marker is cleared, but only when something was actually
-	 * written: hashes have arrived, so the file is no longer waiting for the
-	 * drain to take its old ones away. A `pending:` marker is left alone —
-	 * that is a rule asking for its own hashes, which this import has not
-	 * satisfied.
+	 * written and listed: hashes have arrived, so the file is no longer
+	 * waiting for the drain to take its old ones away. A `pending:` marker is
+	 * left alone — that is a rule asking for its own hashes, which this
+	 * import has not satisfied.
 	 *
 	 * @param  array<string, string>  $algoToHash
 	 *
@@ -1902,6 +1911,15 @@ class MetadataService
 		}
 
 		$metadata = $this->getMetadata( $fileId );
+		$mtime    = $this->filecacheService->locate( $fileId )?->mtime;
+
+		if ( ! $this->isCurrent( $metadata, $mtime ) )
+		{
+			foreach ( array_keys( $this->getHashes( $metadata ) ) as $algo )
+			{
+				$metadata->unset( self::getHashKey( $algo ) );
+			}
+		}
 
 		foreach ( $algoToHash as $algo => $hash )
 		{
@@ -1946,6 +1964,14 @@ class MetadataService
 
 		$hashes = $this->getHashes( $metadata );
 		$this->metadataManager->saveMetadata( $metadata );
+
+		if ( ! $this->isCurrent( $metadata, $mtime ) )
+		{
+			$this->syncHashIndex( $fileId, [] );
+
+			return $report;
+		}
+
 		$this->filecacheService->setHashes( $fileId, $hashes );
 		$this->syncHashIndex( $fileId, $hashes );
 
@@ -2357,23 +2383,43 @@ class MetadataService
 	/**
 	 * Bring one file's index rows in line with its metadata document.
 	 *
-	 * @param  list<string>  $have  The hash keys the index holds for the file.
+	 * Only where the document's hashes are current. A file queued for its
+	 * hashes or disowned by a reset is not this repair's to refill: the
+	 * queue or the drain is on its way. A document whose stamp no longer
+	 * covers the file has its rows removed rather than written, since a hash
+	 * is current only while its row exists.
+	 *
+	 * @param  list<string>  $have    The hash keys the index holds for the file.
+	 * @param  int|null      $mtime   The file's mtime; null for a file the filecache no longer has.
+	 * @param  string|null   $marker  The string half of its stamp row.
 	 *
 	 * @return bool  Whether anything was rewritten.
 	 * @throws Exception
 	 */
 	private function syncIndexToDocument(
-		int    $fileId,
-		string $json,
-		array  $have,
+		int     $fileId,
+		string  $json,
+		array   $have,
+		?int    $mtime = null,
+		?string $marker = null,
 	): bool
 	{
 		// Before reading it: a metadata document still in the old spelling
 		// reads as holding no hashes at all, and syncing from that would
 		// delete the very index rows this exists to write.
-		$json   = $this->renameLegacyKeysInDocument( $fileId, $json );
-		$hashes = $this->getHashes( $this->getMetadata( $fileId, $json ) );
-		$wanted = array_map(
+		$json = $this->renameLegacyKeysInDocument( $fileId, $json );
+
+		if ( $marker !== null
+			&& ( str_starts_with( $marker, self::PENDING_PREFIX ) || str_starts_with( $marker, self::STATE_STALE_PREFIX ) ) )
+		{
+			return false;
+		}
+
+		$metadata = $this->getMetadata( $fileId, $json );
+		$hashes   = $this->isCurrent( $metadata, $mtime )
+			? $this->getHashes( $metadata )
+			: [];
+		$wanted   = array_map(
 			static fn(
 				string $algo,
 			): string => self::getHashKey( $algo ),
@@ -2673,10 +2719,12 @@ class MetadataService
 	 * @param  bool           $stamped   Which population to walk; see
 	 *                                   {@see whereDocumentHoldsAHash()}.
 	 * @param  callable|null  $progress  Called per page with (files seen, files fixed).
-	 * @param  callable       $repair    `fn(int $fileId, string $json, list<string> $have): bool`,
+	 * @param  callable       $repair    `fn(int $fileId, string $json, list<string> $have, ?int $mtime, ?string $marker): bool`,
 	 *                                   given the hash keys the index already
-	 *                                   holds for the file, returning whether
-	 *                                   it changed anything.
+	 *                                   holds for the file, its mtime (null
+	 *                                   for a file the filecache no longer
+	 *                                   has) and its stamp row's marker,
+	 *                                   returning whether it changed anything.
 	 * @param  int            $after     Start past this file id.
 	 * @param  callable|null  $continue  `fn(): bool`, asked after each page;
 	 *                                   false stops the walk there.
@@ -2712,13 +2760,21 @@ class MetadataService
 				];
 			}
 
-			$lastId   = array_key_last( $documents );
+			$lastId    = array_key_last( $documents );
 			$seen += count( $documents );
-			$existing = $this->hashIndexKeysFor( array_keys( $documents ) );
+			$existing  = $this->hashIndexKeysFor( array_keys( $documents ) );
+			$locations = $this->filecacheService->locateAll( array_keys( $documents ) );
+			$markers   = $this->markersOf( array_keys( $documents ) );
 
 			foreach ( $documents as $fileId => $json )
 			{
-				if ( $repair( $fileId, $json, $existing[ $fileId ] ?? [] ) )
+				if ( $repair(
+					$fileId,
+					$json,
+					$existing[ $fileId ] ?? [],
+					( $locations[ $fileId ] ?? null )?->mtime,
+					$markers[ $fileId ] ?? null,
+				) )
 				{
 					$fixed ++;
 				}
@@ -2832,6 +2888,53 @@ class MetadataService
 		$result->closeCursor();
 
 		return $documents;
+	}
+
+	/**
+	 * The string half of each of these files' stamp rows, where it holds one.
+	 *
+	 * @param  list<int>  $fileIds
+	 *
+	 * @return array<int, string>
+	 * @throws Exception
+	 */
+	private function markersOf( array $fileIds ): array
+	{
+		if ( $fileIds === [] )
+		{
+			return [];
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( self::FIELD_FILE_ID, self::FIELD_META_VALUE_STRING )
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->in(
+				      self::FIELD_FILE_ID,
+				      $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
+			      ),
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+		   )
+		;
+
+		$result  = $this->executeQuery( $qb );
+		$markers = [];
+
+		while ( ( $row = $result->fetchAssociative() ) !== false )
+		{
+			$marker = (string) ( $row[ self::FIELD_META_VALUE_STRING ] ?? '' );
+
+			if ( $marker !== '' )
+			{
+				$markers[ (int) $row[ self::FIELD_FILE_ID ] ] = $marker;
+			}
+		}
+
+		$result->closeCursor();
+
+		return $markers;
 	}
 
 	/**
@@ -3005,10 +3108,10 @@ class MetadataService
 	 * Backfill only: writes hash keys the file does not have yet and never
 	 * overwrites an existing one — the filecache value is the *older* claim,
 	 * so where both exist the metadata wins. When at least one key was added
-	 * and no valid timestamp exists yet, updated_at is stamped with the
-	 * file's mtime rather than now(): the copied hash describes the content
-	 * as of that mtime, which is exactly what the filecache asserts. Reads
-	 * no file content.
+	 * to a document that held none, updated_at is stamped with the file's
+	 * mtime rather than now(): the copied hash describes the content as of
+	 * that mtime, which is exactly what the filecache asserts. Reads no file
+	 * content.
 	 *
 	 * @param  array<string, string>  $algoToHash  lowercase algo => hex hash
 	 *
@@ -3031,6 +3134,7 @@ class MetadataService
 		}
 
 		$metadata = $this->getMetadata( $fileId );
+		$held     = $this->getHashes( $metadata ) !== [];
 		$added    = 0;
 
 		foreach ( $algoToHash as $algo => $hash )
@@ -3054,13 +3158,22 @@ class MetadataService
 			return 0;
 		}
 
-		if ( ( $this->getUpdatedAt( $metadata ) ?? 0 ) < 1 )
+		// The mtime vouches for what the filecache asserts and nothing else:
+		// hashes the document already held without a stamp — a change not
+		// yet recomputed — keep it at 0, and the whole document stays out of
+		// the index until the queue has computed it again.
+		if ( ! $held && ( $this->getUpdatedAt( $metadata ) ?? 0 ) < $mtime )
 		{
 			$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, $mtime, true );
 		}
 
 		$this->metadataManager->saveMetadata( $metadata );
-		$this->syncHashIndex( $fileId, $this->getHashes( $metadata ) );
+		$this->syncHashIndex(
+			$fileId,
+			$this->isCurrent( $metadata, $mtime )
+				? $this->getHashes( $metadata )
+				: [],
+		);
 
 		return $added;
 	}
@@ -3716,9 +3829,16 @@ class MetadataService
 	}
 
 	/**
-	 * Save metadata via IFilesMetadataManager.
+	 * Save metadata via IFilesMetadataManager, and publish its hashes where
+	 * they describe the content as it is.
+	 *
+	 * A hash is current while its index row exists ({@see isCurrent()}). A
+	 * document whose stamp does not cover the file is saved, its hashes kept
+	 * for the queue to know which the file had, and nothing of them reaches
+	 * the index or the filecache's checksum column.
 	 *
 	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
+	 * @throws Exception
 	 */
 	public function saveMetadata(
 		IFilesMetadata $metadata,
@@ -3727,9 +3847,91 @@ class MetadataService
 	{
 		$this->metadataManager->saveMetadata( $metadata );
 
+		$fileId = $metadata->getFileId();
 		$hashes = $this->getHashes( $metadata );
-		$this->filecacheService->setHashes( $file ?? $metadata->getFileId(), $hashes );
-		$this->syncHashIndex( $metadata->getFileId(), $hashes );
+		$mtime  = $file instanceof File
+			? $file->getMTime()
+			: $this->filecacheService->locate( $fileId )?->mtime;
+
+		if ( ! $this->isCurrent( $metadata, $mtime ) )
+		{
+			$this->syncHashIndex( $fileId, [] );
+
+			return;
+		}
+
+		$this->filecacheService->setHashes( $file ?? $fileId, $hashes );
+		$this->syncHashIndex( $fileId, $hashes );
+	}
+
+	/**
+	 * Whether a document's hashes describe the file as it is: its stamp is
+	 * set, and not older than the file's mtime.
+	 *
+	 * A stamp of 0 is a content change that has not been hashed yet, or
+	 * hashes nobody vouches for. A file the filecache no longer has is not
+	 * current either.
+	 *
+	 * @throws Exception
+	 */
+	private function isCurrent(
+		IFilesMetadata $metadata,
+		?int           $mtime,
+	): bool
+	{
+		$stamp = $this->getUpdatedAt( $metadata );
+
+		return $mtime !== null && $stamp !== null && $stamp > 0 && $stamp >= $mtime;
+	}
+
+	/**
+	 * Take a changed file's hashes out of everything that reads them, until
+	 * they are computed again.
+	 *
+	 * The stamp is set to 0 in the metadata document — not only in its index
+	 * row, which Nextcloud rewrites from the document whenever any app saves
+	 * it — because a sync client keeps the file's own mtime, which can be
+	 * older than the stamp: `stamp < mtime` would not see the change. The
+	 * hash rows go, so the lookup, the listing and the per-file routes have
+	 * nothing to find. The document keeps the hashes, so that `auto` still
+	 * knows which algorithms the file had. Then the file is queued.
+	 *
+	 * @return bool  Whether the file held hashes to take out.
+	 * @throws Exception
+	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
+	 */
+	public function markOutdated(
+		int    $fileId,
+		string $mode,
+	): bool
+	{
+		$metadata = $this->getMetadata( $fileId );
+
+		if ( $this->getHashes( $metadata ) === [] )
+		{
+			return false;
+		}
+
+		$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, 0, true );
+		$this->metadataManager->saveMetadata( $metadata );
+		$this->pruneHashIndexRows( $fileId );
+
+		// After the save, which rewrote the row this half lives on.
+		$this->upsertUpdatedAtString( $fileId, self::PENDING_PREFIX . $mode );
+
+		return true;
+	}
+
+	/**
+	 * Take a file's hash rows out of the index, leaving its document and its
+	 * stamp: for a file the rule sweep found changed, its stamp older than
+	 * its mtime, which already says the hashes are outdated.
+	 *
+	 * @throws Exception
+	 */
+	public function hideHashes( int $fileId ): void
+	{
+		$this->pruneHashIndexRows( $fileId );
 	}
 
 	/**

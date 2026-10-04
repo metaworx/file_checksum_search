@@ -272,41 +272,34 @@ class FileListenerTest
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testFileWriteAutoMarksPendingWhenHashExists(): void
+	public function testFileWriteAutoHidesTheHashesAndQueuesTheFile(): void
 	{
 		$this->setCatchAllRule( 'auto' );
 
 		$file   = $this->createTestFile( 'fcias_listener_wrt_auto_h_' . time() . '.dat' );
 		$fileId = $file->getId();
 
-		// Seed metadata index directly via raw SQL to avoid saveMetadata()
-		// which triggers the old filecache hash-table trigger (pre-existing).
-		$this->seedMetadataIndex( $fileId );
+		// Stamped now, so current and indexed.
+		$this->metadataService->writeHashes( $fileId, [ 'sha1' => str_repeat( 'a', 40 ) ], time(), false );
 
-		$this->assertGreaterThan( 0, $this->metadataService->countByFileId( $fileId ), 'Seed metadata should exist.' );
+		$this->assertGreaterThan( 0, $this->metadataService->countByFileId( $fileId ), 'The hash is indexed.' );
 
 		$event = new NodeWrittenEvent( $file );
 		$this->listener->handle( $event );
 
-		// The mark is what changed, and it is the only thing here that
-		// distinguishes a listener that ran from one that did not: the seed
-		// already left both a hash row and a stamp row, so "the count is
-		// still positive" and "the stamp row exists" were true before
-		// handle() was called.
 		$this->assertSame(
 			MetadataService::PENDING_AUTO,
 			$this->stateOf( $fileId ),
 			'Auto queues a file that already has hashes to refresh.',
 		);
 
-		// Mark-only: the stored hashes stay until the drain replaces them,
-		// because a hash that is merely suspect is better than none while
-		// the queue catches up.
-		$this->assertGreaterThan(
-			0,
-			$this->metadataService->countByFileId( $fileId ),
-			'Auto does not clear what it queues.',
-		);
+		// An outdated hash is worse than none: out of the index, where every
+		// search looks, until the drain has computed it again. The document
+		// keeps it, so the drain knows which algorithms the file had, and
+		// its stamp says it is not current.
+		$this->assertSame( 0, $this->metadataService->countByFileId( $fileId ), 'The hash rows are gone.' );
+		$this->assertSame( [ 'sha1' ], array_keys( $this->metadataService->getHashes( $fileId ) ) );
+		$this->assertSame( 0, $this->metadataService->getUpdatedAt( $fileId ) );
 	}
 
 	/**

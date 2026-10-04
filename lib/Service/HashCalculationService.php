@@ -129,6 +129,24 @@ class HashCalculationService
 //  other non-static methods
 
 	/**
+	 * A file's mtime, or 0 for one that cannot be resolved — whose
+	 * processing then fails where it is resolved again.
+	 */
+	private function mtimeOf( int|File $file ): int
+	{
+		try
+		{
+			return $this->filecacheService->getFile( $file )
+			                              ->getMTime()
+			;
+		}
+		catch ( Throwable )
+		{
+			return 0;
+		}
+	}
+
+	/**
 	 * Take an exclusive lock on a file, or report that somebody else has it.
 	 *
 	 * False is not a failure: it means the file is busy — being written,
@@ -694,6 +712,9 @@ class HashCalculationService
 		}
 
 		$outdated = $this->isOutdated( $metadata, $file ?? $fileId );
+		// Never below the file's mtime, for a clock ahead of the server's;
+		// a write landing meanwhile makes recalcHashes() report it busy.
+		$stamp    = max( $started, $this->mtimeOf( $file ?? $fileId ) );
 
 		switch ( $mode )
 		{
@@ -727,7 +748,7 @@ class HashCalculationService
 				return;
 			}
 
-			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $started, true );
+			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $stamp, true );
 
 			break;
 
@@ -753,7 +774,7 @@ class HashCalculationService
 				}
 			}
 
-			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $started, true );
+			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $stamp, true );
 
 			break;
 
@@ -1075,7 +1096,9 @@ class HashCalculationService
 
 		// Taken before the read, so that a write landing during it leaves
 		// the stamp older than the file rather than vouching for content the
-		// read never saw.
+		// read never saw. Never below the mtime of the file as read, which
+		// the etag below confirms: a client's clock ahead of the server's
+		// would otherwise leave the hashes outdated the moment they are made.
 		$started = time();
 		$etag    = $file->getEtag();
 		$changed = false;
@@ -1124,7 +1147,7 @@ class HashCalculationService
 			}
 			else
 			{
-				$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $started, true );
+				$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, max( $started, $mtime ), true );
 			}
 		}
 		catch ( Throwable $e )

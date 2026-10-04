@@ -333,6 +333,12 @@ file look intact and can pair it with unrelated files as a duplicate. The app re
 loss heals itself: the next time a rule covers the file, re-hashing replaces the marker. Deleting a
 file clears its entry outright.
 
+Modifying a file a rule does maintain takes its hashes out of every search at once — the lookup, the
+listing, the duplicates, the sidebar — until the queue has computed them again. The queue computes the
+algorithms the rule names; a hash computed once by hand for another algorithm goes with the change
+rather than being kept, unchecked, beside the new ones. An algorithm wanted after every change belongs
+in the rule.
+
 ## Hash Generation Rules
 
 FCIAS reacts to file events (create, write, copy, delete) according to **hash generation rules** configured in **Administration settings → File Checksum Index & Search** (and, for permitted users, in **Personal settings**).
@@ -472,8 +478,10 @@ personal rule can undo, while a personal exclude only overrides the defaults bel
 
 | Mode | Description |
 |------|-------------|
-| `auto` | Recalculate existing hashes only when outdated |
+| `auto` | Recalculate the rule's algorithms the file already has, when it changes |
 | `missing` | Recalculate outdated hashes and fill in missing ones |
+
+Under either, a change drops the hashes of algorithms the rule does not name.
 | `force` | Clear all hashes and recalculate immediately |
 | `lazy` | Clear hashes and defer recalculation to the background queue |
 

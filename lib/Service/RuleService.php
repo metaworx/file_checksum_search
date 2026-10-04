@@ -630,6 +630,14 @@ class RuleService
 					continue;
 				}
 
+				// Changed where the write listener did not see it — a scan
+				// found it so: its hashes leave every search until the queue
+				// has computed them again.
+				if ( $location->updatedAt !== null )
+				{
+					$this->metadataService->hideHashes( $location->fileId );
+				}
+
 				$this->metadataService->markPending(
 					$location->fileId,
 					MetadataService::PENDING_PREFIX . $mode,
@@ -1283,6 +1291,14 @@ class RuleService
 
 					continue;
 				}
+			}
+
+			// Outdated hashes leave every search until the queue has computed
+			// them again; current ones under `force` or `lazy` stay listed
+			// until then.
+			if ( $location->updatedAt !== null && $location->updatedAt < $location->mtime )
+			{
+				$this->metadataService->hideHashes( $location->fileId );
 			}
 
 			$this->metadataService->markPending(

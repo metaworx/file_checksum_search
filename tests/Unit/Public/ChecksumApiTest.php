@@ -683,9 +683,9 @@ class ChecksumApiTest
 		;
 
 		$this->metadataService->expects( $this->once() )
-		                      ->method( 'getHashes' )
-		                      ->with( 42 )
-		                      ->willReturn( [ 'sha1' => 'abc' ] )
+		                      ->method( 'listedHashes' )
+		                      ->with( [ 42 ], null )
+		                      ->willReturn( [ 42 => [ 'sha1' => 'abc' ] ] )
 		;
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'getUpdatedAt' )
@@ -733,8 +733,8 @@ class ChecksumApiTest
 	public function testGetHashesByFileIdReturnsEmptyForUnknownFile(): void
 	{
 		$this->metadataService->expects( $this->once() )
-		                      ->method( 'getHashes' )
-		                      ->with( 99999 )
+		                      ->method( 'listedHashes' )
+		                      ->with( [ 99999 ], null )
 		                      ->willReturn( [] )
 		;
 		$this->metadataService->expects( $this->once() )
@@ -755,8 +755,8 @@ class ChecksumApiTest
 	 */
 	public function testAZeroStampIsNoStamp(): void
 	{
-		$this->metadataService->method( 'getHashes' )
-		                      ->willReturn( [ 'sha1' => 'abc' ] )
+		$this->metadataService->method( 'listedHashes' )
+		                      ->willReturn( [ 42 => [ 'sha1' => 'abc' ] ] )
 		;
 		$this->metadataService->method( 'getUpdatedAt' )
 		                      ->willReturn( 0 )
@@ -771,11 +771,13 @@ class ChecksumApiTest
 	public function testGetHashesByFileIdReturnsHashes(): void
 	{
 		$this->metadataService->expects( $this->once() )
-		                      ->method( 'getHashes' )
-		                      ->with( 42 )
+		                      ->method( 'listedHashes' )
+		                      ->with( [ 42 ], null )
 		                      ->willReturn( [
-			                      'sha1'   => 'abc',
-			                      'sha256' => 'def',
+			                      42 => [
+				                      'sha1'   => 'abc',
+				                      'sha256' => 'def',
+			                      ],
 		                      ] )
 		;
 		$this->metadataService->expects( $this->once() )
@@ -813,7 +815,7 @@ class ChecksumApiTest
 		$this->outOfReach[] = 42;
 
 		$this->metadataService->expects( $this->never() )
-		                      ->method( 'getHashes' )
+		                      ->method( 'listedHashes' )
 		;
 
 		$this->expectException( NotFoundException::class );
@@ -827,9 +829,9 @@ class ChecksumApiTest
 	public function testGetHashesByFileIdAllowsAFileWithinTheReach(): void
 	{
 		$this->metadataService->expects( $this->once() )
-		                      ->method( 'getHashes' )
-		                      ->with( 42 )
-		                      ->willReturn( [ 'sha1' => 'abc' ] )
+		                      ->method( 'listedHashes' )
+		                      ->with( [ 42 ], null )
+		                      ->willReturn( [ 42 => [ 'sha1' => 'abc' ] ] )
 		;
 		$this->metadataService->method( 'getUpdatedAt' )
 		                      ->willReturn( null )
@@ -857,7 +859,7 @@ class ChecksumApiTest
 		                        ->with( PermissionService::PERMISSION_MANUAL_RECALC, 'alice' )
 		                        ->willReturn( false )
 		;
-		$this->metadataService->method( 'getHashes' )
+		$this->metadataService->method( 'listedHashes' )
 		                      ->willReturn( [] )
 		;
 
@@ -907,8 +909,8 @@ class ChecksumApiTest
 		;
 
 		$this->metadataService->expects( $this->once() )
-		                      ->method( 'getHashes' )
-		                      ->with( 42 )
+		                      ->method( 'listedHashes' )
+		                      ->with( [ 42 ], null )
 		                      ->willReturn( [] )
 		;
 		$this->metadataService->expects( $this->once() )
@@ -944,8 +946,8 @@ class ChecksumApiTest
 		;
 
 		$this->metadataService->expects( $this->once() )
-		                      ->method( 'getHashes' )
-		                      ->with( 42 )
+		                      ->method( 'listedHashes' )
+		                      ->with( [ 42 ], null )
 		                      ->willReturn( [] )
 		;
 		$this->metadataService->expects( $this->once() )
@@ -971,7 +973,7 @@ class ChecksumApiTest
 		$this->outOfReach[] = 42;
 
 		$this->metadataService->expects( $this->never() )
-		                      ->method( 'getHashes' )
+		                      ->method( 'listedHashes' )
 		;
 
 		$this->expectException( NotFoundException::class );
@@ -982,8 +984,8 @@ class ChecksumApiTest
 	public function testFindSameHashReturnsEmptyWhenNoHashes(): void
 	{
 		$this->metadataService->expects( $this->once() )
-		                      ->method( 'getHashes' )
-		                      ->with( 42 )
+		                      ->method( 'listedHashes' )
+		                      ->with( [ 42 ], null )
 		                      ->willReturn( [] )
 		;
 
@@ -995,9 +997,9 @@ class ChecksumApiTest
 	public function testFindSameHashReturnsEmptyWhenNoDuplicates(): void
 	{
 		$this->metadataService->expects( $this->once() )
-		                      ->method( 'getHashes' )
-		                      ->with( 42 )
-		                      ->willReturn( [ 'sha1' => 'abc' ] )
+		                      ->method( 'listedHashes' )
+		                      ->with( [ 42 ], null )
+		                      ->willReturn( [ 42 => [ 'sha1' => 'abc' ] ] )
 		;
 
 		$this->metadataService->expects( $this->once() )
@@ -1068,9 +1070,9 @@ class ChecksumApiTest
 		;
 
 		$this->metadataService->expects( $this->once() )
-		                      ->method( 'getHashes' )
-		                      ->with( 42 )
-		                      ->willReturn( [ 'sha1' => 'abc' ] )
+		                      ->method( 'listedHashes' )
+		                      ->with( [ 42 ], null )
+		                      ->willReturn( [ 42 => [ 'sha1' => 'abc' ] ] )
 		;
 
 		$this->metadataService->expects( $this->once() )
@@ -1110,9 +1112,9 @@ class ChecksumApiTest
 		$fullHash = str_repeat( 'a', 128 );
 
 		$this->metadataService->expects( $this->once() )
-		                      ->method( 'getHashes' )
-		                      ->with( 42 )
-		                      ->willReturn( [ 'sha512' => $fullHash ] )
+		                      ->method( 'listedHashes' )
+		                      ->with( [ 42 ], null )
+		                      ->willReturn( [ 42 => [ 'sha512' => $fullHash ] ] )
 		;
 
 		$this->metadataService->expects( $this->once() )

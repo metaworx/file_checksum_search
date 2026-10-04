@@ -100,10 +100,11 @@ class ChecksumApi
 	 * for "every account" then also read as "an administrator is asking".
 	 *
 	 * `hashes` is keyed by algorithm, in the order the file's document holds
-	 * them. `updated_at` is the file's stamp, ISO 8601, null for none: the
-	 * app keeps one per file, not one per algorithm, and it says until when
-	 * the hashes are held current, not when they were written
-	 * ({@see HashListingService::stamp()}).
+	 * them, and holds what a lookup would find the file by: after a change of
+	 * its content, nothing until the hashes are computed again. `updated_at`
+	 * is the file's stamp, ISO 8601, null for none: the app keeps one per
+	 * file, not one per algorithm, and it says until when the hashes are held
+	 * current, not when they were written ({@see HashListingService::stamp()}).
 	 *
 	 * @param  int                $fileId      The filecache fileid
 	 * @param  list<string>|null  $reachUids   Whose files may be asked about:
@@ -136,7 +137,9 @@ class ChecksumApi
 
 		$result = [];
 
-		foreach ( $this->metadataService->getHashes( $fileId ) as $algo => $hash )
+		// The hashes a lookup would find the file by: none between a change
+		// of its content and their recomputation.
+		foreach ( $this->metadataService->listedHashes( [ $fileId ], null )[ $fileId ] ?? [] as $algo => $hash )
 		{
 			$result[ $algo ] = [
 				'algo' => $algo,
@@ -619,7 +622,9 @@ class ChecksumApi
 			throw new NotFoundException( "Invalid file ID: $fileId" );
 		}
 
-		$hashes = $this->metadataService->getHashes( $fileId );
+		// Current hashes only: an outdated one would pair the file with copies
+		// of what it used to hold.
+		$hashes = $this->metadataService->listedHashes( [ $fileId ], null )[ $fileId ] ?? [];
 
 		if ( empty( $hashes ) )
 		{

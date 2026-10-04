@@ -67,6 +67,10 @@ the first stable release.
   upgrade, shown as *Checksum stamp check* on the status page
   (`occ fcias:repair --step missing-stamps`).
 
+- A changed file's hashes leave the lookup, the listing, the duplicates
+  and the sidebar until they are computed again, whatever mtime a sync
+  client sets (`README.md`, *When hashes go away*).
+
 ### Security
 
 - Reach: in the request that first records a received share, the

@@ -22,6 +22,7 @@ use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\IUser;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -300,7 +301,13 @@ class FileListenerTest
 		$this->listener->handle( $event );
 	}
 
-	public function testOnWriteAutoMarksPendingIfHashExists(): void
+	/**
+	 * Under `auto` and `missing` alike, a write takes the file's hashes out
+	 * of every search and queues it in the rule's mode: they describe
+	 * content the file no longer has.
+	 */
+	#[DataProvider( 'keepingModes' )]
+	public function testOnWriteHidesTheHashesAndQueuesTheFile( string $mode ): void
 	{
 		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
 
@@ -308,23 +315,22 @@ class FileListenerTest
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
 		                  ->with( 42 )
-		                  ->willReturn( [ 'mode' => 'auto' ] )
-		;
-
-		$this->metadataService->method( 'countByFileId' )
-		                      ->with( 42 )
-		                      ->willReturn( 3 )
+		                  ->willReturn( [ 'mode' => $mode ] )
 		;
 
 		$this->metadataService->expects( $this->once() )
-		                      ->method( 'markPending' )
-		                      ->with( 42, 'pending:auto' )
+		                      ->method( 'markOutdated' )
+		                      ->with( 42, $mode )
+		                      ->willReturn( true )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'clearMetadata' )
 		;
 
 		$this->listener->handle( $event );
 	}
 
-	public function testOnWriteAutoSkipsIfNoHash(): void
+	public function testOnWriteAutoQueuesNothingForAFileWithoutHashes(): void
 	{
 		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
 
@@ -335,11 +341,12 @@ class FileListenerTest
 		                  ->willReturn( [ 'mode' => 'auto' ] )
 		;
 
-		$this->metadataService->method( 'countByFileId' )
-		                      ->with( 42 )
-		                      ->willReturn( 0 )
+		// markOutdated() answers whether there was anything to take out, and
+		// queues only then.
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markOutdated' )
+		                      ->willReturn( false )
 		;
-
 		$this->metadataService->expects( $this->never() )
 		                      ->method( 'markPending' )
 		;
@@ -639,5 +646,22 @@ class FileListenerTest
 		;
 
 		$this->listener->handle( $event );
+	}
+
+
+//  static methods
+
+	/**
+	 * The modes that keep a file's hashes across a write until the queue
+	 * recomputes them.
+	 *
+	 * @return array<string, array{0: string}>
+	 */
+	public static function keepingModes(): array
+	{
+		return [
+			'auto'    => [ 'auto' ],
+			'missing' => [ 'missing' ],
+		];
 	}
 }

@@ -9,12 +9,15 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Integration\Service;
 
+use OCA\FileChecksumSearch\Public\ChecksumApi;
+use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
 use OCP\Files\File;
 use OCP\Files\IRootFolder;
+use OCP\FilesMetadata\IFilesMetadataManager;
 use OCP\Server;
 use Throwable;
 
@@ -201,6 +204,135 @@ class HashStampTest
 	}
 
 	/**
+	 * A write takes the hashes out of the lookup, the listing and the
+	 * per-file route at once, under `auto` and `missing` alike; the queue
+	 * brings the new ones back to all three.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAWriteHidesTheHashesUntilTheQueueRecomputesThem(): void
+	{
+		foreach ( [ MetadataService::PENDING_MODE_AUTO, MetadataService::PENDING_MODE_MISSING ] as $mode )
+		{
+			$this->rule( $mode, [ 'sha256' ] );
+
+			$file   = $this->createTestFile( 'fcias_stamp_hidden_' . $mode, 'before the write' );
+			$before = hash( 'sha256', 'before the write' );
+			$after  = hash( 'sha256', 'after the write' );
+
+			$this->assertTrue( $this->hashCalc->recalcFileHash( $file, 'sha256' )['success'] );
+			$this->assertSame( [ $before ], $this->seenBy( $file ), "$mode: listed before the write" );
+
+			$file->putContent( 'after the write' );
+
+			$this->assertSame( 0, $this->metadataService->getUpdatedAt( $file->getId() ), "$mode: the write set the stamp to 0" );
+			$this->assertSame( [], $this->seenBy( $file ), "$mode: hidden after the write" );
+			$this->assertSame(
+				[],
+				Server::get( ChecksumApi::class )->findByHash( $before, null, 'sha256' )['results'],
+				"$mode: the old hash finds nothing",
+			);
+
+			$this->hashCalc->processFile( $file->getId(), $mode );
+
+			$this->assertSame( [ $after ], $this->seenBy( $file ), "$mode: listed again once recomputed" );
+		}
+	}
+
+	/**
+	 * A sync client keeps the file's own mtime, which can be older than the
+	 * stamp: the write hides the hashes all the same, since it sets the
+	 * stamp to 0 rather than relying on `stamp < mtime`.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAWriteWithAnOlderMtimeIsHiddenToo(): void
+	{
+		$this->rule( MetadataService::PENDING_MODE_AUTO, [ 'sha256' ] );
+
+		$file = $this->createTestFile( 'fcias_stamp_oldmtime', 'as uploaded first' );
+		$this->assertTrue( $this->hashCalc->recalcFileHash( $file, 'sha256' )['success'] );
+
+		$file->putContent( 'edited offline' );
+		$file->touch( time() - 86400 );
+
+		$this->assertSame( [], $this->seenBy( $file ) );
+
+		$this->hashCalc->processFile( $file->getId(), MetadataService::PENDING_MODE_AUTO );
+
+		$this->assertSame( [ hash( 'sha256', 'edited offline' ) ], $this->seenBy( $file ) );
+	}
+
+	/**
+	 * A change the write listener did not see — found by a scan, the stamp
+	 * older than the mtime — reaches the rule sweep, which hides the hashes
+	 * as it queues the file.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheRuleSweepHidesTheHashesOfAFileItFindsChanged(): void
+	{
+		$file = $this->createTestFile( 'fcias_stamp_sweep', 'seen by the sweep' );
+
+		// Only this file: the sweep reads every storage the selector names.
+		$this->ruleService->ruleAdd(
+			[
+				'enabled'  => true,
+				'type'     => RuleService::TYPE_INCLUDE,
+				'path'     => $file->getName(),
+				'mode'     => MetadataService::PENDING_MODE_AUTO,
+				'selector' => '*',
+				'algos'    => [ 'sha256' ],
+			],
+		);
+
+		$this->metadataService->writeHashes( $file->getId(), [ 'sha256' => hash( 'sha256', 'seen by the sweep' ) ], time(), false );
+		$this->assertSame( 1, $this->metadataService->countByFileId( $file->getId() ) );
+
+		// What a scan leaves: the content changed on disk, the stamp row
+		// older than the mtime, no write event.
+		$this->getRawConnection()
+		     ->executeStatement(
+			     'UPDATE `*PREFIX*files_metadata_index` SET `meta_value_int` = ? WHERE `file_id` = ? AND `meta_key` = ?',
+			     [
+				     $this->fresh( $file )->getMTime() - 60,
+				     $file->getId(),
+				     MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT,
+			     ],
+		     )
+		;
+
+		$this->ruleService->processRule( $this->ruleService->loadRules()[0] );
+
+		$this->assertSame( 0, $this->metadataService->countByFileId( $file->getId() ) );
+		$this->assertSame( MetadataService::PENDING_AUTO, $this->metadataService->getMarker( $file->getId() ) );
+	}
+
+	/**
+	 * `rebuild-from-metadata` removes the rows of a document whose stamp no
+	 * longer covers the file, and leaves a queued one alone.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheIndexRepairNeitherRefillsAQueuedFileNorKeepsAnOutdatedOnesRows(): void
+	{
+		$outdated = $this->createTestFile( 'fcias_stamp_rebuild_outdated', 'outdated' );
+		$this->metadataService->writeHashes( $outdated->getId(), [ 'sha1' => sha1( 'outdated' ) ], time(), false );
+		$outdated->touch( time() + 3600 );
+
+		$this->assertSame( 1, $this->repairOnly( $outdated ), 'its rows are rewritten — as none' );
+		$this->assertSame( 0, $this->metadataService->countByFileId( $outdated->getId() ) );
+
+		$queued = $this->createTestFile( 'fcias_stamp_rebuild_queued', 'queued' );
+		$this->metadataService->writeHashes( $queued->getId(), [ 'sha1' => sha1( 'queued' ) ], time(), false );
+		$this->metadataService->hideHashes( $queued->getId() );
+		$this->metadataService->markPending( $queued->getId(), MetadataService::PENDING_AUTO );
+
+		$this->assertSame( 0, $this->repairOnly( $queued ), 'the queue is on its way' );
+		$this->assertSame( 0, $this->metadataService->countByFileId( $queued->getId() ) );
+	}
+
+	/**
 	 * Hashes a recalculation saved without a stamp, which the filecache
 	 * still holds: they describe the content as of the file's mtime.
 	 *
@@ -264,6 +396,11 @@ class HashStampTest
 		array  $algos,
 	): void
 	{
+		foreach ( $this->ruleService->loadRules() as $rule )
+		{
+			$this->ruleService->ruleDelete( (string) $rule['id'] );
+		}
+
 		$this->ruleService->ruleAdd(
 			[
 				'enabled'  => true,
@@ -338,15 +475,59 @@ class HashStampTest
 		string $content,
 	): File
 	{
-		$file = $this->createTestFile( $base, $content );
+		$file   = $this->createTestFile( $base, $content );
+		$hashes = [ 'sha1' => sha1( $content ) ];
 
+		// Each part as it was written then: saveMetadata() itself no longer
+		// publishes hashes without a stamp.
 		$metadata = $this->metadataService->getMetadata( $file->getId() );
-		$metadata->setString( MetadataService::getHashKey( 'sha1' ), sha1( $content ), false );
-		$this->metadataService->saveMetadata( $metadata );
+		$metadata->setString( MetadataService::getHashKey( 'sha1' ), $hashes['sha1'], false );
+		Server::get( IFilesMetadataManager::class )->saveMetadata( $metadata );
+		Server::get( FilecacheService::class )->setHashes( $file->getId(), $hashes );
+		$this->metadataService->syncHashIndex( $file->getId(), $hashes );
 
 		$this->assertContains( $file->getId(), $this->metadataService->fetchUnstampedFileIds( $file->getId() - 1, 1 ) );
 
 		return $file;
+	}
+
+	/**
+	 * The hashes a lookup finds the file by, as the listing and the per-file
+	 * route give them — asserted to agree, then returned.
+	 *
+	 * @return list<string>
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function seenBy( File $file ): array
+	{
+		$api     = Server::get( ChecksumApi::class );
+		$perFile = array_values( $api->getHashesByFileId( $file->getId(), null )['hashes'] );
+		$listed  = [];
+
+		foreach ( $api->iterateHashes( [ 'admin' ], null, null, false, $file->getId() - 1 ) as $fileId => $entry )
+		{
+			if ( $fileId === $file->getId() )
+			{
+				$listed = array_values( $entry['hashes'] );
+			}
+
+			break;
+		}
+
+		$this->assertSame( $perFile, $listed, 'The listing and the per-file route agree.' );
+
+		return array_column( $perFile, 'hash' );
+	}
+
+	/**
+	 * `rebuild-from-metadata`'s walk over this file alone: one page of one,
+	 * from just before it.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function repairOnly( File $file ): int
+	{
+		return $this->metadataService->reindexHashesAfter( $file->getId() - 1, 1, static fn (): bool => false )['fixed'];
 	}
 
 	/**

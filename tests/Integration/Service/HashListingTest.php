@@ -108,9 +108,7 @@ class HashListingTest
 	}
 
 	/**
-	 * Hashes written as an import writes them, stamped: a recalculation by
-	 * hand stamps nothing, since one algorithm recomputed says nothing of
-	 * the file's others.
+	 * Hashes written as an import writes them, stamped now: no file is read.
 	 *
 	 * @param  array<string, string>  $hashes
 	 */
@@ -214,21 +212,21 @@ class HashListingTest
 	}
 
 	/**
-	 * A stamp of zero is none, reported as null, and no `since` lets it
-	 * through — not even 0.
+	 * Hashes written without a stamp are stamped 0: nobody vouches for
+	 * them, and they are not listed, `since` or not, nor found by a lookup.
 	 */
-	public function testNoSinceLetsAFileWithoutAStampThrough(): void
+	public function testAFileWhoseHashesNobodyVouchesForIsNotListed(): void
 	{
 		[ $uid ] = self::makeAccount( 'fcias_list_unstamped' );
 		$file    = Server::get( IRootFolder::class )->getUserFolder( $uid )->newFile( 'u.txt', 'unstamped ' . $uid );
+		$hash    = hash( 'sha256', 'unstamped ' . $uid );
 
-		Server::get( MetadataService::class )->writeHashes( $file->getId(), [ 'sha256' => hash( 'sha256', 'unstamped ' . $uid ) ], null, true );
+		Server::get( MetadataService::class )->writeHashes( $file->getId(), [ 'sha256' => $hash ], null, true );
 
-		$all = $this->api->listHashes( [ $uid ] );
-
-		$this->assertSame( [ $file->getId() ], array_column( $all['files'], 'fileid' ) );
-		$this->assertNull( $all['files'][0]['updated_at'] );
+		$this->assertSame( 0, Server::get( MetadataService::class )->getUpdatedAt( $file->getId() ) );
+		$this->assertSame( [], $this->api->listHashes( [ $uid ] )['files'] );
 		$this->assertSame( [], $this->api->listHashes( [ $uid ], null, 500, 0, 0 )['files'] );
+		$this->assertSame( [], $this->api->getHashesByFileId( $file->getId(), null )['hashes'] );
 	}
 
 	/**
