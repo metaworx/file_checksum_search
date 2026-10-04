@@ -183,6 +183,54 @@ class HashListingTest
 		$this->assertSame( 1, $page['estimated_total'] );
 	}
 
+	/**
+	 * Case, as the rest of the app reads it: an algorithm in capitals is
+	 * the algorithm, and an account named in another case is the account.
+	 */
+	public function testAlgorithmsAndAccountsAreReadInAnyCase(): void
+	{
+		$page = $this->api->listHashes( [ strtoupper( self::$ownerUid ) ], 'SHA1' );
+
+		$this->assertSame( [ self::$fileId['c'] ], array_column( $page['files'], 'fileid' ) );
+		$this->assertSame(
+			[ 'sha1' => [ 'algo' => 'sha1', 'hash' => sha1( self::$content['c'] ) ] ],
+			$page['files'][0]['hashes'],
+		);
+	}
+
+	/**
+	 * A file's hashes come in the order its document holds them, as the
+	 * file's own hashes route gives them: c was given sha256, then sha1.
+	 */
+	public function testHashesComeInTheDocumentsOrder(): void
+	{
+		$entry = $this->entryFor( $this->api->listHashes( [ self::$ownerUid ] ), 'c' );
+
+		$this->assertSame( [ 'sha256', 'sha1' ], array_keys( $entry['hashes'] ) );
+		$this->assertSame(
+			array_keys( $this->api->getHashesByFileId( self::$fileId['c'], null )['hashes'] ),
+			array_keys( $entry['hashes'] ),
+		);
+	}
+
+	/**
+	 * A stamp of zero is none, reported as null, and no `since` lets it
+	 * through — not even 0.
+	 */
+	public function testNoSinceLetsAFileWithoutAStampThrough(): void
+	{
+		[ $uid ] = self::makeAccount( 'fcias_list_unstamped' );
+		$file    = Server::get( IRootFolder::class )->getUserFolder( $uid )->newFile( 'u.txt', 'unstamped ' . $uid );
+
+		Server::get( MetadataService::class )->writeHashes( $file->getId(), [ 'sha256' => hash( 'sha256', 'unstamped ' . $uid ) ], null, true );
+
+		$all = $this->api->listHashes( [ $uid ] );
+
+		$this->assertSame( [ $file->getId() ], array_column( $all['files'], 'fileid' ) );
+		$this->assertNull( $all['files'][0]['updated_at'] );
+		$this->assertSame( [], $this->api->listHashes( [ $uid ], null, 500, 0, 0 )['files'] );
+	}
+
 	public function testSinceKeepsTheFilesStampedAtOrAfterIt(): void
 	{
 		$stamp = Server::get( MetadataService::class )->getUpdatedAt( self::$fileId['a'] );

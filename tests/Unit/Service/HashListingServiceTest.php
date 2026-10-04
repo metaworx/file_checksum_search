@@ -194,6 +194,34 @@ class HashListingServiceTest
 		);
 	}
 
+	/**
+	 * An algorithm is read in lower case, as the keys are: the selection
+	 * lowercases through the key, and the values must be read under the
+	 * same name, or `SHA256` lists the files with no hashes.
+	 */
+	public function testAnAlgorithmIsReadInLowerCase(): void
+	{
+		$this->metadata->expects( $this->once() )
+		               ->method( 'pageListedFiles' )
+		               ->with( null, 'sha256', 0, null, HashListingService::DEFAULT_LIMIT + 1 )
+		               ->willReturn( [ $this->row( 51, 1, 'home::alice', 'files/a', 1 ) ] )
+		;
+		$this->metadata->expects( $this->once() )
+		               ->method( 'listedHashes' )
+		               ->with( [ 51 ], 'sha256' )
+		               ->willReturn( [ 51 => [ 'sha256' => 'abc' ] ] )
+		;
+		$this->metadata->expects( $this->once() )
+		               ->method( 'countListedFiles' )
+		               ->with( null, 'sha256', null )
+		;
+
+		$this->assertSame(
+			[ 'sha256' => [ 'algo' => 'sha256', 'hash' => 'abc' ] ],
+			$this->listing->page( null, 'SHA256' )['files'][0]['hashes'],
+		);
+	}
+
 	public function testAnEmptyAlgorithmIsNone(): void
 	{
 		$this->metadata->expects( $this->once() )

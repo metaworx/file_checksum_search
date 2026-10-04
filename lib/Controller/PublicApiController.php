@@ -92,12 +92,15 @@ class PublicApiController
 	}
 
 	/**
-	 * `since` as unix seconds: given so, or as an ISO 8601 date or time,
-	 * which without an offset is UTC. Null when not given, false when it is
-	 * neither.
+	 * `since` as unix seconds: given so, or as an ISO 8601 date, with a time
+	 * and an offset or without, read as UTC where it has no offset. Null
+	 * when not given, false when it is neither.
 	 *
 	 * A `+` in a query string arrives as a space unless the client encoded
 	 * it, so a space before a trailing offset is read as the `+` it was.
+	 * RFC 3339 allows `t` and `z` in lower case. A date or time PHP would
+	 * roll over — 2025-02-30 into March, 25:00 into the next day — is not
+	 * one, and is refused rather than read as another.
 	 */
 	private static function sinceFrom( ?string $since ): int|false|null
 	{
@@ -113,21 +116,29 @@ class PublicApiController
 			return (int) $since;
 		}
 
-		$since = (string) preg_replace( '/(\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?) (\d{2}:?\d{2})$/', '$1+$2', $since );
+		$since = strtoupper( (string) preg_replace( '/(\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?) (\d{2}:?\d{2})$/', '$1+$2', $since ) );
 
-		if ( preg_match( '/^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/', $since ) !== 1 )
+		if ( preg_match( '/^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/', $since, $m ) !== 1 )
 		{
 			return false;
 		}
 
 		try
 		{
-			return ( new \DateTimeImmutable( $since, new \DateTimeZone( 'UTC' ) ) )->getTimestamp();
+			$parsed = new \DateTimeImmutable( $since, new \DateTimeZone( 'UTC' ) );
 		}
 		catch ( \Exception )
 		{
 			return false;
 		}
+
+		// Read back in the offset it was given in, it must say what it said.
+		if ( $parsed->format( 'Y-m-d' ) !== $m[1] || ( isset( $m[2] ) && $parsed->format( 'H:i' ) !== $m[2] ) )
+		{
+			return false;
+		}
+
+		return $parsed->getTimestamp();
 	}
 
 

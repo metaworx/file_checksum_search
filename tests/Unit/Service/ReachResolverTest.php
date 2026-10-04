@@ -43,9 +43,11 @@ class ReachResolverTest
 		$this->db     = $this->createMock( \OCP\IDBConnection::class );
 		$this->setUpQueryBuilderMock();
 
+		// As Nextcloud's database backend finds them: in any case, and
+		// answering with the account's own uid.
 		$this->users->method( 'get' )
-		            ->willReturnCallback( fn ( string $uid ): ?IUser => in_array( $uid, [ 'alice', 'bob' ], true )
-			            ? $this->createConfiguredMock( IUser::class, [ 'getUID' => $uid ] )
+		            ->willReturnCallback( fn ( string $uid ): ?IUser => in_array( strtolower( $uid ), [ 'alice', 'bob' ], true )
+			            ? $this->createConfiguredMock( IUser::class, [ 'getUID' => strtolower( $uid ) ] )
 			            : null );
 
 		$this->reach = new ReachResolver( $this->mounts, $this->users, $this->db );
@@ -161,6 +163,23 @@ class ReachResolverTest
 				[ 'uid' => 'alice', 'storage' => 5, 'root' => 'files/report.pdf', 'prefix' => '/report.pdf/' ],
 			],
 			$this->reach->filesViewsFor( [ 'bob', 'ghost', 'alice' ] ),
+		);
+	}
+
+	/**
+	 * An account named in another case is still the account: its views
+	 * are its own, keyed and matched by its own uid. Built from the name
+	 * as asked, `/Alice/` matched no mount of alice's, and the listing for
+	 * `users[]=Alice` was empty.
+	 */
+	public function testAnAccountNamedInAnotherCaseHasItsViews(): void
+	{
+		$this->viewsByUid( [ 'alice' => [ [ 100, '/alice/' ] ] ] );
+		$this->filecacheRows( [ [ 'fileid' => 100, 'storage' => 1, 'path' => '' ] ] );
+
+		$this->assertSame(
+			[ [ 'uid' => 'alice', 'storage' => 1, 'root' => 'files', 'prefix' => '/' ] ],
+			$this->reach->filesViewsFor( [ 'ALICE' ] ),
 		);
 	}
 

@@ -176,12 +176,14 @@ class ReachResolver
 
 		foreach ( $uids as $uid )
 		{
-			$uid  = (string) $uid;
-			$user = $this->userManager->get( $uid );
+			$user = $this->userManager->get( (string) $uid );
 
+			// Keyed by the account's own uid, not the name asked for: the
+			// user backend finds `Alice` for `alice`, and the mount points
+			// below spell it the account's way.
 			if ( $user !== null )
 			{
-				$mounts[ $uid ] = $this->mountCache->getMountsForUser( $user );
+				$mounts[ $user->getUID() ] = $this->mountCache->getMountsForUser( $user );
 			}
 		}
 

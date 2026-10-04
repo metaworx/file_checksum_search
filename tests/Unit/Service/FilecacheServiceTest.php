@@ -12,6 +12,9 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\DB\IResult;
+use OCP\DB\QueryBuilder\ICompositeExpression;
+use OCP\DB\QueryBuilder\IExpressionBuilder;
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Encryption\IManager as IEncryptionManager;
 use OCP\Files\Cache\ICache;
 use OCP\Files\File;
@@ -548,6 +551,55 @@ class FilecacheServiceTest
 		$this->assertCount( 1, $result );
 		$this->assertArrayHasKey( 42, $result );
 		$this->assertSame( 'admin', $result[42]['owner'] );
+	}
+
+	/**
+	 * Mounts sharing a root are asked together — every home's files area
+	 * is one root — so the placeholders follow the storages, not three a
+	 * mount; a thousand storages to an `IN`, Oracle's ceiling.
+	 */
+	public function testMountsSharingARootAreAskedTogether(): void
+	{
+		$params = [];
+
+		$qb        = $this->createMock( IQueryBuilder::class );
+		$expr      = $this->createMock( IExpressionBuilder::class );
+		$composite = $this->createMock( ICompositeExpression::class );
+		$expr->method( 'orX' )->willReturn( $composite );
+		$expr->method( 'andX' )->willReturn( $composite );
+		$qb->method( 'expr' )->willReturn( $expr );
+		$qb->method( 'createNamedParameter' )
+		   ->willReturnCallback( static function( mixed $value, mixed $type = null ) use ( &$params ): string
+		   {
+			   $params[] = [ $value, $type ];
+
+			   return ':p' . count( $params );
+		   } )
+		;
+		$qb->expects( $this->once() )->method( 'andWhere' );
+
+		$homes = array_map( static fn ( int $s ): array => [ 'storage' => $s, 'root' => 'files' ], range( 1, 1001 ) );
+
+		$this->service->andWhereWithin( $qb, 'fc', [
+			...$homes,
+			[ 'storage' => 2, 'root' => 'files' ],
+			[ 'storage' => 9, 'root' => 'files/x' ],
+			[ 'storage' => 7, 'root' => '' ],
+		] );
+
+		$this->assertSame(
+			[
+				[ range( 1, 1000 ), IQueryBuilder::PARAM_INT_ARRAY ],
+				[ [ 1001 ], IQueryBuilder::PARAM_INT_ARRAY ],
+				[ 'files', IQueryBuilder::PARAM_STR ],
+				[ 'files/%', IQueryBuilder::PARAM_STR ],
+				[ [ 9 ], IQueryBuilder::PARAM_INT_ARRAY ],
+				[ 'files/x', IQueryBuilder::PARAM_STR ],
+				[ 'files/x/%', IQueryBuilder::PARAM_STR ],
+				[ [ 7 ], IQueryBuilder::PARAM_INT_ARRAY ],
+			],
+			$params,
+		);
 	}
 
 	/**

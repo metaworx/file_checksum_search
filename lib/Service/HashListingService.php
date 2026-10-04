@@ -121,7 +121,9 @@ class HashListingService
 	{
 		$limit = max( 0, min( $limit, self::MAX_LIMIT ) );
 		$after = max( 0, $after );
-		$algo  = $algo === '' ? null : $algo;
+		// Lowercased, as the hash keys are: the selection lowercases through
+		// the key, and the values have to be read under the same name.
+		$algo  = $algo === null || $algo === '' ? null : strtolower( $algo );
 		$views = $reachUids === null
 			? null
 			: $this->reach->filesViewsFor( array_values( $reachUids ) );

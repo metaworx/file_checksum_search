@@ -1112,6 +1112,11 @@ class FilecacheService
 	 * beside it. `oc_filecache` indexes `(storage, path)` for this prefix
 	 * shape. An empty list admits nothing.
 	 *
+	 * Mounts that share a root are asked together, one `IN` per thousand
+	 * storages (Oracle's ceiling): every home's root is the same, and a
+	 * group of thousands of accounts would otherwise spend three
+	 * placeholders a home, toward PostgreSQL's 65 535 and SQLite's 32 766.
+	 *
 	 * @param  string                                   $alias   Alias of the filecache table in $qb.
 	 * @param  list<array{storage: int, root: string}>  $mounts
 	 */
@@ -1128,31 +1133,42 @@ class FilecacheService
 			return;
 		}
 
-		$within = $qb->expr()->orX();
+		$storagesByRoot = [];
 
 		foreach ( $mounts as $mount )
 		{
-			$sameStorage = $qb->expr()->eq(
-				$alias . '.storage',
-				$qb->createNamedParameter( $mount['storage'], IQueryBuilder::PARAM_INT ),
-			);
+			$storagesByRoot[ $mount['root'] ][ $mount['storage'] ] = $mount['storage'];
+		}
 
-			// A home's root is '' — the whole storage, and the common case,
-			// which the index answers on the storage alone.
-			if ( $mount['root'] === '' )
+		$within = $qb->expr()->orX();
+
+		foreach ( $storagesByRoot as $root => $storages )
+		{
+			$root      = (string) $root;
+			$inStorage = $qb->expr()->orX();
+
+			foreach ( array_chunk( array_values( $storages ), 1000 ) as $chunk )
 			{
-				$within->add( $sameStorage );
+				$inStorage->add( $qb->expr()->in(
+					$alias . '.storage',
+					$qb->createNamedParameter( $chunk, IQueryBuilder::PARAM_INT_ARRAY ),
+				) );
+			}
+
+			// A root of '' is the whole storage, which the index answers on
+			// the storage alone.
+			if ( $root === '' )
+			{
+				$within->add( $inStorage );
 
 				continue;
 			}
 
-			$root = $this->db->escapeLikeParameter( $mount['root'] );
-
 			$within->add( $qb->expr()->andX(
-				$sameStorage,
+				$inStorage,
 				$qb->expr()->orX(
-					$qb->expr()->eq( $alias . '.path', $qb->createNamedParameter( $mount['root'] ) ),
-					$qb->expr()->like( $alias . '.path', $qb->createNamedParameter( $root . '/%' ) ),
+					$qb->expr()->eq( $alias . '.path', $qb->createNamedParameter( $root ) ),
+					$qb->expr()->like( $alias . '.path', $qb->createNamedParameter( $this->db->escapeLikeParameter( $root ) . '/%' ) ),
 				),
 			) );
 		}

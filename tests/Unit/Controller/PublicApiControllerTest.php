@@ -851,6 +851,8 @@ class PublicApiControllerTest
 			'an offset whose + was lost' => [ '2025-09-02T10:00:00 02:00', 1756800000 ],
 			'a date, at midnight UTC'    => [ '2025-09-02', 1756771200 ],
 			'a time without an offset'   => [ '2025-09-02 08:00', 1756800000 ],
+			'RFC 3339 in lower case'     => [ '2025-09-02t08:00:00z', 1756800000 ],
+			'an offset across midnight'  => [ '2025-09-02T01:00:00+02:00', 1756767600 ],
 		];
 	}
 
@@ -871,7 +873,8 @@ class PublicApiControllerTest
 
 	/**
 	 * Not a date is a bad request, never a listing of everything: a client
-	 * syncing changes would otherwise take every file for a change.
+	 * syncing changes would otherwise take every file for a change. Nor is
+	 * a date PHP would roll over into another: 2025-02-30 is not March.
 	 */
 	public function testAnUnreadableSinceIsABadRequest(): void
 	{
@@ -879,7 +882,7 @@ class PublicApiControllerTest
 		          ->method( 'listHashes' )
 		;
 
-		foreach ( [ 'yesterday', 'a', '2025-13', '-5' ] as $since )
+		foreach ( [ 'yesterday', 'a', '2025-13', '-5', '2025-02-30', '2025-09-02T25:00', '2025-09-02T08:61' ] as $since )
 		{
 			$response = $this->controller->listHashes( since: $since );
 

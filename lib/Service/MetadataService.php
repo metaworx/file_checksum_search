@@ -1192,9 +1192,13 @@ class MetadataService
 		int     $limit,
 	): array
 	{
+		// One row per file, whatever the hash rows and stamp rows behind it:
+		// grouped by the file, with the stamp's MAX(). The index has no
+		// unique key on (file, key), so a second stamp row is possible, and
+		// DISTINCT over the stamp would list such a file twice.
 		$qb = $this->db->getQueryBuilder();
-		$qb->selectDistinct( [ 'fc.fileid', 'fc.storage', 'fc.path', 's.id' ] )
-		   ->selectAlias( 'u.' . self::FIELD_META_VALUE_INT, 'updated_at' )
+		$qb->select( 'fc.fileid', 'fc.storage', 'fc.path', 's.id' )
+		   ->selectAlias( $qb->func()->max( 'u.' . self::FIELD_META_VALUE_INT ), 'updated_at' )
 		;
 
 		$this->whereListed( $qb, $mounts, $algo, $since );
@@ -1203,6 +1207,7 @@ class MetadataService
 			$qb->expr()
 			   ->gt( 'i.' . self::FIELD_FILE_ID, $qb->createNamedParameter( $after, IQueryBuilder::PARAM_INT ) ),
 		)
+		   ->groupBy( 'fc.fileid', 'fc.storage', 'fc.path', 's.id' )
 		   ->orderBy( 'fc.fileid', 'ASC' )
 		   ->setMaxResults( $limit )
 		;
@@ -1262,8 +1267,10 @@ class MetadataService
 	 * characters, shorter than a SHA-256 hash, so it says which hashes and
 	 * the documents say what they are. A value the document holds without
 	 * an index row is one a lookup cannot find, and is not listed either.
+	 * In the document's order, as the file's own hashes are given.
 	 *
-	 * @param  list<int>  $fileIds  One page, at most a thousand.
+	 * @param  list<int>    $fileIds  One page, at most a thousand.
+	 * @param  string|null  $algo     Lowercase, as the keys are.
 	 *
 	 * @return array<int, array<string, string>>  file id => algorithm => hash
 	 * @throws Exception
@@ -1288,21 +1295,14 @@ class MetadataService
 				continue;
 			}
 
-			$stored = $this->getHashes( $this->getMetadata( $fileId, $documents[ $fileId ] ) );
+			$indexed = array_flip( array_map( self::algorithmFromKey( ... ), $keys ) );
 
-			foreach ( $keys as $key )
+			foreach ( $this->getHashes( $this->getMetadata( $fileId, $documents[ $fileId ] ) ) as $name => $hash )
 			{
-				$name = self::algorithmFromKey( $key );
-
-				if ( isset( $stored[ $name ] ) && ( $algo === null || $name === $algo ) )
+				if ( isset( $indexed[ $name ] ) && ( $algo === null || $name === $algo ) )
 				{
-					$hashes[ $fileId ][ $name ] = $stored[ $name ];
+					$hashes[ $fileId ][ $name ] = $hash;
 				}
-			}
-
-			if ( isset( $hashes[ $fileId ] ) )
-			{
-				ksort( $hashes[ $fileId ] );
 			}
 		}
 
@@ -1358,11 +1358,16 @@ class MetadataService
 			$this->filecacheService->andWhereWithin( $qb, 'fc', $mounts );
 		}
 
+		// A stamp of zero is none — hashes written without a time, or cleared
+		// for the next sweep — and no `since` lets it through, 0 included.
 		if ( $since !== null )
 		{
 			$qb->andWhere(
 				$qb->expr()
-				   ->gte( 'u.' . self::FIELD_META_VALUE_INT, $qb->createNamedParameter( $since, IQueryBuilder::PARAM_INT ) ),
+				   ->gte(
+					   'u.' . self::FIELD_META_VALUE_INT,
+					   $qb->createNamedParameter( max( $since, 1 ), IQueryBuilder::PARAM_INT ),
+				   ),
 			);
 		}
 	}
