@@ -793,6 +793,11 @@ cannot make: finding a file the index has forgotten completely means reading eve
 metadata document, and the answer is almost always none — so it is skipped unless
 you name it or pass `--include-expensive`.
 
+A step says when it starts and what it did. `-v` adds what it found and, for a long one, how far it
+has got every half minute; `-vv` names each file it acts on, `-vvv` with the values it writes —
+`missing-stamps` says all of that. `-q` prints nothing but warnings and errors, on standard error,
+which is what a run from cron wants.
+
 For hashes that are missing or outdated, table-prefix configuration, and other common issues, see [docs/FAQ.md § Troubleshooting](docs/FAQ.md#troubleshooting).
 
 ## License

@@ -2598,6 +2598,47 @@ class MetadataService
 	}
 
 	/**
+	 * How many files {@see fetchUnstampedFileIds()} would walk: for a run
+	 * that says up front what it found.
+	 *
+	 * @throws Exception
+	 */
+	public function countUnstampedFiles(): int
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->selectAlias(
+			$qb->createFunction( 'COUNT(DISTINCT ' . $qb->getColumnName( self::FIELD_FILE_ID, 'h' ) . ')' ),
+			'cnt',
+		)
+		   ->from( self::TABLE_FILES_METADATA_INDEX, 'h' )
+		   ->leftJoin(
+			   'h',
+			   self::TABLE_FILES_METADATA_INDEX,
+			   'u',
+			   $qb->expr()
+			      ->andX(
+				      $qb->expr()
+				         ->eq( 'u.' . self::FIELD_FILE_ID, 'h.' . self::FIELD_FILE_ID ),
+				      $qb->expr()
+				         ->eq( 'u.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			      ),
+		   )
+		   ->where(
+			   $qb->expr()
+			      ->like( 'h.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
+			   $qb->expr()
+			      ->isNull( 'u.' . self::FIELD_FILE_ID ),
+		   )
+		;
+
+		$result = $this->executeQuery( $qb );
+		$count  = (int) $result->fetchOne();
+		$result->closeCursor();
+
+		return $count;
+	}
+
+	/**
 	 * Stamp the files whose hashes carry no stamp, a page at a time, from
 	 * the file after $after until $continue answers false after a page.
 	 *
@@ -2605,6 +2646,10 @@ class MetadataService
 	 * met again on every page, and stamping one takes it out of the set.
 	 *
 	 * @param  callable|null  $continue  `fn(): bool`, asked after each page.
+	 * @param  callable|null  $onFile    `fn(int $fileId, array{current: bool, stamp: int, hashes: array<string, string>}|Throwable $outcome): void`,
+	 *                                   told of each file stamped, or of why
+	 *                                   one could not be: for a caller that
+	 *                                   reports as it goes.
 	 *
 	 * @return array{stamped: int, queued: int, last: int, done: bool}  Files
 	 *         stamped, of those the ones whose hashes nobody vouches for and
@@ -2616,6 +2661,7 @@ class MetadataService
 		int       $after = 0,
 		int       $pageSize = 500,
 		?callable $continue = null,
+		?callable $onFile = null,
 	): array
 	{
 		$lastId  = $after;
@@ -2642,7 +2688,7 @@ class MetadataService
 			{
 				try
 				{
-					$current = $this->stampFromFilecache( $fileId );
+					$outcome = $this->stampFromFilecache( $fileId );
 				}
 				catch ( Throwable $e )
 				{
@@ -2655,19 +2701,29 @@ class MetadataService
 						],
 					);
 
+					if ( $onFile !== null )
+					{
+						$onFile( $fileId, $e );
+					}
+
 					continue;
 				}
 
-				if ( $current === null )
+				if ( $outcome === null )
 				{
 					continue;
 				}
 
 				$stamped ++;
 
-				if ( ! $current )
+				if ( ! $outcome['current'] )
 				{
 					$queued ++;
+				}
+
+				if ( $onFile !== null )
+				{
+					$onFile( $fileId, $outcome );
 				}
 			}
 
@@ -2698,13 +2754,14 @@ class MetadataService
 	 * removed where it does not, and the file then queued for the hashes its
 	 * rule keeps, so that it is listed again once they are computed.
 	 *
-	 * @return bool|null  Whether the hashes came out current; null for a file
-	 *                    this leaves alone — gone from the filecache, which is
-	 *                    the orphan purge's, or holding no hash.
+	 * @return array{current: bool, stamp: int, hashes: array<string, string>}|null
+	 *         Whether the hashes came out current, the stamp, and the hashes it
+	 *         covers; null for a file this leaves alone — gone from the
+	 *         filecache, which is the orphan purge's, or holding no hash.
 	 * @throws Exception
 	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
 	 */
-	private function stampFromFilecache( int $fileId ): ?bool
+	private function stampFromFilecache( int $fileId ): ?array
 	{
 		$location = $this->filecacheService->locate( $fileId );
 
@@ -2756,7 +2813,11 @@ class MetadataService
 			$this->upsertUpdatedAtString( $fileId, self::PENDING_AUTO );
 		}
 
-		return $current;
+		return [
+			'current' => $current,
+			'stamp'   => $stamp,
+			'hashes'  => $hashes,
+		];
 	}
 
 	/**

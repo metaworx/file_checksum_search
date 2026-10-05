@@ -342,12 +342,21 @@ class HashStampTest
 	{
 		$file = $this->savedWithoutAStamp( 'fcias_stamp_repair', 'stamped by the repair' );
 
-		$this->stampOnly( $file );
+		$outcome = $this->stampOnly( $file );
 
 		$mtime = $this->fresh( $file )
 		              ->getMTime()
 		;
 
+		$this->assertSame(
+			[
+				'current' => true,
+				'stamp'   => $mtime,
+				'hashes'  => [ 'sha1' => sha1( 'stamped by the repair' ) ],
+			],
+			$outcome,
+			'What a verbose run reports of the file.',
+		);
 		$this->assertSame( $mtime, $this->stampOf( $file->getId() ) );
 		$this->assertSame( [ MetadataService::getHashKey( 'sha1' ) ], $this->hashRowsOf( $file->getId() ) );
 		$this->assertNull( $this->metadataService->getMarker( $file->getId() ) );
@@ -375,8 +384,7 @@ class HashStampTest
 		     )
 		;
 
-		$this->stampOnly( $file );
-
+		$this->assertFalse( $this->stampOnly( $file )['current'] );
 		$this->assertSame( 0, $this->stampOf( $file->getId() ) );
 		$this->assertSame( [], $this->hashRowsOf( $file->getId() ) );
 		$this->assertSame( MetadataService::PENDING_AUTO, $this->metadataService->getMarker( $file->getId() ) );
@@ -535,17 +543,26 @@ class HashStampTest
 	 * The instance this runs against may hold other unstamped files, and
 	 * they are not the test's to stamp.
 	 *
+	 * @return array{current: bool, stamp: int, hashes: array<string, string>}  What the stamping reported of it.
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	private function stampOnly( File $file ): void
+	private function stampOnly( File $file ): array
 	{
-		$result = $this->metadataService->stampUnstampedAfter(
+		$outcomes = [];
+		$result   = $this->metadataService->stampUnstampedAfter(
 			$file->getId() - 1,
 			1,
 			static fn (): bool => false,
+			static function( int $fileId, array $outcome ) use ( &$outcomes ): void
+			{
+				$outcomes[ $fileId ] = $outcome;
+			},
 		);
 
 		$this->assertSame( 1, $result['stamped'] );
+		$this->assertArrayHasKey( $file->getId(), $outcomes, 'The file is reported as it is stamped.' );
+
+		return $outcomes[ $file->getId() ];
 	}
 
 	/**

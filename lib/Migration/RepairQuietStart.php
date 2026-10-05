@@ -71,6 +71,9 @@ class RepairQuietStart
 
 	private const LEGACY_SEED_JOB = 'OCA\\FileChecksumSearch\\BackgroundJob\\SeedPendingUpdates';
 
+	/** Seconds between two progress lines of a long step at `-v`. */
+	private const PROGRESS_EVERY = 30;
+
 	private const LEGACY_PENDING_NEW = 'pending:new';
 
 
@@ -588,7 +591,11 @@ class RepairQuietStart
 
 		try
 		{
-			$result = $this->metadataService->stampUnstampedAfter();
+			$output->info( 'FCIAS: stamping the hashes saved without a stamp.' );
+
+			$result = $this->metadataService->stampUnstampedAfter(
+				onFile: $this->reportStamping( $output ),
+			);
 
 			$output->info(
 				$result['stamped'] === 0
@@ -604,6 +611,82 @@ class RepairQuietStart
 		{
 			$this->warn( $output, 'could not stamp the hashes saved without a stamp', $e );
 		}
+	}
+
+	/**
+	 * What the stamping says as it goes, at the console's levels: `-v` how
+	 * many files it found and, every {@see PROGRESS_EVERY} seconds, how far it
+	 * has got; `-vv` each file; `-vvv` each file's hashes. A file it could
+	 * not stamp is a warning, at every level.
+	 *
+	 * Nextcloud's own repair hands a plain `IOutput`, which hears only of the
+	 * warnings.
+	 *
+	 * @return callable(int, array{current: bool, stamp: int, hashes: array<string, string>}|Throwable): void
+	 */
+	private function reportStamping( IOutput $output ): callable
+	{
+		$verbose = $output instanceof VerboseOutput ? $output : null;
+		$total   = null;
+
+		if ( $verbose?->shows( VerboseOutput::VERBOSE ) )
+		{
+			$total = $this->metadataService->countUnstampedFiles();
+			$verbose->line( VerboseOutput::VERBOSE, sprintf( 'FCIAS: found %d files whose hashes carry no stamp.', $total ) );
+		}
+
+		$done = 0;
+		$next = time() + self::PROGRESS_EVERY;
+
+		return static function(
+			int             $fileId,
+			array|Throwable $outcome,
+		) use
+		(
+			$output,
+			$verbose,
+			$total,
+			&$done,
+			&$next,
+		): void
+		{
+			if ( $outcome instanceof Throwable )
+			{
+				$output->warning( sprintf( 'FCIAS: could not stamp the hashes of file %d: %s', $fileId, $outcome->getMessage() ) );
+
+				return;
+			}
+
+			$done ++;
+
+			if ( $verbose?->shows( VerboseOutput::VERY_VERBOSE ) )
+			{
+				$verbose->line(
+					VerboseOutput::VERY_VERBOSE,
+					sprintf(
+						'file %d: %s',
+						$fileId,
+						$outcome['current']
+							? 'stamped ' . date( 'c', $outcome['stamp'] )
+							: 'the filecache holds other hashes; stamped 0, hidden and queued',
+					),
+				);
+			}
+
+			if ( $verbose?->shows( VerboseOutput::DEBUG ) )
+			{
+				foreach ( $outcome['hashes'] as $algo => $hash )
+				{
+					$verbose->line( VerboseOutput::DEBUG, sprintf( '  %s %s', $algo, $hash ) );
+				}
+			}
+
+			if ( $total !== null && time() >= $next )
+			{
+				$verbose?->line( VerboseOutput::VERBOSE, sprintf( 'FCIAS: stamped %d of %d files so far.', $done, $total ) );
+				$next = time() + self::PROGRESS_EVERY;
+			}
+		};
 	}
 
 	/**

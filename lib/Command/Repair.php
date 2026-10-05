@@ -11,11 +11,12 @@ namespace OCA\FileChecksumSearch\Command;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Migration\RepairQuietStart;
-use OCP\Migration\IOutput;
+use OCA\FileChecksumSearch\Migration\VerboseOutput;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\ConsoleOutputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Throwable;
 
@@ -42,6 +43,21 @@ class Repair
 	)
 	{
 		parent::__construct();
+	}
+
+
+//  static methods
+
+	/**
+	 * Where warnings and errors go: standard error where the console has
+	 * one, so that they reach whoever reads a cron job's mail and stay out
+	 * of what a script reads from standard output.
+	 */
+	public static function errorOutput( OutputInterface $output ): OutputInterface
+	{
+		return $output instanceof ConsoleOutputInterface
+			? $output->getErrorOutput()
+			: $output;
 	}
 
 
@@ -101,6 +117,11 @@ reports nothing to do and you have reason to believe otherwise.
 
 Every step is safe to run again. Running one that has nothing to do costs the
 asking and no more.
+
+<info>-v</info> says what a step found and how far it has got, <info>-vv</info> names each file it
+acts on, <info>-vvv</info> with the values it writes, where a step has that much to say.
+<info>-q</info> prints nothing but warnings and errors, to standard error: for a run
+from cron.
 HELP,
 		     )
 		;
@@ -176,7 +197,9 @@ HELP,
 					'exception' => $e,
 				],
 			);
-			$output->writeln( '<error>' . $e->getMessage() . '</error>' );
+			self::errorOutput( $output )
+			    ->writeln( '<error>' . $e->getMessage() . '</error>', OutputInterface::VERBOSITY_QUIET )
+			;
 
 			return Command::FAILURE;
 		}
@@ -293,13 +316,26 @@ HELP,
 	 * Adapt the console to what a repair step writes to.
 	 *
 	 * The steps take Nextcloud's `IOutput`, because they are also run by
-	 * `maintenance:repair`; this hands them a console instead of a migration.
+	 * `maintenance:repair`; this hands them a console instead of a migration,
+	 * with the console's verbosity levels ({@see VerboseOutput}). A warning
+	 * goes to standard error and shows under `-q` too, so that a run from
+	 * cron says nothing unless something went wrong.
 	 */
-	private function asRepairOutput( OutputInterface $output ): IOutput
+	private function asRepairOutput( OutputInterface $output ): VerboseOutput
 	{
 		return new class( $output )
 		    implements
-		    IOutput {
+		    VerboseOutput {
+
+//  constants
+
+			private const LEVELS
+				 = [
+					VerboseOutput::VERBOSE      => OutputInterface::VERBOSITY_VERBOSE,
+					VerboseOutput::VERY_VERBOSE => OutputInterface::VERBOSITY_VERY_VERBOSE,
+					VerboseOutput::DEBUG        => OutputInterface::VERBOSITY_DEBUG,
+				];
+
 
 //  constructor
 
@@ -310,6 +346,21 @@ HELP,
 
 
 //  other non-static methods
+
+			#[\Override]
+			public function shows( int $level ): bool
+			{
+				return $this->output->getVerbosity() >= ( self::LEVELS[ $level ] ?? OutputInterface::VERBOSITY_DEBUG );
+			}
+
+			#[\Override]
+			public function line(
+				int    $level,
+				string $message,
+			): void
+			{
+				$this->output->writeln( '  ' . $message, self::LEVELS[ $level ] ?? OutputInterface::VERBOSITY_DEBUG );
+			}
 
 			#[\Override]
 			public function debug( string $message ): void
@@ -332,7 +383,9 @@ HELP,
 			#[\Override]
 			public function warning( $message )
 			{
-				$this->output->writeln( '  <comment>' . $message . '</comment>' );
+				Repair::errorOutput( $this->output )
+				      ->writeln( '  <comment>' . $message . '</comment>', OutputInterface::VERBOSITY_QUIET )
+				;
 			}
 
 			#[\Override]

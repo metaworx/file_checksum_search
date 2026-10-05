@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\BackgroundJob\HashIndexCheck;
 use OCA\FileChecksumSearch\BackgroundJob\StampCheck;
 use OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob;
 use OCA\FileChecksumSearch\Migration\RepairQuietStart;
+use OCA\FileChecksumSearch\Migration\VerboseOutput;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
@@ -502,6 +503,82 @@ class RepairQuietStartTest
 	}
 
 	/**
+	 * At `-vvv`, everything: the start, what it found, each file, each
+	 * file's hashes, and the outcome. A file it could not stamp is a warning.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheStampingSaysAtEachLevelWhatThatLevelAsksFor(): void
+	{
+		$output = $this->verboseOutput( VerboseOutput::DEBUG );
+		$this->stepStamping( 3 )
+		     ->runSteps( $output, [ 'missing-stamps' ] )
+		;
+
+		$this->assertSame(
+			[
+				[ 0, 'FCIAS: stamping the hashes saved without a stamp.' ],
+				[ VerboseOutput::VERBOSE, 'FCIAS: found 3 files whose hashes carry no stamp.' ],
+				[ VerboseOutput::VERY_VERBOSE, 'file 5: stamped ' . date( 'c', 1000 ) ],
+				[ VerboseOutput::DEBUG, '  sha1 ' . str_repeat( 'a', 40 ) ],
+				[ VerboseOutput::VERY_VERBOSE, 'file 6: the filecache holds other hashes; stamped 0, hidden and queued' ],
+				[ VerboseOutput::DEBUG, '  sha1 ' . str_repeat( 'b', 40 ) ],
+				[ 'warning', 'FCIAS: could not stamp the hashes of file 7: the document went away' ],
+				[ 0, 'FCIAS: stamped the hashes of 2 files; 1 of them went back on the queue to be computed again.' ],
+			],
+			$output->lines,
+		);
+	}
+
+	/**
+	 * At `-v`, what it found and the outcome; no file by file.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAtVerboseTheStampingSaysWhatItFoundButNoFile(): void
+	{
+		$output = $this->verboseOutput( VerboseOutput::VERBOSE );
+		$this->stepStamping( 3 )
+		     ->runSteps( $output, [ 'missing-stamps' ] )
+		;
+
+		$levels = array_column( $output->lines, 0 );
+
+		$this->assertContains( VerboseOutput::VERBOSE, $levels );
+		$this->assertNotContains( VerboseOutput::VERY_VERBOSE, $levels );
+		$this->assertNotContains( VerboseOutput::DEBUG, $levels );
+		$this->assertContains( 'warning', $levels, 'a warning shows at every level' );
+	}
+
+	/**
+	 * Nextcloud's own repair hands a plain IOutput: the start, the outcome
+	 * and the warnings, and no count is asked for.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testUnderNextcloudsRepairTheStampingSaysWhatItAlwaysSaid(): void
+	{
+		$infos = [];
+		$this->output->method( 'info' )
+		             ->willReturnCallback(
+			             static function( string $line ) use ( &$infos ): void
+			             {
+				             $infos[] = $line;
+			             },
+		             )
+		;
+		$this->output->expects( $this->once() )
+		             ->method( 'warning' )
+		;
+
+		$this->stepStamping( null )
+		     ->runSteps( $this->output, [ 'missing-stamps' ] )
+		;
+
+		$this->assertCount( 2, $infos, 'the start and the outcome' );
+	}
+
+	/**
 	 * Named, the step asks and walks at once, as it always did, and queues
 	 * nothing.
 	 *
@@ -694,6 +771,9 @@ class RepairQuietStartTest
 			// Part of key-namespace: the declarations are withdrawn once the
 			// keys they name are gone, in the same step and after it.
 			'withdrawLegacyDeclarations',
+			// Part of missing-stamps: what it says as it goes, handed to the
+			// walk as a callback.
+			'reportStamping',
 		];
 
 		$suspects = [];
@@ -759,6 +839,120 @@ class RepairQuietStartTest
 			],
 			$names,
 		);
+	}
+
+	/**
+	 * A repair whose stamping walks three files: one current, one nobody
+	 * vouches for, one that fails. The count is answered when $count is not
+	 * null, and asked for at most once.
+	 */
+	private function stepStamping( ?int $count ): RepairQuietStart
+	{
+		$metadataService = $this->createMock( MetadataService::class );
+		$metadataService->expects( $count === null ? $this->never() : $this->atMost( 1 ) )
+		                ->method( 'countUnstampedFiles' )
+		                ->willReturn( (int) $count )
+		;
+		$metadataService->method( 'stampUnstampedAfter' )
+		                ->willReturnCallback(
+			                static function(
+				                int       $after = 0,
+				                int       $pageSize = 500,
+				                ?callable $continue = null,
+				                ?callable $onFile = null,
+			                ): array
+			                {
+				                $onFile( 5, [ 'current' => true, 'stamp' => 1000, 'hashes' => [ 'sha1' => str_repeat( 'a', 40 ) ] ] );
+				                $onFile( 6, [ 'current' => false, 'stamp' => 0, 'hashes' => [ 'sha1' => str_repeat( 'b', 40 ) ] ] );
+				                $onFile( 7, new RuntimeException( 'the document went away' ) );
+
+				                return [ 'stamped' => 2, 'queued' => 1, 'last' => 7, 'done' => true ];
+			                },
+		                )
+		;
+
+		return new RepairQuietStart(
+			$this->ruleService,
+			$metadataService,
+			$this->hashIndexService,
+			$this->appConfig,
+			$this->db,
+			$this->jobList,
+			$this->logger,
+		);
+	}
+
+	/**
+	 * What `occ fcias:repair` hands a step, at $level, keeping every line it
+	 * shows with the level it was written at: 0 for `info()`, `warning` for a
+	 * warning.
+	 *
+	 * @return VerboseOutput&object{lines: list<array{0: int|string, 1: string}>}
+	 */
+	private function verboseOutput( int $level ): VerboseOutput
+	{
+		return new class( $level )
+		    implements
+		    VerboseOutput {
+			/** @var list<array{0: int|string, 1: string}> */
+			public array $lines = [];
+
+
+//  constructor
+
+			public function __construct(
+				private readonly int $level,
+			) {
+			}
+
+
+//  other non-static methods
+
+			public function shows( int $level ): bool
+			{
+				return $level <= $this->level;
+			}
+
+			public function line(
+				int    $level,
+				string $message,
+			): void
+			{
+				if ( $this->shows( $level ) )
+				{
+					$this->lines[] = [ $level, $message ];
+				}
+			}
+
+			public function debug( string $message ): void
+			{
+			}
+
+			public function info( $message ): void
+			{
+				$this->lines[] = [ 0, $message ];
+			}
+
+			public function warning( $message ): void
+			{
+				$this->lines[] = [ 'warning', $message ];
+			}
+
+			public function startProgress( $max = 0 ): void
+			{
+			}
+
+			public function advance(
+				$step = 1,
+				$description = '',
+			): void
+			{
+			}
+
+			public function finishProgress(): void
+			{
+			}
+		};
 	}
 
 	/**

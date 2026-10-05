@@ -42,6 +42,9 @@ the first stable release.
 - `occ fcias:status`: the filecache and stamp-row counts, in the JSON
   as well, only with `--full`.
 
+- `occ fcias:repair`: warnings and errors go to standard error and
+  show under `-q`; nothing else does.
+
 - `GET /api/v1/file/{fileId}/hashes`, its `/sudo/` twin and
   `ChecksumApi::getHashesBy*()`: `hashes` is keyed by algorithm, and
   `updated_at` is the file's, null without a stamp; read `hashes` by
@@ -65,7 +68,7 @@ the first stable release.
 
 - Hashes saved without a stamp get one in the background after the
   upgrade, shown as *Checksum stamp check* on the status page
-  (`occ fcias:repair --step missing-stamps`).
+  (`occ fcias:repair --step missing-stamps`, `-v` to `-vvv` to follow).
 
 - A changed file's hashes leave the lookup, the listing, the duplicates
   and the sidebar until they are computed again, whatever mtime a sync
