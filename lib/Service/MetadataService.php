@@ -1399,10 +1399,16 @@ class MetadataService
 	 * the stamp row (`u`), the file it stamps (`fc`, `s`), and the filters.
 	 *
 	 * Every file holding a hash has a stamp row, and a hash is current while
-	 * its own row exists: the hash row is asked for with `EXISTS`, the
-	 * marker and the stamp are the driving row's own columns. A file with
-	 * hash rows and no stamp row is not listed until the `missing-stamps`
-	 * repair has given it one.
+	 * its own row exists: the hash rows are asked for per file, the marker
+	 * and the stamp are the driving row's own columns. A file with hash rows
+	 * and no stamp row is not listed until the `missing-stamps` repair has
+	 * given it one.
+	 *
+	 * The hash rows are counted rather than asked for with `EXISTS`, which
+	 * MariaDB rewrites into a join against every hash row of the instance,
+	 * materialized: 347 ms for the first page without `algo`, against 7 for
+	 * the count over a file's few rows. `LIMIT 1` would do as well, and is
+	 * not portable to Oracle inside a subquery.
 	 *
 	 * @param  list<array{storage: int, root: string}>|null  $mounts
 	 */
@@ -1414,7 +1420,7 @@ class MetadataService
 	): void
 	{
 		$hash = $this->db->getQueryBuilder();
-		$hash->select( $hash->createFunction( '1' ) )
+		$hash->select( $hash->func()->count( '*' ) )
 		     ->from( self::TABLE_FILES_METADATA_INDEX, 'h' )
 		     ->where(
 			     $hash->expr()
@@ -1441,7 +1447,7 @@ class MetadataService
 				      $qb->expr()
 				         ->notLike( 'u.' . self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( self::STALE_LIKE ) ),
 			      ),
-			   $qb->createFunction( 'EXISTS (' . $hash->getSQL() . ')' ),
+			   $qb->createFunction( '(' . $hash->getSQL() . ') > 0' ),
 		   )
 		;
 
