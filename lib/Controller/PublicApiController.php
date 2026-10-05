@@ -505,22 +505,6 @@ class PublicApiController
 	}
 
 	/**
-	 * Get all checksums for a file by filecache ID.
-	 *
-	 * @noinspection PhpUnused
-	 */
-	/**
-	 * The algorithms this instance computes, and the one used when none is
-	 * named.
-	 *
-	 * Neither is fixed: the set is what PHP offers narrowed to what the
-	 * administrator allows, and every picker in the app reads it from here
-	 * rather than carrying its own copy — which is what lets an
-	 * administrator enable `sha384` without a release.
-	 *
-	 * @noinspection PhpUnused
-	 */
-	/**
 	 * One of the caller's own preferences.
 	 *
 	 * `/api/v1/preferences/{key}` was reserved by AP RuleBands for exactly
@@ -623,6 +607,17 @@ class PublicApiController
 		];
 	}
 
+	/**
+	 * The algorithms this instance computes, and the one used when none is
+	 * named.
+	 *
+	 * Neither is fixed: the set is what PHP offers narrowed to what the
+	 * administrator allows, and every picker in the app reads it from here
+	 * rather than carrying its own copy — which is what lets an
+	 * administrator enable `sha384` without a release.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
 	#[ApiRoute( verb: 'GET', url: '/api/v1/algorithms' )]
@@ -634,6 +629,11 @@ class PublicApiController
 		] );
 	}
 
+	/**
+	 * Get all checksums for a file by filecache ID.
+	 *
+	 * @noinspection PhpUnused
+	 */
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
 	#[UserRateLimit( limit: 60, period: 60 )]

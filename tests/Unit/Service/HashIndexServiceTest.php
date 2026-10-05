@@ -715,11 +715,6 @@ class HashIndexServiceTest
 	}
 
 	/**
-	 * @param  int[]  $fileIds
-	 *
-	 * @return array<int, array{path: string, name: string, storage_id: string, user: string}>
-	 */
-	/**
 	 * Every listed file says whose it is and where it lives. Across accounts
 	 * a path alone cannot: it is one viewer's name for the file, and several
 	 * people's copies of one document all answer to the same one.
@@ -739,6 +734,11 @@ class HashIndexServiceTest
 		$this->assertSame( '/bob/files/f42.pdf', $files[0]['location'] );
 	}
 
+	/**
+	 * @param  int[]  $fileIds
+	 *
+	 * @return array<int, array{path: string, name: string, storage_id: string, user: string}>
+	 */
 	private function paths( array $fileIds ): array
 	{
 		$paths = [];

@@ -579,14 +579,6 @@ class FilecacheService
 	}
 
 	/**
-	 * One page of a storage's filecache rows, classified — for non-home
-	 * sweeps, which iterate the storage once instead of once per member
-	 * view. Keyset-paged like the backfill.
-	 *
-	 * @return FileLocation[]
-	 * @throws \OCP\DB\Exception
-	 */
-	/**
 	 * A page of a storage's files, keyset-ordered by file id.
 	 *
 	 * Each row carries this app's `updated_at` stamp from the metadata index
@@ -596,6 +588,9 @@ class FilecacheService
 	 * so a sweep of an already-hashed instance fetches nothing rather than
 	 * every file. The stamp is one row of the index (`meta_key =
 	 * file-checksum-updated_at`); the LEFT JOIN pins that key.
+	 *
+	 * @return FileLocation[]
+	 * @throws \OCP\DB\Exception
 	 */
 	public function pageStorageFiles(
 		int  $storageNumericId,
@@ -715,20 +710,6 @@ class FilecacheService
 	}
 
 	/**
-	 * Resolve a fileid to a node, searching every storage.
-	 *
-	 * Two things a caller must handle. It throws rather than returning null
-	 * when nothing matches, and it returns a Node — a folder resolves as
-	 * happily as a file, so anything that means to hash the result has to
-	 * check that it got a File.
-	 *
-	 * This bypasses per-user reachability by design; a caller answering a
-	 * request must apply its own, normally by resolving through the user's
-	 * folder instead.
-	 *
-	 * @throws NotFoundException  No file with this id, in any storage.
-	 */
-	/**
 	 * The sizes the filecache records for these files, by id.
 	 *
 	 * Known before anything is read, which is the point: a caller about to
@@ -829,6 +810,20 @@ class FilecacheService
 		return self::parseChecksumString( is_string( $checksum ) ? $checksum : '' );
 	}
 
+	/**
+	 * Resolve a fileid to a node, searching every storage.
+	 *
+	 * Two things a caller must handle. It throws rather than returning null
+	 * when nothing matches, and it returns a Node — a folder resolves as
+	 * happily as a file, so anything that means to hash the result has to
+	 * check that it got a File.
+	 *
+	 * This bypasses per-user reachability by design; a caller answering a
+	 * request must apply its own, normally by resolving through the user's
+	 * folder instead.
+	 *
+	 * @throws NotFoundException  No file with this id, in any storage.
+	 */
 	public function getNodeById( int $fileId ): Node
 	{
 		$nodes = $this->rootFolder->getById( $fileId );

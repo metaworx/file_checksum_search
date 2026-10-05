@@ -404,10 +404,6 @@ class SudoRouteTest
 	}
 
 	/**
-	 * In or out of the admin group — the one thing that decides whether
-	 * the account is a sudoer here.
-	 */
-	/**
 	 * Make the account the leader of a group of its own, or undo that.
 	 * Core's delegation is set through ISubAdmin — no occ command exposes
 	 * it — and the group is created and deleted with it so nothing is left
@@ -446,6 +442,10 @@ class SudoRouteTest
 		$group->delete();
 	}
 
+	/**
+	 * In or out of the admin group — the one thing that decides whether
+	 * the account is a sudoer here.
+	 */
 	private static function adminGroup( bool $member ): void
 	{
 		$user  = Server::get( IUserManager::class )->get( self::$uid );

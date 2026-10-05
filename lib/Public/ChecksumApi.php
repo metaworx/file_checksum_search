@@ -1083,14 +1083,6 @@ class ChecksumApi
 //  static methods
 
 	/**
-	 * The ID of the rule that forbids hashing this file, or null if none does.
-	 *
-	 * Only `exclude` blocks a deliberate, user-initiated recalculation.
-	 * `ignore` merely stops *automatic* hashing — asking for it by hand is
-	 * exactly the case it leaves open — and an unmatched file was never
-	 * governed by a rule at all.
-	 */
-	/**
 	 * Whose a rule is, for a message: `admin` for an enforced rule and for
 	 * any rule that is not on one account's home — those only an
 	 * administrator can make — else the uid the `home:<uid>` selector names.
@@ -1121,6 +1113,11 @@ class ChecksumApi
 
 	/**
 	 * The exclude rule governing $fileId, or null where none does.
+	 *
+	 * Only `exclude` blocks a deliberate, user-initiated recalculation.
+	 * `ignore` merely stops *automatic* hashing — asking for it by hand is
+	 * exactly the case it leaves open — and an unmatched file was never
+	 * governed by a rule at all.
 	 *
 	 * @return array<string, mixed>|null
 	 */

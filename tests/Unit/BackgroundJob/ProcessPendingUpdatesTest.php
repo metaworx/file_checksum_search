@@ -100,13 +100,12 @@ class ProcessPendingUpdatesTest
 //  other non-static methods
 
 	/**
-	 * @noinspection PhpConditionAlreadyCheckedInspection
-	 */
-	/**
 	 * The clearing itself lives in RuleService — it asks the rules what
 	 * should happen to a disowned file, which is what that class is for, and
 	 * the repair calls the same method. What the job owes is asking for it,
 	 * before it spends the run on hashing.
+	 *
+	 * @noinspection PhpConditionAlreadyCheckedInspection
 	 */
 	public function testTheJobDelegatesDisownedClearingToTheRules(): void
 	{
