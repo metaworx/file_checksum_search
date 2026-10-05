@@ -152,12 +152,15 @@ hash by hash.
         // ...
     ],
     'next' => 185323,
+    'now' => 1791206400,
     'estimated_total' => 57459,
 ]
 ```
 
 - **Paging.** Pass `next` back as `$after` until it is `null`. The cursor
   is a file id, so a file deleted between two pages moves nothing.
+- **`now`** is this server's clock, Unix seconds, taken before the page was
+  read. Keep the first page's: it is the `$since` of the next run.
 - **The count.** From the start, `$after` 0, the answer carries
   `estimated_total`: the files the whole listing holds under the same
   filters. An estimate: files come and go while a listing is read. With
@@ -189,8 +192,8 @@ hash by hash.
   with a hash — in `$algo`, where one is named — written to this instance
   at or after it: computed, taken over, imported, or computed again after a
   change of the content. A hash written again with the value it had is not
-  written, and keeps its time. Pass the time the previous run began, by
-  this server's clock. Each file comes with all its listed hashes.
+  written, and keeps its time. Pass the `now` of the previous run's first
+  page. Each file comes with all its listed hashes.
 - **What the feed leaves out.** A file moved, renamed or deleted writes no
   hash, and a file whose content changed is out of the listing until its
   hashes are computed again: a copy kept with `$since` reads the whole
@@ -1000,12 +1003,15 @@ database — and would otherwise ask hash by hash. The files are the ones
     }
   ],
   "next": 185323,
+  "now": 1791206400,
   "estimated_total": 57459
 }
 ```
 
 - **Paging.** Pass `next` as `after` until `next` is `null`. The cursor is a
   file id, so a file deleted between two pages moves nothing.
+- **`now`** is the server's clock, Unix seconds, taken before the page was
+  read. Keep the first page's: it is the `since` of the next run.
 - **The count.** The first page, `after` 0 or absent, carries
   `estimated_total`: the files the whole listing holds under the same
   filters. An estimate: files come and go while a listing is read.
@@ -1025,8 +1031,8 @@ database — and would otherwise ask hash by hash. The files are the ones
   (`2026-09-02`, `2026-09-02T15:17:00+02:00`). A `+` the client did not
   encode arrives as a space and is read as the `+` it was; `t` and `z` may
   be lower case. Anything else, a date that does not exist included, is
-  **400**. Pass the time the previous run began by the server's clock — its
-  `Date` header says it.
+  **400**. Pass the `now` of the previous run's first page: the server's
+  clock, taken before that page was read.
 - **What the feed leaves out.** A file moved, renamed or deleted writes no
   hash, and a changed file is out of the listing until its hashes are
   computed again: a copy kept with `since` reads the whole listing now and

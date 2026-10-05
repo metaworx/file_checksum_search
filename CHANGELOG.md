@@ -21,8 +21,9 @@ the first stable release.
 
 - `GET /api/v1/hashes`, its `/sudo/` twin and
   `ChecksumApi::listHashes()`: every hash in reach, paged by file id,
-  with `since` for the hashes written after a time, 300 requests a
-  minute; `ChecksumApi::iterateHashes()` walks it whole in process
+  with `since` for the hashes written after a time, and `now` to pass
+  as the next run's, 300 requests a minute;
+  `ChecksumApi::iterateHashes()` walks it whole in process
   (`docs/api-v1.md`).
 
 ### Changed

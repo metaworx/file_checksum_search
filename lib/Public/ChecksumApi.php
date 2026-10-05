@@ -425,8 +425,9 @@ class ChecksumApi
 	 *
 	 * `since` lists the files with a hash written to this instance at or
 	 * after it — computed, taken over, imported, or computed again after a
-	 * change: a feed of hashes added or changed. Pass the time the previous
-	 * run began, by this server's clock. A file moved, renamed or deleted
+	 * change: a feed of hashes added or changed. Pass the `now` of the
+	 * previous run's first page: this server's clock, taken before that
+	 * page was read. A file moved, renamed or deleted
 	 * writes no hash, and is not in the feed; a copy kept with it reads the
 	 * whole listing now and then for those. Hashes written before their rows
 	 * carried a time are in no feed: a copy starts with the whole listing.
@@ -446,10 +447,12 @@ class ChecksumApi
 	 * @param  bool               $withLocalPath  Each entry gains `localPath`,
 	 *                                            as {@see findByHash()}.
 	 *
-	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>}>, next: ?int, estimated_total?: int}
+	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>}>, next: ?int, now: int, estimated_total?: int}
 	 *         `next` is null when no file follows, and echoes $after for a
-	 *         count. Starting from 0, `estimated_total` counts the whole
-	 *         listing: an estimate, as files come and go while it is read.
+	 *         count. `now` is this server's clock, unix seconds, taken before
+	 *         the page was read. Starting from 0, `estimated_total` counts the
+	 *         whole listing: an estimate, as files come and go while it is
+	 *         read.
 	 * @throws \OCP\DB\Exception
 	 */
 	public function listHashes(

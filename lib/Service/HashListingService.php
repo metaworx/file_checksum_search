@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Service;
 
 use Generator;
+use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\DB\Exception;
 
 /**
@@ -48,6 +49,7 @@ class HashListingService
 		private readonly MetadataService  $metadataService,
 		private readonly FilecacheService $filecacheService,
 		private readonly ReachResolver    $reach,
+		private readonly ITimeFactory     $time,
 	) {
 	}
 
@@ -129,9 +131,11 @@ class HashListingService
 	 * @param  bool               $withLocalPath  Each entry gains `localPath`,
 	 *                                            as {@see FilecacheService::localPaths()}.
 	 *
-	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>}>, next: ?int, estimated_total?: int}
+	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>}>, next: ?int, now: int, estimated_total?: int}
 	 *         `next` is the file id to pass as `after` while files remain,
-	 *         null when none do, and `after` itself for a count. With no
+	 *         null when none do, and `after` itself for a count. `now` is
+	 *         this server's clock, unix seconds, taken before the page is
+	 *         read: the first page's is the `since` of the next run. With no
 	 *         `after`, `estimated_total` counts the whole listing: an
 	 *         estimate, as files come and go while it is read.
 	 * @throws Exception
@@ -154,6 +158,11 @@ class HashListingService
 		$answer = [
 			'files' => [],
 			'next'  => $after,
+			// Before anything is read: a hash written while the listing is
+			// read has a time at or after it, and is in the next run's feed.
+			// The clock the hash rows are written with, so a client's own
+			// clock never enters into it.
+			'now'   => $this->time->getTime(),
 		];
 
 		if ( $limit > 0 )

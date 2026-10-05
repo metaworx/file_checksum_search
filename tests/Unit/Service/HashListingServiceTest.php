@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\Service\FileLocation;
 use OCA\FileChecksumSearch\Service\HashListingService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\ReachResolver;
+use OCP\AppFramework\Utility\ITimeFactory;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -22,6 +23,12 @@ class HashListingServiceTest
     TestCase
 {
 
+//  constants
+
+	/** The server's clock while the tests list. */
+	private const NOW = 1_800_000_000;
+
+
 //  private properties
 
 	private MetadataService&MockObject  $metadata;
@@ -29,6 +36,8 @@ class HashListingServiceTest
 	private FilecacheService&MockObject $filecache;
 
 	private ReachResolver&MockObject    $reach;
+
+	private ITimeFactory&MockObject     $time;
 
 	private HashListingService          $listing;
 
@@ -42,8 +51,12 @@ class HashListingServiceTest
 		$this->metadata  = $this->createMock( MetadataService::class );
 		$this->filecache = $this->createMock( FilecacheService::class );
 		$this->reach     = $this->createMock( ReachResolver::class );
+		$this->time      = $this->createMock( ITimeFactory::class );
+		$this->time->method( 'getTime' )
+		           ->willReturn( self::NOW )
+		;
 
-		$this->listing = new HashListingService( $this->metadata, $this->filecache, $this->reach );
+		$this->listing = new HashListingService( $this->metadata, $this->filecache, $this->reach, $this->time );
 	}
 
 
@@ -117,10 +130,47 @@ class HashListingServiceTest
 					],
 				],
 				'next'            => null,
+				'now'             => self::NOW,
 				'estimated_total' => 2,
 			],
 			$page,
 		);
+	}
+
+	/**
+	 * `now` is the server's clock, taken before anything is read: a hash
+	 * written while the page is read is in the next run's feed, not lost
+	 * between two runs.
+	 */
+	public function testNowIsTakenBeforeThePageIsRead(): void
+	{
+		$order      = [];
+		$this->time = $this->createMock( ITimeFactory::class );
+		$this->time->method( 'getTime' )
+		           ->willReturnCallback(
+			           static function() use ( &$order ): int
+			           {
+				           $order[] = 'clock';
+
+				           return self::NOW;
+			           },
+		           )
+		;
+		$this->metadata->method( 'pageListedFiles' )
+		               ->willReturnCallback(
+			               static function() use ( &$order ): array
+			               {
+				               $order[] = 'page';
+
+				               return [];
+			               },
+		               )
+		;
+
+		$listing = new HashListingService( $this->metadata, $this->filecache, $this->reach, $this->time );
+
+		$this->assertSame( self::NOW, $listing->page( null, null, 500, 20 )['now'] );
+		$this->assertSame( [ 'clock', 'page' ], $order );
 	}
 
 	/**
@@ -166,11 +216,11 @@ class HashListingServiceTest
 		;
 
 		$this->assertSame(
-			[ 'files' => [], 'next' => 0, 'estimated_total' => 57459 ],
+			[ 'files' => [], 'next' => 0, 'now' => self::NOW, 'estimated_total' => 57459 ],
 			$this->listing->page( null, 'sha256', 0, 0, 1700000000 ),
 		);
 		$this->assertSame(
-			[ 'files' => [], 'next' => 500 ],
+			[ 'files' => [], 'next' => 500, 'now' => self::NOW ],
 			$this->listing->page( null, 'sha256', 0, 500 ),
 		);
 	}
@@ -189,7 +239,7 @@ class HashListingServiceTest
 		;
 
 		$this->assertSame(
-			[ 'files' => [], 'next' => null, 'estimated_total' => 0 ],
+			[ 'files' => [], 'next' => null, 'now' => self::NOW, 'estimated_total' => 0 ],
 			$this->listing->page( null, 'md5', 5000, - 3, 1700000000 ),
 		);
 	}

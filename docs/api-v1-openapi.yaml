@@ -1299,7 +1299,7 @@ components:
         sha256: {algo: sha256, hash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}
     HashListResponse:
       type: object
-      required: [files, next]
+      required: [files, next, now]
       properties:
         files:
           type: array
@@ -1312,6 +1312,13 @@ components:
             The file id to pass as `after` for the next page; null when no file follows. With
             `limit=0` it is `after` itself, so a count is never read as the end.
           example: 185323
+        now:
+          type: integer
+          description: >-
+            The server's clock, Unix seconds, taken before the page was read. The first page's is
+            the `since` of the next run: a hash written while a listing is read is in the next
+            run's feed.
+          example: 1791206400
         estimated_total:
           type: integer
           description: >-

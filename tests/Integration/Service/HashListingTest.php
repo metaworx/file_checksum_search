@@ -266,9 +266,17 @@ class HashListingTest
 	 */
 	public function testAReachHoldingNothingListsNothing(): void
 	{
+		$before = time();
+		$page   = $this->api->listHashes( [ 'fcias_list_nobody_' . bin2hex( random_bytes( 4 ) ) ] );
+
+		// The server's clock, for the next run's `since`, whatever was found.
+		$this->assertGreaterThanOrEqual( $before, $page['now'] );
+		$this->assertLessThanOrEqual( time(), $page['now'] );
+		unset( $page['now'] );
+
 		$this->assertSame(
 			[ 'files' => [], 'next' => null, 'estimated_total' => 0 ],
-			$this->api->listHashes( [ 'fcias_list_nobody_' . bin2hex( random_bytes( 4 ) ) ] ),
+			$page,
 		);
 	}
 
