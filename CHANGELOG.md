@@ -76,6 +76,10 @@ the first stable release.
   and the sidebar until they are computed again, whatever mtime a sync
   client sets (`README.md`, *When hashes go away*).
 
+- Queue and reset markers survive another app's metadata save, which
+  brought a reset hash back into the lookup and took a queued file off
+  the queue (`occ fcias:repair --step marker-row`).
+
 ### Security
 
 - Reach: in the request that first records a received share, the

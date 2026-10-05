@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
+use ArrayObject;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\FileLocation;
@@ -259,21 +260,25 @@ class MetadataServiceTest
 		}
 	}
 
-	public function testMarkPendingUpdatesTheExistingIndexRow(): void
+	/**
+	 * The marker is a row of its own, replaced rather than updated: an
+	 * UPDATE writing the value a row already holds reports zero on MySQL,
+	 * and reading that as "no row" inserted a duplicate. The stamp row is
+	 * not written: Nextcloud rewrites it from the document on any app's
+	 * save, which is how a marker kept there was lost.
+	 */
+	public function testMarkPendingReplacesTheStateRow(): void
 	{
-		$this->queryBuilder->expects( $this->once() )
+		$this->queryBuilder->expects( $this->never() )
 		                   ->method( 'update' )
+		;
+		$this->queryBuilder->expects( $this->once() )
+		                   ->method( 'delete' )
 		                   ->with( 'files_metadata_index' )
 		                   ->willReturnSelf()
 		;
 
-		// The row is there, so no INSERT leg runs. Existence is a question
-		// asked of the table, not inferred from affected rows: an UPDATE
-		// writing the value a row already holds reports zero on MySQL, and
-		// reading that as "no row" inserted a duplicate.
-		$this->queryBuilder->expects( $this->never() )
-		                   ->method( 'insert' )
-		;
+		$inserted = $this->captureInsertedRows();
 
 		$result = $this->createMock( IResult::class );
 		$result->method( 'fetchOne' )
@@ -282,83 +287,53 @@ class MetadataServiceTest
 		$this->queryBuilder->method( 'executeQuery' )
 		                   ->willReturn( $result )
 		;
-		$this->queryBuilder->method( 'executeStatement' )
-		                   ->willReturn( 0 )
-		;
 
 		$this->service->markPending( 42, 'pending:auto' );
+
+		$this->assertSame(
+			[ [ 42, MetadataService::KEY_FILE_CHECKSUM_STATE, 'pending:auto', 0 ] ],
+			$inserted->getArrayCopy(),
+		);
 	}
 
-	public function testMarkPendingInsertsWhenTheFileWasNeverConsidered(): void
+	public function testMarkPendingGivesANeverConsideredFileAStampRowOfZero(): void
 	{
 		// Regression: this used to be a silent no-op by documented contract
 		// ("seeding handles that"), which made RuleProcessingJob's marking
 		// silently fail for any file the 21-hour seed had not reached yet.
-		$this->queryBuilder->expects( $this->once() )
-		                   ->method( 'update' )
-		                   ->willReturnSelf()
-		;
+		$inserted = $this->captureInsertedRows();
 
-		$this->queryBuilder->expects( $this->once() )
-		                   ->method( 'insert' )
-		                   ->with( 'files_metadata_index' )
-		                   ->willReturnSelf()
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchOne' )
+		       ->willReturn( false )
 		;
-
-		$this->queryBuilder->expects( $this->once() )
-		                   ->method( 'values' )
-		                   ->willReturnSelf()
-		;
-
-		// First executeStatement = the UPDATE (misses), second = the INSERT.
-		$this->queryBuilder->method( 'executeStatement' )
-		                   ->willReturnOnConsecutiveCalls( 0, 1 )
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
 		;
 
 		$this->service->markPending( 42, 'pending:missing' );
+
+		$this->assertSame(
+			[
+				[ 42, MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, '', 0 ],
+				[ 42, MetadataService::KEY_FILE_CHECKSUM_STATE, 'pending:missing', 0 ],
+			],
+			$inserted->getArrayCopy(),
+		);
 	}
 
-	public function testMarkPendingRetriesAsUpdateWhenLosingTheInsertRace(): void
+	public function testDroppingTheMarkLeavesNoStateRow(): void
 	{
-		$this->queryBuilder->method( 'update' )
+		$this->queryBuilder->expects( $this->once() )
+		                   ->method( 'delete' )
+		                   ->with( 'files_metadata_index' )
 		                   ->willReturnSelf()
 		;
-		$this->queryBuilder->method( 'insert' )
-		                   ->willReturnSelf()
-		;
-		$this->queryBuilder->method( 'values' )
-		                   ->willReturnSelf()
+		$this->queryBuilder->expects( $this->never() )
+		                   ->method( 'insert' )
 		;
 
-		$calls = 0;
-		$this->queryBuilder->method( 'executeStatement' )
-		                   ->willReturnCallback(
-			                   static function() use
-			                   (
-				                   &
-				                   $calls,
-			                   ): int
-			                   {
-				                   $calls ++;
-
-				                   // 1st: UPDATE misses. 2nd: INSERT collides
-				                   // with a concurrent writer. 3rd: retry
-				                   // UPDATE, which now hits.
-				                   if ( $calls === 2 )
-				                   {
-					                   throw new Exception( 'duplicate key' );
-				                   }
-
-				                   return $calls === 3
-					                   ? 1
-					                   : 0;
-			                   },
-		                   )
-		;
-
-		$this->service->markPending( 42, 'pending:auto' );
-
-		$this->assertSame( 3, $calls );
+		$this->service->markPending( 42, '' );
 	}
 
 	public function testMarkErodedStripsHashesAndStampsTheIndexRow(): void
@@ -382,11 +357,10 @@ class MetadataServiceTest
 		                      ->with( $metadata )
 		;
 
-		// Two things follow the save, and both have to: the marker is written
-		// after it because saving regenerates the row for updated_at, and the
-		// hash rows are deleted because the hash keys are *not* indexed by
-		// Nextcloud any more — nothing else would remove them, and the file
-		// would keep answering searches by hashes it no longer has.
+		// Two things follow the save: the marker, in its own row, and the
+		// deletion of the hash rows, because the hash keys are *not* indexed
+		// by Nextcloud any more — nothing else would remove them, and the
+		// file would keep answering searches by hashes it no longer has.
 		$deleted = 0;
 		$this->queryBuilder->method( 'delete' )
 		                   ->willReturnCallback(
@@ -408,32 +382,12 @@ class MetadataServiceTest
 		                   )
 		;
 
-		$marker = null;
-		$this->queryBuilder->method( 'set' )
-		                   ->willReturnCallback(
-			                   function(
-				                   $column,
-				                   $value,
-			                   ) use
-			                   (
-				                   &
-				                   $marker,
-			                   )
-			                   {
-				                   if ( $column === MetadataService::FIELD_META_VALUE_STRING )
-				                   {
-					                   $marker = $value;
-				                   }
-
-				                   return $this->queryBuilder;
-			                   },
-		                   )
-		;
+		$inserted = $this->captureInsertedRows();
 		$this->queryBuilder->method( 'executeStatement' )
 		                   ->willReturn( 1 )
 		;
 
-		// The file's one hash row, as the index holds it.
+		// The file's one hash row, as the index holds it, and its stamp row.
 		$result = $this->createMock( IResult::class );
 		$result->method( 'fetchAllAssociative' )
 		       ->willReturn(
@@ -446,14 +400,20 @@ class MetadataServiceTest
 			       ],
 		       )
 		;
+		$result->method( 'fetchOne' )
+		       ->willReturn( 42 )
+		;
 		$this->queryBuilder->method( 'executeQuery' )
 		                   ->willReturn( $result )
 		;
 
 		$this->service->markEroded( 42 );
 
-		$this->assertSame( 1, $deleted, 'the hash index rows go with the hashes' );
-		$this->assertSame( MetadataService::STATE_ERODED, $marker );
+		$this->assertSame( 2, $deleted, 'the hash row, and the state row the marker replaces' );
+		$this->assertSame(
+			[ [ 42, MetadataService::KEY_FILE_CHECKSUM_STATE, MetadataService::STATE_ERODED, 0 ] ],
+			$inserted->getArrayCopy(),
+		);
 	}
 
 	public function testBackfillHashesAddsOnlyAbsentKeysAndStampsMtime(): void
@@ -723,23 +683,11 @@ class MetadataServiceTest
 		$this->assertNull( $ts );
 	}
 
-	public function testMarkPendingSqlContainsExpectedClauses(): void
+	public function testMarkPendingDeletesOnlyTheFilesStateRow(): void
 	{
-		$capturedParams = [];
-
 		$this->queryBuilder->expects( $this->once() )
-		                   ->method( 'update' )
+		                   ->method( 'delete' )
 		                   ->with( 'files_metadata_index' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->expects( $this->once() )
-		                   ->method( 'set' )
-		                   ->with( 'meta_value_string', 'pending:auto' )
-		                   ->willReturnSelf()
-		;
-
-		$this->queryBuilder->method( 'where' )
 		                   ->willReturnSelf()
 		;
 
@@ -750,13 +698,11 @@ class MetadataServiceTest
 		$this->queryBuilder->method( 'executeQuery' )
 		                   ->willReturn( $result )
 		;
-		$this->queryBuilder->method( 'executeStatement' )
-		                   ->willReturn( 1 )
-		;
 
-		// The same two columns are compared by the update and by the
-		// existence check that follows it, so the count is not the point —
-		// what each comparison names is.
+		// The delete and the stamp row's existence check compare the same
+		// two columns, so what matters is that the delete names the state
+		// key, and that nothing deletes by the stamp's.
+		$compared = [];
 		$this->expr->method( 'eq' )
 		           ->willReturnCallback(
 			           function(
@@ -765,10 +711,10 @@ class MetadataServiceTest
 			           ) use
 			           (
 				           &
-				           $capturedParams,
+				           $compared,
 			           ): string
 			           {
-				           $capturedParams[ $column ] = $value;
+				           $compared[] = [ $column, $value ];
 
 				           return '1=1';
 			           },
@@ -777,10 +723,15 @@ class MetadataServiceTest
 
 		$this->service->markPending( 42, 'pending:auto' );
 
-		$this->assertArrayHasKey( 'file_id', $capturedParams );
-		$this->assertSame( 42, $capturedParams['file_id'] );
-		$this->assertArrayHasKey( 'meta_key', $capturedParams );
-		$this->assertSame( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $capturedParams['meta_key'] );
+		$this->assertSame(
+			[
+				[ MetadataService::FIELD_FILE_ID, 42 ],
+				[ MetadataService::FIELD_META_KEY, MetadataService::KEY_FILE_CHECKSUM_STATE ],
+				[ MetadataService::FIELD_FILE_ID, 42 ],
+				[ MetadataService::FIELD_META_KEY, MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ],
+			],
+			$compared,
+		);
 	}
 
 	public function testFetchPendingBatchQueriesCorrectKey(): void
@@ -1795,7 +1746,7 @@ class MetadataServiceTest
 		$joined = [];
 		$this->queryBuilder->method( 'leftJoin' )
 		                   ->willReturnCallback(
-			                   static function(
+			                   function(
 				                   $fromAlias,
 				                   $join,
 				                   $alias,
@@ -1807,7 +1758,7 @@ class MetadataServiceTest
 			                   {
 				                   $joined[] = (string) $alias;
 
-				                   return null;
+				                   return $this->queryBuilder;
 			                   },
 		                   )
 		;
@@ -1852,33 +1803,26 @@ class MetadataServiceTest
 
 	public function testMarkStaleWritesOnlyTheMarker(): void
 	{
-		// The whole point of deferring: one UPDATE over the index, with the
+		// The whole point of deferring: a state row per file, with the
 		// hashes and the freshness stamp untouched for the drain — or for an
-		// import that gets there first.
-		$sets = [];
-		$this->queryBuilder->method( 'set' )
-		                   ->willReturnCallback(
-			                   function(
-				                   $column,
-				                   $value,
-			                   ) use
-			                   (
-				                   &
-				                   $sets,
-			                   )
-			                   {
-				                   $sets[] = (string) $column;
+		// import that gets there first. Of the three, the app has considered
+		// two; the third has no hashes to disown.
+		$this->queryBuilder->expects( $this->never() )
+		                   ->method( 'update' )
+		;
+		$this->metadataManager->expects( $this->never() )
+		                      ->method( 'saveMetadata' )
+		;
 
-				                   return $this->queryBuilder;
-			                   },
-		                   )
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchFirstColumn' )
+		       ->willReturn( [ '1', '3' ] )
 		;
-		$this->queryBuilder->method( 'executeStatement' )
-		                   ->willReturn( 3 )
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
 		;
-		$this->expr->method( 'in' )
-		           ->willReturn( 'file_id IN (:ids)' )
-		;
+
+		$inserted = $this->captureInsertedRows();
 
 		$marked = $this->service->markStale( [
 			1,
@@ -1886,12 +1830,18 @@ class MetadataServiceTest
 			3,
 		] );
 
-		$this->assertSame( 3, $marked );
-		$this->assertSame( [ MetadataService::FIELD_META_VALUE_STRING ], $sets );
+		$this->assertSame( 2, $marked );
+		$this->assertSame(
+			[
+				[ 1, MetadataService::KEY_FILE_CHECKSUM_STATE, MetadataService::STATE_RESET, 0 ],
+				[ 3, MetadataService::KEY_FILE_CHECKSUM_STATE, MetadataService::STATE_RESET, 0 ],
+			],
+			$inserted->getArrayCopy(),
+		);
 	}
 
 	/**
-	 * Only files that hold hashes. The marker shares its column with the
+	 * Only files that hold hashes. The marker shares its row with the
 	 * queue, so marking a file writes over whatever it was waiting for — and
 	 * a file with no hashes has nothing to disown, which would make resetting
 	 * the hashes quietly reset the queue as well.
@@ -1950,6 +1900,11 @@ class MetadataServiceTest
 				           return 'like';
 			           },
 		           )
+		;
+
+		// Both have their stamp row.
+		$result->method( 'fetchFirstColumn' )
+		       ->willReturn( [ 1, 2 ] )
 		;
 
 		$this->queryBuilder->method( 'executeQuery' )
@@ -2834,11 +2789,84 @@ class MetadataServiceTest
 		);
 	}
 
-	public function testClearQueueStateLeavesTheFreshnessStampAlone(): void
+	/**
+	 * Computing a file's hashes settles its place on the queue and its
+	 * erosion, and nothing else: a disowned file's hashes may still be in
+	 * its document.
+	 */
+	public function testClearingTheComputedMarkerLeavesADisownedFileDisowned(): void
 	{
-		// The stamp belongs to the hashes, not to the queue: clearing it
-		// would make every file look as though it had never been hashed.
-		$sets = [];
+		$this->queryBuilder->method( 'executeStatement' )
+		                   ->willReturn( 1 )
+		;
+
+		$this->assertTrue( $this->service->clearComputedMarker( 42 ) );
+		$this->assertSame(
+			[
+				MetadataService::PENDING_LIKE,
+				MetadataService::STATE_ERODED,
+			],
+			$this->capturedLikes,
+		);
+	}
+
+	/**
+	 * A page of stamp rows carrying a marker: each moves to a state row
+	 * unless the file has one already, which is the newer, and the stamp
+	 * rows' string half is cleared for the whole page. The next page is
+	 * empty, so it stops.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testMovingTheMarkersKeepsAStateWrittenSince(): void
+	{
+		$pages = [
+			[
+				[
+					MetadataService::FIELD_FILE_ID           => '5',
+					MetadataService::FIELD_META_VALUE_STRING => 'pending:auto',
+				],
+				[
+					MetadataService::FIELD_FILE_ID           => '9',
+					MetadataService::FIELD_META_VALUE_STRING => MetadataService::STATE_RESET,
+				],
+			],
+			[],
+		];
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchAssociative' )
+		       ->willReturnCallback(
+			       static function() use
+			       (
+				       &
+				       $pages,
+			       ): array|false
+			       {
+				       $row = array_shift( $pages[0] );
+
+				       if ( $row === null )
+				       {
+					       array_shift( $pages );
+
+					       return false;
+				       }
+
+				       return $row;
+			       },
+		       )
+		;
+		// File 9 has a state row already.
+		$result->method( 'fetchFirstColumn' )
+		       ->willReturn( [ 9 ] )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$inserted = $this->captureInsertedRows();
+
+		$cleared = [];
 		$this->queryBuilder->method( 'set' )
 		                   ->willReturnCallback(
 			                   function(
@@ -2847,25 +2875,67 @@ class MetadataServiceTest
 			                   ) use
 			                   (
 				                   &
-				                   $sets,
+				                   $cleared,
 			                   )
 			                   {
-				                   $sets[] = (string) $column;
+				                   $cleared[] = [ $column, $value ];
 
 				                   return $this->queryBuilder;
 			                   },
 		                   )
 		;
+		$this->db->expects( $this->once() )
+		         ->method( 'commit' )
+		;
+
+		$this->assertSame( 1, $this->service->moveMarkersToStateRows() );
+		$this->assertSame(
+			[ [ 5, MetadataService::KEY_FILE_CHECKSUM_STATE, 'pending:auto', 0 ] ],
+			$inserted->getArrayCopy(),
+		);
+		$this->assertSame( [ [ MetadataService::FIELD_META_VALUE_STRING, null ] ], $cleared );
+	}
+
+	public function testClearQueueStateLeavesTheFreshnessStampAlone(): void
+	{
+		// The stamp belongs to the hashes, not to the queue: clearing it
+		// would make every file look as though it had never been hashed.
+		$this->queryBuilder->expects( $this->never() )
+		                   ->method( 'update' )
+		;
+		$this->queryBuilder->expects( $this->once() )
+		                   ->method( 'delete' )
+		                   ->with( 'files_metadata_index' )
+		                   ->willReturnSelf()
+		;
 		$this->queryBuilder->method( 'executeStatement' )
 		                   ->willReturn( 7 )
 		;
-		$this->expr->method( 'isNotNull' )
-		           ->willReturn( 'x IS NOT NULL' )
+
+		$compared = [];
+		$this->expr->method( 'eq' )
+		           ->willReturnCallback(
+			           function(
+				           string $column,
+				                  $value,
+			           ) use
+			           (
+				           &
+				           $compared,
+			           ): string
+			           {
+				           $compared[] = [ $column, $value ];
+
+				           return '1=1';
+			           },
+		           )
 		;
 
 		$this->assertSame( 7, $this->service->clearQueueState() );
-		$this->assertSame( [ MetadataService::FIELD_META_VALUE_STRING ], $sets );
-		$this->assertNotContains( MetadataService::FIELD_META_VALUE_INT, $sets );
+		$this->assertSame(
+			[ [ MetadataService::FIELD_META_KEY, MetadataService::KEY_FILE_CHECKSUM_STATE ] ],
+			$compared,
+		);
 	}
 
 	public function testClearingRemovesTheIndexRowsSavingLeavesBehind(): void
@@ -3102,6 +3172,39 @@ class MetadataServiceTest
 		$this->queryBuilder->method( 'executeQuery' )
 		                   ->willReturn( $result )
 		;
+	}
+
+	/**
+	 * Every index row inserted, as [file id, key, string, int], in order.
+	 *
+	 * @return ArrayObject<int, array{mixed, mixed, mixed, mixed}>
+	 */
+	private function captureInsertedRows(): ArrayObject
+	{
+		$rows = new ArrayObject();
+
+		$this->queryBuilder->method( 'values' )
+		                   ->willReturnCallback(
+			                   function(
+				                   array $values,
+			                   ) use
+			                   (
+				                   $rows,
+			                   )
+			                   {
+				                   $rows[] = [
+					                   $values[ MetadataService::FIELD_FILE_ID ] ?? null,
+					                   $values[ MetadataService::FIELD_META_KEY ] ?? null,
+					                   $values[ MetadataService::FIELD_META_VALUE_STRING ] ?? null,
+					                   $values[ MetadataService::FIELD_META_VALUE_INT ] ?? null,
+				                   ];
+
+				                   return $this->queryBuilder;
+			                   },
+		                   )
+		;
+
+		return $rows;
 	}
 
 	/**

@@ -21,10 +21,10 @@ most of understanding this app:
 FCIAS writes one key per algorithm into the metadata document
 (`file-checksum-hash-sha256`, and so on) alongside a `file-checksum-updated_at`
 stamp recording when the file was last considered, then writes its own index row
-for each hash. The stamp gets an index row too, and that row carries two things
-at once: the timestamp in its integer half, and in its string half what the file
-is waiting for (`pending:auto`) or why its hashes are not to be trusted
-(`stale:reset`). The hashes are additionally mirrored back into
+for each hash. The stamp gets an index row too. What the file is waiting for
+(`pending:auto`), or why its hashes are not to be trusted (`stale:reset`), is an
+index row of its own, `file-checksum-state`, which exists only while there is
+such a state. The hashes are additionally mirrored back into
 `oc_filecache.checksum`, where Nextcloud itself and sync clients look for them.
 
 **"Document" here never means the user's file.** A PDF has a metadata document,
@@ -507,8 +507,8 @@ never trusted from a user's request.
 
 ## Pending Hash Queue
 
-Work is queued by marking a file's `file-checksum-updated_at` metadata entry as `pending:<mode>` —
-by a file event, by the periodic sweep, by `rules:apply`, or by `hash --mark`. `ProcessPendingUpdates`
+Work is queued by giving a file a `file-checksum-state` index row of `pending:<mode>` — by a file
+event, by the periodic sweep, by `rules:apply`, or by `hash --mark`. `ProcessPendingUpdates`
 runs every 60 seconds and drains up to 50 entries per cycle, re-dispatching itself while the queue
 is still full.
 

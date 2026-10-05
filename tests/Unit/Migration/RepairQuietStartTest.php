@@ -811,7 +811,9 @@ class RepairQuietStartTest
 	 * Declaration order is the running order, so a method moved in the file
 	 * moves in the repair. This pins the order that matters: the key
 	 * declaration has to be refreshed before anything saves metadata, or
-	 * Nextcloud tries to index a hash it cannot fit and the row is lost.
+	 * Nextcloud tries to index a hash it cannot fit and the row is lost; and
+	 * the markers have to be in their own rows before any step reads or
+	 * writes one.
 	 */
 	public function testTheStepsRunInAnOrderThatWorks(): void
 	{
@@ -826,6 +828,7 @@ class RepairQuietStartTest
 			[
 				'selector-model',
 				'metadata-keys',
+				'marker-row',
 				'rebuild-from-filecache',
 				'key-namespace',
 				'missing-stamps',

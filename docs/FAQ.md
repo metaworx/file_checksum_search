@@ -73,13 +73,14 @@ The word *document* here never means the user's file. A PDF has a metadata
 document; so does a photo.
 
 **`oc_files_metadata_index`** — one row per file per key, and the only one of
-the two that a query can search. FCIAS writes its own hash rows here:
+the two that a query can search. FCIAS writes its own hash rows and state rows
+here:
 
-| Column | For a hash row | For the `updated_at` row |
-|--------|----------------|--------------------------|
-| `meta_key` | `file-checksum-hash-{algo}` | `file-checksum-updated_at` |
-| `meta_value_string` | the digest, **truncated to 63 characters** | the queue or trust state — `pending:auto`, `stale:reset`, … — or empty |
-| `meta_value_int` | 0 | the timestamp |
+| Column | For a hash row | For the `updated_at` row | For a state row |
+|--------|----------------|--------------------------|-----------------|
+| `meta_key` | `file-checksum-hash-{algo}` | `file-checksum-updated_at` | `file-checksum-state` |
+| `meta_value_string` | the digest, **truncated to 63 characters** | empty | the queue or trust state — `pending:auto`, `stale:reset`, … |
+| `meta_value_int` | when the hash was written | the timestamp | 0 |
 
 Two things surprise people here.
 
@@ -93,10 +94,15 @@ characters. Nothing marks a row as truncated, and nothing needs to: hex digests
 are even-length, so no whole digest is ever exactly 63 characters, and
 `meta_key` names the algorithm and therefore the length to expect.
 
-**The `updated_at` row does double duty.** Its integer half is the freshness
-stamp; its string half is what the file is waiting for or why its hashes are
-not to be trusted. Its absence means something too: every file holding a hash
-has one. Where the index holds the hash rows and not this one, the hashes were
+**The state row exists only while there is a state.** It says what the file
+is waiting for or why its hashes are not to be trusted; a file with none has
+nothing to do. It is a row of its own, not in the metadata document, because
+Nextcloud rewrites the `updated_at` row from the document whenever any app
+saves it, and a state kept there was lost on the next save by Photos or any
+other app that writes metadata.
+
+**The `updated_at` row's absence means something too:** every file holding a
+hash has one. Where the index holds the hash rows and not this one, the hashes were
 saved without a stamp, and `occ fcias:repair --step missing-stamps` gives them
 one, as every upgrade does in the background. A file whose metadata document
 holds hashes but which has no index rows at all is one the index has lost track

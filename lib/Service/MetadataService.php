@@ -30,7 +30,7 @@ use Throwable;
  *
  * Responsibilities:
  * - Key registration (initMetadata for every algorithm in force or ever written, + updated_at)
- * - Pending marking (meta_value_string = 'pending:{mode}')
+ * - Pending marking (a file-checksum-state row, 'pending:{mode}')
  * - Pending batch fetching
  * - Hash lookup by value
  * - Duplicate detection (GROUP BY + INNER JOIN metadata)
@@ -62,6 +62,16 @@ class MetadataService
 
 	public const KEY_FILE_CHECKSUM_LIKE       = self::KEY_FILE_CHECKSUM_HASH_PREFIX . '%';
 	public const KEY_FILE_CHECKSUM_UPDATED_AT = 'file-checksum-updated_at';
+
+	/**
+	 * A file's marker — `pending:<mode>`, or `stale:<reason>` — in an index
+	 * row of its own, written and read by this app alone and never in the
+	 * metadata document. Nextcloud rewrites the rows of a document's indexed
+	 * keys whenever any app saves it; a row whose key the document does not
+	 * hold it leaves alone, as it leaves the hash rows. The row exists only
+	 * while a file has a marker.
+	 */
+	public const KEY_FILE_CHECKSUM_STATE = 'file-checksum-state';
 
 	/**
 	 * Every algorithm a previous release could have written under the old key
@@ -270,7 +280,7 @@ class MetadataService
 		   ->from( self::TABLE_FILES_METADATA_INDEX )
 		   ->where(
 			   $qb->expr()
-			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_STATE ) ),
 			   $qb->expr()
 			      ->like(
 				      self::FIELD_META_VALUE_STRING,
@@ -341,13 +351,8 @@ class MetadataService
 	}
 
 	/**
-	 * The string half of a file's `file-checksum-updated_at` row: what it is
-	 * queued for (`pending:<mode>`) or why its hashes are not trusted
-	 * (`stale:…`). Null where there is none.
-	 *
-	 * A hint, not a proof: Nextcloud rewrites the row from the metadata
-	 * document whenever any app saves it, and the document does not hold
-	 * this half, so a marker can be lost. The stamp is what a write sets.
+	 * A file's marker: what it is queued for (`pending:<mode>`) or why its
+	 * hashes are not trusted (`stale:…`). Null where there is none.
 	 *
 	 * @throws \OCP\DB\Exception
 	 */
@@ -360,7 +365,7 @@ class MetadataService
 			   $qb->expr()
 			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
 			   $qb->expr()
-			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_STATE ) ),
 		   )
 		   ->setMaxResults( 1 )
 		;
@@ -380,6 +385,10 @@ class MetadataService
 	 * The stamp is set to zero rather than removed: a file with no stamp has
 	 * never been considered, while one stamped zero is older than any mtime
 	 * and so is picked up by the next sweep.
+	 *
+	 * Saved, the file's marker goes as well: whatever it was queued or
+	 * disowned for went with the hashes. A caller that wants it queued
+	 * marks it afterwards.
 	 *
 	 * $save is only honoured when the caller passes a document it already
 	 * holds and means to save later. Given a fileid, the document is loaded
@@ -414,6 +423,7 @@ class MetadataService
 			// duplicate groups, so a file whose hashes were cleared keeps
 			// being found by hashes it no longer has.
 			$this->pruneHashIndexRows( $metadata->getFileId() );
+			$this->deleteState( $metadata->getFileId() );
 		}
 	}
 
@@ -902,7 +912,7 @@ class MetadataService
 		   ->from( self::TABLE_FILES_METADATA_INDEX )
 		   ->where(
 			   $qb->expr()
-			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_STATE ) ),
 			   $qb->expr()
 			      ->like(
 				      self::FIELD_META_VALUE_STRING,
@@ -930,13 +940,15 @@ class MetadataService
 	}
 
 	/**
-	 * Mark a file as pending for a specific processing mode.
+	 * Set a file's marker: `pending:<mode>` to queue it, '' to take it off
+	 * the queue, or whatever marker the caller means.
 	 *
-	 * Upserts meta_value_string on the file-checksum-updated_at index row.
-	 * The row exists iff the file has ever been queued, hashed, or eroded —
-	 * absence means "never considered". (This replaces the old contract of
-	 * refusing to insert and relying on universal seeding, which made every
-	 * mark on an unseeded file a silent no-op.)
+	 * In the file's state row ({@see KEY_FILE_CHECKSUM_STATE}). A file never
+	 * considered before gets a stamp row of 0 with it: the stamp row exists
+	 * iff the file has ever been queued, hashed, or eroded — absence means
+	 * "never considered". (This replaces the old contract of refusing to
+	 * insert and relying on universal seeding, which made every mark on an
+	 * unseeded file a silent no-op.)
 	 *
 	 * @throws \OCP\DB\Exception
 	 */
@@ -945,17 +957,17 @@ class MetadataService
 		string $mode,
 	): void
 	{
-		$this->upsertUpdatedAtString( $fileId, $mode );
+		$this->writeState( $fileId, $mode );
 	}
 
 	/**
 	 * Record that a file's hashes were dropped because nothing maintains them.
 	 *
-	 * Strips every stored hash and stamps the updated_at index row with the
-	 * literal 'eroded'. Unlike a bare clear, this leaves a queryable, indexed
-	 * trace: the status page can count it, and the state is self-healing —
-	 * the next time a rule covers the file again, re-hashing overwrites it.
-	 * 'eroded' never matches the queue's 'pending:%' filter.
+	 * Strips every stored hash, stamps it 0 and marks it `stale:eroded`.
+	 * Unlike a bare clear, this leaves a queryable, indexed trace: the status
+	 * page can count it, and the state is self-healing — the next time a
+	 * rule covers the file again, re-hashing replaces the marker.
+	 * 'stale:eroded' never matches the queue's 'pending:%' filter.
 	 *
 	 * Distinguishes "had hashes, lost them on write" (eroded) from "never
 	 * considered" (no row at all).
@@ -975,10 +987,7 @@ class MetadataService
 		// hashes it no longer has.
 		$this->syncHashIndex( $fileId, [] );
 
-		// After the save: saving regenerates the index row for updated_at,
-		// which *is* indexed, so the string has to be written once the
-		// regenerated row exists.
-		$this->upsertUpdatedAtString( $fileId, self::STATE_ERODED );
+		$this->writeState( $fileId, self::STATE_ERODED );
 	}
 
 	/**
@@ -986,10 +995,10 @@ class MetadataService
 	 *
 	 * Writes the marker only: the hashes and the freshness stamp stay exactly
 	 * as they are. That is the point — a reset over a large instance would
-	 * otherwise rewrite one metadata document per file, and this is one
-	 * UPDATE over rows the index already has. The drain clears them later,
-	 * or an import replaces them first and the clearing never needs to
-	 * happen.
+	 * otherwise rewrite one metadata document per file, and this writes the
+	 * index alone: a file's state row replaced, a transaction per thousand
+	 * files. The drain clears them later, or an import replaces them first
+	 * and the clearing never needs to happen.
 	 *
 	 * Nothing is lost by deferring: {@see andWhereNotStale()} takes these
 	 * files out of every scan the moment the marker lands.
@@ -1000,7 +1009,7 @@ class MetadataService
 	 *
 	 * @param  list<int>  $fileIds
 	 *
-	 * @return int  Rows marked.
+	 * @return int  Files marked.
 	 * @throws Exception
 	 */
 	public function markStale( array $fileIds ): int
@@ -1016,30 +1025,85 @@ class MetadataService
 		// Nextcloud itself uses.
 		foreach ( array_chunk( array_values( array_unique( $fileIds ) ), 1000 ) as $chunk )
 		{
-			$qb = $this->db->getQueryBuilder();
-			$qb->update( self::TABLE_FILES_METADATA_INDEX )
-			   ->set(
-				   self::FIELD_META_VALUE_STRING,
-				   $qb->createNamedParameter( self::STATE_RESET ),
-			   )
-			   ->where(
-				   $qb->expr()
-				      ->eq(
-					      self::FIELD_META_KEY,
-					      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
-				      ),
-				   $qb->expr()
-				      ->in(
-					      self::FIELD_FILE_ID,
-					      $qb->createNamedParameter( $chunk, IQueryBuilder::PARAM_INT_ARRAY ),
-				      ),
-			   )
-			;
+			$considered = $this->withIndexRow( $chunk, self::KEY_FILE_CHECKSUM_UPDATED_AT );
 
-			$marked += $qb->executeStatement();
+			if ( $considered === [] )
+			{
+				continue;
+			}
+
+			$this->db->beginTransaction();
+
+			try
+			{
+				$qb = $this->db->getQueryBuilder();
+				$qb->delete( self::TABLE_FILES_METADATA_INDEX )
+				   ->where(
+					   $qb->expr()
+					      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_STATE ) ),
+					   $qb->expr()
+					      ->in(
+						      self::FIELD_FILE_ID,
+						      $qb->createNamedParameter( $considered, IQueryBuilder::PARAM_INT_ARRAY ),
+					      ),
+				   )
+				;
+
+				$this->executeStatement( $qb );
+
+				foreach ( $considered as $fileId )
+				{
+					$this->insertIndexRow( $fileId, self::KEY_FILE_CHECKSUM_STATE, self::STATE_RESET );
+				}
+
+				$this->db->commit();
+			}
+			catch ( Throwable $e )
+			{
+				$this->db->rollBack();
+
+				throw $e;
+			}
+
+			$marked += count( $considered );
 		}
 
 		return $marked;
+	}
+
+	/**
+	 * Which of these files have an index row under $metaKey — under the
+	 * stamp key, the ones the app has considered.
+	 *
+	 * @param  list<int>  $fileIds  At most a thousand.
+	 *
+	 * @return list<int>
+	 * @throws Exception
+	 */
+	private function withIndexRow(
+		array  $fileIds,
+		string $metaKey,
+	): array
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->selectDistinct( self::FIELD_FILE_ID )
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( $metaKey ) ),
+			   $qb->expr()
+			      ->in(
+				      self::FIELD_FILE_ID,
+				      $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
+			      ),
+		   )
+		;
+
+		$result  = $this->executeQuery( $qb );
+		$fileIds = array_map( intval( ... ), $result->fetchFirstColumn() );
+		$result->closeCursor();
+
+		return $fileIds;
 	}
 
 	/**
@@ -1048,7 +1112,7 @@ class MetadataService
 	 * The whole-instance form of {@see markStale()}, as one statement rather
 	 * than a file list the caller would have to page through first.
 	 *
-	 * **Only files that actually hold hashes.** The marker shares its column
+	 * **Only files that actually hold hashes.** The marker shares its row
 	 * with the queue, so marking a file writes over whatever it was waiting
 	 * for — and a file with no hashes has nothing to disown, which would make
 	 * resetting the hashes quietly reset the queue as well. Restricting it to
@@ -1064,9 +1128,9 @@ class MetadataService
 		$lastId = 0;
 
 		// Paged rather than one statement with a subquery: MySQL refuses to
-		// read the table an UPDATE targets, and every file worth marking has
-		// to be found in that same table. One UPDATE per page of ids is the
-		// portable shape, and still one write per thousand files.
+		// read the table a write targets, and every file worth marking has to
+		// be found in that same table. A transaction per page of ids is the
+		// portable shape.
 		while ( true )
 		{
 			$fileIds = $this->pageHashedFileIdsAfter( $lastId, self::MARK_PAGE_SIZE );
@@ -1101,7 +1165,7 @@ class MetadataService
 			   $qb->expr()
 			      ->eq(
 				      self::FIELD_META_KEY,
-				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_STATE ),
 			      ),
 			   $qb->expr()
 			      ->eq(
@@ -1400,10 +1464,10 @@ class MetadataService
 	 * the stamp row (`u`), the file it stamps (`fc`, `s`), and the filters.
 	 *
 	 * Every file holding a hash has a stamp row, and a hash is current while
-	 * its own row exists: the hash rows are asked for per file, the marker
-	 * and the stamp are the driving row's own columns. A file with hash rows
-	 * and no stamp row is not listed until the `missing-stamps` repair has
-	 * given it one.
+	 * its own row exists: the hash rows and a `stale:` state row are asked
+	 * for per file, the stamp is the driving row's own column. A file with
+	 * hash rows and no stamp row is not listed until the `missing-stamps`
+	 * repair has given it one.
 	 *
 	 * The hash rows are counted rather than asked for with `EXISTS`, which
 	 * MariaDB rewrites into a join against every hash row of the instance,
@@ -1448,20 +1512,30 @@ class MetadataService
 			);
 		}
 
+		// Not disowned: the selection queryByHash() searches. Counted, as the
+		// hash rows are: the LEFT JOIN that query uses has MariaDB drive each
+		// page from the filecache and sort it, five times slower over a
+		// whole listing.
+		$stale = $this->db->getQueryBuilder();
+		$stale->select( $stale->func()->count( '*' ) )
+		      ->from( self::TABLE_FILES_METADATA_INDEX, 'st' )
+		      ->where(
+			      $stale->expr()
+			            ->eq( 'st.' . self::FIELD_FILE_ID, 'u.' . self::FIELD_FILE_ID ),
+			      $stale->expr()
+			            ->eq( 'st.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_STATE ) ),
+			      $stale->expr()
+			            ->like( 'st.' . self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( self::STALE_LIKE ) ),
+		      )
+		;
+
 		$qb->from( self::TABLE_FILES_METADATA_INDEX, 'u' )
 		   ->innerJoin( 'u', 'filecache', 'fc', 'fc.fileid = u.' . self::FIELD_FILE_ID )
 		   ->innerJoin( 'fc', 'storages', 's', 'fc.storage = s.numeric_id' )
 		   ->where(
 			   $qb->expr()
 			      ->eq( 'u.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
-			   // Not disowned: the selection queryByHash() searches.
-			   $qb->expr()
-			      ->orX(
-				      $qb->expr()
-				         ->isNull( 'u.' . self::FIELD_META_VALUE_STRING ),
-				      $qb->expr()
-				         ->notLike( 'u.' . self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( self::STALE_LIKE ) ),
-			      ),
+			   $qb->createFunction( '(' . $stale->getSQL() . ') = 0' ),
 			   $qb->createFunction( '(' . $hash->getSQL() . ') > 0' ),
 		   )
 		;
@@ -1529,10 +1603,9 @@ class MetadataService
 	/**
 	 * Every queue and `stale:` marker, one file at a time.
 	 *
-	 * The string half of `file-checksum-updated_at` — what a file is waiting
-	 * for, or why its hashes are not to be trusted. This one *can* come from
-	 * the index: a marker is short by construction, and
-	 * {@see markPending()} refuses to write one that is not.
+	 * The file's state row — what a file is waiting for, or why its hashes
+	 * are not to be trusted. This one *can* come from the index: a marker is
+	 * short by construction, one of this class's own constants.
 	 *
 	 * @return Generator<array{file_id: int, state: string}>
 	 * @throws Exception
@@ -1550,7 +1623,7 @@ class MetadataService
 				   $qb->expr()
 				      ->eq(
 					      self::FIELD_META_KEY,
-					      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+					      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_STATE ),
 				      ),
 				   $qb->expr()
 				      ->neq(
@@ -1697,10 +1770,10 @@ class MetadataService
 	/**
 	 * Forget the queue: every `pending:%` and `stale:%` marker, cleared.
 	 *
-	 * The state slice of a reset. It empties the string half of
-	 * `file-checksum-updated_at` and leaves the int half — the freshness
-	 * stamp — alone, because the stamp belongs to the hashes, not to the
-	 * queue, and clearing it would make every file look never-hashed.
+	 * The state slice of a reset. It deletes every state row and leaves the
+	 * stamp rows — the freshness stamps — alone, because the stamp belongs
+	 * to the hashes, not to the queue, and clearing it would make every file
+	 * look never-hashed.
 	 *
 	 * @return int  Rows cleared.
 	 * @throws Exception
@@ -1708,16 +1781,13 @@ class MetadataService
 	public function clearQueueState(): int
 	{
 		$qb = $this->db->getQueryBuilder();
-		$qb->update( self::TABLE_FILES_METADATA_INDEX )
-		   ->set( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( null ) )
+		$qb->delete( self::TABLE_FILES_METADATA_INDEX )
 		   ->where(
 			   $qb->expr()
 			      ->eq(
 				      self::FIELD_META_KEY,
-				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+				      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_STATE ),
 			      ),
-			   $qb->expr()
-			      ->isNotNull( self::FIELD_META_VALUE_STRING ),
 		   )
 		;
 
@@ -1755,7 +1825,7 @@ class MetadataService
 		   ->from( self::TABLE_FILES_METADATA_INDEX )
 		   ->where(
 			   $qb->expr()
-			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_STATE ) ),
 			   str_contains( $state, '%' )
 				   ? $qb->expr()
 				        ->like( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( $state ) )
@@ -1788,7 +1858,7 @@ class MetadataService
 		   ->from( self::TABLE_FILES_METADATA_INDEX )
 		   ->where(
 			   $qb->expr()
-			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_STATE ) ),
 			   $qb->expr()
 			      ->like( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( self::STALE_LIKE ) ),
 		   )
@@ -1809,50 +1879,97 @@ class MetadataService
 	}
 
 	/**
-	 * Set the file-checksum-updated_at index row's string value, creating the
-	 * row when the file has never been considered before.
+	 * Set a file's marker, or clear it with ''.
 	 *
-	 * UPDATE first (the common case), INSERT on a miss. The race window
-	 * between the two legs is closed by retrying the UPDATE once when the
-	 * INSERT collides with a concurrent writer.
+	 * The file's state row is deleted and the new one inserted, rather than
+	 * updated: an UPDATE that sets the value a row already holds reports no
+	 * row on MySQL, and taking that for "none" once inserted duplicates.
+	 * Cleared, the file has no state row at all.
+	 *
+	 * A file the app never considered gets a stamp row of 0 with its first
+	 * marker: the stamp row is what says the app has considered a file, and
+	 * 0 that nothing vouches for any hash of it.
+	 *
+	 * @throws Exception
 	 */
-	private function upsertUpdatedAtString(
+	private function writeState(
 		int    $fileId,
 		string $value,
 	): void
 	{
-		// Not "did the update affect a row?" — an UPDATE that sets a column
-		// to the value it already holds reports zero affected rows on MySQL,
-		// and treating that as "no row exists" inserts a duplicate. Ask
-		// whether the row is there instead.
-		$this->updateUpdatedAtString( $fileId, $value );
+		$this->deleteState( $fileId );
 
-		if ( $this->hasUpdatedAtRow( $fileId ) )
+		if ( $value === '' )
 		{
 			return;
 		}
 
-		try
+		if ( ! $this->hasUpdatedAtRow( $fileId ) )
 		{
-			$qb = $this->db->getQueryBuilder();
-			$qb->insert( self::TABLE_FILES_METADATA_INDEX )
-			   ->values(
-				   [
-					   self::FIELD_FILE_ID           => $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ),
-					   self::FIELD_META_KEY          => $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
-					   self::FIELD_META_VALUE_STRING => $qb->createNamedParameter( $value ),
-					   self::FIELD_META_VALUE_INT    => $qb->createNamedParameter( 0, IQueryBuilder::PARAM_INT ),
-				   ],
-			   )
-			;
+			$this->insertIndexRow( $fileId, self::KEY_FILE_CHECKSUM_UPDATED_AT, '' );
+		}
 
-			$this->executeStatement( $qb );
-		}
-		catch ( Exception )
+		$this->insertIndexRow( $fileId, self::KEY_FILE_CHECKSUM_STATE, $value );
+	}
+
+	/**
+	 * Delete a file's state row — any, or one whose marker matches one of
+	 * $like.
+	 *
+	 * @return int  Rows deleted.
+	 * @throws Exception
+	 */
+	private function deleteState(
+		int    $fileId,
+		string ...$like,
+	): int
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->delete( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_STATE ) ),
+		   )
+		;
+
+		if ( $like !== [] )
 		{
-			// Lost the insert race — the row exists now, so the update wins.
-			$this->updateUpdatedAtString( $fileId, $value );
+			$qb->andWhere(
+				$qb->expr()
+				   ->orX(
+					   ...array_map(
+						   static fn( string $pattern ) => $qb->expr()
+						                                      ->like(
+							                                      self::FIELD_META_VALUE_STRING,
+							                                      $qb->createNamedParameter( $pattern ),
+						                                      ),
+						   $like,
+					   ),
+				   ),
+			);
 		}
+
+		return $this->executeStatement( $qb );
+	}
+
+	/**
+	 * Clear what computing a file's hashes settles, once they are saved
+	 * current: its place on the queue, and its erosion. A disowned file
+	 * stays disowned — the hashes it was disowned for may still be in its
+	 * document, and the drain or an import replaces them.
+	 *
+	 * Nextcloud's save of the metadata document used to do this by the way,
+	 * rewriting the stamp row the marker lived in — and did it for every
+	 * other app's save as well, which is why the marker moved out.
+	 *
+	 * @return bool  Whether there was a marker to clear.
+	 * @throws Exception
+	 */
+	public function clearComputedMarker( int $fileId ): bool
+	{
+		return $this->deleteState( $fileId, self::PENDING_LIKE, self::STATE_ERODED ) > 0;
 	}
 
 	/**
@@ -1881,23 +1998,101 @@ class MetadataService
 		return $found !== false && $found !== null;
 	}
 
-	private function updateUpdatedAtString(
-		int    $fileId,
-		string $value,
-	): void
+	/**
+	 * Move the markers an earlier version kept in the stamp rows' string half
+	 * into state rows.
+	 *
+	 * A page of stamp rows that carry one at a time, in a transaction: each
+	 * marker becomes the file's state row unless the file has one already —
+	 * written since, so the newer — and the stamp rows' string half is
+	 * cleared. Run again, it finds nothing to move.
+	 *
+	 * @return int  Markers moved.
+	 * @throws Exception
+	 */
+	public function moveMarkersToStateRows(): int
 	{
-		$qb = $this->db->getQueryBuilder();
-		$qb->update( self::TABLE_FILES_METADATA_INDEX )
-		   ->set( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( $value ) )
-		   ->where(
-			   $qb->expr()
-			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
-			   $qb->expr()
-			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
-		   )
-		;
+		$moved  = 0;
+		$lastId = 0;
 
-		$this->executeStatement( $qb );
+		while ( true )
+		{
+			$qb = $this->db->getQueryBuilder();
+			$qb->select( self::FIELD_FILE_ID, self::FIELD_META_VALUE_STRING )
+			   ->from( self::TABLE_FILES_METADATA_INDEX )
+			   ->where(
+				   $qb->expr()
+				      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+				   // At least one character: '' is no marker, and on Oracle
+				   // it is NULL besides.
+				   $qb->expr()
+				      ->like( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( '_%' ) ),
+				   $qb->expr()
+				      ->gt( self::FIELD_FILE_ID, $qb->createNamedParameter( $lastId, IQueryBuilder::PARAM_INT ) ),
+			   )
+			   ->orderBy( self::FIELD_FILE_ID, 'ASC' )
+			   ->setMaxResults( self::MARK_PAGE_SIZE )
+			;
+
+			$result  = $this->executeQuery( $qb );
+			$markers = [];
+
+			while ( ( $row = $result->fetchAssociative() ) !== false )
+			{
+				$markers[ (int) $row[ self::FIELD_FILE_ID ] ] ??= (string) $row[ self::FIELD_META_VALUE_STRING ];
+			}
+
+			$result->closeCursor();
+
+			if ( $markers === [] )
+			{
+				return $moved;
+			}
+
+			$fileIds = array_keys( $markers );
+			$lastId  = $fileIds[ array_key_last( $fileIds ) ];
+
+			$this->db->beginTransaction();
+
+			try
+			{
+				$held = array_flip( $this->withIndexRow( $fileIds, self::KEY_FILE_CHECKSUM_STATE ) );
+
+				foreach ( $markers as $fileId => $marker )
+				{
+					if ( isset( $held[ $fileId ] ) )
+					{
+						continue;
+					}
+
+					$this->insertIndexRow( $fileId, self::KEY_FILE_CHECKSUM_STATE, $marker );
+					$moved ++;
+				}
+
+				$qb = $this->db->getQueryBuilder();
+				$qb->update( self::TABLE_FILES_METADATA_INDEX )
+				   ->set( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( null ) )
+				   ->where(
+					   $qb->expr()
+					      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+					   $qb->expr()
+					      ->in(
+						      self::FIELD_FILE_ID,
+						      $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
+					      ),
+				   )
+				;
+
+				$this->executeStatement( $qb );
+				$this->db->commit();
+			}
+			catch ( Throwable $e )
+			{
+				$this->db->rollBack();
+
+				throw $e;
+			}
+		}
 	}
 
 	/**
@@ -2027,8 +2222,6 @@ class MetadataService
 		$this->filecacheService->setHashes( $fileId, $hashes );
 		$this->syncHashIndex( $fileId, $hashes );
 
-		// After the save: saving regenerates the index row for updated_at, so
-		// the string half has to be read and cleared once it exists again.
 		$report['markerCleared'] = $this->clearStaleMarker( $fileId );
 
 		return $report;
@@ -2443,7 +2636,7 @@ class MetadataService
 	 *
 	 * @param  list<string>  $have    The hash keys the index holds for the file.
 	 * @param  int|null      $mtime   The file's mtime; null for a file the filecache no longer has.
-	 * @param  string|null   $marker  The string half of its stamp row.
+	 * @param  string|null   $marker  Its marker, where it has one.
 	 *
 	 * @return bool  Whether anything was rewritten.
 	 * @throws Exception
@@ -2812,7 +3005,7 @@ class MetadataService
 
 		if ( ! $current )
 		{
-			$this->upsertUpdatedAtString( $fileId, self::PENDING_AUTO );
+			$this->writeState( $fileId, self::PENDING_AUTO );
 		}
 
 		return [
@@ -3004,7 +3197,7 @@ class MetadataService
 	}
 
 	/**
-	 * The string half of each of these files' stamp rows, where it holds one.
+	 * The markers of these files, where they have one.
 	 *
 	 * @param  list<int>  $fileIds
 	 *
@@ -3028,7 +3221,7 @@ class MetadataService
 				      $qb->createNamedParameter( $fileIds, IQueryBuilder::PARAM_INT_ARRAY ),
 			      ),
 			   $qb->expr()
-			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_STATE ) ),
 		   )
 		;
 
@@ -3109,9 +3302,9 @@ class MetadataService
 	 * metadata document where the length says they must.
 	 * `MetadataServiceTest` guards the assumption.
 	 *
-	 * Called after `saveMetadata()`, like {@see upsertUpdatedAtString()}:
-	 * saving regenerates the index rows for indexed keys, so a row written
-	 * before it would be thrown away.
+	 * Called after `saveMetadata()`. These keys are not indexed by
+	 * Nextcloud, so its save leaves their rows alone; a row of an indexed key
+	 * written before it would be thrown away.
 	 *
 	 * Both directions: rows for algorithms the metadata document no longer
 	 * has are removed. Nextcloud used to do that on save — it drops and
@@ -3271,20 +3464,7 @@ class MetadataService
 	 */
 	public function clearStaleMarker( int $fileId ): bool
 	{
-		$qb = $this->db->getQueryBuilder();
-		$qb->update( self::TABLE_FILES_METADATA_INDEX )
-		   ->set( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( null ) )
-		   ->where(
-			   $qb->expr()
-			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
-			   $qb->expr()
-			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
-			   $qb->expr()
-			      ->like( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( self::STALE_LIKE ) ),
-		   )
-		;
-
-		return $this->executeStatement( $qb ) > 0;
+		return $this->deleteState( $fileId, self::STALE_LIKE ) > 0;
 	}
 
 	/**
@@ -3397,7 +3577,8 @@ class MetadataService
 	 * duplicates — so a disowned hash stops being findable the moment it is
 	 * marked, rather than when the background job gets round to clearing it.
 	 * Without this, a reset would leave wrong hashes answering searches and
-	 * forming duplicate groups for as long as the queue took to drain.
+	 * forming duplicate groups for as long as the queue took to drain. The
+	 * listing filters the same rows its own way ({@see whereListed()}).
 	 *
 	 * Deliberately **not** applied to the per-file reads
 	 * ({@see getHashes()}, and so the sidebar): a file someone opened shows
@@ -3428,7 +3609,7 @@ class MetadataService
 				   $qb->expr()
 				      ->eq(
 					      'stale.' . self::FIELD_META_KEY,
-					      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
+					      $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_STATE ),
 				      ),
 				   $qb->expr()
 				      ->like(
@@ -4022,13 +4203,14 @@ class MetadataService
 	 * for the queue to know which the file had, and nothing of them reaches
 	 * the index or the filecache's checksum column.
 	 *
+	 * @return bool  Whether the document is current, and its hashes published.
 	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
 	 * @throws Exception
 	 */
 	public function saveMetadata(
 		IFilesMetadata $metadata,
 		int|File|null  $file = null,
-	): void
+	): bool
 	{
 		$this->metadataManager->saveMetadata( $metadata );
 
@@ -4042,11 +4224,13 @@ class MetadataService
 		{
 			$this->syncHashIndex( $fileId, [] );
 
-			return;
+			return false;
 		}
 
 		$this->filecacheService->setHashes( $file ?? $fileId, $hashes );
 		$this->syncHashIndex( $fileId, $hashes );
+
+		return true;
 	}
 
 	/**
@@ -4100,9 +4284,7 @@ class MetadataService
 		$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, 0, true );
 		$this->metadataManager->saveMetadata( $metadata );
 		$this->pruneHashIndexRows( $fileId );
-
-		// After the save, which rewrote the row this half lives on.
-		$this->upsertUpdatedAtString( $fileId, self::PENDING_PREFIX . $mode );
+		$this->writeState( $fileId, self::PENDING_PREFIX . $mode );
 
 		return true;
 	}

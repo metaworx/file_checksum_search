@@ -559,38 +559,41 @@ class FileListenerTest
 
 	// ─── helpers ──────────────────────────────────────────────────────
 	/**
-	 * What the file is waiting for, read from the row that records it.
+	 * What the file is waiting for, read from the rows that record it.
 	 *
 	 * `countByFileId()` cannot answer this and never could since the hash
 	 * keys got a prefix of their own: it counts `file-checksum-hash-%`
 	 * rows, which is what its callers in FileListener mean by "does this
-	 * file have hashes". A pending mark is the *stamp* row's string half,
-	 * so every test here that asserted a count of 0 after marking one was
-	 * asserting something true whether the listener ran or not.
+	 * file have hashes". A pending mark is the file's *state* row, so every
+	 * test here that asserted a count of 0 after marking one was asserting
+	 * something true whether the listener ran or not.
 	 *
-	 * @return string|null  The state, or null when the file has no stamp row.
+	 * @return string|null  The state, '' for a considered file with none, or
+	 *                      null when the file has no stamp row.
 	 */
 	private function stateOf( int $fileId ): ?string
 	{
 		$result = $this->getRawConnection()
 		               ->executeQuery(
-			               'SELECT `meta_value_string` FROM `*PREFIX*files_metadata_index` '
-			               . 'WHERE `file_id` = ? AND `meta_key` = ?',
+			               'SELECT `meta_key`, `meta_value_string` FROM `*PREFIX*files_metadata_index` '
+			               . 'WHERE `file_id` = ? AND `meta_key` IN (?, ?)',
 			               [
 				               $fileId,
 				               MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT,
+				               MetadataService::KEY_FILE_CHECKSUM_STATE,
 			               ],
 		               )
 		;
 
-		$value = $result->fetchOne();
+		$rows = array_column( $result->fetchAllAssociative(), 'meta_value_string', 'meta_key' );
 		$result->free();
 
-		return $value === false
-			? null
-			: ( $value === null
-				? ''
-				: (string) $value );
+		if ( ! array_key_exists( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $rows ) )
+		{
+			return null;
+		}
+
+		return (string) ( $rows[ MetadataService::KEY_FILE_CHECKSUM_STATE ] ?? '' );
 	}
 
 	/**

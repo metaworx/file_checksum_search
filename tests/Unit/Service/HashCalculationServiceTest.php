@@ -180,9 +180,25 @@ class HashCalculationServiceTest
 			                      (
 				                      &
 				                      $order,
-			                      ): void
+			                      ): bool
 			                      {
 				                      $order[] = 'save';
+
+				                      return true;
+			                      },
+		                      )
+		;
+		$this->metadataService->method( 'clearComputedMarker' )
+		                      ->willReturnCallback(
+			                      function() use
+			                      (
+				                      &
+				                      $order,
+			                      ): bool
+			                      {
+				                      $order[] = 'clear';
+
+				                      return false;
 			                      },
 		                      )
 		;
@@ -209,6 +225,7 @@ class HashCalculationServiceTest
 			$this->assertSame(
 				[
 					'save',
+					'clear',
 					'release',
 				],
 				$order,
@@ -599,6 +616,48 @@ class HashCalculationServiceTest
 				'sha256',
 			],
 		);
+	}
+
+	/**
+	 * The file leaves the queue once what it was queued for is saved
+	 * current, and not before: Nextcloud's save no longer clears the marker,
+	 * and a save that is not current means a write landed meanwhile and
+	 * queued it again.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testProcessFileLeavesTheQueueWhenSavedCurrent(): void
+	{
+		$this->processLazilyAndSave( true );
+	}
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testProcessFileStaysQueuedWhenAWriteLandedMeanwhile(): void
+	{
+		$this->processLazilyAndSave( false );
+	}
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function processLazilyAndSave( bool $current ): void
+	{
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$this->metadataService->method( 'getMetadata' )
+		                      ->willReturn( $metadata )
+		;
+		$this->metadataService->method( 'saveMetadata' )
+		                      ->willReturn( $current )
+		;
+
+		$this->metadataService->expects( $current ? $this->once() : $this->never() )
+		                      ->method( 'clearComputedMarker' )
+		                      ->with( 42 )
+		;
+
+		$this->service->processFile( 42, 'lazy', [ 'sha1' ] );
 	}
 
 	/**

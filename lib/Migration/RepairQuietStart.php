@@ -405,6 +405,41 @@ class RepairQuietStart
 	}
 
 	/**
+	 * Move the markers out of the stamp rows, into rows of their own.
+	 *
+	 * Versions before kept a file's marker — queued, disowned, eroded — in
+	 * the string half of its `file-checksum-updated_at` index row, which
+	 * Nextcloud rewrites from the metadata document whenever any app saves
+	 * it, and the document does not hold the marker. Before every step that
+	 * reads markers. Markers are few, the queue and the disowned, so it runs
+	 * inline.
+	 *
+	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
+	 */
+	#[RepairStep(
+		name: 'marker-row',
+		title: 'Give the queue and disowned markers rows of their own',
+		description: 'Moves the markers that say a file is queued or its hashes are disowned out of the row that holds its freshness stamp, which Nextcloud rewrites whenever any app saves the file\'s metadata, into a row this app alone writes. A marker left there is lost on the next such save. Reads no file content; idempotent.',
+		expensive: false,
+	)]
+	private function moveMarkers( IOutput $output ): void
+	{
+		try
+		{
+			$moved = $this->metadataService->moveMarkersToStateRows();
+
+			if ( $moved > 0 )
+			{
+				$output->info( sprintf( 'FCIAS: moved %d marker(s) to rows of their own.', $moved ) );
+			}
+		}
+		catch ( Throwable $e )
+		{
+			$this->warn( $output, 'could not move the markers to rows of their own', $e );
+		}
+	}
+
+	/**
 	 * Copy the checksums Nextcloud already holds into this app's own store.
 	 *
 	 * `oc_filecache.checksum` is core's column, written when a sync client
@@ -879,7 +914,7 @@ class RepairQuietStart
 				   $qb->expr()
 				      ->eq(
 					      MetadataService::FIELD_META_KEY,
-					      $qb->createNamedParameter( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ),
+					      $qb->createNamedParameter( MetadataService::KEY_FILE_CHECKSUM_STATE ),
 				      ),
 				   $qb->expr()
 				      ->eq(
@@ -927,7 +962,7 @@ class RepairQuietStart
 				   $qb->expr()
 				      ->eq(
 					      MetadataService::FIELD_META_KEY,
-					      $qb->createNamedParameter( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ),
+					      $qb->createNamedParameter( MetadataService::KEY_FILE_CHECKSUM_STATE ),
 				      ),
 				   $qb->expr()
 				      ->eq(

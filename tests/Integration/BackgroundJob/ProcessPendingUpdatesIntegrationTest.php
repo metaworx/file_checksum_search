@@ -362,6 +362,9 @@ class ProcessPendingUpdatesIntegrationTest
 	}
 
 	/**
+	 * A stamp row of 0 and the marker's state row, as `markPending()` gives a
+	 * file the app has not considered before.
+	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	private function insertPendingMarker(
@@ -369,16 +372,24 @@ class ProcessPendingUpdatesIntegrationTest
 		string $marker,
 	): void
 	{
-		$this->getRawConnection()
-		     ->executeStatement(
-			     'INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`) VALUES (?, ?, ?, 0)',
-			     [
-				     $fileId,
-				     MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT,
-				     $marker,
-			     ],
-		     )
-		;
+		foreach (
+			[
+				MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT => '',
+				MetadataService::KEY_FILE_CHECKSUM_STATE      => $marker,
+			] as $key => $value
+		)
+		{
+			$this->getRawConnection()
+			     ->executeStatement(
+				     'INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`) VALUES (?, ?, ?, 0)',
+				     [
+					     $fileId,
+					     $key,
+					     $value,
+				     ],
+			     )
+			;
+		}
 	}
 
 	/**
@@ -392,7 +403,7 @@ class ProcessPendingUpdatesIntegrationTest
 
 		$this->getRawConnection()
 		     ->executeStatement(
-			     "DELETE FROM `*PREFIX*files_metadata_index` WHERE `meta_key` = 'file-checksum-updated_at' AND `meta_value_string` LIKE 'pending:%' AND `file_id` NOT IN ($placeholders)",
+			     "DELETE FROM `*PREFIX*files_metadata_index` WHERE `meta_key` = 'file-checksum-state' AND `meta_value_string` LIKE 'pending:%' AND `file_id` NOT IN ($placeholders)",
 			     $keepFileIds,
 		     )
 		;
@@ -413,7 +424,7 @@ class ProcessPendingUpdatesIntegrationTest
 			   $qb->expr()
 			      ->eq(
 				      MetadataService::FIELD_META_KEY,
-				      $qb->createNamedParameter( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ),
+				      $qb->createNamedParameter( MetadataService::KEY_FILE_CHECKSUM_STATE ),
 			      ),
 			   $qb->expr()
 			      ->like(

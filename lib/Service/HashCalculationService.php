@@ -797,7 +797,12 @@ class HashCalculationService
 			return;
 		}
 
-		$this->metadataService->saveMetadata( $metadata );
+		// Off the queue only once what it asked for is current: a write that
+		// landed meanwhile has queued the file again.
+		if ( $this->metadataService->saveMetadata( $metadata ) )
+		{
+			$this->metadataService->clearComputedMarker( $fileId );
+		}
 
 		$this->logger->debug(
 			'FCIAS HashCalculationService: processFile completed',
@@ -1167,9 +1172,11 @@ class HashCalculationService
 		}
 		finally
 		{
-			if ( $needsSave )
+			// An on-demand calculation of a queued file did the queue's work
+			// as well ({@see asTheQueueWould()}).
+			if ( $needsSave && $this->metadataService->saveMetadata( $metadata ) )
 			{
-				$this->metadataService->saveMetadata( $metadata );
+				$this->metadataService->clearComputedMarker( $fileId );
 			}
 
 			$this->releaseLock( $fileId );
