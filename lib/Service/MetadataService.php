@@ -1224,6 +1224,16 @@ class MetadataService
 	 * would find. Keyset paging on the file id: a file deleted between two
 	 * pages moves nothing.
 	 *
+	 * Read from the stamp row, one per file, in file-id order: the database
+	 * stops after $limit files. Grouping the hash rows into files instead
+	 * made it read and sort every remaining row before it returned the
+	 * first — 768 ms a page at the start of a listing on an instance with a
+	 * million index rows, against 3.
+	 *
+	 * The index has no unique key on (file, key), so a second stamp row is
+	 * possible. Such a file comes once, with the later stamp, and the page
+	 * reads on until it holds $limit files.
+	 *
 	 * @param  list<array{storage: int, root: string}>|null  $mounts  The areas to list,
 	 *                                                               null for every file.
 	 * @param  int|null                                      $since   Only files whose
@@ -1242,47 +1252,71 @@ class MetadataService
 		int     $limit,
 	): array
 	{
-		// One row per file, whatever the hash rows and stamp rows behind it:
-		// grouped by the file, with the stamp's MAX(). The index has no
-		// unique key on (file, key), so a second stamp row is possible, and
-		// DISTINCT over the stamp would list such a file twice.
-		$qb = $this->db->getQueryBuilder();
-		$qb->select( 'fc.fileid', 'fc.storage', 'fc.path', 's.id' )
-		   ->selectAlias( $qb->func()->max( 'u.' . self::FIELD_META_VALUE_INT ), 'updated_at' )
-		;
-
-		$this->whereListed( $qb, $mounts, $algo, $since );
-
-		$qb->andWhere(
-			$qb->expr()
-			   ->gt( 'i.' . self::FIELD_FILE_ID, $qb->createNamedParameter( $after, IQueryBuilder::PARAM_INT ) ),
-		)
-		   ->groupBy( 'fc.fileid', 'fc.storage', 'fc.path', 's.id' )
-		   ->orderBy( 'fc.fileid', 'ASC' )
-		   ->setMaxResults( $limit )
-		;
-
-		$result = $this->executeQuery( $qb );
-		$rows   = [];
-
-		while ( ( $row = $result->fetchAssociative() ) !== false )
+		if ( $limit < 1 )
 		{
-			$rows[] = [
-				'fileid'     => (int) $row['fileid'],
-				'storage'    => (int) $row['storage'],
-				'storage_id' => (string) $row['id'],
-				'path'       => (string) $row['path'],
-				'updated_at' => $row['updated_at'] !== null ? (int) $row['updated_at'] : null,
-			];
+			return [];
 		}
 
-		$result->closeCursor();
+		$files  = [];
+		$cursor = $after;
 
-		return $rows;
+		do
+		{
+			$want = $limit - count( $files );
+			$read = 0;
+
+			$qb = $this->db->getQueryBuilder();
+			$qb->select( 'fc.fileid', 'fc.storage', 'fc.path', 's.id' )
+			   ->selectAlias( 'u.' . self::FIELD_META_VALUE_INT, 'updated_at' )
+			;
+
+			$this->whereListed( $qb, $mounts, $algo, $since );
+
+			$qb->andWhere(
+				$qb->expr()
+				   ->gt( 'u.' . self::FIELD_FILE_ID, $qb->createNamedParameter( $cursor, IQueryBuilder::PARAM_INT ) ),
+			)
+			   ->orderBy( 'u.' . self::FIELD_FILE_ID, 'ASC' )
+			   ->setMaxResults( $want )
+			;
+
+			$result = $this->executeQuery( $qb );
+
+			while ( ( $row = $result->fetchAssociative() ) !== false )
+			{
+				$read ++;
+				$fileId = (int) $row['fileid'];
+				$cursor = $fileId;
+				$stamp  = $row['updated_at'] !== null ? (int) $row['updated_at'] : null;
+
+				if ( isset( $files[ $fileId ] ) )
+				{
+					$files[ $fileId ]['updated_at'] = max( $files[ $fileId ]['updated_at'] ?? $stamp, $stamp );
+
+					continue;
+				}
+
+				$files[ $fileId ] = [
+					'fileid'     => $fileId,
+					'storage'    => (int) $row['storage'],
+					'storage_id' => (string) $row['id'],
+					'path'       => (string) $row['path'],
+					'updated_at' => $stamp,
+				];
+			}
+
+			$result->closeCursor();
+		}
+		while ( $read === $want && count( $files ) < $limit );
+
+		return array_values( $files );
 	}
 
 	/**
 	 * How many files {@see pageListedFiles()} would list from the start.
+	 *
+	 * Stamp rows, counted: a file with a second one counts twice, which the
+	 * listing's `estimated_total` allows for in its name.
 	 *
 	 * @param  list<array{storage: int, root: string}>|null  $mounts
 	 *
@@ -1296,7 +1330,8 @@ class MetadataService
 	{
 		$qb = $this->db->getQueryBuilder();
 		$qb->selectAlias(
-			$qb->createFunction( 'COUNT(DISTINCT ' . $qb->getColumnName( self::FIELD_FILE_ID, 'i' ) . ')' ),
+			$qb->func()
+			   ->count( '*' ),
 			'cnt',
 		);
 
@@ -1361,8 +1396,13 @@ class MetadataService
 
 	/**
 	 * What {@see pageListedFiles()} and {@see countListedFiles()} share:
-	 * the hash rows (`i`), their files (`fc`, `s`), the stamp (`u`), and the
-	 * filters.
+	 * the stamp row (`u`), the file it stamps (`fc`, `s`), and the filters.
+	 *
+	 * Every file holding a hash has a stamp row, and a hash is current while
+	 * its own row exists: the hash row is asked for with `EXISTS`, the
+	 * marker and the stamp are the driving row's own columns. A file with
+	 * hash rows and no stamp row is not listed until the `missing-stamps`
+	 * repair has given it one.
 	 *
 	 * @param  list<array{storage: int, root: string}>|null  $mounts
 	 */
@@ -1373,34 +1413,38 @@ class MetadataService
 		?int          $since,
 	): void
 	{
-		$qb->from( self::TABLE_FILES_METADATA_INDEX, 'i' )
-		   ->innerJoin( 'i', 'filecache', 'fc', 'fc.fileid = i.' . self::FIELD_FILE_ID )
+		$hash = $this->db->getQueryBuilder();
+		$hash->select( $hash->createFunction( '1' ) )
+		     ->from( self::TABLE_FILES_METADATA_INDEX, 'h' )
+		     ->where(
+			     $hash->expr()
+			          ->eq( 'h.' . self::FIELD_FILE_ID, 'u.' . self::FIELD_FILE_ID ),
+			     $algo !== null
+				     ? $hash->expr()
+				            ->eq( 'h.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::getHashKey( $algo ) ) )
+				     : $hash->expr()
+				            ->like( 'h.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
+		     )
+		;
+
+		$qb->from( self::TABLE_FILES_METADATA_INDEX, 'u' )
+		   ->innerJoin( 'u', 'filecache', 'fc', 'fc.fileid = u.' . self::FIELD_FILE_ID )
 		   ->innerJoin( 'fc', 'storages', 's', 'fc.storage = s.numeric_id' )
-		   ->leftJoin(
-			   'i',
-			   self::TABLE_FILES_METADATA_INDEX,
-			   'u',
-			   $qb->expr()
-			      ->andX(
-				      $qb->expr()
-				         ->eq( 'u.' . self::FIELD_FILE_ID, 'i.' . self::FIELD_FILE_ID ),
-				      $qb->expr()
-				         ->eq(
-					         'u.' . self::FIELD_META_KEY,
-					         $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ),
-				         ),
-			      ),
-		   )
 		   ->where(
-			   $algo !== null
-				   ? $qb->expr()
-				        ->eq( 'i.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::getHashKey( $algo ) ) )
-				   : $qb->expr()
-				        ->like( 'i.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
+			   $qb->expr()
+			      ->eq( 'u.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			   // Not disowned: the selection queryByHash() searches.
+			   $qb->expr()
+			      ->orX(
+				      $qb->expr()
+				         ->isNull( 'u.' . self::FIELD_META_VALUE_STRING ),
+				      $qb->expr()
+				         ->notLike( 'u.' . self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( self::STALE_LIKE ) ),
+			      ),
+			   $qb->createFunction( 'EXISTS (' . $hash->getSQL() . ')' ),
 		   )
 		;
 
-		$this->andWhereNotStale( $qb );
 		$this->filecacheService->andWhereGoverned( $qb, 'fc' );
 
 		if ( $mounts !== null )

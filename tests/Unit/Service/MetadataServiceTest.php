@@ -1450,6 +1450,93 @@ class MetadataServiceTest
 	}
 
 	/**
+	 * A listing page reads stamp rows in file-id order and stops at the
+	 * limit. Grouping the hash rows into files made the database read and
+	 * sort every remaining row before it returned the first.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAListingPageNeitherGroupsNorOrdersByAnythingButTheFileId(): void
+	{
+		$this->queryBuilder->expects( $this->never() )
+		                   ->method( 'groupBy' )
+		;
+		$this->queryBuilder->expects( $this->once() )
+		                   ->method( 'orderBy' )
+		                   ->with( 'u.' . MetadataService::FIELD_FILE_ID, 'ASC' )
+		                   ->willReturnSelf()
+		;
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchAssociative' )
+		       ->willReturn( false )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$this->assertSame( [], $this->service->pageListedFiles( null, null, 0, null, 500 ) );
+	}
+
+	/**
+	 * The index has no unique key on (file, key). A file with a second stamp
+	 * row comes once, with the later stamp, and the page reads on past it
+	 * until it holds as many files as asked for.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAFileWithASecondStampRowIsListedOnceAndThePageReadsOn(): void
+	{
+		$row = static fn( int $fileId, int $stamp ): array => [
+			'fileid'     => $fileId,
+			'storage'    => 1,
+			'id'         => 'home::alice',
+			'path'       => 'files/' . $fileId . '.txt',
+			'updated_at' => $stamp,
+		];
+
+		// Two queries: two rows that are one file, then the file after it.
+		$rows = [
+			$row( 5, 100 ),
+			$row( 5, 200 ),
+			false,
+			$row( 6, 300 ),
+			false,
+		];
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchAssociative' )
+		       ->willReturnCallback(
+			       static function() use ( &$rows ): array|false
+			       {
+				       return array_shift( $rows ) ?? false;
+			       },
+		       )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$limits = [];
+		$this->queryBuilder->method( 'setMaxResults' )
+		                   ->willReturnCallback(
+			                   function( ?int $limit ) use ( &$limits )
+			                   {
+				                   $limits[] = $limit;
+
+				                   return $this->queryBuilder;
+			                   },
+		                   )
+		;
+
+		$page = $this->service->pageListedFiles( null, null, 0, null, 2 );
+
+		$this->assertSame( [ 5, 6 ], array_column( $page, 'fileid' ) );
+		$this->assertSame( 200, $page[0]['updated_at'], 'the later stamp' );
+		$this->assertSame( [ 2, 1 ], $limits, 'the second query asks for the one file still missing' );
+	}
+
+	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 * @noinspection PhpConditionAlreadyCheckedInspection
 	 */
