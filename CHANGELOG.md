@@ -13,24 +13,19 @@ the first stable release.
 
 ### Added
 
-- Nextcloud 35 (`appinfo/info.xml`); CI tests it on PHP 8.3 and 8.4,
-  which is all Nextcloud 35 runs on.
+- Nextcloud 35 (`appinfo/info.xml`), tested on PHP 8.3 and 8.4.
 
-- Tunables: the checksum count's interval, and a switch to take it in
-  the background.
+- `checksum_count_interval` and `checksum_count_background`: how old
+  the checksum count may get, and whether a background job retakes it.
 
-- `GET /api/v1/hashes`, its `/sudo/` twin and
-  `ChecksumApi::listHashes()`: every hash in reach, paged by file id,
-  with `since` for the hashes written after a time, and `now` to pass
-  as the next run's, 300 requests a minute;
-  `ChecksumApi::iterateHashes()` walks it whole in process
-  (`docs/api-v1.md`).
+- `GET /api/v1/hashes`, its `/sudo/` twin, `ChecksumApi::listHashes()`
+  and `iterateHashes()`: every hash in reach by file id, with `since`
+  and `now` (`docs/api-v1.md`).
 
 ### Changed
 
 - Database reads use `fetchAssociative()` and `fetchAllAssociative()`,
-  not `IResult`'s `fetch()` and `fetchAll()`, as Nextcloud's upgrade
-  rules for 33 ask.
+  not `IResult::fetch()` and `fetchAll()` (Nextcloud 33 upgrade rules).
 
 - Dates and times: every part two digits, in the locale's own order
   (01.10.2026, 07:05:09).
@@ -38,14 +33,13 @@ the first stable release.
 - `GET /api/v1/status`: `rowCount` is a kept count, as of the new
   `rowCountAt`.
 
-- Admin status panel: the versions and jobs show before the counts,
-  which Refresh takes anew.
+- Admin status panel: the versions and jobs show before the counts.
 
 - `occ fcias:status`: the filecache and stamp-row counts, in the JSON
   as well, only with `--full`.
 
-- `occ fcias:repair`: warnings and errors go to standard error and
-  show under `-q`; nothing else does.
+- `occ fcias:repair`: progress by `-v` to `-vvv`, and under `-q` only
+  warnings and errors, on standard error.
 
 - `GET /api/v1/file/{fileId}/hashes`, its `/sudo/` twin and
   `ChecksumApi::getHashesBy*()`: `hashes` is keyed by algorithm, and
@@ -65,20 +59,17 @@ the first stable release.
   holds nothing for; a deletion for good no longer logs an error.
 
 - Hashes computed by `occ fcias:hash`, the sidebar or the API carry a
-  stamp; after a change, a hash the file's rule does not name is
-  dropped, not vouched for (`docs/api-v1.md`, `updated_at`).
+  stamp (`docs/api-v1.md`, `updated_at`).
 
 - Hashes saved without a stamp get one in the background after the
-  upgrade, shown as *Checksum stamp check* on the status page
-  (`occ fcias:repair --step missing-stamps`, `-v` to `-vvv` to follow).
+  upgrade (`occ fcias:repair --step missing-stamps`).
 
 - A changed file's hashes leave the lookup, the listing, the duplicates
-  and the sidebar until they are computed again, whatever mtime a sync
-  client sets (`README.md`, *When hashes go away*).
+  and the sidebar until computed again, and those its rule does not
+  name are dropped (`README.md`, *When hashes go away*).
 
-- Queue and reset markers survive another app's metadata save, which
-  brought a reset hash back into the lookup and took a queued file off
-  the queue (`occ fcias:repair --step marker-row`).
+- Queue and reset markers survive another app's save of a file's
+  metadata (`occ fcias:repair --step marker-row`).
 
 ### Security
 
