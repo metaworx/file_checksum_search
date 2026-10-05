@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-10-05
+
 ### Added
 
 - Nextcloud 35 (`appinfo/info.xml`), tested on PHP 8.3 and 8.4.
