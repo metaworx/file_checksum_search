@@ -1236,10 +1236,11 @@ class MetadataService
 	 *
 	 * @param  list<array{storage: int, root: string}>|null  $mounts  The areas to list,
 	 *                                                               null for every file.
-	 * @param  int|null                                      $since   Only files whose
-	 *                                                               hashes were stamped
-	 *                                                               at or after it, in
-	 *                                                               unix seconds.
+	 * @param  int|null                                      $since   Only files with a
+	 *                                                               hash row — of $algo,
+	 *                                                               where one is named —
+	 *                                                               written at or after
+	 *                                                               it, in unix seconds.
 	 *
 	 * @return list<array{fileid: int, storage: int, storage_id: string, path: string, updated_at: ?int}>
 	 * @throws Exception
@@ -1433,6 +1434,20 @@ class MetadataService
 		     )
 		;
 
+		// A hash row written at or after it: hashes added or changed since.
+		// A row written before rows carried their time holds 0, and no
+		// `since` lets it through, 0 included.
+		if ( $since !== null )
+		{
+			$hash->andWhere(
+				$hash->expr()
+				     ->gte(
+					     'h.' . self::FIELD_META_VALUE_INT,
+					     $qb->createNamedParameter( max( $since, 1 ), IQueryBuilder::PARAM_INT ),
+				     ),
+			);
+		}
+
 		$qb->from( self::TABLE_FILES_METADATA_INDEX, 'u' )
 		   ->innerJoin( 'u', 'filecache', 'fc', 'fc.fileid = u.' . self::FIELD_FILE_ID )
 		   ->innerJoin( 'fc', 'storages', 's', 'fc.storage = s.numeric_id' )
@@ -1456,19 +1471,6 @@ class MetadataService
 		if ( $mounts !== null )
 		{
 			$this->filecacheService->andWhereWithin( $qb, 'fc', $mounts );
-		}
-
-		// A stamp of zero is none — hashes written without a time, or cleared
-		// for the next sweep — and no `since` lets it through, 0 included.
-		if ( $since !== null )
-		{
-			$qb->andWhere(
-				$qb->expr()
-				   ->gte(
-					   'u.' . self::FIELD_META_VALUE_INT,
-					   $qb->createNamedParameter( max( $since, 1 ), IQueryBuilder::PARAM_INT ),
-				   ),
-			);
 		}
 	}
 
@@ -3117,9 +3119,19 @@ class MetadataService
 	 * it does not touch them at all, so a hash removed from the document
 	 * would otherwise keep answering searches for ever.
 	 *
+	 * Only what changed is written. A hash row's int half is when its value
+	 * was written to this instance, which `since` reads; a row whose value
+	 * is the same keeps its time, so a save that changes nothing about a
+	 * hash does not offer it again. Compared as the index holds it, cut to
+	 * the column's width: two hashes of one algorithm alike in their first
+	 * 63 characters are not a case to write for. A changed row is deleted and
+	 * inserted rather than updated — an UPDATE that sets a column to the
+	 * value it holds reports **zero** rows on MySQL, and taking that for "no
+	 * row" once inserted duplicates.
+	 *
 	 * @param  array<string, string>  $algoToHash  The metadata document's hashes; empty removes every row.
 	 *
-	 * @return int  Rows written.
+	 * @return int  The hash rows the file has now.
 	 * @throws Exception
 	 */
 	public function syncHashIndex(
@@ -3127,7 +3139,7 @@ class MetadataService
 		array $algoToHash,
 	): int
 	{
-		$rows = [];
+		$wanted = [];
 
 		foreach ( $algoToHash as $algo => $hash )
 		{
@@ -3136,34 +3148,96 @@ class MetadataService
 				continue;
 			}
 
-			$rows[ self::getHashKey( $algo ) ] = self::truncateForIndex( $hash );
+			$wanted[ self::getHashKey( $algo ) ] = self::truncateForIndex( $hash );
 		}
 
-		// Delete then insert, rather than update-or-insert. An UPDATE that
-		// sets a column to the value it already holds reports **zero** rows
-		// affected on MySQL, so inferring "no row existed" from that count
-		// inserts a duplicate — which is exactly what it did, and what left
-		// two rows for the same key on a file hashed twice.
-		$this->pruneHashIndexRows( $fileId );
+		$kept = [];
 
-		foreach ( $rows as $metaKey => $value )
+		foreach ( $this->hashRowsOf( $fileId ) as $row )
 		{
-			$this->insertIndexRow( $fileId, $metaKey, $value );
+			// The first row of a key that still holds its value stays; a
+			// second one of the same key goes with the rest.
+			if ( ( $wanted[ $row['key'] ] ?? null ) === $row['value'] && ! isset( $kept[ $row['key'] ] ) )
+			{
+				$kept[ $row['key'] ] = true;
+
+				continue;
+			}
+
+			$this->deleteIndexRow( $row['id'] );
 		}
 
-		return count( $rows );
+		$now = time();
+
+		foreach ( $wanted as $metaKey => $value )
+		{
+			if ( ! isset( $kept[ $metaKey ] ) )
+			{
+				$this->insertIndexRow( $fileId, $metaKey, $value, $now );
+			}
+		}
+
+		return count( $wanted );
+	}
+
+	/**
+	 * A file's hash rows as the index holds them.
+	 *
+	 * @return list<array{id: int, key: string, value: string}>
+	 * @throws Exception
+	 */
+	private function hashRowsOf( int $fileId ): array
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( 'id', self::FIELD_META_KEY, self::FIELD_META_VALUE_STRING )
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->like( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
+		   )
+		   ->orderBy( 'id', 'ASC' )
+		;
+
+		$result = $this->executeQuery( $qb );
+		$rows   = array_map(
+			static fn(
+				array $row,
+			): array => [
+				'id'    => (int) $row['id'],
+				'key'   => (string) $row[ self::FIELD_META_KEY ],
+				'value' => (string) $row[ self::FIELD_META_VALUE_STRING ],
+			],
+			$result->fetchAllAssociative(),
+		);
+		$result->closeCursor();
+
+		return $rows;
+	}
+
+	/**
+	 * @throws Exception
+	 */
+	private function deleteIndexRow( int $id ): void
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->delete( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( 'id', $qb->createNamedParameter( $id, IQueryBuilder::PARAM_INT ) ),
+		   )
+		;
+
+		$this->executeStatement( $qb );
 	}
 
 	/**
 	 * One index row.
 	 *
-	 * Only ever called after {@see pruneHashIndexRows()} has cleared the
-	 * file's rows, so there is nothing to update and nothing to race with
-	 * beyond another process doing the same thing — which the unique
-	 * constraint, if any, would settle either way.
-	 *
-	 * A hash row carries its value as a string and nothing in the int; the
-	 * stamp row is the other way round, which is why `$intValue` is here.
+	 * A hash row carries its value as a string and in the int when it was
+	 * written; the stamp row carries the stamp in the int, which is why
+	 * `$intValue` is here.
 	 *
 	 * @throws Exception
 	 */

@@ -423,11 +423,13 @@ class ChecksumApi
 	 * with $reachUids null, the owner's, or for a file no account owns, its
 	 * path in the area `location` names.
 	 *
-	 * `since` is not a change feed: it compares the file's stamp, which
-	 * says until when the hashes are held current, not when they were
-	 * written ({@see HashListingService::stamp()}), and a file moved,
-	 * renamed or deleted changes no stamp. A copy kept with it reads the
-	 * whole listing now and then.
+	 * `since` lists the files with a hash written to this instance at or
+	 * after it — computed, taken over, imported, or computed again after a
+	 * change: a feed of hashes added or changed. Pass the time the previous
+	 * run began, by this server's clock. A file moved, renamed or deleted
+	 * writes no hash, and is not in the feed; a copy kept with it reads the
+	 * whole listing now and then for those. Hashes written before their rows
+	 * carried a time are in no feed: a copy starts with the whole listing.
 	 *
 	 * @param  list<string>|null  $reachUids      Whose files: as {@see findByHash()}.
 	 * @param  string|null        $algo           Only files with a hash in this
@@ -439,9 +441,8 @@ class ChecksumApi
 	 *                                            alone.
 	 * @param  int                $after          The last file id received; 0
 	 *                                            starts the listing.
-	 * @param  int|null           $since          Only files whose stamp is at
-	 *                                            or after it, unix seconds; a
-	 *                                            file without one never.
+	 * @param  int|null           $since          Only files with a hash written
+	 *                                            at or after it, unix seconds.
 	 * @param  bool               $withLocalPath  Each entry gains `localPath`,
 	 *                                            as {@see findByHash()}.
 	 *

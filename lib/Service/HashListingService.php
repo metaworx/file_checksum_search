@@ -121,10 +121,11 @@ class HashListingService
 	 *                                            start is the count alone.
 	 * @param  int                $after          The last file id received; 0
 	 *                                            starts the listing.
-	 * @param  int|null           $since          Only files whose stamp is at
-	 *                                            or after it, unix seconds; a
-	 *                                            file without one never
-	 *                                            ({@see stamp()}).
+	 * @param  int|null           $since          Only files with a hash — in
+	 *                                            $algo, where one is named —
+	 *                                            written to this instance at or
+	 *                                            after it, unix seconds: added
+	 *                                            or changed since.
 	 * @param  bool               $withLocalPath  Each entry gains `localPath`,
 	 *                                            as {@see FilecacheService::localPaths()}.
 	 *

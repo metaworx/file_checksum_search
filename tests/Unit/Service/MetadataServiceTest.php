@@ -433,6 +433,23 @@ class MetadataServiceTest
 		                   ->willReturn( 1 )
 		;
 
+		// The file's one hash row, as the index holds it.
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchAllAssociative' )
+		       ->willReturn(
+			       [
+				       [
+					       'id'                                     => 7,
+					       MetadataService::FIELD_META_KEY          => MetadataService::getHashKey( 'sha1' ),
+					       MetadataService::FIELD_META_VALUE_STRING => str_repeat( 'a', 40 ),
+				       ],
+			       ],
+		       )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
 		$this->service->markEroded( 42 );
 
 		$this->assertSame( 1, $deleted, 'the hash index rows go with the hashes' );
@@ -1438,6 +1455,23 @@ class MetadataServiceTest
 		$this->filecacheService->expects( $this->never() )
 		                       ->method( 'setHashes' )
 		;
+
+		// The row the hash had while it was current.
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchAllAssociative' )
+		       ->willReturn(
+			       [
+				       [
+					       'id'                                     => 7,
+					       MetadataService::FIELD_META_KEY          => MetadataService::getHashKey( 'sha1' ),
+					       MetadataService::FIELD_META_VALUE_STRING => str_repeat( 'a', 40 ),
+				       ],
+			       ],
+		       )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
 		$this->queryBuilder->expects( $this->once() )
 		                   ->method( 'delete' )
 		                   ->willReturnSelf()
@@ -1447,6 +1481,85 @@ class MetadataServiceTest
 		;
 
 		$this->service->saveMetadata( $metadata );
+	}
+
+	/**
+	 * Only what changed is written: a row whose value is the same keeps the
+	 * time it was written, which `since` reads; a changed one is replaced
+	 * with the time of now, a new one inserted with it, one no longer held
+	 * removed.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheIndexKeepsTheTimeOfAHashThatDidNotChange(): void
+	{
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchAllAssociative' )
+		       ->willReturn(
+			       [
+				       [
+					       'id'                                     => 1,
+					       MetadataService::FIELD_META_KEY          => MetadataService::getHashKey( 'sha1' ),
+					       MetadataService::FIELD_META_VALUE_STRING => str_repeat( 'a', 40 ),
+				       ],
+				       [
+					       'id'                                     => 2,
+					       MetadataService::FIELD_META_KEY          => MetadataService::getHashKey( 'md5' ),
+					       MetadataService::FIELD_META_VALUE_STRING => str_repeat( 'b', 32 ),
+				       ],
+				       [
+					       'id'                                     => 3,
+					       MetadataService::FIELD_META_KEY          => MetadataService::getHashKey( 'crc32' ),
+					       MetadataService::FIELD_META_VALUE_STRING => '00000000',
+				       ],
+			       ],
+		       )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$deleted = [];
+		$this->queryBuilder->method( 'createNamedParameter' )
+		                   ->willReturnCallback(
+			                   static function( $value ) use ( &$deleted ): string
+			                   {
+				                   if ( is_int( $value ) && $value < 10 )
+				                   {
+					                   $deleted[] = $value;
+				                   }
+
+				                   return ':p';
+			                   },
+		                   )
+		;
+
+		$inserted = [];
+		$this->queryBuilder->method( 'values' )
+		                   ->willReturnCallback(
+			                   function( array $values ) use ( &$inserted )
+			                   {
+				                   $inserted[] = $values;
+
+				                   return $this->queryBuilder;
+			                   },
+		                   )
+		;
+		$this->queryBuilder->method( 'executeStatement' )
+		                   ->willReturn( 1 )
+		;
+
+		$this->service->syncHashIndex(
+			42,
+			[
+				'sha1'   => str_repeat( 'a', 40 ),
+				'md5'    => str_repeat( 'c', 32 ),
+				'sha256' => str_repeat( 'd', 64 ),
+			],
+		);
+
+		$this->assertSame( [ 2, 3 ], $deleted, 'the changed md5 and the crc32 no longer held, by row' );
+		$this->assertCount( 2, $inserted, 'the changed md5 and the new sha256, not the sha1' );
 	}
 
 	/**

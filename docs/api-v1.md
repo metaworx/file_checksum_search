@@ -138,7 +138,7 @@ hash by hash.
 | `$algo` | `?string` | No | Only files with a hash in this algorithm, in any case, and only that hash |
 | `$limit` | `int` | No | Files per page, clamped to 0–1000, default 500; 0 lists none |
 | `$after` | `int` | No | The last file id received; 0, the default, starts the listing; a negative one is 0 |
-| `$since` | `?int` | No | Only files whose stamp is at or after it, in Unix seconds |
+| `$since` | `?int` | No | Only files with a hash written at or after it, in Unix seconds |
 | `$withLocalPath` | `bool` | No | Add `localPath` to each entry, as `findByHash()` does |
 
 **Returns:**
@@ -185,10 +185,17 @@ hash by hash.
   hashes nobody vouches for — imported older than the file, or written
   without a stamp — are not listed at all. The lookup and
   `getHashesByFileId()` answer the same.
-- **`$since` is not a change feed.** Hashes taken over or imported after a
-  client's last run can carry an older stamp, and a file moved, renamed or
-  deleted changes none. A copy kept in sync with it reads the whole listing
-  now and then.
+- **`$since` is a feed of hashes added or changed.** It keeps the files
+  with a hash — in `$algo`, where one is named — written to this instance
+  at or after it: computed, taken over, imported, or computed again after a
+  change of the content. A hash written again with the value it had is not
+  written, and keeps its time. Pass the time the previous run began, by
+  this server's clock. Each file comes with all its listed hashes.
+- **What the feed leaves out.** A file moved, renamed or deleted writes no
+  hash, and a file whose content changed is out of the listing until its
+  hashes are computed again: a copy kept with `$since` reads the whole
+  listing now and then. Hashes written before this version carry no time
+  and are in no feed: a copy starts with the whole listing.
 
 **Throws:** `\OCP\DB\Exception` on a database error.
 
@@ -1011,21 +1018,20 @@ database — and would otherwise ask hash by hash. The files are the ones
 - **`algo`**, in any case, keeps the files with a hash in that algorithm,
   and only that hash in `hashes`. An algorithm the instance holds no
   hashes in lists nothing; unlike `lookup`, it is not an error.
-- **`since`** keeps the files whose stamp, `updated_at`, is at or after
-  it: Unix seconds, or an ISO 8601 date, optionally with a time and an
-  offset, read as UTC where it has none (`2026-09-02`,
-  `2026-09-02T15:17:00+02:00`). A `+` the client did not encode arrives as
-  a space and is read as the `+` it was; `t` and `z` may be lower case.
-  Anything else, a date that does not exist included, is **400**. A file
-  without a stamp is left out by any `since`.
-- **`since` is not a change feed.** The stamp is not when the hashes were
-  written but until when the app holds them current: when the read began
-  for hashes the app computed, by hand or not, or the file's mtime where
-  that is later, the file's mtime for checksums taken over from Nextcloud's
-  filecache, the stamp an import brought. So hashes taken over or imported
-  after a client's last run can carry an older stamp, and a file moved,
-  renamed or deleted changes none. A copy kept in sync with `since` reads
-  the whole listing now and then.
+- **`since`** keeps the files with a hash — in `algo`, where one is
+  named — written to this instance at or after it: a feed of hashes added
+  or changed, as `listHashes()` describes it. Unix seconds, or an ISO 8601
+  date, optionally with a time and an offset, read as UTC where it has none
+  (`2026-09-02`, `2026-09-02T15:17:00+02:00`). A `+` the client did not
+  encode arrives as a space and is read as the `+` it was; `t` and `z` may
+  be lower case. Anything else, a date that does not exist included, is
+  **400**. Pass the time the previous run began by the server's clock — its
+  `Date` header says it.
+- **What the feed leaves out.** A file moved, renamed or deleted writes no
+  hash, and a changed file is out of the listing until its hashes are
+  computed again: a copy kept with `since` reads the whole listing now and
+  then. Hashes written before this version carry no time and are in no
+  feed: a copy starts with the whole listing.
 - **Only current hashes are listed.** A file whose content changed leaves
   the listing at once and comes back when its hashes are computed again;
   hashes nobody vouches for are not listed at all.

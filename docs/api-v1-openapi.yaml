@@ -1136,12 +1136,11 @@ components:
       in: query
       required: false
       description: >-
-        Only files whose stamp (`updated_at`) is at or after it: Unix seconds, or an ISO 8601
-        date, optionally with a time and an offset, read as UTC where it has none. A file without
-        a stamp is left out. Anything else, a date that does not exist included, is 400. Not a
-        change feed: the stamp says until when the hashes are held current, not when they were
-        written, so hashes taken over or imported later can carry an older one, and a file
-        moved, renamed or deleted changes none.
+        Only files with a hash, in `algo` where one is named, written to this instance at or
+        after it: a feed of hashes added or changed. Unix seconds, or an ISO 8601 date,
+        optionally with a time and an offset, read as UTC where it has none. Anything else, a
+        date that does not exist included, is 400. A file moved, renamed or deleted writes no
+        hash and is not in the feed, and hashes written before this version carry no time.
       schema:
         type: string
         example: "2026-09-02T15:17:00+02:00"

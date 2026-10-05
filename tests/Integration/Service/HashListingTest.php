@@ -307,18 +307,86 @@ class HashListingTest
 		$this->assertSame( [ self::$fileId['b'], self::$fileId['r'] ], array_keys( $rest ) );
 	}
 
-	public function testSinceKeepsTheFilesStampedAtOrAfterIt(): void
+	public function testSinceKeepsTheFilesWithAHashWrittenAtOrAfterIt(): void
 	{
-		$stamp = Server::get( MetadataService::class )->getUpdatedAt( self::$fileId['a'] );
+		[ $written ] = $this->hashRowOf( self::$fileId['a'], 'sha256' );
 
-		$this->assertNotNull( $stamp );
+		$this->assertGreaterThan( 0, $written, 'a hash row carries when it was written' );
 
-		$from = $this->api->listHashes( [ self::$ownerUid ], null, 500, 0, $stamp );
-		$this->assertContains( self::$fileId['a'], array_column( $from['files'], 'fileid' ), 'at the stamp' );
+		$from = $this->api->listHashes( [ self::$ownerUid ], null, 500, 0, $written );
+		$this->assertContains( self::$fileId['a'], array_column( $from['files'], 'fileid' ), 'at its write' );
 
 		$later = $this->api->listHashes( [ self::$ownerUid ], null, 500, 0, time() + 3600 );
-		$this->assertSame( [], $later['files'], 'after every stamp' );
+		$this->assertSame( [], $later['files'], 'after every write' );
 		$this->assertSame( 0, $later['estimated_total'] );
+	}
+
+	/**
+	 * The feed: a save that changes no hash leaves its row and its time
+	 * alone, so `since` does not offer the file again; a hash that changes
+	 * is written anew and is in the feed from then on.
+	 */
+	public function testSinceListsAChangedHashAndNotAnUnchangedOne(): void
+	{
+		[ $uid ] = self::makeAccount( 'fcias_list_feed' );
+		$file    = Server::get( IRootFolder::class )->getUserFolder( $uid )->newFile( 'f.txt', 'feed ' . $uid );
+		$service = Server::get( MetadataService::class );
+
+		$service->writeHashes( $file->getId(), [ 'sha256' => hash( 'sha256', 'feed ' . $uid ), 'sha1' => sha1( 'feed ' . $uid ) ], time(), false );
+
+		$before = $this->hashRowOf( $file->getId(), 'sha1' );
+		$sha256 = $this->hashRowOf( $file->getId(), 'sha256' );
+		$after  = time() + 1;
+
+		// The same hashes saved again: nothing about them changed.
+		$service->saveMetadata( $service->getMetadata( $file->getId() ) );
+
+		$this->assertSame( $before, $this->hashRowOf( $file->getId(), 'sha1' ), 'the same row, with its time' );
+
+		// Wait out the second, so that a write now is a write after $after.
+		while ( time() < $after )
+		{
+			usleep( 100_000 );
+		}
+
+		$this->assertSame( [], $this->api->listHashes( [ $uid ], null, 500, 0, $after )['files'], 'nothing written since' );
+
+		$service->writeHashes( $file->getId(), [ 'sha1' => str_repeat( 'e', 40 ) ], time(), false );
+
+		$feed = $this->api->listHashes( [ $uid ], null, 500, 0, $after )['files'];
+
+		$this->assertSame( [ $file->getId() ], array_column( $feed, 'fileid' ) );
+		$this->assertSame( [], $this->api->listHashes( [ $uid ], 'sha256', 500, 0, $after )['files'], 'its sha256 did not change' );
+		$this->assertSame( $sha256, $this->hashRowOf( $file->getId(), 'sha256' ), 'nor did its row' );
+	}
+
+	/**
+	 * A file's hash row of $algo: when it was written, and its id.
+	 *
+	 * @return array{0: int, 1: int}
+	 */
+	private function hashRowOf(
+		int    $fileId,
+		string $algo,
+	): array
+	{
+		$row = $this->getRawConnection()
+		            ->executeQuery(
+			            'SELECT `meta_value_int`, `id` FROM `*PREFIX*files_metadata_index` WHERE `file_id` = ? AND `meta_key` = ?',
+			            [
+				            $fileId,
+				            MetadataService::getHashKey( $algo ),
+			            ],
+		            )
+		            ->fetchAssociative()
+		;
+
+		$this->assertIsArray( $row, "The file has a $algo row." );
+
+		return [
+			(int) $row['meta_value_int'],
+			(int) $row['id'],
+		];
 	}
 
 	/**
