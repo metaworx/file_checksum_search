@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-10-06
+
 ### Changed
 
 - `location` is an address, its area and path split at the last `//`:

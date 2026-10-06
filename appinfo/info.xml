@@ -165,7 +165,7 @@ O que você recebe:
 
 *Machine-translated: the app's texts in this language have not yet been reviewed by a native speaker.*
 </description>
-	<version>0.22.0</version>
+	<version>0.23.0</version>
 	<licence>AGPL-3.0-or-later</licence>
 	<author mail="apps@metaworx.ch"
 			homepage="https://github.com/metaworx/">metaworx resonare rüegg
@@ -182,13 +182,13 @@ O que você recebe:
 	<bugs>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/work_items</bugs>
 	<repository type="git">https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search.git</repository>
 <!-- BEGIN GENERATED RELEASE-PIN - do not edit; run "changelog.sh cut" -->
-	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.22.0/docs/Screenshots/Slideshow.gif</screenshot>
-	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.22.0/docs/Screenshots/File-Detail-Pane.png</screenshot>
-	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.22.0/docs/Screenshots/Unified_Search.png</screenshot>
-	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.22.0/docs/Screenshots/Duplicates-Page.png</screenshot>
-	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.22.0/docs/Screenshots/Duplicates-Others.png</screenshot>
-	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.22.0/docs/Screenshots/Admin-Settings.png</screenshot>
-	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.22.0/docs/Screenshots/Rule-Dialog.png</screenshot>
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.23.0/docs/Screenshots/Slideshow.gif</screenshot>
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.23.0/docs/Screenshots/File-Detail-Pane.png</screenshot>
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.23.0/docs/Screenshots/Unified_Search.png</screenshot>
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.23.0/docs/Screenshots/Duplicates-Page.png</screenshot>
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.23.0/docs/Screenshots/Duplicates-Others.png</screenshot>
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.23.0/docs/Screenshots/Admin-Settings.png</screenshot>
+	<screenshot>https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.23.0/docs/Screenshots/Rule-Dialog.png</screenshot>
 <!-- END GENERATED RELEASE-PIN -->
 	<dependencies>
 		<php min-version="8.2"/>
