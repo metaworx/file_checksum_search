@@ -43,6 +43,7 @@ term that changes, changes here and in the `.po` file at once.
 | Auto / Missing / Force / Lazy | 自动 / 补缺 / 重建 / 延后 | a rule **mode**'s name in the form; *Force* is 重建 so it cannot be read as 强制 (enforced) |
 | home folder | 主目录 | Nextcloud's term (用户主目录) |
 | team folder | 团队文件夹 | Nextcloud's term; the selector prefix `groupfolder:` is typed as it is |
+| share (a received one) | 共享 | Nextcloud's term (收到的共享); the location prefix `share:` is typed as it is |
 | storage | 存储 | |
 | raw ID | 内部 ID | |
 | external storage, external mount | 外部存储 | Nextcloud's term |

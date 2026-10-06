@@ -6,6 +6,7 @@
     "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password. A grant stays in force until it is revoked, and every administrator can see it. Create the app password under \"Security\" first, with \"Allow filesystem access\" on. Whether you may look across accounts at all is still up to your administrator; a grant replaces the password prompt, not the permission." : "Ein freigeschaltetes App-Passwort darf über die Routen /api/v1/sudo/ kontoübergreifend lesen, ohne dass jemand ein Passwort eingibt. Eine Freischaltung gilt, bis sie widerrufen wird, und die gesamte Administration kann sie sehen. Erstellen Sie das App-Passwort zuerst unter „Sicherheit“, mit aktivierter Option „Erlaube Dateisystem-Zugriff“. Ob Sie überhaupt kontoübergreifend Einsicht nehmen dürfen, entscheidet weiterhin Ihre Administration; eine Freischaltung ersetzt die Passwortabfrage, nicht die Berechtigung.",
     "A home folder" : "Ein Home-Ordner",
     "A path is required." : "Ein Pfad ist erforderlich.",
+    "A share" : "Eine Freigabe",
     "A single account" : "Ein einzelnes Konto",
     "A storage" : "Ein Speicher",
     "A team folder" : "Ein Team-Ordner",
@@ -386,6 +387,7 @@
     "{folders} — one folder" : "{folders} – ein Ordner",
     "{folders}: {folder}" : "{folders}: {folder}",
     "{group} (group)" : "{group} (Gruppe)",
+    "{owner}: {path}" : "{owner}: {path}",
     "{stored} is not available on this server at the moment, so the default ({active}) applies." : "{stored} ist auf diesem Server derzeit nicht verfügbar, daher gilt der Standard ({active}).",
     "{time} by {account}" : "{time} von {account}"
 },"pluralForm" :"nplurals=2; plural=(n != 1);"

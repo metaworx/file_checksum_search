@@ -6,6 +6,7 @@
     "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password. A grant stays in force until it is revoked, and every administrator can see it. Create the app password under \"Security\" first, with \"Allow filesystem access\" on. Whether you may look across accounts at all is still up to your administrator; a grant replaces the password prompt, not the permission." : "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password. A grant stays in force until it is revoked, and every administrator can see it. Create the app password under \"Security\" first, with \"Allow filesystem access\" on. Whether you may look across accounts at all is still up to your administrator; a grant replaces the password prompt, not the permission.",
     "A home folder" : "A home folder",
     "A path is required." : "A path is required.",
+    "A share" : "A share",
     "A single account" : "A single account",
     "A storage" : "A storage",
     "A team folder" : "A team folder",
@@ -386,6 +387,7 @@
     "{folders} — one folder" : "{folders} — one folder",
     "{folders}: {folder}" : "{folders}: {folder}",
     "{group} (group)" : "{group} (group)",
+    "{owner}: {path}" : "{owner}: {path}",
     "{stored} is not available on this server at the moment, so the default ({active}) applies." : "{stored} is not available on this server at the moment, so the default ({active}) applies.",
     "{time} by {account}" : "{time} by {account}"
 },"pluralForm" :"nplurals=2; plural=(n != 1);"

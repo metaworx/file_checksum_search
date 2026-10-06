@@ -8,6 +8,7 @@ OC.L10N.register(
     "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password. A grant stays in force until it is revoked, and every administrator can see it. Create the app password under \"Security\" first, with \"Allow filesystem access\" on. Whether you may look across accounts at all is still up to your administrator; a grant replaces the password prompt, not the permission." : "Una contraseña de aplicación autorizada puede leer de otras cuentas a través de las rutas /api/v1/sudo/ sin que nadie escriba una contraseña. Una autorización sigue vigente hasta que se revoca, y todos los administradores pueden verla. Cree primero la contraseña de aplicación en «Seguridad», con «Permitir acceso al sistema de archivos» activado. Si usted puede o no consultar otras cuentas sigue siendo decisión de su administrador; una autorización sustituye a la solicitud de contraseña, no al permiso.",
     "A home folder" : "Una carpeta personal",
     "A path is required." : "Se requiere una ruta.",
+    "A share" : "Un recurso compartido",
     "A single account" : "Una sola cuenta",
     "A storage" : "Un almacenamiento",
     "A team folder" : "Una carpeta de equipo",
@@ -388,6 +389,7 @@ OC.L10N.register(
     "{folders} — one folder" : "{folders} — una carpeta",
     "{folders}: {folder}" : "{folders}: {folder}",
     "{group} (group)" : "{group} (grupo)",
+    "{owner}: {path}" : "{owner}: {path}",
     "{stored} is not available on this server at the moment, so the default ({active}) applies." : "{stored} no está disponible en este servidor en este momento, así que se aplica el predeterminado ({active}).",
     "{time} by {account}" : "{time} por {account}"
 },

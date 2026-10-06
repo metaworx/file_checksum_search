@@ -39,6 +39,7 @@ term that changes, changes here and in the `.po` file at once.
 | Auto / Missing / Force / Lazy | Automatico / Mancanti / Forzato / Differito | a rule's mode (*Modalità*), as the form names it; the option texts name their object: *ricalcola i checksum esistenti*, never a bare *gli esistenti*. The table's `"auto"`, `"missing"`, `"force"`, `"lazy"` stay English |
 | home folder | cartella home | |
 | team folder | cartella del team, cartelle del team | Nextcloud's `groupfolders` term; the selector prefix `groupfolder:` is typed as it is |
+| share (a received one) | condivisione | Nextcloud's term (*condivisione ricevuta*); the location prefix `share:` is typed as it is |
 | storage | archiviazione, archiviazioni | Nextcloud's term; *Un'archiviazione* |
 | raw ID | ID interno | |
 | external storage | archiviazione esterna | Nextcloud's `files_external` term |

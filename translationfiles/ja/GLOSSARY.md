@@ -48,6 +48,7 @@ here; a term that changes, changes here and in the `.po` file at once.
 | Auto / Missing / Force / Lazy | 自動 / 欠落分 / 全件 / 遅延 | the rule's **mode** (Mode field, モード); *Force* is not 強制, which is *enforced*; the table shows `"auto"` … `"lazy"` as they are |
 | home folder | ホームフォルダー | |
 | team folder | チームフォルダー | the groupfolders app's own `ja` term; the selector prefix `groupfolder:` is typed as it is |
+| share (a received one) | 共有 | Nextcloud's term (受け取った共有); the location prefix `share:` is typed as it is |
 | storage | ストレージ | |
 | raw ID | 内部ID | |
 | external storage | 外部ストレージ | Nextcloud's term |

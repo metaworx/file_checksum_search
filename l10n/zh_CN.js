@@ -8,6 +8,7 @@ OC.L10N.register(
     "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password. A grant stays in force until it is revoked, and every administrator can see it. Create the app password under \"Security\" first, with \"Allow filesystem access\" on. Whether you may look across accounts at all is still up to your administrator; a grant replaces the password prompt, not the permission." : "已授权的应用密码可以通过 /api/v1/sudo/ 路由跨账号读取，无需任何人输入密码。授权在撤销之前一直有效，所有管理员都能看到它。请先在“安全”中创建应用密码，并开启“允许访问文件系统”。您究竟能否跨账号查看，仍由您的管理员决定；授权取代的是密码提示，而不是权限。",
     "A home folder" : "一个主目录",
     "A path is required." : "路径为必填项。",
+    "A share" : "一个共享",
     "A single account" : "单个账号",
     "A storage" : "一个存储",
     "A team folder" : "一个团队文件夹",
@@ -388,6 +389,7 @@ OC.L10N.register(
     "{folders} — one folder" : "{folders}——单个文件夹",
     "{folders}: {folder}" : "{folders}：{folder}",
     "{group} (group)" : "{group}（群组）",
+    "{owner}: {path}" : "{owner}：{path}",
     "{stored} is not available on this server at the moment, so the default ({active}) applies." : "{stored} 目前在此服务器上不可用，因此使用默认算法（{active}）。",
     "{time} by {account}" : "{time}，由 {account} 授权"
 },

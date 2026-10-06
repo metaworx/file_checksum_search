@@ -41,6 +41,9 @@ msgstr "Een thuismap"
 msgid "A path is required."
 msgstr "Een pad is vereist."
 
+msgid "A share"
+msgstr "Een share"
+
 msgid "A single account"
 msgstr "Eén account"
 
@@ -1272,6 +1275,10 @@ msgstr "{folders}: {folder}"
 
 msgid "{group} (group)"
 msgstr "{group} (groep)"
+
+#. TRANSLATORS: a file someone shared: their account name, then where the reader finds the file, as in "bob: My Projects/report.pdf"
+msgid "{owner}: {path}"
+msgstr "{owner}: {path}"
 
 msgid "{stored} is not available on this server at the moment, so the default ({active}) applies."
 msgstr "{stored} is momenteel niet beschikbaar op deze server, dus geldt de standaard ({active})."

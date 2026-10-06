@@ -46,6 +46,7 @@ here; a term that changes, changes here and in the `.po` file at once.
 | Auto / Missing / Force / Lazy | Automatique / Manquantes / Forcer / Différé | the names of a rule's *mode* in the form; they share no word with the types, and *Forcer* is kept for the mode because *enforced* is *imposée* |
 | home folder | dossier personnel | Nextcloud's term (`files_sharing`) |
 | team folder | dossier d'équipe | Nextcloud's term (`groupfolders`: *Dossiers d'équipe*); the selector prefix `groupfolder:` is typed as it is |
+| share (a received one) | partage | Nextcloud's term (*partage reçu*); the location prefix `share:` is typed as it is |
 | storage | stockage | |
 | external storage, external mount | stockage externe | Nextcloud's term (`files_external`) |
 | raw ID | identifiant interne | *ID* alone is *identifiant* |

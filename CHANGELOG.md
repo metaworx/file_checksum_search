@@ -20,6 +20,9 @@ the first stable release.
 - The duplicates listing's `path` is the account's own, with a leading
   slash, no longer the filecache's `files/…` (`docs/api-v1.md`).
 
+- Duplicates page and sidebar: a file shared with the reader is labelled
+  by its owner and the reader's path (`docs/user-guide.md`).
+
 ### Fixed
 
 - `storage:` and `*` rules govern the files of an external storage; an

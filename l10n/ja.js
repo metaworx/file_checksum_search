@@ -8,6 +8,7 @@ OC.L10N.register(
     "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password. A grant stays in force until it is revoked, and every administrator can see it. Create the app password under \"Security\" first, with \"Allow filesystem access\" on. Whether you may look across accounts at all is still up to your administrator; a grant replaces the password prompt, not the permission." : "承認されたアプリパスワードは、誰もパスワードを入力することなく、/api/v1/sudo/ のルートを通じてアカウントを横断して読み取ることができます。承認は取り消されるまで有効であり、すべての管理者が確認できます。まず「セキュリティ」で、「ファイルシステムへのアクセスを許可」をオンにしてアプリパスワードを作成してください。そもそもアカウントを横断して閲覧できるかどうかは、引き続き管理者が決めます。承認が置き換えるのはパスワードの入力要求であり、権限ではありません。",
     "A home folder" : "ホームフォルダー",
     "A path is required." : "パスが必要です。",
+    "A share" : "共有",
     "A single account" : "1つのアカウント",
     "A storage" : "ストレージ",
     "A team folder" : "チームフォルダー",
@@ -388,6 +389,7 @@ OC.L10N.register(
     "{folders} — one folder" : "{folders}：1つのフォルダー",
     "{folders}: {folder}" : "{folders}：{folder}",
     "{group} (group)" : "{group}（グループ）",
+    "{owner}: {path}" : "{owner}：{path}",
     "{stored} is not available on this server at the moment, so the default ({active}) applies." : "{stored} は現在このサーバーで利用できないため、デフォルト（{active}）が適用されます。",
     "{time} by {account}" : "{time}（{account} による）"
 },

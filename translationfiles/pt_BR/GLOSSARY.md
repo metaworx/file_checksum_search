@@ -43,6 +43,7 @@ term that changes, changes here and in the `.po` file at once.
 | Auto / Missing / Force / Lazy | Automático / Ausentes / Forçar / Adiado | a rule's *mode* (*Modo*), never its type |
 | home folder | pasta pessoal | Nextcloud's term |
 | team folder | pasta de equipe | Nextcloud's term (Team folders app); the selector prefix `groupfolder:` is typed as it is |
+| share (a received one) | compartilhamento | Nextcloud's term (*compartilhamento recebido*); the location prefix `share:` is typed as it is |
 | storage | armazenamento | |
 | external storage | armazenamento externo | |
 | raw ID | ID interno | *o ID*, masculine, as most of Nextcloud's `pt_BR` has it |

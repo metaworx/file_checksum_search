@@ -51,6 +51,7 @@ here; a term that changes, changes here and in the `.po` file at once.
 | match | coincidir; *hacer coincidir* where something is matched | «la primera regla que coincide», «Hacer coincidir el término en cualquier parte del hash» (the switch's tooltip); the switch's own label says *buscar*: «Buscar en cualquier parte del hash» |
 | home folder | carpeta personal | |
 | team folder | carpeta de equipo | Nextcloud's `groupfolders`: «Carpeta de equipo», «Carpetas de equipo»; the selector prefix `groupfolder:` is typed as it is |
+| share (a received one) | recurso compartido | Nextcloud's term (*recurso compartido recibido*); the location prefix `share:` is typed as it is |
 | storage | almacenamiento | |
 | raw ID | ID interno | |
 | external storage | almacenamiento externo | Nextcloud's `files_external`: «Almacenamiento externo» |

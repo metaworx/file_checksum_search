@@ -36,6 +36,7 @@ files at once.
 | Auto / Missing / Force / Lazy | Automatisch / Fehlende / Erzwingen / Später | a mode's name in the form |
 | home folder | Home-Ordner | |
 | team folder | Team-Ordner | Nextcloud's own term; the selector prefix `groupfolder:` is typed as it is |
+| share (a received one) | Freigabe | Nextcloud's own term (*empfangene Freigabe*); the location prefix `share:` is typed as it is |
 | storage | Speicher | |
 | raw ID | interne ID | |
 | external storage | externer Speicher | |

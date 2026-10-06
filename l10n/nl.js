@@ -8,6 +8,7 @@ OC.L10N.register(
     "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password. A grant stays in force until it is revoked, and every administrator can see it. Create the app password under \"Security\" first, with \"Allow filesystem access\" on. Whether you may look across accounts at all is still up to your administrator; a grant replaces the password prompt, not the permission." : "Een vrijgegeven appwachtwoord mag via de routes /api/v1/sudo/ accountoverschrijdend lezen zonder dat iemand een wachtwoord invoert. Een vrijgave blijft van kracht totdat ze wordt ingetrokken en is zichtbaar voor elke beheerder. Maak het appwachtwoord eerst aan onder “Beveiliging”, met “Toestaan toegang bestandssysteem” ingeschakeld. Of je überhaupt accountoverschrijdend mag kijken, wordt nog steeds bepaald door je beheerder; een vrijgave vervangt de wachtwoordvraag, niet de machtiging.",
     "A home folder" : "Een thuismap",
     "A path is required." : "Een pad is vereist.",
+    "A share" : "Een share",
     "A single account" : "Eén account",
     "A storage" : "Een opslag",
     "A team folder" : "Een teammap",
@@ -388,6 +389,7 @@ OC.L10N.register(
     "{folders} — one folder" : "{folders} – één map",
     "{folders}: {folder}" : "{folders}: {folder}",
     "{group} (group)" : "{group} (groep)",
+    "{owner}: {path}" : "{owner}: {path}",
     "{stored} is not available on this server at the moment, so the default ({active}) applies." : "{stored} is momenteel niet beschikbaar op deze server, dus geldt de standaard ({active}).",
     "{time} by {account}" : "{time} door {account}"
 },

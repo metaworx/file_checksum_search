@@ -40,6 +40,9 @@ msgstr "一个主目录"
 msgid "A path is required."
 msgstr "路径为必填项。"
 
+msgid "A share"
+msgstr "一个共享"
+
 msgid "A single account"
 msgstr "单个账号"
 
@@ -1270,6 +1273,10 @@ msgstr "{folders}：{folder}"
 
 msgid "{group} (group)"
 msgstr "{group}（群组）"
+
+#. TRANSLATORS: a file someone shared: their account name, then where the reader finds the file, as in "bob: My Projects/report.pdf"
+msgid "{owner}: {path}"
+msgstr "{owner}：{path}"
 
 msgid "{stored} is not available on this server at the moment, so the default ({active}) applies."
 msgstr "{stored} 目前在此服务器上不可用，因此使用默认算法（{active}）。"

@@ -8,6 +8,7 @@ OC.L10N.register(
     "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password. A grant stays in force until it is revoked, and every administrator can see it. Create the app password under \"Security\" first, with \"Allow filesystem access\" on. Whether you may look across accounts at all is still up to your administrator; a grant replaces the password prompt, not the permission." : "Upoważnione hasło aplikacji może odczytywać pliki innych kont przez trasy /api/v1/sudo/, a nikt nie musi przy tym wpisywać hasła. Upoważnienie obowiązuje, dopóki nie zostanie cofnięte, i widzi je każdy administrator. Najpierw utwórz hasło aplikacji w sekcji „Bezpieczeństwo”, z włączoną opcją „Zezwalaj na dostęp do systemu plików”. To, czy w ogóle możesz mieć wgląd w inne konta, nadal zależy od administratora; upoważnienie zastępuje pytanie o hasło, a nie uprawnienie.",
     "A home folder" : "Folder domowy",
     "A path is required." : "Ścieżka jest wymagana.",
+    "A share" : "Udostępnienie",
     "A single account" : "Pojedyncze konto",
     "A storage" : "Magazyn",
     "A team folder" : "Folder zespołu",
@@ -388,6 +389,7 @@ OC.L10N.register(
     "{folders} — one folder" : "{folders} – jeden folder",
     "{folders}: {folder}" : "{folders}: {folder}",
     "{group} (group)" : "{group} (grupa)",
+    "{owner}: {path}" : "{owner}: {path}",
     "{stored} is not available on this server at the moment, so the default ({active}) applies." : "{stored} nie jest obecnie dostępny na tym serwerze, więc obowiązuje domyślny ({active}).",
     "{time} by {account}" : "{time} przez {account}"
 },

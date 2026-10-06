@@ -43,6 +43,9 @@ msgstr "Folder domowy"
 msgid "A path is required."
 msgstr "Ścieżka jest wymagana."
 
+msgid "A share"
+msgstr "Udostępnienie"
+
 msgid "A single account"
 msgstr "Pojedyncze konto"
 
@@ -1276,6 +1279,10 @@ msgstr "{folders}: {folder}"
 
 msgid "{group} (group)"
 msgstr "{group} (grupa)"
+
+#. TRANSLATORS: a file someone shared: their account name, then where the reader finds the file, as in "bob: My Projects/report.pdf"
+msgid "{owner}: {path}"
+msgstr "{owner}: {path}"
 
 msgid "{stored} is not available on this server at the moment, so the default ({active}) applies."
 msgstr "{stored} nie jest obecnie dostępny na tym serwerze, więc obowiązuje domyślny ({active})."

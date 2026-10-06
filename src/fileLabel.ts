@@ -5,13 +5,18 @@
  * What to call a file in a list that may hold other people's.
  */
 
+import { t } from './l10n'
+
 /** The part of a file row the label is made from; every API row carries it. */
 export interface LabelledFile {
 	path?: string
 	name?: string
 	/** The uid a home file belongs to; null for a group folder or external storage. */
 	owner?: string | null
-	/** Where the file really lives — `home:uid//…`, `groupfolder:3//…`, `storage:…//…`. */
+	/**
+	 * Where the file lives — `home:uid//…`, `groupfolder:3//…`, `storage:…//…`,
+	 * or `share:42//…` for a file the reach holds through a share.
+	 */
 	location?: string
 }
 
@@ -27,28 +32,40 @@ export function currentUid(): string | null {
 }
 
 /**
- * A file's own path where it is the viewer's, and its location where it is
- * not.
+ * A file's own path where it is the viewer's, its owner and the viewer's
+ * path where the viewer holds it through a share, and its location
+ * otherwise.
  *
  * A path is one viewer's name for a file: three people's copies of
  * `Templates/Certificate.odt` all read the same, so a cross-account list of
- * them says nothing about whose each is. The location says — and for the
- * viewer's own files it would only be noise, so they keep the path they know.
- * A file with no owner (a group folder, an external storage) is nobody's own,
- * and shows its location too.
+ * them says nothing about whose each is. The owner says whose, and the path
+ * where the viewer finds it — `bob: My Projects/Bob-x/a.txt` — with nothing
+ * of the owner's above the share, which the location leaves out too. For
+ * the viewer's own files the owner would only be noise, so they keep the
+ * path they know. A file with no owner (a group folder, an external
+ * storage), and every file a sudoer reads across accounts, shows its
+ * location.
  */
 export function fileLabel(file: LabelledFile, uid: string | null = currentUid()): string {
 	if (labelIsLocation(file, uid)) {
-		return file.location as string
+		const location = file.location as string
+
+		if (location.startsWith('share:') && file.owner && file.path) {
+			// TRANSLATORS: a file someone shared: their account name, then where the reader finds the file, as in "bob: My Projects/report.pdf"
+			return t('file_checksum_search', '{owner}: {path}', { owner: file.owner, path: file.path.replace(/^\/+/, '') })
+		}
+
+		return location
 	}
 
 	return ownPath(file.path || '') || file.name || ''
 }
 
 /**
- * The path as the viewer knows it. The API's `path` is the filecache's,
- * which puts every home file under `files/`; nobody's Files app shows that
- * segment, so neither does a list of their own files.
+ * The path as the viewer knows it. An older server's duplicates listing
+ * gave the filecache's path, which puts every home file under `files/`;
+ * nobody's Files app shows that segment, so neither does a list of their
+ * own files.
  */
 function ownPath(path: string): string {
 	return path.startsWith('files/') ? path.slice('files/'.length) : path
@@ -60,7 +77,7 @@ function labelIsLocation(file: LabelledFile, uid: string | null): boolean {
 }
 
 /** The kinds of place a label names: the viewer's own file, or a location by its prefix. */
-export type FileLocationKind = 'own' | 'home' | 'groupfolder' | 'storage'
+export type FileLocationKind = 'own' | 'home' | 'share' | 'groupfolder' | 'storage'
 
 /**
  * What kind of place the label names, for the glyph before it: `own` for
@@ -74,11 +91,10 @@ export function labelKind(file: LabelledFile, uid: string | null = currentUid())
 		return own ? 'own' : null
 	}
 	const location = file.location as string
-	if (location.startsWith('groupfolder:')) {
-		return 'groupfolder'
+	for (const kind of ['share', 'groupfolder', 'storage', 'home'] as const) {
+		if (location.startsWith(kind + ':')) {
+			return kind
+		}
 	}
-	if (location.startsWith('storage:')) {
-		return 'storage'
-	}
-	return location.startsWith('home:') ? 'home' : null
+	return null
 }

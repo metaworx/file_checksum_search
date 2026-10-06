@@ -40,6 +40,9 @@ msgstr "ホームフォルダー"
 msgid "A path is required."
 msgstr "パスが必要です。"
 
+msgid "A share"
+msgstr "共有"
+
 msgid "A single account"
 msgstr "1つのアカウント"
 
@@ -1270,6 +1273,10 @@ msgstr "{folders}：{folder}"
 
 msgid "{group} (group)"
 msgstr "{group}（グループ）"
+
+#. TRANSLATORS: a file someone shared: their account name, then where the reader finds the file, as in "bob: My Projects/report.pdf"
+msgid "{owner}: {path}"
+msgstr "{owner}：{path}"
 
 msgid "{stored} is not available on this server at the moment, so the default ({active}) applies."
 msgstr "{stored} は現在このサーバーで利用できないため、デフォルト（{active}）が適用されます。"

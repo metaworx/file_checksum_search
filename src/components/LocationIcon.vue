@@ -5,8 +5,9 @@
  *
  * One glyph for where a file lives, or what a rule addresses.
  *
- * A location reads `home:alice//…`, `groupfolder:3//…` or `storage:<id>//…`,
- * and a selector `home:<uid>`, `group:<gid>`, `home:*`, `groupfolder:<id>`,
+ * A location reads `home:alice//…`, `groupfolder:3//…`, `storage:<id>//…` or,
+ * for a file the viewer holds through a share, `share:<id>//…`, and a
+ * selector `home:<uid>`, `group:<gid>`, `home:*`, `groupfolder:<id>`,
  * `storage:<id>` or `*`. The prefix says which kind of place that is, and a
  * reader has to parse it; the glyph says it at a glance. The text stays as
  * it is — the glyph is never the only cue, and carries its kind as a title.
@@ -21,6 +22,7 @@ import {
 	ICON_HARDDISK,
 	ICON_HOME,
 	ICON_HOME_GROUP,
+	ICON_SHARE,
 } from './icons'
 import { t } from '../l10n'
 
@@ -31,7 +33,7 @@ import { t } from '../l10n'
  * not somebody's — it is theirs — and so that every row carries a glyph
  * and the labels line up.
  */
-export type LocationKind = 'own' | 'home' | 'user' | 'group' | 'homeAll' | 'groupfolder' | 'storage' | 'universal'
+export type LocationKind = 'own' | 'home' | 'share' | 'user' | 'group' | 'homeAll' | 'groupfolder' | 'storage' | 'universal'
 
 const props = withDefaults(
 	defineProps<{
@@ -45,6 +47,7 @@ const props = withDefaults(
 const GLYPHS: Record<LocationKind, { path: string, title: string }> = {
 	own: { path: ICON_HOME, title: t('file_checksum_search', 'Your own file') },
 	home: { path: ICON_ACCOUNT, title: t('file_checksum_search', 'A home folder') },
+	share: { path: ICON_SHARE, title: t('file_checksum_search', 'A share') },
 	user: { path: ICON_ACCOUNT, title: t('file_checksum_search', 'One account\'s home folder') },
 	group: { path: ICON_ACCOUNT_GROUP, title: t('file_checksum_search', 'The home folders of a group\'s members') },
 	homeAll: { path: ICON_HOME_GROUP, title: t('file_checksum_search', 'All home folders') },

@@ -17,10 +17,23 @@ describe('fileLabel', () => {
 		expect(fileLabel(mine, 'alice')).toBe('/Templates/Certificate.odt')
 	})
 
+	// A file the viewer holds through a share: whose it is, and where the
+	// viewer finds it — nothing of the owner's folders above the share, which
+	// the location, `share:<id>//…`, leaves out as well.
+	it('names a shared file by its owner and the viewer\'s path', () => {
+		const shared = { path: '/My Projects/Bob-x/a.txt', name: 'a.txt', owner: 'bob', location: 'share:42//a.txt' }
+
+		expect(fileLabel(shared, 'alice')).toBe('bob: My Projects/Bob-x/a.txt')
+		expect(labelKind(shared, 'alice')).toBe('share')
+		// Without a path or an owner to say it with, the location.
+		expect(fileLabel({ ...shared, path: undefined }, 'alice')).toBe('share:42//a.txt')
+		expect(fileLabel({ ...shared, owner: null }, 'alice')).toBe('share:42//a.txt')
+	})
+
 	// The case the field exists for: three accounts' copies of one template
 	// all read `/Templates/Certificate.odt`, and only the location says whose.
-	// The API's path is the filecache's, `files/Documents/a.txt`; the Files
-	// app never shows that first segment, and this list did.
+	// An older server's duplicates listing gave the filecache's path,
+	// `files/Documents/a.txt`; the Files app never shows that first segment.
 	it('drops the filecache\'s files/ segment from the viewer\'s own path', () => {
 		const row = { path: 'files/Documents/a.txt', name: 'a.txt', owner: 'alice', location: 'home:alice//Documents/a.txt' }
 		expect(fileLabel(row, 'alice')).toBe('Documents/a.txt')
@@ -77,8 +90,9 @@ describe('labelKind', () => {
 		expect(labelKind(mine, 'alice')).toBe('own')
 	})
 
-	it('reads a home, a group folder and a storage off the location', () => {
+	it('reads a home, a share, a group folder and a storage off the location', () => {
 		expect(labelKind(mine, 'bob')).toBe('home')
+		expect(labelKind({ path: '/x/a.txt', owner: 'bob', location: 'share:42//a.txt' }, 'alice')).toBe('share')
 		expect(labelKind({ path: '/plan.md', owner: null, location: 'groupfolder:3//plan.md' }, 'bob')).toBe('groupfolder')
 		expect(labelKind({ path: '/x.bin', owner: null, location: 'storage:local::/mnt/data//x.bin' }, 'bob')).toBe('storage')
 	})
