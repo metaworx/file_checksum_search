@@ -627,7 +627,7 @@ class FilecacheServiceTest
 		$mockRows = [
 			[
 				'fileid' => 42,
-				'path'   => 'files/Documents',
+				'path'   => 'Documents/report.pdf',
 				'name'   => 'report.pdf',
 				'id'     => 'local::/mnt/data/user1',
 			],
@@ -654,7 +654,7 @@ class FilecacheServiceTest
 		// An external storage belongs to nobody: no owner, and a location
 		// that names the storage rather than pretending to a home.
 		$this->assertNull( $result[42]['owner'] );
-		$this->assertSame( 'storage:local::/mnt/data/user1/Documents', $result[42]['location'] );
+		$this->assertSame( 'storage:local::/mnt/data/user1/Documents/report.pdf', $result[42]['location'] );
 	}
 
 	/**

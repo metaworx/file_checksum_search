@@ -25,12 +25,14 @@ namespace OCA\FileChecksumSearch\Service;
  *   have no owner: `getOwner()` on their storage answers "whoever is
  *   looking", which is exactly why identity here is storage-based.
  * - other: everything else (external mounts, the root storage, …),
- *   addressable via `storage:<raw id>` and `*`.
+ *   addressable via `storage:<raw id>` and `*`. An external storage has no
+ *   files area: what it holds starts at its root, so the relative path is
+ *   the whole internal path.
  *
  * $relativePath is null for rows outside a files area (trash bins,
- * versions, appdata). Verdicts and sweeps skip those entirely: no rule
- * matches them, and no glob can reach them — the app hashes files, not
- * infrastructure.
+ * versions, appdata, the team folders' jails in the root storage).
+ * Verdicts and sweeps skip those entirely: no rule matches them, and no
+ * glob can reach them — the app hashes files, not infrastructure.
  */
 readonly class FileLocation
 {
@@ -142,7 +144,7 @@ readonly class FileLocation
 			self::NS_OTHER,
 			null,
 			null,
-			self::filesRelative( $internalPath ),
+			self::storageRelative( $internalPath ),
 		);
 	}
 
@@ -235,5 +237,35 @@ readonly class FileLocation
 		}
 
 		return null;
+	}
+
+	/**
+	 * The '/…' path of a row on a storage with no files area, or null for
+	 * one in an area no rule governs.
+	 *
+	 * An external storage holds its files from its root, `2024/scan.pdf`,
+	 * where a home holds them below `files/`. Read through
+	 * {@see filesRelative()}, every row of one had no relative path, and no
+	 * rule ever governed a file on it. The root storage is read the same
+	 * way, and holds nothing but appdata and the team folders' jails, which
+	 * stay ungoverned, as {@see FilecacheService::andWhereGoverned()} keeps
+	 * them out of every listing.
+	 */
+	private static function storageRelative( string $internalPath ): ?string
+	{
+		if ( $internalPath === '__groupfolders' || str_starts_with( $internalPath, '__groupfolders/' ) )
+		{
+			return null;
+		}
+
+		foreach ( FilecacheService::UNGOVERNED_PREFIXES as $prefix )
+		{
+			if ( str_starts_with( $internalPath, $prefix ) )
+			{
+				return null;
+			}
+		}
+
+		return '/' . $internalPath;
 	}
 }

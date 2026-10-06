@@ -77,19 +77,57 @@ class FileLocationTest
 		$this->assertSame( '/plan.md', $location->relativePath );
 	}
 
-	public function testAnExternalMountIsOther(): void
+	/**
+	 * An external storage holds its files from its root, as Nextcloud's
+	 * filecache has them: `2024/report.xlsx`, never below `files/`. This used
+	 * to be built as `files/report.xlsx`, which no external storage holds, and
+	 * hid that every real row of one had no relative path, so no rule
+	 * governed it.
+	 */
+	public function testAnExternalMountIsOtherAndRelativeFromItsRoot(): void
 	{
 		$location = FileLocation::fromRow(
 			5,
-			'smb::backup@fileserver//share/root',
-			'files/report.xlsx',
+			'smb::backup@fileserver//share//',
+			'2024/report.xlsx',
 			100,
 		);
 
 		$this->assertSame( FileLocation::NS_OTHER, $location->namespace );
 		$this->assertNull( $location->owner );
 		$this->assertNull( $location->groupFolderId );
-		$this->assertSame( '/report.xlsx', $location->relativePath );
+		$this->assertSame( '/2024/report.xlsx', $location->relativePath );
+
+		// A folder named `files` on it is a folder like any other.
+		$this->assertSame(
+			'/files/report.xlsx',
+			FileLocation::fromRow( 5, 'local::/mnt/archive/', 'files/report.xlsx', 100 )->relativePath,
+		);
+		$this->assertSame( '/', FileLocation::fromRow( 5, 'local::/mnt/archive/', '', 100 )->relativePath );
+	}
+
+	/**
+	 * The instance's root storage reads as `other` too, and holds nothing a
+	 * rule may govern: appdata, and the directories of the team folders'
+	 * jails.
+	 */
+	public function testTheRootStoragesAppdataAndJailsHaveNoRelativePath(): void
+	{
+		foreach (
+			[
+				'appdata_oc123/preview/1.png',
+				'__groupfolders',
+				'__groupfolders/7',
+				'files_trashbin/files/x.txt.d1234',
+				'files_versions/x.txt.v1',
+			] as $internalPath
+		)
+		{
+			$this->assertNull(
+				FileLocation::fromRow( 6, 'local::/var/www/data/', $internalPath, 100 )->relativePath,
+				$internalPath . ' must not be reachable by any rule',
+			);
+		}
 	}
 
 	public function testRowsOutsideAFilesAreaHaveNoRelativePath(): void

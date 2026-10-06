@@ -11,6 +11,12 @@ the first stable release.
 
 ## [Unreleased]
 
+### Fixed
+
+- `storage:` and `*` rules govern the files of an external storage; an
+  enabled `*` rule now hashes them too (`README.md`, *What a rule
+  addresses*).
+
 ## [0.22.0] - 2026-10-05
 
 ### Added
