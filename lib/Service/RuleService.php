@@ -363,6 +363,30 @@ class RuleService
 	}
 
 	/**
+	 * A rule's glob as it is stored: below the area's top, without a leading
+	 * slash, as an address writes a path — `Photos/**`, and `**` for the
+	 * whole area, which an empty glob and `/` meant as well. Matching reads
+	 * either spelling ({@see PathUtil::matchesRelativeGlob()}).
+	 */
+	public static function canonicalGlob( string $glob ): string
+	{
+		$glob = ltrim( trim( $glob ), '/' );
+
+		return $glob === ''
+			? '**'
+			: $glob;
+	}
+
+	/**
+	 * A rule's scope as one address: its selector, two slashes, its glob,
+	 * as `home:alice//Photos/` and `**` together.
+	 */
+	public static function scopeOf( array $rule ): string
+	{
+		return self::ruleSelector( $rule )->canonical() . '//' . self::canonicalGlob( (string) ( $rule['path'] ?? '**' ) );
+	}
+
+	/**
 	 * Whether a rule is default-shaped: its glob is the bare catch-all.
 	 *
 	 * Shape drives the per-segment partition — within every segment,
@@ -524,14 +548,15 @@ class RuleService
 	 */
 	private function saveRules( array $rules ): void
 	{
-		// Canonicalise on every write: the selector key in its canonical
-		// spelling, legacy keys gone. The stored array is always in
-		// evaluation order, so no reader has to remember to sort.
+		// Canonicalise on every write: the selector key and the glob in
+		// their canonical spellings, legacy keys gone. The stored array is
+		// always in evaluation order, so no reader has to remember to sort.
 		foreach ( $rules as &$rule )
 		{
 			$rule['selector'] = self::ruleSelector( $rule )
 			                        ->canonical()
 			;
+			$rule['path']     = self::canonicalGlob( (string) ( $rule['path'] ?? '**' ) );
 			unset( $rule['userScope'], $rule['pinned'] );
 		}
 
@@ -774,7 +799,9 @@ class RuleService
 
 		if ( $selector->kind === Selector::KIND_STORAGE )
 		{
-			return $selector->target === $location->storageId;
+			// Both without their trailing slashes, as an address names a
+			// storage.
+			return $selector->target === FileLocation::storageArea( $location->storageId );
 		}
 
 		return match ( $location->namespace )

@@ -1244,6 +1244,35 @@ class RuleServiceTest
 		];
 	}
 
+	/**
+	 * A glob is stored below the area's top, as an address writes a path;
+	 * a scope is the selector, two slashes and the glob.
+	 */
+	public function testAGlobIsStoredBelowTheAreasTopAndAScopeIsOneAddress(): void
+	{
+		$this->assertSame( '**', RuleService::canonicalGlob( '' ) );
+		$this->assertSame( '**', RuleService::canonicalGlob( '/' ) );
+		$this->assertSame( 'Photos/**', RuleService::canonicalGlob( ' /Photos/** ' ) );
+		$this->assertSame( '**/*.pdf', RuleService::canonicalGlob( '**/*.pdf' ) );
+		$this->assertSame( 'home:*//Photos/**', RuleService::scopeOf( [ 'selector' => 'home:*', 'path' => '/Photos/**' ] ) );
+		$this->assertSame( '*//**', RuleService::scopeOf( [ 'selector' => '*' ] ) );
+	}
+
+	/**
+	 * A storage selector names its storage with or without the trailing
+	 * slashes Nextcloud ends a local or SMB storage's id with — a rule
+	 * saved before the selector lost them still governs — and not a
+	 * storage whose id merely starts the same.
+	 */
+	public function testAStorageSelectorMatchesItsStorageWithOrWithoutTrailingSlashes(): void
+	{
+		$location = FileLocation::fromRow( 1, 'smb::u@h//share//', 'Docs/a.pdf', 1 );
+
+		$this->assertTrue( $this->service->selectorMatchesLocation( Selector::parse( 'storage:smb::u@h//share' ), $location ) );
+		$this->assertTrue( $this->service->selectorMatchesLocation( Selector::parse( 'storage:smb::u@h//share//' ), $location ) );
+		$this->assertFalse( $this->service->selectorMatchesLocation( Selector::parse( 'storage:smb::u@h//share//sub' ), $location ) );
+	}
+
 	public function testSelectorParsingAndCanonicalForms(): void
 	{
 		$this->assertSame(
@@ -1267,10 +1296,15 @@ class RuleServiceTest
 			        ->canonical(),
 		);
 		// Raw storage ids may contain ':' and '//' — value semantics, no
-		// escaping: everything after the first colon is the target.
+		// escaping: everything after the first colon is the target, without
+		// its trailing slashes, as an address names the storage.
 		$this->assertSame(
-			'smb::u@h//share/',
-			Selector::parse( 'storage:smb::u@h//share/' )->target,
+			'smb::u@h//share',
+			Selector::parse( 'storage:smb::u@h//share//' )->target,
+		);
+		$this->assertSame(
+			'storage:local::/mnt/data',
+			Selector::parse( 'storage:local::/mnt/data/' )->canonical(),
 		);
 		$this->assertSame(
 			'*',
@@ -2158,7 +2192,9 @@ class RuleServiceTest
 					                // The usability property the partition
 					                // exists for: creating a rule never
 					                // requires dragging it past the default.
-					                return $rules[0]['path'] === '/docs/**'
+					                // The glob is stored below the area's
+					                // top, without its leading slash.
+					                return $rules[0]['path'] === 'docs/**'
 						                && $rules[1]['id'] === 'default';
 				                },
 			                ),

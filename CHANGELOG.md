@@ -23,6 +23,13 @@ the first stable release.
 - Duplicates page and sidebar: a file shared with the reader is labelled
   by its owner and the reader's path (`docs/user-guide.md`).
 
+- Rules: a `storage:` selector without its trailing slashes, a glob
+  without its leading slash; stored rules are migrated on upgrade
+  (`README.md`, *What a rule addresses*).
+
+- `occ fcias:rules:list` shows a rule's scope as `<selector>//<glob>`, in
+  its JSON too, and `rules:add` and `rules:modify` take it as `--scope`.
+
 ### Fixed
 
 - `storage:` and `*` rules govern the files of an external storage; an

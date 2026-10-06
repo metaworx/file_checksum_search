@@ -394,7 +394,8 @@ class FilecacheService
 	 * it ({@see FileLocation}). What remains is external mounts and the
 	 * like: namespaces only `storage:<id>` or `*` reaches.
 	 *
-	 * @return list<string>  Raw storage ids, sorted.
+	 * @return list<string>  Raw storage ids as a selector spells them,
+	 *                       without their trailing slashes, sorted.
 	 * @throws \OCP\DB\Exception
 	 */
 	public function listAddressableStorages(): array
@@ -438,7 +439,7 @@ class FilecacheService
 				continue;
 			}
 
-			$storages[] = $storageId;
+			$storages[] = FileLocation::storageArea( $storageId );
 		}
 
 		$result->closeCursor();
@@ -507,8 +508,9 @@ class FilecacheService
 	 * less exact than enumerating users). groupfolder:<id> is the folder's
 	 * dedicated jail storage plus, for the legacy layout, any local root
 	 * storage — whose rows are told apart per row at classification time.
-	 * storage:<raw> is an exact id. '*' is every storage there is: rows are
-	 * unique per file, so sweeping all storages never double-counts.
+	 * storage:<raw> is that id, with or without its trailing slashes. '*' is
+	 * every storage there is: rows are unique per file, so sweeping all
+	 * storages never double-counts.
 	 *
 	 * user: and group: selectors resolve via {@see homeStorageNumericIds()}.
 	 *
@@ -525,9 +527,14 @@ class FilecacheService
 		switch ( $selector->kind )
 		{
 		case Selector::KIND_STORAGE:
+			// The id and its spellings with trailing slashes; told apart from
+			// a longer id beside it below.
 			$qb->where(
 				$qb->expr()
-				   ->eq( 'id', $qb->createNamedParameter( (string) $selector->target ) ),
+				   ->like(
+					   'id',
+					   $qb->createNamedParameter( $this->db->escapeLikeParameter( (string) $selector->target ) . '%' ),
+				   ),
 			);
 
 			break;
@@ -552,6 +559,11 @@ class FilecacheService
 		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
 			$storageId = (string) $row['id'];
+
+			if ( $selector->kind === Selector::KIND_STORAGE && FileLocation::storageArea( $storageId ) !== $selector->target )
+			{
+				continue;
+			}
 
 			if ( $selector->kind === Selector::KIND_GROUPFOLDER )
 			{

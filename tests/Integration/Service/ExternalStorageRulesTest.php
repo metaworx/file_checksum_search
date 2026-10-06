@@ -10,11 +10,15 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Integration\Service;
 
 use OC\Files\Storage\Local;
+use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Migration\RepairQuietStart;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\FileLocation;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
+use OCP\IAppConfig;
+use OCP\Migration\IOutput;
 use OCP\Server;
 use Throwable;
 
@@ -165,6 +169,49 @@ class ExternalStorageRulesTest
 			MetadataService::PENDING_PREFIX . MetadataService::PENDING_MODE_MISSING,
 			Server::get( MetadataService::class )->getMarker( $this->fileId ),
 		);
+	}
+
+	/**
+	 * A rule saved before the selector lost its trailing slashes and the
+	 * glob its leading one: the `selector-model` repair resaves it in the
+	 * canonical spellings, and before and after, it governs its file.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testARuleInTheOldSpellingsIsMigratedAndStillGoverns(): void
+	{
+		$config = Server::get( IAppConfig::class );
+		$config->setValueString(
+			Application::APP_ID,
+			'rule_definitions',
+			json_encode(
+				[
+					[
+						'id'       => 'old_spelling',
+						'enabled'  => true,
+						'type'     => RuleService::TYPE_INCLUDE,
+						'path'     => '/2024/**',
+						'mode'     => MetadataService::PENDING_MODE_MISSING,
+						'selector' => 'storage:' . $this->storage->getId(),
+						'algos'    => [ 'sha1' ],
+					],
+				],
+				JSON_THROW_ON_ERROR,
+			),
+		);
+		$this->ruleService->loadRules( refresh: true );
+
+		$this->assertStringEndsWith( '/', $this->storage->getId(), 'a local storage\'s id ends with a slash' );
+		$this->assertSame( 'old_spelling', $this->ruleService->governingRuleForLocation( $this->location() )['id'] ?? null );
+
+		$this->assertSame( [ 'selector-model' ], Server::get( RepairQuietStart::class )->runSteps( $this->createMock( IOutput::class ), [ 'selector-model' ] ) );
+
+		$stored = json_decode( $config->getValueString( Application::APP_ID, 'rule_definitions' ), true, 512, JSON_THROW_ON_ERROR );
+		$rule   = array_values( array_filter( $stored, static fn ( array $rule ): bool => $rule['id'] === 'old_spelling' ) )[0];
+
+		$this->assertSame( 'storage:' . rtrim( $this->storage->getId(), '/' ), $rule['selector'] );
+		$this->assertSame( '2024/**', $rule['path'] );
+		$this->assertSame( 'old_spelling', $this->ruleService->governingRuleForLocation( $this->location() )['id'] ?? null );
 	}
 
 	/**

@@ -127,6 +127,85 @@ class RulesCommandsTest
 			],
 			array_column( $rows, 'id' ),
 		);
+
+		// Selector and glob as one address, the glob below the area's top.
+		$this->assertSame(
+			[
+				'home:alice//docs/**',
+				'home:alice//img/**',
+				'home:*//**',
+			],
+			array_column( $rows, 'scope' ),
+		);
+	}
+
+	/**
+	 * The question before a delete names the rule by its scope.
+	 */
+	public function testDeleteAsksAboutTheRuleByItsScope(): void
+	{
+		$this->ruleService->method( 'findRuleById' )
+		                  ->willReturn( [ 'id' => 'r1', 'selector' => 'home:alice', 'path' => '/docs/**' ] )
+		;
+		$this->ruleService->expects( $this->never() )
+		                  ->method( 'ruleDelete' )
+		;
+
+		$tester = $this->tester( new DeleteRule( $this->ruleService, $this->validator ) );
+		$tester->setInputs( [ 'n' ] );
+		$tester->execute( [ 'id' => 'r1' ] );
+
+		$this->assertStringContainsString( 'Delete rule r1 (plain include on home:alice//docs/**)?', $tester->getDisplay() );
+	}
+
+	/**
+	 * A scope is split at its last `//`, so a storage's id may hold `//`
+	 * of its own.
+	 */
+	public function testAddTakesAScopeAsSelectorAndGlob(): void
+	{
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'ruleAdd' )
+		                  ->with(
+			                  $this->callback(
+				                  static fn( array $definition ): bool => $definition['selector'] === 'storage:smb::u@h//share'
+					                  && $definition['path'] === 'Docs/**',
+			                  ),
+			                  'cli',
+		                  )
+		                  ->willReturn( 'newid' )
+		;
+
+		$tester = $this->tester( new AddRule( $this->ruleService, $this->validator ) );
+
+		$this->assertSame( Command::SUCCESS, $tester->execute( [ '--scope' => 'storage:smb::u@h//share//Docs/**' ] ) );
+	}
+
+	/**
+	 * A scope without its `//`, or beside --selector or --path, is refused
+	 * before anything is written.
+	 */
+	public function testAScopeThatIsNoneIsRefused(): void
+	{
+		$this->ruleService->expects( $this->never() )
+		                  ->method( 'ruleAdd' )
+		;
+		$this->ruleService->expects( $this->never() )
+		                  ->method( 'ruleUpdate' )
+		;
+		$this->ruleService->method( 'findRuleById' )
+		                  ->willReturn( [ 'id' => 'r1', 'selector' => 'home:alice', 'path' => '**' ] )
+		;
+
+		$add = $this->tester( new AddRule( $this->ruleService, $this->validator ) );
+
+		$this->assertSame( Command::FAILURE, $add->execute( [ '--scope' => 'home:alice' ] ) );
+		$this->assertStringContainsString( 'has no "//"', $add->getDisplay() );
+
+		$modify = $this->tester( new ModifyRule( $this->ruleService, $this->validator ) );
+
+		$this->assertSame( Command::FAILURE, $modify->execute( [ 'id' => 'r1', '--scope' => 'home:alice//**', '--path' => 'x/**' ] ) );
+		$this->assertStringContainsString( 'without --selector and --path', $modify->getDisplay() );
 	}
 
 	public function testAddDelegatesThroughTheSharedValidator(): void

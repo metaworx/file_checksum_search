@@ -964,6 +964,35 @@ class FilecacheServiceTest
 	}
 
 	/**
+	 * A storage selector sweeps its storage whatever trailing slashes the
+	 * stored id carries, and not a storage whose id only starts the same.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAStorageSelectorSweepsItsStorageAndNoLongerOne(): void
+	{
+		$rows = [
+			[ 'numeric_id' => 5, 'id' => 'smb::u@h//share//' ],
+			[ 'numeric_id' => 6, 'id' => 'smb::u@h//share//sub/' ],
+			false,
+		];
+
+		$resultStmt = $this->createMock( IResult::class );
+		$resultStmt->method( 'fetchAssociative' )
+		           ->willReturnOnConsecutiveCalls( ...$rows )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $resultStmt )
+		;
+
+		$this->assertSame(
+			[ 5 ],
+			$this->service->storageNumericIdsFor( \OCA\FileChecksumSearch\Service\Selector::parse( 'storage:smb::u@h//share' ) ),
+		);
+		$this->assertContains( 'smb::u@h//share%', $this->capturedLikes );
+	}
+
+	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testListAddressableStoragesLeavesOutWhatOtherSelectorsOwn(): void
@@ -995,7 +1024,7 @@ class FilecacheServiceTest
 
 		$this->assertSame(
 			[
-				'local::/mnt/photos/',
+				'local::/mnt/photos',
 				'smb::backup@fileserver//share/root',
 			],
 			$this->service->listAddressableStorages(),

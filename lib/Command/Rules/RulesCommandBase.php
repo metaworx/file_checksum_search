@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Command\Rules;
 
+use InvalidArgumentException;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCA\FileChecksumSearch\Service\RuleService;
 use Symfony\Component\Console\Command\Command;
@@ -73,6 +74,13 @@ abstract class RulesCommandBase
 				'Which slice: home:<uid>, group:<gid>, home:*, groupfolder:<id>, storage:<raw id>, or *',
 			)
 			->addOption(
+				'scope',
+				null,
+				InputOption::VALUE_REQUIRED,
+				'Selector and glob in one, as rules:list shows them: <selector>//<glob>, e.g. "home:*//Documents/**"; '
+				. 'in place of --selector and --path',
+			)
+			->addOption(
 				'algo',
 				'a',
 				InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY,
@@ -96,10 +104,32 @@ abstract class RulesCommandBase
 	 * existing rule (modify) or the validator's defaults (add).
 	 *
 	 * @return array<string, mixed>
+	 * @throws InvalidArgumentException  A scope given beside --selector or
+	 *                                   --path, or one without its `//`.
 	 */
 	protected function payloadFrom( InputInterface $input ): array
 	{
 		$payload = [];
+
+		if ( $input->getOption( 'scope' ) !== null )
+		{
+			if ( $input->getOption( 'selector' ) !== null || $input->getOption( 'path' ) !== null )
+			{
+				throw new InvalidArgumentException( '--scope names the selector and the glob together; give it without --selector and --path.' );
+			}
+
+			$scope = (string) $input->getOption( 'scope' );
+			$at    = strrpos( $scope, '//' );
+
+			if ( $at === false )
+			{
+				throw new InvalidArgumentException( sprintf( 'A scope is <selector>//<glob>, as "home:*//Documents/**"; "%s" has no "//".', $scope ) );
+			}
+
+			// The last `//`: a glob holds none, and a storage's id may.
+			$payload['selector'] = substr( $scope, 0, $at );
+			$payload['path']     = substr( $scope, $at + 2 );
+		}
 
 		if ( $input->getOption( 'path' ) !== null )
 		{
@@ -192,9 +222,7 @@ abstract class RulesCommandBase
 				? 'no'
 				: 'yes',
 			'type'     => RuleService::verdictOf( $rule ),
-			'selector' => RuleService::ruleSelector( $rule )
-			                         ->canonical(),
-			'path'     => (string) ( $rule['path'] ?? '**' ),
+			'scope'    => RuleService::scopeOf( $rule ),
 			'algos'    => $computes
 				? implode( ',', $rule['algos'] ?? [] )
 				: '—',

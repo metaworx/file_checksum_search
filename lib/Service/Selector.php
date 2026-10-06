@@ -25,14 +25,18 @@ use OCP\IL10N;
  *   group:<gid>         the members' homes
  *   home:*              all homes
  *   groupfolder:<id>    one group folder
- *   storage:<raw id>    one storage, oc_storages id verbatim
+ *   storage:<raw id>    one storage, its oc_storages id without the
+ *                       trailing slashes, as a file's address names it
+ *                       ({@see FileLocation::storageArea()})
  *   *                   everything
  *
  * Parsing splits on the FIRST colon; the remainder is a value with nothing
  * concatenated after it, so raw storage ids containing ':' or '//'
- * (smb::user@host//share/) need no escaping. No sugar forms — the
- * canonical spelling is the only spelling, and `home:*` over a bare `home`
- * is deliberate: the string documents itself.
+ * (smb::user@host//share/) need no escaping. A storage id is canonical
+ * without its trailing slashes and matched so, which is how a selector
+ * saved with them still finds its storage. No sugar forms — the canonical
+ * spelling is the only spelling, and `home:*` over a bare `home` is
+ * deliberate: the string documents itself.
  *
  * Precedence is derived, never stored: rank = exact (home:<uid>,
  * storage:<id>) > group (group:<gid>, groupfolder:<id> — group folders sit
@@ -141,7 +145,7 @@ readonly class Selector
 				)
 				: new self( self::KIND_GROUP, $target ),
 			'groupfolder' => new self( self::KIND_GROUPFOLDER, $target ),
-			'storage'     => new self( self::KIND_STORAGE, $target ),
+			'storage'     => new self( self::KIND_STORAGE, FileLocation::storageArea( $target ) ?: $target ),
 			default       => throw new InvalidArgumentException(
 				sprintf( 'Unknown selector kind "%s".', $kind ),
 				self::ERROR_UNKNOWN_KIND,

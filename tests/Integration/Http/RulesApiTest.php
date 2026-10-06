@@ -537,7 +537,8 @@ class RulesApiTest
 
 		foreach ( $this->request( 'GET', '/api/v1/rules?scope=all', null, 'admin' )['body']['rules'] as $rule )
 		{
-			if ( $rule['path'] === $path )
+			// Stored below the area's top, without the leading slash asked.
+			if ( $rule['path'] === ltrim( $path, '/' ) )
 			{
 				$stored = $rule;
 			}

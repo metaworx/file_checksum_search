@@ -59,7 +59,16 @@ class ModifyRule
 			return self::FAILURE;
 		}
 
-		$payload = $this->payloadFrom( $input );
+		try
+		{
+			$payload = $this->payloadFrom( $input );
+		}
+		catch ( InvalidArgumentException $e )
+		{
+			$output->writeln( sprintf( '<error>%s</error>', $e->getMessage() ) );
+
+			return self::FAILURE;
+		}
 
 		if ( $payload === [] )
 		{

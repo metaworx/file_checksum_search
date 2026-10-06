@@ -72,14 +72,13 @@ class DeleteRule
 				$output,
 				new ConfirmationQuestion(
 					sprintf(
-						'Delete rule %s (%s %s on %s for %s)? [y/N] ',
+						'Delete rule %s (%s %s on %s)? [y/N] ',
 						$id,
 						$row['enforced'] === 'yes'
 							? 'enforced'
 							: 'plain',
 						$row['type'],
-						$row['path'],
-						$row['selector'],
+						$row['scope'],
 					),
 					false,
 				),
