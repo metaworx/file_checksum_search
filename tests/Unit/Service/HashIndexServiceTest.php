@@ -55,6 +55,14 @@ class HashIndexServiceTest
 			      ? null
 			      : [ [ 'storage' => 1, 'root' => '' ] ] )
 		;
+		// How a row is seen through the accounts' views is ReachResolverTest's;
+		// here a row is named as the path lookup found it.
+		$reach->method( 'filesViewsFor' )
+		      ->willReturn( [] )
+		;
+		$reach->method( 'asSeenIn' )
+		      ->willReturnArgument( 1 )
+		;
 
 		$this->service = new HashIndexService(
 			$this->hashCalc,

@@ -253,10 +253,19 @@ class HashIndexService
 	 *                                            for the whole instance.
 	 * @param  bool                      $includeEmpty  List the groups of
 	 *                                                  empty files too.
+	 * @param  bool                      $canonical     Every `location` the
+	 *                                                  file's own address, as
+	 *                                                  a sudoer reads it;
+	 *                                                  otherwise a file the
+	 *                                                  accounts hold through a
+	 *                                                  share is located by the
+	 *                                                  share.
 	 *
 	 * @return array{duplicates: array<int, array{algo: string, hash_value: string, file_count: int, empty: bool,
 	 *                            files: array<int, array{fileid: int, path: string, name: string, owner: ?string,
 	 *                            location: string}>}>, total_groups: int, pagination: array{offset: int, limit: int}}
+	 *         `path` is the first named account's path for the file, with a
+	 *         leading slash; for the whole instance, its path below its area.
 	 */
 	public function listDuplicatesForUser(
 		string|array|null $userId,
@@ -267,8 +276,14 @@ class HashIndexService
 		?string $hash = null,
 		bool    $anywhere = false,
 		bool    $includeEmpty = false,
+		bool    $canonical = false,
 	): array
 	{
+		// Who names the rows: the accounts' own views, read once.
+		$views = $userId === null
+			? null
+			: $this->reach->filesViewsFor( array_values( (array) $userId ) );
+
 		// The one chokepoint both controllers and the public API reach — so
 		// the clamp lives here, not in each caller. A group is two files or
 		// more by definition; minCount below 2 makes every hashed file its
@@ -325,12 +340,14 @@ class HashIndexService
 				{
 					if ( isset( $fcPaths[ $fileId ] ) )
 					{
+						$seen = $this->reach->asSeenIn( $views, $fcPaths[ $fileId ], $canonical );
+
 						$files[] = [
 							'fileid'   => $fileId,
-							'path'     => $fcPaths[ $fileId ]['path'],
-							'name'     => $fcPaths[ $fileId ]['name'],
-							'owner'    => $fcPaths[ $fileId ]['owner'] ?? null,
-							'location' => $fcPaths[ $fileId ]['location'] ?? '',
+							'path'     => $seen['path'],
+							'name'     => $seen['name'],
+							'owner'    => $seen['owner'] ?? null,
+							'location' => $seen['location'],
 						];
 					}
 				}
@@ -374,7 +391,7 @@ class HashIndexService
 	 *                                                   null for every file.
 	 * @param  bool                      $withLocalPath  As {@see FilecacheService::batchLookupFilecachePaths()}.
 	 *
-	 * @return array<int, array{path: string, name: string, storage_id: string, owner: ?string, location: string, local_path?: ?string}>
+	 * @return array<int, array{path: string, name: string, storage: int, storage_id: string, internal_path: string, owner: ?string, location: string, local_path?: ?string}>
 	 */
 	public function batchLookupFilecachePaths(
 		array             $fileIds,

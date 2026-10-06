@@ -50,7 +50,9 @@ class HashListingServiceTest
 
 		$this->metadata  = $this->createMock( MetadataService::class );
 		$this->filecache = $this->createMock( FilecacheService::class );
-		$this->reach     = $this->createMock( ReachResolver::class );
+		// The views and the share ids are the resolver's to find; how a file
+		// is seen through them is its own logic, and runs.
+		$this->reach     = $this->createPartialMock( ReachResolver::class, [ 'filesViewsFor', 'shareIdOf' ] );
 		$this->time      = $this->createMock( ITimeFactory::class );
 		$this->time->method( 'getTime' )
 		           ->willReturn( self::NOW )
@@ -72,10 +74,14 @@ class HashListingServiceTest
 		$this->reach->method( 'filesViewsFor' )
 		            ->with( [ 'alice' ] )
 		            ->willReturn( [
-			            [ 'uid' => 'alice', 'storage' => 1, 'root' => 'files', 'prefix' => '/' ],
-			            [ 'uid' => 'alice', 'storage' => 9, 'root' => 'files/Fotos', 'prefix' => '/Shared/Fotos/' ],
-			            [ 'uid' => 'alice', 'storage' => 9, 'root' => 'files/Fotos', 'prefix' => '/Again/' ],
+			            [ 'uid' => 'alice', 'storage' => 1, 'root' => 'files', 'prefix' => '/', 'rootId' => 100, 'shared' => false ],
+			            [ 'uid' => 'alice', 'storage' => 9, 'root' => 'files/Fotos', 'prefix' => '/Shared/Fotos/', 'rootId' => 900, 'shared' => true ],
+			            [ 'uid' => 'alice', 'storage' => 9, 'root' => 'files/Fotos', 'prefix' => '/Again/', 'rootId' => 900, 'shared' => true ],
 		            ] )
+		;
+		$this->reach->method( 'shareIdOf' )
+		            ->with( 'alice', 900 )
+		            ->willReturn( '77' )
 		;
 		$this->metadata->expects( $this->once() )
 		               ->method( 'pageListedFiles' )
@@ -124,7 +130,7 @@ class HashListingServiceTest
 						'path'       => '/Shared/Fotos/GPZ 0001.jpg',
 						'name'       => 'GPZ 0001.jpg',
 						'owner'      => 'bob',
-						'location'   => 'home:bob//Fotos/GPZ 0001.jpg',
+						'location'   => 'share:77//GPZ 0001.jpg',
 						'updated_at' => null,
 						'hashes'     => [],
 					],
@@ -180,7 +186,7 @@ class HashListingServiceTest
 	public function testNextIsTheLastFileWhileFilesRemain(): void
 	{
 		$this->reach->method( 'filesViewsFor' )
-		            ->willReturn( [ [ 'uid' => 'alice', 'storage' => 1, 'root' => 'files', 'prefix' => '/' ] ] )
+		            ->willReturn( [ [ 'uid' => 'alice', 'storage' => 1, 'root' => 'files', 'prefix' => '/', 'rootId' => 100, 'shared' => false ] ] )
 		;
 		$this->metadata->method( 'pageListedFiles' )
 		               ->with( $this->anything(), null, 20, null, 3 )
@@ -283,6 +289,28 @@ class HashListingServiceTest
 	}
 
 	/**
+	 * A sudoer reads every file by its own address, the path still the
+	 * named account's; no share's id is looked up for it.
+	 */
+	public function testCanonicalLocatesASharedFileByItsOwnAddress(): void
+	{
+		$this->reach->method( 'filesViewsFor' )
+		            ->willReturn( [ [ 'uid' => 'alice', 'storage' => 9, 'root' => 'files/Fotos', 'prefix' => '/Shared/Fotos/', 'rootId' => 900, 'shared' => true ] ] )
+		;
+		$this->reach->expects( $this->never() )
+		            ->method( 'shareIdOf' )
+		;
+		$this->metadata->method( 'pageListedFiles' )
+		               ->willReturn( [ $this->row( 12, 9, 'home::bob', 'files/Fotos/x.jpg', 1 ) ] )
+		;
+
+		$entry = $this->listing->page( [ 'alice' ], null, 10, 5, null, false, true )['files'][0];
+
+		$this->assertSame( '/Shared/Fotos/x.jpg', $entry['path'] );
+		$this->assertSame( 'home:bob//Fotos/x.jpg', $entry['location'] );
+	}
+
+	/**
 	 * With every account in reach, the owner's view of a home file, and of
 	 * a file nobody owns its path in the area `location` names.
 	 */
@@ -324,7 +352,7 @@ class HashListingServiceTest
 		$this->reach->expects( $this->once() )
 		            ->method( 'filesViewsFor' )
 		            ->with( [ 'alice' ] )
-		            ->willReturn( [ [ 'uid' => 'alice', 'storage' => 1, 'root' => 'files', 'prefix' => '/' ] ] )
+		            ->willReturn( [ [ 'uid' => 'alice', 'storage' => 1, 'root' => 'files', 'prefix' => '/', 'rootId' => 100, 'shared' => false ] ] )
 		;
 		$this->metadata->expects( $this->exactly( 2 ) )
 		               ->method( 'pageListedFiles' )

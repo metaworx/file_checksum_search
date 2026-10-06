@@ -834,8 +834,20 @@ class PublicApiController
 		return $scope instanceof DataResponse
 			? $scope
 			: $this->markOpenable(
-				$this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty ),
+				$this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty, $this->readsCanonically() ),
 			);
+	}
+
+	/**
+	 * Whether the session's account reads every location as the file's own
+	 * address: a sudoer, who reads every account. A group leader reads
+	 * their members' files as each member sees them, a share by its id.
+	 */
+	private function readsCanonically(): bool
+	{
+		$own = $this->userSession->getUser()?->getUID();
+
+		return $own !== null && $this->sudo->isSudoer( $own );
 	}
 
 	/**
@@ -851,6 +863,7 @@ class PublicApiController
 		?string $hash = null,
 		bool    $anywhere = false,
 		bool    $includeEmpty = false,
+		bool    $canonical = false,
 	): DataResponse
 	{
 		// One account, several or every: the API takes a list or null, and
@@ -880,6 +893,7 @@ class PublicApiController
 				$hash,
 				$anywhere,
 				includeEmpty: $includeEmpty,
+				canonical: $canonical,
 			);
 
 			// Whether the viewer may recalculate by hand, which is what
@@ -945,14 +959,18 @@ class PublicApiController
 		// anywhere on the instance.
 		return $own instanceof DataResponse
 			? $own
-			: $this->markOpenable( $this->sameHashFor( $fileId, $this->ceilingOf( $own ) ) );
+			: $this->markOpenable( $this->sameHashFor( $fileId, $this->ceilingOf( $own ), $this->sudo->isSudoer( $own ) ) );
 	}
 
 	/**
 	 * The route's body, for either wrapper: $reachUids is whose files may
 	 * be read — the caller's own, their members', or null for every account.
 	 */
-	private function sameHashFor( int $fileId, ?array $reachUids ): DataResponse
+	private function sameHashFor(
+		int    $fileId,
+		?array $reachUids,
+		bool   $canonical = false,
+	): DataResponse
 	{
 		$this->logger->debug(
 			'FCIAS PublicApiController: findDuplicates (per-file) called',
@@ -964,7 +982,7 @@ class PublicApiController
 
 		try
 		{
-			$result = $this->api->findSameHash( $fileId, $reachUids );
+			$result = $this->api->findSameHash( $fileId, $reachUids, $canonical );
 
 			return new DataResponse( $result );
 		}
@@ -1109,7 +1127,7 @@ class PublicApiController
 			);
 		}
 
-		return $this->markOpenable( $this->lookupFor( $hash, $algo, $limit, $scope, $localPath ) );
+		return $this->markOpenable( $this->lookupFor( $hash, $algo, $limit, $scope, $localPath, $this->readsCanonically() ) );
 	}
 
 	/**
@@ -1122,6 +1140,7 @@ class PublicApiController
 		int               $limit,
 		string|array|null $scope,
 		bool              $withLocalPath = false,
+		bool              $canonical = false,
 	): DataResponse
 	{
 		$this->logger->debug(
@@ -1134,7 +1153,14 @@ class PublicApiController
 
 		try
 		{
-			$result = $this->api->findByHash( $hash, $this->reachOf( $scope ), algo: $algo, limit: $limit, withLocalPath: $withLocalPath );
+			$result = $this->api->findByHash(
+				$hash,
+				$this->reachOf( $scope ),
+				algo: $algo,
+				limit: $limit,
+				withLocalPath: $withLocalPath,
+				canonical: $canonical,
+			);
 
 			return new DataResponse( $result );
 		}
@@ -1237,7 +1263,7 @@ class PublicApiController
 			);
 		}
 
-		return $this->markOpenable( $this->hashListFor( $scope, $algo, $limit, $after, $since, $localPath ) );
+		return $this->markOpenable( $this->hashListFor( $scope, $algo, $limit, $after, $since, $localPath, $this->readsCanonically() ) );
 	}
 
 	/**
@@ -1251,6 +1277,7 @@ class PublicApiController
 		int               $after,
 		?string           $since,
 		bool              $withLocalPath = false,
+		bool              $canonical = false,
 	): DataResponse
 	{
 		$from = self::sinceFrom( $since );
@@ -1273,6 +1300,7 @@ class PublicApiController
 				$after,
 				$from,
 				$withLocalPath,
+				$canonical,
 			);
 
 			foreach ( $page['files'] as $n => $file )

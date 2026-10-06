@@ -17,11 +17,20 @@ the first stable release.
   `home:alice//Docs/a.pdf`, no longer `/alice/files/Docs/a.pdf`
   (`docs/api-v1.md`).
 
+- The duplicates listing's `path` is the account's own, with a leading
+  slash, no longer the filecache's `files/…` (`docs/api-v1.md`).
+
 ### Fixed
 
 - `storage:` and `*` rules govern the files of an external storage; an
   enabled `*` rule now hashes them too (`README.md`, *What a rule
   addresses*).
+
+### Security
+
+- `lookup`, both duplicates listings and `GET /hashes` show a share's
+  recipient no folder of the sharer's above the share: a file held
+  through one is located as `share:<id>//…` (`docs/api-v1.md`).
 
 ## [0.22.0] - 2026-10-05
 

@@ -281,9 +281,10 @@ class ReachTest
 	// ─── whose file, and where ───────────────────────────────────────
 	/**
 	 * The rows alice is shown for the shared pair are bob's files, and say
-	 * so: an owner that is not her, and a location in his home. Without it
-	 * the listing reads `shared_…/a.txt` — her view of his folder — with
-	 * nothing to tell it from a file of her own by that name.
+	 * so: an owner that is not her, and a location in the share she holds
+	 * them through — nothing of his above it. Without it the listing reads
+	 * `/shared_…/a.txt` — her view of his folder — with nothing to tell it
+	 * from a file of her own by that name.
 	 */
 	public function testARowSaysWhoseFileItIsAndWhereItLives(): void
 	{
@@ -302,7 +303,7 @@ class ReachTest
 		foreach ( $files as $file )
 		{
 			$this->assertSame( self::$ownerUid, $file['owner'] );
-			$this->assertStringStartsWith( 'home:' . self::$ownerUid . '//shared_', $file['location'] );
+			$this->assertMatchesRegularExpression( '#^share:\d+//[ab]\.txt$#', $file['location'] );
 		}
 	}
 

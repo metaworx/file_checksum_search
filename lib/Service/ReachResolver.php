@@ -13,6 +13,9 @@ use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Files\Config\IUserMountCache;
 use OCP\IDBConnection;
 use OCP\IUserManager;
+use OCP\Share\IManager as IShareManager;
+use OCP\Share\IShare;
+use Throwable;
 
 /**
  * What a set of accounts can reach, as mounts.
@@ -37,12 +40,37 @@ use OCP\IUserManager;
 class ReachResolver
 {
 
+//  constants
+
+	/** The mount provider of a share an account received. */
+	public const SHARE_PROVIDER = 'OCA\\Files_Sharing\\MountProvider';
+
+	/** The kinds of share Nextcloud's sharing app mounts for a recipient. */
+	private const RECEIVED_SHARE_TYPES = [
+		IShare::TYPE_USER,
+		IShare::TYPE_GROUP,
+		IShare::TYPE_CIRCLE,
+		IShare::TYPE_ROOM,
+		IShare::TYPE_DECK,
+	];
+
+	/**
+	 * Per account, the share each received node is mounted by: node id =>
+	 * share id. Asked once per account and request, and only once a file is
+	 * seen through a share.
+	 *
+	 * @var array<string, array<int, string>>
+	 */
+	private array $shareIds = [];
+
+
 //  constructor
 
 	public function __construct(
 		private readonly IUserMountCache $mountCache,
 		private readonly IUserManager    $userManager,
 		private readonly IDBConnection   $db,
+		private readonly IShareManager   $shareManager,
 	) {
 	}
 
@@ -50,43 +78,76 @@ class ReachResolver
 //  static methods
 
 	/**
-	 * The path the first of $views that holds a file gives it, with a
-	 * leading slash; null when none holds it.
+	 * The view through which the first account in $views that holds a file
+	 * holds it; null when none does.
 	 *
-	 * @param  list<array{uid: string, storage: int, root: string, prefix: string}>  $views  From {@see filesViewsFor()}.
-	 * @param  string                                                                  $path   The file's internal path in its storage.
+	 * The account's own mount before a share, and of several shares the one
+	 * rooted highest, which shows the most of what the account may see.
+	 *
+	 * @param  list<array{uid: string, storage: int, root: string, prefix: string, rootId: int, shared: bool}>  $views  From {@see filesViewsFor()}.
+	 * @param  string                                                                                              $path   The file's internal path in its storage.
+	 *
+	 * @return array{uid: string, storage: int, root: string, prefix: string, rootId: int, shared: bool}|null
 	 */
-	public static function pathInViews(
+	public static function viewHolding(
 		array  $views,
 		int    $storage,
 		string $path,
-	): ?string
+	): ?array
 	{
+		$best = null;
+
 		foreach ( $views as $view )
 		{
-			if ( $view['storage'] !== $storage )
+			if ( $best !== null && $view['uid'] !== $best['uid'] )
+			{
+				// The first account that holds it names it.
+				break;
+			}
+
+			if ( $view['storage'] !== $storage || self::below( $view, $path ) === null )
 			{
 				continue;
 			}
 
-			if ( $view['root'] === '' )
+			if (
+				$best === null
+				|| ( $best['shared'] && ! $view['shared'] )
+				|| ( $best['shared'] === $view['shared'] && strlen( $view['root'] ) < strlen( $best['root'] ) )
+			)
 			{
-				return $view['prefix'] . $path;
-			}
-
-			if ( $path === $view['root'] )
-			{
-				// A shared file is mounted as itself.
-				return rtrim( $view['prefix'], '/' );
-			}
-
-			if ( str_starts_with( $path, $view['root'] . '/' ) )
-			{
-				return $view['prefix'] . substr( $path, strlen( $view['root'] ) + 1 );
+				$best = $view;
 			}
 		}
 
-		return null;
+		return $best;
+	}
+
+	/**
+	 * A file's path below a view's root, '' for the root itself; null when
+	 * the view does not hold it.
+	 *
+	 * @param  array{root: string, ...}  $view
+	 */
+	private static function below(
+		array  $view,
+		string $path,
+	): ?string
+	{
+		if ( $view['root'] === '' )
+		{
+			return $path;
+		}
+
+		if ( $path === $view['root'] )
+		{
+			// A shared file is mounted as itself.
+			return '';
+		}
+
+		return str_starts_with( $path, $view['root'] . '/' )
+			? substr( $path, strlen( $view['root'] ) + 1 )
+			: null;
 	}
 
 
@@ -164,11 +225,13 @@ class ReachResolver
 	 *
 	 * @param  list<string>  $uids
 	 *
-	 * @return list<array{uid: string, storage: int, root: string, prefix: string}>
+	 * @return list<array{uid: string, storage: int, root: string, prefix: string, rootId: int, shared: bool}>
 	 *         `root` is the subtree's internal path in the storage, `''` for
 	 *         the whole storage; a file at `root/x/y` is `prefix . 'x/y'` to
-	 *         the account, `prefix` beginning and ending with a slash. An
-	 *         unknown account sees nothing.
+	 *         the account, `prefix` beginning and ending with a slash.
+	 *         `rootId` is the mount's root node, and `shared` whether the
+	 *         mount is a share the account received. An unknown account sees
+	 *         nothing.
 	 */
 	public function filesViewsFor( array $uids ): array
 	{
@@ -230,11 +293,157 @@ class ReachResolver
 					'storage' => $storage,
 					'root'    => $root,
 					'prefix'  => $prefix,
+					'rootId'  => $mount->getRootId(),
+					'shared'  => $mount->getMountProvider() === self::SHARE_PROVIDER,
 				];
 			}
 		}
 
 		return $views;
+	}
+
+	/**
+	 * How the first account in $views that holds a file sees it: its path,
+	 * with a leading slash, and where it holds the file through a share,
+	 * the share's address — `share:<id>//` and the path below the share —
+	 * which names nothing of the sharer's above it. Null when no view holds
+	 * the file.
+	 *
+	 * @param  list<array{uid: string, storage: int, root: string, prefix: string, rootId: int, shared: bool}>  $views      From {@see filesViewsFor()}.
+	 * @param  string                                                                                              $path       The file's internal path in its storage.
+	 * @param  bool                                                                                                $withShare  False for a caller that will not
+	 *                                                                                                                         use the share's address, so its
+	 *                                                                                                                         id is not looked up.
+	 *
+	 * @return array{path: string, share: ?string}|null
+	 */
+	public function seenThrough(
+		array  $views,
+		int    $storage,
+		string $path,
+		bool   $withShare = true,
+	): ?array
+	{
+		$view = self::viewHolding( $views, $storage, $path );
+
+		if ( $view === null )
+		{
+			return null;
+		}
+
+		$below = (string) self::below( $view, $path );
+
+		return [
+			'path'  => $below === ''
+				? rtrim( $view['prefix'], '/' )
+				: $view['prefix'] . $below,
+			'share' => $withShare && $view['shared']
+				? FileLocation::address( 'share:' . ( $this->shareIdOf( $view['uid'], $view['rootId'] ) ?? '' ), $below )
+				: null,
+		];
+	}
+
+	/**
+	 * A row of {@see FilecacheService::batchLookupFilecachePaths()} as the
+	 * first account in $views that holds the file sees it: that account's
+	 * path, and unless $canonical, the share's address as its location where
+	 * the account holds the file through a share. With no views, or none
+	 * holding the file, the row is left as it is.
+	 *
+	 * @param  list<array{uid: string, storage: int, root: string, prefix: string, rootId: int, shared: bool}>|null  $views
+	 * @param  array{path: string, storage: int, internal_path: string, location: string, ...}                         $row
+	 *
+	 * @return array{path: string, storage: int, internal_path: string, location: string, ...}
+	 */
+	public function asSeenIn(
+		?array $views,
+		array  $row,
+		bool   $canonical,
+	): array
+	{
+		$seen = $views === null
+			? null
+			: $this->seenThrough( $views, $row['storage'], $row['internal_path'], ! $canonical );
+
+		if ( $seen === null )
+		{
+			return $row;
+		}
+
+		$row['path'] = $seen['path'];
+
+		if ( ! $canonical && $seen['share'] !== null )
+		{
+			$row['location'] = $seen['share'];
+		}
+
+		return $row;
+	}
+
+	/**
+	 * The id of the share $uid holds node $rootId through, as Nextcloud's
+	 * sharing app mounts it: of every share of the node the account
+	 * receives, the oldest, the lowest id between two of one time. Null when
+	 * the account receives none of it.
+	 */
+	public function shareIdOf(
+		string $uid,
+		int    $rootId,
+	): ?string
+	{
+		$this->shareIds[ $uid ] ??= $this->mountedShareIds( $uid );
+
+		return $this->shareIds[ $uid ][ $rootId ] ?? null;
+	}
+
+	/**
+	 * Node id => the id of the share it is mounted by, for every share the
+	 * account receives; the selection and order the sharing app's own mount
+	 * provider applies.
+	 *
+	 * @return array<int, string>
+	 */
+	private function mountedShareIds( string $uid ): array
+	{
+		$byNode = [];
+
+		foreach ( self::RECEIVED_SHARE_TYPES as $type )
+		{
+			try
+			{
+				$shares = $this->shareManager->getSharedWith( $uid, $type, null, -1 );
+			}
+			catch ( Throwable )
+			{
+				// A kind of share no app provides here.
+				continue;
+			}
+
+			foreach ( $shares as $share )
+			{
+				if ( $share->getPermissions() <= 0 || $share->getShareOwner() === $uid || $share->getSharedBy() === $uid )
+				{
+					continue;
+				}
+
+				$byNode[ $share->getNodeId() ][] = $share;
+			}
+		}
+
+		$ids = [];
+
+		foreach ( $byNode as $nodeId => $shares )
+		{
+			usort(
+				$shares,
+				static fn ( IShare $a, IShare $b ): int => [ $a->getShareTime()->getTimestamp(), (int) $a->getId() ]
+					<=> [ $b->getShareTime()->getTimestamp(), (int) $b->getId() ],
+			);
+
+			$ids[ $nodeId ] = $shares[0]->getId();
+		}
+
+		return $ids;
 	}
 
 	/**

@@ -424,10 +424,11 @@ class FilecacheServiceTest
 		$fileIds  = [ 42 ];
 		$mockRows = [
 			[
-				'fileid' => 42,
-				'path'   => 'files/Documents',
-				'name'   => 'report.pdf',
-				'id'     => 'home::admin',
+				'fileid'  => 42,
+				'path'    => 'files/Documents',
+				'name'    => 'report.pdf',
+				'storage' => 1,
+				'id'      => 'home::admin',
 			],
 		];
 
@@ -463,16 +464,18 @@ class FilecacheServiceTest
 		];
 		$mockRows = [
 			[
-				'fileid' => 42,
-				'path'   => 'files/Documents',
-				'name'   => 'report.pdf',
-				'id'     => 'home::admin',
+				'fileid'  => 42,
+				'path'    => 'files/Documents',
+				'name'    => 'report.pdf',
+				'storage' => 1,
+				'id'      => 'home::admin',
 			],
 			[
-				'fileid' => 108,
-				'path'   => 'files/Photos',
-				'name'   => 'vacation.jpg',
-				'id'     => 'home::admin',
+				'fileid'  => 108,
+				'path'    => 'files/Photos',
+				'name'    => 'vacation.jpg',
+				'storage' => 1,
+				'id'      => 'home::admin',
 			],
 		];
 
@@ -494,7 +497,10 @@ class FilecacheServiceTest
 		$this->assertCount( 2, $result );
 		$this->assertArrayHasKey( 42, $result );
 		$this->assertArrayHasKey( 108, $result );
-		$this->assertSame( 'files/Documents', $result[42]['path'] );
+		// The owner's view, below the area `location` names; the filecache's
+		// own path beside it, for a caller that names the file for a viewer.
+		$this->assertSame( '/Documents', $result[42]['path'] );
+		$this->assertSame( 'files/Documents', $result[42]['internal_path'] );
 		$this->assertSame( 'report.pdf', $result[42]['name'] );
 		$this->assertSame( 'home::admin', $result[42]['storage_id'] );
 		$this->assertArrayNotHasKey( 'user', $result[42], 'the hand-rolled reading of the storage id is gone; owner is the one' );
@@ -503,7 +509,7 @@ class FilecacheServiceTest
 		// than any one viewer's path for it.
 		$this->assertSame( 'admin', $result[42]['owner'] );
 		$this->assertSame( 'home:admin//Documents', $result[42]['location'] );
-		$this->assertSame( 'files/Photos', $result[108]['path'] );
+		$this->assertSame( '/Photos', $result[108]['path'] );
 		$this->assertSame( 'vacation.jpg', $result[108]['name'] );
 	}
 
@@ -519,10 +525,11 @@ class FilecacheServiceTest
 		$fileIds  = [ 42 ];
 		$mockRows = [
 			[
-				'fileid' => 42,
-				'path'   => 'files/Documents',
-				'name'   => 'report.pdf',
-				'id'     => 'home::admin',
+				'fileid'  => 42,
+				'path'    => 'files/Documents',
+				'name'    => 'report.pdf',
+				'storage' => 1,
+				'id'      => 'home::admin',
 			],
 		];
 
@@ -626,10 +633,11 @@ class FilecacheServiceTest
 		$fileIds  = [ 42 ];
 		$mockRows = [
 			[
-				'fileid' => 42,
-				'path'   => 'Documents/report.pdf',
-				'name'   => 'report.pdf',
-				'id'     => 'local::/mnt/data/user1',
+				'fileid'  => 42,
+				'path'    => 'Documents/report.pdf',
+				'name'    => 'report.pdf',
+				'storage' => 2,
+				'id'      => 'local::/mnt/data/user1',
 			],
 		];
 
@@ -666,10 +674,10 @@ class FilecacheServiceTest
 	public function testBatchLookupFilecachePathsAddsALocalPathWhenAsked(): void
 	{
 		$mockRows = [
-			[ 'fileid' => 1, 'path' => 'files/a.txt', 'name' => 'a.txt', 'id' => 'home::admin' ],
-			[ 'fileid' => 2, 'path' => 'files/b.txt', 'name' => 'b.txt', 'id' => 'home::admin' ],
-			[ 'fileid' => 3, 'path' => 'c.txt', 'name' => 'c.txt', 'id' => 'local::/mnt/archive/' ],
-			[ 'fileid' => 4, 'path' => 'd.txt', 'name' => 'd.txt', 'id' => 'shared::/d.txt' ],
+			[ 'fileid' => 1, 'path' => 'files/a.txt', 'name' => 'a.txt', 'storage' => 1, 'id' => 'home::admin' ],
+			[ 'fileid' => 2, 'path' => 'files/b.txt', 'name' => 'b.txt', 'storage' => 1, 'id' => 'home::admin' ],
+			[ 'fileid' => 3, 'path' => 'c.txt', 'name' => 'c.txt', 'storage' => 1, 'id' => 'local::/mnt/archive/' ],
+			[ 'fileid' => 4, 'path' => 'd.txt', 'name' => 'd.txt', 'storage' => 1, 'id' => 'shared::/d.txt' ],
 		];
 
 		$this->expr->method( 'in' )
@@ -712,7 +720,7 @@ class FilecacheServiceTest
 		$resultStmt = $this->createMock( IResult::class );
 		$resultStmt->method( 'fetchAssociative' )
 		           ->willReturnOnConsecutiveCalls(
-			           [ 'fileid' => 1, 'path' => 'files/a.txt', 'name' => 'a.txt', 'id' => 'home::admin' ],
+			           [ 'fileid' => 1, 'path' => 'files/a.txt', 'name' => 'a.txt', 'storage' => 1, 'id' => 'home::admin' ],
 			           false,
 		           )
 		;
@@ -746,8 +754,8 @@ class FilecacheServiceTest
 		$resultStmt = $this->createMock( IResult::class );
 		$resultStmt->method( 'fetchAssociative' )
 		           ->willReturnOnConsecutiveCalls(
-			           [ 'fileid' => 1, 'path' => 'files/a.txt', 'name' => 'a.txt', 'id' => 'home::admin' ],
-			           [ 'fileid' => 3, 'path' => 'c.txt', 'name' => 'c.txt', 'id' => 'local::/mnt/archive/' ],
+			           [ 'fileid' => 1, 'path' => 'files/a.txt', 'name' => 'a.txt', 'storage' => 1, 'id' => 'home::admin' ],
+			           [ 'fileid' => 3, 'path' => 'c.txt', 'name' => 'c.txt', 'storage' => 1, 'id' => 'local::/mnt/archive/' ],
 			           false,
 		           )
 		;
@@ -818,7 +826,7 @@ class FilecacheServiceTest
 		$resultStmt = $this->createMock( IResult::class );
 		$resultStmt->method( 'fetchAssociative' )
 		           ->willReturnOnConsecutiveCalls(
-			           [ 'fileid' => 1, 'path' => 'files/a.txt', 'name' => 'a.txt', 'id' => 'home::gone' ],
+			           [ 'fileid' => 1, 'path' => 'files/a.txt', 'name' => 'a.txt', 'storage' => 1, 'id' => 'home::gone' ],
 			           false,
 		           )
 		;

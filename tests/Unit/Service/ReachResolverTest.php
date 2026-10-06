@@ -16,6 +16,8 @@ use OCP\Files\Config\ICachedMountInfo;
 use OCP\Files\Config\IUserMountCache;
 use OCP\IUser;
 use OCP\IUserManager;
+use OCP\Share\IManager as IShareManager;
+use OCP\Share\IShare;
 use PHPUnit\Framework\MockObject\MockObject;
 
 class ReachResolverTest
@@ -29,7 +31,12 @@ class ReachResolverTest
 
 	private IUserManager&MockObject    $users;
 
+	private IShareManager&MockObject   $shares;
+
 	private ReachResolver              $reach;
+
+	/** @var array<string, list<IShare>> */
+	private array $receivedShares = [];
 
 
 //  getters / setters / is* / has*
@@ -40,6 +47,7 @@ class ReachResolverTest
 
 		$this->mounts = $this->createMock( IUserMountCache::class );
 		$this->users  = $this->createMock( IUserManager::class );
+		$this->shares = $this->createMock( IShareManager::class );
 		$this->db     = $this->createMock( \OCP\IDBConnection::class );
 		$this->setUpQueryBuilderMock();
 
@@ -50,7 +58,7 @@ class ReachResolverTest
 			            ? $this->createConfiguredMock( IUser::class, [ 'getUID' => strtolower( $uid ) ] )
 			            : null );
 
-		$this->reach = new ReachResolver( $this->mounts, $this->users, $this->db );
+		$this->reach = new ReachResolver( $this->mounts, $this->users, $this->db, $this->shares );
 	}
 
 
@@ -138,9 +146,9 @@ class ReachResolverTest
 			'bob'   => [ [ 200, '/bob/' ] ],
 			'alice' => [
 				[ 100, '/alice/' ],
-				[ 900, '/alice/files/Shared/x/' ],
+				[ 900, '/alice/files/Shared/x/', ReachResolver::SHARE_PROVIDER ],
 				[ 700, '/alice/files/Archive/' ],
-				[ 500, '/alice/files/report.pdf/' ],
+				[ 500, '/alice/files/report.pdf/', ReachResolver::SHARE_PROVIDER ],
 				[ 300, '/alice/elsewhere/' ],
 				[ 800, '/alice/files/Unscanned/' ],
 			],
@@ -156,11 +164,11 @@ class ReachResolverTest
 
 		$this->assertSame(
 			[
-				[ 'uid' => 'bob', 'storage' => 2, 'root' => 'files', 'prefix' => '/' ],
-				[ 'uid' => 'alice', 'storage' => 1, 'root' => 'files', 'prefix' => '/' ],
-				[ 'uid' => 'alice', 'storage' => 9, 'root' => 'files/Projects/x', 'prefix' => '/Shared/x/' ],
-				[ 'uid' => 'alice', 'storage' => 7, 'root' => '', 'prefix' => '/Archive/' ],
-				[ 'uid' => 'alice', 'storage' => 5, 'root' => 'files/report.pdf', 'prefix' => '/report.pdf/' ],
+				[ 'uid' => 'bob', 'storage' => 2, 'root' => 'files', 'prefix' => '/', 'rootId' => 200, 'shared' => false ],
+				[ 'uid' => 'alice', 'storage' => 1, 'root' => 'files', 'prefix' => '/', 'rootId' => 100, 'shared' => false ],
+				[ 'uid' => 'alice', 'storage' => 9, 'root' => 'files/Projects/x', 'prefix' => '/Shared/x/', 'rootId' => 900, 'shared' => true ],
+				[ 'uid' => 'alice', 'storage' => 7, 'root' => '', 'prefix' => '/Archive/', 'rootId' => 700, 'shared' => false ],
+				[ 'uid' => 'alice', 'storage' => 5, 'root' => 'files/report.pdf', 'prefix' => '/report.pdf/', 'rootId' => 500, 'shared' => true ],
 			],
 			$this->reach->filesViewsFor( [ 'bob', 'ghost', 'alice' ] ),
 		);
@@ -178,31 +186,149 @@ class ReachResolverTest
 		$this->filecacheRows( [ [ 'fileid' => 100, 'storage' => 1, 'path' => '' ] ] );
 
 		$this->assertSame(
-			[ [ 'uid' => 'alice', 'storage' => 1, 'root' => 'files', 'prefix' => '/' ] ],
+			[ [ 'uid' => 'alice', 'storage' => 1, 'root' => 'files', 'prefix' => '/', 'rootId' => 100, 'shared' => false ] ],
 			$this->reach->filesViewsFor( [ 'ALICE' ] ),
 		);
 	}
 
 	/**
-	 * The path a view gives a file, the first view that holds it winning.
+	 * The path a view gives a file, the first account that holds it naming
+	 * it; and where it holds it through a share, the share's address, from
+	 * the share's root and nothing above it.
 	 */
-	public function testAPathIsTheFirstViewsThatHoldsTheFile(): void
+	public function testAFileIsSeenThroughTheFirstAccountThatHoldsIt(): void
 	{
 		$views = [
-			[ 'uid' => 'bob', 'storage' => 9, 'root' => 'files/Projects/x', 'prefix' => '/From alice/' ],
-			[ 'uid' => 'alice', 'storage' => 1, 'root' => 'files', 'prefix' => '/' ],
-			[ 'uid' => 'alice', 'storage' => 9, 'root' => 'files', 'prefix' => '/' ],
-			[ 'uid' => 'alice', 'storage' => 7, 'root' => '', 'prefix' => '/Archive/' ],
-			[ 'uid' => 'alice', 'storage' => 5, 'root' => 'files/report.pdf', 'prefix' => '/report.pdf/' ],
+			$this->view( 'bob', 9, 'files/Projects/x', '/From alice/', 900, true ),
+			$this->view( 'alice', 1, 'files', '/', 100, false ),
+			$this->view( 'alice', 9, 'files', '/', 910, false ),
+			$this->view( 'alice', 7, '', '/Archive/', 700, false ),
+			$this->view( 'alice', 5, 'files/report.pdf', '/report.pdf/', 500, true ),
 		];
+		$this->sharesOf( 'bob', [ $this->share( 42, 900, 1000 ) ] );
+		$this->sharesOf( 'alice', [ $this->share( 43, 500, 1000 ) ] );
 
-		$this->assertSame( '/Photos/a.jpg', ReachResolver::pathInViews( $views, 1, 'files/Photos/a.jpg' ), 'a home file' );
-		$this->assertSame( '/From alice/deep/f.txt', ReachResolver::pathInViews( $views, 9, 'files/Projects/x/deep/f.txt' ), 'the first holder names it' );
-		$this->assertSame( '/Projects/xy/f.txt', ReachResolver::pathInViews( $views, 9, 'files/Projects/xy/f.txt' ), 'a sibling with the same prefix is not the share\'s' );
-		$this->assertSame( '/Archive/2026/b.tif', ReachResolver::pathInViews( $views, 7, '2026/b.tif' ), 'a storage mounted whole' );
-		$this->assertSame( '/report.pdf', ReachResolver::pathInViews( $views, 5, 'files/report.pdf' ), 'a shared file is mounted as itself' );
-		$this->assertNull( ReachResolver::pathInViews( $views, 1, 'files_trashbin/files/a.jpg.d1' ), 'the trash is in no view' );
-		$this->assertNull( ReachResolver::pathInViews( $views, 4, 'files/a.jpg' ), 'a storage no view mounts' );
+		$this->assertSame( [ 'path' => '/Photos/a.jpg', 'share' => null ], $this->reach->seenThrough( $views, 1, 'files/Photos/a.jpg' ), 'a home file' );
+		$this->assertSame(
+			[ 'path' => '/From alice/deep/f.txt', 'share' => 'share:42//deep/f.txt' ],
+			$this->reach->seenThrough( $views, 9, 'files/Projects/x/deep/f.txt' ),
+			'the first holder names it, by its share',
+		);
+		$this->assertSame(
+			[ 'path' => '/Projects/xy/f.txt', 'share' => null ],
+			$this->reach->seenThrough( $views, 9, 'files/Projects/xy/f.txt' ),
+			'a sibling with the same prefix is not the share\'s',
+		);
+		$this->assertSame( [ 'path' => '/Archive/2026/b.tif', 'share' => null ], $this->reach->seenThrough( $views, 7, '2026/b.tif' ), 'a storage mounted whole' );
+		$this->assertSame(
+			[ 'path' => '/report.pdf', 'share' => 'share:43//' ],
+			$this->reach->seenThrough( $views, 5, 'files/report.pdf' ),
+			'a shared file is mounted as itself, and is its share\'s top',
+		);
+		$this->assertNull( $this->reach->seenThrough( $views, 1, 'files_trashbin/files/a.jpg.d1' ), 'the trash is in no view' );
+		$this->assertNull( $this->reach->seenThrough( $views, 4, 'files/a.jpg' ), 'a storage no view mounts' );
+	}
+
+	/**
+	 * One account holding a file twice: its own mount before a share, and
+	 * of two shares the one rooted higher, which shows it more.
+	 */
+	public function testAnAccountsOwnMountComesBeforeAShareAndTheHigherShareBeforeTheLower(): void
+	{
+		$own     = $this->view( 'alice', 9, 'files', '/', 100, false );
+		$outer   = $this->view( 'alice', 9, 'files/Clients', '/Clients/', 910, true );
+		$inner   = $this->view( 'alice', 9, 'files/Clients/Acme/x', '/x/', 920, true );
+		$shareOf = [ $this->share( 51, 910, 1000 ), $this->share( 52, 920, 1000 ) ];
+		$this->sharesOf( 'alice', $shareOf );
+
+		$this->assertSame(
+			'share:51//Acme/x/a.txt',
+			$this->reach->seenThrough( [ $inner, $outer ], 9, 'files/Clients/Acme/x/a.txt' )['share'] ?? null,
+		);
+		$this->assertSame(
+			[ 'path' => '/Clients/Acme/x/a.txt', 'share' => null ],
+			$this->reach->seenThrough( [ $inner, $outer, $own ], 9, 'files/Clients/Acme/x/a.txt' ),
+		);
+	}
+
+	/**
+	 * The id a node is mounted by, as the sharing app picks it among an
+	 * account's received shares of the node: the oldest, the lowest id
+	 * between two of one time. A share without permissions, or one the
+	 * account itself owns or made, is mounted by nothing.
+	 */
+	public function testANodeIsMountedByItsOldestShare(): void
+	{
+		$this->sharesOf( 'alice', [
+			$this->share( 60, 900, 2000 ),
+			$this->share( 61, 900, 1000 ),
+			$this->share( 59, 900, 1000 ),
+			$this->share( 10, 910, 500, permissions: 0 ),
+			$this->share( 11, 920, 500, owner: 'alice' ),
+		] );
+
+		$this->assertSame( '59', $this->reach->shareIdOf( 'alice', 900 ) );
+		$this->assertNull( $this->reach->shareIdOf( 'alice', 910 ) );
+		$this->assertNull( $this->reach->shareIdOf( 'alice', 920 ) );
+	}
+
+	/**
+	 * @return array{uid: string, storage: int, root: string, prefix: string, rootId: int, shared: bool}
+	 */
+	private function view(
+		string $uid,
+		int    $storage,
+		string $root,
+		string $prefix,
+		int    $rootId,
+		bool   $shared,
+	): array
+	{
+		return [
+			'uid'     => $uid,
+			'storage' => $storage,
+			'root'    => $root,
+			'prefix'  => $prefix,
+			'rootId'  => $rootId,
+			'shared'  => $shared,
+		];
+	}
+
+	private function share(
+		int    $id,
+		int    $nodeId,
+		int    $time,
+		int    $permissions = 1,
+		string $owner = 'carol',
+	): IShare
+	{
+		return $this->createConfiguredMock( IShare::class, [
+			'getId'          => (string) $id,
+			'getNodeId'      => $nodeId,
+			'getShareTime'   => ( new \DateTime() )->setTimestamp( $time ),
+			'getPermissions' => $permissions,
+			'getShareOwner'  => $owner,
+			'getSharedBy'    => $owner,
+		] );
+	}
+
+	/**
+	 * The user shares each account receives; every other kind none.
+	 *
+	 * @param  list<IShare>  $shares
+	 */
+	private function sharesOf(
+		string $uid,
+		array  $shares,
+	): void
+	{
+		$this->receivedShares[ $uid ] = $shares;
+
+		$this->shares->method( 'getSharedWith' )
+		             ->willReturnCallback( fn ( string $who, int $type ): array => $type === IShare::TYPE_USER
+			             ? $this->receivedShares[ $who ] ?? []
+			             : [] )
+		;
 	}
 
 	/**
@@ -210,7 +336,8 @@ class ReachResolverTest
 	 * about where their root is: the storage and path they report are the
 	 * in-request ones, which the resolver must not believe.
 	 *
-	 * @param  array<string, list<array{0: int, 1: string}>>  $byUid  root id and mount point, per account
+	 * @param  array<string, list<array{0: int, 1: string, 2?: string}>>  $byUid  root id, mount point and
+	 *                                                                         provider, per account
 	 */
 	private function viewsByUid( array $byUid ): void
 	{
@@ -219,6 +346,7 @@ class ReachResolverTest
 			             fn ( array $m ) => $this->createConfiguredMock( ICachedMountInfo::class, [
 				             'getRootId'           => $m[0],
 				             'getMountPoint'       => $m[1],
+				             'getMountProvider'    => $m[2] ?? '',
 				             'getStorageId'        => 666,
 				             'getRootInternalPath' => '',
 			             ] ),
@@ -287,6 +415,6 @@ class ReachResolverTest
 		$db = $this->createMock( \OCP\IDBConnection::class );
 		$db->method( 'getQueryBuilder' )->willReturn( $qb );
 
-		return ( new ReachResolver( $this->mounts, $this->users, $db ) )->contains( $mounts, 1 );
+		return ( new ReachResolver( $this->mounts, $this->users, $db, $this->shares ) )->contains( $mounts, 1 );
 	}
 }

@@ -1009,10 +1009,12 @@ class FilecacheService
 	 *         default: it costs a user lookup per home storage, and most
 	 *         callers render rows for people.
 	 *
-	 * @return array<int, array{path: string, name: string, storage_id: string, owner: ?string, location: string, local_path?: ?string}>
-	 *         `owner` is the uid a home file belongs to, null for a group
-	 *         folder or an external storage, which have none; `location` is
-	 *         {@see FileLocation::describe()}.
+	 * @return array<int, array{path: string, name: string, storage: int, storage_id: string, internal_path: string, owner: ?string, location: string, local_path?: ?string}>
+	 *         `path` is the file's path below its area, with a leading slash
+	 *         — the owner's view of a home file — and `internal_path` the
+	 *         filecache's; `owner` is the uid a home file belongs to, null for
+	 *         a group folder or an external storage, which have none;
+	 *         `location` is {@see FileLocation::describe()}.
 	 */
 	public function batchLookupFilecachePaths(
 		array  $fileIds,
@@ -1033,7 +1035,7 @@ class FilecacheService
 
 		$qb = $this->db->getQueryBuilder();
 
-		$qb->select( 'fc.fileid', 'fc.path', 'fc.name', 's.id' )
+		$qb->select( 'fc.fileid', 'fc.path', 'fc.name', 'fc.storage', 's.id' )
 		   ->from( 'filecache', 'fc' )
 		   ->innerJoin(
 			   'fc',
@@ -1079,11 +1081,13 @@ class FilecacheService
 			$location = FileLocation::fromRow( (int) $row['fileid'], $sid, (string) $row['path'], 0 );
 
 			$paths[ (int) $row['fileid'] ] = [
-				'path'       => (string) $row['path'],
-				'name'       => (string) $row['name'],
-				'storage_id' => $sid,
-				'owner'      => $location->owner,
-				'location'   => $location->describe(),
+				'path'          => $location->relativePath ?? '/' . (string) $row['path'],
+				'name'          => (string) $row['name'],
+				'storage'       => (int) $row['storage'],
+				'storage_id'    => $sid,
+				'internal_path' => (string) $row['path'],
+				'owner'         => $location->owner,
+				'location'      => $location->describe(),
 			];
 
 			$locations[] = $location;

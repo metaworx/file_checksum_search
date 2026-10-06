@@ -169,6 +169,14 @@ class ChecksumApiTest
 		      ->willReturnCallback( fn ( ?array $mounts, int $fileId ): bool => $mounts === null
 			      || ! in_array( $fileId, $this->outOfReach, true ) )
 		;
+		// How a row is seen through the reach's views is ReachResolverTest's;
+		// here a row is located as the lookup found it.
+		$reach->method( 'filesViewsFor' )
+		      ->willReturn( [] )
+		;
+		$reach->method( 'asSeenIn' )
+		      ->willReturnArgument( 1 )
+		;
 
 		return $reach;
 	}

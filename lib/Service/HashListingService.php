@@ -59,7 +59,7 @@ class HashListingService
 	/**
 	 * The views' areas, once each, as {@see FilecacheService::andWhereWithin()} takes them.
 	 *
-	 * @param  list<array{uid: string, storage: int, root: string, prefix: string}>  $views
+	 * @param  list<array{uid: string, storage: int, root: string, prefix: string, rootId: int, shared: bool}>  $views
 	 *
 	 * @return list<array{storage: int, root: string}>
 	 */
@@ -130,6 +130,12 @@ class HashListingService
 	 *                                            or changed since.
 	 * @param  bool               $withLocalPath  Each entry gains `localPath`,
 	 *                                            as {@see FilecacheService::localPaths()}.
+	 * @param  bool               $canonical      Every `location` the file's
+	 *                                            own address, as a sudoer
+	 *                                            reads it; otherwise a file
+	 *                                            the reach holds through a
+	 *                                            share is located by the
+	 *                                            share.
 	 *
 	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>}>, next: ?int, now: int, estimated_total?: int}
 	 *         `next` is the file id to pass as `after` while files remain,
@@ -147,6 +153,7 @@ class HashListingService
 		int     $after = 0,
 		?int    $since = null,
 		bool    $withLocalPath = false,
+		bool    $canonical = false,
 	): array
 	{
 		$limit = max( 0, min( $limit, self::MAX_LIMIT ) );
@@ -172,7 +179,7 @@ class HashListingService
 			$more = count( $rows ) > $limit;
 			$rows = array_slice( $rows, 0, $limit );
 
-			$answer['files'] = $this->entries( $rows, $views, $algo, $withLocalPath );
+			$answer['files'] = $this->entries( $rows, $views, $algo, $withLocalPath, $canonical );
 			$answer['next']  = $more ? $rows[ $limit - 1 ]['fileid'] : null;
 		}
 
@@ -202,6 +209,7 @@ class HashListingService
 	 * @param  int                $after          The last file id a walk that
 	 *                                            was cut short received; 0
 	 *                                            starts at the beginning.
+	 * @param  bool               $canonical      As {@see page()}.
 	 *
 	 * @return Generator<int, array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>}>
 	 *         keyed by file id, in file id order
@@ -213,6 +221,7 @@ class HashListingService
 		?int    $since = null,
 		bool    $withLocalPath = false,
 		int     $after = 0,
+		bool    $canonical = false,
 	): Generator
 	{
 		$after = max( 0, $after );
@@ -224,7 +233,7 @@ class HashListingService
 		{
 			$rows = $this->metadataService->pageListedFiles( $areas, $algo, $after, $since, self::ITERATE_BATCH );
 
-			foreach ( $this->entries( $rows, $views, $algo, $withLocalPath ) as $entry )
+			foreach ( $this->entries( $rows, $views, $algo, $withLocalPath, $canonical ) as $entry )
 			{
 				yield $entry['fileid'] => $entry;
 			}
@@ -239,7 +248,7 @@ class HashListingService
 	 *
 	 * @param  list<string>|null  $reachUids
 	 *
-	 * @return list<array{uid: string, storage: int, root: string, prefix: string}>|null
+	 * @return list<array{uid: string, storage: int, root: string, prefix: string, rootId: int, shared: bool}>|null
 	 */
 	private function viewsOf( ?array $reachUids ): ?array
 	{
@@ -251,8 +260,8 @@ class HashListingService
 	/**
 	 * A page's rows, as the listing gives them.
 	 *
-	 * @param  list<array{fileid: int, storage: int, storage_id: string, path: string, updated_at: ?int}>  $rows
-	 * @param  list<array{uid: string, storage: int, root: string, prefix: string}>|null                     $views
+	 * @param  list<array{fileid: int, storage: int, storage_id: string, path: string, updated_at: ?int}>                     $rows
+	 * @param  list<array{uid: string, storage: int, root: string, prefix: string, rootId: int, shared: bool}>|null $views
 	 *
 	 * @return list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>}>
 	 * @throws Exception
@@ -262,6 +271,7 @@ class HashListingService
 		?array  $views,
 		?string $algo,
 		bool    $withLocalPath,
+		bool    $canonical,
 	): array
 	{
 		if ( $rows === [] )
@@ -288,13 +298,15 @@ class HashListingService
 			$fileId   = $row['fileid'];
 			$location = $locations[ $fileId ];
 
-			// The first account in reach that holds the file names it. With
-			// no account named, the owner's view; a file nobody owns, its
-			// path in the area `location` names.
-			$path = $views === null
+			// The first account in reach that holds the file names it, and
+			// where it holds it through a share, the share is its location:
+			// nothing of the sharer's above it. With no account named, the
+			// owner's view; a file nobody owns, its path in the area
+			// `location` names.
+			$seen = $views === null
 				? null
-				: ReachResolver::pathInViews( $views, $row['storage'], $row['path'] );
-			$path ??= $location->relativePath ?? '/' . $row['path'];
+				: $this->reach->seenThrough( $views, $row['storage'], $row['path'], ! $canonical );
+			$path = $seen['path'] ?? $location->relativePath ?? '/' . $row['path'];
 
 			$byAlgo = [];
 
@@ -311,7 +323,7 @@ class HashListingService
 				'path'     => $path,
 				'name'     => substr( $path, (int) strrpos( $path, '/' ) + 1 ),
 				'owner'    => $location->owner,
-				'location' => $location->describe(),
+				'location' => $seen['share'] ?? $location->describe(),
 			] + ( $withLocalPath ? [ 'localPath' => $localPaths[ $fileId ] ?? null ] : [] ) + [
 				'updated_at' => self::stamp( $row['updated_at'] ),
 				'hashes'     => $byAlgo,

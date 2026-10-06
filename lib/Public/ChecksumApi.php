@@ -277,6 +277,12 @@ class ChecksumApi
 	 *                                        the server's layout, so a route
 	 *                                        offers it to sudoers only; a
 	 *                                        native caller is trusted with it.
+	 * @param  bool               $canonical  Every `location` the file's own
+	 *                                        address, as a sudoer reads it.
+	 *                                        Otherwise a file the reach holds
+	 *                                        through a share is located by the
+	 *                                        share, `share:<id>//…`: nothing of
+	 *                                        the sharer's above it.
 	 *
 	 * @return array{results: array<int, array{fileid: int, algo: string, hash: string, path: string, name: string, owner: ?string, location: string, localPath?: ?string}>}
 	 * @throws \InvalidArgumentException  When $hash is empty once trimmed. The
@@ -288,6 +294,7 @@ class ChecksumApi
 		?string $algo = null,
 		int     $limit = 100,
 		bool    $withLocalPath = false,
+		bool    $canonical = false,
 	): array
 	{
 		$hash = trim( $hash );
@@ -407,7 +414,7 @@ class ChecksumApi
 			];
 		}
 
-		return [ 'results' => $this->withLocations( $results, $withLocalPath ) ];
+		return [ 'results' => $this->withLocations( $results, $withLocalPath, $uids, $canonical ) ];
 	}
 
 	/**
@@ -446,6 +453,7 @@ class ChecksumApi
 	 *                                            at or after it, unix seconds.
 	 * @param  bool               $withLocalPath  Each entry gains `localPath`,
 	 *                                            as {@see findByHash()}.
+	 * @param  bool               $canonical      As {@see findByHash()}.
 	 *
 	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>}>, next: ?int, now: int, estimated_total?: int}
 	 *         `next` is null when no file follows, and echoes $after for a
@@ -462,9 +470,10 @@ class ChecksumApi
 		int     $after = 0,
 		?int    $since = null,
 		bool    $withLocalPath = false,
+		bool    $canonical = false,
 	): array
 	{
-		return $this->listing->page( $reachUids, $algo, $limit, $after, $since, $withLocalPath );
+		return $this->listing->page( $reachUids, $algo, $limit, $after, $since, $withLocalPath, $canonical );
 	}
 
 	/**
@@ -484,6 +493,7 @@ class ChecksumApi
 	 * @param  int                $after          The last file id a walk that
 	 *                                            was cut short received; 0
 	 *                                            starts at the beginning.
+	 * @param  bool               $canonical      As {@see findByHash()}.
 	 *
 	 * @return Generator<int, array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>}>
 	 * @throws \OCP\DB\Exception  While the walk is read, not when it is asked for.
@@ -494,9 +504,10 @@ class ChecksumApi
 		?int    $since = null,
 		bool    $withLocalPath = false,
 		int     $after = 0,
+		bool    $canonical = false,
 	): Generator
 	{
-		return $this->listing->iterate( $reachUids, $algo, $since, $withLocalPath, $after );
+		return $this->listing->iterate( $reachUids, $algo, $since, $withLocalPath, $after, $canonical );
 	}
 
 	/**
@@ -559,6 +570,7 @@ class ChecksumApi
 	 *                                        instance. A reach, resolved to
 	 *                                        mounts one layer down.
 	 * @param  bool               $includeEmpty  As {@see findDuplicates()}.
+	 * @param  bool               $canonical  As {@see findByHash()}.
 	 *
 	 * @return array{duplicates: array, total_groups: int, pagination: array{offset: int, limit: int}}
 	 */
@@ -571,6 +583,7 @@ class ChecksumApi
 		?string $hash = null,
 		bool    $anywhere = false,
 		bool    $includeEmpty = false,
+		bool    $canonical = false,
 	): array
 	{
 		$limit = max( 1, min( $limit, 500 ) );
@@ -584,6 +597,7 @@ class ChecksumApi
 			$hash,
 			$anywhere,
 			$includeEmpty,
+			$canonical,
 		);
 	}
 
@@ -600,6 +614,7 @@ class ChecksumApi
 	 * @param  int                $fileId     The filecache fileid of the reference file
 	 * @param  list<string>|null  $reachUids  Whose files: one account, several,
 	 *                                        or null for every account.
+	 * @param  bool               $canonical  As {@see findByHash()}.
 	 *
 	 * Unlike the listing, this leaves no empty file out: the caller named the
 	 * file. Each group says whether it is the empty files' (`empty`), and the
@@ -612,6 +627,7 @@ class ChecksumApi
 	public function findSameHash(
 		int    $fileId,
 		?array $reachUids,
+		bool   $canonical = false,
 	): array
 	{
 		// Before the hashes are read, not after. A hash is a fingerprint of
@@ -713,7 +729,7 @@ class ChecksumApi
 
 		foreach ( $grouped as $key => $group )
 		{
-			$grouped[ $key ]['files'] = $this->withLocations( $group['files'] );
+			$grouped[ $key ]['files'] = $this->withLocations( $group['files'], false, $reachUids, $canonical );
 		}
 
 		return [ 'duplicates' => array_values( $grouped ) ];
@@ -954,11 +970,22 @@ class ChecksumApi
 	 * ({@see FileLocation}), which the listing's rows carry from the start
 	 * and these, rendered from nodes, gain here in one batched lookup.
 	 *
+	 * A file the reach holds through a share is located by the share, unless
+	 * $canonical: nothing of the sharer's above it, which Nextcloud never
+	 * shows a recipient either.
+	 *
 	 * @param  list<array{fileid: int, ...}>  $rows
+	 * @param  list<string>|null              $reachUids  Whose view locates a file;
+	 *                                                    null, its own address.
 	 *
 	 * @return list<array>  the same rows plus `owner: ?string` and `location: string`, and `localPath: ?string` when asked
 	 */
-	private function withLocations( array $rows, bool $withLocalPath = false ): array
+	private function withLocations(
+		array  $rows,
+		bool   $withLocalPath = false,
+		?array $reachUids = null,
+		bool   $canonical = false,
+	): array
 	{
 		if ( $rows === [] )
 		{
@@ -968,12 +995,20 @@ class ChecksumApi
 		// No reach filter: what may be listed was decided row by row already;
 		// this only finds words for it.
 		$located = $this->hashIndexService->batchLookupFilecachePaths( array_column( $rows, 'fileid' ), null, $withLocalPath );
+		$views   = $reachUids === null || $canonical
+			? null
+			: $this->reach->filesViewsFor( array_values( $reachUids ) );
 
 		return array_map(
-			static fn ( array $row ): array => $row + [
-				'owner'    => $located[ $row['fileid'] ]['owner'] ?? null,
-				'location' => $located[ $row['fileid'] ]['location'] ?? '',
-			] + ( $withLocalPath ? [ 'localPath' => $located[ $row['fileid'] ]['local_path'] ?? null ] : [] ),
+			function( array $row ) use ( $located, $views, $withLocalPath ): array
+			{
+				$at = $located[ $row['fileid'] ] ?? null;
+
+				return $row + [
+					'owner'    => $at['owner'] ?? null,
+					'location' => $at === null ? '' : $this->reach->asSeenIn( $views, $at, false )['location'],
+				] + ( $withLocalPath ? [ 'localPath' => $at['local_path'] ?? null ] : [] );
+			},
 			$rows,
 		);
 	}
