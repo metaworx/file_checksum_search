@@ -40,6 +40,7 @@ term that changes, changes here and in the `.po` file at once.
 | home folder | cartella home | |
 | team folder | cartella del team, cartelle del team | Nextcloud's `groupfolders` term; the selector prefix `groupfolder:` is typed as it is |
 | share (a received one) | condivisione | Nextcloud's term (*condivisione ricevuta*); the location prefix `share:` is typed as it is |
+| address (a rule's scope as one string) | indirizzo | `home:alice//Documents/**` is typed as it is |
 | storage | archiviazione, archiviazioni | Nextcloud's term; *Un'archiviazione* |
 | raw ID | ID interno | |
 | external storage | archiviazione esterna | Nextcloud's `files_external` term |

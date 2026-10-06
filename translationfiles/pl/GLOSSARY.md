@@ -56,6 +56,7 @@ here; a term that changes, changes here and in the `.po` file at once.
 | home folder | folder domowy | Nextcloud's sharing says *folder główny*, which here would read as the root folder that the path `/` names |
 | team folder | folder zespołu, foldery zespołów | Nextcloud's own term; the selector prefix `groupfolder:` is typed as it is |
 | share (a received one) | udostępnienie | Nextcloud's term (*otrzymane udostępnienie*); the location prefix `share:` is typed as it is |
+| address (a rule's scope as one string) | adres | `home:alice//Documents/**` is typed as it is |
 | storage | magazyn, magazyny | Nextcloud's term |
 | external storage, external mount | magazyn zewnętrzny | Nextcloud's external storage app |
 | raw ID | wewnętrzne ID | |

@@ -94,7 +94,7 @@ const COLUMNS: Array<{ key: string, label: string, help: string }> = [
 		key: 'path',
 		label: t('file_checksum_search', 'Path'),
 		// TRANSLATORS: the quoted patterns are examples to type as they are
-		help: t('file_checksum_search', 'Glob pattern the file path must match. "**" matches every file, "**/*.txt" matches by extension, and "/Documents/**" matches everything below one folder.'),
+		help: t('file_checksum_search', 'Glob pattern the file path must match. "**" matches every file, "**/*.txt" matches by extension, and "Documents/**" matches everything below one folder. Click a path to copy the rule\'s address: its scope and pattern in one, such as "home:alice//Documents/**".'),
 	},
 	{
 		key: 'type',

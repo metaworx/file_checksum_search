@@ -237,7 +237,7 @@ const STORAGE_EXAMPLE = t('file_checksum_search', 'local::/path/ or smb::…')
 const HELP = {
 	selector: t('file_checksum_search', 'Which files this rule addresses: all home folders, the home folders of one group\'s members, a single account\'s home folder, one team folder, one storage by its raw ID, or everything — every storage, external storage and team folders included.'),
 	// TRANSLATORS: the quoted patterns are examples to type as they are
-	path: t('file_checksum_search', 'Glob pattern the file path must match. "**" matches every file; "/Documents/**" matches everything below that folder. Rules are checked in order and the first match wins.'),
+	path: t('file_checksum_search', 'Glob pattern the file path must match. "**" matches every file; "Documents/**" matches everything below that folder. Rules are checked in order and the first match wins.'),
 	algos: t('file_checksum_search', 'Checksum algorithms computed for matching files. Each algorithm you add is indexed separately, so more algorithms mean more work per file.'),
 	// TRANSLATORS: "Auto", "Missing", "Force" and "Lazy" name the choices of the Mode field; translate them as that field does
 	mode: t('file_checksum_search', 'What happens to a file that already has checksums. "Auto" recalculates only outdated ones, "Missing" also adds missing ones, "Force" deletes and recalculates all of them, and "Lazy" deletes them now and lets a later run recalculate them.'),

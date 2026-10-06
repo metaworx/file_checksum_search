@@ -48,6 +48,7 @@ a term that changes, changes here and in the `.po` file at once.
 | home folder | thuismap | after the Files app's *Thuis* |
 | team folder | teammap, teammappen | Nextcloud's own term; the selector prefix `groupfolder:` is typed as it is |
 | share (a received one) | share | as this translation already writes *inkomende share*; the location prefix `share:` is typed as it is |
+| address (a rule's scope as one string) | adres | `home:alice//Documents/**` is typed as it is |
 | storage | opslag | |
 | external storage | externe opslag | Nextcloud's own term |
 | mounted storage | aangekoppelde opslag | after Nextcloud's *aankoppelpunt* |

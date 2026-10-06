@@ -249,6 +249,11 @@ asterisk — and hovering it says the kind in words. A file shared with you is
 decided by its owner's rules, not by yours — the rule follows the file, not
 the person looking at it.
 
+The **Path** column holds the glob, below the top of what the scope names:
+`Documents/**`, not `/Documents/**`. Hover it to see the rule's whole
+address, scope and glob in one, such as `home:alice//Documents/**`; click it
+to copy that address, the form an administrator's `occ` rule commands take.
+
 You will normally see three kinds of row:
 
 - **Above yours** — rules your administrator enforced. They come first, you

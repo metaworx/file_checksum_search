@@ -179,8 +179,9 @@ describe('settings-admin App', () => {
 		// rather than a separate table above.
 		const rows = wrapper.find('#fcias-rules-list').findAll('tbody tr[data-id]')
 		expect(rows).toHaveLength(2)
-		expect(rows[0].text()).toContain('/docs')
-		expect(rows[1].text()).toContain('**')
+		// The paths as the server now stores them, below the top of the scope.
+		expect(rows[0].find('[data-action="copy-address"]').text()).toBe('docs')
+		expect(rows[1].find('[data-action="copy-address"]').text()).toBe('**')
 		// Position numbers run through the whole segment, defaults included.
 		expect(rows[1].findAll('td')[1].text()).toBe('7.2')
 

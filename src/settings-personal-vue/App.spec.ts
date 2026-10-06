@@ -67,7 +67,7 @@ describe('settings-personal App', () => {
 		const wrapper = mount(App)
 		await flushPromises()
 
-		expect(wrapper.find('#fcias-personal-rules').text()).toContain('/docs')
+		expect(wrapper.find('#fcias-personal-rules [data-action="copy-address"]').text()).toBe('docs')
 	})
 
 	it('shows the enforced and default bands around the user\'s own, read-only', async () => {

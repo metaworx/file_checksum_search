@@ -208,6 +208,10 @@ msgstr ""
 msgid "Copied!"
 msgstr ""
 
+#. TRANSLATORS: a button on a rule's path; {address} is the rule's scope as one string, such as "home:alice//Photos/**", and is typed as it is
+msgid "Copy the address {address}"
+msgstr ""
+
 msgid "Could not change the grant."
 msgstr ""
 
@@ -445,11 +449,11 @@ msgid "Force (delete and recalculate all checksums)"
 msgstr ""
 
 #. TRANSLATORS: the quoted patterns are examples to type as they are
-msgid "Glob pattern the file path must match. \"**\" matches every file, \"**/*.txt\" matches by extension, and \"/Documents/**\" matches everything below one folder."
+msgid "Glob pattern the file path must match. \"**\" matches every file, \"**/*.txt\" matches by extension, and \"Documents/**\" matches everything below one folder. Click a path to copy the rule's address: its scope and pattern in one, such as \"home:alice//Documents/**\"."
 msgstr ""
 
 #. TRANSLATORS: the quoted patterns are examples to type as they are
-msgid "Glob pattern the file path must match. \"**\" matches every file; \"/Documents/**\" matches everything below that folder. Rules are checked in order and the first match wins."
+msgid "Glob pattern the file path must match. \"**\" matches every file; \"Documents/**\" matches everything below that folder. Rules are checked in order and the first match wins."
 msgstr ""
 
 msgid "Grant revoked."

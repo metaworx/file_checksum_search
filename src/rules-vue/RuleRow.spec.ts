@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
 import RuleRow from './RuleRow.vue'
 import type { Rule } from './types'
 import { clickAction, hasAction, openActions } from '../test-utils/ncActions'
@@ -36,16 +36,63 @@ describe('RuleRow', () => {
 		const wrapper = mount(RuleRow, {
 			props: { rule: makeRule({ path: '<script>alert(1)</script>' }), variant: 'admin' },
 		})
-		const pathCell = wrapper.findAll('td')[COL.path]
+		const pathButton = wrapper.findAll('td')[COL.path].find('button')
 
 		// Asserted structurally rather than by searching the serialised HTML:
-		// the cell also carries the raw value in a `title` tooltip, and HTML
+		// the button also carries the raw value in a `title` tooltip, and HTML
 		// attribute serialisation does not escape < or >, so a substring check
 		// reports a payload that is in fact inert inside a quoted attribute.
 		expect(wrapper.element.querySelectorAll('script')).toHaveLength(0)
-		expect(pathCell.element.childElementCount).toBe(0)
-		expect(pathCell.text()).toBe('<script>alert(1)</script>')
-		expect(pathCell.attributes('title')).toBe('<script>alert(1)</script>')
+		expect(pathButton.element.childElementCount).toBe(0)
+		expect(pathButton.text()).toBe('<script>alert(1)</script>')
+		expect(pathButton.attributes('title')).toBe('home:*//<script>alert(1)</script>')
+	})
+
+	// --- the path and its address ---
+
+	it.each([
+		['/docs', 'docs'],
+		['Photos/**', 'Photos/**'],
+		['/', '**'],
+		['', '**'],
+	])('shows the stored path %j as %j, as the server keeps it', (stored, shown) => {
+		const wrapper = mount(RuleRow, { props: { rule: makeRule({ path: stored }), variant: 'admin' } })
+		expect(wrapper.find('[data-action="copy-address"]').text()).toBe(shown)
+	})
+
+	it('names the rule\'s address on the path, in its tooltip and its label', () => {
+		const wrapper = mount(RuleRow, {
+			props: { rule: makeRule({ selector: 'groupfolder:3', path: 'Photos/**' }), variant: 'admin' },
+		})
+		const button = wrapper.find('[data-action="copy-address"]')
+
+		expect(button.attributes('title')).toBe('groupfolder:3//Photos/**')
+		expect(button.attributes('aria-label')).toBe('Copy the address groupfolder:3//Photos/**')
+	})
+
+	it('copies the address, not the path, and says so', async () => {
+		const writeText = vi.fn().mockResolvedValue(undefined)
+		Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+		const wrapper = mount(RuleRow, {
+			props: { rule: makeRule({ selector: 'home:alice', path: '/Documents/**' }), variant: 'personal' },
+		})
+		expect(wrapper.find('[role="status"]').exists()).toBe(false)
+
+		await wrapper.find('[data-action="copy-address"]').trigger('click')
+		await flushPromises()
+
+		expect(writeText).toHaveBeenCalledWith('home:alice//Documents/**')
+		expect(wrapper.find('[role="status"]').text()).toBe('Copied!')
+	})
+
+	it('copies a rule with no selector as one on everything', async () => {
+		const writeText = vi.fn().mockResolvedValue(undefined)
+		Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+		const wrapper = mount(RuleRow, { props: { rule: makeRule({ selector: '', path: '**' }), variant: 'admin' } })
+
+		await wrapper.find('[data-action="copy-address"]').trigger('click')
+
+		expect(writeText).toHaveBeenCalledWith('*//**')
 	})
 
 	it('shows the server-computed priority as <band>.<position>', () => {

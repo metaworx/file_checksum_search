@@ -37,6 +37,7 @@ files at once.
 | home folder | Home-Ordner | |
 | team folder | Team-Ordner | Nextcloud's own term; the selector prefix `groupfolder:` is typed as it is |
 | share (a received one) | Freigabe | Nextcloud's own term (*empfangene Freigabe*); the location prefix `share:` is typed as it is |
+| address (a rule's scope as one string) | Adresse | `home:alice//Documents/**` is typed as it is |
 | storage | Speicher | |
 | raw ID | interne ID | |
 | external storage | externer Speicher | |

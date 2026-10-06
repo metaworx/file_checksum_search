@@ -208,6 +208,10 @@ msgstr "Fermer"
 msgid "Copied!"
 msgstr "Copié !"
 
+#. TRANSLATORS: a button on a rule's path; {address} is the rule's scope as one string, such as "home:alice//Photos/**", and is typed as it is
+msgid "Copy the address {address}"
+msgstr "Copier l'adresse {address}"
+
 msgid "Could not change the grant."
 msgstr "Impossible de modifier l'habilitation."
 
@@ -445,12 +449,12 @@ msgid "Force (delete and recalculate all checksums)"
 msgstr "Forcer (supprimer et recalculer toutes les sommes de contrôle)"
 
 #. TRANSLATORS: the quoted patterns are examples to type as they are
-msgid "Glob pattern the file path must match. \"**\" matches every file, \"**/*.txt\" matches by extension, and \"/Documents/**\" matches everything below one folder."
-msgstr "Motif glob auquel le chemin du fichier doit correspondre. \"**\" correspond à tous les fichiers, \"**/*.txt\" aux fichiers d'une extension donnée, et \"/Documents/**\" à tout ce qui se trouve sous un dossier."
+msgid "Glob pattern the file path must match. \"**\" matches every file, \"**/*.txt\" matches by extension, and \"Documents/**\" matches everything below one folder. Click a path to copy the rule's address: its scope and pattern in one, such as \"home:alice//Documents/**\"."
+msgstr "Motif glob auquel le chemin du fichier doit correspondre. \"**\" correspond à tous les fichiers, \"**/*.txt\" aux fichiers d'une extension donnée, et \"Documents/**\" à tout ce qui se trouve sous un dossier. Cliquez sur un chemin pour copier l'adresse de la règle : sa portée et son motif en une seule chaîne, par exemple \"home:alice//Documents/**\"."
 
 #. TRANSLATORS: the quoted patterns are examples to type as they are
-msgid "Glob pattern the file path must match. \"**\" matches every file; \"/Documents/**\" matches everything below that folder. Rules are checked in order and the first match wins."
-msgstr "Motif glob auquel le chemin du fichier doit correspondre. \"**\" correspond à tous les fichiers ; \"/Documents/**\" à tout ce qui se trouve sous ce dossier. Les règles sont vérifiées dans l'ordre, et la première correspondance l'emporte."
+msgid "Glob pattern the file path must match. \"**\" matches every file; \"Documents/**\" matches everything below that folder. Rules are checked in order and the first match wins."
+msgstr "Motif glob auquel le chemin du fichier doit correspondre. \"**\" correspond à tous les fichiers ; \"Documents/**\" à tout ce qui se trouve sous ce dossier. Les règles sont vérifiées dans l'ordre, et la première correspondance l'emporte."
 
 msgid "Grant revoked."
 msgstr "Habilitation révoquée."

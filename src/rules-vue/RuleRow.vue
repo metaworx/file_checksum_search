@@ -15,6 +15,7 @@ import MdiIcon from '../components/MdiIcon.vue'
 import { ICON_BIN, ICON_PAUSE, ICON_PENCIL, ICON_PLAY, ICON_REFRESH } from '../components/icons'
 import { priorityLabel, selectorKind, selectorLabel } from './bands'
 import type { GroupFolderOption, Rule } from './types'
+import { useClipboard } from '../composables/useClipboard'
 import { t } from '../l10n'
 
 const props = defineProps<{
@@ -63,19 +64,30 @@ const computesHashes = computed(() => (props.rule.type ?? 'include') === 'includ
  */
 const canReapply = computed(() => props.rule.enabled && computesHashes.value)
 
+/**
+ * The rule's glob as the server stores it: below the top of what the
+ * selector names, without a leading slash, `**` for all of it — and as an
+ * older server's `/` or empty one reads.
+ */
+const path = computed(() => (props.rule.path ?? '').trim().replace(/^\/+/, '') || '**')
+
+/** The rule's scope as one address, as `occ fcias:rules:list` shows it. */
+const address = computed(() => `${props.rule.selector || '*'}//${path.value}`)
+
+const { copied, copyToClipboard } = useClipboard()
+
 /** The row's words that depend on the rule, worked out here rather than in the template. */
-const texts = computed(() => {
-	const path = props.rule.path || '/'
-	return {
-		priority: t('file_checksum_search', 'Band {band}, position {position}', { band: props.rule.band ?? 0, position: props.rule.position ?? 1 }),
-		status: props.rule.enabled ? t('file_checksum_search', 'Enabled') : t('file_checksum_search', 'Disabled'),
-		// TRANSLATORS: whether an administrator enforced the rule
-		enforced: props.rule.admin_enforced ? t('file_checksum_search', 'Yes') : t('file_checksum_search', 'No'),
-		toggle: props.rule.enabled ? t('file_checksum_search', 'Disable') : t('file_checksum_search', 'Enable'),
-		edit: t('file_checksum_search', 'Edit the rule on {path}', { path }),
-		more: t('file_checksum_search', 'More actions for the rule on {path}', { path }),
-	}
-})
+const texts = computed(() => ({
+	priority: t('file_checksum_search', 'Band {band}, position {position}', { band: props.rule.band ?? 0, position: props.rule.position ?? 1 }),
+	status: props.rule.enabled ? t('file_checksum_search', 'Enabled') : t('file_checksum_search', 'Disabled'),
+	// TRANSLATORS: whether an administrator enforced the rule
+	enforced: props.rule.admin_enforced ? t('file_checksum_search', 'Yes') : t('file_checksum_search', 'No'),
+	toggle: props.rule.enabled ? t('file_checksum_search', 'Disable') : t('file_checksum_search', 'Enable'),
+	edit: t('file_checksum_search', 'Edit the rule on {path}', { path: path.value }),
+	more: t('file_checksum_search', 'More actions for the rule on {path}', { path: path.value }),
+	// TRANSLATORS: a button on a rule's path; {address} is the rule's scope as one string, such as "home:alice//Photos/**", and is typed as it is
+	copy: t('file_checksum_search', 'Copy the address {address}', { address: address.value }),
+}))
 
 const PROVIDER_MISSING_HINT = t('file_checksum_search', 'The team folder this rule names, or the app that provides it, is not available, so the rule can never match.')
 </script>
@@ -125,8 +137,20 @@ const PROVIDER_MISSING_HINT = t('file_checksum_search', 'The team folder this ru
 				{{ t('file_checksum_search', 'folder missing') }}
 			</span>
 		</td>
-		<td :title="rule.path || '/'">
-			{{ rule.path || '/' }}
+		<td>
+			<!-- The glob, and on a click the rule's whole address on the
+			     clipboard: the selector and the glob as one, as occ's rule
+			     commands take a scope. The sidebar copies a hash the same way. -->
+			<button
+				class="fcias-rule-address"
+				data-action="copy-address"
+				type="button"
+				:title="address"
+				:aria-label="texts.copy"
+				@click="copyToClipboard(address)">
+				{{ path }}
+			</button>
+			<span v-if="copied" class="fcias-rule-address-copied" role="status">{{ t('file_checksum_search', 'Copied!') }}</span>
 		</td>
 		<td>
 			<span :class="`fcias-rule-type fcias-rule-type-${rule.type ?? 'include'}`">
@@ -252,5 +276,34 @@ const PROVIDER_MISSING_HINT = t('file_checksum_search', 'The team folder this ru
 
 .fcias-rules-actions {
 	white-space: nowrap;
+}
+
+/* The path reads as the text it is, and copies its rule's address: a
+   button for the keyboard and a screen reader, without a button's look.
+   Nextcloud styles every button; these undo that for this one. */
+.fcias-rule-address {
+	min-width: 0;
+	min-height: 0;
+	height: auto;
+	margin: 0;
+	padding: 0;
+	border: none;
+	background: none;
+	font: inherit;
+	color: inherit;
+	text-align: start;
+	cursor: copy;
+}
+
+.fcias-rule-address:hover,
+.fcias-rule-address:focus-visible {
+	text-decoration: underline dotted;
+}
+
+/* noinspection CssUnresolvedCustomProperty */
+.fcias-rule-address-copied {
+	margin-inline-start: 6px;
+	color: var(--color-success-text, var(--color-success, #46ba61));
+	font-size: 0.9em;
 }
 </style>

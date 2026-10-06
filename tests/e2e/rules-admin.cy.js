@@ -216,7 +216,8 @@ describe( 'FCIAS admin rules', () => {
 
 			expect( band7, 'the new rule joins the shipped default' ).to.have.length( 2 )
 
-			const created = band7.find( ( r ) => r.path === '/Photos/**' )
+			// Typed with a leading slash, stored below the top of the scope.
+			const created = band7.find( ( r ) => r.path === 'Photos/**' )
 
 			expect( created, 'the rule the dialog saved' ).to.exist
 			expect( created.selector ).to.eq( 'home:*' )
@@ -228,6 +229,17 @@ describe( 'FCIAS admin rules', () => {
 			const shipped = band7.find( ( r ) => r.isDefault )
 
 			expect( created.position ).to.be.lessThan( shipped.position )
+
+			// The row shows the glob and copies the rule's whole address.
+			cy.window().then( ( win ) => {
+				cy.stub( win.navigator.clipboard, 'writeText' ).as( 'writeText' ).resolves()
+			} )
+			cy.get( `#fcias-rules-list tr[data-id="${ created.id }"] [data-action="copy-address"]` )
+				.should( 'have.text', 'Photos/**' )
+				.and( 'have.attr', 'title', 'home:*//Photos/**' )
+				.click()
+			cy.get( '@writeText' ).should( 'have.been.calledOnceWith', 'home:*//Photos/**' )
+			cy.get( `#fcias-rules-list tr[data-id="${ created.id }"] [role="status"]` ).should( 'be.visible' )
 		} )
 	} )
 

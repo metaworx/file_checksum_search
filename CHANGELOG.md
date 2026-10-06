@@ -30,6 +30,9 @@ the first stable release.
 - `occ fcias:rules:list` shows a rule's scope as `<selector>//<glob>`, in
   its JSON too, and `rules:add` and `rules:modify` take it as `--scope`.
 
+- Rules lists: a click on a rule's path copies its scope as an address,
+  `<selector>//<glob>` (`docs/user-guide.md`).
+
 ### Fixed
 
 - `storage:` and `*` rules govern the files of an external storage; an

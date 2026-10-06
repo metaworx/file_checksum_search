@@ -44,6 +44,7 @@ term that changes, changes here and in the `.po` file at once.
 | home folder | 主目录 | Nextcloud's term (用户主目录) |
 | team folder | 团队文件夹 | Nextcloud's term; the selector prefix `groupfolder:` is typed as it is |
 | share (a received one) | 共享 | Nextcloud's term (收到的共享); the location prefix `share:` is typed as it is |
+| address (a rule's scope as one string) | 地址 | `home:alice//Documents/**` is typed as it is |
 | storage | 存储 | |
 | raw ID | 内部 ID | |
 | external storage, external mount | 外部存储 | Nextcloud's term |
