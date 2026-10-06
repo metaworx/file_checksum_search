@@ -11,6 +11,12 @@ the first stable release.
 
 ## [Unreleased]
 
+### Changed
+
+- `location` is an address, its area and path split at the last `//`:
+  `home:alice//Docs/a.pdf`, no longer `/alice/files/Docs/a.pdf`
+  (`docs/api-v1.md`).
+
 ### Fixed
 
 - `storage:` and `*` rules govern the files of an external storage; an

@@ -112,7 +112,7 @@ class HashListingServiceTest
 						'path'       => '/a.txt',
 						'name'       => 'a.txt',
 						'owner'      => 'alice',
-						'location'   => '/alice/files/a.txt',
+						'location'   => 'home:alice//a.txt',
 						'updated_at' => date( 'c', 1756800000 ),
 						'hashes'     => [
 							'sha1'   => [ 'algo' => 'sha1', 'hash' => 'aaa' ],
@@ -124,7 +124,7 @@ class HashListingServiceTest
 						'path'       => '/Shared/Fotos/GPZ 0001.jpg',
 						'name'       => 'GPZ 0001.jpg',
 						'owner'      => 'bob',
-						'location'   => '/bob/files/Fotos/GPZ 0001.jpg',
+						'location'   => 'home:bob//Fotos/GPZ 0001.jpg',
 						'updated_at' => null,
 						'hashes'     => [],
 					],
@@ -306,7 +306,7 @@ class HashListingServiceTest
 			array_column( $page['files'], 'path' ),
 		);
 		$this->assertSame(
-			[ '/alice/files/Fotos/a.jpg', 'groupfolder:3/Team/b.odt', 'storage:smb::archive@host/share//Scans/c.tif' ],
+			[ 'home:alice//Fotos/a.jpg', 'groupfolder:3//Team/b.odt', 'storage:smb::archive@host/share//Scans/c.tif' ],
 			array_column( $page['files'], 'location' ),
 		);
 		$this->assertSame( [ 'alice', null, null ], array_column( $page['files'], 'owner' ) );

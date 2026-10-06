@@ -302,7 +302,7 @@ class ReachTest
 		foreach ( $files as $file )
 		{
 			$this->assertSame( self::$ownerUid, $file['owner'] );
-			$this->assertStringStartsWith( '/' . self::$ownerUid . '/files/shared_', $file['location'] );
+			$this->assertStringStartsWith( 'home:' . self::$ownerUid . '//shared_', $file['location'] );
 		}
 	}
 

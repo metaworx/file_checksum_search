@@ -11,7 +11,7 @@ export interface LabelledFile {
 	name?: string
 	/** The uid a home file belongs to; null for a group folder or external storage. */
 	owner?: string | null
-	/** Where the file really lives — `/uid/files/…`, `groupfolder:3/…`, `storage:…`. */
+	/** Where the file really lives — `home:uid//…`, `groupfolder:3//…`, `storage:…//…`. */
 	location?: string
 }
 
@@ -80,5 +80,5 @@ export function labelKind(file: LabelledFile, uid: string | null = currentUid())
 	if (location.startsWith('storage:')) {
 		return 'storage'
 	}
-	return location.startsWith('/') ? 'home' : null
+	return location.startsWith('home:') ? 'home' : null
 }

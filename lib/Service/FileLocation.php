@@ -33,6 +33,13 @@ namespace OCA\FileChecksumSearch\Service;
  * versions, appdata, the team folders' jails in the root storage).
  * Verdicts and sweeps skip those entirely: no rule matches them, and no
  * glob can reach them — the app hashes files, not infrastructure.
+ *
+ * Its **address** ({@see describe()}) is the area, two slashes, and the
+ * path below the area's top: `home:alice//Photos/x.jpg`,
+ * `groupfolder:5//Team/notes.md`, `storage:smb::u@host//share//2024/x.pdf`.
+ * The area is the selector a rule names it by, a storage's id without its
+ * trailing slashes. A path holds no `//` and starts with no `/`, so the
+ * last `//` separates them, whatever a storage's id holds.
  */
 readonly class FileLocation
 {
@@ -69,6 +76,28 @@ readonly class FileLocation
 
 
 //  static methods
+
+	/**
+	 * An address: the area, two slashes, the path below the area's top,
+	 * without a leading slash. The area's top itself is the area and `//`.
+	 */
+	public static function address(
+		string $area,
+		string $path,
+	): string
+	{
+		return $area . '//' . ltrim( $path, '/' );
+	}
+
+	/**
+	 * A storage's id as an area names it: without its trailing slashes,
+	 * which Nextcloud ends a local or SMB storage's id with, so that its
+	 * address does not read `///`.
+	 */
+	public static function storageArea( string $storageId ): string
+	{
+		return rtrim( $storageId, '/' );
+	}
 
 	/**
 	 * Classify a filecache row into its namespace.
@@ -152,22 +181,34 @@ readonly class FileLocation
 //  other non-static methods
 
 	/**
-	 * A human-readable address for log and console lines.
+	 * The file's address: its area, two slashes, and its path below the
+	 * area's top. What the API gives as `location`, and what log and console
+	 * lines name a file by.
 	 *
-	 * Home files print as the owner's absolute view path (the spelling every
-	 * earlier log line used); everything else prints selector-style, since
-	 * there is no user whose view could name it.
+	 * A row outside a files area — the trash, the versions — is listed
+	 * nowhere; in a log line its path is `..` and its internal path, which
+	 * no path below an area's top can be.
 	 */
 	public function describe(): string
 	{
+		return self::address(
+			$this->area(),
+			$this->relativePath ?? '../' . $this->internalPath,
+		);
+	}
+
+	/**
+	 * The area the file lives in, as the selector that names it: `home:<uid>`,
+	 * `groupfolder:<id>` or `storage:<raw id>`.
+	 */
+	public function area(): string
+	{
 		return match ( $this->namespace )
 		{
-			self::NS_HOME        => '/' . $this->owner . '/' . $this->internalPath,
+			self::NS_HOME        => 'home:' . (string) $this->owner,
 			// The namespace is groupfolder only where an id was found.
-			self::NS_GROUPFOLDER => 'groupfolder:' . (string) $this->groupFolderId
-				. ( $this->relativePath ?? '/' . $this->internalPath ),
-			default => 'storage:' . $this->storageId
-				. ( $this->relativePath ?? '/' . $this->internalPath ),
+			self::NS_GROUPFOLDER => 'groupfolder:' . (string) $this->groupFolderId,
+			default              => 'storage:' . self::storageArea( $this->storageId ),
 		};
 	}
 

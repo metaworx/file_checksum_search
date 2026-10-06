@@ -407,7 +407,7 @@ class HashListingTest
 		$entry = $this->entryFor( $this->api->listHashes( null, null, 1000, $after, null, true ), 'a' );
 
 		$this->assertSame( '/shared_' . self::$salt . '/a.txt', $entry['path'] );
-		$this->assertSame( '/' . self::$ownerUid . '/files/shared_' . self::$salt . '/a.txt', $entry['location'] );
+		$this->assertSame( 'home:' . self::$ownerUid . '//shared_' . self::$salt . '/a.txt', $entry['location'] );
 		$this->assertArrayHasKey( 'localPath', $entry );
 
 		if ( $entry['localPath'] !== null )

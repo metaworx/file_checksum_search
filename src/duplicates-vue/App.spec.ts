@@ -272,8 +272,8 @@ describe('duplicates App', () => {
 				hash_value: 'abc123',
 				file_count: 2,
 				files: [
-					{ fileid: 1, path: 'Docs', name: 'a.pdf', owner: 'me', location: '/me/files/Docs/a.pdf', openable: true },
-					{ fileid: 2, path: 'Docs', name: 'a.pdf', owner: 'bob', location: '/bob/files/Docs/a.pdf', openable: false },
+					{ fileid: 1, path: 'Docs', name: 'a.pdf', owner: 'me', location: 'home:me//Docs/a.pdf', openable: true },
+					{ fileid: 2, path: 'Docs', name: 'a.pdf', owner: 'bob', location: 'home:bob//Docs/a.pdf', openable: false },
 				],
 			}],
 		})

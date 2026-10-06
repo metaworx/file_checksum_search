@@ -5,7 +5,7 @@
  *
  * One glyph for where a file lives, or what a rule addresses.
  *
- * A location reads `/alice/files/…`, `groupfolder:3/…` or `storage:7/…`,
+ * A location reads `home:alice//…`, `groupfolder:3//…` or `storage:<id>//…`,
  * and a selector `home:<uid>`, `group:<gid>`, `home:*`, `groupfolder:<id>`,
  * `storage:<id>` or `*`. The prefix says which kind of place that is, and a
  * reader has to parse it; the glyph says it at a glance. The text stays as

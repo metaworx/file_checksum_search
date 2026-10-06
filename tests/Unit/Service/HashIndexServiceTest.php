@@ -731,7 +731,7 @@ class HashIndexServiceTest
 		$files = $this->service->listDuplicatesForUser( 'bob' )['duplicates'][0]['files'];
 
 		$this->assertSame( [ 'bob', 'bob' ], array_column( $files, 'owner' ) );
-		$this->assertSame( '/bob/files/f42.pdf', $files[0]['location'] );
+		$this->assertSame( 'home:bob//f42.pdf', $files[0]['location'] );
 	}
 
 	/**
@@ -750,7 +750,7 @@ class HashIndexServiceTest
 				'name'       => "f$fileId.pdf",
 				'storage_id' => 'home::bob',
 				'owner'      => 'bob',
-				'location'   => "/bob/files/f$fileId.pdf",
+				'location'   => "home:bob//f$fileId.pdf",
 			];
 		}
 

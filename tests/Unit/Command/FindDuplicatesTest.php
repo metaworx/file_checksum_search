@@ -81,8 +81,8 @@ class FindDuplicatesTest
 		$this->hashIndexService->method( 'batchLookupFilecachePaths' )
 		                       ->with( [ 42, 108 ], null )
 		                       ->willReturn( [
-			                       42  => [ 'path' => 'Docs/a.txt', 'name' => 'a.txt', 'storage_id' => 'home::alice', 'owner' => 'alice', 'location' => '/alice/files/Docs/a.txt' ],
-			                       108 => [ 'path' => 'Docs/b.txt', 'name' => 'b.txt', 'storage_id' => 'home::alice', 'owner' => 'alice', 'location' => '/alice/files/Docs/b.txt' ],
+			                       42  => [ 'path' => 'Docs/a.txt', 'name' => 'a.txt', 'storage_id' => 'home::alice', 'owner' => 'alice', 'location' => 'home:alice//Docs/a.txt' ],
+			                       108 => [ 'path' => 'Docs/b.txt', 'name' => 'b.txt', 'storage_id' => 'home::alice', 'owner' => 'alice', 'location' => 'home:alice//Docs/b.txt' ],
 		                       ] )
 		;
 
@@ -112,8 +112,8 @@ class FindDuplicatesTest
 		;
 		$this->hashIndexService->method( 'batchLookupFilecachePaths' )
 		                       ->willReturn( [
-			                       42  => [ 'path' => 'a.txt', 'name' => 'a.txt', 'owner' => 'alice', 'location' => '/alice/files/a.txt' ],
-			                       108 => [ 'path' => 'b.txt', 'name' => 'b.txt', 'owner' => 'alice', 'location' => '/alice/files/b.txt' ],
+			                       42  => [ 'path' => 'a.txt', 'name' => 'a.txt', 'owner' => 'alice', 'location' => 'home:alice//a.txt' ],
+			                       108 => [ 'path' => 'b.txt', 'name' => 'b.txt', 'owner' => 'alice', 'location' => 'home:alice//b.txt' ],
 		                       ] )
 		;
 
@@ -151,7 +151,7 @@ class FindDuplicatesTest
 		// Only one of the two file IDs resolves to a path.
 		$this->hashIndexService->method( 'batchLookupFilecachePaths' )
 		                       ->willReturn( [
-			                       42 => [ 'path' => 'Docs/a.txt', 'name' => 'a.txt', 'storage_id' => 'home::alice', 'owner' => 'alice', 'location' => '/alice/files/Docs/a.txt' ],
+			                       42 => [ 'path' => 'Docs/a.txt', 'name' => 'a.txt', 'storage_id' => 'home::alice', 'owner' => 'alice', 'location' => 'home:alice//Docs/a.txt' ],
 		                       ] )
 		;
 
@@ -243,8 +243,8 @@ class FindDuplicatesTest
 		;
 		$this->hashIndexService->method( 'batchLookupFilecachePaths' )
 		                       ->willReturn( [
-			                       42  => [ 'path' => 'a.txt', 'name' => 'a.txt', 'storage_id' => 'home::alice', 'owner' => 'alice', 'location' => '/alice/files/a.txt' ],
-			                       108 => [ 'path' => 'Shared/a.txt', 'name' => 'a.txt', 'storage_id' => 'local::/mnt/x/', 'owner' => null, 'location' => 'groupfolder:7:Shared/a.txt' ],
+			                       42  => [ 'path' => 'a.txt', 'name' => 'a.txt', 'storage_id' => 'home::alice', 'owner' => 'alice', 'location' => 'home:alice//a.txt' ],
+			                       108 => [ 'path' => 'Shared/a.txt', 'name' => 'a.txt', 'storage_id' => 'local::/mnt/x/', 'owner' => null, 'location' => 'groupfolder:7//Shared/a.txt' ],
 		                       ] )
 		;
 
@@ -252,7 +252,7 @@ class FindDuplicatesTest
 
 		$display = $this->tester->getDisplay();
 		$this->assertStringContainsString( '(alice) a.txt', $display, 'the owned row by its path, behind the owner' );
-		$this->assertStringContainsString( 'groupfolder:7:Shared/a.txt', $display, 'the ownerless row by where it lives' );
+		$this->assertStringContainsString( 'groupfolder:7//Shared/a.txt', $display, 'the ownerless row by where it lives' );
 		$this->assertStringNotContainsString( '() ', $display, 'no empty owner label' );
 
 		$this->tester->execute( [ '--output' => 'json' ] );

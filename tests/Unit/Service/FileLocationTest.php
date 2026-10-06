@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use OCA\FileChecksumSearch\Service\FileLocation;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -158,22 +159,25 @@ class FileLocationTest
 		$this->assertSame( '/', $location->relativePath );
 	}
 
-	public function testDescribePrintsHomePathsAsTheOwnersView(): void
+	/**
+	 * The address: the area as a rule's selector names it, two slashes, and
+	 * the path below the area's top.
+	 */
+	#[DataProvider( 'addressProvider' )]
+	public function testDescribeGivesTheAddress(
+		string $storageId,
+		string $internalPath,
+		string $address,
+	): void
 	{
+		$this->assertSame( $address, FileLocation::fromRow( 8, $storageId, $internalPath, 100 )->describe() );
+
+		// The last `//` separates, whatever the area's id holds.
+		$at = strrpos( $address, '//' );
+
 		$this->assertSame(
-			'/alice/files/Photos/x.jpg',
-			FileLocation::fromRow( 8, 'home::alice', 'files/Photos/x.jpg', 100 )
-			            ->describe(),
-		);
-		$this->assertSame(
-			'groupfolder:5/Team/notes.md',
-			FileLocation::fromRow(
-				9,
-				'local::/data/__groupfolders/5/',
-				'files/Team/notes.md',
-				100,
-			)
-			            ->describe(),
+			FileLocation::fromRow( 8, $storageId, $internalPath, 100 )->area(),
+			substr( $address, 0, (int) $at ),
 		);
 	}
 
@@ -230,5 +234,27 @@ class FileLocationTest
 	{
 		$this->assertNull( FileLocation::fromRow( 6, 'shared::/Docs', 'x.txt', 100 )->localPath( null ) );
 		$this->assertNull( FileLocation::fromRow( 7, 'smb::user@host//share/', 'x.txt', 100 )->localPath( null ) );
+	}
+
+
+//  static methods
+
+	/**
+	 * @return array<string, array{string, string, string}>  storage id, internal path, address
+	 */
+	public static function addressProvider(): array
+	{
+		return [
+			'a home'                   => [ 'home::alice', 'files/Photos/x.jpg', 'home:alice//Photos/x.jpg' ],
+			'an object-store home'     => [ 'object::user:alice', 'files/Photos/x.jpg', 'home:alice//Photos/x.jpg' ],
+			'a home\'s top'            => [ 'home::alice', 'files', 'home:alice//' ],
+			'a team folder'            => [ 'local::/data/__groupfolders/5/', 'files/Team/notes.md', 'groupfolder:5//Team/notes.md' ],
+			'a legacy team folder'     => [ 'local::/data/', '__groupfolders/7/files/plan.md', 'groupfolder:7//plan.md' ],
+			'a local storage'          => [ 'local::/mnt/data/', 'docs/x.pdf', 'storage:local::/mnt/data//docs/x.pdf' ],
+			'an SMB share'             => [ 'smb::alice@fs//projects//', 'docs/x.pdf', 'storage:smb::alice@fs//projects//docs/x.pdf' ],
+			'an SMB share with a root' => [ 'smb::alice@fs//projects//sub/', 'docs/x.pdf', 'storage:smb::alice@fs//projects//sub//docs/x.pdf' ],
+			'a long id, stored as MD5' => [ md5( 'x' ), 'docs/x.pdf', 'storage:' . md5( 'x' ) . '//docs/x.pdf' ],
+			'outside the files area'   => [ 'home::alice', 'files_trashbin/files/x.d1', 'home:alice//../files_trashbin/files/x.d1' ],
+		];
 	}
 }

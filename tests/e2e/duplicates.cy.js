@@ -342,7 +342,7 @@ describe( 'FCIAS Duplicates page', () => {
 
 	// A row in a cross-account listing says whose file it is. Several
 	// people's copies of one file all answer to the same path, so the page
-	// shows the location — /<uid>/files/… — for a file that is not the
+	// shows the location — home:<uid>//… — for a file that is not the
 	// viewer's, and the plain path for the viewer's own. The rule itself has
 	// unit tests; this is the one place a rendered row is looked at with a
 	// foreign file actually in it, which no case above has: every file this
@@ -402,10 +402,10 @@ describe( 'FCIAS Duplicates page', () => {
 				// their path and never read as a location.
 				const label = ( el ) => el.firstElementChild?.textContent ?? ''
 				group().find( '.db-file-label' )
-					.filter( ( _i, el ) => label( el ).startsWith( `/${ account.user }/files/` ) )
+					.filter( ( _i, el ) => label( el ).startsWith( `home:${ account.user }//` ) )
 					.should( 'have.length', 2 )
 				group().find( '.db-file-label' )
-					.filter( ( _i, el ) => label( el ).startsWith( `/${ adminUser }/files/` ) )
+					.filter( ( _i, el ) => label( el ).startsWith( `home:${ adminUser }//` ) )
 					.should( 'have.length', 0 )
 
 				// And only the viewer's own rows link: a file link resolves in

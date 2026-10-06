@@ -385,8 +385,8 @@ class ChecksumApiTest
 		                       ->method( 'batchLookupFilecachePaths' )
 		                       ->with( [ 7, 8 ] )
 		                       ->willReturn( [
-			                       7 => [ 'owner' => 'alice', 'location' => '/alice/files/a.txt' ],
-			                       8 => [ 'owner' => 'bob', 'location' => '/bob/files/b.txt' ],
+			                       7 => [ 'owner' => 'alice', 'location' => 'home:alice//a.txt' ],
+			                       8 => [ 'owner' => 'bob', 'location' => 'home:bob//b.txt' ],
 		                       ] )
 		;
 
@@ -395,7 +395,7 @@ class ChecksumApiTest
 		$this->assertSame( [ 7, 8 ], array_column( $result['results'], 'fileid' ) );
 		$this->assertSame( [ '/a.txt', '/b.txt' ], array_column( $result['results'], 'path' ) );
 		$this->assertSame( [ 'alice', 'bob' ], array_column( $result['results'], 'owner' ) );
-		$this->assertSame( '/bob/files/b.txt', $result['results'][1]['location'] );
+		$this->assertSame( 'home:bob//b.txt', $result['results'][1]['location'] );
 	}
 
 	/**
@@ -467,7 +467,7 @@ class ChecksumApiTest
 		$this->hashIndexService->expects( $this->once() )
 		                       ->method( 'batchLookupFilecachePaths' )
 		                       ->with( [ 7 ], null, true )
-		                       ->willReturn( [ 7 => [ 'owner' => 'bob', 'location' => '/bob/files/a.txt', 'local_path' => '/srv/data/bob/files/a.txt' ] ] )
+		                       ->willReturn( [ 7 => [ 'owner' => 'bob', 'location' => 'home:bob//a.txt', 'local_path' => '/srv/data/bob/files/a.txt' ] ] )
 		;
 
 		$result = $this->api->findByHash( 'abc', [ 'bob' ], withLocalPath: true );
