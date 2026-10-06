@@ -66,6 +66,11 @@ it decides.
   fragment from the middle of a hash; slower to narrow, since far more can
   match.
 
+Each file is listed by the path you know it by. A file someone shared with
+you says whose it is and where you find it, `bob: My Projects/report.pdf`,
+behind a share glyph — and nothing of the owner's folders above the share,
+which Nextcloud does not show you either.
+
 ### Checking that a duplicate is still a duplicate
 
 A group says which files *were* found to share a checksum. To confirm they
@@ -123,11 +128,14 @@ permissions and after their own password.
 
 Each row on *Others* says whose file it is and where it lives — so three
 accounts' copies of one template read as three rows, not as the same path
-three times — with a small glyph in front saying what kind of place that
-is: a house for your own file, a person for somebody else's home folder, a
-folder with a person for a team folder, a disk for another storage. Hover
-it and it says so in words. Your own files, if they turn up in the list,
-show the path you know them by.
+three times — as an address such as `home:bob//Templates/Certificate.odt`,
+with a small glyph in front saying what kind of place that is: a house for
+your own file, a person for somebody else's home folder, a folder with a
+person for a team folder, a disk for another storage. A group admin sees a
+file a member holds through a share as the member does, its owner and the
+member's path, behind the share glyph. Hover a glyph and it says so in
+words. Your own files, if they turn up in the list, show the path you know
+them by.
 
 **Verify all** and **Verify** work here too, under your own permission to
 recalculate checksums: looking at somebody's files does not borrow their

@@ -132,8 +132,11 @@ decision is final: there is no fall-through to a later rule.
 Every rule names what it addresses in one field, its **selector** — the
 **Scope** in the rule dialog: one account's home folder (`home:<uid>`), a
 group's members (`group:<gid>`), every home folder (`home:*`), one team folder
-(`groupfolder:<id>`), one storage by its raw ID (`storage:<id>`), or
-everything (`*`). Which file a rule is talking about is
+(`groupfolder:<id>`), one storage by its raw ID without its trailing
+slashes (`storage:<id>`), or everything (`*`). Its **path** is a glob below
+the top of what the selector names, `Photos/**`, and the two together are
+written as one address, `home:alice//Photos/` followed by `**`, as
+`occ fcias:rules:list` shows it. Which file a rule is talking about is
 decided by where the file really lives, not by who is touching it: editing a
 file shared with you is governed by its **owner's** rules, under the owner's
 path.
@@ -155,8 +158,9 @@ rules that address the same thing, and never past that selector's own
 catch-all.
 
 A rule *is* that catch-all when its path is a bare `**`, a `/`, or left
-empty — all three mean the same "everything this selector reaches", and all
-three sink to the end of the rules sharing their selector in that band. That
+empty — all three mean the same "everything this selector reaches", are
+stored as `**`, and sink to the end of the rules sharing their selector in
+that band. That
 is why a rule you write for a
 scope you already have a catch-all on lands above it without dragging.
 

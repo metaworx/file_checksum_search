@@ -139,8 +139,8 @@ naming that rule when it does.
 
 | Command | Description |
 |---------|-------------|
-| `file-checksum-search:rules:list [-o json]` | List the rules in evaluation order, with ids, `band.position`, and every field |
-| `file-checksum-search:rules:add [options]` | Create a rule (`--path`, `--type`, `--selector`, `-a/--algo`, `-m/--mode`, `--enforced`, `--enable/--disable`) |
+| `file-checksum-search:rules:list [-o json]` | List the rules in evaluation order, with ids, `band.position`, each rule's scope as `<selector>//<glob>`, and every other field |
+| `file-checksum-search:rules:add [options]` | Create a rule (`--scope`, or `--selector` and `--path`; `--type`, `-a/--algo`, `-m/--mode`, `--enforced`, `--enable/--disable`) |
 | `file-checksum-search:rules:modify <id> [options]` | Change a rule; omitted options keep their value; a bare `--enable`/`--disable` is a toggle |
 | `file-checksum-search:rules:delete <id> [-y]` | Delete a rule; a deleted shipped default is recreated (disabled) by the repair step |
 | `file-checksum-search:rules:apply <id> [-m <mode>]` | Queue every file the rule currently governs for background hashing — uncapped, unlike the periodic sweep; `-m` overrides the rule's mode for this run (logged) |
@@ -228,7 +228,7 @@ php occ file-checksum-search:hash --user=alice --ignore-rule=a1b2c3d4 -v
 php occ file-checksum-search:rules:list
 
 # Address one team folder, computing SHA-256 for everything in it
-php occ fcias:rules:add --selector='groupfolder:1' --path='**' --type=include -a sha256 --enable
+php occ fcias:rules:add --scope='groupfolder:1//**' --type=include -a sha256 --enable
 
 # Queue every file that rule currently governs, uncapped
 php occ fcias:rules:apply <rule-id>
@@ -361,12 +361,21 @@ each other:
 | `group:<gid>` | the home folders of that group's members |
 | `home:*` | every home folder on the instance |
 | `groupfolder:<id>` | one team folder — the same files for every member (Team Folders app) |
-| `storage:<raw id>` | one storage by its raw ID, exactly as `oc_storages` spells it: external storage, or anything the forms above cannot say |
+| `storage:<raw id>` | one storage by its raw ID as `oc_storages` spells it, without its trailing slashes: external storage, or anything the forms above cannot say |
 | `*` | everything: every storage there is, external storage and team folders included |
 
 The value is split at its **first** colon, so a raw storage ID containing further colons or slashes
-(`smb::user@host//share/`) needs no escaping. `home:*` and `*` are deliberately spelled out rather
-than abbreviated: what a rule reaches should be readable without knowing a convention.
+(`smb::user@host//share`) needs no escaping. A storage's ID is kept without the trailing slashes
+Nextcloud ends a local or SMB storage's ID with, and matched so. `home:*` and `*` are deliberately
+spelled out rather than abbreviated: what a rule reaches should be readable without knowing a
+convention.
+
+A rule's **path** is a glob below the top of the area the selector names, written without a
+leading slash: `Photos/**`, and `**` for everything in it. On an external storage that is the
+storage's root; in a home, the account's files. Together they are the rule's **scope**, written as
+a file's address is ([API](docs/api-v1.md#locations-and-paths)): the selector, two slashes, the
+glob — `groupfolder:1//Payroll/` followed by `**`, as `occ fcias:rules:list` shows it and
+`--scope` takes it.
 
 ### Bands
 
@@ -639,7 +648,10 @@ Basic Auth, or Bearer token.
 | `/api/v1/hashes?algo=<algo>&limit=<n>&after=<fileid>&since=<date>` | GET | Every hash the caller holds, one entry per file, paged by file id |
 | `/api/v1/status` | GET | Read-only health/status |
 
-Every file row carries `owner` and `location` beside `path`. The reads and the
+Every file row carries `owner` and `location` beside `path`: `path` where the account finds the
+file, `location` its address — `home:alice//Docs/a.pdf`, or `share:42//a.pdf` for a file the reader
+holds through a share, which names nothing of the sharer's folders above it
+([Locations and paths](docs/api-v1.md#locations-and-paths)). The reads and the
 two recalculations have twins under `/api/v1/sudo/` that answer for the caller's
 whole reach — every account for an administrator, their groups' members for a
 group admin — behind a password confirmation; those rows also say whether the

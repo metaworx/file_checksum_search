@@ -12,13 +12,55 @@ All three surfaces use the same [`ChecksumApi`](../lib/Public/ChecksumApi.php) c
 
 ## Table of Contents
 
-1. [PHP API](#php-api)
-2. [HTTP REST API](#http-rest-api)
-3. [Rules](#rules)
-4. [Authentication](#authentication)
-5. [Versioning & Compatibility](#versioning--compatibility)
-6. [Rate Limiting](#rate-limiting)
-7. [Error Handling](#error-handling)
+1. [Locations and paths](#locations-and-paths)
+2. [PHP API](#php-api)
+3. [HTTP REST API](#http-rest-api)
+4. [Rules](#rules)
+5. [Authentication](#authentication)
+6. [Versioning & Compatibility](#versioning--compatibility)
+7. [Rate Limiting](#rate-limiting)
+8. [Error Handling](#error-handling)
+
+---
+
+## Locations and paths
+
+Every file row this API gives carries `path`, `name`, `owner` and
+`location`.
+
+- **`path`** is where an account finds the file: its path in that
+  account's files, with a leading slash and the name included,
+  `/My Projects/Bob-x/a.txt`, as the Files app shows it and WebDAV serves it
+  below `remote.php/dav/files/<account>/`. With several accounts in reach,
+  the first that holds the file names it. With every account in reach — a
+  sudoer, or `$reachUids` null — it is the file's path below its area, the
+  area `location` names.
+- **`owner`** is the account a home file belongs to, `null` for a team
+  folder or a storage, which have none.
+- **`location`** is an **address**: an area, two slashes, and the path
+  below the area's top, without a leading slash.
+
+  | Where the file is | Its address |
+  |---|---|
+  | a home | `home:alice//Documents/report.pdf` |
+  | a team folder | `groupfolder:3//Payroll/x.pdf` |
+  | another storage | `storage:local::/mnt/data//docs/x.pdf`, `storage:smb::alice@fs//projects//docs/x.pdf` |
+  | a share the reader holds it through | `share:42//a.txt`, and `share:43//` for a file shared on its own |
+
+  The area is named as a rule's selector names it — `home:<uid>`,
+  `groupfolder:<id>`, `storage:<raw id>` with the id as `oc_storages` holds
+  it but without its trailing slashes — or by the share's id, which the
+  sharing API gives its recipient. A path holds no `//` and starts with no
+  `/`, so the **last** `//` separates the area from the path, whatever a
+  storage's id holds.
+- **A share** is the location of a file its reader holds through one:
+  nothing of the sharer's folders above the share, which Nextcloud never
+  shows a recipient. So on the routes of one's own files, and on a group
+  leader's, who reads what each member reads. A sudoer reads every file's
+  own address, as does every call with `$reachUids` null; in PHP,
+  `$canonical` asks for it whatever the reach.
+- **A rule's scope** is written the same way: its selector, two slashes,
+  and its glob, `home:alice//Photos/` followed by `**` ([Rules](#rules)).
 
 ---
 
@@ -86,7 +128,7 @@ To these methods a file outside the reach is *not found*, never *forbidden*:
 a `NotFoundException`, or a `File not found.` result. Whether the caller may
 have the reach at all is decided before the call, by whoever makes it.
 
-#### `findByHash(string $hash, ?array $reachUids, ?string $algo = null, int $limit = 100, bool $withLocalPath = false): array`
+#### `findByHash(string $hash, ?array $reachUids, ?string $algo = null, int $limit = 100, bool $withLocalPath = false, bool $canonical = false): array`
 
 Search for files matching a given hash value.
 
@@ -97,36 +139,32 @@ Search for files matching a given hash value.
 | `$algo` | `?string` | No | Algorithm filter — any name `GET /api/v1/algorithms` lists for this instance |
 | `$limit` | `int` | No | Max results (1–500, default 100) |
 | `$withLocalPath` | `bool` | No | Add `localPath` to each row: the file's absolute path on the server's disk, `null` for a storage without local files (an object store, a share, a remote mount) and for every file while server-side encryption is enabled. It reveals the server's layout; the REST route offers it to sudoers only |
+| `$canonical` | `bool` | No | Every `location` the file's own address, as a sudoer reads it; by default a file the reach holds through a share is located by the share ([Locations and paths](#locations-and-paths)) |
 
 **Returns:**
 ```php
 [
     'results' => [
         ['fileid' => 12345, 'algo' => 'sha1', 'hash' => 'da39a3...', 'path' => '/Documents/report.pdf', 'name' => 'report.pdf',
-         'owner' => 'alice', 'location' => '/alice/files/Documents/report.pdf'],
+         'owner' => 'alice', 'location' => 'home:alice//Documents/report.pdf'],
         // ...
     ],
 ]
 ```
 
-`path` and `name` are one account's name for the file — with several accounts
-in reach, whichever opened it first. `path` includes the name: with a reach it
-is the path below that account's files area, with a leading slash; with
-`$reachUids` null it is the filecache path, starting with `files/`. With
-`$withLocalPath`, `localPath` is where the file lives on the server:
+`path`, `name`, `owner` and `location` are as
+[Locations and paths](#locations-and-paths) says: with several accounts in
+reach, whichever opened the file first names it. With `$withLocalPath`,
+`localPath` is where the file lives on the server:
 `/srv/nextcloud/data/alice/files/Documents/report.pdf` for a home file,
 `<datadir>/__groupfolders/<id>/files/…` for a team folder, the mount's own
-root for an external local storage. `owner`
-and `location` are the file's own
-identity from its filecache row: the owning account (`null` for a storage no
-account owns) and `FileLocation::describe()` — `/<owner>/files/…` for a home,
-`groupfolder:<id>/…` for a team folder, `storage:<id>/…` otherwise.
+root for an external local storage.
 
 **Throws:** `\InvalidArgumentException` if hash is empty.
 
 ---
 
-#### `listHashes(?array $reachUids, ?string $algo = null, int $limit = 500, int $after = 0, ?int $since = null, bool $withLocalPath = false): array`
+#### `listHashes(?array $reachUids, ?string $algo = null, int $limit = 500, int $after = 0, ?int $since = null, bool $withLocalPath = false, bool $canonical = false): array`
 
 Every hash in reach, page by page: one entry per file, in file id order.
 For a caller that keeps a copy of the checksums and would otherwise ask
@@ -140,13 +178,14 @@ hash by hash.
 | `$after` | `int` | No | The last file id received; 0, the default, starts the listing; a negative one is 0 |
 | `$since` | `?int` | No | Only files with a hash written at or after it, in Unix seconds |
 | `$withLocalPath` | `bool` | No | Add `localPath` to each entry, as `findByHash()` does |
+| `$canonical` | `bool` | No | As `findByHash()` |
 
 **Returns:**
 ```php
 [
     'files' => [
         ['fileid' => 185323, 'path' => '/Photos/2026/beach.jpg', 'name' => 'beach.jpg',
-         'owner' => 'alice', 'location' => '/alice/files/Photos/2026/beach.jpg',
+         'owner' => 'alice', 'location' => 'home:alice//Photos/2026/beach.jpg',
          'updated_at' => '2026-09-02T15:17:00+00:00',
          'hashes' => ['sha256' => ['algo' => 'sha256', 'hash' => 'd3e1c5...']]],
         // ...
@@ -170,10 +209,9 @@ hash by hash.
   the reach's mounts, not disowned by a reset. A received share counts for
   the shared folder and what is below it. An algorithm the instance holds
   no hashes in lists nothing; it is not an error.
-- **`path`** is the file's path as the first account in reach that holds it
-  names it, with a leading slash. With `$reachUids` null it is the owner's,
-  or, for a file no account owns, its path in the area `location` names.
-  `owner`, `location` and `localPath` are as `findByHash()` gives them.
+- **`path`, `owner` and `location`** are as
+  [Locations and paths](#locations-and-paths) says, `localPath` as
+  `findByHash()` gives it.
 - **`hashes`** is keyed by algorithm, as `getHashesByFileId()` gives it,
   in the order the file's document holds them, the values whole from the
   document.
@@ -204,7 +242,7 @@ hash by hash.
 
 ---
 
-#### `iterateHashes(?array $reachUids, ?string $algo = null, ?int $since = null, bool $withLocalPath = false, int $after = 0): Generator`
+#### `iterateHashes(?array $reachUids, ?string $algo = null, ?int $since = null, bool $withLocalPath = false, int $after = 0, bool $canonical = false): Generator`
 
 The whole of `listHashes()`'s listing, file by file, for a caller in the same
 process: no paging to drive, and one batch of 500 files in memory at a time,
@@ -217,6 +255,7 @@ however large the listing.
 | `$since` | `?int` | No | As `listHashes()` |
 | `$withLocalPath` | `bool` | No | As `listHashes()` |
 | `$after` | `int` | No | The last file id a walk that was cut short received; 0, the default, starts at the beginning |
+| `$canonical` | `bool` | No | As `findByHash()` |
 
 **Yields:** `listHashes()`'s `files` entries, keyed by file id, in file id
 order.
@@ -351,9 +390,9 @@ administrator sees their own files, not everyone's.
             'file_count' => 3,
             'empty' => false,
             'files' => [
-                ['fileid' => 100, 'path' => 'files/Documents/a.pdf', 'name' => 'a.pdf', 'owner' => 'alice', 'location' => '/alice/files/Documents/a.pdf'],
-                ['fileid' => 200, 'path' => 'files/Photos/b.pdf', 'name' => 'b.pdf', 'owner' => 'alice', 'location' => '/alice/files/Photos/b.pdf'],
-                ['fileid' => 300, 'path' => 'files/Backup/c.pdf', 'name' => 'c.pdf', 'owner' => 'alice', 'location' => '/alice/files/Backup/c.pdf'],
+                ['fileid' => 100, 'path' => '/Documents/a.pdf', 'name' => 'a.pdf', 'owner' => 'alice', 'location' => 'home:alice//Documents/a.pdf'],
+                ['fileid' => 200, 'path' => '/Photos/b.pdf', 'name' => 'b.pdf', 'owner' => 'alice', 'location' => 'home:alice//Photos/b.pdf'],
+                ['fileid' => 300, 'path' => '/From Bob/c.pdf', 'name' => 'c.pdf', 'owner' => 'bob', 'location' => 'share:42//c.pdf'],
             ],
         ],
     ],
@@ -364,7 +403,7 @@ administrator sees their own files, not everyone's.
 
 ---
 
-#### `findDuplicatesFor(?array $reachUids, ?string $algo = null, int $minCount = 2, int $limit = 50, int $offset = 0, ?string $hash = null, bool $anywhere = false, bool $includeEmpty = false): array`
+#### `findDuplicatesFor(?array $reachUids, ?string $algo = null, int $minCount = 2, int $limit = 50, int $offset = 0, ?string $hash = null, bool $anywhere = false, bool $includeEmpty = false, bool $canonical = false): array`
 
 The scoped core behind `findDuplicates()`: duplicate groups among the files
 the named accounts hold, as one merged listing, or among every account's with
@@ -377,12 +416,13 @@ asking may see those accounts; the `/sudo/duplicates` route does so through
 | `$reachUids` | `?array` | Yes | Whose files; `null` for every account |
 | `$hash` | `?string` | No | Keep only groups whose checksum this names |
 | `$anywhere` | `bool` | No | Match `$hash` anywhere rather than only at the start |
+| `$canonical` | `bool` | No | As `findByHash()` |
 
 The rest as `findDuplicates()`. **Returns:** the same shape.
 
 ---
 
-#### `findSameHash(int $fileId, ?array $reachUids): array`
+#### `findSameHash(int $fileId, ?array $reachUids, bool $canonical = false): array`
 
 Find other files sharing hash values with the given file. Both ends are within
 the reach: the reference file must lie in it, and only duplicates in it are
@@ -393,6 +433,7 @@ the file; `empty` says which group is the empty files'.
 |-----------|------|----------|-------------|
 | `$fileId` | `int` | Yes | The filecache `fileid` of the reference file |
 | `$reachUids` | `?array` | Yes | Whose files; `null` for every account |
+| `$canonical` | `bool` | No | As `findByHash()` |
 
 **Returns:**
 ```php
@@ -403,7 +444,7 @@ the file; `empty` says which group is the empty files'.
             'hash_value' => 'aaf4c6...',
             'empty' => false,
             'files' => [
-                ['fileid' => 200, 'path' => '/Photos/copy.jpg', 'name' => 'copy.jpg', 'owner' => 'bob', 'location' => '/bob/files/Photos/copy.jpg'],
+                ['fileid' => 200, 'path' => '/From Bob/copy.jpg', 'name' => 'copy.jpg', 'owner' => 'bob', 'location' => 'share:42//copy.jpg'],
             ],
         ],
     ],
@@ -675,7 +716,7 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/duplicates
       "hash_value": "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d",
       "empty": false,
       "files": [
-        {"fileid": 200, "path": "/Photos/copy.jpg", "name": "copy.jpg", "owner": "alice", "location": "/alice/files/Photos/copy.jpg"}
+        {"fileid": 200, "path": "/Photos/copy.jpg", "name": "copy.jpg", "owner": "alice", "location": "home:alice//Photos/copy.jpg"}
       ]
     }
   ]
@@ -687,13 +728,10 @@ the caller named the file. `empty` says which group is theirs — see
 [Empty files](#empty-files).
 
 Every file row in this API carries `owner` and `location` beside `path` and
-`name`: `path` is one account's name for the file, name included — below
-the account's files area with a leading slash on the ordinary routes, the
-filecache path starting with `files/` in the duplicates listing and for a
-sudoer across accounts — `location` its own
-(`/<owner>/files/…`, `groupfolder:<id>/…` or `storage:<id>/…`), `owner` the
-owning account or `null`. The cross-account twins add `openable` — see
-[Cross-account routes](#cross-account-routes).
+`name`, as [Locations and paths](#locations-and-paths) says: `path` the
+account's own path for the file, `location` its address, or a share's for a
+file the reader holds through one. The cross-account twins add `openable` —
+see [Cross-account routes](#cross-account-routes).
 
 ---
 
@@ -793,9 +831,9 @@ default — see [Empty files](#empty-files).
       "file_count": 3,
       "empty": false,
       "files": [
-        {"fileid": 100, "path": "files/Documents/a.pdf", "name": "a.pdf", "owner": "alice", "location": "/alice/files/Documents/a.pdf"},
-        {"fileid": 200, "path": "files/Photos/b.pdf", "name": "b.pdf", "owner": "alice", "location": "/alice/files/Photos/b.pdf"},
-        {"fileid": 300, "path": "files/Backup/c.pdf", "name": "c.pdf", "owner": "alice", "location": "/alice/files/Backup/c.pdf"}
+        {"fileid": 100, "path": "/Documents/a.pdf", "name": "a.pdf", "owner": "alice", "location": "home:alice//Documents/a.pdf"},
+        {"fileid": 200, "path": "/Photos/b.pdf", "name": "b.pdf", "owner": "alice", "location": "home:alice//Photos/b.pdf"},
+        {"fileid": 300, "path": "/From Bob/c.pdf", "name": "c.pdf", "owner": "bob", "location": "share:42//c.pdf"}
       ]
     }
   ],
@@ -995,7 +1033,7 @@ database — and would otherwise ask hash by hash. The files are the ones
       "path": "/Photos/2026/beach.jpg",
       "name": "beach.jpg",
       "owner": "alice",
-      "location": "/alice/files/Photos/2026/beach.jpg",
+      "location": "home:alice//Photos/2026/beach.jpg",
       "updated_at": "2026-09-02T15:17:00+00:00",
       "hashes": {
         "sha256": {"algo": "sha256", "hash": "d3e1c5..."}
@@ -1042,16 +1080,18 @@ database — and would otherwise ask hash by hash. The files are the ones
   the listing at once and comes back when its hashes are computed again;
   hashes nobody vouches for are not listed at all.
 - **`path`** is the caller's own path for the file, with a leading slash: a
-  received share's files by the path the share has in the caller's files.
-  `owner` and `location` are as in the lookup. `hashes` is as in the file's
-  hashes (2), in the order the file's document holds them, and `{}` for a
-  file whose document holds none of the hashes the index names.
+  received share's files by the path the share has in the caller's files,
+  and located by the share. `owner` and `location` are as
+  [Locations and paths](#locations-and-paths) says. `hashes` is as in the
+  file's hashes (2), in the order the file's document holds them, and `{}`
+  for a file whose document holds none of the hashes the index names.
 
 `GET /api/v1/sudo/hashes` is the cross-account twin: the accounts `users[]`
 and `groups[]` name, or with nothing named the caller's whole reach. `path`
 is then the file's path as the first account in reach that holds it names
-it; with every account in reach, the owner's, and for a file no account
-owns, its path in the area `location` names. `?localPath=1` adds each
+it; with every account in reach, its path below its area. A group admin
+reads a shared file's location as the member does, a sudoer every file's
+own address. `?localPath=1` adds each
 file's absolute path on the server's disk, as on `/sudo/lookup` — for a
 sudoer, also when `users[]` or `groups[]` narrow the set; a group admin
 asking is refused with 403.
@@ -1111,8 +1151,8 @@ from two already present, free to disagree with them. Compose it client-side if 
 | `id` | string | 32 hex characters; server-assigned |
 | `enabled` | bool | |
 | `type` | string | `include` (default) \| `ignore` \| `exclude` |
-| `path` | string | glob, Symfony Finder `**` syntax |
-| `selector` | string | `home:<uid>` \| `group:<gid>` \| `home:*` \| `groupfolder:<id>` \| `storage:<raw id>` \| `*` — split at the **first** colon, so a raw storage id may contain more |
+| `path` | string | glob, Symfony Finder `**` syntax, below the area's top; stored without a leading slash, `**` for the whole area |
+| `selector` | string | `home:<uid>` \| `group:<gid>` \| `home:*` \| `groupfolder:<id>` \| `storage:<raw id>` \| `*` — split at the **first** colon, so a raw storage id may contain more; a storage's id is stored without its trailing slashes and matched so |
 | `algos` | string[] | include rules only; each a name `GET /api/v1/algorithms` lists |
 | `mode` | string | include rules only: `auto` \| `missing` \| `force` \| `lazy` |
 | `admin_enforced` | bool | administrator-only |
@@ -1158,7 +1198,7 @@ alone, so nothing depends on a client honouring it.
   "groupFoldersAvailable": true,
   "groupFoldersLabel": "Team Folders",
   "availableGroupFolders": [{ "id": 1, "name": "Team Docs" }],
-  "availableStorages": ["smb::user@host//share/"]
+  "availableStorages": ["smb::user@host//share"]
 }
 ```
 
@@ -1175,7 +1215,7 @@ no other view can assign those selectors:
 | `groupFoldersAvailable` | whether the groupfolders app is installed and enabled; `false` means `groupfolder:` selectors cannot be offered at all |
 | `groupFoldersLabel` | what that app calls itself ("Team Folders"); `null` when it is absent |
 | `availableGroupFolders` | the folders that exist, as `{id, name}` |
-| `availableStorages` | raw ids of storages only `storage:<id>` or `*` reaches — home storages, team folder jails, share wrappers and the instance root are excluded, since other selectors own them or no rule could match in them |
+| `availableStorages` | raw ids of storages only `storage:<id>` or `*` reaches, as a selector spells them, without their trailing slashes — home storages, team folder jails, share wrappers and the instance root are excluded, since other selectors own them or no rule could match in them |
 
 The last four are a soft dependency on another app: when it is missing, the fields degrade to
 `false`/`null`/`[]` rather than failing the request. Together with each rule's `isDefault`, they are
@@ -1353,6 +1393,11 @@ link only where `openable` is true and show plain text otherwise. `owner`
 cannot stand in for it: a received share is somebody else's and opens fine.
 The ordinary routes do not carry the flag, since what they list the caller
 holds by construction.
+
+**`location` on a twin.** A sudoer reads every row's own address. A group
+admin reads what the member reads: a file the member holds through a share
+is located by the share, `share:<id>//…`, and named by the member's path
+([Locations and paths](#locations-and-paths)).
 
 Two things stand between a caller and a twin, in this order.
 
