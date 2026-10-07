@@ -195,6 +195,52 @@ do" apart from "not running". See
 [§ Pending Hash Queue](../README.md#pending-hash-queue) for the exact
 mechanism, interval, and batch size.
 
+## Can the app's jobs run outside Nextcloud's cron?
+
+Yes, with Nextcloud's own worker, and nothing to set in the app.
+`occ background-job:worker` runs only the job classes it is given, in a process
+of its own, which can run at a lower priority than the web server. From the web
+server user's crontab (`crontab -u www-data -e`), every five minutes, for four:
+
+```bash
+*/5 * * * * nice -n 19 ionice -c 3 php /var/www/nextcloud/occ background-job:worker --stop_after=4m 'OCA\FileChecksumSearch\BackgroundJob\ProcessPendingUpdates' 'OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob'
+```
+
+| Class, in `OCA\FileChecksumSearch\BackgroundJob\` | What it does |
+|------|------|
+| `ProcessPendingUpdates` | the *Queue drain*: reads the queued files and computes their checksums |
+| `RuleProcessingJob` | the *Rule sweep*, and the *Orphan purge* and *Checksum count* it carries |
+| `FilecacheBackfill`, `HashIndexCheck`, `StampCheck` | the *Checksum copy* and the two checks, queued by installing, enabling, upgrading and `fcias:repair` |
+| `ApplyRuleJob` | the *Rule reapplication*: a rule's **Reapply** |
+
+`cron.php` keeps running them too: Nextcloud has no way to give a job to one
+runner alone. That costs nothing. Nextcloud reserves a job while it runs, so
+one never runs twice at once, and a worker that keeps running takes each job as
+it falls due, so `cron.php` seldom finds one left. `--once` instead runs a
+single due job and stops.
+
+The queue can also be worked through by the app's own command, which reads
+every queued file once and stops; `flock` keeps a long run from starting a
+second time:
+
+```bash
+*/10 * * * * flock -n /tmp/fcias-drain.lock nice -n 19 ionice -c 3 php /var/www/nextcloud/occ fcias:queue:drain --all
+```
+
+It runs beside the *Queue drain*, which may read the same file at the same
+time: double work, never a wrong checksum.
+
+On Nextcloud 34, `occ background-job:history` lists the jobs' past runs, with
+how long each took and the memory it used:
+
+```bash
+php occ background-job:history --class='OCA\FileChecksumSearch\BackgroundJob\ProcessPendingUpdates'
+```
+
+It lists a run that failed as succeeded: the jobs catch their own errors. The
+status page and `occ fcias:status` show the failure, with its reason
+([Hashes are missing or outdated](#hashes-are-missing-or-outdated)).
+
 ## Why did the number of indexed checksums go down?
 
 Because hashes **erode**. When a file is modified and no rule maintains it any

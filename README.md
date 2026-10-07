@@ -540,6 +540,9 @@ waiting: one that fails is passed rather than taken again. A file on a storage N
 unavailable — it fails every call to an external storage at once for ten minutes after the first
 that failed — counts its attempt without being read, until Nextcloud tries the storage again.
 
+The drain, and the app's other jobs, can run outside Nextcloud's cron, at a lower priority: see
+[FAQ › Can the app's jobs run outside Nextcloud's cron?](docs/FAQ.md#can-the-apps-jobs-run-outside-nextclouds-cron).
+
 ## Backing up, resetting and importing
 
 The app owns three slices of state, and they are separable because they answer different questions
