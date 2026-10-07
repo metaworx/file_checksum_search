@@ -304,6 +304,40 @@ class MetadataService
 	}
 
 	/**
+	 * How many queued files have failed at least once
+	 * ({@see recordFailedAttempt()}): the ones waiting behind the rest.
+	 *
+	 * @throws \OCP\DB\Exception
+	 */
+	public function countFailingQueued(): int
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->select(
+			$qb->func()
+			   ->count( self::FIELD_FILE_ID, 'cnt' ),
+		)
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_STATE ) ),
+			   $qb->expr()
+			      ->like(
+				      self::FIELD_META_VALUE_STRING,
+				      $qb->createNamedParameter( self::PENDING_LIKE ),
+			      ),
+			   $qb->expr()
+			      ->gt( self::FIELD_META_VALUE_INT, $qb->createNamedParameter( 0, IQueryBuilder::PARAM_INT ) ),
+		   )
+		;
+
+		$result = $this->executeQuery( $qb );
+		$count  = (int) $result->fetchOne();
+		$result->closeCursor();
+
+		return $count;
+	}
+
+	/**
 	 * Get the updated_at timestamp for a file from the metadata index.
 	 *
 	 * @return int|null Unix timestamp or null if not set

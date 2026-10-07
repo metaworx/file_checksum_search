@@ -427,6 +427,10 @@ msgstr ""
 msgid "Failed"
 msgstr ""
 
+#. TRANSLATORS of the queued files, those whose checksums could not be computed on at least one attempt; they wait behind the others
+msgid "Failed at least once: {count}"
+msgstr ""
+
 msgid "File Checksum Index & Search"
 msgstr ""
 
@@ -801,6 +805,10 @@ msgid "Rule enabled."
 msgstr ""
 
 msgid "Rule not found."
+msgstr ""
+
+#. TRANSLATORS: a background job's name: it applies one rule to the files it governs, when an administrator chooses Reapply for that rule
+msgid "Rule reapplication"
 msgstr ""
 
 msgid "Rule saved."
@@ -1182,6 +1190,10 @@ msgid_plural "counted %n checksums"
 msgstr[0] ""
 msgstr[1] ""
 
+#. TRANSLATORS: a background job's last run ended with an error; {reason} is the error as the server logs it, in English
+msgid "failed: {reason}"
+msgstr ""
+
 #. TRANSLATORS: fileIds is a parameter name; keep it
 msgid "fileIds must be a non-empty list of integers."
 msgstr ""
@@ -1201,6 +1213,10 @@ msgstr ""
 msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
 msgstr ""
 
+#. TRANSLATORS: when a background job whose last run failed last ran without an error
+msgid "last success: {time}"
+msgstr ""
+
 #. TRANSLATORS: an example of what to type; keep the storage IDs as they are
 msgid "local::/path/ or smb::…"
 msgstr ""
@@ -1217,6 +1233,10 @@ msgid "no catch-all rule — files the rules above do not match are left to a mo
 msgstr ""
 
 msgid "no rule of its own — its files are left to a more general rule, if one is enabled"
+msgstr ""
+
+#. TRANSLATORS: a background job whose runs have all failed
+msgid "no successful run yet"
 msgstr ""
 
 #. TRANSLATORS: the checksum a file has now, after verification found it changed
@@ -1264,6 +1284,10 @@ msgid "stamped {stamped}, queued again {queued}, not finished yet"
 msgstr ""
 
 msgid "the file changed while no rule maintained its checksums, so they were deleted; it gets them back once a rule covers it again"
+msgstr ""
+
+#. TRANSLATORS: how long a background job's last run took; {duration} is a number with its unit, such as "1.2 s"
+msgid "took {duration}"
 msgstr ""
 
 #. TRANSLATORS: value is a parameter name; keep it

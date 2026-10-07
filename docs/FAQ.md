@@ -388,12 +388,16 @@ marked *expensive* asks whether there is anything to do before doing it —
 First check whether an `include` rule is enabled at all — with none, nothing is
 hashed by design.
 
-The admin settings page's **Advanced** tab is where the rest shows. Four
-rows answer four different questions, and it is worth knowing which one you are
+The admin settings page's **Advanced** tab is where the rest shows. Five
+rows answer five different questions, and it is worth knowing which one you are
 reading:
 
 - **Indexed checksums** — how many the index holds. Zero with rules enabled means
   the work has not happened yet, not that it failed.
+- **Queued files** — files waiting for the *Queue drain*, by mode, and how many
+  of them have failed at least once. A file that cannot be read just now — on
+  a storage that is offline, or locked — stays queued and waits behind the
+  rest, and is tried again on a later run.
 - **Untrusted checksums** — files whose stored checksums are not to be believed,
   with a breakdown by reason. *Eroded* means the file changed while no rule
   maintained its checksums, so they were deleted; it gets them back once a rule
@@ -406,9 +410,11 @@ reading:
   enabling and upgrading queue: the *Checksum copy*, which takes the checksums
   Nextcloud's filecache already holds into the index, and the *Checksum index
   check*, which makes every stored checksum findable. Those two work a slice
-  per cron run and say whether they are finished. The timestamp is the point:
-  a job that stopped running is invisible until someone notices its clock has
-  not moved.
+  per cron run and say whether they are finished. The *Rule reapplication* is a
+  rule's **Reapply**. Each run shows how long it took. A run that failed shows
+  why, the error as the server logged it, and when the job last succeeded, in
+  place of the counts. The timestamp is the point: a job that stopped running
+  is invisible until someone notices its clock has not moved.
 - **Last updated** — when the page itself last asked, not when anything was
   hashed.
 

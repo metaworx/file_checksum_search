@@ -93,6 +93,7 @@ class ShowStatus
 		$metadataCount  = $full ? $this->getMetadataCount() : null;
 		$pendingStats   = $this->metadataService->getPendingStats();
 		$totalPending   = array_sum( $pendingStats );
+		$pendingFailed  = $this->metadataService->countFailingQueued();
 		$staleStats     = $this->metadataService->getStaleStats();
 		$totalStale     = array_sum( $staleStats );
 		$jobs           = $this->status->getListedJobs();
@@ -115,6 +116,7 @@ class ShowStatus
 					+ [
 						'pending_total'       => $totalPending,
 						'pending_by_mode'     => $pendingStats,
+						'pending_failed'      => $pendingFailed,
 						'untrusted_total'     => $totalStale,
 						'untrusted_by_reason' => $staleStats,
 						'jobs'                => $jobs,
@@ -150,6 +152,14 @@ class ShowStatus
 				: sprintf( 'Metadata updated_at:    %d', $metadataCount ),
 		);
 		$output->writeln( sprintf( 'Pending total:          %d', $totalPending ) );
+
+		if ( $pendingFailed > 0 )
+		{
+			$output->writeln(
+				sprintf( '  failed at least once:   %d   (they wait behind the rest)', $pendingFailed ),
+			);
+		}
+
 		$output->writeln( sprintf( 'Untrusted total:        %d', $totalStale ) );
 
 		if ( ! empty( $pendingStats ) )
@@ -183,25 +193,40 @@ class ShowStatus
 
 		foreach ( $jobs as $job => $run )
 		{
+			// The last attempt's time where one was recorded: a run that
+			// failed is the newest thing to know about the job.
+			$attempt = $run['attempt'];
+			$at      = $attempt['at'] ?? $run['lastRun'];
+
 			$output->writeln(
 				rtrim(
 					sprintf(
 						'  %-25s %-25s %s',
 						JobStatsService::LABELS[ $job ] ?? $job,
-						$run['lastRun'] === null
+						$at === null
 							? 'never ran yet'
-							: date( 'Y-m-d H:i:s T', $run['lastRun'] ),
-						implode(
-							', ',
-							array_map(
-								static fn (
-									string     $name,
-									int|string $value,
-								): string => $name . ' ' . $value,
-								array_keys( $run['counts'] ),
-								$run['counts'],
-							),
-						),
+							: date( 'Y-m-d H:i:s T', $at ),
+						$attempt !== null && ! $attempt['ok']
+							? sprintf(
+							'FAILED%s: %s; last success %s',
+							self::took( $attempt['durationMs'], ' after ' ),
+							$attempt['reason'] ?? 'unknown',
+							$run['lastRun'] === null
+								? 'never'
+								: date( 'Y-m-d H:i:s T', $run['lastRun'] ),
+						)
+							: implode(
+								', ',
+								array_map(
+									static fn (
+										string     $name,
+										int|string $value,
+									): string => $name . ' ' . $value,
+									array_keys( $run['counts'] ),
+									$run['counts'],
+								),
+							)
+							. self::took( $attempt['durationMs'] ?? null, '   (took ', ')' ),
 					),
 				),
 			);
@@ -212,6 +237,28 @@ class ShowStatus
 
 
 //  static methods
+
+	/**
+	 * A run's duration between $before and $after, or nothing for a run
+	 * whose duration was not recorded.
+	 */
+	private static function took(
+		?int   $durationMs,
+		string $before,
+		string $after = '',
+	): string
+	{
+		if ( $durationMs === null )
+		{
+			return '';
+		}
+
+		return $before
+			. ( $durationMs < 1000
+				? sprintf( '%d ms', $durationMs )
+				: sprintf( '%.1f s', $durationMs / 1000 ) )
+			. $after;
+	}
 
 	/**
 	 * What a reason means, in the terms an operator has to act on.

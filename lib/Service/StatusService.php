@@ -95,7 +95,7 @@ readonly class StatusService
 	 * count's record is kept however the count was taken, but it is a
 	 * background job only while the background count is switched on.
 	 *
-	 * @return array<string, array{lastRun: int|null, counts: array<string, int>}>
+	 * @return array<string, array{lastRun: int|null, counts: array<string, int>, attempt: array{at: int, ok: bool, durationMs: int|null, reason: string|null}|null}>
 	 */
 	public function getListedJobs(): array
 	{
@@ -147,9 +147,14 @@ readonly class StatusService
 	 */
 	public function recountHashRows(): array
 	{
-		$rows = $this->metadataService->countHashEntries();
+		$started = hrtime( true );
+		$rows    = $this->metadataService->countHashEntries();
 
-		$this->jobStats->record( JobStatsService::JOB_CHECKSUM_COUNT, [ 'rows' => $rows ] );
+		$this->jobStats->record(
+			JobStatsService::JOB_CHECKSUM_COUNT,
+			[ 'rows' => $rows ],
+			JobStatsService::millisecondsSince( $started ),
+		);
 
 		return [
 			'rows' => $rows,

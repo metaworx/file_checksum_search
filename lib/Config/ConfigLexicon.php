@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Config;
 
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
+use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCP\Config\Lexicon\Entry;
 use OCP\Config\Lexicon\ILexicon;
 use OCP\Config\Lexicon\Strictness;
@@ -296,6 +297,37 @@ class ConfigLexicon
 				definition: 'JSON counts of the last count of indexed checksums (rows): the count the status shows.',
 				lazy: false,
 				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
+				key: 'stats_rule_apply_last_run',
+				type: ValueType::INT,
+				defaultRaw: 0,
+				definition: 'Unix timestamp of the last rule applied on request (Reapply) that completed.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
+				key: 'stats_rule_apply_last_counts',
+				type: ValueType::STRING,
+				defaultRaw: '[]',
+				definition: 'JSON counts of the last rule applied on request (matched/marked).',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			...array_map(
+				static fn( string $job ) => new Entry(
+					key: sprintf( 'stats_%s_last_attempt', $job ),
+					type: ValueType::STRING,
+					defaultRaw: '',
+					definition: sprintf(
+						'JSON of the last attempt of the %s job, successful or not: when, whether it ended normally, '
+						. 'how long it took, and the exception it failed with.',
+						$job,
+					),
+					lazy: false,
+					flags: IAppConfig::FLAG_INTERNAL,
+				),
+				JobStatsService::JOBS,
 			),
 			new Entry(
 				key: 'rule_editors_all_users',

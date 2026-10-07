@@ -52,7 +52,7 @@ class JobStatsServiceTest
 
 //  other non-static methods
 
-	public function testRecordWritesTimestampAndCounts(): void
+	public function testRecordWritesTimestampCountsAndAttempt(): void
 	{
 		$this->timeFactory->method( 'getTime' )
 		                  ->willReturn( 1700000000 )
@@ -66,17 +66,7 @@ class JobStatsServiceTest
 			                1700000000,
 		                )
 		;
-		$this->appConfig->expects( $this->once() )
-		                ->method( 'setValueString' )
-		                ->with(
-			                'file_checksum_search',
-			                'stats_rule_sweep_last_counts',
-			                json_encode( [
-				                'matched' => 12,
-				                'marked'  => 3,
-			                ] ),
-		                )
-		;
+		$written = $this->captureStrings();
 
 		$this->service->record(
 			JobStatsService::JOB_RULE_SWEEP,
@@ -84,7 +74,101 @@ class JobStatsServiceTest
 				'matched' => 12,
 				'marked'  => 3,
 			],
+			1234,
 		);
+
+		$this->assertSame(
+			[
+				'stats_rule_sweep_last_counts'  => '{"matched":12,"marked":3}',
+				'stats_rule_sweep_last_attempt' => '{"at":1700000000,"ok":true,"durationMs":1234}',
+			],
+			$written->getArrayCopy(),
+		);
+	}
+
+	/**
+	 * A failed run is its attempt alone: the last successful run and its
+	 * counts stay, so the status can say when the job last worked.
+	 */
+	public function testAFailureWritesTheAttemptAndLeavesTheLastSuccess(): void
+	{
+		$this->timeFactory->method( 'getTime' )
+		                  ->willReturn( 1700000300 )
+		;
+		$this->appConfig->expects( $this->never() )
+		                ->method( 'setValueInt' )
+		;
+		$written = $this->captureStrings();
+
+		$this->service->recordFailure(
+			JobStatsService::JOB_PENDING_DRAIN,
+			new \RuntimeException( "Database\ngone away" ),
+			56,
+		);
+
+		$this->assertSame(
+			[
+				'stats_pending_drain_last_attempt' => '{"at":1700000300,"ok":false,"durationMs":56,"reason":"RuntimeException: Database gone away"}',
+			],
+			$written->getArrayCopy(),
+		);
+	}
+
+	/**
+	 * The reason is one line of the status: a long message is cut, and says
+	 * so.
+	 */
+	public function testALongReasonIsCut(): void
+	{
+		$written = $this->captureStrings();
+
+		$this->service->recordFailure( JobStatsService::JOB_STAMP_CHECK, new \RuntimeException( str_repeat( 'x', 500 ) ) );
+
+		$reason = json_decode( $written['stats_stamp_check_last_attempt'], true )['reason'];
+		$this->assertSame( 200, mb_strlen( $reason ) );
+		$this->assertStringEndsWith( 'x…', $reason );
+	}
+
+	public function testRecordingAFailureNeverThrows(): void
+	{
+		$this->appConfig->method( 'setValueString' )
+		                ->willThrowException( new \RuntimeException( 'config store down' ) )
+		;
+		$this->logger->expects( $this->once() )
+		             ->method( 'warning' )
+		;
+
+		$this->service->recordFailure( JobStatsService::JOB_RULE_SWEEP, new \RuntimeException( 'boom' ) );
+
+		$this->addToAssertionCount( 1 );
+	}
+
+	/**
+	 * @return \ArrayObject<string, string>  The strings written, by key.
+	 */
+	private function captureStrings(): \ArrayObject
+	{
+		$written = new \ArrayObject();
+
+		$this->appConfig->method( 'setValueString' )
+		                ->willReturnCallback(
+			                static function(
+				                string $app,
+				                string $key,
+				                string $value,
+			                ) use
+			                (
+				                $written,
+			                ): bool
+			                {
+				                $written[ $key ] = $value;
+
+				                return true;
+			                },
+		                )
+		;
+
+		return $written;
 	}
 
 	public function testRecordNeverThrows(): void
@@ -120,9 +204,14 @@ class JobStatsServiceTest
 				                string $app,
 				                string $key,
 				                string $default = '',
-			                ): string => $key === 'stats_rule_sweep_last_counts'
-				                ? '{"matched":12,"marked":3}'
-				                : 'not json at all',
+			                ): string => match ( $key )
+			                {
+				                'stats_rule_sweep_last_counts'     => '{"matched":12,"marked":3}',
+				                'stats_rule_sweep_last_attempt'    => '{"at":1700000600,"ok":false,"durationMs":56,"reason":"RuntimeException: boom"}',
+				                'stats_orphan_purge_last_attempt'  => '{"at":1700000000,"ok":true}',
+				                'stats_pending_drain_last_attempt' => '',
+				                default                            => 'not json at all',
+			                },
 		                )
 		;
 
@@ -131,14 +220,33 @@ class JobStatsServiceTest
 		$this->assertSame( 1700000000, $runs['rule_sweep']['lastRun'] );
 		$this->assertSame( 12, $runs['rule_sweep']['counts']['matched'] );
 
-		// Never ran: null timestamp; unreadable counts: empty, not fatal.
+		// The last attempt failed after the last success, which stays.
+		$this->assertSame(
+			[
+				'at'         => 1700000600,
+				'ok'         => false,
+				'durationMs' => 56,
+				'reason'     => 'RuntimeException: boom',
+			],
+			$runs['rule_sweep']['attempt'],
+		);
+
+		// An attempt recorded without a duration has none.
+		$this->assertTrue( $runs['orphan_purge']['attempt']['ok'] );
+		$this->assertNull( $runs['orphan_purge']['attempt']['durationMs'] );
+
+		// Never ran: null timestamp; unreadable counts: empty, not fatal; no
+		// attempt recorded, or one that does not read as one: null.
 		$this->assertNull( $runs['pending_drain']['lastRun'] );
 		$this->assertSame( [], $runs['pending_drain']['counts'] );
+		$this->assertNull( $runs['pending_drain']['attempt'] );
+		$this->assertNull( $runs['stamp_check']['attempt'] );
 
-		// The three queued jobs are listed beside the four timed ones, and
-		// every one has a name for the console.
+		// The three queued jobs and the rule applied on request are listed
+		// beside the four timed ones, and every one has a name for the
+		// console.
 		$this->assertSame(
-			[ 'rule_sweep', 'pending_drain', 'orphan_purge', 'filecache_backfill', 'hash_index_check', 'stamp_check', 'checksum_count' ],
+			[ 'rule_sweep', 'rule_apply', 'pending_drain', 'orphan_purge', 'filecache_backfill', 'hash_index_check', 'stamp_check', 'checksum_count' ],
 			array_keys( $runs ),
 		);
 		$this->assertSame( array_keys( $runs ), array_keys( JobStatsService::LABELS ) );

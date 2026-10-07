@@ -16,9 +16,21 @@ import { OCS_SETTINGS } from '../../routes'
 import { useRules } from '../../rules-vue/composables/useRules'
 import { formatDateTime, t } from '../../l10n'
 
+/** A background job's last attempt, successful or not. */
+interface JobAttempt {
+	at: number
+	ok: boolean
+	durationMs: number | null
+	/** The exception's class and message, in English as the server logs it; null for a run that ended normally. */
+	reason: string | null
+}
+
 interface JobRun {
+	/** The last successful run. */
 	lastRun: number | null
 	counts: Record<string, number>
+	/** Null where none was recorded, as for every run before attempts were; absent from an older server. */
+	attempt?: JobAttempt | null
 }
 
 interface StatusData {
@@ -28,6 +40,8 @@ interface StatusData {
 	rowCount?: number
 	rowCountAt?: number
 	pendingStats?: Record<string, number>
+	/** Of the queued files, those that failed at least once and wait behind the rest. */
+	pendingFailed?: number
 	/** Files whose stored hashes are not to be trusted, by reason. */
 	staleStats?: Record<string, number>
 	jobs?: Record<string, JobRun>

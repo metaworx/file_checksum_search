@@ -76,7 +76,7 @@ term that changes, changes here and in the `.po` file at once.
 | untrusted / eroded / reset | não confiáveis / descartadas / redefinidas | the states of stale checksums, feminine plural agreeing with *somas de verificação*; *Redefinidas* is a past participle, checksums a reset has made invalid, never the action *Redefinir* |
 | invalidated (by a reset) | invalidadas | |
 | background job | tarefa em segundo plano | Nextcloud's term; *Ainda não executada* agrees with it |
-| rule sweep / queue drain / orphan purge / checksum copy / checksum index check / checksum stamp check | Varredura de regras / Processamento da fila / Limpeza de entradas órfãs / Cópia de somas de verificação existentes / Conferência do índice de somas de verificação / Conferência dos carimbos de data e hora das somas de verificação | *Conferência*, not *Verificação*: keeps the job apart from the Duplicates page's *Verificar* |
+| rule sweep / rule reapplication / queue drain / orphan purge / checksum copy / checksum index check / checksum stamp check | Varredura de regras / Reaplicação de regra / Processamento da fila / Limpeza de entradas órfãs / Cópia de somas de verificação existentes / Conferência do índice de somas de verificação / Conferência dos carimbos de data e hora das somas de verificação | *Conferência*, not *Verificação*: keeps the job apart from the Duplicates page's *Verificar* |
 | tunables | ajustes finos | |
 | prefill | pré-preencher | |
 | glob pattern | padrão glob | |

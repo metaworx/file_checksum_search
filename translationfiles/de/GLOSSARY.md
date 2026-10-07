@@ -66,7 +66,7 @@ files at once.
 | untrusted / eroded / reset | nicht vertrauenswürdig / verfallen / zurückgesetzt | the states of stale checksums |
 | invalidated (by a reset) | ungültig | not *verwaist*, the orphan purge's word |
 | background job | Hintergrundaufgabe | both registers, as Nextcloud's own admin heading |
-| rule sweep / queue drain / orphan purge / checksum copy / checksum index check / checksum stamp check | Regeldurchlauf / Abarbeitung der Warteschlange / Bereinigung verwaister Einträge / Übernahme vorhandener Prüfsummen / Prüfung des Prüfsummen-Index / Prüfung der Prüfsummen-Zeitstempel | |
+| rule sweep / rule reapplication / queue drain / orphan purge / checksum copy / checksum index check / checksum stamp check | Regeldurchlauf / Erneute Regelanwendung / Abarbeitung der Warteschlange / Bereinigung verwaister Einträge / Übernahme vorhandener Prüfsummen / Prüfung des Prüfsummen-Index / Prüfung der Prüfsummen-Zeitstempel | |
 | tunables | Feineinstellungen | |
 | prefill | vorausfüllen | |
 | glob pattern | Glob-Muster | |

@@ -179,6 +179,14 @@ class StampCheckTest
 		$this->jobStats->expects( $this->never() )
 		               ->method( 'record' )
 		;
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'recordFailure' )
+		               ->with(
+			               JobStatsService::JOB_STAMP_CHECK,
+			               $this->isInstanceOf( RuntimeException::class ),
+			               $this->isType( 'int' ),
+		               )
+		;
 
 		$this->runJob();
 	}

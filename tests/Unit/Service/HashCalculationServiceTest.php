@@ -335,6 +335,133 @@ class HashCalculationServiceTest
 	}
 
 	/**
+	 * A file on a storage Nextcloud holds unavailable, which would fail every
+	 * read at once: its attempt is counted without the metadata, the lock or
+	 * the read, and it stays queued.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAFileOnAStorageHeldDownIsCountedWithoutBeingRead(): void
+	{
+		$this->onAStorage( available: false, checkedSecondsAgo: 30 );
+
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'getMetadata' )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'recordFailedAttempt' )
+		                      ->with( 42, 'pending:missing' )
+		                      ->willReturn( 1 )
+		;
+		$this->logger->expects( $this->once() )
+		             ->method( 'log' )
+		             ->with( LogLevel::WARNING, $this->stringContains( 'unavailable' ), $this->anything() )
+		;
+
+		$service = $this->createCollectingServiceMock();
+		$service->expects( $this->never() )
+		        ->method( 'recalcHashes' )
+		;
+
+		$this->assertFalse( $service->processFile( 42, 'missing' ) );
+	}
+
+	/**
+	 * Past Nextcloud's own wait the read goes through, and Nextcloud's check
+	 * of the storage with it: a flag nothing else touched would else stand
+	 * for good.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAStorageHeldDownLongerThanNextcloudWaitsIsTriedAgain(): void
+	{
+		$this->onAStorage( available: false, checkedSecondsAgo: 601 );
+		$this->metadataService->method( 'getMetadata' )
+		                      ->willReturn( $this->createMock( IFilesMetadata::class ) )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'recordFailedAttempt' )
+		;
+
+		$service = $this->createCollectingServiceMock();
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->willReturn(
+			        [
+				        'results' => [
+					        'sha256' => [
+						        'success' => true,
+						        'hash'    => 'abc',
+						        'existed' => false,
+					        ],
+				        ],
+				        'locked'  => false,
+			        ],
+		        )
+		;
+
+		$service->processFile( 42, 'missing' );
+	}
+
+	/**
+	 * Lazy reads nothing, so a storage held down does not stop it.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testALazyFileOnAStorageHeldDownGoesOn(): void
+	{
+		$this->onAStorage( available: false, checkedSecondsAgo: 30 );
+		$this->metadataService->method( 'getMetadata' )
+		                      ->willReturn( $this->createMock( IFilesMetadata::class ) )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'clearMetadata' )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'recordFailedAttempt' )
+		;
+
+		$this->assertTrue( $this->service->processFile( 42, 'lazy' ) );
+	}
+
+	/**
+	 * File 42, governed by an include rule for sha256, on a storage whose
+	 * availability Nextcloud recorded $checkedSecondsAgo.
+	 */
+	private function onAStorage(
+		bool $available,
+		int  $checkedSecondsAgo,
+	): void
+	{
+		$storage = $this->createMock( IStorage::class );
+		$storage->method( 'getAvailability' )
+		        ->willReturn(
+			        [
+				        'available'    => $available,
+				        'last_checked' => time() - $checkedSecondsAgo,
+			        ],
+		        )
+		;
+		$file = $this->createMock( File::class );
+		$file->method( 'getStorage' )
+		     ->willReturn( $storage )
+		;
+		$this->filecacheService->method( 'getFile' )
+		                       ->willReturn( $file )
+		;
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn(
+			                  [
+				                  'id'    => 'r1',
+				                  'type'  => 'include',
+				                  'algos' => [ 'sha256' ],
+				                  'mode'  => 'missing',
+			                  ],
+		                  )
+		;
+	}
+
+	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testProcessFileDropsTheMarkWhenNoIncludeRuleGoverns(): void

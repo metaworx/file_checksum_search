@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Config;
 
 use OCA\FileChecksumSearch\Config\ConfigLexicon;
+use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCP\Config\Lexicon\Entry;
 use OCP\Config\Lexicon\Strictness;
 use PHPUnit\Framework\TestCase;
@@ -46,7 +47,7 @@ class ConfigLexiconTest
 		$configs = $this->lexicon->getAppConfigs();
 
 		$this->assertIsArray( $configs );
-		$this->assertCount( 41, $configs );
+		$this->assertCount( 51, $configs );
 
 		$keys = array_map(
 			static fn(
@@ -82,6 +83,15 @@ class ConfigLexiconTest
 		$this->assertContains( 'orphan_purge_last_run', $keys );
 		$this->assertContains( 'stats_orphan_purge_last_run', $keys );
 		$this->assertContains( 'stats_orphan_purge_last_counts', $keys );
+		$this->assertContains( 'stats_rule_apply_last_run', $keys );
+		$this->assertContains( 'stats_rule_apply_last_counts', $keys );
+
+		// Every job's last attempt, successful or not.
+		foreach ( JobStatsService::JOBS as $job )
+		{
+			$this->assertContains( sprintf( 'stats_%s_last_attempt', $job ), $keys );
+		}
+
 		$this->assertContains( 'rule_editors_all_users', $keys );
 		$this->assertContains( 'rule_editors_groups', $keys );
 		$this->assertContains( 'rule_editors_users', $keys );

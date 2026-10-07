@@ -54,6 +54,27 @@ export function formatDateTime(date: Date): string {
 }
 
 /**
+ * A duration as the user's Nextcloud locale writes it, in its own short
+ * unit: milliseconds under a second, seconds to one decimal under a minute,
+ * whole minutes above. The unit is the locale's ("1,2 s", "350 ms"), so no
+ * translation carries one.
+ */
+export function formatDuration(milliseconds: number): string {
+	const [value, unit, digits] = milliseconds < 1000
+		? [milliseconds, 'millisecond', 0]
+		: milliseconds < 60000
+			? [milliseconds / 1000, 'second', 1]
+			: [Math.round(milliseconds / 60000), 'minute', 0]
+
+	return new Intl.NumberFormat(getCanonicalLocale(), {
+		style: 'unit',
+		unit,
+		unitDisplay: 'short',
+		maximumFractionDigits: digits,
+	}).format(value)
+}
+
+/**
  * A translated text with every number held to the words beside it: the
  * spaces next to a number become no-break spaces, so a line may break
  * between "failed 0," and "cleared 0" but never between "failed" and its 0.

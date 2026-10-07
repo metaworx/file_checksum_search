@@ -44,15 +44,36 @@ function mockFetch(options: { rules?: unknown[], idleBannerAcknowledged?: boolea
 				version: '1.0',
 				dbVersion: '1',
 				rowCount: 3,
-				pendingStats: {},
+				pendingStats: { 'pending:auto': 5 },
+				pendingFailed: 2,
 				staleStats: { 'stale:eroded': 4, 'stale:reset': 9 },
 				jobs: {
-					rule_sweep: { lastRun: 1700000000, counts: { matched: 12, marked: 3 } },
-					pending_drain: { lastRun: null, counts: {} },
-					orphan_purge: { lastRun: 1700000050, counts: { purged: 5, batches: 1 } },
+					rule_sweep: {
+						lastRun: 1700000000,
+						counts: { matched: 12, marked: 3 },
+						attempt: { at: 1700000000, ok: true, durationMs: 1234, reason: null },
+					},
+					rule_apply: {
+						lastRun: 1700000010,
+						counts: { matched: 4, marked: 1 },
+						attempt: { at: 1700000010, ok: true, durationMs: 350, reason: null },
+					},
+					pending_drain: { lastRun: null, counts: {}, attempt: null },
+					// Its last success, then a run that failed.
+					orphan_purge: {
+						lastRun: 1700000050,
+						counts: { purged: 5, batches: 1 },
+						attempt: { at: 1700000400, ok: false, durationMs: 56, reason: 'RuntimeException: DB down' },
+					},
+					// No run ever succeeded.
+					hash_index_check: {
+						lastRun: null,
+						counts: {},
+						attempt: { at: 1700000200, ok: false, durationMs: 10, reason: 'RuntimeException: gone' },
+					},
+					// Recorded before attempts were, as an older server sends it.
 					filecache_backfill: { lastRun: 1700000100, counts: { copied: 1200, files: 900, done: 0 } },
-					hash_index_check: { lastRun: 1700000200, counts: { repaired: 2, done: 1 } },
-					stamp_check: { lastRun: 1700000250, counts: { stamped: 25906, queued: 4, done: 0 } },
+					stamp_check: { lastRun: 1700000250, counts: { stamped: 25906, queued: 4, done: 0 }, attempt: null },
 					// A job a newer server runs and this page does not know.
 					future_job: { lastRun: 1700000300, counts: { widgets: 7 } },
 				},
@@ -210,18 +231,33 @@ describe('settings-admin App', () => {
 		expect(jobs).toContain('matched 12, queued 3')
 		expect(jobs).toContain('Queue drain')
 		expect(jobs).toContain('Not run yet')
+		expect(jobs).toContain('Rule reapplication')
+		expect(jobs).toContain('matched 4, queued 1')
+		// How long a run took, in the locale's own unit.
+		expect(jobs).toContain('took 1.2 sec')
+		expect(jobs).toContain('took 350 ms')
+		// A run that failed: why, and when the job last worked, in place of
+		// the success's counts.
 		expect(jobs).toContain('Orphan purge')
-		expect(jobs).toContain('removed 5, batches 1')
+		expect(jobs).toContain('failed: RuntimeException: DB down')
+		expect(jobs).toContain(`last success: ${formatDateTime(new Date(1700000050 * 1000))}`)
+		expect(jobs).toContain(formatDateTime(new Date(1700000400 * 1000)))
+		expect(jobs).not.toContain('removed 5, batches 1')
+		expect(wrapper.findAll('#fcias-status-jobs .fcias-job-failed')).toHaveLength(2)
+		expect(jobs).toContain('Checksum index check')
+		expect(jobs).toContain('failed: RuntimeException: gone')
+		expect(jobs).toContain('no successful run yet')
 		expect(jobs).toContain('Checksum copy')
 		expect(jobs).toContain('copied 1200, files 900, not finished yet')
-		expect(jobs).toContain('Checksum index check')
-		expect(jobs).toContain('repaired 2, finished')
 		expect(jobs).toContain('Checksum stamp check')
 		expect(jobs).toContain('stamped 25906, queued again 4, not finished yet')
 		expect(jobs).not.toContain('marked')
 		expect(jobs).not.toContain('done')
 		expect(jobs).toContain('future_job')
 		expect(jobs).toContain('widgets 7')
+
+		// The queued files that failed at least once, which wait behind the rest.
+		expect(wrapper.find('#fcias-status-pending-failed').text()).toBe('Failed at least once: 2')
 	})
 
 	// Refresh counts the indexed checksums whatever the kept count's age, and

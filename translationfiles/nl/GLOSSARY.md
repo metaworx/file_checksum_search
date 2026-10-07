@@ -84,7 +84,7 @@ a term that changes, changes here and in the `.po` file at once.
 | invalidated (by a reset) | ongeldig gemaakt | the reset state's hint; not *verweesd*, which is the orphan purge's |
 | orphan | verweesd | only for the orphan purge's entries |
 | background job | achtergrondtaak | Nextcloud's own term |
-| rule sweep / queue drain / orphan purge / checksum copy / checksum index check / checksum stamp check | regeldoorloop / wachtrijverwerking / opruimen van verweesde vermeldingen / overname van bestaande controlesommen / controle van de controlesomindex / controle van de tijdstempels van controlesommen | |
+| rule sweep / rule reapplication / queue drain / orphan purge / checksum copy / checksum index check / checksum stamp check | regeldoorloop / opnieuw toepassen van een regel / wachtrijverwerking / opruimen van verweesde vermeldingen / overname van bestaande controlesommen / controle van de controlesomindex / controle van de tijdstempels van controlesommen | |
 | tunables | fijnafstelling | |
 | glob pattern | globpatroon | |
 | path | pad | |

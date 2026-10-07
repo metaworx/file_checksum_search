@@ -383,6 +383,18 @@
 	white-space: nowrap;
 }
 
+/* A run that failed: why, and beneath it when the job last succeeded. */
+.fcias-job-failed {
+	display: flex;
+	flex-direction: column;
+}
+
+/* How long a run took, set off from its counts by space alone. */
+.fcias-job-took {
+	margin-inline-start: 8px;
+	white-space: nowrap;
+}
+
 /* The names, stacked in one cell: as wide as the widest, one line high, and
    neither seen nor read out. */
 .fcias-job-spacer {

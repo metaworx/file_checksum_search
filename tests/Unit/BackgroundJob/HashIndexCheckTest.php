@@ -225,6 +225,14 @@ class HashIndexCheckTest
 		$this->jobStats->expects( $this->never() )
 		               ->method( 'record' )
 		;
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'recordFailure' )
+		               ->with(
+			               JobStatsService::JOB_HASH_INDEX_CHECK,
+			               $this->isInstanceOf( RuntimeException::class ),
+			               $this->isType( 'int' ),
+		               )
+		;
 
 		$this->runJob();
 	}

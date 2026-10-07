@@ -39,6 +39,13 @@ class HashCalculationService
 
 	public const CHUNK_SIZE = 8192;
 
+	/**
+	 * How long Nextcloud holds a storage it found unavailable before it
+	 * tries it again: `OC\Files\Storage\Wrapper\Availability::RECHECK_TTL_SEC`,
+	 * which is not public API. {@see isStorageDown()}
+	 */
+	private const STORAGE_RECHECK_SECONDS = 600;
+
 
 //  constructor
 
@@ -124,6 +131,34 @@ class HashCalculationService
 		}
 
 		return ! $this->isHashUpToDate( $metadata, $file->getMTime() );
+	}
+
+	/**
+	 * Whether Nextcloud holds the file's storage unavailable, and will not try
+	 * it again yet.
+	 *
+	 * Its availability wrapper, on every external storage that is not
+	 * local, fails each call at once after the storage's first failure, and
+	 * tries the storage again once {@see STORAGE_RECHECK_SECONDS} have passed
+	 * since its record. Past that this answers no, so that a read goes
+	 * through and Nextcloud's own check with it: else the flag would stand
+	 * for as long as nothing else touched the storage. Unknown is not down.
+	 */
+	private function isStorageDown( File $file ): bool
+	{
+		try
+		{
+			$availability = $file->getStorage()
+			                     ->getAvailability()
+			;
+		}
+		catch ( Throwable )
+		{
+			return false;
+		}
+
+		return ( $availability['available'] ?? true ) === false
+			&& time() - (int) ( $availability['last_checked'] ?? 0 ) <= self::STORAGE_RECHECK_SECONDS;
 	}
 
 
@@ -660,9 +695,8 @@ class HashCalculationService
 		?array $algos = null,
 	): bool
 	{
-		$metadata = $this->metadataService->getMetadata( $fileId );
-		$file     = null;
-		$started  = time();
+		$file    = null;
+		$started = time();
 
 		if ( $algos === null )
 		{
@@ -689,7 +723,7 @@ class HashCalculationService
 
 			if ( ! RuleService::maintainsHashes( $rule ) )
 			{
-				if ( $this->isOutdated( $metadata, $file ) )
+				if ( $this->isOutdated( $this->metadataService->getMetadata( $fileId ), $file ) )
 				{
 					$this->logger->debug(
 						'FCIAS: processFile — no include rule governs fileId {fileId}, eroding its outdated hashes.',
@@ -717,9 +751,36 @@ class HashCalculationService
 				return true;
 			}
 
+			// A storage Nextcloud holds unavailable fails every read at once:
+			// the attempt is counted without the metadata, the lock or the
+			// read. Lazy reads nothing, and goes on.
+			if ( $mode !== MetadataService::PENDING_MODE_LAZY && $this->isStorageDown( $file ) )
+			{
+				$attempts = $this->metadataService->recordFailedAttempt(
+					$fileId,
+					MetadataService::PENDING_PREFIX . $mode,
+				);
+
+				$this->logger->log(
+					$attempts > 1
+						? LogLevel::DEBUG
+						: LogLevel::WARNING,
+					'FCIAS: processFile — the storage of fileId {fileId} is unavailable; the file stays queued (failed attempts: {attempts}).',
+					[
+						'app'      => Application::APP_ID,
+						'fileId'   => $fileId,
+						'attempts' => $attempts,
+						'reason'   => 'storage unavailable',
+					],
+				);
+
+				return false;
+			}
+
 			$algos = $rule['algos'] ?? [ $this->getDefaultAlgo() ];
 		}
 
+		$metadata = $this->metadataService->getMetadata( $fileId );
 		$outdated = $this->isOutdated( $metadata, $file ?? $fileId );
 		// Never below the file's mtime, for a clock ahead of the server's;
 		// a write landing meanwhile makes recalcHashes() report it busy.

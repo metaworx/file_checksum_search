@@ -11,11 +11,19 @@ the first stable release.
 
 ## [Unreleased]
 
+### Added
+
+- Status page and `occ fcias:status`: each background job's run time,
+  and a failed run with its error and last success; the queued files
+  that failed at least once (`docs/FAQ.md`, *Hashes are missing or
+  outdated*).
+
 ### Fixed
 
 - `fcias:queue:drain --all` ends, and the queue drain job no longer
-  stalls, on files that cannot be hashed: they wait behind the rest
-  (`README.md`, *Pending Hash Queue*).
+  stalls, on files that cannot be hashed: they wait behind the rest, a
+  storage Nextcloud holds unavailable unread (`README.md`, *Pending
+  Hash Queue*).
 
 - A file queued `lazy` leaves the queue once its hashes are dropped;
   since 0.22.0 it stayed queued, and was taken again on every run

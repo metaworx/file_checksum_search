@@ -84,7 +84,7 @@ here; a term that changes, changes here and in the `.po` file at once.
 | untrusted / eroded / reset | no fiables / caducadas / invalidadas | the states of stale checksums, feminine to agree with *sumas de verificación*; *Reset* is the checksums a reset has made invalid, a past participle, not the action, so not *restablecidas*, which reads as "restored" |
 | reset (the action) | restablecimiento | «invalidadas por un restablecimiento» |
 | background job | trabajo en segundo plano | Nextcloud's settings: «Trabajos en segundo plano» |
-| rule sweep / queue drain / orphan purge / checksum copy / checksum index check / checksum stamp check | Recorrido de reglas / Vaciado de la cola / Purga de entradas huérfanas / Copia de sumas de verificación existentes / Comprobación del índice de sumas de verificación / Comprobación de las marcas de tiempo de las sumas de verificación | the background jobs' names; *existentes* because the job copies what Nextcloud already holds, not a backup |
+| rule sweep / rule reapplication / queue drain / orphan purge / checksum copy / checksum index check / checksum stamp check | Recorrido de reglas / Reaplicación de una regla / Vaciado de la cola / Purga de entradas huérfanas / Copia de sumas de verificación existentes / Comprobación del índice de sumas de verificación / Comprobación de las marcas de tiempo de las sumas de verificación | the background jobs' names; *existentes* because the job copies what Nextcloud already holds, not a backup |
 | reapply | volver a aplicar | never *nueva aplicación*, which reads as "new app" |
 | Acknowledge / Noted | Tomar nota / Anotado | the idle banner's button, and the toast that answers it |
 | tunables | Parámetros | |

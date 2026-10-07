@@ -536,7 +536,9 @@ first, so a file that keeps failing waits behind every other instead of taking a
 batch; queuing it again keeps its count, and it goes when the file leaves the queue. A full batch
 in which no file could be hashed is not re-dispatched: the next run tries again, the files not yet
 tried first. `fcias:queue:drain --all` walks the queue once, by file id, and tries every file
-waiting: one that fails is passed rather than taken again.
+waiting: one that fails is passed rather than taken again. A file on a storage Nextcloud holds
+unavailable — it fails every call to an external storage at once for ten minutes after the first
+that failed — counts its attempt without being read, until Nextcloud tries the storage again.
 
 ## Backing up, resetting and importing
 
@@ -740,8 +742,10 @@ The admin settings page provides:
     credentials; the bundled pages keep working for everyone
 - **Sudo tokens** — a tab: every app password on the instance granted the cross-account routes
   without a password prompt, against the live token table, with revoke
-- **Advanced** — a tab: app version, indexed checksum count, queued files by mode, the *Untrusted
-  checksums* total with its reasons (eroded, reset), and each background job's last run with its counts;
+- **Advanced** — a tab: app version, indexed checksum count, queued files by mode with those that
+  failed at least once, the *Untrusted checksums* total with its reasons (eroded, reset), and each
+  background job's last run with its counts and how long it took, or, when it failed, why and when
+  the job last succeeded;
   plus the instance's tunables, the first being how many accounts and groups the cross-account
   picker prefills (21) before it searches server-side instead
 - **Documentation** — the last tab: in-app access to the FAQ, the user guide, README, API specs, and

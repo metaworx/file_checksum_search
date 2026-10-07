@@ -63,11 +63,25 @@ class ShowStatusTest
 		$this->jobStats->method( 'lastRuns' )
 		               ->willReturn(
 			               [
-				               'rule_sweep'         => [ 'lastRun' => 1700000000, 'counts' => [ 'matched' => 12, 'marked' => 3 ] ],
-				               'filecache_backfill' => [ 'lastRun' => 1700000100, 'counts' => [ 'copied' => 1200, 'files' => 900, 'done' => 0 ] ],
-				               'hash_index_check'   => [ 'lastRun' => null, 'counts' => [] ],
+				               'rule_sweep'         => [
+					               'lastRun' => 1700000000,
+					               'counts'  => [ 'matched' => 12, 'marked' => 3 ],
+					               'attempt' => [ 'at' => 1700000000, 'ok' => true, 'durationMs' => 1234, 'reason' => null ],
+				               ],
+				               'filecache_backfill' => [
+					               'lastRun' => 1700000100,
+					               'counts'  => [ 'copied' => 1200, 'files' => 900, 'done' => 0 ],
+					               'attempt' => [ 'at' => 1700000100, 'ok' => true, 'durationMs' => null, 'reason' => null ],
+				               ],
+				               'hash_index_check'   => [ 'lastRun' => null, 'counts' => [], 'attempt' => null ],
+				               // Its last success, then a run that failed.
+				               'stamp_check'        => [
+					               'lastRun' => 1700000050,
+					               'counts'  => [ 'stamped' => 7, 'queued' => 0, 'done' => 0 ],
+					               'attempt' => [ 'at' => 1700000400, 'ok' => false, 'durationMs' => 56, 'reason' => 'RuntimeException: boom' ],
+				               ],
 				               // Counted a second before the mocked clock, so kept.
-				               JobStatsService::JOB_CHECKSUM_COUNT => [ 'lastRun' => 1700000499, 'counts' => [ 'rows' => 406419 ] ],
+				               JobStatsService::JOB_CHECKSUM_COUNT => [ 'lastRun' => 1700000499, 'counts' => [ 'rows' => 406419 ], 'attempt' => null ],
 			               ],
 		               )
 		;
@@ -227,9 +241,69 @@ class ShowStatusTest
 
 		$display = $this->tester->getDisplay();
 		$this->assertStringContainsString( 'Background jobs:', $display );
-		$this->assertMatchesRegularExpression( '/Rule sweep\s+\d{4}-\d{2}-\d{2} [\d:]+ \S+\s+matched 12, marked 3/', $display );
-		$this->assertStringContainsString( 'copied 1200, files 900, done 0', $display );
+		$this->assertMatchesRegularExpression( '/Rule sweep\s+\d{4}-\d{2}-\d{2} [\d:]+ \S+\s+matched 12, marked 3   \(took 1\.2 s\)/', $display );
+		// A run recorded without its duration says nothing of one.
+		$this->assertMatchesRegularExpression( '/copied 1200, files 900, done 0$/m', $display );
 		$this->assertMatchesRegularExpression( '/Checksum index check\s+never ran yet/', $display );
+	}
+
+	/**
+	 * A job whose last run failed shows that run: when, after how long, why,
+	 * and when the job last succeeded, in place of the success's counts.
+	 */
+	public function testAFailedRunShowsItsReasonAndTheLastSuccess(): void
+	{
+		$this->appConfig->method( 'getValueString' )
+		                ->willReturn( 'unknown' )
+		;
+		$this->metadataService->method( 'getPendingStats' )
+		                      ->willReturn( [] )
+		;
+
+		$this->tester->execute( [] );
+
+		$this->assertMatchesRegularExpression(
+			'/Checksum stamp check\s+(\S+ \S+ \S+)\s+FAILED after 56 ms: RuntimeException: boom; last success \d{4}-\d{2}-\d{2} [\d:]+ \S+$/m',
+			$this->tester->getDisplay(),
+		);
+		$this->assertStringContainsString( date( 'Y-m-d H:i:s T', 1700000400 ), $this->tester->getDisplay() );
+	}
+
+	/**
+	 * The queued files that have failed at least once, which wait behind the
+	 * rest: on their own line while there are any, and in the JSON always.
+	 */
+	public function testTheFailingQueuedFilesAreCounted(): void
+	{
+		$this->appConfig->method( 'getValueString' )
+		                ->willReturn( 'unknown' )
+		;
+		$this->metadataService->method( 'getPendingStats' )
+		                      ->willReturn( [ 'pending:auto' => 5 ] )
+		;
+		$this->metadataService->method( 'countFailingQueued' )
+		                      ->willReturn( 2 )
+		;
+
+		$this->tester->execute( [] );
+		$this->assertStringContainsString( 'failed at least once:   2', $this->tester->getDisplay() );
+
+		$this->tester->execute( [ '--output' => 'json' ] );
+		$this->assertSame( 2, json_decode( trim( $this->tester->getDisplay() ), true )['pending_failed'] );
+	}
+
+	public function testNoFailingQueuedFileNoLine(): void
+	{
+		$this->appConfig->method( 'getValueString' )
+		                ->willReturn( 'unknown' )
+		;
+		$this->metadataService->method( 'getPendingStats' )
+		                      ->willReturn( [ 'pending:auto' => 5 ] )
+		;
+
+		$this->tester->execute( [] );
+
+		$this->assertStringNotContainsString( 'failed at least once', $this->tester->getDisplay() );
 	}
 
 	public function testJsonOutputCarriesTheJobsInThePagesShape(): void

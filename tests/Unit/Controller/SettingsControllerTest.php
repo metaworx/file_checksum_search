@@ -178,6 +178,9 @@ class SettingsControllerTest
 			                      'pending:preview' => 3,
 		                      ] )
 		;
+		$this->metadataService->method( 'countFailingQueued' )
+		                      ->willReturn( 2 )
+		;
 
 		$data = $this->controller->getStatusCounts()
 		                         ->getData()
@@ -189,6 +192,8 @@ class SettingsControllerTest
 			'pending:auto'    => 12,
 			'pending:preview' => 3,
 		], $data['pendingStats'] );
+		// Of those, the files that failed at least once and wait behind the rest.
+		$this->assertSame( 2, $data['pendingFailed'] );
 	}
 
 	/**

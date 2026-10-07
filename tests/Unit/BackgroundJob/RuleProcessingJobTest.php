@@ -220,10 +220,18 @@ class RuleProcessingJobTest
 		             ->method( 'error' )
 		;
 
+		// The sweep's failure on the status, its last success left as it was.
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'recordFailure' )
+		               ->with(
+			               JobStatsService::JOB_RULE_SWEEP,
+			               $this->isInstanceOf( RuntimeException::class ),
+			               $this->isType( 'int' ),
+		               )
+		;
+
 		$reflection = new ReflectionMethod( RuleProcessingJob::class, 'run' );
 		$reflection->invoke( $this->job, null );
-
-		$this->assertTrue( true );
 	}
 
 	/**
@@ -341,6 +349,48 @@ class RuleProcessingJobTest
 		;
 
 		( new ReflectionMethod( RuleProcessingJob::class, 'run' ) )->invoke( $this->job, null );
+	}
+
+	/**
+	 * A purge that fails books neither the day nor a run: its failure goes
+	 * on the status, the clock stays, and the next tick tries again.
+	 */
+	public function testAFailedPurgeRecordsItsFailure(): void
+	{
+		$this->ruleService->method( 'evaluateRules' )
+		                  ->willReturn( [ 'marked' => 0, 'matched' => 0 ] )
+		;
+		$this->time->method( 'getTime' )
+		           ->willReturn( 1_700_100_000 )
+		;
+		$this->metadataService->method( 'purgeOrphanedMetadata' )
+		                      ->willReturnOnConsecutiveCalls( 50, $this->throwException( new RuntimeException( 'DB down' ) ) )
+		;
+
+		$this->appConfig->expects( $this->never() )
+		                ->method( 'setValueInt' )
+		;
+		$recorded = [];
+		$this->jobStats->method( 'record' )
+		               ->willReturnCallback(
+			               static function( string $job ) use ( &$recorded ): void
+			               {
+				               $recorded[] = $job;
+			               },
+		               )
+		;
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'recordFailure' )
+		               ->with(
+			               JobStatsService::JOB_ORPHAN_PURGE,
+			               $this->isInstanceOf( RuntimeException::class ),
+			               $this->isType( 'int' ),
+		               )
+		;
+
+		( new ReflectionMethod( RuleProcessingJob::class, 'run' ) )->invoke( $this->job, null );
+
+		$this->assertNotContains( JobStatsService::JOB_ORPHAN_PURGE, $recorded );
 	}
 
 	/**

@@ -426,6 +426,10 @@ msgstr "Veelgestelde vragen"
 msgid "Failed"
 msgstr "Mislukt"
 
+#. TRANSLATORS of the queued files, those whose checksums could not be computed on at least one attempt; they wait behind the others
+msgid "Failed at least once: {count}"
+msgstr "Minstens één keer mislukt: {count}"
+
 msgid "File Checksum Index & Search"
 msgstr "File Checksum Index & Search"
 
@@ -801,6 +805,10 @@ msgstr "Regel ingeschakeld."
 
 msgid "Rule not found."
 msgstr "Regel niet gevonden."
+
+#. TRANSLATORS: a background job's name: it applies one rule to the files it governs, when an administrator chooses Reapply for that rule
+msgid "Rule reapplication"
+msgstr "Opnieuw toepassen van een regel"
 
 msgid "Rule saved."
 msgstr "Regel opgeslagen."
@@ -1181,6 +1189,10 @@ msgid_plural "counted %n checksums"
 msgstr[0] "%n controlesom geteld"
 msgstr[1] "%n controlesommen geteld"
 
+#. TRANSLATORS: a background job's last run ended with an error; {reason} is the error as the server logs it, in English
+msgid "failed: {reason}"
+msgstr "mislukt: {reason}"
+
 #. TRANSLATORS: fileIds is a parameter name; keep it
 msgid "fileIds must be a non-empty list of integers."
 msgstr "fileIds moet een niet-lege lijst van gehele getallen zijn."
@@ -1200,6 +1212,10 @@ msgstr "groupfolder: verwacht de numerieke map-ID."
 msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
 msgstr "ongeldig gemaakt door een reset: al verborgen voor de zoekfunctie en in afwachting van verwijdering door de achtergrondtaak"
 
+#. TRANSLATORS: when a background job whose last run failed last ran without an error
+msgid "last success: {time}"
+msgstr "laatst geslaagd: {time}"
+
 #. TRANSLATORS: an example of what to type; keep the storage IDs as they are
 msgid "local::/path/ or smb::…"
 msgstr "local::/path/ of smb::…"
@@ -1217,6 +1233,10 @@ msgstr "geen vangnetregel – bestanden waarmee de regels hierboven niet overeen
 
 msgid "no rule of its own — its files are left to a more general rule, if one is enabled"
 msgstr "geen eigen regel – de bestanden ervan worden overgelaten aan een algemenere regel, als er een is ingeschakeld"
+
+#. TRANSLATORS: a background job whose runs have all failed
+msgid "no successful run yet"
+msgstr "nog geen geslaagde uitvoering"
 
 #. TRANSLATORS: the checksum a file has now, after verification found it changed
 msgid "now: {hash}"
@@ -1264,6 +1284,10 @@ msgstr "voorzien van tijdstempel {stamped}, opnieuw in de wachtrij {queued}, nog
 
 msgid "the file changed while no rule maintained its checksums, so they were deleted; it gets them back once a rule covers it again"
 msgstr "het bestand is gewijzigd terwijl geen regel de controlesommen ervan bijhield, dus zijn ze verwijderd; het krijgt ze terug zodra een regel het weer dekt"
+
+#. TRANSLATORS: how long a background job's last run took; {duration} is a number with its unit, such as "1.2 s"
+msgid "took {duration}"
+msgstr "duurde {duration}"
 
 #. TRANSLATORS: value is a parameter name; keep it
 msgid "value must be a string."

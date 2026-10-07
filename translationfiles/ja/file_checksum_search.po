@@ -425,6 +425,10 @@ msgstr "よくある質問"
 msgid "Failed"
 msgstr "失敗"
 
+#. TRANSLATORS of the queued files, those whose checksums could not be computed on at least one attempt; they wait behind the others
+msgid "Failed at least once: {count}"
+msgstr "1回以上失敗：{count}"
+
 msgid "File Checksum Index & Search"
 msgstr "File Checksum Index & Search"
 
@@ -800,6 +804,10 @@ msgstr "ルールを有効にしました。"
 
 msgid "Rule not found."
 msgstr "ルールが見つかりません。"
+
+#. TRANSLATORS: a background job's name: it applies one rule to the files it governs, when an administrator chooses Reapply for that rule
+msgid "Rule reapplication"
+msgstr "ルールの再適用"
 
 msgid "Rule saved."
 msgstr "ルールを保存しました。"
@@ -1179,6 +1187,10 @@ msgid "counted %n checksum"
 msgid_plural "counted %n checksums"
 msgstr[0] "%n 件のチェックサムを集計"
 
+#. TRANSLATORS: a background job's last run ended with an error; {reason} is the error as the server logs it, in English
+msgid "failed: {reason}"
+msgstr "失敗：{reason}"
+
 #. TRANSLATORS: fileIds is a parameter name; keep it
 msgid "fileIds must be a non-empty list of integers."
 msgstr "fileIds は空でない整数のリストである必要があります。"
@@ -1198,6 +1210,10 @@ msgstr "groupfolder: には数値のフォルダーIDを指定します。"
 msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
 msgstr "リセットにより無効化：すでに検索には表示されず、バックグラウンドジョブによる削除待ちです"
 
+#. TRANSLATORS: when a background job whose last run failed last ran without an error
+msgid "last success: {time}"
+msgstr "最終成功：{time}"
+
 #. TRANSLATORS: an example of what to type; keep the storage IDs as they are
 msgid "local::/path/ or smb::…"
 msgstr "local::/path/ または smb::…"
@@ -1215,6 +1231,10 @@ msgstr "包括ルールなし：上のルールに一致しないファイルは
 
 msgid "no rule of its own — its files are left to a more general rule, if one is enabled"
 msgstr "独自のルールなし：そのファイルは、より一般的なルールが有効であればそのルールに委ねられます"
+
+#. TRANSLATORS: a background job whose runs have all failed
+msgid "no successful run yet"
+msgstr "成功した実行はまだありません"
 
 #. TRANSLATORS: the checksum a file has now, after verification found it changed
 msgid "now: {hash}"
@@ -1262,6 +1282,10 @@ msgstr "タイムスタンプ付与：{stamped}、キュー再追加：{queued}�
 
 msgid "the file changed while no rule maintained its checksums, so they were deleted; it gets them back once a rule covers it again"
 msgstr "どのルールもチェックサムを維持していない間にファイルが変更されたため、チェックサムは削除されました。再びルールの対象になると、チェックサムは再計算されます"
+
+#. TRANSLATORS: how long a background job's last run took; {duration} is a number with its unit, such as "1.2 s"
+msgid "took {duration}"
+msgstr "所要時間：{duration}"
 
 #. TRANSLATORS: value is a parameter name; keep it
 msgid "value must be a string."

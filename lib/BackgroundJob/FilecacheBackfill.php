@@ -102,6 +102,7 @@ class FilecacheBackfill
 	{
 		$after    = $this->appConfig->getValueInt( Application::APP_ID, self::CURSOR, 0 );
 		$deadline = $this->time->getTime() + self::TIME_BUDGET;
+		$started  = hrtime( true );
 
 		try
 		{
@@ -123,6 +124,12 @@ class FilecacheBackfill
 					'after'     => $after,
 					'exception' => $e,
 				],
+			);
+
+			$this->jobStats->recordFailure(
+				JobStatsService::JOB_FILECACHE_BACKFILL,
+				$e,
+				JobStatsService::millisecondsSince( $started ),
 			);
 
 			return;
@@ -147,6 +154,7 @@ class FilecacheBackfill
 					? 1
 					: 0,
 			],
+			JobStatsService::millisecondsSince( $started ),
 		);
 
 		$this->logger->info(

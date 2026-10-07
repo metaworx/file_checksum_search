@@ -100,6 +100,7 @@ class StampCheck
 	{
 		$after    = $this->appConfig->getValueInt( Application::APP_ID, self::CURSOR, 0 );
 		$deadline = $this->time->getTime() + self::TIME_BUDGET;
+		$started  = hrtime( true );
 
 		try
 		{
@@ -120,6 +121,12 @@ class StampCheck
 					'after'     => $after,
 					'exception' => $e,
 				],
+			);
+
+			$this->jobStats->recordFailure(
+				JobStatsService::JOB_STAMP_CHECK,
+				$e,
+				JobStatsService::millisecondsSince( $started ),
 			);
 
 			return;
@@ -144,6 +151,7 @@ class StampCheck
 					? 1
 					: 0,
 			],
+			JobStatsService::millisecondsSince( $started ),
 		);
 
 		$this->logger->info(

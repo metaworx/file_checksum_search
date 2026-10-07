@@ -20,7 +20,7 @@ import TunablesSection from './TunablesSection.vue'
 import DocsViewer from '../docs-vue/DocsViewer.vue'
 import { useAdminSettings } from './composables/useAdminSettings'
 import { toastSuccess } from '../toast'
-import { formatDateTime, keepNumbersWithWords, n, t } from '../l10n'
+import { formatDateTime, formatDuration, keepNumbersWithWords, n, t } from '../l10n'
 
 /** The words each permission section shows; the component is the same. */
 const PERMISSION_HELP = {
@@ -178,6 +178,8 @@ const staleReason = (state: string) => STALE_REASONS[state] ?? { label: state, h
 const JOB_LABELS: Record<string, string> = {
 	// TRANSLATORS: a background job's name: every few minutes it applies the rules to the files and queues those that need checksums
 	rule_sweep: t('file_checksum_search', 'Rule sweep'),
+	// TRANSLATORS: a background job's name: it applies one rule to the files it governs, when an administrator chooses Reapply for that rule
+	rule_apply: t('file_checksum_search', 'Rule reapplication'),
 	// TRANSLATORS: a background job's name: it computes the checksums of the queued files
 	pending_drain: t('file_checksum_search', 'Queue drain'),
 	// TRANSLATORS: a background job's name: it removes the checksums of files that no longer exist
@@ -202,6 +204,7 @@ function jobCountsText(key: string, counts: Record<string, number>): string {
 
 	switch (key) {
 	case 'rule_sweep':
+	case 'rule_apply':
 		// TRANSLATORS: a background job's last run: the files its rules matched, and of those the ones it queued for checksums
 		return t('file_checksum_search', 'matched {matched}, queued {queued}', { matched: count('matched'), queued: count('marked') })
 	case 'pending_drain':
@@ -239,14 +242,42 @@ function jobCountsText(key: string, counts: Record<string, number>): string {
 	}
 }
 
-const jobRows = computed(() => Object.entries(status.value.jobs ?? {}).map(([key, run]) => ({
-	key,
-	label: JOB_LABELS[key] ?? key,
-	// TRANSLATORS: when a background job last ran: not at all
-	time: run.lastRun === null ? t('file_checksum_search', 'Not run yet') : formatDateTime(new Date(run.lastRun * 1000)),
-	// Each number held to its words, so a narrow cell breaks between counts.
-	countsText: run.lastRun === null ? '' : keepNumbersWithWords(jobCountsText(key, run.counts)),
-})))
+/**
+ * Each job's line: its last attempt where one was recorded, the last
+ * successful run otherwise. A run that failed shows why, and when the job
+ * last succeeded, in place of the counts; one that did not, the counts and
+ * how long it took.
+ */
+const jobRows = computed(() => Object.entries(status.value.jobs ?? {}).map(([key, run]) => {
+	const attempt = run.attempt ?? null
+	const at = attempt?.at ?? run.lastRun
+	const failed = attempt !== null && !attempt.ok
+
+	return {
+		key,
+		label: JOB_LABELS[key] ?? key,
+		failed,
+		// TRANSLATORS: when a background job last ran: not at all
+		time: at === null ? t('file_checksum_search', 'Not run yet') : formatDateTime(new Date(at * 1000)),
+		// Each number held to its words, so a narrow cell breaks between counts.
+		countsText: failed || run.lastRun === null ? '' : keepNumbersWithWords(jobCountsText(key, run.counts)),
+		took: failed || attempt?.durationMs == null
+			? ''
+			// TRANSLATORS: how long a background job's last run took; {duration} is a number with its unit, such as "1.2 s"
+			: t('file_checksum_search', 'took {duration}', { duration: formatDuration(attempt.durationMs) }),
+		failure: failed
+			// TRANSLATORS: a background job's last run ended with an error; {reason} is the error as the server logs it, in English
+			? t('file_checksum_search', 'failed: {reason}', { reason: attempt.reason ?? '' })
+			: '',
+		lastSuccess: !failed
+			? ''
+			: run.lastRun === null
+				// TRANSLATORS: a background job whose runs have all failed
+				? t('file_checksum_search', 'no successful run yet')
+				// TRANSLATORS: when a background job whose last run failed last ran without an error
+				: t('file_checksum_search', 'last success: {time}', { time: formatDateTime(new Date(run.lastRun * 1000)) }),
+	}
+}))
 
 /** When the kept count of indexed checksums was taken, as the jobs' times are written. */
 const rowCountTime = computed(() => status.value.rowCountAt === undefined ? '—' : formatDateTime(new Date(status.value.rowCountAt * 1000)))
@@ -645,6 +676,10 @@ loadRules().then(() => {
 									<template v-for="(count, mode) in status.pendingStats" :key="mode">
 										{{ mode }}: {{ count }}<br>
 									</template>
+									<span v-if="status.pendingFailed" id="fcias-status-pending-failed" class="fcias-hint">
+										<!-- TRANSLATORS: of the queued files, those whose checksums could not be computed on at least one attempt; they wait behind the others -->
+										{{ t('file_checksum_search', 'Failed at least once: {count}', { count: status.pendingFailed }) }}
+									</span>
 								</template>
 							</td>
 						</tr>
@@ -672,7 +707,14 @@ loadRules().then(() => {
 									<template v-for="job in jobRows" :key="job.key">
 										<span>{{ job.label }}</span>
 										<span class="fcias-job-time">{{ job.time }}</span>
-										<span>{{ job.countsText }}</span>
+										<span v-if="job.failed" class="fcias-job-failed">
+											<span class="fcias-error">{{ job.failure }}</span>
+											<span class="fcias-hint">{{ job.lastSuccess }}</span>
+										</span>
+										<span v-else>
+											{{ job.countsText }}
+											<span v-if="job.took" class="fcias-hint fcias-job-took">{{ job.took }}</span>
+										</span>
 									</template>
 								</div>
 								<template v-else>

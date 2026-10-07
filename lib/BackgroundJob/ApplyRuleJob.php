@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\BackgroundJob;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\QueuedJob;
@@ -39,6 +40,7 @@ class ApplyRuleJob
 	public function __construct(
 		ITimeFactory                     $time,
 		private readonly RuleService     $ruleService,
+		private readonly JobStatsService $jobStats,
 		private readonly LoggerInterface $logger,
 	)
 	{
@@ -54,12 +56,19 @@ class ApplyRuleJob
 	#[\Override]
 	protected function run( $argument ): void
 	{
-		$ruleId = (string) ( $argument['ruleId'] ?? '' );
-		$actor  = (string) ( $argument['actor'] ?? 'unknown' );
+		$ruleId  = (string) ( $argument['ruleId'] ?? '' );
+		$actor   = (string) ( $argument['actor'] ?? 'unknown' );
+		$started = hrtime( true );
 
 		try
 		{
 			$rule = $this->ruleService->findRuleById( $ruleId );
+
+			// A rule gone since it was queued is a run that applied nothing.
+			$result = [
+				'matched' => 0,
+				'marked'  => 0,
+			];
 
 			if ( $rule === null )
 			{
@@ -70,12 +79,21 @@ class ApplyRuleJob
 						'ruleId' => $ruleId,
 					],
 				);
-
-				return;
+			}
+			else
+			{
+				// applyRule() audit-logs the result itself, actor included.
+				$result = $this->ruleService->applyRule( $rule, null, null, $actor );
 			}
 
-			// applyRule() audit-logs the result itself, actor included.
-			$this->ruleService->applyRule( $rule, null, null, $actor );
+			$this->jobStats->record(
+				JobStatsService::JOB_RULE_APPLY,
+				[
+					'matched' => $result['matched'],
+					'marked'  => $result['marked'],
+				],
+				JobStatsService::millisecondsSince( $started ),
+			);
 		}
 		catch ( Throwable $e )
 		{
@@ -87,6 +105,12 @@ class ApplyRuleJob
 					'actor'     => $actor,
 					'exception' => $e,
 				],
+			);
+
+			$this->jobStats->recordFailure(
+				JobStatsService::JOB_RULE_APPLY,
+				$e,
+				JobStatsService::millisecondsSince( $started ),
 			);
 		}
 	}

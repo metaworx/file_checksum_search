@@ -13,7 +13,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import de from '../l10n/de.json'
 import deDE from '../l10n/de_DE.json'
 import DuplicateGroup from './duplicates-vue/components/DuplicateGroup.vue'
-import { formatDateTime, keepNumbersWithWords, n, t } from './l10n'
+import { formatDateTime, formatDuration, keepNumbersWithWords, n, t } from './l10n'
 
 const APP = 'file_checksum_search'
 
@@ -106,6 +106,25 @@ describe('a date', () => {
 		expect(formatDateTime(EARLY)).toBe('01/10/2026, 07:05:09')
 		setLocale('en_US')
 		expect(formatDateTime(EARLY)).toMatch(/^10\/01\/2026, 07:05:09\sAM$/)
+	})
+})
+
+describe('a duration', () => {
+	const pageLocale = getLocale()
+
+	afterEach(() => {
+		setLocale(pageLocale)
+	})
+
+	// The unit is the locale's, chosen by the duration's size.
+	it('is written in the unit its size calls for, as the locale writes it', () => {
+		setLocale('en_US')
+		expect(formatDuration(350)).toBe('350 ms')
+		expect(formatDuration(1234)).toBe('1.2 sec')
+		expect(formatDuration(185000)).toBe('3 min')
+		// The decimal separator and the unit's spelling are the locale's.
+		setLocale('de_DE')
+		expect(formatDuration(1234)).toMatch(/^1,2\s\S+$/)
 	})
 })
 

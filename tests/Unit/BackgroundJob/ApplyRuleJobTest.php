@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\BackgroundJob;
 
 use OCA\FileChecksumSearch\BackgroundJob\ApplyRuleJob;
 use OCA\FileChecksumSearch\Service\HintedInvalidArgumentException;
+use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -28,6 +29,8 @@ class ApplyRuleJobTest
 
 	private MockObject|RuleService     $ruleService;
 
+	private MockObject|JobStatsService $jobStats;
+
 	private MockObject|LoggerInterface $logger;
 
 	private ApplyRuleJob               $job;
@@ -40,11 +43,13 @@ class ApplyRuleJobTest
 		parent::setUp();
 
 		$this->ruleService = $this->createMock( RuleService::class );
+		$this->jobStats    = $this->createMock( JobStatsService::class );
 		$this->logger      = $this->createMock( LoggerInterface::class );
 
 		$this->job = new ApplyRuleJob(
 			$this->createMock( ITimeFactory::class ),
 			$this->ruleService,
+			$this->jobStats,
 			$this->logger,
 		);
 	}
@@ -79,11 +84,24 @@ class ApplyRuleJobTest
 		                  ->method( 'applyRule' )
 		                  ->with( $rule, null, null, 'alice' )
 		                  ->willReturn( [
-			                  'matched' => 1,
+			                  'matched' => 4,
 			                  'marked'  => 1,
 			                  'skipped' => 0,
-			                  'fresh'   => 0,
+			                  'fresh'   => 3,
 		                  ] )
+		;
+
+		// Its run on the status, as the sweep's is.
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'record' )
+		               ->with(
+			               JobStatsService::JOB_RULE_APPLY,
+			               [
+				               'matched' => 4,
+				               'marked'  => 1,
+			               ],
+			               $this->isType( 'int' ),
+		               )
 		;
 
 		$this->runJob(
@@ -133,9 +151,20 @@ class ApplyRuleJobTest
 		             ->method( 'error' )
 		;
 
-		$this->runJob( [ 'ruleId' => 'r1' ] );
+		// The failure on the status, the last success left as it was.
+		$this->jobStats->expects( $this->never() )
+		               ->method( 'record' )
+		;
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'recordFailure' )
+		               ->with(
+			               JobStatsService::JOB_RULE_APPLY,
+			               $this->isInstanceOf( RuntimeException::class ),
+			               $this->isType( 'int' ),
+		               )
+		;
 
-		$this->addToAssertionCount( 1 );
+		$this->runJob( [ 'ruleId' => 'r1' ] );
 	}
 
 	/**

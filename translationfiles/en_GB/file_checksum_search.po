@@ -426,6 +426,10 @@ msgstr "FAQ"
 msgid "Failed"
 msgstr "Failed"
 
+#. TRANSLATORS of the queued files, those whose checksums could not be computed on at least one attempt; they wait behind the others
+msgid "Failed at least once: {count}"
+msgstr "Failed at least once: {count}"
+
 msgid "File Checksum Index & Search"
 msgstr "File Checksum Index & Search"
 
@@ -801,6 +805,10 @@ msgstr "Rule enabled."
 
 msgid "Rule not found."
 msgstr "Rule not found."
+
+#. TRANSLATORS: a background job's name: it applies one rule to the files it governs, when an administrator chooses Reapply for that rule
+msgid "Rule reapplication"
+msgstr "Rule reapplication"
 
 msgid "Rule saved."
 msgstr "Rule saved."
@@ -1181,6 +1189,10 @@ msgid_plural "counted %n checksums"
 msgstr[0] "counted %n checksum"
 msgstr[1] "counted %n checksums"
 
+#. TRANSLATORS: a background job's last run ended with an error; {reason} is the error as the server logs it, in English
+msgid "failed: {reason}"
+msgstr "failed: {reason}"
+
 #. TRANSLATORS: fileIds is a parameter name; keep it
 msgid "fileIds must be a non-empty list of integers."
 msgstr "fileIds must be a non-empty list of integers."
@@ -1200,6 +1212,10 @@ msgstr "groupfolder: takes the numeric folder ID."
 msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
 msgstr "invalidated by a reset: already hidden from search, and pending deletion by the background job"
 
+#. TRANSLATORS: when a background job whose last run failed last ran without an error
+msgid "last success: {time}"
+msgstr "last success: {time}"
+
 #. TRANSLATORS: an example of what to type; keep the storage IDs as they are
 msgid "local::/path/ or smb::…"
 msgstr "local::/path/ or smb::…"
@@ -1217,6 +1233,10 @@ msgstr "no catch-all rule — files the rules above do not match are left to a m
 
 msgid "no rule of its own — its files are left to a more general rule, if one is enabled"
 msgstr "no rule of its own — its files are left to a more general rule, if one is enabled"
+
+#. TRANSLATORS: a background job whose runs have all failed
+msgid "no successful run yet"
+msgstr "no successful run yet"
 
 #. TRANSLATORS: the checksum a file has now, after verification found it changed
 msgid "now: {hash}"
@@ -1264,6 +1284,10 @@ msgstr "stamped {stamped}, queued again {queued}, not finished yet"
 
 msgid "the file changed while no rule maintained its checksums, so they were deleted; it gets them back once a rule covers it again"
 msgstr "the file changed while no rule maintained its checksums, so they were deleted; it gets them back once a rule covers it again"
+
+#. TRANSLATORS: how long a background job's last run took; {duration} is a number with its unit, such as "1.2 s"
+msgid "took {duration}"
+msgstr "took {duration}"
 
 #. TRANSLATORS: value is a parameter name; keep it
 msgid "value must be a string."

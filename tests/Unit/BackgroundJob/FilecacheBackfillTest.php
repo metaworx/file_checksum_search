@@ -179,6 +179,18 @@ class FilecacheBackfillTest
 		$this->jobList->expects( $this->never() )
 		              ->method( 'add' )
 		;
+		// On the status as a failure, the last success left as it was.
+		$this->jobStats->expects( $this->never() )
+		               ->method( 'record' )
+		;
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'recordFailure' )
+		               ->with(
+			               JobStatsService::JOB_FILECACHE_BACKFILL,
+			               $this->isInstanceOf( RuntimeException::class ),
+			               $this->isType( 'int' ),
+		               )
+		;
 
 		$this->runJob();
 	}

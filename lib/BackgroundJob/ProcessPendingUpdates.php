@@ -82,6 +82,8 @@ class ProcessPendingUpdates
 			],
 		);
 
+		$started = hrtime( true );
+
 		try
 		{
 			$batchLimit = $this->appConfig->getValueInt(
@@ -115,6 +117,7 @@ class ProcessPendingUpdates
 						'total'     => 0,
 						'disowned'  => $disowned,
 					],
+					JobStatsService::millisecondsSince( $started ),
 				);
 
 				if ( $disowned > 0 )
@@ -165,6 +168,7 @@ class ProcessPendingUpdates
 					'total'     => count( $pendingRows ),
 					'disowned'  => $disowned,
 				],
+				JobStatsService::millisecondsSince( $started ),
 			);
 
 			// Re-dispatch when either queue was full: more of it is waiting.
@@ -194,6 +198,12 @@ class ProcessPendingUpdates
 					'app'       => Application::APP_ID,
 					'exception' => $e,
 				],
+			);
+
+			$this->jobStats->recordFailure(
+				JobStatsService::JOB_PENDING_DRAIN,
+				$e,
+				JobStatsService::millisecondsSince( $started ),
 			);
 		}
 	}

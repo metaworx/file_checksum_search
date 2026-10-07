@@ -427,6 +427,10 @@ msgstr "Preguntas frecuentes"
 msgid "Failed"
 msgstr "Error"
 
+#. TRANSLATORS of the queued files, those whose checksums could not be computed on at least one attempt; they wait behind the others
+msgid "Failed at least once: {count}"
+msgstr "Fallidos al menos una vez: {count}"
+
 msgid "File Checksum Index & Search"
 msgstr "File Checksum Index & Search"
 
@@ -802,6 +806,10 @@ msgstr "Regla activada."
 
 msgid "Rule not found."
 msgstr "Regla no encontrada."
+
+#. TRANSLATORS: a background job's name: it applies one rule to the files it governs, when an administrator chooses Reapply for that rule
+msgid "Rule reapplication"
+msgstr "Reaplicación de una regla"
 
 msgid "Rule saved."
 msgstr "Regla guardada."
@@ -1183,6 +1191,10 @@ msgstr[0] "%n suma de verificación contada"
 msgstr[1] "%n de sumas de verificación contadas"
 msgstr[2] "%n sumas de verificación contadas"
 
+#. TRANSLATORS: a background job's last run ended with an error; {reason} is the error as the server logs it, in English
+msgid "failed: {reason}"
+msgstr "falló: {reason}"
+
 #. TRANSLATORS: fileIds is a parameter name; keep it
 msgid "fileIds must be a non-empty list of integers."
 msgstr "fileIds debe ser una lista no vacía de enteros."
@@ -1202,6 +1214,10 @@ msgstr "groupfolder: espera el ID numérico de la carpeta."
 msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
 msgstr "invalidadas por un restablecimiento: ya ocultas en la búsqueda y pendientes de que el trabajo en segundo plano las elimine"
 
+#. TRANSLATORS: when a background job whose last run failed last ran without an error
+msgid "last success: {time}"
+msgstr "última ejecución correcta: {time}"
+
 #. TRANSLATORS: an example of what to type; keep the storage IDs as they are
 msgid "local::/path/ or smb::…"
 msgstr "local::/path/ o smb::…"
@@ -1219,6 +1235,10 @@ msgstr "sin regla comodín: los archivos con los que no coinciden las reglas de 
 
 msgid "no rule of its own — its files are left to a more general rule, if one is enabled"
 msgstr "sin regla propia: sus archivos quedan en manos de una regla más general, si hay alguna activada"
+
+#. TRANSLATORS: a background job whose runs have all failed
+msgid "no successful run yet"
+msgstr "aún sin ninguna ejecución correcta"
 
 #. TRANSLATORS: the checksum a file has now, after verification found it changed
 msgid "now: {hash}"
@@ -1266,6 +1286,10 @@ msgstr "con marca de tiempo {stamped}, de nuevo en cola {queued}, aún sin final
 
 msgid "the file changed while no rule maintained its checksums, so they were deleted; it gets them back once a rule covers it again"
 msgstr "el archivo cambió mientras ninguna regla mantenía sus sumas de verificación, así que se eliminaron; las recupera en cuanto una regla vuelva a abarcarlo"
+
+#. TRANSLATORS: how long a background job's last run took; {duration} is a number with its unit, such as "1.2 s"
+msgid "took {duration}"
+msgstr "duró {duration}"
 
 #. TRANSLATORS: value is a parameter name; keep it
 msgid "value must be a string."

@@ -107,12 +107,13 @@ class HashIndexCheck
 		$after   = $walking
 			? $this->appConfig->getValueInt( Application::APP_ID, self::CURSOR, 0 )
 			: 0;
+		$started = hrtime( true );
 
 		try
 		{
 			if ( ! $walking && $this->metadataService->hashIndexIsComplete() )
 			{
-				$this->finish( 0, true );
+				$this->finish( 0, true, 0, JobStatsService::millisecondsSince( $started ) );
 
 				return;
 			}
@@ -138,6 +139,12 @@ class HashIndexCheck
 				],
 			);
 
+			$this->jobStats->recordFailure(
+				JobStatsService::JOB_HASH_INDEX_CHECK,
+				$e,
+				JobStatsService::millisecondsSince( $started ),
+			);
+
 			return;
 		}
 
@@ -151,7 +158,12 @@ class HashIndexCheck
 			$this->jobList->add( self::class );
 		}
 
-		$this->finish( $result['fixed'], $result['done'], $result['last'] );
+		$this->finish(
+			$result['fixed'],
+			$result['done'],
+			$result['last'],
+			JobStatsService::millisecondsSince( $started ),
+		);
 	}
 
 
@@ -161,7 +173,8 @@ class HashIndexCheck
 	private function finish(
 		int  $repaired,
 		bool $done,
-		int  $last = 0,
+		int  $last,
+		int  $durationMs,
 	): void
 	{
 		$this->jobStats->record(
@@ -172,6 +185,7 @@ class HashIndexCheck
 					? 1
 					: 0,
 			],
+			$durationMs,
 		);
 
 		$this->logger->info(

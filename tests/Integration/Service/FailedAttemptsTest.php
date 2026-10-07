@@ -171,6 +171,25 @@ class FailedAttemptsTest
 	}
 
 	/**
+	 * The status counts the queued files that failed at least once.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheQueuedFilesThatFailedAreCounted(): void
+	{
+		[ $failed, $fresh ] = [ self::FILE_ID, self::FILE_ID + 1 ];
+
+		$before = $this->metadataService->countFailingQueued();
+
+		$this->metadataService->markPending( $failed, MetadataService::PENDING_AUTO );
+		$this->metadataService->markPending( $fresh, MetadataService::PENDING_AUTO );
+		$this->metadataService->recordFailedAttempt( $failed, MetadataService::PENDING_AUTO );
+		$this->metadataService->recordFailedAttempt( $failed, MetadataService::PENDING_AUTO );
+
+		$this->assertSame( $before + 1, $this->metadataService->countFailingQueued() );
+	}
+
+	/**
 	 * The file's state row as [marker, failed attempts], or null without one.
 	 *
 	 * @return array{0: string, 1: int}|null

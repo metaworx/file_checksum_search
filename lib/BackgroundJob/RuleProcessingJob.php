@@ -97,6 +97,8 @@ class RuleProcessingJob
 			],
 		);
 
+		$started = hrtime( true );
+
 		try
 		{
 			$result = $this->ruleService->evaluateRules();
@@ -107,6 +109,7 @@ class RuleProcessingJob
 					'matched' => $result['matched'],
 					'marked'  => $result['marked'],
 				],
+				JobStatsService::millisecondsSince( $started ),
 			);
 
 			if ( $result['marked'] > 0 )
@@ -122,6 +125,12 @@ class RuleProcessingJob
 					'app'       => Application::APP_ID,
 					'exception' => $e,
 				],
+			);
+
+			$this->jobStats->recordFailure(
+				JobStatsService::JOB_RULE_SWEEP,
+				$e,
+				JobStatsService::millisecondsSince( $started ),
 			);
 		}
 
@@ -165,7 +174,7 @@ class RuleProcessingJob
 		$batchLimit = $this->appConfig->getValueInt( Application::APP_ID, 'pending_batch_limit', 50 );
 		$purged     = 0;
 		$batches    = 0;
-		$exhausted  = false;
+		$started    = hrtime( true );
 
 		try
 		{
@@ -176,8 +185,6 @@ class RuleProcessingJob
 				$batches ++;
 			}
 			while ( $n >= $batchLimit && $batches < self::ORPHAN_PURGE_MAX_BATCHES );
-
-			$exhausted = $n < $batchLimit;
 		}
 		catch ( Throwable $e )
 		{
@@ -186,13 +193,23 @@ class RuleProcessingJob
 				[
 					'app'       => Application::APP_ID,
 					'exception' => $e,
+					'purged'    => $purged,
 				],
 			);
+
+			// The clock stays, so the next tick tries again.
+			$this->jobStats->recordFailure(
+				JobStatsService::JOB_ORPHAN_PURGE,
+				$e,
+				JobStatsService::millisecondsSince( $started ),
+			);
+
+			return;
 		}
 
 		// A run that emptied the backlog books the day; one that hit its cap
 		// leaves the clock alone so the next tick carries on.
-		if ( $exhausted )
+		if ( $n < $batchLimit )
 		{
 			$this->appConfig->setValueInt( Application::APP_ID, self::ORPHAN_PURGE_LAST_RUN, $now );
 		}
@@ -203,6 +220,7 @@ class RuleProcessingJob
 				'purged'  => $purged,
 				'batches' => $batches,
 			],
+			JobStatsService::millisecondsSince( $started ),
 		);
 	}
 
@@ -221,6 +239,8 @@ class RuleProcessingJob
 	 */
 	private function countChecksumsIfDue(): void
 	{
+		$started = hrtime( true );
+
 		try
 		{
 			// Off by default: the status then counts when it is asked.
@@ -239,6 +259,12 @@ class RuleProcessingJob
 					'app'       => Application::APP_ID,
 					'exception' => $e,
 				],
+			);
+
+			$this->jobStats->recordFailure(
+				JobStatsService::JOB_CHECKSUM_COUNT,
+				$e,
+				JobStatsService::millisecondsSince( $started ),
 			);
 		}
 	}

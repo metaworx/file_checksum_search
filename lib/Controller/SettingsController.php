@@ -94,7 +94,8 @@ class SettingsController
 	/**
 	 * The status's counts: the indexed checksums, as kept and with when they
 	 * were counted, and the queue and the untrusted hashes, by mode and by
-	 * reason, counted now.
+	 * reason, counted now, with the queued files that have failed at least
+	 * once.
 	 *
 	 * The queue counts read only their own rows, so they stay cheap while the
 	 * backlog is small; the checksum count reads every hash row, so it is
@@ -111,10 +112,11 @@ class SettingsController
 		$rows = $this->statusService->getHashRowCount( $recount );
 
 		return new DataResponse( [
-			'rowCount'     => $rows['rows'],
-			'rowCountAt'   => $rows['at'],
-			'pendingStats' => $this->metadataService->getPendingStats(),
-			'staleStats'   => $this->metadataService->getStaleStats(),
+			'rowCount'      => $rows['rows'],
+			'rowCountAt'    => $rows['at'],
+			'pendingStats'  => $this->metadataService->getPendingStats(),
+			'pendingFailed' => $this->metadataService->countFailingQueued(),
+			'staleStats'    => $this->metadataService->getStaleStats(),
 		] );
 	}
 
