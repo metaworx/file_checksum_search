@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-10-08
+
 ### Added
 
 - Status page and `occ fcias:status`: each background job's run time,
