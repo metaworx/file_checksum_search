@@ -21,6 +21,7 @@ use OCP\IAppConfig;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
 use ReflectionMethod;
 use RuntimeException;
 
@@ -220,11 +221,119 @@ class ProcessPendingUpdatesTest
 
 		$this->hashCalc->expects( $this->exactly( 50 ) )
 		               ->method( 'processFile' )
+		               ->willReturn( true )
 		;
 
 		$this->jobList->expects( $this->once() )
 		              ->method( 'add' )
 		              ->with( ProcessPendingUpdates::class )
+		;
+
+		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
+		$reflection->invoke( $this->job, null );
+	}
+
+	/**
+	 * A retry of a file that keeps failing comes on every run, so only the
+	 * first failure warns.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testARetriedFailureLogsAtDebug(): void
+	{
+		$this->metadataService->method( 'fetchPendingBatch' )
+		                      ->willReturn(
+			                      [
+				                      [
+					                      MetadataService::FIELD_FILE_ID           => 42,
+					                      MetadataService::FIELD_META_VALUE_STRING => 'pending:auto',
+				                      ],
+			                      ],
+		                      )
+		;
+		$this->hashCalc->method( 'processFile' )
+		               ->willThrowException( new RuntimeException( 'unreadable' ) )
+		;
+		$this->metadataService->method( 'recordFailedAttempt' )
+		                      ->willReturn( 3 )
+		;
+
+		$this->logger->expects( $this->once() )
+		             ->method( 'log' )
+		             ->with( LogLevel::DEBUG, $this->anything(), $this->anything() )
+		;
+
+		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
+		$reflection->invoke( $this->job, null );
+	}
+
+	/**
+	 * A file processFile() leaves queued without an exception — unreadable,
+	 * locked, written to during the read — is a failure in the run's
+	 * counts, not a file processed.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAFileLeftQueuedCountsAsFailed(): void
+	{
+		$this->metadataService->method( 'fetchPendingBatch' )
+		                      ->willReturn(
+			                      [
+				                      [
+					                      MetadataService::FIELD_FILE_ID           => 42,
+					                      MetadataService::FIELD_META_VALUE_STRING => 'pending:auto',
+				                      ],
+			                      ],
+		                      )
+		;
+		$this->hashCalc->method( 'processFile' )
+		               ->willReturn( false )
+		;
+
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'record' )
+		               ->with(
+			               JobStatsService::JOB_PENDING_DRAIN,
+			               [
+				               'processed' => 0,
+				               'failed'    => 1,
+				               'total'     => 1,
+				               'disowned'  => 0,
+			               ],
+		               )
+		;
+
+		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
+		$reflection->invoke( $this->job, null );
+	}
+
+	/**
+	 * A full batch in which every file failed: those files are still queued,
+	 * so a run dispatched at once would take them again, and the files
+	 * behind them would wait for ever. The next tick tries them instead.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAFullBatchThatHashedNothingIsNotRedispatched(): void
+	{
+		$pendingRows = array_map(
+			static fn( int $fileId ) => [
+				MetadataService::FIELD_FILE_ID           => $fileId,
+				MetadataService::FIELD_META_VALUE_STRING => 'pending:auto',
+			],
+			range( 1, 50 ),
+		);
+
+		$this->metadataService->method( 'fetchPendingBatch' )
+		                      ->willReturn( $pendingRows )
+		;
+
+		$this->hashCalc->method( 'processFile' )
+		               ->willThrowException( new RuntimeException( 'unreadable' ) )
+		;
+
+		$this->jobList->expects( $this->never() )
+		              ->method( 'add' )
 		;
 
 		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
@@ -317,18 +426,28 @@ class ProcessPendingUpdatesTest
 			               function(
 				               int    $fileId,
 				               string $_mode,
-			               ): void
+			               ): bool
 			               {
 				               if ( $fileId === 42 )
 				               {
 					               throw new RuntimeException( 'File not found' );
 				               }
+
+				               return true;
 			               },
 		               )
 		;
 
+		// Its failed attempt counted, and a warning, as its first.
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'recordFailedAttempt' )
+		                      ->with( 42, 'pending:auto' )
+		                      ->willReturn( 1 )
+		;
+
 		$this->logger->expects( $this->once() )
-		             ->method( 'warning' )
+		             ->method( 'log' )
+		             ->with( LogLevel::WARNING, $this->anything(), $this->anything() )
 		;
 
 		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );

@@ -900,12 +900,24 @@ class MetadataService
 	}
 
 	/**
-	 * Fetch a batch of pending rows ordered by file_id.
+	 * Fetch a batch of pending rows: the files with the fewest failed
+	 * attempts first ({@see recordFailedAttempt()}), by file id among them.
+	 * A file that keeps failing so waits behind every other, rather than
+	 * taking a place in every batch.
+	 *
+	 * Given $after, the files above that id instead, by file id alone: one
+	 * walk through the queue, which takes each file once however often it
+	 * has failed.
+	 *
+	 * @param  int|null  $after  The last file id a walk took; 0 to start one.
 	 *
 	 * @return array<int, array{file_id: int, meta_value_string: string}>
 	 * @throws \OCP\DB\Exception
 	 */
-	public function fetchPendingBatch( int $limit = 50 ): array
+	public function fetchPendingBatch(
+		int  $limit = 50,
+		?int $after = null,
+	): array
 	{
 		$qb = $this->db->getQueryBuilder();
 		$qb->select( self::FIELD_FILE_ID, self::FIELD_META_VALUE_STRING )
@@ -919,9 +931,24 @@ class MetadataService
 				      $qb->createNamedParameter( self::PENDING_LIKE ),
 			      ),
 		   )
-		   ->orderBy( self::FIELD_FILE_ID, 'ASC' )
 		   ->setMaxResults( $limit )
 		;
+
+		if ( $after === null )
+		{
+			$qb->orderBy( self::FIELD_META_VALUE_INT, 'ASC' )
+			   ->addOrderBy( self::FIELD_FILE_ID, 'ASC' )
+			;
+		}
+		else
+		{
+			$qb->andWhere(
+				$qb->expr()
+				   ->gt( self::FIELD_FILE_ID, $qb->createNamedParameter( $after, IQueryBuilder::PARAM_INT ) ),
+			)
+			   ->orderBy( self::FIELD_FILE_ID, 'ASC' )
+			;
+		}
 
 		$result = $this->executeQuery( $qb );
 		$rows   = [];
@@ -950,6 +977,8 @@ class MetadataService
 	 * insert and relying on universal seeding, which made every mark on an
 	 * unseeded file a silent no-op.)
 	 *
+	 * A file queued again keeps its failed attempts ({@see writeState()}).
+	 *
 	 * @throws \OCP\DB\Exception
 	 */
 	public function markPending(
@@ -958,6 +987,59 @@ class MetadataService
 	): void
 	{
 		$this->writeState( $fileId, $mode );
+	}
+
+	/**
+	 * Count one attempt at hashing a queued file that left it queued: a
+	 * read that failed, a lock, a write during the read, an exception.
+	 *
+	 * The count is the state row's int, which only this app writes, and
+	 * orders the queue ({@see fetchPendingBatch()}): it never takes a file
+	 * off it. A file the attempt finds not queued is queued with $marker,
+	 * as it would have been before the count existed.
+	 *
+	 * @param  string  $marker  The `pending:<mode>` the attempt was made for.
+	 *
+	 * @return int  The file's failed attempts, this one included.
+	 * @throws Exception
+	 */
+	public function recordFailedAttempt(
+		int    $fileId,
+		string $marker,
+	): int
+	{
+		$attempts = $this->failedAttempts( $fileId );
+
+		if ( $attempts === null )
+		{
+			$this->writeState( $fileId, $marker, 1 );
+
+			return 1;
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->update( self::TABLE_FILES_METADATA_INDEX )
+		   ->set(
+			   self::FIELD_META_VALUE_INT,
+			   $qb->func()
+			      ->add(
+				      self::FIELD_META_VALUE_INT,
+				      $qb->createNamedParameter( 1, IQueryBuilder::PARAM_INT ),
+			      ),
+		   )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_STATE ) ),
+			   $qb->expr()
+			      ->like( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( self::PENDING_LIKE ) ),
+		   )
+		;
+
+		$this->executeStatement( $qb );
+
+		return $attempts + 1;
 	}
 
 	/**
@@ -1890,13 +1972,27 @@ class MetadataService
 	 * marker: the stamp row is what says the app has considered a file, and
 	 * 0 that nothing vouches for any hash of it.
 	 *
+	 * A file queued again keeps its failed attempts, whatever its mode: the
+	 * rule sweep queues every file whose hashes are older than it, which a
+	 * file that keeps failing stays, and would otherwise put it back at the
+	 * head of the queue on every sweep. Any other marker starts at 0: the
+	 * file has left the queue.
+	 *
+	 * @param  int|null  $attempts  The failed attempts to give the row; null
+	 *                              keeps a queued file's own.
+	 *
 	 * @throws Exception
 	 */
 	private function writeState(
 		int    $fileId,
 		string $value,
+		?int   $attempts = null,
 	): void
 	{
+		$attempts ??= str_starts_with( $value, self::PENDING_PREFIX )
+			? $this->failedAttempts( $fileId ) ?? 0
+			: 0;
+
 		$this->deleteState( $fileId );
 
 		if ( $value === '' )
@@ -1909,7 +2005,38 @@ class MetadataService
 			$this->insertIndexRow( $fileId, self::KEY_FILE_CHECKSUM_UPDATED_AT, '' );
 		}
 
-		$this->insertIndexRow( $fileId, self::KEY_FILE_CHECKSUM_STATE, $value );
+		$this->insertIndexRow( $fileId, self::KEY_FILE_CHECKSUM_STATE, $value, $attempts );
+	}
+
+	/**
+	 * A queued file's failed attempts ({@see recordFailedAttempt()}), or null
+	 * for a file that is not queued.
+	 *
+	 * @throws Exception
+	 */
+	private function failedAttempts( int $fileId ): ?int
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( self::FIELD_META_VALUE_INT )
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_STATE ) ),
+			   $qb->expr()
+			      ->like( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( self::PENDING_LIKE ) ),
+		   )
+		   ->setMaxResults( 1 )
+		;
+
+		$result   = $this->executeQuery( $qb );
+		$attempts = $result->fetchOne();
+		$result->closeCursor();
+
+		return $attempts === false
+			? null
+			: (int) $attempts;
 	}
 
 	/**

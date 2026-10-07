@@ -267,6 +267,11 @@ class MetadataServiceTest
 	 * not written: Nextcloud rewrites it from the document on any app's
 	 * save, which is how a marker kept there was lost.
 	 */
+	/**
+	 * Replaced, not updated, and with the failed attempts of a file that was
+	 * queued already: a file queued again keeps its place behind the files
+	 * that failed fewer times.
+	 */
 	public function testMarkPendingReplacesTheStateRow(): void
 	{
 		$this->queryBuilder->expects( $this->never() )
@@ -280,9 +285,10 @@ class MetadataServiceTest
 
 		$inserted = $this->captureInsertedRows();
 
+		// Queued with three failed attempts; the stamp row exists.
 		$result = $this->createMock( IResult::class );
 		$result->method( 'fetchOne' )
-		       ->willReturn( 42 )
+		       ->willReturnOnConsecutiveCalls( 3, 42 )
 		;
 		$this->queryBuilder->method( 'executeQuery' )
 		                   ->willReturn( $result )
@@ -291,7 +297,7 @@ class MetadataServiceTest
 		$this->service->markPending( 42, 'pending:auto' );
 
 		$this->assertSame(
-			[ [ 42, MetadataService::KEY_FILE_CHECKSUM_STATE, 'pending:auto', 0 ] ],
+			[ [ 42, MetadataService::KEY_FILE_CHECKSUM_STATE, 'pending:auto', 3 ] ],
 			$inserted->getArrayCopy(),
 		);
 	}
@@ -699,9 +705,10 @@ class MetadataServiceTest
 		                   ->willReturn( $result )
 		;
 
-		// The delete and the stamp row's existence check compare the same
-		// two columns, so what matters is that the delete names the state
-		// key, and that nothing deletes by the stamp's.
+		// The read of the file's failed attempts, the delete and the stamp
+		// row's existence check compare the same two columns, so what matters
+		// is that the delete names the state key, and that nothing deletes by
+		// the stamp's.
 		$compared = [];
 		$this->expr->method( 'eq' )
 		           ->willReturnCallback(
@@ -725,6 +732,8 @@ class MetadataServiceTest
 
 		$this->assertSame(
 			[
+				[ MetadataService::FIELD_FILE_ID, 42 ],
+				[ MetadataService::FIELD_META_KEY, MetadataService::KEY_FILE_CHECKSUM_STATE ],
 				[ MetadataService::FIELD_FILE_ID, 42 ],
 				[ MetadataService::FIELD_META_KEY, MetadataService::KEY_FILE_CHECKSUM_STATE ],
 				[ MetadataService::FIELD_FILE_ID, 42 ],

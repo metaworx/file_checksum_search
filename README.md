@@ -530,6 +530,14 @@ An entry exists only for a file that was actually queued, hashed, or eroded — 
 considered"**. The status page counts the queue by mode, alongside the eroded count and each
 background job's last run.
 
+A file the drain cannot hash just now — unreadable, locked, written to while it was read — stays
+queued, and its row's integer counts the failed attempts. The drain takes the files with the fewest
+first, so a file that keeps failing waits behind every other instead of taking a place in every
+batch; queuing it again keeps its count, and it goes when the file leaves the queue. A full batch
+in which no file could be hashed is not re-dispatched: the next run tries again, the files not yet
+tried first. `fcias:queue:drain --all` walks the queue once, by file id, and tries every file
+waiting: one that fails is passed rather than taken again.
+
 ## Backing up, resetting and importing
 
 The app owns three slices of state, and they are separable because they answer different questions

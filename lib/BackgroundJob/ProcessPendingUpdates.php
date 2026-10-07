@@ -20,6 +20,7 @@ use OCP\BackgroundJob\IJobList;
 use OCP\BackgroundJob\TimedJob;
 use OCP\IAppConfig;
 use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
 use Throwable;
 
 /**
@@ -139,25 +140,21 @@ class ProcessPendingUpdates
 				{
 					// Algorithms come from the governing rule, resolved at
 					// action time — an ignore/exclude/no-rule verdict drops
-					// the mark instead of hashing.
-					$this->hashCalc->processFile( $fileId, $mode );
+					// the mark instead of hashing. False: the file is still
+					// queued, its failed attempt already counted.
+					if ( $this->hashCalc->processFile( $fileId, $mode ) )
+					{
+						$processed ++;
 
-					$processed ++;
+						continue;
+					}
 				}
 				catch ( Throwable $e )
 				{
-					$failed ++;
-
-					$this->logger->warning(
-						'FCIAS ProcessPendingUpdates: processFile failed for fileId {fileId}',
-						[
-							'app'       => Application::APP_ID,
-							'fileId'    => $fileId,
-							'mode'      => $mode,
-							'exception' => $e,
-						],
-					);
+					$this->recordFailure( $fileId, $status, $e );
 				}
+
+				$failed ++;
 			}
 
 			$this->jobStats->record(
@@ -171,7 +168,9 @@ class ProcessPendingUpdates
 			);
 
 			// Re-dispatch when either queue was full: more of it is waiting.
-			if ( count( $pendingRows ) >= $batchLimit || $disowned >= $batchLimit )
+			// Not after a full batch in which no file left the queue: those
+			// files keep failing, and the next tick tries them again.
+			if ( ( count( $pendingRows ) >= $batchLimit && $processed > 0 ) || $disowned >= $batchLimit )
 			{
 				$this->jobList->add( self::class );
 			}
@@ -197,5 +196,43 @@ class ProcessPendingUpdates
 				],
 			);
 		}
+	}
+
+
+//  other non-static methods
+
+	/**
+	 * Count a failed attempt at a file whose hashing threw, and log it: a
+	 * warning the first time, debug for the retries after it, which come
+	 * on every run until the file reads again.
+	 */
+	private function recordFailure(
+		int       $fileId,
+		string    $marker,
+		Throwable $e,
+	): void
+	{
+		try
+		{
+			$attempts = $this->metadataService->recordFailedAttempt( $fileId, $marker );
+		}
+		catch ( Throwable )
+		{
+			$attempts = 1;
+		}
+
+		$this->logger->log(
+			$attempts > 1
+				? LogLevel::DEBUG
+				: LogLevel::WARNING,
+			'FCIAS ProcessPendingUpdates: processFile failed for fileId {fileId} (failed attempts: {attempts})',
+			[
+				'app'       => Application::APP_ID,
+				'fileId'    => $fileId,
+				'marker'    => $marker,
+				'attempts'  => $attempts,
+				'exception' => $e,
+			],
+		);
 	}
 }

@@ -11,6 +11,16 @@ the first stable release.
 
 ## [Unreleased]
 
+### Fixed
+
+- `fcias:queue:drain --all` ends, and the queue drain job no longer
+  stalls, on files that cannot be hashed: they wait behind the rest
+  (`README.md`, *Pending Hash Queue*).
+
+- A file queued `lazy` leaves the queue once its hashes are dropped;
+  since 0.22.0 it stayed queued, and was taken again on every run
+  (`README.md`, *Modes*).
+
 ## [0.23.0] - 2026-10-06
 
 ### Changed

@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCP\IAppConfig;
 use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -69,7 +70,7 @@ class Drain
 			     'all',
 			     null,
 			     InputOption::VALUE_NONE,
-			     'Keep taking batches until the queue is empty',
+			     'Take every file waiting, once each',
 		     )
 		     ->setHelp(
 			     <<<'HELP'
@@ -80,6 +81,11 @@ and computes the hashes that rule calls for.
 Reach for it after a large import, or when cron is not running and you would
 rather not wait. Without <info>--all</info> it takes one batch and stops, so a long queue is
 worked through in steps you control rather than in one run you cannot interrupt.
+
+A file that cannot be hashed now — unreadable, locked, written to while it was
+read — stays queued, behind the files that failed fewer times. <info>--all</info> walks
+the queue once, by file id: it tries every file waiting, passes one that fails
+rather than taking it again, and stops at the end of the queue.
 
 This reads file content, which is why it is not one of <comment>fcias:repair</comment>'s steps:
 those reconcile what the instance already holds, and run on every upgrade.
@@ -112,9 +118,19 @@ HELP,
 		$processed = 0;
 		$failed    = 0;
 
+		// With --all, one walk through the queue by file id: every file
+		// waiting is tried once, and one that fails is passed rather than
+		// taken again. Without, one batch in the queue's own order.
+		$walkedTo = 0;
+
 		while ( true )
 		{
-			$rows = $this->metadataService->fetchPendingBatch( $batchSize );
+			$rows = $this->metadataService->fetchPendingBatch(
+				$batchSize,
+				$all
+					? $walkedTo
+					: null,
+			);
 
 			if ( $rows === [] )
 			{
@@ -123,34 +139,34 @@ HELP,
 
 			foreach ( $rows as $row )
 			{
-				$fileId = (int) $row[ MetadataService::FIELD_FILE_ID ];
+				$fileId   = (int) $row[ MetadataService::FIELD_FILE_ID ];
+				$marker   = (string) $row[ MetadataService::FIELD_META_VALUE_STRING ];
+				$walkedTo = $fileId;
 
 				try
 				{
-					$this->hashCalc->processFile(
-						$fileId,
-						MetadataService::parseMode( (string) $row[ MetadataService::FIELD_META_VALUE_STRING ] ),
-					);
-					$processed ++;
+					// False: the file is still queued, its failed attempt
+					// already counted.
+					if ( $this->hashCalc->processFile( $fileId, MetadataService::parseMode( $marker ) ) )
+					{
+						$processed ++;
+
+						continue;
+					}
 				}
 				catch ( Throwable $e )
 				{
 					// One file that will not hash must not stop the queue:
-					// it stays marked, and the next run tries it again.
-					$this->logger->warning(
-						'FCIAS queue:drain: could not hash fileId {fileId}; continuing.',
-						[
-							'app'       => Application::APP_ID,
-							'fileId'    => $fileId,
-							'exception' => $e,
-						],
-					);
-					$failed ++;
-					$output->writeln(
-						sprintf( '<comment>  fileId %d could not be hashed.</comment>', $fileId ),
-						OutputInterface::VERBOSITY_VERBOSE,
-					);
+					// it stays queued, behind the files that failed fewer
+					// times, and a later run tries it again.
+					$this->recordFailure( $fileId, $marker, $e );
 				}
+
+				$failed ++;
+				$output->writeln(
+					sprintf( '<comment>  fileId %d could not be hashed.</comment>', $fileId ),
+					OutputInterface::VERBOSITY_VERBOSE,
+				);
 			}
 
 			if ( ! $all )
@@ -181,8 +197,8 @@ HELP,
 		$output->writeln(
 			$all
 				? sprintf(
-				'<comment>%d still waiting — queued while this ran, or left by a file that '
-				. 'would not hash. Run again to take them.</comment>',
+				'<comment>%d still waiting — queued behind this run, or files it could not hash, '
+				. 'which wait behind the rest. Run again to take them.</comment>',
 				$remaining,
 			)
 				: sprintf(
@@ -194,5 +210,41 @@ HELP,
 		);
 
 		return Command::SUCCESS;
+	}
+
+
+//  other non-static methods
+
+	/**
+	 * Count a failed attempt at a file whose hashing threw, and log it: a
+	 * warning the first time, debug for the retries after it.
+	 */
+	private function recordFailure(
+		int       $fileId,
+		string    $marker,
+		Throwable $e,
+	): void
+	{
+		try
+		{
+			$attempts = $this->metadataService->recordFailedAttempt( $fileId, $marker );
+		}
+		catch ( Throwable )
+		{
+			$attempts = 1;
+		}
+
+		$this->logger->log(
+			$attempts > 1
+				? LogLevel::DEBUG
+				: LogLevel::WARNING,
+			'FCIAS queue:drain: could not hash fileId {fileId} (failed attempts: {attempts}); continuing.',
+			[
+				'app'       => Application::APP_ID,
+				'fileId'    => $fileId,
+				'attempts'  => $attempts,
+				'exception' => $e,
+			],
+		);
 	}
 }

@@ -25,6 +25,7 @@ use OCP\Lock\ILockingProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use OCP\IAppConfig;
 use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
 use RuntimeException;
 use Symfony\Component\Console\Output\BufferedOutput;
 
@@ -584,6 +585,14 @@ class HashCalculationServiceTest
 		$this->service->processFile( 42, 'new', [ 'sha1' ] );
 	}
 
+	/**
+	 * Lazy computes nothing: the hashes go, saved with the marker cleared,
+	 * and the file leaves the queue. Not through the save that asks whether
+	 * the document is current, which a stamp of 0 never is: that kept every
+	 * lazy file queued.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
 	public function testProcessFileLazyMode(): void
 	{
 		$metadata = $this->createMock( IFilesMetadata::class );
@@ -596,25 +605,26 @@ class HashCalculationServiceTest
 
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'clearMetadata' )
-		                      ->with( $metadata, false )
+		                      ->with( $metadata )
 		;
 
-		$this->metadataService->expects( $this->once() )
+		$this->metadataService->expects( $this->never() )
 		                      ->method( 'saveMetadata' )
-		                      ->with( $metadata )
 		;
 
 		$this->service->expects( $this->never() )
 		              ->method( 'recalcHashes' )
 		;
 
-		$this->service->processFile(
-			42,
-			'lazy',
-			[
-				'sha1',
-				'sha256',
-			],
+		$this->assertTrue(
+			$this->service->processFile(
+				42,
+				'lazy',
+				[
+					'sha1',
+					'sha256',
+				],
+			),
 		);
 	}
 
@@ -628,7 +638,7 @@ class HashCalculationServiceTest
 	 */
 	public function testProcessFileLeavesTheQueueWhenSavedCurrent(): void
 	{
-		$this->processLazilyAndSave( true );
+		$this->processAndSave( true );
 	}
 
 	/**
@@ -636,17 +646,31 @@ class HashCalculationServiceTest
 	 */
 	public function testProcessFileStaysQueuedWhenAWriteLandedMeanwhile(): void
 	{
-		$this->processLazilyAndSave( false );
+		$this->processAndSave( false );
 	}
 
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	private function processLazilyAndSave( bool $current ): void
+	private function processAndSave( bool $current ): void
 	{
 		$metadata = $this->createMock( IFilesMetadata::class );
 		$this->metadataService->method( 'getMetadata' )
 		                      ->willReturn( $metadata )
+		;
+		$this->service->method( 'recalcHashes' )
+		              ->willReturn(
+			              [
+				              'results' => [
+					              'sha1' => [
+						              'success' => true,
+						              'hash'    => 'abc',
+						              'existed' => false,
+					              ],
+				              ],
+				              'locked'  => false,
+			              ],
+		              )
 		;
 		$this->metadataService->method( 'saveMetadata' )
 		                      ->willReturn( $current )
@@ -657,7 +681,8 @@ class HashCalculationServiceTest
 		                      ->with( 42 )
 		;
 
-		$this->service->processFile( 42, 'lazy', [ 'sha1' ] );
+		// And says which, for the drains to count.
+		$this->assertSame( $current, $this->service->processFile( 42, 'force', [ 'sha1' ] ) );
 	}
 
 	/**
@@ -957,9 +982,35 @@ class HashCalculationServiceTest
 	}
 
 	/**
+	 * A failing algorithm leaves the file queued with a failed attempt
+	 * counted, in place of the re-mark that set the count back to 0; and
+	 * processFile() says the file is still queued.
+	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testProcessFileFailureMarksPending(): void
+	public function testProcessFileFailureCountsAFailedAttempt(): void
+	{
+		$this->failOneOfTwoAlgos( attempts: 1, level: LogLevel::WARNING );
+	}
+
+	/**
+	 * A file that keeps failing is retried on every pass of the drain, so
+	 * only its first failure warns.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testARetriedFailureLogsAtDebug(): void
+	{
+		$this->failOneOfTwoAlgos( attempts: 4, level: LogLevel::DEBUG );
+	}
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function failOneOfTwoAlgos(
+		int    $attempts,
+		string $level,
+	): void
 	{
 		$metadata = $this->createMock( IFilesMetadata::class );
 
@@ -1012,14 +1063,20 @@ class HashCalculationServiceTest
 		         ->method( 'setInt' )
 		;
 
-		// markPending called for the failed mode
+		// The failed attempt counted for the mode it was made for; the row
+		// is not rewritten.
 		$this->metadataService->expects( $this->once() )
-		                      ->method( 'markPending' )
+		                      ->method( 'recordFailedAttempt' )
 		                      ->with( 42, MetadataService::PENDING_PREFIX . 'missing' )
+		                      ->willReturn( $attempts )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'markPending' )
 		;
 
 		$this->logger->expects( $this->once() )
-		             ->method( 'warning' )
+		             ->method( 'log' )
+		             ->with( $level, $this->anything(), $this->anything() )
 		;
 
 		// saveMetadata NOT called (early return)
@@ -1027,13 +1084,15 @@ class HashCalculationServiceTest
 		                      ->method( 'saveMetadata' )
 		;
 
-		$this->service->processFile(
-			42,
-			'missing',
-			[
-				'sha1',
-				'sha256',
-			],
+		$this->assertFalse(
+			$this->service->processFile(
+				42,
+				'missing',
+				[
+					'sha1',
+					'sha256',
+				],
+			),
 		);
 	}
 

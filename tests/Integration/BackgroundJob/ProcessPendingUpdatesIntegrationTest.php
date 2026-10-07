@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Tests\Integration\BackgroundJob;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\ProcessPendingUpdates;
+use OCA\FileChecksumSearch\Command\Queue\Drain;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
@@ -24,16 +25,19 @@ use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Files\File;
 use OCP\Files\IRootFolder;
 use OCP\IAppConfig;
+use OCP\Lock\ILockingProvider;
 use OCP\Server;
 use Psr\Log\LoggerInterface;
 use ReflectionMethod;
+use Symfony\Component\Console\Tester\CommandTester;
 use Throwable;
 
 /**
  * End-to-end verification that ProcessPendingUpdates actually drains
  * pending metadata index entries (pending:auto / pending:missing) and
- * computes hashes, and that Application::boot() no longer re-registers
- * background jobs on every request (which reset last_run).
+ * computes hashes, that Application::boot() no longer re-registers
+ * background jobs on every request (which reset last_run), and that a file
+ * the drain cannot hash holds up neither the job nor `queue:drain --all`.
  */
 class ProcessPendingUpdatesIntegrationTest
     extends
@@ -43,6 +47,15 @@ class ProcessPendingUpdatesIntegrationTest
 //  constants
 
 	private const RULE_CONFIG_KEY = 'rule_definitions';
+
+	private const BATCH_LIMIT_KEY = 'pending_batch_limit';
+
+	/**
+	 * How many fetches `queue:drain` gets answered before the queue reads as
+	 * empty: a drain that would fetch for ever then ends, and the test fails
+	 * on the count rather than hanging.
+	 */
+	private const FETCH_GUARD = 5;
 
 
 //  private properties
@@ -62,6 +75,12 @@ class ProcessPendingUpdatesIntegrationTest
 
 	/** @var list<int> */
 	private array $cleanupFileIds = [];
+
+	/** @var list<string> The app's hashing locks a test holds, released in tearDown(). */
+	private array $heldLocks = [];
+
+	/** The batch limit a test replaced, false while none did; null when it was unset. */
+	private int|null|false $batchLimitBefore = false;
 
 
 //  getters / setters / is* / has*
@@ -90,6 +109,22 @@ class ProcessPendingUpdatesIntegrationTest
 
 	protected function tearDown(): void
 	{
+		// Before the rollback: the provider keeps its own account of the
+		// locks this process holds, which a rollback of their rows leaves
+		// behind.
+		foreach ( $this->heldLocks as $path )
+		{
+			try
+			{
+				Server::get( ILockingProvider::class )
+				      ->releaseLock( $path, ILockingProvider::LOCK_EXCLUSIVE )
+				;
+			}
+			catch ( Throwable )
+			{
+			}
+		}
+
 		// Roll back any open transaction before touching committed state.
 		parent::tearDown();
 
@@ -98,6 +133,17 @@ class ProcessPendingUpdatesIntegrationTest
 			self::RULE_CONFIG_KEY,
 			$this->originalRulesJson,
 		);
+
+		// Through the config itself, which keeps the value in memory as well:
+		// the rollback restores only the row.
+		if ( $this->batchLimitBefore === null )
+		{
+			$this->appConfig->deleteKey( Application::APP_ID, self::BATCH_LIMIT_KEY );
+		}
+		elseif ( $this->batchLimitBefore !== false )
+		{
+			$this->appConfig->setValueInt( Application::APP_ID, self::BATCH_LIMIT_KEY, $this->batchLimitBefore );
+		}
 
 		// Written past saveRules() like the test's own rule, so the memoised
 		// list is dropped here too: the files deleted below, and whatever
@@ -274,7 +320,267 @@ class ProcessPendingUpdatesIntegrationTest
 		}
 	}
 
+	/**
+	 * A file the drain cannot read just now — here one this app's own lock
+	 * is held on, as another hashing of it holds it — stays queued with its
+	 * failed attempt counted, and processFile() says so by its return value:
+	 * no exception tells its caller.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAFileThatCannotBeHashedStaysQueuedWithItsAttemptCounted(): void
+	{
+		$fileId = $this->createTestFile( 'fcias_locked_' . time() . '.dat' )
+		               ->getId()
+		;
+		$this->addCatchAllForceRule();
+
+		$this->beginTransaction();
+		$this->insertPendingMarker( $fileId, MetadataService::PENDING_FORCE );
+		$this->holdHashingLock( $fileId );
+
+		$hashCalc = Server::get( HashCalculationService::class );
+
+		$this->assertFalse( $hashCalc->processFile( $fileId, MetadataService::PENDING_MODE_FORCE ) );
+		$this->assertFalse( $hashCalc->processFile( $fileId, MetadataService::PENDING_MODE_FORCE ) );
+
+		$this->assertSame( 1, $this->countPendingRows( [ $fileId ] ), 'The file left the queue unhashed.' );
+		$this->assertSame( 2, $this->failedAttemptsOf( $fileId ) );
+		$this->assertArrayNotHasKey( 'sha1', $this->metadataService->getHashes( $fileId ) );
+	}
+
+	/**
+	 * A lazy mark asks for the file's hashes to be dropped and nothing
+	 * computed. Once the drain has done that, the file leaves the queue.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testALazyMarkLeavesTheQueue(): void
+	{
+		$fileId = $this->createTestFile( 'fcias_lazy_' . time() . '.dat' )
+		               ->getId()
+		;
+		$this->addCatchAllForceRule();
+
+		$this->beginTransaction();
+		$this->insertPendingMarker( $fileId, MetadataService::PENDING_LAZY );
+
+		$left = Server::get( HashCalculationService::class )
+		              ->processFile( $fileId, MetadataService::PENDING_MODE_LAZY )
+		;
+
+		$this->assertSame( 0, $this->countPendingRows( [ $fileId ] ), 'The lazy mark stayed on the queue.' );
+		$this->assertTrue( $left, 'processFile() reported the lazy file as still queued.' );
+	}
+
+	/**
+	 * `queue:drain --all` with nothing left but a file it cannot hash: the
+	 * walk tries it once and reaches the end of the queue, and the file is
+	 * not counted as hashed.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testDrainAllEndsWhenTheOnlyFileLeftCannotBeHashed(): void
+	{
+		$fileId = $this->createTestFile( 'fcias_drain_locked_' . time() . '.dat' )
+		               ->getId()
+		;
+		$this->addCatchAllForceRule();
+
+		$this->beginTransaction();
+		$this->insertPendingMarker( $fileId, MetadataService::PENDING_FORCE );
+		$this->deleteOtherPendingRows( [ $fileId ] );
+		$this->holdHashingLock( $fileId );
+
+		[ $tester, $fetches ] = $this->drainCountingFetches();
+		$tester->execute( [ '--all' => true ] );
+
+		// The file, and the end of the queue behind it.
+		$this->assertSame( 2, $fetches->count, 'queue:drain --all fetched the file it could not hash again.' );
+		$this->assertSame( 1, $this->countPendingRows( [ $fileId ] ) );
+		$this->assertSame( 1, $this->failedAttemptsOf( $fileId ) );
+		$this->assertStringContainsString( 'Hashed 0 files, 1 failed.', $tester->getDisplay() );
+	}
+
+	/**
+	 * Two files at the head of the queue that cannot be hashed fill the
+	 * first batch: `--all` walks on past them and hashes the file behind.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testDrainAllTriesTheFilesBehindABatchThatFailedWhole(): void
+	{
+		// Created in this order, so the file that can be hashed has the
+		// highest id and the walk reaches it last.
+		$stuck  = [
+			$this->createTestFile( 'fcias_walk_stuck_a_' . time() . '.dat' )
+			     ->getId(),
+			$this->createTestFile( 'fcias_walk_stuck_b_' . time() . '.dat' )
+			     ->getId(),
+		];
+		$behind = $this->createTestFile( 'fcias_walk_behind_' . time() . '.dat' )
+		               ->getId()
+		;
+		$this->addCatchAllForceRule();
+
+		$this->beginTransaction();
+
+		foreach ( [ ...$stuck, $behind ] as $fileId )
+		{
+			$this->insertPendingMarker( $fileId, MetadataService::PENDING_FORCE );
+		}
+
+		$this->deleteOtherPendingRows( [ ...$stuck, $behind ] );
+
+		foreach ( $stuck as $fileId )
+		{
+			$this->holdHashingLock( $fileId );
+		}
+
+		[ $tester, $fetches ] = $this->drainCountingFetches();
+		$tester->execute(
+			[
+				'--all'        => true,
+				'--batch-size' => '2',
+			],
+		);
+
+		$this->assertSame( 0, $this->countPendingRows( [ $behind ] ), 'The walk stopped before the file behind.' );
+		$this->assertArrayHasKey( 'sha1', $this->metadataService->getHashes( $behind ) );
+		$this->assertSame( 2, $this->countPendingRows( $stuck ) );
+		$this->assertSame( 3, $fetches->count, 'Two stuck files, the file behind, and the end of the queue.' );
+		$this->assertStringContainsString( 'Hashed 1 files, 2 failed.', $tester->getDisplay() );
+	}
+
+	/**
+	 * Two files at the head of the queue that cannot be hashed, a batch of
+	 * two, and a file behind them that can: within a few runs of the job,
+	 * that file is hashed.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testFilesThatCannotBeHashedDoNotHoldUpTheRest(): void
+	{
+		// Created in this order, so the file that can be hashed has the
+		// highest id and sorts last.
+		$stuck  = [
+			$this->createTestFile( 'fcias_stuck_a_' . time() . '.dat' )
+			     ->getId(),
+			$this->createTestFile( 'fcias_stuck_b_' . time() . '.dat' )
+			     ->getId(),
+		];
+		$behind = $this->createTestFile( 'fcias_behind_' . time() . '.dat' )
+		               ->getId()
+		;
+		$this->addCatchAllForceRule();
+		$this->setBatchLimit( 2 );
+
+		$this->beginTransaction();
+
+		foreach ( [ ...$stuck, $behind ] as $fileId )
+		{
+			$this->insertPendingMarker( $fileId, MetadataService::PENDING_FORCE );
+		}
+
+		$this->deleteOtherPendingRows( [ ...$stuck, $behind ] );
+
+		foreach ( $stuck as $fileId )
+		{
+			$this->holdHashingLock( $fileId );
+		}
+
+		$job        = $this->buildJob();
+		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
+
+		for ( $run = 0; $run < 3; $run ++ )
+		{
+			$reflection->invoke( $job, null );
+		}
+
+		$this->assertSame(
+			0,
+			$this->countPendingRows( [ $behind ] ),
+			'The file behind two that cannot be hashed was never reached.',
+		);
+		$this->assertArrayHasKey( 'sha1', $this->metadataService->getHashes( $behind ) );
+		$this->assertSame( 2, $this->countPendingRows( $stuck ), 'The files that cannot be hashed left the queue.' );
+	}
+
 	// ─── helpers ──────────────────────────────────────────────────────
+	/**
+	 * `queue:drain` over the real queue and the real hashing, its fetches
+	 * counted and guarded: after {@see FETCH_GUARD} the queue reads as
+	 * empty, so that a drain that would fetch for ever fails its test rather
+	 * than hanging it.
+	 *
+	 * @return array{0: CommandTester, 1: object{count: int}}
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function drainCountingFetches(): array
+	{
+		$real     = $this->metadataService;
+		$fetches  = (object) [ 'count' => 0 ];
+		$metadata = $this->createMock( MetadataService::class );
+		$metadata->method( 'fetchPendingBatch' )
+		         ->willReturnCallback(
+			         static fn(
+				         int  $limit,
+				         ?int $after = null,
+			         ): array => ++ $fetches->count <= self::FETCH_GUARD
+				         ? $real->fetchPendingBatch( $limit, $after )
+				         : [],
+		         )
+		;
+		$metadata->method( 'getPendingStats' )
+		         ->willReturnCallback( static fn() => $real->getPendingStats() )
+		;
+
+		return [
+			new CommandTester(
+				new Drain(
+					$metadata,
+					Server::get( HashCalculationService::class ),
+					$this->appConfig,
+					Server::get( LoggerInterface::class ),
+				),
+			),
+			$fetches,
+		];
+	}
+
+	/**
+	 * Hold the lock the drain takes before it reads a file, as another
+	 * hashing of that file would; released in tearDown().
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function holdHashingLock( int $fileId ): void
+	{
+		$path = 'files/' . $fileId;
+
+		Server::get( ILockingProvider::class )
+		      ->acquireLock( $path, ILockingProvider::LOCK_EXCLUSIVE )
+		;
+
+		$this->heldLocks[] = $path;
+	}
+
+	/**
+	 * Set how many queued files a run of the job takes; tearDown() restores
+	 * the instance's own.
+	 */
+	private function setBatchLimit( int $limit ): void
+	{
+		if ( $this->batchLimitBefore === false )
+		{
+			$this->batchLimitBefore = $this->appConfig->hasKey( Application::APP_ID, self::BATCH_LIMIT_KEY )
+				? $this->appConfig->getValueInt( Application::APP_ID, self::BATCH_LIMIT_KEY )
+				: null;
+		}
+
+		$this->appConfig->setValueInt( Application::APP_ID, self::BATCH_LIMIT_KEY, $limit );
+	}
+
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
@@ -407,6 +713,42 @@ class ProcessPendingUpdatesIntegrationTest
 			     $keepFileIds,
 		     )
 		;
+	}
+
+	/**
+	 * A queued file's failed attempts, as its state row counts them; null
+	 * when it is not queued.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function failedAttemptsOf( int $fileId ): ?int
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( MetadataService::FIELD_META_VALUE_INT )
+		   ->from( MetadataService::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( MetadataService::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->eq(
+				      MetadataService::FIELD_META_KEY,
+				      $qb->createNamedParameter( MetadataService::KEY_FILE_CHECKSUM_STATE ),
+			      ),
+			   $qb->expr()
+			      ->like(
+				      MetadataService::FIELD_META_VALUE_STRING,
+				      $qb->createNamedParameter( MetadataService::PENDING_LIKE ),
+			      ),
+		   )
+		;
+
+		$attempts = $qb->executeQuery()
+		               ->fetchOne()
+		;
+
+		return $attempts === false
+			? null
+			: (int) $attempts;
 	}
 
 	/**

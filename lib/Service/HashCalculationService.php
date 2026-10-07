@@ -20,6 +20,7 @@ use OCP\IL10N;
 use OCP\Lock\ILockingProvider;
 use OCP\Lock\LockedException;
 use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Output\OutputInterface;
 use Throwable;
@@ -639,9 +640,17 @@ class HashCalculationService
 	 * none. With no include rule to recompute anything, outdated hashes are
 	 * eroded, as a write to a file no rule maintains erodes them.
 	 *
+	 * A file it cannot hash now — a read that failed, a lock, a write during
+	 * the read — stays queued, its failed attempt counted
+	 * ({@see MetadataService::recordFailedAttempt()}); so does one a write
+	 * queued again while it was hashed. Neither throws: the return value is
+	 * how the drains tell them from a file done with.
+	 *
 	 * @param  string[]|null  $algos  Algorithms to process, or null to take
 	 *                                them from the governing rule
 	 *
+	 * @return bool  Whether the file left the queue: hashed, or its mark
+	 *               dropped or eroded.
 	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataNotFoundException
 	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
 	 */
@@ -649,7 +658,7 @@ class HashCalculationService
 		int    $fileId,
 		string $mode,
 		?array $algos = null,
-	): void
+	): bool
 	{
 		$metadata = $this->metadataService->getMetadata( $fileId );
 		$file     = null;
@@ -675,7 +684,7 @@ class HashCalculationService
 
 				$this->metadataService->markPending( $fileId, '' );
 
-				return;
+				return true;
 			}
 
 			if ( ! RuleService::maintainsHashes( $rule ) )
@@ -692,7 +701,7 @@ class HashCalculationService
 
 					$this->metadataService->markEroded( $fileId );
 
-					return;
+					return true;
 				}
 
 				$this->logger->debug(
@@ -705,7 +714,7 @@ class HashCalculationService
 
 				$this->metadataService->markPending( $fileId, '' );
 
-				return;
+				return true;
 			}
 
 			$algos = $rule['algos'] ?? [ $this->getDefaultAlgo() ];
@@ -719,8 +728,13 @@ class HashCalculationService
 		switch ( $mode )
 		{
 		case 'lazy':
-			$this->metadataService->clearMetadata( $metadata, false );
-			break;
+			// Lazy computes nothing: the hashes go, and with them the file's
+			// place on the queue. Not through the save below, which reads the
+			// stamp of 0 this leaves as "not current" and would keep the file
+			// queued for ever.
+			$this->metadataService->clearMetadata( $metadata );
+
+			return true;
 
 			/**
 			 * 'force' mode: clear all existing metadata, then intentionally
@@ -745,7 +759,7 @@ class HashCalculationService
 				$metadata,
 			) )
 			{
-				return;
+				return false;
 			}
 
 			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $stamp, true );
@@ -770,7 +784,7 @@ class HashCalculationService
 					$metadata,
 				) )
 				{
-					return;
+					return false;
 				}
 			}
 
@@ -794,12 +808,14 @@ class HashCalculationService
 
 			$this->metadataService->markPending( $fileId, '' );
 
-			return;
+			return true;
 		}
 
 		// Off the queue only once what it asked for is current: a write that
 		// landed meanwhile has queued the file again.
-		if ( $this->metadataService->saveMetadata( $metadata ) )
+		$current = $this->metadataService->saveMetadata( $metadata );
+
+		if ( $current )
 		{
 			$this->metadataService->clearComputedMarker( $fileId );
 		}
@@ -813,11 +829,18 @@ class HashCalculationService
 				'algos'  => $algos,
 			],
 		);
+
+		return $current;
 	}
 
 	/**
-	 * Persist a recalcHashes() result set for one mode, marking the file
-	 * pending and returning false on the first failing algorithm.
+	 * Persist a recalcHashes() result set for one mode, counting a failed
+	 * attempt and returning false on the first failing algorithm.
+	 *
+	 * The file stays queued, behind the files with fewer failed attempts
+	 * ({@see MetadataService::recordFailedAttempt()}). Its first failure is
+	 * a warning; the retries after it, a file the drain takes on every pass
+	 * until it reads again, are debug.
 	 *
 	 * @param  array{results: array<string, array{success: bool, hash: string, existed: bool, error?: string, reason?: string}>, locked: bool}  $batch
 	 *                                                                                                                                         What recalcHashes() returned.
@@ -839,17 +862,24 @@ class HashCalculationService
 
 			if ( $result === null || ! $result['success'] )
 			{
-				$this->logger->warning(
-					'FCIAS: processFile recalcHashes failed for algo {algo}',
-					[
-						'app'    => Application::APP_ID,
-						'fileId' => $fileId,
-						'algo'   => $algo,
-						'error'  => $result['reason'] ?? $result['error'] ?? 'unknown',
-					],
+				$attempts = $this->metadataService->recordFailedAttempt(
+					$fileId,
+					MetadataService::PENDING_PREFIX . $mode,
 				);
 
-				$this->metadataService->markPending( $fileId, MetadataService::PENDING_PREFIX . $mode );
+				$this->logger->log(
+					$attempts > 1
+						? LogLevel::DEBUG
+						: LogLevel::WARNING,
+					'FCIAS: processFile recalcHashes failed for algo {algo}; the file stays queued (failed attempts: {attempts}).',
+					[
+						'app'      => Application::APP_ID,
+						'fileId'   => $fileId,
+						'algo'     => $algo,
+						'attempts' => $attempts,
+						'error'    => $result['reason'] ?? $result['error'] ?? 'unknown',
+					],
+				);
 
 				return false;
 			}
