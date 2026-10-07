@@ -285,8 +285,10 @@ describe( 'FCIAS checksums sidebar', () => {
 				group().find( '.db-file-label', { timeout: FIND_TIMEOUT } ).should( 'have.length', 3 )
 				group().find( '.db-file-label > a .fcias-location-icon[data-kind="own"]' ).should( 'have.length', 2 )
 				group().find( '.db-file-label > .db-file-unopenable .fcias-location-icon[data-kind="home"]' ).should( 'have.length', 1 )
+				// An administrator reads another account's file at its address:
+				// the home it lives in, two slashes, the path below that home.
 				group().find( '.db-file-label > .db-file-unopenable' )
-					.should( 'contain', `/${ owner.user }/files/${ dupDir }/${ fileNameA }` )
+					.should( 'contain', `home:${ owner.user }//${ dupDir }/${ fileNameA }` )
 
 				cy.fciasDeleteAccount( admin, owner.user )
 			} )
