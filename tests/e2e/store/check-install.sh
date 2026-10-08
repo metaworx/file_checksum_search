@@ -107,10 +107,11 @@ default_rules() {
 	local rules
 	rules="$(occ fcias:rules:list --output=json 2>&1)"
 	echo "$rules"
+	# A rule's scope is its selector and its glob, split at the last //.
 	printf '%s' "$rules" | python3 -c "
 import sys, json
 rules = json.load(sys.stdin)
-defaults = {r['selector'] for r in rules if r.get('default') == 'yes'}
+defaults = {r['scope'].rsplit('//', 1)[0] for r in rules if r.get('default') == 'yes'}
 sys.exit(0 if {'home:*', '*'} <= defaults else 1)
 "
 }
