@@ -55,6 +55,15 @@ class ConfigLexicon
 	/** Whether RuleProcessingJob retakes the checksum count once it is due. */
 	public const CHECKSUM_COUNT_BACKGROUND = 'checksum_count_background';
 
+	/** Whether a file's MIME type is detected from its content while it is hashed. */
+	public const MIMETYPE_DETECTION = 'mimetype_detection';
+
+	/**
+	 * When the detected MIME types were last asked to be deleted, unix
+	 * seconds; 0 while no deletion runs.
+	 */
+	public const MIMETYPE_DELETE_REQUESTED_AT = 'mimetype_delete_requested_at';
+
 
 //  getters / setters / is* / has*
 
@@ -158,6 +167,22 @@ class ConfigLexicon
 				// every hour would cost the database around the clock for it.
 				defaultRaw: false,
 				definition: 'Whether RuleProcessingJob retakes the count of indexed checksums every checksum_count_interval. Off, the status counts when it is asked and the stored count is older.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
+				key: self::MIMETYPE_DETECTION,
+				type: ValueType::BOOL,
+				defaultRaw: false,
+				definition: 'Whether a file\'s MIME type is detected from the first 64 KiB of the read that hashes it, and stored beside its hashes.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
+				key: self::MIMETYPE_DELETE_REQUESTED_AT,
+				type: ValueType::INT,
+				defaultRaw: 0,
+				definition: 'When the detected MIME types were last asked to be deleted, epoch seconds. Zero while no deletion runs; the deletion clears it when it is done.',
 				lazy: false,
 				flags: IAppConfig::FLAG_INTERNAL,
 			),

@@ -57,6 +57,7 @@ class HashCalculationService
 		private readonly LoggerInterface  $logger,
 		private readonly AlgorithmCatalogue $catalogue,
 		private readonly IL10N $l10n,
+		private readonly MimeTypeService $mimeTypes,
 	) {
 	}
 
@@ -1165,8 +1166,21 @@ class HashCalculationService
 			$needed[] = $algo;
 		}
 
+		// The read that hashes the file detects its MIME type as well, from
+		// its first bytes. Off, nothing is detected, and a type already
+		// stored stays as long as the content it describes.
+		$sniff = $this->mimeTypes->isActive();
+
 		if ( $needed === [] )
 		{
+			if ( $sniff
+				&& $valid !== []
+				&& $this->metadataService->getMimeType( $metadata ) === null
+				&& $this->isHashUpToDate( $metadata, $mtime ) )
+			{
+				$this->detectTypeAlone( $file, $metadata, $needsSave );
+			}
+
 			return [
 				'results' => $results,
 				'locked'  => false,
@@ -1202,10 +1216,11 @@ class HashCalculationService
 		try
 		{
 			$storage = $file->getStorage();
+			$head    = null;
 
 			$hashes = count( $needed ) === 1
-				? [ $needed[0] => $this->computeSingleHash( $file, $storage, $needed[0] ) ]
-				: $this->computeMultiHash( $file, $needed );
+				? [ $needed[0] => $this->computeSingleHash( $file, $storage, $needed[0], $sniff, $head ) ]
+				: $this->computeMultiHash( $file, $needed, $sniff, $head );
 
 			// The lock is this app's, and keeps out only this app: a write
 			// takes Nextcloud's own locks. Its etag says whether one landed.
@@ -1244,6 +1259,13 @@ class HashCalculationService
 			else
 			{
 				$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, max( $started, $mtime ), true );
+
+				// Content read and no answer is no type, rather than the type
+				// of the content as it was.
+				if ( $head !== null )
+				{
+					$this->metadataService->setMimeType( $metadata, $this->mimeTypes->detect( $head ) );
+				}
 			}
 		}
 		catch ( Throwable $e )
@@ -1379,6 +1401,11 @@ class HashCalculationService
 	/**
 	 * Drop every hash from a metadata document but those of $algos.
 	 *
+	 * Called for a document whose stamp no longer covers the file, and so
+	 * the MIME type goes as well: the read that hashes the file detects it
+	 * again where detection is on, and the stamp written after it must not
+	 * vouch for the type of the content as it was.
+	 *
 	 * @param  list<string>  $algos
 	 */
 	private function keepOnly(
@@ -1393,15 +1420,114 @@ class HashCalculationService
 				$metadata->unset( MetadataService::getHashKey( $algo ) );
 			}
 		}
+
+		$this->metadataService->setMimeType( $metadata, null );
+	}
+
+	/**
+	 * Read a file's first {@see MimeTypeService::HEAD_BYTES} for its MIME
+	 * type alone, where every hash asked for is held and current and the type
+	 * is not: a file hashed before detection was on, or whose hashes came
+	 * without a read.
+	 *
+	 * Under the same guards as a hash: the app's lock, and the etag before
+	 * and after the read. It is not one, though, and is nobody's failure: a
+	 * file busy, changed or unreadable keeps no type, and its hashes stand.
+	 *
+	 * @param  bool  $save  Whether the document is the caller's to save, or
+	 *                      this call's, as on demand.
+	 */
+	private function detectTypeAlone(
+		File           $file,
+		IFilesMetadata $metadata,
+		bool           $save,
+	): void
+	{
+		$fileId = $file->getId();
+
+		if ( ! $this->acquireLock( $fileId ) )
+		{
+			return;
+		}
+
+		try
+		{
+			$etag = $file->getEtag();
+			$head = $this->readHead( $file );
+			$now  = $this->filecacheService->etagOf( $fileId );
+
+			if ( $now !== null && $now !== $etag )
+			{
+				return;
+			}
+
+			$mimeType = $this->mimeTypes->detect( $head );
+
+			if ( $mimeType === null )
+			{
+				return;
+			}
+
+			$this->metadataService->setMimeType( $metadata, $mimeType );
+
+			if ( $save )
+			{
+				$this->metadataService->saveMetadata( $metadata, $file );
+			}
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->debug(
+				'FCIAS: could not read fileId {fileId} for its MIME type; it stays without one.',
+				[
+					'app'       => Application::APP_ID,
+					'fileId'    => $fileId,
+					'exception' => $e,
+				],
+			);
+		}
+		finally
+		{
+			$this->releaseLock( $fileId );
+		}
+	}
+
+	/**
+	 * A file's first {@see MimeTypeService::HEAD_BYTES}, or all of it where
+	 * it is shorter.
+	 */
+	private function readHead( File $file ): string
+	{
+		$handle = $file->fopen( 'rb' );
+
+		if ( $handle === false )
+		{
+			throw new HintException( 'Unable to open file for reading.', $this->l10n->t( 'Could not open the file for reading.' ) );
+		}
+
+		try
+		{
+			return self::readFrom( $handle, MimeTypeService::HEAD_BYTES );
+		}
+		finally
+		{
+			fclose( $handle );
+		}
 	}
 
 	/**
 	 * Compute a single algorithm's hash using the pre-batch fast paths.
+	 *
+	 * With $sniff, $head receives the first {@see MimeTypeService::HEAD_BYTES}
+	 * of the content: from the stream as it is hashed, or, beside
+	 * `hash_file()`, which reads the file without PHP seeing it, read apart.
 	 */
 	private function computeSingleHash(
 		File     $file,
 		IStorage $storage,
 		string   $algo,
+		bool     $sniff = false,
+		?string  &$head = null,
 	): string
 	{
 		if ( $storage->isLocal() )
@@ -1417,6 +1543,11 @@ class HashCalculationService
 				throw new HintException( 'Unable to open file for reading.', $this->l10n->t( 'Could not open the file for reading.' ) );
 			}
 
+			if ( $sniff )
+			{
+				$head = $this->readHead( $file );
+			}
+
 			return $hash;
 		}
 
@@ -1430,6 +1561,13 @@ class HashCalculationService
 		try
 		{
 			$ctx = hash_init( $algo );
+
+			if ( $sniff )
+			{
+				$head = self::readFrom( $handle, MimeTypeService::HEAD_BYTES );
+				hash_update( $ctx, $head );
+			}
+
 			hash_update_stream( $ctx, $handle );
 
 			return hash_final( $ctx );
@@ -1444,13 +1582,18 @@ class HashCalculationService
 	 * Stream a file once and feed each chunk into one hash context per
 	 * algorithm.
 	 *
+	 * With $sniff, $head receives the first {@see MimeTypeService::HEAD_BYTES}
+	 * of what was read.
+	 *
 	 * @param  string[]  $algos
 	 *
 	 * @return array<string, string>  Algo => hex hash
 	 */
 	private function computeMultiHash(
-		File  $file,
-		array $algos,
+		File    $file,
+		array   $algos,
+		bool    $sniff = false,
+		?string &$head = null,
 	): array
 	{
 		$handle = $file->fopen( 'rb' );
@@ -1468,6 +1611,10 @@ class HashCalculationService
 				$contexts[ $algo ] = hash_init( $algo );
 			}
 
+			$head = $sniff
+				? ''
+				: null;
+
 			while ( ! feof( $handle ) )
 			{
 				$chunk = fread( $handle, self::CHUNK_SIZE );
@@ -1475,6 +1622,11 @@ class HashCalculationService
 				if ( $chunk === false )
 				{
 					break;
+				}
+
+				if ( $head !== null && strlen( $head ) < MimeTypeService::HEAD_BYTES )
+				{
+					$head .= substr( $chunk, 0, MimeTypeService::HEAD_BYTES - strlen( $head ) );
 				}
 
 				foreach ( $contexts as $ctx )
@@ -1633,5 +1785,39 @@ class HashCalculationService
 			'files/' . $fileId,
 			ILockingProvider::LOCK_EXCLUSIVE,
 		);
+	}
+
+
+//  static methods
+
+	/**
+	 * Up to $length bytes from a stream, fewer only at its end.
+	 *
+	 * One `fread()` may return less than it was asked for before the end — a
+	 * network stream returns what has arrived — so this reads until it has
+	 * $length or the stream has nothing more.
+	 *
+	 * @param  resource  $handle
+	 */
+	private static function readFrom(
+		$handle,
+		int $length,
+	): string
+	{
+		$read = '';
+
+		while ( strlen( $read ) < $length && ! feof( $handle ) )
+		{
+			$chunk = fread( $handle, $length - strlen( $read ) );
+
+			if ( $chunk === false || $chunk === '' )
+			{
+				break;
+			}
+
+			$read .= $chunk;
+		}
+
+		return $read;
 	}
 }

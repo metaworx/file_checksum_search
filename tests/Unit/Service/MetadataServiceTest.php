@@ -15,12 +15,14 @@ use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\FileLocation;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\MimeTypeService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\DB\Exception;
 use OCP\DB\IResult;
 use OCP\FilesMetadata\IFilesMetadataManager;
 use OCP\IAppConfig;
 use OCP\FilesMetadata\Model\IFilesMetadata;
+use OCP\FilesMetadata\Model\IMetadataValueWrapper;
 use OCP\IDBConnection;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
@@ -47,6 +49,9 @@ class MetadataServiceTest
 
 	private LoggerInterface&MockObject       $logger;
 
+	/** Detection off unless a test says otherwise: what an install has. */
+	private MimeTypeService&MockObject       $mimeTypes;
+
 	private MetadataService                  $service;
 
 
@@ -67,6 +72,7 @@ class MetadataServiceTest
 		// [] and the catalogue falls back to the shipped default, which is
 		// what an instance that never touched the allowlist has.
 		$this->catalogue = new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) );
+		$this->mimeTypes = $this->createMock( MimeTypeService::class );
 
 		$this->service = new MetadataService(
 			$this->db,
@@ -74,6 +80,7 @@ class MetadataServiceTest
 			$this->filecacheService,
 			$this->logger,
 			$this->catalogue,
+			$this->mimeTypes,
 		);
 	}
 
@@ -162,7 +169,8 @@ class MetadataServiceTest
 
 	public function testRegisterInitializesAllAlgoKeys(): void
 	{
-		$expectedCalls = count( array_values( array_unique( array_merge( MetadataService::LEGACY_ALGOS, $this->catalogue->algorithms() ) ) ) ) + 1;
+		// Every algorithm's key, the MIME type's and the stamp's.
+		$expectedCalls = count( array_values( array_unique( array_merge( MetadataService::LEGACY_ALGOS, $this->catalogue->algorithms() ) ) ) ) + 2;
 
 		$this->metadataManager->expects( $this->exactly( $expectedCalls ) )
 		                      ->method( 'initMetadata' )
@@ -393,10 +401,11 @@ class MetadataServiceTest
 		                   ->willReturn( 1 )
 		;
 
-		// The file's one hash row, as the index holds it, and its stamp row.
+		// The file's one hash row, as the index holds it, no MIME type row,
+		// and its stamp row.
 		$result = $this->createMock( IResult::class );
 		$result->method( 'fetchAllAssociative' )
-		       ->willReturn(
+		       ->willReturnOnConsecutiveCalls(
 			       [
 				       [
 					       'id'                                     => 7,
@@ -404,6 +413,7 @@ class MetadataServiceTest
 					       MetadataService::FIELD_META_VALUE_STRING => str_repeat( 'a', 40 ),
 				       ],
 			       ],
+			       [],
 		       )
 		;
 		$result->method( 'fetchOne' )
@@ -1383,9 +1393,170 @@ class MetadataServiceTest
 	}
 
 	/**
+	 * Registered unindexed: Nextcloud would write the type alone into the
+	 * row on every save, and drop the id this app writes beside it.
+	 */
+	public function testTheMimeTypeKeyIsRegisteredUnindexed(): void
+	{
+		$registered = [];
+
+		$this->metadataManager->method( 'initMetadata' )
+		                      ->willReturnCallback(
+			                      static function(
+				                      string $key,
+				                      string $type,
+				                      bool   $indexed,
+				                      int    $editPermission,
+			                      ) use
+			                      (
+				                      &
+				                      $registered,
+			                      ): void
+			                      {
+				                      $registered[ $key ] = [ $type, $indexed, $editPermission ];
+			                      },
+		                      )
+		;
+
+		$this->service->register();
+
+		$this->assertSame(
+			[ IMetadataValueWrapper::TYPE_STRING, false, IMetadataValueWrapper::EDIT_FORBIDDEN ],
+			$registered[ MetadataService::KEY_FILE_CHECKSUM_MIMETYPE ] ?? null,
+		);
+	}
+
+	/**
+	 * A current document's type gets its row: the id in the int, the type
+	 * cut to 63 in the string. The Office types run past 63, and the id is
+	 * what names them.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testACurrentDocumentsTypeIsIndexedByItsIdAndItsCutType(): void
+	{
+		$docx     = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+		$metadata = $this->currentDocumentTyped( $docx );
+
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( true )
+		;
+		$this->mimeTypes->method( 'idOf' )
+		                ->with( $docx )
+		                ->willReturn( 31 )
+		;
+
+		// No hash row yet, no type row yet.
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchAllAssociative' )
+		       ->willReturn( [] )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$inserted = $this->captureInsertedRows();
+
+		$this->assertTrue( $this->service->saveMetadata( $metadata ) );
+
+		$this->assertContains(
+			[ 42, MetadataService::KEY_FILE_CHECKSUM_MIMETYPE, substr( $docx, 0, 63 ), 31 ],
+			$inserted->getArrayCopy(),
+		);
+	}
+
+	/**
+	 * A row that already says the type is left as it is.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testATypeRowThatSaysTheTypeIsKept(): void
+	{
+		$metadata = $this->currentDocumentTyped( 'application/pdf' );
+
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( true )
+		;
+		$this->mimeTypes->method( 'idOf' )
+		                ->willReturn( 5 )
+		;
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchAllAssociative' )
+		       ->willReturnOnConsecutiveCalls(
+			       [
+				       [
+					       'id'                                     => 7,
+					       MetadataService::FIELD_META_KEY          => MetadataService::getHashKey( 'sha1' ),
+					       MetadataService::FIELD_META_VALUE_STRING => str_repeat( 'a', 40 ),
+				       ],
+			       ],
+			       [
+				       [
+					       'id'                                     => 8,
+					       MetadataService::FIELD_META_VALUE_INT    => 5,
+					       MetadataService::FIELD_META_VALUE_STRING => 'application/pdf',
+				       ],
+			       ],
+		       )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+		$this->queryBuilder->expects( $this->never() )
+		                   ->method( 'delete' )
+		;
+		$this->queryBuilder->expects( $this->never() )
+		                   ->method( 'insert' )
+		;
+
+		$this->service->saveMetadata( $metadata );
+	}
+
+	/**
+	 * Off, a current document's type writes no row: the types stored keep
+	 * theirs, and none is added.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testNoTypeRowIsWrittenWhileDetectionIsOff(): void
+	{
+		$metadata = $this->currentDocumentTyped( 'application/pdf' );
+
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( false )
+		;
+		$this->mimeTypes->expects( $this->never() )
+		                ->method( 'idOf' )
+		;
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchAllAssociative' )
+		       ->willReturnOnConsecutiveCalls(
+			       [
+				       [
+					       'id'                                     => 7,
+					       MetadataService::FIELD_META_KEY          => MetadataService::getHashKey( 'sha1' ),
+					       MetadataService::FIELD_META_VALUE_STRING => str_repeat( 'a', 40 ),
+				       ],
+			       ],
+			       [],
+		       )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+		$this->queryBuilder->expects( $this->never() )
+		                   ->method( 'insert' )
+		;
+
+		$this->service->saveMetadata( $metadata );
+	}
+
+	/**
 	 * A document whose stamp does not cover the file is saved, and nothing
 	 * of its hashes is published: not to the filecache's column, and its
-	 * index rows are removed rather than written.
+	 * index rows are removed rather than written — its MIME type's with them.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
@@ -1416,10 +1587,11 @@ class MetadataServiceTest
 		                       ->method( 'setHashes' )
 		;
 
-		// The row the hash had while it was current.
+		// The row the hash had while it was current, and the MIME type's row
+		// it had too.
 		$result = $this->createMock( IResult::class );
 		$result->method( 'fetchAllAssociative' )
-		       ->willReturn(
+		       ->willReturnOnConsecutiveCalls(
 			       [
 				       [
 					       'id'                                     => 7,
@@ -1427,12 +1599,19 @@ class MetadataServiceTest
 					       MetadataService::FIELD_META_VALUE_STRING => str_repeat( 'a', 40 ),
 				       ],
 			       ],
+			       [
+				       [
+					       'id'                                     => 8,
+					       MetadataService::FIELD_META_VALUE_INT    => 5,
+					       MetadataService::FIELD_META_VALUE_STRING => 'application/pdf',
+				       ],
+			       ],
 		       )
 		;
 		$this->queryBuilder->method( 'executeQuery' )
 		                   ->willReturn( $result )
 		;
-		$this->queryBuilder->expects( $this->once() )
+		$this->queryBuilder->expects( $this->exactly( 2 ) )
 		                   ->method( 'delete' )
 		                   ->willReturnSelf()
 		;
@@ -3188,6 +3367,51 @@ class MetadataServiceTest
 	 *
 	 * @return ArrayObject<int, array{mixed, mixed, mixed, mixed}>
 	 */
+	/**
+	 * File 42's document, current, holding a sha1 and $mimeType.
+	 *
+	 * @return IFilesMetadata&MockObject
+	 */
+	private function currentDocumentTyped( string $mimeType ): IFilesMetadata
+	{
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'getFileId' )
+		         ->willReturn( 42 )
+		;
+		$metadata->method( 'getKeys' )
+		         ->willReturn( [ MetadataService::getHashKey( 'sha1' ), MetadataService::KEY_FILE_CHECKSUM_MIMETYPE ] )
+		;
+		$metadata->method( 'hasKey' )
+		         ->willReturnCallback(
+			         static fn(
+				         string $key,
+			         ): bool => $key === MetadataService::KEY_FILE_CHECKSUM_MIMETYPE,
+		         )
+		;
+		$metadata->method( 'getString' )
+		         ->willReturnCallback(
+			         static fn(
+				         string $key,
+			         ): string => $key === MetadataService::KEY_FILE_CHECKSUM_MIMETYPE
+				         ? $mimeType
+				         : str_repeat( 'a', 40 ),
+		         )
+		;
+
+		// Stamped after the file's last change: current.
+		$metadata->method( 'getInt' )
+		         ->willReturn( 2000 )
+		;
+		$this->filecacheService->method( 'locate' )
+		                       ->willReturn( new FileLocation( 42, 'home::alice', 'files/a.txt', 1000, 'home', 'alice', null, 'a.txt' ) )
+		;
+		$this->queryBuilder->method( 'executeStatement' )
+		                   ->willReturn( 1 )
+		;
+
+		return $metadata;
+	}
+
 	private function captureInsertedRows(): ArrayObject
 	{
 		$rows = new ArrayObject();

@@ -9,10 +9,12 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
+use ArrayObject;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\MimeTypeService;
 use OCA\FileChecksumSearch\Service\RuleOverrides;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
@@ -22,6 +24,7 @@ use OCP\Files\Folder;
 use OCP\Files\Storage\IStorage;
 use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\Lock\ILockingProvider;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use OCP\IAppConfig;
 use Psr\Log\LoggerInterface;
@@ -56,6 +59,9 @@ class HashCalculationServiceTest
 
 	private AlgorithmCatalogue $catalogue;
 
+	/** Detection off unless a test says otherwise: what an install has. */
+	private MimeTypeService&MockObject  $mimeTypes;
+
 	/** @var HashCalculationService&MockObject */
 	private HashCalculationService $service;
 
@@ -74,6 +80,7 @@ class HashCalculationServiceTest
 		// Real catalogue over a mocked app config: [] stored, so the shipped
 		// default list is in force — what an untouched instance has.
 		$this->catalogue = new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) );
+		$this->mimeTypes = $this->createMock( MimeTypeService::class );
 
 		$this->service = $this->getMockBuilder( HashCalculationService::class )
 		                      ->onlyMethods( [ 'recalcHashes' ] )
@@ -86,6 +93,7 @@ class HashCalculationServiceTest
 				                      $this->logger,
 					$this->catalogue,
 					$this->englishL10n(),
+					$this->mimeTypes,
 			                      ],
 		                      )
 		                      ->getMock()
@@ -607,6 +615,50 @@ class HashCalculationServiceTest
 		$service->processFile( 42, 'auto' );
 
 		$this->assertSame( [ MetadataService::getHashKey( 'md5' ) ], $dropped );
+	}
+
+	/**
+	 * The MIME type of content the stamp no longer covers goes too, with
+	 * detection off as well: the stamp written after the read must not
+	 * vouch for it. The read detects it again where detection is on.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testProcessFileDropsTheTypeOfAnOutdatedDocument(): void
+	{
+		$this->documentStamped( [ 'sha256' => 'old' ], 0 );
+		$types = $this->capturedTypes();
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn(
+			                  [
+				                  'id'    => 'r1',
+				                  'type'  => 'include',
+				                  'mode'  => 'auto',
+				                  'algos' => [ 'sha256' ],
+			                  ],
+		                  )
+		;
+
+		$service = $this->createCollectingServiceMock();
+		$service->method( 'recalcHashes' )
+		        ->willReturn(
+			        [
+				        'results' => [
+					        'sha256' => [
+						        'success' => true,
+						        'hash'    => 'new',
+						        'existed' => false,
+					        ],
+				        ],
+				        'locked'  => false,
+			        ],
+		        )
+		;
+
+		$service->processFile( 42, 'auto' );
+
+		$this->assertSame( [ null ], $types->getArrayCopy() );
 	}
 
 	/**
@@ -1362,6 +1414,7 @@ class HashCalculationServiceTest
 				            $this->logger,
 					$this->catalogue,
 					$this->englishL10n(),
+					$this->mimeTypes,
 			            ],
 		            )
 		            ->getMock()
@@ -1594,19 +1647,22 @@ class HashCalculationServiceTest
 			$this->logger,
 			$this->catalogue,
 			$this->englishL10n(),
+			$this->mimeTypes,
 		);
 	}
 
 	/**
 	 * File 42, mtime 1000, on local storage, holding $content in a temporary
 	 * file that both read paths reach: `hash_file()` for one algorithm, the
-	 * stream for several. The caller unlinks the path.
+	 * stream for several. Not $local, its storage is remote, and one
+	 * algorithm streams too. The caller unlinks the path.
 	 *
 	 * @return array{0: File&MockObject, 1: string}
 	 */
 	private function streamedFile(
 		string $content,
 		string $etag = 'etag',
+		bool   $local = true,
 	): array
 	{
 		$path = (string) tempnam( sys_get_temp_dir(), 'fcias_test_' );
@@ -1614,7 +1670,7 @@ class HashCalculationServiceTest
 
 		$storage = $this->createMock( IStorage::class );
 		$storage->method( 'isLocal' )
-		        ->willReturn( true )
+		        ->willReturn( $local )
 		;
 		$storage->method( 'getLocalFile' )
 		        ->willReturn( $path )
@@ -1702,6 +1758,60 @@ class HashCalculationServiceTest
 		;
 
 		return $metadata;
+	}
+
+	/**
+	 * A document holding nothing yet, which takes whatever is set on it.
+	 *
+	 * @return IFilesMetadata&MockObject
+	 */
+	private function blankDocument(): IFilesMetadata
+	{
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'hasKey' )
+		         ->willReturn( false )
+		;
+		$metadata->method( 'setString' )
+		         ->willReturnSelf()
+		;
+		$metadata->method( 'setInt' )
+		         ->willReturnSelf()
+		;
+
+		$this->filecacheService->method( 'getChecksums' )
+		                       ->willReturn( [] )
+		;
+
+		return $metadata;
+	}
+
+	/**
+	 * Every MIME type put into the document, in order; null for one taken
+	 * out.
+	 *
+	 * @return ArrayObject<int, string|null>
+	 */
+	private function capturedTypes(): ArrayObject
+	{
+		/** @var ArrayObject<int, string|null> $types */
+		$types = new ArrayObject();
+
+		$this->metadataService->method( 'setMimeType' )
+		                      ->willReturnCallback(
+			                      static function(
+				                      IFilesMetadata $metadata,
+				                      ?string        $mimeType,
+			                      ) use
+			                      (
+				                      $types,
+			                      ): void
+			                      {
+				                      $types[] = $mimeType;
+			                      },
+		                      )
+		;
+
+		return $types;
 	}
 
 	/**
@@ -1860,6 +1970,249 @@ class HashCalculationServiceTest
 		$this->assertArrayHasKey( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $stamps );
 		$this->assertGreaterThanOrEqual( $before, $stamps[ MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ] );
 		$this->assertLessThanOrEqual( time(), $stamps[ MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ] );
+	}
+
+	/**
+	 * The read that hashes a file keeps its first 64 KiB, and the MIME type
+	 * is detected from those and no more; the hashes are of the whole file.
+	 * Each of the read paths ({@see readPaths()}).
+	 *
+	 * @param  list<string>  $algos
+	 */
+	#[DataProvider( 'readPaths' )]
+	public function testTheReadThatHashesAFileDetectsItsTypeFromTheFirst64KiB(
+		array $algos,
+		bool  $local,
+	): void
+	{
+		$content = str_repeat( 'a', MimeTypeService::HEAD_BYTES - 100 ) . str_repeat( 'b', 200_000 );
+
+		[ $file, $path ] = $this->streamedFile( $content, 'etag', $local );
+		$metadata        = $this->blankDocument();
+		$types           = $this->capturedTypes();
+
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( true )
+		;
+		$this->mimeTypes->expects( $this->once() )
+		                ->method( 'detect' )
+		                ->with( substr( $content, 0, MimeTypeService::HEAD_BYTES ) )
+		                ->willReturn( 'application/x-test' )
+		;
+
+		try
+		{
+			$result = $this->createRealService()
+			               ->recalcHashes( $file, $algos, true, $metadata )
+			;
+		}
+		finally
+		{
+			@unlink( $path );
+		}
+
+		$this->assertSame( sha1( $content ), $result['results']['sha1']['hash'] );
+		$this->assertSame( [ 'application/x-test' ], $types->getArrayCopy() );
+	}
+
+	/** A file under 64 KiB is its own head. */
+	public function testAShortFileIsReadWholeForItsType(): void
+	{
+		[ $file, $path ] = $this->streamedFile( '%PDF-1.4' );
+		$metadata        = $this->blankDocument();
+
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( true )
+		;
+		$this->mimeTypes->expects( $this->once() )
+		                ->method( 'detect' )
+		                ->with( '%PDF-1.4' )
+		                ->willReturn( 'application/pdf' )
+		;
+
+		try
+		{
+			$this->createRealService()
+			     ->recalcHashes( $file, [ 'sha1', 'md5' ], true, $metadata )
+			;
+		}
+		finally
+		{
+			@unlink( $path );
+		}
+	}
+
+	/**
+	 * Content read and no answer is no type: the type of the content as it
+	 * was would be wrong.
+	 */
+	public function testContentLibmagicCannotNameTakesTheTypeAway(): void
+	{
+		[ $file, $path ] = $this->streamedFile( 'unnamed' );
+		$metadata        = $this->blankDocument();
+		$types           = $this->capturedTypes();
+
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( true )
+		;
+		$this->mimeTypes->method( 'detect' )
+		                ->willReturn( null )
+		;
+
+		try
+		{
+			$this->createRealService()
+			     ->recalcHashes( $file, [ 'sha1' ], true, $metadata )
+			;
+		}
+		finally
+		{
+			@unlink( $path );
+		}
+
+		$this->assertSame( [ null ], $types->getArrayCopy() );
+	}
+
+	/** Off, nothing is detected, and a type already stored is left alone. */
+	public function testNoTypeIsDetectedWhileDetectionIsOff(): void
+	{
+		[ $file, $path ] = $this->streamedFile( 'hello world' );
+		$metadata        = $this->blankDocument();
+
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( false )
+		;
+		$this->mimeTypes->expects( $this->never() )
+		                ->method( 'detect' )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'setMimeType' )
+		;
+
+		try
+		{
+			$result = $this->createRealService()
+			               ->recalcHashes( $file, [ 'sha1', 'md5' ], true, $metadata )
+			;
+		}
+		finally
+		{
+			@unlink( $path );
+		}
+
+		$this->assertTrue( $result['results']['sha1']['success'] );
+	}
+
+	/**
+	 * Every hash held and current, and no type: a file hashed before
+	 * detection was on. The first 64 KiB are read for the type alone, and
+	 * the hashes stand as they are.
+	 */
+	public function testACurrentDocumentWithoutATypeIsReadForItsTypeAlone(): void
+	{
+		[ $file, $path ] = $this->streamedFile( '%PDF-1.4' );
+		$metadata        = $this->documentStamped( [ 'sha1' => sha1( '%PDF-1.4' ) ], 1000 );
+		$metadata->method( 'getString' )
+		         ->willReturn( sha1( '%PDF-1.4' ) )
+		;
+		$types = $this->capturedTypes();
+
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( true )
+		;
+		$this->mimeTypes->method( 'detect' )
+		                ->with( '%PDF-1.4' )
+		                ->willReturn( 'application/pdf' )
+		;
+		$this->lockingProvider->expects( $this->once() )
+		                      ->method( 'acquireLock' )
+		;
+		$this->lockingProvider->expects( $this->once() )
+		                      ->method( 'releaseLock' )
+		;
+		// The caller's document: the caller saves it.
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'saveMetadata' )
+		;
+
+		try
+		{
+			$result = $this->createRealService()
+			               ->recalcHashes( $file, [ 'sha1' ], true, $metadata )
+			;
+		}
+		finally
+		{
+			@unlink( $path );
+		}
+
+		$this->assertTrue( $result['results']['sha1']['existed'] );
+		$this->assertFalse( $result['locked'] );
+		$this->assertSame( [ 'application/pdf' ], $types->getArrayCopy() );
+	}
+
+	/** A file written to while its head was read keeps no type. */
+	public function testATypeReadAloneIsDiscardedWhenTheFileChangedMeanwhile(): void
+	{
+		[ $file, $path ] = $this->streamedFile( '%PDF-1.4', 'before' );
+		$metadata        = $this->documentStamped( [ 'sha1' => sha1( '%PDF-1.4' ) ], 1000 );
+		$metadata->method( 'getString' )
+		         ->willReturn( sha1( '%PDF-1.4' ) )
+		;
+
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( true )
+		;
+		$this->filecacheService->method( 'etagOf' )
+		                       ->willReturn( 'after' )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'setMimeType' )
+		;
+
+		try
+		{
+			$result = $this->createRealService()
+			               ->recalcHashes( $file, [ 'sha1' ], true, $metadata )
+			;
+		}
+		finally
+		{
+			@unlink( $path );
+		}
+
+		$this->assertFalse( $result['locked'], 'Its hashes stand: nobody failed.' );
+	}
+
+	/** A document that has its type is not read again. */
+	public function testACurrentDocumentWithItsTypeIsNotRead(): void
+	{
+		$metadata = $this->documentStamped( [ 'sha1' => sha1( 'x' ) ], 1000 );
+		$metadata->method( 'getString' )
+		         ->willReturn( sha1( 'x' ) )
+		;
+
+		$file = $this->createMock( File::class );
+		$file->method( 'getId' )
+		     ->willReturn( 42 )
+		;
+		$file->method( 'getMTime' )
+		     ->willReturn( 1000 )
+		;
+		$file->expects( $this->never() )
+		     ->method( 'fopen' )
+		;
+
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( true )
+		;
+		$this->metadataService->method( 'getMimeType' )
+		                      ->willReturn( 'application/pdf' )
+		;
+
+		$this->createRealService()
+		     ->recalcHashes( $file, [ 'sha1' ], true, $metadata )
+		;
 	}
 
 	/**
@@ -2596,5 +2949,24 @@ class HashCalculationServiceTest
 	public function testTheDefaultAlgorithmIsSha1(): void
 	{
 		$this->assertSame( 'sha1', $this->service->getDefaultAlgo() );
+	}
+
+
+//  static methods
+
+	/**
+	 * One algorithm: `hash_file()` on local storage, and the head read apart.
+	 * Two: the stream in 8 KiB chunks, the head kept from the first eight.
+	 * On a remote storage, one algorithm streams too, the head taken first.
+	 *
+	 * @return array<string, array{0: list<string>, 1: bool}>
+	 */
+	public static function readPaths(): array
+	{
+		return [
+			'one algorithm, local'  => [ [ 'sha1' ], true ],
+			'two algorithms, local' => [ [ 'sha1', 'md5' ], true ],
+			'one algorithm, remote' => [ [ 'sha1' ], false ],
+		];
 	}
 }

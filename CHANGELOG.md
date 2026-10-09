@@ -11,6 +11,11 @@ the first stable release.
 
 ## [Unreleased]
 
+### Added
+
+- A file's MIME type, detected from its content while it is hashed,
+  stored beside its hashes; off by default (`mimetype_detection`).
+
 ## [0.24.0] - 2026-10-08
 
 ### Added

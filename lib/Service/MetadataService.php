@@ -74,6 +74,22 @@ class MetadataService
 	public const KEY_FILE_CHECKSUM_STATE = 'file-checksum-state';
 
 	/**
+	 * The content's MIME type, as libmagic names it ({@see MimeTypeService}).
+	 *
+	 * Under the app's prefix and not the hashes' own, so that nothing counts
+	 * or lists it as a hash. The metadata document holds the type whole. Its
+	 * index row, written by this app as the hashes' are, holds the type's id
+	 * in `oc_mimetypes` in the int, and the type cut to the column's width in
+	 * the string. The id is the type: the cut string is never compared for
+	 * equality, since the `.docx` and `.dotx` types share their first 63
+	 * characters.
+	 *
+	 * It describes the content, as the hashes do, and follows their rule:
+	 * its row exists while the document is current, and goes when theirs go.
+	 */
+	public const KEY_FILE_CHECKSUM_MIMETYPE = 'file-checksum-mimetype';
+
+	/**
 	 * Every algorithm a previous release could have written under the old key
 	 * spelling. The repair paths that rename those keys iterate this, not the
 	 * live catalogue: an algorithm the administrator has since disallowed
@@ -160,6 +176,7 @@ class MetadataService
 		private readonly FilecacheService      $filecacheService,
 		private readonly LoggerInterface       $logger,
 		private readonly AlgorithmCatalogue    $catalogue,
+		private readonly MimeTypeService       $mimeTypes,
 	) {
 	}
 
@@ -411,6 +428,57 @@ class MetadataService
 		return is_string( $marker ) && $marker !== ''
 			? $marker
 			: null;
+	}
+
+	/**
+	 * The MIME type a metadata document holds, whole; null for none.
+	 *
+	 * What the document says, current or not: whether it describes the
+	 * content as it is is the stamp's question, and a reader asks the index
+	 * ({@see mimeTypesOf()}).
+	 */
+	public function getMimeType( IFilesMetadata $metadata ): ?string
+	{
+		if ( ! $metadata->hasKey( self::KEY_FILE_CHECKSUM_MIMETYPE ) )
+		{
+			return null;
+		}
+
+		try
+		{
+			$mimeType = $metadata->getString( self::KEY_FILE_CHECKSUM_MIMETYPE );
+		}
+		catch ( FilesMetadataNotFoundException|FilesMetadataTypeException )
+		{
+			return null;
+		}
+
+		return $mimeType !== ''
+			? $mimeType
+			: null;
+	}
+
+	/**
+	 * Put a MIME type into a metadata document, or take it out for null.
+	 *
+	 * Into the document only: its index row follows when the document is
+	 * saved through {@see saveMetadata()}.
+	 */
+	public function setMimeType(
+		IFilesMetadata $metadata,
+		?string        $mimeType,
+	): void
+	{
+		if ( $mimeType === null )
+		{
+			$metadata->unset( self::KEY_FILE_CHECKSUM_MIMETYPE );
+
+			return;
+		}
+
+		// Not indexed by Nextcloud, which would write the type alone into the
+		// row and drop its id. {@see syncMimeTypeRow()} writes the row.
+		$metadata->setString( self::KEY_FILE_CHECKSUM_MIMETYPE, $mimeType, false );
 	}
 
 	/**
@@ -683,6 +751,9 @@ class MetadataService
 	 * it. `file-checksum-updated_at` is deliberately kept: the document still
 	 * has it, and it is what records that this file was considered at all.
 	 *
+	 * The MIME type's row goes with them: it describes the same content, and
+	 * every caller is saying that content is no longer what they describe.
+	 *
 	 * @throws Exception
 	 */
 	private function pruneHashIndexRows( int $fileId ): void
@@ -693,7 +764,12 @@ class MetadataService
 			   $qb->expr()
 			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
 			   $qb->expr()
-			      ->like( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
+			      ->orX(
+				      $qb->expr()
+				         ->like( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
+				      $qb->expr()
+				         ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_MIMETYPE ) ),
+			      ),
 		   )
 		;
 
@@ -1102,6 +1178,7 @@ class MetadataService
 		// would remove them and the file would keep answering searches by
 		// hashes it no longer has.
 		$this->syncHashIndex( $fileId, [] );
+		$this->syncMimeTypeRow( $fileId, null );
 
 		$this->writeState( $fileId, self::STATE_ERODED );
 	}
@@ -2327,6 +2404,9 @@ class MetadataService
 			{
 				$metadata->unset( self::getHashKey( $algo ) );
 			}
+
+			// Detected from content the new stamp does not describe.
+			$this->setMimeType( $metadata, null );
 		}
 
 		foreach ( $algoToHash as $algo => $hash )
@@ -2376,12 +2456,14 @@ class MetadataService
 		if ( ! $this->isCurrent( $metadata, $mtime ) )
 		{
 			$this->syncHashIndex( $fileId, [] );
+			$this->syncMimeTypeRow( $fileId, null );
 
 			return $report;
 		}
 
 		$this->filecacheService->setHashes( $fileId, $hashes );
 		$this->syncHashIndex( $fileId, $hashes );
+		$this->syncMimeTypeRow( $fileId, $this->getMimeType( $metadata ) );
 
 		$report['markerCleared'] = $this->clearStaleMarker( $fileId );
 
@@ -2795,6 +2877,9 @@ class MetadataService
 	 * covers the file has its rows removed rather than written, since a hash
 	 * is current only while its row exists.
 	 *
+	 * The MIME type's row the same way, where the document holds a type
+	 * ({@see syncMimeTypeRow()}: none is written while detection is off).
+	 *
 	 * @param  list<string>  $have    The hash keys the index holds for the file.
 	 * @param  int|null      $mtime   The file's mtime; null for a file the filecache no longer has.
 	 * @param  string|null   $marker  Its marker, where it has one.
@@ -2822,7 +2907,21 @@ class MetadataService
 		}
 
 		$metadata = $this->getMetadata( $fileId, $json );
-		$hashes   = $this->isCurrent( $metadata, $mtime )
+		$current  = $this->isCurrent( $metadata, $mtime );
+		$mimeType = $this->getMimeType( $metadata );
+
+		// Only a document holding a type is asked about its row: asking every
+		// one would cost the walk a query per file, for the many that have
+		// never had a type.
+		$rewritten = $mimeType !== null
+			&& $this->syncMimeTypeRow(
+				$fileId,
+				$current
+					? $mimeType
+					: null,
+			);
+
+		$hashes   = $current
 			? $this->getHashes( $metadata )
 			: [];
 		$wanted   = array_map(
@@ -2839,7 +2938,7 @@ class MetadataService
 
 		if ( $wanted === $have )
 		{
-			return false;
+			return $rewritten;
 		}
 
 		$this->syncHashIndex( $fileId, $hashes );
@@ -3163,6 +3262,13 @@ class MetadataService
 		$current = $stamp > 0 && $stamp >= $location->mtime;
 
 		$this->syncHashIndex( $fileId, $current ? $hashes : [] );
+
+		$mimeType = $this->getMimeType( $metadata );
+
+		if ( $mimeType !== null )
+		{
+			$this->syncMimeTypeRow( $fileId, $current ? $mimeType : null );
+		}
 
 		if ( ! $current )
 		{
@@ -3571,6 +3677,210 @@ class MetadataService
 	}
 
 	/**
+	 * Bring a file's MIME type row in line with the type its document holds,
+	 * or remove it for null.
+	 *
+	 * The row carries the type's id in `oc_mimetypes` in the int and the
+	 * type cut to the column's width in the string. A row that already says
+	 * both stays; any other goes, and a second row of the key with it.
+	 *
+	 * While detection is off, no row is written: the types stored already
+	 * keep theirs, and none is added, by a save or by a repair. A row is
+	 * removed all the same where the document no longer holds a type, or no
+	 * longer describes the content.
+	 *
+	 * @return bool  Whether a row was written or removed.
+	 * @throws Exception
+	 */
+	private function syncMimeTypeRow(
+		int     $fileId,
+		?string $mimeType,
+	): bool
+	{
+		$rows = $this->mimeTypeRowsOf( $fileId );
+
+		if ( $mimeType === null )
+		{
+			foreach ( $rows as $row )
+			{
+				$this->deleteIndexRow( $row['id'] );
+			}
+
+			return $rows !== [];
+		}
+
+		if ( ! $this->mimeTypes->isActive() )
+		{
+			return false;
+		}
+
+		$id      = $this->mimeTypes->idOf( $mimeType );
+		$value   = self::truncateForIndex( $mimeType );
+		$kept    = false;
+		$changed = false;
+
+		foreach ( $rows as $row )
+		{
+			if ( ! $kept && $row['int'] === $id && $row['value'] === $value )
+			{
+				$kept = true;
+
+				continue;
+			}
+
+			$this->deleteIndexRow( $row['id'] );
+			$changed = true;
+		}
+
+		if ( ! $kept )
+		{
+			$this->insertIndexRow( $fileId, self::KEY_FILE_CHECKSUM_MIMETYPE, $value, $id );
+			$changed = true;
+		}
+
+		return $changed;
+	}
+
+	/**
+	 * A file's MIME type rows as the index holds them; one, where it is
+	 * whole.
+	 *
+	 * @return list<array{id: int, int: int, value: string}>
+	 * @throws Exception
+	 */
+	private function mimeTypeRowsOf( int $fileId ): array
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( 'id', self::FIELD_META_VALUE_INT, self::FIELD_META_VALUE_STRING )
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_MIMETYPE ) ),
+		   )
+		   ->orderBy( 'id', 'ASC' )
+		;
+
+		$result = $this->executeQuery( $qb );
+		$rows   = array_map(
+			static fn(
+				array $row,
+			): array => [
+				'id'    => (int) $row['id'],
+				'int'   => (int) $row[ self::FIELD_META_VALUE_INT ],
+				'value' => (string) $row[ self::FIELD_META_VALUE_STRING ],
+			],
+			$result->fetchAllAssociative(),
+		);
+		$result->closeCursor();
+
+		return $rows;
+	}
+
+	/**
+	 * The MIME types the index holds for these files, whole, by file id; a
+	 * file without a row is absent.
+	 *
+	 * The row's id names the type in `oc_mimetypes`, so nothing is decoded.
+	 * Where that table no longer knows an id, the metadata document holds the
+	 * type whole and answers instead.
+	 *
+	 * Not filtered by state, as {@see getHashes()} is not: a file queued, or
+	 * disowned by a reset, shows what is stored. The scans that leave such
+	 * files out do so before they ask.
+	 *
+	 * @param  list<int>  $fileIds
+	 *
+	 * @return array<int, string>
+	 * @throws Exception
+	 */
+	public function mimeTypesOf( array $fileIds ): array
+	{
+		$types      = [];
+		$unresolved = [];
+
+		// Chunked at 1000: Oracle's placeholder ceiling, as in markStale().
+		foreach ( array_chunk( array_values( array_unique( $fileIds ) ), 1000 ) as $chunk )
+		{
+			$qb = $this->db->getQueryBuilder();
+			$qb->select( self::FIELD_FILE_ID, self::FIELD_META_VALUE_INT )
+			   ->from( self::TABLE_FILES_METADATA_INDEX )
+			   ->where(
+				   $qb->expr()
+				      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_MIMETYPE ) ),
+				   $qb->expr()
+				      ->in(
+					      self::FIELD_FILE_ID,
+					      $qb->createNamedParameter( $chunk, IQueryBuilder::PARAM_INT_ARRAY ),
+				      ),
+			   )
+			;
+
+			$result = $this->executeQuery( $qb );
+
+			while ( ( $row = $result->fetchAssociative() ) !== false )
+			{
+				$fileId = (int) $row[ self::FIELD_FILE_ID ];
+				$type   = $this->mimeTypes->typeOf( (int) $row[ self::FIELD_META_VALUE_INT ] );
+
+				if ( $type === null )
+				{
+					$unresolved[] = $fileId;
+
+					continue;
+				}
+
+				$types[ $fileId ] = $type;
+			}
+
+			$result->closeCursor();
+		}
+
+		foreach ( array_chunk( $unresolved, 1000 ) as $chunk )
+		{
+			foreach ( $this->fetchDocuments( $chunk ) as $fileId => $json )
+			{
+				$type = $this->getMimeType( $this->getMetadata( $fileId, $json ) );
+
+				if ( $type !== null )
+				{
+					$types[ $fileId ] = $type;
+				}
+			}
+		}
+
+		return $types;
+	}
+
+	/**
+	 * How many files the index holds a MIME type for: its rows, one to a
+	 * file.
+	 *
+	 * @throws Exception
+	 */
+	public function countMimeTypeRows(): int
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->select(
+			$qb->func()
+			   ->count( '*', 'cnt' ),
+		)
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_MIMETYPE ) ),
+		   )
+		;
+
+		$result = $this->executeQuery( $qb );
+		$count  = (int) $result->fetchOne();
+		$result->closeCursor();
+
+		return $count;
+	}
+
+	/**
 	 * @throws Exception
 	 */
 	private function deleteIndexRow( int $id ): void
@@ -3590,8 +3900,8 @@ class MetadataService
 	 * One index row.
 	 *
 	 * A hash row carries its value as a string and in the int when it was
-	 * written; the stamp row carries the stamp in the int, which is why
-	 * `$intValue` is here.
+	 * written; the stamp row carries the stamp in the int, and the MIME type
+	 * row the type's id, which is why `$intValue` is here.
 	 *
 	 * @throws Exception
 	 */
@@ -3691,14 +4001,27 @@ class MetadataService
 		if ( ! $held && ( $this->getUpdatedAt( $metadata ) ?? 0 ) < $mtime )
 		{
 			$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, $mtime, true );
+
+			// Nor for a type the document held from before: the filecache
+			// asserts nothing about it.
+			$this->setMimeType( $metadata, null );
 		}
 
 		$this->metadataManager->saveMetadata( $metadata );
+
+		$current = $this->isCurrent( $metadata, $mtime );
+
 		$this->syncHashIndex(
 			$fileId,
-			$this->isCurrent( $metadata, $mtime )
+			$current
 				? $this->getHashes( $metadata )
 				: [],
+		);
+		$this->syncMimeTypeRow(
+			$fileId,
+			$current
+				? $this->getMimeType( $metadata )
+				: null,
 		);
 
 		return $added;
@@ -4297,6 +4620,16 @@ class MetadataService
 				);
 			}
 
+			// The MIME type, unindexed as well: Nextcloud would write the type
+			// alone into its row, and drop the id this app writes beside it
+			// — see {@see syncMimeTypeRow()}.
+			$this->metadataManager->initMetadata(
+				self::KEY_FILE_CHECKSUM_MIMETYPE,
+				IMetadataValueWrapper::TYPE_STRING,
+				false,
+				IMetadataValueWrapper::EDIT_FORBIDDEN,
+			);
+
 			// The stamp *is* Nextcloud's to index: it is an integer, it fits,
 			// and the queue and the freshness checks read it from the index.
 			$this->metadataManager->initMetadata(
@@ -4335,7 +4668,8 @@ class MetadataService
 	}
 
 	/**
-	 * Whether Nextcloud has taken the hash keys off its own index.
+	 * Whether Nextcloud has taken the hash keys, and the MIME type's, off
+	 * its own index.
 	 *
 	 * A key it still believes it owns is one whose row it will keep trying,
 	 * and failing, to write.
@@ -4352,7 +4686,7 @@ class MetadataService
 			}
 		}
 
-		return true;
+		return ! $known->isIndex( self::KEY_FILE_CHECKSUM_MIMETYPE );
 	}
 
 	/**
@@ -4363,6 +4697,8 @@ class MetadataService
 	 * document whose stamp does not cover the file is saved, its hashes kept
 	 * for the queue to know which the file had, and nothing of them reaches
 	 * the index or the filecache's checksum column.
+	 *
+	 * The MIME type follows the hashes ({@see syncMimeTypeRow()}).
 	 *
 	 * @return bool  Whether the document is current, and its hashes published.
 	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
@@ -4384,12 +4720,14 @@ class MetadataService
 		if ( ! $this->isCurrent( $metadata, $mtime ) )
 		{
 			$this->syncHashIndex( $fileId, [] );
+			$this->syncMimeTypeRow( $fileId, null );
 
 			return false;
 		}
 
 		$this->filecacheService->setHashes( $file ?? $fileId, $hashes );
 		$this->syncHashIndex( $fileId, $hashes );
+		$this->syncMimeTypeRow( $fileId, $this->getMimeType( $metadata ) );
 
 		return true;
 	}
