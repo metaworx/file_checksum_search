@@ -13,6 +13,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\RuleService;
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\IAppConfig;
@@ -34,6 +35,8 @@ use Throwable;
  *   random password for the length of the run, and removes it afterwards
  * - preserveStoredRules(), which puts the instance's rule set back after
  *   a test that had to replace it
+ * - after the class, this app's rows for the files its tests made and
+ *   removed without the delete event, so none is left queued
  * - assertTableExists / assertColumnExists / assertTableNotExists
  * - Transaction-wrapped setUp/tearDown (subclasses opt in via beginTransaction)
  *
@@ -64,6 +67,12 @@ abstract class DatabaseTestCase
 	 * @var list<string>
 	 */
 	private static array $provisionedUsers = [];
+
+	/**
+	 * The highest file id when the class began: the files its tests make
+	 * lie above it, and what was there before is not theirs to touch.
+	 */
+	private static ?int $fileIdFloor = null;
 
 
 //  constants
@@ -208,6 +217,13 @@ abstract class DatabaseTestCase
 		return $password;
 	}
 
+	public static function setUpBeforeClass(): void
+	{
+		parent::setUpBeforeClass();
+
+		self::$fileIdFloor = self::highestFileId();
+	}
+
 	public static function tearDownAfterClass(): void
 	{
 		$userManager = Server::get( IUserManager::class );
@@ -231,7 +247,77 @@ abstract class DatabaseTestCase
 
 		self::$provisionedUsers = [];
 
+		self::forgetVanishedFiles();
+
 		parent::tearDownAfterClass();
+	}
+
+	/** The filecache's highest file id, or 0 for an empty one. */
+	private static function highestFileId(): int
+	{
+		$qb = Server::get( IDBConnection::class )->getQueryBuilder();
+		$qb->select( $qb->func()->max( 'fileid' ) )
+		   ->from( 'filecache' )
+		;
+
+		return (int) $qb->executeQuery()->fetchOne();
+	}
+
+	/**
+	 * This app's rows for the files the class made that are gone again.
+	 *
+	 * A test that deletes filecache rows directly, and an account deleted
+	 * above, take a file without the delete event that would take its rows;
+	 * on an instance with an enabled rule each such file was queued when it
+	 * was made, and its mark would stay queued for a file nobody can hash.
+	 * Only files above {@see $fileIdFloor}, and only this app's keys: what
+	 * was there before the class began is the instance's, not the test's.
+	 * A vanished file above the floor is one the filecache numbered after
+	 * every file it still holds, which earlier runs' tests made and removed:
+	 * its rows go too.
+	 */
+	private static function forgetVanishedFiles(): void
+	{
+		if ( self::$fileIdFloor === null )
+		{
+			return;
+		}
+
+		$db = Server::get( IDBConnection::class );
+
+		$qb = $db->getQueryBuilder();
+		$qb->selectDistinct( 'i.file_id' )
+		   ->from( 'files_metadata_index', 'i' )
+		   ->leftJoin( 'i', 'filecache', 'f', $qb->expr()->eq( 'f.fileid', 'i.file_id' ) )
+		   ->where(
+			   $qb->expr()->gt( 'i.file_id', $qb->createNamedParameter( self::$fileIdFloor, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()->like( 'i.meta_key', $qb->createNamedParameter( 'file-checksum-%' ) ),
+			   $qb->expr()->isNull( 'f.fileid' ),
+		   )
+		;
+		$fileIds = array_map( intval( ... ), $qb->executeQuery()->fetchFirstColumn() );
+
+		foreach ( array_chunk( $fileIds, 1000 ) as $chunk )
+		{
+			$qb = $db->getQueryBuilder();
+			$qb->delete( 'files_metadata_index' )
+			   ->where(
+				   $qb->expr()->in( 'file_id', $qb->createNamedParameter( $chunk, IQueryBuilder::PARAM_INT_ARRAY ) ),
+				   $qb->expr()->like( 'meta_key', $qb->createNamedParameter( 'file-checksum-%' ) ),
+			   )
+			   ->executeStatement()
+			;
+
+			// The file's document goes with it, as Nextcloud's own delete
+			// would have taken it.
+			$qb = $db->getQueryBuilder();
+			$qb->delete( 'files_metadata' )
+			   ->where( $qb->expr()->in( 'file_id', $qb->createNamedParameter( $chunk, IQueryBuilder::PARAM_INT_ARRAY ) ) )
+			   ->executeStatement()
+			;
+		}
+
+		self::$fileIdFloor = null;
 	}
 
 	/**
