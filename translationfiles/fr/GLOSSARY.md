@@ -56,6 +56,8 @@ here; a term that changes, changes here and in the `.po` file at once.
 | group admin | administrateur de groupe | Nextcloud's *Administrateur de groupe* (sub-admin) |
 | admin group | groupe admin | the group named `admin` |
 | this server | ce serveur | not *cette instance*; « la plupart des serveurs » |
+| MIME type | type MIME | its detection: *la détection du type MIME* |
+| administration settings | paramètres d'administration | Nextcloud's own name |
 | permission | autorisation | Nextcloud's term (*Autorisation refusée*) |
 | app password | mot de passe d'application | Nextcloud's term |
 | Security (the personal settings section) | Sécurité | Nextcloud's own name |

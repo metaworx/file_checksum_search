@@ -169,6 +169,8 @@
     "Lazy (delete checksums now, recalculate later)" : "Lazy (delete checksums now, recalculate later)",
     "Listing every rule requires administrator rights." : "Listing every rule requires administrator rights.",
     "Loading checksums …" : "Loading checksums …",
+    "MIME type detection is off on this server. An administrator can switch it on in the administration settings, under %1$s → %2$s." : "MIME type detection is off on this server. An administrator can switch it on in the administration settings, under %1$s → %2$s.",
+    "MIME types cannot be detected on this server: PHP's Fileinfo extension is not loaded." : "MIME types cannot be detected on this server: PHP's Fileinfo extension is not loaded.",
     "Match anywhere in the hash" : "Match anywhere in the hash",
     "Match the term anywhere in the hash, not only at its start" : "Match the term anywhere in the hash, not only at its start",
     "Members of a group" : "Members of a group",

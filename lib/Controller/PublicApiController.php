@@ -638,13 +638,16 @@ class PublicApiController
 	#[NoCSRFRequired]
 	#[UserRateLimit( limit: 60, period: 60 )]
 	#[ApiRoute( verb: 'GET', url: '/api/v1/file/{fileId}/hashes', requirements: [ 'fileId' => '\d+' ] )]
-	public function getHashes( int $fileId ): DataResponse
+	public function getHashes(
+		int  $fileId,
+		bool $mimetype = false,
+	): DataResponse
 	{
 		$own = $this->scopeOrRefusal();
 
 		return $own instanceof DataResponse
 			? $own
-			: $this->hashesFor( $fileId, $own, [ $own ] );
+			: $this->hashesFor( $fileId, $own, [ $own ], $mimetype );
 	}
 
 	/**
@@ -657,7 +660,10 @@ class PublicApiController
 	#[NoCSRFRequired]
 	#[UserRateLimit( limit: 60, period: 60 )]
 	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/file/{fileId}/hashes', requirements: [ 'fileId' => '\d+' ] )]
-	public function sudoGetHashes( int $fileId ): DataResponse
+	public function sudoGetHashes(
+		int  $fileId,
+		bool $mimetype = false,
+	): DataResponse
 	{
 		$own = $this->sudoFileOrRefusal( $fileId );
 
@@ -666,7 +672,7 @@ class PublicApiController
 		// check is a repeat — cheap, and it keeps one rule for both routes.
 		return $own instanceof DataResponse
 			? $own
-			: $this->hashesFor( $fileId, $own, $this->ceilingOf( $own ) );
+			: $this->hashesFor( $fileId, $own, $this->ceilingOf( $own ), $mimetype );
 	}
 
 	/**
@@ -679,8 +685,16 @@ class PublicApiController
 		int    $fileId,
 		string $actingUser,
 		?array $reachUids,
+		bool   $withMimeType = false,
 	): DataResponse
 	{
+		$refused = $this->mimeTypeRefusal( $withMimeType );
+
+		if ( $refused !== null )
+		{
+			return $refused;
+		}
+
 		$this->logger->debug(
 			'FCIAS PublicApiController: getHashes called',
 			[
@@ -691,7 +705,7 @@ class PublicApiController
 
 		try
 		{
-			$result           = $this->api->getHashesByFileId( $fileId, $reachUids, actingUser: $actingUser );
+			$result           = $this->api->getHashesByFileId( $fileId, $reachUids, actingUser: $actingUser, withMimeType: $withMimeType );
 			$result['hashes'] = self::jsonObject( $result['hashes'] );
 
 			// Whether the sidebar may offer the way to the Others tab. The
@@ -780,6 +794,7 @@ class PublicApiController
 		?string $hash = null,
 		bool    $anywhere = false,
 		bool    $includeEmpty = false,
+		bool    $mimetype = false,
 	): DataResponse
 	{
 		$scope = $this->scopeOrRefusal();
@@ -789,7 +804,7 @@ class PublicApiController
 			return $scope;
 		}
 
-		$response = $this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty );
+		$response = $this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty, withMimeType: $mimetype );
 
 		// Whether the caller may cross into other accounts at all. Rides on
 		// the listing the page loads anyway, so the page needs no second
@@ -827,6 +842,7 @@ class PublicApiController
 		?array  $users = null,
 		?array  $groups = null,
 		bool    $includeEmpty = false,
+		bool    $mimetype = false,
 	): DataResponse
 	{
 		$scope = $this->sudoNamedOrRefusal( $users, $groups );
@@ -834,7 +850,33 @@ class PublicApiController
 		return $scope instanceof DataResponse
 			? $scope
 			: $this->markOpenable(
-				$this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty, $this->readsCanonically() ),
+				$this->duplicatesFor( $scope, $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty, $this->readsCanonically(), $mimetype ),
+			);
+	}
+
+	/**
+	 * The answer to `?mimetype=1` while MIME types are not detected: a 400
+	 * that says why, and where they would be switched on, before anything is
+	 * read. Null where they are detected, or were not asked for.
+	 *
+	 * A refusal rather than the field left out, as `?localPath=1` is
+	 * refused, so a client is not left guessing why it is missing; whether
+	 * to ask, `/api/v1/status` says in `features.mimetype`.
+	 */
+	private function mimeTypeRefusal( bool $asked ): ?DataResponse
+	{
+		$refusal = $asked
+			? $this->api->mimeTypeRefusal()
+			: null;
+
+		return $refusal === null
+			? null
+			: new DataResponse(
+				[
+					'success' => false,
+					'error'   => $refusal,
+				],
+				Http::STATUS_BAD_REQUEST,
 			);
 	}
 
@@ -864,8 +906,16 @@ class PublicApiController
 		bool    $anywhere = false,
 		bool    $includeEmpty = false,
 		bool    $canonical = false,
+		bool    $withMimeType = false,
 	): DataResponse
 	{
+		$refused = $this->mimeTypeRefusal( $withMimeType );
+
+		if ( $refused !== null )
+		{
+			return $refused;
+		}
+
 		// One account, several or every: the API takes a list or null, and
 		// the normalising happens here, once, rather than in each caller.
 		$reachUids = $this->reachOf( $scope );
@@ -894,6 +944,7 @@ class PublicApiController
 				$anywhere,
 				includeEmpty: $includeEmpty,
 				canonical: $canonical,
+				withMimeType: $withMimeType,
 			);
 
 			// Whether the viewer may recalculate by hand, which is what
@@ -929,13 +980,16 @@ class PublicApiController
 	#[NoCSRFRequired]
 	#[UserRateLimit( limit: 60, period: 60 )]
 	#[ApiRoute( verb: 'GET', url: '/api/v1/file/{fileId}/duplicates', requirements: [ 'fileId' => '\d+' ] )]
-	public function findDuplicates( int $fileId ): DataResponse
+	public function findDuplicates(
+		int  $fileId,
+		bool $mimetype = false,
+	): DataResponse
 	{
 		$own = $this->scopeOrRefusal();
 
 		return $own instanceof DataResponse
 			? $own
-			: $this->sameHashFor( $fileId, [ $own ] );
+			: $this->sameHashFor( $fileId, [ $own ], withMimeType: $mimetype );
 	}
 
 	/**
@@ -950,7 +1004,10 @@ class PublicApiController
 	#[NoCSRFRequired]
 	#[UserRateLimit( limit: 60, period: 60 )]
 	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/file/{fileId}/duplicates', requirements: [ 'fileId' => '\d+' ] )]
-	public function sudoFindDuplicates( int $fileId ): DataResponse
+	public function sudoFindDuplicates(
+		int  $fileId,
+		bool $mimetype = false,
+	): DataResponse
 	{
 		$own = $this->sudoFileOrRefusal( $fileId );
 
@@ -959,7 +1016,7 @@ class PublicApiController
 		// anywhere on the instance.
 		return $own instanceof DataResponse
 			? $own
-			: $this->markOpenable( $this->sameHashFor( $fileId, $this->ceilingOf( $own ), $this->sudo->isSudoer( $own ) ) );
+			: $this->markOpenable( $this->sameHashFor( $fileId, $this->ceilingOf( $own ), $this->sudo->isSudoer( $own ), $mimetype ) );
 	}
 
 	/**
@@ -970,8 +1027,16 @@ class PublicApiController
 		int    $fileId,
 		?array $reachUids,
 		bool   $canonical = false,
+		bool   $withMimeType = false,
 	): DataResponse
 	{
+		$refused = $this->mimeTypeRefusal( $withMimeType );
+
+		if ( $refused !== null )
+		{
+			return $refused;
+		}
+
 		$this->logger->debug(
 			'FCIAS PublicApiController: findDuplicates (per-file) called',
 			[
@@ -982,7 +1047,7 @@ class PublicApiController
 
 		try
 		{
-			$result = $this->api->findSameHash( $fileId, $reachUids, $canonical );
+			$result = $this->api->findSameHash( $fileId, $reachUids, $canonical, $withMimeType );
 
 			return new DataResponse( $result );
 		}
@@ -1021,13 +1086,14 @@ class PublicApiController
 		string  $hash,
 		?string $algo = null,
 		int     $limit = 100,
+		bool    $mimetype = false,
 	): DataResponse
 	{
 		$scope = $this->scopeOrRefusal();
 
 		return $scope instanceof DataResponse
 			? $scope
-			: $this->lookupFor( $hash, $algo, $limit, $scope );
+			: $this->lookupFor( $hash, $algo, $limit, $scope, withMimeType: $mimetype );
 	}
 
 	/**
@@ -1108,6 +1174,7 @@ class PublicApiController
 		?string $algo = null,
 		int     $limit = 100,
 		bool    $localPath = false,
+		bool    $mimetype = false,
 	): DataResponse
 	{
 		$scope = $this->sudoScopeOrRefusal();
@@ -1127,7 +1194,7 @@ class PublicApiController
 			);
 		}
 
-		return $this->markOpenable( $this->lookupFor( $hash, $algo, $limit, $scope, $localPath, $this->readsCanonically() ) );
+		return $this->markOpenable( $this->lookupFor( $hash, $algo, $limit, $scope, $localPath, $this->readsCanonically(), $mimetype ) );
 	}
 
 	/**
@@ -1141,8 +1208,16 @@ class PublicApiController
 		string|array|null $scope,
 		bool              $withLocalPath = false,
 		bool              $canonical = false,
+		bool              $withMimeType = false,
 	): DataResponse
 	{
+		$refused = $this->mimeTypeRefusal( $withMimeType );
+
+		if ( $refused !== null )
+		{
+			return $refused;
+		}
+
 		$this->logger->debug(
 			'FCIAS PublicApiController: lookup called',
 			[
@@ -1160,6 +1235,7 @@ class PublicApiController
 				limit: $limit,
 				withLocalPath: $withLocalPath,
 				canonical: $canonical,
+				withMimeType: $withMimeType,
 			);
 
 			return new DataResponse( $result );
@@ -1211,13 +1287,14 @@ class PublicApiController
 		int     $limit = HashListingService::DEFAULT_LIMIT,
 		int     $after = 0,
 		?string $since = null,
+		bool    $mimetype = false,
 	): DataResponse
 	{
 		$scope = $this->scopeOrRefusal();
 
 		return $scope instanceof DataResponse
 			? $scope
-			: $this->hashListFor( $scope, $algo, $limit, $after, $since );
+			: $this->hashListFor( $scope, $algo, $limit, $after, $since, withMimeType: $mimetype );
 	}
 
 	/**
@@ -1246,6 +1323,7 @@ class PublicApiController
 		?array  $users = null,
 		?array  $groups = null,
 		bool    $localPath = false,
+		bool    $mimetype = false,
 	): DataResponse
 	{
 		$scope = $this->sudoNamedOrRefusal( $users, $groups );
@@ -1263,7 +1341,7 @@ class PublicApiController
 			);
 		}
 
-		return $this->markOpenable( $this->hashListFor( $scope, $algo, $limit, $after, $since, $localPath, $this->readsCanonically() ) );
+		return $this->markOpenable( $this->hashListFor( $scope, $algo, $limit, $after, $since, $localPath, $this->readsCanonically(), $mimetype ) );
 	}
 
 	/**
@@ -1278,8 +1356,16 @@ class PublicApiController
 		?string           $since,
 		bool              $withLocalPath = false,
 		bool              $canonical = false,
+		bool              $withMimeType = false,
 	): DataResponse
 	{
+		$refused = $this->mimeTypeRefusal( $withMimeType );
+
+		if ( $refused !== null )
+		{
+			return $refused;
+		}
+
 		$from = self::sinceFrom( $since );
 
 		if ( $from === false )
@@ -1301,6 +1387,7 @@ class PublicApiController
 				$from,
 				$withLocalPath,
 				$canonical,
+				$withMimeType,
 			);
 
 			foreach ( $page['files'] as $n => $file )
@@ -1341,13 +1428,16 @@ class PublicApiController
 	#[NoAdminRequired]
 	#[UserRateLimit( limit: 20, period: 60 )]
 	#[ApiRoute( verb: 'POST', url: '/api/v1/file/{fileId}/recalc', requirements: [ 'fileId' => '\d+' ] )]
-	public function recalcHash( int $fileId ): DataResponse
+	public function recalcHash(
+		int  $fileId,
+		bool $mimetype = false,
+	): DataResponse
 	{
 		$scope = $this->scopeOrRefusal();
 
 		return $scope instanceof DataResponse
 			? $scope
-			: $this->recalcFor( $fileId, $scope, [ $scope ] );
+			: $this->recalcFor( $fileId, $scope, [ $scope ], $mimetype );
 	}
 
 	/**
@@ -1369,7 +1459,10 @@ class PublicApiController
 	#[NoAdminRequired]
 	#[UserRateLimit( limit: 20, period: 60 )]
 	#[ApiRoute( verb: 'POST', url: '/api/v1/sudo/file/{fileId}/recalc', requirements: [ 'fileId' => '\d+' ] )]
-	public function sudoRecalcHash( int $fileId ): DataResponse
+	public function sudoRecalcHash(
+		int  $fileId,
+		bool $mimetype = false,
+	): DataResponse
 	{
 		$scope = $this->sudoFileOrRefusal( $fileId );
 
@@ -1391,7 +1484,7 @@ class PublicApiController
 			],
 		);
 
-		return $this->recalcFor( $fileId, $scope, $this->ceilingOf( $scope ) );
+		return $this->recalcFor( $fileId, $scope, $this->ceilingOf( $scope ), $mimetype );
 	}
 
 	/**
@@ -1414,13 +1507,13 @@ class PublicApiController
 	#[NoAdminRequired]
 	#[UserRateLimit( limit: 20, period: 60 )]
 	#[ApiRoute( verb: 'POST', url: '/api/v1/file/many/recalc' )]
-	public function recalcMany(): DataResponse
+	public function recalcMany( bool $mimetype = false ): DataResponse
 	{
 		$own = $this->scopeOrRefusal();
 
 		return $own instanceof DataResponse
 			? $own
-			: $this->recalcManyFor( $own, [ $own ] );
+			: $this->recalcManyFor( $own, [ $own ], $mimetype );
 	}
 
 	/**
@@ -1436,7 +1529,7 @@ class PublicApiController
 	#[NoAdminRequired]
 	#[UserRateLimit( limit: 20, period: 60 )]
 	#[ApiRoute( verb: 'POST', url: '/api/v1/sudo/file/many/recalc' )]
-	public function sudoRecalcMany(): DataResponse
+	public function sudoRecalcMany( bool $mimetype = false ): DataResponse
 	{
 		$scope = $this->sudoScopeOrRefusal();
 
@@ -1455,7 +1548,7 @@ class PublicApiController
 			],
 		);
 
-		return $this->recalcManyFor( $own, $scope );
+		return $this->recalcManyFor( $own, $scope, $mimetype );
 	}
 
 	/**
@@ -1464,8 +1557,16 @@ class PublicApiController
 	private function recalcManyFor(
 		string $actingUser,
 		?array $reachUids,
+		bool   $withMimeType = false,
 	): DataResponse
 	{
+		$refused = $this->mimeTypeRefusal( $withMimeType );
+
+		if ( $refused !== null )
+		{
+			return $refused;
+		}
+
 		$body    = json_decode( (string) file_get_contents( 'php://input' ), true );
 		$fileIds = is_array( $body ) && is_array( $body['fileIds'] ?? null )
 			? array_values( array_filter( $body['fileIds'], 'is_int' ) )
@@ -1485,7 +1586,7 @@ class PublicApiController
 
 		try
 		{
-			return new DataResponse( $this->api->recalcMany( $fileIds, $reachUids, algo: $algo, actingUser: $actingUser ) );
+			return new DataResponse( $this->api->recalcMany( $fileIds, $reachUids, algo: $algo, actingUser: $actingUser, withMimeType: $withMimeType ) );
 		}
 		catch ( Throwable $e )
 		{
@@ -1514,8 +1615,16 @@ class PublicApiController
 		int    $fileId,
 		string $actingUser,
 		?array $reachUids,
+		bool   $withMimeType = false,
 	): DataResponse
 	{
+		$refused = $this->mimeTypeRefusal( $withMimeType );
+
+		if ( $refused !== null )
+		{
+			return $refused;
+		}
+
 		$body = json_decode( file_get_contents( 'php://input' ), true );
 		$algo = is_array( $body )
 			? ( $body['algo'] ?? null )
@@ -1539,7 +1648,7 @@ class PublicApiController
 
 		try
 		{
-			$result = $this->api->recalcHash( $fileId, $reachUids, algo: $algo, actingUser: $actingUser );
+			$result = $this->api->recalcHash( $fileId, $reachUids, algo: $algo, actingUser: $actingUser, withMimeType: $withMimeType );
 
 			if ( $result['success'] )
 			{

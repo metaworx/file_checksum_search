@@ -11,10 +11,13 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Integration\Http;
 
 use DateTime;
+use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
 use OCP\Files\IRootFolder;
+use OCP\IAppConfig;
 use OCP\Server;
 use Throwable;
 
@@ -72,6 +75,9 @@ class PublicApiTest
 	private string $sharedSha1Hash = 'abc123abc123abc123abc123abc123abc123abc1';
 
 	private string $sha256Hash     = 'def456def456def456def456def456def456def456def4';
+
+	/** The detection switch as a test found it, 'absent' for no key; null untouched. */
+	private bool|string|null $detectionBefore = null;
 
 
 //  static methods
@@ -137,6 +143,20 @@ class PublicApiTest
 	protected function tearDown(): void
 	{
 		$this->cleanupLeftovers();
+
+		if ( $this->detectionBefore !== null )
+		{
+			$appConfig = Server::get( IAppConfig::class );
+
+			if ( $this->detectionBefore === 'absent' )
+			{
+				$appConfig->deleteKey( Application::APP_ID, ConfigLexicon::MIMETYPE_DETECTION );
+			}
+			else
+			{
+				$appConfig->setValueBool( Application::APP_ID, ConfigLexicon::MIMETYPE_DETECTION, (bool) $this->detectionBefore );
+			}
+		}
 
 		parent::tearDown();
 	}
@@ -363,7 +383,76 @@ class PublicApiTest
 		$this->assertFalse( $response['success'], 'Nonexistent file should return success=false.' );
 	}
 
+	// ─── ?mimetype=1 ─────────────────────────────────────────────────
+	/**
+	 * Every caller is told whether to ask: what the routes give is no
+	 * secret of the administrator's.
+	 */
+	public function testTheStatusTellsEveryCallerWhetherToAskForMimeTypes(): void
+	{
+		$this->detection( false );
+		$this->assertSame( [ 'mimetype' => false ], $this->httpGet( '/api/v1/status' )['features'] ?? null );
+
+		$this->detection( true );
+		$this->assertSame( [ 'mimetype' => true ], $this->httpGet( '/api/v1/status' )['features'] ?? null );
+	}
+
+	/** Off, asking is refused with why, and nothing is read. */
+	public function testMimeTypesAskedForWhileDetectionIsOffAreRefused(): void
+	{
+		$this->detection( false );
+
+		foreach ( [ "/api/v1/file/$this->testFileId1/hashes", '/api/v1/hashes', '/api/v1/duplicates' ] as $route )
+		{
+			$response = $this->httpGet( $route . '?mimetype=1' );
+
+			$this->assertFalse( $response['success'] ?? null, "$route refuses" );
+			$this->assertStringStartsWith( 'MIME type detection is off on this server.', $response['error'] ?? '', $route );
+			$this->assertArrayNotHasKey( 'hashes', $response, "$route reads nothing" );
+		}
+	}
+
+	/**
+	 * On: a file read for its hashes has its type, which the routes give
+	 * when asked; a file never read has none, which is null rather than an
+	 * empty string.
+	 */
+	public function testMimeTypesAskedForWhileDetectionIsOnComeWithTheFiles(): void
+	{
+		$this->detection( true );
+
+		$recalc = $this->httpPost( "/api/v1/file/$this->testFileId1/recalc?mimetype=1", [ 'algo' => 'sha256' ] );
+
+		$this->assertTrue( $recalc['success'] ?? false, 'Server said: ' . ( $recalc['error'] ?? '(no reason given)' ) );
+		$this->assertSame( 'text/plain', $recalc['mimetype'] ?? null, 'Detected in the read that hashed it.' );
+
+		$this->assertSame( 'text/plain', $this->httpGet( "/api/v1/file/$this->testFileId1/hashes?mimetype=1" )['mimetype'] ?? null );
+		$this->assertArrayNotHasKey( 'mimetype', $this->httpGet( "/api/v1/file/$this->testFileId1/hashes" ), 'Not asked, not given.' );
+
+		$second = $this->httpGet( "/api/v1/file/$this->testFileId2/hashes?mimetype=1" );
+
+		$this->assertArrayHasKey( 'mimetype', $second );
+		$this->assertNull( $second['mimetype'], 'Its hashes were written without a read.' );
+	}
+
 	// ─── helpers ─────────────────────────────────────────────────────
+	/**
+	 * Switch MIME type detection, for the web server's process to read; put
+	 * back as it was by tearDown().
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function detection( bool $on ): void
+	{
+		$appConfig = Server::get( IAppConfig::class );
+
+		$this->detectionBefore ??= $appConfig->hasKey( Application::APP_ID, ConfigLexicon::MIMETYPE_DETECTION )
+			? $appConfig->getValueBool( Application::APP_ID, ConfigLexicon::MIMETYPE_DETECTION )
+			: 'absent';
+
+		$appConfig->setValueBool( Application::APP_ID, ConfigLexicon::MIMETYPE_DETECTION, $on );
+	}
+
 	private function httpGet( string $path ): array
 	{
 		$context = stream_context_create( [

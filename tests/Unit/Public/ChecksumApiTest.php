@@ -76,6 +76,9 @@ class ChecksumApiTest
 
 	private MockObject|HashListingService $listing;
 
+	/** Detection off unless a test says otherwise: what an install has. */
+	private MockObject|MimeTypeService $mimeTypes;
+
 	/** File ids the mocked resolver places outside every reach. */
 	private array $outOfReach = [];
 
@@ -139,7 +142,8 @@ class ChecksumApiTest
 			$this->reach,
 			// Marking, so a test can see a refusal went through IL10N.
 			$this->markingL10n(),
-			$this->listing = $this->createMock( HashListingService::class ),
+			$this->listing   = $this->createMock( HashListingService::class ),
+			$this->mimeTypes = $this->createMock( MimeTypeService::class ),
 		);
 	}
 
@@ -1176,19 +1180,142 @@ class ChecksumApiTest
 	}
 
 	/**
-	 * The version is a compatibility marker and harmless; the rest describes
-	 * the instance and is the administrator's. A non-admin — including the
-	 * anonymous caller, uid null — gets the version and nothing else.
+	 * The version is a compatibility marker and harmless, and so is what a
+	 * caller may ask for; the rest describes the instance and is the
+	 * administrator's. A non-admin — including the anonymous caller, uid
+	 * null — gets the version and the features, and nothing else.
 	 */
-	public function testGetStatusGivesANonAdminTheVersionAlone(): void
+	public function testGetStatusGivesANonAdminTheVersionAndTheFeaturesAlone(): void
 	{
 		$this->groupManager->method( 'isAdmin' )
 		                   ->willReturn( false )
 		;
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( true )
+		;
 
 		$status = $this->api->getStatus( 'bob' );
 
-		$this->assertSame( [ 'version' ], array_keys( $status ) );
+		$this->assertSame( [ 'version', 'features' ], array_keys( $status ) );
+		$this->assertSame( [ 'mimetype' => true ], $status['features'] );
+	}
+
+	// ─── MIME types ─────────────────────────────────────────────────
+	/**
+	 * Asked for while detection is off, refused with why and where it is
+	 * switched on, in the caller's language, before anything is read.
+	 */
+	public function testMimeTypesAskedForWhileDetectionIsOffAreRefused(): void
+	{
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( false )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'listedHashes' )
+		;
+
+		try
+		{
+			$this->api->getHashesByFileId( 42, null, withMimeType: true );
+			$this->fail( 'Refused.' );
+		}
+		catch ( HintedInvalidArgumentException $e )
+		{
+			$this->assertStringStartsWith( '«MIME type detection is off on this server.', $e->hint );
+			$this->assertStringContainsString( '«Advanced»', $e->hint );
+		}
+	}
+
+	/** Switched on, and PHP unable to: the refusal says that instead. */
+	public function testMimeTypesAskedForWithoutFileinfoAreRefusedSayingSo(): void
+	{
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( false )
+		;
+		$this->mimeTypes->method( 'isEnabled' )
+		                ->willReturn( true )
+		;
+
+		$this->assertStringContainsString( 'Fileinfo extension is not loaded', (string) $this->api->mimeTypeRefusal() );
+	}
+
+	public function testNothingIsRefusedWhileTypesAreDetected(): void
+	{
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( true )
+		;
+
+		$this->assertNull( $this->api->mimeTypeRefusal() );
+	}
+
+	/** A file's type, whole; null for one without. */
+	public function testAFileGivesItsTypeWhenAsked(): void
+	{
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( true )
+		;
+		$this->metadataService->method( 'mimeTypesOf' )
+		                      ->with( [ 42 ] )
+		                      ->willReturn( [ 42 => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ] )
+		;
+
+		$this->assertSame(
+			'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+			$this->api->getHashesByFileId( 42, null, withMimeType: true )['mimetype'],
+		);
+		$this->assertArrayNotHasKey( 'mimetype', $this->api->getHashesByFileId( 42, null ), 'Not asked, not given.' );
+	}
+
+	/**
+	 * A duplicate group gets the type of the content its files share: the
+	 * first of them that has one. A group none of whose files has one, null.
+	 */
+	public function testEachDuplicateGroupGetsTheTypeOfItsContent(): void
+	{
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( true )
+		;
+		$this->hashIndexService->method( 'listDuplicatesForUser' )
+		                       ->willReturn(
+			                       [
+				                       'duplicates'   => [
+					                       [ 'files' => [ [ 'fileid' => 1 ], [ 'fileid' => 2 ] ] ],
+					                       [ 'files' => [ [ 'fileid' => 3 ], [ 'fileid' => 4 ] ] ],
+				                       ],
+				                       'total_groups' => 2,
+				                       'pagination'   => [ 'offset' => 0, 'limit' => 50 ],
+			                       ],
+		                       )
+		;
+		$this->metadataService->method( 'mimeTypesOf' )
+		                      ->with( [ 1, 2, 3, 4 ] )
+		                      ->willReturn( [ 2 => 'image/png' ] )
+		;
+
+		$groups = $this->api->findDuplicatesFor( null, withMimeType: true )['duplicates'];
+
+		$this->assertSame( 'image/png', $groups[0]['mimetype'] );
+		$this->assertNull( $groups[1]['mimetype'] );
+	}
+
+	/**
+	 * A failed recalculation may be of a file the caller may not see: its
+	 * type is not given.
+	 */
+	public function testAFailedRecalculationGivesNoType(): void
+	{
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( true )
+		;
+		$this->outOfReach = [ 42 ];
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'mimeTypesOf' )
+		;
+
+		$result = $this->api->recalcHash( 42, [ 'alice' ], withMimeType: true );
+
+		$this->assertFalse( $result['success'] );
+		$this->assertNull( $result['mimetype'] );
 	}
 
 	// ─── recalcHash ─────────────────────────────────────────────────

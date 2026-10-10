@@ -46,6 +46,8 @@ term that changes, changes here and in the `.po` file at once.
 | external storage | archiviazione esterna | Nextcloud's `files_external` term |
 | account | account (m., invariable) | Nextcloud's own term; *Accounts* → *Account* |
 | this server | questo server | not *questa istanza*; *la maggior parte dei server* |
+| MIME type | tipo MIME | its detection: *il rilevamento del tipo MIME* |
+| administration settings | impostazioni di amministrazione | Nextcloud's own name |
 | administrator | amministratore | as Nextcloud has it |
 | admin group | gruppo admin | |
 | group admin | amministratore di gruppo | Nextcloud's sub-admin; its *Group admin for* → *Amministratore per il gruppo* |

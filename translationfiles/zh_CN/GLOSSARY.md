@@ -56,6 +56,8 @@ term that changes, changes here and in the `.po` file at once.
 | admin group | 管理员群组 | |
 | group admin | 分组管理员 | Nextcloud's word for a sub-admin, as its account management names the role (“Group admin for”: “分组管理员”) |
 | this server | 此服务器 | not 此实例; “大多数服务器” |
+| MIME type | MIME 类型 | its detection: MIME 类型检测 |
+| administration settings | 管理设置 | Nextcloud's own name |
 | app password | 应用密码 | Nextcloud's term |
 | filesystem access (of an app password) | 文件系统访问权限 | Nextcloud's token option is “允许访问文件系统”, named so in running text |
 | Security (the personal settings section) | 安全 | Nextcloud's own name |

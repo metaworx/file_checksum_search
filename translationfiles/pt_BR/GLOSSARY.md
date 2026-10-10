@@ -50,6 +50,8 @@ term that changes, changes here and in the `.po` file at once.
 | raw ID | ID interno | *o ID*, masculine, as most of Nextcloud's `pt_BR` has it |
 | account | conta, contas | Nextcloud's *Contas* |
 | this server | este servidor | not *esta instância*: *neste servidor*, *a maioria dos servidores* |
+| MIME type | tipo MIME | its detection: *a detecção do tipo MIME* |
+| administration settings | configurações de administração | Nextcloud's own name |
 | administrator | administrador | as Nextcloud's `pt_BR` has it |
 | admin group | grupo de administradores | |
 | group admin (sub-admin) | administrador de grupo | Nextcloud's *Admin. de grupo* |

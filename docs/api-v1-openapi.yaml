@@ -30,6 +30,7 @@ paths:
       description: Find all files whose checksum matches the given hash. Optionally filter by algorithm.
       operationId: findByHash
       parameters:
+        - $ref: "#/components/parameters/MimeType"
         - name: hash
           in: query
           required: true
@@ -81,6 +82,7 @@ paths:
         the files a lookup could find. Pass `next` back as `after` until it is null.
       operationId: listHashes
       parameters:
+        - $ref: "#/components/parameters/MimeType"
         - $ref: "#/components/parameters/HashListAlgo"
         - $ref: "#/components/parameters/HashListLimit"
         - $ref: "#/components/parameters/HashListAfter"
@@ -108,6 +110,7 @@ paths:
       description: Retrieve all computed checksums for a file by its filecache ID.
       operationId: getHashesByFileId
       parameters:
+        - $ref: "#/components/parameters/MimeType"
         - name: fileId
           in: path
           required: true
@@ -138,6 +141,7 @@ paths:
       description: For each algorithm for which the given file has a checksum, find other files with the same hash value.
       operationId: findSameHash
       parameters:
+        - $ref: "#/components/parameters/MimeType"
         - name: fileId
           in: path
           required: true
@@ -169,6 +173,7 @@ paths:
         recalculate checksums (the *manual_recalc* permission; members of `admin` always may).
       operationId: recalcHash
       parameters:
+        - $ref: "#/components/parameters/MimeType"
         - name: fileId
           in: path
           required: true
@@ -220,6 +225,8 @@ paths:
         it did not get to as `remaining`, in the order given; send those again.
         `many` is a literal where `{fileId}` stands on the route beside it.
       operationId: recalcMany
+      parameters:
+        - $ref: "#/components/parameters/MimeType"
       requestBody:
         required: true
         content:
@@ -253,6 +260,7 @@ paths:
       description: Find groups of files that share the same hash value. Supports filtering by algorithm, pagination, and minimum group size.
       operationId: findDuplicates
       parameters:
+        - $ref: "#/components/parameters/MimeType"
         - name: algo
           in: query
           required: false
@@ -344,6 +352,7 @@ paths:
         logged at info level naming the acting account.
       operationId: sudoRecalcHash
       parameters:
+        - $ref: "#/components/parameters/MimeType"
         - name: fileId
           in: path
           required: true
@@ -398,6 +407,8 @@ paths:
         and any `exclude` rule apply as on the single route. Logged at info
         level naming the acting account.
       operationId: sudoRecalcMany
+      parameters:
+        - $ref: "#/components/parameters/MimeType"
       requestBody:
         required: true
         content:
@@ -435,6 +446,7 @@ paths:
         outside that is 403 "Not yours to look at.".
       operationId: sudoGetHashesByFileId
       parameters:
+        - $ref: "#/components/parameters/MimeType"
         - name: fileId
           in: path
           required: true
@@ -471,6 +483,7 @@ paths:
         the reach ("Not yours to look at.").
       operationId: sudoFindDuplicatesForFile
       parameters:
+        - $ref: "#/components/parameters/MimeType"
         - name: fileId
           in: path
           required: true
@@ -506,6 +519,7 @@ paths:
         anyone who may not look across accounts.
       operationId: sudoLookupByHash
       parameters:
+        - $ref: "#/components/parameters/MimeType"
         - name: hash
           in: query
           required: true
@@ -635,6 +649,7 @@ paths:
         and their own groups.
       operationId: sudoFindAllDuplicates
       parameters:
+        - $ref: "#/components/parameters/MimeType"
         - name: users[]
           in: query
           required: false
@@ -732,6 +747,7 @@ paths:
         with 403 for anyone who may not look across accounts.
       operationId: sudoListHashes
       parameters:
+        - $ref: "#/components/parameters/MimeType"
         - name: users[]
           in: query
           required: false
@@ -1145,6 +1161,19 @@ components:
       schema:
         type: string
         example: "2026-09-02T15:17:00+02:00"
+    MimeType:
+      name: mimetype
+      in: query
+      required: false
+      description: >-
+        `1` adds `mimetype` to each file, or to each duplicate group: the content's MIME type as
+        detected from its first 64 KiB, `null` for a file without one. While detection is off,
+        asking is a 400 that says where it is switched on; `features.mimetype` of
+        `/api/v1/status` says whether to ask. A type a refresh detects writes no hash, and no
+        `since` feed carries it.
+      schema:
+        type: boolean
+        default: false
 
   schemas:
     ErrorResponse:
@@ -1209,6 +1238,17 @@ components:
             disk. Null for a storage without local files (an object store, a share, a remote
             mount) and for every file while server-side encryption is enabled.
           example: "/srv/nextcloud/data/alice/files/Documents/report.pdf"
+        mimetype:
+          $ref: "#/components/schemas/DetectedMimeType"
+
+    DetectedMimeType:
+      type: string
+      nullable: true
+      description: >-
+        With `mimetype=1` only: the content's MIME type as detected from its first 64 KiB, as
+        libmagic names it; null for a file without one. Not Nextcloud's own `mimetype`, which
+        the file's name gives.
+      example: application/pdf
 
     FileHashesResponse:
       type: object
@@ -1243,6 +1283,8 @@ components:
           type: boolean
           description: "Whether the asking account may look across accounts; the sidebar offers the way to the Duplicates page's Others tab when true."
           example: false
+        mimetype:
+          $ref: "#/components/schemas/DetectedMimeType"
 
     PreferenceResponse:
       type: object
@@ -1370,6 +1412,8 @@ components:
             Cross-account route only: whether the caller's own mounts hold this file, so a
             Files-app link to it would open.
           example: false
+        mimetype:
+          $ref: "#/components/schemas/DetectedMimeType"
     HashesUpdatedAt:
       type: string
       format: date-time
@@ -1436,6 +1480,13 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DuplicateFile"
+        mimetype:
+          type: string
+          nullable: true
+          description: >-
+            With `mimetype=1` only: the MIME type of the content the group's files share, as
+            detected for the first of them that has one; null where none has.
+          example: application/pdf
 
     DuplicateFile:
       type: object
@@ -1495,6 +1546,13 @@ components:
         fileid:
           type: integer
           example: 12345
+        mimetype:
+          type: string
+          nullable: true
+          description: >-
+            With `mimetype=1` only: the content's MIME type the recalculation left, detected in
+            the same read where detection is on; null on a failure, or for a file without one.
+          example: application/pdf
 
     RecalcManyInput:
       type: object
@@ -1556,15 +1614,25 @@ components:
     StatusResponse:
       type: object
       description: >-
-        `version` is for everyone. The others describe the instance and
-        are answered to administrators only; a non-administrator's answer is
-        `version` alone.
-      required: [version]
+        `version` and `features` are for everyone. The others describe the
+        instance and are answered to administrators only; a
+        non-administrator's answer is `version` and `features` alone.
+      required: [version, features]
       properties:
         version:
           type: string
           description: App version
           example: "1.0.0"
+        features:
+          type: object
+          required: [mimetype]
+          properties:
+            mimetype:
+              type: boolean
+              description: >-
+                Whether the routes give a file's MIME type when asked (`mimetype=1`): detection
+                is switched on, and PHP able to detect.
+              example: true
         dbVersion:
           type: string
           description: Database version string; administrators only
@@ -1584,6 +1652,25 @@ components:
           type: integer
           description: Number of pending hash updates; administrators only
           example: 5
+        mimeTypes:
+          type: object
+          description: Where MIME type detection stands; administrators only
+          required: [state, rows, deleteRequestedAt]
+          properties:
+            state:
+              type: string
+              enum: [enabled, disabled, unavailable, deleting]
+              description: "`unavailable`: switched on, and PHP's Fileinfo extension not loaded"
+              example: enabled
+            rows:
+              type: integer
+              description: The MIME types stored, counted with the checksums, as of rowCountAt
+              example: 9120
+            deleteRequestedAt:
+              type: integer
+              nullable: true
+              description: When the deletion running was requested, Unix time; null while none runs
+              example: null
 
     SuccessResponse:
       type: object

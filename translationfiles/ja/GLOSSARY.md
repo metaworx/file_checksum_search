@@ -56,6 +56,8 @@ here; a term that changes, changes here and in the `.po` file at once.
 | account | アカウント | Nextcloud: 「アカウント」 |
 | who (in 「…できるユーザー」) | ユーザー | only where the English says *who*: the 「…できるユーザー」 headings, 「…アクセスできるユーザーを決めます」; never for an account |
 | this server | このサーバー | not このインスタンス; 「ほとんどのサーバー」 |
+| MIME type | MIMEタイプ | its detection: MIMEタイプの検出 |
+| administration settings | 管理者設定 | Nextcloud's own name |
 | administrator | 管理者 | |
 | admin group | 管理者グループ | |
 | group admin | グループ管理者 | Nextcloud's group admin (sub-admin) |

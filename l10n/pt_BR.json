@@ -169,6 +169,8 @@
     "Lazy (delete checksums now, recalculate later)" : "Adiado (excluir as somas de verificação agora, recalcular depois)",
     "Listing every rule requires administrator rights." : "Listar todas as regras exige direitos de administrador.",
     "Loading checksums …" : "Carregando somas de verificação…",
+    "MIME type detection is off on this server. An administrator can switch it on in the administration settings, under %1$s → %2$s." : "A detecção do tipo MIME está desativada neste servidor. Um administrador pode ativá-la nas configurações de administração, em %1$s → %2$s.",
+    "MIME types cannot be detected on this server: PHP's Fileinfo extension is not loaded." : "Os tipos MIME não podem ser detectados neste servidor: a extensão Fileinfo do PHP não está carregada.",
     "Match anywhere in the hash" : "Encontrar em qualquer parte do hash",
     "Match the term anywhere in the hash, not only at its start" : "Encontrar o termo em qualquer parte do hash, não só no início",
     "Members of a group" : "Membros de um grupo",

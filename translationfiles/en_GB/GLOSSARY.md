@@ -33,7 +33,7 @@ reshare, rescan, retry) write *re-* words.
 ## Never changes
 
 - The terms checksum, account, team folder, rule, band, scope, grant,
-  sudoers, recalculate.
+  sudoers, recalculate, MIME type.
 - `{placeholders}`, `%s`, `%n`.
 - Values in straight quotes: `"include"`, `"hash"`, `"**"`, `local::/path/`.
 - Code, route and parameter names: `/api/v1/sudo/`, `fileIds`, `selector`,

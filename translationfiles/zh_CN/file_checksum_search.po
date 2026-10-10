@@ -554,6 +554,14 @@ msgstr "列出所有规则需要管理员权限。"
 msgid "Loading checksums …"
 msgstr "正在加载校验和…"
 
+#. TRANSLATORS: %1$s is the app's name in the administration settings, %2$s the name of its tab
+#, php-format
+msgid "MIME type detection is off on this server. An administrator can switch it on in the administration settings, under %1$s → %2$s."
+msgstr "此服务器上的 MIME 类型检测已关闭。管理员可以在管理设置的 %1$s → %2$s 中启用它。"
+
+msgid "MIME types cannot be detected on this server: PHP's Fileinfo extension is not loaded."
+msgstr "此服务器无法检测 MIME 类型：PHP 的 Fileinfo 扩展未加载。"
+
 #. TRANSLATORS a switch beside the hash filter: the typed text may match anywhere inside a checksum, not only at its start
 msgid "Match anywhere in the hash"
 msgstr "在哈希值的任意位置匹配"

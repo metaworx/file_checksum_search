@@ -20,6 +20,7 @@ use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\HashListingService;
 use OCA\FileChecksumSearch\Service\HintedInvalidArgumentException;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\MimeTypeService;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCP\IGroupManager;
@@ -70,6 +71,7 @@ class ChecksumApi
 		private readonly ReachResolver           $reach,
 		private readonly IL10N $l10n,
 		private readonly HashListingService      $listing,
+		private readonly MimeTypeService         $mimeTypes,
 	) {
 	}
 
@@ -83,7 +85,7 @@ class ChecksumApi
 	 *
 	 * @param  File  $file  A Nextcloud File node
 	 *
-	 * @return array{fileid: int, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool}
+	 * @return array{fileid: int, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool, mimetype?: ?string}
 	 */
 	public function getHashesByFile( File $file ): array
 	{
@@ -118,16 +120,25 @@ class ChecksumApi
 	 *                                         DI/bootstrap caller, for whom
 	 *                                         the answer reports what such a
 	 *                                         caller may do: everything.
+	 * @param  bool               $withMimeType  The answer gains `mimetype`:
+	 *                                           the content's type as
+	 *                                           detected, null for none
+	 *                                           ({@see withMimeTypes()}).
 	 *
-	 * @return array{fileid: int, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool}
+	 * @return array{fileid: int, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool, mimetype?: ?string}
 	 * @throws NotFoundException  If $reachUids is set and the file lies outside it
+	 * @throws HintedInvalidArgumentException  For $withMimeType while detection
+	 *                                         is off ({@see mimeTypeRefusal()})
 	 */
 	public function getHashesByFileId(
 		int     $fileId,
 		?array  $reachUids,
 		?string $actingUser = null,
+		bool    $withMimeType = false,
 	): array
 	{
+		$this->assertMimeTypesReadable( $withMimeType );
+
 		if ( ! $this->reach->contains( $this->reach->mountsFor( $reachUids ), $fileId ) )
 		{
 			throw new NotFoundException( "Invalid file ID: $fileId" );
@@ -157,7 +168,7 @@ class ChecksumApi
 			? $this->userConfig->getValueString( $uid, Application::APP_ID, ConfigLexicon::USER_PREFERRED_ALGORITHM )
 			: '';
 
-		return [
+		$answer = [
 			'fileid'     => $fileId,
 			'updated_at' => HashListingService::stamp( $updatedAt ),
 			'hashes'     => $result,
@@ -170,6 +181,10 @@ class ChecksumApi
 			// that may not, instead of offering them to fail.
 			'canRecalc'  => $this->mayRecalc( $actingUser ),
 		];
+
+		return $withMimeType
+			? $this->withMimeTypes( [ $answer ] )[0]
+			: $answer;
 	}
 
 	/**
@@ -183,7 +198,7 @@ class ChecksumApi
 	 * @param  string       $path  Filesystem path
 	 * @param  string|null  $user  If provided, path is relative to this user's home
 	 *
-	 * @return array{fileid: int, path: string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool}
+	 * @return array{fileid: int, path: string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool, mimetype?: ?string}
 	 * @throws NotFoundException  If the path cannot be resolved to a file
 	 */
 	public function getHashesByPath(
@@ -219,24 +234,32 @@ class ChecksumApi
 	 * Read-only health/status snapshot: the version for anyone, the rest for
 	 * an administrator only.
 	 *
+	 * `features` says what a caller may ask for: `mimetype`, whether the
+	 * routes give a file's MIME type when asked (`?mimetype=1`).
+	 *
 	 * `rowCount` is the stored count of indexed checksums, `rowCountAt` when
 	 * it was taken ({@see StatusService::getHashRowCount()}). `mimeTypes` is
 	 * where MIME type detection stands, one of `enabled`, `disabled`,
 	 * `unavailable` and `deleting`, with the types stored, counted with the
 	 * checksums.
 	 *
-	 * @return array{version: string, dbVersion?: string, rowCount?: int, rowCountAt?: int, pendingRows?: int, mimeTypes?: array{state: string, rows: int, deleteRequestedAt: int|null}}
+	 * @return array{version: string, features: array{mimetype: bool}, dbVersion?: string, rowCount?: int, rowCountAt?: int, pendingRows?: int, mimeTypes?: array{state: string, rows: int, deleteRequestedAt: int|null}}
 	 */
 	public function getStatus( ?string $requestingUser = null ): array
 	{
-		// The version is harmless — clients check it for compatibility. The
-		// rest describes the instance (its database version, how much it
-		// holds, its backlog) and is the administrator's to see, not every
-		// account's.
+		// The version and the features are harmless — clients check them
+		// before they ask. The rest describes the instance (its database
+		// version, how much it holds, its backlog) and is the
+		// administrator's to see, not every account's.
+		$features = [
+			'mimetype' => $this->mimeTypes->isActive(),
+		];
+
 		if ( ! $this->actsAsAdmin( $requestingUser ) )
 		{
 			return [
-				'version' => $this->statusService->getAppVersion(),
+				'version'  => $this->statusService->getAppVersion(),
+				'features' => $features,
 			];
 		}
 
@@ -245,6 +268,7 @@ class ChecksumApi
 
 		return [
 			'version'     => $this->statusService->getAppVersion(),
+			'features'    => $features,
 			'dbVersion'   => $this->statusService->getDbVersion(),
 			'rowCount'    => $rows['rows'],
 			'rowCountAt'  => $rows['at'],
@@ -292,10 +316,14 @@ class ChecksumApi
 	 *                                        through a share is located by the
 	 *                                        share, `share:<id>//…`: nothing of
 	 *                                        the sharer's above it.
+	 * @param  bool               $withMimeType  Each row gains `mimetype`, as
+	 *                                           {@see getHashesByFileId()}.
 	 *
-	 * @return array{results: array<int, array{fileid: int, algo: string, hash: string, path: string, name: string, owner: ?string, location: string, localPath?: ?string}>}
-	 * @throws \InvalidArgumentException  When $hash is empty once trimmed. The
-	 *                                    REST layer turns this into a 400.
+	 * @return array{results: array<int, array{fileid: int, algo: string, hash: string, path: string, name: string, owner: ?string, location: string, localPath?: ?string, mimetype?: ?string}>}
+	 * @throws \InvalidArgumentException  When $hash is empty once trimmed, or
+	 *                                    for $withMimeType while detection is
+	 *                                    off. The REST layer turns this into
+	 *                                    a 400.
 	 */
 	public function findByHash(
 		string  $hash,
@@ -304,8 +332,11 @@ class ChecksumApi
 		int     $limit = 100,
 		bool    $withLocalPath = false,
 		bool    $canonical = false,
+		bool    $withMimeType = false,
 	): array
 	{
+		$this->assertMimeTypesReadable( $withMimeType );
+
 		$hash = trim( $hash );
 
 		if ( $hash === '' )
@@ -337,7 +368,11 @@ class ChecksumApi
 				] + ( $withLocalPath ? [ 'localPath' => $row['local_path'] ?? null ] : [] );
 			}, $rows );
 
-			return [ 'results' => $results ];
+			return [
+				'results' => $withMimeType
+					? $this->withMimeTypes( $results )
+					: $results,
+			];
 		}
 
 		// Scoped to one account, or to several — a caller's own reach, or
@@ -423,7 +458,13 @@ class ChecksumApi
 			];
 		}
 
-		return [ 'results' => $this->withLocations( $results, $withLocalPath, $uids, $canonical ) ];
+		$results = $this->withLocations( $results, $withLocalPath, $uids, $canonical );
+
+		return [
+			'results' => $withMimeType
+				? $this->withMimeTypes( $results )
+				: $results,
+		];
 	}
 
 	/**
@@ -463,14 +504,22 @@ class ChecksumApi
 	 * @param  bool               $withLocalPath  Each entry gains `localPath`,
 	 *                                            as {@see findByHash()}.
 	 * @param  bool               $canonical      As {@see findByHash()}.
+	 * @param  bool               $withMimeType   Each entry gains `mimetype`,
+	 *                                            as {@see getHashesByFileId()}.
+	 *                                            A type detected by a refresh
+	 *                                            writes no hash, and is in no
+	 *                                            `since` feed: after a refresh,
+	 *                                            read the listing whole.
 	 *
-	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>}>, next: ?int, now: int, estimated_total?: int}
+	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, mimetype?: ?string}>, next: ?int, now: int, estimated_total?: int}
 	 *         `next` is null when no file follows, and echoes $after for a
 	 *         count. `now` is this server's clock, unix seconds, taken before
 	 *         the page was read. Starting from 0, `estimated_total` counts the
 	 *         whole listing: an estimate, as files come and go while it is
 	 *         read.
 	 * @throws \OCP\DB\Exception
+	 * @throws HintedInvalidArgumentException  For $withMimeType while detection
+	 *                                         is off.
 	 */
 	public function listHashes(
 		?array  $reachUids,
@@ -480,9 +529,12 @@ class ChecksumApi
 		?int    $since = null,
 		bool    $withLocalPath = false,
 		bool    $canonical = false,
+		bool    $withMimeType = false,
 	): array
 	{
-		return $this->listing->page( $reachUids, $algo, $limit, $after, $since, $withLocalPath, $canonical );
+		$this->assertMimeTypesReadable( $withMimeType );
+
+		return $this->listing->page( $reachUids, $algo, $limit, $after, $since, $withLocalPath, $canonical, $withMimeType );
 	}
 
 	/**
@@ -503,9 +555,12 @@ class ChecksumApi
 	 *                                            was cut short received; 0
 	 *                                            starts at the beginning.
 	 * @param  bool               $canonical      As {@see findByHash()}.
+	 * @param  bool               $withMimeType   As {@see listHashes()}.
 	 *
-	 * @return Generator<int, array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>}>
+	 * @return Generator<int, array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, mimetype?: ?string}>
 	 * @throws \OCP\DB\Exception  While the walk is read, not when it is asked for.
+	 * @throws HintedInvalidArgumentException  For $withMimeType while detection
+	 *                                         is off, when it is asked for.
 	 */
 	public function iterateHashes(
 		?array  $reachUids,
@@ -514,9 +569,12 @@ class ChecksumApi
 		bool    $withLocalPath = false,
 		int     $after = 0,
 		bool    $canonical = false,
+		bool    $withMimeType = false,
 	): Generator
 	{
-		return $this->listing->iterate( $reachUids, $algo, $since, $withLocalPath, $after, $canonical );
+		$this->assertMimeTypesReadable( $withMimeType );
+
+		return $this->listing->iterate( $reachUids, $algo, $since, $withLocalPath, $after, $canonical, $withMimeType );
 	}
 
 	/**
@@ -534,8 +592,12 @@ class ChecksumApi
 	 *                                     too; left out by default, since
 	 *                                     every empty file shares one
 	 *                                     checksum per algorithm
+	 * @param  bool         $withMimeType  Each group gains `mimetype`, as
+	 *                                     {@see findDuplicatesFor()}.
 	 *
 	 * @return array{duplicates: array, total_groups: int, pagination: array{offset: int, limit: int}}
+	 * @throws HintedInvalidArgumentException  For $withMimeType while detection
+	 *                                         is off.
 	 */
 	public function findDuplicates(
 		?string $algo = null,
@@ -545,8 +607,11 @@ class ChecksumApi
 		?string $hash = null,
 		bool    $anywhere = false,
 		bool    $includeEmpty = false,
+		bool    $withMimeType = false,
 	): array
 	{
+		$this->assertMimeTypesReadable( $withMimeType );
+
 		$user = $this->userSession->getUser();
 		$uid  = $user?->getUID();
 
@@ -562,7 +627,7 @@ class ChecksumApi
 			];
 		}
 
-		return $this->findDuplicatesFor( [ $uid ], $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty );
+		return $this->findDuplicatesFor( [ $uid ], $algo, $minCount, $limit, $offset, $hash, $anywhere, $includeEmpty, withMimeType: $withMimeType );
 	}
 
 	/**
@@ -580,8 +645,14 @@ class ChecksumApi
 	 *                                        mounts one layer down.
 	 * @param  bool               $includeEmpty  As {@see findDuplicates()}.
 	 * @param  bool               $canonical  As {@see findByHash()}.
+	 * @param  bool               $withMimeType  Each group gains `mimetype`:
+	 *                                           the type of the content its
+	 *                                           files share, as detected
+	 *                                           ({@see groupsWithMimeTypes()}).
 	 *
 	 * @return array{duplicates: array, total_groups: int, pagination: array{offset: int, limit: int}}
+	 * @throws HintedInvalidArgumentException  For $withMimeType while detection
+	 *                                         is off.
 	 */
 	public function findDuplicatesFor(
 		?array  $reachUids,
@@ -593,11 +664,13 @@ class ChecksumApi
 		bool    $anywhere = false,
 		bool    $includeEmpty = false,
 		bool    $canonical = false,
+		bool    $withMimeType = false,
 	): array
 	{
-		$limit = max( 1, min( $limit, 500 ) );
+		$this->assertMimeTypesReadable( $withMimeType );
 
-		return $this->hashIndexService->listDuplicatesForUser(
+		$limit  = max( 1, min( $limit, 500 ) );
+		$answer = $this->hashIndexService->listDuplicatesForUser(
 			$reachUids,
 			$algo,
 			$minCount,
@@ -608,6 +681,13 @@ class ChecksumApi
 			$includeEmpty,
 			$canonical,
 		);
+
+		if ( $withMimeType )
+		{
+			$answer['duplicates'] = $this->groupsWithMimeTypes( $answer['duplicates'] );
+		}
+
+		return $answer;
 	}
 
 	/**
@@ -624,21 +704,28 @@ class ChecksumApi
 	 * @param  list<string>|null  $reachUids  Whose files: one account, several,
 	 *                                        or null for every account.
 	 * @param  bool               $canonical  As {@see findByHash()}.
+	 * @param  bool               $withMimeType  Each group gains `mimetype`, as
+	 *                                           {@see findDuplicatesFor()}.
 	 *
 	 * Unlike the listing, this leaves no empty file out: the caller named the
 	 * file. Each group says whether it is the empty files' (`empty`), and the
 	 * caller decides how to show it.
 	 *
 	 * @return array{duplicates: array<int, array{algo: string, hash_value: string, empty: bool, files:
-	 *                           array<int, array{fileid: int, path: string, name: string}>}>}
+	 *                           array<int, array{fileid: int, path: string, name: string}>, mimetype?: ?string}>}
 	 * @throws NotFoundException  If $reachUids is set and the reference file lies outside it
+	 * @throws HintedInvalidArgumentException  For $withMimeType while detection
+	 *                                         is off.
 	 */
 	public function findSameHash(
 		int    $fileId,
 		?array $reachUids,
 		bool   $canonical = false,
+		bool   $withMimeType = false,
 	): array
 	{
+		$this->assertMimeTypesReadable( $withMimeType );
+
 		// Before the hashes are read, not after. A hash is a fingerprint of
 		// content, so answering for a file the caller cannot open turns this
 		// into a content-equality oracle over every file on the instance:
@@ -741,7 +828,11 @@ class ChecksumApi
 			$grouped[ $key ]['files'] = $this->withLocations( $group['files'], false, $reachUids, $canonical );
 		}
 
-		return [ 'duplicates' => array_values( $grouped ) ];
+		return [
+			'duplicates' => $withMimeType
+				? $this->groupsWithMimeTypes( array_values( $grouped ) )
+				: array_values( $grouped ),
+		];
 	}
 
 	/**
@@ -783,19 +874,57 @@ class ChecksumApi
 	 *                                   fileid must resolve within their own
 	 *                                   file tree. Null is a trusted
 	 *                                   DI/bootstrap caller: both are skipped.
+	 * @param  bool         $withMimeType  The answer gains `mimetype`, below.
 	 *
-	 * @return array{success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string, ruleOwner?: string, forbidden?: bool}
+	 * @return array{success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string, ruleOwner?: string, forbidden?: bool, mimetype?: ?string}
 	 *         `excluded` says a rule refused the file rather than anything
 	 *         going wrong, and names the rule in `ruleId` and whose it is in
 	 *         `ruleOwner` — `admin`, or a uid; `forbidden` says
 	 *         the account may not recalculate checksums. The REST layer
 	 *         answers 403 for either and 400 for every other failure.
+	 *         With $withMimeType, `mimetype` is the type the recalculation
+	 *         left, as {@see getHashesByFileId()}; null where it failed.
+	 * @throws HintedInvalidArgumentException  For $withMimeType while detection
+	 *                                         is off.
 	 */
 	public function recalcHash(
 		int     $fileId,
 		?array  $reachUids,
 		?string $algo = null,
 		?string $actingUser = null,
+		bool    $withMimeType = false,
+	): array
+	{
+		$this->assertMimeTypesReadable( $withMimeType );
+
+		$result = $this->recalcFile( $fileId, $reachUids, $algo, $actingUser );
+
+		if ( ! $withMimeType )
+		{
+			return $result;
+		}
+
+		// Only for a file the recalculation reached: a failure may be one the
+		// caller may not see.
+		$result['mimetype'] = $result['success']
+			? $this->metadataService->mimeTypesOf( [ $fileId ] )[ $fileId ] ?? null
+			: null;
+
+		return $result;
+	}
+
+	/**
+	 * {@see recalcHash()}'s work, without the MIME type.
+	 *
+	 * @param  list<string>|null  $reachUids
+	 *
+	 * @return array{success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string, ruleOwner?: string, forbidden?: bool}
+	 */
+	private function recalcFile(
+		int     $fileId,
+		?array  $reachUids,
+		?string $algo,
+		?string $actingUser,
 	): array
 	{
 		if ( ! $this->reach->contains( $this->reach->mountsFor( $reachUids ), $fileId ) )
@@ -894,22 +1023,30 @@ class ChecksumApi
 	 * @param  list<string>|null  $reachUids   As for {@see recalcHash()}.
 	 * @param  string|null        $algo
 	 * @param  string|null        $actingUser  As for {@see recalcHash()}.
+	 * @param  bool               $withMimeType  Each result gains `mimetype`,
+	 *                                           as {@see recalcHash()}.
 	 *
-	 * @return array{results: list<array{fileid: int, success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string, ruleOwner?: string, forbidden?: bool}>, remaining: list<int>}
+	 * @return array{results: list<array{fileid: int, success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string, ruleOwner?: string, forbidden?: bool, mimetype?: ?string}>, remaining: list<int>}
 	 *         `remaining` are the ids not processed, in the order given; the
 	 *         caller sends them again.
+	 * @throws HintedInvalidArgumentException  For $withMimeType while detection
+	 *                                         is off.
 	 */
 	public function recalcMany(
 		array   $fileIds,
 		?array  $reachUids,
 		?string $algo = null,
 		?string $actingUser = null,
+		bool    $withMimeType = false,
 	): array
 	{
-		$fileIds = array_values( array_unique( array_map( 'intval', $fileIds ) ) );
-		$sizes   = $this->hashIndexService->fileSizes( $fileIds );
-		$results = [];
-		$bytes   = 0;
+		$this->assertMimeTypesReadable( $withMimeType );
+
+		$fileIds   = array_values( array_unique( array_map( 'intval', $fileIds ) ) );
+		$sizes     = $this->hashIndexService->fileSizes( $fileIds );
+		$results   = [];
+		$bytes     = 0;
+		$remaining = [];
 
 		foreach ( $fileIds as $index => $fileId )
 		{
@@ -921,19 +1058,33 @@ class ChecksumApi
 			// always read, so a file larger than the whole budget still can be.
 			if ( $index > 0 && ( $index >= self::RECALC_BATCH_FILES || $bytes + $size > self::RECALC_BATCH_BYTES ) )
 			{
-				return [
-					'results'   => $results,
-					'remaining' => array_slice( $fileIds, $index ),
-				];
+				$remaining = array_slice( $fileIds, $index );
+
+				break;
 			}
 
 			$bytes += $size;
-			$results[] = [ 'fileid' => $fileId ] + $this->recalcHash( $fileId, $reachUids, algo: $algo, actingUser: $actingUser );
+			$results[] = [ 'fileid' => $fileId ] + $this->recalcFile( $fileId, $reachUids, $algo, $actingUser );
+		}
+
+		if ( $withMimeType )
+		{
+			// Only for the files the recalculation reached, as recalcHash().
+			$types = $this->metadataService->mimeTypesOf(
+				array_column( array_filter( $results, static fn( array $result ): bool => $result['success'] ), 'fileid' ),
+			);
+
+			foreach ( $results as $i => $result )
+			{
+				$results[ $i ]['mimetype'] = $result['success']
+					? $types[ $result['fileid'] ] ?? null
+					: null;
+			}
 		}
 
 		return [
 			'results'   => $results,
-			'remaining' => [],
+			'remaining' => $remaining,
 		];
 	}
 
@@ -968,6 +1119,128 @@ class ChecksumApi
 			$fileIds,
 			array_map( static fn ( int $id ): bool => isset( $held[ $id ] ), $fileIds ),
 		);
+	}
+
+	/**
+	 * Why a caller cannot be given MIME types now, in their language; null
+	 * where they can.
+	 *
+	 * Asked by the REST layer before it reads anything, so that a client
+	 * asking `?mimetype=1` of a server that does not detect them learns why,
+	 * and where it would be switched on.
+	 */
+	public function mimeTypeRefusal(): ?string
+	{
+		if ( $this->mimeTypes->isActive() )
+		{
+			return null;
+		}
+
+		if ( $this->mimeTypes->isEnabled() )
+		{
+			return $this->l10n->t( 'MIME types cannot be detected on this server: PHP\'s Fileinfo extension is not loaded.' );
+		}
+
+		return $this->l10n->t(
+			// TRANSLATORS: %1$s is the app's name in the administration settings, %2$s the name of its tab
+			'MIME type detection is off on this server. An administrator can switch it on in the administration settings, under %1$s → %2$s.',
+			[
+				$this->l10n->t( 'File Checksum Index & Search' ),
+				$this->l10n->t( 'Advanced' ),
+			],
+		);
+	}
+
+	/**
+	 * Refuse MIME types asked for while they are not detected.
+	 *
+	 * @throws HintedInvalidArgumentException  With {@see mimeTypeRefusal()}
+	 *                                         as its hint.
+	 */
+	private function assertMimeTypesReadable( bool $asked ): void
+	{
+		if ( ! $asked )
+		{
+			return;
+		}
+
+		$refusal = $this->mimeTypeRefusal();
+
+		if ( $refusal !== null )
+		{
+			throw new HintedInvalidArgumentException( 'MIME types were asked for, and MIME type detection is not on.', $refusal );
+		}
+	}
+
+	/**
+	 * The given file rows, each with `mimetype`: the content's type as
+	 * detected, null for none. One query for all of them.
+	 *
+	 * @param  list<array{fileid: int, ...}>  $rows
+	 *
+	 * @return list<array>  the same rows plus `mimetype: ?string`
+	 * @throws \OCP\DB\Exception
+	 */
+	private function withMimeTypes( array $rows ): array
+	{
+		$types = $this->metadataService->mimeTypesOf(
+			array_map( static fn( array $row ): int => (int) $row['fileid'], $rows ),
+		);
+
+		foreach ( $rows as $i => $row )
+		{
+			$rows[ $i ]['mimetype'] = $types[ (int) $row['fileid'] ] ?? null;
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * The given groups of files sharing one content, each with `mimetype`:
+	 * that content's type, as detected for the first of its files that has
+	 * one, and null where none has. One query for all of them.
+	 *
+	 * The files of a group share their content, and so their type; they can
+	 * disagree only where some were detected under another PHP's libmagic,
+	 * or not yet.
+	 *
+	 * @param  list<array{files: list<array{fileid: int, ...}>, ...}>  $groups
+	 *
+	 * @return list<array>  the same groups plus `mimetype: ?string`
+	 * @throws \OCP\DB\Exception
+	 */
+	private function groupsWithMimeTypes( array $groups ): array
+	{
+		$fileIds = [];
+
+		foreach ( $groups as $group )
+		{
+			foreach ( $group['files'] as $file )
+			{
+				$fileIds[] = (int) $file['fileid'];
+			}
+		}
+
+		$types = $this->metadataService->mimeTypesOf( $fileIds );
+
+		foreach ( $groups as $i => $group )
+		{
+			$type = null;
+
+			foreach ( $group['files'] as $file )
+			{
+				$type = $types[ (int) $file['fileid'] ] ?? null;
+
+				if ( $type !== null )
+				{
+					break;
+				}
+			}
+
+			$groups[ $i ]['mimetype'] = $type;
+		}
+
+		return $groups;
 	}
 
 	/**

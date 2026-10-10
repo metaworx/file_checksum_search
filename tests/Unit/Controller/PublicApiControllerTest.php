@@ -856,6 +856,24 @@ class PublicApiControllerTest
 		];
 	}
 
+	/**
+	 * Every route that gives types, asked for them.
+	 *
+	 * @return array<string, array{0: callable(PublicApiController): DataResponse}>
+	 */
+	public static function routesThatGiveTypes(): array
+	{
+		return [
+			'a file\'s hashes'      => [ static fn ( PublicApiController $c ): DataResponse => $c->getHashes( 42, true ) ],
+			'the lookup'            => [ static fn ( PublicApiController $c ): DataResponse => $c->lookup( 'abc12345', mimetype: true ) ],
+			'the listing'           => [ static fn ( PublicApiController $c ): DataResponse => $c->listHashes( mimetype: true ) ],
+			'the duplicates'        => [ static fn ( PublicApiController $c ): DataResponse => $c->findAllDuplicates( mimetype: true ) ],
+			'a file\'s duplicates'  => [ static fn ( PublicApiController $c ): DataResponse => $c->findDuplicates( 42, true ) ],
+			'a recalculation'       => [ static fn ( PublicApiController $c ): DataResponse => $c->recalcHash( 42, true ) ],
+			'a batch recalculation' => [ static fn ( PublicApiController $c ): DataResponse => $c->recalcMany( true ) ],
+		];
+	}
+
 	#[DataProvider( 'sinceProvider' )]
 	public function testSinceIsReadAsUnixSecondsOrAnIsoDate(
 		string $since,
@@ -1270,6 +1288,88 @@ class PublicApiControllerTest
 		$this->assertSame( '{"sha1":{"algo":"sha1","hash":"abc"}}', json_encode( $data['hashes'] ) );
 		// A plain account: the mock's mayCross() says no.
 		$this->assertFalse( $data['canSudo'] );
+	}
+
+	/**
+	 * `?mimetype=1` while detection is off: a 400 that says why, before
+	 * anything is read, on every route that gives types
+	 * ({@see routesThatGiveTypes()}). A refusal rather than the field left
+	 * out, as `?localPath=1` is refused.
+	 *
+	 * @param  callable(PublicApiController): DataResponse  $call
+	 */
+	#[DataProvider( 'routesThatGiveTypes' )]
+	public function testMimeTypesAskedForWhileDetectionIsOffAreA400(
+		callable $call,
+	): void
+	{
+		$this->api->method( 'mimeTypeRefusal' )
+		          ->willReturn( 'MIME type detection is off on this server.' )
+		;
+		$this->api->expects( $this->never() )
+		          ->method( 'getHashesByFileId' )
+		;
+		$this->api->expects( $this->never() )
+		          ->method( 'findByHash' )
+		;
+		$this->api->expects( $this->never() )
+		          ->method( 'listHashes' )
+		;
+		$this->api->expects( $this->never() )
+		          ->method( 'findDuplicatesFor' )
+		;
+		$this->api->expects( $this->never() )
+		          ->method( 'findSameHash' )
+		;
+		$this->api->expects( $this->never() )
+		          ->method( 'recalcHash' )
+		;
+		$this->api->expects( $this->never() )
+		          ->method( 'recalcMany' )
+		;
+
+		$response = $call( $this->controller );
+
+		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
+		$this->assertSame(
+			[
+				'success' => false,
+				'error'   => 'MIME type detection is off on this server.',
+			],
+			$response->getData(),
+		);
+	}
+
+	/** Asked for while detected, the API is asked for the types. */
+	public function testMimeTypesAskedForWhileDetectedAreAskedOfTheApi(): void
+	{
+		$this->api->method( 'mimeTypeRefusal' )
+		          ->willReturn( null )
+		;
+		$this->api->expects( $this->once() )
+		          ->method( 'getHashesByFileId' )
+		          ->with( 42, [ 'admin' ], 'admin', true )
+		          ->willReturn( [
+			          'fileid'   => 42,
+			          'hashes'   => [],
+			          'mimetype' => 'application/pdf',
+		          ] )
+		;
+
+		$this->assertSame( 'application/pdf', $this->controller->getHashes( 42, true )->getData()['mimetype'] );
+	}
+
+	/** Not asked for, the refusal is never consulted. */
+	public function testMimeTypesNotAskedForAreNotRefused(): void
+	{
+		$this->api->expects( $this->never() )
+		          ->method( 'mimeTypeRefusal' )
+		;
+		$this->api->method( 'getHashesByFileId' )
+		          ->willReturn( [ 'fileid' => 42, 'hashes' => [] ] )
+		;
+
+		$this->assertSame( Http::STATUS_OK, $this->controller->getHashes( 42 )->getStatus() );
 	}
 
 	/**

@@ -136,8 +136,11 @@ class HashListingService
 	 *                                            the reach holds through a
 	 *                                            share is located by the
 	 *                                            share.
+	 * @param  bool               $withMimeType   Each entry gains `mimetype`,
+	 *                                            the content's type as
+	 *                                            detected, null for none.
 	 *
-	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>}>, next: ?int, now: int, estimated_total?: int}
+	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, mimetype?: ?string}>, next: ?int, now: int, estimated_total?: int}
 	 *         `next` is the file id to pass as `after` while files remain,
 	 *         null when none do, and `after` itself for a count. `now` is
 	 *         this server's clock, unix seconds, taken before the page is
@@ -154,6 +157,7 @@ class HashListingService
 		?int    $since = null,
 		bool    $withLocalPath = false,
 		bool    $canonical = false,
+		bool    $withMimeType = false,
 	): array
 	{
 		$limit = max( 0, min( $limit, self::MAX_LIMIT ) );
@@ -179,7 +183,7 @@ class HashListingService
 			$more = count( $rows ) > $limit;
 			$rows = array_slice( $rows, 0, $limit );
 
-			$answer['files'] = $this->entries( $rows, $views, $algo, $withLocalPath, $canonical );
+			$answer['files'] = $this->entries( $rows, $views, $algo, $withLocalPath, $canonical, $withMimeType );
 			$answer['next']  = $more ? $rows[ $limit - 1 ]['fileid'] : null;
 		}
 
@@ -210,8 +214,9 @@ class HashListingService
 	 *                                            was cut short received; 0
 	 *                                            starts at the beginning.
 	 * @param  bool               $canonical      As {@see page()}.
+	 * @param  bool               $withMimeType   As {@see page()}.
 	 *
-	 * @return Generator<int, array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>}>
+	 * @return Generator<int, array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, mimetype?: ?string}>
 	 *         keyed by file id, in file id order
 	 * @throws Exception
 	 */
@@ -222,6 +227,7 @@ class HashListingService
 		bool    $withLocalPath = false,
 		int     $after = 0,
 		bool    $canonical = false,
+		bool    $withMimeType = false,
 	): Generator
 	{
 		$after = max( 0, $after );
@@ -233,7 +239,7 @@ class HashListingService
 		{
 			$rows = $this->metadataService->pageListedFiles( $areas, $algo, $after, $since, self::ITERATE_BATCH );
 
-			foreach ( $this->entries( $rows, $views, $algo, $withLocalPath, $canonical ) as $entry )
+			foreach ( $this->entries( $rows, $views, $algo, $withLocalPath, $canonical, $withMimeType ) as $entry )
 			{
 				yield $entry['fileid'] => $entry;
 			}
@@ -263,7 +269,10 @@ class HashListingService
 	 * @param  list<array{fileid: int, storage: int, storage_id: string, path: string, updated_at: ?int}>                     $rows
 	 * @param  list<array{uid: string, storage: int, root: string, prefix: string, rootId: int, shared: bool}>|null $views
 	 *
-	 * @return list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>}>
+	 * With $withMimeType, each entry gains `mimetype`: the content's type as
+	 * detected, null for none. One query for the page.
+	 *
+	 * @return list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, mimetype?: ?string}>
 	 * @throws Exception
 	 */
 	private function entries(
@@ -272,6 +281,7 @@ class HashListingService
 		?string $algo,
 		bool    $withLocalPath,
 		bool    $canonical,
+		bool    $withMimeType = false,
 	): array
 	{
 		if ( $rows === [] )
@@ -280,6 +290,9 @@ class HashListingService
 		}
 
 		$hashes    = $this->metadataService->listedHashes( array_column( $rows, 'fileid' ), $algo );
+		$mimeTypes = $withMimeType
+			? $this->metadataService->mimeTypesOf( array_column( $rows, 'fileid' ) )
+			: [];
 		$locations = [];
 
 		foreach ( $rows as $row )
@@ -327,7 +340,7 @@ class HashListingService
 			] + ( $withLocalPath ? [ 'localPath' => $localPaths[ $fileId ] ?? null ] : [] ) + [
 				'updated_at' => self::stamp( $row['updated_at'] ),
 				'hashes'     => $byAlgo,
-			];
+			] + ( $withMimeType ? [ 'mimetype' => $mimeTypes[ $fileId ] ?? null ] : [] );
 		}
 
 		return $entries;

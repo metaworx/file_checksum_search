@@ -169,6 +169,8 @@
     "Lazy (delete checksums now, recalculate later)" : "延后（立即删除校验和，稍后重新计算）",
     "Listing every rule requires administrator rights." : "列出所有规则需要管理员权限。",
     "Loading checksums …" : "正在加载校验和…",
+    "MIME type detection is off on this server. An administrator can switch it on in the administration settings, under %1$s → %2$s." : "此服务器上的 MIME 类型检测已关闭。管理员可以在管理设置的 %1$s → %2$s 中启用它。",
+    "MIME types cannot be detected on this server: PHP's Fileinfo extension is not loaded." : "此服务器无法检测 MIME 类型：PHP 的 Fileinfo 扩展未加载。",
     "Match anywhere in the hash" : "在哈希值的任意位置匹配",
     "Match the term anywhere in the hash, not only at its start" : "在哈希值的任意位置匹配该词，而不仅是开头",
     "Members of a group" : "某个群组的成员",

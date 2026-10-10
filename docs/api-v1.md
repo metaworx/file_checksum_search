@@ -13,13 +13,14 @@ All three surfaces use the same [`ChecksumApi`](../lib/Public/ChecksumApi.php) c
 ## Table of Contents
 
 1. [Locations and paths](#locations-and-paths)
-2. [PHP API](#php-api)
-3. [HTTP REST API](#http-rest-api)
-4. [Rules](#rules)
-5. [Authentication](#authentication)
-6. [Versioning & Compatibility](#versioning--compatibility)
-7. [Rate Limiting](#rate-limiting)
-8. [Error Handling](#error-handling)
+2. [MIME types](#mime-types)
+3. [PHP API](#php-api)
+4. [HTTP REST API](#http-rest-api)
+5. [Rules](#rules)
+6. [Authentication](#authentication)
+7. [Versioning & Compatibility](#versioning--compatibility)
+8. [Rate Limiting](#rate-limiting)
+9. [Error Handling](#error-handling)
 
 ---
 
@@ -61,6 +62,32 @@ Every file row this API gives carries `path`, `name`, `owner` and
   `$canonical` asks for it whatever the reach.
 - **A rule's scope** is written the same way: its selector, two slashes,
   and its glob, `home:alice//Photos/` followed by `**` ([Rules](#rules)).
+
+---
+
+## MIME types
+
+Where an administrator has switched detection on, a file's MIME type is
+detected from its content, the first 64 KiB of the read that hashes it,
+and kept beside its hashes. Nextcloud's own type, the `mimetype` WebDAV
+and the filecache give, comes from the file's name.
+
+- **Asked for:** `?mimetype=1` on the routes that answer with files: the
+  lookup, a file's hashes, the listing, the duplicates, a file's same-hash
+  files and the recalculations, each with its `sudo/` twin. In PHP,
+  `$withMimeType` on the methods behind them.
+- **`mimetype`** is the type as libmagic names it, `application/pdf`, or
+  `null` for a file without one: hashed before detection was on and not
+  yet refreshed, given its hashes without a read (the filecache copy, an
+  import), or changed since. A duplicate group carries one, the type of
+  the content its files share.
+- **While detection is off**, asking is refused with `400` and an `error`
+  saying so, and where it is switched on; in PHP, a
+  `HintedInvalidArgumentException`. `GET /api/v1/status` tells every
+  caller in `features.mimetype` whether to ask.
+- **The listing's `since`** follows the hashes: a type a refresh detects
+  writes no hash, and no feed carries it. After a refresh, read the
+  listing whole.
 
 ---
 
@@ -128,7 +155,7 @@ To these methods a file outside the reach is *not found*, never *forbidden*:
 a `NotFoundException`, or a `File not found.` result. Whether the caller may
 have the reach at all is decided before the call, by whoever makes it.
 
-#### `findByHash(string $hash, ?array $reachUids, ?string $algo = null, int $limit = 100, bool $withLocalPath = false, bool $canonical = false): array`
+#### `findByHash(string $hash, ?array $reachUids, ?string $algo = null, int $limit = 100, bool $withLocalPath = false, bool $canonical = false, bool $withMimeType = false): array`
 
 Search for files matching a given hash value.
 
@@ -140,6 +167,7 @@ Search for files matching a given hash value.
 | `$limit` | `int` | No | Max results (1–500, default 100) |
 | `$withLocalPath` | `bool` | No | Add `localPath` to each row: the file's absolute path on the server's disk, `null` for a storage without local files (an object store, a share, a remote mount) and for every file while server-side encryption is enabled. It reveals the server's layout; the REST route offers it to sudoers only |
 | `$canonical` | `bool` | No | Every `location` the file's own address, as a sudoer reads it; by default a file the reach holds through a share is located by the share ([Locations and paths](#locations-and-paths)) |
+| `$withMimeType` | `bool` | No | Add `mimetype` to each row ([MIME types](#mime-types)) |
 
 **Returns:**
 ```php
@@ -160,11 +188,12 @@ reach, whichever opened the file first names it. With `$withLocalPath`,
 `<datadir>/__groupfolders/<id>/files/…` for a team folder, the mount's own
 root for an external local storage.
 
-**Throws:** `\InvalidArgumentException` if hash is empty.
+**Throws:** `\InvalidArgumentException` if hash is empty, or for
+`$withMimeType` while detection is off.
 
 ---
 
-#### `listHashes(?array $reachUids, ?string $algo = null, int $limit = 500, int $after = 0, ?int $since = null, bool $withLocalPath = false, bool $canonical = false): array`
+#### `listHashes(?array $reachUids, ?string $algo = null, int $limit = 500, int $after = 0, ?int $since = null, bool $withLocalPath = false, bool $canonical = false, bool $withMimeType = false): array`
 
 Every hash in reach, page by page: one entry per file, in file id order.
 For a caller that keeps a copy of the checksums and would otherwise ask
@@ -179,6 +208,7 @@ hash by hash.
 | `$since` | `?int` | No | Only files with a hash written at or after it, in Unix seconds |
 | `$withLocalPath` | `bool` | No | Add `localPath` to each entry, as `findByHash()` does |
 | `$canonical` | `bool` | No | As `findByHash()` |
+| `$withMimeType` | `bool` | No | Add `mimetype` to each entry ([MIME types](#mime-types)) |
 
 **Returns:**
 ```php
@@ -242,7 +272,7 @@ hash by hash.
 
 ---
 
-#### `iterateHashes(?array $reachUids, ?string $algo = null, ?int $since = null, bool $withLocalPath = false, int $after = 0, bool $canonical = false): Generator`
+#### `iterateHashes(?array $reachUids, ?string $algo = null, ?int $since = null, bool $withLocalPath = false, int $after = 0, bool $canonical = false, bool $withMimeType = false): Generator`
 
 The whole of `listHashes()`'s listing, file by file, for a caller in the same
 process: no paging to drive, and one batch of 500 files in memory at a time,
@@ -256,6 +286,7 @@ however large the listing.
 | `$withLocalPath` | `bool` | No | As `listHashes()` |
 | `$after` | `int` | No | The last file id a walk that was cut short received; 0, the default, starts at the beginning |
 | `$canonical` | `bool` | No | As `findByHash()` |
+| `$withMimeType` | `bool` | No | As `listHashes()`: one query for the types of each batch |
 
 **Yields:** `listHashes()`'s `files` entries, keyed by file id, in file id
 order.
@@ -277,7 +308,7 @@ foreach ($api->iterateHashes(['alice'], 'sha256') as $fileId => $entry) {
 
 ---
 
-#### `getHashesByFileId(int $fileId, ?array $reachUids, ?string $actingUser = null): array`
+#### `getHashesByFileId(int $fileId, ?array $reachUids, ?string $actingUser = null, bool $withMimeType = false): array`
 
 Get all checksums for a file by its filecache ID.
 
@@ -286,6 +317,7 @@ Get all checksums for a file by its filecache ID.
 | `$fileId` | `int` | Yes | The filecache `fileid` |
 | `$reachUids` | `?array` | Yes | Whose files; the file must lie within them. `null` for every account |
 | `$actingUser` | `?string` | No | Whose preference `preferred` reports and whose permission `canRecalc` answers; `null` reads the session |
+| `$withMimeType` | `bool` | No | Add `mimetype` ([MIME types](#mime-types)) |
 
 **Returns:**
 ```php
@@ -362,7 +394,7 @@ Convenience method — get checksums by filesystem path.
 
 ---
 
-#### `findDuplicates(?string $algo = null, int $minCount = 2, int $limit = 50, int $offset = 0, ?string $hash = null, bool $anywhere = false, bool $includeEmpty = false): array`
+#### `findDuplicates(?string $algo = null, int $minCount = 2, int $limit = 50, int $offset = 0, ?string $hash = null, bool $anywhere = false, bool $includeEmpty = false, bool $withMimeType = false): array`
 
 Find duplicate hash groups among the files the calling user can open.
 
@@ -379,6 +411,7 @@ administrator sees their own files, not everyone's.
 | `$hash` | `?string` | No | Only the groups whose hash starts with this |
 | `$anywhere` | `bool` | No | With `$hash`: match it anywhere in the hash, not only at the start |
 | `$includeEmpty` | `bool` | No | List the empty files' groups too (default `false`); see [Empty files](#empty-files) |
+| `$withMimeType` | `bool` | No | Add `mimetype` to each group: the type of the content its files share, as detected for the first of them that has one ([MIME types](#mime-types)) |
 
 **Returns:**
 ```php
@@ -403,7 +436,7 @@ administrator sees their own files, not everyone's.
 
 ---
 
-#### `findDuplicatesFor(?array $reachUids, ?string $algo = null, int $minCount = 2, int $limit = 50, int $offset = 0, ?string $hash = null, bool $anywhere = false, bool $includeEmpty = false, bool $canonical = false): array`
+#### `findDuplicatesFor(?array $reachUids, ?string $algo = null, int $minCount = 2, int $limit = 50, int $offset = 0, ?string $hash = null, bool $anywhere = false, bool $includeEmpty = false, bool $canonical = false, bool $withMimeType = false): array`
 
 The scoped core behind `findDuplicates()`: duplicate groups among the files
 the named accounts hold, as one merged listing, or among every account's with
@@ -422,7 +455,7 @@ The rest as `findDuplicates()`. **Returns:** the same shape.
 
 ---
 
-#### `findSameHash(int $fileId, ?array $reachUids, bool $canonical = false): array`
+#### `findSameHash(int $fileId, ?array $reachUids, bool $canonical = false, bool $withMimeType = false): array`
 
 Find other files sharing hash values with the given file. Both ends are within
 the reach: the reference file must lie in it, and only duplicates in it are
@@ -434,6 +467,7 @@ the file; `empty` says which group is the empty files'.
 | `$fileId` | `int` | Yes | The filecache `fileid` of the reference file |
 | `$reachUids` | `?array` | Yes | Whose files; `null` for every account |
 | `$canonical` | `bool` | No | As `findByHash()` |
+| `$withMimeType` | `bool` | No | Add `mimetype` to each group, as `findDuplicates()` |
 
 **Returns:**
 ```php
@@ -455,7 +489,7 @@ the file; `empty` says which group is the empty files'.
 
 ---
 
-#### `recalcHash(int $fileId, ?array $reachUids, ?string $algo = null, ?string $actingUser = null): array`
+#### `recalcHash(int $fileId, ?array $reachUids, ?string $algo = null, ?string $actingUser = null, bool $withMimeType = false): array`
 
 Trigger hash recalculation for a file. **This is the only mutating operation** in the public API.
 
@@ -465,6 +499,7 @@ Trigger hash recalculation for a file. **This is the only mutating operation** i
 | `$reachUids` | `?array` | Yes | Whose files may be acted on. `null` waives the reach check and nothing else: the permission, and any rule excluding the path, are still answered |
 | `$algo` | `?string` | No | Algorithm; `null` is the instance's default, as `GET /api/v1/algorithms` names it |
 | `$actingUser` | `?string` | No | Whose *Who may recalculate checksums* permission is checked. `null` is a trusted caller and waives it |
+| `$withMimeType` | `bool` | No | Add `mimetype`: the type the recalculation left, detected in the same read; `null` on a failure ([MIME types](#mime-types)) |
 
 **Returns (success):**
 ```php
@@ -480,7 +515,7 @@ Trigger hash recalculation for a file. **This is the only mutating operation** i
 
 ---
 
-#### `recalcMany(array $fileIds, ?array $reachUids, ?string $algo = null, ?string $actingUser = null): array`
+#### `recalcMany(array $fileIds, ?array $reachUids, ?string $algo = null, ?string $actingUser = null, bool $withMimeType = false): array`
 
 Recalculate several files in one call. Each file goes through `recalcHash()`
 with the same asker and the same reach, so a file out of reach or refused by
@@ -493,7 +528,7 @@ the first file is always read, however large.
 |-----------|------|----------|-------------|
 | `$fileIds` | `int[]` | Yes | Filecache ids; duplicates are dropped |
 | `$reachUids` | `?array` | Yes | As for `recalcHash()` |
-| `$algo`, `$actingUser` | | No | As for `recalcHash()` |
+| `$algo`, `$actingUser`, `$withMimeType` | | No | As for `recalcHash()`, per result |
 
 **Returns:**
 ```php
@@ -526,22 +561,31 @@ cross-account routes ask this once per answer and mark each row `openable`.
 
 #### `getStatus(?string $requestingUser = null): array`
 
-Read-only health/status snapshot. The version is for everyone; the rest
-describes the instance and is the administrator's to see. `null` is
-server-side code with full authority and gets everything; a named
-non-administrator gets `version` alone, as `GET /api/v1/status` answers
-them.
+Read-only health/status snapshot. The version and the features are for
+everyone; the rest describes the instance and is the administrator's to
+see. `null` is server-side code with full authority and gets everything; a
+named non-administrator gets `version` and `features` alone, as
+`GET /api/v1/status` answers them.
 
 **Returns:**
 ```php
 [
     'version' => '1.9.2',
+    'features' => ['mimetype' => true],
     'dbVersion' => '10.11.6',   // administrators and trusted callers only
     'rowCount' => 15423,        // "
     'rowCountAt' => 1759302000, // "
     'pendingRows' => 5,         // "
+    'mimeTypes' => ['state' => 'enabled', 'rows' => 9120, 'deleteRequestedAt' => null], // "
 ]
 ```
+
+`features.mimetype` says whether the routes give a file's MIME type when
+asked ([MIME types](#mime-types)). `mimeTypes` is where detection stands —
+`enabled`, `disabled`, `unavailable` (switched on, and PHP's Fileinfo
+extension not loaded) or `deleting` — with the types stored, counted with
+the checksums, as of `rowCountAt`, and while a deletion runs, when it was
+requested (Unix time).
 
 `rowCount` is the number of indexed checksums as of `rowCountAt` (Unix
 time): a count the app keeps, because counting reads every hash row and a
@@ -612,6 +656,11 @@ Responses are nonetheless plain JSON: these are `ApiController`s, not `OCSContro
 
 > **Note:** `getHashesByFile()` and `getHashesByPath()` are PHP-only convenience methods with no HTTP equivalent. HTTP consumers should use `getHashesByFileId()` after obtaining a `fileId` from NC's WebDAV PROPFIND or other APIs.
 
+Routes 1–5 and 15–24 that answer with files take `?mimetype=1`: each file,
+or each duplicate group, gains `mimetype`. While detection is off, asking
+is a `400`; `features.mimetype` on route 6 says whether to ask
+([MIME types](#mime-types)).
+
 ### Endpoint Details
 
 #### 1. Lookup by Hash
@@ -625,6 +674,7 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/lookup?hash=<hex>&algo=<algo>&l
 | `hash` | string | **Yes** | — | — |
 | `algo` | string | No | — | — |
 | `limit` | int | No | 100 | 500 |
+| `mimetype` | bool | No | false | — |
 
 **Response (200):**
 ```json
@@ -657,6 +707,7 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/hashes
 | Parameter | Type | Required |
 |-----------|------|----------|
 | `fileId` | int (path) | **Yes** |
+| `mimetype` | bool | No |
 
 **Response (200):**
 ```json
@@ -695,6 +746,10 @@ look across accounts at all, the same answer the duplicates listing carries.
 The sidebar hides its Recalculate buttons on the first and offers the way to
 the Duplicates page's *Others* tab on the second.
 
+With `?mimetype=1`, `"mimetype": "application/pdf"` follows, `null` for a
+file without a type ([MIME types](#mime-types)). It describes the content,
+and can differ from Nextcloud's own `mimetype`, which the file's name gives.
+
 ---
 
 #### 3. Find Same-Hash Files
@@ -706,6 +761,7 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/duplicates
 | Parameter | Type | Required |
 |-----------|------|----------|
 | `fileId` | int (path) | **Yes** |
+| `mimetype` | bool | No |
 
 **Response (200):**
 ```json
@@ -748,11 +804,15 @@ Content-Type: application/json
 |-----------|------|----------|---------|
 | `fileId` | int (path) | **Yes** | — |
 | `algo` | string (body or query) | No | `sha1` |
+| `mimetype` | bool (body or query) | No | false |
 
 **Response (200):**
 ```json
 {"success": true, "algo": "sha256", "hash": "e3b0c4...", "fileid": 12345}
 ```
+
+With `mimetype`, the answer gains the type the recalculation left — read in
+the same pass where detection is on — and `null` on a failure.
 
 **Error (400):**
 ```json
@@ -809,6 +869,10 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/duplicates?algo=<algo>&minCount
 | `hash` | string | No | — | — |
 | `anywhere` | bool | No | false | — |
 | `includeEmpty` | bool | No | false | — |
+| `mimetype` | bool | No | false | — |
+
+`mimetype=1` gives each group `mimetype`, the type of the content its files
+share ([MIME types](#mime-types)).
 
 `hash` keeps only the groups whose checksum it names: whole values first, then
 those beginning with it. Case is ignored. With `anywhere=1` the term matches
@@ -881,23 +945,31 @@ No parameters.
 ```json
 {
   "version": "1.9.2",
+  "features": {"mimetype": true},
   "dbVersion": "10.11.6",
   "rowCount": 15423,
   "rowCountAt": 1759302000,
-  "pendingRows": 5
+  "pendingRows": 5,
+  "mimeTypes": {"state": "enabled", "rows": 9120, "deleteRequestedAt": null}
 }
 ```
 
 `rowCount` is the kept count of indexed checksums, as of `rowCountAt` (Unix
-time), at most the interval the Tunables set old; see `getStatus()` above.
+time), at most the interval the Tunables set old; `mimeTypes` is where MIME
+type detection stands, with the types counted beside them; see
+`getStatus()` above.
 
-**Response (200), as anyone else:** the version alone. The others
-describe the instance and are the administrator's to see.
+**Response (200), as anyone else:** the version and the features. The
+others describe the instance and are the administrator's to see.
 ```json
 {
-  "version": "1.9.2"
+  "version": "1.9.2",
+  "features": {"mimetype": true}
 }
 ```
+
+`features.mimetype` is whether the routes give a file's MIME type when
+asked: ask with `?mimetype=1` only while it is `true`.
 
 #### 7. Algorithms
 
@@ -972,6 +1044,7 @@ Content-Type: application/json
 |-----------|------|----------|---------|
 | `fileIds` | int[] (body) | **Yes** | — |
 | `algo` | string (body or query) | No | `sha1` |
+| `mimetype` | bool (body or query) | No | false; each result gains `mimetype`, as route 4 |
 
 One gesture, one request: verifying a group of a hundred files used to be a
 hundred calls against a limit of twenty a minute. The request goes through
@@ -1018,6 +1091,7 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/hashes?limit=500&after=0
 | `limit` | int (query) | No | 500; 0 to 1000 |
 | `after` | int (query) | No | 0 |
 | `since` | string (query) | No | — |
+| `mimetype` | bool (query) | No | false; each entry gains `mimetype`, which no `since` feed carries alone ([MIME types](#mime-types)) |
 
 Every hash the caller holds, one entry per file, in file id order: for a
 client that keeps a copy of the checksums — an archive syncing its own
@@ -1616,7 +1690,7 @@ rate limiting off for the whole server.
 | Code | Meaning | Response Body |
 |------|---------|---------------|
 | 200 | Success | Normal response |
-| 400 | Bad request (validation error) | `{"error": "message"}` |
+| 400 | Bad request (validation error), or `?mimetype=1` while MIME type detection is off | `{"error": "message"}` |
 | 401 | Not authenticated | `{"error": "message"}` |
 | 403 | Authenticated, but not allowed this file or this rule | `{"error": "message"}` |
 | 404 | Resource not found | `{"error": "message"}` |

@@ -43,6 +43,8 @@ files at once.
 | external storage | externer Speicher | |
 | account | Konto, Konten | Nextcloud's own term |
 | this server | dieser Server | not *diese Instanz*; „die meisten Server“ |
+| MIME type | MIME-Typ, MIME-Typen | its detection: *die MIME-Typ-Erkennung* |
+| administration settings | Administrationseinstellungen | Nextcloud's own name |
 | administrator | Administration | gender-neutral, as Nextcloud has it |
 | group admin | Gruppenadministration | Nextcloud's word for a sub-admin („Gruppenadministration für“) |
 | app password | App-Passwort | |

@@ -62,6 +62,8 @@ here; a term that changes, changes here and in the `.po` file at once.
 | raw ID | wewnętrzne ID | |
 | account | konto, konta | Nextcloud's *Konta*; *użytkownik* stays only in the document title *Podręcznik użytkownika* |
 | this server | ten serwer, na tym serwerze | not *instancja*; „do większości serwerów” |
+| MIME type | typ MIME, typy MIME | its detection: *wykrywanie typu MIME* |
+| administration settings | ustawienia administracyjne | Nextcloud's own name; *w ustawieniach administracyjnych* |
 | administrator | administrator | Nextcloud's term |
 | admin group | grupa administratorów | |
 | group admin | administrator grupy, administratorzy grup | Nextcloud's name for a group's sub-admin (settings: „Administrator grupy”) |

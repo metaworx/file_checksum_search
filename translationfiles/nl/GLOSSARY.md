@@ -56,6 +56,8 @@ a term that changes, changes here and in the `.po` file at once.
 | raw ID | interne ID | |
 | account | account, accounts (*het account*) | Nextcloud's own term |
 | this server | deze server | not *deze instantie*; “de meeste servers” |
+| MIME type | MIME-type, MIME-types | its detection: *MIME-typedetectie* |
+| administration settings | beheerinstellingen | Nextcloud's menu says *Beheerder instellingen*; in a sentence, one word |
 | administrator | beheerder | Nextcloud's own term |
 | admin group | beheerdersgroep | |
 | group admin | groepsbeheerder | Nextcloud's word for a sub-admin (“Groepsbeheerder voor”) |

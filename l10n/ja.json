@@ -169,6 +169,8 @@
     "Lazy (delete checksums now, recalculate later)" : "遅延（チェックサムを今すぐ削除し、後で再計算）",
     "Listing every rule requires administrator rights." : "すべてのルールを一覧表示するには管理者権限が必要です。",
     "Loading checksums …" : "チェックサムを読み込み中…",
+    "MIME type detection is off on this server. An administrator can switch it on in the administration settings, under %1$s → %2$s." : "このサーバーではMIMEタイプの検出がオフになっています。管理者は管理者設定の %1$s → %2$s でオンにできます。",
+    "MIME types cannot be detected on this server: PHP's Fileinfo extension is not loaded." : "このサーバーではMIMEタイプを検出できません：PHPのFileinfo拡張機能が読み込まれていません。",
     "Match anywhere in the hash" : "ハッシュ内で部分一致",
     "Match the term anywhere in the hash, not only at its start" : "先頭だけでなく、ハッシュ内の任意の位置で一致させる",
     "Members of a group" : "グループのメンバー",

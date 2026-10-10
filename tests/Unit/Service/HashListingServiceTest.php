@@ -144,6 +144,31 @@ class HashListingServiceTest
 	}
 
 	/**
+	 * Asked for, each entry gains `mimetype`, null for a file without one:
+	 * one query for the page. Not asked for, none is read.
+	 */
+	public function testEachEntryGainsItsMimeTypeWhenAsked(): void
+	{
+		$this->metadata->method( 'pageListedFiles' )
+		               ->willReturn( [
+			               $this->row( 11, 1, 'home::alice', 'files/a.pdf', 1756800000 ),
+			               $this->row( 12, 1, 'home::alice', 'files/b.dat', 1756800000 ),
+		               ] )
+		;
+		$this->metadata->expects( $this->once() )
+		               ->method( 'mimeTypesOf' )
+		               ->with( [ 11, 12 ] )
+		               ->willReturn( [ 11 => 'application/pdf' ] )
+		;
+
+		$files = $this->listing->page( null, after: 10, withMimeType: true )['files'];
+
+		$this->assertSame( 'application/pdf', $files[0]['mimetype'] );
+		$this->assertNull( $files[1]['mimetype'] );
+		$this->assertArrayNotHasKey( 'mimetype', $this->listing->page( null, after: 10 )['files'][0] );
+	}
+
+	/**
 	 * `now` is the server's clock, taken before anything is read: a hash
 	 * written while the page is read is in the next run's feed, not lost
 	 * between two runs.

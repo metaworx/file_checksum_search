@@ -171,6 +171,8 @@ OC.L10N.register(
     "Lazy (delete checksums now, recalculate later)" : "Diferido (eliminar las sumas de verificación ahora, recalcular más tarde)",
     "Listing every rule requires administrator rights." : "Para listar todas las reglas se necesitan derechos de administrador.",
     "Loading checksums …" : "Cargando sumas de verificación…",
+    "MIME type detection is off on this server. An administrator can switch it on in the administration settings, under %1$s → %2$s." : "La detección del tipo MIME está desactivada en este servidor. Un administrador puede activarla en las configuraciones de administración, en %1$s → %2$s.",
+    "MIME types cannot be detected on this server: PHP's Fileinfo extension is not loaded." : "No se pueden detectar los tipos MIME en este servidor: la extensión Fileinfo de PHP no está cargada.",
     "Match anywhere in the hash" : "Buscar en cualquier parte del hash",
     "Match the term anywhere in the hash, not only at its start" : "Hacer coincidir el término en cualquier parte del hash, no solo al principio",
     "Members of a group" : "Miembros de un grupo",

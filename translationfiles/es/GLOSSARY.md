@@ -60,6 +60,8 @@ here; a term that changes, changes here and in the `.po` file at once.
 | account | cuenta, cuentas | Nextcloud: «Cuentas» |
 | user | usuario | only in «Guía del usuario»; everywhere else the English says *account* |
 | this server | este servidor | not *esta instancia*; «la mayoría de los servidores» |
+| MIME type | tipo MIME | its detection: *la detección del tipo MIME* |
+| administration settings | configuraciones de administración | Nextcloud's own name |
 | administrator | administrador | Nextcloud: «contacte con el administrador» |
 | admin group | grupo de administradores | |
 | group admin | administrador de grupo | Nextcloud's word for a sub-admin; settings: «Administrador de grupo para» |

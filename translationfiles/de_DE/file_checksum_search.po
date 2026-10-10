@@ -555,6 +555,14 @@ msgstr "Das Auflisten aller Regeln erfordert Administrationsrechte."
 msgid "Loading checksums …"
 msgstr "Prüfsummen werden geladen …"
 
+#. TRANSLATORS: %1$s is the app's name in the administration settings, %2$s the name of its tab
+#, php-format
+msgid "MIME type detection is off on this server. An administrator can switch it on in the administration settings, under %1$s → %2$s."
+msgstr "Die MIME-Typ-Erkennung ist auf diesem Server ausgeschaltet. Die Administration kann sie in den Administrationseinstellungen unter %1$s → %2$s einschalten."
+
+msgid "MIME types cannot be detected on this server: PHP's Fileinfo extension is not loaded."
+msgstr "MIME-Typen können auf diesem Server nicht erkannt werden: Die PHP-Erweiterung Fileinfo ist nicht geladen."
+
 #. TRANSLATORS a switch beside the hash filter: the typed text may match anywhere inside a checksum, not only at its start
 msgid "Match anywhere in the hash"
 msgstr "An beliebiger Stelle im Hash suchen"
