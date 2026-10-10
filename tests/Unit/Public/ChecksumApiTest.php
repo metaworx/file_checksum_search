@@ -18,6 +18,7 @@ use OCA\FileChecksumSearch\Service\HashListingService;
 use OCA\FileChecksumSearch\Service\HintedInvalidArgumentException;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\MimeTypeService;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\RuleDefinitionValidator;
 use OCP\IGroupManager;
@@ -100,6 +101,7 @@ class ChecksumApiTest
 			$this->createMock( JobStatsService::class ),
 			$this->createMock( ITimeFactory::class ),
 			$this->createMock( IAppConfig::class ),
+			$this->createMock( MimeTypeService::class ),
 		);
 
 		$this->rootFolder     = $this->createMock( IRootFolder::class );

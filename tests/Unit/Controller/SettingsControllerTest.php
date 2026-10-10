@@ -15,6 +15,7 @@ use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Controller\SettingsController;
 use OCA\FileChecksumSearch\Service\DatabaseService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\MimeTypeService;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\StatusService;
 use OCA\FileChecksumSearch\Service\TableNameService;
@@ -95,6 +96,7 @@ class SettingsControllerTest
 			$this->jobStats,
 			$this->createMock( ITimeFactory::class ),
 			$this->appConfig,
+			$this->createMock( MimeTypeService::class ),
 		);
 
 		$this->userManager       = $this->createMock( IUserManager::class );
@@ -194,6 +196,16 @@ class SettingsControllerTest
 		], $data['pendingStats'] );
 		// Of those, the files that failed at least once and wait behind the rest.
 		$this->assertSame( 2, $data['pendingFailed'] );
+		// Where MIME type detection stands, the types counted with the
+		// checksums: none, by the mock.
+		$this->assertSame(
+			[
+				'state'             => '',
+				'rows'              => 0,
+				'deleteRequestedAt' => null,
+			],
+			$data['mimeTypes'],
+		);
 	}
 
 	/**
@@ -210,7 +222,10 @@ class SettingsControllerTest
 			               JobStatsService::JOB_CHECKSUM_COUNT => [
 				               // Counted just now: the mocked clock stands at zero.
 				               'lastRun' => 0,
-				               'counts'  => [ 'rows' => 7 ],
+				               'counts'  => [
+					               'rows'       => 7,
+					               'mime_types' => 3,
+				               ],
 			               ],
 		               ] )
 		;

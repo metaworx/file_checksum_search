@@ -41,6 +41,7 @@ readonly class StatusService
 		private JobStatsService  $jobStats,
 		private ITimeFactory     $time,
 		private IAppConfig       $appConfig,
+		private MimeTypeService  $mimeTypes,
 	) {
 	}
 
@@ -68,26 +69,62 @@ readonly class StatusService
 	 * background count on, RuleProcessingJob keeps it younger than that, and
 	 * this never counts.
 	 *
+	 * The stored MIME types are counted with them, and kept the same way: a
+	 * count of their own rows, which reads as many index entries as there
+	 * are files with a type.
+	 *
 	 * @param bool $recount Count now whatever the stored count's age: the
 	 *                      panel's Refresh.
 	 *
-	 * @return array{rows: int, at: int}  The count, and when it was taken
-	 *                                    (Unix time).
+	 * @return array{rows: int, mimeTypes: int, at: int}  The counts, and when
+	 *                                                    they were taken
+	 *                                                    (Unix time).
 	 */
 	public function getHashRowCount( bool $recount = false ): array
 	{
 		$run = $this->jobStats->lastRuns()[ JobStatsService::JOB_CHECKSUM_COUNT ] ?? null;
 		$at  = $run['lastRun'] ?? null;
 
-		if ( ! $recount && $at !== null && isset( $run['counts']['rows'] ) && $this->isYoung( $at ) )
+		// A count kept before the types were counted is taken again.
+		if ( ! $recount
+			&& $at !== null
+			&& isset( $run['counts']['rows'], $run['counts']['mime_types'] )
+			&& $this->isYoung( $at ) )
 		{
 			return [
-				'rows' => (int) $run['counts']['rows'],
-				'at'   => $at,
+				'rows'      => (int) $run['counts']['rows'],
+				'mimeTypes' => (int) $run['counts']['mime_types'],
+				'at'        => $at,
 			];
 		}
 
 		return $this->recountHashRows();
+	}
+
+	/**
+	 * Where MIME type detection stands, and how many types are stored, as
+	 * of when they were counted.
+	 *
+	 * @param  array{rows: int, mimeTypes: int, at: int}  $count  What
+	 *                                                           {@see getHashRowCount()}
+	 *                                                           answered the
+	 *                                                           caller: asked
+	 *                                                           again, it would
+	 *                                                           count again
+	 *                                                           where the count
+	 *                                                           was due.
+	 *
+	 * @return array{state: string, rows: int, at: int, deleteRequestedAt: int|null}
+	 *         `state` is one of {@see MimeTypeService}'s `STATE_*`.
+	 */
+	public function getMimeTypeStatus( array $count ): array
+	{
+		return [
+			'state'             => $this->mimeTypes->getState(),
+			'rows'              => $count['mimeTypes'],
+			'at'                => $count['at'],
+			'deleteRequestedAt' => $this->mimeTypes->getDeleteRequestedAt(),
+		];
 	}
 
 	/**
@@ -140,25 +177,31 @@ readonly class StatusService
 //  other non-static methods
 
 	/**
-	 * Count the indexed checksums now, and keep the count as the checksum
-	 * count's job stats, which is where {@see getHashRowCount()} reads it.
+	 * Count the indexed checksums and the stored MIME types now, and keep
+	 * the counts as the checksum count's job stats, which is where
+	 * {@see getHashRowCount()} reads them.
 	 *
-	 * @return array{rows: int, at: int}
+	 * @return array{rows: int, mimeTypes: int, at: int}
 	 */
 	public function recountHashRows(): array
 	{
-		$started = hrtime( true );
-		$rows    = $this->metadataService->countHashEntries();
+		$started   = hrtime( true );
+		$rows      = $this->metadataService->countHashEntries();
+		$mimeTypes = $this->metadataService->countMimeTypeRows();
 
 		$this->jobStats->record(
 			JobStatsService::JOB_CHECKSUM_COUNT,
-			[ 'rows' => $rows ],
+			[
+				'rows'       => $rows,
+				'mime_types' => $mimeTypes,
+			],
 			JobStatsService::millisecondsSince( $started ),
 		);
 
 		return [
-			'rows' => $rows,
-			'at'   => $this->time->getTime(),
+			'rows'      => $rows,
+			'mimeTypes' => $mimeTypes,
+			'at'        => $this->time->getTime(),
 		];
 	}
 

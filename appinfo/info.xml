@@ -221,6 +221,11 @@ O que você recebe:
 		<command>OCA\FileChecksumSearch\Command\Import</command>
 		<command>OCA\FileChecksumSearch\Command\Repair</command>
 		<command>OCA\FileChecksumSearch\Command\Queue\Drain</command>
+		<command>OCA\FileChecksumSearch\Command\MimeType\Enable</command>
+		<command>OCA\FileChecksumSearch\Command\MimeType\Disable</command>
+		<command>OCA\FileChecksumSearch\Command\MimeType\IsEnabled</command>
+		<command>OCA\FileChecksumSearch\Command\MimeType\Refresh</command>
+		<command>OCA\FileChecksumSearch\Command\MimeType\Delete</command>
 		<command>OCA\FileChecksumSearch\Command\FindDuplicates</command>
 		<command>OCA\FileChecksumSearch\Command\Rules\ListRules</command>
 		<command>OCA\FileChecksumSearch\Command\Rules\AddRule</command>

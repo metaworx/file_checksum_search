@@ -95,7 +95,8 @@ class SettingsController
 	 * The status's counts: the indexed checksums, as kept and with when they
 	 * were counted, and the queue and the untrusted hashes, by mode and by
 	 * reason, counted now, with the queued files that have failed at least
-	 * once.
+	 * once; and where MIME type detection stands, with the types stored,
+	 * counted with the checksums.
 	 *
 	 * The queue counts read only their own rows, so they stay cheap while the
 	 * backlog is small; the checksum count reads every hash row, so it is
@@ -109,7 +110,8 @@ class SettingsController
 	#[ApiRoute( verb: 'GET', url: '/settings/status/counts' )]
 	public function getStatusCounts( bool $recount = false ): DataResponse
 	{
-		$rows = $this->statusService->getHashRowCount( $recount );
+		$rows      = $this->statusService->getHashRowCount( $recount );
+		$mimeTypes = $this->statusService->getMimeTypeStatus( $rows );
 
 		return new DataResponse( [
 			'rowCount'      => $rows['rows'],
@@ -117,6 +119,11 @@ class SettingsController
 			'pendingStats'  => $this->metadataService->getPendingStats(),
 			'pendingFailed' => $this->metadataService->countFailingQueued(),
 			'staleStats'    => $this->metadataService->getStaleStats(),
+			'mimeTypes'     => [
+				'state'             => $mimeTypes['state'],
+				'rows'              => $mimeTypes['rows'],
+				'deleteRequestedAt' => $mimeTypes['deleteRequestedAt'],
+			],
 		] );
 	}
 

@@ -71,6 +71,12 @@ class JobStatsService
 	 */
 	public const JOB_CHECKSUM_COUNT = 'checksum_count';
 
+	/** The queued walk that queues hashed files for their MIME type (MimeTypeRefresh). */
+	public const JOB_MIMETYPE_REFRESH = 'mimetype_refresh';
+
+	/** The queued deletion of the stored MIME types (MimeTypeDelete). */
+	public const JOB_MIMETYPE_DELETE = 'mimetype_delete';
+
 	public const JOBS
 		 = [
 			self::JOB_RULE_SWEEP,
@@ -81,6 +87,8 @@ class JobStatsService
 			self::JOB_HASH_INDEX_CHECK,
 			self::JOB_STAMP_CHECK,
 			self::JOB_CHECKSUM_COUNT,
+			self::JOB_MIMETYPE_REFRESH,
+			self::JOB_MIMETYPE_DELETE,
 		];
 
 	/**
@@ -97,6 +105,8 @@ class JobStatsService
 			self::JOB_HASH_INDEX_CHECK   => 'Checksum index check',
 			self::JOB_STAMP_CHECK        => 'Checksum stamp check',
 			self::JOB_CHECKSUM_COUNT     => 'Checksum count',
+			self::JOB_MIMETYPE_REFRESH   => 'MIME type refresh',
+			self::JOB_MIMETYPE_DELETE    => 'MIME type deletion',
 		];
 
 	/**

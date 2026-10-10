@@ -10,11 +10,16 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Integration\Service;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\BackgroundJob\MimeTypeDelete;
+use OCA\FileChecksumSearch\BackgroundJob\MimeTypeRefresh;
 use OCA\FileChecksumSearch\Config\ConfigLexicon;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\MimeTypeService;
 use OCA\FileChecksumSearch\Service\RuleService;
+use OCA\FileChecksumSearch\Service\StatusService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
+use OCP\BackgroundJob\IJobList;
 use OCP\Files\File;
 use OCP\Files\IMimeTypeLoader;
 use OCP\Files\IRootFolder;
@@ -128,7 +133,114 @@ class MimeTypeTest
 			$this->detection( $this->detectionBefore );
 		}
 
+		// Nothing a test requested is left for the instance's cron.
+		$this->appConfig->deleteKey( Application::APP_ID, ConfigLexicon::MIMETYPE_DELETE_REQUESTED_AT );
+		Server::get( IJobList::class )->remove( MimeTypeDelete::class );
+		Server::get( IJobList::class )->remove( MimeTypeRefresh::class );
+
 		parent::tearDown();
+	}
+
+	/**
+	 * A refresh queues the hashed files without a type, and the drain reads
+	 * them for it; a file with a type is passed, and so is one queued for
+	 * its hashes, which detects the type as well. With all, the typed one
+	 * too.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testARefreshQueuesTheFilesWithoutATypeAndTheDrainReadsThem(): void
+	{
+		$this->detection( false );
+		$untyped = $this->hashed( 'fcias_mime_refresh_untyped', self::PDF );
+		$this->detection( true );
+		$typed = $this->hashed( 'fcias_mime_refresh_typed', self::PDF );
+		$this->detection( false );
+		$queued = $this->hashed( 'fcias_mime_refresh_queued', self::PDF );
+		$this->metadataService->markPending( $queued->getId(), MetadataService::PENDING_AUTO );
+		$this->detection( true );
+
+		$this->assertSame( 1, $this->refreshOnly( $untyped, 3, false ) );
+
+		$this->assertSame( MetadataService::PENDING_MIME, $this->metadataService->getMarker( $untyped->getId() ) );
+		$this->assertNull( $this->metadataService->getMarker( $typed->getId() ) );
+		$this->assertSame( MetadataService::PENDING_AUTO, $this->metadataService->getMarker( $queued->getId() ) );
+
+		$stamp = $this->metadataService->getUpdatedAt( $untyped->getId() );
+
+		$this->assertTrue( $this->hashCalc->processFile( $untyped->getId(), MetadataService::PENDING_MODE_MIME ) );
+
+		$this->assertSame( 'application/pdf', $this->documentTypeOf( $untyped ) );
+		$this->assertCount( 1, $this->typeRowsOf( $untyped ) );
+		$this->assertNull( $this->metadataService->getMarker( $untyped->getId() ) );
+		$this->assertSame( $stamp, $this->metadataService->getUpdatedAt( $untyped->getId() ), 'The stamp is the hashes\'.' );
+
+		$this->assertSame( 2, $this->refreshOnly( $untyped, 3, true ), 'All: both typed files, not the queued one.' );
+		$this->assertSame( MetadataService::PENDING_MIME, $this->metadataService->getMarker( $typed->getId() ) );
+	}
+
+	/**
+	 * Cut short, a deletion leaves every file whole or gone, and goes on
+	 * from the rows that are left; the hashes stay.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testADeletionCutShortGoesOnWhereItStopped(): void
+	{
+		$first  = $this->hashed( 'fcias_mime_delete_first', self::PDF );
+		$second = $this->hashed( 'fcias_mime_delete_second', "plain text\n" );
+		$this->detection( false );
+
+		$cut = $this->metadataService->deleteMimeTypes( 1, static fn (): bool => false );
+
+		$this->assertSame( [ 'deleted' => 1, 'done' => false ], $cut );
+		$this->assertNull( $this->documentTypeOf( $first ) );
+		$this->assertSame( [], $this->typeRowsOf( $first ) );
+		$this->assertSame( 'text/plain', $this->documentTypeOf( $second ) );
+		$this->assertCount( 1, $this->typeRowsOf( $second ) );
+
+		$this->assertTrue( $this->metadataService->deleteMimeTypes()['done'] );
+		$this->assertNull( $this->documentTypeOf( $second ) );
+		$this->assertSame( [], $this->typeRowsOf( $second ) );
+		$this->assertSame( 0, $this->metadataService->countMimeTypeRows() );
+		$this->assertSame( 1, $this->metadataService->countByFileId( $second->getId() ), 'Its hash stays.' );
+	}
+
+	/**
+	 * While a deletion runs, detection stays off: the types it detected
+	 * meanwhile would be deleted with the rest.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testSwitchingOnIsRefusedWhileADeletionRuns(): void
+	{
+		$mimeTypes = Server::get( MimeTypeService::class );
+
+		$this->detection( false );
+		$mimeTypes->requestDelete();
+
+		$this->assertTrue( Server::get( IJobList::class )->has( MimeTypeDelete::class, null ) );
+		$this->assertSame( MimeTypeService::STATE_DELETING, $mimeTypes->getState() );
+		$this->assertSame( MimeTypeService::STATE_DELETING, $mimeTypes->refusalToEnable() );
+
+		$mimeTypes->setDeleteRequestedAt( null );
+
+		$this->assertNull( $mimeTypes->refusalToEnable() );
+	}
+
+	/**
+	 * The types are counted with the checksums, a row to a typed file.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheTypesAreCountedWithTheChecksums(): void
+	{
+		$before = $this->metadataService->countMimeTypeRows();
+
+		$this->hashed( 'fcias_mime_count', self::PDF );
+
+		$this->assertSame( $before + 1, $this->metadataService->countMimeTypeRows() );
+		$this->assertSame( $before + 1, Server::get( StatusService::class )->recountHashRows()['mimeTypes'] );
 	}
 
 	/**
@@ -368,6 +480,23 @@ class MimeTypeTest
 		$this->assertTrue( $this->hashCalc->recalcFileHash( $file, 'sha1' )['success'] );
 
 		return $file;
+	}
+
+	/**
+	 * A refresh over the $files hashed files from $from on alone: one page,
+	 * from just before it. The instance this runs against holds other
+	 * hashed files, and they are not the test's to queue.
+	 *
+	 * @return int  Files queued.
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function refreshOnly(
+		File $from,
+		int  $files,
+		bool $all,
+	): int
+	{
+		return $this->metadataService->markForMimeTypeAfter( $from->getId() - 1, $files, $all, static fn (): bool => false )['marked'];
 	}
 
 	/**

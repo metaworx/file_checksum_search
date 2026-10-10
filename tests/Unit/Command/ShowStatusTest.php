@@ -13,6 +13,7 @@ use OCA\FileChecksumSearch\Command\ShowStatus;
 use OCA\FileChecksumSearch\Service\DatabaseService;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\MimeTypeService;
 use OCA\FileChecksumSearch\Service\StatusService;
 use OCA\FileChecksumSearch\Service\TableNameService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
@@ -21,6 +22,7 @@ use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\DB\IResult;
 use OCP\IAppConfig;
 use OCP\IDBConnection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -38,6 +40,8 @@ class ShowStatusTest
 	private MockObject|IAppConfig      $appConfig;
 
 	private MockObject|JobStatsService $jobStats;
+
+	private MockObject|MimeTypeService $mimeTypes;
 
 	private ShowStatus                 $command;
 
@@ -81,7 +85,7 @@ class ShowStatusTest
 					               'attempt' => [ 'at' => 1700000400, 'ok' => false, 'durationMs' => 56, 'reason' => 'RuntimeException: boom' ],
 				               ],
 				               // Counted a second before the mocked clock, so kept.
-				               JobStatsService::JOB_CHECKSUM_COUNT => [ 'lastRun' => 1700000499, 'counts' => [ 'rows' => 406419 ], 'attempt' => null ],
+				               JobStatsService::JOB_CHECKSUM_COUNT => [ 'lastRun' => 1700000499, 'counts' => [ 'rows' => 406419, 'mime_types' => 1234 ], 'attempt' => null ],
 			               ],
 		               )
 		;
@@ -103,6 +107,8 @@ class ShowStatusTest
 		     ->willReturn( 1700000500 )
 		;
 
+		$this->mimeTypes = $this->createMock( MimeTypeService::class );
+
 		// StatusService is readonly, so not a mock: a real one over this
 		// test's own metadata, job-stats and config mocks.
 		$this->command = new ShowStatus(
@@ -117,6 +123,7 @@ class ShowStatusTest
 				$this->jobStats,
 				$time,
 				$this->appConfig,
+				$this->mimeTypes,
 			),
 			$this->logger,
 		);
@@ -362,6 +369,52 @@ class ShowStatusTest
 	}
 
 	/**
+	 * Where detection stands, and the types stored, as counted with the
+	 * checksums: kept while off, left to delete while deleting
+	 * ({@see mimeTypeStates()}).
+	 */
+	#[DataProvider( 'mimeTypeStates' )]
+	public function testTheMimeTypesLineSaysWhereDetectionStands(
+		string $state,
+		?int   $deleteRequestedAt,
+		string $expected,
+	): void
+	{
+		$this->mimeTypes->method( 'getState' )
+		                ->willReturn( $state )
+		;
+		$this->mimeTypes->method( 'getDeleteRequestedAt' )
+		                ->willReturn( $deleteRequestedAt )
+		;
+
+		$this->tester->execute( [] );
+
+		$this->assertStringContainsString( $expected, $this->tester->getDisplay() );
+	}
+
+	public function testTheMimeTypesAreInTheJsonToo(): void
+	{
+		$this->mimeTypes->method( 'getState' )
+		                ->willReturn( MimeTypeService::STATE_DELETING )
+		;
+		$this->mimeTypes->method( 'getDeleteRequestedAt' )
+		                ->willReturn( 1700000000 )
+		;
+
+		$this->tester->execute( [ '--output' => 'json' ] );
+		$decoded = json_decode( trim( $this->tester->getDisplay() ), true );
+
+		$this->assertSame(
+			[
+				'state'               => MimeTypeService::STATE_DELETING,
+				'rows'                => 1234,
+				'delete_requested_at' => 1700000000,
+			],
+			$decoded['mime_types'],
+		);
+	}
+
+	/**
 	 * One total and a breakdown, because the reasons are opposites in what
 	 * they leave behind: erosion has already thrown the hashes away and
 	 * heals itself, a reset has not and is waiting for the drain.
@@ -420,5 +473,21 @@ class ShowStatusTest
 
 		$this->assertStringContainsString( 'Untrusted total:        0', $display );
 		$this->assertStringNotContainsString( 'Untrusted by reason:', $display );
+	}
+
+
+//  static methods
+
+	/**
+	 * @return array<string, array{0: string, 1: int|null, 2: string}>
+	 */
+	public static function mimeTypeStates(): array
+	{
+		return [
+			'on'                  => [ MimeTypeService::STATE_ENABLED, null, 'MIME types:             1234 detected' ],
+			'off, types kept'     => [ MimeTypeService::STATE_DISABLED, null, 'MIME types:             disabled, 1234 kept' ],
+			'switched on, no PHP' => [ MimeTypeService::STATE_UNAVAILABLE, null, 'PHP\'s Fileinfo extension is not loaded; 1234 kept' ],
+			'deleting'            => [ MimeTypeService::STATE_DELETING, 1700000000, ', 1234 left' ],
+		];
 	}
 }

@@ -111,10 +111,18 @@ class MetadataService
 	public const PENDING_MODE_MISSING         = 'missing';
 	public const PENDING_MODE_FORCE           = 'force';
 	public const PENDING_MODE_LAZY            = 'lazy';
+
+	/**
+	 * Queued for its MIME type alone, by a refresh: the first 64 KiB read,
+	 * and no hash. Not a rule's mode — the queue's own, which any hash mode
+	 * replaces, since reading the file for its hashes detects the type too.
+	 */
+	public const PENDING_MODE_MIME            = 'mime';
 	public const PENDING_PREFIX               = 'pending:';
 	public const PENDING_AUTO                 = self::PENDING_PREFIX . self::PENDING_MODE_AUTO;
 	public const PENDING_FORCE                = self::PENDING_PREFIX . self::PENDING_MODE_FORCE;
 	public const PENDING_LAZY                 = self::PENDING_PREFIX . self::PENDING_MODE_LAZY;
+	public const PENDING_MIME                 = self::PENDING_PREFIX . self::PENDING_MODE_MIME;
 	public const PENDING_LIKE                 = self::PENDING_PREFIX . '%';
 	/**
 	 * States meaning the stored hashes are not to be trusted, and nothing is
@@ -3851,6 +3859,193 @@ class MetadataService
 		}
 
 		return $types;
+	}
+
+	/**
+	 * Queue hashed files for their MIME type alone, `pending:mime`, a page at
+	 * a time from the file after $after, until $continue answers false after
+	 * a page or none is left.
+	 *
+	 * A file with a mark of any kind is passed: queued for its hashes, which
+	 * detects the type as well, or disowned, and either way not this one's
+	 * to queue. Without $all, so is a file whose type the index holds.
+	 *
+	 * @param  int<1, 1000>    $pageSize  Files per page; the ids of one go into
+	 *                                    one `IN`, which Oracle holds to 1000.
+	 * @param  callable|null  $continue  `fn(): bool`, asked after each page.
+	 *
+	 * @return array{marked: int, last: int, done: bool}  Files queued, the
+	 *         last file id read, and whether the walk reached the end.
+	 * @throws Exception
+	 */
+	public function markForMimeTypeAfter(
+		int       $after,
+		int       $pageSize = 1000,
+		bool      $all = false,
+		?callable $continue = null,
+	): array
+	{
+		$lastId = $after;
+		$marked = 0;
+
+		while ( true )
+		{
+			$fileIds = $this->pageHashedFileIdsAfter( $lastId, $pageSize );
+
+			if ( $fileIds === [] )
+			{
+				return [
+					'marked' => $marked,
+					'last'   => $lastId,
+					'done'   => true,
+				];
+			}
+
+			$lastId = $fileIds[ array_key_last( $fileIds ) ];
+			$passed = $this->withIndexRow( $fileIds, self::KEY_FILE_CHECKSUM_STATE );
+
+			if ( ! $all )
+			{
+				$passed = array_merge( $passed, $this->withIndexRow( $fileIds, self::KEY_FILE_CHECKSUM_MIMETYPE ) );
+			}
+
+			$queued = array_values( array_diff( $fileIds, $passed ) );
+
+			if ( $queued !== [] )
+			{
+				$this->db->beginTransaction();
+
+				try
+				{
+					foreach ( $queued as $fileId )
+					{
+						$this->insertIndexRow( $fileId, self::KEY_FILE_CHECKSUM_STATE, self::PENDING_MIME );
+					}
+
+					$this->db->commit();
+				}
+				catch ( Throwable $e )
+				{
+					$this->db->rollBack();
+
+					throw $e;
+				}
+
+				$marked += count( $queued );
+			}
+
+			if ( $continue !== null && ! $continue() )
+			{
+				return [
+					'marked' => $marked,
+					'last'   => $lastId,
+					'done'   => false,
+				];
+			}
+		}
+	}
+
+	/**
+	 * Delete the stored MIME types, a page of files at a time, until
+	 * $continue answers false after a page or none is left: the key out of
+	 * each metadata document, then its row.
+	 *
+	 * In that order, so that a file is whole or gone at every moment, and a
+	 * walk cut short goes on from the rows that are left. Always from the
+	 * first: a file done has no row to be found by again.
+	 *
+	 * A document holding a type whose row went already — its content changed
+	 * — is not found here; the hashing that follows takes the type out of it.
+	 *
+	 * @param  int<1, 1000>    $pageSize
+	 * @param  callable|null  $continue  `fn(): bool`, asked after each page.
+	 *
+	 * @return array{deleted: int, done: bool}  Files whose type was deleted,
+	 *         and whether none is left.
+	 * @throws Exception
+	 */
+	public function deleteMimeTypes(
+		int       $pageSize = 500,
+		?callable $continue = null,
+	): array
+	{
+		$deleted = 0;
+
+		while ( true )
+		{
+			$qb = $this->db->getQueryBuilder();
+			$qb->selectDistinct( self::FIELD_FILE_ID )
+			   ->from( self::TABLE_FILES_METADATA_INDEX )
+			   ->where(
+				   $qb->expr()
+				      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_MIMETYPE ) ),
+			   )
+			   ->orderBy( self::FIELD_FILE_ID, 'ASC' )
+			   ->setMaxResults( $pageSize )
+			;
+
+			$result  = $this->executeQuery( $qb );
+			$fileIds = array_map( intval( ... ), $result->fetchFirstColumn() );
+			$result->closeCursor();
+
+			if ( $fileIds === [] )
+			{
+				return [
+					'deleted' => $deleted,
+					'done'    => true,
+				];
+			}
+
+			foreach ( $fileIds as $fileId )
+			{
+				$this->deleteMimeTypeOf( $fileId );
+				$deleted ++;
+			}
+
+			if ( $continue !== null && ! $continue() )
+			{
+				return [
+					'deleted' => $deleted,
+					'done'    => false,
+				];
+			}
+		}
+	}
+
+	/**
+	 * One file's MIME type, out of its document and then out of the index.
+	 *
+	 * The row goes whatever the document does: one Nextcloud will not save —
+	 * its file gone from the filecache — is the orphan purge's to delete,
+	 * and a row left behind would be found again on every page.
+	 *
+	 * @throws Exception
+	 */
+	private function deleteMimeTypeOf( int $fileId ): void
+	{
+		try
+		{
+			$metadata = $this->getMetadata( $fileId );
+
+			if ( $metadata->hasKey( self::KEY_FILE_CHECKSUM_MIMETYPE ) )
+			{
+				$this->setMimeType( $metadata, null );
+				$this->metadataManager->saveMetadata( $metadata );
+			}
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->debug(
+				'FCIAS: could not take the MIME type out of the metadata document of fileId {fileId}; its row goes all the same.',
+				[
+					'app'       => Application::APP_ID,
+					'fileId'    => $fileId,
+					'exception' => $e,
+				],
+			);
+		}
+
+		$this->syncMimeTypeRow( $fileId, null );
 	}
 
 	/**

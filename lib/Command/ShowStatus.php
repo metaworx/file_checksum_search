@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Command;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\MimeTypeService;
 use OCA\FileChecksumSearch\Service\StatusService;
 use OCP\IAppConfig;
 use OCP\IDBConnection;
@@ -89,6 +90,7 @@ class ShowStatus
 		$full           = (bool) $input->getOption( 'full' );
 		$appVersion     = $this->getAppVersion();
 		$checksums      = $this->status->getHashRowCount( $full );
+		$mimeTypes      = $this->status->getMimeTypeStatus( $checksums );
 		$filecacheCount = $full ? $this->getFilecacheCount() : null;
 		$metadataCount  = $full ? $this->getMetadataCount() : null;
 		$pendingStats   = $this->metadataService->getPendingStats();
@@ -114,6 +116,11 @@ class ShowStatus
 						]
 						: [] )
 					+ [
+						'mime_types'          => [
+							'state'               => $mimeTypes['state'],
+							'rows'                => $mimeTypes['rows'],
+							'delete_requested_at' => $mimeTypes['deleteRequestedAt'],
+						],
 						'pending_total'       => $totalPending,
 						'pending_by_mode'     => $pendingStats,
 						'pending_failed'      => $pendingFailed,
@@ -141,6 +148,7 @@ class ShowStatus
 				date( 'Y-m-d H:i:s T', $checksums['at'] ),
 			),
 		);
+		$output->writeln( sprintf( 'MIME types:             %s', self::mimeTypes( $mimeTypes ) ) );
 		$output->writeln(
 			$filecacheCount === null
 				? 'Filecache entries:      (with --full)'
@@ -276,6 +284,34 @@ class ShowStatus
 			MetadataService::STATE_RESET => 'disowned by a reset; the background job clears them, '
 				. 'or an import replaces them first',
 			default => 'unknown reason',
+		};
+	}
+
+	/**
+	 * Where MIME type detection stands, and the types stored, as counted
+	 * with the checksums.
+	 *
+	 * @param  array{state: string, rows: int, at: int, deleteRequestedAt: int|null}  $status
+	 */
+	private static function mimeTypes( array $status ): string
+	{
+		$rows = $status['rows'];
+
+		return match ( $status['state'] )
+		{
+			MimeTypeService::STATE_ENABLED     => sprintf( '%d detected', $rows ),
+			MimeTypeService::STATE_DELETING    => sprintf(
+				'deleting since %s, %d left',
+				date( 'Y-m-d H:i:s T', (int) $status['deleteRequestedAt'] ),
+				$rows,
+			),
+			MimeTypeService::STATE_UNAVAILABLE => sprintf(
+				'switched on, but PHP\'s Fileinfo extension is not loaded; %d kept',
+				$rows,
+			),
+			default                            => $rows > 0
+				? sprintf( 'disabled, %d kept', $rows )
+				: 'disabled',
 		};
 	}
 

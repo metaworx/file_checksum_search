@@ -46,6 +46,18 @@ class HashCalculationService
 	 */
 	private const STORAGE_RECHECK_SECONDS = 600;
 
+	/** {@see readTypeAlone()}: the type read and put into the document. */
+	private const TYPE_DETECTED = 'detected';
+
+	/** {@see readTypeAlone()}: the content read, and libmagic naming none. */
+	private const TYPE_NONE = 'none';
+
+	/** {@see readTypeAlone()}: another of this app's workers holds the file. */
+	private const TYPE_BUSY = 'busy';
+
+	/** {@see readTypeAlone()}: the file was written to during the read. */
+	private const TYPE_CHANGED = 'changed';
+
 
 //  constructor
 
@@ -789,6 +801,9 @@ class HashCalculationService
 
 		switch ( $mode )
 		{
+		case MetadataService::PENDING_MODE_MIME:
+			return $this->processMimeType( $file ?? $this->filecacheService->getFile( $fileId ), $metadata );
+
 		case 'lazy':
 			// Lazy computes nothing: the hashes go, and with them the file's
 			// place on the queue. Not through the save below, which reads the
@@ -1371,7 +1386,8 @@ class HashCalculationService
 	/**
 	 * The algorithms the queue computes for a file in $mode, given its rule's
 	 * list: under `auto` only those the file already has, under `missing`
-	 * and `force` all of them, under `lazy` none.
+	 * and `force` all of them, under `lazy` none, and none under `mime`,
+	 * which asks for the MIME type alone.
 	 *
 	 * @param  list<string>  $ruleAlgos
 	 *
@@ -1393,7 +1409,8 @@ class HashCalculationService
 					): bool => $metadata->hasKey( MetadataService::getHashKey( $algo ) ),
 				),
 			),
-			MetadataService::PENDING_MODE_LAZY => [],
+			MetadataService::PENDING_MODE_LAZY,
+			MetadataService::PENDING_MODE_MIME => [],
 			default                            => array_values( $ruleAlgos ),
 		};
 	}
@@ -1430,9 +1447,8 @@ class HashCalculationService
 	 * is not: a file hashed before detection was on, or whose hashes came
 	 * without a read.
 	 *
-	 * Under the same guards as a hash: the app's lock, and the etag before
-	 * and after the read. It is not one, though, and is nobody's failure: a
-	 * file busy, changed or unreadable keeps no type, and its hashes stand.
+	 * Not a hash, and nobody's failure: a file busy, changed or unreadable
+	 * keeps no type, and its hashes stand.
 	 *
 	 * @param  bool  $save  Whether the document is the caller's to save, or
 	 *                      this call's, as on demand.
@@ -1443,34 +1459,9 @@ class HashCalculationService
 		bool           $save,
 	): void
 	{
-		$fileId = $file->getId();
-
-		if ( ! $this->acquireLock( $fileId ) )
-		{
-			return;
-		}
-
 		try
 		{
-			$etag = $file->getEtag();
-			$head = $this->readHead( $file );
-			$now  = $this->filecacheService->etagOf( $fileId );
-
-			if ( $now !== null && $now !== $etag )
-			{
-				return;
-			}
-
-			$mimeType = $this->mimeTypes->detect( $head );
-
-			if ( $mimeType === null )
-			{
-				return;
-			}
-
-			$this->metadataService->setMimeType( $metadata, $mimeType );
-
-			if ( $save )
+			if ( $this->readTypeAlone( $file, $metadata ) === self::TYPE_DETECTED && $save )
 			{
 				$this->metadataService->saveMetadata( $metadata, $file );
 			}
@@ -1481,10 +1472,147 @@ class HashCalculationService
 				'FCIAS: could not read fileId {fileId} for its MIME type; it stays without one.',
 				[
 					'app'       => Application::APP_ID,
-					'fileId'    => $fileId,
+					'fileId'    => $file->getId(),
 					'exception' => $e,
 				],
 			);
+		}
+	}
+
+	/**
+	 * `pending:mime`: a hashed file's MIME type, read for alone, the stamp
+	 * left as it is.
+	 *
+	 * The mark is dropped unread where detection is off, since what it asked
+	 * for is not wanted any more; and where the document holds no hashes, or
+	 * none the stamp still covers: the content changed, and the hash mode the
+	 * write or the sweep queues the file for detects its type as it reads.
+	 *
+	 * A read that fails, a busy file and one written to meanwhile are counted
+	 * as a hash mode's are, and the file stays queued.
+	 *
+	 * @return bool  Whether the file left the queue.
+	 * @throws \OCP\DB\Exception
+	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
+	 */
+	private function processMimeType(
+		File           $file,
+		IFilesMetadata $metadata,
+	): bool
+	{
+		$fileId = $file->getId();
+
+		if ( ! $this->mimeTypes->isActive()
+			|| $this->metadataService->getHashes( $metadata ) === []
+			|| ! $this->isHashUpToDate( $metadata, $file->getMTime() ) )
+		{
+			$this->metadataService->markPending( $fileId, '' );
+
+			return true;
+		}
+
+		try
+		{
+			$outcome = $this->readTypeAlone( $file, $metadata );
+		}
+		catch ( Throwable $e )
+		{
+			return $this->typeReadFailed( $fileId, $e->getMessage() );
+		}
+
+		if ( $outcome === self::TYPE_BUSY || $outcome === self::TYPE_CHANGED )
+		{
+			return $this->typeReadFailed(
+				$fileId,
+				$outcome === self::TYPE_BUSY
+					? 'busy'
+					: 'written to during the read',
+			);
+		}
+
+		// Read, with a type or without one: content libmagic cannot name has
+		// none, rather than the one it had.
+		$current = $this->metadataService->saveMetadata( $metadata, $file );
+
+		if ( $current )
+		{
+			$this->metadataService->clearComputedMarker( $fileId );
+		}
+
+		return $current;
+	}
+
+	/**
+	 * Count a failed read for the MIME type, as {@see applyBatchResults()}
+	 * counts a hash's: a warning on the file's first, debug after.
+	 *
+	 * @return false  The file stays queued.
+	 * @throws \OCP\DB\Exception
+	 */
+	private function typeReadFailed(
+		int    $fileId,
+		string $reason,
+	): bool
+	{
+		$attempts = $this->metadataService->recordFailedAttempt( $fileId, MetadataService::PENDING_MIME );
+
+		$this->logger->log(
+			$attempts > 1
+				? LogLevel::DEBUG
+				: LogLevel::WARNING,
+			'FCIAS: processFile could not read fileId {fileId} for its MIME type; the file stays queued (failed attempts: {attempts}).',
+			[
+				'app'      => Application::APP_ID,
+				'fileId'   => $fileId,
+				'attempts' => $attempts,
+				'error'    => $reason,
+			],
+		);
+
+		return false;
+	}
+
+	/**
+	 * Read a file's first {@see MimeTypeService::HEAD_BYTES} and put the
+	 * type they show into $metadata, or take the type out where libmagic
+	 * names none.
+	 *
+	 * Under the same guards as a hash: the app's lock, and the etag before
+	 * and after the read. A busy file, or one written to meanwhile, changes
+	 * nothing.
+	 *
+	 * @return string  One of the `TYPE_*`.
+	 * @throws Throwable  Where the file cannot be read.
+	 */
+	private function readTypeAlone(
+		File           $file,
+		IFilesMetadata $metadata,
+	): string
+	{
+		$fileId = $file->getId();
+
+		if ( ! $this->acquireLock( $fileId ) )
+		{
+			return self::TYPE_BUSY;
+		}
+
+		try
+		{
+			$etag = $file->getEtag();
+			$head = $this->readHead( $file );
+			$now  = $this->filecacheService->etagOf( $fileId );
+
+			if ( $now !== null && $now !== $etag )
+			{
+				return self::TYPE_CHANGED;
+			}
+
+			$mimeType = $this->mimeTypes->detect( $head );
+			$this->metadataService->setMimeType( $metadata, $mimeType );
+
+			return $mimeType === null
+				? self::TYPE_NONE
+				: self::TYPE_DETECTED;
 		}
 		finally
 		{

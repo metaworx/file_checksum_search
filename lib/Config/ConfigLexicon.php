@@ -339,6 +339,38 @@ class ConfigLexicon
 				lazy: false,
 				flags: IAppConfig::FLAG_INTERNAL,
 			),
+			new Entry(
+				key: 'stats_mimetype_refresh_last_run',
+				type: ValueType::INT,
+				defaultRaw: 0,
+				definition: 'Unix timestamp of the MIME type refresh\'s last completed run.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
+				key: 'stats_mimetype_refresh_last_counts',
+				type: ValueType::STRING,
+				defaultRaw: '[]',
+				definition: 'JSON counts of the MIME type refresh\'s last run (marked/done).',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
+				key: 'stats_mimetype_delete_last_run',
+				type: ValueType::INT,
+				defaultRaw: 0,
+				definition: 'Unix timestamp of the MIME type deletion\'s last completed run.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
+				key: 'stats_mimetype_delete_last_counts',
+				type: ValueType::STRING,
+				defaultRaw: '[]',
+				definition: 'JSON counts of the MIME type deletion\'s last run (deleted/done).',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
 			...array_map(
 				static fn( string $job ) => new Entry(
 					key: sprintf( 'stats_%s_last_attempt', $job ),

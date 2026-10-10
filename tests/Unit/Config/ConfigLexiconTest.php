@@ -47,7 +47,7 @@ class ConfigLexiconTest
 		$configs = $this->lexicon->getAppConfigs();
 
 		$this->assertIsArray( $configs );
-		$this->assertCount( 53, $configs );
+		$this->assertCount( 59, $configs );
 
 		$keys = array_map(
 			static fn(
@@ -87,6 +87,10 @@ class ConfigLexiconTest
 		$this->assertContains( 'stats_rule_apply_last_counts', $keys );
 		$this->assertContains( 'mimetype_detection', $keys );
 		$this->assertContains( 'mimetype_delete_requested_at', $keys );
+		$this->assertContains( 'stats_mimetype_refresh_last_run', $keys );
+		$this->assertContains( 'stats_mimetype_refresh_last_counts', $keys );
+		$this->assertContains( 'stats_mimetype_delete_last_run', $keys );
+		$this->assertContains( 'stats_mimetype_delete_last_counts', $keys );
 
 		// Every job's last attempt, successful or not.
 		foreach ( JobStatsService::JOBS as $job )

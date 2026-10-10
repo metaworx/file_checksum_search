@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\BackgroundJob;
 use OCA\FileChecksumSearch\Service\DatabaseService;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\MimeTypeService;
 use OCA\FileChecksumSearch\Service\StatusService;
 use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\App\IAppManager;
@@ -135,6 +136,7 @@ class RuleProcessingJobTest
 			$this->jobStats,
 			$this->time,
 			$this->appConfig,
+			$this->createMock( MimeTypeService::class ),
 		);
 	}
 
@@ -422,7 +424,13 @@ class RuleProcessingJobTest
 
 		( new ReflectionMethod( RuleProcessingJob::class, 'run' ) )->invoke( $this->job, null );
 
-		$this->assertSame( [ 'rows' => 406_419 ], $recorded[ JobStatsService::JOB_CHECKSUM_COUNT ] ?? null );
+		$this->assertSame(
+			[
+				'rows'       => 406_419,
+				'mime_types' => 0,
+			],
+			$recorded[ JobStatsService::JOB_CHECKSUM_COUNT ] ?? null,
+		);
 	}
 
 	/**

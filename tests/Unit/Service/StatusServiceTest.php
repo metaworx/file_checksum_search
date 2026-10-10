@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 use OCA\FileChecksumSearch\Service\DatabaseService;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\MimeTypeService;
 use OCA\FileChecksumSearch\Service\StatusService;
 use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\App\IAppManager;
@@ -48,6 +49,8 @@ class StatusServiceTest
 
 	private IAppConfig&MockObject       $appConfig;
 
+	private MimeTypeService&MockObject  $mimeTypes;
+
 	private StatusService               $service;
 
 
@@ -74,6 +77,8 @@ class StatusServiceTest
 		                ->willReturnArgument( 2 )
 		;
 
+		$this->mimeTypes = $this->createMock( MimeTypeService::class );
+
 		$this->service = new StatusService(
 			$this->databaseService,
 			$this->tables,
@@ -82,6 +87,7 @@ class StatusServiceTest
 			$this->jobStats,
 			$this->time,
 			$this->appConfig,
+			$this->mimeTypes,
 		);
 	}
 
@@ -101,8 +107,9 @@ class StatusServiceTest
 
 		$this->assertSame(
 			[
-				'rows' => 406_419,
-				'at'   => 1_759_300_000 - 3_599,
+				'rows'      => 406_419,
+				'mimeTypes' => 1_234,
+				'at'        => 1_759_300_000 - 3_599,
 			],
 			$this->service->getHashRowCount(),
 		);
@@ -111,7 +118,7 @@ class StatusServiceTest
 
 	/**
 	 * Older than the interval, as with the background count off after a
-	 * quiet hour: counted now, and stored.
+	 * quiet hour: counted now, the MIME types with them, and stored.
 	 */
 	public function testAStoredHashRowCountOlderThanTheIntervalIsTakenAgain(): void
 	{
@@ -120,18 +127,76 @@ class StatusServiceTest
 		                      ->method( 'countHashEntries' )
 		                      ->willReturn( 406_500 )
 		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'countMimeTypeRows' )
+		                      ->willReturn( 1_300 )
+		;
 		$this->jobStats->expects( $this->once() )
 		               ->method( 'record' )
-		               ->with( JobStatsService::JOB_CHECKSUM_COUNT, [ 'rows' => 406_500 ] )
+		               ->with(
+			               JobStatsService::JOB_CHECKSUM_COUNT,
+			               [
+				               'rows'       => 406_500,
+				               'mime_types' => 1_300,
+			               ],
+		               )
 		;
 
 		$this->assertTrue( $this->service->isHashRowCountDue() );
 		$this->assertSame(
 			[
-				'rows' => 406_500,
-				'at'   => 1_759_300_000,
+				'rows'      => 406_500,
+				'mimeTypes' => 1_300,
+				'at'        => 1_759_300_000,
 			],
 			$this->service->getHashRowCount(),
+		);
+	}
+
+	/**
+	 * A count kept before the MIME types were counted is taken again,
+	 * however young: the status would have no number to show for them.
+	 */
+	public function testACountKeptWithoutTheMimeTypesIsTakenAgain(): void
+	{
+		$this->jobStats->method( 'lastRuns' )
+		               ->willReturn( [
+			               JobStatsService::JOB_CHECKSUM_COUNT => [
+				               'lastRun' => 1_759_300_000 - 1,
+				               'counts'  => [ 'rows' => 406_419 ],
+			               ],
+		               ] )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'countMimeTypeRows' )
+		                      ->willReturn( 7 )
+		;
+
+		$this->assertSame( 7, $this->service->getHashRowCount()['mimeTypes'] );
+	}
+
+	/** Where detection stands, with the types counted with the checksums. */
+	public function testTheMimeTypeStatusIsTheStateAndTheKeptCount(): void
+	{
+		$this->storedCount( 1_759_300_000 - 1 );
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'countMimeTypeRows' )
+		;
+		$this->mimeTypes->method( 'getState' )
+		                ->willReturn( MimeTypeService::STATE_DELETING )
+		;
+		$this->mimeTypes->method( 'getDeleteRequestedAt' )
+		                ->willReturn( 1_759_299_000 )
+		;
+
+		$this->assertSame(
+			[
+				'state'             => MimeTypeService::STATE_DELETING,
+				'rows'              => 1_234,
+				'at'                => 1_759_300_000 - 1,
+				'deleteRequestedAt' => 1_759_299_000,
+			],
+			$this->service->getMimeTypeStatus( $this->service->getHashRowCount() ),
 		);
 	}
 
@@ -179,13 +244,20 @@ class StatusServiceTest
 		;
 		$this->jobStats->expects( $this->once() )
 		               ->method( 'record' )
-		               ->with( JobStatsService::JOB_CHECKSUM_COUNT, [ 'rows' => 42 ] )
+		               ->with(
+			               JobStatsService::JOB_CHECKSUM_COUNT,
+			               [
+				               'rows'       => 42,
+				               'mime_types' => 0,
+			               ],
+		               )
 		;
 
 		$this->assertSame(
 			[
-				'rows' => 42,
-				'at'   => 1_759_300_000,
+				'rows'      => 42,
+				'mimeTypes' => 0,
+				'at'        => 1_759_300_000,
 			],
 			$this->service->getHashRowCount(),
 		);
@@ -257,7 +329,10 @@ class StatusServiceTest
 		               ->willReturn( [
 			               JobStatsService::JOB_CHECKSUM_COUNT => [
 				               'lastRun' => $at,
-				               'counts'  => [ 'rows' => 406_419 ],
+				               'counts'  => [
+					               'rows'       => 406_419,
+					               'mime_types' => 1_234,
+				               ],
 			               ],
 		               ] )
 		;

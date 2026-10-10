@@ -24,6 +24,7 @@ use OCP\Files\Folder;
 use OCP\Files\Storage\IStorage;
 use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\Lock\ILockingProvider;
+use OCP\Lock\LockedException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use OCP\IAppConfig;
@@ -659,6 +660,150 @@ class HashCalculationServiceTest
 		$service->processFile( 42, 'auto' );
 
 		$this->assertSame( [ null ], $types->getArrayCopy() );
+	}
+
+	/**
+	 * `pending:mime` reads the first 64 KiB of a hashed file its stamp still
+	 * covers, saves the type with the stamp untouched, and takes the file
+	 * off the queue.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheMimeModeReadsTheTypeAloneAndTakesTheFileOffTheQueue(): void
+	{
+		[ $file, $path ] = $this->streamedFile( '%PDF-1.4' );
+		$metadata        = $this->queuedForItsType( $file, 1000 );
+		$types           = $this->capturedTypes();
+
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( true )
+		;
+		$this->mimeTypes->method( 'detect' )
+		                ->with( '%PDF-1.4' )
+		                ->willReturn( 'application/pdf' )
+		;
+		$metadata->expects( $this->never() )
+		         ->method( 'setInt' )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'saveMetadata' )
+		                      ->willReturn( true )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'clearComputedMarker' )
+		                      ->with( 42 )
+		;
+
+		try
+		{
+			$left = $this->createRealService()
+			             ->processFile( 42, MetadataService::PENDING_MODE_MIME )
+			;
+		}
+		finally
+		{
+			@unlink( $path );
+		}
+
+		$this->assertTrue( $left );
+		$this->assertSame( [ 'application/pdf' ], $types->getArrayCopy() );
+	}
+
+	/** Off, what the mark asked for is not wanted any more: dropped unread. */
+	public function testTheMimeModeDropsTheMarkUnreadWhileDetectionIsOff(): void
+	{
+		[ $file, $path ] = $this->streamedFile( '%PDF-1.4' );
+		$this->queuedForItsType( $file, 1000 );
+
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( false )
+		;
+		$this->mimeTypes->expects( $this->never() )
+		                ->method( 'detect' )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 42, '' )
+		;
+
+		try
+		{
+			$this->assertTrue(
+				$this->createRealService()
+				     ->processFile( 42, MetadataService::PENDING_MODE_MIME ),
+			);
+		}
+		finally
+		{
+			@unlink( $path );
+		}
+	}
+
+	/**
+	 * Changed content is the hash modes' to read, which the write or the
+	 * sweep queues the file for: the mark is dropped unread.
+	 */
+	public function testTheMimeModeDropsTheMarkOfAFileItsStampNoLongerCovers(): void
+	{
+		[ $file, $path ] = $this->streamedFile( '%PDF-1.4' );
+		$this->queuedForItsType( $file, 999 );
+
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( true )
+		;
+		$this->mimeTypes->expects( $this->never() )
+		                ->method( 'detect' )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 42, '' )
+		;
+
+		try
+		{
+			$this->assertTrue(
+				$this->createRealService()
+				     ->processFile( 42, MetadataService::PENDING_MODE_MIME ),
+			);
+		}
+		finally
+		{
+			@unlink( $path );
+		}
+	}
+
+	/** A busy file is a failed attempt, as under a hash mode, and stays queued. */
+	public function testTheMimeModeCountsABusyFileAsAFailedAttempt(): void
+	{
+		[ $file, $path ] = $this->streamedFile( '%PDF-1.4' );
+		$this->queuedForItsType( $file, 1000 );
+
+		$this->mimeTypes->method( 'isActive' )
+		                ->willReturn( true )
+		;
+		$this->lockingProvider->method( 'acquireLock' )
+		                      ->willThrowException( new LockedException( 'files/42' ) )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'recordFailedAttempt' )
+		                      ->with( 42, MetadataService::PENDING_MIME )
+		                      ->willReturn( 1 )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'saveMetadata' )
+		;
+
+		try
+		{
+			$this->assertFalse(
+				$this->createRealService()
+				     ->processFile( 42, MetadataService::PENDING_MODE_MIME ),
+			);
+		}
+		finally
+		{
+			@unlink( $path );
+		}
 	}
 
 	/**
@@ -1755,6 +1900,45 @@ class HashCalculationServiceTest
 		;
 		$this->filecacheService->method( 'getFile' )
 		                       ->willReturn( $file )
+		;
+
+		return $metadata;
+	}
+
+	/**
+	 * $file, queued `pending:mime` under an include rule, its document
+	 * holding a sha1 under $stamp: current from the file's mtime of 1000.
+	 *
+	 * @return IFilesMetadata&MockObject
+	 */
+	private function queuedForItsType(
+		File $file,
+		int  $stamp,
+	): IFilesMetadata
+	{
+		$metadata = $this->createMock( IFilesMetadata::class );
+
+		$this->filecacheService->method( 'getFile' )
+		                       ->willReturn( $file )
+		;
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn(
+			                  [
+				                  'id'    => 'r1',
+				                  'type'  => 'include',
+				                  'mode'  => 'auto',
+				                  'algos' => [ 'sha1' ],
+			                  ],
+		                  )
+		;
+		$this->metadataService->method( 'getMetadata' )
+		                      ->willReturn( $metadata )
+		;
+		$this->metadataService->method( 'getHashes' )
+		                      ->willReturn( [ 'sha1' => str_repeat( 'a', 40 ) ] )
+		;
+		$this->metadataService->method( 'getUpdatedAt' )
+		                      ->willReturn( $stamp )
 		;
 
 		return $metadata;

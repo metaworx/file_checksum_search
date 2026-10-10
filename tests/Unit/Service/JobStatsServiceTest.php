@@ -242,11 +242,21 @@ class JobStatsServiceTest
 		$this->assertNull( $runs['pending_drain']['attempt'] );
 		$this->assertNull( $runs['stamp_check']['attempt'] );
 
-		// The three queued jobs and the rule applied on request are listed
-		// beside the four timed ones, and every one has a name for the
-		// console.
+		// The queued jobs and the rule applied on request are listed beside
+		// the four timed ones, and every one has a name for the console.
 		$this->assertSame(
-			[ 'rule_sweep', 'rule_apply', 'pending_drain', 'orphan_purge', 'filecache_backfill', 'hash_index_check', 'stamp_check', 'checksum_count' ],
+			[
+				'rule_sweep',
+				'rule_apply',
+				'pending_drain',
+				'orphan_purge',
+				'filecache_backfill',
+				'hash_index_check',
+				'stamp_check',
+				'checksum_count',
+				'mimetype_refresh',
+				'mimetype_delete',
+			],
 			array_keys( $runs ),
 		);
 		$this->assertSame( array_keys( $runs ), array_keys( JobStatsService::LABELS ) );

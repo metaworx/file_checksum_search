@@ -220,9 +220,12 @@ class ChecksumApi
 	 * an administrator only.
 	 *
 	 * `rowCount` is the stored count of indexed checksums, `rowCountAt` when
-	 * it was taken ({@see StatusService::getHashRowCount()}).
+	 * it was taken ({@see StatusService::getHashRowCount()}). `mimeTypes` is
+	 * where MIME type detection stands, one of `enabled`, `disabled`,
+	 * `unavailable` and `deleting`, with the types stored, counted with the
+	 * checksums.
 	 *
-	 * @return array{version: string, dbVersion?: string, rowCount?: int, rowCountAt?: int, pendingRows?: int}
+	 * @return array{version: string, dbVersion?: string, rowCount?: int, rowCountAt?: int, pendingRows?: int, mimeTypes?: array{state: string, rows: int, deleteRequestedAt: int|null}}
 	 */
 	public function getStatus( ?string $requestingUser = null ): array
 	{
@@ -237,7 +240,8 @@ class ChecksumApi
 			];
 		}
 
-		$rows = $this->statusService->getHashRowCount();
+		$rows      = $this->statusService->getHashRowCount();
+		$mimeTypes = $this->statusService->getMimeTypeStatus( $rows );
 
 		return [
 			'version'     => $this->statusService->getAppVersion(),
@@ -245,6 +249,11 @@ class ChecksumApi
 			'rowCount'    => $rows['rows'],
 			'rowCountAt'  => $rows['at'],
 			'pendingRows' => $this->statusService->getPendingRowCount(),
+			'mimeTypes'   => [
+				'state'             => $mimeTypes['state'],
+				'rows'              => $mimeTypes['rows'],
+				'deleteRequestedAt' => $mimeTypes['deleteRequestedAt'],
+			],
 		];
 	}
 
