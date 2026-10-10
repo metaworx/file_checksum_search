@@ -19,6 +19,13 @@ the first stable release.
   `occ fcias:mimetype:*`, counted in the status, and given by the API
   on `?mimetype=1` (`docs/api-v1.md`, *MIME types*).
 
+### Fixed
+
+- Rules in `auto` mode hash the files they govern that have no
+  checksums yet: new files as they are written, existing ones through
+  the sweep and Reapply, those an earlier `auto` pass stamped without
+  checksums included (README, *Modes*).
+
 ## [0.24.0] - 2026-10-08
 
 ### Added

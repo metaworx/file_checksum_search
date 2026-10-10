@@ -540,6 +540,14 @@ msgstr "ヘルプ"
 msgid "Help: {label}"
 msgstr "ヘルプ：{label}"
 
+#. TRANSLATORS: "Auto", "Missing", "Force" and "Lazy" name the choices of the Mode field; translate them as that field does
+msgid "How a file gets its checksums. \"Auto\" computes them for a file without current ones, new or changed, \"Missing\" also adds one the file lacks, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
+msgstr "ファイルにチェックサムを付ける方法です。「自動」は最新のチェックサムがないファイル（新規または変更されたファイル）のチェックサムを計算し、「欠落分」はファイルに欠けているものも追加し、「全件」はすべてを削除して再計算し、「遅延」は今すぐ削除して後の実行で再計算させます。"
+
+#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, and "—" what it shows for a rule that computes nothing; keep them
+msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. Shown as \"—\" for a rule that computes nothing."
+msgstr "ファイルにチェックサムを付ける方法です。\"auto\"は最新のチェックサムがないファイル（新規または変更されたファイル）のチェックサムを計算し、\"missing\"はファイルに欠けているものも追加し、\"force\"はすべてを削除して再計算し、\"lazy\"は今すぐ削除して後の実行で再計算させます。何も計算しないルールでは\"—\"と表示されます。"
+
 msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr "1ページに表示する重複グループの数です。重複グループまたはファイルを検証するまで、ディスクからは何も読み取られません。そのため、ページを大きくしても、長くなるのはクエリの時間だけで、読み取りの時間ではありません。"
 
@@ -1184,14 +1192,6 @@ msgstr "検証"
 
 msgid "Verify all"
 msgstr "すべて検証"
-
-#. TRANSLATORS: "Auto", "Missing", "Force" and "Lazy" name the choices of the Mode field; translate them as that field does
-msgid "What happens to a file that already has checksums. \"Auto\" recalculates only outdated ones, \"Missing\" also adds missing ones, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
-msgstr "すでにチェックサムがあるファイルの扱いです。「自動」は古くなったものだけを再計算し、「欠落分」は欠けているものも追加し、「全件」はすべてを削除して再計算し、「遅延」は今すぐ削除して後の実行で再計算させます。"
-
-#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, and "—" what it shows for a rule that computes nothing; keep them
-msgid "What happens to a file that already has checksums. \"auto\" recalculates only outdated ones, \"missing\" also adds missing ones, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. Shown as \"—\" for a rule that computes nothing."
-msgstr "すでにチェックサムがあるファイルの扱いです。\"auto\"は古くなったものだけを再計算し、\"missing\"は欠けているものも追加し、\"force\"はすべてを削除して再計算し、\"lazy\"は今すぐ削除して後の実行で再計算させます。何も計算しないルールでは\"—\"と表示されます。"
 
 #. TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
 msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."

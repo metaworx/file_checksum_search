@@ -650,15 +650,15 @@ class RuleService
 
 				// The page query already kept only stale rows, but the stamp
 				// rides on the location, so confirm without another query.
-				if ( $location->updatedAt !== null && $location->updatedAt >= $location->mtime )
+				if ( $location->isFresh() )
 				{
 					continue;
 				}
 
 				// Changed where the write listener did not see it — a scan
 				// found it so: its hashes leave every search until the queue
-				// has computed them again.
-				if ( $location->updatedAt !== null )
+				// has computed them again. A stamp over no hash has none.
+				if ( $location->updatedAt !== null && $location->updatedAt < $location->mtime )
 				{
 					$this->metadataService->hideHashes( $location->fileId );
 				}
@@ -1312,7 +1312,7 @@ class RuleService
 			{
 				// The stamp rides on the location from the sweep's page query,
 				// so freshness costs no query per file here either.
-				if ( $location->updatedAt !== null && $location->updatedAt >= $location->mtime )
+				if ( $location->isFresh() )
 				{
 					$fresh ++;
 

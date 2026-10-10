@@ -542,6 +542,14 @@ msgstr "Hulp"
 msgid "Help: {label}"
 msgstr "Hulp: {label}"
 
+#. TRANSLATORS: "Auto", "Missing", "Force" and "Lazy" name the choices of the Mode field; translate them as that field does
+msgid "How a file gets its checksums. \"Auto\" computes them for a file without current ones, new or changed, \"Missing\" also adds one the file lacks, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
+msgstr "Hoe een bestand zijn controlesommen krijgt. “Automatisch” berekent ze voor een nieuw of gewijzigd bestand zonder actuele controlesommen, “Ontbrekende” voegt er ook een toe die het bestand mist, “Forceren” verwijdert ze allemaal en berekent ze opnieuw, en “Later” verwijdert ze nu en laat een latere uitvoering ze opnieuw berekenen."
+
+#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, and "—" what it shows for a rule that computes nothing; keep them
+msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. Shown as \"—\" for a rule that computes nothing."
+msgstr "Hoe een bestand zijn controlesommen krijgt. \"auto\" berekent ze voor een nieuw of gewijzigd bestand zonder actuele controlesommen, \"missing\" voegt er ook een toe die het bestand mist, \"force\" verwijdert ze allemaal en berekent ze opnieuw, en \"lazy\" verwijdert ze nu en laat een latere uitvoering ze opnieuw berekenen. Wordt als \"—\" getoond bij een regel die niets berekent."
+
 msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr "Hoeveel groepen één pagina toont. Hier wordt niets van schijf gelezen totdat je een groep of bestand controleert, dus kost een grotere pagina een langere databasequery, geen langere leesbewerkingen."
 
@@ -1188,14 +1196,6 @@ msgstr "Controleren"
 
 msgid "Verify all"
 msgstr "Alles controleren"
-
-#. TRANSLATORS: "Auto", "Missing", "Force" and "Lazy" name the choices of the Mode field; translate them as that field does
-msgid "What happens to a file that already has checksums. \"Auto\" recalculates only outdated ones, \"Missing\" also adds missing ones, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
-msgstr "Wat er gebeurt met een bestand dat al controlesommen heeft. “Automatisch” berekent alleen verouderde opnieuw, “Ontbrekende” voegt ook ontbrekende toe, “Forceren” verwijdert ze allemaal en berekent ze opnieuw, en “Later” verwijdert ze nu en laat een latere uitvoering ze opnieuw berekenen."
-
-#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, and "—" what it shows for a rule that computes nothing; keep them
-msgid "What happens to a file that already has checksums. \"auto\" recalculates only outdated ones, \"missing\" also adds missing ones, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. Shown as \"—\" for a rule that computes nothing."
-msgstr "Wat er gebeurt met een bestand dat al controlesommen heeft. \"auto\" berekent alleen verouderde opnieuw, \"missing\" voegt ook ontbrekende toe, \"force\" verwijdert ze allemaal en berekent ze opnieuw, en \"lazy\" verwijdert ze nu en laat een latere uitvoering ze opnieuw berekenen. Wordt als \"—\" getoond bij een regel die niets berekent."
 
 #. TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
 msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."

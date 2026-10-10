@@ -198,10 +198,11 @@ class RuleServiceTest
 		string $relative,
 		int    $mtime = 1000,
 		?int   $updatedAt = null,
+		bool   $settled = true,
 	): FileLocation
 	{
 		return FileLocation::fromRow( $fileId, 'home::' . $owner, 'files' . $relative, $mtime )
-		                   ->withUpdatedAt( $updatedAt );
+		                   ->withUpdatedAt( $updatedAt, $settled );
 	}
 
 	private function stubLocate( FileLocation ...$locations ): void
@@ -423,6 +424,30 @@ class RuleServiceTest
 
 		$this->assertSame( 0, $result['marked'] );
 		$this->assertSame( 1, $result['matched'] );
+	}
+
+	/**
+	 * A stamp over neither a hash nor a state, which `auto` once wrote for a
+	 * file it computed nothing for, vouches for nothing: the file is queued
+	 * again, and has no hashes to hide.
+	 */
+	public function testProcessRuleQueuesAFileStampedOverNoHash(): void
+	{
+		$this->setupRulesConfig( [ $this->defaultRule() ] );
+
+		$this->stubSweep( $this->homeLocation( 42, 'user1', '/test.txt', mtime: 1000, updatedAt: 2000, settled: false ) );
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 42, 'pending:' . ( $this->defaultRule()['mode'] ?? 'auto' ) )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'hideHashes' )
+		;
+
+		$result = $this->service->processRule( $this->defaultRule() );
+
+		$this->assertSame( 1, $result['marked'] );
 	}
 
 	public function testProcessRuleRespectsBatchLimit(): void
@@ -3081,6 +3106,41 @@ class RuleServiceTest
 			],
 			$result,
 		);
+	}
+
+	/**
+	 * Reapply does not count a file fresh for a stamp over no hash: under
+	 * `auto` it is queued, and the drain now gives it the rule's hashes.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testApplyRuleQueuesAFileStampedOverNoHash(): void
+	{
+		$rule = [
+			'id'        => 'r1',
+			'enabled'   => true,
+			'type'      => 'include',
+			'path'      => '**',
+			'userScope' => 'alice',
+			'mode'      => 'auto',
+		];
+
+		$this->setupRulesConfig( [ $rule ] );
+
+		$this->stubSweep(
+			$this->homeLocation( 1, 'alice', '/bare.txt', mtime: 1000, updatedAt: 1500, settled: false ),
+			$this->homeLocation( 2, 'alice', '/hashed.txt', mtime: 1000, updatedAt: 1500 ),
+		);
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 1, 'pending:auto' )
+		;
+
+		$result = $this->service->applyRule( $rule );
+
+		$this->assertSame( 1, $result['marked'] );
+		$this->assertSame( 1, $result['fresh'] );
 	}
 
 	/**

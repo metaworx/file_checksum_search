@@ -240,7 +240,7 @@ const HELP = {
 	path: t('file_checksum_search', 'Glob pattern the file path must match. "**" matches every file; "Documents/**" matches everything below that folder. Rules are checked in order and the first match wins.'),
 	algos: t('file_checksum_search', 'Checksum algorithms computed for matching files. Each algorithm you add is indexed separately, so more algorithms mean more work per file.'),
 	// TRANSLATORS: "Auto", "Missing", "Force" and "Lazy" name the choices of the Mode field; translate them as that field does
-	mode: t('file_checksum_search', 'What happens to a file that already has checksums. "Auto" recalculates only outdated ones, "Missing" also adds missing ones, "Force" deletes and recalculates all of them, and "Lazy" deletes them now and lets a later run recalculate them.'),
+	mode: t('file_checksum_search', 'How a file gets its checksums. "Auto" computes them for a file without current ones, new or changed, "Missing" also adds one the file lacks, "Force" deletes and recalculates all of them, and "Lazy" deletes them now and lets a later run recalculate them.'),
 	adminEnforced: t('file_checksum_search', 'When set, nobody else can edit or disable this rule. Enforced rules are evaluated before every personal rule, so none can come before them.'),
 	// TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
 	type: t('file_checksum_search', 'What happens when this rule matches. "Include" computes the checksums below. "Ignore" stops automatic hashing but still lets someone recalculate a file\'s checksums by hand. "Exclude" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount.'),

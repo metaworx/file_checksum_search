@@ -204,8 +204,8 @@ class FileListener
 
 		// The hashes now describe content the file no longer has, and an
 		// outdated hash is worse than none: out of every search until the
-		// queue has computed them again. The document keeps them, so that
-		// `auto` knows which algorithms the file had.
+		// queue has computed them again. A file without hashes is queued for
+		// its first, which the rule wants as much.
 		case MetadataService::PENDING_MODE_AUTO:
 		case MetadataService::PENDING_MODE_MISSING:
 			if ( $this->metadataService->markOutdated( $fileId, $mode ) )
@@ -218,7 +218,20 @@ class FileListener
 						'mode'   => $mode,
 					],
 				);
+
+				break;
 			}
+
+			$this->metadataService->markPending( $fileId, MetadataService::PENDING_PREFIX . $mode );
+
+			$this->logger->debug(
+				'FCIAS FileListener: queued on write for its first hashes',
+				[
+					'app'    => Application::APP_ID,
+					'fileId' => $fileId,
+					'mode'   => $mode,
+				],
+			);
 
 			break;
 		}
@@ -275,28 +288,20 @@ class FileListener
 
 			break;
 
+		// A new file has no hashes, and both modes want the rule's: the two
+		// differ only in reading a current file to add an algorithm.
 		case MetadataService::PENDING_MODE_AUTO:
-			// Intentionally a no-op for a brand-new file: `auto` means
-			// "recalculate EXISTING hashes only when outdated" (README), and
-			// a just-created file has none — countByFileId() is correctly
-			// 0 here. Filling in a first hash for a new file under `auto`
-			// is not this mode's job; use `missing` or `force` on the rule
-			// if that's wanted. New files with genuinely no hash still get
-			// one eventually via the independent MetadataBackgroundEvent →
-			// MetadataListener → pending:missing → ProcessPendingUpdates
-			// path, which resolves the matching rule at drain time.
-			if ( $this->metadataService->countByFileId( $fileId ) > 0 )
-			{
-				$this->metadataService->markPending( $fileId, MetadataService::PENDING_AUTO );
+		case MetadataService::PENDING_MODE_MISSING:
+			$this->metadataService->markPending( $fileId, MetadataService::PENDING_PREFIX . $mode );
 
-				$this->logger->debug(
-					'FCIAS FileListener: auto-queued on create',
-					[
-						'app'    => Application::APP_ID,
-						'fileId' => $fileId,
-					],
-				);
-			}
+			$this->logger->debug(
+				'FCIAS FileListener: queued on create',
+				[
+					'app'    => Application::APP_ID,
+					'fileId' => $fileId,
+					'mode'   => $mode,
+				],
+			);
 
 			break;
 		}

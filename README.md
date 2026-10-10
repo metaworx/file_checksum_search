@@ -512,13 +512,12 @@ personal rule can undo, while a personal exclude only overrides the defaults bel
 
 | Mode | Description |
 |------|-------------|
-| `auto` | Recalculate the rule's algorithms the file already has, when it changes |
-| `missing` | Recalculate outdated hashes and fill in missing ones |
-
-Under either, a change drops the hashes of algorithms the rule does not name.
+| `auto` | Compute the rule's algorithms for a file without current hashes: new, never hashed, or changed. A file whose hashes are current is never read only to add an algorithm |
+| `missing` | The same, and add any of the rule's algorithms a queued file lacks |
 | `force` | Clear all hashes and recalculate immediately |
 | `lazy` | Clear hashes and defer recalculation to the background queue |
 
+Under `auto` and `missing`, a change drops the hashes of algorithms the rule does not name.
 A rule may carry any of the four. The `hash` command's `--mode` accepts only `missing` and `force`:
 `auto` is the background drain's own semantics, and `lazy` — "queue it for later" — is spelled
 `--mark` there.

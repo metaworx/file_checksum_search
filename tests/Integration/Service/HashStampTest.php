@@ -309,6 +309,95 @@ class HashStampTest
 	}
 
 	/**
+	 * A file created under an `auto` rule is queued, and the queue gives it
+	 * the rule's hashes: `auto` used to leave a new file to a metadata event
+	 * that Nextcloud fires only where another app asks for one.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testANewFileUnderAutoIsQueuedAndHashed(): void
+	{
+		$this->rule( MetadataService::PENDING_MODE_AUTO, [ 'sha256' ] );
+
+		$file = $this->createTestFile( 'fcias_auto_new', 'new under auto' );
+
+		$this->assertSame( MetadataService::PENDING_AUTO, $this->metadataService->getMarker( $file->getId() ) );
+
+		$this->hashCalc->processFile( $file->getId(), MetadataService::PENDING_MODE_AUTO );
+
+		$this->assertSame( [ 'sha256' => hash( 'sha256', 'new under auto' ) ], $this->hashesOf( $file->getId() ) );
+		$this->assertNull( $this->metadataService->getMarker( $file->getId() ), 'The file has left the queue.' );
+	}
+
+	/**
+	 * An `auto` rule enabled after the fact reaches the files it now governs,
+	 * through the sweep and through Reapply alike, and the queue hashes them.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAnAutoRuleEnabledAfterTheFactHashesExistingFiles(): void
+	{
+		foreach ( [ 'sweep', 'reapply' ] as $route )
+		{
+			$file = $this->createTestFile( 'fcias_auto_after_' . $route, 'there before the rule: ' . $route );
+			$rule = $this->ruleFor( $file, MetadataService::PENDING_MODE_AUTO );
+
+			$this->assertNull( $this->metadataService->getMarker( $file->getId() ), "$route: nothing queued it before" );
+
+			$route === 'sweep'
+				? $this->ruleService->processRule( $rule )
+				: $this->ruleService->applyRule( $rule );
+
+			$this->assertSame( MetadataService::PENDING_AUTO, $this->metadataService->getMarker( $file->getId() ), "$route: queued" );
+
+			$this->hashCalc->processFile( $file->getId(), MetadataService::PENDING_MODE_AUTO );
+
+			$this->assertSame(
+				[ 'sha256' => hash( 'sha256', 'there before the rule: ' . $route ) ],
+				$this->hashesOf( $file->getId() ),
+				"$route: hashed",
+			);
+		}
+	}
+
+	/**
+	 * A stamp over no hash, which `auto` once wrote for a file it computed
+	 * nothing for, no longer passes for fresh: the sweep and Reapply queue
+	 * the file again, and the queue hashes it.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAFileStampedOverNoHashIsQueuedAgain(): void
+	{
+		foreach ( [ 'sweep', 'reapply' ] as $route )
+		{
+			$file = $this->createTestFile( 'fcias_auto_bare_' . $route, 'stamped over nothing: ' . $route );
+
+			// What the old `auto` left: a stamp no earlier than the mtime, and
+			// no hash, in the document and its index row.
+			$metadata = $this->metadataService->getMetadata( $file->getId() );
+			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $this->fresh( $file )->getMTime() + 60, true );
+			Server::get( IFilesMetadataManager::class )->saveMetadata( $metadata );
+
+			$rule = $this->ruleFor( $file, MetadataService::PENDING_MODE_AUTO );
+
+			$route === 'sweep'
+				? $this->ruleService->processRule( $rule )
+				: $this->ruleService->applyRule( $rule );
+
+			$this->assertSame( MetadataService::PENDING_AUTO, $this->metadataService->getMarker( $file->getId() ), "$route: queued again" );
+
+			$this->hashCalc->processFile( $file->getId(), MetadataService::PENDING_MODE_AUTO );
+
+			$this->assertSame(
+				[ 'sha256' => hash( 'sha256', 'stamped over nothing: ' . $route ) ],
+				$this->hashesOf( $file->getId() ),
+				"$route: hashed",
+			);
+		}
+	}
+
+	/**
 	 * `rebuild-from-metadata` removes the rows of a document whose stamp no
 	 * longer covers the file, and leaves a queued one alone.
 	 *
@@ -419,6 +508,38 @@ class HashStampTest
 				'algos'    => $algos,
 			],
 		);
+	}
+
+	/**
+	 * The only rule: $mode, sha256, for this one file — the sweep reads every
+	 * storage the selector names, and the instance's other files are not the
+	 * test's to queue. Added after the file, so its creation queued nothing.
+	 *
+	 * @return array<string, mixed>  The rule as stored.
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function ruleFor(
+		File   $file,
+		string $mode,
+	): array
+	{
+		foreach ( $this->ruleService->loadRules() as $rule )
+		{
+			$this->ruleService->ruleDelete( (string) $rule['id'] );
+		}
+
+		$this->ruleService->ruleAdd(
+			[
+				'enabled'  => true,
+				'type'     => RuleService::TYPE_INCLUDE,
+				'path'     => $file->getName(),
+				'mode'     => $mode,
+				'selector' => '*',
+				'algos'    => [ 'sha256' ],
+			],
+		);
+
+		return $this->ruleService->loadRules()[0];
 	}
 
 	/**

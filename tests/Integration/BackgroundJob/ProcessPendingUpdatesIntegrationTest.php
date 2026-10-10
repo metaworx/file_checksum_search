@@ -102,6 +102,12 @@ class ProcessPendingUpdatesIntegrationTest
 			self::RULE_CONFIG_KEY,
 			'[]',
 		);
+
+		// No rule while the test's files are created: an enabled rule of the
+		// instance's would queue them on creation, beside the marks the tests
+		// set. tearDown() puts the instance's own back.
+		$this->appConfig->setValueString( Application::APP_ID, self::RULE_CONFIG_KEY, '[]' );
+		$this->ruleService->loadRules( refresh: true );
 	}
 
 

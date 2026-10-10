@@ -544,6 +544,14 @@ msgstr "Aide"
 msgid "Help: {label}"
 msgstr "Aide : {label}"
 
+#. TRANSLATORS: "Auto", "Missing", "Force" and "Lazy" name the choices of the Mode field; translate them as that field does
+msgid "How a file gets its checksums. \"Auto\" computes them for a file without current ones, new or changed, \"Missing\" also adds one the file lacks, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
+msgstr "Comment un fichier obtient ses sommes de contrôle. « Automatique » les calcule pour un fichier qui n'en a aucune à jour, qu'il soit nouveau ou modifié, « Manquantes » ajoute aussi celles qui lui manquent, « Forcer » les supprime toutes et les recalcule, et « Différé » les supprime maintenant et laisse un passage ultérieur les recalculer."
+
+#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, and "—" what it shows for a rule that computes nothing; keep them
+msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. Shown as \"—\" for a rule that computes nothing."
+msgstr "Comment un fichier obtient ses sommes de contrôle. \"auto\" les calcule pour un fichier qui n'en a aucune à jour, qu'il soit nouveau ou modifié, \"missing\" ajoute aussi celles qui lui manquent, \"force\" les supprime toutes et les recalcule, et \"lazy\" les supprime maintenant et laisse un passage ultérieur les recalculer. Affiché sous la forme \"—\" pour une règle qui ne calcule rien."
+
 msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr "Nombre de groupes affichés par page. Rien n'est lu sur le disque tant que vous ne vérifiez pas un groupe ou un fichier : une page plus grande coûte donc une requête plus longue, pas des lectures plus longues."
 
@@ -1192,14 +1200,6 @@ msgstr "Vérifier"
 
 msgid "Verify all"
 msgstr "Tout vérifier"
-
-#. TRANSLATORS: "Auto", "Missing", "Force" and "Lazy" name the choices of the Mode field; translate them as that field does
-msgid "What happens to a file that already has checksums. \"Auto\" recalculates only outdated ones, \"Missing\" also adds missing ones, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
-msgstr "Ce qui arrive à un fichier qui a déjà des sommes de contrôle. « Automatique » ne recalcule que celles qui sont périmées, « Manquantes » ajoute aussi celles qui manquent, « Forcer » les supprime toutes et les recalcule, et « Différé » les supprime maintenant et laisse un passage ultérieur les recalculer."
-
-#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, and "—" what it shows for a rule that computes nothing; keep them
-msgid "What happens to a file that already has checksums. \"auto\" recalculates only outdated ones, \"missing\" also adds missing ones, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. Shown as \"—\" for a rule that computes nothing."
-msgstr "Ce qui arrive à un fichier qui a déjà des sommes de contrôle. \"auto\" ne recalcule que celles qui sont périmées, \"missing\" ajoute aussi celles qui manquent, \"force\" les supprime toutes et les recalcule, et \"lazy\" les supprime maintenant et laisse un passage ultérieur les recalculer. Affiché sous la forme \"—\" pour une règle qui ne calcule rien."
 
 #. TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
 msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."

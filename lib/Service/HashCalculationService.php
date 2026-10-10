@@ -844,7 +844,7 @@ class HashCalculationService
 			break;
 
 		case 'auto':
-			$algosToRecalc = $this->algosFor( $mode, $algos, $metadata );
+			$algosToRecalc = $this->algosFor( $mode, $algos, $metadata, $outdated );
 
 			if ( $outdated )
 			{
@@ -1363,6 +1363,7 @@ class HashCalculationService
 					: (string) ( $rule['mode'] ?? MetadataService::PENDING_MODE_AUTO ),
 				(array) ( $rule['algos'] ?? [ $this->getDefaultAlgo() ] ),
 				$metadata,
+				$outdated,
 			);
 		}
 
@@ -1385,9 +1386,13 @@ class HashCalculationService
 
 	/**
 	 * The algorithms the queue computes for a file in $mode, given its rule's
-	 * list: under `auto` only those the file already has, under `missing`
-	 * and `force` all of them, under `lazy` none, and none under `mime`,
-	 * which asks for the MIME type alone.
+	 * list: under `missing` and `force` all of them, under `lazy` none, and
+	 * none under `mime`, which asks for the MIME type alone.
+	 *
+	 * Under `auto`, all of them where the file has no current hash — none
+	 * yet, or only outdated ones — since it is read anyway; where its hashes
+	 * are current, only those of them it has, so that `auto` never reads a
+	 * file only to add an algorithm.
 	 *
 	 * @param  list<string>  $ruleAlgos
 	 *
@@ -1397,18 +1402,21 @@ class HashCalculationService
 		string         $mode,
 		array          $ruleAlgos,
 		IFilesMetadata $metadata,
+		bool           $outdated,
 	): array
 	{
 		return match ( $mode )
 		{
-			MetadataService::PENDING_MODE_AUTO => array_values(
-				array_filter(
-					$ruleAlgos,
-					static fn(
-						string $algo,
-					): bool => $metadata->hasKey( MetadataService::getHashKey( $algo ) ),
+			MetadataService::PENDING_MODE_AUTO => $outdated || $this->metadataService->getHashes( $metadata ) === []
+				? array_values( $ruleAlgos )
+				: array_values(
+					array_filter(
+						$ruleAlgos,
+						static fn(
+							string $algo,
+						): bool => $metadata->hasKey( MetadataService::getHashKey( $algo ) ),
+					),
 				),
-			),
 			MetadataService::PENDING_MODE_LAZY,
 			MetadataService::PENDING_MODE_MIME => [],
 			default                            => array_values( $ruleAlgos ),

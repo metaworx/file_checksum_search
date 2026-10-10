@@ -330,7 +330,13 @@ class FileListenerTest
 		$this->listener->handle( $event );
 	}
 
-	public function testOnWriteAutoQueuesNothingForAFileWithoutHashes(): void
+	/**
+	 * A file without hashes is queued for its first, under `auto` as under
+	 * `missing`: the rule wants them, and the write is the moment to say so
+	 * rather than the sweep's next pass.
+	 */
+	#[DataProvider( 'keepingModes' )]
+	public function testOnWriteQueuesAFileWithoutHashesForItsFirst( string $mode ): void
 	{
 		$file = $this->makeFileMock( 42, '/files/user/foo.txt' );
 
@@ -338,7 +344,7 @@ class FileListenerTest
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
 		                  ->with( 42 )
-		                  ->willReturn( [ 'mode' => 'auto' ] )
+		                  ->willReturn( [ 'mode' => $mode ] )
 		;
 
 		// markOutdated() answers whether there was anything to take out, and
@@ -347,8 +353,9 @@ class FileListenerTest
 		                      ->method( 'markOutdated' )
 		                      ->willReturn( false )
 		;
-		$this->metadataService->expects( $this->never() )
+		$this->metadataService->expects( $this->once() )
 		                      ->method( 'markPending' )
+		                      ->with( 42, 'pending:' . $mode )
 		;
 
 		$this->listener->handle( $event );
@@ -444,7 +451,13 @@ class FileListenerTest
 		$this->listener->handle( $event );
 	}
 
-	public function testOnCreateAutoMarksPendingIfHashExists(): void
+	/**
+	 * A new file is queued for its first hashes under `auto` as under
+	 * `missing`, rather than left to the sweep or to a metadata event that
+	 * Nextcloud fires only where another app asks for one.
+	 */
+	#[DataProvider( 'keepingModes' )]
+	public function testOnCreateQueuesTheFileForItsFirstHashes( string $mode ): void
 	{
 		$file = $this->makeFileMock( 42, '/files/user/new.txt' );
 
@@ -452,17 +465,15 @@ class FileListenerTest
 
 		$this->ruleService->method( 'findFirstMatchingRule' )
 		                  ->with( 42 )
-		                  ->willReturn( [ 'mode' => 'auto' ] )
+		                  ->willReturn( [ 'mode' => $mode ] )
 		;
 
-		$this->metadataService->method( 'countByFileId' )
-		                      ->with( 42 )
-		                      ->willReturn( 1 )
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'clearMetadata' )
 		;
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'markPending' )
-		                      ->with( 42, 'pending:auto' )
+		                      ->with( 42, 'pending:' . $mode )
 		;
 
 		$this->listener->handle( $event );

@@ -1113,77 +1113,64 @@ class HashCalculationServiceTest
 	}
 
 	/**
+	 * `auto` gives a file without a current hash, none yet or only outdated
+	 * ones, every algorithm of its rule, since the file is read anyway; it
+	 * never reads a file whose hashes are current only to add one.
+	 *
+	 * @param  array<string, string>  $hashes  The document's, under a stamp
+	 *                                          of $stamp; the file's mtime is
+	 *                                          1000.
+	 * @param  list<string>           $computed
+	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testProcessFileAutoModeSkipsMissingKeys(): void
+	#[DataProvider( 'autoDocuments' )]
+	public function testProcessFileAutoComputesTheRulesAlgorithmsForAFileWithoutACurrentHash(
+		array $hashes,
+		int   $stamp,
+		array $computed,
+	): void
 	{
-		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata = $this->documentStamped( $hashes, $stamp );
 
-		$this->metadataService->expects( $this->once() )
-		                      ->method( 'getMetadata' )
-		                      ->with( 42 )
-		                      ->willReturn( $metadata )
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn(
+			                  [
+				                  'id'    => 'r1',
+				                  'type'  => 'include',
+				                  'mode'  => 'auto',
+				                  'algos' => [
+					                  'sha1',
+					                  'sha256',
+				                  ],
+			                  ],
+		                  )
 		;
 
-		// sha1 key exists, sha256 does not
-		$metadata->expects( $this->exactly( 2 ) )
-		         ->method( 'hasKey' )
-		         ->willReturnMap(
-			         [
-				         [
-					         MetadataService::getHashKey( 'sha1' ),
-					         true,
-				         ],
-				         [
-					         MetadataService::getHashKey( 'sha256' ),
-					         false,
-				         ],
-			         ],
-		         )
+		$service = $this->createCollectingServiceMock();
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->with( $this->anything(), $computed, true, $metadata )
+		        ->willReturn(
+			        [
+				        'results' => array_fill_keys(
+					        $computed,
+					        [
+						        'success' => true,
+						        'hash'    => 'new',
+						        'existed' => false,
+					        ],
+				        ),
+				        'locked'  => false,
+			        ],
+		        )
 		;
-
-		// Only sha1 should be recalculated
-		$this->service->expects( $this->once() )
-		              ->method( 'recalcHashes' )
-		              ->with( 42, [ 'sha1' ], true, $metadata )
-		              ->willReturn(
-			              [
-				              'results' => [
-					              'sha1' => [
-						              'success' => true,
-						              'hash'    => 'abc',
-						              'existed' => false,
-					              ],
-				              ],
-				              'locked'  => false,
-			              ],
-		              )
-		;
-
-		$metadata->expects( $this->once() )
-		         ->method( 'setString' )
-		         ->willReturnSelf()
-		;
-
-		$metadata->expects( $this->once() )
-		         ->method( 'setInt' )
-		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $this->anything(), true )
-		         ->willReturnSelf()
-		;
-
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'saveMetadata' )
 		                      ->with( $metadata )
 		;
 
-		$this->service->processFile(
-			42,
-			'auto',
-			[
-				'sha1',
-				'sha256',
-			],
-		);
+		$service->processFile( 42, 'auto' );
 	}
 
 	/**
@@ -1253,51 +1240,6 @@ class HashCalculationServiceTest
 		$this->service->processFile(
 			42,
 			'missing',
-			[
-				'sha1',
-				'sha256',
-			],
-		);
-	}
-
-	/**
-	 * @noinspection PhpUnhandledExceptionInspection
-	 */
-	public function testProcessFileAutoModeAllKeysMissing(): void
-	{
-		$metadata = $this->createMock( IFilesMetadata::class );
-
-		$this->metadataService->expects( $this->once() )
-		                      ->method( 'getMetadata' )
-		                      ->with( 42 )
-		                      ->willReturn( $metadata )
-		;
-
-		// No keys exist
-		$metadata->expects( $this->exactly( 2 ) )
-		         ->method( 'hasKey' )
-		         ->willReturn( false )
-		;
-
-		// recalcHashes should not be called
-		$this->service->expects( $this->never() )
-		              ->method( 'recalcHashes' )
-		;
-
-		$metadata->expects( $this->once() )
-		         ->method( 'setInt' )
-		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $this->anything(), true )
-		         ->willReturnSelf()
-		;
-
-		$this->metadataService->expects( $this->once() )
-		                      ->method( 'saveMetadata' )
-		                      ->with( $metadata )
-		;
-
-		$this->service->processFile(
-			42,
-			'auto',
 			[
 				'sha1',
 				'sha256',
@@ -3151,6 +3093,22 @@ class HashCalculationServiceTest
 			'one algorithm, local'  => [ [ 'sha1' ], true ],
 			'two algorithms, local' => [ [ 'sha1', 'md5' ], true ],
 			'one algorithm, remote' => [ [ 'sha1' ], false ],
+		];
+	}
+
+	/**
+	 * A document under `auto` with a rule of sha1 and sha256, the file's
+	 * mtime 1000: its hashes, its stamp, and what the drain computes.
+	 *
+	 * @return array<string, array{0: array<string, string>, 1: int, 2: list<string>}>
+	 */
+	public static function autoDocuments(): array
+	{
+		return [
+			'none yet'                  => [ [], 0, [ 'sha1', 'sha256' ] ],
+			'a stamp over none'         => [ [], 2000, [ 'sha1', 'sha256' ] ],
+			'outdated by a change'      => [ [ 'sha1' => 'old' ], 0, [ 'sha1', 'sha256' ] ],
+			'current, with one of them' => [ [ 'sha1' => 'abc' ], 2000, [ 'sha1' ] ],
 		];
 	}
 }

@@ -112,7 +112,7 @@ const COLUMNS: Array<{ key: string, label: string, help: string }> = [
 		key: 'mode',
 		label: t('file_checksum_search', 'Mode'),
 		// TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, and "—" what it shows for a rule that computes nothing; keep them
-		help: t('file_checksum_search', 'What happens to a file that already has checksums. "auto" recalculates only outdated ones, "missing" also adds missing ones, "force" deletes and recalculates all of them, and "lazy" deletes them now and lets a later run recalculate them. Shown as "—" for a rule that computes nothing.'),
+		help: t('file_checksum_search', 'How a file gets its checksums. "auto" computes them for a file without current ones, new or changed, "missing" also adds one the file lacks, "force" deletes and recalculates all of them, and "lazy" deletes them now and lets a later run recalculate them. Shown as "—" for a rule that computes nothing.'),
 	},
 	{
 		key: 'status',

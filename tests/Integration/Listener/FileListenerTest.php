@@ -305,7 +305,7 @@ class FileListenerTest
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testFileWriteAutoSkipsWhenNoHash(): void
+	public function testFileWriteAutoQueuesAFileWithoutHashesForItsFirst(): void
 	{
 		$this->setCatchAllRule( 'auto' );
 
@@ -315,13 +315,12 @@ class FileListenerTest
 		$event = new NodeWrittenEvent( $file );
 		$this->listener->handle( $event );
 
-		// `auto` means "refresh hashes that exist when they go outdated". A
-		// file with none has nothing to refresh, so nothing is queued —
-		// which is a decision, not an oversight: a first hash for a new file
-		// is `missing`'s job or `force`'s.
-		$this->assertNull(
+		// `auto` gives a file the rule's hashes whenever it is read, its first
+		// included: a file without any is queued, and has no rows to hide.
+		$this->assertSame(
+			MetadataService::PENDING_AUTO,
 			$this->stateOf( $fileId ),
-			'Auto queues nothing for a file that has no hashes yet.',
+			'Auto queues a file that has no hashes yet.',
 		);
 		$this->assertSame( 0, $this->metadataService->countByFileId( $fileId ) );
 	}

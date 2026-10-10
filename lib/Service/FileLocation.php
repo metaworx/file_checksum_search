@@ -71,6 +71,12 @@ readonly class FileLocation
 		 * only the sweep sets it, so it is null everywhere else.
 		 */
 		public ?int    $updatedAt = null,
+		/**
+		 * Whether the file holds a hash, or a state that says why it holds
+		 * none: a stamp alone vouches for nothing. The sweep sets it with
+		 * the stamp.
+		 */
+		public bool    $settled = true,
 	) {
 	}
 
@@ -178,6 +184,22 @@ readonly class FileLocation
 	}
 
 
+//  getters / setters / is* / has*
+
+	/**
+	 * Whether a sweep has nothing to do for the file: stamped no earlier
+	 * than its mtime, and holding a hash or a state that says why not. A
+	 * stamp over no hash, which `auto` once wrote for a file it computed
+	 * nothing for, is not fresh.
+	 */
+	public function isFresh(): bool
+	{
+		return $this->updatedAt !== null
+			&& $this->updatedAt >= $this->mtime
+			&& $this->settled;
+	}
+
+
 //  other non-static methods
 
 	/**
@@ -247,7 +269,10 @@ readonly class FileLocation
 	 * The same location with its freshness stamp filled in — the sweep sets
 	 * it from the page query so the caller need not ask per file.
 	 */
-	public function withUpdatedAt( ?int $updatedAt ): self
+	public function withUpdatedAt(
+		?int $updatedAt,
+		bool $settled = true,
+	): self
 	{
 		return new self(
 			$this->fileId,
@@ -259,6 +284,7 @@ readonly class FileLocation
 			$this->groupFolderId,
 			$this->relativePath,
 			$updatedAt,
+			$settled,
 		);
 	}
 

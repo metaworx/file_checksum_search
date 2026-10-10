@@ -594,12 +594,14 @@ class FilecacheService
 	 * A page of a storage's files, keyset-ordered by file id.
 	 *
 	 * Each row carries this app's `updated_at` stamp from the metadata index
-	 * (null when it never hashed the file), joined here so a sweep judges
-	 * freshness without a query per file. `$staleOnly` keeps only the rows a
-	 * sweep would act on — no stamp, or a stamp older than the file's mtime —
-	 * so a sweep of an already-hashed instance fetches nothing rather than
-	 * every file. The stamp is one row of the index (`meta_key =
-	 * file-checksum-updated_at`); the LEFT JOIN pins that key.
+	 * (null when it never hashed the file), and whether the file holds a hash
+	 * or a state, joined here so a sweep judges freshness without a query per
+	 * file ({@see FileLocation::isFresh()}). `$staleOnly` keeps only the rows
+	 * a sweep would act on — no stamp, a stamp older than the file's mtime,
+	 * or a stamp over neither a hash nor a state — so a sweep of an
+	 * already-hashed instance fetches nothing rather than every file. The
+	 * stamp and the state are one row of the index each, and the LEFT JOINs
+	 * pin their keys; the hashes are counted, as there is one row for each.
 	 *
 	 * @return FileLocation[]
 	 * @throws \OCP\DB\Exception
@@ -612,7 +614,30 @@ class FilecacheService
 	): array
 	{
 		$qb = $this->db->getQueryBuilder();
+
+		// The file's hash rows, counted per filecache row: a correlated
+		// subquery, built twice, since a select's alias cannot be read back
+		// in the WHERE on every backend.
+		$hashes = function() use ( $qb ): string
+		{
+			$sub = $this->db->getQueryBuilder();
+			$sub->select( $sub->func()->count( '*' ) )
+			    ->from( MetadataService::TABLE_FILES_METADATA_INDEX, 'mh' )
+			    ->where(
+				    $sub->expr()->eq( 'mh.' . MetadataService::FIELD_FILE_ID, 'fc.fileid' ),
+				    $sub->expr()->like(
+					    'mh.' . MetadataService::FIELD_META_KEY,
+					    $qb->createNamedParameter( MetadataService::KEY_FILE_CHECKSUM_LIKE ),
+				    ),
+			    )
+			;
+
+			return '(' . $sub->getSQL() . ')';
+		};
+
 		$qb->select( 'fc.fileid', 'fc.path', 'fc.mtime', 'st.id', 'mu.' . MetadataService::FIELD_META_VALUE_INT . ' AS updated_at' )
+		   ->selectAlias( 'ms.' . MetadataService::FIELD_META_VALUE_STRING, 'state' )
+		   ->selectAlias( $qb->createFunction( $hashes() ), 'hashes' )
 		   ->from( 'filecache', 'fc' )
 		   ->innerJoin( 'fc', 'storages', 'st', 'fc.storage = st.numeric_id' )
 		   ->leftJoin(
@@ -625,6 +650,19 @@ class FilecacheService
 				      $qb->expr()->eq(
 					      'mu.' . MetadataService::FIELD_META_KEY,
 					      $qb->createNamedParameter( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ),
+				      ),
+			      ),
+		   )
+		   ->leftJoin(
+			   'fc',
+			   MetadataService::TABLE_FILES_METADATA_INDEX,
+			   'ms',
+			   $qb->expr()
+			      ->andX(
+				      $qb->expr()->eq( 'ms.' . MetadataService::FIELD_FILE_ID, 'fc.fileid' ),
+				      $qb->expr()->eq(
+					      'ms.' . MetadataService::FIELD_META_KEY,
+					      $qb->createNamedParameter( MetadataService::KEY_FILE_CHECKSUM_STATE ),
 				      ),
 			      ),
 		   )
@@ -645,14 +683,19 @@ class FilecacheService
 
 		if ( $staleOnly )
 		{
-			// No stamp at all, or one older than the file — the two states a
-			// sweep exists to fix. A fresh file is filtered out here rather
-			// than fetched and skipped.
+			// No stamp at all, one older than the file, or one over neither a
+			// hash nor a state — what a sweep exists to fix. A fresh file is
+			// filtered out here rather than fetched and skipped.
 			$qb->andWhere(
 				$qb->expr()
 				   ->orX(
 					   $qb->expr()->isNull( 'mu.' . MetadataService::FIELD_META_VALUE_INT ),
 					   $qb->expr()->lt( 'mu.' . MetadataService::FIELD_META_VALUE_INT, 'fc.mtime' ),
+					   $qb->expr()
+					      ->andX(
+						      $qb->expr()->isNull( 'ms.' . MetadataService::FIELD_META_VALUE_STRING ),
+						      $qb->createFunction( $hashes() . ' = 0' ),
+					      ),
 				   ),
 			);
 		}
@@ -667,7 +710,12 @@ class FilecacheService
 				(string) $row['id'],
 				(string) $row['path'],
 				(int) $row['mtime'],
-			)->withUpdatedAt( $row['updated_at'] !== null ? (int) $row['updated_at'] : null );
+			)->withUpdatedAt(
+				$row['updated_at'] !== null
+					? (int) $row['updated_at']
+					: null,
+				(int) $row['hashes'] > 0 || $row['state'] !== null,
+			);
 		}
 
 		$result->closeCursor();

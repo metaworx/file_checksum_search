@@ -544,6 +544,14 @@ msgstr "Aiuto"
 msgid "Help: {label}"
 msgstr "Aiuto: {label}"
 
+#. TRANSLATORS: "Auto", "Missing", "Force" and "Lazy" name the choices of the Mode field; translate them as that field does
+msgid "How a file gets its checksums. \"Auto\" computes them for a file without current ones, new or changed, \"Missing\" also adds one the file lacks, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
+msgstr "Come un file ottiene i suoi checksum. “Automatico” li calcola per un file che non ne ha di aggiornati, che sia nuovo o modificato, “Mancanti” aggiunge anche quelli che gli mancano, “Forzato” li elimina e li ricalcola tutti, e “Differito” li elimina subito e lascia che un'esecuzione successiva li ricalcoli."
+
+#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, and "—" what it shows for a rule that computes nothing; keep them
+msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. Shown as \"—\" for a rule that computes nothing."
+msgstr "Come un file ottiene i suoi checksum. \"auto\" li calcola per un file che non ne ha di aggiornati, che sia nuovo o modificato, \"missing\" aggiunge anche quelli che gli mancano, \"force\" li elimina e li ricalcola tutti, e \"lazy\" li elimina subito e lascia che un'esecuzione successiva li ricalcoli. Mostrato come \"—\" per una regola che non calcola nulla."
+
 msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr "Quanti gruppi mostra una pagina. Qui nulla viene letto dal disco finché non verifichi un gruppo o un file, quindi una pagina più grande costa una query più lunga, non letture più lunghe."
 
@@ -1192,14 +1200,6 @@ msgstr "Verifica"
 
 msgid "Verify all"
 msgstr "Verifica tutti"
-
-#. TRANSLATORS: "Auto", "Missing", "Force" and "Lazy" name the choices of the Mode field; translate them as that field does
-msgid "What happens to a file that already has checksums. \"Auto\" recalculates only outdated ones, \"Missing\" also adds missing ones, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
-msgstr "Cosa accade a un file che ha già dei checksum. “Automatico” ricalcola solo quelli obsoleti, “Mancanti” aggiunge anche quelli mancanti, “Forzato” li elimina e li ricalcola tutti, e “Differito” li elimina subito e lascia che un'esecuzione successiva li ricalcoli."
-
-#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, and "—" what it shows for a rule that computes nothing; keep them
-msgid "What happens to a file that already has checksums. \"auto\" recalculates only outdated ones, \"missing\" also adds missing ones, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. Shown as \"—\" for a rule that computes nothing."
-msgstr "Cosa accade a un file che ha già dei checksum. \"auto\" ricalcola solo quelli obsoleti, \"missing\" aggiunge anche quelli mancanti, \"force\" li elimina e li ricalcola tutti, e \"lazy\" li elimina subito e lascia che un'esecuzione successiva li ricalcoli. Mostrato come \"—\" per una regola che non calcola nulla."
 
 #. TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
 msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."
