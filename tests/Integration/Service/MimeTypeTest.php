@@ -191,9 +191,17 @@ class MimeTypeTest
 		$second = $this->hashed( 'fcias_mime_delete_second', "plain text\n" );
 		$this->detection( false );
 
-		$cut = $this->metadataService->deleteMimeTypes( 1, static fn (): bool => false );
+		// A page of one at a time, from the lowest file id: the types the
+		// instance's other files hold, where it has any, go first.
+		$others = $this->metadataService->countMimeTypeRows() - 2;
 
-		$this->assertSame( [ 'deleted' => 1, 'done' => false ], $cut );
+		for ( $page = 0; $page <= $others; $page ++ )
+		{
+			$cut = $this->metadataService->deleteMimeTypes( 1, static fn (): bool => false );
+
+			$this->assertSame( [ 'deleted' => 1, 'done' => false ], $cut );
+		}
+
 		$this->assertNull( $this->documentTypeOf( $first ) );
 		$this->assertSame( [], $this->typeRowsOf( $first ) );
 		$this->assertSame( 'text/plain', $this->documentTypeOf( $second ) );

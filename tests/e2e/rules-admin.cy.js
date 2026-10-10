@@ -250,7 +250,8 @@ describe( 'FCIAS admin rules', () => {
 		// instance, so the case uncovers it itself by removing the shipped
 		// `*` default, and the repair at its end puts that default back.
 		cy.exec( `${ occ } fcias:rules:list -o json` ).then( ( { stdout } ) => {
-			const shipped = JSON.parse( stdout ).find( ( r ) => r.selector === '*' && r.path === '**' )
+			// The list gives a rule's scope as its address, `<selector>//<glob>`.
+			const shipped = JSON.parse( stdout ).find( ( r ) => r.scope === '*//**' )
 
 			if ( shipped )
 			{

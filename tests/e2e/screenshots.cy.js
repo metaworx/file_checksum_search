@@ -174,9 +174,18 @@ const shotUnion = ( name, selectors, margin = 24 ) => {
 	} )
 }
 
+/**
+ * A listed rule's selector and path: `rules:list` gives them as one address,
+ * `<selector>//<glob>`, split at its last `//`.
+ */
+const scopeOf = ( rule ) => {
+	const cut = rule.scope.lastIndexOf( '//' )
+	return { selector: rule.scope.slice( 0, cut ), path: rule.scope.slice( cut + 2 ) }
+}
+
 /** The id of the rule with this selector (and path, if given), from occ. */
 const ruleId = ( selector, path = null ) => exec( 'fcias:rules:list -o json' ).then( ( { stdout } ) => {
-	const rule = JSON.parse( stdout ).find( ( r ) => r.selector === selector && ( path === null || r.path === path ) )
+	const rule = JSON.parse( stdout ).find( ( r ) => scopeOf( r ).selector === selector && ( path === null || scopeOf( r ).path === path ) )
 	expect( rule, `a rule on ${ selector }` ).to.exist
 	return rule.id
 } )
@@ -337,7 +346,7 @@ describe( 'FCIAS screenshots', () => {
 			// shows a placeholder row too.
 			cy.fciasResetRules( occ )
 			exec( 'fcias:rules:list -o json' ).then( ( { stdout } ) => {
-				const homeDefault = JSON.parse( stdout ).find( ( rule ) => rule.selector === 'home:*' )
+				const homeDefault = JSON.parse( stdout ).find( ( rule ) => scopeOf( rule ).selector === 'home:*' )
 				expect( homeDefault, 'the shipped home:* default' ).to.exist
 				exec( `fcias:rules:modify ${ homeDefault.id } --enable` )
 			} )
