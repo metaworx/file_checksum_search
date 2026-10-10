@@ -168,7 +168,7 @@ class MimeTypeTest
 
 		$stamp = $this->metadataService->getUpdatedAt( $untyped->getId() );
 
-		$this->assertTrue( $this->hashCalc->processFile( $untyped->getId(), MetadataService::PENDING_MODE_MIME ) );
+		$this->assertSame( 'typed', $this->hashCalc->processFile( $untyped->getId(), MetadataService::PENDING_MODE_MIME )->kind );
 
 		$this->assertSame( 'application/pdf', $this->documentTypeOf( $untyped ) );
 		$this->assertCount( 1, $this->typeRowsOf( $untyped ) );

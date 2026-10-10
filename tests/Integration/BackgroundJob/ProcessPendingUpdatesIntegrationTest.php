@@ -347,8 +347,8 @@ class ProcessPendingUpdatesIntegrationTest
 
 		$hashCalc = Server::get( HashCalculationService::class );
 
-		$this->assertFalse( $hashCalc->processFile( $fileId, MetadataService::PENDING_MODE_FORCE ) );
-		$this->assertFalse( $hashCalc->processFile( $fileId, MetadataService::PENDING_MODE_FORCE ) );
+		$this->assertFalse( $hashCalc->processFile( $fileId, MetadataService::PENDING_MODE_FORCE )->hasLeftTheQueue() );
+		$this->assertFalse( $hashCalc->processFile( $fileId, MetadataService::PENDING_MODE_FORCE )->hasLeftTheQueue() );
 
 		$this->assertSame( 1, $this->countPendingRows( [ $fileId ] ), 'The file left the queue unhashed.' );
 		$this->assertSame( 2, $this->failedAttemptsOf( $fileId ) );
@@ -376,7 +376,7 @@ class ProcessPendingUpdatesIntegrationTest
 		;
 
 		$this->assertSame( 0, $this->countPendingRows( [ $fileId ] ), 'The lazy mark stayed on the queue.' );
-		$this->assertTrue( $left, 'processFile() reported the lazy file as still queued.' );
+		$this->assertTrue( $left->hasLeftTheQueue(), 'processFile() reported the lazy file as still queued.' );
 	}
 
 	/**
@@ -405,7 +405,7 @@ class ProcessPendingUpdatesIntegrationTest
 		$this->assertSame( 2, $fetches->count, 'queue:drain --all fetched the file it could not hash again.' );
 		$this->assertSame( 1, $this->countPendingRows( [ $fileId ] ) );
 		$this->assertSame( 1, $this->failedAttemptsOf( $fileId ) );
-		$this->assertStringContainsString( 'Hashed 0 files, 1 failed.', $tester->getDisplay() );
+		$this->assertStringContainsString( 'Took 1 files: 0 hashed, 1 failed.', $tester->getDisplay() );
 	}
 
 	/**
@@ -455,7 +455,7 @@ class ProcessPendingUpdatesIntegrationTest
 		$this->assertArrayHasKey( 'sha1', $this->metadataService->getHashes( $behind ) );
 		$this->assertSame( 2, $this->countPendingRows( $stuck ) );
 		$this->assertSame( 3, $fetches->count, 'Two stuck files, the file behind, and the end of the queue.' );
-		$this->assertStringContainsString( 'Hashed 1 files, 2 failed.', $tester->getDisplay() );
+		$this->assertStringContainsString( 'Took 3 files: 1 hashed, 2 failed.', $tester->getDisplay() );
 	}
 
 	/**

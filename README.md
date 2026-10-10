@@ -199,7 +199,10 @@ the instance already holds and runs on every upgrade, whereas draining reads fil
 `--batch-size` takes one batch of that size; with neither flag it takes the
 `pending_batch_limit` setting the background job uses, so tuning that is honoured in both
 places. A run that leaves work behind says how much, which limit stopped it, and both ways
-past it. `--all` keeps going until the queue is empty.
+past it. `--all` keeps going until the queue is empty. Each run counts what it did with the
+files it took — hashed, dropped unread because no include rule wants them any more, failed,
+and the rarer outcomes where they happen — and `-v` names each file it did not hash, and why;
+`-vv` the hashed ones too.
 
 ### State Commands
 

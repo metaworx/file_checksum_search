@@ -58,7 +58,12 @@ function mockFetch(options: { rules?: unknown[], idleBannerAcknowledged?: boolea
 						counts: { matched: 4, marked: 1 },
 						attempt: { at: 1700000010, ok: true, durationMs: 350, reason: null },
 					},
-					pending_drain: { lastRun: null, counts: {}, attempt: null },
+					pending_drain: {
+						lastRun: 1700000020,
+						counts: { hashed: 45, dropped: 3, failed: 2, total: 50, disowned: 1 },
+						attempt: { at: 1700000020, ok: true, durationMs: 80, reason: null },
+					},
+					mimetype_delete: { lastRun: null, counts: {}, attempt: null },
 					// Its last success, then a run that failed.
 					orphan_purge: {
 						lastRun: 1700000050,
@@ -230,7 +235,10 @@ describe('settings-admin App', () => {
 		const jobs = jobsAsShown.split(nbsp).join(' ')
 		expect(jobs).toContain('Rule sweep')
 		expect(jobs).toContain('matched 12, queued 3')
+		// The drain's files hashed apart from those dropped unread.
 		expect(jobs).toContain('Queue drain')
+		expect(jobs).toContain('hashed 45 of 50, dropped 3, failed 2, cleared after a reset 1')
+		expect(jobs).toContain('MIME type deletion')
 		expect(jobs).toContain('Not run yet')
 		expect(jobs).toContain('Rule reapplication')
 		expect(jobs).toContain('matched 4, queued 1')

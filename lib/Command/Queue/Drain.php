@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Command\Queue;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Service\DrainOutcome;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCP\IAppConfig;
@@ -87,6 +88,11 @@ read — stays queued, behind the files that failed fewer times. <info>--all</in
 the queue once, by file id: it tries every file waiting, passes one that fails
 rather than taking it again, and stops at the end of the queue.
 
+It counts what it did with the files it took: hashed, their MIME type read,
+nothing to compute, emptied under <info>lazy</info>, dropped unread because no include rule
+wants them any more, or failed. <info>-v</info> names each file it did not hash, and why;
+<info>-vv</info> names the hashed ones too.
+
 This reads file content, which is why it is not one of <comment>fcias:repair</comment>'s steps:
 those reconcile what the instance already holds, and run on every upgrade.
 HELP,
@@ -114,9 +120,8 @@ HELP,
 			? sprintf( 'the pending_batch_limit setting (%d)', $batchSize )
 			: sprintf( '--batch-size (%d)', $batchSize );
 
-		$all       = (bool) $input->getOption( 'all' );
-		$processed = 0;
-		$failed    = 0;
+		$all   = (bool) $input->getOption( 'all' );
+		$tally = array_fill_keys( DrainOutcome::KINDS, 0 );
 
 		// With --all, one walk through the queue by file id: every file
 		// waiting is tried once, and one that fails is passed rather than
@@ -145,14 +150,9 @@ HELP,
 
 				try
 				{
-					// False: the file is still queued, its failed attempt
+					// A failure leaves the file queued, its failed attempt
 					// already counted.
-					if ( $this->hashCalc->processFile( $fileId, MetadataService::parseMode( $marker ) ) )
-					{
-						$processed ++;
-
-						continue;
-					}
+					$outcome = $this->hashCalc->processFile( $fileId, MetadataService::parseMode( $marker ) );
 				}
 				catch ( Throwable $e )
 				{
@@ -160,12 +160,24 @@ HELP,
 					// it stays queued, behind the files that failed fewer
 					// times, and a later run tries it again.
 					$this->recordFailure( $fileId, $marker, $e );
+
+					$outcome = DrainOutcome::failed( $e->getMessage() );
 				}
 
-				$failed ++;
+				$tally[ $outcome->kind ] ++;
+
+				// What it did with a file it did not hash, and why; the hashed
+				// ones only on asking twice.
 				$output->writeln(
-					sprintf( '<comment>  fileId %d could not be hashed.</comment>', $fileId ),
-					OutputInterface::VERBOSITY_VERBOSE,
+					sprintf(
+						$outcome->kind === DrainOutcome::FAILED
+							? '<comment>  %s</comment>'
+							: '  %s',
+						$outcome->describe( $fileId ),
+					),
+					$outcome->kind === DrainOutcome::HASHED
+						? OutputInterface::VERBOSITY_VERY_VERBOSE
+						: OutputInterface::VERBOSITY_VERBOSE,
 				);
 			}
 
@@ -175,14 +187,14 @@ HELP,
 			}
 		}
 
-		if ( $processed === 0 && $failed === 0 )
+		if ( array_sum( $tally ) === 0 )
 		{
 			$output->writeln( 'Nothing was waiting in the queue.' );
 
 			return Command::SUCCESS;
 		}
 
-		$output->writeln( sprintf( 'Hashed %d files, %d failed.', $processed, $failed ) );
+		$output->writeln( self::summary( $tally ) );
 
 		$remaining = array_sum( $this->metadataService->getPendingStats() );
 
@@ -210,6 +222,39 @@ HELP,
 		);
 
 		return Command::SUCCESS;
+	}
+
+
+//  static methods
+
+	/**
+	 * The run in one line: the files it took, hashed and failed always, and
+	 * whatever else it did with them where it did it at all.
+	 *
+	 * @param  array<string, int>  $tally  Files by {@see DrainOutcome} kind.
+	 */
+	private static function summary( array $tally ): string
+	{
+		$parts = [ sprintf( '%d hashed', $tally[ DrainOutcome::HASHED ] ) ];
+
+		foreach (
+			[
+				DrainOutcome::TYPED   => '%d MIME types read',
+				DrainOutcome::STAMPED => '%d with nothing to compute',
+				DrainOutcome::EMPTIED => '%d emptied (lazy)',
+				DrainOutcome::DROPPED => '%d dropped unread',
+			] as $kind => $format
+		)
+		{
+			if ( $tally[ $kind ] > 0 )
+			{
+				$parts[] = sprintf( $format, $tally[ $kind ] );
+			}
+		}
+
+		$parts[] = sprintf( '%d failed', $tally[ DrainOutcome::FAILED ] );
+
+		return sprintf( 'Took %d files: %s.', array_sum( $tally ), implode( ', ', $parts ) );
 	}
 
 

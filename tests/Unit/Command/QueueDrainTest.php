@@ -10,13 +10,16 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Command;
 
 use OCA\FileChecksumSearch\Command\Queue\Drain;
+use OCA\FileChecksumSearch\Service\DrainOutcome;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCP\IAppConfig;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Tester\CommandTester;
 
 /**
@@ -89,6 +92,7 @@ class QueueDrainTest
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn( [ 'pending:auto' => 3 ] )
 		;
+		$this->hashingEverything();
 
 		$this->tester->execute( [] );
 
@@ -110,6 +114,7 @@ class QueueDrainTest
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn( [ 'pending:auto' => 5 ] )
 		;
+		$this->hashingEverything();
 
 		$this->tester->execute( [ '--batch-size' => '2' ] );
 
@@ -130,6 +135,7 @@ class QueueDrainTest
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn( [] )
 		;
+		$this->hashingEverything();
 
 		$this->tester->execute( [] );
 
@@ -150,6 +156,7 @@ class QueueDrainTest
 		$this->metadataService->method( 'getPendingStats' )
 		                      ->willReturn( [ 'pending:auto' => 1 ] )
 		;
+		$this->hashingEverything();
 
 		$this->tester->execute( [ '--all' => true ] );
 
@@ -185,7 +192,7 @@ class QueueDrainTest
 		$this->tester->execute( [ '--all' => true ] );
 
 		$this->assertSame( 2, $queue->fetches, 'The drain fetched the file that failed again.' );
-		$this->assertStringContainsString( 'Hashed 0 files, 1 failed.', $this->tester->getDisplay() );
+		$this->assertStringContainsString( 'Took 1 files: 0 hashed, 1 failed.', $this->tester->getDisplay() );
 	}
 
 	/**
@@ -205,7 +212,7 @@ class QueueDrainTest
 		);
 
 		$this->assertSame( 4, $queue->fetches );
-		$this->assertStringContainsString( 'Hashed 2 files, 1 failed.', $this->tester->getDisplay() );
+		$this->assertStringContainsString( 'Took 3 files: 2 hashed, 1 failed.', $this->tester->getDisplay() );
 	}
 
 	/**
@@ -225,7 +232,7 @@ class QueueDrainTest
 		);
 
 		$display = $this->tester->getDisplay();
-		$this->assertStringContainsString( 'Hashed 2 files, 2 failed.', $display );
+		$this->assertStringContainsString( 'Took 4 files: 2 hashed, 2 failed.', $display );
 		$this->assertStringContainsString( '2 still waiting', $display );
 	}
 
@@ -241,7 +248,37 @@ class QueueDrainTest
 		$this->tester->execute( [ '--all' => true ] );
 
 		$this->assertSame( 2, $queue->fetches, 'The drain fetched the file it could not hash again.' );
-		$this->assertStringContainsString( 'Hashed 0 files, 1 failed.', $this->tester->getDisplay() );
+		$this->assertStringContainsString( 'Took 1 files: 0 hashed, 1 failed.', $this->tester->getDisplay() );
+	}
+
+	/**
+	 * The run counts what it did with each file, a dropped mark apart from a
+	 * hashed file; `-v` names each file it did not hash and why, and `-vv`
+	 * the hashed ones too.
+	 */
+	#[DataProvider( 'verbosities' )]
+	public function testTheRunSaysWhatItDidWithEachFile(
+		int  $verbosity,
+		bool $namesTheHashed,
+	): void
+	{
+		$queue = $this->queueHolding( [ 1, 2, 3 ] );
+		$this->hashing(
+			$queue,
+			times: 3,
+			outcomes: [
+				2 => DrainOutcome::dropped( 'no include rule governs it' ),
+				3 => DrainOutcome::failed( 'Unable to open file for reading.' ),
+			],
+		);
+
+		$this->tester->execute( [ '--all' => true ], [ 'verbosity' => $verbosity ] );
+
+		$display = $this->tester->getDisplay();
+		$this->assertStringContainsString( 'Took 3 files: 1 hashed, 1 dropped unread, 1 failed.', $display );
+		$this->assertStringContainsString( 'fileId 2 dropped unread: no include rule governs it.', $display );
+		$this->assertStringContainsString( 'fileId 3 could not be hashed: Unable to open file for reading.', $display );
+		$this->assertSame( $namesTheHashed, str_contains( $display, 'fileId 1 hashed.' ) );
 	}
 
 	/**
@@ -310,12 +347,13 @@ class QueueDrainTest
 		int    $times,
 		array  $throwing = [],
 		array  $leftQueued = [],
+		array  $outcomes = [],
 	): void
 	{
 		$this->hashCalc->expects( $this->exactly( $times ) )
 		               ->method( 'processFile' )
 		               ->willReturnCallback(
-			               static function( int $fileId ) use ( $queue, $throwing, $leftQueued ): bool
+			               static function( int $fileId ) use ( $queue, $throwing, $leftQueued, $outcomes ): DrainOutcome
 			               {
 				               if ( in_array( $fileId, $throwing, true ) )
 				               {
@@ -324,14 +362,27 @@ class QueueDrainTest
 
 				               if ( in_array( $fileId, $leftQueued, true ) )
 				               {
-					               return false;
+					               return DrainOutcome::failed( 'busy, or written to during the read' );
 				               }
 
-				               $queue->queued = array_values( array_diff( $queue->queued, [ $fileId ] ) );
+				               $outcome = $outcomes[ $fileId ] ?? DrainOutcome::hashed();
 
-				               return true;
+				               if ( $outcome->hasLeftTheQueue() )
+				               {
+					               $queue->queued = array_values( array_diff( $queue->queued, [ $fileId ] ) );
+				               }
+
+				               return $outcome;
 			               },
 		               )
+		;
+	}
+
+	/** Every file the drain takes is hashed. */
+	private function hashingEverything(): void
+	{
+		$this->hashCalc->method( 'processFile' )
+		               ->willReturn( DrainOutcome::hashed() )
 		;
 	}
 
@@ -367,5 +418,21 @@ class QueueDrainTest
 		}
 
 		return $rows;
+	}
+
+
+//  static methods
+
+	/**
+	 * `-v`, which names the files not hashed, and `-vv`, the hashed ones too.
+	 *
+	 * @return array<string, array{0: int, 1: bool}>
+	 */
+	public static function verbosities(): array
+	{
+		return [
+			'-v'  => [ OutputInterface::VERBOSITY_VERBOSE, false ],
+			'-vv' => [ OutputInterface::VERBOSITY_VERY_VERBOSE, true ],
+		];
 	}
 }

@@ -11,6 +11,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\BackgroundJob;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Service\DrainOutcome;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
@@ -111,12 +112,7 @@ class ProcessPendingUpdates
 				// page is the point.
 				$this->jobStats->record(
 					JobStatsService::JOB_PENDING_DRAIN,
-					[
-						'processed' => 0,
-						'failed'    => 0,
-						'total'     => 0,
-						'disowned'  => $disowned,
-					],
+					self::counts( array_fill_keys( DrainOutcome::KINDS, 0 ), $disowned ),
 					JobStatsService::millisecondsSince( $started ),
 				);
 
@@ -129,8 +125,7 @@ class ProcessPendingUpdates
 				return;
 			}
 
-			$processed = 0;
-			$failed    = 0;
+			$tally = array_fill_keys( DrainOutcome::KINDS, 0 );
 
 			foreach ( $pendingRows as $row )
 			{
@@ -143,51 +138,39 @@ class ProcessPendingUpdates
 				{
 					// Algorithms come from the governing rule, resolved at
 					// action time — an ignore/exclude/no-rule verdict drops
-					// the mark instead of hashing. False: the file is still
+					// the mark instead of hashing. A failure leaves the file
 					// queued, its failed attempt already counted.
-					if ( $this->hashCalc->processFile( $fileId, $mode ) )
-					{
-						$processed ++;
-
-						continue;
-					}
+					$tally[ $this->hashCalc->processFile( $fileId, $mode )->kind ] ++;
 				}
 				catch ( Throwable $e )
 				{
 					$this->recordFailure( $fileId, $status, $e );
-				}
 
-				$failed ++;
+					$tally[ DrainOutcome::FAILED ] ++;
+				}
 			}
+
+			$counts = self::counts( $tally, $disowned );
 
 			$this->jobStats->record(
 				JobStatsService::JOB_PENDING_DRAIN,
-				[
-					'processed' => $processed,
-					'failed'    => $failed,
-					'total'     => count( $pendingRows ),
-					'disowned'  => $disowned,
-				],
+				$counts,
 				JobStatsService::millisecondsSince( $started ),
 			);
 
 			// Re-dispatch when either queue was full: more of it is waiting.
 			// Not after a full batch in which no file left the queue: those
 			// files keep failing, and the next tick tries them again.
-			if ( ( count( $pendingRows ) >= $batchLimit && $processed > 0 ) || $disowned >= $batchLimit )
+			$left = count( $pendingRows ) - $tally[ DrainOutcome::FAILED ];
+
+			if ( ( count( $pendingRows ) >= $batchLimit && $left > 0 ) || $disowned >= $batchLimit )
 			{
 				$this->jobList->add( self::class );
 			}
 
 			$this->logger->info(
 				'FCIAS ProcessPendingUpdates: batch complete',
-				[
-					'app'       => Application::APP_ID,
-					'processed' => $processed,
-					'failed'    => $failed,
-					'total'     => count( $pendingRows ),
-					'disowned'  => $disowned,
-				],
+				[ 'app' => Application::APP_ID, ...$counts ],
 			);
 		}
 		catch ( Throwable $e )
@@ -206,6 +189,43 @@ class ProcessPendingUpdates
 				JobStatsService::millisecondsSince( $started ),
 			);
 		}
+	}
+
+
+//  static methods
+
+	/**
+	 * A run's counts as the status lists them: the files hashed, dropped
+	 * unread and failed, always; a MIME type read, nothing to compute and
+	 * `lazy`'s emptied only where the run did that at all; then the files it
+	 * took, and the disowned ones it cleared.
+	 *
+	 * @param  array<string, int>  $tally  Files by {@see DrainOutcome} kind.
+	 *
+	 * @return array<string, int>
+	 */
+	private static function counts(
+		array $tally,
+		int   $disowned,
+	): array
+	{
+		$counts = [ 'hashed' => $tally[ DrainOutcome::HASHED ] ];
+
+		foreach ( [ DrainOutcome::TYPED, DrainOutcome::STAMPED, DrainOutcome::EMPTIED ] as $kind )
+		{
+			if ( $tally[ $kind ] > 0 )
+			{
+				$counts[ $kind ] = $tally[ $kind ];
+			}
+		}
+
+		return [
+			...$counts,
+			'dropped'  => $tally[ DrainOutcome::DROPPED ],
+			'failed'   => $tally[ DrainOutcome::FAILED ],
+			'total'    => array_sum( $tally ),
+			'disowned' => $disowned,
+		];
 	}
 
 

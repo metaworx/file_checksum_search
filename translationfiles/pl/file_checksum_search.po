@@ -1335,6 +1335,10 @@ msgstr "group:* nie jest selektorem. Podaj jedną grupę albo użyj home:* dla w
 msgid "groupfolder: takes the numeric folder ID."
 msgstr "groupfolder: przyjmuje liczbowe ID folderu."
 
+#. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it dropped from the queue unread because no rule wants them any more, and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
+msgid "hashed {hashed} of {total}, dropped {dropped}, failed {failed}, cleared after a reset {cleared}"
+msgstr "sumy kontrolne obliczone dla {hashed} z {total}, usunięte z kolejki {dropped}, nieudane {failed}, wyczyszczone po resecie {cleared}"
+
 msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
 msgstr "unieważnione przez reset: już ukryte w wyszukiwaniu i oczekujące na usunięcie przez zadanie w tle"
 
@@ -1371,10 +1375,6 @@ msgstr "obecnie: {hash}"
 #. TRANSLATORS: orderedIds is a parameter name; keep it
 msgid "orderedIds is required and must be an array."
 msgstr "orderedIds jest wymagany i musi być tablicą."
-
-#. TRANSLATORS: a background job's last run: of the queued files it took, how many it processed and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
-msgid "processed {processed} of {total}, failed {failed}, cleared after a reset {cleared}"
-msgstr "przetworzone {processed} z {total}, nieudane {failed}, wyczyszczone po resecie {cleared}"
 
 #. TRANSLATORS: a background job's last run: the files it queued to have their MIME type detected, and that the whole refresh is finished
 msgid "queued {queued}, finished"

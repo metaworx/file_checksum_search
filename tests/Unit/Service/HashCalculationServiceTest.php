@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use ArrayObject;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
+use OCA\FileChecksumSearch\Service\DrainOutcome;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
@@ -372,7 +373,7 @@ class HashCalculationServiceTest
 		        ->method( 'recalcHashes' )
 		;
 
-		$this->assertFalse( $service->processFile( 42, 'missing' ) );
+		$this->assertEquals( DrainOutcome::failed( 'its storage is unavailable' ), $service->processFile( 42, 'missing' ) );
 	}
 
 	/**
@@ -430,7 +431,7 @@ class HashCalculationServiceTest
 		                      ->method( 'recordFailedAttempt' )
 		;
 
-		$this->assertTrue( $this->service->processFile( 42, 'lazy' ) );
+		$this->assertEquals( DrainOutcome::emptied(), $this->service->processFile( 42, 'lazy' ) );
 	}
 
 	/**
@@ -705,7 +706,7 @@ class HashCalculationServiceTest
 			@unlink( $path );
 		}
 
-		$this->assertTrue( $left );
+		$this->assertEquals( DrainOutcome::typed(), $left );
 		$this->assertSame( [ 'application/pdf' ], $types->getArrayCopy() );
 	}
 
@@ -728,7 +729,8 @@ class HashCalculationServiceTest
 
 		try
 		{
-			$this->assertTrue(
+			$this->assertEquals(
+				DrainOutcome::dropped( 'MIME type detection is off' ),
 				$this->createRealService()
 				     ->processFile( 42, MetadataService::PENDING_MODE_MIME ),
 			);
@@ -761,7 +763,8 @@ class HashCalculationServiceTest
 
 		try
 		{
-			$this->assertTrue(
+			$this->assertEquals(
+				DrainOutcome::dropped( 'it has no current hashes, and the read for them detects the type' ),
 				$this->createRealService()
 				     ->processFile( 42, MetadataService::PENDING_MODE_MIME ),
 			);
@@ -795,7 +798,8 @@ class HashCalculationServiceTest
 
 		try
 		{
-			$this->assertFalse(
+			$this->assertEquals(
+				DrainOutcome::failed( 'busy' ),
 				$this->createRealService()
 				     ->processFile( 42, MetadataService::PENDING_MODE_MIME ),
 			);
@@ -940,7 +944,8 @@ class HashCalculationServiceTest
 		              ->method( 'recalcHashes' )
 		;
 
-		$this->assertTrue(
+		$this->assertEquals(
+			DrainOutcome::emptied(),
 			$this->service->processFile(
 				42,
 				'lazy',
@@ -1006,7 +1011,12 @@ class HashCalculationServiceTest
 		;
 
 		// And says which, for the drains to count.
-		$this->assertSame( $current, $this->service->processFile( 42, 'force', [ 'sha1' ] ) );
+		$this->assertEquals(
+			$current
+				? DrainOutcome::hashed()
+				: DrainOutcome::failed( 'written to while it was hashed, and queued again' ),
+			$this->service->processFile( 42, 'force', [ 'sha1' ] ),
+		);
 	}
 
 	/**
@@ -1168,9 +1178,68 @@ class HashCalculationServiceTest
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'saveMetadata' )
 		                      ->with( $metadata )
+		                      ->willReturn( true )
 		;
 
-		$service->processFile( 42, 'auto' );
+		$this->assertEquals( DrainOutcome::hashed(), $service->processFile( 42, 'auto' ) );
+	}
+
+	/**
+	 * A current file holding none of the rule's algorithms: `auto` reads
+	 * nothing to add one, and the drain says it had nothing to compute.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testProcessFileAutoStampsACurrentFileItHasNothingToComputeFor(): void
+	{
+		$this->documentStamped( [ 'md5' => 'abc' ], 2000 );
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn(
+			                  [
+				                  'id'    => 'r1',
+				                  'type'  => 'include',
+				                  'mode'  => 'auto',
+				                  'algos' => [ 'sha1' ],
+			                  ],
+		                  )
+		;
+		$this->metadataService->method( 'saveMetadata' )
+		                      ->willReturn( true )
+		;
+
+		$service = $this->createCollectingServiceMock();
+		$service->expects( $this->never() )
+		        ->method( 'recalcHashes' )
+		;
+
+		$this->assertEquals( DrainOutcome::stamped(), $service->processFile( 42, 'auto' ) );
+	}
+
+	/**
+	 * No include rule governs the file any more: its mark is dropped unread,
+	 * and the drain says why.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testProcessFileDropsTheMarkOfAFileNoIncludeRuleGoverns(): void
+	{
+		$this->documentStamped( [], 0 );
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn( null )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 42, '' )
+		;
+
+		$service = $this->createCollectingServiceMock();
+		$service->expects( $this->never() )
+		        ->method( 'recalcHashes' )
+		;
+
+		$this->assertEquals( DrainOutcome::dropped( 'no include rule governs it' ), $service->processFile( 42, 'auto' ) );
 	}
 
 	/**
@@ -1350,7 +1419,9 @@ class HashCalculationServiceTest
 		                      ->method( 'saveMetadata' )
 		;
 
-		$this->assertFalse(
+		// The algorithm's error is the reason the drain gives.
+		$this->assertEquals(
+			DrainOutcome::failed( 'hash failed' ),
 			$this->service->processFile(
 				42,
 				'missing',

@@ -681,24 +681,23 @@ class HashCalculationService
 	 * already made the decision (the CLI's direct path resolves verdicts,
 	 * overrides included, before ever queueing or calling this).
 	 *
-	 * Where the file's hashes are outdated, it keeps only the ones its mode
-	 * recomputes and drops the rest: under `auto` the rule's algorithms the
-	 * file had, under `missing` the rule's. A hash computed once by hand is
-	 * not recomputed on every change, and an outdated one is worse than
-	 * none. With no include rule to recompute anything, outdated hashes are
-	 * eroded, as a write to a file no rule maintains erodes them.
+	 * Where the file's hashes are outdated, it recomputes the rule's
+	 * algorithms and drops the rest: a hash computed once by hand is not
+	 * recomputed on every change, and an outdated one is worse than none.
+	 * With no include rule to recompute anything, outdated hashes are eroded,
+	 * as a write to a file no rule maintains erodes them.
 	 *
 	 * A file it cannot hash now — a read that failed, a lock, a write during
 	 * the read — stays queued, its failed attempt counted
 	 * ({@see MetadataService::recordFailedAttempt()}); so does one a write
-	 * queued again while it was hashed. Neither throws: the return value is
-	 * how the drains tell them from a file done with.
+	 * queued again while it was hashed. Neither throws: the outcome is how
+	 * the drains tell them from a file done with, and say why.
 	 *
 	 * @param  string[]|null  $algos  Algorithms to process, or null to take
 	 *                                them from the governing rule
 	 *
-	 * @return bool  Whether the file left the queue: hashed, or its mark
-	 *               dropped or eroded.
+	 * @return DrainOutcome  What it did with the file; whether the file left
+	 *                       the queue is {@see DrainOutcome::hasLeftTheQueue()}.
 	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataNotFoundException
 	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
 	 */
@@ -706,7 +705,7 @@ class HashCalculationService
 		int    $fileId,
 		string $mode,
 		?array $algos = null,
-	): bool
+	): DrainOutcome
 	{
 		$file    = null;
 		$started = time();
@@ -731,7 +730,7 @@ class HashCalculationService
 
 				$this->metadataService->markPending( $fileId, '' );
 
-				return true;
+				return DrainOutcome::dropped( 'it cannot be resolved: ' . $e->getMessage() );
 			}
 
 			if ( ! RuleService::maintainsHashes( $rule ) )
@@ -748,7 +747,7 @@ class HashCalculationService
 
 					$this->metadataService->markEroded( $fileId );
 
-					return true;
+					return DrainOutcome::dropped( 'no include rule governs it, and its outdated hashes are eroded' );
 				}
 
 				$this->logger->debug(
@@ -761,7 +760,7 @@ class HashCalculationService
 
 				$this->metadataService->markPending( $fileId, '' );
 
-				return true;
+				return DrainOutcome::dropped( 'no include rule governs it' );
 			}
 
 			// A storage Nextcloud holds unavailable fails every read at once:
@@ -787,7 +786,7 @@ class HashCalculationService
 					],
 				);
 
-				return false;
+				return DrainOutcome::failed( 'its storage is unavailable' );
 			}
 
 			$algos = $rule['algos'] ?? [ $this->getDefaultAlgo() ];
@@ -811,7 +810,7 @@ class HashCalculationService
 			// queued for ever.
 			$this->metadataService->clearMetadata( $metadata );
 
-			return true;
+			return DrainOutcome::emptied();
 
 			/**
 			 * 'force' mode: clear all existing metadata, then intentionally
@@ -828,18 +827,21 @@ class HashCalculationService
 				$this->keepOnly( $metadata, $algos );
 			}
 
-			if ( ! $this->applyBatchResults(
+			$failure = $this->applyBatchResults(
 				$this->recalcHashes( $file ?? $fileId, $algos, true, $metadata ),
 				$algos,
 				$fileId,
 				$mode,
 				$metadata,
-			) )
+			);
+
+			if ( $failure !== null )
 			{
-				return false;
+				return DrainOutcome::failed( $failure );
 			}
 
 			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $stamp, true );
+			$done = DrainOutcome::hashed();
 
 			break;
 
@@ -851,18 +853,24 @@ class HashCalculationService
 				$this->keepOnly( $metadata, $algosToRecalc );
 			}
 
+			$done = DrainOutcome::stamped();
+
 			if ( $algosToRecalc !== [] )
 			{
-				if ( ! $this->applyBatchResults(
+				$failure = $this->applyBatchResults(
 					$this->recalcHashes( $file ?? $fileId, $algosToRecalc, true, $metadata ),
 					$algosToRecalc,
 					$fileId,
 					$mode,
 					$metadata,
-				) )
+				);
+
+				if ( $failure !== null )
 				{
-					return false;
+					return DrainOutcome::failed( $failure );
 				}
+
+				$done = DrainOutcome::hashed();
 			}
 
 			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $stamp, true );
@@ -885,7 +893,7 @@ class HashCalculationService
 
 			$this->metadataService->markPending( $fileId, '' );
 
-			return true;
+			return DrainOutcome::dropped( sprintf( 'the queue mode "%s" is unknown', $mode ) );
 		}
 
 		// Off the queue only once what it asked for is current: a write that
@@ -907,12 +915,14 @@ class HashCalculationService
 			],
 		);
 
-		return $current;
+		return $current
+			? $done
+			: DrainOutcome::failed( 'written to while it was hashed, and queued again' );
 	}
 
 	/**
 	 * Persist a recalcHashes() result set for one mode, counting a failed
-	 * attempt and returning false on the first failing algorithm.
+	 * attempt and saying why on the first failing algorithm.
 	 *
 	 * The file stays queued, behind the files with fewer failed attempts
 	 * ({@see MetadataService::recordFailedAttempt()}). Its first failure is
@@ -923,7 +933,8 @@ class HashCalculationService
 	 *                                                                                                                                         What recalcHashes() returned.
 	 * @param  string[]                                                                                                                        $algos
 	 *
-	 * @return bool  True when every algorithm was applied successfully
+	 * @return string|null  Null when every algorithm was applied, else why
+	 *                      not, in English.
 	 */
 	private function applyBatchResults(
 		array          $batch,
@@ -931,7 +942,7 @@ class HashCalculationService
 		int            $fileId,
 		string         $mode,
 		IFilesMetadata $metadata,
-	): bool
+	): ?string
 	{
 		foreach ( $algos as $algo )
 		{
@@ -944,6 +955,13 @@ class HashCalculationService
 					MetadataService::PENDING_PREFIX . $mode,
 				);
 
+				$reason = $result['reason']
+					?? (
+					$batch['locked']
+						? 'busy, or written to during the read'
+						: $result['error'] ?? 'unknown'
+					);
+
 				$this->logger->log(
 					$attempts > 1
 						? LogLevel::DEBUG
@@ -954,11 +972,11 @@ class HashCalculationService
 						'fileId'   => $fileId,
 						'algo'     => $algo,
 						'attempts' => $attempts,
-						'error'    => $result['reason'] ?? $result['error'] ?? 'unknown',
+						'error'    => $reason,
 					],
 				);
 
-				return false;
+				return $reason;
 			}
 
 			// Not indexed by Nextcloud — see MetadataService::syncHashIndex(),
@@ -975,7 +993,7 @@ class HashCalculationService
 			);
 		}
 
-		return true;
+		return null;
 	}
 
 	/**
@@ -1499,24 +1517,29 @@ class HashCalculationService
 	 * A read that fails, a busy file and one written to meanwhile are counted
 	 * as a hash mode's are, and the file stays queued.
 	 *
-	 * @return bool  Whether the file left the queue.
 	 * @throws \OCP\DB\Exception
 	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
 	 */
 	private function processMimeType(
 		File           $file,
 		IFilesMetadata $metadata,
-	): bool
+	): DrainOutcome
 	{
 		$fileId = $file->getId();
 
-		if ( ! $this->mimeTypes->isActive()
-			|| $this->metadataService->getHashes( $metadata ) === []
+		if ( ! $this->mimeTypes->isActive() )
+		{
+			$this->metadataService->markPending( $fileId, '' );
+
+			return DrainOutcome::dropped( 'MIME type detection is off' );
+		}
+
+		if ( $this->metadataService->getHashes( $metadata ) === []
 			|| ! $this->isHashUpToDate( $metadata, $file->getMTime() ) )
 		{
 			$this->metadataService->markPending( $fileId, '' );
 
-			return true;
+			return DrainOutcome::dropped( 'it has no current hashes, and the read for them detects the type' );
 		}
 
 		try
@@ -1547,20 +1570,22 @@ class HashCalculationService
 			$this->metadataService->clearComputedMarker( $fileId );
 		}
 
-		return $current;
+		return $current
+			? DrainOutcome::typed()
+			: DrainOutcome::failed( 'written to while it was read, and queued again' );
 	}
 
 	/**
 	 * Count a failed read for the MIME type, as {@see applyBatchResults()}
 	 * counts a hash's: a warning on the file's first, debug after.
 	 *
-	 * @return false  The file stays queued.
+	 * @return DrainOutcome  A failure: the file stays queued.
 	 * @throws \OCP\DB\Exception
 	 */
 	private function typeReadFailed(
 		int    $fileId,
 		string $reason,
-	): bool
+	): DrainOutcome
 	{
 		$attempts = $this->metadataService->recordFailedAttempt( $fileId, MetadataService::PENDING_MIME );
 
@@ -1577,7 +1602,7 @@ class HashCalculationService
 			],
 		);
 
-		return false;
+		return DrainOutcome::failed( $reason );
 	}
 
 	/**

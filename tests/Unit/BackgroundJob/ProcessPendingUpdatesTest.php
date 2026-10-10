@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\BackgroundJob;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\ProcessPendingUpdates;
+use OCA\FileChecksumSearch\Service\DrainOutcome;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
@@ -193,6 +194,7 @@ class ProcessPendingUpdatesTest
 			               $this->logicalOr( 42, 99 ),
 			               $this->logicalOr( 'auto', 'missing' ),
 		               )
+		               ->willReturn( DrainOutcome::hashed() )
 		;
 		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
 		$reflection->invoke( $this->job, null );
@@ -221,7 +223,7 @@ class ProcessPendingUpdatesTest
 
 		$this->hashCalc->expects( $this->exactly( 50 ) )
 		               ->method( 'processFile' )
-		               ->willReturn( true )
+		               ->willReturn( DrainOutcome::hashed() )
 		;
 
 		$this->jobList->expects( $this->once() )
@@ -287,7 +289,7 @@ class ProcessPendingUpdatesTest
 		                      )
 		;
 		$this->hashCalc->method( 'processFile' )
-		               ->willReturn( false )
+		               ->willReturn( DrainOutcome::failed( 'unreadable' ) )
 		;
 
 		$this->jobStats->expects( $this->once() )
@@ -295,10 +297,60 @@ class ProcessPendingUpdatesTest
 		               ->with(
 			               JobStatsService::JOB_PENDING_DRAIN,
 			               [
-				               'processed' => 0,
-				               'failed'    => 1,
-				               'total'     => 1,
-				               'disowned'  => 0,
+				               'hashed'   => 0,
+				               'dropped'  => 0,
+				               'failed'   => 1,
+				               'total'    => 1,
+				               'disowned' => 0,
+			               ],
+		               )
+		;
+
+		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
+		$reflection->invoke( $this->job, null );
+	}
+
+	/**
+	 * The run counts what it did with each file: a dropped mark apart from a
+	 * hashed file, and the rarer outcomes only where they happened.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheRunCountsWhatItDidWithEachFile(): void
+	{
+		$this->metadataService->method( 'fetchPendingBatch' )
+		                      ->willReturn(
+			                      array_map(
+				                      static fn(
+					                      int $fileId,
+				                      ): array => [
+					                      MetadataService::FIELD_FILE_ID           => $fileId,
+					                      MetadataService::FIELD_META_VALUE_STRING => 'pending:auto',
+				                      ],
+				                      [ 1, 2, 3, 4 ],
+			                      ),
+		                      )
+		;
+		$this->hashCalc->method( 'processFile' )
+		               ->willReturnOnConsecutiveCalls(
+			               DrainOutcome::hashed(),
+			               DrainOutcome::dropped( 'no include rule governs it' ),
+			               DrainOutcome::typed(),
+			               DrainOutcome::hashed(),
+		               )
+		;
+
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'record' )
+		               ->with(
+			               JobStatsService::JOB_PENDING_DRAIN,
+			               [
+				               'hashed'   => 2,
+				               'typed'    => 1,
+				               'dropped'  => 1,
+				               'failed'   => 0,
+				               'total'    => 4,
+				               'disowned' => 0,
 			               ],
 		               )
 		;
@@ -360,6 +412,7 @@ class ProcessPendingUpdatesTest
 
 		$this->hashCalc->expects( $this->once() )
 		               ->method( 'processFile' )
+		               ->willReturn( DrainOutcome::hashed() )
 		;
 
 		$this->jobList->expects( $this->never() )
@@ -390,6 +443,7 @@ class ProcessPendingUpdatesTest
 		$this->hashCalc->expects( $this->once() )
 		               ->method( 'processFile' )
 		               ->with( 10, 'force', $this->anything() )
+		               ->willReturn( DrainOutcome::hashed() )
 		;
 
 		$reflection = new ReflectionMethod( ProcessPendingUpdates::class, 'run' );
@@ -426,14 +480,14 @@ class ProcessPendingUpdatesTest
 			               function(
 				               int    $fileId,
 				               string $_mode,
-			               ): bool
+			               ): DrainOutcome
 			               {
 				               if ( $fileId === 42 )
 				               {
 					               throw new RuntimeException( 'File not found' );
 				               }
 
-				               return true;
+				               return DrainOutcome::hashed();
 			               },
 		               )
 		;
@@ -500,10 +554,11 @@ class ProcessPendingUpdatesTest
 		               ->with(
 			               JobStatsService::JOB_PENDING_DRAIN,
 			               [
-				               'processed' => 0,
-				               'failed'    => 0,
-				               'total'     => 0,
-				               'disowned'  => 0,
+				               'hashed'   => 0,
+				               'dropped'  => 0,
+				               'failed'   => 0,
+				               'total'    => 0,
+				               'disowned' => 0,
 			               ],
 		               )
 		;

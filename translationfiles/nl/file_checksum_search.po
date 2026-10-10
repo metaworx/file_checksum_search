@@ -1325,6 +1325,10 @@ msgstr "group:* is geen selector. Geef één groep op of gebruik home:* voor all
 msgid "groupfolder: takes the numeric folder ID."
 msgstr "groupfolder: verwacht de numerieke map-ID."
 
+#. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it dropped from the queue unread because no rule wants them any more, and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
+msgid "hashed {hashed} of {total}, dropped {dropped}, failed {failed}, cleared after a reset {cleared}"
+msgstr "controlesommen berekend voor {hashed} van {total}, uit de wachtrij verwijderd {dropped}, mislukt {failed}, opgeruimd na een reset {cleared}"
+
 msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
 msgstr "ongeldig gemaakt door een reset: al verborgen voor de zoekfunctie en in afwachting van verwijdering door de achtergrondtaak"
 
@@ -1361,10 +1365,6 @@ msgstr "nu: {hash}"
 #. TRANSLATORS: orderedIds is a parameter name; keep it
 msgid "orderedIds is required and must be an array."
 msgstr "orderedIds is verplicht en moet een array zijn."
-
-#. TRANSLATORS: a background job's last run: of the queued files it took, how many it processed and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
-msgid "processed {processed} of {total}, failed {failed}, cleared after a reset {cleared}"
-msgstr "verwerkt {processed} van {total}, mislukt {failed}, opgeruimd na een reset {cleared}"
 
 #. TRANSLATORS: a background job's last run: the files it queued to have their MIME type detected, and that the whole refresh is finished
 msgid "queued {queued}, finished"

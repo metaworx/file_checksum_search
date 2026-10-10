@@ -1320,6 +1320,10 @@ msgstr "group:* 不是选择器。请指定一个群组，或使用 home:* 表�
 msgid "groupfolder: takes the numeric folder ID."
 msgstr "groupfolder: 需要数字形式的文件夹 ID。"
 
+#. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it dropped from the queue unread because no rule wants them any more, and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
+msgid "hashed {hashed} of {total}, dropped {dropped}, failed {failed}, cleared after a reset {cleared}"
+msgstr "已计算校验和：{hashed}/{total}，已移出队列：{dropped}，失败：{failed}，重置后已清理：{cleared}"
+
 msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
 msgstr "因重置而作废：已从搜索中隐藏，等待后台任务删除"
 
@@ -1356,10 +1360,6 @@ msgstr "当前：{hash}"
 #. TRANSLATORS: orderedIds is a parameter name; keep it
 msgid "orderedIds is required and must be an array."
 msgstr "orderedIds 为必填项，且必须是数组。"
-
-#. TRANSLATORS: a background job's last run: of the queued files it took, how many it processed and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
-msgid "processed {processed} of {total}, failed {failed}, cleared after a reset {cleared}"
-msgstr "已处理：{processed}/{total}，失败：{failed}，重置后已清理：{cleared}"
 
 #. TRANSLATORS: a background job's last run: the files it queued to have their MIME type detected, and that the whole refresh is finished
 msgid "queued {queued}, finished"

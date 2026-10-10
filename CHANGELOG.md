@@ -25,6 +25,11 @@ the first stable release.
   files they hashed before, through the sweep and Reapply (README,
   *Modes*).
 
+- The queue drain counts the files it hashed apart from those it dropped
+  unread and those that failed, in `fcias:queue:drain`, `fcias:status`
+  and the admin status, and `-v` says why a file was not hashed; in
+  `fcias:status -o json`, `hashed` and `dropped` replace `processed`.
+
 ### Fixed
 
 - Rules in `auto` mode hash the files they govern that have no

@@ -525,7 +525,9 @@ reading:
   Nextcloud's filecache already holds into the index, and the *Checksum index
   check*, which makes every stored checksum findable. Those two work a slice
   per cron run and say whether they are finished. The *Rule reapplication* is a
-  rule's **Reapply**. Each run shows how long it took. A run that failed shows
+  rule's **Reapply**. The *Queue drain* says how many of the files it took it
+  hashed, how many it dropped unread because no include rule wants them any
+  more, and how many failed. Each run shows how long it took. A run that failed shows
   why, the error as the server logged it, and when the job last succeeded, in
   place of the counts. The timestamp is the point: a job that stopped running
   is invisible until someone notices its clock has not moved.
@@ -539,6 +541,15 @@ demand:
 
 ```bash
 php occ file-checksum-search:hash --user=alice --path="**"
+```
+
+To see why queued files stay queued, drain the queue by hand with `-v`: it
+names each file it did not hash and why — a storage that is unavailable, a
+file that is busy or was written to during the read, or the read's own error,
+such as a file the filecache lists and its storage no longer has:
+
+```bash
+php occ fcias:queue:drain -v
 ```
 
 ### A file's hash does not match its content
