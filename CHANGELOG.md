@@ -13,34 +13,26 @@ the first stable release.
 
 ### Added
 
-- A file's MIME type, detected from its content while it is hashed;
-  off by default. Shown in the files sidebar and on the duplicates
-  page, switched, refreshed and deleted in the admin settings or with
-  `occ fcias:mimetype:*`, counted in the status, and given by the API
-  on `?mimetype=1` (`docs/api-v1.md`, *MIME types*).
+- `docs/FAQ.md`, *How are MIME types detected?*, `occ fcias:mimetype:*`,
+  `?mimetype=1` (`docs/api-v1.md`): a file's MIME type, detected from
+  its content while hashing, off by default.
 
 ### Changed
 
-- Rules in `missing` mode add an algorithm added to the rule to the
-  files they hashed before, through the sweep and Reapply (README,
-  *Modes*).
+- `README.md`, *Modes*: `missing` adds an algorithm added to a rule to
+  the files hashed before.
 
-- The queue drain counts the files it hashed apart from those it dropped
-  unread and those that failed, in `fcias:queue:drain`, `fcias:status`
-  and the admin status, and `-v` says why a file was not hashed; in
-  `fcias:status -o json`, `hashed` and `dropped` replace `processed`.
+- `README.md`, *Repair Commands*: the drain reports each file's outcome.
+  `fcias:status -o json` has `hashed` and `dropped`, not `processed`.
 
 ### Fixed
 
-- Rules in `auto` mode hash the files they govern that have no
-  checksums yet: new files as they are written, existing ones through
-  the sweep and Reapply, those an earlier `auto` pass stamped without
-  checksums included (README, *Modes*).
+- `README.md`, *Modes*: `auto` rules hash files without checksums. The
+  first sweep after upgrading queues every such file.
 
-- A queued file that the filecache lists and its storage no longer has
-  leaves the queue on its second failed read, counted as untrusted
-  (gone), its checksums deleted, instead of being retried for ever (FAQ,
-  *Files the filecache lists and the storage does not have*).
+- `docs/FAQ.md`, *Files the filecache lists and the storage does not
+  have*: a queued file missing from its storage leaves the queue, and
+  its checksums are deleted.
 
 ## [0.24.0] - 2026-10-08
 
