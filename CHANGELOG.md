@@ -38,10 +38,9 @@ the first stable release.
 
 ### Added
 
-- Status page and `occ fcias:status`: each background job's run time,
-  and a failed run with its error and last success; the queued files
-  that failed at least once (`docs/FAQ.md`, *Hashes are missing or
-  outdated*).
+- Status page, `occ fcias:status`: each background job's run time, a
+  failed run with its error and last success, and the queued files that
+  failed at least once (`docs/FAQ.md`, *Hashes are missing or outdated*).
 
 ### Fixed
 
@@ -124,8 +123,7 @@ the first stable release.
 
 - `GET /api/v1/file/{fileId}/hashes`, its `/sudo/` twin and
   `ChecksumApi::getHashesBy*()`: `hashes` is keyed by algorithm, and
-  `updated_at` is the file's, null without a stamp; read `hashes` by
-  algorithm and `updated_at` from the file (`docs/api-v1.md`).
+  `updated_at` is the file's, null without a stamp (`docs/api-v1.md`).
 
 ### Fixed
 
@@ -162,10 +160,11 @@ the first stable release.
 
 ### Added
 
-- Translations: German (reviewed), informal (`de`) and formal (`de_DE`);
-  Brazilian Portuguese, British English (`en_GB`), Dutch, French,
-  Italian, Japanese, Polish, Simplified Chinese and Spanish,
-  machine-translated: translationfiles/<lang>/GLOSSARY.md.
+- Translations, reviewed: German, informal (`de`) and formal (`de_DE`).
+
+- Translations, machine-translated: Brazilian Portuguese, British
+  English (`en_GB`), Dutch, French, Italian, Japanese, Polish,
+  Simplified Chinese and Spanish (`translationfiles/<lang>/GLOSSARY.md`).
 
 - `occ file-checksum-search:status`, also `fcias:status`: the background
   jobs and their last runs.
@@ -185,10 +184,9 @@ the first stable release.
 
 ### Changed
 
-- `ChecksumApi`: `$reachUids` is required and follows the subject in
-  `findByHash()`, `getHashesByFileId()`, `findSameHash()`,
-  `recalcHash()` and `recalcMany()`; a call that left it out, or passed
-  later arguments by position, breaks.
+- `ChecksumApi::findByHash()`, `getHashesByFileId()`, `findSameHash()`,
+  `recalcHash()`, `recalcMany()`: `$reachUids` is required, second.
+  A call without it, or with later arguments by position, breaks.
 
 - The REST API's `error` texts and `ChecksumApi`'s refusals: reworded,
   and in the caller's language; match on the status, never the text.
@@ -197,12 +195,12 @@ the first stable release.
   help texts that say what the app does, and the app's summary and
   description to match.
 
-- `GET /api/v1/duplicates`, `GET /api/v1/sudo/duplicates`,
-  `findDuplicates()`, `findDuplicatesFor()` and
-  `occ file-checksum-search:find-duplicates`: empty files are left out
-  unless `includeEmpty` or `--include-empty` is set, so a caller or a
-  script that wants them sets it. Each group carries `empty`, on
-  `GET /api/v1/file/{fileId}/duplicates` and `findSameHash()` too.
+- `GET /api/v1/duplicates`, its `/sudo/` twin, `findDuplicates()`,
+  `findDuplicatesFor()`, `occ file-checksum-search:find-duplicates`:
+  empty files left out unless `includeEmpty` or `--include-empty` is set.
+
+- Duplicate groups, `GET /api/v1/file/{fileId}/duplicates` and
+  `findSameHash()` included: each carries `empty`.
 
 - The frontend's types: checked by `npm run typecheck` (vue-tsc).
 
