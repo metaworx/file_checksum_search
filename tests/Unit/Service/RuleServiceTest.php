@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use InvalidArgumentException;
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\FileLocation;
 use OCA\FileChecksumSearch\Service\HintedInvalidArgumentException;
@@ -97,6 +98,8 @@ class RuleServiceTest
 			// Marking, so a test can tell a refusal a person reads from
 			// the English a log keeps.
 			$this->markingL10n(),
+			// Over the mocked config: the shipped allowlist.
+			new AlgorithmCatalogue( $this->appConfig ),
 		);
 	}
 
@@ -3046,6 +3049,7 @@ class RuleServiceTest
 			$this->groupManager,
 			$this->filecacheService,
 			$translated,
+			new AlgorithmCatalogue( $this->appConfig ),
 		);
 
 		$mounted = $this->createFolderMock( homeStorage: false );
@@ -3135,6 +3139,122 @@ class RuleServiceTest
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'markPending' )
 		                      ->with( 1, 'pending:auto' )
+		;
+
+		$result = $this->service->applyRule( $rule );
+
+		$this->assertSame( 1, $result['marked'] );
+		$this->assertSame( 1, $result['fresh'] );
+	}
+
+	/**
+	 * Under `missing`, the sweep and Reapply ask the page query after the
+	 * rule's algorithms, those this server computes; under `auto`, after none,
+	 * and the stamp decides alone.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheSweepAndReapplyAskAfterTheRulesAlgorithmsUnderMissingOnly(): void
+	{
+		$asked = [];
+
+		$this->filecacheService->method( 'storageNumericIdsFor' )
+		                       ->willReturn( [ 7 ] )
+		;
+		$this->filecacheService->method( 'homeStorageNumericIds' )
+		                       ->willReturn( [ 7 ] )
+		;
+		$this->filecacheService->method( 'pageStorageFiles' )
+		                       ->willReturnCallback(
+			                       static function(
+				                       int   $storageNumericId,
+				                       int   $lastFileId,
+				                       int   $limit,
+				                       bool  $staleOnly,
+				                       array $wanted,
+			                       ) use
+			                       (
+				                       &
+				                       $asked,
+			                       ): array
+			                       {
+				                       $asked[] = $wanted;
+
+				                       return [];
+			                       },
+		                       )
+		;
+
+		$rules = array_map(
+			fn(
+				string $mode,
+			): array => $this->defaultRule(
+				[
+					'id'    => 'r-' . $mode,
+					'type'  => 'include',
+					'mode'  => $mode,
+					'algos' => [
+						'sha1',
+						'md5',
+						'not-an-algorithm',
+					],
+				],
+			),
+			[
+				'missing',
+				'auto',
+			],
+		);
+
+		foreach ( $rules as $rule )
+		{
+			$this->service->processRule( $rule );
+			$this->service->applyRule( $rule );
+		}
+
+		$this->assertSame(
+			[
+				[ 'sha1', 'md5' ],
+				[ 'sha1', 'md5' ],
+				[],
+				[],
+			],
+			$asked,
+		);
+	}
+
+	/**
+	 * Under `missing`, a file hashed before an algorithm was added to the rule
+	 * is not fresh for its current stamp: Reapply queues it for the one it
+	 * lacks.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testApplyRuleQueuesAFileLackingAnAlgorithmUnderMissing(): void
+	{
+		$rule = [
+			'id'        => 'r1',
+			'enabled'   => true,
+			'type'      => 'include',
+			'path'      => '**',
+			'userScope' => 'alice',
+			'mode'      => 'missing',
+			'algos'     => [
+				'sha1',
+				'md5',
+			],
+		];
+
+		$this->setupRulesConfig( [ $rule ] );
+
+		$this->stubSweep(
+			FileLocation::fromRow( 1, 'home::alice', 'files/lacking.txt', 1000 )->withUpdatedAt( 1500, true, false ),
+			FileLocation::fromRow( 2, 'home::alice', 'files/complete.txt', 1000 )->withUpdatedAt( 1500 ),
+		);
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 1, 'pending:missing' )
 		;
 
 		$result = $this->service->applyRule( $rule );

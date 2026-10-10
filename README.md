@@ -513,7 +513,7 @@ personal rule can undo, while a personal exclude only overrides the defaults bel
 | Mode | Description |
 |------|-------------|
 | `auto` | Compute the rule's algorithms for a file without current hashes: new, never hashed, or changed. A file whose hashes are current is never read only to add an algorithm |
-| `missing` | The same, and add any of the rule's algorithms a queued file lacks |
+| `missing` | The same, and add any of the rule's algorithms a file lacks: the sweep and Reapply queue a file hashed before for one added to the rule |
 | `force` | Clear all hashes and recalculate immediately |
 | `lazy` | Clear hashes and defer recalculation to the background queue |
 

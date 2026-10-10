@@ -1339,7 +1339,8 @@ and returns immediately —
 requesting user. Applying is judged as *writing* the rule: an administrator may apply any rule,
 anyone else needs rule-editing permission and the rule must be their own. Files claimed by a
 higher-band rule are skipped, never marked; files already fresh — hashed since they last
-changed — are skipped under `auto`/`missing` modes.
+changed, and under `missing` holding every algorithm of the rule — are skipped under `auto`/
+`missing` modes.
 
 **Errors:** 404 for an unknown id; 403 for a caller who may not change the rule; 400 for a rule
 that cannot meaningfully be applied — disabled, or an `ignore`/`exclude` rule, which computes

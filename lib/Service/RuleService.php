@@ -152,6 +152,7 @@ class RuleService
 		private readonly IGroupManager     $groupManager,
 		private readonly FilecacheService  $filecacheService,
 		private readonly IL10N $l10n,
+		private readonly AlgorithmCatalogue $catalogue,
 	) {
 	}
 
@@ -634,7 +635,7 @@ class RuleService
 
 		try
 		{
-			foreach ( $this->sweepLocations( $rule, staleOnly: true ) as $location )
+			foreach ( $this->sweepLocations( $rule, $this->wantedAlgos( $rule, $mode ), staleOnly: true ) as $location )
 			{
 				// Whoever governs this file decides it. If a higher-priority
 				// rule claims it, that rule — not this — is responsible, so
@@ -719,6 +720,30 @@ class RuleService
 	}
 
 	/**
+	 * The algorithms a file must hold for the sweep and Reapply to leave it
+	 * alone in $mode: under `missing`, every one of the rule's this server
+	 * computes, so that one added to the rule reaches the files hashed
+	 * before; under the other modes none, and the stamp decides alone.
+	 *
+	 * Only those this server computes: one it no longer allows would leave
+	 * every file lacking it, queued again by each sweep.
+	 *
+	 * @return list<string>
+	 */
+	private function wantedAlgos(
+		array  $rule,
+		string $mode,
+	): array
+	{
+		if ( $mode !== MetadataService::PENDING_MODE_MISSING )
+		{
+			return [];
+		}
+
+		return array_values( array_filter( (array) ( $rule['algos'] ?? [] ), $this->catalogue->isValid( ... ) ) );
+	}
+
+	/**
 	 * Every file location a rule's selector and glob cover, lazily.
 	 *
 	 * Walks each swept storage's filecache rows in keyset pages and yields
@@ -727,11 +752,15 @@ class RuleService
 	 * id is checked too: the legacy root-jail layout stores many folders on
 	 * one storage.
 	 *
+	 * @param  list<string>  $wanted  Algorithms a file must hold to be fresh
+	 *                                ({@see wantedAlgos()}).
+	 *
 	 * @return \Generator<FileLocation>
 	 * @throws \OCP\DB\Exception
 	 */
 	private function sweepLocations(
 		array $rule,
+		array $wanted = [],
 		bool  $staleOnly = false,
 	): \Generator
 	{
@@ -744,7 +773,7 @@ class RuleService
 
 			while ( true )
 			{
-				$page = $this->filecacheService->pageStorageFiles( $storageNumericId, $lastFileId, 500, $staleOnly );
+				$page = $this->filecacheService->pageStorageFiles( $storageNumericId, $lastFileId, 500, $staleOnly, $wanted );
 
 				if ( $page === [] )
 				{
@@ -1278,7 +1307,7 @@ class RuleService
 		// The same identity-based sweep the periodic evaluation uses — but
 		// uncapped: an explicit apply runs to completion; only the periodic
 		// sweep trickles.
-		foreach ( $this->sweepLocations( $rule ) as $location )
+		foreach ( $this->sweepLocations( $rule, $this->wantedAlgos( $rule, $mode ) ) as $location )
 		{
 			$matched ++;
 

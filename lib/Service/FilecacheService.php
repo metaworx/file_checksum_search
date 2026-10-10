@@ -594,40 +594,53 @@ class FilecacheService
 	 * A page of a storage's files, keyset-ordered by file id.
 	 *
 	 * Each row carries this app's `updated_at` stamp from the metadata index
-	 * (null when it never hashed the file), and whether the file holds a hash
-	 * or a state, joined here so a sweep judges freshness without a query per
-	 * file ({@see FileLocation::isFresh()}). `$staleOnly` keeps only the rows
-	 * a sweep would act on — no stamp, a stamp older than the file's mtime,
-	 * or a stamp over neither a hash nor a state — so a sweep of an
-	 * already-hashed instance fetches nothing rather than every file. The
-	 * stamp and the state are one row of the index each, and the LEFT JOINs
-	 * pin their keys; the hashes are counted, as there is one row for each.
+	 * (null when it never hashed the file), whether the file holds a hash or
+	 * a state, and, given $wanted, whether it holds each of those algorithms,
+	 * joined here so a sweep judges freshness without a query per file
+	 * ({@see FileLocation::isFresh()}). `$staleOnly` keeps only the rows a
+	 * sweep would act on — no stamp, a stamp older than the file's mtime, or,
+	 * where no state explains it, a stamp over no hash or over fewer than the
+	 * $wanted algorithms — so a sweep of an already-hashed instance fetches
+	 * nothing rather than every file. The stamp and the state are one row of
+	 * the index each, and the LEFT JOINs pin their keys; the hashes are
+	 * counted, as there is one row for each.
+	 *
+	 * @param  list<string>  $wanted  Algorithms a file must hold to be fresh:
+	 *                                `missing`'s, so that one added to the
+	 *                                rule reaches the files hashed before.
 	 *
 	 * @return FileLocation[]
 	 * @throws \OCP\DB\Exception
 	 */
 	public function pageStorageFiles(
-		int  $storageNumericId,
-		int  $lastFileId,
-		int  $limit,
-		bool $staleOnly = false,
+		int   $storageNumericId,
+		int   $lastFileId,
+		int   $limit,
+		bool  $staleOnly = false,
+		array $wanted = [],
 	): array
 	{
-		$qb = $this->db->getQueryBuilder();
+		$qb   = $this->db->getQueryBuilder();
+		$keys = array_values( array_unique( array_map( MetadataService::getHashKey( ... ), $wanted ) ) );
 
-		// The file's hash rows, counted per filecache row: a correlated
-		// subquery, built twice, since a select's alias cannot be read back
-		// in the WHERE on every backend.
-		$hashes = function() use ( $qb ): string
+		// The file's hash rows, all of them or those under $keys, counted per
+		// filecache row: a correlated subquery, built anew for each use, since
+		// a select's alias cannot be read back in the WHERE on every backend.
+		$hashes = function( array $keys = [] ) use ( $qb ): string
 		{
 			$sub = $this->db->getQueryBuilder();
 			$sub->select( $sub->func()->count( '*' ) )
 			    ->from( MetadataService::TABLE_FILES_METADATA_INDEX, 'mh' )
 			    ->where(
 				    $sub->expr()->eq( 'mh.' . MetadataService::FIELD_FILE_ID, 'fc.fileid' ),
-				    $sub->expr()->like(
+				    $keys === []
+					    ? $sub->expr()->like(
 					    'mh.' . MetadataService::FIELD_META_KEY,
 					    $qb->createNamedParameter( MetadataService::KEY_FILE_CHECKSUM_LIKE ),
+				    )
+					    : $sub->expr()->in(
+					    'mh.' . MetadataService::FIELD_META_KEY,
+					    $qb->createNamedParameter( $keys, IQueryBuilder::PARAM_STR_ARRAY ),
 				    ),
 			    )
 			;
@@ -681,11 +694,28 @@ class FilecacheService
 		   ->setMaxResults( $limit )
 		;
 
+		if ( $keys !== [] )
+		{
+			$qb->selectAlias( $qb->createFunction( $hashes( $keys ) ), 'held' );
+		}
+
 		if ( $staleOnly )
 		{
-			// No stamp at all, one older than the file, or one over neither a
-			// hash nor a state — what a sweep exists to fix. A fresh file is
-			// filtered out here rather than fetched and skipped.
+			// No stamp at all, one older than the file, or, with no state to
+			// say why, one over no hash or over too few of $wanted — what a
+			// sweep exists to fix. A fresh file is filtered out here rather
+			// than fetched and skipped.
+			$wanting = $qb->createFunction( $hashes() . ' = 0' );
+
+			if ( $keys !== [] )
+			{
+				$wanting = $qb->expr()
+				              ->orX(
+					              $wanting,
+					              $qb->createFunction( $hashes( $keys ) . ' < ' . count( $keys ) ),
+				              );
+			}
+
 			$qb->andWhere(
 				$qb->expr()
 				   ->orX(
@@ -694,7 +724,7 @@ class FilecacheService
 					   $qb->expr()
 					      ->andX(
 						      $qb->expr()->isNull( 'ms.' . MetadataService::FIELD_META_VALUE_STRING ),
-						      $qb->createFunction( $hashes() . ' = 0' ),
+						      $wanting,
 					      ),
 				   ),
 			);
@@ -715,6 +745,7 @@ class FilecacheService
 					? (int) $row['updated_at']
 					: null,
 				(int) $row['hashes'] > 0 || $row['state'] !== null,
+				$keys === [] || $row['state'] !== null || (int) $row['held'] >= count( $keys ),
 			);
 		}
 

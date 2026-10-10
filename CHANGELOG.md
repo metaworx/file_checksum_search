@@ -19,6 +19,12 @@ the first stable release.
   `occ fcias:mimetype:*`, counted in the status, and given by the API
   on `?mimetype=1` (`docs/api-v1.md`, *MIME types*).
 
+### Changed
+
+- Rules in `missing` mode add an algorithm added to the rule to the
+  files they hashed before, through the sweep and Reapply (README,
+  *Modes*).
+
 ### Fixed
 
 - Rules in `auto` mode hash the files they govern that have no

@@ -77,6 +77,11 @@ readonly class FileLocation
 		 * the stamp.
 		 */
 		public bool    $settled = true,
+		/**
+		 * Whether the file holds every algorithm the sweep asked after, or a
+		 * state that says why not: what `missing` checks besides the stamp.
+		 */
+		public bool    $complete = true,
 	) {
 	}
 
@@ -188,15 +193,17 @@ readonly class FileLocation
 
 	/**
 	 * Whether a sweep has nothing to do for the file: stamped no earlier
-	 * than its mtime, and holding a hash or a state that says why not. A
-	 * stamp over no hash, which `auto` once wrote for a file it computed
-	 * nothing for, is not fresh.
+	 * than its mtime, holding a hash or a state that says why not, and, where
+	 * the sweep asked after algorithms, all of them. A stamp over no hash,
+	 * which `auto` once wrote for a file it computed nothing for, is not
+	 * fresh.
 	 */
 	public function isFresh(): bool
 	{
 		return $this->updatedAt !== null
 			&& $this->updatedAt >= $this->mtime
-			&& $this->settled;
+			&& $this->settled
+			&& $this->complete;
 	}
 
 
@@ -272,6 +279,7 @@ readonly class FileLocation
 	public function withUpdatedAt(
 		?int $updatedAt,
 		bool $settled = true,
+		bool $complete = true,
 	): self
 	{
 		return new self(
@@ -285,6 +293,7 @@ readonly class FileLocation
 			$this->relativePath,
 			$updatedAt,
 			$settled,
+			$complete,
 		);
 	}
 

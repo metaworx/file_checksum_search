@@ -361,6 +361,61 @@ class HashStampTest
 	}
 
 	/**
+	 * An algorithm added to a `missing` rule reaches a file hashed before,
+	 * through the sweep and Reapply alike; under `auto` the file is left as
+	 * it is, never read only to add an algorithm.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAnAlgorithmAddedToAMissingRuleReachesTheFilesHashedBefore(): void
+	{
+		foreach ( [ 'sweep', 'reapply' ] as $route )
+		{
+			foreach ( [ MetadataService::PENDING_MODE_MISSING, MetadataService::PENDING_MODE_AUTO ] as $mode )
+			{
+				$content = "hashed before the rule grew: $route, $mode";
+				$file    = $this->createTestFile( 'fcias_' . $mode . '_grown_' . $route, $content );
+
+				$this->ruleFor( $file, $mode );
+				$this->assertTrue( $this->hashCalc->recalcFileHash( $file, 'sha256' )['success'] );
+
+				$rule = $this->ruleFor(
+					$file,
+					$mode,
+					[
+						'sha256',
+						'md5',
+					],
+				);
+
+				$route === 'sweep'
+					? $this->ruleService->processRule( $rule )
+					: $this->ruleService->applyRule( $rule );
+
+				if ( $mode === MetadataService::PENDING_MODE_AUTO )
+				{
+					$this->assertNull( $this->metadataService->getMarker( $file->getId() ), "$route, auto: left as it is" );
+
+					continue;
+				}
+
+				$this->assertSame( MetadataService::PENDING_PREFIX . $mode, $this->metadataService->getMarker( $file->getId() ), "$route, $mode: queued" );
+
+				$this->hashCalc->processFile( $file->getId(), $mode );
+
+				$this->assertSame(
+					[
+						'md5'    => md5( $content ),
+						'sha256' => hash( 'sha256', $content ),
+					],
+					$this->hashesOf( $file->getId() ),
+					"$route, $mode: the algorithm added",
+				);
+			}
+		}
+	}
+
+	/**
 	 * A stamp over no hash, which `auto` once wrote for a file it computed
 	 * nothing for, no longer passes for fresh: the sweep and Reapply queue
 	 * the file again, and the queue hashes it.
@@ -511,7 +566,7 @@ class HashStampTest
 	}
 
 	/**
-	 * The only rule: $mode, sha256, for this one file — the sweep reads every
+	 * The only rule: $mode, $algos, for this one file — the sweep reads every
 	 * storage the selector names, and the instance's other files are not the
 	 * test's to queue. Added after the file, so its creation queued nothing.
 	 *
@@ -521,6 +576,7 @@ class HashStampTest
 	private function ruleFor(
 		File   $file,
 		string $mode,
+		array  $algos = [ 'sha256' ],
 	): array
 	{
 		foreach ( $this->ruleService->loadRules() as $rule )
@@ -535,7 +591,7 @@ class HashStampTest
 				'path'     => $file->getName(),
 				'mode'     => $mode,
 				'selector' => '*',
-				'algos'    => [ 'sha256' ],
+				'algos'    => $algos,
 			],
 		);
 
