@@ -71,6 +71,11 @@ you says whose it is and where you find it, `bob: My Projects/report.pdf`,
 behind a share glyph — and nothing of the owner's folders above the share,
 which Nextcloud does not show you either.
 
+Where your administrator has switched MIME type detection on, a group's
+header also shows the type of the content its files share, such as
+`application/pdf`. It is read from the content, not from the names, so it
+holds for every file in the group, a copy renamed `.jpg` among them.
+
 ### Checking that a duplicate is still a duplicate
 
 A group says which files *were* found to share a checksum. To confirm they
@@ -178,7 +183,13 @@ sidebar (the file detail pane).
 It has three sections:
 
 - **Checksums** — what has been computed for this file, one row per
-  algorithm. Click a value to copy it.
+  algorithm. Click a value to copy it. Where your administrator has switched
+  MIME type detection on, a **MIME type** row follows: the file's type as its
+  content says, such as `application/pdf`. Nextcloud's own type comes from
+  the file's name, so where the two differ — a PDF renamed `report.jpg` —
+  the row adds Nextcloud's as *By its name: image/jpeg*. *Not detected yet*
+  means the file was hashed before detection was switched on; the next
+  **Recalculate** detects it.
 - **Recalculate** — one or two quick buttons, then a picker with every other
   algorithm this server computes and its own **Recalculate** button. The first
   quick button is *your preferred algorithm* (see *Your hashing rules*), or the

@@ -26,6 +26,9 @@ for each hash. The stamp gets an index row too. What the file is waiting for
 index row of its own, `file-checksum-state`, which exists only while there is
 such a state. The hashes are additionally mirrored back into
 `oc_filecache.checksum`, where Nextcloud itself and sync clients look for them.
+Where MIME type detection is on, the file's type as its content says is one more
+key, `file-checksum-mimetype`, with an index row of its own
+([MIME types from the content](#mime-types-from-the-content)).
 
 **"Document" here never means the user's file.** A PDF has a metadata document,
 and so does a photo. Where this README and the code say *document* unqualified,
@@ -62,8 +65,9 @@ For what the two tables look like from a database client, see
 - **Personal settings page** — users can view, create, and edit rules subject to permissions; per-rule `admin_enforced` locks
 - **Automatic index maintenance** — Nextcloud file event listeners and background jobs
 - **Lazy & deferred hash recalculation** — a pending queue drained by a background job
+- **MIME types from the content** — optional: each file's type, named by its first 64 KiB while it is hashed, in the sidebar, on the duplicates page and in the API
 - **Public API v1** — HTTP REST and PHP surfaces with an OpenAPI spec
-- **16 CLI commands** for search, rule management, administration, and maintenance
+- **21 CLI commands** for search, rule management, MIME types, administration, and maintenance
 - **User guide & FAQ** — served in-app, split by audience (see [Documentation](#documentation))
 
 ## Requirements
@@ -100,8 +104,9 @@ rule — see [How hashing happens](#how-hashing-happens).
 
 ## CLI Reference
 
-FCIAS provides 16 `occ` commands — four for files and search, five for rules, two for status,
-three for the state the app owns, one for repair, and one for the queue. Run them as `php occ <command>`.
+FCIAS provides 21 `occ` commands — four for files and search, five for rules, two for status,
+five for MIME types, three for the state the app owns, one for repair, and one for the queue. Run
+them as `php occ <command>`.
 
 ### Core Commands
 
@@ -160,6 +165,21 @@ warning level.
 | `file-checksum-search:show-config [--output=<fmt>]` | Display all app config key/value pairs |
 
 `--output` accepts `plain` (default), `json`, or `json_pretty`.
+
+### MIME Type Commands
+
+| Command | Description |
+|---------|-------------|
+| `file-checksum-search:mimetype:enable` | Detect each file's MIME type from its content while it is hashed; refused while a deletion runs, and where PHP's Fileinfo extension is not loaded |
+| `file-checksum-search:mimetype:disable` | Stop detecting; the types stored are kept |
+| `file-checksum-search:mimetype:is-enabled [--quiet]` | Print `on`, `off` or `unavailable`; exits 0 for on, 3 for off or unavailable, 1 on an error and 2 on an invalid argument |
+| `file-checksum-search:mimetype:refresh [--all]` | Queue the hashed files without a type, or with `--all` every one, for their first 64 KiB alone; detection must be on |
+| `file-checksum-search:mimetype:delete` | Delete every stored type, out of the documents and the index; detection must be off |
+
+They are the admin settings' switch and buttons, under the same rules, with one difference:
+`refresh` and `delete` do the work in the command rather than queue a job. `refresh` marks the
+files, and the drain reads them — `queue:drain --all` at once. A `delete` cut short goes on in the
+background. See [MIME types from the content](#mime-types-from-the-content).
 
 ### Repair Commands
 
@@ -241,6 +261,11 @@ php occ file-checksum-search:show-config --output=json_pretty
 
 # Check status
 php occ file-checksum-search:status
+
+# Detect MIME types from now on, then give the files hashed before theirs
+php occ fcias:mimetype:enable
+php occ fcias:mimetype:refresh
+php occ fcias:queue:drain --all
 
 # Rebuild the checksum metadata index from filecache
 # See what the repair could do, and do one part of it
@@ -543,6 +568,20 @@ that failed — counts its attempt without being read, until Nextcloud tries the
 The drain, and the app's other jobs, can run outside Nextcloud's cron, at a lower priority: see
 [FAQ › Can the app's jobs run outside Nextcloud's cron?](docs/FAQ.md#can-the-apps-jobs-run-outside-nextclouds-cron).
 
+## MIME types from the content
+
+Nextcloud takes a file's MIME type from its name. Switched on under **Advanced**, or with
+`fcias:mimetype:enable`, FCIAS also names it from the content: the read that hashes a file passes
+its first 64 KiB to PHP's Fileinfo extension, and the type is kept beside the hashes, for as long
+as they describe the content. It costs no read of its own, and it is off by default. The files
+sidebar shows it, with Nextcloud's type beside it where the two differ; the duplicates page shows
+it on each group; the API gives it on `?mimetype=1` ([MIME types](docs/api-v1.md#mime-types)).
+**Refresh** queues the files hashed before for their first 64 KiB alone, and **Delete** removes
+every stored type while detection is off. Backups and imports leave the types out: they are
+detected again from the content. The status counts them, on the Advanced tab and in
+`fcias:status`. See
+[FAQ › How are MIME types detected?](docs/FAQ.md#how-are-mime-types-detected).
+
 ## Backing up, resetting and importing
 
 The app owns three slices of state, and they are separable because they answer different questions
@@ -748,8 +787,10 @@ The admin settings page provides:
 - **Advanced** — a tab: app version, indexed checksum count, queued files by mode with those that
   failed at least once, the *Untrusted checksums* total with its reasons (eroded, reset), and each
   background job's last run with its counts and how long it took, or, when it failed, why and when
-  the job last succeeded;
-  plus the instance's tunables, the first being how many accounts and groups the cross-account
+  the job last succeeded, and whether MIME types are detected and for how many files;
+  then the *MIME types* section — the switch, **Refresh** and **Delete**
+  ([MIME types from the content](#mime-types-from-the-content));
+  and the instance's tunables, the first being how many accounts and groups the cross-account
   picker prefills (21) before it searches server-side instead
 - **Documentation** — the last tab: in-app access to the FAQ, the user guide, README, API specs, and
   license

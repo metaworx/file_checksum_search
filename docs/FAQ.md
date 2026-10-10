@@ -24,6 +24,7 @@ Key features:
 - Unified Search integration — paste a hash into Nextcloud's search bar
 - Rule-based hash generation (admin and personal settings)
 - Automatic index maintenance via file event listeners and background jobs
+- Optionally, each file's MIME type as its content says, detected while it is hashed
 - A stable public REST API (v1) and PHP API
 - CLI commands for search, generation, and maintenance
 
@@ -68,6 +69,7 @@ document**. FCIAS's keys in it are:
 |-----|-------|
 | `file-checksum-hash-sha256` (one per algorithm) | the digest, **whole** |
 | `file-checksum-updated_at` | when the file was last considered, as a Unix timestamp |
+| `file-checksum-mimetype` | the MIME type detected from the content, **whole**, where detection is on |
 
 The word *document* here never means the user's file. A PDF has a metadata
 document; so does a photo.
@@ -113,6 +115,13 @@ is the one that finds those.
 If you want to read the hashes rather than search them, read the metadata
 document: it holds them whole. `occ fcias:backup --format=sum` writes them out
 for you and does exactly that.
+
+**A MIME type row** has `meta_key` `file-checksum-mimetype`,
+`meta_value_int` the type's id in Nextcloud's `oc_mimetypes` — the ids
+`oc_filecache.mimetype` uses — and `meta_value_string` the type cut to 63
+characters. The id is the exact value: an Office type runs to 73
+characters, so two can share their first 63. Compare the id for equality,
+and the string only by prefix, `image/%`.
 
 ## How do rules work?
 
@@ -340,6 +349,65 @@ from file content and flag what no longer matches. That is asked for per
 group (**Verify all**) or per file (**Verify**), never for the page: reading
 a file's bytes takes time on slow storage and costs money on metered
 storage, so the scope stays with whoever chooses to pay it.
+
+## How are MIME types detected?
+
+**From the content, and only where you switch it on.** Admin settings →
+*Advanced* → *MIME types*, or `occ fcias:mimetype:enable`. While it is on,
+the read that hashes a file passes its first 64 KiB to PHP's Fileinfo
+extension, which runs libmagic, and the type it names is kept beside the
+hashes. A file being hashed costs nothing more than that. Fileinfo is
+bundled with PHP and Nextcloud requires it, but a PHP build can leave it
+out; then the switch is held off and says why. Detection is the server's,
+not a rule's: every file a rule or a **Recalculate** hashes gets its type.
+
+**Why it can differ from Nextcloud's.** Nextcloud's own type, the one the
+Files app and WebDAV give, comes from the file's name: its extension, looked
+up in Nextcloud's mapping, on every storage. A PDF renamed `report.jpg` is
+`image/jpeg` to Nextcloud and `application/pdf` here. The sidebar shows the
+detected type and, where the two differ, Nextcloud's below it as *By its
+name*, without a warning: they also differ where nothing is wrong. Markdown
+is `text/markdown` by its name and, to libmagic, which sees only text,
+`text/plain` by its content.
+
+**A type lasts as long as the hashes describe the content.** A file changed
+since it was hashed loses its type with its hashes, and gets a new one when
+it is hashed again. Switching detection off keeps the types stored and stops
+showing them: the status says *Off, kept for N files*. A file changed while
+it is off loses its type as before, and none is detected for it.
+
+**Refresh** (detection on) queues the files that have checksums: *Those
+without one*, the files hashed before detection was on or given their
+hashes without a read, or *All of them*. The queue's *Queued files* shows
+them as `pending:mime`, and the drain reads each one's first 64 KiB and
+nothing more. As with hashes, it drops the mark of a file no `include` rule
+governs, unread; such a file gets its type at its next **Recalculate**.
+`occ fcias:mimetype:refresh [--all]` marks the files at once, and
+`occ fcias:queue:drain --all` reads them at once.
+
+**Delete** (detection off) asks for confirmation, then queues a job that
+removes every stored type, a file at a time, out of the metadata document
+and then out of the index. Until it is done the status reads *Being deleted
+since …, N files left*, and detection cannot be switched on: the types it
+detected meanwhile would go with the rest. `occ fcias:mimetype:delete`
+does the deletion in the foreground; cut short, the job goes on with it.
+
+**PHP's libmagic changes between releases**, and a newer one can name some
+content differently. The types already stored stay as they were detected;
+after upgrading PHP, **Refresh** → *All of them* detects them again.
+
+**The API's `since` does not see a refreshed type.** The listing's `since`
+is a feed of hashes written, and a type a refresh detects writes no hash.
+After a refresh, read the listing whole. See
+[MIME types](api-v1.md#mime-types).
+
+**Backups and imports leave the types out.** A type's id is this instance's,
+and the content is where it comes from: after an import, **Refresh**
+detects them. `fcias:reset --hashes` removes them with the hashes.
+
+The status counts the types, on the *Advanced* tab and in `occ fcias:status`.
+For a script, `occ fcias:mimetype:is-enabled --quiet` exits 0 while
+detection is on, and 3 while it is off or unavailable.
 
 ## How does the public API work?
 
