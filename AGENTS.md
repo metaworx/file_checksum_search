@@ -1,10 +1,10 @@
 <!-- GENERATED FILE - DO NOT EDIT.
      Source: shared/_AGENTS.md + project/_CONTRACT.md
      Regenerate: GUIDELINES/shared/tools/sync-docs.sh
-     Contract version: v3.15.0 -->
+     Contract version: v3.19.0 -->
 
 
-# AI Agent Guidelines (v3.15.0)
+# AI Agent Guidelines (v3.19.0)
 
 Core behavioral rules for AI agents working on this codebase.  
 All agents MUST comply.
@@ -14,7 +14,7 @@ refer to linked documents for extended guidance.
 ## Contents
 
 <!-- BEGIN GENERATED CONTENTS - do not edit; run "GUIDELINES/shared/tools/sync-docs.sh" -->
-- AI Agent Guidelines (v3.15.0)
+- AI Agent Guidelines (v3.19.0)
   1. Critical Behavioral Rules (STRICT)
     - 1.1 Gate Message Mechanism
     - 1.2 Action Plan (AP) Requirement
@@ -69,6 +69,8 @@ refer to linked documents for extended guidance.
   A runtime that can end a turn only through a tool call, as Roo's can,
   carries a short label there and nothing more:
   the gate is the text, and the tool is not where the choice is explained.
+- A gate message is **brief**: what the user needs in order to decide.
+  How the work went is not retold; `GUIDELINES/shared/GATE_WORKFLOW.md` §4.
 - A gate message is the **only** valid way to request user confirmation.
   Echoing "waiting for input" via shell commands is a **violation** of this rule.
 - A visual workflow diagram is available in `GUIDELINES/shared/GATE_WORKFLOW.md`.
@@ -88,6 +90,8 @@ refer to linked documents for extended guidance.
 - Before `git commit`, the agent MUST present a commit gate.
   [`GUIDELINES/shared/COMMIT.md`](GUIDELINES/shared/COMMIT.md) §7.1 states what it
   must contain, and §7.2 the commands that follow it.
+- A run under `EXEC++` or `PLAN++` commits under that signal instead,
+  within the scope it was given (COMMIT.md §7.1).
 
 ### 1.4 `undo_edit` Authorization (`ROLLBACK`)
 
@@ -146,7 +150,23 @@ If overlap exists, follow the canonical owner document for that rule family.
   Combined with other keywords:
   include answer in new gate message (if task-relevant) or with the result of
   the gated action.
-- **`PLAN`** – Produce/update AP, present it, send gate message.
+- **`PLAN`** – Investigate, and present the preliminary findings as a TL;DR gate
+  (`GUIDELINES/shared/GATE_WORKFLOW.md` §7.1) before any plan file is written.
+  Where the user's message already settles the design, write the AP at once,
+  as `PLAN+` does.
+  - **`PLAN+`** – Write the AP revision without a TL;DR gate, persist it,
+    and send the plan gate.
+  - **`PLAN++`** – `PLAN+`, then carry on: register the plan and execute it,
+    as far as the scope the agent states for it before it starts -
+    a retirement, a release or a push included where stated (§1.1).
+- **`EVAL`** – Evaluate the proposals and questions in the message:
+  weigh each, recommend with the reason,
+  and say what is settled and what is still open.
+  It writes no plan revision and resumes no work - mid-run included -
+  whatever state the work is in:
+  only an `EXEC` or `PLAN` signal does.
+  That is what makes a message carrying it safe to send.
+  A long evaluation MAY go to a UAMF in `GUIDELINES/messages/`.
 - **`EXEC`** – Execute gated action(s).
   The signals and their scope are `GUIDELINES/shared/GATE_WORKFLOW.md` §6.
 - **`ROLLBACK`** – Authorize an `undo_edit` action (see
@@ -160,7 +180,10 @@ Latest `<issue_update>` overrides earlier `<issue_description>`.
 ### 3.1 First Response Contract
 
 - Non-trivial `[CODE]` task without inline `EXEC`: produce AP, persist AP UAMF,
-  send gate.
+  send gate - after a TL;DR gate where `PLAN` asks for one (§3).
+- A reply to a plan gate that carries no keyword is an `EVAL`:
+  its proposals and questions are weighed, and the plan is not revised
+  until a `PLAN` signal says so.
 - If the same user message includes clear execution authorization (`EXEC` family):
   execute only the authorized scope.
 - Before `git commit`: always send a commit gate with full proposed commit message.
@@ -224,6 +247,21 @@ Citation rules follow from that, and they are absolute:
 
 ### 5.2 Required Sections
 
+- **TL;DR**, first after the title:
+  what the plan does and how, for a reader with half a minute.
+  - One or two sentences;
+    then bullets in telegram style - keywords, `→` from before to after,
+    no sentence where a phrase does;
+    then at most a few short paragraphs, or one table.
+    Unlike a commit's `Key changes` (`GUIDELINES/shared/COMMIT.md` §3.2),
+    these bullets are scanned, not read.
+  - It SHOULD stay within about 150 words.
+  - It MUST include `### Blocks`:
+    every block of the Implementation Plan, numbered as there, one line each,
+    and outside that budget.
+  - It summarises and adds nothing.
+    Where it and the body differ, the body holds.
+  - Each revision rewrites it for the plan as it then stands.
 - **Discussion** (if any)
 - **Analysis**
 - **Implementation Plan** (step‑by‑step;
@@ -233,6 +271,9 @@ Citation rules follow from that, and they are absolute:
 
 ### 5.3 Persistence (UAMF)
 
+- While a plan is open, every message the agent sends starts with a link to
+  its newest revision, and to that revision's NOTEs - not to every file of it -
+  so that nobody has to look for it.
 - Write each AP revision as a [UAMF](#4-user-accessible-message-files-uamf) in
   `GUIDELINES/wip/` before modifying any project files,
   and commit it before any commit names a block of it.
@@ -255,6 +296,11 @@ without a new revision.
 - It is **for** a decision, a measured fact,
   or a change to a step while the plan's blocks stand.
   Where the blocks change, it SHOULD be a new revision instead.
+- It **records** where the work went differently from the plan,
+  where that matters; the completion gate names it
+  (`GUIDELINES/shared/GATE_WORKFLOW.md` §7.7).
+  A run's deviations MAY be collected in one NOTE, committed at its end,
+  rather than one at each step.
 - It is a **UAMF** like any other, never overwritten,
   so a correction is another NOTE.
 - Its **record** is a `File-revision-v1` trailer in the commit that adds it,
