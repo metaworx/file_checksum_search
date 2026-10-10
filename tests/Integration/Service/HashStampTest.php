@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Integration\Service;
 
 use OCA\FileChecksumSearch\Public\ChecksumApi;
+use OCA\FileChecksumSearch\Service\DrainOutcome;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
@@ -413,6 +414,62 @@ class HashStampTest
 				);
 			}
 		}
+	}
+
+	/**
+	 * A file deleted on disk behind Nextcloud's back keeps its filecache row,
+	 * and every read of it fails. The second failed read finds the storage
+	 * without it, and the file leaves the queue as `stale:gone`, its hashes
+	 * gone with it; the sweep and Reapply leave it alone; written again, it
+	 * is queued as any written file is.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAFileGoneFromItsStorageLeavesTheQueueOnItsSecondFailedRead(): void
+	{
+		$file = $this->createTestFile( 'fcias_gone', 'there, then not' );
+		$this->assertTrue( $this->hashCalc->recalcFileHash( $file, 'sha256' )['success'] );
+
+		// An algorithm the file lacks, so that the drain has to read it.
+		$rule = $this->ruleFor(
+			$file,
+			MetadataService::PENDING_MODE_MISSING,
+			[
+				'sha256',
+				'md5',
+			],
+		);
+		$this->metadataService->markPending( $file->getId(), MetadataService::PENDING_PREFIX . MetadataService::PENDING_MODE_MISSING );
+
+		$path = $file->getStorage()->getLocalFile( $file->getInternalPath() );
+		$this->assertIsString( $path );
+		$this->assertTrue( unlink( $path ) );
+
+		$this->assertSame(
+			DrainOutcome::FAILED,
+			$this->hashCalc->processFile( $file->getId(), MetadataService::PENDING_MODE_MISSING )->kind,
+			'One failed read is not enough.',
+		);
+		$this->assertSame(
+			DrainOutcome::GONE,
+			$this->hashCalc->processFile( $file->getId(), MetadataService::PENDING_MODE_MISSING )->kind,
+		);
+		$this->assertSame( MetadataService::STATE_GONE, $this->metadataService->getMarker( $file->getId() ) );
+		$this->assertSame( [], $this->hashesOf( $file->getId() ) );
+		$this->assertSame( [], $this->hashRowsOf( $file->getId() ) );
+
+		$this->ruleService->processRule( $rule );
+		$this->ruleService->applyRule( $rule );
+
+		$this->assertSame( MetadataService::STATE_GONE, $this->metadataService->getMarker( $file->getId() ), 'The sweep and Reapply leave it alone.' );
+
+		$this->fresh( $file )->putContent( 'back again' );
+
+		$this->assertSame(
+			MetadataService::PENDING_PREFIX . MetadataService::PENDING_MODE_MISSING,
+			$this->metadataService->getMarker( $file->getId() ),
+			'Written again, it is queued.',
+		);
 	}
 
 	/**

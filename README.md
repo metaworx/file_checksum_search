@@ -566,6 +566,11 @@ tried first. `fcias:queue:drain --all` walks the queue once, by file id, and tri
 waiting: one that fails is passed rather than taken again. A file on a storage Nextcloud holds
 unavailable — it fails every call to an external storage at once for ten minutes after the first
 that failed — counts its attempt without being read, until Nextcloud tries the storage again.
+A file the filecache lists and its storage no longer has — deleted on disk behind Nextcloud's
+back, or left in the filecache below a folder whose own row is gone — leaves the queue on its
+second failed read as `stale:gone`, its hashes dropped: the sweep leaves it alone, a write
+queues it again, and `occ files:scan` brings the filecache in line where it can reach the file
+([FAQ › Files the filecache lists and the storage does not have](docs/FAQ.md#files-the-filecache-lists-and-the-storage-does-not-have)).
 
 The drain, and the app's other jobs, can run outside Nextcloud's cron, at a lower priority: see
 [FAQ › Can the app's jobs run outside Nextcloud's cron?](docs/FAQ.md#can-the-apps-jobs-run-outside-nextclouds-cron).

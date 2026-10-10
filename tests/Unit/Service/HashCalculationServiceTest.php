@@ -1185,6 +1185,78 @@ class HashCalculationServiceTest
 	}
 
 	/**
+	 * A read that fails for a file its storage does not have leaves the queue
+	 * as `stale:gone` on the second failed attempt, not the first: one
+	 * negative answer from a remote storage can be a passing fault. A file
+	 * the storage has stays queued, however often its read fails.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	#[DataProvider( 'goneReads' )]
+	public function testAFileGoneFromItsStorageLeavesTheQueueOnItsSecondFailedRead(
+		int    $attempts,
+		bool   $exists,
+		string $kind,
+	): void
+	{
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$this->metadataService->method( 'getMetadata' )
+		                      ->willReturn( $metadata )
+		;
+		$this->service->method( 'recalcHashes' )
+		              ->willReturn(
+			              [
+				              'results' => [
+					              'sha1' => [
+						              'success' => false,
+						              'hash'    => '',
+						              'existed' => false,
+						              'error'   => 'Could not open the file for reading.',
+						              'reason'  => 'Unable to open file for reading.',
+					              ],
+				              ],
+				              'locked'  => false,
+			              ],
+		              )
+		;
+		$this->metadataService->method( 'recordFailedAttempt' )
+		                      ->willReturn( $attempts )
+		;
+
+		$storage = $this->createMock( IStorage::class );
+		$storage->method( 'file_exists' )
+		        ->with( 'files/gone.txt' )
+		        ->willReturn( $exists )
+		;
+		$file = $this->createMock( File::class );
+		$file->method( 'getId' )
+		     ->willReturn( 42 )
+		;
+		$file->method( 'getMTime' )
+		     ->willReturn( 1000 )
+		;
+		$file->method( 'getInternalPath' )
+		     ->willReturn( 'files/gone.txt' )
+		;
+		$file->method( 'getStorage' )
+		     ->willReturn( $storage )
+		;
+		$this->filecacheService->method( 'getFile' )
+		                       ->willReturn( $file )
+		;
+
+		$this->metadataService->expects( $kind === DrainOutcome::GONE ? $this->once() : $this->never() )
+		                      ->method( 'markGone' )
+		                      ->with( 42, $this->greaterThanOrEqual( 1000 ) )
+		;
+
+		$outcome = $this->service->processFile( 42, 'missing', [ 'sha1' ] );
+
+		$this->assertSame( $kind, $outcome->kind );
+		$this->assertSame( $kind === DrainOutcome::GONE, $outcome->hasLeftTheQueue() );
+	}
+
+	/**
 	 * A current file holding none of the rule's algorithms: `auto` reads
 	 * nothing to add one, and the drain says it had nothing to compute.
 	 *
@@ -3164,6 +3236,21 @@ class HashCalculationServiceTest
 			'one algorithm, local'  => [ [ 'sha1' ], true ],
 			'two algorithms, local' => [ [ 'sha1', 'md5' ], true ],
 			'one algorithm, remote' => [ [ 'sha1' ], false ],
+		];
+	}
+
+	/**
+	 * The file's failed reads, this one included, whether its storage has it,
+	 * and what the drain makes of it.
+	 *
+	 * @return array<string, array{0: int, 1: bool, 2: string}>
+	 */
+	public static function goneReads(): array
+	{
+		return [
+			'missing, first failed read'  => [ 1, false, DrainOutcome::FAILED ],
+			'missing, second failed read' => [ 2, false, DrainOutcome::GONE ],
+			'there, second failed read'   => [ 2, true, DrainOutcome::FAILED ],
 		];
 	}
 

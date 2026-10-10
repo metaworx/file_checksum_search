@@ -46,7 +46,7 @@ function mockFetch(options: { rules?: unknown[], idleBannerAcknowledged?: boolea
 				rowCount: 3,
 				pendingStats: { 'pending:auto': 5 },
 				pendingFailed: 2,
-				staleStats: { 'stale:eroded': 4, 'stale:reset': 9 },
+				staleStats: { 'stale:eroded': 4, 'stale:reset': 9, 'stale:gone': 2 },
 				jobs: {
 					rule_sweep: {
 						lastRun: 1700000000,
@@ -221,9 +221,11 @@ describe('settings-admin App', () => {
 		// heartbeat. Broken down by reason, because erosion heals itself and
 		// a reset is waiting for something — different things to do about them.
 		const untrusted = wrapper.find('#fcias-status-untrusted').text()
-		expect(untrusted).toContain('Total: 13')
+		expect(untrusted).toContain('Total: 15')
 		expect(untrusted).toContain('Eroded: 4')
 		expect(untrusted).toContain('Reset: 9')
+		expect(untrusted).toContain('Gone: 2')
+		expect(untrusted).toContain('scanning the files brings the list in line')
 		expect(untrusted).toContain('it gets them back once a rule covers it again')
 		// Each counter is a translated text; the server's keys (marked, done)
 		// never reach the page, except for a job the page does not know.

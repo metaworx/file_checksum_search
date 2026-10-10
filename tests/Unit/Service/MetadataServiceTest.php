@@ -2978,9 +2978,10 @@ class MetadataServiceTest
 	}
 
 	/**
-	 * Computing a file's hashes settles its place on the queue and its
-	 * erosion, and nothing else: a disowned file's hashes may still be in
-	 * its document.
+	 * Computing a file's hashes settles its place on the queue, its erosion
+	 * and its being gone from its storage, which the read has just shown it
+	 * is not; and nothing else: a disowned file's hashes may still be in its
+	 * document.
 	 */
 	public function testClearingTheComputedMarkerLeavesADisownedFileDisowned(): void
 	{
@@ -2993,6 +2994,7 @@ class MetadataServiceTest
 			[
 				MetadataService::PENDING_LIKE,
 				MetadataService::STATE_ERODED,
+				MetadataService::STATE_GONE,
 			],
 			$this->capturedLikes,
 		);

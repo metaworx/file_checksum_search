@@ -156,9 +156,10 @@ const pendingTotal = (stats: Record<string, number> = {}) => Object.values(stats
 /**
  * What each untrusted state means, in the terms an operator has to act on.
  *
- * The two are opposites in what they leave behind: erosion has already thrown
- * the hashes away, a reset has not yet — which is why one heals itself and the
- * other is waiting for something to happen.
+ * Erosion and a reset are opposites in what they leave behind: erosion has
+ * already thrown the hashes away, a reset has not yet — which is why one heals
+ * itself and the other is waiting for something to happen. A file gone from its
+ * storage waits for the filecache, which only a scan brings in line.
  */
 const STALE_REASONS: Record<string, { label: string, hint: string }> = {
 	'stale:eroded': {
@@ -170,6 +171,11 @@ const STALE_REASONS: Record<string, { label: string, hint: string }> = {
 		// TRANSLATORS: the state of checksums a reset has made invalid; a past participle, not the action
 		label: t('file_checksum_search', 'Reset'),
 		hint: t('file_checksum_search', 'invalidated by a reset: already hidden from search, and pending deletion by the background job'),
+	},
+	'stale:gone': {
+		// TRANSLATORS: the state of a file Nextcloud still lists while its storage no longer has it; an adjective, "missing"
+		label: t('file_checksum_search', 'Gone'),
+		hint: t('file_checksum_search', 'Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line'),
 	},
 }
 

@@ -327,7 +327,7 @@ class ProcessPendingUpdatesTest
 					                      MetadataService::FIELD_FILE_ID           => $fileId,
 					                      MetadataService::FIELD_META_VALUE_STRING => 'pending:auto',
 				                      ],
-				                      [ 1, 2, 3, 4 ],
+				                      [ 1, 2, 3, 4, 5 ],
 			                      ),
 		                      )
 		;
@@ -336,6 +336,7 @@ class ProcessPendingUpdatesTest
 			               DrainOutcome::hashed(),
 			               DrainOutcome::dropped( 'no include rule governs it' ),
 			               DrainOutcome::typed(),
+			               DrainOutcome::gone(),
 			               DrainOutcome::hashed(),
 		               )
 		;
@@ -348,8 +349,9 @@ class ProcessPendingUpdatesTest
 				               'hashed'   => 2,
 				               'typed'    => 1,
 				               'dropped'  => 1,
+				               'gone'     => 1,
 				               'failed'   => 0,
-				               'total'    => 4,
+				               'total'    => 5,
 				               'disowned' => 0,
 			               ],
 		               )

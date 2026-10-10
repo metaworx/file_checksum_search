@@ -830,14 +830,14 @@ class HashCalculationService
 			$failure = $this->applyBatchResults(
 				$this->recalcHashes( $file ?? $fileId, $algos, true, $metadata ),
 				$algos,
-				$fileId,
+				$file ?? $fileId,
 				$mode,
 				$metadata,
 			);
 
 			if ( $failure !== null )
 			{
-				return DrainOutcome::failed( $failure );
+				return $failure;
 			}
 
 			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $stamp, true );
@@ -860,14 +860,14 @@ class HashCalculationService
 				$failure = $this->applyBatchResults(
 					$this->recalcHashes( $file ?? $fileId, $algosToRecalc, true, $metadata ),
 					$algosToRecalc,
-					$fileId,
+					$file ?? $fileId,
 					$mode,
 					$metadata,
 				);
 
 				if ( $failure !== null )
 				{
-					return DrainOutcome::failed( $failure );
+					return $failure;
 				}
 
 				$done = DrainOutcome::hashed();
@@ -925,25 +925,30 @@ class HashCalculationService
 	 * attempt and saying why on the first failing algorithm.
 	 *
 	 * The file stays queued, behind the files with fewer failed attempts
-	 * ({@see MetadataService::recordFailedAttempt()}). Its first failure is
-	 * a warning; the retries after it, a file the drain takes on every pass
-	 * until it reads again, are debug.
+	 * ({@see MetadataService::recordFailedAttempt()}), unless the read
+	 * failed for a file gone from its storage ({@see failedOrGone()}). Its
+	 * first failure is a warning; the retries after it, a file the drain
+	 * takes on every pass until it reads again, are debug.
 	 *
 	 * @param  array{results: array<string, array{success: bool, hash: string, existed: bool, error?: string, reason?: string}>, locked: bool}  $batch
 	 *                                                                                                                                         What recalcHashes() returned.
 	 * @param  string[]                                                                                                                        $algos
 	 *
-	 * @return string|null  Null when every algorithm was applied, else why
-	 *                      not, in English.
+	 * @return DrainOutcome|null  Null when every algorithm was applied, else
+	 *                            the failure, or the file gone.
 	 */
 	private function applyBatchResults(
 		array          $batch,
 		array          $algos,
-		int            $fileId,
+		int|File       $file,
 		string         $mode,
 		IFilesMetadata $metadata,
-	): ?string
+	): ?DrainOutcome
 	{
+		$fileId = $file instanceof File
+			? $file->getId()
+			: $file;
+
 		foreach ( $algos as $algo )
 		{
 			$result = $batch['results'][ $algo ] ?? null;
@@ -976,7 +981,10 @@ class HashCalculationService
 					],
 				);
 
-				return $reason;
+				// A busy file, or one written to during the read, is there.
+				return $batch['locked']
+					? DrainOutcome::failed( $reason )
+					: $this->failedOrGone( $file, $attempts, $reason );
 			}
 
 			// Not indexed by Nextcloud — see MetadataService::syncHashIndex(),
@@ -994,6 +1002,57 @@ class HashCalculationService
 		}
 
 		return null;
+	}
+
+	/**
+	 * A failed read's outcome: a failure, the file left queued; or, where the
+	 * storage says the file is not there and an attempt before this one
+	 * failed as well, the file gone ({@see MetadataService::markGone()}), off
+	 * the queue for good rather than retried for ever.
+	 *
+	 * Two attempts, because one negative answer from a remote storage can be
+	 * a passing fault. Where the storage cannot answer, the file stays
+	 * queued.
+	 *
+	 * @param  int  $attempts  The file's failed attempts, this one included.
+	 */
+	private function failedOrGone(
+		int|File $file,
+		int      $attempts,
+		string   $reason,
+	): DrainOutcome
+	{
+		if ( $attempts < 2 )
+		{
+			return DrainOutcome::failed( $reason );
+		}
+
+		try
+		{
+			$file = $this->filecacheService->getFile( $file );
+
+			if ( $file->getStorage()->file_exists( $file->getInternalPath() ) )
+			{
+				return DrainOutcome::failed( $reason );
+			}
+
+			$this->metadataService->markGone( $file->getId(), max( time(), $file->getMTime() ) );
+		}
+		catch ( Throwable )
+		{
+			return DrainOutcome::failed( $reason );
+		}
+
+		$this->logger->info(
+			'FCIAS: fileId {fileId} is in the filecache, and its storage does not have it; it leaves the queue as stale:gone. `occ files:scan` brings the filecache in line where it can reach the file.',
+			[
+				'app'    => Application::APP_ID,
+				'fileId' => $file->getId(),
+				'reason' => $reason,
+			],
+		);
+
+		return DrainOutcome::gone();
 	}
 
 	/**
@@ -1548,7 +1607,7 @@ class HashCalculationService
 		}
 		catch ( Throwable $e )
 		{
-			return $this->typeReadFailed( $fileId, $e->getMessage() );
+			return $this->typeReadFailed( $fileId, $e->getMessage(), $file );
 		}
 
 		if ( $outcome === self::TYPE_BUSY || $outcome === self::TYPE_CHANGED )
@@ -1579,12 +1638,16 @@ class HashCalculationService
 	 * Count a failed read for the MIME type, as {@see applyBatchResults()}
 	 * counts a hash's: a warning on the file's first, debug after.
 	 *
-	 * @return DrainOutcome  A failure: the file stays queued.
+	 * @param  File|null  $read  The file whose read failed, which may be gone
+	 *                           from its storage; null for a busy one.
+	 *
+	 * @return DrainOutcome  A failure, the file left queued; or the file gone.
 	 * @throws \OCP\DB\Exception
 	 */
 	private function typeReadFailed(
-		int    $fileId,
-		string $reason,
+		int     $fileId,
+		string  $reason,
+		?File   $read = null,
 	): DrainOutcome
 	{
 		$attempts = $this->metadataService->recordFailedAttempt( $fileId, MetadataService::PENDING_MIME );
@@ -1602,7 +1665,9 @@ class HashCalculationService
 			],
 		);
 
-		return DrainOutcome::failed( $reason );
+		return $read === null
+			? DrainOutcome::failed( $reason )
+			: $this->failedOrGone( $read, $attempts, $reason );
 	}
 
 	/**
@@ -1695,9 +1760,13 @@ class HashCalculationService
 		{
 			// Both calls say failure with false. Returned, it met the string
 			// return type as a TypeError; thrown, it is the same refusal the
-			// stream path below gives an unreadable file.
+			// stream path below gives an unreadable file. A file gone from
+			// the disk is asked after first: hash_file() would warn of it
+			// besides, on every attempt the drain makes.
 			$absolutePath = $storage->getLocalFile( $file->getInternalPath() );
-			$hash         = $absolutePath === false ? false : hash_file( $algo, $absolutePath );
+			$hash         = $absolutePath === false || ! is_readable( $absolutePath )
+				? false
+				: hash_file( $algo, $absolutePath );
 
 			if ( $hash === false )
 			{

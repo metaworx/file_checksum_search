@@ -496,6 +496,10 @@ msgstr "Padrão glob ao qual o caminho do arquivo deve corresponder. \"**\" corr
 msgid "Glob pattern the file path must match. \"**\" matches every file; \"Documents/**\" matches everything below that folder. Rules are checked in order and the first match wins."
 msgstr "Padrão glob ao qual o caminho do arquivo deve corresponder. \"**\" corresponde a todos os arquivos; \"Documents/**\" corresponde a tudo abaixo dessa pasta. As regras são avaliadas em ordem, e a primeira correspondência vence."
 
+#. TRANSLATORS: the state of a file Nextcloud still lists while its storage no longer has it; an adjective, "missing"
+msgid "Gone"
+msgstr "Desaparecidos"
+
 msgid "Grant revoked."
 msgstr "Concessão revogada."
 
@@ -676,6 +680,9 @@ msgstr "Nova regra"
 
 msgid "Next"
 msgstr "Próxima"
+
+msgid "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line"
+msgstr "o Nextcloud ainda lista o arquivo, mas ele não está mais no armazenamento, por isso as somas de verificação dele foram excluídas; escanear os arquivos põe a lista em dia"
 
 msgid "No"
 msgstr "Não"

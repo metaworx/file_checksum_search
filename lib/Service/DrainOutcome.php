@@ -36,6 +36,12 @@ readonly class DrainOutcome
 	/** The mark dropped unread: what it asked for is not wanted any more. */
 	public const DROPPED = 'dropped';
 
+	/**
+	 * Off the queue as `stale:gone`: the filecache lists it, and its storage
+	 * does not have it.
+	 */
+	public const GONE = 'gone';
+
 	/** It stays queued, behind the files that failed fewer times. */
 	public const FAILED = 'failed';
 
@@ -46,6 +52,7 @@ readonly class DrainOutcome
 		self::STAMPED,
 		self::EMPTIED,
 		self::DROPPED,
+		self::GONE,
 		self::FAILED,
 	];
 
@@ -86,6 +93,11 @@ readonly class DrainOutcome
 		return new self( self::DROPPED, $reason );
 	}
 
+	public static function gone(): self
+	{
+		return new self( self::GONE, 'the filecache lists it, and its storage does not have it; `occ files:scan` brings the filecache in line' );
+	}
+
 	public static function failed( string $reason ): self
 	{
 		return new self( self::FAILED, $reason );
@@ -114,6 +126,7 @@ readonly class DrainOutcome
 			self::HASHED  => sprintf( 'fileId %d hashed.', $fileId ),
 			self::FAILED  => sprintf( 'fileId %d could not be hashed: %s.', $fileId, $this->reason ?? 'unknown' ),
 			self::DROPPED => sprintf( 'fileId %d dropped unread: %s.', $fileId, $this->reason ?? 'unknown' ),
+			self::GONE    => sprintf( 'fileId %d gone from its storage: %s.', $fileId, $this->reason ?? '' ),
 			default       => sprintf( 'fileId %d %s: %s.', $fileId, $this->kind, $this->reason ?? '' ),
 		};
 	}

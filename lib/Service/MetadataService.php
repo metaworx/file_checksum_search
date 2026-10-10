@@ -148,6 +148,12 @@ class MetadataService
 
 	public const STATE_RESET = self::STATE_STALE_PREFIX . 'reset';
 
+	/**
+	 * The filecache lists the file and its storage does not have it: the
+	 * drain found it so on two failed reads in a row ({@see markGone()}).
+	 */
+	public const STATE_GONE = self::STATE_STALE_PREFIX . 'gone';
+
 	public const STALE_LIKE = self::STATE_STALE_PREFIX . '%';
 
 	/** The value written before the states were namespaced; migrated by repair. */
@@ -1192,6 +1198,37 @@ class MetadataService
 	}
 
 	/**
+	 * Record that a queued file is gone from its storage, though the
+	 * filecache still lists it, and take it off the queue.
+	 *
+	 * Strips every stored hash, which described content no longer there,
+	 * and marks it `stale:gone` under a stamp of $stamp: a stamp over a
+	 * state the sweep and Reapply take for fresh, so neither queues the file
+	 * again while the filecache keeps its row. The state replaces the queue
+	 * mark. A write to the file, or a calculation that reads it, ends it; the
+	 * orphan purge takes it with the filecache row.
+	 *
+	 * @param  int  $stamp  No earlier than the filecache's mtime.
+	 *
+	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
+	 */
+	public function markGone(
+		int $fileId,
+		int $stamp,
+	): void
+	{
+		$metadata = $this->getMetadata( $fileId );
+		$metadata->removeStartsWith( self::KEY_FILE_CHECKSUM_PREFIX );
+		$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, $stamp, true );
+		$this->metadataManager->saveMetadata( $metadata );
+
+		$this->syncHashIndex( $fileId, [] );
+		$this->syncMimeTypeRow( $fileId, null );
+
+		$this->writeState( $fileId, self::STATE_GONE );
+	}
+
+	/**
 	 * Disown the stored hashes of many files at once.
 	 *
 	 * Writes the marker only: the hashes and the freshness stamp stay exactly
@@ -2202,7 +2239,8 @@ class MetadataService
 
 	/**
 	 * Clear what computing a file's hashes settles, once they are saved
-	 * current: its place on the queue, and its erosion. A disowned file
+	 * current: its place on the queue, its erosion, and its being gone from
+	 * its storage, which a read has just shown it is not. A disowned file
 	 * stays disowned — the hashes it was disowned for may still be in its
 	 * document, and the drain or an import replaces them.
 	 *
@@ -2215,7 +2253,7 @@ class MetadataService
 	 */
 	public function clearComputedMarker( int $fileId ): bool
 	{
-		return $this->deleteState( $fileId, self::PENDING_LIKE, self::STATE_ERODED ) > 0;
+		return $this->deleteState( $fileId, self::PENDING_LIKE, self::STATE_ERODED, self::STATE_GONE ) > 0;
 	}
 
 	/**

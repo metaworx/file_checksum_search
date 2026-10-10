@@ -90,8 +90,13 @@ rather than taking it again, and stops at the end of the queue.
 
 It counts what it did with the files it took: hashed, their MIME type read,
 nothing to compute, emptied under <info>lazy</info>, dropped unread because no include rule
-wants them any more, or failed. <info>-v</info> names each file it did not hash, and why;
-<info>-vv</info> names the hashed ones too.
+wants them any more, gone from their storage though the filecache lists them,
+or failed. <info>-v</info> names each file it did not hash, and why; <info>-vv</info> names the
+hashed ones too.
+
+A file whose read fails twice while its storage says it does not have it leaves
+the queue as <comment>stale:gone</comment> rather than being tried for ever: <comment>occ files:scan</comment>
+brings the filecache in line, where it can reach the file.
 
 This reads file content, which is why it is not one of <comment>fcias:repair</comment>'s steps:
 those reconcile what the instance already holds, and run on every upgrade.
@@ -243,6 +248,7 @@ HELP,
 				DrainOutcome::STAMPED => '%d with nothing to compute',
 				DrainOutcome::EMPTIED => '%d emptied (lazy)',
 				DrainOutcome::DROPPED => '%d dropped unread',
+				DrainOutcome::GONE    => '%d gone from their storage',
 			] as $kind => $format
 		)
 		{

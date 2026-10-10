@@ -282,6 +282,23 @@ class QueueDrainTest
 	}
 
 	/**
+	 * A file gone from its storage leaves the queue, and the run says so,
+	 * apart from a failure.
+	 */
+	public function testTheRunCountsAFileGoneFromItsStorage(): void
+	{
+		$queue = $this->queueHolding( [ 1, 2 ] );
+		$this->hashing( $queue, times: 2, outcomes: [ 2 => DrainOutcome::gone() ] );
+
+		$this->tester->execute( [ '--all' => true ], [ 'verbosity' => OutputInterface::VERBOSITY_VERBOSE ] );
+
+		$display = $this->tester->getDisplay();
+		$this->assertStringContainsString( 'Took 2 files: 1 hashed, 1 gone from their storage, 0 failed.', $display );
+		$this->assertStringContainsString( 'fileId 2 gone from its storage: the filecache lists it', $display );
+		$this->assertSame( [], $queue->queued, 'The gone file left the queue.' );
+	}
+
+	/**
 	 * A queue of $fileIds that answers the drain as the real one does: a
 	 * walk's fetch from its lower bound by file id, any other in file id
 	 * order too, these files having no failed attempts to order by. After

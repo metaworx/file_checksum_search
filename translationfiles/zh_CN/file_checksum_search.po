@@ -492,6 +492,10 @@ msgstr "文件路径必须匹配的 Glob 表达式。\"**\" 匹配所有文件�
 msgid "Glob pattern the file path must match. \"**\" matches every file; \"Documents/**\" matches everything below that folder. Rules are checked in order and the first match wins."
 msgstr "文件路径必须匹配的 Glob 表达式。\"**\" 匹配所有文件；\"Documents/**\" 匹配该文件夹下的所有内容。规则按顺序检查，第一条匹配的规则生效。"
 
+#. TRANSLATORS: the state of a file Nextcloud still lists while its storage no longer has it; an adjective, "missing"
+msgid "Gone"
+msgstr "已消失"
+
 msgid "Grant revoked."
 msgstr "授权已撤销。"
 
@@ -672,6 +676,9 @@ msgstr "新规则"
 
 msgid "Next"
 msgstr "下一页"
+
+msgid "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line"
+msgstr "Nextcloud 仍列出该文件，但其存储中已没有该文件，因此其校验和已被删除；扫描文件即可让列表与存储重新一致"
 
 msgid "No"
 msgstr "否"

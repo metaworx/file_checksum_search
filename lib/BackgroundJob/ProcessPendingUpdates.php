@@ -196,9 +196,9 @@ class ProcessPendingUpdates
 
 	/**
 	 * A run's counts as the status lists them: the files hashed, dropped
-	 * unread and failed, always; a MIME type read, nothing to compute and
-	 * `lazy`'s emptied only where the run did that at all; then the files it
-	 * took, and the disowned ones it cleared.
+	 * unread and failed, always; a MIME type read, nothing to compute,
+	 * `lazy`'s emptied and gone from their storage only where the run met
+	 * them at all; then the files it took, and the disowned ones it cleared.
 	 *
 	 * @param  array<string, int>  $tally  Files by {@see DrainOutcome} kind.
 	 *
@@ -219,9 +219,15 @@ class ProcessPendingUpdates
 			}
 		}
 
+		$counts['dropped'] = $tally[ DrainOutcome::DROPPED ];
+
+		if ( $tally[ DrainOutcome::GONE ] > 0 )
+		{
+			$counts[ DrainOutcome::GONE ] = $tally[ DrainOutcome::GONE ];
+		}
+
 		return [
 			...$counts,
-			'dropped'  => $tally[ DrainOutcome::DROPPED ],
 			'failed'   => $tally[ DrainOutcome::FAILED ],
 			'total'    => array_sum( $tally ),
 			'disowned' => $disowned,

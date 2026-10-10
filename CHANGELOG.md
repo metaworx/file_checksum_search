@@ -37,6 +37,11 @@ the first stable release.
   the sweep and Reapply, those an earlier `auto` pass stamped without
   checksums included (README, *Modes*).
 
+- A queued file that the filecache lists and its storage no longer has
+  leaves the queue on its second failed read, counted as untrusted
+  (gone), its checksums deleted, instead of being retried for ever (FAQ,
+  *Files the filecache lists and the storage does not have*).
+
 ## [0.24.0] - 2026-10-08
 
 ### Added

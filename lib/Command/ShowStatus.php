@@ -271,9 +271,11 @@ class ShowStatus
 	/**
 	 * What a reason means, in the terms an operator has to act on.
 	 *
-	 * The two are opposites in what they leave behind: erosion has already
-	 * thrown the hashes away, a reset has not yet — which is why one heals
-	 * itself and the other is waiting for something to happen.
+	 * Erosion and a reset are opposites in what they leave behind: erosion
+	 * has already thrown the hashes away, a reset has not yet — which is why
+	 * one heals itself and the other is waiting for something to happen. A
+	 * file gone from its storage waits for the filecache, which only a scan
+	 * brings in line.
 	 */
 	private static function reasonFor( string $state ): string
 	{
@@ -283,6 +285,8 @@ class ShowStatus
 				. 'heals once a rule covers the file again',
 			MetadataService::STATE_RESET => 'disowned by a reset; the background job clears them, '
 				. 'or an import replaces them first',
+			MetadataService::STATE_GONE => 'listed by the filecache, not on their storage; hashes dropped; '
+				. 'occ files:scan brings the filecache in line',
 			default => 'unknown reason',
 		};
 	}

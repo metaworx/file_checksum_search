@@ -516,7 +516,10 @@ reading:
   with a breakdown by reason. *Eroded* means the file changed while no rule
   maintained its checksums, so they were deleted; it gets them back once a rule
   covers it again. *Reset* means they are still stored but disowned, already
-  hidden from search, waiting for the background job or an import.
+  hidden from search, waiting for the background job or an import. *Gone*
+  means Nextcloud still lists the file and its storage no longer has it, so
+  its checksums were deleted; see
+  [Files the filecache lists and the storage does not have](#files-the-filecache-lists-and-the-storage-does-not-have).
 - **Background jobs** — each job's last run and its counts: the *Rule sweep*,
   the *Queue drain*, the *Orphan purge*, which rides the sweep once a day
   (`orphan_purge_interval`, seconds) to forget files that no longer exist and
@@ -551,6 +554,36 @@ such as a file the filecache lists and its storage no longer has:
 ```bash
 php occ fcias:queue:drain -v
 ```
+
+### Files the filecache lists and the storage does not have
+
+Nextcloud's filecache is a copy of what each storage holds, and it can keep
+a row for a file the storage no longer has: one deleted or renamed on disk
+behind Nextcloud's back, or one below a folder whose own row was removed while
+its children's rows stayed. Every read of such a file fails with *Unable to
+open file for reading*.
+
+The queue drain does not try such a file for ever. On its second failed read,
+where the storage says the file is not there, the file leaves the queue as
+`stale:gone`: its checksums are deleted, the *Untrusted checksums* cell counts
+it as *Gone*, `fcias:queue:drain -v` names it, and the sweep and Reapply leave
+it alone. A write to the file queues it again, and so does a scan that finds
+it changed. Two reads rather than one, because a remote storage can answer
+"no such file" for a moment and mean nothing by it.
+
+What brings the filecache in line is Nextcloud's own:
+
+- `occ files:scan --path=<user>/files/<folder>` rescans a folder and removes
+  the rows of the files it no longer finds there, and adds the ones it finds;
+- `occ files:scan --all` does the same for every account, and takes long on a
+  large instance.
+
+Neither reaches a file below a folder whose own row is gone: a scan walks the
+folders the filecache still holds, and such a file is under none of them.
+`occ files:cleanup` does not either: it removes the rows of storages that no
+longer exist. Those rows stay until someone removes them from the database by
+hand; this app keeps them out of its queue meanwhile. The rows this app keeps
+for a file go once its filecache row does, with the orphan purge.
 
 ### A file's hash does not match its content
 

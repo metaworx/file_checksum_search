@@ -495,6 +495,10 @@ msgstr ""
 msgid "Glob pattern the file path must match. \"**\" matches every file; \"Documents/**\" matches everything below that folder. Rules are checked in order and the first match wins."
 msgstr ""
 
+#. TRANSLATORS: the state of a file Nextcloud still lists while its storage no longer has it; an adjective, "missing"
+msgid "Gone"
+msgstr ""
+
 msgid "Grant revoked."
 msgstr ""
 
@@ -674,6 +678,9 @@ msgid "New rule"
 msgstr ""
 
 msgid "Next"
+msgstr ""
+
+msgid "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line"
 msgstr ""
 
 msgid "No"

@@ -494,6 +494,10 @@ msgstr "Globpatroon waarmee het bestandspad moet overeenkomen. \"**\" komt overe
 msgid "Glob pattern the file path must match. \"**\" matches every file; \"Documents/**\" matches everything below that folder. Rules are checked in order and the first match wins."
 msgstr "Globpatroon waarmee het bestandspad moet overeenkomen. \"**\" komt overeen met elk bestand; \"Documents/**\" met alles onder die map. Regels worden op volgorde doorlopen, en de eerste overeenkomst wint."
 
+#. TRANSLATORS: the state of a file Nextcloud still lists while its storage no longer has it; an adjective, "missing"
+msgid "Gone"
+msgstr "Verdwenen"
+
 msgid "Grant revoked."
 msgstr "Vrijgave ingetrokken."
 
@@ -674,6 +678,9 @@ msgstr "Nieuwe regel"
 
 msgid "Next"
 msgstr "Volgende"
+
+msgid "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line"
+msgstr "Nextcloud vermeldt het bestand nog, maar het staat niet meer in de opslag, dus zijn de controlesommen ervan verwijderd; het scannen van de bestanden brengt de lijst weer op orde"
 
 msgid "No"
 msgstr "Nee"

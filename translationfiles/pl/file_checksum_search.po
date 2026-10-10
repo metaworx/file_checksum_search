@@ -498,6 +498,10 @@ msgstr "Wzorzec glob, do którego musi pasować ścieżka pliku. \"**\" pasuje d
 msgid "Glob pattern the file path must match. \"**\" matches every file; \"Documents/**\" matches everything below that folder. Rules are checked in order and the first match wins."
 msgstr "Wzorzec glob, do którego musi pasować ścieżka pliku. \"**\" pasuje do każdego pliku; \"Documents/**\" do wszystkiego poniżej tego folderu. Reguły są sprawdzane po kolei i wygrywa pierwsze dopasowanie."
 
+#. TRANSLATORS: the state of a file Nextcloud still lists while its storage no longer has it; an adjective, "missing"
+msgid "Gone"
+msgstr "Zaginione"
+
 msgid "Grant revoked."
 msgstr "Cofnięto upoważnienie."
 
@@ -678,6 +682,9 @@ msgstr "Nowa reguła"
 
 msgid "Next"
 msgstr "Następna"
+
+msgid "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line"
+msgstr "Nextcloud nadal ma plik na swojej liście, ale jego magazyn już go nie zawiera, więc jego sumy kontrolne zostały usunięte; skanowanie plików aktualizuje listę"
 
 msgid "No"
 msgstr "Nie"
