@@ -8,6 +8,7 @@
 import { reactive, toRefs } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import { OCS_API_V1 } from '../../routes'
+import { fetchFeatures, mimeTypeSwitchedOff } from '../../features'
 import { fileLink } from '../../fileLink'
 import { t } from '../../l10n'
 
@@ -39,6 +40,11 @@ export interface DuplicateGroup {
 	files: DuplicateFileItem[]
 	match_count?: number
 	mismatch_count?: number
+	/**
+	 * The type of the content the group's files share, as detected; null
+	 * where none has one, absent while the server detects none.
+	 */
+	mimetype?: string | null
 }
 
 /**
@@ -127,6 +133,16 @@ export function useDuplicates() {
 			if (state.includeEmpty) {
 				params.set('includeEmpty', '1')
 			}
+			// Each group's type, while the server detects types: asked for
+			// otherwise, the listing would be refused.
+			const asked = (await fetchFeatures()).mimetype
+			if (asked) {
+				params.set('mimetype', '1')
+			}
+			// A newer load() began while the features were read: it asks.
+			if (signal.aborted) {
+				return
+			}
 
 			// A scope means the cross-account route. It carries the password
 			// confirmation the tab has already been through; a 403 here means
@@ -144,8 +160,11 @@ export function useDuplicates() {
 				}
 			}
 
-			const url = `${generateOcsUrl(route)}?${params.toString()}`
-			const response = await fetch(url, { signal })
+			let response = await fetch(`${generateOcsUrl(route)}?${params.toString()}`, { signal })
+			if (await mimeTypeSwitchedOff(response, asked)) {
+				params.delete('mimetype')
+				response = await fetch(`${generateOcsUrl(route)}?${params.toString()}`, { signal })
+			}
 			if (response.status === 403 && scoped) {
 				state.groups = []
 				state.error = t('file_checksum_search', 'That view needs your password confirmed again, or is not yours to look at.')

@@ -17,6 +17,7 @@ import AlgorithmSection from './AlgorithmSection.vue'
 import PermissionSection from './PermissionSection.vue'
 import SudoTokensTab from './SudoTokensTab.vue'
 import TunablesSection from './TunablesSection.vue'
+import MimeTypeSection from './MimeTypeSection.vue'
 import DocsViewer from '../docs-vue/DocsViewer.vue'
 import { useAdminSettings } from './composables/useAdminSettings'
 import { toastSuccess } from '../toast'
@@ -192,6 +193,10 @@ const JOB_LABELS: Record<string, string> = {
 	stamp_check: t('file_checksum_search', 'Checksum stamp check'),
 	// TRANSLATORS: a background job's name: once an hour it counts the indexed checksums, the number this status shows
 	checksum_count: t('file_checksum_search', 'Checksum count'),
+	// TRANSLATORS: a background job's name: when an administrator chooses Refresh, it queues the files whose MIME type is to be detected again
+	mimetype_refresh: t('file_checksum_search', 'MIME type refresh'),
+	// TRANSLATORS: a background job's name: when an administrator chooses Delete, it deletes the stored MIME types
+	mimetype_delete: t('file_checksum_search', 'MIME type deletion'),
 }
 
 /**
@@ -237,6 +242,20 @@ function jobCountsText(key: string, counts: Record<string, number>): string {
 	case 'checksum_count':
 		// TRANSLATORS: a background job's last run: how many indexed checksums it counted
 		return n('file_checksum_search', 'counted %n checksum', 'counted %n checksums', count('rows'))
+	case 'mimetype_refresh':
+		if (count('done')) {
+			// TRANSLATORS: a background job's last run: the files it queued to have their MIME type detected, and that the whole refresh is finished
+			return t('file_checksum_search', 'queued {queued}, finished', { queued: count('marked') })
+		}
+		// TRANSLATORS: a background job's last run: the files it queued to have their MIME type detected, and that the next runs go on queueing
+		return t('file_checksum_search', 'queued {queued}, not finished yet', { queued: count('marked') })
+	case 'mimetype_delete':
+		if (count('done')) {
+			// TRANSLATORS: a background job's last run: the files whose MIME type it deleted, and that the whole deletion is finished
+			return t('file_checksum_search', 'deleted {deleted}, finished', { deleted: count('deleted') })
+		}
+		// TRANSLATORS: a background job's last run: the files whose MIME type it deleted, and that the next runs go on deleting
+		return t('file_checksum_search', 'deleted {deleted}, not finished yet', { deleted: count('deleted') })
 	default:
 		return Object.entries(counts).map(([name, value]) => `${name} ${value}`).join(', ')
 	}
@@ -281,6 +300,37 @@ const jobRows = computed(() => Object.entries(status.value.jobs ?? {}).map(([key
 
 /** When the kept count of indexed checksums was taken, as the jobs' times are written. */
 const rowCountTime = computed(() => status.value.rowCountAt === undefined ? '—' : formatDateTime(new Date(status.value.rowCountAt * 1000)))
+
+/**
+ * Where MIME type detection stands, with the types stored as counted with
+ * the checksums: kept while it is off, left while they are deleted.
+ */
+const mimeTypeStatusText = computed<string>(() => {
+	const mimeTypes = status.value.mimeTypes
+	if (!mimeTypes) {
+		return '—'
+	}
+	const rows = mimeTypes.rows
+
+	switch (mimeTypes.state) {
+	case 'enabled':
+		// TRANSLATORS: the status's MIME types row: detection is on, and this many files have a MIME type
+		return n('file_checksum_search', 'On, detected for %n file', 'On, detected for %n files', rows)
+	case 'unavailable':
+		return t('file_checksum_search', 'MIME types cannot be detected on this server: PHP\'s Fileinfo extension is not loaded.')
+	case 'deleting':
+		// TRANSLATORS: the status's MIME types row: their deletion was asked for at {time}, and this many files still have one
+		return n('file_checksum_search', 'Being deleted since {time}, %n file left', 'Being deleted since {time}, %n files left', rows, {
+			time: mimeTypes.deleteRequestedAt ? formatDateTime(new Date(mimeTypes.deleteRequestedAt * 1000)) : '—',
+		})
+	default:
+		return rows > 0
+			// TRANSLATORS: the status's MIME types row: detection is off, and this many files keep the MIME type detected before
+			? n('file_checksum_search', 'Off, kept for %n file', 'Off, kept for %n files', rows)
+			// TRANSLATORS: the status's MIME types row: detection is off, and no file has a MIME type
+			: t('file_checksum_search', 'Off')
+	}
+})
 
 // --- Rule editing (global + additional rules share one dialog) ---
 
@@ -701,6 +751,16 @@ loadRules().then(() => {
 							</td>
 						</tr>
 						<tr>
+							<td>{{ t('file_checksum_search', 'MIME types') }}</td>
+							<!-- The state as data as well, which a test reads in any language. -->
+							<td id="fcias-status-mimetypes" :data-state="status.mimeTypes?.state">
+								<NcLoadingIcon v-if="countsLoading" :size="16" />
+								<template v-else>
+									{{ mimeTypeStatusText }}
+								</template>
+							</td>
+						</tr>
+						<tr>
 							<td>{{ t('file_checksum_search', 'Background jobs') }}</td>
 							<td id="fcias-status-jobs">
 								<div v-if="jobRows.length" class="fcias-job-grid">
@@ -741,6 +801,10 @@ loadRules().then(() => {
 					</tbody>
 				</table>
 			</div>
+
+			<!-- A change moves the state, which the status reads live; the count
+			     is the kept one, which only the panel's Refresh takes again. -->
+			<MimeTypeSection @changed="loadStatus()" />
 
 			<TunablesSection />
 		</div>

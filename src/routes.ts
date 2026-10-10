@@ -72,6 +72,12 @@ export const OCS_SETTINGS = {
 	saveGlobal: `${APP_BASE}/settings/global`,
 	/** POST   /settings/idle-banner/ack */
 	ackIdleBanner: `${APP_BASE}/settings/idle-banner/ack`,
+	/** GET    /settings/mimetypes — where MIME type detection stands; PUT {enabled} switches it */
+	mimeTypes: `${APP_BASE}/settings/mimetypes`,
+	/** POST   /settings/mimetypes/refresh — {all}: queue the hashed files for their type */
+	mimeTypesRefresh: `${APP_BASE}/settings/mimetypes/refresh`,
+	/** POST   /settings/mimetypes/delete — delete every stored type, while detection is off */
+	mimeTypesDelete: `${APP_BASE}/settings/mimetypes/delete`,
 	/** GET    /settings/personal/sudo-tokens — the caller's app passwords with their grants */
 	mySudoTokens: `${APP_BASE}/settings/personal/sudo-tokens`,
 	/** PUT    /settings/personal/sudo-tokens/{id} — {granted: bool}; granting asks for the password */

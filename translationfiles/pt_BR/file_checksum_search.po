@@ -110,6 +110,10 @@ msgstr "Todas as pastas pessoais"
 msgid "All my groups"
 msgstr "Todos os meus grupos"
 
+#. TRANSLATORS: a button in the dialog that refreshes the MIME types: every file that has checksums
+msgid "All of them"
+msgstr "Todos"
+
 msgid "Allow all accounts to edit rules"
 msgstr "Permitir que todas as contas editem regras"
 
@@ -160,6 +164,17 @@ msgstr "Faixa {band}"
 
 msgid "Band {band}, position {position}"
 msgstr "Faixa {band}, posição {position}"
+
+#. TRANSLATORS: the status's MIME types row: their deletion was asked for at {time}, and this many files still have one
+msgid "Being deleted since {time}, %n file left"
+msgid_plural "Being deleted since {time}, %n files left"
+msgstr[0] "Exclusão em andamento desde {time}, resta %n arquivo"
+msgstr[1] "Exclusão em andamento desde {time}, restam %n de arquivos"
+msgstr[2] "Exclusão em andamento desde {time}, restam %n arquivos"
+
+#. TRANSLATORS: Nextcloud's own MIME type for the file, which it takes from the file's name; {type} is that MIME type, such as image/jpeg
+msgid "By its name: {type}"
+msgstr "Pelo nome: {type}"
 
 msgid "Cancel"
 msgstr "Cancelar"
@@ -217,6 +232,9 @@ msgstr "Não foi possível alterar a concessão."
 
 msgid "Could not complete the request."
 msgstr "Não foi possível concluir a solicitação."
+
+msgid "Could not delete the MIME types."
+msgstr "Não foi possível excluir os tipos MIME."
 
 msgid "Could not delete the rule."
 msgstr "Não foi possível excluir a regra."
@@ -278,6 +296,9 @@ msgstr "Não foi possível reaplicar a regra."
 msgid "Could not recalculate the checksum."
 msgstr "Não foi possível recalcular a soma de verificação."
 
+msgid "Could not refresh the MIME types."
+msgstr "Não foi possível atualizar os tipos MIME."
+
 msgid "Could not reorder the rules."
 msgstr "Não foi possível reordenar as regras."
 
@@ -327,11 +348,23 @@ msgstr "Regras padrão para todas as pastas pessoais. Dentro desta faixa, uma re
 msgid "Delete"
 msgstr "Excluir"
 
+msgid "Delete MIME types"
+msgstr "Excluir tipos MIME"
+
+msgid "Delete every stored MIME type? The checksums stay. Detection can be switched on again once the deletion is done."
+msgstr "Excluir todos os tipos MIME armazenados? As somas de verificação permanecem. A detecção pode ser ativada novamente quando a exclusão terminar."
+
 msgid "Delete rule"
 msgstr "Excluir regra"
 
 msgid "Delete this rule?"
 msgstr "Excluir esta regra?"
+
+msgid "Detect MIME types"
+msgstr "Detectar tipos MIME"
+
+msgid "Detected from the file's content"
+msgstr "Detectado a partir do conteúdo do arquivo"
 
 msgid "Disable"
 msgstr "Desativar"
@@ -353,6 +386,9 @@ msgstr "Arraste para reordenar entre as regras do mesmo escopo"
 
 msgid "Duplicates"
 msgstr "Duplicatas"
+
+msgid "Each file's MIME type, detected from its content while its checksums are computed."
+msgstr "O tipo MIME de cada arquivo, detectado a partir do conteúdo dele enquanto as somas de verificação são calculadas."
 
 msgid "Edit"
 msgstr "Editar"
@@ -556,10 +592,28 @@ msgstr "Listar todas as regras exige direitos de administrador."
 msgid "Loading checksums …"
 msgstr "Carregando somas de verificação…"
 
+msgid "MIME type"
+msgstr "Tipo MIME"
+
+#. TRANSLATORS: a background job's name: when an administrator chooses Delete, it deletes the stored MIME types
+msgid "MIME type deletion"
+msgstr "Exclusão de tipos MIME"
+
 #. TRANSLATORS: %1$s is the app's name in the administration settings, %2$s the name of its tab
 #, php-format
 msgid "MIME type detection is off on this server. An administrator can switch it on in the administration settings, under %1$s → %2$s."
 msgstr "A detecção do tipo MIME está desativada neste servidor. Um administrador pode ativá-la nas configurações de administração, em %1$s → %2$s."
+
+#. TRANSLATORS: a background job's name: when an administrator chooses Refresh, it queues the files whose MIME type is to be detected again
+msgid "MIME type refresh"
+msgstr "Atualização de tipos MIME"
+
+#. TRANSLATORS: the tooltip of a duplicate group's MIME type: it comes from what the files hold, not from their names
+msgid "MIME type, detected from the content"
+msgstr "Tipo MIME, detectado a partir do conteúdo"
+
+msgid "MIME types"
+msgstr "Tipos MIME"
 
 msgid "MIME types cannot be detected on this server: PHP's Fileinfo extension is not loaded."
 msgstr "Os tipos MIME não podem ser detectados neste servidor: a extensão Fileinfo do PHP não está carregada."
@@ -664,6 +718,9 @@ msgstr "Nenhum"
 msgid "None of the requested algorithms is available on this server; the previous list is kept."
 msgstr "Nenhum dos algoritmos solicitados está disponível neste servidor; a lista anterior foi mantida."
 
+msgid "Not detected yet"
+msgstr "Ainda não detectado"
+
 msgid "Not granted"
 msgstr "Não concedido"
 
@@ -687,6 +744,24 @@ msgstr "Você não tem permissão para ver isto."
 #. TRANSLATORS: "Include" is a rule type as the rule dialog shows it; translate it as that does
 msgid "Noted — the banner stays hidden until an \"Include\" rule is enabled and then disabled again."
 msgstr "Marcado como ciente — o aviso fica oculto até que uma regra do tipo “Incluir” seja ativada e depois desativada novamente."
+
+#. TRANSLATORS: the status's MIME types row: detection is off, and no file has a MIME type
+msgid "Off"
+msgstr "Desativado"
+
+#. TRANSLATORS: the status's MIME types row: detection is off, and this many files keep the MIME type detected before
+msgid "Off, kept for %n file"
+msgid_plural "Off, kept for %n files"
+msgstr[0] "Desativado, mantido em %n arquivo"
+msgstr[1] "Desativado, mantidos em %n de arquivos"
+msgstr[2] "Desativado, mantidos em %n arquivos"
+
+#. TRANSLATORS: the status's MIME types row: detection is on, and this many files have a MIME type
+msgid "On, detected for %n file"
+msgid_plural "On, detected for %n files"
+msgstr[0] "Ativado, detectado em %n arquivo"
+msgstr[1] "Ativado, detectados em %n de arquivos"
+msgstr[2] "Ativado, detectados em %n arquivos"
 
 msgid "One account's home folder"
 msgstr "A pasta pessoal de uma conta"
@@ -760,6 +835,9 @@ msgstr "Faixa de prioridade"
 msgid "Queue drain"
 msgstr "Processamento da fila"
 
+msgid "Queue the files that have checksums to have their MIME type detected: only those without one, or all of them, for instance after PHP was upgraded. The background job then reads the first 64 KiB of each."
+msgstr "Coloque na fila os arquivos que têm somas de verificação para que o tipo MIME deles seja detectado: só os que não têm nenhum, ou todos, por exemplo depois de uma atualização do PHP. A tarefa em segundo plano então lê os primeiros 64 KiB de cada um."
+
 #. TRANSLATORS files waiting for the background job to compute their checksums, counted by mode
 msgid "Queued files"
 msgstr "Arquivos na fila"
@@ -791,6 +869,9 @@ msgstr "Recalcular somas de verificação manualmente: os botões “Recalcular�
 
 msgid "Refresh"
 msgstr "Atualizar"
+
+msgid "Refresh MIME types"
+msgstr "Atualizar tipos MIME"
 
 #. TRANSLATORS under the heading "Checksum count": how many minutes the count may age before it is counted again
 msgid "Renew after (minutes)"
@@ -919,6 +1000,12 @@ msgstr "Armazenamento: {storage}"
 msgid "Sudo tokens"
 msgstr "Tokens sudo"
 
+msgid "Switch MIME type detection on first."
+msgstr "Ative primeiro a detecção do tipo MIME."
+
+msgid "Switch detection off to delete the MIME types, or refresh them to bring them up to date."
+msgstr "Desative a detecção para excluir os tipos MIME, ou atualize-os para deixá-los em dia."
+
 msgid "Team folder"
 msgstr "Pasta de equipe"
 
@@ -940,6 +1027,12 @@ msgstr "O parâmetro \"hash\" é obrigatório."
 msgid "The \"since\" parameter must be a date, as ISO 8601 or Unix seconds."
 msgstr "O parâmetro \"since\" deve ser uma data, no formato ISO 8601 ou em segundos Unix."
 
+msgid "The MIME types are being deleted."
+msgstr "Os tipos MIME estão sendo excluídos."
+
+msgid "The MIME types are being deleted. Detection can be switched on again once that is done."
+msgstr "Os tipos MIME estão sendo excluídos. A detecção pode ser ativada novamente quando isso terminar."
+
 msgid "The algorithm the Checksums tab in the file sidebar offers as its first button. Leave it on the default to follow the server; pick one to have it first for every file, with the file's own rule providing the second button."
 msgstr "O algoritmo que a aba “Somas de verificação” da barra lateral de arquivo oferece como primeiro botão. Deixe no padrão para seguir o servidor; escolha um para tê-lo primeiro em todos os arquivos, com a regra do próprio arquivo fornecendo o segundo botão."
 
@@ -951,6 +1044,9 @@ msgstr "Os algoritmos que as regras podem calcular e os seletores podem oferecer
 
 msgid "The default must be one of the allowed algorithms."
 msgstr "O padrão deve ser um dos algoritmos permitidos."
+
+msgid "The files are queued to have their MIME type detected."
+msgstr "Os arquivos foram colocados na fila para que o tipo MIME deles seja detectado."
 
 msgid "The home folders of a group's members"
 msgstr "As pastas pessoais dos membros de um grupo"
@@ -969,6 +1065,9 @@ msgstr "O caminho leva a um compartilhamento recebido, a uma pasta de equipe ou 
 
 msgid "The raw ID from the storages table, matched exactly, whatever kind of storage it names. Use this for external storage, or for any storage the other choices cannot address."
 msgstr "O ID interno da tabela de armazenamentos, comparado exatamente, seja qual for o tipo de armazenamento que ele indica. Use isto para armazenamentos externos ou para qualquer armazenamento que as outras opções não consigam visar."
+
+msgid "The read that computes a file's checksums names its MIME type from its first 64 KiB, and the type is kept beside the checksums. Nextcloud's own type comes from the file's name, so a renamed file can disagree with itself."
+msgstr "A leitura que calcula as somas de verificação de um arquivo determina o tipo MIME dele pelos primeiros 64 KiB, e o tipo é guardado junto com as somas de verificação. O tipo atribuído pelo próprio Nextcloud vem do nome do arquivo, então um arquivo renomeado pode contradizer a si mesmo."
 
 msgid "The request never reached the server."
 msgstr "A solicitação nunca chegou ao servidor."
@@ -1031,6 +1130,10 @@ msgstr "Esta é uma regra sua. Ela se aplica apenas aos seus arquivos e é avali
 
 msgid "This tab shows other people's files: those of the accounts and groups chosen above. Leave this tab to go back to your own."
 msgstr "Esta aba mostra arquivos de outras pessoas: os das contas e grupos escolhidos acima. Saia desta aba para voltar aos seus."
+
+#. TRANSLATORS: a button in the dialog that refreshes the MIME types: only the files that have none yet
+msgid "Those without one"
+msgstr "Os que não têm nenhum"
 
 msgid "Total: {count}"
 msgstr "Total: {count}"
@@ -1199,6 +1302,14 @@ msgstr[0] "%n soma de verificação contada"
 msgstr[1] "%n de somas de verificação contadas"
 msgstr[2] "%n somas de verificação contadas"
 
+#. TRANSLATORS: a background job's last run: the files whose MIME type it deleted, and that the whole deletion is finished
+msgid "deleted {deleted}, finished"
+msgstr "excluídos {deleted}, concluída"
+
+#. TRANSLATORS: a background job's last run: the files whose MIME type it deleted, and that the next runs go on deleting
+msgid "deleted {deleted}, not finished yet"
+msgstr "excluídos {deleted}, ainda não concluída"
+
 #. TRANSLATORS: a background job's last run ended with an error; {reason} is the error as the server logs it, in English
 msgid "failed: {reason}"
 msgstr "falhou: {reason}"
@@ -1259,6 +1370,14 @@ msgstr "orderedIds é obrigatório e deve ser um array."
 #. TRANSLATORS: a background job's last run: of the queued files it took, how many it processed and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
 msgid "processed {processed} of {total}, failed {failed}, cleared after a reset {cleared}"
 msgstr "processados {processed} de {total}, com falha {failed}, limpos após uma redefinição {cleared}"
+
+#. TRANSLATORS: a background job's last run: the files it queued to have their MIME type detected, and that the whole refresh is finished
+msgid "queued {queued}, finished"
+msgstr "na fila {queued}, concluída"
+
+#. TRANSLATORS: a background job's last run: the files it queued to have their MIME type detected, and that the next runs go on queueing
+msgid "queued {queued}, not finished yet"
+msgstr "na fila {queued}, ainda não concluída"
 
 #. TRANSLATORS: a background job's last run: the checksums of deleted files it removed, and in how many batches
 msgid "removed {purged}, batches {batches}"

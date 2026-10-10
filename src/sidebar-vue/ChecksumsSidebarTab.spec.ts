@@ -24,6 +24,13 @@ vi.mock('../algorithms', async (importOriginal) => ({
 	fetchAlgorithms: () => Promise.resolve({ algorithms: ['sha1', 'sha256'], default: 'sha1' }),
 }))
 
+// What the server offers: no MIME types unless a test says otherwise.
+const features = { mimetype: false }
+vi.mock('../features', () => ({
+	fetchFeatures: () => Promise.resolve({ ...features }),
+	mimeTypeSwitchedOff: (response: Response, asked: boolean) => Promise.resolve(asked && response.status === 400 && !features.mimetype),
+}))
+
 ;(globalThis as unknown as { OC: { requestToken: string } }).OC = { requestToken: 'token' }
 
 const SHA1 = { algo: 'sha1', hash: '0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33' }
@@ -61,6 +68,53 @@ describe('ChecksumsSidebarTab, the hashes', () => {
 		const wrapper = await mountWith({ hashes: {} })
 		expect(wrapper.find('.fcias-hash-table').exists()).toBe(false)
 		expect(wrapper.find('.fcias-empty').exists()).toBe(true)
+	})
+})
+
+describe('ChecksumsSidebarTab, the MIME type', () => {
+	afterEach(() => {
+		vi.restoreAllMocks()
+		features.mimetype = false
+	})
+
+	async function mountNamed(mime: string, hashesResponse: unknown) {
+		vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.resolve(jsonResponse(hashesResponse)))
+		const wrapper = mount(ChecksumsSidebarTab, {
+			props: { node: { fileid: 42, type: 'file', mime }, active: true },
+		})
+		await flushPromises()
+		return wrapper
+	}
+
+	it('is shown under the checksums, with Nextcloud\'s own where the name says otherwise', async () => {
+		features.mimetype = true
+		const wrapper = await mountNamed('image/jpeg', { hashes: { sha1: SHA1 }, mimetype: 'application/pdf' })
+
+		const line = wrapper.find('[data-testid="fcias-mimetype"]')
+		expect(line.find('.fcias-mimetype-value').text()).toBe('application/pdf')
+		expect(wrapper.find('[data-testid="fcias-mimetype-name"]').text()).toBe('By its name: image/jpeg')
+	})
+
+	it('says nothing of the name where the two agree', async () => {
+		features.mimetype = true
+		const wrapper = await mountNamed('application/pdf', { hashes: { sha1: SHA1 }, mimetype: 'application/pdf' })
+
+		expect(wrapper.find('.fcias-mimetype-value').text()).toBe('application/pdf')
+		expect(wrapper.find('[data-testid="fcias-mimetype-name"]').exists()).toBe(false)
+	})
+
+	it('says a file has none yet, rather than nothing', async () => {
+		features.mimetype = true
+		const wrapper = await mountNamed('image/jpeg', { hashes: { sha1: SHA1 }, mimetype: null })
+
+		expect(wrapper.find('.fcias-mimetype-none').exists()).toBe(true)
+		expect(wrapper.find('[data-testid="fcias-mimetype-name"]').exists()).toBe(false)
+	})
+
+	it('is not shown while the server detects none', async () => {
+		const wrapper = await mountNamed('image/jpeg', { hashes: { sha1: SHA1 } })
+
+		expect(wrapper.find('[data-testid="fcias-mimetype"]').exists()).toBe(false)
 	})
 })
 

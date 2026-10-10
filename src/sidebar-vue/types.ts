@@ -30,6 +30,8 @@ export interface DuplicateGroup {
 	/** The empty files' group: its hash is its algorithm's checksum of no input. */
 	empty?: boolean
 	files: DuplicateFile[]
+	/** The type of the content the group's files share, when asked for; null where none has one. */
+	mimetype?: string | null
 }
 
 export interface FileNode {
@@ -40,4 +42,6 @@ export interface FileNode {
 	path?: string
 	/** In bytes, as the Files app's Node carries it; absent counts as not empty. */
 	size?: number
+	/** Nextcloud's own MIME type for the file, which it takes from the file's name. */
+	mime?: string
 }

@@ -43,6 +43,8 @@ const {
 	defaultAlgo,
 	canRecalc,
 	canSudo,
+	mimeTypeShown,
+	mimeType,
 	error,
 	recalculating,
 	recalcError,
@@ -58,6 +60,22 @@ const {
 
 /** The table's rows, in the order the server keyed them. */
 const hashRows = computed(() => Object.values(hashes.value))
+
+const MIME_TITLE = t('file_checksum_search', 'Detected from the file\'s content')
+
+/**
+ * Nextcloud's own type for the file, where it differs from the content's:
+ * Nextcloud takes it from the name, so a renamed file can disagree with
+ * itself. Nothing where they agree, or where the content has no type yet.
+ */
+const byNameText = computed<string>(() => {
+	const byName = props.node?.mime
+	if (!mimeType.value || !byName || byName === mimeType.value) {
+		return ''
+	}
+	// TRANSLATORS: Nextcloud's own MIME type for the file, which it takes from the file's name; {type} is that MIME type, such as image/jpeg
+	return t('file_checksum_search', 'By its name: {type}', { type: byName })
+})
 
 /**
  * The way to the Duplicates page's Others tab, for a viewer who may look
@@ -171,6 +189,17 @@ watch(
 					</tbody>
 				</table>
 			</div>
+			<!-- The content's type, beside the checksums of the same content:
+			     shown while the server detects types, for a file that has
+			     checksums. Nextcloud's own, from the name, follows where the
+			     two differ, as a fact and not a warning: libmagic and Nextcloud
+			     name some harmless contents differently. -->
+			<p v-if="!loading && !error && mimeTypeShown && hashRows.length > 0" class="fcias-mimetype" data-testid="fcias-mimetype">
+				<span class="fcias-mimetype-label" :title="MIME_TITLE">{{ t('file_checksum_search', 'MIME type') }}</span>
+				<span v-if="mimeType" class="fcias-mimetype-value">{{ mimeType }}</span>
+				<span v-else class="fcias-mimetype-none">{{ t('file_checksum_search', 'Not detected yet') }}</span>
+				<span v-if="byNameText" class="fcias-mimetype-name" data-testid="fcias-mimetype-name">{{ byNameText }}</span>
+			</p>
 		</section>
 
 		<!-- Hidden, not disabled, for a user the manual-recalculation permission
@@ -316,6 +345,36 @@ watch(
 .fcias-hash-table-wrap {
 	overflow-x: auto;
 	max-width: 100%;
+}
+
+/* The type on a line of its own under the checksums, its label as the
+   algorithm badges are muted beside them, the name's type below it. */
+.fcias-mimetype {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 2px 8px;
+	margin-top: 8px;
+	font-size: 0.9em;
+}
+
+.fcias-mimetype-label {
+	font-weight: 600;
+	color: var(--color-text-maxcontrast);
+}
+
+.fcias-mimetype-value {
+	font-family: var(--font-face-monospace);
+	word-break: break-all;
+}
+
+.fcias-mimetype-none,
+.fcias-mimetype-name {
+	color: var(--color-text-maxcontrast);
+}
+
+.fcias-mimetype-name {
+	flex-basis: 100%;
 }
 
 .fcias-hash-table {

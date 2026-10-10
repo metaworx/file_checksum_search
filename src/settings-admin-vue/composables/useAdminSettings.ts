@@ -44,6 +44,13 @@ interface StatusData {
 	pendingFailed?: number
 	/** Files whose stored hashes are not to be trusted, by reason. */
 	staleStats?: Record<string, number>
+	/** Where MIME type detection stands, with the types stored, counted with the checksums. */
+	mimeTypes?: {
+		state: 'enabled' | 'disabled' | 'unavailable' | 'deleting'
+		rows: number
+		/** When the deletion running was asked for (Unix time); null while none runs. */
+		deleteRequestedAt: number | null
+	}
 	jobs?: Record<string, JobRun>
 	idleBannerAcknowledged?: boolean
 }

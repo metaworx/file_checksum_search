@@ -14,6 +14,15 @@ vi.mock('@nextcloud/router', () => ({
 	},
 }))
 
+// What the server offers, as /api/v1/status says: no MIME types unless a
+// test says otherwise.
+const features = { mimetype: false }
+vi.mock('../../features', () => ({
+	fetchFeatures: () => Promise.resolve({ ...features }),
+	// A 400 to a request that asked reads the features again: these, by then.
+	mimeTypeSwitchedOff: (response: Response, asked: boolean) => Promise.resolve(asked && response.status === 400 && !features.mimetype),
+}))
+
 ;(globalThis as unknown as { OC: { requestToken: string } }).OC = { requestToken: 'token' }
 
 function fileNode(fileid: number): FileNode {
@@ -27,6 +36,59 @@ function jsonResponse(body: unknown): Response {
 describe('useSidebarHashes', () => {
 	afterEach(() => {
 		vi.restoreAllMocks()
+		features.mimetype = false
+	})
+
+	// Asked for only while the server detects types: asked otherwise, the
+	// route refuses.
+	it('asks for the MIME type while the server detects types, and keeps it', async () => {
+		features.mimetype = true
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			jsonResponse({ hashes: { sha1: { algo: 'sha1', hash: 'abc' } }, mimetype: 'application/pdf' }),
+		)
+
+		const { mimeType, mimeTypeShown, loadHashes } = useSidebarHashes(() => fileNode(123))
+		await loadHashes()
+
+		expect(fetchMock).toHaveBeenCalledWith(
+			'/apps/file_checksum_search/api/v1/file/123/hashes?mimetype=1',
+			expect.anything(),
+		)
+		expect(mimeTypeShown.value).toBe(true)
+		expect(mimeType.value).toBe('application/pdf')
+	})
+
+	// The features are read once per page; switched off since, the route
+	// refuses the request that asks, and the tab asks again without.
+	it('asks again without the MIME type once detection was switched off', async () => {
+		features.mimetype = true
+		const fetchMock = vi.spyOn(globalThis, 'fetch')
+			.mockImplementationOnce(() => {
+				features.mimetype = false
+				return Promise.resolve(new Response(JSON.stringify({ success: false }), { status: 400 }))
+			})
+			.mockResolvedValueOnce(jsonResponse({ hashes: { sha1: { algo: 'sha1', hash: 'abc' } } }))
+
+		const { error, hashes, mimeTypeShown, loadHashes } = useSidebarHashes(() => fileNode(123))
+		await loadHashes()
+
+		expect(fetchMock).toHaveBeenCalledTimes(2)
+		expect(fetchMock.mock.calls[1][0]).toBe('/apps/file_checksum_search/api/v1/file/123/hashes')
+		expect(error.value).toBe('')
+		expect(mimeTypeShown.value).toBe(false)
+		expect(hashes.value).toEqual({ sha1: { algo: 'sha1', hash: 'abc' } })
+	})
+
+	it('shows no MIME type while the server detects none', async () => {
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			jsonResponse({ hashes: { sha1: { algo: 'sha1', hash: 'abc' } } }),
+		)
+
+		const { mimeType, mimeTypeShown, loadHashes } = useSidebarHashes(() => fileNode(123))
+		await loadHashes()
+
+		expect(mimeTypeShown.value).toBe(false)
+		expect(mimeType.value).toBeNull()
 	})
 
 	it('loads hashes for the selected file', async () => {

@@ -12,6 +12,7 @@ namespace OCA\FileChecksumSearch\Controller;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\MimeTypeService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\StatusService;
@@ -26,6 +27,7 @@ use OCP\IAppConfig;
 use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserManager;
+use OCP\IUserSession;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -56,6 +58,8 @@ class SettingsController
 		private readonly IAppConfig        $appConfig,
 		private readonly AlgorithmCatalogue $catalogue,
 		private readonly IL10N $l10n,
+		private readonly MimeTypeService   $mimeTypes,
+		private readonly IUserSession      $userSession,
 	)
 	{
 		parent::__construct( $appName, $request );
@@ -361,6 +365,124 @@ class SettingsController
 	}
 
 	/**
+	 * Where MIME type detection stands, for the Advanced tab's section: one
+	 * of {@see MimeTypeService}'s `STATE_*`, and when a deletion running was
+	 * asked for. How many types are stored is the status's to count.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	// Admin-only, as every route here but the status is.
+	#[NoCSRFRequired]
+	#[ApiRoute( verb: 'GET', url: '/settings/mimetypes' )]
+	public function getMimeTypes(): DataResponse
+	{
+		return $this->mimeTypeState();
+	}
+
+	/**
+	 * Switch MIME type detection on or off.
+	 *
+	 * On is refused while a deletion runs, and where PHP cannot detect
+	 * ({@see MimeTypeService::refusalToEnable()}); off never is, and keeps
+	 * the types stored.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[ApiRoute( verb: 'PUT', url: '/settings/mimetypes' )]
+	public function setMimeTypeDetection( bool $enabled ): DataResponse
+	{
+		if ( $enabled )
+		{
+			$refusal = $this->mimeTypes->refusalToEnable();
+
+			if ( $refusal !== null )
+			{
+				return $this->mimeTypeRefusal( $refusal );
+			}
+
+			$this->mimeTypes->enable();
+		}
+		else
+		{
+			$this->mimeTypes->disable();
+		}
+
+		$this->logger->info(
+			'FCIAS SettingsController: MIME type detection switched {state} by {actor}',
+			[
+				'app'   => Application::APP_ID,
+				'state' => $enabled
+					? 'on'
+					: 'off',
+				'actor' => $this->actor(),
+			],
+		);
+
+		return $this->mimeTypeState();
+	}
+
+	/**
+	 * Queue the hashed files for their MIME type: those without one, or with
+	 * `all`, every one. Refused unless detection is on.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[ApiRoute( verb: 'POST', url: '/settings/mimetypes/refresh' )]
+	public function refreshMimeTypes( bool $all = false ): DataResponse
+	{
+		$refusal = $this->mimeTypes->refusalToRefresh();
+
+		if ( $refusal !== null )
+		{
+			return $this->mimeTypeRefusal( $refusal );
+		}
+
+		$this->mimeTypes->requestRefresh( $all );
+
+		$this->logger->info(
+			'FCIAS SettingsController: MIME type refresh of {which} queued by {actor}',
+			[
+				'app'   => Application::APP_ID,
+				'which' => $all
+					? 'every hashed file'
+					: 'the hashed files without a type',
+				'actor' => $this->actor(),
+			],
+		);
+
+		return $this->mimeTypeState();
+	}
+
+	/**
+	 * Request the deletion of every stored MIME type, and queue it. Refused
+	 * while detection is on: the types it detects would go with the rest.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[ApiRoute( verb: 'POST', url: '/settings/mimetypes/delete' )]
+	public function deleteMimeTypes(): DataResponse
+	{
+		$refusal = $this->mimeTypes->refusalToDelete();
+
+		if ( $refusal !== null )
+		{
+			return $this->mimeTypeRefusal( $refusal );
+		}
+
+		$this->mimeTypes->requestDelete();
+
+		$this->logger->info(
+			'FCIAS SettingsController: deletion of the MIME types requested by {actor}',
+			[
+				'app'   => Application::APP_ID,
+				'actor' => $this->actor(),
+			],
+		);
+
+		return $this->mimeTypeState();
+	}
+
+	/**
 	 * Read the raw HTTP request body.
 	 *
 	 * Protected so unit tests can mock it via
@@ -393,5 +515,49 @@ class SettingsController
 		return is_array( $body[ $key ] )
 			? array_values( $body[ $key ] )
 			: [ $body[ $key ] ];
+	}
+
+	/**
+	 * The MIME type section's answer: the state, whether PHP can detect —
+	 * which a switch that is off does not say — and a deletion's request.
+	 */
+	private function mimeTypeState(): DataResponse
+	{
+		return new DataResponse( [
+			'state'             => $this->mimeTypes->getState(),
+			'available'         => $this->mimeTypes->isAvailable(),
+			'deleteRequestedAt' => $this->mimeTypes->getDeleteRequestedAt(),
+		] );
+	}
+
+	/**
+	 * A MIME type action refused for the state that refuses it: 409, the
+	 * request being sound and the server's state against it, with why in the
+	 * administrator's language. The section offers none of these; this is
+	 * for a page out of date, or a second tab.
+	 */
+	private function mimeTypeRefusal( string $state ): DataResponse
+	{
+		$error = match ( $state )
+		{
+			MimeTypeService::STATE_DELETING    => $this->l10n->t( 'The MIME types are being deleted. Detection can be switched on again once that is done.' ),
+			MimeTypeService::STATE_UNAVAILABLE => $this->l10n->t( 'MIME types cannot be detected on this server: PHP\'s Fileinfo extension is not loaded.' ),
+			MimeTypeService::STATE_ENABLED     => $this->l10n->t( 'Switch detection off to delete the MIME types, or refresh them to bring them up to date.' ),
+			default                            => $this->l10n->t( 'Switch MIME type detection on first.' ),
+		};
+
+		return new DataResponse(
+			[
+				'success' => false,
+				'error'   => $error,
+			],
+			Http::STATUS_CONFLICT,
+		);
+	}
+
+	/** Who is acting, for the log. */
+	private function actor(): string
+	{
+		return $this->userSession->getUser()?->getUID() ?? 'unknown';
 	}
 }

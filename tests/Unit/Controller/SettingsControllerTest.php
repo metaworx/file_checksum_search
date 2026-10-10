@@ -31,6 +31,7 @@ use OCP\IAppConfig;
 use OCP\IRequest;
 use OCP\IUser;
 use OCP\IUserManager;
+use OCP\IUserSession;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
 use ReflectionMethod;
@@ -62,6 +63,8 @@ class SettingsControllerTest
 	private MockObject|JobStatsService   $jobStats;
 
 	private MockObject|MetadataService   $metadataService;
+
+	private MockObject|MimeTypeService   $mimeTypes;
 
 	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 	private MockObject|IRequest $request;
@@ -119,6 +122,8 @@ class SettingsControllerTest
 			                         $this->appConfig,
 				new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) ),
 				$this->englishL10n(),
+				$this->mimeTypes = $this->createMock( MimeTypeService::class ),
+				$this->createMock( IUserSession::class ),
 			] )
 		                         ->getMock()
 		;
@@ -615,5 +620,108 @@ class SettingsControllerTest
 
 		$this->assertSame( Http::STATUS_BAD_REQUEST, $response->getStatus() );
 		$this->assertFalse( $response->getData()['success'] );
+	}
+
+	// ── MIME types ───────────────────────────────────────────────────────
+	public function testTheMimeTypeSectionReadsTheState(): void
+	{
+		$this->mimeTypes->method( 'getState' )
+		                ->willReturn( MimeTypeService::STATE_DELETING )
+		;
+		$this->mimeTypes->method( 'getDeleteRequestedAt' )
+		                ->willReturn( 1_759_300_000 )
+		;
+		$this->mimeTypes->method( 'isAvailable' )
+		                ->willReturn( true )
+		;
+
+		$this->assertSame(
+			[
+				'state'             => MimeTypeService::STATE_DELETING,
+				'available'         => true,
+				'deleteRequestedAt' => 1_759_300_000,
+			],
+			$this->controller->getMimeTypes()->getData(),
+		);
+	}
+
+	/**
+	 * Switching on while a deletion runs is a conflict, with why in the
+	 * administrator's language: the section offers no such switch, a page
+	 * out of date or a second tab might.
+	 */
+	public function testSwitchingOnWhileDeletingIsAConflict(): void
+	{
+		$this->mimeTypes->method( 'refusalToEnable' )
+		                ->willReturn( MimeTypeService::STATE_DELETING )
+		;
+		$this->mimeTypes->expects( $this->never() )
+		                ->method( 'enable' )
+		;
+
+		$response = $this->controller->setMimeTypeDetection( true );
+
+		$this->assertSame( Http::STATUS_CONFLICT, $response->getStatus() );
+		$this->assertStringStartsWith( 'The MIME types are being deleted.', $response->getData()['error'] );
+	}
+
+	public function testSwitchingOnAndOffReachesTheService(): void
+	{
+		$this->mimeTypes->expects( $this->once() )
+		                ->method( 'enable' )
+		;
+		$this->mimeTypes->expects( $this->once() )
+		                ->method( 'disable' )
+		;
+
+		$this->assertSame( Http::STATUS_OK, $this->controller->setMimeTypeDetection( true )->getStatus() );
+		$this->assertSame( Http::STATUS_OK, $this->controller->setMimeTypeDetection( false )->getStatus() );
+	}
+
+	public function testARefreshIsQueuedForTheFilesAskedFor(): void
+	{
+		$this->mimeTypes->expects( $this->once() )
+		                ->method( 'requestRefresh' )
+		                ->with( true )
+		;
+
+		$this->assertSame( Http::STATUS_OK, $this->controller->refreshMimeTypes( true )->getStatus() );
+	}
+
+	public function testARefreshWhileOffIsAConflict(): void
+	{
+		$this->mimeTypes->method( 'refusalToRefresh' )
+		                ->willReturn( MimeTypeService::STATE_DISABLED )
+		;
+		$this->mimeTypes->expects( $this->never() )
+		                ->method( 'requestRefresh' )
+		;
+
+		$this->assertSame( Http::STATUS_CONFLICT, $this->controller->refreshMimeTypes()->getStatus() );
+	}
+
+	/** On, the types it detects would go with the rest. */
+	public function testADeletionWhileOnIsAConflict(): void
+	{
+		$this->mimeTypes->method( 'refusalToDelete' )
+		                ->willReturn( MimeTypeService::STATE_ENABLED )
+		;
+		$this->mimeTypes->expects( $this->never() )
+		                ->method( 'requestDelete' )
+		;
+
+		$response = $this->controller->deleteMimeTypes();
+
+		$this->assertSame( Http::STATUS_CONFLICT, $response->getStatus() );
+		$this->assertStringStartsWith( 'Switch detection off to delete', $response->getData()['error'] );
+	}
+
+	public function testADeletionIsRequested(): void
+	{
+		$this->mimeTypes->expects( $this->once() )
+		                ->method( 'requestDelete' )
+		;
+
+		$this->assertSame( Http::STATUS_OK, $this->controller->deleteMimeTypes()->getStatus() );
 	}
 }

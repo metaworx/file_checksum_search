@@ -50,6 +50,8 @@ const TITLES = {
 	notYours: t('file_checksum_search', 'Not in your files'),
 	// The same fact for a reader that never hovers, read after the label.
 	notYoursSpoken: t('file_checksum_search', '(not in your files)'),
+	// TRANSLATORS: the tooltip of a duplicate group's MIME type: it comes from what the files hold, not from their names
+	mimetype: t('file_checksum_search', 'MIME type, detected from the content'),
 }
 
 /** Why a file's verification failed: the error, or the hash it has now. */
@@ -72,6 +74,11 @@ function toggle(): void {
 				<!-- TRANSLATORS: a label on a group of duplicates whose files are all empty (zero bytes) -->
 				<span v-if="group.empty" class="db-empty-badge" data-testid="fcias-empty-group">{{ t('file_checksum_search', 'Empty files') }}</span>
 				<span class="db-hash">{{ group.hash_value }}</span>
+				<!-- One per group: the files share their content, and so its type. -->
+				<span v-if="group.mimetype"
+					class="db-mimetype"
+					data-testid="fcias-group-mimetype"
+					:title="TITLES.mimetype">{{ group.mimetype }}</span>
 			</div>
 			<span class="db-count">
 				<span>{{ fileCount }}</span>
@@ -185,6 +192,20 @@ function toggle(): void {
 	font-family: var(--font-face-monospace);
 	font-size: 12px;
 	color: var(--color-text-maxcontrast);
+	word-break: break-all;
+}
+
+/* After the hash it describes the content of, framed as the empty files'
+   badge is, so it reads as a fact about the group and not part of the hash. */
+.db-mimetype {
+	display: inline-block;
+	padding: 1px 8px;
+	border: 1px solid var(--color-border-maxcontrast);
+	border-radius: var(--border-radius);
+	font-family: var(--font-face-monospace);
+	font-size: 12px;
+	color: var(--color-text-maxcontrast);
+	margin-inline-start: 8px;
 	word-break: break-all;
 }
 

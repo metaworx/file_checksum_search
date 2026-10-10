@@ -7,6 +7,7 @@
 import { computed, ref } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import { OCS_API_V1 } from '../../routes'
+import { fetchFeatures, mimeTypeSwitchedOff } from '../../features'
 import { currentUid } from '../../fileLabel'
 import type { DuplicateGroup, FileNode, HashMap } from '../types'
 import { t } from '../../l10n'
@@ -36,6 +37,13 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 	 * offer that leads to a refusal is worse than none.
 	 */
 	const canSudo = ref(false)
+	/**
+	 * Whether the server detects MIME types, and so whether the tab shows
+	 * one: asked for only while it does, since asking otherwise is refused.
+	 */
+	const mimeTypeShown = ref(false)
+	/** The file's MIME type as its content says; null for one without. */
+	const mimeType = ref<string | null>(null)
 	const error = ref('')
 	const recalculating = ref<string | null>(null)
 	const recalcError = ref<string | null>(null)
@@ -72,10 +80,17 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 		loading.value = true
 		error.value = ''
 		hashes.value = {}
+		mimeType.value = null
 
 		try {
+			const { signal } = abortController
+			let { mimetype: detected } = await fetchFeatures()
 			const url = generateOcsUrl(OCS_API_V1.getHashes, { fileId: id })
-			const response = await fetch(url, { signal: abortController.signal })
+			let response = await fetch(url + (detected ? '?mimetype=1' : ''), { signal })
+			if (await mimeTypeSwitchedOff(response, detected)) {
+				detected = false
+				response = await fetch(url, { signal })
+			}
 			if (!response.ok) throw new Error(`HTTP ${response.status}`)
 			const data = (await response.json()) as {
 				hashes?: HashMap
@@ -84,7 +99,10 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 				default?: string
 				canRecalc?: boolean
 				canSudo?: boolean
+				mimetype?: string | null
 			}
+			mimeTypeShown.value = detected
+			mimeType.value = typeof data.mimetype === 'string' ? data.mimetype : null
 			// Keyed by algorithm. A list, PHP's empty map among them, reads as
 			// no hashes rather than as entries keyed 0, 1, 2.
 			hashes.value = data.hashes && !Array.isArray(data.hashes) ? data.hashes : {}
@@ -187,6 +205,8 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 		defaultAlgo,
 		canRecalc,
 		canSudo,
+		mimeTypeShown,
+		mimeType,
 		error,
 		recalculating,
 		recalcError,

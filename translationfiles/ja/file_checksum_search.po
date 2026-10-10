@@ -108,6 +108,10 @@ msgstr "すべてのホームフォルダー"
 msgid "All my groups"
 msgstr "自分のすべてのグループ"
 
+#. TRANSLATORS: a button in the dialog that refreshes the MIME types: every file that has checksums
+msgid "All of them"
+msgstr "すべてのファイル"
+
 msgid "Allow all accounts to edit rules"
 msgstr "すべてのアカウントにルールの編集を許可する"
 
@@ -158,6 +162,15 @@ msgstr "第{band}階層"
 
 msgid "Band {band}, position {position}"
 msgstr "第{band}階層、位置{position}"
+
+#. TRANSLATORS: the status's MIME types row: their deletion was asked for at {time}, and this many files still have one
+msgid "Being deleted since {time}, %n file left"
+msgid_plural "Being deleted since {time}, %n files left"
+msgstr[0] "{time} から削除中、残り%n個のファイル"
+
+#. TRANSLATORS: Nextcloud's own MIME type for the file, which it takes from the file's name; {type} is that MIME type, such as image/jpeg
+msgid "By its name: {type}"
+msgstr "ファイル名から：{type}"
 
 msgid "Cancel"
 msgstr "キャンセル"
@@ -215,6 +228,9 @@ msgstr "承認を変更できませんでした。"
 
 msgid "Could not complete the request."
 msgstr "リクエストを完了できませんでした。"
+
+msgid "Could not delete the MIME types."
+msgstr "MIMEタイプを削除できませんでした。"
 
 msgid "Could not delete the rule."
 msgstr "ルールを削除できませんでした。"
@@ -276,6 +292,9 @@ msgstr "ルールを再適用できませんでした。"
 msgid "Could not recalculate the checksum."
 msgstr "チェックサムを再計算できませんでした。"
 
+msgid "Could not refresh the MIME types."
+msgstr "MIMEタイプを更新できませんでした。"
+
 msgid "Could not reorder the rules."
 msgstr "ルールを並べ替えられませんでした。"
 
@@ -325,11 +344,23 @@ msgstr "すべてのホームフォルダーのデフォルトです。この階
 msgid "Delete"
 msgstr "削除"
 
+msgid "Delete MIME types"
+msgstr "MIMEタイプを削除"
+
+msgid "Delete every stored MIME type? The checksums stay. Detection can be switched on again once the deletion is done."
+msgstr "保存されているMIMEタイプをすべて削除しますか？チェックサムは残ります。削除が完了すると、検出を再びオンにできます。"
+
 msgid "Delete rule"
 msgstr "ルールを削除"
 
 msgid "Delete this rule?"
 msgstr "このルールを削除しますか？"
+
+msgid "Detect MIME types"
+msgstr "MIMEタイプを検出する"
+
+msgid "Detected from the file's content"
+msgstr "ファイルの内容から検出"
 
 msgid "Disable"
 msgstr "無効にする"
@@ -351,6 +382,9 @@ msgstr "ドラッグして、同じ適用範囲のルールの間で並べ替え
 
 msgid "Duplicates"
 msgstr "重複ファイル"
+
+msgid "Each file's MIME type, detected from its content while its checksums are computed."
+msgstr "チェックサムの計算時にファイルの内容から検出される、各ファイルのMIMEタイプです。"
 
 msgid "Edit"
 msgstr "編集"
@@ -554,10 +588,28 @@ msgstr "すべてのルールを一覧表示するには管理者権限が必要
 msgid "Loading checksums …"
 msgstr "チェックサムを読み込み中…"
 
+msgid "MIME type"
+msgstr "MIMEタイプ"
+
+#. TRANSLATORS: a background job's name: when an administrator chooses Delete, it deletes the stored MIME types
+msgid "MIME type deletion"
+msgstr "MIMEタイプの削除"
+
 #. TRANSLATORS: %1$s is the app's name in the administration settings, %2$s the name of its tab
 #, php-format
 msgid "MIME type detection is off on this server. An administrator can switch it on in the administration settings, under %1$s → %2$s."
 msgstr "このサーバーではMIMEタイプの検出がオフになっています。管理者は管理者設定の %1$s → %2$s でオンにできます。"
+
+#. TRANSLATORS: a background job's name: when an administrator chooses Refresh, it queues the files whose MIME type is to be detected again
+msgid "MIME type refresh"
+msgstr "MIMEタイプの更新"
+
+#. TRANSLATORS: the tooltip of a duplicate group's MIME type: it comes from what the files hold, not from their names
+msgid "MIME type, detected from the content"
+msgstr "MIMEタイプ（内容から検出）"
+
+msgid "MIME types"
+msgstr "MIMEタイプ"
 
 msgid "MIME types cannot be detected on this server: PHP's Fileinfo extension is not loaded."
 msgstr "このサーバーではMIMEタイプを検出できません：PHPのFileinfo拡張機能が読み込まれていません。"
@@ -662,6 +714,9 @@ msgstr "なし"
 msgid "None of the requested algorithms is available on this server; the previous list is kept."
 msgstr "要求されたアルゴリズムはどれもこのサーバーで利用できないため、以前の一覧が維持されます。"
 
+msgid "Not detected yet"
+msgstr "未検出"
+
 msgid "Not granted"
 msgstr "未承認"
 
@@ -685,6 +740,20 @@ msgstr "閲覧する権限がありません。"
 #. TRANSLATORS: "Include" is a rule type as the rule dialog shows it; translate it as that does
 msgid "Noted — the banner stays hidden until an \"Include\" rule is enabled and then disabled again."
 msgstr "承知しました。「含める」ルールが有効にされ、その後再び無効にされるまで、このバナーは表示されません。"
+
+#. TRANSLATORS: the status's MIME types row: detection is off, and no file has a MIME type
+msgid "Off"
+msgstr "オフ"
+
+#. TRANSLATORS: the status's MIME types row: detection is off, and this many files keep the MIME type detected before
+msgid "Off, kept for %n file"
+msgid_plural "Off, kept for %n files"
+msgstr[0] "オフ、%n個のファイルで保持"
+
+#. TRANSLATORS: the status's MIME types row: detection is on, and this many files have a MIME type
+msgid "On, detected for %n file"
+msgid_plural "On, detected for %n files"
+msgstr[0] "オン、%n個のファイルで検出済み"
 
 msgid "One account's home folder"
 msgstr "1つのアカウントのホームフォルダー"
@@ -758,6 +827,9 @@ msgstr "優先度の階層"
 msgid "Queue drain"
 msgstr "キューの処理"
 
+msgid "Queue the files that have checksums to have their MIME type detected: only those without one, or all of them, for instance after PHP was upgraded. The background job then reads the first 64 KiB of each."
+msgstr "チェックサムがあるファイルを、MIMEタイプの検出のためにキューに追加します。対象は、MIMEタイプが未検出のファイルのみ、またはすべてのファイル（PHPのアップグレード後など）です。その後、バックグラウンドジョブが各ファイルの先頭64 KiBを読み取ります。"
+
 #. TRANSLATORS files waiting for the background job to compute their checksums, counted by mode
 msgid "Queued files"
 msgstr "キュー内のファイル"
@@ -789,6 +861,9 @@ msgstr "チェックサムの手動での再計算です。サイドバーの「
 
 msgid "Refresh"
 msgstr "更新"
+
+msgid "Refresh MIME types"
+msgstr "MIMEタイプを更新"
 
 #. TRANSLATORS under the heading "Checksum count": how many minutes the count may age before it is counted again
 msgid "Renew after (minutes)"
@@ -917,6 +992,12 @@ msgstr "ストレージ：{storage}"
 msgid "Sudo tokens"
 msgstr "sudoトークン"
 
+msgid "Switch MIME type detection on first."
+msgstr "先にMIMEタイプの検出をオンにしてください。"
+
+msgid "Switch detection off to delete the MIME types, or refresh them to bring them up to date."
+msgstr "MIMEタイプを削除するには、検出をオフにしてください。最新の状態にするには、MIMEタイプを更新してください。"
+
 msgid "Team folder"
 msgstr "チームフォルダー"
 
@@ -938,6 +1019,12 @@ msgstr "\"hash\" パラメーターが必要です。"
 msgid "The \"since\" parameter must be a date, as ISO 8601 or Unix seconds."
 msgstr "\"since\" パラメーターには、ISO 8601形式の日付またはUnix秒を指定してください。"
 
+msgid "The MIME types are being deleted."
+msgstr "MIMEタイプを削除しています。"
+
+msgid "The MIME types are being deleted. Detection can be switched on again once that is done."
+msgstr "MIMEタイプを削除しています。完了すると、検出を再びオンにできます。"
+
 msgid "The algorithm the Checksums tab in the file sidebar offers as its first button. Leave it on the default to follow the server; pick one to have it first for every file, with the file's own rule providing the second button."
 msgstr "ファイルサイドバーの「チェックサム」タブが最初のボタンとして表示するアルゴリズムです。デフォルトのままにするとサーバーの設定に従います。1つ選ぶと、すべてのファイルでそれが最初に表示され、2番目のボタンにはそのファイル自身のルールのアルゴリズムが表示されます。"
 
@@ -949,6 +1036,9 @@ msgstr "ルールが計算でき、選択リストが提示できるアルゴリ
 
 msgid "The default must be one of the allowed algorithms."
 msgstr "デフォルトは許可されたアルゴリズムのいずれかである必要があります。"
+
+msgid "The files are queued to have their MIME type detected."
+msgstr "MIMEタイプの検出のためにファイルをキューに追加しました。"
 
 msgid "The home folders of a group's members"
 msgstr "グループのメンバーのホームフォルダー"
@@ -967,6 +1057,9 @@ msgstr "このパスは、受け取った共有、チームフォルダー、ま
 
 msgid "The raw ID from the storages table, matched exactly, whatever kind of storage it names. Use this for external storage, or for any storage the other choices cannot address."
 msgstr "storages テーブルの内部IDで、完全一致で照合されます。どの種類のストレージでも指定できます。外部ストレージや、他の選択肢では指定できないストレージに使用してください。"
+
+msgid "The read that computes a file's checksums names its MIME type from its first 64 KiB, and the type is kept beside the checksums. Nextcloud's own type comes from the file's name, so a renamed file can disagree with itself."
+msgstr "チェックサムを計算するための読み取りで、ファイルの先頭64 KiBからMIMEタイプを判定し、チェックサムと一緒に保存します。Nextcloud自身のMIMEタイプはファイル名から決まるため、名前を変更したファイルでは両者が一致しないことがあります。"
 
 msgid "The request never reached the server."
 msgstr "リクエストがサーバーに届きませんでした。"
@@ -1029,6 +1122,10 @@ msgstr "これはあなた自身のルールです。あなたのファイルに
 
 msgid "This tab shows other people's files: those of the accounts and groups chosen above. Leave this tab to go back to your own."
 msgstr "このタブには他の人のファイル、つまり上で選択したアカウントとグループのファイルが表示されます。自分のファイルに戻るには、このタブを離れてください。"
+
+#. TRANSLATORS: a button in the dialog that refreshes the MIME types: only the files that have none yet
+msgid "Those without one"
+msgstr "未検出のファイルのみ"
 
 msgid "Total: {count}"
 msgstr "合計：{count}"
@@ -1195,6 +1292,14 @@ msgid "counted %n checksum"
 msgid_plural "counted %n checksums"
 msgstr[0] "%n 件のチェックサムを集計"
 
+#. TRANSLATORS: a background job's last run: the files whose MIME type it deleted, and that the whole deletion is finished
+msgid "deleted {deleted}, finished"
+msgstr "削除：{deleted}、完了"
+
+#. TRANSLATORS: a background job's last run: the files whose MIME type it deleted, and that the next runs go on deleting
+msgid "deleted {deleted}, not finished yet"
+msgstr "削除：{deleted}、未完了"
+
 #. TRANSLATORS: a background job's last run ended with an error; {reason} is the error as the server logs it, in English
 msgid "failed: {reason}"
 msgstr "失敗：{reason}"
@@ -1255,6 +1360,14 @@ msgstr "orderedIds は必須で、配列である必要があります。"
 #. TRANSLATORS: a background job's last run: of the queued files it took, how many it processed and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
 msgid "processed {processed} of {total}, failed {failed}, cleared after a reset {cleared}"
 msgstr "処理済み：{processed}/{total}、失敗：{failed}、リセット後に消去：{cleared}"
+
+#. TRANSLATORS: a background job's last run: the files it queued to have their MIME type detected, and that the whole refresh is finished
+msgid "queued {queued}, finished"
+msgstr "キュー追加：{queued}、完了"
+
+#. TRANSLATORS: a background job's last run: the files it queued to have their MIME type detected, and that the next runs go on queueing
+msgid "queued {queued}, not finished yet"
+msgstr "キュー追加：{queued}、未完了"
 
 #. TRANSLATORS: a background job's last run: the checksums of deleted files it removed, and in how many batches
 msgid "removed {purged}, batches {batches}"

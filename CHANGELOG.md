@@ -13,10 +13,11 @@ the first stable release.
 
 ### Added
 
-- A file's MIME type, detected from its content while it is hashed,
-  stored beside its hashes; off by default. Switched, refreshed and
-  deleted with `occ fcias:mimetype:*`, counted by `fcias:status`, and
-  given by the API on `?mimetype=1` (`docs/api-v1.md`, *MIME types*).
+- A file's MIME type, detected from its content while it is hashed;
+  off by default. Shown in the files sidebar and on the duplicates
+  page, switched, refreshed and deleted in the admin settings or with
+  `occ fcias:mimetype:*`, counted in the status, and given by the API
+  on `?mimetype=1` (`docs/api-v1.md`, *MIME types*).
 
 ## [0.24.0] - 2026-10-08
 

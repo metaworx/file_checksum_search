@@ -170,6 +170,18 @@ describe( 'FCIAS status panel', () => {
 		cellText( '#fcias-status-dbversion' ).should( 'not.eq', '—' ).and( 'not.be.empty' )
 	} )
 
+	it( 'shows MIME type detection off, as an install has it', () => {
+		// The settings an install has not got, and no type stored: the
+		// fixture's import leaves the types out.
+		cy.exec( `${ occ } config:app:delete ${ appId } mimetype_detection`, { failOnNonZeroExit: false } )
+		cy.exec( `${ occ } config:app:delete ${ appId } mimetype_delete_requested_at`, { failOnNonZeroExit: false } )
+		givenThreeHashes()
+		cy.visit( STATUS_URL )
+
+		cy.get( '#fcias-status-mimetypes', { timeout: FIND_TIMEOUT } ).should( 'have.attr', 'data-state', 'disabled' )
+		cellText( '#fcias-status-mimetypes' ).should( 'eq', 'Off' )
+	} )
+
 	it( 'reports an empty queue as empty rather than as nothing', () => {
 		givenThreeHashes()
 		cy.visit( STATUS_URL )

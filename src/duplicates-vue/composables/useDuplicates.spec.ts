@@ -12,6 +12,15 @@ vi.mock('@nextcloud/router', () => ({
 	generateUrl: (url: string, params?: Record<string, unknown>) => substitute(url, params),
 }))
 
+// What the server offers, as /api/v1/status says: no MIME types unless a
+// test says otherwise.
+const features = { mimetype: false }
+vi.mock('../../features', () => ({
+	fetchFeatures: () => Promise.resolve({ ...features }),
+	// A 400 to a request that asked reads the features again: these, by then.
+	mimeTypeSwitchedOff: (response: Response, asked: boolean) => Promise.resolve(asked && response.status === 400 && !features.mimetype),
+}))
+
 function jsonResponse(body: unknown): Response {
 	return new Response(JSON.stringify(body), { status: 200 })
 }
@@ -41,6 +50,7 @@ function mockAbortableFetch(): { fetchMock: MockInstance<typeof fetch>; pending:
 describe('useDuplicates', () => {
 	afterEach(() => {
 		vi.restoreAllMocks()
+		features.mimetype = false
 	})
 
 	it('discards a stale response when a newer load() supersedes it', async () => {
@@ -52,7 +62,9 @@ describe('useDuplicates', () => {
 		const { groups, error, load } = useDuplicates()
 
 		const loadA = load() // request #1, still pending
+		await vi.waitFor(() => expect(pending).toHaveLength(1))
 		const loadB = load() // aborts #1 (if guarded), starts request #2
+		await vi.waitFor(() => expect(pending).toHaveLength(2))
 
 		pending[1](
 			jsonResponse({
@@ -339,6 +351,7 @@ describe('useDuplicates', () => {
 		const { groups, hasMore, load } = useDuplicates()
 
 		const p = load()
+		await vi.waitFor(() => expect(pending).toHaveLength(1))
 		pending[0](
 			jsonResponse({
 				duplicates: [{ algo: 'sha1', hash_value: 'abc', file_count: 3, files: [] }],
@@ -350,6 +363,47 @@ describe('useDuplicates', () => {
 			{ algo: 'sha1', hash_value: 'abc', file_count: 3, files: [] },
 		])
 		expect(hasMore.value).toBe(false)
+	})
+
+	// Each group's type, while the server detects types; asked otherwise,
+	// the listing would be refused.
+	it('asks for the groups\' MIME types only while the server detects types', async () => {
+		// A response of its own each time: a body is read once.
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.resolve(
+			jsonResponse({ duplicates: [{ algo: 'sha1', hash_value: 'abc', file_count: 2, files: [], mimetype: 'image/png' }] }),
+		))
+		const { groups, load } = useDuplicates()
+
+		await load()
+		expect(String(fetchMock.mock.calls[0][0])).not.toContain('mimetype=')
+
+		features.mimetype = true
+		try {
+			await load()
+		} finally {
+			features.mimetype = false
+		}
+
+		expect(String(fetchMock.mock.calls[1][0])).toContain('mimetype=1')
+		expect(groups.value[0].mimetype).toBe('image/png')
+	})
+
+	it('lists again without the MIME types once detection was switched off', async () => {
+		features.mimetype = true
+		const fetchMock = vi.spyOn(globalThis, 'fetch')
+			.mockImplementationOnce(() => {
+				features.mimetype = false
+				return Promise.resolve(new Response(JSON.stringify({ success: false }), { status: 400 }))
+			})
+			.mockResolvedValueOnce(jsonResponse({ duplicates: [{ algo: 'sha1', hash_value: 'abc', file_count: 2, files: [] }] }))
+		const { error, groups, load } = useDuplicates()
+
+		await load()
+
+		expect(fetchMock).toHaveBeenCalledTimes(2)
+		expect(String(fetchMock.mock.calls[1][0])).not.toContain('mimetype=')
+		expect(error.value).toBeNull()
+		expect(groups.value).toHaveLength(1)
 	})
 })
 

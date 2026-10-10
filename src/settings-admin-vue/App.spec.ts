@@ -36,7 +36,7 @@ function jsonResponse(body: unknown): Response {
 	return new Response(JSON.stringify(body), { status: 200 })
 }
 
-function mockFetch(options: { rules?: unknown[], idleBannerAcknowledged?: boolean } = {}): void {
+function mockFetch(options: { rules?: unknown[], idleBannerAcknowledged?: boolean, mimeTypes?: unknown } = {}): void {
 	vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
 		const url = String(input)
 		if (url.includes('/settings/status')) {
@@ -78,6 +78,7 @@ function mockFetch(options: { rules?: unknown[], idleBannerAcknowledged?: boolea
 					future_job: { lastRun: 1700000300, counts: { widgets: 7 } },
 				},
 				idleBannerAcknowledged: options.idleBannerAcknowledged ?? false,
+				mimeTypes: options.mimeTypes,
 			}))
 		}
 		if (url.includes('/api/v1/rules') && options.rules) {
@@ -361,6 +362,22 @@ describe('settings-admin App', () => {
 
 		expect(wrapper.find('.fcias-status-table').exists()).toBe(true)
 		expect(wrapper.find('#fcias-rules-list').exists()).toBe(false)
+	})
+
+	// Where MIME type detection stands, with the types counted with the
+	// checksums: off, kept, detected, and left while they are deleted.
+	it.each([
+		[{ state: 'disabled', rows: 0, deleteRequestedAt: null }, 'Off'],
+		[{ state: 'disabled', rows: 7, deleteRequestedAt: null }, 'Off, kept for 7 files'],
+		[{ state: 'enabled', rows: 1, deleteRequestedAt: null }, 'On, detected for 1 file'],
+		[{ state: 'deleting', rows: 3, deleteRequestedAt: 1700000000 }, `Being deleted since ${formatDateTime(new Date(1700000000 * 1000))}, 3 files left`],
+	])('says where MIME type detection stands: %o', async (mimeTypes, text) => {
+		mockFetch({ mimeTypes })
+		const wrapper = mount(App)
+		await flushPromises()
+		await wrapper.find('[aria-controls="fcias-tab-panel-advanced"]').trigger('click')
+
+		expect(wrapper.find('#fcias-status-mimetypes').text()).toBe(text)
 	})
 
 	it('keeps Path and User Scope editable for an additional rule', async () => {

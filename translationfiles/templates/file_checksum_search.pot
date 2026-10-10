@@ -110,6 +110,10 @@ msgstr ""
 msgid "All my groups"
 msgstr ""
 
+#. TRANSLATORS: a button in the dialog that refreshes the MIME types: every file that has checksums
+msgid "All of them"
+msgstr ""
+
 msgid "Allow all accounts to edit rules"
 msgstr ""
 
@@ -159,6 +163,16 @@ msgid "Band {band}"
 msgstr ""
 
 msgid "Band {band}, position {position}"
+msgstr ""
+
+#. TRANSLATORS: the status's MIME types row: their deletion was asked for at {time}, and this many files still have one
+msgid "Being deleted since {time}, %n file left"
+msgid_plural "Being deleted since {time}, %n files left"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRANSLATORS: Nextcloud's own MIME type for the file, which it takes from the file's name; {type} is that MIME type, such as image/jpeg
+msgid "By its name: {type}"
 msgstr ""
 
 msgid "Cancel"
@@ -216,6 +230,9 @@ msgid "Could not change the grant."
 msgstr ""
 
 msgid "Could not complete the request."
+msgstr ""
+
+msgid "Could not delete the MIME types."
 msgstr ""
 
 msgid "Could not delete the rule."
@@ -278,6 +295,9 @@ msgstr ""
 msgid "Could not recalculate the checksum."
 msgstr ""
 
+msgid "Could not refresh the MIME types."
+msgstr ""
+
 msgid "Could not reorder the rules."
 msgstr ""
 
@@ -327,10 +347,22 @@ msgstr ""
 msgid "Delete"
 msgstr ""
 
+msgid "Delete MIME types"
+msgstr ""
+
+msgid "Delete every stored MIME type? The checksums stay. Detection can be switched on again once the deletion is done."
+msgstr ""
+
 msgid "Delete rule"
 msgstr ""
 
 msgid "Delete this rule?"
+msgstr ""
+
+msgid "Detect MIME types"
+msgstr ""
+
+msgid "Detected from the file's content"
 msgstr ""
 
 msgid "Disable"
@@ -352,6 +384,9 @@ msgid "Drag to reorder among the rules of the same scope"
 msgstr ""
 
 msgid "Duplicates"
+msgstr ""
+
+msgid "Each file's MIME type, detected from its content while its checksums are computed."
 msgstr ""
 
 msgid "Edit"
@@ -556,9 +591,27 @@ msgstr ""
 msgid "Loading checksums …"
 msgstr ""
 
+msgid "MIME type"
+msgstr ""
+
+#. TRANSLATORS: a background job's name: when an administrator chooses Delete, it deletes the stored MIME types
+msgid "MIME type deletion"
+msgstr ""
+
 #. TRANSLATORS: %1$s is the app's name in the administration settings, %2$s the name of its tab
 #, php-format
 msgid "MIME type detection is off on this server. An administrator can switch it on in the administration settings, under %1$s → %2$s."
+msgstr ""
+
+#. TRANSLATORS: a background job's name: when an administrator chooses Refresh, it queues the files whose MIME type is to be detected again
+msgid "MIME type refresh"
+msgstr ""
+
+#. TRANSLATORS: the tooltip of a duplicate group's MIME type: it comes from what the files hold, not from their names
+msgid "MIME type, detected from the content"
+msgstr ""
+
+msgid "MIME types"
 msgstr ""
 
 msgid "MIME types cannot be detected on this server: PHP's Fileinfo extension is not loaded."
@@ -664,6 +717,9 @@ msgstr ""
 msgid "None of the requested algorithms is available on this server; the previous list is kept."
 msgstr ""
 
+msgid "Not detected yet"
+msgstr ""
+
 msgid "Not granted"
 msgstr ""
 
@@ -687,6 +743,22 @@ msgstr ""
 #. TRANSLATORS: "Include" is a rule type as the rule dialog shows it; translate it as that does
 msgid "Noted — the banner stays hidden until an \"Include\" rule is enabled and then disabled again."
 msgstr ""
+
+#. TRANSLATORS: the status's MIME types row: detection is off, and no file has a MIME type
+msgid "Off"
+msgstr ""
+
+#. TRANSLATORS: the status's MIME types row: detection is off, and this many files keep the MIME type detected before
+msgid "Off, kept for %n file"
+msgid_plural "Off, kept for %n files"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRANSLATORS: the status's MIME types row: detection is on, and this many files have a MIME type
+msgid "On, detected for %n file"
+msgid_plural "On, detected for %n files"
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "One account's home folder"
 msgstr ""
@@ -760,6 +832,9 @@ msgstr ""
 msgid "Queue drain"
 msgstr ""
 
+msgid "Queue the files that have checksums to have their MIME type detected: only those without one, or all of them, for instance after PHP was upgraded. The background job then reads the first 64 KiB of each."
+msgstr ""
+
 #. TRANSLATORS files waiting for the background job to compute their checksums, counted by mode
 msgid "Queued files"
 msgstr ""
@@ -790,6 +865,9 @@ msgid "Recalculating checksums by hand: the sidebar's \"Recalculate\" buttons, \
 msgstr ""
 
 msgid "Refresh"
+msgstr ""
+
+msgid "Refresh MIME types"
 msgstr ""
 
 #. TRANSLATORS under the heading "Checksum count": how many minutes the count may age before it is counted again
@@ -919,6 +997,12 @@ msgstr ""
 msgid "Sudo tokens"
 msgstr ""
 
+msgid "Switch MIME type detection on first."
+msgstr ""
+
+msgid "Switch detection off to delete the MIME types, or refresh them to bring them up to date."
+msgstr ""
+
 msgid "Team folder"
 msgstr ""
 
@@ -940,6 +1024,12 @@ msgstr ""
 msgid "The \"since\" parameter must be a date, as ISO 8601 or Unix seconds."
 msgstr ""
 
+msgid "The MIME types are being deleted."
+msgstr ""
+
+msgid "The MIME types are being deleted. Detection can be switched on again once that is done."
+msgstr ""
+
 msgid "The algorithm the Checksums tab in the file sidebar offers as its first button. Leave it on the default to follow the server; pick one to have it first for every file, with the file's own rule providing the second button."
 msgstr ""
 
@@ -950,6 +1040,9 @@ msgid "The algorithms rules may compute and pickers may offer, chosen from what 
 msgstr ""
 
 msgid "The default must be one of the allowed algorithms."
+msgstr ""
+
+msgid "The files are queued to have their MIME type detected."
 msgstr ""
 
 msgid "The home folders of a group's members"
@@ -968,6 +1061,9 @@ msgid "The path leads into a received share, a team folder or another mounted st
 msgstr ""
 
 msgid "The raw ID from the storages table, matched exactly, whatever kind of storage it names. Use this for external storage, or for any storage the other choices cannot address."
+msgstr ""
+
+msgid "The read that computes a file's checksums names its MIME type from its first 64 KiB, and the type is kept beside the checksums. Nextcloud's own type comes from the file's name, so a renamed file can disagree with itself."
 msgstr ""
 
 msgid "The request never reached the server."
@@ -1030,6 +1126,10 @@ msgid "This is your own rule. It applies only to your files and is evaluated aft
 msgstr ""
 
 msgid "This tab shows other people's files: those of the accounts and groups chosen above. Leave this tab to go back to your own."
+msgstr ""
+
+#. TRANSLATORS: a button in the dialog that refreshes the MIME types: only the files that have none yet
+msgid "Those without one"
 msgstr ""
 
 msgid "Total: {count}"
@@ -1198,6 +1298,14 @@ msgid_plural "counted %n checksums"
 msgstr[0] ""
 msgstr[1] ""
 
+#. TRANSLATORS: a background job's last run: the files whose MIME type it deleted, and that the whole deletion is finished
+msgid "deleted {deleted}, finished"
+msgstr ""
+
+#. TRANSLATORS: a background job's last run: the files whose MIME type it deleted, and that the next runs go on deleting
+msgid "deleted {deleted}, not finished yet"
+msgstr ""
+
 #. TRANSLATORS: a background job's last run ended with an error; {reason} is the error as the server logs it, in English
 msgid "failed: {reason}"
 msgstr ""
@@ -1257,6 +1365,14 @@ msgstr ""
 
 #. TRANSLATORS: a background job's last run: of the queued files it took, how many it processed and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
 msgid "processed {processed} of {total}, failed {failed}, cleared after a reset {cleared}"
+msgstr ""
+
+#. TRANSLATORS: a background job's last run: the files it queued to have their MIME type detected, and that the whole refresh is finished
+msgid "queued {queued}, finished"
+msgstr ""
+
+#. TRANSLATORS: a background job's last run: the files it queued to have their MIME type detected, and that the next runs go on queueing
+msgid "queued {queued}, not finished yet"
 msgstr ""
 
 #. TRANSLATORS: a background job's last run: the checksums of deleted files it removed, and in how many batches
