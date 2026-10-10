@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-10-10
+
 ### Added
 
 - `docs/FAQ.md`, *How are MIME types detected?*, `occ fcias:mimetype:*`,
