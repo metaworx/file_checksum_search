@@ -51,6 +51,26 @@ readonly class RepairStep
 		 * search that almost always finds nothing.
 		 */
 		public bool   $manualOnly = false,
+		/**
+		 * Names `--step` still takes for it, from before it was renamed.
+		 *
+		 * @var list<string>
+		 */
+		public array  $aliases = [],
 	) {
+	}
+
+
+//  getters / setters / is* / has*
+
+	/**
+	 * Whether $names name this step, by its name or a former one.
+	 *
+	 * @param  list<string>  $names
+	 */
+	public function isNamedIn( array $names ): bool
+	{
+		return in_array( $this->name, $names, true )
+		       || array_intersect( $this->aliases, $names ) !== [];
 	}
 }

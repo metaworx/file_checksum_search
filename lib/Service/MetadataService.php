@@ -158,7 +158,7 @@ class MetadataService
 	 * excluded from scans by construction rather than by remembering to.
 	 *
 	 * The two differ in what is left behind: erosion already removed the
-	 * hashes ({@see markEroded()} strips them), while a reset disowns hashes
+	 * hashes ({@see markEroded()} strips them), while revoking leaves hashes
 	 * that are still stored, awaiting the drain — which is why scans have to
 	 * exclude the namespace rather than trust it to be empty.
 	 *
@@ -171,7 +171,8 @@ class MetadataService
 
 	public const STATE_ERODED = self::STATE_STALE_PREFIX . 'eroded';
 
-	public const STATE_RESET = self::STATE_STALE_PREFIX . 'reset';
+	/** An operator revoked the hashes ({@see markRevoked()}); the drain clears them. */
+	public const STATE_REVOKED = self::STATE_STALE_PREFIX . 'revoked';
 
 	/**
 	 * The filecache lists the file and its storage does not have it: the
@@ -183,6 +184,9 @@ class MetadataService
 
 	/** The value written before the states were namespaced; migrated by repair. */
 	public const LEGACY_STATE_ERODED        = 'eroded';
+
+	/** {@see STATE_REVOKED} as 0.25.0 and before wrote it; migrated by repair. */
+	public const LEGACY_STATE_RESET         = self::STATE_STALE_PREFIX . 'reset';
 	public const TABLE_FILES_METADATA       = 'files_metadata';
 	public const TABLE_FILES_METADATA_INDEX = 'files_metadata_index';
 
@@ -215,7 +219,7 @@ class MetadataService
 	 */
 	private const REGISTER_PASSES = 3;
 
-	/** How many file ids {@see markAllStale()} disowns per statement. */
+	/** How many file ids {@see markAllRevoked()} revokes per statement. */
 	private const MARK_PAGE_SIZE = 1000;
 
 
@@ -642,7 +646,7 @@ class MetadataService
 	 * and so is picked up by the next sweep.
 	 *
 	 * Saved, the file's marker goes as well: whatever it was queued or
-	 * disowned for went with the hashes. A caller that wants it queued
+	 * revoked for went with the hashes. A caller that wants it queued
 	 * marks it afterwards.
 	 *
 	 * $save is only honoured when the caller passes a document it already
@@ -1410,10 +1414,10 @@ class MetadataService
 	}
 
 	/**
-	 * Disown the stored hashes of many files at once.
+	 * Revoke the stored hashes of many files at once.
 	 *
 	 * Writes the marker only: the hashes and the freshness stamp stay exactly
-	 * as they are. That is the point — a reset over a large instance would
+	 * as they are. That is the point — revoking over a large instance would
 	 * otherwise rewrite one metadata document per file, and this writes the
 	 * index alone: a file's state row replaced, a transaction per thousand
 	 * files. The drain clears them later, or an import replaces them first
@@ -1423,15 +1427,15 @@ class MetadataService
 	 * files out of every scan the moment the marker lands.
 	 *
 	 * Files with no `file-checksum-updated_at` row are not marked. A file the
-	 * app never considered has no hashes to disown, and inventing a row for
-	 * it would make "never considered" and "disowned" indistinguishable.
+	 * app never considered has no hashes to revoke, and inventing a row for
+	 * it would make "never considered" and "revoked" indistinguishable.
 	 *
 	 * @param  list<int>  $fileIds
 	 *
 	 * @return int  Files marked.
 	 * @throws Exception
 	 */
-	public function markStale( array $fileIds ): int
+	public function markRevoked( array $fileIds ): int
 	{
 		if ( $fileIds === [] )
 		{
@@ -1472,7 +1476,7 @@ class MetadataService
 
 				foreach ( $considered as $fileId )
 				{
-					$this->insertIndexRow( $fileId, self::KEY_FILE_CHECKSUM_STATE, self::STATE_RESET );
+					$this->insertIndexRow( $fileId, self::KEY_FILE_CHECKSUM_STATE, self::STATE_REVOKED );
 				}
 
 				$this->db->commit();
@@ -1526,22 +1530,22 @@ class MetadataService
 	}
 
 	/**
-	 * Disown every file this app has hashed.
+	 * Revoke the hashes of every file this app has hashed.
 	 *
-	 * The whole-instance form of {@see markStale()}, as one statement rather
+	 * The whole-instance form of {@see markRevoked()}, as one statement rather
 	 * than a file list the caller would have to page through first.
 	 *
 	 * **Only files that actually hold hashes.** The marker shares its row
 	 * with the queue, so marking a file writes over whatever it was waiting
-	 * for — and a file with no hashes has nothing to disown, which would make
-	 * resetting the hashes quietly reset the queue as well. Restricting it to
+	 * for — and a file with no hashes has nothing to revoke, which would make
+	 * revoking the hashes quietly reset the queue as well. Restricting it to
 	 * files with something to lose keeps the two slices separable, and makes
 	 * the number reported afterwards the same one the plan promised.
 	 *
 	 * @return int  Rows marked.
 	 * @throws Exception
 	 */
-	public function markAllStale(): int
+	public function markAllRevoked(): int
 	{
 		$marked = 0;
 		$lastId = 0;
@@ -1560,22 +1564,22 @@ class MetadataService
 			}
 
 			$lastId = $fileIds[ array_key_last( $fileIds ) ];
-			$marked += $this->markStale( $fileIds );
+			$marked += $this->markRevoked( $fileIds );
 		}
 	}
 
 	/**
 	 * The next files awaiting the drain's attention because they were
-	 * disowned rather than queued.
+	 * revoked rather than queued.
 	 *
-	 * Deliberately `stale:reset` alone rather than the whole namespace:
+	 * Deliberately `stale:revoked` alone rather than the whole namespace:
 	 * an eroded file has no hashes left to clear, so handing it to the drain
 	 * would be work with nothing to do.
 	 *
 	 * @return list<int>
 	 * @throws Exception
 	 */
-	public function fetchStaleBatch( int $limit = 50 ): array
+	public function fetchRevokedBatch( int $limit = 50 ): array
 	{
 		$qb = $this->db->getQueryBuilder();
 		$qb->select( self::FIELD_FILE_ID )
@@ -1589,7 +1593,7 @@ class MetadataService
 			   $qb->expr()
 			      ->eq(
 				      self::FIELD_META_VALUE_STRING,
-				      $qb->createNamedParameter( self::STATE_RESET ),
+				      $qb->createNamedParameter( self::STATE_REVOKED ),
 			      ),
 		   )
 		   ->orderBy( self::FIELD_FILE_ID, 'ASC' )
@@ -1613,7 +1617,7 @@ class MetadataService
 	 * Clear this app's hashes from files, now, one metadata document at a
 	 * time.
 	 *
-	 * The synchronous counterpart to {@see markStale()}, for the operator who
+	 * The synchronous counterpart to {@see markRevoked()}, for the operator who
 	 * wants the rows gone before they walk away rather than whenever the
 	 * drain next runs. It is the slow path by nature: `files_metadata_index`
 	 * is regenerated from the `files_metadata` document, so hashes can only be
@@ -1702,7 +1706,7 @@ class MetadataService
 	 * One page of the files a hash listing shows, by file id.
 	 *
 	 * A file is listed when the index holds a hash row for it — for $algo,
-	 * when one is named — and its hashes are not disowned: the selection
+	 * when one is named — and its hashes are not revoked: the selection
 	 * {@see queryByHash()} searches, so the listing shows what a lookup
 	 * would find. Keyset paging on the file id: a file deleted between two
 	 * pages moves nothing.
@@ -1727,7 +1731,7 @@ class MetadataService
 	 *
 	 * @param  bool                                          $withStale  Also the
 	 *         files whose hashes are stale — their stamp no longer vouching
-	 *         for them, or disowned — each with `state`: what the filecache
+	 *         for them, or revoked — each with `state`: what the filecache
 	 *         holds of it now, and whether its hashes are vouched for.
 	 *
 	 * @return list<array{fileid: int, storage: int, storage_id: string, path: string, updated_at: ?int, state?: array{etag: string, size: int, mtime: int, storageMtime: int, stampEtag: ?string, vouched: bool}}>
@@ -1760,7 +1764,7 @@ class MetadataService
 			   ->selectAlias( 'u.' . self::FIELD_META_VALUE_INT, 'updated_at' )
 			;
 
-			$disowned = $this->whereListed( $qb, $mounts, $algo, $since, ! $withStale, $withStale );
+			$revoked = $this->whereListed( $qb, $mounts, $algo, $since, ! $withStale, $withStale );
 
 			if ( $withStale )
 			{
@@ -1769,7 +1773,7 @@ class MetadataService
 				   ->selectAlias( 'fc.size', 'fc_size' )
 				   ->selectAlias( 'fc.mtime', 'fc_mtime' )
 				   ->selectAlias( 'fc.storage_mtime', 'fc_storage_mtime' )
-				   ->selectAlias( $qb->createFunction( $disowned ), 'disowned' )
+				   ->selectAlias( $qb->createFunction( $revoked ), 'revoked' )
 				;
 			}
 
@@ -1817,7 +1821,7 @@ class MetadataService
 						'mtime'        => (int) $row['fc_mtime'],
 						'storageMtime' => (int) $row['fc_storage_mtime'],
 						'stampEtag'    => $stampEtag,
-						'vouched'      => (int) $row['disowned'] === 0
+						'vouched'      => (int) $row['revoked'] === 0
 						                  && self::vouches( $stampEtag, $stamp, (string) $row['fc_etag'], (int) $row['fc_storage_mtime'] ),
 					];
 				}
@@ -1939,11 +1943,12 @@ class MetadataService
 	 * @param  bool                                          $vouched       False
 	 *         lists the files whatever their stamp says, for a caller that
 	 *         asks it itself.
-	 * @param  bool                                          $withDisowned  True
-	 *         lists the disowned files too.
+	 * @param  bool                                          $withRevoked  True
+	 *         lists the revoked files too: of the `stale:` states, the one
+	 *         that leaves hash rows behind.
 	 *
 	 * @return string  The count of a file's `stale:` state rows, as an SQL
-	 *                 expression a caller listing the disowned can select to
+	 *                 expression a caller listing the revoked can select to
 	 *                 tell them apart.
 	 */
 	private function whereListed(
@@ -1952,7 +1957,7 @@ class MetadataService
 		?string       $algo,
 		?int          $since,
 		bool          $vouched = true,
-		bool          $withDisowned = false,
+		bool          $withRevoked = false,
 	): string
 	{
 		$hash = self::hashRowCount( $this->db, $qb, 'u.' . self::FIELD_FILE_ID, $algo );
@@ -1971,7 +1976,7 @@ class MetadataService
 			);
 		}
 
-		// Not disowned: the selection queryByHash() searches. Counted, as the
+		// Not revoked: the selection queryByHash() searches. Counted, as the
 		// hash rows are: the LEFT JOIN that query uses has MariaDB drive each
 		// page from the filecache and sort it, five times slower over a
 		// whole listing.
@@ -1998,7 +2003,7 @@ class MetadataService
 		   )
 		;
 
-		if ( ! $withDisowned )
+		if ( ! $withRevoked )
 		{
 			$qb->andWhere( $qb->createFunction( '(' . $stale->getSQL() . ') = 0' ) );
 		}
@@ -2645,7 +2650,7 @@ class MetadataService
 	/**
 	 * How many files have untrusted hashes, broken down by why.
 	 *
-	 * @return array<string, int>  State value => count, e.g. `stale:reset` => 12
+	 * @return array<string, int>  State value => count, e.g. `stale:revoked` => 12
 	 */
 	public function getStaleStats(): array
 	{
@@ -2810,8 +2815,8 @@ class MetadataService
 	/**
 	 * Clear what computing a file's hashes settles, once they are saved
 	 * current: its place on the queue, its erosion, and its being gone from
-	 * its storage, which a read has just shown it is not. A disowned file
-	 * stays disowned — the hashes it was disowned for may still be in its
+	 * its storage, which a read has just shown it is not. A revoked file
+	 * stays revoked — the hashes it was revoked for may still be in its
 	 * document, and the drain or an import replaces them.
 	 *
 	 * Nextcloud's save of the metadata document used to do this by the way,
@@ -3501,7 +3506,7 @@ class MetadataService
 	 * Bring one file's index rows in line with its metadata document.
 	 *
 	 * Only where the document's hashes are current. A file queued for its
-	 * hashes or disowned by a reset is not this repair's to refill: the
+	 * hashes or revoked is not this repair's to refill: the
 	 * queue or the drain is on its way. A document whose stamp no longer
 	 * covers the file has its rows removed rather than written, since a hash
 	 * is current only while its row exists.
@@ -4767,7 +4772,7 @@ class MetadataService
 	 * type whole and answers instead.
 	 *
 	 * Not filtered by state, as {@see getHashes()} is not: a file queued, or
-	 * disowned by a reset, shows what is stored. The scans that leave such
+	 * revoked, shows what is stored. The scans that leave such
 	 * files out do so before they ask.
 	 *
 	 * @param  list<int>  $fileIds
@@ -4780,7 +4785,7 @@ class MetadataService
 		$types      = [];
 		$unresolved = [];
 
-		// Chunked at 1000: Oracle's placeholder ceiling, as in markStale().
+		// Chunked at 1000: Oracle's placeholder ceiling, as in markRevoked().
 		foreach ( array_chunk( array_values( array_unique( $fileIds ) ), 1000 ) as $chunk )
 		{
 			$qb = $this->db->getQueryBuilder();
@@ -4839,7 +4844,7 @@ class MetadataService
 	 * a page or none is left.
 	 *
 	 * A file with a mark of any kind is passed: queued for its hashes, which
-	 * detects the type as well, or disowned, and either way not this one's
+	 * detects the type as well, or revoked, and either way not this one's
 	 * to queue. Without $all, so is a file whose type the index holds.
 	 *
 	 * The marks are read for a page and then written, not in one statement:
@@ -5294,12 +5299,13 @@ class MetadataService
 	}
 
 	/**
-	 * Exclude files whose hashes an operator or the app disowned.
+	 * Exclude files whose hashes are not to be trusted: revoked by an
+	 * operator, or marked so by the app.
 	 *
 	 * Applied by every query that **scans** for hashes — search, lookup,
-	 * duplicates — so a disowned hash stops being findable the moment it is
+	 * duplicates — so a revoked hash stops being findable the moment it is
 	 * marked, rather than when the background job gets round to clearing it.
-	 * Without this, a reset would leave wrong hashes answering searches and
+	 * Without this, revoking would leave wrong hashes answering searches and
 	 * forming duplicate groups for as long as the queue took to drain. The
 	 * listing filters the same rows its own way ({@see whereListed()}).
 	 *

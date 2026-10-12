@@ -471,15 +471,14 @@ class HashListingTest
 	}
 
 	/**
-	 * A reset disowns a file's hashes: a lookup no longer finds them, and
-	 * the listing no longer lists them.
+	 * Revoked, a file's hashes are no longer found by a lookup, nor listed.
 	 */
-	public function testADisownedFileIsLeftOut(): void
+	public function testARevokedFileIsLeftOut(): void
 	{
-		[ $uid ] = self::makeAccount( 'fcias_list_reset' );
+		[ $uid ] = self::makeAccount( 'fcias_list_revoked' );
 		$ids     = $this->hashedFiles( Server::get( IRootFolder::class )->getUserFolder( $uid ), 2 );
 
-		Server::get( MetadataService::class )->markStale( [ $ids[0] ] );
+		Server::get( MetadataService::class )->markRevoked( [ $ids[0] ] );
 
 		$this->assertSame( [ $ids[1] ], array_column( $this->api->listHashes( [ $uid ] )['files'], 'fileid' ) );
 	}

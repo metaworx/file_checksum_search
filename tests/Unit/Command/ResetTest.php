@@ -122,10 +122,11 @@ class ResetTest
 		                      ->method( 'clearQueueState' )
 		;
 		$this->metadataService->expects( $this->once() )
-		                      ->method( 'markAllStale' )
+		                      ->method( 'markAllRevoked' )
 		;
 
 		$this->assertSame( Command::SUCCESS, $this->tester->execute( [ '--force' => true ] ) );
+		$this->assertStringNotContainsString( 'deprecated', $this->tester->getDisplay() );
 	}
 
 	public function testNamingSlicesLeavesTheOthersAlone(): void
@@ -137,7 +138,7 @@ class ResetTest
 		                      ->method( 'clearQueueState' )
 		;
 		$this->metadataService->expects( $this->once() )
-		                      ->method( 'markAllStale' )
+		                      ->method( 'markAllRevoked' )
 		;
 
 		$this->tester->execute(
@@ -149,13 +150,14 @@ class ResetTest
 	}
 
 	/**
-	 * Disowning is one write per thousand files; clearing is one metadata
-	 * document rewrite each. The default defers, and says so.
+	 * Revoking is one write per thousand files; clearing is one metadata
+	 * document rewrite each. The default defers, and says so; `--hashes`
+	 * says too that `fcias:revoke` is its name now.
 	 */
-	public function testHashesAreDisownedRatherThanCleared(): void
+	public function testHashesAreRevokedRatherThanCleared(): void
 	{
 		$this->metadataService->expects( $this->once() )
-		                      ->method( 'markAllStale' )
+		                      ->method( 'markAllRevoked' )
 		                      ->willReturn( 1140 )
 		;
 		$this->metadataService->expects( $this->never() )
@@ -169,13 +171,17 @@ class ResetTest
 			],
 		);
 
-		$this->assertStringContainsString( '1140 files disowned', $this->tester->getDisplay() );
+		$this->assertStringContainsString( '1140 files revoked', $this->tester->getDisplay() );
+		$this->assertStringContainsString(
+			'--hashes is deprecated: occ fcias:revoke revokes the hashes.',
+			$this->tester->getDisplay(),
+		);
 	}
 
 	public function testNowClearsInTheForegroundInstead(): void
 	{
 		$this->metadataService->expects( $this->never() )
-		                      ->method( 'markAllStale' )
+		                      ->method( 'markAllRevoked' )
 		;
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'clearHashesNow' )
@@ -211,7 +217,7 @@ class ResetTest
 			                    },
 		                    )
 		;
-		$this->metadataService->method( 'markAllStale' )
+		$this->metadataService->method( 'markAllRevoked' )
 		                      ->willReturnCallback(
 			                      static function() use
 			                      (
@@ -219,7 +225,7 @@ class ResetTest
 				                      $order,
 			                      ): int
 			                      {
-				                      $order[] = 'reset';
+				                      $order[] = 'revoke';
 
 				                      return 1;
 			                      },
@@ -237,7 +243,7 @@ class ResetTest
 		$this->assertSame(
 			[
 				'backup',
-				'reset',
+				'revoke',
 			],
 			$order,
 		);
@@ -263,7 +269,7 @@ class ResetTest
 				],
 			),
 		);
-		$this->assertStringContainsString( 'Nothing was reset', $this->tester->getDisplay() );
+		$this->assertStringContainsString( 'Nothing was changed', $this->tester->getDisplay() );
 	}
 
 	public function testAnUnwritableBackupPathResetsNothing(): void
@@ -293,11 +299,12 @@ class ResetTest
 		$logger->expects( $this->once() )
 		       ->method( 'warning' )
 		       ->with(
-			       $this->stringContains( 'reset carried out' ),
+			       $this->stringContains( '{command} carried out' ),
 			       $this->callback(
 				       static fn(
 					       array $context,
-				       ): bool => $context['slices'] === 'config, hashes'
+				       ): bool => $context['command'] === 'file-checksum-search:reset'
+					       && $context['slices'] === 'config, hashes'
 					       && ( $context['actor'] ?? '' ) !== '',
 			       ),
 		       )
@@ -337,7 +344,7 @@ class ResetTest
 		                      ->method( 'clearQueueState' )
 		;
 		$this->metadataService->expects( $this->never() )
-		                      ->method( 'markAllStale' )
+		                      ->method( 'markAllRevoked' )
 		;
 		$this->metadataService->expects( $this->never() )
 		                      ->method( 'clearHashesNow' )

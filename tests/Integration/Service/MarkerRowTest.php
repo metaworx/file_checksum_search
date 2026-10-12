@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Integration\Service;
 
+use OCA\FileChecksumSearch\Migration\RepairQuietStart;
 use OCA\FileChecksumSearch\Public\ChecksumApi;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
@@ -17,11 +18,12 @@ use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
 use OCP\Files\File;
 use OCP\Files\IRootFolder;
 use OCP\FilesMetadata\IFilesMetadataManager;
+use OCP\Migration\IOutput;
 use OCP\Server;
 use Throwable;
 
 /**
- * A file's marker — queued, disowned, eroded — survives another app's save
+ * A file's marker — queued, revoked, eroded — survives another app's save
  * of the metadata document.
  *
  * Nextcloud rewrites the index rows of a document's indexed keys whenever
@@ -109,28 +111,58 @@ class MarkerRowTest
 	}
 
 	/**
-	 * The defect as it was found: a reset disowns a hash, another app saves
-	 * the document, and the hash answered the lookup again. It stays out of
-	 * the lookup and the listing, and the drain still clears it.
+	 * The defect as it was found: a hash is revoked, another app saves the
+	 * document, and the hash answered the lookup again. It stays out of the
+	 * lookup and the listing, and the drain still clears it.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testADisownedHashStaysOutOfTheLookupThroughAnotherAppsSave(): void
+	public function testARevokedHashStaysOutOfTheLookupThroughAnotherAppsSave(): void
 	{
-		[ $file, $sha1 ] = $this->hashedFile( 'fcias_marker_reset' );
+		[ $file, $sha1 ] = $this->hashedFile( 'fcias_marker_revoked' );
 
 		$this->assertSame( [ $file->getId() ], $this->foundBy( $sha1 ), 'Found while it is vouched for.' );
 
-		$this->metadataService->markStale( [ $file->getId() ] );
+		$this->metadataService->markRevoked( [ $file->getId() ] );
 		$this->anotherAppSaves( $file );
 
-		$this->assertSame( MetadataService::STATE_RESET, $this->metadataService->getMarker( $file->getId() ) );
-		$this->assertSame( [], $this->foundBy( $sha1 ), 'The disowned hash stays out of the lookup.' );
+		$this->assertSame( MetadataService::STATE_REVOKED, $this->metadataService->getMarker( $file->getId() ) );
+		$this->assertSame( [], $this->foundBy( $sha1 ), 'The revoked hash stays out of the lookup.' );
 		$this->assertFalse( $this->listed( $file ), 'And out of the listing.' );
 
-		$this->ruleService->clearDisownedFiles( 1000 );
+		$this->ruleService->clearRevokedFiles( 1000 );
 
 		$this->assertSame( [], $this->stateRowsOf( $file->getId() ), 'The drain cleared the marker.' );
+		$this->assertSame( [], $this->metadataService->getHashes( $this->metadataService->getMetadata( $file->getId() ) ) );
+	}
+
+	/**
+	 * A file 0.25.0 revoked carries `stale:reset`: out of the lookup still,
+	 * and passed by the clearing until the `revoked-state` repair renames
+	 * its marker; then cleared as any revoked file is.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAFileRevokedBeforeTheRenameIsClearedAfterTheRepair(): void
+	{
+		[ $file, $sha1 ] = $this->hashedFile( 'fcias_marker_reset' );
+		$this->metadataService->markPending( $file->getId(), MetadataService::LEGACY_STATE_RESET );
+
+		$this->assertSame( [], $this->foundBy( $sha1 ), 'Out of the lookup before the repair.' );
+
+		$this->ruleService->clearRevokedFiles( 1000 );
+
+		$this->assertSame( [ MetadataService::LEGACY_STATE_RESET ], $this->stateRowsOf( $file->getId() ), 'Not cleared under its old name.' );
+
+		$ran = Server::get( RepairQuietStart::class )->runSteps( $this->createMock( IOutput::class ), [ 'revoked-state' ] );
+
+		$this->assertSame( [ 'revoked-state' ], $ran );
+		$this->assertSame( [ MetadataService::STATE_REVOKED ], $this->stateRowsOf( $file->getId() ), 'Renamed.' );
+		$this->assertSame( [], $this->foundBy( $sha1 ), 'Out of the lookup after it.' );
+
+		$this->ruleService->clearRevokedFiles( 1000 );
+
+		$this->assertSame( [], $this->stateRowsOf( $file->getId() ), 'Cleared.' );
 		$this->assertSame( [], $this->metadataService->getHashes( $this->metadataService->getMetadata( $file->getId() ) ) );
 	}
 
@@ -179,12 +211,12 @@ class MarkerRowTest
 
 	/**
 	 * Computing a file's hashes ends its erosion, as Nextcloud's save used to
-	 * by the way; a disowned file stays disowned until the drain or an
-	 * import replaces what it was disowned for.
+	 * by the way; a revoked file stays revoked until the drain or an import
+	 * replaces what it was revoked for.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testAnOnDemandCalculationEndsErosionAndNotDisowning(): void
+	public function testAnOnDemandCalculationEndsErosionAndNotRevoking(): void
 	{
 		[ $eroded ] = $this->hashedFile( 'fcias_marker_eroded' );
 		$this->metadataService->markEroded( $eroded->getId() );
@@ -192,11 +224,11 @@ class MarkerRowTest
 		$this->assertTrue( $this->hashCalc->recalcFileHash( $this->fresh( $eroded ), 'sha256' )['success'] );
 		$this->assertNull( $this->metadataService->getMarker( $eroded->getId() ) );
 
-		[ $disowned ] = $this->hashedFile( 'fcias_marker_disowned' );
-		$this->metadataService->markStale( [ $disowned->getId() ] );
+		[ $revoked ] = $this->hashedFile( 'fcias_marker_revoked' );
+		$this->metadataService->markRevoked( [ $revoked->getId() ] );
 
-		$this->assertTrue( $this->hashCalc->recalcFileHash( $this->fresh( $disowned ), 'sha256' )['success'] );
-		$this->assertSame( MetadataService::STATE_RESET, $this->metadataService->getMarker( $disowned->getId() ) );
+		$this->assertTrue( $this->hashCalc->recalcFileHash( $this->fresh( $revoked ), 'sha256' )['success'] );
+		$this->assertSame( MetadataService::STATE_REVOKED, $this->metadataService->getMarker( $revoked->getId() ) );
 	}
 
 	/**
@@ -211,13 +243,13 @@ class MarkerRowTest
 		[ $legacy ] = $this->hashedFile( 'fcias_marker_legacy' );
 		[ $newer ]  = $this->hashedFile( 'fcias_marker_newer' );
 
-		$this->leaveInTheStampRow( $legacy->getId(), MetadataService::STATE_RESET );
+		$this->leaveInTheStampRow( $legacy->getId(), MetadataService::LEGACY_STATE_RESET );
 		$this->leaveInTheStampRow( $newer->getId(), MetadataService::PENDING_AUTO );
 		$this->metadataService->markEroded( $newer->getId() );
 
 		$this->assertGreaterThanOrEqual( 1, $this->metadataService->moveMarkersToStateRows() );
 
-		$this->assertSame( [ MetadataService::STATE_RESET ], $this->stateRowsOf( $legacy->getId() ) );
+		$this->assertSame( [ MetadataService::LEGACY_STATE_RESET ], $this->stateRowsOf( $legacy->getId() ) );
 		$this->assertSame( [ MetadataService::STATE_ERODED ], $this->stateRowsOf( $newer->getId() ), 'The newer state stays.' );
 		$this->assertNull( $this->stampStringOf( $legacy->getId() ) );
 		$this->assertNull( $this->stampStringOf( $newer->getId() ) );

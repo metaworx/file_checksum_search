@@ -605,7 +605,7 @@ class ChecksumApi
 	 *                                            state ({@see withStates()}),
 	 *                                            and the files whose hashes
 	 *                                            are stale — changed, or
-	 *                                            disowned — are listed too,
+	 *                                            revoked — are listed too,
 	 *                                            `hashes` and `etag` null.
 	 *
 	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, mimetype?: ?string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>, next: ?int, now: int, estimated_total?: int}

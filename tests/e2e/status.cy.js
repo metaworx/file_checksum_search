@@ -41,7 +41,7 @@ const webdavUrl = ( path ) => `/remote.php/dav/files/${ adminUser }${ path }`
 // Put the instance back to exactly three stored hashes, and prove it.
 //
 // Per test rather than once per spec, because this spec resets and
-// disowns on purpose: a count established once at the top is not still
+// revokes on purpose: a count established once at the top is not still
 // true by the test after the one that clears everything. Building the
 // state next to the assertion that needs it is what lets a number in
 // this file mean something.
@@ -50,7 +50,7 @@ const givenThreeHashes = () => {
 	cy.importFciasFixture( occ, 'duplicates', adminUser )
 	cy.exec( `${ occ } file-checksum-search:status -o json`, { timeout: 300000 } )
 		.then( ( { stdout } ) => {
-			expect( JSON.parse( stdout ).untrusted_total, 'nothing disowned yet' ).to.eq( 0 )
+			expect( JSON.parse( stdout ).untrusted_total, 'nothing revoked yet' ).to.eq( 0 )
 		} )
 
 	// The count itself, from the endpoint the panel reads.
@@ -141,7 +141,7 @@ describe( 'FCIAS status panel', () => {
 	} )
 
 	after( () => {
-		// This spec disowns and clears every hash on the instance, which is
+		// This spec revokes and clears every hash on the instance, which is
 		// the point of it — put the shipped state back for whatever runs
 		// next, here or on a developer's machine.
 		cy.resetFciasState( occ )
@@ -198,18 +198,18 @@ describe( 'FCIAS status panel', () => {
 		cellText( '#fcias-status-rowcount' ).should( 'eq', '3' )
 	} )
 
-	it( 'counts what a reset disowned, and what finishing it leaves', () => {
+	it( 'counts what was revoked, and what finishing it leaves', () => {
 		givenThreeHashes()
 
-		// Erosion and reset are the two ways hashes stop being trusted, and
-		// this is the one an operator causes on purpose. Marked rather than
-		// cleared, so the count exists before the background job runs.
-		cy.exec( `${ occ } fcias:reset --hashes --force`, { timeout: 300000 } )
+		// Erosion and revoking are the two ways hashes stop being trusted,
+		// and this is the one an operator causes on purpose. Marked rather
+		// than cleared, so the count exists before the background job runs.
+		cy.exec( `${ occ } fcias:revoke --force`, { timeout: 300000 } )
 
 		statusFromOcc().then( ( fromOcc ) => {
-			expect( fromOcc.untrusted_total, 'the disowned files' ).to.eq( 3 )
+			expect( fromOcc.untrusted_total, 'the revoked files' ).to.eq( 3 )
 			expect( Object.keys( fromOcc.untrusted_by_reason ).join( ',' ) )
-				.to.contain( 'stale:reset' )
+				.to.contain( 'stale:revoked' )
 		} )
 
 		// The route the page reads, asked directly first: a zero here is
@@ -232,13 +232,13 @@ describe( 'FCIAS status panel', () => {
 		cy.get( '#fcias-status-counts-error' ).should( 'not.exist' )
 		cellText( '#fcias-status-untrusted' ).should( 'contain', 'Total: 3' )
 
-		// Finish what the reset deferred. Clearing a disowned file's hashes
+		// Finish what revoking deferred. Clearing a revoked file's hashes
 		// reads no file content, which is what makes it a repair step rather
 		// than work for the hashing job.
-		cy.exec( `${ occ } fcias:repair --step clear-disowned`, { timeout: 300000 } )
+		cy.exec( `${ occ } fcias:repair --step clear-revoked`, { timeout: 300000 } )
 
 		statusFromOcc().then( ( fromOcc ) => {
-			expect( fromOcc.untrusted_total, 'nothing left disowned' ).to.eq( 0 )
+			expect( fromOcc.untrusted_total, 'nothing left revoked' ).to.eq( 0 )
 		} )
 
 		cy.get( '#fcias-btn-refresh-status' ).should( 'not.be.disabled' ).click()
@@ -297,7 +297,8 @@ describe( 'FCIAS status panel', () => {
 		// again. Asserting that the timestamp is not an em dash proved
 		// nothing: it is filled on mount, so a Refresh button wired to
 		// nothing passed.
-		cy.exec( `${ occ } fcias:reset --hashes --status --force --now`, { timeout: 300000 } )
+		cy.exec( `${ occ } fcias:reset --status --force`, { timeout: 300000 } )
+		cy.exec( `${ occ } fcias:revoke --force --now`, { timeout: 300000 } )
 
 		// Refresh counts again, whatever the kept count's age: the reset
 		// happened a moment after the page counted.

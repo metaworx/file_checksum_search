@@ -267,7 +267,7 @@ const FCIAS_EXEC_TIMEOUT = 300000
 /**
  * Take the instance back to no hashes and no queue, synchronously.
  *
- * `--now` rather than the default: the deferred reset leaves the clearing to
+ * `--now` rather than the default: revoking, deferred, leaves the clearing to
  * the background job, and a spec cannot wait for a job it does not control.
  *
  * Two named repair steps afterwards, not a whole repair. The point of running
@@ -285,7 +285,10 @@ const FCIAS_EXEC_TIMEOUT = 300000
  * @param {string} occ  How to invoke occ, e.g. `php nextcloud/occ`.
  */
 Cypress.Commands.add( 'resetFciasState', ( occ ) => {
-	cy.exec( `${ occ } fcias:reset --hashes --status --force --now`, {
+	cy.exec( `${ occ } fcias:reset --status --force`, {
+		timeout: FCIAS_EXEC_TIMEOUT,
+	} )
+	cy.exec( `${ occ } fcias:revoke --force --now`, {
 		timeout: FCIAS_EXEC_TIMEOUT,
 	} )
 	cy.exec( `${ occ } fcias:repair --step selector-model --step metadata-keys`, {

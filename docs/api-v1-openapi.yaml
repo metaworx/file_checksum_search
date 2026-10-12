@@ -1482,9 +1482,9 @@ components:
           type: object
           nullable: true
           description: >-
-            Null with `stat=1` only, where the file's hashes are stale or were disowned by a
-            reset; `{}` for a file without hashes, and without `stat` for one whose hashes are
-            stale.
+            Null with `stat=1` only, where the file's hashes are stale or were revoked with
+            `occ fcias:revoke`; `{}` for a file without hashes, and without `stat` for one whose
+            hashes are stale.
           allOf:
             - $ref: "#/components/schemas/HashMap"
         algos:

@@ -46,7 +46,7 @@ function mockFetch(options: { rules?: unknown[], idleBannerAcknowledged?: boolea
 				rowCount: 3,
 				pendingStats: { 'pending:auto': 5 },
 				pendingFailed: 2,
-				staleStats: { 'stale:eroded': 4, 'stale:reset': 9, 'stale:gone': 2 },
+				staleStats: { 'stale:eroded': 4, 'stale:revoked': 9, 'stale:gone': 2 },
 				jobs: {
 					rule_sweep: {
 						lastRun: 1700000000,
@@ -60,7 +60,7 @@ function mockFetch(options: { rules?: unknown[], idleBannerAcknowledged?: boolea
 					},
 					pending_drain: {
 						lastRun: 1700000020,
-						counts: { hashed: 45, typed: 4, stamped: 6, emptied: 0, dropped: 3, gone: 1, failed: 2, total: 61, disowned: 1 },
+						counts: { hashed: 45, typed: 4, stamped: 6, emptied: 0, dropped: 3, gone: 1, failed: 2, total: 61, revoked: 1, disowned: 1 },
 						attempt: { at: 1700000020, ok: true, durationMs: 80, reason: null },
 					},
 					mimetype_delete: { lastRun: null, counts: {}, attempt: null },
@@ -222,11 +222,11 @@ describe('settings-admin App', () => {
 
 		// D17: untrusted hashes are queryable state, and each job carries a
 		// heartbeat. Broken down by reason, because erosion heals itself and
-		// a reset is waiting for something — different things to do about them.
+		// revoking is waiting for something — different things to do about them.
 		const untrusted = wrapper.find('#fcias-status-untrusted').text()
 		expect(untrusted).toContain('Total: 15')
 		expect(untrusted).toContain('Eroded: 4')
-		expect(untrusted).toContain('Reset: 9')
+		expect(untrusted).toContain('Revoked: 9')
 		expect(untrusted).toContain('Gone: 2')
 		expect(untrusted).toContain('scanning the files brings the list in line')
 		expect(untrusted).toContain('it gets them back once a rule covers it again')
@@ -242,7 +242,7 @@ describe('settings-admin App', () => {
 		expect(jobs).toContain('matched 12, queued 3')
 		// The drain's files hashed apart from those dropped unread.
 		expect(jobs).toContain('Queue drain')
-		expect(jobs).toContain('hashed 45 of 61, type read 4, stamped 6, emptied 0, dropped 3, gone 1, failed 2, cleared after a reset 1')
+		expect(jobs).toContain('hashed 45 of 61, type read 4, stamped 6, emptied 0, dropped 3, gone 1, failed 2, cleared after revocation 1')
 		expect(jobs).toContain('MIME type deletion')
 		expect(jobs).toContain('Not run yet')
 		expect(jobs).toContain('Rule reapplication')

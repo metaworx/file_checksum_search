@@ -75,8 +75,8 @@ term that changes, changes here and in the `.po` file at once.
 | Acknowledge / Noted | Marcar como ciente / Marcado como ciente | the banner's button and its confirmation |
 | indexed | indexado, indexadas | |
 | queued files | arquivos na fila | |
-| untrusted / eroded / reset | não confiáveis / descartadas / redefinidas | the states of stale checksums, feminine plural agreeing with *somas de verificação*; *Redefinidas* is a past participle, checksums a reset has made invalid, never the action *Redefinir* |
-| invalidated (by a reset) | invalidadas | |
+| untrusted / eroded / revoked | não confiáveis / descartadas / revogadas | the states of stale checksums, feminine plural agreeing with *somas de verificação*; *Revogadas* is a past participle, never the action *Revogar* |
+| revocation | revogação | the drain's *limpos após uma revogação* |
 | background job | tarefa em segundo plano | Nextcloud's term; *Ainda não executada* agrees with it |
 | rule sweep / rule reapplication / queue drain / orphan purge / checksum copy / checksum index check / checksum stamp check | Varredura de regras / Reaplicação de regra / Processamento da fila / Limpeza de entradas órfãs / Cópia de somas de verificação existentes / Conferência do índice de somas de verificação / Conferência dos carimbos de data e hora das somas de verificação | *Conferência*, not *Verificação*: keeps the job apart from the Duplicates page's *Verificar* |
 | tunables | ajustes finos | |

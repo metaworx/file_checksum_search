@@ -41,6 +41,10 @@ the first stable release.
   zeros included, in `fcias:status -o json` and on the status page; a
   file with nothing to read counts as `stamped`, not `hashed`.
 
+- `occ fcias:revoke`, the repair step `clear-revoked`, `stale:revoked`:
+  "revoked" for "disowned"; `fcias:reset --hashes` and `clear-disowned`
+  still work, and upgrading renames the `stale:reset` markers.
+
 ### Fixed
 
 - `README.md`, *Modes*: a rule naming an algorithm the server no longer
@@ -53,7 +57,7 @@ the first stable release.
   priority; the sweep emptied it again instead.
 
 - Nextcloud's metadata generation no longer queues every file as
-  `missing`: a disowned, queued or gone file stays as it is.
+  `missing`: a revoked, queued or gone file stays as it is.
 
 - `docs/FAQ.md`, *Files the filecache lists and the storage does not
   have*: checksums leave `oc_filecache` too; gone needs two "not found"

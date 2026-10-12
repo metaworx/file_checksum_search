@@ -64,7 +64,7 @@ class MetadataListenerTest
 	 */
 	public static function states(): iterable
 	{
-		yield 'disowned by a reset' => [ MetadataService::STATE_RESET ];
+		yield 'revoked' => [ MetadataService::STATE_REVOKED ];
 		yield 'queued lazy' => [ MetadataService::PENDING_PREFIX . MetadataService::PENDING_MODE_LAZY ];
 		yield 'queued force' => [ MetadataService::PENDING_PREFIX . MetadataService::PENDING_MODE_FORCE ];
 		yield 'gone' => [ MetadataService::STATE_GONE ];

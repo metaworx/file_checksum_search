@@ -247,13 +247,13 @@ class SettingsControllerTest
 	public function testGetStatusReportsUntrustedHashesAndJobHeartbeats(): void
 	{
 		// Broken down by reason, not one total: erosion has already thrown
-		// the hashes away and heals itself, a reset has not and is waiting —
+		// the hashes away and heals itself, revoking has not and is waiting —
 		// different things for an operator to do about them.
 		$this->metadataService->method( 'getStaleStats' )
 		                      ->willReturn(
 			                      [
-				                      MetadataService::STATE_ERODED => 4,
-				                      MetadataService::STATE_RESET  => 9,
+				                      MetadataService::STATE_ERODED   => 4,
+				                      MetadataService::STATE_REVOKED  => 9,
 			                      ],
 		                      )
 		;
@@ -271,8 +271,8 @@ class SettingsControllerTest
 
 		$this->assertSame(
 			[
-				MetadataService::STATE_ERODED => 4,
-				MetadataService::STATE_RESET  => 9,
+				MetadataService::STATE_ERODED   => 4,
+				MetadataService::STATE_REVOKED  => 9,
 			],
 			$this->controller->getStatusCounts()->getData()['staleStats'],
 		);

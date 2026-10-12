@@ -72,7 +72,7 @@ term that changes, changes here and in the `.po` file at once.
 | index (verb), indexed | indicizzare, indicizzato | |
 | pending (deletion) | in attesa (di eliminazione) | |
 | queued files | file in coda | |
-| untrusted / eroded / reset | non attendibili / decaduti / azzerati | the states of stale checksums, past participles: *Azzerati* are the checksums a reset has made invalid, not the action; a reset of the index: *azzeramento* (not *ripristino*, which reads as a restore); invalidated by it: *invalidati da un azzeramento* |
+| untrusted / eroded / revoked | non attendibili / decaduti / revocati | the states of stale checksums, past participles: *Revocati* are the checksums an administrator has revoked, not the action *Revoca*; the act itself: *revoca* (*ripuliti dopo una revoca*) |
 | hidden from search | esclusi dalla ricerca | not *nascosti dalla ricerca*, which reads as "hidden by the search" |
 | background job | operazione in background | Nextcloud's *Background jobs* → *Operazioni in background*; not run yet: *Non ancora eseguita*, as Nextcloud's own |
 | rule sweep / rule reapplication / queue drain / orphan purge / checksum copy / checksum index check / checksum stamp check | Scansione delle regole / Riapplicazione di una regola / Svuotamento della coda / Pulizia delle voci orfane / Copia dei checksum esistenti / Controllo dell'indice dei checksum / Controllo delle marche temporali dei checksum | |

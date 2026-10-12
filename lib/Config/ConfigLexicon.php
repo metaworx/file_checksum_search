@@ -271,7 +271,7 @@ class ConfigLexicon
 				key: 'stats_pending_drain_last_counts',
 				type: ValueType::STRING,
 				defaultRaw: '[]',
-				definition: 'JSON counts of the pending-queue drain\'s last run (hashed/dropped/failed/total/disowned).',
+				definition: 'JSON counts of the pending-queue drain\'s last run, by outcome, with the total and the revoked files cleared.',
 				lazy: false,
 				flags: IAppConfig::FLAG_INTERNAL,
 			),

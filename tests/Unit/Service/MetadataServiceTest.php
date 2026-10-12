@@ -1986,7 +1986,7 @@ class MetadataServiceTest
 	public function testStaleStatesNeverLookLikeQueuedWork(): void
 	{
 		// The two namespaces have to stay disjoint: a file whose hashes are
-		// disowned is not a file waiting to be hashed, and the queue's LIKE
+		// revoked is not a file waiting to be hashed, and the queue's LIKE
 		// must not sweep it up.
 		$this->assertStringStartsWith(
 			MetadataService::STATE_STALE_PREFIX,
@@ -1994,13 +1994,13 @@ class MetadataServiceTest
 		);
 		$this->assertStringStartsWith(
 			MetadataService::STATE_STALE_PREFIX,
-			MetadataService::STATE_RESET,
+			MetadataService::STATE_REVOKED,
 		);
 
 		foreach (
 			[
 				MetadataService::STATE_ERODED,
-				MetadataService::STATE_RESET,
+				MetadataService::STATE_REVOKED,
 			] as $state
 		)
 		{
@@ -2032,9 +2032,9 @@ class MetadataServiceTest
 		$this->assertSame( 4, $this->service->countByState( MetadataService::STALE_LIKE ) );
 	}
 
-	public function testScansExcludeDisownedFilesButPerFileReadsDoNot(): void
+	public function testScansExcludeRevokedFilesButPerFileReadsDoNot(): void
 	{
-		// The guarantee that lets a reset defer its work: a disowned hash
+		// The guarantee that lets revoking defer its work: a revoked hash
 		// stops being findable when it is marked, not when the job clears
 		// it. Asserted on the join the scans build, since the exclusion is
 		// structural rather than a value the mock can return.
@@ -2076,11 +2076,11 @@ class MetadataServiceTest
 		;
 
 		$this->service->queryByHash( 'abc123' );
-		$this->assertContains( 'stale', $joined, 'search must exclude disowned files' );
+		$this->assertContains( 'stale', $joined, 'search must exclude revoked files' );
 
 		$joined = [];
 		$this->service->queryDuplicates();
-		$this->assertContains( 'stale', $joined, 'duplicate groups must exclude disowned files' );
+		$this->assertContains( 'stale', $joined, 'duplicate groups must exclude revoked files' );
 
 		// …but the file's own page keeps showing what is stored, labelled.
 		$joined   = [];
@@ -2096,12 +2096,12 @@ class MetadataServiceTest
 		$this->assertNotContains( 'stale', $joined, 'a file the user opened shows its own hashes' );
 	}
 
-	public function testMarkStaleWritesOnlyTheMarker(): void
+	public function testMarkRevokedWritesOnlyTheMarker(): void
 	{
 		// The whole point of deferring: a state row per file, with the
 		// hashes and the freshness stamp untouched for the drain — or for an
 		// import that gets there first. Of the three, the app has considered
-		// two; the third has no hashes to disown.
+		// two; the third has no hashes to revoke.
 		$this->queryBuilder->expects( $this->never() )
 		                   ->method( 'update' )
 		;
@@ -2119,7 +2119,7 @@ class MetadataServiceTest
 
 		$inserted = $this->captureInsertedRows();
 
-		$marked = $this->service->markStale( [
+		$marked = $this->service->markRevoked( [
 			1,
 			2,
 			3,
@@ -2128,8 +2128,8 @@ class MetadataServiceTest
 		$this->assertSame( 2, $marked );
 		$this->assertSame(
 			[
-				[ 1, MetadataService::KEY_FILE_CHECKSUM_STATE, MetadataService::STATE_RESET, 0 ],
-				[ 3, MetadataService::KEY_FILE_CHECKSUM_STATE, MetadataService::STATE_RESET, 0 ],
+				[ 1, MetadataService::KEY_FILE_CHECKSUM_STATE, MetadataService::STATE_REVOKED, 0 ],
+				[ 3, MetadataService::KEY_FILE_CHECKSUM_STATE, MetadataService::STATE_REVOKED, 0 ],
 			],
 			$inserted->getArrayCopy(),
 		);
@@ -2138,7 +2138,7 @@ class MetadataServiceTest
 	/**
 	 * Only files that hold hashes. The marker shares its row with the
 	 * queue, so marking a file writes over whatever it was waiting for — and
-	 * a file with no hashes has nothing to disown, which would make resetting
+	 * a file with no hashes has nothing to revoke, which would make revoking
 	 * the hashes quietly reset the queue as well.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
@@ -2177,7 +2177,7 @@ class MetadataServiceTest
 		;
 
 		// The page query is the one that names a hash key; without that
-		// restriction a never-hashed file in the queue would be disowned too.
+		// restriction a never-hashed file in the queue would be revoked too.
 		$likes = [];
 		$this->expr->method( 'like' )
 		           ->willReturnCallback(
@@ -2209,7 +2209,7 @@ class MetadataServiceTest
 		                   ->willReturn( 2 )
 		;
 
-		$this->assertSame( 2, $this->service->markAllStale() );
+		$this->assertSame( 2, $this->service->markAllRevoked() );
 		$this->assertContains( MetadataService::KEY_FILE_CHECKSUM_LIKE, $likes );
 	}
 
@@ -3034,16 +3034,16 @@ class MetadataServiceTest
 		);
 	}
 
-	public function testMarkStaleIsANoOpForAnEmptyList(): void
+	public function testMarkRevokedIsANoOpForAnEmptyList(): void
 	{
 		$this->queryBuilder->expects( $this->never() )
 		                   ->method( 'update' )
 		;
 
-		$this->assertSame( 0, $this->service->markStale( [] ) );
+		$this->assertSame( 0, $this->service->markRevoked( [] ) );
 	}
 
-	public function testFetchStaleBatchAsksForResetsOnly(): void
+	public function testFetchRevokedBatchAsksForRevokedOnly(): void
 	{
 		// An eroded file has no hashes left to clear, so handing it to the
 		// drain would be work with nothing to do.
@@ -3077,9 +3077,9 @@ class MetadataServiceTest
 		                   ->willReturn( $result )
 		;
 
-		$this->assertSame( [ 42 ], $this->service->fetchStaleBatch() );
+		$this->assertSame( [ 42 ], $this->service->fetchRevokedBatch() );
 		$this->assertSame(
-			MetadataService::STATE_RESET,
+			MetadataService::STATE_REVOKED,
 			$compared[ MetadataService::FIELD_META_VALUE_STRING ] ?? null,
 		);
 	}
@@ -3087,10 +3087,10 @@ class MetadataServiceTest
 	/**
 	 * Computing a file's hashes settles its place on the queue, its erosion
 	 * and its being gone from its storage, which the read has just shown it
-	 * is not; and nothing else: a disowned file's hashes may still be in its
+	 * is not; and nothing else: a revoked file's hashes may still be in its
 	 * document.
 	 */
-	public function testClearingTheComputedMarkerLeavesADisownedFileDisowned(): void
+	public function testClearingTheComputedMarkerLeavesARevokedFileRevoked(): void
 	{
 		$this->queryBuilder->method( 'executeStatement' )
 		                   ->willReturn( 1 )
@@ -3125,7 +3125,7 @@ class MetadataServiceTest
 				],
 				[
 					MetadataService::FIELD_FILE_ID           => '9',
-					MetadataService::FIELD_META_VALUE_STRING => MetadataService::STATE_RESET,
+					MetadataService::FIELD_META_VALUE_STRING => MetadataService::STATE_REVOKED,
 				],
 			],
 			[],

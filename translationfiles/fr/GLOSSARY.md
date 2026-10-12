@@ -80,8 +80,8 @@ here; a term that changes, changes here and in the `.po` file at once.
 | indexed | indexé | |
 | pending | en attente | Nextcloud's term |
 | queued files | fichiers en file d'attente | |
-| untrusted / eroded / reset | non fiables / caduques / réinitialisées | the states of stale checksums; they agree with *sommes de contrôle*. *Reset* is the state a reset leaves, a past participle, never the action *Réinitialiser* |
-| invalidated (by a reset) | invalidées | |
+| untrusted / eroded / revoked | non fiables / caduques / révoquées | the states of stale checksums; they agree with *sommes de contrôle*. *Révoquées* is the state, a past participle, never the action *Révoquer* |
+| revocation | révocation | the drain's *nettoyés après une révocation* |
 | delete (checksums) / discard (a session) | supprimer | the thing is deleted, not left behind: never *abandonner* |
 | enable or disable (a rule) | activer ou désactiver | the rule's *Activer* / *Désactiver* entries; not *basculer*, which Nextcloud keeps for switching a view |
 | background job | tâche d'arrière-plan | Nextcloud's *Tâches d'arrière-plan* |

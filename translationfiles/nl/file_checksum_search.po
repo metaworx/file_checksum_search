@@ -896,12 +896,12 @@ msgstr "MIME-types verversen"
 msgid "Renew after (minutes)"
 msgstr "Vernieuwen na (minuten)"
 
-#. TRANSLATORS: the state of checksums a reset has made invalid; a past participle, not the action
-msgid "Reset"
-msgstr "Gereset"
-
 msgid "Revoke"
 msgstr "Intrekken"
+
+#. TRANSLATORS: the state of checksums an administrator has revoked; a past participle, not the action
+msgid "Revoked"
+msgstr "Ingetrokken"
 
 msgid "Rule deleted."
 msgstr "Regel verwijderd."
@@ -1343,12 +1343,9 @@ msgstr "group:* is geen selector. Geef één groep op of gebruik home:* voor all
 msgid "groupfolder: takes the numeric folder ID."
 msgstr "groupfolder: verwacht de numerieke map-ID."
 
-#. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it only read the MIME type of, how many it only stamped as current, how many it emptied (a rule in "lazy" mode), how many it dropped from the queue unread because no rule wants them any more, how many were gone from their storage, and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
-msgid "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after a reset {cleared}"
-msgstr "controlesommen berekend voor {hashed} van {total}, alleen MIME-type gelezen {typed}, voorzien van tijdstempel {stamped}, geleegd {emptied}, uit de wachtrij verwijderd {dropped}, verdwenen {gone}, mislukt {failed}, opgeruimd na een reset {cleared}"
-
-msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
-msgstr "ongeldig gemaakt door een reset: al verborgen voor de zoekfunctie en in afwachting van verwijdering door de achtergrondtaak"
+#. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it only read the MIME type of, how many it only stamped as current, how many it emptied (a rule in "lazy" mode), how many it dropped from the queue unread because no rule wants them any more, how many were gone from their storage, and how many failed; the last number is files whose checksums an administrator had revoked, now cleared
+msgid "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after revocation {cleared}"
+msgstr "controlesommen berekend voor {hashed} van {total}, alleen MIME-type gelezen {typed}, voorzien van tijdstempel {stamped}, geleegd {emptied}, uit de wachtrij verwijderd {dropped}, verdwenen {gone}, mislukt {failed}, opgeruimd na intrekking {cleared}"
 
 #. TRANSLATORS: when a background job whose last run failed last ran without an error
 msgid "last success: {time}"
@@ -1405,6 +1402,10 @@ msgstr "hersteld {repaired}, voltooid"
 #. TRANSLATORS: a background job's last run: the checksums it made findable again, and that the next runs go on checking
 msgid "repaired {repaired}, not finished yet"
 msgstr "hersteld {repaired}, nog niet voltooid"
+
+#. TRANSLATORS: keep "occ fcias:revoke" as it is: it is the command that revoked them
+msgid "revoked with occ fcias:revoke: already hidden from search, and pending deletion by the background job"
+msgstr "ingetrokken met occ fcias:revoke: al verborgen voor de zoekfunctie en in afwachting van verwijdering door de achtergrondtaak"
 
 #. TRANSLATORS: scope is a parameter name, and "own" and "all" are its values; keep them
 msgid "scope must be \"own\" or \"all\"."

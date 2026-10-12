@@ -892,12 +892,12 @@ msgstr "MIMEタイプを更新"
 msgid "Renew after (minutes)"
 msgstr "再集計までの時間（分）"
 
-#. TRANSLATORS: the state of checksums a reset has made invalid; a past participle, not the action
-msgid "Reset"
-msgstr "リセット済み"
-
 msgid "Revoke"
 msgstr "取り消す"
+
+#. TRANSLATORS: the state of checksums an administrator has revoked; a past participle, not the action
+msgid "Revoked"
+msgstr "取り消し済み"
 
 msgid "Rule deleted."
 msgstr "ルールを削除しました。"
@@ -1338,12 +1338,9 @@ msgstr "group:* はセレクターではありません。グループを1つ指
 msgid "groupfolder: takes the numeric folder ID."
 msgstr "groupfolder: には数値のフォルダーIDを指定します。"
 
-#. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it only read the MIME type of, how many it only stamped as current, how many it emptied (a rule in "lazy" mode), how many it dropped from the queue unread because no rule wants them any more, how many were gone from their storage, and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
-msgid "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after a reset {cleared}"
-msgstr "ハッシュ計算済み：{hashed}/{total}、MIMEタイプのみ読み取り：{typed}、タイムスタンプ付与：{stamped}、空にした：{emptied}、キューから除去：{dropped}、消失：{gone}、失敗：{failed}、リセット後に消去：{cleared}"
-
-msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
-msgstr "リセットにより無効化：すでに検索には表示されず、バックグラウンドジョブによる削除待ちです"
+#. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it only read the MIME type of, how many it only stamped as current, how many it emptied (a rule in "lazy" mode), how many it dropped from the queue unread because no rule wants them any more, how many were gone from their storage, and how many failed; the last number is files whose checksums an administrator had revoked, now cleared
+msgid "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after revocation {cleared}"
+msgstr "ハッシュ計算済み：{hashed}/{total}、MIMEタイプのみ読み取り：{typed}、タイムスタンプ付与：{stamped}、空にした：{emptied}、キューから除去：{dropped}、消失：{gone}、失敗：{failed}、取り消し後に消去：{cleared}"
 
 #. TRANSLATORS: when a background job whose last run failed last ran without an error
 msgid "last success: {time}"
@@ -1400,6 +1397,10 @@ msgstr "修復：{repaired}、完了"
 #. TRANSLATORS: a background job's last run: the checksums it made findable again, and that the next runs go on checking
 msgid "repaired {repaired}, not finished yet"
 msgstr "修復：{repaired}、未完了"
+
+#. TRANSLATORS: keep "occ fcias:revoke" as it is: it is the command that revoked them
+msgid "revoked with occ fcias:revoke: already hidden from search, and pending deletion by the background job"
+msgstr "occ fcias:revoke により取り消し済み：すでに検索には表示されず、バックグラウンドジョブによる削除待ちです"
 
 #. TRANSLATORS: scope is a parameter name, and "own" and "all" are its values; keep them
 msgid "scope must be \"own\" or \"all\"."

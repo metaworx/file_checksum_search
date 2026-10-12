@@ -82,7 +82,7 @@ here:
 | Column | For a hash row | For the `updated_at` row | For a state row |
 |--------|----------------|--------------------------|-----------------|
 | `meta_key` | `file-checksum-hash-{algo}` | `file-checksum-updated_at` | `file-checksum-state` |
-| `meta_value_string` | the digest, **truncated to 63 characters** | the ETag the hashes were read against; empty for none | the queue or trust state — `pending:auto`, `stale:reset`, … |
+| `meta_value_string` | the digest, **truncated to 63 characters** | the ETag the hashes were read against; empty for none | the queue or trust state — `pending:auto`, `stale:revoked`, … |
 | `meta_value_int` | when the hash was written | the timestamp | a queued file's failed attempts; 0 otherwise |
 
 Two things surprise people here.
@@ -275,10 +275,13 @@ cannot be recovered by any other means, which is why it asks twice.
 Three slices, and naming none takes all of them:
 
 ```bash
-php occ fcias:reset --hashes --force      # disown every stored checksum
 php occ fcias:reset --config --force      # forget the configuration, rules included
 php occ fcias:reset --status --force      # forget the queue
+php occ fcias:revoke --force              # revoke every stored checksum
 ```
+
+`fcias:reset --hashes`, the former name of `fcias:revoke`, still revokes them,
+and says it is deprecated.
 
 Take a backup first, and stop if it fails:
 
@@ -286,8 +289,8 @@ Take a backup first, and stop if it fails:
 php occ fcias:reset --force --backup=/backups/before.json
 ```
 
-Resetting hashes does not clear them there and then. Each file is marked as
-disowned, which takes it out of search and out of duplicate groups
+Revoking hashes does not clear them there and then. Each file is marked as
+revoked, which takes it out of search and out of duplicate groups
 **immediately**, and the background job clears them as it goes — one database
 write per thousand files instead of one metadata document rewrite each. If you
 need it
@@ -407,7 +410,7 @@ After a refresh, read the listing whole. See
 
 **Backups and imports leave the types out.** A type's id is this instance's,
 and the content is where it comes from: after an import, **Refresh**
-detects them. `fcias:reset --hashes` removes them with the hashes.
+detects them. `fcias:revoke` removes them with the hashes.
 
 The status counts the types, on the *Advanced* tab and in `occ fcias:status`.
 For a script, `occ fcias:mimetype:is-enabled --quiet` exits 0 while
@@ -485,8 +488,8 @@ php occ fcias:repair --step rebuild-from-metadata
 # reason never runs on its own
 php occ fcias:repair --step unindexed-hashes
 
-# a reset left hashes for the background job to clear
-php occ fcias:repair --step clear-disowned
+# revoked hashes the background job has yet to clear; clear-disowned before
+php occ fcias:repair --step clear-revoked
 ```
 
 If the rules have asked for hashes that nothing has computed yet, that is not a
@@ -519,8 +522,9 @@ reading:
 - **Untrusted checksums** — files whose stored checksums are not to be believed,
   with a breakdown by reason. *Eroded* means the file changed while no rule
   maintained its checksums, so they were deleted; it gets them back once a rule
-  covers it again. *Reset* means they are still stored but disowned, already
-  hidden from search, waiting for the background job or an import. *Gone*
+  covers it again. *Revoked* means they are still stored but revoked, with
+  `occ fcias:revoke`, already hidden from search, waiting for the background
+  job or an import. *Gone*
   means Nextcloud still lists the file and its storage no longer has it, so
   its checksums were deleted; see
   [Files the filecache lists and the storage does not have](#files-the-filecache-lists-and-the-storage-does-not-have).

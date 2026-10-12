@@ -3459,9 +3459,9 @@ class RuleServiceTest
 		$this->service->ruleDelete( 'mandate', 'cli' );
 	}
 
-	// ─── clearing what a reset disowned ──────────────────────────────
+	// ─── clearing what was revoked ───────────────────────────────────
 	/**
-	 * The operator disowned the stored hashes, not the intent to have them:
+	 * The operator revoked the stored hashes, not the intent to have them:
 	 * a file its rule still covers goes straight back on the queue.
 	 *
 	 * Lives here rather than in the background job because it is the rules
@@ -3470,9 +3470,9 @@ class RuleServiceTest
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testADisownedFileIsClearedAndRequeuedWhenARuleStillGoverns(): void
+	public function testARevokedFileIsClearedAndRequeuedWhenARuleStillGoverns(): void
 	{
-		$this->metadataService->method( 'fetchStaleBatch' )
+		$this->metadataService->method( 'fetchRevokedBatch' )
 		                      ->willReturn( [ 42 ] )
 		;
 		$this->givenTheGoverningRuleIs(
@@ -3493,7 +3493,7 @@ class RuleServiceTest
 		                      ->with( 42, 'pending:force' )
 		;
 
-		$this->assertSame( 1, $this->service->clearDisownedFiles( 50 ) );
+		$this->assertSame( 1, $this->service->clearRevokedFiles( 50 ) );
 	}
 
 	/**
@@ -3501,9 +3501,9 @@ class RuleServiceTest
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testADisownedFileNoRuleGovernsIsLeftWithoutHashes(): void
+	public function testARevokedFileNoRuleGovernsIsLeftWithoutHashes(): void
 	{
-		$this->metadataService->method( 'fetchStaleBatch' )
+		$this->metadataService->method( 'fetchRevokedBatch' )
 		                      ->willReturn( [ 42 ] )
 		;
 		$this->givenTheGoverningRuleIs( null );
@@ -3515,7 +3515,7 @@ class RuleServiceTest
 		                      ->method( 'markPending' )
 		;
 
-		$this->assertSame( 1, $this->service->clearDisownedFiles( 50 ) );
+		$this->assertSame( 1, $this->service->clearRevokedFiles( 50 ) );
 	}
 
 	/**
@@ -3524,9 +3524,9 @@ class RuleServiceTest
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testOneUnclearableDisownedFileDoesNotStrandTheRest(): void
+	public function testOneUnclearableRevokedFileDoesNotStrandTheRest(): void
 	{
-		$this->metadataService->method( 'fetchStaleBatch' )
+		$this->metadataService->method( 'fetchRevokedBatch' )
 		                      ->willReturn( [
 			                      1,
 			                      2,
@@ -3555,7 +3555,7 @@ class RuleServiceTest
 		                      )
 		;
 
-		$this->assertSame( 1, $this->service->clearDisownedFiles( 50 ) );
+		$this->assertSame( 1, $this->service->clearRevokedFiles( 50 ) );
 		$this->assertSame( [ 2 ], $cleared );
 	}
 

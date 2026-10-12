@@ -85,8 +85,8 @@ here; a term that changes, changes here and in the `.po` file at once.
 | indexed | zaindeksowane | |
 | pending | oczekujące | |
 | queued files | pliki w kolejce | |
-| untrusted / eroded / reset | niezaufane / wygasłe / zresetowane | the states of stale checksums, past participles agreeing with *sumy kontrolne*: *wygasłe* because nothing put them out, they lapsed; *zresetowane* is the state a reset left them in, not the action |
-| invalidated (by a reset) | unieważnione | the hint beside *Zresetowane*; kept apart from *osierocone*, the orphans the purge removes |
+| untrusted / eroded / revoked | niezaufane / wygasłe / cofnięte | the states of stale checksums, past participles agreeing with *sumy kontrolne*: *wygasłe* because nothing put them out, they lapsed; *cofnięte* is the state an administrator left them in, not the action *Cofnij* |
+| revocation | cofnięcie | the drain's *wyczyszczone po cofnięciu*; the hint beside *Cofnięte*: *cofnięte poleceniem occ fcias:revoke* |
 | background job | zadanie w tle | Nextcloud's term |
 | rule sweep / rule reapplication / queue drain / orphan purge / checksum copy / checksum index check / checksum stamp check | Przegląd reguł / Ponowne zastosowanie reguły / Opróżnianie kolejki / Usuwanie osieroconych wpisów / Kopiowanie istniejących sum kontrolnych / Sprawdzanie indeksu sum kontrolnych / Sprawdzanie znaczników czasu sum kontrolnych | the background jobs' names |
 | tunables | Dostrajanie | |

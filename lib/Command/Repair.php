@@ -116,7 +116,8 @@ doing it. <info>--include-expensive</info> tells it not to ask. Reach for that w
 reports nothing to do and you have reason to believe otherwise.
 
 Every step is safe to run again. Running one that has nothing to do costs the
-asking and no more.
+asking and no more. A step that was renamed answers to its former name as well,
+which the list shows as <comment>formerly</comment>.
 
 <info>-v</info> says what a step found and how far it has got, <info>-vv</info> names each file it
 acts on, <info>-vvv</info> with the values it writes, where a step has that much to say.
@@ -149,10 +150,21 @@ HELP,
 
 		if ( $only !== [] )
 		{
-			$known   = array_map( static fn(
-				array $e,
-			): string => $e['step']->name, $steps );
-			$unknown = array_diff( $only, $known );
+			$unknown = array_filter(
+				$only,
+				static function( string $name ) use ( $steps ): bool
+				{
+					foreach ( $steps as $entry )
+					{
+						if ( $entry['step']->isNamedIn( [ $name ] ) )
+						{
+							return false;
+						}
+					}
+
+					return true;
+				},
+			);
 
 			// Named and not run is the failure worth catching: a typo would
 			// otherwise report a successful repair that did nothing.
@@ -244,6 +256,11 @@ HELP,
 				$labels[] = 'only when asked for';
 			}
 
+			if ( $step->aliases !== [] )
+			{
+				$labels[] = 'formerly ' . implode( ', ', $step->aliases );
+			}
+
 			$output->writeln(
 				sprintf(
 					'<info>%s</info>%s',
@@ -281,7 +298,7 @@ HELP,
 		{
 			$step = $entry['step'];
 
-			if ( $only !== [] && ! in_array( $step->name, $only, true ) )
+			if ( $only !== [] && ! $step->isNamedIn( $only ) )
 			{
 				$output->writeln( sprintf( '  %-24s not named', $step->name ) );
 

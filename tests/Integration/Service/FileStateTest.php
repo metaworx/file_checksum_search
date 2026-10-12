@@ -163,15 +163,15 @@ class FileStateTest
 	}
 
 	/**
-	 * Hashes a reset disowned: under `stat` null, as the listing gives
-	 * them; without, shown as stored, as before `stat` existed.
+	 * Revoked hashes: under `stat` null, as the listing gives them;
+	 * without, shown as stored, as before `stat` existed.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testADisownedFilesHashesAreNullOnlyUnderStat(): void
+	public function testARevokedFilesHashesAreNullOnlyUnderStat(): void
 	{
-		$file = $this->hashed( 'fcias_state_disowned', 'twelve bytes' );
-		Server::get( MetadataService::class )->markPending( $file->getId(), MetadataService::STATE_RESET );
+		$file = $this->hashed( 'fcias_state_revoked', 'twelve bytes' );
+		Server::get( MetadataService::class )->markPending( $file->getId(), MetadataService::STATE_REVOKED );
 
 		$perFile = $this->api->getHashesByFileId( $file->getId(), null, withStat: true );
 		$this->assertNull( $perFile['hashes'] );

@@ -28,8 +28,8 @@ use Throwable;
  *
  * Nextcloud's metadata generation reaches every file, a one-off job
  * included, and is no write: a file with a state — queued, gone, eroded,
- * disowned — is left as it is, and so is one whose hashes still vouch for
- * it. Overwriting a state undid a reset, and requeued what the drain had
+ * revoked — is left as it is, and so is one whose hashes still vouch for
+ * it. Overwriting a state undid a revoke, and requeued what the drain had
  * given up on.
  *
  * Registered via IRegistrationContext::registerEventListener() in Application::register().

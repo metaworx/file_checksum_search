@@ -80,10 +80,10 @@ a term that changes, changes here and in the `.po` file at once.
 | verify | controleren | Nextcloud's own term |
 | reapply | opnieuw toepassen | |
 | indexed | geïndexeerd | |
-| pending (deletion) | in afwachting van (verwijdering) | the reset state's hint |
+| pending (deletion) | in afwachting van (verwijdering) | the revoked state's hint |
 | queued files | bestanden in de wachtrij | |
-| untrusted / eroded / reset | niet-vertrouwd / vervallen / gereset | the states of stale checksums; *gereset* is the state a reset left them in (past participle), not the action |
-| invalidated (by a reset) | ongeldig gemaakt | the reset state's hint; not *verweesd*, which is the orphan purge's |
+| untrusted / eroded / revoked | niet-vertrouwd / vervallen / ingetrokken | the states of stale checksums; *ingetrokken* is the state (past participle), not the action *Intrekken* |
+| revocation | intrekking | the drain's *opgeruimd na intrekking* |
 | orphan | verweesd | only for the orphan purge's entries |
 | background job | achtergrondtaak | Nextcloud's own term |
 | rule sweep / rule reapplication / queue drain / orphan purge / checksum copy / checksum index check / checksum stamp check | regeldoorloop / opnieuw toepassen van een regel / wachtrijverwerking / opruimen van verweesde vermeldingen / overname van bestaande controlesommen / controle van de controlesomindex / controle van de tijdstempels van controlesommen | |

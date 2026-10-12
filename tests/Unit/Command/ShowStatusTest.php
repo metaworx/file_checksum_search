@@ -434,8 +434,8 @@ class ShowStatusTest
 		$this->metadataService->method( 'getStaleStats' )
 		                      ->willReturn(
 			                      [
-				                      MetadataService::STATE_ERODED => 4,
-				                      MetadataService::STATE_RESET  => 9,
+				                      MetadataService::STATE_ERODED   => 4,
+				                      MetadataService::STATE_REVOKED  => 9,
 			                      ],
 		                      )
 		;
@@ -446,8 +446,8 @@ class ShowStatusTest
 		$this->assertStringContainsString( 'Untrusted total:        13', $display );
 		$this->assertStringContainsString( 'stale:eroded', $display );
 		$this->assertStringContainsString( 'heals once a rule covers', $display );
-		$this->assertStringContainsString( 'stale:reset', $display );
-		$this->assertStringContainsString( 'disowned by a reset', $display );
+		$this->assertStringContainsString( 'stale:revoked', $display );
+		$this->assertStringContainsString( 'revoked by occ fcias:revoke', $display );
 	}
 
 	public function testUntrustedHashesAreInTheJsonToo(): void
@@ -456,14 +456,14 @@ class ShowStatusTest
 		                ->willReturn( '1.9.2' )
 		;
 		$this->metadataService->method( 'getStaleStats' )
-		                      ->willReturn( [ MetadataService::STATE_RESET => 9 ] )
+		                      ->willReturn( [ MetadataService::STATE_REVOKED => 9 ] )
 		;
 
 		$this->tester->execute( [ '--output' => 'json' ] );
 		$decoded = json_decode( trim( $this->tester->getDisplay() ), true );
 
 		$this->assertSame( 9, $decoded['untrusted_total'] );
-		$this->assertSame( [ MetadataService::STATE_RESET => 9 ], $decoded['untrusted_by_reason'] );
+		$this->assertSame( [ MetadataService::STATE_REVOKED => 9 ], $decoded['untrusted_by_reason'] );
 	}
 
 	public function testNothingUntrustedOmitsTheBreakdown(): void

@@ -22,7 +22,7 @@ use OCP\DB\Exception;
  * the one to pass on, and null when the listing is done.
  *
  * Which files: those the index holds a hash row for, within the reach's
- * mounts, not disowned ({@see MetadataService::pageListedFiles()}). The
+ * mounts, not revoked ({@see MetadataService::pageListedFiles()}). The
  * same rows a lookup selects, with one difference: a lookup then opens each
  * file through the account's folder, which applies a team folder's access
  * rules, and this listing does not yet.

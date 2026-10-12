@@ -75,8 +75,8 @@ term that changes, changes here and in the `.po` file at once.
 | indexed | 已索引 | |
 | pending (deletion) | 等待……删除 | “等待后台任务删除” |
 | queued files | 队列中的文件 | |
-| untrusted / eroded / reset | 不可信 / 已丢弃 / 已重置 | the states of stale checksums. *Eroded* checksums are already deleted (已丢弃). *Reset* is a state, not the action: checksums a reset has made invalid (已重置), still stored until the background job deletes them |
-| invalidated (by a reset) | 作废 | “因重置而作废”; not 弃用, which is *deprecated* |
+| untrusted / eroded / revoked | 不可信 / 已丢弃 / 已撤销 | the states of stale checksums. *Eroded* checksums are already deleted (已丢弃). *Revoked* is a state, not the action: checksums an administrator has revoked (已撤销), still stored until the background job deletes them |
+| revocation | 撤销 | “已通过 occ fcias:revoke 撤销”, “撤销后已清理” |
 | background job | 后台任务 | Nextcloud's term |
 | rule sweep / rule reapplication / queue drain / orphan purge / checksum copy / checksum index check / checksum stamp check | 规则扫描 / 规则重新应用 / 队列处理 / 孤立条目清理 / 复制已有校验和 / 校验和索引检查 / 校验和时间戳检查 | the background jobs' names |
 | import | 导入 | the `occ fcias:import` command only; the *checksum copy* job copies (复制), it does not import |

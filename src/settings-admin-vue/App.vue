@@ -156,8 +156,8 @@ const pendingTotal = (stats: Record<string, number> = {}) => Object.values(stats
 /**
  * What each untrusted state means, in the terms an operator has to act on.
  *
- * Erosion and a reset are opposites in what they leave behind: erosion has
- * already thrown the hashes away, a reset has not yet — which is why one heals
+ * Erosion and revoking are opposites in what they leave behind: erosion has
+ * already thrown the hashes away, revoking has not yet — which is why one heals
  * itself and the other is waiting for something to happen. A file gone from its
  * storage waits for the filecache, which only a scan brings in line.
  */
@@ -167,10 +167,11 @@ const STALE_REASONS: Record<string, { label: string, hint: string }> = {
 		label: t('file_checksum_search', 'Eroded'),
 		hint: t('file_checksum_search', 'the file changed while no rule maintained its checksums, so they were deleted; it gets them back once a rule covers it again'),
 	},
-	'stale:reset': {
-		// TRANSLATORS: the state of checksums a reset has made invalid; a past participle, not the action
-		label: t('file_checksum_search', 'Reset'),
-		hint: t('file_checksum_search', 'invalidated by a reset: already hidden from search, and pending deletion by the background job'),
+	'stale:revoked': {
+		// TRANSLATORS: the state of checksums an administrator has revoked; a past participle, not the action
+		label: t('file_checksum_search', 'Revoked'),
+		// TRANSLATORS: keep "occ fcias:revoke" as it is: it is the command that revoked them
+		hint: t('file_checksum_search', 'revoked with occ fcias:revoke: already hidden from search, and pending deletion by the background job'),
 	},
 	'stale:gone': {
 		// TRANSLATORS: the state of a file Nextcloud still lists while its storage no longer has it; an adjective, "missing"
@@ -223,8 +224,8 @@ function jobCountsText(key: string, counts: Record<string, number>): string {
 		// TRANSLATORS: a background job's last run: the files its rules matched, and of those the ones it queued for checksums
 		return t('file_checksum_search', 'matched {matched}, queued {queued}', { matched: count('matched'), queued: count('marked') })
 	case 'pending_drain':
-		// TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it only read the MIME type of, how many it only stamped as current, how many it emptied (a rule in "lazy" mode), how many it dropped from the queue unread because no rule wants them any more, how many were gone from their storage, and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
-		return t('file_checksum_search', 'hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after a reset {cleared}', { hashed: count('hashed'), total: count('total'), typed: count('typed'), stamped: count('stamped'), emptied: count('emptied'), dropped: count('dropped'), gone: count('gone'), failed: count('failed'), cleared: count('disowned') })
+		// TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it only read the MIME type of, how many it only stamped as current, how many it emptied (a rule in "lazy" mode), how many it dropped from the queue unread because no rule wants them any more, how many were gone from their storage, and how many failed; the last number is files whose checksums an administrator had revoked, now cleared
+		return t('file_checksum_search', 'hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after revocation {cleared}', { hashed: count('hashed'), total: count('total'), typed: count('typed'), stamped: count('stamped'), emptied: count('emptied'), dropped: count('dropped'), gone: count('gone'), failed: count('failed'), cleared: counts.revoked ?? count('disowned') })
 	case 'orphan_purge':
 		// TRANSLATORS: a background job's last run: the checksums of deleted files it removed, and in how many batches
 		return t('file_checksum_search', 'removed {purged}, batches {batches}', { purged: count('purged'), batches: count('batches') })

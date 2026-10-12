@@ -103,19 +103,19 @@ class ProcessPendingUpdatesTest
 
 	/**
 	 * The clearing itself lives in RuleService — it asks the rules what
-	 * should happen to a disowned file, which is what that class is for, and
+	 * should happen to a revoked file, which is what that class is for, and
 	 * the repair calls the same method. What the job owes is asking for it,
 	 * before it spends the run on hashing.
 	 *
 	 * @noinspection PhpConditionAlreadyCheckedInspection
 	 */
-	public function testTheJobDelegatesDisownedClearingToTheRules(): void
+	public function testTheJobDelegatesRevokedClearingToTheRules(): void
 	{
 		$this->metadataService->method( 'fetchPendingBatch' )
 		                      ->willReturn( [] )
 		;
 		$this->ruleService->expects( $this->once() )
-		                  ->method( 'clearDisownedFiles' )
+		                  ->method( 'clearRevokedFiles' )
 		                  ->willReturn( 3 )
 		;
 
@@ -305,6 +305,7 @@ class ProcessPendingUpdatesTest
 				               'gone'     => 0,
 				               'failed'   => 1,
 				               'total'    => 1,
+				               'revoked'  => 0,
 				               'disowned' => 0,
 			               ],
 		               )
@@ -358,6 +359,7 @@ class ProcessPendingUpdatesTest
 				               'gone'     => 1,
 				               'failed'   => 0,
 				               'total'    => 5,
+				               'revoked'  => 0,
 				               'disowned' => 0,
 			               ],
 		               )
@@ -570,6 +572,7 @@ class ProcessPendingUpdatesTest
 				               'gone'     => 0,
 				               'failed'   => 0,
 				               'total'    => 0,
+				               'revoked'  => 0,
 				               'disowned' => 0,
 			               ],
 		               )

@@ -72,7 +72,7 @@ class RepairTest
 		$display = $this->tester->getDisplay();
 		$this->assertStringContainsString( 'cheap-step', $display );
 		$this->assertStringContainsString( 'costly-step', $display );
-		$this->assertStringContainsString( '(expensive)', $display );
+		$this->assertStringContainsString( '(expensive, formerly pricey-step)', $display );
 		$this->assertStringContainsString( 'what the cheap one does', $display );
 	}
 
@@ -135,6 +135,43 @@ class RepairTest
 			$this->tester->execute( [ '--step' => [ 'cheep-step' ] ] ),
 		);
 		$this->assertStringContainsString( 'No such step: cheep-step', $this->tester->getDisplay() );
+	}
+
+	/**
+	 * A renamed step's former name is no typo: it reaches the repair, which
+	 * runs the step under it.
+	 */
+	public function testAFormerNameIsAStepsName(): void
+	{
+		$this->repair = $this->createMock( RepairQuietStart::class );
+		$this->repair->method( 'steps' )
+		             ->willReturn( $this->twoSteps() )
+		;
+		$this->repair->method( 'withExpensive' )
+		             ->willReturnSelf()
+		;
+		$this->repair->expects( $this->once() )
+		             ->method( 'runSteps' )
+		             ->with( $this->anything(), [ 'pricey-step' ] )
+		             ->willReturn( [ 'costly-step' ] )
+		;
+		$this->rebuild();
+
+		$this->assertSame( Command::SUCCESS, $this->tester->execute( [ '--step' => [ 'pricey-step' ] ] ) );
+		$this->assertStringContainsString( 'Ran 1 step(s): costly-step', $this->tester->getDisplay() );
+	}
+
+	public function testADryRunNamesAStepByItsFormerName(): void
+	{
+		$this->tester->execute(
+			[
+				'--dry-run' => true,
+				'--step'    => [ 'pricey-step' ],
+			],
+		);
+
+		$this->assertMatchesRegularExpression( '/costly-step\s+would run/', $this->tester->getDisplay() );
+		$this->assertMatchesRegularExpression( '/cheap-step\s+not named/', $this->tester->getDisplay() );
 	}
 
 	public function testADryRunChangesNothingAndSaysWhatWould(): void
@@ -319,6 +356,7 @@ class RepairTest
 					title: 'A costly one',
 					description: 'This is what the costly one does.',
 					expensive: true,
+					aliases: [ 'pricey-step' ],
 				),
 				'method' => $method,
 			],

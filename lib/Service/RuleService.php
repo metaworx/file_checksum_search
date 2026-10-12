@@ -1130,16 +1130,16 @@ class RuleService
 	}
 
 	/**
-	 * Clear the files an operator disowned, and re-queue those a rule still
+	 * Clear the files an operator revoked, and re-queue those a rule still
 	 * governs.
 	 *
-	 * A reset marks rather than clears, so the expensive half — rewriting one
+	 * Revoking marks rather than clears, so the expensive half — rewriting one
 	 * metadata document per file — lands here, where it is paged and
 	 * interruptible. The marker is dropped as part of clearing, which is what
 	 * ends the file's exclusion from searches.
 	 *
 	 * A file an enabled `include` rule still governs is queued again
-	 * immediately: the operator disowned the stored hashes, not the intent to
+	 * immediately: the operator revoked the stored hashes, not the intent to
 	 * have hashes. A file no rule governs is simply left without any.
 	 *
 	 * An import that already wrote acceptable hashes cleared the marker
@@ -1152,9 +1152,9 @@ class RuleService
 	 *
 	 * @return int  Files cleared.
 	 */
-	public function clearDisownedFiles( int $batchLimit ): int
+	public function clearRevokedFiles( int $batchLimit ): int
 	{
-		$fileIds = $this->metadataService->fetchStaleBatch( $batchLimit );
+		$fileIds = $this->metadataService->fetchRevokedBatch( $batchLimit );
 		$cleared = 0;
 
 		foreach ( $fileIds as $fileId )
@@ -1181,7 +1181,7 @@ class RuleService
 				// One unreadable file must not strand the rest: the marker
 				// stays, so the next run tries it again.
 				$this->logger->warning(
-					'FCIAS: could not clear disowned fileId {fileId}; it stays marked.',
+					'FCIAS: could not clear revoked fileId {fileId}; it stays marked.',
 					[
 						'app'       => Application::APP_ID,
 						'fileId'    => $fileId,

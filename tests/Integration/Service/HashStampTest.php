@@ -567,9 +567,9 @@ class HashStampTest
 	}
 
 	/**
-	 * Nextcloud's metadata generation is no write: a file a reset disowned
-	 * stays disowned through it, and one never hashed is queued in its
-	 * rule's mode.
+	 * Nextcloud's metadata generation is no write: a revoked file stays
+	 * revoked through it, and one never hashed is queued in its rule's
+	 * mode.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
@@ -578,14 +578,14 @@ class HashStampTest
 		$listener = Server::get( MetadataListener::class );
 		$manager  = Server::get( IFilesMetadataManager::class );
 
-		$disowned = $this->createTestFile( 'fcias_meta_disowned', 'disowned before the event' );
-		$this->ruleFor( $disowned, MetadataService::PENDING_MODE_AUTO );
-		$this->assertTrue( $this->hashCalc->recalcFileHash( $disowned, 'sha256' )['success'] );
-		$this->metadataService->markPending( $disowned->getId(), MetadataService::STATE_RESET );
+		$revoked = $this->createTestFile( 'fcias_meta_revoked', 'revoked before the event' );
+		$this->ruleFor( $revoked, MetadataService::PENDING_MODE_AUTO );
+		$this->assertTrue( $this->hashCalc->recalcFileHash( $revoked, 'sha256' )['success'] );
+		$this->metadataService->markPending( $revoked->getId(), MetadataService::STATE_REVOKED );
 
-		$listener->handle( new MetadataBackgroundEvent( $disowned, $manager->getMetadata( $disowned->getId(), true ) ) );
+		$listener->handle( new MetadataBackgroundEvent( $revoked, $manager->getMetadata( $revoked->getId(), true ) ) );
 
-		$this->assertSame( MetadataService::STATE_RESET, $this->metadataService->getMarker( $disowned->getId() ) );
+		$this->assertSame( MetadataService::STATE_REVOKED, $this->metadataService->getMarker( $revoked->getId() ) );
 
 		$fresh = $this->createTestFile( 'fcias_meta_fresh', 'never hashed' );
 		$this->ruleFor( $fresh, MetadataService::PENDING_MODE_MISSING );

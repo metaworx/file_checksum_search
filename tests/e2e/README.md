@@ -18,7 +18,7 @@ what the specs below spend their `before()` hooks on.
 | `l10n-german.cy.js`   | Two accounts, one set to `de` and one to `de_DE`, open their settings: the page speaks the register each chose, with a placeholder filled. Lifts `force_language` for its run and restores it.                       |
 | `rules-admin.cy.js`   | Live, no stubs: quiet start and the idle banner, the banded table, creating a rule through the dialog, placeholder rows, the in-dialog error card, the provider-missing badge, and the row action menu.              |
 | `rules-personal.cy.js`| Alice's own page, an enforced rule she may not touch, bob refused a recalculation by *alice's* rule on a file she shares with him, and a hash search returning nothing to someone who cannot reach the file.         |
-| `status.cy.js`        | The admin status panel: hash count, versions, an empty queue reported as empty, what a reset disowns and what finishing it leaves, the background-job heartbeat, and Refresh.                                        |
+| `status.cy.js`        | The admin status panel: hash count, versions, an empty queue reported as empty, what revoking marks and what finishing it leaves, the background-job heartbeat, and Refresh.                                         |
 | `screenshots.cy.js`   | Not a test: the screenshot set for `docs/Screenshots/`, as a spec. Skips itself unless `CYPRESS_capture=1`; see *Capturing the screenshots* below.                                                                 |
 
 `rules-api.cy.js` was removed too, for the opposite reason: it was a browser
@@ -72,7 +72,7 @@ tests the same stack in a fraction of the time.
   placeholder first and its value when the request answers. Written with
   `then()`, a passing panel reads as a broken one.
 - **Build state next to the assertion that needs it**, not once in `before()`.
-  A spec that resets or disowns on purpose invalidates its own earlier counts,
+  A spec that resets or revokes on purpose invalidates its own earlier counts,
   and a number established at the top stops being true a test or two later.
 - **Measure the status code before asserting it.** Two of this matrix's rows
   were written from a plausible guess and were wrong in a way that mattered: a
@@ -112,7 +112,7 @@ already resolve from `CYPRESS_occ`.
 
 | Command | What it does |
 |---|---|
-| `cy.resetFciasState( occ )` | `fcias:reset --hashes --status --force --now`, then `fcias:repair --step selector-model --step metadata-keys`. `--now` because the default reset leaves the clearing to a background job, and a spec cannot wait for a job it does not control. Those two steps and no others: a whole repair would run `rebuild-from-filecache`, which copies checksums back out of `oc_filecache.checksum` — a column a hash reset deliberately leaves alone — and so undoes the reset it follows. |
+| `cy.resetFciasState( occ )` | `fcias:reset --status --force` and `fcias:revoke --force --now`, then `fcias:repair --step selector-model --step metadata-keys`. `--now` because revoking leaves the clearing to a background job by default, and a spec cannot wait for a job it does not control. Those two steps and no others: a whole repair would run `rebuild-from-filecache`, which copies checksums back out of `oc_filecache.checksum` — a column revoking deliberately leaves alone — and so undoes the revoking it follows. |
 | `cy.importFciasFixture( occ, name, user = 'admin' )` | Reads `tests/e2e/fixtures/<name>.json` and states the hashes outright, rather than computing them and waiting. |
 | `cy.fciasResetRules( occ )` | Deletes every rule, drops the idle-banner acknowledgement, and lets `fcias:repair` recreate the two shipped defaults — both disabled, which is the quiet-start state. Through `occ`, because REST refuses some of these mutations by permission design. |
 | `cy.fciasMakeAccount( admin, base )` | Creates one account for this run — `fcias_e2e_<base>_<hex>` with a fresh 32-character password — and yields `{ user, password }`. Nothing in the suite authenticates as a name it did not make: a fixed account with a password in the repository is standing risk on every instance the suite has ever touched, and it leaves teardown unable to tell the suite's account from the developer's. The base rides in the uid so a failing run still says which account was which. |

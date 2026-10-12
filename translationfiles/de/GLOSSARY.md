@@ -63,10 +63,10 @@ files at once.
 | reapply | erneut anwenden | |
 | index (verb), indexed | indizieren, indiziert | not *indexieren* |
 | pending | ausstehend | a calculation still to come |
-| pending deletion | zur Löschung vorgemerkt | the reset state's hint: „zur Löschung durch die Hintergrundaufgabe vorgemerkt“ |
+| pending deletion | zur Löschung vorgemerkt | the revoked state's hint: „zur Löschung durch die Hintergrundaufgabe vorgemerkt“ |
 | queued files | Dateien in der Warteschlange | |
-| untrusted / eroded / reset | nicht vertrauenswürdig / verfallen / zurückgesetzt | the states of stale checksums |
-| invalidated (by a reset) | ungültig | not *verwaist*, the orphan purge's word |
+| untrusted / eroded / revoked | nicht vertrauenswürdig / verfallen / widerrufen | the states of stale checksums; *Widerrufen* is the state, a past participle |
+| revocation | Widerruf | the drain's „nach dem Widerruf bereinigt“ |
 | background job | Hintergrundaufgabe | both registers, as Nextcloud's own admin heading |
 | rule sweep / rule reapplication / queue drain / orphan purge / checksum copy / checksum index check / checksum stamp check | Regeldurchlauf / Erneute Regelanwendung / Abarbeitung der Warteschlange / Bereinigung verwaister Einträge / Übernahme vorhandener Prüfsummen / Prüfung des Prüfsummen-Index / Prüfung der Prüfsummen-Zeitstempel | |
 | tunables | Feineinstellungen | |

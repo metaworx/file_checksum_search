@@ -22,7 +22,7 @@ FCIAS writes one key per algorithm into the metadata document
 (`file-checksum-hash-sha256`, and so on) alongside a `file-checksum-updated_at`
 stamp recording when the file was last considered, then writes its own index row
 for each hash. The stamp gets an index row too. What the file is waiting for
-(`pending:auto`), or why its hashes are not to be trusted (`stale:reset`), is an
+(`pending:auto`), or why its hashes are not to be trusted (`stale:revoked`), is an
 index row of its own, `file-checksum-state`, which exists only while there is
 such a state. The hashes are additionally mirrored back into
 `oc_filecache.checksum`, where Nextcloud itself and sync clients look for them.
@@ -210,10 +210,12 @@ and the rarer outcomes where they happen — and `-v` names each file it did not
 |---------|-------------|
 | `file-checksum-search:backup [options]` | Write out the app's configuration, queue state and stored hashes |
 | `file-checksum-search:reset [options]` | Give the same three back — reporting only, until `--force` |
+| `file-checksum-search:revoke [options]` | Revoke the stored hashes alone — reporting only, until `--force` |
 | `file-checksum-search:import [options]` | Read a backup back, or bring in checksums computed elsewhere |
 
 They share the slice flags `--config`, `--status` and `--hashes`; naming none takes all of them,
-except on `import`, where `--status` is refused (see below). See
+except on `import`, where `--status` is refused (see below), and on `revoke`, which takes the
+hashes alone; on `reset`, `--hashes` is deprecated in favour of `revoke`. See
 [Backing up, resetting and importing](#backing-up-resetting-and-importing) for what each slice is
 and what the options mean.
 
@@ -284,8 +286,8 @@ php occ fcias:backup --hashes --format=sum --algo=sha256 -o SHA256SUMS
 # See what a reset would remove, without removing it
 php occ fcias:reset
 
-# Disown every stored checksum, backing up first and stopping if that fails
-php occ fcias:reset --hashes --force --backup=/backups/before.json
+# Revoke every stored checksum, backing up first and stopping if that fails
+php occ fcias:revoke --force --backup=/backups/before.json
 
 # Put a backup back
 php occ fcias:import --replace --hashes -i /backups/fcias.json
@@ -585,7 +587,7 @@ batch; queuing it again keeps its count, and it goes when the file leaves the qu
 in which no file left the queue is not re-dispatched: the next run tries again, the files not yet
 tried first. The drain's last run counts each file by what became of it — `hashed`, `typed` (its
 MIME type read alone), `stamped` (nothing to read), `emptied` (`lazy`), `dropped`, `gone`, `failed`
-— beside `total` and `disowned`, every key in `fcias:status -o json` and on the status page. `fcias:queue:drain --all` walks the queue once, by file id, and tries every file
+— beside `total` and `revoked` (`disowned` too, as 0.25.0 named it), every key in `fcias:status -o json` and on the status page. `fcias:queue:drain --all` walks the queue once, by file id, and tries every file
 waiting: one that fails is passed rather than taken again. A file on a storage Nextcloud holds
 unavailable — it fails every call to an external storage at once for ten minutes after the first
 that failed — counts its attempt without being read, until Nextcloud tries the storage again.
@@ -625,8 +627,8 @@ and are put back by different means:
 | `--hashes` | the stored checksums and the timestamps that say how fresh each one is | `fcias:import --hashes` |
 | `--status` | what each file is waiting for, or why its hashes are untrusted | **nothing** — see below |
 
-Naming no slice takes all of them. `fcias:backup` writes them out; `fcias:reset` gives them back;
-`fcias:import` reads them in.
+Naming no slice takes all of them. `fcias:backup` writes them out; `fcias:reset` gives them back,
+`fcias:revoke` the hashes alone; `fcias:import` reads them in.
 
 ### The status slice is recorded, never restored
 
@@ -651,17 +653,18 @@ either, so tell the import what its paths are measured from with `--user` or `--
 that *does* name its own storage — anything from a `json` or `csv` export — is never re-anchored,
 so re-importing a backup with `--user` set still lands each hash on the file it came from.
 
-### Resetting hashes disowns them; it does not stop the world
+### Revoking hashes does not stop the world
 
-`fcias:reset` reports what it would remove and changes nothing until `--force`. What it removes
-cannot be recovered by any other means, so the second word is the point.
+`fcias:revoke`, like `fcias:reset`, reports what it would remove and changes nothing until
+`--force`. What it removes cannot be recovered by any other means, so the second word is the point.
+`fcias:reset --hashes`, its former name, still revokes them, and says it is deprecated.
 
-Removing hashes does not rewrite one metadata document per file. Each file is marked `stale:reset`,
-which takes it out of search and out of duplicate groups **immediately**, and the background job
-does the clearing as it goes — one database write per thousand files rather than one metadata
-document rewrite each. `--now` does the clearing in the foreground instead, which is what a fixture
-wants. `--backup=<path>` writes a backup first and abandons the whole run if that fails, and every
-forced run leaves one audit line at warning level naming who ran it and what they reset.
+Revoking hashes does not rewrite one metadata document per file. Each file is marked
+`stale:revoked`, which takes it out of search and out of duplicate groups **immediately**, and the
+background job does the clearing as it goes — one database write per thousand files rather than one
+metadata document rewrite each. `--now` does the clearing in the foreground instead, which is what a
+fixture wants. `--backup=<path>` writes a backup first and abandons the whole run if that fails, and
+every forced run leaves one audit line at warning level naming who ran which command, and on what.
 
 ### The timestamp is the dangerous part of an import
 
@@ -682,8 +685,8 @@ guessing wrong is silent either way. A path this instance does not have is count
 (`--strict` stops at the first), because an import restores what a file *is*, never that it exists.
 `--dry-run` reports the whole thing and writes nothing.
 
-Importing acceptable hashes onto a disowned file clears its marker, so a reset undone by an import
-never waits for the background job at all.
+Importing acceptable hashes onto a revoked file clears its marker, so hashes revoked and then
+imported again never wait for the background job at all.
 
 ## Duplicate File Browser
 
@@ -876,7 +879,7 @@ php occ fcias:repair --step missing-stamps           # hashes carry no stamp, an
 php occ fcias:repair --step etag-stamp               # stamps carry no ETag, after an upgrade
 php occ fcias:repair --step rebuild-from-metadata    # the file's details show a hash search cannot find
 php occ fcias:repair --step unindexed-hashes         # after a restore: the index has no record of the file at all
-php occ fcias:repair --step clear-disowned            # a reset left hashes for the job to clear
+php occ fcias:repair --step clear-revoked            # revoked hashes the background job has yet to clear
 ```
 
 If the rules have asked for hashes nothing has computed yet, that is not a repair —

@@ -158,7 +158,7 @@ class RepairQuietStart
 
 		foreach ( $this->steps() as $entry )
 		{
-			if ( $only !== null && ! in_array( $entry['step']->name, $only, true ) )
+			if ( $only !== null && ! $entry['step']->isNamedIn( $only ) )
 			{
 				continue;
 			}
@@ -407,19 +407,19 @@ class RepairQuietStart
 	/**
 	 * Move the markers out of the stamp rows, into rows of their own.
 	 *
-	 * Versions before kept a file's marker — queued, disowned, eroded — in
+	 * Versions before kept a file's marker — queued, revoked, eroded — in
 	 * the string half of its `file-checksum-updated_at` index row, which
 	 * Nextcloud rewrites from the metadata document whenever any app saves
 	 * it, and the document does not hold the marker. Before every step that
-	 * reads markers. Markers are few, the queue and the disowned, so it runs
+	 * reads markers. Markers are few, the queue and the revoked, so it runs
 	 * inline.
 	 *
 	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
 	 */
 	#[RepairStep(
 		name: 'marker-row',
-		title: 'Give the queue and disowned markers rows of their own',
-		description: 'Moves the markers that say a file is queued or its hashes are disowned out of the row that holds its freshness stamp, which Nextcloud rewrites whenever any app saves the file\'s metadata, into a row this app alone writes. A marker left there is lost on the next such save. Reads no file content; idempotent.',
+		title: 'Give the queue and revoked markers rows of their own',
+		description: 'Moves the markers that say a file is queued or its hashes are revoked out of the row that holds its freshness stamp, which Nextcloud rewrites whenever any app saves the file\'s metadata, into a row this app alone writes. A marker left there is lost on the next such save. Reads no file content; idempotent.',
 		expensive: false,
 	)]
 	private function moveMarkers( IOutput $output ): void
@@ -593,7 +593,7 @@ class RepairQuietStart
 	 * A recalculation — `occ fcias:hash`, the sidebar, the API — used to save
 	 * hashes without `file-checksum-updated_at`; only the queue stamped. Such
 	 * a file counts as never hashed: every `missing` run hashed it again, and
-	 * a reset or the index check passed it by. Before the index check, so
+	 * revoking or the index check passed it by. Before the index check, so
 	 * that a named run finds them stamped.
 	 *
 	 * The files are found through the index, cheaply, but stamping one
@@ -920,13 +920,72 @@ class RepairQuietStart
 	}
 
 	/**
-	 * Finish what a reset deferred.
+	 * Rename the marker of revoked hashes.
 	 *
-	 * `fcias:reset --hashes` marks rather than clears, so the file leaves
-	 * every search at once while the expensive half — one metadata document
+	 * 0.25.0 and before marked them `stale:reset`, after the command that
+	 * wrote it; `fcias:revoke` writes `stale:revoked`. Before the step that
+	 * clears them, which reads the new value alone.
+	 *
+	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
+	 */
+	#[RepairStep(
+		name: 'revoked-state',
+		title: 'Rename the marker of revoked hashes',
+		description: 'Rewrites the marker `stale:reset` as `stale:revoked`, the name `occ fcias:revoke` writes, so that the background job goes on clearing what an earlier version revoked. One update over the rows it wrote.',
+		expensive: false,
+	)]
+	private function renameResetStates( IOutput $output ): void
+	{
+		try
+		{
+			$qb = $this->db->getQueryBuilder();
+			$qb->update( MetadataService::TABLE_FILES_METADATA_INDEX )
+			   ->set(
+				   MetadataService::FIELD_META_VALUE_STRING,
+				   $qb->createNamedParameter( MetadataService::STATE_REVOKED ),
+			   )
+			   ->where(
+				   $qb->expr()
+				      ->eq(
+					      MetadataService::FIELD_META_KEY,
+					      $qb->createNamedParameter( MetadataService::KEY_FILE_CHECKSUM_STATE ),
+				      ),
+				   $qb->expr()
+				      ->eq(
+					      MetadataService::FIELD_META_VALUE_STRING,
+					      $qb->createNamedParameter( MetadataService::LEGACY_STATE_RESET ),
+				      ),
+			   )
+			;
+
+			$renamed = $qb->executeStatement();
+
+			if ( $renamed > 0 )
+			{
+				$output->info(
+					sprintf(
+						'FCIAS: renamed %d marker(s) "%s" to "%s".',
+						$renamed,
+						MetadataService::LEGACY_STATE_RESET,
+						MetadataService::STATE_REVOKED,
+					),
+				);
+			}
+		}
+		catch ( Throwable $e )
+		{
+			$this->warn( $output, 'could not rename the markers of revoked hashes', $e );
+		}
+	}
+
+	/**
+	 * Finish what revoking deferred.
+	 *
+	 * `fcias:revoke` marks rather than clears, so the file leaves every
+	 * search at once while the expensive half — one metadata document
 	 * rewritten per file — is left for later. This is later. A file an
 	 * enabled `include` rule still governs goes back on the queue, because
-	 * the operator disowned the stored hashes and not the intent to have
+	 * the operator revoked the stored hashes and not the intent to have
 	 * them.
 	 *
 	 * Reads no file content, which is what makes it a repair: it reconciles
@@ -936,21 +995,22 @@ class RepairQuietStart
 	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
 	 */
 	#[RepairStep(
-		name: 'clear-disowned',
-		title: 'Finish clearing what a reset disowned',
-		description: 'Clears the stored hashes of files a reset marked as disowned, and puts back on '
-		. 'the queue those a rule still covers. Reads no file content. A reset leaves this work to the '
-		. 'background job; run this to have it done now.',
+		name: 'clear-revoked',
+		title: 'Finish clearing what was revoked',
+		description: 'Clears the stored hashes of files `occ fcias:revoke` marked as revoked, and puts back on '
+		. 'the queue those a rule still covers. Reads no file content. Revoking leaves this work to the '
+		. 'background job; run this to have it done now. `clear-disowned` is its former name.',
 		expensive: true,
+		aliases: [ 'clear-disowned' ],
 	)]
-	private function clearDisowned( IOutput $output ): void
+	private function clearRevoked( IOutput $output ): void
 	{
-		$cleared = $this->ruleService->clearDisownedFiles( $this->batchLimit() );
+		$cleared = $this->ruleService->clearRevokedFiles( $this->batchLimit() );
 
 		$output->info(
 			$cleared === 0
-				? 'FCIAS: no disowned files were waiting to be cleared.'
-				: sprintf( 'FCIAS: cleared %d disowned files.', $cleared ),
+				? 'FCIAS: no revoked files were waiting to be cleared.'
+				: sprintf( 'FCIAS: cleared %d revoked files.', $cleared ),
 		);
 	}
 

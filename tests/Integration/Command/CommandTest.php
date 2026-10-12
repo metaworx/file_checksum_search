@@ -235,7 +235,9 @@ class CommandTest
 				'missing-stamps',
 				'rebuild-from-metadata',
 				'unindexed-hashes',
-				'clear-disowned',
+				'revoked-state',
+				'clear-revoked',
+				'formerly clear-disowned',
 			] as $step
 		)
 		{

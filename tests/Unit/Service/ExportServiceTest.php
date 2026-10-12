@@ -256,7 +256,7 @@ class ExportServiceTest
 				                      ];
 				                      yield [
 					                      'file_id' => 8,
-					                      'state'   => MetadataService::STATE_RESET,
+					                      'state'   => MetadataService::STATE_REVOKED,
 				                      ];
 			                      },
 		                      )
@@ -287,7 +287,7 @@ class ExportServiceTest
 				[
 					'storage' => 'home::alice',
 					'path'    => 'files/b.txt',
-					'state'   => 'stale:reset',
+					'state'   => 'stale:revoked',
 				],
 			],
 			$rows,

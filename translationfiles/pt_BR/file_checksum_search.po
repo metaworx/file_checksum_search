@@ -900,12 +900,12 @@ msgstr "Atualizar tipos MIME"
 msgid "Renew after (minutes)"
 msgstr "Renovar após (minutos)"
 
-#. TRANSLATORS: the state of checksums a reset has made invalid; a past participle, not the action
-msgid "Reset"
-msgstr "Redefinidas"
-
 msgid "Revoke"
 msgstr "Revogar"
+
+#. TRANSLATORS: the state of checksums an administrator has revoked; a past participle, not the action
+msgid "Revoked"
+msgstr "Revogadas"
 
 msgid "Rule deleted."
 msgstr "Regra excluída."
@@ -1348,12 +1348,9 @@ msgstr "group:* não é um seletor. Indique um único grupo ou use home:* para t
 msgid "groupfolder: takes the numeric folder ID."
 msgstr "groupfolder: recebe o ID numérico da pasta."
 
-#. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it only read the MIME type of, how many it only stamped as current, how many it emptied (a rule in "lazy" mode), how many it dropped from the queue unread because no rule wants them any more, how many were gone from their storage, and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
-msgid "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after a reset {cleared}"
-msgstr "somas de verificação calculadas para {hashed} de {total}, só tipo MIME lido {typed}, com carimbo de data e hora {stamped}, esvaziados {emptied}, removidos da fila {dropped}, desaparecidos {gone}, com falha {failed}, limpos após uma redefinição {cleared}"
-
-msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
-msgstr "invalidadas por uma redefinição: já ocultas da pesquisa e aguardando exclusão pela tarefa em segundo plano"
+#. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it only read the MIME type of, how many it only stamped as current, how many it emptied (a rule in "lazy" mode), how many it dropped from the queue unread because no rule wants them any more, how many were gone from their storage, and how many failed; the last number is files whose checksums an administrator had revoked, now cleared
+msgid "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after revocation {cleared}"
+msgstr "somas de verificação calculadas para {hashed} de {total}, só tipo MIME lido {typed}, com carimbo de data e hora {stamped}, esvaziados {emptied}, removidos da fila {dropped}, desaparecidos {gone}, com falha {failed}, limpos após uma revogação {cleared}"
 
 #. TRANSLATORS: when a background job whose last run failed last ran without an error
 msgid "last success: {time}"
@@ -1410,6 +1407,10 @@ msgstr "reparadas {repaired}, concluída"
 #. TRANSLATORS: a background job's last run: the checksums it made findable again, and that the next runs go on checking
 msgid "repaired {repaired}, not finished yet"
 msgstr "reparadas {repaired}, ainda não concluída"
+
+#. TRANSLATORS: keep "occ fcias:revoke" as it is: it is the command that revoked them
+msgid "revoked with occ fcias:revoke: already hidden from search, and pending deletion by the background job"
+msgstr "revogadas com occ fcias:revoke: já ocultas da pesquisa e aguardando exclusão pela tarefa em segundo plano"
 
 #. TRANSLATORS: scope is a parameter name, and "own" and "all" are its values; keep them
 msgid "scope must be \"own\" or \"all\"."

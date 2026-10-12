@@ -270,6 +270,47 @@ class RepairQuietStartTest
 	}
 
 	/**
+	 * 0.25.0 marked revoked hashes `stale:reset`; the clearing reads
+	 * `stale:revoked` alone.
+	 */
+	public function testRenamesTheMarkerOfRevokedHashes(): void
+	{
+		$this->queryBuilder->expects( $this->once() )
+		                   ->method( 'update' )
+		                   ->with( 'files_metadata_index' )
+		                   ->willReturnSelf()
+		;
+		$this->queryBuilder->expects( $this->once() )
+		                   ->method( 'set' )
+		                   ->with( MetadataService::FIELD_META_VALUE_STRING, MetadataService::STATE_REVOKED )
+		                   ->willReturnSelf()
+		;
+		$this->queryBuilder->method( 'executeStatement' )
+		                   ->willReturn( 3 )
+		;
+		$this->output->expects( $this->once() )
+		             ->method( 'info' )
+		             ->with( 'FCIAS: renamed 3 marker(s) "stale:reset" to "stale:revoked".' )
+		;
+
+		$this->assertSame( [ 'revoked-state' ], $this->step->runSteps( $this->output, [ 'revoked-state' ] ) );
+	}
+
+	/**
+	 * `clear-disowned` was its name in 0.25.0; a script that names it runs
+	 * the step, which reports its own name.
+	 */
+	public function testTheClearingAnswersToItsFormerName(): void
+	{
+		$this->ruleService->expects( $this->once() )
+		                  ->method( 'clearRevokedFiles' )
+		                  ->willReturn( 2 )
+		;
+
+		$this->assertSame( [ 'clear-revoked' ], $this->step->runSteps( $this->output, [ 'clear-disowned' ] ) );
+	}
+
+	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRemovesTheLegacySeedJobOnlyWhenScheduled(): void
@@ -839,7 +880,8 @@ class RepairQuietStartTest
 				'etag-stamp',
 				'rebuild-from-metadata',
 				'unindexed-hashes',
-				'clear-disowned',
+				'revoked-state',
+				'clear-revoked',
 				'stale-states',
 				'legacy-pending',
 				'legacy-seed-job',

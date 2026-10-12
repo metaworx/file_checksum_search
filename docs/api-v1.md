@@ -116,9 +116,9 @@ a scan takes in.
   compares — whatever the hashes' state. The times are ISO 8601 in whole
   seconds with an explicit offset, as `updated_at` is.
 - **A stale entry** — a file whose ETag moved on, or whose hashes were
-  disowned by a reset — is left out of the lookup, the listing and the
-  duplicates by default, as it always was, and a file's hashes give `{}`
-  for one whose ETag moved on. Under `stat=1` the listing and a file's
+  revoked with `occ fcias:revoke` — is left out of the lookup, the listing
+  and the duplicates by default, as it always was, and a file's hashes give
+  `{}` for one whose ETag moved on. Under `stat=1` the listing and a file's
   hashes include it, with `fileid`, `path`, `owner` and the present state,
   and `hashes`, `updated_at`, `etag` and, where asked for, `mimetype`
   `null`; a file that has no hashes at all gives `hashes` `{}`. A lookup
@@ -288,7 +288,7 @@ hash by hash.
   `$limit` 0 that is all it carries, and `next` is `$after` itself, so a
   count is never read as the end.
 - **Which files:** the rows `findByHash()` selects: an indexed hash, within
-  the reach's mounts, not disowned by a reset. A received share counts for
+  the reach's mounts, not revoked. A received share counts for
   the shared folder and what is below it. An algorithm the instance holds
   no hashes in lists nothing; it is not an error.
 - **`path`, `owner` and `location`** are as

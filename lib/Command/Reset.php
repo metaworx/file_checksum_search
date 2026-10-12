@@ -31,6 +31,9 @@ use Throwable;
  * irrecoverable by any other means — the hashes took an instance-wide read to
  * compute — so the default is a plan, not an act.
  *
+ * The hashes are revoked as {@see Revoke} does, which is this command with
+ * the hashes alone; `--hashes` is the name that slice had before.
+ *
  * @noinspection PhpUnused
  */
 class Reset
@@ -78,26 +81,11 @@ class Reset
 			     'hashes',
 			     null,
 			     InputOption::VALUE_NONE,
-			     'Disown every stored checksum',
+			     'Revoke every stored checksum. Deprecated: use occ fcias:revoke',
 		     )
-		     ->addOption(
-			     'force',
-			     null,
-			     InputOption::VALUE_NONE,
-			     'Actually do it. Without this the command only reports what it would do',
-		     )
-		     ->addOption(
-			     'backup',
-			     'b',
-			     InputOption::VALUE_REQUIRED,
-			     'Write a backup here first, and do nothing at all if that fails',
-		     )
-		     ->addOption(
-			     'now',
-			     null,
-			     InputOption::VALUE_NONE,
-			     'Clear the hashes in the foreground instead of leaving them to the background job',
-		     )
+		;
+
+		$this->addCarryOutOptions()
 		     ->setHelp(
 			     <<<'HELP'
 The <info>%command.name%</info> command gives back everything this app owns.
@@ -106,22 +94,18 @@ With no slice named it resets all three; naming any restricts it to those:
 
   <info>--config</info>   forget the configuration keys, back to their declared defaults
   <info>--status</info>   forget the queue — every pending and stale marker
-  <info>--hashes</info>   disown every stored checksum
+  <info>--hashes</info>   revoke every stored checksum; deprecated, <info>occ fcias:revoke</info> does it
 
 <comment>It reports and changes nothing until you add --force.</comment> What it removes cannot be
 recovered by any other means: the hashes took an instance-wide read to compute.
 
-Resetting hashes <comment>disowns</comment> them rather than deleting them there and then. Each
-file is marked, which takes them out of search and out of duplicate groups
-immediately, and the background job clears them as it goes — one database write
-per thousand files rather than one document rewrite each. <info>--now</info> does the
-clearing in the foreground instead, which is what a test fixture wants and what
-an impatient operator with a small instance may prefer.
+The hashes are revoked as <info>occ fcias:revoke</info> revokes them, and <info>--now</info> clears
+them in the foreground as it does; its help says how.
 
 Examples:
 
   <info>occ fcias:reset</info>                                  what would happen, in full
-  <info>occ fcias:reset --hashes --force</info>                 disown every checksum
+  <info>occ fcias:reset --config --force</info>                 forget the configuration
   <info>occ fcias:reset --force --backup=/backups/before.json</info>
 HELP,
 		     )
@@ -139,6 +123,13 @@ HELP,
 	{
 		$slices = $this->slices( $input );
 
+		if ( $input->hasOption( 'hashes' ) && $input->getOption( 'hashes' ) )
+		{
+			Repair::errorOutput( $output )
+			      ->writeln( '<comment>--hashes is deprecated: occ fcias:revoke revokes the hashes.</comment>' )
+			;
+		}
+
 		try
 		{
 			$this->reportPlan( $slices, $output );
@@ -147,7 +138,7 @@ HELP,
 		{
 			// A plan that cannot be computed is not a reason to show a stack
 			// trace: the run changed nothing either way.
-			$output->writeln( '<error>Could not work out what there is to reset: '
+			$output->writeln( '<error>Could not work out what there is to do: '
 				. $e->getMessage() . '</error>' );
 
 			return Command::FAILURE;
@@ -169,18 +160,19 @@ HELP,
 		// because the operator went ahead believing they had one.
 		if ( is_string( $backup ) && ! $this->writeBackup( $backup, $slices, $output ) )
 		{
-			$output->writeln( '<error>Nothing was reset.</error>' );
+			$output->writeln( '<error>Nothing was changed.</error>' );
 
 			return Command::FAILURE;
 		}
 
 		$this->logger->warning(
-			'FCIAS: reset carried out by {actor} on {slices}.',
+			'FCIAS: {command} carried out by {actor} on {slices}.',
 			[
-				'app'    => Application::APP_ID,
-				'actor'  => $this->actor(),
-				'slices' => implode( ', ', $slices ),
-				'backup' => is_string( $backup )
+				'app'     => Application::APP_ID,
+				'command' => $this->getName(),
+				'actor'   => $this->actor(),
+				'slices'  => implode( ', ', $slices ),
+				'backup'  => is_string( $backup )
 					? $backup
 					: null,
 			],
@@ -191,6 +183,34 @@ HELP,
 
 
 //  other non-static methods
+
+	/**
+	 * The options that carry a plan out, which {@see Revoke} takes as well.
+	 */
+	protected function addCarryOutOptions(): static
+	{
+		$this->addOption(
+			'force',
+			null,
+			InputOption::VALUE_NONE,
+			'Actually do it. Without this the command only reports what it would do',
+		)
+		     ->addOption(
+			     'backup',
+			     'b',
+			     InputOption::VALUE_REQUIRED,
+			     'Write a backup here first, and do nothing at all if that fails',
+		     )
+		     ->addOption(
+			     'now',
+			     null,
+			     InputOption::VALUE_NONE,
+			     'Clear the hashes in the foreground instead of leaving them to the background job',
+		     )
+		;
+
+		return $this;
+	}
 
 	/**
 	 * What is there to lose, before anything is done about it.
@@ -255,7 +275,7 @@ HELP,
 					ExportService::SLICE_STATUS => $output->writeln(
 						sprintf( '  status   %d markers cleared', $this->metadataService->clearQueueState() ),
 					),
-					ExportService::SLICE_HASHES => $output->writeln( $this->resetHashes( $now ) ),
+					ExportService::SLICE_HASHES => $output->writeln( $this->revokeHashes( $now ) ),
 					default                     => null,
 				};
 			}
@@ -263,9 +283,10 @@ HELP,
 		catch ( Throwable $e )
 		{
 			$this->logger->error(
-				'FCIAS reset: failed part way through.',
+				'FCIAS {command}: failed part way through.',
 				[
 					'app'       => Application::APP_ID,
+					'command'   => $this->getName(),
 					'exception' => $e,
 				],
 			);
@@ -278,11 +299,11 @@ HELP,
 	}
 
 	/**
-	 * Disown the hashes, or clear them outright.
+	 * Revoke the hashes, or clear them outright.
 	 *
 	 * @throws Exception
 	 */
-	private function resetHashes( bool $now ): string
+	private function revokeHashes( bool $now ): string
 	{
 		if ( $now )
 		{
@@ -293,8 +314,8 @@ HELP,
 		}
 
 		return sprintf(
-			'  hashes   %d files disowned; the background job clears them as it goes',
-			$this->metadataService->markAllStale(),
+			'  hashes   %d files revoked; the background job clears them as it goes',
+			$this->metadataService->markAllRevoked(),
 		);
 	}
 
@@ -330,9 +351,10 @@ HELP,
 		catch ( Throwable $e )
 		{
 			$this->logger->error(
-				'FCIAS reset: the backup failed, so nothing was reset.',
+				'FCIAS {command}: the backup failed, so nothing was changed.',
 				[
 					'app'       => Application::APP_ID,
+					'command'   => $this->getName(),
 					'exception' => $e,
 				],
 			);
@@ -355,7 +377,7 @@ HELP,
 	 *
 	 * @return list<string>
 	 */
-	private function slices( InputInterface $input ): array
+	protected function slices( InputInterface $input ): array
 	{
 		$named = array_values(
 			array_filter(

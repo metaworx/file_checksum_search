@@ -93,11 +93,11 @@ class ProcessPendingUpdates
 				50,
 			);
 
-			// Disowned files first: they are the cheapest work in the queue —
+			// Revoked files first: they are the cheapest work in the queue —
 			// a metadata document rewrite, no hashing — and clearing one may
 			// put it straight back as pending:<mode>, which this same run then
 			// picks up rather than leaving for the next.
-			$disowned = $this->ruleService->clearDisownedFiles( $batchLimit );
+			$revoked = $this->ruleService->clearRevokedFiles( $batchLimit );
 
 			$pendingRows = $this->metadataService->fetchPendingBatch( $batchLimit );
 
@@ -112,11 +112,11 @@ class ProcessPendingUpdates
 				// page is the point.
 				$this->jobStats->record(
 					JobStatsService::JOB_PENDING_DRAIN,
-					self::counts( array_fill_keys( DrainOutcome::KINDS, 0 ), $disowned ),
+					self::counts( array_fill_keys( DrainOutcome::KINDS, 0 ), $revoked ),
 					JobStatsService::millisecondsSince( $started ),
 				);
 
-				if ( $disowned > 0 )
+				if ( $revoked > 0 )
 				{
 					// More may be waiting: this pass took one batch of them.
 					$this->jobList->add( self::class );
@@ -150,7 +150,7 @@ class ProcessPendingUpdates
 				}
 			}
 
-			$counts = self::counts( $tally, $disowned );
+			$counts = self::counts( $tally, $revoked );
 
 			$this->jobStats->record(
 				JobStatsService::JOB_PENDING_DRAIN,
@@ -163,7 +163,7 @@ class ProcessPendingUpdates
 			// files keep failing, and the next tick tries them again.
 			$left = count( $pendingRows ) - $tally[ DrainOutcome::FAILED ];
 
-			if ( ( count( $pendingRows ) >= $batchLimit && $left > 0 ) || $disowned >= $batchLimit )
+			if ( ( count( $pendingRows ) >= $batchLimit && $left > 0 ) || $revoked >= $batchLimit )
 			{
 				$this->jobList->add( self::class );
 			}
@@ -197,8 +197,8 @@ class ProcessPendingUpdates
 	/**
 	 * A run's counts as the status lists them: the files by outcome, every
 	 * outcome, zeros included, so that a reader needs no list of the keys
-	 * that may be missing; then the files it took, and the disowned ones it
-	 * cleared.
+	 * that may be missing; then the files it took, and the revoked ones it
+	 * cleared — under `revoked`, and under `disowned`, the key 0.25.0 read.
 	 *
 	 * @param  array<string, int>  $tally  Files by {@see DrainOutcome} kind.
 	 *
@@ -206,7 +206,7 @@ class ProcessPendingUpdates
 	 */
 	private static function counts(
 		array $tally,
-		int   $disowned,
+		int   $revoked,
 	): array
 	{
 		return [
@@ -218,7 +218,8 @@ class ProcessPendingUpdates
 			'gone'     => $tally[ DrainOutcome::GONE ],
 			'failed'   => $tally[ DrainOutcome::FAILED ],
 			'total'    => array_sum( $tally ),
-			'disowned' => $disowned,
+			'revoked'  => $revoked,
+			'disowned' => $revoked,
 		];
 	}
 

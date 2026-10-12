@@ -892,12 +892,12 @@ msgstr "刷新 MIME 类型"
 msgid "Renew after (minutes)"
 msgstr "多久后重新计数（分钟）"
 
-#. TRANSLATORS: the state of checksums a reset has made invalid; a past participle, not the action
-msgid "Reset"
-msgstr "已重置"
-
 msgid "Revoke"
 msgstr "撤销"
+
+#. TRANSLATORS: the state of checksums an administrator has revoked; a past participle, not the action
+msgid "Revoked"
+msgstr "已撤销"
 
 msgid "Rule deleted."
 msgstr "规则已删除。"
@@ -1338,12 +1338,9 @@ msgstr "group:* 不是选择器。请指定一个群组，或使用 home:* 表�
 msgid "groupfolder: takes the numeric folder ID."
 msgstr "groupfolder: 需要数字形式的文件夹 ID。"
 
-#. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it only read the MIME type of, how many it only stamped as current, how many it emptied (a rule in "lazy" mode), how many it dropped from the queue unread because no rule wants them any more, how many were gone from their storage, and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
-msgid "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after a reset {cleared}"
-msgstr "已计算校验和：{hashed}/{total}，仅读取 MIME 类型：{typed}，已加时间戳：{stamped}，已清空：{emptied}，已移出队列：{dropped}，已消失：{gone}，失败：{failed}，重置后已清理：{cleared}"
-
-msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
-msgstr "因重置而作废：已从搜索中隐藏，等待后台任务删除"
+#. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it only read the MIME type of, how many it only stamped as current, how many it emptied (a rule in "lazy" mode), how many it dropped from the queue unread because no rule wants them any more, how many were gone from their storage, and how many failed; the last number is files whose checksums an administrator had revoked, now cleared
+msgid "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after revocation {cleared}"
+msgstr "已计算校验和：{hashed}/{total}，仅读取 MIME 类型：{typed}，已加时间戳：{stamped}，已清空：{emptied}，已移出队列：{dropped}，已消失：{gone}，失败：{failed}，撤销后已清理：{cleared}"
 
 #. TRANSLATORS: when a background job whose last run failed last ran without an error
 msgid "last success: {time}"
@@ -1400,6 +1397,10 @@ msgstr "已修复：{repaired}，已完成"
 #. TRANSLATORS: a background job's last run: the checksums it made findable again, and that the next runs go on checking
 msgid "repaired {repaired}, not finished yet"
 msgstr "已修复：{repaired}，尚未完成"
+
+#. TRANSLATORS: keep "occ fcias:revoke" as it is: it is the command that revoked them
+msgid "revoked with occ fcias:revoke: already hidden from search, and pending deletion by the background job"
+msgstr "已通过 occ fcias:revoke 撤销：已从搜索中隐藏，等待后台任务删除"
 
 #. TRANSLATORS: scope is a parameter name, and "own" and "all" are its values; keep them
 msgid "scope must be \"own\" or \"all\"."
