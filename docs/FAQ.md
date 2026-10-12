@@ -391,7 +391,8 @@ governs, unread; such a file gets its type at its next **Recalculate**.
 **Delete** (detection off) asks for confirmation, then queues a job that
 removes every stored type, a file at a time, out of the metadata document
 and then out of the index. Until it is done the status reads *Being deleted
-since …, N files left*, and detection cannot be switched on: the types it
+since …, N files left*, counted anew each time the status is read, and
+detection cannot be switched on: the types it
 detected meanwhile would go with the rest. `occ fcias:mimetype:delete`
 does the deletion in the foreground; cut short, the job goes on with it.
 

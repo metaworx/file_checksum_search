@@ -1,17 +1,37 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { loadState } from '@nextcloud/initial-state'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchFeatures, mimeTypeSwitchedOff, resetFeatureCache } from './features'
 
 vi.mock('@nextcloud/router', () => ({
 	generateOcsUrl: (url: string) => url,
 }))
 
+// The page's initial state: none unless a test renders one.
+vi.mock('@nextcloud/initial-state', () => ({
+	loadState: vi.fn(),
+}))
+
 describe('features', () => {
+	beforeEach(() => {
+		vi.mocked(loadState).mockImplementation(() => {
+			throw new Error('Could not find initial state features of file_checksum_search')
+		})
+	})
+
 	afterEach(() => {
 		resetFeatureCache()
 		vi.restoreAllMocks()
 	})
 
-	it('reads what the server offers once per page', async () => {
+	it('takes the features the page was rendered with, and asks the server nothing', async () => {
+		vi.mocked(loadState).mockReturnValue({ version: '1.0.0', features: { mimetype: true } })
+		const fetchMock = vi.spyOn(globalThis, 'fetch')
+
+		await expect(fetchFeatures()).resolves.toEqual({ mimetype: true })
+		expect(fetchMock).not.toHaveBeenCalled()
+	})
+
+	it('reads what the server offers once per page where the page carries none', async () => {
 		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
 			new Response(JSON.stringify({ version: '1.0.0', features: { mimetype: true } }), { status: 200 }),
 		)
@@ -22,7 +42,7 @@ describe('features', () => {
 		expect(first).toEqual({ mimetype: true })
 		expect(second).toBe(first)
 		expect(fetchMock).toHaveBeenCalledTimes(1)
-		expect(String(fetchMock.mock.calls[0][0])).toContain('/api/v1/status')
+		expect(String(fetchMock.mock.calls[0][0])).toContain('/api/v1/features')
 	})
 
 	it('offers nothing a server older than the features does not name', async () => {
@@ -55,6 +75,15 @@ describe('features', () => {
 			await expect(mimeTypeSwitchedOff(refused(), true)).resolves.toBe(true)
 			await expect(fetchFeatures()).resolves.toEqual({ mimetype: false })
 			expect(fetchMock).toHaveBeenCalledTimes(2)
+		})
+
+		it('asks the server, not the page, which may say what was true when it was rendered', async () => {
+			vi.mocked(loadState).mockReturnValue({ features: { mimetype: true } })
+			const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(status(false))
+			await fetchFeatures()
+
+			await expect(mimeTypeSwitchedOff(refused(), true)).resolves.toBe(true)
+			expect(fetchMock).toHaveBeenCalledTimes(1)
 		})
 
 		it('says no where detection is still on: the refusal was for something else', async () => {

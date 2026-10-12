@@ -101,6 +101,17 @@ class MimeTypeRefresh
 				],
 			);
 
+			// Over, with what it queued before: its last run otherwise says
+			// "not finished yet" for good.
+			$this->jobStats->record(
+				JobStatsService::JOB_MIMETYPE_REFRESH,
+				[
+					'marked' => (int) ( $this->jobStats->lastRuns()[ JobStatsService::JOB_MIMETYPE_REFRESH ]['counts']['marked'] ?? 0 ),
+					'done'   => 1,
+				],
+				JobStatsService::millisecondsSince( $started ),
+			);
+
 			return;
 		}
 

@@ -181,6 +181,24 @@ class PublicApiTest
 		$this->assertArrayNotHasKey( 'pendingRows', $response, 'A non-admin must not see the backlog.' );
 	}
 
+	// ─── GET /api/v1/features ────────────────────────────────────────
+	/**
+	 * Any account learns what it may ask for — the version, the features,
+	 * the algorithms with the default — and nothing of the instance.
+	 */
+	public function testFeaturesEndpointSaysWhatAnyAccountMayAskFor(): void
+	{
+		$response = $this->httpGet( '/api/v1/features' );
+
+		$this->assertIsArray( $response );
+		$this->assertIsString( $response['version'] ?? null );
+		$this->assertIsBool( $response['features']['mimetype'] ?? null );
+		$this->assertNotEmpty( $response['algorithms']['allowed'] ?? [] );
+		$this->assertContains( $response['algorithms']['default'] ?? null, $response['algorithms']['allowed'] ?? [] );
+		$this->assertArrayNotHasKey( 'dbVersion', $response );
+		$this->assertArrayNotHasKey( 'rowCount', $response );
+	}
+
 	// ─── GET /api/v1/lookup?hash=... ─────────────────────────────────
 	public function testLookupEndpointFindsInsertedHash(): void
 	{

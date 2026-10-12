@@ -68,7 +68,11 @@ class MimeTypeRefreshTest
 
 //  other non-static methods
 
-	/** Off, what it was asked for is not wanted any more. */
+	/**
+	 * Off, what it was asked for is not wanted any more: it stops, and its
+	 * last run is over, with what it had queued, rather than "not finished
+	 * yet" for good.
+	 */
 	public function testItStopsWhereDetectionIsOff(): void
 	{
 		$this->mimeTypes->method( 'isActive' )
@@ -79,6 +83,13 @@ class MimeTypeRefreshTest
 		;
 		$this->jobList->expects( $this->never() )
 		              ->method( 'add' )
+		;
+		$this->jobStats->method( 'lastRuns' )
+		               ->willReturn( [ JobStatsService::JOB_MIMETYPE_REFRESH => [ 'counts' => [ 'marked' => 70, 'done' => 0 ] ] ] )
+		;
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'record' )
+		               ->with( JobStatsService::JOB_MIMETYPE_REFRESH, [ 'marked' => 70, 'done' => 1 ] )
 		;
 
 		$this->runJob(

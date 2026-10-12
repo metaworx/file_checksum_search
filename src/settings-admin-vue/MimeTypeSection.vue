@@ -11,7 +11,9 @@
  * off, a deletion while it is on. The section offers none of those, and
  * says why; a refusal that comes anyway, from a page out of date or a second
  * tab, is shown as the server words it. How many types are stored is the
- * status's to say, which the section asks to count again after each change.
+ * status's to say: the section asks for the status again after each change,
+ * and the server counts the types anew while a deletion runs, the kept
+ * count otherwise.
  */
 import { computed, onMounted, ref } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'

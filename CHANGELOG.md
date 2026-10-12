@@ -22,6 +22,9 @@ the first stable release.
 - `stamp_check_interval` (`README.md`, *How hashing happens*): how often
   the walk over files changed unheard runs; a day by default.
 
+- `GET /api/v1/features`: what any account may ask for, the server's
+  algorithms and its version, without the status snapshot.
+
 ### Changed
 
 - `MetadataService::setSelfIndexed()`: the writer for a file's own index
@@ -55,6 +58,12 @@ the first stable release.
 - `docs/FAQ.md`, *Files the filecache lists and the storage does not
   have*: checksums leave `oc_filecache` too; gone needs two "not found"
   answers in a row; one found again is queued daily.
+
+- The files sidebar and the Duplicates page read the features from the
+  page, no longer waiting for the admin status and its recount.
+
+- `docs/FAQ.md`, *How are MIME types detected?*: the stored types are
+  counted anew while a deletion runs, so "files left" goes down.
 
 ## [0.25.0] - 2026-10-10
 

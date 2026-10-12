@@ -183,21 +183,45 @@ class StatusServiceTest
 		                      ->method( 'countMimeTypeRows' )
 		;
 		$this->mimeTypes->method( 'getState' )
+		                ->willReturn( MimeTypeService::STATE_DISABLED )
+		;
+		$this->mimeTypes->method( 'getDeleteRequestedAt' )
+		                ->willReturn( null )
+		;
+
+		$this->assertSame(
+			[
+				'state'             => MimeTypeService::STATE_DISABLED,
+				'rows'              => 1_234,
+				'at'                => 1_759_300_000 - 1,
+				'deleteRequestedAt' => null,
+			],
+			$this->service->getMimeTypeStatus( $this->service->getHashRowCount() ),
+		);
+	}
+
+	/**
+	 * While a deletion runs, the types are counted anew: the kept count
+	 * would say "files left" unchanged until the next one.
+	 */
+	public function testTheMimeTypesAreCountedAnewWhileADeletionRuns(): void
+	{
+		$this->storedCount( 1_759_300_000 - 1 );
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'countMimeTypeRows' )
+		                      ->willReturn( 600 )
+		;
+		$this->mimeTypes->method( 'getState' )
 		                ->willReturn( MimeTypeService::STATE_DELETING )
 		;
 		$this->mimeTypes->method( 'getDeleteRequestedAt' )
 		                ->willReturn( 1_759_299_000 )
 		;
 
-		$this->assertSame(
-			[
-				'state'             => MimeTypeService::STATE_DELETING,
-				'rows'              => 1_234,
-				'at'                => 1_759_300_000 - 1,
-				'deleteRequestedAt' => 1_759_299_000,
-			],
-			$this->service->getMimeTypeStatus( $this->service->getHashRowCount() ),
-		);
+		$status = $this->service->getMimeTypeStatus( $this->service->getHashRowCount() );
+
+		$this->assertSame( 600, $status['rows'] );
+		$this->assertSame( 1_759_299_000, $status['deleteRequestedAt'] );
 	}
 
 	/** The panel's Refresh counts whatever the stored count's age. */

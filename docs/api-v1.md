@@ -84,8 +84,9 @@ and the filecache give, comes from the file's name.
   the content its files share.
 - **While detection is off**, asking is refused with `400` and an `error`
   saying so, and where it is switched on; in PHP, a
-  `HintedInvalidArgumentException`. `GET /api/v1/status` tells every
-  caller in `features.mimetype` whether to ask.
+  `HintedInvalidArgumentException`. `GET /api/v1/features` tells every
+  caller in `features.mimetype` whether to ask, as `GET /api/v1/status`
+  does; the app's own pages carry it as initial state.
 - **The listing's `since`** follows the hashes: a type a refresh detects
   writes no hash, and no feed carries it. After a refresh, read the
   listing whole.
@@ -652,6 +653,24 @@ cross-account routes ask this once per answer and mark each row `openable`.
 
 ---
 
+#### `getFeatures(): array`
+
+What a client may ask of this server, for anyone, without the status
+snapshot: the app's version, the features, and the algorithms the server
+computes with its default. `GET /api/v1/features` answers it; the app's
+pages carry it as initial state, `features` of `file_checksum_search`.
+
+**Returns:**
+```php
+[
+    'version' => '1.9.2',
+    'features' => ['mimetype' => true],
+    'algorithms' => ['allowed' => ['sha1', 'sha256'], 'default' => 'sha1'],
+]
+```
+
+---
+
 #### `getStatus(?string $requestingUser = null): array`
 
 Read-only health/status snapshot. The version and the features are for
@@ -748,12 +767,13 @@ Responses are nonetheless plain JSON: these are `ApiController`s, not `OCSContro
 | 24 | `/api/v1/sudo/hashes` | GET | `listHashes` | As 23, across the accounts `users[]`/`groups[]` name or the caller's whole reach; `?localPath=1` for a sudoer, also with a set named |
 | 25 | `/api/v1/hashes/missing` | GET | `listMissing` | The files the caller holds without a hash, page by page; with 23 under `stat`, every file |
 | 26 | `/api/v1/sudo/hashes/missing` | GET | `listMissing` | As 25, across the accounts `users[]`/`groups[]` name or the caller's whole reach |
+| 27 | `/api/v1/features` | GET | `getFeatures` | What any account may ask for: the version, the features, the algorithms |
 
 > **Note:** `getHashesByFile()` and `getHashesByPath()` are PHP-only convenience methods with no HTTP equivalent. HTTP consumers should use `getHashesByFileId()` after obtaining a `fileId` from NC's WebDAV PROPFIND or other APIs.
 
 Routes 1–5 and 15–24 that answer with files take `?mimetype=1`: each file,
 or each duplicate group, gains `mimetype`. While detection is off, asking
-is a `400`; `features.mimetype` on route 6 says whether to ask
+is a `400`; `features.mimetype` on route 27, or 6, says whether to ask
 ([MIME types](#mime-types)).
 
 The lookup, a file's hashes, the recalculations, the listing and the
@@ -1341,6 +1361,29 @@ others they hold.
 `users[]` and `groups[]` name, or with nothing named the caller's whole
 reach, with `openable` on each file. A sudoer reads every `location` as
 the file's own address there, as on route 24.
+
+#### 12. Features
+
+```
+GET /ocs/v2.php/apps/file_checksum_search/api/v1/features
+```
+
+No parameters. For any account, and cheap: none of the status snapshot an
+administrator's route 6 builds.
+
+**Response (200):**
+```json
+{
+  "version": "1.9.2",
+  "features": {"mimetype": true},
+  "algorithms": {"allowed": ["sha1", "sha256"], "default": "sha1"}
+}
+```
+
+`features.mimetype` is whether the routes give a file's MIME type when
+asked: ask with `?mimetype=1` only while it is `true`. The app's own pages
+carry the same answer as initial state, so that they ask for it only after
+a refusal says detection was switched off meanwhile.
 
 ---
 

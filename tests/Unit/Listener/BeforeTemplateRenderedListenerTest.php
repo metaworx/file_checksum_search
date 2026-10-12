@@ -10,8 +10,11 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Listener;
 
 use OCA\FileChecksumSearch\Listener\BeforeTemplateRenderedListener;
+use OCA\FileChecksumSearch\Public\ChecksumApi;
 use OCP\AppFramework\Http\Events\BeforeTemplateRenderedEvent;
+use OCP\AppFramework\Services\IInitialState;
 use OCP\EventDispatcher\Event;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -24,6 +27,10 @@ class BeforeTemplateRenderedListenerTest
 
 	private BeforeTemplateRenderedListener $listener;
 
+	private IInitialState&MockObject       $initialState;
+
+	private ChecksumApi&MockObject         $api;
+
 
 //  getters / setters / is* / has*
 
@@ -31,9 +38,14 @@ class BeforeTemplateRenderedListenerTest
 	{
 		parent::setUp();
 
-		$logger = $this->createMock( LoggerInterface::class );
+		$this->initialState = $this->createMock( IInitialState::class );
+		$this->api          = $this->createMock( ChecksumApi::class );
 
-		$this->listener = new BeforeTemplateRenderedListener( $logger );
+		$this->listener = new BeforeTemplateRenderedListener(
+			$this->createMock( LoggerInterface::class ),
+			$this->initialState,
+			$this->api,
+		);
 	}
 
 
@@ -62,16 +74,65 @@ class BeforeTemplateRenderedListenerTest
 		$this->addToAssertionCount( 1 );
 	}
 
+	/**
+	 * The page carries the features, read only where it is rendered: the
+	 * sidebar and the Duplicates page ask the server nothing before their
+	 * own request.
+	 */
+	public function testHandleProvidesTheFeaturesLazily(): void
+	{
+		if ( ! class_exists( \OC::class ) )
+		{
+			$this->markTestSkipped( 'Requires a booted Nextcloud server (global OC); see tests/bootstrap.php.' );
+		}
+
+		$features = [
+			'version'    => '1.0.0',
+			'features'   => [ 'mimetype' => true ],
+			'algorithms' => [ 'allowed' => [ 'sha256' ], 'default' => 'sha256' ],
+		];
+		$this->api->expects( $this->once() )
+		          ->method( 'getFeatures' )
+		          ->willReturn( $features )
+		;
+
+		$provided = null;
+		$this->initialState->expects( $this->once() )
+		                   ->method( 'provideLazyInitialState' )
+		                   ->with( 'features', $this->isInstanceOf( \Closure::class ) )
+		                   ->willReturnCallback(
+			                   static function(
+				                   string   $key,
+				                   \Closure $closure,
+			                   ) use
+			                   (
+				                   &
+				                   $provided,
+			                   ): void
+			                   {
+				                   $provided = $closure;
+			                   },
+		                   )
+		;
+
+		$this->listener->handle( $this->createMock( BeforeTemplateRenderedEvent::class ) );
+
+		$this->assertInstanceOf( \Closure::class, $provided );
+		$this->assertSame( $features, $provided() );
+	}
+
 	public function testHandleSkipsNonBeforeTemplateRenderedEvent(): void
 	{
 		$event = $this->createMock( Event::class );
+
+		$this->initialState->expects( $this->never() )
+		                   ->method( 'provideLazyInitialState' )
+		;
 
 		// The handler must return early for unrecognised event types
 		// without calling Util side-effects (which would throw if they
 		// were reached — but since we can't mock Util statics, we rely
 		// on the early return not throwing).
 		$this->listener->handle( $event );
-
-		$this->addToAssertionCount( 1 );
 	}
 }

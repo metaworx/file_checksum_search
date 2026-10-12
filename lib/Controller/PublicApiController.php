@@ -740,6 +740,39 @@ class PublicApiController
 	}
 
 	/**
+	 * What a client may ask of this server: its version, its features and
+	 * its algorithms ({@see ChecksumApi::getFeatures()}), without the status
+	 * snapshot an administrator's `status` builds.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/features' )]
+	public function getFeatures(): DataResponse
+	{
+		try
+		{
+			return new DataResponse( $this->api->getFeatures() );
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->error(
+				'FCIAS PublicApiController: getFeatures failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
+			return new DataResponse(
+				[ 'error' => $this->l10n->t( 'Internal server error.' ) ],
+				Http::STATUS_INTERNAL_SERVER_ERROR,
+			);
+		}
+	}
+
+	/**
 	 * Read-only health/status snapshot.
 	 *
 	 * @noinspection PhpUnused

@@ -95,6 +95,24 @@ class MimeTypeServiceTest
 		$this->assertTrue( $this->service->isActive() );
 	}
 
+	/**
+	 * A deletion requested, the types are not detected, the switch or not:
+	 * switching on refuses it, and a config edited by hand can still leave
+	 * both.
+	 */
+	public function testNothingIsDetectedWhileADeletionIsRequested(): void
+	{
+		$this->appConfig->method( 'getValueBool' )
+		                ->willReturn( true )
+		;
+		$this->appConfig->method( 'getValueInt' )
+		                ->with( Application::APP_ID, ConfigLexicon::MIMETYPE_DELETE_REQUESTED_AT )
+		                ->willReturn( 1_759_300_000 )
+		;
+
+		$this->assertFalse( $this->service->isActive() );
+	}
+
 	public function testNoDeletionIsRequestedWhileTheTimeIsZero(): void
 	{
 		$this->appConfig->method( 'getValueInt' )

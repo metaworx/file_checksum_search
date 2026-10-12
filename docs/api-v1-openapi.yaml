@@ -910,6 +910,27 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
+  /api/v1/features:
+    get:
+      tags: [Maintenance]
+      summary: What any account may ask for
+      description: >-
+        The app's version, the features — `mimetype`, whether the routes give a file's MIME
+        type when asked — and the algorithms the server computes with its default, without
+        the status snapshot. The app's pages carry the same answer as initial state.
+      operationId: getFeatures
+      responses:
+        "200":
+          description: What the server offers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeaturesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
   /api/v1/algorithms:
     get:
       tags: [status]
@@ -1898,6 +1919,39 @@ components:
             The ids not processed, in the order given, once the request reached 25 files or
             100 MiB of filecache size. Send them again.
           example: [400, 500]
+
+    FeaturesResponse:
+      type: object
+      required: [version, features, algorithms]
+      properties:
+        version:
+          type: string
+          description: App version
+          example: "1.0.0"
+        features:
+          type: object
+          required: [mimetype]
+          properties:
+            mimetype:
+              type: boolean
+              description: >-
+                Whether the routes give a file's MIME type when asked (`mimetype=1`): detection
+                is switched on, PHP able to detect, and no deletion of the stored types running.
+              example: true
+        algorithms:
+          type: object
+          required: [allowed, default]
+          properties:
+            allowed:
+              type: array
+              description: The algorithms this server computes, as `/api/v1/algorithms` lists them
+              items:
+                type: string
+              example: [sha1, sha256]
+            default:
+              type: string
+              description: The algorithm used where none is named
+              example: sha1
 
     StatusResponse:
       type: object

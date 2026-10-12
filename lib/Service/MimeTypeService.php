@@ -89,10 +89,14 @@ class MimeTypeService
 		return class_exists( finfo::class );
 	}
 
-	/** Whether types are detected now: switched on, and PHP able to. */
+	/**
+	 * Whether types are detected now: switched on, PHP able to, and no
+	 * deletion of the stored types requested — which switching on refuses,
+	 * and a hand-edited config can still leave.
+	 */
 	public function isActive(): bool
 	{
-		return $this->isEnabled() && $this->isAvailable();
+		return $this->isEnabled() && $this->isAvailable() && $this->getDeleteRequestedAt() === null;
 	}
 
 	/**

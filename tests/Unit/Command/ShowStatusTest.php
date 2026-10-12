@@ -386,6 +386,10 @@ class ShowStatusTest
 		$this->mimeTypes->method( 'getDeleteRequestedAt' )
 		                ->willReturn( $deleteRequestedAt )
 		;
+		// Counted anew while deleting: as many as the kept count says here.
+		$this->metadataService->method( 'countMimeTypeRows' )
+		                      ->willReturn( 1234 )
+		;
 
 		$this->tester->execute( [] );
 
@@ -399,6 +403,9 @@ class ShowStatusTest
 		;
 		$this->mimeTypes->method( 'getDeleteRequestedAt' )
 		                ->willReturn( 1700000000 )
+		;
+		$this->metadataService->method( 'countMimeTypeRows' )
+		                      ->willReturn( 1234 )
 		;
 
 		$this->tester->execute( [ '--output' => 'json' ] );

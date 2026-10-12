@@ -10,18 +10,24 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Listener;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Public\ChecksumApi;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\AppFramework\Http\Events\BeforeTemplateRenderedEvent;
+use OCP\AppFramework\Services\IInitialState;
 use OCP\EventDispatcher\Event;
 use OCP\EventDispatcher\IEventListener;
 use OCP\Util;
 use Psr\Log\LoggerInterface;
 
 /**
- * Injects the Files sidebar script and CSS on every page load.
+ * Injects the Files sidebar script and CSS on every page load, and what the
+ * server offers as the page's initial state.
  *
  * Listens for {@see BeforeTemplateRenderedEvent} and adds the
- * 'sidebar' init script and 'style' CSS via {@see Util}.
+ * 'sidebar' init script and 'style' CSS via {@see Util}. The features
+ * ({@see ChecksumApi::getFeatures()}) are provided lazily, read only where
+ * the page is rendered: the sidebar and the Duplicates page read them from
+ * the page rather than ask the server before their own request.
  *
  * @template-implements IEventListener<BeforeTemplateRenderedEvent>
  */
@@ -34,6 +40,8 @@ class BeforeTemplateRenderedListener
 
 	public function __construct(
 		private readonly LoggerInterface $logger,
+		private readonly IInitialState   $initialState,
+		private readonly ChecksumApi     $api,
 	) {
 	}
 
@@ -63,5 +71,7 @@ class BeforeTemplateRenderedListener
 
 		Util::addInitScript( Application::APP_ID, Application::APP_ID . '-sidebar' );
 		Util::addStyle( Application::APP_ID, Application::APP_ID . '-sidebar' );
+
+		$this->initialState->provideLazyInitialState( 'features', fn(): array => $this->api->getFeatures() );
 	}
 }

@@ -103,7 +103,10 @@ readonly class StatusService
 
 	/**
 	 * Where MIME type detection stands, and how many types are stored, as
-	 * of when they were counted.
+	 * of when they were counted: counted now while a deletion is requested or
+	 * running, so that "files left" goes down as it goes, rather than staying
+	 * at the kept count until the next one. One key's rows: a deletion makes
+	 * them fewer with every page.
 	 *
 	 * @param  array{rows: int, mimeTypes: int, at: int}  $count  What
 	 *                                                           {@see getHashRowCount()}
@@ -119,11 +122,17 @@ readonly class StatusService
 	 */
 	public function getMimeTypeStatus( array $count ): array
 	{
+		$deleteRequestedAt = $this->mimeTypes->getDeleteRequestedAt();
+
 		return [
 			'state'             => $this->mimeTypes->getState(),
-			'rows'              => $count['mimeTypes'],
-			'at'                => $count['at'],
-			'deleteRequestedAt' => $this->mimeTypes->getDeleteRequestedAt(),
+			'rows'              => $deleteRequestedAt !== null
+				? $this->metadataService->countMimeTypeRows()
+				: $count['mimeTypes'],
+			'at'                => $deleteRequestedAt !== null
+				? $this->time->getTime()
+				: $count['at'],
+			'deleteRequestedAt' => $deleteRequestedAt,
 		];
 	}
 

@@ -281,6 +281,31 @@ class ChecksumApi
 	}
 
 	/**
+	 * What a client may ask of this server, for anyone, without the status
+	 * snapshot: the app's version; `features`, `mimetype` whether the routes
+	 * give a file's MIME type when asked (`?mimetype=1`); and the algorithms
+	 * the server computes, with its default.
+	 *
+	 * The pages get it as initial state, so that they ask for nothing before
+	 * their own request ({@see \OCA\FileChecksumSearch\Listener\BeforeTemplateRenderedListener}).
+	 *
+	 * @return array{version: string, features: array{mimetype: bool}, algorithms: array{allowed: list<string>, default: string}}
+	 */
+	public function getFeatures(): array
+	{
+		return [
+			'version'    => $this->statusService->getAppVersion(),
+			'features'   => [
+				'mimetype' => $this->mimeTypes->isActive(),
+			],
+			'algorithms' => [
+				'allowed' => $this->catalogue->algorithms(),
+				'default' => $this->catalogue->default(),
+			],
+		];
+	}
+
+	/**
 	 * Read-only health/status snapshot: the version for anyone, the rest for
 	 * an administrator only.
 	 *
