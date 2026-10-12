@@ -1021,6 +1021,9 @@ msgstr "请先开启 MIME 类型检测。"
 msgid "Switch detection off to delete the MIME types, or refresh them to bring them up to date."
 msgstr "要删除 MIME 类型，请关闭检测；或刷新 MIME 类型，使其保持最新。"
 
+msgid "Switch detection off to delete the MIME types."
+msgstr "要删除 MIME 类型，请关闭检测。"
+
 msgid "Team folder"
 msgstr "团队文件夹"
 

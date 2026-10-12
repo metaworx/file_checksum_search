@@ -309,6 +309,7 @@
     "Sudo tokens" : "Sudo-tokens",
     "Switch MIME type detection on first." : "Schakel eerst de MIME-typedetectie in.",
     "Switch detection off to delete the MIME types, or refresh them to bring them up to date." : "Schakel de detectie uit om de MIME-types te verwijderen, of ververs ze om ze bij te werken.",
+    "Switch detection off to delete the MIME types." : "Schakel de detectie uit om de MIME-types te verwijderen.",
     "Team folder" : "Teammap",
     "Team folders" : "Teammappen",
     "That view needs your password confirmed again, or is not yours to look at." : "Voor deze weergave moet je je wachtwoord opnieuw bevestigen, of je mag deze niet bekijken.",

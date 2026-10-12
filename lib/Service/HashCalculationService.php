@@ -1809,18 +1809,22 @@ class HashCalculationService
 			// the disk is asked after first: hash_file() would warn of it
 			// besides, on every attempt the drain makes.
 			$absolutePath = $storage->getLocalFile( $file->getInternalPath() );
-			$hash         = $absolutePath === false || ! is_readable( $absolutePath )
-				? false
+
+			if ( $absolutePath === false || ! is_readable( $absolutePath ) )
+			{
+				throw new HintException( 'Unable to open file for reading.', $this->l10n->t( 'Could not open the file for reading.' ) );
+			}
+
+			// Without the type, hash_file() is the fastest read there is. With
+			// it, the one read the hash takes gives the head as well: a second
+			// open would cost a read of its own, and could fail the hash.
+			$hash = $sniff
+				? $this->hashLocalWithHead( $absolutePath, $algo, $head )
 				: hash_file( $algo, $absolutePath );
 
 			if ( $hash === false )
 			{
 				throw new HintException( 'Unable to open file for reading.', $this->l10n->t( 'Could not open the file for reading.' ) );
-			}
-
-			if ( $sniff )
-			{
-				$head = $this->readHead( $file );
 			}
 
 			return $hash;
@@ -1843,6 +1847,38 @@ class HashCalculationService
 				hash_update( $ctx, $head );
 			}
 
+			hash_update_stream( $ctx, $handle );
+
+			return hash_final( $ctx );
+		}
+		finally
+		{
+			fclose( $handle );
+		}
+	}
+
+	/**
+	 * A local file's hash in $algo, its first {@see MimeTypeService::HEAD_BYTES}
+	 * into $head from the same read; false where it cannot be opened.
+	 */
+	private function hashLocalWithHead(
+		string  $absolutePath,
+		string  $algo,
+		?string &$head,
+	): string|false
+	{
+		$handle = fopen( $absolutePath, 'rb' );
+
+		if ( $handle === false )
+		{
+			return false;
+		}
+
+		try
+		{
+			$ctx  = hash_init( $algo );
+			$head = self::readFrom( $handle, MimeTypeService::HEAD_BYTES );
+			hash_update( $ctx, $head );
 			hash_update_stream( $ctx, $handle );
 
 			return hash_final( $ctx );

@@ -1026,6 +1026,9 @@ msgstr ""
 msgid "Switch detection off to delete the MIME types, or refresh them to bring them up to date."
 msgstr ""
 
+msgid "Switch detection off to delete the MIME types."
+msgstr ""
+
 msgid "Team folder"
 msgstr ""
 

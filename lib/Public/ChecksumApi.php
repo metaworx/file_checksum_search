@@ -85,7 +85,7 @@ class ChecksumApi
 	 *
 	 * @param  File  $file  A Nextcloud File node
 	 *
-	 * @return array{fileid: int, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool, mimetype?: ?string}
+	 * @return array{fileid: int, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool}
 	 */
 	public function getHashesByFile( File $file ): array
 	{
@@ -248,7 +248,7 @@ class ChecksumApi
 	 * @param  string       $path  Filesystem path
 	 * @param  string|null  $user  If provided, path is relative to this user's home
 	 *
-	 * @return array{fileid: int, path: string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool, mimetype?: ?string}
+	 * @return array{fileid: int, path: string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool}
 	 * @throws NotFoundException  If the path cannot be resolved to a file
 	 */
 	public function getHashesByPath(

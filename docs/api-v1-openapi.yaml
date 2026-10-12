@@ -1852,7 +1852,8 @@ components:
           nullable: true
           description: >-
             With `mimetype=1` only: the content's MIME type the recalculation left, detected in
-            the same read where detection is on; null on a failure, or for a file without one.
+            the same read where detection is on, or the stored one where the hash `existed`; null
+            on a failure, or for a file without one.
           example: application/pdf
         etag:
           $ref: "#/components/schemas/StatEtag"

@@ -716,6 +716,45 @@ class SettingsControllerTest
 		$this->assertStringStartsWith( 'Switch detection off to delete', $response->getData()['error'] );
 	}
 
+	/**
+	 * Switched on where PHP cannot detect: the deletion is refused for being
+	 * on, said for the deletion — not that types cannot be detected, which
+	 * is no reason a deletion is refused.
+	 */
+	public function testADeletionWhileOnAndUndetectableAsksToSwitchOff(): void
+	{
+		$this->mimeTypes->method( 'refusalToDelete' )
+		                ->willReturn( MimeTypeService::STATE_UNAVAILABLE )
+		;
+
+		$response = $this->controller->deleteMimeTypes();
+
+		$this->assertSame( Http::STATUS_CONFLICT, $response->getStatus() );
+		$this->assertSame( 'Switch detection off to delete the MIME types.', $response->getData()['error'] );
+	}
+
+	/**
+	 * Refused between the check and the act — a deletion requested in a
+	 * second tab — is a conflict as the state it leaves, not an error 500.
+	 */
+	public function testARefreshRefusedAfterItsCheckIsAConflict(): void
+	{
+		$this->mimeTypes->method( 'refusalToRefresh' )
+		                ->willReturn( null )
+		;
+		$this->mimeTypes->method( 'requestRefresh' )
+		                ->willThrowException( new \LogicException( 'The MIME types cannot be refreshed: detection is deleting.' ) )
+		;
+		$this->mimeTypes->method( 'getState' )
+		                ->willReturn( MimeTypeService::STATE_DELETING )
+		;
+
+		$response = $this->controller->refreshMimeTypes();
+
+		$this->assertSame( Http::STATUS_CONFLICT, $response->getStatus() );
+		$this->assertStringStartsWith( 'The MIME types are being deleted.', $response->getData()['error'] );
+	}
+
 	public function testADeletionIsRequested(): void
 	{
 		$this->mimeTypes->expects( $this->once() )

@@ -1021,6 +1021,9 @@ msgstr "先にMIMEタイプの検出をオンにしてください。"
 msgid "Switch detection off to delete the MIME types, or refresh them to bring them up to date."
 msgstr "MIMEタイプを削除するには、検出をオフにしてください。最新の状態にするには、MIMEタイプを更新してください。"
 
+msgid "Switch detection off to delete the MIME types."
+msgstr "MIMEタイプを削除するには、検出をオフにしてください。"
+
 msgid "Team folder"
 msgstr "チームフォルダー"
 

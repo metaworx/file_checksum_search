@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Command\MimeType;
 
+use LogicException;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\MimeTypeService;
 use Symfony\Component\Console\Command\Command;
@@ -38,6 +39,19 @@ class Delete
 	)
 	{
 		parent::__construct();
+	}
+
+
+//  static methods
+
+	/**
+	 * Why a deletion is refused, for the state that refuses it.
+	 */
+	private static function refusal( string $state ): string
+	{
+		return $state === MimeTypeService::STATE_DELETING
+			? 'The MIME types are being deleted already; fcias:status shows how many are left.'
+			: 'MIME type detection is on; switch it off first (fcias:mimetype:disable), or the types it detects would be deleted with the rest.';
 	}
 
 
@@ -74,16 +88,26 @@ HELP,
 		OutputInterface $output,
 	): int
 	{
-		if ( $this->mimeTypes->refusalToDelete() !== null )
+		$refusal = $this->mimeTypes->refusalToDelete();
+
+		if ( $refusal !== null )
 		{
-			$output->writeln(
-				'<error>MIME type detection is on; switch it off first (fcias:mimetype:disable), or the types it detects would be deleted with the rest.</error>',
-			);
+			$output->writeln( '<error>' . self::refusal( $refusal ) . '</error>' );
 
 			return Command::FAILURE;
 		}
 
-		$this->mimeTypes->requestDelete();
+		// Switched on between the check and here, it is refused all the same.
+		try
+		{
+			$this->mimeTypes->requestDelete();
+		}
+		catch ( LogicException )
+		{
+			$output->writeln( '<error>' . self::refusal( $this->mimeTypes->getState() ) . '</error>' );
+
+			return Command::FAILURE;
+		}
 
 		$output->writeln( sprintf( 'Deleting the MIME types of %d files…', $this->metadataService->countMimeTypeRows() ) );
 

@@ -177,9 +177,9 @@ warning level.
 | `file-checksum-search:mimetype:delete` | Delete every stored type, out of the documents and the index; detection must be off |
 
 They are the admin settings' switch and buttons, under the same rules, with one difference:
-`refresh` and `delete` do the work in the command rather than queue a job. `refresh` marks the
-files, and the drain reads them — `queue:drain --all` at once. A `delete` cut short goes on in the
-background. See [MIME types from the content](#mime-types-from-the-content).
+`refresh` and `delete` do the work in the command. `refresh` marks the files, and the drain reads
+them — `queue:drain --all` at once. `delete` requests the deletion, which queues its job, and
+then deletes in the foreground; cut short, the job goes on with it. See [MIME types from the content](#mime-types-from-the-content).
 
 ### Repair Commands
 

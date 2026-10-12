@@ -194,6 +194,24 @@ class MimeTypeCommandsTest
 		$this->assertStringContainsString( 'Queued 42 files', $tester->getDisplay() );
 	}
 
+	/**
+	 * A deletion asked for while one runs is refused for that, not for
+	 * detection being on.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testDeleteWhileADeletionRunsSaysSo(): void
+	{
+		$this->mimeTypes->method( 'refusalToDelete' )
+		                ->willReturn( MimeTypeService::STATE_DELETING )
+		;
+
+		$tester = new CommandTester( new Delete( $this->mimeTypes, $this->metadataService ) );
+
+		$this->assertSame( Command::FAILURE, $tester->execute( [] ) );
+		$this->assertStringContainsString( 'being deleted already', $tester->getDisplay() );
+	}
+
 	public function testDeleteIsRefusedWhileDetectionIsOn(): void
 	{
 		$this->mimeTypes->method( 'refusalToDelete' )

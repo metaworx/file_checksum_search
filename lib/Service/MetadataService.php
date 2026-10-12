@@ -4842,6 +4842,11 @@ class MetadataService
 	 * detects the type as well, or disowned, and either way not this one's
 	 * to queue. Without $all, so is a file whose type the index holds.
 	 *
+	 * The marks are read for a page and then written, not in one statement:
+	 * a write's mark landing between the two leaves the file a second state
+	 * row, and the drain's `pending:mime`, dropping its mark, takes both.
+	 * The sweep queues the file again, its stamp being 0 since the write.
+	 *
 	 * @param  int<1, 1000>    $pageSize  Files per page; the ids of one go into
 	 *                                    one `IN`, which Oracle holds to 1000.
 	 * @param  callable|null  $continue  `fn(): bool`, asked after each page.
@@ -4942,15 +4947,21 @@ class MetadataService
 	): array
 	{
 		$deleted = 0;
+		$lastId  = 0;
 
 		while ( true )
 		{
+			// Past the page before, by file id: the rows a page deletes are
+			// gone, but asked for from the start, every page would sort the
+			// key's rows again.
 			$qb = $this->db->getQueryBuilder();
 			$qb->selectDistinct( self::FIELD_FILE_ID )
 			   ->from( self::TABLE_FILES_METADATA_INDEX )
 			   ->where(
 				   $qb->expr()
 				      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_MIMETYPE ) ),
+				   $qb->expr()
+				      ->gt( self::FIELD_FILE_ID, $qb->createNamedParameter( $lastId, IQueryBuilder::PARAM_INT ) ),
 			   )
 			   ->orderBy( self::FIELD_FILE_ID, 'ASC' )
 			   ->setMaxResults( $pageSize )
@@ -4973,6 +4984,8 @@ class MetadataService
 				$this->deleteMimeTypeOf( $fileId );
 				$deleted ++;
 			}
+
+			$lastId = $fileIds[ array_key_last( $fileIds ) ];
 
 			if ( $continue !== null && ! $continue() )
 			{

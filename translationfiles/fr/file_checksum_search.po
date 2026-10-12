@@ -1029,6 +1029,9 @@ msgstr "Activez d'abord la détection du type MIME."
 msgid "Switch detection off to delete the MIME types, or refresh them to bring them up to date."
 msgstr "Désactivez la détection pour supprimer les types MIME, ou actualisez-les pour les mettre à jour."
 
+msgid "Switch detection off to delete the MIME types."
+msgstr "Désactivez la détection pour supprimer les types MIME."
+
 msgid "Team folder"
 msgstr "Dossier d'équipe"
 

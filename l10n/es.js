@@ -311,6 +311,7 @@ OC.L10N.register(
     "Sudo tokens" : "Tokens sudo",
     "Switch MIME type detection on first." : "Active primero la detección del tipo MIME.",
     "Switch detection off to delete the MIME types, or refresh them to bring them up to date." : "Desactive la detección para eliminar los tipos MIME, o refrésquelos para ponerlos al día.",
+    "Switch detection off to delete the MIME types." : "Desactive la detección para eliminar los tipos MIME.",
     "Team folder" : "Carpeta de equipo",
     "Team folders" : "Carpetas de equipo",
     "That view needs your password confirmed again, or is not yours to look at." : "Esa vista requiere que vuelva a confirmar su contraseña, o no tiene permiso para verla.",

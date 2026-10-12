@@ -65,6 +65,12 @@ the first stable release.
 - `docs/FAQ.md`, *How are MIME types detected?*: the stored types are
   counted anew while a deletion runs, so "files left" goes down.
 
+- `docs/FAQ.md`, *How are MIME types detected?*: a file is opened once
+  for its hash and its type, on a local storage too.
+
+- `fcias:mimetype:*` and the settings: a refusal says why for the action
+  refused, and a race between check and change is no error 500.
+
 ## [0.25.0] - 2026-10-10
 
 ### Added

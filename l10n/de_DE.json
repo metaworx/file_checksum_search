@@ -309,6 +309,7 @@
     "Sudo tokens" : "Sudo-Token",
     "Switch MIME type detection on first." : "Schalten Sie zuerst die MIME-Typ-Erkennung ein.",
     "Switch detection off to delete the MIME types, or refresh them to bring them up to date." : "Schalten Sie die Erkennung aus, um die MIME-Typen zu löschen, oder aktualisieren Sie die MIME-Typen, um sie auf den neuesten Stand zu bringen.",
+    "Switch detection off to delete the MIME types." : "Schalten Sie die Erkennung aus, um die MIME-Typen zu löschen.",
     "Team folder" : "Team-Ordner",
     "Team folders" : "Team-Ordner",
     "That view needs your password confirmed again, or is not yours to look at." : "Für diese Ansicht müssen Sie Ihr Passwort erneut bestätigen, oder Sie dürfen sie nicht sehen.",

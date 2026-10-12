@@ -309,6 +309,7 @@
     "Sudo tokens" : "Tokens sudo",
     "Switch MIME type detection on first." : "Ative primeiro a detecção do tipo MIME.",
     "Switch detection off to delete the MIME types, or refresh them to bring them up to date." : "Desative a detecção para excluir os tipos MIME, ou atualize-os para deixá-los em dia.",
+    "Switch detection off to delete the MIME types." : "Desative a detecção para excluir os tipos MIME.",
     "Team folder" : "Pasta de equipe",
     "Team folders" : "Pastas de equipe",
     "That view needs your password confirmed again, or is not yours to look at." : "Essa visualização exige que você confirme a senha novamente, ou você não tem permissão para vê-la.",

@@ -592,7 +592,7 @@ Trigger hash recalculation for a file. **This is the only mutating operation** i
 | `$reachUids` | `?array` | Yes | Whose files may be acted on. `null` waives the reach check and nothing else: the permission, and any rule excluding the path, are still answered |
 | `$algo` | `?string` | No | Algorithm; `null` is the instance's default, as `GET /api/v1/algorithms` names it |
 | `$actingUser` | `?string` | No | Whose *Who may recalculate checksums* permission is checked. `null` is a trusted caller and waives it |
-| `$withMimeType` | `bool` | No | Add `mimetype`: the type the recalculation left, detected in the same read; `null` on a failure ([MIME types](#mime-types)) |
+| `$withMimeType` | `bool` | No | Add `mimetype`: the type the recalculation left, detected in the same read, or the one stored where the hash `existed`; `null` on a failure ([MIME types](#mime-types)) |
 | `$withStat` | `bool` | No | Add the file's state as the recalculation left it, `etag` the one it read against; all `null` on a failure ([File state](#file-state)) |
 
 **Returns (success):**
@@ -936,7 +936,8 @@ Content-Type: application/json
 ```
 
 With `mimetype`, the answer gains the type the recalculation left — read in
-the same pass where detection is on — and `null` on a failure.
+the same pass where detection is on, or the one stored where the hash
+`existed` — and `null` on a failure.
 
 **Error (400):**
 ```json

@@ -9,8 +9,10 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Command\MimeType;
 
+use LogicException;
 use OCA\FileChecksumSearch\Service\MimeTypeService;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -88,7 +90,17 @@ HELP,
 			return Command::FAILURE;
 		}
 
-		$this->mimeTypes->enable();
+		// A deletion requested between the check and here refuses it too.
+		try
+		{
+			$this->mimeTypes->enable();
+		}
+		catch ( LogicException $e )
+		{
+			$output->writeln( '<error>' . OutputFormatter::escape( $e->getMessage() ) . '</error>' );
+
+			return Command::FAILURE;
+		}
 
 		$output->writeln( 'MIME type detection is on. Files hashed from now on get their type; fcias:mimetype:refresh queues the files hashed before.' );
 

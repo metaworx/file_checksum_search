@@ -691,7 +691,7 @@ class PublicApiController
 		bool   $withStat = false,
 	): DataResponse
 	{
-		$refused = $this->mimeTypeRefusal( $withMimeType );
+		$refused = $this->mimeTypesNotDetected( $withMimeType );
 
 		if ( $refused !== null )
 		{
@@ -899,7 +899,7 @@ class PublicApiController
 	 * refused, so a client is not left guessing why it is missing; whether
 	 * to ask, `/api/v1/status` says in `features.mimetype`.
 	 */
-	private function mimeTypeRefusal( bool $asked ): ?DataResponse
+	private function mimeTypesNotDetected( bool $asked ): ?DataResponse
 	{
 		$refusal = $asked
 			? $this->api->mimeTypeRefusal()
@@ -945,7 +945,7 @@ class PublicApiController
 		bool    $withMimeType = false,
 	): DataResponse
 	{
-		$refused = $this->mimeTypeRefusal( $withMimeType );
+		$refused = $this->mimeTypesNotDetected( $withMimeType );
 
 		if ( $refused !== null )
 		{
@@ -1066,7 +1066,7 @@ class PublicApiController
 		bool   $withMimeType = false,
 	): DataResponse
 	{
-		$refused = $this->mimeTypeRefusal( $withMimeType );
+		$refused = $this->mimeTypesNotDetected( $withMimeType );
 
 		if ( $refused !== null )
 		{
@@ -1250,7 +1250,7 @@ class PublicApiController
 		bool              $withStat = false,
 	): DataResponse
 	{
-		$refused = $this->mimeTypeRefusal( $withMimeType );
+		$refused = $this->mimeTypesNotDetected( $withMimeType );
 
 		if ( $refused !== null )
 		{
@@ -1402,7 +1402,7 @@ class PublicApiController
 		bool              $withStat = false,
 	): DataResponse
 	{
-		$refused = $this->mimeTypeRefusal( $withMimeType );
+		$refused = $this->mimeTypesNotDetected( $withMimeType );
 
 		if ( $refused !== null )
 		{
@@ -1728,7 +1728,7 @@ class PublicApiController
 		bool   $withStat = false,
 	): DataResponse
 	{
-		$refused = $this->mimeTypeRefusal( $withMimeType );
+		$refused = $this->mimeTypesNotDetected( $withMimeType );
 
 		if ( $refused !== null )
 		{
@@ -1787,7 +1787,7 @@ class PublicApiController
 		bool   $withStat = false,
 	): DataResponse
 	{
-		$refused = $this->mimeTypeRefusal( $withMimeType );
+		$refused = $this->mimeTypesNotDetected( $withMimeType );
 
 		if ( $refused !== null )
 		{

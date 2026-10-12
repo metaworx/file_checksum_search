@@ -28,6 +28,7 @@ use OCP\IL10N;
 use OCP\IRequest;
 use OCP\IUserManager;
 use OCP\IUserSession;
+use LogicException;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -44,6 +45,16 @@ class SettingsController
     extends
     Controller
 {
+
+//  constants
+
+	/** The MIME type actions a refusal is said for ({@see refused()}). */
+	private const MIMETYPE_ENABLE = 'enable';
+
+	private const MIMETYPE_REFRESH = 'refresh';
+
+	private const MIMETYPE_DELETE = 'delete';
+
 
 //  constructor
 
@@ -397,10 +408,19 @@ class SettingsController
 
 			if ( $refusal !== null )
 			{
-				return $this->mimeTypeRefusal( $refusal );
+				return $this->refused( self::MIMETYPE_ENABLE, $refusal );
 			}
 
-			$this->mimeTypes->enable();
+			// A deletion requested between the check and here is refused
+			// too, as the state it leaves.
+			try
+			{
+				$this->mimeTypes->enable();
+			}
+			catch ( LogicException )
+			{
+				return $this->refused( self::MIMETYPE_ENABLE, $this->mimeTypes->getState() );
+			}
 		}
 		else
 		{
@@ -434,10 +454,17 @@ class SettingsController
 
 		if ( $refusal !== null )
 		{
-			return $this->mimeTypeRefusal( $refusal );
+			return $this->refused( self::MIMETYPE_REFRESH, $refusal );
 		}
 
-		$this->mimeTypes->requestRefresh( $all );
+		try
+		{
+			$this->mimeTypes->requestRefresh( $all );
+		}
+		catch ( LogicException )
+		{
+			return $this->refused( self::MIMETYPE_REFRESH, $this->mimeTypes->getState() );
+		}
 
 		$this->logger->info(
 			'FCIAS SettingsController: MIME type refresh of {which} queued by {actor}',
@@ -466,10 +493,17 @@ class SettingsController
 
 		if ( $refusal !== null )
 		{
-			return $this->mimeTypeRefusal( $refusal );
+			return $this->refused( self::MIMETYPE_DELETE, $refusal );
 		}
 
-		$this->mimeTypes->requestDelete();
+		try
+		{
+			$this->mimeTypes->requestDelete();
+		}
+		catch ( LogicException )
+		{
+			return $this->refused( self::MIMETYPE_DELETE, $this->mimeTypes->getState() );
+		}
 
 		$this->logger->info(
 			'FCIAS SettingsController: deletion of the MIME types requested by {actor}',
@@ -533,26 +567,49 @@ class SettingsController
 	/**
 	 * A MIME type action refused for the state that refuses it: 409, the
 	 * request being sound and the server's state against it, with why in the
-	 * administrator's language. The section offers none of these; this is
-	 * for a page out of date, or a second tab.
+	 * administrator's language, said for the action refused. The section
+	 * offers none of these; this is for a page out of date, or a second tab.
+	 *
+	 * @param  string  $action  {@see MIMETYPE_ENABLE}, {@see MIMETYPE_REFRESH}
+	 *                          or {@see MIMETYPE_DELETE}.
 	 */
-	private function mimeTypeRefusal( string $state ): DataResponse
+	private function refused(
+		string $action,
+		string $state,
+	): DataResponse
 	{
-		$error = match ( $state )
-		{
-			MimeTypeService::STATE_DELETING    => $this->l10n->t( 'The MIME types are being deleted. Detection can be switched on again once that is done.' ),
-			MimeTypeService::STATE_UNAVAILABLE => $this->l10n->t( 'MIME types cannot be detected on this server: PHP\'s Fileinfo extension is not loaded.' ),
-			MimeTypeService::STATE_ENABLED     => $this->l10n->t( 'Switch detection off to delete the MIME types, or refresh them to bring them up to date.' ),
-			default                            => $this->l10n->t( 'Switch MIME type detection on first.' ),
-		};
-
 		return new DataResponse(
 			[
 				'success' => false,
-				'error'   => $error,
+				'error'   => $this->whyRefused( $action, $state ),
 			],
 			Http::STATUS_CONFLICT,
 		);
+	}
+
+	/**
+	 * Why $action is refused in $state, in the administrator's language.
+	 */
+	private function whyRefused(
+		string $action,
+		string $state,
+	): string
+	{
+		if ( $state === MimeTypeService::STATE_DELETING )
+		{
+			return $this->l10n->t( 'The MIME types are being deleted. Detection can be switched on again once that is done.' );
+		}
+
+		if ( $action === self::MIMETYPE_DELETE )
+		{
+			return $state === MimeTypeService::STATE_ENABLED
+				? $this->l10n->t( 'Switch detection off to delete the MIME types, or refresh them to bring them up to date.' )
+				: $this->l10n->t( 'Switch detection off to delete the MIME types.' );
+		}
+
+		return $state === MimeTypeService::STATE_UNAVAILABLE
+			? $this->l10n->t( 'MIME types cannot be detected on this server: PHP\'s Fileinfo extension is not loaded.' )
+			: $this->l10n->t( 'Switch MIME type detection on first.' );
 	}
 
 	/** Who is acting, for the log. */

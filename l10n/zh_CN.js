@@ -311,6 +311,7 @@ OC.L10N.register(
     "Sudo tokens" : "Sudo 令牌",
     "Switch MIME type detection on first." : "请先开启 MIME 类型检测。",
     "Switch detection off to delete the MIME types, or refresh them to bring them up to date." : "要删除 MIME 类型，请关闭检测；或刷新 MIME 类型，使其保持最新。",
+    "Switch detection off to delete the MIME types." : "要删除 MIME 类型，请关闭检测。",
     "Team folder" : "团队文件夹",
     "Team folders" : "团队文件夹",
     "That view needs your password confirmed again, or is not yours to look at." : "该视图需要您再次确认密码，或者您无权查看。",
