@@ -13,6 +13,7 @@ use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\StampCheck;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJobList;
 use OCP\IAppConfig;
@@ -63,6 +64,7 @@ class StampCheckTest
 		$this->job = new StampCheck(
 			$this->time,
 			$this->metadataService,
+			$this->createMock( RuleService::class ),
 			$this->appConfig,
 			$this->jobList,
 			$this->jobStats,

@@ -94,6 +94,11 @@ class ChecksumApiTest
 		$this->hashIndexService = $this->createMock( HashIndexService::class );
 		$this->metadataService  = $this->createMock( MetadataService::class );
 
+		// A file's stamp vouches for its hashes, unless a test says otherwise.
+		$this->metadataService->method( 'isVouched' )
+		                      ->willReturn( true )
+		;
+
 		// StatusService is readonly — cannot be mocked by PHPUnit 10.5.
 		// Construct a real instance with mocked collaborators.
 		$this->statusService = new StatusService(

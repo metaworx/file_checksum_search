@@ -14,6 +14,7 @@ use OC\FilesMetadata\Model\FilesMetadata;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\DB\Exception;
 use OCP\DB\IResult;
+use OCP\DB\QueryBuilder\ICompositeExpression;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Files\File;
 use OCP\FilesMetadata\Exceptions\FilesMetadataNotFoundException;
@@ -1843,13 +1844,21 @@ class MetadataService
 	 * the count over a file's few rows. `LIMIT 1` would do as well, and is
 	 * not portable to Oracle inside a subquery.
 	 *
+	 * A file whose stamp no longer vouches for its hashes — its content
+	 * changed without the app hearing of it — is left out, as a lookup
+	 * leaves it out ({@see vouchedCondition()}).
+	 *
 	 * @param  list<array{storage: int, root: string}>|null  $mounts
+	 * @param  bool                                          $vouched  False
+	 *         lists the files whatever their stamp says, for a caller that
+	 *         asks it itself.
 	 */
 	private function whereListed(
 		IQueryBuilder $qb,
 		?array        $mounts,
 		?string       $algo,
 		?int          $since,
+		bool          $vouched = true,
 	): void
 	{
 		$hash = $this->db->getQueryBuilder();
@@ -1914,6 +1923,162 @@ class MetadataService
 		{
 			$this->filecacheService->andWhereWithin( $qb, 'fc', $mounts );
 		}
+
+		if ( $vouched )
+		{
+			$qb->andWhere( $this->vouchedCondition( $qb, 'u', 'fc' ) );
+		}
+	}
+
+	/**
+	 * Whether a file's stamp vouches for its hashes, as a condition on its
+	 * stamp row and its filecache row.
+	 *
+	 * It does while the ETag its hashes were read against is the one the
+	 * filecache holds, which changes on every write, Nextcloud's or one it
+	 * scans in from the storage. Hashes stamped before the app kept the ETag
+	 * are vouched for while the stamp is no older than the storage's own
+	 * mtime: a client that keeps an older mtime on new content gets past
+	 * that, as it gets past Nextcloud's own scan, until the `etag-stamp`
+	 * repair has given the stamp its ETag.
+	 *
+	 * A file without a stamp row is vouched for by nothing.
+	 *
+	 * @param  string  $stamp      Alias of the stamp row in $qb.
+	 * @param  string  $filecache  Alias of the file's filecache row in $qb.
+	 */
+	private function vouchedCondition(
+		IQueryBuilder $qb,
+		string        $stamp,
+		string        $filecache,
+	): ICompositeExpression
+	{
+		return $qb->expr()
+		          ->orX(
+			                   $qb->expr()
+			                      ->eq( $stamp . '.' . self::FIELD_META_VALUE_STRING, $filecache . '.etag' ),
+			                   $qb->expr()
+			                      ->andX(
+				                      $this->withoutEtag( $qb, $stamp ),
+				                      $qb->expr()
+				                         ->gte( $stamp . '.' . self::FIELD_META_VALUE_INT, $filecache . '.storage_mtime' ),
+			                      ),
+		                   )
+		;
+	}
+
+	/**
+	 * The files {@see vouchedCondition()} leaves out that have a stamp row:
+	 * spelled out rather than negated, since a NULL in either row makes
+	 * NOT of it NULL too.
+	 */
+	private function unvouchedCondition(
+		IQueryBuilder $qb,
+		string        $stamp,
+		string        $filecache,
+	): ICompositeExpression
+	{
+		return $qb->expr()
+		          ->orX(
+			                   $qb->expr()
+			                      ->andX(
+				                      $qb->expr()
+				                         ->isNotNull( $stamp . '.' . self::FIELD_META_VALUE_STRING ),
+				                      $qb->expr()
+				                         ->neq( $stamp . '.' . self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( '' ) ),
+				                      $qb->expr()
+				                         ->neq( $stamp . '.' . self::FIELD_META_VALUE_STRING, $filecache . '.etag' ),
+			                      ),
+			                   $qb->expr()
+			                      ->andX(
+				                      $this->withoutEtag( $qb, $stamp ),
+				                      $qb->expr()
+				                         ->lt( $stamp . '.' . self::FIELD_META_VALUE_INT, $filecache . '.storage_mtime' ),
+			                      ),
+		                   )
+		;
+	}
+
+	/**
+	 * A stamp row carrying no ETag: NULL, or '' — which Oracle stores as
+	 * NULL besides.
+	 */
+	private function withoutEtag(
+		IQueryBuilder $qb,
+		string        $stamp,
+	): ICompositeExpression
+	{
+		return $qb->expr()
+		          ->orX(
+			                   $qb->expr()
+			                      ->isNull( $stamp . '.' . self::FIELD_META_VALUE_STRING ),
+			                   $qb->expr()
+			                      ->eq( $stamp . '.' . self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( '' ) ),
+		                   )
+		;
+	}
+
+	/**
+	 * Whether a file's stamp vouches for its hashes ({@see vouchedCondition()}).
+	 *
+	 * @throws Exception
+	 */
+	public function isVouched( int $fileId ): bool
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( 'u.' . self::FIELD_FILE_ID )
+		   ->from( self::TABLE_FILES_METADATA_INDEX, 'u' )
+		   ->innerJoin( 'u', 'filecache', 'fc', 'fc.fileid = u.' . self::FIELD_FILE_ID )
+		   ->where(
+			   $qb->expr()
+			      ->eq( 'u.' . self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->eq( 'u.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			   $this->vouchedCondition( $qb, 'u', 'fc' ),
+		   )
+		   ->setMaxResults( 1 )
+		;
+
+		$result = $this->executeQuery( $qb );
+		$found  = $result->fetchOne();
+		$result->closeCursor();
+
+		return $found !== false && $found !== null;
+	}
+
+	/**
+	 * Listed files whose stamp no longer vouches for their hashes, by file
+	 * id: changed without the app hearing of it — a write it missed, a
+	 * change on an external storage a scan took in, a write while it was
+	 * disabled. What {@see RuleService::queueChangedAfter()} walks.
+	 *
+	 * @return list<int>
+	 * @throws Exception
+	 */
+	public function fetchUnvouchedFileIds(
+		int $afterFileId,
+		int $limit = 500,
+	): array
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( 'u.' . self::FIELD_FILE_ID );
+
+		$this->whereListed( $qb, null, null, null, false );
+
+		$qb->andWhere(
+			$this->unvouchedCondition( $qb, 'u', 'fc' ),
+			$qb->expr()
+			   ->gt( 'u.' . self::FIELD_FILE_ID, $qb->createNamedParameter( $afterFileId, IQueryBuilder::PARAM_INT ) ),
+		)
+		   ->orderBy( 'u.' . self::FIELD_FILE_ID, 'ASC' )
+		   ->setMaxResults( $limit )
+		;
+
+		$result  = $this->executeQuery( $qb );
+		$fileIds = array_values( array_unique( array_map( intval( ... ), $result->fetchFirstColumn() ) ) );
+		$result->closeCursor();
+
+		return $fileIds;
 	}
 
 	/**
@@ -4895,6 +5060,29 @@ class MetadataService
 		   ->setMaxResults( $limit )
 		;
 
+		// The file's filecache row and its stamp row: a file whose stamp no
+		// longer vouches for its hashes is not found by them.
+		$qb->innerJoin(
+			'i',
+			'filecache',
+			'f',
+			'f.fileid = i.' . self::FIELD_FILE_ID,
+		)
+		   ->leftJoin(
+			   'i',
+			   self::TABLE_FILES_METADATA_INDEX,
+			   'vs',
+			   $qb->expr()
+			      ->andX(
+				      $qb->expr()
+				         ->eq( 'vs.' . self::FIELD_FILE_ID, 'i.' . self::FIELD_FILE_ID ),
+				      $qb->expr()
+				         ->eq( 'vs.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			      ),
+		   )
+		   ->andWhere( $this->vouchedCondition( $qb, 'vs', 'f' ) )
+		;
+
 		// Chunked rather than unbounded: Oracle refuses an IN list beyond
 		// 1000, and a user with more distinct storages than that is better
 		// served by no narrowing at all than by a query that throws — the
@@ -4902,23 +5090,16 @@ class MetadataService
 		// narrowing exists to avoid.
 		if ( $visibleStorageIds !== null && count( $visibleStorageIds ) <= 1000 )
 		{
-			$qb->innerJoin(
-				'i',
-				'filecache',
-				'f',
-				'f.fileid = i.' . self::FIELD_FILE_ID,
-			)
-			   ->andWhere(
-				   $qb->expr()
-				      ->in(
-					      'f.storage',
-					      $qb->createNamedParameter(
-						      array_values( array_unique( $visibleStorageIds ) ),
-						      IQueryBuilder::PARAM_INT_ARRAY,
-					      ),
-				      ),
-			   )
-			;
+			$qb->andWhere(
+				$qb->expr()
+				   ->in(
+					   'f.storage',
+					   $qb->createNamedParameter(
+						   array_values( array_unique( $visibleStorageIds ) ),
+						   IQueryBuilder::PARAM_INT_ARRAY,
+					   ),
+				   ),
+			);
 		}
 
 		$this->andWhereNotStale( $qb );

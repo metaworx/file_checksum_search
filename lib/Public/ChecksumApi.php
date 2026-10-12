@@ -149,8 +149,13 @@ class ChecksumApi
 		$result = [];
 
 		// The hashes a lookup would find the file by: none between a change
-		// of its content and their recomputation.
-		foreach ( $this->metadataService->listedHashes( [ $fileId ], null )[ $fileId ] ?? [] as $algo => $hash )
+		// of its content and their recomputation, the app having heard of
+		// the change or not.
+		$listed = $this->metadataService->isVouched( $fileId )
+			? $this->metadataService->listedHashes( [ $fileId ], null )[ $fileId ] ?? []
+			: [];
+
+		foreach ( $listed as $algo => $hash )
 		{
 			$result[ $algo ] = [
 				'algo' => $algo,

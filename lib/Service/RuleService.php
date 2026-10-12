@@ -904,6 +904,129 @@ class RuleService
 	}
 
 	/**
+	 * Treat a file as written: its content changed without the app hearing
+	 * of it, which its stamp no longer vouching for its hashes says
+	 * ({@see MetadataService::fetchUnvouchedFileIds()}).
+	 *
+	 * What a write would have done, by its rule: a file no rule maintains
+	 * has its hashes eroded, which the status counts; one a rule maintains
+	 * has them taken out of every search and is queued in the rule's mode,
+	 * which computes them again — `force` and `lazy` clear them there, as
+	 * the write's listener does at once. A rule whose mode is retired
+	 * changes nothing.
+	 *
+	 * @return string|null  'eroded', 'queued', or null for nothing done.
+	 * @throws \OCP\DB\Exception
+	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
+	 */
+	public function contentChanged( int $fileId ): ?string
+	{
+		$rule = $this->findFirstMatchingRule( $fileId );
+
+		if ( ! self::maintainsHashes( $rule ) )
+		{
+			$this->metadataService->markEroded( $fileId );
+
+			return 'eroded';
+		}
+
+		$mode = $rule['mode'] ?? MetadataService::PENDING_MODE_AUTO;
+
+		if ( ! in_array(
+			$mode,
+			[
+				MetadataService::PENDING_MODE_AUTO,
+				MetadataService::PENDING_MODE_MISSING,
+				MetadataService::PENDING_MODE_FORCE,
+				MetadataService::PENDING_MODE_LAZY,
+			],
+			true,
+		) )
+		{
+			return null;
+		}
+
+		return $this->metadataService->markOutdated( $fileId, $mode )
+			? 'queued'
+			: null;
+	}
+
+	/**
+	 * Treat as written each listed file whose stamp no longer vouches for
+	 * its hashes ({@see contentChanged()}), a page at a time, from the file
+	 * after $after until $continue answers false after a page.
+	 *
+	 * A file treated leaves the set the walk reads: its hashes are out of
+	 * the index until computed again, against the ETag then.
+	 *
+	 * @param  callable|null  $continue  `fn(): bool`, asked after each page.
+	 *
+	 * @return array{eroded: int, queued: int, last: int, done: bool}
+	 * @throws \OCP\DB\Exception
+	 */
+	public function queueChangedAfter(
+		int       $after = 0,
+		int       $pageSize = 500,
+		?callable $continue = null,
+	): array
+	{
+		$lastId = $after;
+		$done   = [
+			'eroded' => 0,
+			'queued' => 0,
+		];
+
+		while ( true )
+		{
+			$fileIds = $this->metadataService->fetchUnvouchedFileIds( $lastId, $pageSize );
+
+			if ( $fileIds === [] )
+			{
+				return $done + [
+						'last' => $lastId,
+						'done' => true,
+					];
+			}
+
+			$lastId = $fileIds[ array_key_last( $fileIds ) ];
+
+			foreach ( $fileIds as $fileId )
+			{
+				try
+				{
+					$outcome = $this->contentChanged( $fileId );
+				}
+				catch ( Throwable $e )
+				{
+					$this->logger->warning(
+						'FCIAS: could not take the outdated hashes of fileId {fileId} out; continuing.',
+						[
+							'app'       => Application::APP_ID,
+							'fileId'    => $fileId,
+							'exception' => $e,
+						],
+					);
+
+					continue;
+				}
+
+				if ( $outcome !== null )
+				{
+					$done[ $outcome ] ++;
+				}
+			}
+
+			if ( $continue !== null && ! $continue() )
+			{
+				return $done + [
+						'last' => $lastId,
+						'done' => false,
+					];
+			}
+		}
+	}
+
+	/**
 	 * Clear the files an operator disowned, and re-queue those a rule still
 	 * governs.
 	 *

@@ -448,6 +448,27 @@ class HashSearchProviderTest
 			];
 		}
 
+		// Stamped as the app stamps what it computed: when, and the ETag the
+		// filecache holds, without which nothing vouches for the hashes.
+		$stamp = time();
+		$etag  = (string) $this->getRawConnection()
+		                       ->fetchOne( 'SELECT `etag` FROM `*PREFIX*filecache` WHERE `fileid` = ?', [ $fileId ] );
+
+		$json[ MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ] = [
+			'value'          => $stamp,
+			'type'           => 'int',
+			'etag'           => '',
+			'indexed'        => false,
+			'editPermission' => 0,
+		];
+		$json[ MetadataService::KEY_FILE_CHECKSUM_ETAG ]       = [
+			'value'          => $etag,
+			'type'           => 'string',
+			'etag'           => '',
+			'indexed'        => false,
+			'editPermission' => 0,
+		];
+
 		$jsonPayload = json_encode( $json );
 
 		// Through the query builder, and delete-then-insert rather than an
@@ -490,6 +511,13 @@ class HashSearchProviderTest
 			     )
 			;
 		}
+
+		$this->getRawConnection()
+		     ->executeStatement(
+			     'INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`) VALUES (?, ?, ?, ?)',
+			     [ $fileId, MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $etag, $stamp ],
+		     )
+		;
 	}
 
 	private function cleanupLeftovers(): void

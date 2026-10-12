@@ -49,6 +49,14 @@ class RuleProcessingJob
 	/** Batches per run, so one run stays bounded whatever the backlog. */
 	public const ORPHAN_PURGE_MAX_BATCHES = 20;
 
+	/** App-config key: when the filecache walk of {@see StampCheck} was last queued, in epoch seconds. */
+	public const STAMP_CHECK_LAST_QUEUED = 'stamp_check_last_queued';
+
+	/** App-config key: seconds between two filecache walks of {@see StampCheck}. */
+	public const STAMP_CHECK_INTERVAL = 'stamp_check_interval';
+
+	public const STAMP_CHECK_DEFAULT_INTERVAL = 86400;
+
 
 //  constructor
 
@@ -136,10 +144,56 @@ class RuleProcessingJob
 
 		$this->purgeOrphansIfDue();
 		$this->countChecksumsIfDue();
+		$this->queueStampCheckIfDue();
 	}
 
 
 //  other non-static methods
+
+	/**
+	 * Queue the walk that finds the files changed without the app hearing
+	 * of it — once a day, riding this job ({@see StampCheck::WALK_FILECACHE}).
+	 *
+	 * A write the app misses leaves a file's hashes vouched for by a stamp
+	 * whose ETag the filecache has moved on from. The lookup and the listing
+	 * leave such a file out at once; the walk takes its hashes out of the
+	 * index and queues it, so that they are computed again. Queued rather
+	 * than run here: it pages through every listed file, and keeps its place
+	 * across runs.
+	 *
+	 * Never throws: this rides a job whose own work must not be lost to a
+	 * housekeeping failure.
+	 */
+	private function queueStampCheckIfDue(): void
+	{
+		$now      = $this->time->getTime();
+		$interval = $this->appConfig->getValueInt(
+			Application::APP_ID,
+			self::STAMP_CHECK_INTERVAL,
+			self::STAMP_CHECK_DEFAULT_INTERVAL,
+		);
+
+		if ( $now - $this->appConfig->getValueInt( Application::APP_ID, self::STAMP_CHECK_LAST_QUEUED, 0 ) < $interval )
+		{
+			return;
+		}
+
+		try
+		{
+			StampCheck::queue( $this->jobList, $this->appConfig, StampCheck::WALK_FILECACHE );
+			$this->appConfig->setValueInt( Application::APP_ID, self::STAMP_CHECK_LAST_QUEUED, $now );
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->warning(
+				'FCIAS RuleProcessingJob: could not queue the stamp check; it will be tried on the next run.',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+		}
+	}
 
 	/**
 	 * Forget files that no longer exist — once a day, riding this job.

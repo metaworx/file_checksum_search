@@ -541,6 +541,30 @@ class PublicApiTest
 			];
 		}
 
+		// Stamped against the ETag the filecache holds, without which nothing
+		// vouches for the hashes, and a second before the file's mtime: the
+		// lookup finds them, and a recalculation takes them for outdated and
+		// computes the content's own, which the recalc tests assert.
+		$row   = $this->getRawConnection()
+		              ->fetchAssociative( 'SELECT `etag`, `mtime` FROM `*PREFIX*filecache` WHERE `fileid` = ?', [ $fileId ] );
+		$etag  = (string) ( $row['etag'] ?? '' );
+		$stamp = (int) ( $row['mtime'] ?? time() ) - 1;
+
+		$json[ MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ] = [
+			'value'          => $stamp,
+			'type'           => 'int',
+			'etag'           => '',
+			'indexed'        => false,
+			'editPermission' => 0,
+		];
+		$json[ MetadataService::KEY_FILE_CHECKSUM_ETAG ]       = [
+			'value'          => $etag,
+			'type'           => 'string',
+			'etag'           => '',
+			'indexed'        => false,
+			'editPermission' => 0,
+		];
+
 		$jsonPayload = json_encode( $json );
 
 		// Through the query builder, and delete-then-insert rather than an
@@ -584,6 +608,13 @@ class PublicApiTest
 			     )
 			;
 		}
+
+		$this->getRawConnection()
+		     ->executeStatement(
+			     'INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`) VALUES (?, ?, ?, ?)',
+			     [ $fileId, MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $etag, $stamp ],
+		     )
+		;
 	}
 
 	private function cleanupLeftovers(): void
