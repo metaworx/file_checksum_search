@@ -1486,12 +1486,14 @@ class PublicApiController
 
 		return $scope instanceof DataResponse
 			? $scope
-			: $this->markOpenable( $this->missingFor( $scope, $algo, $limit, $after, $unmatched, $withIgnored, $withExcluded, $stat ) );
+			: $this->markOpenable( $this->missingFor( $scope, $algo, $limit, $after, $unmatched, $withIgnored, $withExcluded, $stat, $this->readsCanonically() ) );
 	}
 
 	/**
 	 * The missing files' body, for either wrapper: $scope is whose files — a
-	 * uid, a list of them, or null for every account.
+	 * uid, a list of them, or null for every account. $canonical as
+	 * {@see hashListFor()}, so that both halves of the inventory name a
+	 * file by the same address.
 	 */
 	private function missingFor(
 		string|array|null $scope,
@@ -1502,6 +1504,7 @@ class PublicApiController
 		bool              $withIgnored,
 		bool              $withExcluded,
 		bool              $withStat,
+		bool              $canonical = false,
 	): DataResponse
 	{
 		try
@@ -1515,6 +1518,7 @@ class PublicApiController
 					$unmatched,
 					$withIgnored,
 					$withExcluded,
+					$canonical,
 					$withStat,
 				),
 			);

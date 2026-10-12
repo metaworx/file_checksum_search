@@ -1392,6 +1392,33 @@ class FilecacheService
 	}
 
 	/**
+	 * The first file id the filecache holds past $after, null for none:
+	 * where a walk by file id windows starts again after a gap. One read of
+	 * the primary key.
+	 *
+	 * @throws \OCP\DB\Exception
+	 */
+	public function firstFileIdAfter( int $after ): ?int
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( $qb->func()->min( 'fileid' ) )
+		   ->from( 'filecache' )
+		   ->where(
+			   $qb->expr()
+			      ->gt( 'fileid', $qb->createNamedParameter( $after, IQueryBuilder::PARAM_INT ) ),
+		   )
+		;
+
+		$result = $qb->executeQuery();
+		$first  = $result->fetchOne();
+		$result->closeCursor();
+
+		return $first === false || $first === null
+			? null
+			: (int) $first;
+	}
+
+	/**
 	 * The highest file id the filecache holds, 0 for none: where a walk by
 	 * file id windows ends.
 	 *

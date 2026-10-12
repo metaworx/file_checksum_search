@@ -50,6 +50,8 @@ class HashListingTest
 	/** @var array{a: string, b: string, c: string, r: string} */
 	private static array $content;
 
+	private static int $unhashedId;
+
 	private ChecksumApi $api;
 
 
@@ -80,6 +82,11 @@ class HashListingTest
 			'b' => $shared->newFile( 'b.txt', self::$content['b'] ),
 			'c' => $other->newFile( 'c.txt', self::$content['c'] ),
 		];
+
+		// A shared file without hashes, for the missing files' twin.
+		self::$unhashedId = $shared->newFile( 'm.txt', 'fcias list m ' . self::$salt )
+		                           ->getId()
+		;
 
 		$shareManager = Server::get( IShareManager::class );
 		$share        = $shareManager->newShare();
@@ -155,6 +162,25 @@ class HashListingTest
 		$this->assertSame( self::$ownerUid, $byId[ self::$fileId['a'] ]['owner'], 'whose it is' );
 		$this->assertSame( '/r.txt', $byId[ self::$fileId['r'] ]['path'] );
 		$this->assertSame( self::$recipientUid, $byId[ self::$fileId['r'] ]['owner'] );
+	}
+
+	/**
+	 * The missing files read a shared file as the listing does: by its
+	 * share for the recipient, by its own address read canonically, as the
+	 * `/sudo/` twins read every location for a sudoer.
+	 */
+	public function testTheMissingFilesReadAShareAsTheListingDoes(): void
+	{
+		$entry = fn(
+			bool $canonical,
+		): ?array => array_column(
+			$this->api->listMissing( [ self::$recipientUid ], null, 1000, self::$unhashedId - 1, true, true, true, $canonical )['files'],
+			null,
+			'fileid',
+		)[ self::$unhashedId ] ?? null;
+
+		$this->assertStringStartsWith( 'share:', $entry( false )['location'] ?? '' );
+		$this->assertSame( 'home:' . self::$ownerUid . '//shared_' . self::$salt . '/m.txt', $entry( true )['location'] ?? null );
 	}
 
 	/**

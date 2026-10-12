@@ -463,6 +463,50 @@ class HashListingServiceTest
 	}
 
 	/**
+	 * After a gap in the file ids, the missing files' window starts at the
+	 * first id there is, and the gap costs one page, not one per window.
+	 */
+	public function testTheMissingFilesWindowStartsAtTheNextFileThereIs(): void
+	{
+		$this->filecache->method( 'firstFileIdAfter' )
+		                ->with( 100 )
+		                ->willReturn( 50_000 )
+		;
+		$this->filecache->expects( $this->once() )
+		                ->method( 'pageUnhashedFiles' )
+		                ->with( null, null, 49_999, 49_999 + HashListingService::MISSING_WINDOW, 11 )
+		                ->willReturn( [] )
+		;
+		$this->filecache->method( 'maxFileId' )
+		                ->willReturn( 200_000 )
+		;
+
+		$page = $this->listing->missingPage( null, null, 10, 100 );
+
+		$this->assertSame( [], $page['files'] );
+		$this->assertSame( 49_999 + HashListingService::MISSING_WINDOW, $page['next'] );
+	}
+
+	/**
+	 * Past the last file id there is, the missing files end.
+	 */
+	public function testTheMissingFilesEndPastTheLastFileThereIs(): void
+	{
+		$this->filecache->method( 'firstFileIdAfter' )
+		                ->willReturn( null )
+		;
+		$this->filecache->expects( $this->never() )
+		                ->method( 'pageUnhashedFiles' )
+		;
+
+		$page = $this->listing->missingPage( null, null, 10, 100 );
+
+		$this->assertSame( [], $page['files'] );
+		$this->assertNull( $page['next'] );
+		$this->assertSame( self::NOW, $page['now'] );
+	}
+
+	/**
 	 * Rows for the file ids $from to $to, each a home file named after its id.
 	 *
 	 * @return list<array{fileid: int, storage: int, storage_id: string, path: string, updated_at: ?int}>

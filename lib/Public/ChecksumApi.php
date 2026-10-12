@@ -670,6 +670,9 @@ class ChecksumApi
 	 * @param  int                $limit      Files on the page, 1 to 1000.
 	 * @param  int                $after      The `next` of the page before;
 	 *                                        0 starts the listing.
+	 * @param  bool               $canonical  As {@see listHashes()}: every
+	 *                                        `location` the file's own
+	 *                                        address, for a sudoer.
 	 * @param  bool               $withStat   Each file gains its state:
 	 *                                        `etag` null, and its present
 	 *                                        size and mtimes.
@@ -685,10 +688,11 @@ class ChecksumApi
 		bool    $unmatched = false,
 		bool    $withIgnored = false,
 		bool    $withExcluded = false,
+		bool    $canonical = false,
 		bool    $withStat = false,
 	): array
 	{
-		return $this->listing->missingPage( $reachUids, $algo, $limit, $after, $unmatched, $withIgnored, $withExcluded, $withStat );
+		return $this->listing->missingPage( $reachUids, $algo, $limit, $after, $unmatched, $withIgnored, $withExcluded, $canonical, $withStat );
 	}
 
 	/**

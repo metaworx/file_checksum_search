@@ -152,7 +152,7 @@ class MissingHashesTest
 	 */
 	public function testAPageIsLimitedAndCarriesNextNowAndTheState(): void
 	{
-		$first = $this->api->listMissing( [ 'admin' ], null, 1, $this->before(), true, true, true, true );
+		$first = $this->api->listMissing( [ 'admin' ], null, 1, $this->before(), true, true, true, withStat: true );
 
 		$this->assertCount( 1, $first['files'] );
 		$this->assertSame( $first['files'][0]['fileid'], $first['next'] );
@@ -201,6 +201,46 @@ class MissingHashesTest
 	public function testAnotherReachHoldsNoneOfThem(): void
 	{
 		$this->assertSame( [], $this->api->listMissing( [ 'fcias-nobody' ], null, 1000, $this->before(), true, true, true )['files'] );
+	}
+
+	/**
+	 * A home's `uploads/` is outside its files area: no file of anyone's,
+	 * not even for a walk over every account.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAHomesUploadsAreInNeitherListing(): void
+	{
+		$storage = Server::get( IRootFolder::class )
+		                 ->getUserFolder( 'admin' )
+		                 ->getStorage()
+		;
+		$path    = 'uploads/fcias_chunk_' . bin2hex( random_bytes( 4 ) );
+
+		$storage->mkdir( 'uploads' );
+		$storage->file_put_contents( $path, 'a chunk' );
+		$storage->getScanner()
+		        ->scan( $path )
+		;
+		$fileId = $storage->getCache()
+		                  ->getId( $path )
+		;
+
+		try
+		{
+			$this->assertGreaterThan( 0, $fileId );
+			$this->assertNotContains(
+				$fileId,
+				array_column( $this->api->listMissing( null, null, 1000, $fileId - 1, true, true, true )['files'], 'fileid' ),
+			);
+		}
+		finally
+		{
+			$storage->unlink( $path );
+			$storage->getCache()
+			        ->remove( $path )
+			;
+		}
 	}
 
 	/**

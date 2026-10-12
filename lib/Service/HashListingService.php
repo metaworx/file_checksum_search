@@ -308,11 +308,13 @@ class HashListingService
 	 * hash row, so that this and {@see page()} under `stat` name each file
 	 * once. A rule's verdict is the rule list's, decided here per file.
 	 *
-	 * A page reads at most {@see MISSING_WINDOW} file ids, and may come back
-	 * short or empty: `next` says where the next one starts, null at the
-	 * end of the filecache.
+	 * A page reads at most {@see MISSING_WINDOW} file ids, from the first
+	 * the filecache holds past `$after`, and may come back short or empty:
+	 * `next` says where the next one starts, null at the end of the
+	 * filecache. A gap in the ids costs one page, not one per window.
 	 *
 	 * @param  list<string>|null  $reachUids  As {@see page()}.
+	 * @param  bool               $canonical  As {@see page()}.
 	 * @param  bool               $withStat   Each file gains its state:
 	 *                                        `etag` null, as it has no
 	 *                                        hashes, and its present size
@@ -329,6 +331,7 @@ class HashListingService
 		bool    $unmatched = false,
 		bool    $withIgnored = false,
 		bool    $withExcluded = false,
+		bool    $canonical = false,
 		bool    $withStat = false,
 	): array
 	{
@@ -338,6 +341,18 @@ class HashListingService
 		$views = $this->viewsOf( $reachUids );
 		$areas = $views === null ? null : self::areasOf( $views );
 		$now   = $this->time->getTime();
+		$first = $this->filecacheService->firstFileIdAfter( $after );
+
+		if ( $first === null )
+		{
+			return [
+				'files' => [],
+				'next'  => null,
+				'now'   => $now,
+			];
+		}
+
+		$after = $first - 1;
 		$upper = $after + self::MISSING_WINDOW;
 
 		// One past the page, to know whether the window holds more.
@@ -365,7 +380,15 @@ class HashListingService
 		foreach ( $rows as $row )
 		{
 			$location = FileLocation::fromRow( $row['fileid'], $row['storage_id'], $row['path'], $row['mtime'] );
-			$rule     = $this->ruleService->governingRuleForLocation( $location );
+
+			// Outside a files area — a home's `uploads/` or `cache/` — is
+			// nobody's file, as the trash and the versions are not.
+			if ( $location->relativePath === null )
+			{
+				continue;
+			}
+
+			$rule = $this->ruleService->governingRuleForLocation( $location );
 
 			if ( ! ( $rule === null ? $unmatched : $wanted[ RuleService::verdictOf( $rule ) ] ) )
 			{
@@ -374,8 +397,8 @@ class HashListingService
 
 			$seen = $views === null
 				? null
-				: $this->reach->seenThrough( $views, $row['storage'], $row['path'] );
-			$path = $seen['path'] ?? $location->relativePath ?? '/' . $row['path'];
+				: $this->reach->seenThrough( $views, $row['storage'], $row['path'], ! $canonical );
+			$path = $seen['path'] ?? $location->relativePath;
 
 			$files[] = [
 				'fileid'   => $row['fileid'],

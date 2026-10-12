@@ -355,7 +355,7 @@ foreach ($api->iterateHashes(['alice'], 'sha256') as $fileId => $entry) {
 
 ---
 
-#### `listMissing(?array $reachUids, ?string $algo = null, int $limit = 500, int $after = 0, bool $unmatched = false, bool $withIgnored = false, bool $withExcluded = false, bool $withStat = false): array`
+#### `listMissing(?array $reachUids, ?string $algo = null, int $limit = 500, int $after = 0, bool $unmatched = false, bool $withIgnored = false, bool $withExcluded = false, bool $canonical = false, bool $withStat = false): array`
 
 The files in reach without a hash, page by page: the other half of
 `listHashes()` under `$withStat`. By default the files an include rule
@@ -385,8 +385,10 @@ governs, which the queue would hash.
 ]
 ```
 
-A page reads a window of file ids and may come back short, or empty: pass
-`next` back as `$after` until it is `null`.
+A page reads a window of file ids, from the first one past `$after`, and
+may come back short, or empty: pass `next` back as `$after` until it is
+`null`. `$canonical` reads every `location` as the file's own address, as
+`listHashes()` does.
 
 **Throws:** `\OCP\DB\Exception` on a database error.
 
@@ -1317,21 +1319,23 @@ others they hold.
 }
 ```
 
-- **Paging.** A page reads a window of file ids and may come back short,
-  or empty. Pass `next` as `after` until `next` is `null`.
+- **Paging.** A page reads a window of file ids, from the first one past
+  `after`, and may come back short, or empty. Pass `next` as `after` until
+  `next` is `null`.
 - **`now`** is the server's clock, Unix seconds, as on route 23.
 - **A whole inventory.** With `unmatched`, `withIgnored` and
   `withExcluded`, this and route 23 under `stat` name each file the caller
   holds once: a file with a hash row there, stale or not, and here a file
-  without one. A file in neither is gone. Trash, versions and app data are
-  in neither.
+  without one. A file in neither is gone. Trash, versions, app data and a
+  home's `uploads/` and `cache/` are in neither.
 - **No `since`, no count.** A file without a hash has written nothing to
   have a time, and counting below a path is what the windowed paging
   avoids.
 
 `GET /api/v1/sudo/hashes/missing` is the cross-account twin: the accounts
 `users[]` and `groups[]` name, or with nothing named the caller's whole
-reach, with `openable` on each file.
+reach, with `openable` on each file. A sudoer reads every `location` as
+the file's own address there, as on route 24.
 
 ---
 
