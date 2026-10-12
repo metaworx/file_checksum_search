@@ -761,7 +761,7 @@ class FilecacheService
 	 * sweep over a large instance never re-reads or skips rows regardless of
 	 * concurrent inserts.
 	 *
-	 * @return array<int, array{checksum: string, mtime: int, etag: string}>  Keyed by fileid
+	 * @return array<int, array{checksum: string, mtime: int, storageMtime: int, etag: string}>  Keyed by fileid
 	 * @throws \OCP\DB\Exception
 	 */
 	public function pageFileidChecksums(
@@ -770,7 +770,7 @@ class FilecacheService
 	): array
 	{
 		$qb = $this->db->getQueryBuilder();
-		$qb->select( 'fileid', 'checksum', 'mtime', 'etag' )
+		$qb->select( 'fileid', 'checksum', 'mtime', 'storage_mtime', 'etag' )
 		   ->from( 'filecache' )
 		   ->where(
 			   $qb->expr()
@@ -790,9 +790,10 @@ class FilecacheService
 		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
 			$rows[ (int) $row['fileid'] ] = [
-				'checksum' => (string) $row['checksum'],
-				'mtime'    => (int) $row['mtime'],
-				'etag'     => (string) $row['etag'],
+				'checksum'     => (string) $row['checksum'],
+				'mtime'        => (int) $row['mtime'],
+				'storageMtime' => (int) $row['storage_mtime'],
+				'etag'         => (string) $row['etag'],
 			];
 		}
 

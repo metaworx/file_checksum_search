@@ -2902,9 +2902,9 @@ class MetadataService
 		}
 
 		$metadata = $this->getMetadata( $fileId );
-		$mtime    = $this->filecacheService->locate( $fileId )?->mtime;
+		$state    = $this->filecacheService->stateOf( $fileId );
 
-		if ( ! $this->isCurrent( $metadata, $mtime ) )
+		if ( ! $this->isCurrent( $metadata, $state ) )
 		{
 			foreach ( array_keys( $this->getHashes( $metadata ) ) as $algo )
 			{
@@ -2965,7 +2965,7 @@ class MetadataService
 		$hashes = $this->getHashes( $metadata );
 		$this->saveDocument( $metadata );
 
-		if ( ! $this->isCurrent( $metadata, $mtime ) )
+		if ( ! $this->isCurrent( $metadata, $state ) )
 		{
 			$this->syncHashIndex( $fileId, [] );
 			$this->syncMimeTypeRow( $fileId, null );
@@ -3392,9 +3392,11 @@ class MetadataService
 	 * The MIME type's row the same way, where the document holds a type
 	 * ({@see syncMimeTypeRow()}: none is written while detection is off).
 	 *
-	 * @param  list<string>  $have    The hash keys the index holds for the file.
-	 * @param  int|null      $mtime   The file's mtime; null for a file the filecache no longer has.
-	 * @param  string|null   $marker  Its marker, where it has one.
+	 * @param  list<string>                                                $have    The hash keys the index holds for the file.
+	 * @param  array{etag: string, mtime: int, storageMtime: int, ...}|null  $state   What the filecache holds of it
+	 *                                                                              ({@see isCurrent()}); null for a
+	 *                                                                              file it no longer has.
+	 * @param  string|null                                                 $marker  Its marker, where it has one.
 	 *
 	 * @return bool  Whether anything was rewritten.
 	 * @throws Exception
@@ -3403,7 +3405,7 @@ class MetadataService
 		int     $fileId,
 		string  $json,
 		array   $have,
-		?int    $mtime = null,
+		?array  $state = null,
 		?string $marker = null,
 	): bool
 	{
@@ -3419,7 +3421,7 @@ class MetadataService
 		}
 
 		$metadata = $this->getMetadata( $fileId, $json );
-		$current  = $this->isCurrent( $metadata, $mtime );
+		$current  = $this->isCurrent( $metadata, $state );
 		$mimeType = $this->getMimeType( $metadata );
 
 		// Only a document holding a type is asked about its row: asking every
@@ -4049,12 +4051,14 @@ class MetadataService
 	 * @param  bool           $stamped   Which population to walk; see
 	 *                                   {@see whereDocumentHoldsAHash()}.
 	 * @param  callable|null  $progress  Called per page with (files seen, files fixed).
-	 * @param  callable       $repair    `fn(int $fileId, string $json, list<string> $have, ?int $mtime, ?string $marker): bool`,
+	 * @param  callable       $repair    `fn(int $fileId, string $json, list<string> $have, ?array $state, ?string $marker): bool`,
 	 *                                   given the hash keys the index already
-	 *                                   holds for the file, its mtime (null
-	 *                                   for a file the filecache no longer
-	 *                                   has) and its stamp row's marker,
-	 *                                   returning whether it changed anything.
+	 *                                   holds for the file, what the
+	 *                                   filecache holds of it (null for a
+	 *                                   file it no longer has,
+	 *                                   {@see FilecacheService::statesOf()})
+	 *                                   and its marker, returning whether it
+	 *                                   changed anything.
 	 * @param  int            $after     Start past this file id.
 	 * @param  callable|null  $continue  `fn(): bool`, asked after each page;
 	 *                                   false stops the walk there.
@@ -4092,9 +4096,9 @@ class MetadataService
 
 			$lastId    = array_key_last( $documents );
 			$seen += count( $documents );
-			$existing  = $this->hashIndexKeysFor( array_keys( $documents ) );
-			$locations = $this->filecacheService->locateAll( array_keys( $documents ) );
-			$markers   = $this->markersOf( array_keys( $documents ) );
+			$existing = $this->hashIndexKeysFor( array_keys( $documents ) );
+			$states   = $this->filecacheService->statesOf( array_keys( $documents ) );
+			$markers  = $this->markersOf( array_keys( $documents ) );
 
 			foreach ( $documents as $fileId => $json )
 			{
@@ -4102,7 +4106,7 @@ class MetadataService
 					$fileId,
 					$json,
 					$existing[ $fileId ] ?? [],
-					( $locations[ $fileId ] ?? null )?->mtime,
+					$states[ $fileId ] ?? null,
 					$markers[ $fileId ] ?? null,
 				) )
 				{
@@ -4989,9 +4993,13 @@ class MetadataService
 	 * that mtime, which is exactly what the filecache asserts, and against
 	 * the ETag it holds beside them. Reads no file content.
 	 *
-	 * @param  array<string, string>  $algoToHash  lowercase algo => hex hash
-	 * @param  string|null            $etag        The filecache's ETag of the
-	 *                                             row the hashes came from.
+	 * @param  array<string, string>  $algoToHash    lowercase algo => hex hash
+	 * @param  string|null            $etag          The filecache's ETag of
+	 *                                               the row the hashes came
+	 *                                               from; null reads the row
+	 *                                               again to judge them.
+	 * @param  int|null               $storageMtime  That row's storage mtime;
+	 *                                               null for its mtime.
 	 *
 	 * @return int  Number of hash keys added
 	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
@@ -5001,6 +5009,7 @@ class MetadataService
 		array   $algoToHash,
 		int     $mtime,
 		?string $etag = null,
+		?int    $storageMtime = null,
 	): int
 	{
 		// Client-supplied, like every value in the filecache's checksum
@@ -5052,7 +5061,16 @@ class MetadataService
 
 		$this->saveDocument( $metadata );
 
-		$current = $this->isCurrent( $metadata, $mtime );
+		$current = $this->isCurrent(
+			$metadata,
+			$etag !== null
+				? [
+					'etag'         => $etag,
+					'mtime'        => $mtime,
+					'storageMtime' => $storageMtime ?? $mtime,
+				]
+				: $this->filecacheService->stateOf( $fileId ),
+		);
 
 		$this->syncHashIndex(
 			$fileId,
@@ -5780,11 +5798,8 @@ class MetadataService
 
 		$fileId = $metadata->getFileId();
 		$hashes = $this->getHashes( $metadata );
-		$mtime  = $file instanceof File
-			? $file->getMTime()
-			: $this->filecacheService->locate( $fileId )?->mtime;
 
-		if ( ! $this->isCurrent( $metadata, $mtime ) )
+		if ( ! $this->isCurrent( $metadata, $this->filecacheService->stateOf( $fileId ) ) )
 		{
 			$this->syncHashIndex( $fileId, [] );
 			$this->syncMimeTypeRow( $fileId, null );
@@ -5801,22 +5816,36 @@ class MetadataService
 
 	/**
 	 * Whether a document's hashes describe the file as it is: its stamp is
-	 * set, and not older than the file's mtime.
+	 * set, not older than the file's mtime, and vouches for them as a read
+	 * does ({@see vouches()}) — the ETag they were read against is the
+	 * filecache's, or, without one, the stamp is no older than the
+	 * storage's mtime.
+	 *
+	 * The one test of freshness for every writer: hashing, recalculation,
+	 * publishing, import and the repairs. A write side that judged by the
+	 * mtime alone would keep hashes a lookup leaves out, and stamp the new
+	 * ETag over them.
 	 *
 	 * A stamp of 0 is a content change that has not been hashed yet, or
 	 * hashes nobody vouches for. A file the filecache no longer has is not
 	 * current either.
 	 *
-	 * @throws Exception
+	 * @param  array{etag: string, mtime: int, storageMtime: int, ...}|null  $state  What
+	 *         the filecache holds of the file ({@see FilecacheService::stateOf()});
+	 *         null for a file it no longer has.
 	 */
-	private function isCurrent(
+	public function isCurrent(
 		IFilesMetadata $metadata,
-		?int           $mtime,
+		?array         $state,
 	): bool
 	{
 		$stamp = $this->getUpdatedAt( $metadata );
 
-		return $mtime !== null && $stamp !== null && $stamp > 0 && $stamp >= $mtime;
+		return $state !== null
+			&& $stamp !== null
+			&& $stamp > 0
+			&& $stamp >= $state['mtime']
+			&& self::vouches( $this->getEtag( $metadata ), $stamp, $state['etag'], $state['storageMtime'] );
 	}
 
 	/**

@@ -101,28 +101,30 @@ class HashCalculationService
 	}
 
 	/**
-	 * Whether the file's hashes are at least as new as the file.
+	 * Whether the file's hashes describe it as it is, by the test a lookup
+	 * applies ({@see MetadataService::isCurrent()}): hashes whose ETag the
+	 * file has moved on from are neither kept unread nor stamped anew.
 	 *
 	 * One stamp covers the whole document, not one per algorithm: the file
 	 * changed or it did not, and every hash of it is stale together. A file
 	 * with no stamp at all has never been hashed, and counts as stale.
+	 *
+	 * @throws \OCP\DB\Exception
 	 */
 	private function isHashUpToDate(
-		int|File|IFilesMetadata $fileOrMetadata,
-		int                     $mtime,
+		IFilesMetadata $metadata,
+		int            $fileId,
 	): bool
 	{
-		$updatedAt = $this->metadataService->getUpdatedAt( $fileOrMetadata );
-
-		return $updatedAt !== null && $updatedAt >= $mtime;
+		return $this->metadataService->isCurrent( $metadata, $this->filecacheService->stateOf( $fileId ) );
 	}
 
 	/**
 	 * Whether a metadata document holds hashes its stamp no longer covers.
 	 *
 	 * A document holding none is not outdated, whatever its stamp says:
-	 * there is nothing in it to drop. A file that cannot be resolved is not
-	 * judged — the caller's own resolution reports it.
+	 * there is nothing in it to drop. A file the filecache no longer has is
+	 * not judged — the caller's own resolution reports it.
 	 */
 	private function isOutdated(
 		IFilesMetadata $metadata,
@@ -136,14 +138,18 @@ class HashCalculationService
 
 		try
 		{
-			$file = $this->filecacheService->getFile( $file );
+			$state = $this->filecacheService->stateOf(
+				$file instanceof File
+					? $file->getId()
+					: $file,
+			);
 		}
 		catch ( Throwable )
 		{
 			return false;
 		}
 
-		return ! $this->isHashUpToDate( $metadata, $file->getMTime() );
+		return $state !== null && ! $this->metadataService->isCurrent( $metadata, $state );
 	}
 
 	/**
@@ -1241,12 +1247,13 @@ class HashCalculationService
 			}
 		}
 
-		$mtime  = $file->getMTime();
-		$needed = [];
+		$mtime   = $file->getMTime();
+		$current = $this->isHashUpToDate( $metadata, $fileId );
+		$needed  = [];
 		foreach ( $valid as $algo )
 		{
 			$metaKey = MetadataService::getHashKey( $algo );
-			if ( $skipExisting && $metadata->hasKey( $metaKey ) && $this->isHashUpToDate( $metadata, $mtime ) )
+			if ( $skipExisting && $metadata->hasKey( $metaKey ) && $current )
 			{
 				$results[ $algo ] = [
 					'success' => true,
@@ -1270,7 +1277,7 @@ class HashCalculationService
 			if ( $sniff
 				&& $valid !== []
 				&& $this->metadataService->getMimeType( $metadata ) === null
-				&& $this->isHashUpToDate( $metadata, $mtime ) )
+				&& $current )
 			{
 				$this->detectTypeAlone( $file, $metadata, $needsSave );
 			}
@@ -1598,7 +1605,7 @@ class HashCalculationService
 		}
 
 		if ( $this->metadataService->getHashes( $metadata ) === []
-			|| ! $this->isHashUpToDate( $metadata, $file->getMTime() ) )
+			|| ! $this->isHashUpToDate( $metadata, $fileId ) )
 		{
 			$this->metadataService->markPending( $fileId, '' );
 

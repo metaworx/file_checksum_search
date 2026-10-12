@@ -84,6 +84,49 @@ class HashCalculationServiceTest
 		$this->catalogue = new AlgorithmCatalogue( $this->createMock( IAppConfig::class ) );
 		$this->mimeTypes = $this->createMock( MimeTypeService::class );
 
+		// These tests stub a document's stamp and the file's mtime, not the
+		// rule: the filecache holds the mtime of the File they hand out, and
+		// freshness is MetadataService::isCurrent()'s for a stamp without an
+		// ETag. A test of the ETag stubs both itself.
+		$this->filecacheService->method( 'stateOf' )
+		                       ->willReturnCallback(
+			                       function(
+				                       int $fileId,
+			                       ): ?array
+			                       {
+				                       try
+				                       {
+					                       $mtime = $this->filecacheService->getFile( $fileId )
+					                                                       ->getMTime()
+					                       ;
+				                       }
+				                       catch ( \Throwable )
+				                       {
+					                       return null;
+				                       }
+
+				                       return [
+					                       'etag'         => 'etag',
+					                       'mtime'        => $mtime,
+					                       'storageMtime' => $mtime,
+				                       ];
+			                       },
+		                       )
+		;
+		$this->metadataService->method( 'isCurrent' )
+		                      ->willReturnCallback(
+			                      function(
+				                      IFilesMetadata $metadata,
+				                      ?array         $state,
+			                      ): bool
+			                      {
+				                      $stamp = $this->metadataService->getUpdatedAt( $metadata );
+
+				                      return $state !== null && $stamp !== null && $stamp > 0 && $stamp >= $state['mtime'];
+			                      },
+		                      )
+		;
+
 		$this->service = $this->getMockBuilder( HashCalculationService::class )
 		                      ->onlyMethods( [ 'recalcHashes' ] )
 		                      ->setConstructorArgs(

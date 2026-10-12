@@ -296,21 +296,24 @@ class HashIndexServiceTest
 			                       {
 				                       0 => [
 					                       5 => [
-						                       'checksum' => 'SHA1:dead MD5:cafe',
-						                       'mtime'    => 100,
-						                       'etag'     => 'e5',
+						                       'checksum'     => 'SHA1:dead MD5:cafe',
+						                       'mtime'        => 100,
+						                       'storageMtime' => 150,
+						                       'etag'         => 'e5',
 					                       ],
 					                       9 => [
-						                       'checksum' => 'SHA1:beef',
-						                       'mtime'    => 200,
-						                       'etag'     => 'e9',
+						                       'checksum'     => 'SHA1:beef',
+						                       'mtime'        => 200,
+						                       'storageMtime' => 200,
+						                       'etag'         => 'e9',
 					                       ],
 				                       ],
 				                       9 => [
 					                       12 => [
-						                       'checksum' => 'garbage-without-colon',
-						                       'mtime'    => 300,
-						                       'etag'     => 'e12',
+						                       'checksum'     => 'garbage-without-colon',
+						                       'mtime'        => 300,
+						                       'storageMtime' => 300,
+						                       'etag'         => 'e12',
 					                       ],
 				                       ],
 				                       default => [],
@@ -322,9 +325,11 @@ class HashIndexServiceTest
 		$this->metadataService->method( 'backfillHashes' )
 		                      ->willReturnCallback(
 			                      static function(
-				                      int   $fileId,
-				                      array $algoToHash,
-				                      int   $mtime,
+				                      int     $fileId,
+				                      array   $algoToHash,
+				                      int     $mtime,
+				                      ?string $etag = null,
+				                      ?int    $storageMtime = null,
 			                      ) use
 			                      (
 				                      &
@@ -334,6 +339,8 @@ class HashIndexServiceTest
 				                      $calls[ $fileId ] = [
 					                      $algoToHash,
 					                      $mtime,
+					                      $etag,
+					                      $storageMtime,
 				                      ];
 
 				                      return count( $algoToHash );
@@ -358,6 +365,8 @@ class HashIndexServiceTest
 					'md5'  => 'cafe',
 				],
 				100,
+				'e5',
+				150,
 			],
 			$calls[5],
 		);
@@ -385,7 +394,7 @@ class HashIndexServiceTest
 			                       {
 				                       $asked[] = $lastFileId;
 
-				                       return [ $lastFileId + 1 => [ 'checksum' => 'SHA1:dead', 'mtime' => 100, 'etag' => 'e' ] ];
+				                       return [ $lastFileId + 1 => [ 'checksum' => 'SHA1:dead', 'mtime' => 100, 'storageMtime' => 100, 'etag' => 'e' ] ];
 			                       },
 		                       )
 		;
@@ -420,9 +429,10 @@ class HashIndexServiceTest
 			                       ): array => $lastFileId === 0
 				                       ? [
 					                       5 => [
-						                       'checksum' => 'SHA1:dead',
-						                       'mtime'    => 100,
-						                       'etag'     => 'e5',
+						                       'checksum'     => 'SHA1:dead',
+						                       'mtime'        => 100,
+						                       'storageMtime' => 100,
+						                       'etag'         => 'e5',
 					                       ],
 				                       ]
 				                       : [],

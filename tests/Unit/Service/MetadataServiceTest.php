@@ -24,6 +24,7 @@ use OCP\IAppConfig;
 use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\FilesMetadata\Model\IMetadataValueWrapper;
 use OCP\IDBConnection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
 use TypeError;
@@ -1404,8 +1405,9 @@ class MetadataServiceTest
 		$metadata->method( 'getKeys' )
 		         ->willReturn( $keys )
 		;
-		// Each hash, and the ETag the stamp row is written with.
-		$metadata->expects( $this->exactly( count( $keys ) + 1 ) )
+		// Each hash, the ETag the stamp row is written with, and the ETag
+		// the freshness test compares with the filecache's.
+		$metadata->expects( $this->exactly( count( $keys ) + 2 ) )
 		         ->method( 'getString' )
 		         ->willReturn( 'dummyhash' )
 		;
@@ -1415,13 +1417,14 @@ class MetadataServiceTest
 		                      ->with( $metadata )
 		;
 
-		// Stamped after the file's last change: current.
+		// Stamped after the file's last change, against the ETag it has:
+		// current.
 		$metadata->method( 'getInt' )
 		         ->willReturn( 2000 )
 		;
-		$this->filecacheService->method( 'locate' )
+		$this->filecacheService->method( 'stateOf' )
 		                       ->with( 42 )
-		                       ->willReturn( new FileLocation( 42, 'home::alice', 'files/a.txt', 1000, 'home', 'alice', null, 'a.txt' ) )
+		                       ->willReturn( $this->stateAt( 1000, 'dummyhash' ) )
 		;
 
 		$this->filecacheService->expects( $this->once() )
@@ -1430,6 +1433,52 @@ class MetadataServiceTest
 		;
 
 		$this->service->saveMetadata( $metadata );
+	}
+
+	/**
+	 * @return iterable<string, array{?string, int, ?array{etag: string, mtime: int, storageMtime: int}, bool}>
+	 */
+	public static function freshness(): iterable
+	{
+		$state = [
+			'etag'         => 'e2',
+			'mtime'        => 1000,
+			'storageMtime' => 1500,
+		];
+
+		yield 'read against the ETag the file has' => [ 'e2', 2000, $state, true ];
+		yield 'read against one it has moved on from' => [ 'e1', 2000, $state, false ];
+		yield 'no ETag, stamped after the storage wrote it' => [ null, 2000, $state, true ];
+		yield 'no ETag, stamped before the storage wrote it' => [ null, 1200, $state, false ];
+		yield 'its ETag, but stamped before the file\'s mtime' => [ 'e2', 900, $state, false ];
+		yield 'a stamp of 0' => [ null, 0, $state, false ];
+		yield 'a file the filecache no longer has' => [ 'e2', 2000, null, false ];
+	}
+
+	/**
+	 * The one test of freshness for every writer: the read side's
+	 * {@see MetadataService::vouches()}, and a stamp no older than the
+	 * file's mtime.
+	 *
+	 * @param  array{etag: string, mtime: int, storageMtime: int}|null  $state
+	 */
+	#[DataProvider( 'freshness' )]
+	public function testADocumentIsCurrentOnlyWhereALookupWouldVouchForIt(
+		?string $etag,
+		int     $stamp,
+		?array  $state,
+		bool    $current,
+	): void
+	{
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$metadata->method( 'getInt' )
+		         ->willReturn( $stamp )
+		;
+		$metadata->method( 'getString' )
+		         ->willReturn( $etag ?? '' )
+		;
+
+		$this->assertSame( $current, $this->service->isCurrent( $metadata, $state ) );
 	}
 
 	/**
@@ -1618,8 +1667,8 @@ class MetadataServiceTest
 		         ->willReturn( 0 )
 		;
 
-		$this->filecacheService->method( 'locate' )
-		                       ->willReturn( new FileLocation( 42, 'home::alice', 'files/a.txt', 1000, 'home', 'alice', null, 'a.txt' ) )
+		$this->filecacheService->method( 'stateOf' )
+		                       ->willReturn( $this->stateAt( 1000 ) )
 		;
 
 		$this->metadataManager->expects( $this->once() )
@@ -2438,8 +2487,8 @@ class MetadataServiceTest
 				],
 			],
 		);
-		$this->filecacheService->method( 'locateAll' )
-		                       ->willReturn( [ 4001 => new FileLocation( 4001, 'home::alice', 'files/b.txt', 1000, 'home', 'alice', null, 'b.txt' ) ] )
+		$this->filecacheService->method( 'statesOf' )
+		                       ->willReturn( [ 4001 => [ 'size' => 1 ] + $this->stateAt( 1000 ) ] )
 		;
 
 		// One page of one document, then its index keys. A second page of
@@ -3407,10 +3456,23 @@ class MetadataServiceTest
 	}
 
 	/**
-	 * Every index row inserted, as [file id, key, string, int], in order.
+	 * What the filecache holds of a file last changed at $mtime, as
+	 * {@see FilecacheService::stateOf()} gives it.
 	 *
-	 * @return ArrayObject<int, array{mixed, mixed, mixed, mixed}>
+	 * @return array{etag: string, mtime: int, storageMtime: int}
 	 */
+	private function stateAt(
+		int    $mtime,
+		string $etag = 'etag',
+	): array
+	{
+		return [
+			'etag'         => $etag,
+			'mtime'        => $mtime,
+			'storageMtime' => $mtime,
+		];
+	}
+
 	/**
 	 * File 42's document, current, holding a sha1 and $mimeType.
 	 *
@@ -3450,8 +3512,8 @@ class MetadataServiceTest
 		$metadata->method( 'getInt' )
 		         ->willReturn( 2000 )
 		;
-		$this->filecacheService->method( 'locate' )
-		                       ->willReturn( new FileLocation( 42, 'home::alice', 'files/a.txt', 1000, 'home', 'alice', null, 'a.txt' ) )
+		$this->filecacheService->method( 'stateOf' )
+		                       ->willReturn( $this->stateAt( 1000 ) )
 		;
 		$this->queryBuilder->method( 'executeStatement' )
 		                   ->willReturn( 1 )
@@ -3480,6 +3542,11 @@ class MetadataServiceTest
 		];
 	}
 
+	/**
+	 * Every index row inserted, as [file id, key, string, int], in order.
+	 *
+	 * @return ArrayObject<int, array{mixed, mixed, mixed, mixed}>
+	 */
 	private function captureInsertedRows(): ArrayObject
 	{
 		$rows = new ArrayObject();

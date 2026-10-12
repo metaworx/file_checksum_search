@@ -193,6 +193,82 @@ class VouchedByEtagTest
 	}
 
 	/**
+	 * A recalculation judges the hashes it holds as a lookup does: content
+	 * changed under the mtime the file had is read again, not answered from
+	 * the document and stamped with the new ETag.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testARecalculationReadsAFileWhoseEtagMovedOn(): void
+	{
+		$file = $this->hashed( 'fcias_vouch_recalc', 'as hashed' );
+		$file = $this->contentChangesUnheard( $file, 'changed unheard' );
+
+		$result = $this->hashCalc->recalcHashes( $file, [ 'sha1' ], true )['results']['sha1'];
+
+		$this->assertTrue( $result['success'] );
+		$this->assertFalse( $result['existed'], 'Read again, not answered from the document.' );
+		$this->assertSame( sha1( 'changed unheard' ), $result['hash'] );
+		$this->assertTrue( $this->found( $file ), 'Vouched for by the ETag it was read against.' );
+	}
+
+	/**
+	 * `missing` adding an algorithm reads the ones the file has again where
+	 * its ETag moved on, rather than keeping them beside the new one.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testMissingReadsTheHashesAFileHasWhenItsEtagMovedOn(): void
+	{
+		$file = $this->hashed( 'fcias_vouch_missing', 'as hashed' );
+		$this->ruleFor( $file, MetadataService::PENDING_MODE_MISSING, [ 'sha1', 'md5' ] );
+		$this->contentChangesUnheard( $file, 'changed unheard' );
+
+		$this->hashCalc->processFile( $file->getId(), MetadataService::PENDING_MODE_MISSING );
+
+		$this->assertSame(
+			[
+				'md5'  => md5( 'changed unheard' ),
+				'sha1' => sha1( 'changed unheard' ),
+			],
+			$this->storedHashes( $file ),
+		);
+	}
+
+	/**
+	 * `auto` does not move a stamp made before the app kept the ETag past
+	 * the storage's mtime without reading: the file is outdated by the rule
+	 * a lookup applies, though its stamp is no older than its mtime.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAutoReadsALegacyStampBelowTheStoragesMtime(): void
+	{
+		$file = $this->hashed( 'fcias_vouch_auto', 'as hashed' );
+		$this->ruleFor( $file );
+		$this->contentChangesUnheard( $file, 'changed unheard' );
+
+		// Stamped before the ETag was kept, after the file's mtime, and
+		// before the storage last wrote it.
+		$now = time();
+		$this->getRawConnection()
+		     ->executeStatement(
+			     'UPDATE `*PREFIX*filecache` SET `mtime` = ?, `storage_mtime` = ? WHERE `fileid` = ?',
+			     [ $now - 1000, $now - 500, $file->getId() ],
+		     )
+		;
+
+		$manager  = Server::get( IFilesMetadataManager::class );
+		$document = $manager->getMetadata( $file->getId(), true );
+		$this->metadataService->stamp( $document, $now - 900, null );
+		$this->metadataService->saveMetadata( $document );
+
+		$this->hashCalc->processFile( $file->getId(), MetadataService::PENDING_MODE_AUTO );
+
+		$this->assertSame( [ 'sha1' => sha1( 'changed unheard' ) ], $this->storedHashes( $file ) );
+	}
+
+	/**
 	 * A file hashed in sha1 on demand, which stamps it with the ETag read.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
@@ -216,20 +292,26 @@ class VouchedByEtagTest
 	}
 
 	/**
-	 * The only rule: `auto`, sha1, for this one file.
+	 * The only rule, for this one file: `auto` and sha1 unless said.
+	 *
+	 * @param  list<string>  $algos
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	private function ruleFor( File $file ): void
+	private function ruleFor(
+		File   $file,
+		string $mode = MetadataService::PENDING_MODE_AUTO,
+		array  $algos = [ 'sha1' ],
+	): void
 	{
 		$this->ruleService->ruleAdd(
 			[
 				'enabled'  => true,
 				'type'     => RuleService::TYPE_INCLUDE,
 				'path'     => $file->getName(),
-				'mode'     => MetadataService::PENDING_MODE_AUTO,
+				'mode'     => $mode,
 				'selector' => '*',
-				'algos'    => [ 'sha1' ],
+				'algos'    => $algos,
 			],
 		);
 	}
@@ -247,6 +329,61 @@ class VouchedByEtagTest
 			     [ 'moved' . bin2hex( random_bytes( 4 ) ), $file->getId() ],
 		     )
 		;
+	}
+
+	/**
+	 * A change the app never heard of, with the mtime kept: new content on
+	 * the storage, written past Nextcloud's view and its events, and the
+	 * filecache's ETag and size moved on, as a scan records them.
+	 *
+	 * @return File  The file as it is now, loaded again: the node handed in
+	 *               still holds the ETag it was loaded with.
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function contentChangesUnheard(
+		File   $file,
+		string $content,
+	): File
+	{
+		$storage = $file->getStorage();
+		$path    = $file->getInternalPath();
+		$mtime   = $file->getMTime();
+
+		$storage->file_put_contents( $path, $content );
+		$storage->touch( $path, $mtime );
+
+		$this->getRawConnection()
+		     ->executeStatement(
+			     'UPDATE `*PREFIX*filecache` SET `etag` = ?, `size` = ? WHERE `fileid` = ?',
+			     [ 'unheard' . bin2hex( random_bytes( 4 ) ), strlen( $content ), $file->getId() ],
+		     )
+		;
+
+		$reloaded = Server::get( IRootFolder::class )
+		                  ->getUserFolder( 'admin' )
+		                  ->getFirstNodeById( $file->getId() )
+		;
+		$this->assertInstanceOf( File::class, $reloaded );
+
+		return $reloaded;
+	}
+
+	/**
+	 * The hashes the file's metadata document holds, by algorithm, read
+	 * from the database.
+	 *
+	 * @return array<string, string>
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function storedHashes( File $file ): array
+	{
+		$hashes = $this->metadataService->getHashes(
+			Server::get( IFilesMetadataManager::class )
+			      ->getMetadata( $file->getId(), true ),
+		);
+		ksort( $hashes );
+
+		return $hashes;
 	}
 
 	/**
