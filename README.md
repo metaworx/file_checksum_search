@@ -76,7 +76,7 @@ For what the two tables look like from a database client, see
 |-----------|----------------|
 | Nextcloud | 33 (up to 35) |
 | PHP | 8.2 |
-| Database | Any database supported by Nextcloud |
+| Database | SQLite, MySQL or MariaDB, PostgreSQL — not Oracle |
 | Node.js | 24 (build only, not needed at runtime) |
 
 > **Note:** FCIAS uses Nextcloud's built-in files metadata index and adds composite indices on it. No custom tables are required.

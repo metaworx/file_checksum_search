@@ -147,6 +147,24 @@ class VouchedByEtagTest
 	}
 
 	/**
+	 * A filecache row without an ETag vouches for no stamp that carries one:
+	 * the file is out of the lookup, and the walk treats it as changed.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAFileWithoutAFilecacheEtagIsWalked(): void
+	{
+		$file = $this->hashed( 'fcias_vouch_null_etag', 'as hashed' );
+
+		$this->getRawConnection()
+		     ->executeStatement( 'UPDATE `*PREFIX*filecache` SET `etag` = NULL WHERE `fileid` = ?', [ $file->getId() ] )
+		;
+
+		$this->assertFalse( $this->found( $file ) );
+		$this->assertContains( $file->getId(), $this->metadataService->fetchUnvouchedFileIds( $file->getId() - 1, 1 ) );
+	}
+
+	/**
 	 * No rule maintains the file: its hashes are eroded, as a write would
 	 * have left them.
 	 *

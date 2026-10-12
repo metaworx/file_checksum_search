@@ -2020,7 +2020,8 @@ class MetadataService
 	/**
 	 * The files {@see vouchedCondition()} leaves out that have a stamp row:
 	 * spelled out rather than negated, since a NULL in either row makes
-	 * NOT of it NULL too.
+	 * NOT of it NULL too. A filecache row without an ETag vouches for no
+	 * stamp that carries one.
 	 */
 	private function unvouchedCondition(
 		IQueryBuilder $qb,
@@ -2037,7 +2038,12 @@ class MetadataService
 				                      $qb->expr()
 				                         ->neq( $stamp . '.' . self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( '' ) ),
 				                      $qb->expr()
-				                         ->neq( $stamp . '.' . self::FIELD_META_VALUE_STRING, $filecache . '.etag' ),
+				                         ->orX(
+					                         $qb->expr()
+					                            ->isNull( $filecache . '.etag' ),
+					                         $qb->expr()
+					                            ->neq( $stamp . '.' . self::FIELD_META_VALUE_STRING, $filecache . '.etag' ),
+				                         ),
 			                      ),
 			                   $qb->expr()
 			                      ->andX(
