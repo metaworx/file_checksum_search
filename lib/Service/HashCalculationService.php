@@ -975,7 +975,7 @@ class HashCalculationService
 				// A busy file, or one written to during the read, is there.
 				return $batch['locked']
 					? DrainOutcome::failed( $reason )
-					: $this->failedOrGone( $file, $attempts, $reason );
+					: $this->failedOrGone( $file, $reason );
 			}
 
 			// Not indexed by Nextcloud — see MetadataService::syncHashIndex(),
@@ -1041,37 +1041,42 @@ class HashCalculationService
 
 	/**
 	 * A failed read's outcome: a failure, the file left queued; or, where the
-	 * storage says the file is not there and an attempt before this one
-	 * failed as well, the file gone ({@see MetadataService::markGone()}), off
-	 * the queue for good rather than retried for ever.
+	 * storage has answered "not found" for the file on two failed reads in a
+	 * row, the file gone ({@see MetadataService::markGone()}), off the queue
+	 * for good rather than retried for ever.
 	 *
-	 * Two attempts, because one negative answer from a remote storage can be
-	 * a passing fault. Where the storage cannot answer, the file stays
-	 * queued.
-	 *
-	 * @param  int  $attempts  The file's failed attempts, this one included.
+	 * "Not found" counts only while the storage's root answers: a storage
+	 * that cannot be reached, though Nextcloud has not marked it so, can say
+	 * a file is not there. Two answers, because one from a remote storage can
+	 * be a passing fault. Failures of any other kind — a storage held down,
+	 * a busy file, a write during the read — count toward the queue's order
+	 * only. A write landing before the file is marked gone keeps it queued.
 	 */
 	private function failedOrGone(
 		int|File $file,
-		int      $attempts,
 		string   $reason,
 	): DrainOutcome
 	{
-		if ( $attempts < 2 )
-		{
-			return DrainOutcome::failed( $reason );
-		}
-
 		try
 		{
-			$file = $this->filecacheService->getFile( $file );
+			$file    = $this->filecacheService->getFile( $file );
+			$fileId  = $file->getId();
+			$storage = $file->getStorage();
 
-			if ( $file->getStorage()->file_exists( $file->getInternalPath() ) )
+			if ( $storage->file_exists( $file->getInternalPath() ) || ! $storage->file_exists( '' ) )
+			{
+				$this->metadataService->forgetAbsent( $fileId );
+
+				return DrainOutcome::failed( $reason );
+			}
+
+			if ( $this->metadataService->recordAbsent( $fileId ) < 2
+				|| $this->filecacheService->etagOf( $fileId ) !== $file->getEtag() )
 			{
 				return DrainOutcome::failed( $reason );
 			}
 
-			$this->metadataService->markGone( $file->getId(), max( time(), $file->getMTime() ) );
+			$this->metadataService->markGone( $fileId, max( time(), $file->getMTime() ), $file->getEtag() );
 		}
 		catch ( Throwable )
 		{
@@ -1705,7 +1710,7 @@ class HashCalculationService
 
 		return $read === null
 			? DrainOutcome::failed( $reason )
-			: $this->failedOrGone( $read, $attempts, $reason );
+			: $this->failedOrGone( $read, $reason );
 	}
 
 	/**

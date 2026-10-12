@@ -573,13 +573,22 @@ behind Nextcloud's back, or one below a folder whose own row was removed while
 its children's rows stayed. Every read of such a file fails with *Unable to
 open file for reading*.
 
-The queue drain does not try such a file for ever. On its second failed read,
-where the storage says the file is not there, the file leaves the queue as
-`stale:gone`: its checksums are deleted, the *Untrusted checksums* cell counts
-it as *Gone*, `fcias:queue:drain -v` names it, and the sweep and Reapply leave
-it alone. A write to the file queues it again, and so does a scan that finds
-it changed. Two reads rather than one, because a remote storage can answer
-"no such file" for a moment and mean nothing by it.
+The queue drain does not try such a file for ever. When two failed reads in a
+row find the storage answering and the file not there, the file leaves the
+queue as `stale:gone`: its checksums are deleted, from the filecache's
+checksum column too, the *Untrusted checksums* cell counts it as *Gone*,
+`fcias:queue:drain -v` names it, and the sweep and Reapply leave it alone. A
+write to the file queues it again, and so does a scan that finds it changed.
+One put back under its old mtime looks unchanged to the scan, as it does to
+Nextcloud, and stays gone until it is written to. Two answers rather than one,
+because a remote storage can answer "no such file" for a moment and mean
+nothing by it; and the storage's root has to answer, since one that cannot be
+reached can say a file is not there. A storage held down, a busy file or a
+write during the read never count toward it.
+
+On an object store as primary storage, a file's existence is the filecache's
+own row, so the storage never says "not found": such a file stays queued, its
+reads failing, until its row is removed.
 
 What brings the filecache in line is Nextcloud's own:
 

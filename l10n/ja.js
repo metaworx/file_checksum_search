@@ -209,7 +209,7 @@ OC.L10N.register(
     "Network error" : "ネットワークエラー",
     "New rule" : "新しいルール",
     "Next" : "次へ",
-    "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line" : "Nextcloudの一覧にはファイルが残っていますが、ストレージにはもう存在しないため、チェックサムは削除されました。ファイルをスキャンすると、一覧がストレージと一致します",
+    "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line where a scan can reach the file" : "Nextcloudの一覧にはファイルが残っていますが、ストレージにはもう存在しないため、チェックサムは削除されました。スキャンがファイルに届く場合は、ファイルをスキャンすると一覧がストレージと一致します",
     "No" : "いいえ",
     "No \"Include\" rule is enabled, so no file is hashed automatically. Enable the \"All home folders\" default in the table below, or add a rule. Recalculating by hand from the file sidebar still works." : "有効な「含める」ルールがないため、どのファイルも自動ではハッシュ計算されません。下の表で「すべてのホームフォルダー」のデフォルトを有効にするか、ルールを追加してください。ファイルサイドバーからの手動での再計算は引き続き使用できます。",
     "No accounts or groups to show" : "表示するアカウントまたはグループはありません",

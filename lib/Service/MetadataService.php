@@ -91,6 +91,14 @@ class MetadataService
 	public const KEY_FILE_CHECKSUM_STATE = 'file-checksum-state';
 
 	/**
+	 * How many failed reads in a row a queued file's storage answered "not
+	 * found" for it, its root answering: the int of an index row of the
+	 * app's own, as the state's is. Two make the file gone
+	 * ({@see recordAbsent()}). The row goes when the file leaves the queue.
+	 */
+	public const KEY_FILE_CHECKSUM_ABSENT = 'file-checksum-absent';
+
+	/**
 	 * The content's MIME type, as libmagic names it ({@see MimeTypeService}).
 	 *
 	 * Under the app's prefix and not the hashes' own, so that nothing counts
@@ -1245,6 +1253,37 @@ class MetadataService
 	}
 
 	/**
+	 * Count one failed read of a queued file whose storage answered "not
+	 * found" for it, its root answering ({@see KEY_FILE_CHECKSUM_ABSENT}).
+	 *
+	 * Apart from the failed attempts, which a storage held down, a busy file
+	 * or a write during the read raise as well: none of those says the file
+	 * is not there. {@see forgetAbsent()} starts the count again.
+	 *
+	 * @return int  The "not found" answers in a row, this one included.
+	 * @throws Exception
+	 */
+	public function recordAbsent( int $fileId ): int
+	{
+		$count = ( $this->selfIndexedRowsOf( $fileId, self::KEY_FILE_CHECKSUM_ABSENT )[0]['int'] ?? 0 ) + 1;
+
+		$this->setSelfIndexed( $fileId, self::KEY_FILE_CHECKSUM_ABSENT, null, $count );
+
+		return $count;
+	}
+
+	/**
+	 * Start a file's "not found" count again ({@see recordAbsent()}): the
+	 * storage found it, or it left the queue.
+	 *
+	 * @throws Exception
+	 */
+	public function forgetAbsent( int $fileId ): void
+	{
+		$this->unsetSelfIndexed( $fileId, self::KEY_FILE_CHECKSUM_ABSENT );
+	}
+
+	/**
 	 * Count one attempt at hashing a queued file that left it queued: a
 	 * read that failed, a lock, a write during the read, an exception.
 	 *
@@ -1332,25 +1371,35 @@ class MetadataService
 	 * Record that a queued file is gone from its storage, though the
 	 * filecache still lists it, and take it off the queue.
 	 *
-	 * Strips every stored hash, which described content no longer there,
-	 * and marks it `stale:gone` under a stamp of $stamp: a stamp over a
-	 * state the sweep and Reapply take for fresh, so neither queues the file
-	 * again while the filecache keeps its row. The state replaces the queue
-	 * mark. A write to the file, or a calculation that reads it, ends it; the
-	 * orphan purge takes it with the filecache row.
+	 * Strips every stored hash, which described content no longer there —
+	 * the filecache's checksum column first, which the next backfill would
+	 * otherwise copy back — and marks it `stale:gone` under a stamp of
+	 * $stamp and the file's ETag: a state the sweep and Reapply take for
+	 * fresh while the ETag stays, so neither queues the file again while the
+	 * filecache keeps its row; one whose ETag a scan moved on, they queue. A
+	 * scan keeps the ETag of a file whose storage mtime it finds unchanged,
+	 * so one put back under its old mtime stays gone. The state replaces the
+	 * queue mark. A
+	 * write to the file, or a calculation that reads it, ends it; the orphan
+	 * purge takes it with the filecache row.
 	 *
-	 * @param  int  $stamp  No earlier than the filecache's mtime.
+	 * @param  int          $stamp  No earlier than the filecache's mtime.
+	 * @param  string|null  $etag   The file's ETag as the filecache holds it.
 	 *
 	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
+	 * @throws Exception
 	 */
 	public function markGone(
-		int $fileId,
-		int $stamp,
+		int     $fileId,
+		int     $stamp,
+		?string $etag = null,
 	): void
 	{
+		$this->filecacheService->setHashes( $fileId, null );
+
 		$metadata = $this->getMetadata( $fileId );
 		$metadata->removeStartsWith( self::KEY_FILE_CHECKSUM_PREFIX );
-		$this->stamp( $metadata, $stamp, null );
+		$this->stamp( $metadata, $stamp, $etag );
 		$this->saveDocument( $metadata );
 
 		$this->syncHashIndex( $fileId, [] );
@@ -2610,7 +2659,7 @@ class MetadataService
 	 * write or a Reapply queues a file that keeps failing again, which
 	 * would otherwise put it back at the head of the queue. The sweep
 	 * leaves queued files alone. Any other marker starts at 0: the file has
-	 * left the queue.
+	 * left the queue, and its "not found" count goes ({@see recordAbsent()}).
 	 *
 	 * @param  int|null  $attempts  The failed attempts to give the row; null
 	 *                              keeps a queued file's own.
@@ -2623,9 +2672,17 @@ class MetadataService
 		?int   $attempts = null,
 	): void
 	{
-		$attempts ??= str_starts_with( $value, self::PENDING_PREFIX )
+		$queued = str_starts_with( $value, self::PENDING_PREFIX );
+
+		$attempts ??= $queued
 			? $this->failedAttempts( $fileId ) ?? 0
 			: 0;
+
+		// Off the queue, the "not found" count starts again.
+		if ( ! $queued )
+		{
+			$this->forgetAbsent( $fileId );
+		}
 
 		if ( $value === '' )
 		{

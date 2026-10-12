@@ -685,8 +685,8 @@ msgstr "新规则"
 msgid "Next"
 msgstr "下一页"
 
-msgid "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line"
-msgstr "Nextcloud 仍列出该文件，但其存储中已没有该文件，因此其校验和已被删除；扫描文件即可让列表与存储重新一致"
+msgid "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line where a scan can reach the file"
+msgstr "Nextcloud 仍列出该文件，但其存储中已没有该文件，因此其校验和已被删除；在扫描能到达该文件之处，扫描文件即可让列表与存储重新一致"
 
 msgid "No"
 msgstr "否"

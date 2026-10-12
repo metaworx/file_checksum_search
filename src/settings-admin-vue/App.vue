@@ -175,7 +175,7 @@ const STALE_REASONS: Record<string, { label: string, hint: string }> = {
 	'stale:gone': {
 		// TRANSLATORS: the state of a file Nextcloud still lists while its storage no longer has it; an adjective, "missing"
 		label: t('file_checksum_search', 'Gone'),
-		hint: t('file_checksum_search', 'Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line'),
+		hint: t('file_checksum_search', 'Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line where a scan can reach the file'),
 	},
 }
 

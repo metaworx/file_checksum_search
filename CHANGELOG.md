@@ -48,6 +48,10 @@ the first stable release.
 - Nextcloud's metadata generation no longer queues every file as
   `missing`: a disowned, queued or gone file stays as it is.
 
+- `docs/FAQ.md`, *Files the filecache lists and the storage does not
+  have*: their checksums leave `oc_filecache` too; gone needs two "not
+  found" answers in a row from a storage that answers.
+
 ## [0.25.0] - 2026-10-10
 
 ### Added

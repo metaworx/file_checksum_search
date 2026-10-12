@@ -209,7 +209,7 @@ OC.L10N.register(
     "Network error" : "Erro de rede",
     "New rule" : "Nova regra",
     "Next" : "Próxima",
-    "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line" : "o Nextcloud ainda lista o arquivo, mas ele não está mais no armazenamento, por isso as somas de verificação dele foram excluídas; escanear os arquivos põe a lista em dia",
+    "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line where a scan can reach the file" : "o Nextcloud ainda lista o arquivo, mas ele não está mais no armazenamento, por isso as somas de verificação dele foram excluídas; escanear os arquivos põe a lista em dia onde o escaneamento alcança o arquivo",
     "No" : "Não",
     "No \"Include\" rule is enabled, so no file is hashed automatically. Enable the \"All home folders\" default in the table below, or add a rule. Recalculating by hand from the file sidebar still works." : "Nenhuma regra do tipo “Incluir” está ativada, então nenhuma soma de verificação é calculada automaticamente. Ative a regra padrão “Todas as pastas pessoais” na tabela abaixo ou adicione uma regra. O recálculo manual pela barra lateral de arquivo continua funcionando.",
     "No accounts or groups to show" : "Nenhuma conta ou grupo para mostrar",

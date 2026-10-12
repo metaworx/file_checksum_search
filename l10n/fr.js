@@ -209,7 +209,7 @@ OC.L10N.register(
     "Network error" : "Erreur réseau",
     "New rule" : "Nouvelle règle",
     "Next" : "Suivant",
-    "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line" : "Nextcloud répertorie encore le fichier, mais son stockage ne le contient plus, si bien que ses sommes de contrôle ont été supprimées ; une analyse des fichiers remet la liste à jour",
+    "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line where a scan can reach the file" : "Nextcloud répertorie encore le fichier, mais son stockage ne le contient plus, si bien que ses sommes de contrôle ont été supprimées ; une analyse des fichiers remet la liste à jour là où elle atteint le fichier",
     "No" : "Non",
     "No \"Include\" rule is enabled, so no file is hashed automatically. Enable the \"All home folders\" default in the table below, or add a rule. Recalculating by hand from the file sidebar still works." : "Aucune règle de type « Inclure » n'est activée : aucune empreinte n'est donc calculée automatiquement. Activez la règle par défaut « Tous les dossiers personnels » dans le tableau ci-dessous, ou ajoutez une règle. Le recalcul manuel depuis le panneau latéral du fichier fonctionne toujours.",
     "No accounts or groups to show" : "Aucun compte ni groupe à afficher",

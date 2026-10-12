@@ -1315,8 +1315,10 @@ class HashCalculationServiceTest
 	 */
 	#[DataProvider( 'goneReads' )]
 	public function testAFileGoneFromItsStorageLeavesTheQueueOnItsSecondFailedRead(
-		int    $attempts,
+		int    $absent,
 		bool   $exists,
+		bool   $rootAnswers,
+		bool   $etagMoved,
 		string $kind,
 	): void
 	{
@@ -1340,14 +1342,23 @@ class HashCalculationServiceTest
 			              ],
 		              )
 		;
+		// Failed attempts of every kind are counted apart, and decide nothing.
 		$this->metadataService->method( 'recordFailedAttempt' )
-		                      ->willReturn( $attempts )
+		                      ->willReturn( 5 )
+		;
+		$this->metadataService->method( 'recordAbsent' )
+		                      ->willReturn( $absent )
 		;
 
 		$storage = $this->createMock( IStorage::class );
 		$storage->method( 'file_exists' )
-		        ->with( 'files/gone.txt' )
-		        ->willReturn( $exists )
+		        ->willReturnCallback(
+			        static fn(
+				        string $path,
+			        ): bool => $path === ''
+				        ? $rootAnswers
+				        : $exists,
+		        )
 		;
 		$file = $this->createMock( File::class );
 		$file->method( 'getId' )
@@ -1355,6 +1366,9 @@ class HashCalculationServiceTest
 		;
 		$file->method( 'getMTime' )
 		     ->willReturn( 1000 )
+		;
+		$file->method( 'getEtag' )
+		     ->willReturn( 'read' )
 		;
 		$file->method( 'getInternalPath' )
 		     ->willReturn( 'files/gone.txt' )
@@ -1365,10 +1379,17 @@ class HashCalculationServiceTest
 		$this->filecacheService->method( 'getFile' )
 		                       ->willReturn( $file )
 		;
+		$this->filecacheService->method( 'etagOf' )
+		                       ->willReturn( $etagMoved ? 'written meanwhile' : 'read' )
+		;
 
+		$this->metadataService->expects( $exists || ! $rootAnswers ? $this->once() : $this->never() )
+		                      ->method( 'forgetAbsent' )
+		                      ->with( 42 )
+		;
 		$this->metadataService->expects( $kind === DrainOutcome::GONE ? $this->once() : $this->never() )
 		                      ->method( 'markGone' )
-		                      ->with( 42, $this->greaterThanOrEqual( 1000 ) )
+		                      ->with( 42, $this->greaterThanOrEqual( 1000 ), 'read' )
 		;
 
 		$outcome = $this->service->processFile( 42, 'missing', [ 'sha1' ] );
@@ -3361,17 +3382,20 @@ class HashCalculationServiceTest
 	}
 
 	/**
-	 * The file's failed reads, this one included, whether its storage has it,
-	 * and what the drain makes of it.
+	 * The storage's "not found" answers in a row, this one included; whether
+	 * it has the file; whether its root answers; whether the file's ETag
+	 * moved since the read; and what the drain makes of it.
 	 *
-	 * @return array<string, array{0: int, 1: bool, 2: string}>
+	 * @return array<string, array{0: int, 1: bool, 2: bool, 3: bool, 4: string}>
 	 */
 	public static function goneReads(): array
 	{
 		return [
-			'missing, first failed read'  => [ 1, false, DrainOutcome::FAILED ],
-			'missing, second failed read' => [ 2, false, DrainOutcome::GONE ],
-			'there, second failed read'   => [ 2, true, DrainOutcome::FAILED ],
+			'not found, the first time'          => [ 1, false, true, false, DrainOutcome::FAILED ],
+			'not found, twice in a row'          => [ 2, false, true, false, DrainOutcome::GONE ],
+			'there'                              => [ 2, true, true, false, DrainOutcome::FAILED ],
+			'not found, and the root neither'    => [ 2, false, false, false, DrainOutcome::FAILED ],
+			'not found twice, but written since' => [ 2, false, true, true, DrainOutcome::FAILED ],
 		];
 	}
 

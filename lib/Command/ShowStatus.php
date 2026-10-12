@@ -286,7 +286,7 @@ class ShowStatus
 			MetadataService::STATE_RESET => 'disowned by a reset; the background job clears them, '
 				. 'or an import replaces them first',
 			MetadataService::STATE_GONE => 'listed by the filecache, not on their storage; hashes dropped; '
-				. 'occ files:scan brings the filecache in line',
+				. 'occ files:scan brings the filecache in line where it can reach the file',
 			default => 'unknown reason',
 		};
 	}

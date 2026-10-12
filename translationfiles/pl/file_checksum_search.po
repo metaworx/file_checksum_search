@@ -691,8 +691,8 @@ msgstr "Nowa reguła"
 msgid "Next"
 msgstr "Następna"
 
-msgid "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line"
-msgstr "Nextcloud nadal ma plik na swojej liście, ale jego magazyn już go nie zawiera, więc jego sumy kontrolne zostały usunięte; skanowanie plików aktualizuje listę"
+msgid "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line where a scan can reach the file"
+msgstr "Nextcloud nadal ma plik na swojej liście, ale jego magazyn już go nie zawiera, więc jego sumy kontrolne zostały usunięte; skanowanie plików aktualizuje listę tam, gdzie dociera do pliku"
 
 msgid "No"
 msgstr "Nie"

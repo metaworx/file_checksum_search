@@ -94,9 +94,9 @@ wants them any more, gone from their storage though the filecache lists them,
 or failed. <info>-v</info> names each file it did not hash, and why; <info>-vv</info> names the
 hashed ones too.
 
-A file whose read fails twice while its storage says it does not have it leaves
-the queue as <comment>stale:gone</comment> rather than being tried for ever: <comment>occ files:scan</comment>
-brings the filecache in line, where it can reach the file.
+A file whose storage answers, on two failed reads in a row, that it does not have
+it leaves the queue as <comment>stale:gone</comment> rather than being tried for ever: <comment>occ files:scan</comment>
+brings the filecache in line, where it can reach the file; see the FAQ.
 
 This reads file content, which is why it is not one of <comment>fcias:repair</comment>'s steps:
 those reconcile what the instance already holds, and run on every upgrade.

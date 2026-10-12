@@ -209,7 +209,7 @@ OC.L10N.register(
     "Network error" : "Network error",
     "New rule" : "New rule",
     "Next" : "Next",
-    "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line" : "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line",
+    "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line where a scan can reach the file" : "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line where a scan can reach the file",
     "No" : "No",
     "No \"Include\" rule is enabled, so no file is hashed automatically. Enable the \"All home folders\" default in the table below, or add a rule. Recalculating by hand from the file sidebar still works." : "No \"Include\" rule is enabled, so no file is hashed automatically. Enable the \"All home folders\" default in the table below, or add a rule. Recalculating by hand from the file sidebar still works.",
     "No accounts or groups to show" : "No accounts or groups to show",

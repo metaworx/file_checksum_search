@@ -375,7 +375,8 @@ class MetadataServiceTest
 
 	public function testDroppingTheMarkLeavesNoStateRow(): void
 	{
-		$this->queryBuilder->expects( $this->once() )
+		// The state row, and the "not found" count that goes with the queue.
+		$this->queryBuilder->expects( $this->exactly( 2 ) )
 		                   ->method( 'delete' )
 		                   ->with( 'files_metadata_index' )
 		                   ->willReturnSelf()
@@ -467,7 +468,7 @@ class MetadataServiceTest
 
 		$this->service->markEroded( 42 );
 
-		$this->assertSame( 2, $deleted, 'the hash row, and the MIME type row' );
+		$this->assertSame( 3, $deleted, 'the hash row, the MIME type row, and the "not found" count' );
 		$this->assertSame(
 			[ [ 42, MetadataService::KEY_FILE_CHECKSUM_STATE, MetadataService::STATE_ERODED, 0 ] ],
 			$inserted->getArrayCopy(),

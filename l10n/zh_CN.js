@@ -209,7 +209,7 @@ OC.L10N.register(
     "Network error" : "网络错误",
     "New rule" : "新规则",
     "Next" : "下一页",
-    "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line" : "Nextcloud 仍列出该文件，但其存储中已没有该文件，因此其校验和已被删除；扫描文件即可让列表与存储重新一致",
+    "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line where a scan can reach the file" : "Nextcloud 仍列出该文件，但其存储中已没有该文件，因此其校验和已被删除；在扫描能到达该文件之处，扫描文件即可让列表与存储重新一致",
     "No" : "否",
     "No \"Include\" rule is enabled, so no file is hashed automatically. Enable the \"All home folders\" default in the table below, or add a rule. Recalculating by hand from the file sidebar still works." : "没有已启用的“包含”规则，因此不会自动对任何文件进行哈希计算。请启用下表中的“所有主目录”默认规则，或添加一条规则。从文件侧边栏手动重新计算仍然可用。",
     "No accounts or groups to show" : "没有可显示的账号或群组",

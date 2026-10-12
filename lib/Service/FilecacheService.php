@@ -654,7 +654,8 @@ class FilecacheService
 			return '(' . $sub->getSQL() . ')';
 		};
 
-		$qb->select( 'fc.fileid', 'fc.path', 'fc.mtime', 'st.id', 'mu.' . MetadataService::FIELD_META_VALUE_INT . ' AS updated_at' )
+		$qb->select( 'fc.fileid', 'fc.path', 'fc.mtime', 'fc.etag', 'st.id', 'mu.' . MetadataService::FIELD_META_VALUE_INT . ' AS updated_at' )
+		   ->selectAlias( 'mu.' . MetadataService::FIELD_META_VALUE_STRING, 'stamp_etag' )
 		   ->selectAlias( 'ms.' . MetadataService::FIELD_META_VALUE_STRING, 'state' )
 		   ->selectAlias( $qb->createFunction( $hashes() ), 'hashes' )
 		   ->from( 'filecache', 'fc' )
@@ -732,6 +733,22 @@ class FilecacheService
 						      $qb->expr()->isNull( 'ms.' . MetadataService::FIELD_META_VALUE_STRING ),
 						      $wanting,
 					      ),
+					   // Gone, and its ETag moved on since: a scan found it
+					   // changed. A gone stamp from before it carried the
+					   // ETag is tried once more.
+					   $qb->expr()
+					      ->andX(
+						      $qb->expr()->eq(
+							      'ms.' . MetadataService::FIELD_META_VALUE_STRING,
+							      $qb->createNamedParameter( MetadataService::STATE_GONE ),
+						      ),
+						      $qb->expr()->orX(
+							      $qb->expr()->isNull( 'mu.' . MetadataService::FIELD_META_VALUE_STRING ),
+							      $qb->expr()->eq( 'mu.' . MetadataService::FIELD_META_VALUE_STRING, $qb->createNamedParameter( '' ) ),
+							      $qb->expr()->isNull( 'fc.etag' ),
+							      $qb->expr()->neq( 'mu.' . MetadataService::FIELD_META_VALUE_STRING, 'fc.etag' ),
+						      ),
+					      ),
 				   ),
 				// A file queued already is the drain's: marked again, it
 				// would count toward the sweep's cap for nothing, and files
@@ -752,6 +769,11 @@ class FilecacheService
 
 		while ( ( $row = $result->fetchAssociative() ) !== false )
 		{
+			// A gone file whose ETag moved on, or that was marked gone before
+			// the mark carried one, is not settled: Reapply queues it too.
+			$goneAndBack = $row['state'] === MetadataService::STATE_GONE
+				&& ( (string) $row['stamp_etag'] === '' || $row['stamp_etag'] !== $row['etag'] );
+
 			$locations[] = FileLocation::fromRow(
 				(int) $row['fileid'],
 				(string) $row['id'],
@@ -761,7 +783,7 @@ class FilecacheService
 				$row['updated_at'] !== null
 					? (int) $row['updated_at']
 					: null,
-				(int) $row['hashes'] > 0 || $row['state'] !== null,
+				(int) $row['hashes'] > 0 || ( $row['state'] !== null && ! $goneAndBack ),
 				$keys === [] || $row['state'] !== null || (int) $row['held'] >= count( $keys ),
 			);
 		}
@@ -786,18 +808,41 @@ class FilecacheService
 		int $limit,
 	): array
 	{
+		// Not a file gone from its storage: its checksums describe content
+		// no longer there, and copied back they would be vouched for again.
 		$qb = $this->db->getQueryBuilder();
-		$qb->select( 'fileid', 'checksum', 'mtime', 'storage_mtime', 'etag' )
-		   ->from( 'filecache' )
+		$qb->select( 'fc.fileid', 'fc.checksum', 'fc.mtime', 'fc.storage_mtime', 'fc.etag' )
+		   ->from( 'filecache', 'fc' )
+		   ->leftJoin(
+			   'fc',
+			   MetadataService::TABLE_FILES_METADATA_INDEX,
+			   'ms',
+			   $qb->expr()
+			      ->andX(
+				      $qb->expr()->eq( 'ms.' . MetadataService::FIELD_FILE_ID, 'fc.fileid' ),
+				      $qb->expr()->eq(
+					      'ms.' . MetadataService::FIELD_META_KEY,
+					      $qb->createNamedParameter( MetadataService::KEY_FILE_CHECKSUM_STATE ),
+				      ),
+			      ),
+		   )
 		   ->where(
 			   $qb->expr()
-			      ->gt( 'fileid', $qb->createNamedParameter( $lastFileId, IQueryBuilder::PARAM_INT ) ),
+			      ->gt( 'fc.fileid', $qb->createNamedParameter( $lastFileId, IQueryBuilder::PARAM_INT ) ),
 			   $qb->expr()
-			      ->isNotNull( 'checksum' ),
+			      ->isNotNull( 'fc.checksum' ),
 			   $qb->expr()
-			      ->neq( 'checksum', $qb->createNamedParameter( '' ) ),
+			      ->neq( 'fc.checksum', $qb->createNamedParameter( '' ) ),
+			   $qb->expr()
+			      ->orX(
+				      $qb->expr()->isNull( 'ms.' . MetadataService::FIELD_META_VALUE_STRING ),
+				      $qb->expr()->neq(
+					      'ms.' . MetadataService::FIELD_META_VALUE_STRING,
+					      $qb->createNamedParameter( MetadataService::STATE_GONE ),
+				      ),
+			      ),
 		   )
-		   ->orderBy( 'fileid', 'ASC' )
+		   ->orderBy( 'fc.fileid', 'ASC' )
 		   ->setMaxResults( $limit )
 		;
 

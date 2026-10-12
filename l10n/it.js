@@ -209,7 +209,7 @@ OC.L10N.register(
     "Network error" : "Errore di rete",
     "New rule" : "Nuova regola",
     "Next" : "Successivo",
-    "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line" : "Nextcloud elenca ancora il file, ma la sua archiviazione non lo contiene più, quindi i suoi checksum sono stati eliminati; una scansione dei file riallinea l'elenco",
+    "Nextcloud still lists the file, and its storage no longer has it, so its checksums were deleted; scanning the files brings the list in line where a scan can reach the file" : "Nextcloud elenca ancora il file, ma la sua archiviazione non lo contiene più, quindi i suoi checksum sono stati eliminati; una scansione dei file riallinea l'elenco dove raggiunge il file",
     "No" : "No",
     "No \"Include\" rule is enabled, so no file is hashed automatically. Enable the \"All home folders\" default in the table below, or add a rule. Recalculating by hand from the file sidebar still works." : "Nessuna regola di tipo “Includi” è abilitata, quindi per nessun file vengono calcolati automaticamente gli hash. Abilita la regola predefinita “Tutte le cartelle home” nella tabella sottostante, oppure aggiungi una regola. Il ricalcolo manuale dalla barra laterale del file continua a funzionare.",
     "No accounts or groups to show" : "Nessun account o gruppo da mostrare",

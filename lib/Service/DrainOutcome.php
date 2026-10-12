@@ -95,7 +95,7 @@ readonly class DrainOutcome
 
 	public static function gone(): self
 	{
-		return new self( self::GONE, 'the filecache lists it, and its storage does not have it; `occ files:scan` brings the filecache in line' );
+		return new self( self::GONE, 'the filecache lists it, and its storage does not have it; `occ files:scan` brings the filecache in line where it can reach the file' );
 	}
 
 	public static function failed( string $reason ): self

@@ -16,6 +16,7 @@ use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\DrainOutcome;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
+use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
@@ -462,6 +463,10 @@ class HashStampTest
 		$this->assertSame( MetadataService::STATE_GONE, $this->metadataService->getMarker( $file->getId() ) );
 		$this->assertSame( [], $this->hashesOf( $file->getId() ) );
 		$this->assertSame( [], $this->hashRowsOf( $file->getId() ) );
+		$this->assertSame( [], Server::get( FilecacheService::class )->checksumsOf( $file->getId() ), 'Its checksum column emptied too.' );
+
+		Server::get( HashIndexService::class )->backfillFromFilecache();
+		$this->assertSame( [], $this->hashRowsOf( $file->getId() ), 'The backfill copies nothing back.' );
 
 		$this->ruleService->processRule( $rule );
 		$this->ruleService->applyRule( $rule );
@@ -621,6 +626,42 @@ class HashStampTest
 		;
 
 		$this->assertSame( 1, $this->ruleService->processRule( $rule )['marked'] );
+	}
+
+	/**
+	 * A gone mark carries the file's ETag, and the sweep leaves it while the
+	 * ETag stays; one made before the mark carried it is tried once more.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAGoneMarkWithoutAnEtagIsTriedOnceMore(): void
+	{
+		$file = $this->createTestFile( 'fcias_gone_etag', 'there, then not' );
+		$this->assertTrue( $this->hashCalc->recalcFileHash( $file, 'sha256' )['success'] );
+		$rule = $this->ruleFor( $file, MetadataService::PENDING_MODE_MISSING, [ 'sha256', 'md5' ] );
+		$this->metadataService->markPending( $file->getId(), MetadataService::PENDING_PREFIX . MetadataService::PENDING_MODE_MISSING );
+
+		$path = $file->getStorage()->getLocalFile( $file->getInternalPath() );
+		$this->assertIsString( $path );
+		$this->assertTrue( unlink( $path ) );
+
+		$this->hashCalc->processFile( $file->getId(), MetadataService::PENDING_MODE_MISSING );
+		$this->assertSame( DrainOutcome::GONE, $this->hashCalc->processFile( $file->getId(), MetadataService::PENDING_MODE_MISSING )->kind );
+
+		$this->ruleService->processRule( $rule );
+		$this->assertSame( MetadataService::STATE_GONE, $this->metadataService->getMarker( $file->getId() ), 'Its ETag stays: left alone.' );
+
+		// What 0.25.0 left: the gone stamp without an ETag.
+		$document = Server::get( IFilesMetadataManager::class )->getMetadata( $file->getId(), true );
+		$this->metadataService->stamp( $document, $document->getInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ), null );
+		$this->metadataService->saveMetadata( $document );
+
+		$this->ruleService->processRule( $rule );
+
+		$this->assertSame(
+			MetadataService::PENDING_PREFIX . MetadataService::PENDING_MODE_MISSING,
+			$this->metadataService->getMarker( $file->getId() ),
+		);
 	}
 
 	/**
