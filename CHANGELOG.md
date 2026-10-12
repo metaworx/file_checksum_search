@@ -53,7 +53,7 @@ the first stable release.
 ### Fixed
 
 - `README.md`, *Modes*: `auto` rules hash files without checksums. The
-  first sweep after upgrading queues every such file.
+  sweeps after upgrading queue them, up to 100 per rule and run.
 
 - `docs/FAQ.md`, *Files the filecache lists and the storage does not
   have*: a queued file missing from its storage leaves the queue, and
