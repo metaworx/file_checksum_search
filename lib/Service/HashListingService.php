@@ -395,18 +395,8 @@ class HashListingService
 				continue;
 			}
 
-			$seen = $views === null
-				? null
-				: $this->reach->seenThrough( $views, $row['storage'], $row['path'], ! $canonical );
-			$path = $seen['path'] ?? $location->relativePath;
-
-			$files[] = [
-				'fileid'   => $row['fileid'],
-				'path'     => $path,
-				'name'     => substr( $path, (int) strrpos( $path, '/' ) + 1 ),
-				'owner'    => $location->owner,
-				'location' => $seen['share'] ?? $location->describe(),
-			] + ( $withStat ? self::stat( $row, false, null ) : [] );
+			$files[] = $this->placeOf( $row, $location, $views, $canonical )
+			           + ( $withStat ? self::stat( $row, false, null ) : [] );
 		}
 
 		return [
@@ -483,16 +473,6 @@ class HashListingService
 			$fileId   = $row['fileid'];
 			$location = $locations[ $fileId ];
 
-			// The first account in reach that holds the file names it, and
-			// where it holds it through a share, the share is its location:
-			// nothing of the sharer's above it. With no account named, the
-			// owner's view; a file nobody owns, its path in the area
-			// `location` names.
-			$seen = $views === null
-				? null
-				: $this->reach->seenThrough( $views, $row['storage'], $row['path'], ! $canonical );
-			$path = $seen['path'] ?? $location->relativePath ?? '/' . $row['path'];
-
 			$byAlgo = [];
 
 			foreach ( $hashes[ $fileId ] ?? [] as $name => $hash )
@@ -508,13 +488,8 @@ class HashListingService
 				: null;
 			$current = $state === null || $state['vouched'];
 
-			$entries[] = [
-				'fileid'   => $fileId,
-				'path'     => $path,
-				'name'     => substr( $path, (int) strrpos( $path, '/' ) + 1 ),
-				'owner'    => $location->owner,
-				'location' => $seen['share'] ?? $location->describe(),
-			] + ( $withLocalPath ? [ 'localPath' => $localPaths[ $fileId ] ?? null ] : [] ) + [
+			$entries[] = $this->placeOf( $row, $location, $views, $canonical )
+			             + ( $withLocalPath ? [ 'localPath' => $localPaths[ $fileId ] ?? null ] : [] ) + [
 				'updated_at' => $current ? self::stamp( $row['updated_at'] ) : null,
 				'hashes'     => $current ? $byAlgo : null,
 			] + ( $withMimeType ? [ 'mimetype' => $current ? $mimeTypes[ $fileId ] ?? null : null ] : [] )
@@ -522,5 +497,41 @@ class HashListingService
 		}
 
 		return $entries;
+	}
+
+	/**
+	 * Where a file is, as both listings give it: `fileid`, `path`, `name`,
+	 * `owner` and `location`.
+	 *
+	 * The first account in reach that holds the file names it, and where it
+	 * holds it through a share, the share is its location: nothing of the
+	 * sharer's above it — unless read canonically, as a sudoer reads. With
+	 * no account named, the owner's view; a file nobody owns, its path in
+	 * the area `location` names.
+	 *
+	 * @param  array{fileid: int, storage: int, path: string, ...}                                                    $row
+	 * @param  list<array{uid: string, storage: int, root: string, prefix: string, rootId: int, shared: bool}>|null $views
+	 *
+	 * @return array{fileid: int, path: string, name: string, owner: ?string, location: string}
+	 */
+	private function placeOf(
+		array        $row,
+		FileLocation $location,
+		?array       $views,
+		bool         $canonical,
+	): array
+	{
+		$seen = $views === null
+			? null
+			: $this->reach->seenThrough( $views, $row['storage'], $row['path'], ! $canonical );
+		$path = $seen['path'] ?? $location->relativePath ?? '/' . $row['path'];
+
+		return [
+			'fileid'   => $row['fileid'],
+			'path'     => $path,
+			'name'     => substr( $path, (int) strrpos( $path, '/' ) + 1 ),
+			'owner'    => $location->owner,
+			'location' => $seen['share'] ?? $location->describe(),
+		];
 	}
 }

@@ -1905,19 +1905,7 @@ class MetadataService
 		bool          $withDisowned = false,
 	): string
 	{
-		$hash = $this->db->getQueryBuilder();
-		$hash->select( $hash->func()->count( '*' ) )
-		     ->from( self::TABLE_FILES_METADATA_INDEX, 'h' )
-		     ->where(
-			     $hash->expr()
-			          ->eq( 'h.' . self::FIELD_FILE_ID, 'u.' . self::FIELD_FILE_ID ),
-			     $algo !== null
-				     ? $hash->expr()
-				            ->eq( 'h.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::getHashKey( $algo ) ) )
-				     : $hash->expr()
-				            ->like( 'h.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
-		     )
-		;
+		$hash = self::hashRowCount( $this->db, $qb, 'u.' . self::FIELD_FILE_ID, $algo );
 
 		// A hash row written at or after it: hashes added or changed since.
 		// A row written before rows carried their time holds 0, and no
@@ -2072,6 +2060,37 @@ class MetadataService
 			                      ->eq( $stamp . '.' . self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( '' ) ),
 		                   )
 		;
+	}
+
+	/**
+	 * A count of a file's hash rows — of $algo, where one is named — as a
+	 * subquery on the file id in $fileIdColumn, for the listing and for the
+	 * missing files alike. Counted rather than asked for with `EXISTS`,
+	 * which MariaDB rewrites into a join against every hash row of the
+	 * instance. Its parameters are bound on $qb, the outer query.
+	 */
+	public static function hashRowCount(
+		IDBConnection $db,
+		IQueryBuilder $qb,
+		string        $fileIdColumn,
+		?string       $algo,
+	): IQueryBuilder
+	{
+		$hash = $db->getQueryBuilder();
+		$hash->select( $hash->func()->count( '*' ) )
+		     ->from( self::TABLE_FILES_METADATA_INDEX, 'h' )
+		     ->where(
+			     $hash->expr()
+			          ->eq( 'h.' . self::FIELD_FILE_ID, $fileIdColumn ),
+			     $algo !== null
+				     ? $hash->expr()
+				            ->eq( 'h.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::getHashKey( $algo ) ) )
+				     : $hash->expr()
+				            ->like( 'h.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_LIKE ) ),
+		     )
+		;
+
+		return $hash;
 	}
 
 	/**
@@ -2666,6 +2685,11 @@ class MetadataService
 		string ...$like,
 	): int
 	{
+		if ( $like === [] )
+		{
+			return $this->unsetSelfIndexed( $fileId, self::KEY_FILE_CHECKSUM_STATE );
+		}
+
 		$qb = $this->db->getQueryBuilder();
 		$qb->delete( self::TABLE_FILES_METADATA_INDEX )
 		   ->where(
@@ -2673,25 +2697,19 @@ class MetadataService
 			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
 			   $qb->expr()
 			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_STATE ) ),
+			   $qb->expr()
+			      ->orX(
+				      ...array_map(
+					      static fn( string $pattern ) => $qb->expr()
+					                                         ->like(
+						                                         self::FIELD_META_VALUE_STRING,
+						                                         $qb->createNamedParameter( $pattern ),
+					                                         ),
+					      $like,
+				      ),
+			      ),
 		   )
 		;
-
-		if ( $like !== [] )
-		{
-			$qb->andWhere(
-				$qb->expr()
-				   ->orX(
-					   ...array_map(
-						   static fn( string $pattern ) => $qb->expr()
-						                                      ->like(
-							                                      self::FIELD_META_VALUE_STRING,
-							                                      $qb->createNamedParameter( $pattern ),
-						                                      ),
-						   $like,
-					   ),
-				   ),
-			);
-		}
 
 		return $this->executeStatement( $qb );
 	}
@@ -3733,22 +3751,16 @@ class MetadataService
 	): array
 	{
 		$qb = $this->db->getQueryBuilder();
-		$qb->select( self::FIELD_FILE_ID )
-		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		$qb->select( 'u.' . self::FIELD_FILE_ID )
+		   ->from( self::TABLE_FILES_METADATA_INDEX, 'u' )
 		   ->where(
 			   $qb->expr()
-			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			      ->eq( 'u.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			   $this->withoutEtag( $qb, 'u' ),
 			   $qb->expr()
-			      ->orX(
-				      $qb->expr()
-				         ->isNull( self::FIELD_META_VALUE_STRING ),
-				      $qb->expr()
-				         ->eq( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( '' ) ),
-			      ),
-			   $qb->expr()
-			      ->gt( self::FIELD_FILE_ID, $qb->createNamedParameter( $afterFileId, IQueryBuilder::PARAM_INT ) ),
+			      ->gt( 'u.' . self::FIELD_FILE_ID, $qb->createNamedParameter( $afterFileId, IQueryBuilder::PARAM_INT ) ),
 		   )
-		   ->orderBy( self::FIELD_FILE_ID, 'ASC' )
+		   ->orderBy( 'u.' . self::FIELD_FILE_ID, 'ASC' )
 		   ->setMaxResults( $limit )
 		;
 

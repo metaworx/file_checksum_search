@@ -14,6 +14,7 @@ use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\DB\QueryBuilder\IQueryBuilder;
+use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\IAppConfig;
@@ -413,6 +414,21 @@ abstract class DatabaseTestCase
 	protected function getRawConnection(): Connection
 	{
 		return $this->db->getInner();
+	}
+
+	/**
+	 * What a write the app missed leaves: the filecache's ETag moved on.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	protected function etagMovesOn( File $file ): void
+	{
+		$this->getRawConnection()
+		     ->executeStatement(
+			     'UPDATE `*PREFIX*filecache` SET `etag` = ? WHERE `fileid` = ?',
+			     [ 'moved' . bin2hex( random_bytes( 4 ) ), $file->getId() ],
+		     )
+		;
 	}
 
 	/**

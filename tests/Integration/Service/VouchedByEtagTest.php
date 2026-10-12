@@ -335,21 +335,6 @@ class VouchedByEtagTest
 	}
 
 	/**
-	 * What a write the app missed leaves: the filecache's ETag moved on.
-	 *
-	 * @noinspection PhpUnhandledExceptionInspection
-	 */
-	private function etagMovesOn( File $file ): void
-	{
-		$this->getRawConnection()
-		     ->executeStatement(
-			     'UPDATE `*PREFIX*filecache` SET `etag` = ? WHERE `fileid` = ?',
-			     [ 'moved' . bin2hex( random_bytes( 4 ) ), $file->getId() ],
-		     )
-		;
-	}
-
-	/**
 	 * A change the app never heard of, with the mtime kept: new content on
 	 * the storage, written past Nextcloud's view and its events, and the
 	 * filecache's ETag and size moved on, as a scan records them.

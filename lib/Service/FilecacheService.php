@@ -879,34 +879,15 @@ class FilecacheService
 
 	/**
 	 * What the filecache holds of a file's present state: its ETag, its
-	 * mtime and its storage's own mtime, in seconds; null for a file it
-	 * does not have.
+	 * size, its mtime and its storage's own mtime, in seconds; null for a
+	 * file it does not have. {@see statesOf()} for one file.
 	 *
-	 * @return array{etag: string, mtime: int, storageMtime: int}|null
+	 * @return array{etag: string, size: int, mtime: int, storageMtime: int}|null
 	 * @throws \OCP\DB\Exception
 	 */
 	public function stateOf( int $fileId ): ?array
 	{
-		$qb = $this->db->getQueryBuilder();
-		$qb->select( 'etag', 'mtime', 'storage_mtime' )
-		   ->from( 'filecache' )
-		   ->where(
-			   $qb->expr()
-			      ->eq( 'fileid', $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
-		   )
-		;
-
-		$result = $qb->executeQuery();
-		$row    = $result->fetchAssociative();
-		$result->closeCursor();
-
-		return $row === false
-			? null
-			: [
-				'etag'         => (string) $row['etag'],
-				'mtime'        => (int) $row['mtime'],
-				'storageMtime' => (int) $row['storage_mtime'],
-			];
+		return $this->statesOf( [ $fileId ] )[ $fileId ] ?? null;
 	}
 
 	/**
@@ -1324,24 +1305,8 @@ class FilecacheService
 		int     $limit,
 	): array
 	{
-		$hash = $this->db->getQueryBuilder();
-		$hash->select( $hash->func()->count( '*' ) )
-		     ->from( MetadataService::TABLE_FILES_METADATA_INDEX, 'h' )
-		     ->where(
-			     $hash->expr()
-			          ->eq( 'h.' . MetadataService::FIELD_FILE_ID, 'fc.fileid' ),
-		     )
-		;
-
-		$qb = $this->db->getQueryBuilder();
-
-		$hash->andWhere(
-			$algo !== null
-				? $hash->expr()
-				       ->eq( 'h.' . MetadataService::FIELD_META_KEY, $qb->createNamedParameter( MetadataService::getHashKey( $algo ) ) )
-				: $hash->expr()
-				       ->like( 'h.' . MetadataService::FIELD_META_KEY, $qb->createNamedParameter( MetadataService::KEY_FILE_CHECKSUM_LIKE ) ),
-		);
+		$qb   = $this->db->getQueryBuilder();
+		$hash = MetadataService::hashRowCount( $this->db, $qb, 'fc.fileid', $algo );
 
 		// Counted rather than asked for with `NOT EXISTS`, as the listing
 		// counts its hash rows: MariaDB materialises an EXISTS against every

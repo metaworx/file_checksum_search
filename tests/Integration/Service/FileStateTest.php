@@ -300,19 +300,6 @@ class FileStateTest
 	}
 
 	/**
-	 * @noinspection PhpUnhandledExceptionInspection
-	 */
-	private function etagMovesOn( File $file ): void
-	{
-		$this->getRawConnection()
-		     ->executeStatement(
-			     'UPDATE `*PREFIX*filecache` SET `etag` = ? WHERE `fileid` = ?',
-			     [ 'moved' . bin2hex( random_bytes( 4 ) ), $file->getId() ],
-		     )
-		;
-	}
-
-	/**
 	 * The file's listing entry, or null where the listing does not give it.
 	 *
 	 * @return array<string, mixed>|null
