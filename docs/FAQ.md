@@ -535,8 +535,9 @@ reading:
   queues, gives each stamp the ETag its checksums were read against, and the
   *Changed file check*, which rides the sweep once a day
   (`stamp_check_interval`, seconds), takes the checksums of files changed
-  without the app hearing of it out of search until they are computed again;
-  it waits while the ETag check is under way. These work a slice per cron run
+  without the app hearing of it out of search until they are computed again,
+  and queues a file marked gone that its storage has again; it waits while
+  the ETag check is under way. These work a slice per cron run
   and say whether they are finished. The *Rule reapplication* is a
   rule's **Reapply**. The *Queue drain* says how many of the files it took it
   hashed, how many it dropped unread because no include rule wants them any
@@ -580,7 +581,8 @@ checksum column too, the *Untrusted checksums* cell counts it as *Gone*,
 `fcias:queue:drain -v` names it, and the sweep and Reapply leave it alone. A
 write to the file queues it again, and so does a scan that finds it changed.
 One put back under its old mtime looks unchanged to the scan, as it does to
-Nextcloud, and stays gone until it is written to. Two answers rather than one,
+Nextcloud: the daily *Changed file check* asks the storage about each gone
+file, and queues one it has again. Two answers rather than one,
 because a remote storage can answer "no such file" for a moment and mean
 nothing by it; and the storage's root has to answer, since one that cannot be
 reached can say a file is not there. A storage held down, a busy file or a

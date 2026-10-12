@@ -317,6 +317,7 @@ Once a rule is enabled, six paths lead to a hash:
 4. **The changed-file check.** Once a day — `stamp_check_interval`, in seconds, default 86400 — the
    sweep queues a walk over the files whose ETag moved on since their hashes were read, and treats
    each as written: a change the app never heard of, with the mtime kept, which the sweep cannot see.
+   The same walk asks the storage about each file marked gone, and queues one it has again.
 5. **An explicit pass.** `occ file-checksum-search:rules:apply <id>`, or **Reapply** in the rules
    table, queues every file that rule currently governs — uncapped, where the periodic sweep
    trickles.
@@ -588,8 +589,9 @@ that failed — counts its attempt without being read, until Nextcloud tries the
 A file the filecache lists and its storage no longer has — deleted on disk behind Nextcloud's
 back, or left in the filecache below a folder whose own row is gone — leaves the queue as
 `stale:gone`, its hashes dropped, when two failed reads in a row find its storage answering and
-the file not there: the sweep leaves it alone unless a scan finds it changed, a write queues it again, and
-`occ files:scan` brings the filecache in line where it can reach the file
+the file not there: the sweep leaves it alone, the daily changed-file check queues it once its
+storage has it again, so does a write, and `occ files:scan` brings the filecache in line where it
+can reach the file
 ([FAQ › Files the filecache lists and the storage does not have](docs/FAQ.md#files-the-filecache-lists-and-the-storage-does-not-have)).
 
 The drain, and the app's other jobs, can run outside Nextcloud's cron, at a lower priority: see

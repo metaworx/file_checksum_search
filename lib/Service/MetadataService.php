@@ -1377,9 +1377,10 @@ class MetadataService
 	 * $stamp and the file's ETag: a state the sweep and Reapply take for
 	 * fresh while the ETag stays, so neither queues the file again while the
 	 * filecache keeps its row; one whose ETag a scan moved on, they queue. A
-	 * scan keeps the ETag of a file whose storage mtime it finds unchanged,
-	 * so one put back under its old mtime stays gone. The state replaces the
-	 * queue mark. A
+	 * scan keeps the ETag of a file whose storage mtime it finds unchanged:
+	 * one put back under its old mtime the daily walk finds, asking the
+	 * storage ({@see RuleService::queueChangedAfter()}). The state replaces
+	 * the queue mark. A
 	 * write to the file, or a calculation that reads it, ends it; the orphan
 	 * purge takes it with the filecache row.
 	 *
@@ -2303,6 +2304,41 @@ class MetadataService
 			   ->gt( 'u.' . self::FIELD_FILE_ID, $qb->createNamedParameter( $afterFileId, IQueryBuilder::PARAM_INT ) ),
 		)
 		   ->orderBy( 'u.' . self::FIELD_FILE_ID, 'ASC' )
+		   ->setMaxResults( $limit )
+		;
+
+		$result  = $this->executeQuery( $qb );
+		$fileIds = array_values( array_unique( array_map( intval( ... ), $result->fetchFirstColumn() ) ) );
+		$result->closeCursor();
+
+		return $fileIds;
+	}
+
+	/**
+	 * Files marked gone from their storage, by file id, from the file after
+	 * $afterFileId: what the daily walk asks the storage about again
+	 * ({@see RuleService::queueChangedAfter()}).
+	 *
+	 * @return list<int>
+	 * @throws Exception
+	 */
+	public function fetchGoneFileIds(
+		int $afterFileId,
+		int $limit = 500,
+	): array
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( self::FIELD_FILE_ID )
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_STATE ) ),
+			   $qb->expr()
+			      ->eq( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( self::STATE_GONE ) ),
+			   $qb->expr()
+			      ->gt( self::FIELD_FILE_ID, $qb->createNamedParameter( $afterFileId, IQueryBuilder::PARAM_INT ) ),
+		   )
+		   ->orderBy( self::FIELD_FILE_ID, 'ASC' )
 		   ->setMaxResults( $limit )
 		;
 

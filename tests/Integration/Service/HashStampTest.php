@@ -629,6 +629,44 @@ class HashStampTest
 	}
 
 	/**
+	 * A gone file put back under its old mtime — a remount, a restore — is
+	 * one a scan takes for unchanged, its ETag kept: the daily walk asks the
+	 * storage about each gone file, and queues one it has again.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheDailyWalkQueuesAGoneFileFoundAgain(): void
+	{
+		$file = $this->createTestFile( 'fcias_gone_back', 'there, then not, then back' );
+		$this->assertTrue( $this->hashCalc->recalcFileHash( $file, 'sha256' )['success'] );
+		$this->ruleFor( $file, MetadataService::PENDING_MODE_MISSING, [ 'sha256', 'md5' ] );
+		$this->metadataService->markPending( $file->getId(), MetadataService::PENDING_PREFIX . MetadataService::PENDING_MODE_MISSING );
+
+		$path  = $file->getStorage()->getLocalFile( $file->getInternalPath() );
+		$mtime = $file->getMTime();
+		$this->assertIsString( $path );
+		$this->assertTrue( unlink( $path ) );
+
+		$this->hashCalc->processFile( $file->getId(), MetadataService::PENDING_MODE_MISSING );
+		$this->assertSame( DrainOutcome::GONE, $this->hashCalc->processFile( $file->getId(), MetadataService::PENDING_MODE_MISSING )->kind );
+
+		$walked = $this->ruleService->queueChangedAfter( $file->getId() - 1, 1, static fn(): bool => false );
+		$this->assertSame( 0, $walked['queued'], 'Still not there: left gone.' );
+		$this->assertSame( MetadataService::STATE_GONE, $this->metadataService->getMarker( $file->getId() ) );
+
+		file_put_contents( $path, 'back, under its old mtime' );
+		touch( $path, $mtime );
+
+		$walked = $this->ruleService->queueChangedAfter( $file->getId() - 1, 1, static fn(): bool => false );
+
+		$this->assertSame( 1, $walked['queued'] );
+		$this->assertSame(
+			MetadataService::PENDING_PREFIX . MetadataService::PENDING_MODE_MISSING,
+			$this->metadataService->getMarker( $file->getId() ),
+		);
+	}
+
+	/**
 	 * A gone mark carries the file's ETag, and the sweep leaves it while the
 	 * ETag stays; one made before the mark carried it is tried once more.
 	 *

@@ -33,7 +33,8 @@ use Throwable;
  *   documents ({@see MetadataService::adoptEtagsAfter()}).
  * - {@see WALK_FILECACHE}: treats as written the files whose stamp no
  *   longer vouches for their hashes, the filecache's ETag having moved on
- *   without the app hearing of a write ({@see RuleService::queueChangedAfter()}).
+ *   without the app hearing of a write, and queues a file marked gone that
+ *   its storage has again ({@see RuleService::queueChangedAfter()}).
  *   Queued once a day by {@see RuleProcessingJob}.
  *
  * Each keeps its work out of the request that queues it. Each run

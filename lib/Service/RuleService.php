@@ -990,6 +990,49 @@ class RuleService
 	}
 
 	/**
+	 * A file marked gone, asked about again: where its storage has it — put
+	 * back under its old mtime, which a scan takes for unchanged and keeps
+	 * the ETag of — it is queued in its rule's mode, or, with no rule that
+	 * maintains it, its mark dropped.
+	 *
+	 * @return string|null  'queued', or null for nothing queued.
+	 * @throws \OCP\DB\Exception
+	 */
+	private function foundAgain(
+		int    $fileId,
+		?array $rule,
+	): ?string
+	{
+		try
+		{
+			$file = $this->filecacheService->getFile( $fileId );
+		}
+		catch ( Throwable )
+		{
+			// Its filecache row is gone too: the orphan purge's.
+			return null;
+		}
+
+		if ( ! $file->getStorage()->file_exists( $file->getInternalPath() ) )
+		{
+			return null;
+		}
+
+		$mode = self::queueModeOf( $rule );
+
+		$this->metadataService->markPending(
+			$fileId,
+			$mode === null
+				? ''
+				: MetadataService::PENDING_PREFIX . $mode,
+		);
+
+		return $mode === null
+			? null
+			: 'queued';
+	}
+
+	/**
 	 * The mode its rule queues a file in ({@see queueModeOf()}): `auto` for
 	 * a file no rule maintains, which the drain then drops, its outdated
 	 * hashes eroded.
@@ -1003,11 +1046,14 @@ class RuleService
 
 	/**
 	 * Treat as written each listed file whose stamp no longer vouches for
-	 * its hashes ({@see contentChanged()}), a page at a time, from the file
-	 * after $after until $continue answers false after a page.
+	 * its hashes ({@see contentChanged()}), and ask the storage again about
+	 * each file marked gone ({@see foundAgain()}), a page at a time, from
+	 * the file after $after until $continue answers false after a page.
 	 *
 	 * A file treated leaves the set the walk reads: its hashes are out of
-	 * the index until computed again, against the ETag then.
+	 * the index until computed again, against the ETag then. The two sets
+	 * are read in file id order, merged, so that one cursor keeps the place
+	 * in both.
 	 *
 	 * @param  callable|null  $continue  `fn(): bool`, asked after each page.
 	 *
@@ -1028,7 +1074,10 @@ class RuleService
 
 		while ( true )
 		{
-			$fileIds = $this->metadataService->fetchUnvouchedFileIds( $lastId, $pageSize );
+			$gone    = $this->metadataService->fetchGoneFileIds( $lastId, $pageSize );
+			$fileIds = array_values( array_unique( [ ...$this->metadataService->fetchUnvouchedFileIds( $lastId, $pageSize ), ...$gone ] ) );
+			sort( $fileIds );
+			$fileIds = array_slice( $fileIds, 0, $pageSize );
 
 			if ( $fileIds === [] )
 			{
@@ -1040,12 +1089,15 @@ class RuleService
 
 			$lastId = $fileIds[ array_key_last( $fileIds ) ];
 			$rules  = $this->governingRulesForFileIds( $fileIds );
+			$gone   = array_flip( $gone );
 
 			foreach ( $fileIds as $fileId )
 			{
 				try
 				{
-					$outcome = $this->changedUnder( $fileId, $rules[ $fileId ] ?? null );
+					$outcome = isset( $gone[ $fileId ] )
+						? $this->foundAgain( $fileId, $rules[ $fileId ] ?? null )
+						: $this->changedUnder( $fileId, $rules[ $fileId ] ?? null );
 				}
 				catch ( Throwable $e )
 				{
