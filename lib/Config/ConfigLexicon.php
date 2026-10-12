@@ -145,6 +145,14 @@ class ConfigLexicon
 				flags: IAppConfig::FLAG_INTERNAL,
 			),
 			new Entry(
+				key: 'stamp_check_etag_after',
+				type: ValueType::INT,
+				defaultRaw: 0,
+				definition: 'Where the queued walk that gives stamps their ETag resumes: the last file id it read. Absent until the walk starts; the job clears it when it has read everything.',
+				lazy: false,
+				flags: IAppConfig::FLAG_INTERNAL,
+			),
+			new Entry(
 				key: 'orphan_purge_interval',
 				type: ValueType::INT,
 				defaultRaw: 86400,

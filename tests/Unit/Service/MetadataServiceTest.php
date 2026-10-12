@@ -169,8 +169,8 @@ class MetadataServiceTest
 
 	public function testRegisterInitializesAllAlgoKeys(): void
 	{
-		// Every algorithm's key, the MIME type's and the stamp's.
-		$expectedCalls = count( array_values( array_unique( array_merge( MetadataService::LEGACY_ALGOS, $this->catalogue->algorithms() ) ) ) ) + 2;
+		// Every algorithm's key, the MIME type's, the stamp's and the ETag's.
+		$expectedCalls = count( array_values( array_unique( array_merge( MetadataService::LEGACY_ALGOS, $this->catalogue->algorithms() ) ) ) ) + 3;
 
 		$this->metadataManager->expects( $this->exactly( $expectedCalls ) )
 		                      ->method( 'initMetadata' )
@@ -207,7 +207,11 @@ class MetadataServiceTest
 		$this->assertContains( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $registeredKeys );
 	}
 
-	public function testClearMetadataMarksUpdatedAtAsIndexed(): void
+	/**
+	 * Stamped 0, unindexed: the stamp row is this app's, and Nextcloud's
+	 * rewrite of it would drop the ETag beside the stamp.
+	 */
+	public function testClearMetadataStampsZeroUnindexed(): void
 	{
 		$metadata = $this->createMock( IFilesMetadata::class );
 
@@ -219,7 +223,7 @@ class MetadataServiceTest
 
 		$metadata->expects( $this->once() )
 		         ->method( 'setInt' )
-		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, 0, true )
+		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, 0, false )
 		         ->willReturnSelf()
 		;
 
@@ -396,17 +400,21 @@ class MetadataServiceTest
 		;
 		$metadata->expects( $this->once() )
 		         ->method( 'setInt' )
-		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, 0, true )
+		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, 0, false )
+		;
+		$metadata->method( 'getFileId' )
+		         ->willReturn( 42 )
 		;
 		$this->metadataManager->expects( $this->once() )
 		                      ->method( 'saveMetadata' )
 		                      ->with( $metadata )
 		;
 
-		// Two things follow the save: the marker, in its own row, and the
-		// deletion of the hash rows, because the hash keys are *not* indexed
-		// by Nextcloud any more — nothing else would remove them, and the
-		// file would keep answering searches by hashes it no longer has.
+		// What follows the save: the stamp row, already 0; the marker, in its
+		// own row; and the deletion of the hash and MIME type rows, because
+		// those keys are *not* indexed by Nextcloud — nothing else would
+		// remove them, and the file would keep answering searches by hashes
+		// it no longer has.
 		$deleted = 0;
 		$this->queryBuilder->method( 'delete' )
 		                   ->willReturnCallback(
@@ -433,11 +441,12 @@ class MetadataServiceTest
 		                   ->willReturn( 1 )
 		;
 
-		// The file's one hash row, as the index holds it, no MIME type row,
-		// and its stamp row.
+		// Its stamp row, the file's one hash row, as the index holds it, and
+		// no state row; the stamp row exists.
 		$result = $this->createMock( IResult::class );
 		$result->method( 'fetchAllAssociative' )
 		       ->willReturnOnConsecutiveCalls(
+			       self::stampRow( 0 ),
 			       [
 				       [
 					       'id'                                     => 7,
@@ -457,7 +466,7 @@ class MetadataServiceTest
 
 		$this->service->markEroded( 42 );
 
-		$this->assertSame( 2, $deleted, 'the hash row, and the state row the marker replaces' );
+		$this->assertSame( 2, $deleted, 'the hash row, and the MIME type row' );
 		$this->assertSame(
 			[ [ 42, MetadataService::KEY_FILE_CHECKSUM_STATE, MetadataService::STATE_ERODED, 0 ] ],
 			$inserted->getArrayCopy(),
@@ -494,7 +503,7 @@ class MetadataServiceTest
 		;
 		$metadata->expects( $this->once() )
 		         ->method( 'setInt' )
-		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, 1700000000, true )
+		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, 1700000000, false )
 		;
 		$this->metadataManager->expects( $this->once() )
 		                      ->method( 'saveMetadata' )
@@ -1395,7 +1404,8 @@ class MetadataServiceTest
 		$metadata->method( 'getKeys' )
 		         ->willReturn( $keys )
 		;
-		$metadata->expects( $this->exactly( count( $keys ) ) )
+		// Each hash, and the ETag the stamp row is written with.
+		$metadata->expects( $this->exactly( count( $keys ) + 1 ) )
 		         ->method( 'getString' )
 		         ->willReturn( 'dummyhash' )
 		;
@@ -1514,6 +1524,7 @@ class MetadataServiceTest
 		$result = $this->createMock( IResult::class );
 		$result->method( 'fetchAllAssociative' )
 		       ->willReturnOnConsecutiveCalls(
+			       self::stampRow( 2000 ),
 			       [
 				       [
 					       'id'                                     => 7,
@@ -1563,6 +1574,7 @@ class MetadataServiceTest
 		$result = $this->createMock( IResult::class );
 		$result->method( 'fetchAllAssociative' )
 		       ->willReturnOnConsecutiveCalls(
+			       self::stampRow( 2000 ),
 			       [
 				       [
 					       'id'                                     => 7,
@@ -1617,11 +1629,12 @@ class MetadataServiceTest
 		                       ->method( 'setHashes' )
 		;
 
-		// The row the hash had while it was current, and the MIME type's row
-		// it had too.
+		// Its stamp row, already 0; the row the hash had while it was
+		// current; the MIME type's row it had too goes by its key.
 		$result = $this->createMock( IResult::class );
 		$result->method( 'fetchAllAssociative' )
 		       ->willReturnOnConsecutiveCalls(
+			       self::stampRow( 0, str_repeat( 'a', 40 ) ),
 			       [
 				       [
 					       'id'                                     => 7,
@@ -3423,13 +3436,17 @@ class MetadataServiceTest
 		         ->willReturnCallback(
 			         static fn(
 				         string $key,
-			         ): string => $key === MetadataService::KEY_FILE_CHECKSUM_MIMETYPE
-				         ? $mimeType
-				         : str_repeat( 'a', 40 ),
+			         ): string => match ( $key )
+			         {
+				         MetadataService::KEY_FILE_CHECKSUM_MIMETYPE => $mimeType,
+				         MetadataService::KEY_FILE_CHECKSUM_ETAG     => '',
+				         default                                     => str_repeat( 'a', 40 ),
+			         },
 		         )
 		;
 
-		// Stamped after the file's last change: current.
+		// Stamped after the file's last change: current; its stamp row says
+		// so ({@see stampRow()}).
 		$metadata->method( 'getInt' )
 		         ->willReturn( 2000 )
 		;
@@ -3441,6 +3458,26 @@ class MetadataServiceTest
 		;
 
 		return $metadata;
+	}
+
+	/**
+	 * A stamp row as the index holds it: what a save reads first, before it
+	 * writes the row from the document ({@see MetadataService::syncStampRow()}).
+	 *
+	 * @return list<array<string, int|string|null>>
+	 */
+	private static function stampRow(
+		int     $stamp,
+		?string $etag = null,
+	): array
+	{
+		return [
+			[
+				'id'                                     => 6,
+				MetadataService::FIELD_META_VALUE_STRING => $etag,
+				MetadataService::FIELD_META_VALUE_INT    => $stamp,
+			],
+		];
 	}
 
 	private function captureInsertedRows(): ArrayObject

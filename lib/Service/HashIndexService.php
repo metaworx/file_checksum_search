@@ -207,7 +207,7 @@ class HashIndexService
 					continue;
 				}
 
-				$added = $this->metadataService->backfillHashes( $fileId, $parsed, $row['mtime'] );
+				$added = $this->metadataService->backfillHashes( $fileId, $parsed, $row['mtime'], $row['etag'] );
 
 				if ( $added > 0 )
 				{

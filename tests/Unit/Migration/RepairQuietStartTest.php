@@ -84,9 +84,13 @@ class RepairQuietStartTest
 
 		$this->setUpQueryBuilderMock();
 
-		// Nothing to stamp, unless a test says otherwise.
+		// Nothing to stamp, and no stamp without its ETag, unless a test says
+		// otherwise.
 		$this->metadataService->method( 'stampUnstampedAfter' )
 		                      ->willReturn( [ 'stamped' => 0, 'queued' => 0, 'last' => 0, 'done' => true ] )
+		;
+		$this->metadataService->method( 'adoptEtagsAfter' )
+		                      ->willReturn( [ 'adopted' => 0, 'queued' => 0, 'last' => 0, 'done' => true ] )
 		;
 
 		$this->step = new RepairQuietStart(
@@ -459,7 +463,7 @@ class RepairQuietStartTest
 
 		$queued = array_values( array_filter( $lines, static fn ( string $l ): bool => str_contains( $l, 'queued' ) ) );
 
-		$this->assertCount( 3, $queued, 'the copy, the stamping and the check' );
+		$this->assertCount( 4, $queued, 'the copy, the stamping, the ETags and the check' );
 
 		foreach ( $queued as $line )
 		{
@@ -832,6 +836,7 @@ class RepairQuietStartTest
 				'rebuild-from-filecache',
 				'key-namespace',
 				'missing-stamps',
+				'etag-stamp',
 				'rebuild-from-metadata',
 				'unindexed-hashes',
 				'clear-disowned',

@@ -1092,10 +1092,11 @@ class HashCalculationServiceTest
 		         } )
 		;
 
-		$metadata->expects( $this->once() )
-		         ->method( 'setInt' )
-		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $this->anything(), true )
-		         ->willReturnSelf()
+		// Stamped through the one way a stamp is set, which saves it
+		// unindexed; the ETag stays the one the read stamped.
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'stamp' )
+		                      ->with( $metadata, $this->anything() )
 		;
 
 		$this->metadataService->expects( $this->once() )
@@ -1367,10 +1368,11 @@ class HashCalculationServiceTest
 		         ->willReturnSelf()
 		;
 
-		$metadata->expects( $this->once() )
-		         ->method( 'setInt' )
-		         ->with( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $this->anything(), true )
-		         ->willReturnSelf()
+		// Stamped through the one way a stamp is set, which saves it
+		// unindexed; the ETag stays the one the read stamped.
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'stamp' )
+		                      ->with( $metadata, $this->anything() )
 		;
 
 		$this->metadataService->expects( $this->once() )
@@ -2199,23 +2201,21 @@ class HashCalculationServiceTest
 		;
 
 		$stamps = [];
-		$metadata->method( 'setInt' )
-		         ->willReturnCallback(
-			         function(
-				         string $key,
-				         int    $value,
-			         ) use
-			         (
-				         &
-				         $stamps,
-				         $metadata,
-			         ): IFilesMetadata
-			         {
-				         $stamps[ $key ] = $value;
-
-				         return $metadata;
-			         },
-		         )
+		$this->metadataService->method( 'stamp' )
+		                      ->willReturnCallback(
+			                      static function(
+				                      IFilesMetadata $stamped,
+				                      int            $time,
+				                      mixed          $etag = null,
+			                      ) use
+			                      (
+				                      &
+				                      $stamps,
+			                      ): void
+			                      {
+				                      $stamps[] = [ $time, $etag ];
+			                      },
+		                      )
 		;
 
 		$this->filecacheService->method( 'getChecksums' )
@@ -2236,9 +2236,10 @@ class HashCalculationServiceTest
 		}
 
 		$this->assertTrue( $result['results']['sha1']['success'] );
-		$this->assertArrayHasKey( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $stamps );
-		$this->assertGreaterThanOrEqual( $before, $stamps[ MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ] );
-		$this->assertLessThanOrEqual( time(), $stamps[ MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ] );
+		$this->assertCount( 1, $stamps );
+		$this->assertGreaterThanOrEqual( $before, $stamps[0][0] );
+		$this->assertLessThanOrEqual( time(), $stamps[0][0] );
+		$this->assertSame( $file->getEtag(), $stamps[0][1], 'against the ETag the read began with' );
 	}
 
 	/**

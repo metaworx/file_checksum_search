@@ -388,7 +388,7 @@ class RepairQuietStart
 	#[RepairStep(
 		name: 'metadata-keys',
 		title: 'Restate which metadata keys Nextcloud may index',
-		description: 'Tells Nextcloud that this app indexes its own hash values. Without it, Nextcloud writes the whole hash into a varchar(63) column, the insert fails for SHA-256 and longer, and it records that as a log line rather than an error — so no index row is written and those hashes cannot be found. Cheap, and safe to run at any time.',
+		description: 'Tells Nextcloud that this app indexes its own hash values, MIME types and stamps. Without it, Nextcloud writes the whole hash into a varchar(63) column, the insert fails for SHA-256 and longer, and it records that as a log line rather than an error — so no index row is written and those hashes cannot be found. Cheap, and safe to run at any time.',
 		expensive: false,
 	)]
 	private function reregisterMetadataKeys( IOutput $output ): void
@@ -722,6 +722,91 @@ class RepairQuietStart
 				$next = time() + self::PROGRESS_EVERY;
 			}
 		};
+	}
+
+	/**
+	 * Give the stamps their ETag, and the documents their stamp unindexed.
+	 *
+	 * Hashes stamped before the app kept the ETag they were read against
+	 * carry none, and their stamp rows were Nextcloud's, rewritten from the
+	 * documents on any app's save. Each such file gets the ETag the
+	 * filecache holds where adoption lets it — the filecache's checksum
+	 * column still holding its hashes, or a stamp no older than its
+	 * storage's mtime — or is queued to have its hashes computed again; its
+	 * document is saved with the stamp unindexed, and its row written from
+	 * it ({@see MetadataService::adoptEtag()}). After the stamps, so that a
+	 * named run finds them.
+	 *
+	 * It reads every document whose stamp has no ETag, so a whole repair
+	 * only queues {@see StampCheck}.
+	 *
+	 * @noinspection PhpUnusedPrivateMethodInspection  Invoked through its attribute.
+	 */
+	#[RepairStep(
+		name: 'etag-stamp',
+		title: 'Give the stamps the ETag their hashes were read against',
+		description: 'Gives every file whose stamp carries no ETag the one the filecache holds, where its checksum column still holds the file\'s hashes or the stamp is no older than the storage\'s own mtime; otherwise queues the file to have its hashes computed again. Saves each such metadata document with the stamp unindexed, so that Nextcloud no longer rewrites its row. Reads no file content. A whole repair, as installing, enabling or upgrading the app runs, queues the work for the background jobs; named here, it runs at once.',
+		expensive: true,
+	)]
+	private function adoptEtags( IOutput $output ): void
+	{
+		$named = $this->only !== null && in_array( 'etag-stamp', $this->only, true );
+
+		if ( ! $named && ! $this->includeExpensive )
+		{
+			$output->info(
+				( StampCheck::queue( $this->jobList, $this->appConfig, StampCheck::WALK_ETAG )
+					? 'FCIAS: queued giving the stamps their ETag for the background jobs'
+					: 'FCIAS: giving the stamps their ETag is already queued' )
+				. self::WHERE_TO_WATCH,
+			);
+
+			return;
+		}
+
+		try
+		{
+			$output->info( 'FCIAS: giving the stamps their ETag.' );
+
+			$verbose = $output instanceof VerboseOutput ? $output : null;
+			$result  = $this->metadataService->adoptEtagsAfter(
+				onFile: static function(
+					int              $fileId,
+					string|Throwable $outcome,
+				) use
+				(
+					$output,
+					$verbose,
+				): void
+				{
+					if ( $outcome instanceof Throwable )
+					{
+						$output->warning( sprintf( 'FCIAS: could not give the stamp of file %d its ETag: %s', $fileId, $outcome->getMessage() ) );
+
+						return;
+					}
+
+					$verbose?->line(
+						VerboseOutput::VERY_VERBOSE,
+						$outcome === MetadataService::ETAG_QUEUED
+							? sprintf( 'FCIAS: file %d: hashes outdated, queued.', $fileId )
+							: sprintf( 'FCIAS: file %d: ETag given.', $fileId ),
+					);
+				},
+			);
+
+			$output->info(
+				sprintf(
+					'FCIAS: gave the stamps of %d files their ETag; %d went back on the queue to be computed again.',
+					$result['adopted'],
+					$result['queued'],
+				),
+			);
+		}
+		catch ( Throwable $e )
+		{
+			$this->warn( $output, 'could not give the stamps their ETag', $e );
+		}
 	}
 
 	/**

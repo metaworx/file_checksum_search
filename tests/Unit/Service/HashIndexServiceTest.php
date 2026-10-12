@@ -298,16 +298,19 @@ class HashIndexServiceTest
 					                       5 => [
 						                       'checksum' => 'SHA1:dead MD5:cafe',
 						                       'mtime'    => 100,
+						                       'etag'     => 'e5',
 					                       ],
 					                       9 => [
 						                       'checksum' => 'SHA1:beef',
 						                       'mtime'    => 200,
+						                       'etag'     => 'e9',
 					                       ],
 				                       ],
 				                       9 => [
 					                       12 => [
 						                       'checksum' => 'garbage-without-colon',
 						                       'mtime'    => 300,
+						                       'etag'     => 'e12',
 					                       ],
 				                       ],
 				                       default => [],
@@ -382,7 +385,7 @@ class HashIndexServiceTest
 			                       {
 				                       $asked[] = $lastFileId;
 
-				                       return [ $lastFileId + 1 => [ 'checksum' => 'SHA1:dead', 'mtime' => 100 ] ];
+				                       return [ $lastFileId + 1 => [ 'checksum' => 'SHA1:dead', 'mtime' => 100, 'etag' => 'e' ] ];
 			                       },
 		                       )
 		;
@@ -419,6 +422,7 @@ class HashIndexServiceTest
 					                       5 => [
 						                       'checksum' => 'SHA1:dead',
 						                       'mtime'    => 100,
+						                       'etag'     => 'e5',
 					                       ],
 				                       ]
 				                       : [],

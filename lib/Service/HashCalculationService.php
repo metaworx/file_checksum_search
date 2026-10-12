@@ -840,7 +840,9 @@ class HashCalculationService
 				return $failure;
 			}
 
-			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $stamp, true );
+			// The ETag the read was against, which recalcHashes() stamped;
+			// kept as it is where nothing was missing to read.
+			$this->metadataService->stamp( $metadata, $stamp );
 			$done = DrainOutcome::hashed();
 
 			break;
@@ -873,7 +875,7 @@ class HashCalculationService
 				$done = DrainOutcome::hashed();
 			}
 
-			$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, $stamp, true );
+			$this->metadataService->stamp( $metadata, $stamp );
 
 			break;
 
@@ -1350,7 +1352,9 @@ class HashCalculationService
 			}
 			else
 			{
-				$metadata->setInt( MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT, max( $started, $mtime ), true );
+				// The ETag before the read, which the filecache still holds
+				// after it: the content the hashes describe.
+				$this->metadataService->stamp( $metadata, max( $started, $mtime ), $etag );
 
 				// Content read and no answer is no type, rather than the type
 				// of the content as it was.

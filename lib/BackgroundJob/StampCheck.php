@@ -20,18 +20,22 @@ use Psr\Log\LoggerInterface;
 use Throwable;
 
 /**
- * Gives every file whose hashes carry no stamp one, a slice per cron run.
+ * Walks the files' stamps a slice per cron run, one of two walks.
  *
- * A recalculation used to save hashes without `file-checksum-updated_at`:
- * only the queue stamped. Such a file counts as never hashed, and a single
- * `occ fcias:hash` run could leave tens of thousands of them. The stamp is
- * {@see MetadataService::stampUnstampedAfter()}'s to decide; this keeps the
- * work out of the request that upgrades the app.
+ * - {@see WALK_UNSTAMPED}: gives every file whose hashes carry no stamp one.
+ *   A recalculation used to save hashes without `file-checksum-updated_at`:
+ *   only the queue stamped. Such a file counts as never hashed, and a single
+ *   `occ fcias:hash` run could leave tens of thousands of them. The stamp
+ *   is {@see MetadataService::stampUnstampedAfter()}'s to decide.
+ * - {@see WALK_ETAG}: gives the stamps without an ETag the one their hashes
+ *   were read against, where adoption lets it, and their rows back from the
+ *   documents ({@see MetadataService::adoptEtagsAfter()}).
  *
- * Each run walks until {@see TIME_BUDGET} seconds have passed, keeps its
- * place in {@see CURSOR}, and queues itself again; the last one clears the
- * cursor. Stamping a file takes it out of the set the walk reads, so a run
- * cut short repeats nothing.
+ * Either keeps the work out of the request that upgrades the app. Each run
+ * walks until {@see TIME_BUDGET} seconds have passed, keeps its place in
+ * the walk's cursor, and queues itself again; the last one clears the
+ * cursor. A file the walk fixes leaves the set it reads, so a run cut short
+ * repeats nothing.
  */
 class StampCheck
     extends
@@ -40,8 +44,17 @@ class StampCheck
 
 //  constants
 
-	/** App config key: the last file id the walk read; absent until it starts. */
+	/** App config key: the last file id the unstamped walk read; absent until it starts. */
 	public const CURSOR = 'stamp_check_after';
+
+	/** App config key: the last file id the ETag walk read; absent until it starts. */
+	public const CURSOR_ETAG = 'stamp_check_etag_after';
+
+	/** The walk over hashes without a stamp; the job's argument is null. */
+	public const WALK_UNSTAMPED = 'unstamped';
+
+	/** The walk over stamps without an ETag. */
+	public const WALK_ETAG = 'etag';
 
 	/** Seconds one run spends walking before it hands over to the next. */
 	public const TIME_BUDGET = 30;
@@ -70,54 +83,95 @@ class StampCheck
 	/**
 	 * Queue a walk from the start, unless one is already queued.
 	 *
+	 * @param  string  $walk  {@see WALK_UNSTAMPED} or {@see WALK_ETAG}.
+	 *
 	 * @return bool  Whether this call queued it; false when a walk was
 	 *               already waiting, which keeps its place.
 	 */
 	public static function queue(
 		IJobList   $jobList,
 		IAppConfig $appConfig,
+		string     $walk = self::WALK_UNSTAMPED,
 	): bool
 	{
-		if ( $jobList->has( self::class, null ) )
+		$argument = self::argumentOf( $walk );
+
+		if ( $jobList->has( self::class, $argument ) )
 		{
 			return false;
 		}
 
-		$appConfig->deleteKey( Application::APP_ID, self::CURSOR );
-		$jobList->add( self::class );
+		$appConfig->deleteKey( Application::APP_ID, self::cursorOf( $walk ) );
+		$jobList->add( self::class, $argument );
 
 		return true;
+	}
+
+	/**
+	 * The job's argument for a walk: none for the unstamped walk, as before
+	 * there were two, so that a walk queued then is still found.
+	 *
+	 * @return array{walk: string}|null
+	 */
+	private static function argumentOf( string $walk ): ?array
+	{
+		return $walk === self::WALK_ETAG
+			? [ 'walk' => self::WALK_ETAG ]
+			: null;
+	}
+
+	private static function cursorOf( string $walk ): string
+	{
+		return $walk === self::WALK_ETAG
+			? self::CURSOR_ETAG
+			: self::CURSOR;
 	}
 
 
 //  config/init/exe/run methods
 
 	/**
-	 * @param  mixed  $argument  Unused; the place is kept in app config.
+	 * @param  mixed  $argument  Which walk ({@see argumentOf()}); the place
+	 *                           is kept in app config.
 	 */
 	#[\Override]
 	protected function run( $argument ): void
 	{
-		$after    = $this->appConfig->getValueInt( Application::APP_ID, self::CURSOR, 0 );
+		$walk     = is_array( $argument ) && ( $argument['walk'] ?? null ) === self::WALK_ETAG
+			? self::WALK_ETAG
+			: self::WALK_UNSTAMPED;
+		$cursor   = self::cursorOf( $walk );
+		$after    = $this->appConfig->getValueInt( Application::APP_ID, $cursor, 0 );
 		$deadline = $this->time->getTime() + self::TIME_BUDGET;
 		$started  = hrtime( true );
+		$continue = fn(): bool => $this->time->getTime() < $deadline;
 
 		try
 		{
-			$result = $this->metadataService->stampUnstampedAfter(
-				$after,
-				self::PAGE_SIZE,
-				fn (): bool => $this->time->getTime() < $deadline,
-			);
+			if ( $walk === self::WALK_ETAG )
+			{
+				$adopted = $this->metadataService->adoptEtagsAfter( $after, self::PAGE_SIZE, $continue );
+				$result  = [
+					'stamped' => $adopted['adopted'],
+					'queued'  => $adopted['queued'],
+					'last'    => $adopted['last'],
+					'done'    => $adopted['done'],
+				];
+			}
+			else
+			{
+				$result = $this->metadataService->stampUnstampedAfter( $after, self::PAGE_SIZE, $continue );
+			}
 		}
 		catch ( Throwable $e )
 		{
 			// The cursor stays where it was: the next repair queues the walk
 			// again, and it carries on from there.
 			$this->logger->error(
-				'FCIAS StampCheck: the walk stopped after file {after}',
+				'FCIAS StampCheck: the {walk} walk stopped after file {after}',
 				[
 					'app'       => Application::APP_ID,
+					'walk'      => $walk,
 					'after'     => $after,
 					'exception' => $e,
 				],
@@ -134,12 +188,12 @@ class StampCheck
 
 		if ( $result['done'] )
 		{
-			$this->appConfig->deleteKey( Application::APP_ID, self::CURSOR );
+			$this->appConfig->deleteKey( Application::APP_ID, $cursor );
 		}
 		else
 		{
-			$this->appConfig->setValueInt( Application::APP_ID, self::CURSOR, $result['last'] );
-			$this->jobList->add( self::class );
+			$this->appConfig->setValueInt( Application::APP_ID, $cursor, $result['last'] );
+			$this->jobList->add( self::class, self::argumentOf( $walk ) );
 		}
 
 		$this->jobStats->record(
@@ -155,14 +209,19 @@ class StampCheck
 		);
 
 		$this->logger->info(
-			'FCIAS StampCheck: stamped the hashes of {stamped} files, {queued} of them queued to be computed again{rest}',
+			$walk === self::WALK_ETAG
+				? 'FCIAS StampCheck: gave the stamps of {stamped} files their ETag, and queued {queued} to be computed again{rest}'
+				: 'FCIAS StampCheck: stamped the hashes of {stamped} files, {queued} of them queued to be computed again{rest}',
 			[
 				'app'     => Application::APP_ID,
 				'stamped' => $result['stamped'],
 				'queued'  => $result['queued'],
-				'rest'    => $result['done']
-					? '; every stored hash carries a stamp'
-					: sprintf( ', up to file %d; continuing on the next run', $result['last'] ),
+				'rest'    => match ( true )
+				{
+					! $result['done']           => sprintf( ', up to file %d; continuing on the next run', $result['last'] ),
+					$walk === self::WALK_ETAG   => '; every stamp that can carry an ETag does',
+					default                     => '; every stored hash carries a stamp',
+				},
 			],
 		);
 	}

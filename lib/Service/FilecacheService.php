@@ -761,7 +761,7 @@ class FilecacheService
 	 * sweep over a large instance never re-reads or skips rows regardless of
 	 * concurrent inserts.
 	 *
-	 * @return array<int, array{checksum: string, mtime: int}>  Keyed by fileid
+	 * @return array<int, array{checksum: string, mtime: int, etag: string}>  Keyed by fileid
 	 * @throws \OCP\DB\Exception
 	 */
 	public function pageFileidChecksums(
@@ -770,7 +770,7 @@ class FilecacheService
 	): array
 	{
 		$qb = $this->db->getQueryBuilder();
-		$qb->select( 'fileid', 'checksum', 'mtime' )
+		$qb->select( 'fileid', 'checksum', 'mtime', 'etag' )
 		   ->from( 'filecache' )
 		   ->where(
 			   $qb->expr()
@@ -792,6 +792,7 @@ class FilecacheService
 			$rows[ (int) $row['fileid'] ] = [
 				'checksum' => (string) $row['checksum'],
 				'mtime'    => (int) $row['mtime'],
+				'etag'     => (string) $row['etag'],
 			];
 		}
 
@@ -873,6 +874,38 @@ class FilecacheService
 		return $etag === false || $etag === null
 			? null
 			: (string) $etag;
+	}
+
+	/**
+	 * What the filecache holds of a file's present state: its ETag, its
+	 * mtime and its storage's own mtime, in seconds; null for a file it
+	 * does not have.
+	 *
+	 * @return array{etag: string, mtime: int, storageMtime: int}|null
+	 * @throws \OCP\DB\Exception
+	 */
+	public function stateOf( int $fileId ): ?array
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( 'etag', 'mtime', 'storage_mtime' )
+		   ->from( 'filecache' )
+		   ->where(
+			   $qb->expr()
+			      ->eq( 'fileid', $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+		   )
+		;
+
+		$result = $qb->executeQuery();
+		$row    = $result->fetchAssociative();
+		$result->closeCursor();
+
+		return $row === false
+			? null
+			: [
+				'etag'         => (string) $row['etag'],
+				'mtime'        => (int) $row['mtime'],
+				'storageMtime' => (int) $row['storage_mtime'],
+			];
 	}
 
 	/**

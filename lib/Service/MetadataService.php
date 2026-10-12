@@ -60,8 +60,24 @@ class MetadataService
 	 */
 	public const KEY_FILE_CHECKSUM_HASH_PREFIX = self::KEY_FILE_CHECKSUM_PREFIX . 'hash-';
 
-	public const KEY_FILE_CHECKSUM_LIKE       = self::KEY_FILE_CHECKSUM_HASH_PREFIX . '%';
+	public const KEY_FILE_CHECKSUM_LIKE = self::KEY_FILE_CHECKSUM_HASH_PREFIX . '%';
+
+	/**
+	 * The stamp: when a file's hashes were last vouched for, 0 for not.
+	 *
+	 * Its index row is this app's ({@see syncStampRow()}): the stamp in the
+	 * int, and in the string the ETag the hashes were computed against.
+	 * Saved unindexed, so that Nextcloud, which rewrites an indexed key's
+	 * row from the document on any app's save, leaves the ETag alone.
+	 */
 	public const KEY_FILE_CHECKSUM_UPDATED_AT = 'file-checksum-updated_at';
+
+	/**
+	 * The ETag the file had when its hashes were read, as the filecache
+	 * holds it; absent where nobody read them against one ({@see stamp()}).
+	 * In the document, so that the stamp row can be rebuilt from it.
+	 */
+	public const KEY_FILE_CHECKSUM_ETAG = 'file-checksum-etag';
 
 	/**
 	 * A file's marker — `pending:<mode>`, or `stale:<reason>` — in an index
@@ -173,6 +189,15 @@ class MetadataService
 
 	/** A half of an index row {@see setSelfIndexed()} is to leave as it is. */
 	public const UNCHANGED = Unchanged::Unchanged;
+
+	/** {@see adoptEtag()}: the stamp given the ETag the filecache holds. */
+	public const ETAG_ADOPTED = 'adopted';
+
+	/** {@see adoptEtag()}: the hashes outdated, and the file queued again. */
+	public const ETAG_QUEUED = 'queued';
+
+	/** {@see adoptEtag()}: nothing to read an ETag against; none given. */
+	public const ETAG_KEPT = 'kept';
 
 	/**
 	 * How many times {@see register()} restates the declarations before
@@ -419,6 +444,108 @@ class MetadataService
 	}
 
 	/**
+	 * The ETag a document's hashes were computed against, or null where they
+	 * were not computed against one ({@see stamp()}).
+	 */
+	public function getEtag( IFilesMetadata $metadata ): ?string
+	{
+		try
+		{
+			$etag = $metadata->getString( self::KEY_FILE_CHECKSUM_ETAG );
+		}
+		catch ( FilesMetadataNotFoundException|FilesMetadataTypeException )
+		{
+			return null;
+		}
+
+		return $etag === ''
+			? null
+			: $etag;
+	}
+
+	/**
+	 * Stamp a document: when its hashes were vouched for, and the ETag they
+	 * were computed against.
+	 *
+	 * The one way the stamp is set. Both keys are saved unindexed: the
+	 * stamp's row is this app's, written after the save
+	 * ({@see syncStampRow()}), and Nextcloud, which rewrites an indexed
+	 * key's row from the document on any app's save, would drop the ETag in
+	 * its string half. Not saved here.
+	 *
+	 * @param  Unchanged|string|null  $etag  The file's ETag as the hashes were
+	 *                                       read; null for none — hashes from
+	 *                                       elsewhere, or a stamp of 0;
+	 *                                       {@see UNCHANGED} keeps the one
+	 *                                       there, for a stamp moved over
+	 *                                       hashes not read again.
+	 */
+	public function stamp(
+		IFilesMetadata        $metadata,
+		int                   $time,
+		Unchanged|string|null $etag = self::UNCHANGED,
+	): void
+	{
+		$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, $time, false );
+
+		if ( $etag instanceof Unchanged )
+		{
+			return;
+		}
+
+		if ( $etag === null || $etag === '' )
+		{
+			$metadata->unset( self::KEY_FILE_CHECKSUM_ETAG );
+
+			return;
+		}
+
+		$metadata->setString( self::KEY_FILE_CHECKSUM_ETAG, $etag, false );
+	}
+
+	/**
+	 * Write a file's stamp row from its document: the stamp in the int, the
+	 * ETag in the string ({@see stamp()}).
+	 *
+	 * After every save of a document this app writes: Nextcloud no longer
+	 * writes the row, and leaves it alone. A document without a stamp leaves
+	 * the row as it is — a queued file's row of 0 has none behind it.
+	 *
+	 * @return bool  Whether the row was written.
+	 * @throws Exception
+	 */
+	public function syncStampRow( IFilesMetadata $metadata ): bool
+	{
+		try
+		{
+			$stamp = $metadata->getInt( self::KEY_FILE_CHECKSUM_UPDATED_AT );
+		}
+		catch ( FilesMetadataNotFoundException|FilesMetadataTypeException )
+		{
+			return false;
+		}
+
+		return $this->setSelfIndexed(
+			$metadata->getFileId(),
+			self::KEY_FILE_CHECKSUM_UPDATED_AT,
+			$this->getEtag( $metadata ),
+			$stamp,
+		);
+	}
+
+	/**
+	 * Save a document through Nextcloud, then its stamp row.
+	 *
+	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
+	 * @throws Exception
+	 */
+	private function saveDocument( IFilesMetadata $metadata ): void
+	{
+		$this->metadataManager->saveMetadata( $metadata );
+		$this->syncStampRow( $metadata );
+	}
+
+	/**
 	 * A file's marker: what it is queued for (`pending:<mode>`) or why its
 	 * hashes are not trusted (`stale:…`). Null where there is none.
 	 *
@@ -530,11 +657,11 @@ class MetadataService
 		}
 
 		$metadata->removeStartsWith( self::KEY_FILE_CHECKSUM_PREFIX );
-		$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, 0, true );
+		$this->stamp( $metadata, 0, null );
 
 		if ( $save )
 		{
-			$this->metadataManager->saveMetadata( $metadata );
+			$this->saveDocument( $metadata );
 
 			// Saving does not remove index rows for keys the metadata
 			// document no longer has: it upserts what is present and leaves
@@ -605,7 +732,7 @@ class MetadataService
 			return;
 		}
 
-		$this->metadataManager->saveMetadata( $metadata );
+		$this->saveDocument( $metadata );
 
 		$this->pruneAllIndexRows( $fileId );
 	}
@@ -1187,8 +1314,8 @@ class MetadataService
 	{
 		$metadata = $this->getMetadata( $fileId );
 		$metadata->removeStartsWith( self::KEY_FILE_CHECKSUM_PREFIX );
-		$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, 0, true );
-		$this->metadataManager->saveMetadata( $metadata );
+		$this->stamp( $metadata, 0, null );
+		$this->saveDocument( $metadata );
 
 		// The metadata document has no hashes now, so neither may the
 		// index: these keys are not indexed by Nextcloud, so nothing else
@@ -1222,8 +1349,8 @@ class MetadataService
 	{
 		$metadata = $this->getMetadata( $fileId );
 		$metadata->removeStartsWith( self::KEY_FILE_CHECKSUM_PREFIX );
-		$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, $stamp, true );
-		$this->metadataManager->saveMetadata( $metadata );
+		$this->stamp( $metadata, $stamp, null );
+		$this->saveDocument( $metadata );
 
 		$this->syncHashIndex( $fileId, [] );
 		$this->syncMimeTypeRow( $fileId, null );
@@ -2310,10 +2437,17 @@ class MetadataService
 			   ->where(
 				   $qb->expr()
 				      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
-				   // At least one character: '' is no marker, and on Oracle
-				   // it is NULL besides.
+				   // A marker's shapes alone: the string half holds the ETag
+				   // the hashes were read against now ({@see syncStampRow()}).
 				   $qb->expr()
-				      ->like( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( '_%' ) ),
+				      ->orX(
+					      $qb->expr()
+					         ->like( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( self::PENDING_LIKE ) ),
+					      $qb->expr()
+					         ->like( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( self::STALE_LIKE ) ),
+					      $qb->expr()
+					         ->eq( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( self::LEGACY_STATE_ERODED ) ),
+				      ),
 				   $qb->expr()
 				      ->gt( self::FIELD_FILE_ID, $qb->createNamedParameter( $lastId, IQueryBuilder::PARAM_INT ) ),
 			   )
@@ -2490,17 +2624,23 @@ class MetadataService
 			return $report;
 		}
 
-		if ( $stamp !== null )
+		if ( $stamp === null )
 		{
-			$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, $stamp, true );
-		}
-		elseif ( ! $metadata->hasKey( self::KEY_FILE_CHECKSUM_UPDATED_AT ) )
-		{
-			$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, 0, true );
+			try
+			{
+				$stamp = $metadata->getInt( self::KEY_FILE_CHECKSUM_UPDATED_AT );
+			}
+			catch ( FilesMetadataNotFoundException|FilesMetadataTypeException )
+			{
+				$stamp = 0;
+			}
 		}
 
+		// No ETag: nobody read the imported hashes against this file's.
+		$this->stamp( $metadata, $stamp, null );
+
 		$hashes = $this->getHashes( $metadata );
-		$this->metadataManager->saveMetadata( $metadata );
+		$this->saveDocument( $metadata );
 
 		if ( ! $this->isCurrent( $metadata, $mtime ) )
 		{
@@ -3244,6 +3384,218 @@ class MetadataService
 	}
 
 	/**
+	 * Stamp rows without an ETag, by file id: what the `etag-stamp` walk
+	 * reads ({@see adoptEtag()}).
+	 *
+	 * A row written before this app took the stamp over carries none, nor
+	 * does one Nextcloud rewrote since from a document still flagged
+	 * indexed, nor one wiped. Neither does the row of a file whose hashes
+	 * nobody read against an ETag — a stamp of 0, a file with no hashes —
+	 * which the walk reads again each time, and leaves as it is.
+	 *
+	 * @return list<int>
+	 * @throws Exception
+	 */
+	public function fetchEtaglessStampIds(
+		int $afterFileId,
+		int $limit = 500,
+	): array
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( self::FIELD_FILE_ID )
+		   ->from( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			   $qb->expr()
+			      ->orX(
+				      $qb->expr()
+				         ->isNull( self::FIELD_META_VALUE_STRING ),
+				      $qb->expr()
+				         ->eq( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( '' ) ),
+			      ),
+			   $qb->expr()
+			      ->gt( self::FIELD_FILE_ID, $qb->createNamedParameter( $afterFileId, IQueryBuilder::PARAM_INT ) ),
+		   )
+		   ->orderBy( self::FIELD_FILE_ID, 'ASC' )
+		   ->setMaxResults( $limit )
+		;
+
+		$result  = $this->executeQuery( $qb );
+		$fileIds = array_values( array_unique( array_map( intval( ... ), $result->fetchFirstColumn() ) ) );
+		$result->closeCursor();
+
+		return $fileIds;
+	}
+
+	/**
+	 * Give a file's stamp the ETag its hashes were read against, where the
+	 * rules of adoption let it, and its document the stamp unindexed.
+	 *
+	 * Hashes stamped before the app kept ETags were read against one nobody
+	 * wrote down. The filecache's checksum column vouches for them where it
+	 * still holds each, as Nextcloud empties it when the content changes;
+	 * failing that, a stamp at least as new as the storage's own mtime does.
+	 * Either way they are given the ETag the filecache holds now. Where
+	 * neither does, the hashes are outdated and queued again.
+	 *
+	 * A document already holding an ETag gets its row back from it. A stamp
+	 * of 0, or one older than the file's mtime, vouches for nothing to read
+	 * an ETag against, and keeps none. Every document walked is saved with
+	 * the stamp unindexed, so that Nextcloud stops rewriting the row.
+	 *
+	 * @return string|null  {@see ETAG_ADOPTED}, {@see ETAG_QUEUED} or
+	 *                      {@see ETAG_KEPT}; null for a file the walk
+	 *                      leaves alone — no stamp in its document, or gone
+	 *                      from the filecache, which is the orphan purge's.
+	 * @throws Exception
+	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
+	 */
+	public function adoptEtag( int $fileId ): ?string
+	{
+		$metadata = $this->getMetadata( $fileId );
+
+		try
+		{
+			$stamp = $metadata->getInt( self::KEY_FILE_CHECKSUM_UPDATED_AT );
+		}
+		catch ( FilesMetadataNotFoundException|FilesMetadataTypeException )
+		{
+			return null;
+		}
+
+		$etag   = $this->getEtag( $metadata );
+		$hashes = $this->getHashes( $metadata );
+
+		if ( $etag === null && $stamp > 0 && $hashes !== [] )
+		{
+			$state = $this->filecacheService->stateOf( $fileId );
+
+			if ( $state === null )
+			{
+				return null;
+			}
+
+			if ( $stamp >= $state['mtime'] )
+			{
+				if ( ! $this->filecacheVouchesFor( $fileId, $hashes ) && $stamp < $state['storageMtime'] )
+				{
+					$this->markOutdated( $fileId, self::PENDING_MODE_AUTO );
+
+					return self::ETAG_QUEUED;
+				}
+
+				$etag = $state['etag'];
+			}
+		}
+
+		$this->stamp( $metadata, $stamp, $etag );
+		$this->saveDocument( $metadata );
+
+		return $etag === null
+			? self::ETAG_KEPT
+			: self::ETAG_ADOPTED;
+	}
+
+	/**
+	 * Walk the stamp rows without an ETag, a page at a time, from the file
+	 * after $after until $continue answers false after a page
+	 * ({@see adoptEtag()}).
+	 *
+	 * @param  callable|null  $continue  `fn(): bool`, asked after each page.
+	 * @param  callable|null  $onFile    `fn(int $fileId, string|Throwable $outcome): void`,
+	 *                                   told of each file the walk changed,
+	 *                                   or of why it could not.
+	 *
+	 * @return array{adopted: int, queued: int, last: int, done: bool}  Files
+	 *         given an ETag, files queued again, the last file id read, and
+	 *         whether the walk reached the end.
+	 * @throws Exception
+	 */
+	public function adoptEtagsAfter(
+		int       $after = 0,
+		int       $pageSize = 500,
+		?callable $continue = null,
+		?callable $onFile = null,
+	): array
+	{
+		$lastId  = $after;
+		$adopted = 0;
+		$queued  = 0;
+
+		while ( true )
+		{
+			$fileIds = $this->fetchEtaglessStampIds( $lastId, $pageSize );
+
+			if ( $fileIds === [] )
+			{
+				return [
+					'adopted' => $adopted,
+					'queued'  => $queued,
+					'last'    => $lastId,
+					'done'    => true,
+				];
+			}
+
+			$lastId = $fileIds[ array_key_last( $fileIds ) ];
+
+			foreach ( $fileIds as $fileId )
+			{
+				try
+				{
+					$outcome = $this->adoptEtag( $fileId );
+				}
+				catch ( Throwable $e )
+				{
+					$this->logger->warning(
+						'FCIAS: could not give the stamp of fileId {fileId} its ETag; continuing.',
+						[
+							'app'       => Application::APP_ID,
+							'fileId'    => $fileId,
+							'exception' => $e,
+						],
+					);
+
+					if ( $onFile !== null )
+					{
+						$onFile( $fileId, $e );
+					}
+
+					continue;
+				}
+
+				if ( $outcome === self::ETAG_ADOPTED )
+				{
+					$adopted ++;
+				}
+				elseif ( $outcome === self::ETAG_QUEUED )
+				{
+					$queued ++;
+				}
+				else
+				{
+					continue;
+				}
+
+				if ( $onFile !== null )
+				{
+					$onFile( $fileId, $outcome );
+				}
+			}
+
+			if ( $continue !== null && ! $continue() )
+			{
+				return [
+					'adopted' => $adopted,
+					'queued'  => $queued,
+					'last'    => $lastId,
+					'done'    => false,
+				];
+			}
+		}
+	}
+
+	/**
 	 * Give a file whose hashes have no stamp row its stamp back.
 	 *
 	 * The stamp the metadata document carries, where it has one: only its
@@ -3286,26 +3638,24 @@ class MetadataService
 		{
 			$stamp = $metadata->getInt( self::KEY_FILE_CHECKSUM_UPDATED_AT );
 
-			$this->insertIndexRow( $fileId, self::KEY_FILE_CHECKSUM_UPDATED_AT, '', $stamp );
+			$this->syncStampRow( $metadata );
 		}
 		catch ( FilesMetadataNotFoundException|FilesMetadataTypeException )
 		{
-			$held  = $this->filecacheService->checksumsOf( $fileId );
-			$stamp = $location->mtime;
+			$stamp = $this->filecacheVouchesFor( $fileId, $hashes )
+				? $location->mtime
+				: 0;
 
-			foreach ( $hashes as $algo => $hash )
-			{
-				if ( strtolower( $held[ $algo ] ?? '' ) !== strtolower( $hash ) )
-				{
-					$stamp = 0;
-
-					break;
-				}
-			}
-
-			// Nextcloud writes the stamp row from the document.
-			$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, $stamp, true );
-			$this->metadataManager->saveMetadata( $metadata );
+			// Where the filecache vouches, it does so for the content its
+			// ETag names: Nextcloud empties the column on a change.
+			$this->stamp(
+				$metadata,
+				$stamp,
+				$stamp > 0
+					? $this->filecacheService->etagOf( $fileId )
+					: null,
+			);
+			$this->saveDocument( $metadata );
 		}
 
 		$current = $stamp > 0 && $stamp >= $location->mtime;
@@ -3329,6 +3679,41 @@ class MetadataService
 			'stamp'   => $stamp,
 			'hashes'  => $hashes,
 		];
+	}
+
+	/**
+	 * Whether the filecache's checksum column holds each of these hashes, as
+	 * its algorithm's entry.
+	 *
+	 * Nextcloud empties the column whenever its scanner sees the content
+	 * change, so a column that still holds them vouches for them, against
+	 * the ETag the filecache holds now.
+	 *
+	 * @param  array<string, string>  $hashes
+	 *
+	 * @throws Exception
+	 */
+	private function filecacheVouchesFor(
+		int   $fileId,
+		array $hashes,
+	): bool
+	{
+		if ( $hashes === [] )
+		{
+			return false;
+		}
+
+		$held = $this->filecacheService->checksumsOf( $fileId );
+
+		foreach ( $hashes as $algo => $hash )
+		{
+			if ( strtolower( $held[ $algo ] ?? '' ) !== strtolower( $hash ) )
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**
@@ -4161,7 +4546,7 @@ class MetadataService
 			if ( $metadata->hasKey( self::KEY_FILE_CHECKSUM_MIMETYPE ) )
 			{
 				$this->setMimeType( $metadata, null );
-				$this->metadataManager->saveMetadata( $metadata );
+				$this->saveDocument( $metadata );
 			}
 		}
 		catch ( Throwable $e )
@@ -4278,18 +4663,21 @@ class MetadataService
 	 * so where both exist the metadata wins. When at least one key was added
 	 * to a document that held none, updated_at is stamped with the file's
 	 * mtime rather than now(): the copied hash describes the content as of
-	 * that mtime, which is exactly what the filecache asserts. Reads no file
-	 * content.
+	 * that mtime, which is exactly what the filecache asserts, and against
+	 * the ETag it holds beside them. Reads no file content.
 	 *
 	 * @param  array<string, string>  $algoToHash  lowercase algo => hex hash
+	 * @param  string|null            $etag        The filecache's ETag of the
+	 *                                             row the hashes came from.
 	 *
 	 * @return int  Number of hash keys added
 	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
 	 */
 	public function backfillHashes(
-		int   $fileId,
-		array $algoToHash,
-		int   $mtime,
+		int     $fileId,
+		array   $algoToHash,
+		int     $mtime,
+		?string $etag = null,
 	): int
 	{
 		// Client-supplied, like every value in the filecache's checksum
@@ -4332,14 +4720,14 @@ class MetadataService
 		// the index until the queue has computed it again.
 		if ( ! $held && ( $this->getUpdatedAt( $metadata ) ?? 0 ) < $mtime )
 		{
-			$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, $mtime, true );
+			$this->stamp( $metadata, $mtime, $etag );
 
 			// Nor for a type the document held from before: the filecache
 			// asserts nothing about it.
 			$this->setMimeType( $metadata, null );
 		}
 
-		$this->metadataManager->saveMetadata( $metadata );
+		$this->saveDocument( $metadata );
 
 		$current = $this->isCurrent( $metadata, $mtime );
 
@@ -4962,12 +5350,19 @@ class MetadataService
 				IMetadataValueWrapper::EDIT_FORBIDDEN,
 			);
 
-			// The stamp *is* Nextcloud's to index: it is an integer, it fits,
-			// and the queue and the freshness checks read it from the index.
+			// The stamp, unindexed too: its row carries the ETag beside the
+			// stamp, which Nextcloud's rewrite of the row would drop — see
+			// {@see syncStampRow()}. The ETag lives in the document alone.
 			$this->metadataManager->initMetadata(
 				self::KEY_FILE_CHECKSUM_UPDATED_AT,
 				IMetadataValueWrapper::TYPE_INT,
-				true,
+				false,
+				IMetadataValueWrapper::EDIT_FORBIDDEN,
+			);
+			$this->metadataManager->initMetadata(
+				self::KEY_FILE_CHECKSUM_ETAG,
+				IMetadataValueWrapper::TYPE_STRING,
+				false,
 				IMetadataValueWrapper::EDIT_FORBIDDEN,
 			);
 
@@ -5000,8 +5395,8 @@ class MetadataService
 	}
 
 	/**
-	 * Whether Nextcloud has taken the hash keys, and the MIME type's, off
-	 * its own index.
+	 * Whether Nextcloud has taken the keys this app indexes itself — the
+	 * hashes, the MIME type's and the stamp — off its own index.
 	 *
 	 * A key it still believes it owns is one whose row it will keep trying,
 	 * and failing, to write.
@@ -5018,7 +5413,8 @@ class MetadataService
 			}
 		}
 
-		return ! $known->isIndex( self::KEY_FILE_CHECKSUM_MIMETYPE );
+		return ! $known->isIndex( self::KEY_FILE_CHECKSUM_MIMETYPE )
+		       && ! $known->isIndex( self::KEY_FILE_CHECKSUM_UPDATED_AT );
 	}
 
 	/**
@@ -5041,7 +5437,7 @@ class MetadataService
 		int|File|null  $file = null,
 	): bool
 	{
-		$this->metadataManager->saveMetadata( $metadata );
+		$this->saveDocument( $metadata );
 
 		$fileId = $metadata->getFileId();
 		$hashes = $this->getHashes( $metadata );
@@ -5088,10 +5484,10 @@ class MetadataService
 	 * Take a changed file's hashes out of everything that reads them, until
 	 * they are computed again.
 	 *
-	 * The stamp is set to 0 in the metadata document — not only in its index
-	 * row, which Nextcloud rewrites from the document whenever any app saves
-	 * it — because a sync client keeps the file's own mtime, which can be
-	 * older than the stamp: `stamp < mtime` would not see the change. The
+	 * The stamp is set to 0 in the metadata document, and its row from it,
+	 * without an ETag, because a sync client keeps the file's own mtime,
+	 * which can be older than the stamp: `stamp < mtime` would not see the
+	 * change. The
 	 * hash rows go, so the lookup, the listing and the per-file routes have
 	 * nothing to find. The document keeps the hashes, so that `auto` still
 	 * knows which algorithms the file had. Then the file is queued.
@@ -5112,8 +5508,8 @@ class MetadataService
 			return false;
 		}
 
-		$metadata->setInt( self::KEY_FILE_CHECKSUM_UPDATED_AT, 0, true );
-		$this->metadataManager->saveMetadata( $metadata );
+		$this->stamp( $metadata, 0, null );
+		$this->saveDocument( $metadata );
 		$this->pruneHashIndexRows( $fileId );
 		$this->writeState( $fileId, self::PENDING_PREFIX . $mode );
 

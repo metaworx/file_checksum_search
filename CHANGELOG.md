@@ -16,6 +16,9 @@ the first stable release.
 - `MetadataService::setSelfIndexed()`: one writer for the index rows the
   app keeps itself, cut to 63 characters in one place.
 
+- `occ fcias:repair --step etag-stamp`: each stamp carries the ETag its
+  hashes were read against. Upgrading queues the stamps made before.
+
 ## [0.25.0] - 2026-10-10
 
 ### Added

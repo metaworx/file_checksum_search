@@ -334,8 +334,11 @@ already stored. Installing, enabling and upgrading also queue the check that eve
 index, which on a large instance takes longer than a request should: `occ fcias:repair --step
 rebuild-from-metadata` runs it at once. They queue as well the stamping of hashes saved without a freshness
 stamp, which a recalculation did before every calculation stamped: `occ fcias:repair --step missing-stamps`
-runs it at once. All three show their progress on the status page, as *Checksum copy*, *Checksum index
-check* and *Checksum stamp check*, and in `occ fcias:status`.
+runs it at once. And they queue giving each stamp the ETag its hashes were read against, for the
+stamps made before the app kept one: the filecache's ETag where its checksum column still holds the
+hashes or the stamp is no older than the storage's own mtime, and otherwise the file queued to be hashed
+again. `occ fcias:repair --step etag-stamp` runs it at once. All of them show their progress on the status
+page, as *Checksum copy*, *Checksum index check* and *Checksum stamp check*, and in `occ fcias:status`.
 
 ### Which file a rule is talking about
 
@@ -848,6 +851,7 @@ reads it in again. See [Backing up, resetting and importing](#backing-up-resetti
 php occ fcias:repair --list                          # what each step does
 php occ fcias:repair --step rebuild-from-filecache   # clients show a checksum this app lacks
 php occ fcias:repair --step missing-stamps           # hashes carry no stamp, and every run hashes them again
+php occ fcias:repair --step etag-stamp               # stamps carry no ETag, after an upgrade
 php occ fcias:repair --step rebuild-from-metadata    # the file's details show a hash search cannot find
 php occ fcias:repair --step unindexed-hashes         # after a restore: the index has no record of the file at all
 php occ fcias:repair --step clear-disowned            # a reset left hashes for the job to clear
