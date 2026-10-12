@@ -34,6 +34,17 @@ the first stable release.
   hearing of it leaves the lookup, the listing, the duplicates and its
   own hashes until hashed again; `?stat=1` names it.
 
+### Fixed
+
+- `README.md`, *Modes*: a rule naming an algorithm the server no longer
+  computes has its files hashed for the others, not queued for ever.
+
+- `README.md`, *How hashing happens*: the sweep marks only files not
+  queued yet, and counts a file's algorithms, not its index rows.
+
+- `README.md`, *Modes*, `lazy`: an emptied file is hashed later, at low
+  priority; the sweep emptied it again instead.
+
 ## [0.25.0] - 2026-10-10
 
 ### Added

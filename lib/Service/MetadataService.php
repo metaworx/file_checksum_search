@@ -2606,11 +2606,11 @@ class MetadataService
 	 * marker: the stamp row is what says the app has considered a file, and
 	 * 0 that nothing vouches for any hash of it.
 	 *
-	 * A file queued again keeps its failed attempts, whatever its mode: the
-	 * rule sweep queues every file whose hashes are older than it, which a
-	 * file that keeps failing stays, and would otherwise put it back at the
-	 * head of the queue on every sweep. Any other marker starts at 0: the
-	 * file has left the queue.
+	 * A file queued again keeps its failed attempts, whatever its mode: a
+	 * write or a Reapply queues a file that keeps failing again, which
+	 * would otherwise put it back at the head of the queue. The sweep
+	 * leaves queued files alone. Any other marker starts at 0: the file has
+	 * left the queue.
 	 *
 	 * @param  int|null  $attempts  The failed attempts to give the row; null
 	 *                              keeps a queued file's own.

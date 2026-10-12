@@ -9,7 +9,9 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Integration\Service;
 
+use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Public\ChecksumApi;
+use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\DrainOutcome;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
@@ -19,6 +21,7 @@ use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
 use OCP\Files\File;
 use OCP\Files\IRootFolder;
 use OCP\FilesMetadata\IFilesMetadataManager;
+use OCP\IAppConfig;
 use OCP\Server;
 use Throwable;
 
@@ -470,6 +473,120 @@ class HashStampTest
 			$this->metadataService->getMarker( $file->getId() ),
 			'Written again, it is queued.',
 		);
+	}
+
+	/**
+	 * An algorithm the allowlist no longer has, still named by the rule, is
+	 * left out: the file is hashed for the others and leaves the queue,
+	 * rather than read and failed on it for ever.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testARuleAlgorithmTheServerNoLongerComputesIsLeftOut(): void
+	{
+		$catalogue = Server::get( AlgorithmCatalogue::class );
+		$appConfig = Server::get( IAppConfig::class );
+		$effective = $catalogue->algorithms();
+		$hadList   = $appConfig->hasKey( Application::APP_ID, AlgorithmCatalogue::CONFIG_KEY );
+		$list      = $appConfig->getValueArray( Application::APP_ID, AlgorithmCatalogue::CONFIG_KEY, [] );
+		$default   = $appConfig->getValueString( Application::APP_ID, AlgorithmCatalogue::DEFAULT_KEY, '' );
+
+		$file = $this->createTestFile( 'fcias_allowlist', 'narrowed after the rule' );
+		$this->ruleFor( $file, MetadataService::PENDING_MODE_MISSING, [ 'sha256', 'md5' ] );
+		$catalogue->setAllowlist( [ 'sha256' ] );
+
+		try
+		{
+			$this->metadataService->markPending( $file->getId(), MetadataService::PENDING_PREFIX . MetadataService::PENDING_MODE_MISSING );
+
+			$this->assertSame( DrainOutcome::HASHED, $this->hashCalc->processFile( $file->getId(), MetadataService::PENDING_MODE_MISSING )->kind );
+			$this->assertSame( [ 'sha256' => hash( 'sha256', 'narrowed after the rule' ) ], $this->hashesOf( $file->getId() ) );
+			$this->assertNull( $this->metadataService->getMarker( $file->getId() ), 'The file has left the queue.' );
+		}
+		finally
+		{
+			$catalogue->setAllowlist( $effective );
+
+			$hadList
+				? $appConfig->setValueArray( Application::APP_ID, AlgorithmCatalogue::CONFIG_KEY, $list )
+				: $appConfig->deleteKey( Application::APP_ID, AlgorithmCatalogue::CONFIG_KEY );
+			$default !== ''
+				? $appConfig->setValueString( Application::APP_ID, AlgorithmCatalogue::DEFAULT_KEY, $default )
+				: $appConfig->deleteKey( Application::APP_ID, AlgorithmCatalogue::DEFAULT_KEY );
+		}
+	}
+
+	/**
+	 * The sweep leaves a queued file to the drain: marked again, it would
+	 * count toward the sweep's cap, and files that keep failing would hold
+	 * every other back.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheSweepLeavesAQueuedFileAlone(): void
+	{
+		$file = $this->createTestFile( 'fcias_sweep_queued', 'queued and failing' );
+		$rule = $this->ruleFor( $file, MetadataService::PENDING_MODE_AUTO );
+
+		$this->metadataService->recordFailedAttempt( $file->getId(), MetadataService::PENDING_AUTO );
+		$this->metadataService->recordFailedAttempt( $file->getId(), MetadataService::PENDING_AUTO );
+
+		$this->assertSame( 0, $this->ruleService->processRule( $rule )['marked'] );
+		$this->assertSame( MetadataService::PENDING_AUTO, $this->metadataService->getMarker( $file->getId() ) );
+	}
+
+	/**
+	 * `lazy` is low priority: a write empties the hashes at once, and the
+	 * sweep queues the file to be hashed later, as `auto` — not as `lazy`,
+	 * which would empty it again, and hash it never.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testALazyRuleHashesAtLowPriority(): void
+	{
+		$file = $this->createTestFile( 'fcias_lazy', 'lazy, not never' );
+		$rule = $this->ruleFor( $file, MetadataService::PENDING_MODE_LAZY );
+		$this->assertTrue( $this->hashCalc->recalcFileHash( $file, 'sha256' )['success'] );
+
+		$this->metadataService->markPending( $file->getId(), MetadataService::PENDING_PREFIX . MetadataService::PENDING_MODE_LAZY );
+		$this->assertSame( DrainOutcome::EMPTIED, $this->hashCalc->processFile( $file->getId(), MetadataService::PENDING_MODE_LAZY )->kind );
+		$this->assertSame( [], $this->hashesOf( $file->getId() ) );
+
+		$this->ruleService->processRule( $rule );
+		$this->assertSame( MetadataService::PENDING_AUTO, $this->metadataService->getMarker( $file->getId() ) );
+
+		$this->hashCalc->processFile( $file->getId(), MetadataService::PENDING_MODE_AUTO );
+		$this->assertSame( [ 'sha256' => hash( 'sha256', 'lazy, not never' ) ], $this->hashesOf( $file->getId() ) );
+	}
+
+	/**
+	 * A second row of one algorithm does not stand in for another's missing
+	 * one: under `missing`, the sweep still finds the algorithm lacking.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testADuplicateRowOfOneAlgorithmHidesNoMissingOne(): void
+	{
+		$file = $this->createTestFile( 'fcias_sweep_held', 'one row twice' );
+		$this->ruleFor( $file, MetadataService::PENDING_MODE_MISSING );
+		$this->assertTrue( $this->hashCalc->recalcFileHash( $file, 'sha256' )['success'] );
+		$rule = $this->ruleFor( $file, MetadataService::PENDING_MODE_MISSING, [ 'sha256', 'md5' ] );
+
+		$row = $this->getRawConnection()
+		            ->fetchAssociative(
+			            'SELECT `meta_value_string`, `meta_value_int` FROM `*PREFIX*files_metadata_index` WHERE `file_id` = ? AND `meta_key` = ?',
+			            [ $file->getId(), MetadataService::getHashKey( 'sha256' ) ],
+		            )
+		;
+		$this->assertIsArray( $row );
+		$this->getRawConnection()
+		     ->executeStatement(
+			     'INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`) VALUES (?, ?, ?, ?)',
+			     [ $file->getId(), MetadataService::getHashKey( 'sha256' ), $row['meta_value_string'], $row['meta_value_int'] ],
+		     )
+		;
+
+		$this->assertSame( 1, $this->ruleService->processRule( $rule )['marked'] );
 	}
 
 	/**

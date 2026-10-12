@@ -692,9 +692,15 @@ class RuleService
 					$this->metadataService->hideHashes( $location->fileId );
 				}
 
+				// `lazy` is low priority, not never: a write empties the
+				// hashes at once, and the sweep's trickle has them computed
+				// later. Queued `lazy` again, a file would be emptied again,
+				// and hashed never.
 				$this->metadataService->markPending(
 					$location->fileId,
-					MetadataService::PENDING_PREFIX . $mode,
+					MetadataService::PENDING_PREFIX . ( $mode === MetadataService::PENDING_MODE_LAZY
+						? MetadataService::PENDING_MODE_AUTO
+						: $mode ),
 				);
 
 				$marked ++;
@@ -768,7 +774,7 @@ class RuleService
 			return [];
 		}
 
-		return array_values( array_filter( (array) ( $rule['algos'] ?? [] ), $this->catalogue->isValid( ... ) ) );
+		return $this->catalogue->computable( (array) ( $rule['algos'] ?? [] ) );
 	}
 
 	/**

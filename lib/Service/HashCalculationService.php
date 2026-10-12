@@ -389,7 +389,7 @@ class HashCalculationService
 			{
 				$fileAlgos = array_values(
 					array_unique(
-						array_merge( $fileAlgos, $rule['algos'] ?? [] ),
+						array_merge( $fileAlgos, $this->catalogue->computable( $rule['algos'] ?? [] ) ),
 					),
 				);
 			}
@@ -741,32 +741,17 @@ class HashCalculationService
 
 			if ( ! RuleService::maintainsHashes( $rule ) )
 			{
-				if ( $this->isOutdated( $this->metadataService->getMetadata( $fileId ), $file ) )
-				{
-					$this->logger->debug(
-						'FCIAS: processFile — no include rule governs fileId {fileId}, eroding its outdated hashes.',
-						[
-							'app'    => Application::APP_ID,
-							'fileId' => $fileId,
-						],
-					);
+				return $this->dropUnmaintained( $fileId, $file, 'no include rule governs it' );
+			}
 
-					$this->metadataService->markEroded( $fileId );
+			// Only what the server computes: narrowing the allowlist leaves
+			// the rules as they were, and a file read for an algorithm it
+			// would only fail stays queued for ever, read in full each time.
+			$algos = $this->catalogue->computable( $rule['algos'] ?? [ $this->getDefaultAlgo() ] );
 
-					return DrainOutcome::dropped( 'no include rule governs it, and its outdated hashes are eroded' );
-				}
-
-				$this->logger->debug(
-					'FCIAS: processFile — no include rule governs fileId {fileId}, dropping the mark.',
-					[
-						'app'    => Application::APP_ID,
-						'fileId' => $fileId,
-					],
-				);
-
-				$this->metadataService->markPending( $fileId, '' );
-
-				return DrainOutcome::dropped( 'no include rule governs it' );
+			if ( $algos === [] && $mode !== MetadataService::PENDING_MODE_MIME )
+			{
+				return $this->dropUnmaintained( $fileId, $file, 'none of its rule\'s algorithms is computed on this server' );
 			}
 
 			// A storage Nextcloud holds unavailable fails every read at once:
@@ -794,8 +779,6 @@ class HashCalculationService
 
 				return DrainOutcome::failed( 'its storage is unavailable' );
 			}
-
-			$algos = $rule['algos'] ?? [ $this->getDefaultAlgo() ];
 		}
 
 		$metadata = $this->metadataService->getMetadata( $fileId );
@@ -1010,6 +993,50 @@ class HashCalculationService
 		}
 
 		return null;
+	}
+
+	/**
+	 * A queued file nothing will hash, for $why, off the queue: its hashes
+	 * eroded where they no longer describe it, else its mark dropped, the
+	 * hashes it has standing.
+	 *
+	 * @throws \OCP\DB\Exception
+	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
+	 */
+	private function dropUnmaintained(
+		int    $fileId,
+		File   $file,
+		string $why,
+	): DrainOutcome
+	{
+		if ( $this->isOutdated( $this->metadataService->getMetadata( $fileId ), $file ) )
+		{
+			$this->logger->debug(
+				'FCIAS: processFile — fileId {fileId}: {why}; eroding its outdated hashes.',
+				[
+					'app'    => Application::APP_ID,
+					'fileId' => $fileId,
+					'why'    => $why,
+				],
+			);
+
+			$this->metadataService->markEroded( $fileId );
+
+			return DrainOutcome::dropped( $why . ', and its outdated hashes are eroded' );
+		}
+
+		$this->logger->debug(
+			'FCIAS: processFile — fileId {fileId}: {why}; dropping the mark.',
+			[
+				'app'    => Application::APP_ID,
+				'fileId' => $fileId,
+				'why'    => $why,
+			],
+		);
+
+		$this->metadataService->markPending( $fileId, '' );
+
+		return DrainOutcome::dropped( $why );
 	}
 
 	/**
@@ -1449,7 +1476,7 @@ class HashCalculationService
 				$queued
 					? MetadataService::parseMode( $marker )
 					: (string) ( $rule['mode'] ?? MetadataService::PENDING_MODE_AUTO ),
-				(array) ( $rule['algos'] ?? [ $this->getDefaultAlgo() ] ),
+				$this->catalogue->computable( (array) ( $rule['algos'] ?? [ $this->getDefaultAlgo() ] ) ),
 				$metadata,
 				$outdated,
 			);
@@ -1459,7 +1486,7 @@ class HashCalculationService
 			array_unique(
 				[
 					...$asked,
-					...array_filter( $algos, $this->catalogue->isValid( ... ) ),
+					...$algos,
 				],
 			),
 		);

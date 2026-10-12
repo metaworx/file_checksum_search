@@ -233,6 +233,38 @@ class AlgorithmCatalogue
 	}
 
 	/**
+	 * The algorithms of $names this instance computes, lower-cased, each
+	 * once, in their order: a rule's list read against the allowlist, which
+	 * narrowing leaves the rules as they were. A file is never read for an
+	 * algorithm it would only fail.
+	 *
+	 * @param  array<mixed>  $names
+	 *
+	 * @return list<string>
+	 */
+	public function computable( array $names ): array
+	{
+		$kept = [];
+
+		foreach ( $names as $name )
+		{
+			if ( ! is_string( $name ) )
+			{
+				continue;
+			}
+
+			$name = strtolower( $name );
+
+			if ( $this->isValid( $name ) )
+			{
+				$kept[ $name ] = $name;
+			}
+		}
+
+		return array_values( $kept );
+	}
+
+	/**
 	 * Keep only the algo => hash pairs this instance could itself have
 	 * produced, with the hashes lower-cased.
 	 *

@@ -599,6 +599,83 @@ class HashCalculationServiceTest
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
+	/**
+	 * A rule algorithm the server no longer computes is left out: the file
+	 * is read for the others, rather than failed on that one for ever.
+	 */
+	public function testProcessFileLeavesOutAnAlgorithmTheServerDoesNotCompute(): void
+	{
+		$metadata = $this->documentStamped( [], 0 );
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn(
+			                  [
+				                  'id'    => 'r1',
+				                  'type'  => 'include',
+				                  'mode'  => 'missing',
+				                  'algos' => [ 'SHA256', 'nonesuch' ],
+			                  ],
+		                  )
+		;
+
+		$service = $this->createCollectingServiceMock();
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->with( $this->anything(), [ 'sha256' ], true, $metadata )
+		        ->willReturn(
+			        [
+				        'results' => [
+					        'sha256' => [
+						        'success' => true,
+						        'hash'    => 'new',
+						        'existed' => false,
+					        ],
+				        ],
+				        'locked'  => false,
+			        ],
+		        )
+		;
+
+		$this->assertNotEquals(
+			DrainOutcome::dropped( 'none of its rule\'s algorithms is computed on this server' ),
+			$service->processFile( 42, 'missing' ),
+		);
+	}
+
+	/**
+	 * A rule left with no algorithm the server computes hashes nothing: the
+	 * file leaves the queue unread, as one no rule maintains does.
+	 */
+	public function testProcessFileDropsAFileWhoseRuleNamesNothingTheServerComputes(): void
+	{
+		$this->documentStamped( [], 0 );
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn(
+			                  [
+				                  'id'    => 'r1',
+				                  'type'  => 'include',
+				                  'mode'  => 'auto',
+				                  'algos' => [ 'nonesuch' ],
+			                  ],
+		                  )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 42, '' )
+		;
+
+		$service = $this->createCollectingServiceMock();
+		$service->expects( $this->never() )
+		        ->method( 'recalcHashes' )
+		;
+
+		$this->assertEquals(
+			DrainOutcome::dropped( 'none of its rule\'s algorithms is computed on this server' ),
+			$service->processFile( 42, 'auto' ),
+		);
+	}
+
 	public function testProcessFileAutoDropsOutdatedHashesItsRuleDoesNotName(): void
 	{
 		$metadata = $this->documentStamped(

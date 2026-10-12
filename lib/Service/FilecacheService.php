@@ -623,13 +623,19 @@ class FilecacheService
 		$qb   = $this->db->getQueryBuilder();
 		$keys = array_values( array_unique( array_map( MetadataService::getHashKey( ... ), $wanted ) ) );
 
-		// The file's hash rows, all of them or those under $keys, counted per
-		// filecache row: a correlated subquery, built anew for each use, since
-		// a select's alias cannot be read back in the WHERE on every backend.
+		// The file's hash rows, all of them, or the keys of $keys it holds,
+		// counted per filecache row — keys, not rows, so that a second row of
+		// one key cannot stand in for another's missing one: a correlated
+		// subquery, built anew for each use, since a select's alias cannot be
+		// read back in the WHERE on every backend.
 		$hashes = function( array $keys = [] ) use ( $qb ): string
 		{
 			$sub = $this->db->getQueryBuilder();
-			$sub->select( $sub->func()->count( '*' ) )
+			$sub->select(
+				$keys === []
+					? $sub->func()->count( '*' )
+					: $sub->createFunction( 'COUNT(DISTINCT mh.' . MetadataService::FIELD_META_KEY . ')' ),
+			)
 			    ->from( MetadataService::TABLE_FILES_METADATA_INDEX, 'mh' )
 			    ->where(
 				    $sub->expr()->eq( 'mh.' . MetadataService::FIELD_FILE_ID, 'fc.fileid' ),
@@ -726,6 +732,17 @@ class FilecacheService
 						      $qb->expr()->isNull( 'ms.' . MetadataService::FIELD_META_VALUE_STRING ),
 						      $wanting,
 					      ),
+				   ),
+				// A file queued already is the drain's: marked again, it
+				// would count toward the sweep's cap for nothing, and files
+				// that keep failing would hold every other back.
+				$qb->expr()
+				   ->orX(
+					   $qb->expr()->isNull( 'ms.' . MetadataService::FIELD_META_VALUE_STRING ),
+					   $qb->expr()->notLike(
+						   'ms.' . MetadataService::FIELD_META_VALUE_STRING,
+						   $qb->createNamedParameter( MetadataService::PENDING_PREFIX . '%' ),
+					   ),
 				   ),
 			);
 		}

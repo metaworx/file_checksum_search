@@ -311,8 +311,9 @@ Once a rule is enabled, six paths lead to a hash:
    a rule changed between the mark and the drain is honoured, and a file that lost its coverage in
    between is dropped from the queue instead of hashed.
 3. **The periodic sweep.** `RuleProcessingJob` walks the storages each enabled rule addresses and
-   queues what is outdated or unhashed. This is the net beneath the events: a file changed while the
-   app was disabled, a rule enabled after the fact, an event that never fired.
+   queues what is outdated or unhashed, up to 100 files per rule and run that are not queued already.
+   This is the net beneath the events: a file changed while the app was disabled, a rule enabled after
+   the fact, an event that never fired.
 4. **The changed-file check.** Once a day — `stamp_check_interval`, in seconds, default 86400 — the
    sweep queues a walk over the files whose ETag moved on since their hashes were read, and treats
    each as written: a change the app never heard of, with the mtime kept, which the sweep cannot see.
@@ -534,9 +535,11 @@ personal rule can undo, while a personal exclude only overrides the defaults bel
 | `auto` | Compute the rule's algorithms for a file without current hashes: new, never hashed, or changed. A file whose hashes are current is never read only to add an algorithm |
 | `missing` | The same, and add any of the rule's algorithms a file lacks: the sweep and Reapply queue a file hashed before for one added to the rule |
 | `force` | Clear all hashes and recalculate immediately |
-| `lazy` | Clear hashes and defer recalculation to the background queue |
+| `lazy` | Clear hashes at once and recalculate them at low priority: the periodic sweep queues the file later, as `auto`, a hundred files per rule and run, so that bulk writes never fill the queue |
 
 Under `auto` and `missing`, a change drops the hashes of algorithms the rule does not name.
+A rule's algorithms count only where the server computes them: one the allowlist no longer has is
+left out, and a rule left with none hashes nothing.
 A rule may carry any of the four. The `hash` command's `--mode` accepts only `missing` and `force`:
 `auto` is the background drain's own semantics, and `lazy` — "queue it for later" — is spelled
 `--mark` there.
