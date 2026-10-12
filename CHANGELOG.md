@@ -11,6 +11,11 @@ the first stable release.
 
 ## [Unreleased]
 
+### Added
+
+- `docs/api-v1.md`, *File state*, `?stat=1`: a file's `etag`, valid for
+  its hashes or null, and its present `size`, `mtime` and `storageMtime`.
+
 ### Changed
 
 - `MetadataService::setSelfIndexed()`: one writer for the index rows the

@@ -14,13 +14,14 @@ All three surfaces use the same [`ChecksumApi`](../lib/Public/ChecksumApi.php) c
 
 1. [Locations and paths](#locations-and-paths)
 2. [MIME types](#mime-types)
-3. [PHP API](#php-api)
-4. [HTTP REST API](#http-rest-api)
-5. [Rules](#rules)
-6. [Authentication](#authentication)
-7. [Versioning & Compatibility](#versioning--compatibility)
-8. [Rate Limiting](#rate-limiting)
-9. [Error Handling](#error-handling)
+3. [File state](#file-state)
+4. [PHP API](#php-api)
+5. [HTTP REST API](#http-rest-api)
+6. [Rules](#rules)
+7. [Authentication](#authentication)
+8. [Versioning & Compatibility](#versioning--compatibility)
+9. [Rate Limiting](#rate-limiting)
+10. [Error Handling](#error-handling)
 
 ---
 
@@ -91,6 +92,40 @@ and the filecache give, comes from the file's name.
 
 ---
 
+## File state
+
+A file's hashes hold while its content is the one they were read from.
+The app writes down the ETag the file had when they were read, and
+compares it with the ETag the filecache holds, which every write moves
+on — one the app hears of, one it misses, a change on an external storage
+a scan takes in.
+
+- **Asked for:** `?stat=1` on the lookup, a file's hashes, the listing and
+  the recalculations, each with its `sudo/` twin. In PHP, `$withStat` on
+  `findByHash()`, `getHashesByFileId()`, `listHashes()`, `iterateHashes()`,
+  `recalcHash()` and `recalcMany()`. Without it, the answers are as they
+  were.
+- **The evidence:** `etag` is the ETag the hashes were read against, as the
+  filecache holds it, without the quotes WebDAV's `getetag` puts around it.
+  It and the hashes are valid together, or `null` together.
+- **The present state:** `size` in bytes, `mtime` and `storageMtime` — the
+  file's mtime as Nextcloud shows it, and its storage's own, which a scan
+  compares — whatever the hashes' state. The times are ISO 8601 in whole
+  seconds with an explicit offset, as `updated_at` is.
+- **A stale entry** — a file whose ETag moved on, or whose hashes were
+  disowned by a reset — is left out by default, as it always was. Under
+  `stat=1` the listing and a file's hashes include it, with `fileid`,
+  `path`, `owner` and the present state, and `hashes`, `etag` and, where
+  asked for, `mimetype` `null`. A lookup never finds one: it would match a
+  value the file may no longer hold.
+- **Hashes stamped before the app kept the ETag** count while their stamp
+  is no older than the storage's own mtime, and give the ETag the
+  filecache holds, as adoption does, until `occ fcias:repair --step
+  etag-stamp` has written one down. A sync client that replaces a file's
+  content and keeps an older mtime gets past that test until then.
+
+---
+
 ## PHP API
 
 ### Class: `OCA\FileChecksumSearch\Public\ChecksumApi`
@@ -155,7 +190,7 @@ To these methods a file outside the reach is *not found*, never *forbidden*:
 a `NotFoundException`, or a `File not found.` result. Whether the caller may
 have the reach at all is decided before the call, by whoever makes it.
 
-#### `findByHash(string $hash, ?array $reachUids, ?string $algo = null, int $limit = 100, bool $withLocalPath = false, bool $canonical = false, bool $withMimeType = false): array`
+#### `findByHash(string $hash, ?array $reachUids, ?string $algo = null, int $limit = 100, bool $withLocalPath = false, bool $canonical = false, bool $withMimeType = false, bool $withStat = false): array`
 
 Search for files matching a given hash value.
 
@@ -168,6 +203,7 @@ Search for files matching a given hash value.
 | `$withLocalPath` | `bool` | No | Add `localPath` to each row: the file's absolute path on the server's disk, `null` for a storage without local files (an object store, a share, a remote mount) and for every file while server-side encryption is enabled. It reveals the server's layout; the REST route offers it to sudoers only |
 | `$canonical` | `bool` | No | Every `location` the file's own address, as a sudoer reads it; by default a file the reach holds through a share is located by the share ([Locations and paths](#locations-and-paths)) |
 | `$withMimeType` | `bool` | No | Add `mimetype` to each row ([MIME types](#mime-types)) |
+| `$withStat` | `bool` | No | Add `etag`, `size`, `mtime` and `storageMtime` to each row ([File state](#file-state)) |
 
 **Returns:**
 ```php
@@ -193,7 +229,7 @@ root for an external local storage.
 
 ---
 
-#### `listHashes(?array $reachUids, ?string $algo = null, int $limit = 500, int $after = 0, ?int $since = null, bool $withLocalPath = false, bool $canonical = false, bool $withMimeType = false): array`
+#### `listHashes(?array $reachUids, ?string $algo = null, int $limit = 500, int $after = 0, ?int $since = null, bool $withLocalPath = false, bool $canonical = false, bool $withMimeType = false, bool $withStat = false): array`
 
 Every hash in reach, page by page: one entry per file, in file id order.
 For a caller that keeps a copy of the checksums and would otherwise ask
@@ -209,6 +245,7 @@ hash by hash.
 | `$withLocalPath` | `bool` | No | Add `localPath` to each entry, as `findByHash()` does |
 | `$canonical` | `bool` | No | As `findByHash()` |
 | `$withMimeType` | `bool` | No | Add `mimetype` to each entry ([MIME types](#mime-types)) |
+| `$withStat` | `bool` | No | Add the file's state to each entry, and list the stale entries too, `hashes` and `etag` `null` ([File state](#file-state)) |
 
 **Returns:**
 ```php
@@ -272,7 +309,7 @@ hash by hash.
 
 ---
 
-#### `iterateHashes(?array $reachUids, ?string $algo = null, ?int $since = null, bool $withLocalPath = false, int $after = 0, bool $canonical = false, bool $withMimeType = false): Generator`
+#### `iterateHashes(?array $reachUids, ?string $algo = null, ?int $since = null, bool $withLocalPath = false, int $after = 0, bool $canonical = false, bool $withMimeType = false, bool $withStat = false): Generator`
 
 The whole of `listHashes()`'s listing, file by file, for a caller in the same
 process: no paging to drive, and one batch of 500 files in memory at a time,
@@ -287,6 +324,7 @@ however large the listing.
 | `$after` | `int` | No | The last file id a walk that was cut short received; 0, the default, starts at the beginning |
 | `$canonical` | `bool` | No | As `findByHash()` |
 | `$withMimeType` | `bool` | No | As `listHashes()`: one query for the types of each batch |
+| `$withStat` | `bool` | No | As `listHashes()`, from the rows each batch reads |
 
 **Yields:** `listHashes()`'s `files` entries, keyed by file id, in file id
 order.
@@ -308,7 +346,7 @@ foreach ($api->iterateHashes(['alice'], 'sha256') as $fileId => $entry) {
 
 ---
 
-#### `getHashesByFileId(int $fileId, ?array $reachUids, ?string $actingUser = null, bool $withMimeType = false): array`
+#### `getHashesByFileId(int $fileId, ?array $reachUids, ?string $actingUser = null, bool $withMimeType = false, bool $withStat = false): array`
 
 Get all checksums for a file by its filecache ID.
 
@@ -318,6 +356,7 @@ Get all checksums for a file by its filecache ID.
 | `$reachUids` | `?array` | Yes | Whose files; the file must lie within them. `null` for every account |
 | `$actingUser` | `?string` | No | Whose preference `preferred` reports and whose permission `canRecalc` answers; `null` reads the session |
 | `$withMimeType` | `bool` | No | Add `mimetype` ([MIME types](#mime-types)) |
+| `$withStat` | `bool` | No | Add the file's state; `hashes` is `null` where they are stale ([File state](#file-state)) |
 
 **Returns:**
 ```php
@@ -489,7 +528,7 @@ the file; `empty` says which group is the empty files'.
 
 ---
 
-#### `recalcHash(int $fileId, ?array $reachUids, ?string $algo = null, ?string $actingUser = null, bool $withMimeType = false): array`
+#### `recalcHash(int $fileId, ?array $reachUids, ?string $algo = null, ?string $actingUser = null, bool $withMimeType = false, bool $withStat = false): array`
 
 Trigger hash recalculation for a file. **This is the only mutating operation** in the public API.
 
@@ -500,6 +539,7 @@ Trigger hash recalculation for a file. **This is the only mutating operation** i
 | `$algo` | `?string` | No | Algorithm; `null` is the instance's default, as `GET /api/v1/algorithms` names it |
 | `$actingUser` | `?string` | No | Whose *Who may recalculate checksums* permission is checked. `null` is a trusted caller and waives it |
 | `$withMimeType` | `bool` | No | Add `mimetype`: the type the recalculation left, detected in the same read; `null` on a failure ([MIME types](#mime-types)) |
+| `$withStat` | `bool` | No | Add the file's state as the recalculation left it, `etag` the one it read against; all `null` on a failure ([File state](#file-state)) |
 
 **Returns (success):**
 ```php
@@ -515,7 +555,7 @@ Trigger hash recalculation for a file. **This is the only mutating operation** i
 
 ---
 
-#### `recalcMany(array $fileIds, ?array $reachUids, ?string $algo = null, ?string $actingUser = null, bool $withMimeType = false): array`
+#### `recalcMany(array $fileIds, ?array $reachUids, ?string $algo = null, ?string $actingUser = null, bool $withMimeType = false, bool $withStat = false): array`
 
 Recalculate several files in one call. Each file goes through `recalcHash()`
 with the same asker and the same reach, so a file out of reach or refused by
@@ -528,7 +568,7 @@ the first file is always read, however large.
 |-----------|------|----------|-------------|
 | `$fileIds` | `int[]` | Yes | Filecache ids; duplicates are dropped |
 | `$reachUids` | `?array` | Yes | As for `recalcHash()` |
-| `$algo`, `$actingUser`, `$withMimeType` | | No | As for `recalcHash()`, per result |
+| `$algo`, `$actingUser`, `$withMimeType`, `$withStat` | | No | As for `recalcHash()`, per result |
 
 **Returns:**
 ```php
@@ -661,6 +701,12 @@ or each duplicate group, gains `mimetype`. While detection is off, asking
 is a `400`; `features.mimetype` on route 6 says whether to ask
 ([MIME types](#mime-types)).
 
+The lookup, a file's hashes, the recalculations and the listing, each with
+its `sudo/` twin, take `?stat=1`: each file gains `etag`, valid for its
+hashes or `null`, and its present `size`, `mtime` and `storageMtime`; a
+file's hashes and the listing then give a stale file too, its `hashes` and
+`etag` `null` ([File state](#file-state)).
+
 ### Endpoint Details
 
 #### 1. Lookup by Hash
@@ -675,6 +721,7 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/lookup?hash=<hex>&algo=<algo>&l
 | `algo` | string | No | — | — |
 | `limit` | int | No | 100 | 500 |
 | `mimetype` | bool | No | false | — |
+| `stat` | bool | No | false | — |
 
 **Response (200):**
 ```json
@@ -708,6 +755,7 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/hashes
 |-----------|------|----------|
 | `fileId` | int (path) | **Yes** |
 | `mimetype` | bool | No |
+| `stat` | bool | No |
 
 **Response (200):**
 ```json
@@ -805,6 +853,7 @@ Content-Type: application/json
 | `fileId` | int (path) | **Yes** | — |
 | `algo` | string (body or query) | No | `sha1` |
 | `mimetype` | bool (body or query) | No | false |
+| `stat` | bool (body or query) | No | false; the file's state as the recalculation left it ([File state](#file-state)) |
 
 **Response (200):**
 ```json
@@ -1045,6 +1094,7 @@ Content-Type: application/json
 | `fileIds` | int[] (body) | **Yes** | — |
 | `algo` | string (body or query) | No | `sha1` |
 | `mimetype` | bool (body or query) | No | false; each result gains `mimetype`, as route 4 |
+| `stat` | bool (body or query) | No | false; each result gains the file's state, as route 4 |
 
 One gesture, one request: verifying a group of a hundred files used to be a
 hundred calls against a limit of twenty a minute. The request goes through
@@ -1092,6 +1142,7 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/hashes?limit=500&after=0
 | `after` | int (query) | No | 0 |
 | `since` | string (query) | No | — |
 | `mimetype` | bool (query) | No | false; each entry gains `mimetype`, which no `since` feed carries alone ([MIME types](#mime-types)) |
+| `stat` | bool (query) | No | false; each entry gains its state, and the stale entries are listed too ([File state](#file-state)) |
 
 Every hash the caller holds, one entry per file, in file id order: for a
 client that keeps a copy of the checksums — an archive syncing its own
@@ -1152,7 +1203,9 @@ database — and would otherwise ask hash by hash. The files are the ones
   feed: a copy starts with the whole listing.
 - **Only current hashes are listed.** A file whose content changed leaves
   the listing at once and comes back when its hashes are computed again;
-  hashes nobody vouches for are not listed at all.
+  hashes nobody vouches for are not listed at all. Under `stat=1` such a
+  file is listed with `hashes` and `etag` `null` and its present state
+  ([File state](#file-state)).
 - **`path`** is the caller's own path for the file, with a leading slash: a
   received share's files by the path the share has in the caller's files,
   and located by the share. `owner` and `location` are as

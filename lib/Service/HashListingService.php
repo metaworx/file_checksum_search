@@ -106,6 +106,38 @@ class HashListingService
 			: null;
 	}
 
+	/**
+	 * A file's state, as the routes give it under `stat`.
+	 *
+	 * `etag` is the evidence: the ETag the hashes were read against, as the
+	 * filecache holds it, without WebDAV's quotes, and null where they are
+	 * stale. Hashes stamped before the app kept the ETag, and vouched for by
+	 * their stamp, give the filecache's, which adoption gives them. `size`,
+	 * `mtime` and `storageMtime` are the file's present state, whether its
+	 * hashes are current or not; the times as `updated_at` is, ISO 8601 in
+	 * whole seconds with an explicit offset.
+	 *
+	 * @param  array{etag: string, size: int, mtime: int, storageMtime: int, ...}  $state      What the filecache holds.
+	 * @param  string|null                                                    $stampEtag  The ETag the stamp carries.
+	 *
+	 * @return array{etag: ?string, size: int, mtime: string, storageMtime: string}
+	 */
+	public static function stat(
+		array   $state,
+		bool    $vouched,
+		?string $stampEtag,
+	): array
+	{
+		return [
+			'etag'         => $vouched
+				? $stampEtag ?? $state['etag']
+				: null,
+			'size'         => $state['size'],
+			'mtime'        => date( 'c', $state['mtime'] ),
+			'storageMtime' => date( 'c', $state['storageMtime'] ),
+		];
+	}
+
 
 //  other non-static methods
 
@@ -139,8 +171,13 @@ class HashListingService
 	 * @param  bool               $withMimeType   Each entry gains `mimetype`,
 	 *                                            the content's type as
 	 *                                            detected, null for none.
+	 * @param  bool               $withStat       Each entry gains the file's
+	 *                                            state ({@see stat()}), and
+	 *                                            the files whose hashes are
+	 *                                            stale are listed too, with
+	 *                                            `hashes` and `etag` null.
 	 *
-	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, mimetype?: ?string}>, next: ?int, now: int, estimated_total?: int}
+	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, mimetype?: ?string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>, next: ?int, now: int, estimated_total?: int}
 	 *         `next` is the file id to pass as `after` while files remain,
 	 *         null when none do, and `after` itself for a count. `now` is
 	 *         this server's clock, unix seconds, taken before the page is
@@ -158,6 +195,7 @@ class HashListingService
 		bool    $withLocalPath = false,
 		bool    $canonical = false,
 		bool    $withMimeType = false,
+		bool    $withStat = false,
 	): array
 	{
 		$limit = max( 0, min( $limit, self::MAX_LIMIT ) );
@@ -179,17 +217,17 @@ class HashListingService
 		if ( $limit > 0 )
 		{
 			// One past the page, to know whether another follows.
-			$rows = $this->metadataService->pageListedFiles( $areas, $algo, $after, $since, $limit + 1 );
+			$rows = $this->metadataService->pageListedFiles( $areas, $algo, $after, $since, $limit + 1, $withStat );
 			$more = count( $rows ) > $limit;
 			$rows = array_slice( $rows, 0, $limit );
 
-			$answer['files'] = $this->entries( $rows, $views, $algo, $withLocalPath, $canonical, $withMimeType );
+			$answer['files'] = $this->entries( $rows, $views, $algo, $withLocalPath, $canonical, $withMimeType, $withStat );
 			$answer['next']  = $more ? $rows[ $limit - 1 ]['fileid'] : null;
 		}
 
 		if ( $after === 0 )
 		{
-			$answer['estimated_total'] = $this->metadataService->countListedFiles( $areas, $algo, $since );
+			$answer['estimated_total'] = $this->metadataService->countListedFiles( $areas, $algo, $since, $withStat );
 		}
 
 		return $answer;
@@ -215,8 +253,9 @@ class HashListingService
 	 *                                            starts at the beginning.
 	 * @param  bool               $canonical      As {@see page()}.
 	 * @param  bool               $withMimeType   As {@see page()}.
+	 * @param  bool               $withStat       As {@see page()}.
 	 *
-	 * @return Generator<int, array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, mimetype?: ?string}>
+	 * @return Generator<int, array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, mimetype?: ?string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>
 	 *         keyed by file id, in file id order
 	 * @throws Exception
 	 */
@@ -228,6 +267,7 @@ class HashListingService
 		int     $after = 0,
 		bool    $canonical = false,
 		bool    $withMimeType = false,
+		bool    $withStat = false,
 	): Generator
 	{
 		$after = max( 0, $after );
@@ -237,9 +277,9 @@ class HashListingService
 
 		do
 		{
-			$rows = $this->metadataService->pageListedFiles( $areas, $algo, $after, $since, self::ITERATE_BATCH );
+			$rows = $this->metadataService->pageListedFiles( $areas, $algo, $after, $since, self::ITERATE_BATCH, $withStat );
 
-			foreach ( $this->entries( $rows, $views, $algo, $withLocalPath, $canonical, $withMimeType ) as $entry )
+			foreach ( $this->entries( $rows, $views, $algo, $withLocalPath, $canonical, $withMimeType, $withStat ) as $entry )
 			{
 				yield $entry['fileid'] => $entry;
 			}
@@ -266,13 +306,16 @@ class HashListingService
 	/**
 	 * A page's rows, as the listing gives them.
 	 *
-	 * @param  list<array{fileid: int, storage: int, storage_id: string, path: string, updated_at: ?int}>                     $rows
+	 * @param  list<array{fileid: int, storage: int, storage_id: string, path: string, updated_at: ?int, state?: array{etag: string, size: int, mtime: int, storageMtime: int, stampEtag: ?string, vouched: bool}}> $rows
 	 * @param  list<array{uid: string, storage: int, root: string, prefix: string, rootId: int, shared: bool}>|null $views
 	 *
 	 * With $withMimeType, each entry gains `mimetype`: the content's type as
 	 * detected, null for none. One query for the page.
 	 *
-	 * @return list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, mimetype?: ?string}>
+	 * With $withStat, each entry gains its state ({@see stat()}), from the
+	 * rows' own; an entry whose hashes are stale has `hashes` null.
+	 *
+	 * @return list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, mimetype?: ?string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>
 	 * @throws Exception
 	 */
 	private function entries(
@@ -282,6 +325,7 @@ class HashListingService
 		bool    $withLocalPath,
 		bool    $canonical,
 		bool    $withMimeType = false,
+		bool    $withStat = false,
 	): array
 	{
 		if ( $rows === [] )
@@ -331,6 +375,11 @@ class HashListingService
 				];
 			}
 
+			$state   = $withStat
+				? $row['state'] ?? null
+				: null;
+			$current = $state === null || $state['vouched'];
+
 			$entries[] = [
 				'fileid'   => $fileId,
 				'path'     => $path,
@@ -339,8 +388,9 @@ class HashListingService
 				'location' => $seen['share'] ?? $location->describe(),
 			] + ( $withLocalPath ? [ 'localPath' => $localPaths[ $fileId ] ?? null ] : [] ) + [
 				'updated_at' => self::stamp( $row['updated_at'] ),
-				'hashes'     => $byAlgo,
-			] + ( $withMimeType ? [ 'mimetype' => $mimeTypes[ $fileId ] ?? null ] : [] );
+				'hashes'     => $current ? $byAlgo : null,
+			] + ( $withMimeType ? [ 'mimetype' => $current ? $mimeTypes[ $fileId ] ?? null : null ] : [] )
+			  + ( $state !== null ? self::stat( $state, $state['vouched'], $state['stampEtag'] ) : [] );
 		}
 
 		return $entries;

@@ -234,6 +234,24 @@ class PublicApiTest
 		// Keyed by algorithm, each entry naming its own.
 		$this->assertSame( [ 'algo' => 'sha1', 'hash' => $this->sharedSha1Hash ], $response['hashes']['sha1'] ?? null );
 		$this->assertSame( [ 'algo' => 'sha256', 'hash' => $this->sha256Hash ], $response['hashes']['sha256'] ?? null );
+		$this->assertArrayNotHasKey( 'etag', $response, 'The file\'s state only when asked for.' );
+	}
+
+	/**
+	 * `stat=1` reaches the route: the ETag the hashes were read against, as
+	 * the filecache holds it, and the file's present size and mtimes.
+	 */
+	public function testGetHashesEndpointGivesTheFilesStateWhenAsked(): void
+	{
+		$response = $this->httpGet( "/api/v1/file/$this->testFileId1/hashes?stat=1" );
+		$etag     = $this->getRawConnection()
+		                 ->fetchOne( 'SELECT `etag` FROM `*PREFIX*filecache` WHERE `fileid` = ?', [ $this->testFileId1 ] );
+
+		$this->assertIsArray( $response );
+		$this->assertSame( $etag, $response['etag'] ?? null );
+		$this->assertSame( strlen( self::FILE_1_CONTENT ), $response['size'] ?? null );
+		$this->assertMatchesRegularExpression( '/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$/', (string) ( $response['mtime'] ?? '' ) );
+		$this->assertArrayHasKey( 'storageMtime', $response );
 	}
 
 	// ─── GET /api/v1/file/{fileId}/duplicates ────────────────────────

@@ -86,7 +86,7 @@ class PublicApiController
 	 *
 	 * @param  array<string, mixed>  $map
 	 */
-	private static function jsonObject( array $map ): array|\stdClass
+	private static function jsonObject( ?array $map ): array|\stdClass|null
 	{
 		return $map === [] ? new \stdClass() : $map;
 	}
@@ -641,13 +641,14 @@ class PublicApiController
 	public function getHashes(
 		int  $fileId,
 		bool $mimetype = false,
+		bool $stat = false,
 	): DataResponse
 	{
 		$own = $this->scopeOrRefusal();
 
 		return $own instanceof DataResponse
 			? $own
-			: $this->hashesFor( $fileId, $own, [ $own ], $mimetype );
+			: $this->hashesFor( $fileId, $own, [ $own ], $mimetype, $stat );
 	}
 
 	/**
@@ -663,6 +664,7 @@ class PublicApiController
 	public function sudoGetHashes(
 		int  $fileId,
 		bool $mimetype = false,
+		bool $stat = false,
 	): DataResponse
 	{
 		$own = $this->sudoFileOrRefusal( $fileId );
@@ -672,7 +674,7 @@ class PublicApiController
 		// check is a repeat — cheap, and it keeps one rule for both routes.
 		return $own instanceof DataResponse
 			? $own
-			: $this->hashesFor( $fileId, $own, $this->ceilingOf( $own ), $mimetype );
+			: $this->hashesFor( $fileId, $own, $this->ceilingOf( $own ), $mimetype, $stat );
 	}
 
 	/**
@@ -686,6 +688,7 @@ class PublicApiController
 		string $actingUser,
 		?array $reachUids,
 		bool   $withMimeType = false,
+		bool   $withStat = false,
 	): DataResponse
 	{
 		$refused = $this->mimeTypeRefusal( $withMimeType );
@@ -705,7 +708,7 @@ class PublicApiController
 
 		try
 		{
-			$result           = $this->api->getHashesByFileId( $fileId, $reachUids, actingUser: $actingUser, withMimeType: $withMimeType );
+			$result           = $this->api->getHashesByFileId( $fileId, $reachUids, actingUser: $actingUser, withMimeType: $withMimeType, withStat: $withStat );
 			$result['hashes'] = self::jsonObject( $result['hashes'] );
 
 			// Whether the sidebar may offer the way to the Others tab. The
@@ -1087,13 +1090,14 @@ class PublicApiController
 		?string $algo = null,
 		int     $limit = 100,
 		bool    $mimetype = false,
+		bool    $stat = false,
 	): DataResponse
 	{
 		$scope = $this->scopeOrRefusal();
 
 		return $scope instanceof DataResponse
 			? $scope
-			: $this->lookupFor( $hash, $algo, $limit, $scope, withMimeType: $mimetype );
+			: $this->lookupFor( $hash, $algo, $limit, $scope, withMimeType: $mimetype, withStat: $stat );
 	}
 
 	/**
@@ -1175,6 +1179,7 @@ class PublicApiController
 		int     $limit = 100,
 		bool    $localPath = false,
 		bool    $mimetype = false,
+		bool    $stat = false,
 	): DataResponse
 	{
 		$scope = $this->sudoScopeOrRefusal();
@@ -1194,7 +1199,7 @@ class PublicApiController
 			);
 		}
 
-		return $this->markOpenable( $this->lookupFor( $hash, $algo, $limit, $scope, $localPath, $this->readsCanonically(), $mimetype ) );
+		return $this->markOpenable( $this->lookupFor( $hash, $algo, $limit, $scope, $localPath, $this->readsCanonically(), $mimetype, $stat ) );
 	}
 
 	/**
@@ -1209,6 +1214,7 @@ class PublicApiController
 		bool              $withLocalPath = false,
 		bool              $canonical = false,
 		bool              $withMimeType = false,
+		bool              $withStat = false,
 	): DataResponse
 	{
 		$refused = $this->mimeTypeRefusal( $withMimeType );
@@ -1236,6 +1242,7 @@ class PublicApiController
 				withLocalPath: $withLocalPath,
 				canonical: $canonical,
 				withMimeType: $withMimeType,
+				withStat: $withStat,
 			);
 
 			return new DataResponse( $result );
@@ -1288,13 +1295,14 @@ class PublicApiController
 		int     $after = 0,
 		?string $since = null,
 		bool    $mimetype = false,
+		bool    $stat = false,
 	): DataResponse
 	{
 		$scope = $this->scopeOrRefusal();
 
 		return $scope instanceof DataResponse
 			? $scope
-			: $this->hashListFor( $scope, $algo, $limit, $after, $since, withMimeType: $mimetype );
+			: $this->hashListFor( $scope, $algo, $limit, $after, $since, withMimeType: $mimetype, withStat: $stat );
 	}
 
 	/**
@@ -1324,6 +1332,7 @@ class PublicApiController
 		?array  $groups = null,
 		bool    $localPath = false,
 		bool    $mimetype = false,
+		bool    $stat = false,
 	): DataResponse
 	{
 		$scope = $this->sudoNamedOrRefusal( $users, $groups );
@@ -1341,7 +1350,7 @@ class PublicApiController
 			);
 		}
 
-		return $this->markOpenable( $this->hashListFor( $scope, $algo, $limit, $after, $since, $localPath, $this->readsCanonically(), $mimetype ) );
+		return $this->markOpenable( $this->hashListFor( $scope, $algo, $limit, $after, $since, $localPath, $this->readsCanonically(), $mimetype, $stat ) );
 	}
 
 	/**
@@ -1357,6 +1366,7 @@ class PublicApiController
 		bool              $withLocalPath = false,
 		bool              $canonical = false,
 		bool              $withMimeType = false,
+		bool              $withStat = false,
 	): DataResponse
 	{
 		$refused = $this->mimeTypeRefusal( $withMimeType );
@@ -1388,6 +1398,7 @@ class PublicApiController
 				$withLocalPath,
 				$canonical,
 				$withMimeType,
+				$withStat,
 			);
 
 			foreach ( $page['files'] as $n => $file )
@@ -1431,13 +1442,14 @@ class PublicApiController
 	public function recalcHash(
 		int  $fileId,
 		bool $mimetype = false,
+		bool $stat = false,
 	): DataResponse
 	{
 		$scope = $this->scopeOrRefusal();
 
 		return $scope instanceof DataResponse
 			? $scope
-			: $this->recalcFor( $fileId, $scope, [ $scope ], $mimetype );
+			: $this->recalcFor( $fileId, $scope, [ $scope ], $mimetype, $stat );
 	}
 
 	/**
@@ -1462,6 +1474,7 @@ class PublicApiController
 	public function sudoRecalcHash(
 		int  $fileId,
 		bool $mimetype = false,
+		bool $stat = false,
 	): DataResponse
 	{
 		$scope = $this->sudoFileOrRefusal( $fileId );
@@ -1484,7 +1497,7 @@ class PublicApiController
 			],
 		);
 
-		return $this->recalcFor( $fileId, $scope, $this->ceilingOf( $scope ), $mimetype );
+		return $this->recalcFor( $fileId, $scope, $this->ceilingOf( $scope ), $mimetype, $stat );
 	}
 
 	/**
@@ -1507,13 +1520,16 @@ class PublicApiController
 	#[NoAdminRequired]
 	#[UserRateLimit( limit: 20, period: 60 )]
 	#[ApiRoute( verb: 'POST', url: '/api/v1/file/many/recalc' )]
-	public function recalcMany( bool $mimetype = false ): DataResponse
+	public function recalcMany(
+		bool $mimetype = false,
+		bool $stat = false,
+	): DataResponse
 	{
 		$own = $this->scopeOrRefusal();
 
 		return $own instanceof DataResponse
 			? $own
-			: $this->recalcManyFor( $own, [ $own ], $mimetype );
+			: $this->recalcManyFor( $own, [ $own ], $mimetype, $stat );
 	}
 
 	/**
@@ -1529,7 +1545,10 @@ class PublicApiController
 	#[NoAdminRequired]
 	#[UserRateLimit( limit: 20, period: 60 )]
 	#[ApiRoute( verb: 'POST', url: '/api/v1/sudo/file/many/recalc' )]
-	public function sudoRecalcMany( bool $mimetype = false ): DataResponse
+	public function sudoRecalcMany(
+		bool $mimetype = false,
+		bool $stat = false,
+	): DataResponse
 	{
 		$scope = $this->sudoScopeOrRefusal();
 
@@ -1548,7 +1567,7 @@ class PublicApiController
 			],
 		);
 
-		return $this->recalcManyFor( $own, $scope, $mimetype );
+		return $this->recalcManyFor( $own, $scope, $mimetype, $stat );
 	}
 
 	/**
@@ -1558,6 +1577,7 @@ class PublicApiController
 		string $actingUser,
 		?array $reachUids,
 		bool   $withMimeType = false,
+		bool   $withStat = false,
 	): DataResponse
 	{
 		$refused = $this->mimeTypeRefusal( $withMimeType );
@@ -1586,7 +1606,7 @@ class PublicApiController
 
 		try
 		{
-			return new DataResponse( $this->api->recalcMany( $fileIds, $reachUids, algo: $algo, actingUser: $actingUser, withMimeType: $withMimeType ) );
+			return new DataResponse( $this->api->recalcMany( $fileIds, $reachUids, algo: $algo, actingUser: $actingUser, withMimeType: $withMimeType, withStat: $withStat ) );
 		}
 		catch ( Throwable $e )
 		{
@@ -1616,6 +1636,7 @@ class PublicApiController
 		string $actingUser,
 		?array $reachUids,
 		bool   $withMimeType = false,
+		bool   $withStat = false,
 	): DataResponse
 	{
 		$refused = $this->mimeTypeRefusal( $withMimeType );
@@ -1648,7 +1669,7 @@ class PublicApiController
 
 		try
 		{
-			$result = $this->api->recalcHash( $fileId, $reachUids, algo: $algo, actingUser: $actingUser, withMimeType: $withMimeType );
+			$result = $this->api->recalcHash( $fileId, $reachUids, algo: $algo, actingUser: $actingUser, withMimeType: $withMimeType, withStat: $withStat );
 
 			if ( $result['success'] )
 			{

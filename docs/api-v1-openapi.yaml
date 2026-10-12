@@ -31,6 +31,7 @@ paths:
       operationId: findByHash
       parameters:
         - $ref: "#/components/parameters/MimeType"
+        - $ref: "#/components/parameters/Stat"
         - name: hash
           in: query
           required: true
@@ -83,6 +84,7 @@ paths:
       operationId: listHashes
       parameters:
         - $ref: "#/components/parameters/MimeType"
+        - $ref: "#/components/parameters/Stat"
         - $ref: "#/components/parameters/HashListAlgo"
         - $ref: "#/components/parameters/HashListLimit"
         - $ref: "#/components/parameters/HashListAfter"
@@ -111,6 +113,7 @@ paths:
       operationId: getHashesByFileId
       parameters:
         - $ref: "#/components/parameters/MimeType"
+        - $ref: "#/components/parameters/Stat"
         - name: fileId
           in: path
           required: true
@@ -174,6 +177,7 @@ paths:
       operationId: recalcHash
       parameters:
         - $ref: "#/components/parameters/MimeType"
+        - $ref: "#/components/parameters/Stat"
         - name: fileId
           in: path
           required: true
@@ -227,6 +231,7 @@ paths:
       operationId: recalcMany
       parameters:
         - $ref: "#/components/parameters/MimeType"
+        - $ref: "#/components/parameters/Stat"
       requestBody:
         required: true
         content:
@@ -353,6 +358,7 @@ paths:
       operationId: sudoRecalcHash
       parameters:
         - $ref: "#/components/parameters/MimeType"
+        - $ref: "#/components/parameters/Stat"
         - name: fileId
           in: path
           required: true
@@ -409,6 +415,7 @@ paths:
       operationId: sudoRecalcMany
       parameters:
         - $ref: "#/components/parameters/MimeType"
+        - $ref: "#/components/parameters/Stat"
       requestBody:
         required: true
         content:
@@ -447,6 +454,7 @@ paths:
       operationId: sudoGetHashesByFileId
       parameters:
         - $ref: "#/components/parameters/MimeType"
+        - $ref: "#/components/parameters/Stat"
         - name: fileId
           in: path
           required: true
@@ -520,6 +528,7 @@ paths:
       operationId: sudoLookupByHash
       parameters:
         - $ref: "#/components/parameters/MimeType"
+        - $ref: "#/components/parameters/Stat"
         - name: hash
           in: query
           required: true
@@ -748,6 +757,7 @@ paths:
       operationId: sudoListHashes
       parameters:
         - $ref: "#/components/parameters/MimeType"
+        - $ref: "#/components/parameters/Stat"
         - name: users[]
           in: query
           required: false
@@ -1161,6 +1171,17 @@ components:
       schema:
         type: string
         example: "2026-09-02T15:17:00+02:00"
+    Stat:
+      name: stat
+      in: query
+      required: false
+      description: >-
+        `1` adds the file's state to each file: `etag`, the ETag its hashes were read against,
+        null where they are stale; and `size`, `mtime` and `storageMtime`, its present state. A
+        file's hashes and the listing then give a stale file too, its `hashes` and `etag` null.
+      schema:
+        type: boolean
+        default: false
     MimeType:
       name: mimetype
       in: query
@@ -1240,6 +1261,14 @@ components:
           example: "/srv/nextcloud/data/alice/files/Documents/report.pdf"
         mimetype:
           $ref: "#/components/schemas/DetectedMimeType"
+        etag:
+          $ref: "#/components/schemas/StatEtag"
+        size:
+          $ref: "#/components/schemas/StatSize"
+        mtime:
+          $ref: "#/components/schemas/StatMtime"
+        storageMtime:
+          $ref: "#/components/schemas/StatStorageMtime"
 
     DetectedMimeType:
       type: string
@@ -1249,6 +1278,36 @@ components:
         libmagic names it; null for a file without one. Not Nextcloud's own `mimetype`, which
         the file's name gives.
       example: application/pdf
+
+    StatEtag:
+      type: string
+      nullable: true
+      description: >-
+        With `stat=1` only: the ETag the file's hashes were read against, as the filecache holds
+        it, without the quotes WebDAV's `getetag` adds; null where the hashes are stale, as they
+        are null then. Hashes stamped before the app kept the ETag, and still vouched for by
+        their stamp, give the one the filecache holds.
+      example: "6745ab12cd34e"
+
+    StatSize:
+      type: integer
+      nullable: true
+      description: "With `stat=1` only: the file's present size in bytes, whatever its hashes' state; null for a file the filecache no longer has."
+      example: 48213
+
+    StatMtime:
+      type: string
+      format: date-time
+      nullable: true
+      description: "With `stat=1` only: the file's present mtime, as Nextcloud shows it; ISO 8601 in whole seconds with an explicit offset."
+      example: "2026-09-02T15:16:41+00:00"
+
+    StatStorageMtime:
+      type: string
+      format: date-time
+      nullable: true
+      description: "With `stat=1` only: the mtime the file's storage gave Nextcloud's last scan of it; ISO 8601 in whole seconds with an explicit offset."
+      example: "2026-09-02T15:16:41+00:00"
 
     FileHashesResponse:
       type: object
@@ -1260,7 +1319,10 @@ components:
         updated_at:
           $ref: "#/components/schemas/HashesUpdatedAt"
         hashes:
-          $ref: "#/components/schemas/HashMap"
+          nullable: true
+          description: "Null with `stat=1` only, where the file's hashes are stale; `{}` without it."
+          allOf:
+            - $ref: "#/components/schemas/HashMap"
         algos:
           type: array
           items:
@@ -1285,6 +1347,14 @@ components:
           example: false
         mimetype:
           $ref: "#/components/schemas/DetectedMimeType"
+        etag:
+          $ref: "#/components/schemas/StatEtag"
+        size:
+          $ref: "#/components/schemas/StatSize"
+        mtime:
+          $ref: "#/components/schemas/StatMtime"
+        storageMtime:
+          $ref: "#/components/schemas/StatStorageMtime"
 
     PreferenceResponse:
       type: object
@@ -1405,7 +1475,10 @@ components:
         updated_at:
           $ref: "#/components/schemas/HashesUpdatedAt"
         hashes:
-          $ref: "#/components/schemas/HashMap"
+          nullable: true
+          description: "Null with `stat=1` only, for a stale file, which the listing gives only then."
+          allOf:
+            - $ref: "#/components/schemas/HashMap"
         openable:
           type: boolean
           description: >-
@@ -1414,6 +1487,14 @@ components:
           example: false
         mimetype:
           $ref: "#/components/schemas/DetectedMimeType"
+        etag:
+          $ref: "#/components/schemas/StatEtag"
+        size:
+          $ref: "#/components/schemas/StatSize"
+        mtime:
+          $ref: "#/components/schemas/StatMtime"
+        storageMtime:
+          $ref: "#/components/schemas/StatStorageMtime"
     HashesUpdatedAt:
       type: string
       format: date-time
@@ -1553,6 +1634,14 @@ components:
             With `mimetype=1` only: the content's MIME type the recalculation left, detected in
             the same read where detection is on; null on a failure, or for a file without one.
           example: application/pdf
+        etag:
+          $ref: "#/components/schemas/StatEtag"
+        size:
+          $ref: "#/components/schemas/StatSize"
+        mtime:
+          $ref: "#/components/schemas/StatMtime"
+        storageMtime:
+          $ref: "#/components/schemas/StatStorageMtime"
 
     RecalcManyInput:
       type: object

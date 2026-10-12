@@ -1675,7 +1675,12 @@ class MetadataService
 	 *                                                               written at or after
 	 *                                                               it, in unix seconds.
 	 *
-	 * @return list<array{fileid: int, storage: int, storage_id: string, path: string, updated_at: ?int}>
+	 * @param  bool                                          $withStale  Also the
+	 *         files whose hashes are stale — their stamp no longer vouching
+	 *         for them, or disowned — each with `state`: what the filecache
+	 *         holds of it now, and whether its hashes are vouched for.
+	 *
+	 * @return list<array{fileid: int, storage: int, storage_id: string, path: string, updated_at: ?int, state?: array{etag: string, size: int, mtime: int, storageMtime: int, stampEtag: ?string, vouched: bool}}>
 	 * @throws Exception
 	 */
 	public function pageListedFiles(
@@ -1684,6 +1689,7 @@ class MetadataService
 		int     $after,
 		?int    $since,
 		int     $limit,
+		bool    $withStale = false,
 	): array
 	{
 		if ( $limit < 1 )
@@ -1704,7 +1710,18 @@ class MetadataService
 			   ->selectAlias( 'u.' . self::FIELD_META_VALUE_INT, 'updated_at' )
 			;
 
-			$this->whereListed( $qb, $mounts, $algo, $since );
+			$disowned = $this->whereListed( $qb, $mounts, $algo, $since, ! $withStale, $withStale );
+
+			if ( $withStale )
+			{
+				$qb->selectAlias( 'u.' . self::FIELD_META_VALUE_STRING, 'stamp_etag' )
+				   ->selectAlias( 'fc.etag', 'fc_etag' )
+				   ->selectAlias( 'fc.size', 'fc_size' )
+				   ->selectAlias( 'fc.mtime', 'fc_mtime' )
+				   ->selectAlias( 'fc.storage_mtime', 'fc_storage_mtime' )
+				   ->selectAlias( $qb->createFunction( $disowned ), 'disowned' )
+				;
+			}
 
 			$qb->andWhere(
 				$qb->expr()
@@ -1737,6 +1754,23 @@ class MetadataService
 					'path'       => (string) $row['path'],
 					'updated_at' => $stamp,
 				];
+
+				if ( $withStale )
+				{
+					$stampEtag = $row['stamp_etag'] === null || $row['stamp_etag'] === ''
+						? null
+						: (string) $row['stamp_etag'];
+
+					$files[ $fileId ]['state'] = [
+						'etag'         => (string) $row['fc_etag'],
+						'size'         => max( 0, (int) $row['fc_size'] ),
+						'mtime'        => (int) $row['fc_mtime'],
+						'storageMtime' => (int) $row['fc_storage_mtime'],
+						'stampEtag'    => $stampEtag,
+						'vouched'      => (int) $row['disowned'] === 0
+						                  && self::vouches( $stampEtag, $stamp, (string) $row['fc_etag'], (int) $row['fc_storage_mtime'] ),
+					];
+				}
 			}
 
 			$result->closeCursor();
@@ -1753,6 +1787,8 @@ class MetadataService
 	 * listing's `estimated_total` allows for in its name.
 	 *
 	 * @param  list<array{storage: int, root: string}>|null  $mounts
+	 * @param  bool                                          $withStale  As
+	 *         {@see pageListedFiles()}.
 	 *
 	 * @throws Exception
 	 */
@@ -1760,6 +1796,7 @@ class MetadataService
 		?array  $mounts,
 		?string $algo,
 		?int    $since,
+		bool    $withStale = false,
 	): int
 	{
 		$qb = $this->db->getQueryBuilder();
@@ -1769,7 +1806,7 @@ class MetadataService
 			'cnt',
 		);
 
-		$this->whereListed( $qb, $mounts, $algo, $since );
+		$this->whereListed( $qb, $mounts, $algo, $since, ! $withStale, $withStale );
 
 		$result = $this->executeQuery( $qb );
 		$count  = (int) $result->fetchOne();
@@ -1849,9 +1886,15 @@ class MetadataService
 	 * leaves it out ({@see vouchedCondition()}).
 	 *
 	 * @param  list<array{storage: int, root: string}>|null  $mounts
-	 * @param  bool                                          $vouched  False
+	 * @param  bool                                          $vouched       False
 	 *         lists the files whatever their stamp says, for a caller that
 	 *         asks it itself.
+	 * @param  bool                                          $withDisowned  True
+	 *         lists the disowned files too.
+	 *
+	 * @return string  The count of a file's `stale:` state rows, as an SQL
+	 *                 expression a caller listing the disowned can select to
+	 *                 tell them apart.
 	 */
 	private function whereListed(
 		IQueryBuilder $qb,
@@ -1859,7 +1902,8 @@ class MetadataService
 		?string       $algo,
 		?int          $since,
 		bool          $vouched = true,
-	): void
+		bool          $withDisowned = false,
+	): string
 	{
 		$hash = $this->db->getQueryBuilder();
 		$hash->select( $hash->func()->count( '*' ) )
@@ -1912,10 +1956,14 @@ class MetadataService
 		   ->where(
 			   $qb->expr()
 			      ->eq( 'u.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
-			   $qb->createFunction( '(' . $stale->getSQL() . ') = 0' ),
 			   $qb->createFunction( '(' . $hash->getSQL() . ') > 0' ),
 		   )
 		;
+
+		if ( ! $withDisowned )
+		{
+			$qb->andWhere( $qb->createFunction( '(' . $stale->getSQL() . ') = 0' ) );
+		}
 
 		$this->filecacheService->andWhereGoverned( $qb, 'fc' );
 
@@ -1928,6 +1976,8 @@ class MetadataService
 		{
 			$qb->andWhere( $this->vouchedCondition( $qb, 'u', 'fc' ) );
 		}
+
+		return '(' . $stale->getSQL() . ')';
 	}
 
 	/**
@@ -2016,6 +2066,114 @@ class MetadataService
 			                      ->eq( $stamp . '.' . self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( '' ) ),
 		                   )
 		;
+	}
+
+	/**
+	 * {@see vouchedCondition()} in PHP, for a stamp row and a filecache row
+	 * read already.
+	 *
+	 * @param  string|null  $stampEtag  The stamp row's string half.
+	 * @param  int|null     $stamp      Its int half; null for no stamp row.
+	 */
+	public static function vouches(
+		?string $stampEtag,
+		?int    $stamp,
+		string  $etag,
+		int     $storageMtime,
+	): bool
+	{
+		if ( $stamp === null )
+		{
+			return false;
+		}
+
+		return $stampEtag !== null && $stampEtag !== ''
+			? $stampEtag === $etag
+			: $stamp >= $storageMtime;
+	}
+
+	/**
+	 * The stamp rows of these files, as [ETag, stamp] by file id; a file
+	 * without one is absent.
+	 *
+	 * @param  list<int>  $fileIds
+	 *
+	 * @return array<int, array{etag: ?string, stamp: ?int}>
+	 * @throws Exception
+	 */
+	public function stampsOf( array $fileIds ): array
+	{
+		$stamps = [];
+
+		foreach ( array_chunk( array_values( array_unique( array_map( intval( ... ), $fileIds ) ) ), 1000 ) as $chunk )
+		{
+			$qb = $this->db->getQueryBuilder();
+			$qb->select( self::FIELD_FILE_ID, self::FIELD_META_VALUE_STRING, self::FIELD_META_VALUE_INT )
+			   ->from( self::TABLE_FILES_METADATA_INDEX )
+			   ->where(
+				   $qb->expr()
+				      ->in( self::FIELD_FILE_ID, $qb->createNamedParameter( $chunk, IQueryBuilder::PARAM_INT_ARRAY ) ),
+				   $qb->expr()
+				      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			   )
+			   ->orderBy( 'id', 'ASC' )
+			;
+
+			$result = $this->executeQuery( $qb );
+
+			while ( ( $row = $result->fetchAssociative() ) !== false )
+			{
+				$stamps[ (int) $row[ self::FIELD_FILE_ID ] ] ??= [
+					'etag'  => $row[ self::FIELD_META_VALUE_STRING ] === null || $row[ self::FIELD_META_VALUE_STRING ] === ''
+						? null
+						: (string) $row[ self::FIELD_META_VALUE_STRING ],
+					'stamp' => $row[ self::FIELD_META_VALUE_INT ] === null
+						? null
+						: (int) $row[ self::FIELD_META_VALUE_INT ],
+				];
+			}
+
+			$result->closeCursor();
+		}
+
+		return $stamps;
+	}
+
+	/**
+	 * What the filecache holds of these files now, with the ETag their stamp
+	 * carries and whether it vouches for their hashes
+	 * ({@see vouchedCondition()}): by file id, a file the filecache does not
+	 * have absent. Two queries per thousand files.
+	 *
+	 * @param  list<int>  $fileIds
+	 *
+	 * @return array<int, array{etag: string, size: int, mtime: int, storageMtime: int, stampEtag: ?string, vouched: bool}>
+	 * @throws Exception
+	 */
+	public function fileStatesOf( array $fileIds ): array
+	{
+		$read   = $this->filecacheService->statesOf( $fileIds );
+		$stamps = $this->stampsOf( array_keys( $read ) );
+		$states = [];
+
+		foreach ( $read as $fileId => $state )
+		{
+			$stamp = $stamps[ $fileId ] ?? [
+				'etag'  => null,
+				'stamp' => null,
+			];
+
+			$states[ $fileId ] = [
+				'etag'         => $state['etag'],
+				'size'         => $state['size'],
+				'mtime'        => $state['mtime'],
+				'storageMtime' => $state['storageMtime'],
+				'stampEtag'    => $stamp['etag'],
+				'vouched'      => self::vouches( $stamp['etag'], $stamp['stamp'], $state['etag'], $state['storageMtime'] ),
+			];
+		}
+
+		return $states;
 	}
 
 	/**

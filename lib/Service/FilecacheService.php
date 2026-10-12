@@ -909,6 +909,49 @@ class FilecacheService
 	}
 
 	/**
+	 * {@see stateOf()} for many files, with their size: by file id, a file
+	 * the filecache does not have absent. One query per thousand ids, the
+	 * chunk Oracle's placeholders allow.
+	 *
+	 * @param  list<int>  $fileIds
+	 *
+	 * @return array<int, array{etag: string, size: int, mtime: int, storageMtime: int}>
+	 * @throws \OCP\DB\Exception
+	 */
+	public function statesOf( array $fileIds ): array
+	{
+		$states = [];
+
+		foreach ( array_chunk( array_values( array_unique( array_map( intval( ... ), $fileIds ) ) ), 1000 ) as $chunk )
+		{
+			$qb = $this->db->getQueryBuilder();
+			$qb->select( 'fileid', 'etag', 'size', 'mtime', 'storage_mtime' )
+			   ->from( 'filecache' )
+			   ->where(
+				   $qb->expr()
+				      ->in( 'fileid', $qb->createNamedParameter( $chunk, IQueryBuilder::PARAM_INT_ARRAY ) ),
+			   )
+			;
+
+			$result = $qb->executeQuery();
+
+			while ( ( $row = $result->fetchAssociative() ) !== false )
+			{
+				$states[ (int) $row['fileid'] ] = [
+					'etag'         => (string) $row['etag'],
+					'size'         => max( 0, (int) $row['size'] ),
+					'mtime'        => (int) $row['mtime'],
+					'storageMtime' => (int) $row['storage_mtime'],
+				];
+			}
+
+			$result->closeCursor();
+		}
+
+		return $states;
+	}
+
+	/**
 	 * The filecache's checksum column for one file, parsed into lowercase
 	 * algorithm => hash pairs; empty for none, or for a file it does not
 	 * have. Read by id, without resolving a node.

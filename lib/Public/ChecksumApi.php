@@ -124,8 +124,12 @@ class ChecksumApi
 	 *                                           the content's type as
 	 *                                           detected, null for none
 	 *                                           ({@see withMimeTypes()}).
+	 * @param  bool               $withStat      The answer gains the file's
+	 *                                           state ({@see withStates()}),
+	 *                                           and `hashes` is null where
+	 *                                           they are stale.
 	 *
-	 * @return array{fileid: int, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, algos: list<string>, preferred: string, default: string, canRecalc: bool, mimetype?: ?string}
+	 * @return array{fileid: int, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, algos: list<string>, preferred: string, default: string, canRecalc: bool, mimetype?: ?string, etag?: ?string, size?: ?int, mtime?: ?string, storageMtime?: ?string}
 	 * @throws NotFoundException  If $reachUids is set and the file lies outside it
 	 * @throws HintedInvalidArgumentException  For $withMimeType while detection
 	 *                                         is off ({@see mimeTypeRefusal()})
@@ -135,6 +139,7 @@ class ChecksumApi
 		?array  $reachUids,
 		?string $actingUser = null,
 		bool    $withMimeType = false,
+		bool    $withStat = false,
 	): array
 	{
 		$this->assertMimeTypesReadable( $withMimeType );
@@ -151,7 +156,8 @@ class ChecksumApi
 		// The hashes a lookup would find the file by: none between a change
 		// of its content and their recomputation, the app having heard of
 		// the change or not.
-		$listed = $this->metadataService->isVouched( $fileId )
+		$vouched = $this->metadataService->isVouched( $fileId );
+		$listed  = $vouched
 			? $this->metadataService->listedHashes( [ $fileId ], null )[ $fileId ] ?? []
 			: [];
 
@@ -187,9 +193,29 @@ class ChecksumApi
 			'canRecalc'  => $this->mayRecalc( $actingUser ),
 		];
 
-		return $withMimeType
-			? $this->withMimeTypes( [ $answer ] )[0]
-			: $answer;
+		if ( $withMimeType )
+		{
+			$answer = $this->withMimeTypes( [ $answer ] )[0];
+		}
+
+		if ( ! $withStat )
+		{
+			return $answer;
+		}
+
+		// Stale, what the content was read for is null together: the hashes,
+		// the type detected with them, and the ETag.
+		if ( ! $vouched )
+		{
+			$answer['hashes'] = null;
+
+			if ( $withMimeType )
+			{
+				$answer['mimetype'] = null;
+			}
+		}
+
+		return $this->withStates( [ $answer ] )[0];
 	}
 
 	/**
@@ -323,8 +349,12 @@ class ChecksumApi
 	 *                                        the sharer's above it.
 	 * @param  bool               $withMimeType  Each row gains `mimetype`, as
 	 *                                           {@see getHashesByFileId()}.
+	 * @param  bool               $withStat      Each row gains the file's
+	 *                                           state ({@see withStates()});
+	 *                                           a file found is one whose
+	 *                                           hashes are current.
 	 *
-	 * @return array{results: array<int, array{fileid: int, algo: string, hash: string, path: string, name: string, owner: ?string, location: string, localPath?: ?string, mimetype?: ?string}>}
+	 * @return array{results: array<int, array{fileid: int, algo: string, hash: string, path: string, name: string, owner: ?string, location: string, localPath?: ?string, mimetype?: ?string, etag?: ?string, size?: ?int, mtime?: ?string, storageMtime?: ?string}>}
 	 * @throws \InvalidArgumentException  When $hash is empty once trimmed, or
 	 *                                    for $withMimeType while detection is
 	 *                                    off. The REST layer turns this into
@@ -338,6 +368,7 @@ class ChecksumApi
 		bool    $withLocalPath = false,
 		bool    $canonical = false,
 		bool    $withMimeType = false,
+		bool    $withStat = false,
 	): array
 	{
 		$this->assertMimeTypesReadable( $withMimeType );
@@ -373,9 +404,14 @@ class ChecksumApi
 				] + ( $withLocalPath ? [ 'localPath' => $row['local_path'] ?? null ] : [] );
 			}, $rows );
 
+			if ( $withMimeType )
+			{
+				$results = $this->withMimeTypes( $results );
+			}
+
 			return [
-				'results' => $withMimeType
-					? $this->withMimeTypes( $results )
+				'results' => $withStat
+					? $this->withStates( $results )
 					: $results,
 			];
 		}
@@ -465,9 +501,14 @@ class ChecksumApi
 
 		$results = $this->withLocations( $results, $withLocalPath, $uids, $canonical );
 
+		if ( $withMimeType )
+		{
+			$results = $this->withMimeTypes( $results );
+		}
+
 		return [
-			'results' => $withMimeType
-				? $this->withMimeTypes( $results )
+			'results' => $withStat
+				? $this->withStates( $results )
 				: $results,
 		];
 	}
@@ -516,7 +557,14 @@ class ChecksumApi
 	 *                                            `since` feed: after a refresh,
 	 *                                            read the listing whole.
 	 *
-	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, mimetype?: ?string}>, next: ?int, now: int, estimated_total?: int}
+	 * @param  bool               $withStat       Each entry gains the file's
+	 *                                            state ({@see withStates()}),
+	 *                                            and the files whose hashes
+	 *                                            are stale — changed, or
+	 *                                            disowned — are listed too,
+	 *                                            `hashes` and `etag` null.
+	 *
+	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, mimetype?: ?string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>, next: ?int, now: int, estimated_total?: int}
 	 *         `next` is null when no file follows, and echoes $after for a
 	 *         count. `now` is this server's clock, unix seconds, taken before
 	 *         the page was read. Starting from 0, `estimated_total` counts the
@@ -535,11 +583,12 @@ class ChecksumApi
 		bool    $withLocalPath = false,
 		bool    $canonical = false,
 		bool    $withMimeType = false,
+		bool    $withStat = false,
 	): array
 	{
 		$this->assertMimeTypesReadable( $withMimeType );
 
-		return $this->listing->page( $reachUids, $algo, $limit, $after, $since, $withLocalPath, $canonical, $withMimeType );
+		return $this->listing->page( $reachUids, $algo, $limit, $after, $since, $withLocalPath, $canonical, $withMimeType, $withStat );
 	}
 
 	/**
@@ -561,8 +610,9 @@ class ChecksumApi
 	 *                                            starts at the beginning.
 	 * @param  bool               $canonical      As {@see findByHash()}.
 	 * @param  bool               $withMimeType   As {@see listHashes()}.
+	 * @param  bool               $withStat       As {@see listHashes()}.
 	 *
-	 * @return Generator<int, array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>, mimetype?: ?string}>
+	 * @return Generator<int, array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, mimetype?: ?string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>
 	 * @throws \OCP\DB\Exception  While the walk is read, not when it is asked for.
 	 * @throws HintedInvalidArgumentException  For $withMimeType while detection
 	 *                                         is off, when it is asked for.
@@ -575,11 +625,12 @@ class ChecksumApi
 		int     $after = 0,
 		bool    $canonical = false,
 		bool    $withMimeType = false,
+		bool    $withStat = false,
 	): Generator
 	{
 		$this->assertMimeTypesReadable( $withMimeType );
 
-		return $this->listing->iterate( $reachUids, $algo, $since, $withLocalPath, $after, $canonical, $withMimeType );
+		return $this->listing->iterate( $reachUids, $algo, $since, $withLocalPath, $after, $canonical, $withMimeType, $withStat );
 	}
 
 	/**
@@ -880,8 +931,10 @@ class ChecksumApi
 	 *                                   file tree. Null is a trusted
 	 *                                   DI/bootstrap caller: both are skipped.
 	 * @param  bool         $withMimeType  The answer gains `mimetype`, below.
+	 * @param  bool         $withStat      The answer gains the file's state,
+	 *                                     below.
 	 *
-	 * @return array{success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string, ruleOwner?: string, forbidden?: bool, mimetype?: ?string}
+	 * @return array{success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string, ruleOwner?: string, forbidden?: bool, mimetype?: ?string, etag?: ?string, size?: ?int, mtime?: ?string, storageMtime?: ?string}
 	 *         `excluded` says a rule refused the file rather than anything
 	 *         going wrong, and names the rule in `ruleId` and whose it is in
 	 *         `ruleOwner` — `admin`, or a uid; `forbidden` says
@@ -889,6 +942,9 @@ class ChecksumApi
 	 *         answers 403 for either and 400 for every other failure.
 	 *         With $withMimeType, `mimetype` is the type the recalculation
 	 *         left, as {@see getHashesByFileId()}; null where it failed.
+	 *         With $withStat, the file's state as the recalculation left it
+	 *         ({@see withStates()}): `etag` the one it read against; all
+	 *         null where it failed.
 	 * @throws HintedInvalidArgumentException  For $withMimeType while detection
 	 *                                         is off.
 	 */
@@ -898,22 +954,33 @@ class ChecksumApi
 		?string $algo = null,
 		?string $actingUser = null,
 		bool    $withMimeType = false,
+		bool    $withStat = false,
 	): array
 	{
 		$this->assertMimeTypesReadable( $withMimeType );
 
 		$result = $this->recalcFile( $fileId, $reachUids, $algo, $actingUser );
 
-		if ( ! $withMimeType )
-		{
-			return $result;
-		}
-
 		// Only for a file the recalculation reached: a failure may be one the
 		// caller may not see.
-		$result['mimetype'] = $result['success']
-			? $this->metadataService->mimeTypesOf( [ $fileId ] )[ $fileId ] ?? null
-			: null;
+		if ( $withMimeType )
+		{
+			$result['mimetype'] = $result['success']
+				? $this->metadataService->mimeTypesOf( [ $fileId ] )[ $fileId ] ?? null
+				: null;
+		}
+
+		if ( $withStat )
+		{
+			$result += $result['success']
+				? array_diff_key( $this->withStates( [ [ 'fileid' => $fileId ] ] )[0], [ 'fileid' => true ] )
+				: [
+					'etag'         => null,
+					'size'         => null,
+					'mtime'        => null,
+					'storageMtime' => null,
+				];
+		}
 
 		return $result;
 	}
@@ -1030,8 +1097,10 @@ class ChecksumApi
 	 * @param  string|null        $actingUser  As for {@see recalcHash()}.
 	 * @param  bool               $withMimeType  Each result gains `mimetype`,
 	 *                                           as {@see recalcHash()}.
+	 * @param  bool               $withStat      Each result gains the file's
+	 *                                           state, as {@see recalcHash()}.
 	 *
-	 * @return array{results: list<array{fileid: int, success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string, ruleOwner?: string, forbidden?: bool, mimetype?: ?string}>, remaining: list<int>}
+	 * @return array{results: list<array{fileid: int, success: bool, algo?: string, hash?: string, existed?: bool, locked?: bool, error?: string, excluded?: bool, ruleId?: string, ruleOwner?: string, forbidden?: bool, mimetype?: ?string, etag?: ?string, size?: ?int, mtime?: ?string, storageMtime?: ?string}>, remaining: list<int>}
 	 *         `remaining` are the ids not processed, in the order given; the
 	 *         caller sends them again.
 	 * @throws HintedInvalidArgumentException  For $withMimeType while detection
@@ -1043,6 +1112,7 @@ class ChecksumApi
 		?string $algo = null,
 		?string $actingUser = null,
 		bool    $withMimeType = false,
+		bool    $withStat = false,
 	): array
 	{
 		$this->assertMimeTypesReadable( $withMimeType );
@@ -1084,6 +1154,25 @@ class ChecksumApi
 				$results[ $i ]['mimetype'] = $result['success']
 					? $types[ $result['fileid'] ] ?? null
 					: null;
+			}
+		}
+
+		if ( $withStat )
+		{
+			// The same: a failure says nothing of a file the caller may not see.
+			$reached = array_values( array_filter( $results, static fn( array $result ): bool => $result['success'] ) );
+			$states  = array_column( $this->withStates( $reached ), null, 'fileid' );
+
+			foreach ( $results as $i => $result )
+			{
+				$state = $states[ $result['fileid'] ] ?? [];
+
+				$results[ $i ] += [
+					'etag'         => $state['etag'] ?? null,
+					'size'         => $state['size'] ?? null,
+					'mtime'        => $state['mtime'] ?? null,
+					'storageMtime' => $state['storageMtime'] ?? null,
+				];
 			}
 		}
 
@@ -1195,6 +1284,41 @@ class ChecksumApi
 		foreach ( $rows as $i => $row )
 		{
 			$rows[ $i ]['mimetype'] = $types[ (int) $row['fileid'] ] ?? null;
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * The given file rows, each with its state: `etag`, the ETag its hashes
+	 * were read against, null where they are stale; and `size`, `mtime` and
+	 * `storageMtime`, the file's present state ({@see HashListingService::stat()}).
+	 * All null for a file the filecache no longer has. Two queries for all
+	 * of them.
+	 *
+	 * @param  list<array{fileid: int, ...}>  $rows
+	 *
+	 * @return list<array>  the same rows plus `etag: ?string, size: ?int, mtime: ?string, storageMtime: ?string`
+	 * @throws \OCP\DB\Exception
+	 */
+	private function withStates( array $rows ): array
+	{
+		$states = $this->metadataService->fileStatesOf(
+			array_map( static fn( array $row ): int => (int) $row['fileid'], $rows ),
+		);
+
+		foreach ( $rows as $i => $row )
+		{
+			$state = $states[ (int) $row['fileid'] ] ?? null;
+
+			$rows[ $i ] += $state === null
+				? [
+					'etag'         => null,
+					'size'         => null,
+					'mtime'        => null,
+					'storageMtime' => null,
+				]
+				: HashListingService::stat( $state, $state['vouched'], $state['stampEtag'] );
 		}
 
 		return $rows;
