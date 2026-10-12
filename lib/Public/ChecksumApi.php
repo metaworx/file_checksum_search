@@ -122,12 +122,17 @@ class ChecksumApi
 	 *                                         caller may do: everything.
 	 * @param  bool               $withMimeType  The answer gains `mimetype`:
 	 *                                           the content's type as
-	 *                                           detected, null for none
+	 *                                           detected, null for none, and
+	 *                                           null with the hashes
 	 *                                           ({@see withMimeTypes()}).
 	 * @param  bool               $withStat      The answer gains the file's
-	 *                                           state ({@see withStates()}),
-	 *                                           and `hashes` is null where
-	 *                                           they are stale.
+	 *                                           state ({@see withStates()});
+	 *                                           `hashes`, `updated_at` and
+	 *                                           `etag` are null where the
+	 *                                           hashes are stale or revoked,
+	 *                                           as the listing gives them,
+	 *                                           and `hashes` is `{}` where the
+	 *                                           file has none.
 	 *
 	 * @return array{fileid: int, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, algos: list<string>, preferred: string, default: string, canRecalc: bool, mimetype?: ?string, etag?: ?string, size?: ?int, mtime?: ?string, storageMtime?: ?string}
 	 * @throws NotFoundException  If $reachUids is set and the file lies outside it
@@ -155,8 +160,10 @@ class ChecksumApi
 
 		// The hashes a lookup would find the file by: none between a change
 		// of its content and their recomputation, the app having heard of
-		// the change or not.
-		$vouched = $this->metadataService->isVouched( $fileId );
+		// the change or not. Decided once, from the one read of the file's
+		// state that `stat` answers with too.
+		$state   = $this->metadataService->fileStatesOf( [ $fileId ] )[ $fileId ] ?? null;
+		$vouched = $state !== null && $state['vouched'];
 		$listed  = $vouched
 			? $this->metadataService->listedHashes( [ $fileId ], null )[ $fileId ] ?? []
 			: [];
@@ -193,9 +200,13 @@ class ChecksumApi
 			'canRecalc'  => $this->mayRecalc( $actingUser ),
 		];
 
+		// The type was detected from the content the hashes were read from,
+		// and goes with them.
 		if ( $withMimeType )
 		{
-			$answer = $this->withMimeTypes( [ $answer ] )[0];
+			$answer = $vouched
+				? $this->withMimeTypes( [ $answer ] )[0]
+				: $answer + [ 'mimetype' => null ];
 		}
 
 		if ( ! $withStat )
@@ -203,11 +214,17 @@ class ChecksumApi
 			return $answer;
 		}
 
-		// Stale, what the content was read for is null together: the hashes,
-		// the type detected with them, and the ETag.
-		if ( ! $vouched )
+		// Under `stat`, what the content was read for is valid or null
+		// together: the hashes, the type detected with them, their stamp
+		// and the ETag. Revoked hashes too, as the listing has them; a file
+		// whose document holds none has none, `{}`.
+		$marker = $this->metadataService->getMarker( $fileId );
+		$valid  = $vouched && ! ( $marker !== null && str_starts_with( $marker, MetadataService::STATE_STALE_PREFIX ) );
+
+		if ( ! $valid && $this->metadataService->getHashes( $this->metadataService->getMetadata( $fileId ) ) !== [] )
 		{
-			$answer['hashes'] = null;
+			$answer['hashes']     = null;
+			$answer['updated_at'] = null;
 
 			if ( $withMimeType )
 			{
@@ -215,7 +232,9 @@ class ChecksumApi
 			}
 		}
 
-		return $this->withStates( [ $answer ] )[0];
+		return $answer + ( $state === null
+				? self::NO_STATE
+				: HashListingService::stat( $state, $valid, $state['stampEtag'] ) );
 	}
 
 	/**
@@ -834,8 +853,11 @@ class ChecksumApi
 		}
 
 		// Current hashes only: an outdated one would pair the file with copies
-		// of what it used to hold.
-		$hashes = $this->metadataService->listedHashes( [ $fileId ], null )[ $fileId ] ?? [];
+		// of what it used to hold, and so would one its stamp no longer
+		// vouches for — changed without the app hearing of it.
+		$hashes = $this->metadataService->isVouched( $fileId )
+			? $this->metadataService->listedHashes( [ $fileId ], null )[ $fileId ] ?? []
+			: [];
 
 		if ( empty( $hashes ) )
 		{
@@ -1013,12 +1035,7 @@ class ChecksumApi
 		{
 			$result += $result['success']
 				? array_diff_key( $this->withStates( [ [ 'fileid' => $fileId ] ] )[0], [ 'fileid' => true ] )
-				: [
-					'etag'         => null,
-					'size'         => null,
-					'mtime'        => null,
-					'storageMtime' => null,
-				];
+				: self::NO_STATE;
 		}
 
 		return $result;
@@ -1117,6 +1134,17 @@ class ChecksumApi
 	 * budget can be stated in bytes as well as files.
 	 */
 	public const RECALC_BATCH_BYTES = 100 * 1024 * 1024;
+
+	/**
+	 * The state `stat` gives a file the filecache no longer has: none of it
+	 * ({@see HashListingService::stat()}).
+	 */
+	private const NO_STATE = [
+		'etag'         => null,
+		'size'         => null,
+		'mtime'        => null,
+		'storageMtime' => null,
+	];
 
 	/**
 	 * Recalculate several files in one request — one gesture, one call.
@@ -1351,12 +1379,7 @@ class ChecksumApi
 			$state = $states[ (int) $row['fileid'] ] ?? null;
 
 			$rows[ $i ] += $state === null
-				? [
-					'etag'         => null,
-					'size'         => null,
-					'mtime'        => null,
-					'storageMtime' => null,
-				]
+				? self::NO_STATE
 				: HashListingService::stat( $state, $state['vouched'], $state['stampEtag'] );
 		}
 

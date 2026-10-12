@@ -155,8 +155,72 @@ class FileStateTest
 		$this->assertNull( $perFile['etag'] );
 		$this->assertSame( 12, $perFile['size'] );
 
+		$this->assertNull( $listed['updated_at'], 'The stamp of stale hashes goes with them.' );
+		$this->assertNull( $perFile['updated_at'] );
+
 		$this->assertNull( $this->listed( $file, false ), 'Not listed without stat.' );
 		$this->assertSame( [], $this->api->getHashesByFileId( $file->getId(), null )['hashes'] );
+	}
+
+	/**
+	 * Hashes a reset disowned: under `stat` null, as the listing gives
+	 * them; without, shown as stored, as before `stat` existed.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testADisownedFilesHashesAreNullOnlyUnderStat(): void
+	{
+		$file = $this->hashed( 'fcias_state_disowned', 'twelve bytes' );
+		Server::get( MetadataService::class )->markPending( $file->getId(), MetadataService::STATE_RESET );
+
+		$perFile = $this->api->getHashesByFileId( $file->getId(), null, withStat: true );
+		$this->assertNull( $perFile['hashes'] );
+		$this->assertNull( $perFile['etag'] );
+
+		$listed = $this->listed( $file, true );
+		$this->assertNotNull( $listed, 'Listed under stat.' );
+		$this->assertNull( $listed['hashes'], 'As the listing gives it.' );
+
+		$this->assertSame( sha1( 'twelve bytes' ), $this->api->getHashesByFileId( $file->getId(), null )['hashes']['sha1']['hash'] ?? null );
+	}
+
+	/**
+	 * A file never hashed has no hashes, `{}`: not null, which says stale.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAFileWithoutHashesHasNoneUnderStat(): void
+	{
+		$file = $this->createTestFile( 'fcias_state_none', 'twelve bytes' );
+
+		$perFile = $this->api->getHashesByFileId( $file->getId(), null, withStat: true );
+
+		$this->assertSame( [], $perFile['hashes'] );
+		$this->assertNull( $perFile['etag'] );
+		$this->assertSame( 12, $perFile['size'] );
+	}
+
+	/**
+	 * A file whose ETag moved on leaves the duplicates: its group, and the
+	 * duplicates of its own old hashes.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAFileWhoseEtagMovedOnLeavesTheDuplicates(): void
+	{
+		$content  = 'duplicate ' . bin2hex( random_bytes( 8 ) );
+		$moved    = $this->hashed( 'fcias_state_dup_moved', $content );
+		$kept     = $this->hashed( 'fcias_state_dup_kept', $content );
+		$metadata = Server::get( MetadataService::class );
+
+		$this->assertCount( 1, $metadata->queryDuplicates( 'sha1', 2, 50, 0, sha1( $content ) ) );
+		$this->assertContains( $kept->getId(), $this->sameAs( $moved ) );
+
+		$this->etagMovesOn( $moved );
+
+		$this->assertSame( [], $metadata->queryDuplicates( 'sha1', 2, 50, 0, sha1( $content ) ), 'No group of one.' );
+		$this->assertSame( [], $this->sameAs( $moved ), 'Not searched by its old hashes.' );
+		$this->assertNotContains( $moved->getId(), $this->sameAs( $kept ) );
 	}
 
 	/**
@@ -286,6 +350,27 @@ class FileStateTest
 		}
 
 		return null;
+	}
+
+	/**
+	 * The ids of the files `/file/{id}/duplicates` gives for $file.
+	 *
+	 * @return list<int>
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function sameAs( File $file ): array
+	{
+		$ids = [];
+
+		foreach ( $this->api->findSameHash( $file->getId(), null )['duplicates'] as $group )
+		{
+			foreach ( $group['files'] as $entry )
+			{
+				$ids[] = (int) $entry['fileid'];
+			}
+		}
+
+		return $ids;
 	}
 
 	/**

@@ -1393,8 +1393,8 @@ components:
       nullable: true
       description: >-
         With `mimetype=1` only: the content's MIME type as detected from its first 64 KiB, as
-        libmagic names it; null for a file without one. Not Nextcloud's own `mimetype`, which
-        the file's name gives.
+        libmagic names it; null for a file without one, and where the hashes it was detected
+        with are stale. Not Nextcloud's own `mimetype`, which the file's name gives.
       example: application/pdf
 
     StatEtag:
@@ -1437,8 +1437,12 @@ components:
         updated_at:
           $ref: "#/components/schemas/HashesUpdatedAt"
         hashes:
+          type: object
           nullable: true
-          description: "Null with `stat=1` only, where the file's hashes are stale; `{}` without it."
+          description: >-
+            Null with `stat=1` only, where the file's hashes are stale or were disowned by a
+            reset; `{}` for a file without hashes, and without `stat` for one whose hashes are
+            stale.
           allOf:
             - $ref: "#/components/schemas/HashMap"
         algos:
@@ -1647,6 +1651,7 @@ components:
         updated_at:
           $ref: "#/components/schemas/HashesUpdatedAt"
         hashes:
+          type: object
           nullable: true
           description: "Null with `stat=1` only, for a stale file, which the listing gives only then."
           allOf:
@@ -1678,7 +1683,8 @@ components:
         for hashes the app computed, by hand or not, the file's mtime for
         checksums taken over from Nextcloud's filecache, the stamp an import
         brought. Null for none, and for a stamp of zero: hashes written
-        without a time, or cleared for the next sweep.
+        without a time, or cleared for the next sweep. With `stat=1`, null
+        with the hashes where they are stale.
       example: "2026-09-02T15:17:00+00:00"
 
     SameHashResponse:

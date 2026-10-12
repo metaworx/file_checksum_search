@@ -98,6 +98,23 @@ class ChecksumApiTest
 		$this->metadataService->method( 'isVouched' )
 		                      ->willReturn( true )
 		;
+		$this->metadataService->method( 'fileStatesOf' )
+		                      ->willReturnCallback(
+			                      static fn(
+				                      array $fileIds,
+			                      ): array => array_fill_keys(
+				                      $fileIds,
+				                      [
+					                      'etag'         => 'etag',
+					                      'size'         => 0,
+					                      'mtime'        => 0,
+					                      'storageMtime' => 0,
+					                      'stampEtag'    => 'etag',
+					                      'vouched'      => true,
+				                      ],
+			                      ),
+		                      )
+		;
 
 		// StatusService is readonly — cannot be mocked by PHPUnit 10.5.
 		// Construct a real instance with mocked collaborators.

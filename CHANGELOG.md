@@ -27,10 +27,9 @@ the first stable release.
 - `occ fcias:repair --step etag-stamp`: each stamp carries the ETag its
   hashes were read against. Upgrading queues the stamps made before.
 
-### Fixed
-
 - `README.md`, *When hashes go away*: a file changed without the app
-  hearing of it has stale hashes, and is queued again.
+  hearing of it leaves the lookup, the listing, the duplicates and its
+  own hashes until hashed again; `?stat=1` names it.
 
 ## [0.25.0] - 2026-10-10
 

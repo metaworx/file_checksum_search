@@ -5122,6 +5122,42 @@ class MetadataService
 	}
 
 	/**
+	 * Keep to the files whose stamp vouches for their hashes
+	 * ({@see vouchedCondition()}): joins the scanned rows' filecache row as
+	 * `f` and their stamp row as `vs`. A file changed without the app
+	 * hearing of it is neither found by its old hashes nor grouped with the
+	 * copies of what it used to hold.
+	 *
+	 * @param  string  $alias  Alias of the scanned index table in $qb.
+	 */
+	private function andWhereVouched(
+		IQueryBuilder $qb,
+		string        $alias = 'i',
+	): void
+	{
+		$qb->innerJoin(
+			$alias,
+			'filecache',
+			'f',
+			'f.fileid = ' . $alias . '.' . self::FIELD_FILE_ID,
+		)
+		   ->leftJoin(
+			   $alias,
+			   self::TABLE_FILES_METADATA_INDEX,
+			   'vs',
+			   $qb->expr()
+			      ->andX(
+				      $qb->expr()
+				         ->eq( 'vs.' . self::FIELD_FILE_ID, $alias . '.' . self::FIELD_FILE_ID ),
+				      $qb->expr()
+				         ->eq( 'vs.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
+			      ),
+		   )
+		   ->andWhere( $this->vouchedCondition( $qb, 'vs', 'f' ) )
+		;
+	}
+
+	/**
 	 * Exclude files whose hashes an operator or the app disowned.
 	 *
 	 * Applied by every query that **scans** for hashes — search, lookup,
@@ -5242,28 +5278,7 @@ class MetadataService
 		   ->setMaxResults( $limit )
 		;
 
-		// The file's filecache row and its stamp row: a file whose stamp no
-		// longer vouches for its hashes is not found by them.
-		$qb->innerJoin(
-			'i',
-			'filecache',
-			'f',
-			'f.fileid = i.' . self::FIELD_FILE_ID,
-		)
-		   ->leftJoin(
-			   'i',
-			   self::TABLE_FILES_METADATA_INDEX,
-			   'vs',
-			   $qb->expr()
-			      ->andX(
-				      $qb->expr()
-				         ->eq( 'vs.' . self::FIELD_FILE_ID, 'i.' . self::FIELD_FILE_ID ),
-				      $qb->expr()
-				         ->eq( 'vs.' . self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_UPDATED_AT ) ),
-			      ),
-		   )
-		   ->andWhere( $this->vouchedCondition( $qb, 'vs', 'f' ) )
-		;
+		$this->andWhereVouched( $qb );
 
 		// Chunked rather than unbounded: Oracle refuses an IN list beyond
 		// 1000, and a user with more distinct storages than that is better
@@ -5501,6 +5516,7 @@ class MetadataService
 		   ->addGroupBy( 'i.' . self::FIELD_META_KEY )
 		;
 
+		$this->andWhereVouched( $qb );
 		$this->andWhereNotStale( $qb );
 
 		if ( $algo !== null && $algo !== '' )

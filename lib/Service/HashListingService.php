@@ -417,7 +417,8 @@ class HashListingService
 	 * detected, null for none. One query for the page.
 	 *
 	 * With $withStat, each entry gains its state ({@see stat()}), from the
-	 * rows' own; an entry whose hashes are stale has `hashes` null.
+	 * rows' own; an entry whose hashes are stale or revoked has `hashes`,
+	 * `updated_at` and `etag` null.
 	 *
 	 * @return list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, mimetype?: ?string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>
 	 * @throws Exception
@@ -491,7 +492,7 @@ class HashListingService
 				'owner'    => $location->owner,
 				'location' => $seen['share'] ?? $location->describe(),
 			] + ( $withLocalPath ? [ 'localPath' => $localPaths[ $fileId ] ?? null ] : [] ) + [
-				'updated_at' => self::stamp( $row['updated_at'] ),
+				'updated_at' => $current ? self::stamp( $row['updated_at'] ) : null,
 				'hashes'     => $current ? $byAlgo : null,
 			] + ( $withMimeType ? [ 'mimetype' => $current ? $mimeTypes[ $fileId ] ?? null : null ] : [] )
 			  + ( $state !== null ? self::stat( $state, $state['vouched'], $state['stampEtag'] ) : [] );

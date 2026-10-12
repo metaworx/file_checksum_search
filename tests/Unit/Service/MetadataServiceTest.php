@@ -1159,13 +1159,28 @@ class MetadataServiceTest
 		                   ->willReturn( $result )
 		;
 
-		$this->expr->expects( $this->once() )
-		           ->method( 'gte' )
-		           ->willReturn( '1=1' )
+		// The group's size, and a legacy stamp's against the storage's mtime.
+		$compared = [];
+		$this->expr->method( 'gte' )
+		           ->willReturnCallback(
+			           function(
+				           mixed $x,
+			           ) use
+			           (
+				           &
+				           $compared,
+			           ): string
+			           {
+				           $compared[] = $x;
+
+				           return '1=1';
+			           },
+		           )
 		;
 
 		$groups = $this->service->queryDuplicates( minCount: 5 );
 
+		$this->assertContains( 'cnt', $compared );
 		$this->assertCount( 1, $groups );
 		$this->assertSame( 5, $groups[0]['file_count'] );
 	}

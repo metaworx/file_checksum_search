@@ -373,12 +373,12 @@ in the rule.
 A change the app does not hear of goes the same way. Each file's stamp carries the ETag its hashes were
 read against, and the filecache's ETag moves on with every write — one the app missed, a change on an
 external storage a scan took in, a write while the app was disabled. A file whose ETag no longer matches
-is out of the lookup, the listing and the file's hashes at once, and a daily walk does what the write
-would have done: it takes the hashes out of the index and queues the file, or erodes them where no rule
-maintains it (`stamp_check_interval`, a day by default). Hashes stamped before the app kept the ETag are
-held current while their stamp is no older than the storage's own mtime, until `occ fcias:repair --step
-etag-stamp` gives them their ETag; a sync client that replaces a file's content and keeps an older mtime
-gets past that test until then, as it gets past Nextcloud's own.
+is out of the lookup, the listing, the duplicates and the file's hashes at once, and a daily walk does
+what the write would have done: it takes the hashes out of the index and queues the file, or erodes them
+where no rule maintains it (`stamp_check_interval`, a day by default). Hashes stamped before the app
+kept the ETag are held current while their stamp is no older than the storage's own mtime, until `occ
+fcias:repair --step etag-stamp` gives them their ETag; a sync client that replaces a file's content and
+keeps an older mtime gets past that test until then, as it gets past Nextcloud's own.
 
 ## Hash Generation Rules
 

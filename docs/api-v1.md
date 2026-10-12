@@ -113,11 +113,15 @@ a scan takes in.
   compares — whatever the hashes' state. The times are ISO 8601 in whole
   seconds with an explicit offset, as `updated_at` is.
 - **A stale entry** — a file whose ETag moved on, or whose hashes were
-  disowned by a reset — is left out by default, as it always was. Under
-  `stat=1` the listing and a file's hashes include it, with `fileid`,
-  `path`, `owner` and the present state, and `hashes`, `etag` and, where
-  asked for, `mimetype` `null`. A lookup never finds one: it would match a
-  value the file may no longer hold.
+  disowned by a reset — is left out of the lookup, the listing and the
+  duplicates by default, as it always was, and a file's hashes give `{}`
+  for one whose ETag moved on. Under `stat=1` the listing and a file's
+  hashes include it, with `fileid`, `path`, `owner` and the present state,
+  and `hashes`, `updated_at`, `etag` and, where asked for, `mimetype`
+  `null`; a file that has no hashes at all gives `hashes` `{}`. A lookup
+  never finds one: it would match a value the file may no longer hold.
+- **A MIME type** was detected from the content the hashes were read from,
+  and is `null` wherever they are stale, with or without `stat`.
 - **Hashes stamped before the app kept the ETag** count while their stamp
   is no older than the storage's own mtime, and give the ETag the
   filecache holds, as adoption does, until `occ fcias:repair --step
