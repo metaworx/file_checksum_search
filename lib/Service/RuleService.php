@@ -449,6 +449,34 @@ class RuleService
 	}
 
 	/**
+	 * The mode a file is queued in under $rule: the rule's, where the rule
+	 * maintains hashes and the queue knows its mode; null otherwise — no
+	 * rule maintains the file, or its mode is retired.
+	 */
+	public static function queueModeOf( ?array $rule ): ?string
+	{
+		if ( ! self::maintainsHashes( $rule ) )
+		{
+			return null;
+		}
+
+		$mode = $rule['mode'] ?? MetadataService::PENDING_MODE_AUTO;
+
+		return in_array(
+			$mode,
+			[
+				MetadataService::PENDING_MODE_AUTO,
+				MetadataService::PENDING_MODE_MISSING,
+				MetadataService::PENDING_MODE_FORCE,
+				MetadataService::PENDING_MODE_LAZY,
+			],
+			true,
+		)
+			? $mode
+			: null;
+	}
+
+	/**
 	 * Whether a value is an accepted rule mode.
 	 */
 	public static function isValidMode( mixed $mode ): bool
@@ -921,8 +949,21 @@ class RuleService
 	 */
 	public function contentChanged( int $fileId ): ?string
 	{
-		$rule = $this->findFirstMatchingRule( $fileId );
+		return $this->changedUnder( $fileId, $this->findFirstMatchingRule( $fileId ) );
+	}
 
+	/**
+	 * {@see contentChanged()}, the file's governing rule resolved already.
+	 *
+	 * @return string|null  'eroded', 'queued', or null for nothing done.
+	 * @throws \OCP\DB\Exception
+	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
+	 */
+	private function changedUnder(
+		int    $fileId,
+		?array $rule,
+	): ?string
+	{
 		if ( ! self::maintainsHashes( $rule ) )
 		{
 			$this->metadataService->markEroded( $fileId );
@@ -930,18 +971,9 @@ class RuleService
 			return 'eroded';
 		}
 
-		$mode = $rule['mode'] ?? MetadataService::PENDING_MODE_AUTO;
+		$mode = self::queueModeOf( $rule );
 
-		if ( ! in_array(
-			$mode,
-			[
-				MetadataService::PENDING_MODE_AUTO,
-				MetadataService::PENDING_MODE_MISSING,
-				MetadataService::PENDING_MODE_FORCE,
-				MetadataService::PENDING_MODE_LAZY,
-			],
-			true,
-		) )
+		if ( $mode === null )
 		{
 			return null;
 		}
@@ -949,6 +981,18 @@ class RuleService
 		return $this->metadataService->markOutdated( $fileId, $mode )
 			? 'queued'
 			: null;
+	}
+
+	/**
+	 * The mode its rule queues a file in ({@see queueModeOf()}): `auto` for
+	 * a file no rule maintains, which the drain then drops, its outdated
+	 * hashes eroded.
+	 *
+	 * @throws \OCP\DB\Exception
+	 */
+	public function queueModeFor( int $fileId ): string
+	{
+		return self::queueModeOf( $this->findFirstMatchingRule( $fileId ) ) ?? MetadataService::PENDING_MODE_AUTO;
 	}
 
 	/**
@@ -989,12 +1033,13 @@ class RuleService
 			}
 
 			$lastId = $fileIds[ array_key_last( $fileIds ) ];
+			$rules  = $this->governingRulesForFileIds( $fileIds );
 
 			foreach ( $fileIds as $fileId )
 			{
 				try
 				{
-					$outcome = $this->contentChanged( $fileId );
+					$outcome = $this->changedUnder( $fileId, $rules[ $fileId ] ?? null );
 				}
 				catch ( Throwable $e )
 				{

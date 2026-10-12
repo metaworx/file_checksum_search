@@ -50,6 +50,8 @@ OC.L10N.register(
     "_Being deleted since {time}, %n file left_::_Being deleted since {time}, %n files left_" : ["{time} から削除中、残り%n個のファイル"],
     "By its name: {type}" : "ファイル名から：{type}",
     "Cancel" : "キャンセル",
+    "Changed file check" : "変更されたファイルの検査",
+    "Checksum ETag check" : "チェックサムのETagの検査",
     "Checksum algorithms" : "チェックサムアルゴリズム",
     "Checksum algorithms computed for matching files. Each algorithm you add is indexed separately, so more algorithms mean more work per file." : "一致したファイルに対して計算するチェックサムアルゴリズムです。追加したアルゴリズムはそれぞれ別々にインデックス化されるため、アルゴリズムが多いほどファイルごとの処理が増えます。",
     "Checksum algorithms computed for matching files. Each one is indexed separately, so more algorithms mean more work per file. Shown as \"—\" for a rule that computes nothing." : "一致したファイルに対して計算するチェックサムアルゴリズムです。それぞれ別々にインデックス化されるため、アルゴリズムが多いほどファイルごとの処理が増えます。何も計算しないルールでは\"—\"と表示されます。",

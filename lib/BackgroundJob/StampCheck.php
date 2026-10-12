@@ -121,6 +121,34 @@ class StampCheck
 	}
 
 	/**
+	 * Whether a walk is queued, or under way between two of its runs: its
+	 * job is waiting, or its cursor says it has not reached the end.
+	 */
+	public static function isPending(
+		IJobList   $jobList,
+		IAppConfig $appConfig,
+		string     $walk,
+	): bool
+	{
+		return $jobList->has( self::class, self::argumentOf( $walk ) )
+			|| $appConfig->hasKey( Application::APP_ID, self::cursorOf( $walk ) );
+	}
+
+	/**
+	 * The stats slot a walk records its runs in: one each, so that one
+	 * walk's run never stands for another's.
+	 */
+	private static function jobOf( string $walk ): string
+	{
+		return match ( $walk )
+		{
+			self::WALK_ETAG      => JobStatsService::JOB_STAMP_CHECK_ETAG,
+			self::WALK_FILECACHE => JobStatsService::JOB_STAMP_CHECK_FILECACHE,
+			default              => JobStatsService::JOB_STAMP_CHECK,
+		};
+	}
+
+	/**
 	 * The job's argument for a walk: none for the unstamped walk, as before
 	 * there were two, so that a walk queued then is still found.
 	 *
@@ -194,7 +222,23 @@ class StampCheck
 	#[\Override]
 	protected function run( $argument ): void
 	{
-		$walk     = self::walkOf( $argument );
+		$walk = self::walkOf( $argument );
+
+		// Stamps without an ETag are the ETag walk's to judge first: it keeps
+		// those the filecache's checksums vouch for, which this walk would
+		// take out of the index or erode. The daily check comes round again
+		// on the first tick after it.
+		if ( $walk === self::WALK_FILECACHE && self::isPending( $this->jobList, $this->appConfig, self::WALK_ETAG ) )
+		{
+			$this->appConfig->setValueInt( Application::APP_ID, RuleProcessingJob::STAMP_CHECK_LAST_QUEUED, 0 );
+			$this->logger->info(
+				'FCIAS StampCheck: the filecache walk waits for the ETag walk, and is queued again after it.',
+				[ 'app' => Application::APP_ID ],
+			);
+
+			return;
+		}
+
 		$cursor   = self::cursorOf( $walk );
 		$after    = $this->appConfig->getValueInt( Application::APP_ID, $cursor, 0 );
 		$deadline = $this->time->getTime() + self::TIME_BUDGET;
@@ -205,7 +249,11 @@ class StampCheck
 		{
 			$result = match ( $walk )
 			{
-				self::WALK_ETAG      => self::counted( $this->metadataService->adoptEtagsAfter( $after, self::PAGE_SIZE, $continue ), 'adopted', [ 'queued' ] ),
+				self::WALK_ETAG      => self::counted(
+					$this->metadataService->adoptEtagsAfter( $after, self::PAGE_SIZE, $continue, modeOf: $this->ruleService->queueModeFor( ... ) ),
+					'adopted',
+					[ 'queued' ],
+				),
 				// An eroded file lost its hashes as a queued one did, without
 				// a rule to compute them again.
 				self::WALK_FILECACHE => self::counted( $this->ruleService->queueChangedAfter( $after, self::PAGE_SIZE, $continue ), null, [ 'eroded', 'queued' ] ),
@@ -227,7 +275,7 @@ class StampCheck
 			);
 
 			$this->jobStats->recordFailure(
-				JobStatsService::JOB_STAMP_CHECK,
+				self::jobOf( $walk ),
 				$e,
 				JobStatsService::millisecondsSince( $started ),
 			);
@@ -246,7 +294,7 @@ class StampCheck
 		}
 
 		$this->jobStats->record(
-			JobStatsService::JOB_STAMP_CHECK,
+			self::jobOf( $walk ),
 			[
 				'stamped' => $result['stamped'],
 				'queued'  => $result['queued'],

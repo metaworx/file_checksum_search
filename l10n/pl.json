@@ -48,6 +48,8 @@
     "_Being deleted since {time}, %n file left_::_Being deleted since {time}, %n files left_" : ["Usuwane od {time}, pozostał %n plik","Usuwane od {time}, pozostały %n pliki","Usuwane od {time}, pozostało %n plików","Usuwane od {time}, pozostało %n plików"],
     "By its name: {type}" : "Według nazwy: {type}",
     "Cancel" : "Anuluj",
+    "Changed file check" : "Sprawdzanie zmienionych plików",
+    "Checksum ETag check" : "Sprawdzanie ETagów sum kontrolnych",
     "Checksum algorithms" : "Algorytmy sum kontrolnych",
     "Checksum algorithms computed for matching files. Each algorithm you add is indexed separately, so more algorithms mean more work per file." : "Algorytmy sum kontrolnych obliczanych dla pasujących plików. Każdy dodany algorytm jest indeksowany osobno, więc więcej algorytmów oznacza więcej pracy na każdy plik.",
     "Checksum algorithms computed for matching files. Each one is indexed separately, so more algorithms mean more work per file. Shown as \"—\" for a rule that computes nothing." : "Algorytmy sum kontrolnych obliczanych dla pasujących plików. Każdy z nich jest indeksowany osobno, więc więcej algorytmów oznacza więcej pracy na każdy plik. Dla reguły, która niczego nie oblicza, wyświetlane jest \"—\".",

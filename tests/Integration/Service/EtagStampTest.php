@@ -229,6 +229,43 @@ class EtagStampTest
 	}
 
 	/**
+	 * Queued again in the mode the file's rule queues it in, as a write
+	 * would have queued it.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheRepairQueuesInTheRulesMode(): void
+	{
+		$file = $this->legacyHashed( 'fcias_etag_mode', 'outdated' );
+		$this->ruleService->ruleAdd(
+			[
+				'enabled'  => true,
+				'type'     => RuleService::TYPE_INCLUDE,
+				'path'     => $file->getName(),
+				'mode'     => MetadataService::PENDING_MODE_MISSING,
+				'selector' => '*',
+				'algos'    => [ 'sha1' ],
+			],
+		);
+
+		$this->getRawConnection()
+		     ->executeStatement(
+			     "UPDATE `*PREFIX*filecache` SET `storage_mtime` = `storage_mtime` + 3600, `checksum` = '' WHERE `fileid` = ?",
+			     [ $file->getId() ],
+		     )
+		;
+
+		$this->assertSame(
+			MetadataService::ETAG_QUEUED,
+			$this->metadataService->adoptEtag( $file->getId(), $this->ruleService->queueModeFor( ... ) ),
+		);
+		$this->assertSame(
+			MetadataService::PENDING_PREFIX . MetadataService::PENDING_MODE_MISSING,
+			$this->metadataService->getMarker( $file->getId() ),
+		);
+	}
+
+	/**
 	 * A row that lost its ETag gets it back from the document.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection

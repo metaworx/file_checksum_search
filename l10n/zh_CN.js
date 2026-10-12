@@ -50,6 +50,8 @@ OC.L10N.register(
     "_Being deleted since {time}, %n file left_::_Being deleted since {time}, %n files left_" : ["自 {time} 起正在删除，还剩 %n 个文件"],
     "By its name: {type}" : "按文件名：{type}",
     "Cancel" : "取消",
+    "Changed file check" : "已更改文件检查",
+    "Checksum ETag check" : "校验和 ETag 检查",
     "Checksum algorithms" : "校验和算法",
     "Checksum algorithms computed for matching files. Each algorithm you add is indexed separately, so more algorithms mean more work per file." : "为匹配的文件计算的校验和算法。您添加的每种算法都会单独索引，因此算法越多，每个文件的工作量就越大。",
     "Checksum algorithms computed for matching files. Each one is indexed separately, so more algorithms mean more work per file. Shown as \"—\" for a rule that computes nothing." : "为匹配的文件计算的校验和算法。每种算法都会单独索引，因此算法越多，每个文件的工作量就越大。不计算任何内容的规则显示为 \"—\"。",

@@ -79,6 +79,9 @@ function mockFetch(options: { rules?: unknown[], idleBannerAcknowledged?: boolea
 					// Recorded before attempts were, as an older server sends it.
 					filecache_backfill: { lastRun: 1700000100, counts: { copied: 1200, files: 900, done: 0 } },
 					stamp_check: { lastRun: 1700000250, counts: { stamped: 25906, queued: 4, done: 0 }, attempt: null },
+					// The other two walks, each in a slot of its own.
+					stamp_check_etag: { lastRun: 1700000260, counts: { stamped: 310, queued: 6, done: 1 }, attempt: null },
+					stamp_check_filecache: { lastRun: 1700000270, counts: { stamped: 0, queued: 8, done: 1 }, attempt: null },
 					// A job a newer server runs and this page does not know.
 					future_job: { lastRun: 1700000300, counts: { widgets: 7 } },
 				},
@@ -262,6 +265,10 @@ describe('settings-admin App', () => {
 		expect(jobs).toContain('copied 1200, files 900, not finished yet')
 		expect(jobs).toContain('Checksum stamp check')
 		expect(jobs).toContain('stamped 25906, queued again 4, not finished yet')
+		expect(jobs).toContain('Checksum ETag check')
+		expect(jobs).toContain('stamped 310, queued again 6, finished')
+		expect(jobs).toContain('Changed file check')
+		expect(jobs).toContain('queued 8, finished')
 		expect(jobs).not.toContain('marked')
 		expect(jobs).not.toContain('done')
 		expect(jobs).toContain('future_job')

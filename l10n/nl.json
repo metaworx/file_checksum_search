@@ -48,6 +48,8 @@
     "_Being deleted since {time}, %n file left_::_Being deleted since {time}, %n files left_" : ["Worden sinds {time} verwijderd, nog %n bestand over","Worden sinds {time} verwijderd, nog %n bestanden over"],
     "By its name: {type}" : "Volgens de naam: {type}",
     "Cancel" : "Annuleren",
+    "Changed file check" : "Controle op gewijzigde bestanden",
+    "Checksum ETag check" : "Controle van de ETags van controlesommen",
     "Checksum algorithms" : "Controlesomalgoritmen",
     "Checksum algorithms computed for matching files. Each algorithm you add is indexed separately, so more algorithms mean more work per file." : "Controlesomalgoritmen die voor overeenkomende bestanden worden berekend. Elk algoritme dat je toevoegt, wordt apart geïndexeerd, dus betekenen meer algoritmen meer werk per bestand.",
     "Checksum algorithms computed for matching files. Each one is indexed separately, so more algorithms mean more work per file. Shown as \"—\" for a rule that computes nothing." : "Controlesomalgoritmen die voor overeenkomende bestanden worden berekend. Elk ervan wordt apart geïndexeerd, dus betekenen meer algoritmen meer werk per bestand. Wordt als \"—\" getoond bij een regel die niets berekent.",

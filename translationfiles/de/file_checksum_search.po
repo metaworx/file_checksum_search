@@ -177,6 +177,14 @@ msgstr "Laut Dateiname: {type}"
 msgid "Cancel"
 msgstr "Abbrechen"
 
+#. TRANSLATORS: a background job's name: once a day it finds files that changed without this app noticing, and takes their checksums out of search until they are computed again
+msgid "Changed file check"
+msgstr "Prüfung auf geänderte Dateien"
+
+#. TRANSLATORS: a background job's name: after an upgrade it records, for each stored checksum, the version tag (ETag) of the file it was computed from, and queues for recomputing those it cannot vouch for
+msgid "Checksum ETag check"
+msgstr "Prüfung der Prüfsummen-ETags"
+
 msgid "Checksum algorithms"
 msgstr "Prüfsummen-Algorithmen"
 
@@ -1373,10 +1381,12 @@ msgstr "jetzt: {hash}"
 msgid "orderedIds is required and must be an array."
 msgstr "orderedIds ist erforderlich und muss ein Array sein."
 
+#. TRANSLATORS: a background job's last run: the changed files whose checksums it took out of search, and that the whole check is finished
 #. TRANSLATORS: a background job's last run: the files it queued to have their MIME type detected, and that the whole refresh is finished
 msgid "queued {queued}, finished"
 msgstr "in der Warteschlange {queued}, abgeschlossen"
 
+#. TRANSLATORS: a background job's last run: the changed files whose checksums it took out of search, and that the next runs go on checking
 #. TRANSLATORS: a background job's last run: the files it queued to have their MIME type detected, and that the next runs go on queueing
 msgid "queued {queued}, not finished yet"
 msgstr "in der Warteschlange {queued}, noch nicht abgeschlossen"
@@ -1405,11 +1415,11 @@ msgstr "selector ist erforderlich."
 msgid "selector must be a non-empty string."
 msgstr "selector muss eine nicht leere Zeichenkette sein."
 
-#. TRANSLATORS: a background job's last run: the files whose checksums it stamped, of those the ones queued to have their checksums computed again, and that the whole check is finished
+#. TRANSLATORS: a background job's last run: the files whose checksums it stamped, the files it queued to have their checksums computed again, and that the whole check is finished
 msgid "stamped {stamped}, queued again {queued}, finished"
 msgstr "mit Zeitstempel versehen {stamped}, erneut in der Warteschlange {queued}, abgeschlossen"
 
-#. TRANSLATORS: a background job's last run: the files whose checksums it stamped, of those the ones queued to have their checksums computed again, and that the next runs go on stamping
+#. TRANSLATORS: a background job's last run: the files whose checksums it stamped, the files it queued to have their checksums computed again, and that the next runs go on stamping
 msgid "stamped {stamped}, queued again {queued}, not finished yet"
 msgstr "mit Zeitstempel versehen {stamped}, erneut in der Warteschlange {queued}, noch nicht abgeschlossen"
 

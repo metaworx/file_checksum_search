@@ -50,6 +50,8 @@ OC.L10N.register(
     "_Being deleted since {time}, %n file left_::_Being deleted since {time}, %n files left_" : ["Werden seit {time} gelöscht, noch %n Datei übrig","Werden seit {time} gelöscht, noch %n Dateien übrig"],
     "By its name: {type}" : "Laut Dateiname: {type}",
     "Cancel" : "Abbrechen",
+    "Changed file check" : "Prüfung auf geänderte Dateien",
+    "Checksum ETag check" : "Prüfung der Prüfsummen-ETags",
     "Checksum algorithms" : "Prüfsummen-Algorithmen",
     "Checksum algorithms computed for matching files. Each algorithm you add is indexed separately, so more algorithms mean more work per file." : "Prüfsummen-Algorithmen, die für passende Dateien berechnet werden. Jeder Algorithmus, den Sie hinzufügen, wird separat indiziert – mehr Algorithmen bedeuten also mehr Arbeit pro Datei.",
     "Checksum algorithms computed for matching files. Each one is indexed separately, so more algorithms mean more work per file. Shown as \"—\" for a rule that computes nothing." : "Prüfsummen-Algorithmen, die für passende Dateien berechnet werden. Jeder wird separat indiziert – mehr Algorithmen bedeuten also mehr Arbeit pro Datei. Wird als \"—\" angezeigt, wenn eine Regel nichts berechnet.",

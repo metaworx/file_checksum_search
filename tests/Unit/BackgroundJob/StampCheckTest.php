@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\BackgroundJob;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob;
 use OCA\FileChecksumSearch\BackgroundJob\StampCheck;
 use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
@@ -38,6 +39,8 @@ class StampCheckTest
 
 	private MockObject|MetadataService $metadataService;
 
+	private MockObject|RuleService     $ruleService;
+
 	private MockObject|IAppConfig      $appConfig;
 
 	private MockObject|IJobList        $jobList;
@@ -56,6 +59,7 @@ class StampCheckTest
 		parent::setUp();
 
 		$this->metadataService = $this->createMock( MetadataService::class );
+		$this->ruleService     = $this->createMock( RuleService::class );
 		$this->appConfig       = $this->createMock( IAppConfig::class );
 		$this->jobList         = $this->createMock( IJobList::class );
 		$this->jobStats        = $this->createMock( JobStatsService::class );
@@ -64,7 +68,7 @@ class StampCheckTest
 		$this->job = new StampCheck(
 			$this->time,
 			$this->metadataService,
-			$this->createMock( RuleService::class ),
+			$this->ruleService,
 			$this->appConfig,
 			$this->jobList,
 			$this->jobStats,
@@ -232,11 +236,58 @@ class StampCheckTest
 		$this->assertFalse( StampCheck::queue( $this->jobList, $this->appConfig ) );
 	}
 
+	/**
+	 * The filecache walk does nothing while the ETag walk is pending, and
+	 * leaves the daily clock at zero so that it is queued again after it.
+	 */
+	public function testTheFilecacheWalkWaitsForAPendingEtagWalk(): void
+	{
+		$this->jobList->method( 'has' )
+		              ->willReturnCallback(
+			              static fn(
+				              string $class,
+				              mixed  $argument,
+			              ): bool => $argument === [ 'walk' => StampCheck::WALK_ETAG ],
+		              )
+		;
+		$this->ruleService->expects( $this->never() )
+		                  ->method( 'queueChangedAfter' )
+		;
+		$this->appConfig->expects( $this->once() )
+		                ->method( 'setValueInt' )
+		                ->with( Application::APP_ID, RuleProcessingJob::STAMP_CHECK_LAST_QUEUED, 0 )
+		;
+		$this->jobStats->expects( $this->never() )
+		               ->method( 'record' )
+		;
+
+		$this->runJob( [ 'walk' => StampCheck::WALK_FILECACHE ] );
+	}
+
+	/**
+	 * Each walk records its runs in a slot of its own.
+	 */
+	public function testEachWalkRecordsInItsOwnSlot(): void
+	{
+		$this->ruleService->method( 'queueChangedAfter' )
+		                  ->willReturn( [ 'eroded' => 1, 'queued' => 2, 'last' => 40, 'done' => true ] )
+		;
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'record' )
+		               ->with( JobStatsService::JOB_STAMP_CHECK_FILECACHE, [ 'stamped' => 0, 'queued' => 3, 'done' => 1 ] )
+		;
+
+		$this->runJob( [ 'walk' => StampCheck::WALK_FILECACHE ] );
+	}
+
 
 //  config/init/exe/run methods
 
-	private function runJob(): void
+	/**
+	 * @param  array{walk: string}|null  $argument  Which walk; none is the unstamped one.
+	 */
+	private function runJob( ?array $argument = null ): void
 	{
-		( new ReflectionMethod( StampCheck::class, 'run' ) )->invoke( $this->job, null );
+		( new ReflectionMethod( StampCheck::class, 'run' ) )->invoke( $this->job, $argument );
 	}
 }

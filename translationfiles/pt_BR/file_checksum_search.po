@@ -179,6 +179,14 @@ msgstr "Pelo nome: {type}"
 msgid "Cancel"
 msgstr "Cancelar"
 
+#. TRANSLATORS: a background job's name: once a day it finds files that changed without this app noticing, and takes their checksums out of search until they are computed again
+msgid "Changed file check"
+msgstr "Conferência de arquivos alterados"
+
+#. TRANSLATORS: a background job's name: after an upgrade it records, for each stored checksum, the version tag (ETag) of the file it was computed from, and queues for recomputing those it cannot vouch for
+msgid "Checksum ETag check"
+msgstr "Conferência dos ETags das somas de verificação"
+
 msgid "Checksum algorithms"
 msgstr "Algoritmos de soma de verificação"
 
@@ -1378,10 +1386,12 @@ msgstr "agora: {hash}"
 msgid "orderedIds is required and must be an array."
 msgstr "orderedIds é obrigatório e deve ser um array."
 
+#. TRANSLATORS: a background job's last run: the changed files whose checksums it took out of search, and that the whole check is finished
 #. TRANSLATORS: a background job's last run: the files it queued to have their MIME type detected, and that the whole refresh is finished
 msgid "queued {queued}, finished"
 msgstr "na fila {queued}, concluída"
 
+#. TRANSLATORS: a background job's last run: the changed files whose checksums it took out of search, and that the next runs go on checking
 #. TRANSLATORS: a background job's last run: the files it queued to have their MIME type detected, and that the next runs go on queueing
 msgid "queued {queued}, not finished yet"
 msgstr "na fila {queued}, ainda não concluída"
@@ -1410,11 +1420,11 @@ msgstr "selector é obrigatório."
 msgid "selector must be a non-empty string."
 msgstr "selector deve ser uma cadeia de caracteres não vazia."
 
-#. TRANSLATORS: a background job's last run: the files whose checksums it stamped, of those the ones queued to have their checksums computed again, and that the whole check is finished
+#. TRANSLATORS: a background job's last run: the files whose checksums it stamped, the files it queued to have their checksums computed again, and that the whole check is finished
 msgid "stamped {stamped}, queued again {queued}, finished"
 msgstr "com carimbo de data e hora {stamped}, de volta à fila {queued}, concluída"
 
-#. TRANSLATORS: a background job's last run: the files whose checksums it stamped, of those the ones queued to have their checksums computed again, and that the next runs go on stamping
+#. TRANSLATORS: a background job's last run: the files whose checksums it stamped, the files it queued to have their checksums computed again, and that the next runs go on stamping
 msgid "stamped {stamped}, queued again {queued}, not finished yet"
 msgstr "com carimbo de data e hora {stamped}, de volta à fila {queued}, ainda não concluída"
 

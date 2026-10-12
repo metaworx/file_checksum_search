@@ -3768,12 +3768,19 @@ class MetadataService
 	 * still holds each, as Nextcloud empties it when the content changes;
 	 * failing that, a stamp at least as new as the storage's own mtime does.
 	 * Either way they are given the ETag the filecache holds now. Where
-	 * neither does, the hashes are outdated and queued again.
+	 * neither does, the hashes are outdated and queued again, in the mode
+	 * the file's rule queues it in.
 	 *
 	 * A document already holding an ETag gets its row back from it. A stamp
 	 * of 0, or one older than the file's mtime, vouches for nothing to read
 	 * an ETag against, and keeps none. Every document walked is saved with
 	 * the stamp unindexed, so that Nextcloud stops rewriting the row.
+	 *
+	 * @param  callable|null  $modeOf  `fn(int $fileId): string`, the mode a
+	 *                                 queued file goes in
+	 *                                 ({@see RuleService::queueModeFor()});
+	 *                                 null for `auto`. Asked only of a file
+	 *                                 that is queued.
 	 *
 	 * @return string|null  {@see ETAG_ADOPTED}, {@see ETAG_QUEUED} or
 	 *                      {@see ETAG_KEPT}; null for a file the walk
@@ -3782,7 +3789,10 @@ class MetadataService
 	 * @throws Exception
 	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
 	 */
-	public function adoptEtag( int $fileId ): ?string
+	public function adoptEtag(
+		int       $fileId,
+		?callable $modeOf = null,
+	): ?string
 	{
 		$metadata = $this->getMetadata( $fileId );
 
@@ -3811,7 +3821,12 @@ class MetadataService
 			{
 				if ( ! $this->filecacheVouchesFor( $fileId, $hashes ) && $stamp < $state['storageMtime'] )
 				{
-					$this->markOutdated( $fileId, self::PENDING_MODE_AUTO );
+					$this->markOutdated(
+						$fileId,
+						$modeOf !== null
+							? $modeOf( $fileId )
+							: self::PENDING_MODE_AUTO,
+					);
 
 					return self::ETAG_QUEUED;
 				}
@@ -3837,6 +3852,7 @@ class MetadataService
 	 * @param  callable|null  $onFile    `fn(int $fileId, string|Throwable $outcome): void`,
 	 *                                   told of each file the walk changed,
 	 *                                   or of why it could not.
+	 * @param  callable|null  $modeOf    As {@see adoptEtag()}.
 	 *
 	 * @return array{adopted: int, queued: int, last: int, done: bool}  Files
 	 *         given an ETag, files queued again, the last file id read, and
@@ -3848,6 +3864,7 @@ class MetadataService
 		int       $pageSize = 500,
 		?callable $continue = null,
 		?callable $onFile = null,
+		?callable $modeOf = null,
 	): array
 	{
 		$lastId  = $after;
@@ -3874,7 +3891,7 @@ class MetadataService
 			{
 				try
 				{
-					$outcome = $this->adoptEtag( $fileId );
+					$outcome = $this->adoptEtag( $fileId, $modeOf );
 				}
 				catch ( Throwable $e )
 				{

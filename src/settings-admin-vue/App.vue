@@ -197,6 +197,10 @@ const JOB_LABELS: Record<string, string> = {
 	hash_index_check: t('file_checksum_search', 'Checksum index check'),
 	// TRANSLATORS: a background job's name: it gives a freshness stamp to the stored checksums that have none, and queues for recomputing those it cannot vouch for.
 	stamp_check: t('file_checksum_search', 'Checksum stamp check'),
+	// TRANSLATORS: a background job's name: after an upgrade it records, for each stored checksum, the version tag (ETag) of the file it was computed from, and queues for recomputing those it cannot vouch for
+	stamp_check_etag: t('file_checksum_search', 'Checksum ETag check'),
+	// TRANSLATORS: a background job's name: once a day it finds files that changed without this app noticing, and takes their checksums out of search until they are computed again
+	stamp_check_filecache: t('file_checksum_search', 'Changed file check'),
 	// TRANSLATORS: a background job's name: once an hour it counts the indexed checksums, the number this status shows
 	checksum_count: t('file_checksum_search', 'Checksum count'),
 	// TRANSLATORS: a background job's name: when an administrator chooses Refresh, it queues the files whose MIME type is to be detected again
@@ -239,12 +243,20 @@ function jobCountsText(key: string, counts: Record<string, number>): string {
 		// TRANSLATORS: a background job's last run: the checksums it made findable again, and that the next runs go on checking
 		return t('file_checksum_search', 'repaired {repaired}, not finished yet', { repaired: count('repaired') })
 	case 'stamp_check':
+	case 'stamp_check_etag':
 		if (count('done')) {
-			// TRANSLATORS: a background job's last run: the files whose checksums it stamped, of those the ones queued to have their checksums computed again, and that the whole check is finished
+			// TRANSLATORS: a background job's last run: the files whose checksums it stamped, the files it queued to have their checksums computed again, and that the whole check is finished
 			return t('file_checksum_search', 'stamped {stamped}, queued again {queued}, finished', { stamped: count('stamped'), queued: count('queued') })
 		}
-		// TRANSLATORS: a background job's last run: the files whose checksums it stamped, of those the ones queued to have their checksums computed again, and that the next runs go on stamping
+		// TRANSLATORS: a background job's last run: the files whose checksums it stamped, the files it queued to have their checksums computed again, and that the next runs go on stamping
 		return t('file_checksum_search', 'stamped {stamped}, queued again {queued}, not finished yet', { stamped: count('stamped'), queued: count('queued') })
+	case 'stamp_check_filecache':
+		if (count('done')) {
+			// TRANSLATORS: a background job's last run: the changed files whose checksums it took out of search, and that the whole check is finished
+			return t('file_checksum_search', 'queued {queued}, finished', { queued: count('queued') })
+		}
+		// TRANSLATORS: a background job's last run: the changed files whose checksums it took out of search, and that the next runs go on checking
+		return t('file_checksum_search', 'queued {queued}, not finished yet', { queued: count('queued') })
 	case 'checksum_count':
 		// TRANSLATORS: a background job's last run: how many indexed checksums it counted
 		return n('file_checksum_search', 'counted %n checksum', 'counted %n checksums', count('rows'))

@@ -64,6 +64,12 @@ class JobStatsService
 	/** The queued walk that gives every stored hash its stamp (StampCheck). */
 	public const JOB_STAMP_CHECK = 'stamp_check';
 
+	/** The queued walk that gives the stamps without an ETag one (StampCheck). */
+	public const JOB_STAMP_CHECK_ETAG = 'stamp_check_etag';
+
+	/** The daily walk over files changed without the app hearing of it (StampCheck). */
+	public const JOB_STAMP_CHECK_FILECACHE = 'stamp_check_filecache';
+
 	/**
 	 * The hourly count of indexed checksums (rides RuleProcessingJob). Its
 	 * record is also where the count is kept: `counts.rows`, as of its last
@@ -86,6 +92,8 @@ class JobStatsService
 			self::JOB_FILECACHE_BACKFILL,
 			self::JOB_HASH_INDEX_CHECK,
 			self::JOB_STAMP_CHECK,
+			self::JOB_STAMP_CHECK_ETAG,
+			self::JOB_STAMP_CHECK_FILECACHE,
 			self::JOB_CHECKSUM_COUNT,
 			self::JOB_MIMETYPE_REFRESH,
 			self::JOB_MIMETYPE_DELETE,
@@ -97,16 +105,18 @@ class JobStatsService
 	 */
 	public const LABELS
 		 = [
-			self::JOB_RULE_SWEEP         => 'Rule sweep',
-			self::JOB_RULE_APPLY         => 'Rule reapplication',
-			self::JOB_PENDING_DRAIN      => 'Queue drain',
-			self::JOB_ORPHAN_PURGE       => 'Orphan purge',
-			self::JOB_FILECACHE_BACKFILL => 'Checksum copy',
-			self::JOB_HASH_INDEX_CHECK   => 'Checksum index check',
-			self::JOB_STAMP_CHECK        => 'Checksum stamp check',
-			self::JOB_CHECKSUM_COUNT     => 'Checksum count',
-			self::JOB_MIMETYPE_REFRESH   => 'MIME type refresh',
-			self::JOB_MIMETYPE_DELETE    => 'MIME type deletion',
+			self::JOB_RULE_SWEEP            => 'Rule sweep',
+			self::JOB_RULE_APPLY            => 'Rule reapplication',
+			self::JOB_PENDING_DRAIN         => 'Queue drain',
+			self::JOB_ORPHAN_PURGE          => 'Orphan purge',
+			self::JOB_FILECACHE_BACKFILL    => 'Checksum copy',
+			self::JOB_HASH_INDEX_CHECK      => 'Checksum index check',
+			self::JOB_STAMP_CHECK           => 'Checksum stamp check',
+			self::JOB_STAMP_CHECK_ETAG      => 'Checksum ETag check',
+			self::JOB_STAMP_CHECK_FILECACHE => 'Changed file check',
+			self::JOB_CHECKSUM_COUNT        => 'Checksum count',
+			self::JOB_MIMETYPE_REFRESH      => 'MIME type refresh',
+			self::JOB_MIMETYPE_DELETE       => 'MIME type deletion',
 		];
 
 	/**

@@ -253,6 +253,8 @@ class JobStatsServiceTest
 				'filecache_backfill',
 				'hash_index_check',
 				'stamp_check',
+				'stamp_check_etag',
+				'stamp_check_filecache',
 				'checksum_count',
 				'mimetype_refresh',
 				'mimetype_delete',

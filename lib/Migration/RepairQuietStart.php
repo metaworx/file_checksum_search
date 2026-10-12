@@ -793,6 +793,7 @@ class RepairQuietStart
 							: sprintf( 'FCIAS: file %d: ETag given.', $fileId ),
 					);
 				},
+				modeOf: $this->ruleService->queueModeFor( ... ),
 			);
 
 			$output->info(

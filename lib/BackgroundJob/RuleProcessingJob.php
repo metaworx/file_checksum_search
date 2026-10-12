@@ -180,6 +180,14 @@ class RuleProcessingJob
 
 		try
 		{
+			// Not while the ETag walk an upgrade queued is pending: it keeps
+			// stamps this walk would take for changed. The clock stays, so
+			// the first tick after it queues this one.
+			if ( StampCheck::isPending( $this->jobList, $this->appConfig, StampCheck::WALK_ETAG ) )
+			{
+				return;
+			}
+
 			StampCheck::queue( $this->jobList, $this->appConfig, StampCheck::WALK_FILECACHE );
 			$this->appConfig->setValueInt( Application::APP_ID, self::STAMP_CHECK_LAST_QUEUED, $now );
 		}

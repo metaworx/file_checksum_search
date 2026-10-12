@@ -50,6 +50,8 @@ OC.L10N.register(
     "_Being deleted since {time}, %n file left_::_Being deleted since {time}, %n files left_" : ["Eliminación en curso desde el {time}, queda %n archivo","Eliminación en curso desde el {time}, quedan %n de archivos","Eliminación en curso desde el {time}, quedan %n archivos"],
     "By its name: {type}" : "Según su nombre: {type}",
     "Cancel" : "Cancelar",
+    "Changed file check" : "Comprobación de archivos modificados",
+    "Checksum ETag check" : "Comprobación de los ETag de las sumas de verificación",
     "Checksum algorithms" : "Algoritmos de suma de verificación",
     "Checksum algorithms computed for matching files. Each algorithm you add is indexed separately, so more algorithms mean more work per file." : "Algoritmos de suma de verificación que se calculan para los archivos que coinciden. Cada algoritmo que añada se indexa por separado, así que más algoritmos suponen más trabajo por archivo.",
     "Checksum algorithms computed for matching files. Each one is indexed separately, so more algorithms mean more work per file. Shown as \"—\" for a rule that computes nothing." : "Algoritmos de suma de verificación que se calculan para los archivos que coinciden. Cada uno se indexa por separado, así que más algoritmos suponen más trabajo por archivo. Se muestra como \"—\" en una regla que no calcula nada.",

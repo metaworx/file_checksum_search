@@ -526,8 +526,15 @@ reading:
   runs at once after an account is deleted, and the two that installing,
   enabling and upgrading queue: the *Checksum copy*, which takes the checksums
   Nextcloud's filecache already holds into the index, and the *Checksum index
-  check*, which makes every stored checksum findable. Those two work a slice
-  per cron run and say whether they are finished. The *Rule reapplication* is a
+  check*, which makes every stored checksum findable. The stamp check runs
+  three walks, each with a line of its own: the *Checksum stamp check* stamps
+  checksums that have no stamp, the *Checksum ETag check*, which an upgrade
+  queues, gives each stamp the ETag its checksums were read against, and the
+  *Changed file check*, which rides the sweep once a day
+  (`stamp_check_interval`, seconds), takes the checksums of files changed
+  without the app hearing of it out of search until they are computed again;
+  it waits while the ETag check is under way. These work a slice per cron run
+  and say whether they are finished. The *Rule reapplication* is a
   rule's **Reapply**. The *Queue drain* says how many of the files it took it
   hashed, how many it dropped unread because no include rule wants them any
   more, and how many failed. Each run shows how long it took. A run that failed shows

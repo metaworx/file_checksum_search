@@ -47,7 +47,7 @@ class ConfigLexiconTest
 		$configs = $this->lexicon->getAppConfigs();
 
 		$this->assertIsArray( $configs );
-		$this->assertCount( 63, $configs );
+		$this->assertCount( 69, $configs );
 
 		$keys = array_map(
 			static fn(
@@ -77,6 +77,10 @@ class ConfigLexiconTest
 		$this->assertContains( 'stamp_check_last_queued', $keys );
 		$this->assertContains( 'stats_stamp_check_last_run', $keys );
 		$this->assertContains( 'stats_stamp_check_last_counts', $keys );
+		$this->assertContains( 'stats_stamp_check_etag_last_run', $keys );
+		$this->assertContains( 'stats_stamp_check_etag_last_counts', $keys );
+		$this->assertContains( 'stats_stamp_check_filecache_last_run', $keys );
+		$this->assertContains( 'stats_stamp_check_filecache_last_counts', $keys );
 		$this->assertContains( 'stats_filecache_backfill_last_run', $keys );
 		$this->assertContains( 'stats_filecache_backfill_last_counts', $keys );
 		$this->assertContains( 'checksum_count_interval', $keys );

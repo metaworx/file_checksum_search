@@ -519,4 +519,48 @@ class RuleProcessingJobTest
 
 		$this->assertSame( RuleProcessingJob::STAMP_CHECK_DEFAULT_INTERVAL, $booked[ RuleProcessingJob::STAMP_CHECK_LAST_QUEUED ] ?? null );
 	}
+
+	/**
+	 * Due, but the ETag walk an upgrade queued is pending: nothing queued,
+	 * and the clock left, so that the first tick after it queues the walk.
+	 */
+	public function testADueStampCheckWaitsForAPendingEtagWalk(): void
+	{
+		$this->stampCheckQueuedAt = 0;
+
+		$this->ruleService->method( 'evaluateRules' )
+		                  ->willReturn( [ 'marked' => 0, 'matched' => 0 ] )
+		;
+		$this->time->method( 'getTime' )
+		           ->willReturn( RuleProcessingJob::STAMP_CHECK_DEFAULT_INTERVAL )
+		;
+		$this->jobList->method( 'has' )
+		              ->willReturnCallback(
+			              static fn(
+				              string $class,
+				              mixed  $argument,
+			              ): bool => $class === StampCheck::class && $argument === [ 'walk' => StampCheck::WALK_ETAG ],
+		              )
+		;
+
+		$this->jobList->expects( $this->never() )
+		              ->method( 'add' )
+		;
+
+		$booked = [];
+		$this->appConfig->method( 'setValueInt' )
+		                ->willReturnCallback(
+			                static function( string $app, string $key, int $value ) use ( &$booked ): bool
+			                {
+				                $booked[ $key ] = $value;
+
+				                return true;
+			                },
+		                )
+		;
+
+		( new ReflectionMethod( RuleProcessingJob::class, 'run' ) )->invoke( $this->job, null );
+
+		$this->assertArrayNotHasKey( RuleProcessingJob::STAMP_CHECK_LAST_QUEUED, $booked );
+	}
 }
