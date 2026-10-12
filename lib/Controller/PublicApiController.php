@@ -1426,6 +1426,117 @@ class PublicApiController
 	}
 
 	/**
+	 * The files the caller holds without a hash, page by page
+	 * ({@see ChecksumApi::listMissing()}): the governed ones, and with
+	 * `unmatched`, `withIgnored` and `withExcluded` the others. With
+	 * {@see listHashes()} under `stat`, every file the caller holds.
+	 *
+	 * @param  int<1, 1000>  $limit  Declared, because Nextcloud's dispatcher
+	 *                               holds any `limit` to 1–500 otherwise.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	#[UserRateLimit( limit: 300, period: 60 )]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/hashes/missing' )]
+	public function listMissing(
+		?string $algo = null,
+		int     $limit = HashListingService::DEFAULT_LIMIT,
+		int     $after = 0,
+		bool    $unmatched = false,
+		bool    $withIgnored = false,
+		bool    $withExcluded = false,
+		bool    $stat = false,
+	): DataResponse
+	{
+		$scope = $this->scopeOrRefusal();
+
+		return $scope instanceof DataResponse
+			? $scope
+			: $this->missingFor( $scope, $algo, $limit, $after, $unmatched, $withIgnored, $withExcluded, $stat );
+	}
+
+	/**
+	 * {@see listMissing()} across accounts: the ones `users[]` and `groups[]`
+	 * name, or — with nothing named — the caller's ceiling. A password
+	 * confirmation, and only for those who may look across accounts.
+	 *
+	 * @param  int<1, 1000>  $limit  As {@see listMissing()}.
+	 *
+	 * @noinspection PhpUnused
+	 */
+	#[NoAdminRequired]
+	#[NoCSRFRequired]
+	#[UserRateLimit( limit: 300, period: 60 )]
+	#[ApiRoute( verb: 'GET', url: '/api/v1/sudo/hashes/missing' )]
+	public function sudoListMissing(
+		?string $algo = null,
+		int     $limit = HashListingService::DEFAULT_LIMIT,
+		int     $after = 0,
+		bool    $unmatched = false,
+		bool    $withIgnored = false,
+		bool    $withExcluded = false,
+		bool    $stat = false,
+		?array  $users = null,
+		?array  $groups = null,
+	): DataResponse
+	{
+		$scope = $this->sudoNamedOrRefusal( $users, $groups );
+
+		return $scope instanceof DataResponse
+			? $scope
+			: $this->markOpenable( $this->missingFor( $scope, $algo, $limit, $after, $unmatched, $withIgnored, $withExcluded, $stat ) );
+	}
+
+	/**
+	 * The missing files' body, for either wrapper: $scope is whose files — a
+	 * uid, a list of them, or null for every account.
+	 */
+	private function missingFor(
+		string|array|null $scope,
+		?string           $algo,
+		int               $limit,
+		int               $after,
+		bool              $unmatched,
+		bool              $withIgnored,
+		bool              $withExcluded,
+		bool              $withStat,
+	): DataResponse
+	{
+		try
+		{
+			return new DataResponse(
+				$this->api->listMissing(
+					$this->reachOf( $scope ),
+					$algo,
+					$limit,
+					$after,
+					$unmatched,
+					$withIgnored,
+					$withExcluded,
+					$withStat,
+				),
+			);
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->error(
+				'FCIAS PublicApiController: listMissing failed',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
+			return new DataResponse(
+				[ 'error' => $this->l10n->t( 'Internal server error.' ) ],
+				Http::STATUS_INTERNAL_SERVER_ERROR,
+			);
+		}
+	}
+
+	/**
 	 * Recalculate hash for a file.
 	 *
 	 * @noinspection PhpUnused

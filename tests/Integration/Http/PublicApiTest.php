@@ -238,6 +238,21 @@ class PublicApiTest
 	}
 
 	/**
+	 * The route of the files without a hash answers with a page, `next` and
+	 * `now`, and leaves out the seeded files, which hold hashes.
+	 */
+	public function testTheMissingFilesRouteAnswersWithAPage(): void
+	{
+		$response = $this->httpGet( '/api/v1/hashes/missing?unmatched=1&withIgnored=1&withExcluded=1&after=' . ( $this->testFileId1 - 1 ) );
+
+		$this->assertIsArray( $response );
+		$this->assertArrayHasKey( 'files', $response );
+		$this->assertArrayHasKey( 'next', $response );
+		$this->assertIsInt( $response['now'] ?? null );
+		$this->assertNotContains( $this->testFileId1, array_column( $response['files'], 'fileid' ) );
+	}
+
+	/**
 	 * `stat=1` reaches the route: the ETag the hashes were read against, as
 	 * the filecache holds it, and the file's present size and mtimes.
 	 */

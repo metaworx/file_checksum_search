@@ -1302,6 +1302,115 @@ class FilecacheService
 	}
 
 	/**
+	 * The files without a hash row — of $algo, where one is named — among
+	 * the file ids after $after and up to $upper, in file id order, at most
+	 * $limit: one window of {@see HashListingService::missingPage()}.
+	 *
+	 * Files only, in the areas a rule may govern ({@see andWhereGoverned()}),
+	 * within $mounts where given. The window bounds what one query reads, as
+	 * the files missing a hash may be few and far between.
+	 *
+	 * @param  list<array{storage: int, root: string}>|null  $mounts
+	 *
+	 * @return list<array{fileid: int, storage: int, storage_id: string, path: string, etag: string, size: int, mtime: int, storageMtime: int}>
+	 * @throws \OCP\DB\Exception
+	 */
+	public function pageUnhashedFiles(
+		?array  $mounts,
+		?string $algo,
+		int     $after,
+		int     $upper,
+		int     $limit,
+	): array
+	{
+		$hash = $this->db->getQueryBuilder();
+		$hash->select( $hash->func()->count( '*' ) )
+		     ->from( MetadataService::TABLE_FILES_METADATA_INDEX, 'h' )
+		     ->where(
+			     $hash->expr()
+			          ->eq( 'h.' . MetadataService::FIELD_FILE_ID, 'fc.fileid' ),
+		     )
+		;
+
+		$qb = $this->db->getQueryBuilder();
+
+		$hash->andWhere(
+			$algo !== null
+				? $hash->expr()
+				       ->eq( 'h.' . MetadataService::FIELD_META_KEY, $qb->createNamedParameter( MetadataService::getHashKey( $algo ) ) )
+				: $hash->expr()
+				       ->like( 'h.' . MetadataService::FIELD_META_KEY, $qb->createNamedParameter( MetadataService::KEY_FILE_CHECKSUM_LIKE ) ),
+		);
+
+		// Counted rather than asked for with `NOT EXISTS`, as the listing
+		// counts its hash rows: MariaDB materialises an EXISTS against every
+		// hash row of the instance.
+		$qb->select( 'fc.fileid', 'fc.storage', 'fc.path', 'fc.etag', 'fc.size', 'fc.mtime', 'fc.storage_mtime', 'st.id' )
+		   ->from( 'filecache', 'fc' )
+		   ->innerJoin( 'fc', 'storages', 'st', 'fc.storage = st.numeric_id' )
+		   ->where(
+			   $qb->expr()
+			      ->gt( 'fc.fileid', $qb->createNamedParameter( $after, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->lte( 'fc.fileid', $qb->createNamedParameter( $upper, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->neq( 'fc.mimetype', $qb->createNamedParameter( $this->directoryMimetypeId(), IQueryBuilder::PARAM_INT ) ),
+			   $qb->createFunction( '(' . $hash->getSQL() . ') = 0' ),
+		   )
+		   ->orderBy( 'fc.fileid', 'ASC' )
+		   ->setMaxResults( $limit )
+		;
+
+		$this->andWhereGoverned( $qb, 'fc' );
+
+		if ( $mounts !== null )
+		{
+			$this->andWhereWithin( $qb, 'fc', $mounts );
+		}
+
+		$result = $qb->executeQuery();
+		$rows   = [];
+
+		while ( ( $row = $result->fetchAssociative() ) !== false )
+		{
+			$rows[] = [
+				'fileid'       => (int) $row['fileid'],
+				'storage'      => (int) $row['storage'],
+				'storage_id'   => (string) $row['id'],
+				'path'         => (string) $row['path'],
+				'etag'         => (string) $row['etag'],
+				'size'         => max( 0, (int) $row['size'] ),
+				'mtime'        => (int) $row['mtime'],
+				'storageMtime' => (int) $row['storage_mtime'],
+			];
+		}
+
+		$result->closeCursor();
+
+		return $rows;
+	}
+
+	/**
+	 * The highest file id the filecache holds, 0 for none: where a walk by
+	 * file id windows ends.
+	 *
+	 * @throws \OCP\DB\Exception
+	 */
+	public function maxFileId(): int
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( $qb->func()->max( 'fileid' ) )
+		   ->from( 'filecache' )
+		;
+
+		$result = $qb->executeQuery();
+		$max    = $result->fetchOne();
+		$result->closeCursor();
+
+		return (int) $max;
+	}
+
+	/**
 	 * Keep the query to the areas a rule may govern.
 	 *
 	 * Nothing in the trash, in the versions, or in an app's own data is a

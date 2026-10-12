@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\Service\FileLocation;
 use OCA\FileChecksumSearch\Service\HashListingService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\ReachResolver;
+use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -58,7 +59,7 @@ class HashListingServiceTest
 		           ->willReturn( self::NOW )
 		;
 
-		$this->listing = new HashListingService( $this->metadata, $this->filecache, $this->reach, $this->time );
+		$this->listing = new HashListingService( $this->metadata, $this->filecache, $this->reach, $this->time, $this->createMock( RuleService::class ) );
 	}
 
 
@@ -198,7 +199,7 @@ class HashListingServiceTest
 		               )
 		;
 
-		$listing = new HashListingService( $this->metadata, $this->filecache, $this->reach, $this->time );
+		$listing = new HashListingService( $this->metadata, $this->filecache, $this->reach, $this->time, $this->createMock( RuleService::class ) );
 
 		$this->assertSame( self::NOW, $listing->page( null, null, 500, 20 )['now'] );
 		$this->assertSame( [ 'clock', 'page' ], $order );

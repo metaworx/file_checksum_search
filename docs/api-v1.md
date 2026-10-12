@@ -123,6 +123,11 @@ a scan takes in.
   filecache holds, as adoption does, until `occ fcias:repair --step
   etag-stamp` has written one down. A sync client that replaces a file's
   content and keeps an older mtime gets past that test until then.
+- **A whole inventory:** `GET /api/v1/hashes?stat=1` lists every file with
+  a hash row, stale ones included, and `GET /api/v1/hashes/missing` with
+  `unmatched`, `withIgnored` and `withExcluded` every file without one;
+  read both, and a file of the files area in neither is gone. Trash,
+  versions and app data are in neither.
 
 ---
 
@@ -343,6 +348,43 @@ foreach ($api->iterateHashes(['alice'], 'sha256') as $fileId => $entry) {
   and `$since` holds here too.
 
 **Throws:** `\OCP\DB\Exception` on a database error, while the walk is read.
+
+---
+
+#### `listMissing(?array $reachUids, ?string $algo = null, int $limit = 500, int $after = 0, bool $unmatched = false, bool $withIgnored = false, bool $withExcluded = false, bool $withStat = false): array`
+
+The files in reach without a hash, page by page: the other half of
+`listHashes()` under `$withStat`. By default the files an include rule
+governs, which the queue would hash.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `$reachUids` | `?array` | Yes | Whose files, as `findByHash()` |
+| `$algo` | `?string` | No | The files without a hash in this algorithm, whatever others they hold |
+| `$limit` | `int` | No | Files per page, 1 to 1000, default 500 |
+| `$after` | `int` | No | The `next` of the page before; 0, the default, starts the listing |
+| `$unmatched` | `bool` | No | Add the files no rule matches |
+| `$withIgnored` | `bool` | No | Add the files an `ignore` rule matches |
+| `$withExcluded` | `bool` | No | Add the files an `exclude` rule matches |
+| `$withStat` | `bool` | No | Add each file's state: `etag` `null`, and its present size and mtimes ([File state](#file-state)) |
+
+**Returns:**
+```php
+[
+    'files' => [
+        ['fileid' => 185324, 'path' => '/Photos/2026/new.jpg', 'name' => 'new.jpg',
+         'owner' => 'alice', 'location' => 'home:alice//Photos/2026/new.jpg'],
+        // ...
+    ],
+    'next' => 195323,
+    'now' => 1791206400,
+]
+```
+
+A page reads a window of file ids and may come back short, or empty: pass
+`next` back as `$after` until it is `null`.
+
+**Throws:** `\OCP\DB\Exception` on a database error.
 
 ---
 
@@ -693,6 +735,8 @@ Responses are nonetheless plain JSON: these are `ApiController`s, not `OCSContro
 | 22 | `/api/v1/sudo/file/many/recalc` | POST | `recalcMany` | As 21, across the caller's reach; a file out of reach fails on its own row |
 | 23 | `/api/v1/hashes` | GET | `listHashes` | Every hash the caller holds, one entry per file, page by page |
 | 24 | `/api/v1/sudo/hashes` | GET | `listHashes` | As 23, across the accounts `users[]`/`groups[]` name or the caller's whole reach; `?localPath=1` for a sudoer, also with a set named |
+| 25 | `/api/v1/hashes/missing` | GET | `listMissing` | The files the caller holds without a hash, page by page; with 23 under `stat`, every file |
+| 26 | `/api/v1/sudo/hashes/missing` | GET | `listMissing` | As 25, across the accounts `users[]`/`groups[]` name or the caller's whole reach |
 
 > **Note:** `getHashesByFile()` and `getHashesByPath()` are PHP-only convenience methods with no HTTP equivalent. HTTP consumers should use `getHashesByFileId()` after obtaining a `fileId` from NC's WebDAV PROPFIND or other APIs.
 
@@ -701,11 +745,11 @@ or each duplicate group, gains `mimetype`. While detection is off, asking
 is a `400`; `features.mimetype` on route 6 says whether to ask
 ([MIME types](#mime-types)).
 
-The lookup, a file's hashes, the recalculations and the listing, each with
-its `sudo/` twin, take `?stat=1`: each file gains `etag`, valid for its
-hashes or `null`, and its present `size`, `mtime` and `storageMtime`; a
-file's hashes and the listing then give a stale file too, its `hashes` and
-`etag` `null` ([File state](#file-state)).
+The lookup, a file's hashes, the recalculations, the listing and the
+missing files, each with its `sudo/` twin, take `?stat=1`: each file gains
+`etag`, valid for its hashes or `null`, and its present `size`, `mtime` and
+`storageMtime`; a file's hashes and the listing then give a stale file too,
+its `hashes` and `etag` `null` ([File state](#file-state)).
 
 ### Endpoint Details
 
@@ -1204,7 +1248,8 @@ database — and would otherwise ask hash by hash. The files are the ones
 - **Only current hashes are listed.** A file whose content changed leaves
   the listing at once and comes back when its hashes are computed again;
   hashes nobody vouches for are not listed at all. Under `stat=1` such a
-  file is listed with `hashes` and `etag` `null` and its present state
+  file is listed with `hashes` and `etag` `null` and its present state, so
+  that this listing and route 25 together name every file
   ([File state](#file-state)).
 - **`path`** is the caller's own path for the file, with a leading slash: a
   received share's files by the path the share has in the caller's files,
@@ -1227,6 +1272,62 @@ asking is refused with 403.
 curl -u alice:<app-password> -H 'OCS-APIRequest: true' -H 'Accept: application/json' \
   'https://nc.example.com/ocs/v2.php/apps/file_checksum_search/api/v1/hashes?algo=sha256&after=185323'
 ```
+
+---
+
+#### 11. Missing Hashes
+
+```
+GET /ocs/v2.php/apps/file_checksum_search/api/v1/hashes/missing?after=0
+```
+
+| Parameter | Type | Required | Default |
+|-----------|------|----------|---------|
+| `algo` | string (query) | No | every algorithm |
+| `limit` | int (query) | No | 500; 1 to 1000 |
+| `after` | int (query) | No | 0 |
+| `unmatched` | bool (query) | No | false; adds the files no rule matches |
+| `withIgnored` | bool (query) | No | false; adds the files an `ignore` rule matches |
+| `withExcluded` | bool (query) | No | false; adds the files an `exclude` rule matches |
+| `stat` | bool (query) | No | false; each file gains its state, `etag` `null` ([File state](#file-state)) |
+
+The files the caller holds without a hash, one entry per file, in file id
+order: by default those an include rule governs, which the queue would
+hash. With `algo`, the files without a hash in that algorithm, whatever
+others they hold.
+
+**Response (200):**
+```json
+{
+  "files": [
+    {
+      "fileid": 185324,
+      "path": "/Photos/2026/new.jpg",
+      "name": "new.jpg",
+      "owner": "alice",
+      "location": "home:alice//Photos/2026/new.jpg"
+    }
+  ],
+  "next": 195323,
+  "now": 1791206400
+}
+```
+
+- **Paging.** A page reads a window of file ids and may come back short,
+  or empty. Pass `next` as `after` until `next` is `null`.
+- **`now`** is the server's clock, Unix seconds, as on route 23.
+- **A whole inventory.** With `unmatched`, `withIgnored` and
+  `withExcluded`, this and route 23 under `stat` name each file the caller
+  holds once: a file with a hash row there, stale or not, and here a file
+  without one. A file in neither is gone. Trash, versions and app data are
+  in neither.
+- **No `since`, no count.** A file without a hash has written nothing to
+  have a time, and counting below a path is what the windowed paging
+  avoids.
+
+`GET /api/v1/sudo/hashes/missing` is the cross-account twin: the accounts
+`users[]` and `groups[]` name, or with nothing named the caller's whole
+reach, with `openable` on each file.
 
 ---
 

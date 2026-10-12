@@ -16,6 +16,9 @@ the first stable release.
 - `docs/api-v1.md`, *File state*, `?stat=1`: a file's `etag`, valid for
   its hashes or null, and its present `size`, `mtime` and `storageMtime`.
 
+- `GET /api/v1/hashes/missing` and its `/sudo/` twin: the files without
+  hashes, governed ones by default. With `/hashes?stat=1`, every file.
+
 ### Changed
 
 - `MetadataService::setSelfIndexed()`: one writer for the index rows the

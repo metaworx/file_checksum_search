@@ -807,6 +807,90 @@ paths:
         "500":
           $ref: "#/components/responses/ServerError"
 
+  /api/v1/hashes/missing:
+    get:
+      tags: [Lookup]
+      summary: The files the caller holds without a hash, page by page
+      description: >-
+        One entry per file, in file id order: by default the files an include rule governs,
+        which the queue would hash; `unmatched`, `withIgnored` and `withExcluded` add the others.
+        With all three, this and `/api/v1/hashes?stat=1` name each file the caller holds once, so
+        a file in neither is gone. A page reads a window of file ids and may come back short or
+        empty; pass `next` back as `after` until it is null.
+      operationId: listMissing
+      parameters:
+        - $ref: "#/components/parameters/Stat"
+        - $ref: "#/components/parameters/HashListAlgo"
+        - $ref: "#/components/parameters/MissingLimit"
+        - $ref: "#/components/parameters/HashListAfter"
+        - $ref: "#/components/parameters/MissingUnmatched"
+        - $ref: "#/components/parameters/MissingWithIgnored"
+        - $ref: "#/components/parameters/MissingWithExcluded"
+      responses:
+        "200":
+          description: One page of the files without a hash
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MissingListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/v1/sudo/hashes/missing:
+    get:
+      tags: [Sudo]
+      summary: The files without a hash across accounts, page by page
+      description: >-
+        The cross-account twin of `/api/v1/hashes/missing`, over the accounts `users[]` and
+        `groups[]` name or, with neither, the caller's whole reach. Each entry says whether the
+        caller could open it (`openable`). Requires a password confirmed within the last thirty
+        minutes, or a granted app password, and is refused with 403 for anyone who may not look
+        across accounts.
+      operationId: sudoListMissing
+      parameters:
+        - $ref: "#/components/parameters/Stat"
+        - name: users[]
+          in: query
+          required: false
+          description: Accounts to list together
+          schema:
+            type: array
+            items:
+              type: string
+        - name: groups[]
+          in: query
+          required: false
+          description: Groups whose members to list, expanded and authorised server-side
+          schema:
+            type: array
+            items:
+              type: string
+        - $ref: "#/components/parameters/HashListAlgo"
+        - $ref: "#/components/parameters/MissingLimit"
+        - $ref: "#/components/parameters/HashListAfter"
+        - $ref: "#/components/parameters/MissingUnmatched"
+        - $ref: "#/components/parameters/MissingWithIgnored"
+        - $ref: "#/components/parameters/MissingWithExcluded"
+      responses:
+        "200":
+          description: As the ordinary route
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MissingListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
   /api/v1/status:
     get:
       tags: [Maintenance]
@@ -1171,6 +1255,40 @@ components:
       schema:
         type: string
         example: "2026-09-02T15:17:00+02:00"
+    MissingLimit:
+      name: limit
+      in: query
+      required: false
+      description: Files per page, 1 to 1000.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 1000
+        default: 500
+    MissingUnmatched:
+      name: unmatched
+      in: query
+      required: false
+      description: "`1` adds the files no rule matches."
+      schema:
+        type: boolean
+        default: false
+    MissingWithIgnored:
+      name: withIgnored
+      in: query
+      required: false
+      description: "`1` adds the files an `ignore` rule matches."
+      schema:
+        type: boolean
+        default: false
+    MissingWithExcluded:
+      name: withExcluded
+      in: query
+      required: false
+      description: "`1` adds the files an `exclude` rule matches, whose hashing is refused."
+      schema:
+        type: boolean
+        default: false
     Stat:
       name: stat
       in: query
@@ -1438,6 +1556,60 @@ components:
             On the first page, `after` 0 or absent, and only there: the files the whole listing
             holds under the same filters. An estimate — files come and go while a listing is read.
           example: 57459
+    MissingListResponse:
+      type: object
+      required: [files, next, now]
+      properties:
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/MissingFile"
+        next:
+          type: integer
+          nullable: true
+          description: >-
+            The file id to pass as `after` for the next page; null at the end of the filecache. A
+            page reads a window of file ids, so it may be short, or empty, and still carry one.
+          example: 195323
+        now:
+          type: integer
+          description: The server's clock, Unix seconds, taken before the page was read.
+          example: 1791206400
+    MissingFile:
+      type: object
+      required: [fileid, path, name, owner, location]
+      properties:
+        fileid:
+          type: integer
+          example: 185324
+        path:
+          type: string
+          description: "The caller's own path for the file, with a leading slash; on the twin, as the first account in reach that holds it names it."
+          example: "/Photos/2026/new.jpg"
+        name:
+          type: string
+          example: "new.jpg"
+        owner:
+          type: string
+          nullable: true
+          description: The owning account; null for a storage no account owns.
+          example: alice
+        location:
+          type: string
+          description: "The file's address, as on every file row."
+          example: "home:alice//Photos/2026/new.jpg"
+        openable:
+          type: boolean
+          description: "Cross-account route only: whether the caller's own mounts hold this file."
+          example: false
+        etag:
+          $ref: "#/components/schemas/StatEtag"
+        size:
+          $ref: "#/components/schemas/StatSize"
+        mtime:
+          $ref: "#/components/schemas/StatMtime"
+        storageMtime:
+          $ref: "#/components/schemas/StatStorageMtime"
     HashListFile:
       type: object
       required: [fileid, path, name, owner, location, updated_at, hashes]

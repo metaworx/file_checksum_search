@@ -634,6 +634,45 @@ class ChecksumApi
 	}
 
 	/**
+	 * The files in reach without a hash, page by page: the other half of
+	 * {@see listHashes()} under `$withStat`, which lists every file with a
+	 * hash row, stale ones included. Read both, and a file of the files area
+	 * in neither is gone.
+	 *
+	 * By default the files an include rule governs, which the queue would
+	 * hash; `$unmatched` adds those no rule matches, `$withIgnored` those an
+	 * `ignore` rule matches, `$withExcluded` those an `exclude` rule matches.
+	 * A page reads a window of file ids and may come back short, or empty:
+	 * pass `next` back as `$after` until it is null.
+	 *
+	 * @param  list<string>|null  $reachUids  Whose files: as {@see findByHash()}.
+	 * @param  string|null        $algo       Files without a hash in this
+	 *                                        algorithm, whatever others they hold.
+	 * @param  int                $limit      Files on the page, 1 to 1000.
+	 * @param  int                $after      The `next` of the page before;
+	 *                                        0 starts the listing.
+	 * @param  bool               $withStat   Each file gains its state:
+	 *                                        `etag` null, and its present
+	 *                                        size and mtimes.
+	 *
+	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>, next: ?int, now: int}
+	 * @throws \OCP\DB\Exception
+	 */
+	public function listMissing(
+		?array  $reachUids,
+		?string $algo = null,
+		int     $limit = HashListingService::DEFAULT_LIMIT,
+		int     $after = 0,
+		bool    $unmatched = false,
+		bool    $withIgnored = false,
+		bool    $withExcluded = false,
+		bool    $withStat = false,
+	): array
+	{
+		return $this->listing->missingPage( $reachUids, $algo, $limit, $after, $unmatched, $withIgnored, $withExcluded, $withStat );
+	}
+
+	/**
 	 * Find duplicate hash groups among the files the session user can reach.
 	 *
 	 * Not an instance-wide view: without a session user there is nobody to

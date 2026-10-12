@@ -42,6 +42,13 @@ class HashListingService
 	/** Files {@see iterate()} reads at once, and holds at once. */
 	public const ITERATE_BATCH = 500;
 
+	/**
+	 * File ids one page of {@see missingPage()} reads at most: a window
+	 * the filecache's primary key answers, however few files in it miss a
+	 * hash.
+	 */
+	public const MISSING_WINDOW = 10000;
+
 
 //  constructor
 
@@ -50,6 +57,7 @@ class HashListingService
 		private readonly FilecacheService $filecacheService,
 		private readonly ReachResolver    $reach,
 		private readonly ITimeFactory     $time,
+		private readonly RuleService      $ruleService,
 	) {
 	}
 
@@ -287,6 +295,102 @@ class HashListingService
 			$after = $rows === [] ? $after : $rows[ array_key_last( $rows ) ]['fileid'];
 		}
 		while ( count( $rows ) === self::ITERATE_BATCH );
+	}
+
+	/**
+	 * One page of the files in reach without a hash — of $algo, where one is
+	 * named — the other half of what {@see page()} lists under `stat`.
+	 *
+	 * By default the files an include rule governs: what the queue would
+	 * hash. $unmatched adds those no rule matches, $withIgnored those an
+	 * `ignore` rule matches, $withExcluded those an `exclude` rule matches;
+	 * with all three, every file of the files area in reach that holds no
+	 * hash row, so that this and {@see page()} under `stat` name each file
+	 * once. A rule's verdict is the rule list's, decided here per file.
+	 *
+	 * A page reads at most {@see MISSING_WINDOW} file ids, and may come back
+	 * short or empty: `next` says where the next one starts, null at the
+	 * end of the filecache.
+	 *
+	 * @param  list<string>|null  $reachUids  As {@see page()}.
+	 * @param  bool               $withStat   Each file gains its state:
+	 *                                        `etag` null, as it has no
+	 *                                        hashes, and its present size
+	 *                                        and mtimes ({@see stat()}).
+	 *
+	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>, next: ?int, now: int}
+	 * @throws Exception
+	 */
+	public function missingPage(
+		?array  $reachUids,
+		?string $algo = null,
+		int     $limit = self::DEFAULT_LIMIT,
+		int     $after = 0,
+		bool    $unmatched = false,
+		bool    $withIgnored = false,
+		bool    $withExcluded = false,
+		bool    $withStat = false,
+	): array
+	{
+		$limit = max( 1, min( $limit, self::MAX_LIMIT ) );
+		$after = max( 0, $after );
+		$algo  = self::algoOf( $algo );
+		$views = $this->viewsOf( $reachUids );
+		$areas = $views === null ? null : self::areasOf( $views );
+		$now   = $this->time->getTime();
+		$upper = $after + self::MISSING_WINDOW;
+
+		// One past the page, to know whether the window holds more.
+		$rows = $this->filecacheService->pageUnhashedFiles( $areas, $algo, $after, $upper, $limit + 1 );
+
+		if ( count( $rows ) > $limit )
+		{
+			$rows = array_slice( $rows, 0, $limit );
+			$next = $rows[ $limit - 1 ]['fileid'];
+		}
+		else
+		{
+			$next = $upper < $this->filecacheService->maxFileId()
+				? $upper
+				: null;
+		}
+
+		$wanted = [
+			RuleService::TYPE_INCLUDE => true,
+			RuleService::TYPE_IGNORE  => $withIgnored,
+			RuleService::TYPE_EXCLUDE => $withExcluded,
+		];
+		$files  = [];
+
+		foreach ( $rows as $row )
+		{
+			$location = FileLocation::fromRow( $row['fileid'], $row['storage_id'], $row['path'], $row['mtime'] );
+			$rule     = $this->ruleService->governingRuleForLocation( $location );
+
+			if ( ! ( $rule === null ? $unmatched : $wanted[ RuleService::verdictOf( $rule ) ] ) )
+			{
+				continue;
+			}
+
+			$seen = $views === null
+				? null
+				: $this->reach->seenThrough( $views, $row['storage'], $row['path'] );
+			$path = $seen['path'] ?? $location->relativePath ?? '/' . $row['path'];
+
+			$files[] = [
+				'fileid'   => $row['fileid'],
+				'path'     => $path,
+				'name'     => substr( $path, (int) strrpos( $path, '/' ) + 1 ),
+				'owner'    => $location->owner,
+				'location' => $seen['share'] ?? $location->describe(),
+			] + ( $withStat ? self::stat( $row, false, null ) : [] );
+		}
+
+		return [
+			'files' => $files,
+			'next'  => $next,
+			'now'   => $now,
+		];
 	}
 
 	/**
