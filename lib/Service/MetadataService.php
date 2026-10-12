@@ -171,6 +171,9 @@ class MetadataService
 	 */
 	public const META_VALUE_STRING_MAX_LENGTH = 63;
 
+	/** A half of an index row {@see setSelfIndexed()} is to leave as it is. */
+	public const UNCHANGED = Unchanged::Unchanged;
+
 	/**
 	 * How many times {@see register()} restates the declarations before
 	 * giving up. Three is one more than the two an eight-key instance was
@@ -2149,10 +2152,10 @@ class MetadataService
 			? $this->failedAttempts( $fileId ) ?? 0
 			: 0;
 
-		$this->deleteState( $fileId );
-
 		if ( $value === '' )
 		{
+			$this->unsetSelfIndexed( $fileId, self::KEY_FILE_CHECKSUM_STATE );
+
 			return;
 		}
 
@@ -2161,7 +2164,7 @@ class MetadataService
 			$this->insertIndexRow( $fileId, self::KEY_FILE_CHECKSUM_UPDATED_AT, '' );
 		}
 
-		$this->insertIndexRow( $fileId, self::KEY_FILE_CHECKSUM_STATE, $value, $attempts );
+		$this->setSelfIndexed( $fileId, self::KEY_FILE_CHECKSUM_STATE, $value, $attempts );
 	}
 
 	/**
@@ -3630,10 +3633,8 @@ class MetadataService
 	 * is the same keeps its time, so a save that changes nothing about a
 	 * hash does not offer it again. Compared as the index holds it, cut to
 	 * the column's width: two hashes of one algorithm alike in their first
-	 * 63 characters are not a case to write for. A changed row is deleted and
-	 * inserted rather than updated — an UPDATE that sets a column to the
-	 * value it holds reports **zero** rows on MySQL, and taking that for "no
-	 * row" once inserted duplicates.
+	 * 63 characters are not a case to write for. A changed row is written
+	 * through {@see setSelfIndexed()}.
 	 *
 	 * @param  array<string, string>  $algoToHash  The metadata document's hashes; empty removes every row.
 	 *
@@ -3657,30 +3658,39 @@ class MetadataService
 			$wanted[ self::getHashKey( $algo ) ] = self::truncateForIndex( $hash );
 		}
 
-		$kept = [];
+		$held = [];
 
 		foreach ( $this->hashRowsOf( $fileId ) as $row )
 		{
-			// The first row of a key that still holds its value stays; a
-			// second one of the same key goes with the rest.
-			if ( ( $wanted[ $row['key'] ] ?? null ) === $row['value'] && ! isset( $kept[ $row['key'] ] ) )
-			{
-				$kept[ $row['key'] ] = true;
+			$held[ $row['key'] ][] = $row['value'];
+		}
 
-				continue;
-			}
-
-			$this->deleteIndexRow( $row['id'] );
+		foreach ( array_keys( array_diff_key( $held, $wanted ) ) as $metaKey )
+		{
+			$this->unsetSelfIndexed( $fileId, $metaKey );
 		}
 
 		$now = time();
 
 		foreach ( $wanted as $metaKey => $value )
 		{
-			if ( ! isset( $kept[ $metaKey ] ) )
+			// One row that holds the value already: nothing to write, and
+			// nothing to read again.
+			if ( ( $held[ $metaKey ] ?? [] ) === [ $value ] )
 			{
-				$this->insertIndexRow( $fileId, $metaKey, $value, $now );
+				continue;
 			}
+
+			// The time moves only with the value; a second row of the key
+			// goes either way.
+			$this->setSelfIndexed(
+				$fileId,
+				$metaKey,
+				$value,
+				( $held[ $metaKey ][0] ?? null ) === $value
+					? self::UNCHANGED
+					: $now,
+			);
 		}
 
 		return count( $wanted );
@@ -3743,16 +3753,9 @@ class MetadataService
 		?string $mimeType,
 	): bool
 	{
-		$rows = $this->mimeTypeRowsOf( $fileId );
-
 		if ( $mimeType === null )
 		{
-			foreach ( $rows as $row )
-			{
-				$this->deleteIndexRow( $row['id'] );
-			}
-
-			return $rows !== [];
+			return $this->unsetSelfIndexed( $fileId, self::KEY_FILE_CHECKSUM_MIMETYPE ) > 0;
 		}
 
 		if ( ! $this->mimeTypes->isActive() )
@@ -3760,41 +3763,127 @@ class MetadataService
 			return false;
 		}
 
-		$id      = $this->mimeTypes->idOf( $mimeType );
-		$value   = self::truncateForIndex( $mimeType );
-		$kept    = false;
-		$changed = false;
-
-		foreach ( $rows as $row )
-		{
-			if ( ! $kept && $row['int'] === $id && $row['value'] === $value )
-			{
-				$kept = true;
-
-				continue;
-			}
-
-			$this->deleteIndexRow( $row['id'] );
-			$changed = true;
-		}
-
-		if ( ! $kept )
-		{
-			$this->insertIndexRow( $fileId, self::KEY_FILE_CHECKSUM_MIMETYPE, $value, $id );
-			$changed = true;
-		}
-
-		return $changed;
+		return $this->setSelfIndexed(
+			$fileId,
+			self::KEY_FILE_CHECKSUM_MIMETYPE,
+			$mimeType,
+			$this->mimeTypes->idOf( $mimeType ),
+		);
 	}
 
 	/**
-	 * A file's MIME type rows as the index holds them; one, where it is
-	 * whole.
+	 * Write a file's index row of a key this app keeps itself.
 	 *
-	 * @return list<array{id: int, int: int, value: string}>
+	 * Nextcloud writes the rows of the keys a metadata document marks
+	 * indexed, and rewrites them, from the document, whenever any app saves
+	 * it ({@see register()}). A key this app indexes itself is saved
+	 * unindexed and its row written here, after the save: the hashes, whose
+	 * values are longer than the column, the state, which the document does
+	 * not hold, and the MIME type, whose row carries the type's id. The
+	 * document is the caller's to save.
+	 *
+	 * One row per file and key. Each half is written as given: a string cut
+	 * to the column's width ({@see truncateForIndex()}), an int, or null for
+	 * NULL; {@see UNCHANGED} leaves the half as it is, and NULL where there
+	 * was no row. A second row of the key, left by a race between two
+	 * writers, goes. The row is read before it is written, so an UPDATE that
+	 * changes nothing — which MySQL reports as zero rows — is never taken
+	 * for a missing row.
+	 *
+	 * @return bool  Whether a row was written or removed.
 	 * @throws Exception
 	 */
-	private function mimeTypeRowsOf( int $fileId ): array
+	public function setSelfIndexed(
+		int                   $fileId,
+		string                $key,
+		Unchanged|string|null $string = self::UNCHANGED,
+		Unchanged|int|null    $int = self::UNCHANGED,
+	): bool
+	{
+		$rows    = $this->selfIndexedRowsOf( $fileId, $key );
+		$row     = array_shift( $rows );
+		$changed = $rows !== [];
+
+		foreach ( $rows as $surplus )
+		{
+			$this->deleteIndexRow( $surplus['id'] );
+		}
+
+		$string = match ( true )
+		{
+			$string instanceof Unchanged => $row['string'] ?? null,
+			$string === null             => null,
+			default                      => self::truncateForIndex( $string ),
+		};
+		$int    = $int instanceof Unchanged
+			? $row['int'] ?? null
+			: $int;
+
+		if ( $row === null )
+		{
+			$this->insertIndexRow( $fileId, $key, $string, $int );
+
+			return true;
+		}
+
+		if ( $row['string'] === $string && $row['int'] === $int )
+		{
+			return $changed;
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->update( self::TABLE_FILES_METADATA_INDEX )
+		   ->set( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( $string ) )
+		   ->set(
+			   self::FIELD_META_VALUE_INT,
+			   $qb->createNamedParameter( $int, $int === null ? IQueryBuilder::PARAM_NULL : IQueryBuilder::PARAM_INT ),
+		   )
+		   ->where(
+			   $qb->expr()
+			      ->eq( 'id', $qb->createNamedParameter( $row['id'], IQueryBuilder::PARAM_INT ) ),
+		   )
+		;
+
+		$this->executeStatement( $qb );
+
+		return true;
+	}
+
+	/**
+	 * Remove a file's index rows of a key this app keeps itself
+	 * ({@see setSelfIndexed()}).
+	 *
+	 * @return int  Rows removed.
+	 * @throws Exception
+	 */
+	public function unsetSelfIndexed(
+		int    $fileId,
+		string $key,
+	): int
+	{
+		$qb = $this->db->getQueryBuilder();
+		$qb->delete( self::TABLE_FILES_METADATA_INDEX )
+		   ->where(
+			   $qb->expr()
+			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( $key ) ),
+		   )
+		;
+
+		return $this->executeStatement( $qb );
+	}
+
+	/**
+	 * A file's rows of one key as the index holds them, oldest first.
+	 *
+	 * @return list<array{id: int, string: ?string, int: ?int}>
+	 * @throws Exception
+	 */
+	private function selfIndexedRowsOf(
+		int    $fileId,
+		string $key,
+	): array
 	{
 		$qb = $this->db->getQueryBuilder();
 		$qb->select( 'id', self::FIELD_META_VALUE_INT, self::FIELD_META_VALUE_STRING )
@@ -3803,7 +3892,7 @@ class MetadataService
 			   $qb->expr()
 			      ->eq( self::FIELD_FILE_ID, $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
 			   $qb->expr()
-			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_MIMETYPE ) ),
+			      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( $key ) ),
 		   )
 		   ->orderBy( 'id', 'ASC' )
 		;
@@ -3813,9 +3902,13 @@ class MetadataService
 			static fn(
 				array $row,
 			): array => [
-				'id'    => (int) $row['id'],
-				'int'   => (int) $row[ self::FIELD_META_VALUE_INT ],
-				'value' => (string) $row[ self::FIELD_META_VALUE_STRING ],
+				'id'     => (int) $row['id'],
+				'string' => $row[ self::FIELD_META_VALUE_STRING ] === null
+					? null
+					: (string) $row[ self::FIELD_META_VALUE_STRING ],
+				'int'    => $row[ self::FIELD_META_VALUE_INT ] === null
+					? null
+					: (int) $row[ self::FIELD_META_VALUE_INT ],
 			],
 			$result->fetchAllAssociative(),
 		);
@@ -4136,13 +4229,16 @@ class MetadataService
 	 * written; the stamp row carries the stamp in the int, and the MIME type
 	 * row the type's id, which is why `$intValue` is here.
 	 *
+	 * Beneath {@see setSelfIndexed()}, and for the bulk writers that have
+	 * made sure in one query that no file of theirs holds the row.
+	 *
 	 * @throws Exception
 	 */
 	private function insertIndexRow(
-		int    $fileId,
-		string $metaKey,
-		string $value,
-		int    $intValue = 0,
+		int     $fileId,
+		string  $metaKey,
+		?string $value,
+		?int    $intValue = 0,
 	): void
 	{
 		$qb = $this->db->getQueryBuilder();
@@ -4152,7 +4248,10 @@ class MetadataService
 				   self::FIELD_FILE_ID           => $qb->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ),
 				   self::FIELD_META_KEY          => $qb->createNamedParameter( $metaKey ),
 				   self::FIELD_META_VALUE_STRING => $qb->createNamedParameter( $value ),
-				   self::FIELD_META_VALUE_INT    => $qb->createNamedParameter( $intValue, IQueryBuilder::PARAM_INT ),
+				   self::FIELD_META_VALUE_INT    => $qb->createNamedParameter(
+					   $intValue,
+					   $intValue === null ? IQueryBuilder::PARAM_NULL : IQueryBuilder::PARAM_INT,
+				   ),
 			   ],
 		   )
 		;

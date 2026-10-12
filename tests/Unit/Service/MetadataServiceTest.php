@@ -269,31 +269,22 @@ class MetadataServiceTest
 	}
 
 	/**
-	 * The marker is a row of its own, replaced rather than updated: an
-	 * UPDATE writing the value a row already holds reports zero on MySQL,
-	 * and reading that as "no row" inserted a duplicate. The stamp row is
-	 * not written: Nextcloud rewrites it from the document on any app's
-	 * save, which is how a marker kept there was lost.
+	 * The marker is a row of its own, written with the failed attempts of a
+	 * file that was queued already: a file queued again keeps its place
+	 * behind the files that failed fewer times. The stamp row is not
+	 * written: Nextcloud rewrites it from the document on any app's save,
+	 * which is how a marker kept there was lost.
 	 */
-	/**
-	 * Replaced, not updated, and with the failed attempts of a file that was
-	 * queued already: a file queued again keeps its place behind the files
-	 * that failed fewer times.
-	 */
-	public function testMarkPendingReplacesTheStateRow(): void
+	public function testMarkPendingWritesTheStateRowWithTheAttemptsKept(): void
 	{
 		$this->queryBuilder->expects( $this->never() )
-		                   ->method( 'update' )
-		;
-		$this->queryBuilder->expects( $this->once() )
 		                   ->method( 'delete' )
-		                   ->with( 'files_metadata_index' )
-		                   ->willReturnSelf()
 		;
 
 		$inserted = $this->captureInsertedRows();
 
-		// Queued with three failed attempts; the stamp row exists.
+		// Queued with three failed attempts; the stamp row exists; no state
+		// row is there to update.
 		$result = $this->createMock( IResult::class );
 		$result->method( 'fetchOne' )
 		       ->willReturnOnConsecutiveCalls( 3, 42 )
@@ -308,6 +299,47 @@ class MetadataServiceTest
 			[ [ 42, MetadataService::KEY_FILE_CHECKSUM_STATE, 'pending:auto', 3 ] ],
 			$inserted->getArrayCopy(),
 		);
+	}
+
+	/**
+	 * A state row there already is updated in place, read first, so an
+	 * UPDATE that changes nothing — zero rows on MySQL — is never taken for
+	 * a missing row and followed by an insert.
+	 */
+	public function testMarkPendingUpdatesAStateRowInPlace(): void
+	{
+		$this->queryBuilder->expects( $this->never() )
+		                   ->method( 'delete' )
+		;
+		$this->queryBuilder->expects( $this->never() )
+		                   ->method( 'insert' )
+		;
+		$this->queryBuilder->expects( $this->once() )
+		                   ->method( 'update' )
+		                   ->with( 'files_metadata_index' )
+		                   ->willReturnSelf()
+		;
+
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchOne' )
+		       ->willReturnOnConsecutiveCalls( 3, 42 )
+		;
+		$result->method( 'fetchAllAssociative' )
+		       ->willReturn(
+			       [
+				       [
+					       'id'                                     => 9,
+					       MetadataService::FIELD_META_VALUE_STRING => 'pending:missing',
+					       MetadataService::FIELD_META_VALUE_INT    => 3,
+				       ],
+			       ],
+		       )
+		;
+		$this->queryBuilder->method( 'executeQuery' )
+		                   ->willReturn( $result )
+		;
+
+		$this->service->markPending( 42, 'pending:auto' );
 	}
 
 	public function testMarkPendingGivesANeverConsideredFileAStampRowOfZero(): void
@@ -699,12 +731,10 @@ class MetadataServiceTest
 		$this->assertNull( $ts );
 	}
 
-	public function testMarkPendingDeletesOnlyTheFilesStateRow(): void
+	public function testMarkPendingTouchesOnlyTheFilesStateRow(): void
 	{
-		$this->queryBuilder->expects( $this->once() )
+		$this->queryBuilder->expects( $this->never() )
 		                   ->method( 'delete' )
-		                   ->with( 'files_metadata_index' )
-		                   ->willReturnSelf()
 		;
 
 		$result = $this->createMock( IResult::class );
@@ -715,10 +745,10 @@ class MetadataServiceTest
 		                   ->willReturn( $result )
 		;
 
-		// The read of the file's failed attempts, the delete and the stamp
-		// row's existence check compare the same two columns, so what matters
-		// is that the delete names the state key, and that nothing deletes by
-		// the stamp's.
+		// The read of the file's failed attempts, the stamp row's existence
+		// check and the read of the state row before it is written compare
+		// the same two columns, so what matters is that the writing reads by
+		// the state key, and only the existence check by the stamp's.
 		$compared = [];
 		$this->expr->method( 'eq' )
 		           ->willReturnCallback(
@@ -745,9 +775,9 @@ class MetadataServiceTest
 				[ MetadataService::FIELD_FILE_ID, 42 ],
 				[ MetadataService::FIELD_META_KEY, MetadataService::KEY_FILE_CHECKSUM_STATE ],
 				[ MetadataService::FIELD_FILE_ID, 42 ],
-				[ MetadataService::FIELD_META_KEY, MetadataService::KEY_FILE_CHECKSUM_STATE ],
-				[ MetadataService::FIELD_FILE_ID, 42 ],
 				[ MetadataService::FIELD_META_KEY, MetadataService::KEY_FILE_CHECKSUM_UPDATED_AT ],
+				[ MetadataService::FIELD_FILE_ID, 42 ],
+				[ MetadataService::FIELD_META_KEY, MetadataService::KEY_FILE_CHECKSUM_STATE ],
 			],
 			$compared,
 		);
@@ -1624,17 +1654,19 @@ class MetadataServiceTest
 
 	/**
 	 * Only what changed is written: a row whose value is the same keeps the
-	 * time it was written, which `since` reads; a changed one is replaced
-	 * with the time of now, a new one inserted with it, one no longer held
-	 * removed.
+	 * time it was written, which `since` reads, and is not read again; a
+	 * changed one is updated with the time of now, a new one inserted with
+	 * it, one no longer held removed.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testTheIndexKeepsTheTimeOfAHashThatDidNotChange(): void
 	{
+		// The file's hash rows; then the md5 row, read before it is written;
+		// then no sha256 row.
 		$result = $this->createMock( IResult::class );
 		$result->method( 'fetchAllAssociative' )
-		       ->willReturn(
+		       ->willReturnOnConsecutiveCalls(
 			       [
 				       [
 					       'id'                                     => 1,
@@ -1652,41 +1684,35 @@ class MetadataServiceTest
 					       MetadataService::FIELD_META_VALUE_STRING => '00000000',
 				       ],
 			       ],
+			       [
+				       [
+					       'id'                                     => 2,
+					       MetadataService::FIELD_META_VALUE_STRING => str_repeat( 'b', 32 ),
+					       MetadataService::FIELD_META_VALUE_INT    => 100,
+				       ],
+			       ],
+			       [],
 		       )
 		;
 		$this->queryBuilder->method( 'executeQuery' )
 		                   ->willReturn( $result )
 		;
-
-		$deleted = [];
-		$this->queryBuilder->method( 'createNamedParameter' )
-		                   ->willReturnCallback(
-			                   static function( $value ) use ( &$deleted ): string
-			                   {
-				                   if ( is_int( $value ) && $value < 10 )
-				                   {
-					                   $deleted[] = $value;
-				                   }
-
-				                   return ':p';
-			                   },
-		                   )
-		;
-
-		$inserted = [];
-		$this->queryBuilder->method( 'values' )
-		                   ->willReturnCallback(
-			                   function( array $values ) use ( &$inserted )
-			                   {
-				                   $inserted[] = $values;
-
-				                   return $this->queryBuilder;
-			                   },
-		                   )
-		;
 		$this->queryBuilder->method( 'executeStatement' )
 		                   ->willReturn( 1 )
 		;
+
+		$this->queryBuilder->expects( $this->once() )
+		                   ->method( 'delete' )
+		                   ->willReturnSelf()
+		;
+		$this->queryBuilder->expects( $this->once() )
+		                   ->method( 'update' )
+		                   ->willReturnSelf()
+		;
+
+		$inserted = $this->captureInsertedRows();
+
+		$before = time();
 
 		$this->service->syncHashIndex(
 			42,
@@ -1697,8 +1723,11 @@ class MetadataServiceTest
 			],
 		);
 
-		$this->assertSame( [ 2, 3 ], $deleted, 'the changed md5 and the crc32 no longer held, by row' );
-		$this->assertCount( 2, $inserted, 'the changed md5 and the new sha256, not the sha1' );
+		$rows = $inserted->getArrayCopy();
+		$this->assertCount( 1, $rows, 'the new sha256 alone is inserted' );
+		$this->assertSame( MetadataService::getHashKey( 'sha256' ), $rows[0][1] );
+		$this->assertSame( str_repeat( 'd', 63 ), $rows[0][2] );
+		$this->assertGreaterThanOrEqual( $before, $rows[0][3] );
 	}
 
 	/**

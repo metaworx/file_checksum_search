@@ -11,6 +11,11 @@ the first stable release.
 
 ## [Unreleased]
 
+### Changed
+
+- `MetadataService::setSelfIndexed()`: one writer for the index rows the
+  app keeps itself, cut to 63 characters in one place.
+
 ## [0.25.0] - 2026-10-10
 
 ### Added
