@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Integration\Service;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Listener\MetadataListener;
 use OCA\FileChecksumSearch\Public\ChecksumApi;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\DrainOutcome;
@@ -20,6 +21,7 @@ use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
 use OCP\Files\File;
 use OCP\Files\IRootFolder;
+use OCP\FilesMetadata\Event\MetadataBackgroundEvent;
 use OCP\FilesMetadata\IFilesMetadataManager;
 use OCP\IAppConfig;
 use OCP\Server;
@@ -557,6 +559,38 @@ class HashStampTest
 
 		$this->hashCalc->processFile( $file->getId(), MetadataService::PENDING_MODE_AUTO );
 		$this->assertSame( [ 'sha256' => hash( 'sha256', 'lazy, not never' ) ], $this->hashesOf( $file->getId() ) );
+	}
+
+	/**
+	 * Nextcloud's metadata generation is no write: a file a reset disowned
+	 * stays disowned through it, and one never hashed is queued in its
+	 * rule's mode.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testMetadataGenerationKeepsAFilesState(): void
+	{
+		$listener = Server::get( MetadataListener::class );
+		$manager  = Server::get( IFilesMetadataManager::class );
+
+		$disowned = $this->createTestFile( 'fcias_meta_disowned', 'disowned before the event' );
+		$this->ruleFor( $disowned, MetadataService::PENDING_MODE_AUTO );
+		$this->assertTrue( $this->hashCalc->recalcFileHash( $disowned, 'sha256' )['success'] );
+		$this->metadataService->markPending( $disowned->getId(), MetadataService::STATE_RESET );
+
+		$listener->handle( new MetadataBackgroundEvent( $disowned, $manager->getMetadata( $disowned->getId(), true ) ) );
+
+		$this->assertSame( MetadataService::STATE_RESET, $this->metadataService->getMarker( $disowned->getId() ) );
+
+		$fresh = $this->createTestFile( 'fcias_meta_fresh', 'never hashed' );
+		$this->ruleFor( $fresh, MetadataService::PENDING_MODE_MISSING );
+
+		$listener->handle( new MetadataBackgroundEvent( $fresh, $manager->getMetadata( $fresh->getId(), true ) ) );
+
+		$this->assertSame(
+			MetadataService::PENDING_PREFIX . MetadataService::PENDING_MODE_MISSING,
+			$this->metadataService->getMarker( $fresh->getId() ),
+		);
 	}
 
 	/**

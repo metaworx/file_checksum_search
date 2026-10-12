@@ -13,6 +13,7 @@ namespace OCA\FileChecksumSearch\Listener;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\EventDispatcher\Event;
 use OCP\EventDispatcher\IEventListener;
@@ -22,8 +23,14 @@ use Psr\Log\LoggerInterface;
 use Throwable;
 
 /**
- * Listens for metadata background events to mark files for deferred
- * hash computation via the pending queue (ProcessPendingUpdates).
+ * Listens for metadata background events to queue a file the app has not
+ * hashed for the pending queue (ProcessPendingUpdates), in its rule's mode.
+ *
+ * Nextcloud's metadata generation reaches every file, a one-off job
+ * included, and is no write: a file with a state — queued, gone, eroded,
+ * disowned — is left as it is, and so is one whose hashes still vouch for
+ * it. Overwriting a state undid a reset, and requeued what the drain had
+ * given up on.
  *
  * Registered via IRegistrationContext::registerEventListener() in Application::register().
  *
@@ -39,6 +46,7 @@ class MetadataListener
 
 	public function __construct(
 		private readonly MetadataService $metadataService,
+		private readonly RuleService     $ruleService,
 		private readonly LoggerInterface $logger,
 	) {
 	}
@@ -73,10 +81,21 @@ class MetadataListener
 
 			$fileId = $node->getId();
 
-			// Queue the file; whether it gets hashed at all, and with which
-			// algorithms, is the governing rule's call at drain time. 'missing'
-			// covers both cases — fill absent hashes, refresh outdated ones.
-			$mode = MetadataService::PENDING_PREFIX . MetadataService::PENDING_MODE_MISSING;
+			if ( $this->metadataService->getMarker( $fileId ) !== null || $this->metadataService->isVouched( $fileId ) )
+			{
+				return;
+			}
+
+			// In the mode its rule queues it in, as a write would; nothing
+			// where no include rule maintains it.
+			$queueMode = RuleService::queueModeOf( $this->ruleService->findFirstMatchingRule( $fileId ) );
+
+			if ( $queueMode === null )
+			{
+				return;
+			}
+
+			$mode = MetadataService::PENDING_PREFIX . $queueMode;
 
 			$this->metadataService->markPending( $fileId, $mode );
 

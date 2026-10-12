@@ -45,6 +45,9 @@ the first stable release.
 - `README.md`, *Modes*, `lazy`: an emptied file is hashed later, at low
   priority; the sweep emptied it again instead.
 
+- Nextcloud's metadata generation no longer queues every file as
+  `missing`: a disowned, queued or gone file stays as it is.
+
 ## [0.25.0] - 2026-10-10
 
 ### Added
