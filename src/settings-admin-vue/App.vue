@@ -223,8 +223,8 @@ function jobCountsText(key: string, counts: Record<string, number>): string {
 		// TRANSLATORS: a background job's last run: the files its rules matched, and of those the ones it queued for checksums
 		return t('file_checksum_search', 'matched {matched}, queued {queued}', { matched: count('matched'), queued: count('marked') })
 	case 'pending_drain':
-		// TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it dropped from the queue unread because no rule wants them any more, and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
-		return t('file_checksum_search', 'hashed {hashed} of {total}, dropped {dropped}, failed {failed}, cleared after a reset {cleared}', { hashed: count('hashed'), total: count('total'), dropped: count('dropped'), failed: count('failed'), cleared: count('disowned') })
+		// TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it only read the MIME type of, how many it only stamped as current, how many it emptied (a rule in "lazy" mode), how many it dropped from the queue unread because no rule wants them any more, how many were gone from their storage, and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
+		return t('file_checksum_search', 'hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after a reset {cleared}', { hashed: count('hashed'), total: count('total'), typed: count('typed'), stamped: count('stamped'), emptied: count('emptied'), dropped: count('dropped'), gone: count('gone'), failed: count('failed'), cleared: count('disowned') })
 	case 'orphan_purge':
 		// TRANSLATORS: a background job's last run: the checksums of deleted files it removed, and in how many batches
 		return t('file_checksum_search', 'removed {purged}, batches {batches}', { purged: count('purged'), batches: count('batches') })

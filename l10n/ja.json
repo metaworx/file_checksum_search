@@ -405,7 +405,7 @@
     "folder missing" : "フォルダー利用不可",
     "group:* is not a selector. Name one group, or use home:* for every account." : "group:* はセレクターではありません。グループを1つ指定するか、すべてのアカウントを対象にするには home:* を使用してください。",
     "groupfolder: takes the numeric folder ID." : "groupfolder: には数値のフォルダーIDを指定します。",
-    "hashed {hashed} of {total}, dropped {dropped}, failed {failed}, cleared after a reset {cleared}" : "ハッシュ計算済み：{hashed}/{total}、キューから除去：{dropped}、失敗：{failed}、リセット後に消去：{cleared}",
+    "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after a reset {cleared}" : "ハッシュ計算済み：{hashed}/{total}、MIMEタイプのみ読み取り：{typed}、タイムスタンプ付与：{stamped}、空にした：{emptied}、キューから除去：{dropped}、消失：{gone}、失敗：{failed}、リセット後に消去：{cleared}",
     "invalidated by a reset: already hidden from search, and pending deletion by the background job" : "リセットにより無効化：すでに検索には表示されず、バックグラウンドジョブによる削除待ちです",
     "last success: {time}" : "最終成功：{time}",
     "local::/path/ or smb::…" : "local::/path/ または smb::…",

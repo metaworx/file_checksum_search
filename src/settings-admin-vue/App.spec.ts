@@ -60,7 +60,7 @@ function mockFetch(options: { rules?: unknown[], idleBannerAcknowledged?: boolea
 					},
 					pending_drain: {
 						lastRun: 1700000020,
-						counts: { hashed: 45, dropped: 3, failed: 2, total: 50, disowned: 1 },
+						counts: { hashed: 45, typed: 4, stamped: 6, emptied: 0, dropped: 3, gone: 1, failed: 2, total: 61, disowned: 1 },
 						attempt: { at: 1700000020, ok: true, durationMs: 80, reason: null },
 					},
 					mimetype_delete: { lastRun: null, counts: {}, attempt: null },
@@ -242,7 +242,7 @@ describe('settings-admin App', () => {
 		expect(jobs).toContain('matched 12, queued 3')
 		// The drain's files hashed apart from those dropped unread.
 		expect(jobs).toContain('Queue drain')
-		expect(jobs).toContain('hashed 45 of 50, dropped 3, failed 2, cleared after a reset 1')
+		expect(jobs).toContain('hashed 45 of 61, type read 4, stamped 6, emptied 0, dropped 3, gone 1, failed 2, cleared after a reset 1')
 		expect(jobs).toContain('MIME type deletion')
 		expect(jobs).toContain('Not run yet')
 		expect(jobs).toContain('Rule reapplication')

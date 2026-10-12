@@ -407,7 +407,7 @@ OC.L10N.register(
     "folder missing" : "Ordner fehlt",
     "group:* is not a selector. Name one group, or use home:* for every account." : "group:* ist kein Selektor. Nenne eine einzelne Gruppe oder verwende home:* für alle Konten.",
     "groupfolder: takes the numeric folder ID." : "groupfolder: erwartet die numerische Ordner-ID.",
-    "hashed {hashed} of {total}, dropped {dropped}, failed {failed}, cleared after a reset {cleared}" : "Prüfsummen berechnet für {hashed} von {total}, aus der Warteschlange entfernt {dropped}, fehlgeschlagen {failed}, nach dem Zurücksetzen bereinigt {cleared}",
+    "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after a reset {cleared}" : "Prüfsummen berechnet für {hashed} von {total}, nur MIME-Typ gelesen {typed}, mit Zeitstempel versehen {stamped}, geleert {emptied}, aus der Warteschlange entfernt {dropped}, verschwunden {gone}, fehlgeschlagen {failed}, nach dem Zurücksetzen bereinigt {cleared}",
     "invalidated by a reset: already hidden from search, and pending deletion by the background job" : "durch ein Zurücksetzen ungültig: bereits aus der Suche ausgeblendet und zur Löschung durch die Hintergrundaufgabe vorgemerkt",
     "last success: {time}" : "zuletzt erfolgreich: {time}",
     "local::/path/ or smb::…" : "local::/path/ oder smb::…",

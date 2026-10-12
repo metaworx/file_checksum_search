@@ -1340,9 +1340,9 @@ msgstr "group:* is geen selector. Geef één groep op of gebruik home:* voor all
 msgid "groupfolder: takes the numeric folder ID."
 msgstr "groupfolder: verwacht de numerieke map-ID."
 
-#. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it dropped from the queue unread because no rule wants them any more, and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
-msgid "hashed {hashed} of {total}, dropped {dropped}, failed {failed}, cleared after a reset {cleared}"
-msgstr "controlesommen berekend voor {hashed} van {total}, uit de wachtrij verwijderd {dropped}, mislukt {failed}, opgeruimd na een reset {cleared}"
+#. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it only read the MIME type of, how many it only stamped as current, how many it emptied (a rule in "lazy" mode), how many it dropped from the queue unread because no rule wants them any more, how many were gone from their storage, and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
+msgid "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after a reset {cleared}"
+msgstr "controlesommen berekend voor {hashed} van {total}, alleen MIME-type gelezen {typed}, voorzien van tijdstempel {stamped}, geleegd {emptied}, uit de wachtrij verwijderd {dropped}, verdwenen {gone}, mislukt {failed}, opgeruimd na een reset {cleared}"
 
 msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
 msgstr "ongeldig gemaakt door een reset: al verborgen voor de zoekfunctie en in afwachting van verwijdering door de achtergrondtaak"

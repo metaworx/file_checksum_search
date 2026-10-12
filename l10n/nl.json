@@ -405,7 +405,7 @@
     "folder missing" : "map ontbreekt",
     "group:* is not a selector. Name one group, or use home:* for every account." : "group:* is geen selector. Geef één groep op of gebruik home:* voor alle accounts.",
     "groupfolder: takes the numeric folder ID." : "groupfolder: verwacht de numerieke map-ID.",
-    "hashed {hashed} of {total}, dropped {dropped}, failed {failed}, cleared after a reset {cleared}" : "controlesommen berekend voor {hashed} van {total}, uit de wachtrij verwijderd {dropped}, mislukt {failed}, opgeruimd na een reset {cleared}",
+    "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after a reset {cleared}" : "controlesommen berekend voor {hashed} van {total}, alleen MIME-type gelezen {typed}, voorzien van tijdstempel {stamped}, geleegd {emptied}, uit de wachtrij verwijderd {dropped}, verdwenen {gone}, mislukt {failed}, opgeruimd na een reset {cleared}",
     "invalidated by a reset: already hidden from search, and pending deletion by the background job" : "ongeldig gemaakt door een reset: al verborgen voor de zoekfunctie en in afwachting van verwijdering door de achtergrondtaak",
     "last success: {time}" : "laatst geslaagd: {time}",
     "local::/path/ or smb::…" : "local::/path/ of smb::…",

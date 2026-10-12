@@ -407,7 +407,7 @@ OC.L10N.register(
     "folder missing" : "falta la carpeta",
     "group:* is not a selector. Name one group, or use home:* for every account." : "group:* no es un selector. Indique un grupo concreto o use home:* para todas las cuentas.",
     "groupfolder: takes the numeric folder ID." : "groupfolder: espera el ID numérico de la carpeta.",
-    "hashed {hashed} of {total}, dropped {dropped}, failed {failed}, cleared after a reset {cleared}" : "hashes calculados para {hashed} de {total}, retirados de la cola {dropped}, fallidos {failed}, limpiados tras un restablecimiento {cleared}",
+    "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after a reset {cleared}" : "hashes calculados para {hashed} de {total}, solo tipo MIME leído {typed}, con marca de tiempo {stamped}, vaciados {emptied}, retirados de la cola {dropped}, desaparecidos {gone}, fallidos {failed}, limpiados tras un restablecimiento {cleared}",
     "invalidated by a reset: already hidden from search, and pending deletion by the background job" : "invalidadas por un restablecimiento: ya ocultas en la búsqueda y pendientes de que el trabajo en segundo plano las elimine",
     "last success: {time}" : "última ejecución correcta: {time}",
     "local::/path/ or smb::…" : "local::/path/ o smb::…",

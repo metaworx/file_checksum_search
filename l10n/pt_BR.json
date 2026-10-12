@@ -405,7 +405,7 @@
     "folder missing" : "pasta ausente",
     "group:* is not a selector. Name one group, or use home:* for every account." : "group:* não é um seletor. Indique um único grupo ou use home:* para todas as contas.",
     "groupfolder: takes the numeric folder ID." : "groupfolder: recebe o ID numérico da pasta.",
-    "hashed {hashed} of {total}, dropped {dropped}, failed {failed}, cleared after a reset {cleared}" : "somas de verificação calculadas para {hashed} de {total}, removidos da fila {dropped}, com falha {failed}, limpos após uma redefinição {cleared}",
+    "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after a reset {cleared}" : "somas de verificação calculadas para {hashed} de {total}, só tipo MIME lido {typed}, com carimbo de data e hora {stamped}, esvaziados {emptied}, removidos da fila {dropped}, desaparecidos {gone}, com falha {failed}, limpos após uma redefinição {cleared}",
     "invalidated by a reset: already hidden from search, and pending deletion by the background job" : "invalidadas por uma redefinição: já ocultas da pesquisa e aguardando exclusão pela tarefa em segundo plano",
     "last success: {time}" : "última execução bem-sucedida: {time}",
     "local::/path/ or smb::…" : "local::/path/ ou smb::…",

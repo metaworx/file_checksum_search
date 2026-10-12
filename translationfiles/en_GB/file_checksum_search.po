@@ -1340,9 +1340,9 @@ msgstr "group:* is not a selector. Name one group, or use home:* for every accou
 msgid "groupfolder: takes the numeric folder ID."
 msgstr "groupfolder: takes the numeric folder ID."
 
-#. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it dropped from the queue unread because no rule wants them any more, and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
-msgid "hashed {hashed} of {total}, dropped {dropped}, failed {failed}, cleared after a reset {cleared}"
-msgstr "hashed {hashed} of {total}, dropped {dropped}, failed {failed}, cleared after a reset {cleared}"
+#. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it only read the MIME type of, how many it only stamped as current, how many it emptied (a rule in "lazy" mode), how many it dropped from the queue unread because no rule wants them any more, how many were gone from their storage, and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
+msgid "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after a reset {cleared}"
+msgstr "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after a reset {cleared}"
 
 msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
 msgstr "invalidated by a reset: already hidden from search, and pending deletion by the background job"

@@ -282,6 +282,24 @@ class QueueDrainTest
 	}
 
 	/**
+	 * A reason carrying an exception's text is printed as it is: its `<`
+	 * is not the console's markup, which would throw on a closing tag.
+	 */
+	public function testAReasonIsPrintedAsItIs(): void
+	{
+		$queue = $this->queueHolding( [ 1 ] );
+		$this->hashing(
+			$queue,
+			times: 1,
+			outcomes: [ 1 => DrainOutcome::failed( 'a </error> and <b>' ) ],
+		);
+
+		$this->tester->execute( [ '--all' => true ], [ 'verbosity' => OutputInterface::VERBOSITY_VERBOSE ] );
+
+		$this->assertStringContainsString( 'fileId 1 could not be hashed: a </error> and <b>.', $this->tester->getDisplay() );
+	}
+
+	/**
 	 * A file gone from its storage leaves the queue, and the run says so,
 	 * apart from a failure.
 	 */

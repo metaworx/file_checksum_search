@@ -643,6 +643,48 @@ class HashCalculationServiceTest
 	}
 
 	/**
+	 * A batch whose every hash existed read nothing: the file is `stamped`,
+	 * not `hashed`.
+	 */
+	public function testProcessFileSaysStampedWhereNothingWasRead(): void
+	{
+		$metadata = $this->documentStamped( [ 'sha256' => 'current' ], 2000 );
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn(
+			                  [
+				                  'id'    => 'r1',
+				                  'type'  => 'include',
+				                  'mode'  => 'missing',
+				                  'algos' => [ 'sha256' ],
+			                  ],
+		                  )
+		;
+		$this->metadataService->method( 'saveMetadata' )
+		                      ->willReturn( true )
+		;
+
+		$service = $this->createCollectingServiceMock();
+		$service->method( 'recalcHashes' )
+		        ->with( $this->anything(), [ 'sha256' ], true, $metadata )
+		        ->willReturn(
+			        [
+				        'results' => [
+					        'sha256' => [
+						        'success' => true,
+						        'hash'    => 'current',
+						        'existed' => true,
+					        ],
+				        ],
+				        'locked'  => false,
+			        ],
+		        )
+		;
+
+		$this->assertEquals( DrainOutcome::stamped(), $service->processFile( 42, 'missing' ) );
+	}
+
+	/**
 	 * A rule left with no algorithm the server computes hashes nothing: the
 	 * file leaves the queue unread, as one no rule maintains does.
 	 */

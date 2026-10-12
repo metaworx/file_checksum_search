@@ -405,7 +405,7 @@
     "folder missing" : "dossier manquant",
     "group:* is not a selector. Name one group, or use home:* for every account." : "group:* n'est pas un sélecteur. Indiquez un seul groupe, ou utilisez home:* pour tous les comptes.",
     "groupfolder: takes the numeric folder ID." : "groupfolder: attend l'identifiant numérique du dossier.",
-    "hashed {hashed} of {total}, dropped {dropped}, failed {failed}, cleared after a reset {cleared}" : "empreintes calculées pour {hashed} sur {total}, retirés de la file d'attente {dropped}, en échec {failed}, nettoyés après une réinitialisation {cleared}",
+    "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after a reset {cleared}" : "empreintes calculées pour {hashed} sur {total}, type MIME seul lu {typed}, horodatés {stamped}, vidés {emptied}, retirés de la file d'attente {dropped}, disparus {gone}, en échec {failed}, nettoyés après une réinitialisation {cleared}",
     "invalidated by a reset: already hidden from search, and pending deletion by the background job" : "invalidées par une réinitialisation : déjà masquées dans la recherche, et en attente de suppression par la tâche d'arrière-plan",
     "last success: {time}" : "dernière exécution réussie : {time}",
     "local::/path/ or smb::…" : "local::/path/ ou smb::…",

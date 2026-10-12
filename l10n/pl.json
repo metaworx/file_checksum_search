@@ -405,7 +405,7 @@
     "folder missing" : "brak folderu",
     "group:* is not a selector. Name one group, or use home:* for every account." : "group:* nie jest selektorem. Podaj jedną grupę albo użyj home:* dla wszystkich kont.",
     "groupfolder: takes the numeric folder ID." : "groupfolder: przyjmuje liczbowe ID folderu.",
-    "hashed {hashed} of {total}, dropped {dropped}, failed {failed}, cleared after a reset {cleared}" : "sumy kontrolne obliczone dla {hashed} z {total}, usunięte z kolejki {dropped}, nieudane {failed}, wyczyszczone po resecie {cleared}",
+    "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after a reset {cleared}" : "sumy kontrolne obliczone dla {hashed} z {total}, odczytany tylko typ MIME {typed}, opatrzone znacznikiem czasu {stamped}, opróżnione {emptied}, usunięte z kolejki {dropped}, zaginione {gone}, nieudane {failed}, wyczyszczone po resecie {cleared}",
     "invalidated by a reset: already hidden from search, and pending deletion by the background job" : "unieważnione przez reset: już ukryte w wyszukiwaniu i oczekujące na usunięcie przez zadanie w tle",
     "last success: {time}" : "ostatnie udane uruchomienie: {time}",
     "local::/path/ or smb::…" : "local::/path/ lub smb::…",

@@ -195,10 +195,10 @@ class ProcessPendingUpdates
 //  static methods
 
 	/**
-	 * A run's counts as the status lists them: the files hashed, dropped
-	 * unread and failed, always; a MIME type read, nothing to compute,
-	 * `lazy`'s emptied and gone from their storage only where the run met
-	 * them at all; then the files it took, and the disowned ones it cleared.
+	 * A run's counts as the status lists them: the files by outcome, every
+	 * outcome, zeros included, so that a reader needs no list of the keys
+	 * that may be missing; then the files it took, and the disowned ones it
+	 * cleared.
 	 *
 	 * @param  array<string, int>  $tally  Files by {@see DrainOutcome} kind.
 	 *
@@ -209,25 +209,13 @@ class ProcessPendingUpdates
 		int   $disowned,
 	): array
 	{
-		$counts = [ 'hashed' => $tally[ DrainOutcome::HASHED ] ];
-
-		foreach ( [ DrainOutcome::TYPED, DrainOutcome::STAMPED, DrainOutcome::EMPTIED ] as $kind )
-		{
-			if ( $tally[ $kind ] > 0 )
-			{
-				$counts[ $kind ] = $tally[ $kind ];
-			}
-		}
-
-		$counts['dropped'] = $tally[ DrainOutcome::DROPPED ];
-
-		if ( $tally[ DrainOutcome::GONE ] > 0 )
-		{
-			$counts[ DrainOutcome::GONE ] = $tally[ DrainOutcome::GONE ];
-		}
-
 		return [
-			...$counts,
+			'hashed'   => $tally[ DrainOutcome::HASHED ],
+			'typed'    => $tally[ DrainOutcome::TYPED ],
+			'stamped'  => $tally[ DrainOutcome::STAMPED ],
+			'emptied'  => $tally[ DrainOutcome::EMPTIED ],
+			'dropped'  => $tally[ DrainOutcome::DROPPED ],
+			'gone'     => $tally[ DrainOutcome::GONE ],
 			'failed'   => $tally[ DrainOutcome::FAILED ],
 			'total'    => array_sum( $tally ),
 			'disowned' => $disowned,

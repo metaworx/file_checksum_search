@@ -343,7 +343,8 @@ runs it at once. And they queue giving each stamp the ETag its hashes were read 
 stamps made before the app kept one: the filecache's ETag where its checksum column still holds the
 hashes or the stamp is no older than the storage's own mtime, and otherwise the file queued to be hashed
 again. `occ fcias:repair --step etag-stamp` runs it at once. All of them show their progress on the status
-page, as *Checksum copy*, *Checksum index check* and *Checksum stamp check*, and in `occ fcias:status`.
+page, as *Checksum copy*, *Checksum index check*, *Checksum stamp check* and *Checksum ETag check*, and in
+`occ fcias:status`.
 
 ### Which file a rule is talking about
 
@@ -581,8 +582,10 @@ A file the drain cannot hash just now — unreadable, locked, written to while i
 queued, and its row's integer counts the failed attempts. The drain takes the files with the fewest
 first, so a file that keeps failing waits behind every other instead of taking a place in every
 batch; queuing it again keeps its count, and it goes when the file leaves the queue. A full batch
-in which no file could be hashed is not re-dispatched: the next run tries again, the files not yet
-tried first. `fcias:queue:drain --all` walks the queue once, by file id, and tries every file
+in which no file left the queue is not re-dispatched: the next run tries again, the files not yet
+tried first. The drain's last run counts each file by what became of it — `hashed`, `typed` (its
+MIME type read alone), `stamped` (nothing to read), `emptied` (`lazy`), `dropped`, `gone`, `failed`
+— beside `total` and `disowned`, every key in `fcias:status -o json` and on the status page. `fcias:queue:drain --all` walks the queue once, by file id, and tries every file
 waiting: one that fails is passed rather than taken again. A file on a storage Nextcloud holds
 unavailable — it fails every call to an external storage at once for ten minutes after the first
 that failed — counts its attempt without being read, until Nextcloud tries the storage again.

@@ -17,6 +17,7 @@ use OCP\IAppConfig;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -178,7 +179,9 @@ HELP,
 						$outcome->kind === DrainOutcome::FAILED
 							? '<comment>  %s</comment>'
 							: '  %s',
-						$outcome->describe( $fileId ),
+						// A reason can carry an exception's text, and its
+						// `<` would read as the console's markup.
+						OutputFormatter::escape( $outcome->describe( $fileId ) ),
 					),
 					$outcome->kind === DrainOutcome::HASHED
 						? OutputInterface::VERBOSITY_VERY_VERBOSE

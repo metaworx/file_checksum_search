@@ -816,8 +816,9 @@ class HashCalculationService
 				$this->keepOnly( $metadata, $algos );
 			}
 
+			$batch   = $this->recalcHashes( $file ?? $fileId, $algos, true, $metadata );
 			$failure = $this->applyBatchResults(
-				$this->recalcHashes( $file ?? $fileId, $algos, true, $metadata ),
+				$batch,
 				$algos,
 				$file ?? $fileId,
 				$mode,
@@ -832,7 +833,7 @@ class HashCalculationService
 			// The ETag the read was against, which recalcHashes() stamped;
 			// kept as it is where nothing was missing to read.
 			$this->metadataService->stamp( $metadata, $stamp );
-			$done = DrainOutcome::hashed();
+			$done = self::outcomeOf( $batch );
 
 			break;
 
@@ -848,8 +849,9 @@ class HashCalculationService
 
 			if ( $algosToRecalc !== [] )
 			{
+				$batch   = $this->recalcHashes( $file ?? $fileId, $algosToRecalc, true, $metadata );
 				$failure = $this->applyBatchResults(
-					$this->recalcHashes( $file ?? $fileId, $algosToRecalc, true, $metadata ),
+					$batch,
 					$algosToRecalc,
 					$file ?? $fileId,
 					$mode,
@@ -861,7 +863,7 @@ class HashCalculationService
 					return $failure;
 				}
 
-				$done = DrainOutcome::hashed();
+				$done = self::outcomeOf( $batch );
 			}
 
 			$this->metadataService->stamp( $metadata, $stamp );
@@ -2062,6 +2064,25 @@ class HashCalculationService
 
 
 //  static methods
+
+	/**
+	 * What a successful batch did: `hashed` where it read anything, `stamped`
+	 * where every hash it was asked for existed and only the stamp moved.
+	 *
+	 * @param  array{results: array<string, array{existed: bool, ...}>, ...}  $batch
+	 */
+	private static function outcomeOf( array $batch ): DrainOutcome
+	{
+		foreach ( $batch['results'] as $result )
+		{
+			if ( ! $result['existed'] )
+			{
+				return DrainOutcome::hashed();
+			}
+		}
+
+		return DrainOutcome::stamped();
+	}
 
 	/**
 	 * Up to $length bytes from a stream, fewer only at its end.

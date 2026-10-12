@@ -298,7 +298,11 @@ class ProcessPendingUpdatesTest
 			               JobStatsService::JOB_PENDING_DRAIN,
 			               [
 				               'hashed'   => 0,
+				               'typed'    => 0,
+				               'stamped'  => 0,
+				               'emptied'  => 0,
 				               'dropped'  => 0,
+				               'gone'     => 0,
 				               'failed'   => 1,
 				               'total'    => 1,
 				               'disowned' => 0,
@@ -348,6 +352,8 @@ class ProcessPendingUpdatesTest
 			               [
 				               'hashed'   => 2,
 				               'typed'    => 1,
+				               'stamped'  => 0,
+				               'emptied'  => 0,
 				               'dropped'  => 1,
 				               'gone'     => 1,
 				               'failed'   => 0,
@@ -557,7 +563,11 @@ class ProcessPendingUpdatesTest
 			               JobStatsService::JOB_PENDING_DRAIN,
 			               [
 				               'hashed'   => 0,
+				               'typed'    => 0,
+				               'stamped'  => 0,
+				               'emptied'  => 0,
 				               'dropped'  => 0,
+				               'gone'     => 0,
 				               'failed'   => 0,
 				               'total'    => 0,
 				               'disowned' => 0,

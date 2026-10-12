@@ -34,6 +34,10 @@ the first stable release.
   hearing of it leaves the lookup, the listing, the duplicates and its
   own hashes until hashed again; `?stat=1` names it.
 
+- `README.md`, *Pending Hash Queue*: the drain counts every outcome,
+  zeros included, in `fcias:status -o json` and on the status page; a
+  file with nothing to read counts as `stamped`, not `hashed`.
+
 ### Fixed
 
 - `README.md`, *Modes*: a rule naming an algorithm the server no longer

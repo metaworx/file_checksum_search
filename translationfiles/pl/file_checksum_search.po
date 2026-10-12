@@ -1350,9 +1350,9 @@ msgstr "group:* nie jest selektorem. Podaj jedną grupę albo użyj home:* dla w
 msgid "groupfolder: takes the numeric folder ID."
 msgstr "groupfolder: przyjmuje liczbowe ID folderu."
 
-#. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it dropped from the queue unread because no rule wants them any more, and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
-msgid "hashed {hashed} of {total}, dropped {dropped}, failed {failed}, cleared after a reset {cleared}"
-msgstr "sumy kontrolne obliczone dla {hashed} z {total}, usunięte z kolejki {dropped}, nieudane {failed}, wyczyszczone po resecie {cleared}"
+#. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it only read the MIME type of, how many it only stamped as current, how many it emptied (a rule in "lazy" mode), how many it dropped from the queue unread because no rule wants them any more, how many were gone from their storage, and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
+msgid "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after a reset {cleared}"
+msgstr "sumy kontrolne obliczone dla {hashed} z {total}, odczytany tylko typ MIME {typed}, opatrzone znacznikiem czasu {stamped}, opróżnione {emptied}, usunięte z kolejki {dropped}, zaginione {gone}, nieudane {failed}, wyczyszczone po resecie {cleared}"
 
 msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
 msgstr "unieważnione przez reset: już ukryte w wyszukiwaniu i oczekujące na usunięcie przez zadanie w tle"

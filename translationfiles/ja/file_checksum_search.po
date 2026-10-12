@@ -1335,9 +1335,9 @@ msgstr "group:* はセレクターではありません。グループを1つ指
 msgid "groupfolder: takes the numeric folder ID."
 msgstr "groupfolder: には数値のフォルダーIDを指定します。"
 
-#. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it dropped from the queue unread because no rule wants them any more, and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
-msgid "hashed {hashed} of {total}, dropped {dropped}, failed {failed}, cleared after a reset {cleared}"
-msgstr "ハッシュ計算済み：{hashed}/{total}、キューから除去：{dropped}、失敗：{failed}、リセット後に消去：{cleared}"
+#. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it only read the MIME type of, how many it only stamped as current, how many it emptied (a rule in "lazy" mode), how many it dropped from the queue unread because no rule wants them any more, how many were gone from their storage, and how many failed; the last number is files whose checksums a reset had invalidated, now cleared
+msgid "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after a reset {cleared}"
+msgstr "ハッシュ計算済み：{hashed}/{total}、MIMEタイプのみ読み取り：{typed}、タイムスタンプ付与：{stamped}、空にした：{emptied}、キューから除去：{dropped}、消失：{gone}、失敗：{failed}、リセット後に消去：{cleared}"
 
 msgid "invalidated by a reset: already hidden from search, and pending deletion by the background job"
 msgstr "リセットにより無効化：すでに検索には表示されず、バックグラウンドジョブによる削除待ちです"

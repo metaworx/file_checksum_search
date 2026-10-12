@@ -407,7 +407,7 @@ OC.L10N.register(
     "folder missing" : "文件夹缺失",
     "group:* is not a selector. Name one group, or use home:* for every account." : "group:* 不是选择器。请指定一个群组，或使用 home:* 表示所有账号。",
     "groupfolder: takes the numeric folder ID." : "groupfolder: 需要数字形式的文件夹 ID。",
-    "hashed {hashed} of {total}, dropped {dropped}, failed {failed}, cleared after a reset {cleared}" : "已计算校验和：{hashed}/{total}，已移出队列：{dropped}，失败：{failed}，重置后已清理：{cleared}",
+    "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after a reset {cleared}" : "已计算校验和：{hashed}/{total}，仅读取 MIME 类型：{typed}，已加时间戳：{stamped}，已清空：{emptied}，已移出队列：{dropped}，已消失：{gone}，失败：{failed}，重置后已清理：{cleared}",
     "invalidated by a reset: already hidden from search, and pending deletion by the background job" : "因重置而作废：已从搜索中隐藏，等待后台任务删除",
     "last success: {time}" : "上次成功：{time}",
     "local::/path/ or smb::…" : "local::/path/ 或 smb::…",
