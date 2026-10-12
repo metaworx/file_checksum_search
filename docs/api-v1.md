@@ -100,11 +100,13 @@ compares it with the ETag the filecache holds, which every write moves
 on — one the app hears of, one it misses, a change on an external storage
 a scan takes in.
 
-- **Asked for:** `?stat=1` on the lookup, a file's hashes, the listing and
-  the recalculations, each with its `sudo/` twin. In PHP, `$withStat` on
-  `findByHash()`, `getHashesByFileId()`, `listHashes()`, `iterateHashes()`,
-  `recalcHash()` and `recalcMany()`. Without it, the answers are as they
-  were.
+- **Asked for:** `?stat=1` on the lookup, a file's hashes, the listing, the
+  missing files and the recalculations, each with its `sudo/` twin. In
+  PHP, `$withStat` on `findByHash()`, `getHashesByFileId()`, `listHashes()`,
+  `iterateHashes()`, `listMissing()`, `recalcHash()` and `recalcMany()`.
+  Without it, the answers have no state, and leave out a stale file as
+  below — which, for a file changed without the app hearing of it, is new
+  in the release that brought `stat`.
 - **The evidence:** `etag` is the ETag the hashes were read against, as the
   filecache holds it, without the quotes WebDAV's `getetag` puts around it.
   It and the hashes are valid together, or `null` together.
@@ -122,16 +124,19 @@ a scan takes in.
   never finds one: it would match a value the file may no longer hold.
 - **A MIME type** was detected from the content the hashes were read from,
   and is `null` wherever they are stale, with or without `stat`.
-- **Hashes stamped before the app kept the ETag** count while their stamp
-  is no older than the storage's own mtime, and give the ETag the
-  filecache holds, as adoption does, until `occ fcias:repair --step
-  etag-stamp` has written one down. A sync client that replaces a file's
-  content and keeps an older mtime gets past that test until then.
+- **Hashes stamped without an ETag** — before the app kept it, or by an
+  import, which read nothing — count while their stamp is no older than
+  the storage's own mtime, and give the ETag the filecache holds, as
+  adoption does; `occ fcias:repair --step etag-stamp` writes it down where
+  the filecache's checksums vouch for them. A sync client that replaces a
+  file's content and keeps an older mtime gets past that test until then.
 - **A whole inventory:** `GET /api/v1/hashes?stat=1` lists every file with
   a hash row, stale ones included, and `GET /api/v1/hashes/missing` with
   `unmatched`, `withIgnored` and `withExcluded` every file without one;
   read both, and a file of the files area in neither is gone. Trash,
-  versions and app data are in neither.
+  versions, app data and a home's `uploads/` and `cache/` are in neither,
+  and so, until the `missing-stamps` repair has stamped it, is a file
+  whose hash rows have no stamp row.
 
 ---
 
@@ -1595,7 +1600,7 @@ administrator has granted for it, described there as well.
 
 Every ordinary route reads the caller's own files — what they hold: their
 home, the shares they received (a share only to its subtree) and their group
-folders. Seven of them have a twin under `/api/v1/sudo/` that answers for the
+folders. Eight of them have a twin under `/api/v1/sudo/` that answers for the
 caller's **reach** instead, and the Duplicates page has one for naming
 accounts:
 
@@ -1606,6 +1611,7 @@ accounts:
 | `GET /api/v1/lookup` | `GET /api/v1/sudo/lookup` | the whole reach; with `?localPath=1`, each row's `localPath` is the file's absolute path on the server — a sudoer's to ask for, a group admin asking is refused with 403 |
 | `GET /api/v1/duplicates` | `GET /api/v1/sudo/duplicates?users[]=&groups[]=` | the named accounts and the members of the named groups, as one merged listing; with nothing named, the whole reach |
 | `GET /api/v1/hashes` | `GET /api/v1/sudo/hashes?users[]=&groups[]=` | as the duplicates; with `?localPath=1`, each file's absolute path on the server — a sudoer's to ask for, also with a set named, a group admin asking is refused with 403 |
+| `GET /api/v1/hashes/missing` | `GET /api/v1/sudo/hashes/missing?users[]=&groups[]=` | as the duplicates |
 | `POST /api/v1/file/{fileId}/recalc` | `POST /api/v1/sudo/file/{fileId}/recalc` | any file in the reach |
 | `POST /api/v1/file/many/recalc` | `POST /api/v1/sudo/file/many/recalc` | as above, decided per file |
 
@@ -1771,6 +1777,7 @@ does not affect another user, nor their own access to the other endpoints.
 | `GET /api/v1/file/{fileId}/duplicates` and its `/sudo/` twin | 60 requests / 60 s |
 | `GET /api/v1/file/{fileId}/hashes` and its `/sudo/` twin | 60 requests / 60 s |
 | `GET /api/v1/hashes` and `/sudo/hashes` | 300 requests / 60 s |
+| `GET /api/v1/hashes/missing` and `/sudo/hashes/missing` | 300 requests / 60 s |
 | `GET /api/v1/sudo/selectable` | 60 requests / 60 s |
 | `POST /api/v1/file/{fileId}/recalc` and its `/sudo/` twin | 20 requests / 60 s |
 | `POST /api/v1/file/many/recalc` and its `/sudo/` twin | 20 requests / 60 s |

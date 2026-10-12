@@ -2578,10 +2578,10 @@ class MetadataService
 	/**
 	 * Set a file's marker, or clear it with ''.
 	 *
-	 * The file's state row is deleted and the new one inserted, rather than
-	 * updated: an UPDATE that sets the value a row already holds reports no
-	 * row on MySQL, and taking that for "none" once inserted duplicates.
-	 * Cleared, the file has no state row at all.
+	 * Through {@see setSelfIndexed()}, which reads the row before it writes
+	 * it: an UPDATE that sets the value a row already holds reports no row
+	 * on MySQL, and taking that for "none" would insert a second. Cleared,
+	 * the file has no state row at all.
 	 *
 	 * A file the app never considered gets a stamp row of 0 with its first
 	 * marker: the stamp row is what says the app has considered a file, and
@@ -4472,8 +4472,9 @@ class MetadataService
 	 * or remove it for null.
 	 *
 	 * The row carries the type's id in `oc_mimetypes` in the int and the
-	 * type cut to the column's width in the string. A row that already says
-	 * both stays; any other goes, and a second row of the key with it.
+	 * type cut to the column's width in the string, through
+	 * {@see setSelfIndexed()}: a row that already says both stays, one that
+	 * says something else is updated, and a second row of the key goes.
 	 *
 	 * While detection is off, no row is written: the types stored already
 	 * keep theirs, and none is added, by a save or by a repair. A row is

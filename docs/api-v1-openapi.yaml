@@ -820,9 +820,9 @@ paths:
       operationId: listMissing
       parameters:
         - $ref: "#/components/parameters/Stat"
-        - $ref: "#/components/parameters/HashListAlgo"
+        - $ref: "#/components/parameters/MissingAlgo"
         - $ref: "#/components/parameters/MissingLimit"
-        - $ref: "#/components/parameters/HashListAfter"
+        - $ref: "#/components/parameters/MissingAfter"
         - $ref: "#/components/parameters/MissingUnmatched"
         - $ref: "#/components/parameters/MissingWithIgnored"
         - $ref: "#/components/parameters/MissingWithExcluded"
@@ -847,9 +847,9 @@ paths:
       description: >-
         The cross-account twin of `/api/v1/hashes/missing`, over the accounts `users[]` and
         `groups[]` name or, with neither, the caller's whole reach. Each entry says whether the
-        caller could open it (`openable`). Requires a password confirmed within the last thirty
-        minutes, or a granted app password, and is refused with 403 for anyone who may not look
-        across accounts.
+        caller could open it (`openable`); a sudoer reads every `location` as the file's own
+        address. Requires a password confirmed within the last thirty minutes, or a granted app
+        password, and is refused with 403 for anyone who may not look across accounts.
       operationId: sudoListMissing
       parameters:
         - $ref: "#/components/parameters/Stat"
@@ -869,9 +869,9 @@ paths:
             type: array
             items:
               type: string
-        - $ref: "#/components/parameters/HashListAlgo"
+        - $ref: "#/components/parameters/MissingAlgo"
         - $ref: "#/components/parameters/MissingLimit"
-        - $ref: "#/components/parameters/HashListAfter"
+        - $ref: "#/components/parameters/MissingAfter"
         - $ref: "#/components/parameters/MissingUnmatched"
         - $ref: "#/components/parameters/MissingWithIgnored"
         - $ref: "#/components/parameters/MissingWithExcluded"
@@ -1220,6 +1220,27 @@ components:
       schema:
         type: string
         example: sha256
+    MissingAlgo:
+      name: algo
+      in: query
+      required: false
+      description: >-
+        Only files without a hash in this algorithm, in any case, whatever others they hold.
+        An algorithm the instance holds no hashes in lists every file.
+      schema:
+        type: string
+        example: sha256
+    MissingAfter:
+      name: after
+      in: query
+      required: false
+      description: >-
+        The previous page's `next`, a file id or the end of the window it read; 0 starts the
+        listing. The next window starts at the first file id past it.
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
     HashListLimit:
       name: limit
       in: query

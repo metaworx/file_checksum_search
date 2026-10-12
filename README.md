@@ -301,7 +301,7 @@ one addressing every home folder, one addressing every storage there is. Until o
 rule you write — is enabled, the app computes nothing on its own, and the admin settings page says
 so in a banner rather than leaving you to wonder.
 
-Once a rule is enabled, five paths lead to a hash:
+Once a rule is enabled, six paths lead to a hash:
 
 1. **A file event.** Creating, writing or copying a file asks the rules what governs it. The answer
    decides: an `include` rule queues the file as `pending:<mode>`, `ignore` and `exclude` queue
@@ -313,10 +313,13 @@ Once a rule is enabled, five paths lead to a hash:
 3. **The periodic sweep.** `RuleProcessingJob` walks the storages each enabled rule addresses and
    queues what is outdated or unhashed. This is the net beneath the events: a file changed while the
    app was disabled, a rule enabled after the fact, an event that never fired.
-4. **An explicit pass.** `occ file-checksum-search:rules:apply <id>`, or **Reapply** in the rules
+4. **The changed-file check.** Once a day — `stamp_check_interval`, in seconds, default 86400 — the
+   sweep queues a walk over the files whose ETag moved on since their hashes were read, and treats
+   each as written: a change the app never heard of, with the mtime kept, which the sweep cannot see.
+5. **An explicit pass.** `occ file-checksum-search:rules:apply <id>`, or **Reapply** in the rules
    table, queues every file that rule currently governs — uncapped, where the periodic sweep
    trickles.
-5. **By hand.** The **Checksums** tab in the files sidebar recalculates one file on request. Only an
+6. **By hand.** The **Checksums** tab in the files sidebar recalculates one file on request. Only an
    `exclude` rule refuses: `ignore` means "not automatically", and asking is not automatic.
 
 The periodic sweep also carries the app's one piece of housekeeping: once a day — `orphan_purge_interval`,

@@ -19,10 +19,13 @@ the first stable release.
 - `GET /api/v1/hashes/missing` and its `/sudo/` twin: the files without
   hashes, governed ones by default. With `/hashes?stat=1`, every file.
 
+- `stamp_check_interval` (`README.md`, *How hashing happens*): how often
+  the walk over files changed unheard runs; a day by default.
+
 ### Changed
 
-- `MetadataService::setSelfIndexed()`: one writer for the index rows the
-  app keeps itself, cut to 63 characters in one place.
+- `MetadataService::setSelfIndexed()`: the writer for a file's own index
+  rows, cut to 63 characters in one place.
 
 - `occ fcias:repair --step etag-stamp`: each stamp carries the ETag its
   hashes were read against. Upgrading queues the stamps made before.

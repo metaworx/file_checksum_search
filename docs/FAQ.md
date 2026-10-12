@@ -69,6 +69,7 @@ document**. FCIAS's keys in it are:
 |-----|-------|
 | `file-checksum-hash-sha256` (one per algorithm) | the digest, **whole** |
 | `file-checksum-updated_at` | when the file was last considered, as a Unix timestamp |
+| `file-checksum-etag` | the file's ETag when its hashes were read; absent for hashes nobody read here |
 | `file-checksum-mimetype` | the MIME type detected from the content, **whole**, where detection is on |
 
 The word *document* here never means the user's file. A PDF has a metadata
@@ -81,8 +82,8 @@ here:
 | Column | For a hash row | For the `updated_at` row | For a state row |
 |--------|----------------|--------------------------|-----------------|
 | `meta_key` | `file-checksum-hash-{algo}` | `file-checksum-updated_at` | `file-checksum-state` |
-| `meta_value_string` | the digest, **truncated to 63 characters** | empty | the queue or trust state — `pending:auto`, `stale:reset`, … |
-| `meta_value_int` | when the hash was written | the timestamp | 0 |
+| `meta_value_string` | the digest, **truncated to 63 characters** | the ETag the hashes were read against; empty for none | the queue or trust state — `pending:auto`, `stale:reset`, … |
+| `meta_value_int` | when the hash was written | the timestamp | a queued file's failed attempts; 0 otherwise |
 
 Two things surprise people here.
 
@@ -98,10 +99,12 @@ are even-length, so no whole digest is ever exactly 63 characters, and
 
 **The state row exists only while there is a state.** It says what the file
 is waiting for or why its hashes are not to be trusted; a file with none has
-nothing to do. It is a row of its own, not in the metadata document, because
-Nextcloud rewrites the `updated_at` row from the document whenever any app
-saves it, and a state kept there was lost on the next save by Photos or any
-other app that writes metadata.
+nothing to do. It is a row of its own, not in the metadata document: Nextcloud
+rewrites an indexed key's row from the document whenever any app saves it, and
+a state kept in the document was lost on the next save by Photos or any other
+app that writes metadata. The `updated_at` row is FCIAS's own for the same
+reason — the key is saved unindexed and FCIAS writes the row — so that its
+ETag survives another app's save.
 
 **The `updated_at` row's absence means something too:** every file holding a
 hash has one. Where the index holds the hash rows and not this one, the hashes were
