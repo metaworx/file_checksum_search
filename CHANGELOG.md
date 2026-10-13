@@ -80,6 +80,9 @@ the first stable release.
 - `fcias:mimetype:*` and the settings: a refusal says why for the action
   refused, and a race between check and change is no error 500.
 
+- Admin status, `GET /api/v1/status` and `occ fcias:status`: the
+  database by name and version (`MariaDB 10.11.6`), on SQLite too.
+
 ## [0.25.0] - 2026-10-10
 
 ### Added

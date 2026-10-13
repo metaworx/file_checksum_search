@@ -11,7 +11,6 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Service;
 
-use Doctrine\DBAL\Connection;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\IDBConnection;
 use Psr\Log\LoggerInterface;
@@ -21,17 +20,28 @@ use Throwable;
 
 /**
  * What the status asks of the database itself, rather than of the app's
- * tables: its version.
+ * tables: which database it is, and its version.
  *
  * A failed query is not an error the status should fail on: safeString()
  * catches any Throwable, logs it as a warning, optionally echoes it to
- * $output, and answers 'unknown' — indistinguishable from a database that
- * really reports that, so a caller that must tell them apart reads the log.
+ * $output, and answers 'unknown'.
  *
  * @noinspection PhpClassCanBeReadonlyInspection
  */
 class DatabaseService
 {
+
+//  constants
+
+	/** Each backend's name, by what IDBConnection::getDatabaseProvider( true ) answers. */
+	private const NAMES = [
+		IDBConnection::PLATFORM_MARIADB  => 'MariaDB',
+		IDBConnection::PLATFORM_MYSQL    => 'MySQL',
+		IDBConnection::PLATFORM_POSTGRES => 'PostgreSQL',
+		IDBConnection::PLATFORM_SQLITE   => 'SQLite',
+		IDBConnection::PLATFORM_ORACLE   => 'Oracle',
+	];
+
 
 //  constructor
 
@@ -45,24 +55,34 @@ class DatabaseService
 //  getters / setters / is* / has*
 
 	/**
-	 * The database server's version string (e.g. "10.11.6-MariaDB").
+	 * The database by name and version: "MariaDB 10.11.6", "MySQL 8.0.39",
+	 * "PostgreSQL 16.4", "SQLite 3.45.1".
 	 *
-	 * @return string  The version string, or 'unknown' if the query failed.
+	 * Each backend is asked in its own terms, as Nextcloud's serverinfo app
+	 * asks: SQLite has no VERSION(), only sqlite_version(). Each answers in
+	 * its own form, too — MariaDB "10.11.6-MariaDB-ubu2204", PostgreSQL
+	 * "PostgreSQL 16.4 on x86_64-pc-linux-gnu, compiled by …" — so the
+	 * number is taken out of it. Nextcloud's own server-version call would
+	 * spare the query, but it is on a private class, marked internal.
+	 *
+	 * @return string  The name and version, or the name and "unknown" where
+	 *                 the query failed or answered no number.
 	 */
 	public function getDatabaseVersion( ?OutputInterface $output = null ): string
 	{
-		return $this->safeString(
-			fn() => $this->getRawConnection()
-			             ->executeQuery( 'SELECT VERSION() AS version' )
-			             ->fetchOne(),
+		$provider = $this->db->getDatabaseProvider( true );
+		$answer   = $this->safeString(
+			fn(): string => (string) $this->db->executeQuery(
+				$provider === IDBConnection::PLATFORM_SQLITE
+					? 'SELECT sqlite_version()'
+					: 'SELECT VERSION()',
+			)
+			                                  ->fetchOne(),
 			$output,
 		);
-	}
 
-	/** The underlying Doctrine DBAL connection, for calls IDBConnection doesn't expose. */
-	public function getRawConnection(): Connection
-	{
-		return $this->db->getInner();
+		return ( self::NAMES[ $provider ] ?? $provider ) . ' '
+			. ( preg_match( '/\d+(?:\.\d+)*/', $answer, $version ) === 1 ? $version[0] : 'unknown' );
 	}
 
 

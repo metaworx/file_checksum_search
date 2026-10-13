@@ -127,6 +127,11 @@ class CommandTest
 		$data = json_decode( $tester->getDisplay(), true );
 		$this->assertIsArray( $data, 'JSON output should be valid.' );
 		$this->assertArrayHasKey( 'app_version', $data );
+		// The running database by name and with a version, whichever CI runs.
+		$this->assertMatchesRegularExpression(
+			'/^(MariaDB|MySQL|PostgreSQL|SQLite) \d+(\.\d+)*$/',
+			$data['database_version'],
+		);
 		$this->assertArrayHasKey( 'checksum_rows', $data );
 		$this->assertArrayHasKey( 'checksum_rows_at', $data );
 		// The whole-table counts only with --full.

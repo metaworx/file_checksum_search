@@ -48,9 +48,6 @@
 				<!-- MetadataService, RepairQuietStart: the metadata document and its manager, for the repair. -->
 				<referencedClass name="OC\FilesMetadata\Model\FilesMetadata" />
 				<referencedClass name="OC\FilesMetadata\FilesMetadataManager" />
-				<!-- DatabaseService: the schema read behind IDBConnection::getInner(). -->
-				<referencedClass name="Doctrine\DBAL\Connection" />
-				<referencedClass name="Doctrine\DBAL\Schema\AbstractSchemaManager" />
 			</errorLevel>
 		</UndefinedClass>
 		<UndefinedDocblockClass>
@@ -61,12 +58,6 @@
 				<referencedClass name="Doctrine\DBAL\Schema\Table" />
 			</errorLevel>
 		</UndefinedDocblockClass>
-		<UndefinedInterfaceMethod>
-			<errorLevel type="suppress">
-				<!-- DatabaseService: the Doctrine connection under Nextcloud's. -->
-				<referencedMethod name="OCP\IDBConnection::getInner" />
-			</errorLevel>
-		</UndefinedInterfaceMethod>
 
 		<!--
 			Not a finding about Nextcloud's API, but one this code disagrees with.

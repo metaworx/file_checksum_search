@@ -1978,8 +1978,10 @@ components:
               example: true
         dbVersion:
           type: string
-          description: Database version string; administrators only
-          example: "10.11.6-MariaDB"
+          description: >-
+            The database by name and version (MariaDB, MySQL, PostgreSQL, SQLite), or
+            the name and "unknown" where the database would not say; administrators only
+          example: "MariaDB 10.11.6"
         rowCount:
           type: integer
           description: >-

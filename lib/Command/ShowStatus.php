@@ -89,6 +89,7 @@ class ShowStatus
 		// needs. Only when asked; the checksum count is the kept one unless so.
 		$full           = (bool) $input->getOption( 'full' );
 		$appVersion     = $this->getAppVersion();
+		$dbVersion      = $this->status->getDbVersion();
 		$checksums      = $this->status->getHashRowCount( $full );
 		$mimeTypes      = $this->status->getMimeTypeStatus( $checksums );
 		$filecacheCount = $full ? $this->getFilecacheCount() : null;
@@ -106,6 +107,7 @@ class ShowStatus
 				json_encode(
 					[
 						'app_version'      => $appVersion,
+						'database_version' => $dbVersion,
 						'checksum_rows'    => $checksums['rows'],
 						'checksum_rows_at' => $checksums['at'],
 					]
@@ -141,6 +143,7 @@ class ShowStatus
 		$output->writeln( '' );
 
 		$output->writeln( sprintf( 'App version:            %s', $appVersion ) );
+		$output->writeln( sprintf( 'Database version:       %s', $dbVersion ) );
 		$output->writeln(
 			sprintf(
 				'Indexed checksums:      %d   (counted %s)',

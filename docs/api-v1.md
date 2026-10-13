@@ -684,7 +684,7 @@ named non-administrator gets `version` and `features` alone, as
 [
     'version' => '1.9.2',
     'features' => ['mimetype' => true],
-    'dbVersion' => '10.11.6',   // administrators and trusted callers only
+    'dbVersion' => 'MariaDB 10.11.6', // administrators and trusted callers only
     'rowCount' => 15423,        // "
     'rowCountAt' => 1759302000, // "
     'pendingRows' => 5,         // "
@@ -692,6 +692,9 @@ named non-administrator gets `version` and `features` alone, as
 ]
 ```
 
+`dbVersion` names the database and its version — `MariaDB 10.11.6`,
+`MySQL 8.0.39`, `PostgreSQL 16.4`, `SQLite 3.45.1` — or the name and
+`unknown` where the database would not say.
 `features.mimetype` says whether the routes give a file's MIME type when
 asked ([MIME types](#mime-types)). `mimeTypes` is where detection stands —
 `enabled`, `disabled`, `unavailable` (switched on, and PHP's Fileinfo
@@ -1071,7 +1074,7 @@ No parameters.
 {
   "version": "1.9.2",
   "features": {"mimetype": true},
-  "dbVersion": "10.11.6",
+  "dbVersion": "MariaDB 10.11.6",
   "rowCount": 15423,
   "rowCountAt": 1759302000,
   "pendingRows": 5,

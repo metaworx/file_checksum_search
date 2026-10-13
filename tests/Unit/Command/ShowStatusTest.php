@@ -115,7 +115,7 @@ class ShowStatusTest
 			$this->metadataService,
 			$this->appConfig,
 			new StatusService(
-				$this->createMock( DatabaseService::class ),
+				$this->createConfiguredMock( DatabaseService::class, [ 'getDatabaseVersion' => 'MariaDB 10.11.6' ] ),
 				$this->createMock( IAppManager::class ),
 				$this->metadataService,
 				$this->jobStats,
@@ -162,6 +162,24 @@ class ShowStatusTest
 	 * stamp rows go uncounted and say how to have them, and the checksum
 	 * count is the kept one, with when it was taken.
 	 */
+	/** The database by name and version, in both outputs. */
+	public function testTheDatabaseIsShownByNameAndVersion(): void
+	{
+		$this->appConfig->method( 'getValueString' )
+		                ->willReturn( '1.9.2' )
+		;
+		$this->metadataService->method( 'getPendingStats' )
+		                      ->willReturn( [] )
+		;
+
+		$this->tester->execute( [] );
+		$this->assertStringContainsString( 'Database version:       MariaDB 10.11.6', $this->tester->getDisplay() );
+
+		$this->tester->execute( [ '--output' => 'json' ] );
+		$decoded = json_decode( trim( $this->tester->getDisplay() ), true );
+		$this->assertSame( 'MariaDB 10.11.6', $decoded['database_version'] );
+	}
+
 	public function testWithoutFullTheWholeTableCountsAreLeftOut(): void
 	{
 		$this->appConfig->method( 'getValueString' )
