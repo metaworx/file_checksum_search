@@ -29,9 +29,13 @@ use RuntimeException;
  *       "slices": ["config", "hashes"],
  *       "config": { "rule_definitions": "[]" },
  *       "hashes": [
- *         {"storage": "home::alice", "path": "files/a.txt", "algo": "sha256", "hash": "…", "updated_at": 1756400000}
+ *         {"storage": "home::alice", "path": "files/a.txt", "algo": "sha256", "hash": "…", "updated_at": 1756400000, "etag": "6720f9…"}
  *       ]
  *     }
+ *
+ * `etag`, the ETag the hash was read against, is new beside the others and
+ * leaves the schema as it is: an older reader passes it by, and a record
+ * without it reads as one whose stamp had none.
  *
  * That header is what makes it a backup rather than a hash table: a restore
  * can see which schema, which app version and which instance it is holding,

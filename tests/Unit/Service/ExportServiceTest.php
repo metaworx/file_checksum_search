@@ -105,6 +105,7 @@ class ExportServiceTest
 						'md5'    => 'bbb',
 					],
 					'updated_at' => 1756400000,
+					'etag'       => '6720f9a1b2c3d',
 				],
 			],
 		);
@@ -121,8 +122,8 @@ class ExportServiceTest
 
 		$this->assertEquals(
 			[
-				new HashRecord( 'home::alice', 'files/Photos/a.jpg', 'sha256', 'aaa', 1756400000 ),
-				new HashRecord( 'home::alice', 'files/Photos/a.jpg', 'md5', 'bbb', 1756400000 ),
+				new HashRecord( 'home::alice', 'files/Photos/a.jpg', 'sha256', 'aaa', 1756400000, '6720f9a1b2c3d' ),
+				new HashRecord( 'home::alice', 'files/Photos/a.jpg', 'md5', 'bbb', 1756400000, '6720f9a1b2c3d' ),
 			],
 			$records,
 		);

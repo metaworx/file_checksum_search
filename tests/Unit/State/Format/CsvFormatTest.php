@@ -42,7 +42,7 @@ class CsvFormatTest
 	{
 		$stream = fopen( 'php://memory', 'r+' );
 		$this->format->write(
-			[ new HashRecord( 'home::alice', 'files/a.txt', 'sha256', 'abc', 5 ) ],
+			[ new HashRecord( 'home::alice', 'files/a.txt', 'sha256', 'abc', 5, '6720f9a1b2c3d' ) ],
 			$stream,
 			new FormatOptions(),
 		);
@@ -50,8 +50,23 @@ class CsvFormatTest
 		$lines = explode( "\n", trim( stream_get_contents( $stream ) ) );
 		fclose( $stream );
 
-		$this->assertSame( 'storage,path,algo,hash,updated_at', $lines[0] );
-		$this->assertSame( 'home::alice,files/a.txt,sha256,abc,5', $lines[1] );
+		$this->assertSame( 'storage,path,algo,hash,updated_at,etag', $lines[0] );
+		$this->assertSame( 'home::alice,files/a.txt,sha256,abc,5,6720f9a1b2c3d', $lines[1] );
+	}
+
+	/**
+	 * A file written before records carried an ETag reads as one whose
+	 * stamp had none.
+	 */
+	public function testAFileWithoutTheEtagColumnReadsWithoutOne(): void
+	{
+		$records = $this->read(
+			"storage,path,algo,hash,updated_at\n"
+			. "home::alice,files/a.txt,sha256,abc,5\n",
+		);
+
+		$this->assertNull( $records[0]->etag );
+		$this->assertSame( 5, $records[0]->updatedAt );
 	}
 
 	/**

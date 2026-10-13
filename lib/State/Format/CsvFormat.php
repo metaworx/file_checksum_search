@@ -13,7 +13,7 @@ use Generator;
 use OCA\FileChecksumSearch\State\HashRecord;
 
 /**
- * `storage,path,algo,hash,updated_at`, with a header row.
+ * `storage,path,algo,hash,updated_at,etag`, with a header row.
  *
  * Carries every field a record has, so it round-trips — but no header about
  * the file as a whole, so a reader cannot tell which instance or which app
@@ -22,9 +22,11 @@ use OCA\FileChecksumSearch\State\HashRecord;
  * can sanity-check itself against.
  *
  * Columns are matched by name from the header, so a file with them in a
- * different order, or with extra columns, still reads. `storage` and
- * `updated_at` may be absent: the first when the caller anchors the paths
- * instead, the second when the source does not know when it hashed.
+ * different order, or with extra columns, still reads. `storage`,
+ * `updated_at` and `etag` may be absent: the first when the caller anchors
+ * the paths instead, the others when the source does not know when it
+ * hashed, or against what. A file written before `etag` existed reads as
+ * one without it.
  */
 class CsvFormat
     implements
@@ -50,6 +52,7 @@ class CsvFormat
 			'algo',
 			'hash',
 			'updated_at',
+			'etag',
 		];
 
 
@@ -120,6 +123,7 @@ class CsvFormat
 					$record->algo,
 					$record->hash,
 					$record->updatedAt,
+					$record->etag,
 				],
 				escape: self::ESCAPE,
 			);

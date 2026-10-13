@@ -20,6 +20,7 @@ use OCA\FileChecksumSearch\State\Format\JsonFormat;
 use OCA\FileChecksumSearch\State\Format\SumFormat;
 use OCA\FileChecksumSearch\State\ImportPolicy;
 use OCA\FileChecksumSearch\State\ImportReport;
+use OCP\IConfig;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -40,6 +41,12 @@ class ImportServiceTest
 
 	/** The file's mtime in every fixture below. */
 	private const MTIME = 1_000;
+
+	/** This instance's id. */
+	private const HERE = 'ochere';
+
+	/** The ETag the filecache holds for the file now. */
+	private const PRESENT = 'etag-now';
 
 
 //  private properties
@@ -63,14 +70,32 @@ class ImportServiceTest
 		$this->metadataService  = $this->createMock( MetadataService::class );
 		$this->filecacheService = $this->createMock( FilecacheService::class );
 
+		$config = $this->createMock( IConfig::class );
+		$config->method( 'getSystemValueString' )
+		       ->willReturnMap( [ [ 'instanceid', '', self::HERE ] ] )
+		;
+
 		$this->service = new ImportService(
 			$this->appConfigService,
 			$this->metadataService,
 			$this->filecacheService,
+			$config,
 			$this->createMock( LoggerInterface::class ),
 		);
 
 		$this->givenTheInstanceHas( [ 'files/a.txt' => 7 ] );
+		$this->filecacheService->method( 'statesOf' )
+		                       ->willReturn(
+			                       [
+				                       7 => [
+					                       'etag'         => self::PRESENT,
+					                       'size'         => 12,
+					                       'mtime'        => self::MTIME,
+					                       'storageMtime' => self::MTIME,
+				                       ],
+			                       ],
+		                       )
+		;
 	}
 
 
@@ -93,6 +118,7 @@ class ImportServiceTest
 			                      ],
 			                      2_000,
 			                      false,
+			                      null,
 		                      )
 		                      ->willReturn( $this->writeResult( written: 2 ) )
 		;
@@ -432,8 +458,182 @@ class ImportServiceTest
 	}
 
 	/**
+	 * The file's own ETag vouches for the hashes, wherever the record came
+	 * from: ETags are random, so a match is the file the hashes were read
+	 * from, unchanged.
+	 */
+	public function testTheFilesOwnEtagIsStampedWithTheHashes(): void
+	{
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'writeHashes' )
+		                      ->with( 7, [ 'sha256' => 'aaa' ], 2_000, false, self::PRESENT )
+		                      ->willReturn( $this->writeResult( written: 1 ) )
+		;
+
+		$this->importJson(
+			[ $this->record( 'files/a.txt', 'sha256', 'aaa', 2_000, self::PRESENT ) ],
+			new ImportPolicy( merge: false ),
+			instanceId: 'ocelsewhere',
+		);
+	}
+
+	/**
+	 * A backup of this instance whose file's ETag has moved on: the file
+	 * changed since, and the mtime, which a sync client may have kept, is
+	 * not asked.
+	 */
+	public function testABackupOfThisInstanceWhoseFileChangedIsRefused(): void
+	{
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'writeHashes' )
+		;
+
+		$report = $this->importJson(
+			[
+				$this->record( 'files/a.txt', 'sha256', 'aaa', 2_000, 'etag-then' ),
+				$this->record( 'files/a.txt', 'md5', 'bbb', 2_000, 'etag-then' ),
+			],
+			new ImportPolicy(),
+			instanceId: self::HERE,
+		);
+
+		$this->assertSame( 2, $report->skippedChanged );
+		$this->assertSame( 0, $report->skippedOutdated );
+	}
+
+	/**
+	 * Stored under the ETag the hashes were read against, which keeps them
+	 * out of search until they are read again.
+	 */
+	public function testAllowStaleStoresAChangedFileUnderItsOldEtag(): void
+	{
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'writeHashes' )
+		                      ->with( 7, [ 'sha256' => 'aaa' ], 2_000, true, 'etag-then' )
+		                      ->willReturn( $this->writeResult( written: 1 ) )
+		;
+
+		$report = $this->importJson(
+			[ $this->record( 'files/a.txt', 'sha256', 'aaa', 2_000, 'etag-then' ) ],
+			new ImportPolicy( allowOutdated: true ),
+			instanceId: self::HERE,
+		);
+
+		$this->assertSame( 0, $report->skippedChanged );
+	}
+
+	/**
+	 * ETags are per instance: another one from elsewhere says nothing, and
+	 * the timestamp decides as it did before records carried one.
+	 */
+	public function testAnotherInstancesEtagSaysNothing(): void
+	{
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'writeHashes' )
+		                      ->with( 7, [ 'sha256' => 'aaa' ], 2_000, true, null )
+		                      ->willReturn( $this->writeResult( written: 1 ) )
+		;
+
+		$this->importJson(
+			[ $this->record( 'files/a.txt', 'sha256', 'aaa', 2_000, 'etag-there' ) ],
+			new ImportPolicy(),
+			instanceId: 'ocelsewhere',
+		);
+	}
+
+	/**
+	 * A csv names no instance, so a different ETag in it is weighed as one
+	 * from elsewhere; its own one still vouches.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testACsvsEtagCountsOnlyWhereItIsTheFilesOwn(): void
+	{
+		$etags = [];
+		$this->metadataService->method( 'writeHashes' )
+		                      ->willReturnCallback(
+			                      function(
+				                      int     $fileId,
+				                      array   $hashes,
+				                      ?int    $stamp,
+				                      bool    $merge,
+				                      ?string $etag,
+			                      ) use
+			                      (
+				                      &
+				                      $etags,
+			                      ): array
+			                      {
+				                      $etags[] = $etag;
+
+				                      return $this->writeResult( written: 1 );
+			                      },
+		                      )
+		;
+
+		foreach ( [ 'etag-then', self::PRESENT ] as $etag )
+		{
+			$stream = $this->streamOf(
+				"storage,path,algo,hash,updated_at,etag\nhome::alice,files/a.txt,sha256,aaa,2000,$etag\n",
+			);
+			$report = $this->service->import( new CsvFormat(), $stream, new FormatOptions(), new ImportPolicy(), false, true );
+			fclose( $stream );
+
+			$this->assertSame( 0, $report->skippedChanged );
+		}
+
+		$this->assertSame( [ null, self::PRESENT ], $etags );
+	}
+
+	/**
+	 * `--stamp=mtime` and `now` are the operator's word: no ETag is weighed,
+	 * and none is stamped.
+	 */
+	public function testTheOperatorsStampWeighsNoEtag(): void
+	{
+		$this->filecacheService->expects( $this->never() )
+		                       ->method( 'statesOf' )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'writeHashes' )
+		                      ->with( 7, [ 'sha256' => 'aaa' ], self::MTIME, true, null )
+		                      ->willReturn( $this->writeResult( written: 1 ) )
+		;
+
+		$report = $this->importJson(
+			[ $this->record( 'files/a.txt', 'sha256', 'aaa', 2_000, 'etag-then' ) ],
+			new ImportPolicy( stamp: ImportPolicy::STAMP_MTIME ),
+			instanceId: self::HERE,
+		);
+
+		$this->assertSame( 0, $report->skippedChanged );
+	}
+
+	/**
+	 * A backup written before records carried an ETag costs the import no
+	 * query for them.
+	 */
+	public function testRecordsWithoutAnEtagAskTheFilecacheNothing(): void
+	{
+		$this->filecacheService->expects( $this->never() )
+		                       ->method( 'statesOf' )
+		;
+		$this->metadataService->method( 'writeHashes' )
+		                      ->willReturn( $this->writeResult( written: 1 ) )
+		;
+
+		$this->importJson(
+			[ $this->record( 'files/a.txt', 'sha256', 'aaa', 2_000 ) ],
+			new ImportPolicy(),
+			instanceId: self::HERE,
+		);
+	}
+
+	/**
 	 * @param  array<int, array<string, mixed>>  $records
 	 * @param  array<string, string>             $config
+	 * @param  string|null                       $instanceId  The header's;
+	 *                                                        none by default.
 	 *
 	 * @noinspection PhpDocMissingThrowsInspection
 	 * @noinspection PhpUnhandledExceptionInspection
@@ -442,11 +642,17 @@ class ImportServiceTest
 		array        $records,
 		ImportPolicy $policy,
 		array        $config = [],
+		?string      $instanceId = null,
 	): ImportReport
 	{
 		$document = [
 			'schema' => JsonFormat::SCHEMA_VERSION,
 		];
+
+		if ( $instanceId !== null )
+		{
+			$document['instance_id'] = $instanceId;
+		}
 
 		if ( $config !== [] )
 		{
@@ -474,10 +680,11 @@ class ImportServiceTest
 	 * @return array<string, mixed>
 	 */
 	private function record(
-		string $path,
-		string $algo,
-		string $hash,
-		?int   $updatedAt,
+		string  $path,
+		string  $algo,
+		string  $hash,
+		?int    $updatedAt,
+		?string $etag = null,
 	): array
 	{
 		return [
@@ -486,6 +693,7 @@ class ImportServiceTest
 			'algo'       => $algo,
 			'hash'       => $hash,
 			'updated_at' => $updatedAt,
+			'etag'       => $etag,
 		];
 	}
 

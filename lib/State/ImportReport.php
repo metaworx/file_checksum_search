@@ -28,6 +28,12 @@ class ImportReport
 	/** Refused: the record is older than the file it describes. */
 	public int $skippedOutdated = 0;
 
+	/**
+	 * Refused: a backup of this instance, and the file's ETag has moved on
+	 * from the one the record was read against — the file changed since.
+	 */
+	public int $skippedChanged = 0;
+
 	/** Left alone: the file already has that algorithm, and this is a merge. */
 	public int $skippedExisting = 0;
 
@@ -76,6 +82,7 @@ class ImportReport
 		return [
 			'written'          => $this->written,
 			'skipped_outdated' => $this->skippedOutdated,
+			'skipped_changed'  => $this->skippedChanged,
 			'skipped_existing' => $this->skippedExisting,
 			'unknown_path'     => $this->unknownPath,
 			'overwritten'      => $this->overwritten,

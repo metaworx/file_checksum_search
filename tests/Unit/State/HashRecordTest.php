@@ -24,9 +24,23 @@ class HashRecordTest
 
 	public function testItSurvivesTheArrayFormAndBack(): void
 	{
-		$record = new HashRecord( 'home::alice', 'files/a.txt', 'sha256', 'abc', 5 );
+		$record = new HashRecord( 'home::alice', 'files/a.txt', 'sha256', 'abc', 5, '6720f9a1b2c3d' );
 
 		$this->assertEquals( $record, HashRecord::fromArray( $record->toArray() ) );
+	}
+
+	public function testAnAbsentEtagStaysAbsent(): void
+	{
+		foreach (
+			[
+				[],
+				[ 'etag' => null ],
+				[ 'etag' => '' ],
+			] as $row
+		)
+		{
+			$this->assertNull( HashRecord::fromArray( $row + [ 'path' => 'a' ] )->etag );
+		}
 	}
 
 	public function testAlgorithmsAndHashesAreLowercased(): void

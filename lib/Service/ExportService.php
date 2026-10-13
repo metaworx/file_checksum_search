@@ -258,7 +258,7 @@ class ExportService
 	 * Turn a page of hash entries into records, resolving their identities in
 	 * one query rather than one per file.
 	 *
-	 * @param  list<array{file_id: int, hashes: array<string, string>, updated_at: ?int}>  $page
+	 * @param  list<array{file_id: int, hashes: array<string, string>, updated_at: ?int, etag: ?string}>  $page
 	 *
 	 * @return Generator<HashRecord>
 	 * @throws Exception
@@ -304,6 +304,7 @@ class ExportService
 					$algo,
 					$hash,
 					$stamp,
+					$entry['etag'] ?? null,
 				);
 			}
 		}

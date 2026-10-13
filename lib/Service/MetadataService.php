@@ -2369,7 +2369,11 @@ class MetadataService
 	 * here, but a keyset page cannot skip a row if anything does change
 	 * underneath it, and it costs nothing.
 	 *
-	 * @return Generator<array{file_id: int, hashes: array<string, string>, updated_at: ?int}>
+	 * Each file with its stamp and the ETag the stamp was read against, so
+	 * that a restore onto this instance can tell whether the file changed
+	 * since.
+	 *
+	 * @return Generator<array{file_id: int, hashes: array<string, string>, updated_at: ?int, etag: ?string}>
 	 * @throws Exception
 	 */
 	public function exportHashes( int $pageSize = 500 ): Generator
@@ -2401,6 +2405,7 @@ class MetadataService
 					'file_id'    => $fileId,
 					'hashes'     => $hashes,
 					'updated_at' => $this->getUpdatedAt( $metadata ),
+					'etag'       => $this->getEtag( $metadata ),
 				];
 			}
 		}
@@ -2983,6 +2988,10 @@ class MetadataService
 	 * nothing was there at all, so a file never ends up claiming a freshness
 	 * nobody asserted.
 	 *
+	 * $etag is the ETag the hashes were read against, where the caller knows
+	 * it on this instance; the stamp then vouches by it. Null stamps none,
+	 * and the hashes are held by the mtime alone.
+	 *
 	 * Hashes the file holds whose stamp no longer covers it are no claim to
 	 * weigh an import against: they describe content the file no longer
 	 * has, and are dropped before the import writes. The stamp the import
@@ -3005,10 +3014,11 @@ class MetadataService
 	 * @throws Exception
 	 */
 	public function writeHashes(
-		int   $fileId,
-		array $algoToHash,
-		?int  $stamp,
-		bool  $merge,
+		int     $fileId,
+		array   $algoToHash,
+		?int    $stamp,
+		bool    $merge,
+		?string $etag = null,
 	): array
 	{
 		$report = [
@@ -3081,8 +3091,7 @@ class MetadataService
 			}
 		}
 
-		// No ETag: nobody read the imported hashes against this file's.
-		$this->stamp( $metadata, $stamp, null );
+		$this->stamp( $metadata, $stamp, $etag );
 
 		$hashes = $this->getHashes( $metadata );
 		$this->saveDocument( $metadata );

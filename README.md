@@ -644,7 +644,7 @@ and `fcias:import --status` is refused with that reason.
 | Format | Carries | Use it for |
 |--------|---------|------------|
 | `json` | everything, plus a header naming the schema, app version and instance | **a backup** — the only format a restore can check itself against |
-| `csv` | storage, path, algorithm, hash, timestamp | handing hashes to another tool |
+| `csv` | storage, path, algorithm, hash, timestamp, ETag | handing hashes to another tool |
 | `sum` | one algorithm's hashes and paths — what `sha1sum` writes | reading what your own shell already produced |
 
 `csv` and `sum` refuse `--config`, because they have nowhere to put it, and `sum` needs `--algo`
@@ -678,12 +678,22 @@ import asks what the timestamps mean rather than assuming:
 | `mtime` | the file's mtime — the claim the filecache backfill already makes | you ran the checksums a moment ago |
 | `now` | this moment. Asserts more than the data supports, and warns | rarely |
 
-`--allow-stale` imports what `source` would refuse, warning as it goes. `--merge` writes only
-algorithms a file does not already have; `--replace` overwrites them — one of the two is required,
-because merging keeps what this instance worked out for itself, replacing prefers the file, and
-guessing wrong is silent either way. A path this instance does not have is counted and skipped
-(`--strict` stops at the first), because an import restores what a file *is*, never that it exists.
-`--dry-run` reports the whole thing and writes nothing.
+The mtime cannot see a file whose content changed while its mtime stayed, as a sync client uploads
+it; the ETag can. So under `source` a record's ETag is weighed first. The file's own ETag vouches
+for the hashes, as it does for hashes this instance read. Another one, in a `json` backup of this
+instance, means the file changed since the backup: the record is refused and counted as *skipped
+changed*, whatever the mtime says. Elsewhere, or in a `csv`, another ETag says nothing, since ETags
+are per instance, and the timestamp decides as above. The ETag is this app's stamp alone; the one
+clients compare is never written. An instance rebuilt on a fresh database under its old
+`instanceid` has new ETags for every file, and `--stamp=mtime` takes those files on the mtime's word.
+
+`--allow-stale` imports what `source` would refuse, warning as it goes, and a file changed since
+the backup keeps the ETag it was read against, so it stays out of search until hashed again.
+`--merge` writes only algorithms a file does not already have; `--replace` overwrites them — one
+of the two is required, because merging keeps what this instance worked out for itself, replacing
+prefers the file, and guessing wrong is silent either way. A path this instance does not have is
+counted and skipped (`--strict` stops at the first), because an import restores what a file *is*,
+never that it exists. `--dry-run` reports the whole thing and writes nothing.
 
 Importing acceptable hashes onto a revoked file clears its marker, so hashes revoked and then
 imported again never wait for the background job at all.

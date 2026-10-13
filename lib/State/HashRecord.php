@@ -21,6 +21,10 @@ namespace OCA\FileChecksumSearch\State;
  * `$updatedAt` is when the hash was computed, as far as the source knows.
  * Null means the source did not say, which is the normal case for a `sha1sum`
  * listing and the reason `--stamp` exists.
+ *
+ * `$etag` is the ETag the file had when the hash was read, on the instance
+ * that wrote the record: its stamp's. Null where the stamp had none, or the
+ * source did not say. It means something on that instance alone.
  */
 readonly class HashRecord
 {
@@ -28,11 +32,12 @@ readonly class HashRecord
 //  constructor
 
 	public function __construct(
-		public string $storageId,
-		public string $path,
-		public string $algo,
-		public string $hash,
-		public ?int   $updatedAt = null,
+		public string  $storageId,
+		public string  $path,
+		public string  $algo,
+		public string  $hash,
+		public ?int    $updatedAt = null,
+		public ?string $etag = null,
 	) {
 	}
 
@@ -52,6 +57,9 @@ readonly class HashRecord
 			isset( $row['updated_at'] ) && $row['updated_at'] !== ''
 				? (int) $row['updated_at']
 				: null,
+			isset( $row['etag'] ) && $row['etag'] !== ''
+				? (string) $row['etag']
+				: null,
 		);
 	}
 
@@ -69,6 +77,7 @@ readonly class HashRecord
 			'algo'       => $this->algo,
 			'hash'       => $this->hash,
 			'updated_at' => $this->updatedAt,
+			'etag'       => $this->etag,
 		];
 	}
 

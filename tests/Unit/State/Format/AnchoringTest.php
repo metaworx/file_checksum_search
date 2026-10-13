@@ -33,11 +33,13 @@ class AnchoringTest
 	public function testAUserAnchorMeasuresFromTheirFilesDirectory(): void
 	{
 		$anchored = ( new FormatOptions( userId: 'alice' ) )
-			->anchor( new HashRecord( '', 'Photos/a.jpg', 'sha256', 'abc' ) )
+			->anchor( new HashRecord( '', 'Photos/a.jpg', 'sha256', 'abc', 5, '6720f9a1b2c3d' ) )
 		;
 
 		$this->assertSame( 'home::alice', $anchored->storageId );
 		$this->assertSame( 'files/Photos/a.jpg', $anchored->path );
+		$this->assertSame( 5, $anchored->updatedAt, 'the rest of the record comes along' );
+		$this->assertSame( '6720f9a1b2c3d', $anchored->etag );
 	}
 
 	public function testAStorageAnchorMeasuresFromTheStorageRoot(): void

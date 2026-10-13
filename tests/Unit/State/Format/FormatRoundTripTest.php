@@ -82,6 +82,7 @@ class FormatRoundTripTest
 		foreach ( $back as $record )
 		{
 			$this->assertNull( $record->updatedAt, 'a sumfile cannot say when it was computed' );
+			$this->assertNull( $record->etag, 'nor against what' );
 			$this->assertSame( 'sha256', $record->algo, 'the algorithm can only come from the caller' );
 		}
 	}
@@ -156,7 +157,9 @@ class FormatRoundTripTest
 	private function awkwardRecords(): array
 	{
 		return [
-			new HashRecord( 'home::alice', 'files/Photos/a b.jpg', 'sha256', str_repeat( 'a', 64 ), 1756400000 ),
+			new HashRecord(
+				'home::alice', 'files/Photos/a b.jpg', 'sha256', str_repeat( 'a', 64 ), 1756400000, '6720f9a1b2c3d',
+			),
 			new HashRecord( 'home::alice', 'files/comma, "quoted".txt', 'sha1', str_repeat( 'b', 40 ), null ),
 			new HashRecord(
 				'local::/data/__groupfolders/5/',
@@ -164,6 +167,7 @@ class FormatRoundTripTest
 				'md5',
 				str_repeat( 'c', 32 ),
 				1,
+				'6720f9a1b2c3e',
 			),
 			new HashRecord(
 				'object::user:bob', 'files/Grüße/日本語.txt', 'sha512', str_repeat( 'd', 128 ), 1756400001,

@@ -17,6 +17,7 @@ use OCA\FileChecksumSearch\State\HashRecord;
 use OCA\FileChecksumSearch\State\ImportPolicy;
 use OCA\FileChecksumSearch\State\ImportReport;
 use OCP\DB\Exception;
+use OCP\IConfig;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Throwable;
@@ -36,6 +37,10 @@ use Throwable;
  * backup names the same file once for each algorithm it holds, and writing
  * them separately would rewrite the same metadata document three times and
  * ask the same freshness question three times over.
+ *
+ * The mtime cannot see a file changed with its mtime kept, as a sync client
+ * uploads it; the ETag can, on the instance that issued it. So a record's
+ * ETag decides first, under `--stamp=source` ({@see etagFor()}).
  */
 class ImportService
 {
@@ -58,6 +63,7 @@ class ImportService
 		private readonly AppConfigService $appConfigService,
 		private readonly MetadataService  $metadataService,
 		private readonly FilecacheService $filecacheService,
+		private readonly IConfig          $config,
 		private readonly LoggerInterface  $logger,
 	) {
 	}
@@ -105,7 +111,12 @@ class ImportService
 
 			if ( $wantsHashes )
 			{
-				$this->importHashes( $document['records'], $policy, $report );
+				$this->importHashes(
+					$document['records'],
+					$policy,
+					$report,
+					$this->isFromHere( $document['header'] ),
+				);
 			}
 
 			return $report;
@@ -113,10 +124,26 @@ class ImportService
 
 		if ( $wantsHashes )
 		{
-			$this->importHashes( $format->read( $stream, $options ), $policy, $report );
+			$this->importHashes( $format->read( $stream, $options ), $policy, $report, false );
 		}
 
 		return $report;
+	}
+
+
+//  getters / setters / is* / has*
+
+	/**
+	 * Whether a backup was written by this instance, and its ETags are this
+	 * filecache's. Only a json backup says where it came from.
+	 *
+	 * @param  array<string, mixed>  $header
+	 */
+	private function isFromHere( array $header ): bool
+	{
+		$instanceId = $this->config->getSystemValueString( 'instanceid' );
+
+		return $instanceId !== '' && ( $header['instance_id'] ?? null ) === $instanceId;
 	}
 
 	/**
@@ -190,6 +217,8 @@ class ImportService
 
 	/**
 	 * @param  iterable<HashRecord>  $records
+	 * @param  bool                  $fromHere  The records' ETags are this
+	 *                                          instance's ({@see isFromHere()}).
 	 *
 	 * @throws Exception
 	 */
@@ -197,6 +226,7 @@ class ImportService
 		iterable     $records,
 		ImportPolicy $policy,
 		ImportReport $report,
+		bool         $fromHere,
 	): void
 	{
 		$page = [];
@@ -219,13 +249,13 @@ class ImportService
 				continue;
 			}
 
-			$this->applyPage( $page, $policy, $report );
+			$this->applyPage( $page, $policy, $report, $fromHere );
 			$page = [];
 		}
 
 		if ( $page !== [] )
 		{
-			$this->applyPage( $page, $policy, $report );
+			$this->applyPage( $page, $policy, $report, $fromHere );
 		}
 	}
 
@@ -240,6 +270,7 @@ class ImportService
 		array        $page,
 		ImportPolicy $policy,
 		ImportReport $report,
+		bool         $fromHere,
 	): void
 	{
 		$pathsByStorage = [];
@@ -251,6 +282,7 @@ class ImportService
 		}
 
 		$located = $this->filecacheService->locateAllByPath( $pathsByStorage );
+		$states  = $this->statesToWeigh( $page, $located, $policy );
 
 		foreach ( $page as $key => $byAlgo )
 		{
@@ -272,20 +304,124 @@ class ImportService
 				continue;
 			}
 
-			$this->applyFile( $location, $byAlgo, $policy, $report );
+			$this->applyFile(
+				$location,
+				$byAlgo,
+				$policy,
+				$report,
+				$this->etagFor(
+					reset( $byAlgo ),
+					$states[ $location->fileId ]['etag'] ?? null,
+					$policy,
+					$fromHere,
+				),
+			);
 		}
 	}
 
 	/**
+	 * The filecache's ETags of the page's files whose records carry one, the
+	 * only ones {@see etagFor()} weighs: a backup without them costs no
+	 * query.
+	 *
+	 * @param  array<string, array<string, HashRecord>>  $page
+	 * @param  array<string, FileLocation>               $located
+	 *
+	 * @return array<int, array{etag: string, size: int, mtime: int, storageMtime: int}>
+	 * @throws Exception
+	 */
+	private function statesToWeigh(
+		array        $page,
+		array        $located,
+		ImportPolicy $policy,
+	): array
+	{
+		if ( $policy->stamp !== ImportPolicy::STAMP_SOURCE )
+		{
+			return [];
+		}
+
+		$fileIds = [];
+
+		foreach ( $page as $key => $byAlgo )
+		{
+			if ( isset( $located[ $key ] ) && reset( $byAlgo )->etag !== null )
+			{
+				$fileIds[] = $located[ $key ]->fileId;
+			}
+		}
+
+		return $fileIds === []
+			? []
+			: $this->filecacheService->statesOf( $fileIds );
+	}
+
+	/**
+	 * What a record's ETag says, under `--stamp=source`, where the source's
+	 * word is weighed.
+	 *
+	 * | The record's ETag | Is | The file |
+	 * |---|---|---|
+	 * | the file's | anywhere | stamped with it: vouched for by it |
+	 * | another | a backup of this instance | changed since: refused, unless `--allow-stale` |
+	 * | another | from elsewhere, or a csv | as without one: ETags are per instance |
+	 * | none | | held by the mtime alone, as before ETags were recorded |
+	 *
+	 * `--stamp=mtime` and `now` are the operator's word, and stamp none.
+	 *
+	 * @return string|null|false  The ETag to stamp; null for none; false for
+	 *                            a file changed since the record was read.
+	 */
+	private function etagFor(
+		HashRecord   $record,
+		?string      $present,
+		ImportPolicy $policy,
+		bool         $fromHere,
+	): string|null|false
+	{
+		if ( $policy->stamp !== ImportPolicy::STAMP_SOURCE || $record->etag === null || $present === null )
+		{
+			return null;
+		}
+
+		if ( $record->etag === $present )
+		{
+			return $present;
+		}
+
+		return $fromHere
+			? false
+			: null;
+	}
+
+	/**
 	 * @param  array<string, HashRecord>  $byAlgo
+	 * @param  string|null|false          $etag    From {@see etagFor()}.
 	 */
 	private function applyFile(
-		FileLocation $location,
-		array        $byAlgo,
-		ImportPolicy $policy,
-		ImportReport $report,
+		FileLocation      $location,
+		array             $byAlgo,
+		ImportPolicy      $policy,
+		ImportReport      $report,
+		string|null|false $etag,
 	): void
 	{
+		// A backup of this instance whose file has changed since: its hashes
+		// describe content the file no longer has, whatever the mtime says.
+		// `--allow-stale` stores them under the ETag they were read against,
+		// which keeps them out of every search until they are read again.
+		if ( $etag === false )
+		{
+			if ( ! $policy->allowOutdated )
+			{
+				$report->skippedChanged += count( $byAlgo );
+
+				return;
+			}
+
+			$etag = reset( $byAlgo )->etag;
+		}
+
 		// The whole reason --stamp exists. A hash stamped at or after the
 		// file's mtime claims to describe the content as it stands; one
 		// stamped before it describes something the file no longer is, and
@@ -323,6 +459,7 @@ class ImportService
 				$acceptable,
 				$stamp,
 				$policy->merge,
+				$etag,
 			);
 		}
 		catch ( Throwable $e )

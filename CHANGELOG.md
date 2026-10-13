@@ -25,6 +25,9 @@ the first stable release.
 - `GET /api/v1/features`: what any account may ask for, the server's
   algorithms and its version, without the status snapshot.
 
+- `occ fcias:backup`, `fcias:import`: a hash carries its ETag, and a
+  restore refuses one the file has changed since, on this instance.
+
 ### Changed
 
 - `MetadataService::setSelfIndexed()`: the writer for a file's own index

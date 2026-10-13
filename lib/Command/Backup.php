@@ -111,7 +111,7 @@ version, app version, instance id — that lets a later restore refuse a file it
 cannot honour, and it alone can hold the configuration and the queue state. The
 other two are hash tables and refuse those slices with that reason:
 
-  <info>csv</info>   storage, path, algorithm, hash, stamp — everything but the header
+  <info>csv</info>   storage, path, algorithm, hash, stamp, ETag — everything but the header
   <info>sum</info>   what <comment>sha1sum</comment> writes: one algorithm, hash and path, nothing else
 
 Examples:

@@ -162,6 +162,11 @@ correction path this app has: no sweep will notice it, no rule will recompute it
   <info>--stamp=mtime</info>    the file's mtime — right for a sumfile you just ran
   <info>--stamp=now</info>      this moment. Claims more than the data supports
 
+Under <info>--stamp=source</info> a record's <comment>etag</comment> is weighed first. The file's own ETag
+vouches for the hashes; another, in a json backup of this instance, means the
+file changed since, mtime kept or not, and the record is refused. From
+elsewhere, or in a csv, another ETag says nothing: ETags are per instance.
+
 A <comment>sum</comment> listing names no storage, so say what its paths are measured from with
 <info>--user</info> or <info>--storage</info>. A record that names its own storage is never re-anchored,
 so a backup re-imported with <info>--user</info> set still lands where it belongs.
@@ -429,6 +434,14 @@ HELP,
 			}
 
 			$output->writeln( sprintf( '  %-18s %d', str_replace( '_', ' ', (string) $label ), $count ) );
+		}
+
+		if ( $report->skippedChanged > 0 )
+		{
+			$output->writeln(
+				'<comment>Skipped as changed: this instance\'s backup, and each file\'s ETag has moved on '
+				. 'since. --stamp=mtime takes them on the mtime\'s word.</comment>',
+			);
 		}
 
 		if ( $report->configRefused !== [] )

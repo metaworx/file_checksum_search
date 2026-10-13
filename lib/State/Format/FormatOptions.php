@@ -101,6 +101,7 @@ readonly class FormatOptions
 				$record->algo,
 				$record->hash,
 				$record->updatedAt,
+				$record->etag,
 			);
 		}
 
@@ -112,6 +113,7 @@ readonly class FormatOptions
 				$record->algo,
 				$record->hash,
 				$record->updatedAt,
+				$record->etag,
 			);
 		}
 
