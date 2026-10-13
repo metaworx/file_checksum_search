@@ -35,7 +35,6 @@ readonly class StatusService
 
 	public function __construct(
 		private DatabaseService  $databaseService,
-		private TableNameService $tables,
 		private IAppManager      $appManager,
 		private MetadataService  $metadataService,
 		private JobStatsService  $jobStats,
@@ -217,45 +216,6 @@ readonly class StatusService
 	public function getPendingRowCount(): int
 	{
 		return array_sum( $this->metadataService->getPendingStats() );
-	}
-
-	/**
-	 * Compare source migration files against installed migrations.
-	 *
-	 * Scans lib/Migration/ for Version*Date*.php files, extracts
-	 * the class name, and checks against the oc_migrations table.
-	 *
-	 * @return array<array{name: string, ok: bool}>
-	 */
-	public function getMigrationStatus( ?OutputInterface $output = null ): array
-	{
-		$installed = $this->databaseService->getInstalledMigrations(
-			'file_checksum_search',
-			$output,
-		);
-
-		$sourceFiles = glob( __DIR__ . '/../Migration/Version*Date*.php' )
-			?: [];
-
-		$results = [];
-
-		foreach ( $sourceFiles as $filePath )
-		{
-			// Source files are Version010000Date..., DB stores 010000Date...
-			$className = basename( $filePath, '.php' );
-			$dbVersion = str_replace( 'Version', '', $className );
-			$results[] = [
-				'name' => $className,
-				'ok'   => in_array( $dbVersion, $installed, true ),
-			];
-		}
-
-		return $results;
-	}
-
-	public function hasChecksumColumn( ?OutputInterface $output = null ): bool
-	{
-		return $this->databaseService->columnExists( $this->tables->getFilecacheTableName(), 'checksum', $output );
 	}
 
 	/** Whether a count taken at $at (Unix time) is younger than the interval. */

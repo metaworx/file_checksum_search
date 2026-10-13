@@ -10,12 +10,8 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use Doctrine\DBAL\Connection as DoctrineConnection;
-use Doctrine\DBAL\Schema\AbstractSchemaManager;
-use Doctrine\DBAL\Schema\Column;
 use OCA\FileChecksumSearch\Service\DatabaseService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
-use OCP\DB\IResult;
-use OCP\DB\QueryBuilder\IQueryFunction;
 use OCP\IDBConnection;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
@@ -30,14 +26,12 @@ class DatabaseServiceTest
 //  private properties
 
 	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
-	private LoggerInterface&MockObject       $logger;
+	private LoggerInterface&MockObject    $logger;
 
-	private DatabaseService                  $service;
+	private DatabaseService               $service;
 
 	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
-	private DoctrineConnection&MockObject    $doctrineConn;
-
-	private AbstractSchemaManager&MockObject $schemaManager;
+	private DoctrineConnection&MockObject $doctrineConn;
 
 
 //  getters / setters / is* / has*
@@ -46,19 +40,9 @@ class DatabaseServiceTest
 	{
 		parent::setUp();
 
-		$this->db     = $this->createMock( IDBConnection::class );
-		$this->logger = $this->createMock( LoggerInterface::class );
-
-		$this->setUpQueryBuilderMock();
-
-		// Doctrine-level mocks for schema-manager methods used by
-		// columnExists / tableExist via getSchemaManager().
-		$this->doctrineConn  = $this->createMock( DoctrineConnection::class );
-		$this->schemaManager = $this->createMock( AbstractSchemaManager::class );
-
-		$this->doctrineConn->method( 'createSchemaManager' )
-		                   ->willReturn( $this->schemaManager )
-		;
+		$this->db           = $this->createMock( IDBConnection::class );
+		$this->logger       = $this->createMock( LoggerInterface::class );
+		$this->doctrineConn = $this->createMock( DoctrineConnection::class );
 
 		// Partial mock: override only getRawConnection() so the Doctrine
 		// layer is isolated; keep real implementations of methods under test.
@@ -80,100 +64,6 @@ class DatabaseServiceTest
 
 
 //  other non-static methods
-
-	public function testCountRowsReturnsInt(): void
-	{
-		$queryFunction = $this->createMock( IQueryFunction::class );
-
-		$this->func->method( 'count' )
-		           ->willReturn( $queryFunction )
-		;
-
-		$result = $this->createMock( IResult::class );
-
-		$result->method( 'fetchOne' )
-		       ->willReturn( '42' )
-		;
-
-		$this->queryBuilder->method( 'executeQuery' )
-		                   ->willReturn( $result )
-		;
-
-		$count = $this->service->countRows( 'some_table' );
-
-		$this->assertSame( 42, $count );
-	}
-
-	public function testColumnExistsReturnsTrueForExisting(): void
-	{
-		$column = $this->createMock( Column::class );
-
-		$column->method( 'getName' )
-		       ->willReturn( 'expected_col' )
-		;
-
-		$this->schemaManager->method( 'listTableColumns' )
-		                    ->with( 'test_table' )
-		                    ->willReturn( [ $column ] )
-		;
-
-		$result = $this->service->columnExists( 'test_table', 'expected_col' );
-
-		$this->assertTrue( $result );
-	}
-
-	public function testColumnExistsReturnsFalseForMissing(): void
-	{
-		$column = $this->createMock( Column::class );
-
-		$column->method( 'getName' )
-		       ->willReturn( 'other_col' )
-		;
-
-		$this->schemaManager->method( 'listTableColumns' )
-		                    ->with( 'test_table' )
-		                    ->willReturn( [ $column ] )
-		;
-
-		$result = $this->service->columnExists( 'test_table', 'missing_col' );
-
-		$this->assertFalse( $result );
-	}
-
-	public function testTableExistReturnsBool(): void
-	{
-		$this->schemaManager->method( 'tablesExist' )
-		                    ->with( [ 'existing_table' ] )
-		                    ->willReturn( true )
-		;
-
-		$result = $this->service->tableExist( 'existing_table' );
-
-		$this->assertTrue( $result );
-	}
-
-	public function testGetInstalledMigrationsReturnsArray(): void
-	{
-		$result = $this->createMock( IResult::class );
-
-		$result->method( 'fetchAllAssociative' )
-		       ->willReturn( [
-			       [ 'version' => '1000Date20260806100000' ],
-			       [ 'version' => '1001Date20260807100000' ],
-		       ] )
-		;
-
-		$this->queryBuilder->method( 'executeQuery' )
-		                   ->willReturn( $result )
-		;
-
-		$migrations = $this->service->getInstalledMigrations( 'file_checksum_search' );
-
-		$this->assertIsArray( $migrations );
-		$this->assertCount( 2, $migrations );
-		$this->assertContains( '1000Date20260806100000', $migrations );
-		$this->assertContains( '1001Date20260807100000', $migrations );
-	}
 
 	/**
 	 * Regression: a failed query was reported through getErrorOutput(),

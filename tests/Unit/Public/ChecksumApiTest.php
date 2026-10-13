@@ -27,7 +27,6 @@ use OCP\IAppConfig;
 use OCP\IUserManager;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\StatusService;
-use OCA\FileChecksumSearch\Service\TableNameService;
 use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Utility\ITimeFactory;
@@ -120,7 +119,6 @@ class ChecksumApiTest
 		// Construct a real instance with mocked collaborators.
 		$this->statusService = new StatusService(
 			$this->createMock( DatabaseService::class ),
-			$this->createMock( TableNameService::class ),
 			$this->createMock( IAppManager::class ),
 			$this->createMock( MetadataService::class ),
 			$this->createMock( JobStatsService::class ),

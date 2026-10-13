@@ -45,6 +45,11 @@ the first stable release.
   "revoked" for "disowned"; `fcias:reset --hashes` and `clear-disowned`
   still work, and upgrading renames the `stale:reset` markers.
 
+### Removed
+
+- `DatabaseService` and `StatusService`: the schema, row-count and
+  migration helpers nothing called.
+
 ### Fixed
 
 - `README.md`, *Modes*: a rule naming an algorithm the server no longer

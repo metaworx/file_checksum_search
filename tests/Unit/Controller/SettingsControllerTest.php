@@ -18,7 +18,6 @@ use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\MimeTypeService;
 use OCA\FileChecksumSearch\Service\PermissionService;
 use OCA\FileChecksumSearch\Service\StatusService;
-use OCA\FileChecksumSearch\Service\TableNameService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\App\IAppManager;
 use OCP\AppFramework\Utility\ITimeFactory;
@@ -86,14 +85,12 @@ class SettingsControllerTest
 		// service with mocked dependencies and configure those mocks per-test.
 		$this->appManager      = $this->createMock( IAppManager::class );
 		$this->databaseService = $this->createMock( DatabaseService::class );
-		$tableNameService      = $this->createMock( TableNameService::class );
 		$this->metadataService = $this->createMock( MetadataService::class );
 		$this->jobStats        = $this->createMock( JobStatsService::class );
 		$this->appConfig       = $this->createMock( IAppConfig::class );
 
 		$this->statusService = new StatusService(
 			$this->databaseService,
-			$tableNameService,
 			$this->appManager,
 			$this->metadataService,
 			$this->jobStats,

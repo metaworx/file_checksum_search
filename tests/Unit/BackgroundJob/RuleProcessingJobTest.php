@@ -14,7 +14,6 @@ use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\MimeTypeService;
 use OCA\FileChecksumSearch\Service\StatusService;
-use OCA\FileChecksumSearch\Service\TableNameService;
 use OCP\App\IAppManager;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\BackgroundJob\ProcessPendingUpdates;
@@ -141,7 +140,6 @@ class RuleProcessingJobTest
 	{
 		return new StatusService(
 			$this->createMock( DatabaseService::class ),
-			$this->createMock( TableNameService::class ),
 			$this->createMock( IAppManager::class ),
 			$this->metadataService,
 			$this->jobStats,

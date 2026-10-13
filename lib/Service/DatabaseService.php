@@ -12,7 +12,6 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Service;
 
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\IDBConnection;
 use Psr\Log\LoggerInterface;
@@ -21,24 +20,13 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Throwable;
 
 /**
- * Generic cross-DB database abstraction layer.
+ * What the status asks of the database itself, rather than of the app's
+ * tables: its version.
  *
- * All query methods below route through one of the private safeBool() /
- * safeInt() / safeString() / safeArray() helpers, which catch any
- * Throwable, log it as a warning, optionally echo it to $output, and
- * return a fixed sentinel instead of propagating the exception:
- *
- * - safeBool()   -> false
- * - safeInt()    -> 0
- * - safeString() -> 'unknown'
- * - safeArray()  -> []
- *
- * This means the sentinel is indistinguishable from a genuine result —
- * countRows() returning 0 could mean "the table is empty" or "the query
- * failed"; columnExists() returning false could mean "no such column"
- * or "the schema lookup threw". Callers that need to tell those apart
- * must check the logs (or $output, in CLI contexts) rather than the
- * return value alone.
+ * A failed query is not an error the status should fail on: safeString()
+ * catches any Throwable, logs it as a warning, optionally echoes it to
+ * $output, and answers 'unknown' — indistinguishable from a database that
+ * really reports that, so a caller that must tell them apart reads the log.
  *
  * @noinspection PhpClassCanBeReadonlyInspection
  */
@@ -77,168 +65,8 @@ class DatabaseService
 		return $this->db->getInner();
 	}
 
-	/** Doctrine's schema introspection manager (tablesExist(), listTableColumns(), etc.). */
-	public function getSchemaManager(): AbstractSchemaManager
-	{
-		return $this->getRawConnection()
-		            ->createSchemaManager()
-		;
-	}
-
 
 //  other non-static methods
-
-	/**
-	 * Whether $tableName has a column named $columnName.
-	 *
-	 * @return bool  False both for "no such column" and "the schema
-	 *               lookup failed" — see the class docblock.
-	 */
-	public function columnExists(
-		string           $tableName,
-		string           $columnName,
-		?OutputInterface $output = null,
-	): bool
-	{
-		return $this->safeBool(
-			function() use
-			(
-				$tableName,
-				$columnName,
-			): bool
-			{
-				foreach (
-					$this->getSchemaManager()
-					     ->listTableColumns( $tableName ) as $column
-				)
-				{
-					if ( $column->getName() === $columnName )
-					{
-						return true;
-					}
-				}
-
-				return false;
-			},
-			$output,
-		);
-	}
-
-	/**
-	 * Row count for $tableName.
-	 *
-	 * @return int  0 both for "the table is empty" and "the query
-	 *              failed" — see the class docblock.
-	 */
-	public function countRows(
-		string           $tableName,
-		?OutputInterface $output = null,
-	): int
-	{
-		return $this->safeInt(
-			function() use
-			(
-				$tableName,
-			): int
-			{
-				$qb = $this->db->getQueryBuilder();
-
-				$qb->select(
-					$qb->func()
-					   ->count( '*', 'cnt' ),
-				)
-				   ->from( $tableName )
-				;
-
-				return (int) $qb->executeQuery()
-				                ->fetchOne()
-				;
-			},
-			$output,
-		);
-	}
-
-	/**
-	 * @template T of array
-	 *
-	 * @param  callable(): T  $fn
-	 *
-	 * @return T|array{}
-	 */
-	private function safeArray(
-		callable         $fn,
-		?OutputInterface $output,
-	): array
-	{
-		try
-		{
-			return $fn();
-		}
-		catch ( Throwable $e )
-		{
-			$output?->writeln( sprintf( '<error>%s</error>', $e->getMessage() ) );
-
-			$this->logger->warning(
-				'FCIAS: database query failed',
-				[
-					'app'       => Application::APP_ID,
-					'exception' => $e,
-				],
-			);
-
-			return [];
-		}
-	}
-
-	private function safeBool(
-		callable         $fn,
-		?OutputInterface $output,
-	): bool
-	{
-		try
-		{
-			return $fn();
-		}
-		catch ( Throwable $e )
-		{
-			$output?->writeln( sprintf( '<error>%s</error>', $e->getMessage() ) );
-
-			$this->logger->warning(
-				'FCIAS: database query failed',
-				[
-					'app'       => Application::APP_ID,
-					'exception' => $e,
-				],
-			);
-
-			return false;
-		}
-	}
-
-	private function safeInt(
-		callable         $fn,
-		?OutputInterface $output,
-	): int
-	{
-		try
-		{
-			return $fn();
-		}
-		catch ( Throwable $e )
-		{
-			$output?->writeln( sprintf( '<error>%s</error>', $e->getMessage() ) );
-
-			$this->logger->warning(
-				'FCIAS: database query failed',
-				[
-					'app'       => Application::APP_ID,
-					'exception' => $e,
-				],
-			);
-
-			return 0;
-		}
-	}
 
 	private function safeString(
 		callable         $fn,
@@ -266,65 +94,5 @@ class DatabaseService
 
 			return 'unknown';
 		}
-	}
-
-	/**
-	 * @return string[]  Installed migration version strings for $appId, or
-	 *                   [] both for "none installed" and "the query
-	 *                   failed" — see the class docblock.
-	 */
-	public function getInstalledMigrations(
-		string           $appId,
-		?OutputInterface $output = null,
-	): array
-	{
-		return $this->safeArray(
-			function() use
-			(
-				$appId,
-			): array
-			{
-				$qb = $this->db->getQueryBuilder();
-
-				$qb->select( 'version' )
-				   ->from( 'migrations' )
-				   ->where(
-					   $qb->expr()
-					      ->eq( 'app', $qb->createNamedParameter( $appId ) ),
-				   )
-				   ->orderBy( 'version' )
-				;
-
-				$rows = $qb->executeQuery()
-				           ->fetchAllAssociative()
-				;
-
-				return array_map(
-					fn(
-						array $row,
-					): string => $row['version'],
-					$rows,
-				);
-			},
-			$output,
-		);
-	}
-
-	/**
-	 * Whether $tableName exists.
-	 *
-	 * @return bool  False both for "no such table" and "the schema
-	 *               lookup failed" — see the class docblock.
-	 */
-	public function tableExist(
-		string           $tableName,
-		?OutputInterface $output = null,
-	): bool
-	{
-		return $this->safeBool(
-			fn() => $this->getSchemaManager()
-			             ->tablesExist( [ $tableName ] ),
-			$output,
-		);
 	}
 }
