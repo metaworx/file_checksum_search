@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-10-13
+
 ### Added
 
 - `docs/api-v1.md`, *File state*, `?stat=1`: a file's `etag`, valid for
