@@ -131,3 +131,18 @@ jobs:
           artifact-name: smoke-${{ matrix.mode }}-${{ matrix.nextcloud-version }}
         env:
           CYPRESS_baseUrl: http://localhost:8081
+
+      # The server's side of a failure: the Apps page shows a spinner and a
+      # status code, the logs say why. Here rather than in an action, which
+      # comes from the release's checkout and so cannot be added afterwards.
+      - name: Server logs
+        if: failure()
+        working-directory: nextcloud
+        run: |
+          echo "::group::PHP's web server"
+          cat /tmp/nc-http.log || true
+          echo "::endgroup::"
+          log="$(php occ config:system:get datadirectory)/nextcloud.log"
+          echo "::group::$log"
+          tail -n 300 "$log" || true
+          echo "::endgroup::"
