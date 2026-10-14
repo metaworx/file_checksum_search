@@ -346,7 +346,7 @@ stamps made before the app kept one: the filecache's ETag where its checksum col
 hashes or the stamp is no older than the storage's own mtime, and otherwise the file queued to be hashed
 again. `occ fcias:repair --step etag-stamp` runs it at once. All of them show their progress on the status
 page, as *Checksum copy*, *Checksum index check*, *Checksum stamp check* and *Checksum ETag check*, and in
-`occ fcias:status`.
+`occ fcias:status`; a step run at once shows there as the job's run.
 
 ### Which file a rule is talking about
 

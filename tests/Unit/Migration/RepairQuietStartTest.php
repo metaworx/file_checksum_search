@@ -16,6 +16,7 @@ use OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob;
 use OCA\FileChecksumSearch\Migration\RepairQuietStart;
 use OCA\FileChecksumSearch\Migration\VerboseOutput;
 use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
@@ -45,6 +46,8 @@ class RepairQuietStartTest
 
 	private MockObject|IJobList        $jobList;
 
+	private MockObject|JobStatsService $jobStats;
+
 	private MockObject|LoggerInterface $logger;
 
 	private MockObject|IOutput         $output;
@@ -67,6 +70,7 @@ class RepairQuietStartTest
 		$this->metadataService  = $this->createMock( MetadataService::class );
 		$this->hashIndexService = $this->createMock( HashIndexService::class );
 		$this->jobList          = $this->createMock( IJobList::class );
+		$this->jobStats         = $this->createMock( JobStatsService::class );
 		$this->logger           = $this->createMock( LoggerInterface::class );
 		$this->output           = $this->createMock( IOutput::class );
 
@@ -100,6 +104,7 @@ class RepairQuietStartTest
 			$this->appConfig,
 			$this->db,
 			$this->jobList,
+			$this->jobStats,
 			$this->logger,
 		);
 	}
@@ -393,6 +398,15 @@ class RepairQuietStartTest
 		$this->jobList->expects( $this->never() )
 		              ->method( 'add' )
 		;
+		// Recorded as the job's run, so the status shows it.
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'record' )
+		               ->with(
+			               JobStatsService::JOB_FILECACHE_BACKFILL,
+			               [ 'copied' => 2, 'files' => 1, 'done' => 1 ],
+			               $this->isType( 'int' ),
+		               )
+		;
 
 		$ran = $this->step->runSteps( $this->output, [ 'rebuild-from-filecache' ] );
 
@@ -538,13 +552,100 @@ class RepairQuietStartTest
 	 */
 	public function testNamingTheStampingRunsItAtOnce(): void
 	{
-		$this->metadataService->expects( $this->once() )
-		                      ->method( 'stampUnstampedAfter' )
+		// Its own mock: setUp's answers nothing to stamp.
+		$metadataService = $this->createMock( MetadataService::class );
+		$metadataService->expects( $this->once() )
+		                ->method( 'stampUnstampedAfter' )
+		                ->willReturn( [ 'stamped' => 4, 'queued' => 1, 'last' => 9, 'done' => true ] )
+		;
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'record' )
+		               ->with(
+			               JobStatsService::JOB_STAMP_CHECK,
+			               [ 'stamped' => 4, 'queued' => 1, 'done' => 1 ],
+			               $this->isType( 'int' ),
+		               )
 		;
 
-		$this->step->runSteps( $this->output, [ 'missing-stamps' ] );
+		$this->stepOver( $metadataService )
+		     ->runSteps( $this->output, [ 'missing-stamps' ] )
+		;
 
 		$this->assertNotContains( StampCheck::class, $this->queued );
+	}
+
+	/**
+	 * Recorded as StampCheck's ETag walk records its run: an adopted ETag
+	 * is a stamp given. `occ fcias:status` showed "never ran yet" after it.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testNamingTheEtagStampRecordsItAsTheEtagWalk(): void
+	{
+		$metadataService = $this->createMock( MetadataService::class );
+		$metadataService->expects( $this->once() )
+		                ->method( 'adoptEtagsAfter' )
+		                ->willReturn( [ 'adopted' => 3, 'queued' => 2, 'last' => 9, 'done' => true ] )
+		;
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'record' )
+		               ->with(
+			               JobStatsService::JOB_STAMP_CHECK_ETAG,
+			               [ 'stamped' => 3, 'queued' => 2, 'done' => 1 ],
+			               $this->isType( 'int' ),
+		               )
+		;
+
+		$this->stepOver( $metadataService )
+		     ->runSteps( $this->output, [ 'etag-stamp' ] )
+		;
+
+		$this->assertNotContains( StampCheck::class, $this->queued );
+	}
+
+	/**
+	 * A foreground run that fails is the job's failure in the status, and
+	 * still a warning, not an aborted repair.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAFailedForegroundRunIsRecordedAsTheJobsFailure(): void
+	{
+		$failure         = new RuntimeException( 'database gone' );
+		$metadataService = $this->createMock( MetadataService::class );
+		$metadataService->method( 'adoptEtagsAfter' )
+		                ->willThrowException( $failure )
+		;
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'recordFailure' )
+		               ->with( JobStatsService::JOB_STAMP_CHECK_ETAG, $failure, $this->isType( 'int' ) )
+		;
+		$this->jobStats->expects( $this->never() )
+		               ->method( 'record' )
+		;
+		$this->output->expects( $this->once() )
+		             ->method( 'warning' )
+		             ->with( $this->stringContains( 'database gone' ) )
+		;
+
+		$this->assertSame( [ 'etag-stamp' ], $this->stepOver( $metadataService )->runSteps( $this->output, [ 'etag-stamp' ] ) );
+	}
+
+	/**
+	 * A whole repair only queues the work; the job records its own run.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAWholeRepairRecordsNoRunOfTheJobsItQueues(): void
+	{
+		$this->ruleService->method( 'loadRules' )
+		                  ->willReturn( [ [ 'userScope' => 'all' ] ] )
+		;
+		$this->jobStats->expects( $this->never() )
+		               ->method( 'record' )
+		;
+
+		$this->step->run( $this->output );
 	}
 
 	/**
@@ -634,7 +735,15 @@ class RepairQuietStartTest
 		$this->metadataService->expects( $this->once() )
 		                      ->method( 'reindexHashes' )
 		                      ->with( $this->anything(), $this->anything(), false )
-		                      ->willReturn( 0 )
+		                      ->willReturn( 5 )
+		;
+		$this->jobStats->expects( $this->once() )
+		               ->method( 'record' )
+		               ->with(
+			               JobStatsService::JOB_HASH_INDEX_CHECK,
+			               [ 'repaired' => 5, 'done' => 1 ],
+			               $this->isType( 'int' ),
+		               )
 		;
 
 		$this->step->runSteps( $this->output, [ 'rebuild-from-metadata' ] );
@@ -921,6 +1030,15 @@ class RepairQuietStartTest
 		                )
 		;
 
+		return $this->stepOver( $metadataService );
+	}
+
+	/**
+	 * The repair over a metadata service of the test's own, whose answers
+	 * setUp's stubs do not shadow.
+	 */
+	private function stepOver( MetadataService&MockObject $metadataService ): RepairQuietStart
+	{
 		return new RepairQuietStart(
 			$this->ruleService,
 			$metadataService,
@@ -928,6 +1046,7 @@ class RepairQuietStartTest
 			$this->appConfig,
 			$this->db,
 			$this->jobList,
+			$this->jobStats,
 			$this->logger,
 		);
 	}

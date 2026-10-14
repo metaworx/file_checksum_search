@@ -11,6 +11,11 @@ the first stable release.
 
 ## [Unreleased]
 
+### Fixed
+
+- `occ fcias:repair --step`: a step run by hand shows in the status as
+  its background job's run, not as one that never ran.
+
 ## [0.26.0] - 2026-10-13
 
 ### Added

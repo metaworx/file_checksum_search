@@ -17,6 +17,7 @@ use OCA\FileChecksumSearch\Command\ShowConfig;
 use OCA\FileChecksumSearch\Command\ShowStatus;
 use OCA\FileChecksumSearch\Command\TestPerformance;
 use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
 use OCP\Server;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -277,6 +278,26 @@ class CommandTest
 			$tester->execute( [ '--step' => [ 'metadata-keys' ] ] ),
 		);
 		$this->assertStringContainsString( 'Ran 1 step(s)', $tester->getDisplay() );
+	}
+
+	/**
+	 * A step run by hand is its background job's run in the status: after
+	 * `--step etag-stamp`, the status said "never ran yet" of the ETag check.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAStepRunByHandShowsInTheStatusAsItsJobsRun(): void
+	{
+		$started = time();
+		$tester  = new CommandTester( Server::get( Repair::class ) );
+
+		$this->assertSame( Command::SUCCESS, $tester->execute( [ '--step' => [ 'etag-stamp' ] ] ) );
+
+		$run = Server::get( JobStatsService::class )->lastRuns()[ JobStatsService::JOB_STAMP_CHECK_ETAG ];
+
+		$this->assertGreaterThanOrEqual( $started, $run['lastRun'] );
+		$this->assertSame( 1, $run['counts']['done'] ?? null );
+		$this->assertTrue( $run['attempt']['ok'] ?? false );
 	}
 
 	// ─── ShowConfig ──────────────────────────────────────────────────

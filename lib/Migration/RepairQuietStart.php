@@ -16,6 +16,7 @@ use OCA\FileChecksumSearch\BackgroundJob\HashIndexCheck;
 use OCA\FileChecksumSearch\BackgroundJob\RuleProcessingJob;
 use OCA\FileChecksumSearch\BackgroundJob\StampCheck;
 use OCA\FileChecksumSearch\Service\HashIndexService;
+use OCA\FileChecksumSearch\Service\JobStatsService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCP\BackgroundJob\IJobList;
@@ -86,6 +87,7 @@ class RepairQuietStart
 		private readonly IAppConfig       $appConfig,
 		private readonly IDBConnection    $db,
 		private readonly IJobList         $jobList,
+		private readonly JobStatsService  $jobStats,
 		private readonly LoggerInterface  $logger,
 	) {
 	}
@@ -490,18 +492,32 @@ class RepairQuietStart
 			return;
 		}
 
-		$copied = $this->hashIndexService->backfillFromFilecache();
-		$hashes = (int) ( $copied['hashes'] ?? 0 );
-		$files  = (int) ( $copied['files'] ?? 0 );
+		$this->recordedAs(
+			JobStatsService::JOB_FILECACHE_BACKFILL,
+			function() use ( $output ): array
+			{
+				$copied = $this->hashIndexService->backfillFromFilecache();
+				$hashes = (int) ( $copied['hashes'] ?? 0 );
+				$files  = (int) ( $copied['files'] ?? 0 );
 
-		$output->info(
-			$hashes === 0
-				? 'FCIAS: the filecache holds no checksums this app was missing.'
-				: sprintf(
-				'FCIAS: copied %d checksums for %d files out of the filecache.',
-				$hashes,
-				$files,
-			),
+				$output->info(
+					$hashes === 0
+						? 'FCIAS: the filecache holds no checksums this app was missing.'
+						: sprintf(
+						'FCIAS: copied %d checksums for %d files out of the filecache.',
+						$hashes,
+						$files,
+					),
+				);
+
+				return [
+					'copied' => $hashes,
+					'files'  => $files,
+					'done'   => ( $copied['done'] ?? true )
+						? 1
+						: 0,
+				];
+			},
 		);
 	}
 
@@ -628,18 +644,26 @@ class RepairQuietStart
 		{
 			$output->info( 'FCIAS: stamping the hashes saved without a stamp.' );
 
-			$result = $this->metadataService->stampUnstampedAfter(
-				onFile: $this->reportStamping( $output ),
-			);
+			$this->recordedAs(
+				JobStatsService::JOB_STAMP_CHECK,
+				function() use ( $output ): array
+				{
+					$result = $this->metadataService->stampUnstampedAfter(
+						onFile: $this->reportStamping( $output ),
+					);
 
-			$output->info(
-				$result['stamped'] === 0
-					? 'FCIAS: every stored hash carries a stamp.'
-					: sprintf(
-					'FCIAS: stamped the hashes of %d files; %d of them went back on the queue to be computed again.',
-					$result['stamped'],
-					$result['queued'],
-				),
+					$output->info(
+						$result['stamped'] === 0
+							? 'FCIAS: every stored hash carries a stamp.'
+							: sprintf(
+							'FCIAS: stamped the hashes of %d files; %d of them went back on the queue to be computed again.',
+							$result['stamped'],
+							$result['queued'],
+						),
+					);
+
+					return self::walked( $result['stamped'], $result['queued'], $result['done'] );
+				},
 			);
 		}
 		catch ( Throwable $e )
@@ -769,39 +793,50 @@ class RepairQuietStart
 			$output->info( 'FCIAS: giving the stamps their ETag.' );
 
 			$verbose = $output instanceof VerboseOutput ? $output : null;
-			$result  = $this->metadataService->adoptEtagsAfter(
-				onFile: static function(
-					int              $fileId,
-					string|Throwable $outcome,
-				) use
-				(
-					$output,
-					$verbose,
-				): void
+
+			$this->recordedAs(
+				JobStatsService::JOB_STAMP_CHECK_ETAG,
+				function() use ( $output, $verbose ): array
 				{
-					if ( $outcome instanceof Throwable )
-					{
-						$output->warning( sprintf( 'FCIAS: could not give the stamp of file %d its ETag: %s', $fileId, $outcome->getMessage() ) );
+					$result = $this->metadataService->adoptEtagsAfter(
+						onFile: static function(
+							int              $fileId,
+							string|Throwable $outcome,
+						) use
+						(
+							$output,
+							$verbose,
+						): void
+						{
+							if ( $outcome instanceof Throwable )
+							{
+								$output->warning( sprintf( 'FCIAS: could not give the stamp of file %d its ETag: %s', $fileId, $outcome->getMessage() ) );
 
-						return;
-					}
+								return;
+							}
 
-					$verbose?->line(
-						VerboseOutput::VERY_VERBOSE,
-						$outcome === MetadataService::ETAG_QUEUED
-							? sprintf( 'FCIAS: file %d: hashes outdated, queued.', $fileId )
-							: sprintf( 'FCIAS: file %d: ETag given.', $fileId ),
+							$verbose?->line(
+								VerboseOutput::VERY_VERBOSE,
+								$outcome === MetadataService::ETAG_QUEUED
+									? sprintf( 'FCIAS: file %d: hashes outdated, queued.', $fileId )
+									: sprintf( 'FCIAS: file %d: ETag given.', $fileId ),
+							);
+						},
+						modeOf: $this->ruleService->queueModeFor( ... ),
 					);
-				},
-				modeOf: $this->ruleService->queueModeFor( ... ),
-			);
 
-			$output->info(
-				sprintf(
-					'FCIAS: gave the stamps of %d files their ETag; %d went back on the queue to be computed again.',
-					$result['adopted'],
-					$result['queued'],
-				),
+					$output->info(
+						sprintf(
+							'FCIAS: gave the stamps of %d files their ETag; %d went back on the queue to be computed again.',
+							$result['adopted'],
+							$result['queued'],
+						),
+					);
+
+					// As StampCheck's ETag walk counts: an adopted ETag is a
+					// stamp given.
+					return self::walked( $result['adopted'], $result['queued'], $result['done'] );
+				},
 			);
 		}
 		catch ( Throwable $e )
@@ -854,12 +889,24 @@ class RepairQuietStart
 
 		try
 		{
-			$fixed = $this->metadataService->reindexHashes( force: $this->includeExpensive );
+			$this->recordedAs(
+				JobStatsService::JOB_HASH_INDEX_CHECK,
+				function() use ( $output ): array
+				{
+					$fixed = $this->metadataService->reindexHashes( force: $this->includeExpensive );
 
-			$output->info(
-				$fixed === 0
-					? 'FCIAS: every stored hash is indexed.'
-					: sprintf( 'FCIAS: indexed the stored hashes of %d files.', $fixed ),
+					$output->info(
+						$fixed === 0
+							? 'FCIAS: every stored hash is indexed.'
+							: sprintf( 'FCIAS: indexed the stored hashes of %d files.', $fixed ),
+					);
+
+					// The whole index in one pass: done.
+					return [
+						'repaired' => $fixed,
+						'done'     => 1,
+					];
+				},
 			);
 		}
 		catch ( Throwable $e )
@@ -1250,5 +1297,59 @@ class RepairQuietStart
 		$output->warning(
 			sprintf( 'FCIAS: %s: %s', $what, $e->getMessage() ),
 		);
+	}
+
+	/**
+	 * Do a step's work here and now, and record it as a run of the
+	 * background job that does it otherwise, so the status shows it
+	 * whichever way it ran. A failure is recorded as the job's, and thrown
+	 * on to the step.
+	 *
+	 * @param  callable(): array<string, int>  $work  The counts, in the job's shape.
+	 *
+	 * @throws Throwable
+	 */
+	private function recordedAs(
+		string   $job,
+		callable $work,
+	): void
+	{
+		$started = hrtime( true );
+
+		try
+		{
+			$counts = $work();
+		}
+		catch ( Throwable $e )
+		{
+			$this->jobStats->recordFailure( $job, $e, JobStatsService::millisecondsSince( $started ) );
+
+			throw $e;
+		}
+
+		$this->jobStats->record( $job, $counts, JobStatsService::millisecondsSince( $started ) );
+	}
+
+
+//  static methods
+
+	/**
+	 * A stamp walk's counts, as {@see StampCheck} records them.
+	 *
+	 * @return array{stamped: int, queued: int, done: int}
+	 */
+	private static function walked(
+		int  $stamped,
+		int  $queued,
+		bool $done,
+	): array
+	{
+		return [
+			'stamped' => $stamped,
+			'queued'  => $queued,
+			'done'    => $done
+				? 1
+				: 0,
+		];
 	}
 }
