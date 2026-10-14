@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+	<!-- GitHub's social preview, 1280 x 640: the icon and the app's name. -->
+	<rect width="1280" height="640" fill="#0082c9"/>
+	<g transform="translate(96 176) scale(12)" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+		<path d="M12 2L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-3z"/>
+		<path d="M8 8h3M8 12h8M8 16h5"/>
+		<path d="M14.5 7.5l1.5 1.5 3-3"/>
+	</g>
+	<g fill="#fff" font-family="DejaVu Sans, Liberation Sans, Arial, sans-serif">
+		<text x="456" y="248" font-size="72" font-weight="bold">File Checksum</text>
+		<text x="456" y="332" font-size="72" font-weight="bold">Index &amp; Search</text>
+		<text x="456" y="404" font-size="34">Find files by hash and detect duplicates,</text>
+		<text x="456" y="452" font-size="34">with REST, CLI and PHP APIs</text>
+	</g>
+</svg>
