@@ -1,16 +1,22 @@
 name: Install check
 
-# Installs a release on fresh servers the two ways an administrator can —
-# `occ app:install`, and the Apps page's Download and enable — then checks
-# that every install step happened and runs a smoke test of the e2e suite
-# against the installed copy: the shipped tarball, built frontend, no dev
-# packages, verified by the server against the app's certificate.
+# Installs a release on fresh servers the two ways an administrator can -
+# `occ app:install`, and the Apps page's Download and enable - then checks
+# that every install step happened and the app's own checks pass
+# (tests/e2e/store/check-install.sh, with tests/e2e/store/checks.sh), and
+# runs the browser tests the app names against the installed copy: the
+# shipped tarball, built frontend, no dev packages, verified by the server
+# against the app's certificate.
+#
+# What is the app's own here is read from .github/app.env: APT_PACKAGES the
+# install needs, SMOKE_SPECS the browser tests to run, E2E whether the
+# server is configured for them. Each left unset leaves its step out.
 #
 # Against the fake store: the real store's full listing with the release
-# added from its GitHub release. publish.yml runs it before the upload, so a
-# release that does not install never reaches the store; after the upload
-# it only compares the store's entry with the one tested here
-# (tests/e2e/store/appstore.py watch). It can also be run by hand.
+# added from its GitHub release, or, before the app's first release, an
+# entry made from its manifest and certificate. publish.yml runs it before
+# the upload, so a release that does not install never reaches the store.
+# It can also be run by hand against a release that is out.
 on:
   workflow_call:
     inputs:
@@ -81,20 +87,44 @@ jobs:
         with:
           ref: ${{ inputs.tag != '' && inputs.tag || format('v{0}', inputs.version) }}
 
+      - name: The app's settings
+        id: app
+        run: |
+          if [ -f .github/app.env ]; then
+            set -a
+            . ./.github/app.env
+            set +a
+          fi
+          {
+            echo "apt-packages=${APT_PACKAGES:-}"
+            echo "smoke-specs=${SMOKE_SPECS:-}"
+            echo "e2e=${E2E:-false}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Packages the install needs
+        if: steps.app.outputs.apt-packages != ''
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ${{ steps.app.outputs.apt-packages }}
+
       # A git checkout of the server is on the `git` channel, which shows
       # nightlies to everyone; a server as its administrator runs it is on
       # `stable`. Only a nightly's Apps-page install moves it to `daily`,
-      # the one channel on which the Apps page lists nightlies (`beta`
-      # lists pre-releases, not nightlies).
+      # the one channel on which the Apps page lists nightlies.
       - name: Nextcloud with the app store
         uses: ./.github/actions/nextcloud-server
         with:
           nextcloud-version: ${{ matrix.nextcloud-version }}
+          e2e: ${{ steps.app.outputs.e2e }}
           app-store: 'true'
           channel: ${{ (inputs.kind == 'nightly' && matrix.mode == 'web') && 'daily' || 'stable' }}
 
+      # The certificate lists the app in the fake store before its first
+      # release, when the real store has no entry for it to extend.
       - name: App store
         uses: ./.github/actions/app-store
+        env:
+          APPSTORE_CERT: ${{ vars.APPSTORE_CERT || secrets.APPSTORE_CERT }}
         with:
           version: ${{ inputs.version }}
           kind: ${{ inputs.kind }}
@@ -117,17 +147,17 @@ jobs:
           CYPRESS_baseUrl: http://localhost:8081
           CYPRESS_storeInstall: ${{ inputs.version }}
 
-      - name: The install steps happened
+      - name: The install steps happened, and the app's checks pass
         id: check
         run: bash tests/e2e/store/check-install.sh nextcloud "$VERSION"
 
       # Whenever the check ran, pass or fail: a missing install step and a
-      # broken app are two findings, and one should not hide the other.
+      # broken page are two findings, and one should not hide the other.
       - name: Smoke test
-        if: ${{ !cancelled() && steps.check.outcome != 'skipped' }}
+        if: ${{ !cancelled() && steps.check.outcome != 'skipped' && steps.app.outputs.smoke-specs != '' }}
         uses: ./.github/actions/cypress-run
         with:
-          spec: tests/e2e/checksums.cy.js,tests/e2e/global-search.cy.js
+          spec: ${{ steps.app.outputs.smoke-specs }}
           artifact-name: smoke-${{ matrix.mode }}-${{ matrix.nextcloud-version }}
         env:
           CYPRESS_baseUrl: http://localhost:8081

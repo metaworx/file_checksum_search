@@ -4,12 +4,13 @@ The app's translations: the texts wrapped in t() and n() become a template,
 the template is merged into one .po file per language, and the .po files
 become the l10n/ files Nextcloud loads. The work is done by Nextcloud's own
 translation tool, pinned below, the one its Transifex sync runs; this script
-feeds it a clean copy of the app and keeps its output stable in git.
+feeds it a clean copy of the app and keeps its output stable in git. The app
+id is read from appinfo/info.xml.
 
   l10n.py pot        — extract the texts into the template,
-                       translationfiles/templates/file_checksum_search.pot
+                       translationfiles/templates/<app_id>.pot
   l10n.py update     — pot, then merge the template into every
-                       translationfiles/<lang>/file_checksum_search.po
+                       translationfiles/<lang>/<app_id>.po
   l10n.py add LANG   — start a language: a .po from the template
   l10n.py build      — convert the .po files into l10n/<lang>.js and .json
   l10n.py check      — fail if the template, a .po file or l10n/ is not what
@@ -20,13 +21,12 @@ Every language kept here is kept complete: check fails on a missing
 translation, and on a fuzzy one msgmerge guessed from a changed text.
 
 The committed files carry no source locations, and the texts are sorted, so a
-diff shows texts that changed and nothing else. scripts/l10n.sh, and a
-scripts/l10n.ps1 once there is one, are the doors to this script. It needs PHP, and gettext's xgettext, msgmerge, msgcat,
+diff shows texts that changed and nothing else. scripts/l10n.sh is the door
+to this script. It needs PHP, and gettext's xgettext, msgmerge, msgcat,
 msginit, msgattrib and msgfmt, on the path.
 """
 
 import argparse
-import filecmp
 import hashlib
 import os
 import re
@@ -37,8 +37,18 @@ import tempfile
 import urllib.request
 from pathlib import Path
 
-APP_ID = 'file_checksum_search'
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def app_id() -> str:
+	"""The app's id, as its manifest names it."""
+	found = re.search(r'<id>\s*([^<\s]+)\s*</id>', (ROOT / 'appinfo' / 'info.xml').read_text(encoding='utf-8'))
+	if found is None:
+		sys.exit('appinfo/info.xml names no <id>')
+	return found[1]
+
+
+APP_ID = app_id()
 DOOR = 'scripts/l10n.sh'
 TRANSLATIONS = ROOT / 'translationfiles'
 TEMPLATE = TRANSLATIONS / 'templates' / f'{APP_ID}.pot'

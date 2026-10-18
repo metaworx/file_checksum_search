@@ -3,7 +3,10 @@ description: >-
   Points the server at the fake store, which serves the real store's full
   listing with the release under test added from its GitHub release, drops
   whatever listing the server had fetched, and with `occ-install` installs
-  the app from it the way an administrator does at the console.
+  the app from it the way an administrator does at the console. The app id
+  is the manifest's. Before the app's first release the real store lists
+  nothing to extend: the fake store then lists it from its manifest and its
+  certificate, APPSTORE_CERT in the environment.
 
 inputs:
   version:
@@ -31,14 +34,19 @@ runs:
         TAG: ${{ inputs.tag }}
         NIGHTLY: ${{ inputs.kind == 'nightly' }}
       run: |
-        download="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/file_checksum_search-${VERSION}.tar.gz"
+        app_id="$(sed -n 's|.*<id>\([^<]*\)</id>.*|\1|p' appinfo/info.xml | head -n1 | tr -d '[:space:]')"
+        download="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${app_id}-${VERSION}.tar.gz"
         curl -fsSL -o /tmp/release.signature "${download}.signature"
-        flag=""
+        flags=()
         if [ "$NIGHTLY" = true ]; then
-          flag="--nightly"
+          flags+=(--nightly)
+        fi
+        if [ -n "${APPSTORE_CERT:-}" ]; then
+          printf '%s\n' "$APPSTORE_CERT" > /tmp/app.crt
+          flags+=(--certificate /tmp/app.crt)
         fi
         nohup python3 tests/e2e/store/appstore.py fake --version "$VERSION" --download "$download" \
-          --signature /tmp/release.signature $flag --port 8090 > /tmp/fake-store.log 2>&1 &
+          --signature /tmp/release.signature "${flags[@]}" --port 8090 > /tmp/fake-store.log 2>&1 &
         pid=$!
         for i in $(seq 1 90); do
           grep -q 'serving on' /tmp/fake-store.log && break
@@ -63,10 +71,10 @@ runs:
     - name: Install with occ
       if: inputs.occ-install == 'true'
       shell: bash
-      working-directory: nextcloud
       run: |
+        app_id="$(sed -n 's|.*<id>\([^<]*\)</id>.*|\1|p' appinfo/info.xml | head -n1 | tr -d '[:space:]')"
         if [ "${{ inputs.kind }}" = nightly ]; then
-          php occ app:install --allow-unstable file_checksum_search
+          php nextcloud/occ app:install --allow-unstable "$app_id"
         else
-          php occ app:install file_checksum_search
+          php nextcloud/occ app:install "$app_id"
         fi

@@ -49,6 +49,14 @@ jobs:
     steps:
       - name: Checkout app code
         uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      # The actions, release workflows and scripts are the guidelines'
+      # platform/nextcloud/ files, copied here as GUIDELINES/config.ini names
+      # them; a copy edited here, or behind the pin, fails.
+      - name: Vendored copies are the guidelines'
+        run: GUIDELINES/shared/tools/sync-vendor.sh --check
 
       - name: Node dependencies
         uses: ./.github/actions/node-deps
@@ -195,10 +203,13 @@ jobs:
       - name: Checkout app code
         uses: actions/checkout@v5
 
+      # The vendored action configures the server for the browser tests only
+      # when asked; this job is where they run.
       - name: Nextcloud server
         uses: ./.github/actions/nextcloud-server
         with:
           nextcloud-version: ${{ matrix.nextcloud-version }}
+          e2e: 'true'
 
       - name: Node dependencies
         uses: ./.github/actions/node-deps

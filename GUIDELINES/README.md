@@ -247,7 +247,7 @@ and a literal handed straight to a toast, and CI's lint job runs
 ---
 
 
-# Working with the agent (v1.7.0)
+# Working with the agent (v1.8.0)
 
 This is the human half of the contract.
 The agent's rules live in `/AGENTS.md`;
@@ -269,30 +269,28 @@ Everything else is ordinary work.
 ## 2. Gate messages
 
 A gate message is the agent's request for permission.
-It always carries the same fields, so you can skim it:
+It always carries its fields in the same order, so you can skim it;
+the ones in italics appear only where they apply:
 
-- **Checkpoint** — that this is a stop, not a status update
-- **Overall Task** — what you asked for, as the agent understood it
-- **Last Action** — what it just did,
-  sometimes as bullets where that was several things
-- **Pending action** — exactly what it wants to do next
-- **CHANGELOG bullet** — the line the change will add to the changelog
-- **Proposed commit message** — the exact message,
+- **Checkpoint** — where the work stands
+- **Last Action** — what it just did, in a line, with IDs you can check
+- *Pending* — work the gate does not cover: an unpushed commit, a running job
+- *CHANGELOG bullet*, *Proposed commit message*, *Files to be committed* —
   wherever a signal would commit
-- **Files to be committed** — what would go into that commit
-- **Important notes** — anything you need in order to decide and would not otherwise see:
-  a bug fixed on the way, something to check before you answer,
-  a step that went differently than planned
-- **Confirmation needed** — which signal it is waiting for,
-  and what each one does
+- *Open decisions* — numbered `D1`, `D2`, the options lettered,
+  the recommended one first
+- *Important notes* — numbered: what you need in order to decide
+  and would not otherwise see
+- **Confirmation needed** — each signal it offers,
+  and everything that signal does
 
 After sending one the agent must be silent until you answer.
 If you see it send a gate and then keep working,
 that is a violation of its own contract, and worth saying so.
 
-Read the **Pending action** first.
-If it does not match what you wanted,
-say so in plain words rather than sending a signal — the agent revises and re-gates.
+Read **Confirmation needed** first, then the open decisions.
+You can answer briefly - `EXEC+ D2-B`, or "as recommended".
+A reply without a signal is taken as a question to weigh, and nothing is done.
 
 ## 3. Execution signals
 

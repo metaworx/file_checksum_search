@@ -10,6 +10,10 @@ runs:
         node-version: '24'
         cache: npm
 
+    # Without Cypress's binary, about 240 MB to download: the one job that
+    # runs Cypress takes it from GitHub's cache (cypress-run).
     - name: Install frontend dependencies
       shell: bash
+      env:
+        CYPRESS_INSTALL_BINARY: '0'
       run: npm ci

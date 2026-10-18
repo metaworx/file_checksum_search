@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 #
-# package.sh — Build, package, and (optionally) sign the file_checksum_search
-# app for the Nextcloud App Store.
+# package.sh — Build, package, and (optionally) sign this Nextcloud app for
+# the Nextcloud App Store. The app id and version are read from
+# appinfo/info.xml.
 #
 # What it does:
 #   1. Builds the frontend assets (npm ci + npm run build) if needed.
 #   2. Copies the app into a clean staging directory.
 #   3. Removes dev-only files listed in .nc.publish.ignore.
 #   4. Installs production Composer dependencies.
-#   5. Creates build/file_checksum_search.tar.gz and a versioned copy.
+#   5. Creates build/<app_id>.tar.gz and a versioned copy.
 #   6. Signs the versioned archive (see "Signing" below).
 #
 # The archive contains a single top-level directory named after the app id
-# (file_checksum_search/), which is what the Nextcloud App Store expects.
+# (<app_id>/), which is what the Nextcloud App Store expects.
 #
 # Signing
 # -------
@@ -39,6 +40,7 @@
 #   DOWNLOAD_URL=... bash package.sh --appstore           # verify, then publish
 #   DOWNLOAD_URL=... bash package.sh --appstore --nightly
 #   PHP=php8.2 bash package.sh   # use a specific PHP binary for Composer
+#   KEEP_STAGING=1 bash package.sh  # keep the unpacked staging tree
 #
 # Requires: bash, openssl always; curl additionally for --appstore; rsync,
 # tar, npm, composer, php additionally for a full build (no flags). PHP is
@@ -51,7 +53,7 @@ set -euo pipefail
 SCRIPT_VERSION="1.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "==> Building Script for File Checksum Index & Search ..."
+echo "==> Packaging script"
 echo "    Script:         ${BASH_SOURCE[0]}"
 echo "    Script Version: $SCRIPT_VERSION"
 echo "    Script Path:    $SCRIPT_DIR"
@@ -243,7 +245,7 @@ sign_archive() {
 	cert_file="$CERT_FILE"
 
 	if [ ! -f "$key_file" ]; then
-		echo "==> No signing key found (${key_file}) — skipping signature (Option B)."
+		echo "==> No signing key found (${key_file}) — skipping signature."
 		rm -rf "$tmp"
 		return 0
 	fi
@@ -412,9 +414,9 @@ cp "$ARTIFACT" "$VERSIONED_ARTIFACT"
 
 # The tarballs are what ship. Leaving the unpacked staging tree behind doubles
 # the size of build/ and of the CI artifact that publishes it. Set
-# FCIAS_KEEP_STAGING=1 to keep it for inspection.
-if [ "${FCIAS_KEEP_STAGING:-0}" = "1" ]; then
-	echo "==> Keeping staging directory ${STAGING_DIR} (FCIAS_KEEP_STAGING=1)"
+# KEEP_STAGING=1 to keep it for inspection.
+if [ "${KEEP_STAGING:-0}" = "1" ]; then
+	echo "==> Keeping staging directory ${STAGING_DIR} (KEEP_STAGING=1)"
 else
 	echo "==> Removing staging directory ${STAGING_DIR}"
 	rm -rf "$STAGING_DIR"

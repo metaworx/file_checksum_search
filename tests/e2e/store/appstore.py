@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """
 The app store, as a release sees it: before the upload through a fake store,
-after it through the real store's listing.
+after it through the real store's listing. The app is the one
+appinfo/info.xml (or --manifest) names.
 
   appstore.py fake  — serves the real store's full listing (api/v1/apps.json,
       the file every server reads) with only this app's entry changed: the
       release under test first, with its download URL, signature and
       channel. Every other request passes through to the real store, so a
       server pointed here with `appstoreurl` sees the store as it is, with
-      one release more, and runs its real install path against it.
+      one release more, and runs its real install path against it. An app
+      the store does not list yet, before its first release, gets an entry
+      made from its manifest and its certificate (--certificate), with what
+      Nextcloud's installer reads from it: the id, the certificate and the
+      release.
 
   appstore.py watch — after the upload, compares the store's entry in
       api/v1/apps.json with the one the fake store serves, name, summary and
@@ -33,6 +38,7 @@ Both build the release entry from the same arguments with the same code, so
 
 Usage:
   appstore.py fake  --version V --download URL --signature FILE [--nightly] [--port 8090]
+                    [--certificate FILE]
   appstore.py watch --version V --download URL --signature FILE [--nightly]
                     --certificate FILE [--since TIME] [--mirrors]
                     [--timeout MIN] [--interval SEC] [--summary FILE]
@@ -55,7 +61,8 @@ import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 
-APP_ID = 'file_checksum_search'
+# The app's id, from its manifest, set by main().
+APP_ID = ''
 STORE = 'apps.nextcloud.com'
 LISTING = '/api/v1/apps.json'
 REDIRECTS = (301, 302, 303, 307, 308)
@@ -102,6 +109,10 @@ LABELS = {
 # How far the store's clock and the uploader's may differ before a new entry
 # looks older than its upload.
 CLOCK_MARGIN = datetime.timedelta(minutes=2)
+
+
+def user_agent(purpose: str) -> str:
+	return f'{APP_ID}-{purpose}'
 
 
 # ---------------------------------------------------------------------------
@@ -155,6 +166,43 @@ def manifest_texts(manifest_path: str) -> dict:
 	return texts
 
 
+def new_entry(args, now: str) -> dict:
+	"""An entry for an app the store does not list yet, made from its manifest
+	and its certificate: what Nextcloud's installer reads, and the texts and
+	links the Apps page shows."""
+	manifest = ET.parse(args.manifest).getroot()
+
+	def text(path: str) -> str:
+		element = manifest.find(path)
+		return (element.text or '').strip() if element is not None else ''
+
+	with open(args.certificate, encoding='ascii') as f:
+		certificate = f.read()
+
+	return {
+		'id': APP_ID,
+		'categories': [e.text for e in manifest.findall('category') if e.text],
+		'userDocs': text('documentation/user'),
+		'adminDocs': text('documentation/admin'),
+		'developerDocs': text('documentation/developer'),
+		'issueTracker': text('bugs'),
+		'website': text('website'),
+		'created': now,
+		'lastModified': now,
+		'releases': [],
+		'screenshots': [],
+		'translations': {'en': manifest_texts(args.manifest)},
+		'isFeatured': False,
+		'authors': [{'name': (e.text or '').strip(), 'mail': e.get('mail', ''), 'homepage': e.get('homepage', '')} for e in manifest.findall('author')],
+		'ratingRecent': 0.5,
+		'ratingOverall': 0.5,
+		'ratingNumRecent': 0,
+		'ratingNumOverall': 0,
+		'certificate': certificate,
+		'discussion': None,
+	}
+
+
 def listed_release(apps: list, version: str, nightly: bool) -> tuple[dict | None, dict | None]:
 	"""This app's entry, and its release of the version and channel, if listed."""
 	entry = next((app for app in apps if app['id'] == APP_ID), None)
@@ -176,7 +224,7 @@ def utc(stamp: str) -> datetime.datetime:
 
 def fetch_following(path: str) -> tuple[int, str, bytes]:
 	"""GET from the real store, following its redirects to the mirrors."""
-	request = urllib.request.Request(f'https://{STORE}{path}', headers={'User-Agent': 'fcias-fake-store'})
+	request = urllib.request.Request(f'https://{STORE}{path}', headers={'User-Agent': user_agent('fake-store')})
 	try:
 		with urllib.request.urlopen(request, timeout=120) as response:
 			return response.status, response.headers.get('Content-Type', 'application/octet-stream'), response.read()
@@ -190,14 +238,23 @@ def fake(args) -> None:
 		sys.exit(f'the real store answered {status} for {LISTING}')
 
 	apps = json.loads(body)
+	now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 	entry = next((app for app in apps if app['id'] == APP_ID), None)
 	if entry is None:
-		sys.exit(f'{APP_ID} is not in the real store\'s listing, so there is no entry to extend')
+		# Before the first release the store lists nothing to extend.
+		if not args.certificate:
+			sys.exit(f'{APP_ID} is not in the real store\'s listing: give its --certificate to list it here')
+		entry = new_entry(args, now)
+		apps.append(entry)
 
-	now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 	release = dict(entry['releases'][0] if entry['releases'] else {})
 	release.update(expected_fields(args))
 	release.update({'signatureDigest': 'sha512', 'created': now, 'lastModified': now})
+	release.setdefault('phpExtensions', [])
+	release.setdefault('databases', [])
+	release.setdefault('shellCommands', [])
+	release.setdefault('translations', {})
+	release.setdefault('licenses', [])
 	entry['releases'] = [release] + [r for r in entry['releases'] if r['version'] != args.version]
 	listing = json.dumps(apps).encode()
 
@@ -238,7 +295,7 @@ def fake(args) -> None:
 
 def request(method: str, host: str, etag: str | None = None) -> tuple[int, dict, bytes]:
 	"""One request to one host, redirects not followed, gzip accepted."""
-	headers = {'User-Agent': 'fcias-release-watch', 'Accept-Encoding': 'gzip'}
+	headers = {'User-Agent': user_agent('release-watch'), 'Accept-Encoding': 'gzip'}
 	if etag:
 		headers['If-None-Match'] = etag
 	connection = http.client.HTTPSConnection(host, timeout=120)
@@ -339,7 +396,7 @@ def post_comment(text: str) -> None:
 		headers={
 			'Authorization': f'Bearer {token}',
 			'Accept': 'application/vnd.github+json',
-			'User-Agent': 'fcias-release-watch',
+			'User-Agent': user_agent('release-watch'),
 		},
 	)
 	with urllib.request.urlopen(request_, timeout=60):
@@ -494,6 +551,8 @@ def watch(args) -> int:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
+	global APP_ID
+
 	parser = argparse.ArgumentParser()
 	commands = parser.add_subparsers(dest='command', required=True)
 
@@ -505,7 +564,9 @@ def main() -> None:
 		command.add_argument('--nightly', action='store_true')
 		command.add_argument('--manifest', default='appinfo/info.xml')
 
-	commands.choices['fake'].add_argument('--port', type=int, default=8090)
+	faker = commands.choices['fake']
+	faker.add_argument('--port', type=int, default=8090)
+	faker.add_argument('--certificate', help='the app\'s certificate, to list an app the store does not list yet')
 
 	watcher = commands.choices['watch']
 	watcher.add_argument('--certificate', required=True)
@@ -517,6 +578,9 @@ def main() -> None:
 	watcher.add_argument('--comment', metavar='MENTION', help='on success, comment on the run\'s commit, mentioning MENTION')
 
 	args = parser.parse_args()
+	APP_ID = (ET.parse(args.manifest).getroot().findtext('id') or '').strip()
+	if not APP_ID:
+		sys.exit(f'{args.manifest} names no <id>')
 	if args.command == 'fake':
 		fake(args)
 	else:

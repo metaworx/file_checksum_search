@@ -1,0 +1,16 @@
+# The shared guidelines v4.46.1, copied by tools/sync-vendor.sh: edit them
+# there, not here. <git blob id>  <project path>  <shared path>
+2a712c3585fb62b6382423ab4a641e21862bf7fe  .github/actions/release-meta/action.yml  platform/nextcloud/actions/release-meta/action.yml
+543544c597b3921efcc61d6af9d9b6de798c3805  .github/actions/node-deps/action.yml  platform/nextcloud/actions/node-deps/action.yml
+1ffe08aee5ae6b92ca3f8a939193a9763e7fc062  .github/actions/nextcloud-server/action.yml  platform/nextcloud/actions/nextcloud-server/action.yml
+9728c73f7e3387a017ec8077a7a888abb2e3ea78  .github/actions/app-into-server/action.yml  platform/nextcloud/actions/app-into-server/action.yml
+2030676ff7e85ac0f522831528196abc2bb21bcf  .github/actions/nextcloud-serve/action.yml  platform/nextcloud/actions/nextcloud-serve/action.yml
+34ac61b7a6fe8ee98f8eb047f8a8e99f6975f874  .github/actions/cypress-run/action.yml  platform/nextcloud/actions/cypress-run/action.yml
+bfd1bd15a50fea724b1851b366af58557caed587  .github/actions/app-store/action.yml  platform/nextcloud/actions/app-store/action.yml
+5abf8afd23e4c0cde604c280bdc564201850da8e  .github/workflows/publish.yml  platform/nextcloud/workflows/publish.yml
+5ad5b4d260e9e3826e9e3730d2de78af6a0af3e8  .github/workflows/install-check.yml  platform/nextcloud/workflows/install-check.yml
+170d6914292da9689e13d8ef2ff921a208e9d667  package.sh  platform/nextcloud/scripts/package.sh
+7ca7c780939b1e8c20eb14f18fa362274a057e50  scripts/l10n.py  platform/nextcloud/scripts/l10n.py
+cbb165d0bdb63a0d3d4c2ee4e4b0da076522532f  scripts/l10n.sh  platform/nextcloud/scripts/l10n.sh
+5b9619f86ea4d026714e64c527163874d8fc6c62  tests/e2e/store/appstore.py  platform/nextcloud/store/appstore.py
+494e081587159dc93a49ecb21245fcc9a4a58af9  tests/e2e/store/check-install.sh  platform/nextcloud/store/check-install.sh

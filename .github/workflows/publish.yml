@@ -4,11 +4,17 @@ name: Publish to Nextcloud App Store
 # so every job here runs with the tag as its ref — which is what the
 # `signing` and `appstore` environments' tag rules are matched against. A
 # release is run again by hand with `gh workflow run publish.yml --ref <tag>`.
+# Where the tag's tests failed and master fixed them, the test workflow is
+# started on master instead, `gh workflow run test.yml --ref master`: it
+# tests master, then publishes the tag, whose code master must not have
+# changed (release-meta); the environments allow master for that alone.
 #
 # Three jobs, one secret each at most: `build` runs the third-party code
 # (npm, Composer) and holds nothing; `sign` holds the key and runs none of
 # it; `store` holds the store token and can verify the signature but not
-# make one.
+# make one. Between sign and store, `precheck` installs the signed release
+# (install-check.yml), with the certificate only. The tarballs are named
+# after the app id the manifest states, which release-meta reads.
 on:
   workflow_call:
   workflow_dispatch:
@@ -22,6 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
+      app-id: ${{ steps.meta.outputs.app-id }}
       version: ${{ steps.meta.outputs.version }}
       kind: ${{ steps.meta.outputs.kind }}
     steps:
@@ -52,8 +59,8 @@ jobs:
         with:
           name: tarballs
           path: |
-            build/file_checksum_search.tar.gz
-            build/file_checksum_search-${{ steps.meta.outputs.version }}.tar.gz
+            build/${{ steps.meta.outputs.app-id }}.tar.gz
+            build/${{ steps.meta.outputs.app-id }}-${{ steps.meta.outputs.version }}.tar.gz
           if-no-files-found: error
 
   sign:
@@ -65,6 +72,7 @@ jobs:
     permissions:
       contents: write
     env:
+      APP_ID: ${{ needs.build.outputs.app-id }}
       VERSION: ${{ needs.build.outputs.version }}
     steps:
       # package.sh, the manifest it reads the version from, and the
@@ -99,18 +107,20 @@ jobs:
           body_path: build/release-notes.md
           prerelease: ${{ needs.build.outputs.kind == 'nightly' }}
           files: |
-            build/file_checksum_search.tar.gz
-            build/file_checksum_search-${{ needs.build.outputs.version }}.tar.gz
-            build/file_checksum_search-${{ needs.build.outputs.version }}.tar.gz.signature
+            build/${{ needs.build.outputs.app-id }}.tar.gz
+            build/${{ needs.build.outputs.app-id }}-${{ needs.build.outputs.version }}.tar.gz
+            build/${{ needs.build.outputs.app-id }}-${{ needs.build.outputs.version }}.tar.gz.signature
           fail_on_unmatched_files: true
 
-  # The release installed from a fake store that lists it — the real
-  # listing with this release added — by occ and through the Apps page,
-  # before the real store hears of it.
+  # The release installed from a fake store that lists it - the real
+  # listing with this release added - by occ and through the Apps page,
+  # and the app's own checks run against the installed copy, before the
+  # real store hears of it.
   precheck:
     name: Install before publishing
     needs: [ build, sign ]
     uses: ./.github/workflows/install-check.yml
+    secrets: inherit
     with:
       version: ${{ needs.build.outputs.version }}
       kind: ${{ needs.build.outputs.kind }}
@@ -124,8 +134,9 @@ jobs:
     outputs:
       uploaded: ${{ steps.upload.outputs.at }}
     env:
+      APP_ID: ${{ needs.build.outputs.app-id }}
       VERSION: ${{ needs.build.outputs.version }}
-      DOWNLOAD_URL: "https://github.com/${{ github.repository }}/releases/download/${{ needs.build.outputs.tag }}/file_checksum_search-${{ needs.build.outputs.version }}.tar.gz"
+      DOWNLOAD_URL: "https://github.com/${{ github.repository }}/releases/download/${{ needs.build.outputs.tag }}/${{ needs.build.outputs.app-id }}-${{ needs.build.outputs.version }}.tar.gz"
     steps:
       - name: Checkout the tag
         uses: actions/checkout@v5
@@ -140,8 +151,8 @@ jobs:
       - name: Download the release's tarball and signature
         run: |
           mkdir -p build
-          curl -fsSL -o "build/file_checksum_search-${VERSION}.tar.gz" "$DOWNLOAD_URL"
-          curl -fsSL -o "build/file_checksum_search-${VERSION}.tar.gz.signature" "${DOWNLOAD_URL}.signature"
+          curl -fsSL -o "build/${APP_ID}-${VERSION}.tar.gz" "$DOWNLOAD_URL"
+          curl -fsSL -o "build/${APP_ID}-${VERSION}.tar.gz.signature" "${DOWNLOAD_URL}.signature"
 
       # --appstore verifies the signature against the certificate before it
       # posts, and cannot sign: this job has no key.
@@ -172,7 +183,7 @@ jobs:
       contents: write
     env:
       VERSION: ${{ needs.build.outputs.version }}
-      DOWNLOAD_URL: "https://github.com/${{ github.repository }}/releases/download/${{ needs.build.outputs.tag }}/file_checksum_search-${{ needs.build.outputs.version }}.tar.gz"
+      DOWNLOAD_URL: "https://github.com/${{ github.repository }}/releases/download/${{ needs.build.outputs.tag }}/${{ needs.build.outputs.app-id }}-${{ needs.build.outputs.version }}.tar.gz"
       NIGHTLY: ${{ needs.build.outputs.kind == 'nightly' && '--nightly' || '' }}
       UPLOADED: ${{ needs.store.outputs.uploaded }}
     steps:

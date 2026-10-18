@@ -2,7 +2,7 @@ name: Nextcloud server
 description: >-
   A Nextcloud server checked out at the given branch and installed on
   MariaDB, the database the job declares as a service. With `e2e`, set up
-  the way the Cypress jobs drive it: English, no first-run wizard, jobs on
+  the way the browser tests drive it: English, no first-run wizard, jobs on
   cron, the app store on or off. The app is not installed here.
 
 inputs:
@@ -13,8 +13,8 @@ inputs:
     description: The PHP version to run it on
     default: '8.3'
   e2e:
-    description: Whether to apply the e2e settings (true or false)
-    default: 'true'
+    description: Whether to apply the browser tests' settings (true or false)
+    default: 'false'
   app-store:
     description: With e2e, whether the server may reach the app store (true or false)
     default: 'false'
@@ -38,7 +38,7 @@ runs:
         install: true
         database: mysql
 
-    - name: Configure Nextcloud for E2E
+    - name: Configure Nextcloud for the browser tests
       if: inputs.e2e == 'true'
       shell: bash
       working-directory: nextcloud
@@ -49,8 +49,7 @@ runs:
         php occ config:system:set force_language --value=en
         php occ app:disable firstrunwizard || true
         # A fresh install runs background jobs from every page a logged-in
-        # user opens (AJAX mode); the e2e suite counts state a job would
-        # clear, so jobs run only when a spec runs them.
+        # user opens; on cron, they run only when something runs them.
         php occ background:cron
         if [ -n "${{ inputs.channel }}" ]; then
           php occ config:system:set updater.release.channel --value="${{ inputs.channel }}"

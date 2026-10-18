@@ -1,14 +1,20 @@
 name: Release metadata
 description: >-
-  The tag this run was started for, the version appinfo/info.xml states,
-  and the kind of release the tag makes; fails when the tag does not name
-  the manifest's version, or when its commit is not on master. Needs the
-  tag's tree checked out.
+  The tag this run was started for, the app id and version appinfo/info.xml
+  states, and the kind of release the tag makes; fails when the tag does not
+  name the manifest's version, or when its commit is not on master. Needs the
+  tag's tree checked out. Started on master instead - a release whose tests
+  only needed fixing - the tag is the manifest's version's, which must exist
+  below master's head and differ from it only where nothing reaches the
+  package.
 
 outputs:
   tag:
     description: The tag, e.g. v0.20.3 or v0.20.3-rc1
     value: ${{ steps.meta.outputs.tag }}
+  app-id:
+    description: The app id from appinfo/info.xml, which names the tarballs
+    value: ${{ steps.meta.outputs.app-id }}
   version:
     description: The version from appinfo/info.xml, e.g. 0.20.3
     value: ${{ steps.meta.outputs.version }}
@@ -23,8 +29,43 @@ runs:
       id: meta
       shell: bash
       run: |
-        tag="${GITHUB_REF_NAME}"
+        app_id="$(sed -n 's|.*<id>\([^<]*\)</id>.*|\1|p' appinfo/info.xml | head -n1 | tr -d '[:space:]')"
         version="$(sed -n 's|.*<version>\([^<]*\)</version>.*|\1|p' appinfo/info.xml | head -n1 | tr -d '[:space:]')"
+        if [ -z "$app_id" ]; then
+          echo "::error::appinfo/info.xml names no <id>."
+          exit 1
+        fi
+        if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+          tag="${GITHUB_REF_NAME}"
+        elif [ "${GITHUB_REF_NAME}" = "master" ]; then
+          # The release the manifest names, whose tag's run did not
+          # publish - its tests failed - and whose tests master fixed: what
+          # is built here must be what the tag holds, so master may differ
+          # from it only in what neither the package nor its build reads.
+          tag="v${version}"
+          if ! git fetch --quiet --no-tags origin "refs/tags/${tag}:refs/tags/${tag}"; then
+            echo "::error::master names ${version}, and there is no tag ${tag} to publish."
+            exit 1
+          fi
+          git fetch --quiet --unshallow origin 2>/dev/null || true
+          if ! git merge-base --is-ancestor "${tag}" "$GITHUB_SHA"; then
+            echo "::error::${tag} is not below master's head."
+            exit 1
+          fi
+          changed="$(git diff --name-only "${tag}" "$GITHUB_SHA" -- . \
+            ':!tests/' ':!docs/' ':!.github/' ':!.gitlab/' ':!GUIDELINES/' ':!.idea/' \
+            ':!AGENTS.md' ':!CLAUDE.md' ':!CONTRIBUTING.md' ':!ROADMAP.md' \
+            ':!cypress.config.cjs' ':!vitest.config.ts' ':!vitest.setup.ts' \
+            ':!ecs.php' ':!psalm.xml' ':!rector.php' ':!vendor-bin/')"
+          if [ -n "$changed" ]; then
+            echo "::error::master differs from ${tag} where the package or its build reads it; tag a new release instead:"
+            printf '%s\n' "$changed"
+            exit 1
+          fi
+        else
+          echo "::error::A release is published from a version tag, or from master; not from ${GITHUB_REF_NAME}."
+          exit 1
+        fi
         if [ "v${version}" != "${tag%%-*}" ]; then
           echo "::error::The manifest says ${version} and the tag says ${tag}."
           exit 1
@@ -49,9 +90,10 @@ runs:
         else
           kind=skip
         fi
-        echo "release ${tag}: version ${version}, ${kind}"
+        echo "release ${tag}: ${app_id} ${version}, ${kind}"
         {
           echo "tag=${tag}"
+          echo "app-id=${app_id}"
           echo "version=${version}"
           echo "kind=${kind}"
         } >> "$GITHUB_OUTPUT"
