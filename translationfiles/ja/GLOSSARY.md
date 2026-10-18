@@ -2,8 +2,9 @@
 
 This translation is an AI draft, not yet reviewed by a native speaker.
 
-The terms the Japanese translation `ja` uses. A new text takes them from
-here; a term that changes, changes here and in the `.po` file at once.
+The terms the Japanese translation `ja` uses.
+A new text takes them from here; a term that changes,
+changes here and in the `.po` file at once.
 
 ## Registers
 
@@ -11,16 +12,16 @@ here; a term that changes, changes here and in the `.po` file at once.
   Nextcloud's `ja` writes its settings and core texts:
   「管理者にお問い合わせください。」, 「…をマウントできます。」,
   「保存しました」.
-- Buttons, labels, column headings, checkbox labels and tooltips that name
-  an action are nouns or the plain dictionary form, as Nextcloud has them:
-  「有効にする」, 「取り消す」, 「詳細サイドバーを開く」,
-  「ユーザーに外部ストレージの接続を許可する」. A checkbox or switch label
-  names the setting it turns on, not a fact:
+- Buttons, labels, column headings,
+  checkbox labels and tooltips that name an action are nouns or the plain dictionary form,
+  as Nextcloud has them: 「有効にする」, 「取り消す」, 「詳細サイドバーを開く」, 「ユーザーに外部ストレージの接続を許可する」.
+  A checkbox or switch label names the setting it turns on, not a fact:
   「このルールの編集と無効化を管理者のみに許可する」.
 - When the app answers the reader, it speaks politely: the toast after
   the 「了解」 button says 「承知しました。…」, not the button's words.
-- The reader is *あなた* where a text must name them, which Nextcloud's `ja`
-  also does; otherwise the subject is left out, as Japanese prefers.
+- The reader is *あなた* where a text must name them,
+  which Nextcloud's `ja` also does; otherwise the subject is left out,
+  as Japanese prefers.
 
 ## Terms
 
@@ -101,27 +102,27 @@ here; a term that changes, changes here and in the `.po` file at once.
 ## Style
 
 - The app's name, *File Checksum Index & Search*, stays English.
-- Punctuation is full-width: 。、：！？（）. A range takes ～ (U+FF5E), as
-  Nextcloud's `ja` writes it: 「1～500」; not 〜 (U+301C).
-- A name of a UI element in running text takes 「」 and the exact Japanese
-  of that element's own label: 「すべてのホームフォルダー」, 「セキュリティ」,
-  「ルールを追加」, a type as 「含める」. A value shown or typed as it is keeps
-  straight quotes and stays English: `"**"`, `"include"`, `"hash"`,
-  `local::/path/`.
-- A failure names what failed: 「ルールを保存できませんでした。」. One with
-  nothing to name reads 「保存に失敗しました。」, as the English's "Saving
-  failed.".
+- Punctuation is full-width: 。、：！？（）.
+  A range takes ～ (U+FF5E), as Nextcloud's `ja` writes it: 「1～500」;
+  not 〜 (U+301C).
+- A name of a UI element in running text takes 「」 and the exact Japanese of that
+  element's own label: 「すべてのホームフォルダー」, 「セキュリティ」, 「ルールを追加」, a type as 「含める」.
+  A value shown or typed as it is keeps straight quotes and stays English:
+  `"**"`, `"include"`, `"hash"`, `local::/path/`.
+- A failure names what failed: 「ルールを保存できませんでした。」.
+  One with nothing to name reads 「保存に失敗しました。」,
+  as the English's "Saving failed.".
 - The English dash between clauses becomes a sentence break, a colon
   (「強制：個別」) or parentheses; Japanese has no spaced dash.
 - An ellipsis follows the word directly, with no space: 「グループを検索…」.
   The English's no-break space before it is not carried over.
-- `{placeholders}`, `%s` and `%n` stay as they are. One that stands for a
-  name, a path or a value takes a half-width space next to kana or kanji
-  (「{path} のルールを編集」), as does a code literal (`storages テーブル`,
-  `"hash" パラメーター`); one that counts is written tight like a numeral
-  (「第{band}階層」, 「%n個のファイル」). A quoted value inside a sentence is
-  tight: `"include"は`. Acronyms and product words are tight: API、ID、PHP、
-  「occコマンド」, 「sudoersの権限」.
-- Katakana long vowels are written out, as Nextcloud's `ja` does in
-  フォルダー、ユーザー、サーバー; for consistency also パラメーター,
+- `{placeholders}`, `%s` and `%n` stay as they are.
+  One that stands for a name,
+  a path or a value takes a half-width space next to kana or kanji (「{path} のルールを編集」),
+  as does a code literal (`storages テーブル`, `"hash" パラメーター`);
+  one that counts is written tight like a numeral (「第{band}階層」, 「%n個のファイル」).
+  A quoted value inside a sentence is tight: `"include"は`.
+  Acronyms and product words are tight: API、ID、PHP、 「occコマンド」, 「sudoersの権限」.
+- Katakana long vowels are written out,
+  as Nextcloud's `ja` does in フォルダー、ユーザー、サーバー; for consistency also パラメーター,
   ブラウザー and エントリー, where Nextcloud is uneven.

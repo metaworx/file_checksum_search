@@ -3,10 +3,10 @@
 This translation is an AI draft, not yet reviewed by a native speaker.
 
 `en_GB` is the app's American English with only what British usage changes.
-Everything not listed here stays the English, character for character. The
-model is Nextcloud's own British English (core, settings, files,
-files_sharing, dav), which changes little. A word that changes, changes here
-and in the `.po` file at once.
+Everything not listed here stays the English, character for character.
+The model is Nextcloud's own British English (core, settings, files,
+files_sharing, dav), which changes little.
+A word that changes, changes here and in the `.po` file at once.
 
 ## Spelling
 
@@ -21,14 +21,15 @@ and in the `.po` file at once.
 
 ## Wording
 
-Wording changes only where Nextcloud's British English changes the same
-wording in the same kind of text: “Wrong password” → “Incorrect password”,
-“Access forbidden” → “Access denied”, “expiration date” → “expiry date”. The
-app has no such text yet.
+Wording changes only where Nextcloud's British English changes the same wording
+in the same kind of text: “Wrong password” → “Incorrect password”,
+“Access forbidden” → “Access denied”, “expiration date” → “expiry date”.
+The app has no such text yet.
 
-*Reapply*, *recalculate* and *reorder* stay solid, as British dictionaries
-(Oxford, Cambridge, Collins) and Nextcloud's own British English (reload,
-reshare, rescan, retry) write *re-* words.
+*Reapply*, *recalculate* and *reorder* stay solid,
+as British dictionaries (Oxford, Cambridge,
+Collins) and Nextcloud's own British English (reload, reshare, rescan,
+retry) write *re-* words.
 
 ## Never changes
 
@@ -38,8 +39,9 @@ reshare, rescan, retry) write *re-* words.
 - Values in straight quotes: `"include"`, `"hash"`, `"**"`, `local::/path/`.
 - Code, route and parameter names: `/api/v1/sudo/`, `fileIds`, `selector`,
   `value`, `groupfolder:`.
-- Nextcloud's own names the texts quote, “Security” and “Allow filesystem
-  access”, which Nextcloud's British English keeps.
-- The no-break space (U+00A0) before “…”, as Nextcloud's British English
-  keeps it.
+- Nextcloud's own names the texts quote,
+  “Security” and “Allow filesystem access”,
+  which Nextcloud's British English keeps.
+- The no-break space (U+00A0) before “…”,
+  as Nextcloud's British English keeps it.
 - Punctuation and quotation marks.

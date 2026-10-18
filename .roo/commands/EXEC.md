@@ -1,11 +1,12 @@
----
-description: "Execute the current Action Plan — pre-flight checklist, tool reminders, and implementation guardrails"
-argument-hint: "[additional instructions or scope overrides]"
----
+--- description: "Execute the current Action Plan — pre-flight checklist,
+tool reminders, and implementation guardrails" argument-hint:
+"[additional instructions or scope overrides]" ---
 
 # /EXEC — Execute Action Plan
 
-Activates code-mode execution of the gated Action Plan. Provides a pre-flight checklist of project-specific tool conventions and common pitfalls before the agent begins modifying files.
+Activates code-mode execution of the gated Action Plan.
+Provides a pre-flight checklist of project-specific tool conventions and common
+pitfalls before the agent begins modifying files.
 
 ## 1. Core Rules (MUST)
 
@@ -24,11 +25,14 @@ Before writing a single line of code, verify:
 
 - [ ] CRITICAL CHECK (MUST pass before ANY file write): \
   Is the target file in .aiassistant/messages/ ?
-  - → If YES: STOP. Create a NEW file with fresh timestamp + incremented version.
+  - → If YES: STOP.
+    Create a NEW file with fresh timestamp + incremented version.
   - → NEVER use apply_diff on UAMF files.
 - [ ] The AP UAMF file exists in `.aiassistant/messages/` and is approved
-- [ ] Read [`.aiassistant/TESTING.md`](.aiassistant/TESTING.md) §1 for the correct test runner invocation
-- [ ] Read [`.aiassistant/COMMIT.md`](.aiassistant/COMMIT.md) for commit workflow if the task will result in a commit
+- [ ] Read [`.aiassistant/TESTING.md`](.aiassistant/TESTING.md) §1 for the
+  correct test runner invocation
+- [ ] Read [`.aiassistant/COMMIT.md`](.aiassistant/COMMIT.md) for commit
+  workflow if the task will result in a commit
 - [ ] Identify which files will be modified (the AP's Implementation Plan lists them)
 - [ ] Read the current state of each file to be modified
 
@@ -57,26 +61,39 @@ wsl --cd "$PWD" .aiassistant/shared/lang/php/tools/phpunit tests/Integration/
 
 Fallback: JetBrains MCP `execute_run_configuration` with `filePath` + `line`.
 
-> **Important:** When using the native agent `execute_command` tool, always pass `cwd: "C:\\"` — the default workspace path `\\wsl.localhost\...` is a UNC path unsupported by CMD.EXE.
+> **Important:**
+> When using the native agent `execute_command` tool,
+> always pass `cwd: "C:\\"` — the default workspace path `\\wsl.localhost\...`
+> is a UNC path unsupported by CMD.EXE.
 
-> Use `.aiassistant/shared/lang/php/tools/phpunit` for all test runs — it auto-detects ddev vs direct execution and handles path translation.
+> Use `.aiassistant/shared/lang/php/tools/phpunit` for all test runs — it
+> auto-detects ddev vs direct execution and handles path translation.
 
 ### 3.2 Database Commands
 
-FCIAS has no project-specific CLI. Database operations are via Nextcloud migrations (`occ migrations:execute`) or raw SQL through `IDBConnection`.
+FCIAS has no project-specific CLI.
+Database operations are via Nextcloud migrations (`occ migrations:execute`)
+or raw SQL through `IDBConnection`.
 
-For MariaDB trigger/stored procedure management, use the admin settings page or CLI commands (`file-checksum-search:status`, `file-checksum-search:teardown`).
+For MariaDB trigger/stored procedure management,
+use the admin settings page or CLI commands (`file-checksum-search:status`,
+`file-checksum-search:teardown`).
 
 ### 3.3 File Editing
 
 CRITICAL CHECK (MUST pass before ANY file write): \
 Is the target file in .aiassistant/messages/ ?
-  - → If YES: STOP. Create a NEW file with fresh timestamp + incremented version.
+  - → If YES: STOP.
+    Create a NEW file with fresh timestamp + incremented version.
   - → NEVER use apply_diff on UAMF files.
 
-Prefer `apply_diff` for targeted changes. Remember: `apply_diff` requires BOTH `path` and `diff` parameters. Omitting `path` is a common error — the tool will reject the call.
+Prefer `apply_diff` for targeted changes.
+Remember: `apply_diff` requires BOTH `path` and `diff` parameters.
+Omitting `path` is a common error — the tool will reject the call.
 
-For large rewrites, `write_to_file` is acceptable but loses local IDE history. Per [`AGENTS.md`](AGENTS.md) §1.5, consider writing to `.aiassistant/temp/` first and atomically replacing.
+For large rewrites, `write_to_file` is acceptable but loses local IDE history.
+Per [`AGENTS.md`](AGENTS.md) §1.5,
+consider writing to `.aiassistant/temp/` first and atomically replacing.
 
 Use Git to move files where possible.
 
@@ -87,17 +104,24 @@ Commit workflow — always prefix with `wsl --cd "$PWD"`:
 
 1. Write the commit message to `.aiassistant/temp/commit-msg.txt`
 2. Stage: `wsl --cd "$PWD" git add <files>`
-3. Commit: `wsl --cd "$PWD" git commit -F .aiassistant/temp/commit-msg.txt --trailer "Co-authored-by: Agent <agent@example.com>"`
-4. Amend: `wsl --cd "$PWD" git commit --amend -F .aiassistant/temp/commit-msg.txt --trailer "Co-authored-by: Agent <agent@example.com>"`
+3. Commit:
+   `wsl --cd "$PWD" git commit -F .aiassistant/temp/commit-msg.txt --trailer "Co-authored-by: Agent <agent@example.com>"`
+4. Amend:
+   `wsl --cd "$PWD" git commit --amend -F .aiassistant/temp/commit-msg.txt --trailer "Co-authored-by: Agent <agent@example.com>"`
 
-> **Important:** When using the native agent `execute_command` tool, always pass `cwd: "C:\\"` to avoid CMD.EXE UNC path errors.
+> **Important:**
+> When using the native agent `execute_command` tool,
+> always pass `cwd: "C:\\"` to avoid CMD.EXE UNC path errors.
 
-- Never commit without a gate message and EXEC confirmation per [`AGENTS.md`](AGENTS.md) §1.3.
+- Never commit without a gate message and EXEC confirmation per
+  [`AGENTS.md`](AGENTS.md) §1.3.
 - Never revert or checkout without a gate message and EXEC confirmation.
 
 ### 3.5 Code Quality
 
-After editing PHP files, follow the JetBrains MCP Quality Workflow documented in [`.aiassistant/TESTING.md`](.aiassistant/TESTING.md).
+After editing PHP files,
+follow the JetBrains MCP Quality Workflow documented in
+[`.aiassistant/TESTING.md`](.aiassistant/TESTING.md).
 
 ## 4. Common Pitfalls
 
@@ -116,7 +140,8 @@ After editing PHP files, follow the JetBrains MCP Quality Workflow documented in
 1. Read the approved AP UAMF from `.aiassistant/messages/`
 2. Run the §2 pre-flight checklist
 3. Execute each Implementation Plan block in order
-4. After each block, run the Verification step (typically: run the relevant tests)
+4. After each block, run the Verification step (typically:
+   run the relevant tests)
 5. When all blocks are complete, run the full scoped test suite
 6. If the task includes a commit, run `/cm` (or present commit gate manually)
 

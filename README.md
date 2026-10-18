@@ -1,74 +1,105 @@
 # File Checksum Index & Search (FCIAS)
 
-A Nextcloud app that indexes file checksums for fast reverse hash lookups and duplicate detection.
+A Nextcloud app that indexes file checksums for fast reverse hash lookups
+and duplicate detection.
 
-Nextcloud's `oc_filecache` stores checksums as space-delimited `algo:hash` pairs in a single unindexed TEXT column. Searching for files by hash therefore requires a full-table `LIKE '%hash%'` scan — O(n) and unusable at scale.
+Nextcloud's `oc_filecache` stores checksums as space-delimited `algo:hash` pairs
+in a single unindexed TEXT column.
+Searching for files by hash therefore requires a full-table `LIKE '%hash%'` scan
+— O(n) and unusable at scale.
 
-FCIAS stores checksums in Nextcloud's built-in **files metadata index** (`oc_files_metadata` / `oc_files_metadata_index`) and mirrors them back into the `filecache` checksum column. It adds composite indices to the built-in metadata index, enabling fast indexed reverse hash lookups without any custom tables.
+FCIAS stores checksums in Nextcloud's built-in **files metadata index**
+(`oc_files_metadata` / `oc_files_metadata_index`) and mirrors them back into the
+`filecache` checksum column.
+It adds composite indices to the built-in metadata index,
+enabling fast indexed reverse hash lookups without any custom tables.
 
 ## What FCIAS stores, and where
 
-Two different things, in two of Nextcloud's own tables, and telling them apart is
-most of understanding this app:
+Two different things, in two of Nextcloud's own tables,
+and telling them apart is most of understanding this app:
 
 - A **metadata document** is one row of `oc_files_metadata` — a `json` column
-  holding *every* app's metadata for that file, FCIAS's hashes among them. It is
-  the record: values are stored whole, and none of it is searchable.
+  holding *every* app's metadata for that file, FCIAS's hashes among them.
+  It is the record: values are stored whole, and none of it is searchable.
 - An **index row** is one row of `oc_files_metadata_index` — one per file per key,
-  and the only one of the two a query can reach. It is the lookup, and it is a
-  copy.
+  and the only one of the two a query can reach.
+  It is the lookup, and it is a copy.
 
 FCIAS writes one key per algorithm into the metadata document
-(`file-checksum-hash-sha256`, and so on) alongside a `file-checksum-updated_at`
-stamp recording when the file was last considered, then writes its own index row
-for each hash. The stamp gets an index row too. What the file is waiting for
-(`pending:auto`), or why its hashes are not to be trusted (`stale:revoked`), is an
-index row of its own, `file-checksum-state`, which exists only while there is
-such a state. The hashes are additionally mirrored back into
-`oc_filecache.checksum`, where Nextcloud itself and sync clients look for them.
-Where MIME type detection is on, the file's type as its content says is one more
-key, `file-checksum-mimetype`, with an index row of its own
-([MIME types from the content](#mime-types-from-the-content)).
+(`file-checksum-hash-sha256`,
+and so on) alongside a `file-checksum-updated_at` stamp recording when the file
+was last considered, then writes its own index row for each hash.
+The stamp gets an index row too.
+What the file is waiting for (`pending:auto`),
+or why its hashes are not to be trusted (`stale:revoked`),
+is an index row of its own, `file-checksum-state`,
+which exists only while there is such a state.
+The hashes are additionally mirrored back into `oc_filecache.checksum`,
+where Nextcloud itself and sync clients look for them.
+Where MIME type detection is on,
+the file's type as its content says is one more key, `file-checksum-mimetype`,
+with an index row of its own ([MIME types from the
+content](#mime-types-from-the-content)).
 
-**"Document" here never means the user's file.** A PDF has a metadata document,
-and so does a photo. Where this README and the code say *document* unqualified,
+**"Document" here never means the user's file.**
+A PDF has a metadata document, and so does a photo.
+Where this README and the code say *document* unqualified,
 they mean the row in `oc_files_metadata`.
 
-For what the two tables look like from a database client, see
-[FAQ § What am I looking at in the database?](docs/FAQ.md#what-am-i-looking-at-in-the-database).
+For what the two tables look like from a database client,
+see [FAQ § What am I looking at in the
+database?](docs/FAQ.md#what-am-i-looking-at-in-the-database).
 
-> **Note on long hashes:** Nextcloud core's `oc_files_metadata_index.meta_value_string` column is
-> `VARCHAR(63)` — a hard limit set by Nextcloud itself, not by FCIAS. A SHA-256 digest is 64
-> characters and a SHA-512 is 128, so they do not fit. The database does *not* quietly shorten
-> them: under the strict mode every modern install runs, the insert is rejected outright, and
-> Nextcloud's own index writer logs that failure rather than raising it — which is why, before
-> this was fixed, searching for a SHA-256 found nothing at all rather than finding the wrong file.
+> **Note on long hashes:**
+> Nextcloud core's `oc_files_metadata_index.meta_value_string` column is
+> `VARCHAR(63)` — a hard limit set by Nextcloud itself, not by FCIAS.
+> A SHA-256 digest is 64 characters and a SHA-512 is 128, so they do not fit.
+> The database does *not* quietly shorten them:
+> under the strict mode every modern install runs,
+> the insert is rejected outright,
+> and Nextcloud's own index writer logs that failure rather than raising it —
+> which is why, before this was fixed,
+> searching for a SHA-256 found nothing at all rather than finding the wrong file.
 >
-> So FCIAS writes these index rows itself, truncated to the column's width
-> (`MetadataService::syncHashIndex()`), and keeps the whole value in the metadata document. A
-> lookup truncates its search term the same way and then confirms the full value from the metadata
-> document (`MetadataService::confirmFullHash()`), because 63 characters of a 64-character hash
-> can be shared by two different files. Truncated rows need no marker: hex digests are even-length, so
-> nothing produces exactly 63 characters, and `meta_key` names the algorithm and therefore the
-> length to expect.
+> So FCIAS writes these index rows itself,
+> truncated to the column's width (`MetadataService::syncHashIndex()`),
+> and keeps the whole value in the metadata document.
+> A lookup truncates its search term the same way and then confirms the full
+> value from the metadata document (`MetadataService::confirmFullHash()`),
+> because 63 characters of a 64-character hash can be shared by two different files.
+> Truncated rows need no marker: hex digests are even-length,
+> so nothing produces exactly 63 characters,
+> and `meta_key` names the algorithm and therefore the length to expect.
 >
-> Any *new* code that queries this index directly needs the same treatment — truncate the term,
+> Any *new* code that queries this index directly needs the same treatment —
+> truncate the term,
 > confirm the match — or it will silently misbehave for long hashes.
 
 ## Features
 
-- **Duplicate file browser** — a standalone page (`/duplicates`) and files sidebar integration for finding files with identical hashes
-- **Files sidebar "Checksums" tab** — shows the selected file's checksums with recalculate and find-duplicates actions
+- **Duplicate file browser** — a standalone page (`/duplicates`) and files
+  sidebar integration for finding files with identical hashes
+- **Files sidebar "Checksums" tab** — shows the selected file's checksums with
+  recalculate and find-duplicates actions
 - **Unified Search provider** — type a hash directly into Nextcloud's search bar
-- **Rule-based hash generation** — nothing runs until a rule is enabled; `auto`, `missing`, `force`, and `lazy` modes, addressed at home folders, groups, team folders or storages
-- **Admin settings page** — rule management, the four permissions, sudo tokens, status, and the docs, one tab each
-- **Personal settings page** — users can view, create, and edit rules subject to permissions; per-rule `admin_enforced` locks
+- **Rule-based hash generation** — nothing runs until a rule is enabled; `auto`,
+  `missing`, `force`, and `lazy` modes, addressed at home folders, groups,
+  team folders or storages
+- **Admin settings page** — rule management, the four permissions, sudo tokens,
+  status, and the docs, one tab each
+- **Personal settings page** — users can view, create,
+  and edit rules subject to permissions; per-rule `admin_enforced` locks
 - **Automatic index maintenance** — Nextcloud file event listeners and background jobs
 - **Lazy & deferred hash recalculation** — a pending queue drained by a background job
-- **MIME types from the content** — optional: each file's type, named by its first 64 KiB while it is hashed, in the sidebar, on the duplicates page and in the API
+- **MIME types from the content** — optional: each file's type,
+  named by its first 64 KiB while it is hashed, in the sidebar,
+  on the duplicates page and in the API
 - **Public API v1** — HTTP REST and PHP surfaces with an OpenAPI spec
-- **21 CLI commands** for search, rule management, MIME types, administration, and maintenance
-- **User guide & FAQ** — served in-app, split by audience (see [Documentation](#documentation))
+- **21 CLI commands** for search, rule management, MIME types, administration,
+  and maintenance
+- **User guide & FAQ** — served in-app,
+  split by audience (see [Documentation](#documentation))
 
 ## Requirements
 
@@ -79,7 +110,9 @@ For what the two tables look like from a database client, see
 | Database | SQLite, MySQL or MariaDB, PostgreSQL — not Oracle |
 | Node.js | 24 (build only, not needed at runtime) |
 
-> **Note:** FCIAS uses Nextcloud's built-in files metadata index and adds composite indices on it. No custom tables are required.
+> **Note:**
+> FCIAS uses Nextcloud's built-in files metadata index and adds composite indices on it.
+> No custom tables are required.
 
 ## Installation
 
@@ -98,15 +131,17 @@ cd /var/www/nextcloud
 php occ app:enable file_checksum_search
 ```
 
-During the enable step the app registers its checksum metadata keys and copies the checksums the
-filecache already holds into its index. No file is read, and nothing is hashed until you enable a
-rule — see [How hashing happens](#how-hashing-happens).
+During the enable step the app registers its checksum metadata keys and copies
+the checksums the filecache already holds into its index.
+No file is read, and nothing is hashed until you enable a rule — see [How
+hashing happens](#how-hashing-happens).
 
 ## CLI Reference
 
-FCIAS provides 21 `occ` commands — four for files and search, five for rules, two for status,
-five for MIME types, three for the state the app owns, one for repair, and one for the queue. Run
-them as `php occ <command>`.
+FCIAS provides 21 `occ` commands — four for files and search, five for rules,
+two for status, five for MIME types, three for the state the app owns,
+one for repair, and one for the queue.
+Run them as `php occ <command>`.
 
 ### Core Commands
 
@@ -119,9 +154,12 @@ them as `php occ <command>`.
 
 #### `hash` and the rules
 
-`hash` honours the hash generation rules, in both its direct and its `--mark` form: it is the
-CLI face of the background job, so a rule saying not to hash a file stops it too. Its options
-split into two groups — *what to compute*, and *named deviations from the rules*:
+`hash` honours the hash generation rules,
+in both its direct and its `--mark` form:
+it is the CLI face of the background job,
+so a rule saying not to hash a file stops it too.
+Its options split into two groups — *what to compute*,
+and *named deviations from the rules*:
 
 | Option | Effect |
 |--------|--------|
@@ -133,12 +171,14 @@ split into two groups — *what to compute*, and *named deviations from the rule
 | `--ignore-rule=<id>` | Evaluate as if that rule did not exist, so the next matching rule decides. Repeatable. An unknown ID fails the run rather than being skipped quietly. |
 | `-v` / `-vv` | `-v` names the rule that skipped each file; `-vv` also names the rule for each file that proceeds. |
 
-There is deliberately **no blanket `--force`**. The rules are a statement of intent about the
-storage — an `exclude` on a metered mount means reading costs money — not a permission boundary,
-and a flag whose main use is doing the expensive thing the configuration exists to avoid does not
-earn its place in a cron line nobody is watching. `--ignore-rule` names what is being set aside,
-so it is legible in shell history; it may set aside an admin-enforced rule, and logs a warning
-naming that rule when it does.
+There is deliberately **no blanket `--force`**.
+The rules are a statement of intent about the storage — an `exclude` on a
+metered mount means reading costs money — not a permission boundary,
+and a flag whose main use is doing the expensive thing the configuration exists
+to avoid does not earn its place in a cron line nobody is watching.
+`--ignore-rule` names what is being set aside,
+so it is legible in shell history; it may set aside an admin-enforced rule,
+and logs a warning naming that rule when it does.
 
 ### Rule Management Commands
 
@@ -150,12 +190,14 @@ naming that rule when it does.
 | `file-checksum-search:rules:delete <id> [-y]` | Delete a rule; a deleted shipped default is recreated (disabled) by the repair step |
 | `file-checksum-search:rules:apply <id> [-m <mode>]` | Queue every file the rule currently governs for background hashing — uncapped, unlike the periodic sweep; `-m` overrides the rule's mode for this run (logged) |
 
-Every command also answers to a short `fcias:` alias (`fcias:rules:list`, …). occ acts as an
-administrator, and everything validates through the same code path as the web UI and REST —
-selector grammar, user and group existence, algorithm names — so no surface can accept what another
-refuses. `rules:list` is also where the ids for `hash --ignore-rule` come from. All rule
-mutations are audit-logged with the acting surface; changes to admin-enforced rules log at
-warning level.
+Every command also answers to a short `fcias:` alias (`fcias:rules:list`,
+…). occ acts as an administrator,
+and everything validates through the same code path as the web UI and REST —
+selector grammar, user and group existence,
+algorithm names — so no surface can accept what another refuses.
+`rules:list` is also where the ids for `hash --ignore-rule` come from.
+All rule mutations are audit-logged with the acting surface;
+changes to admin-enforced rules log at warning level.
 
 ### Status & Configuration Commands
 
@@ -176,10 +218,13 @@ warning level.
 | `file-checksum-search:mimetype:refresh [--all]` | Queue the hashed files without a type, or with `--all` every one, for their first 64 KiB alone; detection must be on |
 | `file-checksum-search:mimetype:delete` | Delete every stored type, out of the documents and the index; detection must be off |
 
-They are the admin settings' switch and buttons, under the same rules, with one difference:
-`refresh` and `delete` do the work in the command. `refresh` marks the files, and the drain reads
-them — `queue:drain --all` at once. `delete` requests the deletion, which queues its job, and
-then deletes in the foreground; cut short, the job goes on with it. See [MIME types from the content](#mime-types-from-the-content).
+They are the admin settings' switch and buttons, under the same rules,
+with one difference: `refresh` and `delete` do the work in the command.
+`refresh` marks the files,
+and the drain reads them — `queue:drain --all` at once.
+`delete` requests the deletion, which queues its job,
+and then deletes in the foreground; cut short, the job goes on with it.
+See [MIME types from the content](#mime-types-from-the-content).
 
 ### Repair Commands
 
@@ -188,21 +233,28 @@ then deletes in the foreground; cut short, the job goes on with it. See [MIME ty
 | `file-checksum-search:repair [options]` | Run this app's repair steps, all of them or by name |
 | `file-checksum-search:queue:drain [options]` | Compute the hashes the rules have asked for, without waiting for cron |
 
-`--list` describes every step; `--step <name>` runs some of them and is repeatable; `--dry-run`
-says what would run and changes nothing. A step marked *expensive* costs more the larger the
-instance, so it asks whether there is anything to do before doing it — `--include-expensive`
-tells it not to ask. These are the same steps `occ maintenance:repair` runs, without every other
-app's.
+`--list` describes every step;
+`--step <name>` runs some of them and is repeatable;
+`--dry-run` says what would run and changes nothing.
+A step marked *expensive* costs more the larger the instance,
+so it asks whether there is anything to do before doing it —
+`--include-expensive` tells it not to ask.
+These are the same steps `occ maintenance:repair` runs,
+without every other app's.
 
-`queue:drain` is deliberately not one of those steps: every repair step reconciles state
-the instance already holds and runs on every upgrade, whereas draining reads file content.
-`--batch-size` takes one batch of that size; with neither flag it takes the
-`pending_batch_limit` setting the background job uses, so tuning that is honoured in both
-places. A run that leaves work behind says how much, which limit stopped it, and both ways
-past it. `--all` keeps going until the queue is empty. Each run counts what it did with the
-files it took — hashed, dropped unread because no include rule wants them any more, failed,
-and the rarer outcomes where they happen — and `-v` names each file it did not hash, and why;
-`-vv` the hashed ones too.
+`queue:drain` is deliberately not one of those steps:
+every repair step reconciles state the instance already holds and runs on every upgrade,
+whereas draining reads file content.
+`--batch-size` takes one batch of that size;
+with neither flag it takes the `pending_batch_limit` setting the background job uses,
+so tuning that is honoured in both places.
+A run that leaves work behind says how much, which limit stopped it,
+and both ways past it.
+`--all` keeps going until the queue is empty.
+Each run counts what it did with the files it took — hashed,
+dropped unread because no include rule wants them any more, failed,
+and the rarer outcomes where they happen — and `-v` names each file it did not hash,
+and why; `-vv` the hashed ones too.
 
 ### State Commands
 
@@ -213,11 +265,13 @@ and the rarer outcomes where they happen — and `-v` names each file it did not
 | `file-checksum-search:revoke [options]` | Revoke the stored hashes alone — reporting only, until `--force` |
 | `file-checksum-search:import [options]` | Read a backup back, or bring in checksums computed elsewhere |
 
-They share the slice flags `--config`, `--status` and `--hashes`; naming none takes all of them,
-except on `import`, where `--status` is refused (see below), and on `revoke`, which takes the
-hashes alone; on `reset`, `--hashes` is deprecated in favour of `revoke`. See
-[Backing up, resetting and importing](#backing-up-resetting-and-importing) for what each slice is
-and what the options mean.
+They share the slice flags `--config`, `--status` and `--hashes`;
+naming none takes all of them, except on `import`,
+where `--status` is refused (see below), and on `revoke`,
+which takes the hashes alone; on `reset`,
+`--hashes` is deprecated in favour of `revoke`.
+See [Backing up, resetting and importing](#backing-up-resetting-and-importing)
+for what each slice is and what the options mean.
 
 ### Examples
 
@@ -298,111 +352,161 @@ php occ fcias:import --merge -i SHA256SUMS --algo=sha256 --user=alice --stamp=mt
 
 ## How hashing happens
 
-Nothing is hashed until a rule says so. A fresh installation ships two rules, both **disabled**:
-one addressing every home folder, one addressing every storage there is. Until one of them — or a
-rule you write — is enabled, the app computes nothing on its own, and the admin settings page says
-so in a banner rather than leaving you to wonder.
+Nothing is hashed until a rule says so.
+A fresh installation ships two rules, both **disabled**:
+one addressing every home folder, one addressing every storage there is.
+Until one of them — or a rule you write — is enabled,
+the app computes nothing on its own,
+and the admin settings page says so in a banner rather than leaving you to wonder.
 
 Once a rule is enabled, six paths lead to a hash:
 
-1. **A file event.** Creating, writing or copying a file asks the rules what governs it. The answer
-   decides: an `include` rule queues the file as `pending:<mode>`, `ignore` and `exclude` queue
-   nothing, and a file no rule governs is left alone.
-2. **The queue drain.** `ProcessPendingUpdates` runs every 60 seconds and takes up to 50 queued
-   files. It resolves each file's rule *again* at that moment and takes the algorithms from it — so
-   a rule changed between the mark and the drain is honoured, and a file that lost its coverage in
-   between is dropped from the queue instead of hashed.
-3. **The periodic sweep.** `RuleProcessingJob` walks the storages each enabled rule addresses and
-   queues what is outdated or unhashed, up to 100 files per rule and run that are not queued already.
-   This is the net beneath the events: a file changed while the app was disabled, a rule enabled after
-   the fact, an event that never fired.
-4. **The changed-file check.** Once a day — `stamp_check_interval`, in seconds, default 86400 — the
-   sweep queues a walk over the files whose ETag moved on since their hashes were read, and treats
-   each as written: a change the app never heard of, with the mtime kept, which the sweep cannot see.
-   The same walk asks the storage about each file marked gone, and queues one it has again.
-5. **An explicit pass.** `occ file-checksum-search:rules:apply <id>`, or **Reapply** in the rules
-   table, queues every file that rule currently governs — uncapped, where the periodic sweep
-   trickles.
-6. **By hand.** The **Checksums** tab in the files sidebar recalculates one file on request. Only an
-   `exclude` rule refuses: `ignore` means "not automatically", and asking is not automatic.
+1. **A file event.**
+   Creating, writing or copying a file asks the rules what governs it.
+   The answer decides: an `include` rule queues the file as `pending:<mode>`,
+   `ignore` and `exclude` queue nothing,
+   and a file no rule governs is left alone.
+2. **The queue drain.**
+   `ProcessPendingUpdates` runs every 60 seconds and takes up to 50 queued files.
+   It resolves each file's rule *again* at that moment and takes the algorithms
+   from it — so a rule changed between the mark and the drain is honoured,
+   and a file that lost its coverage in between is dropped from the queue
+   instead of hashed.
+3. **The periodic sweep.**
+   `RuleProcessingJob` walks the storages each enabled rule addresses and queues
+   what is outdated or unhashed,
+   up to 100 files per rule and run that are not queued already.
+   This is the net beneath the events:
+   a file changed while the app was disabled, a rule enabled after the fact,
+   an event that never fired.
+4. **The changed-file check.**
+   Once a day — `stamp_check_interval`, in seconds,
+   default 86400 — the sweep queues a walk over the files whose ETag moved on
+   since their hashes were read, and treats each as written:
+   a change the app never heard of, with the mtime kept,
+   which the sweep cannot see.
+   The same walk asks the storage about each file marked gone,
+   and queues one it has again.
+5. **An explicit pass.**
+   `occ file-checksum-search:rules:apply <id>`,
+   or **Reapply** in the rules table,
+   queues every file that rule currently governs — uncapped,
+   where the periodic sweep trickles.
+6. **By hand.**
+   The **Checksums** tab in the files sidebar recalculates one file on request.
+   Only an `exclude` rule refuses: `ignore` means "not automatically",
+   and asking is not automatic.
 
-The periodic sweep also carries the app's one piece of housekeeping: once a day — `orphan_purge_interval`,
-in seconds, default 86400 — it forgets files that no longer exist, the metadata that deleting a user or
-removing a storage leaves behind because Nextcloud's own cleanup does not run on those paths. Deleting a
-user makes that due at once, and so does every repair that installing, enabling or upgrading the app runs.
-The status page and `occ fcias:status` show when it last ran, as *Orphan purge*, beside the other
-background jobs; `occ fcias:repair --step orphaned-metadata` runs it by hand.
+The periodic sweep also carries the app's one piece of housekeeping:
+once a day — `orphan_purge_interval`, in seconds,
+default 86400 — it forgets files that no longer exist,
+the metadata that deleting a user or removing a storage leaves behind because
+Nextcloud's own cleanup does not run on those paths.
+Deleting a user makes that due at once,
+and so does every repair that installing, enabling or upgrading the app runs.
+The status page and `occ fcias:status` show when it last ran, as *Orphan purge*,
+beside the other background jobs;
+`occ fcias:repair --step orphaned-metadata` runs it by hand.
 
-Installing the app reads no file content at all. It queues a background job that copies the checksums
-Nextcloud's own filecache already carries into the searchable index, a slice per cron run, so that
-enabling the app returns at once however many files there are; `occ fcias:repair --step
-rebuild-from-filecache` does the same copy on demand, at once, and neither overwrites a hash the app
-already stored. Installing, enabling and upgrading also queue the check that every stored hash is in the
-index, which on a large instance takes longer than a request should: `occ fcias:repair --step
-rebuild-from-metadata` runs it at once. They queue as well the stamping of hashes saved without a freshness
-stamp, which a recalculation did before every calculation stamped: `occ fcias:repair --step missing-stamps`
-runs it at once. And they queue giving each stamp the ETag its hashes were read against, for the
-stamps made before the app kept one: the filecache's ETag where its checksum column still holds the
-hashes or the stamp is no older than the storage's own mtime, and otherwise the file queued to be hashed
-again. `occ fcias:repair --step etag-stamp` runs it at once. All of them show their progress on the status
-page, as *Checksum copy*, *Checksum index check*, *Checksum stamp check* and *Checksum ETag check*, and in
-`occ fcias:status`; a step run at once shows there as the job's run.
+Installing the app reads no file content at all.
+It queues a background job that copies the checksums Nextcloud's own filecache
+already carries into the searchable index, a slice per cron run,
+so that enabling the app returns at once however many files there are;
+`occ fcias:repair --step rebuild-from-filecache` does the same copy on demand,
+at once, and neither overwrites a hash the app already stored.
+Installing, enabling and upgrading also queue the check that every stored hash
+is in the index, which on a large instance takes longer than a request should:
+`occ fcias:repair --step rebuild-from-metadata` runs it at once.
+They queue as well the stamping of hashes saved without a freshness stamp,
+which a recalculation did before every calculation stamped:
+`occ fcias:repair --step missing-stamps` runs it at once.
+And they queue giving each stamp the ETag its hashes were read against,
+for the stamps made before the app kept one:
+the filecache's ETag where its checksum column still holds the hashes or the
+stamp is no older than the storage's own mtime,
+and otherwise the file queued to be hashed again.
+`occ fcias:repair --step etag-stamp` runs it at once.
+All of them show their progress on the status page, as *Checksum copy*,
+*Checksum index check*, *Checksum stamp check* and *Checksum ETag check*,
+and in `occ fcias:status`; a step run at once shows there as the job's run.
 
 ### Which file a rule is talking about
 
-A rule is matched against where a file **really lives**, never against the path of whoever happens
-to be touching it. Every file has exactly one row in the filecache, and that row is the subject: a
-file in a home folder is judged by its owner and by the path its owner knows it under, and a file
-in a team folder or on any other storage is judged by that storage and the path inside it.
+A rule is matched against where a file **really lives**,
+never against the path of whoever happens to be touching it.
+Every file has exactly one row in the filecache, and that row is the subject:
+a file in a home folder is judged by its owner and by the path its owner knows it under,
+and a file in a team folder or on any other storage is judged by that storage
+and the path inside it.
 
-This is what makes shared files behave. When someone edits a file shared with them — through a
-mount they may have renamed — the rules that decide it are the **owner's**, applied to the owner's
-path, not the editor's. The same holds for a team folder: one rule decides the folder, and it
-decides it identically for every member.
+This is what makes shared files behave.
+When someone edits a file shared with them — through a mount they may have
+renamed — the rules that decide it are the **owner's**,
+applied to the owner's path, not the editor's.
+The same holds for a team folder: one rule decides the folder,
+and it decides it identically for every member.
 
-Files outside a user-visible area — trash bins, versions, application data — are governed by
-nothing. No rule reaches them, including the catch-all.
+Files outside a user-visible area — trash bins, versions,
+application data — are governed by nothing.
+No rule reaches them, including the catch-all.
 
 ### When hashes go away
 
-Modifying a file that no rule maintains any more does not leave its old hashes in place. They
-describe content that no longer exists, and a wrong hash is worse than none: it makes a changed
-file look intact and can pair it with unrelated files as a duplicate. The app records this as
-**erosion** — the file's index entry is marked `eroded`, the admin status page counts them, and the
-loss heals itself: the next time a rule covers the file, re-hashing replaces the marker. Deleting a
-file clears its entry outright.
+Modifying a file that no rule maintains any more does not leave its old hashes in place.
+They describe content that no longer exists,
+and a wrong hash is worse than none:
+it makes a changed file look intact and can pair it with unrelated files as a duplicate.
+The app records this as **erosion** — the file's index entry is marked `eroded`,
+the admin status page counts them, and the loss heals itself:
+the next time a rule covers the file, re-hashing replaces the marker.
+Deleting a file clears its entry outright.
 
-Modifying a file a rule does maintain takes its hashes out of every search at once — the lookup, the
-listing, the duplicates, the sidebar — until the queue has computed them again. The queue computes the
-algorithms the rule names; a hash computed once by hand for another algorithm goes with the change
-rather than being kept, unchecked, beside the new ones. An algorithm wanted after every change belongs
-in the rule.
+Modifying a file a rule does maintain takes its hashes out of every search at
+once — the lookup, the listing, the duplicates,
+the sidebar — until the queue has computed them again.
+The queue computes the algorithms the rule names;
+a hash computed once by hand for another algorithm goes with the change rather
+than being kept, unchecked, beside the new ones.
+An algorithm wanted after every change belongs in the rule.
 
-A change the app does not hear of goes the same way. Each file's stamp carries the ETag its hashes were
-read against, and the filecache's ETag moves on with every write — one the app missed, a change on an
-external storage a scan took in, a write while the app was disabled. A file whose ETag no longer matches
-is out of the lookup, the listing, the duplicates and the file's hashes at once, and a daily walk does
-what the write would have done: it takes the hashes out of the index and queues the file, or erodes them
-where no rule maintains it (`stamp_check_interval`, a day by default). Hashes stamped before the app
-kept the ETag are held current while their stamp is no older than the storage's own mtime, until `occ
-fcias:repair --step etag-stamp` gives them their ETag; a sync client that replaces a file's content and
-keeps an older mtime gets past that test until then, as it gets past Nextcloud's own.
+A change the app does not hear of goes the same way.
+Each file's stamp carries the ETag its hashes were read against,
+and the filecache's ETag moves on with every write — one the app missed,
+a change on an external storage a scan took in,
+a write while the app was disabled.
+A file whose ETag no longer matches is out of the lookup, the listing,
+the duplicates and the file's hashes at once,
+and a daily walk does what the write would have done:
+it takes the hashes out of the index and queues the file,
+or erodes them where no rule maintains it (`stamp_check_interval`,
+a day by default).
+Hashes stamped before the app kept the ETag are held current while their stamp
+is no older than the storage's own mtime,
+until `occ fcias:repair --step etag-stamp` gives them their ETag;
+a sync client that replaces a file's content and keeps an older mtime gets past
+that test until then, as it gets past Nextcloud's own.
 
 ## Hash Generation Rules
 
-FCIAS reacts to file events (create, write, copy, delete) according to **hash generation rules** configured in **Administration settings → File Checksum Index & Search** (and, for permitted users, in **Personal settings**).
+FCIAS reacts to file events (create, write, copy,
+delete) according to **hash generation rules** configured in **Administration
+settings → File Checksum Index & Search** (and, for permitted users,
+in **Personal settings**).
 
-Rules are evaluated in order — the first matching rule handles a file, and a lower band number is a
-higher priority. A rule's position is not arbitrary: it follows from what the rule *is*.
+Rules are evaluated in order — the first matching rule handles a file,
+and a lower band number is a higher priority.
+A rule's position is not arbitrary: it follows from what the rule *is*.
 
-![The rules table on the admin settings page: four bands, a placeholder row for a folder no rule covers][shot-admin-rules]
+![The rules table on the admin settings page: four bands,
+a placeholder row for a folder no rule covers][shot-admin-rules]
 
 ### What a rule addresses: the selector
 
-One field says which files a rule is about — the **Scope** in the rule dialog. Scope and storage
-turned out to be one question, not two — a team folder has no account dimension, and a home
-folder's account *is* its sub-address — so there is one field, not a pair that could contradict
-each other:
+One field says which files a rule is about — the **Scope** in the rule dialog.
+Scope and storage turned out to be one question,
+not two — a team folder has no account dimension,
+and a home folder's account *is* its sub-address — so there is one field,
+not a pair that could contradict each other:
 
 | Selector | Addresses |
 |----------|-----------|
@@ -413,24 +517,31 @@ each other:
 | `storage:<raw id>` | one storage by its raw ID as `oc_storages` spells it, without its trailing slashes: external storage, or anything the forms above cannot say |
 | `*` | everything: every storage there is, external storage and team folders included |
 
-The value is split at its **first** colon, so a raw storage ID containing further colons or slashes
-(`smb::user@host//share`) needs no escaping. A storage's ID is kept without the trailing slashes
-Nextcloud ends a local or SMB storage's ID with, and matched so. `home:*` and `*` are deliberately
-spelled out rather than abbreviated: what a rule reaches should be readable without knowing a
-convention.
+The value is split at its **first** colon,
+so a raw storage ID containing further colons or slashes
+(`smb::user@host//share`) needs no escaping.
+A storage's ID is kept without the trailing slashes Nextcloud ends a local
+or SMB storage's ID with, and matched so.
+`home:*` and `*` are deliberately spelled out rather than abbreviated:
+what a rule reaches should be readable without knowing a convention.
 
-A rule's **path** is a glob below the top of the area the selector names, written without a
-leading slash: `Photos/**`, and `**` for everything in it. On an external storage that is the
-storage's root; in a home, the account's files. Together they are the rule's **scope**, written as
-a file's address is ([API](docs/api-v1.md#locations-and-paths)): the selector, two slashes, the
-glob — `groupfolder:1//Payroll/` followed by `**`, as `occ fcias:rules:list` shows it and
-`--scope` takes it.
+A rule's **path** is a glob below the top of the area the selector names,
+written without a leading slash: `Photos/**`, and `**` for everything in it.
+On an external storage that is the storage's root; in a home,
+the account's files.
+Together they are the rule's **scope**,
+written as a file's address is ([API](docs/api-v1.md#locations-and-paths)):
+the selector, two slashes,
+the glob — `groupfolder:1//Payroll/` followed by `**`,
+as `occ fcias:rules:list` shows it and `--scope` takes it.
 
 ### Bands
 
-A rule's band follows from two things: how specifically its selector names its subject, and whether
-an administrator enforced it. Enforced rules occupy bands 1–4, unenforced ones 5–8, in the same
-order of specificity:
+A rule's band follows from two things:
+how specifically its selector names its subject,
+and whether an administrator enforced it.
+Enforced rules occupy bands 1–4, unenforced ones 5–8,
+in the same order of specificity:
 
 | Band | Selector addresses | Enforced |
 |------|--------------------|----------|
@@ -443,65 +554,87 @@ order of specificity:
 | 7 | every home folder | no |
 | 8 | everything | no |
 
-Enforced beats unenforced; within each half, specific beats general. So no personal rule can come
-before one an administrator enforced, while a personal rule *can* override the non-enforced defaults
-below it — which is what leaving a rule unenforced offers. Team folders rank with groups rather than
-with individuals: a shared thing sits next to shared things, and since a team folder's files are never
-anybody's home folder, the placement costs nothing in matching. A rule changes band by changing its
-selector or its enforced flag, not by being moved.
+Enforced beats unenforced; within each half, specific beats general.
+So no personal rule can come before one an administrator enforced,
+while a personal rule *can* override the non-enforced defaults below it — which
+is what leaving a rule unenforced offers.
+Team folders rank with groups rather than with individuals:
+a shared thing sits next to shared things,
+and since a team folder's files are never anybody's home folder,
+the placement costs nothing in matching.
+A rule changes band by changing its selector or its enforced flag,
+not by being moved.
 
 ### Ordering within a band
 
-The settings pages show each rule's priority as `<band>.<position>` — `5.2` is the second rule of
-its segment in band 5. Both numbers ascend as priority falls, so `1.1` is the strongest rule on the
-instance and a catch-all is always last. Neither is stored: the band is derived from the rule's
-selector and its enforced flag, and the position is the rule's index **within its segment**.
+The settings pages show each rule's priority as `<band>.<position>` — `5.2` is
+the second rule of its segment in band 5.
+Both numbers ascend as priority falls,
+so `1.1` is the strongest rule on the instance and a catch-all is always last.
+Neither is stored: the band is derived from the rule's selector and its enforced flag,
+and the position is the rule's index **within its segment**.
 
-A **segment** is one selector value *inside one band* — so the same selector's enforced and
-unenforced rules are different segments and number independently — and rules only ever compete
-inside one. Two accounts' personal rules never race for a file, so the list never asks you to rank
-them against each other; the same holds for two team folders, or two storages. Two segments that
-share a band both start at position 1, which is why `6.1` can appear twice: once per team folder.
+A **segment** is one selector value *inside one band* — so the same selector's
+enforced and unenforced rules are different segments and number independently —
+and rules only ever compete inside one.
+Two accounts' personal rules never race for a file,
+so the list never asks you to rank them against each other;
+the same holds for two team folders, or two storages.
+Two segments that share a band both start at position 1,
+which is why `6.1` can appear twice: once per team folder.
 
-Within every segment, rules whose path is a bare catch-all form a **defaults partition** at the end.
-Three spellings count as bare: `**`, `/`, and the empty string — they all mean "everything this
-selector reaches", so a rule written any of those ways is a default. A newly created rule lands *before* its segment's default, and a rule cannot be dragged
-across that boundary. This is what makes a default behave like one: you never have to drag a new
-rule past the catch-all that would otherwise shadow it.
+Within every segment, rules whose path is a bare catch-all form a **defaults
+partition** at the end.
+Three spellings count as bare: `**`, `/`,
+and the empty string — they all mean "everything this selector reaches",
+so a rule written any of those ways is a default.
+A newly created rule lands *before* its segment's default,
+and a rule cannot be dragged across that boundary.
+This is what makes a default behave like one:
+you never have to drag a new rule past the catch-all that would otherwise shadow it.
 
-Rules are reordered by dragging them, and a drag is confined to the segment and partition it
-started in — there is no drop target outside it, so the browser shows a "no drop" cursor rather
-than accepting a move that would change a rule's standing behind your back. To move a rule into a
-different band, change its selector or its enforced flag.
+Rules are reordered by dragging them,
+and a drag is confined to the segment and partition it started in — there is no
+drop target outside it,
+so the browser shows a "no drop" cursor rather than accepting a move that would
+change a rule's standing behind your back.
+To move a rule into a different band, change its selector or its enforced flag.
 
-There is no keyboard equivalent to the drag yet. Everything else on the rules page — creating,
-editing, enabling, deleting, reapplying — is reachable without a pointer; only reordering is not.
+There is no keyboard equivalent to the drag yet.
+Everything else on the rules page — creating, editing, enabling, deleting,
+reapplying — is reachable without a pointer; only reordering is not.
 
 ### Defaults, and what is not covered
 
-Two rules ship with the app, both **disabled**: `home:*` with path `**` (every home folder — the
-safe one to enable), and `*` with path `**` (every storage there is, external storage and team
-folders included — its own deliberate decision). They are ordinary rules: editable, and deletable.
-A repair step recreates a missing one, still disabled, so deleting one is reversible housekeeping
-rather than a decision you cannot take back:
+Two rules ship with the app, both **disabled**:
+`home:*` with path `**` (every home folder — the safe one to enable),
+and `*` with path `**` (every storage there is,
+external storage and team folders included — its own deliberate decision).
+They are ordinary rules: editable, and deletable.
+A repair step recreates a missing one, still disabled,
+so deleting one is reversible housekeeping rather than a decision you cannot take back:
 
 ```bash
 php occ maintenance:repair
 ```
 
-That runs every enabled app's repair steps, including this one — look for *"File Checksum Index &
-Search: quiet-start defaults and cleanup"* in the output. It is idempotent, and it also migrates
-rules written before the selector model. Reach for it on an instance that received a new version
-without the app version changing — any working copy tracking the repository between releases —
-where Nextcloud never enters the upgrade path and the step has therefore not run.
+That runs every enabled app's repair steps,
+including this one — look for *"File Checksum Index & Search:
+quiet-start defaults and cleanup"* in the output.
+It is idempotent, and it also migrates rules written before the selector model.
+Reach for it on an instance that received a new version without the app version
+changing — any working copy tracking the repository between releases — where
+Nextcloud never enters the upgrade path and the step has therefore not run.
 
-The rules table ends with a row for every namespace that has **no catch-all of its own**: each
-team folder, each addressable storage, all home folders, and everything. Each such row's **Add
-rule** opens the dialog with that namespace's catch-all. Nothing is written by looking at the page —
-the rows are a view, and configuration appears only when you save one. A rule naming a team folder
-that is gone (after the app was disabled, or when the folder was deleted) is badged *folder
-missing*: it is inert by construction, and saying so beats leaving you to wonder why it never
-matches.
+The rules table ends with a row for every namespace that has **no catch-all of its own**:
+each team folder, each addressable storage, all home folders, and everything.
+Each such row's **Add rule** opens the dialog with that namespace's catch-all.
+Nothing is written by looking at the page — the rows are a view,
+and configuration appears only when you save one.
+A rule naming a team folder that is gone (after the app was disabled,
+or when the folder was deleted) is badged *folder missing*:
+it is inert by construction,
+and saying so beats leaving you to wonder why it never matches.
 
 Each rule combines:
 
@@ -517,7 +650,8 @@ Each rule combines:
 
 ### Rule types
 
-The first matching rule decides a file's fate outright; there is no fall-through.
+The first matching rule decides a file's fate outright;
+there is no fall-through.
 
 | Type | Automatic hashing | Manual recalculation | Use it for |
 |------|-------------------|----------------------|------------|
@@ -525,12 +659,15 @@ The first matching rule decides a file's fate outright; there is no fall-through
 | `ignore` | no | yes | reducing noise, while leaving the file hashable on request |
 | `exclude` | no | no | storage that must not be read at all |
 
-**For metered or expensive storage, `exclude` is the correct tool.** Every other option still
-reads the file eventually — even `lazy` mode only defers the read to the background queue.
+**For metered or expensive storage, `exclude` is the correct tool.**
+Every other option still reads the file eventually — even `lazy` mode only
+defers the read to the background queue.
 
-An `ignore` or `exclude` rule computes nothing, so it stores no algorithms and no mode. What a
-verdict can override depends on where its rule sits: an admin-enforced exclude is a mandate no
-personal rule can undo, while a personal exclude only overrides the defaults below it.
+An `ignore` or `exclude` rule computes nothing,
+so it stores no algorithms and no mode.
+What a verdict can override depends on where its rule sits:
+an admin-enforced exclude is a mandate no personal rule can undo,
+while a personal exclude only overrides the defaults below it.
 
 ### Modes
 
@@ -541,85 +678,118 @@ personal rule can undo, while a personal exclude only overrides the defaults bel
 | `force` | Clear all hashes and recalculate immediately |
 | `lazy` | Clear hashes at once and recalculate them at low priority: the periodic sweep queues the file later, as `auto`, a hundred files per rule and run, so that bulk writes never fill the queue |
 
-Under `auto` and `missing`, a change drops the hashes of algorithms the rule does not name.
-A rule's algorithms count only where the server computes them: one the allowlist no longer has is
-left out, and a rule left with none hashes nothing.
-A rule may carry any of the four. The `hash` command's `--mode` accepts only `missing` and `force`:
-`auto` is the background drain's own semantics, and `lazy` — "queue it for later" — is spelled
-`--mark` there.
+Under `auto` and `missing`,
+a change drops the hashes of algorithms the rule does not name.
+A rule's algorithms count only where the server computes them:
+one the allowlist no longer has is left out,
+and a rule left with none hashes nothing.
+A rule may carry any of the four.
+The `hash` command's `--mode` accepts only `missing` and `force`:
+`auto` is the background drain's own semantics,
+and `lazy` — "queue it for later" — is spelled `--mark` there.
 
 ### Rule-editing permissions (`admin_enforced`)
 
-There is a single global list of rules. Administrators edit all rules and can lock individual rules with the **admin-enforced** flag. Rule-editing permission is configured in admin settings via three options:
+There is a single global list of rules.
+Administrators edit all rules and can lock individual rules with the
+**admin-enforced** flag.
+Rule-editing permission is configured in admin settings via three options:
 
 - **Allow all accounts to edit rules**
 - **Groups** — group IDs allowed to edit rules
 - **Accounts** — account IDs allowed to edit rules
 
-Accounts may create and edit rules when they are in an enabled group/account list (or editing is
-enabled for everyone) **and** the rule's path is in a folder they can write to *on their own home
-storage*. A path leading into a received share, a team folder or any other mounted storage is refused with
-the reason: a personal rule is `home:<uid>`, and by the identity rules above it could never match
-those files — those answer to their owner's rules, or to the folder's own. Rules marked
-`admin_enforced` are shown to users as read-only, and the `admin_enforced` and `selector` fields are
-never trusted from a user's request.
+Accounts may create and edit rules when they are in an enabled group/account
+list (or editing is enabled for everyone) **and** the rule's path is in a folder
+they can write to *on their own home storage*.
+A path leading into a received share,
+a team folder or any other mounted storage is refused with the reason:
+a personal rule is `home:<uid>`,
+and by the identity rules above it could never match those files — those answer
+to their owner's rules, or to the folder's own.
+Rules marked `admin_enforced` are shown to users as read-only,
+and the `admin_enforced` and `selector` fields are never trusted from a user's request.
 
 ## Pending Hash Queue
 
-Work is queued by giving a file a `file-checksum-state` index row of `pending:<mode>` — by a file
-event, by the periodic sweep, by `rules:apply`, or by `hash --mark`. `ProcessPendingUpdates`
-runs every 60 seconds and drains up to 50 entries per cycle, re-dispatching itself while the queue
-is still full.
+Work is queued by giving a file a `file-checksum-state` index row of
+`pending:<mode>` — by a file event, by the periodic sweep, by `rules:apply`,
+or by `hash --mark`.
+`ProcessPendingUpdates` runs every 60 seconds and drains up to 50 entries per cycle,
+re-dispatching itself while the queue is still full.
 
-The queue says only what needs looking at, never what to do with it: the drain resolves each file's
-governing rule at that moment and takes the verdict and the algorithms from it. A file whose rule
-changed in between is treated by the new rule, and one that lost its coverage has its mark dropped
-without being hashed.
+The queue says only what needs looking at, never what to do with it:
+the drain resolves each file's governing rule at that moment and takes the
+verdict and the algorithms from it.
+A file whose rule changed in between is treated by the new rule,
+and one that lost its coverage has its mark dropped without being hashed.
 
-An entry exists only for a file that was actually queued, hashed, or eroded — **absence means "never
-considered"**. The status page counts the queue by mode, alongside the eroded count and each
-background job's last run.
+An entry exists only for a file that was actually queued, hashed,
+or eroded — **absence means "never considered"**.
+The status page counts the queue by mode,
+alongside the eroded count and each background job's last run.
 
-A file the drain cannot hash just now — unreadable, locked, written to while it was read — stays
-queued, and its row's integer counts the failed attempts. The drain takes the files with the fewest
-first, so a file that keeps failing waits behind every other instead of taking a place in every
-batch; queuing it again keeps its count, and it goes when the file leaves the queue. A full batch
-in which no file left the queue is not re-dispatched: the next run tries again, the files not yet
-tried first. The drain's last run counts each file by what became of it — `hashed`, `typed` (its
-MIME type read alone), `stamped` (nothing to read), `emptied` (`lazy`), `dropped`, `gone`, `failed`
-— beside `total` and `revoked` (`disowned` too, as 0.25.0 named it), every key in `fcias:status -o json` and on the status page. `fcias:queue:drain --all` walks the queue once, by file id, and tries every file
-waiting: one that fails is passed rather than taken again. A file on a storage Nextcloud holds
-unavailable — it fails every call to an external storage at once for ten minutes after the first
-that failed — counts its attempt without being read, until Nextcloud tries the storage again.
-A file the filecache lists and its storage no longer has — deleted on disk behind Nextcloud's
-back, or left in the filecache below a folder whose own row is gone — leaves the queue as
-`stale:gone`, its hashes dropped, when two failed reads in a row find its storage answering and
-the file not there: the sweep leaves it alone, the daily changed-file check queues it once its
-storage has it again, so does a write, and `occ files:scan` brings the filecache in line where it
-can reach the file
-([FAQ › Files the filecache lists and the storage does not have](docs/FAQ.md#files-the-filecache-lists-and-the-storage-does-not-have)).
+A file the drain cannot hash just now — unreadable, locked,
+written to while it was read — stays queued,
+and its row's integer counts the failed attempts.
+The drain takes the files with the fewest first,
+so a file that keeps failing waits behind every other instead of taking a place
+in every batch; queuing it again keeps its count,
+and it goes when the file leaves the queue.
+A full batch in which no file left the queue is not re-dispatched:
+the next run tries again, the files not yet tried first.
+The drain's last run counts each file by what became of it — `hashed`,
+`typed` (its MIME type read alone), `stamped` (nothing to read),
+`emptied` (`lazy`), `dropped`, `gone`,
+`failed` — beside `total` and `revoked` (`disowned` too, as 0.25.0 named it),
+every key in `fcias:status -o json` and on the status page.
+`fcias:queue:drain --all` walks the queue once, by file id,
+and tries every file waiting: one that fails is passed rather than taken again.
+A file on a storage Nextcloud holds unavailable — it fails every call to an
+external storage at once for ten minutes after the first that failed — counts
+its attempt without being read, until Nextcloud tries the storage again.
+A file the filecache lists and its storage no longer has — deleted on disk
+behind Nextcloud's back,
+or left in the filecache below a folder whose own row is gone — leaves the queue
+as `stale:gone`, its hashes dropped,
+when two failed reads in a row find its storage answering and the file not there:
+the sweep leaves it alone,
+the daily changed-file check queues it once its storage has it again,
+so does a write,
+and `occ files:scan` brings the filecache in line where it can reach the file
+([FAQ › Files the filecache lists and the storage does
+not have](docs/FAQ.md#files-the-filecache-lists-and-the-storage-does-not-have)).
 
-The drain, and the app's other jobs, can run outside Nextcloud's cron, at a lower priority: see
-[FAQ › Can the app's jobs run outside Nextcloud's cron?](docs/FAQ.md#can-the-apps-jobs-run-outside-nextclouds-cron).
+The drain, and the app's other jobs, can run outside Nextcloud's cron,
+at a lower priority:
+see [FAQ › Can the app's jobs run outside Nextcloud's
+cron?](docs/FAQ.md#can-the-apps-jobs-run-outside-nextclouds-cron).
 
 ## MIME types from the content
 
-Nextcloud takes a file's MIME type from its name. Switched on under **Advanced**, or with
-`fcias:mimetype:enable`, FCIAS also names it from the content: the read that hashes a file passes
-its first 64 KiB to PHP's Fileinfo extension, and the type is kept beside the hashes, for as long
-as they describe the content. It costs no read of its own, and it is off by default. The files
-sidebar shows it, with Nextcloud's type beside it where the two differ; the duplicates page shows
-it on each group; the API gives it on `?mimetype=1` ([MIME types](docs/api-v1.md#mime-types)).
-**Refresh** queues the files hashed before for their first 64 KiB alone, and **Delete** removes
-every stored type while detection is off. Backups and imports leave the types out: they are
-detected again from the content. The status counts them, on the Advanced tab and in
-`fcias:status`. See
-[FAQ › How are MIME types detected?](docs/FAQ.md#how-are-mime-types-detected).
+Nextcloud takes a file's MIME type from its name.
+Switched on under **Advanced**, or with `fcias:mimetype:enable`,
+FCIAS also names it from the content:
+the read that hashes a file passes its first 64 KiB to PHP's Fileinfo extension,
+and the type is kept beside the hashes,
+for as long as they describe the content.
+It costs no read of its own, and it is off by default.
+The files sidebar shows it,
+with Nextcloud's type beside it where the two differ;
+the duplicates page shows it on each group;
+the API gives it on `?mimetype=1` ([MIME types](docs/api-v1.md#mime-types)).
+**Refresh** queues the files hashed before for their first 64 KiB alone,
+and **Delete** removes every stored type while detection is off.
+Backups and imports leave the types out:
+they are detected again from the content.
+The status counts them, on the Advanced tab and in `fcias:status`.
+See [FAQ › How are MIME types detected?](docs/FAQ.md#how-are-mime-types-detected).
 
 ## Backing up, resetting and importing
 
-The app owns three slices of state, and they are separable because they answer different questions
-and are put back by different means:
+The app owns three slices of state,
+and they are separable because they answer different questions and are put back
+by different means:
 
 | Slice | What it is | Restored by |
 |-------|------------|-------------|
@@ -627,19 +797,23 @@ and are put back by different means:
 | `--hashes` | the stored checksums and the timestamps that say how fresh each one is | `fcias:import --hashes` |
 | `--status` | what each file is waiting for, or why its hashes are untrusted | **nothing** — see below |
 
-Naming no slice takes all of them. `fcias:backup` writes them out; `fcias:reset` gives them back,
+Naming no slice takes all of them.
+`fcias:backup` writes them out; `fcias:reset` gives them back,
 `fcias:revoke` the hashes alone; `fcias:import` reads them in.
 
 ### The status slice is recorded, never restored
 
-The queue is not stored knowledge — it is worked out from the rules and the files, at the moment
-the drain looks. Loading somebody's queue into an instance would assert something about work this
-instance has not decided to do. So a backup records it for the operator who is about to reset it,
+The queue is not stored knowledge — it is worked out from the rules and the files,
+at the moment the drain looks.
+Loading somebody's queue into an instance would assert something about work this
+instance has not decided to do.
+So a backup records it for the operator who is about to reset it,
 and `fcias:import --status` is refused with that reason.
 
 ### Only `json` is a backup
 
-`--format` takes three values on both `backup` and `import`, and they are not equivalent:
+`--format` takes three values on both `backup` and `import`,
+and they are not equivalent:
 
 | Format | Carries | Use it for |
 |--------|---------|------------|
@@ -647,30 +821,40 @@ and `fcias:import --status` is refused with that reason.
 | `csv` | storage, path, algorithm, hash, timestamp, ETag | handing hashes to another tool |
 | `sum` | one algorithm's hashes and paths — what `sha1sum` writes | reading what your own shell already produced |
 
-`csv` and `sum` refuse `--config`, because they have nowhere to put it, and `sum` needs `--algo`
-because a checksum listing cannot say which algorithm it holds. A `sum` file names no storage
-either, so tell the import what its paths are measured from with `--user` or `--storage`. A record
-that *does* name its own storage — anything from a `json` or `csv` export — is never re-anchored,
+`csv` and `sum` refuse `--config`, because they have nowhere to put it,
+and `sum` needs `--algo` because a checksum listing cannot say which algorithm it holds.
+A `sum` file names no storage either,
+so tell the import what its paths are measured from with `--user` or `--storage`.
+A record that *does* name its own storage — anything from a `json` or `csv`
+export — is never re-anchored,
 so re-importing a backup with `--user` set still lands each hash on the file it came from.
 
 ### Revoking hashes does not stop the world
 
-`fcias:revoke`, like `fcias:reset`, reports what it would remove and changes nothing until
-`--force`. What it removes cannot be recovered by any other means, so the second word is the point.
-`fcias:reset --hashes`, its former name, still revokes them, and says it is deprecated.
+`fcias:revoke`, like `fcias:reset`,
+reports what it would remove and changes nothing until `--force`.
+What it removes cannot be recovered by any other means,
+so the second word is the point.
+`fcias:reset --hashes`, its former name, still revokes them,
+and says it is deprecated.
 
-Revoking hashes does not rewrite one metadata document per file. Each file is marked
-`stale:revoked`, which takes it out of search and out of duplicate groups **immediately**, and the
-background job does the clearing as it goes — one database write per thousand files rather than one
-metadata document rewrite each. `--now` does the clearing in the foreground instead, which is what a
-fixture wants. `--backup=<path>` writes a backup first and abandons the whole run if that fails, and
-every forced run leaves one audit line at warning level naming who ran which command, and on what.
+Revoking hashes does not rewrite one metadata document per file.
+Each file is marked `stale:revoked`,
+which takes it out of search and out of duplicate groups **immediately**,
+and the background job does the clearing as it goes — one database write per
+thousand files rather than one metadata document rewrite each.
+`--now` does the clearing in the foreground instead,
+which is what a fixture wants.
+`--backup=<path>` writes a backup first and abandons the whole run if that fails,
+and every forced run leaves one audit line at warning level naming who ran which command,
+and on what.
 
 ### The timestamp is the dangerous part of an import
 
-Freshness here is `updated_at >= mtime`. A hash stamped **later** than the content it describes is
-invisible to every correction path the app has: no sweep notices it, no rule recomputes it. So the
-import asks what the timestamps mean rather than assuming:
+Freshness here is `updated_at >= mtime`.
+A hash stamped **later** than the content it describes is invisible to every
+correction path the app has: no sweep notices it, no rule recomputes it.
+So the import asks what the timestamps mean rather than assuming:
 
 | `--stamp=` | Stores | Right when |
 |------------|--------|------------|
@@ -678,61 +862,92 @@ import asks what the timestamps mean rather than assuming:
 | `mtime` | the file's mtime — the claim the filecache backfill already makes | you ran the checksums a moment ago |
 | `now` | this moment. Asserts more than the data supports, and warns | rarely |
 
-The mtime cannot see a file whose content changed while its mtime stayed, as a sync client uploads
-it; the ETag can. So under `source` a record's ETag is weighed first. The file's own ETag vouches
-for the hashes, as it does for hashes this instance read. Another one, in a `json` backup of this
-instance, means the file changed since the backup: the record is refused and counted as *skipped
-changed*, whatever the mtime says. Elsewhere, or in a `csv`, another ETag says nothing, since ETags
-are per instance, and the timestamp decides as above. The ETag is this app's stamp alone; the one
-clients compare is never written. An instance rebuilt on a fresh database under its old
-`instanceid` has new ETags for every file, and `--stamp=mtime` takes those files on the mtime's word.
+The mtime cannot see a file whose content changed while its mtime stayed,
+as a sync client uploads it; the ETag can.
+So under `source` a record's ETag is weighed first.
+The file's own ETag vouches for the hashes,
+as it does for hashes this instance read.
+Another one, in a `json` backup of this instance,
+means the file changed since the backup:
+the record is refused and counted as *skipped changed*, whatever the mtime says.
+Elsewhere, or in a `csv`, another ETag says nothing,
+since ETags are per instance, and the timestamp decides as above.
+The ETag is this app's stamp alone; the one clients compare is never written.
+An instance rebuilt on a fresh database under its old `instanceid` has new ETags
+for every file, and `--stamp=mtime` takes those files on the mtime's word.
 
-`--allow-stale` imports what `source` would refuse, warning as it goes, and a file changed since
-the backup keeps the ETag it was read against, so it stays out of search until hashed again.
-`--merge` writes only algorithms a file does not already have; `--replace` overwrites them — one
-of the two is required, because merging keeps what this instance worked out for itself, replacing
-prefers the file, and guessing wrong is silent either way. A path this instance does not have is
-counted and skipped (`--strict` stops at the first), because an import restores what a file *is*,
-never that it exists. `--dry-run` reports the whole thing and writes nothing.
+`--allow-stale` imports what `source` would refuse, warning as it goes,
+and a file changed since the backup keeps the ETag it was read against,
+so it stays out of search until hashed again.
+`--merge` writes only algorithms a file does not already have;
+`--replace` overwrites them — one of the two is required,
+because merging keeps what this instance worked out for itself,
+replacing prefers the file, and guessing wrong is silent either way.
+A path this instance does not have is counted and skipped (`--strict` stops at the first),
+because an import restores what a file *is*, never that it exists.
+`--dry-run` reports the whole thing and writes nothing.
 
-Importing acceptable hashes onto a revoked file clears its marker, so hashes revoked and then
-imported again never wait for the background job at all.
+Importing acceptable hashes onto a revoked file clears its marker,
+so hashes revoked and then imported again never wait for the background job at all.
 
 ## Duplicate File Browser
 
-FCIAS provides a global duplicate file browser at **`/apps/file_checksum_search/duplicates`** (accessible via the "Duplicates" entry in the top navigation).
+FCIAS provides a global duplicate file browser at
+**`/apps/file_checksum_search/duplicates`** (accessible via the "Duplicates"
+entry in the top navigation).
 
-![The Duplicates page on Mine: one group opened to its files, each with a Verify button][shot-duplicates-page]
+![The Duplicates page on Mine: one group opened to its files,
+each with a Verify button][shot-duplicates-page]
 
 Features:
 
 - Filter by algorithm (SHA-1, MD5, SHA-256, SHA-512, SHA3-256, SHA3-512, CRC32)
 - Set minimum duplicate count and result limit
 - Expandable groups showing file paths
-- Filter by hash, matching at its start or — with **Match anywhere in the hash** — anywhere in it
-- Empty files left out, since every one of them shares one checksum and deleting a copy frees nothing; **Show empty files** lists them too
-- **Verify all** on a group and **Verify** on a file row, recalculating from file content and flagging mismatches — asked for per group or per file, since reading files costs time and, on metered storage, money; a group is sent in requests of 25 files; shown only to an account that may recalculate checksums
-- An **Others** tab for those allowed to look across accounts, and for group admins: other accounts' duplicates, each row saying whose file it is and where it lives, verifiable in place, and linked only where the viewer could open it
-- The address bar as the search: the tab, the filters, the page and — on *Others* — whose files ride in the fragment, so a search can be bookmarked or handed to a colleague
+- Filter by hash, matching at its start or — with **Match anywhere in the hash**
+  — anywhere in it
+- Empty files left out, since every one of them shares one checksum and deleting
+  a copy frees nothing; **Show empty files** lists them too
+- **Verify all** on a group and **Verify** on a file row,
+  recalculating from file content and flagging mismatches — asked for per group
+  or per file, since reading files costs time and, on metered storage, money;
+  a group is sent in requests of 25 files;
+  shown only to an account that may recalculate checksums
+- An **Others** tab for those allowed to look across accounts,
+  and for group admins: other accounts' duplicates,
+  each row saying whose file it is and where it lives, verifiable in place,
+  and linked only where the viewer could open it
+- The address bar as the search: the tab, the filters,
+  the page and — on *Others* — whose files ride in the fragment,
+  so a search can be bookmarked or handed to a colleague
 
-![The Others tab on one hash over the whole reach: the viewer's own copies behind a house, another account's behind a person][shot-duplicates-others]
+![The Others tab on one hash over the whole reach:
+the viewer's own copies behind a house,
+another account's behind a person][shot-duplicates-others]
 
-The files sidebar also includes a **"Find duplicates"** button that shows files sharing hash values with the currently selected file, and — for an account that may look across accounts — **"Find across accounts"**, which opens the Duplicates page's *Others* tab on the file's hash.
+The files sidebar also includes a **"Find duplicates"** button that shows files
+sharing hash values with the currently selected file,
+and — for an account that may look across accounts — **"Find across accounts"**,
+which opens the Duplicates page's *Others* tab on the file's hash.
 
-![The Checksums tab of the file sidebar: the checksums, the Recalculate buttons, Find duplicates and Find across accounts][shot-file-detail-pane]
+![The Checksums tab of the file sidebar: the checksums, the Recalculate buttons,
+Find duplicates and Find across accounts][shot-file-detail-pane]
 
 ## Public API (v1)
 
-FCIAS provides a stable, versioned public API with three consumer surfaces: **HTTP REST**, **PHP DI**, and **PHP Bootstrap**.
+FCIAS provides a stable, versioned public API with three consumer surfaces:
+**HTTP REST**, **PHP DI**, and **PHP Bootstrap**.
 
-Full documentation: [`docs/api-v1.md`](docs/api-v1.md) | OpenAPI spec: [`docs/api-v1-openapi.yaml`](docs/api-v1-openapi.yaml)
+Full documentation: [`docs/api-v1.md`](docs/api-v1.md) | OpenAPI spec:
+[`docs/api-v1-openapi.yaml`](docs/api-v1-openapi.yaml)
 
 ### HTTP REST API
 
-All endpoints are served over OCS, under `/ocs/v2.php/apps/file_checksum_search/api/v1/`.
-Responses are plain JSON — the controllers are `ApiController`s, so there is no OCS envelope
-around the body, but the route prefix is required. Authentication via NC session cookie, HTTP
-Basic Auth, or Bearer token.
+All endpoints are served over OCS,
+under `/ocs/v2.php/apps/file_checksum_search/api/v1/`.
+Responses are plain JSON — the controllers are `ApiController`s,
+so there is no OCS envelope around the body, but the route prefix is required.
+Authentication via NC session cookie, HTTP Basic Auth, or Bearer token.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -745,15 +960,17 @@ Basic Auth, or Bearer token.
 | `/api/v1/hashes?algo=<algo>&limit=<n>&after=<fileid>&since=<date>` | GET | Every hash the caller holds, one entry per file, paged by file id |
 | `/api/v1/status` | GET | Read-only health/status |
 
-Every file row carries `owner` and `location` beside `path`: `path` where the account finds the
-file, `location` its address — `home:alice//Docs/a.pdf`, or `share:42//a.pdf` for a file the reader
-holds through a share, which names nothing of the sharer's folders above it
-([Locations and paths](docs/api-v1.md#locations-and-paths)). The reads and the
-two recalculations have twins under `/api/v1/sudo/` that answer for the caller's
-whole reach — every account for an administrator, their groups' members for a
-group admin — behind a password confirmation; those rows also say whether the
-caller could open them (`openable`). See
-[Cross-account routes](docs/api-v1.md#cross-account-routes).
+Every file row carries `owner` and `location` beside `path`:
+`path` where the account finds the file,
+`location` its address — `home:alice//Docs/a.pdf`,
+or `share:42//a.pdf` for a file the reader holds through a share,
+which names nothing of the sharer's folders above it ([Locations
+and paths](docs/api-v1.md#locations-and-paths)).
+The reads and the two recalculations have twins under `/api/v1/sudo/` that
+answer for the caller's whole reach — every account for an administrator,
+their groups' members for a group admin — behind a password confirmation;
+those rows also say whether the caller could open them (`openable`).
+See [Cross-account routes](docs/api-v1.md#cross-account-routes).
 
 Quick example:
 
@@ -764,7 +981,8 @@ curl -u alice:app-password \
 
 ### PHP API
 
-The [`ChecksumApi`](lib/Public/ChecksumApi.php) class is the single public contract, usable via dependency injection or external bootstrap:
+The [`ChecksumApi`](lib/Public/ChecksumApi.php) class is the single public contract,
+usable via dependency injection or external bootstrap:
 
 ```php
 // Within a Nextcloud app (DI)
@@ -799,53 +1017,68 @@ Full PHP method reference in [`docs/api-v1.md`](docs/api-v1.md#php-api).
 
 ## Admin & Personal Settings
 
-Navigate to **Administration settings → Additional settings → File Checksum Index & Search**.
+Navigate to **Administration settings → Additional settings → File Checksum
+Index & Search**.
 
-![The admin settings page as it opens: five tabs, the algorithm allowlist with its default, the rules below][shot-admin-settings]
+![The admin settings page as it opens: five tabs,
+the algorithm allowlist with its default, the rules below][shot-admin-settings]
 
 The admin settings page provides:
 
-- **An idle banner** — shown while no enabled `include` rule exists, saying that automatic hashing
-  is off, that sidebar recalculation still works, and that the *All home folders* default covers
-  home folders only. **Acknowledge** hides it until an `include` rule is enabled and then disabled
-  again
-- **Hash generation rules** — one banded table in evaluation order: create, edit (the pen, or the
-  row menu), enable/disable, reapply, and delete; drag to reorder among the rules of the same scope;
-  rows, each with **Add rule**, for namespaces without a rule of their own
-- **Checksum algorithms** — which algorithms this server computes, chosen from what its PHP provides,
-  and which of them is the default. Every picker in the app offers exactly these
-- **Permissions** — a tab of its own, four sections in one shape (allow everyone, or the groups and
-  accounts chosen; members of `admin` always may):
-  - **Who may recalculate checksums** — who may recalculate checksums by hand, from the sidebar,
-    the Duplicates page's **Verify** buttons or the API, for any file they can reach; without it
-    neither the sidebar nor the Duplicates page shows the buttons. Reading what is already
-    computed is not affected
-  - **Who may edit rules** — who may create and edit rules for folders in their own files that they
-    can write to
-  - **Who may look across accounts** — the sudoers; a group admin may also look at the members of
-    the groups they administer. Looking still needs a password confirmation, which holds for 30
-    minutes, or a granted app password; this only says who may be asked
+- **An idle banner** — shown while no enabled `include` rule exists,
+  saying that automatic hashing is off, that sidebar recalculation still works,
+  and that the *All home folders* default covers home folders only.
+  **Acknowledge** hides it until an `include` rule is enabled and then disabled again
+- **Hash generation rules** — one banded table in evaluation order: create,
+  edit (the pen, or the row menu), enable/disable, reapply, and delete;
+  drag to reorder among the rules of the same scope; rows,
+  each with **Add rule**, for namespaces without a rule of their own
+- **Checksum algorithms** — which algorithms this server computes,
+  chosen from what its PHP provides, and which of them is the default.
+  Every picker in the app offers exactly these
+- **Permissions** — a tab of its own,
+  four sections in one shape (allow everyone, or the groups and accounts chosen;
+  members of `admin` always may):
+  - **Who may recalculate checksums** — who may recalculate checksums by hand,
+    from the sidebar, the Duplicates page's **Verify** buttons or the API,
+    for any file they can reach;
+    without it neither the sidebar nor the Duplicates page shows the buttons.
+    Reading what is already computed is not affected
+  - **Who may edit rules** — who may create and edit rules for folders in their
+    own files that they can write to
+  - **Who may look across accounts** — the sudoers;
+    a group admin may also look at the members of the groups they administer.
+    Looking still needs a password confirmation, which holds for 30 minutes,
+    or a granted app password; this only says who may be asked
   - **Who may use the API** — who may call the public routes with an app password or other
     credentials; the bundled pages keep working for everyone
-- **Sudo tokens** — a tab: every app password on the instance granted the cross-account routes
-  without a password prompt, against the live token table, with revoke
-- **Advanced** — a tab: app version, indexed checksum count, queued files by mode with those that
-  failed at least once, the *Untrusted checksums* total with its reasons (eroded, reset), and each
-  background job's last run with its counts and how long it took, or, when it failed, why and when
-  the job last succeeded, and whether MIME types are detected and for how many files;
-  then the *MIME types* section — the switch, **Refresh** and **Delete**
-  ([MIME types from the content](#mime-types-from-the-content));
-  and the instance's tunables, the first being how many accounts and groups the cross-account
-  picker prefills (21) before it searches server-side instead
-- **Documentation** — the last tab: in-app access to the FAQ, the user guide, README, API specs, and
-  license
+- **Sudo tokens** — a tab:
+  every app password on the instance granted the cross-account routes without a
+  password prompt, against the live token table, with revoke
+- **Advanced** — a tab: app version, indexed checksum count,
+  queued files by mode with those that failed at least once,
+  the *Untrusted checksums* total with its reasons (eroded, reset),
+  and each background job's last run with its counts and how long it took, or,
+  when it failed, why and when the job last succeeded,
+  and whether MIME types are detected and for how many files;
+  then the *MIME types* section — the switch,
+  **Refresh** and **Delete** ([MIME types from the
+  content](#mime-types-from-the-content)); and the instance's tunables,
+  the first being how many accounts and groups the cross-account picker prefills
+  (21) before it searches server-side instead
+- **Documentation** — the last tab: in-app access to the FAQ, the user guide,
+  README, API specs, and license
 
-The personal settings page lists the rules applying to the current user — the enforced ones above
-and the defaults below their own, read-only, so what will actually decide a file is visible rather
-than only the part they may change. Above the rules sits the user's **preferred algorithm**, the one
-the sidebar's first quick button offers, with the instance default as its first entry, and — for an
-account allowed the API — their **sudo tokens**: one switch per app password, granting it the
-cross-account routes for a script that cannot confirm a password. Its second tab is the user guide.
+The personal settings page lists the rules applying to the current user — the
+enforced ones above and the defaults below their own, read-only,
+so what will actually decide a file is visible rather than only the part they may change.
+Above the rules sits the user's **preferred algorithm**,
+the one the sidebar's first quick button offers,
+with the instance default as its first entry,
+and — for an account allowed the API — their **sudo tokens**:
+one switch per app password,
+granting it the cross-account routes for a script that cannot confirm a password.
+Its second tab is the user guide.
 
 ## Documentation
 
@@ -857,30 +1090,39 @@ The three documents are split by who is reading, not by topic:
 | [`docs/FAQ.md`](docs/FAQ.md) | administrators, integrators | Admin settings → Documentation |
 | This README | administrators, developers | Admin settings → Documentation |
 
-`GET /help` serves the user guide and the FAQ to any authenticated user, since both pages that
-use it are reachable by everyone. Administrators get the broader set — README, API specs and
-licence included — through the admin settings **Documentation** tab, which also carries the user
-guide, so whoever answers a question is reading the same words as the person asking it.
+`GET /help` serves the user guide and the FAQ to any authenticated user,
+since both pages that use it are reachable by everyone.
+Administrators get the broader set — README,
+API specs and licence included — through the admin settings **Documentation** tab,
+which also carries the user guide,
+so whoever answers a question is reading the same words as the person asking it.
 
 ## Troubleshooting
 
-**Nothing is being hashed.** That is the default state, not a fault: no `include` rule is enabled.
-The admin settings page says so in a banner; enable the *All home folders* rule, or write your own.
+**Nothing is being hashed.**
+That is the default state, not a fault: no `include` rule is enabled.
+The admin settings page says so in a banner; enable the *All home folders* rule,
+or write your own.
 
-**The indexed count went down.** Files were eroded — modified while no rule maintained them, so
-their outdated hashes were dropped (see [When hashes go away](#when-hashes-go-away)). The status page
-counts them, and coverage heals them.
+**The indexed count went down.**
+Files were eroded — modified while no rule maintained them,
+so their outdated hashes were dropped (see [When hashes go away](#when-hashes-go-away)).
+The status page counts them, and coverage heals them.
 
-**A rule never matches.** Check its band and its selector: a higher band may be claiming the files
-first, and a rule addressing a team folder that is gone, or whose app is disabled, is badged
-*folder missing* because it cannot match at all. `file-checksum-search:hash --user=<uid> -vv` names the rule that
-decided each file.
+**A rule never matches.**
+Check its band and its selector: a higher band may be claiming the files first,
+and a rule addressing a team folder that is gone, or whose app is disabled,
+is badged *folder missing* because it cannot match at all.
+`file-checksum-search:hash --user=<uid> -vv` names the rule that decided each file.
 
-**I want to start over, or move an instance.** `occ fcias:backup` writes out everything the app
-owns, `occ fcias:reset` gives it back — reporting only, until `--force` — and `occ fcias:import`
-reads it in again. See [Backing up, resetting and importing](#backing-up-resetting-and-importing).
+**I want to start over, or move an instance.**
+`occ fcias:backup` writes out everything the app owns,
+`occ fcias:reset` gives it back — reporting only,
+until `--force` — and `occ fcias:import` reads it in again.
+See [Backing up, resetting and importing](#backing-up-resetting-and-importing).
 
-**The index looks wrong.** Which repair you want depends on where the truth is:
+**The index looks wrong.**
+Which repair you want depends on where the truth is:
 
 ```bash
 php occ fcias:repair --list                          # what each step does
@@ -892,31 +1134,38 @@ php occ fcias:repair --step unindexed-hashes         # after a restore: the inde
 php occ fcias:repair --step clear-revoked            # revoked hashes the background job has yet to clear
 ```
 
-If the rules have asked for hashes nothing has computed yet, that is not a repair —
-it reads file content — and lives in its own command:
+If the rules have asked for hashes nothing has computed yet,
+that is not a repair — it reads file content — and lives in its own command:
 
 ```bash
 php occ fcias:queue:drain --batch-size 200   # one batch
 php occ fcias:queue:drain --all              # until the queue is empty
 ```
 
-Running `occ fcias:repair` with no step does all of them but one, and every step is safe to run again.
+Running `occ fcias:repair` with no step does all of them but one,
+and every step is safe to run again.
 A step marked *expensive* asks whether there is anything to do before doing it;
-`--include-expensive` tells it not to ask. `unindexed-hashes` is the exception it
-cannot make: finding a file the index has forgotten completely means reading every
-metadata document, and the answer is almost always none — so it is skipped unless
-you name it or pass `--include-expensive`.
+`--include-expensive` tells it not to ask.
+`unindexed-hashes` is the exception it cannot make:
+finding a file the index has forgotten completely means reading every metadata document,
+and the answer is almost always none — so it is skipped unless you name it
+or pass `--include-expensive`.
 
-A step says when it starts and what it did. `-v` adds what it found and, for a long one, how far it
-has got every half minute; `-vv` names each file it acts on, `-vvv` with the values it writes —
-`missing-stamps` says all of that. `-q` prints nothing but warnings and errors, on standard error,
+A step says when it starts and what it did.
+`-v` adds what it found and, for a long one,
+how far it has got every half minute; `-vv` names each file it acts on,
+`-vvv` with the values it writes — `missing-stamps` says all of that.
+`-q` prints nothing but warnings and errors, on standard error,
 which is what a run from cron wants.
 
-For hashes that are missing or outdated, table-prefix configuration, and other common issues, see [docs/FAQ.md § Troubleshooting](docs/FAQ.md#troubleshooting).
+For hashes that are missing or outdated, table-prefix configuration,
+and other common issues,
+see [docs/FAQ.md § Troubleshooting](docs/FAQ.md#troubleshooting).
 
 ## License
 
-AGPL-3.0-or-later. See [LICENSE](LICENSE) for details.
+AGPL-3.0-or-later.
+See [LICENSE](LICENSE) for details.
 
 <!-- BEGIN GENERATED RELEASE-PIN - do not edit; run "changelog.sh cut" -->
 [shot-admin-rules]: https://gitlab.com/metaworx/open-source/nextcloud/file_checksum_search/-/raw/v0.26.0/docs/Screenshots/Admin-Rules.png

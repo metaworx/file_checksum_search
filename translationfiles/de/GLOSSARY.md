@@ -1,14 +1,14 @@
 # German glossary
 
-The terms both German translations use, `de` and `de_DE` alike. A new text
-takes them from here; a term that changes, changes here and in both `.po`
-files at once.
+The terms both German translations use, `de` and `de_DE` alike.
+A new text takes them from here; a term that changes,
+changes here and in both `.po` files at once.
 
 ## Registers
 
 - `de` is Nextcloud's informal German: *du*, *dein*.
-- `de_DE` is its formal German: *Sie*, *Ihr*. It differs from `de` only
-  where a text addresses the reader.
+- `de_DE` is its formal German: *Sie*, *Ihr*.
+  It differs from `de` only where a text addresses the reader.
 - A label or button names its action in the infinitive, the same in both:
   „An beliebiger Stelle im Hash suchen“, „Zur Kenntnis nehmen“.
 
@@ -81,13 +81,14 @@ files at once.
 
 - The app's name, *File Checksum Index & Search*, stays English.
 - A name in running text takes German quotes and the exact German of that
-  element's own label: „Alle Home-Ordner“, „Regel hinzufügen“, a type as
-  „Einschließen“. A value shown or typed as it is keeps straight quotes and
-  stays English: `"**"`, `"include"`, `"hash"`, `local::/path/`.
+  element's own label: „Alle Home-Ordner“, „Regel hinzufügen“,
+  a type as „Einschließen“.
+  A value shown or typed as it is keeps straight quotes and stays English:
+  `"**"`, `"include"`, `"hash"`, `local::/path/`.
 - A failure names what failed: „Die Regel konnte nicht gespeichert
   werden.“ One with nothing to name reads „Speichern fehlgeschlagen.“, as
   the English's "Saving failed.".
 - A dash between clauses is the en dash with spaces: ` – `.
-- An ellipsis follows a no-break space (U+00A0), as in the English:
-  „Suchen …“. Written as the character itself.
+- An ellipsis follows a no-break space (U+00A0), as in the English: „Suchen …“.
+  Written as the character itself.
 - `{placeholders}`, `%s` and `%n` stay as they are.

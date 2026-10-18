@@ -2,22 +2,25 @@
 
 This translation is an AI draft, not yet reviewed by a native speaker.
 
-The terms the Spanish translation, `es`, uses. A new text takes them from
-here; a term that changes, changes here and in the `.po` file at once.
+The terms the Spanish translation, `es`, uses.
+A new text takes them from here; a term that changes,
+changes here and in the `.po` file at once.
 
 ## Registers
 
 - `es` addresses the reader as *usted*: *su*, *puede*, *cree*, *elija*,
-  *póngase en contacto*. That is the form Nextcloud's own Spanish uses in
-  most of its settings and core texts that speak to the user, for instance
-  «Por favor, contacte con el administrador.» (core), «Necesita establecer
-  el correo electrónico de su cuenta […]. Vaya a %s» (settings) and «No
-  tiene permiso para subir o crear archivos aquí» (files). Nextcloud's
-  Spanish mixes in *tú* in places; this app does not.
-- A button, menu entry or switch names its action in the infinitive, as
-  Nextcloud's own: «Añadir regla», «Volver a aplicar», «Tomar nota»,
-  «Buscar en cualquier parte del hash». A tooltip that tells the reader
-  what to do takes *usted*: «Arrastre para reordenar…».
+  *póngase en contacto*.
+  That is the form Nextcloud's own Spanish uses in most of its settings and core
+  texts that speak to the user, for instance «Por favor,
+  contacte con el administrador.» (core),
+  «Necesita establecer el correo electrónico de su cuenta […].
+  Vaya a %s» (settings) and «No tiene permiso para subir o crear archivos aquí» (files).
+  Nextcloud's Spanish mixes in *tú* in places; this app does not.
+- A button, menu entry or switch names its action in the infinitive,
+  as Nextcloud's own: «Añadir regla», «Volver a aplicar», «Tomar nota»,
+  «Buscar en cualquier parte del hash».
+  A tooltip that tells the reader what to do takes *usted*:
+  «Arrastre para reordenar…».
 
 ## Terms
 
@@ -104,26 +107,26 @@ here; a term that changes, changes here and in the `.po` file at once.
 ## Style
 
 - The app's name, *File Checksum Index & Search*, stays English.
-- A name in running text takes Spanish angle quotes and the exact Spanish
-  of that element's own label: «Todas las carpetas personales»,
-  «Seguridad», «Duplicados», «Añadir regla», a type as «Incluir». A value
-  shown or typed as it is keeps straight quotes and stays English: `"**"`,
-  `"include"`, `"—"`, `"hash"`, `local::/path/`.
-- A failure names what failed: «No se pudo guardar la regla.» One with
-  nothing to name reads «No se pudo guardar.», as the English's "Saving
-  failed.".
+- A name in running text takes Spanish angle quotes and the exact Spanish of
+  that element's own label: «Todas las carpetas personales», «Seguridad»,
+  «Duplicados», «Añadir regla», a type as «Incluir».
+  A value shown or typed as it is keeps straight quotes and stays English:
+  `"**"`, `"include"`, `"—"`, `"hash"`, `local::/path/`.
+- A failure names what failed:
+  «No se pudo guardar la regla.» One with nothing to name reads «No se pudo guardar.»,
+  as the English's "Saving failed.".
 - A label that pairs two parts keeps the spaced em dash of the source:
-  «Impuestas — todo», «{folders} — una carpeta». In running text an English
-  dash becomes Spanish punctuation: a colon or semicolon between clauses,
-  parentheses around a path list or an apposition, and the *raya* for an
-  aside, `—esta, la página «Duplicados»—`, attached to the words it
-  encloses.
-- An ellipsis follows the word without a space, as Spanish typography
-  has it: «Buscando…», «Guardando…», as Nextcloud's own «Guardando…». The
-  English's no-break space before "…" is not carried over. Written as the
-  character itself, never three dots.
-- Questions and exclamations open with their inverted sign: «¿Eliminar
-  esta regla?», «¡Copiado!».
+  «Impuestas — todo», «{folders} — una carpeta».
+  In running text an English dash becomes Spanish punctuation:
+  a colon or semicolon between clauses,
+  parentheses around a path list or an apposition, and the *raya* for an aside,
+  `—esta, la página «Duplicados»—`, attached to the words it encloses.
+- An ellipsis follows the word without a space, as Spanish typography has it:
+  «Buscando…», «Guardando…», as Nextcloud's own «Guardando…».
+  The English's no-break space before "…" is not carried over.
+  Written as the character itself, never three dots.
+- Questions and exclamations open with their inverted sign:
+  «¿Eliminar esta regla?», «¡Copiado!».
 - A relative clause that sets a filter takes the subjunctive: «los grupos
   cuyo hash coincida con lo que escriba».
 - Where a verb could take the wrong subject, *usted* is spelled out:

@@ -2,26 +2,31 @@
 
 This translation is an AI draft, not yet reviewed by a native speaker.
 
-The terms the Polish translation `pl` uses. A new text takes them from
-here; a term that changes, changes here and in the `.po` file at once.
+The terms the Polish translation `pl` uses.
+A new text takes them from here; a term that changes,
+changes here and in the `.po` file at once.
 
 ## Registers
 
-- `pl` addresses the reader as Nextcloud's own Polish does: informal
-  second person singular (*możesz*, *nie masz*, imperatives such as
-  *Skontaktuj się*, *Utwórz*), with the possessive capitalised as a
-  courtesy: *Twoje*, *Twój*, *Twoich* (core and settings: „Twoje konto
-  nie jest skonfigurowane…”, „Skontaktuj się z administratorem”).
-- A past-tense verb in the second person carries a gender in Polish
-  (*zrobiłeś*, *zrobiłaś*). The texts avoid it: an impersonal form
-  (*zapisano*) or the present tense takes its place. Where the text is
-  about the reader's own choice, the present or the perfective future
-  keeps the reader in it: *…pasuje do tego, co wpiszesz*.
-- A button or menu entry names its action in the imperative, as
-  Nextcloud's Polish does: *Zapisz*, *Dodaj regułę*, *Przelicz*.
-- A button that acknowledges speaks in the first person, as Polish
-  interfaces do: *Przyjmuję do wiadomości*. The toast that follows it
-  reports in the impersonal past: *Przyjęto do wiadomości – …*.
+- `pl` addresses the reader as Nextcloud's own Polish does:
+  informal second person singular (*możesz*, *nie masz*,
+  imperatives such as *Skontaktuj się*, *Utwórz*),
+  with the possessive capitalised as a courtesy: *Twoje*, *Twój*,
+  *Twoich* (core and settings: „Twoje konto nie jest skonfigurowane…”,
+  „Skontaktuj się z administratorem”).
+- A past-tense verb in the second person carries a gender in Polish (*zrobiłeś*,
+  *zrobiłaś*).
+  The texts avoid it: an impersonal form (*zapisano*) or the present tense takes
+  its place.
+  Where the text is about the reader's own choice,
+  the present or the perfective future keeps the reader in it: *…pasuje do tego,
+  co wpiszesz*.
+- A button or menu entry names its action in the imperative,
+  as Nextcloud's Polish does: *Zapisz*, *Dodaj regułę*, *Przelicz*.
+- A button that acknowledges speaks in the first person,
+  as Polish interfaces do: *Przyjmuję do wiadomości*.
+  The toast that follows it reports in the impersonal past:
+  *Przyjęto do wiadomości – …*.
 
 ## Terms
 
@@ -104,21 +109,22 @@ here; a term that changes, changes here and in the `.po` file at once.
 ## Style
 
 - The app's name, *File Checksum Index & Search*, stays English.
-- A name in running text takes Polish quotes, low opening and high
-  closing, and the exact Polish of that element's own label: „Wszystkie
-  foldery domowe”, „Dodaj regułę”, a type as „Uwzględnij”,
-  „Bezpieczeństwo”. A value shown or typed as it is keeps straight
-  quotes and stays English: `"**"`, `"include"`, `"hash"`,
-  `local::/path/`. A type or mode value inside a Polish sentence is
-  quoted too, placeholder or not: *Reguła rodzaju "%s"*.
+- A name in running text takes Polish quotes, low opening and high closing,
+  and the exact Polish of that element's own label: „Wszystkie foldery domowe”,
+  „Dodaj regułę”, a type as „Uwzględnij”, „Bezpieczeństwo”.
+  A value shown or typed as it is keeps straight quotes and stays English:
+  `"**"`, `"include"`, `"hash"`, `local::/path/`.
+  A type or mode value inside a Polish sentence is quoted too,
+  placeholder or not: *Reguła rodzaju "%s"*.
 - A failure names what failed: „Nie udało się zapisać reguły.” One with
   nothing to name reads „Zapisywanie nie powiodło się.”, as the
   English's "Saving failed.".
 - A dash between clauses is the en dash with spaces: ` – `.
-- An ellipsis follows the word without a space, although the English
-  puts a no-break space before it: „Zapisywanie…”, „Wyszukaj grupy…”,
-  as Polish typography has it and as most of Nextcloud's Polish texts
-  write it. Never three dots.
+- An ellipsis follows the word without a space,
+  although the English puts a no-break space before it: „Zapisywanie…”,
+  „Wyszukaj grupy…”,
+  as Polish typography has it and as most of Nextcloud's Polish texts write it.
+  Never three dots.
 - The Priority column's numbers keep their dot: *7.1*, not *7,1*.
 - `{placeholders}`, `%s` and `%n` stay as they are.
 - `%n` takes four forms: *plik* (1), *pliki* (2–4, 22–24, …),

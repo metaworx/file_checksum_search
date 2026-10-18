@@ -2,18 +2,19 @@
 
 This translation is an AI draft, not yet reviewed by a native speaker.
 
-The terms the `zh_CN` translation uses. A new text takes them from here; a
-term that changes, changes here and in the `.po` file at once.
+The terms the `zh_CN` translation uses.
+A new text takes them from here; a term that changes,
+changes here and in the `.po` file at once.
 
 ## Registers
 
 - `zh_CN` addresses the reader with the polite *您*, *您的*, as Nextcloud's
   own `zh_CN` does in core and settings (“请联系您的管理员。”, “您的账号”);
   *你* does not appear.
-- Instructions are plain imperatives, softened with *请* where Nextcloud
-  does so: “请先启用它。”
-- A button or menu entry names its action as a plain verb phrase, as
-  Nextcloud's own do: “添加规则”, “重新计算”, “全部验证”.
+- Instructions are plain imperatives, softened with *请* where Nextcloud does so:
+  “请先启用它。”
+- A button or menu entry names its action as a plain verb phrase,
+  as Nextcloud's own do: “添加规则”, “重新计算”, “全部验证”.
 
 ## Terms
 
@@ -96,23 +97,23 @@ term that changes, changes here and in the `.po` file at once.
 ## Style
 
 - The app's name, *File Checksum Index & Search*, stays English.
-- Chinese sentences take full-width punctuation: ，。：；？！（）、. A label
-  that pairs a word with a value uses the full-width colon with no space:
+- Chinese sentences take full-width punctuation: ，。：；？！（）、.
+  A label that pairs a word with a value uses the full-width colon with no space:
   “群组：{group}”, “总计：{count}”.
-- A name in running text takes Chinese quotation marks with no space around
-  them, and reads exactly as that element's own label: “所有主目录”, “安全”,
-  “添加规则”, a type as “包含”. A value shown or typed as it is keeps
-  straight quotes and stays English: `"**"`, `"/"`, `"include"`, `"hash"`,
-  `local::/path/`; so does a placeholder standing for one: `"%s" 类型的规则`.
+- A name in running text takes Chinese quotation marks with no space around them,
+  and reads exactly as that element's own label: “所有主目录”, “安全”, “添加规则”,
+  a type as “包含”.
+  A value shown or typed as it is keeps straight quotes and stays English:
+  `"**"`, `"/"`, `"include"`, `"hash"`, `local::/path/`;
+  so does a placeholder standing for one: `"%s" 类型的规则`.
 - Latin words, numbers and `{placeholders}` are set off from Chinese
   characters by a space (“使用 API”, “1 到 500”, “下载 {file}”), but not from
   full-width punctuation (“（{error}）”, “：%s”), as Nextcloud's `zh_CN` does.
-- A failure names what failed: “无法保存规则。” One with nothing to name
-  reads “保存失败。”, as the English's “Saving failed.”.
-- A dash between clauses is usually rewritten with a comma, colon or
-  brackets; where a dash stays, it is the Chinese dash ——, without spaces:
-  “强制——所有主目录”.
-- An ellipsis follows the word directly, with no space: “正在保存…”,
-  “选择群组…”. Written as the character itself, never three dots.
-- `{placeholders}`, `%s` and `%n` stay as they are; a counted noun takes its
-  measure word: “%n 个文件”.
+- A failure names what failed: “无法保存规则。” One with nothing to name reads “保存失败。”,
+  as the English's “Saving failed.”.
+- A dash between clauses is usually rewritten with a comma, colon or brackets;
+  where a dash stays, it is the Chinese dash ——, without spaces: “强制——所有主目录”.
+- An ellipsis follows the word directly, with no space: “正在保存…”, “选择群组…”.
+  Written as the character itself, never three dots.
+- `{placeholders}`, `%s` and `%n` stay as they are;
+  a counted noun takes its measure word: “%n 个文件”.

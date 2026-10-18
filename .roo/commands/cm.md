@@ -1,15 +1,18 @@
----
-description: "Commit Action Plans — synthesize concise changelog entries from UAMF drafts, write to docs/changelog/, and commit"
-argument-hint: "[EXEC|EXEC+|EXEC++|EXEC+++] [additional instructions]"
----
+--- description: "Commit Action Plans — synthesize concise changelog entries
+from UAMF drafts, write to docs/changelog/, and commit" argument-hint:
+"[EXEC|EXEC+|EXEC++|EXEC+++] [additional instructions]" ---
 
 # /cm — Commit Action Plan
 
-Commits implemented Action Plans with a synthesized changelog entry. Condenses UAMF AP drafts from `.aiassistant/messages/` into clean committed versions at `docs/changelog/NNN-slug.md`, and commits everything together.
+Commits implemented Action Plans with a synthesized changelog entry.
+Condenses UAMF AP drafts from `.aiassistant/messages/` into clean committed
+versions at `docs/changelog/NNN-slug.md`, and commits everything together.
 
 ## 1. Execution Signals
 
-Follows `.aiassistant/COMMIT.md` §2 semantics. The `/cm` command always writes the changelog file first, then presents a commit gate.
+Follows `.aiassistant/COMMIT.md` §2 semantics.
+The `/cm` command always writes the changelog file first,
+then presents a commit gate.
 
 | Signal            | Changelog | Stage scope | Commit scope |
 |-------------------|---|---|---|
@@ -18,13 +21,20 @@ Follows `.aiassistant/COMMIT.md` §2 semantics. The `/cm` command always writes 
 | `/cm EXEC++`      | Write | Changelog + all currently staged files | All staged, adapt message |
 | `/cm EXEC+++`     | Write | `git add .` (all changed files) | All changed, adapt message, no gate |
 
-Additional text after the signal is treated as amendments to the commit message body or scope instructions.
+Additional text after the signal is treated as amendments to the commit message
+body or scope instructions.
 
 ## 2. Workflow
 
 ### 2.1 Discover UAMF APs
 
-Scan `.aiassistant/messages/` for `AP_*` files from the current task. Each distinct AP topic may have multiple versioned files (v1.0, v1.1, ..., v1.N). **Read all versions** to understand how the plan evolved. Apply the latest-wins rule (§2.2): where versions disagree, the highest-numbered version takes precedence. The committed file reflects only the final synthesis — not the deliberation journey.
+Scan `.aiassistant/messages/` for `AP_*` files from the current task.
+Each distinct AP topic may have multiple versioned files (v1.0, v1.1, ...,
+v1.N).
+**Read all versions** to understand how the plan evolved.
+Apply the latest-wins rule (§2.2): where versions disagree,
+the highest-numbered version takes precedence.
+The committed file reflects only the final synthesis — not the deliberation journey.
 
 ### 2.2 Apply Latest-Wins Synthesis
 
@@ -39,11 +49,15 @@ Read all versions; output only the conclusion.
 
 ### 2.3 Determine Next Sequence Number
 
-List `docs/changelog/` for the highest `NNN` prefix. Use `NNN+1`. Create the directory if absent. Start at `001`.
+List `docs/changelog/` for the highest `NNN` prefix.
+Use `NNN+1`.
+Create the directory if absent.
+Start at `001`.
 
 ### 2.4 Write Committed Changelog
 
-Create `docs/changelog/NNN-slug.md`. Condense — do not copy any UAMF file verbatim.
+Create `docs/changelog/NNN-slug.md`.
+Condense — do not copy any UAMF file verbatim.
 
 **Keep:**
 - Title: plain descriptive (drop `AP EXEC v1.0:` prefix, drop version number)
@@ -53,7 +67,8 @@ Create `docs/changelog/NNN-slug.md`. Condense — do not copy any UAMF file verb
 - Proposed commit message → use as actual commit message
 
 **Drop:**
-- Gate protocol sections (`Checkpoint`, `Overall Task`, `Last Action`, `Pending action`, `Confirmation needed`)
+- Gate protocol sections (`Checkpoint`, `Overall Task`, `Last Action`,
+  `Pending action`, `Confirmation needed`)
 - `EXEC` / `ROLLBACK` keywords
 - Iterative UAMF version entries in Change History
 - Inline verification checkpoints in Implementation
@@ -92,28 +107,33 @@ Create `docs/changelog/NNN-slug.md`. Condense — do not copy any UAMF file verb
 
 ### 2.5 Update CHANGELOG.md
 
-Not to be confused with the `docs/changelog/NNN-slug.md` AP log written in §2.4 — this is the project's
-root `CHANGELOG.md` (Keep a Changelog, semver).
+Not to be confused with the `docs/changelog/NNN-slug.md` AP log written in §2.4
+— this is the project's root `CHANGELOG.md` (Keep a Changelog, semver).
 
-If the AP's changed files include any shipped app code (`lib/`, `src/`, `css/`, `js/`, `templates/`, `img/`,
-`appinfo/routes.php`, `appinfo/info.xml`), add one bullet to `## [Unreleased]` in `CHANGELOG.md` describing the
-actual effect of the change (per `.aiassistant/COMMIT.md` §4.3) — drawn from the Analysis/Implementation
-sections just written, not copied from the AP title. Skip this step if the AP touched only CI/tests/docs/IDE
-files.
+If the AP's changed files include any shipped app code (`lib/`, `src/`, `css/`,
+`js/`, `templates/`, `img/`, `appinfo/routes.php`, `appinfo/info.xml`),
+add one bullet to `## [Unreleased]` in `CHANGELOG.md` describing the actual
+effect of the change (per `.aiassistant/COMMIT.md` §4.3) — drawn from the
+Analysis/Implementation sections just written, not copied from the AP title.
+Skip this step if the AP touched only CI/tests/docs/IDE files.
 
-This does not cut a release — that's a separate, dedicated `[RELEASE]` commit via `/release`
-(`.aiassistant/COMMIT.md` §4.4). Do not bump `appinfo/info.xml` here.
+This does not cut a release — that's a separate,
+dedicated `[RELEASE]` commit via `/release` (`.aiassistant/COMMIT.md` §4.4).
+Do not bump `appinfo/info.xml` here.
 
 ### 2.6 Stage and Commit
 
-1. Stage: `git add docs/changelog/NNN-slug.md` plus all changed source/test files, plus `CHANGELOG.md` if §2.5 applied
-2. Write commit message to `.aiassistant/temp/commit-msg.txt`, then run the appropriate commit script (`.aiassistant/COMMIT.md` §6.1)
+1. Stage: `git add docs/changelog/NNN-slug.md` plus all changed source/test files,
+   plus `CHANGELOG.md` if §2.5 applied
+2. Write commit message to `.aiassistant/temp/commit-msg.txt`,
+   then run the appropriate commit script (`.aiassistant/COMMIT.md` §6.1)
 3. Present commit gate following `AGENTS.md` §1.1 Universal Gate Template
 4. Execute according to the signal in §1
 
 ### 2.7 Commit Gate Format
 
-Follow `AGENTS.md` §1.1 Universal Gate Template. The gate message MUST include:
+Follow `AGENTS.md` §1.1 Universal Gate Template.
+The gate message MUST include:
 
 ```
 Checkpoint: {AP title}
@@ -129,11 +149,22 @@ Confirmation needed: EXEC / EXEC+ / EXEC++ / EXEC+++ / ROLLBACK
 
 Ask the user to confirm with an `EXEC`-family signal or provide feedback for revision.
 
-**Delivery mechanism (STRICT):** Use the native tool `ask_followup_question`. Write the gate message in the `question` parameter of `ask_followup_question` **ending with a short call-to-action label**.
+**Delivery mechanism (STRICT):**
+Use the native tool `ask_followup_question`.
+Write the gate message in the `question` parameter of `ask_followup_question`
+**ending with a short call-to-action label**.
 
-- **Tool**: Use the native tool`ask_followup_question`
-- **`question` parameter**: Full gate summary in Markdown (Checkpoint, Overall Task, Last Action, Pending action, Proposed commit message, Changelog, CHANGELOG.md entry, Files to be committed). Write this exactly as you would any other response body. Ending on a single short line: `"Confirmation needed: EXEC / EXEC+ / EXEC++ / EXEC+++ / ROLLBACK"`.
-- **`follow_up` parameter**: User choice buttons with mode switches where appropriate.
+- **Tool**:
+  Use the native tool`ask_followup_question`
+- **`question` parameter**:
+  Full gate summary in Markdown (Checkpoint, Overall Task, Last Action,
+  Pending action, Proposed commit message, Changelog, CHANGELOG.md entry,
+  Files to be committed).
+  Write this exactly as you would any other response body.
+  Ending on a single short line:
+  `"Confirmation needed: EXEC / EXEC+ / EXEC++ / EXEC+++ / ROLLBACK"`.
+- **`follow_up` parameter**:
+  User choice buttons with mode switches where appropriate.
 
 ## 3. Slug Convention
 

@@ -2,8 +2,9 @@
 
 This translation is an AI draft that no native speaker has reviewed yet.
 
-The terms the `pt_BR` translation uses. A new text takes them from here; a
-term that changes, changes here and in the `.po` file at once.
+The terms the `pt_BR` translation uses.
+A new text takes them from here; a term that changes,
+changes here and in the `.po` file at once.
 
 ## Registers
 
@@ -12,9 +13,8 @@ term that changes, changes here and in the `.po` file at once.
   com o administrador"): possessives *seu*, *sua*; instructions in the
   imperative that goes with *você* (*ative*, *adicione*, *escolha*,
   *aguarde*).
-- Buttons, menu entries and headings are infinitives or nouns, as in
-  Nextcloud: *Salvar*, *Excluir*, *Adicionar regra*, *Marcar como ciente*,
-  *Configurações*.
+- Buttons, menu entries and headings are infinitives or nouns, as in Nextcloud:
+  *Salvar*, *Excluir*, *Adicionar regra*, *Marcar como ciente*, *Configurações*.
 
 ## Terms
 
@@ -98,17 +98,17 @@ term that changes, changes here and in the `.po` file at once.
 ## Style
 
 - The app's name, *File Checksum Index & Search*, stays English.
-- A name in running text takes curly quotes and the exact translation of
-  that element's own label, as Nextcloud's `pt_BR` does: “Todas as pastas
-  pessoais”, “Adicionar regra”, “Segurança”, a type as “Incluir”. A value
-  shown or typed as it is keeps straight quotes and stays English: `"**"`,
-  `"include"`, `"hash"`, `local::/path/`.
-- A failure names what failed: *Não foi possível salvar a regra.* One with
-  nothing to name reads *Falha ao salvar.*, as the English's "Saving
-  failed.".
+- A name in running text takes curly quotes and the exact translation of that
+  element's own label, as Nextcloud's `pt_BR` does: “Todas as pastas pessoais”,
+  “Adicionar regra”, “Segurança”, a type as “Incluir”.
+  A value shown or typed as it is keeps straight quotes and stays English:
+  `"**"`, `"include"`, `"hash"`, `local::/path/`.
+- A failure names what failed: *Não foi possível salvar a regra.*
+  One with nothing to name reads *Falha ao salvar.*,
+  as the English's "Saving failed.".
 - A dash between clauses is the em dash with spaces: ` — `.
-- An ellipsis follows the word without a space, the English's no-break
-  space dropped: *Pesquisando…*, *Salvando…*.
+- An ellipsis follows the word without a space,
+  the English's no-break space dropped: *Pesquisando…*, *Salvando…*.
 - `{placeholders}`, `%s` and `%n` stay as they are.
 - The plural has three forms: 0 and 1, exact millions (*%n de arquivos*),
   and the rest.

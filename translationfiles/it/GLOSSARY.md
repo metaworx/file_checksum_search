@@ -2,18 +2,20 @@
 
 This translation is an AI draft, not yet reviewed by a native speaker.
 
-The terms the Italian translation uses. A new text takes them from here; a
-term that changes, changes here and in the `.po` file at once.
+The terms the Italian translation uses.
+A new text takes them from here; a term that changes,
+changes here and in the `.po` file at once.
 
 ## Registers
 
-- `it` addresses the reader informally, with *tu*, as Nextcloud's own
-  Italian does: *Contatta il tuo amministratore*, *Puoi chiudere questa
-  finestra* (core), *Copiala a mano* (settings).
-- Buttons and actions are imperatives in the *tu* form, as Nextcloud's
-  are: *Salva*, *Annulla*, *Elimina*, *Abilita*, *Revoca*, *Aggiungi
-  regola*, *Prendi atto*. A button's tooltip is an imperative too: *Rileggi
-  questo file, ricalcolane il checksum e confronta*.
+- `it` addresses the reader informally, with *tu*,
+  as Nextcloud's own Italian does: *Contatta il tuo amministratore*,
+  *Puoi chiudere questa finestra* (core), *Copiala a mano* (settings).
+- Buttons and actions are imperatives in the *tu* form, as Nextcloud's are:
+  *Salva*, *Annulla*, *Elimina*, *Abilita*, *Revoca*, *Aggiungi regola*,
+  *Prendi atto*.
+  A button's tooltip is an imperative too: *Rileggi questo file,
+  ricalcolane il checksum e confronta*.
 
 ## Terms
 
@@ -92,15 +94,16 @@ term that changes, changes here and in the `.po` file at once.
 ## Style
 
 - The app's name, *File Checksum Index & Search*, stays English.
-- A name in running text takes Italian curly quotes, as Nextcloud's newer
-  Italian texts do, and the exact Italian of that element's own label:
-  “Tutte le cartelle home”, “Sicurezza”, “Aggiungi regola”, a type as
-  “Includi”. A value shown or typed as it is keeps straight quotes and stays
-  English: `"**"`, `"include"`, `"hash"`, `"—"`, `local::/path/`.
+- A name in running text takes Italian curly quotes,
+  as Nextcloud's newer Italian texts do,
+  and the exact Italian of that element's own label: “Tutte le cartelle home”,
+  “Sicurezza”, “Aggiungi regola”, a type as “Includi”.
+  A value shown or typed as it is keeps straight quotes and stays English:
+  `"**"`, `"include"`, `"hash"`, `"—"`, `local::/path/`.
 - A dash between clauses is the en dash with spaces: ` – `.
-- An ellipsis follows the word without a space: “Salvataggio…”, as
-  Nextcloud's own *Salvataggio…*. The no-break space the English puts
-  before “…” is not carried over.
+- An ellipsis follows the word without a space: “Salvataggio…”,
+  as Nextcloud's own *Salvataggio…*.
+  The no-break space the English puts before “…” is not carried over.
 - The apostrophe is the straight `'`, as in most of Nextcloud's Italian.
 - `{placeholders}`, `%s` and `%n` stay as they are.
 - The plural form is Nextcloud's

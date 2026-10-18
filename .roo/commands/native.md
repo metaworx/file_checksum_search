@@ -1,14 +1,15 @@
----
-description: "agent tooling precedence and usage guide"
----
+--- description: "agent tooling precedence and usage guide" ---
 
 # Native Agent Tooling Guide
 
 ## 1. Precedence
 
 1. Use native agent tools where available.
-2. Use JetBrains MCP server tools as fallback or where they provide additional functionality.
-3. Don't use shell to edit files (particularly PowerShell commands regularly fail due to syntax errors and escaping mistakes). Use a temp script instead, if required.
+2. Use JetBrains MCP server tools as fallback or where they provide additional
+   functionality.
+3. Don't use shell to edit files (particularly PowerShell commands regularly
+   fail due to syntax errors and escaping mistakes).
+   Use a temp script instead, if required.
 4. Follow AGENTS.md for more instructions.
 
 ## 2. Native Agent Tools
@@ -44,25 +45,38 @@ description: "agent tooling precedence and usage guide"
 ## 4. Key Patterns
 
 ### 4.1 Verify → Edit → Verify Cycle
-Read file → `apply_diff` → `mcp--jetbrains--build_project` or `lint_files` → fix any issues.
+Read file → `apply_diff` → `mcp--jetbrains--build_project` or `lint_files` → fix
+any issues.
 
 ### 4.2 UAMF Rule (CRITICAL)
-Files in `.aiassistant/messages/` are immutable once written. Always create a **new** timestamped file for revisions — never `apply_diff` or `write_to_file` on existing UAMF files (AGENTS.md §4).
+Files in `.aiassistant/messages/` are immutable once written.
+Always create a **new** timestamped file for revisions — never `apply_diff`
+or `write_to_file` on existing UAMF files (AGENTS.md §4).
 
 ### 4.3 Mode Awareness
-- **Architect mode**: `.md`-only writes, no shell commands. Switch to `code` mode (`switch_mode`) for implementation.
-- **Code mode**: Full file writes, `apply_diff`, `execute_command` available.
+- **Architect mode**:
+  `.md`-only writes, no shell commands.
+  Switch to `code` mode (`switch_mode`) for implementation.
+- **Code mode**:
+  Full file writes, `apply_diff`, `execute_command` available.
 
 ### 4.4 Parallel Reads
-`read_file`, `search_files`, `list_files` can all be called in parallel (single message, multiple invocations) to reduce round-trips.
+`read_file`, `search_files`,
+`list_files` can all be called in parallel (single message,
+multiple invocations) to reduce round-trips.
 
 ### 4.5 JetBrains MCP for PHP-specific Tasks
-Use `get_composer_dependencies` to check library availability, `get_php_project_config` for PHP version, `build_project` with `filesToRebuild` for fast targeted validation.
+Use `get_composer_dependencies` to check library availability,
+`get_php_project_config` for PHP version,
+`build_project` with `filesToRebuild` for fast targeted validation.
 
 ## 5. FCIAS Environment (CRITICAL)
 
 ### 5.1 execute_command
-**Always** pass `cwd: "C:\\"`. The default workspace path `\\wsl.localhost\Ubuntu\...` is a UNC path unsupported by CMD.EXE, causing: `CMD.EXE was started with the above path as the current directory. UNC paths are not supported.`
+**Always** pass `cwd: "C:\\"`.
+The default workspace path `\\wsl.localhost\Ubuntu\...` is a UNC path
+unsupported by CMD.EXE, causing:
+`CMD.EXE was started with the above path as the current directory. UNC paths are not supported.`
 
 ### 5.2 WSL Command Prefix
 All commands targeting the project must use:

@@ -1,6 +1,7 @@
 # FCIAS Public API v1
 
-Stable public API for the File Checksum Index & Search Nextcloud app. Three consumer surfaces share the same underlying contract:
+Stable public API for the File Checksum Index & Search Nextcloud app.
+Three consumer surfaces share the same underlying contract:
 
 | Surface | Audience | Access Method |
 |---------|----------|---------------|
@@ -8,7 +9,8 @@ Stable public API for the File Checksum Index & Search Nextcloud app. Three cons
 | **PHP DI** | Other Nextcloud apps (in-process) | Dependency injection via `\OCP\Server::get()` |
 | **PHP Bootstrap** | External PHP apps | `require_once` NC base, then container lookup |
 
-All three surfaces use the same [`ChecksumApi`](../lib/Public/ChecksumApi.php) class as their single public contract.
+All three surfaces use the same [`ChecksumApi`](../lib/Public/ChecksumApi.php)
+class as their single public contract.
 
 ## Table of Contents
 
@@ -27,16 +29,16 @@ All three surfaces use the same [`ChecksumApi`](../lib/Public/ChecksumApi.php) c
 
 ## Locations and paths
 
-Every file row this API gives carries `path`, `name`, `owner` and
-`location`.
+Every file row this API gives carries `path`, `name`, `owner` and `location`.
 
-- **`path`** is where an account finds the file: its path in that
-  account's files, with a leading slash and the name included,
-  `/My Projects/Bob-x/a.txt`, as the Files app shows it and WebDAV serves it
-  below `remote.php/dav/files/<account>/`. With several accounts in reach,
-  the first that holds the file names it. With every account in reach — a
-  sudoer, or `$reachUids` null — it is the file's path below its area, the
-  area `location` names.
+- **`path`** is where an account finds the file:
+  its path in that account's files, with a leading slash and the name included,
+  `/My Projects/Bob-x/a.txt`,
+  as the Files app shows it and WebDAV serves it below `remote.php/dav/files/<account>/`.
+  With several accounts in reach, the first that holds the file names it.
+  With every account in reach — a sudoer,
+  or `$reachUids` null — it is the file's path below its area,
+  the area `location` names.
 - **`owner`** is the account a home file belongs to, `null` for a team
   folder or a storage, which have none.
 - **`location`** is an **address**: an area, two slashes, and the path
@@ -50,16 +52,20 @@ Every file row this API gives carries `path`, `name`, `owner` and
   | a share the reader holds it through | `share:42//a.txt`, and `share:43//` for a file shared on its own |
 
   The area is named as a rule's selector names it — `home:<uid>`,
-  `groupfolder:<id>`, `storage:<raw id>` with the id as `oc_storages` holds
-  it but without its trailing slashes — or by the share's id, which the
-  sharing API gives its recipient. A path holds no `//` and starts with no
-  `/`, so the **last** `//` separates the area from the path, whatever a
-  storage's id holds.
+  `groupfolder:<id>`,
+  `storage:<raw id>` with the id as `oc_storages` holds it but without its
+  trailing slashes — or by the share's id,
+  which the sharing API gives its recipient.
+  A path holds no `//` and starts with no `/`,
+  so the **last** `//` separates the area from the path,
+  whatever a storage's id holds.
 - **A share** is the location of a file its reader holds through one:
-  nothing of the sharer's folders above the share, which Nextcloud never
-  shows a recipient. So on the routes of one's own files, and on a group
-  leader's, who reads what each member reads. A sudoer reads every file's
-  own address, as does every call with `$reachUids` null; in PHP,
+  nothing of the sharer's folders above the share,
+  which Nextcloud never shows a recipient.
+  So on the routes of one's own files, and on a group leader's,
+  who reads what each member reads.
+  A sudoer reads every file's own address,
+  as does every call with `$reachUids` null; in PHP,
   `$canonical` asks for it whatever the reach.
 - **A rule's scope** is written the same way: its selector, two slashes,
   and its glob, `home:alice//Photos/` followed by `**` ([Rules](#rules)).
@@ -68,76 +74,86 @@ Every file row this API gives carries `path`, `name`, `owner` and
 
 ## MIME types
 
-Where an administrator has switched detection on, a file's MIME type is
-detected from its content, the first 64 KiB of the read that hashes it,
-and kept beside its hashes. Nextcloud's own type, the `mimetype` WebDAV
-and the filecache give, comes from the file's name.
+Where an administrator has switched detection on,
+a file's MIME type is detected from its content,
+the first 64 KiB of the read that hashes it, and kept beside its hashes.
+Nextcloud's own type, the `mimetype` WebDAV and the filecache give,
+comes from the file's name.
 
-- **Asked for:** `?mimetype=1` on the routes that answer with files: the
-  lookup, a file's hashes, the listing, the duplicates, a file's same-hash
-  files and the recalculations, each with its `sudo/` twin. In PHP,
-  `$withMimeType` on the methods behind them.
-- **`mimetype`** is the type as libmagic names it, `application/pdf`, or
-  `null` for a file without one: hashed before detection was on and not
-  yet refreshed, given its hashes without a read (the filecache copy, an
-  import), or changed since. A duplicate group carries one, the type of
-  the content its files share.
-- **While detection is off**, asking is refused with `400` and an `error`
-  saying so, and where it is switched on; in PHP, a
-  `HintedInvalidArgumentException`. `GET /api/v1/features` tells every
-  caller in `features.mimetype` whether to ask, as `GET /api/v1/status`
-  does; the app's own pages carry it as initial state.
-- **The listing's `since`** follows the hashes: a type a refresh detects
-  writes no hash, and no feed carries it. After a refresh, read the
-  listing whole.
+- **Asked for:**
+  `?mimetype=1` on the routes that answer with files: the lookup,
+  a file's hashes, the listing, the duplicates,
+  a file's same-hash files and the recalculations, each with its `sudo/` twin.
+  In PHP, `$withMimeType` on the methods behind them.
+- **`mimetype`** is the type as libmagic names it, `application/pdf`,
+  or `null` for a file without one:
+  hashed before detection was on and not yet refreshed,
+  given its hashes without a read (the filecache copy, an import),
+  or changed since.
+  A duplicate group carries one, the type of the content its files share.
+- **While detection is off**,
+  asking is refused with `400` and an `error` saying so,
+  and where it is switched on; in PHP, a `HintedInvalidArgumentException`.
+  `GET /api/v1/features` tells every caller in `features.mimetype` whether to ask,
+  as `GET /api/v1/status` does; the app's own pages carry it as initial state.
+- **The listing's `since`** follows the hashes:
+  a type a refresh detects writes no hash, and no feed carries it.
+  After a refresh, read the listing whole.
 
 ---
 
 ## File state
 
 A file's hashes hold while its content is the one they were read from.
-The app writes down the ETag the file had when they were read, and
-compares it with the ETag the filecache holds, which every write moves
-on — one the app hears of, one it misses, a change on an external storage
-a scan takes in.
+The app writes down the ETag the file had when they were read,
+and compares it with the ETag the filecache holds,
+which every write moves on — one the app hears of, one it misses,
+a change on an external storage a scan takes in.
 
-- **Asked for:** `?stat=1` on the lookup, a file's hashes, the listing, the
-  missing files and the recalculations, each with its `sudo/` twin. In
-  PHP, `$withStat` on `findByHash()`, `getHashesByFileId()`, `listHashes()`,
+- **Asked for:**
+  `?stat=1` on the lookup, a file's hashes, the listing,
+  the missing files and the recalculations, each with its `sudo/` twin.
+  In PHP, `$withStat` on `findByHash()`, `getHashesByFileId()`, `listHashes()`,
   `iterateHashes()`, `listMissing()`, `recalcHash()` and `recalcMany()`.
-  Without it, the answers have no state, and leave out a stale file as
-  below — which, for a file changed without the app hearing of it, is new
-  in the release that brought `stat`.
-- **The evidence:** `etag` is the ETag the hashes were read against, as the
-  filecache holds it, without the quotes WebDAV's `getetag` puts around it.
+  Without it, the answers have no state,
+  and leave out a stale file as below — which,
+  for a file changed without the app hearing of it,
+  is new in the release that brought `stat`.
+- **The evidence:**
+  `etag` is the ETag the hashes were read against, as the filecache holds it,
+  without the quotes WebDAV's `getetag` puts around it.
   It and the hashes are valid together, or `null` together.
-- **The present state:** `size` in bytes, `mtime` and `storageMtime` — the
-  file's mtime as Nextcloud shows it, and its storage's own, which a scan
-  compares — whatever the hashes' state. The times are ISO 8601 in whole
-  seconds with an explicit offset, as `updated_at` is.
-- **A stale entry** — a file whose ETag moved on, or whose hashes were
-  revoked with `occ fcias:revoke` — is left out of the lookup, the listing
-  and the duplicates by default, as it always was, and a file's hashes give
-  `{}` for one whose ETag moved on. Under `stat=1` the listing and a file's
-  hashes include it, with `fileid`, `path`, `owner` and the present state,
-  and `hashes`, `updated_at`, `etag` and, where asked for, `mimetype`
-  `null`; a file that has no hashes at all gives `hashes` `{}`. A lookup
-  never finds one: it would match a value the file may no longer hold.
+- **The present state:**
+  `size` in bytes, `mtime` and `storageMtime` — the file's mtime as Nextcloud shows it,
+  and its storage's own, which a scan compares — whatever the hashes' state.
+  The times are ISO 8601 in whole seconds with an explicit offset,
+  as `updated_at` is.
+- **A stale entry** — a file whose ETag moved on,
+  or whose hashes were revoked with `occ fcias:revoke` — is left out of the lookup,
+  the listing and the duplicates by default, as it always was,
+  and a file's hashes give `{}` for one whose ETag moved on.
+  Under `stat=1` the listing and a file's hashes include it, with `fileid`,
+  `path`, `owner` and the present state, and `hashes`, `updated_at`, `etag` and,
+  where asked for, `mimetype` `null`;
+  a file that has no hashes at all gives `hashes` `{}`.
+  A lookup never finds one: it would match a value the file may no longer hold.
 - **A MIME type** was detected from the content the hashes were read from,
   and is `null` wherever they are stale, with or without `stat`.
-- **Hashes stamped without an ETag** — before the app kept it, or by an
-  import, which read nothing — count while their stamp is no older than
-  the storage's own mtime, and give the ETag the filecache holds, as
-  adoption does; `occ fcias:repair --step etag-stamp` writes it down where
-  the filecache's checksums vouch for them. A sync client that replaces a
-  file's content and keeps an older mtime gets past that test until then.
-- **A whole inventory:** `GET /api/v1/hashes?stat=1` lists every file with
-  a hash row, stale ones included, and `GET /api/v1/hashes/missing` with
-  `unmatched`, `withIgnored` and `withExcluded` every file without one;
-  read both, and a file of the files area in neither is gone. Trash,
-  versions, app data and a home's `uploads/` and `cache/` are in neither,
-  and so, until the `missing-stamps` repair has stamped it, is a file
-  whose hash rows have no stamp row.
+- **Hashes stamped without an ETag** — before the app kept it, or by an import,
+  which read nothing — count while their stamp is no older than the storage's own mtime,
+  and give the ETag the filecache holds, as adoption does;
+  `occ fcias:repair --step etag-stamp` writes it down where the filecache's
+  checksums vouch for them.
+  A sync client that replaces a file's content and keeps an older mtime gets
+  past that test until then.
+- **A whole inventory:**
+  `GET /api/v1/hashes?stat=1` lists every file with a hash row,
+  stale ones included, and `GET /api/v1/hashes/missing` with `unmatched`,
+  `withIgnored` and `withExcluded` every file without one; read both,
+  and a file of the files area in neither is gone.
+  Trash, versions, app data and a home's `uploads/` and `cache/` are in neither,
+  and so, until the `missing-stamps` repair has stamped it,
+  is a file whose hash rows have no stamp row.
 
 ---
 
@@ -145,7 +161,9 @@ a scan takes in.
 
 ### Class: `OCA\FileChecksumSearch\Public\ChecksumApi`
 
-Located at [`lib/Public/ChecksumApi.php`](../lib/Public/ChecksumApi.php). This is the **single public contract** — all HTTP endpoints delegate to the same methods, guaranteeing behavioral equivalence.
+Located at [`lib/Public/ChecksumApi.php`](../lib/Public/ChecksumApi.php).
+This is the **single public contract** — all HTTP endpoints delegate to the same methods,
+guaranteeing behavioral equivalence.
 
 #### Dependency Injection (within NC)
 
@@ -189,21 +207,25 @@ $hashes = $api->getHashesByPath('Documents/report.pdf', 'alice');
 
 Two parameters recur, and they answer two different questions:
 
-- **`$actingUser`** — *who is asking.* Permissions are checked against this
-  account (the manual-calculation permission, the stored preferred algorithm).
+- **`$actingUser`** — *who is asking.*
+  Permissions are checked against this account (the manual-calculation permission,
+  the stored preferred algorithm).
   `null` is a trusted server-side caller: the permission is waived.
-- **`$reachUids`** — *whose files may be answered for.* A list of account ids;
-  the answer is confined to the files those accounts hold — their own, the
-  shares they received (a share only to its subtree) and their team folders.
-  `null` is the whole instance. It is required, and comes right after the
-  method's subject, so the whole instance is never what a caller gets by
-  leaving an argument out. The REST layer passes the caller's own account
-  on the ordinary routes and the caller's reach on the `/sudo/` twins; a
-  PHP caller passes whatever it has established.
+- **`$reachUids`** — *whose files may be answered for.*
+  A list of account ids;
+  the answer is confined to the files those accounts hold — their own,
+  the shares they received (a share only to its subtree) and their team folders.
+  `null` is the whole instance.
+  It is required, and comes right after the method's subject,
+  so the whole instance is never what a caller gets by leaving an argument out.
+  The REST layer passes the caller's own account on the ordinary routes and the
+  caller's reach on the `/sudo/` twins;
+  a PHP caller passes whatever it has established.
 
 To these methods a file outside the reach is *not found*, never *forbidden*:
-a `NotFoundException`, or a `File not found.` result. Whether the caller may
-have the reach at all is decided before the call, by whoever makes it.
+a `NotFoundException`, or a `File not found.` result.
+Whether the caller may have the reach at all is decided before the call,
+by whoever makes it.
 
 #### `findByHash(string $hash, ?array $reachUids, ?string $algo = null, int $limit = 100, bool $withLocalPath = false, bool $canonical = false, bool $withMimeType = false, bool $withStat = false): array`
 
@@ -231,24 +253,24 @@ Search for files matching a given hash value.
 ]
 ```
 
-`path`, `name`, `owner` and `location` are as
-[Locations and paths](#locations-and-paths) says: with several accounts in
-reach, whichever opened the file first names it. With `$withLocalPath`,
-`localPath` is where the file lives on the server:
+`path`, `name`, `owner` and `location` are as [Locations
+and paths](#locations-and-paths) says: with several accounts in reach,
+whichever opened the file first names it.
+With `$withLocalPath`, `localPath` is where the file lives on the server:
 `/srv/nextcloud/data/alice/files/Documents/report.pdf` for a home file,
-`<datadir>/__groupfolders/<id>/files/…` for a team folder, the mount's own
-root for an external local storage.
+`<datadir>/__groupfolders/<id>/files/…` for a team folder,
+the mount's own root for an external local storage.
 
-**Throws:** `\InvalidArgumentException` if hash is empty, or for
-`$withMimeType` while detection is off.
+**Throws:**
+`\InvalidArgumentException` if hash is empty,
+or for `$withMimeType` while detection is off.
 
 ---
 
 #### `listHashes(?array $reachUids, ?string $algo = null, int $limit = 500, int $after = 0, ?int $since = null, bool $withLocalPath = false, bool $canonical = false, bool $withMimeType = false, bool $withStat = false): array`
 
 Every hash in reach, page by page: one entry per file, in file id order.
-For a caller that keeps a copy of the checksums and would otherwise ask
-hash by hash.
+For a caller that keeps a copy of the checksums and would otherwise ask hash by hash.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -278,57 +300,68 @@ hash by hash.
 ]
 ```
 
-- **Paging.** Pass `next` back as `$after` until it is `null`. The cursor
-  is a file id, so a file deleted between two pages moves nothing.
-- **`now`** is this server's clock, Unix seconds, taken before the page was
-  read. Keep the first page's: it is the `$since` of the next run.
-- **The count.** From the start, `$after` 0, the answer carries
-  `estimated_total`: the files the whole listing holds under the same
-  filters. An estimate: files come and go while a listing is read. With
-  `$limit` 0 that is all it carries, and `next` is `$after` itself, so a
-  count is never read as the end.
-- **Which files:** the rows `findByHash()` selects: an indexed hash, within
-  the reach's mounts, not revoked. A received share counts for
-  the shared folder and what is below it. An algorithm the instance holds
-  no hashes in lists nothing; it is not an error.
+- **Paging.**
+  Pass `next` back as `$after` until it is `null`.
+  The cursor is a file id, so a file deleted between two pages moves nothing.
+- **`now`** is this server's clock, Unix seconds,
+  taken before the page was read.
+  Keep the first page's: it is the `$since` of the next run.
+- **The count.**
+  From the start, `$after` 0, the answer carries `estimated_total`:
+  the files the whole listing holds under the same filters.
+  An estimate: files come and go while a listing is read.
+  With `$limit` 0 that is all it carries, and `next` is `$after` itself,
+  so a count is never read as the end.
+- **Which files:**
+  the rows `findByHash()` selects: an indexed hash, within the reach's mounts,
+  not revoked.
+  A received share counts for the shared folder and what is below it.
+  An algorithm the instance holds no hashes in lists nothing;
+  it is not an error.
 - **`path`, `owner` and `location`** are as
   [Locations and paths](#locations-and-paths) says, `localPath` as
   `findByHash()` gives it.
 - **`hashes`** is keyed by algorithm, as `getHashesByFileId()` gives it,
-  in the order the file's document holds them, the values whole from the
-  document.
+  in the order the file's document holds them,
+  the values whole from the document.
 - **`updated_at`** is the file's stamp: not when its hashes were written,
-  but until when the app holds them current, which is what it compares
-  with the file's mtime. Hashes the app computed, by hand or not, carry the
-  time the read began, or the file's mtime where that is later; checksums
-  taken over from Nextcloud's filecache, the file's mtime; an import, the
-  stamp it brought.
-- **Only current hashes are listed.** A file whose content changed leaves
-  the listing at once and comes back when its hashes are computed again;
-  hashes nobody vouches for — imported older than the file, or written
-  without a stamp — are not listed at all. The lookup and
-  `getHashesByFileId()` answer the same.
-- **`$since` is a feed of hashes added or changed.** It keeps the files
-  with a hash — in `$algo`, where one is named — written to this instance
-  at or after it: computed, taken over, imported, or computed again after a
-  change of the content. A hash written again with the value it had is not
-  written, and keeps its time. Pass the `now` of the previous run's first
-  page. Each file comes with all its listed hashes.
-- **What the feed leaves out.** A file moved, renamed or deleted writes no
-  hash, and a file whose content changed is out of the listing until its
-  hashes are computed again: a copy kept with `$since` reads the whole
-  listing now and then. Hashes written before this version carry no time
-  and are in no feed: a copy starts with the whole listing.
+  but until when the app holds them current,
+  which is what it compares with the file's mtime.
+  Hashes the app computed, by hand or not, carry the time the read began,
+  or the file's mtime where that is later;
+  checksums taken over from Nextcloud's filecache, the file's mtime; an import,
+  the stamp it brought.
+- **Only current hashes are listed.**
+  A file whose content changed leaves the listing at once and comes back when
+  its hashes are computed again;
+  hashes nobody vouches for — imported older than the file,
+  or written without a stamp — are not listed at all.
+  The lookup and `getHashesByFileId()` answer the same.
+- **`$since` is a feed of hashes added or changed.**
+  It keeps the files with a hash — in `$algo`,
+  where one is named — written to this instance at or after it: computed,
+  taken over, imported, or computed again after a change of the content.
+  A hash written again with the value it had is not written, and keeps its time.
+  Pass the `now` of the previous run's first page.
+  Each file comes with all its listed hashes.
+- **What the feed leaves out.**
+  A file moved, renamed or deleted writes no hash,
+  and a file whose content changed is out of the listing until its hashes are
+  computed again:
+  a copy kept with `$since` reads the whole listing now and then.
+  Hashes written before this version carry no time and are in no feed:
+  a copy starts with the whole listing.
 
-**Throws:** `\OCP\DB\Exception` on a database error.
+**Throws:**
+`\OCP\DB\Exception` on a database error.
 
 ---
 
 #### `iterateHashes(?array $reachUids, ?string $algo = null, ?int $since = null, bool $withLocalPath = false, int $after = 0, bool $canonical = false, bool $withMimeType = false, bool $withStat = false): Generator`
 
-The whole of `listHashes()`'s listing, file by file, for a caller in the same
-process: no paging to drive, and one batch of 500 files in memory at a time,
-however large the listing.
+The whole of `listHashes()`'s listing, file by file,
+for a caller in the same process: no paging to drive,
+and one batch of 500 files in memory at a time, however large the listing.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -341,8 +374,8 @@ however large the listing.
 | `$withMimeType` | `bool` | No | As `listHashes()`: one query for the types of each batch |
 | `$withStat` | `bool` | No | As `listHashes()`, from the rows each batch reads |
 
-**Yields:** `listHashes()`'s `files` entries, keyed by file id, in file id
-order.
+**Yields:**
+`listHashes()`'s `files` entries, keyed by file id, in file id order.
 
 ```php
 foreach ($api->iterateHashes(['alice'], 'sha256') as $fileId => $entry) {
@@ -350,22 +383,25 @@ foreach ($api->iterateHashes(['alice'], 'sha256') as $fileId => $entry) {
 }
 ```
 
-- **Batches.** Each batch is a query of its own, so the caller may run its
-  own queries between two files. The next batch is read when the current one
-  is used up; nothing is read ahead.
-- **No count.** `listHashes()` with `$limit` 0 gives one.
+- **Batches.**
+  Each batch is a query of its own,
+  so the caller may run its own queries between two files.
+  The next batch is read when the current one is used up; nothing is read ahead.
+- **No count.**
+  `listHashes()` with `$limit` 0 gives one.
 - **What `listHashes()` says** of which files, `path`, `hashes`, the stamp
   and `$since` holds here too.
 
-**Throws:** `\OCP\DB\Exception` on a database error, while the walk is read.
+**Throws:**
+`\OCP\DB\Exception` on a database error, while the walk is read.
 
 ---
 
 #### `listMissing(?array $reachUids, ?string $algo = null, int $limit = 500, int $after = 0, bool $unmatched = false, bool $withIgnored = false, bool $withExcluded = false, bool $canonical = false, bool $withStat = false): array`
 
-The files in reach without a hash, page by page: the other half of
-`listHashes()` under `$withStat`. By default the files an include rule
-governs, which the queue would hash.
+The files in reach without a hash, page by page:
+the other half of `listHashes()` under `$withStat`.
+By default the files an include rule governs, which the queue would hash.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -391,12 +427,14 @@ governs, which the queue would hash.
 ]
 ```
 
-A page reads a window of file ids, from the first one past `$after`, and
-may come back short, or empty: pass `next` back as `$after` until it is
-`null`. `$canonical` reads every `location` as the file's own address, as
-`listHashes()` does.
+A page reads a window of file ids, from the first one past `$after`,
+and may come back short, or empty:
+pass `next` back as `$after` until it is `null`.
+`$canonical` reads every `location` as the file's own address,
+as `listHashes()` does.
 
-**Throws:** `\OCP\DB\Exception` on a database error.
+**Throws:**
+`\OCP\DB\Exception` on a database error.
 
 ---
 
@@ -428,29 +466,34 @@ Get all checksums for a file by its filecache ID.
 ]
 ```
 
-`hashes` is keyed by algorithm, in the order the file's document holds
-them, `[]` for a file with none; the REST answer carries that as `{}`.
-They are the hashes a lookup finds the file by: none between a change of
-its content and their recomputation. `updated_at` is the file's stamp, ISO
-8601, `null` for none: one per file, not one per algorithm, saying until
-when the hashes are held current rather than when they were written (see
-`listHashes()`).
+`hashes` is keyed by algorithm, in the order the file's document holds them,
+`[]` for a file with none; the REST answer carries that as `{}`.
+They are the hashes a lookup finds the file by:
+none between a change of its content and their recomputation.
+`updated_at` is the file's stamp, ISO 8601, `null` for none: one per file,
+not one per algorithm,
+saying until when the hashes are held current rather than when they were written
+(see `listHashes()`).
 
-**Throws:** `\OCP\Files\NotFoundException` if the file lies outside `$reachUids`.
+**Throws:**
+`\OCP\Files\NotFoundException` if the file lies outside `$reachUids`.
 
 ---
 
 #### `getHashesByFile(\OCP\Files\File $file): array`
 
-Convenience method — get all checksums for a `File` object. Resolves `$file->getId()` internally.
+Convenience method — get all checksums for a `File` object.
+Resolves `$file->getId()` internally.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `$file` | `\OCP\Files\File` | Yes | A Nextcloud File node |
 
-**Returns:** Same shape as `getHashesByFileId()`.
+**Returns:**
+Same shape as `getHashesByFileId()`.
 
-**Throws:** `\OCP\Files\NotFoundException` if the file cannot be resolved.
+**Throws:**
+`\OCP\Files\NotFoundException` if the file cannot be resolved.
 
 ---
 
@@ -470,7 +513,8 @@ Convenience method — get checksums by filesystem path.
 | `null` | Absolute filesystem path OR relative to NC data root | `$api->getHashesByPath('/alice/files/Photos/img.jpg')` |
 | `'alice'` | Relative to Alice's home folder | `$api->getHashesByPath('Photos/img.jpg', 'alice')` |
 
-**Returns:** Same shape as `getHashesByFileId()`, with `path` added:
+**Returns:**
+Same shape as `getHashesByFileId()`, with `path` added:
 ```php
 [
     'fileid' => 12345,
@@ -483,7 +527,8 @@ Convenience method — get checksums by filesystem path.
 ]
 ```
 
-**Throws:** `\OCP\Files\NotFoundException` if the path cannot be resolved to a file.
+**Throws:**
+`\OCP\Files\NotFoundException` if the path cannot be resolved to a file.
 
 ---
 
@@ -491,9 +536,9 @@ Convenience method — get checksums by filesystem path.
 
 Find duplicate hash groups among the files the calling user can open.
 
-Not instance-wide: the method resolves the session user and asks for that
-user's duplicates, so a caller with no session gets an empty set. An
-administrator sees their own files, not everyone's.
+Not instance-wide: the method resolves the session user and asks for that user's
+duplicates, so a caller with no session gets an empty set.
+An administrator sees their own files, not everyone's.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -531,11 +576,13 @@ administrator sees their own files, not everyone's.
 
 #### `findDuplicatesFor(?array $reachUids, ?string $algo = null, int $minCount = 2, int $limit = 50, int $offset = 0, ?string $hash = null, bool $anywhere = false, bool $includeEmpty = false, bool $canonical = false, bool $withMimeType = false): array`
 
-The scoped core behind `findDuplicates()`: duplicate groups among the files
-the named accounts hold, as one merged listing, or among every account's with
-`null`. Not for a session's own use — the caller decides whether whoever is
-asking may see those accounts; the `/sudo/duplicates` route does so through
-`SudoScope` and asks for a password on the way.
+The scoped core behind `findDuplicates()`:
+duplicate groups among the files the named accounts hold, as one merged listing,
+or among every account's with `null`.
+Not for a session's own use — the caller decides whether whoever is asking may
+see those accounts;
+the `/sudo/duplicates` route does so through `SudoScope` and asks for a password
+on the way.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -544,16 +591,18 @@ asking may see those accounts; the `/sudo/duplicates` route does so through
 | `$anywhere` | `bool` | No | Match `$hash` anywhere rather than only at the start |
 | `$canonical` | `bool` | No | As `findByHash()` |
 
-The rest as `findDuplicates()`. **Returns:** the same shape.
+The rest as `findDuplicates()`.
+**Returns:** the same shape.
 
 ---
 
 #### `findSameHash(int $fileId, ?array $reachUids, bool $canonical = false, bool $withMimeType = false): array`
 
-Find other files sharing hash values with the given file. Both ends are within
-the reach: the reference file must lie in it, and only duplicates in it are
-listed. Unlike the listing it leaves no empty file out, since the caller named
-the file; `empty` says which group is the empty files'.
+Find other files sharing hash values with the given file.
+Both ends are within the reach: the reference file must lie in it,
+and only duplicates in it are listed.
+Unlike the listing it leaves no empty file out, since the caller named the file;
+`empty` says which group is the empty files'.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -578,13 +627,15 @@ the file; `empty` says which group is the empty files'.
 ]
 ```
 
-**Throws:** `\OCP\Files\NotFoundException` if the reference file lies outside `$reachUids`.
+**Throws:**
+`\OCP\Files\NotFoundException` if the reference file lies outside `$reachUids`.
 
 ---
 
 #### `recalcHash(int $fileId, ?array $reachUids, ?string $algo = null, ?string $actingUser = null, bool $withMimeType = false, bool $withStat = false): array`
 
-Trigger hash recalculation for a file. **This is the only mutating operation** in the public API.
+Trigger hash recalculation for a file.
+**This is the only mutating operation** in the public API.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -611,12 +662,14 @@ Trigger hash recalculation for a file. **This is the only mutating operation** i
 
 #### `recalcMany(array $fileIds, ?array $reachUids, ?string $algo = null, ?string $actingUser = null, bool $withMimeType = false, bool $withStat = false): array`
 
-Recalculate several files in one call. Each file goes through `recalcHash()`
-with the same asker and the same reach, so a file out of reach or refused by
-a rule is its own failed result, not the whole call's. The call stops at
-`ChecksumApi::RECALC_BATCH_FILES` (25) files or `RECALC_BATCH_BYTES` (100 MiB)
-of filecache size, whichever comes first, and names the ids it did not get to;
-the first file is always read, however large.
+Recalculate several files in one call.
+Each file goes through `recalcHash()` with the same asker and the same reach,
+so a file out of reach or refused by a rule is its own failed result,
+not the whole call's.
+The call stops at `ChecksumApi::RECALC_BATCH_FILES` (25) files
+or `RECALC_BATCH_BYTES` (100 MiB) of filecache size, whichever comes first,
+and names the ids it did not get to; the first file is always read,
+however large.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -639,26 +692,29 @@ the first file is always read, however large.
 
 #### `openableBy(array $fileIds, string $viewer): array`
 
-Which of these files `$viewer` could open in the Files app — those the
-viewer's own mounts hold. A file link resolves in the viewer's own folder and
-nowhere else, so a row they do not hold cannot be opened by any link; the
-cross-account routes ask this once per answer and mark each row `openable`.
+Which of these files `$viewer` could open in the Files app — those the viewer's
+own mounts hold.
+A file link resolves in the viewer's own folder and nowhere else,
+so a row they do not hold cannot be opened by any link;
+the cross-account routes ask this once per answer and mark each row `openable`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `$fileIds` | `int[]` | Yes | Filecache ids |
 | `$viewer` | `string` | Yes | The account that would click |
 
-**Returns:** `array<int, bool>` keyed by file id.
+**Returns:**
+`array<int, bool>` keyed by file id.
 
 ---
 
 #### `getFeatures(): array`
 
-What a client may ask of this server, for anyone, without the status
-snapshot: the app's version, the features, and the algorithms the server
-computes with its default. `GET /api/v1/features` answers it; the app's
-pages carry it as initial state, `features` of `file_checksum_search`.
+What a client may ask of this server, for anyone, without the status snapshot:
+the app's version, the features,
+and the algorithms the server computes with its default.
+`GET /api/v1/features` answers it; the app's pages carry it as initial state,
+`features` of `file_checksum_search`.
 
 **Returns:**
 ```php
@@ -673,11 +729,12 @@ pages carry it as initial state, `features` of `file_checksum_search`.
 
 #### `getStatus(?string $requestingUser = null): array`
 
-Read-only health/status snapshot. The version and the features are for
-everyone; the rest describes the instance and is the administrator's to
-see. `null` is server-side code with full authority and gets everything; a
-named non-administrator gets `version` and `features` alone, as
-`GET /api/v1/status` answers them.
+Read-only health/status snapshot.
+The version and the features are for everyone;
+the rest describes the instance and is the administrator's to see.
+`null` is server-side code with full authority and gets everything;
+a named non-administrator gets `version` and `features` alone,
+as `GET /api/v1/status` answers them.
 
 **Returns:**
 ```php
@@ -695,30 +752,33 @@ named non-administrator gets `version` and `features` alone, as
 `dbVersion` names the database and its version — `MariaDB 10.11.6`,
 `MySQL 8.0.39`, `PostgreSQL 16.4`, `SQLite 3.45.1` — or the name and
 `unknown` where the database would not say.
-`features.mimetype` says whether the routes give a file's MIME type when
-asked ([MIME types](#mime-types)). `mimeTypes` is where detection stands —
-`enabled`, `disabled`, `unavailable` (switched on, and PHP's Fileinfo
-extension not loaded) or `deleting` — with the types stored, counted with
-the checksums, as of `rowCountAt`, and while a deletion runs, when it was
-requested (Unix time).
+`features.mimetype` says whether the routes give a file's MIME type when asked
+([MIME types](#mime-types)).
+`mimeTypes` is where detection stands — `enabled`, `disabled`,
+`unavailable` (switched on,
+and PHP's Fileinfo extension not loaded) or `deleting` — with the types stored,
+counted with the checksums, as of `rowCountAt`, and while a deletion runs,
+when it was requested (Unix time).
 
-`rowCount` is the number of indexed checksums as of `rowCountAt` (Unix
-time): a count the app keeps, because counting reads every hash row and a
-cold cache makes that take seconds. A kept count older than the interval
-the admin settings' Tunables set (an hour by default) is taken again on
-request, or in the background where Tunables switch that on.
+`rowCount` is the number of indexed checksums as of `rowCountAt` (Unix time):
+a count the app keeps,
+because counting reads every hash row and a cold cache makes that take seconds.
+A kept count older than the interval the admin settings' Tunables set (an hour
+by default) is taken again on request,
+or in the background where Tunables switch that on.
 
 ### Rules
 
-The rules surface mirrors the HTTP endpoints below — same validator, same
-permission rules, same audit log — so a calling app cannot express something
-REST would refuse. See [Rules](#rules) for the rule shape, the selector grammar
-and the band model.
+The rules surface mirrors the HTTP endpoints below — same validator,
+same permission rules,
+same audit log — so a calling app cannot express something REST would refuse.
+See [Rules](#rules) for the rule shape, the selector grammar and the band model.
 
-Every method takes an optional `$requestingUser`. **`null` means the caller is
-server-side code acting with full authority** (the occ-equivalent); a non-null
-user is enforced exactly as REST enforces that user. Mutations are audit-logged
-with the actor named — `api` for a trusted caller, the uid otherwise.
+Every method takes an optional `$requestingUser`.
+**`null` means the caller is server-side code acting with full authority** (the
+occ-equivalent); a non-null user is enforced exactly as REST enforces that user.
+Mutations are audit-logged with the actor named — `api` for a trusted caller,
+the uid otherwise.
 
 | Method | Notes |
 |--------|-------|
@@ -735,10 +795,12 @@ does the same.
 
 ## HTTP REST API
 
-All endpoints are served over OCS, under `/ocs/v2.php/apps/file_checksum_search/api/v1/` —
-`#[ApiRoute]` registers routes in Nextcloud's OCS collection, so the prefix is not optional.
-Responses are nonetheless plain JSON: these are `ApiController`s, not `OCSController`s, so no
-`{"ocs": {"meta": …, "data": …}}` envelope wraps the body.
+All endpoints are served over OCS,
+under `/ocs/v2.php/apps/file_checksum_search/api/v1/` — `#[ApiRoute]` registers
+routes in Nextcloud's OCS collection, so the prefix is not optional.
+Responses are nonetheless plain JSON: these are `ApiController`s,
+not `OCSController`s,
+so no `{"ocs": {"meta": …, "data": …}}` envelope wraps the body.
 
 ### Endpoint Catalog
 
@@ -772,17 +834,22 @@ Responses are nonetheless plain JSON: these are `ApiController`s, not `OCSContro
 | 26 | `/api/v1/sudo/hashes/missing` | GET | `listMissing` | As 25, across the accounts `users[]`/`groups[]` name or the caller's whole reach |
 | 27 | `/api/v1/features` | GET | `getFeatures` | What any account may ask for: the version, the features, the algorithms |
 
-> **Note:** `getHashesByFile()` and `getHashesByPath()` are PHP-only convenience methods with no HTTP equivalent. HTTP consumers should use `getHashesByFileId()` after obtaining a `fileId` from NC's WebDAV PROPFIND or other APIs.
+> **Note:**
+> `getHashesByFile()` and `getHashesByPath()` are PHP-only convenience methods
+> with no HTTP equivalent.
+> HTTP consumers should use `getHashesByFileId()` after obtaining a `fileId`
+> from NC's WebDAV PROPFIND or other APIs.
 
 Routes 1–5 and 15–24 that answer with files take `?mimetype=1`: each file,
-or each duplicate group, gains `mimetype`. While detection is off, asking
-is a `400`; `features.mimetype` on route 27, or 6, says whether to ask
-([MIME types](#mime-types)).
+or each duplicate group, gains `mimetype`.
+While detection is off, asking is a `400`; `features.mimetype` on route 27,
+or 6, says whether to ask ([MIME types](#mime-types)).
 
-The lookup, a file's hashes, the recalculations, the listing and the
-missing files, each with its `sudo/` twin, take `?stat=1`: each file gains
-`etag`, valid for its hashes or `null`, and its present `size`, `mtime` and
-`storageMtime`; a file's hashes and the listing then give a stale file too,
+The lookup, a file's hashes, the recalculations,
+the listing and the missing files, each with its `sudo/` twin, take `?stat=1`:
+each file gains `etag`, valid for its hashes or `null`, and its present `size`,
+`mtime` and `storageMtime`;
+a file's hashes and the listing then give a stale file too,
 its `hashes` and `etag` `null` ([File state](#file-state)).
 
 ### Endpoint Details
@@ -854,27 +921,32 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/hashes
 
 `hashes` is an object keyed by algorithm, `{}` for a file with none — and
 for a file whose content changed, until its hashes are computed again.
-`updated_at` is the file's stamp, `null` for none: one per file, not one
-per algorithm, saying until when the hashes are held current rather than
-when they were written (see List Hashes). Before 0.22.0, `hashes` was a
-list and each entry carried the file's `updated_at`.
+`updated_at` is the file's stamp, `null` for none: one per file,
+not one per algorithm,
+saying until when the hashes are held current rather than when they were written
+(see List Hashes).
+Before 0.22.0, `hashes` was a list and each entry carried the file's `updated_at`.
 
 The three fields after `hashes` are what the files sidebar composes its quick
-buttons from: `algos` are the algorithms the file's governing `include` rule
-computes (empty when no rule maintains the file), `preferred` is the asking
-user's stored preference where it is still in force (empty otherwise), and
-`default` is the instance's. The first button is `preferred`, else `default`;
+buttons from:
+`algos` are the algorithms the file's governing `include` rule computes (empty
+when no rule maintains the file),
+`preferred` is the asking user's stored preference where it is still in force
+(empty otherwise), and `default` is the instance's.
+The first button is `preferred`, else `default`;
 the second is the first of `algos` that differs from it.
 
-The two flags are about the asking account, not the file: `canRecalc` is the
-*Who may recalculate checksums* permission, and `canSudo` whether the account may
-look across accounts at all, the same answer the duplicates listing carries.
+The two flags are about the asking account, not the file:
+`canRecalc` is the *Who may recalculate checksums* permission,
+and `canSudo` whether the account may look across accounts at all,
+the same answer the duplicates listing carries.
 The sidebar hides its Recalculate buttons on the first and offers the way to
 the Duplicates page's *Others* tab on the second.
 
-With `?mimetype=1`, `"mimetype": "application/pdf"` follows, `null` for a
-file without a type ([MIME types](#mime-types)). It describes the content,
-and can differ from Nextcloud's own `mimetype`, which the file's name gives.
+With `?mimetype=1`, `"mimetype": "application/pdf"` follows,
+`null` for a file without a type ([MIME types](#mime-types)).
+It describes the content, and can differ from Nextcloud's own `mimetype`,
+which the file's name gives.
 
 ---
 
@@ -906,14 +978,15 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/duplicates
 ```
 
 Empty files are not left out here, as they are from the listing (route 5):
-the caller named the file. `empty` says which group is theirs — see
-[Empty files](#empty-files).
+the caller named the file.
+`empty` says which group is theirs — see [Empty files](#empty-files).
 
-Every file row in this API carries `owner` and `location` beside `path` and
-`name`, as [Locations and paths](#locations-and-paths) says: `path` the
-account's own path for the file, `location` its address, or a share's for a
-file the reader holds through one. The cross-account twins add `openable` —
-see [Cross-account routes](#cross-account-routes).
+Every file row in this API carries `owner` and `location` beside `path` and `name`,
+as [Locations and paths](#locations-and-paths) says:
+`path` the account's own path for the file, `location` its address,
+or a share's for a file the reader holds through one.
+The cross-account twins add `openable` — see [Cross-account
+routes](#cross-account-routes).
 
 ---
 
@@ -967,18 +1040,22 @@ the same pass where detection is on, or the one stored where the hash
 }
 ```
 
-`exclude` means the file must not be read at all, so a manual recalculation is
-refused along with every automatic route. The second refusal is the *Who may
-recalculate checksums* permission (admin settings, *Permissions* tab), which gates
-recalculating by hand for any file the account can reach; reading what is already
-computed is not affected, and the sidebar and the Duplicates page hide their
-buttons from such an account rather than offering them to fail. Members of `admin` always may. Both
-statuses are 403 rather than 400 because the request is well-formed and
-retrying it will not help — a client should surface the reason instead of
+`exclude` means the file must not be read at all,
+so a manual recalculation is refused along with every automatic route.
+The second refusal is the *Who may recalculate checksums* permission (admin settings,
+*Permissions* tab),
+which gates recalculating by hand for any file the account can reach;
+reading what is already computed is not affected,
+and the sidebar and the Duplicates page hide their buttons from such an account
+rather than offering them to fail.
+Members of `admin` always may.
+Both statuses are 403 rather than 400 because the request is well-formed
+and retrying it will not help — a client should surface the reason instead of
 treating it as a transient failure.
-`ruleId` names the rule that decided, so an administrator can find it in the
-rules table. An `ignore` rule does **not** produce this: hashing on request is
-exactly what `ignore` still allows.
+`ruleId` names the rule that decided,
+so an administrator can find it in the rules table.
+An `ignore` rule does **not** produce this:
+hashing on request is exactly what `ignore` still allows.
 
 ---
 
@@ -1002,9 +1079,10 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/duplicates?algo=<algo>&minCount
 `mimetype=1` gives each group `mimetype`, the type of the content its files
 share ([MIME types](#mime-types)).
 
-`hash` keeps only the groups whose checksum it names: whole values first, then
-those beginning with it. Case is ignored. With `anywhere=1` the term matches
-anywhere in the hash instead of only at its start.
+`hash` keeps only the groups whose checksum it names: whole values first,
+then those beginning with it.
+Case is ignored.
+With `anywhere=1` the term matches anywhere in the hash instead of only at its start.
 
 A term longer than the index column's 63 characters is compared there on its
 first 63 and matched against the metadata document as well — the same two-part
@@ -1036,11 +1114,12 @@ default — see [Empty files](#empty-files).
 }
 ```
 
-`canRecalc` says whether the caller may recalculate checksums by hand — the
-*Who may recalculate checksums* permission, which an administrator always has —
-and so whether the Duplicates page offers *Verify* and *Verify all*; the
-cross-account twin, `/api/v1/sudo/duplicates`, carries it too. `canSudo`
-says whether the caller may look across accounts at all — whether the
+`canRecalc` says whether the caller may recalculate checksums by hand — the *Who
+may recalculate checksums* permission,
+which an administrator always has — and so whether the Duplicates page offers
+*Verify* and *Verify all*; the cross-account twin, `/api/v1/sudo/duplicates`,
+carries it too.
+`canSudo` says whether the caller may look across accounts at all — whether the
 Duplicates page shows its *Others* tab.
 
 ##### Empty files
@@ -1049,15 +1128,17 @@ Every empty file carries its algorithm's checksum of no input — SHA-1
 `da39a3ee5e6b4b0d3255bfef95601890afd80709`, MD5
 `d41d8cd98f00b204e9800998ecf8427e` — so an instance's empty files form one
 group per algorithm, usually the largest, and deleting a copy frees nothing.
-The listing leaves those groups out unless `includeEmpty` asks for them; the
-per-file lookup (route 3) never does. Every group carries `empty`, `true` for
-such a group.
+The listing leaves those groups out unless `includeEmpty` asks for them;
+the per-file lookup (route 3) never does.
+Every group carries `empty`, `true` for such a group.
 
-A group is recognised by its value, not by the files' size, which the index
-does not hold: each algorithm is compared with its own empty digest. A checksum
-as weak as a 32-bit one can give non-empty content the same value — 65,521 zero
-bytes have the Adler-32 of no input — and such a file is left out, or marked, with
-the empty files. *Verify* tells them apart.
+A group is recognised by its value, not by the files' size,
+which the index does not hold:
+each algorithm is compared with its own empty digest.
+A checksum as weak as a 32-bit one can give non-empty content the same value —
+65,521 zero bytes have the Adler-32 of no input — and such a file is left out,
+or marked, with the empty files.
+*Verify* tells them apart.
 
 ---
 
@@ -1082,13 +1163,14 @@ No parameters.
 }
 ```
 
-`rowCount` is the kept count of indexed checksums, as of `rowCountAt` (Unix
-time), at most the interval the Tunables set old; `mimeTypes` is where MIME
-type detection stands, with the types counted beside them; see
-`getStatus()` above.
+`rowCount` is the kept count of indexed checksums,
+as of `rowCountAt` (Unix time), at most the interval the Tunables set old;
+`mimeTypes` is where MIME type detection stands,
+with the types counted beside them; see `getStatus()` above.
 
-**Response (200), as anyone else:** the version and the features. The
-others describe the instance and are the administrator's to see.
+**Response (200), as anyone else:**
+the version and the features.
+The others describe the instance and are the administrator's to see.
 ```json
 {
   "version": "1.9.2",
@@ -1096,8 +1178,8 @@ others describe the instance and are the administrator's to see.
 }
 ```
 
-`features.mimetype` is whether the routes give a file's MIME type when
-asked: ask with `?mimetype=1` only while it is `true`.
+`features.mimetype` is whether the routes give a file's MIME type when asked:
+ask with `?mimetype=1` only while it is `true`.
 
 #### 7. Algorithms
 
@@ -1115,13 +1197,15 @@ No parameters.
 }
 ```
 
-The set is not fixed. It is what this server's PHP offers, narrowed to what the
-administrator has allowed (admin settings → *Checksum algorithms*); the example above
-is the shipped default. Every `algo` parameter in this API accepts exactly the
-names this endpoint lists, and `default` — the administrator's designation,
-else the first allowed — is what is used when none is given. A
-client that carries its own list will be wrong the day an administrator changes
-this one — ask, and cache per session.
+The set is not fixed.
+It is what this server's PHP offers,
+narrowed to what the administrator has allowed (admin settings → *Checksum algorithms*);
+the example above is the shipped default.
+Every `algo` parameter in this API accepts exactly the names this endpoint lists,
+and `default` — the administrator's designation,
+else the first allowed — is what is used when none is given.
+A client that carries its own list will be wrong the day an administrator
+changes this one — ask, and cache per session.
 
 Names are restricted to `[a-z0-9-]+` because they double as metadata keys, so
 PHP algorithms such as `sha512/256` or `tiger192,3` are never offered.
@@ -1134,8 +1218,9 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/preferences/{key}
 PUT /ocs/v2.php/apps/file_checksum_search/api/v1/preferences/{key}
 ```
 
-Per-user preferences, the caller's own. The namespace was reserved for this;
-its first key is `preferred_algorithm`, the algorithm the sidebar offers first.
+Per-user preferences, the caller's own.
+The namespace was reserved for this; its first key is `preferred_algorithm`,
+the algorithm the sidebar offers first.
 Any other key answers 404.
 
 **Response (200), both verbs:**
@@ -1153,9 +1238,12 @@ Any other key answers 404.
 since disallowed is kept but not applied, so `active` falls back to `default`
 until the user picks again.
 
-**PUT body:** `{"value": "sha256"}`. An empty value returns to the default. For
-`preferred_algorithm` the value must be one `GET /api/v1/algorithms` lists;
-anything else is 400. Requires a session (401 without one).
+**PUT body:**
+`{"value": "sha256"}`.
+An empty value returns to the default.
+For `preferred_algorithm` the value must be one `GET /api/v1/algorithms` lists;
+anything else is 400.
+Requires a session (401 without one).
 
 ---
 
@@ -1175,15 +1263,18 @@ Content-Type: application/json
 | `mimetype` | bool (body or query) | No | false; each result gains `mimetype`, as route 4 |
 | `stat` | bool (body or query) | No | false; each result gains the file's state, as route 4 |
 
-One gesture, one request: verifying a group of a hundred files used to be a
-hundred calls against a limit of twenty a minute. The request goes through
-the same checks as `/file/{fileId}/recalc`, once per file, so a file that is
-not the caller's or that a rule excludes fails on its own row and the others
-still go through. The request stops at **25 files or 100 MiB** of filecache
-size, whichever comes first — the first file always goes through, however
-large — and returns the ids it did not get to as `remaining`, in the order
-given; the client sends those again. The Duplicates page sends chunks of 25
-and resumes on a 429.
+One gesture, one request:
+verifying a group of a hundred files used to be a hundred calls against a limit
+of twenty a minute.
+The request goes through the same checks as `/file/{fileId}/recalc`,
+once per file,
+so a file that is not the caller's or that a rule excludes fails on its own row
+and the others still go through.
+The request stops at **25 files or 100 MiB** of filecache size,
+whichever comes first — the first file always goes through,
+however large — and returns the ids it did not get to as `remaining`,
+in the order given; the client sends those again.
+The Duplicates page sends chunks of 25 and resumes on a 429.
 
 **Response (200):**
 ```json
@@ -1198,13 +1289,13 @@ and resumes on a 429.
 ```
 
 The per-file refusals that are 403 on the single route are plain rows here,
-carrying the same `excluded`/`ruleId`/`forbidden` markers. **Error (400):**
-`fileIds` missing, empty, or not a list of integers.
+carrying the same `excluded`/`ruleId`/`forbidden` markers.
+**Error (400):** `fileIds` missing, empty, or not a list of integers.
 
-`POST /api/v1/sudo/file/many/recalc` is the cross-account twin: the same body
-and answer, the reach the caller's whole reach, decided per file — a group on
-the *Others* tab can hold several accounts' copies, and refusing the whole
-batch for one unreachable id would make such a group unverifiable.
+`POST /api/v1/sudo/file/many/recalc` is the cross-account twin:
+the same body and answer, the reach the caller's whole reach,
+decided per file — a group on the *Others* tab can hold several accounts' copies,
+and refusing the whole batch for one unreachable id would make such a group unverifiable.
 
 ---
 
@@ -1223,10 +1314,10 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/hashes?limit=500&after=0
 | `mimetype` | bool (query) | No | false; each entry gains `mimetype`, which no `since` feed carries alone ([MIME types](#mime-types)) |
 | `stat` | bool (query) | No | false; each entry gains its state, and the stale entries are listed too ([File state](#file-state)) |
 
-Every hash the caller holds, one entry per file, in file id order: for a
-client that keeps a copy of the checksums — an archive syncing its own
-database — and would otherwise ask hash by hash. The files are the ones
-`lookup` selects, within the caller's mounts.
+Every hash the caller holds, one entry per file, in file id order:
+for a client that keeps a copy of the checksums — an archive syncing its own
+database — and would otherwise ask hash by hash.
+The files are the ones `lookup` selects, within the caller's mounts.
 
 **Response (200):**
 ```json
@@ -1250,58 +1341,68 @@ database — and would otherwise ask hash by hash. The files are the ones
 }
 ```
 
-- **Paging.** Pass `next` as `after` until `next` is `null`. The cursor is a
-  file id, so a file deleted between two pages moves nothing.
-- **`now`** is the server's clock, Unix seconds, taken before the page was
-  read. Keep the first page's: it is the `since` of the next run.
-- **The count.** The first page, `after` 0 or absent, carries
-  `estimated_total`: the files the whole listing holds under the same
-  filters. An estimate: files come and go while a listing is read.
-  `limit=0` from the start is the count alone: no files, the total, and a
-  `next` that is `after` itself, never `null`, so a count is not read as
-  the end.
-- **`limit`** beyond 0–1000, or not a number, is refused by Nextcloud
-  before the app sees it: a 500 in Nextcloud's own OCS envelope (status
-  996), not this API's `{"error": …}`.
+- **Paging.**
+  Pass `next` as `after` until `next` is `null`.
+  The cursor is a file id, so a file deleted between two pages moves nothing.
+- **`now`** is the server's clock, Unix seconds, taken before the page was read.
+  Keep the first page's: it is the `since` of the next run.
+- **The count.**
+  The first page, `after` 0 or absent, carries `estimated_total`:
+  the files the whole listing holds under the same filters.
+  An estimate: files come and go while a listing is read.
+  `limit=0` from the start is the count alone: no files, the total,
+  and a `next` that is `after` itself, never `null`,
+  so a count is not read as the end.
+- **`limit`** beyond 0–1000, or not a number,
+  is refused by Nextcloud before the app sees it:
+  a 500 in Nextcloud's own OCS envelope (status 996),
+  not this API's `{"error": …}`.
 - **`algo`**, in any case, keeps the files with a hash in that algorithm,
-  and only that hash in `hashes`. An algorithm the instance holds no
-  hashes in lists nothing; unlike `lookup`, it is not an error.
-- **`since`** keeps the files with a hash — in `algo`, where one is
-  named — written to this instance at or after it: a feed of hashes added
-  or changed, as `listHashes()` describes it. Unix seconds, or an ISO 8601
-  date, optionally with a time and an offset, read as UTC where it has none
-  (`2026-09-02`, `2026-09-02T15:17:00+02:00`). A `+` the client did not
-  encode arrives as a space and is read as the `+` it was; `t` and `z` may
-  be lower case. Anything else, a date that does not exist included, is
-  **400**. Pass the `now` of the previous run's first page: the server's
-  clock, taken before that page was read.
-- **What the feed leaves out.** A file moved, renamed or deleted writes no
-  hash, and a changed file is out of the listing until its hashes are
-  computed again: a copy kept with `since` reads the whole listing now and
-  then. Hashes written before this version carry no time and are in no
-  feed: a copy starts with the whole listing.
-- **Only current hashes are listed.** A file whose content changed leaves
-  the listing at once and comes back when its hashes are computed again;
-  hashes nobody vouches for are not listed at all. Under `stat=1` such a
-  file is listed with `hashes` and `etag` `null` and its present state, so
-  that this listing and route 25 together name every file
-  ([File state](#file-state)).
-- **`path`** is the caller's own path for the file, with a leading slash: a
-  received share's files by the path the share has in the caller's files,
-  and located by the share. `owner` and `location` are as
-  [Locations and paths](#locations-and-paths) says. `hashes` is as in the
-  file's hashes (2), in the order the file's document holds them, and `{}`
-  for a file whose document holds none of the hashes the index names.
+  and only that hash in `hashes`.
+  An algorithm the instance holds no hashes in lists nothing; unlike `lookup`,
+  it is not an error.
+- **`since`** keeps the files with a hash — in `algo`,
+  where one is named — written to this instance at or after it:
+  a feed of hashes added or changed, as `listHashes()` describes it.
+  Unix seconds, or an ISO 8601 date, optionally with a time and an offset,
+  read as UTC where it has none (`2026-09-02`, `2026-09-02T15:17:00+02:00`).
+  A `+` the client did not encode arrives as a space and is read as the `+` it was;
+  `t` and `z` may be lower case.
+  Anything else, a date that does not exist included, is **400**.
+  Pass the `now` of the previous run's first page: the server's clock,
+  taken before that page was read.
+- **What the feed leaves out.**
+  A file moved, renamed or deleted writes no hash,
+  and a changed file is out of the listing until its hashes are computed again:
+  a copy kept with `since` reads the whole listing now and then.
+  Hashes written before this version carry no time and are in no feed:
+  a copy starts with the whole listing.
+- **Only current hashes are listed.**
+  A file whose content changed leaves the listing at once and comes back when
+  its hashes are computed again;
+  hashes nobody vouches for are not listed at all.
+  Under `stat=1` such a file is listed with `hashes` and `etag` `null` and its
+  present state,
+  so that this listing and route 25 together name every file ([File state](#file-state)).
+- **`path`** is the caller's own path for the file, with a leading slash:
+  a received share's files by the path the share has in the caller's files,
+  and located by the share.
+  `owner` and `location` are as [Locations and paths](#locations-and-paths) says.
+  `hashes` is as in the file's hashes (2),
+  in the order the file's document holds them,
+  and `{}` for a file whose document holds none of the hashes the index names.
 
-`GET /api/v1/sudo/hashes` is the cross-account twin: the accounts `users[]`
-and `groups[]` name, or with nothing named the caller's whole reach. `path`
-is then the file's path as the first account in reach that holds it names
-it; with every account in reach, its path below its area. A group admin
-reads a shared file's location as the member does, a sudoer every file's
-own address. `?localPath=1` adds each
-file's absolute path on the server's disk, as on `/sudo/lookup` — for a
-sudoer, also when `users[]` or `groups[]` narrow the set; a group admin
-asking is refused with 403.
+`GET /api/v1/sudo/hashes` is the cross-account twin:
+the accounts `users[]` and `groups[]` name,
+or with nothing named the caller's whole reach.
+`path` is then the file's path as the first account in reach that holds it names it;
+with every account in reach, its path below its area.
+A group admin reads a shared file's location as the member does,
+a sudoer every file's own address.
+`?localPath=1` adds each file's absolute path on the server's disk,
+as on `/sudo/lookup` — for a sudoer,
+also when `users[]` or `groups[]` narrow the set;
+a group admin asking is refused with 403.
 
 ```bash
 curl -u alice:<app-password> -H 'OCS-APIRequest: true' -H 'Accept: application/json' \
@@ -1326,10 +1427,10 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/hashes/missing?after=0
 | `withExcluded` | bool (query) | No | false; adds the files an `exclude` rule matches |
 | `stat` | bool (query) | No | false; each file gains its state, `etag` `null` ([File state](#file-state)) |
 
-The files the caller holds without a hash, one entry per file, in file id
-order: by default those an include rule governs, which the queue would
-hash. With `algo`, the files without a hash in that algorithm, whatever
-others they hold.
+The files the caller holds without a hash, one entry per file, in file id order:
+by default those an include rule governs, which the queue would hash.
+With `algo`, the files without a hash in that algorithm,
+whatever others they hold.
 
 **Response (200):**
 ```json
@@ -1348,23 +1449,25 @@ others they hold.
 }
 ```
 
-- **Paging.** A page reads a window of file ids, from the first one past
-  `after`, and may come back short, or empty. Pass `next` as `after` until
-  `next` is `null`.
+- **Paging.**
+  A page reads a window of file ids, from the first one past `after`,
+  and may come back short, or empty.
+  Pass `next` as `after` until `next` is `null`.
 - **`now`** is the server's clock, Unix seconds, as on route 23.
-- **A whole inventory.** With `unmatched`, `withIgnored` and
-  `withExcluded`, this and route 23 under `stat` name each file the caller
-  holds once: a file with a hash row there, stale or not, and here a file
-  without one. A file in neither is gone. Trash, versions, app data and a
-  home's `uploads/` and `cache/` are in neither.
-- **No `since`, no count.** A file without a hash has written nothing to
-  have a time, and counting below a path is what the windowed paging
-  avoids.
+- **A whole inventory.**
+  With `unmatched`, `withIgnored` and `withExcluded`,
+  this and route 23 under `stat` name each file the caller holds once:
+  a file with a hash row there, stale or not, and here a file without one.
+  A file in neither is gone.
+  Trash, versions, app data and a home's `uploads/` and `cache/` are in neither.
+- **No `since`, no count.**
+  A file without a hash has written nothing to have a time,
+  and counting below a path is what the windowed paging avoids.
 
-`GET /api/v1/sudo/hashes/missing` is the cross-account twin: the accounts
-`users[]` and `groups[]` name, or with nothing named the caller's whole
-reach, with `openable` on each file. A sudoer reads every `location` as
-the file's own address there, as on route 24.
+`GET /api/v1/sudo/hashes/missing` is the cross-account twin:
+the accounts `users[]` and `groups[]` name,
+or with nothing named the caller's whole reach, with `openable` on each file.
+A sudoer reads every `location` as the file's own address there, as on route 24.
 
 #### 12. Features
 
@@ -1372,8 +1475,9 @@ the file's own address there, as on route 24.
 GET /ocs/v2.php/apps/file_checksum_search/api/v1/features
 ```
 
-No parameters. For any account, and cheap: none of the status snapshot an
-administrator's route 6 builds.
+No parameters.
+For any account, and cheap:
+none of the status snapshot an administrator's route 6 builds.
 
 **Response (200):**
 ```json
@@ -1384,10 +1488,10 @@ administrator's route 6 builds.
 }
 ```
 
-`features.mimetype` is whether the routes give a file's MIME type when
-asked: ask with `?mimetype=1` only while it is `true`. The app's own pages
-carry the same answer as initial state, so that they ask for it only after
-a refusal says detection was switched off meanwhile.
+`features.mimetype` is whether the routes give a file's MIME type when asked:
+ask with `?mimetype=1` only while it is `true`.
+The app's own pages carry the same answer as initial state,
+so that they ask for it only after a refusal says detection was switched off meanwhile.
 
 ---
 
@@ -1396,14 +1500,16 @@ a refusal says detection was switched off meanwhile.
 Hash-generation rules, as configured on the admin and personal settings pages.
 These endpoints have no `ChecksumApi` equivalent — they are HTTP-only.
 
-Nothing is hashed until a rule is enabled: a fresh installation ships two disabled rules
-(`home:*` and `*`, both with path `**`), and an integration that expects hashes to appear on their
-own should check that at least one enabled `include` rule exists.
+Nothing is hashed until a rule is enabled:
+a fresh installation ships two disabled rules (`home:*` and `*`,
+both with path `**`),
+and an integration that expects hashes to appear on their own should check that
+at least one enabled `include` rule exists.
 
 ### Priority bands
 
-Rules are evaluated top to bottom and **the first match decides the file**. A rule's position is
-not free-form: it is derived from what the rule *is*.
+Rules are evaluated top to bottom and **the first match decides the file**.
+A rule's position is not free-form: it is derived from what the rule *is*.
 
 | Band | Selector addresses | `admin_enforced` |
 |------|--------------------|------------------|
@@ -1416,21 +1522,27 @@ not free-form: it is derived from what the rule *is*.
 | 7 | every home folder | false |
 | 8 | everything | false |
 
-Enforced beats unenforced; within each half, specific beats general. So an account's rule can override
-the non-enforced defaults below it, but can never come before an enforced one. A rule changes band by
-changing its `selector` or `admin_enforced` — never by reordering, which only permutes rules
-*inside* one segment.
+Enforced beats unenforced; within each half, specific beats general.
+So an account's rule can override the non-enforced defaults below it,
+but can never come before an enforced one.
+A rule changes band by changing its `selector` or `admin_enforced` — never by reordering,
+which only permutes rules *inside* one segment.
 
-A **segment** is one distinct `selector` value *within one band* — the same selector's enforced and
-unenforced rules are separate segments, and their positions count independently — and reordering
-happens inside one. Within every
-segment, rules whose `path` is the bare catch-all (`**`, `/`, or empty) form a trailing **defaults
-partition**: created rules are inserted before it, and a reorder may not move a rule across it.
+A **segment** is one distinct `selector` value *within one band* — the same
+selector's enforced and unenforced rules are separate segments,
+and their positions count independently — and reordering happens inside one.
+Within every segment, rules whose `path` is the bare catch-all (`**`, `/`,
+or empty) form a trailing **defaults partition**:
+created rules are inserted before it,
+and a reorder may not move a rule across it.
 Rules carry `isDefault` so a client can render that boundary without re-deriving it.
 
-`band` and `position` are returned per rule and are **computed, never stored**. Do not send them.
-There is deliberately no combined `"<band>.<position>"` field: it would be a third value derived
-from two already present, free to disagree with them. Compose it client-side if you display it.
+`band` and `position` are returned per rule and are **computed, never stored**.
+Do not send them.
+There is deliberately no combined `"<band>.<position>"` field:
+it would be a third value derived from two already present,
+free to disagree with them.
+Compose it client-side if you display it.
 
 ### Rule shape
 
@@ -1448,8 +1560,9 @@ from two already present, free to disagree with them. Compose it client-side if 
 | `band`, `position` | int | computed, read-only |
 | `canEdit` | bool | computed for the calling user |
 
-An `ignore` or `exclude` rule computes nothing, so it stores no `algos` and no `mode`; sending
-them is not an error, they are simply not kept.
+An `ignore` or `exclude` rule computes nothing,
+so it stores no `algos` and no `mode`; sending them is not an error,
+they are simply not kept.
 
 ### `GET /api/v1/rules`
 
@@ -1457,14 +1570,18 @@ them is not an error, they are simply not kept.
 |-----------|--------|---------|-------|
 | `scope` | `own`, `all` | `own` | `all` requires administrator rights (403 otherwise) |
 
-`scope` selects a **view**, not a permission. `own` lists the rules that can decide the caller's own
-files — those whose selector reaches their home folder, able to match a path they can see — and
-marks only their own as editable. `all` is the administrator's whole-instance view.
+`scope` selects a **view**, not a permission.
+`own` lists the rules that can decide the caller's own files — those whose
+selector reaches their home folder,
+able to match a path they can see — and marks only their own as editable.
+`all` is the administrator's whole-instance view.
 
-An administrator asking for `own` gets the personal view: the capability exists but is not
-exercised. That is what lets the personal settings page stay personal for everyone. It is a
-convenience for honest clients, not a security boundary — mutations are judged on capability
-alone, so nothing depends on a client honouring it.
+An administrator asking for `own` gets the personal view:
+the capability exists but is not exercised.
+That is what lets the personal settings page stay personal for everyone.
+It is a convenience for honest clients,
+not a security boundary — mutations are judged on capability alone,
+so nothing depends on a client honouring it.
 
 **Response (200):**
 ```json
@@ -1490,12 +1607,13 @@ alone, so nothing depends on a client honouring it.
 }
 ```
 
-`supportedAlgos` are the algorithms a rule may use, and `defaultAlgo` the instance's default among
-them — what a new rule starts from, as a rule created without `algos` gets it. Both are present in
-every view.
+`supportedAlgos` are the algorithms a rule may use,
+and `defaultAlgo` the instance's default among them — what a new rule starts from,
+as a rule created without `algos` gets it.
+Both are present in every view.
 
-The picker fields are present only for `scope=all` — they exist to populate selector pickers, and
-no other view can assign those selectors:
+The picker fields are present only for `scope=all` — they exist to populate
+selector pickers, and no other view can assign those selectors:
 
 | Field | Notes |
 |-------|-------|
@@ -1505,61 +1623,75 @@ no other view can assign those selectors:
 | `availableGroupFolders` | the folders that exist, as `{id, name}` |
 | `availableStorages` | raw ids of storages only `storage:<id>` or `*` reaches, as a selector spells them, without their trailing slashes — home storages, team folder jails, share wrappers and the instance root are excluded, since other selectors own them or no rule could match in them |
 
-The last four are a soft dependency on another app: when it is missing, the fields degrade to
-`false`/`null`/`[]` rather than failing the request. Together with each rule's `isDefault`, they are
-enough for a client to show which namespaces have no catch-all rule of their own.
+The last four are a soft dependency on another app: when it is missing,
+the fields degrade to `false`/`null`/`[]` rather than failing the request.
+Together with each rule's `isDefault`,
+they are enough for a client to show which namespaces have no catch-all rule of their own.
 
 ### `POST /api/v1/rules` — create
 
-Body is the rule shape above; the response echoes the **stored** rule, including the server-assigned
-`id` — the only way a caller learns it. The derived view fields (`band`, `position`, `canEdit`) are
-annotations of the list endpoint and are not part of this response.
+Body is the rule shape above; the response echoes the **stored** rule,
+including the server-assigned `id` — the only way a caller learns it.
+The derived view fields (`band`, `position`,
+`canEdit`) are annotations of the list endpoint and are not part of this response.
 
-From a non-administrator, `selector` is forced to `home:<caller>` and
-`admin_enforced` to `false`, whatever the payload says. A non-administrator must also have write
-access to the rule's path **on their own home storage**: a path leading into a received share, a
-team folder or another mounted storage is refused with that reason (403), because such a rule
-could never match — those files answer to their owner's rules or to the folder's own.
+From a non-administrator,
+`selector` is forced to `home:<caller>` and `admin_enforced` to `false`,
+whatever the payload says.
+A non-administrator must also have write access to the rule's path **on their
+own home storage**: a path leading into a received share,
+a team folder or another mounted storage is refused with that reason (403),
+because such a rule could never match — those files answer to their owner's
+rules or to the folder's own.
 
 ### `PUT /api/v1/rules/{id}` — update
 
-Same body, and the response likewise echoes the stored rule — so a partial update comes back as the
-whole rule rather than the fragment that was sent. **Enabling or disabling a rule is an update of
-`enabled`** — there is no separate
-toggle endpoint. Omitted fields keep their stored values, so `{"enabled": false}` is a complete
-and safe request.
+Same body, and the response likewise echoes the stored rule — so a partial
+update comes back as the whole rule rather than the fragment that was sent.
+**Enabling or disabling a rule is an update of `enabled`** — there is no
+separate toggle endpoint.
+Omitted fields keep their stored values,
+so `{"enabled": false}` is a complete and safe request.
 
-Changing `selector` or `admin_enforced` moves the rule to the **end of its new segment**, since
-position has no meaning across segments. Changing `path` into or out of a bare catch-all likewise
-moves it between its segment's partitions.
+Changing `selector` or `admin_enforced` moves the rule to the **end of its new segment**,
+since position has no meaning across segments.
+Changing `path` into or out of a bare catch-all likewise moves it between its
+segment's partitions.
 
 ### `DELETE /api/v1/rules/{id}`
 
-Any rule the caller may mutate can be deleted, the two shipped defaults included: a repair step
-recreates a missing one, disabled, so deleting one is reversible housekeeping rather than a
-decision that cannot be taken back.
+Any rule the caller may mutate can be deleted,
+the two shipped defaults included: a repair step recreates a missing one,
+disabled,
+so deleting one is reversible housekeeping rather than a decision that cannot be
+taken back.
 
 ### `POST /api/v1/rules/{id}/apply` — apply one rule now
 
-Queues a full apply pass: every file the rule currently governs is marked for background
-hashing, uncapped (unlike the periodic sweep). The request enqueues a one-shot background job
-and returns immediately —
+Queues a full apply pass:
+every file the rule currently governs is marked for background hashing,
+uncapped (unlike the periodic sweep).
+The request enqueues a one-shot background job and returns immediately —
 
 ```json
 { "success": true, "queued": true }
 ```
 
-— the scan itself happens out of band, and its outcome appears in the audit log naming the
-requesting user. Applying is judged as *writing* the rule: an administrator may apply any rule,
-anyone else needs rule-editing permission and the rule must be their own. Files claimed by a
-higher-band rule are skipped, never marked; files already fresh — hashed since they last
-changed, and under `missing` holding every algorithm of the rule — are skipped under `auto`/
-`missing` modes.
+— the scan itself happens out of band,
+and its outcome appears in the audit log naming the requesting user.
+Applying is judged as *writing* the rule: an administrator may apply any rule,
+anyone else needs rule-editing permission and the rule must be their own.
+Files claimed by a higher-band rule are skipped, never marked;
+files already fresh — hashed since they last changed,
+and under `missing` holding every algorithm of the rule — are skipped under
+`auto`/ `missing` modes.
 
-**Errors:** 404 for an unknown id; 403 for a caller who may not change the rule; 400 for a rule
-that cannot meaningfully be applied — disabled, or an `ignore`/`exclude` rule, which computes
-nothing. These are refused at submission time rather than becoming a background job that can
-only fail out of sight.
+**Errors:**
+404 for an unknown id; 403 for a caller who may not change the rule;
+400 for a rule that cannot meaningfully be applied — disabled,
+or an `ignore`/`exclude` rule, which computes nothing.
+These are refused at submission time rather than becoming a background job that
+can only fail out of sight.
 
 ### `PUT /api/v1/rules/order` — reorder one segment partition
 
@@ -1567,27 +1699,34 @@ only fail out of sight.
 { "selector": "home:alice", "defaults": false, "orderedIds": ["0f1e…", "2a3b…"] }
 ```
 
-A reorder addresses one **segment partition**: all rules sharing one `selector`, split by whether
-their path is a bare catch-all (`defaults`). `orderedIds` must be **exactly a permutation** of that
-partition's rule IDs — never a partial order, which would silently drop rules from evaluation, and
-never a mix of the two partitions, which would let a rule cross the defaults boundary.
+A reorder addresses one **segment partition**: all rules sharing one `selector`,
+split by whether their path is a bare catch-all (`defaults`).
+`orderedIds` must be **exactly a permutation** of that partition's rule IDs —
+never a partial order, which would silently drop rules from evaluation,
+and never a mix of the two partitions,
+which would let a rule cross the defaults boundary.
 
-Rules addressing different things never compete for a file, so a reorder cannot change which rule
-wins across segments; only the order inside one. A non-administrator may reorder only their own
-segment (`home:<caller>`), whatever the payload names.
+Rules addressing different things never compete for a file,
+so a reorder cannot change which rule wins across segments;
+only the order inside one.
+A non-administrator may reorder only their own segment (`home:<caller>`),
+whatever the payload names.
 
-**Errors:** 400 on a non-permutation, an unorderable band, or an ID from another band; 403 for a
-caller without rule-editing permission.
+**Errors:**
+400 on a non-permutation, an unorderable band, or an ID from another band;
+403 for a caller without rule-editing permission.
 
 ---
 
 ## Authentication
 
-All HTTP endpoints require authentication. The API accepts three auth methods:
+All HTTP endpoints require authentication.
+The API accepts three auth methods:
 
 ### 1. Session Cookie (Browser / NC UI)
 
-Automatic for users already logged into Nextcloud. No additional setup needed.
+Automatic for users already logged into Nextcloud.
+No additional setup needed.
 
 ### 2. HTTP Basic Auth
 
@@ -1595,7 +1734,8 @@ Automatic for users already logged into Nextcloud. No additional setup needed.
 Authorization: Basic base64(username:app_password)
 ```
 
-Create an app password in Nextcloud: **Settings → Security → Devices & sessions → App password**.
+Create an app password in Nextcloud:
+**Settings → Security → Devices & sessions → App password**.
 
 ```bash
 curl -u alice:your-app-password \
@@ -1615,41 +1755,46 @@ curl -H "Authorization: Bearer your-app-password" \
 
 ### CSRF
 
-Every `GET` route carries `#[NoCSRFRequired]`; no `POST`, `PUT` or `DELETE`
-route does — the rule mutations, every recalculation route and its `/sudo/`
-twin, the preferences write, the settings writes. From a cookie session those
-need the request token or the `OCS-APIRequest: true` header, which Nextcloud
-accepts in its place. Send the header on every request and the distinction
-never arises. With basic auth or an app password it is optional.
+Every `GET` route carries `#[NoCSRFRequired]`; no `POST`,
+`PUT` or `DELETE` route does — the rule mutations,
+every recalculation route and its `/sudo/` twin, the preferences write,
+the settings writes.
+From a cookie session those need the request token or the `OCS-APIRequest: true` header,
+which Nextcloud accepts in its place.
+Send the header on every request and the distinction never arises.
+With basic auth or an app password it is optional.
 
 ### Authorization
 
-All API endpoints use `#[NoAdminRequired]`: any authenticated user can reach the
-public API. **Rule management is part of it** — see the rules endpoints above —
-but what a caller may do there depends on who they are: a non-administrator's
-`selector` is forced to their own home and `admin_enforced` to `false`, and an
-enforced rule is not theirs to change. The repair and queue operations are the
-ones that stay out, in the admin settings page and the CLI.
+All API endpoints use `#[NoAdminRequired]`:
+any authenticated user can reach the public API.
+**Rule management is part of it** — see the rules endpoints above — but what a
+caller may do there depends on who they are:
+a non-administrator's `selector` is forced to their own home
+and `admin_enforced` to `false`, and an enforced rule is not theirs to change.
+The repair and queue operations are the ones that stay out,
+in the admin settings page and the CLI.
 
-**Reads are the caller's own.** Every endpoint that names a file — the hashes,
-the per-file duplicates, recalculation — resolves it through the caller's own
-folder and answers 404 when it does not resolve, and the lookup, the
-duplicate listing and the hash listing return only files the caller holds.
+**Reads are the caller's own.**
+Every endpoint that names a file — the hashes, the per-file duplicates,
+recalculation — resolves it through the caller's own folder and answers 404 when
+it does not resolve, and the lookup,
+the duplicate listing and the hash listing return only files the caller holds.
 That holds for administrators too: membership in `admin` grants nothing here.
-Looking across accounts is a separate set of routes, named for it and behind
-Nextcloud's password confirmation, described under *Cross-account routes*
-below; a script that cannot confirm a password uses an app password that an
+Looking across accounts is a separate set of routes,
+named for it and behind Nextcloud's password confirmation,
+described under *Cross-account routes* below;
+a script that cannot confirm a password uses an app password that an
 administrator has granted for it, described there as well.
 
 ---
 
 ### Cross-account routes
 
-Every ordinary route reads the caller's own files — what they hold: their
-home, the shares they received (a share only to its subtree) and their group
-folders. Eight of them have a twin under `/api/v1/sudo/` that answers for the
-caller's **reach** instead, and the Duplicates page has one for naming
-accounts:
+Every ordinary route reads the caller's own files — what they hold: their home,
+the shares they received (a share only to its subtree) and their group folders.
+Eight of them have a twin under `/api/v1/sudo/` that answers for the caller's
+**reach** instead, and the Duplicates page has one for naming accounts:
 
 | Ordinary | Cross-account | Scope of the twin |
 |---|---|---|
@@ -1662,109 +1807,130 @@ accounts:
 | `POST /api/v1/file/{fileId}/recalc` | `POST /api/v1/sudo/file/{fileId}/recalc` | any file in the reach |
 | `POST /api/v1/file/many/recalc` | `POST /api/v1/sudo/file/many/recalc` | as above, decided per file |
 
-The last two are the only twins that *write*, and two things about them do
-not change by crossing accounts: the **Who may recalculate checksums** permission
-is answered against whoever is asking, not against the file's owner, and an
-administrator's `exclude` rule still refuses the path — which is what keeps a
-cross-account recalculation from reading storage that costs money. A
-cross-account recalculation is logged at info level naming the account that
-asked, because nothing else records who did it.
+The last two are the only twins that *write*,
+and two things about them do not change by crossing accounts:
+the **Who may recalculate checksums** permission is answered against whoever is asking,
+not against the file's owner,
+and an administrator's `exclude` rule still refuses the path — which is what
+keeps a cross-account recalculation from reading storage that costs money.
+A cross-account recalculation is logged at info level naming the account that asked,
+because nothing else records who did it.
 
-The per-file twins decide the reach before anything is read, and a file
-outside it is **403** `Not yours to look at.`; a file nobody holds is 404 as
-on the ordinary route. The listing twins simply do not show such a file, and
-the batch twin answers `File not found.` on that file's row.
+The per-file twins decide the reach before anything is read,
+and a file outside it is **403** `Not yours to look at.`;
+a file nobody holds is 404 as on the ordinary route.
+The listing twins simply do not show such a file,
+and the batch twin answers `File not found.` on that file's row.
 
-**`openable`.** Every file row a twin returns carries `openable: bool` —
-whether the *caller's own* mounts hold that file. A Files-app link resolves
-in the viewer's own folder and nowhere else, so a row of somebody else's,
-however legitimately listed, cannot be opened by any URL; the bundled pages
-link only where `openable` is true and show plain text otherwise. `owner`
-cannot stand in for it: a received share is somebody else's and opens fine.
+**`openable`.**
+Every file row a twin returns carries `openable: bool` — whether the *caller's
+own* mounts hold that file.
+A Files-app link resolves in the viewer's own folder and nowhere else,
+so a row of somebody else's, however legitimately listed,
+cannot be opened by any URL;
+the bundled pages link only where `openable` is true and show plain text otherwise.
+`owner` cannot stand in for it:
+a received share is somebody else's and opens fine.
 The ordinary routes do not carry the flag, since what they list the caller
 holds by construction.
 
-**`location` on a twin.** A sudoer reads every row's own address. A group
-admin reads what the member reads: a file the member holds through a share
-is located by the share, `share:<id>//…`, and named by the member's path
-([Locations and paths](#locations-and-paths)).
+**`location` on a twin.**
+A sudoer reads every row's own address.
+A group admin reads what the member reads:
+a file the member holds through a share is located by the share,
+`share:<id>//…`,
+and named by the member's path ([Locations and paths](#locations-and-paths)).
 
 Two things stand between a caller and a twin, in this order.
 
-**Who may be asked.** A member of `admin`, or anyone the *instance_view*
-permission names (admin settings → *Who may look across accounts*), reaches
-every account. A sub-admin — Nextcloud's own delegation, set on the Users
-page — reaches what the members of the groups they administer hold: that is
-their whole reach when nothing is named, and naming someone outside it is
+**Who may be asked.**
+A member of `admin`, or anyone the *instance_view* permission names (admin
+settings → *Who may look across accounts*), reaches every account.
+A sub-admin — Nextcloud's own delegation,
+set on the Users page — reaches what the members of the groups they administer hold:
+that is their whole reach when nothing is named,
+and naming someone outside it is
 403. Anyone else is 403 before any password is asked.
 
-**Naming accounts.** `users[]` and `groups[]` name a set; one account is a set
-of one. The server expands each group to its members — never the
-client, since membership is not the caller's to enumerate — authorises every
-resulting account, and answers one merged listing, so a file held by two named
-accounts appears as one duplicate group. One account or group the caller may
-not read refuses the whole request with 403 rather than quietly narrowing it:
-a listing that answers for fewer accounts than were asked for hides the
-refusal.
+**Naming accounts.**
+`users[]` and `groups[]` name a set; one account is a set of one.
+The server expands each group to its members — never the client,
+since membership is not the caller's to enumerate — authorises every resulting account,
+and answers one merged listing,
+so a file held by two named accounts appears as one duplicate group.
+One account or group the caller may not read refuses the whole request with 403
+rather than quietly narrowing it:
+a listing that answers for fewer accounts than were asked for hides the refusal.
 
-**`GET /api/v1/sudo/selectable`** answers what the caller may name — `groups`
-and `users`, with `prefill` saying whether those lists are complete — and
-whether they may ask for their whole reach at once by naming nothing: `all`,
-true for everyone this route answers, and `reach`, which says whose reach
-that is (`everyone` for a sudoer, `groups` for a sub-admin; the picker
-labels the option *All accounts* or *All my groups* from it). When `prefill`
-is false there are more than the picker holds at once and it must pass
-`?search=` as the user types. The threshold is an instance setting (admin
-settings → *Advanced*), 21 by default. An account that may name nobody gets
-403.
+**`GET /api/v1/sudo/selectable`** answers what the caller may name — `groups` and `users`,
+with `prefill` saying whether those lists are complete — and whether they may
+ask for their whole reach at once by naming nothing: `all`,
+true for everyone this route answers, and `reach`,
+which says whose reach that is (`everyone` for a sudoer,
+`groups` for a sub-admin;
+the picker labels the option *All accounts* or *All my groups* from it).
+When `prefill` is false there are more than the picker holds at once and it must
+pass `?search=` as the user types.
+The threshold is an instance setting (admin settings → *Advanced*),
+21 by default.
+An account that may name nobody gets 403.
 
 The Duplicates page keeps what it shows in the URL fragment —
-`#others?hash=<hash>&algo=<algo>&all=1`, or `users=`/`groups=` repeated in
-place of `all=1`, with `anywhere`, `includeEmpty`, `minCount`, `limit` and
-`offset` as on the routes — so a search can be bookmarked or handed to someone. Every read the
-page then makes is authorised and confirmed as above, so a URL reveals
-nothing on its own.
+`#others?hash=<hash>&algo=<algo>&all=1`,
+or `users=`/`groups=` repeated in place of `all=1`, with `anywhere`,
+`includeEmpty`, `minCount`,
+`limit` and `offset` as on the routes — so a search can be bookmarked or handed
+to someone.
+Every read the page then makes is authorised and confirmed as above,
+so a URL reveals nothing on its own.
 
-**Confirmation.** Each twin requires one of two things: a session that
-confirmed its password within the last thirty minutes — Nextcloud's own
-window, set by its own dialog, which the bundled pages run — or an app
-password that has been granted, described under *Sudo tokens* below. Neither
-present, the answer is 403 with `"message": "Password confirmation required"`,
-the same message core's middleware uses. The check is this app's own rather
-than core's `#[PasswordConfirmationRequired]`, because that middleware refuses
-every app-password session outright and a granted token could never pass it.
+**Confirmation.**
+Each twin requires one of two things:
+a session that confirmed its password within the last thirty minutes —
+Nextcloud's own window, set by its own dialog,
+which the bundled pages run — or an app password that has been granted,
+described under *Sudo tokens* below.
+Neither present, the answer is 403 with `"message": "Password confirmation required"`,
+the same message core's middleware uses.
+The check is this app's own rather than core's `#[PasswordConfirmationRequired]`,
+because that middleware refuses every app-password session outright and a
+granted token could never pass it.
 
 The ordinary routes never cross accounts, whoever calls them.
 
-**Who may use the API at all** is a permission of its own (admin settings →
-*Who may use the API*): allow everyone, or name groups and users. It gates
-requests that arrive with an app password, or with credentials in an
-`Authorization` header — a script, another app — and answers 403 on every
-public route for an account it does not name. It does not gate the browser
-session: the bundled pages reach these same routes over it and keep working
-for everyone, because they are the app and not the API.
+**Who may use the API at all** is a permission of its own (admin settings → *Who
+may use the API*): allow everyone, or name groups and users.
+It gates requests that arrive with an app password,
+or with credentials in an `Authorization` header — a script,
+another app — and answers 403 on every public route for an account it does not name.
+It does not gate the browser session:
+the bundled pages reach these same routes over it and keep working for everyone,
+because they are the app and not the API.
 
 ### Sudo tokens
 
-A script cannot confirm a password, so the cross-account routes accept a
-second credential: an **app password that has been granted**. Grants are
-made on the personal settings page (*Sudo tokens*), one switch per app
-password, behind the same password confirmation as any other widening; an
-administrator sees every grant on the instance under the admin page's *Sudo
-tokens* tab and can revoke any of them there. Only an app password can be
-granted — a browser session is made and discarded by a login — and only one
-allowed to access files.
+A script cannot confirm a password,
+so the cross-account routes accept a second credential:
+an **app password that has been granted**.
+Grants are made on the personal settings page (*Sudo tokens*),
+one switch per app password,
+behind the same password confirmation as any other widening;
+an administrator sees every grant on the instance under the admin page's *Sudo
+tokens* tab and can revoke any of them there.
+Only an app password can be granted — a browser session is made and discarded by
+a login — and only one allowed to access files.
 
 A grant replaces the confirmation, not the permission: the token's owner
 must still be someone who may look across accounts, and an account the *Who
 may use the API* permission does not name is not offered grants at all,
 because it could not use them.
 
-What a grant is, technically: a per-user setting keyed by the token's id —
-never its secret and never its name, which core keeps neither unique nor
-stable. A token deleted on the Security page cannot authenticate at all, so
-a grant left behind is unreachable; it is shown on the administrator's tab
-as such and dropped from the owner's list.
+What a grant is, technically:
+a per-user setting keyed by the token's id — never its secret and never its name,
+which core keeps neither unique nor stable.
+A token deleted on the Security page cannot authenticate at all,
+so a grant left behind is unreachable;
+it is shown on the administrator's tab as such and dropped from the owner's list.
 
 ---
 
@@ -1793,14 +1959,15 @@ URL-path versioning: `/api/v1/`, `/api/v2/`, etc.
 | Change error response shape | **No** | New major version |
 | Change an `error` text | Yes | Any release: the text is for display (see [Error Handling](#error-handling)) |
 
-The table binds from the app's 1.0.0 on. Before it, a break may ship in a
-minor release of the app, within v1, and is listed under `### Changed` in
-the changelog with what a caller has to change. `ChecksumApi`'s required
-`$reachUids` in 0.21.0 is one.
+The table binds from the app's 1.0.0 on.
+Before it, a break may ship in a minor release of the app, within v1,
+and is listed under `### Changed` in the changelog with what a caller has to change.
+`ChecksumApi`'s required `$reachUids` in 0.21.0 is one.
 
 ### Deprecation
 
-When a field or endpoint is deprecated, responses include a `Warning` header (RFC 7234):
+When a field or endpoint is deprecated,
+responses include a `Warning` header (RFC 7234):
 
 ```
 Warning: 299 - "The field 'old_name' is deprecated. Use 'new_name' instead. Will be removed in v2."
@@ -1812,10 +1979,12 @@ Deprecated items remain functional for one full major version before removal.
 
 ## Rate Limiting
 
-The expensive endpoints carry a per-user rate limit, enforced by Nextcloud's own
-`RateLimitingMiddleware` via the [`#[UserRateLimit]`](https://docs.nextcloud.com/server/latest/developer_manual/basics/controllers.html)
-attribute. Limits are counted **per user, per endpoint** — one user exhausting `lookup`
-does not affect another user, nor their own access to the other endpoints.
+The expensive endpoints carry a per-user rate limit,
+enforced by Nextcloud's own `RateLimitingMiddleware` via the
+[`#[UserRateLimit]`](https://docs.nextcloud.com/server/latest/developer_manual/basics/controllers.html) attribute.
+Limits are counted **per user,
+per endpoint** — one user exhausting `lookup` does not affect another user,
+nor their own access to the other endpoints.
 
 | Endpoint | Limit |
 |----------|-------|
@@ -1829,23 +1998,25 @@ does not affect another user, nor their own access to the other endpoints.
 | `POST /api/v1/file/{fileId}/recalc` and its `/sudo/` twin | 20 requests / 60 s |
 | `POST /api/v1/file/many/recalc` and its `/sudo/` twin | 20 requests / 60 s |
 
-A cross-account twin carries the limit its ordinary route carries: the work
-is the same, and a password confirmation is not a throttle. Recalculation is
-limited more tightly because it reads file content from storage; the hash
-listing more loosely, because a client keeping a copy reads every page, and
-a page answers for up to a thousand files. The limit counts requests, not
-files: one batch request reads up to 25 files or 100 MiB, so a client
-verifying many files sends batches rather than single recalculations. The remaining endpoints (`/status`, the rules, the
-algorithms, the preferences) are single-row reads or writes and are not rate
-limited.
+A cross-account twin carries the limit its ordinary route carries:
+the work is the same, and a password confirmation is not a throttle.
+Recalculation is limited more tightly because it reads file content from storage;
+the hash listing more loosely, because a client keeping a copy reads every page,
+and a page answers for up to a thousand files.
+The limit counts requests, not files:
+one batch request reads up to 25 files or 100 MiB,
+so a client verifying many files sends batches rather than single recalculations.
+The remaining endpoints (`/status`, the rules, the algorithms,
+the preferences) are single-row reads or writes and are not rate limited.
 
-Requests are counted only for authenticated users. There is no anonymous limit, because
-every endpoint requires authentication in the first place.
+Requests are counted only for authenticated users.
+There is no anonymous limit,
+because every endpoint requires authentication in the first place.
 
 ### Exceeding a limit
 
-Once the limit is exceeded within the window, the request is rejected **before** the
-controller runs:
+Once the limit is exceeded within the window,
+the request is rejected **before** the controller runs:
 
 ```
 HTTP/1.1 429 Too Many Requests
@@ -1854,15 +2025,16 @@ Content-Type: application/json
 []
 ```
 
-The body is empty and there is no `Retry-After` header — this is Nextcloud's standard
-429 for non-HTML clients, not an app-specific response. Clients should back off for the
-length of the window (60 seconds) and retry.
+The body is empty and there is no `Retry-After` header — this is Nextcloud's
+standard 429 for non-HTML clients, not an app-specific response.
+Clients should back off for the length of the window (60 seconds) and retry.
 
 ### Changing the limits
 
-The limits are not app configuration; they are overridden per endpoint through
-Nextcloud's `ratelimit_overwrite` system setting in `config/config.php`. The key is
-`<app>.<controller-without-suffix>.<method>`, lowercased:
+The limits are not app configuration;
+they are overridden per endpoint through Nextcloud's `ratelimit_overwrite`
+system setting in `config/config.php`.
+The key is `<app>.<controller-without-suffix>.<method>`, lowercased:
 
 ```php
 'ratelimit_overwrite' => [
@@ -1878,8 +2050,9 @@ Nextcloud's `ratelimit_overwrite` system setting in `config/config.php`. The key
 ],
 ```
 
-Both `limit` and `period` must be present and greater than zero, or the override is
-ignored and a warning is logged. A cross-account twin is keyed by its own method,
+Both `limit` and `period` must be present and greater than zero,
+or the override is ignored and a warning is logged.
+A cross-account twin is keyed by its own method,
 `sudolisthashes` for `/sudo/hashes`.
 
 ### Lifting the limits for an address
@@ -1893,10 +2066,12 @@ That lifts every app's rate limits for the address, not this app's alone.
 `'ratelimit.protection.enabled' => false` in `config/config.php` switches
 rate limiting off for the whole server.
 
-> **Note:** earlier revisions of this document described `occ config:app:set` keys
-> (`rate_limit_enabled`, `rate_limit_max_requests`, `rate_limit_window_seconds`) and a
-> `{"error": ..., "retry_after": ...}` response body. Those were never implemented and
-> have been removed. Setting those config keys has no effect.
+> **Note:**
+> earlier revisions of this document described `occ config:app:set` keys
+> (`rate_limit_enabled`, `rate_limit_max_requests`,
+> `rate_limit_window_seconds`) and a `{"error": ..., "retry_after": ...}` response body.
+> Those were never implemented and have been removed.
+> Setting those config keys has no effect.
 
 ---
 
@@ -1914,12 +2089,15 @@ rate limiting off for the whole server.
 | 429 | Rate limited (see [Rate Limiting](#rate-limiting)) | Empty body |
 | 500 | Internal server error | `{"error": "message"}` |
 
-`error` is for display. It is written for a person, in the caller's
-language (the server's default where there is no user), and its wording may
-change in any release. A client decides on the status code, and on the
-fields a response defines for it, such as a recalculation's `excluded` or
-`forbidden` — never on the text. A PHP caller decides on the exception's
-class; the message is `error`'s counterpart.
+`error` is for display.
+It is written for a person,
+in the caller's language (the server's default where there is no user),
+and its wording may change in any release.
+A client decides on the status code,
+and on the fields a response defines for it,
+such as a recalculation's `excluded` or `forbidden` — never on the text.
+A PHP caller decides on the exception's class;
+the message is `error`'s counterpart.
 
 ### PHP Exceptions
 
@@ -1945,6 +2123,7 @@ while the rule mutations and `recalc` answer with
 {"success": false, "error": "Human-readable description"}
 ```
 
-`error` is present in both, so a consumer can check that field alone for the
-message. It cannot use its **absence** to mean success on the second group —
-there, `success` is the field that says so.
+`error` is present in both,
+so a consumer can check that field alone for the message.
+It cannot use its **absence** to mean success on the second group — there,
+`success` is the field that says so.

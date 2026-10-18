@@ -2,8 +2,9 @@
 
 This translation is an AI draft, not yet reviewed by a native speaker.
 
-The terms the Dutch translation `nl` uses. A new text takes them from here;
-a term that changes, changes here and in the `.po` file at once.
+The terms the Dutch translation `nl` uses.
+A new text takes them from here; a term that changes,
+changes here and in the `.po` file at once.
 
 ## Registers
 
@@ -100,26 +101,27 @@ a term that changes, changes here and in the `.po` file at once.
 ## Style
 
 - The app's name, *File Checksum Index & Search*, stays English.
-- A name in running text takes curly double quotes and the exact Dutch of
-  that element's own label: “Alle thuismappen”, “Regel toevoegen”, a type as
-  “Opnemen”. A value shown or typed as it is keeps straight quotes and stays
-  English: `"**"`, `"include"`, `"hash"`, `local::/path/`.
-- A failure that names its object reads “Kon de regel niet opslaan.”; one
-  with nothing to name reads “Opslaan mislukt.”, as the English's "Saving
-  failed.".
+- A name in running text takes curly double quotes and the exact Dutch of that
+  element's own label: “Alle thuismappen”, “Regel toevoegen”,
+  a type as “Opnemen”.
+  A value shown or typed as it is keeps straight quotes and stays English:
+  `"**"`, `"include"`, `"hash"`, `local::/path/`.
+- A failure that names its object reads “Kon de regel niet opslaan.”;
+  one with nothing to name reads “Opslaan mislukt.”,
+  as the English's "Saving failed.".
 - A dash between clauses is the en dash with spaces: ` – `.
-- An ellipsis follows a no-break space (U+00A0), as in the English:
-  “Zoeken …”. Written as the character itself.
+- An ellipsis follows a no-break space (U+00A0), as in the English: “Zoeken …”.
+  Written as the character itself.
 - After *dus*, the verb comes first: “dus kan de regel nooit overeenkomen”.
 - "Who may …" or "what happens … is decided by X" takes the passive:
-  “Wie accountoverschrijdend mag kijken, wordt bepaald door …”. A leading
-  *Wie …*, *Wat …* or *Of …* clause before an active *bepaalt X* reads as its
-  subject, and the sentence then says the opposite.
-- An inclusive range is *tot en met*: “2 tot en met 100”, “Tot en met dit
-  aantal”. *tot* alone is read as excluding the upper bound.
-- A qualifier such as "without a password prompt" goes next to the verb it
-  belongs to, not next to *vrijgegeven*, where it says how something was
-  granted.
+  “Wie accountoverschrijdend mag kijken, wordt bepaald door …”.
+  A leading *Wie …*, *Wat …* or *Of …* clause before an active *bepaalt X* reads
+  as its subject, and the sentence then says the opposite.
+- An inclusive range is *tot en met*: “2 tot en met 100”,
+  “Tot en met dit aantal”.
+  *tot* alone is read as excluding the upper bound.
+- A qualifier such as "without a password prompt" goes next to the verb it belongs to,
+  not next to *vrijgegeven*, where it says how something was granted.
 - Compounds with *app*, *hash*, *glob* and *controlesom* are written as one
   word (*appwachtwoord*, *controlesomindex*, *globpatroon*); with an
   abbreviation they take a hyphen (*opslag-ID*, *map-ID*, *REST-API*).

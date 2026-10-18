@@ -3,16 +3,18 @@
 This translation is an AI draft and has not yet been reviewed by a native
 speaker of French.
 
-The terms the French translation, `fr`, uses. A new text takes them from
-here; a term that changes, changes here and in the `.po` file at once.
+The terms the French translation, `fr`, uses.
+A new text takes them from here; a term that changes,
+changes here and in the `.po` file at once.
 
 ## Registers
 
-- `fr` is Nextcloud's French: *vous*, *votre*, as its `core` and `settings`
-  texts address the reader (*Veuillez contacter votre administrateur*,
-  *Vous avez révoqué …*). An instruction is in the *vous* imperative
-  (*Cliquez*, *Activez*); a button, menu entry or switch is in the
-  infinitive (*Modifier la règle*, *Tout vérifier*, *Prendre acte*).
+- `fr` is Nextcloud's French: *vous*, *votre*,
+  as its `core` and `settings` texts address the reader (*Veuillez contacter
+  votre administrateur*, *Vous avez révoqué …*).
+  An instruction is in the *vous* imperative (*Cliquez*, *Activez*); a button,
+  menu entry or switch is in the infinitive (*Modifier la règle*,
+  *Tout vérifier*, *Prendre acte*).
 - Nextcloud's French uses the generic masculine (*administrateur*,
   *vous n'êtes pas autorisé*); so does this translation.
 
@@ -101,9 +103,9 @@ here; a term that changes, changes here and in the `.po` file at once.
 
 - The app's name, *File Checksum Index & Search*, stays English.
 - A name in running text takes French quotes with a no-break space inside:
-  « Tous les dossiers personnels ». A value shown or typed as it is keeps
-  straight quotes and stays English: `"**"`, `"include"`, `"hash"`,
-  `local::/path/`.
+  « Tous les dossiers personnels ».
+  A value shown or typed as it is keeps straight quotes and stays English:
+  `"**"`, `"include"`, `"hash"`, `local::/path/`.
 - A no-break space (U+00A0) comes before `:` `;` `?` `!`, and inside `« »`.
   The apostrophe is the straight one, `'`, as in Nextcloud's own terms
   (*mot de passe d'application*, *dossier d'équipe*).
@@ -111,9 +113,10 @@ here; a term that changes, changes here and in the `.po` file at once.
   with nothing to name reads « Échec de l'enregistrement. », as the
   English's "Saving failed.".
 - A dash between clauses is the en dash with spaces: ` – `.
-- An ellipsis follows the word directly: *Recherche…*, as Nextcloud's
-  `core` has it; the English's no-break space before it is not kept.
-- `{placeholders}`, `%s` and `%n` stay as they are. The plural's second
-  form, the one for exact millions, is *%n fichiers*: `%n` is written in
-  digits, and French puts no *de* after a numeral, only after the noun
-  *million*.
+- An ellipsis follows the word directly: *Recherche…*,
+  as Nextcloud's `core` has it;
+  the English's no-break space before it is not kept.
+- `{placeholders}`, `%s` and `%n` stay as they are.
+  The plural's second form, the one for exact millions, is *%n fichiers*:
+  `%n` is written in digits, and French puts no *de* after a numeral,
+  only after the noun *million*.
