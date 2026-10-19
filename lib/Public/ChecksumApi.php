@@ -114,7 +114,10 @@ class ChecksumApi
 	 *                                         group leader's members, or null
 	 *                                         for every account. The file
 	 *                                         must lie within one of their
-	 *                                         mounts ({@see ReachResolver}).
+	 *                                         mounts, and in a team folder
+	 *                                         with advanced permissions be
+	 *                                         one of them may read
+	 *                                         ({@see ReachResolver::reaches()}).
 	 * @param  string|null        $actingUser  Who is asking — the session's
 	 *                                         account. Null is a trusted
 	 *                                         DI/bootstrap caller, for whom
@@ -149,7 +152,7 @@ class ChecksumApi
 	{
 		$this->assertMimeTypesReadable( $withMimeType );
 
-		if ( ! $this->reach->contains( $this->reach->mountsFor( $reachUids ), $fileId ) )
+		if ( ! $this->reach->reaches( $reachUids, $fileId ) )
 		{
 			throw new NotFoundException( "Invalid file ID: $fileId" );
 		}
@@ -873,10 +876,13 @@ class ChecksumApi
 		// content, so answering for a file the caller cannot open turns this
 		// into a content-equality oracle over every file on the instance:
 		// sweep the ids, and a non-empty answer says that file holds
-		// something you also hold.
+		// something you also hold. A team folder's advanced permissions
+		// too: the duplicates below are opened through the reach's folders,
+		// which apply them; the reference file is never opened, so they are
+		// asked of it here.
 		$mounts = $this->reach->mountsFor( $reachUids );
 
-		if ( ! $this->reach->contains( $mounts, $fileId ) )
+		if ( ! $this->reach->reaches( $reachUids, $fileId, $mounts ) )
 		{
 			throw new NotFoundException( "Invalid file ID: $fileId" );
 		}
@@ -1084,7 +1090,7 @@ class ChecksumApi
 		?string $actingUser,
 	): array
 	{
-		if ( ! $this->reach->contains( $this->reach->mountsFor( $reachUids ), $fileId ) )
+		if ( ! $this->reach->reaches( $reachUids, $fileId ) )
 		{
 			return [
 				'success' => false,
@@ -1520,10 +1526,12 @@ class ChecksumApi
 	 * that can open it — or, when $anyHolder, from whichever account holds
 	 * it. Null when none can.
 	 *
-	 * Whether the file is *within reach* was decided already
-	 * ({@see ReachResolver::contains()}); this only finds words for it. With
-	 * several accounts in reach the path is whichever folder opened it
-	 * first, and nothing here says whose — that is the owner column.
+	 * Whether the file lies within the reach's mounts was decided already
+	 * ({@see ReachResolver::contains()}); this finds words for it, through
+	 * folders that apply a team folder's advanced permissions, so a file
+	 * they deny every one of $folders is null here too. With several
+	 * accounts in reach the path is whichever folder opened it first, and
+	 * nothing here says whose — that is the owner column.
 	 *
 	 * @param  array<string, \OCP\Files\Folder>  $folders
 	 *
@@ -1584,7 +1592,7 @@ class ChecksumApi
 	 * they are all the same file, reached by different paths.
 	 *
 	 * Whether the *caller* may do this was settled before we got here
-	 * ({@see SudoScope::mayReachFile()} or {@see ReachResolver::contains()});
+	 * ({@see SudoScope::mayReachFile()} or {@see ReachResolver::reaches()});
 	 * this only finds the node.
 	 */
 	private function fileForAnyAccount( int $fileId ): ?File

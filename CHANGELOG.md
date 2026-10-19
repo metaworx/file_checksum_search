@@ -16,6 +16,11 @@ the first stable release.
 - `occ fcias:repair --step`: a step run by hand shows in the status as
   its background job's run, not as one that never ran.
 
+### Security
+
+- Reach: a file a team folder's advanced permissions deny every account
+  in reach is not found on the per-file routes.
+
 ## [0.26.0] - 2026-10-13
 
 ### Added

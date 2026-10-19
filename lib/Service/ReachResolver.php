@@ -67,10 +67,11 @@ class ReachResolver
 //  constructor
 
 	public function __construct(
-		private readonly IUserMountCache $mountCache,
-		private readonly IUserManager    $userManager,
-		private readonly IDBConnection   $db,
-		private readonly IShareManager   $shareManager,
+		private readonly IUserMountCache  $mountCache,
+		private readonly IUserManager     $userManager,
+		private readonly IDBConnection    $db,
+		private readonly IShareManager    $shareManager,
+		private readonly TeamFolderAccess $teamFolders,
 	) {
 	}
 
@@ -148,6 +149,35 @@ class ReachResolver
 		return str_starts_with( $path, $view['root'] . '/' )
 			? substr( $path, strlen( $view['root'] ) + 1 )
 			: null;
+	}
+
+	/**
+	 * Whether a file at $path in $storage lies within one of $mounts: the
+	 * same storage, and the mount's root or below it.
+	 *
+	 * @param  list<array{storage: int, root: string}>  $mounts
+	 * @param  string                                   $path    The file's internal path in its storage.
+	 */
+	public static function within(
+		array  $mounts,
+		int    $storage,
+		string $path,
+	): bool
+	{
+		foreach ( $mounts as $mount )
+		{
+			if ( $mount['storage'] !== $storage )
+			{
+				continue;
+			}
+
+			if ( $mount['root'] === '' || $path === $mount['root'] || str_starts_with( $path, $mount['root'] . '/' ) )
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 
@@ -520,6 +550,9 @@ class ReachResolver
 	 * storage, and a path that is the mount's root or below it. Null mounts
 	 * contain everything; a file the filecache does not know lies nowhere.
 	 *
+	 * A mount says nothing of a team folder's advanced permissions:
+	 * whether accounts may reach a file is {@see reaches()}.
+	 *
 	 * @param  list<array{storage: int, root: string}>|null  $mounts
 	 */
 	public function contains(
@@ -537,6 +570,58 @@ class ReachResolver
 			return false;
 		}
 
+		$row = $this->locate( $fileId );
+
+		return $row !== null && self::within( $mounts, $row['storage'], $row['path'] );
+	}
+
+	/**
+	 * Whether $uids reach $fileId: it lies within one of their mounts
+	 * ({@see contains()}), and where it lies in a team folder with advanced
+	 * permissions on, one of them may read it ({@see TeamFolderAccess}).
+	 *
+	 * Null reaches everything: a sudoer, whose reach is the whole instance
+	 * and is not narrowed by a team folder's permissions, or a trusted
+	 * caller.
+	 *
+	 * @param  list<string>|null                             $uids
+	 * @param  list<array{storage: int, root: string}>|null  $mounts  Their mounts, where the
+	 *                                                                caller has them already.
+	 */
+	public function reaches(
+		?array $uids,
+		int    $fileId,
+		?array $mounts = null,
+	): bool
+	{
+		if ( $uids === null )
+		{
+			return true;
+		}
+
+		$uids   = array_values( array_map( 'strval', $uids ) );
+		$mounts ??= $this->mountsFor( $uids ) ?? [];
+
+		if ( $mounts === [] )
+		{
+			return false;
+		}
+
+		$row = $this->locate( $fileId );
+
+		return $row !== null
+		       && self::within( $mounts, $row['storage'], $row['path'] )
+		       && $this->teamFolders->deniedAmong( $uids, [ $fileId => $row ] ) === [];
+	}
+
+	/**
+	 * Where the filecache holds $fileId: its storage and its path there;
+	 * null for a file it does not know.
+	 *
+	 * @return array{storage: int, path: string}|null
+	 */
+	private function locate( int $fileId ): ?array
+	{
 		$qb = $this->db->getQueryBuilder();
 		$qb->select( 'storage', 'path' )
 		   ->from( 'filecache' )
@@ -547,27 +632,11 @@ class ReachResolver
 		$row    = $result->fetchAssociative();
 		$result->closeCursor();
 
-		if ( $row === false )
-		{
-			return false;
-		}
-
-		$storage = (int) $row['storage'];
-		$path    = (string) $row['path'];
-
-		foreach ( $mounts as $mount )
-		{
-			if ( $mount['storage'] !== $storage )
-			{
-				continue;
-			}
-
-			if ( $mount['root'] === '' || $path === $mount['root'] || str_starts_with( $path, $mount['root'] . '/' ) )
-			{
-				return true;
-			}
-		}
-
-		return false;
+		return $row === false
+			? null
+			: [
+				'storage' => (int) $row['storage'],
+				'path'    => (string) $row['path'],
+			];
 	}
 }

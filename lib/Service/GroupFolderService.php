@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Service;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
 use OCP\App\IAppManager;
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 use OCP\L10N\IFactory;
 use Psr\Log\LoggerInterface;
@@ -154,5 +155,86 @@ class GroupFolderService
 
 			return [];
 		}
+	}
+
+	/**
+	 * Where the team folders with advanced permissions on are: each one's
+	 * root, as its storage and its path in that storage — the shape of a
+	 * mount ({@see ReachResolver::mountsFor()}).
+	 *
+	 * From the app's own table: `root_id` names the folder's root node, as
+	 * its mount does, and `acl` whether the folder's permissions are on.
+	 * A root the filecache does not hold has nothing below it, and is left
+	 * out.
+	 *
+	 * @return list<array{storage: int, root: string}>|null  Empty when the
+	 *         app is unavailable. Null when its table cannot be read, or
+	 *         names a folder by no root — where those folders are is then
+	 *         unknown, and a caller treats any file as possibly in one.
+	 */
+	public function aclRoots(): ?array
+	{
+		if ( ! $this->isAvailable() )
+		{
+			return [];
+		}
+
+		$roots   = [];
+		$unknown = false;
+		$failure = null;
+
+		try
+		{
+			$qb = $this->db->getQueryBuilder();
+			$qb->select( 'f.root_id', 'c.storage', 'c.path' )
+			   ->from( 'group_folders', 'f' )
+			   ->leftJoin( 'f', 'filecache', 'c', $qb->expr()->eq( 'c.fileid', 'f.root_id' ) )
+			   ->where( $qb->expr()->eq( 'f.acl', $qb->createNamedParameter( 1, IQueryBuilder::PARAM_INT ) ) )
+			;
+
+			$result = $qb->executeQuery();
+
+			while ( ( $row = $result->fetchAssociative() ) !== false )
+			{
+				if ( $row['root_id'] === null )
+				{
+					$unknown = true;
+
+					continue;
+				}
+
+				if ( $row['storage'] === null )
+				{
+					continue;
+				}
+
+				$roots[] = [
+					'storage' => (int) $row['storage'],
+					'root'    => trim( (string) $row['path'], '/' ),
+				];
+			}
+
+			$result->closeCursor();
+		}
+		catch ( Throwable $e )
+		{
+			$unknown = true;
+			$failure = $e;
+		}
+
+		if ( $unknown )
+		{
+			$this->logger->warning(
+				'FCIAS: cannot tell which team folders have advanced permissions on — checking every file through its account\'s folder.',
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $failure,
+				],
+			);
+
+			return null;
+		}
+
+		return $roots;
 	}
 }

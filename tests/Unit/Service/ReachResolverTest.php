@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use OCA\FileChecksumSearch\Service\ReachResolver;
+use OCA\FileChecksumSearch\Service\TeamFolderAccess;
 use OCA\FileChecksumSearch\Tests\Unit\FciasUnitTestCase;
 use OCP\DB\IResult;
 use OCP\Files\Config\ICachedMountInfo;
@@ -32,6 +33,8 @@ class ReachResolverTest
 	private IUserManager&MockObject    $users;
 
 	private IShareManager&MockObject   $shares;
+
+	private TeamFolderAccess&MockObject $teamFolders;
 
 	private ReachResolver              $reach;
 
@@ -58,7 +61,9 @@ class ReachResolverTest
 			            ? $this->createConfiguredMock( IUser::class, [ 'getUID' => strtolower( $uid ) ] )
 			            : null );
 
-		$this->reach = new ReachResolver( $this->mounts, $this->users, $this->db, $this->shares );
+		$this->teamFolders = $this->createMock( TeamFolderAccess::class );
+
+		$this->reach = new ReachResolver( $this->mounts, $this->users, $this->db, $this->shares, $this->teamFolders );
 	}
 
 
@@ -390,6 +395,50 @@ class ReachResolverTest
 		$this->assertFalse( $this->reach->contains( [ [ 'storage' => 1, 'root' => '' ] ], 404 ) );
 	}
 
+	// ─── reaches: the mounts, and a team folder's permissions ────────
+	/**
+	 * Null accounts reach everything, without a query or a folder opened:
+	 * a sudoer's reach is not narrowed by a team folder's permissions.
+	 */
+	public function testNullAccountsReachEverything(): void
+	{
+		$this->db->expects( $this->never() )
+		         ->method( 'getQueryBuilder' )
+		;
+		$this->teamFolders->expects( $this->never() )
+		                  ->method( 'deniedAmong' )
+		;
+
+		$this->assertTrue( $this->reach->reaches( null, 42 ) );
+	}
+
+	/**
+	 * A file outside the accounts' mounts is not reached, and no folder is
+	 * asked about it.
+	 */
+	public function testAFileOutsideTheMountsIsNotReached(): void
+	{
+		$this->teamFolders->expects( $this->never() )
+		                  ->method( 'deniedAmong' )
+		;
+
+		$this->assertFalse(
+			$this->resolverOverRow( 9, 'files/y/f.txt' )->reaches( [ 'alice' ], 1, [ [ 'storage' => 9, 'root' => 'files/x' ] ] ),
+		);
+	}
+
+	/**
+	 * Within the mounts, the team folder's permissions decide, asked of
+	 * the accounts in reach with the file's own row.
+	 */
+	public function testWithinTheMountsTheTeamFoldersPermissionsDecide(): void
+	{
+		$mounts = [ [ 'storage' => 3, 'root' => '__groupfolders/5' ] ];
+
+		$this->assertTrue( $this->reaches( $mounts, 3, '__groupfolders/5/Open/a.txt', [] ) );
+		$this->assertFalse( $this->reaches( $mounts, 3, '__groupfolders/5/Secret/s.txt', [ 1 ] ) );
+	}
+
 	/**
 	 * Runs contains() against a filecache row of the given storage and path.
 	 */
@@ -398,6 +447,43 @@ class ReachResolverTest
 		int    $storage,
 		string $path,
 	): bool
+	{
+		return $this->resolverOverRow( $storage, $path )->contains( $mounts, 1 );
+	}
+
+	/**
+	 * Runs reaches() for alice, whose mounts are $mounts, against a
+	 * filecache row of the given storage and path — file 1 — with the team
+	 * folders denying $denied.
+	 *
+	 * @param  list<array{storage: int, root: string}>  $mounts
+	 * @param  list<int>                                $denied
+	 */
+	private function reaches(
+		array  $mounts,
+		int    $storage,
+		string $path,
+		array  $denied,
+	): bool
+	{
+		$teamFolders = $this->createMock( TeamFolderAccess::class );
+		$teamFolders->method( 'deniedAmong' )
+		            ->with( [ 'alice' ], [ 1 => [ 'storage' => $storage, 'path' => $path ] ] )
+		            ->willReturn( $denied )
+		;
+
+		return $this->resolverOverRow( $storage, $path, $teamFolders )->reaches( [ 'alice' ], 1, $mounts );
+	}
+
+	/**
+	 * A resolver whose filecache holds one row, of the given storage and
+	 * path, for any file id.
+	 */
+	private function resolverOverRow(
+		int               $storage,
+		string            $path,
+		?TeamFolderAccess $teamFolders = null,
+	): ReachResolver
 	{
 		$result = $this->createMock( IResult::class );
 		$result->method( 'fetchAssociative' )
@@ -415,6 +501,6 @@ class ReachResolverTest
 		$db = $this->createMock( \OCP\IDBConnection::class );
 		$db->method( 'getQueryBuilder' )->willReturn( $qb );
 
-		return ( new ReachResolver( $this->mounts, $this->users, $db, $this->shares ) )->contains( $mounts, 1 );
+		return new ReachResolver( $this->mounts, $this->users, $db, $this->shares, $teamFolders ?? $this->teamFolders );
 	}
 }

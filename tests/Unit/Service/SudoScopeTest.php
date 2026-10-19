@@ -418,31 +418,26 @@ class SudoScopeTest
 		$this->asSudoer();
 
 		$this->reach->expects( $this->never() )
-		            ->method( 'mountsFor' )
+		            ->method( 'reaches' )
 		;
 
 		$this->assertTrue( $this->scope->mayReachFile( 'root', 42 ) );
 	}
 
 	/**
-	 * A group leader reaches a file within their ceiling's mounts and not
-	 * one beside it — the same predicate the listing filters by, asked of
-	 * the same resolver, so the two cannot disagree. The earlier branch this
-	 * replaces accepted any file whose *storage* a member had mounted, which
-	 * a single shared folder made the sharer's whole storage.
+	 * A group leader reaches what their ceiling's accounts reach — the same
+	 * predicate the listing filters by, asked of the same resolver, so the
+	 * two cannot disagree: their mounts, and a team folder's permissions
+	 * within them. The earlier branch this replaces accepted any file whose
+	 * *storage* a member had mounted, which a single shared folder made the
+	 * sharer's whole storage.
 	 */
-	public function testASubAdminReachesWhatLiesWithinTheirMembersMounts(): void
+	public function testASubAdminReachesWhatTheirMembersReach(): void
 	{
 		$this->asSubAdminOf( 'team' );
 
-		$mounts = [ [ 'storage' => 9, 'root' => 'files/Projects/x' ] ];
-
-		$this->reach->method( 'mountsFor' )
-		            ->with( [ 'member' ] )
-		            ->willReturn( $mounts )
-		;
-		$this->reach->method( 'contains' )
-		            ->willReturnCallback( static fn ( ?array $m, int $fileId ): bool => $m === $mounts && $fileId === 42 )
+		$this->reach->method( 'reaches' )
+		            ->willReturnCallback( static fn ( ?array $uids, int $fileId ): bool => $uids === [ 'member' ] && $fileId === 42 )
 		;
 
 		$this->assertTrue( $this->scope->mayReachFile( 'lead', 42 ), 'within the shared subtree' );
@@ -458,7 +453,7 @@ class SudoScopeTest
 		$this->asSubAdminOf( 'team' );
 
 		$this->reach->expects( $this->never() )
-		            ->method( 'mountsFor' )
+		            ->method( 'reaches' )
 		;
 
 		$this->assertFalse( $this->scope->mayReachFile( 'member', 42 ) );

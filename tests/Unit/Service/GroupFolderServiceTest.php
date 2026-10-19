@@ -11,6 +11,9 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use OCA\FileChecksumSearch\Service\GroupFolderService;
 use OCP\App\IAppManager;
+use OCP\DB\IResult;
+use OCP\DB\QueryBuilder\IExpressionBuilder;
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 use OCP\IL10N;
 use OCP\L10N\IFactory;
@@ -20,7 +23,9 @@ use Psr\Log\LoggerInterface;
 
 /**
  * The soft-dependency contract: nothing here may fail — or even touch the
- * database — when the groupfolders app is absent.
+ * database — when the groupfolders app is absent; and where its table
+ * cannot say which folders have advanced permissions, that is said as
+ * unknown, never as none.
  */
 class GroupFolderServiceTest
     extends
@@ -176,5 +181,109 @@ class GroupFolderServiceTest
 		;
 
 		$this->assertSame( [], $this->service->listFolders() );
+	}
+
+	// ─── aclRoots: where the folders with advanced permissions are ───
+	/**
+	 * Without the app there are no such folders, and the database is not
+	 * asked.
+	 */
+	public function testNoAclRootsWithoutTheApp(): void
+	{
+		$this->appManager->method( 'isEnabledForUser' )
+		                 ->willReturn( false )
+		;
+
+		$this->db->expects( $this->never() )
+		         ->method( 'getQueryBuilder' )
+		;
+
+		$this->assertSame( [], $this->service->aclRoots() );
+	}
+
+	/**
+	 * Each folder's root as a mount has it, its slashes trimmed; a root the
+	 * filecache does not hold has nothing below it, and is left out.
+	 */
+	public function testAclRootsAreEachFoldersRootAsStorageAndPath(): void
+	{
+		$this->appManager->method( 'isEnabledForUser' )
+		                 ->willReturn( true )
+		;
+		$this->rowsOf( [
+			[ 'root_id' => 500, 'storage' => 3, 'path' => '__groupfolders/5' ],
+			[ 'root_id' => 600, 'storage' => 7, 'path' => '/files/' ],
+			[ 'root_id' => 700, 'storage' => null, 'path' => null ],
+		] );
+
+		$this->assertSame(
+			[
+				[ 'storage' => 3, 'root' => '__groupfolders/5' ],
+				[ 'storage' => 7, 'root' => 'files' ],
+			],
+			$this->service->aclRoots(),
+		);
+	}
+
+	/**
+	 * A folder named by no root, or a table that cannot be read: where the
+	 * folders are is unknown, which is null and a warning — never an empty
+	 * list, which would say there are none.
+	 */
+	public function testAclRootsAreUnknownWhereTheTableCannotTellThem(): void
+	{
+		$this->appManager->method( 'isEnabledForUser' )
+		                 ->willReturn( true )
+		;
+		$this->rowsOf( [
+			[ 'root_id' => 500, 'storage' => 3, 'path' => '__groupfolders/5' ],
+			[ 'root_id' => null, 'storage' => null, 'path' => null ],
+		] );
+		$this->logger->expects( $this->once() )
+		             ->method( 'warning' )
+		;
+
+		$this->assertNull( $this->service->aclRoots() );
+	}
+
+	public function testAclRootsAreUnknownWhereTheQueryFails(): void
+	{
+		$this->appManager->method( 'isEnabledForUser' )
+		                 ->willReturn( true )
+		;
+		$this->db->method( 'getQueryBuilder' )
+		         ->willThrowException( new \RuntimeException( 'schema mismatch' ) )
+		;
+		$this->logger->expects( $this->once() )
+		             ->method( 'warning' )
+		;
+
+		$this->assertNull( $this->service->aclRoots() );
+	}
+
+	/**
+	 * The database answering with $rows, to any query.
+	 *
+	 * @param  list<array<string, mixed>>  $rows
+	 */
+	private function rowsOf( array $rows ): void
+	{
+		$result = $this->createMock( IResult::class );
+		$result->method( 'fetchAssociative' )
+		       ->willReturnOnConsecutiveCalls( ...[ ...$rows, false ] )
+		;
+
+		$qb = $this->createMock( IQueryBuilder::class );
+		$qb->method( 'select' )->willReturnSelf();
+		$qb->method( 'from' )->willReturnSelf();
+		$qb->method( 'leftJoin' )->willReturnSelf();
+		$qb->method( 'where' )->willReturnSelf();
+		$qb->method( 'expr' )->willReturn( $this->createMock( IExpressionBuilder::class ) );
+		$qb->method( 'createNamedParameter' )->willReturn( ':acl' );
+		$qb->method( 'executeQuery' )->willReturn( $result );
+
+		$this->db->method( 'getQueryBuilder' )
+		         ->willReturn( $qb )
+		;
 	}
 }

@@ -267,7 +267,9 @@ class SudoScope
 	 *
 	 * A sudoer reaches anything. Anyone else reaches a file that lies within
 	 * one of the mounts of their ceiling — the accounts {@see resolve()}
-	 * gives them for no target — and nothing beside it.
+	 * gives them for no target — and nothing beside it; in a team folder
+	 * with advanced permissions, one that one of those accounts may read
+	 * ({@see ReachResolver::reaches()}).
 	 *
 	 * **The same predicate the listing uses**, from the same resolver: the
 	 * listing filters `oc_filecache` to those mounts, and this asks whether
@@ -295,7 +297,7 @@ class SudoScope
 			return false;
 		}
 
-		return $this->reach->contains( $this->reach->mountsFor( $ceiling ), $fileId );
+		return $this->reach->reaches( $ceiling, $fileId );
 	}
 
 	/**

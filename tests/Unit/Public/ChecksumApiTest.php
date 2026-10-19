@@ -190,9 +190,14 @@ class ChecksumApiTest
 			      : [ [ 'storage' => 1, 'root' => '' ] ] )
 		;
 		// Null mounts are every account and contain everything, as the real
-		// resolver answers; a list is measured against the ids above.
+		// resolver answers; a list is measured against the ids above. The
+		// same of accounts.
 		$reach->method( 'contains' )
 		      ->willReturnCallback( fn ( ?array $mounts, int $fileId ): bool => $mounts === null
+			      || ! in_array( $fileId, $this->outOfReach, true ) )
+		;
+		$reach->method( 'reaches' )
+		      ->willReturnCallback( fn ( ?array $uids, int $fileId ): bool => $uids === null
 			      || ! in_array( $fileId, $this->outOfReach, true ) )
 		;
 		// How a row is seen through the reach's views is ReachResolverTest's;
