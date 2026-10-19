@@ -227,7 +227,20 @@ a `NotFoundException`, or a `File not found.` result.
 Whether the caller may have the reach at all is decided before the call,
 by whoever makes it.
 
-#### `findByHash(string $hash, ?array $reachUids, ?string $algo = null, int $limit = 100, bool $withLocalPath = false, bool $canonical = false, bool $withMimeType = false, bool $withStat = false): array`
+#### `findByHash()`
+
+```php
+findByHash(
+    string $hash,
+    ?array $reachUids,
+    ?string $algo = null,
+    int $limit = 100,
+    bool $withLocalPath = false,
+    bool $canonical = false,
+    bool $withMimeType = false,
+    bool $withStat = false,
+): array
+```
 
 Search for files matching a given hash value.
 
@@ -267,7 +280,21 @@ or for `$withMimeType` while detection is off.
 
 ---
 
-#### `listHashes(?array $reachUids, ?string $algo = null, int $limit = 500, int $after = 0, ?int $since = null, bool $withLocalPath = false, bool $canonical = false, bool $withMimeType = false, bool $withStat = false): array`
+#### `listHashes()`
+
+```php
+listHashes(
+    ?array $reachUids,
+    ?string $algo = null,
+    int $limit = 500,
+    int $after = 0,
+    ?int $since = null,
+    bool $withLocalPath = false,
+    bool $canonical = false,
+    bool $withMimeType = false,
+    bool $withStat = false,
+): array
+```
 
 Every hash in reach, page by page: one entry per file, in file id order.
 For a caller that keeps a copy of the checksums and would otherwise ask hash by hash.
@@ -357,7 +384,20 @@ For a caller that keeps a copy of the checksums and would otherwise ask hash by 
 
 ---
 
-#### `iterateHashes(?array $reachUids, ?string $algo = null, ?int $since = null, bool $withLocalPath = false, int $after = 0, bool $canonical = false, bool $withMimeType = false, bool $withStat = false): Generator`
+#### `iterateHashes()`
+
+```php
+iterateHashes(
+    ?array $reachUids,
+    ?string $algo = null,
+    ?int $since = null,
+    bool $withLocalPath = false,
+    int $after = 0,
+    bool $canonical = false,
+    bool $withMimeType = false,
+    bool $withStat = false,
+): Generator
+```
 
 The whole of `listHashes()`'s listing, file by file,
 for a caller in the same process: no paging to drive,
@@ -397,7 +437,21 @@ foreach ($api->iterateHashes(['alice'], 'sha256') as $fileId => $entry) {
 
 ---
 
-#### `listMissing(?array $reachUids, ?string $algo = null, int $limit = 500, int $after = 0, bool $unmatched = false, bool $withIgnored = false, bool $withExcluded = false, bool $canonical = false, bool $withStat = false): array`
+#### `listMissing()`
+
+```php
+listMissing(
+    ?array $reachUids,
+    ?string $algo = null,
+    int $limit = 500,
+    int $after = 0,
+    bool $unmatched = false,
+    bool $withIgnored = false,
+    bool $withExcluded = false,
+    bool $canonical = false,
+    bool $withStat = false,
+): array
+```
 
 The files in reach without a hash, page by page:
 the other half of `listHashes()` under `$withStat`.
@@ -438,7 +492,17 @@ as `listHashes()` does.
 
 ---
 
-#### `getHashesByFileId(int $fileId, ?array $reachUids, ?string $actingUser = null, bool $withMimeType = false, bool $withStat = false): array`
+#### `getHashesByFileId()`
+
+```php
+getHashesByFileId(
+    int $fileId,
+    ?array $reachUids,
+    ?string $actingUser = null,
+    bool $withMimeType = false,
+    bool $withStat = false,
+): array
+```
 
 Get all checksums for a file by its filecache ID.
 
@@ -480,7 +544,11 @@ saying until when the hashes are held current rather than when they were written
 
 ---
 
-#### `getHashesByFile(\OCP\Files\File $file): array`
+#### `getHashesByFile()`
+
+```php
+getHashesByFile(\OCP\Files\File $file): array
+```
 
 Convenience method — get all checksums for a `File` object.
 Resolves `$file->getId()` internally.
@@ -497,7 +565,11 @@ Same shape as `getHashesByFileId()`.
 
 ---
 
-#### `getHashesByPath(string $path, ?string $user = null): array`
+#### `getHashesByPath()`
+
+```php
+getHashesByPath(string $path, ?string $user = null): array
+```
 
 Convenience method — get checksums by filesystem path.
 
@@ -532,7 +604,20 @@ Same shape as `getHashesByFileId()`, with `path` added:
 
 ---
 
-#### `findDuplicates(?string $algo = null, int $minCount = 2, int $limit = 50, int $offset = 0, ?string $hash = null, bool $anywhere = false, bool $includeEmpty = false, bool $withMimeType = false): array`
+#### `findDuplicates()`
+
+```php
+findDuplicates(
+    ?string $algo = null,
+    int $minCount = 2,
+    int $limit = 50,
+    int $offset = 0,
+    ?string $hash = null,
+    bool $anywhere = false,
+    bool $includeEmpty = false,
+    bool $withMimeType = false,
+): array
+```
 
 Find duplicate hash groups among the files the calling user can open.
 
@@ -574,7 +659,22 @@ An administrator sees their own files, not everyone's.
 
 ---
 
-#### `findDuplicatesFor(?array $reachUids, ?string $algo = null, int $minCount = 2, int $limit = 50, int $offset = 0, ?string $hash = null, bool $anywhere = false, bool $includeEmpty = false, bool $canonical = false, bool $withMimeType = false): array`
+#### `findDuplicatesFor()`
+
+```php
+findDuplicatesFor(
+    ?array $reachUids,
+    ?string $algo = null,
+    int $minCount = 2,
+    int $limit = 50,
+    int $offset = 0,
+    ?string $hash = null,
+    bool $anywhere = false,
+    bool $includeEmpty = false,
+    bool $canonical = false,
+    bool $withMimeType = false,
+): array
+```
 
 The scoped core behind `findDuplicates()`:
 duplicate groups among the files the named accounts hold, as one merged listing,
@@ -596,7 +696,16 @@ The rest as `findDuplicates()`.
 
 ---
 
-#### `findSameHash(int $fileId, ?array $reachUids, bool $canonical = false, bool $withMimeType = false): array`
+#### `findSameHash()`
+
+```php
+findSameHash(
+    int $fileId,
+    ?array $reachUids,
+    bool $canonical = false,
+    bool $withMimeType = false,
+): array
+```
 
 Find other files sharing hash values with the given file.
 Both ends are within the reach: the reference file must lie in it,
@@ -632,7 +741,18 @@ Unlike the listing it leaves no empty file out, since the caller named the file;
 
 ---
 
-#### `recalcHash(int $fileId, ?array $reachUids, ?string $algo = null, ?string $actingUser = null, bool $withMimeType = false, bool $withStat = false): array`
+#### `recalcHash()`
+
+```php
+recalcHash(
+    int $fileId,
+    ?array $reachUids,
+    ?string $algo = null,
+    ?string $actingUser = null,
+    bool $withMimeType = false,
+    bool $withStat = false,
+): array
+```
 
 Trigger hash recalculation for a file.
 **This is the only mutating operation** in the public API.
@@ -660,7 +780,18 @@ Trigger hash recalculation for a file.
 
 ---
 
-#### `recalcMany(array $fileIds, ?array $reachUids, ?string $algo = null, ?string $actingUser = null, bool $withMimeType = false, bool $withStat = false): array`
+#### `recalcMany()`
+
+```php
+recalcMany(
+    array $fileIds,
+    ?array $reachUids,
+    ?string $algo = null,
+    ?string $actingUser = null,
+    bool $withMimeType = false,
+    bool $withStat = false,
+): array
+```
 
 Recalculate several files in one call.
 Each file goes through `recalcHash()` with the same asker and the same reach,
@@ -690,7 +821,11 @@ however large.
 
 ---
 
-#### `openableBy(array $fileIds, string $viewer): array`
+#### `openableBy()`
+
+```php
+openableBy(array $fileIds, string $viewer): array
+```
 
 Which of these files `$viewer` could open in the Files app — those the viewer's
 own mounts hold.
@@ -708,7 +843,11 @@ the cross-account routes ask this once per answer and mark each row `openable`.
 
 ---
 
-#### `getFeatures(): array`
+#### `getFeatures()`
+
+```php
+getFeatures(): array
+```
 
 What a client may ask of this server, for anyone, without the status snapshot:
 the app's version, the features,
@@ -727,7 +866,11 @@ and the algorithms the server computes with its default.
 
 ---
 
-#### `getStatus(?string $requestingUser = null): array`
+#### `getStatus()`
+
+```php
+getStatus(?string $requestingUser = null): array
+```
 
 Read-only health/status snapshot.
 The version and the features are for everyone;
