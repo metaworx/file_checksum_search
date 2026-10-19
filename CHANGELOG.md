@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.26.1] - 2026-10-19
+
 ### Fixed
 
 - `occ fcias:repair --step`: a step run by hand shows in the status as
