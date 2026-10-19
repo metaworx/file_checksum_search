@@ -150,7 +150,7 @@ a change on an external storage a scan takes in.
   `GET /api/v1/hashes?stat=1` lists every file with a hash row,
   stale ones included, and `GET /api/v1/hashes/missing` with `unmatched`,
   `withIgnored` and `withExcluded` every file without one; read both,
-  and a file of the files area in neither is gone.
+  and a file of the files area in neither is gone, or out of reach.
   Trash, versions, app data and a home's `uploads/` and `cache/` are in neither,
   and so, until the `missing-stamps` repair has stamped it,
   is a file whose hash rows have no stamp row.
@@ -215,7 +215,9 @@ Two parameters recur, and they answer two different questions:
   A list of account ids;
   the answer is confined to the files those accounts hold — their own,
   the shares they received (a share only to its subtree) and their team folders.
-  `null` is the whole instance.
+  In a team folder with advanced permissions,
+  only the files those permissions let one of the accounts read.
+  `null` is the whole instance, which the permissions do not narrow.
   It is required, and comes right after the method's subject,
   so the whole instance is never what a caller gets by leaving an argument out.
   The REST layer passes the caller's own account on the ordinary routes and the
@@ -226,6 +228,16 @@ To these methods a file outside the reach is *not found*, never *forbidden*:
 a `NotFoundException`, or a `File not found.` result.
 Whether the caller may have the reach at all is decided before the call,
 by whoever makes it.
+
+**Team folders with advanced permissions.**
+Nextcloud applies them in an account's own view of the folder,
+and so does the reach: a file is opened through the folder of each account
+in reach that holds it, until one can.
+Asked in a web request for an account other than the one logged in,
+the groupfolders app asks for read *and share* permission,
+so a group admin on the `/sudo/` routes is shown a member's file there
+only where the member may read and share it.
+A file in no such folder costs nothing.
 
 #### `findByHash()`
 
@@ -330,17 +342,21 @@ For a caller that keeps a copy of the checksums and would otherwise ask hash by 
 - **Paging.**
   Pass `next` back as `$after` until it is `null`.
   The cursor is a file id, so a file deleted between two pages moves nothing.
+  A page may hold fewer files than `$limit`, or none, and still carry a `next`:
+  the files a team folder's advanced permissions take out of reach are left out
+  after the page is read.
 - **`now`** is this server's clock, Unix seconds,
   taken before the page was read.
   Keep the first page's: it is the `$since` of the next run.
 - **The count.**
   From the start, `$after` 0, the answer carries `estimated_total`:
   the files the whole listing holds under the same filters.
-  An estimate: files come and go while a listing is read.
+  An estimate: files come and go while a listing is read,
+  and it counts the files those permissions leave out.
   With `$limit` 0 that is all it carries, and `next` is `$after` itself,
   so a count is never read as the end.
 - **Which files:**
-  the rows `findByHash()` selects: an indexed hash, within the reach's mounts,
+  the files `findByHash()` finds: an indexed hash, within the reach,
   not revoked.
   A received share counts for the shared folder and what is below it.
   An algorithm the instance holds no hashes in lists nothing;
@@ -828,7 +844,7 @@ openableBy(array $fileIds, string $viewer): array
 ```
 
 Which of these files `$viewer` could open in the Files app — those the viewer's
-own mounts hold.
+own mounts hold, less what a team folder's advanced permissions deny them.
 A file link resolves in the viewer's own folder and nowhere else,
 so a row they do not hold cannot be opened by any link;
 the cross-account routes ask this once per answer and mark each row `openable`.
@@ -1460,7 +1476,8 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/hashes?limit=500&after=0
 Every hash the caller holds, one entry per file, in file id order:
 for a client that keeps a copy of the checksums — an archive syncing its own
 database — and would otherwise ask hash by hash.
-The files are the ones `lookup` selects, within the caller's mounts.
+The files are the ones `lookup` finds, within the caller's reach
+([Method Reference](#method-reference)).
 
 **Response (200):**
 ```json
@@ -1487,12 +1504,16 @@ The files are the ones `lookup` selects, within the caller's mounts.
 - **Paging.**
   Pass `next` as `after` until `next` is `null`.
   The cursor is a file id, so a file deleted between two pages moves nothing.
+  A page may hold fewer files than `limit`, or none, and still carry a `next`:
+  the files a team folder's advanced permissions take out of reach are left out
+  after the page is read.
 - **`now`** is the server's clock, Unix seconds, taken before the page was read.
   Keep the first page's: it is the `since` of the next run.
 - **The count.**
   The first page, `after` 0 or absent, carries `estimated_total`:
   the files the whole listing holds under the same filters.
-  An estimate: files come and go while a listing is read.
+  An estimate: files come and go while a listing is read,
+  and it counts the files those permissions leave out.
   `limit=0` from the start is the count alone: no files, the total,
   and a `next` that is `after` itself, never `null`,
   so a count is not read as the end.
@@ -1601,7 +1622,7 @@ whatever others they hold.
   With `unmatched`, `withIgnored` and `withExcluded`,
   this and route 23 under `stat` name each file the caller holds once:
   a file with a hash row there, stale or not, and here a file without one.
-  A file in neither is gone.
+  A file in neither is gone, or out of the caller's reach.
   Trash, versions, app data and a home's `uploads/` and `cache/` are in neither.
 - **No `since`, no count.**
   A file without a hash has written nothing to have a time,
@@ -1935,7 +1956,8 @@ administrator has granted for it, described there as well.
 ### Cross-account routes
 
 Every ordinary route reads the caller's own files — what they hold: their home,
-the shares they received (a share only to its subtree) and their group folders.
+the shares they received (a share only to its subtree) and their group folders,
+less what a team folder's advanced permissions deny them.
 Eight of them have a twin under `/api/v1/sudo/` that answers for the caller's
 **reach** instead, and the Duplicates page has one for naming accounts:
 
@@ -1967,7 +1989,7 @@ and the batch twin answers `File not found.` on that file's row.
 
 **`openable`.**
 Every file row a twin returns carries `openable: bool` — whether the *caller's
-own* mounts hold that file.
+own* mounts hold that file, a team folder's advanced permissions applied.
 A Files-app link resolves in the viewer's own folder and nowhere else,
 so a row of somebody else's, however legitimately listed,
 cannot be opened by any URL;
@@ -1990,7 +2012,9 @@ Two things stand between a caller and a twin, in this order.
 A member of `admin`, or anyone the *instance_view* permission names (admin
 settings → *Who may look across accounts*), reaches every account.
 A sub-admin — Nextcloud's own delegation,
-set on the Users page — reaches what the members of the groups they administer hold:
+set on the Users page — reaches what the members of the groups they administer hold,
+in a team folder with advanced permissions what a member may read and share
+([Method Reference](#method-reference)):
 that is their whole reach when nothing is named,
 and naming someone outside it is
 403. Anyone else is 403 before any password is asked.

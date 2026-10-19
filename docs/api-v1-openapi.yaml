@@ -79,8 +79,10 @@ paths:
       summary: Every hash the caller holds, page by page
       description: >-
         One entry per file, in file id order, its hashes keyed by algorithm: the caller's own
-        files, the shares they received (a share only to its subtree) and their team folders —
-        the files a lookup could find. Pass `next` back as `after` until it is null.
+        files, the shares they received (a share only to its subtree) and their team folders,
+        less what a team folder's advanced permissions deny them — the files a lookup could find.
+        Pass `next` back as `after` until it is null: a page may hold fewer files than `limit`,
+        or none, before the end.
       operationId: listHashes
       parameters:
         - $ref: "#/components/parameters/MimeType"
@@ -349,7 +351,8 @@ paths:
         confirmation required" otherwise), and 403 "Not yours to look at." when
         the file is out of the caller's reach: a member of `admin`, or anyone the
         `instance_view` permission names, reaches any file; a sub-admin reaches a
-        file held by an account in one of the groups they administer.
+        file held by an account in one of the groups they administer, and in a team
+        folder with advanced permissions one such an account may read and share.
         Reaching a file is not permission to recalculate it. The *manual_recalc*
         permission is answered against whoever is asking — never against the
         file's owner — and an `exclude` rule still refuses the path, which is
@@ -449,8 +452,9 @@ paths:
         "Password confirmation required" otherwise), and is refused with 403 for
         anyone who may not look across accounts: a member of `admin` or anyone the
         `instance_view` permission names reaches every file; a sub-admin reaches
-        the files held by the members of the groups they administer, and a file
-        outside that is 403 "Not yours to look at.".
+        the files held by the members of the groups they administer — in a team
+        folder with advanced permissions, those a member may read and share — and a
+        file outside that is 403 "Not yours to look at.".
       operationId: sudoGetHashesByFileId
       parameters:
         - $ref: "#/components/parameters/MimeType"
@@ -815,7 +819,7 @@ paths:
         One entry per file, in file id order: by default the files an include rule governs,
         which the queue would hash; `unmatched`, `withIgnored` and `withExcluded` add the others.
         With all three, this and `/api/v1/hashes?stat=1` name each file the caller holds once, so
-        a file in neither is gone. A page reads a window of file ids and may come back short or
+        a file in neither is gone, or out of reach. A page reads a window of file ids and may come back short or
         empty; pass `next` back as `after` until it is null.
       operationId: listMissing
       parameters:
@@ -1407,7 +1411,7 @@ components:
         openable:
           type: boolean
           description: >-
-            Cross-account routes only: whether the caller's own mounts hold this file, so a
+            Cross-account routes only: whether the caller's own folder holds this file, a team folder's advanced permissions applied, so a
             Files-app link to it would open. Absent on the ordinary routes, where every row
             is the caller's to open.
           example: false
@@ -1646,7 +1650,7 @@ components:
           example: "home:alice//Photos/2026/new.jpg"
         openable:
           type: boolean
-          description: "Cross-account route only: whether the caller's own mounts hold this file."
+          description: "Cross-account route only: whether the caller's own folder holds this file, a team folder's advanced permissions applied."
           example: false
         etag:
           $ref: "#/components/schemas/StatEtag"
@@ -1701,7 +1705,7 @@ components:
         openable:
           type: boolean
           description: >-
-            Cross-account route only: whether the caller's own mounts hold this file, so a
+            Cross-account route only: whether the caller's own folder holds this file, a team folder's advanced permissions applied, so a
             Files-app link to it would open.
           example: false
         mimetype:
@@ -1815,7 +1819,7 @@ components:
         openable:
           type: boolean
           description: >-
-            Cross-account routes only: whether the caller's own mounts hold this file, so a
+            Cross-account routes only: whether the caller's own folder holds this file, a team folder's advanced permissions applied, so a
             Files-app link to it would open. Absent on the ordinary routes, where every row
             is the caller's to open.
           example: false
