@@ -440,6 +440,32 @@ class ReachResolverTest
 	}
 
 	/**
+	 * A listing's rows lose those the team folders deny, keys kept; the
+	 * team folders are asked with each row's filecache path, under the
+	 * field the caller names. Every account keeps every row, unasked.
+	 */
+	public function testWithoutDeniedLeavesOutWhatTheTeamFoldersDeny(): void
+	{
+		$rows = [
+			42 => [ 'storage' => 3, 'internal_path' => '__groupfolders/5/Secret/s.txt', 'path' => '/Team/Secret/s.txt' ],
+			43 => [ 'storage' => 3, 'internal_path' => '__groupfolders/5/Open/a.txt', 'path' => '/Team/Open/a.txt' ],
+		];
+
+		$this->teamFolders->expects( $this->once() )
+		                  ->method( 'deniedAmong' )
+		                  ->with( [ 'alice', '7' ], [
+			                  42 => [ 'storage' => 3, 'path' => '__groupfolders/5/Secret/s.txt' ],
+			                  43 => [ 'storage' => 3, 'path' => '__groupfolders/5/Open/a.txt' ],
+		                  ] )
+		                  ->willReturn( [ 42 ] )
+		;
+
+		$this->assertSame( [ 43 => $rows[43] ], $this->reach->withoutDenied( [ 'alice', 7 ], $rows, 'internal_path' ) );
+		$this->assertSame( $rows, $this->reach->withoutDenied( null, $rows, 'internal_path' ) );
+		$this->assertSame( [], $this->reach->withoutDenied( [ 'alice' ], [] ) );
+	}
+
+	/**
 	 * Runs contains() against a filecache row of the given storage and path.
 	 */
 	private function contains(

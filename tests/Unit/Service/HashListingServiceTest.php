@@ -42,6 +42,9 @@ class HashListingServiceTest
 
 	private HashListingService          $listing;
 
+	/** @var list<int> the files a team folder's permissions deny every account named */
+	private array $denied = [];
+
 
 //  getters / setters / is* / has*
 
@@ -51,9 +54,16 @@ class HashListingServiceTest
 
 		$this->metadata  = $this->createMock( MetadataService::class );
 		$this->filecache = $this->createMock( FilecacheService::class );
-		// The views and the share ids are the resolver's to find; how a file
-		// is seen through them is its own logic, and runs.
-		$this->reach     = $this->createPartialMock( ReachResolver::class, [ 'filesViewsFor', 'shareIdOf' ] );
+		// The views, the share ids and a team folder's permissions are the
+		// resolver's to find; how a file is seen through the views is its
+		// own logic, and runs. The permissions deny the ids in $denied to
+		// any account named, and nothing to every account.
+		$this->reach     = $this->createPartialMock( ReachResolver::class, [ 'filesViewsFor', 'shareIdOf', 'withoutDenied' ] );
+		$this->reach->method( 'withoutDenied' )
+		            ->willReturnCallback( fn ( ?array $uids, array $rows ): array => $uids === null
+			            ? $rows
+			            : array_diff_key( $rows, array_flip( $this->denied ) ) )
+		;
 		$this->time      = $this->createMock( ITimeFactory::class );
 		$this->time->method( 'getTime' )
 		           ->willReturn( self::NOW )
@@ -231,6 +241,75 @@ class HashListingServiceTest
 		$this->assertSame( [ 21, 22 ], array_column( $page['files'], 'fileid' ) );
 		$this->assertSame( 22, $page['next'] );
 		$this->assertArrayNotHasKey( 'estimated_total', $page, 'counted at the start only' );
+	}
+
+	/**
+	 * A file a team folder's permissions deny every account in reach is
+	 * left out of the page it was read in, and `next` is still the last
+	 * file read: a page short of its limit, or empty, is not the end.
+	 */
+	public function testADeniedFileIsLeftOutAndNextIsTheLastFileRead(): void
+	{
+		$this->reach->method( 'filesViewsFor' )
+		            ->willReturn( [ [ 'uid' => 'alice', 'storage' => 1, 'root' => 'files', 'prefix' => '/', 'rootId' => 100, 'shared' => false ] ] )
+		;
+		$this->metadata->method( 'pageListedFiles' )
+		               ->willReturn( [
+			               $this->row( 21, 1, 'home::alice', 'files/a', 1 ),
+			               $this->row( 22, 1, 'home::alice', 'files/b', 1 ),
+			               $this->row( 23, 1, 'home::alice', 'files/c', 1 ),
+		               ] )
+		;
+		$this->metadata->method( 'listedHashes' )
+		               ->willReturn( [] )
+		;
+
+		$this->denied = [ 22 ];
+
+		$page = $this->listing->page( [ 'alice' ], null, 2, 20 );
+
+		$this->assertSame( [ 21 ], array_column( $page['files'], 'fileid' ) );
+		$this->assertSame( 22, $page['next'] );
+
+		$this->denied = [ 21, 22 ];
+
+		$page = $this->listing->page( [ 'alice' ], null, 2, 20 );
+
+		$this->assertSame( [], $page['files'] );
+		$this->assertSame( 22, $page['next'], 'an empty page that is not the end' );
+
+		// Every account in reach — a sudoer's — is not narrowed.
+		$this->assertSame( [ 21, 22 ], array_column( $this->listing->page( null, null, 2, 20 )['files'], 'fileid' ) );
+	}
+
+	/**
+	 * The walk leaves a denied file out, and goes on from the last file
+	 * read.
+	 */
+	public function testTheWalkLeavesADeniedFileOut(): void
+	{
+		$batch = HashListingService::ITERATE_BATCH;
+
+		$this->reach->method( 'filesViewsFor' )
+		            ->willReturn( [ [ 'uid' => 'alice', 'storage' => 1, 'root' => 'files', 'prefix' => '/', 'rootId' => 100, 'shared' => false ] ] )
+		;
+		$this->metadata->expects( $this->exactly( 2 ) )
+		               ->method( 'pageListedFiles' )
+		               ->willReturnCallback( fn ( ?array $areas, ?string $algo, int $after ): array => match ( $after )
+		               {
+			               0      => $this->rows( 1, $batch ),
+			               $batch => $this->rows( $batch + 1, $batch + 1 ),
+		               } )
+		;
+
+		$this->denied = [ 2, $batch ];
+
+		$walk = array_keys( iterator_to_array( $this->listing->iterate( [ 'alice' ] ) ) );
+
+		$this->assertCount( $batch - 1, $walk );
+		$this->assertNotContains( 2, $walk );
+		$this->assertNotContains( $batch, $walk );
+		$this->assertContains( $batch + 1, $walk );
 	}
 
 	/**
@@ -504,6 +583,46 @@ class HashListingServiceTest
 		$this->assertSame( [], $page['files'] );
 		$this->assertNull( $page['next'] );
 		$this->assertSame( self::NOW, $page['now'] );
+	}
+
+	/**
+	 * A missing file a team folder's permissions deny every account in
+	 * reach is left out; `next` is still where the next page starts.
+	 */
+	public function testTheMissingFilesLeaveADeniedFileOut(): void
+	{
+		$this->reach->method( 'filesViewsFor' )
+		            ->willReturn( [ [ 'uid' => 'alice', 'storage' => 1, 'root' => 'files', 'prefix' => '/', 'rootId' => 100, 'shared' => false ] ] )
+		;
+		$this->filecache->method( 'firstFileIdAfter' )
+		                ->willReturn( 61 )
+		;
+		$this->filecache->method( 'pageUnhashedFiles' )
+		                ->willReturn( array_map(
+			                static fn ( int $id ): array => [
+				                'fileid'       => $id,
+				                'storage'      => 1,
+				                'storage_id'   => 'home::alice',
+				                'path'         => 'files/m' . $id,
+				                'etag'         => 'e',
+				                'size'         => 1,
+				                'mtime'        => 1,
+				                'storageMtime' => 1,
+			                ],
+			                [ 61, 62, 63 ],
+		                ) )
+		;
+		$this->filecache->method( 'maxFileId' )
+		                ->willReturn( 200_000 )
+		;
+
+		$this->denied = [ 62 ];
+
+		// Every file no rule matches, so that none is left out for its rule.
+		$page = $this->listing->missingPage( [ 'alice' ], null, 10, 60, unmatched: true );
+
+		$this->assertSame( [ 61, 63 ], array_column( $page['files'], 'fileid' ) );
+		$this->assertSame( 60 + HashListingService::MISSING_WINDOW, $page['next'] );
 	}
 
 	/**

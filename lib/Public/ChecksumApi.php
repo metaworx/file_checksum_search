@@ -565,10 +565,12 @@ class ChecksumApi
 	 * keyed by algorithm, in file id order.
 	 *
 	 * For a caller that keeps a copy and would otherwise ask hash by hash.
-	 * Pass `next` back as `$after` until it is null. The files listed are
-	 * the rows {@see findByHash()} selects, within the reach's mounts; the
-	 * listing does not yet apply a team folder's access rules, which a
-	 * lookup does by opening each file. `path` is the file's path as the
+	 * Pass `next` back as `$after` until it is null: a page may hold fewer
+	 * files than `$limit`, or none, before the end. The files listed are
+	 * those {@see findByHash()} finds: within the reach's mounts, less those
+	 * a team folder's advanced permissions deny every account in reach,
+	 * which no SQL can say and are left out of each page after it is read.
+	 * `path` is the file's path as the
 	 * first account in reach that holds it names it, with a leading slash —
 	 * with $reachUids null, the owner's, or for a file no account owns, its
 	 * path in the area `location` names.
@@ -1292,7 +1294,8 @@ class ChecksumApi
 	 * so a row the viewer does not hold cannot be opened by any link, and a
 	 * page should not offer one. The client cannot tell from `owner`: a
 	 * received share is somebody else's and opens fine. One batched lookup
-	 * against the viewer's own mounts answers for the whole page.
+	 * against the viewer's own mounts answers for the whole page, and a
+	 * team folder's advanced permissions for the viewer for the files in one.
 	 *
 	 * @param  list<int>  $fileIds
 	 *

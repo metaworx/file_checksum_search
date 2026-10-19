@@ -22,11 +22,11 @@ use OCP\DB\Exception;
  * the one to pass on, and null when the listing is done.
  *
  * Which files: those the index holds a hash row for, within the reach's
- * mounts, not revoked ({@see MetadataService::pageListedFiles()}). The
- * same rows a lookup selects, with one difference: a lookup then opens each
- * file through the account's folder, which applies a team folder's access
- * rules, and this listing does not yet.
- * Their values: from the metadata documents, since the index holds a
+ * mounts, not revoked ({@see MetadataService::pageListedFiles()}), less
+ * those a team folder's advanced permissions deny every account in reach
+ * ({@see ReachResolver::withoutDenied()}) — the files a lookup finds. Those
+ * are left out after the page is read, so a page may come back short, or
+ * empty, before the end. Their values: from the metadata documents, since the index holds a
  * truncated SHA-256 ({@see MetadataService::listedHashes()}). Their paths:
  * from the reach's own mounts, in one pass per page, never from a node per
  * file ({@see ReachResolver::filesViewsFor()}).
@@ -187,7 +187,8 @@ class HashListingService
 	 *
 	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, mimetype?: ?string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>, next: ?int, now: int, estimated_total?: int}
 	 *         `next` is the file id to pass as `after` while files remain,
-	 *         null when none do, and `after` itself for a count. `now` is
+	 *         null when none do, and `after` itself for a count; a page may
+	 *         hold fewer files than $limit, or none, and still carry it. `now` is
 	 *         this server's clock, unix seconds, taken before the page is
 	 *         read: the first page's is the `since` of the next run. With no
 	 *         `after`, `estimated_total` counts the whole listing: an
@@ -229,8 +230,11 @@ class HashListingService
 			$more = count( $rows ) > $limit;
 			$rows = array_slice( $rows, 0, $limit );
 
-			$answer['files'] = $this->entries( $rows, $views, $algo, $withLocalPath, $canonical, $withMimeType, $withStat );
+			// From the last row read, not the last kept: a page whose rows a
+			// team folder's permissions took out comes back short, or empty,
+			// and is not the end.
 			$answer['next']  = $more ? $rows[ $limit - 1 ]['fileid'] : null;
+			$answer['files'] = $this->entries( $this->readable( $reachUids, $rows ), $views, $algo, $withLocalPath, $canonical, $withMimeType, $withStat );
 		}
 
 		if ( $after === 0 )
@@ -287,7 +291,7 @@ class HashListingService
 		{
 			$rows = $this->metadataService->pageListedFiles( $areas, $algo, $after, $since, self::ITERATE_BATCH, $withStat );
 
-			foreach ( $this->entries( $rows, $views, $algo, $withLocalPath, $canonical, $withMimeType, $withStat ) as $entry )
+			foreach ( $this->entries( $this->readable( $reachUids, $rows ), $views, $algo, $withLocalPath, $canonical, $withMimeType, $withStat ) as $entry )
 			{
 				yield $entry['fileid'] => $entry;
 			}
@@ -377,7 +381,7 @@ class HashListingService
 		];
 		$files  = [];
 
-		foreach ( $rows as $row )
+		foreach ( $this->readable( $reachUids, $rows ) as $row )
 		{
 			$location = FileLocation::fromRow( $row['fileid'], $row['storage_id'], $row['path'], $row['mtime'] );
 
@@ -418,6 +422,26 @@ class HashListingService
 		return $reachUids === null
 			? null
 			: $this->reach->filesViewsFor( array_values( $reachUids ) );
+	}
+
+	/**
+	 * A page's rows without those a team folder's advanced permissions deny
+	 * every account in reach, in their order: what the views' areas cannot
+	 * say in SQL ({@see ReachResolver::withoutDenied()}).
+	 *
+	 * @template TRow of array{fileid: int, storage: int, path: string, ...}
+	 *
+	 * @param  list<string>|null  $reachUids
+	 * @param  list<TRow>         $rows
+	 *
+	 * @return list<TRow>
+	 */
+	private function readable(
+		?array $reachUids,
+		array  $rows,
+	): array
+	{
+		return array_values( $this->reach->withoutDenied( $reachUids, array_column( $rows, null, 'fileid' ) ) );
 	}
 
 	/**

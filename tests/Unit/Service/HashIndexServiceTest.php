@@ -34,6 +34,12 @@ class HashIndexServiceTest
 
 	private HashIndexService                  $service;
 
+	/** @var list<int> the files a team folder's permissions deny every account named */
+	private array $denied = [];
+
+	/** @var list<array{0: ?array, 1: list<int>, 2: string}> what withoutDenied() was asked */
+	private array $withoutDeniedCalls = [];
+
 
 //  getters / setters / is* / has*
 
@@ -62,6 +68,16 @@ class HashIndexServiceTest
 		;
 		$reach->method( 'asSeenIn' )
 		      ->willReturnArgument( 1 )
+		;
+		// A team folder's permissions deny the ids in $denied to any account
+		// named; the arguments are kept for a test to look at.
+		$reach->method( 'withoutDenied' )
+		      ->willReturnCallback( function( ?array $uids, array $rows, string $pathKey = 'path' ): array
+		      {
+			      $this->withoutDeniedCalls[] = [ $uids, array_keys( $rows ), $pathKey ];
+
+			      return $uids === null ? $rows : array_diff_key( $rows, array_flip( $this->denied ) );
+		      } )
 		;
 
 		$this->service = new HashIndexService(
@@ -573,6 +589,44 @@ class HashIndexServiceTest
 			],
 			array_column( $result['duplicates'][0]['files'], 'fileid' ),
 		);
+	}
+
+	/**
+	 * A file within the accounts' mounts that a team folder's permissions
+	 * deny every one of them is left out of its group, which counts what
+	 * is left; the permissions are asked of the files' filecache paths.
+	 */
+	public function testListDuplicatesForUserLeavesADeniedFileOut(): void
+	{
+		$this->duplicates->method( 'findAllDuplicates' )
+		                 ->willReturn( [ $this->group( 'abc', [ 42, 108, 200 ] ) ] )
+		;
+		$this->filecacheService->method( 'batchLookupFilecachePaths' )
+		                       ->willReturn( $this->paths( [ 42, 108, 200 ] ) )
+		;
+
+		$this->denied = [ 108 ];
+
+		$result = $this->service->listDuplicatesForUser( [ 'bob', 'carol' ] );
+
+		$this->assertSame( [ 42, 200 ], array_column( $result['duplicates'][0]['files'], 'fileid' ) );
+		$this->assertSame( 2, $result['duplicates'][0]['file_count'] );
+		$this->assertSame( [ [ [ 'bob', 'carol' ], [ 42, 108, 200 ], 'internal_path' ] ], $this->withoutDeniedCalls );
+	}
+
+	/**
+	 * Every account — no reach to narrow — is not asked about at all.
+	 */
+	public function testThePathLookupForEveryAccountAsksNoPermissions(): void
+	{
+		$this->filecacheService->method( 'batchLookupFilecachePaths' )
+		                       ->willReturn( $this->paths( [ 42 ] ) )
+		;
+
+		$this->denied = [ 42 ];
+
+		$this->assertSame( [ 42 ], array_keys( $this->service->batchLookupFilecachePaths( [ 42 ], null ) ) );
+		$this->assertSame( [], $this->withoutDeniedCalls );
 	}
 
 	public function testListDuplicatesForUserDropsAGroupThatFallsBelowMinCount(): void

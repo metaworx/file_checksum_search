@@ -615,6 +615,50 @@ class ReachResolver
 	}
 
 	/**
+	 * $rows without the files a team folder's advanced permissions deny
+	 * every one of $uids ({@see TeamFolderAccess}): what a listing filtered
+	 * by their mounts in SQL keeps of {@see reaches()}.
+	 *
+	 * Null accounts, a sudoer's, keep every row.
+	 *
+	 * @template TRow of array{storage: int, ...}
+	 *
+	 * @param  list<string>|null   $uids
+	 * @param  array<int, TRow>    $rows     Keyed by file id.
+	 * @param  string              $pathKey  The field that holds a row's path in
+	 *                                       its storage.
+	 *
+	 * @return array<int, TRow>  The rows kept, under their keys.
+	 */
+	public function withoutDenied(
+		?array $uids,
+		array  $rows,
+		string $pathKey = 'path',
+	): array
+	{
+		if ( $uids === null || $rows === [] )
+		{
+			return $rows;
+		}
+
+		$located = [];
+
+		foreach ( $rows as $fileId => $row )
+		{
+			$located[ $fileId ] = [
+				'storage' => $row['storage'],
+				'path'    => (string) $row[ $pathKey ],
+			];
+		}
+
+		$denied = $this->teamFolders->deniedAmong( array_values( array_map( 'strval', $uids ) ), $located );
+
+		return $denied === []
+			? $rows
+			: array_diff_key( $rows, array_flip( $denied ) );
+	}
+
+	/**
 	 * Where the filecache holds $fileId: its storage and its path there;
 	 * null for a file it does not know.
 	 *

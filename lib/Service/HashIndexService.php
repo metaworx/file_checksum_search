@@ -401,12 +401,17 @@ class HashIndexService
 	{
 		// Accounts in, mounts down: the one place the listing's reach is
 		// resolved, so the listing, the set listing and the occ command all
-		// mean the same thing by "whose files".
-		return $this->filecacheService->batchLookupFilecachePaths(
+		// mean the same thing by "whose files". Then what no mount says: a
+		// file a team folder's advanced permissions deny every one of them.
+		$rows = $this->filecacheService->batchLookupFilecachePaths(
 			$fileIds,
 			$this->reach->mountsFor( $userName ),
 			$withLocalPath,
 		);
+
+		return $userName === null
+			? $rows
+			: $this->reach->withoutDenied( array_values( (array) $userName ), $rows, 'internal_path' );
 	}
 
 	/**

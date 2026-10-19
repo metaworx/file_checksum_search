@@ -35,9 +35,9 @@ use Throwable;
  * hold the folder as a mount, and `Secret` lies inside that mount, so a
  * query of the filecache alone puts its files in both reaches. A file there
  * is out of `denied`'s reach, and in the reach of anyone who may count
- * `allowed`'s. Two group admins: one over `denied` alone, one over both.
- * The instance's administrator is a sudoer, whose reach those permissions
- * do not narrow.
+ * `allowed`'s. Two group admins: one over `denied` alone, one over both,
+ * who is a member and denied `Secret` too. The instance's administrator is
+ * a sudoer, whose reach those permissions do not narrow.
  *
  * Skipped where the groupfolders app is not enabled.
  */
@@ -68,7 +68,7 @@ class TeamFolderAclTest
 
 	private static string $hash;
 
-	/** @var array{secret: int, open: int, home: int} */
+	/** @var array{secret: int, open: int, home: int, secretUnhashed: int, openUnhashed: int} */
 	private static array $fileId;
 
 
@@ -99,7 +99,9 @@ class TeamFolderAclTest
 		$users    = Server::get( IUserManager::class );
 		$subAdmin = Server::get( ISubAdmin::class );
 
-		$team = self::group( 'fcias_acl_team_' . $salt, [ 'allowed', 'denied' ] );
+		// The admin over both is a member too, and denied `Secret` as well:
+		// which rows would open for them is a question of their own access.
+		$team = self::group( 'fcias_acl_team_' . $salt, [ 'allowed', 'denied', 'leadsBoth' ] );
 
 		$subAdmin->createSubAdmin( $users->get( self::uid( 'leadsDenied' ) ), self::group( 'fcias_acl_d_' . $salt, [ 'denied' ] ) );
 		$subAdmin->createSubAdmin( $users->get( self::uid( 'leadsBoth' ) ), self::group( 'fcias_acl_ad_' . $salt, [ 'allowed', 'denied' ] ) );
@@ -118,9 +120,10 @@ class TeamFolderAclTest
 		self::assertInstanceOf( Folder::class, $tf );
 
 		$secret = $tf->newFolder( 'Secret' );
+		$open   = $tf->newFolder( 'Open' );
 		$files  = [
 			'secret' => $secret->newFile( 's.txt', $content ),
-			'open'   => $tf->newFolder( 'Open' )->newFile( 'a.txt', $content ),
+			'open'   => $open->newFile( 'a.txt', $content ),
 			'home'   => $root->getUserFolder( self::uid( 'denied' ) )->newFile( 'fcias_acl_' . $salt . '.txt', $content ),
 		];
 
@@ -133,13 +136,21 @@ class TeamFolderAclTest
 			$index->recalcFileHash( $file, 'sha1', false );
 		}
 
-		// Read denied to `denied`, below `Secret`; nothing else changes.
-		Server::get( RuleManager::class )->saveRule( new Rule(
-			new UserMapping( 'user', self::uid( 'denied' ) ),
-			$secret->getId(),
-			Constants::PERMISSION_READ,
-			0,
-		) );
+		// One file without a hash on either side, for the missing files.
+		self::$fileId['secretUnhashed'] = $secret->newFile( 'u.txt', "unhashed $salt" )->getId();
+		self::$fileId['openUnhashed']   = $open->newFile( 'v.txt', "unhashed too $salt" )->getId();
+
+		// Read denied below `Secret`, to `denied` and to the admin over both;
+		// nothing else changes.
+		foreach ( [ 'denied', 'leadsBoth' ] as $role )
+		{
+			Server::get( RuleManager::class )->saveRule( new Rule(
+				new UserMapping( 'user', self::uid( $role ) ),
+				$secret->getId(),
+				Constants::PERMISSION_READ,
+				0,
+			) );
+		}
 	}
 
 	public static function tearDownAfterClass(): void
@@ -243,8 +254,8 @@ class TeamFolderAclTest
 	{
 		$open = '/api/v1/file/' . self::$fileId['open'] . '/duplicates';
 
-		$this->assertSame( [ self::$fileId['home'] ], $this->duplicateIds( $this->as( 'denied', "GET $open" ) ) );
-		$this->assertSame( [ self::$fileId['secret'] ], $this->duplicateIds( $this->as( 'allowed', "GET $open" ) ) );
+		$this->assertSame( [ self::$fileId['home'] ], $this->idsOfGroups( $this->as( 'denied', "GET $open" ) ) );
+		$this->assertSame( [ self::$fileId['secret'] ], $this->idsOfGroups( $this->as( 'allowed', "GET $open" ) ) );
 	}
 
 	/**
@@ -288,33 +299,139 @@ class TeamFolderAclTest
 		$this->assertSame( self::$hash, $both['body']['hash'] ?? null );
 	}
 
+	// ─── the listings ────────────────────────────────────────────────
+	/**
+	 * The own duplicates listing and the own hash listing: the denied member
+	 * is shown the open copy and their own, the allowed one both copies in
+	 * the folder.
+	 */
+	public function testADeniedFileIsInNoOwnListing(): void
+	{
+		[ 'secret' => $secret, 'open' => $open, 'home' => $home ] = self::$fileId;
+
+		$this->assertSame( [ $open, $home ], $this->listedIds( 'denied', 'GET /api/v1/duplicates' ) );
+		$this->assertSame( [ $secret, $open ], $this->listedIds( 'allowed', 'GET /api/v1/duplicates' ) );
+
+		$this->assertSame( [ $open, $home ], $this->hashListIds( 'denied', 'GET /api/v1/hashes?algo=sha1' ) );
+		$this->assertSame( [ $secret, $open ], $this->hashListIds( 'allowed', 'GET /api/v1/hashes?algo=sha1' ) );
+	}
+
+	/**
+	 * A page whose one file was denied comes back empty, and its `next`
+	 * says the listing goes on.
+	 */
+	public function testAPageWhoseFilesWereAllDeniedIsNotTheEnd(): void
+	{
+		$first = $this->as( 'denied', 'GET /api/v1/hashes?algo=sha1&limit=1' );
+
+		$this->assertSame( 200, $first['status'] );
+		$this->assertSame( [], $first['body']['files'] );
+		$this->assertSame( self::$fileId['secret'], $first['body']['next'] );
+
+		$second = $this->as( 'denied', 'GET /api/v1/hashes?algo=sha1&limit=1&after=' . $first['body']['next'] );
+
+		$this->assertSame( [ self::$fileId['open'] ], array_column( $second['body']['files'], 'fileid' ) );
+	}
+
+	/**
+	 * The missing files: the denied member is not shown the one in
+	 * `Secret`, the allowed member is.
+	 */
+	public function testADeniedFileIsNotAmongTheMissingFiles(): void
+	{
+		$path = '/api/v1/hashes/missing?algo=sha1&unmatched=1&withIgnored=1&withExcluded=1&after=' . ( self::$fileId['secret'] - 1 );
+
+		$denied  = $this->hashListIds( 'denied', "GET $path" );
+		$allowed = $this->hashListIds( 'allowed', "GET $path" );
+
+		$this->assertContains( self::$fileId['openUnhashed'], $denied );
+		$this->assertNotContains( self::$fileId['secretUnhashed'], $denied );
+		$this->assertContains( self::$fileId['secretUnhashed'], $allowed, 'control: the file is missing a hash' );
+	}
+
+	/**
+	 * Across accounts: the admin over the denied member alone is shown what
+	 * that member reaches, the admin over both the copy in `Secret` too, a
+	 * sudoer every copy.
+	 */
+	public function testAcrossAccountsTheListingsCountOneMemberThatMayRead(): void
+	{
+		[ 'secret' => $secret, 'open' => $open, 'home' => $home ] = self::$fileId;
+
+		$this->assertSame( [ $open, $home ], $this->listedIds( 'leadsDenied', 'GET /api/v1/sudo/duplicates' ) );
+		$this->assertSame( [ $secret, $open, $home ], $this->listedIds( 'leadsBoth', 'GET /api/v1/sudo/duplicates' ) );
+		$this->assertSame( [ $open, $home ], $this->hashListIds( 'leadsDenied', 'GET /api/v1/sudo/hashes?algo=sha1' ) );
+		$this->assertSame( [ $secret, $open, $home ], $this->hashListIds( 'leadsBoth', 'GET /api/v1/sudo/hashes?algo=sha1' ) );
+
+		$sudoer = $this->get( '/api/v1/sudo/duplicates?algo=sha1&hash=' . self::$hash, self::ADMIN_UID, self::ADMIN_PASSWORD );
+
+		$this->assertSame( [ $secret, $open, $home ], $this->idsOfGroups( $sudoer ) );
+	}
+
+	/**
+	 * Whether a row would open is the viewer's own access: the admin over
+	 * both is a member of the folder, denied `Secret`, and holds the open
+	 * copy; the copy in `Secret` would not open for them, nor would the
+	 * member's home file.
+	 */
+	public function testARowOpensOnlyWhereTheViewersOwnAccessReaches(): void
+	{
+		$response = $this->as( 'leadsBoth', 'GET /api/v1/sudo/duplicates?algo=sha1&hash=' . self::$hash );
+
+		$this->assertSame( 200, $response['status'] );
+
+		$openable = array_column( $response['body']['duplicates'][0]['files'] ?? [], 'openable', 'fileid' );
+
+		$this->assertSame(
+			[ self::$fileId['secret'] => false, self::$fileId['open'] => true, self::$fileId['home'] => false ],
+			$openable,
+		);
+	}
+
 	// ─── helpers ─────────────────────────────────────────────────────
 	/**
-	 * `VERB /path` as the account of $role.
+	 * The file ids a duplicates listing shows for the class's hash, sorted.
 	 *
-	 * @return array{status: int, body: array<string, mixed>}
+	 * @return list<int>
 	 */
-	private function as(
+	private function listedIds(
 		string $role,
 		string $request,
 	): array
 	{
-		[ $verb, $path ]    = explode( ' ', $request, 2 );
-		[ $uid, $password ] = self::$account[ $role ];
-
-		return $verb === 'POST'
-			? $this->post( $path, $uid, $password )
-			: $this->get( $path, $uid, $password );
+		return $this->idsOfGroups( $this->as( $role, $request . '?algo=sha1&hash=' . self::$hash ) );
 	}
 
 	/**
-	 * The file ids a per-file duplicates answer lists, sorted.
+	 * The file ids a listing of `files` shows, of the class's own, sorted.
+	 *
+	 * @return list<int>
+	 */
+	private function hashListIds(
+		string $role,
+		string $request,
+	): array
+	{
+		$response = $this->as( $role, $request );
+
+		$this->assertSame( 200, $response['status'], "$request answered " . json_encode( $response['body'] ) );
+
+		$ids = array_values( array_intersect( array_map( intval( ... ), array_column( $response['body']['files'], 'fileid' ) ), self::$fileId ) );
+
+		sort( $ids );
+
+		return $ids;
+	}
+
+	/**
+	 * The file ids of every group in a duplicates answer, a listing's or a
+	 * file's, sorted.
 	 *
 	 * @param  array{status: int, body: array<string, mixed>}  $response
 	 *
 	 * @return list<int>
 	 */
-	private function duplicateIds( array $response ): array
+	private function idsOfGroups( array $response ): array
 	{
 		$this->assertSame( 200, $response['status'], json_encode( $response['body'] ) );
 
@@ -331,6 +448,24 @@ class TeamFolderAclTest
 		sort( $ids );
 
 		return $ids;
+	}
+
+	/**
+	 * `VERB /path` as the account of $role.
+	 *
+	 * @return array{status: int, body: array<string, mixed>}
+	 */
+	private function as(
+		string $role,
+		string $request,
+	): array
+	{
+		[ $verb, $path ]    = explode( ' ', $request, 2 );
+		[ $uid, $password ] = self::$account[ $role ];
+
+		return $verb === 'POST'
+			? $this->post( $path, $uid, $password )
+			: $this->get( $path, $uid, $password );
 	}
 
 	/**

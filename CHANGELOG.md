@@ -19,7 +19,7 @@ the first stable release.
 ### Security
 
 - Reach: a file a team folder's advanced permissions deny every account
-  in reach is not found on the per-file routes.
+  in reach is in no listing, and not found on the per-file routes.
 
 ## [0.26.0] - 2026-10-13
 
