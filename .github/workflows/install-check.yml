@@ -10,7 +10,8 @@ name: Install check
 #
 # What is the app's own here is read from .github/app.env: APT_PACKAGES the
 # install needs, SMOKE_SPECS the browser tests to run, E2E whether the
-# server is configured for them. Each left unset leaves its step out.
+# server is configured for them. Each left unset leaves its step out. The
+# release's file where it has one, else the workflow's own ref's.
 #
 # Against the fake store: the real store's full listing with the release
 # added from its GitHub release, or, before the app's first release, an
@@ -87,12 +88,22 @@ jobs:
         with:
           ref: ${{ inputs.tag != '' && inputs.tag || format('v{0}', inputs.version) }}
 
+      # The release's own file where the tag has one. A release tagged before
+      # the app had this file, published through the master dispatch, takes
+      # the file at the ref this workflow runs from - the caller's commit, in
+      # a workflow_call - so that its install still gets its packages.
       - name: The app's settings
         id: app
         run: |
           if [ -f .github/app.env ]; then
             set -a
             . ./.github/app.env
+            set +a
+          elif git fetch --quiet --depth 1 origin "$GITHUB_SHA" &&
+               git show "$GITHUB_SHA:.github/app.env" > /tmp/app.env 2>/dev/null; then
+            echo "the release carries no .github/app.env; reading the workflow's own"
+            set -a
+            . /tmp/app.env
             set +a
           fi
           {
