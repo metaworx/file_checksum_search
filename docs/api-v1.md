@@ -109,9 +109,15 @@ and the API gives them where it gives files.
   ([Rule shape](#rule-shape), `versions`); under an include rule that does not,
   it is as a file an `ignore` rule matches, and listed with `withIgnored`.
 - **Its checksums:**
-  when a file is overwritten, the checksums it holds, where they are current,
-  pass to the version made of the content they describe;
-  a rule with `versions` has the queue read the others.
+  current checksums pass between a file and its versions without a read,
+  unless a rule excludes the file:
+  on an overwrite, the file's to the version made of the content they describe;
+  on a copy, each version's to the copy's version of the same time;
+  on a restore, the file's to the version made of the content it replaces,
+  and the restored version's to the file,
+  which is treated as written where the version holds none.
+  A rule with `versions` has the queue, and `occ fcias:hash`, read the others;
+  `occ fcias:hash --versions` reads them whatever their rule says of versions.
 - **Not offered:**
   recalculating a version, which nothing writes to;
   the versions of a file on an external storage,

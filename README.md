@@ -95,8 +95,9 @@ database?](docs/FAQ.md#what-am-i-looking-at-in-the-database).
 - **MIME types from the content** — optional: each file's type,
   named by its first 64 KiB while it is hashed, in the sidebar,
   on the duplicates page and in the API
-- **File versions** — an overwritten file's checksums pass to its version,
-  which search, duplicates and the sidebar show as its file's
+- **File versions** — checksums pass between a file and its versions on overwrite,
+  copy and restore,
+  and search, duplicates and the sidebar show a version as its file's
   (see [File versions](#file-versions))
 - **Public API v1** — HTTP REST and PHP surfaces with an OpenAPI spec
 - **21 CLI commands** for search, rule management, MIME types, administration,
@@ -172,6 +173,7 @@ and *named deviations from the rules*:
 | `-u`, `--unmatched[=include\|skip\|unmatched]` | Files no rule governs: `skip` (default), `include` (process them too), or `unmatched` — bare `-u` — to process **only** them: the inverse view, for hashing a corner no rule covers without touching the rest. Needs at least one explicit `--algo`, since there is no rule to supply one; cannot be combined with `--mark`, whose drain would drop such files by design. |
 | `--with-ignored` | Also process files whose governing rule is `ignore`. That verdict means "not automatically, but when asked", and typing a command *is* asking. Never affects `exclude`. |
 | `--ignore-rule=<id>` | Evaluate as if that rule did not exist, so the next matching rule decides. Repeatable. An unknown ID fails the run rather than being skipped quietly. |
+| `--versions` | After an account's files, hash every version in its home as its file would be, whatever its rule says of versions; without it, only those whose rule has **Versions** on ([File versions](#file-versions)). The options above apply to a version as to its file, so an `exclude` still keeps it out. Cannot be combined with `--mark`: the drain hashes a version only where its rule says so. |
 | `-v` / `-vv` | `-v` names the rule that skipped each file; `-vv` also names the rule for each file that proceeds. |
 
 There is deliberately **no blanket `--force`**.
@@ -305,6 +307,9 @@ php occ file-checksum-search:hash --user=alice --with-ignored
 
 # Set one rule aside for this run and show which rule decided each file
 php occ file-checksum-search:hash --user=alice --ignore-rule=a1b2c3d4 -v
+
+# Hash a user's files, then their older versions, whatever the rules say of versions
+php occ file-checksum-search:hash --user=alice --versions
 
 # List the rules in evaluation order, with their band.position and ids
 php occ file-checksum-search:rules:list
@@ -503,17 +508,35 @@ The app treats each as its file's.
   one that stops, or excludes the file, does so for them too.
   A version in the trash is the trash's, governed by nothing.
 - **Checksums without a read.**
-  When a file is overwritten, the checksums it holds, where they are current,
-  pass to the version Nextcloud makes of the content they describe,
-  stamped against the version's own ETag.
-  Nothing reads the version for them.
+  The checksums a file holds, where they are current,
+  pass to its versions and back without a read,
+  for every file no rule excludes — one no rule maintains as well:
+  they are right for the content, and cost nothing.
+  Nextcloud copies a version's ETag with its content,
+  so the ETag the checksums were read against proves them the version's,
+  and they are stamped against it.
+  - *Overwrite:*
+    the file's checksums pass to the version Nextcloud makes of the content they describe.
+  - *Copy:*
+    each of the file's versions hands its checksums to the copy's
+    version of the same time, which Nextcloud made from it.
+  - *Restore:*
+    the file's checksums pass to the version the restore makes of the content it replaces,
+    and the restored version's to the file.
+    Where the restored version holds none, the file is treated as written:
+    queued, or eroded where no rule maintains it
+    ([When hashes go away](#when-hashes-go-away)).
 - **Older versions on request.**
   A rule's **Versions** switch (`occ fcias:rules:add --versions`,
   `versions` in the API) has the sweep queue the versions of its files that
   hold no checksum — made before checksums were kept, or of content whose
-  checksums were not current — and the queue read and hash them.
+  checksums were not current — and the queue read and hash them;
+  `occ fcias:hash` hashes those in the accounts' homes, after their files.
   It costs a read of each, and versions can take a good share of what the
-  files themselves take; off, nothing reads a version.
+  files themselves take.
+  Off, nothing reads a version but `occ fcias:hash --versions`,
+  which hashes them whatever their rule says of versions
+  ([`hash` and the rules](#hash-and-the-rules)).
   A team folder's versions are opened through the versions app.
 - **A result like a file.**
   In the listing, the lookup, the duplicates,

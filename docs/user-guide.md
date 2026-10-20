@@ -226,9 +226,14 @@ It has three sections, and a fourth for a file with earlier versions:
 - **Versions** — the file's earlier versions, newest first,
   each with *Version of* its date and the checksums it holds;
   click one to copy it.
-  When a file is overwritten, the checksums it had pass to the version Nextcloud
-  keeps of it, without reading it again;
-  an older version without any says *No checksums for this version*,
+  Checksums pass between a file and its versions without reading either again,
+  unless a rule excludes the file:
+  when it is overwritten, its checksums pass to the version Nextcloud keeps;
+  when it is copied, its versions' pass to the copy's;
+  when a version is restored,
+  the file's pass to the version of what it replaced,
+  and the restored version's to the file.
+  An older version without any says *No checksums for this version*,
   unless a rule reads the versions of its files (see *Your hashing rules*).
 - **Recalculate** — one or two quick buttons,
   then a picker with every other algorithm this server computes and its own
@@ -349,8 +354,9 @@ An `include` rule's dialog has a **Versions** switch.
 On, the rule also reads the earlier versions of its files that hold no
 checksum — made before checksums were kept — and hashes them;
 the table shows `+ versions` beside the rule's mode.
-Off, a version still gets the checksums its file had when it was overwritten,
-and nothing reads it.
+Off, a version still gets the checksums its file had,
+on an overwrite, a copy or a restore,
+and nothing reads it unless your administrator has the versions hashed.
 
 ### What the Type column means
 
