@@ -174,6 +174,7 @@ and *named deviations from the rules*:
 | `--with-ignored` | Also process files whose governing rule is `ignore`. That verdict means "not automatically, but when asked", and typing a command *is* asking. Never affects `exclude`. |
 | `--ignore-rule=<id>` | Evaluate as if that rule did not exist, so the next matching rule decides. Repeatable. An unknown ID fails the run rather than being skipped quietly. |
 | `--versions` | After an account's files, hash every version in its home as its file would be, whatever its rule says of versions; without it, only those whose rule has **Versions** on ([File versions](#file-versions)). The options above apply to a version as to its file, so an `exclude` still keeps it out. Cannot be combined with `--mark`: the drain hashes a version only where its rule says so. |
+| `--trash` | After an account's versions, hash every file in its home's trash as it would be where it was, whatever its rule says of the trash; without it, only those whose rule has **Trash** on ([The trash](#the-trash)). The options above apply to it as at that place, so an `exclude` still keeps it out. Cannot be combined with `--mark`: the drain hashes a file in the trash only where its rule says so. |
 | `-v` / `-vv` | `-v` names the rule that skipped each file; `-vv` also names the rule for each file that proceeds. |
 
 There is deliberately **no blanket `--force`**.
@@ -573,7 +574,10 @@ Nothing reads a file in the trash unless its rule's **Trash** switch says so
 (`occ fcias:rules:add --trash`, `trash` in the API):
 the sweep then queues those that hold no checksum —
 deleted before checksums were kept — and the queue reads and hashes them,
-a team folder's through the trash app.
+a team folder's through the trash app;
+`occ fcias:hash` hashes those in the accounts' homes, after their versions.
+`occ fcias:hash --trash` reads them whatever their rule says of the trash
+([`hash` and the rules](#hash-and-the-rules)).
 A file restored from a home's trash without current checksums
 is queued at once where a rule maintains it, as a written one is;
 a team folder's restore fires no event,

@@ -76,6 +76,23 @@ class HashCalculationServiceTest
 			13 => 'c.txt',
 		];
 
+	/** A rule that hashes its files, and those of them in the trash, with sha1. */
+	private const TRASH_RULE
+		 = [
+			'id'    => 't',
+			'type'  => 'include',
+			'algos' => [ 'sha1' ],
+			'trash' => true,
+		];
+
+	/** The places {@see collectingServiceOverTrash()} gives files 21 to 23. */
+	private const TRASHED_FILES
+		 = [
+			21 => 'a.txt',
+			22 => 'Docs/b.txt',
+			23 => 'c.txt',
+		];
+
 
 //  private properties
 
@@ -3779,6 +3796,172 @@ class HashCalculationServiceTest
 		;
 
 		$this->assertSame( 1, $service->markVersions( 'alice', null, 0, new RuleOverrides(), 'missing' ) );
+	}
+
+	/**
+	 * A service whose home trash for alice holds files 21 to 23 of
+	 * $rulesByFile, each governed by the rule given for it at the place
+	 * {@see TRASHED_FILES} names, unless its record is $gone.
+	 *
+	 * @param  array<int, array|null>  $rulesByFile
+	 * @param  list<int>               $gone
+	 */
+	private function collectingServiceOverTrash(
+		array $rulesByFile,
+		array $gone = [],
+	): HashCalculationService&MockObject
+	{
+		$trashed = [];
+		$origins = [];
+
+		foreach ( array_keys( $rulesByFile ) as $fileId )
+		{
+			$path      = self::TRASHED_FILES[ $fileId ];
+			$trashed[] = FileLocation::fromRow( $fileId, 'home::alice', 'files_trashbin/files/' . basename( $path ) . '.d1700000000', 100 );
+
+			if ( ! in_array( $fileId, $gone, true ) )
+			{
+				$origins[ $fileId ] = FileLocation::fromRow( $fileId, 'home::alice', 'files/' . $path, 100 );
+			}
+		}
+
+		$this->filecacheService->method( 'homeStorageNumericIds' )
+		                       ->with( [ 'alice' ] )
+		                       ->willReturn( [ 5 ] )
+		;
+		$this->filecacheService->method( 'pageStorageFiles' )
+		                       ->willReturnCallback(
+			                       static fn(
+				                       int     $storage,
+				                       int     $lastFileId,
+				                       int     $limit,
+				                       bool    $staleOnly = false,
+				                       array   $wanted    = [],
+				                       ?string $under     = null,
+			                       ): array => $lastFileId === 0 && $under === 'files_trashbin/files'
+				                       ? $trashed
+				                       : [],
+		                       )
+		;
+		$this->filecacheService->method( 'originsOfTrash' )
+		                       ->willReturn( $origins )
+		;
+		$this->ruleService->method( 'governingRuleForLocation' )
+		                  ->willReturnCallback(
+			                  static fn(
+				                  FileLocation $location,
+			                  ): ?array => $location->trash?->origin === null
+				                  ? null
+				                  : $rulesByFile[ $location->fileId ],
+		                  )
+		;
+		$this->metadataService->method( 'fileStatesOf' )
+		                      ->willReturnCallback(
+			                      static fn(
+				                      array $fileIds,
+			                      ): array => array_fill_keys( $fileIds, [ 'vouched' => false ] ),
+		                      )
+		;
+
+		return $this->createCollectingServiceMock();
+	}
+
+	public function testTrashHashesTakeOnlyTheFilesWhoseRuleSaysTrash(): void
+	{
+		$service = $this->collectingServiceOverTrash(
+			[
+				21 => self::TRASH_RULE,
+				22 => self::INCLUDE_RULE,
+			],
+		);
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->with( 21, [ 'sha1' ], true )
+		        ->willReturn( $this->oneSuccess( 'sha1' ) )
+		;
+
+		$this->assertSame( 1, $service->generateTrashHashes( 'alice', [ 'auto' ], null, 0 )['processed'] );
+	}
+
+	public function testTrashHashesWithAllTakeEveryFileTheRunMayButNotAnExcludedOne(): void
+	{
+		$service = $this->collectingServiceOverTrash(
+			[
+				21 => self::TRASH_RULE,
+				22 => self::INCLUDE_RULE,
+				23 => [
+					'id'   => 'x',
+					'type' => 'exclude',
+				],
+			],
+		);
+		$hashed  = [];
+		$service->method( 'recalcHashes' )
+		        ->willReturnCallback(
+			        function( int $fileId ) use ( &$hashed ): array
+			        {
+				        $hashed[] = $fileId;
+
+				        return $this->oneSuccess( 'sha1' );
+			        },
+		        )
+		;
+
+		$service->generateTrashHashes( 'alice', [ 'auto' ], null, 0, null, null, 'missing', true );
+
+		$this->assertSame( [ 21, 22 ], $hashed );
+	}
+
+	public function testTrashHashesMatchThePathGlobAgainstThePlaceTheFileHad(): void
+	{
+		$service = $this->collectingServiceOverTrash(
+			[
+				21 => self::TRASH_RULE,
+				22 => self::TRASH_RULE,
+			],
+		);
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->with( 22, [ 'sha1' ], true )
+		        ->willReturn( $this->oneSuccess( 'sha1' ) )
+		;
+
+		$service->generateTrashHashes( 'alice', [ 'auto' ], 'Docs/*', 0 );
+	}
+
+	public function testAFileInTheTrashWhoseRecordIsGoneIsLeft(): void
+	{
+		$service = $this->collectingServiceOverTrash( [ 21 => self::TRASH_RULE ], [ 21 ] );
+		$service->expects( $this->never() )
+		        ->method( 'recalcHashes' )
+		;
+
+		$service->generateTrashHashes(
+			'alice',
+			[ 'sha1' ],
+			null,
+			0,
+			null,
+			new RuleOverrides( unmatched: RuleOverrides::UNMATCHED_INCLUDE ),
+			'missing',
+			true,
+		);
+	}
+
+	public function testMarkTrashQueuesOnlyTheFilesWhoseRuleSaysTrash(): void
+	{
+		$service = $this->collectingServiceOverTrash(
+			[
+				21 => self::INCLUDE_RULE,
+				22 => self::TRASH_RULE,
+			],
+		);
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 22, 'pending:missing' )
+		;
+
+		$this->assertSame( 1, $service->markTrash( 'alice', null, 0, new RuleOverrides(), 'missing' ) );
 	}
 
 	public function testMarkMissingHashesQueuesAFileThatLacksItsRulesAlgorithm(): void

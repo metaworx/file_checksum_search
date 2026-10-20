@@ -675,6 +675,60 @@ class HashCalculationService
 	{
 		$overrides ??= new RuleOverrides();
 
+		return $this->hashTaken( $this->versionsInHome( $userId, $pathPattern, $overrides, $all, $output ), $algo, $batchSize, $output, $overrides, $mode );
+	}
+
+	/**
+	 * The files in an account's home trash, hashed as they would be where
+	 * they were: those whose place's rule says `trash`
+	 * ({@see RuleService::hashesTrash()}), or, with $all, every one the run
+	 * may take ({@see RuleOverrides::allows()}). As
+	 * {@see generateVersionHashes()} otherwise, asked first by
+	 * {@see RuleService::anyRuleHashesTrash()}.
+	 *
+	 * @param  int  $batchSize  Maximum files to collect (a value <= 0 means unlimited)
+	 *
+	 * @return array{processed: int, skipped: int}
+	 * @throws \OCP\DB\Exception
+	 */
+	public function generateTrashHashes(
+		string           $userId,
+		string|array     $algo,
+		?string          $pathPattern = null,
+		int              $batchSize = 100,
+		?OutputInterface $output = null,
+		?RuleOverrides   $overrides = null,
+		string           $mode = MetadataService::PENDING_MODE_MISSING,
+		bool             $all = false,
+	): array
+	{
+		$overrides ??= new RuleOverrides();
+
+		return $this->hashTaken( $this->trashInHome( $userId, $pathPattern, $overrides, $all, $output ), $algo, $batchSize, $output, $overrides, $mode );
+	}
+
+	/**
+	 * Hash the pages a pass takes ({@see versionsInHome()},
+	 * {@see trashInHome()}), each file with its algorithms: $algo's, `auto`
+	 * taking its rule's. Under `missing`, one holding them all, current, is
+	 * left.
+	 *
+	 * @param  iterable<array<int, array{rule: array|null, path: string}>>  $pages
+	 * @param  int                                                          $batchSize  Maximum files to collect
+	 *                                                                                 (a value <= 0 means unlimited)
+	 *
+	 * @return array{processed: int, skipped: int}
+	 * @throws \OCP\DB\Exception
+	 */
+	private function hashTaken(
+		iterable         $pages,
+		string|array     $algo,
+		int              $batchSize,
+		?OutputInterface $output,
+		RuleOverrides    $overrides,
+		string           $mode,
+	): array
+	{
 		$tokens        = array_values( array_unique( array_map( 'strtolower', (array) $algo ) ) );
 		$useRuleAlgos  = in_array( self::ALGO_AUTO, $tokens, true );
 		$explicitAlgos = array_values( array_diff( $tokens, [ self::ALGO_AUTO ] ) );
@@ -684,7 +738,7 @@ class HashCalculationService
 		$processed     = 0;
 		$skipped       = 0;
 
-		foreach ( $this->versionsInHome( $userId, $pathPattern, $overrides, $all, $output ) as $page )
+		foreach ( $pages as $page )
 		{
 			$wanted = $this->wantedOf( $page, $explicitAlgos, $useRuleAlgos );
 			$fresh  = $mode === MetadataService::PENDING_MODE_FORCE
@@ -692,25 +746,25 @@ class HashCalculationService
 				: $this->freshAmong( $wanted );
 			$batch = [];
 
-			foreach ( $wanted as $versionId => $algos )
+			foreach ( $wanted as $fileId => $algos )
 			{
 				if ( ! $unlimited && $collected >= $batchSize )
 				{
 					break;
 				}
 
-				if ( isset( $fresh[ $versionId ] ) )
+				if ( isset( $fresh[ $fileId ] ) )
 				{
 					continue;
 				}
 
 				$batch[] = [
-					'file'  => $versionId,
+					'file'  => $fileId,
 					'algos' => $algos,
 				];
 				$collected ++;
 
-				$overrides->report( $output, $page[ $versionId ]['path'], $page[ $versionId ]['rule'], true );
+				$overrides->report( $output, $page[ $fileId ]['path'], $page[ $fileId ]['rule'], true );
 			}
 
 			$result    = $this->hashCollected( $batch, $mode, $algoLabel, $output );
@@ -753,9 +807,51 @@ class HashCalculationService
 		?OutputInterface $output = null,
 	): int
 	{
+		return $this->markTaken( $this->versionsInHome( $userId, $pathPattern, $overrides, false, $output ), $batchSize, $overrides, $mode, $output );
+	}
+
+	/**
+	 * Queue the files in an account's home trash whose place's rule says
+	 * `trash`, as {@see markVersions()} queues versions.
+	 *
+	 * @param  int  $batchSize  Maximum files to queue (a value <= 0 means unlimited)
+	 *
+	 * @return int  The files queued.
+	 * @throws \OCP\DB\Exception
+	 */
+	public function markTrash(
+		string           $userId,
+		?string          $pathPattern,
+		int              $batchSize,
+		RuleOverrides    $overrides,
+		string           $mode,
+		?OutputInterface $output = null,
+	): int
+	{
+		return $this->markTaken( $this->trashInHome( $userId, $pathPattern, $overrides, false, $output ), $batchSize, $overrides, $mode, $output );
+	}
+
+	/**
+	 * Queue what a pass takes ({@see versionsInHome()}, {@see trashInHome()})
+	 * as pending:<mode>: none already queued, and under `missing` none
+	 * holding every algorithm of its rule, current.
+	 *
+	 * @param  iterable<array<int, array{rule: array|null, path: string}>>  $pages
+	 *
+	 * @return int  The files queued.
+	 * @throws \OCP\DB\Exception
+	 */
+	private function markTaken(
+		iterable         $pages,
+		int              $batchSize,
+		RuleOverrides    $overrides,
+		string           $mode,
+		?OutputInterface $output,
+	): int
+	{
 		$marked = 0;
 
-		foreach ( $this->versionsInHome( $userId, $pathPattern, $overrides, false, $output ) as $page )
+		foreach ( $pages as $page )
 		{
 			$wanted = $this->wantedOf( $page, [], true );
 			$fresh  = $mode === MetadataService::PENDING_MODE_FORCE
@@ -765,21 +861,21 @@ class HashCalculationService
 				? []
 				: $this->metadataService->queuedAmong( array_keys( $wanted ) );
 
-			foreach ( array_keys( $wanted ) as $versionId )
+			foreach ( array_keys( $wanted ) as $fileId )
 			{
 				if ( $batchSize > 0 && $marked >= $batchSize )
 				{
 					return $marked;
 				}
 
-				if ( isset( $fresh[ $versionId ] ) || isset( $queued[ $versionId ] ) )
+				if ( isset( $fresh[ $fileId ] ) || isset( $queued[ $fileId ] ) )
 				{
 					continue;
 				}
 
-				$overrides->report( $output, $page[ $versionId ]['path'], $page[ $versionId ]['rule'], true );
+				$overrides->report( $output, $page[ $fileId ]['path'], $page[ $fileId ]['rule'], true );
 
-				$this->metadataService->markPending( $versionId, MetadataService::PENDING_PREFIX . $mode );
+				$this->metadataService->markPending( $fileId, MetadataService::PENDING_PREFIX . $mode );
 				$marked ++;
 			}
 		}
@@ -915,14 +1011,14 @@ class HashCalculationService
 	}
 
 	/**
-	 * The algorithms each version of a page wants: $explicitAlgos, and with
-	 * $useRuleAlgos its file's rule's, as {@see generateMissingHashes()}
-	 * resolves them for a file. A version that wants none is not among them.
+	 * The algorithms each file of a pass's page wants: $explicitAlgos, and
+	 * with $useRuleAlgos its rule's, as {@see generateMissingHashes()}
+	 * resolves them for a file. One that wants none is not among them.
 	 *
 	 * @param  array<int, array{rule: array|null, path: string}>  $page
 	 * @param  list<string>                                         $explicitAlgos
 	 *
-	 * @return array<int, list<string>>  by the version's id
+	 * @return array<int, list<string>>  by the file's id
 	 */
 	private function wantedOf(
 		array $page,
@@ -932,7 +1028,7 @@ class HashCalculationService
 	{
 		$wanted = [];
 
-		foreach ( $page as $versionId => $taken )
+		foreach ( $page as $fileId => $taken )
 		{
 			$algos = $useRuleAlgos
 				? array_values( array_unique( array_merge( $explicitAlgos, $this->catalogue->computable( $taken['rule']['algos'] ?? [] ) ) ) )
@@ -940,7 +1036,7 @@ class HashCalculationService
 
 			if ( $algos !== [] )
 			{
-				$wanted[ $versionId ] = $algos;
+				$wanted[ $fileId ] = $algos;
 			}
 		}
 
@@ -1035,6 +1131,74 @@ class HashCalculationService
 					}
 
 					$taken[ $version->fileId ] = [
+						'rule' => $rule,
+						'path' => $path,
+					];
+				}
+
+				if ( $taken !== [] )
+				{
+					yield $taken;
+				}
+			}
+		}
+	}
+
+	/**
+	 * The files in an account's home trash a run takes, a page at a time:
+	 * each judged at the place it had before the deletion, by that place's
+	 * rule ({@see RuleService::governingRuleForLocation()}), and taken where
+	 * that rule says `trash`, or with $all wherever the run may take the file
+	 * ({@see RuleOverrides::allows()}). One whose trash record is gone has no
+	 * place, and is left. One left by a rule is reported as a file is
+	 * ({@see RuleOverrides::report()}).
+	 *
+	 * @return \Generator<int, array<int, array{rule: array|null, path: string}>>
+	 *         per page, by the file's id: its place's rule, and its path
+	 * @throws \OCP\DB\Exception
+	 */
+	private function trashInHome(
+		string           $userId,
+		?string          $pathPattern,
+		RuleOverrides    $overrides,
+		bool             $all,
+		?OutputInterface $output,
+	): \Generator
+	{
+		foreach ( $this->filecacheService->homeStorageNumericIds( [ $userId ] ) as $storageNumericId )
+		{
+			$lastFileId = 0;
+
+			while ( ( $page = $this->filecacheService->pageStorageFiles( $storageNumericId, $lastFileId, 500, under: 'files_trashbin/files' ) ) !== [] )
+			{
+				$lastFileId = $page[ array_key_last( $page ) ]->fileId;
+				$trashed    = array_values( array_filter( $page, static fn ( FileLocation $location ): bool => $location->trash !== null ) );
+				$origins    = $trashed === []
+					? []
+					: $this->filecacheService->originsOfTrash( $trashed );
+				$taken      = [];
+
+				foreach ( $trashed as $location )
+				{
+					$origin = $origins[ $location->fileId ] ?? null;
+
+					if ( $origin?->relativePath === null
+						|| ( $pathPattern !== null && ! PathUtil::matchesGlob( $pathPattern, ltrim( $origin->relativePath, '/' ) ) ) )
+					{
+						continue;
+					}
+
+					$rule = $this->ruleService->governingRuleForLocation( $location->withTrashOrigin( $origin ), $overrides->ignoreRuleIds );
+					$path = '/' . $userId . '/' . $location->internalPath;
+
+					if ( ! $overrides->allows( $rule ) || ( ! $all && ! RuleService::hashesTrash( $rule ) ) )
+					{
+						$overrides->report( $output, $path, $rule, false );
+
+						continue;
+					}
+
+					$taken[ $location->fileId ] = [
 						'rule' => $rule,
 						'path' => $path,
 					];

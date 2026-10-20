@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Integration\Service;
 
+use OCA\FileChecksumSearch\Command\HashFiles;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
@@ -20,13 +21,15 @@ use OCP\Files\IRootFolder;
 use OCP\IGroupManager;
 use OCP\IUserManager;
 use OCP\Server;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Tester\CommandTester;
 use Throwable;
 
 /**
- * A rule that hashes the trash has the queue read the files in it that it
- * governs, judged at the places they had, which hold no checksum because
- * they were deleted before any rule governed them; one that does not leaves
- * them alone.
+ * A rule that hashes the trash has the queue, and `fcias:hash`, read the
+ * files in it that it governs, judged at the places they had, which hold no
+ * checksum because they were deleted before any rule governed them; one that
+ * does not leaves them alone.
  */
 class TrashHashingTest
     extends
@@ -190,6 +193,72 @@ class TrashHashingTest
 		Server::get( HashCalculationService::class )->processFile( $fileId, MetadataService::PENDING_MODE_AUTO );
 
 		$this->assertSame( sha1( 'content c.md' ), Server::get( MetadataService::class )->getHashes( $fileId )['sha1'] ?? null );
+	}
+
+	/**
+	 * `fcias:hash` hashes a file in the trash after the versions where its
+	 * rule says `trash`, and leaves one whose rule does not.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheHashCommandHashesTheTrashWhereTheRuleSaysTrash(): void
+	{
+		$hashed = $this->unhashedInTheTrash( $this->home(), 'CmdOn', 'd.txt' );
+		$left   = $this->unhashedInTheTrash( $this->home(), 'CmdOff', 'e.txt' );
+		$this->rule( 'home:' . self::$uid, 'CmdOn/**', trash: true );
+		$this->rule( 'home:' . self::$uid, 'CmdOff/**', trash: false );
+
+		$this->hash( [ '--path' => 'Cmd*' ] );
+
+		$metadata = Server::get( MetadataService::class );
+		$this->assertSame( sha1( 'content d.txt' ), $metadata->getHashes( $hashed )['sha1'] ?? null );
+		$this->assertSame( [], $metadata->getHashes( $left ) );
+	}
+
+	/**
+	 * `--trash` hashes one whatever its rule says of the trash, but not one
+	 * its rule excludes.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheHashCommandWithTrashHashesThemButNotAnExcludedOne(): void
+	{
+		$hashed = $this->unhashedInTheTrash( $this->home(), 'AllIn', 'f.txt' );
+		$left   = $this->unhashedInTheTrash( $this->home(), 'AllOut', 'g.txt' );
+		$this->rule( 'home:' . self::$uid, 'AllIn/**', trash: false );
+		$this->ruleService->ruleAdd(
+			[
+				'enabled'  => true,
+				'type'     => RuleService::TYPE_EXCLUDE,
+				'path'     => 'AllOut/**',
+				'selector' => 'home:' . self::$uid,
+			],
+		);
+
+		$this->hash(
+			[
+				'--path'  => 'All*',
+				'--trash' => true,
+			],
+		);
+
+		$metadata = Server::get( MetadataService::class );
+		$this->assertSame( sha1( 'content f.txt' ), $metadata->getHashes( $hashed )['sha1'] ?? null );
+		$this->assertSame( [], $metadata->getHashes( $left ) );
+	}
+
+	/**
+	 * Run `fcias:hash` over the test's account.
+	 *
+	 * @param  array<string, mixed>  $options
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function hash( array $options ): void
+	{
+		$tester = new CommandTester( Server::get( HashFiles::class ) );
+
+		$this->assertSame( Command::SUCCESS, $tester->execute( [ '--user' => self::$uid ] + $options ), $tester->getDisplay() );
 	}
 
 	/**

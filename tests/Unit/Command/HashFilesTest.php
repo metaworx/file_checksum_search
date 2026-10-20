@@ -999,6 +999,186 @@ class HashFilesTest
 		$this->assertStringContainsString( 'Done. 3 files marked as pending:missing.', $this->tester->getDisplay() );
 	}
 
+	// --trash
+	public function testTheTrashIsHashedAfterTheVersionsWhereARuleSaysTrash(): void
+	{
+		$this->ruleService->method( 'resolveUsers' )
+		                  ->willReturn( [ 'alice' ] )
+		;
+		$this->ruleService->method( 'anyRuleHashesTrash' )
+		                  ->willReturn( true )
+		;
+		$this->hashIndexService->method( 'generateMissingHashes' )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 2,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'generateVersionHashes' )
+		;
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'generateTrashHashes' )
+		                       ->with( 'alice', [ 'auto' ], null, 0, $this->anything(), $this->anything(), 'missing', false )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 3,
+				                       'skipped'   => 1,
+			                       ],
+		                       )
+		;
+
+		$this->tester->execute( [ '--user' => 'alice' ] );
+
+		$this->assertStringContainsString( 'Trash: 3 hashed, 1 skipped.', $this->tester->getDisplay() );
+		$this->assertStringContainsString( 'Done. 5 files hashed, 1 skipped.', $this->tester->getDisplay() );
+	}
+
+	public function testNoTrashIsLookedForWhereNoRuleHashesTheTrash(): void
+	{
+		$this->ruleService->method( 'resolveUsers' )
+		                  ->willReturn( [ 'alice' ] )
+		;
+		$this->hashIndexService->method( 'generateMissingHashes' )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 0,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'generateTrashHashes' )
+		;
+
+		$this->tester->execute( [ '--user' => 'alice' ] );
+	}
+
+	public function testTrashAsksForEveryFileInTheTrashWhateverTheRulesSay(): void
+	{
+		$this->ruleService->method( 'resolveUsers' )
+		                  ->willReturn( [ 'alice' ] )
+		;
+		$this->hashIndexService->method( 'generateMissingHashes' )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 0,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'generateTrashHashes' )
+		                       ->with( 'alice', [ 'sha1' ], null, 0, $this->anything(), $this->anything(), 'force', true )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 0,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+
+		$this->tester->execute(
+			[
+				'--user'  => 'alice',
+				'--algo'  => [ 'sha1' ],
+				'--mode'  => 'force',
+				'--trash' => true,
+			],
+		);
+	}
+
+	public function testTheTrashGetsWhatTheVersionsLeftOfTheBatch(): void
+	{
+		$this->ruleService->method( 'resolveUsers' )
+		                  ->willReturn( [ 'alice' ] )
+		;
+		$this->hashIndexService->method( 'generateMissingHashes' )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 4,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+		$this->hashIndexService->method( 'generateVersionHashes' )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 3,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+		// The files take 4 of 10 and the versions 3: the trash gets 3.
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'generateTrashHashes' )
+		                       ->with( 'alice', $this->anything(), null, 3 )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 3,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+
+		$this->tester->execute(
+			[
+				'--batch-size' => '10',
+				'--versions'   => true,
+				'--trash'      => true,
+			],
+		);
+
+		$this->assertStringContainsString( 'Batch limit reached. 10 files hashed, 0 skipped.', $this->tester->getDisplay() );
+	}
+
+	public function testMarkRefusesTrash(): void
+	{
+		// The drain hashes a file in the trash only where its rule says "trash".
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'markTrash' )
+		;
+
+		$exit = $this->tester->execute(
+			[
+				'--user'  => 'alice',
+				'--mark'  => true,
+				'--trash' => true,
+			],
+		);
+
+		$this->assertSame( Command::FAILURE, $exit );
+		$this->assertStringContainsString( '--mark cannot defer --trash', $this->tester->getDisplay() );
+	}
+
+	public function testMarkQueuesTheTrashWhereARuleSaysTrash(): void
+	{
+		$this->markSetup();
+		$this->ruleService->method( 'anyRuleHashesTrash' )
+		                  ->willReturn( true )
+		;
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'markVersions' )
+		;
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'markTrash' )
+		                       ->with( 'alice', null, 0, $this->anything(), 'missing' )
+		                       ->willReturn( 2 )
+		;
+
+		$this->tester->execute(
+			[
+				'--user' => 'alice',
+				'--mark' => true,
+			],
+		);
+
+		$this->assertStringContainsString( 'Marked 2 files in the trash.', $this->tester->getDisplay() );
+		$this->assertStringContainsString( 'Done. 3 files marked as pending:missing.', $this->tester->getDisplay() );
+	}
+
 	public function testShorthandsResolveToTheirOptions(): void
 	{
 		$definition = ( new HashFiles(

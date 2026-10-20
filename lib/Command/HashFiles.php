@@ -135,6 +135,13 @@ class HashFiles
 			     'Hash the versions in the accounts\' homes as their files would be, whatever their rule '
 			     . 'says of versions; without it, only where it says "versions". Not with --mark.',
 		     )
+		     ->addOption(
+			     'trash',
+			     null,
+			     InputOption::VALUE_NONE,
+			     'Hash the files in the accounts\' trash as they would be where they were, whatever '
+			     . 'their rule says of the trash; without it, only where it says "trash". Not with --mark.',
+		     )
 		;
 	}
 
@@ -156,6 +163,7 @@ class HashFiles
 		$markOnly    = (bool) $input->getOption( 'mark' );
 		$mode        = (string) $input->getOption( 'mode' );
 		$allVersions = (bool) $input->getOption( 'versions' );
+		$allTrash    = (bool) $input->getOption( 'trash' );
 
 		$invalid = array_diff(
 			$algos,
@@ -242,6 +250,17 @@ class HashFiles
 			return Command::FAILURE;
 		}
 
+		if ( $markOnly && $allTrash )
+		{
+			// The drain hashes a file in the trash only where its rule says "trash".
+			$output->writeln(
+				'<error>--mark cannot defer --trash: the background job hashes a file in the trash '
+				. 'only where its rule says "trash". Run without --mark to hash them now.</error>',
+			);
+
+			return Command::FAILURE;
+		}
+
 		if ( $markOnly && $hasExplicitAlgos )
 		{
 			$output->writeln(
@@ -264,13 +283,14 @@ class HashFiles
 			return Command::FAILURE;
 		}
 
-		// Where no rule hashes versions and none are asked for, there is no
-		// pass over them to make.
+		// Where no rule hashes versions, or the trash, and none are asked
+		// for, there is no pass over them to make.
 		$withVersions = $allVersions || $this->ruleService->anyRuleHashesVersions();
+		$withTrash    = $allTrash || $this->ruleService->anyRuleHashesTrash();
 
 		if ( $markOnly )
 		{
-			return $this->executeMarkOnly( $users, $pathPattern, $batchSize, $overrides, $mode, $withVersions, $output );
+			return $this->executeMarkOnly( $users, $pathPattern, $batchSize, $overrides, $mode, $withVersions, $withTrash, $output );
 		}
 
 		$output->writeln(
@@ -342,12 +362,41 @@ class HashFiles
 				$remaining -= $result['processed'];
 			}
 
-			if ( ! $withVersions || ( $remaining !== null && $remaining <= 0 ) )
+			if ( $withVersions && ( $remaining === null || $remaining > 0 ) )
+			{
+				$result = $this->hashIndexService->generateVersionHashes(
+					$userId,
+					$algos,
+					$pathPattern,
+					$remaining ?? 0,
+					$output,
+					$overrides,
+					$mode,
+					$allVersions,
+				);
+
+				$totalProcessed += $result['processed'];
+				$totalSkipped += $result['skipped'];
+
+				if ( $remaining !== null )
+				{
+					$remaining -= $result['processed'];
+				}
+
+				if ( $result['processed'] + $result['skipped'] > 0 )
+				{
+					$output->writeln(
+						sprintf( '    Versions: %d hashed, %d skipped.', $result['processed'], $result['skipped'] ),
+					);
+				}
+			}
+
+			if ( ! $withTrash || ( $remaining !== null && $remaining <= 0 ) )
 			{
 				continue;
 			}
 
-			$result = $this->hashIndexService->generateVersionHashes(
+			$result = $this->hashIndexService->generateTrashHashes(
 				$userId,
 				$algos,
 				$pathPattern,
@@ -355,7 +404,7 @@ class HashFiles
 				$output,
 				$overrides,
 				$mode,
-				$allVersions,
+				$allTrash,
 			);
 
 			$totalProcessed += $result['processed'];
@@ -369,7 +418,7 @@ class HashFiles
 			if ( $result['processed'] + $result['skipped'] > 0 )
 			{
 				$output->writeln(
-					sprintf( '    Versions: %d hashed, %d skipped.', $result['processed'], $result['skipped'] ),
+					sprintf( '    Trash: %d hashed, %d skipped.', $result['processed'], $result['skipped'] ),
 				);
 			}
 		}
@@ -549,6 +598,7 @@ class HashFiles
 	 * @param  RuleOverrides    $overrides
 	 * @param  string           $mode
 	 * @param  bool             $withVersions  Also mark the versions whose rule says "versions".
+	 * @param  bool             $withTrash     Also mark the files in the trash whose rule says "trash".
 	 * @param  OutputInterface  $output
 	 *
 	 * @return int
@@ -560,6 +610,7 @@ class HashFiles
 		RuleOverrides   $overrides,
 		string          $mode,
 		bool            $withVersions,
+		bool            $withTrash,
 		OutputInterface $output,
 	): int
 	{
@@ -623,12 +674,36 @@ class HashFiles
 					: sprintf( '    Marked %d files.', $marked ),
 			);
 
-			if ( ! $withVersions || ( $remaining !== null && $remaining <= 0 ) )
+			if ( $withVersions && ( $remaining === null || $remaining > 0 ) )
+			{
+				$versions = $this->hashIndexService->markVersions(
+					$userId,
+					$pathPattern,
+					$remaining ?? 0,
+					$overrides,
+					$mode,
+					$output,
+				);
+
+				$totalMarked += $versions;
+
+				if ( $remaining !== null )
+				{
+					$remaining -= $versions;
+				}
+
+				if ( $versions > 0 )
+				{
+					$output->writeln( sprintf( '    Marked %d versions.', $versions ) );
+				}
+			}
+
+			if ( ! $withTrash || ( $remaining !== null && $remaining <= 0 ) )
 			{
 				continue;
 			}
 
-			$versions = $this->hashIndexService->markVersions(
+			$trash = $this->hashIndexService->markTrash(
 				$userId,
 				$pathPattern,
 				$remaining ?? 0,
@@ -637,16 +712,16 @@ class HashFiles
 				$output,
 			);
 
-			$totalMarked += $versions;
+			$totalMarked += $trash;
 
 			if ( $remaining !== null )
 			{
-				$remaining -= $versions;
+				$remaining -= $trash;
 			}
 
-			if ( $versions > 0 )
+			if ( $trash > 0 )
 			{
-				$output->writeln( sprintf( '    Marked %d versions.', $versions ) );
+				$output->writeln( sprintf( '    Marked %d files in the trash.', $trash ) );
 			}
 		}
 

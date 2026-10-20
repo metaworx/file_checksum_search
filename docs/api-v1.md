@@ -160,7 +160,9 @@ held where it was before the deletion.
   it is as a file an `ignore` rule matches, and listed with `withIgnored`.
 - **Its checksums** stay through the trash, and are still current
   when the file is restored, since the trash keeps its ETag.
-  A rule with `trash` has the queue read a trashed file that holds none.
+  A rule with `trash` has the queue, and `occ fcias:hash`,
+  read a trashed file that holds none;
+  `occ fcias:hash --trash` reads them whatever their rule says of the trash.
 - **Not offered:**
   recalculating a file in the trash.
 

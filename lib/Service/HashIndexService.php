@@ -222,6 +222,48 @@ class HashIndexService
 	}
 
 	/**
+	 * {@see HashCalculationService::generateTrashHashes()}: the pass over
+	 * an account's trash, after its versions.
+	 */
+	public function generateTrashHashes(
+		string           $userId,
+		string|array     $algo,
+		?string          $pathPattern = null,
+		int              $batchSize = 100,
+		?OutputInterface $output = null,
+		?RuleOverrides   $overrides = null,
+		string           $mode = MetadataService::PENDING_MODE_MISSING,
+		bool             $all = false,
+	): array
+	{
+		return $this->hashCalc->generateTrashHashes(
+			$userId,
+			$algo,
+			$pathPattern,
+			$batchSize,
+			$output,
+			$overrides,
+			$mode,
+			$all,
+		);
+	}
+
+	/**
+	 * {@see HashCalculationService::markTrash()}.
+	 */
+	public function markTrash(
+		string           $userId,
+		?string          $pathPattern,
+		int              $batchSize,
+		RuleOverrides    $overrides,
+		string           $mode,
+		?OutputInterface $output = null,
+	): int
+	{
+		return $this->hashCalc->markTrash( $userId, $pathPattern, $batchSize, $overrides, $mode, $output );
+	}
+
+	/**
 	 * @return array{algo: string, hash_value: string, file_count: int, fileids: int[], empty: bool}[]
 	 */
 	public function findAllDuplicates(
