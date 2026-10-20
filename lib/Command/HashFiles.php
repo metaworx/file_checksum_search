@@ -17,8 +17,6 @@ use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleOverrides;
 use OCA\FileChecksumSearch\Service\RuleService;
-use OCP\Files\File;
-use OCP\Files\Folder;
 use Psr\Log\LoggerInterface;
 use Throwable;
 use Symfony\Component\Console\Command\Command;
@@ -47,7 +45,6 @@ class HashFiles
 
 	public function __construct(
 		private readonly HashIndexService $hashIndexService,
-		private readonly MetadataService  $metadataService,
 		private readonly FilecacheService $filecacheService,
 		private readonly RuleService      $ruleService,
 		private readonly LoggerInterface  $logger,
@@ -537,7 +534,14 @@ class HashFiles
 	}
 
 	/**
-	 * Mark-only mode: walk user folders and mark matching files as pending:<mode>.
+	 * Mark-only mode: queue each account's files that need hashing as
+	 * pending:<mode> ({@see HashCalculationService::markMissingHashes()}).
+	 * Files whose governing rule says not to hash them automatically are
+	 * skipped and counted: this command is bulk maintenance, the CLI face of
+	 * the background job, so an `ignore` or `exclude` verdict applies to it
+	 * just as it does to the job. A user asking for one specific file by hand
+	 * goes through the recalculation endpoint instead, where only `exclude`
+	 * refuses.
 	 *
 	 * @param  string[]         $users
 	 * @param  string|null      $pathPattern
@@ -587,7 +591,7 @@ class HashFiles
 
 			try
 			{
-				$userFolder = $this->filecacheService->getUserFolder( $userId );
+				$this->filecacheService->getUserFolder( $userId );
 			}
 			catch ( Throwable )
 			{
@@ -596,15 +600,13 @@ class HashFiles
 				continue;
 			}
 
-			$skipped = 0;
-			$marked  = $this->markFolder(
-				$userFolder,
+			[ 'marked' => $marked, 'skipped' => $skipped ] = $this->hashIndexService->markMissingHashes(
+				$userId,
 				$pathPattern,
+				$remaining ?? 0, // 0 = unlimited (--batch-size omitted)
 				$overrides,
 				$mode,
 				$output,
-				$remaining,
-				$skipped,
 			);
 
 			$totalMarked += $marked;
@@ -665,82 +667,5 @@ class HashFiles
 		);
 
 		return Command::SUCCESS;
-	}
-
-	/**
-	 * Mark files matching a path glob as pending:<mode>.
-	 *
-	 * Delegates file search to RuleService::searchFilesByGlob(). Files whose
-	 * governing rule says not to hash them automatically are skipped and
-	 * counted in $skipped: this command is bulk maintenance, the CLI face of
-	 * the background job, so an `ignore` or `exclude` verdict applies to it
-	 * just as it does to the job. A user asking for one specific file by hand
-	 * goes through the recalculation endpoint instead, where only `exclude`
-	 * refuses.
-	 *
-	 * @param  int|null  $limit  At most this many files are marked; null for no
-	 *                           limit. The caller spends its budget by the count
-	 *                           returned, so it is taken by value.
-	 *
-	 * @return int Number of files marked
-	 */
-	private function markFolder(
-		Folder          $folder,
-		?string         $pathPattern,
-		RuleOverrides   $overrides,
-		string          $mode,
-		OutputInterface $output,
-		?int            $limit,
-		int             &$skipped = 0,
-	): int
-	{
-		$files = $this->ruleService->searchFilesByGlob(
-			$folder,
-			$pathPattern ?? '**',
-			$limit ?? 0, // 0 = unlimited (--batch-size omitted)
-		);
-
-		$marked = 0;
-
-		// One scan for the whole result set instead of a lookup per file.
-		$rulesByFileId = $this->ruleService->governingRulesForFileIds(
-			array_map(
-				static fn(
-					File $file,
-				): int => $file->getId(),
-				$files,
-			),
-			$overrides->ignoreRuleIds,
-		);
-
-		foreach ( $files as $file )
-		{
-			if ( $limit !== null && $marked >= $limit )
-			{
-				break;
-			}
-
-			$rule = $rulesByFileId[ $file->getId() ] ?? null;
-
-			if ( ! $overrides->allows( $rule ) )
-			{
-				$skipped ++;
-				$overrides->report( $output, $file->getPath(), $rule, false );
-
-				continue;
-			}
-
-			$overrides->report( $output, $file->getPath(), $rule, true );
-
-			// pending:<mode>, not a hardcoded pending:auto — "queue a forced
-			// background recompute" is expressible now.
-			$this->metadataService->markPending(
-				$file->getId(),
-				MetadataService::PENDING_PREFIX . $mode,
-			);
-			$marked ++;
-		}
-
-		return $marked;
 	}
 }

@@ -2223,6 +2223,47 @@ class MetadataService
 	}
 
 	/**
+	 * The files among these that are queued: their state row holds a
+	 * `pending:` marker ({@see markPending()}). One query per thousand files.
+	 *
+	 * @param  list<int>  $fileIds
+	 *
+	 * @return array<int, true>  keyed by file id
+	 * @throws Exception
+	 */
+	public function queuedAmong( array $fileIds ): array
+	{
+		$queued = [];
+
+		foreach ( array_chunk( array_values( array_unique( array_map( intval( ... ), $fileIds ) ) ), 1000 ) as $chunk )
+		{
+			$qb = $this->db->getQueryBuilder();
+			$qb->select( self::FIELD_FILE_ID )
+			   ->from( self::TABLE_FILES_METADATA_INDEX )
+			   ->where(
+				   $qb->expr()
+				      ->in( self::FIELD_FILE_ID, $qb->createNamedParameter( $chunk, IQueryBuilder::PARAM_INT_ARRAY ) ),
+				   $qb->expr()
+				      ->eq( self::FIELD_META_KEY, $qb->createNamedParameter( self::KEY_FILE_CHECKSUM_STATE ) ),
+				   $qb->expr()
+				      ->like( self::FIELD_META_VALUE_STRING, $qb->createNamedParameter( self::PENDING_LIKE ) ),
+			   )
+			;
+
+			$result = $this->executeQuery( $qb );
+
+			while ( ( $row = $result->fetchAssociative() ) !== false )
+			{
+				$queued[ (int) $row[ self::FIELD_FILE_ID ] ] = true;
+			}
+
+			$result->closeCursor();
+		}
+
+		return $queued;
+	}
+
+	/**
 	 * What the filecache holds of these files now, with the ETag their stamp
 	 * carries and whether it vouches for their hashes
 	 * ({@see vouchedCondition()}): by file id, a file the filecache does not

@@ -239,6 +239,10 @@ class HashCalculationService
 	 * $batchSize of zero or less means no limit at all, which is what the
 	 * generate command passes when --batch-size is omitted — on a large
 	 * instance that walk holds every matching file in memory.
+	 *
+	 * With $skipQueued, a file already queued is left too, and does not
+	 * count toward the batch: what `--mark` asks, which would otherwise
+	 * queue the same first files on every run.
 	 */
 	private function collectFilesForUser(
 		string           $folderPath,
@@ -253,6 +257,7 @@ class HashCalculationService
 		RuleOverrides    $overrides,
 		?OutputInterface $output = null,
 		?array           &$stats = null,
+		bool             $skipQueued = false,
 	): void
 	{
 		// A non-positive batch size means "no limit" (the generate
@@ -310,6 +315,9 @@ class HashCalculationService
 			$candidateIds,
 			$overrides->ignoreRuleIds,
 		);
+		$queued        = $skipQueued && $candidateIds !== []
+			? $this->metadataService->queuedAmong( $candidateIds )
+			: [];
 
 		foreach ( $listing as $child )
 		{
@@ -333,6 +341,7 @@ class HashCalculationService
 					$overrides,
 					$output,
 					$stats,
+					$skipQueued,
 				);
 
 				continue;
@@ -408,6 +417,16 @@ class HashCalculationService
 					sprintf( '    skip %s [no rule to supply algorithms]', $child->getPath() ),
 					OutputInterface::VERBOSITY_VERBOSE,
 				);
+
+				continue;
+			}
+
+			if ( isset( $queued[ $child->getId() ] ) )
+			{
+				if ( $stats !== null )
+				{
+					$stats['queued'] = ( $stats['queued'] ?? 0 ) + 1;
+				}
 
 				continue;
 			}
@@ -568,6 +587,62 @@ class HashCalculationService
 	}
 
 	/**
+	 * Queue an account's files that need hashing as pending:<mode>, for the
+	 * background job, which honours each file's rule at drain time
+	 * ({@see processFile()}).
+	 *
+	 * The files are chosen as {@see generateMissingHashes()} chooses them,
+	 * with each file's rule's algorithms: none a rule leaves, and under
+	 * `missing` none holding them all, fresh. A file already queued is left
+	 * as well, so that the batch is spent on files the queue does not hold
+	 * yet and the next run starts where this one stopped.
+	 *
+	 * @param  int  $batchSize  Maximum files to queue (a value <= 0 means unlimited)
+	 *
+	 * @return array{marked: int, skipped: int}  skipped: the files a rule left
+	 * @throws \OCP\DB\Exception
+	 */
+	public function markMissingHashes(
+		string           $userId,
+		?string          $pathPattern,
+		int              $batchSize,
+		RuleOverrides    $overrides,
+		string           $mode,
+		?OutputInterface $output = null,
+	): array
+	{
+		$userFolderPath = $this->filecacheService->getUserFolderPath( $userId );
+		$files          = [];
+		$stats          = [];
+
+		$this->collectFilesForUser(
+			$userFolderPath,
+			$userId,
+			[],
+			true,
+			$mode,
+			$pathPattern,
+			$userFolderPath,
+			$files,
+			$batchSize,
+			$overrides,
+			$output,
+			$stats,
+			true,
+		);
+
+		foreach ( $files as $entry )
+		{
+			$this->metadataService->markPending( $entry['file']->getId(), MetadataService::PENDING_PREFIX . $mode );
+		}
+
+		return [
+			'marked'  => count( $files ),
+			'skipped' => $stats['ruleSkipped'] ?? 0,
+		];
+	}
+
+	/**
 	 * The versions in an account's home, hashed as its files are: those
 	 * whose file's rule says `versions` ({@see RuleService::hashesVersions()}),
 	 * or, with $all, every one the run may take ({@see RuleOverrides::allows()}).
@@ -611,21 +686,8 @@ class HashCalculationService
 
 		foreach ( $this->versionsInHome( $userId, $pathPattern, $overrides, $all, $output ) as $page )
 		{
-			$wanted = [];
-
-			foreach ( $page as $versionId => $taken )
-			{
-				$algos = $useRuleAlgos
-					? array_values( array_unique( array_merge( $explicitAlgos, $this->catalogue->computable( $taken['rule']['algos'] ?? [] ) ) ) )
-					: $explicitAlgos;
-
-				if ( $algos !== [] )
-				{
-					$wanted[ $versionId ] = $algos;
-				}
-			}
-
-			$fresh = $mode === MetadataService::PENDING_MODE_FORCE
+			$wanted = $this->wantedOf( $page, $explicitAlgos, $useRuleAlgos );
+			$fresh  = $mode === MetadataService::PENDING_MODE_FORCE
 				? []
 				: $this->freshAmong( $wanted );
 			$batch = [];
@@ -673,6 +735,10 @@ class HashCalculationService
 	 * the rule at drain time ({@see processFile()}). Asked first as
 	 * {@see generateVersionHashes()} is.
 	 *
+	 * Only those that need hashing, as {@see markMissingHashes()} queues
+	 * files: none already queued, and under `missing` none holding every
+	 * algorithm of its rule, current.
+	 *
 	 * @param  int  $batchSize  Maximum versions to queue (a value <= 0 means unlimited)
 	 *
 	 * @return int  The versions queued.
@@ -691,14 +757,27 @@ class HashCalculationService
 
 		foreach ( $this->versionsInHome( $userId, $pathPattern, $overrides, false, $output ) as $page )
 		{
-			foreach ( $page as $versionId => $taken )
+			$wanted = $this->wantedOf( $page, [], true );
+			$fresh  = $mode === MetadataService::PENDING_MODE_FORCE
+				? []
+				: $this->freshAmong( $wanted );
+			$queued = $wanted === []
+				? []
+				: $this->metadataService->queuedAmong( array_keys( $wanted ) );
+
+			foreach ( array_keys( $wanted ) as $versionId )
 			{
 				if ( $batchSize > 0 && $marked >= $batchSize )
 				{
 					return $marked;
 				}
 
-				$overrides->report( $output, $taken['path'], $taken['rule'], true );
+				if ( isset( $fresh[ $versionId ] ) || isset( $queued[ $versionId ] ) )
+				{
+					continue;
+				}
+
+				$overrides->report( $output, $page[ $versionId ]['path'], $page[ $versionId ]['rule'], true );
 
 				$this->metadataService->markPending( $versionId, MetadataService::PENDING_PREFIX . $mode );
 				$marked ++;
@@ -833,6 +912,39 @@ class HashCalculationService
 			'processed' => $processed,
 			'skipped'   => $skipped,
 		];
+	}
+
+	/**
+	 * The algorithms each version of a page wants: $explicitAlgos, and with
+	 * $useRuleAlgos its file's rule's, as {@see generateMissingHashes()}
+	 * resolves them for a file. A version that wants none is not among them.
+	 *
+	 * @param  array<int, array{rule: array|null, path: string}>  $page
+	 * @param  list<string>                                         $explicitAlgos
+	 *
+	 * @return array<int, list<string>>  by the version's id
+	 */
+	private function wantedOf(
+		array $page,
+		array $explicitAlgos,
+		bool  $useRuleAlgos,
+	): array
+	{
+		$wanted = [];
+
+		foreach ( $page as $versionId => $taken )
+		{
+			$algos = $useRuleAlgos
+				? array_values( array_unique( array_merge( $explicitAlgos, $this->catalogue->computable( $taken['rule']['algos'] ?? [] ) ) ) )
+				: $explicitAlgos;
+
+			if ( $algos !== [] )
+			{
+				$wanted[ $versionId ] = $algos;
+			}
+		}
+
+		return $wanted;
 	}
 
 	/**

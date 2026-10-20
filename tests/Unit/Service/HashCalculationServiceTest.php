@@ -34,6 +34,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use RuntimeException;
 use Symfony\Component\Console\Output\BufferedOutput;
+use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Unit tests for HashCalculationService::processFile().
@@ -3667,6 +3668,119 @@ class HashCalculationServiceTest
 		;
 
 		$this->assertSame( 1, $service->markVersions( 'alice', null, 0, new RuleOverrides(), 'force' ) );
+	}
+
+	public function testMarkVersionsLeavesAQueuedVersion(): void
+	{
+		$service = $this->collectingServiceOverVersions(
+			[
+				11 => self::VERSIONS_RULE,
+				12 => self::VERSIONS_RULE,
+			],
+		);
+		$this->metadataService->method( 'queuedAmong' )
+		                      ->willReturn( [ 11 => true ] )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 12, 'pending:force' )
+		;
+
+		$this->assertSame( 1, $service->markVersions( 'alice', null, 0, new RuleOverrides(), 'force' ) );
+	}
+
+	public function testMarkVersionsLeavesACurrentVersionUnderMissing(): void
+	{
+		$service = $this->collectingServiceOverVersions(
+			[
+				11 => self::VERSIONS_RULE,
+				12 => self::VERSIONS_RULE,
+			],
+			[ 11 => [ 'sha1' => 'abc' ] ],
+		);
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 12, 'pending:missing' )
+		;
+
+		$this->assertSame( 1, $service->markVersions( 'alice', null, 0, new RuleOverrides(), 'missing' ) );
+	}
+
+	public function testMarkMissingHashesQueuesAFileThatLacksItsRulesAlgorithm(): void
+	{
+		$service = $this->collectingServiceOverOneFile( self::INCLUDE_RULE );
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 42, 'pending:missing' )
+		;
+
+		$this->assertSame(
+			[
+				'marked'  => 1,
+				'skipped' => 0,
+			],
+			$service->markMissingHashes( 'testuser', null, 0, new RuleOverrides(), 'missing' ),
+		);
+	}
+
+	/**
+	 * The drain would compute nothing for a file holding its rule's
+	 * algorithms, fresh: under `missing` it is not queued, under `force` it is.
+	 */
+	public function testMarkMissingHashesLeavesAFreshFileUnderMissingButNotUnderForce(): void
+	{
+		$service = $this->collectingServiceOverOneFile( self::INCLUDE_RULE, 'SHA1:aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d', 1000, 2000 );
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 42, 'pending:force' )
+		;
+
+		$this->assertSame( 0, $service->markMissingHashes( 'testuser', null, 0, new RuleOverrides(), 'missing' )['marked'] );
+		$this->assertSame( 1, $service->markMissingHashes( 'testuser', null, 0, new RuleOverrides(), 'force' )['marked'] );
+	}
+
+	/**
+	 * A queued file is left, under `force` too, and does not count toward
+	 * the batch: else every run would queue the same first files again.
+	 */
+	public function testMarkMissingHashesLeavesAQueuedFile(): void
+	{
+		$service = $this->collectingServiceOverOneFile( self::INCLUDE_RULE );
+		$this->metadataService->method( 'queuedAmong' )
+		                      ->with( [ 42 ] )
+		                      ->willReturn( [ 42 => true ] )
+		;
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'markPending' )
+		;
+
+		$this->assertSame( 0, $service->markMissingHashes( 'testuser', null, 0, new RuleOverrides(), 'force' )['marked'] );
+	}
+
+	/**
+	 * A file a rule leaves is counted, and at -v named with the rule.
+	 */
+	public function testMarkMissingHashesCountsAndReportsAFileARuleLeaves(): void
+	{
+		$service = $this->collectingServiceOverOneFile(
+			[
+				'id'   => 'metered',
+				'type' => 'exclude',
+			],
+		);
+		$this->metadataService->expects( $this->never() )
+		                      ->method( 'markPending' )
+		;
+		$output = new BufferedOutput( OutputInterface::VERBOSITY_VERBOSE );
+
+		$this->assertSame(
+			[
+				'marked'  => 0,
+				'skipped' => 1,
+			],
+			$service->markMissingHashes( 'testuser', null, 0, new RuleOverrides(), 'missing', $output ),
+		);
+		$this->assertStringContainsString( 'skip /testuser/files/a.txt [metered: band', $output->fetch() );
 	}
 
 	/**

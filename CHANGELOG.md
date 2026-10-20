@@ -11,6 +11,12 @@ the first stable release.
 
 ## [Unreleased]
 
+### Changed
+
+- `README.md`, *`hash` and the rules*: `--mark` queues only files that
+  need hashing, so a run with `--batch-size` starts where the last
+  stopped.
+
 ### Fixed
 
 - `occ fcias:hash --mark --batch-size`: a marked file counts once

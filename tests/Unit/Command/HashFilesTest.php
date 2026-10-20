@@ -14,17 +14,14 @@ use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
-use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleOverrides;
 use OCA\FileChecksumSearch\Service\RuleService;
-use OCP\Files\File;
 use OCP\Files\Folder;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use OCP\IAppConfig;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Tester\CommandTester;
 
 class HashFilesTest
@@ -35,8 +32,6 @@ class HashFilesTest
 //  private properties
 
 	private MockObject|HashIndexService $hashIndexService;
-
-	private MockObject|MetadataService  $metadataService;
 
 	private MockObject|FilecacheService $filecacheService;
 
@@ -56,7 +51,6 @@ class HashFilesTest
 		parent::setUp();
 
 		$this->hashIndexService = $this->createMock( HashIndexService::class );
-		$this->metadataService  = $this->createMock( MetadataService::class );
 		$this->filecacheService = $this->createMock( FilecacheService::class );
 		$this->ruleService      = $this->createMock( RuleService::class );
 		$this->logger           = $this->createMock( LoggerInterface::class );
@@ -64,7 +58,6 @@ class HashFilesTest
 
 		$command      = new HashFiles(
 			$this->hashIndexService,
-			$this->metadataService,
 			$this->filecacheService,
 			$this->ruleService,
 			$this->logger,
@@ -304,68 +297,10 @@ class HashFilesTest
 	// --mark
 	public function testMarkSkipsAndReportsFilesTheRulesExclude(): void
 	{
-		$this->ruleService->method( 'resolveUsers' )
-		                  ->willReturn( [ 'alice' ] )
-		;
-
-		$userFolder = $this->createMock( Folder::class );
-		$this->filecacheService->method( 'getUserFolder' )
-		                       ->with( 'alice' )
-		                       ->willReturn( $userFolder )
-		;
-
-		$kept = $this->createMock( File::class );
-		$kept->method( 'getId' )
-		     ->willReturn( 1 )
-		;
-		$kept->method( 'getPath' )
-		     ->willReturn( '/files/a.txt' )
-		;
-		$skipped = $this->createMock( File::class );
-		$skipped->method( 'getId' )
-		        ->willReturn( 2 )
-		;
-		$skipped->method( 'getPath' )
-		        ->willReturn( '/files/Archive/b.txt' )
-		;
-
-		$this->ruleService->method( 'searchFilesByGlob' )
-		                  ->willReturn(
-			                  [
-				                  $kept,
-				                  $skipped,
-			                  ],
-		                  )
-		;
-
-		$this->ruleService->method( 'governingRulesForFileIds' )
-		                  ->willReturnCallback(
-			                  static fn(
-				                  array $fileIds,
-			                  ): array => array_map(
-				                  static fn(
-					                  int $fileId,
-				                  ): array => $fileId === 2
-					                  ? [
-						                  'id'   => 'archive',
-						                  'type' => 'exclude',
-					                  ]
-					                  : [
-						                  'id'   => 'r1',
-						                  'mode' => 'auto',
-					                  ],
-				                  array_combine( $fileIds, $fileIds ),
-			                  ),
-		                  )
-		;
-
 		// This command is the CLI face of the background job, so a rule that
 		// stops automatic hashing stops it too — and says so, rather than
 		// silently doing less than asked.
-		$this->metadataService->expects( $this->once() )
-		                      ->method( 'markPending' )
-		                      ->with( 1, 'pending:missing' )
-		;
+		$this->markSetup( 1, 1 );
 
 		$this->tester->execute(
 			[
@@ -386,69 +321,13 @@ class HashFilesTest
 
 	public function testMarkOnlyMarksMatchingFilesAsPendingMode(): void
 	{
-		$this->ruleService->method( 'resolveUsers' )
-		                  ->willReturn( [ 'alice' ] )
-		;
+		$this->markSetup( 2 );
 
-		$userFolder = $this->createMock( Folder::class );
-		$this->filecacheService->method( 'getUserFolder' )
-		                       ->with( 'alice' )
-		                       ->willReturn( $userFolder )
-		;
-
-		$file1 = $this->createMock( File::class );
-		$file1->method( 'getId' )
-		      ->willReturn( 1 )
-		;
-		$file1->method( 'getPath' )
-		      ->willReturn( '/files/a.txt' )
-		;
-		$file2 = $this->createMock( File::class );
-		$file2->method( 'getId' )
-		      ->willReturn( 2 )
-		;
-		$file2->method( 'getPath' )
-		      ->willReturn( '/files/b.txt' )
-		;
-
-		$this->ruleService->method( 'searchFilesByGlob' )
-		                  ->with( $userFolder, '**', 0 )
-		                  ->willReturn(
-			                  [
-				                  $file1,
-				                  $file2,
-			                  ],
-		                  )
-		;
-
-		// Marking now asks whether each file is one the rules maintain —
-		// resolved for the whole result set in one call.
-		$this->ruleService->method( 'governingRulesForFileIds' )
-		                  ->willReturnCallback(
-			                  static fn(
-				                  array $fileIds,
-			                  ): array => array_fill_keys(
-				                  $fileIds,
-				                  [
-					                  'id'   => 'r1',
-					                  'mode' => 'auto',
-				                  ],
-			                  ),
-		                  )
-		;
-
-		$this->metadataService->expects( $this->exactly( 2 ) )
-		                      ->method( 'markPending' )
-		                      ->willReturnCallback(
-			                      function(
-				                      int    $fileId,
-				                      string $mode,
-			                      ): void
-			                      {
-				                      // pending:<--mode> — the default mode is missing.
-				                      $this->assertSame( 'pending:missing', $mode );
-			                      },
-		                      )
+		// The account's files that need hashing, with no limit and the glob
+		// as given; pending:<--mode>, the default mode being missing.
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'markMissingHashes' )
+		                       ->with( 'alice', null, 0, $this->isInstanceOf( RuleOverrides::class ), 'missing' )
 		;
 
 		$exitCode = $this->tester->execute(
@@ -465,7 +344,7 @@ class HashFilesTest
 
 	/**
 	 * Each marked file counts once against the batch: what the first account
-	 * leaves of it, the next is searched with.
+	 * leaves of it, the next is given.
 	 */
 	public function testMarkSpendsTheBatchOnceAcrossAccounts(): void
 	{
@@ -477,51 +356,23 @@ class HashFilesTest
 			                  ],
 		                  )
 		;
-
-		$folders = [
-			'alice' => $this->createMock( Folder::class ),
-			'bob'   => $this->createMock( Folder::class ),
-		];
 		$this->filecacheService->method( 'getUserFolder' )
-		                       ->willReturnCallback( static fn( string $userId ): Folder => $folders[ $userId ] )
+		                       ->willReturn( $this->createMock( Folder::class ) )
 		;
-
-		$filesOf = [];
-		$id      = 1;
-
-		foreach ( [ 'alice' => 3, 'bob' => 2 ] as $userId => $count )
-		{
-			for ( $i = 0; $i < $count; $i ++ )
-			{
-				$file = $this->createMock( File::class );
-				$file->method( 'getId' )->willReturn( $id ++ );
-				$file->method( 'getPath' )->willReturn( '/' . $userId . '/files/' . $i . '.txt' );
-				$filesOf[ $userId ][] = $file;
-			}
-		}
 
 		$limits = [];
-		$this->ruleService->method( 'searchFilesByGlob' )
-		                  ->willReturnCallback(
-			                  function( Folder $folder, string $glob, int $limit ) use ( $folders, $filesOf, &$limits ): array
-			                  {
-				                  $userId            = (string) array_search( $folder, $folders, true );
-				                  $limits[ $userId ] = $limit;
+		$this->hashIndexService->method( 'markMissingHashes' )
+		                       ->willReturnCallback(
+			                       static function( string $userId, ?string $glob, int $limit ) use ( &$limits ): array
+			                       {
+				                       $limits[ $userId ] = $limit;
 
-				                  return $filesOf[ $userId ];
-			                  },
-		                  )
-		;
-		$this->ruleService->method( 'governingRulesForFileIds' )
-		                  ->willReturnCallback(
-			                  static fn( array $fileIds ): array => array_fill_keys(
-				                  $fileIds,
-				                  [
-					                  'id'   => 'r1',
-					                  'type' => 'include',
-				                  ],
-			                  ),
-		                  )
+				                       return [
+					                       'marked'  => $userId === 'alice' ? 3 : 2,
+					                       'skipped' => 0,
+				                       ];
+			                       },
+		                       )
 		;
 
 		$this->tester->execute(
@@ -556,8 +407,8 @@ class HashFilesTest
 		                       ->willThrowException( new \RuntimeException( 'user vanished' ) )
 		;
 
-		$this->metadataService->expects( $this->never() )
-		                      ->method( 'markPending' )
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'markMissingHashes' )
 		;
 
 		$exitCode = $this->tester->execute(
@@ -574,40 +425,20 @@ class HashFilesTest
 	// ─── rule overrides ─────────────────────────────────────────────
 	public function testWithIgnoredProcessesIgnoredFilesButStillSkipsExcluded(): void
 	{
-		$this->markSetup(
-			[
-				'/files/a.txt'         => [
-					'id'   => 'r1',
-					'type' => 'include',
-				],
-				'/files/quiet/b.txt'   => [
-					'id'   => 'quiet',
-					'type' => 'ignore',
-				],
-				'/files/metered/c.txt' => [
-					'id'   => 'metered',
-					'type' => 'exclude',
-				],
-			],
-		);
+		$this->markSetup();
 
 		// "ignore" means not automatically, but when asked — and an operator
 		// typing a command is asking. "exclude" means the storage must not be
-		// read, which no amount of asking changes.
-		$marked = [];
-		$this->metadataService->method( 'markPending' )
-		                      ->willReturnCallback(
-			                      static function(
-				                      int $fileId,
-			                      ) use
-			                      (
-				                      &
-				                      $marked,
-			                      ): void
-			                      {
-				                      $marked[] = $fileId;
-			                      },
-		                      )
+		// read, which no amount of asking changes: RuleOverrides::allows().
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'markMissingHashes' )
+		                       ->with(
+			                       'alice',
+			                       null,
+			                       0,
+			                       $this->callback( static fn( RuleOverrides $overrides ): bool => $overrides->withIgnored ),
+			                       'missing',
+		                       )
 		;
 
 		$this->tester->execute(
@@ -618,13 +449,6 @@ class HashFilesTest
 			],
 		);
 
-		$this->assertSame(
-			[
-				1,
-				2,
-			],
-			$marked,
-		);
 		$this->assertStringContainsString(
 			'Processing files their rule says to ignore.',
 			$this->tester->getDisplay(),
@@ -813,77 +637,6 @@ class HashFilesTest
 		);
 	}
 
-	public function testVerboseNamesTheRuleThatSkippedEachFile(): void
-	{
-		$this->markSetup(
-			[
-				'/files/a.txt'         => [
-					'id'   => 'r1',
-					'type' => 'include',
-				],
-				'/files/metered/c.txt' => [
-					'id'   => 'metered',
-					'type' => 'exclude',
-				],
-			],
-		);
-
-		$this->tester->execute(
-			[
-				'--user' => 'alice',
-				'--mark' => true,
-			],
-			[ 'verbosity' => OutputInterface::VERBOSITY_VERBOSE ],
-		);
-
-		$display = $this->tester->getDisplay();
-
-		// -v answers "why is this file not being hashed" for the skipped ones…
-		$this->assertStringContainsString( 'skip /files/metered/c.txt [metered: band', $display );
-		$this->assertStringContainsString( 'exclude]', $display );
-		// …and stays quiet about the ones that proceeded.
-		$this->assertStringNotContainsString( 'hash /files/a.txt', $display );
-	}
-
-	public function testVeryVerboseAlsoNamesTheRuleForFilesThatProceeded(): void
-	{
-		$this->markSetup(
-			[
-				'/files/a.txt' => [
-					'id'   => 'r1',
-					'type' => 'include',
-				],
-			],
-		);
-
-		$this->tester->execute(
-			[
-				'--user' => 'alice',
-				'--mark' => true,
-			],
-			[ 'verbosity' => OutputInterface::VERBOSITY_VERY_VERBOSE ],
-		);
-
-		$this->assertStringContainsString( 'hash /files/a.txt [r1: band', $this->tester->getDisplay() );
-	}
-
-	public function testAFileNoRuleMatchesIsReportedAsSuch(): void
-	{
-		$this->markSetup( [ '/files/a.txt' => null ] );
-
-		$this->tester->execute(
-			[
-				'--user' => 'alice',
-				'--mark' => true,
-			],
-			[ 'verbosity' => OutputInterface::VERBOSITY_VERBOSE ],
-		);
-
-		// Nothing decided, so nothing is hashed — and the reason says so
-		// rather than leaving the file simply absent from the output.
-		$this->assertStringContainsString( 'skip /files/a.txt [no matching rule]', $this->tester->getDisplay() );
-	}
-
 	// ─── option validation & new semantics ──────────────────────────
 	public function testUnknownAlgorithmFailsInsteadOfUnderdelivering(): void
 	{
@@ -1042,14 +795,7 @@ class HashFilesTest
 
 	public function testMarkWithExplicitAlgosSaysTheyAreIgnored(): void
 	{
-		$this->markSetup(
-			[
-				'/files/a.txt' => [
-					'id'   => 'r1',
-					'type' => 'include',
-				],
-			],
-		);
+		$this->markSetup();
 
 		$this->tester->execute(
 			[
@@ -1064,20 +810,13 @@ class HashFilesTest
 
 	public function testMarkWithForceQueuesPendingForce(): void
 	{
-		$this->markSetup(
-			[
-				'/files/a.txt' => [
-					'id'   => 'r1',
-					'type' => 'include',
-				],
-			],
-		);
+		$this->markSetup();
 
 		// The previously inexpressible case: queue a forced background
 		// recompute.
-		$this->metadataService->expects( $this->once() )
-		                      ->method( 'markPending' )
-		                      ->with( 1, 'pending:force' )
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'markMissingHashes' )
+		                       ->with( 'alice', null, 0, $this->anything(), 'force' )
 		;
 
 		$this->tester->execute(
@@ -1239,14 +978,7 @@ class HashFilesTest
 
 	public function testMarkQueuesTheVersionsWhereARuleSaysVersions(): void
 	{
-		$this->markSetup(
-			[
-				'/files/a.txt' => [
-					'id'   => 'r1',
-					'type' => 'include',
-				],
-			],
-		);
+		$this->markSetup();
 		$this->ruleService->method( 'anyRuleHashesVersions' )
 		                  ->willReturn( true )
 		;
@@ -1271,7 +1003,6 @@ class HashFilesTest
 	{
 		$definition = ( new HashFiles(
 			$this->hashIndexService,
-			$this->metadataService,
 			$this->filecacheService,
 			$this->ruleService,
 			$this->logger,
@@ -1301,13 +1032,15 @@ class HashFilesTest
 	}
 
 	/**
-	 * Wire up a --mark run over $rulesByPath, one file per path, ids from 1.
-	 * The rule lookup is identity-based, so the stub maps the generated file
-	 * ids back to the per-path rules.
-	 *
-	 * @param  array<string, array|null>  $rulesByPath
+	 * Wire up a --mark run over alice, whose files the service queues
+	 * $marked of and finds $skipped of left by a rule
+	 * ({@see HashIndexService::markMissingHashes()}). A test that expects a
+	 * call of its own registers it after this, and this answers it.
 	 */
-	private function markSetup( array $rulesByPath ): void
+	private function markSetup(
+		int $marked = 1,
+		int $skipped = 0,
+	): void
 	{
 		$this->ruleService->method( 'resolveUsers' )
 		                  ->willReturn( [ 'alice' ] )
@@ -1315,39 +1048,13 @@ class HashFilesTest
 		$this->filecacheService->method( 'getUserFolder' )
 		                       ->willReturn( $this->createMock( Folder::class ) )
 		;
-
-		$files     = [];
-		$rulesById = [];
-		$id        = 1;
-
-		foreach ( $rulesByPath as $path => $rule )
-		{
-			$file = $this->createMock( File::class );
-			$file->method( 'getId' )
-			     ->willReturn( $id )
-			;
-			$file->method( 'getPath' )
-			     ->willReturn( $path )
-			;
-			$files[]          = $file;
-			$rulesById[ $id ] = $rule;
-			$id ++;
-		}
-
-		$this->ruleService->method( 'searchFilesByGlob' )
-		                  ->willReturn( $files )
-		;
-		$this->ruleService->method( 'governingRulesForFileIds' )
-		                  ->willReturnCallback(
-			                  static fn(
-				                  array $fileIds,
-			                  ): array => array_map(
-				                  static fn(
-					                  int $fileId,
-				                  ): ?array => $rulesById[ $fileId ] ?? null,
-				                  array_combine( $fileIds, $fileIds ),
-			                  ),
-		                  )
+		$this->hashIndexService->method( 'markMissingHashes' )
+		                       ->willReturn(
+			                       [
+				                       'marked'  => $marked,
+				                       'skipped' => $skipped,
+			                       ],
+		                       )
 		;
 	}
 }

@@ -158,6 +158,23 @@ class HashIndexService
 	}
 
 	/**
+	 * {@see HashCalculationService::markMissingHashes()}.
+	 *
+	 * @return array{marked: int, skipped: int}
+	 */
+	public function markMissingHashes(
+		string           $userId,
+		?string          $pathPattern,
+		int              $batchSize,
+		RuleOverrides    $overrides,
+		string           $mode,
+		?OutputInterface $output = null,
+	): array
+	{
+		return $this->hashCalc->markMissingHashes( $userId, $pathPattern, $batchSize, $overrides, $mode, $output );
+	}
+
+	/**
 	 * {@see HashCalculationService::generateVersionHashes()}: the pass over
 	 * an account's versions, after its files.
 	 */
