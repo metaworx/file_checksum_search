@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-10-20
+
 ### Added
 
 - `README.md`, *File versions*: checksums pass between a file and its
