@@ -116,6 +116,8 @@ class VersionResultsTest
 			'M2' => "fcias vres M2 $salt",
 			'T'  => "fcias vres T $salt",
 			'T2' => "fcias vres T2 $salt",
+			'L'  => "fcias vres L $salt",
+			'L2' => "fcias vres L2 $salt",
 		];
 
 		self::actAs( self::$owner );
@@ -129,6 +131,8 @@ class VersionResultsTest
 			self::versioned( 'h', $docs, 'h.txt', 'Z', 'Z' );
 			self::versioned( 'p', $root->newFolder( 'Private' ), 'p.txt', 'W', 'W2' );
 			self::versioned( 'm', $docs, 'm.txt', 'M', 'M2', hashVersion: false );
+			// Its versions' names begin as `f.txt`'s do.
+			self::versioned( 'look', $docs, 'f.txt.v5.txt', 'L', 'L2' );
 			self::$id['g'] = $docs->newFile( 'g.txt', self::$content['X'] )->getId();
 			self::hash( self::$id['g'], 'X' );
 
@@ -338,6 +342,26 @@ class VersionResultsTest
 		$same = $api->findSameHash( self::$id['g'], [ self::$owner ] )['duplicates'];
 		$this->assertSame( [ self::$id['f@v'] ], array_column( $same[0]['files'] ?? [], 'fileid' ), 'the other file\'s version shares the hash' );
 		$this->assertSame( [], $api->findSameHash( self::$id['h'], [ self::$owner ] )['duplicates'], 'the file\'s own version is its history' );
+	}
+
+	/**
+	 * The per-file route lists the file's versions with the checksums they
+	 * hold, and none of another file's whose name begins as its own does.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testThePerFileRouteListsTheFilesVersions(): void
+	{
+		$api = Server::get( ChecksumApi::class );
+
+		$versions = $api->getHashesByFileId( self::$id['f'], [ self::$owner ] )['versions'];
+
+		$this->assertSame( [ self::$id['f@v'] ], array_column( $versions, 'fileid' ), 'not f.txt.v5.txt\'s' );
+		$this->assertSame( sha1( self::$content['X'] ), $versions[0]['hashes']['sha1']['hash'] ?? null );
+		$this->assertSame( strlen( self::$content['X'] ), $versions[0]['size'] );
+
+		$this->assertSame( [], $api->getHashesByFileId( self::$id['m'], [ self::$owner ] )['versions'][0]['hashes'] ?? null, 'a version without checksums' );
+		$this->assertSame( [ self::$id['look@v'] ], array_column( $api->getHashesByFileId( self::$id['look'], [ self::$owner ] )['versions'], 'fileid' ) );
 	}
 
 	/**

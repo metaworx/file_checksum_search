@@ -218,6 +218,9 @@ msgstr "チェックサム"
 msgid "Checksums indexed for this file. Click one to copy it."
 msgstr "このファイルのインデックス済みチェックサムです。クリックするとコピーできます。"
 
+msgid "Checksums of this file's older versions, newest first: what the file held before. Click one to copy it."
+msgstr "このファイルの古いバージョンのチェックサムです（新しい順）。ファイルが以前に保持していた内容です。クリックするとコピーできます。"
+
 msgid "Choose accounts or groups"
 msgstr "アカウントまたはグループを選択"
 
@@ -707,6 +710,10 @@ msgstr "アプリパスワードはまだありません。「セキュリティ
 
 msgid "No checksums available for this file."
 msgstr "このファイルのチェックサムはありません。"
+
+#. TRANSLATORS: in the list of a file's older versions, for a version no checksum is kept of
+msgid "No checksums for this version."
+msgstr "このバージョンのチェックサムはありません。"
 
 msgid "No documentation available."
 msgstr "利用できるドキュメントはありません。"

@@ -22,7 +22,7 @@ import { useSidebarHashes } from './composables/useSidebarHashes'
 import { useClipboard } from '../composables/useClipboard'
 import RecalcButton from './components/RecalcButton.vue'
 import SectionHeader from './components/SectionHeader.vue'
-import type { FileNode } from './types'
+import type { FileNode, VersionEntry } from './types'
 
 const props = withDefaults(
 	defineProps<{
@@ -45,6 +45,7 @@ const {
 	canSudo,
 	mimeTypeShown,
 	mimeType,
+	versions,
 	error,
 	recalculating,
 	recalcError,
@@ -62,6 +63,17 @@ const {
 const hashRows = computed(() => Object.values(hashes.value))
 
 const MIME_TITLE = t('file_checksum_search', 'Detected from the file\'s content')
+
+const VERSIONS = {
+	help: t('file_checksum_search', 'Checksums of this file\'s older versions, newest first: what the file held before. Click one to copy it.'),
+	// TRANSLATORS: in the list of a file's older versions, for a version no checksum is kept of
+	none: t('file_checksum_search', 'No checksums for this version.'),
+}
+
+/** A version's heading: when the file held its content, as the lists name it. */
+function versionTitle(version: VersionEntry): string {
+	return versionLabel({ version }) ?? ''
+}
 
 /**
  * Nextcloud's own type for the file, where it differs from the content's:
@@ -200,6 +212,40 @@ watch(
 				<span v-else class="fcias-mimetype-none">{{ t('file_checksum_search', 'Not detected yet') }}</span>
 				<span v-if="byNameText" class="fcias-mimetype-name" data-testid="fcias-mimetype-name">{{ byNameText }}</span>
 			</p>
+		</section>
+
+		<!-- The file's older versions, each with the checksums it holds: what
+		     the file held before, and which version holds a checksum the file
+		     no longer does. Shown for a file that has any. -->
+		<section v-if="!loading && !error && versions.length > 0" class="fcias-section" data-testid="fcias-versions">
+			<SectionHeader
+				:title="t('file_checksum_search', 'Versions')"
+				:help="VERSIONS.help" />
+			<div v-for="version in versions"
+				:key="version.fileid"
+				class="fcias-version"
+				data-testid="fcias-version">
+				<div class="fcias-version-title">
+					{{ versionTitle(version) }}
+				</div>
+				<table v-if="Object.keys(version.hashes).length > 0" class="fcias-hash-table">
+					<tbody>
+						<tr v-for="entry in Object.values(version.hashes)" :key="entry.algo">
+							<td><span class="fcias-algo-badge">{{ entry.algo }}</span></td>
+							<td class="fcias-hash-value">
+								<span
+									class="fcias-selectable-hash"
+									:data-hash="entry.hash"
+									:title="entry.hash"
+									@click="copyToClipboard(entry.hash)">{{ entry.hash }}</span>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+				<div v-else class="fcias-empty">
+					{{ VERSIONS.none }}
+				</div>
+			</div>
 		</section>
 
 		<!-- Hidden, not disabled, for a user the manual-recalculation permission
@@ -520,6 +566,16 @@ watch(
 .fcias-dup-version {
 	display: block;
 	color: var(--color-text-maxcontrast);
+}
+
+.fcias-version + .fcias-version {
+	margin-top: 8px;
+}
+
+.fcias-version-title {
+	color: var(--color-text-maxcontrast);
+	font-size: 12px;
+	margin-bottom: 2px;
 }
 
 .fcias-dup-empty {

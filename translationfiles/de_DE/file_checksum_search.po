@@ -220,6 +220,9 @@ msgstr "Prüfsummen"
 msgid "Checksums indexed for this file. Click one to copy it."
 msgstr "Für diese Datei indizierte Prüfsummen. Klicken Sie auf eine, um sie zu kopieren."
 
+msgid "Checksums of this file's older versions, newest first: what the file held before. Click one to copy it."
+msgstr "Prüfsummen der älteren Versionen dieser Datei, die neueste zuerst: was die Datei vorher enthielt. Klicken Sie auf eine, um sie zu kopieren."
+
 msgid "Choose accounts or groups"
 msgstr "Konten oder Gruppen auswählen"
 
@@ -709,6 +712,10 @@ msgstr "Noch keine App-Passwörter. Erstellen Sie eines unter „Sicherheit“ u
 
 msgid "No checksums available for this file."
 msgstr "Für diese Datei sind keine Prüfsummen vorhanden."
+
+#. TRANSLATORS: in the list of a file's older versions, for a version no checksum is kept of
+msgid "No checksums for this version."
+msgstr "Für diese Version sind keine Prüfsummen vorhanden."
 
 msgid "No documentation available."
 msgstr "Keine Dokumentation verfügbar."

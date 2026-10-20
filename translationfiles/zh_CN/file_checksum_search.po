@@ -218,6 +218,9 @@ msgstr "校验和"
 msgid "Checksums indexed for this file. Click one to copy it."
 msgstr "此文件已索引的校验和。点击其中一个即可复制。"
 
+msgid "Checksums of this file's older versions, newest first: what the file held before. Click one to copy it."
+msgstr "此文件旧版本的校验和，最新的在前：即文件之前的内容。点击其中一个即可复制。"
+
 msgid "Choose accounts or groups"
 msgstr "选择账号或群组"
 
@@ -707,6 +710,10 @@ msgstr "尚无应用密码。请在“安全”中创建一个，然后在此处
 
 msgid "No checksums available for this file."
 msgstr "此文件没有可用的校验和。"
+
+#. TRANSLATORS: in the list of a file's older versions, for a version no checksum is kept of
+msgid "No checksums for this version."
+msgstr "此版本没有校验和。"
 
 msgid "No documentation available."
 msgstr "没有可用的文档。"

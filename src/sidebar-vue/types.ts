@@ -13,6 +13,16 @@ export interface HashEntry {
 /** A file's hashes, keyed by algorithm, as the hashes route answers them. */
 export type HashMap = Record<string, HashEntry>
 
+/** An older version of the file, as the hashes route lists it. */
+export interface VersionEntry {
+	fileid: number
+	/** When the file held this content, ISO 8601. */
+	timestamp: string
+	size: number
+	/** Its current checksums, keyed by algorithm as the file's are. */
+	hashes: HashMap
+}
+
 export interface DuplicateFile {
 	fileid: number
 	path: string

@@ -11,6 +11,7 @@ namespace OCA\FileChecksumSearch\Tests\Unit\Service;
 
 use OCA\FileChecksumSearch\Service\DuplicateService;
 use OCA\FileChecksumSearch\Service\FilecacheService;
+use OCA\FileChecksumSearch\Service\FileLocation;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
@@ -91,6 +92,50 @@ class HashIndexServiceTest
 
 
 //  other non-static methods
+
+	/**
+	 * A file's versions, newest first as found, each with its checksums
+	 * where they are current, keyed by algorithm as the file's are; none
+	 * where they no longer describe it.
+	 */
+	public function testAFilesVersionsCarryTheirCurrentChecksums(): void
+	{
+		$this->filecacheService->method( 'locate' )
+		                       ->with( 5 )
+		                       ->willReturn( FileLocation::fromRow( 5, 'home::alice', 'files/a.txt', 1 ) )
+		;
+		$this->filecacheService->method( 'versionsOf' )
+		                       ->willReturn( [
+			                       [ 'fileid' => 8, 'timestamp' => 1700000100, 'size' => 3 ],
+			                       [ 'fileid' => 7, 'timestamp' => 1700000000, 'size' => 4 ],
+		                       ] )
+		;
+		$this->metadataService->method( 'fileStatesOf' )
+		                      ->with( [ 8, 7 ] )
+		                      ->willReturn( [ 8 => [ 'vouched' => true ], 7 => [ 'vouched' => false ] ] )
+		;
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'listedHashes' )
+		                      ->with( [ 8 ], null )
+		                      ->willReturn( [ 8 => [ 'sha1' => 'aaa' ] ] )
+		;
+
+		$this->assertSame(
+			[
+				[ 'fileid' => 8, 'timestamp' => date( 'c', 1700000100 ), 'size' => 3, 'hashes' => [ 'sha1' => [ 'algo' => 'sha1', 'hash' => 'aaa' ] ] ],
+				[ 'fileid' => 7, 'timestamp' => date( 'c', 1700000000 ), 'size' => 4, 'hashes' => [] ],
+			],
+			$this->service->versionsOf( 5 ),
+		);
+	}
+
+	public function testAFileGoneHasNoVersions(): void
+	{
+		$this->filecacheService->method( 'locate' )->willReturn( null );
+		$this->filecacheService->expects( $this->never() )->method( 'versionsOf' );
+
+		$this->assertSame( [], $this->service->versionsOf( 5 ) );
+	}
 
 	/**
 	 * Copies of more than one file are a duplicate; one file and its own

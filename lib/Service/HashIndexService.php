@@ -496,6 +496,57 @@ class HashIndexService
 	}
 
 	/**
+	 * The versions Nextcloud keeps of a file, newest first, each with the
+	 * checksums it holds that are current, as the file's own are given: by
+	 * algorithm, none where they no longer describe it.
+	 *
+	 * @return list<array{fileid: int, timestamp: string, size: int, hashes: array<string, array{algo: string, hash: string}>}>
+	 * @throws \OCP\DB\Exception
+	 */
+	public function versionsOf( int $fileId ): array
+	{
+		$file     = $this->filecacheService->locate( $fileId );
+		$versions = $file === null
+			? []
+			: $this->filecacheService->versionsOf( $file );
+
+		if ( $versions === [] )
+		{
+			return [];
+		}
+
+		$ids     = array_column( $versions, 'fileid' );
+		$states  = $this->metadataService->fileStatesOf( $ids );
+		$current = array_values( array_filter( $ids, static fn ( int $id ): bool => $states[ $id ]['vouched'] ?? false ) );
+		$hashes  = $current === []
+			? []
+			: $this->metadataService->listedHashes( $current, null );
+
+		return array_map(
+			static function( array $version ) use ( $hashes ): array
+			{
+				$byAlgo = [];
+
+				foreach ( $hashes[ $version['fileid'] ] ?? [] as $algo => $hash )
+				{
+					$byAlgo[ $algo ] = [
+						'algo' => $algo,
+						'hash' => $hash,
+					];
+				}
+
+				return [
+					'fileid'    => $version['fileid'],
+					'timestamp' => date( 'c', $version['timestamp'] ),
+					'size'      => $version['size'],
+					'hashes'    => $byAlgo,
+				];
+			},
+			$versions,
+		);
+	}
+
+	/**
 	 * Count metadata index entries for a given file_id.
 	 */
 	public function countHashes( int $fileId ): int

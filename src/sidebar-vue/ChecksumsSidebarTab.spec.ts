@@ -71,6 +71,32 @@ describe('ChecksumsSidebarTab, the hashes', () => {
 	})
 })
 
+describe('ChecksumsSidebarTab, the versions', () => {
+	afterEach(() => {
+		vi.restoreAllMocks()
+	})
+
+	const older = { fileid: 7, timestamp: '2023-11-14T22:13:20+00:00', size: 3, hashes: { sha1: SHA1 } }
+	const oldest = { fileid: 6, timestamp: '2023-11-13T22:13:20+00:00', size: 3, hashes: [] }
+
+	it('lists each version, newest first, with the checksums it holds', async () => {
+		const wrapper = await mountWith({ hashes: { sha256: SHA256 }, versions: [older, oldest] })
+		const listed = wrapper.findAll('[data-testid="fcias-version"]')
+
+		expect(listed).toHaveLength(2)
+		expect(listed[0].text()).toMatch(/^Version of /)
+		expect(listed[0].find('.fcias-selectable-hash').attributes('data-hash')).toBe(SHA1.hash)
+		// PHP's empty map, a list: no checksums, said so.
+		expect(listed[1].find('.fcias-hash-table').exists()).toBe(false)
+		expect(listed[1].text()).toContain('No checksums for this version.')
+	})
+
+	it('is not shown for a file without versions, or from an older server', async () => {
+		expect((await mountWith({ hashes: {}, versions: [] })).find('[data-testid="fcias-versions"]').exists()).toBe(false)
+		expect((await mountWith({ hashes: {} })).find('[data-testid="fcias-versions"]').exists()).toBe(false)
+	})
+})
+
 describe('ChecksumsSidebarTab, the MIME type', () => {
 	afterEach(() => {
 		vi.restoreAllMocks()

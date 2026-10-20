@@ -222,6 +222,9 @@ msgstr "Sumas de verificación"
 msgid "Checksums indexed for this file. Click one to copy it."
 msgstr "Sumas de verificación indexadas para este archivo. Haga clic en una para copiarla."
 
+msgid "Checksums of this file's older versions, newest first: what the file held before. Click one to copy it."
+msgstr "Sumas de verificación de las versiones anteriores de este archivo, la más reciente primero: lo que el archivo contenía antes. Haga clic en una para copiarla."
+
 msgid "Choose accounts or groups"
 msgstr "Elegir cuentas o grupos"
 
@@ -711,6 +714,10 @@ msgstr "Aún no hay contraseñas de aplicación. Cree una en «Seguridad» y lue
 
 msgid "No checksums available for this file."
 msgstr "No hay sumas de verificación disponibles para este archivo."
+
+#. TRANSLATORS: in the list of a file's older versions, for a version no checksum is kept of
+msgid "No checksums for this version."
+msgstr "No hay sumas de verificación para esta versión."
 
 msgid "No documentation available."
 msgstr "No hay documentación disponible."

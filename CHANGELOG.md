@@ -17,7 +17,8 @@ the first stable release.
   its version, which its rule governs; a rule with `versions` reads and
   hashes the older ones.
 - `docs/api-v1.md`, *Method Reference*: a version is listed, looked up
-  and grouped as a duplicate where its file is, under `versions://`.
+  and grouped as a duplicate where its file is, under `versions://`;
+  the per-file route lists a file's versions with their checksums.
 
 ## [0.26.1] - 2026-10-19
 

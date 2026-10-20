@@ -138,7 +138,9 @@ class ChecksumApi
 	 *                                           and `hashes` is `{}` where the
 	 *                                           file has none.
 	 *
-	 * @return array{fileid: int, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, algos: list<string>, preferred: string, default: string, canRecalc: bool, mimetype?: ?string, etag?: ?string, size?: ?int, mtime?: ?string, storageMtime?: ?string}
+	 * @return array{fileid: int, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, algos: list<string>, preferred: string, default: string, canRecalc: bool, versions: list<array{fileid: int, timestamp: string, size: int, hashes: array<string, array{algo: string, hash: string}>}>, mimetype?: ?string, etag?: ?string, size?: ?int, mtime?: ?string, storageMtime?: ?string}
+	 *         `versions` is the file's older versions, newest first, each
+	 *         with its current checksums ({@see HashIndexService::versionsOf()}).
 	 * @throws NotFoundException  If $reachUids is set and the file lies outside it
 	 * @throws HintedInvalidArgumentException  For $withMimeType while detection
 	 *                                         is off ({@see mimeTypeRefusal()})
@@ -202,6 +204,10 @@ class ChecksumApi
 			// So the sidebar can hide its Recalculate buttons for an account
 			// that may not, instead of offering them to fail.
 			'canRecalc'  => $this->mayRecalc( $actingUser ),
+			// The file's older versions, with the checksums they hold: what
+			// the content was, and which version holds what the file no
+			// longer does.
+			'versions'   => $this->hashIndexService->versionsOf( $fileId ),
 		];
 
 		// The type was detected from the content the hashes were read from,

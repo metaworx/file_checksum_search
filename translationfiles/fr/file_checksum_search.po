@@ -222,6 +222,9 @@ msgstr "Sommes de contrôle"
 msgid "Checksums indexed for this file. Click one to copy it."
 msgstr "Sommes de contrôle indexées pour ce fichier. Cliquez sur l'une d'elles pour la copier."
 
+msgid "Checksums of this file's older versions, newest first: what the file held before. Click one to copy it."
+msgstr "Sommes de contrôle des anciennes versions de ce fichier, la plus récente en premier : ce que le fichier contenait auparavant. Cliquez sur l'une d'elles pour la copier."
+
 msgid "Choose accounts or groups"
 msgstr "Choisir des comptes ou des groupes"
 
@@ -565,7 +568,7 @@ msgstr "Comment un fichier obtient ses sommes de contrôle. « Automatique » 
 
 #. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, "+ versions" what it shows beside one, and "—" what it shows for a rule that computes nothing; keep them
 msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. \"+ versions\" beside the mode: the rule also hashes the older versions of its files. Shown as \"—\" for a rule that computes nothing."
-msgstr "Comment un fichier obtient ses sommes de contrôle. \"auto\" les calcule pour un fichier qui n'en a aucune à jour, qu'il soit nouveau ou modifié, \"missing\" ajoute aussi celles qui lui manquent, \"force\" les supprime toutes et les recalcule, et \"lazy\" les supprime maintenant et laisse un passage ultérieur les recalculer. \"+ versions\" à côté du mode : la règle calcule aussi les empreintes des anciennes versions de ses fichiers. Affiché sous la forme \"—\" pour une règle qui ne calcule rien."
+msgstr "Comment un fichier obtient ses sommes de contrôle. \"auto\" les calcule pour un fichier qui n'en a aucune à jour, qu'il soit nouveau ou modifié, \"missing\" ajoute aussi celles qui lui manquent, \"force\" les supprime toutes et les recalcule, et \"lazy\" les supprime maintenant et laisse un passage ultérieur les recalculer. \"+ versions\" à côté du mode : la règle calcule aussi les empreintes des anciennes versions de ses fichiers. Affiché sous la forme \"—\" pour une règle qui ne calcule rien."
 
 msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr "Nombre de groupes affichés par page. Rien n'est lu sur le disque tant que vous ne vérifiez pas un groupe ou un fichier : une page plus grande coûte donc une requête plus longue, pas des lectures plus longues."
@@ -711,6 +714,10 @@ msgstr "Aucun mot de passe d'application pour l'instant. Créez-en un dans « S
 
 msgid "No checksums available for this file."
 msgstr "Aucune somme de contrôle disponible pour ce fichier."
+
+#. TRANSLATORS: in the list of a file's older versions, for a version no checksum is kept of
+msgid "No checksums for this version."
+msgstr "Aucune somme de contrôle pour cette version."
 
 msgid "No documentation available."
 msgstr "Aucune documentation disponible."

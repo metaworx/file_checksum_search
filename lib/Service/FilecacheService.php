@@ -450,6 +450,69 @@ class FilecacheService
 	}
 
 	/**
+	 * The versions Nextcloud keeps of $file, newest first: by the name it
+	 * gives them ({@see FileLocation::versionPathAt()}), in the file's own
+	 * storage, in one query. None for a row that keeps none beside it.
+	 *
+	 * @return list<array{fileid: int, timestamp: int, size: int}>
+	 * @throws \OCP\DB\Exception
+	 */
+	public function versionsOf( FileLocation $file ): array
+	{
+		// The name a version of any mtime begins with: the path at mtime 0,
+		// less the 0.
+		$prefix    = substr( (string) $file->versionPathAt( 0 ), 0, -1 );
+		$numericId = $prefix === ''
+			? null
+			: $this->storageNumericId( $file->storageId );
+
+		if ( $numericId === null )
+		{
+			return [];
+		}
+
+		$qb = $this->db->getQueryBuilder();
+		$qb->select( 'fileid', 'path', 'size' )
+		   ->from( 'filecache' )
+		   ->where(
+			   $qb->expr()
+			      ->eq( 'storage', $qb->createNamedParameter( $numericId, IQueryBuilder::PARAM_INT ) ),
+			   $qb->expr()
+			      ->like( 'path', $qb->createNamedParameter( $this->db->escapeLikeParameter( $prefix ) . '%' ) ),
+		   )
+		;
+
+		$result   = $qb->executeQuery();
+		$versions = [];
+
+		while ( ( $row = $result->fetchAssociative() ) !== false )
+		{
+			$version = FileLocation::fromRow( (int) $row['fileid'], $file->storageId, (string) $row['path'], 0 )->version;
+
+			// A name that only begins like one: `a.txt.v1.txt`'s versions
+			// begin like `a.txt`'s.
+			if ( $version === null
+				|| ( $version->fileInternalPath ?? $file->internalPath ) !== $file->internalPath
+				|| ( $version->fileId ?? $file->fileId ) !== $file->fileId )
+			{
+				continue;
+			}
+
+			$versions[] = [
+				'fileid'    => (int) $row['fileid'],
+				'timestamp' => $version->timestamp,
+				'size'      => max( 0, (int) $row['size'] ),
+			];
+		}
+
+		$result->closeCursor();
+
+		usort( $versions, static fn ( array $a, array $b ): int => $b['timestamp'] <=> $a['timestamp'] );
+
+		return $versions;
+	}
+
+	/**
 	 * The key both directions of an import agree on.
 	 *
 	 * A NUL separator because it is the one byte a storage id and a path

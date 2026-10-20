@@ -9,7 +9,7 @@ import { generateOcsUrl } from '@nextcloud/router'
 import { OCS_API_V1 } from '../../routes'
 import { fetchFeatures, mimeTypeSwitchedOff } from '../../features'
 import { currentUid } from '../../fileLabel'
-import type { DuplicateGroup, FileNode, HashMap } from '../types'
+import type { DuplicateGroup, FileNode, HashMap, VersionEntry } from '../types'
 import { t } from '../../l10n'
 
 declare const OC: {
@@ -44,6 +44,8 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 	const mimeTypeShown = ref(false)
 	/** The file's MIME type as its content says; null for one without. */
 	const mimeType = ref<string | null>(null)
+	/** The file's older versions, newest first, with the checksums they hold. */
+	const versions = ref<VersionEntry[]>([])
 	const error = ref('')
 	const recalculating = ref<string | null>(null)
 	const recalcError = ref<string | null>(null)
@@ -71,6 +73,7 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 		const id = fileId.value
 		if (id === null) {
 			hashes.value = {}
+			versions.value = []
 			ruleAlgos.value = []
 			preferredAlgo.value = ''
 			defaultAlgo.value = ''
@@ -80,6 +83,7 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 		loading.value = true
 		error.value = ''
 		hashes.value = {}
+		versions.value = []
 		mimeType.value = null
 
 		try {
@@ -100,12 +104,18 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 				canRecalc?: boolean
 				canSudo?: boolean
 				mimetype?: string | null
+				versions?: VersionEntry[]
 			}
 			mimeTypeShown.value = detected
 			mimeType.value = typeof data.mimetype === 'string' ? data.mimetype : null
 			// Keyed by algorithm. A list, PHP's empty map among them, reads as
 			// no hashes rather than as entries keyed 0, 1, 2.
 			hashes.value = data.hashes && !Array.isArray(data.hashes) ? data.hashes : {}
+			// An older server says nothing of versions; a version's hashes are
+			// keyed as the file's, PHP's empty map a list.
+			versions.value = Array.isArray(data.versions)
+				? data.versions.map((version) => ({ ...version, hashes: version.hashes && !Array.isArray(version.hashes) ? version.hashes : {} }))
+				: []
 			ruleAlgos.value = Array.isArray(data.algos) ? data.algos : []
 			preferredAlgo.value = typeof data.preferred === 'string' ? data.preferred : ''
 			defaultAlgo.value = typeof data.default === 'string' ? data.default : ''
@@ -207,6 +217,7 @@ export function useSidebarHashes(getNode: () => FileNode | null) {
 		canSudo,
 		mimeTypeShown,
 		mimeType,
+		versions,
 		error,
 		recalculating,
 		recalcError,
