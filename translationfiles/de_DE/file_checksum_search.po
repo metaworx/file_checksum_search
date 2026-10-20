@@ -1218,6 +1218,15 @@ msgstr "Prüfen"
 msgid "Verify all"
 msgstr "Alle prüfen"
 
+#. TRANSLATORS: a search result that is an earlier version of the file it names; %s is when the file had that content, a date and time
+#, php-format
+msgid "Version of %s"
+msgstr "Version vom %s"
+
+#. TRANSLATORS: beside a file in a list, marking an earlier version of it; {date} is when the file had that content
+msgid "Version of {date}"
+msgstr "Version vom {date}"
+
 msgid "Versions"
 msgstr "Versionen"
 

@@ -4,7 +4,15 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { fileLink } from './fileLink'
+import { fileLink, rowLink } from './fileLink'
+
+describe('rowLink', () => {
+	// Files keeps a file's versions in its details and opens none itself.
+	it('opens a version\'s file, and a file itself', () => {
+		expect(rowLink({ fileid: 9, version: { fileid: 7 } })).toBe(fileLink(7))
+		expect(rowLink({ fileid: 9 })).toBe(fileLink(9))
+	})
+})
 
 // Core's /f/{fileid} finds the file's folder itself. Its /apps/files/files/{fileid}
 // lists the root folder when no `dir` comes along, where a file in any other

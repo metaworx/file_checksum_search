@@ -1335,12 +1335,15 @@ class FilecacheService
 	 *         default: it costs a user lookup per home storage, and most
 	 *         callers render rows for people.
 	 *
-	 * @return array<int, array{path: string, name: string, storage: int, storage_id: string, internal_path: string, owner: ?string, location: string, local_path?: ?string}>
+	 * @return array<int, array{path: string, name: string, storage: int, storage_id: string, internal_path: string, owner: ?string, location: string, local_path?: ?string, file?: array{fileid: int, internal_path: string, path: string, location: string, name: string}, version?: array{fileid: int, timestamp: string}}>
 	 *         `path` is the file's path below its area, with a leading slash
 	 *         — the owner's view of a home file — and `internal_path` the
 	 *         filecache's; `owner` is the uid a home file belongs to, null for
 	 *         a group folder or an external storage, which have none;
-	 *         `location` is {@see FileLocation::describe()}.
+	 *         `location` is {@see FileLocation::describe()}. A version's
+	 *         `path`, `name` and `location` are its file's, the first two
+	 *         after {@see VersionOf::SCHEME}; it carries `file` and `version`
+	 *         ({@see withVersionFiles()}), and is held where its file is.
 	 */
 	public function batchLookupFilecachePaths(
 		array  $fileIds,
@@ -1380,12 +1383,13 @@ class FilecacheService
 		);
 
 		// A row here is dropped by every caller, and a group's count follows
-		// the rows it keeps.
-		$this->andWhereGoverned( $qb, 'fc' );
+		// the rows it keeps. A version is a row like a file, held where its
+		// file is (below).
+		$this->andWhereGoverned( $qb, 'fc', withVersions: true );
 
 		if ( $mounts !== null )
 		{
-			$this->andWhereWithin( $qb, 'fc', $mounts );
+			$this->andWhereWithin( $qb, 'fc', (array) self::withVersionAreas( $mounts ) );
 		}
 
 		$result = $qb->executeQuery();
@@ -1421,11 +1425,32 @@ class FilecacheService
 
 		$result->closeCursor();
 
+		// A version is named after its file, under the scheme that keeps
+		// its path from being taken for one in a files area.
+		$kept = [];
+
+		foreach ( $this->withVersionFiles( $paths, $mounts, 'internal_path' ) as $fileId => $row )
+		{
+			if ( isset( $row['file'] ) )
+			{
+				$row['path']     = VersionOf::SCHEME . $row['file']['path'];
+				$row['name']     = $row['file']['name'];
+				$row['location'] = VersionOf::SCHEME . $row['file']['location'];
+			}
+
+			$kept[ $fileId ] = $row;
+		}
+
+		$paths = $kept;
+
 		if ( $withLocalPath )
 		{
 			foreach ( $this->localPaths( $locations ) as $fileId => $localPath )
 			{
-				$paths[ $fileId ]['local_path'] = $localPath;
+				if ( isset( $paths[ $fileId ] ) )
+				{
+					$paths[ $fileId ]['local_path'] = $localPath;
+				}
 			}
 		}
 
@@ -1469,7 +1494,7 @@ class FilecacheService
 	 * within $mounts where given. The window bounds what one query reads, as
 	 * the files missing a hash may be few and far between.
 	 *
-	 * @param  list<array{storage: int, root: string}>|null  $mounts
+	 * @param  list<array{storage: int, root: string, versions?: bool}>|null  $mounts
 	 *
 	 * @return list<array{fileid: int, storage: int, storage_id: string, path: string, etag: string, size: int, mtime: int, storageMtime: int}>
 	 * @throws \OCP\DB\Exception
@@ -1504,7 +1529,8 @@ class FilecacheService
 		   ->setMaxResults( $limit )
 		;
 
-		$this->andWhereGoverned( $qb, 'fc' );
+		// Versions too, each the caller's to take to its file.
+		$this->andWhereGoverned( $qb, 'fc', withVersions: true );
 
 		if ( $mounts !== null )
 		{
@@ -1583,21 +1609,30 @@ class FilecacheService
 	/**
 	 * Keep the query to the areas a rule may govern.
 	 *
-	 * Nothing in the trash, in the versions, or in an app's own data is a
-	 * file anyone holds: the contract says those areas are governed by
-	 * nothing, the sweep and the sidebar refuse them, and a listing or a
-	 * lookup that offered a trashed copy as a duplicate of a live file
-	 * contradicted both.
+	 * Nothing in the trash or in an app's own data is a file anyone holds:
+	 * the contract says those areas are governed by nothing, the sweep and
+	 * the sidebar refuse them, and a listing or a lookup that offered a
+	 * trashed copy as a duplicate of a live file contradicted both.
+	 *
+	 * A home's versions are admitted with $withVersions, for a caller that
+	 * takes each to its file ({@see withVersionFiles()}); a team folder's
+	 * lie in no prefix named here, and are its to take there too.
 	 *
 	 * @param  string  $alias  Alias of the filecache table in $qb.
 	 */
 	public function andWhereGoverned(
 		IQueryBuilder $qb,
 		string        $alias,
+		bool          $withVersions = false,
 	): void
 	{
 		foreach ( self::UNGOVERNED_PREFIXES as $prefix )
 		{
+			if ( $withVersions && $prefix === 'files_versions/' )
+			{
+				continue;
+			}
+
 			$qb->andWhere( $qb->expr()->notLike(
 				$alias . '.path',
 				$qb->createNamedParameter( $this->db->escapeLikeParameter( $prefix ) . '%' ),
@@ -1620,8 +1655,12 @@ class FilecacheService
 	 * group of thousands of accounts would otherwise spend three
 	 * placeholders a home, toward PostgreSQL's 65 535 and SQLite's 32 766.
 	 *
-	 * @param  string                                   $alias   Alias of the filecache table in $qb.
-	 * @param  list<array{storage: int, root: string}>  $mounts
+	 * A mount marked `versions` ({@see withVersionAreas()}) holds what lies
+	 * below its root, and what its root's name with `.v` begins: a single
+	 * shared file's versions are `<file>.v<mtime>` beside it.
+	 *
+	 * @param  string                                                    $alias   Alias of the filecache table in $qb.
+	 * @param  list<array{storage: int, root: string, versions?: bool}>  $mounts
 	 */
 	public function andWhereWithin(
 		IQueryBuilder $qb,
@@ -1637,10 +1676,16 @@ class FilecacheService
 		}
 
 		$storagesByRoot = [];
+		$versionRoots   = [];
 
 		foreach ( $mounts as $mount )
 		{
 			$storagesByRoot[ $mount['root'] ][ $mount['storage'] ] = $mount['storage'];
+
+			if ( ! empty( $mount['versions'] ) )
+			{
+				$versionRoots[ $mount['root'] ] = true;
+			}
 		}
 
 		$within = $qb->expr()->orX();
@@ -1667,16 +1712,131 @@ class FilecacheService
 				continue;
 			}
 
-			$within->add( $qb->expr()->andX(
-				$inStorage,
-				$qb->expr()->orX(
-					$qb->expr()->eq( $alias . '.path', $qb->createNamedParameter( $root ) ),
-					$qb->expr()->like( $alias . '.path', $qb->createNamedParameter( $this->db->escapeLikeParameter( $root ) . '/%' ) ),
-				),
-			) );
+			$at = $qb->expr()->orX(
+				$qb->expr()->eq( $alias . '.path', $qb->createNamedParameter( $root ) ),
+				$qb->expr()->like( $alias . '.path', $qb->createNamedParameter( $this->db->escapeLikeParameter( $root ) . '/%' ) ),
+			);
+
+			if ( isset( $versionRoots[ $root ] ) )
+			{
+				$at->add( $qb->expr()->like( $alias . '.path', $qb->createNamedParameter( $this->db->escapeLikeParameter( $root ) . '.v%' ) ) );
+			}
+
+			$within->add( $qb->expr()->andX( $inStorage, $at ) );
 		}
 
 		$qb->andWhere( $within );
+	}
+
+	/**
+	 * $mounts with the areas the versions of their files are kept in
+	 * ({@see FileLocation::versionRootsOf()}), each marked `versions`: what
+	 * a query reads to find the versions in reach. A superset: whether a
+	 * version is held is whether its file is ({@see withVersionFiles()}).
+	 * Null, every file, stays null.
+	 *
+	 * @param  list<array{storage: int, root: string}>|null  $mounts
+	 *
+	 * @return list<array{storage: int, root: string, versions?: bool}>|null
+	 */
+	public static function withVersionAreas( ?array $mounts ): ?array
+	{
+		if ( $mounts === null )
+		{
+			return null;
+		}
+
+		$areas = $mounts;
+
+		foreach ( $mounts as $mount )
+		{
+			foreach ( FileLocation::versionRootsOf( $mount['root'] ) as $root )
+			{
+				$areas[] = [
+					'storage'  => $mount['storage'],
+					'root'     => $root,
+					'versions' => true,
+				];
+			}
+		}
+
+		return $areas;
+	}
+
+	/**
+	 * $rows with each version among them taken to its file: it gains `file`
+	 * — the file's id, internal path, path below its area, address and
+	 * name — and `version`, the file's id and when the version was the
+	 * file. A version whose file is gone, lies in another storage, or lies
+	 * outside $mounts is left out, as its file would be.
+	 *
+	 * What reach and placement then ask of a version, they ask of its file:
+	 * {@see ReachResolver::withoutDenied()}, {@see ReachResolver::asSeenIn()}.
+	 *
+	 * @param  array<int, array<string, mixed>>              $rows     Keyed by file id, each
+	 *                                                                 with `storage`, `storage_id`
+	 *                                                                 and $pathKey.
+	 * @param  list<array{storage: int, root: string}>|null  $mounts   Null for every file.
+	 * @param  string                                        $pathKey  The field that holds a
+	 *                                                                 row's internal path.
+	 *
+	 * @return array<int, array<string, mixed>>  The rows kept, under their keys.
+	 * @throws \OCP\DB\Exception
+	 */
+	public function withVersionFiles(
+		array  $rows,
+		?array $mounts,
+		string $pathKey,
+	): array
+	{
+		$versions = [];
+
+		foreach ( $rows as $fileId => $row )
+		{
+			$location = FileLocation::fromRow( (int) $fileId, (string) $row['storage_id'], (string) $row[ $pathKey ], 0 );
+
+			if ( $location->version !== null )
+			{
+				$versions[ $fileId ] = $location;
+			}
+		}
+
+		if ( $versions === [] )
+		{
+			return $rows;
+		}
+
+		$files = $this->filesOfVersions( array_values( $versions ) );
+
+		foreach ( $versions as $fileId => $version )
+		{
+			$file = $files[ $fileId ] ?? null;
+
+			if ( $file === null
+				|| $file->storageId !== $version->storageId
+				|| ( $mounts !== null && ! ReachResolver::within( $mounts, (int) $rows[ $fileId ]['storage'], $file->internalPath ) ) )
+			{
+				unset( $rows[ $fileId ] );
+
+				continue;
+			}
+
+			$path = $file->relativePath ?? '/' . $file->internalPath;
+
+			$rows[ $fileId ]['file']    = [
+				'fileid'        => $file->fileId,
+				'internal_path' => $file->internalPath,
+				'path'          => $path,
+				'location'      => $file->describe(),
+				'name'          => substr( $path, (int) strrpos( $path, '/' ) + 1 ),
+			];
+			$rows[ $fileId ]['version'] = [
+				'fileid'    => $file->fileId,
+				'timestamp' => date( 'c', (int) $version->version?->timestamp ),
+			];
+		}
+
+		return $rows;
 	}
 
 	/**

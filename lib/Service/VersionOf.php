@@ -29,6 +29,16 @@ namespace OCA\FileChecksumSearch\Service;
 readonly class VersionOf
 {
 
+//  constants
+
+	/**
+	 * What a version's path and location begin with in a result, before
+	 * its file's: a path in a files area begins with `/`, and an address
+	 * with its area, so neither is ever taken for one.
+	 */
+	public const SCHEME = 'versions://';
+
+
 //  constructor
 
 	public function __construct(

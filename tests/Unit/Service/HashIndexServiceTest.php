@@ -92,6 +92,18 @@ class HashIndexServiceTest
 
 //  other non-static methods
 
+	/**
+	 * Copies of more than one file are a duplicate; one file and its own
+	 * versions, or versions of one file alone, are its history.
+	 */
+	public function testOnlyCopiesOfMoreThanOneFileAreADuplicate(): void
+	{
+		$this->assertTrue( HashIndexService::isDuplicate( [ [ 'fileid' => 1 ], [ 'fileid' => 2 ] ] ) );
+		$this->assertTrue( HashIndexService::isDuplicate( [ [ 'fileid' => 1 ], [ 'fileid' => 3, 'version' => [ 'fileid' => 2 ] ] ] ) );
+		$this->assertFalse( HashIndexService::isDuplicate( [ [ 'fileid' => 1 ], [ 'fileid' => 3, 'version' => [ 'fileid' => 1 ] ] ] ) );
+		$this->assertFalse( HashIndexService::isDuplicate( [ [ 'fileid' => 3, 'version' => [ 'fileid' => 1 ] ], [ 'fileid' => 4, 'version' => [ 'fileid' => 1 ] ] ] ) );
+	}
+
 	// The default algorithm and the list it heads moved to AlgorithmCatalogue,
 	// which has its own tests; nothing about them is HashIndexService's.
 	public function testRecalcHashDelegatesToHashCalc(): void

@@ -5,7 +5,10 @@
  * What to call a file in a list that may hold other people's.
  */
 
-import { t } from './l10n'
+import { formatDateTime, t } from './l10n'
+
+/** What a version's path and location begin with, before its file's. */
+export const VERSION_SCHEME = 'versions://'
 
 /** The part of a file row the label is made from; every API row carries it. */
 export interface LabelledFile {
@@ -18,6 +21,33 @@ export interface LabelledFile {
 	 * or `share:42//…` for a file the reach holds through a share.
 	 */
 	location?: string
+	/**
+	 * Present on an earlier version of a file: the file's id, and when it
+	 * held this content. Its path and location are the file's, after
+	 * {@link VERSION_SCHEME}.
+	 */
+	version?: { fileid: number, timestamp: string }
+}
+
+/** The row as its file is: a version's path and location without the scheme. */
+function asItsFile(file: LabelledFile): LabelledFile {
+	if (!file.version) {
+		return file
+	}
+
+	const strip = (value?: string): string | undefined => value?.startsWith(VERSION_SCHEME) ? value.slice(VERSION_SCHEME.length) : value
+
+	return { ...file, path: strip(file.path), location: strip(file.location) }
+}
+
+/** What a version is called beside its file's label; null for a file. */
+export function versionLabel(file: LabelledFile): string | null {
+	if (!file.version) {
+		return null
+	}
+
+	// TRANSLATORS: beside a file in a list, marking an earlier version of it; {date} is when the file had that content
+	return t('file_checksum_search', 'Version of {date}', { date: formatDateTime(new Date(file.version.timestamp)) })
 }
 
 /**
@@ -45,8 +75,12 @@ export function currentUid(): string | null {
  * path they know. A file with no owner (a group folder, an external
  * storage), and every file a sudoer reads across accounts, shows its
  * location.
+ *
+ * A version is labelled as its file is; {@link versionLabel} says which.
  */
-export function fileLabel(file: LabelledFile, uid: string | null = currentUid()): string {
+export function fileLabel(row: LabelledFile, uid: string | null = currentUid()): string {
+	const file = asItsFile(row)
+
 	if (labelIsLocation(file, uid)) {
 		const location = file.location as string
 
@@ -85,7 +119,9 @@ export type FileLocationKind = 'own' | 'home' | 'share' | 'groupfolder' | 'stora
  * row says nothing — no owner and no location, an older server's row —
  * or for a location of a shape this does not know.
  */
-export function labelKind(file: LabelledFile, uid: string | null = currentUid()): FileLocationKind | null {
+export function labelKind(row: LabelledFile, uid: string | null = currentUid()): FileLocationKind | null {
+	const file = asItsFile(row)
+
 	if (!labelIsLocation(file, uid)) {
 		const own = file.owner !== undefined && file.owner !== null && file.owner === uid
 		return own ? 'own' : null

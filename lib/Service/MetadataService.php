@@ -1721,8 +1721,8 @@ class MetadataService
 	 * possible. Such a file comes once, with the later stamp, and the page
 	 * reads on until it holds $limit files.
 	 *
-	 * @param  list<array{storage: int, root: string}>|null  $mounts  The areas to list,
-	 *                                                               null for every file.
+	 * @param  list<array{storage: int, root: string, versions?: bool}>|null  $mounts  The areas to list,
+	 *                                                                               null for every file.
 	 * @param  int|null                                      $since   Only files with a
 	 *                                                               hash row — of $algo,
 	 *                                                               where one is named —
@@ -1840,7 +1840,7 @@ class MetadataService
 	 * Stamp rows, counted: a file with a second one counts twice, which the
 	 * listing's `estimated_total` allows for in its name.
 	 *
-	 * @param  list<array{storage: int, root: string}>|null  $mounts
+	 * @param  list<array{storage: int, root: string, versions?: bool}>|null  $mounts
 	 * @param  bool                                          $withStale  As
 	 *         {@see pageListedFiles()}.
 	 *
@@ -1939,7 +1939,7 @@ class MetadataService
 	 * changed without the app hearing of it — is left out, as a lookup
 	 * leaves it out ({@see vouchedCondition()}).
 	 *
-	 * @param  list<array{storage: int, root: string}>|null  $mounts
+	 * @param  list<array{storage: int, root: string, versions?: bool}>|null  $mounts
 	 * @param  bool                                          $vouched       False
 	 *         lists the files whatever their stamp says, for a caller that
 	 *         asks it itself.
@@ -2008,7 +2008,10 @@ class MetadataService
 			$qb->andWhere( $qb->createFunction( '(' . $stale->getSQL() . ') = 0' ) );
 		}
 
-		$this->filecacheService->andWhereGoverned( $qb, 'fc' );
+		// Versions are listed as files are, held where their files are
+		// ({@see FilecacheService::withVersionFiles()}): the mounts name the
+		// areas their versions are kept in too, where a caller wants them.
+		$this->filecacheService->andWhereGoverned( $qb, 'fc', withVersions: true );
 
 		if ( $mounts !== null )
 		{

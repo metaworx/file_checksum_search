@@ -28,6 +28,7 @@ use InvalidArgumentException;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\Selector;
 use OCA\FileChecksumSearch\Service\StatusService;
+use OCA\FileChecksumSearch\Service\VersionOf;
 use OCP\Files\Config\IUserMountCache;
 use OCP\Files\File;
 use OCP\Files\IRootFolder;
@@ -401,7 +402,7 @@ class ChecksumApi
 	 *                                           a file found is one whose
 	 *                                           hashes are current.
 	 *
-	 * @return array{results: array<int, array{fileid: int, algo: string, hash: string, path: string, name: string, owner: ?string, location: string, localPath?: ?string, mimetype?: ?string, etag?: ?string, size?: ?int, mtime?: ?string, storageMtime?: ?string}>}
+	 * @return array{results: array<int, array{fileid: int, algo: string, hash: string, path: string, name: string, owner: ?string, location: string, version?: array{fileid: int, timestamp: string}, localPath?: ?string, mimetype?: ?string, etag?: ?string, size?: ?int, mtime?: ?string, storageMtime?: ?string}>}
 	 * @throws \InvalidArgumentException  When $hash is empty once trimmed, or
 	 *                                    for $withMimeType while detection is
 	 *                                    off. The REST layer turns this into
@@ -448,7 +449,8 @@ class ChecksumApi
 					'name'     => $row['name'],
 					'owner'    => $row['owner'] ?? null,
 					'location' => $row['location'] ?? '',
-				] + ( $withLocalPath ? [ 'localPath' => $row['local_path'] ?? null ] : [] );
+				] + ( $withLocalPath ? [ 'localPath' => $row['local_path'] ?? null ] : [] )
+				  + ( isset( $row['version'] ) ? [ 'version' => $row['version'] ] : [] );
 			}, $rows );
 
 			if ( $withMimeType )
@@ -501,11 +503,14 @@ class ChecksumApi
 			$hash,
 		);
 
-		$results = [];
+		// A folder opens a version only as its file.
+		$versions = $this->hashIndexService->versionsAmong( array_map( static fn ( array $row ): int => (int) $row[ MetadataService::FIELD_FILE_ID ], $rows ) );
+		$results  = [];
 
 		foreach ( $rows as $row )
 		{
 			$fileId   = (int) $row[ MetadataService::FIELD_FILE_ID ];
+			$version  = $versions[ $fileId ] ?? null;
 			$node     = null;
 			$relative = null;
 
@@ -514,7 +519,7 @@ class ChecksumApi
 			// that is — the owner column is its own block.
 			foreach ( $folders as $folder )
 			{
-				$nodes = $folder->getById( $fileId );
+				$nodes = $folder->getById( $version['fileid'] ?? $fileId );
 
 				if ( $nodes === [] )
 				{
@@ -541,9 +546,9 @@ class ChecksumApi
 				'fileid' => $fileId,
 				'algo'   => $extracted['algo'],
 				'hash'   => $extracted['hash'] ?? $hash,
-				'path'   => $relative,
+				'path'   => ( $version === null ? '' : VersionOf::SCHEME ) . $relative,
 				'name'   => $node->getName(),
-			];
+			] + ( $version === null ? [] : [ 'version' => $version ] );
 		}
 
 		$results = $this->withLocations( $results, $withLocalPath, $uids, $canonical );
@@ -613,7 +618,7 @@ class ChecksumApi
 	 *                                            revoked — are listed too,
 	 *                                            `hashes` and `etag` null.
 	 *
-	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, mimetype?: ?string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>, next: ?int, now: int, estimated_total?: int}
+	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, version?: array{fileid: int, timestamp: string}, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, mimetype?: ?string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>, next: ?int, now: int, estimated_total?: int}
 	 *         `next` is null when no file follows, and echoes $after for a
 	 *         count. `now` is this server's clock, unix seconds, taken before
 	 *         the page was read. Starting from 0, `estimated_total` counts the
@@ -661,7 +666,7 @@ class ChecksumApi
 	 * @param  bool               $withMimeType   As {@see listHashes()}.
 	 * @param  bool               $withStat       As {@see listHashes()}.
 	 *
-	 * @return Generator<int, array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, mimetype?: ?string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>
+	 * @return Generator<int, array{fileid: int, path: string, name: string, owner: ?string, location: string, version?: array{fileid: int, timestamp: string}, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, mimetype?: ?string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>
 	 * @throws \OCP\DB\Exception  While the walk is read, not when it is asked for.
 	 * @throws HintedInvalidArgumentException  For $withMimeType while detection
 	 *                                         is off, when it is asked for.
@@ -707,7 +712,7 @@ class ChecksumApi
 	 *                                        `etag` null, and its present
 	 *                                        size and mtimes.
 	 *
-	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>, next: ?int, now: int}
+	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, version?: array{fileid: int, timestamp: string}, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>, next: ?int, now: int}
 	 * @throws \OCP\DB\Exception
 	 */
 	public function listMissing(
@@ -935,23 +940,30 @@ class ChecksumApi
 				$hashValue,
 			);
 
+			// A version is reached and opened as its file.
+			$versions = $this->hashIndexService->versionsAmong( array_map( static fn ( array $row ): int => (int) $row[ MetadataService::FIELD_FILE_ID ], $rows ) );
+
 			foreach ( $rows as $row )
 			{
 				$dupFileId = (int) $row[ MetadataService::FIELD_FILE_ID ];
+				$version   = $versions[ $dupFileId ] ?? null;
+				$target    = $version['fileid'] ?? $dupFileId;
 
-				if ( $dupFileId === $fileId )
+				// The file itself, and its own versions: its history, not a
+				// copy of it.
+				if ( $target === $fileId )
 				{
 					continue;
 				}
 
 				// Within the reach, by the rule the listing applies — then a
 				// path for it, from a folder that can open it.
-				if ( ! $this->reach->contains( $mounts, $dupFileId ) )
+				if ( ! $this->reach->contains( $mounts, $target ) )
 				{
 					continue;
 				}
 
-				$located = $this->pathWithin( $dupFileId, $folders, $reachUids === null );
+				$located = $this->pathWithin( $target, $folders, $reachUids === null );
 
 				if ( $located === null )
 				{
@@ -971,9 +983,9 @@ class ChecksumApi
 
 				$grouped[ $key ]['files'][] = [
 					'fileid' => $dupFileId,
-					'path'   => $resolvedPath,
+					'path'   => ( $version === null ? '' : VersionOf::SCHEME ) . $resolvedPath,
 					'name'   => $resolvedName,
-				];
+				] + ( $version === null ? [] : [ 'version' => $version ] );
 			}
 		}
 

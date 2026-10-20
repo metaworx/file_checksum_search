@@ -466,6 +466,48 @@ class ReachResolverTest
 	}
 
 	/**
+	 * A version is denied as its file is: the team folders are asked about
+	 * the file's path, not the version's.
+	 */
+	public function testAVersionIsDeniedAsItsFileIs(): void
+	{
+		$rows = [
+			44 => [ 'storage' => 3, 'internal_path' => 'versions/42/1700000000', 'file' => [ 'internal_path' => 'files/Secret/s.txt' ] ],
+		];
+
+		$this->teamFolders->expects( $this->once() )
+		                  ->method( 'deniedAmong' )
+		                  ->with( [ 'alice' ], [ 44 => [ 'storage' => 3, 'path' => 'files/Secret/s.txt' ] ] )
+		                  ->willReturn( [ 44 ] )
+		;
+
+		$this->assertSame( [], $this->reach->withoutDenied( [ 'alice' ], $rows, 'internal_path' ) );
+	}
+
+	/**
+	 * A version is seen where its file is, under the versions scheme, and
+	 * located by the share its file is held through.
+	 */
+	public function testAVersionIsSeenWhereItsFileIs(): void
+	{
+		$views = [
+			[ 'uid' => 'bob', 'storage' => 9, 'root' => 'files/Docs', 'prefix' => '/Shared/', 'rootId' => 900, 'shared' => true ],
+		];
+		$row   = [
+			'path'          => 'versions:///Docs/a.txt',
+			'storage'       => 9,
+			'internal_path' => 'files_versions/Docs/a.txt.v1700000000',
+			'location'      => 'versions://home:alice//Docs/a.txt',
+			'file'          => [ 'internal_path' => 'files/Docs/a.txt' ],
+		];
+
+		$seen = $this->reach->asSeenIn( $views, $row, true );
+
+		$this->assertSame( 'versions:///Shared/a.txt', $seen['path'] );
+		$this->assertSame( 'versions://home:alice//Docs/a.txt', $seen['location'], 'read canonically, its own address' );
+	}
+
+	/**
 	 * Runs contains() against a filecache row of the given storage and path.
 	 */
 	private function contains(

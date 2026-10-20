@@ -234,11 +234,13 @@ class HashStampTest
 
 			$this->assertSame( 0, $this->metadataService->getUpdatedAt( $file->getId() ), "$mode: the write set the stamp to 0" );
 			$this->assertSame( [], $this->seenBy( $file ), "$mode: hidden after the write" );
-			$this->assertSame(
-				[],
-				Server::get( ChecksumApi::class )->findByHash( $before, null, 'sha256' )['results'],
-				"$mode: the old hash finds nothing",
-			);
+
+			// The old hash finds no file: at most the versions the writes made
+			// of the content it describes, where the versions app made them.
+			foreach ( Server::get( ChecksumApi::class )->findByHash( $before, null, 'sha256' )['results'] as $row )
+			{
+				$this->assertArrayHasKey( 'version', $row, "$mode: the old hash finds versions only" );
+			}
 
 			$this->hashCalc->processFile( $file->getId(), $mode );
 

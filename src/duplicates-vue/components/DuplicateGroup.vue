@@ -9,7 +9,7 @@
 import { ref, computed } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import LocationIcon from '../../components/LocationIcon.vue'
-import { fileLabel, labelKind } from '../../fileLabel'
+import { fileLabel, labelKind, versionLabel } from '../../fileLabel'
 import type { DuplicateGroup as GroupType } from '../composables/useDuplicates'
 import { n, t } from '../../l10n'
 
@@ -117,11 +117,16 @@ function toggle(): void {
 						     for the pointer; the hidden text is the same fact for
 						     a reader that never hovers. -->
 						<span v-else class="db-file-unopenable" :title="TITLES.notYours"><LocationIcon v-if="labelKind(file)" :kind="labelKind(file)!" :size="14" />{{ fileLabel(file) }}<span class="hidden-visually"> {{ TITLES.notYoursSpoken }}</span></span>
+						<!-- An earlier version of the file the label names, which
+						     the link opens: the version is in its details. -->
+						<span v-if="file.version" class="db-version" data-testid="fcias-version">{{ versionLabel(file) }}</span>
 						<span v-if="file.verified === true" class="db-verified">✓</span>
 						<span v-else-if="file.verified === false" class="db-mismatch">✗ ({{ mismatchText(file) }})</span>
 					</span>
+					<!-- A version is not read again: it holds what its file held,
+					     and nothing writes to it. -->
 					<NcButton
-						v-if="canVerify"
+						v-if="canVerify && !file.version"
 						class="db-verify-file"
 						:disabled="verifying"
 						:title="TITLES.verify"
@@ -271,6 +276,11 @@ function toggle(): void {
 	color: var(--color-success-text);
 	margin-inline-start: 4px;
 	font-weight: bold;
+}
+
+.db-version {
+	color: var(--color-text-maxcontrast);
+	margin-inline-start: 4px;
 }
 
 .db-mismatch {

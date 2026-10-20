@@ -372,6 +372,8 @@ OC.L10N.register(
     "Verified" : "Gecontroleerd",
     "Verify" : "Controleren",
     "Verify all" : "Alles controleren",
+    "Version of %s" : "Versie van %s",
+    "Version of {date}" : "Versie van {date}",
     "Versions" : "Versies",
     "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount." : "Wat er gebeurt als deze regel overeenkomt. “Opnemen” berekent de controlesommen hieronder. “Negeren” stopt de automatische berekening, maar laat nog steeds toe dat iemand de controlesommen van een bestand handmatig opnieuw berekent. “Uitsluiten” blokkeert de berekening volledig – gebruik dit voor opslag die niet gelezen mag worden, zoals externe opslag waarvoor per gebruik wordt betaald.",
     "What happens when this rule matches. \"include\" computes the checksums in this row. \"ignore\" stops automatic hashing but still allows a manual recalculation. \"exclude\" blocks hashing by every route, including the sidebar button, the API and the occ command." : "Wat er gebeurt als deze regel overeenkomt. \"include\" berekent de controlesommen in deze rij. \"ignore\" stopt de automatische berekening, maar staat een handmatige herberekening nog steeds toe. \"exclude\" blokkeert de berekening langs elke weg, ook via de knop in de zijbalk, de API en het occ-commando.",

@@ -185,7 +185,7 @@ class HashListingService
 	 *                                            stale are listed too, with
 	 *                                            `hashes` and `etag` null.
 	 *
-	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, mimetype?: ?string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>, next: ?int, now: int, estimated_total?: int}
+	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, version?: array{fileid: int, timestamp: string}, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, mimetype?: ?string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>, next: ?int, now: int, estimated_total?: int}
 	 *         `next` is the file id to pass as `after` while files remain,
 	 *         null when none do, and `after` itself for a count; a page may
 	 *         hold fewer files than $limit, or none, and still carry it. `now` is
@@ -226,7 +226,7 @@ class HashListingService
 		if ( $limit > 0 )
 		{
 			// One past the page, to know whether another follows.
-			$rows = $this->metadataService->pageListedFiles( $areas, $algo, $after, $since, $limit + 1, $withStat );
+			$rows = $this->metadataService->pageListedFiles( FilecacheService::withVersionAreas( $areas ), $algo, $after, $since, $limit + 1, $withStat );
 			$more = count( $rows ) > $limit;
 			$rows = array_slice( $rows, 0, $limit );
 
@@ -234,12 +234,12 @@ class HashListingService
 			// team folder's permissions took out comes back short, or empty,
 			// and is not the end.
 			$answer['next']  = $more ? $rows[ $limit - 1 ]['fileid'] : null;
-			$answer['files'] = $this->entries( $this->readable( $reachUids, $rows ), $views, $algo, $withLocalPath, $canonical, $withMimeType, $withStat );
+			$answer['files'] = $this->entries( $this->readable( $reachUids, $rows, $areas ), $views, $algo, $withLocalPath, $canonical, $withMimeType, $withStat );
 		}
 
 		if ( $after === 0 )
 		{
-			$answer['estimated_total'] = $this->metadataService->countListedFiles( $areas, $algo, $since, $withStat );
+			$answer['estimated_total'] = $this->metadataService->countListedFiles( FilecacheService::withVersionAreas( $areas ), $algo, $since, $withStat );
 		}
 
 		return $answer;
@@ -267,7 +267,7 @@ class HashListingService
 	 * @param  bool               $withMimeType   As {@see page()}.
 	 * @param  bool               $withStat       As {@see page()}.
 	 *
-	 * @return Generator<int, array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, mimetype?: ?string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>
+	 * @return Generator<int, array{fileid: int, path: string, name: string, owner: ?string, location: string, version?: array{fileid: int, timestamp: string}, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, mimetype?: ?string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>
 	 *         keyed by file id, in file id order
 	 * @throws Exception
 	 */
@@ -289,9 +289,9 @@ class HashListingService
 
 		do
 		{
-			$rows = $this->metadataService->pageListedFiles( $areas, $algo, $after, $since, self::ITERATE_BATCH, $withStat );
+			$rows = $this->metadataService->pageListedFiles( FilecacheService::withVersionAreas( $areas ), $algo, $after, $since, self::ITERATE_BATCH, $withStat );
 
-			foreach ( $this->entries( $this->readable( $reachUids, $rows ), $views, $algo, $withLocalPath, $canonical, $withMimeType, $withStat ) as $entry )
+			foreach ( $this->entries( $this->readable( $reachUids, $rows, $areas ), $views, $algo, $withLocalPath, $canonical, $withMimeType, $withStat ) as $entry )
 			{
 				yield $entry['fileid'] => $entry;
 			}
@@ -324,7 +324,7 @@ class HashListingService
 	 *                                        hashes, and its present size
 	 *                                        and mtimes ({@see stat()}).
 	 *
-	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>, next: ?int, now: int}
+	 * @return array{files: list<array{fileid: int, path: string, name: string, owner: ?string, location: string, version?: array{fileid: int, timestamp: string}, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>, next: ?int, now: int}
 	 * @throws Exception
 	 */
 	public function missingPage(
@@ -360,7 +360,7 @@ class HashListingService
 		$upper = $after + self::MISSING_WINDOW;
 
 		// One past the page, to know whether the window holds more.
-		$rows = $this->filecacheService->pageUnhashedFiles( $areas, $algo, $after, $upper, $limit + 1 );
+		$rows = $this->filecacheService->pageUnhashedFiles( FilecacheService::withVersionAreas( $areas ), $algo, $after, $upper, $limit + 1 );
 
 		if ( count( $rows ) > $limit )
 		{
@@ -381,20 +381,32 @@ class HashListingService
 		];
 		$files  = [];
 
-		foreach ( $this->readable( $reachUids, $rows ) as $row )
+		foreach ( $this->readable( $reachUids, $rows, $areas ) as $row )
 		{
 			$location = FileLocation::fromRow( $row['fileid'], $row['storage_id'], $row['path'], $row['mtime'] );
+			// In the version's own storage ({@see FilecacheService::withVersionFiles()}).
+			$file     = isset( $row['file'] )
+				? FileLocation::fromRow( $row['file']['fileid'], $row['storage_id'], $row['file']['internal_path'], 0 )
+				: null;
 
 			// Outside a files area — a home's `uploads/` or `cache/` — is
-			// nobody's file, as the trash and the versions are not.
-			if ( $location->relativePath === null )
+			// nobody's file, as the trash is not. A version is its file's.
+			if ( $location->relativePath === null && $file === null )
 			{
 				continue;
 			}
 
-			$rule = $this->ruleService->governingRuleForLocation( $location );
+			$rule    = $this->ruleService->governingRuleForLocation( $file === null ? $location : $location->withVersionFile( $file ) );
+			$verdict = $rule === null ? null : RuleService::verdictOf( $rule );
 
-			if ( ! ( $rule === null ? $unmatched : $wanted[ RuleService::verdictOf( $rule ) ] ) )
+			// An include rule that does not hash versions hashes none of them
+			// unasked, as an ignore rule hashes none of its files.
+			if ( $file !== null && $verdict === RuleService::TYPE_INCLUDE && ! RuleService::hashesVersions( $rule ) )
+			{
+				$verdict = RuleService::TYPE_IGNORE;
+			}
+
+			if ( ! ( $verdict === null ? $unmatched : $wanted[ $verdict ] ) )
 			{
 				continue;
 			}
@@ -427,21 +439,28 @@ class HashListingService
 	/**
 	 * A page's rows without those a team folder's advanced permissions deny
 	 * every account in reach, in their order: what the views' areas cannot
-	 * say in SQL ({@see ReachResolver::withoutDenied()}).
+	 * say in SQL ({@see ReachResolver::withoutDenied()}). A version is taken
+	 * to its file, and kept where its file is: in $areas, and readable
+	 * ({@see FilecacheService::withVersionFiles()}).
 	 *
-	 * @template TRow of array{fileid: int, storage: int, path: string, ...}
+	 * @param  list<string>|null                             $reachUids
+	 * @param  list<array{fileid: int, storage: int, storage_id: string, path: string, ...}> $rows
+	 * @param  list<array{storage: int, root: string}>|null  $areas  The views' areas.
 	 *
-	 * @param  list<string>|null  $reachUids
-	 * @param  list<TRow>         $rows
-	 *
-	 * @return list<TRow>
+	 * @return list<array<string, mixed>>  The rows kept, a version with its
+	 *         `file` and `version`.
+	 * @throws Exception
 	 */
 	private function readable(
 		?array $reachUids,
 		array  $rows,
+		?array $areas,
 	): array
 	{
-		return array_values( $this->reach->withoutDenied( $reachUids, array_column( $rows, null, 'fileid' ) ) );
+		return array_values( $this->reach->withoutDenied(
+			$reachUids,
+			$this->filecacheService->withVersionFiles( array_column( $rows, null, 'fileid' ), $areas, 'path' ),
+		) );
 	}
 
 	/**
@@ -457,7 +476,7 @@ class HashListingService
 	 * rows' own; an entry whose hashes are stale or revoked has `hashes`,
 	 * `updated_at` and `etag` null.
 	 *
-	 * @return list<array{fileid: int, path: string, name: string, owner: ?string, location: string, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, mimetype?: ?string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>
+	 * @return list<array{fileid: int, path: string, name: string, owner: ?string, location: string, version?: array{fileid: int, timestamp: string}, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, mimetype?: ?string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>
 	 * @throws Exception
 	 */
 	private function entries(
@@ -533,10 +552,13 @@ class HashListingService
 	 * no account named, the owner's view; a file nobody owns, its path in
 	 * the area `location` names.
 	 *
-	 * @param  array{fileid: int, storage: int, path: string, ...}                                                    $row
+	 * A version is where its file is, its path and location after
+	 * {@see VersionOf::SCHEME}, and gains `version`.
+	 *
+	 * @param  array{fileid: int, storage: int, path: string, file?: array{internal_path: string, path: string, location: string, ...}, version?: array{fileid: int, timestamp: string}, ...} $row
 	 * @param  list<array{uid: string, storage: int, root: string, prefix: string, rootId: int, shared: bool}>|null $views
 	 *
-	 * @return array{fileid: int, path: string, name: string, owner: ?string, location: string}
+	 * @return array{fileid: int, path: string, name: string, owner: ?string, location: string, version?: array{fileid: int, timestamp: string}}
 	 */
 	private function placeOf(
 		array        $row,
@@ -545,17 +567,19 @@ class HashListingService
 		bool         $canonical,
 	): array
 	{
-		$seen = $views === null
+		$file   = $row['file'] ?? null;
+		$scheme = $file === null ? '' : VersionOf::SCHEME;
+		$seen   = $views === null
 			? null
-			: $this->reach->seenThrough( $views, $row['storage'], $row['path'], ! $canonical );
-		$path = $seen['path'] ?? $location->relativePath ?? '/' . $row['path'];
+			: $this->reach->seenThrough( $views, $row['storage'], $file['internal_path'] ?? $row['path'], ! $canonical );
+		$path   = $seen['path'] ?? $file['path'] ?? $location->relativePath ?? '/' . $row['path'];
 
 		return [
 			'fileid'   => $row['fileid'],
-			'path'     => $path,
+			'path'     => $scheme . $path,
 			'name'     => substr( $path, (int) strrpos( $path, '/' ) + 1 ),
 			'owner'    => $location->owner,
-			'location' => $seen['share'] ?? $location->describe(),
-		];
+			'location' => $scheme . ( $seen['share'] ?? $file['location'] ?? $location->describe() ),
+		] + ( isset( $row['version'] ) ? [ 'version' => $row['version'] ] : [] );
 	}
 }

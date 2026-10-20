@@ -1214,6 +1214,15 @@ msgstr "验证"
 msgid "Verify all"
 msgstr "全部验证"
 
+#. TRANSLATORS: a search result that is an earlier version of the file it names; %s is when the file had that content, a date and time
+#, php-format
+msgid "Version of %s"
+msgstr "%s 的版本"
+
+#. TRANSLATORS: beside a file in a list, marking an earlier version of it; {date} is when the file had that content
+msgid "Version of {date}"
+msgstr "{date} 的版本"
+
 msgid "Versions"
 msgstr "版本"
 

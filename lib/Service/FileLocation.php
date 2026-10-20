@@ -118,6 +118,43 @@ readonly class FileLocation
 	}
 
 	/**
+	 * Where the versions of the files below $root are kept, in the same
+	 * storage: what a reach that holds $root holds of their versions, a
+	 * superset each version of which is held only where its file is.
+	 *
+	 * A home's files area and a share in one have them in `files_versions/`
+	 * beside it; a team folder's `files/` in its own storage, `versions/`;
+	 * the legacy layout's `__groupfolders/<id>`, `__groupfolders/versions/<id>`.
+	 * A storage held whole — a home, an external storage — has its own, or
+	 * none, and gets nothing more. Both answers for a storage's `files`,
+	 * which a home and a team folder both have: each has only its own.
+	 *
+	 * @return list<string>
+	 */
+	public static function versionRootsOf( string $root ): array
+	{
+		if ( $root === 'files' )
+		{
+			return [
+				'files_versions',
+				'versions',
+			];
+		}
+
+		if ( str_starts_with( $root, 'files/' ) )
+		{
+			return [ 'files_versions/' . substr( $root, strlen( 'files/' ) ) ];
+		}
+
+		if ( preg_match( '#^__groupfolders/(\d+)$#', $root, $m ) === 1 )
+		{
+			return [ '__groupfolders/versions/' . $m[1] ];
+		}
+
+		return [];
+	}
+
+	/**
 	 * Classify a filecache row into its namespace.
 	 */
 	public static function fromRow(

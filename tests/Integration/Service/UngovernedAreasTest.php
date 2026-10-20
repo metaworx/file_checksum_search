@@ -16,13 +16,16 @@ use OCP\Files\IRootFolder;
 use OCP\Server;
 
 /**
- * A hashed file in the trash, or among the versions, is nobody's copy of
- * anything: the contract says those areas are governed by nothing, and
- * the sweep, the sidebar and the API all refuse them. The listing and the
- * lookup used to offer one all the same — five hashed copies of one test
- * file, in the administrator's trash, headed every group on the Duplicates
- * page once — because the one place every caller resolves a row's path
- * asked the filecache for the path and nothing else.
+ * A hashed file in the trash is nobody's copy of anything: the contract
+ * says the trash is governed by nothing, and the sweep, the sidebar and the
+ * API all refuse it. The listing and the lookup used to offer one all the
+ * same — five hashed copies of one test file, in the administrator's
+ * trash, headed every group on the Duplicates page once — because the one
+ * place every caller resolves a row's path asked the filecache for the
+ * path and nothing else.
+ *
+ * A version is its file's: offered beside the live copies, marked, named
+ * after its file.
  *
  * The rows are made here by hand, straight under the trash and versions
  * folders: whether a deletion lands in the trash depends on which apps
@@ -84,16 +87,20 @@ class UngovernedAreasTest
 
 //  other non-static methods
 
-	public function testTheLookupAnswersTheLiveCopiesOnly(): void
+	public function testTheLookupAnswersTheLiveCopiesAndTheVersionNotTheTrash(): void
 	{
 		$found = Server::get( ChecksumApi::class )->findByHash( self::$hash, [ self::$uid ], algo: 'sha1' );
-		$ids   = array_map( static fn ( array $row ): int => (int) $row['fileid'], $found['results'] ?? [] );
+		$rows  = array_column( $found['results'] ?? [], null, 'fileid' );
+		$ids   = array_keys( $rows );
 		sort( $ids );
 
-		$this->assertSame( [ self::$fileIds['live-a'], self::$fileIds['live-b'] ], $ids );
+		$this->assertSame( [ self::$fileIds['live-a'], self::$fileIds['live-b'], self::$fileIds['version'] ], $ids );
+		$this->assertSame( 'versions:///Docs/a.txt', $rows[ self::$fileIds['version'] ]['path'] );
+		$this->assertSame( self::$fileIds['live-a'], $rows[ self::$fileIds['version'] ]['version']['fileid'] ?? null );
+		$this->assertArrayNotHasKey( 'version', $rows[ self::$fileIds['live-b'] ] );
 	}
 
-	public function testADuplicateGroupCountsTheLiveCopiesOnly(): void
+	public function testADuplicateGroupCountsTheLiveCopiesAndTheVersionNotTheTrash(): void
 	{
 		$listing = Server::get( ChecksumApi::class )->findDuplicatesFor( [ self::$uid ], 'sha1', 2, 50, 0, self::$hash );
 		$groups  = array_values( array_filter(
@@ -103,10 +110,13 @@ class UngovernedAreasTest
 
 		$this->assertCount( 1, $groups, 'one group for the hash' );
 
-		$ids = array_map( static fn ( array $file ): int => (int) $file['fileid'], $groups[0]['files'] );
+		$files = array_column( $groups[0]['files'], null, 'fileid' );
+		$ids   = array_keys( $files );
 		sort( $ids );
 
-		$this->assertSame( [ self::$fileIds['live-a'], self::$fileIds['live-b'] ], $ids );
-		$this->assertSame( 2, (int) $groups[0]['file_count'], 'the count follows the rows kept' );
+		$this->assertSame( [ self::$fileIds['live-a'], self::$fileIds['live-b'], self::$fileIds['version'] ], $ids );
+		$this->assertSame( 'versions:///Docs/a.txt', $files[ self::$fileIds['version'] ]['path'] );
+		$this->assertSame( 'versions://home:' . self::$uid . '//Docs/a.txt', $files[ self::$fileIds['version'] ]['location'] );
+		$this->assertSame( 3, (int) $groups[0]['file_count'], 'the count follows the rows kept' );
 	}
 }

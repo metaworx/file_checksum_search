@@ -4,7 +4,31 @@
  */
 
 import { afterEach, describe, expect, it } from 'vitest'
-import { currentUid, fileLabel, labelKind } from './fileLabel'
+import { currentUid, fileLabel, labelKind, versionLabel } from './fileLabel'
+
+// A version's path and location are its file's, after `versions://`: it is
+// labelled as its file is, and its own label says which version it is.
+describe('a version', () => {
+	const version = {
+		path: 'versions:///Docs/a.txt',
+		name: 'a.txt',
+		owner: 'alice',
+		location: 'versions://share:42//a.txt',
+		version: { fileid: 7, timestamp: '2023-11-14T22:13:20+00:00' },
+	}
+
+	it('is labelled as its file is', () => {
+		expect(fileLabel(version, 'alice')).toBe('/Docs/a.txt')
+		expect(labelKind(version, 'alice')).toBe('own')
+		expect(fileLabel(version, 'bob')).toBe('alice: Docs/a.txt')
+		expect(labelKind(version, 'bob')).toBe('share')
+	})
+
+	it('says when it was its file\'s content; a file says nothing', () => {
+		expect(versionLabel(version)).toMatch(/^Version of .*2023/)
+		expect(versionLabel({ path: '/Docs/a.txt' })).toBeNull()
+	})
+})
 
 describe('fileLabel', () => {
 	afterEach(() => {

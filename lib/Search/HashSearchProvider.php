@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Search;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\ReachResolver;
 use OCP\Files\IRootFolder;
@@ -49,6 +50,7 @@ class HashSearchProvider
 		private readonly IURLGenerator   $urlGenerator,
 		private readonly LoggerInterface $logger,
 		private readonly IL10N $l10n,
+		private readonly HashIndexService $hashIndexService,
 	) {
 	}
 
@@ -160,11 +162,14 @@ class HashSearchProvider
 
 		$userFolder = $this->rootFolder->getUserFolder( $user->getUID() );
 		$entries    = [];
+		// A version is opened, and offered, as its file.
+		$versions   = $this->hashIndexService->versionsAmong( array_map( static fn ( array $row ): int => (int) $row[ MetadataService::FIELD_FILE_ID ], $rows ) );
 
 		foreach ( $rows as $row )
 		{
-			$fileId = (int) $row[ MetadataService::FIELD_FILE_ID ];
-			$nodes  = $userFolder->getById( $fileId );
+			$version = $versions[ (int) $row[ MetadataService::FIELD_FILE_ID ] ] ?? null;
+			$fileId  = $version['fileid'] ?? (int) $row[ MetadataService::FIELD_FILE_ID ];
+			$nodes   = $userFolder->getById( $fileId );
 
 			if ( empty( $nodes ) )
 			{
@@ -180,12 +185,19 @@ class HashSearchProvider
 			}
 
 			// Read authoritative hash from oc_files_metadata.json
-			$extracted = $this->metadataService->extractAlgorithm( $fileId, $row );
+			$extracted = $this->metadataService->extractAlgorithm( (int) $row[ MetadataService::FIELD_FILE_ID ], $row );
+			$subline   = sprintf( '%s: %s — %s', $extracted['hash'] ?? $parsed['hash'], $extracted['algo'], $fullPath );
+
+			if ( $version !== null )
+			{
+				// TRANSLATORS: a search result that is an earlier version of the file it names; %s is when the file had that content, a date and time
+				$subline .= ' — ' . $this->l10n->t( 'Version of %s', [ (string) $this->l10n->l( 'datetime', strtotime( $version['timestamp'] ) ) ] );
+			}
 
 			$entries[] = new SearchResultEntry(
 				thumbnailUrl: '',
 				title: $node->getName(),
-				subline: sprintf( '%s: %s — %s', $extracted['hash'] ?? $parsed['hash'], $extracted['algo'], $fullPath ),
+				subline: $subline,
 				resourceUrl: $this->urlGenerator->linkToRoute( 'files.view.showFile', [
 					'fileid'      => $fileId,
 					'dir'         => dirname( $fullPath ),

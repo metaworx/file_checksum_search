@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Unit\Search;
 
 use OCA\FileChecksumSearch\Search\HashSearchProvider;
+use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Tests\Unit\EnglishL10n;
 use OCP\Files\IRootFolder;
@@ -44,6 +45,7 @@ class HashSearchProviderTest
 			$this->createMock( IURLGenerator::class ),
 			$this->createMock( LoggerInterface::class ),
 			$this->englishL10n(),
+			$this->createMock( HashIndexService::class ),
 		);
 	}
 
@@ -103,6 +105,7 @@ class HashSearchProviderTest
 			$this->createMock( IURLGenerator::class ),
 			$this->createMock( LoggerInterface::class ),
 			$this->englishL10n(),
+			$this->createMock( HashIndexService::class ),
 		);
 
 		$query = $this->createMock( ISearchQuery::class );

@@ -370,6 +370,8 @@
     "Verified" : "検証済み",
     "Verify" : "検証",
     "Verify all" : "すべて検証",
+    "Version of %s" : "%s のバージョン",
+    "Version of {date}" : "{date} のバージョン",
     "Versions" : "バージョン",
     "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount." : "このルールに一致したときの動作です。「含める」は下のチェックサムを計算します。「無視する」は自動ハッシュ計算を止めますが、ファイルのチェックサムを手動で再計算することはできます。「除外する」はハッシュ計算を完全に禁止します。従量課金の外部ストレージなど、読み取ってはならないストレージに使用してください。",
     "What happens when this rule matches. \"include\" computes the checksums in this row. \"ignore\" stops automatic hashing but still allows a manual recalculation. \"exclude\" blocks hashing by every route, including the sidebar button, the API and the occ command." : "このルールに一致したときの動作です。\"include\"はこの行のチェックサムを計算します。\"ignore\"は自動ハッシュ計算を止めますが、手動での再計算は可能です。\"exclude\"は、サイドバーのボタン、API、occコマンドを含むあらゆる経路でハッシュ計算を禁止します。",

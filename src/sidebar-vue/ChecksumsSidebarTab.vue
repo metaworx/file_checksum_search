@@ -12,8 +12,8 @@
 import { computed, ref, watch } from 'vue'
 import { t } from '../l10n'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
-import { fileLink } from '../fileLink'
-import { fileLabel, labelKind } from '../fileLabel'
+import { rowLink } from '../fileLink'
+import { fileLabel, labelKind, versionLabel } from '../fileLabel'
 import AlgorithmSelect from '../components/AlgorithmSelect.vue'
 import LocationIcon from '../components/LocationIcon.vue'
 import { type AlgoOption, fetchAlgorithms } from '../algorithms'
@@ -292,10 +292,11 @@ watch(
 							<li v-for="file in group.files" :key="file.fileid" class="fcias-dup-item">
 								<a v-if="file.openable !== false"
 									class="fcias-dup-item-link"
-									:href="fileLink(file.fileid)"
+									:href="rowLink(file)"
 									target="_blank"
 									rel="noreferrer noopener"><LocationIcon v-if="labelKind(file)" :kind="labelKind(file)!" :size="14" />{{ fileLabel(file) }}</a>
 								<span v-else class="fcias-dup-item-unopenable" :title="t('file_checksum_search', 'Not in your files')"><LocationIcon v-if="labelKind(file)" :kind="labelKind(file)!" :size="14" />{{ fileLabel(file) }}</span>
+								<span v-if="file.version" class="fcias-dup-version" data-testid="fcias-dup-version">{{ versionLabel(file) }}</span>
 							</li>
 						</ul>
 					</div>
@@ -514,6 +515,11 @@ watch(
 
 .fcias-dup-item-link:hover {
 	color: var(--color-primary-element);
+}
+
+.fcias-dup-version {
+	display: block;
+	color: var(--color-text-maxcontrast);
 }
 
 .fcias-dup-empty {

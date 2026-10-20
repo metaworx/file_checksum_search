@@ -22,3 +22,11 @@ import { FRONTEND } from './routes'
 export function fileLink(fileid: number): string {
 	return `${generateUrl(FRONTEND.fileLink, { fileid })}?opendetails=true&openfile=false`
 }
+
+/**
+ * The link for a row of a list: a version opens its file, as Files keeps
+ * a file's versions in the file's details and opens none by itself.
+ */
+export function rowLink(row: { fileid: number, version?: { fileid: number } }): string {
+	return fileLink(row.version?.fileid ?? row.fileid)
+}

@@ -370,6 +370,8 @@
     "Verified" : "Vérifié",
     "Verify" : "Vérifier",
     "Verify all" : "Tout vérifier",
+    "Version of %s" : "Version du %s",
+    "Version of {date}" : "Version du {date}",
     "Versions" : "Versions",
     "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount." : "Ce qui se passe lorsque cette règle correspond. « Inclure » calcule les sommes de contrôle ci-dessous. « Ignorer » arrête le calcul automatique des empreintes, mais permet toujours de recalculer manuellement les sommes de contrôle d'un fichier. « Exclure » bloque entièrement le calcul des empreintes – à utiliser pour un stockage qui ne doit pas être lu, comme un stockage externe facturé à l'usage.",
     "What happens when this rule matches. \"include\" computes the checksums in this row. \"ignore\" stops automatic hashing but still allows a manual recalculation. \"exclude\" blocks hashing by every route, including the sidebar button, the API and the occ command." : "Ce qui se passe lorsque cette règle correspond. \"include\" calcule les sommes de contrôle de cette ligne. \"ignore\" arrête le calcul automatique des empreintes, mais permet toujours un recalcul manuel. \"exclude\" bloque le calcul des empreintes par toutes les voies, y compris le bouton du panneau latéral, l'API et la commande occ.",

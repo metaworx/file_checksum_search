@@ -56,6 +56,29 @@ class HashIndexService
 	}
 
 
+//  static methods
+
+	/**
+	 * Whether a group's members are copies of more than one file: one file
+	 * and its own versions, or only versions of one file, are its history,
+	 * not a duplicate. Saved unchanged, a file makes a version identical to
+	 * itself.
+	 *
+	 * @param  list<array{fileid: int, version?: array{fileid: int, ...}, ...}>  $files
+	 */
+	public static function isDuplicate( array $files ): bool
+	{
+		$of = [];
+
+		foreach ( $files as $file )
+		{
+			$of[ $file['version']['fileid'] ?? $file['fileid'] ] = true;
+		}
+
+		return count( $of ) > 1;
+	}
+
+
 //  other non-static methods
 
 	/**
@@ -348,11 +371,11 @@ class HashIndexService
 							'name'     => $seen['name'],
 							'owner'    => $seen['owner'] ?? null,
 							'location' => $seen['location'],
-						];
+						] + ( isset( $seen['version'] ) ? [ 'version' => $seen['version'] ] : [] );
 					}
 				}
 
-				if ( count( $files ) < $minCount )
+				if ( count( $files ) < $minCount || ! self::isDuplicate( $files ) )
 				{
 					continue;
 				}
@@ -391,7 +414,7 @@ class HashIndexService
 	 *                                                   null for every file.
 	 * @param  bool                      $withLocalPath  As {@see FilecacheService::batchLookupFilecachePaths()}.
 	 *
-	 * @return array<int, array{path: string, name: string, storage: int, storage_id: string, internal_path: string, owner: ?string, location: string, local_path?: ?string}>
+	 * @return array<int, array{path: string, name: string, storage: int, storage_id: string, internal_path: string, owner: ?string, location: string, local_path?: ?string, file?: array{fileid: int, internal_path: string, path: string, location: string, name: string}, version?: array{fileid: int, timestamp: string}}>
 	 */
 	public function batchLookupFilecachePaths(
 		array             $fileIds,
@@ -420,7 +443,7 @@ class HashIndexService
 	 * @param  bool         $withLocalPath  Each row gains `local_path`, as
 	 *                                      {@see FilecacheService::batchLookupFilecachePaths()}.
 	 *
-	 * @return array<int, array{fileid: int, algo: string, hash_value: string, path: string, name: string, owner: ?string, location: string, local_path?: ?string}>
+	 * @return array<int, array{fileid: int, algo: string, hash_value: string, path: string, name: string, owner: ?string, location: string, local_path?: ?string, version?: array{fileid: int, timestamp: string}}>
 	 */
 	public function findByHash(
 		string  $hash,
@@ -431,6 +454,45 @@ class HashIndexService
 	): array
 	{
 		return $this->duplicates->findByHash( $hash, $algo, $limit, $userName, $withLocalPath );
+	}
+
+	/**
+	 * The versions among $fileIds, each with its file: for a caller that
+	 * opens a result through a folder, which reaches a version only as its
+	 * file. A version whose file is gone is not among them.
+	 *
+	 * @param  list<int>  $fileIds
+	 *
+	 * @return array<int, array{fileid: int, timestamp: string}>  keyed by the
+	 *         version's id: its file's id, and when the version was the file
+	 * @throws \OCP\DB\Exception
+	 */
+	public function versionsAmong( array $fileIds ): array
+	{
+		$versions = array_filter(
+			$this->filecacheService->locateAll( $fileIds ),
+			static fn ( FileLocation $location ): bool => $location->version !== null,
+		);
+
+		if ( $versions === [] )
+		{
+			return [];
+		}
+
+		$among = [];
+
+		foreach ( $this->filecacheService->filesOfVersions( array_values( $versions ) ) as $versionId => $file )
+		{
+			if ( $file->storageId === $versions[ $versionId ]->storageId )
+			{
+				$among[ $versionId ] = [
+					'fileid'    => $file->fileId,
+					'timestamp' => date( 'c', (int) $versions[ $versionId ]->version?->timestamp ),
+				];
+			}
+		}
+
+		return $among;
 	}
 
 	/**

@@ -27,6 +27,28 @@ function mounted(extra: Partial<GroupType> = {}) {
 	})
 }
 
+describe('DuplicateGroup, a version', () => {
+	const files = [
+		{ fileid: 1, path: '/a.pdf', name: 'a.pdf' },
+		{ fileid: 3, path: 'versions:///b.pdf', name: 'b.pdf', version: { fileid: 2, timestamp: '2023-11-14T22:13:20+00:00' } },
+	]
+
+	it('is labelled as its file is, and says which version it is', () => {
+		const items = mounted({ files }).findAll('.db-file-item')
+
+		expect(items[1].find('a').text()).toBe('/b.pdf')
+		expect(items[1].find('[data-testid="fcias-version"]').text()).toMatch(/^Version of /)
+		expect(items[0].find('[data-testid="fcias-version"]').exists()).toBe(false)
+	})
+
+	it('is offered no verification of its own', () => {
+		const items = mounted({ files }).findAll('.db-file-item')
+
+		expect(items[0].find('.db-verify-file').exists()).toBe(true)
+		expect(items[1].find('.db-verify-file').exists()).toBe(false)
+	})
+})
+
 describe('DuplicateGroup, the MIME type', () => {
 	// One per group: its files share their content, and so its type.
 	it('shows the type of the group\'s content on its header, after the hash', () => {

@@ -9,7 +9,7 @@ import { reactive, toRefs } from 'vue'
 import { generateOcsUrl } from '@nextcloud/router'
 import { OCS_API_V1 } from '../../routes'
 import { fetchFeatures, mimeTypeSwitchedOff } from '../../features'
-import { fileLink } from '../../fileLink'
+import { rowLink } from '../../fileLink'
 import { t } from '../../l10n'
 
 declare const OC: {
@@ -26,6 +26,8 @@ export interface DuplicateFileItem {
 	location?: string
 	/** Whether the viewer could open it in the Files app; absent on own listings, where they always can. */
 	openable?: boolean
+	/** Present on an earlier version of a file: the file's id, and when it held this content. */
+	version?: { fileid: number, timestamp: string }
 	verified?: boolean
 	verified_hash?: string
 	verify_error?: string
@@ -234,8 +236,10 @@ export function useDuplicates() {
 			const byId = new Map(group.files.map((f) => [f.fileid, f]))
 
 			// What still needs an answer. A resumed run keeps what the
-			// interrupted one already answered and starts after it.
-			let queue = group.files.filter((f) => !(resuming && f.verified !== undefined))
+			// interrupted one already answered and starts after it. A version
+			// is not read again: it holds what its file held, and nothing
+			// writes to it.
+			let queue = group.files.filter((f) => !f.version && !(resuming && f.verified !== undefined))
 
 			while (queue.length > 0 && !rateLimited) {
 				const chunk = queue.slice(0, VERIFY_CHUNK)
@@ -340,7 +344,7 @@ export function useDuplicates() {
 	}
 
 	function fileUrl(file: DuplicateFileItem): string {
-		return fileLink(file.fileid)
+		return rowLink(file)
 	}
 
 	function resetOffset(): void {

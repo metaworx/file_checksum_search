@@ -137,6 +137,20 @@ describe('useDuplicates', () => {
 			expect(g.mismatch_count).toBe(0)
 		})
 
+		// A version holds what its file held, and nothing writes to it.
+		it('reads no version again', async () => {
+			const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(batchOk())
+
+			const { verifyGroups } = useDuplicates()
+			const g = group('a.txt', 'b.txt')
+			g.files[1].version = { fileid: 9, timestamp: '2023-11-14T22:13:20+00:00' }
+			await verifyGroups([g])
+
+			expect(requestedIds(fetchMock.mock.calls[0][1])).toEqual([1])
+			expect(g.files[1].verified).toBeUndefined()
+			expect(g.match_count).toBe(1)
+		})
+
 		// One gesture, one request per chunk: a group of thirty is two
 		// requests of 25 and 5, not thirty — which is what keeps a group from
 		// exhausting a limit of twenty requests a minute on its own.

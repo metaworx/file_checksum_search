@@ -293,6 +293,21 @@ class FileLocationTest
 		}
 	}
 
+	/**
+	 * Where a reach that holds a root holds the versions of its files: a
+	 * home's files area and a share in one beside them, a team folder in
+	 * its own storage, the legacy layout by its folder; a storage held
+	 * whole, nothing more.
+	 */
+	public function testTheVersionRootsOfARoot(): void
+	{
+		$this->assertSame( [ 'files_versions', 'versions' ], FileLocation::versionRootsOf( 'files' ) );
+		$this->assertSame( [ 'files_versions/Docs/x' ], FileLocation::versionRootsOf( 'files/Docs/x' ) );
+		$this->assertSame( [ '__groupfolders/versions/7' ], FileLocation::versionRootsOf( '__groupfolders/7' ) );
+		$this->assertSame( [], FileLocation::versionRootsOf( '' ) );
+		$this->assertSame( [], FileLocation::versionRootsOf( 'filesx/a' ) );
+	}
+
 	public function testTheFreshnessStampKeepsTheVersion(): void
 	{
 		$location = FileLocation::fromRow( 8, 'home::alice', 'files_versions/a.txt.v1700000000', 1 )

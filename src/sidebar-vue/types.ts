@@ -22,6 +22,8 @@ export interface DuplicateFile {
 	location?: string
 	/** Whether the viewer could open it in the Files app; absent on own listings, where they always can. */
 	openable?: boolean
+	/** Present on an earlier version of another file: that file's id, and when it held this content. */
+	version?: { fileid: number, timestamp: string }
 }
 
 export interface DuplicateGroup {

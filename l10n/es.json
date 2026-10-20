@@ -370,6 +370,8 @@
     "Verified" : "Verificado",
     "Verify" : "Verificar",
     "Verify all" : "Verificar todo",
+    "Version of %s" : "Versión del %s",
+    "Version of {date}" : "Versión del {date}",
     "Versions" : "Versiones",
     "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount." : "Qué ocurre cuando esta regla coincide. «Incluir» calcula las sumas de verificación de abajo. «Ignorar» detiene el cálculo automático de hashes, pero sigue permitiendo recalcular manualmente las sumas de verificación de un archivo. «Excluir» bloquea por completo el cálculo de hashes: úselo para almacenamientos que no deben leerse, como un almacenamiento externo de pago por uso.",
     "What happens when this rule matches. \"include\" computes the checksums in this row. \"ignore\" stops automatic hashing but still allows a manual recalculation. \"exclude\" blocks hashing by every route, including the sidebar button, the API and the occ command." : "Qué ocurre cuando esta regla coincide. \"include\" calcula las sumas de verificación de esta fila. \"ignore\" detiene el cálculo automático de hashes, pero sigue permitiendo un recálculo manual. \"exclude\" bloquea el cálculo de hashes por cualquier vía, incluidos el botón de la barra lateral, la API y el comando occ.",

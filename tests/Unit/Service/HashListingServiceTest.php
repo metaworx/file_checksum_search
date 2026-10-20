@@ -54,6 +54,10 @@ class HashListingServiceTest
 
 		$this->metadata  = $this->createMock( MetadataService::class );
 		$this->filecache = $this->createMock( FilecacheService::class );
+		// No version among the rows unless a test says so.
+		$this->filecache->method( 'withVersionFiles' )
+		                ->willReturnArgument( 0 )
+		;
 		// The views, the share ids and a team folder's permissions are the
 		// resolver's to find; how a file is seen through the views is its
 		// own logic, and runs. The permissions deny the ids in $denied to
@@ -97,7 +101,8 @@ class HashListingServiceTest
 		$this->metadata->expects( $this->once() )
 		               ->method( 'pageListedFiles' )
 		               ->with(
-			               [ [ 'storage' => 1, 'root' => 'files' ], [ 'storage' => 9, 'root' => 'files/Fotos' ] ],
+			               // The views' areas, and where their files' versions are kept.
+			               FilecacheService::withVersionAreas( [ [ 'storage' => 1, 'root' => 'files' ], [ 'storage' => 9, 'root' => 'files/Fotos' ] ] ),
 			               null,
 			               0,
 			               null,

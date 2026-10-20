@@ -380,8 +380,10 @@ class ReachResolver
 	 * the account holds the file through a share. With no views, or none
 	 * holding the file, the row is left as it is.
 	 *
+	 * A version is seen where its file is, under {@see VersionOf::SCHEME}.
+	 *
 	 * @param  list<array{uid: string, storage: int, root: string, prefix: string, rootId: int, shared: bool}>|null  $views
-	 * @param  array{path: string, storage: int, internal_path: string, location: string, ...}                         $row
+	 * @param  array{path: string, storage: int, internal_path: string, location: string, file?: array{internal_path: string, ...}, ...} $row
 	 *
 	 * @return array{path: string, storage: int, internal_path: string, location: string, ...}
 	 */
@@ -391,20 +393,21 @@ class ReachResolver
 		bool   $canonical,
 	): array
 	{
-		$seen = $views === null
+		$scheme = isset( $row['file'] ) ? VersionOf::SCHEME : '';
+		$seen   = $views === null
 			? null
-			: $this->seenThrough( $views, $row['storage'], $row['internal_path'], ! $canonical );
+			: $this->seenThrough( $views, $row['storage'], $row['file']['internal_path'] ?? $row['internal_path'], ! $canonical );
 
 		if ( $seen === null )
 		{
 			return $row;
 		}
 
-		$row['path'] = $seen['path'];
+		$row['path'] = $scheme . $seen['path'];
 
 		if ( ! $canonical && $seen['share'] !== null )
 		{
-			$row['location'] = $seen['share'];
+			$row['location'] = $scheme . $seen['share'];
 		}
 
 		return $row;
@@ -619,7 +622,8 @@ class ReachResolver
 	 * every one of $uids ({@see TeamFolderAccess}): what a listing filtered
 	 * by their mounts in SQL keeps of {@see reaches()}.
 	 *
-	 * Null accounts, a sudoer's, keep every row.
+	 * Null accounts, a sudoer's, keep every row. A version taken to its file
+	 * ({@see FilecacheService::withVersionFiles()}) is judged as its file.
 	 *
 	 * @template TRow of array{storage: int, ...}
 	 *
@@ -647,7 +651,7 @@ class ReachResolver
 		{
 			$located[ $fileId ] = [
 				'storage' => $row['storage'],
-				'path'    => (string) $row[ $pathKey ],
+				'path'    => (string) ( $row['file']['internal_path'] ?? $row[ $pathKey ] ),
 			];
 		}
 

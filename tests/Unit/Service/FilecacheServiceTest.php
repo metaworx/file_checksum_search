@@ -545,9 +545,10 @@ class FilecacheServiceTest
 		$this->queryBuilder->method( 'executeQuery' )
 		                   ->willReturn( $resultStmt )
 		;
-		// One condition per ungoverned prefix — the trash, the versions, the
-		// apps' data — and one for the mounts.
-		$this->queryBuilder->expects( $this->exactly( count( FilecacheService::UNGOVERNED_PREFIXES ) + 1 ) )
+		// One condition per ungoverned prefix but the versions, which are
+		// taken to their files — the trash, the apps' data — and one for the
+		// mounts.
+		$this->queryBuilder->expects( $this->exactly( count( FilecacheService::UNGOVERNED_PREFIXES ) ) )
 		                   ->method( 'andWhere' )
 		;
 
