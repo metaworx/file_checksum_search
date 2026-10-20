@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-10-20
+
 ### Added
 
 - `docs/api-v1.md`, *The trash*: a file in the trash, and a version of
