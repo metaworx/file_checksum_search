@@ -99,7 +99,7 @@ class FileListenerTest
 		$this->listener->handle( new NodeWrittenEvent( $node ) );
 	}
 
-	public function testAFileNoRuleMaintainsKeepsNothingForItsVersion(): void
+	public function testAnExcludedFileKeepsNothingForItsVersion(): void
 	{
 		$node = $this->createMock( File::class );
 		$node->method( 'getId' )->willReturn( 7 );
@@ -112,6 +112,37 @@ class FileListenerTest
 		;
 
 		$this->versionCapture->expects( $this->never() )->method( 'beforeWrite' );
+
+		$this->listener->handle( new BeforeNodeWrittenEvent( $node ) );
+	}
+
+
+//  static methods
+
+	/**
+	 * Hashes computed by hand, or kept under an ignore rule, are right for
+	 * the content all the same: only an exclude rule keeps them from the
+	 * version.
+	 *
+	 * @return array<string, array{0: ?array}>
+	 */
+	public static function notExcludingRules(): array
+	{
+		return [
+			'no rule'     => [ null ],
+			'ignore rule' => [ [ 'id' => 'quiet', 'type' => 'ignore' ] ],
+		];
+	}
+
+	#[DataProvider( 'notExcludingRules' )]
+	public function testAFileNoRuleExcludesKeepsItsHashesForItsVersion( ?array $rule ): void
+	{
+		$node = $this->createMock( File::class );
+		$node->method( 'getId' )->willReturn( 7 );
+
+		$this->ruleService->method( 'findFirstMatchingRule' )->willReturn( $rule );
+
+		$this->versionCapture->expects( $this->once() )->method( 'beforeWrite' )->with( 7 );
 
 		$this->listener->handle( new BeforeNodeWrittenEvent( $node ) );
 	}
@@ -722,9 +753,6 @@ class FileListenerTest
 
 		$this->listener->handle( $event );
 	}
-
-
-//  static methods
 
 	/**
 	 * The modes that keep a file's hashes across a write until the queue

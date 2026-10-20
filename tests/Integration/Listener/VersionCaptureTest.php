@@ -187,11 +187,41 @@ class VersionCaptureTest
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testAFileNoRuleMaintainsHandsNothingOn(): void
+	public function testAFileNoRuleGovernsHandsItsHashesOn(): void
 	{
 		$root  = Server::get( IRootFolder::class )->getUserFolder( self::$uid );
 		$file  = $this->hashedFile( self::folderAt( $root, 'Elsewhere' ), 'c.txt', 'one' );
 		$mtime = $file->getMTime();
+
+		$file->putContent( 'two' );
+
+		$version = $this->versionAt( $file, $mtime );
+
+		$this->assertNotNull( $version, 'the versions app made a version' );
+		$this->assertSame( sha1( 'one' ), $this->hashesOf( $version->fileId )['sha1'] ?? null, 'hashed by hand, and right for the content' );
+		$this->assertSame( [], $this->hashesOf( $file->getId() ), 'the file\'s own, nothing maintains, are eroded by the write' );
+	}
+
+	/**
+	 * A file an exclude rule governs may not be hashed by any route, and
+	 * hands nothing on, whatever it holds.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAnExcludedFileHandsNothingOn(): void
+	{
+		$root  = Server::get( IRootFolder::class )->getUserFolder( self::$uid );
+		$file  = $this->hashedFile( self::folderAt( $root, 'Metered' ), 'e.txt', 'one' );
+		$mtime = $file->getMTime();
+
+		$this->ruleService->ruleAdd(
+			[
+				'enabled'  => true,
+				'type'     => RuleService::TYPE_EXCLUDE,
+				'path'     => 'Metered/**',
+				'selector' => 'home:' . self::$uid,
+			],
+		);
 
 		$file->putContent( 'two' );
 

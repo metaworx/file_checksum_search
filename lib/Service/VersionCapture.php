@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Service;
 
 use OCA\FileChecksumSearch\AppInfo\Application;
+use OCP\FilesMetadata\Model\IFilesMetadata;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -54,9 +55,44 @@ class VersionCapture
 //  other non-static methods
 
 	/**
+	 * Hand the hashes $from holds to $toFileId, where they are proved to be
+	 * its content's: their stamp vouches for the receiving row as it stands
+	 * ({@see MetadataService::isCurrent()}). It does where the row carries
+	 * the ETag they were read against, and Nextcloud copies a row's ETag
+	 * with its content (`Cache::copyFromCache()`): to the version a write or
+	 * a restore makes, and to each version copied with its file.
+	 *
+	 * What the receiving row holds and is current for it, it keeps.
+	 *
+	 * @return bool  Whether any were handed on.
+	 * @throws \OCP\DB\Exception
+	 * @throws \OCP\FilesMetadata\Exceptions\FilesMetadataException
+	 */
+	public function handOn(
+		IFilesMetadata $from,
+		int            $toFileId,
+	): bool
+	{
+		$hashes = $this->metadataService->getHashes( $from );
+		$state  = $hashes === []
+			? null
+			: $this->filecacheService->stateOf( $toFileId );
+
+		if ( $state === null || ! $this->metadataService->isCurrent( $from, $state ) )
+		{
+			return false;
+		}
+
+		$this->metadataService->writeHashes( $toFileId, $hashes, time(), true, $state['etag'] );
+
+		return true;
+	}
+
+	/**
 	 * Before a write: keep the file's hashes, where they describe the
 	 * content the write replaces, for the version Nextcloud makes of it.
-	 * The caller has checked that a rule maintains the file's hashes.
+	 * The caller has checked that no rule excludes the file: the hashes are
+	 * right for the content whether a rule maintains them or not.
 	 *
 	 * @throws \OCP\DB\Exception
 	 */

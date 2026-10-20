@@ -147,6 +147,47 @@ class VersionCaptureTest
 	}
 
 	/**
+	 * Hashes pass to another row only where their stamp vouches for it as
+	 * it stands: the row carries the ETag they were read against. What it
+	 * holds of its own and is current, it keeps.
+	 */
+	public function testHashesPassOnlyWhereTheirStampVouchesForTheRow(): void
+	{
+		$from = $this->createMock( IFilesMetadata::class );
+		$this->metadataService->method( 'getHashes' )->with( $from )->willReturn( [ 'sha1' => 'aaa' ] );
+		$this->filecacheService->method( 'stateOf' )
+		                       ->willReturnCallback( static fn ( int $id ): array => [
+			                       'etag'         => $id === 70 ? 'etag-same' : 'etag-other',
+			                       'size'         => 3,
+			                       'mtime'        => 1700000000,
+			                       'storageMtime' => 1700000000,
+		                       ] )
+		;
+		$this->metadataService->method( 'isCurrent' )
+		                      ->willReturnCallback( static fn ( IFilesMetadata $metadata, array $state ): bool => $state['etag'] === 'etag-same' )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'writeHashes' )
+		                      ->with( 70, [ 'sha1' => 'aaa' ], $this->greaterThan( 0 ), true, 'etag-same' )
+		;
+
+		$this->assertTrue( $this->capture->handOn( $from, 70 ) );
+		$this->assertFalse( $this->capture->handOn( $from, 71 ) );
+	}
+
+	public function testNoHashesPassNothing(): void
+	{
+		$from = $this->createMock( IFilesMetadata::class );
+		$this->metadataService->method( 'getHashes' )->willReturn( [] );
+
+		$this->filecacheService->expects( $this->never() )->method( 'stateOf' );
+		$this->metadataService->expects( $this->never() )->method( 'writeHashes' );
+
+		$this->assertFalse( $this->capture->handOn( $from, 70 ) );
+	}
+
+	/**
 	 * File 7 at $path on $storageId, modified at 1700000000, holding a sha1
 	 * that is current or not.
 	 */

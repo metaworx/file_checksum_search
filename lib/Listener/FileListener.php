@@ -97,9 +97,10 @@ class FileListener
 
 	/**
 	 * The content about to be replaced becomes a version: its hashes, where
-	 * a rule maintains them and they are current, are kept for it
-	 * ({@see VersionCapture}). A file not written yet has no id, and no
-	 * content to replace.
+	 * they are current and no rule excludes the file, are kept for it
+	 * ({@see VersionCapture}) — right for that content whether a rule
+	 * maintains them or someone computed them by hand. A file not written
+	 * yet has no id, and no content to replace.
 	 */
 	private function onBeforeWrite( BeforeNodeWrittenEvent $event ): void
 	{
@@ -119,8 +120,7 @@ class FileListener
 			return;
 		}
 
-		if ( $fileId <= 0
-			|| ! RuleService::maintainsHashes( $this->ruleService->findFirstMatchingRule( $fileId ) ) )
+		if ( $fileId <= 0 || $this->excluded( $fileId ) )
 		{
 			return;
 		}
@@ -348,6 +348,17 @@ class FileListener
 
 			break;
 		}
+	}
+
+	/**
+	 * Whether a rule excludes the file: nothing may hash it by any route,
+	 * so nothing hands it, or its versions, checksums either.
+	 */
+	private function excluded( int $fileId ): bool
+	{
+		$rule = $this->ruleService->findFirstMatchingRule( $fileId );
+
+		return $rule !== null && RuleService::verdictOf( $rule ) === RuleService::TYPE_EXCLUDE;
 	}
 
 	private function onDelete( NodeDeletedEvent $event ): void

@@ -14,8 +14,8 @@ the first stable release.
 ### Added
 
 - `README.md`, *File versions*: an overwritten file's checksums pass to
-  its version, which its rule governs; a rule with `versions` reads and
-  hashes the older ones.
+  its version unless a rule excludes it; a rule with `versions` reads
+  and hashes the older ones.
 
 - `docs/api-v1.md`, *Method Reference*: a version is listed, looked up
   and grouped as a duplicate where its file is, under `versions://`;
