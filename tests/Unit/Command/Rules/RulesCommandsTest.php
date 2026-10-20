@@ -376,6 +376,41 @@ class RulesCommandsTest
 		$this->assertSame( [ true, false ], $seen );
 	}
 
+	/**
+	 * --trash and --no-trash switch the trash on and off; a modify that
+	 * names neither keeps the rule's.
+	 */
+	public function testTrashIsSwitchedOnlyWhereTheOptionIsGiven(): void
+	{
+		$this->ruleService->method( 'findRuleById' )
+		                  ->willReturn( [
+			                  'id'       => 'r1',
+			                  'enabled'  => true,
+			                  'path'     => '/docs/**',
+			                  'selector' => 'home:alice',
+			                  'algos'    => [ 'sha1' ],
+			                  'mode'     => 'auto',
+			                  'trash'    => true,
+		                  ] )
+		;
+
+		$seen = [];
+		$this->ruleService->method( 'ruleUpdate' )
+		                  ->willReturnCallback(
+			                  static function( string $id, array $definition ) use ( &$seen ): void
+			                  {
+				                  $seen[] = $definition['trash'];
+			                  },
+		                  )
+		;
+
+		$modify = $this->tester( new ModifyRule( $this->ruleService, $this->validator ) );
+		$modify->execute( [ 'id' => 'r1', '--mode' => 'force' ] );
+		$modify->execute( [ 'id' => 'r1', '--no-trash' => true ] );
+
+		$this->assertSame( [ true, false ], $seen );
+	}
+
 	public function testUnknownIdFailsWithTheOneConsistentMessage(): void
 	{
 		$this->ruleService->method( 'findRuleById' )

@@ -359,6 +359,28 @@ class TrashResultsTest
 	}
 
 	/**
+	 * Where its rule hashes the trash, it is missing one.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testATrashedFileWithoutAChecksumIsMissingOneWhereItsRuleHashesTheTrash(): void
+	{
+		$this->ruleService->ruleAdd(
+			[
+				'enabled'  => true,
+				'type'     => RuleService::TYPE_INCLUDE,
+				'path'     => '**',
+				'mode'     => MetadataService::PENDING_MODE_AUTO,
+				'selector' => 'home:' . self::$owner,
+				'algos'    => [ 'sha1' ],
+				'trash'    => true,
+			],
+		);
+
+		$this->assertContains( self::$id['d'], $this->missing() );
+	}
+
+	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testTheUnifiedSearchOffersATrashedFileAndOpensTheTrash(): void

@@ -42,6 +42,9 @@ msgstr "(non tra i tuoi file)"
 msgid "A disabled rule cannot be applied — enable it first."
 msgstr "Una regola disabilitata non può essere applicata – prima abilitala."
 
+msgid "A file keeps its checksums in the trash, under the rule of the place it was deleted from. When set, files in the trash without any, such as those deleted before checksums were kept, are read and hashed as well."
+msgstr "Un file conserva i suoi checksum nel cestino, secondo la regola della sua posizione originale. Se attivata, anche i file nel cestino che non ne hanno, come quelli eliminati prima che i checksum venissero conservati, vengono letti e ne vengono calcolati i checksum."
+
 #. TRANSLATORS: "Security" and "Allow filesystem access" are Nextcloud's own names; use Nextcloud's translations. Keep /api/v1/sudo/ as it is
 msgid "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password. A grant stays in force until it is revoked, and every administrator can see it. Create the app password under \"Security\" first, with \"Allow filesystem access\" on. Whether you may look across accounts at all is still up to your administrator; a grant replaces the password prompt, not the permission."
 msgstr "Una password dell'applicazione autorizzata può leggere i dati di altri account tramite le route /api/v1/sudo/ senza che nessuno digiti una password. Un'autorizzazione resta valida finché non viene revocata, e ogni amministratore può vederla. Crea prima la password dell'applicazione in “Sicurezza”, con “Consenti accesso al filesystem” attivato. Se tu possa in generale consultare altri account dipende comunque dal tuo amministratore; un'autorizzazione sostituisce la richiesta della password, non il permesso."
@@ -141,6 +144,9 @@ msgstr "Algoritmi consentiti"
 
 msgid "Also hash the older versions of these files"
 msgstr "Calcola anche i checksum delle versioni precedenti di questi file"
+
+msgid "Also hash these files in the trash"
+msgstr "Calcola anche i checksum di questi file nel cestino"
 
 #. TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
 #, php-format
@@ -580,9 +586,9 @@ msgstr "Aiuto: {label}"
 msgid "How a file gets its checksums. \"Auto\" computes them for a file without current ones, new or changed, \"Missing\" also adds one the file lacks, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
 msgstr "Come un file ottiene i suoi checksum. “Automatico” li calcola per un file che non ne ha di aggiornati, che sia nuovo o modificato, “Mancanti” aggiunge anche quelli che gli mancano, “Forzato” li elimina e li ricalcola tutti, e “Differito” li elimina subito e lascia che un'esecuzione successiva li ricalcoli."
 
-#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, "+ versions" what it shows beside one, and "—" what it shows for a rule that computes nothing; keep them
-msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. \"+ versions\" beside the mode: the rule also hashes the older versions of its files. Shown as \"—\" for a rule that computes nothing."
-msgstr "Come un file ottiene i suoi checksum. \"auto\" li calcola per un file che non ne ha di aggiornati, che sia nuovo o modificato, \"missing\" aggiunge anche quelli che gli mancano, \"force\" li elimina e li ricalcola tutti, e \"lazy\" li elimina subito e lascia che un'esecuzione successiva li ricalcoli. \"+ versions\" accanto alla modalità: la regola calcola anche i checksum delle versioni precedenti dei suoi file. Mostrato come \"—\" per una regola che non calcola nulla."
+#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, "+ versions" and "+ trash" what it shows beside one, and "—" what it shows for a rule that computes nothing; keep them
+msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. \"+ versions\" beside the mode: the rule also hashes the older versions of its files; \"+ trash\": its files in the trash. Shown as \"—\" for a rule that computes nothing."
+msgstr "Come un file ottiene i suoi checksum. \"auto\" li calcola per un file che non ne ha di aggiornati, che sia nuovo o modificato, \"missing\" aggiunge anche quelli che gli mancano, \"force\" li elimina e li ricalcola tutti, e \"lazy\" li elimina subito e lascia che un'esecuzione successiva li ricalcoli. \"+ versions\" accanto alla modalità: la regola calcola anche i checksum delle versioni precedenti dei suoi file; \"+ trash\": quelli dei suoi file nel cestino. Mostrato come \"—\" per una regola che non calcola nulla."
 
 msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr "Quanti gruppi mostra una pagina. Qui nulla viene letto dal disco finché non verifichi un gruppo o un file, quindi una pagina più grande costa una query più lunga, non letture più lunghe."
@@ -1187,6 +1193,10 @@ msgstr "Quelli senza tipo MIME"
 
 msgid "Total: {count}"
 msgstr "Totale: {count}"
+
+#. TRANSLATORS a field's label in the rule form: the trash, where deleted files are kept until it is emptied
+msgid "Trash"
+msgstr "Cestino"
 
 msgid "Tunables"
 msgstr "Parametri regolabili"

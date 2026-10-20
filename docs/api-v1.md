@@ -155,10 +155,12 @@ held where it was before the deletion.
   a copy in the trash is listed in a group that is a duplicate, marked;
   a group with fewer than two files outside the trash is not listed.
 - **Missing:**
-  nothing hashes the trash unasked: a trashed file without a checksum is as a
-  file an `ignore` rule matches, and listed with `withIgnored`.
+  a trashed file without a checksum is missing one where its rule hashes the trash
+  ([Rule shape](#rule-shape), `trash`); under an include rule that does not,
+  it is as a file an `ignore` rule matches, and listed with `withIgnored`.
 - **Its checksums** stay through the trash, and are still current
   when the file is restored, since the trash keeps its ETag.
+  A rule with `trash` has the queue read a trashed file that holds none.
 - **Not offered:**
   recalculating a file in the trash.
 
@@ -1838,13 +1840,14 @@ Compose it client-side if you display it.
 | `algos` | string[] | include rules only; each a name `GET /api/v1/algorithms` lists |
 | `mode` | string | include rules only: `auto` \| `missing` \| `force` \| `lazy` |
 | `versions` | bool | include rules only: also read and hash the older versions of the files it governs that hold no checksum ([Versions](#versions)); `false` unless sent, and an update that leaves it out keeps it |
+| `trash` | bool | include rules only: also read and hash the files in the trash it governs that hold no checksum ([The trash](#the-trash)); `false` unless sent, and an update that leaves it out keeps it |
 | `admin_enforced` | bool | administrator-only |
 | `isDefault` | bool | computed: the rule's path is a bare catch-all, placing it in its segment's defaults partition |
 | `band`, `position` | int | computed, read-only |
 | `canEdit` | bool | computed for the calling user |
 
 An `ignore` or `exclude` rule computes nothing, so it stores no `algos`,
-no `mode` and no `versions`; sending them is not an error,
+no `mode`, no `versions` and no `trash`; sending them is not an error,
 they are simply not kept.
 
 ### `GET /api/v1/rules`

@@ -41,6 +41,9 @@ msgstr "(niet in je bestanden)"
 msgid "A disabled rule cannot be applied — enable it first."
 msgstr "Een uitgeschakelde regel kan niet worden toegepast – schakel hem eerst in."
 
+msgid "A file keeps its checksums in the trash, under the rule of the place it was deleted from. When set, files in the trash without any, such as those deleted before checksums were kept, are read and hashed as well."
+msgstr "Een bestand behoudt zijn controlesommen in de prullenbak, onder de regel van zijn oorspronkelijke locatie. Indien ingesteld, worden ook bestanden in de prullenbak zonder controlesommen, zoals bestanden die verwijderd zijn vóór het bewaren van controlesommen, gelezen en worden hun controlesommen berekend."
+
 #. TRANSLATORS: "Security" and "Allow filesystem access" are Nextcloud's own names; use Nextcloud's translations. Keep /api/v1/sudo/ as it is
 msgid "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password. A grant stays in force until it is revoked, and every administrator can see it. Create the app password under \"Security\" first, with \"Allow filesystem access\" on. Whether you may look across accounts at all is still up to your administrator; a grant replaces the password prompt, not the permission."
 msgstr "Een vrijgegeven appwachtwoord mag via de routes /api/v1/sudo/ accountoverschrijdend lezen zonder dat iemand een wachtwoord invoert. Een vrijgave blijft van kracht totdat ze wordt ingetrokken en is zichtbaar voor elke beheerder. Maak het appwachtwoord eerst aan onder “Beveiliging”, met “Toestaan toegang bestandssysteem” ingeschakeld. Of je überhaupt accountoverschrijdend mag kijken, wordt nog steeds bepaald door je beheerder; een vrijgave vervangt de wachtwoordvraag, niet de machtiging."
@@ -140,6 +143,9 @@ msgstr "Toegestane algoritmen"
 
 msgid "Also hash the older versions of these files"
 msgstr "Ook de controlesommen van de oudere versies van deze bestanden berekenen"
+
+msgid "Also hash these files in the trash"
+msgstr "Ook de controlesommen van deze bestanden in de prullenbak berekenen"
 
 #. TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
 #, php-format
@@ -578,9 +584,9 @@ msgstr "Hulp: {label}"
 msgid "How a file gets its checksums. \"Auto\" computes them for a file without current ones, new or changed, \"Missing\" also adds one the file lacks, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
 msgstr "Hoe een bestand zijn controlesommen krijgt. “Automatisch” berekent ze voor een nieuw of gewijzigd bestand zonder actuele controlesommen, “Ontbrekende” voegt er ook een toe die het bestand mist, “Forceren” verwijdert ze allemaal en berekent ze opnieuw, en “Later” verwijdert ze nu en laat een latere uitvoering ze opnieuw berekenen."
 
-#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, "+ versions" what it shows beside one, and "—" what it shows for a rule that computes nothing; keep them
-msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. \"+ versions\" beside the mode: the rule also hashes the older versions of its files. Shown as \"—\" for a rule that computes nothing."
-msgstr "Hoe een bestand zijn controlesommen krijgt. \"auto\" berekent ze voor een nieuw of gewijzigd bestand zonder actuele controlesommen, \"missing\" voegt er ook een toe die het bestand mist, \"force\" verwijdert ze allemaal en berekent ze opnieuw, en \"lazy\" verwijdert ze nu en laat een latere uitvoering ze opnieuw berekenen. \"+ versions\" naast de modus: de regel berekent ook de controlesommen van de oudere versies van zijn bestanden. Wordt als \"—\" getoond bij een regel die niets berekent."
+#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, "+ versions" and "+ trash" what it shows beside one, and "—" what it shows for a rule that computes nothing; keep them
+msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. \"+ versions\" beside the mode: the rule also hashes the older versions of its files; \"+ trash\": its files in the trash. Shown as \"—\" for a rule that computes nothing."
+msgstr "Hoe een bestand zijn controlesommen krijgt. \"auto\" berekent ze voor een nieuw of gewijzigd bestand zonder actuele controlesommen, \"missing\" voegt er ook een toe die het bestand mist, \"force\" verwijdert ze allemaal en berekent ze opnieuw, en \"lazy\" verwijdert ze nu en laat een latere uitvoering ze opnieuw berekenen. \"+ versions\" naast de modus: de regel berekent ook de controlesommen van de oudere versies van zijn bestanden; \"+ trash\": die van zijn bestanden in de prullenbak. Wordt als \"—\" getoond bij een regel die niets berekent."
 
 msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr "Hoeveel groepen één pagina toont. Hier wordt niets van schijf gelezen totdat je een groep of bestand controleert, dus kost een grotere pagina een langere databasequery, geen langere leesbewerkingen."
@@ -1183,6 +1189,10 @@ msgstr "Die zonder MIME-type"
 
 msgid "Total: {count}"
 msgstr "Totaal: {count}"
+
+#. TRANSLATORS a field's label in the rule form: the trash, where deleted files are kept until it is emptied
+msgid "Trash"
+msgstr "Prullenbak"
 
 msgid "Tunables"
 msgstr "Fijnafstelling"

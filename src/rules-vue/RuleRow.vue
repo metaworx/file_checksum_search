@@ -70,6 +70,9 @@ const canReapply = computed(() => props.rule.enabled && computesHashes.value)
  */
 const VERSIONS_FLAG = '+ versions'
 
+/** Beside the mode, a rule that also hashes its files in the trash. */
+const TRASH_FLAG = '+ trash'
+
 /**
  * The rule's glob as the server stores it: below the top of what the
  * selector names, without a leading slash, `**` for all of it — and as an
@@ -170,6 +173,7 @@ const PROVIDER_MISSING_HINT = t('file_checksum_search', 'The team folder this ru
 		<td>
 			<span v-if="computesHashes">{{ rule.mode || 'auto' }}</span>
 			<span v-if="computesHashes && rule.versions" class="fcias-rule-versions">{{ VERSIONS_FLAG }}</span>
+			<span v-if="computesHashes && rule.trash" class="fcias-rule-trash">{{ TRASH_FLAG }}</span>
 			<span v-if="!computesHashes" class="fcias-muted">—</span>
 		</td>
 		<td>
@@ -224,7 +228,8 @@ const PROVIDER_MISSING_HINT = t('file_checksum_search', 'The team folder this ru
 <style scoped>
 /* Apart from the mode it follows, which the template's line break does not
    keep apart. */
-.fcias-rule-versions {
+.fcias-rule-versions,
+.fcias-rule-trash {
 	margin-inline-start: 0.5ch;
 }
 

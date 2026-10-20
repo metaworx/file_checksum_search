@@ -108,6 +108,29 @@ class RuleDefinitionValidatorTest
 		$this->assertArrayNotHasKey( 'algos', $definition );
 		$this->assertArrayNotHasKey( 'mode', $definition );
 		$this->assertArrayNotHasKey( 'versions', $definition );
+		$this->assertArrayNotHasKey( 'trash', $definition );
+	}
+
+	/**
+	 * An include rule says whether it hashes its files in the trash: off
+	 * unless asked, and kept from the rule an update leaves it out of.
+	 */
+	public function testAnIncludeRuleSaysWhetherItHashesTheTrash(): void
+	{
+		$this->assertFalse( $this->validator->definitionFrom( [ 'path' => '/a' ], 'alice', false )['trash'] );
+		$this->assertTrue( $this->validator->definitionFrom( [ 'path' => '/a', 'trash' => true ], 'alice', false )['trash'] );
+		$this->assertTrue(
+			$this->validator->definitionFrom(
+				[ 'mode' => 'force' ],
+				'alice',
+				false,
+				[
+					'path'  => '/a',
+					'algos' => [ 'sha1' ],
+					'trash' => true,
+				],
+			)['trash'],
+		);
 	}
 
 	/**

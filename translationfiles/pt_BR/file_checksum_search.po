@@ -42,6 +42,9 @@ msgstr "(não está nos seus arquivos)"
 msgid "A disabled rule cannot be applied — enable it first."
 msgstr "Uma regra desativada não pode ser aplicada — ative-a primeiro."
 
+msgid "A file keeps its checksums in the trash, under the rule of the place it was deleted from. When set, files in the trash without any, such as those deleted before checksums were kept, are read and hashed as well."
+msgstr "Um arquivo mantém suas somas de verificação na lixeira, sob a regra do seu local original. Com esta opção ativada, os arquivos da lixeira sem nenhuma, como os excluídos antes de as somas de verificação serem guardadas, também são lidos e têm suas somas de verificação calculadas."
+
 #. TRANSLATORS: "Security" and "Allow filesystem access" are Nextcloud's own names; use Nextcloud's translations. Keep /api/v1/sudo/ as it is
 msgid "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password. A grant stays in force until it is revoked, and every administrator can see it. Create the app password under \"Security\" first, with \"Allow filesystem access\" on. Whether you may look across accounts at all is still up to your administrator; a grant replaces the password prompt, not the permission."
 msgstr "Uma senha de aplicativo com acesso concedido pode ler dados de outras contas pelas rotas /api/v1/sudo/ sem que ninguém digite uma senha. Uma concessão vale até ser revogada, e todos os administradores podem vê-la. Crie primeiro a senha de aplicativo em “Segurança”, com a opção “Permitir acesso ao sistema de arquivos” ativada. Se você pode ou não consultar outras contas continua sendo decisão do seu administrador; uma concessão substitui a solicitação de senha, não a permissão."
@@ -141,6 +144,9 @@ msgstr "Algoritmos permitidos"
 
 msgid "Also hash the older versions of these files"
 msgstr "Calcular também as somas de verificação das versões anteriores destes arquivos"
+
+msgid "Also hash these files in the trash"
+msgstr "Calcular também as somas de verificação destes arquivos na lixeira"
 
 #. TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
 #, php-format
@@ -580,9 +586,9 @@ msgstr "Ajuda: {label}"
 msgid "How a file gets its checksums. \"Auto\" computes them for a file without current ones, new or changed, \"Missing\" also adds one the file lacks, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
 msgstr "Como um arquivo obtém suas somas de verificação. “Automático” as calcula para um arquivo sem somas de verificação atualizadas, seja novo ou modificado, “Ausentes” também adiciona as que o arquivo ainda não tem, “Forçar” exclui e recalcula todas, e “Adiado” as exclui agora e deixa uma execução posterior recalculá-las."
 
-#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, "+ versions" what it shows beside one, and "—" what it shows for a rule that computes nothing; keep them
-msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. \"+ versions\" beside the mode: the rule also hashes the older versions of its files. Shown as \"—\" for a rule that computes nothing."
-msgstr "Como um arquivo obtém suas somas de verificação. \"auto\" as calcula para um arquivo sem somas de verificação atualizadas, seja novo ou modificado, \"missing\" também adiciona as que o arquivo ainda não tem, \"force\" exclui e recalcula todas, e \"lazy\" as exclui agora e deixa uma execução posterior recalculá-las. \"+ versions\" ao lado do modo: a regra também calcula as somas de verificação das versões anteriores dos seus arquivos. Exibido como \"—\" para uma regra que não calcula nada."
+#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, "+ versions" and "+ trash" what it shows beside one, and "—" what it shows for a rule that computes nothing; keep them
+msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. \"+ versions\" beside the mode: the rule also hashes the older versions of its files; \"+ trash\": its files in the trash. Shown as \"—\" for a rule that computes nothing."
+msgstr "Como um arquivo obtém suas somas de verificação. \"auto\" as calcula para um arquivo sem somas de verificação atualizadas, seja novo ou modificado, \"missing\" também adiciona as que o arquivo ainda não tem, \"force\" exclui e recalcula todas, e \"lazy\" as exclui agora e deixa uma execução posterior recalculá-las. \"+ versions\" ao lado do modo: a regra também calcula as somas de verificação das versões anteriores dos seus arquivos; \"+ trash\": as dos seus arquivos na lixeira. Exibido como \"—\" para uma regra que não calcula nada."
 
 msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr "Quantos grupos uma página mostra. Nada aqui é lido do disco até que você verifique um grupo ou um arquivo, então uma página maior custa uma consulta mais longa, não leituras mais longas."
@@ -1187,6 +1193,10 @@ msgstr "Os que não têm nenhum"
 
 msgid "Total: {count}"
 msgstr "Total: {count}"
+
+#. TRANSLATORS a field's label in the rule form: the trash, where deleted files are kept until it is emptied
+msgid "Trash"
+msgstr "Lixeira"
 
 msgid "Tunables"
 msgstr "Ajustes finos"

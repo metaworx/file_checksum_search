@@ -1973,6 +1973,80 @@ class RuleServiceTest
 		$this->assertSame( 0, $this->service->processRule( $rule )['marked'] );
 	}
 
+	/**
+	 * A rule that hashes the trash sweeps it too, judged at the places its
+	 * files had: a trashed file once below its glob is queued, one once
+	 * outside it and one whose record is gone are not, and the page's
+	 * places are read in one query. A rule that does not sweeps none.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testARuleThatHashesTheTrashSweepsItAtThePlacesItsFilesHad(): void
+	{
+		$rule = [
+			'id'       => 'docs',
+			'enabled'  => true,
+			'selector' => 'home:alice',
+			'path'     => 'Docs/**',
+			'mode'     => 'auto',
+			'trash'    => true,
+		];
+		$this->setupRulesConfig( [ $rule ] );
+
+		$inDocs  = FileLocation::fromRow( 1, 'home::alice', 'files_trashbin/files/a.txt.d1700000000', 1 );
+		$outside = FileLocation::fromRow( 2, 'home::alice', 'files_trashbin/files/b.txt.d1700000000', 1 );
+		$gone    = FileLocation::fromRow( 3, 'home::alice', 'files_trashbin/files/c.txt.d1700000000', 1 );
+		$this->stubSweep( $inDocs, $outside, $gone );
+
+		$this->filecacheService->expects( $this->once() )
+		                       ->method( 'originsOfTrash' )
+		                       ->with( [
+			                       $inDocs,
+			                       $outside,
+			                       $gone,
+		                       ] )
+		                       ->willReturn( [
+			                       1 => $this->homeLocation( 1, 'alice', '/Docs/a.txt' ),
+			                       2 => $this->homeLocation( 2, 'alice', '/Other/b.txt' ),
+		                       ] )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 1, MetadataService::PENDING_PREFIX . 'auto' )
+		;
+
+		$this->assertSame( 1, $this->service->processRule( $rule )['marked'] );
+	}
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testARuleThatDoesNotHashTheTrashSweepsNone(): void
+	{
+		$rule = [
+			'id'       => 'docs',
+			'enabled'  => true,
+			'selector' => 'home:alice',
+			'path'     => '**',
+			'mode'     => 'auto',
+		];
+		$this->stubSweep( FileLocation::fromRow( 1, 'home::alice', 'files_trashbin/files/a.txt.d1700000000', 1 ) );
+
+		$this->filecacheService->expects( $this->never() )->method( 'originsOfTrash' );
+		$this->metadataService->expects( $this->never() )->method( 'markPending' );
+
+		$this->assertSame( 0, $this->service->processRule( $rule )['marked'] );
+	}
+
+	public function testOnlyAnIncludeRuleThatSaysSoHashesTheTrash(): void
+	{
+		$this->assertTrue( RuleService::hashesTrash( [ 'trash' => true ] ) );
+		$this->assertFalse( RuleService::hashesTrash( [ 'type' => 'include' ] ) );
+		$this->assertFalse( RuleService::hashesTrash( [ 'type' => 'ignore', 'trash' => true ] ) );
+		$this->assertFalse( RuleService::hashesTrash( null ) );
+	}
+
 	public function testOnlyAnIncludeRuleThatSaysSoHashesVersions(): void
 	{
 		$this->assertTrue( RuleService::hashesVersions( [ 'versions' => true ] ) );

@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Service;
 
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\Files_Trashbin\Trash\ITrashManager;
 use OCA\Files_Versions\Versions\IVersionManager;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Encryption\IManager as IEncryptionManager;
@@ -83,7 +84,7 @@ class FilecacheService
 			return $file;
 		}
 
-		$node = $this->rootFolder->getFirstNodeById( $file ) ?? $this->versionNode( $file );
+		$node = $this->rootFolder->getFirstNodeById( $file ) ?? $this->unmountedNode( $file );
 
 		if ( $node instanceof File )
 		{
@@ -97,17 +98,31 @@ class FilecacheService
 //  other non-static methods
 
 	/**
-	 * A version the root folder cannot reach by its id, opened through the
-	 * versions app, or null: a team folder's lies outside the folder's
-	 * `files` jail that accounts mount. Asked as an account its file is
-	 * mounted for, as the versions app asks; null too where the app is not
-	 * there to ask.
+	 * A file the root folder cannot reach by its id, or null: a team
+	 * folder's version or trashed file, which lie outside the folder's
+	 * `files` jail that accounts mount.
+	 *
+	 * @throws \OCP\DB\Exception
 	 */
-	private function versionNode( int $fileId ): ?File
+	private function unmountedNode( int $fileId ): ?File
 	{
 		$location = $this->locate( $fileId );
-		$version  = $location?->version;
-		$file     = $location === null || $version === null
+
+		return $location === null
+			? null
+			: $this->versionNode( $location ) ?? $this->trashNode( $location );
+	}
+
+	/**
+	 * A version opened through the versions app, or null. Asked as an
+	 * account its file is mounted for, as the versions app asks; null too
+	 * where the app is not there to ask.
+	 */
+	private function versionNode( FileLocation $location ): ?File
+	{
+		$fileId   = $location->fileId;
+		$version  = $location->version;
+		$file     = $version === null
 			? null
 			: $this->filesOfVersions( [ $location ] )[ $fileId ] ?? null;
 		$fileNode = $file === null
@@ -127,6 +142,41 @@ class FilecacheService
 			$node = $user === null
 				? null
 				: Server::get( IVersionManager::class )->getVersionFile( $user, $fileNode, $version->timestamp );
+		}
+		catch ( Throwable )
+		{
+			return null;
+		}
+
+		return $node instanceof File && $node->getId() === $fileId
+			? $node
+			: null;
+	}
+
+	/**
+	 * A team folder's trashed file opened through the trash app, or null.
+	 * Asked as the account that deleted it, by the folder's trash records;
+	 * null where they do not say, as an older team folders app's do not, and
+	 * where the app is not there to ask.
+	 */
+	private function trashNode( FileLocation $location ): ?File
+	{
+		$fileId = $location->fileId;
+
+		if ( $location->trash === null || $location->namespace !== FileLocation::NS_GROUPFOLDER || ! interface_exists( ITrashManager::class ) )
+		{
+			return null;
+		}
+
+		try
+		{
+			$uid  = $this->trashRecords( 'group_folders_trash', 'folder_id', 'name', 'deleted_time', 'deleted_by', [ $fileId => $location ], static fn ( FileLocation $item ): int => (int) $item->groupFolderId )[ $fileId ] ?? '';
+			$user = $uid === ''
+				? null
+				: $this->userManager->get( $uid );
+			$node = $user === null
+				? null
+				: Server::get( ITrashManager::class )->getTrashNodeById( $user, $fileId );
 		}
 		catch ( Throwable )
 		{
@@ -1388,7 +1438,7 @@ class FilecacheService
 
 		if ( empty( $nodes ) )
 		{
-			return $this->versionNode( $fileId )
+			return $this->unmountedNode( $fileId )
 				?? throw new NotFoundException( "Invalid file ID: $fileId" );
 		}
 

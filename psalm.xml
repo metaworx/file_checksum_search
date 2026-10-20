@@ -50,6 +50,8 @@
 				<referencedClass name="OC\FilesMetadata\FilesMetadataManager" />
 				<!-- FilecacheService: the versions app's manager, which alone opens a team folder's version; used only where the app is there. -->
 				<referencedClass name="OCA\Files_Versions\Versions\IVersionManager" />
+				<!-- FilecacheService: the trash app's manager, which alone opens a team folder's trashed file; used only where the app is there. -->
+				<referencedClass name="OCA\Files_Trashbin\Trash\ITrashManager" />
 				<!-- FileListener: the versions app's event for a restored version, which only that app dispatches. -->
 				<referencedClass name="OCA\Files_Versions\Events\VersionRestoredEvent" />
 				<!-- FileListener: the trash app's event for a restored file, which only that app dispatches. -->
@@ -62,6 +64,8 @@
 				<referencedClass name="OC\User\NoUserException" />
 				<!-- FilecacheService: the versions app's manager, as Server::get() hands it back (UndefinedClass above). -->
 				<referencedClass name="OCA\Files_Versions\Versions\IVersionManager" />
+				<!-- FilecacheService: the trash app's manager, as Server::get() hands it back (UndefinedClass above). -->
+				<referencedClass name="OCA\Files_Trashbin\Trash\ITrashManager" />
 				<!-- The migrations: what ISchemaWrapper hands back. -->
 				<referencedClass name="Doctrine\DBAL\Schema\Table" />
 			</errorLevel>

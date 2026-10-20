@@ -111,8 +111,8 @@ const COLUMNS: Array<{ key: string, label: string, help: string }> = [
 	{
 		key: 'mode',
 		label: t('file_checksum_search', 'Mode'),
-		// TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, "+ versions" what it shows beside one, and "—" what it shows for a rule that computes nothing; keep them
-		help: t('file_checksum_search', 'How a file gets its checksums. "auto" computes them for a file without current ones, new or changed, "missing" also adds one the file lacks, "force" deletes and recalculates all of them, and "lazy" deletes them now and lets a later run recalculate them. "+ versions" beside the mode: the rule also hashes the older versions of its files. Shown as "—" for a rule that computes nothing.'),
+		// TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, "+ versions" and "+ trash" what it shows beside one, and "—" what it shows for a rule that computes nothing; keep them
+		help: t('file_checksum_search', 'How a file gets its checksums. "auto" computes them for a file without current ones, new or changed, "missing" also adds one the file lacks, "force" deletes and recalculates all of them, and "lazy" deletes them now and lets a later run recalculate them. "+ versions" beside the mode: the rule also hashes the older versions of its files; "+ trash": its files in the trash. Shown as "—" for a rule that computes nothing.'),
 	},
 	{
 		key: 'status',

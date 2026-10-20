@@ -158,6 +158,16 @@ describe('RuleRow', () => {
 		expect(plain.findAll('td')[COL.mode].text()).toBe('auto')
 	})
 
+	it('marks a rule that hashes the trash beside its mode, after the versions', () => {
+		const trash = mount(RuleRow, { props: { rule: makeRule({ trash: true }), variant: 'admin' } })
+		const both = mount(RuleRow, { props: { rule: makeRule({ versions: true, trash: true }), variant: 'admin' } })
+		const ignore = mount(RuleRow, { props: { rule: makeRule({ type: 'ignore', trash: true }), variant: 'admin' } })
+
+		expect(trash.findAll('td')[COL.mode].text()).toBe('auto+ trash')
+		expect(both.findAll('td')[COL.mode].text()).toBe('auto+ versions+ trash')
+		expect(ignore.findAll('td')[COL.mode].text()).toBe('—')
+	})
+
 	it('treats a rule with no type as include', () => {
 		const wrapper = mount(RuleRow, { props: { rule: makeRule(), variant: 'admin' } })
 

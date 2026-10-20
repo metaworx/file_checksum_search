@@ -40,6 +40,9 @@ msgstr "（あなたのファイルにはありません）"
 msgid "A disabled rule cannot be applied — enable it first."
 msgstr "無効なルールは適用できません。先に有効にしてください。"
 
+msgid "A file keeps its checksums in the trash, under the rule of the place it was deleted from. When set, files in the trash without any, such as those deleted before checksums were kept, are read and hashed as well."
+msgstr "ファイルはゴミ箱の中でもチェックサムを保持し、削除される前の場所のルールに従います。設定すると、チェックサムを保持し始める前に削除されたものなど、チェックサムのないゴミ箱内のファイルも読み取ってチェックサムを計算します。"
+
 #. TRANSLATORS: "Security" and "Allow filesystem access" are Nextcloud's own names; use Nextcloud's translations. Keep /api/v1/sudo/ as it is
 msgid "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password. A grant stays in force until it is revoked, and every administrator can see it. Create the app password under \"Security\" first, with \"Allow filesystem access\" on. Whether you may look across accounts at all is still up to your administrator; a grant replaces the password prompt, not the permission."
 msgstr "承認されたアプリパスワードは、誰もパスワードを入力することなく、/api/v1/sudo/ のルートを通じてアカウントを横断して読み取ることができます。承認は取り消されるまで有効であり、すべての管理者が確認できます。まず「セキュリティ」で、「ファイルシステムへのアクセスを許可」をオンにしてアプリパスワードを作成してください。そもそもアカウントを横断して閲覧できるかどうかは、引き続き管理者が決めます。承認が置き換えるのはパスワードの入力要求であり、権限ではありません。"
@@ -139,6 +142,9 @@ msgstr "許可されたアルゴリズム"
 
 msgid "Also hash the older versions of these files"
 msgstr "これらのファイルの古いバージョンのチェックサムも計算する"
+
+msgid "Also hash these files in the trash"
+msgstr "ゴミ箱内のこれらのファイルのチェックサムも計算する"
 
 #. TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
 #, php-format
@@ -576,9 +582,9 @@ msgstr "ヘルプ：{label}"
 msgid "How a file gets its checksums. \"Auto\" computes them for a file without current ones, new or changed, \"Missing\" also adds one the file lacks, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
 msgstr "ファイルにチェックサムを付ける方法です。「自動」は最新のチェックサムがないファイル（新規または変更されたファイル）のチェックサムを計算し、「欠落分」はファイルに欠けているものも追加し、「全件」はすべてを削除して再計算し、「遅延」は今すぐ削除して後の実行で再計算させます。"
 
-#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, "+ versions" what it shows beside one, and "—" what it shows for a rule that computes nothing; keep them
-msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. \"+ versions\" beside the mode: the rule also hashes the older versions of its files. Shown as \"—\" for a rule that computes nothing."
-msgstr "ファイルにチェックサムを付ける方法です。\"auto\"は最新のチェックサムがないファイル（新規または変更されたファイル）のチェックサムを計算し、\"missing\"はファイルに欠けているものも追加し、\"force\"はすべてを削除して再計算し、\"lazy\"は今すぐ削除して後の実行で再計算させます。モードの横の\"+ versions\"は、そのルールがファイルの古いバージョンのチェックサムも計算することを示します。何も計算しないルールでは\"—\"と表示されます。"
+#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, "+ versions" and "+ trash" what it shows beside one, and "—" what it shows for a rule that computes nothing; keep them
+msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. \"+ versions\" beside the mode: the rule also hashes the older versions of its files; \"+ trash\": its files in the trash. Shown as \"—\" for a rule that computes nothing."
+msgstr "ファイルにチェックサムを付ける方法です。\"auto\"は最新のチェックサムがないファイル（新規または変更されたファイル）のチェックサムを計算し、\"missing\"はファイルに欠けているものも追加し、\"force\"はすべてを削除して再計算し、\"lazy\"は今すぐ削除して後の実行で再計算させます。モードの横の\"+ versions\"は、そのルールがファイルの古いバージョンのチェックサムも計算することを、\"+ trash\"はゴミ箱内のファイルのチェックサムも計算することを示します。何も計算しないルールでは\"—\"と表示されます。"
 
 msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr "1ページに表示する重複グループの数です。重複グループまたはファイルを検証するまで、ディスクからは何も読み取られません。そのため、ページを大きくしても、長くなるのはクエリの時間だけで、読み取りの時間ではありません。"
@@ -1179,6 +1185,10 @@ msgstr "未検出のファイルのみ"
 
 msgid "Total: {count}"
 msgstr "合計：{count}"
+
+#. TRANSLATORS a field's label in the rule form: the trash, where deleted files are kept until it is emptied
+msgid "Trash"
+msgstr "ゴミ箱"
 
 msgid "Tunables"
 msgstr "調整項目"

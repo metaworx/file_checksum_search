@@ -43,6 +43,9 @@ msgstr "(poza Twoimi plikami)"
 msgid "A disabled rule cannot be applied — enable it first."
 msgstr "Wyłączonej reguły nie można zastosować – najpierw ją włącz."
 
+msgid "A file keeps its checksums in the trash, under the rule of the place it was deleted from. When set, files in the trash without any, such as those deleted before checksums were kept, are read and hashed as well."
+msgstr "Plik zachowuje sumy kontrolne w koszu, zgodnie z regułą swojej pierwotnej lokalizacji. Gdy zaznaczone, także pliki w koszu bez sum kontrolnych, na przykład usunięte, zanim zaczęto je zapisywać, są odczytywane i obliczane są ich sumy kontrolne."
+
 #. TRANSLATORS: "Security" and "Allow filesystem access" are Nextcloud's own names; use Nextcloud's translations. Keep /api/v1/sudo/ as it is
 msgid "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password. A grant stays in force until it is revoked, and every administrator can see it. Create the app password under \"Security\" first, with \"Allow filesystem access\" on. Whether you may look across accounts at all is still up to your administrator; a grant replaces the password prompt, not the permission."
 msgstr "Upoważnione hasło aplikacji może odczytywać pliki innych kont przez trasy /api/v1/sudo/, a nikt nie musi przy tym wpisywać hasła. Upoważnienie obowiązuje, dopóki nie zostanie cofnięte, i widzi je każdy administrator. Najpierw utwórz hasło aplikacji w sekcji „Bezpieczeństwo”, z włączoną opcją „Zezwalaj na dostęp do systemu plików”. To, czy w ogóle możesz mieć wgląd w inne konta, nadal zależy od administratora; upoważnienie zastępuje pytanie o hasło, a nie uprawnienie."
@@ -142,6 +145,9 @@ msgstr "Dozwolone algorytmy"
 
 msgid "Also hash the older versions of these files"
 msgstr "Obliczaj też sumy kontrolne starszych wersji tych plików"
+
+msgid "Also hash these files in the trash"
+msgstr "Obliczaj też sumy kontrolne tych plików w koszu"
 
 #. TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
 #, php-format
@@ -582,9 +588,9 @@ msgstr "Pomoc: {label}"
 msgid "How a file gets its checksums. \"Auto\" computes them for a file without current ones, new or changed, \"Missing\" also adds one the file lacks, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
 msgstr "Jak plik otrzymuje sumy kontrolne. „Automatycznie” oblicza je dla nowego lub zmienionego pliku bez aktualnych sum, „Brakujące” dodaje też taką, której plikowi brakuje, „Od nowa” usuwa i przelicza wszystkie, a „Później” usuwa je teraz i zostawia ich przeliczenie późniejszemu przebiegowi."
 
-#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, "+ versions" what it shows beside one, and "—" what it shows for a rule that computes nothing; keep them
-msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. \"+ versions\" beside the mode: the rule also hashes the older versions of its files. Shown as \"—\" for a rule that computes nothing."
-msgstr "Jak plik otrzymuje sumy kontrolne. \"auto\" oblicza je dla nowego lub zmienionego pliku bez aktualnych sum, \"missing\" dodaje też taką, której plikowi brakuje, \"force\" usuwa i przelicza wszystkie, a \"lazy\" usuwa je teraz i zostawia ich przeliczenie późniejszemu przebiegowi. \"+ versions\" obok trybu: reguła oblicza też sumy kontrolne starszych wersji swoich plików. Dla reguły, która niczego nie oblicza, wyświetlane jest \"—\"."
+#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, "+ versions" and "+ trash" what it shows beside one, and "—" what it shows for a rule that computes nothing; keep them
+msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. \"+ versions\" beside the mode: the rule also hashes the older versions of its files; \"+ trash\": its files in the trash. Shown as \"—\" for a rule that computes nothing."
+msgstr "Jak plik otrzymuje sumy kontrolne. \"auto\" oblicza je dla nowego lub zmienionego pliku bez aktualnych sum, \"missing\" dodaje też taką, której plikowi brakuje, \"force\" usuwa i przelicza wszystkie, a \"lazy\" usuwa je teraz i zostawia ich przeliczenie późniejszemu przebiegowi. \"+ versions\" obok trybu: reguła oblicza też sumy kontrolne starszych wersji swoich plików; \"+ trash\": swoich plików w koszu. Dla reguły, która niczego nie oblicza, wyświetlane jest \"—\"."
 
 msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr "Ile grup pokazuje jedna strona. Nic nie jest tu odczytywane z dysku, dopóki nie zweryfikujesz grupy lub pliku, więc większa strona oznacza dłuższe zapytanie, a nie dłuższe odczyty."
@@ -1191,6 +1197,10 @@ msgstr "Te bez typu MIME"
 
 msgid "Total: {count}"
 msgstr "Łącznie: {count}"
+
+#. TRANSLATORS a field's label in the rule form: the trash, where deleted files are kept until it is emptied
+msgid "Trash"
+msgstr "Kosz"
 
 msgid "Tunables"
 msgstr "Dostrajanie"

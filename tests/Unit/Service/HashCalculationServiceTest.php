@@ -668,6 +668,42 @@ class HashCalculationServiceTest
 	}
 
 	/**
+	 * Where its place's rule hashes the trash, a trashed file is read as a
+	 * file is, with the rule's algorithms.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testProcessFileHashesATrashedFileWhereItsRuleHashesTheTrash(): void
+	{
+		$this->metadataService->method( 'getMetadata' )
+		                      ->willReturn( $this->createMock( IFilesMetadata::class ) )
+		;
+		$this->filecacheService->method( 'getFile' )
+		                       ->willReturn( $this->createMock( File::class ) )
+		;
+		$this->filecacheService->method( 'locate' )
+		                       ->with( 42 )
+		                       ->willReturn( FileLocation::fromRow( 42, 'home::alice', 'files_trashbin/files/a.txt.d1700000000', 1 ) )
+		;
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn( [
+			                  'id'    => 'docs',
+			                  'type'  => 'include',
+			                  'algos' => [ 'sha1' ],
+			                  'trash' => true,
+		                  ] )
+		;
+
+		$service = $this->createCollectingServiceMock();
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->willReturn( $this->oneSuccess( 'sha1' ) )
+		;
+
+		$service->processFile( 42, 'force' );
+	}
+
+	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testProcessFileDropsTheMarkWhenNoRuleMatchesAtAll(): void

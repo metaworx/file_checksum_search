@@ -87,6 +87,18 @@ describe('useRules', () => {
 		expect(call(0).body).toHaveProperty('versions', true)
 	})
 
+	it('sends the trash switch only where the draft says, so a rule keeps its own', async () => {
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ success: true, rules: [] }))
+		const { saveRule } = useRules('all')
+
+		await saveRule({ id: 'abc', path: '/a', mode: 'auto', algos: ['sha1'], selector: 'home:*', admin_enforced: false })
+		expect(call(0).body).not.toHaveProperty('trash')
+
+		vi.mocked(globalThis.fetch).mockClear()
+		await saveRule({ id: 'abc', path: '/a', mode: 'auto', algos: ['sha1'], selector: 'home:*', admin_enforced: false, trash: true })
+		expect(call(0).body).toHaveProperty('trash', true)
+	})
+
 	it('deletes with DELETE and no body', async () => {
 		vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ success: true, rules: [] }))
 

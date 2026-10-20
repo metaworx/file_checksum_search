@@ -369,6 +369,7 @@ function toDraft(rule: Rule): RuleDraft {
 		selector: rule.selector,
 		admin_enforced: rule.admin_enforced,
 		versions: rule.versions === true,
+		trash: rule.trash === true,
 	}
 }
 

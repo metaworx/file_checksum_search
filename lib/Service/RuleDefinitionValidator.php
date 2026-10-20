@@ -133,6 +133,9 @@ readonly class RuleDefinitionValidator
 		// too. Off, a version gets only the hashes its file held when it was
 		// overwritten.
 		$definition['versions'] = (bool) ( $body['versions'] ?? $existing['versions'] ?? false );
+		// The files it governs are read and hashed in the trash too, where
+		// they hold none. Off, a trashed file keeps what it had.
+		$definition['trash'] = (bool) ( $body['trash'] ?? $existing['trash'] ?? false );
 
 		return $definition;
 	}

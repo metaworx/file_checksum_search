@@ -16,6 +16,8 @@ the first stable release.
 - `docs/api-v1.md`, *The trash*: a file in the trash, and a version of
   one, is listed, looked up and grouped as a duplicate where it was,
   under `trash://`, marked with `trash`.
+- `README.md`, *The trash*: a rule's *Trash* switch has the queue hash
+  the files in the trash it governs that hold no checksum.
 
 ### Changed
 

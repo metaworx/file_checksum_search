@@ -40,6 +40,9 @@ msgstr "（不在您的文件中）"
 msgid "A disabled rule cannot be applied — enable it first."
 msgstr "已禁用的规则无法应用，请先启用它。"
 
+msgid "A file keeps its checksums in the trash, under the rule of the place it was deleted from. When set, files in the trash without any, such as those deleted before checksums were kept, are read and hashed as well."
+msgstr "文件在回收站中保留其校验和，并遵循其原位置的规则。设置后，回收站中没有校验和的文件（例如在开始保留校验和之前删除的文件）也会被读取并计算校验和。"
+
 #. TRANSLATORS: "Security" and "Allow filesystem access" are Nextcloud's own names; use Nextcloud's translations. Keep /api/v1/sudo/ as it is
 msgid "A granted app password may read across accounts through the /api/v1/sudo/ routes without anyone typing a password. A grant stays in force until it is revoked, and every administrator can see it. Create the app password under \"Security\" first, with \"Allow filesystem access\" on. Whether you may look across accounts at all is still up to your administrator; a grant replaces the password prompt, not the permission."
 msgstr "已授权的应用密码可以通过 /api/v1/sudo/ 路由跨账号读取，无需任何人输入密码。授权在撤销之前一直有效，所有管理员都能看到它。请先在“安全”中创建应用密码，并开启“允许访问文件系统”。您究竟能否跨账号查看，仍由您的管理员决定；授权取代的是密码提示，而不是权限。"
@@ -139,6 +142,9 @@ msgstr "允许的算法"
 
 msgid "Also hash the older versions of these files"
 msgstr "同时计算这些文件旧版本的校验和"
+
+msgid "Also hash these files in the trash"
+msgstr "同时计算回收站中这些文件的校验和"
 
 #. TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
 #, php-format
@@ -576,9 +582,9 @@ msgstr "帮助：{label}"
 msgid "How a file gets its checksums. \"Auto\" computes them for a file without current ones, new or changed, \"Missing\" also adds one the file lacks, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
 msgstr "文件如何获得校验和。“自动”为没有最新校验和的文件（新文件或已更改的文件）计算校验和，“补缺”还会补上文件缺少的校验和，“重建”会删除并重新计算全部校验和，“延后”则立即删除它们，留待之后的运行重新计算。"
 
-#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, "+ versions" what it shows beside one, and "—" what it shows for a rule that computes nothing; keep them
-msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. \"+ versions\" beside the mode: the rule also hashes the older versions of its files. Shown as \"—\" for a rule that computes nothing."
-msgstr "文件如何获得校验和。\"auto\" 为没有最新校验和的文件（新文件或已更改的文件）计算校验和，\"missing\" 还会补上文件缺少的校验和，\"force\" 会删除并重新计算全部校验和，\"lazy\" 则立即删除它们，留待之后的运行重新计算。模式旁的 \"+ versions\" 表示该规则也计算其文件旧版本的校验和。不计算任何内容的规则显示为 \"—\"。"
+#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, "+ versions" and "+ trash" what it shows beside one, and "—" what it shows for a rule that computes nothing; keep them
+msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. \"+ versions\" beside the mode: the rule also hashes the older versions of its files; \"+ trash\": its files in the trash. Shown as \"—\" for a rule that computes nothing."
+msgstr "文件如何获得校验和。\"auto\" 为没有最新校验和的文件（新文件或已更改的文件）计算校验和，\"missing\" 还会补上文件缺少的校验和，\"force\" 会删除并重新计算全部校验和，\"lazy\" 则立即删除它们，留待之后的运行重新计算。模式旁的 \"+ versions\" 表示该规则也计算其文件旧版本的校验和，\"+ trash\" 表示也计算其回收站中文件的校验和。不计算任何内容的规则显示为 \"—\"。"
 
 msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr "每页显示多少个文件组。在您验证某个文件组或文件之前，这里不会从磁盘读取任何内容，因此页面越大，只会让查询更久，而不会让读取更久。"
@@ -1179,6 +1185,10 @@ msgstr "仅尚未检测的文件"
 
 msgid "Total: {count}"
 msgstr "总计：{count}"
+
+#. TRANSLATORS a field's label in the rule form: the trash, where deleted files are kept until it is emptied
+msgid "Trash"
+msgstr "回收站"
 
 msgid "Tunables"
 msgstr "可调参数"

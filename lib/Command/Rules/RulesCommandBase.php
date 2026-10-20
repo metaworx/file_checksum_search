@@ -98,6 +98,12 @@ abstract class RulesCommandBase
 				InputOption::VALUE_NEGATABLE,
 				'Read and hash the older versions of the files it governs, too. Include rules only.',
 			)
+			->addOption(
+				'trash',
+				null,
+				InputOption::VALUE_NEGATABLE,
+				'Read and hash the files it governs in the trash, too, where they hold no checksum. Include rules only.',
+			)
 			->addOption( 'enforced', null, InputOption::VALUE_NEGATABLE, 'Users may not override or disable this rule' )
 			->addOption( 'enable', null, InputOption::VALUE_NONE, 'Create or leave the rule enabled' )
 			->addOption( 'disable', null, InputOption::VALUE_NONE, 'Create or leave the rule disabled' )
@@ -180,6 +186,11 @@ abstract class RulesCommandBase
 			$payload['versions'] = (bool) $input->getOption( 'versions' );
 		}
 
+		if ( $input->getOption( 'trash' ) !== null )
+		{
+			$payload['trash'] = (bool) $input->getOption( 'trash' );
+		}
+
 		if ( $input->getOption( 'enforced' ) !== null )
 		{
 			$payload['admin_enforced'] = (bool) $input->getOption( 'enforced' );
@@ -242,6 +253,11 @@ abstract class RulesCommandBase
 				: '—',
 			'versions' => $computes
 				? ( empty( $rule['versions'] )
+					? 'no'
+					: 'yes' )
+				: '—',
+			'trash'    => $computes
+				? ( empty( $rule['trash'] )
 					? 'no'
 					: 'yes' )
 				: '—',

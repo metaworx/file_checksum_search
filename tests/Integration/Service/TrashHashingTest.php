@@ -1,0 +1,254 @@
+<?php
+
+declare( strict_types=1 );
+
+/**
+ * @copyright Copyright (c) 2026 metaworx
+ * @license   AGPL-3.0-or-later
+ */
+
+namespace OCA\FileChecksumSearch\Tests\Integration\Service;
+
+use OCA\FileChecksumSearch\Service\HashCalculationService;
+use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\FileChecksumSearch\Service\RuleService;
+use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
+use OCA\GroupFolders\Folder\FolderManager;
+use OCP\App\IAppManager;
+use OCP\Files\Folder;
+use OCP\Files\IRootFolder;
+use OCP\IGroupManager;
+use OCP\IUserManager;
+use OCP\Server;
+use Throwable;
+
+/**
+ * A rule that hashes the trash has the queue read the files in it that it
+ * governs, judged at the places they had, which hold no checksum because
+ * they were deleted before any rule governed them; one that does not leaves
+ * them alone.
+ */
+class TrashHashingTest
+    extends
+    DatabaseTestCase
+{
+
+//  private properties
+
+	private static string $uid;
+
+	private static ?int $folderId = null;
+
+	private static ?string $gid = null;
+
+	private RuleService $ruleService;
+
+
+//  static methods
+
+	public static function setUpBeforeClass(): void
+	{
+		parent::setUpBeforeClass();
+
+		$apps = Server::get( IAppManager::class );
+
+		if ( ! $apps->isEnabledForUser( 'files_trashbin' ) )
+		{
+			self::markTestSkipped( 'FCIAS integration: the files_trashbin app is not enabled on this instance.' );
+		}
+
+		$apps->loadApp( 'files_trashbin' );
+
+		[ self::$uid ] = self::makeAccount( 'fcias_thash' );
+
+		if ( $apps->isEnabledForUser( 'groupfolders' ) )
+		{
+			$apps->loadApp( 'groupfolders' );
+
+			self::$gid = 'fcias_thash_' . bin2hex( random_bytes( 4 ) );
+			Server::get( IGroupManager::class )
+			      ->createGroup( self::$gid )
+			      ?->addUser( Server::get( IUserManager::class )->get( self::$uid ) )
+			;
+
+			$folders        = Server::get( FolderManager::class );
+			self::$folderId = $folders->createFolder( self::$gid );
+			$folders->addApplicableGroup( self::$folderId, self::$gid );
+		}
+	}
+
+	public static function tearDownAfterClass(): void
+	{
+		if ( self::$folderId !== null )
+		{
+			try
+			{
+				Server::get( FolderManager::class )->removeFolder( self::$folderId );
+			}
+			catch ( Throwable )
+			{
+				// Left for the instance's own cleanup.
+			}
+
+			self::$folderId = null;
+		}
+
+		if ( self::$gid !== null )
+		{
+			Server::get( IGroupManager::class )->get( self::$gid )?->delete();
+			self::$gid = null;
+		}
+
+		parent::tearDownAfterClass();
+	}
+
+
+//  getters / setters / is* / has*
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	protected function setUp(): void
+	{
+		parent::setUp();
+
+		$this->ruleService = Server::get( RuleService::class );
+
+		$this->preserveStoredRules();
+
+		foreach ( $this->ruleService->loadRules() as $rule )
+		{
+			$this->ruleService->ruleDelete( (string) $rule['id'] );
+		}
+
+		self::actAs( self::$uid );
+	}
+
+
+//  other non-static methods
+
+	protected function tearDown(): void
+	{
+		self::actAs( null );
+
+		parent::tearDown();
+	}
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testARuleThatHashesTheTrashHasTheQueueReadIt(): void
+	{
+		$fileId = $this->unhashedInTheTrash( $this->home(), 'Docs', 'a.txt' );
+		$rule   = $this->rule( 'home:' . self::$uid, 'Docs/**', trash: true );
+
+		$this->ruleService->processRule( $rule );
+
+		$this->assertSame( MetadataService::PENDING_PREFIX . 'auto', Server::get( MetadataService::class )->getMarker( $fileId ) );
+
+		Server::get( HashCalculationService::class )->processFile( $fileId, MetadataService::PENDING_MODE_AUTO );
+
+		$this->assertSame( sha1( 'content a.txt' ), Server::get( MetadataService::class )->getHashes( $fileId )['sha1'] ?? null );
+	}
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testARuleThatDoesNotLeavesItUnread(): void
+	{
+		$fileId = $this->unhashedInTheTrash( $this->home(), 'Plain', 'b.txt' );
+		$rule   = $this->rule( 'home:' . self::$uid, 'Plain/**', trash: false );
+
+		$this->ruleService->processRule( $rule );
+
+		$this->assertNull( Server::get( MetadataService::class )->getMarker( $fileId ) );
+	}
+
+	/**
+	 * A team folder's trash lies outside the folder's `files` jail: the queue
+	 * opens it all the same.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testATeamFoldersTrashIsReadToo(): void
+	{
+		if ( self::$folderId === null || self::$gid === null )
+		{
+			$this->markTestSkipped( 'FCIAS integration: the groupfolders app is not enabled on this instance.' );
+		}
+
+		$team = $this->home()->get( self::$gid );
+		$this->assertInstanceOf( Folder::class, $team );
+
+		$fileId = $this->unhashedInTheTrash( $team, 'plans', 'c.md' );
+		$rule   = $this->rule( 'groupfolder:' . self::$folderId, 'plans/**', trash: true );
+
+		$this->ruleService->processRule( $rule );
+
+		$this->assertSame( MetadataService::PENDING_PREFIX . 'auto', Server::get( MetadataService::class )->getMarker( $fileId ) );
+
+		Server::get( HashCalculationService::class )->processFile( $fileId, MetadataService::PENDING_MODE_AUTO );
+
+		$this->assertSame( sha1( 'content c.md' ), Server::get( MetadataService::class )->getHashes( $fileId )['sha1'] ?? null );
+	}
+
+	/**
+	 * A file deleted from $folder/$sub before any rule governed it, so that
+	 * nothing handed it checksums.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function unhashedInTheTrash(
+		Folder $folder,
+		string $sub,
+		string $name,
+	): int
+	{
+		$file   = self::folderAt( $folder, $sub )->newFile( $name, 'content ' . $name );
+		$fileId = $file->getId();
+
+		$file->delete();
+
+		$this->assertSame( [], Server::get( MetadataService::class )->getHashes( $fileId ), 'nothing hashed it' );
+
+		return $fileId;
+	}
+
+	/**
+	 * An enabled include rule, auto, sha1, as stored: the instance's own are
+	 * set aside for the test.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function rule(
+		string $selector,
+		string $path,
+		bool   $trash,
+	): array
+	{
+		$id = $this->ruleService->ruleAdd(
+			[
+				'enabled'  => true,
+				'type'     => RuleService::TYPE_INCLUDE,
+				'path'     => $path,
+				'mode'     => MetadataService::PENDING_MODE_AUTO,
+				'selector' => $selector,
+				'algos'    => [ 'sha1' ],
+				'trash'    => $trash,
+			],
+		);
+
+		$rule = $this->ruleService->findRuleById( $id );
+		$this->assertNotNull( $rule );
+
+		return $rule;
+	}
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function home(): Folder
+	{
+		return Server::get( IRootFolder::class )->getUserFolder( self::$uid );
+	}
+}

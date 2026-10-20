@@ -2147,6 +2147,11 @@ components:
           description: >-
             Include rules only: also read and hash the older versions of the
             files it governs that hold no checksum.
+        trash:
+          type: boolean
+          description: >-
+            Include rules only: also read and hash the files in the trash it
+            governs that hold no checksum.
         admin_enforced:
           type: boolean
         isDefault:
@@ -2195,6 +2200,11 @@ components:
           type: string
           enum: [auto, missing, force, lazy]
         versions:
+          type: boolean
+          description: >-
+            Include rules only; false unless sent, and kept by an update that
+            leaves it out.
+        trash:
           type: boolean
           description: >-
             Include rules only; false unless sent, and kept by an update that

@@ -568,8 +568,12 @@ in a home's trash and in a team folder's, and so its checksums:
 they are still proved when it is restored, and nothing reads it again.
 In the trash it is governed by the rule of the place it had before the deletion,
 which the trash records:
-a rule that stops maintaining that place stops maintaining it,
-and the queue leaves it unread.
+a rule that stops maintaining that place stops maintaining it.
+Nothing reads a file in the trash unless its rule's **Trash** switch says so
+(`occ fcias:rules:add --trash`, `trash` in the API):
+the sweep then queues those that hold no checksum —
+deleted before checksums were kept — and the queue reads and hashes them,
+a team folder's through the trash app.
 A file restored from a home's trash without current checksums
 is queued at once where a rule maintains it, as a written one is;
 a team folder's restore fires no event,

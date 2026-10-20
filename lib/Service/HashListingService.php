@@ -406,10 +406,11 @@ class HashListingService
 			$verdict = $rule === null ? null : RuleService::verdictOf( $rule );
 
 			// An include rule that does not hash versions hashes none of them
-			// unasked, as an ignore rule hashes none of its files; nothing
-			// hashes the trash unasked.
+			// unasked, as an ignore rule hashes none of its files, and one
+			// that does not hash the trash none of what is in it.
 			if ( $verdict === RuleService::TYPE_INCLUDE
-				&& ( ( $location->version !== null && ! RuleService::hashesVersions( $rule ) ) || $location->trash !== null ) )
+				&& ( ( $location->version !== null && ! RuleService::hashesVersions( $rule ) )
+					|| ( isset( $row['trash'] ) && ! RuleService::hashesTrash( $rule ) ) ) )
 			{
 				$verdict = RuleService::TYPE_IGNORE;
 			}

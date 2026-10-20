@@ -339,6 +339,23 @@ class RuleService
 	}
 
 	/**
+	 * Whether an enabled rule hashes the trash ({@see hashesTrash()}):
+	 * where none does, nothing need look for what it holds.
+	 */
+	public function anyRuleHashesTrash(): bool
+	{
+		foreach ( $this->loadRules() as $rule )
+		{
+			if ( ! empty( $rule['enabled'] ) && self::hashesTrash( $rule ) )
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * The stored list, exactly as persisted — no derived ordering applied.
 	 *
 	 * @return list<array>
@@ -473,6 +490,16 @@ class RuleService
 	public static function hashesVersions( ?array $rule ): bool
 	{
 		return self::maintainsHashes( $rule ) && ! empty( $rule['versions'] );
+	}
+
+	/**
+	 * Whether a rule reads and hashes the files it governs in the trash,
+	 * judged at the places they had before the deletion. Without it, a
+	 * trashed file keeps what it had, and nothing reads one.
+	 */
+	public static function hashesTrash( ?array $rule ): bool
+	{
+		return self::maintainsHashes( $rule ) && ! empty( $rule['trash'] );
 	}
 
 	/**
@@ -815,7 +842,10 @@ class RuleService
 	 *
 	 * For a rule that hashes versions ({@see hashesVersions()}), a version
 	 * is yielded too where its file is, its file located with it, a page's
-	 * in one query.
+	 * in one query. For one that hashes the trash ({@see hashesTrash()}), a
+	 * trashed file is yielded where it was before the deletion, and with
+	 * both, a version of one where its file was: their places read from the
+	 * trash's records, a page's in one query per trash.
 	 *
 	 * @param  list<string>  $wanted  Algorithms a file must hold to be fresh
 	 *                                ({@see wantedAlgos()}).
@@ -832,6 +862,7 @@ class RuleService
 		$selector = self::ruleSelector( $rule );
 		$pathGlob = $rule['path'] ?? '**';
 		$versions = self::hashesVersions( $rule );
+		$trash    = self::hashesTrash( $rule );
 
 		foreach ( $this->storageIdsForSelector( $selector ) as $storageNumericId )
 		{
@@ -852,32 +883,51 @@ class RuleService
 				$files        = $pageVersions === []
 					? []
 					: $this->filecacheService->filesOfVersions( $pageVersions );
+				$inTrash      = $trash
+					? [
+						...array_filter( $page, static fn( FileLocation $location ): bool => $location->version === null && $location->trash !== null ),
+						...array_filter( $files, static fn( FileLocation $file ): bool => $file->trash !== null ),
+					]
+					: [];
+				$origins      = $inTrash === []
+					? []
+					: $this->filecacheService->originsOfTrash( array_values( $inTrash ) );
 
 				foreach ( $page as $location )
 				{
 					$lastFileId = $location->fileId;
-					$file       = $location;
 
-					// A version is judged at its file's path, the file carried
-					// with it.
-					if ( $location->version !== null && isset( $files[ $location->fileId ] ) )
+					// What the rule judges: a version's file, and a trashed file
+					// at the place it had, carried with the row.
+					$judged = $location->version !== null && isset( $files[ $location->fileId ] )
+						? $files[ $location->fileId ]
+						: $location;
+					$origin = $judged->trash === null
+						? null
+						: $origins[ $judged->fileId ] ?? null;
+
+					if ( $origin !== null )
 					{
-						$file     = $files[ $location->fileId ];
-						$location = $location->withVersionFile( $file );
+						$judged = $judged->withTrashOrigin( $origin );
 					}
 
-					if ( $file->relativePath === null )
+					$location = $location->version !== null && $judged !== $location
+						? $location->withVersionFile( $judged )
+						: $judged;
+					$place    = $origin ?? $judged;
+
+					if ( $place->relativePath === null )
 					{
 						continue;
 					}
 
 					if ( $selector->kind === Selector::KIND_GROUPFOLDER
-						&& $file->groupFolderId !== (int) $selector->target )
+						&& $place->groupFolderId !== (int) $selector->target )
 					{
 						continue;
 					}
 
-					if ( ! PathUtil::matchesRelativeGlob( $pathGlob, $file->relativePath ) )
+					if ( ! PathUtil::matchesRelativeGlob( $pathGlob, $place->relativePath ) )
 					{
 						continue;
 					}

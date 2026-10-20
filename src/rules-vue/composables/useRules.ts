@@ -189,6 +189,7 @@ export function useRules(scope: 'own' | 'all') {
 			// Left out where the draft does not say: the server then keeps the
 			// rule's own.
 			...(draft.versions === undefined ? {} : { versions: draft.versions }),
+			...(draft.trash === undefined ? {} : { trash: draft.trash }),
 			enabled: draft.enabled ?? true,
 			// No isDefault: it is derived from the path, and the server
 			// would ignore it anyway.
