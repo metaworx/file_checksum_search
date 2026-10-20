@@ -95,6 +95,9 @@ database?](docs/FAQ.md#what-am-i-looking-at-in-the-database).
 - **MIME types from the content** — optional: each file's type,
   named by its first 64 KiB while it is hashed, in the sidebar,
   on the duplicates page and in the API
+- **File versions** — an overwritten file's checksums pass to its version,
+  which search, duplicates and the sidebar show as its file's
+  (see [File versions](#file-versions))
 - **Public API v1** — HTTP REST and PHP surfaces with an OpenAPI spec
 - **21 CLI commands** for search, rule management, MIME types, administration,
   and maintenance
@@ -185,7 +188,7 @@ and logs a warning naming that rule when it does.
 | Command | Description |
 |---------|-------------|
 | `file-checksum-search:rules:list [-o json]` | List the rules in evaluation order, with ids, `band.position`, each rule's scope as `<selector>//<glob>`, and every other field |
-| `file-checksum-search:rules:add [options]` | Create a rule (`--scope`, or `--selector` and `--path`; `--type`, `-a/--algo`, `-m/--mode`, `--enforced`, `--enable/--disable`) |
+| `file-checksum-search:rules:add [options]` | Create a rule (`--scope`, or `--selector` and `--path`; `--type`, `-a/--algo`, `-m/--mode`, `--[no-]versions`, `--enforced`, `--enable/--disable`) |
 | `file-checksum-search:rules:modify <id> [options]` | Change a rule; omitted options keep their value; a bare `--enable`/`--disable` is a toggle |
 | `file-checksum-search:rules:delete <id> [-y]` | Delete a rule; a deleted shipped default is recreated (disabled) by the repair step |
 | `file-checksum-search:rules:apply <id> [-m <mode>]` | Queue every file the rule currently governs for background hashing — uncapped, unlike the periodic sweep; `-m` overrides the rule's mode for this run (logged) |
@@ -446,9 +449,10 @@ applied to the owner's path, not the editor's.
 The same holds for a team folder: one rule decides the folder,
 and it decides it identically for every member.
 
-Files outside a user-visible area — trash bins, versions,
-application data — are governed by nothing.
+Files outside a user-visible area — trash bins, application data — are governed
+by nothing.
 No rule reaches them, including the catch-all.
+A file's versions are governed by its rule: [File versions](#file-versions).
 
 ### When hashes go away
 
@@ -485,6 +489,51 @@ is no older than the storage's own mtime,
 until `occ fcias:repair --step etag-stamp` gives them their ETag;
 a sync client that replaces a file's content and keeps an older mtime gets past
 that test until then, as it gets past Nextcloud's own.
+
+### File versions
+
+Nextcloud keeps a file's earlier content as versions of it:
+in a home `files_versions/<path>.v<mtime>`,
+in a team folder `versions/<file id>/<mtime>` in the folder's own storage,
+each a filecache row with a file id of its own.
+The app treats each as its file's.
+
+- **Governed by its file's rule.**
+  A rule that maintains a file's hashes maintains its versions';
+  one that stops, or excludes the file, does so for them too.
+  A version in the trash is the trash's, governed by nothing.
+- **Checksums without a read.**
+  When a file is overwritten, the checksums it holds, where they are current,
+  pass to the version Nextcloud makes of the content they describe,
+  stamped against the version's own ETag.
+  Nothing reads the version for them.
+- **Older versions on request.**
+  A rule's **Versions** switch (`occ fcias:rules:add --versions`,
+  `versions` in the API) has the sweep queue the versions of its files that
+  hold no checksum — made before checksums were kept, or of content whose
+  checksums were not current — and the queue read and hash them.
+  It costs a read of each, and versions can take a good share of what the
+  files themselves take; off, nothing reads a version.
+  A team folder's versions are opened through the versions app.
+- **A result like a file.**
+  In the listing, the lookup, the duplicates,
+  the files sharing a file's checksum and the unified search,
+  a version is held where its file is:
+  whoever reaches the file reaches its versions,
+  through a share or a team folder too,
+  and a team folder's advanced permissions apply as to the file.
+  Its `path` and `location` are its file's after `versions://`,
+  and it carries `version`: its file's id, and when it was the file.
+  A group of one file and its own versions is the file's history,
+  not a duplicate, and is not listed.
+- **In the sidebar,** the Checksums tab lists a file's versions,
+  newest first, with their checksums.
+- **Not covered:**
+  the versions of a file on an external storage,
+  which Nextcloud keeps in the account's home rather than beside the file;
+  verifying a version by reading it again.
+
+When Nextcloud expires a version, its checksums go with it.
 
 ## Hash Generation Rules
 
@@ -684,6 +733,8 @@ A rule's algorithms count only where the server computes them:
 one the allowlist no longer has is left out,
 and a rule left with none hashes nothing.
 A rule may carry any of the four.
+Beside its mode, an include rule says whether it also reads the older versions
+of its files that hold no checksum ([File versions](#file-versions)).
 The `hash` command's `--mode` accepts only `missing` and `force`:
 `auto` is the background drain's own semantics,
 and `lazy` — "queue it for later" — is spelled `--mark` there.

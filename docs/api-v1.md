@@ -15,15 +15,16 @@ class as their single public contract.
 ## Table of Contents
 
 1. [Locations and paths](#locations-and-paths)
-2. [MIME types](#mime-types)
-3. [File state](#file-state)
-4. [PHP API](#php-api)
-5. [HTTP REST API](#http-rest-api)
-6. [Rules](#rules)
-7. [Authentication](#authentication)
-8. [Versioning & Compatibility](#versioning--compatibility)
-9. [Rate Limiting](#rate-limiting)
-10. [Error Handling](#error-handling)
+2. [Versions](#versions)
+3. [MIME types](#mime-types)
+4. [File state](#file-state)
+5. [PHP API](#php-api)
+6. [HTTP REST API](#http-rest-api)
+7. [Rules](#rules)
+8. [Authentication](#authentication)
+9. [Versioning & Compatibility](#versioning--compatibility)
+10. [Rate Limiting](#rate-limiting)
+11. [Error Handling](#error-handling)
 
 ---
 
@@ -69,6 +70,52 @@ Every file row this API gives carries `path`, `name`, `owner` and `location`.
   `$canonical` asks for it whatever the reach.
 - **A rule's scope** is written the same way: its selector, two slashes,
   and its glob, `home:alice//Photos/` followed by `**` ([Rules](#rules)).
+- **A version** is named after its file: [Versions](#versions).
+
+---
+
+## Versions
+
+A file's earlier versions — the versions app's in a home,
+a team folder's own — are filecache rows with file ids of their own,
+and the API gives them where it gives files.
+
+- **Held where its file is:**
+  whoever reaches a file reaches its versions,
+  the file's owner, a share's recipient, a team folder's member,
+  and a team folder's advanced permissions apply as to the file.
+  A version whose file is gone is in no answer.
+- **`path`, `name` and `location`** are its file's,
+  the path and the location after `versions://`:
+  `versions:///Docs/a.txt`, `versions://home:alice//Docs/a.txt`,
+  `versions://share:42//a.txt`.
+  A path in a files area begins with `/` and an address with its area,
+  so neither is ever taken for a version's.
+- **`version`** marks one:
+  `{"fileid": 123, "timestamp": "2023-11-14T22:13:20+00:00"}`,
+  its file's id, which opens it in the Files app,
+  and when the version was the file, ISO 8601.
+  A file has none.
+- **Where:**
+  the lookup, the listing, the missing files,
+  the duplicates and a file's same-hash files;
+  a file's hashes list its versions under `versions`.
+- **Duplicates:**
+  a group of one file and its own versions is the file's history,
+  not a duplicate, and is not listed;
+  a file's own versions are not among its same-hash files.
+- **Missing:**
+  a version without a checksum is missing one where its rule hashes versions
+  ([Rule shape](#rule-shape), `versions`); under an include rule that does not,
+  it is as a file an `ignore` rule matches, and listed with `withIgnored`.
+- **Its checksums:**
+  when a file is overwritten, the checksums it holds, where they are current,
+  pass to the version made of the content they describe;
+  a rule with `versions` has the queue read the others.
+- **Not offered:**
+  recalculating a version, which nothing writes to;
+  the versions of a file on an external storage,
+  which Nextcloud keeps in the account's home rather than beside the file.
 
 ---
 
@@ -151,9 +198,10 @@ a change on an external storage a scan takes in.
   stale ones included, and `GET /api/v1/hashes/missing` with `unmatched`,
   `withIgnored` and `withExcluded` every file without one; read both,
   and a file of the files area in neither is gone, or out of reach.
-  Trash, versions, app data and a home's `uploads/` and `cache/` are in neither,
+  Trash, app data and a home's `uploads/` and `cache/` are in neither,
   and so, until the `missing-stamps` repair has stamped it,
-  is a file whose hash rows have no stamp row.
+  is a file whose hash rows have no stamp row;
+  a version is where its file is ([Versions](#versions)).
 
 ---
 
@@ -543,6 +591,14 @@ Get all checksums for a file by its filecache ID.
     'preferred' => 'sha256',
     'default' => 'sha1',
     'canRecalc' => true,
+    'versions' => [
+        [
+            'fileid' => 12399,
+            'timestamp' => '2026-08-17T09:12:00+00:00',
+            'size' => 48213,
+            'hashes' => ['sha256' => ['algo' => 'sha256', 'hash' => '9f86d0...']],
+        ],
+    ],
 ]
 ```
 
@@ -554,6 +610,10 @@ none between a change of its content and their recomputation.
 not one per algorithm,
 saying until when the hashes are held current rather than when they were written
 (see `listHashes()`).
+`versions` is the file's older versions, newest first ([Versions](#versions)):
+each one's own `fileid`, when it was the file, its size,
+and the hashes it holds that are current, as `hashes` is keyed;
+`[]` for a file with none.
 
 **Throws:**
 `\OCP\Files\NotFoundException` if the file lies outside `$reachUids`.
@@ -1074,12 +1134,23 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/file/{fileId}/hashes
   "preferred": "sha256",
   "default": "sha1",
   "canRecalc": true,
-  "canSudo": false
+  "canSudo": false,
+  "versions": [
+    {
+      "fileid": 12399,
+      "timestamp": "2026-08-17T09:12:00+00:00",
+      "size": 48213,
+      "hashes": {"sha256": {"algo": "sha256", "hash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"}}
+    }
+  ]
 }
 ```
 
 `hashes` is an object keyed by algorithm, `{}` for a file with none — and
 for a file whose content changed, until its hashes are computed again.
+`versions` is the file's older versions, newest first, each with the hashes
+it holds that are current, keyed as `hashes` is: `{}` for one with none,
+and `[]` for a file without versions ([Versions](#versions)).
 `updated_at` is the file's stamp, `null` for none: one per file,
 not one per algorithm,
 saying until when the hashes are held current rather than when they were written
@@ -1623,7 +1694,8 @@ whatever others they hold.
   this and route 23 under `stat` name each file the caller holds once:
   a file with a hash row there, stale or not, and here a file without one.
   A file in neither is gone, or out of the caller's reach.
-  Trash, versions, app data and a home's `uploads/` and `cache/` are in neither.
+  Trash, app data and a home's `uploads/` and `cache/` are in neither;
+  a version is where its file is, `version` saying so ([Versions](#versions)).
 - **No `since`, no count.**
   A file without a hash has written nothing to have a time,
   and counting below a path is what the windowed paging avoids.
@@ -1719,13 +1791,14 @@ Compose it client-side if you display it.
 | `selector` | string | `home:<uid>` \| `group:<gid>` \| `home:*` \| `groupfolder:<id>` \| `storage:<raw id>` \| `*` — split at the **first** colon, so a raw storage id may contain more; a storage's id is stored without its trailing slashes and matched so |
 | `algos` | string[] | include rules only; each a name `GET /api/v1/algorithms` lists |
 | `mode` | string | include rules only: `auto` \| `missing` \| `force` \| `lazy` |
+| `versions` | bool | include rules only: also read and hash the older versions of the files it governs that hold no checksum ([Versions](#versions)); `false` unless sent, and an update that leaves it out keeps it |
 | `admin_enforced` | bool | administrator-only |
 | `isDefault` | bool | computed: the rule's path is a bare catch-all, placing it in its segment's defaults partition |
 | `band`, `position` | int | computed, read-only |
 | `canEdit` | bool | computed for the calling user |
 
-An `ignore` or `exclude` rule computes nothing,
-so it stores no `algos` and no `mode`; sending them is not an error,
+An `ignore` or `exclude` rule computes nothing, so it stores no `algos`,
+no `mode` and no `versions`; sending them is not an error,
 they are simply not kept.
 
 ### `GET /api/v1/rules`

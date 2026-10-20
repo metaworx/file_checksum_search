@@ -79,6 +79,14 @@ A file someone shared with you says whose it is and where you find it,
 behind a share glyph — and nothing of the owner's folders above the share,
 which Nextcloud does not show you either.
 
+An earlier version of a file is listed as its file is,
+with *Version of* and the date it was the file beside it:
+the content was once that file's.
+Its link opens the file, whose versions Nextcloud keeps in its details.
+A file listed only beside its own versions is not a duplicate,
+just its history — saved unchanged, a file makes a version identical to itself —
+so such a group is not shown.
+
 Where your administrator has switched MIME type detection on,
 a group's header also shows the type of the content its files share,
 such as `application/pdf`.
@@ -192,6 +200,8 @@ the File checksums provider listing the two files that carry it][shot-unified-se
 
 This works without browsing folders and is useful for identifying known
 files (e.g. a known-good ISO image) or finding every copy of a file.
+An earlier version of a file is offered as the file,
+*Version of* and its date after the path: the content was once that file's.
 
 ## The file detail pane
 
@@ -201,7 +211,7 @@ sidebar (the file detail pane).
 ![The Checksums tab: the checksums, the Recalculate buttons,
 Find duplicates and Find across accounts][shot-file-detail-pane]
 
-It has three sections:
+It has three sections, and a fourth for a file with earlier versions:
 
 - **Checksums** — what has been computed for this file, one row per algorithm.
   Click a value to copy it.
@@ -213,6 +223,13 @@ It has three sections:
   Nextcloud's as *By its name: image/jpeg*.
   *Not detected yet* means the file was hashed before detection was switched on;
   the next **Recalculate** detects it.
+- **Versions** — the file's earlier versions, newest first,
+  each with *Version of* its date and the checksums it holds;
+  click one to copy it.
+  When a file is overwritten, the checksums it had pass to the version Nextcloud
+  keeps of it, without reading it again;
+  an older version without any says *No checksums for this version*,
+  unless a rule reads the versions of its files (see *Your hashing rules*).
 - **Recalculate** — one or two quick buttons,
   then a picker with every other algorithm this server computes and its own
   **Recalculate** button.
@@ -327,6 +344,13 @@ Each row you may change carries a pen for editing and a **⋯** menu with the re
 enable or disable the rule, delete it,
 and **Reapply** — which asks the server to go through every file that rule
 currently governs, rather than waiting for the files to be touched.
+
+An `include` rule's dialog has a **Versions** switch.
+On, the rule also reads the earlier versions of its files that hold no
+checksum — made before checksums were kept — and hashes them;
+the table shows `+ versions` beside the rule's mode.
+Off, a version still gets the checksums its file had when it was overwritten,
+and nothing reads it.
 
 ### What the Type column means
 

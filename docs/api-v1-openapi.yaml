@@ -1386,6 +1386,8 @@ components:
         fileid:
           type: integer
           example: 12345
+        version:
+          $ref: "#/components/schemas/VersionOf"
         algo:
           type: string
           example: sha1
@@ -1513,6 +1515,11 @@ components:
           type: boolean
           description: "Whether the asking account may look across accounts; the sidebar offers the way to the Duplicates page's Others tab when true."
           example: false
+        versions:
+          type: array
+          description: "The file's older versions, newest first, each with the hashes it holds that are current; empty for a file without versions."
+          items:
+            $ref: "#/components/schemas/FileVersion"
         mimetype:
           $ref: "#/components/schemas/DetectedMimeType"
         etag:
@@ -1523,6 +1530,44 @@ components:
           $ref: "#/components/schemas/StatMtime"
         storageMtime:
           $ref: "#/components/schemas/StatStorageMtime"
+
+    FileVersion:
+      type: object
+      required: [fileid, timestamp, size, hashes]
+      properties:
+        fileid:
+          type: integer
+          description: The version's own file id.
+          example: 12399
+        timestamp:
+          type: string
+          format: date-time
+          description: When the version was the file, ISO 8601.
+          example: "2026-08-17T09:12:00+00:00"
+        size:
+          type: integer
+          example: 48213
+        hashes:
+          description: "Keyed by algorithm as the file's are; `{}` for a version holding none that is current."
+          allOf:
+            - $ref: "#/components/schemas/HashMap"
+
+    VersionOf:
+      type: object
+      description: >-
+        Present on an earlier version of a file, whose `path` and `location`
+        are then its file's after `versions://`.
+      required: [fileid, timestamp]
+      properties:
+        fileid:
+          type: integer
+          description: The id of the file it is a version of, which opens it in the Files app.
+          example: 12345
+        timestamp:
+          type: string
+          format: date-time
+          description: When the version was the file, ISO 8601.
+          example: "2026-08-17T09:12:00+00:00"
 
     PreferenceResponse:
       type: object
@@ -1632,6 +1677,8 @@ components:
         fileid:
           type: integer
           example: 185324
+        version:
+          $ref: "#/components/schemas/VersionOf"
         path:
           type: string
           description: "The caller's own path for the file, with a leading slash; on the twin, as the first account in reach that holds it names it."
@@ -1667,6 +1714,8 @@ components:
         fileid:
           type: integer
           example: 185323
+        version:
+          $ref: "#/components/schemas/VersionOf"
         path:
           type: string
           description: >-
@@ -1800,6 +1849,8 @@ components:
         fileid:
           type: integer
           example: 100
+        version:
+          $ref: "#/components/schemas/VersionOf"
         path:
           type: string
           description: "Where an account finds the file, with a leading slash and the name included — with several accounts in reach, whichever holds it first. For a sudoer across every account, the file's path below the area `location` names."
@@ -2070,6 +2121,11 @@ components:
           type: string
           enum: [auto, missing, force, lazy]
           description: Include rules only
+        versions:
+          type: boolean
+          description: >-
+            Include rules only: also read and hash the older versions of the
+            files it governs that hold no checksum.
         admin_enforced:
           type: boolean
         isDefault:
@@ -2117,6 +2173,11 @@ components:
         mode:
           type: string
           enum: [auto, missing, force, lazy]
+        versions:
+          type: boolean
+          description: >-
+            Include rules only; false unless sent, and kept by an update that
+            leaves it out.
         admin_enforced:
           type: boolean
           description: Administrator-only; forced to false otherwise
