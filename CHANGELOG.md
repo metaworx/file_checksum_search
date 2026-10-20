@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-10-20
+
 ### Changed
 
 - `README.md`, *`hash` and the rules*: `--mark` queues only files that
