@@ -1011,6 +1011,184 @@ class HashFilesTest
 		);
 	}
 
+	// --versions
+	public function testTheVersionsAreHashedAfterTheFilesWhereARuleSaysVersions(): void
+	{
+		$this->ruleService->method( 'resolveUsers' )
+		                  ->willReturn( [ 'alice' ] )
+		;
+		$this->ruleService->method( 'anyRuleHashesVersions' )
+		                  ->willReturn( true )
+		;
+		$this->hashIndexService->method( 'generateMissingHashes' )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 2,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'generateVersionHashes' )
+		                       ->with( 'alice', [ 'auto' ], null, 0, $this->anything(), $this->anything(), 'missing', false )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 3,
+				                       'skipped'   => 1,
+			                       ],
+		                       )
+		;
+
+		$this->tester->execute( [ '--user' => 'alice' ] );
+
+		$this->assertStringContainsString( 'Versions: 3 hashed, 1 skipped.', $this->tester->getDisplay() );
+		$this->assertStringContainsString( 'Done. 5 files hashed, 1 skipped.', $this->tester->getDisplay() );
+	}
+
+	public function testNoVersionIsLookedForWhereNoRuleHashesVersions(): void
+	{
+		$this->ruleService->method( 'resolveUsers' )
+		                  ->willReturn( [ 'alice' ] )
+		;
+		$this->hashIndexService->method( 'generateMissingHashes' )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 0,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'generateVersionHashes' )
+		;
+
+		$this->tester->execute( [ '--user' => 'alice' ] );
+	}
+
+	public function testVersionsAsksForEveryVersionWhateverTheRulesSay(): void
+	{
+		$this->ruleService->method( 'resolveUsers' )
+		                  ->willReturn( [ 'alice' ] )
+		;
+		$this->hashIndexService->method( 'generateMissingHashes' )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 0,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'generateVersionHashes' )
+		                       ->with( 'alice', [ 'sha1' ], null, 0, $this->anything(), $this->anything(), 'force', true )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 0,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+
+		$this->tester->execute(
+			[
+				'--user'     => 'alice',
+				'--algo'     => [ 'sha1' ],
+				'--mode'     => 'force',
+				'--versions' => true,
+			],
+		);
+	}
+
+	public function testTheVersionsGetWhatTheFilesLeftOfTheBatch(): void
+	{
+		$this->ruleService->method( 'resolveUsers' )
+		                  ->willReturn(
+			                  [
+				                  'alice',
+				                  'bob',
+			                  ],
+		                  )
+		;
+		$this->hashIndexService->method( 'generateMissingHashes' )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 4,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+		// alice's files take 4 of 10 and her versions the other 6: bob's
+		// files are never asked for.
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'generateVersionHashes' )
+		                       ->with( 'alice', $this->anything(), null, 6 )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 6,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+
+		$this->tester->execute(
+			[
+				'--batch-size' => '10',
+				'--versions'   => true,
+			],
+		);
+
+		$this->assertStringContainsString( 'Batch limit reached. 10 files hashed, 0 skipped.', $this->tester->getDisplay() );
+	}
+
+	public function testMarkRefusesVersions(): void
+	{
+		// The drain hashes a version only where its rule says "versions".
+		$this->hashIndexService->expects( $this->never() )
+		                       ->method( 'markVersions' )
+		;
+
+		$exit = $this->tester->execute(
+			[
+				'--user'     => 'alice',
+				'--mark'     => true,
+				'--versions' => true,
+			],
+		);
+
+		$this->assertSame( Command::FAILURE, $exit );
+		$this->assertStringContainsString( '--mark cannot defer --versions', $this->tester->getDisplay() );
+	}
+
+	public function testMarkQueuesTheVersionsWhereARuleSaysVersions(): void
+	{
+		$this->markSetup(
+			[
+				'/files/a.txt' => [
+					'id'   => 'r1',
+					'type' => 'include',
+				],
+			],
+		);
+		$this->ruleService->method( 'anyRuleHashesVersions' )
+		                  ->willReturn( true )
+		;
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'markVersions' )
+		                       ->with( 'alice', null, 0, $this->anything(), 'missing' )
+		                       ->willReturn( 2 )
+		;
+
+		$this->tester->execute(
+			[
+				'--user' => 'alice',
+				'--mark' => true,
+			],
+		);
+
+		$this->assertStringContainsString( 'Marked 2 versions.', $this->tester->getDisplay() );
+		$this->assertStringContainsString( 'Done. 3 files marked as pending:missing.', $this->tester->getDisplay() );
+	}
+
 	public function testShorthandsResolveToTheirOptions(): void
 	{
 		$definition = ( new HashFiles(

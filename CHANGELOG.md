@@ -15,7 +15,7 @@ the first stable release.
 
 - `README.md`, *File versions*: checksums pass between a file and its
   versions on overwrite, copy and restore, unless a rule excludes it;
-  a rule with `versions` reads and hashes the older ones.
+  older ones are hashed under a rule with `versions`, or by `fcias:hash`.
 
 - `docs/api-v1.md`, *Method Reference*: a version is listed, looked up
   and grouped as a duplicate where its file is, under `versions://`;

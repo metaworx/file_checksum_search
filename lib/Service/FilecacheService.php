@@ -785,16 +785,19 @@ class FilecacheService
 	 * @param  list<string>  $wanted  Algorithms a file must hold to be fresh:
 	 *                                `missing`'s, so that one added to the
 	 *                                rule reaches the files hashed before.
+	 * @param  string|null   $under   Only the rows below this path of the
+	 *                                storage: a home's `files_versions`.
 	 *
 	 * @return FileLocation[]
 	 * @throws \OCP\DB\Exception
 	 */
 	public function pageStorageFiles(
-		int   $storageNumericId,
-		int   $lastFileId,
-		int   $limit,
-		bool  $staleOnly = false,
-		array $wanted = [],
+		int     $storageNumericId,
+		int     $lastFileId,
+		int     $limit,
+		bool    $staleOnly = false,
+		array   $wanted = [],
+		?string $under = null,
 	): array
 	{
 		$qb   = $this->db->getQueryBuilder();
@@ -881,6 +884,14 @@ class FilecacheService
 		if ( $keys !== [] )
 		{
 			$qb->selectAlias( $qb->createFunction( $hashes( $keys ) ), 'held' );
+		}
+
+		if ( $under !== null )
+		{
+			$qb->andWhere(
+				$qb->expr()
+				   ->like( 'fc.path', $qb->createNamedParameter( $this->db->escapeLikeParameter( $under ) . '/%' ) ),
+			);
 		}
 
 		if ( $staleOnly )

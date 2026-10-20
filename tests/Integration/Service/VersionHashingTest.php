@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace OCA\FileChecksumSearch\Tests\Integration\Service;
 
+use OCA\FileChecksumSearch\Command\HashFiles;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\FileLocation;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
@@ -23,13 +24,15 @@ use OCP\Files\IRootFolder;
 use OCP\IGroupManager;
 use OCP\IUserManager;
 use OCP\Server;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Tester\CommandTester;
 use Throwable;
 
 /**
- * A rule that hashes versions has the queue read the older versions of the
- * files it governs, which got no checksums when their files were
- * overwritten; one that does not leaves them alone. The versions are
- * made by the versions app, from files written before they had hashes.
+ * A rule that hashes versions has the queue, and `fcias:hash`, read the
+ * older versions of the files it governs, which got no checksums when their
+ * files were overwritten; one that does not leaves them alone. The versions
+ * are made by the versions app, from files written before they had hashes.
  */
 class VersionHashingTest
     extends
@@ -194,6 +197,72 @@ class VersionHashingTest
 		Server::get( HashCalculationService::class )->processFile( $version->fileId, MetadataService::PENDING_MODE_AUTO );
 
 		$this->assertSame( sha1( 'one c.txt' ), Server::get( MetadataService::class )->getHashes( $version->fileId )['sha1'] ?? null );
+	}
+
+	/**
+	 * `fcias:hash` hashes a version after the files where its rule says
+	 * `versions`, and leaves one whose rule does not.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheHashCommandHashesTheVersionsWhereTheRuleSaysVersions(): void
+	{
+		$hashed = $this->unhashedVersion( $this->folder( 'CmdOn' ), 'd.txt' );
+		$left   = $this->unhashedVersion( $this->folder( 'CmdOff' ), 'e.txt' );
+		$this->rule( 'home:' . self::$uid, 'CmdOn/**', versions: true );
+		$this->rule( 'home:' . self::$uid, 'CmdOff/**', versions: false );
+
+		$this->hash( [ '--path' => 'Cmd*' ] );
+
+		$metadata = Server::get( MetadataService::class );
+		$this->assertSame( sha1( 'one d.txt' ), $metadata->getHashes( $hashed->fileId )['sha1'] ?? null );
+		$this->assertSame( [], $metadata->getHashes( $left->fileId ) );
+	}
+
+	/**
+	 * `--versions` hashes one whatever its rule says of versions, but not one
+	 * its rule excludes.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheHashCommandWithVersionsHashesThemButNotAnExcludedOne(): void
+	{
+		$hashed = $this->unhashedVersion( $this->folder( 'AllIn' ), 'f.txt' );
+		$left   = $this->unhashedVersion( $this->folder( 'AllOut' ), 'g.txt' );
+		$this->rule( 'home:' . self::$uid, 'AllIn/**', versions: false );
+		$this->ruleService->ruleAdd(
+			[
+				'enabled'  => true,
+				'type'     => RuleService::TYPE_EXCLUDE,
+				'path'     => 'AllOut/**',
+				'selector' => 'home:' . self::$uid,
+			],
+		);
+
+		$this->hash(
+			[
+				'--path'     => 'All*',
+				'--versions' => true,
+			],
+		);
+
+		$metadata = Server::get( MetadataService::class );
+		$this->assertSame( sha1( 'one f.txt' ), $metadata->getHashes( $hashed->fileId )['sha1'] ?? null );
+		$this->assertSame( [], $metadata->getHashes( $left->fileId ) );
+	}
+
+	/**
+	 * Run `fcias:hash` over the test's account.
+	 *
+	 * @param  array<string, mixed>  $options
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function hash( array $options ): void
+	{
+		$tester = new CommandTester( Server::get( HashFiles::class ) );
+
+		$this->assertSame( Command::SUCCESS, $tester->execute( [ '--user' => self::$uid ] + $options ), $tester->getDisplay() );
 	}
 
 	/**

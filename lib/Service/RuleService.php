@@ -322,6 +322,23 @@ class RuleService
 	}
 
 	/**
+	 * Whether an enabled rule hashes the older versions of its files
+	 * ({@see hashesVersions()}): where none does, nothing need look for them.
+	 */
+	public function anyRuleHashesVersions(): bool
+	{
+		foreach ( $this->loadRules() as $rule )
+		{
+			if ( ! empty( $rule['enabled'] ) && self::hashesVersions( $rule ) )
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * The stored list, exactly as persisted — no derived ordering applied.
 	 *
 	 * @return list<array>

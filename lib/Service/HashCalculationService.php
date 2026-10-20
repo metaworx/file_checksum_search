@@ -564,12 +564,176 @@ class HashCalculationService
 		}
 
 		// Phase 2: process
+		return $this->hashCollected( $files, $mode, $algoLabel, $output );
+	}
+
+	/**
+	 * The versions in an account's home, hashed as its files are: those
+	 * whose file's rule says `versions` ({@see RuleService::hashesVersions()}),
+	 * or, with $all, every one the run may take ({@see RuleOverrides::allows()}).
+	 * $algo, $mode and $batchSize are {@see generateMissingHashes()}'s, `auto`
+	 * taking the file's rule's algorithms; a version is hashed by the
+	 * recalculation the sidebar uses ({@see recalcHashes()}).
+	 *
+	 * The caller asks first whether any rule hashes versions
+	 * ({@see RuleService::anyRuleHashesVersions()}): where none does and $all
+	 * is not given, this reads every version's row for nothing.
+	 *
+	 * Collected and hashed a page at a time, so that a home with many
+	 * versions is not held whole.
+	 *
+	 * @param  int  $batchSize  Maximum versions to collect (a value <= 0 means unlimited)
+	 *
+	 * @return array{processed: int, skipped: int}
+	 * @throws \OCP\DB\Exception
+	 */
+	public function generateVersionHashes(
+		string           $userId,
+		string|array     $algo,
+		?string          $pathPattern = null,
+		int              $batchSize = 100,
+		?OutputInterface $output = null,
+		?RuleOverrides   $overrides = null,
+		string           $mode = MetadataService::PENDING_MODE_MISSING,
+		bool             $all = false,
+	): array
+	{
+		$overrides ??= new RuleOverrides();
+
+		$tokens        = array_values( array_unique( array_map( 'strtolower', (array) $algo ) ) );
+		$useRuleAlgos  = in_array( self::ALGO_AUTO, $tokens, true );
+		$explicitAlgos = array_values( array_diff( $tokens, [ self::ALGO_AUTO ] ) );
+		$algoLabel     = implode( ',', $tokens );
+		$unlimited     = $batchSize <= 0;
+		$collected     = 0;
+		$processed     = 0;
+		$skipped       = 0;
+
+		foreach ( $this->versionsInHome( $userId, $pathPattern, $overrides, $all, $output ) as $page )
+		{
+			$wanted = [];
+
+			foreach ( $page as $versionId => $taken )
+			{
+				$algos = $useRuleAlgos
+					? array_values( array_unique( array_merge( $explicitAlgos, $this->catalogue->computable( $taken['rule']['algos'] ?? [] ) ) ) )
+					: $explicitAlgos;
+
+				if ( $algos !== [] )
+				{
+					$wanted[ $versionId ] = $algos;
+				}
+			}
+
+			$fresh = $mode === MetadataService::PENDING_MODE_FORCE
+				? []
+				: $this->freshAmong( $wanted );
+			$batch = [];
+
+			foreach ( $wanted as $versionId => $algos )
+			{
+				if ( ! $unlimited && $collected >= $batchSize )
+				{
+					break;
+				}
+
+				if ( isset( $fresh[ $versionId ] ) )
+				{
+					continue;
+				}
+
+				$batch[] = [
+					'file'  => $versionId,
+					'algos' => $algos,
+				];
+				$collected ++;
+
+				$overrides->report( $output, $page[ $versionId ]['path'], $page[ $versionId ]['rule'], true );
+			}
+
+			$result    = $this->hashCollected( $batch, $mode, $algoLabel, $output );
+			$processed += $result['processed'];
+			$skipped += $result['skipped'];
+
+			if ( ! $unlimited && $collected >= $batchSize )
+			{
+				break;
+			}
+		}
+
+		return [
+			'processed' => $processed,
+			'skipped'   => $skipped,
+		];
+	}
+
+	/**
+	 * Queue the versions in an account's home whose file's rule says
+	 * `versions`, as pending:<mode>, for the background job, which honours
+	 * the rule at drain time ({@see processFile()}). Asked first as
+	 * {@see generateVersionHashes()} is.
+	 *
+	 * @param  int  $batchSize  Maximum versions to queue (a value <= 0 means unlimited)
+	 *
+	 * @return int  The versions queued.
+	 * @throws \OCP\DB\Exception
+	 */
+	public function markVersions(
+		string           $userId,
+		?string          $pathPattern,
+		int              $batchSize,
+		RuleOverrides    $overrides,
+		string           $mode,
+		?OutputInterface $output = null,
+	): int
+	{
+		$marked = 0;
+
+		foreach ( $this->versionsInHome( $userId, $pathPattern, $overrides, false, $output ) as $page )
+		{
+			foreach ( $page as $versionId => $taken )
+			{
+				if ( $batchSize > 0 && $marked >= $batchSize )
+				{
+					return $marked;
+				}
+
+				$overrides->report( $output, $taken['path'], $taken['rule'], true );
+
+				$this->metadataService->markPending( $versionId, MetadataService::PENDING_PREFIX . $mode );
+				$marked ++;
+			}
+		}
+
+		return $marked;
+	}
+
+	/**
+	 * Hash what a run collected ({@see generateMissingHashes()},
+	 * {@see generateVersionHashes()}), each file with its algorithms. A file
+	 * that was busy, or that needed nothing new, is skipped; one that fails
+	 * is logged, and the run goes on.
+	 *
+	 * @param  list<array{file: int|File, algos: list<string>}>  $collected
+	 *
+	 * @return array{processed: int, skipped: int}
+	 */
+	private function hashCollected(
+		array            $collected,
+		string           $mode,
+		string           $algoLabel,
+		?OutputInterface $output,
+	): array
+	{
 		$processed = 0;
 		$skipped   = 0;
 
-		foreach ( $files as $entry )
+		foreach ( $collected as $entry )
 		{
 			$file      = $entry['file'];
+			$fileId    = $file instanceof File
+				? $file->getId()
+				: $file;
 			$fileAlgos = $entry['algos'];
 
 			try
@@ -589,7 +753,7 @@ class HashCalculationService
 					if ( $output !== null && $output->isVeryVerbose() )
 					{
 						$output->writeln(
-							sprintf( '    Skipped fileId %d (locked).', $file->getId() ),
+							sprintf( '    Skipped fileId %d (locked).', $fileId ),
 						);
 					}
 
@@ -614,7 +778,7 @@ class HashCalculationService
 					if ( $output !== null && $output->isVeryVerbose() )
 					{
 						$output->writeln(
-							sprintf( '    Hashed fileId %d (%s).', $file->getId(), $algoLabel ),
+							sprintf( '    Hashed fileId %d (%s).', $fileId, $algoLabel ),
 						);
 					}
 					elseif ( $processed % 10 == 0 && $output !== null )
@@ -631,7 +795,7 @@ class HashCalculationService
 					if ( $output !== null && $output->isVeryVerbose() )
 					{
 						$output->writeln(
-							sprintf( '    Skipped fileId %d (already hashed).', $file->getId() ),
+							sprintf( '    Skipped fileId %d (already hashed).', $fileId ),
 						);
 					}
 				}
@@ -642,7 +806,7 @@ class HashCalculationService
 					'FCIAS: recalcHashes failed in generateMissingHashes',
 					[
 						'app'       => Application::APP_ID,
-						'fileId'    => $file->getId(),
+						'fileId'    => $fileId,
 						'algo'      => $algoLabel,
 						'exception' => $e,
 					],
@@ -656,7 +820,7 @@ class HashCalculationService
 				$output?->writeln(
 					sprintf(
 						'<comment>  WARNING: recalcHashes failed for fileId %d: %s</comment>',
-						$file->getId(),
+						$fileId,
 						OutputFormatter::escape( $e->getMessage() ),
 					),
 				);
@@ -669,6 +833,107 @@ class HashCalculationService
 			'processed' => $processed,
 			'skipped'   => $skipped,
 		];
+	}
+
+	/**
+	 * Which of these files hold every algorithm they want, current: their
+	 * stamp vouches for them ({@see MetadataService::fileStatesOf()}) and
+	 * the index lists each one.
+	 *
+	 * @param  array<int, list<string>>  $wanted  algorithms by file id, at
+	 *                                           most a thousand files
+	 *
+	 * @return array<int, true>  keyed by file id
+	 * @throws \OCP\DB\Exception
+	 */
+	private function freshAmong( array $wanted ): array
+	{
+		$states  = $wanted === []
+			? []
+			: $this->metadataService->fileStatesOf( array_keys( $wanted ) );
+		$current = array_keys( array_filter( $states, static fn ( array $state ): bool => $state['vouched'] ) );
+		$held    = $current === []
+			? []
+			: $this->metadataService->listedHashes( $current, null );
+		$fresh   = [];
+
+		foreach ( $current as $fileId )
+		{
+			if ( array_diff( $wanted[ $fileId ], array_keys( $held[ $fileId ] ?? [] ) ) === [] )
+			{
+				$fresh[ $fileId ] = true;
+			}
+		}
+
+		return $fresh;
+	}
+
+	/**
+	 * The versions in an account's home a run takes, a page at a time: each
+	 * judged at its file's path, by its file's rule
+	 * ({@see RuleService::governingRuleForLocation()}), and taken where that
+	 * rule says `versions`, or with $all wherever the run may take the file
+	 * ({@see RuleOverrides::allows()}). A version whose file is gone is no
+	 * file's of the account, and is left. One left by a rule is reported as
+	 * a file is ({@see RuleOverrides::report()}).
+	 *
+	 * @return \Generator<int, array<int, array{rule: array|null, path: string}>>
+	 *         per page, by the version's id: its file's rule, and its path
+	 * @throws \OCP\DB\Exception
+	 */
+	private function versionsInHome(
+		string           $userId,
+		?string          $pathPattern,
+		RuleOverrides    $overrides,
+		bool             $all,
+		?OutputInterface $output,
+	): \Generator
+	{
+		foreach ( $this->filecacheService->homeStorageNumericIds( [ $userId ] ) as $storageNumericId )
+		{
+			$lastFileId = 0;
+
+			while ( ( $page = $this->filecacheService->pageStorageFiles( $storageNumericId, $lastFileId, 500, under: 'files_versions' ) ) !== [] )
+			{
+				$lastFileId = $page[ array_key_last( $page ) ]->fileId;
+				$versions   = array_values( array_filter( $page, static fn ( FileLocation $location ): bool => $location->version !== null ) );
+				$files      = $versions === []
+					? []
+					: $this->filecacheService->filesOfVersions( $versions );
+				$taken      = [];
+
+				foreach ( $versions as $version )
+				{
+					$file = $files[ $version->fileId ] ?? null;
+
+					if ( $file?->relativePath === null
+						|| ( $pathPattern !== null && ! PathUtil::matchesGlob( $pathPattern, ltrim( $file->relativePath, '/' ) ) ) )
+					{
+						continue;
+					}
+
+					$rule = $this->ruleService->governingRuleForLocation( $version->withVersionFile( $file ), $overrides->ignoreRuleIds );
+					$path = '/' . $userId . '/' . $version->internalPath;
+
+					if ( ! $overrides->allows( $rule ) || ( ! $all && ! RuleService::hashesVersions( $rule ) ) )
+					{
+						$overrides->report( $output, $path, $rule, false );
+
+						continue;
+					}
+
+					$taken[ $version->fileId ] = [
+						'rule' => $rule,
+						'path' => $path,
+					];
+				}
+
+				if ( $taken !== [] )
+				{
+					yield $taken;
+				}
+			}
+		}
 	}
 
 	/**

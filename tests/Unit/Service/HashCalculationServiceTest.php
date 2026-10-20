@@ -48,6 +48,34 @@ class HashCalculationServiceTest
 	use EnglishL10n;
 
 
+//  constants
+
+	/** A rule that hashes its files, and their older versions, with sha1. */
+	private const VERSIONS_RULE
+		 = [
+			'id'       => 'v',
+			'type'     => 'include',
+			'algos'    => [ 'sha1' ],
+			'versions' => true,
+		];
+
+	/** A rule that hashes its files with sha1, and not their versions. */
+	private const INCLUDE_RULE
+		 = [
+			'id'    => 'i',
+			'type'  => 'include',
+			'algos' => [ 'sha1' ],
+		];
+
+	/** The files {@see collectingServiceOverVersions()} gives versions 11 to 13. */
+	private const VERSIONED_FILES
+		 = [
+			11 => 'a.txt',
+			12 => 'Docs/b.txt',
+			13 => 'c.txt',
+		];
+
+
 //  private properties
 
 	private FilecacheService&MockObject $filecacheService;
@@ -3322,6 +3350,79 @@ class HashCalculationServiceTest
 		return $this->createCollectingServiceMock();
 	}
 
+	/**
+	 * A collecting service over alice's home, one page of versions: each of
+	 * $rulesByVersion's ids a version of its file in {@see VERSIONED_FILES},
+	 * governed by its rule. $currentHashes are the hashes a version holds
+	 * that its stamp vouches for; the files of $gone are not there.
+	 *
+	 * @param  array<int, array|null>                 $rulesByVersion
+	 * @param  array<int, array<string, string>>      $currentHashes
+	 * @param  list<int>                              $gone
+	 */
+	private function collectingServiceOverVersions(
+		array $rulesByVersion,
+		array $currentHashes = [],
+		array $gone = [],
+	): HashCalculationService&MockObject
+	{
+		$versions = [];
+		$files    = [];
+
+		foreach ( array_keys( $rulesByVersion ) as $versionId )
+		{
+			$path       = self::VERSIONED_FILES[ $versionId ];
+			$versions[] = FileLocation::fromRow( $versionId, 'home::alice', 'files_versions/' . $path . '.v100', 100 );
+
+			if ( ! in_array( $versionId, $gone, true ) )
+			{
+				$files[ $versionId ] = FileLocation::fromRow( $versionId * 10, 'home::alice', 'files/' . $path, 200 );
+			}
+		}
+
+		$this->filecacheService->method( 'homeStorageNumericIds' )
+		                       ->with( [ 'alice' ] )
+		                       ->willReturn( [ 5 ] )
+		;
+		$this->filecacheService->method( 'pageStorageFiles' )
+		                       ->willReturnCallback(
+			                       static fn(
+				                       int $storage,
+				                       int $lastFileId,
+			                       ): array => $lastFileId === 0
+				                       ? $versions
+				                       : [],
+		                       )
+		;
+		$this->filecacheService->method( 'filesOfVersions' )
+		                       ->willReturn( $files )
+		;
+		$this->ruleService->method( 'governingRuleForLocation' )
+		                  ->willReturnCallback(
+			                  static fn(
+				                  FileLocation $location,
+			                  ): ?array => $rulesByVersion[ $location->fileId ],
+		                  )
+		;
+		$this->metadataService->method( 'fileStatesOf' )
+		                      ->willReturnCallback(
+			                      static fn(
+				                      array $fileIds,
+			                      ): array => array_map(
+				                      static fn(
+					                      int $fileId,
+				                      ): array => [ 'vouched' => isset( $currentHashes[ $fileId ] ) ],
+				                      array_combine( $fileIds, $fileIds ),
+			                      ),
+		                      )
+		;
+		$this->metadataService->method( 'listedHashes' )
+		                      ->willReturn( $currentHashes )
+		;
+
+		return $this->createCollectingServiceMock();
+	}
+
 	public function testGenerateMissingHashesCollectsFileMissingAnyAlgo(): void
 	{
 		// The direct path now honours rule verdicts, so a file needs a rule
@@ -3416,6 +3517,156 @@ class HashCalculationServiceTest
 
 		$this->assertSame( 1, $result['processed'] );
 		$this->assertSame( 0, $result['skipped'] );
+	}
+
+	public function testVersionHashesTakeOnlyTheVersionsWhoseRuleSaysVersions(): void
+	{
+		$service = $this->collectingServiceOverVersions(
+			[
+				11 => self::VERSIONS_RULE,
+				12 => self::INCLUDE_RULE,
+			],
+		);
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->with( 11, [ 'sha1' ], true )
+		        ->willReturn( $this->oneSuccess( 'sha1' ) )
+		;
+
+		$result = $service->generateVersionHashes( 'alice', [ 'auto' ], null, 0 );
+
+		$this->assertSame( 1, $result['processed'] );
+		$this->assertSame( 0, $result['skipped'] );
+	}
+
+	public function testVersionHashesWithAllTakeEveryVersionTheRunMayButNotAnExcludedOne(): void
+	{
+		$service = $this->collectingServiceOverVersions(
+			[
+				11 => self::VERSIONS_RULE,
+				12 => self::INCLUDE_RULE,
+				13 => [
+					'id'   => 'x',
+					'type' => 'exclude',
+				],
+			],
+		);
+		$hashed  = [];
+		$service->method( 'recalcHashes' )
+		        ->willReturnCallback(
+			        function( int $fileId ) use ( &$hashed ): array
+			        {
+				        $hashed[] = $fileId;
+
+				        return $this->oneSuccess( 'sha1' );
+			        },
+		        )
+		;
+
+		$result = $service->generateVersionHashes( 'alice', [ 'auto' ], null, 0, null, null, 'missing', true );
+
+		$this->assertSame( [ 11, 12 ], $hashed );
+		$this->assertSame( 2, $result['processed'] );
+	}
+
+	public function testVersionHashesLeaveACurrentVersionUnderMissingAndNotUnderForce(): void
+	{
+		$service = $this->collectingServiceOverVersions(
+			[ 11 => self::VERSIONS_RULE ],
+			[ 11 => [ 'sha1' => 'abc' ] ],
+		);
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->with( 11, [ 'sha1' ], false )
+		        ->willReturn( $this->oneSuccess( 'sha1' ) )
+		;
+
+		$this->assertSame( 0, $service->generateVersionHashes( 'alice', [ 'auto' ], null, 0 )['processed'] );
+		$this->assertSame( 1, $service->generateVersionHashes( 'alice', [ 'auto' ], null, 0, null, null, 'force' )['processed'] );
+	}
+
+	public function testVersionHashesTakeAVersionThatLacksAnAlgorithm(): void
+	{
+		$service = $this->collectingServiceOverVersions(
+			[ 11 => self::VERSIONS_RULE ],
+			[ 11 => [ 'md5' => 'abc' ] ],
+		);
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->with( 11, [ 'sha1' ], true )
+		        ->willReturn( $this->oneSuccess( 'sha1' ) )
+		;
+
+		$service->generateVersionHashes( 'alice', [ 'auto' ], null, 0 );
+	}
+
+	public function testVersionHashesMatchThePathGlobAgainstTheirFile(): void
+	{
+		$service = $this->collectingServiceOverVersions(
+			[
+				11 => self::VERSIONS_RULE,
+				12 => self::VERSIONS_RULE,
+			],
+		);
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->with( 12, [ 'sha1' ], true )
+		        ->willReturn( $this->oneSuccess( 'sha1' ) )
+		;
+
+		$service->generateVersionHashes( 'alice', [ 'auto' ], 'Docs/*', 0 );
+	}
+
+	public function testVersionHashesStopAtTheBatchSize(): void
+	{
+		$service = $this->collectingServiceOverVersions(
+			[
+				11 => self::VERSIONS_RULE,
+				12 => self::VERSIONS_RULE,
+				13 => self::VERSIONS_RULE,
+			],
+		);
+		$service->expects( $this->exactly( 2 ) )
+		        ->method( 'recalcHashes' )
+		        ->willReturn( $this->oneSuccess( 'sha1' ) )
+		;
+
+		$this->assertSame( 2, $service->generateVersionHashes( 'alice', [ 'auto' ], null, 2 )['processed'] );
+	}
+
+	public function testAVersionWhoseFileIsGoneIsLeft(): void
+	{
+		$service = $this->collectingServiceOverVersions( [ 11 => null ], [], [ 11 ] );
+		$service->expects( $this->never() )
+		        ->method( 'recalcHashes' )
+		;
+
+		$service->generateVersionHashes(
+			'alice',
+			[ 'sha1' ],
+			null,
+			0,
+			null,
+			new RuleOverrides( unmatched: RuleOverrides::UNMATCHED_INCLUDE ),
+			'missing',
+			true,
+		);
+	}
+
+	public function testMarkVersionsQueuesOnlyTheVersionsWhoseRuleSaysVersions(): void
+	{
+		$service = $this->collectingServiceOverVersions(
+			[
+				11 => self::VERSIONS_RULE,
+				12 => self::INCLUDE_RULE,
+			],
+		);
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 11, 'pending:force' )
+		;
+
+		$this->assertSame( 1, $service->markVersions( 'alice', null, 0, new RuleOverrides(), 'force' ) );
 	}
 
 	/**

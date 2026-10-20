@@ -1926,6 +1926,44 @@ class RuleServiceTest
 		$this->assertFalse( RuleService::hashesVersions( null ) );
 	}
 
+	/** @noinspection PhpUnhandledExceptionInspection */
+	public function testOnlyAnEnabledRuleHashesAnyVersions(): void
+	{
+		$this->setupRulesConfig( [
+			[
+				'id'       => 'off',
+				'enabled'  => false,
+				'selector' => 'home:alice',
+				'path'     => '**',
+				'versions' => true,
+			],
+			[
+				'id'       => 'on',
+				'enabled'  => true,
+				'selector' => 'home:bob',
+				'path'     => '**',
+			],
+		] );
+
+		$this->assertFalse( $this->service->anyRuleHashesVersions() );
+	}
+
+	/** @noinspection PhpUnhandledExceptionInspection */
+	public function testAnEnabledRuleWithVersionsHashesAnyVersions(): void
+	{
+		$this->setupRulesConfig( [
+			[
+				'id'       => 'on',
+				'enabled'  => true,
+				'selector' => 'home:alice',
+				'path'     => '**',
+				'versions' => true,
+			],
+		] );
+
+		$this->assertTrue( $this->service->anyRuleHashesVersions() );
+	}
+
 	/**
 	 * The batch locates the versions' files in one query, beside the one
 	 * that located the batch; a file is judged as itself.
