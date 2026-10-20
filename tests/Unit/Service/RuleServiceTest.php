@@ -1798,6 +1798,109 @@ class RuleServiceTest
 	}
 
 	/**
+	 * A version is governed by its file's rule, judged at the file's path:
+	 * a rule that stops maintaining a file stops maintaining its versions.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAVersionIsGovernedByItsFilesRule(): void
+	{
+		$this->setupRulesConfig( [
+			[
+				'id'       => 'docs',
+				'enabled'  => true,
+				'selector' => 'home:alice',
+				'path'     => '/Docs/**',
+			],
+		] );
+
+		$version = FileLocation::fromRow( 81, 'home::alice', 'files_versions/Docs/a.txt.v1700000000', 1700000000 );
+		$this->stubLocate( $version );
+		$this->filecacheService->expects( $this->once() )
+		                       ->method( 'filesOfVersions' )
+		                       ->with( [ $version ] )
+		                       ->willReturn( [ 81 => $this->homeLocation( 82, 'alice', '/Docs/a.txt' ) ] )
+		;
+
+		$this->assertSame( 'docs', $this->service->findFirstMatchingRule( 81 )['id'] ?? null );
+	}
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAVersionWhoseFileIsGoneIsGovernedByNothing(): void
+	{
+		// The rules are not even loaded: with no file, nothing is judged.
+		$this->stubLocate( FileLocation::fromRow( 83, 'home::alice', 'files_versions/gone.txt.v1700000000', 1 ) );
+		$this->filecacheService->method( 'filesOfVersions' )->willReturn( [] );
+
+		$this->assertNull( $this->service->findFirstMatchingRule( 83 ) );
+	}
+
+	/**
+	 * A version in the trash is the trash's, and governed by nothing: no
+	 * file is looked up for it.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAVersionInTheTrashIsGovernedByNothing(): void
+	{
+		$this->stubLocate( FileLocation::fromRow( 84, 'home::alice', 'files_trashbin/versions/a.txt.v1700000000.d1700000100', 1 ) );
+		$this->filecacheService->expects( $this->never() )->method( 'filesOfVersions' );
+
+		$this->assertNull( $this->service->governingRulesForFileIds( [ 84 ] )[84] );
+	}
+
+	/**
+	 * The batch locates the versions' files in one query, beside the one
+	 * that located the batch; a file is judged as itself.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testGoverningRulesForFileIdsLocatesTheVersionsFilesInOneQuery(): void
+	{
+		$this->setupRulesConfig( [
+			[
+				'id'       => 'alice-all',
+				'enabled'  => true,
+				'selector' => 'home:alice',
+				'path'     => '**',
+			],
+			[
+				'id'       => 'team',
+				'enabled'  => true,
+				'selector' => 'groupfolder:5',
+				'path'     => '**',
+			],
+		] );
+
+		$homeVersion = FileLocation::fromRow( 85, 'home::alice', 'files_versions/a.txt.v1700000000', 1 );
+		$teamVersion = FileLocation::fromRow( 86, 'local::/data/__groupfolders/5/', 'versions/42/1700000000', 1 );
+		$this->stubLocate( $homeVersion, $teamVersion, $this->homeLocation( 87, 'alice', '/b.txt' ) );
+		$this->filecacheService->expects( $this->once() )
+		                       ->method( 'filesOfVersions' )
+		                       ->with( [
+			                       $homeVersion,
+			                       $teamVersion,
+		                       ] )
+		                       ->willReturn( [
+			                       85 => $this->homeLocation( 88, 'alice', '/a.txt' ),
+			                       86 => FileLocation::fromRow( 42, 'local::/data/__groupfolders/5/', 'files/plan.md', 1 ),
+		                       ] )
+		;
+
+		$rules = $this->service->governingRulesForFileIds( [
+			85,
+			86,
+			87,
+		] );
+
+		$this->assertSame( 'alice-all', $rules[85]['id'] ?? null );
+		$this->assertSame( 'team', $rules[86]['id'] ?? null );
+		$this->assertSame( 'alice-all', $rules[87]['id'] ?? null );
+	}
+
+	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testRuleGlobsMatchWithOrWithoutALeadingSlash(): void

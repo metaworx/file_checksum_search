@@ -152,6 +152,109 @@ class FileLocationTest
 		}
 	}
 
+	/**
+	 * A home's version is `files_versions/<path>.v<mtime>`: the file it is a
+	 * version of is `files/<path>` in the same storage, and it stays outside
+	 * the files area itself.
+	 */
+	public function testAHomeVersionNamesItsFileByPath(): void
+	{
+		$location = FileLocation::fromRow( 8, 'home::alice', 'files_versions/Docs/a.txt.v1700000000', 1700000000 );
+
+		$this->assertSame( FileLocation::NS_HOME, $location->namespace );
+		$this->assertSame( 'alice', $location->owner );
+		$this->assertNull( $location->relativePath );
+		$this->assertNotNull( $location->version );
+		$this->assertSame( 1700000000, $location->version->timestamp );
+		$this->assertSame( 'files/Docs/a.txt', $location->version->fileInternalPath );
+		$this->assertNull( $location->version->fileId );
+	}
+
+	/**
+	 * A name may hold `.v` itself: only the last one, before digits alone,
+	 * is the version's.
+	 */
+	public function testOnlyTheLastVersionSuffixIsTheVersions(): void
+	{
+		$this->assertSame(
+			'files/a.v5.txt',
+			FileLocation::fromRow( 8, 'home::alice', 'files_versions/a.v5.txt.v1700000000', 1 )->version?->fileInternalPath,
+		);
+		$this->assertSame(
+			'files/notes.v2',
+			FileLocation::fromRow( 8, 'object::user:bob', 'files_versions/notes.v2.v1700000000', 1 )->version?->fileInternalPath,
+		);
+	}
+
+	/**
+	 * A team folder's version is `versions/<fileId>/<mtime>` in the folder's
+	 * own storage, and names its file by id.
+	 */
+	public function testATeamFolderVersionNamesItsFileById(): void
+	{
+		$location = FileLocation::fromRow( 9, 'local::/var/www/data/__groupfolders/5/', 'versions/42/1700000000', 1700000000 );
+
+		$this->assertSame( FileLocation::NS_GROUPFOLDER, $location->namespace );
+		$this->assertSame( 5, $location->groupFolderId );
+		$this->assertNull( $location->relativePath );
+		$this->assertSame( 42, $location->version?->fileId );
+		$this->assertSame( 1700000000, $location->version?->timestamp );
+		$this->assertNull( $location->version?->fileInternalPath );
+	}
+
+	/**
+	 * The legacy layout keeps a team folder's versions in the root storage,
+	 * `__groupfolders/versions/<id>/<fileId>/<mtime>`: the folder is the
+	 * version's area, as it is its file's.
+	 */
+	public function testALegacyTeamFolderVersionIsItsFoldersAndNamesItsFile(): void
+	{
+		$location = FileLocation::fromRow( 10, 'local::/var/www/data/', '__groupfolders/versions/7/42/1700000000', 1700000000 );
+
+		$this->assertSame( FileLocation::NS_GROUPFOLDER, $location->namespace );
+		$this->assertSame( 7, $location->groupFolderId );
+		$this->assertNull( $location->relativePath );
+		$this->assertSame( 42, $location->version?->fileId );
+		$this->assertSame( 1700000000, $location->version?->timestamp );
+	}
+
+	/**
+	 * What only looks like a version is none: a folder of versions, a name
+	 * without the suffix, a user's file named like one, a version in the
+	 * trash, and the root storage's own directories.
+	 */
+	public function testRowsThatAreNoVersionNameNoFile(): void
+	{
+		foreach (
+			[
+				[ 'home::alice', 'files_versions/Docs' ],
+				[ 'home::alice', 'files_versions/a.txt' ],
+				[ 'home::alice', 'files_versions/a.txt.vx1' ],
+				[ 'home::alice', 'files_trashbin/versions/a.txt.v1700000000.d1700000100' ],
+				[ 'home::alice', 'files/a.txt.v1700000000' ],
+				[ 'local::/var/www/data/', 'files_versions/x.txt.v1' ],
+				[ 'local::/var/www/data/__groupfolders/5/', 'versions/42' ],
+				[ 'local::/var/www/data/__groupfolders/5/', 'files/versions/42/1700000000' ],
+				[ 'local::/var/www/data/__groupfolders/5/', 'trash/42/1700000000' ],
+				[ 'local::/var/www/data/', '__groupfolders/versions/7/42' ],
+			] as [ $storageId, $internalPath ]
+		)
+		{
+			$this->assertNull(
+				FileLocation::fromRow( 11, $storageId, $internalPath, 1 )->version,
+				$storageId . ' ' . $internalPath . ' is no version',
+			);
+		}
+	}
+
+	public function testTheFreshnessStampKeepsTheVersion(): void
+	{
+		$location = FileLocation::fromRow( 8, 'home::alice', 'files_versions/a.txt.v1700000000', 1 )
+		                        ->withUpdatedAt( 5 );
+
+		$this->assertSame( 'files/a.txt', $location->version?->fileInternalPath );
+	}
+
 	public function testTheFilesRootItselfIsSlash(): void
 	{
 		$location = FileLocation::fromRow( 7, 'home::alice', 'files', 100 );

@@ -32,7 +32,9 @@ namespace OCA\FileChecksumSearch\Service;
  * $relativePath is null for rows outside a files area (trash bins,
  * versions, appdata, the team folders' jails in the root storage).
  * Verdicts and sweeps skip those entirely: no rule matches them, and no
- * glob can reach them — the app hashes files, not infrastructure.
+ * glob can reach them — the app hashes files, not infrastructure. A
+ * version is the one exception: $version names its file, and the file's
+ * rule governs it ({@see RuleService::governingRuleForLocation()}).
  *
  * Its **address** ({@see describe()}) is the area, two slashes, and the
  * path below the area's top: `home:alice//Photos/x.jpg`,
@@ -82,6 +84,11 @@ readonly class FileLocation
 		 * state that says why not: what `missing` checks besides the stamp.
 		 */
 		public bool    $complete = true,
+		/**
+		 * The file this row is a version of, and when; null for a row that
+		 * is no version.
+		 */
+		public ?VersionOf $version = null,
 	) {
 	}
 
@@ -140,6 +147,7 @@ readonly class FileLocation
 					substr( $storageId, strlen( $prefix ) ),
 					null,
 					self::filesRelative( $internalPath ),
+					version: self::homeVersion( $internalPath ),
 				);
 			}
 		}
@@ -158,6 +166,24 @@ readonly class FileLocation
 				null,
 				(int) $m[1],
 				self::filesRelative( $internalPath ),
+				version: self::teamFolderVersion( $internalPath ),
+			);
+		}
+
+		// Legacy layout: a team folder's versions, jailed inside the root
+		// storage beside its files, by the file's id.
+		if ( preg_match( '#^__groupfolders/versions/(\d+)/(\d+)/(\d+)$#', $internalPath, $m ) === 1 )
+		{
+			return new self(
+				$fileId,
+				$storageId,
+				$internalPath,
+				$mtime,
+				self::NS_GROUPFOLDER,
+				null,
+				(int) $m[1],
+				null,
+				version: new VersionOf( (int) $m[3], fileId: (int) $m[2] ),
 			);
 		}
 
@@ -294,6 +320,7 @@ readonly class FileLocation
 			$updatedAt,
 			$settled,
 			$complete,
+			$this->version,
 		);
 	}
 
@@ -313,6 +340,37 @@ readonly class FileLocation
 		}
 
 		return null;
+	}
+
+	/**
+	 * The file a home's version row is a version of, or null for a row that
+	 * is none: `files_versions/<path>.v<mtime>` is `files/<path>` as it was.
+	 * A name may hold `.v` itself; only the last one, before digits alone,
+	 * is the version's.
+	 */
+	private static function homeVersion( string $internalPath ): ?VersionOf
+	{
+		if ( preg_match( '#^files_versions/(.+)\.v(\d+)$#', $internalPath, $m ) !== 1 )
+		{
+			return null;
+		}
+
+		return new VersionOf( (int) $m[2], fileInternalPath: 'files/' . $m[1] );
+	}
+
+	/**
+	 * The file a team folder's version row is a version of, or null for a
+	 * row that is none: `versions/<fileId>/<mtime>`, in the folder's own
+	 * storage.
+	 */
+	private static function teamFolderVersion( string $internalPath ): ?VersionOf
+	{
+		if ( preg_match( '#^versions/(\d+)/(\d+)$#', $internalPath, $m ) !== 1 )
+		{
+			return null;
+		}
+
+		return new VersionOf( (int) $m[2], fileId: (int) $m[1] );
 	}
 
 	/**

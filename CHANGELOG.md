@@ -11,6 +11,11 @@ the first stable release.
 
 ## [Unreleased]
 
+### Added
+
+- `README.md`, *File versions*: a file's versions are governed by its
+  rule.
+
 ## [0.26.1] - 2026-10-19
 
 ### Fixed

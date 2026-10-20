@@ -336,6 +336,75 @@ class FilecacheService
 	}
 
 	/**
+	 * The files a batch of version rows are versions of.
+	 *
+	 * A home's version names its file by path, in its own storage, and a
+	 * team folder's by id ({@see VersionOf}): one query per storage for the
+	 * first, one for all of the second. A version whose file is gone, and a
+	 * row that is no version, are absent from the result.
+	 *
+	 * @param  list<FileLocation>  $versions
+	 *
+	 * @return array<int, FileLocation>  keyed by the version's file id
+	 * @throws \OCP\DB\Exception
+	 */
+	public function filesOfVersions( array $versions ): array
+	{
+		$byPath = [];
+		$byId   = [];
+
+		foreach ( $versions as $location )
+		{
+			$filePath = $location->version?->fileInternalPath;
+			$fileId   = $location->version?->fileId;
+
+			if ( $filePath !== null )
+			{
+				$byPath[ $location->storageId ][ $location->fileId ] = $filePath;
+			}
+			elseif ( $fileId !== null )
+			{
+				$byId[ $location->fileId ] = $fileId;
+			}
+		}
+
+		$files = [];
+
+		if ( $byPath !== [] )
+		{
+			$located = $this->locateAllByPath( array_map( array_values( ... ), $byPath ) );
+
+			foreach ( $byPath as $storageId => $paths )
+			{
+				foreach ( $paths as $versionId => $path )
+				{
+					$file = $located[ self::identityKey( $storageId, $path ) ] ?? null;
+
+					if ( $file !== null )
+					{
+						$files[ $versionId ] = $file;
+					}
+				}
+			}
+		}
+
+		if ( $byId !== [] )
+		{
+			$located = $this->locateAll( array_values( $byId ) );
+
+			foreach ( $byId as $versionId => $fileId )
+			{
+				if ( isset( $located[ $fileId ] ) )
+				{
+					$files[ $versionId ] = $located[ $fileId ];
+				}
+			}
+		}
+
+		return $files;
+	}
+
+	/**
 	 * The key both directions of an import agree on.
 	 *
 	 * A NUL separator because it is the one byte a storage id and a path

@@ -17,6 +17,7 @@ use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
+use OCP\Files\NotFoundException;
 use OCP\IAppConfig;
 use OCP\IConfig;
 use OCP\IDBConnection;
@@ -348,6 +349,36 @@ abstract class DatabaseTestCase
 		{
 			// No trash, or one that cannot be read: nothing to empty.
 		}
+	}
+
+	/**
+	 * The folder at $path below $home, made a segment at a time where it is
+	 * not there: how a test puts a row where the trash or the versions app
+	 * would, without either app.
+	 */
+	protected static function folderAt(
+		Folder $home,
+		string $path,
+	): Folder
+	{
+		$folder = $home;
+
+		foreach ( explode( '/', $path ) as $segment )
+		{
+			try
+			{
+				$next = $folder->get( $segment );
+			}
+			catch ( NotFoundException )
+			{
+				$next = $folder->newFolder( $segment );
+			}
+
+			/** @var Folder $next */
+			$folder = $next;
+		}
+
+		return $folder;
 	}
 
 	// ─── the instance's own rules ────────────────────────────────────

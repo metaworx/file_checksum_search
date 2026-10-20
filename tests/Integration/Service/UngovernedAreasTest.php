@@ -12,9 +12,7 @@ namespace OCA\FileChecksumSearch\Tests\Integration\Service;
 use OCA\FileChecksumSearch\Public\ChecksumApi;
 use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
-use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
-use OCP\Files\NotFoundException;
 use OCP\Server;
 
 /**
@@ -81,42 +79,6 @@ class UngovernedAreasTest
 
 			self::assertTrue( $result['success'] ?? false, "hashing $key" );
 		}
-	}
-
-	private static function folderAt( Folder $home, string $path ): Folder
-	{
-		try
-		{
-			$node = $home->get( $path );
-
-			if ( $node instanceof Folder )
-			{
-				return $node;
-			}
-		}
-		catch ( NotFoundException )
-		{
-			// Made below, one segment at a time.
-		}
-
-		$folder = $home;
-
-		foreach ( explode( '/', $path ) as $segment )
-		{
-			try
-			{
-				$next = $folder->get( $segment );
-			}
-			catch ( NotFoundException )
-			{
-				$next = $folder->newFolder( $segment );
-			}
-
-			/** @var Folder $next */
-			$folder = $next;
-		}
-
-		return $folder;
 	}
 
 

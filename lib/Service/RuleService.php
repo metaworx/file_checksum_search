@@ -890,7 +890,10 @@ class RuleService
 	 * canonical identity and globs against its namespace-relative path — the
 	 * same subject the rule's author wrote the glob for, no matter through
 	 * whose view or mount the file was reached. Locations outside a files
-	 * area (trash bins, versions, appdata) are governed by nothing.
+	 * area (trash bins, appdata) are governed by nothing. A version is
+	 * governed by its file's rule, so that a rule that stops maintaining a
+	 * file stops maintaining its versions; one whose file is gone, by
+	 * nothing.
 	 *
 	 * @param  list<string>  $ignoreRuleIds  Rule IDs to evaluate as though they
 	 *                                       did not exist, so the next matching
@@ -904,7 +907,12 @@ class RuleService
 		array        $ignoreRuleIds = [],
 	): ?array
 	{
-		if ( $location->relativePath === null )
+		if ( $location->version !== null )
+		{
+			$location = $this->filecacheService->filesOfVersions( [ $location ] )[ $location->fileId ] ?? null;
+		}
+
+		if ( $location?->relativePath === null )
 		{
 			return null;
 		}
@@ -1224,7 +1232,8 @@ class RuleService
 	 * ({@see FilecacheService::locateAll()}), then in-memory matching
 	 * against the memoised rule list. Every requested id has an entry —
 	 * null when no filecache row exists, no rule matches, or the row lies
-	 * outside a files area.
+	 * outside a files area. The versions among them take their files' rules,
+	 * located in one more query.
 	 *
 	 * @param  list<int>     $fileIds
 	 * @param  list<string>  $ignoreRuleIds  See {@see governingRuleForLocation()}.
@@ -1238,11 +1247,21 @@ class RuleService
 	): array
 	{
 		$locations = $this->filecacheService->locateAll( $fileIds );
+		$versions  = array_values( array_filter( $locations, static fn( FileLocation $location ): bool => $location->version !== null ) );
+		$files     = $versions === []
+			? []
+			: $this->filecacheService->filesOfVersions( $versions );
 		$rules     = [];
 
 		foreach ( $fileIds as $fileId )
 		{
 			$location = $locations[ $fileId ] ?? null;
+
+			// A version is judged as its file, already located.
+			if ( $location?->version !== null )
+			{
+				$location = $files[ $fileId ] ?? null;
+			}
 
 			$rules[ $fileId ] = $location === null
 				? null
