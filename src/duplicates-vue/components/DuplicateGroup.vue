@@ -44,6 +44,9 @@ const statusText = computed(() => {
 
 const fileCount = computed(() => n('file_checksum_search', '%n file', '%n files', props.group.file_count))
 
+/** Whether the group holds a file to read: a version is not read again. */
+const readable = computed(() => props.group.files.some((file) => !file.version))
+
 const TITLES = {
 	verifyAll: t('file_checksum_search', 'Read every file in this group again, recalculate its checksum and compare'),
 	verify: t('file_checksum_search', 'Read this file again, recalculate its checksum and compare'),
@@ -86,10 +89,11 @@ function toggle(): void {
 				<!-- Reading every file in the group costs time and, on metered
 				     storage, money — so it is asked for here, per group, and
 				     never for the whole page at once. Hidden, not disabled, for an
-				     account the recalculation permission does not name: a
-				     button that can only fail is not an offer. -->
+				     account the recalculation permission does not name, and for
+				     a group of versions only: a button that can only fail, or do
+				     nothing, is not an offer. -->
 				<NcButton
-					v-if="canVerify"
+					v-if="canVerify && readable"
 					class="db-verify-all"
 					:disabled="verifying"
 					:title="TITLES.verifyAll"

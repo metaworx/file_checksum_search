@@ -47,6 +47,18 @@ describe('DuplicateGroup, a version', () => {
 		expect(items[0].find('.db-verify-file').exists()).toBe(true)
 		expect(items[1].find('.db-verify-file').exists()).toBe(false)
 	})
+
+	// The group's verification reads no version, so a group of versions
+	// only has nothing to verify.
+	it('leaves a group of versions only without Verify all', () => {
+		const versions = [
+			files[1],
+			{ fileid: 5, path: 'versions:///x/b.pdf', name: 'b.pdf', version: { fileid: 4, timestamp: '2023-11-14T22:13:20+00:00' } },
+		]
+
+		expect(mounted({ files: versions }).find('.db-verify-all').exists()).toBe(false)
+		expect(mounted({ files }).find('.db-verify-all').exists()).toBe(true)
+	})
 })
 
 describe('DuplicateGroup, the MIME type', () => {
