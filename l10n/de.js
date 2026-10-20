@@ -2,6 +2,7 @@ OC.L10N.register(
     "file_checksum_search",
     {
     "\"Yes\" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it." : "„Ja“ bedeutet, dass die Administration diese Regel erzwungen hat: Niemand sonst kann sie bearbeiten oder deaktivieren, und da erzwungene Regeln die ersten vier Segmente belegen, kann keine persönliche Regel vor ihr stehen.",
+    "%1$s (version of %2$s)" : "%1$s (Version vom %2$s)",
     "_%n file_::_%n files_" : ["%n Datei","%n Dateien"],
     "(not in your files)" : "(nicht in deinen Dateien)",
     "A disabled rule cannot be applied — enable it first." : "Eine deaktivierte Regel kann nicht angewendet werden – aktiviere sie zuerst.",
@@ -374,7 +375,6 @@ OC.L10N.register(
     "Verified" : "Geprüft",
     "Verify" : "Prüfen",
     "Verify all" : "Alle prüfen",
-    "Version of %s" : "Version vom %s",
     "Version of {date}" : "Version vom {date}",
     "Versions" : "Versionen",
     "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount." : "Was geschieht, wenn diese Regel zutrifft. „Einschließen“ berechnet die Prüfsummen unten. „Ignorieren“ beendet die automatische Berechnung, erlaubt aber weiterhin, die Prüfsummen einer Datei von Hand neu zu berechnen. „Ausschließen“ blockiert die Berechnung ganz – für Speicher, der nicht gelesen werden darf, etwa einen externen Speicher mit Volumentarif.",

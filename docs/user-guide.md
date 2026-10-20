@@ -201,7 +201,8 @@ the File checksums provider listing the two files that carry it][shot-unified-se
 This works without browsing folders and is useful for identifying known
 files (e.g. a known-good ISO image) or finding every copy of a file.
 An earlier version of a file is offered as the file,
-*Version of* and its date after the path: the content was once that file's.
+*version of* and its date in brackets after the name:
+the content was once that file's.
 
 ## The file detail pane
 

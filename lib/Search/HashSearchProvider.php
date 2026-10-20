@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\ReachResolver;
 use OCP\Files\IRootFolder;
+use OCP\IDateTimeFormatter;
 use OCP\IL10N;
 use OCP\IURLGenerator;
 use OCP\IUser;
@@ -51,6 +52,7 @@ class HashSearchProvider
 		private readonly LoggerInterface $logger,
 		private readonly IL10N $l10n,
 		private readonly HashIndexService $hashIndexService,
+		private readonly IDateTimeFormatter $dateTimeFormatter,
 	) {
 	}
 
@@ -187,16 +189,22 @@ class HashSearchProvider
 			// Read authoritative hash from oc_files_metadata.json
 			$extracted = $this->metadataService->extractAlgorithm( (int) $row[ MetadataService::FIELD_FILE_ID ], $row );
 			$subline   = sprintf( '%s: %s — %s', $extracted['hash'] ?? $parsed['hash'], $extracted['algo'], $fullPath );
+			$title     = $node->getName();
 
+			// Beside the name, where the search's list does not cut it off,
+			// and in the account's time zone.
 			if ( $version !== null )
 			{
-				// TRANSLATORS: a search result that is an earlier version of the file it names; %s is when the file had that content, a date and time
-				$subline .= ' — ' . $this->l10n->t( 'Version of %s', [ (string) $this->l10n->l( 'datetime', strtotime( $version['timestamp'] ) ) ] );
+				// TRANSLATORS: the title of a search result that is an earlier version of a file: %1$s is the file's name, %2$s when the file had that content, a date and time
+				$title = $this->l10n->t( '%1$s (version of %2$s)', [
+					$title,
+					$this->dateTimeFormatter->formatDateTime( (int) strtotime( $version['timestamp'] ), 'medium', 'medium', null, $this->l10n ),
+				] );
 			}
 
 			$entries[] = new SearchResultEntry(
 				thumbnailUrl: '',
-				title: $node->getName(),
+				title: $title,
 				subline: $subline,
 				resourceUrl: $this->urlGenerator->linkToRoute( 'files.view.showFile', [
 					'fileid'      => $fileId,

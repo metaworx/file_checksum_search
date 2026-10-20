@@ -1,5 +1,6 @@
 { "translations": {
     "\"Yes\" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it." : "“Sim” significa que um administrador impôs esta regra: nenhuma outra pessoa pode editá-la nem desativá-la, e, como as regras impostas ocupam as quatro primeiras faixas, nenhuma regra pessoal pode vir antes dela.",
+    "%1$s (version of %2$s)" : "%1$s (versão de %2$s)",
     "_%n file_::_%n files_" : ["%n arquivo","%n de arquivos","%n arquivos"],
     "(not in your files)" : "(não está nos seus arquivos)",
     "A disabled rule cannot be applied — enable it first." : "Uma regra desativada não pode ser aplicada — ative-a primeiro.",
@@ -372,7 +373,6 @@
     "Verified" : "Verificado",
     "Verify" : "Verificar",
     "Verify all" : "Verificar todos",
-    "Version of %s" : "Versão de %s",
     "Version of {date}" : "Versão de {date}",
     "Versions" : "Versões",
     "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount." : "O que acontece quando esta regra corresponde. “Incluir” calcula as somas de verificação abaixo. “Ignorar” interrompe o cálculo automático de somas de verificação, mas ainda permite recalcular manualmente as somas de verificação de um arquivo. “Bloquear” impede totalmente o cálculo de somas de verificação — use-o para armazenamentos que não devem ser lidos, como um armazenamento externo cobrado por uso.",

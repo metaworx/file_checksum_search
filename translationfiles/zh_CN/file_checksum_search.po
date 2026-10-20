@@ -20,6 +20,11 @@ msgstr ""
 msgid "\"Yes\" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it."
 msgstr "“是”表示此规则由管理员强制执行：其他人都无法编辑或禁用它；而且强制规则占据前四个层级，因此任何个人规则都无法排在它之前。"
 
+#. TRANSLATORS: the title of a search result that is an earlier version of a file: %1$s is the file's name, %2$s when the file had that content, a date and time
+#, php-format
+msgid "%1$s (version of %2$s)"
+msgstr "%1$s（%2$s 的版本）"
+
 msgid "%n file"
 msgid_plural "%n files"
 msgstr[0] "%n 个文件"
@@ -1220,11 +1225,6 @@ msgstr "验证"
 
 msgid "Verify all"
 msgstr "全部验证"
-
-#. TRANSLATORS: a search result that is an earlier version of the file it names; %s is when the file had that content, a date and time
-#, php-format
-msgid "Version of %s"
-msgstr "%s 的版本"
 
 #. TRANSLATORS: beside a file in a list, marking an earlier version of it; {date} is when the file had that content
 msgid "Version of {date}"

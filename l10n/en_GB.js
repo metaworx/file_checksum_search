@@ -2,6 +2,7 @@ OC.L10N.register(
     "file_checksum_search",
     {
     "\"Yes\" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it." : "\"Yes\" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it.",
+    "%1$s (version of %2$s)" : "%1$s (version of %2$s)",
     "_%n file_::_%n files_" : ["%n file","%n files"],
     "(not in your files)" : "(not in your files)",
     "A disabled rule cannot be applied — enable it first." : "A disabled rule cannot be applied — enable it first.",
@@ -374,7 +375,6 @@ OC.L10N.register(
     "Verified" : "Verified",
     "Verify" : "Verify",
     "Verify all" : "Verify all",
-    "Version of %s" : "Version of %s",
     "Version of {date}" : "Version of {date}",
     "Versions" : "Versions",
     "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount." : "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount.",

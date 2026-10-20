@@ -20,6 +20,11 @@ msgstr ""
 msgid "\"Yes\" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it."
 msgstr "«Sí» significa que un administrador impuso esta regla: nadie más puede editarla ni desactivarla, y como las reglas impuestas ocupan los cuatro primeros niveles, ninguna regla personal puede ir antes que ella."
 
+#. TRANSLATORS: the title of a search result that is an earlier version of a file: %1$s is the file's name, %2$s when the file had that content, a date and time
+#, php-format
+msgid "%1$s (version of %2$s)"
+msgstr "%1$s (versión del %2$s)"
+
 msgid "%n file"
 msgid_plural "%n files"
 msgstr[0] "%n archivo"
@@ -1228,11 +1233,6 @@ msgstr "Verificar"
 
 msgid "Verify all"
 msgstr "Verificar todo"
-
-#. TRANSLATORS: a search result that is an earlier version of the file it names; %s is when the file had that content, a date and time
-#, php-format
-msgid "Version of %s"
-msgstr "Versión del %s"
 
 #. TRANSLATORS: beside a file in a list, marking an earlier version of it; {date} is when the file had that content
 msgid "Version of {date}"

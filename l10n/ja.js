@@ -2,6 +2,7 @@ OC.L10N.register(
     "file_checksum_search",
     {
     "\"Yes\" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it." : "「はい」は、管理者がこのルールを強制したことを意味します。他の誰もこのルールを編集したり無効にしたりできません。また、強制ルールは最初の4つの階層を占めるため、個人ルールがこのルールより前に来ることはありません。",
+    "%1$s (version of %2$s)" : "%1$s（%2$s のバージョン）",
     "_%n file_::_%n files_" : ["%n個のファイル"],
     "(not in your files)" : "（あなたのファイルにはありません）",
     "A disabled rule cannot be applied — enable it first." : "無効なルールは適用できません。先に有効にしてください。",
@@ -374,7 +375,6 @@ OC.L10N.register(
     "Verified" : "検証済み",
     "Verify" : "検証",
     "Verify all" : "すべて検証",
-    "Version of %s" : "%s のバージョン",
     "Version of {date}" : "{date} のバージョン",
     "Versions" : "バージョン",
     "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount." : "このルールに一致したときの動作です。「含める」は下のチェックサムを計算します。「無視する」は自動ハッシュ計算を止めますが、ファイルのチェックサムを手動で再計算することはできます。「除外する」はハッシュ計算を完全に禁止します。従量課金の外部ストレージなど、読み取ってはならないストレージに使用してください。",

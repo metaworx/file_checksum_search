@@ -2,6 +2,7 @@ OC.L10N.register(
     "file_checksum_search",
     {
     "\"Yes\" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it." : "“Ja” betekent dat een beheerder deze regel heeft afgedwongen: niemand anders kan hem bewerken of uitschakelen, en omdat afgedwongen regels de eerste vier lagen vullen, kan geen persoonlijke regel eerder aan de beurt komen dan deze regel.",
+    "%1$s (version of %2$s)" : "%1$s (versie van %2$s)",
     "_%n file_::_%n files_" : ["%n bestand","%n bestanden"],
     "(not in your files)" : "(niet in je bestanden)",
     "A disabled rule cannot be applied — enable it first." : "Een uitgeschakelde regel kan niet worden toegepast – schakel hem eerst in.",
@@ -374,7 +375,6 @@ OC.L10N.register(
     "Verified" : "Gecontroleerd",
     "Verify" : "Controleren",
     "Verify all" : "Alles controleren",
-    "Version of %s" : "Versie van %s",
     "Version of {date}" : "Versie van {date}",
     "Versions" : "Versies",
     "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount." : "Wat er gebeurt als deze regel overeenkomt. “Opnemen” berekent de controlesommen hieronder. “Negeren” stopt de automatische berekening, maar laat nog steeds toe dat iemand de controlesommen van een bestand handmatig opnieuw berekent. “Uitsluiten” blokkeert de berekening volledig – gebruik dit voor opslag die niet gelezen mag worden, zoals externe opslag waarvoor per gebruik wordt betaald.",

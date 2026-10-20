@@ -413,8 +413,7 @@ class VersionResultsTest
 		$entries = Server::get( HashSearchProvider::class )->search( $owner, $query )->jsonSerialize()['entries'];
 
 		$this->assertCount( 1, $entries );
-		$this->assertSame( 'p.txt', $entries[0]->jsonSerialize()['title'] );
-		$this->assertStringContainsString( 'Version of', $entries[0]->jsonSerialize()['subline'] );
+		$this->assertStringStartsWith( 'p.txt (version of ', $entries[0]->jsonSerialize()['title'] );
 		$this->assertStringContainsString( '/f/' . self::$id['p'] . '?', $entries[0]->jsonSerialize()['resourceUrl'], 'it opens the file' );
 	}
 

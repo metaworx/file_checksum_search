@@ -2,6 +2,7 @@ OC.L10N.register(
     "file_checksum_search",
     {
     "\"Yes\" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it." : "«Sí» significa que un administrador impuso esta regla: nadie más puede editarla ni desactivarla, y como las reglas impuestas ocupan los cuatro primeros niveles, ninguna regla personal puede ir antes que ella.",
+    "%1$s (version of %2$s)" : "%1$s (versión del %2$s)",
     "_%n file_::_%n files_" : ["%n archivo","%n archivos","%n archivos"],
     "(not in your files)" : "(no está en sus archivos)",
     "A disabled rule cannot be applied — enable it first." : "Una regla desactivada no se puede aplicar: actívela primero.",
@@ -374,7 +375,6 @@ OC.L10N.register(
     "Verified" : "Verificado",
     "Verify" : "Verificar",
     "Verify all" : "Verificar todo",
-    "Version of %s" : "Versión del %s",
     "Version of {date}" : "Versión del {date}",
     "Versions" : "Versiones",
     "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount." : "Qué ocurre cuando esta regla coincide. «Incluir» calcula las sumas de verificación de abajo. «Ignorar» detiene el cálculo automático de hashes, pero sigue permitiendo recalcular manualmente las sumas de verificación de un archivo. «Excluir» bloquea por completo el cálculo de hashes: úselo para almacenamientos que no deben leerse, como un almacenamiento externo de pago por uso.",
