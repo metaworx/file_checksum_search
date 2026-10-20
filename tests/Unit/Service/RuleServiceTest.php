@@ -1852,6 +1852,81 @@ class RuleServiceTest
 	}
 
 	/**
+	 * A rule that hashes versions sweeps them too, judged at their files'
+	 * paths: the version of a file below its glob is queued, one of a file
+	 * outside it and one whose file is gone are not, and the page's files
+	 * are located in one query. A rule that does not sweeps none.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testARuleThatHashesVersionsSweepsThemAtTheirFilesPaths(): void
+	{
+		$rule = [
+			'id'       => 'docs',
+			'enabled'  => true,
+			'selector' => 'home:alice',
+			'path'     => 'Docs/**',
+			'mode'     => 'auto',
+			'versions' => true,
+		];
+		$this->setupRulesConfig( [ $rule ] );
+
+		$inDocs  = FileLocation::fromRow( 1, 'home::alice', 'files_versions/Docs/a.txt.v1700000000', 1 );
+		$outside = FileLocation::fromRow( 2, 'home::alice', 'files_versions/Other/b.txt.v1700000000', 1 );
+		$gone    = FileLocation::fromRow( 3, 'home::alice', 'files_versions/Docs/gone.txt.v1700000000', 1 );
+		$this->stubSweep( $inDocs, $outside, $gone );
+
+		$this->filecacheService->expects( $this->once() )
+		                       ->method( 'filesOfVersions' )
+		                       ->with( [
+			                       $inDocs,
+			                       $outside,
+			                       $gone,
+		                       ] )
+		                       ->willReturn( [
+			                       1 => $this->homeLocation( 11, 'alice', '/Docs/a.txt' ),
+			                       2 => $this->homeLocation( 12, 'alice', '/Other/b.txt' ),
+		                       ] )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 1, MetadataService::PENDING_PREFIX . 'auto' )
+		;
+
+		$this->assertSame( 1, $this->service->processRule( $rule )['marked'] );
+	}
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testARuleThatDoesNotHashVersionsSweepsNone(): void
+	{
+		$rule = [
+			'id'       => 'docs',
+			'enabled'  => true,
+			'selector' => 'home:alice',
+			'path'     => '**',
+			'mode'     => 'auto',
+		];
+		// Nothing is yielded, so no rule is even loaded to judge it.
+		$this->stubSweep( FileLocation::fromRow( 1, 'home::alice', 'files_versions/a.txt.v1700000000', 1 ) );
+
+		$this->filecacheService->expects( $this->never() )->method( 'filesOfVersions' );
+		$this->metadataService->expects( $this->never() )->method( 'markPending' );
+
+		$this->assertSame( 0, $this->service->processRule( $rule )['marked'] );
+	}
+
+	public function testOnlyAnIncludeRuleThatSaysSoHashesVersions(): void
+	{
+		$this->assertTrue( RuleService::hashesVersions( [ 'versions' => true ] ) );
+		$this->assertFalse( RuleService::hashesVersions( [ 'type' => 'include' ] ) );
+		$this->assertFalse( RuleService::hashesVersions( [ 'type' => 'ignore', 'versions' => true ] ) );
+		$this->assertFalse( RuleService::hashesVersions( null ) );
+	}
+
+	/**
 	 * The batch locates the versions' files in one query, beside the one
 	 * that located the batch; a file is judged as itself.
 	 *

@@ -14,7 +14,8 @@ the first stable release.
 ### Added
 
 - `README.md`, *File versions*: an overwritten file's checksums pass to
-  its version, which its rule governs.
+  its version, which its rule governs; a rule with `versions` reads and
+  hashes the older ones.
 
 ## [0.26.1] - 2026-10-19
 

@@ -129,6 +129,9 @@ msgstr "Autoriser tous les comptes à utiliser l'API"
 msgid "Allowed algorithms"
 msgstr "Algorithmes autorisés"
 
+msgid "Also hash the older versions of these files"
+msgstr "Calculer aussi les empreintes des anciennes versions de ces fichiers"
+
 #. TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
 #, php-format
 msgid "An %s rule computes nothing, so there is nothing to apply."
@@ -560,9 +563,9 @@ msgstr "Aide : {label}"
 msgid "How a file gets its checksums. \"Auto\" computes them for a file without current ones, new or changed, \"Missing\" also adds one the file lacks, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
 msgstr "Comment un fichier obtient ses sommes de contrôle. « Automatique » les calcule pour un fichier qui n'en a aucune à jour, qu'il soit nouveau ou modifié, « Manquantes » ajoute aussi celles qui lui manquent, « Forcer » les supprime toutes et les recalcule, et « Différé » les supprime maintenant et laisse un passage ultérieur les recalculer."
 
-#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, and "—" what it shows for a rule that computes nothing; keep them
-msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. Shown as \"—\" for a rule that computes nothing."
-msgstr "Comment un fichier obtient ses sommes de contrôle. \"auto\" les calcule pour un fichier qui n'en a aucune à jour, qu'il soit nouveau ou modifié, \"missing\" ajoute aussi celles qui lui manquent, \"force\" les supprime toutes et les recalcule, et \"lazy\" les supprime maintenant et laisse un passage ultérieur les recalculer. Affiché sous la forme \"—\" pour une règle qui ne calcule rien."
+#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, "+ versions" what it shows beside one, and "—" what it shows for a rule that computes nothing; keep them
+msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. \"+ versions\" beside the mode: the rule also hashes the older versions of its files. Shown as \"—\" for a rule that computes nothing."
+msgstr "Comment un fichier obtient ses sommes de contrôle. \"auto\" les calcule pour un fichier qui n'en a aucune à jour, qu'il soit nouveau ou modifié, \"missing\" ajoute aussi celles qui lui manquent, \"force\" les supprime toutes et les recalcule, et \"lazy\" les supprime maintenant et laisse un passage ultérieur les recalculer. \"+ versions\" à côté du mode : la règle calcule aussi les empreintes des anciennes versions de ses fichiers. Affiché sous la forme \"—\" pour une règle qui ne calcule rien."
 
 msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr "Nombre de groupes affichés par page. Rien n'est lu sur le disque tant que vous ne vérifiez pas un groupe ou un fichier : une page plus grande coûte donc une requête plus longue, pas des lectures plus longues."
@@ -1219,6 +1222,9 @@ msgstr "Vérifier"
 msgid "Verify all"
 msgstr "Tout vérifier"
 
+msgid "Versions"
+msgstr "Versions"
+
 #. TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
 msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."
 msgstr "Ce qui se passe lorsque cette règle correspond. « Inclure » calcule les sommes de contrôle ci-dessous. « Ignorer » arrête le calcul automatique des empreintes, mais permet toujours de recalculer manuellement les sommes de contrôle d'un fichier. « Exclure » bloque entièrement le calcul des empreintes – à utiliser pour un stockage qui ne doit pas être lu, comme un stockage externe facturé à l'usage."
@@ -1226,6 +1232,9 @@ msgstr "Ce qui se passe lorsque cette règle correspond. « Inclure » calcule
 #. TRANSLATORS: "include", "ignore" and "exclude" are the rule types as the table shows them; keep them
 msgid "What happens when this rule matches. \"include\" computes the checksums in this row. \"ignore\" stops automatic hashing but still allows a manual recalculation. \"exclude\" blocks hashing by every route, including the sidebar button, the API and the occ command."
 msgstr "Ce qui se passe lorsque cette règle correspond. \"include\" calcule les sommes de contrôle de cette ligne. \"ignore\" arrête le calcul automatique des empreintes, mais permet toujours un recalcul manuel. \"exclude\" bloque le calcul des empreintes par toutes les voies, y compris le bouton du panneau latéral, l'API et la commande occ."
+
+msgid "When a file is overwritten, the older version kept of it gets the checksums the file had, without being read. When set, older versions without any, such as those made before checksums were kept, are read and hashed as well."
+msgstr "Lorsqu'un fichier est écrasé, l'ancienne version qui en est conservée reçoit les sommes de contrôle du fichier, sans être lue. Si cette option est activée, les anciennes versions qui n'en ont aucune, comme celles créées avant que les sommes de contrôle ne soient conservées, sont aussi lues et leurs empreintes calculées."
 
 msgid "When on, every account may call the public API with an app password. When off, only the groups and individual accounts selected here may; the app's own pages keep working for everyone."
 msgstr "Si activé, chaque compte peut appeler l'API publique avec un mot de passe d'application. Si désactivé, seuls les groupes et comptes individuels sélectionnés ici le peuvent ; les pages propres à l'application continuent de fonctionner pour tous."

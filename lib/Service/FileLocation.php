@@ -326,6 +326,34 @@ readonly class FileLocation
 	}
 
 	/**
+	 * The same version with its file located, so that whoever judges it as
+	 * its file need not locate the file again. A row that is no version
+	 * stays as it is.
+	 */
+	public function withVersionFile( self $file ): self
+	{
+		if ( $this->version === null )
+		{
+			return $this;
+		}
+
+		return new self(
+			$this->fileId,
+			$this->storageId,
+			$this->internalPath,
+			$this->mtime,
+			$this->namespace,
+			$this->owner,
+			$this->groupFolderId,
+			$this->relativePath,
+			$this->updatedAt,
+			$this->settled,
+			$this->complete,
+			new VersionOf( $this->version->timestamp, $this->version->fileInternalPath, $this->version->fileId, $file ),
+		);
+	}
+
+	/**
 	 * The same location with its freshness stamp filled in — the sweep sets
 	 * it from the page query so the caller need not ask per file.
 	 */

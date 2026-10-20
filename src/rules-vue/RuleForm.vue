@@ -63,6 +63,7 @@ const ids = props.variant === 'admin'
 		type: 'fcias-rule-type',
 		algos: 'fcias-rule-algos',
 		mode: 'fcias-rule-mode',
+		versions: 'fcias-rule-versions',
 		adminEnforced: 'fcias-rule-admin-enforced',
 		save: 'fcias-btn-save-rule',
 		cancel: 'fcias-btn-cancel-rule',
@@ -75,6 +76,7 @@ const ids = props.variant === 'admin'
 		type: 'fcias-personal-type',
 		algos: 'fcias-personal-algos',
 		mode: 'fcias-personal-mode',
+		versions: 'fcias-personal-versions',
 		adminEnforced: '',
 		save: 'fcias-personal-save',
 		cancel: 'fcias-personal-cancel',
@@ -88,6 +90,7 @@ const draft = reactive<RuleDraft>({
 	algos: [],
 	selector: 'home:*',
 	admin_enforced: false,
+	versions: false,
 })
 
 /** What a new rule starts from: the instance's default, as a rule created through the API gets it. */
@@ -111,6 +114,7 @@ function seed(rule: RuleDraft | null): void {
 	draft.algos = rule?.algos?.length ? rule.algos.slice() : startingAlgos()
 	draft.selector = rule?.selector || 'home:*'
 	draft.admin_enforced = rule?.admin_enforced === true
+	draft.versions = rule?.versions === true
 
 	selectorChoice.value = selectorKind(draft.selector)
 	selectorTargetValue.value = selectorTarget(draft.selector) ?? ''
@@ -241,6 +245,7 @@ const HELP = {
 	algos: t('file_checksum_search', 'Checksum algorithms computed for matching files. Each algorithm you add is indexed separately, so more algorithms mean more work per file.'),
 	// TRANSLATORS: "Auto", "Missing", "Force" and "Lazy" name the choices of the Mode field; translate them as that field does
 	mode: t('file_checksum_search', 'How a file gets its checksums. "Auto" computes them for a file without current ones, new or changed, "Missing" also adds one the file lacks, "Force" deletes and recalculates all of them, and "Lazy" deletes them now and lets a later run recalculate them.'),
+	versions: t('file_checksum_search', 'When a file is overwritten, the older version kept of it gets the checksums the file had, without being read. When set, older versions without any, such as those made before checksums were kept, are read and hashed as well.'),
 	adminEnforced: t('file_checksum_search', 'When set, nobody else can edit or disable this rule. Enforced rules are evaluated before every personal rule, so none can come before them.'),
 	// TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
 	type: t('file_checksum_search', 'What happens when this rule matches. "Include" computes the checksums below. "Ignore" stops automatic hashing but still lets someone recalculate a file\'s checksums by hand. "Exclude" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount.'),
@@ -471,6 +476,19 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
 					</option>
 				</select>
 				<HelpPopover :text="HELP.mode" :label="t('file_checksum_search', 'Mode')" />
+			</div>
+
+			<div v-if="computesHashes" class="fcias-rule-form-row">
+				<label :for="ids.versions">{{ t('file_checksum_search', 'Versions') }}</label>
+				<span class="fcias-rule-form-fill">
+					<NcCheckboxRadioSwitch
+						:id="ids.versions"
+						v-model="draft.versions"
+						type="switch">
+						{{ t('file_checksum_search', 'Also hash the older versions of these files') }}
+					</NcCheckboxRadioSwitch>
+				</span>
+				<HelpPopover :text="HELP.versions" :label="t('file_checksum_search', 'Versions')" />
 			</div>
 
 			<div v-if="variant === 'admin'" class="fcias-rule-form-row">

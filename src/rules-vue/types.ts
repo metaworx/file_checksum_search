@@ -17,6 +17,8 @@ export interface Rule {
 	admin_enforced: boolean
 	/** `include` (default), `ignore`, or `exclude` — what the rule does when it matches. */
 	type?: string
+	/** An include rule's: whether it also reads and hashes the older versions of its files. */
+	versions?: boolean
 	/**
 	 * True when the rule's path is a bare catch-all (`**`, `/`, or empty), which puts it in the
 	 * trailing defaults partition of its own segment. Several rules are default-shaped — the app
@@ -41,6 +43,8 @@ export interface RuleDraft {
 	path: string
 	selector: string
 	admin_enforced: boolean
+	/** Whether the rule also reads and hashes the older versions of its files. */
+	versions?: boolean
 	/** Read-only here: the server derives it from `path` and ignores whatever a draft claims. */
 	isDefault?: boolean
 	enabled?: boolean

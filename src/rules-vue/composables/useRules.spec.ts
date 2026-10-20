@@ -75,6 +75,18 @@ describe('useRules', () => {
 		expect(call(0).url).toBe('/apps/file_checksum_search/api/v1/rules/abc')
 	})
 
+	it('sends the versions switch only where the draft says, so a rule keeps its own', async () => {
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ success: true, rules: [] }))
+		const { saveRule } = useRules('all')
+
+		await saveRule({ id: 'abc', path: '/a', mode: 'auto', algos: ['sha1'], selector: 'home:*', admin_enforced: false })
+		expect(call(0).body).not.toHaveProperty('versions')
+
+		vi.mocked(globalThis.fetch).mockClear()
+		await saveRule({ id: 'abc', path: '/a', mode: 'auto', algos: ['sha1'], selector: 'home:*', admin_enforced: false, versions: true })
+		expect(call(0).body).toHaveProperty('versions', true)
+	})
+
 	it('deletes with DELETE and no body', async () => {
 		vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ success: true, rules: [] }))
 

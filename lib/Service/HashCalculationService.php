@@ -744,6 +744,14 @@ class HashCalculationService
 				return $this->dropUnmaintained( $fileId, $file, 'no include rule governs it' );
 			}
 
+			// A version is read only where its rule asks for its file's
+			// versions; else it keeps what its file handed it, while that
+			// holds.
+			if ( ! RuleService::hashesVersions( $rule ) && $this->filecacheService->locate( $fileId )?->version !== null )
+			{
+				return $this->dropUnmaintained( $fileId, $file, 'it is a version, and its rule does not hash versions' );
+			}
+
 			// Only what the server computes: narrowing the allowlist leaves
 			// the rules as they were, and a file read for an algorithm it
 			// would only fail stays queued for ever, read in full each time.

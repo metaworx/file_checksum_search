@@ -65,6 +65,12 @@ const computesHashes = computed(() => (props.rule.type ?? 'include') === 'includ
 const canReapply = computed(() => props.rule.enabled && computesHashes.value)
 
 /**
+ * Beside the mode, a rule that also hashes its files' older versions: the
+ * option as occ spells it, untranslated like the mode it follows.
+ */
+const VERSIONS_FLAG = '+ versions'
+
+/**
  * The rule's glob as the server stores it: below the top of what the
  * selector names, without a leading slash, `**` for all of it — and as an
  * older server's `/` or empty one reads.
@@ -163,7 +169,8 @@ const PROVIDER_MISSING_HINT = t('file_checksum_search', 'The team folder this ru
 		</td>
 		<td>
 			<span v-if="computesHashes">{{ rule.mode || 'auto' }}</span>
-			<span v-else class="fcias-muted">—</span>
+			<span v-if="computesHashes && rule.versions" class="fcias-rule-versions">{{ VERSIONS_FLAG }}</span>
+			<span v-if="!computesHashes" class="fcias-muted">—</span>
 		</td>
 		<td>
 			<span :class="rule.enabled ? 'fcias-compat-pass' : 'fcias-compat-fail'">
@@ -215,6 +222,12 @@ const PROVIDER_MISSING_HINT = t('file_checksum_search', 'The team folder this ru
 </template>
 
 <style scoped>
+/* Apart from the mode it follows, which the template's line break does not
+   keep apart. */
+.fcias-rule-versions {
+	margin-inline-start: 0.5ch;
+}
+
 /* The pen sits beside the actions menu as a first-class shortcut: editing
    is the one action frequent enough to deserve a click, not a menu trip.
    The custom properties are supplied by the Nextcloud server's theme at

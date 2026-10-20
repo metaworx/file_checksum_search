@@ -79,6 +79,7 @@ function openEditRule(rule: Rule): void {
 		path: rule.path,
 		selector: rule.selector,
 		admin_enforced: rule.admin_enforced,
+		versions: rule.versions === true,
 	}
 	saveError.value = null
 	showRuleForm.value = true

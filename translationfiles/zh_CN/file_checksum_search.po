@@ -127,6 +127,9 @@ msgstr "允许所有账号使用 API"
 msgid "Allowed algorithms"
 msgstr "允许的算法"
 
+msgid "Also hash the older versions of these files"
+msgstr "同时计算这些文件旧版本的校验和"
+
 #. TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
 #, php-format
 msgid "An %s rule computes nothing, so there is nothing to apply."
@@ -556,9 +559,9 @@ msgstr "帮助：{label}"
 msgid "How a file gets its checksums. \"Auto\" computes them for a file without current ones, new or changed, \"Missing\" also adds one the file lacks, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
 msgstr "文件如何获得校验和。“自动”为没有最新校验和的文件（新文件或已更改的文件）计算校验和，“补缺”还会补上文件缺少的校验和，“重建”会删除并重新计算全部校验和，“延后”则立即删除它们，留待之后的运行重新计算。"
 
-#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, and "—" what it shows for a rule that computes nothing; keep them
-msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. Shown as \"—\" for a rule that computes nothing."
-msgstr "文件如何获得校验和。\"auto\" 为没有最新校验和的文件（新文件或已更改的文件）计算校验和，\"missing\" 还会补上文件缺少的校验和，\"force\" 会删除并重新计算全部校验和，\"lazy\" 则立即删除它们，留待之后的运行重新计算。不计算任何内容的规则显示为 \"—\"。"
+#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, "+ versions" what it shows beside one, and "—" what it shows for a rule that computes nothing; keep them
+msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. \"+ versions\" beside the mode: the rule also hashes the older versions of its files. Shown as \"—\" for a rule that computes nothing."
+msgstr "文件如何获得校验和。\"auto\" 为没有最新校验和的文件（新文件或已更改的文件）计算校验和，\"missing\" 还会补上文件缺少的校验和，\"force\" 会删除并重新计算全部校验和，\"lazy\" 则立即删除它们，留待之后的运行重新计算。模式旁的 \"+ versions\" 表示该规则也计算其文件旧版本的校验和。不计算任何内容的规则显示为 \"—\"。"
 
 msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr "每页显示多少个文件组。在您验证某个文件组或文件之前，这里不会从磁盘读取任何内容，因此页面越大，只会让查询更久，而不会让读取更久。"
@@ -1211,6 +1214,9 @@ msgstr "验证"
 msgid "Verify all"
 msgstr "全部验证"
 
+msgid "Versions"
+msgstr "版本"
+
 #. TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
 msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."
 msgstr "此规则匹配时如何处理。“包含”会计算下方的校验和。“忽略”会停止自动哈希计算，但仍允许手动重新计算文件的校验和。“排除”会完全阻止哈希计算，适用于不得读取的存储，例如按流量计费的外部存储。"
@@ -1218,6 +1224,9 @@ msgstr "此规则匹配时如何处理。“包含”会计算下方的校验和
 #. TRANSLATORS: "include", "ignore" and "exclude" are the rule types as the table shows them; keep them
 msgid "What happens when this rule matches. \"include\" computes the checksums in this row. \"ignore\" stops automatic hashing but still allows a manual recalculation. \"exclude\" blocks hashing by every route, including the sidebar button, the API and the occ command."
 msgstr "此规则匹配时如何处理。\"include\" 会计算此行中的校验和。\"ignore\" 会停止自动哈希计算，但仍允许手动重新计算。\"exclude\" 会阻止经由任何途径的哈希计算，包括侧边栏按钮、API 和 occ 命令。"
+
+msgid "When a file is overwritten, the older version kept of it gets the checksums the file had, without being read. When set, older versions without any, such as those made before checksums were kept, are read and hashed as well."
+msgstr "文件被覆盖时，为其保留的旧版本会获得该文件原有的校验和，而无需读取。设置后，没有校验和的旧版本（例如在开始保留校验和之前创建的版本）也会被读取并计算校验和。"
 
 msgid "When on, every account may call the public API with an app password. When off, only the groups and individual accounts selected here may; the app's own pages keep working for everyone."
 msgstr "开启时，每个账号都可以使用应用密码调用公共 API。关闭时，只有此处所选的群组和单个账号可以调用；本应用自身的页面对所有人都照常可用。"

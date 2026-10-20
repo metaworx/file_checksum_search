@@ -127,8 +127,12 @@ readonly class RuleDefinitionValidator
 			throw new InvalidArgumentException( $this->l10n->t( 'At least one allowed algorithm is required.' ) );
 		}
 
-		$definition['mode']  = $mode;
-		$definition['algos'] = $algos;
+		$definition['mode']     = $mode;
+		$definition['algos']    = $algos;
+		// The older versions of the files it governs are read and hashed
+		// too. Off, a version gets only the hashes its file held when it was
+		// overwritten.
+		$definition['versions'] = (bool) ( $body['versions'] ?? $existing['versions'] ?? false );
 
 		return $definition;
 	}

@@ -449,6 +449,16 @@ class RuleService
 	}
 
 	/**
+	 * Whether a rule reads and hashes the older versions of the files it
+	 * governs. Without it, a version holds only the hashes its file held
+	 * when it was overwritten ({@see VersionCapture}), and nothing reads one.
+	 */
+	public static function hashesVersions( ?array $rule ): bool
+	{
+		return self::maintainsHashes( $rule ) && ! empty( $rule['versions'] );
+	}
+
+	/**
 	 * The mode a file is queued in under $rule: the rule's, where the rule
 	 * maintains hashes and the queue knows its mode; null otherwise — no
 	 * rule maintains the file, or its mode is retired.
@@ -786,6 +796,10 @@ class RuleService
 	 * id is checked too: the legacy root-jail layout stores many folders on
 	 * one storage.
 	 *
+	 * For a rule that hashes versions ({@see hashesVersions()}), a version
+	 * is yielded too where its file is, its file located with it, a page's
+	 * in one query.
+	 *
 	 * @param  list<string>  $wanted  Algorithms a file must hold to be fresh
 	 *                                ({@see wantedAlgos()}).
 	 *
@@ -800,6 +814,7 @@ class RuleService
 	{
 		$selector = self::ruleSelector( $rule );
 		$pathGlob = $rule['path'] ?? '**';
+		$versions = self::hashesVersions( $rule );
 
 		foreach ( $this->storageIdsForSelector( $selector ) as $storageNumericId )
 		{
@@ -814,22 +829,38 @@ class RuleService
 					break;
 				}
 
+				$pageVersions = $versions
+					? array_values( array_filter( $page, static fn( FileLocation $location ): bool => $location->version !== null ) )
+					: [];
+				$files        = $pageVersions === []
+					? []
+					: $this->filecacheService->filesOfVersions( $pageVersions );
+
 				foreach ( $page as $location )
 				{
 					$lastFileId = $location->fileId;
+					$file       = $location;
 
-					if ( $location->relativePath === null )
+					// A version is judged at its file's path, the file carried
+					// with it.
+					if ( $location->version !== null && isset( $files[ $location->fileId ] ) )
+					{
+						$file     = $files[ $location->fileId ];
+						$location = $location->withVersionFile( $file );
+					}
+
+					if ( $file->relativePath === null )
 					{
 						continue;
 					}
 
 					if ( $selector->kind === Selector::KIND_GROUPFOLDER
-						&& $location->groupFolderId !== (int) $selector->target )
+						&& $file->groupFolderId !== (int) $selector->target )
 					{
 						continue;
 					}
 
-					if ( ! PathUtil::matchesRelativeGlob( $pathGlob, $location->relativePath ) )
+					if ( ! PathUtil::matchesRelativeGlob( $pathGlob, $file->relativePath ) )
 					{
 						continue;
 					}
@@ -909,7 +940,9 @@ class RuleService
 	{
 		if ( $location->version !== null )
 		{
-			$location = $this->filecacheService->filesOfVersions( [ $location ] )[ $location->fileId ] ?? null;
+			$location = $location->version->file
+				?? $this->filecacheService->filesOfVersions( [ $location ] )[ $location->fileId ]
+				?? null;
 		}
 
 		if ( $location?->relativePath === null )

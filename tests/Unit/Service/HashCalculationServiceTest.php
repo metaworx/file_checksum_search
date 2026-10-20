@@ -13,6 +13,7 @@ use ArrayObject;
 use OCA\FileChecksumSearch\Service\AlgorithmCatalogue;
 use OCA\FileChecksumSearch\Service\DrainOutcome;
 use OCA\FileChecksumSearch\Service\FilecacheService;
+use OCA\FileChecksumSearch\Service\FileLocation;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\MimeTypeService;
@@ -554,6 +555,48 @@ class HashCalculationServiceTest
 		;
 
 		$service->processFile( 42, 'missing' );
+	}
+
+	/**
+	 * A version is read only where its rule asks for its file's versions:
+	 * queued under one that does not — revoked, or found changed — it is
+	 * dropped unread, as a file no include rule governs is.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testProcessFileDropsAVersionItsRuleDoesNotHash(): void
+	{
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$this->metadataService->method( 'getMetadata' )
+		                      ->willReturn( $metadata )
+		;
+
+		$this->filecacheService->method( 'getFile' )
+		                       ->willReturn( $this->createMock( File::class ) )
+		;
+		$this->filecacheService->method( 'locate' )
+		                       ->with( 42 )
+		                       ->willReturn( FileLocation::fromRow( 42, 'home::alice', 'files_versions/a.txt.v1700000000', 1 ) )
+		;
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn( [
+			                  'id'    => 'docs',
+			                  'type'  => 'include',
+			                  'algos' => [ 'sha1' ],
+		                  ] )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 42, '' )
+		;
+
+		$service = $this->createCollectingServiceMock();
+		$service->expects( $this->never() )
+		        ->method( 'recalcHashes' )
+		;
+
+		$service->processFile( 42, 'auto' );
 	}
 
 	/**

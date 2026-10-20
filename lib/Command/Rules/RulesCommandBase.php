@@ -92,6 +92,12 @@ abstract class RulesCommandBase
 				InputOption::VALUE_REQUIRED,
 				'How existing hashes are treated: auto, missing, force, or lazy. Include rules only.',
 			)
+			->addOption(
+				'versions',
+				null,
+				InputOption::VALUE_NEGATABLE,
+				'Read and hash the older versions of the files it governs, too. Include rules only.',
+			)
 			->addOption( 'enforced', null, InputOption::VALUE_NEGATABLE, 'Users may not override or disable this rule' )
 			->addOption( 'enable', null, InputOption::VALUE_NONE, 'Create or leave the rule enabled' )
 			->addOption( 'disable', null, InputOption::VALUE_NONE, 'Create or leave the rule disabled' )
@@ -169,6 +175,11 @@ abstract class RulesCommandBase
 			$payload['mode'] = strtolower( (string) $input->getOption( 'mode' ) );
 		}
 
+		if ( $input->getOption( 'versions' ) !== null )
+		{
+			$payload['versions'] = (bool) $input->getOption( 'versions' );
+		}
+
 		if ( $input->getOption( 'enforced' ) !== null )
 		{
 			$payload['admin_enforced'] = (bool) $input->getOption( 'enforced' );
@@ -228,6 +239,11 @@ abstract class RulesCommandBase
 				: '—',
 			'mode'     => $computes
 				? (string) ( $rule['mode'] ?? 'auto' )
+				: '—',
+			'versions' => $computes
+				? ( empty( $rule['versions'] )
+					? 'no'
+					: 'yes' )
 				: '—',
 			'enforced' => empty( $rule['admin_enforced'] )
 				? 'no'

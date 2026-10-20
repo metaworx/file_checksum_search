@@ -128,6 +128,9 @@ msgstr "Allow all accounts to use the API"
 msgid "Allowed algorithms"
 msgstr "Allowed algorithms"
 
+msgid "Also hash the older versions of these files"
+msgstr "Also hash the older versions of these files"
+
 #. TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
 #, php-format
 msgid "An %s rule computes nothing, so there is nothing to apply."
@@ -558,9 +561,9 @@ msgstr "Help: {label}"
 msgid "How a file gets its checksums. \"Auto\" computes them for a file without current ones, new or changed, \"Missing\" also adds one the file lacks, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
 msgstr "How a file gets its checksums. \"Auto\" computes them for a file without current ones, new or changed, \"Missing\" also adds one the file lacks, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
 
-#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, and "—" what it shows for a rule that computes nothing; keep them
-msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. Shown as \"—\" for a rule that computes nothing."
-msgstr "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. Shown as \"—\" for a rule that computes nothing."
+#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, "+ versions" what it shows beside one, and "—" what it shows for a rule that computes nothing; keep them
+msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. \"+ versions\" beside the mode: the rule also hashes the older versions of its files. Shown as \"—\" for a rule that computes nothing."
+msgstr "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. \"+ versions\" beside the mode: the rule also hashes the older versions of its files. Shown as \"—\" for a rule that computes nothing."
 
 msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
@@ -1215,6 +1218,9 @@ msgstr "Verify"
 msgid "Verify all"
 msgstr "Verify all"
 
+msgid "Versions"
+msgstr "Versions"
+
 #. TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
 msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."
 msgstr "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."
@@ -1222,6 +1228,9 @@ msgstr "What happens when this rule matches. \"Include\" computes the checksums 
 #. TRANSLATORS: "include", "ignore" and "exclude" are the rule types as the table shows them; keep them
 msgid "What happens when this rule matches. \"include\" computes the checksums in this row. \"ignore\" stops automatic hashing but still allows a manual recalculation. \"exclude\" blocks hashing by every route, including the sidebar button, the API and the occ command."
 msgstr "What happens when this rule matches. \"include\" computes the checksums in this row. \"ignore\" stops automatic hashing but still allows a manual recalculation. \"exclude\" blocks hashing by every route, including the sidebar button, the API and the occ command."
+
+msgid "When a file is overwritten, the older version kept of it gets the checksums the file had, without being read. When set, older versions without any, such as those made before checksums were kept, are read and hashed as well."
+msgstr "When a file is overwritten, the older version kept of it gets the checksums the file had, without being read. When set, older versions without any, such as those made before checksums were kept, are read and hashed as well."
 
 msgid "When on, every account may call the public API with an app password. When off, only the groups and individual accounts selected here may; the app's own pages keep working for everyone."
 msgstr "When on, every account may call the public API with an app password. When off, only the groups and individual accounts selected here may; the app's own pages keep working for everyone."

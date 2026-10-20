@@ -334,6 +334,48 @@ class RulesCommandsTest
 		);
 	}
 
+	/**
+	 * --versions and --no-versions switch the older versions on and off; a
+	 * modify that names neither keeps the rule's.
+	 */
+	public function testVersionsIsSwitchedOnlyWhereTheOptionIsGiven(): void
+	{
+		$this->ruleService->method( 'findRuleById' )
+		                  ->willReturn( [
+			                  'id'       => 'r1',
+			                  'enabled'  => true,
+			                  'path'     => '/docs/**',
+			                  'selector' => 'home:alice',
+			                  'algos'    => [ 'sha1' ],
+			                  'mode'     => 'auto',
+			                  'versions' => true,
+		                  ] )
+		;
+
+		$seen = [];
+		$this->ruleService->method( 'ruleUpdate' )
+		                  ->willReturnCallback(
+			                  static function(
+				                  string $id,
+				                  array  $definition,
+			                  ) use
+			                  (
+				                  &
+				                  $seen,
+			                  ): void
+			                  {
+				                  $seen[] = $definition['versions'];
+			                  },
+		                  )
+		;
+
+		$modify = $this->tester( new ModifyRule( $this->ruleService, $this->validator ) );
+		$modify->execute( [ 'id' => 'r1', '--mode' => 'force' ] );
+		$modify->execute( [ 'id' => 'r1', '--no-versions' => true ] );
+
+		$this->assertSame( [ true, false ], $seen );
+	}
+
 	public function testUnknownIdFailsWithTheOneConsistentMessage(): void
 	{
 		$this->ruleService->method( 'findRuleById' )

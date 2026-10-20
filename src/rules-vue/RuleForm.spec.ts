@@ -56,7 +56,47 @@ describe('RuleForm', () => {
 		expect(wrapper.find('#fcias-personal-path').exists()).toBe(true)
 		expect(wrapper.find('#fcias-rule-selector').exists()).toBe(false)
 		expect(wrapper.find('#fcias-personal-selector').exists()).toBe(false)
-		expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
+		expect(wrapper.find('#fcias-rule-admin-enforced').exists()).toBe(false)
+		// One switch, the rule's own: whether it hashes the older versions.
+		expect(wrapper.findAll('input[type="checkbox"]')).toHaveLength(1)
+		expect(wrapper.find('#fcias-personal-versions').exists()).toBe(true)
+	})
+
+	describe('versions switch', () => {
+		it('seeds from the rule and emits what was switched', async () => {
+			const wrapper = mount(RuleForm, {
+				props: {
+					rule: { id: 5, path: '/a', mode: 'auto', algos: ['sha1'], selector: 'home:*', admin_enforced: false, versions: true },
+					variant: 'admin',
+					supportedAlgos: ['sha1'],
+				},
+			})
+			const versions = wrapper.find('#fcias-rule-versions')
+			expect((versions.element as HTMLInputElement).checked).toBe(true)
+
+			await versions.setValue(false)
+			await wrapper.find('#fcias-btn-save-rule').trigger('click')
+
+			expect((wrapper.emitted('save')?.[0]?.[0] as { versions: boolean }).versions).toBe(false)
+		})
+
+		it('starts off for a new rule', async () => {
+			const wrapper = mount(RuleForm, {
+				props: { rule: null, variant: 'personal', supportedAlgos: ['sha1'] },
+			})
+			await wrapper.find('#fcias-personal-save').trigger('click')
+
+			expect((wrapper.emitted('save')?.[0]?.[0] as { versions: boolean }).versions).toBe(false)
+		})
+
+		it('is not offered for a rule that computes nothing', async () => {
+			const wrapper = mount(RuleForm, {
+				props: { rule: null, variant: 'admin', supportedAlgos: ['sha1'] },
+			})
+			await wrapper.find('#fcias-rule-type').setValue('ignore')
+
+			expect(wrapper.find('#fcias-rule-versions').exists()).toBe(false)
+		})
 	})
 
 	it('emits save with the edited path and mode', async () => {

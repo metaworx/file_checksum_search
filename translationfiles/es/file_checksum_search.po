@@ -129,6 +129,9 @@ msgstr "Permitir a todas las cuentas usar la API"
 msgid "Allowed algorithms"
 msgstr "Algoritmos permitidos"
 
+msgid "Also hash the older versions of these files"
+msgstr "Calcular también las sumas de verificación de las versiones anteriores de estos archivos"
+
 #. TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
 #, php-format
 msgid "An %s rule computes nothing, so there is nothing to apply."
@@ -560,9 +563,9 @@ msgstr "Ayuda: {label}"
 msgid "How a file gets its checksums. \"Auto\" computes them for a file without current ones, new or changed, \"Missing\" also adds one the file lacks, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
 msgstr "Cómo obtiene un archivo sus sumas de verificación. «Automático» las calcula para un archivo sin sumas de verificación actualizadas, sea nuevo o modificado, «Faltantes» también añade las que el archivo aún no tiene, «Forzar» elimina y recalcula todas, y «Diferido» las elimina ahora y deja que una ejecución posterior las recalcule."
 
-#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, and "—" what it shows for a rule that computes nothing; keep them
-msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. Shown as \"—\" for a rule that computes nothing."
-msgstr "Cómo obtiene un archivo sus sumas de verificación. \"auto\" las calcula para un archivo sin sumas de verificación actualizadas, sea nuevo o modificado, \"missing\" también añade las que el archivo aún no tiene, \"force\" elimina y recalcula todas, y \"lazy\" las elimina ahora y deja que una ejecución posterior las recalcule. Se muestra como \"—\" en una regla que no calcula nada."
+#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, "+ versions" what it shows beside one, and "—" what it shows for a rule that computes nothing; keep them
+msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. \"+ versions\" beside the mode: the rule also hashes the older versions of its files. Shown as \"—\" for a rule that computes nothing."
+msgstr "Cómo obtiene un archivo sus sumas de verificación. \"auto\" las calcula para un archivo sin sumas de verificación actualizadas, sea nuevo o modificado, \"missing\" también añade las que el archivo aún no tiene, \"force\" elimina y recalcula todas, y \"lazy\" las elimina ahora y deja que una ejecución posterior las recalcule. \"+ versions\" junto al modo: la regla también calcula las sumas de verificación de las versiones anteriores de sus archivos. Se muestra como \"—\" en una regla que no calcula nada."
 
 msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr "Cuántos grupos muestra una página. Aquí no se lee nada del disco hasta que verifique un grupo o un archivo, así que una página más grande cuesta una consulta más larga, no lecturas más largas."
@@ -1219,6 +1222,9 @@ msgstr "Verificar"
 msgid "Verify all"
 msgstr "Verificar todo"
 
+msgid "Versions"
+msgstr "Versiones"
+
 #. TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
 msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."
 msgstr "Qué ocurre cuando esta regla coincide. «Incluir» calcula las sumas de verificación de abajo. «Ignorar» detiene el cálculo automático de hashes, pero sigue permitiendo recalcular manualmente las sumas de verificación de un archivo. «Excluir» bloquea por completo el cálculo de hashes: úselo para almacenamientos que no deben leerse, como un almacenamiento externo de pago por uso."
@@ -1226,6 +1232,9 @@ msgstr "Qué ocurre cuando esta regla coincide. «Incluir» calcula las sumas de
 #. TRANSLATORS: "include", "ignore" and "exclude" are the rule types as the table shows them; keep them
 msgid "What happens when this rule matches. \"include\" computes the checksums in this row. \"ignore\" stops automatic hashing but still allows a manual recalculation. \"exclude\" blocks hashing by every route, including the sidebar button, the API and the occ command."
 msgstr "Qué ocurre cuando esta regla coincide. \"include\" calcula las sumas de verificación de esta fila. \"ignore\" detiene el cálculo automático de hashes, pero sigue permitiendo un recálculo manual. \"exclude\" bloquea el cálculo de hashes por cualquier vía, incluidos el botón de la barra lateral, la API y el comando occ."
+
+msgid "When a file is overwritten, the older version kept of it gets the checksums the file had, without being read. When set, older versions without any, such as those made before checksums were kept, are read and hashed as well."
+msgstr "Cuando se sobrescribe un archivo, la versión anterior que se conserva de él recibe las sumas de verificación que tenía el archivo, sin leerse. Si se activa, las versiones anteriores sin ninguna, como las creadas antes de que se conservaran sumas de verificación, también se leen y se calculan sus sumas de verificación."
 
 msgid "When on, every account may call the public API with an app password. When off, only the groups and individual accounts selected here may; the app's own pages keep working for everyone."
 msgstr "Si está activado, todas las cuentas pueden llamar a la API pública con una contraseña de aplicación. Si está desactivado, solo pueden hacerlo los grupos y las cuentas individuales seleccionados aquí; las páginas propias de la aplicación siguen funcionando para todos."

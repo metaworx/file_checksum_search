@@ -107,6 +107,30 @@ class RuleDefinitionValidatorTest
 
 		$this->assertArrayNotHasKey( 'algos', $definition );
 		$this->assertArrayNotHasKey( 'mode', $definition );
+		$this->assertArrayNotHasKey( 'versions', $definition );
+	}
+
+	/**
+	 * An include rule says whether it hashes its files' older versions:
+	 * off unless asked, kept from the rule an update leaves it out of, and
+	 * a non-administrator's own rule may ask too.
+	 */
+	public function testAnIncludeRuleSaysWhetherItHashesTheOlderVersions(): void
+	{
+		$this->assertFalse( $this->validator->definitionFrom( [ 'path' => '/a' ], 'alice', false )['versions'] );
+		$this->assertTrue( $this->validator->definitionFrom( [ 'path' => '/a', 'versions' => true ], 'alice', false )['versions'] );
+		$this->assertTrue(
+			$this->validator->definitionFrom(
+				[ 'mode' => 'force' ],
+				'alice',
+				false,
+				[
+					'path'     => '/a',
+					'algos'    => [ 'sha1' ],
+					'versions' => true,
+				],
+			)['versions'],
+		);
 	}
 
 	public function testOmittedFieldsFallBackToTheExistingRule(): void

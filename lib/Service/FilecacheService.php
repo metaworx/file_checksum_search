@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Service;
 
 use OCA\FileChecksumSearch\Service\MetadataService;
+use OCA\Files_Versions\Versions\IVersionManager;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Encryption\IManager as IEncryptionManager;
 use OCP\Files\File;
@@ -20,6 +21,8 @@ use OCP\Files\NotFoundException;
 use OCP\IConfig;
 use OCP\IDBConnection;
 use OCP\IUserManager;
+use OCP\Server;
+use Throwable;
 
 /**
  * Filecache checksum read/write bridge.
@@ -80,7 +83,7 @@ class FilecacheService
 			return $file;
 		}
 
-		$node = $this->rootFolder->getFirstNodeById( $file );
+		$node = $this->rootFolder->getFirstNodeById( $file ) ?? $this->versionNode( $file );
 
 		if ( $node instanceof File )
 		{
@@ -88,6 +91,51 @@ class FilecacheService
 		}
 
 		throw  new NotFoundException( "Invalid Filecache ID: $file" );
+	}
+
+
+//  other non-static methods
+
+	/**
+	 * A version the root folder cannot reach by its id, opened through the
+	 * versions app, or null: a team folder's lies outside the folder's
+	 * `files` jail that accounts mount. Asked as an account its file is
+	 * mounted for, as the versions app asks; null too where the app is not
+	 * there to ask.
+	 */
+	private function versionNode( int $fileId ): ?File
+	{
+		$location = $this->locate( $fileId );
+		$version  = $location?->version;
+		$file     = $location === null || $version === null
+			? null
+			: $this->filesOfVersions( [ $location ] )[ $fileId ] ?? null;
+		$fileNode = $file === null
+			? null
+			: $this->rootFolder->getFirstNodeById( $file->fileId );
+
+		if ( $version === null || ! $fileNode instanceof File || ! interface_exists( IVersionManager::class ) )
+		{
+			return null;
+		}
+
+		// The account in whose folder the root folder found the file.
+		$user = $this->userManager->get( explode( '/', ltrim( $fileNode->getPath(), '/' ) )[0] );
+
+		try
+		{
+			$node = $user === null
+				? null
+				: Server::get( IVersionManager::class )->getVersionFile( $user, $fileNode, $version->timestamp );
+		}
+		catch ( Throwable )
+		{
+			return null;
+		}
+
+		return $node instanceof File && $node->getId() === $fileId
+			? $node
+			: null;
 	}
 
 	/**
@@ -157,9 +205,6 @@ class FilecacheService
 
 	/** Cache for {@see directoryMimetypeId()}. */
 	private ?int $directoryMimetypeId = null;
-
-
-//  other non-static methods
 
 	/**
 	 * The mimetype id of httpd/unix-directory — per-instance, so looked up
@@ -1110,7 +1155,8 @@ class FilecacheService
 
 		if ( empty( $nodes ) )
 		{
-			throw new NotFoundException( "Invalid file ID: $fileId" );
+			return $this->versionNode( $fileId )
+				?? throw new NotFoundException( "Invalid file ID: $fileId" );
 		}
 
 		return $nodes[0];

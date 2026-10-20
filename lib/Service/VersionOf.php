@@ -38,6 +38,11 @@ readonly class VersionOf
 		public ?string $fileInternalPath = null,
 		/** The file's id: a team folder's. */
 		public ?int    $fileId = null,
+		/**
+		 * The file, where it has been located already
+		 * ({@see FileLocation::withVersionFile()}).
+		 */
+		public ?FileLocation $file = null,
 	) {
 	}
 }

@@ -130,6 +130,9 @@ msgstr "Zezwalaj wszystkim kontom na korzystanie z API"
 msgid "Allowed algorithms"
 msgstr "Dozwolone algorytmy"
 
+msgid "Also hash the older versions of these files"
+msgstr "Obliczaj też sumy kontrolne starszych wersji tych plików"
+
 #. TRANSLATORS: %s is the rule's type, ignore or exclude, as the rule table shows it
 #, php-format
 msgid "An %s rule computes nothing, so there is nothing to apply."
@@ -562,9 +565,9 @@ msgstr "Pomoc: {label}"
 msgid "How a file gets its checksums. \"Auto\" computes them for a file without current ones, new or changed, \"Missing\" also adds one the file lacks, \"Force\" deletes and recalculates all of them, and \"Lazy\" deletes them now and lets a later run recalculate them."
 msgstr "Jak plik otrzymuje sumy kontrolne. „Automatycznie” oblicza je dla nowego lub zmienionego pliku bez aktualnych sum, „Brakujące” dodaje też taką, której plikowi brakuje, „Od nowa” usuwa i przelicza wszystkie, a „Później” usuwa je teraz i zostawia ich przeliczenie późniejszemu przebiegowi."
 
-#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, and "—" what it shows for a rule that computes nothing; keep them
-msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. Shown as \"—\" for a rule that computes nothing."
-msgstr "Jak plik otrzymuje sumy kontrolne. \"auto\" oblicza je dla nowego lub zmienionego pliku bez aktualnych sum, \"missing\" dodaje też taką, której plikowi brakuje, \"force\" usuwa i przelicza wszystkie, a \"lazy\" usuwa je teraz i zostawia ich przeliczenie późniejszemu przebiegowi. Dla reguły, która niczego nie oblicza, wyświetlane jest \"—\"."
+#. TRANSLATORS: "auto", "missing", "force" and "lazy" are the modes as the table shows them, "+ versions" what it shows beside one, and "—" what it shows for a rule that computes nothing; keep them
+msgid "How a file gets its checksums. \"auto\" computes them for a file without current ones, new or changed, \"missing\" also adds one the file lacks, \"force\" deletes and recalculates all of them, and \"lazy\" deletes them now and lets a later run recalculate them. \"+ versions\" beside the mode: the rule also hashes the older versions of its files. Shown as \"—\" for a rule that computes nothing."
+msgstr "Jak plik otrzymuje sumy kontrolne. \"auto\" oblicza je dla nowego lub zmienionego pliku bez aktualnych sum, \"missing\" dodaje też taką, której plikowi brakuje, \"force\" usuwa i przelicza wszystkie, a \"lazy\" usuwa je teraz i zostawia ich przeliczenie późniejszemu przebiegowi. \"+ versions\" obok trybu: reguła oblicza też sumy kontrolne starszych wersji swoich plików. Dla reguły, która niczego nie oblicza, wyświetlane jest \"—\"."
 
 msgid "How many groups one page shows. Nothing here is read from disk until you verify a group or a file, so a larger page costs a longer query, not longer reads."
 msgstr "Ile grup pokazuje jedna strona. Nic nie jest tu odczytywane z dysku, dopóki nie zweryfikujesz grupy lub pliku, więc większa strona oznacza dłuższe zapytanie, a nie dłuższe odczyty."
@@ -1223,6 +1226,9 @@ msgstr "Zweryfikuj"
 msgid "Verify all"
 msgstr "Zweryfikuj wszystkie"
 
+msgid "Versions"
+msgstr "Wersje"
+
 #. TRANSLATORS: "Include", "Ignore" and "Exclude" name the choices of the Type field; translate them as that field does
 msgid "What happens when this rule matches. \"Include\" computes the checksums below. \"Ignore\" stops automatic hashing but still lets someone recalculate a file's checksums by hand. \"Exclude\" blocks hashing entirely — use it for storage that must not be read, such as a metered external mount."
 msgstr "Co się dzieje, gdy ta reguła pasuje. „Uwzględnij” oblicza sumy kontrolne podane poniżej. „Ignoruj” wstrzymuje automatyczne obliczanie, ale nadal pozwala ręcznie przeliczyć sumy kontrolne pliku. „Wyklucz” całkowicie blokuje obliczanie – użyj go dla magazynu, którego nie wolno odczytywać, np. magazynu zewnętrznego z płatnym transferem."
@@ -1230,6 +1236,9 @@ msgstr "Co się dzieje, gdy ta reguła pasuje. „Uwzględnij” oblicza sumy ko
 #. TRANSLATORS: "include", "ignore" and "exclude" are the rule types as the table shows them; keep them
 msgid "What happens when this rule matches. \"include\" computes the checksums in this row. \"ignore\" stops automatic hashing but still allows a manual recalculation. \"exclude\" blocks hashing by every route, including the sidebar button, the API and the occ command."
 msgstr "Co się dzieje, gdy ta reguła pasuje. \"include\" oblicza sumy kontrolne z tego wiersza. \"ignore\" wstrzymuje automatyczne obliczanie, ale nadal pozwala na ręczne przeliczenie. \"exclude\" blokuje obliczanie każdą drogą, także przyciskiem w panelu bocznym, przez API i poleceniem occ."
+
+msgid "When a file is overwritten, the older version kept of it gets the checksums the file had, without being read. When set, older versions without any, such as those made before checksums were kept, are read and hashed as well."
+msgstr "Gdy plik zostaje nadpisany, zachowana jego starsza wersja otrzymuje sumy kontrolne, które miał plik, bez odczytywania. Gdy zaznaczone, także starsze wersje bez sum kontrolnych, na przykład utworzone, zanim zaczęto je zapisywać, są odczytywane i obliczane są ich sumy kontrolne."
 
 msgid "When on, every account may call the public API with an app password. When off, only the groups and individual accounts selected here may; the app's own pages keep working for everyone."
 msgstr "Gdy włączone, każde konto może wywoływać publiczne API za pomocą hasła aplikacji. Gdy wyłączone, mogą to robić tylko wybrane tutaj grupy i pojedyncze konta; własne strony aplikacji nadal działają dla wszystkich."

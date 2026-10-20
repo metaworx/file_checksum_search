@@ -48,12 +48,16 @@
 				<!-- MetadataService, RepairQuietStart: the metadata document and its manager, for the repair. -->
 				<referencedClass name="OC\FilesMetadata\Model\FilesMetadata" />
 				<referencedClass name="OC\FilesMetadata\FilesMetadataManager" />
+				<!-- FilecacheService: the versions app's manager, which alone opens a team folder's version; used only where the app is there. -->
+				<referencedClass name="OCA\Files_Versions\Versions\IVersionManager" />
 			</errorLevel>
 		</UndefinedClass>
 		<UndefinedDocblockClass>
 			<errorLevel type="suppress">
 				<!-- FilecacheService: what IRootFolder::getUserFolder() throws. -->
 				<referencedClass name="OC\User\NoUserException" />
+				<!-- FilecacheService: the versions app's manager, as Server::get() hands it back (UndefinedClass above). -->
+				<referencedClass name="OCA\Files_Versions\Versions\IVersionManager" />
 				<!-- The migrations: what ISchemaWrapper hands back. -->
 				<referencedClass name="Doctrine\DBAL\Schema\Table" />
 			</errorLevel>

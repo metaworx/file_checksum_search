@@ -150,6 +150,14 @@ describe('RuleRow', () => {
 		expect(wrapper.findAll('td')[COL.mode].text()).toBe('—')
 	})
 
+	it('marks a rule that hashes the older versions beside its mode', () => {
+		const versions = mount(RuleRow, { props: { rule: makeRule({ versions: true }), variant: 'admin' } })
+		const plain = mount(RuleRow, { props: { rule: makeRule(), variant: 'admin' } })
+
+		expect(versions.findAll('td')[COL.mode].text()).toBe('auto+ versions')
+		expect(plain.findAll('td')[COL.mode].text()).toBe('auto')
+	})
+
 	it('treats a rule with no type as include', () => {
 		const wrapper = mount(RuleRow, { props: { rule: makeRule(), variant: 'admin' } })
 
