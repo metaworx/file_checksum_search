@@ -678,6 +678,10 @@ class HashFiles
 	 * goes through the recalculation endpoint instead, where only `exclude`
 	 * refuses.
 	 *
+	 * @param  int|null  $limit  At most this many files are marked; null for no
+	 *                           limit. The caller spends its budget by the count
+	 *                           returned, so it is taken by value.
+	 *
 	 * @return int Number of files marked
 	 */
 	private function markFolder(
@@ -686,14 +690,14 @@ class HashFiles
 		RuleOverrides   $overrides,
 		string          $mode,
 		OutputInterface $output,
-		?int            &$remaining,
+		?int            $limit,
 		int             &$skipped = 0,
 	): int
 	{
 		$files = $this->ruleService->searchFilesByGlob(
 			$folder,
 			$pathPattern ?? '**',
-			$remaining ?? 0, // 0 = unlimited (--batch-size omitted)
+			$limit ?? 0, // 0 = unlimited (--batch-size omitted)
 		);
 
 		$marked = 0;
@@ -711,7 +715,7 @@ class HashFiles
 
 		foreach ( $files as $file )
 		{
-			if ( $remaining !== null && $remaining <= 0 )
+			if ( $limit !== null && $marked >= $limit )
 			{
 				break;
 			}
@@ -735,11 +739,6 @@ class HashFiles
 				MetadataService::PENDING_PREFIX . $mode,
 			);
 			$marked ++;
-
-			if ( $remaining !== null )
-			{
-				$remaining --;
-			}
 		}
 
 		return $marked;

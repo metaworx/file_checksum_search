@@ -463,6 +463,84 @@ class HashFilesTest
 		$this->assertStringContainsString( 'Done. 2 files marked as pending:missing.', $this->tester->getDisplay() );
 	}
 
+	/**
+	 * Each marked file counts once against the batch: what the first account
+	 * leaves of it, the next is searched with.
+	 */
+	public function testMarkSpendsTheBatchOnceAcrossAccounts(): void
+	{
+		$this->ruleService->method( 'resolveUsers' )
+		                  ->willReturn(
+			                  [
+				                  'alice',
+				                  'bob',
+			                  ],
+		                  )
+		;
+
+		$folders = [
+			'alice' => $this->createMock( Folder::class ),
+			'bob'   => $this->createMock( Folder::class ),
+		];
+		$this->filecacheService->method( 'getUserFolder' )
+		                       ->willReturnCallback( static fn( string $userId ): Folder => $folders[ $userId ] )
+		;
+
+		$filesOf = [];
+		$id      = 1;
+
+		foreach ( [ 'alice' => 3, 'bob' => 2 ] as $userId => $count )
+		{
+			for ( $i = 0; $i < $count; $i ++ )
+			{
+				$file = $this->createMock( File::class );
+				$file->method( 'getId' )->willReturn( $id ++ );
+				$file->method( 'getPath' )->willReturn( '/' . $userId . '/files/' . $i . '.txt' );
+				$filesOf[ $userId ][] = $file;
+			}
+		}
+
+		$limits = [];
+		$this->ruleService->method( 'searchFilesByGlob' )
+		                  ->willReturnCallback(
+			                  function( Folder $folder, string $glob, int $limit ) use ( $folders, $filesOf, &$limits ): array
+			                  {
+				                  $userId            = (string) array_search( $folder, $folders, true );
+				                  $limits[ $userId ] = $limit;
+
+				                  return $filesOf[ $userId ];
+			                  },
+		                  )
+		;
+		$this->ruleService->method( 'governingRulesForFileIds' )
+		                  ->willReturnCallback(
+			                  static fn( array $fileIds ): array => array_fill_keys(
+				                  $fileIds,
+				                  [
+					                  'id'   => 'r1',
+					                  'type' => 'include',
+				                  ],
+			                  ),
+		                  )
+		;
+
+		$this->tester->execute(
+			[
+				'--mark'       => true,
+				'--batch-size' => '10',
+			],
+		);
+
+		$this->assertSame(
+			[
+				'alice' => 10,
+				'bob'   => 7,
+			],
+			$limits,
+		);
+		$this->assertStringContainsString( 'Done. 5 files marked as pending:missing.', $this->tester->getDisplay() );
+	}
+
 	public function testMarkOnlySkipsUserWithoutFolder(): void
 	{
 		// Regression-relevant: getUserFolder() actually throws the

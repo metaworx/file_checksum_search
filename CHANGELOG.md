@@ -11,6 +11,12 @@ the first stable release.
 
 ## [Unreleased]
 
+### Fixed
+
+- `occ fcias:hash --mark --batch-size`: a marked file counts once
+  against the batch, not twice, so a run over several accounts marks
+  as many files as the batch allows.
+
 ## [0.27.0] - 2026-10-20
 
 ### Added
