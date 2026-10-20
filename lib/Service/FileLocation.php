@@ -168,7 +168,8 @@ readonly class FileLocation
 	 * is.
 	 *
 	 * Only a whole files area has a trash beside it: a home's `files`, its
-	 * `files_trashbin/files/`; a team folder's `files/` in its own storage,
+	 * `files_trashbin/files/` and, for the versions of what is in it,
+	 * `files_trashbin/versions/`; a team folder's `files/` in its own storage,
 	 * `trash/`; the legacy layout's `__groupfolders/<id>`,
 	 * `__groupfolders/trash/<id>`. A share of a folder in one reaches none of
 	 * it: what its owner deletes is the owner's. Both answers for a
@@ -183,6 +184,7 @@ readonly class FileLocation
 		{
 			return [
 				'files_trashbin/files',
+				'files_trashbin/versions',
 				'trash',
 			];
 		}
@@ -226,7 +228,9 @@ readonly class FileLocation
 					null,
 					self::filesRelative( $internalPath ),
 					version: self::homeVersion( $internalPath ),
-					trash: self::trashItem( '#^files_trashbin/files/([^/]+)\.d(\d+)(?:/(.+))?$#', $internalPath ),
+					trash: self::trashItem( '#^files_trashbin/files/([^/]+)\.d(\d+)(?:/(.+))?$#', $internalPath )
+						?? self::trashItem( '#^files_trashbin/versions/([^/]+)\.v\d+\.d(\d+)$#', $internalPath )
+						?? self::trashItem( '#^files_trashbin/versions/([^/]+)\.d(\d+)/(.+)\.v\d+$#', $internalPath ),
 				);
 			}
 		}
@@ -530,15 +534,30 @@ readonly class FileLocation
 	 * is none: `files_versions/<path>.v<mtime>` is `files/<path>` as it was.
 	 * A name may hold `.v` itself; only the last one, before digits alone,
 	 * is the version's.
+	 *
+	 * In the trash, a deleted file's are `files_trashbin/versions/<name>.v<mtime>.d<time>`,
+	 * of `files_trashbin/files/<name>.d<time>`, and a deleted folder's files'
+	 * `files_trashbin/versions/<folder>.d<time>/<path>.v<mtime>`, of
+	 * `files_trashbin/files/<folder>.d<time>/<path>`.
 	 */
 	private static function homeVersion( string $internalPath ): ?VersionOf
 	{
-		if ( preg_match( '#^files_versions/(.+)\.v(\d+)$#', $internalPath, $m ) !== 1 )
+		if ( preg_match( '#^files_versions/(.+)\.v(\d+)$#', $internalPath, $m ) === 1 )
 		{
-			return null;
+			return new VersionOf( (int) $m[2], fileInternalPath: 'files/' . $m[1] );
 		}
 
-		return new VersionOf( (int) $m[2], fileInternalPath: 'files/' . $m[1] );
+		if ( preg_match( '#^files_trashbin/versions/([^/]+)\.v(\d+)\.d(\d+)$#', $internalPath, $m ) === 1 )
+		{
+			return new VersionOf( (int) $m[2], fileInternalPath: 'files_trashbin/files/' . $m[1] . '.d' . $m[3] );
+		}
+
+		if ( preg_match( '#^files_trashbin/versions/([^/]+\.d\d+/.+)\.v(\d+)$#', $internalPath, $m ) === 1 )
+		{
+			return new VersionOf( (int) $m[2], fileInternalPath: 'files_trashbin/files/' . $m[1] );
+		}
+
+		return null;
 	}
 
 	/**

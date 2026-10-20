@@ -1881,6 +1881,7 @@ class FilecacheService
 				$outside = $qb->expr()->orX(
 					$outside,
 					$qb->expr()->like( $alias . '.path', $qb->createNamedParameter( $this->db->escapeLikeParameter( 'files_trashbin/files/' ) . '%' ) ),
+					$qb->expr()->like( $alias . '.path', $qb->createNamedParameter( $this->db->escapeLikeParameter( 'files_trashbin/versions/' ) . '%' ) ),
 				);
 			}
 
@@ -2040,9 +2041,10 @@ class FilecacheService
 	 * `version`, the file's id and when the version was the file. A trashed
 	 * file is taken to the place it had before the deletion: it gains `file`,
 	 * that place, under its own id, and `trash`, when it was deleted
-	 * ({@see originsOfTrash()}). One whose file or place is gone, lies in
-	 * another storage, or lies outside $mounts is left out, as its file
-	 * would be.
+	 * ({@see originsOfTrash()}). A version of a trashed file is taken to its
+	 * file, and on to that place, and gains both. One whose file or place is
+	 * gone, lies in another storage, or lies outside $mounts is left out, as
+	 * its file would be.
 	 *
 	 * What reach and placement then ask of such a row, they ask of its
 	 * `file`: {@see ReachResolver::withoutDenied()},
@@ -2081,18 +2083,39 @@ class FilecacheService
 			}
 		}
 
-		$files   = $versions === []
+		$files = $versions === []
 			? []
 			: $this->filesOfVersions( array_values( $versions ) );
-		$origins = $trashed === []
+
+		// A trashed file is placed where it was, and so is the trashed file a
+		// version is of: their places read at once.
+		$inTrash = array_values( $trashed );
+
+		foreach ( $files as $file )
+		{
+			if ( $file->trash !== null )
+			{
+				$inTrash[] = $file;
+			}
+		}
+
+		$origins = $inTrash === []
 			? []
-			: $this->originsOfTrash( array_values( $trashed ) );
+			: $this->originsOfTrash( $inTrash );
 
 		foreach ( $versions + $trashed as $fileId => $row )
 		{
-			$file = $row->version !== null
+			// What the row is placed as: a version's file, a trashed file
+			// itself; then, where that is in the trash, the place it had.
+			$file    = isset( $versions[ $fileId ] )
 				? $files[ $fileId ] ?? null
-				: $origins[ $fileId ] ?? null;
+				: $row;
+			$deleted = $file?->trash?->deletedAt;
+
+			if ( $file !== null && $deleted !== null )
+			{
+				$file = $origins[ $file->fileId ] ?? null;
+			}
 
 			if ( $file === null
 				|| $file->storageId !== $row->storageId
@@ -2120,10 +2143,11 @@ class FilecacheService
 					'timestamp' => date( 'c', $row->version->timestamp ),
 				];
 			}
-			else
+
+			if ( $deleted !== null )
 			{
 				$rows[ $fileId ]['trash'] = [
-					'deletedAt' => date( 'c', (int) $row->trash?->deletedAt ),
+					'deletedAt' => date( 'c', $deleted ),
 				];
 			}
 		}

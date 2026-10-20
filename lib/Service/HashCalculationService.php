@@ -1131,8 +1131,12 @@ class HashCalculationService
 				return $this->dropUnmaintained( $fileId, $file, 'it is a version, and its rule does not hash versions' );
 			}
 
-			// A trashed file keeps what it had; nothing reads it.
-			if ( $location?->trash !== null )
+			// A trashed file keeps what it had, and so do its versions;
+			// nothing reads them. A team folder's version stays beside its
+			// trashed file, outside the trash.
+			if ( $location !== null
+				&& ( $location->trash !== null
+					|| ( $location->version !== null && ( $this->filecacheService->filesOfVersions( [ $location ] )[ $fileId ] ?? null )?->trash !== null ) ) )
 			{
 				return $this->dropUnmaintained( $fileId, $file, 'it is in the trash' );
 			}

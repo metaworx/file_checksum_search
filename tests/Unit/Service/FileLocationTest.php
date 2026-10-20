@@ -219,9 +219,30 @@ class FileLocationTest
 	}
 
 	/**
+	 * A home's version in the trash names its trashed file, and the trash
+	 * item it is inside: `<name>.v<mtime>.d<time>` for a deleted file's,
+	 * `<folder>.d<time>/<path>.v<mtime>` for a deleted folder's file's.
+	 */
+	public function testAHomeVersionInTheTrashNamesItsTrashedFile(): void
+	{
+		$file   = FileLocation::fromRow( 8, 'home::alice', 'files_trashbin/versions/a.txt.v1700000000.d1700000100', 1 );
+		$inside = FileLocation::fromRow( 9, 'home::alice', 'files_trashbin/versions/Docs.d1700000100/sub/b.txt.v1700000000', 1 );
+
+		$this->assertSame( 1700000000, $file->version?->timestamp );
+		$this->assertSame( 'files_trashbin/files/a.txt.d1700000100', $file->version?->fileInternalPath );
+		$this->assertSame( 'a.txt', $file->trash?->name );
+		$this->assertSame( 1700000100, $file->trash?->deletedAt );
+
+		$this->assertSame( 1700000000, $inside->version?->timestamp );
+		$this->assertSame( 'files_trashbin/files/Docs.d1700000100/sub/b.txt', $inside->version?->fileInternalPath );
+		$this->assertSame( 'Docs', $inside->trash?->name );
+		$this->assertSame( 'sub/b.txt', $inside->trash?->subPath );
+	}
+
+	/**
 	 * What only looks like a version is none: a folder of versions, a name
-	 * without the suffix, a user's file named like one, a version in the
-	 * trash, and the root storage's own directories.
+	 * without the suffix, a user's file named like one, and the root
+	 * storage's own directories.
 	 */
 	public function testRowsThatAreNoVersionNameNoFile(): void
 	{
@@ -230,7 +251,7 @@ class FileLocationTest
 				[ 'home::alice', 'files_versions/Docs' ],
 				[ 'home::alice', 'files_versions/a.txt' ],
 				[ 'home::alice', 'files_versions/a.txt.vx1' ],
-				[ 'home::alice', 'files_trashbin/versions/a.txt.v1700000000.d1700000100' ],
+				[ 'home::alice', 'files_trashbin/versions/a.txt.d1700000100' ],
 				[ 'home::alice', 'files/a.txt.v1700000000' ],
 				[ 'local::/var/www/data/', 'files_versions/x.txt.v1' ],
 				[ 'local::/var/www/data/__groupfolders/5/', 'versions/42' ],
@@ -314,8 +335,7 @@ class FileLocationTest
 
 	/**
 	 * What only looks like a trash item is none: the trash's own folders, a
-	 * name without the suffix, a version in the trash, a user's file named
-	 * like one.
+	 * name without the suffix, a user's file named like one.
 	 */
 	public function testRowsThatAreNoTrashItemNameNone(): void
 	{
@@ -323,7 +343,7 @@ class FileLocationTest
 			[
 				[ 'home::alice', 'files_trashbin/files' ],
 				[ 'home::alice', 'files_trashbin/files/a.txt' ],
-				[ 'home::alice', 'files_trashbin/versions/a.txt.v1700000000.d1700000100' ],
+				[ 'home::alice', 'files_trashbin/versions' ],
 				[ 'home::alice', 'files/a.txt.d1700000000' ],
 				[ 'local::/var/www/data/__groupfolders/5/', 'trash' ],
 				[ 'local::/var/www/data/__groupfolders/5/', 'trash/42/1700000000' ],
@@ -407,7 +427,7 @@ class FileLocationTest
 	 */
 	public function testTheTrashRootsOfARoot(): void
 	{
-		$this->assertSame( [ 'files_trashbin/files', 'trash' ], FileLocation::trashRootsOf( 'files' ) );
+		$this->assertSame( [ 'files_trashbin/files', 'files_trashbin/versions', 'trash' ], FileLocation::trashRootsOf( 'files' ) );
 		$this->assertSame( [], FileLocation::trashRootsOf( 'files/Docs' ) );
 		$this->assertSame( [ '__groupfolders/trash/7' ], FileLocation::trashRootsOf( '__groupfolders/7' ) );
 		$this->assertSame( [], FileLocation::trashRootsOf( '' ) );

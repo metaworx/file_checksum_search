@@ -143,6 +143,11 @@ held where it was before the deletion.
 - **`trash`** marks one:
   `{"deletedAt": "2026-10-20T16:30:00+00:00"}`, when it was deleted, ISO 8601.
   A file outside the trash has none.
+- **A version of a trashed file** is held and named through its file,
+  after `versions://trash://`, `versions://trash:///Docs/a.txt`,
+  and carries both `version` and `trash`:
+  a home's, which the trash keeps beside its file,
+  and a team folder's, which stays by its file's id.
 - **Where:**
   the lookup, the listing, the missing files,
   the duplicates and a file's same-hash files.

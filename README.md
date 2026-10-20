@@ -508,7 +508,8 @@ The app treats each as its file's.
 - **Governed by its file's rule.**
   A rule that maintains a file's hashes maintains its versions';
   one that stops, or excludes the file, does so for them too.
-  A version in the trash is the trash's, governed by nothing.
+  A version of a file in the trash is governed, and found, as its file is
+  ([The trash](#the-trash)).
 - **Checksums without a read.**
   The checksums a file holds, where they are current,
   pass to its versions and back without a read,
@@ -582,6 +583,8 @@ by a home's owner, by a team folder's members as its permissions say,
 and by no share's recipient.
 Its `path` and `location` are those it had, after `trash://`,
 and it carries `trash`, when it was deleted.
+A version of it is found through it, after `versions://trash://`,
+with both `version` and `trash`.
 A copy in the trash is shown in a duplicate group, marked,
 and a group with fewer than two files outside the trash is not listed.
 The Duplicates page and the unified search open the trash,

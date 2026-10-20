@@ -523,10 +523,11 @@ class HashIndexService
 	}
 
 	/**
-	 * The trashed files among $fileIds that one of $uids holds, each with
-	 * the path the first of them sees its place before the deletion at,
-	 * after {@see TrashOf::SCHEME}, and `trash`: for a caller that opens a
-	 * result through a folder, which reaches no trashed file. Held as the
+	 * The trashed files among $fileIds that one of $uids holds, and the
+	 * versions of trashed files, each with the path the first of them sees
+	 * its place before the deletion at, after its scheme
+	 * ({@see FilecacheService::schemeOf()}), and `trash`: for a caller that
+	 * opens a result through a folder, which reaches no trashed file. Held as the
 	 * listing holds one ({@see FilecacheService::withPlaces()}): by its
 	 * place's reach and a team folder's permissions there. Null accounts, a
 	 * sudoer's, hold every one, at its owner's path.
@@ -543,11 +544,13 @@ class HashIndexService
 		?array $uids,
 	): array
 	{
+		// A trashed file, and a version, whose file may be one: a team
+		// folder's version stays beside its trashed file, outside the trash.
 		$trashed = [];
 
 		foreach ( $this->filecacheService->locateAll( $fileIds ) as $fileId => $location )
 		{
-			if ( $location->trash !== null )
+			if ( $location->trash !== null || $location->version !== null )
 			{
 				$trashed[] = $fileId;
 			}

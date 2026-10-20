@@ -1879,17 +1879,31 @@ class RuleServiceTest
 	}
 
 	/**
-	 * A version in the trash is the trash's, and governed by nothing: no
-	 * file is looked up for it.
+	 * A version in the trash is governed as its trashed file is: by the
+	 * rule of the place the file had before the deletion.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testAVersionInTheTrashIsGovernedByNothing(): void
+	public function testAVersionInTheTrashIsGovernedAsItsTrashedFile(): void
 	{
-		$this->stubLocate( FileLocation::fromRow( 84, 'home::alice', 'files_trashbin/versions/a.txt.v1700000000.d1700000100', 1 ) );
-		$this->filecacheService->expects( $this->never() )->method( 'filesOfVersions' );
+		$this->setupRulesConfig( [
+			[
+				'id'       => 'docs',
+				'enabled'  => true,
+				'selector' => 'home:alice',
+				'path'     => '/Docs/**',
+			],
+		] );
 
-		$this->assertNull( $this->service->governingRulesForFileIds( [ 84 ] )[84] );
+		$trashed = FileLocation::fromRow( 85, 'home::alice', 'files_trashbin/files/a.txt.d1700000100', 1 );
+		$this->stubLocate( FileLocation::fromRow( 84, 'home::alice', 'files_trashbin/versions/a.txt.v1700000000.d1700000100', 1 ) );
+		$this->filecacheService->method( 'filesOfVersions' )->willReturn( [ 84 => $trashed ] );
+		$this->filecacheService->method( 'originsOfTrash' )
+		                       ->with( [ $trashed ] )
+		                       ->willReturn( [ 85 => $this->homeLocation( 85, 'alice', '/Docs/a.txt' ) ] )
+		;
+
+		$this->assertSame( 'docs', $this->service->governingRulesForFileIds( [ 84 ] )[84]['id'] ?? null );
 	}
 
 	/**

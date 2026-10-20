@@ -118,7 +118,7 @@ class VersionGovernanceTest
 	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testTheTrashsVersionsAndAnOrphanAreGovernedByNothing(): void
+	public function testATrashedVersionWithoutARecordAndAnOrphanAreGovernedByNothing(): void
 	{
 		$this->rule( '**' );
 
@@ -128,10 +128,11 @@ class VersionGovernanceTest
 		] );
 
 		$this->assertNull( $rules[ self::$fileIds['orphan'] ], 'its file is gone' );
-		$this->assertNull( $rules[ self::$fileIds['trashed'] ], 'the trash is governed by nothing' );
-		$this->assertNull(
-			Server::get( FilecacheService::class )->locate( self::$fileIds['trashed'] )?->version,
-			'a version in the trash is the trash\'s',
+		$this->assertNull( $rules[ self::$fileIds['trashed'] ], 'its trashed file has no record of where it was' );
+		$this->assertSame(
+			'files_trashbin/files/b.txt.d1700000100',
+			Server::get( FilecacheService::class )->locate( self::$fileIds['trashed'] )?->version?->fileInternalPath,
+			'a version in the trash is its trashed file\'s',
 		);
 		$this->assertSame( FileLocation::NS_HOME, Server::get( FilecacheService::class )->locate( self::$fileIds['orphan'] )?->namespace );
 	}

@@ -1047,6 +1047,7 @@ class FilecacheServiceTest
 				[ 'storage' => 1, 'root' => 'files_versions', 'versions' => true ],
 				[ 'storage' => 1, 'root' => 'versions', 'versions' => true ],
 				[ 'storage' => 1, 'root' => 'files_trashbin/files' ],
+				[ 'storage' => 1, 'root' => 'files_trashbin/versions' ],
 				[ 'storage' => 1, 'root' => 'trash' ],
 				[ 'storage' => 2, 'root' => 'files_versions/Docs', 'versions' => true ],
 			],
