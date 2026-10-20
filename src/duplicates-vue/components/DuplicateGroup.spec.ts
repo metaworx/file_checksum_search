@@ -61,6 +61,29 @@ describe('DuplicateGroup, a version', () => {
 	})
 })
 
+describe('DuplicateGroup, a file in the trash', () => {
+	const files = [
+		{ fileid: 1, path: '/a.pdf', name: 'a.pdf' },
+		{ fileid: 2, path: '/b.pdf', name: 'b.pdf' },
+		{ fileid: 3, path: 'trash:///c.pdf', name: 'c.pdf', trash: { deletedAt: '2023-11-14T22:13:20+00:00' } },
+	]
+
+	it('is labelled as it was, and says when it was deleted', () => {
+		const items = mounted({ files }).findAll('.db-file-item')
+
+		expect(items[2].find('a').text()).toBe('/c.pdf')
+		expect(items[2].find('[data-testid="fcias-trash"]').text()).toMatch(/^Deleted /)
+		expect(items[0].find('[data-testid="fcias-trash"]').exists()).toBe(false)
+	})
+
+	it('is offered no verification', () => {
+		const items = mounted({ files }).findAll('.db-file-item')
+
+		expect(items[0].find('.db-verify-file').exists()).toBe(true)
+		expect(items[2].find('.db-verify-file').exists()).toBe(false)
+	})
+})
+
 describe('DuplicateGroup, the MIME type', () => {
 	// One per group: its files share their content, and so its type.
 	it('shows the type of the group\'s content on its header, after the hash', () => {

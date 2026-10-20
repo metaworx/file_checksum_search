@@ -2,6 +2,7 @@ OC.L10N.register(
     "file_checksum_search",
     {
     "\"Yes\" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it." : "“Ja” betekent dat een beheerder deze regel heeft afgedwongen: niemand anders kan hem bewerken of uitschakelen, en omdat afgedwongen regels de eerste vier lagen vullen, kan geen persoonlijke regel eerder aan de beurt komen dan deze regel.",
+    "%1$s (deleted %2$s)" : "%1$s (verwijderd op %2$s)",
     "%1$s (version of %2$s)" : "%1$s (versie van %2$s)",
     "_%n file_::_%n files_" : ["%n bestand","%n bestanden"],
     "(not in your files)" : "(niet in je bestanden)",
@@ -112,6 +113,7 @@ OC.L10N.register(
     "Delete every stored MIME type? The checksums stay. Detection can be switched on again once the deletion is done." : "Alle opgeslagen MIME-types verwijderen? De controlesommen blijven behouden. De detectie kan weer worden ingeschakeld zodra de verwijdering klaar is.",
     "Delete rule" : "Regel verwijderen",
     "Delete this rule?" : "Deze regel verwijderen?",
+    "Deleted {date}" : "Verwijderd op {date}",
     "Detect MIME types" : "MIME-types herkennen",
     "Detected from the file's content" : "Herkend aan de inhoud van het bestand",
     "Disable" : "Uitschakelen",

@@ -1031,4 +1031,41 @@ class FilecacheServiceTest
 			$this->service->listAddressableStorages(),
 		);
 	}
+
+	/**
+	 * A reach's areas, and beside them where their files' versions and trash
+	 * are kept: a version's area marked, the trash's not; every file stays
+	 * every file.
+	 */
+	public function testThePlacedAreasAddTheVersionsAndTheTrash(): void
+	{
+		$this->assertNull( FilecacheService::withPlacedAreas( null ) );
+		$this->assertSame(
+			[
+				[ 'storage' => 1, 'root' => 'files' ],
+				[ 'storage' => 2, 'root' => 'files/Docs' ],
+				[ 'storage' => 1, 'root' => 'files_versions', 'versions' => true ],
+				[ 'storage' => 1, 'root' => 'versions', 'versions' => true ],
+				[ 'storage' => 1, 'root' => 'files_trashbin/files' ],
+				[ 'storage' => 1, 'root' => 'trash' ],
+				[ 'storage' => 2, 'root' => 'files_versions/Docs', 'versions' => true ],
+			],
+			FilecacheService::withPlacedAreas( [ [ 'storage' => 1, 'root' => 'files' ], [ 'storage' => 2, 'root' => 'files/Docs' ] ] ),
+		);
+	}
+
+	/**
+	 * What a placed row's path begins with: a version's scheme, a trashed
+	 * file's, a trashed file's version both, a file's nothing.
+	 */
+	public function testTheSchemeOfAPlacedRow(): void
+	{
+		$version = [ 'fileid' => 1, 'timestamp' => '2023-11-14T22:13:20+00:00' ];
+		$trash   = [ 'deletedAt' => '2023-11-14T22:13:20+00:00' ];
+
+		$this->assertSame( '', FilecacheService::schemeOf( [] ) );
+		$this->assertSame( 'versions://', FilecacheService::schemeOf( [ 'version' => $version ] ) );
+		$this->assertSame( 'trash://', FilecacheService::schemeOf( [ 'trash' => $trash ] ) );
+		$this->assertSame( 'versions://trash://', FilecacheService::schemeOf( [ 'version' => $version, 'trash' => $trash ] ) );
+	}
 }

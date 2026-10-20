@@ -1388,6 +1388,8 @@ components:
           example: 12345
         version:
           $ref: "#/components/schemas/VersionOf"
+        trash:
+          $ref: "#/components/schemas/TrashOf"
         algo:
           type: string
           example: sha1
@@ -1569,6 +1571,19 @@ components:
           description: When the version was the file, ISO 8601.
           example: "2026-08-17T09:12:00+00:00"
 
+    TrashOf:
+      type: object
+      description: >-
+        Present on a file in the trash, whose `path` and `location` are then
+        those it had before the deletion after `trash://`.
+      required: [deletedAt]
+      properties:
+        deletedAt:
+          type: string
+          format: date-time
+          description: When the file was deleted, ISO 8601.
+          example: "2026-10-20T16:30:00+00:00"
+
     PreferenceResponse:
       type: object
       required: [key, value, default, active]
@@ -1679,6 +1694,8 @@ components:
           example: 185324
         version:
           $ref: "#/components/schemas/VersionOf"
+        trash:
+          $ref: "#/components/schemas/TrashOf"
         path:
           type: string
           description: "The caller's own path for the file, with a leading slash; on the twin, as the first account in reach that holds it names it."
@@ -1716,6 +1733,8 @@ components:
           example: 185323
         version:
           $ref: "#/components/schemas/VersionOf"
+        trash:
+          $ref: "#/components/schemas/TrashOf"
         path:
           type: string
           description: >-
@@ -1851,6 +1870,8 @@ components:
           example: 100
         version:
           $ref: "#/components/schemas/VersionOf"
+        trash:
+          $ref: "#/components/schemas/TrashOf"
         path:
           type: string
           description: "Where an account finds the file, with a leading slash and the name included — with several accounts in reach, whichever holds it first. For a sudoer across every account, the file's path below the area `location` names."

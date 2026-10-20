@@ -20,6 +20,11 @@ msgstr ""
 msgid "\"Yes\" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it."
 msgstr "„Tak” oznacza, że regułę wymusił administrator: nikt inny nie może jej edytować ani wyłączyć, a ponieważ reguły wymuszone zajmują pierwsze cztery poziomy, żadna reguła osobista nie może jej poprzedzać."
 
+#. TRANSLATORS: the title of a search result that is a file in the trash: %1$s is the file's name, %2$s when it was deleted, a date and time
+#, php-format
+msgid "%1$s (deleted %2$s)"
+msgstr "%1$s (usunięto %2$s)"
+
 #. TRANSLATORS: the title of a search result that is an earlier version of a file: %1$s is the file's name, %2$s when the file had that content, a date and time
 #, php-format
 msgid "%1$s (version of %2$s)"
@@ -380,6 +385,10 @@ msgstr "Usuń regułę"
 
 msgid "Delete this rule?"
 msgstr "Usunąć tę regułę?"
+
+#. TRANSLATORS: beside a file in a list, marking it as in the trash; {date} is when it was deleted
+msgid "Deleted {date}"
+msgstr "Usunięto {date}"
 
 msgid "Detect MIME types"
 msgstr "Wykrywaj typy MIME"

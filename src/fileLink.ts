@@ -25,8 +25,14 @@ export function fileLink(fileid: number): string {
 
 /**
  * The link for a row of a list: a version opens its file, as Files keeps
- * a file's versions in the file's details and opens none by itself.
+ * a file's versions in the file's details and opens none by itself; a file
+ * in the trash, or a version of one, opens the trash, where it can be
+ * restored.
  */
-export function rowLink(row: { fileid: number, version?: { fileid: number } }): string {
+export function rowLink(row: { fileid: number, version?: { fileid: number }, trash?: { deletedAt: string } }): string {
+	if (row.trash) {
+		return generateUrl(FRONTEND.trashLink, { fileid: row.version?.fileid ?? row.fileid })
+	}
+
 	return fileLink(row.version?.fileid ?? row.fileid)
 }

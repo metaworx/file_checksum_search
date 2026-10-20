@@ -9,7 +9,7 @@
 import { ref, computed } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import LocationIcon from '../../components/LocationIcon.vue'
-import { fileLabel, labelKind, versionLabel } from '../../fileLabel'
+import { fileLabel, labelKind, trashLabel, versionLabel } from '../../fileLabel'
 import type { DuplicateGroup as GroupType } from '../composables/useDuplicates'
 import { n, t } from '../../l10n'
 
@@ -44,8 +44,8 @@ const statusText = computed(() => {
 
 const fileCount = computed(() => n('file_checksum_search', '%n file', '%n files', props.group.file_count))
 
-/** Whether the group holds a file to read: a version is not read again. */
-const readable = computed(() => props.group.files.some((file) => !file.version))
+/** Whether the group holds a file to read: a version, or a file in the trash, is not read again. */
+const readable = computed(() => props.group.files.some((file) => !file.version && !file.trash))
 
 const TITLES = {
 	verifyAll: t('file_checksum_search', 'Read every file in this group again, recalculate its checksum and compare'),
@@ -124,13 +124,15 @@ function toggle(): void {
 						<!-- An earlier version of the file the label names, which
 						     the link opens: the version is in its details. -->
 						<span v-if="file.version" class="db-version" data-testid="fcias-version">{{ versionLabel(file) }}</span>
+						<!-- In the trash, where the link opens: it can be restored there. -->
+						<span v-if="file.trash" class="db-version" data-testid="fcias-trash">{{ trashLabel(file) }}</span>
 						<span v-if="file.verified === true" class="db-verified">✓</span>
 						<span v-else-if="file.verified === false" class="db-mismatch">✗ ({{ mismatchText(file) }})</span>
 					</span>
 					<!-- A version is not read again: it holds what its file held,
-					     and nothing writes to it. -->
+					     and nothing writes to it; nor is a file in the trash. -->
 					<NcButton
-						v-if="canVerify && !file.version"
+						v-if="canVerify && !file.version && !file.trash"
 						class="db-verify-file"
 						:disabled="verifying"
 						:title="TITLES.verify"

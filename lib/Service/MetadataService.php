@@ -2008,10 +2008,11 @@ class MetadataService
 			$qb->andWhere( $qb->createFunction( '(' . $stale->getSQL() . ') = 0' ) );
 		}
 
-		// Versions are listed as files are, held where their files are
-		// ({@see FilecacheService::withVersionFiles()}): the mounts name the
-		// areas their versions are kept in too, where a caller wants them.
-		$this->filecacheService->andWhereGoverned( $qb, 'fc', withVersions: true );
+		// Versions and trashed files are listed as files are, held where
+		// their files, or their places before the deletion, are
+		// ({@see FilecacheService::withPlaces()}): the mounts name the areas
+		// they are kept in too, where a caller wants them.
+		$this->filecacheService->andWhereGoverned( $qb, 'fc', placed: true );
 
 		if ( $mounts !== null )
 		{

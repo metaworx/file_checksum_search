@@ -12,6 +12,11 @@ describe('rowLink', () => {
 		expect(rowLink({ fileid: 9, version: { fileid: 7 } })).toBe(fileLink(7))
 		expect(rowLink({ fileid: 9 })).toBe(fileLink(9))
 	})
+
+	// A file in the trash is restored from the trash, which is where it opens.
+	it('opens the trash for a file in it', () => {
+		expect(rowLink({ fileid: 9, trash: { deletedAt: '2023-11-14T22:13:20+00:00' } })).toMatch(/\/apps\/files\/trashbin\/9$/)
+	})
 })
 
 // Core's /f/{fileid} finds the file's folder itself. Its /apps/files/files/{fileid}

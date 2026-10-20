@@ -456,7 +456,8 @@ class ChecksumApi
 					'owner'    => $row['owner'] ?? null,
 					'location' => $row['location'] ?? '',
 				] + ( $withLocalPath ? [ 'localPath' => $row['local_path'] ?? null ] : [] )
-				  + ( isset( $row['version'] ) ? [ 'version' => $row['version'] ] : [] );
+				  + ( isset( $row['version'] ) ? [ 'version' => $row['version'] ] : [] )
+				  + ( isset( $row['trash'] ) ? [ 'trash' => $row['trash'] ] : [] );
 			}, $rows );
 
 			if ( $withMimeType )
@@ -509,8 +510,11 @@ class ChecksumApi
 			$hash,
 		);
 
-		// A folder opens a version only as its file.
-		$versions = $this->hashIndexService->versionsAmong( array_map( static fn ( array $row ): int => (int) $row[ MetadataService::FIELD_FILE_ID ], $rows ) );
+		// A folder opens a version only as its file, and a trashed file not
+		// at all: it is held where it was before the deletion.
+		$fileIds  = array_map( static fn ( array $row ): int => (int) $row[ MetadataService::FIELD_FILE_ID ], $rows );
+		$versions = $this->hashIndexService->versionsAmong( $fileIds );
+		$trashed  = $this->hashIndexService->trashAmong( $fileIds, array_map( 'strval', array_keys( $folders ) ) );
 		$results  = [];
 
 		foreach ( $rows as $row )
@@ -519,6 +523,22 @@ class ChecksumApi
 			$version  = $versions[ $fileId ] ?? null;
 			$node     = null;
 			$relative = null;
+
+			if ( isset( $trashed[ $fileId ] ) )
+			{
+				$extracted = $this->metadataService->extractAlgorithm( $fileId, $row );
+
+				$results[] = [
+					'fileid' => $fileId,
+					'algo'   => $extracted['algo'],
+					'hash'   => $extracted['hash'] ?? $hash,
+					'path'   => $trashed[ $fileId ]['path'],
+					'name'   => $trashed[ $fileId ]['name'],
+					'trash'  => $trashed[ $fileId ]['trash'],
+				];
+
+				continue;
+			}
 
 			// The first account whose folder can open it names the path. With
 			// several accounts in reach the row does not yet say whose path
@@ -672,7 +692,7 @@ class ChecksumApi
 	 * @param  bool               $withMimeType   As {@see listHashes()}.
 	 * @param  bool               $withStat       As {@see listHashes()}.
 	 *
-	 * @return Generator<int, array{fileid: int, path: string, name: string, owner: ?string, location: string, version?: array{fileid: int, timestamp: string}, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, mimetype?: ?string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>
+	 * @return Generator<int, array{fileid: int, path: string, name: string, owner: ?string, location: string, version?: array{fileid: int, timestamp: string}, trash?: array{deletedAt: string}, localPath?: ?string, updated_at: ?string, hashes: array<string, array{algo: string, hash: string}>|null, mimetype?: ?string, etag?: ?string, size?: int, mtime?: string, storageMtime?: string}>
 	 * @throws \OCP\DB\Exception  While the walk is read, not when it is asked for.
 	 * @throws HintedInvalidArgumentException  For $withMimeType while detection
 	 *                                         is off, when it is asked for.
@@ -946,14 +966,32 @@ class ChecksumApi
 				$hashValue,
 			);
 
-			// A version is reached and opened as its file.
-			$versions = $this->hashIndexService->versionsAmong( array_map( static fn ( array $row ): int => (int) $row[ MetadataService::FIELD_FILE_ID ], $rows ) );
+			// A version is reached and opened as its file; a trashed file is
+			// held where it was before the deletion.
+			$dupIds   = array_map( static fn ( array $row ): int => (int) $row[ MetadataService::FIELD_FILE_ID ], $rows );
+			$versions = $this->hashIndexService->versionsAmong( $dupIds );
+			$trashed  = $this->hashIndexService->trashAmong( $dupIds, $reachUids === null ? null : array_map( 'strval', array_values( $reachUids ) ) );
 
 			foreach ( $rows as $row )
 			{
 				$dupFileId = (int) $row[ MetadataService::FIELD_FILE_ID ];
 				$version   = $versions[ $dupFileId ] ?? null;
 				$target    = $version['fileid'] ?? $dupFileId;
+				$key       = $algo . "\0" . $hashValue;
+
+				if ( isset( $trashed[ $dupFileId ] ) )
+				{
+					$grouped[ $key ] ??= [
+						'algo'       => $algo,
+						'hash_value' => $hashValue,
+						'empty'      => AlgorithmCatalogue::isEmptyDigest( $algo, $hashValue ),
+						'files'      => [],
+					];
+
+					$grouped[ $key ]['files'][] = [ 'fileid' => $dupFileId ] + $trashed[ $dupFileId ];
+
+					continue;
+				}
 
 				// The file itself, and its own versions: its history, not a
 				// copy of it.
@@ -977,8 +1015,6 @@ class ChecksumApi
 				}
 
 				[ $resolvedPath, $resolvedName ] = $located;
-
-				$key = $algo . "\0" . $hashValue;
 
 				$grouped[ $key ] ??= [
 					'algo'       => $algo,

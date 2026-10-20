@@ -11,6 +11,12 @@ the first stable release.
 
 ## [Unreleased]
 
+### Added
+
+- `docs/api-v1.md`, *The trash*: a file in the trash is listed, looked up
+  and grouped as a duplicate where it was, under `trash://`, marked with
+  `trash`; the Duplicates page and the unified search open the trash.
+
 ### Changed
 
 - `README.md`, *The trash*: a file keeps its checksums in the trash,

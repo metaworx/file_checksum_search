@@ -2,6 +2,7 @@ OC.L10N.register(
     "file_checksum_search",
     {
     "\"Yes\" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it." : "“是”表示此规则由管理员强制执行：其他人都无法编辑或禁用它；而且强制规则占据前四个层级，因此任何个人规则都无法排在它之前。",
+    "%1$s (deleted %2$s)" : "%1$s（删除于 %2$s）",
     "%1$s (version of %2$s)" : "%1$s（%2$s 的版本）",
     "_%n file_::_%n files_" : ["%n 个文件"],
     "(not in your files)" : "（不在您的文件中）",
@@ -112,6 +113,7 @@ OC.L10N.register(
     "Delete every stored MIME type? The checksums stay. Detection can be switched on again once the deletion is done." : "删除所有已存储的 MIME 类型？校验和将保留。删除完成后，可以重新开启检测。",
     "Delete rule" : "删除规则",
     "Delete this rule?" : "删除此规则？",
+    "Deleted {date}" : "删除于 {date}",
     "Detect MIME types" : "检测 MIME 类型",
     "Detected from the file's content" : "根据文件内容检测",
     "Disable" : "禁用",

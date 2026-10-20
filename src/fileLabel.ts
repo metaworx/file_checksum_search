@@ -10,6 +10,9 @@ import { formatDateTime, t } from './l10n'
 /** What a version's path and location begin with, before its file's. */
 export const VERSION_SCHEME = 'versions://'
 
+/** What a trashed file's path and location begin with, before the place it had. */
+export const TRASH_SCHEME = 'trash://'
+
 /** The part of a file row the label is made from; every API row carries it. */
 export interface LabelledFile {
 	path?: string
@@ -27,17 +30,43 @@ export interface LabelledFile {
 	 * {@link VERSION_SCHEME}.
 	 */
 	version?: { fileid: number, timestamp: string }
+	/**
+	 * Present on a file in the trash: when it was deleted. Its path and
+	 * location are those it had before, after {@link TRASH_SCHEME}.
+	 */
+	trash?: { deletedAt: string }
 }
 
-/** The row as its file is: a version's path and location without the scheme. */
+/**
+ * The row as its file is, where it was: a version's and a trashed file's
+ * path and location without their schemes.
+ */
 function asItsFile(file: LabelledFile): LabelledFile {
-	if (!file.version) {
+	if (!file.version && !file.trash) {
 		return file
 	}
 
-	const strip = (value?: string): string | undefined => value?.startsWith(VERSION_SCHEME) ? value.slice(VERSION_SCHEME.length) : value
+	const strip = (value?: string): string | undefined => {
+		let stripped = value
+		for (const scheme of [VERSION_SCHEME, TRASH_SCHEME]) {
+			if (stripped?.startsWith(scheme)) {
+				stripped = stripped.slice(scheme.length)
+			}
+		}
+		return stripped
+	}
 
 	return { ...file, path: strip(file.path), location: strip(file.location) }
+}
+
+/** What a file in the trash is called beside its label; null for one outside it. */
+export function trashLabel(file: LabelledFile): string | null {
+	if (!file.trash) {
+		return null
+	}
+
+	// TRANSLATORS: beside a file in a list, marking it as in the trash; {date} is when it was deleted
+	return t('file_checksum_search', 'Deleted {date}', { date: formatDateTime(new Date(file.trash.deletedAt)) })
 }
 
 /** What a version is called beside its file's label; null for a file. */
@@ -76,7 +105,8 @@ export function currentUid(): string | null {
  * storage), and every file a sudoer reads across accounts, shows its
  * location.
  *
- * A version is labelled as its file is; {@link versionLabel} says which.
+ * A version is labelled as its file is, and a trashed file as it was;
+ * {@link versionLabel} and {@link trashLabel} say which.
  */
 export function fileLabel(row: LabelledFile, uid: string | null = currentUid()): string {
 	const file = asItsFile(row)

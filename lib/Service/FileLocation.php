@@ -162,6 +162,40 @@ readonly class FileLocation
 	}
 
 	/**
+	 * Where the files below $root are kept once deleted, in the same
+	 * storage: what a reach that holds $root holds of the trash, a superset
+	 * each item of which is held only where its place before the deletion
+	 * is.
+	 *
+	 * Only a whole files area has a trash beside it: a home's `files`, its
+	 * `files_trashbin/files/`; a team folder's `files/` in its own storage,
+	 * `trash/`; the legacy layout's `__groupfolders/<id>`,
+	 * `__groupfolders/trash/<id>`. A share of a folder in one reaches none of
+	 * it: what its owner deletes is the owner's. Both answers for a
+	 * storage's `files`, which a home and a team folder both have: each has
+	 * only its own.
+	 *
+	 * @return list<string>
+	 */
+	public static function trashRootsOf( string $root ): array
+	{
+		if ( $root === 'files' )
+		{
+			return [
+				'files_trashbin/files',
+				'trash',
+			];
+		}
+
+		if ( preg_match( '#^__groupfolders/(\d+)$#', $root, $m ) === 1 )
+		{
+			return [ '__groupfolders/trash/' . $m[1] ];
+		}
+
+		return [];
+	}
+
+	/**
 	 * Classify a filecache row into its namespace.
 	 */
 	public static function fromRow(

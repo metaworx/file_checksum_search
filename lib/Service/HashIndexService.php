@@ -59,12 +59,14 @@ class HashIndexService
 //  static methods
 
 	/**
-	 * Whether a group's members are copies of more than one file: one file
-	 * and its own versions, or only versions of one file, are its history,
-	 * not a duplicate. Saved unchanged, a file makes a version identical to
-	 * itself.
+	 * Whether a group's members are copies of more than one file outside
+	 * the trash: one file and its own versions, or only versions of one
+	 * file, are its history, not a duplicate — saved unchanged, a file makes
+	 * a version identical to itself — and a file whose other copies are all
+	 * in the trash has none left to remove. A copy in the trash is shown in
+	 * a group that is one, marked.
 	 *
-	 * @param  list<array{fileid: int, version?: array{fileid: int, ...}, ...}>  $files
+	 * @param  list<array{fileid: int, version?: array{fileid: int, ...}, trash?: array{deletedAt: string}, ...}>  $files
 	 */
 	public static function isDuplicate( array $files ): bool
 	{
@@ -72,7 +74,10 @@ class HashIndexService
 
 		foreach ( $files as $file )
 		{
-			$of[ $file['version']['fileid'] ?? $file['fileid'] ] = true;
+			if ( ! isset( $file['trash'] ) )
+			{
+				$of[ $file['version']['fileid'] ?? $file['fileid'] ] = true;
+			}
 		}
 
 		return count( $of ) > 1;
@@ -430,7 +435,9 @@ class HashIndexService
 							'name'     => $seen['name'],
 							'owner'    => $seen['owner'] ?? null,
 							'location' => $seen['location'],
-						] + ( isset( $seen['version'] ) ? [ 'version' => $seen['version'] ] : [] );
+						]
+							+ ( isset( $seen['version'] ) ? [ 'version' => $seen['version'] ] : [] )
+							+ ( isset( $seen['trash'] ) ? [ 'trash' => $seen['trash'] ] : [] );
 					}
 				}
 
@@ -473,7 +480,7 @@ class HashIndexService
 	 *                                                   null for every file.
 	 * @param  bool                      $withLocalPath  As {@see FilecacheService::batchLookupFilecachePaths()}.
 	 *
-	 * @return array<int, array{path: string, name: string, storage: int, storage_id: string, internal_path: string, owner: ?string, location: string, local_path?: ?string, file?: array{fileid: int, internal_path: string, path: string, location: string, name: string}, version?: array{fileid: int, timestamp: string}}>
+	 * @return array<int, array{path: string, name: string, storage: int, storage_id: string, internal_path: string, owner: ?string, location: string, local_path?: ?string, file?: array{fileid: int, internal_path: string, path: string, location: string, name: string}, version?: array{fileid: int, timestamp: string}, trash?: array{deletedAt: string}}>
 	 */
 	public function batchLookupFilecachePaths(
 		array             $fileIds,
@@ -502,7 +509,7 @@ class HashIndexService
 	 * @param  bool         $withLocalPath  Each row gains `local_path`, as
 	 *                                      {@see FilecacheService::batchLookupFilecachePaths()}.
 	 *
-	 * @return array<int, array{fileid: int, algo: string, hash_value: string, path: string, name: string, owner: ?string, location: string, local_path?: ?string, version?: array{fileid: int, timestamp: string}}>
+	 * @return array<int, array{fileid: int, algo: string, hash_value: string, path: string, name: string, owner: ?string, location: string, local_path?: ?string, version?: array{fileid: int, timestamp: string}, trash?: array{deletedAt: string}}>
 	 */
 	public function findByHash(
 		string  $hash,
@@ -513,6 +520,66 @@ class HashIndexService
 	): array
 	{
 		return $this->duplicates->findByHash( $hash, $algo, $limit, $userName, $withLocalPath );
+	}
+
+	/**
+	 * The trashed files among $fileIds that one of $uids holds, each with
+	 * the path the first of them sees its place before the deletion at,
+	 * after {@see TrashOf::SCHEME}, and `trash`: for a caller that opens a
+	 * result through a folder, which reaches no trashed file. Held as the
+	 * listing holds one ({@see FilecacheService::withPlaces()}): by its
+	 * place's reach and a team folder's permissions there. Null accounts, a
+	 * sudoer's, hold every one, at its owner's path.
+	 *
+	 * @param  list<int>          $fileIds
+	 * @param  list<string>|null  $uids
+	 *
+	 * @return array<int, array{path: string, name: string, trash: array{deletedAt: string}}>
+	 *         keyed by file id
+	 * @throws \OCP\DB\Exception
+	 */
+	public function trashAmong(
+		array  $fileIds,
+		?array $uids,
+	): array
+	{
+		$trashed = [];
+
+		foreach ( $this->filecacheService->locateAll( $fileIds ) as $fileId => $location )
+		{
+			if ( $location->trash !== null )
+			{
+				$trashed[] = $fileId;
+			}
+		}
+
+		if ( $trashed === [] )
+		{
+			return [];
+		}
+
+		$views = $uids === null
+			? null
+			: $this->reach->filesViewsFor( $uids );
+		$among = [];
+
+		foreach ( $this->batchLookupFilecachePaths( $trashed, $uids ) as $fileId => $row )
+		{
+			if ( ! isset( $row['trash'] ) )
+			{
+				continue;
+			}
+
+			$seen = $this->reach->asSeenIn( $views, $row, false );
+
+			$among[ $fileId ] = [
+				'path'  => $seen['path'],
+				'name'  => $seen['name'],
+				'trash' => $row['trash'],
+			];
+		}
+
+		return $among;
 	}
 
 	/**

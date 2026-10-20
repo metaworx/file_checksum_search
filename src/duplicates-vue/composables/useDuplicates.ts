@@ -28,6 +28,8 @@ export interface DuplicateFileItem {
 	openable?: boolean
 	/** Present on an earlier version of a file: the file's id, and when it held this content. */
 	version?: { fileid: number, timestamp: string }
+	/** Present on a file in the trash: when it was deleted. */
+	trash?: { deletedAt: string }
 	verified?: boolean
 	verified_hash?: string
 	verify_error?: string
@@ -238,8 +240,8 @@ export function useDuplicates() {
 			// What still needs an answer. A resumed run keeps what the
 			// interrupted one already answered and starts after it. A version
 			// is not read again: it holds what its file held, and nothing
-			// writes to it.
-			let queue = group.files.filter((f) => !f.version && !(resuming && f.verified !== undefined))
+			// writes to it; nor is a file in the trash, which keeps what it had.
+			let queue = group.files.filter((f) => !f.version && !f.trash && !(resuming && f.verified !== undefined))
 
 			while (queue.length > 0 && !rateLimited) {
 				const chunk = queue.slice(0, VERIFY_CHUNK)

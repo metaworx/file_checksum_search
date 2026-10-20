@@ -454,10 +454,11 @@ applied to the owner's path, not the editor's.
 The same holds for a team folder: one rule decides the folder,
 and it decides it identically for every member.
 
-Files outside a user-visible area — trash bins, application data — are governed
-by nothing.
+Files outside a user-visible area — application data, the trash's own folders —
+are governed by nothing.
 No rule reaches them, including the catch-all.
-A file's versions are governed by its rule: [File versions](#file-versions).
+A file's versions are governed by its rule: [File versions](#file-versions);
+a file in the trash by the rule of the place it had: [The trash](#the-trash).
 
 ### When hashes go away
 
@@ -573,6 +574,18 @@ is queued at once where a rule maintains it, as a written one is;
 a team folder's restore fires no event,
 and leaves such a file to the rule sweep.
 Emptying the trash, or its expiry, removes the file and its checksums.
+
+In the listing, the lookup, the duplicates,
+the files sharing a file's checksum and the unified search,
+a file in the trash is held where it was:
+by a home's owner, by a team folder's members as its permissions say,
+and by no share's recipient.
+Its `path` and `location` are those it had, after `trash://`,
+and it carries `trash`, when it was deleted.
+A copy in the trash is shown in a duplicate group, marked,
+and a group with fewer than two files outside the trash is not listed.
+The Duplicates page and the unified search open the trash,
+where it can be restored.
 
 ## Hash Generation Rules
 

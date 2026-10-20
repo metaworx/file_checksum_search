@@ -13,7 +13,7 @@ import { computed, ref, watch } from 'vue'
 import { t } from '../l10n'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import { rowLink } from '../fileLink'
-import { fileLabel, labelKind, versionLabel } from '../fileLabel'
+import { fileLabel, labelKind, trashLabel, versionLabel } from '../fileLabel'
 import AlgorithmSelect from '../components/AlgorithmSelect.vue'
 import LocationIcon from '../components/LocationIcon.vue'
 import { type AlgoOption, fetchAlgorithms } from '../algorithms'
@@ -343,6 +343,7 @@ watch(
 									rel="noreferrer noopener"><LocationIcon v-if="labelKind(file)" :kind="labelKind(file)!" :size="14" />{{ fileLabel(file) }}</a>
 								<span v-else class="fcias-dup-item-unopenable" :title="t('file_checksum_search', 'Not in your files')"><LocationIcon v-if="labelKind(file)" :kind="labelKind(file)!" :size="14" />{{ fileLabel(file) }}</span>
 								<span v-if="file.version" class="fcias-dup-version" data-testid="fcias-dup-version">{{ versionLabel(file) }}</span>
+								<span v-if="file.trash" class="fcias-dup-version" data-testid="fcias-dup-trash">{{ trashLabel(file) }}</span>
 							</li>
 						</ul>
 					</div>

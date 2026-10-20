@@ -499,12 +499,34 @@ class ReachResolverTest
 			'internal_path' => 'files_versions/Docs/a.txt.v1700000000',
 			'location'      => 'versions://home:alice//Docs/a.txt',
 			'file'          => [ 'internal_path' => 'files/Docs/a.txt' ],
+			'version'       => [ 'fileid' => 8, 'timestamp' => '2023-11-14T22:13:20+00:00' ],
 		];
 
 		$seen = $this->reach->asSeenIn( $views, $row, true );
 
 		$this->assertSame( 'versions:///Shared/a.txt', $seen['path'] );
 		$this->assertSame( 'versions://home:alice//Docs/a.txt', $seen['location'], 'read canonically, its own address' );
+	}
+
+	/**
+	 * A trashed file is seen where it was before the deletion, under its
+	 * own scheme.
+	 */
+	public function testATrashedFileIsSeenWhereItWas(): void
+	{
+		$views = [
+			[ 'uid' => 'bob', 'storage' => 7, 'root' => 'files', 'prefix' => '/Team/', 'rootId' => 700, 'shared' => false ],
+		];
+		$row   = [
+			'path'          => 'trash:///plans/c.md',
+			'storage'       => 7,
+			'internal_path' => 'trash/c.md.d1700000000',
+			'location'      => 'trash://groupfolder:5//plans/c.md',
+			'file'          => [ 'internal_path' => 'files/plans/c.md' ],
+			'trash'         => [ 'deletedAt' => '2023-11-14T22:13:20+00:00' ],
+		];
+
+		$this->assertSame( 'trash:///Team/plans/c.md', $this->reach->asSeenIn( $views, $row, true )['path'] );
 	}
 
 	/**

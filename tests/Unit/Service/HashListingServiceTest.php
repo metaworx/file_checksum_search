@@ -54,8 +54,8 @@ class HashListingServiceTest
 
 		$this->metadata  = $this->createMock( MetadataService::class );
 		$this->filecache = $this->createMock( FilecacheService::class );
-		// No version among the rows unless a test says so.
-		$this->filecache->method( 'withVersionFiles' )
+		// No version or trashed file among the rows unless a test says so.
+		$this->filecache->method( 'withPlaces' )
 		                ->willReturnArgument( 0 )
 		;
 		// The views, the share ids and a team folder's permissions are the
@@ -101,8 +101,8 @@ class HashListingServiceTest
 		$this->metadata->expects( $this->once() )
 		               ->method( 'pageListedFiles' )
 		               ->with(
-			               // The views' areas, and where their files' versions are kept.
-			               FilecacheService::withVersionAreas( [ [ 'storage' => 1, 'root' => 'files' ], [ 'storage' => 9, 'root' => 'files/Fotos' ] ] ),
+			               // The views' areas, and where their files' versions and trash are kept.
+			               FilecacheService::withPlacedAreas( [ [ 'storage' => 1, 'root' => 'files' ], [ 'storage' => 9, 'root' => 'files/Fotos' ] ] ),
 			               null,
 			               0,
 			               null,

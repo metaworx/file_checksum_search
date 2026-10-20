@@ -149,6 +149,20 @@ class HashIndexServiceTest
 		$this->assertFalse( HashIndexService::isDuplicate( [ [ 'fileid' => 3, 'version' => [ 'fileid' => 1 ] ], [ 'fileid' => 4, 'version' => [ 'fileid' => 1 ] ] ] ) );
 	}
 
+	/**
+	 * A copy in the trash counts for nothing: a file whose other copies are
+	 * all trashed has none to remove, and two outside the trash are a
+	 * duplicate with or without one beside them.
+	 */
+	public function testACopyInTheTrashMakesNoDuplicate(): void
+	{
+		$trashed = [ 'deletedAt' => '2023-11-14T22:13:20+00:00' ];
+
+		$this->assertFalse( HashIndexService::isDuplicate( [ [ 'fileid' => 1 ], [ 'fileid' => 2, 'trash' => $trashed ] ] ) );
+		$this->assertFalse( HashIndexService::isDuplicate( [ [ 'fileid' => 1, 'trash' => $trashed ], [ 'fileid' => 2, 'trash' => $trashed ] ] ) );
+		$this->assertTrue( HashIndexService::isDuplicate( [ [ 'fileid' => 1 ], [ 'fileid' => 2 ], [ 'fileid' => 3, 'trash' => $trashed ] ] ) );
+	}
+
 	// The default algorithm and the list it heads moved to AlgorithmCatalogue,
 	// which has its own tests; nothing about them is HashIndexService's.
 	public function testRecalcHashDelegatesToHashCalc(): void

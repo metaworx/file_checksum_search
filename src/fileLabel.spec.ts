@@ -4,7 +4,7 @@
  */
 
 import { afterEach, describe, expect, it } from 'vitest'
-import { currentUid, fileLabel, labelKind, versionLabel } from './fileLabel'
+import { currentUid, fileLabel, labelKind, trashLabel, versionLabel } from './fileLabel'
 
 // A version's path and location are its file's, after `versions://`: it is
 // labelled as its file is, and its own label says which version it is.
@@ -27,6 +27,33 @@ describe('a version', () => {
 	it('says when it was its file\'s content; a file says nothing', () => {
 		expect(versionLabel(version)).toMatch(/^Version of .*2023/)
 		expect(versionLabel({ path: '/Docs/a.txt' })).toBeNull()
+	})
+})
+
+// A trashed file's path and location are those it had, after `trash://`: it
+// is labelled as it was, and its own label says when it was deleted.
+describe('a file in the trash', () => {
+	const trashed = {
+		path: 'trash:///Docs/a.txt',
+		name: 'a.txt',
+		owner: 'alice',
+		location: 'trash://home:alice//Docs/a.txt',
+		trash: { deletedAt: '2023-11-14T22:13:20+00:00' },
+	}
+
+	it('is labelled as it was', () => {
+		expect(fileLabel(trashed, 'alice')).toBe('/Docs/a.txt')
+		expect(labelKind(trashed, 'alice')).toBe('own')
+		expect(fileLabel(trashed, 'bob')).toBe('home:alice//Docs/a.txt')
+	})
+
+	it('says when it was deleted; a file outside the trash says nothing', () => {
+		expect(trashLabel(trashed)).toMatch(/^Deleted .*2023/)
+		expect(trashLabel({ path: '/Docs/a.txt' })).toBeNull()
+	})
+
+	it('is labelled as it was when it is a version of a trashed file too', () => {
+		expect(fileLabel({ ...trashed, path: 'versions://trash:///Docs/a.txt', version: { fileid: 7, timestamp: '2023-11-14T22:13:20+00:00' } }, 'alice')).toBe('/Docs/a.txt')
 	})
 })
 

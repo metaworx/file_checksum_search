@@ -400,6 +400,19 @@ class FileLocationTest
 		$this->assertSame( [], FileLocation::versionRootsOf( 'filesx/a' ) );
 	}
 
+	/**
+	 * Where a reach that holds a root holds its files' trash: only beside a
+	 * whole files area — a home's, a team folder's, the legacy layout's by
+	 * its folder; a share of a folder in one, nothing.
+	 */
+	public function testTheTrashRootsOfARoot(): void
+	{
+		$this->assertSame( [ 'files_trashbin/files', 'trash' ], FileLocation::trashRootsOf( 'files' ) );
+		$this->assertSame( [], FileLocation::trashRootsOf( 'files/Docs' ) );
+		$this->assertSame( [ '__groupfolders/trash/7' ], FileLocation::trashRootsOf( '__groupfolders/7' ) );
+		$this->assertSame( [], FileLocation::trashRootsOf( '' ) );
+	}
+
 	public function testTheFreshnessStampKeepsTheVersion(): void
 	{
 		$location = FileLocation::fromRow( 8, 'home::alice', 'files_versions/a.txt.v1700000000', 1 )

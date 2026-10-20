@@ -164,11 +164,23 @@ class HashSearchProvider
 
 		$userFolder = $this->rootFolder->getUserFolder( $user->getUID() );
 		$entries    = [];
-		// A version is opened, and offered, as its file.
-		$versions   = $this->hashIndexService->versionsAmong( array_map( static fn ( array $row ): int => (int) $row[ MetadataService::FIELD_FILE_ID ], $rows ) );
+		// A version is opened, and offered, as its file; a trashed file is
+		// offered where it was before the deletion, and opens the trash.
+		$fileIds    = array_map( static fn ( array $row ): int => (int) $row[ MetadataService::FIELD_FILE_ID ], $rows );
+		$versions   = $this->hashIndexService->versionsAmong( $fileIds );
+		$trashed    = $this->hashIndexService->trashAmong( $fileIds, [ $user->getUID() ] );
 
 		foreach ( $rows as $row )
 		{
+			$trash = $trashed[ (int) $row[ MetadataService::FIELD_FILE_ID ] ] ?? null;
+
+			if ( $trash !== null )
+			{
+				$entries[] = $this->trashEntry( (int) $row[ MetadataService::FIELD_FILE_ID ], $row, $trash, $parsed['hash'] );
+
+				continue;
+			}
+
 			$version = $versions[ (int) $row[ MetadataService::FIELD_FILE_ID ] ] ?? null;
 			$fileId  = $version['fileid'] ?? (int) $row[ MetadataService::FIELD_FILE_ID ];
 			$nodes   = $userFolder->getById( $fileId );
@@ -218,5 +230,39 @@ class HashSearchProvider
 		}
 
 		return SearchResult::complete( $this->getName(), $entries );
+	}
+
+	/**
+	 * A trashed file's result: its name and, in brackets, when it was
+	 * deleted, in the account's time zone; the path it had before, after
+	 * {@see \OCA\FileChecksumSearch\Service\TrashOf::SCHEME}; and the trash,
+	 * where it can be restored, to open.
+	 *
+	 * @param  array<string, mixed>                                               $row
+	 * @param  array{path: string, name: string, trash: array{deletedAt: string}}  $trash
+	 */
+	private function trashEntry(
+		int    $fileId,
+		array  $row,
+		array  $trash,
+		string $hash,
+	): SearchResultEntry
+	{
+		$extracted = $this->metadataService->extractAlgorithm( $fileId, $row );
+
+		return new SearchResultEntry(
+			thumbnailUrl: '',
+			// TRANSLATORS: the title of a search result that is a file in the trash: %1$s is the file's name, %2$s when it was deleted, a date and time
+			title: $this->l10n->t( '%1$s (deleted %2$s)', [
+				$trash['name'],
+				$this->dateTimeFormatter->formatDateTime( (int) strtotime( $trash['trash']['deletedAt'] ), 'medium', 'medium', null, $this->l10n ),
+			] ),
+			subline: sprintf( '%s: %s — %s', $extracted['hash'] ?? $hash, $extracted['algo'], $trash['path'] ),
+			resourceUrl: $this->urlGenerator->linkToRoute( 'files.view.indexViewFileid', [
+				'view'   => 'trashbin',
+				'fileid' => $fileId,
+			] ),
+			icon: 'icon-delete',
+		);
 	}
 }

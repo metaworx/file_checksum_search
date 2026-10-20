@@ -380,7 +380,8 @@ class ReachResolver
 	 * the account holds the file through a share. With no views, or none
 	 * holding the file, the row is left as it is.
 	 *
-	 * A version is seen where its file is, under {@see VersionOf::SCHEME}.
+	 * A version is seen where its file is, and a trashed file where it was
+	 * before the deletion, under {@see FilecacheService::schemeOf()}.
 	 *
 	 * @param  list<array{uid: string, storage: int, root: string, prefix: string, rootId: int, shared: bool}>|null  $views
 	 * @param  array{path: string, storage: int, internal_path: string, location: string, file?: array{internal_path: string, ...}, ...} $row
@@ -393,7 +394,7 @@ class ReachResolver
 		bool   $canonical,
 	): array
 	{
-		$scheme = isset( $row['file'] ) ? VersionOf::SCHEME : '';
+		$scheme = FilecacheService::schemeOf( $row );
 		$seen   = $views === null
 			? null
 			: $this->seenThrough( $views, $row['storage'], $row['file']['internal_path'] ?? $row['internal_path'], ! $canonical );
@@ -623,7 +624,8 @@ class ReachResolver
 	 * by their mounts in SQL keeps of {@see reaches()}.
 	 *
 	 * Null accounts, a sudoer's, keep every row. A version taken to its file
-	 * ({@see FilecacheService::withVersionFiles()}) is judged as its file.
+	 * ({@see FilecacheService::withPlaces()}) is judged as its file, and a
+	 * trashed file as its place before the deletion.
 	 *
 	 * @template TRow of array{storage: int, ...}
 	 *

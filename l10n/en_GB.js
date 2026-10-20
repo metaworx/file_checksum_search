@@ -2,6 +2,7 @@ OC.L10N.register(
     "file_checksum_search",
     {
     "\"Yes\" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it." : "\"Yes\" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it.",
+    "%1$s (deleted %2$s)" : "%1$s (deleted %2$s)",
     "%1$s (version of %2$s)" : "%1$s (version of %2$s)",
     "_%n file_::_%n files_" : ["%n file","%n files"],
     "(not in your files)" : "(not in your files)",
@@ -112,6 +113,7 @@ OC.L10N.register(
     "Delete every stored MIME type? The checksums stay. Detection can be switched on again once the deletion is done." : "Delete every stored MIME type? The checksums stay. Detection can be switched on again once the deletion is done.",
     "Delete rule" : "Delete rule",
     "Delete this rule?" : "Delete this rule?",
+    "Deleted {date}" : "Deleted {date}",
     "Detect MIME types" : "Detect MIME types",
     "Detected from the file's content" : "Detected from the file's content",
     "Disable" : "Disable",

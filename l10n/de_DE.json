@@ -1,5 +1,6 @@
 { "translations": {
     "\"Yes\" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it." : "„Ja“ bedeutet, dass die Administration diese Regel erzwungen hat: Niemand sonst kann sie bearbeiten oder deaktivieren, und da erzwungene Regeln die ersten vier Segmente belegen, kann keine persönliche Regel vor ihr stehen.",
+    "%1$s (deleted %2$s)" : "%1$s (gelöscht am %2$s)",
     "%1$s (version of %2$s)" : "%1$s (Version vom %2$s)",
     "_%n file_::_%n files_" : ["%n Datei","%n Dateien"],
     "(not in your files)" : "(nicht in Ihren Dateien)",
@@ -110,6 +111,7 @@
     "Delete every stored MIME type? The checksums stay. Detection can be switched on again once the deletion is done." : "Alle gespeicherten MIME-Typen löschen? Die Prüfsummen bleiben erhalten. Die Erkennung kann wieder eingeschaltet werden, sobald die Löschung abgeschlossen ist.",
     "Delete rule" : "Regel löschen",
     "Delete this rule?" : "Diese Regel löschen?",
+    "Deleted {date}" : "Gelöscht am {date}",
     "Detect MIME types" : "MIME-Typen erkennen",
     "Detected from the file's content" : "Aus dem Inhalt der Datei erkannt",
     "Disable" : "Deaktivieren",

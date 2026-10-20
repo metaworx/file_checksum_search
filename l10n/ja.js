@@ -2,6 +2,7 @@ OC.L10N.register(
     "file_checksum_search",
     {
     "\"Yes\" means an administrator enforced this rule: nobody else can edit or disable it, and since enforced rules fill the first four bands, no personal rule can come before it." : "「はい」は、管理者がこのルールを強制したことを意味します。他の誰もこのルールを編集したり無効にしたりできません。また、強制ルールは最初の4つの階層を占めるため、個人ルールがこのルールより前に来ることはありません。",
+    "%1$s (deleted %2$s)" : "%1$s（%2$s に削除）",
     "%1$s (version of %2$s)" : "%1$s（%2$s のバージョン）",
     "_%n file_::_%n files_" : ["%n個のファイル"],
     "(not in your files)" : "（あなたのファイルにはありません）",
@@ -112,6 +113,7 @@ OC.L10N.register(
     "Delete every stored MIME type? The checksums stay. Detection can be switched on again once the deletion is done." : "保存されているMIMEタイプをすべて削除しますか？チェックサムは残ります。削除が完了すると、検出を再びオンにできます。",
     "Delete rule" : "ルールを削除",
     "Delete this rule?" : "このルールを削除しますか？",
+    "Deleted {date}" : "{date} に削除",
     "Detect MIME types" : "MIMEタイプを検出する",
     "Detected from the file's content" : "ファイルの内容から検出",
     "Disable" : "無効にする",

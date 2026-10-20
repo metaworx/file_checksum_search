@@ -16,15 +16,16 @@ class as their single public contract.
 
 1. [Locations and paths](#locations-and-paths)
 2. [Versions](#versions)
-3. [MIME types](#mime-types)
-4. [File state](#file-state)
-5. [PHP API](#php-api)
-6. [HTTP REST API](#http-rest-api)
-7. [Rules](#rules)
-8. [Authentication](#authentication)
-9. [Versioning & Compatibility](#versioning--compatibility)
-10. [Rate Limiting](#rate-limiting)
-11. [Error Handling](#error-handling)
+3. [The trash](#the-trash)
+4. [MIME types](#mime-types)
+5. [File state](#file-state)
+6. [PHP API](#php-api)
+7. [HTTP REST API](#http-rest-api)
+8. [Rules](#rules)
+9. [Authentication](#authentication)
+10. [Versioning & Compatibility](#versioning--compatibility)
+11. [Rate Limiting](#rate-limiting)
+12. [Error Handling](#error-handling)
 
 ---
 
@@ -125,6 +126,39 @@ and the API gives them where it gives files.
 
 ---
 
+## The trash
+
+A deleted file keeps its id and its checksums in the trash — a home's,
+or a team folder's own — and the API gives it where it gives files,
+held where it was before the deletion.
+
+- **Held where it was:**
+  a home's trash by its owner, a team folder's by its members,
+  and a team folder's advanced permissions apply as to the place it had;
+  a share's recipient holds none of what its owner deleted.
+  A trashed file whose trash record is gone is in no answer.
+- **`path`, `name` and `location`** are those it had,
+  after `trash://`:
+  `trash:///Docs/a.txt`, `trash://home:alice//Docs/a.txt`.
+- **`trash`** marks one:
+  `{"deletedAt": "2026-10-20T16:30:00+00:00"}`, when it was deleted, ISO 8601.
+  A file outside the trash has none.
+- **Where:**
+  the lookup, the listing, the missing files,
+  the duplicates and a file's same-hash files.
+- **Duplicates:**
+  a copy in the trash is listed in a group that is a duplicate, marked;
+  a group with fewer than two files outside the trash is not listed.
+- **Missing:**
+  nothing hashes the trash unasked: a trashed file without a checksum is as a
+  file an `ignore` rule matches, and listed with `withIgnored`.
+- **Its checksums** stay through the trash, and are still current
+  when the file is restored, since the trash keeps its ETag.
+- **Not offered:**
+  recalculating a file in the trash.
+
+---
+
 ## MIME types
 
 Where an administrator has switched detection on,
@@ -204,7 +238,7 @@ a change on an external storage a scan takes in.
   stale ones included, and `GET /api/v1/hashes/missing` with `unmatched`,
   `withIgnored` and `withExcluded` every file without one; read both,
   and a file of the files area in neither is gone, or out of reach.
-  Trash, app data and a home's `uploads/` and `cache/` are in neither,
+  App data and a home's `uploads/` and `cache/` are in neither,
   and so, until the `missing-stamps` repair has stamped it,
   is a file whose hash rows have no stamp row;
   a version is where its file is ([Versions](#versions)).
@@ -1700,8 +1734,9 @@ whatever others they hold.
   this and route 23 under `stat` name each file the caller holds once:
   a file with a hash row there, stale or not, and here a file without one.
   A file in neither is gone, or out of the caller's reach.
-  Trash, app data and a home's `uploads/` and `cache/` are in neither;
-  a version is where its file is, `version` saying so ([Versions](#versions)).
+  App data and a home's `uploads/` and `cache/` are in neither;
+  a version is where its file is, `version` saying so ([Versions](#versions)),
+  and a trashed file where it was, `trash` saying so ([The trash](#the-trash)).
 - **No `since`, no count.**
   A file without a hash has written nothing to have a time,
   and counting below a path is what the windowed paging avoids.

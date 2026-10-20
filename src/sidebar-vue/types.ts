@@ -34,6 +34,8 @@ export interface DuplicateFile {
 	openable?: boolean
 	/** Present on an earlier version of another file: that file's id, and when it held this content. */
 	version?: { fileid: number, timestamp: string }
+	/** Present on a file in the trash: when it was deleted. */
+	trash?: { deletedAt: string }
 }
 
 export interface DuplicateGroup {

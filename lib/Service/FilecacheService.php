@@ -1568,15 +1568,17 @@ class FilecacheService
 	 *         default: it costs a user lookup per home storage, and most
 	 *         callers render rows for people.
 	 *
-	 * @return array<int, array{path: string, name: string, storage: int, storage_id: string, internal_path: string, owner: ?string, location: string, local_path?: ?string, file?: array{fileid: int, internal_path: string, path: string, location: string, name: string}, version?: array{fileid: int, timestamp: string}}>
+	 * @return array<int, array{path: string, name: string, storage: int, storage_id: string, internal_path: string, owner: ?string, location: string, local_path?: ?string, file?: array{fileid: int, internal_path: string, path: string, location: string, name: string}, version?: array{fileid: int, timestamp: string}, trash?: array{deletedAt: string}}>
 	 *         `path` is the file's path below its area, with a leading slash
 	 *         — the owner's view of a home file — and `internal_path` the
 	 *         filecache's; `owner` is the uid a home file belongs to, null for
 	 *         a group folder or an external storage, which have none;
 	 *         `location` is {@see FileLocation::describe()}. A version's
-	 *         `path`, `name` and `location` are its file's, the first two
-	 *         after {@see VersionOf::SCHEME}; it carries `file` and `version`
-	 *         ({@see withVersionFiles()}), and is held where its file is.
+	 *         `path`, `name` and `location` are its file's, and a trashed
+	 *         file's those of its place before the deletion, the first two
+	 *         after {@see schemeOf()}; it carries `file` and `version` or
+	 *         `trash` ({@see withPlaces()}), and is held where its file, or
+	 *         that place, is.
 	 */
 	public function batchLookupFilecachePaths(
 		array  $fileIds,
@@ -1616,13 +1618,14 @@ class FilecacheService
 		);
 
 		// A row here is dropped by every caller, and a group's count follows
-		// the rows it keeps. A version is a row like a file, held where its
-		// file is (below).
-		$this->andWhereGoverned( $qb, 'fc', withVersions: true );
+		// the rows it keeps. A version and a trashed file are rows like a
+		// file, held where their file, or their place before the deletion,
+		// is (below).
+		$this->andWhereGoverned( $qb, 'fc', placed: true );
 
 		if ( $mounts !== null )
 		{
-			$this->andWhereWithin( $qb, 'fc', (array) self::withVersionAreas( $mounts ) );
+			$this->andWhereWithin( $qb, 'fc', (array) self::withPlacedAreas( $mounts ) );
 		}
 
 		$result = $qb->executeQuery();
@@ -1658,17 +1661,18 @@ class FilecacheService
 
 		$result->closeCursor();
 
-		// A version is named after its file, under the scheme that keeps
-		// its path from being taken for one in a files area.
+		// A version is named after its file, and a trashed file after its
+		// place before the deletion, under the scheme that keeps its path
+		// from being taken for one in a files area.
 		$kept = [];
 
-		foreach ( $this->withVersionFiles( $paths, $mounts, 'internal_path' ) as $fileId => $row )
+		foreach ( $this->withPlaces( $paths, $mounts, 'internal_path' ) as $fileId => $row )
 		{
 			if ( isset( $row['file'] ) )
 			{
-				$row['path']     = VersionOf::SCHEME . $row['file']['path'];
+				$row['path']     = self::schemeOf( $row ) . $row['file']['path'];
 				$row['name']     = $row['file']['name'];
-				$row['location'] = VersionOf::SCHEME . $row['file']['location'];
+				$row['location'] = self::schemeOf( $row ) . $row['file']['location'];
 			}
 
 			$kept[ $fileId ] = $row;
@@ -1762,8 +1766,8 @@ class FilecacheService
 		   ->setMaxResults( $limit )
 		;
 
-		// Versions too, each the caller's to take to its file.
-		$this->andWhereGoverned( $qb, 'fc', withVersions: true );
+		// Versions and trashed files too, each the caller's to place.
+		$this->andWhereGoverned( $qb, 'fc', placed: true );
 
 		if ( $mounts !== null )
 		{
@@ -1847,29 +1851,40 @@ class FilecacheService
 	 * the sidebar refuse them, and a listing or a lookup that offered a
 	 * trashed copy as a duplicate of a live file contradicted both.
 	 *
-	 * A home's versions are admitted with $withVersions, for a caller that
-	 * takes each to its file ({@see withVersionFiles()}); a team folder's
-	 * lie in no prefix named here, and are its to take there too.
+	 * With $placed, a home's versions and the files in its trash are
+	 * admitted, for a caller that places each where it belongs
+	 * ({@see withPlaces()}); a team folder's lie in no prefix named here, and
+	 * are its to place there too.
 	 *
 	 * @param  string  $alias  Alias of the filecache table in $qb.
 	 */
 	public function andWhereGoverned(
 		IQueryBuilder $qb,
 		string        $alias,
-		bool          $withVersions = false,
+		bool          $placed = false,
 	): void
 	{
 		foreach ( self::UNGOVERNED_PREFIXES as $prefix )
 		{
-			if ( $withVersions && $prefix === 'files_versions/' )
+			if ( $placed && $prefix === 'files_versions/' )
 			{
 				continue;
 			}
 
-			$qb->andWhere( $qb->expr()->notLike(
+			$outside = $qb->expr()->notLike(
 				$alias . '.path',
 				$qb->createNamedParameter( $this->db->escapeLikeParameter( $prefix ) . '%' ),
-			) );
+			);
+
+			if ( $placed && $prefix === 'files_trashbin/' )
+			{
+				$outside = $qb->expr()->orX(
+					$outside,
+					$qb->expr()->like( $alias . '.path', $qb->createNamedParameter( $this->db->escapeLikeParameter( 'files_trashbin/files/' ) . '%' ) ),
+				);
+			}
+
+			$qb->andWhere( $outside );
 		}
 	}
 
@@ -1888,7 +1903,7 @@ class FilecacheService
 	 * group of thousands of accounts would otherwise spend three
 	 * placeholders a home, toward PostgreSQL's 65 535 and SQLite's 32 766.
 	 *
-	 * A mount marked `versions` ({@see withVersionAreas()}) holds what lies
+	 * A mount marked `versions` ({@see withPlacedAreas()}) holds what lies
 	 * below its root, and what its root's name with `.v` begins: a single
 	 * shared file's versions are `<file>.v<mtime>` beside it.
 	 *
@@ -1962,17 +1977,18 @@ class FilecacheService
 	}
 
 	/**
-	 * $mounts with the areas the versions of their files are kept in
-	 * ({@see FileLocation::versionRootsOf()}), each marked `versions`: what
-	 * a query reads to find the versions in reach. A superset: whether a
-	 * version is held is whether its file is ({@see withVersionFiles()}).
-	 * Null, every file, stays null.
+	 * $mounts with the areas their files' versions and trash are kept in
+	 * ({@see FileLocation::versionRootsOf()}, {@see FileLocation::trashRootsOf()}),
+	 * a version's marked `versions`: what a query reads to find the versions
+	 * and the trashed files in reach. A superset: whether a version is held
+	 * is whether its file is, and a trashed file whether its place before
+	 * the deletion is ({@see withPlaces()}). Null, every file, stays null.
 	 *
 	 * @param  list<array{storage: int, root: string}>|null  $mounts
 	 *
 	 * @return list<array{storage: int, root: string, versions?: bool}>|null
 	 */
-	public static function withVersionAreas( ?array $mounts ): ?array
+	public static function withPlacedAreas( ?array $mounts ): ?array
 	{
 		if ( $mounts === null )
 		{
@@ -1991,20 +2007,46 @@ class FilecacheService
 					'versions' => true,
 				];
 			}
+
+			foreach ( FileLocation::trashRootsOf( $mount['root'] ) as $root )
+			{
+				$areas[] = [
+					'storage' => $mount['storage'],
+					'root'    => $root,
+				];
+			}
 		}
 
 		return $areas;
 	}
 
 	/**
-	 * $rows with each version among them taken to its file: it gains `file`
-	 * — the file's id, internal path, path below its area, address and
-	 * name — and `version`, the file's id and when the version was the
-	 * file. A version whose file is gone, lies in another storage, or lies
-	 * outside $mounts is left out, as its file would be.
+	 * What a placed row's path and location begin with: a version's
+	 * {@see VersionOf::SCHEME}, a trashed file's {@see TrashOf::SCHEME}, a
+	 * version of a trashed file both; nothing for a file in a files area.
 	 *
-	 * What reach and placement then ask of a version, they ask of its file:
-	 * {@see ReachResolver::withoutDenied()}, {@see ReachResolver::asSeenIn()}.
+	 * @param  array<string, mixed>  $row  A row of {@see withPlaces()}.
+	 */
+	public static function schemeOf( array $row ): string
+	{
+		return ( isset( $row['version'] ) ? VersionOf::SCHEME : '' )
+			. ( isset( $row['trash'] ) ? TrashOf::SCHEME : '' );
+	}
+
+	/**
+	 * $rows with each version and trashed file among them placed where it
+	 * belongs. A version is taken to its file: it gains `file` — the file's
+	 * id, internal path, path below its area, address and name — and
+	 * `version`, the file's id and when the version was the file. A trashed
+	 * file is taken to the place it had before the deletion: it gains `file`,
+	 * that place, under its own id, and `trash`, when it was deleted
+	 * ({@see originsOfTrash()}). One whose file or place is gone, lies in
+	 * another storage, or lies outside $mounts is left out, as its file
+	 * would be.
+	 *
+	 * What reach and placement then ask of such a row, they ask of its
+	 * `file`: {@see ReachResolver::withoutDenied()},
+	 * {@see ReachResolver::asSeenIn()}.
 	 *
 	 * @param  array<int, array<string, mixed>>              $rows     Keyed by file id, each
 	 *                                                                 with `storage`, `storage_id`
@@ -2016,13 +2058,14 @@ class FilecacheService
 	 * @return array<int, array<string, mixed>>  The rows kept, under their keys.
 	 * @throws \OCP\DB\Exception
 	 */
-	public function withVersionFiles(
+	public function withPlaces(
 		array  $rows,
 		?array $mounts,
 		string $pathKey,
 	): array
 	{
 		$versions = [];
+		$trashed  = [];
 
 		foreach ( $rows as $fileId => $row )
 		{
@@ -2032,21 +2075,27 @@ class FilecacheService
 			{
 				$versions[ $fileId ] = $location;
 			}
+			elseif ( $location->trash !== null )
+			{
+				$trashed[ $fileId ] = $location;
+			}
 		}
 
-		if ( $versions === [] )
-		{
-			return $rows;
-		}
+		$files   = $versions === []
+			? []
+			: $this->filesOfVersions( array_values( $versions ) );
+		$origins = $trashed === []
+			? []
+			: $this->originsOfTrash( array_values( $trashed ) );
 
-		$files = $this->filesOfVersions( array_values( $versions ) );
-
-		foreach ( $versions as $fileId => $version )
+		foreach ( $versions + $trashed as $fileId => $row )
 		{
-			$file = $files[ $fileId ] ?? null;
+			$file = $row->version !== null
+				? $files[ $fileId ] ?? null
+				: $origins[ $fileId ] ?? null;
 
 			if ( $file === null
-				|| $file->storageId !== $version->storageId
+				|| $file->storageId !== $row->storageId
 				|| ( $mounts !== null && ! ReachResolver::within( $mounts, (int) $rows[ $fileId ]['storage'], $file->internalPath ) ) )
 			{
 				unset( $rows[ $fileId ] );
@@ -2056,17 +2105,27 @@ class FilecacheService
 
 			$path = $file->relativePath ?? '/' . $file->internalPath;
 
-			$rows[ $fileId ]['file']    = [
+			$rows[ $fileId ]['file'] = [
 				'fileid'        => $file->fileId,
 				'internal_path' => $file->internalPath,
 				'path'          => $path,
 				'location'      => $file->describe(),
 				'name'          => substr( $path, (int) strrpos( $path, '/' ) + 1 ),
 			];
-			$rows[ $fileId ]['version'] = [
-				'fileid'    => $file->fileId,
-				'timestamp' => date( 'c', (int) $version->version?->timestamp ),
-			];
+
+			if ( $row->version !== null )
+			{
+				$rows[ $fileId ]['version'] = [
+					'fileid'    => $file->fileId,
+					'timestamp' => date( 'c', $row->version->timestamp ),
+				];
+			}
+			else
+			{
+				$rows[ $fileId ]['trash'] = [
+					'deletedAt' => date( 'c', (int) $row->trash?->deletedAt ),
+				];
+			}
 		}
 
 		return $rows;

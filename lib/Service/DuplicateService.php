@@ -103,7 +103,7 @@ class DuplicateService
 	 * @param  bool         $withLocalPath  Each row gains `local_path`, as
 	 *                                      {@see FilecacheService::batchLookupFilecachePaths()}.
 	 *
-	 * @return array<int, array{fileid: int, algo: string, hash_value: string, path: string, name: string, owner: ?string, location: string, local_path?: ?string, version?: array{fileid: int, timestamp: string}}>
+	 * @return array<int, array{fileid: int, algo: string, hash_value: string, path: string, name: string, owner: ?string, location: string, local_path?: ?string, version?: array{fileid: int, timestamp: string}, trash?: array{deletedAt: string}}>
 	 */
 	public function findByHash(
 		string  $hash,
@@ -162,7 +162,8 @@ class DuplicateService
 				'owner'      => $fcPaths[ $fileId ]['owner'] ?? null,
 				'location'   => $fcPaths[ $fileId ]['location'] ?? '',
 			] + ( $withLocalPath ? [ 'local_path' => $fcPaths[ $fileId ]['local_path'] ?? null ] : [] )
-			  + ( isset( $fcPaths[ $fileId ]['version'] ) ? [ 'version' => $fcPaths[ $fileId ]['version'] ] : [] );
+			  + ( isset( $fcPaths[ $fileId ]['version'] ) ? [ 'version' => $fcPaths[ $fileId ]['version'] ] : [] )
+			  + ( isset( $fcPaths[ $fileId ]['trash'] ) ? [ 'trash' => $fcPaths[ $fileId ]['trash'] ] : [] );
 		}
 
 		return $results;

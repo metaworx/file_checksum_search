@@ -102,6 +102,8 @@ export const OCS_ADMIN = {
 export const FRONTEND = {
 	/** /f/{fileid} — core's link by id, which redirects to the file's folder ({@see fileLink}) */
 	fileLink: '/f/{fileid}',
+	/** Files' trash, where a deleted file can be restored ({@see rowLink}) */
+	trashLink: '/apps/files/trashbin/{fileid}',
 	/** The Duplicates page; its tab, filters and scope ride in the fragment ({@see urlState}). */
 	duplicates: '/apps/file_checksum_search/duplicates',
 } as const
