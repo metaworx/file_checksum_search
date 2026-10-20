@@ -176,6 +176,34 @@ class VersionCaptureTest
 		$this->assertFalse( $this->capture->handOn( $from, 71 ) );
 	}
 
+	/**
+	 * A copy's versions are its source's at the same times: each source
+	 * version hands its hashes to the copy's of its time, none to another.
+	 */
+	public function testACopysVersionsGetTheirSourcesHashesByTime(): void
+	{
+		$source = FileLocation::fromRow( 5, 'home::alice', 'files/a.txt', 1 );
+		$target = FileLocation::fromRow( 6, 'home::alice', 'files/b.txt', 1 );
+		$this->filecacheService->method( 'locateAll' )->willReturn( [ 5 => $source, 6 => $target ] );
+		$this->filecacheService->method( 'versionsOf' )
+		                       ->willReturnCallback( static fn ( FileLocation $file ): array => $file->fileId === 5
+			                       ? [ [ 'fileid' => 70, 'timestamp' => 200, 'size' => 3 ], [ 'fileid' => 71, 'timestamp' => 100, 'size' => 3 ] ]
+			                       : [ [ 'fileid' => 80, 'timestamp' => 200, 'size' => 3 ] ] )
+		;
+
+		$metadata = $this->createMock( IFilesMetadata::class );
+		$this->metadataService->expects( $this->once() )->method( 'getMetadata' )->with( 70 )->willReturn( $metadata );
+		$this->metadataService->method( 'getHashes' )->willReturn( [ 'sha1' => 'aaa' ] );
+		$this->filecacheService->method( 'stateOf' )
+		                       ->with( 80 )
+		                       ->willReturn( [ 'etag' => 'e', 'size' => 3, 'mtime' => 200, 'storageMtime' => 200 ] )
+		;
+		$this->metadataService->method( 'isCurrent' )->willReturn( true );
+		$this->metadataService->expects( $this->once() )->method( 'writeHashes' )->with( 80 );
+
+		$this->assertSame( 1, $this->capture->copied( 5, 6 ) );
+	}
+
 	public function testNoHashesPassNothing(): void
 	{
 		$from = $this->createMock( IFilesMetadata::class );

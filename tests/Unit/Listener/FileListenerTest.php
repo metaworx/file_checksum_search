@@ -148,6 +148,27 @@ class FileListenerTest
 	}
 
 	/**
+	 * A copy's versions keep their hashes wherever it lands, unless a rule
+	 * excludes it.
+	 */
+	public function testACopysVersionsKeepTheirHashesUnlessExcluded(): void
+	{
+		$source = $this->createMock( File::class );
+		$source->method( 'getId' )->willReturn( 5 );
+		$target = $this->createMock( File::class );
+		$target->method( 'getId' )->willReturn( 6 );
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturnOnConsecutiveCalls( null, null, [ 'id' => 'archive', 'type' => 'exclude' ], [ 'id' => 'archive', 'type' => 'exclude' ] )
+		;
+
+		$this->versionCapture->expects( $this->once() )->method( 'copied' )->with( 5, 6 );
+
+		$this->listener->handle( new NodeCopiedEvent( $source, $target ) );
+		$this->listener->handle( new NodeCopiedEvent( $source, $target ) );
+	}
+
+	/**
 	 * A file about to be created has no id and nothing to replace: no rule
 	 * is asked, and nothing is logged as an error.
 	 */

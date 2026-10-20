@@ -58,7 +58,9 @@ class FileListener
 	public static function register( IRegistrationContext $context ): void
 	{
 		$context->registerEventListener( BeforeNodeWrittenEvent::class, self::class );
-		$context->registerEventListener( NodeCopiedEvent::class, self::class );
+		// After the versions app's own listener, which copies a file's
+		// versions beside the copy: their hashes follow them here.
+		$context->registerEventListener( NodeCopiedEvent::class, self::class, -10 );
 		$context->registerEventListener( NodeWrittenEvent::class, self::class );
 		$context->registerEventListener( NodeCreatedEvent::class, self::class );
 		$context->registerEventListener( NodeDeletedEvent::class, self::class );
@@ -136,6 +138,14 @@ class FileListener
 		if ( ! $source instanceof File || ! $target instanceof File )
 		{
 			return;
+		}
+
+		// The versions the versions app copied with the file keep their
+		// hashes, proved by the ETag they were copied with: right for their
+		// content wherever the copy lands, unless a rule excludes it.
+		if ( ! $this->excluded( $target->getId() ) )
+		{
+			$this->versionCapture->copied( $source->getId(), $target->getId() );
 		}
 
 		// The copy lands at a new location, which may be governed by a

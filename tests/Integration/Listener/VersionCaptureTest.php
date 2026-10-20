@@ -203,6 +203,33 @@ class VersionCaptureTest
 	}
 
 	/**
+	 * Copied, a file's versions are copied beside the copy, ETag and all;
+	 * their hashes follow them.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testACopiedFilesVersionsKeepTheirHashes(): void
+	{
+		$file  = $this->hashedFile( $this->docs(), 'f.txt', 'one' );
+		$mtime = $file->getMTime();
+
+		$file->putContent( 'two' );
+
+		$version = $this->versionAt( $file, $mtime );
+		$this->assertSame( sha1( 'one' ), $this->hashesOf( (int) $version?->fileId )['sha1'] ?? null, 'the version got the hashes at the write' );
+
+		$copy = $file->copy( $this->docs()->getPath() . '/f-copy.txt' );
+		$this->assertInstanceOf( File::class, $copy );
+
+		$copied = $this->versionAt( $copy, $mtime );
+
+		$this->assertNotNull( $copied, 'the versions app copied the version' );
+		$this->assertNotSame( $version?->fileId, $copied->fileId );
+		$this->assertSame( sha1( 'one' ), $this->hashesOf( $copied->fileId )['sha1'] ?? null );
+		$this->assertTrue( $this->isCurrent( $copied->fileId ) );
+	}
+
+	/**
 	 * A file an exclude rule governs may not be hashed by any route, and
 	 * hands nothing on, whatever it holds.
 	 *

@@ -89,6 +89,60 @@ class VersionCapture
 	}
 
 	/**
+	 * A file copied: each of its versions hands its hashes to the copy's
+	 * version of the same time, which Nextcloud copied it to, ETag and all
+	 * ({@see handOn()}). The caller has checked that no rule excludes the
+	 * copy, and runs after the versions app has copied the versions.
+	 *
+	 * Never in the copy's way: a failure here is logged.
+	 *
+	 * @return int  The copy's versions that got hashes.
+	 */
+	public function copied(
+		int $sourceId,
+		int $targetId,
+	): int
+	{
+		try
+		{
+			$located = $this->filecacheService->locateAll( [ $sourceId, $targetId ] );
+			$sources = isset( $located[ $sourceId ], $located[ $targetId ] )
+				? $this->filecacheService->versionsOf( $located[ $sourceId ] )
+				: [];
+			$targets = $sources === []
+				? []
+				: array_column( $this->filecacheService->versionsOf( $located[ $targetId ] ), 'fileid', 'timestamp' );
+			$handed  = 0;
+
+			foreach ( $sources as $version )
+			{
+				$target = $targets[ $version['timestamp'] ] ?? null;
+
+				if ( $target !== null && $this->handOn( $this->metadataService->getMetadata( $version['fileid'] ), $target ) )
+				{
+					$handed ++;
+				}
+			}
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->warning(
+				'FCIAS VersionCapture: could not hand a copied file\'s versions\' hashes to the copy\'s',
+				[
+					'app'       => Application::APP_ID,
+					'sourceId'  => $sourceId,
+					'targetId'  => $targetId,
+					'exception' => $e,
+				],
+			);
+
+			return 0;
+		}
+
+		return $handed;
+	}
+
+	/**
 	 * Before a write: keep the file's hashes, where they describe the
 	 * content the write replaces, for the version Nextcloud makes of it.
 	 * The caller has checked that no rule excludes the file: the hashes are
