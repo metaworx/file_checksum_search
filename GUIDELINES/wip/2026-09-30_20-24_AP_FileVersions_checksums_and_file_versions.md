@@ -1,12 +1,13 @@
-# AP FileVersions v1.2: checksums and file versions
+# AP FileVersions v1.3: checksums and file versions
 
 ## TL;DR
 
 A file's older versions get checksums, and appear in search, listings,
 duplicates and the sidebar, each marked as an earlier version of its file.
 Most cost no read: checksums pass between a file and its versions wherever
-Nextcloud copies content between them. v1.2 closes the gaps the user's test found: copy,
-restore, a file no rule maintains, and `fcias:hash`.
+Nextcloud copies content between them.
+v1.3 names the version on the two surfaces that do not yet,
+and hides a Verify that has nothing to read.
 
 - version → its own filecache row, governed by its file's rule
 - overwrite → the file's current checksums to the new version; no read;
@@ -18,6 +19,9 @@ restore, a file no rule maintains, and `fcias:hash`.
   their stamp vouches for the receiving row
 - older versions → hashed where a rule says `versions`; `fcias:hash` too (D7-A)
 - results → `versions://` + the file's path, `version`; reach = the file's
+- which version → its date beside it:
+  unified search's title, `fcias:search` (D8-A)
+- Verify all → only on a group holding a file to read (D9-A)
 
 Measured on a real instance: versions ≈ a fifth of the files by count,
 a ninth by size; ≈ 10,000 new a month;
@@ -38,10 +42,18 @@ three in four files hold current checksums.
 6. Documentation: API reference, OpenAPI, README.
    *Done.*
 7. Capture for every file no rule excludes.
+   *Done.*
 8. Copy: the versions' checksums to the copy's versions.
+   *Done.*
 9. Restore: checksums both ways between the file and its versions.
+   *Done.*
 10. `fcias:hash` hashes versions.
+    *Done.*
 11. Documentation of 7 to 10.
+    *Done.*
+12. Duplicates page: no Verify all on a group of versions only.
+13. `fcias:search` prints a version's date.
+14. Unified search: the version and its date in the title.
 
 ## Discussion
 
@@ -94,6 +106,29 @@ three in four files hold current checksums.
   - **D7-A:**
     `fcias:hash` hashes the versions of the accounts' files where their
     rule says `versions`; `--versions` asks for them regardless.
+- **The user's second test, 2026-10-20, after Blocks 7 to 11** (instance 33):
+  - On the duplicates page a version showed as `versions:///x/Readme.md`,
+    with no date, a Verify that failed with *File not found*,
+    and a link to the version's own id.
+    The page in the browser was the one from before Block 4:
+    the server sends the bundle built at the run's start,
+    whose entry files keep their names from build to build,
+    with no `Cache-Control`; a hard reload shows the new one.
+  - Two gaps remain in the new code:
+    *Verify all* shows on a group made only of versions, and reads nothing;
+    `occ fcias:search` prints a version's path without its date.
+  - The unified search gives a version its file's name as the title
+    and the date at the end of the subline, where the dropdown cuts it off:
+    the user asked for it beside the name.
+- **Decided, 2026-10-20 (v1.3):**
+  - **D8-A:**
+    a version's path stays its file's after `versions://`;
+    its date stands beside it wherever a result is shown.
+  - **D9-A:**
+    a version is not verified by reading it: it holds what its file held,
+    and nothing writes to it.
+  - **D10-A:**
+    a version's link opens its file.
 
 ## Analysis
 
@@ -248,6 +283,18 @@ The interfaces are the same in all three.
    daily ETag walk.
    The listener names the event's class as a string, so the app loads
    without the versions app.
+12. **Verify all (D9-A).**
+    The group's button shows where the group holds a file to read,
+    as the queue behind it reads no version.
+13. **`fcias:search` (D8-A).**
+    A version's line adds its date, ISO 8601, as the API gives it;
+    the command's output stays English.
+14. **Unified search (D8-A).**
+    A version's title is its file's name followed,
+    in brackets, by *version of* and its date: one translated text.
+    The subline loses the date.
+    The date is formatted as Nextcloud formats one for the account,
+    in its time zone (`IDateTimeFormatter`), not the server's.
 10. **`fcias:hash` (D7-A).**
     After the files, for each account in scope:
     the versions in its home without checksums whose rule says `versions`,
@@ -406,6 +453,40 @@ as Block 7.
 **Verification:**
 `tools/check`, `reflow.sh --check`.
 
+### Block 12: Verify all
+
+1. `DuplicateGroup.vue`:
+   *Verify all* only where the group holds a file that is no version.
+2. Tests: Vitest for a group of versions only and a mixed one.
+
+**Verification:**
+`npm test`, `npm run lint`, `npm run typecheck`;
+`js/` rebuilt (`npm run build`).
+
+### Block 13: `fcias:search`
+
+1. `SearchHash`:
+   a version's line ends with its date.
+2. `README.md`:
+   the command's row says so.
+3. Tests: unit for a file's line and a version's.
+
+**Verification:**
+as Block 7.
+
+### Block 14: unified search
+
+1. `HashSearchProvider`:
+   the title `%1$s (version of %2$s)`, translated, through `IDateTimeFormatter`;
+   the subline without the date.
+2. `scripts/l10n.sh update`; the text in every language kept; `build`, `check`.
+3. `docs/user-guide.md`:
+   the unified search's version.
+4. Tests: unit for the title, a file's and a version's.
+
+**Verification:**
+as Block 7, with `scripts/l10n.sh check`.
+
 ## Proposed commit messages
 
 - `[TASK] A file's versions are governed by its rule`
@@ -430,6 +511,12 @@ as Block 7.
   (Block 10)
 - `[TASK] The documents describe the checksums' hand-over on copy and restore`
   (Block 11)
+- `[TASK] Verify all shows only where a group holds a file to read`
+  (Block 12)
+- `[TASK] fcias:search prints a version's date`
+  (Block 13)
+- `[TASK] The unified search names a version and its date beside the file's name`
+  (Block 14)
 
 ## Change History
 
@@ -439,3 +526,6 @@ as Block 7.
 - v1.2 (2026-10-20): the user's test; D6-A and D7-A decided; the ETag proof;
   Blocks 7 to 11: capture for every file not excluded, copy, restore,
   `fcias:hash`, documentation; Blocks 1 to 6 marked done.
+- v1.3 (2026-10-20): the user's second test; D8-A, D9-A and D10-A decided;
+  Blocks 12 to 14: Verify all, `fcias:search`, the unified search's title;
+  Blocks 7 to 11 marked done.
