@@ -50,6 +50,8 @@
 				<referencedClass name="OC\FilesMetadata\FilesMetadataManager" />
 				<!-- FilecacheService: the versions app's manager, which alone opens a team folder's version; used only where the app is there. -->
 				<referencedClass name="OCA\Files_Versions\Versions\IVersionManager" />
+				<!-- FileListener: the versions app's event for a restored version, which only that app dispatches. -->
+				<referencedClass name="OCA\Files_Versions\Events\VersionRestoredEvent" />
 			</errorLevel>
 		</UndefinedClass>
 		<UndefinedDocblockClass>

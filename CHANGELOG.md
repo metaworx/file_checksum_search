@@ -13,8 +13,8 @@ the first stable release.
 
 ### Added
 
-- `README.md`, *File versions*: an overwritten file's checksums pass to
-  its version, and its versions' to a copy's, unless a rule excludes it;
+- `README.md`, *File versions*: checksums pass between a file and its
+  versions on overwrite, copy and restore, unless a rule excludes it;
   a rule with `versions` reads and hashes the older ones.
 
 - `docs/api-v1.md`, *Method Reference*: a version is listed, looked up

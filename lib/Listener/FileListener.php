@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\VersionCapture;
+use OCA\Files_Versions\Events\VersionRestoredEvent;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\EventDispatcher\Event;
 use OCP\EventDispatcher\IEventListener;
@@ -64,6 +65,10 @@ class FileListener
 		$context->registerEventListener( NodeWrittenEvent::class, self::class );
 		$context->registerEventListener( NodeCreatedEvent::class, self::class );
 		$context->registerEventListener( NodeDeletedEvent::class, self::class );
+		// The versions app's own event, by name: with the app off, nobody
+		// dispatches it.
+		/** @psalm-suppress InvalidArgument The versions app's class, which the OCP package does not ship (psalm.xml). */
+		$context->registerEventListener( VersionRestoredEvent::class, self::class );
 	}
 
 
@@ -81,6 +86,7 @@ class FileListener
 				$event instanceof NodeWrittenEvent       => $this->onWrite( $event ),
 				$event instanceof NodeCreatedEvent       => $this->onCreate( $event ),
 				$event instanceof NodeDeletedEvent       => $this->onDelete( $event ),
+				$event instanceof VersionRestoredEvent   => $this->onRestore( $event ),
 				default                                  => null,
 			};
 		}
@@ -189,6 +195,41 @@ class FileListener
 		// version Nextcloud has made of it by now.
 		$this->versionCapture->afterWrite( $fileId );
 
+		$this->contentReplaced( $fileId );
+	}
+
+	/**
+	 * A version restored: the content it replaced keeps its hashes on the
+	 * version the restore made of it, and the file takes the restored
+	 * version's ({@see VersionCapture::restored()}). Where the version holds
+	 * none, the file is as written: Nextcloud fires no write for a restore,
+	 * and the app would otherwise hear of it only at the daily ETag walk.
+	 *
+	 * The event is the versions app's own, named by its class, so the app
+	 * loads without it.
+	 */
+	private function onRestore( VersionRestoredEvent $event ): void
+	{
+		$version = $event->getVersion();
+		$fileId  = $version->getSourceFile()->getId();
+
+		if ( $fileId === null || $this->excluded( $fileId ) )
+		{
+			return;
+		}
+
+		if ( ! $this->versionCapture->restored( $fileId, (int) $version->getRevisionId() ) )
+		{
+			$this->contentReplaced( $fileId );
+		}
+	}
+
+	/**
+	 * What a change of the file's content does to its hashes, by its rule:
+	 * queued again where a rule maintains them, eroded where none does.
+	 */
+	private function contentReplaced( int $fileId ): void
+	{
 		// By identity, not by the acting user's view: a share recipient's
 		// edit of the owner's file is governed by the rules that govern the
 		// owner's file, under the path the owner knows it by.

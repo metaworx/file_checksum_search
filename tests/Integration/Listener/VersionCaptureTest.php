@@ -15,6 +15,7 @@ use OCA\FileChecksumSearch\Service\HashIndexService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
+use OCA\Files_Versions\Versions\IVersionManager;
 use OCA\GroupFolders\Folder\FolderManager;
 use OCP\App\IAppManager;
 use OCP\Files\File;
@@ -230,6 +231,85 @@ class VersionCaptureTest
 	}
 
 	/**
+	 * Restored, a version hands its hashes back to the file, and the content
+	 * the restore replaced keeps the file's on the version made of it: no
+	 * read, and none waiting for the daily ETag walk.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testRestoringAVersionRestoresItsHashes(): void
+	{
+		$file   = $this->hashedFile( $this->docs(), 'r.txt', 'one' );
+		$before = $file->getMTime();
+
+		$file->putContent( 'two' );
+		$file  = $this->rehashed( $file );
+		$after = $file->getMTime();
+
+		$this->restore( $file, $before );
+
+		$this->assertSame( 'one', $file->getContent(), 'the versions app restored the content' );
+		$this->assertSame( sha1( 'one' ), $this->hashesOf( $file->getId() )['sha1'] ?? null, 'the file has the restored version\'s hashes' );
+		$this->assertTrue( $this->isCurrent( $file->getId() ), 'stamped against the ETag the restore left' );
+
+		$replaced = $this->versionAt( $file, $after );
+		$this->assertNotNull( $replaced, 'the restore made a version of the replaced content' );
+		$this->assertSame( sha1( 'two' ), $this->hashesOf( $replaced->fileId )['sha1'] ?? null );
+		$this->assertTrue( $this->isCurrent( $replaced->fileId ) );
+	}
+
+	/**
+	 * A version that holds no hashes has none to hand back: the file is as
+	 * written, its hashes out of every search and queued again at once.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testRestoringAVersionWithoutHashesQueuesTheFile(): void
+	{
+		$file = $this->docs()->newFile( 'q.txt', 'one' );
+		$file->touch( time() - 3600 );
+		$file   = Server::get( IRootFolder::class )->getFirstNodeById( $file->getId() );
+		$this->assertInstanceOf( File::class, $file );
+		$before = $file->getMTime();
+
+		$file->putContent( 'two' );
+		$file = $this->rehashed( $file );
+
+		$this->restore( $file, $before );
+
+		$this->assertSame( 'one', $file->getContent() );
+		$this->assertSame( MetadataService::PENDING_PREFIX . MetadataService::PENDING_MODE_AUTO, Server::get( MetadataService::class )->getMarker( $file->getId() ) );
+		$this->assertFalse( $this->isCurrent( $file->getId() ), 'the hashes of what it no longer holds are out' );
+	}
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testRestoringATeamFoldersVersionRestoresItsHashes(): void
+	{
+		if ( self::$folderId === null || self::$gid === null )
+		{
+			$this->markTestSkipped( 'FCIAS integration: the groupfolders app is not enabled on this instance.' );
+		}
+
+		$this->rule( 'groupfolder:' . self::$folderId, '**' );
+
+		$team = Server::get( IRootFolder::class )->getUserFolder( self::$uid )->get( self::$gid );
+		$this->assertInstanceOf( Folder::class, $team );
+
+		$file   = $this->hashedFile( $team, 'r.txt', 'one' );
+		$before = $file->getMTime();
+
+		$file->putContent( 'two' );
+		$file = $this->rehashed( $file );
+
+		$this->restore( $file, $before );
+
+		$this->assertSame( sha1( 'one' ), $this->hashesOf( $file->getId() )['sha1'] ?? null );
+		$this->assertTrue( $this->isCurrent( $file->getId() ) );
+	}
+
+	/**
 	 * A file an exclude rule governs may not be hashed by any route, and
 	 * hands nothing on, whatever it holds.
 	 *
@@ -319,6 +399,50 @@ class VersionCaptureTest
 		$this->assertTrue( $result['success'] ?? false, 'hashing ' . $name );
 
 		return $file;
+	}
+
+	/**
+	 * $file as written, hashed again, as the queue would.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function rehashed( File $file ): File
+	{
+		$file = Server::get( IRootFolder::class )->getFirstNodeById( $file->getId() );
+		$this->assertInstanceOf( File::class, $file );
+
+		$result = Server::get( HashIndexService::class )->recalcFileHash( $file, 'sha1', false );
+		$this->assertTrue( $result['success'] ?? false, 'hashing ' . $file->getName() );
+		$this->assertTrue( $this->isCurrent( $file->getId() ) );
+
+		return $file;
+	}
+
+	/**
+	 * Restore $file's version of $revision, as the Versions tab does.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function restore(
+		File $file,
+		int  $revision,
+	): void
+	{
+		$manager = Server::get( IVersionManager::class );
+		$user    = Server::get( IUserManager::class )->get( self::$uid );
+		$this->assertNotNull( $user );
+
+		foreach ( $manager->getVersionsForFile( $user, $file ) as $version )
+		{
+			if ( (int) $version->getRevisionId() === $revision )
+			{
+				$manager->rollback( $version );
+
+				return;
+			}
+		}
+
+		$this->fail( 'no version of ' . $revision );
 	}
 
 	/**

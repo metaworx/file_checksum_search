@@ -143,6 +143,82 @@ class VersionCapture
 	}
 
 	/**
+	 * A version restored: hashes pass both ways between the file and its
+	 * versions, without a read. The caller has checked that no rule
+	 * excludes the file.
+	 *
+	 * First the content the restore replaced: the restore copied it to a
+	 * version, ETag and all, so the file's hashes, read against that ETag,
+	 * pass to it ({@see handOn()}). Then the restored content: the file
+	 * takes the restored version's hashes, where they are current for it,
+	 * stamped against the ETag the restore left the file with — that the
+	 * content is the version's is what the event says.
+	 *
+	 * Never in the restore's way: a failure here is logged.
+	 *
+	 * @return bool  Whether the file got the restored version's hashes;
+	 *               where not, the caller treats it as written.
+	 */
+	public function restored(
+		int $fileId,
+		int $revision,
+	): bool
+	{
+		try
+		{
+			$file     = $this->filecacheService->locate( $fileId );
+			$versions = $file === null
+				? []
+				: $this->filecacheService->versionsOf( $file );
+			$document = $this->metadataService->getMetadata( $fileId );
+
+			foreach ( $versions as $version )
+			{
+				if ( $version['timestamp'] !== $revision && $this->handOn( $document, $version['fileid'] ) )
+				{
+					break;
+				}
+			}
+
+			$restored = array_values( array_filter( $versions, static fn ( array $version ): bool => $version['timestamp'] === $revision ) )[0] ?? null;
+			$held     = $restored === null
+				? null
+				: $this->metadataService->getMetadata( $restored['fileid'] );
+			$hashes   = $held === null
+				? []
+				: $this->metadataService->getHashes( $held );
+			$state    = $hashes === []
+				? null
+				: $this->filecacheService->stateOf( $fileId );
+
+			if ( $restored === null
+				|| $state === null
+				|| ! $this->metadataService->isCurrent( $held, $this->filecacheService->stateOf( $restored['fileid'] ) ) )
+			{
+				return false;
+			}
+
+			$this->metadataService->writeHashes( $fileId, $hashes, time(), false, $state['etag'] );
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->warning(
+				'FCIAS VersionCapture: could not hand a restored version\'s hashes to its file',
+				[
+					'app'       => Application::APP_ID,
+					'fileId'    => $fileId,
+					'revision'  => $revision,
+					'exception' => $e,
+				],
+			);
+
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
 	 * Before a write: keep the file's hashes, where they describe the
 	 * content the write replaces, for the version Nextcloud makes of it.
 	 * The caller has checked that no rule excludes the file: the hashes are
