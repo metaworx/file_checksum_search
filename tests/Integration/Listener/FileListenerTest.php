@@ -416,85 +416,15 @@ class FileListenerTest
 
 	// ─── File Delete ──────────────────────────────────────────────────
 	/**
-	 * @noinspection PhpUnhandledExceptionInspection
-	 */
-	public function testFileDeleteClearsMetadataEvenUnderAnIgnoreRule(): void
-	{
-		$this->setCatchAllIgnoreRule();
-
-		$file   = $this->createTestFile( 'fcias_listener_del_off_' . time() . '.dat' );
-		$fileId = $file->getId();
-
-		// Seed metadata index directly via raw SQL.
-		$this->seedMetadataIndex( $fileId );
-
-		$this->assertGreaterThan( 0, $this->metadataService->countByFileId( $fileId ), 'Seed metadata should exist.' );
-
-		$event = new NodeDeletedEvent( $file );
-		$this->listener->handle( $event );
-
-		// No rule can spare a deleted file. By the time this event arrives
-		// the filecache row is gone or moved to trash, so nothing can be
-		// said to govern it — and the hashes describe content the user
-		// removed. This test used to assert the opposite, from before that
-		// was settled.
-		$this->assertSame(
-			0,
-			$this->metadataService->countByFileId( $fileId ),
-			'Deleting a file clears its metadata whatever the rules say.',
-		);
-	}
-
-	/**
-	 * @noinspection PhpUnhandledExceptionInspection
-	 */
-	public function testFileDeleteClearsTheHashesAndQueuesNothing(): void
-	{
-		$this->setCatchAllRule( 'auto' );
-
-		$file   = $this->createTestFile( 'fcias_listener_del_on_' . time() . '.dat' );
-		$fileId = $file->getId();
-
-		// Seed metadata index directly via raw SQL.
-		$this->seedMetadataIndex( $fileId );
-
-		$this->assertGreaterThan( 0, $this->metadataService->countByFileId( $fileId ), 'Seed metadata should exist.' );
-
-		$event = new NodeDeletedEvent( $file );
-		$this->listener->handle( $event );
-
-		// Deleting clears, whatever the rules say: by the time this event
-		// arrives the filecache row is gone or in the trash, so no rule can
-		// be said to govern the file, and the hashes describe content the
-		// user removed.
-		//
-		// This used to assert nothing at all, blamed on a filecache trigger
-		// that its sibling above disproves by asserting exactly this.
-		$this->assertSame(
-			0,
-			$this->metadataService->countByFileId( $fileId ),
-			'Deleting a file clears its hashes.',
-		);
-		// The stamp row itself survives, emptied rather than removed — the
-		// file is gone, so nothing is waiting for it. Asserting the row's
-		// absence would be asserting a detail of how clearing is done
-		// rather than that nothing is queued.
-		$this->assertStringNotContainsString(
-			MetadataService::PENDING_PREFIX,
-			(string) $this->stateOf( $fileId ),
-			'And leaves nothing queued for a file that is gone.',
-		);
-	}
-
-	/**
 	 * A real deletion into the trash, through the listener the app
-	 * registers: a hashed file's hashes go, and a file this app never
-	 * touched is given no document of this app's — clearing used to write
-	 * one, a zero stamp and its index row, for every file deleted.
+	 * registers: a hashed file keeps its hashes, as it keeps its id and its
+	 * content, and a file this app never touched is given no document of
+	 * this app's. Moving to the trash used to clear the first, and clearing
+	 * wrote one, a zero stamp and its index row, for the second.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
-	public function testATrashedFileLosesItsHashesAndAnUntouchedOneGetsNoDocument(): void
+	public function testATrashedFileKeepsItsHashesAndAnUntouchedOneGetsNoDocument(): void
 	{
 		if ( ! Server::get( IAppManager::class )->isEnabledForAnyone( 'files_trashbin' ) )
 		{
@@ -511,7 +441,7 @@ class FileListenerTest
 		$plain->delete();
 
 		$this->assertNotNull( $this->filecacheService->locate( $ids['plain'] ), 'the file is in the trash, not gone' );
-		$this->assertSame( 0, $this->metadataService->countByFileId( $ids['hashed'] ), 'the trashed file\'s hashes are gone' );
+		$this->assertSame( 1, $this->metadataService->countByFileId( $ids['hashed'] ), 'the trashed file keeps its hashes' );
 		$this->assertSame( 0, $this->metadataRowsOf( $ids['plain'] ), 'the untouched file has no document of this app\'s' );
 	}
 
@@ -595,38 +525,6 @@ class FileListenerTest
 		}
 
 		return (string) ( $rows[ MetadataService::KEY_FILE_CHECKSUM_STATE ] ?? '' );
-	}
-
-	/**
-	 * Seed metadata index entries via raw SQL to avoid triggering
-	 * the old filecache hash-table trigger (pre-existing issue).
-	 *
-	 * @noinspection PhpUnhandledExceptionInspection
-	 */
-	private function seedMetadataIndex( int $fileId ): void
-	{
-		$this->getRawConnection()
-		     ->executeStatement(
-			     'INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`) VALUES (?, ?, ?, ?)',
-			     [
-				     $fileId,
-				     MetadataService::getHashKey( 'sha1' ),
-				     'abc123',
-				     0,
-			     ],
-		     )
-		;
-		$this->getRawConnection()
-		     ->executeStatement(
-			     'INSERT INTO `*PREFIX*files_metadata_index` (`file_id`, `meta_key`, `meta_value_string`, `meta_value_int`) VALUES (?, ?, ?, ?)',
-			     [
-				     $fileId,
-				     'file-checksum-updated_at',
-				     null,
-				     time(),
-			     ],
-		     )
-		;
 	}
 
 	/**

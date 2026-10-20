@@ -468,7 +468,8 @@ it makes a changed file look intact and can pair it with unrelated files as a du
 The app records this as **erosion** — the file's index entry is marked `eroded`,
 the admin status page counts them, and the loss heals itself:
 the next time a rule covers the file, re-hashing replaces the marker.
-Deleting a file clears its entry outright.
+Deleting a file for good clears its entry outright;
+moving it to the trash keeps it ([The trash](#the-trash)).
 
 Modifying a file a rule does maintain takes its hashes out of every search at
 once — the lookup, the listing, the duplicates,
@@ -557,6 +558,17 @@ The app treats each as its file's.
   verifying a version by reading it again.
 
 When Nextcloud expires a version, its checksums go with it.
+
+### The trash
+
+A file moved to the trash keeps its id, its content and its ETag,
+in a home's trash and in a team folder's, and so its checksums:
+they are still proved when it is restored, and nothing reads it again.
+A file restored from a home's trash without current checksums
+is queued at once where a rule maintains it, as a written one is;
+a team folder's restore fires no event,
+and leaves such a file to the rule sweep.
+Emptying the trash, or its expiry, removes the file and its checksums.
 
 ## Hash Generation Rules
 

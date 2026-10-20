@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Service\VersionCapture;
+use OCA\Files_Trashbin\Events\NodeRestoredEvent;
 use OCA\Files_Versions\Events\VersionRestoredEvent;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\EventDispatcher\Event;
@@ -21,7 +22,6 @@ use OCP\EventDispatcher\IEventListener;
 use OCP\Files\Events\Node\BeforeNodeWrittenEvent;
 use OCP\Files\Events\Node\NodeCopiedEvent;
 use OCP\Files\Events\Node\NodeCreatedEvent;
-use OCP\Files\Events\Node\NodeDeletedEvent;
 use OCP\Files\Events\Node\NodeWrittenEvent;
 use OCP\Files\File;
 use OCP\Files\NotFoundException;
@@ -64,11 +64,12 @@ class FileListener
 		$context->registerEventListener( NodeCopiedEvent::class, self::class, -10 );
 		$context->registerEventListener( NodeWrittenEvent::class, self::class );
 		$context->registerEventListener( NodeCreatedEvent::class, self::class );
-		$context->registerEventListener( NodeDeletedEvent::class, self::class );
-		// The versions app's own event, by name: with the app off, nobody
-		// dispatches it.
+		// The versions app's and the trash app's own events, by name: with
+		// the app off, nobody dispatches them.
 		/** @psalm-suppress InvalidArgument The versions app's class, which the OCP package does not ship (psalm.xml). */
 		$context->registerEventListener( VersionRestoredEvent::class, self::class );
+		/** @psalm-suppress InvalidArgument The trash app's class, which the OCP package does not ship (psalm.xml). */
+		$context->registerEventListener( NodeRestoredEvent::class, self::class );
 	}
 
 
@@ -85,8 +86,8 @@ class FileListener
 				$event instanceof NodeCopiedEvent        => $this->onCopy( $event ),
 				$event instanceof NodeWrittenEvent       => $this->onWrite( $event ),
 				$event instanceof NodeCreatedEvent       => $this->onCreate( $event ),
-				$event instanceof NodeDeletedEvent       => $this->onDelete( $event ),
 				$event instanceof VersionRestoredEvent   => $this->onRestore( $event ),
+				$event instanceof NodeRestoredEvent      => $this->onTrashRestore( $event ),
 				default                                  => null,
 			};
 		}
@@ -412,48 +413,38 @@ class FileListener
 		return $rule !== null && RuleService::verdictOf( $rule ) === RuleService::TYPE_EXCLUDE;
 	}
 
-	private function onDelete( NodeDeletedEvent $event ): void
+	/**
+	 * A file restored from a home's trash: it comes back with its id and its
+	 * ETag, so hashes it kept in the trash are still proved, and it is left
+	 * as it is. One without current hashes is as written: Nextcloud fires no
+	 * create or write for a restore, and the sweep would come to it only
+	 * later. A restored folder's files are the sweep's.
+	 *
+	 * A deletion needs no listener: the trash keeps the file, its id and its
+	 * ETag, and a file deleted for good leaves, its metadata taken by
+	 * Nextcloud with its row. A team folder's restore fires no event.
+	 *
+	 * The event is the trash app's own, named by its class, so the app loads
+	 * without it.
+	 */
+	private function onTrashRestore( NodeRestoredEvent $event ): void
 	{
-		$node = $event->getNode();
+		$node = $event->getTarget();
 
 		if ( ! $node instanceof File )
 		{
 			return;
 		}
 
-		$fileId = $node->getId();
-
-		// Deleted for good: the filecache row is gone, and Nextcloud takes
-		// the file's metadata with it (`MetadataDelete`; for a deleted
-		// user's or storage's files from nextcloud/server#63998 on). A save
-		// here would come after that: refused, where Nextcloud looks the
-		// gone file's storage up, or, where it goes through, a fresh
-		// document for a file that no longer exists. What Nextcloud does
-		// leave, the orphan purge collects.
-		if ( $this->filecacheService->locate( $fileId ) === null )
-		{
-			return;
-		}
-
-		// Moved into the trash. No rule governs it there, whatever governed
-		// it before, and hashes describe content; content the user removed
-		// keeps none. A file this app holds nothing for is left as it is:
-		// clearing would write it a document of this app's.
+		$fileId   = $node->getId();
 		$metadata = $this->metadataService->getMetadata( $fileId );
 
-		if ( ! $this->metadataService->holdsAppData( $metadata ) )
+		if ( $this->metadataService->getHashes( $metadata ) !== []
+			&& $this->metadataService->isCurrent( $metadata, $this->filecacheService->stateOf( $fileId ) ) )
 		{
 			return;
 		}
 
-		$this->metadataService->clearMetadata( $metadata );
-
-		$this->logger->debug(
-			'FCIAS FileListener: cleared metadata on file delete',
-			[
-				'app'    => Application::APP_ID,
-				'fileId' => $fileId,
-			],
-		);
+		$this->contentReplaced( $fileId );
 	}
 }

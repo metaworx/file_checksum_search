@@ -52,6 +52,8 @@
 				<referencedClass name="OCA\Files_Versions\Versions\IVersionManager" />
 				<!-- FileListener: the versions app's event for a restored version, which only that app dispatches. -->
 				<referencedClass name="OCA\Files_Versions\Events\VersionRestoredEvent" />
+				<!-- FileListener: the trash app's event for a restored file, which only that app dispatches. -->
+				<referencedClass name="OCA\Files_Trashbin\Events\NodeRestoredEvent" />
 			</errorLevel>
 		</UndefinedClass>
 		<UndefinedDocblockClass>
