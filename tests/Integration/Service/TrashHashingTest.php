@@ -10,12 +10,15 @@ declare( strict_types=1 );
 namespace OCA\FileChecksumSearch\Tests\Integration\Service;
 
 use OCA\FileChecksumSearch\Command\HashFiles;
+use OCA\FileChecksumSearch\Service\FilecacheService;
+use OCA\FileChecksumSearch\Service\FileLocation;
 use OCA\FileChecksumSearch\Service\HashCalculationService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
 use OCA\GroupFolders\Folder\FolderManager;
 use OCP\App\IAppManager;
+use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\Files\IRootFolder;
 use OCP\IGroupManager;
@@ -61,6 +64,11 @@ class TrashHashingTest
 		}
 
 		$apps->loadApp( 'files_trashbin' );
+
+		if ( $apps->isEnabledForUser( 'files_versions' ) )
+		{
+			$apps->loadApp( 'files_versions' );
+		}
 
 		[ self::$uid ] = self::makeAccount( 'fcias_thash' );
 
@@ -248,6 +256,56 @@ class TrashHashingTest
 	}
 
 	/**
+	 * `fcias:hash` hashes a version the trash keeps where its file's rule
+	 * says `versions` as well as `trash`, and leaves one whose rule says only
+	 * `trash`.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testTheHashCommandHashesATrashedVersionWhereTheRuleSaysBoth(): void
+	{
+		$hashed = $this->unhashedVersionInTheTrash( $this->home(), 'VerOn', 'h.txt' );
+		$left   = $this->unhashedVersionInTheTrash( $this->home(), 'VerOff', 'i.txt' );
+		$this->rule( 'home:' . self::$uid, 'VerOn/**', trash: true, versions: true );
+		$this->rule( 'home:' . self::$uid, 'VerOff/**', trash: true );
+
+		$this->hash( [ '--path' => 'Ver*' ] );
+
+		$metadata = Server::get( MetadataService::class );
+		$this->assertSame( sha1( 'one h.txt' ), $metadata->getHashes( $hashed )['sha1'] ?? null );
+		$this->assertSame( [], $metadata->getHashes( $left ) );
+	}
+
+	/**
+	 * A team folder's version stays beside its trashed file, outside the
+	 * trash: the queue opens it through the versions app, as the account
+	 * that deleted the file.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testATeamFoldersVersionOfATrashedFileIsReadByTheQueue(): void
+	{
+		if ( self::$folderId === null || self::$gid === null )
+		{
+			$this->markTestSkipped( 'FCIAS integration: the groupfolders app is not enabled on this instance.' );
+		}
+
+		$team = $this->home()->get( self::$gid );
+		$this->assertInstanceOf( Folder::class, $team );
+
+		$versionId = $this->unhashedVersionInTheTrash( $team, 'kept', 'j.txt' );
+		$rule      = $this->rule( 'groupfolder:' . self::$folderId, 'kept/**', trash: true, versions: true );
+
+		$this->ruleService->processRule( $rule );
+
+		$this->assertSame( MetadataService::PENDING_PREFIX . 'auto', Server::get( MetadataService::class )->getMarker( $versionId ) );
+
+		Server::get( HashCalculationService::class )->processFile( $versionId, MetadataService::PENDING_MODE_AUTO );
+
+		$this->assertSame( sha1( 'one j.txt' ), Server::get( MetadataService::class )->getHashes( $versionId )['sha1'] ?? null );
+	}
+
+	/**
 	 * Run `fcias:hash` over the test's account.
 	 *
 	 * @param  array<string, mixed>  $options
@@ -284,6 +342,50 @@ class TrashHashingTest
 	}
 
 	/**
+	 * The version of `one <name>` in the trash, of a file in $folder/$sub
+	 * written over and deleted before any rule governed it, so that nothing
+	 * handed it checksums: a home's trash keeps it beside the trashed file,
+	 * a team folder's version stays where it was.
+	 *
+	 * @return int  the version's file id
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function unhashedVersionInTheTrash(
+		Folder $folder,
+		string $sub,
+		string $name,
+	): int
+	{
+		$file = self::folderAt( $folder, $sub )->newFile( $name, 'one ' . $name );
+		$file->touch( time() - 3600 );
+
+		$file = Server::get( IRootFolder::class )->getFirstNodeById( $file->getId() );
+		$this->assertInstanceOf( File::class, $file );
+
+		$fileId = $file->getId();
+		$mtime  = $file->getMTime();
+		$file->putContent( 'two ' . $name );
+		$file->delete();
+
+		// Where the version is now: beside the trashed file in a home's
+		// trash, named after it, or by the file's id in a team folder's.
+		$filecache = Server::get( FilecacheService::class );
+		$trashed   = $filecache->locate( $fileId );
+		$this->assertNotNull( $trashed?->trash, 'the file is in the trash' );
+
+		$path    = $trashed->namespace === FileLocation::NS_HOME
+			? 'files_trashbin/versions/' . $name . '.v' . $mtime . '.d' . explode( '.d', basename( $trashed->internalPath ) )[1]
+			: 'versions/' . $fileId . '/' . $mtime;
+		$version = $filecache->locateAllByPath( [ $trashed->storageId => [ $path ] ] )
+			[ FilecacheService::identityKey( $trashed->storageId, $path ) ] ?? null;
+
+		$this->assertNotNull( $version, 'the trash kept its version' );
+		$this->assertSame( [], Server::get( MetadataService::class )->getHashes( $version->fileId ), 'and nothing hashed it' );
+
+		return $version->fileId;
+	}
+
+	/**
 	 * An enabled include rule, auto, sha1, as stored: the instance's own are
 	 * set aside for the test.
 	 *
@@ -293,6 +395,7 @@ class TrashHashingTest
 		string $selector,
 		string $path,
 		bool   $trash,
+		bool   $versions = false,
 	): array
 	{
 		$id = $this->ruleService->ruleAdd(
@@ -304,6 +407,7 @@ class TrashHashingTest
 				'selector' => $selector,
 				'algos'    => [ 'sha1' ],
 				'trash'    => $trash,
+				'versions' => $versions,
 			],
 		);
 

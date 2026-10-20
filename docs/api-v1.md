@@ -163,6 +163,7 @@ held where it was before the deletion.
   A rule with `trash` has the queue, and `occ fcias:hash`,
   read a trashed file that holds none;
   `occ fcias:hash --trash` reads them whatever their rule says of the trash.
+  A version of one is read where its rule has both `versions` and `trash`.
 - **Not offered:**
   recalculating a file in the trash.
 

@@ -85,6 +85,16 @@ class HashCalculationServiceTest
 			'trash' => true,
 		];
 
+	/** A rule that hashes its files, their versions and the trash, with sha1. */
+	private const VERSIONS_AND_TRASH_RULE
+		 = [
+			'id'       => 'vt',
+			'type'     => 'include',
+			'algos'    => [ 'sha1' ],
+			'versions' => true,
+			'trash'    => true,
+		];
+
 	/** The places {@see collectingServiceOverTrash()} gives files 21 to 23. */
 	private const TRASHED_FILES
 		 = [
@@ -3809,10 +3819,13 @@ class HashCalculationServiceTest
 	private function collectingServiceOverTrash(
 		array $rulesByFile,
 		array $gone = [],
+		array $rulesByVersion = [],
 	): HashCalculationService&MockObject
 	{
-		$trashed = [];
-		$origins = [];
+		$trashed  = [];
+		$versions = [];
+		$files    = [];
+		$origins  = [];
 
 		foreach ( array_keys( $rulesByFile ) as $fileId )
 		{
@@ -3824,6 +3837,22 @@ class HashCalculationServiceTest
 				$origins[ $fileId ] = FileLocation::fromRow( $fileId, 'home::alice', 'files/' . $path, 100 );
 			}
 		}
+
+		// A version 3n in the trash, of a trashed file 30n whose place is
+		// file 2n's.
+		foreach ( array_keys( $rulesByVersion ) as $versionId )
+		{
+			$path                      = self::TRASHED_FILES[ $versionId - 10 ];
+			$fileId                    = $versionId * 10;
+			$versions[]                = FileLocation::fromRow( $versionId, 'home::alice', 'files_trashbin/versions/' . basename( $path ) . '.v100.d1700000000', 100 );
+			$files[ $versionId ]       = FileLocation::fromRow( $fileId, 'home::alice', 'files_trashbin/files/' . basename( $path ) . '.d1700000000', 200 );
+			$origins[ $fileId ]        = FileLocation::fromRow( $fileId, 'home::alice', 'files/' . $path, 200 );
+			$rulesByFile[ $versionId ] = $rulesByVersion[ $versionId ];
+		}
+
+		$this->filecacheService->method( 'filesOfVersions' )
+		                       ->willReturn( $files )
+		;
 
 		$this->filecacheService->method( 'homeStorageNumericIds' )
 		                       ->with( [ 'alice' ] )
@@ -3838,19 +3867,23 @@ class HashCalculationServiceTest
 				                       bool    $staleOnly = false,
 				                       array   $wanted    = [],
 				                       ?string $under     = null,
-			                       ): array => $lastFileId === 0 && $under === 'files_trashbin/files'
-				                       ? $trashed
-				                       : [],
+			                       ): array => match ( $lastFileId === 0 ? $under : null )
+			                       {
+				                       'files_trashbin/files'    => $trashed,
+				                       'files_trashbin/versions' => $versions,
+				                       default                   => [],
+			                       },
 		                       )
 		;
 		$this->filecacheService->method( 'originsOfTrash' )
 		                       ->willReturn( $origins )
 		;
+		// Judged at the place: a version through its trashed file's.
 		$this->ruleService->method( 'governingRuleForLocation' )
 		                  ->willReturnCallback(
 			                  static fn(
 				                  FileLocation $location,
-			                  ): ?array => $location->trash?->origin === null
+			                  ): ?array => ( $location->version?->file ?? $location )->trash?->origin === null
 				                  ? null
 				                  : $rulesByFile[ $location->fileId ],
 		                  )
@@ -3962,6 +3995,80 @@ class HashCalculationServiceTest
 		;
 
 		$this->assertSame( 1, $service->markTrash( 'alice', null, 0, new RuleOverrides(), 'missing' ) );
+	}
+
+	/**
+	 * A version the trash keeps is taken where its trashed file's rule says
+	 * both `versions` and `trash`, and only where versions are asked.
+	 */
+	public function testTrashHashesTakeATrashedVersionWhereItsRuleSaysVersionsAndTrash(): void
+	{
+		$service = $this->collectingServiceOverTrash(
+			[],
+			[],
+			[
+				31 => self::VERSIONS_AND_TRASH_RULE,
+				32 => self::TRASH_RULE,
+			],
+		);
+		$service->expects( $this->once() )
+		        ->method( 'recalcHashes' )
+		        ->with( 31, [ 'sha1' ], true )
+		        ->willReturn( $this->oneSuccess( 'sha1' ) )
+		;
+
+		$this->assertSame( 0, $service->generateTrashHashes( 'alice', [ 'auto' ], null, 0 )['processed'] );
+		$this->assertSame( 1, $service->generateTrashHashes( 'alice', [ 'auto' ], null, 0, null, null, 'missing', false, true )['processed'] );
+	}
+
+	/**
+	 * `--versions` stands in for a rule's `versions`, `--trash` for its
+	 * `trash`: each takes only what the other still allows.
+	 */
+	public function testTrashHashesWithAllVersionsStillAskTheRuleForTheTrash(): void
+	{
+		$service = $this->collectingServiceOverTrash(
+			[],
+			[],
+			[
+				31 => self::VERSIONS_AND_TRASH_RULE,
+				32 => self::TRASH_RULE,
+				33 => self::VERSIONS_RULE,
+			],
+		);
+		$hashed  = [];
+		$service->method( 'recalcHashes' )
+		        ->willReturnCallback(
+			        function( int $fileId ) use ( &$hashed ): array
+			        {
+				        $hashed[] = $fileId;
+
+				        return $this->oneSuccess( 'sha1' );
+			        },
+		        )
+		;
+
+		$service->generateTrashHashes( 'alice', [ 'auto' ], null, 0, null, null, 'missing', false, true, true );
+
+		$this->assertSame( [ 31, 32 ], $hashed );
+	}
+
+	public function testMarkTrashQueuesATrashedVersionWhereItsRuleSaysBoth(): void
+	{
+		$service = $this->collectingServiceOverTrash(
+			[],
+			[],
+			[
+				31 => self::TRASH_RULE,
+				32 => self::VERSIONS_AND_TRASH_RULE,
+			],
+		);
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 32, 'pending:missing' )
+		;
+
+		$this->assertSame( 1, $service->markTrash( 'alice', null, 0, new RuleOverrides(), 'missing', null, true ) );
 	}
 
 	public function testMarkMissingHashesQueuesAFileThatLacksItsRulesAlgorithm(): void

@@ -115,8 +115,10 @@ class FilecacheService
 
 	/**
 	 * A version opened through the versions app, or null. Asked as an
-	 * account its file is mounted for, as the versions app asks; null too
-	 * where the app is not there to ask.
+	 * account its file is mounted for, as the versions app asks, or, for a
+	 * team folder's file in the trash, which stays outside it with its
+	 * versions, as the account that deleted the file ({@see trashNode()});
+	 * null too where the app is not there to ask.
 	 */
 	private function versionNode( FileLocation $location ): ?File
 	{
@@ -127,14 +129,15 @@ class FilecacheService
 			: $this->filesOfVersions( [ $location ] )[ $fileId ] ?? null;
 		$fileNode = $file === null
 			? null
-			: $this->rootFolder->getFirstNodeById( $file->fileId );
+			: $this->rootFolder->getFirstNodeById( $file->fileId ) ?? $this->trashNode( $file );
 
 		if ( $version === null || ! $fileNode instanceof File || ! interface_exists( IVersionManager::class ) )
 		{
 			return null;
 		}
 
-		// The account in whose folder the root folder found the file.
+		// The account in whose folder the root folder, or its trash, found the
+		// file.
 		$user = $this->userManager->get( explode( '/', ltrim( $fileNode->getPath(), '/' ) )[0] );
 
 		try

@@ -682,7 +682,9 @@ class HashCalculationService
 	 * The files in an account's home trash, hashed as they would be where
 	 * they were: those whose place's rule says `trash`
 	 * ({@see RuleService::hashesTrash()}), or, with $all, every one the run
-	 * may take ({@see RuleOverrides::allows()}). As
+	 * may take ({@see RuleOverrides::allows()}). With $versions, the versions
+	 * the trash keeps of them too, where their rule says `versions` as well,
+	 * or $allVersions stands in for it ({@see trashInHome()}). As
 	 * {@see generateVersionHashes()} otherwise, asked first by
 	 * {@see RuleService::anyRuleHashesTrash()}.
 	 *
@@ -700,11 +702,13 @@ class HashCalculationService
 		?RuleOverrides   $overrides = null,
 		string           $mode = MetadataService::PENDING_MODE_MISSING,
 		bool             $all = false,
+		bool             $versions = false,
+		bool             $allVersions = false,
 	): array
 	{
 		$overrides ??= new RuleOverrides();
 
-		return $this->hashTaken( $this->trashInHome( $userId, $pathPattern, $overrides, $all, $output ), $algo, $batchSize, $output, $overrides, $mode );
+		return $this->hashTaken( $this->trashInHome( $userId, $pathPattern, $overrides, $all, $output, $versions, $allVersions ), $algo, $batchSize, $output, $overrides, $mode );
 	}
 
 	/**
@@ -812,7 +816,8 @@ class HashCalculationService
 
 	/**
 	 * Queue the files in an account's home trash whose place's rule says
-	 * `trash`, as {@see markVersions()} queues versions.
+	 * `trash`, and with $versions their versions whose rule says `versions`
+	 * as well, as {@see markVersions()} queues versions.
 	 *
 	 * @param  int  $batchSize  Maximum files to queue (a value <= 0 means unlimited)
 	 *
@@ -826,9 +831,10 @@ class HashCalculationService
 		RuleOverrides    $overrides,
 		string           $mode,
 		?OutputInterface $output = null,
+		bool             $versions = false,
 	): int
 	{
-		return $this->markTaken( $this->trashInHome( $userId, $pathPattern, $overrides, false, $output ), $batchSize, $overrides, $mode, $output );
+		return $this->markTaken( $this->trashInHome( $userId, $pathPattern, $overrides, false, $output, $versions ), $batchSize, $overrides, $mode, $output );
 	}
 
 	/**
@@ -1153,6 +1159,11 @@ class HashCalculationService
 	 * place, and is left. One left by a rule is reported as a file is
 	 * ({@see RuleOverrides::report()}).
 	 *
+	 * With $versions, the versions the trash keeps of them follow, each
+	 * judged through its trashed file at the place that file had, and taken
+	 * where the rule says `versions` as well as `trash`: $allVersions stands
+	 * in for the first, as $all does for the second.
+	 *
 	 * @return \Generator<int, array<int, array{rule: array|null, path: string}>>
 	 *         per page, by the file's id: its place's rule, and its path
 	 * @throws \OCP\DB\Exception
@@ -1163,50 +1174,87 @@ class HashCalculationService
 		RuleOverrides    $overrides,
 		bool             $all,
 		?OutputInterface $output,
+		bool             $versions = false,
+		bool             $allVersions = false,
 	): \Generator
 	{
+		$areas = $versions
+			? [ 'files_trashbin/files', 'files_trashbin/versions' ]
+			: [ 'files_trashbin/files' ];
+
 		foreach ( $this->filecacheService->homeStorageNumericIds( [ $userId ] ) as $storageNumericId )
 		{
-			$lastFileId = 0;
-
-			while ( ( $page = $this->filecacheService->pageStorageFiles( $storageNumericId, $lastFileId, 500, under: 'files_trashbin/files' ) ) !== [] )
+			foreach ( $areas as $under )
 			{
-				$lastFileId = $page[ array_key_last( $page ) ]->fileId;
-				$trashed    = array_values( array_filter( $page, static fn ( FileLocation $location ): bool => $location->trash !== null ) );
-				$origins    = $trashed === []
-					? []
-					: $this->filecacheService->originsOfTrash( $trashed );
-				$taken      = [];
+				$lastFileId = 0;
 
-				foreach ( $trashed as $location )
+				while ( ( $page = $this->filecacheService->pageStorageFiles( $storageNumericId, $lastFileId, 500, under: $under ) ) !== [] )
 				{
-					$origin = $origins[ $location->fileId ] ?? null;
+					$lastFileId = $page[ array_key_last( $page ) ]->fileId;
+					$trashed    = array_values(
+						array_filter(
+							$page,
+							static fn ( FileLocation $location ): bool => $location->trash !== null
+								&& ( $location->version !== null ) === ( $under === 'files_trashbin/versions' ),
+						),
+					);
+					// A version is judged through its trashed file.
+					$files   = $under === 'files_trashbin/versions' && $trashed !== []
+						? $this->filecacheService->filesOfVersions( $trashed )
+						: [];
+					$origins = $trashed === []
+						? []
+						: $this->filecacheService->originsOfTrash(
+							$files === []
+								? $trashed
+								: array_values( $files ),
+						);
+					$taken   = [];
 
-					if ( $origin?->relativePath === null
-						|| ( $pathPattern !== null && ! PathUtil::matchesGlob( $pathPattern, ltrim( $origin->relativePath, '/' ) ) ) )
+					foreach ( $trashed as $location )
 					{
-						continue;
+						$file   = $location->version === null
+							? $location
+							: $files[ $location->fileId ] ?? null;
+						$origin = $file === null
+							? null
+							: $origins[ $file->fileId ] ?? null;
+
+						if ( $file === null
+							|| $origin?->relativePath === null
+							|| ( $pathPattern !== null && ! PathUtil::matchesGlob( $pathPattern, ltrim( $origin->relativePath, '/' ) ) ) )
+						{
+							continue;
+						}
+
+						$judged = $file->withTrashOrigin( $origin );
+						$rule   = $this->ruleService->governingRuleForLocation(
+							$location->version === null
+								? $judged
+								: $location->withVersionFile( $judged ),
+							$overrides->ignoreRuleIds,
+						);
+						$path   = '/' . $userId . '/' . $location->internalPath;
+
+						if ( ! $overrides->allows( $rule )
+							|| ( ! $all && ! RuleService::hashesTrash( $rule ) )
+							|| ( $location->version !== null && ! $allVersions && ! RuleService::hashesVersions( $rule ) ) )
+						{
+							$overrides->report( $output, $path, $rule, false );
+
+							continue;
+						}
+
+						$taken[ $location->fileId ] = [
+							'rule' => $rule,
+							'path' => $path,
+						];
 					}
 
-					$rule = $this->ruleService->governingRuleForLocation( $location->withTrashOrigin( $origin ), $overrides->ignoreRuleIds );
-					$path = '/' . $userId . '/' . $location->internalPath;
-
-					if ( ! $overrides->allows( $rule ) || ( ! $all && ! RuleService::hashesTrash( $rule ) ) )
+					if ( $taken !== [] )
 					{
-						$overrides->report( $output, $path, $rule, false );
-
-						continue;
+						yield $taken;
 					}
-
-					$taken[ $location->fileId ] = [
-						'rule' => $rule,
-						'path' => $path,
-					];
-				}
-
-				if ( $taken !== [] )
-				{
-					yield $taken;
 				}
 			}
 		}

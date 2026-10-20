@@ -405,6 +405,8 @@ class HashFiles
 				$overrides,
 				$mode,
 				$allTrash,
+				$withVersions,
+				$allVersions,
 			);
 
 			$totalProcessed += $result['processed'];
@@ -710,6 +712,7 @@ class HashFiles
 				$overrides,
 				$mode,
 				$output,
+				$withVersions,
 			);
 
 			$totalMarked += $trash;

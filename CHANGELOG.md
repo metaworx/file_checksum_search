@@ -11,6 +11,12 @@ the first stable release.
 
 ## [Unreleased]
 
+### Fixed
+
+- `README.md`, *The trash*: a version of a file in the trash is read
+  where its rule has *Versions* and *Trash* on: by `occ fcias:hash` in
+  a home, by the queue in a team folder.
+
 ## [0.29.0] - 2026-10-20
 
 ### Added

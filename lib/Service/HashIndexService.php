@@ -234,6 +234,8 @@ class HashIndexService
 		?RuleOverrides   $overrides = null,
 		string           $mode = MetadataService::PENDING_MODE_MISSING,
 		bool             $all = false,
+		bool             $versions = false,
+		bool             $allVersions = false,
 	): array
 	{
 		return $this->hashCalc->generateTrashHashes(
@@ -245,6 +247,8 @@ class HashIndexService
 			$overrides,
 			$mode,
 			$all,
+			$versions,
+			$allVersions,
 		);
 	}
 
@@ -258,9 +262,10 @@ class HashIndexService
 		RuleOverrides    $overrides,
 		string           $mode,
 		?OutputInterface $output = null,
+		bool             $versions = false,
 	): int
 	{
-		return $this->hashCalc->markTrash( $userId, $pathPattern, $batchSize, $overrides, $mode, $output );
+		return $this->hashCalc->markTrash( $userId, $pathPattern, $batchSize, $overrides, $mode, $output, $versions );
 	}
 
 	/**

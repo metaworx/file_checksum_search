@@ -1090,6 +1090,77 @@ class HashFilesTest
 		);
 	}
 
+	/**
+	 * The trash pass takes the versions the trash keeps where versions are
+	 * asked, by a rule or by --versions, and says which.
+	 */
+	public function testTheTrashPassTakesItsVersionsWhereVersionsAreAsked(): void
+	{
+		$this->ruleService->method( 'resolveUsers' )
+		                  ->willReturn( [ 'alice' ] )
+		;
+		$this->hashIndexService->method( 'generateMissingHashes' )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 0,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+		$this->hashIndexService->method( 'generateVersionHashes' )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 0,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'generateTrashHashes' )
+		                       ->with( 'alice', [ 'auto' ], null, 0, $this->anything(), $this->anything(), 'missing', true, true, true )
+		                       ->willReturn(
+			                       [
+				                       'processed' => 0,
+				                       'skipped'   => 0,
+			                       ],
+		                       )
+		;
+
+		$this->tester->execute(
+			[
+				'--user'     => 'alice',
+				'--versions' => true,
+				'--trash'    => true,
+			],
+		);
+	}
+
+	public function testMarkQueuesTheTrashsVersionsWhereARuleHashesVersions(): void
+	{
+		$this->markSetup();
+		$this->ruleService->method( 'anyRuleHashesTrash' )
+		                  ->willReturn( true )
+		;
+		$this->ruleService->method( 'anyRuleHashesVersions' )
+		                  ->willReturn( true )
+		;
+		$this->hashIndexService->method( 'markVersions' )
+		                       ->willReturn( 0 )
+		;
+		$this->hashIndexService->expects( $this->once() )
+		                       ->method( 'markTrash' )
+		                       ->with( 'alice', null, 0, $this->anything(), 'missing', $this->anything(), true )
+		                       ->willReturn( 0 )
+		;
+
+		$this->tester->execute(
+			[
+				'--user' => 'alice',
+				'--mark' => true,
+			],
+		);
+	}
+
 	public function testTheTrashGetsWhatTheVersionsLeftOfTheBatch(): void
 	{
 		$this->ruleService->method( 'resolveUsers' )
