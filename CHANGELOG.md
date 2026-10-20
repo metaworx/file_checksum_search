@@ -13,8 +13,9 @@ the first stable release.
 
 ### Changed
 
-- `README.md`, *The trash*: a file keeps its checksums in the trash and
-  comes back with them; one restored without is queued at once.
+- `README.md`, *The trash*: a file keeps its checksums in the trash,
+  governed by its former place's rule, and comes back with them; one
+  restored without is queued at once.
 
 ## [0.28.0] - 2026-10-20
 

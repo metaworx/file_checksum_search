@@ -248,6 +248,98 @@ class FileLocationTest
 	}
 
 	/**
+	 * A home's trash item is `files_trashbin/files/<name>.d<time>`: its name
+	 * as deleted and the deletion time, outside the files area.
+	 */
+	public function testAHomeTrashItemNamesItselfAndItsDeletion(): void
+	{
+		$location = FileLocation::fromRow( 8, 'home::alice', 'files_trashbin/files/a.txt.d1700000000', 1 );
+
+		$this->assertSame( FileLocation::NS_HOME, $location->namespace );
+		$this->assertSame( 'alice', $location->owner );
+		$this->assertNull( $location->relativePath );
+		$this->assertSame( 'a.txt', $location->trash?->name );
+		$this->assertSame( 1700000000, $location->trash?->deletedAt );
+		$this->assertSame( '', $location->trash?->subPath );
+		$this->assertNull( $location->version );
+	}
+
+	/**
+	 * A row inside a trashed folder names the folder's item, and its path
+	 * below it.
+	 */
+	public function testARowInsideATrashedFolderNamesTheFoldersItem(): void
+	{
+		$location = FileLocation::fromRow( 8, 'object::user:bob', 'files_trashbin/files/Docs.d1700000000/sub/b.txt', 1 );
+
+		$this->assertSame( 'Docs', $location->trash?->name );
+		$this->assertSame( 1700000000, $location->trash?->deletedAt );
+		$this->assertSame( 'sub/b.txt', $location->trash?->subPath );
+	}
+
+	/**
+	 * A name may hold `.d` itself: only the last one, before digits alone
+	 * and the end of the name, is the deletion's.
+	 */
+	public function testOnlyTheLastDeletionSuffixIsTheDeletions(): void
+	{
+		$this->assertSame(
+			'x.d5.txt',
+			FileLocation::fromRow( 8, 'home::alice', 'files_trashbin/files/x.d5.txt.d1700000000', 1 )->trash?->name,
+		);
+	}
+
+	/**
+	 * A team folder's trash item is `trash/<name>.d<time>` in the folder's
+	 * own storage, and in the legacy layout
+	 * `__groupfolders/trash/<id>/<name>.d<time>` in the root storage: the
+	 * folder is its area, as it is its files'.
+	 */
+	public function testATeamFolderTrashItemIsItsFolders(): void
+	{
+		$current = FileLocation::fromRow( 9, 'local::/var/www/data/__groupfolders/5/', 'trash/plan.md.d1700000000', 1 );
+		$legacy  = FileLocation::fromRow( 10, 'local::/var/www/data/', '__groupfolders/trash/7/Docs.d1700000000/plan.md', 1 );
+
+		$this->assertSame( FileLocation::NS_GROUPFOLDER, $current->namespace );
+		$this->assertSame( 5, $current->groupFolderId );
+		$this->assertNull( $current->relativePath );
+		$this->assertSame( 'plan.md', $current->trash?->name );
+
+		$this->assertSame( FileLocation::NS_GROUPFOLDER, $legacy->namespace );
+		$this->assertSame( 7, $legacy->groupFolderId );
+		$this->assertNull( $legacy->relativePath );
+		$this->assertSame( 'Docs', $legacy->trash?->name );
+		$this->assertSame( 'plan.md', $legacy->trash?->subPath );
+	}
+
+	/**
+	 * What only looks like a trash item is none: the trash's own folders, a
+	 * name without the suffix, a version in the trash, a user's file named
+	 * like one.
+	 */
+	public function testRowsThatAreNoTrashItemNameNone(): void
+	{
+		foreach (
+			[
+				[ 'home::alice', 'files_trashbin/files' ],
+				[ 'home::alice', 'files_trashbin/files/a.txt' ],
+				[ 'home::alice', 'files_trashbin/versions/a.txt.v1700000000.d1700000100' ],
+				[ 'home::alice', 'files/a.txt.d1700000000' ],
+				[ 'local::/var/www/data/__groupfolders/5/', 'trash' ],
+				[ 'local::/var/www/data/__groupfolders/5/', 'trash/42/1700000000' ],
+				[ 'local::/var/www/data/__groupfolders/5/', 'files/trash/a.txt.d1700000000' ],
+				[ 'local::/var/www/data/', '__groupfolders/trash/7' ],
+			] as [ $storageId, $internalPath ]
+		)
+		{
+			$this->assertNull(
+				FileLocation::fromRow( 11, $storageId, $internalPath, 1 )->trash,
+				$storageId . ' ' . $internalPath . ' is no trash item',
+			);
+		}
+	}
+
+	/**
 	 * Where Nextcloud keeps the version it makes of a file: the inverse of
 	 * reading one.
 	 */

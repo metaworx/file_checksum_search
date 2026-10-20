@@ -629,6 +629,45 @@ class HashCalculationServiceTest
 	}
 
 	/**
+	 * A trashed file keeps what it had: queued — before its deletion, or
+	 * found changed — it is dropped unread, whatever its place's rule says.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testProcessFileDropsATrashedFile(): void
+	{
+		$this->metadataService->method( 'getMetadata' )
+		                      ->willReturn( $this->createMock( IFilesMetadata::class ) )
+		;
+		$this->filecacheService->method( 'getFile' )
+		                       ->willReturn( $this->createMock( File::class ) )
+		;
+		$this->filecacheService->method( 'locate' )
+		                       ->with( 42 )
+		                       ->willReturn( FileLocation::fromRow( 42, 'home::alice', 'files_trashbin/files/a.txt.d1700000000', 1 ) )
+		;
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn( [
+			                  'id'    => 'docs',
+			                  'type'  => 'include',
+			                  'algos' => [ 'sha1' ],
+		                  ] )
+		;
+
+		$this->metadataService->expects( $this->once() )
+		                      ->method( 'markPending' )
+		                      ->with( 42, '' )
+		;
+
+		$service = $this->createCollectingServiceMock();
+		$service->expects( $this->never() )
+		        ->method( 'recalcHashes' )
+		;
+
+		$service->processFile( 42, 'auto' );
+	}
+
+	/**
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
 	public function testProcessFileDropsTheMarkWhenNoRuleMatchesAtAll(): void

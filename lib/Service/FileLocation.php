@@ -33,8 +33,10 @@ namespace OCA\FileChecksumSearch\Service;
  * versions, appdata, the team folders' jails in the root storage).
  * Verdicts and sweeps skip those entirely: no rule matches them, and no
  * glob can reach them — the app hashes files, not infrastructure. A
- * version is the one exception: $version names its file, and the file's
- * rule governs it ({@see RuleService::governingRuleForLocation()}).
+ * version and a trashed file are the exceptions: $version names the file,
+ * and $trash the trash item, whose path before the deletion the trash
+ * records; the rule of that file or that path governs them
+ * ({@see RuleService::governingRuleForLocation()}).
  *
  * Its **address** ({@see describe()}) is the area, two slashes, and the
  * path below the area's top: `home:alice//Photos/x.jpg`,
@@ -89,6 +91,11 @@ readonly class FileLocation
 		 * is no version.
 		 */
 		public ?VersionOf $version = null,
+		/**
+		 * The trash item this row is, or is inside, and when it was
+		 * deleted; null for a row outside a trash.
+		 */
+		public ?TrashOf   $trash = null,
 	) {
 	}
 
@@ -185,6 +192,7 @@ readonly class FileLocation
 					null,
 					self::filesRelative( $internalPath ),
 					version: self::homeVersion( $internalPath ),
+					trash: self::trashItem( '#^files_trashbin/files/([^/]+)\.d(\d+)(?:/(.+))?$#', $internalPath ),
 				);
 			}
 		}
@@ -204,6 +212,7 @@ readonly class FileLocation
 				(int) $m[1],
 				self::filesRelative( $internalPath ),
 				version: self::teamFolderVersion( $internalPath ),
+				trash: self::trashItem( '#^trash/([^/]+)\.d(\d+)(?:/(.+))?$#', $internalPath ),
 			);
 		}
 
@@ -221,6 +230,23 @@ readonly class FileLocation
 				(int) $m[1],
 				null,
 				version: new VersionOf( (int) $m[3], fileId: (int) $m[2] ),
+			);
+		}
+
+		// Legacy layout: a team folder's trash, jailed inside the root
+		// storage beside its files.
+		if ( preg_match( '#^__groupfolders/trash/(\d+)/(.+)$#', $internalPath, $m ) === 1 )
+		{
+			return new self(
+				$fileId,
+				$storageId,
+				$internalPath,
+				$mtime,
+				self::NS_GROUPFOLDER,
+				null,
+				(int) $m[1],
+				null,
+				trash: self::trashItem( '#^([^/]+)\.d(\d+)(?:/(.+))?$#', $m[2] ),
 			);
 		}
 
@@ -387,6 +413,36 @@ readonly class FileLocation
 			$this->settled,
 			$this->complete,
 			new VersionOf( $this->version->timestamp, $this->version->fileInternalPath, $this->version->fileId, $file ),
+			$this->trash,
+		);
+	}
+
+	/**
+	 * The same trashed row with the location it had before the deletion, so
+	 * that whoever judges it there need not read the trash's records again.
+	 * A row outside a trash stays as it is.
+	 */
+	public function withTrashOrigin( self $origin ): self
+	{
+		if ( $this->trash === null )
+		{
+			return $this;
+		}
+
+		return new self(
+			$this->fileId,
+			$this->storageId,
+			$this->internalPath,
+			$this->mtime,
+			$this->namespace,
+			$this->owner,
+			$this->groupFolderId,
+			$this->relativePath,
+			$this->updatedAt,
+			$this->settled,
+			$this->complete,
+			$this->version,
+			new TrashOf( $this->trash->name, $this->trash->deletedAt, $this->trash->subPath, $origin ),
 		);
 	}
 
@@ -413,6 +469,7 @@ readonly class FileLocation
 			$settled,
 			$complete,
 			$this->version,
+			$this->trash,
 		);
 	}
 
@@ -448,6 +505,24 @@ readonly class FileLocation
 		}
 
 		return new VersionOf( (int) $m[2], fileInternalPath: 'files/' . $m[1] );
+	}
+
+	/**
+	 * The trash item a row is, or is inside, by $pattern: the item's name,
+	 * its deletion time, and the rest of the path below it. A name may hold
+	 * `.d` itself; only the last one, before digits alone, is the deletion's.
+	 */
+	private static function trashItem(
+		string $pattern,
+		string $path,
+	): ?TrashOf
+	{
+		if ( preg_match( $pattern, $path, $m ) !== 1 )
+		{
+			return null;
+		}
+
+		return new TrashOf( $m[1], (int) $m[2], $m[3] ?? '' );
 	}
 
 	/**

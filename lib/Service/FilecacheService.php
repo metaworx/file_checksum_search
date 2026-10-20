@@ -450,6 +450,165 @@ class FilecacheService
 	}
 
 	/**
+	 * Where a batch of trashed rows were before their deletion, as locations
+	 * in the same storage: by the trash's own records, which the rows' names
+	 * do not hold ({@see TrashOf}).
+	 *
+	 * A home's records (`files_trash`) keep the folder an item was in, by
+	 * account, name and deletion time; a team folder's
+	 * (`group_folders_trash`) its path below the folder's root, by folder,
+	 * name and deletion time. One query per thousand names for each. A row
+	 * inside a trashed folder continues below the folder's place. A row
+	 * whose record is gone, and one that is no trashed row, are absent.
+	 *
+	 * @param  list<FileLocation>  $trashed
+	 *
+	 * @return array<int, FileLocation>  keyed by the trashed row's file id
+	 * @throws \OCP\DB\Exception
+	 */
+	public function originsOfTrash( array $trashed ): array
+	{
+		$homes   = [];
+		$folders = [];
+
+		foreach ( $trashed as $location )
+		{
+			if ( $location->trash === null )
+			{
+				continue;
+			}
+
+			if ( $location->namespace === FileLocation::NS_HOME && $location->owner !== null )
+			{
+				$homes[ $location->fileId ] = $location;
+			}
+			elseif ( $location->namespace === FileLocation::NS_GROUPFOLDER && $location->groupFolderId !== null )
+			{
+				$folders[ $location->fileId ] = $location;
+			}
+		}
+
+		$origins = [];
+
+		foreach ( $this->trashRecords( 'files_trash', 'user', 'id', 'timestamp', 'location', $homes, static fn ( FileLocation $location ): string => (string) $location->owner ) as $fileId => $folder )
+		{
+			$item = $homes[ $fileId ];
+			$path = ( $folder === '.' || $folder === '' ? '' : trim( $folder, '/' ) . '/' ) . $item->trash?->name;
+
+			$origins[ $fileId ] = $this->origin( $item, 'files/' . $path );
+		}
+
+		foreach ( $this->trashRecords( 'group_folders_trash', 'folder_id', 'name', 'deleted_time', 'original_location', $folders, static fn ( FileLocation $location ): int => (int) $location->groupFolderId ) as $fileId => $path )
+		{
+			$item = $folders[ $fileId ];
+			$root = str_starts_with( $item->internalPath, '__groupfolders/' )
+				? '__groupfolders/' . (string) $item->groupFolderId . '/files/'
+				: 'files/';
+
+			$origins[ $fileId ] = $this->origin( $item, $root . trim( $path, '/' ) );
+		}
+
+		return $origins;
+	}
+
+	/**
+	 * The trashed row $item at its place before the deletion, $path the
+	 * internal path of the trash item's own place.
+	 */
+	private function origin(
+		FileLocation $item,
+		string       $path,
+	): FileLocation
+	{
+		$sub = (string) $item->trash?->subPath;
+
+		return FileLocation::fromRow(
+			$item->fileId,
+			$item->storageId,
+			$sub === ''
+				? $path
+				: $path . '/' . $sub,
+			$item->mtime,
+		);
+	}
+
+	/**
+	 * The column $placeColumn of a trash's records for $items, by the trash
+	 * item each is or is inside: the record of $owner($item), its name and
+	 * its deletion time.
+	 *
+	 * @param  array<int, FileLocation>          $items  keyed by file id
+	 * @param  callable(FileLocation): (int|string)  $owner
+	 *
+	 * @return array<int, string>  keyed by file id
+	 * @throws \OCP\DB\Exception
+	 */
+	private function trashRecords(
+		string   $table,
+		string   $ownerColumn,
+		string   $nameColumn,
+		string   $timeColumn,
+		string   $placeColumn,
+		array    $items,
+		callable $owner,
+	): array
+	{
+		if ( $items === [] || ! $this->db->tableExists( $table ) )
+		{
+			return [];
+		}
+
+		$owners  = array_values( array_unique( array_map( $owner, $items ) ) );
+		$names   = array_values( array_unique( array_map( static fn ( FileLocation $item ): string => (string) $item->trash?->name, $items ) ) );
+		$records = [];
+
+		foreach ( array_chunk( $names, 1000 ) as $chunk )
+		{
+			$qb = $this->db->getQueryBuilder();
+			$qb->select( $ownerColumn, $nameColumn, $timeColumn, $placeColumn )
+			   ->from( $table )
+			   ->where(
+				   $qb->expr()
+				      ->in(
+					      $ownerColumn,
+					      $qb->createNamedParameter(
+						      $owners,
+						      is_int( $owners[0] )
+							      ? IQueryBuilder::PARAM_INT_ARRAY
+							      : IQueryBuilder::PARAM_STR_ARRAY,
+					      ),
+				      ),
+				   $qb->expr()
+				      ->in( $nameColumn, $qb->createNamedParameter( $chunk, IQueryBuilder::PARAM_STR_ARRAY ) ),
+			   )
+			;
+
+			$result = $qb->executeQuery();
+
+			while ( ( $row = $result->fetchAssociative() ) !== false )
+			{
+				$records[ $row[ $ownerColumn ] . '/' . $row[ $nameColumn ] . '/' . $row[ $timeColumn ] ] = (string) $row[ $placeColumn ];
+			}
+
+			$result->closeCursor();
+		}
+
+		$places = [];
+
+		foreach ( $items as $fileId => $item )
+		{
+			$place = $records[ $owner( $item ) . '/' . $item->trash?->name . '/' . (string) $item->trash?->deletedAt ] ?? null;
+
+			if ( $place !== null )
+			{
+				$places[ $fileId ] = $place;
+			}
+		}
+
+		return $places;
+	}
+
+	/**
 	 * The versions Nextcloud keeps of $file, newest first: by the name it
 	 * gives them ({@see FileLocation::versionPathAt()}), in the file's own
 	 * storage, in one query. None for a row that keeps none beside it.

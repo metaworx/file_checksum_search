@@ -564,6 +564,10 @@ When Nextcloud expires a version, its checksums go with it.
 A file moved to the trash keeps its id, its content and its ETag,
 in a home's trash and in a team folder's, and so its checksums:
 they are still proved when it is restored, and nothing reads it again.
+In the trash it is governed by the rule of the place it had before the deletion,
+which the trash records:
+a rule that stops maintaining that place stops maintaining it,
+and the queue leaves it unread.
 A file restored from a home's trash without current checksums
 is queued at once where a rule maintains it, as a written one is;
 a team folder's restore fires no event,

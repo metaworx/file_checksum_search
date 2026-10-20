@@ -1787,14 +1787,55 @@ class RuleServiceTest
 	 */
 	public function testLocationsOutsideAFilesAreaAreGovernedByNothing(): void
 	{
-		// Trash and versions rows exist in the filecache, but no rule — not
-		// even a universal catch-all — may reach them. The rules are not
-		// even loaded: the classification decides before any rule is read.
+		// The trash's and the versions' own folders exist in the filecache,
+		// but no rule — not even a universal catch-all — may reach them. The
+		// rules are not even loaded: the classification decides before any
+		// rule is read.
 		$this->stubLocate(
-			FileLocation::fromRow( 80, 'home::alice', 'files_trashbin/files/x.d1', 100 ),
+			FileLocation::fromRow( 80, 'home::alice', 'files_trashbin/files', 100 ),
 		);
 
 		$this->assertNull( $this->service->findFirstMatchingRule( 80 ) );
+	}
+
+	/**
+	 * A trashed file is governed by the rule of the place it had before the
+	 * deletion, which the trash records.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testATrashedFileIsGovernedByTheRuleOfItsPlaceBefore(): void
+	{
+		$this->setupRulesConfig( [
+			[
+				'id'       => 'docs',
+				'enabled'  => true,
+				'selector' => 'home:alice',
+				'path'     => '/Docs/**',
+			],
+		] );
+
+		$trashed = FileLocation::fromRow( 85, 'home::alice', 'files_trashbin/files/a.txt.d1700000000', 1 );
+		$this->stubLocate( $trashed );
+		$this->filecacheService->expects( $this->once() )
+		                       ->method( 'originsOfTrash' )
+		                       ->with( [ $trashed ] )
+		                       ->willReturn( [ 85 => $this->homeLocation( 85, 'alice', '/Docs/a.txt' ) ] )
+		;
+
+		$this->assertSame( 'docs', $this->service->findFirstMatchingRule( 85 )['id'] ?? null );
+	}
+
+	/**
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testATrashedFileWhoseRecordIsGoneIsGovernedByNothing(): void
+	{
+		// The rules are not even loaded: with no place, nothing is judged.
+		$this->stubLocate( FileLocation::fromRow( 86, 'home::alice', 'files_trashbin/files/a.txt.d1700000000', 1 ) );
+		$this->filecacheService->method( 'originsOfTrash' )->willReturn( [] );
+
+		$this->assertNull( $this->service->findFirstMatchingRule( 86 ) );
 	}
 
 	/**

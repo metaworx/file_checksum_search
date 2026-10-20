@@ -938,10 +938,12 @@ class RuleService
 	 * canonical identity and globs against its namespace-relative path — the
 	 * same subject the rule's author wrote the glob for, no matter through
 	 * whose view or mount the file was reached. Locations outside a files
-	 * area (trash bins, appdata) are governed by nothing. A version is
-	 * governed by its file's rule, so that a rule that stops maintaining a
-	 * file stops maintaining its versions; one whose file is gone, by
-	 * nothing.
+	 * area (appdata, the trash's own folders) are governed by nothing. A
+	 * version is governed by its file's rule, so that a rule that stops
+	 * maintaining a file stops maintaining its versions; one whose file is
+	 * gone, by nothing. A trashed file is governed by the rule of the place
+	 * it had before the deletion, which the trash records; one whose record
+	 * is gone, by nothing.
 	 *
 	 * @param  list<string>  $ignoreRuleIds  Rule IDs to evaluate as though they
 	 *                                       did not exist, so the next matching
@@ -959,6 +961,13 @@ class RuleService
 		{
 			$location = $location->version->file
 				?? $this->filecacheService->filesOfVersions( [ $location ] )[ $location->fileId ]
+				?? null;
+		}
+
+		if ( $location !== null && $location->trash !== null )
+		{
+			$location = $location->trash->origin
+				?? $this->filecacheService->originsOfTrash( [ $location ] )[ $location->fileId ]
 				?? null;
 		}
 
@@ -1283,7 +1292,8 @@ class RuleService
 	 * against the memoised rule list. Every requested id has an entry —
 	 * null when no filecache row exists, no rule matches, or the row lies
 	 * outside a files area. The versions among them take their files' rules,
-	 * located in one more query.
+	 * located in one more query, and the trashed files the rules of their
+	 * places before the deletion, read in one more per trash.
 	 *
 	 * @param  list<int>     $fileIds
 	 * @param  list<string>  $ignoreRuleIds  See {@see governingRuleForLocation()}.
@@ -1301,7 +1311,7 @@ class RuleService
 		$files     = $versions === []
 			? []
 			: $this->filecacheService->filesOfVersions( $versions );
-		$rules     = [];
+		$judged    = [];
 
 		foreach ( $fileIds as $fileId )
 		{
@@ -1311,6 +1321,36 @@ class RuleService
 			if ( $location?->version !== null )
 			{
 				$location = $files[ $fileId ] ?? null;
+			}
+
+			$judged[ $fileId ] = $location;
+		}
+
+		// A trashed file is judged at its place before the deletion, read
+		// for the whole batch at once.
+		$trashed = [];
+
+		foreach ( $judged as $location )
+		{
+			if ( $location !== null && $location->trash !== null )
+			{
+				$trashed[] = $location;
+			}
+		}
+
+		$origins = $trashed === []
+			? []
+			: $this->filecacheService->originsOfTrash( $trashed );
+		$rules   = [];
+
+		foreach ( $judged as $fileId => $location )
+		{
+			if ( $location?->trash !== null )
+			{
+				$origin   = $origins[ $location->fileId ] ?? null;
+				$location = $origin === null
+					? null
+					: $location->withTrashOrigin( $origin );
 			}
 
 			$rules[ $fileId ] = $location === null
