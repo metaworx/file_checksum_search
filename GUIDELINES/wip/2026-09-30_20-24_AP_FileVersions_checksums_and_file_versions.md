@@ -1,21 +1,23 @@
-# AP FileVersions v1.1: checksums and file versions
+# AP FileVersions v1.2: checksums and file versions
 
 ## TL;DR
 
 A file's older versions get checksums, and appear in search, listings,
 duplicates and the sidebar, each marked as an earlier version of its file.
-Most cost no read: the checksums a file holds when it is overwritten pass to
-the version Nextcloud keeps of it.
+Most cost no read: checksums pass between a file and its versions wherever
+Nextcloud copies content between them. v1.2 closes the gaps the user's test found: copy,
+restore, a file no rule maintains, and `fcias:hash`.
 
 - version → its own filecache row, governed by its file's rule
-- overwrite → the file's current checksums handed to the new version; no read
-- older versions → hashed where a rule says `versions`; off by default
-- results → path `versions://` + the file's path,
-  `version: {fileid, timestamp}`; reach = the file's
-- duplicates → versions in groups, marked;
-  one file and its own versions → no group
-- sidebar → the file's versions with their checksums; an outdated checksum →
-  the version holding it
+- overwrite → the file's current checksums to the new version; no read;
+  any file not excluded (D6-A), not only a maintained one
+- copy → each version's checksums to the copy's version
+- restore → the version's checksums to the file; the replaced content's to the
+  version made of it
+- proof → a version's row carries the file's ETag: checksums pass only where
+  their stamp vouches for the receiving row
+- older versions → hashed where a rule says `versions`; `fcias:hash` too (D7-A)
+- results → `versions://` + the file's path, `version`; reach = the file's
 
 Measured on a real instance: versions ≈ a fifth of the files by count,
 a ninth by size; ≈ 10,000 new a month;
@@ -24,11 +26,22 @@ three in four files hold current checksums.
 ### Blocks
 
 1. Version identity: version rows recognised, governed by their file's rule.
+   *Done.*
 2. Capture: an overwritten file's checksums handed to its new version.
+   *Done.*
 3. Older versions: the rule option `versions`, swept and hashed.
+   *Done.*
 4. Results: lookup, unified search, listings and duplicates show versions.
+   *Done.*
 5. Sidebar and verification: the file's versions in the Checksums tab.
+   *Done.*
 6. Documentation: API reference, OpenAPI, README.
+   *Done.*
+7. Capture for every file no rule excludes.
+8. Copy: the versions' checksums to the copy's versions.
+9. Restore: checksums both ways between the file and its versions.
+10. `fcias:hash` hashes versions.
+11. Documentation of 7 to 10.
 
 ## Discussion
 
@@ -64,6 +77,23 @@ three in four files hold current checksums.
 - **Out of scope:**
   merging a removed duplicate's versions into the kept file (AP DuplicateActions);
   version labels and authors; the Versions tab, which offers no place to extend.
+- **The user's test, 2026-10-20, after v1.1's six blocks** (instance 33):
+  a hashed file edited, its edit hashed, copied, a version of the copy restored;
+  no version held a checksum, no duplicate showed,
+  and the rule dialog had no Versions switch.
+  - The switch: the frontend bundle had not been rebuilt (the run tested `src/`,
+    never built `js/`); rebuilt.
+  - No hand-over: the edits came before any rule maintained the file, and
+    v1.1 handed checksums on only under such a rule.
+  - `fcias:hash` hashes files, never versions.
+  - Copy and restore: two gaps, below.
+- **Decided, 2026-10-20 (v1.2):**
+  - **D6-A:**
+    the hand-over at overwrite runs for every file no rule excludes:
+    the checksums are right for the content, and cost nothing.
+  - **D7-A:**
+    `fcias:hash` hashes the versions of the accounts' files where their
+    rule says `versions`; `--versions` asks for them regardless.
 
 ## Analysis
 
@@ -120,6 +150,23 @@ The interfaces are the same in all three.
   `IVersionManager` is files_versions' own interface, not OCP's, so it is
   used only where the app is enabled.
 - **No checksum** is kept for a version anywhere in Nextcloud.
+- **A version's row carries its source's ETag:**
+  `Cache::copyFromCache()` copies `etag` with the rest of the row,
+  for the version made at a write, for one made at a restore,
+  and for each version copied with its file.
+  So checksums stamped against an ETag describe the content of any row that
+  carries that ETag:
+  the test every writer uses (`MetadataService::isCurrent()`),
+  asked of the receiving row, proves a hand-over.
+- **Copy:**
+  files_versions' `NodeCopiedEvent` listener copies the versions,
+  `.v<mtime>` beside the copy; a listener of lower priority runs after it.
+- **Restore:**
+  `Storage::rollback()` copies the file's content to a version first,
+  then the version's content into the file, and touches it:
+  no write event fires;
+  `OCA\Files_Versions\Events\VersionRestoredEvent` (Nextcloud 33 to 35) does,
+  after it, with the version restored.
 
 ### The app today
 
@@ -180,6 +227,34 @@ The interfaces are the same in all three.
    the Checksums tab lists them.
    Where a recalculation finds the stored checksum outdated,
    the result names the version holding it, and the duplicates page says so.
+   (Not built: NOTE v1.1, how the run went.)
+7. **Capture for every file no rule excludes (D6-A).**
+   `onBeforeWrite` asks the rule's verdict, not whether it maintains:
+   nothing for `exclude`, the hand-over otherwise.
+   The write then erodes the file's own hashes where nothing maintains them,
+   as before; the version keeps what was right for it.
+8. **Copy.**
+   On `NodeCopiedEvent`, after files_versions' listener,
+   each of the source's versions hands its checksums to the copy's version of
+   the same timestamp, where the copy's rule does not exclude it,
+   by the ETag proof.
+9. **Restore.**
+   On `VersionRestoredEvent`, in this order:
+   the file's checksums, stamped against the ETag it had, pass to the version
+   carrying that ETag, which the restore made of the replaced content;
+   then the restored version's pass to the file, stamped against its new ETag.
+   Where the restored version holds none, the file is treated as written
+   (`RuleService::contentChanged()`): queued or eroded at once, not at the
+   daily ETag walk.
+   The listener names the event's class as a string, so the app loads
+   without the versions app.
+10. **`fcias:hash` (D7-A).**
+    After the files, for each account in scope:
+    the versions in its home without checksums whose rule says `versions`,
+    or all under `--versions` that its rule does not exclude,
+    hashed by the same recalculation the sidebar uses.
+    With `--mark`, those whose rule says `versions` are queued;
+    `--versions` with `--mark` is refused, as the queue honours the rule.
 
 ## Implementation Plan
 
@@ -267,6 +342,70 @@ as Block 3.
 **Verification:**
 `tools/check`, `reflow.sh --check`.
 
+### Block 7: capture for every file no rule excludes
+
+1. `FileListener::onBeforeWrite()`:
+   the hand-over unless the file's rule excludes it.
+2. `VersionCapture`:
+   a hand-over helper by the ETag proof (`MetadataService::isCurrent()` against
+   the receiving row), used by Blocks 8 and 9.
+3. Tests: unit for the verdicts; integration for a file no rule governs and
+   one an exclude rule governs.
+
+**Verification:**
+unit and integration suites on 33 and 34; ECS, Psalm, `tools/check`;
+a mutation check.
+
+### Block 8: copy
+
+1. `FileListener`:
+   `NodeCopiedEvent` at a lower priority than files_versions' listener;
+   the versions' hand-over beside the existing copy of the file's checksum.
+2. `VersionCapture::copied()`:
+   the source's versions matched to the copy's by timestamp.
+3. Tests: integration through files_versions, a home and a team folder.
+
+**Verification:**
+as Block 7.
+
+### Block 9: restore
+
+1. `FileListener`:
+   `VersionRestoredEvent`, by class name.
+2. `VersionCapture::restored()`:
+   the replaced content's checksums to its version,
+   then the restored version's to the file; else the file treated as written.
+3. `psalm.xml`:
+   the event's class named.
+4. Tests: integration through `IVersionManager::rollback()`,
+   a home and a team folder.
+
+**Verification:**
+as Block 7.
+
+### Block 10: `fcias:hash` and versions
+
+1. `HashFiles`:
+   `--versions`; after the files, the accounts' home versions as Design 10 says;
+   with `--mark`, queued.
+2. `HashIndexService`:
+   the pass over an account's versions.
+3. Tests: unit for the options;
+   integration for a version hashed and one left alone.
+
+**Verification:**
+as Block 7.
+
+### Block 11: documentation
+
+1. `README.md` and `docs/user-guide.md`: copy, restore,
+   a file no rule maintains, `fcias:hash --versions`.
+2. `docs/api-v1.md`:
+   the checksums' hand-over on copy and restore.
+
+**Verification:**
+`tools/check`, `reflow.sh --check`.
+
 ## Proposed commit messages
 
 - `[TASK] A file's versions are governed by its rule`
@@ -281,9 +420,22 @@ as Block 3.
   (Block 5)
 - `[TASK] The API reference and README describe file versions`
   (Block 6)
+- `[TASK] A version gets its file's checksums wherever no rule excludes it`
+  (Block 7)
+- `[TASK] A copied file's versions keep their checksums`
+  (Block 8)
+- `[TASK] Restoring a version restores its checksums`
+  (Block 9)
+- `[TASK] fcias:hash hashes versions`
+  (Block 10)
+- `[TASK] The documents describe the checksums' hand-over on copy and restore`
+  (Block 11)
 
 ## Change History
 
 - v1.0 (2026-09-30): first version.
 - v1.1 (2026-10-20): measured; D1-C, D2-A, D3-B, D4-A, D5-A decided;
   the design and six blocks; renamed to the one-file form.
+- v1.2 (2026-10-20): the user's test; D6-A and D7-A decided; the ETag proof;
+  Blocks 7 to 11: capture for every file not excluded, copy, restore,
+  `fcias:hash`, documentation; Blocks 1 to 6 marked done.
