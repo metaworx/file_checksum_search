@@ -16,9 +16,9 @@ the first stable release.
 - `docs/api-v1.md`, *The trash*: a file in the trash, and a version of
   one, is listed, looked up and grouped as a duplicate where it was,
   under `trash://`, marked with `trash`.
-- `README.md`, *The trash*: a rule's *Trash* switch, and
-  `occ fcias:hash --trash`, hash the files in the trash that hold no
-  checksum.
+
+- `README.md`, *The trash*: `occ fcias:hash --trash`, and a rule's
+  *Trash* switch, hash the files in the trash that hold no checksum.
 
 ### Changed
 

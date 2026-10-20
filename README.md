@@ -99,6 +99,8 @@ database?](docs/FAQ.md#what-am-i-looking-at-in-the-database).
   copy and restore,
   and search, duplicates and the sidebar show a version as its file's
   (see [File versions](#file-versions))
+- **The trash** — a deleted file keeps its checksums, is found where it was,
+  and comes back with them (see [The trash](#the-trash))
 - **Public API v1** — HTTP REST and PHP surfaces with an OpenAPI spec
 - **21 CLI commands** for search, rule management, MIME types, administration,
   and maintenance
@@ -191,7 +193,7 @@ and logs a warning naming that rule when it does.
 | Command | Description |
 |---------|-------------|
 | `file-checksum-search:rules:list [-o json]` | List the rules in evaluation order, with ids, `band.position`, each rule's scope as `<selector>//<glob>`, and every other field |
-| `file-checksum-search:rules:add [options]` | Create a rule (`--scope`, or `--selector` and `--path`; `--type`, `-a/--algo`, `-m/--mode`, `--[no-]versions`, `--enforced`, `--enable/--disable`) |
+| `file-checksum-search:rules:add [options]` | Create a rule (`--scope`, or `--selector` and `--path`; `--type`, `-a/--algo`, `-m/--mode`, `--[no-]versions`, `--[no-]trash`, `--enforced`, `--enable/--disable`) |
 | `file-checksum-search:rules:modify <id> [options]` | Change a rule; omitted options keep their value; a bare `--enable`/`--disable` is a toggle |
 | `file-checksum-search:rules:delete <id> [-y]` | Delete a rule; a deleted shipped default is recreated (disabled) by the repair step |
 | `file-checksum-search:rules:apply <id> [-m <mode>]` | Queue every file the rule currently governs for background hashing — uncapped, unlike the periodic sweep; `-m` overrides the rule's mode for this run (logged) |
@@ -797,7 +799,8 @@ one the allowlist no longer has is left out,
 and a rule left with none hashes nothing.
 A rule may carry any of the four.
 Beside its mode, an include rule says whether it also reads the older versions
-of its files that hold no checksum ([File versions](#file-versions)).
+of its files that hold no checksum ([File versions](#file-versions)),
+and the files it governs in the trash that hold none ([The trash](#the-trash)).
 The `hash` command's `--mode` accepts only `missing` and `force`:
 `auto` is the background drain's own semantics,
 and `lazy` — "queue it for later" — is spelled `--mark` there.

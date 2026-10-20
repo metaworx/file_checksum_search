@@ -87,6 +87,13 @@ A file listed only beside its own versions is not a duplicate,
 just its history — saved unchanged, a file makes a version identical to itself —
 so such a group is not shown.
 
+A file in the trash keeps its checksums,
+and is listed by the path it had, with *Deleted* and the date beside it.
+Its link opens the trash, where you can restore it;
+it has no **Verify**, since nothing reads it there.
+A group with fewer than two files outside the trash is not shown:
+a file and its deleted copy are not a duplicate to clean up.
+
 Where your administrator has switched MIME type detection on,
 a group's header also shows the type of the content its files share,
 such as `application/pdf`.
@@ -203,6 +210,9 @@ files (e.g. a known-good ISO image) or finding every copy of a file.
 An earlier version of a file is offered as the file,
 *version of* and its date in brackets after the name:
 the content was once that file's.
+A file in the trash is offered as it was,
+*deleted* and its date in brackets after the name,
+and opens the trash.
 
 ## The file detail pane
 
@@ -249,7 +259,8 @@ It has three sections, and a fourth for a file with earlier versions:
 - **Duplicates** — a **Find duplicates** button that lists, in place,
   the other files sharing a checksum with this one — your own files,
   and the ones shared with you,
-  each a link to its folder as on the Duplicates page.
+  each a link to its folder as on the Duplicates page;
+  one in the trash is marked *Deleted* and opens the trash.
   For an empty file the list would be every other empty file,
   so it says so in one line instead, with **Show in Duplicates**,
   which opens that group on the Duplicates page in a new tab.
@@ -358,6 +369,15 @@ the table shows `+ versions` beside the rule's mode.
 Off, a version still gets the checksums its file had,
 on an overwrite, a copy or a restore,
 and nothing reads it unless your administrator has the versions hashed.
+
+It also has a **Trash** switch.
+A file you delete keeps its checksums in the trash,
+under the rule of the place you deleted it from,
+and has them back when you restore it.
+On, the rule also reads the files it governs in the trash that hold no checksum —
+deleted before checksums were kept — and hashes them;
+the table shows `+ trash` beside the rule's mode.
+Off, nothing reads a file in the trash unless your administrator has the trash hashed.
 
 ### What the Type column means
 
