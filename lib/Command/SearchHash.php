@@ -94,10 +94,12 @@ class SearchHash
 		{
 			$output->writeln(
 				sprintf(
-					'[%s] (ID: %d) -> %s%s',
+					'[%s] (ID: %d) -> %s%s%s',
 					$row['algo'],
 					(int) $row['fileid'],
 					trim( (string) $row['path'], '/' ),
+					// A version's path is its file's: its date says which it is.
+					isset( $row['version']['timestamp'] ) ? ' (version of ' . $row['version']['timestamp'] . ')' : '',
 					$withLocalPath ? ' => ' . ( $row['local_path'] ?? '(none)' ) : '',
 				),
 			);

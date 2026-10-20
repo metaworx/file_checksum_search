@@ -151,7 +151,7 @@ Run them as `php occ <command>`.
 
 | Command | Description |
 |---------|-------------|
-| `file-checksum-search:search <query> [--local-path]` | Search files by hash value or `algo:hash` pair; `--local-path` adds where each lives on the server's disk |
+| `file-checksum-search:search <query> [--local-path]` | Search files by hash value or `algo:hash` pair; a version is printed with its date ([File versions](#file-versions)); `--local-path` adds where each lives on the server's disk |
 | `file-checksum-search:hash [options]` | Compute checksums for user files, or mark them for background processing |
 | `file-checksum-search:find-duplicates [options]` | Find files with duplicate hash values; empty files only with `--include-empty` |
 | `file-checksum-search:test-perf` | Benchmark indexed lookup vs unindexed LIKE scan |
