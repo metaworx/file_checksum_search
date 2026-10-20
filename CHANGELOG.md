@@ -11,6 +11,8 @@ the first stable release.
 
 ## [Unreleased]
 
+## [0.29.1] - 2026-10-21
+
 ### Fixed
 
 - `README.md`, *The trash*: a version of a file in the trash is read
