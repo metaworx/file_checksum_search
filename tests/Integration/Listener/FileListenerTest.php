@@ -14,6 +14,7 @@ use OCA\FileChecksumSearch\Listener\FileListener;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
+use OCA\FileChecksumSearch\Service\VersionCapture;
 use OCA\FileChecksumSearch\Tests\Integration\DatabaseTestCase;
 use OCA\Files_Trashbin\Trash\ITrashManager;
 use OCP\App\IAppManager;
@@ -84,6 +85,7 @@ class FileListenerTest
 			$this->metadataService,
 			$this->ruleService,
 			Server::get( LoggerInterface::class ),
+			Server::get( VersionCapture::class ),
 		);
 
 		// Emptied for the tests below, and put back afterwards: the rules on

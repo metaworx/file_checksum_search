@@ -13,14 +13,17 @@ use OCA\FileChecksumSearch\AppInfo\Application;
 use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
+use OCA\FileChecksumSearch\Service\VersionCapture;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\EventDispatcher\Event;
 use OCP\EventDispatcher\IEventListener;
+use OCP\Files\Events\Node\BeforeNodeWrittenEvent;
 use OCP\Files\Events\Node\NodeCopiedEvent;
 use OCP\Files\Events\Node\NodeCreatedEvent;
 use OCP\Files\Events\Node\NodeDeletedEvent;
 use OCP\Files\Events\Node\NodeWrittenEvent;
 use OCP\Files\File;
+use OCP\Files\NotFoundException;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -45,6 +48,7 @@ class FileListener
 		private readonly MetadataService  $metadataService,
 		private readonly RuleService      $ruleService,
 		private readonly LoggerInterface  $logger,
+		private readonly VersionCapture   $versionCapture,
 	) {
 	}
 
@@ -53,6 +57,7 @@ class FileListener
 
 	public static function register( IRegistrationContext $context ): void
 	{
+		$context->registerEventListener( BeforeNodeWrittenEvent::class, self::class );
 		$context->registerEventListener( NodeCopiedEvent::class, self::class );
 		$context->registerEventListener( NodeWrittenEvent::class, self::class );
 		$context->registerEventListener( NodeCreatedEvent::class, self::class );
@@ -69,11 +74,12 @@ class FileListener
 		{
 			match ( true )
 			{
-				$event instanceof NodeCopiedEvent  => $this->onCopy( $event ),
-				$event instanceof NodeWrittenEvent => $this->onWrite( $event ),
-				$event instanceof NodeCreatedEvent => $this->onCreate( $event ),
-				$event instanceof NodeDeletedEvent => $this->onDelete( $event ),
-				default                            => null,
+				$event instanceof BeforeNodeWrittenEvent => $this->onBeforeWrite( $event ),
+				$event instanceof NodeCopiedEvent        => $this->onCopy( $event ),
+				$event instanceof NodeWrittenEvent       => $this->onWrite( $event ),
+				$event instanceof NodeCreatedEvent       => $this->onCreate( $event ),
+				$event instanceof NodeDeletedEvent       => $this->onDelete( $event ),
+				default                                  => null,
 			};
 		}
 		catch ( Throwable $e )
@@ -87,6 +93,39 @@ class FileListener
 				],
 			);
 		}
+	}
+
+	/**
+	 * The content about to be replaced becomes a version: its hashes, where
+	 * a rule maintains them and they are current, are kept for it
+	 * ({@see VersionCapture}). A file not written yet has no id, and no
+	 * content to replace.
+	 */
+	private function onBeforeWrite( BeforeNodeWrittenEvent $event ): void
+	{
+		$node = $event->getNode();
+
+		if ( ! $node instanceof File )
+		{
+			return;
+		}
+
+		try
+		{
+			$fileId = $node->getId();
+		}
+		catch ( NotFoundException )
+		{
+			return;
+		}
+
+		if ( $fileId <= 0
+			|| ! RuleService::maintainsHashes( $this->ruleService->findFirstMatchingRule( $fileId ) ) )
+		{
+			return;
+		}
+
+		$this->versionCapture->beforeWrite( $fileId );
 	}
 
 	private function onCopy( NodeCopiedEvent $event ): void
@@ -135,6 +174,10 @@ class FileListener
 		}
 
 		$fileId = $node->getId();
+
+		// The replaced content's hashes, kept before the write, go to the
+		// version Nextcloud has made of it by now.
+		$this->versionCapture->afterWrite( $fileId );
 
 		// By identity, not by the acting user's view: a share recipient's
 		// edit of the owner's file is governed by the rules that govern the

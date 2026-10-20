@@ -299,6 +299,33 @@ readonly class FileLocation
 	}
 
 	/**
+	 * Where Nextcloud keeps the version of this file it makes when the file,
+	 * modified at $mtime, is overwritten: an internal path in the same
+	 * storage, or null where no versions are kept beside it — an external
+	 * storage, a row outside a files area. The inverse of
+	 * {@see homeVersion()} and {@see teamFolderVersion()}.
+	 */
+	public function versionPathAt( int $mtime ): ?string
+	{
+		if ( $this->version !== null || $this->relativePath === null )
+		{
+			return null;
+		}
+
+		return match ( $this->namespace )
+		{
+			self::NS_HOME        => str_starts_with( $this->internalPath, 'files/' )
+				? 'files_versions/' . substr( $this->internalPath, strlen( 'files/' ) ) . '.v' . $mtime
+				: null,
+			self::NS_GROUPFOLDER => str_starts_with( $this->internalPath, '__groupfolders/' )
+				// The namespace is groupfolder only where an id was found.
+				? '__groupfolders/versions/' . (string) $this->groupFolderId . '/' . $this->fileId . '/' . $mtime
+				: 'versions/' . $this->fileId . '/' . $mtime,
+			default              => null,
+		};
+	}
+
+	/**
 	 * The same location with its freshness stamp filled in — the sweep sets
 	 * it from the page query so the caller need not ask per file.
 	 */

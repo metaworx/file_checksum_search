@@ -14,12 +14,15 @@ use OCA\FileChecksumSearch\Service\FilecacheService;
 use OCA\FileChecksumSearch\Service\FileLocation;
 use OCA\FileChecksumSearch\Service\MetadataService;
 use OCA\FileChecksumSearch\Service\RuleService;
+use OCA\FileChecksumSearch\Service\VersionCapture;
+use OCP\Files\Events\Node\BeforeNodeWrittenEvent;
 use OCP\Files\Events\Node\NodeCopiedEvent;
 use OCP\Files\Events\Node\NodeCreatedEvent;
 use OCP\Files\Events\Node\NodeDeletedEvent;
 use OCP\Files\Events\Node\NodeWrittenEvent;
 use OCP\Files\File;
 use OCP\Files\Folder;
+use OCP\Files\NotFoundException;
 use OCP\FilesMetadata\Model\IFilesMetadata;
 use OCP\IUser;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -43,6 +46,8 @@ class FileListenerTest
 	/** @noinspection PhpPrivateFieldCanBeLocalVariableInspection */
 	private MockObject|LoggerInterface $logger;
 
+	private MockObject|VersionCapture  $versionCapture;
+
 	private FileListener               $listener;
 
 
@@ -56,17 +61,76 @@ class FileListenerTest
 		$this->metadataService  = $this->createMock( MetadataService::class );
 		$this->ruleService      = $this->createMock( RuleService::class );
 		$this->logger           = $this->createMock( LoggerInterface::class );
+		$this->versionCapture   = $this->createMock( VersionCapture::class );
 
 		$this->listener = new FileListener(
 			$this->filecacheService,
 			$this->metadataService,
 			$this->ruleService,
 			$this->logger,
+			$this->versionCapture,
 		);
 	}
 
 
 //  other non-static methods
+
+	/**
+	 * The content a write is about to replace keeps its hashes for the
+	 * version, where a rule maintains them; the write hands them on.
+	 */
+	public function testAWriteOfAMaintainedFileHandsItsHashesToTheVersion(): void
+	{
+		$node = $this->createMock( File::class );
+		$node->method( 'getId' )->willReturn( 7 );
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn( [
+			                  'id'   => 'docs',
+			                  'type' => 'include',
+			                  'mode' => 'auto',
+		                  ] )
+		;
+
+		$this->versionCapture->expects( $this->once() )->method( 'beforeWrite' )->with( 7 );
+		$this->versionCapture->expects( $this->once() )->method( 'afterWrite' )->with( 7 );
+
+		$this->listener->handle( new BeforeNodeWrittenEvent( $node ) );
+		$this->listener->handle( new NodeWrittenEvent( $node ) );
+	}
+
+	public function testAFileNoRuleMaintainsKeepsNothingForItsVersion(): void
+	{
+		$node = $this->createMock( File::class );
+		$node->method( 'getId' )->willReturn( 7 );
+
+		$this->ruleService->method( 'findFirstMatchingRule' )
+		                  ->willReturn( [
+			                  'id'   => 'archive',
+			                  'type' => 'exclude',
+		                  ] )
+		;
+
+		$this->versionCapture->expects( $this->never() )->method( 'beforeWrite' );
+
+		$this->listener->handle( new BeforeNodeWrittenEvent( $node ) );
+	}
+
+	/**
+	 * A file about to be created has no id and nothing to replace: no rule
+	 * is asked, and nothing is logged as an error.
+	 */
+	public function testAFileNotWrittenYetIsLeftAlone(): void
+	{
+		$node = $this->createMock( File::class );
+		$node->method( 'getId' )->willThrowException( new NotFoundException() );
+
+		$this->ruleService->expects( $this->never() )->method( 'findFirstMatchingRule' );
+		$this->versionCapture->expects( $this->never() )->method( 'beforeWrite' );
+		$this->logger->expects( $this->never() )->method( 'error' );
+
+		$this->listener->handle( new BeforeNodeWrittenEvent( $node ) );
+	}
 
 	public function testOnWriteDropsStaleHashesForAFileTheRulesNoLongerMaintain(): void
 	{

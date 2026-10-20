@@ -247,6 +247,52 @@ class FileLocationTest
 		}
 	}
 
+	/**
+	 * Where Nextcloud keeps the version it makes of a file: the inverse of
+	 * reading one.
+	 */
+	public function testTheVersionPathIsWhereNextcloudKeepsTheVersion(): void
+	{
+		$this->assertSame(
+			'files_versions/Docs/a.txt.v1700000000',
+			FileLocation::fromRow( 1, 'home::alice', 'files/Docs/a.txt', 1 )->versionPathAt( 1700000000 ),
+		);
+		$this->assertSame(
+			'versions/42/1700000000',
+			FileLocation::fromRow( 42, 'local::/var/www/data/__groupfolders/5/', 'files/plan.md', 1 )->versionPathAt( 1700000000 ),
+		);
+		$this->assertSame(
+			'__groupfolders/versions/7/42/1700000000',
+			FileLocation::fromRow( 42, 'local::/var/www/data/', '__groupfolders/7/files/plan.md', 1 )->versionPathAt( 1700000000 ),
+		);
+
+		$path = (string) FileLocation::fromRow( 1, 'home::alice', 'files/a.v2.txt', 1 )->versionPathAt( 1700000000 );
+
+		$this->assertSame(
+			'files/a.v2.txt',
+			FileLocation::fromRow( 2, 'home::alice', $path, 1 )->version?->fileInternalPath,
+			'reading the path back names the file',
+		);
+	}
+
+	public function testRowsWithoutVersionsBesideThemHaveNoVersionPath(): void
+	{
+		foreach (
+			[
+				[ 'smb::u@host//share//', '2024/x.pdf' ],
+				[ 'home::alice', 'files_versions/Docs/a.txt.v1700000000' ],
+				[ 'home::alice', 'files_trashbin/files/x.txt.d1' ],
+				[ 'home::alice', 'files' ],
+			] as [ $storageId, $internalPath ]
+		)
+		{
+			$this->assertNull(
+				FileLocation::fromRow( 1, $storageId, $internalPath, 1 )->versionPathAt( 1700000000 ),
+				$storageId . ' ' . $internalPath,
+			);
+		}
+	}
+
 	public function testTheFreshnessStampKeepsTheVersion(): void
 	{
 		$location = FileLocation::fromRow( 8, 'home::alice', 'files_versions/a.txt.v1700000000', 1 )

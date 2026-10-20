@@ -13,8 +13,8 @@ the first stable release.
 
 ### Added
 
-- `README.md`, *File versions*: a file's versions are governed by its
-  rule.
+- `README.md`, *File versions*: an overwritten file's checksums pass to
+  its version, which its rule governs.
 
 ## [0.26.1] - 2026-10-19
 

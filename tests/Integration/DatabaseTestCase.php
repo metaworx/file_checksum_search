@@ -22,6 +22,7 @@ use OCP\IAppConfig;
 use OCP\IConfig;
 use OCP\IDBConnection;
 use OCP\IUserManager;
+use OCP\IUserSession;
 use OCP\Security\ISecureRandom;
 use OCP\Server;
 use PHPUnit\Framework\TestCase;
@@ -349,6 +350,35 @@ abstract class DatabaseTestCase
 		{
 			// No trash, or one that cannot be read: nothing to empty.
 		}
+	}
+
+	/**
+	 * Act as $uid, as a request of theirs does, or as nobody: the process's
+	 * filesystem set up afresh for that account, as Nextcloud's own tests
+	 * log in.
+	 *
+	 * What an app reads through the default filesystem view sees the
+	 * account the process set up first, whoever's file is written: the
+	 * versions app finds the file it is to version there, and in a suite
+	 * that first set up another account, it made no version at all.
+	 */
+	protected static function actAs( ?string $uid ): void
+	{
+		\OC_Util::tearDownFS();
+		\OC\Files\Filesystem::tearDown();
+
+		// Nobody is no account in session at all: one left there outlives
+		// the test, and an app asking for its folder once it is deleted
+		// fails every test after.
+		if ( $uid === null )
+		{
+			Server::get( IUserSession::class )->setUser( null );
+
+			return;
+		}
+
+		\OC_User::setUserId( $uid );
+		\OC_Util::setupFS( $uid );
 	}
 
 	/**
