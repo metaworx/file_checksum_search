@@ -77,11 +77,18 @@ msgstr "Comptes"
 msgid "Acknowledge"
 msgstr "Prendre acte"
 
+msgid "Actions for {name}"
+msgstr "Actions pour {name}"
+
 msgid "Add an algorithm …"
 msgstr "Ajouter un algorithme…"
 
 msgid "Add rule"
 msgstr "Ajouter une règle"
+
+#. TRANSLATORS: after a version of a trashed file went into the file now at that place; {path} is that file
+msgid "Added as a version of {path}."
+msgstr "Ajouté comme version de {path}."
 
 msgid "Administrator-enforced rules covering every home folder."
 msgstr "Règles imposées par un administrateur et couvrant chaque dossier personnel."
@@ -263,6 +270,12 @@ msgstr "Impossible de modifier l'habilitation."
 msgid "Could not complete the request."
 msgstr "La requête n'a pas pu aboutir."
 
+msgid "Could not delete %n item."
+msgid_plural "Could not delete %n items."
+msgstr[0] "Impossible de supprimer %n élément."
+msgstr[1] "Impossible de supprimer %n d'éléments."
+msgstr[2] "Impossible de supprimer %n éléments."
+
 msgid "Could not delete the MIME types."
 msgstr "Impossible de supprimer les types MIME."
 
@@ -384,11 +397,20 @@ msgstr "Supprimer les types MIME"
 msgid "Delete every stored MIME type? The checksums stay. Detection can be switched on again once the deletion is done."
 msgstr "Supprimer tous les types MIME enregistrés ? Les sommes de contrôle sont conservées. La détection pourra être réactivée une fois la suppression terminée."
 
+msgid "Delete permanently"
+msgstr "Supprimer définitivement"
+
 msgid "Delete rule"
 msgstr "Supprimer la règle"
 
 msgid "Delete this rule?"
 msgstr "Supprimer cette règle ?"
+
+msgid "Deleted %n item permanently."
+msgid_plural "Deleted %n items permanently."
+msgstr[0] "%n élément supprimé définitivement."
+msgstr[1] "%n d'éléments supprimés définitivement."
+msgstr[2] "%n éléments supprimés définitivement."
 
 #. TRANSLATORS: beside a file in a list, marking it as in the trash; {date} is when it was deleted
 msgid "Deleted {date}"
@@ -638,6 +660,12 @@ msgstr "Ne fait pas partie de vos fichiers."
 msgid "It is shared with you. Leave the share in Files instead."
 msgstr "Il est partagé avec vous. Quittez plutôt le partage dans Fichiers."
 
+msgid "It takes %n earlier version with it."
+msgid_plural "It takes %n earlier versions with it."
+msgstr[0] "%n version antérieure part avec lui."
+msgstr[1] "%n de versions antérieures partent avec lui."
+msgstr[2] "%n versions antérieures partent avec lui."
+
 msgid "Its content changed after the list was loaded."
 msgstr "Son contenu a changé depuis le chargement de la liste."
 
@@ -729,6 +757,19 @@ msgstr "Mode"
 
 msgid "More actions for the rule on {path}"
 msgstr "Plus d'actions pour la règle portant sur {path}"
+
+msgid "Move to trash"
+msgstr "Mettre à la corbeille"
+
+msgid "Moved %n file to the trash."
+msgid_plural "Moved %n files to the trash."
+msgstr[0] "%n fichier mis à la corbeille."
+msgstr[1] "%n de fichiers mis à la corbeille."
+msgstr[2] "%n fichiers mis à la corbeille."
+
+#. TRANSLATORS: the title of a version a person named, shown beside its name
+msgid "Named version"
+msgstr "Version nommée"
 
 msgid "Network error"
 msgstr "Erreur réseau"
@@ -957,6 +998,16 @@ msgstr "Actualiser les types MIME"
 msgid "Renew after (minutes)"
 msgstr "Renouveler après (minutes)"
 
+msgid "Restore"
+msgstr "Restaurer"
+
+#. TRANSLATORS: a menu entry on a version of a file in the trash: add it to the versions of the file now at the place the trashed file had
+msgid "Restore into the file at its place"
+msgstr "Restaurer dans le fichier à son emplacement"
+
+msgid "Restored to {path}."
+msgstr "Restauré à l'emplacement {path}."
+
 msgid "Revoke"
 msgstr "Révoquer"
 
@@ -1004,6 +1055,14 @@ msgstr "Règles pour le dossier personnel d'un compte – les règles personnell
 
 msgid "Save"
 msgstr "Enregistrer"
+
+#. TRANSLATORS: a menu entry on a version of a file: make a new file holding what the version holds
+msgid "Save as a new file"
+msgstr "Enregistrer comme nouveau fichier"
+
+#. TRANSLATORS: after a version was saved as a new file; {path} is the new file
+msgid "Saved as {path}."
+msgstr "Enregistré sous {path}."
 
 msgid "Saved."
 msgstr "Enregistré."
@@ -1217,6 +1276,9 @@ msgstr "Ce mot de passe d'application n'a pas accès au gestionnaire de fichiers
 
 msgid "This app password has no filesystem access."
 msgstr "Ce mot de passe d'application n'a pas accès au gestionnaire de fichiers."
+
+msgid "This cannot be undone."
+msgstr "Cette action est irréversible."
 
 msgid "This is not a file."
 msgstr "Ce n'est pas un fichier."

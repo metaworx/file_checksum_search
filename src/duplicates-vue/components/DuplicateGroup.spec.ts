@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import DuplicateGroup from './DuplicateGroup.vue'
 import type { DuplicateGroup as GroupType } from '../composables/useDuplicates'
+import { clickAction, hasAction } from '../../test-utils/ncActions'
 
 function group(extra: Partial<GroupType> = {}): GroupType {
 	return {
@@ -131,5 +132,46 @@ describe('DuplicateGroup, choosing between copies', () => {
 
 	it('shows none for a group of versions only', () => {
 		expect(mounted({ files: [files[1]] }).find('[data-testid="fcias-group-preview"]').exists()).toBe(false)
+	})
+})
+
+describe('DuplicateGroup, a row\'s menu', () => {
+	const files: GroupType['files'] = [
+		{ fileid: 1, path: '/a.pdf', name: 'a.pdf', actions: ['trash', 'delete', 'mergeInto'] },
+		{ fileid: 3, path: 'trash:///b.pdf', name: 'b.pdf', trash: { deletedAt: '2023-11-14T22:13:20+00:00' }, actions: ['delete', 'restore'] },
+		{ fileid: 4, path: '/c.pdf', name: 'c.pdf', actions: [] },
+	]
+
+	function acting(canAct: boolean) {
+		return mount(DuplicateGroup, {
+			props: { group: group({ files }), fileUrl: () => '#', canAct },
+			attachTo: document.body,
+		})
+	}
+
+	// What the server said the row allows, and nothing that would only be
+	// refused; taking another's versions is no entry of its own.
+	it('offers what each row allows, in its own menu', async () => {
+		const items = acting(true).findAll('.db-file-item')
+
+		expect(await hasAction(items[0], 'trash')).toBe(true)
+		expect(await hasAction(items[0], 'delete')).toBe(true)
+		expect(await hasAction(items[0], 'mergeInto')).toBe(false)
+		expect(await hasAction(items[0], 'restore')).toBe(false)
+		expect(await hasAction(items[1], 'restore')).toBe(true)
+		expect(await hasAction(items[1], 'trash')).toBe(false)
+		expect(items[2].find('.db-file-actions').exists()).toBe(false)
+	})
+
+	it('offers nothing on a listing the page does not act on', () => {
+		expect(acting(false).find('.db-file-actions').exists()).toBe(false)
+	})
+
+	it('says which row and which action was chosen', async () => {
+		const wrapper = acting(true)
+
+		await clickAction(wrapper.findAll('.db-file-item')[1], 'restore')
+
+		expect(wrapper.emitted('act')?.[0]?.slice(1)).toEqual([files[1], 'restore'])
 	})
 })

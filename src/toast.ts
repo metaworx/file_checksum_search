@@ -12,7 +12,7 @@
  * container styles and this app's placement without having to know it needs
  * them. One module, so specs mock one module.
  */
-import { showError, showSuccess } from '@nextcloud/dialogs'
+import { showError, showSuccess, showUndo } from '@nextcloud/dialogs'
 import '@nextcloud/dialogs/style.css'
 import './toast.css'
 import { t } from './l10n'
@@ -33,4 +33,13 @@ export function toastSuccess(text: string): void {
 /** Errors keep the library's timing: they stay while hovered, as Nextcloud's own do. */
 export function toastError(text: string): void {
 	showError(text)
+}
+
+/**
+ * Something went well that can be taken back: the library's own Undo
+ * button, which calls onUndo, staying twice as long as a success does,
+ * since it has to be read before it can be used.
+ */
+export function toastUndo(text: string, onUndo: () => void): void {
+	showUndo(text, () => onUndo(), { timeout: SUCCESS_TIMEOUT * 2 })
 }

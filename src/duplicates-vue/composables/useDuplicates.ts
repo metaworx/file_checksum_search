@@ -11,6 +11,7 @@ import { OCS_API_V1 } from '../../routes'
 import { fetchFeatures, mimeTypeSwitchedOff } from '../../features'
 import { rowLink } from '../../fileLink'
 import { t } from '../../l10n'
+import type { RowAction } from '../duplicateActions'
 
 declare const OC: {
 	requestToken: string
@@ -34,6 +35,8 @@ export interface DuplicateFileItem {
 	mtime?: number
 	/** The row's size in bytes. */
 	size?: number
+	/** What the viewer may do to the row; on their own listing only, which asks for it. */
+	actions?: RowAction[]
 	verified?: boolean
 	verified_hash?: string
 	verify_error?: string
@@ -158,6 +161,12 @@ export function useDuplicates() {
 			// silently showing one's own files as if nothing happened.
 			const scoped = state.scope !== null
 			const route = scoped ? OCS_API_V1.sudoFindAllDuplicates : OCS_API_V1.findAllDuplicates
+
+			// What may be done to each row: on one's own listing, the only
+			// one the page acts on.
+			if (!scoped) {
+				params.set('actions', '1')
+			}
 
 			if (scoped && !state.scope!.all) {
 				for (const uid of state.scope!.users) {

@@ -77,10 +77,17 @@ msgstr ""
 msgid "Acknowledge"
 msgstr ""
 
+msgid "Actions for {name}"
+msgstr ""
+
 msgid "Add an algorithm …"
 msgstr ""
 
 msgid "Add rule"
+msgstr ""
+
+#. TRANSLATORS: after a version of a trashed file went into the file now at that place; {path} is that file
+msgid "Added as a version of {path}."
 msgstr ""
 
 msgid "Administrator-enforced rules covering every home folder."
@@ -262,6 +269,11 @@ msgstr ""
 msgid "Could not complete the request."
 msgstr ""
 
+msgid "Could not delete %n item."
+msgid_plural "Could not delete %n items."
+msgstr[0] ""
+msgstr[1] ""
+
 msgid "Could not delete the MIME types."
 msgstr ""
 
@@ -383,11 +395,19 @@ msgstr ""
 msgid "Delete every stored MIME type? The checksums stay. Detection can be switched on again once the deletion is done."
 msgstr ""
 
+msgid "Delete permanently"
+msgstr ""
+
 msgid "Delete rule"
 msgstr ""
 
 msgid "Delete this rule?"
 msgstr ""
+
+msgid "Deleted %n item permanently."
+msgid_plural "Deleted %n items permanently."
+msgstr[0] ""
+msgstr[1] ""
 
 #. TRANSLATORS: beside a file in a list, marking it as in the trash; {date} is when it was deleted
 msgid "Deleted {date}"
@@ -637,6 +657,11 @@ msgstr ""
 msgid "It is shared with you. Leave the share in Files instead."
 msgstr ""
 
+msgid "It takes %n earlier version with it."
+msgid_plural "It takes %n earlier versions with it."
+msgstr[0] ""
+msgstr[1] ""
+
 msgid "Its content changed after the list was loaded."
 msgstr ""
 
@@ -727,6 +752,18 @@ msgid "Mode"
 msgstr ""
 
 msgid "More actions for the rule on {path}"
+msgstr ""
+
+msgid "Move to trash"
+msgstr ""
+
+msgid "Moved %n file to the trash."
+msgid_plural "Moved %n files to the trash."
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRANSLATORS: the title of a version a person named, shown beside its name
+msgid "Named version"
 msgstr ""
 
 msgid "Network error"
@@ -954,6 +991,16 @@ msgstr ""
 msgid "Renew after (minutes)"
 msgstr ""
 
+msgid "Restore"
+msgstr ""
+
+#. TRANSLATORS: a menu entry on a version of a file in the trash: add it to the versions of the file now at the place the trashed file had
+msgid "Restore into the file at its place"
+msgstr ""
+
+msgid "Restored to {path}."
+msgstr ""
+
 msgid "Revoke"
 msgstr ""
 
@@ -1000,6 +1047,14 @@ msgid "Rules for one account's home folder — personal rules — or for one sto
 msgstr ""
 
 msgid "Save"
+msgstr ""
+
+#. TRANSLATORS: a menu entry on a version of a file: make a new file holding what the version holds
+msgid "Save as a new file"
+msgstr ""
+
+#. TRANSLATORS: after a version was saved as a new file; {path} is the new file
+msgid "Saved as {path}."
 msgstr ""
 
 msgid "Saved."
@@ -1213,6 +1268,9 @@ msgid "This app password has no filesystem access, so it cannot be granted."
 msgstr ""
 
 msgid "This app password has no filesystem access."
+msgstr ""
+
+msgid "This cannot be undone."
 msgstr ""
 
 msgid "This is not a file."

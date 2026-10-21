@@ -8,11 +8,16 @@
 
 import { ref, computed, watch } from 'vue'
 import { formatFileSize } from '@nextcloud/files'
+import NcActionButton from '@nextcloud/vue/components/NcActionButton'
+import NcActions from '@nextcloud/vue/components/NcActions'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import LocationIcon from '../../components/LocationIcon.vue'
+import MdiIcon from '../../components/MdiIcon.vue'
+import { ICON_BIN, ICON_BIN_FOREVER, ICON_FILE_PLUS, ICON_HISTORY, ICON_RESTORE } from '../../components/icons'
 import { fileLabel, labelKind, trashLabel, versionLabel } from '../../fileLabel'
 import { groupPreviewUrl } from '../../fileLink'
 import type { DuplicateGroup as GroupType } from '../composables/useDuplicates'
+import type { RowAction } from '../duplicateActions'
 import { formatDateTime, n, t } from '../../l10n'
 
 // canVerify defaults to true: Vue reads an absent boolean prop as false.
@@ -23,12 +28,44 @@ const props = withDefaults(defineProps<{
 	verifying?: boolean
 	/** False for an account that may not recalculate by hand: both buttons are hidden. */
 	canVerify?: boolean
-}>(), { verifying: false, canVerify: true })
+	/** True on the viewer's own listing, the one the page acts on: each row offers what it allows. */
+	canAct?: boolean
+	/** True while an action is running; the menus wait for it. */
+	acting?: boolean
+}>(), { verifying: false, canVerify: true, canAct: false, acting: false })
 
 const emit = defineEmits<{
 	(e: 'verifyGroup', group: GroupType): void
 	(e: 'verifyFile', group: GroupType, file: GroupType['files'][number]): void
+	(e: 'act', group: GroupType, file: GroupType['files'][number], action: RowAction): void
 }>()
+
+/**
+ * A row's menu, in the order a person looks for them: bringing back
+ * before taking away. Taking another file's versions is no action of its
+ * own, but a choice in a group's deletion.
+ */
+const MENU: Array<{ action: RowAction, icon: string, label: string }> = [
+	{ action: 'restore', icon: ICON_RESTORE, label: t('file_checksum_search', 'Restore') },
+	// TRANSLATORS: a menu entry on a version of a file in the trash: add it to the versions of the file now at the place the trashed file had
+	{ action: 'restoreAsVersion', icon: ICON_HISTORY, label: t('file_checksum_search', 'Restore into the file at its place') },
+	// TRANSLATORS: a menu entry on a version of a file: make a new file holding what the version holds
+	{ action: 'saveAsFile', icon: ICON_FILE_PLUS, label: t('file_checksum_search', 'Save as a new file') },
+	{ action: 'trash', icon: ICON_BIN, label: t('file_checksum_search', 'Move to trash') },
+	{ action: 'delete', icon: ICON_BIN_FOREVER, label: t('file_checksum_search', 'Delete permanently') },
+]
+
+/** The entries of a row's menu, those its actions allow. */
+function menuOf(file: GroupType['files'][number]) {
+	return props.canAct
+		? MENU.filter((entry) => file.actions?.includes(entry.action))
+		: []
+}
+
+/** The menu's name, for a reader that cannot see which row it is on. */
+function menuLabel(file: GroupType['files'][number]): string {
+	return t('file_checksum_search', 'Actions for {name}', { name: fileLabel(file) })
+}
 
 const open = ref(false)
 
@@ -180,6 +217,22 @@ function toggle(): void {
 						@click="emit('verifyFile', group, file)">
 						{{ t('file_checksum_search', 'Verify') }}
 					</NcButton>
+					<!-- What the row allows, as the server said: nothing is offered
+					     that would only be refused. -->
+					<NcActions v-if="menuOf(file).length > 0"
+						class="db-file-actions"
+						:aria-label="menuLabel(file)"
+						:disabled="acting">
+						<NcActionButton v-for="entry in menuOf(file)"
+							:key="entry.action"
+							:data-action="entry.action"
+							@click="emit('act', group, file, entry.action)">
+							<template #icon>
+								<MdiIcon :path="entry.icon" />
+							</template>
+							{{ entry.label }}
+						</NcActionButton>
+					</NcActions>
 				</li>
 			</ul>
 		</div>
@@ -194,7 +247,8 @@ function toggle(): void {
 /* Small enough to sit in a row without becoming the row's subject, and
    never squeezed by a long path or a long hash beside it. */
 .db-verify-all,
-.db-verify-file {
+.db-verify-file,
+.db-file-actions {
 	--default-clickable-area: 28px;
 
 	display: inline-flex;

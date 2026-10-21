@@ -77,11 +77,18 @@ msgstr "Account"
 msgid "Acknowledge"
 msgstr "Prendi atto"
 
+msgid "Actions for {name}"
+msgstr "Azioni per {name}"
+
 msgid "Add an algorithm …"
 msgstr "Aggiungi un algoritmo…"
 
 msgid "Add rule"
 msgstr "Aggiungi regola"
+
+#. TRANSLATORS: after a version of a trashed file went into the file now at that place; {path} is that file
+msgid "Added as a version of {path}."
+msgstr "Aggiunto come versione di {path}."
 
 msgid "Administrator-enforced rules covering every home folder."
 msgstr "Regole rese obbligatorie da un amministratore per ogni cartella home."
@@ -263,6 +270,12 @@ msgstr "Impossibile modificare l'autorizzazione."
 msgid "Could not complete the request."
 msgstr "Impossibile completare la richiesta."
 
+msgid "Could not delete %n item."
+msgid_plural "Could not delete %n items."
+msgstr[0] "Impossibile eliminare %n elemento."
+msgstr[1] "Impossibile eliminare %n di elementi."
+msgstr[2] "Impossibile eliminare %n elementi."
+
 msgid "Could not delete the MIME types."
 msgstr "Impossibile eliminare i tipi MIME."
 
@@ -384,11 +397,20 @@ msgstr "Elimina tipi MIME"
 msgid "Delete every stored MIME type? The checksums stay. Detection can be switched on again once the deletion is done."
 msgstr "Eliminare tutti i tipi MIME memorizzati? I checksum restano. Il rilevamento potrà essere riattivato a eliminazione terminata."
 
+msgid "Delete permanently"
+msgstr "Elimina definitivamente"
+
 msgid "Delete rule"
 msgstr "Elimina regola"
 
 msgid "Delete this rule?"
 msgstr "Eliminare questa regola?"
+
+msgid "Deleted %n item permanently."
+msgid_plural "Deleted %n items permanently."
+msgstr[0] "%n elemento eliminato definitivamente."
+msgstr[1] "%n di elementi eliminati definitivamente."
+msgstr[2] "%n elementi eliminati definitivamente."
 
 #. TRANSLATORS: beside a file in a list, marking it as in the trash; {date} is when it was deleted
 msgid "Deleted {date}"
@@ -638,6 +660,12 @@ msgstr "Non è tra i tuoi file."
 msgid "It is shared with you. Leave the share in Files instead."
 msgstr "È condiviso con te. Abbandona invece la condivisione in File."
 
+msgid "It takes %n earlier version with it."
+msgid_plural "It takes %n earlier versions with it."
+msgstr[0] "Con esso se ne va %n versione precedente."
+msgstr[1] "Con esso se ne vanno %n di versioni precedenti."
+msgstr[2] "Con esso se ne vanno %n versioni precedenti."
+
 msgid "Its content changed after the list was loaded."
 msgstr "Il contenuto è cambiato dopo il caricamento dell'elenco."
 
@@ -729,6 +757,19 @@ msgstr "Modalità"
 
 msgid "More actions for the rule on {path}"
 msgstr "Altre azioni per la regola per {path}"
+
+msgid "Move to trash"
+msgstr "Sposta nel cestino"
+
+msgid "Moved %n file to the trash."
+msgid_plural "Moved %n files to the trash."
+msgstr[0] "%n file spostato nel cestino."
+msgstr[1] "%n di file spostati nel cestino."
+msgstr[2] "%n file spostati nel cestino."
+
+#. TRANSLATORS: the title of a version a person named, shown beside its name
+msgid "Named version"
+msgstr "Versione con nome"
 
 msgid "Network error"
 msgstr "Errore di rete"
@@ -957,6 +998,16 @@ msgstr "Aggiorna tipi MIME"
 msgid "Renew after (minutes)"
 msgstr "Rinnova dopo (minuti)"
 
+msgid "Restore"
+msgstr "Ripristina"
+
+#. TRANSLATORS: a menu entry on a version of a file in the trash: add it to the versions of the file now at the place the trashed file had
+msgid "Restore into the file at its place"
+msgstr "Ripristina nel file al suo posto"
+
+msgid "Restored to {path}."
+msgstr "Ripristinato in {path}."
+
 msgid "Revoke"
 msgstr "Revoca"
 
@@ -1004,6 +1055,14 @@ msgstr "Regole per la cartella home di un account – le regole personali – o 
 
 msgid "Save"
 msgstr "Salva"
+
+#. TRANSLATORS: a menu entry on a version of a file: make a new file holding what the version holds
+msgid "Save as a new file"
+msgstr "Salva come nuovo file"
+
+#. TRANSLATORS: after a version was saved as a new file; {path} is the new file
+msgid "Saved as {path}."
+msgstr "Salvato come {path}."
 
 msgid "Saved."
 msgstr "Salvato."
@@ -1217,6 +1276,9 @@ msgstr "Questa password dell'applicazione non ha accesso al filesystem, quindi n
 
 msgid "This app password has no filesystem access."
 msgstr "Questa password dell'applicazione non ha accesso al filesystem."
+
+msgid "This cannot be undone."
+msgstr "Questa operazione non può essere annullata."
 
 msgid "This is not a file."
 msgstr "Questo non è un file."

@@ -27,6 +27,13 @@ const confirmPassword = vi.fn(() => Promise.resolve())
 vi.mock('@nextcloud/password-confirmation', () => ({ confirmPassword: () => confirmPassword() }))
 vi.mock('@nextcloud/password-confirmation/style.css', () => ({}))
 
+// Toasts are asserted in the listing's own spec; here they only must not throw.
+vi.mock('../toast', () => ({
+	toastSuccess: () => undefined,
+	toastError: () => undefined,
+	toastUndo: () => undefined,
+}))
+
 // The Help tab is a place to click away to here, not a thing under test,
 // and the viewer would fetch the guide on mount.
 vi.mock('../docs-vue/DocsViewer.vue', () => ({

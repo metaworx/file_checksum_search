@@ -20,6 +20,10 @@ export const OCS_API_V1 = {
 	findAllDuplicates: `${APP_BASE}/api/v1/duplicates`,
 	/** GET    /api/v1/sudo/duplicates — every account; password confirmation, sudoers only */
 	sudoFindAllDuplicates: `${APP_BASE}/api/v1/sudo/duplicates`,
+	/** POST   /api/v1/duplicates/delete — rows of one group, body `{ fileIds, algo, hash, forGood, dryRun, mergeInto }` */
+	deleteDuplicates: `${APP_BASE}/api/v1/duplicates/delete`,
+	/** POST   /api/v1/duplicates/restore — one row, body `{ fileId, algo, hash, as }` */
+	restoreDuplicate: `${APP_BASE}/api/v1/duplicates/restore`,
 	/** GET    /api/v1/sudo/selectable — the groups and accounts the caller may name */
 	sudoSelectable: `${APP_BASE}/api/v1/sudo/selectable`,
 	/** GET    /api/v1/file/{fileId}/duplicates */

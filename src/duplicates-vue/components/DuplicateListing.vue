@@ -12,17 +12,20 @@
  * its own {@see useDuplicates} state so switching tabs does not reset the
  * other's filters.
  */
-import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 import AlgorithmSelect from '../../components/AlgorithmSelect.vue'
 import HelpPopover from '../../components/HelpPopover.vue'
+import DeleteDialog from './DeleteDialog.vue'
 import DuplicateGroup from './DuplicateGroup.vue'
 import { useDuplicates, type DuplicateScope, type DuplicateGroup as GroupType } from '../composables/useDuplicates'
+import { deleteRows, restoreRow, type RestoreAs, type RowAction, type RowResult } from '../duplicateActions'
 import { sameParams, type ListingParams } from '../urlState'
 import { type AlgoOption } from '../../algorithms'
-import { t } from '../../l10n'
+import { toastError, toastSuccess, toastUndo } from '../../toast'
+import { n, t } from '../../l10n'
 
 const props = withDefaults(
 	defineProps<{
@@ -299,6 +302,120 @@ async function onVerifyGroup(group: GroupType): Promise<void> {
 	await verifyGroups([group])
 }
 
+/** The page acts on the viewer's own files only. */
+const canAct = computed(() => props.scope === null)
+
+/** True while a deletion or a restore runs: the menus wait for it. */
+const acting = ref(false)
+
+/** A deletion asked for and dry-run, waiting for its confirmation. */
+const confirming = ref<{ group: GroupType, fileIds: number[], forGood: boolean, results: RowResult[] } | null>(null)
+
+const NETWORK_ERROR = t('file_checksum_search', 'Network error')
+
+/** How each restore names what it did; {path} is where the result is. */
+const RESTORED: Record<RestoreAs, (path: string) => string> = {
+	original: (path) => t('file_checksum_search', 'Restored to {path}.', { path }),
+	// TRANSLATORS: after a version of a trashed file went into the file now at that place; {path} is that file
+	version: (path) => t('file_checksum_search', 'Added as a version of {path}.', { path }),
+	// TRANSLATORS: after a version was saved as a new file; {path} is the new file
+	file: (path) => t('file_checksum_search', 'Saved as {path}.', { path }),
+}
+
+/** What a row's menu entry does: a deletion is asked first, a restore is done. */
+async function onAct(group: GroupType, file: GroupType['files'][number], action: RowAction): Promise<void> {
+	if (action === 'trash' || action === 'delete') {
+		await askToDelete(group, [file.fileid], action === 'delete')
+	} else if (action !== 'mergeInto') {
+		await restore(group, file.fileid, action === 'restore' ? 'original' : action === 'restoreAsVersion' ? 'version' : 'file')
+	}
+}
+
+/** A dry run first: the confirmation shows what the server says would happen. */
+async function askToDelete(group: GroupType, fileIds: number[], forGood: boolean): Promise<void> {
+	acting.value = true
+	try {
+		const results = await deleteRows(group, fileIds, { forGood, dryRun: true })
+		confirming.value = { group, fileIds, forGood, results }
+	} catch {
+		toastError(NETWORK_ERROR)
+	} finally {
+		acting.value = false
+	}
+}
+
+async function onConfirmDelete(): Promise<void> {
+	const pending = confirming.value
+	if (!pending) {
+		return
+	}
+	acting.value = true
+	try {
+		const results = await deleteRows(pending.group, pending.fileIds, { forGood: pending.forGood, dryRun: false })
+		confirming.value = null
+		reportDeleted(pending.group, results)
+	} catch {
+		toastError(NETWORK_ERROR)
+	} finally {
+		acting.value = false
+		load()
+	}
+}
+
+/** What the deletion did, a toast each: what went to the trash can be taken back. */
+function reportDeleted(group: GroupType, results: RowResult[]): void {
+	const trashed = results.filter((result) => result.status === 'trashed')
+	const deleted = results.filter((result) => result.status === 'deleted').length
+	const missed = results.filter((result) => result.status === 'refused' || result.status === 'failed').length
+
+	if (trashed.length > 0) {
+		toastUndo(n('file_checksum_search', 'Moved %n file to the trash.', 'Moved %n files to the trash.', trashed.length), () => {
+			undoTrash(group, trashed.map((result) => result.fileid))
+		})
+	}
+	if (deleted > 0) {
+		toastSuccess(n('file_checksum_search', 'Deleted %n item permanently.', 'Deleted %n items permanently.', deleted))
+	}
+	if (missed > 0) {
+		toastError(n('file_checksum_search', 'Could not delete %n item.', 'Could not delete %n items.', missed))
+	}
+}
+
+/** The Undo of a move to the trash: each file restored to its place. */
+async function undoTrash(group: GroupType, fileIds: number[]): Promise<void> {
+	acting.value = true
+	try {
+		for (const fileId of fileIds) {
+			const result = await restoreRow(group, fileId, 'original')
+			if (result.status !== 'restored') {
+				toastError(result.reason ?? NETWORK_ERROR)
+			}
+		}
+	} catch {
+		toastError(NETWORK_ERROR)
+	} finally {
+		acting.value = false
+		load()
+	}
+}
+
+async function restore(group: GroupType, fileId: number, as: RestoreAs): Promise<void> {
+	acting.value = true
+	try {
+		const result = await restoreRow(group, fileId, as)
+		if (result.status === 'restored' && result.restored) {
+			toastSuccess(RESTORED[as](result.restored.path))
+		} else {
+			toastError(result.reason ?? NETWORK_ERROR)
+		}
+	} catch {
+		toastError(NETWORK_ERROR)
+	} finally {
+		acting.value = false
+		load()
+	}
+}
+
 onMounted(() => {
 	activeScope.value = props.scope
 	if (props.params) {
@@ -434,9 +551,20 @@ onBeforeUnmount(() => {
 				:file-url="fileUrl"
 				:verifying="verifying"
 				:can-verify="canRecalc"
+				:can-act="canAct"
+				:acting="acting"
 				@verify-group="onVerifyGroup"
-				@verify-file="verifyFile" />
+				@verify-file="verifyFile"
+				@act="onAct" />
 		</div>
+
+		<DeleteDialog v-if="confirming"
+			:group="confirming.group"
+			:results="confirming.results"
+			:for-good="confirming.forGood"
+			:busy="acting"
+			@confirm="onConfirmDelete"
+			@close="confirming = null" />
 
 		<div class="db-pagination">
 			<NcButton v-if="offset > 0" @click="onPrevPage">

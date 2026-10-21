@@ -75,11 +75,18 @@ msgstr "アカウント"
 msgid "Acknowledge"
 msgstr "了解"
 
+msgid "Actions for {name}"
+msgstr "{name} の操作"
+
 msgid "Add an algorithm …"
 msgstr "アルゴリズムを追加…"
 
 msgid "Add rule"
 msgstr "ルールを追加"
+
+#. TRANSLATORS: after a version of a trashed file went into the file now at that place; {path} is that file
+msgid "Added as a version of {path}."
+msgstr "{path} のバージョンとして追加しました。"
 
 msgid "Administrator-enforced rules covering every home folder."
 msgstr "すべてのホームフォルダーを対象とする、管理者が強制したルールです。"
@@ -259,6 +266,10 @@ msgstr "承認を変更できませんでした。"
 msgid "Could not complete the request."
 msgstr "リクエストを完了できませんでした。"
 
+msgid "Could not delete %n item."
+msgid_plural "Could not delete %n items."
+msgstr[0] "%n 件を削除できませんでした。"
+
 msgid "Could not delete the MIME types."
 msgstr "MIMEタイプを削除できませんでした。"
 
@@ -380,11 +391,18 @@ msgstr "MIMEタイプを削除"
 msgid "Delete every stored MIME type? The checksums stay. Detection can be switched on again once the deletion is done."
 msgstr "保存されているMIMEタイプをすべて削除しますか？チェックサムは残ります。削除が完了すると、検出を再びオンにできます。"
 
+msgid "Delete permanently"
+msgstr "完全に削除"
+
 msgid "Delete rule"
 msgstr "ルールを削除"
 
 msgid "Delete this rule?"
 msgstr "このルールを削除しますか？"
+
+msgid "Deleted %n item permanently."
+msgid_plural "Deleted %n items permanently."
+msgstr[0] "%n 件を完全に削除しました。"
 
 #. TRANSLATORS: beside a file in a list, marking it as in the trash; {date} is when it was deleted
 msgid "Deleted {date}"
@@ -634,6 +652,10 @@ msgstr "あなたのファイルの中にありません。"
 msgid "It is shared with you. Leave the share in Files instead."
 msgstr "あなたと共有されているファイルです。代わりに「ファイル」で共有から抜けてください。"
 
+msgid "It takes %n earlier version with it."
+msgid_plural "It takes %n earlier versions with it."
+msgstr[0] "以前のバージョン %n 件も一緒に扱われます。"
+
 msgid "Its content changed after the list was loaded."
 msgstr "一覧の読み込み後に内容が変更されました。"
 
@@ -725,6 +747,17 @@ msgstr "モード"
 
 msgid "More actions for the rule on {path}"
 msgstr "{path} のルールのその他のアクション"
+
+msgid "Move to trash"
+msgstr "ゴミ箱へ移動"
+
+msgid "Moved %n file to the trash."
+msgid_plural "Moved %n files to the trash."
+msgstr[0] "%n 件のファイルをゴミ箱に移動しました。"
+
+#. TRANSLATORS: the title of a version a person named, shown beside its name
+msgid "Named version"
+msgstr "名前付きバージョン"
 
 msgid "Network error"
 msgstr "ネットワークエラー"
@@ -949,6 +982,16 @@ msgstr "MIMEタイプを更新"
 msgid "Renew after (minutes)"
 msgstr "再集計までの時間（分）"
 
+msgid "Restore"
+msgstr "復元"
+
+#. TRANSLATORS: a menu entry on a version of a file in the trash: add it to the versions of the file now at the place the trashed file had
+msgid "Restore into the file at its place"
+msgstr "元の場所のファイルに復元"
+
+msgid "Restored to {path}."
+msgstr "{path} に復元しました。"
+
 msgid "Revoke"
 msgstr "取り消す"
 
@@ -996,6 +1039,14 @@ msgstr "1つのアカウントのホームフォルダーに対するルール�
 
 msgid "Save"
 msgstr "保存"
+
+#. TRANSLATORS: a menu entry on a version of a file: make a new file holding what the version holds
+msgid "Save as a new file"
+msgstr "新しいファイルとして保存"
+
+#. TRANSLATORS: after a version was saved as a new file; {path} is the new file
+msgid "Saved as {path}."
+msgstr "{path} として保存しました。"
 
 msgid "Saved."
 msgstr "保存しました。"
@@ -1209,6 +1260,9 @@ msgstr "このアプリパスワードにはファイルシステムへのアク
 
 msgid "This app password has no filesystem access."
 msgstr "このアプリパスワードにはファイルシステムへのアクセス権がありません。"
+
+msgid "This cannot be undone."
+msgstr "この操作は元に戻せません。"
 
 msgid "This is not a file."
 msgstr "これはファイルではありません。"

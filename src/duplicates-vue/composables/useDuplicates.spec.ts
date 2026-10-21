@@ -532,6 +532,20 @@ describe('the instance-wide view', () => {
 		expect(String(fetchMock.mock.calls[0][0])).toContain('/api/v1/sudo/duplicates')
 	})
 
+	// The page acts on one's own files only, and what each row allows costs
+	// the server a look at each: asked for there, and nowhere else.
+	it('asks what each row allows on one\'s own listing only', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.resolve(jsonResponse({ duplicates: [] })))
+		const { scope, load } = useDuplicates()
+
+		await load()
+		expect(String(fetchMock.mock.calls[0][0])).toContain('actions=1')
+
+		scope.value = { all: true, users: [], groups: [] }
+		await load()
+		expect(String(fetchMock.mock.calls[1][0])).not.toContain('actions')
+	})
+
 	// Named accounts and groups go to the server as they were chosen: it
 	// expands the groups and authorises each, because membership is not the
 	// client's to enumerate.

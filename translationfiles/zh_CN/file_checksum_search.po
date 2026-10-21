@@ -75,11 +75,18 @@ msgstr "账号"
 msgid "Acknowledge"
 msgstr "知道了"
 
+msgid "Actions for {name}"
+msgstr "{name} 的操作"
+
 msgid "Add an algorithm …"
 msgstr "添加算法…"
 
 msgid "Add rule"
 msgstr "添加规则"
+
+#. TRANSLATORS: after a version of a trashed file went into the file now at that place; {path} is that file
+msgid "Added as a version of {path}."
+msgstr "已添加为 {path} 的版本。"
 
 msgid "Administrator-enforced rules covering every home folder."
 msgstr "管理员强制的规则，涵盖所有主目录。"
@@ -259,6 +266,10 @@ msgstr "无法更改授权。"
 msgid "Could not complete the request."
 msgstr "无法完成请求。"
 
+msgid "Could not delete %n item."
+msgid_plural "Could not delete %n items."
+msgstr[0] "无法删除 %n 项。"
+
 msgid "Could not delete the MIME types."
 msgstr "无法删除 MIME 类型。"
 
@@ -380,11 +391,18 @@ msgstr "删除 MIME 类型"
 msgid "Delete every stored MIME type? The checksums stay. Detection can be switched on again once the deletion is done."
 msgstr "删除所有已存储的 MIME 类型？校验和将保留。删除完成后，可以重新开启检测。"
 
+msgid "Delete permanently"
+msgstr "永久删除"
+
 msgid "Delete rule"
 msgstr "删除规则"
 
 msgid "Delete this rule?"
 msgstr "删除此规则？"
+
+msgid "Deleted %n item permanently."
+msgid_plural "Deleted %n items permanently."
+msgstr[0] "已永久删除 %n 项。"
 
 #. TRANSLATORS: beside a file in a list, marking it as in the trash; {date} is when it was deleted
 msgid "Deleted {date}"
@@ -634,6 +652,10 @@ msgstr "不在您的文件中。"
 msgid "It is shared with you. Leave the share in Files instead."
 msgstr "这是与您共享的文件。请改为在“文件”中离开共享。"
 
+msgid "It takes %n earlier version with it."
+msgid_plural "It takes %n earlier versions with it."
+msgstr[0] "将同时带走 %n 个较早的版本。"
+
 msgid "Its content changed after the list was loaded."
 msgstr "列表加载后其内容已更改。"
 
@@ -725,6 +747,17 @@ msgstr "模式"
 
 msgid "More actions for the rule on {path}"
 msgstr "{path} 规则的更多操作"
+
+msgid "Move to trash"
+msgstr "移至回收站"
+
+msgid "Moved %n file to the trash."
+msgid_plural "Moved %n files to the trash."
+msgstr[0] "已将 %n 个文件移至回收站。"
+
+#. TRANSLATORS: the title of a version a person named, shown beside its name
+msgid "Named version"
+msgstr "已命名的版本"
 
 msgid "Network error"
 msgstr "网络错误"
@@ -949,6 +982,16 @@ msgstr "刷新 MIME 类型"
 msgid "Renew after (minutes)"
 msgstr "多久后重新计数（分钟）"
 
+msgid "Restore"
+msgstr "恢复"
+
+#. TRANSLATORS: a menu entry on a version of a file in the trash: add it to the versions of the file now at the place the trashed file had
+msgid "Restore into the file at its place"
+msgstr "恢复到其原位置的文件中"
+
+msgid "Restored to {path}."
+msgstr "已恢复到 {path}。"
+
 msgid "Revoke"
 msgstr "撤销"
 
@@ -996,6 +1039,14 @@ msgstr "针对单个账号主目录的规则（即个人规则），或针对一
 
 msgid "Save"
 msgstr "保存"
+
+#. TRANSLATORS: a menu entry on a version of a file: make a new file holding what the version holds
+msgid "Save as a new file"
+msgstr "另存为新文件"
+
+#. TRANSLATORS: after a version was saved as a new file; {path} is the new file
+msgid "Saved as {path}."
+msgstr "已另存为 {path}。"
 
 msgid "Saved."
 msgstr "已保存。"
@@ -1209,6 +1260,9 @@ msgstr "此应用密码没有文件系统访问权限，因此无法授权。"
 
 msgid "This app password has no filesystem access."
 msgstr "此应用密码没有文件系统访问权限。"
+
+msgid "This cannot be undone."
+msgstr "此操作无法撤消。"
 
 msgid "This is not a file."
 msgstr "这不是文件。"

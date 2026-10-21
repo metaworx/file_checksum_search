@@ -76,11 +76,18 @@ msgstr "Accounts"
 msgid "Acknowledge"
 msgstr "Voor kennisgeving aannemen"
 
+msgid "Actions for {name}"
+msgstr "Acties voor {name}"
+
 msgid "Add an algorithm …"
 msgstr "Algoritme toevoegen …"
 
 msgid "Add rule"
 msgstr "Regel toevoegen"
+
+#. TRANSLATORS: after a version of a trashed file went into the file now at that place; {path} is that file
+msgid "Added as a version of {path}."
+msgstr "Toegevoegd als versie van {path}."
 
 msgid "Administrator-enforced rules covering every home folder."
 msgstr "Door een beheerder afgedwongen regels voor elke thuismap."
@@ -261,6 +268,11 @@ msgstr "Kon de vrijgave niet wijzigen."
 msgid "Could not complete the request."
 msgstr "Kon het verzoek niet voltooien."
 
+msgid "Could not delete %n item."
+msgid_plural "Could not delete %n items."
+msgstr[0] "Kon %n item niet verwijderen."
+msgstr[1] "Kon %n items niet verwijderen."
+
 msgid "Could not delete the MIME types."
 msgstr "Kon de MIME-types niet verwijderen."
 
@@ -382,11 +394,19 @@ msgstr "MIME-types verwijderen"
 msgid "Delete every stored MIME type? The checksums stay. Detection can be switched on again once the deletion is done."
 msgstr "Alle opgeslagen MIME-types verwijderen? De controlesommen blijven behouden. De detectie kan weer worden ingeschakeld zodra de verwijdering klaar is."
 
+msgid "Delete permanently"
+msgstr "Definitief verwijderen"
+
 msgid "Delete rule"
 msgstr "Regel verwijderen"
 
 msgid "Delete this rule?"
 msgstr "Deze regel verwijderen?"
+
+msgid "Deleted %n item permanently."
+msgid_plural "Deleted %n items permanently."
+msgstr[0] "%n item definitief verwijderd."
+msgstr[1] "%n items definitief verwijderd."
 
 #. TRANSLATORS: beside a file in a list, marking it as in the trash; {date} is when it was deleted
 msgid "Deleted {date}"
@@ -636,6 +656,11 @@ msgstr "Staat niet tussen je bestanden."
 msgid "It is shared with you. Leave the share in Files instead."
 msgstr "Het is met je gedeeld. Verlaat in plaats daarvan de deling in Bestanden."
 
+msgid "It takes %n earlier version with it."
+msgid_plural "It takes %n earlier versions with it."
+msgstr[0] "%n eerdere versie gaat mee."
+msgstr[1] "%n eerdere versies gaan mee."
+
 msgid "Its content changed after the list was loaded."
 msgstr "De inhoud is gewijzigd nadat de lijst was geladen."
 
@@ -727,6 +752,18 @@ msgstr "Modus"
 
 msgid "More actions for the rule on {path}"
 msgstr "Meer acties bij de regel voor {path}"
+
+msgid "Move to trash"
+msgstr "Naar prullenbak verplaatsen"
+
+msgid "Moved %n file to the trash."
+msgid_plural "Moved %n files to the trash."
+msgstr[0] "%n bestand naar de prullenbak verplaatst."
+msgstr[1] "%n bestanden naar de prullenbak verplaatst."
+
+#. TRANSLATORS: the title of a version a person named, shown beside its name
+msgid "Named version"
+msgstr "Benoemde versie"
 
 msgid "Network error"
 msgstr "Netwerkfout"
@@ -953,6 +990,16 @@ msgstr "MIME-types verversen"
 msgid "Renew after (minutes)"
 msgstr "Vernieuwen na (minuten)"
 
+msgid "Restore"
+msgstr "Herstellen"
+
+#. TRANSLATORS: a menu entry on a version of a file in the trash: add it to the versions of the file now at the place the trashed file had
+msgid "Restore into the file at its place"
+msgstr "Herstellen in het bestand op die plek"
+
+msgid "Restored to {path}."
+msgstr "Hersteld naar {path}."
+
 msgid "Revoke"
 msgstr "Intrekken"
 
@@ -1000,6 +1047,14 @@ msgstr "Regels voor de thuismap van één account – persoonlijke regels – of
 
 msgid "Save"
 msgstr "Opslaan"
+
+#. TRANSLATORS: a menu entry on a version of a file: make a new file holding what the version holds
+msgid "Save as a new file"
+msgstr "Opslaan als nieuw bestand"
+
+#. TRANSLATORS: after a version was saved as a new file; {path} is the new file
+msgid "Saved as {path}."
+msgstr "Opgeslagen als {path}."
 
 msgid "Saved."
 msgstr "Opgeslagen."
@@ -1213,6 +1268,9 @@ msgstr "Dit appwachtwoord heeft geen toegang tot het bestandssysteem, dus kan he
 
 msgid "This app password has no filesystem access."
 msgstr "Dit appwachtwoord heeft geen toegang tot het bestandssysteem."
+
+msgid "This cannot be undone."
+msgstr "Dit kan niet ongedaan worden gemaakt."
 
 msgid "This is not a file."
 msgstr "Dit is geen bestand."
