@@ -623,14 +623,20 @@ class PublicApiTest
 		// are MySQL's alone, and this app supports every database Nextcloud
 		// does — a fixture that only seeds on MariaDB makes the suite
 		// untestable on the others the day anyone tries.
-		$delete = $this->db->getQueryBuilder();
-		$delete->delete( 'files_metadata' )
-		       ->where(
-			       $delete->expr()
-			              ->eq( 'file_id', $delete->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
-		       )
-		;
-		$delete->executeStatement();
+		// The index rows go too: a rule that queues the new file leaves its
+		// pending marker there, a state and an empty stamp, and that stamp
+		// beside the seeded one vouches for nothing.
+		foreach ( [ 'files_metadata', 'files_metadata_index' ] as $table )
+		{
+			$delete = $this->db->getQueryBuilder();
+			$delete->delete( $table )
+			       ->where(
+				       $delete->expr()
+				              ->eq( 'file_id', $delete->createNamedParameter( $fileId, IQueryBuilder::PARAM_INT ) ),
+			       )
+			;
+			$delete->executeStatement();
+		}
 
 		$insert = $this->db->getQueryBuilder();
 		$insert->insert( 'files_metadata' )
