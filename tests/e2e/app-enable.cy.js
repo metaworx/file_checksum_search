@@ -30,20 +30,6 @@ const assertAppDisabledCli = () => {
 	} )
 }
 
-// Fill the password-confirmation dialog if it appears. Enabling always
-// prompts (strict); disabling prompts only if there was no recent
-// confirmation (lax), so this is conditional.
-const confirmPasswordIfPrompted = () => {
-	cy.wait( 1000 )
-	cy.get( 'body' ).then( ( $body ) => {
-		const $input = $body.find( 'input[type="password"]' )
-		if ( $input.length > 0 ) {
-			cy.wrap( $input ).type( adminPassword )
-			cy.contains( 'button', 'Confirm' ).click()
-		}
-	} )
-}
-
 describe( 'FCIAS App Enable', () => {
 	before( () => {
 		cy.env( [ 'occ', 'NC_ADMIN_USER', 'NC_ADMIN_PASSWORD' ] ).then( ( env ) => {
@@ -126,7 +112,7 @@ describe( 'FCIAS App Enable', () => {
 		} )
 
 		// Disabling may prompt for password confirmation (lax mode).
-		confirmPasswordIfPrompted()
+		cy.fciasConfirmPasswordIfAsked( adminPassword, ( $body ) => $body.find( appLink ).length === 0 )
 
 		// The app leaves the "Active apps" list once it has been disabled.
 		cy.get( appLink ).should( 'not.exist' )

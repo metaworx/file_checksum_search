@@ -278,6 +278,7 @@ describe( 'FCIAS checksums sidebar', () => {
 				cy.get( '[data-testid="fcias-dup-across"]' ).invoke( 'attr', 'href' ).then( ( href ) => {
 					cy.visit( href )
 				} )
+				cy.fciasConfirmPasswordIfAsked( adminPassword, ( $body ) => $body.find( '[data-testid="fcias-others"]' ).length > 0 )
 				const group = () => cy.get( '[data-testid="fcias-others"] .db-group', { timeout: FIND_TIMEOUT } )
 				group().should( 'have.length', 1 )
 				group().find( '.db-hash' ).should( 'contain', DUP_SHA1 )

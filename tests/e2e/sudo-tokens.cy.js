@@ -112,11 +112,11 @@ describe( 'FCIAS sudo tokens', () => {
 		cy.get( row, { timeout: FIND_TIMEOUT } ).should( 'contain', APP_PASSWORD_NAME )
 		cy.get( '[data-testid="fcias-sudo-tokens-error"]' ).should( 'not.exist' )
 
-		// Within thirty minutes of a login core's confirmation dialog does
-		// not appear — @nextcloud/password-confirmation reads the page's
-		// last-login stamp — and a Cypress session is always that fresh.
+		// Granting asks for the password where the page holds no recent
+		// confirmation, which a restored session does not always hold.
 		switchIn( row ).should( 'not.be.checked' )
 		switchIn( row ).click( { force: true } )
+		cy.fciasConfirmPasswordIfAsked( holder.password, ( $body ) => $body.find( `${ row } .checkbox-radio-switch input[type="checkbox"]` ).is( ':checked' ) )
 		switchIn( row ).should( 'be.checked' )
 	} )
 

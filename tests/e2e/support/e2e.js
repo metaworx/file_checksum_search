@@ -74,6 +74,30 @@ Cypress.Commands.add( 'login', ( user = 'admin', password = 'admin' ) => {
 	} )
 } )
 
+// Answer core's password-confirmation dialog where it opens, and wait until
+// the page is past it. Whether it opens is not the spec's to know:
+// @nextcloud/password-confirmation asks only where the page holds no
+// confirmation from the last thirty minutes, and a restored session does not
+// always hold one — one Nextcloud logged back in through the remember-me
+// cookie holds none. The Others tab waited behind the dialog until its test
+// timed out, once in a CI run. `settled` says, of the page's body, whether
+// it is past the point the dialog would hold it at; the command waits for
+// that or for the dialog, so it costs nothing where the dialog stays shut.
+Cypress.Commands.add( 'fciasConfirmPasswordIfAsked', ( password, settled ) => {
+	const field = '[role="dialog"] input[type="password"]'
+
+	cy.get( 'body', { timeout: 60000 } )
+		.should( ( $body ) => {
+			expect( $body.find( field ).length > 0 || settled( $body ), 'the password dialog, or the page past it' ).to.equal( true )
+		} )
+		.then( ( $body ) => {
+			if ( $body.find( field ).length > 0 ) {
+				cy.get( field ).type( `${ password }{enter}`, { log: false } )
+				cy.get( field, { timeout: 60000 } ).should( 'not.exist' )
+			}
+		} )
+} )
+
 // Delete the tokens this run's logins minted. Not by logging out: a session
 // cannot be restored inside an after() hook — Cypress replays the login form
 // instead, which mints one more token and fails outright for an account the

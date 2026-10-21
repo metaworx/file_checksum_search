@@ -592,6 +592,7 @@ describe( 'FCIAS screenshots', () => {
 	// two own copies behind a house, alice's behind a person, as text.
 	it( 'Duplicates-Others', () => {
 		cy.visit( `${ DUPLICATES_URL }#others?hash=${ DUP_SHA1 }&all=1` )
+		cy.fciasConfirmPasswordIfAsked( adminPassword, ( $body ) => $body.find( '[data-testid="fcias-others"]' ).length > 0 )
 		cy.get( '[data-testid="fcias-others"] .db-group', { timeout: FIND_TIMEOUT } ).should( 'have.length.at.least', 1 )
 		cy.contains( '[data-testid="fcias-others"] .db-group', DUP_SHA1 ).find( '.db-group-header' ).click()
 		cy.get( '[data-testid="fcias-others"] .db-file-unopenable', { timeout: FIND_TIMEOUT } ).should( 'exist' )

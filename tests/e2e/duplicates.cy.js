@@ -60,6 +60,10 @@ const webdavUrl = ( path ) => `/remote.php/dav/files/${ adminUser }${ path }`
 // the page may legitimately show others, and asserting on the first one
 // would make this spec depend on an ordering nothing promises.
 const ownGroup = () => cy.get( '.db-group', { timeout: FIND_TIMEOUT } )
+
+// Past core's password dialog into the Others tab, where the dialog opens:
+// whether it does is not this spec's to know (`fciasConfirmPasswordIfAsked`).
+const intoOthers = () => cy.fciasConfirmPasswordIfAsked( adminPassword, ( $body ) => $body.find( '[data-testid="fcias-others"]' ).length > 0 )
 	.filter( ( _i, el ) => el.querySelector( '.db-hash' )?.textContent?.trim() === DUP_HASH )
 
 describe( 'FCIAS Duplicates page', () => {
@@ -215,8 +219,7 @@ describe( 'FCIAS Duplicates page', () => {
 	// The Others tab is the sudoer boundary made visible: the
 	// administrator gets it, an account nobody named does not. It is a tab
 	// rather than a switch because it shows other people's files, and that is
-	// not a state an ordinary listing should slip into. Core's password dialog
-	// is skipped within thirty minutes of a login, which a Cypress session is.
+	// not a state an ordinary listing should slip into.
 	it( 'offers the Others tab to the administrator', () => {
 		cy.visit( DUPLICATES_URL )
 		cy.get( '.db-tab[data-tab="others"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
@@ -245,6 +248,7 @@ describe( 'FCIAS Duplicates page', () => {
 		cy.visit( DUPLICATES_URL )
 
 		cy.get( '.db-tab[data-tab="others"]', { timeout: FIND_TIMEOUT } ).click()
+		intoOthers()
 		cy.wait( '@selectable', { timeout: FIND_TIMEOUT } )
 
 		cy.get( '[data-testid="fcias-others"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
@@ -295,6 +299,7 @@ describe( 'FCIAS Duplicates page', () => {
 	it( 'opens the Others tab straight from the hash', () => {
 		cy.intercept( 'GET', '**/apps/file_checksum_search/api/v1/sudo/selectable*' ).as( 'selectable' )
 		cy.visit( `${ DUPLICATES_URL }#others` )
+		intoOthers()
 
 		cy.get( '[data-testid="fcias-others"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 		cy.wait( '@selectable', { timeout: FIND_TIMEOUT } )
@@ -305,6 +310,7 @@ describe( 'FCIAS Duplicates page', () => {
 	it( 'marks groups apart from accounts in the picker', () => {
 		cy.intercept( 'GET', '**/apps/file_checksum_search/api/v1/sudo/selectable*' ).as( 'selectable' )
 		cy.visit( `${ DUPLICATES_URL }#others` )
+		intoOthers()
 		cy.wait( '@selectable', { timeout: FIND_TIMEOUT } )
 
 		cy.get( '[data-testid="fcias-target-picker"] input', { timeout: FIND_TIMEOUT } )
@@ -323,6 +329,7 @@ describe( 'FCIAS Duplicates page', () => {
 		cy.intercept( 'GET', sudoUrl ).as( 'sudoList' )
 
 		cy.visit( `${ DUPLICATES_URL }#others` )
+		intoOthers()
 		cy.wait( '@selectable', { timeout: FIND_TIMEOUT } )
 
 		// This run's own duplicates belong to the administrator, so naming
@@ -376,6 +383,7 @@ describe( 'FCIAS Duplicates page', () => {
 				cy.login( adminUser, adminPassword )
 				cy.intercept( 'GET', '**/apps/file_checksum_search/api/v1/sudo/selectable*' ).as( 'selectable' )
 				cy.visit( `${ DUPLICATES_URL }#others` )
+				intoOthers()
 				cy.wait( '@selectable', { timeout: FIND_TIMEOUT } )
 
 				// Name both accounts, so one group holds the viewer's copies
@@ -425,6 +433,7 @@ describe( 'FCIAS Duplicates page', () => {
 	// the address bar can be copied as the search.
 	it( 'opens Others from the address with the hash filled in and the whole reach named', () => {
 		cy.visit( `${ DUPLICATES_URL }#others?hash=${ DUP_HASH.slice( 0, 8 ) }&all=1` )
+		intoOthers()
 
 		cy.get( '[data-testid="fcias-others"]', { timeout: FIND_TIMEOUT } ).should( 'exist' )
 		cy.get( '#fcias-others-hash', { timeout: FIND_TIMEOUT } ).should( 'have.value', DUP_HASH.slice( 0, 8 ) )
