@@ -328,6 +328,16 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: actions
+          in: query
+          required: false
+          description: >-
+            Each file gains `actions`: what the caller may do to it through
+            `/api/v1/duplicates/delete` and `/api/v1/duplicates/restore`. Opens each row as
+            the caller, so asked for; the cross-account twin does not take it.
+          schema:
+            type: boolean
+            default: false
       responses:
         "200":
           description: Duplicate groups
@@ -335,6 +345,84 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DuplicatesResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/v1/duplicates/delete:
+    post:
+      tags: [Duplicates]
+      summary: Delete rows of one duplicate group
+      description: >-
+        The caller's own rows of one group, each by its own file id: a file to the trash, or for
+        good with `forGood`, its versions going with it; a version, a file in the trash and a
+        version of one for good. Each row must still hold `hash` under `algo`, and is opened
+        through the caller's own folder and trash; one changed, out of reach, not the caller's to
+        delete, or a received share's root is refused on its own row. With `mergeInto`, each
+        file's earlier versions are first imported into that file of the group, which stays; a
+        version of a second it already has is skipped, and where the import fails a file to be
+        deleted for good is refused. A dry run acts on nothing and says what would happen.
+      operationId: deleteDuplicates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteDuplicatesInput"
+      responses:
+        "200":
+          description: One result per row, in the order they were acted on
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteDuplicatesResponse"
+        "400":
+          description: "`fileIds` missing, empty or over 500, or `algo` and `hash` not an algorithm and a hexadecimal checksum"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /api/v1/duplicates/restore:
+    post:
+      tags: [Duplicates]
+      summary: Restore one row of a duplicate group
+      description: >-
+        `original`: a file in the trash back at its place, the folders it was in made again, and
+        moved there where the trash put it elsewhere. `version`: a version of a trashed file
+        imported into the file now at that file's place. `file`: any version's content as a new
+        file beside its file, or at its trashed file's place, named after the file and the
+        version's time. A name taken is made unique; a version restored stays where it was. The
+        row must still hold `hash` under `algo`.
+      operationId: restoreDuplicate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestoreDuplicateInput"
+      responses:
+        "200":
+          description: The row's result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestoreDuplicateResponse"
+        "400":
+          description: "`fileId` missing, `as` not one of the three, or `algo` and `hash` not an algorithm and a hexadecimal checksum"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "429":
           $ref: "#/components/responses/RateLimited"
         "500":
@@ -1895,6 +1983,156 @@ components:
             Files-app link to it would open. Absent on the ordinary routes, where every row
             is the caller's to open.
           example: false
+        mtime:
+          type: integer
+          description: "The listing only: when the row last changed, in seconds since the epoch, as the filecache holds it; for a version, when it was kept."
+          example: 1792500000
+        size:
+          type: integer
+          description: "The listing only: the row's size in bytes."
+          example: 48211
+        actions:
+          type: array
+          description: "With `actions=1` on the caller's own listing: what the caller may do to the row. `mergeInto`: the file may take the versions of files deleted beside it."
+          items:
+            type: string
+            enum: [trash, delete, mergeInto, restore, restoreAsVersion, saveAsFile]
+          example: [trash, delete, mergeInto]
+
+    DeleteDuplicatesInput:
+      type: object
+      required: [fileIds, algo, hash]
+      properties:
+        fileIds:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: integer
+          description: The rows, by their own file ids, as the listing gives them.
+          example: [200, 300]
+        algo:
+          type: string
+          example: sha1
+        hash:
+          type: string
+          description: The group's full checksum, in hexadecimal, which each row must still hold.
+          example: "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d"
+        forGood:
+          type: boolean
+          default: false
+          description: A file past the trash; every other kind of row goes for good anyway.
+        dryRun:
+          type: boolean
+          default: false
+          description: Act on nothing, and say what would happen.
+        mergeInto:
+          type: integer
+          description: A file of the group that stays and takes each deleted file's earlier versions.
+          example: 100
+
+    DuplicateRowResult:
+      type: object
+      required: [fileid, kind, status]
+      properties:
+        fileid:
+          type: integer
+          example: 200
+        kind:
+          type: string
+          nullable: true
+          enum: [file, version, trash, trashedVersion]
+          description: Null for a row that could not be found.
+        status:
+          type: string
+          enum: [ready, trashed, deleted, refused, failed, restored]
+          description: "`ready` is a dry run's, where it would act."
+        action:
+          type: string
+          enum: [trash, delete]
+          description: What deleting does, on a row not refused.
+        reason:
+          type: string
+          description: Why a row was refused or failed, in the caller's language.
+          example: "You may not delete it."
+        versions:
+          type: array
+          description: A file's earlier versions that go along with it.
+          items:
+            type: object
+            required: [timestamp, size, label]
+            properties:
+              timestamp:
+                type: integer
+                example: 1792300000
+              size:
+                type: integer
+                example: 48000
+              label:
+                type: string
+                nullable: true
+                description: The name the version was given, where it has one.
+                example: Final
+        merge:
+          type: object
+          description: With `mergeInto`, what became of a file's earlier versions.
+          required: [imported, skipped, failed]
+          properties:
+            imported:
+              type: integer
+              example: 1
+            skipped:
+              type: integer
+              description: Versions of a second the target already has a version of.
+              example: 0
+            failed:
+              type: boolean
+              example: false
+        restored:
+          type: object
+          description: "A restore's result: the file that holds it, with its path below the caller's folder."
+          required: [fileid, path]
+          properties:
+            fileid:
+              type: integer
+              example: 200
+            path:
+              type: string
+              example: "/Photos/b.pdf"
+
+    DeleteDuplicatesResponse:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/DuplicateRowResult"
+
+    RestoreDuplicateInput:
+      type: object
+      required: [fileId, algo, hash, as]
+      properties:
+        fileId:
+          type: integer
+          example: 200
+        algo:
+          type: string
+          example: sha1
+        hash:
+          type: string
+          example: "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d"
+        as:
+          type: string
+          enum: [original, version, file]
+          description: "`original` a trashed file to its place, `version` a trashed version into the file there, `file` any version as a new file."
+
+    RestoreDuplicateResponse:
+      type: object
+      required: [result]
+      properties:
+        result:
+          $ref: "#/components/schemas/DuplicateRowResult"
 
     Pagination:
       type: object

@@ -73,7 +73,10 @@ and an **i** button beside the label says what it decides.
   Useful when you have a fragment from the middle of a hash; slower to narrow,
   since far more can match.
 
-Each file is listed by the path you know it by.
+Each file is listed by the path you know it by,
+with its size and when it last changed beside it,
+and the group's header shows one preview:
+its files share their content, so one picture shows it.
 A file someone shared with you says whose it is and where you find it,
 `bob: My Projects/report.pdf`,
 behind a share glyph — and nothing of the owner's folders above the share,
@@ -128,6 +131,50 @@ most 100 MB before handing the rest back to the page, which sends them next.
 The server allows 20 such batches a minute, so a very large group may stop
 partway with a message; wait a minute and click again — it picks up where it
 stopped rather than starting over.
+
+### Deleting and restoring copies
+
+On **Mine**, each row has a menu with what you may do to it.
+Nothing is offered that would only be refused:
+a file in a folder shared with you read-only has none,
+and a file someone shared with you on its own has no delete either,
+since deleting it in Files only leaves the share and frees nothing.
+
+- **Move to trash** — the file goes to the trash, its versions with it,
+  and comes back from there.
+- **Delete permanently** — the file is gone, its versions with it.
+  A version, or a copy already in the trash, has no trash to go to,
+  so it is only ever deleted permanently.
+- **Restore** — a copy in the trash goes back where it was.
+  The folders it was in are made again where they are gone,
+  and where its name is taken, it comes back beside the file that took it,
+  under a name of its own.
+- **Restore into the file at its place** — a version of a file in the trash
+  becomes an earlier version of the file now where that file was.
+- **Save as a new file** — any version is saved as a file of its own,
+  beside its file, or where its file was before the trash,
+  named after the file and the version's time.
+
+Before anything is deleted, a confirmation lists what will happen to each row,
+and the earlier versions that go along with a file, named ones by their name;
+it says so where nothing comes back.
+A row that changed since the page was loaded is left alone.
+After a move to the trash, **Undo** on the message brings the file back.
+
+To delete several copies at once, open the group and click **Select**:
+each row you may delete gets a checkbox,
+and **Select all** and **Invert selection** help choose.
+**Delete selected** asks how — to the trash or permanently — and,
+where the deleted files have earlier versions and a copy stays,
+which copy takes them: chosen for you where one copy stays,
+yours to choose where several do, or none,
+in which case they go with their files.
+Versions of the very same second as one the copy already has are left out.
+Where no copy would stay outside the trash, the confirmation says so.
+
+Once a single copy is left outside the trash, the group is no longer listed:
+a file and its deleted copies are not a duplicate to clean up.
+Restore such a copy with **Undo**, or from Files' trash.
 
 ### Looking at other accounts
 

@@ -1023,7 +1023,19 @@ Features:
 
 - Filter by algorithm (SHA-1, MD5, SHA-256, SHA-512, SHA3-256, SHA3-512, CRC32)
 - Set minimum duplicate count and result limit
-- Expandable groups showing file paths
+- Expandable groups showing file paths,
+  each with its size and when it last changed,
+  and one preview per group, since its files share their content
+- On **Mine**, a menu on each row: **Move to trash** or **Delete permanently**,
+  confirmed with the earlier versions that go along listed;
+  **Restore** for a copy in the trash, to its place, its folders made again;
+  **Restore into the file at its place** for a version of a trashed file;
+  **Save as a new file** for any version;
+  and **Undo** after a move to the trash
+- **Select** on a group: a checkbox per row, **Select all**,
+  **Invert selection** and **Delete selected**,
+  confirmed with the way, and the copy that stays to take the deleted files'
+  earlier versions, or none
 - Filter by hash, matching at its start or — with **Match anywhere in the hash**
   — anywhere in it
 - Empty files left out, since every one of them shares one checksum and deleting

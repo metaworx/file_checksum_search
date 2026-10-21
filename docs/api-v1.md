@@ -164,6 +164,9 @@ held where it was before the deletion.
   read a trashed file that holds none;
   `occ fcias:hash --trash` reads them whatever their rule says of the trash.
   A version of one is read where its rule has both `versions` and `trash`.
+- **Restored** through route 14,
+  to the place it had, or a version of it into the file now there
+  ([Restore a Duplicate](#14-restore-a-duplicate)).
 - **Not offered:**
   recalculating a file in the trash.
 
@@ -1102,6 +1105,8 @@ so no `{"ocs": {"meta": …, "data": …}}` envelope wraps the body.
 | 25 | `/api/v1/hashes/missing` | GET | `listMissing` | The files the caller holds without a hash, page by page; with 23 under `stat`, every file |
 | 26 | `/api/v1/sudo/hashes/missing` | GET | `listMissing` | As 25, across the accounts `users[]`/`groups[]` name or the caller's whole reach |
 | 27 | `/api/v1/features` | GET | `getFeatures` | What any account may ask for: the version, the features, the algorithms |
+| 28 | `/api/v1/duplicates/delete` | POST | — | Delete rows of one duplicate group, the caller's own: a file to the trash or for good, any other row for good; a dry run says what would happen |
+| 29 | `/api/v1/duplicates/restore` | POST | — | Restore one row of a duplicate group: a trashed file to its place, a trashed version into the file there, any version as a new file |
 
 > **Note:**
 > `getHashesByFile()` and `getHashesByPath()` are PHP-only convenience methods
@@ -1355,9 +1360,16 @@ GET /ocs/v2.php/apps/file_checksum_search/api/v1/duplicates?algo=<algo>&minCount
 | `anywhere` | bool | No | false | — |
 | `includeEmpty` | bool | No | false | — |
 | `mimetype` | bool | No | false | — |
+| `actions` | bool | No | false | — |
 
 `mimetype=1` gives each group `mimetype`, the type of the content its files
 share ([MIME types](#mime-types)).
+
+`actions=1` gives each file `actions`, what the caller may do to it through
+routes 28 and 29, of `trash`, `delete`, `mergeInto` (it may take the versions of
+files deleted beside it), `restore`, `restoreAsVersion` and `saveAsFile`.
+It opens each row as the caller, so it is asked for, and the cross-account
+twin does not take it: the Duplicates page acts on the caller's own files only.
 
 `hash` keeps only the groups whose checksum it names: whole values first,
 then those beginning with it.
@@ -1381,9 +1393,9 @@ default — see [Empty files](#empty-files).
       "file_count": 3,
       "empty": false,
       "files": [
-        {"fileid": 100, "path": "/Documents/a.pdf", "name": "a.pdf", "owner": "alice", "location": "home:alice//Documents/a.pdf"},
-        {"fileid": 200, "path": "/Photos/b.pdf", "name": "b.pdf", "owner": "alice", "location": "home:alice//Photos/b.pdf"},
-        {"fileid": 300, "path": "/From Bob/c.pdf", "name": "c.pdf", "owner": "bob", "location": "share:42//c.pdf"}
+        {"fileid": 100, "path": "/Documents/a.pdf", "name": "a.pdf", "owner": "alice", "location": "home:alice//Documents/a.pdf", "mtime": 1792500000, "size": 48211},
+        {"fileid": 200, "path": "/Photos/b.pdf", "name": "b.pdf", "owner": "alice", "location": "home:alice//Photos/b.pdf", "mtime": 1792400000, "size": 48211},
+        {"fileid": 300, "path": "/From Bob/c.pdf", "name": "c.pdf", "owner": "bob", "location": "share:42//c.pdf", "mtime": 1792300000, "size": 48211}
       ]
     }
   ],
@@ -1393,6 +1405,10 @@ default — see [Empty files](#empty-files).
   "canSudo": false
 }
 ```
+
+Each file carries `mtime`, when it last changed in seconds since the epoch,
+and `size`, in bytes, as the filecache holds them; for a version,
+`mtime` is when it was kept, and `version.timestamp` when its file held it.
 
 `canRecalc` says whether the caller may recalculate checksums by hand — the *Who
 may recalculate checksums* permission,
@@ -1779,6 +1795,134 @@ none of the status snapshot an administrator's route 6 builds.
 ask with `?mimetype=1` only while it is `true`.
 The app's own pages carry the same answer as initial state,
 so that they ask for it only after a refusal says detection was switched off meanwhile.
+
+#### 13. Delete Duplicates
+
+```
+POST /ocs/v2.php/apps/file_checksum_search/api/v1/duplicates/delete
+```
+
+Deletes rows of one duplicate group, each by its own file id,
+as route 5 lists them: a file, a version, a file in the trash,
+or a version of one.
+The body is JSON:
+
+| Field | Type | Required | Default |
+|-------|------|----------|---------|
+| `fileIds` | int[] | Yes, 1 to 500 | — |
+| `algo` | string | Yes | — |
+| `hash` | string | Yes, hexadecimal | — |
+| `forGood` | bool | No | false |
+| `dryRun` | bool | No | false |
+| `mergeInto` | int | No | — |
+
+- **Held to the group:**
+  each row must still hold `hash` under `algo`, a stamp vouching for it;
+  one changed since the group was read is refused.
+- **The caller's own:**
+  each row is opened through the caller's own folder and trash;
+  one out of reach is refused, never acted on through anybody else's.
+  A file the caller may not delete is refused,
+  a version too where its file is such a one, and so is a received share's root,
+  whose deletion in Files leaves the share and frees nothing.
+- **What happens:**
+  a file goes to the trash, or for good with `forGood`, its versions going with
+  it either way;
+  a version, a file in the trash and a version of one are deleted for good,
+  having no trash to go to.
+  A file asked to the trash where the trash app is not there is refused.
+  Versions and trashed rows go first,
+  so a version named beside its file is deleted, not carried along.
+- **A dry run** acts on nothing, and says the same per row,
+  `ready` where it would act.
+- **`mergeInto`** names a file of the group that stays:
+  before each file is deleted, its earlier versions are imported into that one.
+  A version of a second the target already has a version of is skipped.
+  The target must not be among `fileIds`, must hold the group's hash,
+  must be the caller's own or a team folder's and one they may change;
+  otherwise every row is refused.
+  Where the import fails, a file going to the trash goes, its versions with it,
+  and a file to be deleted for good is refused.
+  The imported versions are copies:
+  the trashed file keeps its own until the trash expires.
+
+**Response (200):**
+```json
+{
+  "results": [
+    {
+      "fileid": 200,
+      "kind": "file",
+      "action": "trash",
+      "status": "trashed",
+      "versions": [{"timestamp": 1792300000, "size": 48000, "label": "Final"}],
+      "merge": {"imported": 1, "skipped": 0, "failed": false}
+    },
+    {
+      "fileid": 300,
+      "kind": "file",
+      "status": "refused",
+      "reason": "It is shared with you. Leave the share in Files instead."
+    }
+  ]
+}
+```
+
+One result per row, in the order they were acted on.
+`kind` is `file`, `version`, `trash` or `trashedVersion`;
+`action` is `trash` or `delete`, on a row that is not refused;
+`status` is `ready` on a dry run, else `trashed`, `deleted`,
+`refused` or `failed`, the last two with `reason`, in the caller's language.
+A file carries `versions`, the earlier versions that go along with it,
+a named one with its `label`, and `merge` where `mergeInto` was given.
+
+A body without rows, or without an algorithm and a hash, is a `400`.
+
+#### 14. Restore a Duplicate
+
+```
+POST /ocs/v2.php/apps/file_checksum_search/api/v1/duplicates/restore
+```
+
+Restores one row of a duplicate group, the caller's own.
+The body is JSON, `{"fileId": 200, "algo": "sha1", "hash": "…", "as": "original"}`,
+and the row must still hold that hash, as for route 13.
+
+- **`original`**, a file in the trash:
+  restored to its place through the trash's own restore,
+  the folders it was in made again where they are gone,
+  and moved there where the trash put it elsewhere,
+  as it does a file of a trashed folder.
+  A name taken is made unique.
+- **`version`**, a version of a trashed file:
+  imported into the file now at that file's place, as an earlier version of it;
+  refused where no file of the caller's is there to take it,
+  or where it has a version of that second already.
+- **`file`**, any version:
+  its content saved as a new file beside its file,
+  or at its trashed file's place, its folders made again,
+  named after the file and the version's time in the caller's time zone,
+  `report (2026-10-21 13-37-05).pdf`, made unique.
+
+A version restored stays where it was, as a copy does.
+
+**Response (200):**
+```json
+{
+  "result": {
+    "fileid": 200,
+    "kind": "trash",
+    "status": "restored",
+    "restored": {"fileid": 200, "path": "/Photos/b.pdf"}
+  }
+}
+```
+
+`status` is `restored`, `refused` or `failed`, the last two with `reason`.
+`restored` names the file that holds the result:
+the file itself, the file the version went into, or the new file.
+
+A body without a `fileId`, or with an `as` other than these three, is a `400`.
 
 ---
 
@@ -2289,6 +2433,8 @@ nor their own access to the other endpoints.
 | `GET /api/v1/sudo/selectable` | 60 requests / 60 s |
 | `POST /api/v1/file/{fileId}/recalc` and its `/sudo/` twin | 20 requests / 60 s |
 | `POST /api/v1/file/many/recalc` and its `/sudo/` twin | 20 requests / 60 s |
+| `POST /api/v1/duplicates/delete` | 20 requests / 60 s |
+| `POST /api/v1/duplicates/restore` | 20 requests / 60 s |
 
 A cross-account twin carries the limit its ordinary route carries:
 the work is the same, and a password confirmation is not a throttle.
