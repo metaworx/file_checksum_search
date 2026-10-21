@@ -624,6 +624,21 @@ describe( 'FCIAS Duplicates page', () => {
 		resolveGroup().find( '[data-testid="fcias-group-left-alone"]' ).should( 'exist' )
 		cy.get( '[data-testid="fcias-selection-count"]' ).should( 'have.text', '0 rows selected' )
 
+		// Keep one copy off, the folder takes all three, as a content that
+		// must go everywhere would: the confirmation says the group keeps
+		// none. Escape leaves it with nothing gone.
+		cy.contains( '[data-testid="fcias-selection-bar"]', 'Turn off Keep one copy to select them too.' )
+		cy.get( '[data-testid="fcias-keep-one"] input' ).uncheck( { force: true } )
+		cy.get( '[data-testid="fcias-select-matching"]' ).click()
+		cy.get( '[data-testid="fcias-selection-count"]' ).should( 'have.text', '3 rows selected' )
+		cy.get( '[data-testid="fcias-delete-page"]' ).click()
+		cy.get( '[data-testid="fcias-page-delete-emptied"]', { timeout: FIND_TIMEOUT } ).should( 'contain', 'In 1 group no copy stays outside the trash.' )
+		cy.get( 'body' ).type( '{esc}' )
+		cy.get( '[role="dialog"]' ).should( 'not.exist' )
+		resolveGroup().find( '[data-testid="fcias-trash"]' ).should( 'not.exist' )
+		cy.get( '[data-testid="fcias-select-none"]' ).click()
+		cy.get( '[data-testid="fcias-keep-one"] input' ).check( { force: true } )
+
 		cy.get( '#fcias-duplicates-select-pattern' ).clear().type( 'two.txt' )
 		cy.get( '[data-testid="fcias-select-matching"]' ).click()
 		resolveGroup().find( '[data-testid="fcias-group-selected"]' ).should( 'have.text', '1 selected' )

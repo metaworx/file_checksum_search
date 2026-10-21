@@ -106,6 +106,7 @@ const TITLES = {
 	path: t('file_checksum_search', 'Show only groups with a file at this path'),
 	// TRANSLATORS: the placeholder of the Duplicates page's path filter
 	pathPlaceholder: t('file_checksum_search', 'Folder, name or pattern'),
+	keepOne: t('file_checksum_search', 'Selecting by path or the versions leaves each group a copy. Turned off, it selects every match, a content\'s last copy included.'),
 }
 
 const {
@@ -332,6 +333,13 @@ const leftAlone = ref<Set<string>>(new Set())
 /** The pattern the selection bar selects by. */
 const selectPattern = ref('')
 
+/**
+ * D8-A: whether a rule leaves each group a copy, as it starts. Off, it
+ * takes every match: the content holds a password, say, and must go
+ * everywhere. The confirmation still says where no copy stays.
+ */
+const keepOne = ref(true)
+
 function startSelecting(): void {
 	selecting.value = true
 }
@@ -341,6 +349,7 @@ function stopSelecting(): void {
 	selected.value = new Set()
 	leftAlone.value = new Set()
 	selectPattern.value = ''
+	keepOne.value = true
 }
 
 /** A group's rows chosen by hand: the group's own choice, which no rule then stands for. */
@@ -356,9 +365,9 @@ function onChoose(group: GroupType, fileId: number, chosen: boolean): void {
 		: chosenIn(group, selected.value).filter((id) => id !== fileId))
 }
 
-/** The rows a rule picks added, across the groups shown; D1-A in {@link chooseMatching}. */
+/** The rows a rule picks added, across the groups shown; D1-A, D7-A and D8-A in {@link chooseMatching}. */
 function chooseBy(matches: (file: GroupType['files'][number]) => boolean): void {
-	const chosen = chooseMatching(groups.value, selected.value, matches)
+	const chosen = chooseMatching(groups.value, selected.value, matches, keepOne.value)
 	selected.value = chosen.selected
 	leftAlone.value = new Set(chosen.leftAlone)
 }
@@ -840,6 +849,15 @@ onBeforeUnmount(() => {
 			<NcButton data-testid="fcias-select-versions" @click="selectVersions">
 				{{ t('file_checksum_search', 'Select versions') }}
 			</NcButton>
+			<span class="db-keep-one" data-testid="fcias-keep-one">
+				<NcCheckboxRadioSwitch
+					v-model="keepOne"
+					type="switch"
+					:title="TITLES.keepOne">
+					<!-- TRANSLATORS: a switch in the bar for choosing rows on the Duplicates page: selecting by path or the versions leaves each group of duplicates one copy -->
+					{{ t('file_checksum_search', 'Keep one copy') }}
+				</NcCheckboxRadioSwitch>
+			</span>
 			<NcButton data-testid="fcias-select-none" :disabled="selected.size === 0" @click="selectNone">
 				{{ t('file_checksum_search', 'Select none') }}
 			</NcButton>
@@ -854,6 +872,8 @@ onBeforeUnmount(() => {
 			</NcButton>
 			<span class="db-selection-count" data-testid="fcias-selection-count">{{ selectionCount }}</span>
 			<span v-if="leftAlone.size > 0" class="db-selection-left-alone" data-testid="fcias-selection-left-alone">{{ leftAloneCount }}</span>
+			<!-- TRANSLATORS: after the count of groups left alone in the bar for choosing rows; "Keep one copy" is the switch beside it, translate it as that switch does -->
+			<span v-if="leftAlone.size > 0" class="db-selection-left-alone">{{ t('file_checksum_search', 'Turn off Keep one copy to select them too.') }}</span>
 		</div>
 
 		<div class="db-scroll">
@@ -1017,6 +1037,11 @@ onBeforeUnmount(() => {
 	border: 1px solid var(--color-border-maxcontrast);
 	border-radius: var(--border-radius-large);
 	background: var(--color-background-dark);
+}
+
+/* A switch among buttons, on their middle line. */
+.db-keep-one {
+	align-self: center;
 }
 
 .db-selection-count {

@@ -257,6 +257,27 @@ describe('DuplicateListing, choosing across the page', () => {
 		expect(wrapper.find('[data-testid="fcias-selection-left-alone"]').text()).toBe('1 group left alone, as every copy in it matched')
 	})
 
+	// D8-A: Keep one copy off, the pattern takes the group it would empty
+	// too; the bar no longer says it left one alone. Cancel puts it back on.
+	it('takes a group\'s every copy once Keep one copy is off, and points to it while on', async () => {
+		const wrapper = await selectingPage()
+		const keepOne = () => wrapper.find('[data-testid="fcias-keep-one"] input')
+
+		await wrapper.find('#fcias-duplicates-select-pattern').setValue('/Backup')
+		await wrapper.find('[data-testid="fcias-select-matching"]').trigger('click')
+		expect(wrapper.find('[data-testid="fcias-selection-bar"]').text()).toContain('Turn off Keep one copy to select them too.')
+
+		await keepOne().setValue(false)
+		await wrapper.find('[data-testid="fcias-select-matching"]').trigger('click')
+
+		expect(chosen(wrapper)).toEqual(['1 selected', '2 selected'])
+		expect(wrapper.find('[data-testid="fcias-selection-left-alone"]').exists()).toBe(false)
+
+		await wrapper.find('[data-testid="fcias-stop-selecting"]').trigger('click')
+		await wrapper.find('[data-testid="fcias-start-selecting"]').trigger('click')
+		expect((keepOne().element as HTMLInputElement).checked).toBe(true)
+	})
+
 	it('chooses the versions, chooses none, and leaves choosing on Cancel', async () => {
 		const wrapper = await selectingPage()
 

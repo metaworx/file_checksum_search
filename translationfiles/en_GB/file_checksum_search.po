@@ -754,6 +754,10 @@ msgstr "Its versions cannot be deleted here."
 msgid "Its versions could not be merged, so it was not deleted."
 msgstr "Its versions could not be merged, so it was not deleted."
 
+#. TRANSLATORS a switch in the bar for choosing rows on the Duplicates page: selecting by path or the versions leaves each group of duplicates one copy
+msgid "Keep one copy"
+msgstr "Keep one copy"
+
 msgid "Last changed {date}"
 msgstr "Last changed {date}"
 
@@ -1211,6 +1215,9 @@ msgstr "Select versions"
 msgid "Select {name}"
 msgstr "Select {name}"
 
+msgid "Selecting by path or the versions leaves each group a copy. Turned off, it selects every match, a content's last copy included."
+msgstr "Selecting by path or the versions leaves each group a copy. Turned off, it selects every match, a content's last copy included."
+
 msgid "Selecting would have taken every copy outside the trash, so nothing was selected here. Choose in the group by hand."
 msgstr "Selecting would have taken every copy outside the trash, so nothing was selected here. Choose in the group by hand."
 
@@ -1436,6 +1443,10 @@ msgstr "Trash"
 
 msgid "Tunables"
 msgstr "Tunables"
+
+#. TRANSLATORS after the count of groups left alone in the bar for choosing rows; "Keep one copy" is the switch beside it, translate it as that switch does
+msgid "Turn off Keep one copy to select them too."
+msgstr "Turn off Keep one copy to select them too."
 
 msgid "Type"
 msgstr "Type"

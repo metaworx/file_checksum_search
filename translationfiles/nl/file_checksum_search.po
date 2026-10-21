@@ -754,6 +754,10 @@ msgstr "De versies kunnen hier niet worden verwijderd."
 msgid "Its versions could not be merged, so it was not deleted."
 msgstr "De versies konden niet worden samengevoegd, dus het is niet verwijderd."
 
+#. TRANSLATORS a switch in the bar for choosing rows on the Duplicates page: selecting by path or the versions leaves each group of duplicates one copy
+msgid "Keep one copy"
+msgstr "Eén kopie houden"
+
 msgid "Last changed {date}"
 msgstr "Laatst gewijzigd op {date}"
 
@@ -1211,6 +1215,9 @@ msgstr "Versies selecteren"
 msgid "Select {name}"
 msgstr "{name} selecteren"
 
+msgid "Selecting by path or the versions leaves each group a copy. Turned off, it selects every match, a content's last copy included."
+msgstr "Selecteren op pad of op versies laat elke groep een kopie. Uitgeschakeld selecteert het elke overeenkomst, ook de laatste kopie van een inhoud."
+
 msgid "Selecting would have taken every copy outside the trash, so nothing was selected here. Choose in the group by hand."
 msgstr "Selecteren zou elke kopie buiten de prullenbak hebben genomen, dus hier is niets geselecteerd. Kies zelf in de groep."
 
@@ -1436,6 +1443,10 @@ msgstr "Prullenbak"
 
 msgid "Tunables"
 msgstr "Fijnafstelling"
+
+#. TRANSLATORS after the count of groups left alone in the bar for choosing rows; "Keep one copy" is the switch beside it, translate it as that switch does
+msgid "Turn off Keep one copy to select them too."
+msgstr "Zet “Eén kopie houden” uit om ook deze te selecteren."
 
 msgid "Type"
 msgstr "Type"

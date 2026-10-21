@@ -185,11 +185,16 @@ and a bar above the list helps choose across the page.
   as the **Path** filter matches them: `Backup` takes every copy under a folder
   of that name, `*.bak` every copy with that ending.
 - **Select versions** chooses every earlier version shown.
-- Neither ever takes every copy of a group outside the trash
-  — an earlier version is no copy, since versions expire.
-  Such a group is left as it was, marked *Every copy matched*,
-  and the bar says how many were;
-  choose in it by hand if you mean to.
+- **Keep one copy**, on as choosing starts, leaves each group its last copy:
+  its last file, or, in a group of earlier versions alone, its last version
+  — beside a file, a version is no copy, as it goes with its file and expires.
+  A group either would empty is left as it was, marked *Every copy matched*,
+  and the bar says how many were.
+- Turned off, both choose every row they match, a group's last copy included:
+  for a content that must go everywhere, one holding a password say,
+  type its hash in **Hash**, turn **Keep one copy** off,
+  and choose `**` with **Select matching**.
+  The confirmation still says in how many groups no copy stays.
 - A file listed in two groups is one row:
   choosing it in one chooses it in the other.
   It is listed so where the page shows more than one algorithm.

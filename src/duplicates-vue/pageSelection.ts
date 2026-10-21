@@ -6,9 +6,11 @@
  * the page, so that a file listed in two groups — the same content under
  * two algorithms — is chosen, or not, in both.
  *
- * Choosing by a rule — a pattern, the versions — never takes every copy of
- * a group outside the trash: such a group keeps its choice as it was, and
- * is named, for a person to choose in by hand.
+ * Choosing by a rule — a pattern, the versions — keeps one copy of each
+ * group unless asked not to: a group whose best copy it would take keeps
+ * its choice as it was, and is named, for a person to choose in by hand.
+ * Asked not to, a rule takes whatever it matches, a content's every copy
+ * included, as one that holds a password must go everywhere.
  */
 import type { DuplicateFileItem, DuplicateGroup } from './composables/useDuplicates'
 
@@ -30,18 +32,35 @@ export interface Chosen {
 }
 
 /**
- * The rows $matches picks added to $selected, in every group but those
- * where that would leave no copy outside the trash. Leaving a group alone
- * can spare a copy another group's rows would have taken, so the groups
- * are weighed again until none changes.
+ * The copies a group keeps the content in, best first: its files outside
+ * the trash, or, where it has none, its versions outside the trash. A
+ * version is no copy beside a file — it goes with its file, and expires —
+ * but in a group of versions alone it is the best there is.
  */
-export function chooseMatching(groups: DuplicateGroup[], selected: ReadonlySet<number>, matches: (file: DuplicateFileItem) => boolean): Chosen {
+export function bestCopies(group: DuplicateGroup): DuplicateFileItem[] {
+	const outside = group.files.filter((file) => file.trash === undefined)
+	const files = outside.filter((file) => file.version === undefined)
+	return files.length > 0 ? files : outside
+}
+
+/**
+ * The rows $matches picks added to $selected. With $keepOne, as the page
+ * starts, not in a group where that would take every one of its
+ * {@link bestCopies}: leaving a group alone can spare a copy another
+ * group's rows would have taken, so the groups are weighed again until
+ * none changes.
+ */
+export function chooseMatching(groups: DuplicateGroup[], selected: ReadonlySet<number>, matches: (file: DuplicateFileItem) => boolean, keepOne = true): Chosen {
 	const candidates = new Map<string, number[]>()
 	for (const group of groups) {
 		const ids = group.files.filter((file) => choosable(file) && !selected.has(file.fileid) && matches(file)).map((file) => file.fileid)
 		if (ids.length > 0) {
 			candidates.set(groupKey(group), ids)
 		}
+	}
+
+	if (!keepOne) {
+		return { selected: new Set([...selected, ...[...candidates.values()].flat()]), leftAlone: [] }
 	}
 
 	const leftAlone = new Set<string>()
@@ -52,13 +71,13 @@ export function chooseMatching(groups: DuplicateGroup[], selected: ReadonlySet<n
 				ids.forEach((id) => taken.add(id))
 			}
 		}
-		// A copy is a file: a version or a trashed one keeps the content
-		// only until the versions expire or the trash is emptied.
 		const emptied = groups.filter((group) => {
 			const key = groupKey(group)
+			const best = bestCopies(group)
 			return candidates.has(key)
 				&& !leftAlone.has(key)
-				&& group.files.every((file) => file.trash !== undefined || file.version !== undefined || taken.has(file.fileid))
+				&& best.length > 0
+				&& best.every((file) => taken.has(file.fileid))
 		})
 		if (emptied.length === 0) {
 			return { selected: taken, leftAlone: [...leftAlone] }

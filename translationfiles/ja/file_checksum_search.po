@@ -736,6 +736,10 @@ msgstr "そのバージョンはここでは削除できません。"
 msgid "Its versions could not be merged, so it was not deleted."
 msgstr "バージョンを統合できなかったため、削除しませんでした。"
 
+#. TRANSLATORS a switch in the bar for choosing rows on the Duplicates page: selecting by path or the versions leaves each group of duplicates one copy
+msgid "Keep one copy"
+msgstr "コピーを1つ残す"
+
 msgid "Last changed {date}"
 msgstr "最終変更 {date}"
 
@@ -1190,6 +1194,9 @@ msgstr "バージョンを選択"
 msgid "Select {name}"
 msgstr "{name} を選択"
 
+msgid "Selecting by path or the versions leaves each group a copy. Turned off, it selects every match, a content's last copy included."
+msgstr "パスまたはバージョンによる選択では、各重複グループにコピーを1つ残します。オフにすると、内容の最後のコピーも含め、一致するものをすべて選択します。"
+
 msgid "Selecting would have taken every copy outside the trash, so nothing was selected here. Choose in the group by hand."
 msgstr "選択するとゴミ箱外のすべてのコピーが含まれるため、ここでは何も選択しませんでした。重複グループ内で手動で選択してください。"
 
@@ -1415,6 +1422,10 @@ msgstr "ゴミ箱"
 
 msgid "Tunables"
 msgstr "調整項目"
+
+#. TRANSLATORS after the count of groups left alone in the bar for choosing rows; "Keep one copy" is the switch beside it, translate it as that switch does
+msgid "Turn off Keep one copy to select them too."
+msgstr "これらも選択するには「コピーを1つ残す」をオフにしてください。"
 
 msgid "Type"
 msgstr "タイプ"

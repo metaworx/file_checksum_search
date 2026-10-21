@@ -1040,8 +1040,8 @@ Features:
   confirmed with the way, and the copy that stays to take the deleted files'
   earlier versions, or none
 - **Select** beside **Refresh**: rows chosen across the page,
-  by hand, by path pattern or as earlier versions — never every copy of a
-  group outside the trash — and deleted through one confirmation,
+  by hand, by path pattern or as earlier versions — each group keeping a copy
+  unless **Keep one copy** is off — and deleted through one confirmation,
   each group's versions kept in its most recently changed copy that stays,
   with one **Undo**
 - Filter by hash, matching at its start or — with **Match anywhere in the hash**

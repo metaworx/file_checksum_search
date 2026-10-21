@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest'
 import type { DuplicateFileItem, DuplicateGroup } from './composables/useDuplicates'
-import { chooseMatching, chosenIn, groupKey, stillListed, withGroupChoice } from './pageSelection'
+import { bestCopies, chooseMatching, chosenIn, groupKey, stillListed, withGroupChoice } from './pageSelection'
 import { compilePattern } from './pathPattern'
 
 const ALL: DuplicateFileItem['actions'] = ['trash', 'delete']
@@ -78,12 +78,52 @@ describe('choosing by a rule', () => {
 		expect([...chooseMatching(groups, new Set(), (row) => row.version !== undefined).selected]).toEqual([5])
 	})
 
-	// A version keeps the content only until the versions expire: no copy.
-	it('counts a version that would be left as no copy', () => {
+	// D7-A: beside a file, a version is no copy: it goes with its file, and expires.
+	it('counts a version beside a file as no copy', () => {
 		const version = { fileid: 9, timestamp: '2026-10-21T00:00:00+00:00' }
 		const groups = [group('a', [file(1, '/Backup/a.txt'), file(5, 'versions:///Docs/a.txt', { version })])]
 
 		expect(chooseMatching(groups, new Set(), inBackup).leftAlone).toEqual(['sha1:a'])
+	})
+
+	// D7-A: a group of versions alone keeps the content in them; one of
+	// them may go, the last may not.
+	it('keeps the last version of a group of versions alone', () => {
+		const version = (fileid: number) => ({ version: { fileid, timestamp: '2026-10-21T00:00:00+00:00' } })
+		const groups = [group('a', [file(5, 'versions:///Readme.md', version(1)), file(6, 'versions:///x/Readme.md', version(2))])]
+		const underX = compilePattern('/x')!
+
+		const one = chooseMatching(groups, new Set(), (row) => underX(row.path))
+		expect([...one.selected]).toEqual([6])
+		expect(one.leftAlone).toEqual([])
+
+		const both = chooseMatching(groups, new Set(), (row) => row.version !== undefined)
+		expect([...both.selected]).toEqual([])
+		expect(both.leftAlone).toEqual(['sha1:a'])
+	})
+
+	// D8-A: Keep one copy off, a rule takes what it matches, a group's every
+	// copy included — the content holds a password, say.
+	it('takes every copy where asked not to keep one', () => {
+		const groups = [
+			group('a', [file(1, '/Backup/a.txt'), file(2, '/Backup/old/a.txt')]),
+			group('m', [file(1, '/Backup/a.txt'), file(2, '/Backup/old/a.txt')], 'md5'),
+		]
+
+		const chosen = chooseMatching(groups, new Set([7]), inBackup, false)
+
+		expect([...chosen.selected].sort()).toEqual([1, 2, 7])
+		expect(chosen.leftAlone).toEqual([])
+	})
+})
+
+describe('a group\'s best copies', () => {
+	const version = { version: { fileid: 1, timestamp: '2026-10-21T00:00:00+00:00' } }
+	const trash = { trash: { deletedAt: '2026-10-21T00:00:00+00:00' } }
+
+	it('are its files outside the trash, else its versions outside the trash', () => {
+		expect(bestCopies(group('a', [file(1, '/a'), file(2, 'versions:///a', version), file(3, 'trash:///a', trash)])).map((row) => row.fileid)).toEqual([1])
+		expect(bestCopies(group('a', [file(2, 'versions:///a', version), file(3, 'trash:///a', trash)])).map((row) => row.fileid)).toEqual([2])
 	})
 })
 

@@ -736,6 +736,10 @@ msgstr "无法在此处删除其版本。"
 msgid "Its versions could not be merged, so it was not deleted."
 msgstr "无法合并其版本，因此未删除。"
 
+#. TRANSLATORS a switch in the bar for choosing rows on the Duplicates page: selecting by path or the versions leaves each group of duplicates one copy
+msgid "Keep one copy"
+msgstr "保留一个副本"
+
 msgid "Last changed {date}"
 msgstr "最后更改于 {date}"
 
@@ -1190,6 +1194,9 @@ msgstr "选择版本"
 msgid "Select {name}"
 msgstr "选择 {name}"
 
+msgid "Selecting by path or the versions leaves each group a copy. Turned off, it selects every match, a content's last copy included."
+msgstr "按路径或版本选择时，会为每个文件组保留一个副本。关闭后，将选择所有匹配项，包括某一内容的最后一个副本。"
+
 msgid "Selecting would have taken every copy outside the trash, so nothing was selected here. Choose in the group by hand."
 msgstr "选择将包含回收站之外的所有副本，因此这里未选择任何内容。请在该文件组中手动选择。"
 
@@ -1415,6 +1422,10 @@ msgstr "回收站"
 
 msgid "Tunables"
 msgstr "可调参数"
+
+#. TRANSLATORS after the count of groups left alone in the bar for choosing rows; "Keep one copy" is the switch beside it, translate it as that switch does
+msgid "Turn off Keep one copy to select them too."
+msgstr "关闭“保留一个副本”即可同时选择它们。"
 
 msgid "Type"
 msgstr "类型"

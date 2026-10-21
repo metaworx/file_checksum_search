@@ -772,6 +772,10 @@ msgstr "As versões não podem ser excluídas aqui."
 msgid "Its versions could not be merged, so it was not deleted."
 msgstr "Não foi possível mesclar as versões, então não foi excluído."
 
+#. TRANSLATORS a switch in the bar for choosing rows on the Duplicates page: selecting by path or the versions leaves each group of duplicates one copy
+msgid "Keep one copy"
+msgstr "Manter uma cópia"
+
 msgid "Last changed {date}"
 msgstr "Última alteração em {date}"
 
@@ -1232,6 +1236,9 @@ msgstr "Selecionar versões"
 msgid "Select {name}"
 msgstr "Selecionar {name}"
 
+msgid "Selecting by path or the versions leaves each group a copy. Turned off, it selects every match, a content's last copy included."
+msgstr "Selecionar por caminho ou as versões deixa uma cópia em cada grupo. Desativado, seleciona todas as correspondências, inclusive a última cópia de um conteúdo."
+
 msgid "Selecting would have taken every copy outside the trash, so nothing was selected here. Choose in the group by hand."
 msgstr "A seleção teria pegado todas as cópias fora da lixeira, então nada foi selecionado aqui. Escolha no grupo à mão."
 
@@ -1457,6 +1464,10 @@ msgstr "Lixeira"
 
 msgid "Tunables"
 msgstr "Ajustes finos"
+
+#. TRANSLATORS after the count of groups left alone in the bar for choosing rows; "Keep one copy" is the switch beside it, translate it as that switch does
+msgid "Turn off Keep one copy to select them too."
+msgstr "Desative “Manter uma cópia” para selecioná-los também."
 
 msgid "Type"
 msgstr "Tipo"
