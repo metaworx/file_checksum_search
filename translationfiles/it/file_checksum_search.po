@@ -638,6 +638,9 @@ msgstr "Il contenuto è cambiato dopo il caricamento dell'elenco."
 msgid "Its versions cannot be deleted here."
 msgstr "Le sue versioni non possono essere eliminate qui."
 
+msgid "Its versions could not be merged, so it was not deleted."
+msgstr "Non è stato possibile unire le sue versioni, quindi non è stato eliminato."
+
 msgid "Last updated"
 msgstr "Ultimo aggiornamento"
 
@@ -1119,6 +1122,9 @@ msgstr "Gli algoritmi che le regole possono calcolare e i selettori possono prop
 
 msgid "The default must be one of the allowed algorithms."
 msgstr "L'algoritmo predefinito deve essere uno di quelli consentiti."
+
+msgid "The file chosen for the versions cannot take them."
+msgstr "Il file scelto per le versioni non può riceverle."
 
 msgid "The files are queued to have their MIME type detected."
 msgstr "I file sono stati messi in coda per il rilevamento del tipo MIME."

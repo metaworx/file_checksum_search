@@ -634,6 +634,9 @@ msgstr "列表加载后其内容已更改。"
 msgid "Its versions cannot be deleted here."
 msgstr "无法在此处删除其版本。"
 
+msgid "Its versions could not be merged, so it was not deleted."
+msgstr "无法合并其版本，因此未删除。"
+
 msgid "Last updated"
 msgstr "最后更新"
 
@@ -1111,6 +1114,9 @@ msgstr "规则可以计算、选择器可以提供的算法，从此服务器的
 
 msgid "The default must be one of the allowed algorithms."
 msgstr "默认算法必须是允许的算法之一。"
+
+msgid "The file chosen for the versions cannot take them."
+msgstr "为这些版本选择的文件无法接收它们。"
 
 msgid "The files are queued to have their MIME type detected."
 msgstr "文件已加入队列，等待检测其 MIME 类型。"

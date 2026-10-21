@@ -14,6 +14,7 @@ use OCA\Files_Trashbin\Trash\ITrashManager;
 use OCA\Files_Versions\Versions\IDeletableVersionBackend;
 use OCA\Files_Versions\Versions\IMetadataVersion;
 use OCA\Files_Versions\Versions\IVersionManager;
+use OCA\Files_Versions\Versions\IVersionsImporterBackend;
 use OCP\App\IAppManager;
 use OCP\Files\File;
 use OCP\Files\FileInfo;
@@ -51,6 +52,9 @@ class DuplicateActionService
 
 	/** A row deleted for good: a file asked so, and every other kind, which has no trash to go to. */
 	public const ACTION_DELETE = 'delete';
+
+	/** A file that may take the earlier versions of the files deleted beside it. */
+	public const ACTION_MERGE_INTO = 'mergeInto';
 
 	/** A dry run's answer for a row it would act on. */
 	public const STATUS_READY = 'ready';
@@ -103,11 +107,19 @@ class DuplicateActionService
 	 * A dry run acts on nothing, and says per row what would happen, with
 	 * the versions that go along with a file.
 	 *
-	 * @param  list<int>  $fileIds  The rows, by their own file ids.
-	 * @param  string     $algo     The group's algorithm and full hash,
-	 * @param  string     $hash     which each row must still hold.
+	 * With $mergeInto, each file's earlier versions are first imported into
+	 * that file, which stays: one of the group, the account's own or a team
+	 * folder's, and one it may change. A version of the same second as one
+	 * the file has is skipped. Where the import fails, a file going to the
+	 * trash goes, its versions with it, and one to be deleted for good is
+	 * not deleted.
 	 *
-	 * @return list<array{fileid: int, kind: ?string, status: string, action?: string, reason?: string, versions?: list<array{timestamp: int, size: int, label: ?string}>}>
+	 * @param  list<int>  $fileIds    The rows, by their own file ids.
+	 * @param  string     $algo       The group's algorithm and full hash,
+	 * @param  string     $hash       which each row must still hold.
+	 * @param  int|null   $mergeInto  The file that takes the versions.
+	 *
+	 * @return list<array{fileid: int, kind: ?string, status: string, action?: string, reason?: string, versions?: list<array{timestamp: int, size: int, label: ?string}>, merge?: array{imported: int, skipped: int, failed: bool}}>
 	 *         In the order the rows were acted on.
 	 */
 	public function delete(
@@ -117,9 +129,13 @@ class DuplicateActionService
 		string $hash,
 		bool   $forGood,
 		bool   $dryRun,
+		?int   $mergeInto = null,
 	): array
 	{
-		$rows = $this->open( $user, $fileIds, $algo, $hash );
+		$rows   = $this->open( $user, $fileIds, $algo, $hash );
+		$target = $mergeInto === null
+			? null
+			: $this->mergeTarget( $user, $mergeInto, $fileIds, $algo, $hash );
 
 		usort(
 			$rows,
@@ -133,11 +149,25 @@ class DuplicateActionService
 			$action  = $row->kind === self::KIND_FILE && ! $forGood
 				? self::ACTION_TRASH
 				: self::ACTION_DELETE;
-			$refusal = $row->refusal ?? $this->refusalOf( $row, $action );
+			$refusal = $row->refusal ?? $target?->refusal ?? $this->refusalOf( $row, $action );
 			$result  = [
 				'fileid' => $row->fileId,
 				'kind'   => $row->kind,
 			];
+
+			if ( $refusal === null && $row->kind === self::KIND_FILE && $row->node !== null )
+			{
+				$result['versions'] = $this->versionsOf( $user, $row->node );
+
+				if ( $target?->node !== null )
+				{
+					$result['merge'] = $this->mergeInto( $user, $row->node, $target->node, $dryRun );
+
+					$refusal = $result['merge']['failed'] && $action === self::ACTION_DELETE
+						? $this->l10n->t( 'Its versions could not be merged, so it was not deleted.' )
+						: null;
+				}
+			}
 
 			if ( $refusal !== null )
 			{
@@ -150,11 +180,6 @@ class DuplicateActionService
 			}
 
 			$result['action'] = $action;
-
-			if ( $row->kind === self::KIND_FILE && $row->node !== null )
-			{
-				$result['versions'] = $this->versionsOf( $user, $row->node );
-			}
 
 			$results[] = $dryRun
 				? $result + [ 'status' => self::STATUS_READY ]
@@ -208,8 +233,9 @@ class DuplicateActionService
 	}
 
 	/**
-	 * What may be done to $row, of {@see ACTION_TRASH} and
-	 * {@see ACTION_DELETE}: moving to the trash is a file's alone.
+	 * What may be done to $row, of {@see ACTION_TRASH}, {@see ACTION_DELETE}
+	 * and {@see ACTION_MERGE_INTO}: moving to the trash, and taking the
+	 * versions of others, are a file's alone.
 	 *
 	 * @return list<string>
 	 */
@@ -228,7 +254,189 @@ class DuplicateActionService
 			}
 		}
 
+		if ( $row !== null && $this->mayTakeVersions( $row ) )
+		{
+			$actions[] = self::ACTION_MERGE_INTO;
+		}
+
 		return $actions;
+	}
+
+	/**
+	 * The file the versions go into, opened as a row is, or a row refusing
+	 * every other: one the request also deletes, one out of the group, or
+	 * one that may not take them.
+	 *
+	 * @param  list<int>  $fileIds
+	 */
+	private function mergeTarget(
+		IUser  $user,
+		int    $fileId,
+		array  $fileIds,
+		string $algo,
+		string $hash,
+	): DuplicateRow
+	{
+		$row = in_array( $fileId, array_map( intval( ... ), $fileIds ), true )
+			? null
+			: $this->open( $user, [ $fileId ], $algo, $hash )[0] ?? null;
+
+		return $row !== null && $this->mayTakeVersions( $row )
+			? $row
+			: new DuplicateRow( $fileId, $row?->kind, refusal: $this->l10n->t( 'The file chosen for the versions cannot take them.' ) );
+	}
+
+	/**
+	 * Whether $row may take the versions of others: a file, opened, that
+	 * the account may change, held in its own home or a team folder, on a
+	 * storage whose versions backend can import. A received share's
+	 * versions are its owner's, which an import as the account would miss.
+	 */
+	private function mayTakeVersions( DuplicateRow $row ): bool
+	{
+		$node = $row->node;
+
+		return $row->refusal === null
+		       && $row->kind === self::KIND_FILE
+		       && $node !== null
+		       && $node->isUpdateable()
+		       && ! $node->getStorage()->instanceOfStorage( ISharedStorage::class )
+		       && $this->importerFor( $node ) !== null;
+	}
+
+	/**
+	 * $source's earlier versions imported into $target, but those of a
+	 * second $target already has a version of; on a dry run, only counted.
+	 *
+	 * @return array{imported: int, skipped: int, failed: bool}
+	 */
+	private function mergeInto(
+		IUser $user,
+		File  $source,
+		File  $target,
+		bool  $dryRun,
+	): array
+	{
+		$taken = [ (string) $target->getMTime() => true ];
+
+		foreach ( $this->listVersions( $user, $target ) as $version )
+		{
+			$taken[ (string) $version->getRevisionId() ] = true;
+		}
+
+		$versions = [];
+		$skipped  = 0;
+
+		foreach ( $this->listVersions( $user, $source ) as $version )
+		{
+			$revision = (string) $version->getRevisionId();
+
+			if ( $revision === (string) $source->getMTime() )
+			{
+				continue;
+			}
+
+			if ( isset( $taken[ $revision ] ) )
+			{
+				$skipped++;
+
+				continue;
+			}
+
+			$versions[] = $version;
+		}
+
+		$failed = false;
+
+		if ( ! $dryRun && $versions !== [] )
+		{
+			try
+			{
+				$importer = $this->importerFor( $target );
+
+				if ( $importer === null )
+				{
+					throw new \RuntimeException( 'The versions backend of the target cannot import.' );
+				}
+
+				$importer->importVersionsForFile( $user, $source, $target, $versions );
+			}
+			catch ( Throwable $e )
+			{
+				$failed = true;
+
+				$this->logger->warning(
+					'FCIAS DuplicateActionService: versions could not be merged',
+					[
+						'app'       => Application::APP_ID,
+						'user'      => $user->getUID(),
+						'source'    => $source->getId(),
+						'target'    => $target->getId(),
+						'exception' => $e,
+					],
+				);
+			}
+		}
+
+		return [
+			'imported' => $failed
+				? 0
+				: count( $versions ),
+			'skipped'  => $skipped,
+			'failed'   => $failed,
+		];
+	}
+
+	/**
+	 * The versions backend of $file's storage where it can import
+	 * versions, or null.
+	 *
+	 * @return \OCA\Files_Versions\Versions\IVersionsImporterBackend|null
+	 */
+	private function importerFor( File $file ): ?object
+	{
+		try
+		{
+			$backend = $this->versionManager()?->getBackendForStorage( $file->getStorage() );
+		}
+		catch ( Throwable )
+		{
+			return null;
+		}
+
+		return $backend instanceof IVersionsImporterBackend
+			? $backend
+			: null;
+	}
+
+	/**
+	 * Every version the versions app lists for $file, its current one
+	 * among them; none where it cannot say.
+	 *
+	 * @return list<\OCA\Files_Versions\Versions\IVersion>
+	 */
+	private function listVersions(
+		IUser $user,
+		File  $file,
+	): array
+	{
+		try
+		{
+			return array_values( $this->versionManager()?->getVersionsForFile( $user, $file ) ?? [] );
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->debug(
+				'FCIAS DuplicateActionService: the versions of a file could not be listed',
+				[
+					'app'       => Application::APP_ID,
+					'fileId'    => $file->getId(),
+					'exception' => $e,
+				],
+			);
+
+			return [];
+		}
 	}
 
 	/**
@@ -565,7 +773,7 @@ class DuplicateActionService
 		int   $timestamp,
 	): ?object
 	{
-		foreach ( $this->versionManager()?->getVersionsForFile( $user, $file ) ?? [] as $version )
+		foreach ( $this->listVersions( $user, $file ) as $version )
 		{
 			if ( (string) $version->getRevisionId() === (string) $timestamp )
 			{
@@ -589,37 +797,23 @@ class DuplicateActionService
 	{
 		$versions = [];
 
-		try
+		foreach ( $this->listVersions( $user, $file ) as $version )
 		{
-			foreach ( $this->versionManager()?->getVersionsForFile( $user, $file ) ?? [] as $version )
+			// The file's current content is listed among them, and is the
+			// file itself.
+			if ( (string) $version->getRevisionId() === (string) $file->getMTime() )
 			{
-				// The file's current content is listed among them, and is the
-				// file itself.
-				if ( (string) $version->getRevisionId() === (string) $file->getMTime() )
-				{
-					continue;
-				}
-
-				$label      = $version instanceof IMetadataVersion
-					? $version->getMetadataValue( 'label' )
-					: null;
-				$versions[] = [
-					'timestamp' => (int) $version->getTimestamp(),
-					'size'      => (int) $version->getSize(),
-					'label'     => $label === '' ? null : $label,
-				];
+				continue;
 			}
-		}
-		catch ( Throwable $e )
-		{
-			$this->logger->debug(
-				'FCIAS DuplicateActionService: the versions of a file could not be listed',
-				[
-					'app'       => Application::APP_ID,
-					'fileId'    => $file->getId(),
-					'exception' => $e,
-				],
-			);
+
+			$label      = $version instanceof IMetadataVersion
+				? $version->getMetadataValue( 'label' )
+				: null;
+			$versions[] = [
+				'timestamp' => (int) $version->getTimestamp(),
+				'size'      => (int) $version->getSize(),
+				'label'     => $label === '' ? null : $label,
+			];
 		}
 
 		return $versions;

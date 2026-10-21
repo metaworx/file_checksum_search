@@ -634,6 +634,9 @@ msgstr "一覧の読み込み後に内容が変更されました。"
 msgid "Its versions cannot be deleted here."
 msgstr "そのバージョンはここでは削除できません。"
 
+msgid "Its versions could not be merged, so it was not deleted."
+msgstr "バージョンを統合できなかったため、削除しませんでした。"
+
 msgid "Last updated"
 msgstr "最終更新"
 
@@ -1111,6 +1114,9 @@ msgstr "ルールが計算でき、選択リストが提示できるアルゴリ
 
 msgid "The default must be one of the allowed algorithms."
 msgstr "デフォルトは許可されたアルゴリズムのいずれかである必要があります。"
+
+msgid "The file chosen for the versions cannot take them."
+msgstr "バージョンの移動先に選んだファイルは、それらを受け取れません。"
 
 msgid "The files are queued to have their MIME type detected."
 msgstr "MIMEタイプの検出のためにファイルをキューに追加しました。"

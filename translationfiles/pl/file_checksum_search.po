@@ -640,6 +640,9 @@ msgstr "Zawartość zmieniła się po wczytaniu listy."
 msgid "Its versions cannot be deleted here."
 msgstr "Wersji nie można tutaj usunąć."
 
+msgid "Its versions could not be merged, so it was not deleted."
+msgstr "Nie udało się scalić wersji, więc nie usunięto."
+
 msgid "Last updated"
 msgstr "Ostatnia aktualizacja"
 
@@ -1123,6 +1126,9 @@ msgstr "Algorytmy, które reguły mogą obliczać, a listy wyboru proponować, w
 
 msgid "The default must be one of the allowed algorithms."
 msgstr "Algorytm domyślny musi być jednym z dozwolonych algorytmów."
+
+msgid "The file chosen for the versions cannot take them."
+msgstr "Plik wybrany dla wersji nie może ich przyjąć."
 
 msgid "The files are queued to have their MIME type detected."
 msgstr "Pliki umieszczono w kolejce do wykrycia typu MIME."

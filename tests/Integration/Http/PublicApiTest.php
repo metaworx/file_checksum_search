@@ -349,7 +349,8 @@ class PublicApiTest
 
 	/**
 	 * Asked, the own listing says what the caller may do to each file: the
-	 * seeded pair are theirs, to the trash or for good.
+	 * seeded pair are theirs, to the trash or for good, and each may take
+	 * the other's versions.
 	 */
 	public function testTheOwnListingSaysWhatMayBeDoneWhenAsked(): void
 	{
@@ -357,7 +358,7 @@ class PublicApiTest
 		$plain = $this->httpGet( "/api/v1/duplicates?algo=sha1&hash=$this->sharedSha1Hash" );
 
 		$this->assertSame(
-			[ [ 'trash', 'delete' ], [ 'trash', 'delete' ] ],
+			[ [ 'trash', 'delete', 'mergeInto' ], [ 'trash', 'delete', 'mergeInto' ] ],
 			array_column( $asked['duplicates'][0]['files'] ?? [], 'actions' ),
 		);
 		$this->assertArrayNotHasKey( 'actions', $plain['duplicates'][0]['files'][0] ?? [], 'only when asked: it opens a node per row' );

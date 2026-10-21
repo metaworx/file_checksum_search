@@ -360,9 +360,87 @@ class DuplicateActionsTest
 
 		$actions = $this->actionsFor( [ $file->getId(), $versionId, $trashedId ] );
 
-		$this->assertSame( [ DuplicateActionService::ACTION_TRASH, DuplicateActionService::ACTION_DELETE ], $actions[ $file->getId() ] );
+		$this->assertSame( [ DuplicateActionService::ACTION_TRASH, DuplicateActionService::ACTION_DELETE, DuplicateActionService::ACTION_MERGE_INTO ], $actions[ $file->getId() ] );
 		$this->assertSame( [ DuplicateActionService::ACTION_DELETE ], $actions[ $versionId ] );
 		$this->assertSame( [ DuplicateActionService::ACTION_DELETE ], $actions[ $trashedId ] );
+	}
+
+	/**
+	 * The deleted copy's earlier version goes into the copy that stays; a
+	 * dry run only counts it.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testDeletingACopyMergesItsVersionsIntoTheOneThatStays(): void
+	{
+		[ $stays, $gone, $revision, $hash ] = $this->copies( $this->home(), $this->home(), 'merge' );
+
+		$dry = $this->delete( [ $gone->getId() ], $hash, dryRun: true, mergeInto: $stays->getId() )[ $gone->getId() ];
+		$this->assertSame( [ 'imported' => 1, 'skipped' => 0, 'failed' => false ], $dry['merge'] );
+		$this->assertNotContains( (string) $revision, $this->revisionsOf( $stays ), 'the dry run imported nothing' );
+
+		$result = $this->delete( [ $gone->getId() ], $hash, mergeInto: $stays->getId() )[ $gone->getId() ];
+		$this->assertSame( DuplicateActionService::STATUS_TRASHED, $result['status'] );
+		$this->assertSame( [ 'imported' => 1, 'skipped' => 0, 'failed' => false ], $result['merge'] );
+		$this->assertContains( (string) $revision, $this->revisionsOf( $stays ) );
+	}
+
+	/**
+	 * A version of a second the copy that stays already has a version of is
+	 * left out, and counted.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testAVersionOfASecondAlreadyTakenIsSkipped(): void
+	{
+		$at                        = time() - 5400;
+		[ $stays, $gone, , $hash ] = $this->copies( $this->home(), $this->home(), 'same', $at, $at );
+
+		$result = $this->delete( [ $gone->getId() ], $hash, mergeInto: $stays->getId() )[ $gone->getId() ];
+
+		$this->assertSame( [ 'imported' => 0, 'skipped' => 1, 'failed' => false ], $result['merge'] );
+		$this->assertSame( DuplicateActionService::STATUS_TRASHED, $result['status'] );
+	}
+
+	/**
+	 * Versions cross between a home and a team folder, either way.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testVersionsAreMergedBetweenAHomeAndATeamFolder(): void
+	{
+		foreach ( [ 'to-team' => [ $this->home(), $this->team() ], 'to-home' => [ $this->team(), $this->home() ] ] as $name => [ $from, $into ] )
+		{
+			[ $stays, $gone, $revision, $hash ] = $this->copies( $into, $from, $name );
+
+			$result = $this->delete( [ $gone->getId() ], $hash, mergeInto: $stays->getId() )[ $gone->getId() ];
+
+			$this->assertSame( [ 'imported' => 1, 'skipped' => 0, 'failed' => false ], $result['merge'], $name );
+			$this->assertContains( (string) $revision, $this->revisionsOf( $stays ), $name );
+		}
+	}
+
+	/**
+	 * The file named to take the versions must stay, and be one of the
+	 * group: otherwise nothing is deleted.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testATargetThatGoesOrIsNotOfTheGroupRefusesEveryRow(): void
+	{
+		[ $stays, $gone, , $hash ] = $this->copies( $this->home(), $this->home(), 'refuse' );
+		$other                     = $this->home()->newFile( 'refuse-other.txt', 'fcias dact refuse other' );
+		$this->hashed( $other, 'fcias dact refuse other' );
+
+		foreach ( [ $stays->getId() => [ $gone->getId(), $stays->getId() ], $other->getId() => [ $gone->getId() ] ] as $target => $fileIds )
+		{
+			$results = $this->delete( $fileIds, $hash, mergeInto: $target );
+
+			$this->assertSame( [ DuplicateActionService::STATUS_REFUSED ], array_values( array_unique( array_column( $results, 'status' ) ) ) );
+			$this->assertSame( 'The file chosen for the versions cannot take them.', $results[ $gone->getId() ]['reason'] );
+		}
+
+		$this->assertInstanceOf( File::class, $this->home()->getFirstNodeById( $gone->getId() ) );
 	}
 
 	/**
@@ -376,7 +454,7 @@ class DuplicateActionsTest
 		[ $file, $versionId, $revision ] = $this->versioned( $this->team(), 'team.txt' );
 
 		// A second version, holding `two team.txt`, kept for the trash.
-		$keptId = $this->kept( $file, 'two team.txt', 'three team.txt', 3600 );
+		$keptId = $this->kept( $file, 'two team.txt', 'three team.txt', time() - 3600 );
 		$file   = $this->refetched( $file );
 		$hash   = $this->hashed( $file, 'three team.txt' );
 
@@ -415,9 +493,48 @@ class DuplicateActionsTest
 		string $hash,
 		bool   $forGood = false,
 		bool   $dryRun = false,
+		?int   $mergeInto = null,
 	): array
 	{
-		return array_column( $this->service->delete( $this->user(), $fileIds, 'sha1', $hash, $forGood, $dryRun ), null, 'fileid' );
+		return array_column( $this->service->delete( $this->user(), $fileIds, 'sha1', $hash, $forGood, $dryRun, $mergeInto ), null, 'fileid' );
+	}
+
+	/**
+	 * Two copies of one content, hashed: one that stays, in $staysIn, and
+	 * one to go, in $goneIn, with an earlier version dated $goneAt. Where
+	 * $staysAt is given, the one that stays has a version of then too.
+	 *
+	 * @return array{0: File, 1: File, 2: int, 3: string}  the copy that
+	 *         stays, the one to go, its version's revision, and the hash
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	private function copies(
+		Folder $staysIn,
+		Folder $goneIn,
+		string $name,
+		?int   $staysAt = null,
+		?int   $goneAt = null,
+	): array
+	{
+		$salt    = bin2hex( random_bytes( 3 ) );
+		$content = "fcias dact $name $salt";
+
+		$stays = $staysIn->newFile( "$name-stays-$salt.txt", $staysAt === null ? $content : "old stays $name" );
+
+		if ( $staysAt !== null )
+		{
+			$this->kept( $stays, "old stays $name", $content, $staysAt );
+		}
+
+		$gone      = $goneIn->newFile( "$name-gone-$salt.txt", "old gone $name" );
+		$versionId = $this->kept( $gone, "old gone $name", $content, $goneAt ?? time() - 7200 );
+		$stays     = $this->refetched( $stays );
+		$gone      = $this->refetched( $gone );
+
+		$this->hashed( $stays, $content );
+		$this->hashed( $gone, $content );
+
+		return [ $stays, $gone, (int) Server::get( FilecacheService::class )->locate( $versionId )?->version?->timestamp, sha1( $content ) ];
 	}
 
 	/**
@@ -490,18 +607,18 @@ class DuplicateActionsTest
 	): array
 	{
 		$file      = $folder->newFile( $name, 'one ' . $name );
-		$versionId = $this->kept( $file, 'one ' . $name, 'two ' . $name, 7200 );
+		$versionId = $this->kept( $file, 'one ' . $name, 'two ' . $name, time() - 7200 );
 		$version   = Server::get( FilecacheService::class )->locate( $versionId );
 
 		return [ $this->refetched( $file ), $versionId, (int) $version?->version?->timestamp ];
 	}
 
 	/**
-	 * $file, holding $held, made $age seconds old and hashed as holding it,
-	 * then written over with $next: the id of the version the versions app
-	 * kept, which carries the checksum. Aged before the write, never after,
-	 * since a touch re-dates the version the file is; and each version
-	 * older than the next, as an edit history is.
+	 * $file, holding $held, dated $at and hashed as holding it, then written
+	 * over with $next: the id of the version the versions app kept, which
+	 * carries the checksum. Dated before the write, never after, since a
+	 * touch re-dates the version the file is; and each version older than
+	 * the next, as an edit history is.
 	 *
 	 * @noinspection PhpUnhandledExceptionInspection
 	 */
@@ -509,12 +626,12 @@ class DuplicateActionsTest
 		File   $file,
 		string $held,
 		string $next,
-		int    $age,
+		int    $at,
 	): int
 	{
 		$filecache = Server::get( FilecacheService::class );
 
-		$file->touch( time() - $age );
+		$file->touch( $at );
 		$file = $this->refetched( $file );
 		$this->hashed( $file, $held );
 		$mtime = $file->getMTime();

@@ -636,6 +636,9 @@ msgstr "De inhoud is gewijzigd nadat de lijst was geladen."
 msgid "Its versions cannot be deleted here."
 msgstr "De versies kunnen hier niet worden verwijderd."
 
+msgid "Its versions could not be merged, so it was not deleted."
+msgstr "De versies konden niet worden samengevoegd, dus het is niet verwijderd."
+
 msgid "Last updated"
 msgstr "Laatst bijgewerkt"
 
@@ -1115,6 +1118,9 @@ msgstr "De algoritmen die regels mogen berekenen en keuzelijsten mogen aanbieden
 
 msgid "The default must be one of the allowed algorithms."
 msgstr "De standaard moet een van de toegestane algoritmen zijn."
+
+msgid "The file chosen for the versions cannot take them."
+msgstr "Het bestand dat voor de versies is gekozen, kan ze niet opnemen."
 
 msgid "The files are queued to have their MIME type detected."
 msgstr "De bestanden staan in de wachtrij om hun MIME-type te laten herkennen."

@@ -50,9 +50,10 @@
 				<referencedClass name="OC\FilesMetadata\FilesMetadataManager" />
 				<!-- FilecacheService: the versions app's manager, which alone opens a team folder's version; DuplicateActionService: lists and deletes versions through it. Used only where the app is there. -->
 				<referencedClass name="OCA\Files_Versions\Versions\IVersionManager" />
-				<!-- DuplicateActionService: what the versions app's manager is where it deletes a version, and a version that carries a label. -->
+				<!-- DuplicateActionService: what the versions app's manager is where it deletes a version, a version that carries a label, and a backend that imports versions. -->
 				<referencedClass name="OCA\Files_Versions\Versions\IDeletableVersionBackend" />
 				<referencedClass name="OCA\Files_Versions\Versions\IMetadataVersion" />
+				<referencedClass name="OCA\Files_Versions\Versions\IVersionsImporterBackend" />
 				<!-- FilecacheService: the trash app's manager, which alone opens a team folder's trashed file; DuplicateActionService: removes trashed files and pauses the trash through it. Used only where the app is there. -->
 				<referencedClass name="OCA\Files_Trashbin\Trash\ITrashManager" />
 				<!-- FileListener: the versions app's event for a restored version, which only that app dispatches. -->
@@ -72,6 +73,7 @@
 				<!-- DuplicateActionService, DuplicateRow: a version and a trash item as those apps hand them back, held loosely typed since either app may be absent. -->
 				<referencedClass name="OCA\Files_Versions\Versions\IVersion" />
 				<referencedClass name="OCA\Files_Trashbin\Trash\ITrashItem" />
+				<referencedClass name="OCA\Files_Versions\Versions\IVersionsImporterBackend" />
 				<!-- The migrations: what ISchemaWrapper hands back. -->
 				<referencedClass name="Doctrine\DBAL\Schema\Table" />
 			</errorLevel>

@@ -911,9 +911,10 @@ class PublicApiController
 	 * trash, or for good with `forGood`; a version, a trashed file and a
 	 * version of one for good. The body is JSON,
 	 * `{ "fileIds": [ … ], "algo": "sha1", "hash": "…", "forGood": false,
-	 * "dryRun": true }`: each row must still hold that hash, and a dry run
-	 * acts on nothing. The answer is one result per row
-	 * ({@see DuplicateActionService::delete()}).
+	 * "dryRun": true, "mergeInto": 42 }`: each row must still hold that
+	 * hash, a dry run acts on nothing, and `mergeInto` names the file of the
+	 * group that takes the deleted files' versions. The answer is one
+	 * result per row ({@see DuplicateActionService::delete()}).
 	 *
 	 * @noinspection PhpUnused
 	 */
@@ -976,6 +977,9 @@ class PublicApiController
 						$hash,
 						( $body['forGood'] ?? false ) === true,
 						( $body['dryRun'] ?? false ) === true,
+						is_int( $body['mergeInto'] ?? null )
+							? $body['mergeInto']
+							: null,
 					),
 				],
 			);
