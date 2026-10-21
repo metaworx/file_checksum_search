@@ -30,6 +30,7 @@ use OCP\Files\NotFoundException;
 use OCP\IAppConfig;
 use OCP\IGroupManager;
 use OCP\IRequest;
+use OCP\IUser;
 use OCP\IUserSession;
 use OCP\Lockdown\ILockdownManager;
 use OCP\ISession;
@@ -921,6 +922,11 @@ class PublicApiController
 	 * group that takes the deleted files' versions. The answer is one
 	 * result per row ({@see DuplicateActionService::delete()}).
 	 *
+	 * Several groups at once, `{ "groups": [ { "algo", "hash", "fileIds",
+	 * "mergeInto" }, … ], "forGood", "dryRun" }`, at most 500 rows in all,
+	 * are answered `{ "groups": [ { "algo", "hash", "results" }, … ] }`
+	 * ({@see deletedGroups()}).
+	 *
 	 * @noinspection PhpUnused
 	 */
 	// No #[NoCSRFRequired], for the reason given on recalcHash().
@@ -943,6 +949,12 @@ class PublicApiController
 		$body    = is_array( $body )
 			? $body
 			: [];
+
+		if ( array_key_exists( 'groups', $body ) )
+		{
+			return $this->deletedGroups( $user, $body );
+		}
+
 		$fileIds = is_array( $body['fileIds'] ?? null )
 			? array_values( array_filter( $body['fileIds'], 'is_int' ) )
 			: [];
@@ -1014,6 +1026,10 @@ class PublicApiController
 	 * file. The row must still hold that hash. The answer is the row's
 	 * result ({@see DuplicateActionService::restore()}).
 	 *
+	 * Several rows at once, `{ "rows": [ { "fileId", "algo", "hash" }, … ],
+	 * "as" }`, at most 500, are answered `{ "results": [ … ] }`, in their
+	 * order ({@see restoredRows()}).
+	 *
 	 * @noinspection PhpUnused
 	 */
 	// No #[NoCSRFRequired], for the reason given on recalcHash().
@@ -1036,6 +1052,12 @@ class PublicApiController
 		$body   = is_array( $body )
 			? $body
 			: [];
+
+		if ( array_key_exists( 'rows', $body ) )
+		{
+			return $this->restoredRows( $user, $body );
+		}
+
 		$fileId = $body['fileId'] ?? null;
 		$as     = $body['as'] ?? null;
 		$algo   = is_string( $body['algo'] ?? null )
@@ -1082,6 +1104,221 @@ class PublicApiController
 				Http::STATUS_INTERNAL_SERVER_ERROR,
 			);
 		}
+	}
+
+	/**
+	 * Rows of several groups deleted together, each group as one alone.
+	 * The groups' shape and their rows' count are the request's: one wrong
+	 * refuses it whole, before anything is opened. A group's algorithm and
+	 * hash, and what befalls its rows, are its own: a group that names
+	 * none, or that fails, is answered on its rows, and the others go on.
+	 *
+	 * @param  array<array-key, mixed>  $body
+	 */
+	private function deletedGroups(
+		IUser $user,
+		array $body,
+	): DataResponse
+	{
+		$groups = is_array( $body['groups'] ) && array_is_list( $body['groups'] )
+			? $body['groups']
+			: [];
+		$parsed = [];
+		$rows   = 0;
+
+		foreach ( $groups as $group )
+		{
+			$fileIds = is_array( $group ) && is_array( $group['fileIds'] ?? null )
+				? array_values( array_filter( $group['fileIds'], 'is_int' ) )
+				: [];
+
+			if ( $fileIds === [] )
+			{
+				$parsed = [];
+				break;
+			}
+
+			$rows += count( $fileIds );
+			$parsed[] = [
+				'algo'      => is_string( $group['algo'] ?? null )
+					? strtolower( $group['algo'] )
+					: '',
+				'hash'      => is_string( $group['hash'] ?? null )
+					? strtolower( trim( $group['hash'] ) )
+					: '',
+				'fileIds'   => $fileIds,
+				'mergeInto' => is_int( $group['mergeInto'] ?? null )
+					? $group['mergeInto']
+					: null,
+			];
+		}
+
+		if ( $parsed === [] || $rows > DuplicateActionService::MAX_ROWS )
+		{
+			return new DataResponse(
+				// TRANSLATORS: groups and fileIds are parameter names; keep them
+				[ 'success' => false, 'error' => $this->l10n->t( 'groups must be a list of groups, each with its fileIds, of 1 to %s rows in all.', [ (string) DuplicateActionService::MAX_ROWS ] ) ],
+				Http::STATUS_BAD_REQUEST,
+			);
+		}
+
+		$forGood = ( $body['forGood'] ?? false ) === true;
+		$dryRun  = ( $body['dryRun'] ?? false ) === true;
+		$answer  = [];
+
+		foreach ( $parsed as $group )
+		{
+			$answer[] = [
+				'algo'    => $group['algo'],
+				'hash'    => $group['hash'],
+				'results' => $this->groupHeld( $group['algo'], $group['hash'], $group['fileIds'], 'deleteDuplicates' )
+				             ?? $this->answeredPerRow(
+					             $group['fileIds'],
+					             'deleteDuplicates',
+					             fn (): array => $this->duplicateActions->delete( $user, $group['fileIds'], $group['algo'], $group['hash'], $forGood, $dryRun, $group['mergeInto'] ),
+				             ),
+			];
+		}
+
+		return new DataResponse( [ 'groups' => $answer ] );
+	}
+
+	/**
+	 * Rows of any groups restored together, each as one alone, in their
+	 * order. Their shape and count are the request's, as with
+	 * {@see deletedGroups()}; a row's algorithm and hash, and what befalls
+	 * it, are its own.
+	 *
+	 * @param  array<array-key, mixed>  $body
+	 */
+	private function restoredRows(
+		IUser $user,
+		array $body,
+	): DataResponse
+	{
+		$as   = $body['as'] ?? null;
+		$rows = is_array( $body['rows'] ) && array_is_list( $body['rows'] )
+			? $body['rows']
+			: [];
+
+		$wellFormed = $rows !== []
+		              && count( $rows ) <= DuplicateActionService::MAX_ROWS
+		              && array_filter( $rows, static fn ( mixed $row ): bool => ! is_array( $row ) || ! is_int( $row['fileId'] ?? null ) ) === [];
+
+		if ( ! $wellFormed || ! in_array( $as, [ DuplicateActionService::AS_ORIGINAL, DuplicateActionService::AS_VERSION, DuplicateActionService::AS_FILE ], true ) )
+		{
+			return new DataResponse(
+				// TRANSLATORS: rows, fileId and as are parameter names, and original, version and file the values as takes; keep them
+				[ 'success' => false, 'error' => $this->l10n->t( 'rows must be a list of 1 to %s rows, each with its fileId, and as one of original, version and file.', [ (string) DuplicateActionService::MAX_ROWS ] ) ],
+				Http::STATUS_BAD_REQUEST,
+			);
+		}
+
+		$results = [];
+
+		foreach ( $rows as $row )
+		{
+			$fileId = (int) $row['fileId'];
+			$algo   = is_string( $row['algo'] ?? null )
+				? strtolower( $row['algo'] )
+				: '';
+			$hash   = is_string( $row['hash'] ?? null )
+				? strtolower( trim( $row['hash'] ) )
+				: '';
+
+			array_push(
+				$results,
+				...( $this->groupHeld( $algo, $hash, [ $fileId ], 'restoreDuplicate' )
+				     ?? $this->answeredPerRow(
+					     [ $fileId ],
+					     'restoreDuplicate',
+					     fn (): array => [ $this->duplicateActions->restore( $user, $fileId, $algo, $hash, (string) $as ) ],
+				     ) ),
+			);
+		}
+
+		return new DataResponse( [ 'results' => $results ] );
+	}
+
+	/**
+	 * Null where $algo names an algorithm and $hash a checksum, which the
+	 * rows are then held to; otherwise each row refused for it.
+	 *
+	 * @param  list<int>  $fileIds
+	 *
+	 * @return list<array{fileid: int, kind: null, status: string, reason: string}>|null
+	 */
+	private function groupHeld(
+		string $algo,
+		string $hash,
+		array  $fileIds,
+		string $route,
+	): ?array
+	{
+		if ( $this->catalogue->isValid( $algo ) && preg_match( '/^[0-9a-f]+$/', $hash ) === 1 )
+		{
+			return null;
+		}
+
+		$this->logger->debug( "FCIAS PublicApiController: $route refused a group without an algorithm or hash", [ 'app' => Application::APP_ID ] );
+
+		// TRANSLATORS: algo and hash are parameter names; keep them
+		return $this->eachRow( $fileIds, DuplicateActionService::STATUS_REFUSED, $this->l10n->t( 'algo must name an algorithm, and hash its checksum in hexadecimal.' ) );
+	}
+
+	/**
+	 * What $act answers, or, where it throws, each of $fileIds failed: one
+	 * group's failure is not the others'.
+	 *
+	 * @param  list<int>                              $fileIds
+	 * @param  callable(): list<array<string, mixed>>  $act
+	 *
+	 * @return list<array<string, mixed>>
+	 */
+	private function answeredPerRow(
+		array    $fileIds,
+		string   $route,
+		callable $act,
+	): array
+	{
+		try
+		{
+			return $act();
+		}
+		catch ( Throwable $e )
+		{
+			$this->logger->error(
+				"FCIAS PublicApiController: $route failed for a group",
+				[
+					'app'       => Application::APP_ID,
+					'exception' => $e,
+				],
+			);
+
+			return $this->eachRow( $fileIds, DuplicateActionService::STATUS_FAILED, $this->l10n->t( 'Internal server error.' ) );
+		}
+	}
+
+	/**
+	 * @param  list<int>  $fileIds
+	 *
+	 * @return list<array{fileid: int, kind: null, status: string, reason: string}>
+	 */
+	private function eachRow(
+		array  $fileIds,
+		string $status,
+		string $reason,
+	): array
+	{
+		return array_map(
+			static fn ( int $fileId ): array => [
+				'fileid' => $fileId,
+				'kind'   => null,
+				'status' => $status,
+				'reason' => $reason,
+			],
+			$fileIds,
+		);
 	}
 
 	/**

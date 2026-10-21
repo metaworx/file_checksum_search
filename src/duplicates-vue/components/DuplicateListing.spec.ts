@@ -26,10 +26,12 @@ vi.mock('../../features', () => ({
 
 const deleteRows = vi.fn()
 const restoreRow = vi.fn()
+const restoreRows = vi.fn()
 vi.mock('../duplicateActions', async (importOriginal) => ({
 	...await importOriginal<typeof import('../duplicateActions')>(),
 	deleteRows: (...args: unknown[]) => deleteRows(...args),
 	restoreRow: (...args: unknown[]) => restoreRow(...args),
+	restoreRows: (...args: unknown[]) => restoreRows(...args),
 }))
 
 const toastSuccess = vi.fn()
@@ -74,6 +76,7 @@ describe('DuplicateListing, acting on a row', () => {
 		vi.stubGlobal('fetch', fetchMock)
 		deleteRows.mockReset()
 		restoreRow.mockReset()
+		restoreRows.mockReset()
 		toastSuccess.mockReset()
 		toastError.mockReset()
 		toastUndo.mockReset()
@@ -105,12 +108,13 @@ describe('DuplicateListing, acting on a row', () => {
 		expect(toastUndo).toHaveBeenCalledWith('Moved 1 file to the trash.', expect.any(Function))
 	})
 
-	// Undo is a restore of what went, to its place.
+	// Undo is a restore of what went, to its place, all of it in one go:
+	// a row at a time would meet the rate limit past twenty.
 	it('takes a move to the trash back with Undo', async () => {
 		deleteRows
 			.mockResolvedValueOnce([{ fileid: 1, kind: 'file', status: 'ready', action: 'trash' }])
 			.mockResolvedValueOnce([{ fileid: 1, kind: 'file', status: 'trashed', action: 'trash' }])
-		restoreRow.mockResolvedValue({ fileid: 1, kind: 'trash', status: 'restored', restored: { fileid: 1, path: '/a.pdf' } })
+		restoreRows.mockResolvedValue([{ fileid: 1, kind: 'trash', status: 'restored', restored: { fileid: 1, path: '/a.pdf' } }])
 		const wrapper = await mounted()
 
 		await clickAction(wrapper.findAll('.db-file-item')[0], 'trash')
@@ -120,7 +124,9 @@ describe('DuplicateListing, acting on a row', () => {
 		toastUndo.mock.calls[0][1]()
 		await flushPromises()
 
-		expect(restoreRow.mock.calls[0].slice(1)).toEqual([1, 'original'])
+		expect(restoreRows.mock.calls[0]).toEqual([[{ group: expect.objectContaining({ hash_value: GROUP.hash_value }), fileId: 1 }], 'original'])
+		expect(restoreRow).not.toHaveBeenCalled()
+		expect(toastError).not.toHaveBeenCalled()
 	})
 
 	it('deletes permanently through its own confirmation', async () => {

@@ -1561,6 +1561,11 @@ msgstr "group:* is not a selector. Name one group, or use home:* for every accou
 msgid "groupfolder: takes the numeric folder ID."
 msgstr "groupfolder: takes the numeric folder ID."
 
+#. TRANSLATORS: groups and fileIds are parameter names; keep them
+#, php-format
+msgid "groups must be a list of groups, each with its fileIds, of 1 to %s rows in all."
+msgstr "groups must be a list of groups, each with its fileIds, of 1 to %s rows in all."
+
 #. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it only read the MIME type of, how many it only stamped as current, how many it emptied (a rule in "lazy" mode), how many it dropped from the queue unread because no rule wants them any more, how many were gone from their storage, and how many failed; the last number is files whose checksums an administrator had revoked, now cleared
 msgid "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after revocation {cleared}"
 msgstr "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after revocation {cleared}"
@@ -1624,6 +1629,11 @@ msgstr "repaired {repaired}, not finished yet"
 #. TRANSLATORS: keep "occ fcias:revoke" as it is: it is the command that revoked them
 msgid "revoked with occ fcias:revoke: already hidden from search, and pending deletion by the background job"
 msgstr "revoked with occ fcias:revoke: already hidden from search, and pending deletion by the background job"
+
+#. TRANSLATORS: rows, fileId and as are parameter names, and original, version and file the values as takes; keep them
+#, php-format
+msgid "rows must be a list of 1 to %s rows, each with its fileId, and as one of original, version and file."
+msgstr "rows must be a list of 1 to %s rows, each with its fileId, and as one of original, version and file."
 
 #. TRANSLATORS: scope is a parameter name, and "own" and "all" are its values; keep them
 msgid "scope must be \"own\" or \"all\"."

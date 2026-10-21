@@ -466,6 +466,116 @@ class PublicApiTest
 	}
 
 	/**
+	 * Several groups in one request, each answered as one alone: a group
+	 * that names no algorithm has its rows refused, and the others go on.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testDeletingSeveralGroupsAnswersEachOnItsOwn(): void
+	{
+		$response = $this->httpPost(
+			'/api/v1/duplicates/delete',
+			[
+				'groups' => [
+					[ 'algo' => 'sha1', 'hash' => $this->sharedSha1Hash, 'fileIds' => [ $this->testFileId1, $this->testFileId2 ] ],
+					[ 'algo' => 'nope', 'hash' => $this->sharedSha1Hash, 'fileIds' => [ $this->testFileId1 ] ],
+				],
+				'dryRun' => true,
+			],
+		);
+
+		$groups = $response['groups'] ?? [];
+
+		$this->assertCount( 2, $groups, (string) json_encode( $response ) );
+		$this->assertSame( [ 'sha1', $this->sharedSha1Hash ], [ $groups[0]['algo'], $groups[0]['hash'] ] );
+		$this->assertSame( [ 'ready', 'ready' ], array_column( $groups[0]['results'], 'status' ) );
+		$this->assertSame( [ 'refused' ], array_column( $groups[1]['results'], 'status' ) );
+		$this->assertNotNull(
+			Server::get( IRootFolder::class )->getUserFolder( self::$testUser )->getFirstNodeById( $this->testFileId2 ),
+			'a dry run',
+		);
+	}
+
+	/**
+	 * The shape and the count are the request's: groups without rows, or
+	 * more than 500 rows in all, refuse it whole.
+	 */
+	public function testDeletingSeveralGroupsRefusesAMalformedRequestWhole(): void
+	{
+		foreach (
+			[
+				[ 'groups' => [] ],
+				[ 'groups' => [ [ 'algo' => 'sha1', 'hash' => $this->sharedSha1Hash ] ] ],
+				[ 'groups' => [ [ 'algo' => 'sha1', 'hash' => $this->sharedSha1Hash, 'fileIds' => range( 1, 501 ) ] ] ],
+			] as $body
+		)
+		{
+			$response = $this->httpPost( '/api/v1/duplicates/delete', $body + [ 'dryRun' => true ] );
+
+			$this->assertFalse( $response['success'] ?? null, (string) json_encode( $body ) );
+			$this->assertArrayNotHasKey( 'groups', $response );
+		}
+	}
+
+	/**
+	 * Copies moved to the trash come back in one request, each answered.
+	 *
+	 * @noinspection PhpUnhandledExceptionInspection
+	 */
+	public function testRestoringSeveralRowsBringsThemBack(): void
+	{
+		$userFolder = Server::get( IRootFolder::class )
+		                    ->getUserFolder( self::$testUser )
+		;
+		$paths      = array_map( fn ( int $fileId ): ?string => $userFolder->getFirstNodeById( $fileId )?->getPath(), [ $this->testFileId1, $this->testFileId2 ] );
+
+		$this->httpPost(
+			'/api/v1/duplicates/delete',
+			[ 'groups' => [ [ 'algo' => 'sha1', 'hash' => $this->sharedSha1Hash, 'fileIds' => [ $this->testFileId1, $this->testFileId2 ] ] ] ],
+		);
+		$this->assertNull( $userFolder->getFirstNodeById( $this->testFileId1 ), 'in the trash' );
+
+		$response = $this->httpPost(
+			'/api/v1/duplicates/restore',
+			[
+				'rows' => [
+					[ 'fileId' => $this->testFileId1, 'algo' => 'sha1', 'hash' => $this->sharedSha1Hash ],
+					[ 'fileId' => $this->testFileId2, 'algo' => 'sha1', 'hash' => $this->sharedSha1Hash ],
+					[ 'fileId' => $this->testFileId2, 'algo' => 'nope', 'hash' => $this->sharedSha1Hash ],
+				],
+				'as'   => 'original',
+			],
+		);
+
+		$this->assertSame( [ 'restored', 'restored', 'refused' ], array_column( $response['results'] ?? [], 'status' ), (string) json_encode( $response ) );
+		$this->assertSame( $paths, array_map( fn ( int $fileId ): ?string => $userFolder->getFirstNodeById( $fileId )?->getPath(), [ $this->testFileId1, $this->testFileId2 ] ) );
+	}
+
+	/**
+	 * Rows without a file id, more than 500, or no way to restore them,
+	 * refuse the request whole.
+	 */
+	public function testRestoringSeveralRowsRefusesAMalformedRequestWhole(): void
+	{
+		$row = [ 'fileId' => $this->testFileId1, 'algo' => 'sha1', 'hash' => $this->sharedSha1Hash ];
+
+		foreach (
+			[
+				[ 'rows' => [], 'as' => 'original' ],
+				[ 'rows' => [ [ 'algo' => 'sha1', 'hash' => $this->sharedSha1Hash ] ], 'as' => 'original' ],
+				[ 'rows' => array_fill( 0, 501, $row ), 'as' => 'original' ],
+				[ 'rows' => [ $row ], 'as' => 'elsewhere' ],
+			] as $body
+		)
+		{
+			$response = $this->httpPost( '/api/v1/duplicates/restore', $body );
+
+			$this->assertFalse( $response['success'] ?? null, (string) json_encode( $body['as'] ) );
+			$this->assertArrayNotHasKey( 'results', $response );
+		}
+	}
+
+	/**
 	 * A body without rows, or without an algorithm and a hash to hold them
 	 * to, is refused before anything is opened.
 	 */

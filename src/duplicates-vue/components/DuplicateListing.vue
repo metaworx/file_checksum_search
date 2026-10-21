@@ -21,7 +21,7 @@ import HelpPopover from '../../components/HelpPopover.vue'
 import DeleteDialog from './DeleteDialog.vue'
 import DuplicateGroup from './DuplicateGroup.vue'
 import { useDuplicates, type DuplicateScope, type DuplicateGroup as GroupType } from '../composables/useDuplicates'
-import { deleteRows, restoreRow, type RestoreAs, type RowAction, type RowResult } from '../duplicateActions'
+import { deleteRows, restoreRow, restoreRows, type RestoreAs, type RowAction, type RowResult } from '../duplicateActions'
 import { sameParams, type ListingParams } from '../urlState'
 import { MAX_PATTERN_LENGTH } from '../pathPattern'
 import { type AlgoOption } from '../../algorithms'
@@ -445,15 +445,18 @@ function reportDeleted(group: GroupType, results: RowResult[]): void {
 	}
 }
 
-/** The Undo of a move to the trash: each file restored to its place. */
+/**
+ * The Undo of a move to the trash: each file restored to its place, 500 a
+ * request, so a large Undo is not stopped by the rate limit a row at a time
+ * would reach. One message per reason, not one per row.
+ */
 async function undoTrash(group: GroupType, fileIds: number[]): Promise<void> {
 	acting.value = true
 	try {
-		for (const fileId of fileIds) {
-			const result = await restoreRow(group, fileId, 'original')
-			if (result.status !== 'restored') {
-				toastError(result.reason ?? NETWORK_ERROR)
-			}
+		const results = await restoreRows(fileIds.map((fileId) => ({ group, fileId })), 'original')
+		const reasons = new Set(results.filter((result) => result.status !== 'restored').map((result) => result.reason ?? NETWORK_ERROR))
+		for (const reason of reasons) {
+			toastError(reason)
 		}
 	} catch {
 		toastError(NETWORK_ERROR)

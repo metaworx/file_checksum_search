@@ -1561,6 +1561,11 @@ msgstr "group:* ist kein Selektor. Nennen Sie eine einzelne Gruppe oder verwende
 msgid "groupfolder: takes the numeric folder ID."
 msgstr "groupfolder: erwartet die numerische Ordner-ID."
 
+#. TRANSLATORS: groups and fileIds are parameter names; keep them
+#, php-format
+msgid "groups must be a list of groups, each with its fileIds, of 1 to %s rows in all."
+msgstr "groups muss eine Liste von Gruppen mit je ihren fileIds sein, insgesamt 1 bis %s Zeilen."
+
 #. TRANSLATORS: a background job's last run: of the queued files it took, how many it hashed, how many it only read the MIME type of, how many it only stamped as current, how many it emptied (a rule in "lazy" mode), how many it dropped from the queue unread because no rule wants them any more, how many were gone from their storage, and how many failed; the last number is files whose checksums an administrator had revoked, now cleared
 msgid "hashed {hashed} of {total}, type read {typed}, stamped {stamped}, emptied {emptied}, dropped {dropped}, gone {gone}, failed {failed}, cleared after revocation {cleared}"
 msgstr "Prüfsummen berechnet für {hashed} von {total}, nur MIME-Typ gelesen {typed}, mit Zeitstempel versehen {stamped}, geleert {emptied}, aus der Warteschlange entfernt {dropped}, verschwunden {gone}, fehlgeschlagen {failed}, nach dem Widerruf bereinigt {cleared}"
@@ -1624,6 +1629,11 @@ msgstr "repariert {repaired}, noch nicht abgeschlossen"
 #. TRANSLATORS: keep "occ fcias:revoke" as it is: it is the command that revoked them
 msgid "revoked with occ fcias:revoke: already hidden from search, and pending deletion by the background job"
 msgstr "mit occ fcias:revoke widerrufen: bereits aus der Suche ausgeblendet und zur Löschung durch die Hintergrundaufgabe vorgemerkt"
+
+#. TRANSLATORS: rows, fileId and as are parameter names, and original, version and file the values as takes; keep them
+#, php-format
+msgid "rows must be a list of 1 to %s rows, each with its fileId, and as one of original, version and file."
+msgstr "rows muss eine Liste von 1 bis %s Zeilen mit je ihrer fileId sein und as einer der Werte original, version und file."
 
 #. TRANSLATORS: scope is a parameter name, and "own" and "all" are its values; keep them
 msgid "scope must be \"own\" or \"all\"."

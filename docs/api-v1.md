@@ -1139,8 +1139,8 @@ so no `{"ocs": {"meta": …, "data": …}}` envelope wraps the body.
 | 25 | `/api/v1/hashes/missing` | GET | `listMissing` | The files the caller holds without a hash, page by page; with 23 under `stat`, every file |
 | 26 | `/api/v1/sudo/hashes/missing` | GET | `listMissing` | As 25, across the accounts `users[]`/`groups[]` name or the caller's whole reach |
 | 27 | `/api/v1/features` | GET | `getFeatures` | What any account may ask for: the version, the features, the algorithms |
-| 28 | `/api/v1/duplicates/delete` | POST | — | Delete rows of one duplicate group, the caller's own: a file to the trash or for good, any other row for good; a dry run says what would happen |
-| 29 | `/api/v1/duplicates/restore` | POST | — | Restore one row of a duplicate group: a trashed file to its place, a trashed version into the file there, any version as a new file |
+| 28 | `/api/v1/duplicates/delete` | POST | — | Delete rows of one duplicate group, or of several, the caller's own: a file to the trash or for good, any other row for good; a dry run says what would happen |
+| 29 | `/api/v1/duplicates/restore` | POST | — | Restore one row of a duplicate group, or several: a trashed file to its place, a trashed version into the file there, any version as a new file |
 
 > **Note:**
 > `getHashesByFile()` and `getHashesByPath()` are PHP-only convenience methods
@@ -1925,6 +1925,28 @@ a named one with its `label`, and `merge` where `mergeInto` was given.
 
 A body without rows, or without an algorithm and a hash, is a `400`.
 
+**Several groups at once** take `groups` in place of `fileIds`, `algo`, `hash`
+and `mergeInto`, each group with its own, `forGood` and `dryRun` beside them:
+
+```json
+{
+  "groups": [
+    {"algo": "sha1", "hash": "aaf4c6…", "fileIds": [200, 300], "mergeInto": 100},
+    {"algo": "md5", "hash": "5d41402a…", "fileIds": [400]}
+  ],
+  "forGood": false,
+  "dryRun": true
+}
+```
+
+The answer is `{"groups": [{"algo", "hash", "results"}, …]}`,
+in the order asked, each group's `results` as above.
+Each group is deleted as one alone would be, after the one before it.
+A group without an algorithm or a hash has each of its rows `refused`,
+and one that fails has each `failed`; the other groups go on.
+Groups without `fileIds`, or more than 500 rows in all, are a `400`.
+The rate limit counts requests, so one of 500 rows is one of the 20 a minute.
+
 #### 14. Restore a Duplicate
 
 ```
@@ -1970,6 +1992,14 @@ A version restored stays where it was, as a copy does.
 the file itself, the file the version went into, or the new file.
 
 A body without a `fileId`, or with an `as` other than these three, is a `400`.
+
+**Several rows at once** take `rows` in place of `fileId`, `algo` and `hash`,
+`[{"fileId": 200, "algo": "sha1", "hash": "…"}, …]`, at most 500,
+of one group or of many, all restored the way `as` says.
+The answer is `{"results": [ … ]}`, one result per row in the order asked;
+a row without an algorithm or a hash is `refused`, and the others go on.
+Rows without a `fileId`, more than 500, or an `as` other than the three,
+are a `400`.
 
 ---
 

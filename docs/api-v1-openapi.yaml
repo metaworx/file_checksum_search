@@ -367,7 +367,7 @@ paths:
   /api/v1/duplicates/delete:
     post:
       tags: [Duplicates]
-      summary: Delete rows of one duplicate group
+      summary: Delete rows of one duplicate group, or of several
       description: >-
         The caller's own rows of one group, each by its own file id: a file to the trash, or for
         good with `forGood`, its versions going with it; a version, a file in the trash and a
@@ -377,22 +377,28 @@ paths:
         file's earlier versions are first imported into that file of the group, which stays; a
         version of a second it already has is skipped, and where the import fails a file to be
         deleted for good is refused. A dry run acts on nothing and says what would happen.
+        With `groups`, several groups at once, at most 500 rows in all, each as one alone; a group
+        without an algorithm or a hash has its rows refused, and the others go on.
       operationId: deleteDuplicates
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/DeleteDuplicatesInput"
+              oneOf:
+                - $ref: "#/components/schemas/DeleteDuplicatesInput"
+                - $ref: "#/components/schemas/DeleteDuplicateGroupsInput"
       responses:
         "200":
-          description: One result per row, in the order they were acted on
+          description: One result per row, in the order they were acted on; with `groups`, per group
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DeleteDuplicatesResponse"
+                oneOf:
+                  - $ref: "#/components/schemas/DeleteDuplicatesResponse"
+                  - $ref: "#/components/schemas/DeleteDuplicateGroupsResponse"
         "400":
-          description: "`fileIds` missing, empty or over 500, or `algo` and `hash` not an algorithm and a hexadecimal checksum"
+          description: "`fileIds` missing, empty or over 500, or `algo` and `hash` not an algorithm and a hexadecimal checksum; with `groups`, a group without `fileIds`, or over 500 rows in all"
           content:
             application/json:
               schema:
@@ -407,30 +413,35 @@ paths:
   /api/v1/duplicates/restore:
     post:
       tags: [Duplicates]
-      summary: Restore one row of a duplicate group
+      summary: Restore one row of a duplicate group, or several
       description: >-
         `original`: a file in the trash back at its place, the folders it was in made again, and
         moved there where the trash put it elsewhere. `version`: a version of a trashed file
         imported into the file now at that file's place. `file`: any version's content as a new
         file beside its file, or at its trashed file's place, named after the file and the
         version's time. A name taken is made unique; a version restored stays where it was. The
-        row must still hold `hash` under `algo`.
+        row must still hold `hash` under `algo`. With `rows`, up to 500 rows of any groups, each
+        as one alone; a row without an algorithm or a hash is refused, and the others go on.
       operationId: restoreDuplicate
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/RestoreDuplicateInput"
+              oneOf:
+                - $ref: "#/components/schemas/RestoreDuplicateInput"
+                - $ref: "#/components/schemas/RestoreDuplicateRowsInput"
       responses:
         "200":
-          description: The row's result
+          description: The row's result; with `rows`, one per row in their order
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RestoreDuplicateResponse"
+                oneOf:
+                  - $ref: "#/components/schemas/RestoreDuplicateResponse"
+                  - $ref: "#/components/schemas/RestoreDuplicateRowsResponse"
         "400":
-          description: "`fileId` missing, `as` not one of the three, or `algo` and `hash` not an algorithm and a hexadecimal checksum"
+          description: "`fileId` missing, `as` not one of the three, or `algo` and `hash` not an algorithm and a hexadecimal checksum; with `rows`, a row without `fileId`, or over 500"
           content:
             application/json:
               schema:
@@ -2063,7 +2074,7 @@ components:
           type: string
           nullable: true
           enum: [file, version, trash, trashedVersion]
-          description: Null for a row that could not be found.
+          description: Null for a row that could not be found, or that was not looked for, its group naming no algorithm or failing.
         status:
           type: string
           enum: [ready, trashed, deleted, refused, failed, restored]
@@ -2154,6 +2165,89 @@ components:
       properties:
         result:
           $ref: "#/components/schemas/DuplicateRowResult"
+
+    DeleteDuplicateGroupsInput:
+      type: object
+      required: [groups]
+      properties:
+        groups:
+          type: array
+          minItems: 1
+          description: At most 500 rows in all
+          items:
+            type: object
+            required: [algo, hash, fileIds]
+            properties:
+              algo:
+                type: string
+                example: sha1
+              hash:
+                type: string
+                example: "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d"
+              fileIds:
+                type: array
+                minItems: 1
+                items:
+                  type: integer
+              mergeInto:
+                type: integer
+                description: The file of this group that takes its deleted files' versions
+        forGood:
+          type: boolean
+          default: false
+        dryRun:
+          type: boolean
+          default: false
+
+    DeleteDuplicateGroupsResponse:
+      type: object
+      required: [groups]
+      properties:
+        groups:
+          type: array
+          items:
+            type: object
+            required: [algo, hash, results]
+            properties:
+              algo:
+                type: string
+              hash:
+                type: string
+              results:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DuplicateRowResult"
+
+    RestoreDuplicateRowsInput:
+      type: object
+      required: [rows, as]
+      properties:
+        rows:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: object
+            required: [fileId, algo, hash]
+            properties:
+              fileId:
+                type: integer
+              algo:
+                type: string
+              hash:
+                type: string
+        as:
+          type: string
+          enum: [original, version, file]
+
+    RestoreDuplicateRowsResponse:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/DuplicateRowResult"
 
     Pagination:
       type: object

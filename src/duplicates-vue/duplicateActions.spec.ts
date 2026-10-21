@@ -4,7 +4,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { deleteRows, restoreRow } from './duplicateActions'
+import { deleteGroups, deleteRows, inRequests, restoreRow, restoreRows } from './duplicateActions'
 
 vi.mock('@nextcloud/router', async (importOriginal) => ({
 	...await importOriginal<typeof import('@nextcloud/router')>(),
@@ -74,5 +74,51 @@ describe('duplicateActions', () => {
 
 		await expect(deleteRows(GROUP, [7], { forGood: false, dryRun: true })).rejects.toThrow('HTTP 429')
 		await expect(restoreRow(GROUP, 7, 'file')).rejects.toThrow('HTTP 429')
+	})
+
+	// The server takes 500 rows a request: more go in more, a group of
+	// more split across them in its order, with its versions' target.
+	it('splits groups into requests of at most 500 rows', () => {
+		const other = { algo: 'md5', hash_value: 'abc' }
+		const requests = inRequests([
+			{ ...GROUP, fileIds: [1, 2, 3], mergeInto: 9 },
+			{ ...other, fileIds: [4, 5] },
+		], 4)
+
+		expect(requests).toEqual([
+			[{ ...GROUP, fileIds: [1, 2, 3], mergeInto: 9 }, { ...other, fileIds: [4] }],
+			[{ ...other, fileIds: [5] }],
+		])
+		expect(inRequests([])).toEqual([])
+	})
+
+	it('deletes several groups at once, and gathers the answers per group', async () => {
+		const many = Array.from({ length: 501 }, (_, index) => index + 1)
+		fetchMock.mockImplementation((_url, options: RequestInit) => {
+			const body = JSON.parse(String(options.body)) as { groups: Array<{ algo: string, hash: string, fileIds: number[] }> }
+			return Promise.resolve(jsonResponse({
+				groups: body.groups.map((group) => ({
+					algo: group.algo,
+					hash: group.hash,
+					results: group.fileIds.map((fileid) => ({ fileid, kind: 'file', status: 'ready', action: 'trash' })),
+				})),
+			}))
+		})
+
+		const answered = await deleteGroups([{ ...GROUP, fileIds: many, mergeInto: 900 }], { forGood: false, dryRun: true })
+
+		expect(fetchMock).toHaveBeenCalledTimes(2)
+		expect(sent(fetchMock)).toEqual({ groups: [{ algo: 'sha1', hash: GROUP.hash_value, fileIds: [501], mergeInto: 900 }], forGood: false, dryRun: true })
+		expect(answered).toHaveLength(1)
+		expect(answered[0].results).toHaveLength(501)
+	})
+
+	it('restores rows of any groups, 500 a request', async () => {
+		fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({ results: [{ fileid: 7, kind: 'trash', status: 'restored' }] })))
+
+		const results = await restoreRows([{ group: GROUP, fileId: 7 }], 'original')
+
+		expect(results).toHaveLength(1)
+		expect(sent(fetchMock)).toEqual({ rows: [{ fileId: 7, algo: 'sha1', hash: GROUP.hash_value }], as: 'original' })
 	})
 })

@@ -16,13 +16,13 @@ the first stable release.
 - `GET /api/v1/duplicates`: each file carries `mtime` and `size`, and
   the Duplicates page shows them, with one preview per group.
 
-- `POST /api/v1/duplicates/delete`: a duplicate group's rows deleted, to
-  the trash or for good, their versions merged into a file that stays;
-  `actions=1` on the listing says what each row allows.
+- `POST /api/v1/duplicates/delete`: rows of one duplicate group, or of
+  several, to the trash or for good, their versions merged into a file
+  that stays; `actions=1` on the listing says what each row allows.
 
-- `POST /api/v1/duplicates/restore`: a trashed duplicate back at its
-  place, a trashed version into the file there, or any version as a new
-  file.
+- `POST /api/v1/duplicates/restore`: trashed duplicates back at their
+  place, one or several, a trashed version into the file there, or any
+  version as a new file.
 
 - Duplicates page, *Mine*: rows deleted one by one or chosen in a
   group, to the trash or for good, their versions kept in a copy that
